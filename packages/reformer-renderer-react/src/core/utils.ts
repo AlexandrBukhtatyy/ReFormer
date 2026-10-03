@@ -4,7 +4,7 @@
  * @module reformer/renderer-react/utils
  */
 
-import { Signal } from '@reformer/core/signals';
+import { isValueSignal } from '@reformer/core';
 import type {
   RenderNode,
   ContainerRenderNode,
@@ -13,11 +13,12 @@ import type {
 } from './types';
 
 /**
- * Type guard для {@link ModelFieldRenderNode} (M1): лист, привязанный к сигналу модели.
+ * Type guard для {@link ModelFieldRenderNode} (M1): поле, привязанное к ручке значения модели —
+ * листу либо массиву целиком (`model.$.<массив>`: мультивыбор, теги, список файлов).
  * Проверяется ПЕРВЫМ — такой узел несёт реальный `component`, иначе спутается с контейнером.
  *
  * @param node - Узел {@link RenderNode}
- * @returns `true`, если узел — поле-лист (`value instanceof Signal`)
+ * @returns `true`, если узел — поле (`value` — ручка значения, см. `isValueSignal` ядра)
  *
  * @example Сужение к полю
  * ```typescript
@@ -28,7 +29,7 @@ import type {
  * ```
  */
 export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFieldRenderNode {
-  return (node as ModelFieldRenderNode).value instanceof Signal;
+  return isValueSignal((node as ModelFieldRenderNode).value);
 }
 
 /**

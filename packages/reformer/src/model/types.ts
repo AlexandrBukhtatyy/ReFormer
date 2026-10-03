@@ -150,12 +150,23 @@ export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>
 
 /**
  * Узел-массив дерева `model.$`: индексируемый доступ к под-сигналам элементов, реактивная `length`
- * и {@link ReadonlySignal} значения массива целиком (реагирует и на правку элемента, и на изменение
- * состава — push/removeAt/move).
+ * и сигнал значения массива целиком (реагирует и на правку элемента, и на изменение состава —
+ * push/removeAt/move).
+ *
+ * В отличие от группы, узел ЗАПИСЫВАЕМ: `model.$.tags.value = ['a']` заменяет массив целиком. Это
+ * делает его {@link PathAwareSignal} — к нему привязывают поле (`{ value: model.$.tags, component }`),
+ * правило (`validate(model.$.tags, …)`) и поведение, как к листу. Так массив служит ОДНИМ значением
+ * поля: мультивыбор, теги, список файлов.
+ *
+ * `V` — объявленный тип поля, включая `null`/`undefined`: поле `string[] | null` с начальным `null`
+ * в рантайме — лист с тем же `.value`/`peek`/`subscribe`, поэтому общая часть честна для обоих
+ * случаев. `length` и индексы есть только у настоящего узла-массива (начальное значение — массив).
  *
  * @group Model
  */
-export type ModelArraySignals<U, V> = ContainerSignal<V, 'length'> & {
+export type ModelArraySignals<U, V> = Signal<V> & {
+  /** Путь массива в модели (dot-нотация). */
+  readonly __path: string;
   readonly length: number;
   readonly [index: number]: ModelSignalNode<U>;
 };
@@ -169,7 +180,7 @@ export type ModelArraySignals<U, V> = ContainerSignal<V, 'length'> & {
  */
 type ModelSignalNode<V> =
   NonNullable<V> extends ReadonlyArray<infer U>
-    ? ModelArraySignals<U, NonNullable<V>>
+    ? ModelArraySignals<U, V>
     : NonNullable<V> extends Opaque
       ? PathAwareSignal<V>
       : NonNullable<V> extends object
@@ -209,7 +220,10 @@ export interface ModelApi<T> {
   reset(): void;
   /** Зафиксировать текущие значения как новый initial-снимок («точка отсчёта»). */
   captureInitial(): void;
-  /** Резолв строкового пути в сигнал (для error-routing/мостов). */
+  /**
+   * Резолв строкового пути в сигнал (для error-routing/мостов): лист либо массив целиком
+   * (ручка значения массива — см. {@link ModelArraySignals}). Для пути группы — `undefined`.
+   */
   signalAt(path: string): PathAwareSignal<unknown> | undefined;
 }
 

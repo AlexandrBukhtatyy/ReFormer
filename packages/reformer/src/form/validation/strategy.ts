@@ -5,7 +5,7 @@
  * не дублируется: {@link validateModel} уже разносит ошибки по нодам, гасит валидные диффом, отменяет
  * устаревший прогон (`AbortController`) и дедуплицирует по идентичности `(model, schema)`. Реактивные
  * триггеры (`change`/`blur`) строятся тем же паттерном, что `revalidateWhen`: один `effect`, подписка на
- * листья модели через {@link eachLeafSignal} (без ручного перечисления зависимостей).
+ * ручки значений модели через {@link eachValueSignal} (без ручного перечисления зависимостей).
  *
  * Слой A (функциональная схema) остаётся источником истины; node-level валидаторы Слоя B (`updateOn`)
  * НЕ задействуются — не смешивайте их с активной schema-стратегией на одних и тех же полях (оба пишут
@@ -17,7 +17,7 @@
 import { effect, signal, type ReadonlySignal } from '@preact/signals-core';
 import {
   getNodeForSignal,
-  eachLeafSignal,
+  eachValueSignal,
   type FormModel,
   type PathAwareSignal,
 } from '../../index';
@@ -129,7 +129,9 @@ export function createFormValidation<T>(
   ): (() => void) => {
     let initial = true;
     return effect(() => {
-      eachLeafSignal(model, subscribe); // change: sig.value | blur: node.touched.value → подписка
+      // Листья И массивы целиком: поле-мультивыбор живёт на сигнале массива, и его `touched`
+      // иначе не попал бы в подписку стратегии `blur`.
+      eachValueSignal(model, subscribe); // change: sig.value | blur: node.touched.value → подписка
       if (initial) {
         initial = false;
         return;

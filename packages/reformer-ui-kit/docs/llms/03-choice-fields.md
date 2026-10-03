@@ -428,18 +428,24 @@ value: string[] | null;
 onChange: (value: string[] | null) => void;
 ```
 
-**Пустой выбор — всегда `null`, никогда `[]`.** Это не стиль, а требование модели: `createModel`
-превращает массив в `ArrayNode`, `createForm` такой путь пропускает, и поля не оказывается вовсе.
-Симптомы разные и все обманчивые — `FormField` падает с `TypeError`, а renderer тихо рисует
-контейнер с подписью и опциями, но без `value`/`onChange`.
+Это контракт **контрола**. Поле модели под него — обычный массив:
 
 ```typescript
-// ✅ начальное значение поля мультивыбора
-const model = createModel({ tags: null as string[] | null });
+// ✅ поле мультивыбора: массив, пустой выбор — []
+const model = createModel({ tags: [] as string[] });
 
-// ❌ поле исчезнет: [] → ArrayNode, а не лист-сигнал
-const model = createModel({ tags: [] });
+// ✅ тоже работает: nullable-поле, пустой выбор — null
+const model = createModel({ tags: null as string[] | null });
 ```
+
+Массив в модели бывает двух видов, и решает это **схема**, а не данные: узел
+`{ value: model.$.tags, component }` делает его ОДНИМ значением поля (мультивыбор, теги, файлы),
+узел `{ array: model.items, item }` — набором под-форм. Массив, к которому в схеме ничего не
+привязано, в форму не попадает.
+
+Что хранит модель на пустом выборе, зависит от начального значения: поле с `[]` хранит `[]`
+(контрол отдаёт `null`, узел-массив приводит его к `[]`), поле с `null` — `null`. Выбирайте
+первое, если нет причины различать «не выбирали» и «выбрали ничего».
 
 ### Использование в схеме
 
@@ -451,8 +457,8 @@ import { required, maxLength } from '@reformer/core/validators';
 
 const schema = {
   tags: {
-    // Для поля типа T[] `model.$.tags` — НЕ сигнал (ModelArraySignals), нужен signalAt.
-    value: model.signalAt('tags')!,
+    // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
+    value: model.$.tags,
     component: ToggleGroupMulti,
     componentProps: {
       label: 'Теги',
@@ -467,21 +473,26 @@ const schema = {
 
 // Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
 const validation = defineValidationSchema<Form>(({ model }) => {
-  validate(model.signalAt('tags')!, [required(), maxLength(3)]);
+  validate(model.$.tags, [required(), maxLength(3)]);
 });
 ```
 
 ### Common Patterns
 
-- **Обязательность** — только `required()`. `minLength(1)` НЕ сработает: он делает ранний
-  `return null` на `null`, а пустой выбор приходит именно как `null`.
-- **Ограничение количества** — `maxLength(n)` / `minLength(n)` (оба читают `value.length` и
-  работают на массиве без правок ядра). Проп `maxItems` у контрола — это **подсказка интерфейса**
-  (гасит невыбранные пункты), а не правило формы; авторитетное ограничение задаёт валидатор.
-- **Префилл выбранного** — только ПОСЛЕ сборки формы, в `setup`, и через сигнал:
-  `model.signalAt('tags')!.value = ['ru']`. В `seed` (до `createForm`) массив снова превратит поле
-  в `ArrayNode`. После префилла нужен `model.captureInitial()` — иначе форма считает себя
-  изменённой сразу после загрузки, а `form.tags.reset()` сотрёт префилл в `null`.
+- **Обязательность** — `required()`: отклоняет и `[]`, и `null`. `minLength(1)` годится только
+  для поля-массива: на `null` он делает ранний `return null` и пропускает пустой выбор.
+- **Ограничение количества** — `maxLength(n)` / `minLength(n)` (оба читают `value.length`). Проп
+  `maxItems` у контрола — это **подсказка интерфейса** (гасит невыбранные пункты), а не правило
+  формы; авторитетное ограничение задаёт валидатор.
+- **Префилл выбранного** — где удобно: начальным значением (`createModel({ tags: ['ru'] })`),
+  `model.patch({ tags: ['ru'] })` до или после `createForm`, либо записью
+  `model.$.tags.value = ['ru']`. Если префилл пришёл ПОСЛЕ сборки формы, нужен
+  `model.captureInitial()` — иначе модель считает себя изменённой сразу после загрузки.
+  `form.tags.reset()` при этом всё равно вернёт значение, с которым форма собиралась, поэтому
+  данные с сервера надёжнее класть в модель ДО `createForm`.
+- **Запись значения** — заменой массива: `model.$.tags.value = [...]` или `form.tags.setValue([...])`.
+  У поля-массива работают и точечные `model.tags.push(x)` / `removeAt(i)` — это тот же массив;
+  у nullable-поля `model.tags` — сырое значение, и мутация на месте формой не замечается.
 - **Лейблы выбранного вне текущей страницы** (`SelectMulti` + `resource`) — проп
   `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
   пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
@@ -492,7 +503,10 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 
 ### Anti-patterns
 
-- Начальное значение `[]` вместо `null` — поле молча исчезает (см. выше).
+- `value: model.tags` вместо `value: model.$.tags` — value-фасад массива не ручка значения, узел
+  не распознаётся как поле (в dev-режиме `createForm` об этом предупреждает).
+- Привязка через `model.signalAt('tags')!` — рабочая, но лишняя: `model.$.tags` типизирован и не
+  требует `!`.
 - Мутация массива на месте: `arr.push(x); onChange(arr)` — preact-сигнал бэйлится по `!==`, UI не
   обновится, но поле уже станет `dirty`, и валидация прогонится по старому значению. `onChange`
   обязан отдавать **новый** массив.
@@ -540,12 +554,12 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 - **`selectable` по умолчанию `'leaf'`** — в отличие от самого `Tree`, где умолчание `'all'`.
   Щелчок по каталогу раскрывает его, а не выбирает; выбрать можно только лист. `'all'` ставят
   там, где значением бывает и ветка (раздел каталога).
-- **Пустой выбор мульти — `null`, никогда `[]`** (тот же контракт и та же причина, что у
-  остальных мультивыборов, см. «Единый контракт значения» выше). Компонент при этом видит
-  массив: `multiValueAdapter` разворачивает `null` в `[]` на входе и сворачивает пустой выбор
-  обратно в `null` на выходе.
-- **Обязательность — только `required()`.** `minLength(1)` на пустом выборе делает ранний
-  `return null` и пропускает его.
+- **Поле мульти — массив** (`string[]` с начальным `[]`), как у остальных мультивыборов, см.
+  «Единый контракт значения» выше. Компонент всегда видит массив: `multiValueAdapter`
+  разворачивает `null` в `[]` на входе и сворачивает пустой выбор в `null` на выходе, а
+  поле-массив хранит его как `[]`.
+- **Обязательность — `required()`**: отклоняет и `[]`, и `null`. `minLength(1)` на `null` делает
+  ранний `return null` и пропускает пустой выбор nullable-поля.
 - **Одиночный закрывает поповер по выбору**, мульти — **нет**: набор файлов собирают одним
   заходом, и поиск между выборами тоже не сбрасывается. `onBlur` у обоих эмитится на закрытии
   поповера, а не на каждом выборе.
@@ -608,20 +622,20 @@ const form = createForm<{ entry: string | null }>({ model, schema });
 <FormField control={form.entry} testId="entry" />;
 ```
 
-Набор файлов из ленивого источника — значение поля `string[] | null`, поэтому сигнал берётся
-через `signalAt`, а правила живут в отдельной validation-схеме:
+Набор файлов из ленивого источника — поле-массив `string[]`; правила живут в отдельной
+validation-схеме:
 
 ```typescript
 import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
-type Form = { attachments: string[] | null };
+type Form = { attachments: string[] };
 
-const model = createModel<Form>({ attachments: null }); // не [] — иначе поля не будет
+const model = createModel<Form>({ attachments: [] });
 const schema = {
   attachments: {
-    value: model.signalAt('attachments')!,
+    value: model.$.attachments,
     component: ComboboxTreeMulti,
     componentProps: {
       label: 'Файлы заявки',
@@ -634,16 +648,17 @@ const schema = {
 };
 
 const validation = defineValidationSchema<Form>(({ model }) => {
-  validate(model.signalAt('attachments')!, [required(), maxLength(5)]);
+  validate(model.$.attachments, [required(), maxLength(5)]);
 });
 ```
 
 ### Anti-patterns
 
-- Начальное значение мульти `[]` вместо `null` — поле молча исчезает; симптомы разобраны в
+- Массив мульти без привязки компонента в схеме (или `value: model.attachments` вместо
+  `model.$.attachments`) — поля в форме нет; симптомы разобраны в
   [06-troubleshooting.md](06-troubleshooting.md), пункт 12.
-- `minLength(1)` вместо `required()` для обязательности — пустой выбор приходит как `null`, и
-  правило выходит раньше проверки.
+- `minLength(1)` вместо `required()` для обязательности nullable-поля — на `null` правило выходит
+  раньше проверки.
 - Одинаковые `node.id` у разных узлов (имя файла вместо полного пути) — раскрытие, выделение и
   отметка адресуются одним и тем же ключом, поэтому две строки начинают вести себя как одна.
 - Ждать, что поиск найдёт файл в непрочитанном каталоге. Фильтр не ходит за уровнями: ради

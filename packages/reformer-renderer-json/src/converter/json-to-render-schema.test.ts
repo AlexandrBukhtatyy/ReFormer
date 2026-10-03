@@ -3,7 +3,8 @@ import { convertJsonToM1Tree } from './json-to-render-schema';
 import { defineRegistry } from '../registry/component-registry';
 import { createLocaleResolver, createLocaleService } from '../locale/locale-service';
 import type { JsonFormSchema } from '../types/json-schema';
-import type { FormModel } from '@reformer/core';
+import { createModel, type FormModel } from '@reformer/core';
+import { isModelFieldRenderNode } from '@reformer/renderer-react';
 
 /**
  * Заглушка модели: конвертер трогает только `signalAt` (лист) и dot-обход (массив),
@@ -351,5 +352,35 @@ describe('convertJsonToM1Tree', () => {
       });
       expect(node.componentProps.steps[0].component).toBe('section');
     });
+  });
+});
+
+describe('массив как значение поля (`$model(<массив>)`)', () => {
+  // Настоящая модель, а не заглушка: проверяется шов с ядром — путь массива резолвится в ручку
+  // значения, и рендерер узнаёт в узле поле.
+  const model = createModel({ name: '', tags: [] as string[], profile: { langs: ['en'] } });
+  const convertReal = (
+    root: unknown
+  ): { value: unknown; componentProps?: Record<string, unknown> } =>
+    convertJsonToM1Tree({ root } as JsonFormSchema, registry, model) as never;
+
+  it('узел-поле получает ручку массива и распознаётся рендерером как поле', () => {
+    const node = convertReal({ value: '$model(tags)', component: '$component(Input)' });
+
+    expect(node.value).toBe(model.$.tags);
+    expect(isModelFieldRenderNode(node as never)).toBe(true);
+    // Вложенный путь — тем же способом.
+    const nested = convertReal({ value: '$model(profile.langs)', component: '$component(Input)' });
+    expect(nested.value).toBe(model.$.profile.langs);
+  });
+
+  it('`$model(<массив>)` в componentProps отдаёт ту же ручку — рендерер развернёт её в значение', () => {
+    const node = convertReal({
+      value: '$model(name)',
+      component: '$component(Input)',
+      componentProps: { suggestions: '$model(tags)' },
+    });
+
+    expect(node.componentProps?.suggestions).toBe(model.$.tags);
   });
 });

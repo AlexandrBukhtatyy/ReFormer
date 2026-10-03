@@ -13,7 +13,7 @@
  * Состав (реэкспорты — из тех же файлов, что использует зонтик `.`, поэтому `.` и `/model` — один
  * module-инстанс: общий `derived`-WeakMap, единая идентичность `Signal`):
  * - **модель** — `createModel` + типы `FormModel`/`ModelArray`/… + `PathAwareSignal`;
- * - **обход листьев** — `eachLeafSignal` (подписка «любое поле изменилось»);
+ * - **обход значений** — `eachLeafSignal` (листья) и `eachValueSignal` (листья и массивы целиком);
  * - **value-операции** (реактивные правила) — `computeFrom`/`copyFrom`/`watchField`/`transformValue`/
  *   `resetWhen`/`syncFields`/`revalidateWhen`;
  * - **producer-owned флаг** — `markDerived`/`isDerived`/`unmarkDerived`;
@@ -24,7 +24,7 @@
  */
 
 // Реактивная модель данных.
-export { createModel, eachLeafSignal } from './create-model';
+export { createModel, eachLeafSignal, eachValueSignal } from './create-model';
 export type {
   FormModel,
   ModelArray,
@@ -36,7 +36,7 @@ export type {
   ModelApi,
   PathAwareSignal,
 } from './types';
-export { isModelContainerSignal } from './model-signals-proxy';
+export { isModelContainerSignal, isValueSignal } from './model-signals-proxy';
 
 // Value-операции behavior (читают/пишут сигналы, нод/валидации не касаются).
 export {

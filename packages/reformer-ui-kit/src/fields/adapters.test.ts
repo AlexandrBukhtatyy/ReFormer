@@ -7,7 +7,7 @@ import { multiValueAdapter, valueChangeAdapter, nativeInputAdapter } from './ada
  * контролов, и любое расхождение разъедется сразу по всем.
  */
 describe('multiValueAdapter', () => {
-  it('пустой выбор эмитит null, а не [] (иначе initial-массив создаст ArrayNode)', () => {
+  it('пустой выбор эмитит null, а не [] (как его хранить, решает поле модели)', () => {
     expect(multiValueAdapter.fromEmit([], {})).toBeNull();
   });
 

@@ -332,7 +332,7 @@ export const selectDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.signalAt('cities')!,
+  value: model.$.cities,
   component: SelectMulti,
   componentProps: { options: GROUPED, clearable: true, summaryThreshold: 2 },
 }

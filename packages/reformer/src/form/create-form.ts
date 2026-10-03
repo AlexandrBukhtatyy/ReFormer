@@ -22,6 +22,7 @@ import { Signal } from '@preact/signals-core';
 import { GroupNode } from './nodes/group-node';
 import { ModelArrayNode } from './nodes/model-array-node';
 import { registerSignalNode } from './signal-node-registry';
+import { isModelArraySignal, isValueSignal } from '../model/model-signals-proxy';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from './types/index';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormModel } from '../model/types';
@@ -48,15 +49,11 @@ export interface CreateFormFromModelArgs<T> {
   behavior?: FormBehavior<T>;
 }
 
-const isPlainObj = (v: unknown): v is Record<string, unknown> =>
-  v !== null &&
-  typeof v === 'object' &&
-  !Array.isArray(v) &&
-  !(v instanceof Date) &&
-  !(typeof Blob !== 'undefined' && v instanceof Blob) &&
-  !(typeof File !== 'undefined' && v instanceof File);
-
-type HarvestedConfig = Map<Signal<unknown>, Partial<FieldConfig<unknown>>>;
+/**
+ * Конфиг поля по его «ручке значения»: сигналу листа либо узлу-массиву дерева `model.$`
+ * (см. {@link isValueSignal}). Ключ — идентичность ручки, поэтому тип ключа — `object`.
+ */
+type HarvestedConfig = Map<object, Partial<FieldConfig<unknown>>>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ArrayItemBuilders = Map<string, (item: any) => FormSchemaNode>;
 
@@ -75,8 +72,9 @@ function harvestFieldConfig(
   // `children`) и опасен — его внутренние поля (`_targets`/`_node`) образуют двусвязные списки
   // подписок с обратными ссылками. Сигналы попадают под обход не только как `node.value` (тот
   // пропускается ниже по ключу), но и под произвольными ключами: `text: model.$.x` у html-узла,
-  // `componentProps.<prop>: '$model(…)'` после резолва в renderer-json.
-  if (schema instanceof Signal) return;
+  // `componentProps.<prop>: '$model(…)'` после резолва в renderer-json. Узел-массив `model.$.<path>`
+  // — такая же ручка значения, и спускаться в него так же незачем.
+  if (isValueSignal(schema)) return;
   // Узел ФОРМЫ (FormProxy/GroupNode) внутри схемы — обычно `componentProps: { form }` у визарда,
   // когда дерево строят уже с формой. Спуск внутрь него — переполнение стека: прокси самоссылочен
   // (`_proxyInstance`, `formSubmitter.form`), а обход не помнит посещённые объекты. Пропускаем узел
@@ -105,8 +103,9 @@ function harvestFieldConfig(
     return; // внутрь item-фабрики не идём (вызовется per-item при построении)
   }
 
-  if (node.value instanceof Signal) {
-    map.set(node.value as Signal<unknown>, {
+  // Поле — узел с ручкой значения: лист ИЛИ массив целиком (мультивыбор, теги, список файлов).
+  if (isValueSignal(node.value)) {
+    map.set(node.value, {
       component: node.component as FieldConfig<unknown>['component'],
       componentProps: node.componentProps,
       updateOn: node.updateOn as FieldConfig<unknown>['updateOn'],
@@ -120,12 +119,13 @@ function harvestFieldConfig(
   ) {
     // DEV-подсказка: узел похож на поле (есть `component`), но «ручка» value — не сигнал модели.
     // Частая ошибка: `value: model.<path>` (value-прокси) вместо `value: model.$.<path>`
-    // (PathAwareSignal), либо `valueSignal:` (harvest его не разбирает). Без сигнала harvest молча
-    // пропустит узел, и поле отрендерится без компонента/пропсов/валидаторов.
+    // (PathAwareSignal), `value: model.$.<группа>` (группа полем не бывает) либо `valueSignal:`
+    // (harvest его не разбирает). Без сигнала harvest молча пропустит узел, и поле отрендерится
+    // без компонента/пропсов/валидаторов.
     console.warn(
       '[reformer] createForm({ schema }): узел с `component` не распознан как поле — ' +
-        '`value` не является сигналом модели. Ожидается `value: model.$.<path>`; ' +
-        'проверьте, что не передан `value: model.<path>` (value-прокси) или `valueSignal:`.'
+        '`value` не является сигналом модели. Ожидается `value: model.$.<path>` (лист или массив); ' +
+        'проверьте, что не передан `value: model.<path>` (value-прокси), группа или `valueSignal:`.'
     );
   }
   for (const [key, child] of Object.entries(node)) {
@@ -134,48 +134,65 @@ function harvestFieldConfig(
   }
 }
 
-/**
- * Строит data-shaped FieldConfig-дерево из структуры модели: листья → FieldConfig с valueSignal
- * (значение из модели) + конфиг из схемы; объекты → вложенный конфиг.
- */
-function buildModelConfig<T>(
-  model: FormModel<T>,
-  shape: Record<string, unknown>,
-  basePath: string,
-  bySignal: HarvestedConfig
-): Record<string, unknown> {
-  const config: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(shape)) {
-    const path = basePath === '' ? key : `${basePath}.${key}`;
-    if (Array.isArray(val)) {
-      // Массивы — model-owned (M1): данные принадлежат модели (push/removeAt/length реактивны),
-      // элементы рендерятся через model.<path> + itemComponent, а форма КАЖДОГО элемента строится
-      // per-item рекурсивно: createForm({ model: model.<path>.at(i), schema: itemComponent(item) }).
-      // Родительская форма массив не материализует — отдельный ArrayNode-дубликат не нужен.
-      continue;
-    }
-    if (isPlainObj(val)) {
-      config[key] = buildModelConfig(model, val, path, bySignal);
-      continue;
-    }
-    const sig = model.signalAt(path) as Signal<unknown> | undefined;
-    if (!sig) throw new Error(`createForm({ model }): не найден сигнал для пути "${path}"`);
-    // Schema-валидация живёт вне layout-дерева (`validateModel` из @reformer/core/validation),
-    // нода правил не исполняет: harvest собирает только UI/поведенческий конфиг узла.
-    const nodeCfg = bySignal.get(sig) ?? {};
-    config[key] = { ...nodeCfg, valueSignal: sig };
-  }
-  return config;
+/** Поле формы, найденное при обходе модели: путь и ручка его значения. */
+interface FieldHandle {
+  readonly path: string;
+  readonly signal: Signal<unknown>;
 }
 
-/** Собрать пути листовых полей из формы данных (объекты+поля; массивы пропускаются). */
-function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out: string[]): void {
-  for (const [key, val] of Object.entries(shape)) {
+/**
+ * Строит data-shaped FieldConfig-дерево из дерева сигналов модели (`model.$`): листья → FieldConfig
+ * с valueSignal (значение из модели) + конфиг из схемы; группы → вложенный конфиг; массив — поле,
+ * только если схема привязала к нему компонент.
+ *
+ * Обход идёт по ВИДУ узла модели, а не по текущему значению. Вид фиксируется при создании модели,
+ * а значение меняется: лист, созданный из `null` и позже получивший массив (мультивыбор после
+ * `patch` с сервера), остаётся листом — и остаётся полем. Обход по значению терял такое поле,
+ * стоило загрузить данные до `createForm`.
+ */
+function buildModelConfig(
+  signals: Record<string, unknown>,
+  basePath: string,
+  bySignal: HarvestedConfig,
+  arrayItems: ArrayItemBuilders,
+  fields: FieldHandle[]
+): Record<string, unknown> {
+  const config: Record<string, unknown> = {};
+  for (const key of Object.keys(signals)) {
     const path = basePath === '' ? key : `${basePath}.${key}`;
-    if (Array.isArray(val)) continue;
-    if (isPlainObj(val)) collectLeafPaths(val, path, out);
-    else out.push(path);
+    const child = signals[key];
+
+    if (isModelArraySignal(child)) {
+      // Массив — model-owned (M1). Как НАБОР ПОД-ФОРМ (`{ array, item }` в схеме) он строится
+      // per-item рекурсивно, и родительская форма его не материализует: top-level — ниже,
+      // `ModelArrayNode`. Как ОДНО ЗНАЧЕНИЕ поля (`{ value: model.$.<path>, component }` — мультивыбор,
+      // теги, файлы) он получает обычную ноду поля над ручкой массива. Без привязки в схеме
+      // массив пропускается, как и раньше: чем он является, решает схема, а не данные.
+      const nodeCfg = arrayItems.has(path) ? undefined : bySignal.get(child as object);
+      if (nodeCfg !== undefined) {
+        const signal = child as Signal<unknown>;
+        config[key] = { ...nodeCfg, valueSignal: signal };
+        fields.push({ path, signal });
+      }
+      continue;
+    }
+    if (child instanceof Signal) {
+      // Schema-валидация живёт вне layout-дерева (`validateModel` из @reformer/core/validation),
+      // нода правил не исполняет: harvest собирает только UI/поведенческий конфиг узла.
+      config[key] = { ...(bySignal.get(child) ?? {}), valueSignal: child };
+      fields.push({ path, signal: child });
+      continue;
+    }
+    // Группа: её узел в дереве `$` перечисляет поля как собственные ключи.
+    config[key] = buildModelConfig(
+      child as Record<string, unknown>,
+      path,
+      bySignal,
+      arrayItems,
+      fields
+    );
   }
+  return config;
 }
 
 /**
@@ -229,14 +246,15 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormPr
   const bySignal: HarvestedConfig = new Map();
   const arrayItems: ArrayItemBuilders = new Map();
   if (schema !== undefined) harvestFieldConfig(schema, bySignal, arrayItems);
-  const config = buildModelConfig(model, model.get() as Record<string, unknown>, '', bySignal);
+  const signals = model.$ as unknown as Record<string, unknown>;
+  const fields: FieldHandle[] = [];
+  const config = buildModelConfig(signals, '', bySignal, arrayItems, fields);
   const groupNode = new GroupNode<T>(config as unknown as GroupNodeConfig<T>);
 
   // Материализация top-level массивов как ModelArrayNode (делегируют массиву модели).
   // Нужна item-схема из единой схемы (`{ array: model.<path>, item }`); без неё массив пропускается.
-  const shape = model.get() as Record<string, unknown>;
-  for (const [key, val] of Object.entries(shape)) {
-    if (!Array.isArray(val)) continue;
+  for (const key of Object.keys(signals)) {
+    if (!isModelArraySignal(signals[key])) continue;
     const itemFn = arrayItems.get(key);
     if (!itemFn) continue;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -251,19 +269,17 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormPr
   const proxy = groupNode.getProxy();
 
   // Реестр сигнал→нода: для state-операций behavior (enableWhen) и in-form роутинга валидации.
-  const leafPaths: string[] = [];
-  collectLeafPaths(model.get() as Record<string, unknown>, '', leafPaths);
-  for (const path of leafPaths) {
-    const sig = model.signalAt(path);
+  // Ключ — ручка значения поля: сигнал листа или узел-массив (поле над массивом целиком).
+  for (const { path, signal } of fields) {
     const node = groupNode.getFieldByPath(path);
-    if (sig && node) {
-      registerSignalNode(sig as Signal<unknown>, node);
+    if (node) {
+      registerSignalNode(signal, node);
       // F9: связать листовую ноду с её сигналом модели на ВЛАДЕЮЩЕЙ группе, чтобы bulk-set/patch
       // (GroupNode.setValue/patchValue) сверял derived-guard с записываемым сигналом, а не с
       // computed-обёрткой field.value (которую markDerived никогда не помечает).
       const dot = path.lastIndexOf('.');
       const owner = dot === -1 ? groupNode : groupNode.getFieldByPath(path.slice(0, dot));
-      if (owner instanceof GroupNode) owner.registerFieldSignal(node, sig as Signal<unknown>);
+      if (owner instanceof GroupNode) owner.registerFieldSignal(node, signal);
     }
   }
 

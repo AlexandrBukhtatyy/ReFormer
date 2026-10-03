@@ -68,7 +68,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
       id: 'multi',
       title: 'Множественный выбор (ToggleGroupMulti)',
       description:
-        'Отдельный компонент, а не проп: значение — string[] | null. Пустой выбор приходит как null (массив в initial модели создал бы ArrayNode, и поля бы не было).',
+        'Отдельный компонент, а не проп: значение — массив. Пустой выбор контрол отдаёт как null: поле string[] сохранит его как [], поле string[] | null — как null.',
       render: makeFieldVariant({
         initial: null,
         component: ToggleGroupMulti,
@@ -79,7 +79,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.signalAt('interests')!,
+  value: model.$.interests,
   component: ToggleGroupMulti,
   componentProps: { options: GENDER, maxItems: 2 },
 }

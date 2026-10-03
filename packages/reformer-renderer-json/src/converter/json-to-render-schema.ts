@@ -12,8 +12,7 @@
  */
 
 import { type RenderSchemaFn, type RenderNode } from '@reformer/renderer-react';
-import type { FormModel } from '@reformer/core';
-import { Signal } from '@reformer/core/signals';
+import { isValueSignal, type FormModel } from '@reformer/core';
 import {
   isArrayNode,
   isFieldNode,
@@ -250,7 +249,7 @@ function resolveTextChild(part: string | number, scope: any, registry: Component
       value == null ||
       typeof value === 'string' ||
       typeof value === 'number' ||
-      value instanceof Signal;
+      isValueSignal(value);
     if (!renderable) throw new Error(textChildError(part, 'resolves to a non-text value'));
     return value;
   }

@@ -164,7 +164,7 @@ function MyFormPage() {
   - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + `component: '$component(FormArray)'` (редактируемая секция) либо `'$component(List)'` (display-список без add/remove) + `initialValue` (литерал нового элемента для кнопки «Добавить»; нужен только редактируемой секции). Без `component` элементы отрисуются, но UI управления не будет — см. ниже.
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` (вложенные узлы и текстовые части вперемешку).
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
-  - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
+  - `'$model(path)'` — путь к полю/массиву модели. В `value` и `componentProps` резолвится через `model.signalAt(path)` в ручку значения: сигнал листа либо массив целиком (поле-мультивыбор: `"value": "$model(tags)"` для `tags: string[]`). В `array` — value-прокси массива (набор под-форм).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
   - `'$html(tag)'` — нативный HTML-тег для презентационной вёрстки без регистрации компонента. Тег проверяется по whitelist (`isAllowedHtmlTag`) и конвертером, и `validateFormSchema`.
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.

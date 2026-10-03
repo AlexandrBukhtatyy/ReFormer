@@ -82,7 +82,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.signalAt('purposes')!,
+  value: model.$.purposes,
   component: NativeSelectMulti,
   componentProps: { options: LOAN, rows: 5 },
 }`,

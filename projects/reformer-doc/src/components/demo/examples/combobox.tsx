@@ -166,7 +166,7 @@ const [value, setValue] = useState<string | null>(null);
         },
       }),
       code: `{
-  value: model.signalAt('frameworks')!,
+  value: model.$.frameworks,
   component: ComboboxMulti,
   componentProps: { options: FRAMEWORKS, clearable: true },
 }`,
@@ -201,7 +201,7 @@ const [value, setValue] = useState<string | null>(null);
       id: 'tree-multi',
       title: 'Несколько узлов иерархии (ComboboxTreeMulti)',
       description:
-        'Тот же список-дерево, но с чипами в триггере и набором адресов в значении (string[] | null; пустой выбор эмитится как null, никогда не []). Поповер после выбора не закрывается и поиск не сбрасывает — иначе отметить несколько файлов подряд было бы нельзя.',
+        'Тот же список-дерево, но с чипами в триггере и набором адресов в значении (массив адресов; пустой выбор контрол отдаёт как null, а не []). Поповер после выбора не закрывается и поиск не сбрасывает — иначе отметить несколько файлов подряд было бы нельзя.',
       render: makeFieldVariant({
         initial: null,
         component: ComboboxTreeMulti,
@@ -213,7 +213,7 @@ const [value, setValue] = useState<string | null>(null);
         },
       }),
       code: `{
-  value: model.signalAt('files')!,
+  value: model.$.files,
   component: ComboboxTreeMulti,
   componentProps: {
     label: 'Файлы',
@@ -223,8 +223,8 @@ const [value, setValue] = useState<string | null>(null);
   },
 }
 
-// обязательность — только required(): пустой выбор приходит как null, не как [].
-validate(model.signalAt('files')!, [required()]);`,
+// обязательность — required(): ловит пустой выбор и как [], и как null.
+validate(model.$.files, [required()]);`,
     },
   ],
   examples: [

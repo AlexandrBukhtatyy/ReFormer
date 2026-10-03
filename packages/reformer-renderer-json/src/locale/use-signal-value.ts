@@ -10,7 +10,8 @@
  */
 
 import { useCallback, useRef, useSyncExternalStore } from 'react';
-import { Signal, effect } from '@reformer/core/signals';
+import { type Signal, effect } from '@reformer/core/signals';
+import { isValueSignal } from '@reformer/core';
 import type { LocaleParams } from './locale-service';
 
 /**
@@ -23,8 +24,8 @@ export function unwrapSignalValues(values?: LocaleParams): LocaleParams | undefi
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(values)) {
     const v = values[key];
-    if (v instanceof Signal) {
-      out[key] = (v as Signal<unknown>).value;
+    if (isValueSignal(v)) {
+      out[key] = v.value;
       hasSignal = true;
     } else {
       out[key] = v;
@@ -39,7 +40,7 @@ function collectSignals(values?: LocaleParams): Array<Signal<unknown>> {
   if (values) {
     for (const key of Object.keys(values)) {
       const v = values[key];
-      if (v instanceof Signal) out.push(v as Signal<unknown>);
+      if (isValueSignal(v)) out.push(v);
     }
   }
   return out;

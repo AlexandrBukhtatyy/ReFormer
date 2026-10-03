@@ -66,12 +66,11 @@ export const valueChangeAdapter: KitFieldAdapter = {
  * Мультивыбор (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` / `ToggleGroupMulti`) —
  * value-based `value: string[] | null` + `onChange(string[] | null)`.
  *
- * Пустой выбор нормализуется в `null`, а не в `[]`. Причина не косметическая: начальным значением
- * поля в модели массив быть НЕ МОЖЕТ — `createModel({ tags: [] })` строит ArrayNode, `createForm`
- * такой путь пропускает, и поля не появляется вовсе (в renderer оно при этом тихо отрендерится
- * контейнером — с подписью и опциями, но без value/onChange). Поэтому поле живёт как
- * `string[] | null`, и `required()` ловит пустой выбор без правок ядра. Тот же приём и по той же
- * причине — у `fileUploadAdapter` (file-upload-base.tsx).
+ * Пустой выбор нормализуется в `null`, а не в `[]`: «ничего не выбрано» у контрола одно, а как
+ * его хранить, решает поле модели. Поле-массив (`string[]`, начальное `[]`) сохранит `null` как
+ * `[]` — узел-массив хранит только массив; nullable-поле (`string[] | null`, начальное `null`)
+ * сохранит `null`. `required()` ловит пустой выбор в обоих случаях. Тот же приём — у
+ * `fileUploadAdapter` (file-upload-base.tsx).
  *
  * `fromEmit` копирует массив: preact-сигнал бэйлится по `!==`, поэтому контрол, вернувший
  * мутированный на месте массив, подписчиков бы не уведомил — а `_dirty` при этом уже взвёлся бы.

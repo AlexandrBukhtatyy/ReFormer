@@ -1,11 +1,12 @@
 /**
  * Примеры множественного выбора — четыре контрола @reformer/ui-kit с одним контрактом значения.
  *
- * Демо намеренно показывает не только «как выбрать», но и три места, где мультивыбор ломается
- * молча, если сделать «как обычно»:
- *  - начальное значение `[]` вместо `null` (поле исчезает: массив в модели даёт ArrayNode);
- *  - `model.$.<path>` вместо `model.signalAt(path)!` (у типа `T[]` это не сигнал);
- *  - префилл до сборки формы (в `seed`) вместо `setup`.
+ * Поле мультивыбора — обычный массив модели: `tags: string[]` с начальным `[]`. Массив становится
+ * ОДНИМ значением поля, когда схема привязывает к нему компонент (`value: model.$.tags`); правила
+ * и поведение берут ту же ручку значения. Префилл — просто начальное значение.
+ *
+ * Одно поле (`days`) оставлено nullable — `string[] | null` с начальным `null`: так объявляют
+ * поле, которому нужно отличать «не выбирали» от «выбрали ничего». Привязывается оно так же.
  */
 
 import { useState } from 'react';
@@ -26,18 +27,16 @@ import { ComboboxMulti } from '@reformer/ui-kit/combobox';
 
 interface MultiSelectDemoForm {
   /**
-   * ВСЕ поля — `string[] | null`, а не `string[]`.
-   *
-   * Пустой выбор приходит из контрола как `null` (см. `multiValueAdapter`), и начальным значением
-   * тоже обязан быть `null`: `createModel({ tags: [] })` строит ArrayNode, `createForm` такой путь
-   * пропускает, и поля не появляется вовсе.
+   * Поля-массивы: пустой выбор хранится как `[]`. Контрол на пустом выборе отдаёт `null`
+   * (см. `multiValueAdapter`), а узел-массив модели приводит его к `[]`.
    */
-  tags: string[] | null;
-  frameworks: string[] | null;
-  countries: string[] | null;
+  tags: string[];
+  frameworks: string[];
+  countries: string[];
+  /** Nullable-вариант: начальное `null`, пустой выбор — тоже `null`. */
   days: string[] | null;
-  /** Поле с префиллом — показывает правильный порядок «создать форму → положить значение». */
-  skills: string[] | null;
+  /** Поле с префиллом: выбранное лежит прямо в начальном значении. */
+  skills: string[];
 }
 
 const TAGS = [
@@ -78,16 +77,15 @@ const SKILLS = [
   { value: 'node', label: 'Node.js' },
 ];
 
-/** Ранее сохранённый выбор (сценарий редактирования). Кладётся в `setup`, а не в `initial`. */
+/** Ранее сохранённый выбор (сценарий редактирования) — начальное значение поля. */
 const PRESELECTED_SKILLS = ['ts', 'react'];
 
 const INITIAL: MultiSelectDemoForm = {
-  tags: null,
-  frameworks: null,
-  countries: null,
+  tags: [],
+  frameworks: [],
+  countries: [],
   days: null,
-  // ВАЖНО: null, а не PRESELECTED_SKILLS — массив в initial модель превратила бы в ArrayNode.
-  skills: null,
+  skills: [...PRESELECTED_SKILLS],
 };
 
 const messages = createMessageResolver({
@@ -99,10 +97,9 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
   return {
     fields: [
       {
-        // `model.signalAt(path)!`, а НЕ `model.$.tags`: у поля типа `T[]` `$`-тип разворачивается
-        // в ModelArraySignals, и `$.tags` — контейнер-прокси, а не сигнал. Запись в него не бросает
-        // исключение и выглядит успешной, но модель не меняется.
-        value: model.signalAt('tags')!,
+        // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
+        // Привязка компонента и делает массив полем; без неё форма массив пропускает.
+        value: model.$.tags,
         component: ToggleGroupMulti,
         componentProps: {
           label: 'Метки задачи',
@@ -112,7 +109,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.signalAt('frameworks')!,
+        value: model.$.frameworks,
         component: ComboboxMulti,
         componentProps: {
           label: 'Фреймворки',
@@ -125,7 +122,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.signalAt('countries')!,
+        value: model.$.countries,
         component: SelectMulti,
         componentProps: {
           label: 'Страны',
@@ -137,7 +134,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.signalAt('days')!,
+        value: model.$.days,
         component: NativeSelectMulti,
         componentProps: {
           label: 'Рабочие дни',
@@ -148,7 +145,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.signalAt('skills')!,
+        value: model.$.skills,
         component: ComboboxMulti,
         componentProps: {
           label: 'Навыки (с префиллом)',
@@ -162,27 +159,22 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
   };
 }
 
-// Слой валидации — отдельная схема над моделью. `minLength(1)` тут БЕСПОЛЕЗЕН: он делает ранний
-// return на `null`, а пустой выбор приходит именно как `null`. Обязательность — только `required()`.
+// Слой валидации — отдельная схема над моделью. Обязательность — `required()`: он отклоняет
+// и `[]`, и `null`. `minLength(1)` годится только для поля-массива: на `null` он выходит раньше
+// проверки.
 const demoValidation = defineValidationSchema<MultiSelectDemoForm>(({ model }) => {
-  validate(model.signalAt('tags')!, [required()]);
-  validate(model.signalAt('frameworks')!, [required(), maxLength(3)]);
-  validate(model.signalAt('countries')!, [required()]);
+  validate(model.$.tags, [required()]);
+  validate(model.$.frameworks, [required(), maxLength(3)]);
+  validate(model.$.countries, [required()]);
 });
 
 export default function MultiSelectDemo() {
   const { form, model } = useFormBundle(() =>
     createCoreForm<MultiSelectDemoForm>({
+      // Префилл — обычное начальное значение: форма собирается уже с ним, поэтому модель не
+      // «изменена» сразу после загрузки, а `reset()` возвращает именно его.
       initial: { ...INITIAL },
       schema: buildSchema,
-      // Префилл — фаза ПОСЛЕ сборки формы: фабрика узлов решает по текущему значению сигнала,
-      // и массив на этапе создания дал бы ArrayNode вместо поля.
-      setup: ({ model: m }) => {
-        m.signalAt('skills')!.value = [...PRESELECTED_SKILLS];
-        // Без этого форма считает себя изменённой сразу после загрузки, а `reset()` сотрёт
-        // префилл в null: FieldNode.initialValue — снимок на момент конструирования.
-        m.captureInitial();
-      },
     })
   );
 
@@ -200,8 +192,8 @@ export default function MultiSelectDemo() {
       <div className="mx-auto p-6">
         <h2 className="mb-2 text-2xl font-bold">Множественный выбор</h2>
         <p className="mb-6 text-gray-600">
-          Четыре контрола с единым контрактом значения <code>string[] | null</code>. Пустой выбор —
-          всегда <code>null</code>, никогда <code>[]</code>.
+          Четыре контрола с одним контрактом значения. Поле модели — массив <code>string[]</code> с
+          начальным <code>[]</code>; «Рабочие дни» — nullable-вариант <code>string[] | null</code>.
         </p>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -210,11 +202,11 @@ export default function MultiSelectDemo() {
             description="2–7 вариантов, все видны сразу. Radix ToggleGroup type=multiple"
             bgColor="bg-white"
             code={`{
-  value: model.signalAt('tags')!,
+  value: model.$.tags, // tags: string[], начальное []
   component: ToggleGroupMulti,
   componentProps: { options: TAGS },
 }
-validate(model.signalAt('tags')!, [required()]);`}
+validate(model.$.tags, [required()]);`}
           >
             <FormField control={form.tags} />
           </ExampleCard>
@@ -228,7 +220,7 @@ validate(model.signalAt('tags')!, [required()]);`}
   clearable: true,
   maxItems: 3, // подсказка UI; правило формы — maxLength(3)
 }
-validate(model.signalAt('frameworks')!, [required(), maxLength(3)]);`}
+validate(model.$.frameworks, [required(), maxLength(3)]);`}
           >
             <FormField control={form.frameworks} />
           </ExampleCard>
@@ -250,9 +242,11 @@ validate(model.signalAt('frameworks')!, [required(), maxLength(3)]);`}
 
           <ExampleCard
             title="NativeSelectMulti"
-            description="Нативный <select multiple>: no-JS/legacy. Ctrl+клик, Shift+стрелки"
+            description="Нативный <select multiple>: no-JS/legacy. Здесь — nullable-поле"
             bgColor="bg-white"
-            code={`componentProps: {
+            code={`// days: string[] | null, начальное null — пустой выбор хранится как null
+value: model.$.days,
+componentProps: {
   options: DAYS,
   rows: 5, // нативный size, число видимых строк
 }
@@ -264,12 +258,12 @@ validate(model.signalAt('frameworks')!, [required(), maxLength(3)]);`}
 
           <ExampleCard
             title="Префилл выбранного"
-            description="Порядок: создать форму → положить значение в setup → captureInitial()"
+            description="Выбранное — начальное значение поля; reset() возвращает его"
             bgColor="bg-white"
-            code={`setup: ({ model: m }) => {
-  m.signalAt('skills')!.value = ['ts', 'react'];
-  m.captureInitial(); // иначе форма сразу «изменена», а reset() сотрёт префилл
-}`}
+            code={`createCoreForm<Form>({
+  initial: { ...INITIAL, skills: ['ts', 'react'] },
+  schema: buildSchema,
+})`}
           >
             <FormField control={form.skills} />
           </ExampleCard>

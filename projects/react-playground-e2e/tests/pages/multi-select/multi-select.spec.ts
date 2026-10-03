@@ -4,7 +4,8 @@ import { MultiSelectPage } from './multi-select-page.pom';
 /**
  * E2E множественного выбора. Покрывает ровно то, чего не видят юниты кита: они идут через
  * `renderToStaticMarkup`, а у поповерных контролов список живёт в Portal и в SSR отсутствует.
- * Здесь же проверяется главный инвариант контракта — пустой выбор доходит до модели как `null`.
+ * Здесь же проверяется контракт значения до самой модели: поле-массив (`string[]`, начальное `[]`)
+ * хранит пустой выбор как `[]`, nullable-поле (`string[] | null`, начальное `null`) — как `null`.
  */
 test.describe('Множественный выбор', () => {
   let po: MultiSelectPage;
@@ -14,17 +15,19 @@ test.describe('Множественный выбор', () => {
     await po.goto();
   });
 
-  test('стартовое состояние: нетронутые поля null, префилл приехал массивом', async () => {
+  test('стартовое состояние: поля-массивы пусты, nullable — null, префилл на месте', async () => {
     const model = await po.modelSnapshot();
-    expect(model.tags).toBeNull();
-    expect(model.frameworks).toBeNull();
-    expect(model.countries).toBeNull();
+    expect(model.tags).toEqual([]);
+    expect(model.frameworks).toEqual([]);
+    expect(model.countries).toEqual([]);
+    // Единственное nullable-поле демо: начальное null.
     expect(model.days).toBeNull();
-    // Префилл кладётся в setup через signalAt — если бы он ушёл в initial, поля бы не было вовсе.
+    // Префилл — просто начальное значение поля-массива: поле есть, и выбор показан чипами.
     expect(model.skills).toEqual(['ts', 'react']);
+    await expect(po.chips('skills')).toHaveCount(2);
   });
 
-  test('ToggleGroupMulti: несколько значений, снятие, пустой выбор → null', async () => {
+  test('ToggleGroupMulti: несколько значений, снятие, пустой выбор → []', async () => {
     await po.toggle('tags', 'bug');
     await po.toggle('tags', 'docs');
     await po.expectValue('tags', ['bug', 'docs']);
@@ -32,9 +35,9 @@ test.describe('Множественный выбор', () => {
     await po.toggle('tags', 'bug');
     await po.expectValue('tags', ['docs']);
 
-    // Ключевой инвариант: снятие последнего даёт null, а НЕ [].
+    // Поле-массив: снятие последнего даёт [] — контрол отдаёт null, узел-массив хранит [].
     await po.toggle('tags', 'docs');
-    await po.expectValue('tags', null);
+    await po.expectValue('tags', []);
   });
 
   test('ComboboxMulti: список не закрывается между выборами, чипы показывают лейблы', async () => {
@@ -110,7 +113,7 @@ test.describe('Множественный выбор', () => {
     await po.expectValue('countries', ['ru', 'de', 'fr']);
   });
 
-  test('NativeSelectMulti: нативный множественный выбор, снятие всего → null', async () => {
+  test('NativeSelectMulti на nullable-поле: снятие всего → null', async () => {
     await po.selectNative('days', ['mon', 'wed', 'fri']);
     await po.expectValue('days', ['mon', 'wed', 'fri']);
 
@@ -118,10 +121,10 @@ test.describe('Множественный выбор', () => {
     await po.expectValue('days', null);
   });
 
-  test('required срабатывает на пустом выборе (minLength(1) бы не сработал)', async () => {
+  test('required срабатывает на пустом выборе поля-массива', async () => {
     await po.toggle('tags', 'bug');
     await po.toggle('tags', 'bug');
-    await po.expectValue('tags', null);
+    await po.expectValue('tags', []);
 
     await po.validate();
     await expect(po.error('tags')).toContainText('Выберите хотя бы один вариант');
@@ -132,6 +135,14 @@ test.describe('Множественный выбор', () => {
     await po.validate();
     // Ровно на границе — ошибки нет: maxItems=3 и maxLength(3) согласованы.
     await expect(po.error('frameworks')).toBeHidden();
+  });
+
+  test('сброс возвращает префилл поля-массива, а не пустой выбор', async () => {
+    await po.pickMany('skills', ['node']);
+    await po.expectValue('skills', ['ts', 'react', 'node']);
+
+    await po.reset();
+    await po.expectValue('skills', ['ts', 'react']);
   });
 
   test('страница не даёт ошибок в консоли за весь сценарий', async () => {

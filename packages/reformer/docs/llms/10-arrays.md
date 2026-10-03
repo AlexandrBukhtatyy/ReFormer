@@ -32,6 +32,36 @@ const form = createForm<MyForm>({ model, schema });
 > он не совместим с `Record<string, FormValue>` и `ArrayNode<Item>` его отвергнет.
 > См. `30-type-safety-recipes.md`.
 
+### Массив как ОДНО значение поля
+
+Массив бывает не набором под-форм, а одним значением: мультивыбор, теги, список файлов. Чем он
+является, решает **схема**, а не данные: `{ array, item }` — набор под-форм, а узел поля
+`{ value: model.$.<путь>, component }` — одно значение. Массив, к которому в схеме ничего не
+привязано, в форму не попадает.
+
+```typescript
+type MyForm = { tags: string[] };
+
+const model = createModel<MyForm>({ tags: [] });
+
+const schema = {
+  tags: { value: model.$.tags, component: SelectMulti }, // поле над массивом целиком
+};
+const form = createForm<MyForm>({ model, schema });
+
+form.tags.setValue(['a', 'b']); // FieldNode<string[]>
+model.$.tags.value = ['c']; // ручка значения: заменяет массив целиком
+validate(model.$.tags, [required(), maxLength(3)]); // правило получает массив
+```
+
+- `model.$.<массив>` — записываемая ручка значения (`PathAwareSignal`): подходит для `value:` в
+  схеме, `validate`/`cross`, `enableWhen`/`copyFrom` и для `model.signalAt(path)`.
+- Узел-массив хранит только массив: запись `null`/`undefined` даёт `[]`. Нужно отличать «не
+  выбирали» от «выбрали ничего» — объявляй поле `T[] | null` с начальным `null`: в рантайме это
+  лист, и привязывается он так же.
+- Запись в узел-ГРУППУ (`model.$.<группа>.value = …`) — ошибка: группа пишется по полям или через
+  `model.patch(...)`.
+
 ### Один массив — три слоя (три разных движка)
 
 Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко

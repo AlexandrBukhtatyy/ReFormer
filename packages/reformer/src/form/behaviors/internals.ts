@@ -10,6 +10,7 @@
 
 import type { Signal } from '@preact/signals-core';
 import { isModelContainerSignal } from '../../index';
+import { isModelArraySignal } from '../../model/model-signals-proxy';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -31,20 +32,31 @@ export const isLeafSignal = (v: unknown): v is Signal<unknown> =>
   typeof (v as { peek?: unknown }).peek === 'function' &&
   !isModelContainerSignal(v);
 
+/**
+ * Ручка значения целиком: лист либо узел-массив дерева `$`.
+ *
+ * Массив копируется и читается ЗНАЧЕНИЕМ — заменой целиком, а не обходом по ключам: у его узла
+ * собственный ключ один (`length`), и обход, годный для группы, отдавал бы вместо массива мусор.
+ * Для `enableWhen` массив при этом остаётся НЕ листом ({@link isLeafSignal}): его нода ищется по
+ * пути, а она бывает и полем, и массивом под-форм.
+ */
+export const isValueHandle = (v: unknown): v is Signal<unknown> =>
+  isLeafSignal(v) || isModelArraySignal(v);
+
 export const asArray = <X>(v: X | X[]): X[] => (Array.isArray(v) ? v : [v]);
 
 export function readGroup(g: GroupSignals): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(g)) {
     const child = g[k];
-    out[k] = isLeafSignal(child) ? child.value : readGroup(child as GroupSignals);
+    out[k] = isValueHandle(child) ? child.value : readGroup(child as GroupSignals);
   }
   return out;
 }
 export function writeGroup(g: GroupSignals, val: Record<string, unknown>): void {
   for (const k of Object.keys(g)) {
     const child = g[k];
-    if (isLeafSignal(child)) child.value = val?.[k];
+    if (isValueHandle(child)) child.value = val?.[k];
     else writeGroup(child as GroupSignals, (val?.[k] as Record<string, unknown>) ?? {});
   }
 }

@@ -26,6 +26,7 @@ import { onDispose, getScope, effect, defer } from './context';
 import {
   type GroupSignals,
   isLeafSignal,
+  isValueHandle,
   asArray,
   readGroup,
   writeGroup,
@@ -93,7 +94,8 @@ export function copyFrom<T>(
   target: Signal<T> | object,
   options?: { when?: () => boolean; transform?: (value: T) => T }
 ): void {
-  if (isLeafSignal(source) && isLeafSignal(target)) {
+  // Скаляр — лист или массив целиком: массив копируется значением, а не обходом по ключам.
+  if (isValueHandle(source) && isValueHandle(target)) {
     onDispose(coreCopyFrom(source as ReadonlySignal<T>, target as Signal<T>, options));
     return;
   }

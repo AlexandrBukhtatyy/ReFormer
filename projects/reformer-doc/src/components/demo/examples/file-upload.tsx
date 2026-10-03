@@ -54,9 +54,9 @@ const PRELOADED: RemoteFileRef[] = [
 ];
 
 /**
- * Preloaded-демо: initial в модели — null (leaf-сигнал), дескрипторы кладутся в
- * `model.signalAt()` ПОСЛЕ createForm — массив объектов в initial дал бы ArrayNode
- * вместо поля (см. паттерн в примерах playground).
+ * Preloaded-демо на nullable-поле: initial в модели — null, дескрипторы кладутся в сигнал поля
+ * после createForm. Поле-массив с дескрипторами прямо в initial работает так же — узел схемы с
+ * `component` делает массив одним значением поля.
  */
 function PreloadedDemo() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +79,7 @@ function PreloadedDemo() {
     } as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const form = createForm<any>({ model, schema });
-    model.signalAt('field')!.value = PRELOADED;
+    model.$.field.value = PRELOADED;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ref.current = (form as any).field;
   }
@@ -194,7 +194,7 @@ export const fileUploadDocConfig: ComponentDocConfig = {
         fullWidth: true,
       }),
       code: `// в форме — рамку подсвечивает aria-invalid от FormField:
-validate(model.signalAt('documents')!, [required({ message: 'Приложите хотя бы один файл' })]);
+validate(model.$.documents, [required({ message: 'Приложите хотя бы один файл' })]);
 
 // вне формы — явный проп:
 <FileUploadDropzone invalid />`,
@@ -252,12 +252,12 @@ validate(model.signalAt('documents')!, [required({ message: 'Приложите 
       id: 'preloaded',
       title: 'Preloaded — редактирование с ранее загруженными файлами',
       description:
-        'Начальное значение — RemoteFileRef[] с сервера: элементы показываются как uploaded (имя/размер из дескриптора), их можно удалять и добавлять новые. Важно: в initial модели — null, дескрипторы кладутся в model.signalAt() ПОСЛЕ createForm (массив объектов в initial создал бы форму-массив вместо поля).',
+        'Начальное значение — RemoteFileRef[] с сервера: элементы показываются как uploaded (имя/размер из дескриптора), их можно удалять и добавлять новые. Дескрипторы можно положить прямо в initial модели либо записать в сигнал поля позже, когда ответ сервера придёт.',
       render: PreloadedDemo,
-      code: `const model = createModel<FormShape>({ documents: null }); // именно null!
+      code: `const model = createModel<FormShape>({ documents: [] });
 const form = createForm({ model, schema });
-// префилл с сервера — в leaf-сигнал, после createForm:
-model.signalAt('documents')!.value = [
+// префилл с сервера — в сигнал поля, когда ответ придёт:
+model.$.documents.value = [
   { id: 'doc-1', name: 'договор.pdf', size: 245760, type: 'application/pdf' },
 ];`,
     },
@@ -265,7 +265,7 @@ model.signalAt('documents')!.value = [
       id: 'validation',
       title: 'File-валидаторы core',
       description:
-        'Отбор при выборе делает сам компонент (componentProps), а на submit те же правила проверяют значение поля: maxFiles / minFiles / maxFileSize / minFileSize / maxTotalFileSize / fileType. Работают и с File, и с RemoteFileRef (duck-typing). Сигнал поля берётся через model.signalAt(): $-доступ у массивоподобных значений типизируется как индексное дерево.',
+        'Отбор при выборе делает сам компонент (componentProps), а на submit те же правила проверяют значение поля: maxFiles / minFiles / maxFileSize / minFileSize / maxTotalFileSize / fileType. Работают и с File, и с RemoteFileRef (duck-typing). Правила вешаются на сигнал поля model.$.documents — массив проверяется целиком, одним значением.',
       render: makeFieldVariant({
         initial: null,
         component: FileUploadBase,
@@ -286,7 +286,7 @@ model.signalAt('documents')!.value = [
       code: `import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.signalAt('documents')!, [
+validate(model.$.documents, [
   required({ message: 'Приложите хотя бы один файл' }),
   maxFiles(2),
   maxFileSize(5 * 1024 * 1024),
@@ -337,6 +337,6 @@ validate(model.signalAt('documents')!, [
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.signalAt('documents')!, [required({ message: 'Приложите хотя бы один файл' })]);`,
+validate(model.$.documents, [required({ message: 'Приложите хотя бы один файл' })]);`,
   },
 };

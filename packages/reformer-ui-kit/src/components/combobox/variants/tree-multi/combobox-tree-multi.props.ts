@@ -100,7 +100,7 @@ export const comboboxTreeMultiPropsSchema = {
       group: 'Control',
       type: 'string[] | null',
       description:
-        'Адреса выбранных узлов (node.id). Пустой выбор приходит как null, а не []: массив в начальном значении модели создал бы ArrayNode, и поля не было бы вовсе.',
+        'Адреса выбранных узлов (node.id). Пустой выбор контрол отдаёт как null: поле-массив (string[]) сохранит его как [], nullable-поле (string[] | null) — как null.',
     },
     onChange: {
       group: 'Control',

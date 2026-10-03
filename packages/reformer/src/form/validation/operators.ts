@@ -16,9 +16,13 @@ import type { AsyncRule, CallableRule, Rule, ValidationSchema } from './types';
 /**
  * Синхронные правила поля.
  *
+ * Поле — лист либо массив целиком: `model.$.<массив>` — такая же ручка значения, и правило
+ * получает массив (мультивыбор, теги, список файлов).
+ *
  * @example
  * ```ts
  * validate(model.$.loanAmount, [required({ message: 'Сумма' }), min(50000)]);
+ * validate(model.$.tags, [required(), maxLength(3)]); // tags: string[] — массив как значение
  * ```
  */
 export function validate<TField>(sig: PathAwareSignal<TField>, rules: Rule<TField>[]): void {
@@ -99,7 +103,8 @@ export function cross<TSnapshot>(
 
 /**
  * Применить под-правила к КАЖДОМУ элементу текущего массива модели.
- * `U extends object` — элементы должны быть под-моделями (объектами); для массива примитивов валидируйте лист напрямую.
+ * `U extends object` — элементы должны быть под-моделями (объектами); массив примитивов — одно
+ * значение поля, его проверяют целиком: `validate(model.$.<массив>, [...])`.
  */
 export function each<U extends object>(
   arr: ModelArray<U>,

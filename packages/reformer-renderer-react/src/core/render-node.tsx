@@ -5,12 +5,13 @@
  */
 
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { effect, Signal } from '@reformer/core/signals';
+import { effect, type Signal } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import {
   bindFieldProps,
   getFieldAdapter,
   getNodeForSignal,
+  isValueSignal,
   useFieldHandleRef,
 } from '@reformer/core';
 import type {
@@ -430,9 +431,14 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
 // TEXT CONTENT — статический и реактивный текст узла
 // ============================================================================
 
-/** Ребёнок-текст (литерал, число, сигнал), а не вложенный узел. */
+/**
+ * Ребёнок-текст (литерал, число, сигнал), а не вложенный узел.
+ *
+ * Сигнал — любая ручка значения модели, включая массив целиком (`model.$.<массив>`): его узел не
+ * `instanceof Signal`, и без общей проверки он ушёл бы в ветку «вложенный узел».
+ */
 function isTextPart(child: unknown): child is RenderTextPart {
-  return typeof child === 'string' || typeof child === 'number' || child instanceof Signal;
+  return typeof child === 'string' || typeof child === 'number' || isValueSignal(child);
 }
 
 /**
@@ -486,7 +492,7 @@ function nodesOnly<T>(children: readonly RenderChild<T>[]): RenderNode<T>[] {
 /** Части-сигналы (на них подписывается {@link RenderTextContent}); литералы отбрасываются. */
 function collectTextSignals(parts: readonly RenderTextPart[]): Array<Signal<unknown>> {
   const out: Array<Signal<unknown>> = [];
-  for (const p of parts) if (p instanceof Signal) out.push(p as Signal<unknown>);
+  for (const p of parts) if (isValueSignal(p)) out.push(p);
   return out;
 }
 
@@ -494,7 +500,7 @@ function collectTextSignals(parts: readonly RenderTextPart[]): Array<Signal<unkn
 function joinTextParts(parts: readonly RenderTextPart[]): string {
   let out = '';
   for (const p of parts) {
-    const v = p instanceof Signal ? (p as Signal<unknown>).value : p;
+    const v = isValueSignal(p) ? p.value : p;
     if (v != null) out += String(v);
   }
   return out;
@@ -527,7 +533,7 @@ function useSignalProps(
   props: Record<string, unknown> | undefined
 ): Record<string, unknown> | undefined {
   const keys: string[] = [];
-  if (props) for (const k of Object.keys(props)) if (props[k] instanceof Signal) keys.push(k);
+  if (props) for (const k of Object.keys(props)) if (isValueSignal(props[k])) keys.push(k);
   const signals: Array<Signal<unknown>> = keys.map((k) => props![k] as Signal<unknown>);
   const signalsKey = useSignalSetKey(signals);
   const signalsRef = useRef(signals);

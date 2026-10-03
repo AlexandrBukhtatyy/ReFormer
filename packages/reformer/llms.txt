@@ -1258,6 +1258,36 @@ const form = createForm<MyForm>({ model, schema });
 > он не совместим с `Record<string, FormValue>` и `ArrayNode<Item>` его отвергнет.
 > См. `30-type-safety-recipes.md`.
 
+### Массив как ОДНО значение поля
+
+Массив бывает не набором под-форм, а одним значением: мультивыбор, теги, список файлов. Чем он
+является, решает **схема**, а не данные: `{ array, item }` — набор под-форм, а узел поля
+`{ value: model.$.<путь>, component }` — одно значение. Массив, к которому в схеме ничего не
+привязано, в форму не попадает.
+
+```typescript
+type MyForm = { tags: string[] };
+
+const model = createModel<MyForm>({ tags: [] });
+
+const schema = {
+  tags: { value: model.$.tags, component: SelectMulti }, // поле над массивом целиком
+};
+const form = createForm<MyForm>({ model, schema });
+
+form.tags.setValue(['a', 'b']); // FieldNode<string[]>
+model.$.tags.value = ['c']; // ручка значения: заменяет массив целиком
+validate(model.$.tags, [required(), maxLength(3)]); // правило получает массив
+```
+
+- `model.$.<массив>` — записываемая ручка значения (`PathAwareSignal`): подходит для `value:` в
+  схеме, `validate`/`cross`, `enableWhen`/`copyFrom` и для `model.signalAt(path)`.
+- Узел-массив хранит только массив: запись `null`/`undefined` даёт `[]`. Нужно отличать «не
+  выбирали» от «выбрали ничего» — объявляй поле `T[] | null` с начальным `null`: в рантайме это
+  лист, и привязывается он так же.
+- Запись в узел-ГРУППУ (`model.$.<группа>.value = …`) — ошибка: группа пишется по полям или через
+  `model.patch(...)`.
+
 ### Один массив — три слоя (три разных движка)
 
 Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко
@@ -5507,7 +5537,8 @@ _Source: src/form/behaviors/node.ts_
 **Kind:** `function`
 
 Применить под-правила к КАЖДОМУ элементу текущего массива модели.
-`U extends object` — элементы должны быть под-моделями (объектами); для массива примитивов валидируйте лист напрямую.
+`U extends object` — элементы должны быть под-моделями (объектами); массив примитивов — одно
+значение поля, его проверяют целиком: `validate(model.$.<массив>, [...])`.
 
 **Signature:**
 ```typescript
@@ -5526,13 +5557,37 @@ _Source: src/form/validation/operators.ts_
 Обойти ВСЕ листовые сигналы модели (включая элементы массивов), вызвав `visit` на каждом.
 
 Внутри реактивного `effect` служит подпиской «любое поле изменилось»: `visit(sig => void sig.value)`
-подписывает на значения листьев, а обход массивов через `items.value` — на их состав. Так строятся
-триггеры `change`/`blur` стратегий валидации (см. `createFormValidation`), тем же паттерном, что
-`revalidateWhen`, но без ручного перечисления зависимостей.
+подписывает на значения листьев, а обход массивов через `items.value` — на их состав. Тот же
+паттерн, что `revalidateWhen`, но без ручного перечисления зависимостей.
+
+Сами массивы обход не посещает — только их элементы. Поле, привязанное к массиву целиком
+(мультивыбор), живёт на сигнале массива; чтобы увидеть и его, берите {@link eachValueSignal}.
 
 **Signature:**
 ```typescript
 export function eachLeafSignal<T>(
+  model: FormModel<T>,
+  visit: (signal: PathAwareSignal<unknown>) => void
+): void
+```
+
+_Source: src/model/create-model.ts_
+
+### eachValueSignal
+
+**Kind:** `function`
+
+Обойти ВСЕ ручки значений модели: листья (включая элементы массивов) И сами массивы.
+
+Отличие от {@link eachLeafSignal} — узлы-массивы: массив бывает одним значением поля
+(`{ value: model.$.tags, component }`), и нода такого поля привязана к сигналу массива, а не
+к сигналам элементов. Обходчику, которому нужна именно НОДА поля (стратегия `blur` подписывается
+на её `touched`), одних листьев мало — он не увидел бы мультивыбор. Так строятся триггеры
+`change`/`blur` стратегий валидации (см. `createFormValidation`).
+
+**Signature:**
+```typescript
+export function eachValueSignal<T>(
   model: FormModel<T>,
   visit: (signal: PathAwareSignal<unknown>) => void
 ): void
@@ -7293,6 +7348,33 @@ validate(model.$.amount, [required(), isNumber({ message: 'Введите чис
 
 _Source: src/form/validators/is-number.ts_
 
+### isValueSignal
+
+**Kind:** `function`
+
+«Ручка значения», к которой можно привязать поле: лист (`instanceof Signal`) либо узел-массив
+дерева `model.$` (значение — массив целиком, `.value` читается и пишется).
+
+Группа сюда не входит: она читается целиком, но не пишется и полем не бывает. Этой проверкой
+`createForm` и рендереры отличают узел-поле схемы (`{ value, component }`) от контейнера —
+вместо голого `value instanceof Signal`, который узел-массив не проходит.
+
+**Signature:**
+```typescript
+export function isValueSignal(value: unknown): value is Signal<unknown>
+```
+
+**Examples:**
+
+```typescript
+const model = createModel({ name: '', tags: [] as string[], address: { city: '' } });
+isValueSignal(model.$.name);    // true — лист
+isValueSignal(model.$.tags);    // true — массив как значение
+isValueSignal(model.$.address); // false — группа
+```
+
+_Source: src/model/model-signals-proxy.ts_
+
 ### makeElementFieldHandle
 
 **Kind:** `function`
@@ -7923,7 +8005,10 @@ export interface ModelApi<T> {
   reset(): void;
   /** Зафиксировать текущие значения как новый initial-снимок («точка отсчёта»). */
   captureInitial(): void;
-  /** Резолв строкового пути в сигнал (для error-routing/мостов). */
+  /**
+   * Резолв строкового пути в сигнал (для error-routing/мостов): лист либо массив целиком
+   * (ручка значения массива — см. {@link ModelArraySignals}). Для пути группы — `undefined`.
+   */
   signalAt(path: string): PathAwareSignal<unknown> | undefined;
 }
 ```
@@ -8052,12 +8137,23 @@ _Source: src/form/nodes/model-array-node.ts_
 **Kind:** `type`
 
 Узел-массив дерева `model.$`: индексируемый доступ к под-сигналам элементов, реактивная `length`
-и {@link ReadonlySignal} значения массива целиком (реагирует и на правку элемента, и на изменение
-состава — push/removeAt/move).
+и сигнал значения массива целиком (реагирует и на правку элемента, и на изменение состава —
+push/removeAt/move).
+
+В отличие от группы, узел ЗАПИСЫВАЕМ: `model.$.tags.value = ['a']` заменяет массив целиком. Это
+делает его {@link PathAwareSignal} — к нему привязывают поле (`{ value: model.$.tags, component }`),
+правило (`validate(model.$.tags, …)`) и поведение, как к листу. Так массив служит ОДНИМ значением
+поля: мультивыбор, теги, список файлов.
+
+`V` — объявленный тип поля, включая `null`/`undefined`: поле `string[] | null` с начальным `null`
+в рантайме — лист с тем же `.value`/`peek`/`subscribe`, поэтому общая часть честна для обоих
+случаев. `length` и индексы есть только у настоящего узла-массива (начальное значение — массив).
 
 **Signature:**
 ```typescript
-export type ModelArraySignals<U, V> = ContainerSignal<V, 'length'> & {
+export type ModelArraySignals<U, V> = Signal<V> & {
+  /** Путь массива в модели (dot-нотация). */
+  readonly __path: string;
   readonly length: number;
   readonly [index: number]: ModelSignalNode<U>;
 };
@@ -9681,6 +9777,9 @@ _Source: src/platforms/react/hooks/use-form-validation.ts_
 
 Синхронные правила поля.
 
+Поле — лист либо массив целиком: `model.$.<массив>` — такая же ручка значения, и правило
+получает массив (мультивыбор, теги, список файлов).
+
 **Signature:**
 ```typescript
 export function validate<TField>(sig: PathAwareSignal<TField>, rules: Rule<TField>[]): void
@@ -9690,6 +9789,7 @@ export function validate<TField>(sig: PathAwareSignal<TField>, rules: Rule<TFiel
 
 ```ts
 validate(model.$.loanAmount, [required({ message: 'Сумма' }), min(50000)]);
+validate(model.$.tags, [required(), maxLength(3)]); // tags: string[] — массив как значение
 ```
 
 _Source: src/form/validation/operators.ts_

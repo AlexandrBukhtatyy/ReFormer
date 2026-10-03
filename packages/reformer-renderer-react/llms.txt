@@ -1846,7 +1846,8 @@ _Source: src/core/utils.ts_
 
 **Kind:** `function`
 
-Type guard для {@link ModelFieldRenderNode} (M1): лист, привязанный к сигналу модели.
+Type guard для {@link ModelFieldRenderNode} (M1): поле, привязанное к ручке значения модели —
+листу либо массиву целиком (`model.$.<массив>`: мультивыбор, теги, список файлов).
 Проверяется ПЕРВЫМ — такой узел несёт реальный `component`, иначе спутается с контейнером.
 
 **Signature:**
@@ -1857,7 +1858,7 @@ export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFie
 **Parameters:**
 - `node` — - Узел {@link RenderNode}
 
-**Returns:** `true`, если узел — поле-лист (`value instanceof Signal`)
+**Returns:** `true`, если узел — поле (`value` — ручка значения, см. `isValueSignal` ядра)
 
 **Examples:**
 

@@ -2,15 +2,22 @@
  * Дерево `$` — доступ к сигналам модели и резолв пути в сигнал.
  *
  * Лист отдаётся как сам {@link PathAwareSignal}; группа/массив — как контейнерный узел:
- * `ReadonlySignal` агрегированного значения ПЛЮС доступ к детям по имени/индексу. Контейнер
- * намеренно НЕ `instanceof Signal` — по этой проверке лист отличают от группы (`create-form`,
- * renderer-react/json), см. {@link containerSignal}.
+ * сигнал агрегированного значения ПЛЮС доступ к детям по имени/индексу. Контейнер намеренно
+ * НЕ `instanceof Signal` — по этой проверке лист отличают от группы, см. {@link containerSignal}.
+ *
+ * ## Массив — ещё и ручка значения
+ *
+ * Группа читается целиком, но не пишется: её значение — сумма полей. Массив — другое дело: им
+ * бывает и набор под-форм, и ОДНО значение поля (мультивыбор, теги, список файлов). Поэтому узел
+ * массива записываем: `model.$.tags.value = ['a']` заменяет массив целиком, и к нему привязывают
+ * компонент, правило валидации и поведение — так же, как к листу. Отличить «значение, к которому
+ * можно привязаться» от группы умеет {@link isValueSignal}.
  *
  * @group Model
  * @module model/model-signals-proxy
  */
 
-import { computed, type ReadonlySignal } from '@preact/signals-core';
+import { computed, Signal, type ReadonlySignal } from '@preact/signals-core';
 import type { PathAwareSignal } from './types';
 import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes';
 
@@ -51,6 +58,10 @@ function containerSignal(node: GroupNode | ArrayNode): ReadonlySignal<unknown> {
 /**
  * Узел дерева `$`: лист → сам {@link PathAwareSignal}, группа/массив → контейнерный узел —
  * {@link ReadonlySignal} агрегированного значения ПЛЮС доступ к детям по имени/индексу.
+ *
+ * Узел массива вдобавок принимает запись `.value` — замену массива целиком (см. шапку модуля).
+ * Любая другая запись в контейнер — ошибка: свойство, молча осевшее на прокси, выглядело бы как
+ * удачная запись, а модель осталась бы прежней.
  *
  * Порядок разрешения ключа: служебные `__path`/`__kind` → ребёнок → свойство сигнала. Дети идут
  * раньше свойств сигнала — тот же приоритет, что у {@link makeFormModel} (поле формы затеняет метод
@@ -95,6 +106,21 @@ export function signalsProxy(node: ModelNode): any {
       if (!isGroup && Reflect.has(t, key)) return Reflect.get(t, key, recv);
       return Reflect.get(api, key, api);
     },
+    set: (_t, key, value) => {
+      if (!isGroup && key === 'value') {
+        (node as ArrayNode).set(value);
+        return true;
+      }
+      const at = node.path === '' ? 'model.$' : `model.$.${node.path}`;
+      throw new TypeError(
+        `[@reformer/core] ${at}: запись в «${String(key)}» ` +
+          (isGroup
+            ? 'узла-группы невозможна — группа читается целиком, а пишется по полям ' +
+              '(model.$.<поле>.value) либо через model.patch(...)'
+            : 'узла-массива невозможна — массив заменяется целиком через .value, ' +
+              'а элемент правится своим сигналом (model.$.<массив>[i].value)')
+      );
+    },
     has: (t, key) =>
       typeof key === 'string' && (childAt(key) !== undefined || (!isGroup && Reflect.has(t, key))),
     ownKeys: () => (isGroup ? [...(node as GroupNode).children.keys()] : Reflect.ownKeys(target)),
@@ -127,6 +153,33 @@ export function isModelContainerSignal(value: unknown): boolean {
   return kind === 'group' || kind === 'array';
 }
 
+/** Узел-массив дерева `model.$` — ручка значения массива целиком. */
+export function isModelArraySignal(value: unknown): boolean {
+  if (value == null || typeof value !== 'object') return false;
+  return (value as { __kind?: unknown }).__kind === 'array';
+}
+
+/**
+ * «Ручка значения», к которой можно привязать поле: лист (`instanceof Signal`) либо узел-массив
+ * дерева `model.$` (значение — массив целиком, `.value` читается и пишется).
+ *
+ * Группа сюда не входит: она читается целиком, но не пишется и полем не бывает. Этой проверкой
+ * `createForm` и рендереры отличают узел-поле схемы (`{ value, component }`) от контейнера —
+ * вместо голого `value instanceof Signal`, который узел-массив не проходит.
+ *
+ * @group Model
+ * @example
+ * ```typescript
+ * const model = createModel({ name: '', tags: [] as string[], address: { city: '' } });
+ * isValueSignal(model.$.name);    // true — лист
+ * isValueSignal(model.$.tags);    // true — массив как значение
+ * isValueSignal(model.$.address); // false — группа
+ * ```
+ */
+export function isValueSignal(value: unknown): value is Signal<unknown> {
+  return value instanceof Signal || isModelArraySignal(value);
+}
+
 // ============================================================================
 // signalAt: путь → сигнал
 // ============================================================================
@@ -143,7 +196,10 @@ export function resolveSignalAt(
     else if (node.kind === 'array') node = node.items.peek()[Number(seg)];
     else return undefined;
   }
-  return node && node.kind === 'leaf' ? node.signal : undefined;
+  if (!node) return undefined;
+  if (node.kind === 'leaf') return node.signal;
+  // Массив — тоже ручка значения: путь к нему резолвится так же, как к листу. Группа — нет.
+  return node.kind === 'array' ? (signalsProxy(node) as PathAwareSignal<unknown>) : undefined;
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
