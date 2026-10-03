@@ -47,6 +47,7 @@ import {
   type JsonForm,
 } from '@reformer/renderer-json';
 import { useFormControl } from '@reformer/core';
+import { useValidationMessage } from '@reformer/core/i18n';
 import { mergeFormData } from '@builder-src/plugins/reformer/core/form-fixture';
 import { synthMock } from '@builder-src/plugins/reformer/core/form-mock';
 
@@ -95,6 +96,9 @@ function createDemoRegistry(dataSources: Record<string, unknown>): ComponentRegi
    */
   const Field = ({ control, testId, children }: FieldWrapperLike) => {
     const state = useFormControl(control);
+    // Текст ошибки — через резолвер: у правил без своего сообщения `message` пуст,
+    // и строку даёт словарь локали по коду.
+    const message = useValidationMessage();
     const show = state.touched && state.errors.length > 0;
     return (
       <div className="flex flex-col gap-1" data-testid={testId ? `field-${testId}` : undefined}>
@@ -104,7 +108,7 @@ function createDemoRegistry(dataSources: Record<string, unknown>): ComponentRegi
             className="text-xs text-red-600"
             data-testid={testId ? `error-${testId}` : undefined}
           >
-            {state.errors[0]?.message}
+            {state.errors[0] ? message(state.errors[0]) : null}
           </span>
         ) : null}
       </div>

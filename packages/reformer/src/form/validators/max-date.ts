@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { parseDate, normalizeDate } from './date-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора максимальной даты (включительно).
@@ -47,11 +48,7 @@ export function maxDate<
     const normalizedMax = normalizeDate(maxDateValue);
 
     if (normalizedValue > normalizedMax) {
-      return {
-        code: 'date_max',
-        message: options?.message ?? 'invalid',
-        params: { maxDate: maxDateValue, ...options?.params },
-      };
+      return validationError('date_max', options, { maxDate: maxDateValue });
     }
     return null;
   };

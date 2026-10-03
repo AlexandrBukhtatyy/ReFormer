@@ -20,6 +20,7 @@ tests/
 │   │                       #   create-* / type-guards / subscription-manager  → src/form/
 │   └── validation/         # раннер и правила       → src/form/validation/, src/form/validators/
 ├── hooks/                  # React-хуки             → src/platforms/react/hooks/
+├── i18n/                   # локализация            → src/i18n/, src/platforms/react/i18n/, src/locale/
 ├── model/                  # сабпат @reformer/core/model (гарантия единого рантайма)
 └── test-utils/             # общие типы для тестов
 ```

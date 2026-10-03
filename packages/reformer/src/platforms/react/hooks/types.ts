@@ -16,6 +16,7 @@ import type { ValidationError } from '../../../form/types/index';
  *
  * function TextField({ control }: Props) {
  *   const state = useFormControl(control);
+ *   const message = useValidationMessage(); // из '@reformer/core/i18n'
  *
  *   return (
  *     <div>
@@ -25,7 +26,7 @@ import type { ValidationError } from '../../../form/types/index';
  *         onChange={e => control.setValue(e.target.value)}
  *       />
  *       {state.shouldShowError && state.errors[0] && (
- *         <span className="error">{state.errors[0].message}</span>
+ *         <span className="error">{message(state.errors[0])}</span>
  *       )}
  *     </div>
  *   );
@@ -93,11 +94,12 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { errors } = useFormControl(field);
+   * const message = useValidationMessage(); // из '@reformer/core/i18n'
    *
    * return (
    *   <ul className="error-list">
    *     {errors.map((error, i) => (
-   *       <li key={i}>{error.message}</li>
+   *       <li key={i}>{message(error)}</li>
    *     ))}
    *   </ul>
    * );
@@ -160,12 +162,13 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { shouldShowError, errors } = useFormControl(field);
+   * const message = useValidationMessage(); // из '@reformer/core/i18n'
    *
    * return (
    *   <div>
    *     <input {...props} />
    *     {shouldShowError && (
-   *       <span className="error">{errors[0]?.message}</span>
+   *       <span className="error">{message(errors[0])}</span>
    *     )}
    *   </div>
    * );

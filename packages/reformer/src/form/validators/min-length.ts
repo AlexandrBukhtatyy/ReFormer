@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора минимальной длины строки или массива.
@@ -43,11 +44,7 @@ export function minLength<TForm = unknown, TField = unknown>(
     const len = (value as { length?: number }).length;
     if (typeof len !== 'number') return null;
     if (len < minLen) {
-      return {
-        code: 'minLength',
-        message: options?.message ?? 'invalid',
-        params: { minLength: minLen, actualLength: len, ...options?.params },
-      };
+      return validationError('minLength', options, { minLength: minLen, actualLength: len });
     }
     return null;
   };

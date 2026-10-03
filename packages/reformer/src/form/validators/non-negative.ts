@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора, проверяющего что число неотрицательное (`≥ 0`).
@@ -34,11 +35,7 @@ export function nonNegative<TForm = unknown, TField extends number | null | unde
     if (value === null || value === undefined) return null;
     if (typeof value !== 'number' || isNaN(value as number)) return null;
     if ((value as number) < 0) {
-      return {
-        code: 'nonNegative',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('nonNegative', options);
     }
     return null;
   };

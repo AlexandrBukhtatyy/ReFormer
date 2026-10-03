@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { DEFAULT_LANG, loadLocale } from './i18n';
 
 async function enableMocking() {
   if (process.env.NODE_ENV !== 'development') {
@@ -44,11 +45,18 @@ function render() {
   );
 }
 
+// Локаль догружается до первого рендера: провайдер находит её в кэше загрузчика и рисует дерево
+// сразу на нужном языке, без пустого кадра. Отказ загрузки приложение не останавливает — провайдер
+// запросит локаль сам, а до тех пор компоненты скажут встроенным английским.
+const localeReady = loadLocale.preload(DEFAULT_LANG).catch((error: unknown) => {
+  console.error('[i18n] Не удалось загрузить локаль до старта:', error);
+});
+
 // Приложение рендерится ДАЖЕ если моки не поднялись. Без catch любой отказ worker.start()
 // (заблокированный Service Worker в e2e, отозванная регистрация, отсутствующий mockServiceWorker.js)
 // не давал бы дойти до createRoot — и вместо внятной ошибки получался бы белый экран.
-enableMocking()
-  .catch((error: unknown) => {
-    console.error('[MSW] Не удалось запустить моки, приложение стартует без них:', error);
-  })
-  .finally(render);
+const mocksReady = enableMocking().catch((error: unknown) => {
+  console.error('[MSW] Не удалось запустить моки, приложение стартует без них:', error);
+});
+
+Promise.all([localeReady, mocksReady]).finally(render);

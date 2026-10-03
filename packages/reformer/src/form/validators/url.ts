@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
 const URL_REQUIRE_PROTOCOL = /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
@@ -60,11 +61,7 @@ export function url<TForm = unknown, TField extends string | null | undefined = 
     const regex = options?.requireProtocol ? URL_REQUIRE_PROTOCOL : URL_WITH_PROTOCOL;
 
     if (!regex.test(v)) {
-      return {
-        code: 'url',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('url', options);
     }
 
     if (options?.allowedProtocols && options.allowedProtocols.length > 0) {
@@ -73,11 +70,9 @@ export function url<TForm = unknown, TField extends string | null | undefined = 
       );
 
       if (!hasAllowedProtocol) {
-        return {
-          code: 'url_protocol',
-          message: options?.message ?? 'invalid',
-          params: { allowedProtocols: options.allowedProtocols, ...options?.params },
-        };
+        return validationError('url_protocol', options, {
+          allowedProtocols: options.allowedProtocols,
+        });
       }
     }
 

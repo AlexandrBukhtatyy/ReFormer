@@ -8,8 +8,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createLocaleLoader } from '../../src/i18n/loader';
 import type { FormLocale } from '../../src/i18n/locale';
 import { I18N_CONTEXT_MARKER, I18nContext } from '../../src/platforms/react/i18n/context';
-import { useI18n, useMessages } from '../../src/platforms/react/i18n/hooks';
+import { useI18n, useMessages, useValidationMessage } from '../../src/platforms/react/i18n/hooks';
 import { I18nProvider } from '../../src/platforms/react/i18n/provider';
+import { ru as coreRu } from '../../src/locale/ru';
 
 /** Встроенная английская таблица условного пакета. */
 const KIT_EN = {
@@ -131,5 +132,34 @@ describe('контекст', () => {
   it('несёт маркер, по которому страж ищет его копии в сборках', () => {
     expect(I18nContext.displayName).toBe(I18N_CONTEXT_MARKER);
     expect(I18N_CONTEXT_MARKER).toBe('ReformerI18nContext');
+  });
+});
+
+describe('useValidationMessage', () => {
+  function ErrorText() {
+    const message = useValidationMessage();
+    return (
+      <p>
+        {message({ code: 'required', message: '' })}|
+        {message({ code: 'minLength', message: '', params: { minLength: 3 } })}|
+        {message({ code: 'required', message: 'Укажите телефон' })}
+      </p>
+    );
+  }
+
+  it('без провайдера — английский текст по коду, явное сообщение — как есть', () => {
+    expect(renderToStaticMarkup(<ErrorText />)).toBe(
+      '<p>This field is required|Enter at least 3 characters|Укажите телефон</p>'
+    );
+  });
+
+  it('под провайдером — текст на языке локали', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={coreRu}>
+        <ErrorText />
+      </I18nProvider>
+    );
+
+    expect(html).toBe('<p>Обязательное поле|Не меньше 3 символов|Укажите телефон</p>');
   });
 });

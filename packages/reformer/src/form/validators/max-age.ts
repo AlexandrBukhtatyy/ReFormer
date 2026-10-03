@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { parseDate, calculateAge } from './date-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора максимального возраста (по дате рождения).
@@ -45,11 +46,7 @@ export function maxAge<
     }
     const age = calculateAge(parsed);
     if (age > maxAgeValue) {
-      return {
-        code: 'date_max_age',
-        message: options?.message ?? 'invalid',
-        params: { maxAge: maxAgeValue, currentAge: age, ...options?.params },
-      };
+      return validationError('date_max_age', options, { maxAge: maxAgeValue, currentAge: age });
     }
     return null;
   };

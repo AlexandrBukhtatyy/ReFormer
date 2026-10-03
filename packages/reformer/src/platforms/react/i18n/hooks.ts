@@ -5,9 +5,11 @@
  */
 
 import { useContext, useMemo } from 'react';
+import type { ValidationError } from '../../../form/types/contracts';
 import type { Messages } from '../../../i18n/locale';
 import type { MessageValues } from '../../../i18n/message-format';
-import { translateBuiltin } from '../../../i18n/translator';
+import { createI18n, translateBuiltin } from '../../../i18n/translator';
+import { resolveValidationError } from '../../../i18n/validation-message';
 import { I18nContext, type I18nContextValue } from './context';
 
 /**
@@ -58,4 +60,29 @@ export function useMessages<D extends Messages>(
       translateBuiltin(locale, defaults, key, values),
     [locale, defaults]
   );
+}
+
+/**
+ * Резолвер текста ошибки валидации по активной локали: `messageKey` автора → явное `message` →
+ * словарь локали по коду → встроенный английский → код. Идентичность функции меняется вместе с
+ * локалью, поэтому показанные ошибки переводятся при смене языка без повторной валидации.
+ *
+ * `FormField` из `@reformer/cdk` использует его сам; вызывайте напрямую, если рисуете ошибки
+ * своим компонентом.
+ *
+ * @example
+ * ```tsx
+ * function FieldErrors({ control }: { control: FieldNode<string> }) {
+ *   const message = useValidationMessage();
+ *   const { errors } = useFormControl(control);
+ *   return <>{errors.map((error) => <span key={error.code}>{message(error)}</span>)}</>;
+ * }
+ * ```
+ */
+export function useValidationMessage(): (error: ValidationError) => string {
+  const { locale } = useContext(I18nContext);
+  return useMemo(() => {
+    const i18n = createI18n(locale);
+    return (error: ValidationError) => resolveValidationError(error, i18n);
+  }, [locale]);
 }

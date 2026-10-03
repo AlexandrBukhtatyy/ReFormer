@@ -321,6 +321,12 @@ minAge(years: number, options?: { message?: string })
 maxAge(years: number, options?: { message?: string })
 ```
 
+Кроме `message`, каждое правило принимает `messageKey` (ключ словаря приложения) и `params`.
+Без `message` правило кладёт в ошибку пустую строку, а текст при отображении берётся из словаря
+локали по коду (`validation.<code>`): «Обязательное поле» под русской локалью, английская фраза без
+провайдера. Явное `message` важнее словаря, но языком не переключается; для локализуемого текста —
+`messageKey`. Подробно — [34-i18n.md](./34-i18n.md).
+
 Использование: layout-дерево `createForm` привязывает поля к сигналам, правила живут отдельной
 `ValidationSchema` и гоняются раннером `validateModel` по требованию.
 
@@ -4576,8 +4582,8 @@ export const loadLocale = createLocaleLoader([
 | JSON-файл | `@reformer/core/locale/ru.json` | выложить на свой сервер, править без пересборки |
 | синхронный модуль | `ru` из `@reformer/core/locale/ru` | SSR и тесты |
 
-Встроенные языки ядра — `en` и `ru`. Словарь ядра сейчас несёт единицы размера файла
-(`format.fileSize.b|kb|mb|gb|tb`).
+Встроенные языки ядра — `en` и `ru`. Словарь ядра несёт тексты ошибок валидации
+(`validation.<code>`) и единицы размера файла (`format.fileSize.b|kb|mb|gb|tb`).
 
 ## 86. Провайдер
 
@@ -4641,7 +4647,49 @@ function ClearButton() {
 }
 ```
 
-## 88. Что показывается, когда ключа нет
+## 88. Тексты ошибок валидации
+
+Правила из `@reformer/core/validators` несут только `code` и `params`; готового текста у них нет
+(`message` по умолчанию — пустая строка). Строку даёт резолвер при отображении ошибки:
+
+1. `messageKey` автора правила — если такой ключ есть в активной локали;
+2. явное `message` автора правила;
+3. `validation.<code>` из словаря локали;
+4. `validation.<code>` из встроенной английской таблицы ядра;
+5. сам код — для своих кодов, которых нет ни в одном словаре.
+
+```typescript
+validate(model.$.email, [
+  required(),                                             // «Обязательное поле» в ru, английская фраза без провайдера
+  minLength(5, { message: 'Слишком коротко' }),           // явный текст: важнее словаря, но языком не переключается
+  email({ messageKey: 'profile.email.invalid' }),         // ключ словаря приложения: переключается вместе с языком
+]);
+```
+
+- Текст получается при отображении, а не при проверке: смена языка переводит уже показанные
+  ошибки без повторной валидации.
+- `FormField` (`@reformer/cdk`, `@reformer/ui-kit`) резолвит ошибку сам. В своём компоненте —
+  `useValidationMessage()`; вне React — `resolveValidationError(error, createI18n(locale))`.
+- Свой код ошибки локализуется ключом `validation.<свой_код>` в словаре приложения либо
+  `messageKey` в самом правиле.
+- Встроенный текст меняется тем же ключом в словаре приложения:
+  `extendLocale(ru, { messages: { 'validation.required': 'Заполните поле' } })`.
+- Параметры готовятся до подстановки: `Date` — по языку (`15 янв. 2030 г.`), массив — перечнем,
+  размеры в байтах (`maxFileSize`, `minFileSize`, `actualSize`, `maxTotalFileSize`, `actualTotal`) —
+  строкой с единицей (`5 МБ`). Числа остаются числами, поэтому в сообщении работает `plural`.
+
+```tsx
+function FieldErrors({ control }: { control: FieldNode<string> }) {
+  const message = useValidationMessage();
+  const { errors, shouldShowError } = useFormControl(control);
+  return shouldShowError ? <span role="alert">{message(errors[0])}</span> : null;
+}
+```
+
+Смонтированный `ValidationMessagesProvider` из `@reformer/cdk` заменяет этот резолвер целиком:
+локаль для ошибок в его поддереве не участвует.
+
+## 89. Что показывается, когда ключа нет
 
 | Ключ | Нет в локали | Сообщение не разбирается |
 | --- | --- | --- |
@@ -4651,7 +4699,7 @@ function ClearButton() {
 Пропущенная подстановка выводится как `{name}`. Форма не падает ни в одном из случаев: неполный
 словарь, пришедший по сети, — законный сценарий.
 
-## 89. Проверка словаря в тестах
+## 90. Проверка словаря в тестах
 
 ```typescript
 import { validateLocale } from '@reformer/core/i18n';
@@ -4660,7 +4708,7 @@ expect(validateLocale(ruJson, enJson)).toEqual([]);
 // находит: syntax (не разбирается), missing / extra (ключи), arguments (потерянная подстановка)
 ```
 
-## 90. Описатели сообщений (низкий уровень)
+## 91. Описатели сообщений (низкий уровень)
 
 `msg(key, values?, defaultMessage?)` создаёт описатель сообщения, `defineMessages(appEn)` — `msg` с
 типизированными ключами, `resolveLocalized(value, i18n)` раскрывает описатели в объекте пропсов.
@@ -4669,7 +4717,7 @@ expect(validateLocale(ruJson, enJson)).toEqual([]);
 > `componentProps` схемы: компонент получит объект вместо строки. До появления раскрытия в
 > рендерерах вызывайте `resolveLocalized` вручную или используйте `useI18n().t`.
 
-## 91. Anti-patterns
+## 92. Anti-patterns
 
 ```typescript
 // ❌ Импорт из главной бочки — i18n там нет, а второй путь импорта дал бы вторую копию контекста
@@ -4696,6 +4744,15 @@ const message = 'Итого: {total, number}';
 t('cart.total', { total: number(total, { style: 'currency', currency: 'RUB' }) });
 ```
 
+```tsx
+// ❌ Ошибка выводится полем message: у правил без своего текста оно пустое — на экране ничего
+<span>{errors[0].message}</span>
+
+// ✅ Текст ошибки — через резолвер: он знает словарь локали, messageKey и явное сообщение
+const message = useValidationMessage();
+<span>{message(errors[0])}</span>
+```
+
 ```typescript
 // ❌ Настройки локали без словаря: объект без поля messages принимается за словарь сообщений
 const source = () => ({ weekStartsOn: 1 });
@@ -4704,12 +4761,12 @@ const source = () => ({ weekStartsOn: 1 });
 const source = () => ({ weekStartsOn: 1, messages: {} });
 ```
 
-## 92. See also
+## 93. See also
 
 - [28-submit-and-reset.md](./28-submit-and-reset.md) — жизненный цикл формы; смена языка его не затрагивает
 - [33-validation-strategy.md](./33-validation-strategy.md) — когда запускается валидация
 
-## 93. API Reference
+## 94. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -6420,11 +6477,12 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { errors } = useFormControl(field);
+   * const message = useValidationMessage(); // из '@reformer/core/i18n'
    *
    * return (
    *   <ul className="error-list">
    *     {errors.map((error, i) => (
-   *       <li key={i}>{error.message}</li>
+   *       <li key={i}>{message(error)}</li>
    *     ))}
    *   </ul>
    * );
@@ -6487,12 +6545,13 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { shouldShowError, errors } = useFormControl(field);
+   * const message = useValidationMessage(); // из '@reformer/core/i18n'
    *
    * return (
    *   <div>
    *     <input {...props} />
    *     {shouldShowError && (
-   *       <span className="error">{errors[0]?.message}</span>
+   *       <span className="error">{message(errors[0])}</span>
    *     )}
    *   </div>
    * );
@@ -6555,6 +6614,7 @@ control: FieldNode<string>;
 
 function TextField({ control }: Props) {
 const state = useFormControl(control);
+const message = useValidationMessage(); // из '@reformer/core/i18n'
 
 return (
 <div>
@@ -6564,7 +6624,7 @@ disabled={state.disabled}
 onChange={e => control.setValue(e.target.value)}
 />
 {state.shouldShowError && state.errors[0] && (
-<span className="error">{state.errors[0].message}</span>
+<span className="error">{message(state.errors[0])}</span>
 )}
 </div>
 );
@@ -9832,6 +9892,33 @@ resolveLocalized({ label: msg('profile.email.label'), options: [{ value: 'a', la
 
 _Source: src/i18n/resolve-localized.ts_
 
+### resolveValidationError
+
+**Kind:** `function`
+
+Отображаемый текст ошибки валидации. Порядок источников — в шапке модуля.
+
+**Signature:**
+```typescript
+export function resolveValidationError(error: ValidationError, i18n: I18nHandle): string
+```
+
+**Parameters:**
+- `error` — - Ошибка от правила: `code`, `message`, `messageKey`, `params`.
+- `i18n` — - Ручка активной локали (`createI18n` / `useI18n`).
+
+**Examples:**
+
+```ts
+resolveValidationError({ code: 'minLength', message: '', params: { minLength: 8 } }, i18n);
+// 'Enter at least 8 characters' · в русской локали — 'Не меньше 8 символов'
+
+resolveValidationError({ code: 'required', message: 'Укажите телефон' }, i18n);
+// 'Укажите телефон' — явное сообщение автора важнее словаря
+```
+
+_Source: src/i18n/validation-message.ts_
+
 ### revalidateWhen
 
 **Kind:** `function`
@@ -10465,6 +10552,7 @@ export function useFormControl(
 Текстовое поле с валидацией
 ```tsx
 import { useFormControl } from '@reformer/core';
+import { useValidationMessage } from '@reformer/core/i18n';
 import type { FieldNode } from '@reformer/core';
 
 interface TextFieldProps {
@@ -10480,6 +10568,8 @@ shouldShowError,
 errors,
 pending
 } = useFormControl(control);
+// Текст ошибки даёт резолвер: у правил без своего сообщения `message` пуст.
+const message = useValidationMessage();
 
 return (
 <div className="field">
@@ -10499,7 +10589,7 @@ return (
 
 {shouldShowError && errors[0] && (
 <span className="error" role="alert">
- {errors[0].message}
+ {message(errors[0])}
 </span>
 )}
 </div>
@@ -10547,6 +10637,7 @@ control: FieldNode<string>;
 
 function Select({ control }: SelectProps) {
 const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
+const message = useValidationMessage(); // из '@reformer/core/i18n'
 const options = componentProps.options as Array<{ value: string; label: string }>;
 
 return (
@@ -10564,7 +10655,7 @@ onBlur={() => control.markAsTouched()}
  </option>
 ))}
 </select>
-{shouldShowError && <span className="error">{errors[0]?.message}</span>}
+{shouldShowError && <span className="error">{message(errors[0])}</span>}
 </div>
 );
 }
@@ -10802,6 +10893,7 @@ dangerouslySetInnerHTML={{ __html: html }}
 // Основной редактор использует useFormControl для полного состояния
 function MarkdownEditor({ control }: MarkdownEditorProps) {
 const { value, shouldShowError, errors } = useFormControl(control);
+const message = useValidationMessage(); // из '@reformer/core/i18n'
 
 return (
 <div className="editor-container">
@@ -10809,7 +10901,7 @@ return (
 value={value}
 onChange={e => control.setValue(e.target.value)}
 />
-{shouldShowError && <span className="error">{errors[0]?.message}</span>}
+{shouldShowError && <span className="error">{message(errors[0])}</span>}
 
 {/* Preview обновляется только при изменении value *}
 <MarkdownPreview control={control} />
@@ -10974,6 +11066,34 @@ function ClearButton() {
 
 _Source: src/platforms/react/i18n/hooks.ts_
 
+### useValidationMessage
+
+**Kind:** `function`
+
+Резолвер текста ошибки валидации по активной локали: `messageKey` автора → явное `message` →
+словарь локали по коду → встроенный английский → код. Идентичность функции меняется вместе с
+локалью, поэтому показанные ошибки переводятся при смене языка без повторной валидации.
+
+`FormField` из `@reformer/cdk` использует его сам; вызывайте напрямую, если рисуете ошибки
+своим компонентом.
+
+**Signature:**
+```typescript
+export function useValidationMessage(): (error: ValidationError) => string
+```
+
+**Examples:**
+
+```tsx
+function FieldErrors({ control }: { control: FieldNode<string> }) {
+  const message = useValidationMessage();
+  const { errors } = useFormControl(control);
+  return <>{errors.map((error) => <span key={error.code}>{message(error)}</span>)}</>;
+}
+```
+
+_Source: src/platforms/react/i18n/hooks.ts_
+
 ### validate
 
 **Kind:** `function`
@@ -11107,8 +11227,20 @@ _Source: src/form/validation/run.ts_
 ```typescript
 export interface ValidateOptions {
   /** Готовое сообщение об ошибке. Если не задано, валидаторы кладут `''`, и отображаемый текст
-   * резолвится из `code` (см. резолвер сообщений в `@reformer/cdk`). */
+   * берётся из словаря локали по `code` (`validation.<code>`; см. `resolveValidationError` в
+   * `@reformer/core/i18n`). Явное сообщение важнее словаря, но не переключается вместе с языком —
+   * для локализуемого текста используйте {@link ValidateOptions.messageKey}. */
   message?: string;
+  /**
+   * Ключ сообщения в словаре приложения — локализуемый текст автора правила. Если ключ есть в
+   * активной локали, он важнее и `message`, и текста по `code`; если нет — в ход идёт `message`.
+   *
+   * @example
+   * ```ts
+   * required({ messageKey: 'profile.name.required', message: 'Name is required' });
+   * ```
+   */
+  messageKey?: string;
   /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
   params?: Record<string, FormValue>;
 }
@@ -11140,7 +11272,13 @@ _Source: src/form/validation/operators.ts_
 ```typescript
 export interface ValidationError {
   code: string;
+  /**
+   * Готовый текст ошибки. Пустая строка — «автор правила текста не задавал»: отображаемую строку
+   * тогда даёт резолвер по `code` (словарь локали `validation.<code>`).
+   */
   message: string;
+  /** Ключ сообщения в словаре приложения; при наличии в активной локали важнее `message`. */
+  messageKey?: string;
   params?: Record<string, FormValue>;
   /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
   severity?: 'error' | 'warning';

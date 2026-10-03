@@ -26,6 +26,8 @@ import UiBuilderDemo from './pages/debug/ui_builder';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
+import { I18nProvider } from '@reformer/core/i18n';
+import { DEFAULT_LANG, loadLocale } from './i18n';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -442,15 +444,19 @@ function App() {
   registerPlaygroundForms();
 
   return (
-    <BrowserRouter>
-      <FormRegistryProvider
-        registry={getFormRegistry()}
-        context={FORM_CONTEXT}
-        baseRegistry={baseComponentRegistry}
-      >
-        <Layout />
-      </FormRegistryProvider>
-    </BrowserRouter>
+    // Язык подписей и ошибок валидации для всех демо. Локаль к этому моменту уже в кэше
+    // загрузчика (её догружает main.tsx до первого рендера), поэтому первый кадр синхронный.
+    <I18nProvider lang={DEFAULT_LANG} load={loadLocale}>
+      <BrowserRouter>
+        <FormRegistryProvider
+          registry={getFormRegistry()}
+          context={FORM_CONTEXT}
+          baseRegistry={baseComponentRegistry}
+        >
+          <Layout />
+        </FormRegistryProvider>
+      </BrowserRouter>
+    </I18nProvider>
   );
 }
 

@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { toFileArray } from './file-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора минимального размера файла.
@@ -47,16 +48,11 @@ export function minFileSize<TForm = unknown, TField = unknown>(
     for (const file of files) {
       if (typeof file.size !== 'number') continue;
       if (file.size < minSize) {
-        return {
-          code: 'minFileSize',
-          message: options?.message ?? 'invalid',
-          params: {
-            minFileSize: minSize,
-            fileName: file.name,
-            actualSize: file.size,
-            ...options?.params,
-          },
-        };
+        return validationError('minFileSize', options, {
+          minFileSize: minSize,
+          fileName: file.name,
+          actualSize: file.size,
+        });
       }
     }
     return null;

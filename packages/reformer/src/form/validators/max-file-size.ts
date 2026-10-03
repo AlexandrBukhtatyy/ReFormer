@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { toFileArray } from './file-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора максимального размера файла.
@@ -47,16 +48,11 @@ export function maxFileSize<TForm = unknown, TField = unknown>(
     for (const file of files) {
       if (typeof file.size !== 'number') continue;
       if (file.size > maxSize) {
-        return {
-          code: 'maxFileSize',
-          message: options?.message ?? 'invalid',
-          params: {
-            maxFileSize: maxSize,
-            fileName: file.name,
-            actualSize: file.size,
-            ...options?.params,
-          },
-        };
+        return validationError('maxFileSize', options, {
+          maxFileSize: maxSize,
+          fileName: file.name,
+          actualSize: file.size,
+        });
       }
     }
     return null;

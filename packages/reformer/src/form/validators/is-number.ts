@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора, проверяющего что значение — конечное число (не NaN, не строка).
@@ -35,11 +36,7 @@ export function isNumber<TForm = unknown, TField extends number | null | undefin
   return (value) => {
     if (value === null || value === undefined) return null;
     if (typeof value !== 'number' || isNaN(value as number)) {
-      return {
-        code: 'isNumber',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('isNumber', options);
     }
     return null;
   };

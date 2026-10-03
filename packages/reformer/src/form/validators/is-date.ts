@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { parseDate } from './date-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора, проверяющего что значение — валидная дата.
@@ -39,11 +40,7 @@ export function isDate<
     }
     const parsed = parseDate(value as string | Date);
     if (parsed === null) {
-      return {
-        code: 'date_invalid',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('date_invalid', options);
     }
     return null;
   };

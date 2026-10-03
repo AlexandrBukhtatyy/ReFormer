@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { parseDate, getToday, normalizeDate } from './date-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора, проверяющего что дата не в прошлом.
@@ -45,11 +46,7 @@ export function futureDate<
     const today = getToday();
 
     if (normalizedValue < today) {
-      return {
-        code: 'date_past',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('date_past', options);
     }
     return null;
   };

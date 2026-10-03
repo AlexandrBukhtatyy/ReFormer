@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора максимальной длины строки или массива.
@@ -43,11 +44,7 @@ export function maxLength<TForm = unknown, TField = unknown>(
     const len = (value as { length?: number }).length;
     if (typeof len !== 'number') return null;
     if (len > maxLen) {
-      return {
-        code: 'maxLength',
-        message: options?.message ?? 'invalid',
-        params: { maxLength: maxLen, actualLength: len, ...options?.params },
-      };
+      return validationError('maxLength', options, { maxLength: maxLen, actualLength: len });
     }
     return null;
   };

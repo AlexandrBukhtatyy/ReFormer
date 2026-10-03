@@ -35,7 +35,7 @@ export interface RemoteFileRef {
  *
  * Коды отбора: `'fileType' | 'maxFileSize' | 'minFileSize' | 'maxFiles' |
  * 'maxTotalFileSize' | 'fileExists' | 'uploadFailed' | 'uploadAborted'`
- * или произвольный из кастомного `validate`. `message` по умолчанию — `'invalid'`
+ * или произвольный из кастомного `validate`. `message` по умолчанию — `''`
  * (как у core-валидаторов), в `params` — лимит/имя файла/фактическое значение.
  */
 export type FileError = ValidationError;

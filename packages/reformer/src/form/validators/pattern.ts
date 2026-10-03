@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора регулярного выражения.
@@ -45,11 +46,7 @@ export function pattern<TForm = unknown, TField extends string | null | undefine
     }
     re.lastIndex = 0;
     if (!re.test(value as string)) {
-      return {
-        code: 'pattern',
-        message: options?.message ?? '',
-        params: { pattern: regex.source, ...options?.params },
-      };
+      return validationError('pattern', options, { pattern: regex.source });
     }
     return null;
   };

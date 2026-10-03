@@ -651,7 +651,7 @@ Headless compound component для построения доступной (a11y
 | `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
 | `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
-| `FormField.Error`            | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`.                                                                       | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
+| `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
 | `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                                                                              |
@@ -806,6 +806,34 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
   </FieldRoot.Root>
 </>;
 ```
+
+### Текст ошибки
+
+`FormField.Error` и `useFormField` показывают не сырое `error.message`, а результат резолвера.
+
+- **По умолчанию текст даёт локаль.** Порядок: `messageKey` автора правила → явное `message` →
+  словарь активной локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
+  `I18nProvider` из `@reformer/core/i18n`; без него тексты английские. Смена языка переводит уже
+  показанные ошибки без повторной валидации.
+- **`ValidationMessagesProvider` — полное переопределение.** Смонтированный провайдер заменяет
+  резолвер целиком: локаль для ошибок в его поддереве не участвует, а таблица из
+  `createMessageResolver` по-прежнему важнее `error.message`. Нужен, только если тексты ошибок
+  берутся из своего источника.
+
+```tsx
+import { I18nProvider } from '@reformer/core/i18n';
+
+// Обычная локализация: провайдер языка, без отдельной таблицы ошибок.
+<I18nProvider lang="ru" load={loadLocale}>
+  <FormField.Root control={form.email}>
+    <FormField.Label />
+    <FormField.Control />
+    <FormField.Error /> {/* required() → «Обязательное поле» */}
+  </FormField.Root>
+</I18nProvider>
+```
+
+Свой рендер ошибок берёт тот же резолвер хуком `useValidationErrorResolver()`.
 
 ## 24. Anti-patterns
 
@@ -2804,9 +2832,10 @@ _Source: src/validation/error-resolver.tsx_
 
 **Kind:** `const`
 
-Дефолтный резолвер: отдаёт `error.message`, а если оно пустое — `error.code`. Применяется, когда
-форма не обёрнута в {@link ValidationMessagesProvider}. Обеспечивает обратную совместимость:
-пока валидаторы несут готовые тексты в `message`, отображение не меняется.
+Простейший резолвер без локали: отдаёт `error.message`, а если оно пустое — `error.code`.
+Резолвером по умолчанию больше не является (им стал резолвер по локали, см. шапку модуля);
+оставлен как готовая функция для {@link ValidationMessagesProvider}, если локализация ошибок
+не нужна вовсе.
 
 **Signature:**
 ```typescript
@@ -2928,7 +2957,7 @@ _Source: src/components/form-wizard/define-steps.ts_
 
 Коды отбора: `'fileType' | 'maxFileSize' | 'minFileSize' | 'maxFiles' |
 'maxTotalFileSize' | 'fileExists' | 'uploadFailed' | 'uploadAborted'`
-или произвольный из кастомного `validate`. `message` по умолчанию — `'invalid'`
+или произвольный из кастомного `validate`. `message` по умолчанию — `''`
 (как у core-валидаторов), в `params` — лимит/имя файла/фактическое значение.
 
 **Signature:**
@@ -6567,7 +6596,8 @@ _Source: src/components/list/types.ts_
 
 **Kind:** `function`
 
-Ошибка отбора с дефолтным `message: 'invalid'` (текст даёт резолвер сообщений).
+Ошибка отбора. `message` пуст — как у правил ядра: готового текста у отбора нет, его даёт
+резолвер сообщений по коду (`validation.<code>` в словаре локали).
 
 **Signature:**
 ```typescript
@@ -8477,17 +8507,18 @@ _Source: src/components/option-source/useResourceOptions.ts_
 
 **Kind:** `function`
 
-Возвращает текущий резолвер сообщений из контекста. Если форма не обёрнута в
-{@link ValidationMessagesProvider}, вернётся {@link defaultErrorResolver}. Используется
-внутри `useFormField` для преобразования {@link ValidationError} в отображаемую строку;
-вызывайте напрямую, если строите собственный рендер ошибок.
+Возвращает текущий резолвер сообщений. Если форма обёрнута в {@link ValidationMessagesProvider}
+— его резолвер; иначе резолвер по активной локали (`useValidationMessage` из
+`@reformer/core/i18n`), идентичность которого меняется вместе с языком. Используется внутри
+`useFormField` для преобразования {@link ValidationError} в отображаемую строку; вызывайте
+напрямую, если строите собственный рендер ошибок.
 
 **Signature:**
 ```typescript
 export function useValidationErrorResolver(): ValidationErrorResolver
 ```
 
-**Returns:** Активный {@link ValidationErrorResolver} (или дефолтный, если провайдера нет).
+**Returns:** Активный {@link ValidationErrorResolver}.
 
 **Examples:**
 
@@ -8554,9 +8585,11 @@ _Source: src/validation/error-resolver.tsx_
 
 **Kind:** `function`
 
-Провайдер резолвера сообщений валидации (i18n) для поддерева формы. Все `useFormField` внутри
-начинают отображать не `error.message`, а результат переданного `resolver`. Оберните форму
-резолвером из {@link createMessageResolver}, чтобы включить локализацию по кодам ошибок.
+Провайдер резолвера сообщений валидации для поддерева формы — полное переопределение. Все
+`useFormField` внутри отображают результат переданного `resolver`, а резолвер по локали
+(`I18nProvider`) для ошибок в этом поддереве отключается. Нужен, когда тексты ошибок берутся из
+своего источника; для обычной локализации достаточно `I18nProvider` и словаря
+`validation.<code>`.
 
 **Signature:**
 ```typescript

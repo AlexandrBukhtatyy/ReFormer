@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора, проверяющего что число — целое.
@@ -34,11 +35,7 @@ export function integer<TForm = unknown, TField extends number | null | undefine
     if (value === null || value === undefined) return null;
     if (typeof value !== 'number' || isNaN(value as number)) return null;
     if (!Number.isInteger(value as number)) {
-      return {
-        code: 'integer',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('integer', options);
     }
     return null;
   };

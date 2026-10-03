@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора, проверяющего что число кратно заданному.
@@ -42,11 +43,7 @@ export function multipleOf<TForm = unknown, TField extends number | null | undef
     const remainder = Math.abs((value as number) % divisor);
     const isMultiple = remainder <= EPSILON || Math.abs(remainder - Math.abs(divisor)) <= EPSILON;
     if (!isMultiple) {
-      return {
-        code: 'multipleOf',
-        message: options?.message ?? 'invalid',
-        params: { multipleOf: divisor, ...options?.params },
-      };
+      return validationError('multipleOf', options, { multipleOf: divisor });
     }
     return null;
   };

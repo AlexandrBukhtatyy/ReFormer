@@ -1,17 +1,22 @@
 /**
- * Резолвер сообщений валидации (точка i18n).
+ * Резолвер сообщений валидации.
  *
- * `useFormField` отображает не `error.message` напрямую, а результат резолвера. По умолчанию резолвер
- * отдаёт `error.message ?? error.code` — обратная совместимость (поведение не меняется, пока валидаторы
- * несут готовые сообщения). Чтобы включить i18n, оберни форму в {@link ValidationMessagesProvider} с
- * резолвером из таблицы (`createMessageResolver(table)`): тогда валидаторы могут нести только `code`+`params`,
- * а тексты (RU/EN/…) живут в таблице и меняются без правки схемы валидации.
+ * `useFormField` отображает не `error.message` напрямую, а результат резолвера. Откуда он берётся:
+ *
+ * - **по умолчанию — из локали.** Без своего провайдера текст даёт `useValidationMessage` из
+ *   `@reformer/core/i18n`: `messageKey` автора правила → явное `message` → словарь активной
+ *   локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
+ *   `I18nProvider`; без него тексты английские;
+ * - **{@link ValidationMessagesProvider} — полное переопределение.** Смонтированный провайдер
+ *   заменяет резолвер целиком: локаль для ошибок в его поддереве больше не участвует. Таблица из
+ *   {@link createMessageResolver} при этом по-прежнему важнее `error.message`.
  *
  * @module reformer-cdk/validation/error-resolver
  */
 
 import { createContext, useContext, type ReactNode } from 'react';
 import type { ValidationError } from '@reformer/core';
+import { useValidationMessage } from '@reformer/core/i18n';
 
 /** Преобразует ошибку валидации в отображаемую строку. */
 export type ValidationErrorResolver = (error: ValidationError) => string;
@@ -20,9 +25,10 @@ export type ValidationErrorResolver = (error: ValidationError) => string;
 export type ValidationMessageTable = Record<string, (params?: Record<string, unknown>) => string>;
 
 /**
- * Дефолтный резолвер: отдаёт `error.message`, а если оно пустое — `error.code`. Применяется, когда
- * форма не обёрнута в {@link ValidationMessagesProvider}. Обеспечивает обратную совместимость:
- * пока валидаторы несут готовые тексты в `message`, отображение не меняется.
+ * Простейший резолвер без локали: отдаёт `error.message`, а если оно пустое — `error.code`.
+ * Резолвером по умолчанию больше не является (им стал резолвер по локали, см. шапку модуля);
+ * оставлен как готовая функция для {@link ValidationMessagesProvider}, если локализация ошибок
+ * не нужна вовсе.
  *
  * @example Прямое применение к ошибке
  * ```ts
@@ -63,12 +69,15 @@ export function createMessageResolver(table: ValidationMessageTable): Validation
   return (error) => table[error.code]?.(error.params) ?? (error.message || error.code);
 }
 
-const ResolverContext = createContext<ValidationErrorResolver>(defaultErrorResolver);
+/** `null` — провайдера нет: текст ошибки даёт резолвер по активной локали. */
+const ResolverContext = createContext<ValidationErrorResolver | null>(null);
 
 /**
- * Провайдер резолвера сообщений валидации (i18n) для поддерева формы. Все `useFormField` внутри
- * начинают отображать не `error.message`, а результат переданного `resolver`. Оберните форму
- * резолвером из {@link createMessageResolver}, чтобы включить локализацию по кодам ошибок.
+ * Провайдер резолвера сообщений валидации для поддерева формы — полное переопределение. Все
+ * `useFormField` внутри отображают результат переданного `resolver`, а резолвер по локали
+ * (`I18nProvider`) для ошибок в этом поддереве отключается. Нужен, когда тексты ошибок берутся из
+ * своего источника; для обычной локализации достаточно `I18nProvider` и словаря
+ * `validation.<code>`.
  *
  * @param props.resolver - Резолвер {@link ValidationErrorResolver} (например, из `createMessageResolver`).
  * @param props.children - Поддерево формы, к которому применяется резолвер.
@@ -101,12 +110,13 @@ export function ValidationMessagesProvider(props: {
 }
 
 /**
- * Возвращает текущий резолвер сообщений из контекста. Если форма не обёрнута в
- * {@link ValidationMessagesProvider}, вернётся {@link defaultErrorResolver}. Используется
- * внутри `useFormField` для преобразования {@link ValidationError} в отображаемую строку;
- * вызывайте напрямую, если строите собственный рендер ошибок.
+ * Возвращает текущий резолвер сообщений. Если форма обёрнута в {@link ValidationMessagesProvider}
+ * — его резолвер; иначе резолвер по активной локали (`useValidationMessage` из
+ * `@reformer/core/i18n`), идентичность которого меняется вместе с языком. Используется внутри
+ * `useFormField` для преобразования {@link ValidationError} в отображаемую строку; вызывайте
+ * напрямую, если строите собственный рендер ошибок.
  *
- * @returns Активный {@link ValidationErrorResolver} (или дефолтный, если провайдера нет).
+ * @returns Активный {@link ValidationErrorResolver}.
  *
  * @example Кастомный рендер ошибок с активным резолвером
  * ```tsx
@@ -121,5 +131,7 @@ export function ValidationMessagesProvider(props: {
  * ```
  */
 export function useValidationErrorResolver(): ValidationErrorResolver {
-  return useContext(ResolverContext);
+  const explicit = useContext(ResolverContext);
+  const byLocale = useValidationMessage();
+  return explicit ?? byLocale;
 }

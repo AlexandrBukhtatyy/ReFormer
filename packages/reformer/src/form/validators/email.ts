@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,11 +39,7 @@ export function email<TForm = unknown, TField extends string | null | undefined 
       return null;
     }
     if (!EMAIL_REGEX.test(value as string)) {
-      return {
-        code: 'email',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
+      return validationError('email', options);
     }
     return null;
   };

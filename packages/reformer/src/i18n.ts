@@ -45,6 +45,9 @@ export type {
 export { createI18n, translateBuiltin } from './i18n/translator';
 export type { I18nHandle } from './i18n/translator';
 
+// Тексты ошибок валидации.
+export { resolveValidationError } from './i18n/validation-message';
+
 // Авторские подписи.
 export { msg, defineMessages, isMessageDescriptor, MESSAGE_DESCRIPTOR } from './i18n/descriptor';
 export type { MessageDescriptor, LocalizableText } from './i18n/descriptor';
@@ -57,6 +60,6 @@ export type {
   I18nStaticProviderProps,
   I18nLoadingProviderProps,
 } from './platforms/react/i18n/provider';
-export { useI18n, useMessages } from './platforms/react/i18n/hooks';
+export { useI18n, useMessages, useValidationMessage } from './platforms/react/i18n/hooks';
 export { I18N_CONTEXT_MARKER } from './platforms/react/i18n/context';
 export type { I18nContextValue } from './platforms/react/i18n/context';

@@ -49,8 +49,20 @@ export type Validator<TForm, TField> = (
  */
 export interface ValidateOptions {
   /** Готовое сообщение об ошибке. Если не задано, валидаторы кладут `''`, и отображаемый текст
-   * резолвится из `code` (см. резолвер сообщений в `@reformer/cdk`). */
+   * берётся из словаря локали по `code` (`validation.<code>`; см. `resolveValidationError` в
+   * `@reformer/core/i18n`). Явное сообщение важнее словаря, но не переключается вместе с языком —
+   * для локализуемого текста используйте {@link ValidateOptions.messageKey}. */
   message?: string;
+  /**
+   * Ключ сообщения в словаре приложения — локализуемый текст автора правила. Если ключ есть в
+   * активной локали, он важнее и `message`, и текста по `code`; если нет — в ход идёт `message`.
+   *
+   * @example
+   * ```ts
+   * required({ messageKey: 'profile.name.required', message: 'Name is required' });
+   * ```
+   */
+  messageKey?: string;
   /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
   params?: Record<string, FormValue>;
 }

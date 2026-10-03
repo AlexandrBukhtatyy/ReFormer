@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { matchesFileAccept, toFileArray } from './file-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора типа файла.
@@ -49,11 +50,7 @@ export function fileType<TForm = unknown, TField = unknown>(
     if (files === null || files.length === 0) return null;
     for (const file of files) {
       if (!matchesFileAccept(file, accept)) {
-        return {
-          code: 'fileType',
-          message: options?.message ?? 'invalid',
-          params: { accept, fileName: file.name, ...options?.params },
-        };
+        return validationError('fileType', options, { accept, fileName: file.name });
       }
     }
     return null;

@@ -176,6 +176,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * @example Текстовое поле с валидацией
  * ```tsx
  * import { useFormControl } from '@reformer/core';
+ * import { useValidationMessage } from '@reformer/core/i18n';
  * import type { FieldNode } from '@reformer/core';
  *
  * interface TextFieldProps {
@@ -191,6 +192,8 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  *     errors,
  *     pending
  *   } = useFormControl(control);
+ *   // Текст ошибки даёт резолвер: у правил без своего сообщения `message` пуст.
+ *   const message = useValidationMessage();
  *
  *   return (
  *     <div className="field">
@@ -210,7 +213,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  *
  *       {shouldShowError && errors[0] && (
  *         <span className="error" role="alert">
- *           {errors[0].message}
+ *           {message(errors[0])}
  *         </span>
  *       )}
  *     </div>
@@ -258,6 +261,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  *
  * function Select({ control }: SelectProps) {
  *   const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
+ *   const message = useValidationMessage(); // из '@reformer/core/i18n'
  *   const options = componentProps.options as Array<{ value: string; label: string }>;
  *
  *   return (
@@ -275,7 +279,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  *           </option>
  *         ))}
  *       </select>
- *       {shouldShowError && <span className="error">{errors[0]?.message}</span>}
+ *       {shouldShowError && <span className="error">{message(errors[0])}</span>}
  *     </div>
  *   );
  * }

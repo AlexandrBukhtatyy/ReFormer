@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора обязательного поля.
@@ -44,11 +45,7 @@ export function required<TForm = unknown, TField = unknown>(
       (Array.isArray(value) && value.length === 0) ||
       (typeof value === 'boolean' && value !== true);
     if (isEmpty) {
-      return {
-        code: 'required',
-        message: options?.message ?? '',
-        params: options?.params,
-      };
+      return validationError('required', options);
     }
     return null;
   };

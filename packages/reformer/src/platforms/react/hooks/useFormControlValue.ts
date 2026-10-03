@@ -138,6 +138,7 @@ import type { FormValue } from '../../../form/types/index';
  * // Основной редактор использует useFormControl для полного состояния
  * function MarkdownEditor({ control }: MarkdownEditorProps) {
  *   const { value, shouldShowError, errors } = useFormControl(control);
+ *   const message = useValidationMessage(); // из '@reformer/core/i18n'
  *
  *   return (
  *     <div className="editor-container">
@@ -145,7 +146,7 @@ import type { FormValue } from '../../../form/types/index';
  *         value={value}
  *         onChange={e => control.setValue(e.target.value)}
  *       />
- *       {shouldShowError && <span className="error">{errors[0]?.message}</span>}
+ *       {shouldShowError && <span className="error">{message(errors[0])}</span>}
  *
  *       {/* Preview обновляется только при изменении value *}
  *       <MarkdownPreview control={control} />

@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора минимального числового значения.
@@ -39,11 +40,7 @@ export function min<TForm = unknown, TField extends number | null | undefined = 
       return null;
     }
     if ((value as number) < minValue) {
-      return {
-        code: 'min',
-        message: options?.message ?? 'invalid',
-        params: { min: minValue, actual: value, ...options?.params },
-      };
+      return validationError('min', options, { min: minValue, actual: value });
     }
     return null;
   };

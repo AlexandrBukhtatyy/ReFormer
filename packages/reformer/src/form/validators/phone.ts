@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Формат проверки номера телефона для валидатора {@link phone}.
@@ -66,11 +67,7 @@ export function phone<TForm = unknown, TField extends string | null | undefined 
       return null;
     }
     if (!regex.test(value as string)) {
-      return {
-        code: 'phone',
-        message: options?.message ?? 'invalid',
-        params: { format, ...options?.params },
-      };
+      return validationError('phone', options, { format });
     }
     return null;
   };

@@ -3,5 +3,40 @@
   "format.fileSize.kb": "{value} КБ",
   "format.fileSize.mb": "{value} МБ",
   "format.fileSize.gb": "{value} ГБ",
-  "format.fileSize.tb": "{value} ТБ"
+  "format.fileSize.tb": "{value} ТБ",
+
+  "validation.required": "Обязательное поле",
+  "validation.pattern": "Неверный формат",
+  "validation.email": "Введите корректный email",
+  "validation.url": "Введите корректный адрес (URL)",
+  "validation.url_protocol": "Адрес должен начинаться с одного из протоколов: {allowedProtocols}",
+  "validation.phone": "Введите корректный номер телефона",
+
+  "validation.min": "Не меньше {min}",
+  "validation.max": "Не больше {max}",
+  "validation.minLength": "Не меньше {minLength, plural, one{# символа} few{# символов} many{# символов} other{# символа}}",
+  "validation.maxLength": "Не больше {maxLength, plural, one{# символа} few{# символов} many{# символов} other{# символа}}",
+  "validation.isNumber": "Введите число",
+  "validation.integer": "Введите целое число",
+  "validation.multipleOf": "Число должно быть кратно {multipleOf}",
+  "validation.nonNegative": "Число не может быть отрицательным",
+  "validation.nonZero": "Число не может быть нулём",
+
+  "validation.date_invalid": "Введите корректную дату",
+  "validation.date_min": "Дата не раньше {minDate}",
+  "validation.date_max": "Дата не позже {maxDate}",
+  "validation.date_past": "Дата не может быть в прошлом",
+  "validation.date_future": "Дата не может быть в будущем",
+  "validation.date_min_age": "Возраст не меньше {minAge, plural, one{# года} few{# лет} many{# лет} other{# года}}",
+  "validation.date_max_age": "Возраст не больше {maxAge, plural, one{# года} few{# лет} many{# лет} other{# года}}",
+
+  "validation.fileType": "Недопустимый тип файла {fileName}. Разрешено: {accept}",
+  "validation.maxFileSize": "Файл {fileName} больше {maxFileSize}",
+  "validation.minFileSize": "Файл {fileName} меньше {minFileSize}",
+  "validation.maxFiles": "Не больше {maxFiles, plural, one{# файла} few{# файлов} many{# файлов} other{# файла}}",
+  "validation.minFiles": "Не меньше {minFiles, plural, one{# файла} few{# файлов} many{# файлов} other{# файла}}",
+  "validation.maxTotalFileSize": "Суммарный размер файлов больше {maxTotalFileSize}",
+  "validation.fileExists": "Файл {fileName} уже добавлен",
+  "validation.uploadAborted": "Загрузка прервана",
+  "validation.uploadFailed": "Не удалось загрузить файл {fileName}"
 }

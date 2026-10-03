@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { parseDate, normalizeDate } from './date-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора минимальной даты (включительно).
@@ -47,11 +48,7 @@ export function minDate<
     const normalizedMin = normalizeDate(minDateValue);
 
     if (normalizedValue < normalizedMin) {
-      return {
-        code: 'date_min',
-        message: options?.message ?? 'invalid',
-        params: { minDate: minDateValue, ...options?.params },
-      };
+      return validationError('date_min', options, { minDate: minDateValue });
     }
     return null;
   };

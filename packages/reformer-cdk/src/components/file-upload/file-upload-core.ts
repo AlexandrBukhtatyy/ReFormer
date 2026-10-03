@@ -178,9 +178,12 @@ export interface SelectFilesResult {
   rejected: FileRejection[];
 }
 
-/** Ошибка отбора с дефолтным `message: 'invalid'` (текст даёт резолвер сообщений). */
+/**
+ * Ошибка отбора. `message` пуст — как у правил ядра: готового текста у отбора нет, его даёт
+ * резолвер сообщений по коду (`validation.<code>` в словаре локали).
+ */
 export function makeFileError(code: string, params?: FileError['params']): FileError {
-  return { code, message: 'invalid', params };
+  return { code, message: '', params };
 }
 
 /**

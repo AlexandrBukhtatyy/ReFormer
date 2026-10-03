@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { toFileArray } from './file-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора максимального количества файлов.
@@ -43,11 +44,7 @@ export function maxFiles<TForm = unknown, TField = unknown>(
     const files = toFileArray(value);
     if (files === null || files.length === 0) return null;
     if (files.length > max) {
-      return {
-        code: 'maxFiles',
-        message: options?.message ?? 'invalid',
-        params: { maxFiles: max, actualCount: files.length, ...options?.params },
-      };
+      return validationError('maxFiles', options, { maxFiles: max, actualCount: files.length });
     }
     return null;
   };

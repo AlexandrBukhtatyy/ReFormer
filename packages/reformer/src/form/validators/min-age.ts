@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { parseDate, calculateAge } from './date-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора минимального возраста (по дате рождения).
@@ -45,11 +46,7 @@ export function minAge<
     }
     const age = calculateAge(parsed);
     if (age < minAgeValue) {
-      return {
-        code: 'date_min_age',
-        message: options?.message ?? 'invalid',
-        params: { minAge: minAgeValue, currentAge: age, ...options?.params },
-      };
+      return validationError('date_min_age', options, { minAge: minAgeValue, currentAge: age });
     }
     return null;
   };

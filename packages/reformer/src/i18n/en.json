@@ -3,5 +3,40 @@
   "format.fileSize.kb": "{value} KB",
   "format.fileSize.mb": "{value} MB",
   "format.fileSize.gb": "{value} GB",
-  "format.fileSize.tb": "{value} TB"
+  "format.fileSize.tb": "{value} TB",
+
+  "validation.required": "This field is required",
+  "validation.pattern": "Invalid format",
+  "validation.email": "Enter a valid email address",
+  "validation.url": "Enter a valid URL",
+  "validation.url_protocol": "The URL must use one of these protocols: {allowedProtocols}",
+  "validation.phone": "Enter a valid phone number",
+
+  "validation.min": "Must be at least {min}",
+  "validation.max": "Must be at most {max}",
+  "validation.minLength": "Enter at least {minLength, plural, one{# character} other{# characters}}",
+  "validation.maxLength": "Enter no more than {maxLength, plural, one{# character} other{# characters}}",
+  "validation.isNumber": "Enter a number",
+  "validation.integer": "Enter a whole number",
+  "validation.multipleOf": "Must be a multiple of {multipleOf}",
+  "validation.nonNegative": "Must not be negative",
+  "validation.nonZero": "Must not be zero",
+
+  "validation.date_invalid": "Enter a valid date",
+  "validation.date_min": "The date must not be earlier than {minDate}",
+  "validation.date_max": "The date must not be later than {maxDate}",
+  "validation.date_past": "The date must not be in the past",
+  "validation.date_future": "The date must not be in the future",
+  "validation.date_min_age": "Age must be at least {minAge}",
+  "validation.date_max_age": "Age must be at most {maxAge}",
+
+  "validation.fileType": "File {fileName} has a type that is not allowed. Allowed: {accept}",
+  "validation.maxFileSize": "File {fileName} is larger than {maxFileSize}",
+  "validation.minFileSize": "File {fileName} is smaller than {minFileSize}",
+  "validation.maxFiles": "No more than {maxFiles, plural, one{# file} other{# files}}",
+  "validation.minFiles": "At least {minFiles, plural, one{# file} other{# files}}",
+  "validation.maxTotalFileSize": "The total size of the files exceeds {maxTotalFileSize}",
+  "validation.fileExists": "File {fileName} has already been added",
+  "validation.uploadAborted": "Upload cancelled",
+  "validation.uploadFailed": "Failed to upload {fileName}"
 }

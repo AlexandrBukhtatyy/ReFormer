@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { toFileArray } from './file-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора минимального количества файлов.
@@ -43,11 +44,7 @@ export function minFiles<TForm = unknown, TField = unknown>(
     const files = toFileArray(value);
     if (files === null || files.length === 0) return null;
     if (files.length < min) {
-      return {
-        code: 'minFiles',
-        message: options?.message ?? 'invalid',
-        params: { minFiles: min, actualCount: files.length, ...options?.params },
-      };
+      return validationError('minFiles', options, { minFiles: min, actualCount: files.length });
     }
     return null;
   };

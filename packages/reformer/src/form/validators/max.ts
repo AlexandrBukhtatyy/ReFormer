@@ -7,6 +7,7 @@
  */
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора максимального числового значения.
@@ -39,11 +40,7 @@ export function max<TForm = unknown, TField extends number | null | undefined = 
       return null;
     }
     if ((value as number) > maxValue) {
-      return {
-        code: 'max',
-        message: options?.message ?? 'invalid',
-        params: { max: maxValue, actual: value, ...options?.params },
-      };
+      return validationError('max', options, { max: maxValue, actual: value });
     }
     return null;
   };

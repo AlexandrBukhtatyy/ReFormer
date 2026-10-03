@@ -8,6 +8,7 @@
 
 import type { Validator, ValidateOptions } from '../types/validation-schema';
 import { toFileArray } from './file-utils';
+import { validationError } from './validation-error';
 
 /**
  * Фабрика валидатора суммарного размера всех файлов.
@@ -47,11 +48,10 @@ export function maxTotalFileSize<TForm = unknown, TField = unknown>(
       0
     );
     if (actualTotal > maxTotal) {
-      return {
-        code: 'maxTotalFileSize',
-        message: options?.message ?? 'invalid',
-        params: { maxTotalFileSize: maxTotal, actualTotal, ...options?.params },
-      };
+      return validationError('maxTotalFileSize', options, {
+        maxTotalFileSize: maxTotal,
+        actualTotal,
+      });
     }
     return null;
   };

@@ -90,7 +90,13 @@ export type AsyncValidatorFn<T = FormValue> = (
  */
 export interface ValidationError {
   code: string;
+  /**
+   * Готовый текст ошибки. Пустая строка — «автор правила текста не задавал»: отображаемую строку
+   * тогда даёт резолвер по `code` (словарь локали `validation.<code>`).
+   */
   message: string;
+  /** Ключ сообщения в словаре приложения; при наличии в активной локали важнее `message`. */
+  messageKey?: string;
   params?: Record<string, FormValue>;
   /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
   severity?: 'error' | 'warning';
