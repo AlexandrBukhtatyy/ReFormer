@@ -11,8 +11,9 @@
  * Тема передаётся самой форме (`widgets`, `templates`), а не через `withTheme`: тот создаёт новый
  * компонент на каждую тему, и смена кита размонтировала бы форму вместе с набранным.
  *
- * Расхождения темы (чего в ките не нашлось) — не ошибки: форма рисуется. Они показаны заметкой
- * под формой. Находкой сборки (`ctx.report`) становится только падение отрисовки.
+ * Расхождения темы (чего в ките не нашлось) — не ошибки: форма рисуется. Они уходят заметками
+ * (`info`) в свод диагностик по документу формы — их показывает панель проблем, а превью остаётся
+ * формой и только формой. Находкой сборки (`ctx.report`) становится только падение отрисовки.
  *
  * @module plugins/rjsf/render/ui/RjsfPreview
  */
@@ -33,15 +34,18 @@ import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
 import { createKitTheme, type KitTheme } from '@reformer/rjsf-kit-theme';
 import { initialValues, isRjsfForm, type RjsfForm, type RjsfValues } from '@/plugins/rjsf/core';
-import type {
-  CatalogJson,
-  Disposable,
-  KitFrameProps,
-  KitNamespace,
-  KitsService,
-  PreviewContext,
+import {
+  pluginDiagnosticCode,
+  type CatalogJson,
+  type Diagnostic,
+  type DiagnosticsService,
+  type Disposable,
+  type KitFrameProps,
+  type KitNamespace,
+  type KitsService,
+  type PreviewContext,
 } from '@reformer/builder-plugin-api';
-import { RJSF_SURFACE_ID } from '../contract';
+import { RJSF_RENDER_PLUGIN_ID, RJSF_SURFACE_ID, RJSF_THEME_SOURCE } from '../contract';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -54,6 +58,8 @@ export interface RjsfPreviewProps {
   readonly kits: KitsService | undefined;
   /** Рамка активного кита; `null` — кита нет. Стабильна на всё время жизни службы китов. */
   readonly frame: ComponentType<KitFrameProps> | null;
+  /** Свод диагностик для заметок темы; нет — заметки не показываются. */
+  readonly diagnostics?: Pick<DiagnosticsService, 'publish'> | undefined;
   readonly t: Translate;
 }
 
@@ -146,7 +152,24 @@ interface Failure {
   readonly theme: KitTheme;
 }
 
-export default function RjsfPreview({ ctx, kits, frame, t }: RjsfPreviewProps): ReactElement {
+/** Расхождения темы как заметки свода: текст — в словаре плагина (`errors.theme.<код>`). */
+function themeNotes(theme: KitTheme): readonly Diagnostic[] {
+  return theme.problems.map(({ code, ...params }) => ({
+    source: RJSF_THEME_SOURCE,
+    severity: 'info',
+    code: pluginDiagnosticCode(RJSF_RENDER_PLUGIN_ID, `theme.${code}`),
+    params,
+    target: { kind: 'resource' },
+  }));
+}
+
+export default function RjsfPreview({
+  ctx,
+  kits,
+  frame,
+  diagnostics,
+  t,
+}: RjsfPreviewProps): ReactElement {
   const form = useForm(ctx);
   const theme = useKitTheme(kits);
   const [values, setValues] = useState<RjsfValues | undefined>(() => ctx.values());
@@ -167,6 +190,16 @@ export default function RjsfPreview({ ctx, kits, frame, t }: RjsfPreviewProps): 
       error === null ? [] : [{ file: '', phase: 'render', message: error.message }]
     );
   }, [ctx, error]);
+
+  useEffect(() => {
+    if (diagnostics === undefined) return undefined;
+    const resource = ctx.doc.id;
+    diagnostics.publish(resource, RJSF_THEME_SOURCE, themeNotes(theme));
+    // Превью закрыли или тема сменилась — прежние заметки снимаются: они про то, что нарисовано.
+    return () => {
+      diagnostics.publish(resource, RJSF_THEME_SOURCE, []);
+    };
+  }, [ctx, diagnostics, theme]);
 
   if (form === null) {
     return <p className="p-4 text-sm text-muted-foreground">{t('surface.invalid')}</p>;
@@ -212,16 +245,6 @@ export default function RjsfPreview({ ctx, kits, frame, t }: RjsfPreviewProps): 
   return (
     <div className="p-4" data-testid="rjsf-preview">
       {Frame === null ? content : <Frame>{content}</Frame>}
-      {theme.problems.length > 0 && (
-        <details className="mt-4 text-xs text-muted-foreground" data-testid="rjsf-theme-notes">
-          <summary>{t('theme.summary', { count: theme.problems.length })}</summary>
-          <ul className="mt-1 list-disc pl-4">
-            {theme.problems.map((problem) => (
-              <li key={JSON.stringify(problem)}>{t(`theme.${problem.code}`, { ...problem })}</li>
-            ))}
-          </ul>
-        </details>
-      )}
     </div>
   );
 }

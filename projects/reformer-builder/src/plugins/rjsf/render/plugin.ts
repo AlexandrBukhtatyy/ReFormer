@@ -10,6 +10,7 @@
 
 import {
   definePlugin,
+  DiagnosticsServiceToken,
   KitsCapability,
   PreviewSurfacePoint,
   type Plugin,
@@ -31,7 +32,11 @@ export function createRjsfRenderPlugin(): Plugin {
       ctx.subscriptions.push(
         ctx.extensions.contribute(
           PreviewSurfacePoint,
-          createRjsfSurface({ t, kits: () => ctx.services.get(KitsCapability) }),
+          createRjsfSurface({
+            t,
+            kits: () => ctx.services.get(KitsCapability),
+            diagnostics: () => ctx.services.get(DiagnosticsServiceToken),
+          }),
           { id: RJSF_SURFACE_ID }
         )
       );

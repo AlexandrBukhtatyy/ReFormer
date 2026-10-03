@@ -15,7 +15,12 @@
 import { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RJSF_PROVIDER_ID } from '@/plugins/rjsf/core';
-import type { DocumentRef, KitsService, PreviewSurface } from '@reformer/builder-plugin-api';
+import type {
+  DiagnosticsService,
+  DocumentRef,
+  KitsService,
+  PreviewSurface,
+} from '@reformer/builder-plugin-api';
 import { RJSF_SURFACE_ID } from './contract';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -27,9 +32,11 @@ export interface RjsfSurfaceDeps {
   readonly t: Translate;
   /** Служба китов, если кит есть в составе. Спрашивается на каждое монтирование. */
   readonly kits: () => KitsService | undefined;
+  /** Свод диагностик — туда уходят заметки темы. Без него заметки не показываются нигде. */
+  readonly diagnostics?: () => Pick<DiagnosticsService, 'publish'> | undefined;
 }
 
-export function createRjsfSurface({ t, kits }: RjsfSurfaceDeps): PreviewSurface {
+export function createRjsfSurface({ t, kits, diagnostics }: RjsfSurfaceDeps): PreviewSurface {
   return {
     id: RJSF_SURFACE_ID,
     title: () => t('surface.title'),
@@ -51,7 +58,13 @@ export function createRjsfSurface({ t, kits }: RjsfSurfaceDeps): PreviewSurface 
         <Suspense
           fallback={<p className="p-4 text-sm text-muted-foreground">{t('surface.loading')}</p>}
         >
-          <RjsfPreview ctx={ctx} kits={service} frame={service?.Frame ?? null} t={t} />
+          <RjsfPreview
+            ctx={ctx}
+            kits={service}
+            frame={service?.Frame ?? null}
+            diagnostics={diagnostics?.()}
+            t={t}
+          />
         </Suspense>
       );
       return {

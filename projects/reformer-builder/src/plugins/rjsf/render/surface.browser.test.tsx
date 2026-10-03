@@ -15,6 +15,8 @@ import { createKitTheme } from '@reformer/rjsf-kit-theme';
 import { applyRjsfOp, RJSF_PROVIDER_ID, sampleForm, type RjsfForm } from '@/plugins/rjsf/core';
 import type {
   CatalogJson,
+  Diagnostic,
+  DiagnosticsService,
   Disposable,
   DocumentRef,
   KitNamespace,
@@ -23,7 +25,7 @@ import type {
   PreviewProblem,
   PreviewValues,
 } from '@reformer/builder-plugin-api';
-import { RJSF_SURFACE_ID } from './contract';
+import { RJSF_SURFACE_ID, RJSF_THEME_SOURCE } from './contract';
 import { createRjsfSurface } from './surface';
 
 const NOOP: Disposable = { dispose: () => {} };
@@ -110,9 +112,17 @@ async function uiKit(): Promise<KitsService> {
   } as unknown as KitsService;
 }
 
-async function mount(ctx: PreviewContext, kits?: KitsService): Promise<HTMLElement> {
+async function mount(
+  ctx: PreviewContext,
+  kits?: KitsService,
+  diagnostics?: Pick<DiagnosticsService, 'publish'>
+): Promise<HTMLElement> {
   const element = host();
-  const surface = createRjsfSurface({ t: (key) => key, kits: () => kits });
+  const surface = createRjsfSurface({
+    t: (key) => key,
+    kits: () => kits,
+    diagnostics: () => diagnostics,
+  });
   const subscription = surface.mount(element, ctx);
   cleanup.push(() => {
     subscription.dispose();
@@ -253,6 +263,33 @@ describe('поверхность «rjsf.preview»', () => {
       ...(catalog.kit?.infra !== undefined ? { slots: catalog.kit.infra } : {}),
     });
     expect(problems.filter((problem) => problem.code === 'widget-default')).toEqual([]);
+  });
+
+  it('заметки темы уходят в свод диагностик, а не под форму, и снимаются с превью', async () => {
+    const published: (readonly Diagnostic[])[] = [];
+    const diagnostics: Pick<DiagnosticsService, 'publish'> = {
+      publish: (resource, source, items) => {
+        if (resource === DOC.id && source === RJSF_THEME_SOURCE) published.push(items);
+      },
+    };
+    const element = await mount(fakeContext(sampleForm()).ctx, await uiKit(), diagnostics);
+
+    // Главный вход ui-kit без полей за подпутём: дата остаётся стандартным виджетом RJSF.
+    await vi.waitFor(() => {
+      expect(published[published.length - 1]).toContainEqual({
+        source: RJSF_THEME_SOURCE,
+        severity: 'info',
+        code: 'reformer.rjsf.render:theme.widget-default',
+        params: { widget: 'DateWidget' },
+        target: { kind: 'resource' },
+      });
+    });
+    expect(element.querySelector('[data-testid="rjsf-theme-notes"]')).toBeNull();
+
+    cleanup.pop()?.();
+    await vi.waitFor(() => {
+      expect(published[published.length - 1]).toEqual([]);
+    });
   });
 
   it('ввод переживает пересборку по новой схеме, значение удалённого поля отпадает', async () => {
