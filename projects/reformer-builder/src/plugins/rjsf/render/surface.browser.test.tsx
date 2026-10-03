@@ -221,6 +221,40 @@ describe('поверхность «rjsf.preview»', () => {
     expect(problems.filter((problem) => problem.code === 'template-default')).toEqual([]);
   });
 
+  it('поле даты рисует DatePicker кита, когда поля за подпутём есть в пространстве имён', async () => {
+    const kits = await uiKit();
+    // Встроенный кит билдера подмешивает полевые подпути к главному входу (ReFormer-9r8q).
+    const namespace = {
+      ...(await import('@reformer/ui-kit/date-picker')),
+      ...kits.namespace(),
+    } as unknown as KitNamespace;
+    const withFields = { ...kits, namespace: () => namespace } as unknown as KitsService;
+    const base = sampleForm();
+    const form = {
+      ...base,
+      schema: {
+        ...base.schema,
+        properties: {
+          ...base.schema.properties,
+          birthday: { type: 'string', format: 'date', title: 'Дата рождения' },
+        },
+      },
+    } as RjsfForm;
+    const fake = fakeContext(form);
+    const element = await mount(fake.ctx, withFields);
+
+    const birthday = field(element, '[data-testid="input-birthday"]');
+    // Стандартный виджет RJSF — `input[type=date]`; у кита — кнопка, открывающая календарь.
+    expect(birthday.tagName).toBe('BUTTON');
+    const catalog = withFields.catalogJson();
+    const { problems } = createKitTheme({
+      namespace,
+      components: catalog.components,
+      ...(catalog.kit?.infra !== undefined ? { slots: catalog.kit.infra } : {}),
+    });
+    expect(problems.filter((problem) => problem.code === 'widget-default')).toEqual([]);
+  });
+
   it('ввод переживает пересборку по новой схеме, значение удалённого поля отпадает', async () => {
     const fake = fakeContext(sampleForm());
     const element = await mount(fake.ctx);

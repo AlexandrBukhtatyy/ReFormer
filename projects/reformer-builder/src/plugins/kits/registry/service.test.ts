@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  exportNameFor,
   KitsCapability,
   type CatalogJson,
   type Disposable,
@@ -8,7 +9,7 @@ import {
   type KitSource,
 } from '@reformer/builder-plugin-api';
 import type { CatalogValidator } from '@reformer/builder-plugin-api/tooling';
-import { BUILTIN_KIT } from './builtin';
+import { BUILTIN_KIT, loadBuiltinCatalog, loadBuiltinNamespace } from './builtin';
 import type { KitsSettings } from './host';
 import {
   createKitsService,
@@ -355,6 +356,19 @@ describe('встроенный кит', () => {
     expect(descriptor.adapters.wizard).toEqual({ symbol: 'FormWizard' });
     expect(descriptor.infra.fieldFrame).toBe('FieldFrame');
     expect(descriptor.previewPolicy.get('Dialog')?.mode).toBe('limited');
+  });
+
+  it('каждое поле каталога есть в пространстве имён, включая поля за подпутём', async () => {
+    const catalog = await loadBuiltinCatalog();
+    const namespace = await loadBuiltinNamespace();
+
+    // `DatePicker`, `Calendar`, `Combobox*`, `InputOTP` в главный вход кита не входят
+    // (ReFormer-9r8q): без них превью рисовало бы заглушку, а тема RJSF — стандартный виджет.
+    const missing = (catalog.components ?? [])
+      .filter((record) => record.role === 'field')
+      .filter((record) => namespace[exportNameFor(record)] === undefined)
+      .map((record) => record.name);
+    expect(missing).toEqual([]);
   });
 
   it('словарь классов приезжает вместе с каталогом: до загрузки подсказывать нечем', async () => {

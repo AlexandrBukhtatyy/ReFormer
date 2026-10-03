@@ -80,7 +80,14 @@ export default defineConfig({
   // получает «Failed to fetch dynamically imported module» и перезагрузку прогона.
   // RJSF — тем же доводом: превью домена rjsf грузит его лениво, при первом показе формы.
   optimizeDeps: {
-    include: ['highlight.js/lib/common', '@rjsf/core', '@rjsf/utils', '@rjsf/validator-ajv8'],
+    include: [
+      'highlight.js/lib/common',
+      '@rjsf/core',
+      '@rjsf/utils',
+      '@rjsf/validator-ajv8',
+      'date-fns',
+      'react-day-picker',
+    ],
   },
   test: {
     name: 'browser',

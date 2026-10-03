@@ -47,11 +47,31 @@ export const loadBuiltinCatalog: CatalogLoader = () =>
   import('@reformer/ui-kit/catalog').then((module) => module.default as unknown as CatalogJson);
 
 /**
+ * Поля кита за подпутём: в главный вход они не входят из-за своих зависимостей
+ * (`react-day-picker`, `cmdk`, `input-otp`), но каталог называет их полями формы наравне
+ * с остальными. Без них палитра предлагала бы поле, которое превью рисует заглушкой, а тема RJSF
+ * оставляла бы дату стандартному виджету (ReFormer-9r8q).
+ *
+ * Только поля: `chart`, `carousel` и прочие подпути форме не нужны, и грузить их ради неё незачем.
+ */
+const loadFieldSubpaths = (): Promise<readonly object[]> =>
+  Promise.all([
+    import('@reformer/ui-kit/calendar'),
+    import('@reformer/ui-kit/combobox'),
+    import('@reformer/ui-kit/date-picker'),
+    import('@reformer/ui-kit/input-otp'),
+  ]);
+
+/**
  * Компоненты встроенного кита — самый крупный чанк приложения, поэтому тоже загрузчиком: нужен он
  * только тому, кто рисует форму по-настоящему.
+ *
+ * Главный вход ложится последним: одноимённый экспорт из него побеждает подпуть.
  */
-export const loadBuiltinNamespace = (): Promise<KitNamespace> =>
-  import('@reformer/ui-kit') as unknown as Promise<KitNamespace>;
+export const loadBuiltinNamespace = async (): Promise<KitNamespace> => {
+  const [main, subpaths] = await Promise.all([import('@reformer/ui-kit'), loadFieldSubpaths()]);
+  return Object.freeze(Object.assign({}, ...subpaths, main)) as KitNamespace;
+};
 
 /** Встроенный кит: шапка для списка до загрузки, каталог и компоненты — загрузчиками. */
 export const BUILTIN_KIT: KitSource = Object.freeze({
