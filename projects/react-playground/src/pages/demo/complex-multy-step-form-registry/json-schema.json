@@ -13,6 +13,7 @@
         "component": "$component(RendererFormWizard)",
         "componentProps": {
           "className": "bg-white p-8 rounded-lg shadow-md",
+          "submitLabel": "Отправить заявку",
           "steps": [
             {
               "component": "$component(Step)",

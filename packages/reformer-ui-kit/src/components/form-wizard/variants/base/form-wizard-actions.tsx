@@ -9,6 +9,7 @@
 import type { FC } from 'react';
 import type { FormWizardActionsRenderProps } from '@reformer/cdk/form-wizard';
 import { Button } from '@/components/button';
+import { useKitMessages } from '@/i18n/messages';
 
 /**
  * Пропсы {@link FormWizardActions}: render-props навигации из headless-слота
@@ -20,15 +21,30 @@ import { Button } from '@/components/button';
 export interface FormWizardActionsProps extends FormWizardActionsRenderProps {
   /** Внешний CSS-класс контейнера кнопок. */
   className?: string;
-  /** Подпись кнопки «Назад». По умолчанию `'← Назад'`. */
+  /**
+   * Подпись кнопки «Назад». По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.prev
+   */
   prevLabel?: string;
-  /** Подпись кнопки «Далее». По умолчанию `'Далее →'`. */
+  /**
+   * Подпись кнопки «Далее». По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.next
+   */
   nextLabel?: string;
-  /** Подпись кнопки отправки на последнем шаге. По умолчанию `'Отправить заявку'`. */
+  /**
+   * Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.submit
+   */
   submitLabel?: string;
-  /** Подпись кнопки «Далее» во время валидации шага. По умолчанию `'Проверка...'`. */
+  /**
+   * Подпись кнопки «Далее» во время валидации шага. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.validating
+   */
   validatingLabel?: string;
-  /** Подпись кнопки отправки во время submit. По умолчанию `'Отправка...'`. */
+  /**
+   * Подпись кнопки отправки во время submit. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.submitting
+   */
   submittingLabel?: string;
 }
 
@@ -64,27 +80,32 @@ export const FormWizardActions: FC<FormWizardActionsProps> = ({
   isValidating,
   isSubmitting,
   className,
-  prevLabel = '← Назад',
-  nextLabel = 'Далее →',
-  submitLabel = 'Отправить заявку',
-  validatingLabel = 'Проверка...',
-  submittingLabel = 'Отправка...',
+  prevLabel,
+  nextLabel,
+  submitLabel,
+  validatingLabel,
+  submittingLabel,
 }) => {
+  const t = useKitMessages();
   return (
     <div data-slot="form-wizard-actions" className={`flex gap-4 ${className || ''}`}>
       {!isFirstStep && (
         <Button onClick={prev.onClick} disabled={prev.disabled} data-testid="btn-previous">
-          {prevLabel}
+          {prevLabel ?? t('kit.formWizard.prev')}
         </Button>
       )}
       <div className="flex-1" />
       {!isLastStep ? (
         <Button onClick={next.onClick} disabled={next.disabled} data-testid="btn-next">
-          {isValidating ? validatingLabel : nextLabel}
+          {isValidating
+            ? (validatingLabel ?? t('kit.formWizard.validating'))
+            : (nextLabel ?? t('kit.formWizard.next'))}
         </Button>
       ) : (
         <Button onClick={submit.onClick} disabled={submit.disabled} data-testid="btn-submit">
-          {isSubmitting ? submittingLabel : submitLabel}
+          {isSubmitting
+            ? (submittingLabel ?? t('kit.formWizard.submitting'))
+            : (submitLabel ?? t('kit.formWizard.submit'))}
         </Button>
       )}
     </div>

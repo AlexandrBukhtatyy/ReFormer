@@ -67,6 +67,12 @@ export type PropsSchema = Omit<
   'x-variantGroup'?: string;
   /** Человекочитаемая метка варианта в группе (напр. `'Пароль'`). */
   'x-variant'?: string;
+  /**
+   * Ключ словаря кита, из которого берётся `default` текстового пропа (`messageDefault` в
+   * `*.props.ts`, JSDoc-тег `@defaultMessage` у остальных). По нему инспектор показывает
+   * умолчание на языке активной локали.
+   */
+  'x-messageKey'?: string;
   properties?: Record<string, PropsSchema>;
   items?: PropsSchema | PropsSchema[];
   anyOf?: PropsSchema[];

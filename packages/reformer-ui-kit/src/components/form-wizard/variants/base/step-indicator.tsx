@@ -2,7 +2,7 @@
  * StepIndicator — визуальная цепочка шагов с иконками и навигацией.
  *
  * Получает props через render-prop API из `<FormWizard.Indicator>` слота.
- * Aria-метки опциональные с Russian-дефолтами.
+ * Aria-метки опциональные, по умолчанию — из словаря локали.
  */
 
 import type { FC } from 'react';
@@ -10,6 +10,7 @@ import type {
   FormWizardIndicatorStepWithState,
   FormWizardIndicatorRenderProps,
 } from '@reformer/cdk/form-wizard';
+import { useKitMessages } from '@/i18n/messages';
 
 /**
  * Пропсы {@link StepIndicator}: render-props индикатора из слота
@@ -19,16 +20,17 @@ import type {
 export interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
   /** Внешний CSS-класс контейнера. */
   className?: string;
-  /** Aria-label контейнера навигации. По умолчанию «Шаги формы». */
+  /**
+   * Aria-label контейнера навигации. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.stepsNav
+   */
   navAriaLabel?: string;
-  /** Кастомный шаблон aria-label для шага. Получает {step}. */
+  /**
+   * Кастомный шаблон aria-label для шага. Получает {step}. По умолчанию — строка
+   * `kit.formWizard.stepLabel` из словаря локали («Step 2: Address (current)»).
+   */
   stepAriaLabel?: (step: FormWizardIndicatorStepWithState) => string;
 }
-
-const defaultStepAriaLabel = (step: FormWizardIndicatorStepWithState): string =>
-  `Шаг ${step.number}: ${step.title}` +
-  (step.isCurrent ? ' (текущий)' : '') +
-  (step.isCompleted ? ' (завершён)' : '');
 
 /**
  * Визуальная цепочка шагов wizard'а — иконки, заголовки и соединительные линии
@@ -55,9 +57,20 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
   steps,
   goToStep,
   className,
-  navAriaLabel = 'Шаги формы',
-  stepAriaLabel = defaultStepAriaLabel,
+  navAriaLabel,
+  stepAriaLabel,
 }) => {
+  const t = useKitMessages();
+  const stepLabel = (step: FormWizardIndicatorStepWithState): string =>
+    stepAriaLabel
+      ? stepAriaLabel(step)
+      : t('kit.formWizard.stepLabel', {
+          number: step.number,
+          title: String(step.title),
+          current: step.isCurrent ? 'yes' : 'no',
+          completed: step.isCompleted ? 'yes' : 'no',
+        });
+
   const getStepClasses = (step: FormWizardIndicatorStepWithState) => {
     if (step.isCurrent) return 'bg-primary text-primary-foreground';
     if (step.isCompleted) return 'text-green-500 hover:bg-accent';
@@ -71,7 +84,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
       className={`flex items-center justify-between p-4 bg-muted rounded-lg ${className || ''}`}
       data-testid="step-indicator"
       role="navigation"
-      aria-label={navAriaLabel}
+      aria-label={navAriaLabel ?? t('kit.formWizard.stepsNav')}
     >
       {steps.map((step: FormWizardIndicatorStepWithState, index: number) => (
         <div key={step.number} className="flex items-center flex-1">
@@ -85,7 +98,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
             data-step-completed={step.isCompleted}
             data-step-can-navigate={step.canNavigate}
             role="button"
-            aria-label={stepAriaLabel(step)}
+            aria-label={stepLabel(step)}
             aria-current={step.isCurrent ? 'step' : undefined}
             tabIndex={step.canNavigate ? 0 : -1}
           >

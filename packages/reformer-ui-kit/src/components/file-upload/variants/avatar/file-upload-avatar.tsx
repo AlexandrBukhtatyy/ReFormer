@@ -7,6 +7,7 @@ import {
 } from '@reformer/cdk/file-upload';
 import { useValidationErrorResolver } from '@reformer/cdk';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
@@ -25,7 +26,10 @@ export interface FileUploadAvatarProps extends Omit<
 > {
   /** Форма превью. @default 'circle' */
   shape?: 'circle' | 'square';
-  /** Доступное имя зоны (aria-label; текста у зоны нет). @default 'Загрузить изображение' */
+  /**
+   * Доступное имя зоны (aria-label; текста у зоны нет). По умолчанию — из словаря локали.
+   * @defaultMessage kit.fileUpload.avatarLabel
+   */
   label?: string;
 }
 
@@ -33,6 +37,7 @@ export interface FileUploadAvatarProps extends Omit<
 function AvatarSurface() {
   const { items, getPreviewUrl } = useFileUploadContext();
   const resolveError = useValidationErrorResolver();
+  const t = useKitMessages();
   const item = items[0];
   const url = item ? getPreviewUrl(item.key) : null;
 
@@ -61,7 +66,7 @@ function AvatarSurface() {
           title={resolveError(item.error)}
           className="absolute inset-x-0 bottom-0 bg-destructive/80 px-1 py-0.5 text-center text-[10px] text-white"
         >
-          Ошибка
+          {t('kit.fileUpload.error')}
         </span>
       )}
     </>
@@ -73,16 +78,14 @@ function AvatarSurface() {
  * `overflow-hidden` круга, а клик перехватывала бы кликабельная зона-пикер.
  */
 function AvatarDeleteButton() {
-  const { items, removeItem, disabled } = useFileUploadContext();
+  const { items, getItemDeleteTriggerProps, disabled } = useFileUploadContext();
   const item = items[0];
   if (!item || disabled) return null;
-  const name = item.status === 'uploaded' ? (item.file?.name ?? item.remote.name) : item.file.name;
 
   return (
     <button
-      type="button"
-      aria-label={`Удалить файл ${name}`}
-      onClick={() => removeItem(item.key)}
+      // type, обработчик и подпись «Remove file …» — от cdk: её текст идёт из его словаря.
+      {...getItemDeleteTriggerProps(item)}
       className={cn(
         'absolute -top-1 -right-1 z-10 flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors',
         'hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring/50 outline-none'
@@ -105,6 +108,7 @@ export function FileUploadAvatar({
   ...props
 }: FileUploadAvatarProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
   const { options, label, tooltip, invalid, className, id, rest } = splitFileUploadProps(props);
+  const t = useKitMessages();
 
   const tooltipHint = useFieldTooltip(tooltip, {
     id,
@@ -138,7 +142,7 @@ export function FileUploadAvatar({
         <CdkFileUpload.Dropzone
           ref={zoneRef}
           id={id}
-          aria-label={label ?? 'Загрузить изображение'}
+          aria-label={label ?? t('kit.fileUpload.avatarLabel')}
           // Явный `invalid` — до rest: aria-invalid от FormField (ошибка валидации) главнее.
           aria-invalid={invalid || undefined}
           {...rest}

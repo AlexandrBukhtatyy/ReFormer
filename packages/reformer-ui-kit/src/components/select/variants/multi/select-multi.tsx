@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { defineFieldControl } from '@/fields/field-control';
@@ -145,6 +146,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
   },
   ref
 ) {
+  const t = useKitMessages();
   const ro = useResourceOptions(resource);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -298,15 +300,15 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             {initialLoading ? (
               <span className="flex items-center gap-2 text-muted-foreground">
                 <Spinner className="size-4" />
-                Loading...
+                {t('kit.select.loading')}
               </span>
             ) : selected.length === 0 ? (
               <span className="truncate text-muted-foreground">
-                {placeholder ?? 'Select options...'}
+                {placeholder ?? t('kit.select.placeholderMulti')}
               </span>
             ) : collapsed ? (
               <span className="truncate" data-slot="select-multi-summary">
-                Selected: {selected.length}
+                {t('kit.select.selected', { count: selected.length })}
               </span>
             ) : (
               <span className="flex flex-wrap gap-1" data-slot="select-multi-chips">
@@ -329,9 +331,9 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
                 type="text"
                 value={ro.searchInput}
                 onChange={(e) => ro.setSearchInput(e.target.value)}
-                placeholder={searchPlaceholder ?? 'Search...'}
+                placeholder={searchPlaceholder ?? t('kit.select.search')}
                 className="w-full rounded-sm border border-input px-2 py-1 text-sm outline-none focus:border-ring"
-                aria-label="Search options"
+                aria-label={t('kit.select.searchLabel')}
               />
             </div>
           )}
@@ -346,11 +348,13 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             data-slot="select-multi-list"
           >
             {loadError && (
-              <div className="px-2 py-1.5 text-sm text-destructive">Failed to load options.</div>
+              <div className="px-2 py-1.5 text-sm text-destructive">
+                {t('kit.select.loadError')}
+              </div>
             )}
             {!loadError && options.length === 0 && !ro.loadingMore && (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                {emptyText ?? 'No options found.'}
+                {emptyText ?? t('kit.select.empty')}
               </div>
             )}
             {options.map((option, index) => {
@@ -393,7 +397,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
               type="button"
               className={TRAILING_CLEAR}
               onClick={handleClear}
-              aria-label="Clear selection"
+              aria-label={t('kit.select.clear')}
               tabIndex={-1}
             >
               <XIcon className="size-4" />

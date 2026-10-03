@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import {
@@ -43,11 +44,11 @@ export interface ComboboxProps {
   onBlur?: () => void;
   /** Список опций. */
   options?: ComboboxOption[];
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select an option...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию — из словаря локали. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  /** Подсказка в поле поиска. По умолчанию — из словаря локали. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния (ничего не найдено). По умолчанию `'No options found.'`. */
+  /** Текст пустого состояния (ничего не найдено). По умолчанию — из словаря локали. */
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
@@ -112,6 +113,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
   },
   ref
 ) {
+  const t = useKitMessages();
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -195,7 +197,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
             className={cn('w-full justify-between font-normal', className)}
           >
             <span className={cn('truncate', selectedLabel == null && 'text-muted-foreground')}>
-              {selectedLabel ?? placeholder ?? 'Select an option...'}
+              {selectedLabel ?? placeholder ?? t('kit.combobox.placeholder')}
             </span>
             <ChevronsUpDownIcon
               className={cn('size-4 shrink-0 opacity-50', CHEVRON_RESERVE[trailingCount])}
@@ -205,12 +207,12 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
         <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
           <Command>
             <CommandInput
-              placeholder={searchPlaceholder ?? 'Search...'}
+              placeholder={searchPlaceholder ?? t('kit.combobox.search')}
               value={search}
               onValueChange={setSearch}
             />
             <CommandList>
-              {!showCreate && <CommandEmpty>{emptyText ?? 'No options found.'}</CommandEmpty>}
+              {!showCreate && <CommandEmpty>{emptyText ?? t('kit.combobox.empty')}</CommandEmpty>}
               <CommandGroup>
                 {options.map((option) => (
                   <CommandItem
@@ -234,7 +236,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
                   {/* value=search → cmdk не отфильтрует пункт; выбор эмитит введённое значение. */}
                   <CommandItem value={trimmedSearch} onSelect={handleCreate}>
                     <PlusIcon className="mr-2 size-4" />
-                    Create “{trimmedSearch}”
+                    {t('kit.combobox.create', { value: trimmedSearch })}
                   </CommandItem>
                 </CommandGroup>
               )}
@@ -250,7 +252,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
               type="button"
               className={TRAILING_CLEAR}
               onClick={handleClear}
-              aria-label="Clear selection"
+              aria-label={t('kit.combobox.clear')}
               tabIndex={-1}
             >
               <XIcon className="size-4" />

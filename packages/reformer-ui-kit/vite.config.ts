@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
 import path, { resolve } from 'path';
 import { readdirSync, existsSync } from 'node:fs';
+import { localeAssets } from '../../scripts/vite-locale-assets.mjs';
 
 const componentsDir = resolve(__dirname, 'src/components');
 
@@ -29,6 +30,10 @@ const entry: Record<string, string> = {
   ...(existsSync(resolve(__dirname, 'src/fields/index.ts'))
     ? { fields: resolve(__dirname, 'src/fields/index.ts') }
     : {}),
+  // Встроенные локали кита: загрузчик (чанк на язык) и синхронные модули по языкам.
+  locale: resolve(__dirname, 'src/locale/index.ts'),
+  'locale/en': resolve(__dirname, 'src/locale/en.ts'),
+  'locale/ru': resolve(__dirname, 'src/locale/ru.ts'),
   ...componentEntries(),
 };
 
@@ -59,7 +64,13 @@ const EXTERNAL: RegExp[] = [
 const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 
 export default defineConfig({
-  plugins: [react(), dts({ insertTypesEntry: true, exclude: TEST_FILES })],
+  plugins: [
+    react(),
+    dts({ insertTypesEntry: true, exclude: TEST_FILES }),
+    // JSON-копии локалей (`./locale/<язык>.json`) — из собранных синхронных модулей: словари
+    // ядра и cdk плюс подписи кита. Ядро и cdk должны быть собраны раньше.
+    localeAssets({ dist: resolve(__dirname, 'dist'), codes: ['en', 'ru'] }),
+  ],
   build: {
     lib: {
       entry,

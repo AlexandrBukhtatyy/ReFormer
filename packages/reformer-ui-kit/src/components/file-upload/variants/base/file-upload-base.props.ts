@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 
 /** Пропсы, общие для FileUpload-вариантов (base/dropzone/input): контракт один, визуал разный. */
 export const fileUploadSharedProperties = {
@@ -135,6 +136,12 @@ export const fileUploadBasePropsSchema = {
   'x-exportName': 'FileUploadBase',
   'x-variantGroup': 'FileUpload',
   'x-variant': 'Файлы',
-  properties: fileUploadSharedProperties,
+  properties: {
+    ...fileUploadSharedProperties,
+    placeholder: {
+      ...fileUploadSharedProperties.placeholder,
+      ...messageDefault('kit.fileUpload.choose'),
+    },
+  },
   'x-runtimeProps': fileUploadSharedRuntimeProps,
 } as const satisfies PropsSchema;

@@ -6,6 +6,7 @@ import {
   type UseFileUploadOptions,
 } from '@reformer/cdk/file-upload';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { Button } from '@/components/button';
@@ -36,7 +37,11 @@ export interface FileUploadBaseProps extends Omit<UseFileUploadOptions, 'id'> {
    * Сам компонент её НЕ отображает (иначе текст дублировался бы), только снимает из DOM-spread.
    */
   label?: string;
-  /** Видимый текст триггера/зоны. @default 'Выбрать файлы' (button) */
+  /**
+   * Видимый текст триггера/зоны. По умолчанию — из словаря локали, свой у каждого варианта:
+   * кнопка — `kit.fileUpload.choose`, зона — `kit.fileUpload.dropzone`, инпут —
+   * `kit.fileUpload.inputPlaceholder`.
+   */
   placeholder?: string;
   /** Подсказка под триггером (ограничения: типы, размер). */
   hint?: string;
@@ -128,6 +133,7 @@ export function FileUploadBase({
   ...props
 }: FileUploadBaseProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
   const { options, placeholder, hint, tooltip, className, id, rest } = splitFileUploadProps(props);
+  const t = useKitMessages();
 
   const tooltipHint = useFieldTooltip(tooltip, {
     id,
@@ -167,7 +173,7 @@ export function FileUploadBase({
               aria-describedby={tooltipHint.describedBy}
             >
               <UploadIcon />
-              {placeholder ?? 'Выбрать файлы'}
+              {placeholder ?? t('kit.fileUpload.choose')}
             </Button>
           </CdkFileUpload.Trigger>
           {tooltipHint.node}

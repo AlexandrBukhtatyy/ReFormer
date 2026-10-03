@@ -2,6 +2,7 @@ import * as React from 'react';
 import { XIcon } from 'lucide-react';
 import { Select as SelectPrimitive } from 'radix-ui';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import {
@@ -49,7 +50,7 @@ export interface SelectAsyncProps extends Omit<
   resource?: ResourceConfig<unknown>;
   /** Inline-варианты. Опции с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. */
   options?: Array<{ value: string | number; label: string; group?: string }>;
-  /** Подсказка в триггере. По умолчанию `'Select an option...'`. */
+  /** Подсказка в триггере. По умолчанию — `kit.select.placeholder` из словаря локали. */
   placeholder?: string;
   disabled?: boolean;
   /** Показывать ли кнопку очистки (X) справа от значения. По умолчанию `false`. */
@@ -116,6 +117,7 @@ const SelectAsync = React.forwardRef<
     },
     ref
   ) => {
+    const t = useKitMessages();
     const ro = useResourceOptions(resource);
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
     // `open` поднят в контролируемое состояние: Radix Root был неуправляемым, из-за чего
@@ -189,9 +191,9 @@ const SelectAsync = React.forwardRef<
           // Radix Select перехватывает клавиатуру для typeahead — гасим всплытие,
           // чтобы ввод шёл в поле, а не «прыгал» по опциям.
           onKeyDown={(e) => e.stopPropagation()}
-          placeholder="Search..."
+          placeholder={t('kit.select.search')}
           className="w-full rounded-sm border border-input px-2 py-1 text-sm outline-none focus:border-ring"
-          aria-label="Search options"
+          aria-label={t('kit.select.searchLabel')}
         />
       </div>
     ) : null;
@@ -224,7 +226,11 @@ const SelectAsync = React.forwardRef<
             aria-required={ariaRequired}
           >
             <SelectValue
-              placeholder={initialLoading ? 'Loading...' : placeholder || 'Select an option...'}
+              placeholder={
+                initialLoading
+                  ? t('kit.select.loading')
+                  : placeholder || t('kit.select.placeholder')
+              }
             />
           </SelectTrigger>
           <SelectContent
@@ -233,10 +239,12 @@ const SelectAsync = React.forwardRef<
             onViewportScroll={ro.flags.paginated ? handleViewportScroll : undefined}
           >
             {initialLoading ? (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</div>
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                {t('kit.select.loading')}
+              </div>
             ) : loadError ? (
               <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-destructive">
-                <span>Failed to load options</span>
+                <span>{t('kit.select.loadError')}</span>
                 <button
                   type="button"
                   onKeyDown={(e) => e.stopPropagation()}
@@ -246,11 +254,13 @@ const SelectAsync = React.forwardRef<
                   }}
                   className="rounded-sm px-2 py-0.5 text-xs font-medium text-foreground underline underline-offset-2 hover:text-destructive focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
-                  Retry
+                  {t('kit.select.retry')}
                 </button>
               </div>
             ) : options.length === 0 ? (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">No options available</div>
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                {t('kit.select.empty')}
+              </div>
             ) : (
               <>
                 {(() => {
@@ -277,7 +287,7 @@ const SelectAsync = React.forwardRef<
                 })()}
                 {ro.loadingMore && (
                   <div className="px-2 py-1.5 text-center text-xs text-muted-foreground">
-                    Loading more...
+                    {t('kit.select.loadingMore')}
                   </div>
                 )}
               </>
@@ -292,7 +302,7 @@ const SelectAsync = React.forwardRef<
                 type="button"
                 className={TRAILING_CLEAR}
                 onClick={handleClear}
-                aria-label="Clear selection"
+                aria-label={t('kit.select.clear')}
                 tabIndex={-1}
               >
                 <XIcon className="size-4" />

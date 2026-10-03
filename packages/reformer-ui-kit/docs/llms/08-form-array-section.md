@@ -5,10 +5,10 @@
 
 В пакете **два** компонента массива, и путать их нельзя:
 
-| Компонент          | Для чего                                    | Контракт                                            |
-| ------------------ | ------------------------------------------- | --------------------------------------------------- |
-| `FormArraySection` | TS-flow и renderer-react RenderSchema       | `control` + `itemComponent` (FC на элемент)         |
-| `FormArray`        | **renderer-json**, `$component(FormArray)`  | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
+| Компонент          | Для чего                                   | Контракт                                                |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------- |
+| `FormArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
+| `FormArray`        | **renderer-json**, `$component(FormArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
 
 Этот документ — про `FormArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
 
@@ -151,25 +151,25 @@ defineRegistry((reg) => {
 
 ## Props (полный список)
 
-| Prop                 | Type                                                         | Default                          | Описание                                                  |
-| -------------------- | ------------------------------------------------------------ | -------------------------------- | --------------------------------------------------------- |
-| `control`            | `FormArrayProxy<T> \| ArrayNode<T> \| undefined`             | required                         | Массив для управления (в RenderSchema — `FieldPathNode`)  |
-| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                         | FC для рендера каждого item                               |
-| `title`              | `string`                                                     | —                                | Заголовок секции (h3)                                     |
-| `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                | Метка над каждым item                                    |
-| `addButtonLabel`     | `string`                                                     | `'+ Добавить'`                   | Текст кнопки добавления                                   |
-| `removeButtonLabel`  | `string`                                                     | `'Удалить'`                      | Текст кнопки удаления                                     |
-| `emptyMessage`       | `string`                                                     | —                                | Сообщение при пустом массиве                             |
-| `emptyMessageHint`   | `string`                                                     | —                                | Подсказка под emptyMessage                               |
-| `hasItems`           | `boolean`                                                    | —                                | `false` → секция полностью скрыта                        |
-| `initialValue`       | `Partial<T>`                                                 | —                                | Plain-leaf значения для новых items                      |
-| `showRemoveOnSingle` | `boolean`                                                    | `false`                          | Показывать «Удалить» при одном item                      |
-| `reorderable`        | `boolean`                                                    | `false`                          | Показывать кнопки ↑/↓ для перестановки элементов          |
-| `maxItems`           | `number`                                                     | —                                | Максимум items (AddButton скрывается при достижении)     |
-| `className`          | `string`                                                     | `'space-y-3 mt-2'`               | Класс `<section>`-обёртки                                |
-| `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                     |
-| `form`               | `FormProxy<unknown>`                                         | авто-инъекция                    | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
-| `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                          | авто-инъекция                    | Field wrapper для дочерних полей (по умолчанию — от родителя) |
+| Prop                 | Type                                                         | Default                              | Описание                                                           |
+| -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
+| `control`            | `FormArrayProxy<T> \| ArrayNode<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
+| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                             | FC для рендера каждого item                                        |
+| `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
+| `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
+| `addButtonLabel`     | `string`                                                     | `'+ Add'` (локаль)                   | Текст кнопки добавления                                            |
+| `removeButtonLabel`  | `string`                                                     | `'Remove'` (локаль)                  | Текст кнопки удаления                                              |
+| `emptyMessage`       | `string`                                                     | —                                    | Сообщение при пустом массиве                                       |
+| `emptyMessageHint`   | `string`                                                     | —                                    | Подсказка под emptyMessage                                         |
+| `hasItems`           | `boolean`                                                    | —                                    | `false` → секция полностью скрыта                                  |
+| `initialValue`       | `Partial<T>`                                                 | —                                    | Plain-leaf значения для новых items                                |
+| `showRemoveOnSingle` | `boolean`                                                    | `false`                              | Показывать «Удалить» при одном item                                |
+| `reorderable`        | `boolean`                                                    | `false`                              | Показывать кнопки ↑/↓ для перестановки элементов                   |
+| `maxItems`           | `number`                                                     | —                                    | Максимум items (AddButton скрывается при достижении)               |
+| `className`          | `string`                                                     | `'space-y-3 mt-2'`                   | Класс `<section>`-обёртки                                          |
+| `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                                    |
+| `form`               | `FormProxy<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
+| `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                           | авто-инъекция                        | Field wrapper для дочерних полей (по умолчанию — от родителя)      |
 
 ## Critical: `initialValue` — PLAIN LEAVES ONLY
 

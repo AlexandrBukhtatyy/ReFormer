@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 
 /**
  * Props-схема варианта `file-upload/avatar` — single-изображение с превью.
@@ -21,7 +22,7 @@ export const fileUploadAvatarPropsSchema = {
     },
     label: {
       type: 'string',
-      default: 'Загрузить изображение',
+      ...messageDefault('kit.fileUpload.avatarLabel'),
       description: 'Доступное имя зоны (aria-label).',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

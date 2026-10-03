@@ -5,23 +5,23 @@
 форма говорит на `value`/`onChange(value)`/`onBlur`, а в диалект контрола её переводит обёртка
 поля по статике `reformerAdapter`. Значение в модели бывает разных типов:
 
-| Component           | Значение в модели | Собственный диалект контрола (standalone)                  |
-| ------------------- | ----------------- | ---------------------------------------------------------- |
-| `CheckboxWithLabel` | `boolean`         | `checked` + `onCheckedChange(boolean)` (`checkedAdapter`)  |
-| `RadioGroupOptions` | `string \| null`  | `value` + `onValueChange(string)` (`valueChangeAdapter`)   |
-| `SelectAsync`       | `string \| null`  | `value` + `onChange(string \| null)` — уже value-based     |
+| Component           | Значение в модели | Собственный диалект контрола (standalone)                 |
+| ------------------- | ----------------- | --------------------------------------------------------- |
+| `CheckboxWithLabel` | `boolean`         | `checked` + `onCheckedChange(boolean)` (`checkedAdapter`) |
+| `RadioGroupOptions` | `string \| null`  | `value` + `onValueChange(string)` (`valueChangeAdapter`)  |
+| `SelectAsync`       | `string \| null`  | `value` + `onChange(string \| null)` — уже value-based    |
 
 ## Подсказка-иконка (i) — `tooltip`
 
 Поля выбора принимают `tooltip: string` — иконку (i) с тултипом в самом контроле:
 
-| Поле                                                     | Где иконка                                                                                                |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `CheckboxWithLabel`, `SwitchWithLabel`                   | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
-| `RadioGroupOptions`                                      | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
-| `SelectAsync`, `SelectMulti`                             | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
-| `Combobox` (все 4 варианта)                              | То же, что у `SelectAsync`.                                                                               |
-| `NativeSelectWithOptions`                                | Внутри, левее шеврона.                                                                                    |
+| Поле                                                                  | Где иконка                                                                                                |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `CheckboxWithLabel`, `SwitchWithLabel`                                | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
+| `RadioGroupOptions`                                                   | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
+| `SelectAsync`, `SelectMulti`                                          | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
+| `Combobox` (все 4 варианта)                                           | То же, что у `SelectAsync`.                                                                               |
+| `NativeSelectWithOptions`                                             | Внутри, левее шеврона.                                                                                    |
 | `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
 
 ```tsx
@@ -58,12 +58,12 @@ interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
 }
 ```
 
-| Prop              | Тип                                             | Default | Описание                                                                 |
-| ----------------- | ----------------------------------------------- | ------- | ------------------------------------------------------------------------ |
+| Prop              | Тип                                             | Default | Описание                                                                   |
+| ----------------- | ----------------------------------------------- | ------- | -------------------------------------------------------------------------- |
 | `checked`         | `boolean \| 'indeterminate'`                    | `false` | Чекнут или нет. В форме — из значения поля (`null`/`undefined` → `false`). |
-| `onCheckedChange` | `(checked: boolean \| 'indeterminate') => void` | —       | Radix-колбэк. В форме в модель уходит `checked === true`.                |
-| `label`           | `string`                                        | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс. |
-| `disabled`        | `boolean`                                       | `false` | Блокирует переключение.                                                  |
+| `onCheckedChange` | `(checked: boolean \| 'indeterminate') => void` | —       | Radix-колбэк. В форме в модель уходит `checked === true`.                  |
+| `label`           | `string`                                        | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс.   |
+| `disabled`        | `boolean`                                       | `false` | Блокирует переключение.                                                    |
 
 ### Common Patterns
 
@@ -135,12 +135,12 @@ interface RadioGroupOptionsProps {
 }
 ```
 
-| Prop            | Тип                       | Default | Описание                                                           |
-| --------------- | ------------------------- | ------- | ------------------------------------------------------------------ |
-| `options`       | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                     |
-| `value`         | `string`                  | —       | Выбранный вариант. Должен совпадать с одним из `options[i].value`. |
+| Prop            | Тип                       | Default | Описание                                                             |
+| --------------- | ------------------------- | ------- | -------------------------------------------------------------------- |
+| `options`       | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                       |
+| `value`         | `string`                  | —       | Выбранный вариант. Должен совпадать с одним из `options[i].value`.   |
 | `onValueChange` | `(value: string) => void` | —       | Radix-колбэк выбора. В форме в модель уходит строка (`''` → `null`). |
-| `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                            |
+| `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                              |
 
 По умолчанию варианты раскладываются вертикально (`flex flex-col gap-2`).
 
@@ -253,15 +253,15 @@ interface SelectAsyncProps<T> {
 }
 ```
 
-| Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                          |
-| ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                   |
+| Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                               |
+| ------------- | --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                        |
 | `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `SelectAsync` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`. |
-| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                             |
-| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                     |
-| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                             |
-| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                                                                                       |
-| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                                                                                  |
+| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                                  |
+| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                          |
+| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                                  |
+| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                                                                                            |
+| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                                                                                       |
 
 ### Sub-components
 
@@ -403,9 +403,9 @@ const form = createForm<{ city: string }>({ model, schema });
 - Использовать `value: number` напрямую — `SelectAsync` приводит к строке внутри
   (`String(value)`); `onChange` вернёт строку. В schema формы тип поля должен
   быть `string` или `string | null`.
-- Регистрировать `SelectAsync` без `placeholder` и ждать понятного UX —
-  пользователь увидит дефолт `'Select an option...'`. Для русскоязычных форм
-  это, как правило, нежелательно.
+- Ждать русский плейсхолдер без `I18nProvider` — без провайдера `SelectAsync` покажет
+  встроенное английское `'Select an option...'`. Русский текст даёт локаль
+  (`<I18nProvider lang="ru" load={…}>`, см. 01-overview.md → Localization) либо проп `placeholder`.
 
 ## Multi-select
 
@@ -531,8 +531,8 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 адресуется путём, а не выбирается из перечня: файл в репозитории, раздел каталога, узел
 оргструктуры.
 
-| Компонент                | `value` в модели                  | Что выбирается            |
-| ------------------------ | --------------------------------- | ------------------------- |
+| Компонент           | `value` в модели                  | Что выбирается            |
+| ------------------- | --------------------------------- | ------------------------- |
 | `ComboboxTree`      | `string \| null` — адрес узла     | один узел, обычно файл    |
 | `ComboboxTreeMulti` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
 
@@ -578,7 +578,8 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 Остальные пропы обоих вариантов: `placeholder` (`'Select a file...'` / `'Select files...'`),
 `searchPlaceholder` (`'Search...'`), `emptyText` (`'No results found.'`), `clearable` (`false`),
 `maxRows` (12 строк до прокрутки), у мульти ещё `summaryThreshold` (3 — дальше чипы схлопываются
-в «Selected: N»).
+в «Selected: N»). Текстовые умолчания — английские строки словаря `kit.combobox.*`; под
+`I18nProvider` они берутся из активной локали («Выберите файл...», «Выбрано: N»).
 
 ### Common Patterns
 

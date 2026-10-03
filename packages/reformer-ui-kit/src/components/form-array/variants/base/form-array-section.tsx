@@ -17,6 +17,7 @@ import {
   type FormProxy,
 } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
+import { useKitMessages } from '@/i18n/messages';
 
 /**
  * Props обёртки поля. Объявлены здесь СВОИ, а не импортированы из `@reformer/renderer-react`:
@@ -52,10 +53,16 @@ export interface FormArraySectionProps<T extends object> {
   /** Метка для каждого item — строка-префикс или функция. */
   itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
 
-  /** Текст кнопки добавления. По умолчанию `'+ Добавить'`. */
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.add
+   */
   addButtonLabel?: string;
 
-  /** Текст кнопки удаления. По умолчанию `'Удалить'`. */
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.remove
+   */
   removeButtonLabel?: string;
 
   /** Сообщение пустого состояния. */
@@ -195,8 +202,8 @@ export function FormArraySection<T extends object>({
   itemComponent: ItemComponent,
   title,
   itemLabel,
-  addButtonLabel = '+ Добавить',
-  removeButtonLabel = 'Удалить',
+  addButtonLabel,
+  removeButtonLabel,
   emptyMessage,
   emptyMessageHint,
   hasItems,
@@ -208,6 +215,7 @@ export function FormArraySection<T extends object>({
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
   ...rest
 }: FormArraySectionProps<T>): ReactNode {
+  const t = useKitMessages();
   // Seam рендерера (`items`/`onAdd`) в пропах этого компонента не объявлен: его получает
   // `FormArray`. Пришёл — значит компонент подставлен вместо `FormArray` в JSON-реестре.
   const hasRendererSeam = 'items' in rest || 'onAdd' in rest;
@@ -229,7 +237,7 @@ export function FormArraySection<T extends object>({
   const getItemLabel = (control: FormProxy<T>, index: number): string =>
     typeof itemLabel === 'function'
       ? itemLabel(control, index)
-      : `${itemLabel ?? title ?? 'Элемент'} #${index + 1}`;
+      : `${itemLabel ?? title ?? t('kit.formArray.item')} #${index + 1}`;
 
   return (
     <FormArray.Root control={arrayNode}>
@@ -243,7 +251,7 @@ export function FormArraySection<T extends object>({
                 data-testid="array-add"
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
               >
-                {addButtonLabel}
+                {addButtonLabel ?? t('kit.formArray.add')}
               </FormArray.AddButton>
             )}
           </div>
@@ -266,7 +274,7 @@ export function FormArraySection<T extends object>({
                             type="button"
                             onClick={moveUp}
                             disabled={!canMoveUp}
-                            aria-label="Переместить вверх"
+                            aria-label={t('kit.formArray.moveUp')}
                             data-testid={`array-item-${index}-move-up`}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
                           >
@@ -276,7 +284,7 @@ export function FormArraySection<T extends object>({
                             type="button"
                             onClick={moveDown}
                             disabled={!canMoveDown}
-                            aria-label="Переместить вниз"
+                            aria-label={t('kit.formArray.moveDown')}
                             data-testid={`array-item-${index}-move-down`}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
                           >
@@ -291,7 +299,7 @@ export function FormArraySection<T extends object>({
                           data-testid={`array-item-${index}-remove`}
                           className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2"
                         >
-                          {removeButtonLabel}
+                          {removeButtonLabel ?? t('kit.formArray.remove')}
                         </button>
                       ) : null}
                     </div>
@@ -322,7 +330,7 @@ export function FormArraySection<T extends object>({
               data-testid="array-add"
               className="text-sm text-primary hover:text-primary/80 hover:underline"
             >
-              {addButtonLabel}
+              {addButtonLabel ?? t('kit.formArray.add')}
             </FormArray.AddButton>
           </div>
         ) : null}

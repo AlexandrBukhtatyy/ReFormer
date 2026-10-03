@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 
 /**
  * Props-схема SelectMulti — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
@@ -59,19 +60,19 @@ export const selectMultiPropsSchema = {
     },
     placeholder: {
       type: 'string',
-      default: 'Select options...',
+      ...messageDefault('kit.select.placeholderMulti'),
       description: 'Подсказка в триггере, пока ничего не выбрано.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     searchPlaceholder: {
       type: 'string',
-      default: 'Search...',
+      ...messageDefault('kit.select.search'),
       description: 'Подсказка в поле поиска (показывается при resource с серверным поиском).',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     emptyText: {
       type: 'string',
-      default: 'No options found.',
+      ...messageDefault('kit.select.empty'),
       description: 'Текст пустого состояния (ничего не найдено).',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

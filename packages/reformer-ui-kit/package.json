@@ -21,6 +21,20 @@
     },
     "./styles": "./src/styles/theme.css",
     "./catalog": "./component-catalog.json",
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js"
+    },
+    "./locale/en": {
+      "types": "./dist/locale/en.d.ts",
+      "import": "./dist/locale/en.js"
+    },
+    "./locale/ru": {
+      "types": "./dist/locale/ru.d.ts",
+      "import": "./dist/locale/ru.js"
+    },
+    "./locale/en.json": "./dist/locale/en.json",
+    "./locale/ru.json": "./dist/locale/ru.json",
     "./accordion": {
       "types": "./dist/accordion.d.ts",
       "import": "./dist/accordion.js"

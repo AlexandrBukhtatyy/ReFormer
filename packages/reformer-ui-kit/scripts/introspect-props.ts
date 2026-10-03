@@ -14,9 +14,10 @@
  *
  * ## Откуда берутся дефолты (и чего здесь принципиально не будет)
  *
- * Три машинных источника, в порядке приоритета: деструктуризация параметра компонента кита
- * (`function Button({ asChild = false })`, включая обёртки `forwardRef`/`memo`), `defaultVariants`
- * cva-конфига, JSDoc-тег `@defaultValue`.
+ * Четыре машинных источника, в порядке приоритета: JSDoc-тег `@defaultMessage <ключ>` (текстовое
+ * умолчание из словаря кита `src/i18n/en.json` — сам литерал в компоненте не пишется, его даёт
+ * переводчик), деструктуризация параметра компонента кита (`function Button({ asChild = false })`,
+ * включая обёртки `forwardRef`/`memo`), `defaultVariants` cva-конфига, JSDoc-тег `@defaultValue`.
  *
  * Чего НЕТ: дефолтов, заданных внутри реализации библиотеки (`modal = true` в radix, `openDelay = 700`
  * в hover-card, 16 дефолтов vaul). Кит такие пропсы просто спредит (`{...props}`), в `.d.ts` значения
@@ -41,6 +42,7 @@ import {
   type PropOrigin,
   type ReactNameSets,
 } from './props-policy';
+import { kitEn, type KitMessageKey } from '../src/i18n/message-default';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const componentsDir = join(pkgRoot, 'src/components');
@@ -56,7 +58,9 @@ export interface IntrospectedProp {
   tsType: string;
   default?: string | number | boolean;
   /** Откуда взят дефолт — для аудита и для стража дрейфа. */
-  defaultSource?: 'destructuring' | 'cva' | 'jsdoc';
+  defaultSource?: 'message' | 'destructuring' | 'cva' | 'jsdoc';
+  /** Ключ словаря кита, если дефолт — сообщение (`@defaultMessage`). */
+  messageKey?: string;
   optional: boolean;
   description?: string;
   /** Пакет объявления: `ui-kit-src` — свой проп кита или cva-вариант. */
@@ -234,6 +238,23 @@ function ifaceOf(decl: ts.Declaration | undefined): string {
     n = n.parent;
   }
   return '?';
+}
+
+/**
+ * Ключ словаря из JSDoc-тега `@defaultMessage kit.x.y`: умолчание пропа — сообщение, которое
+ * компонент берёт у переводчика. Неизвестный ключ — ошибка генерации: молча потерять умолчание
+ * хуже, чем упасть.
+ */
+function jsdocDefaultMessage(sym: ts.Symbol, where: string): string | undefined {
+  for (const tag of sym.getJsDocTags()) {
+    if (tag.name !== 'defaultMessage') continue;
+    const key = ts.displayPartsToString(tag.text).trim().replace(/^`|`$/g, '');
+    if (!Object.hasOwn(kitEn, key)) {
+      throw new Error(`${where}: @defaultMessage «${key}» — такого ключа нет в src/i18n/en.json`);
+    }
+    return key;
+  }
+  return undefined;
 }
 
 /** Значение JSDoc-тега `@defaultValue` / `@default`, если библиотека его проставила. */
@@ -440,9 +461,11 @@ export function introspectProps(): Map<string, IntrospectedComponent> {
         .replace(/\s+/g, ' ')
         .trim();
 
-      let def = destructured.get(propName);
+      const messageKey = jsdocDefaultMessage(sym, `${name}.${propName}`);
+      let def: string | number | boolean | undefined =
+        messageKey !== undefined ? kitEn[messageKey as KitMessageKey] : destructured.get(propName);
       let defaultSource: IntrospectedProp['defaultSource'] =
-        def !== undefined ? 'destructuring' : undefined;
+        messageKey !== undefined ? 'message' : def !== undefined ? 'destructuring' : undefined;
       if (def === undefined && cva?.defaults.has(propName)) {
         def = cva.defaults.get(propName);
         defaultSource = 'cva';
@@ -461,6 +484,7 @@ export function introspectProps(): Map<string, IntrospectedComponent> {
         ...(enumValues ? { enum: enumValues } : {}),
         tsType: checker.typeToString(propType).replace(/\s+/g, ' '),
         ...(def !== undefined ? { default: def, defaultSource } : {}),
+        ...(messageKey !== undefined ? { messageKey } : {}),
         optional: Boolean(sym.getFlags() & ts.SymbolFlags.Optional),
         ...(description ? { description } : {}),
         origin: packageOf(origin.declFile),

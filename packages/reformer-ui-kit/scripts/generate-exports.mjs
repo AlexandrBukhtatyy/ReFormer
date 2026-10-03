@@ -48,6 +48,14 @@ const exportsMap = {
   // Каталог компонентов для reformer-builder (генерируется scripts/generate-catalog.ts).
   // Фиксированная точка (не компонент) — в FIXED-наборе package-exports.test.ts.
   './catalog': './component-catalog.json',
+  // Встроенные локали: загрузчик `loadKitLocale`, синхронные модули по языкам и их JSON-копии
+  // (собирает vite-плагин `localeAssets`). Фиксированные точки — в FIXED-наборе
+  // package-exports.test.ts.
+  './locale': { types: './dist/locale.d.ts', import: './dist/locale.js' },
+  './locale/en': { types: './dist/locale/en.d.ts', import: './dist/locale/en.js' },
+  './locale/ru': { types: './dist/locale/ru.d.ts', import: './dist/locale/ru.js' },
+  './locale/en.json': './dist/locale/en.json',
+  './locale/ru.json': './dist/locale/ru.json',
 };
 for (const name of components) {
   exportsMap[`./${name}`] = {

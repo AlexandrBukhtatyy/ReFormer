@@ -2,6 +2,7 @@ import * as React from 'react';
 import { UploadCloudIcon } from 'lucide-react';
 import { FileUpload as CdkFileUpload, type FileUploadHandle } from '@reformer/cdk/file-upload';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
@@ -29,6 +30,7 @@ export function FileUploadDropzone({
 }: FileUploadDropzoneProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
   const { options, placeholder, hint, tooltip, invalid, className, id, rest } =
     splitFileUploadProps(props);
+  const t = useKitMessages();
 
   const tooltipHint = useFieldTooltip(tooltip, {
     id,
@@ -68,9 +70,7 @@ export function FileUploadDropzone({
       )}
     >
       <UploadCloudIcon className="size-6 text-muted-foreground" />
-      <span className="text-sm font-medium">
-        {placeholder ?? 'Перетащите файлы или нажмите для выбора'}
-      </span>
+      <span className="text-sm font-medium">{placeholder ?? t('kit.fileUpload.dropzone')}</span>
       {hint && (
         <span data-slot="file-upload-hint" className="text-xs text-muted-foreground">
           {hint}

@@ -98,7 +98,7 @@ describe('FormField — shadcn Field поверх @reformer/cdk', () => {
       const html = renderToStaticMarkup(<FormField control={tooltipField()} />);
       expect(html).toContain('data-slot="field-label-row"');
       expect(html).toContain('data-testid="label-tooltip-email"');
-      expect(html).toContain('aria-label="Подсказка: Email"');
+      expect(html).toContain('aria-label="Hint: Email"');
     });
 
     it('иконка стоит СНАРУЖИ <label>: внутри него клик активировал бы контрол', () => {

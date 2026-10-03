@@ -349,6 +349,7 @@ function propToSchema(p: IntrospectedProp, doc: PropDocEntry | undefined): Props
     ...(p.jsonType ? { type: p.jsonType } : {}),
     ...(p.enum ? { enum: p.enum } : {}),
     ...(p.default !== undefined ? { default: p.default } : {}),
+    ...(p.messageKey !== undefined ? { 'x-messageKey': p.messageKey } : {}),
     ...(description ? { description } : {}),
     'x-doc': {
       group: doc?.['x-doc']?.group ?? 'Behavior',

@@ -89,6 +89,7 @@ export function buildCreditApplicationSchema(
           ...(form ? { form } : {}),
           ...makeCreditValidationConfig(model),
           className: 'bg-white p-8 rounded-lg shadow-md',
+          submitLabel: 'Отправить заявку',
           steps: [
             // ── Шаг 1: Основная информация ──────────────────────────────
             {

@@ -137,6 +137,11 @@ export interface FormWizardProps<
    */
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
   /**
+   * Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.submit
+   */
+  submitLabel?: string;
+  /**
    * Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и
    * ComponentType; всё остальное (например узел RenderSchema) отдаётся сюда — так компонент
    * не импортирует рендерер, а получает его как зависимость.
@@ -240,7 +245,9 @@ function FormWizardInner<T extends Record<string, any>, TBody = never>(
       </div>
 
       <FormWizardHeadless.Actions onSubmit={props.onSubmit}>
-        {(actionsProps) => <FormWizardActions {...actionsProps} className="mt-8" />}
+        {(actionsProps) => (
+          <FormWizardActions {...actionsProps} submitLabel={props.submitLabel} className="mt-8" />
+        )}
       </FormWizardHeadless.Actions>
 
       <FormWizardHeadless.Progress>

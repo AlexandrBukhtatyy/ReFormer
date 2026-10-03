@@ -50,6 +50,8 @@ export interface RendererFormWizardProps<T extends Record<string, unknown>> {
   onStepChange?: (step: number) => void;
   scrollToTop?: boolean;
   className?: string;
+  /** Подпись кнопки отправки; без неё — умолчание кита из словаря локали. */
+  submitLabel?: string;
 }
 
 export function RendererFormWizard<T extends Record<string, unknown>>(
@@ -65,6 +67,7 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
     onStepChange,
     scrollToTop,
     className,
+    submitLabel,
   } = props;
 
   const newSteps: FormWizardStep<T, RenderNode<T>>[] = legacySteps.map((step, idx) => ({
@@ -101,6 +104,7 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
       onStepChange={onStepChange}
       scrollToTop={scrollToTop}
       className={className}
+      submitLabel={submitLabel}
     />
   );
 }

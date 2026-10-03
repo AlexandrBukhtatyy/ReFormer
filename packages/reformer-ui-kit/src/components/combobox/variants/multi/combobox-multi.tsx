@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { defineFieldControl } from '@/fields/field-control';
@@ -131,6 +132,7 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
     },
     ref
   ) {
+    const t = useKitMessages();
     const [open, setOpen] = React.useState(false);
     const [search, setSearch] = React.useState('');
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -222,11 +224,11 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
             >
               {selected.length === 0 ? (
                 <span className="truncate text-muted-foreground">
-                  {placeholder ?? 'Select options...'}
+                  {placeholder ?? t('kit.combobox.placeholderMulti')}
                 </span>
               ) : collapsed ? (
                 <span className="truncate" data-slot="combobox-multi-summary">
-                  Selected: {selected.length}
+                  {t('kit.combobox.selected', { count: selected.length })}
                 </span>
               ) : (
                 <span className="flex flex-wrap gap-1" data-slot="combobox-multi-chips">
@@ -245,12 +247,12 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
           <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
             <Command>
               <CommandInput
-                placeholder={searchPlaceholder ?? 'Search...'}
+                placeholder={searchPlaceholder ?? t('kit.combobox.search')}
                 value={search}
                 onValueChange={setSearch}
               />
               <CommandList>
-                {!showCreate && <CommandEmpty>{emptyText ?? 'No options found.'}</CommandEmpty>}
+                {!showCreate && <CommandEmpty>{emptyText ?? t('kit.combobox.empty')}</CommandEmpty>}
                 <CommandGroup>
                   {options.map((option) => {
                     const checked = selected.includes(option.value);
@@ -290,7 +292,7 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                     {/* value=search → cmdk не отфильтрует пункт; выбор добавляет введённое в массив. */}
                     <CommandItem value={trimmedSearch} onSelect={handleCreate} disabled={atLimit}>
                       <PlusIcon className="mr-2 size-4" />
-                      Create: {trimmedSearch}
+                      {t('kit.combobox.create', { value: trimmedSearch })}
                     </CommandItem>
                   </CommandGroup>
                 )}
@@ -306,7 +308,7 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                 type="button"
                 className={TRAILING_CLEAR}
                 onClick={handleClear}
-                aria-label="Clear selection"
+                aria-label={t('kit.combobox.clear')}
                 tabIndex={-1}
               >
                 <XIcon className="size-4" />

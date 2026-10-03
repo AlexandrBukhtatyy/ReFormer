@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 
 /**
  * Props-схема Combobox — единый источник `api.controls[]` (reformer-doc) и
@@ -35,19 +36,19 @@ export const comboboxBasePropsSchema = {
     },
     placeholder: {
       type: 'string',
-      default: 'Select an option...',
+      ...messageDefault('kit.combobox.placeholder'),
       description: 'Подсказка в триггере, пока ничего не выбрано.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     searchPlaceholder: {
       type: 'string',
-      default: 'Search...',
+      ...messageDefault('kit.combobox.search'),
       description: 'Подсказка в поле поиска.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     emptyText: {
       type: 'string',
-      default: 'No options found.',
+      ...messageDefault('kit.combobox.empty'),
       description: 'Текст пустого состояния (ничего не найдено).',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

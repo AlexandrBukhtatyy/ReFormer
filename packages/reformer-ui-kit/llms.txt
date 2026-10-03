@@ -69,19 +69,19 @@ Peer-зависимости (должны быть в проекте):
 соответствующий subpath не зарезолвится (`ERR_MODULE_NOT_FOUND`). Ставьте ту, чей
 компонент используете:
 
-| subpath                        | поставить                       |
-| ------------------------------ | ------------------------------- |
-| `./table` (DataGrid-вариант)   | `@tanstack/react-table` (>=8)   |
-| `./command`, `./combobox`      | `cmdk` (>=1)                    |
-| `./chart`                      | `recharts` (>=3)                |
-| `./calendar`                   | `react-day-picker` (>=10)       |
-| `./date-picker`                | `date-fns` (>=4)                |
-| `./carousel`                   | `embla-carousel-react` (>=8)    |
-| `./drawer`                     | `vaul` (>=1)                    |
-| `./input-otp`                  | `input-otp` (>=1.4)             |
-| `./resizable`                  | `react-resizable-panels` (>=4)  |
-| `./sonner`                     | `sonner` (>=2)                  |
-| `./message-scroller`           | `@shadcn/react` (^0.2.1)        |
+| subpath                      | поставить                      |
+| ---------------------------- | ------------------------------ |
+| `./table` (DataGrid-вариант) | `@tanstack/react-table` (>=8)  |
+| `./command`, `./combobox`    | `cmdk` (>=1)                   |
+| `./chart`                    | `recharts` (>=3)               |
+| `./calendar`                 | `react-day-picker` (>=10)      |
+| `./date-picker`              | `date-fns` (>=4)               |
+| `./carousel`                 | `embla-carousel-react` (>=8)   |
+| `./drawer`                   | `vaul` (>=1)                   |
+| `./input-otp`                | `input-otp` (>=1.4)            |
+| `./resizable`                | `react-resizable-panels` (>=4) |
+| `./sonner`                   | `sonner` (>=2)                 |
+| `./message-scroller`         | `@shadcn/react` (^0.2.1)       |
 
 Корневой barrel (`import { … } from '@reformer/ui-kit'`) эти компоненты не
 реэкспортирует, поэтому без единой опциональной зависимости пакет полностью
@@ -223,16 +223,16 @@ function RegistrationPage() {
 `NativeSelect` + `NativeSelectOption`, …) в форму берётся **готовый form-компонент**, который
 сам рисует пункты из `options`:
 
-| Примитив (вёрстка) | В форму               | Примитив (вёрстка) | В форму                   |
-| ------------------ | --------------------- | ------------------ | ------------------------- |
-| `Input`            | `Input`, `InputNumber`, `InputSuggest` | `Checkbox`   | `CheckboxWithLabel`       |
-| `InputMask`        | `InputMask`           | `Switch`           | `SwitchWithLabel`         |
-| `InputPassword`    | `InputPassword`       | `RadioGroup`       | `RadioGroupOptions`       |
-| `InputOTP`         | `InputOTPDefault`     | `Slider`           | `Slider`                  |
-| `Textarea`         | `Textarea`            | `Calendar`         | `CalendarSingle`          |
-| `Select`           | `SelectAsync`         | `DatePicker`       | `DatePicker`              |
-| `NativeSelect`     | `NativeSelectWithOptions` | `Combobox`     | `Combobox`                |
-| `Toggle`           | `Toggle`              | `ToggleGroup`      | `ToggleGroupOptions`      |
+| Примитив (вёрстка) | В форму                                | Примитив (вёрстка) | В форму              |
+| ------------------ | -------------------------------------- | ------------------ | -------------------- |
+| `Input`            | `Input`, `InputNumber`, `InputSuggest` | `Checkbox`         | `CheckboxWithLabel`  |
+| `InputMask`        | `InputMask`                            | `Switch`           | `SwitchWithLabel`    |
+| `InputPassword`    | `InputPassword`                        | `RadioGroup`       | `RadioGroupOptions`  |
+| `InputOTP`         | `InputOTPDefault`                      | `Slider`           | `Slider`             |
+| `Textarea`         | `Textarea`                             | `Calendar`         | `CalendarSingle`     |
+| `Select`           | `SelectAsync`                          | `DatePicker`       | `DatePicker`         |
+| `NativeSelect`     | `NativeSelectWithOptions`              | `Combobox`         | `Combobox`           |
+| `Toggle`           | `Toggle`                               | `ToggleGroup`      | `ToggleGroupOptions` |
 
 Множественный выбор — отдельные компоненты: `SelectMulti`, `NativeSelectMulti`,
 `ComboboxMulti`, `ComboboxTreeMulti`, `ToggleGroupMulti`. Выбор из иерархии — `ComboboxTree`;
@@ -261,31 +261,88 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 
 Ниже — компоненты полей; составные примитивы и их form-компоненты — в таблице выше.
 
-| Name                            | Purpose                                                    | Where documented                                              |
-| ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `Input` / `InputNumber` / `InputSuggest` | Текстовое поле (`text`/`email`/`tel`/`url`), число, строка с подсказками. | [02-text-fields.md](02-text-fields.md) |
-| `InputMask`                     | Поле ввода со строковой маской (телефон, дата, ИНН).       | [02-text-fields.md](02-text-fields.md)                        |
-| `InputPassword`                 | Поле пароля с переключателем видимости.                    | [02-text-fields.md](02-text-fields.md)                        |
-| `Textarea`                      | Многострочное поле.                                        | [02-text-fields.md](02-text-fields.md)                        |
-| `Checkbox` / `CheckboxWithLabel`| Чекбокс; `WithLabel` — с label рядом с контролом.          | [03-choice-fields.md](03-choice-fields.md)                    |
-| `RadioGroup` / `RadioGroupOptions` | Группа радио-кнопок из массива `options`.               | [03-choice-fields.md](03-choice-fields.md)                    |
-| `Select` (+ 8 sub-компонентов) / `SelectAsync` | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)   |
-| `Combobox` (+ `Multi`, `Tree`, `TreeMulti`) | Поле с поиском; варианты `Tree*` выбирают узел иерархии (файл). | [03-choice-fields.md](03-choice-fields.md) |
-| `Tree`                          | Дерево с ленивым чтением уровней и виртуализацией. **Не поле формы.** | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `cn`                            | Утилита для конкатенации Tailwind-классов.                 | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `FormField`                     | Wrapper «label + control + error + pending» поверх CDK.    | [05-form-field-integration.md](05-form-field-integration.md)  |
-| `Box`, `Section`                | Контейнеры раскладки: ритм, сетка полей, группы.           | [11-form-layout.md](11-form-layout.md)                        |
-| `Card`, `Alert`, `Separator`    | Карточка, плашка, разделитель — вид без ручных классов.    | [11-form-layout.md](11-form-layout.md)                        |
-| `Collapsible`                   | Сворачиваемый контейнер для `RenderSchema`.                | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
+| Name                                               | Purpose                                                                     | Where documented                                              |
+| -------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `Input` / `InputNumber` / `InputSuggest`           | Текстовое поле (`text`/`email`/`tel`/`url`), число, строка с подсказками.   | [02-text-fields.md](02-text-fields.md)                        |
+| `InputMask`                                        | Поле ввода со строковой маской (телефон, дата, ИНН).                        | [02-text-fields.md](02-text-fields.md)                        |
+| `InputPassword`                                    | Поле пароля с переключателем видимости.                                     | [02-text-fields.md](02-text-fields.md)                        |
+| `Textarea`                                         | Многострочное поле.                                                         | [02-text-fields.md](02-text-fields.md)                        |
+| `Checkbox` / `CheckboxWithLabel`                   | Чекбокс; `WithLabel` — с label рядом с контролом.                           | [03-choice-fields.md](03-choice-fields.md)                    |
+| `RadioGroup` / `RadioGroupOptions`                 | Группа радио-кнопок из массива `options`.                                   | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Select` (+ 8 sub-компонентов) / `SelectAsync`     | Выпадающий список с inline `options` или async `resource`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Combobox` (+ `Multi`, `Tree`, `TreeMulti`)        | Поле с поиском; варианты `Tree*` выбирают узел иерархии (файл).             | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Tree`                                             | Дерево с ленивым чтением уровней и виртуализацией. **Не поле формы.**       | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `Button`                                           | Кнопка с вариантами (`variant`, `size`, `asChild`).                         | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `ExampleCard`                                      | Карточка-обёртка для демо в playground.                                     | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `cn`                                               | Утилита для конкатенации Tailwind-классов.                                  | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `FormField`                                        | Wrapper «label + control + error + pending» поверх CDK.                     | [05-form-field-integration.md](05-form-field-integration.md)  |
+| `Box`, `Section`                                   | Контейнеры раскладки: ритм, сетка полей, группы.                            | [11-form-layout.md](11-form-layout.md)                        |
+| `Card`, `Alert`, `Separator`                       | Карточка, плашка, разделитель — вид без ручных классов.                     | [11-form-layout.md](11-form-layout.md)                        |
+| `Collapsible`                                      | Сворачиваемый контейнер для `RenderSchema`.                                 | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
 
 Полный troubleshooting (number-input возвращает строку, Select не показывает
 options, mask пропускает символы, forwardRef + Slot конфликты, и т.п.) —
 [06-troubleshooting.md](06-troubleshooting.md).
 
-## 6. See also
+## 6. Localization
+
+Подписи, которые кит рисует сам (кнопки мастера, плейсхолдеры, статусы загрузки, aria-подписи),
+идут через локаль `I18nProvider` из `@reformer/core/i18n`. Приоритет в каждом компоненте:
+**явный проп → словарь активной локали → встроенный английский**.
+
+```tsx
+import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+// Константа модуля: загрузчик хранит кэш языков.
+const loadLocale = createLocaleLoader([loadKitLocale]);
+
+function App() {
+  const [lang, setLang] = useState('ru');
+  return (
+    <I18nProvider lang={lang} load={loadLocale}>
+      <Form />
+    </I18nProvider>
+  );
+}
+```
+
+- **Без провайдера кит говорит по-английски** («Next →», «Select an option...», «Loading data...»).
+- **Смена `lang` переводит подписи на месте**: дерево не перемонтируется, значения полей, шаг
+  мастера и открытые списки сохраняются.
+- **Свою формулировку для одного экземпляра** даёт проп (`nextLabel`, `placeholder`,
+  `addButtonLabel`, …), **для всего приложения** — ключ словаря вторым источником загрузчика:
+  `createLocaleLoader([loadKitLocale, () => ({ 'kit.formWizard.submit': 'Оформить' })])`.
+- **Локаль кита накопительная** — словари ядра (ошибки валидации, размер файла) и cdk плюс
+  подписи кита, поэтому `loadCoreLocale` и `loadCdkLocale` рядом не нужны.
+
+| Вид               | Импорт                                       | Для чего                                                                  |
+| ----------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
+| загрузчик         | `loadKitLocale` из `@reformer/ui-kit/locale` | основной путь: чанк языка по запросу                                      |
+| JSON-файл         | `@reformer/ui-kit/locale/ru.json`            | выложить на свой сервер, править без пересборки; образец для нового языка |
+| синхронный модуль | `ru` из `@reformer/ui-kit/locale/ru`         | SSR и тесты: `<I18nProvider locale={ru}>`                                 |
+
+Встроенные языки — `en` и `ru`. Ключи словаря — `kit.<компонент>.<имя>`:
+
+| Компонент                       | Ключи                                                                                                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FormWizard`                    | `kit.formWizard.prev`, `next`, `submit`, `validating`, `submitting`, `progress`, `stepsNav`, `stepLabel`                                                 |
+| `FormArray`, `FormArraySection` | `kit.formArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
+| `FormField`                     | `kit.formField.hintLabel`, `validating`                                                                                                                  |
+| `FileUpload*`                   | `kit.fileUpload.choose`, `dropzone`, `inputPlaceholder`, `clear`, `avatarLabel`, `error`                                                                 |
+| `AsyncBoundary*`                | `kit.asyncBoundary.loadingTitle`, `loadingSubtitle`, `errorTitle`, `retry`, `emptyTitle`                                                                 |
+| `Select`, `SelectMulti`         | `kit.select.placeholder`, `placeholderMulti`, `search`, `searchLabel`, `loading`, `loadingMore`, `loadError`, `retry`, `empty`, `selected`, `clear`      |
+| `Combobox*`                     | `kit.combobox.placeholder`, `placeholderMulti`, `search`, `empty`, `create`, `selected`, `clear`, `treePlaceholder`, `treePlaceholderMulti`, `treeEmpty` |
+
+Сообщения — строки ICU: `"kit.select.selected": "Selected: {count}"`. В каталоге компонентов у
+текстового пропа рядом с английским `default` стоит `x-messageKey` — ключ, по которому это
+умолчание переводится.
+
+Остальные компоненты кита (`Table`, `Tree`, `Pagination`, `Dialog`, `DatePicker`, `Calendar`
+и др.) на словарь ещё не переведены: их подписи пока зашиты и задаются пропсами.
+
+## 7. See also
 
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [03-choice-fields.md](03-choice-fields.md) — `Checkbox`, `RadioGroup`, `Select`, мультивыборы, варианты дерева у `Combobox`.
@@ -294,7 +351,7 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные проблемы и решения.
 - [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.
 
-## 7. Components
+## 8. Components
 
 **Text fields**
 
@@ -327,7 +384,7 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 | `InputPassword` | Поле пароля с переключателем «глаз».                                                        | Регистрация, логин, смена пароля.     |
 | `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                                    | Комментарии, адрес, длинные описания. |
 
-## 8. Подсказка-иконка (i) — `tooltip`
+## 9. Подсказка-иконка (i) — `tooltip`
 
 Все поля (как и любое поле кита) принимают `tooltip: string` — иконку (i) с тултипом внутри
 поля, у правого края. Если справа уже есть родной элемент контрола, иконка встаёт левее него:
@@ -352,7 +409,7 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 (см. [05-form-field-integration.md](05-form-field-integration.md)). Правая зона резервируется
 автоматически — текст под иконку не заезжает.
 
-## 9. Input
+## 10. Input
 
 ### API
 
@@ -422,7 +479,7 @@ const form = createForm<{ email: string }>({ model, schema });
 - Ждать value-based `onChange(value)` от `Input` вне формы — standalone это нативное событие.
   Внутри формы (`FormField` / рендерер) событие в значение переводит обёртка поля.
 
-## 10. InputNumber
+## 11. InputNumber
 
 Числовое поле: `value: number | null`, `onChange(number | null)`. Контракт уже value-based,
 поэтому в форме кладётся в `component` как есть. Registry-имя в JSON-DSL — `InputNumber`.
@@ -446,7 +503,7 @@ Anti-patterns:
   отрицательные значения проходят.
 - Передавать `type` — у `InputNumber` его нет (всегда `number`).
 
-## 11. InputSuggest
+## 12. InputSuggest
 
 Автокомплит со **свободным вводом**: значение — всегда введённый текст (`string | null`), список
 лишь помогает его набрать. Registry-имя в JSON-DSL — `InputSuggest` (у `Input` пропа
@@ -502,7 +559,7 @@ Anti-patterns:
   (props-схема отклонит его в JSON-DSL). Нужен `InputSuggest`.
 - Headless-ядро без ui-kit — `useAutocomplete` / `Autocomplete.*` из `@reformer/cdk/autocomplete`.
 
-## 12. InputMask
+## 13. InputMask
 
 ### API
 
@@ -558,7 +615,7 @@ import { InputMask } from '@reformer/ui-kit';
   суммы) — `InputMask` только направляет ввод, не валидирует. Валидацию вешать
   через `validate(model.$.x, [...])` в validation-схеме (запуск `validateModel`).
 
-## 13. InputPassword
+## 14. InputPassword
 
 ### API
 
@@ -613,7 +670,7 @@ import { InputPassword } from '@reformer/ui-kit';
 - Хранить пароль с побочными состояниями (`maskedValue`, `realValue`). Компонент
   всегда отдаёт raw-строку через `onChange`; маскирование — задача браузера.
 
-## 14. Textarea
+## 15. Textarea
 
 ### API
 
@@ -659,13 +716,13 @@ import { Textarea } from '@reformer/ui-kit';
   правил (например, `длина <= 500 на русском, <= 1000 на английском`) ставить
   `validators` в лист схемы (`{ value: model.$.field, component, validators }`).
 
-## 15. See also
+## 16. See also
 
 - [03-choice-fields.md](03-choice-fields.md) — `SelectAsync`, `CheckboxWithLabel`, `RadioGroupOptions`.
 - [05-form-field-integration.md](05-form-field-integration.md) — как все эти поля автоматически подключаются через `FormField`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».
 
-## 16. Подсказка-иконка (i) — `tooltip`
+## 17. Подсказка-иконка (i) — `tooltip`
 
 **Choice fields**
 
@@ -674,21 +731,21 @@ import { Textarea } from '@reformer/ui-kit';
 форма говорит на `value`/`onChange(value)`/`onBlur`, а в диалект контрола её переводит обёртка
 поля по статике `reformerAdapter`. Значение в модели бывает разных типов:
 
-| Component           | Значение в модели | Собственный диалект контрола (standalone)                  |
-| ------------------- | ----------------- | ---------------------------------------------------------- |
-| `CheckboxWithLabel` | `boolean`         | `checked` + `onCheckedChange(boolean)` (`checkedAdapter`)  |
-| `RadioGroupOptions` | `string \| null`  | `value` + `onValueChange(string)` (`valueChangeAdapter`)   |
-| `SelectAsync`       | `string \| null`  | `value` + `onChange(string \| null)` — уже value-based     |
+| Component           | Значение в модели | Собственный диалект контрола (standalone)                 |
+| ------------------- | ----------------- | --------------------------------------------------------- |
+| `CheckboxWithLabel` | `boolean`         | `checked` + `onCheckedChange(boolean)` (`checkedAdapter`) |
+| `RadioGroupOptions` | `string \| null`  | `value` + `onValueChange(string)` (`valueChangeAdapter`)  |
+| `SelectAsync`       | `string \| null`  | `value` + `onChange(string \| null)` — уже value-based    |
 
 Поля выбора принимают `tooltip: string` — иконку (i) с тултипом в самом контроле:
 
-| Поле                                                     | Где иконка                                                                                                |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `CheckboxWithLabel`, `SwitchWithLabel`                   | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
-| `RadioGroupOptions`                                      | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
-| `SelectAsync`, `SelectMulti`                             | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
-| `Combobox` (все 4 варианта)                              | То же, что у `SelectAsync`.                                                                               |
-| `NativeSelectWithOptions`                                | Внутри, левее шеврона.                                                                                    |
+| Поле                                                                  | Где иконка                                                                                                |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `CheckboxWithLabel`, `SwitchWithLabel`                                | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
+| `RadioGroupOptions`                                                   | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
+| `SelectAsync`, `SelectMulti`                                          | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
+| `Combobox` (все 4 варианта)                                           | То же, что у `SelectAsync`.                                                                               |
+| `NativeSelectWithOptions`                                             | Внутри, левее шеврона.                                                                                    |
 | `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
 
 ```tsx
@@ -707,7 +764,7 @@ import { Textarea } from '@reformer/ui-kit';
 Иконка у ПОДПИСИ поля — отдельный проп `labelTooltip`, его рисует `FormField`
 (см. [05-form-field-integration.md](05-form-field-integration.md)).
 
-## 17. Checkbox
+## 18. Checkbox
 
 В форму — `CheckboxWithLabel` (registry `Checkbox`): чекбокс с подписью справа. Голый `Checkbox`
 тоже связывается с полем (у него та же статика `checkedAdapter`), но подписи не рисует.
@@ -725,12 +782,12 @@ interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
 }
 ```
 
-| Prop              | Тип                                             | Default | Описание                                                                 |
-| ----------------- | ----------------------------------------------- | ------- | ------------------------------------------------------------------------ |
+| Prop              | Тип                                             | Default | Описание                                                                   |
+| ----------------- | ----------------------------------------------- | ------- | -------------------------------------------------------------------------- |
 | `checked`         | `boolean \| 'indeterminate'`                    | `false` | Чекнут или нет. В форме — из значения поля (`null`/`undefined` → `false`). |
-| `onCheckedChange` | `(checked: boolean \| 'indeterminate') => void` | —       | Radix-колбэк. В форме в модель уходит `checked === true`.                |
-| `label`           | `string`                                        | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс. |
-| `disabled`        | `boolean`                                       | `false` | Блокирует переключение.                                                  |
+| `onCheckedChange` | `(checked: boolean \| 'indeterminate') => void` | —       | Radix-колбэк. В форме в модель уходит `checked === true`.                  |
+| `label`           | `string`                                        | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс.   |
+| `disabled`        | `boolean`                                       | `false` | Блокирует переключение.                                                    |
 
 ### Common Patterns
 
@@ -776,7 +833,7 @@ import { CheckboxWithLabel } from '@reformer/ui-kit';
   `onChange` — нужен `SelectAsync`. Голый `Checkbox` связывается, но теряет подпись — для
   поля с label берите `CheckboxWithLabel`.
 
-## 18. RadioGroup
+## 19. RadioGroup
 
 В форму — `RadioGroupOptions` (registry `RadioGroup`): рисует пункты из `options`.
 Radix-`RadioGroup` с `RadioGroupItem` — для ручной вёрстки вне формы.
@@ -802,12 +859,12 @@ interface RadioGroupOptionsProps {
 }
 ```
 
-| Prop            | Тип                       | Default | Описание                                                           |
-| --------------- | ------------------------- | ------- | ------------------------------------------------------------------ |
-| `options`       | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                     |
-| `value`         | `string`                  | —       | Выбранный вариант. Должен совпадать с одним из `options[i].value`. |
+| Prop            | Тип                       | Default | Описание                                                             |
+| --------------- | ------------------------- | ------- | -------------------------------------------------------------------- |
+| `options`       | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                       |
+| `value`         | `string`                  | —       | Выбранный вариант. Должен совпадать с одним из `options[i].value`.   |
 | `onValueChange` | `(value: string) => void` | —       | Radix-колбэк выбора. В форме в модель уходит строка (`''` → `null`). |
-| `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                            |
+| `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                              |
 
 По умолчанию варианты раскладываются вертикально (`flex flex-col gap-2`).
 
@@ -873,7 +930,7 @@ const form = createForm<{ loanType: string }>({ model, schema });
   `blur` нативного input, как обычно. Для пометки `touched` после взаимодействия
   обычно достаточно выбора (изменение значения).
 
-## 19. Select
+## 20. Select
 
 В форму — `SelectAsync` (registry `Select`), построенный поверх `@radix-ui/react-select`.
 Контракт уже value-based (`value` / `onChange(string | null)`), поэтому и вне формы он
@@ -920,15 +977,15 @@ interface SelectAsyncProps<T> {
 }
 ```
 
-| Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                          |
-| ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                   |
+| Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                               |
+| ------------- | --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                        |
 | `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `SelectAsync` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`. |
-| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                             |
-| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                     |
-| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                             |
-| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                                                                                       |
-| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                                                                                  |
+| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                                  |
+| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                          |
+| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                                  |
+| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                                                                                            |
+| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                                                                                       |
 
 ### Sub-components
 
@@ -1070,11 +1127,11 @@ const form = createForm<{ city: string }>({ model, schema });
 - Использовать `value: number` напрямую — `SelectAsync` приводит к строке внутри
   (`String(value)`); `onChange` вернёт строку. В schema формы тип поля должен
   быть `string` или `string | null`.
-- Регистрировать `SelectAsync` без `placeholder` и ждать понятного UX —
-  пользователь увидит дефолт `'Select an option...'`. Для русскоязычных форм
-  это, как правило, нежелательно.
+- Ждать русский плейсхолдер без `I18nProvider` — без провайдера `SelectAsync` покажет
+  встроенное английское `'Select an option...'`. Русский текст даёт локаль
+  (`<I18nProvider lang="ru" load={…}>`, см. 01-overview.md → Localization) либо проп `placeholder`.
 
-## 20. Multi-select
+## 21. Multi-select
 
 Пять контролов множественного выбора. Все пять — **отдельные записи реестра**, а не режим
 одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
@@ -1191,15 +1248,15 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 - `placeholder` у `NativeSelectMulti` — его нет намеренно: в multiple-листбоксе `<option value="">`
   становится выбираемым мусорным пунктом.
 
-## 21. Combobox: варианты дерева
+## 22. Combobox: варианты дерева
 
 Два варианта комбобокса показывают в поповере не плоский список, а иерархию — тот самый `Tree`
 кита (см. [04-layout-and-buttons.md](04-layout-and-buttons.md)). Берут их там, где значение
 адресуется путём, а не выбирается из перечня: файл в репозитории, раздел каталога, узел
 оргструктуры.
 
-| Компонент                | `value` в модели                  | Что выбирается            |
-| ------------------------ | --------------------------------- | ------------------------- |
+| Компонент           | `value` в модели                  | Что выбирается            |
+| ------------------- | --------------------------------- | ------------------------- |
 | `ComboboxTree`      | `string \| null` — адрес узла     | один узел, обычно файл    |
 | `ComboboxTreeMulti` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
 
@@ -1245,7 +1302,8 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 Остальные пропы обоих вариантов: `placeholder` (`'Select a file...'` / `'Select files...'`),
 `searchPlaceholder` (`'Search...'`), `emptyText` (`'No results found.'`), `clearable` (`false`),
 `maxRows` (12 строк до прокрутки), у мульти ещё `summaryThreshold` (3 — дальше чипы схлопываются
-в «Selected: N»).
+в «Selected: N»). Текстовые умолчания — английские строки словаря `kit.combobox.*`; под
+`I18nProvider` они берутся из активной локали («Выберите файл...», «Выбрано: N»).
 
 ### Common Patterns
 
@@ -1338,7 +1396,7 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 - Ставить в схему сам `Tree` вместо `ComboboxTree` / `ComboboxTreeMulti` — `Tree` не поле формы:
   value-seam остаётся неподключённым, дерево рисуется и не пишет выбор в модель.
 
-## 22. See also
+## 23. See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
 - [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
@@ -1346,7 +1404,7 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт inline-label контролы (`CheckboxWithLabel`, `SwitchWithLabel`) и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
 
-## 23. Button
+## 24. Button
 
 **Layout and buttons**
 
@@ -1468,7 +1526,7 @@ import { PlusIcon } from 'lucide-react';
   вариант-опций — теряется консистентность темы.
 - `size="icon"` без иконки — будет квадрат `h-9 w-9` без видимого контента.
 
-## 24. AsyncBoundary
+## 25. AsyncBoundary
 
 Контейнер состояний загрузки данных: `idle` / `loading` / `ready` / `error`.
 Стилизованная обёртка над headless `AsyncBoundary` из `@reformer/cdk/async-boundary`.
@@ -1612,7 +1670,7 @@ Controlled — когда загрузкой владеет кто-то друг
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
 
-## 25. Tree
+## 26. Tree
 
 Плотное дерево с уровнями — файловый навигатор редактора, а не раскрывающийся список. Показывает
 иерархию: дерево проекта, разделы каталога, оргструктуру. Живёт в главном barrel
@@ -1774,7 +1832,7 @@ const [query, setQuery] = useState('');
   управляют токены. Своё содержимое добавляют слотами `renderIcon` / `renderLabel` /
   `renderActions`.
 
-## 26. ExampleCard
+## 27. ExampleCard
 
 Карточка-демонстрация для playground: заголовок, описание, область с примером
 и переключатель `пример ↔ исходник` с кнопкой копирования.
@@ -1818,7 +1876,7 @@ import { ExampleCard, Input } from '@reformer/ui-kit';
 - Использовать в продакшене — это playground-utility, не component-library
   primitive. Кнопка переключения «глаз/код» не настраивается.
 
-## 27. cn
+## 28. cn
 
 Утилита для конкатенации Tailwind-классов через `clsx` и `tailwind-merge`.
 Разрешает конфликты (последний выигрывает) — критично для условного оверрайда
@@ -1854,14 +1912,14 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 - Передавать массивы/объекты, рассчитывая на shadcn-стиль `cn({active: true})`:
   `clsx`-синтаксис поддерживается, но удобнее писать через `&&`.
 
-## 28. See also
+## 29. See also
 
 - [03-choice-fields.md](03-choice-fields.md) — `ComboboxTree` / `ComboboxTreeMulti`: значение из иерархии.
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
 - [10-imperative-handles.md](10-imperative-handles.md) — `TreeHandle`: раскрытие уровней, `refresh`, цели действия.
 - [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние», ловушки дерева.
 
-## 29. API
+## 30. API
 
 **FormField integration**
 
@@ -1970,7 +2028,7 @@ NativeSelectMulti, аватар) иконка встаёт справа от к�
 исключение: обе иконки (i) остаются рабочими, потому что по значению в заблокированном поле пояснение
 нужно не меньше, чем в активном.
 
-## 30. Common Patterns
+## 31. Common Patterns
 
 ### 1. Standalone
 
@@ -2152,7 +2210,7 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - Либо объявить статики на обёртке: `defineFieldControl(MyCheckbox, { adapter: checkedAdapter,
   layout: 'inline-label' })`.
 
-## 31. Anti-patterns
+## 32. Anti-patterns
 
 - Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
   именно `FieldNode<T>`. Для массивов используй `FormArray.Root` из CDK; для
@@ -2168,14 +2226,14 @@ const form = createForm<{ accept: boolean }>({ model, schema });
   баннеров) — обёртка ставит `Label` и слот ошибки, что нелогично. Для такого
   рендерь компоненты напрямую (через container-узлы `Box`/`Section`).
 
-## 32. See also
+## 33. See also
 
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md) — компоненты, которые `FormField` оборачивает.
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
 
-## 33. 1. Числовое поле возвращает строку, а не число (или `null`)
+## 34. 1. Числовое поле возвращает строку, а не число (или `null`)
 
 **Troubleshooting / FAQ**
 
@@ -2204,7 +2262,7 @@ interface Form {
 }
 ```
 
-## 34. 2. `SelectAsync` не показывает options (пустой дропдаун)
+## 35. 2. `SelectAsync` не показывает options (пустой дропдаун)
 
 **Симптом.** Триггер открывается, но в нём `'No options available'`.
 
@@ -2224,7 +2282,7 @@ interface Form {
   `resource.load` всё равно вызовется. Если сеть упала, `loading` может
   остаться `true`, и UI блокируется. Используй один источник.
 
-## 35. 3. `InputMask` пропускает символы или не вставляет литералы
+## 36. 3. `InputMask` пропускает символы или не вставляет литералы
 
 **Симптом.** Пользователь вводит цифры, но скобки/тире из маски не
 появляются автоматически.
@@ -2247,7 +2305,7 @@ transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
 (`react-imask`, `imask`) и подключай через [`05-form-field-integration.md`](05-form-field-integration.md)
 сценарий 3 (`<FormField><MaskedInput /></FormField>`).
 
-## 36. 4. `forwardRef` + Radix `Slot` конфликты
+## 37. 4. `forwardRef` + Radix `Slot` конфликты
 
 **Симптом.** При `<Button asChild><Link to="/">Go</Link></Button>` падает с
 `Slot: only one child or React.cloneElement is not a function`.
@@ -2285,7 +2343,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 </Button>;
 ```
 
-## 37. 5. `CheckboxWithLabel` value не сохраняется (всегда `false`)
+## 38. 5. `CheckboxWithLabel` value не сохраняется (всегда `false`)
 
 **Симптом.** Пользователь чекает, в форме пишется `true`, но при следующем
 рендере чекбокс снова пуст.
@@ -2308,7 +2366,7 @@ const schema = {
 const form = createForm<{ accept: boolean }>({ model, schema });
 ```
 
-## 38. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
+## 39. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
 
 **Симптом.** Поле невалидно, `form.email.error` есть, но в DOM ошибка не
 рендерится.
@@ -2346,7 +2404,7 @@ import { FormField } from '@reformer/ui-kit'; // готовый wrapper
 import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 ```
 
-## 39. 7. `onBlur` не срабатывает на `SelectAsync` / `RadioGroupOptions`
+## 40. 7. `onBlur` не срабатывает на `SelectAsync` / `RadioGroupOptions`
 
 **Симптом.** `touched`-флаг не появляется при выборе значения, поле «вечно»
 без подсветки ошибки.
@@ -2377,7 +2435,7 @@ import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 Проблема обычно возникает, если контрол используется руками без `FormField`: внутри формы
 `value`/`onChange`/`onBlur` подключает обёртка поля.
 
-## 40. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
+## 41. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
 
 **Симптом.** Передал `className="px-2 py-1"` в компонент, ожидая, что
 overrideнет дефолт `px-3`, но получил оба.
@@ -2396,7 +2454,7 @@ overrideнет дефолт `px-3`, но получил оба.
 //                                    ↑ user override побеждает
 ```
 
-## 41. 9. `AsyncBoundary` не переключает состояние
+## 42. 9. `AsyncBoundary` не переключает состояние
 
 **Симптом.** Пропал `loading`, но `children` не появились.
 
@@ -2430,7 +2488,7 @@ import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 </AsyncBoundary.Root>;
 ```
 
-## 42. 10. `InputPassword`: иконка-«глаз» не появляется
+## 43. 10. `InputPassword`: иконка-«глаз» не появляется
 
 **Симптом.** Прокинул `showToggle={true}` (или оставил дефолт), но в правом
 углу ничего нет.
@@ -2454,7 +2512,7 @@ const hasValue = Boolean(value);
 </div>
 ```
 
-## 43. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
+## 44. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
 
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
@@ -2468,7 +2526,7 @@ const hasValue = Boolean(value);
 Внутри `SelectAsync` дальнейших магий нет — он просто читает `directOptions`
 один в один.
 
-## 44. 12. Мультивыбор не рендерится, а submit молча не проходит
+## 45. 12. Мультивыбор не рендерится, а submit молча не проходит
 
 **Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `ComboboxTreeMulti` /
 `NativeSelectMulti` / `ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо
@@ -2504,7 +2562,7 @@ validate(model.$.tags, [required()]);
 нужен `model.captureInitial()`, иначе модель считает себя изменённой сразу после загрузки, а
 `form.<поле>.reset()` вернёт значение, с которым форма собиралась.
 
-## 45. 13. Поиск в дереве не находит файл, который точно есть
+## 46. 13. Поиск в дереве не находит файл, который точно есть
 
 **Симптом.** В `Tree` (или в поповере `ComboboxTree` / `ComboboxTreeMulti`) вводится имя файла,
 который лежит в неоткрытом каталоге, — в выдаче его нет. Тот же запрос после раскрытия каталога
@@ -2525,7 +2583,7 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 
 Для полностью объявленного дерева (`nodes` без `loadChildren`) ограничения нет: прочитано всё.
 
-## 46. 14. Две строки дерева ведут себя как одна
+## 47. 14. Две строки дерева ведут себя как одна
 
 **Симптом.** Раскрытие одного каталога раскрывает и другой; выделение прыгает не на ту строку;
 в `ComboboxTreeMulti` галочка появляется сразу у двух файлов.
@@ -2544,7 +2602,7 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 { id: 'src/utils/index.ts', label: 'index.ts' }
 ```
 
-## 47. 15. При серверной отрисовке в разметку дерева попадает девять строк
+## 48. 15. При серверной отрисовке в разметку дерева попадает девять строк
 
 **Симптом.** На странице, отрисованной на сервере (или в снапшот-тесте без layout), у дерева из
 сотни узлов в HTML оказывается девять строк; остальные появляются только после гидратации.
@@ -2562,13 +2620,13 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 Обратная сторона честная: без виртуализации в разметке живёт каждая строка со своими
 обработчиками, поэтому для дерева проекта на тысячи узлов так делать нельзя.
 
-## 48. See also
+## 49. See also
 
 - [01-overview.md](01-overview.md) — список компонентов и их назначения.
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту; `Tree` в 04, его варианты комбобокса в 03.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 
-## 49. Базовое использование
+## 50. Базовое использование
 
 **FormWizard — multi-step форма**
 
@@ -2718,7 +2776,7 @@ const handleSaveAndExit = async () => {
 `navRef.current?.submit(values => ...)` вызывается из кода, отдаёт `values` и возвращает
 результат колбэка либо `null`, если валидация не прошла.
 
-## 50. Полиморфный `step.body`
+## 51. Полиморфный `step.body`
 
 `body` принимает три формы (runtime-discriminated):
 
@@ -2732,7 +2790,7 @@ const handleSaveAndExit = async () => {
 
 **Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
-## 51. RenderNode body (renderer-react / renderer-json)
+## 52. RenderNode body (renderer-react / renderer-json)
 
 M1: схема без аргумента `path` — листья ссылаются на сигналы модели
 (`value: model.$.x`), а не на `path.x`:
@@ -2805,7 +2863,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 **TS-flow body (FC компоненты) — провайдер НЕ нужен**: ui-kit FormWizard рендерит FC напрямую без render-pipeline.
 
-## 52. JSON
+## 53. JSON
 
 ```jsonc
 {
@@ -2839,7 +2897,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 Общий компонент уровня приложения (`projects/react-playground/src/components/RendererFormWizard.tsx`) — исторический вариант, а не эталон нейминга: выносить шим за пределы модуля имеет смысл, только когда его переиспользуют несколько форм.
 
-## 53. Compound API
+## 54. Compound API
 
 `FormWizard.Indicator/Step/Actions/Progress` — re-export headless слотов из CDK для consumer-ов, которым нужен полностью кастомный layout (например, indicator поверх кастомного header'а).
 
@@ -2849,7 +2907,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 </FormWizard.Indicator>
 ```
 
-## 54. Ref / handle
+## 55. Ref / handle
 
 ```tsx
 const wizardRef = useRef<FormWizardHandle<MyForm>>(null);
@@ -2872,7 +2930,7 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 `validateCurrentStep()`, `goToNextStep()`, `goToPreviousStep()`,
 `goToStep(step)`, `submit(cb)`.
 
-## 55. Базовое использование (TS-flow)
+## 56. Базовое использование (TS-flow)
 
 **FormArraySection — UI для FormArray**
 
@@ -2881,10 +2939,10 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 
 В пакете **два** компонента массива, и путать их нельзя:
 
-| Компонент          | Для чего                                    | Контракт                                            |
-| ------------------ | ------------------------------------------- | --------------------------------------------------- |
-| `FormArraySection` | TS-flow и renderer-react RenderSchema       | `control` + `itemComponent` (FC на элемент)         |
-| `FormArray`        | **renderer-json**, `$component(FormArray)`  | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
+| Компонент          | Для чего                                   | Контракт                                                |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------- |
+| `FormArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
+| `FormArray`        | **renderer-json**, `$component(FormArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
 
 Этот документ — про `FormArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
 
@@ -2931,7 +2989,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 `initialValue` имеет тип `Partial<T>`, где `T` — тип элемента массива.
 Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
 
-## 56. Renderer-react RenderSchema
+## 57. Renderer-react RenderSchema
 
 M1: схема без аргумента `path` (`createRenderSchema<T>(() => ...)`). `control`
 ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FormArraySection`
@@ -2958,7 +3016,7 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 > Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }`.
 
-## 57. JSON (renderer-json)
+## 58. JSON (renderer-json)
 
 **В renderer-json нужен `FormArray`, а не `FormArraySection`.** Это разные компоненты с разными
 контрактами, и подмена стоит дорого: `FormArraySection` требует пропы `control` + `itemComponent`,
@@ -3023,29 +3081,29 @@ defineRegistry((reg) => {
 { "array": "$model(properties)", "component": "$component(FormArray)", "item": { "$template": { } } }
 ```
 
-## 58. Props (полный список)
+## 59. Props (полный список)
 
-| Prop                 | Type                                                         | Default                          | Описание                                                  |
-| -------------------- | ------------------------------------------------------------ | -------------------------------- | --------------------------------------------------------- |
-| `control`            | `FormArrayProxy<T> \| ArrayNode<T> \| undefined`             | required                         | Массив для управления (в RenderSchema — `FieldPathNode`)  |
-| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                         | FC для рендера каждого item                               |
-| `title`              | `string`                                                     | —                                | Заголовок секции (h3)                                     |
-| `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                | Метка над каждым item                                    |
-| `addButtonLabel`     | `string`                                                     | `'+ Добавить'`                   | Текст кнопки добавления                                   |
-| `removeButtonLabel`  | `string`                                                     | `'Удалить'`                      | Текст кнопки удаления                                     |
-| `emptyMessage`       | `string`                                                     | —                                | Сообщение при пустом массиве                             |
-| `emptyMessageHint`   | `string`                                                     | —                                | Подсказка под emptyMessage                               |
-| `hasItems`           | `boolean`                                                    | —                                | `false` → секция полностью скрыта                        |
-| `initialValue`       | `Partial<T>`                                                 | —                                | Plain-leaf значения для новых items                      |
-| `showRemoveOnSingle` | `boolean`                                                    | `false`                          | Показывать «Удалить» при одном item                      |
-| `reorderable`        | `boolean`                                                    | `false`                          | Показывать кнопки ↑/↓ для перестановки элементов          |
-| `maxItems`           | `number`                                                     | —                                | Максимум items (AddButton скрывается при достижении)     |
-| `className`          | `string`                                                     | `'space-y-3 mt-2'`               | Класс `<section>`-обёртки                                |
-| `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                     |
-| `form`               | `FormProxy<unknown>`                                         | авто-инъекция                    | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
-| `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                          | авто-инъекция                    | Field wrapper для дочерних полей (по умолчанию — от родителя) |
+| Prop                 | Type                                                         | Default                              | Описание                                                           |
+| -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
+| `control`            | `FormArrayProxy<T> \| ArrayNode<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
+| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                             | FC для рендера каждого item                                        |
+| `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
+| `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
+| `addButtonLabel`     | `string`                                                     | `'+ Add'` (локаль)                   | Текст кнопки добавления                                            |
+| `removeButtonLabel`  | `string`                                                     | `'Remove'` (локаль)                  | Текст кнопки удаления                                              |
+| `emptyMessage`       | `string`                                                     | —                                    | Сообщение при пустом массиве                                       |
+| `emptyMessageHint`   | `string`                                                     | —                                    | Подсказка под emptyMessage                                         |
+| `hasItems`           | `boolean`                                                    | —                                    | `false` → секция полностью скрыта                                  |
+| `initialValue`       | `Partial<T>`                                                 | —                                    | Plain-leaf значения для новых items                                |
+| `showRemoveOnSingle` | `boolean`                                                    | `false`                              | Показывать «Удалить» при одном item                                |
+| `reorderable`        | `boolean`                                                    | `false`                              | Показывать кнопки ↑/↓ для перестановки элементов                   |
+| `maxItems`           | `number`                                                     | —                                    | Максимум items (AddButton скрывается при достижении)               |
+| `className`          | `string`                                                     | `'space-y-3 mt-2'`                   | Класс `<section>`-обёртки                                          |
+| `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                                    |
+| `form`               | `FormProxy<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
+| `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                           | авто-инъекция                        | Field wrapper для дочерних полей (по умолчанию — от родителя)      |
 
-## 59. Critical: `initialValue` — PLAIN LEAVES ONLY
+## 60. Critical: `initialValue` — PLAIN LEAVES ONLY
 
 ```tsx
 // ❌ silent corruption (FieldConfig as value)
@@ -3057,7 +3115,7 @@ initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 
 FieldConfig попадает в значение поля → Textarea рендерит `[object Object]`, Checkbox флипается в `true`. Compiler/тесты не ловят.
 
-## 60. Schema-driven (canonical pattern)
+## 61. Schema-driven (canonical pattern)
 
 **InputMask — поля с маской ввода**
 
@@ -3141,7 +3199,7 @@ import { FormField } from '@reformer/ui-kit';
 <FormField control={form.snils} testId="snils" />
 ```
 
-## 61. Common masks
+## 62. Common masks
 
 | Поле                 | Маска                 | Пример вывода         |
 | -------------------- | --------------------- | --------------------- |
@@ -3157,7 +3215,7 @@ import { FormField } from '@reformer/ui-kit';
 | Дата (DD.MM.YYYY)    | `99.99.9999`          | `15.05.1990`          |
 | Карта                | `9999 9999 9999 9999` | `4111 1111 1111 1111` |
 
-## 62. Validation
+## 63. Validation
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
@@ -3184,7 +3242,7 @@ Cross-field правила (например, «доп. телефон отли�
 `cross(model.$.phoneAdditional, (f) => ...)` в той же validation-схеме: функция получает
 снапшот `model.get()` и читает соседние поля напрямую.
 
-## 63. Advanced — strict mask через FormField + children slot
+## 64. Advanced — strict mask через FormField + children slot
 
 Если нужна автоматическая вставка literal-символов (true input-mask), используй
 библиотеку типа `react-input-mask` или `imask` как кастомный child в FormField:
@@ -3202,13 +3260,13 @@ import InputMask from 'react-input-mask';
 `value` / `onChange` / `onBlur` / `aria-invalid`. См. рецепт
 [05-form-field-integration.md → Pattern 3](05-form-field-integration.md).
 
-## 64. See also
+## 65. See also
 
 - [02-text-fields.md](02-text-fields.md) — обычный Input
 - [05-form-field-integration.md](05-form-field-integration.md) — FormField обёртка
 - [06-troubleshooting.md](06-troubleshooting.md) — «маска не вставляется автоматически» → используй `react-input-mask`
 
-## 65. Когда императив, а когда реактив
+## 66. Когда императив, а когда реактив
 
 **Императивные handle полей — управление компонентом по селектору**
 
@@ -3231,7 +3289,7 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 | **reload / loadMore async-источника**      | **императивный** | `…current?.reload()`                              |
 | **переключить видимость пароля**           | **императивный** | `getRef<InputPasswordHandle>().current?.setVisible(true)` |
 
-## 66. Базовое использование
+## 67. Базовое использование
 
 ```tsx
 import { createRenderSchema, renderEffect } from '@reformer/renderer-react';
@@ -3250,7 +3308,7 @@ emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 emailRef.current?.focus();
 ```
 
-## 67. ⚠️ `getRef()` вызывать ДО первого рендера
+## 68. ⚠️ `getRef()` вызывать ДО первого рендера
 
 `getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер и
 менял семантику wizard-а). Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный
@@ -3270,7 +3328,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 Повторные `getRef()` для того же селектора идемпотентны и возвращают тот же `RefObject` — поэтому
 достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно.
 
-## 68. Адресация: `selector` или `__path`
+## 69. Адресация: `selector` или `__path`
 
 Ключ ref листа — `node.selector ?? __path` сигнала модели (явный селектор в приоритете):
 
@@ -3287,7 +3345,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
 `FormArray` индексы не нужно перечислять в схеме.
 
-## 69. Контракты handle
+## 70. Контракты handle
 
 Все rich-handle наследуют `FieldHandle`.
 
@@ -3316,7 +3374,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
 
-## 70. Рецепт: focus первого невалидного поля после submit
+## 71. Рецепт: focus первого невалидного поля после submit
 
 Классика UX, реактивно невыразимая. `validateModel` роутит ошибки в ноды; нода поля
 резолвится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь —
@@ -3345,7 +3403,7 @@ async function handleSubmit() {
 }
 ```
 
-## 71. Рецепт: зависимый async-Select
+## 72. Рецепт: зависимый async-Select
 
 Реактивная часть (параметры источника) — через `patchProps`; императивная (сброс, перезагрузка,
 открытие) — через handle:
@@ -3366,7 +3424,7 @@ renderEffect(schema, () => {
 });
 ```
 
-## 72. Рецепт: фокус в поле только что добавленной строки FormArray
+## 73. Рецепт: фокус в поле только что добавленной строки FormArray
 
 ```tsx
 import type { FormArrayHandle } from '@reformer/cdk';
@@ -3382,7 +3440,7 @@ queueMicrotask(() => {
 });
 ```
 
-## 73. null-safety и жизненный цикл
+## 74. null-safety и жизненный цикл
 
 `ref.current` равен `null`, пока поле не смонтировано — и остаётся `null` у скрытых/условных полей,
 которые не рендерятся вовсе. Все вызовы обязаны идти через `?.`.
@@ -3393,7 +3451,7 @@ queueMicrotask(() => {
 - Сам baseline-handle тоже null-safe: `focus()/blur()/scrollIntoView()` на несмонтированном поле —
   no-op без исключения.
 
-## 74. Своё поле с handle
+## 75. Своё поле с handle
 
 Handle строит **обёртка поля** (`FormField.Control` из `@reformer/cdk`, рендерер
 `@reformer/renderer-react`), а не сам контрол: она вешает ref на `component` и публикует
@@ -3431,7 +3489,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 `RendererSettings.resolveFieldAdapter` (для чужих компонентов без статики) описывают диалект
 одинаково. Rich-handle объявляйте рядом с композитом и реэкспортируйте из barrel компонента.
 
-## 75. Key Concepts
+## 76. Key Concepts
 
 **Form layout — отступы, сетка и группировка полей**
 
@@ -3459,7 +3517,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 - **Один макет — три записи.** TSX, `RenderSchema` и JSON используют одни и те же строки
   классов; меняется только синтаксис узла.
 
-## 76. Spacing scale
+## 77. Spacing scale
 
 | Уровень                            | Класс       | Где                                       |
 | ---------------------------------- | ----------- | ----------------------------------------- |
@@ -3482,7 +3540,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 Отступ под заголовком даёт сам `space-y-*` — `mb-*` не нужен. Условную группу не подпирайте
 `mt-6`: заверните в собственную секцию, и родительский `space-y-*` расставит отступы сам.
 
-## 77. Field grid
+## 78. Field grid
 
 - Пара связанных полей — `grid grid-cols-1 md:grid-cols-2 gap-4`.
 - Тройка (ФИО; серия / номер / дата) — `grid grid-cols-1 md:grid-cols-3 gap-4`.
@@ -3506,7 +3564,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 </section>
 ```
 
-## 78. Grouping and sections
+## 79. Grouping and sections
 
 `Section` — секция с заголовком. Своих классов не несёт, поэтому `className` и
 `titleClassName` задаются явно: `titleAs` отвечает за семантику (уровень заголовка),
@@ -3558,7 +3616,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 Повторяющиеся записи — `FormArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
 списка и карточка для элемента, переопределять их не нужно.
 
-## 79. Layout across targets
+## 80. Layout across targets
 
 Строки классов между вариантами **не меняются** — меняется только синтаксис узла.
 
@@ -3577,7 +3635,7 @@ reg.component('Card', Card);
 reg.component('CardContent', CardContent);
 ```
 
-## 80. Common Patterns
+## 81. Common Patterns
 
 Сквозной пример шага: карточка, две группы, сетка и поле на всю ширину.
 
@@ -3608,7 +3666,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 </Card>;
 ```
 
-## 81. Anti-patterns
+## 82. Anti-patterns
 
 ```tsx
 // ❌ Карточка собрана классами — ломает тёмную тему и расходится с китом.
@@ -3652,7 +3710,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 <div className="max-w-2xl mx-auto">
 ```
 
-## 82. See also
+## 83. See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — что `FormField` рисует сам.
@@ -3661,7 +3719,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 - [renderer-react](../../../reformer-renderer-react/docs/llms/) — layout в `RenderSchema`.
 - [renderer-json](../../../reformer-renderer-json/docs/llms/) — layout в JSON.
 
-## 83. API Reference
+## 84. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -4084,7 +4142,7 @@ _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 ```typescript
 function AsyncBoundaryEmpty({
   className,
-  title = 'Нет данных',
+  title,
   description,
   icon,
   action,
@@ -4122,7 +4180,10 @@ Props {@link AsyncBoundaryEmpty}.
 **Signature:**
 ```typescript
 export interface AsyncBoundaryEmptyProps extends Omit<React.ComponentProps<'div'>, 'title'> {
-  /** Заголовок. @default 'Нет данных' */
+  /**
+   * Заголовок. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.emptyTitle
+   */
   title?: React.ReactNode;
   /** Пояснение под заголовком. */
   description?: React.ReactNode;
@@ -4149,9 +4210,9 @@ _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 function AsyncBoundaryError({
   className,
   error,
-  title = 'Ошибка загрузки',
+  title,
   onRetry,
-  retryLabel = 'Повторить',
+  retryLabel,
   ...props
 }: AsyncBoundaryErrorProps)
 ```
@@ -4188,11 +4249,17 @@ Props {@link AsyncBoundaryError}.
 export interface AsyncBoundaryErrorProps extends Omit<React.ComponentProps<'div'>, 'title'> {
   /** Текст ошибки под заголовком. */
   error?: React.ReactNode;
-  /** Заголовок блока. @default 'Ошибка загрузки' */
+  /**
+   * Заголовок блока. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.errorTitle
+   */
   title?: React.ReactNode;
   /** Колбэк повтора. Без него кнопка не рендерится. */
   onRetry?: () => void;
-  /** Подпись кнопки повтора. @default 'Повторить' */
+  /**
+   * Подпись кнопки повтора. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.retry
+   */
   retryLabel?: React.ReactNode;
 }
 ```
@@ -4210,12 +4277,7 @@ _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 
 **Signature:**
 ```typescript
-function AsyncBoundaryLoading({
-  className,
-  title = 'Загрузка данных...',
-  subtitle = 'Пожалуйста, подождите',
-  ...props
-}: AsyncBoundaryLoadingProps)
+function AsyncBoundaryLoading({ className, title, subtitle, ...props }: AsyncBoundaryLoadingProps)
 ```
 
 **Parameters:**
@@ -4248,9 +4310,15 @@ Props {@link AsyncBoundaryLoading}.
 **Signature:**
 ```typescript
 export interface AsyncBoundaryLoadingProps extends Omit<React.ComponentProps<'div'>, 'title'> {
-  /** Основной текст. @default 'Загрузка данных...' */
+  /**
+   * Основной текст. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.loadingTitle
+   */
   title?: React.ReactNode;
-  /** Вспомогательный текст под спиннером. @default 'Пожалуйста, подождите' */
+  /**
+   * Вспомогательный текст под спиннером; `null` — скрыть. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.loadingSubtitle
+   */
   subtitle?: React.ReactNode;
 }
 ```
@@ -5844,11 +5912,11 @@ export interface ComboboxProps {
   onBlur?: () => void;
   /** Список опций. */
   options?: ComboboxOption[];
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select an option...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию — из словаря локали. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  /** Подсказка в поле поиска. По умолчанию — из словаря локали. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния (ничего не найдено). По умолчанию `'No options found.'`. */
+  /** Текст пустого состояния (ничего не найдено). По умолчанию — из словаря локали. */
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
@@ -6046,11 +6114,11 @@ export interface ComboboxTreeMultiProps {
    * Что можно выбрать. По умолчанию `'leaf'` — выбор файлов: щелчок по каталогу его раскрывает.
    */
   selectable?: TreeSelectable;
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select files...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию — из словаря локали. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  /** Подсказка в поле поиска. По умолчанию — из словаря локали. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния. По умолчанию `'No results found.'`. */
+  /** Текст пустого состояния. По умолчанию — из словаря локали. */
   emptyText?: string;
   /** Показывать крестик сброса ВСЕГО выбора справа от триггера. */
   clearable?: boolean;
@@ -6131,11 +6199,11 @@ export interface ComboboxTreeProps {
    * `'all'` разрешает выбрать и каталог.
    */
   selectable?: TreeSelectable;
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select a file...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию — из словаря локали. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  /** Подсказка в поле поиска. По умолчанию — из словаря локали. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния. По умолчанию `'No results found.'`. */
+  /** Текст пустого состояния. По умолчанию — из словаря локали. */
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
@@ -7855,7 +7923,10 @@ export interface FileUploadAvatarProps extends Omit<
 > {
   /** Форма превью. @default 'circle' */
   shape?: 'circle' | 'square';
-  /** Доступное имя зоны (aria-label; текста у зоны нет). @default 'Загрузить изображение' */
+  /**
+   * Доступное имя зоны (aria-label; текста у зоны нет). По умолчанию — из словаря локали.
+   * @defaultMessage kit.fileUpload.avatarLabel
+   */
   label?: string;
 }
 ```
@@ -7912,7 +7983,11 @@ export interface FileUploadBaseProps extends Omit<UseFileUploadOptions, 'id'> {
    * Сам компонент её НЕ отображает (иначе текст дублировался бы), только снимает из DOM-spread.
    */
   label?: string;
-  /** Видимый текст триггера/зоны. @default 'Выбрать файлы' (button) */
+  /**
+   * Видимый текст триггера/зоны. По умолчанию — из словаря локали, свой у каждого варианта:
+   * кнопка — `kit.fileUpload.choose`, зона — `kit.fileUpload.dropzone`, инпут —
+   * `kit.fileUpload.inputPlaceholder`.
+   */
   placeholder?: string;
   /** Подсказка под триггером (ограничения: типы, размер). */
   hint?: string;
@@ -8133,8 +8208,8 @@ export function FormArray({
   onMove,
   title,
   itemLabel,
-  addButtonLabel = '+ Добавить',
-  removeButtonLabel = 'Удалить',
+  addButtonLabel,
+  removeButtonLabel,
   emptyMessage,
   emptyMessageHint,
   reorderable = false,
@@ -8166,9 +8241,15 @@ export interface FormArrayProps extends ArrayComponentProps {
   /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   itemLabel?: string | ((model: any, index: number) => string);
-  /** Текст кнопки добавления. По умолчанию `'+ Добавить'`. */
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.add
+   */
   addButtonLabel?: string;
-  /** Текст кнопки удаления. По умолчанию `'Удалить'`. */
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.remove
+   */
   removeButtonLabel?: string;
   /** Сообщение пустого состояния. */
   emptyMessage?: string;
@@ -8217,8 +8298,8 @@ export function FormArraySection<T extends object>({
   itemComponent: ItemComponent,
   title,
   itemLabel,
-  addButtonLabel = '+ Добавить',
-  removeButtonLabel = 'Удалить',
+  addButtonLabel,
+  removeButtonLabel,
   emptyMessage,
   emptyMessageHint,
   hasItems,
@@ -8279,10 +8360,16 @@ export interface FormArraySectionProps<T extends object> {
   /** Метка для каждого item — строка-префикс или функция. */
   itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
 
-  /** Текст кнопки добавления. По умолчанию `'+ Добавить'`. */
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.add
+   */
   addButtonLabel?: string;
 
-  /** Текст кнопки удаления. По умолчанию `'Удалить'`. */
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.remove
+   */
   removeButtonLabel?: string;
 
   /** Сообщение пустого состояния. */
@@ -8521,15 +8608,30 @@ _Source: src/components/form-wizard/variants/base/form-wizard-actions.tsx_
 export interface FormWizardActionsProps extends FormWizardActionsRenderProps {
   /** Внешний CSS-класс контейнера кнопок. */
   className?: string;
-  /** Подпись кнопки «Назад». По умолчанию `'← Назад'`. */
+  /**
+   * Подпись кнопки «Назад». По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.prev
+   */
   prevLabel?: string;
-  /** Подпись кнопки «Далее». По умолчанию `'Далее →'`. */
+  /**
+   * Подпись кнопки «Далее». По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.next
+   */
   nextLabel?: string;
-  /** Подпись кнопки отправки на последнем шаге. По умолчанию `'Отправить заявку'`. */
+  /**
+   * Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.submit
+   */
   submitLabel?: string;
-  /** Подпись кнопки «Далее» во время валидации шага. По умолчанию `'Проверка...'`. */
+  /**
+   * Подпись кнопки «Далее» во время валидации шага. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.validating
+   */
   validatingLabel?: string;
-  /** Подпись кнопки отправки во время submit. По умолчанию `'Отправка...'`. */
+  /**
+   * Подпись кнопки отправки во время submit. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.submitting
+   */
   submittingLabel?: string;
 }
 ```
@@ -8540,8 +8642,8 @@ _Source: src/components/form-wizard/variants/base/form-wizard-actions.tsx_
 
 **Kind:** `const`
 
-Текстовый индикатор прогресса wizard'а — по умолчанию рендерит
-«Шаг N из M • X% завершено». Формат строки переопределяется пропом `format`.
+Текстовый индикатор прогресса wizard'а — по умолчанию рендерит строку из словаря локали
+(«Step N of M • X% complete»). Формат строки переопределяется пропом `format`.
 
 Рендерится из headless-слота `<FormWizard.Progress>` через render-prop
 (`current`/`total`/`percent` приходят автоматически). Готовый {@link FormWizard}
@@ -8583,7 +8685,7 @@ export interface FormWizardProgressProps extends FormWizardProgressRenderProps {
   className?: string;
   /**
    * Кастомный форматтер строки прогресса. Получает `{ current, total, percent }`.
-   * По умолчанию — `'Шаг N из M • X% завершено'`.
+   * По умолчанию — строка `kit.formWizard.progress` из словаря локали.
    */
   format?: (props: FormWizardProgressRenderProps) => ReactNode;
 }
@@ -8620,6 +8722,11 @@ export interface FormWizardProps<
    * чтобы ошибки стали видны. Без `config.validateAll` отправка не блокируется.
    */
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
+  /**
+   * Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.submit
+   */
+  submitLabel?: string;
   /**
    * Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и
    * ComponentType; всё остальное (например узел RenderSchema) отдаётся сюда — так компонент
@@ -9692,6 +9799,19 @@ function KbdGroup({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/kbd/variants/base/kbd-base.tsx_
 
+### KIT_LOCALES
+
+**Kind:** `const`
+
+Языки, которые кит поставляет сам.
+
+**Signature:**
+```typescript
+export const KIT_LOCALES: readonly string[]
+```
+
+_Source: src/locale/index.ts_
+
 ### KitFieldAdapter
 
 **Kind:** `interface`
@@ -9767,6 +9887,28 @@ export interface ListProps {
 ```
 
 _Source: src/components/list/variants/base/list.tsx_
+
+### loadKitLocale
+
+**Kind:** `const`
+
+Источник локалей кита для `createLocaleLoader`: чанк нужного языка по запросу.
+
+**Signature:**
+```typescript
+export const loadKitLocale
+```
+
+**Examples:**
+
+```ts
+import { createLocaleLoader, fetchMessages } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+const loadLocale = createLocaleLoader([loadKitLocale, fetchMessages((code) => `/locales/${code}.json`)]);
+```
+
+_Source: src/locale/index.ts_
 
 ### makeElementFieldHandle
 
@@ -11092,6 +11234,12 @@ export type PropsSchema = Omit<
   'x-variantGroup'?: string;
   /** Человекочитаемая метка варианта в группе (напр. `'Пароль'`). */
   'x-variant'?: string;
+  /**
+   * Ключ словаря кита, из которого берётся `default` текстового пропа (`messageDefault` в
+   * `*.props.ts`, JSDoc-тег `@defaultMessage` у остальных). По нему инспектор показывает
+   * умолчание на языке активной локали.
+   */
+  'x-messageKey'?: string;
   properties?: Record<string, PropsSchema>;
   items?: PropsSchema | PropsSchema[];
   anyOf?: PropsSchema[];
@@ -11680,7 +11828,7 @@ export interface SelectAsyncProps extends Omit<
   resource?: ResourceConfig<unknown>;
   /** Inline-варианты. Опции с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. */
   options?: Array<{ value: string | number; label: string; group?: string }>;
-  /** Подсказка в триггере. По умолчанию `'Select an option...'`. */
+  /** Подсказка в триггере. По умолчанию — `kit.select.placeholder` из словаря локали. */
   placeholder?: string;
   disabled?: boolean;
   /** Показывать ли кнопку очистки (X) справа от значения. По умолчанию `false`. */
@@ -12716,9 +12864,15 @@ _Source: src/components/form-wizard/variants/base/step-indicator.tsx_
 export interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
   /** Внешний CSS-класс контейнера. */
   className?: string;
-  /** Aria-label контейнера навигации. По умолчанию «Шаги формы». */
+  /**
+   * Aria-label контейнера навигации. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.stepsNav
+   */
   navAriaLabel?: string;
-  /** Кастомный шаблон aria-label для шага. Получает {step}. */
+  /**
+   * Кастомный шаблон aria-label для шага. Получает {step}. По умолчанию — строка
+   * `kit.formWizard.stepLabel` из словаря локали («Step 2: Address (current)»).
+   */
   stepAriaLabel?: (step: FormWizardIndicatorStepWithState) => string;
 }
 ```

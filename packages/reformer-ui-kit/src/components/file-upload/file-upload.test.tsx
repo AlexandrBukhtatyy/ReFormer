@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nProvider } from '@reformer/core/i18n';
-import { ru } from '@reformer/cdk/locale/ru';
+import { ru } from '@/locale/ru';
 import {
   FileUploadBase,
   FileUploadDropzone,
@@ -62,6 +62,23 @@ describe('FileUploadBase (button)', () => {
     expect(html).toContain('aria-label="Удалить файл photo.png"');
   });
 
+  it('под русской локалью подписи вариантов — русские', () => {
+    const under = (node: React.ReactElement) =>
+      renderToStaticMarkup(<I18nProvider locale={ru}>{node}</I18nProvider>);
+
+    expect(under(<FileUploadBase value={null} />)).toContain('Выбрать файлы');
+    expect(under(<FileUploadDropzone value={null} />)).toContain(
+      'Перетащите файлы или нажмите для выбора'
+    );
+    const input = under(<FileUploadInput value={[png]} multiple />);
+    expect(input).toContain('aria-label="Выбрать файлы"');
+    expect(input).toContain('aria-label="Очистить выбранные файлы"');
+    expect(under(<FileUploadInput value={null} />)).toContain('Выберите файлы…');
+    const avatar = under(<FileUploadAvatar value={[png]} />);
+    expect(avatar).toContain('aria-label="Загрузить изображение"');
+    expect(avatar).toContain('aria-label="Удалить файл photo.png"');
+  });
+
   it('preloaded RemoteFileRef[] рендерится как uploaded', () => {
     const html = renderToStaticMarkup(
       <FileUploadBase
@@ -106,10 +123,10 @@ describe('FileUploadInput', () => {
     expect(html).toContain('role="button"');
     expect(html).toContain('Прикрепите файлы');
     expect(html).toContain('до 5 МБ');
-    expect(html).toContain('aria-label="Выбрать файлы"'); // кнопка-иконка (скрепка)
+    expect(html).toContain('aria-label="Choose files"'); // кнопка-иконка (скрепка)
     expect(html).toContain('type="file"');
     // пусто — крестика очистки нет
-    expect(html).not.toContain('Очистить выбранные файлы');
+    expect(html).not.toContain('Clear selected files');
   });
 
   it('выбранные файлы показываются именами строкой + крестик очистки', () => {
@@ -117,7 +134,7 @@ describe('FileUploadInput', () => {
       <FileUploadInput value={[png, new File([new Uint8Array(1)], 'doc.pdf')]} multiple />
     );
     expect(html).toContain('photo.png, doc.pdf');
-    expect(html).toContain('aria-label="Очистить выбранные файлы"');
+    expect(html).toContain('aria-label="Clear selected files"');
     expect(html).not.toContain('data-slot="file-upload-placeholder"');
   });
 
@@ -133,7 +150,7 @@ describe('FileUploadAvatar', () => {
     const html = renderToStaticMarkup(<FileUploadAvatar value={null} />);
     expect(html).toContain('data-variant="avatar"');
     expect(html).toContain('data-shape="circle"');
-    expect(html).toContain('aria-label="Загрузить изображение"');
+    expect(html).toContain('aria-label="Upload image"');
     expect(html).toContain('rounded-full');
     // accept по умолчанию — только изображения
     expect(html).toContain('accept="image/*"');
@@ -144,8 +161,8 @@ describe('FileUploadAvatar', () => {
   it('shape=square и кнопка удаления при выбранном файле', () => {
     const html = renderToStaticMarkup(<FileUploadAvatar value={[png]} shape="square" />);
     expect(html).toContain('data-shape="square"');
-    // Подпись этой кнопки — собственная строка варианта, а не getter cdk.
-    expect(html).toContain('aria-label="Удалить файл photo.png"');
+    // Подпись кнопки удаления даёт getter cdk — своей строки у варианта нет.
+    expect(html).toContain('aria-label="Remove file photo.png"');
   });
 
   it('invalid помечает зону aria-invalid', () => {

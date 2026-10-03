@@ -8,6 +8,7 @@ import {
   type AsyncBoundaryErrorRenderProps,
 } from '@reformer/cdk/async-boundary';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/button';
 import { Spinner } from '@/components/spinner';
@@ -33,9 +34,15 @@ import {
 // поэтому во всех трёх блоках он исключается из ComponentProps<'div'> и переобъявляется.
 /** Props {@link AsyncBoundaryLoading}. */
 export interface AsyncBoundaryLoadingProps extends Omit<React.ComponentProps<'div'>, 'title'> {
-  /** Основной текст. @default 'Загрузка данных...' */
+  /**
+   * Основной текст. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.loadingTitle
+   */
   title?: React.ReactNode;
-  /** Вспомогательный текст под спиннером. @default 'Пожалуйста, подождите' */
+  /**
+   * Вспомогательный текст под спиннером; `null` — скрыть. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.loadingSubtitle
+   */
   subtitle?: React.ReactNode;
 }
 
@@ -60,12 +67,11 @@ export interface AsyncBoundaryLoadingProps extends Omit<React.ComponentProps<'di
  * if (isLoading) return <AsyncBoundaryLoading />;
  * ```
  */
-function AsyncBoundaryLoading({
-  className,
-  title = 'Загрузка данных...',
-  subtitle = 'Пожалуйста, подождите',
-  ...props
-}: AsyncBoundaryLoadingProps) {
+function AsyncBoundaryLoading({ className, title, subtitle, ...props }: AsyncBoundaryLoadingProps) {
+  const t = useKitMessages();
+  // Умолчание — только для `undefined`: явный `null` по-прежнему скрывает текст.
+  const shownTitle = title === undefined ? t('kit.asyncBoundary.loadingTitle') : title;
+  const shownSubtitle = subtitle === undefined ? t('kit.asyncBoundary.loadingSubtitle') : subtitle;
   return (
     <div
       data-slot="async-boundary-loading"
@@ -78,11 +84,11 @@ function AsyncBoundaryLoading({
       <Spinner className="size-8 text-muted-foreground" />
       <div className="space-y-1 text-center">
         <p data-slot="async-boundary-loading-title" className="text-sm font-medium text-foreground">
-          {title}
+          {shownTitle}
         </p>
-        {subtitle ? (
+        {shownSubtitle ? (
           <p data-slot="async-boundary-loading-subtitle" className="text-sm text-muted-foreground">
-            {subtitle}
+            {shownSubtitle}
           </p>
         ) : null}
       </div>
@@ -94,11 +100,17 @@ function AsyncBoundaryLoading({
 export interface AsyncBoundaryErrorProps extends Omit<React.ComponentProps<'div'>, 'title'> {
   /** Текст ошибки под заголовком. */
   error?: React.ReactNode;
-  /** Заголовок блока. @default 'Ошибка загрузки' */
+  /**
+   * Заголовок блока. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.errorTitle
+   */
   title?: React.ReactNode;
   /** Колбэк повтора. Без него кнопка не рендерится. */
   onRetry?: () => void;
-  /** Подпись кнопки повтора. @default 'Повторить' */
+  /**
+   * Подпись кнопки повтора. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.retry
+   */
   retryLabel?: React.ReactNode;
 }
 
@@ -126,11 +138,12 @@ export interface AsyncBoundaryErrorProps extends Omit<React.ComponentProps<'div'
 function AsyncBoundaryError({
   className,
   error,
-  title = 'Ошибка загрузки',
+  title,
   onRetry,
-  retryLabel = 'Повторить',
+  retryLabel,
   ...props
 }: AsyncBoundaryErrorProps) {
+  const t = useKitMessages();
   return (
     <div
       data-slot="async-boundary-error"
@@ -149,7 +162,7 @@ function AsyncBoundaryError({
           data-slot="async-boundary-error-title"
           className="text-lg font-semibold text-destructive"
         >
-          {title}
+          {title === undefined ? t('kit.asyncBoundary.errorTitle') : title}
         </p>
         {error ? (
           <p data-slot="async-boundary-error-description" className="text-sm text-muted-foreground">
@@ -160,7 +173,7 @@ function AsyncBoundaryError({
       {onRetry ? (
         <Button data-slot="async-boundary-retry" variant="outline" onClick={onRetry}>
           <RotateCwIcon />
-          {retryLabel}
+          {retryLabel === undefined ? t('kit.asyncBoundary.retry') : retryLabel}
         </Button>
       ) : null}
     </div>
@@ -169,7 +182,10 @@ function AsyncBoundaryError({
 
 /** Props {@link AsyncBoundaryEmpty}. */
 export interface AsyncBoundaryEmptyProps extends Omit<React.ComponentProps<'div'>, 'title'> {
-  /** Заголовок. @default 'Нет данных' */
+  /**
+   * Заголовок. По умолчанию — из словаря локали.
+   * @defaultMessage kit.asyncBoundary.emptyTitle
+   */
   title?: React.ReactNode;
   /** Пояснение под заголовком. */
   description?: React.ReactNode;
@@ -202,17 +218,18 @@ export interface AsyncBoundaryEmptyProps extends Omit<React.ComponentProps<'div'
  */
 function AsyncBoundaryEmpty({
   className,
-  title = 'Нет данных',
+  title,
   description,
   icon,
   action,
   ...props
 }: AsyncBoundaryEmptyProps) {
+  const t = useKitMessages();
   return (
     <Empty data-slot="async-boundary-empty" className={cn('border', className)} {...props}>
       <EmptyHeader>
         {icon ? <EmptyMedia variant="icon">{icon}</EmptyMedia> : null}
-        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyTitle>{title === undefined ? t('kit.asyncBoundary.emptyTitle') : title}</EmptyTitle>
         {description ? <EmptyDescription>{description}</EmptyDescription> : null}
       </EmptyHeader>
       {action ? <EmptyContent>{action}</EmptyContent> : null}

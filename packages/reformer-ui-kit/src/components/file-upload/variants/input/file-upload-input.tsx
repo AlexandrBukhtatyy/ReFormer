@@ -8,6 +8,7 @@ import {
 } from '@reformer/cdk/file-upload';
 import { useValidationErrorResolver } from '@reformer/cdk';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
@@ -45,11 +46,12 @@ function InputValueText({ placeholder }: { placeholder: string }) {
 /** Кнопка очистки (крестик) — видна только при выбранных файлах. Сосед зоны, не потомок. */
 function InputClearButton() {
   const { items, clear, disabled } = useFileUploadContext();
+  const t = useKitMessages();
   if (items.length === 0 || disabled) return null;
   return (
     <button
       type="button"
-      aria-label="Очистить выбранные файлы"
+      aria-label={t('kit.fileUpload.clear')}
       onClick={clear}
       className="pointer-events-auto flex size-6 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
     >
@@ -92,6 +94,7 @@ export function FileUploadInput({
 }: FileUploadInputProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
   const { options, placeholder, hint, tooltip, invalid, className, id, rest } =
     splitFileUploadProps(props);
+  const t = useKitMessages();
 
   const tooltipHint = useFieldTooltip(tooltip, {
     id,
@@ -139,7 +142,7 @@ export function FileUploadInput({
               tooltipHint.node ? 'pr-23' : 'pr-16'
             )}
           >
-            <InputValueText placeholder={placeholder ?? 'Выберите файлы…'} />
+            <InputValueText placeholder={placeholder ?? t('kit.fileUpload.inputPlaceholder')} />
           </CdkFileUpload.Dropzone>
           {/* Кнопки-иконки — СОСЕДИ зоны (не потомки role=button): клик не открывает пикер лишний раз. */}
           <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0.5">
@@ -152,7 +155,7 @@ export function FileUploadInput({
             )}
             <CdkFileUpload.Trigger asChild>
               <button
-                aria-label="Выбрать файлы"
+                aria-label={t('kit.fileUpload.choose')}
                 // `disabled` приходит от CdkFileUpload.Trigger; гасим ещё и наведение — `:hover` у
                 // disabled-кнопки иначе продолжает работать.
                 className="pointer-events-auto flex size-6 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"

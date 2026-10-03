@@ -103,6 +103,7 @@ function CreditApplicationForm() {
           config={validation}
           steps={STEPS}
           onSubmit={submitApplication}
+          submitLabel="Отправить заявку"
         />
       </AsyncBoundary>
     </ValidationMessagesProvider>

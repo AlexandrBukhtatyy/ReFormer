@@ -24,7 +24,7 @@ export type WeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
  * const ru: FormLocale = {
  *   code: 'ru',
  *   weekStartsOn: 1,
- *   messages: { 'kit.selectMulti.selected': 'Выбрано: {count}' },
+ *   messages: { 'kit.select.selected': 'Выбрано: {count}' },
  * };
  * ```
  */

@@ -154,7 +154,7 @@ describe('выключенное поле: свои кнопки гаснут, �
 
   it('скрепка FileUpload input не реагирует на наведение в disabled', () => {
     const html = renderToStaticMarkup(<Bound component={FileUploadInput} value={null} disabled />);
-    const clip = html.match(/<button[^>]*aria-label="Выбрать файлы"[^>]*>/)?.[0] ?? '';
+    const clip = html.match(/<button[^>]*aria-label="Choose files"[^>]*>/)?.[0] ?? '';
     expect(clip).toContain('disabled=""');
     expect(clip).toContain('disabled:pointer-events-none');
   });
@@ -179,7 +179,7 @@ describe('inside-декораторы', () => {
     const html = renderToStaticMarkup(
       <Bound component={FileUploadInput} value={null} tooltip={TIP} />
     );
-    expectOrder(html, 'data-slot="info-hint"', 'aria-label="Выбрать файлы"');
+    expectOrder(html, 'data-slot="info-hint"', 'aria-label="Choose files"');
     expect(html).toContain('pr-23');
     expect(renderToStaticMarkup(<Bound component={FileUploadInput} value={null} />)).toContain(
       'pr-16'

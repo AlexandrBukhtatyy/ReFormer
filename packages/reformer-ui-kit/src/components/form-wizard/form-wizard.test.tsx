@@ -30,44 +30,44 @@ function actionsProps(
 }
 
 describe('FormWizardActions', () => {
-  it('на первом шаге скрывает «Назад», показывает «Далее →»', () => {
+  it('на первом шаге скрывает «Back», показывает «Next →»', () => {
     const html = renderToStaticMarkup(
       <FormWizardActions {...actionsProps({ isFirstStep: true })} />
     );
     expect(html).not.toContain('btn-previous');
     expect(html).toContain('data-testid="btn-next"');
-    expect(html).toContain('Далее →');
+    expect(html).toContain('Next →');
   });
 
-  it('не на первом шаге показывает «← Назад»', () => {
+  it('не на первом шаге показывает «← Back»', () => {
     const html = renderToStaticMarkup(
       <FormWizardActions {...actionsProps({ isFirstStep: false })} />
     );
     expect(html).toContain('data-testid="btn-previous"');
-    expect(html).toContain('← Назад');
+    expect(html).toContain('← Back');
   });
 
-  it('на последнем шаге показывает «Отправить заявку» вместо «Далее»', () => {
+  it('на последнем шаге показывает «Submit» вместо «Next»', () => {
     const html = renderToStaticMarkup(
       <FormWizardActions {...actionsProps({ isLastStep: true })} />
     );
     expect(html).toContain('data-testid="btn-submit"');
-    expect(html).toContain('Отправить заявку');
+    expect(html).toContain('Submit');
     expect(html).not.toContain('data-testid="btn-next"');
   });
 
-  it('во время валидации показывает «Проверка...»', () => {
+  it('во время валидации показывает «Validating...»', () => {
     const html = renderToStaticMarkup(
       <FormWizardActions {...actionsProps({ isValidating: true })} />
     );
-    expect(html).toContain('Проверка...');
+    expect(html).toContain('Validating...');
   });
 
-  it('во время submit показывает «Отправка...»', () => {
+  it('во время submit показывает «Submitting...»', () => {
     const html = renderToStaticMarkup(
       <FormWizardActions {...actionsProps({ isLastStep: true, isSubmitting: true })} />
     );
-    expect(html).toContain('Отправка...');
+    expect(html).toContain('Submitting...');
   });
 
   it('переопределяет подписи кнопок', () => {
@@ -95,9 +95,9 @@ function progressProps(
 }
 
 describe('FormWizardProgress', () => {
-  it('по умолчанию рендерит «Шаг N из M • X% завершено»', () => {
+  it('по умолчанию рендерит «Step N of M • X% complete»', () => {
     const html = renderToStaticMarkup(<FormWizardProgress {...progressProps()} />);
-    expect(html).toContain('Шаг 2 из 3 • 66% завершено');
+    expect(html).toContain('Step 2 of 3 • 66% complete');
   });
 
   it('несёт data-slot="form-wizard-progress"', () => {
@@ -113,7 +113,7 @@ describe('FormWizardProgress', () => {
       />
     );
     expect(html).toContain('2 / 3');
-    expect(html).not.toContain('завершено');
+    expect(html).not.toContain('complete');
   });
 });
 
@@ -144,14 +144,14 @@ function indicatorProps(steps: FormWizardIndicatorStepWithState[]): FormWizardIn
 }
 
 describe('StepIndicator', () => {
-  it('несёт role="navigation" и aria-label «Шаги формы»', () => {
+  it('несёт role="navigation" и aria-label «Form steps»', () => {
     const html = renderToStaticMarkup(
       <StepIndicator
         {...indicatorProps([step({ isCurrent: true }), step({ number: 2, title: 'Данные' })])}
       />
     );
     expect(html).toContain('role="navigation"');
-    expect(html).toContain('aria-label="Шаги формы"');
+    expect(html).toContain('aria-label="Form steps"');
     expect(html).toContain('data-testid="step-indicator"');
   });
 
@@ -218,5 +218,30 @@ describe('FormWizard: тело шага', () => {
 
   it('массив React-элементов — обычный ReactNode, стратегия не нужна', () => {
     expect(wizard([<i key="a" data-testid="el-a" />, 'текст'])).toContain('el-a');
+  });
+});
+
+// --- FormWizard: подпись кнопки отправки -----------------------------------
+
+describe('FormWizard: подпись кнопки отправки', () => {
+  const form = { submitting: { value: false } } as unknown as FormProxy<Record<string, unknown>>;
+  // Единственный шаг — он же последний: вместо «Далее» сразу кнопка отправки.
+  const wizard = (submitLabel?: string): string =>
+    renderToStaticMarkup(
+      <FormWizard
+        form={form}
+        config={{}}
+        onSubmit={() => {}}
+        steps={[{ number: 1, title: 'Шаг', body: <i /> }]}
+        submitLabel={submitLabel}
+      />
+    );
+
+  it('submitLabel доходит до кнопки', () => {
+    expect(wizard('Оформить заявку')).toContain('Оформить заявку');
+  });
+
+  it('без submitLabel — умолчание из словаря', () => {
+    expect(wizard()).toContain('Submit');
   });
 });

@@ -49,19 +49,19 @@ Peer-зависимости (должны быть в проекте):
 соответствующий subpath не зарезолвится (`ERR_MODULE_NOT_FOUND`). Ставьте ту, чей
 компонент используете:
 
-| subpath                        | поставить                       |
-| ------------------------------ | ------------------------------- |
-| `./table` (DataGrid-вариант)   | `@tanstack/react-table` (>=8)   |
-| `./command`, `./combobox`      | `cmdk` (>=1)                    |
-| `./chart`                      | `recharts` (>=3)                |
-| `./calendar`                   | `react-day-picker` (>=10)       |
-| `./date-picker`                | `date-fns` (>=4)                |
-| `./carousel`                   | `embla-carousel-react` (>=8)    |
-| `./drawer`                     | `vaul` (>=1)                    |
-| `./input-otp`                  | `input-otp` (>=1.4)             |
-| `./resizable`                  | `react-resizable-panels` (>=4)  |
-| `./sonner`                     | `sonner` (>=2)                  |
-| `./message-scroller`           | `@shadcn/react` (^0.2.1)        |
+| subpath                      | поставить                      |
+| ---------------------------- | ------------------------------ |
+| `./table` (DataGrid-вариант) | `@tanstack/react-table` (>=8)  |
+| `./command`, `./combobox`    | `cmdk` (>=1)                   |
+| `./chart`                    | `recharts` (>=3)               |
+| `./calendar`                 | `react-day-picker` (>=10)      |
+| `./date-picker`              | `date-fns` (>=4)               |
+| `./carousel`                 | `embla-carousel-react` (>=8)   |
+| `./drawer`                   | `vaul` (>=1)                   |
+| `./input-otp`                | `input-otp` (>=1.4)            |
+| `./resizable`                | `react-resizable-panels` (>=4) |
+| `./sonner`                   | `sonner` (>=2)                 |
+| `./message-scroller`         | `@shadcn/react` (^0.2.1)       |
 
 Корневой barrel (`import { … } from '@reformer/ui-kit'`) эти компоненты не
 реэкспортирует, поэтому без единой опциональной зависимости пакет полностью
@@ -203,16 +203,16 @@ function RegistrationPage() {
 `NativeSelect` + `NativeSelectOption`, …) в форму берётся **готовый form-компонент**, который
 сам рисует пункты из `options`:
 
-| Примитив (вёрстка) | В форму               | Примитив (вёрстка) | В форму                   |
-| ------------------ | --------------------- | ------------------ | ------------------------- |
-| `Input`            | `Input`, `InputNumber`, `InputSuggest` | `Checkbox`   | `CheckboxWithLabel`       |
-| `InputMask`        | `InputMask`           | `Switch`           | `SwitchWithLabel`         |
-| `InputPassword`    | `InputPassword`       | `RadioGroup`       | `RadioGroupOptions`       |
-| `InputOTP`         | `InputOTPDefault`     | `Slider`           | `Slider`                  |
-| `Textarea`         | `Textarea`            | `Calendar`         | `CalendarSingle`          |
-| `Select`           | `SelectAsync`         | `DatePicker`       | `DatePicker`              |
-| `NativeSelect`     | `NativeSelectWithOptions` | `Combobox`     | `Combobox`                |
-| `Toggle`           | `Toggle`              | `ToggleGroup`      | `ToggleGroupOptions`      |
+| Примитив (вёрстка) | В форму                                | Примитив (вёрстка) | В форму              |
+| ------------------ | -------------------------------------- | ------------------ | -------------------- |
+| `Input`            | `Input`, `InputNumber`, `InputSuggest` | `Checkbox`         | `CheckboxWithLabel`  |
+| `InputMask`        | `InputMask`                            | `Switch`           | `SwitchWithLabel`    |
+| `InputPassword`    | `InputPassword`                        | `RadioGroup`       | `RadioGroupOptions`  |
+| `InputOTP`         | `InputOTPDefault`                      | `Slider`           | `Slider`             |
+| `Textarea`         | `Textarea`                             | `Calendar`         | `CalendarSingle`     |
+| `Select`           | `SelectAsync`                          | `DatePicker`       | `DatePicker`         |
+| `NativeSelect`     | `NativeSelectWithOptions`              | `Combobox`         | `Combobox`           |
+| `Toggle`           | `Toggle`                               | `ToggleGroup`      | `ToggleGroupOptions` |
 
 Множественный выбор — отдельные компоненты: `SelectMulti`, `NativeSelectMulti`,
 `ComboboxMulti`, `ComboboxTreeMulti`, `ToggleGroupMulti`. Выбор из иерархии — `ComboboxTree`;
@@ -241,29 +241,86 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 
 Ниже — компоненты полей; составные примитивы и их form-компоненты — в таблице выше.
 
-| Name                            | Purpose                                                    | Where documented                                              |
-| ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `Input` / `InputNumber` / `InputSuggest` | Текстовое поле (`text`/`email`/`tel`/`url`), число, строка с подсказками. | [02-text-fields.md](02-text-fields.md) |
-| `InputMask`                     | Поле ввода со строковой маской (телефон, дата, ИНН).       | [02-text-fields.md](02-text-fields.md)                        |
-| `InputPassword`                 | Поле пароля с переключателем видимости.                    | [02-text-fields.md](02-text-fields.md)                        |
-| `Textarea`                      | Многострочное поле.                                        | [02-text-fields.md](02-text-fields.md)                        |
-| `Checkbox` / `CheckboxWithLabel`| Чекбокс; `WithLabel` — с label рядом с контролом.          | [03-choice-fields.md](03-choice-fields.md)                    |
-| `RadioGroup` / `RadioGroupOptions` | Группа радио-кнопок из массива `options`.               | [03-choice-fields.md](03-choice-fields.md)                    |
-| `Select` (+ 8 sub-компонентов) / `SelectAsync` | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)   |
-| `Combobox` (+ `Multi`, `Tree`, `TreeMulti`) | Поле с поиском; варианты `Tree*` выбирают узел иерархии (файл). | [03-choice-fields.md](03-choice-fields.md) |
-| `Tree`                          | Дерево с ленивым чтением уровней и виртуализацией. **Не поле формы.** | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `cn`                            | Утилита для конкатенации Tailwind-классов.                 | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `FormField`                     | Wrapper «label + control + error + pending» поверх CDK.    | [05-form-field-integration.md](05-form-field-integration.md)  |
-| `Box`, `Section`                | Контейнеры раскладки: ритм, сетка полей, группы.           | [11-form-layout.md](11-form-layout.md)                        |
-| `Card`, `Alert`, `Separator`    | Карточка, плашка, разделитель — вид без ручных классов.    | [11-form-layout.md](11-form-layout.md)                        |
-| `Collapsible`                   | Сворачиваемый контейнер для `RenderSchema`.                | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
+| Name                                               | Purpose                                                                     | Where documented                                              |
+| -------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `Input` / `InputNumber` / `InputSuggest`           | Текстовое поле (`text`/`email`/`tel`/`url`), число, строка с подсказками.   | [02-text-fields.md](02-text-fields.md)                        |
+| `InputMask`                                        | Поле ввода со строковой маской (телефон, дата, ИНН).                        | [02-text-fields.md](02-text-fields.md)                        |
+| `InputPassword`                                    | Поле пароля с переключателем видимости.                                     | [02-text-fields.md](02-text-fields.md)                        |
+| `Textarea`                                         | Многострочное поле.                                                         | [02-text-fields.md](02-text-fields.md)                        |
+| `Checkbox` / `CheckboxWithLabel`                   | Чекбокс; `WithLabel` — с label рядом с контролом.                           | [03-choice-fields.md](03-choice-fields.md)                    |
+| `RadioGroup` / `RadioGroupOptions`                 | Группа радио-кнопок из массива `options`.                                   | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Select` (+ 8 sub-компонентов) / `SelectAsync`     | Выпадающий список с inline `options` или async `resource`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Combobox` (+ `Multi`, `Tree`, `TreeMulti`)        | Поле с поиском; варианты `Tree*` выбирают узел иерархии (файл).             | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Tree`                                             | Дерево с ленивым чтением уровней и виртуализацией. **Не поле формы.**       | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `Button`                                           | Кнопка с вариантами (`variant`, `size`, `asChild`).                         | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `ExampleCard`                                      | Карточка-обёртка для демо в playground.                                     | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `cn`                                               | Утилита для конкатенации Tailwind-классов.                                  | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `FormField`                                        | Wrapper «label + control + error + pending» поверх CDK.                     | [05-form-field-integration.md](05-form-field-integration.md)  |
+| `Box`, `Section`                                   | Контейнеры раскладки: ритм, сетка полей, группы.                            | [11-form-layout.md](11-form-layout.md)                        |
+| `Card`, `Alert`, `Separator`                       | Карточка, плашка, разделитель — вид без ручных классов.                     | [11-form-layout.md](11-form-layout.md)                        |
+| `Collapsible`                                      | Сворачиваемый контейнер для `RenderSchema`.                                 | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
 
 Полный troubleshooting (number-input возвращает строку, Select не показывает
 options, mask пропускает символы, forwardRef + Slot конфликты, и т.п.) —
 [06-troubleshooting.md](06-troubleshooting.md).
+
+## Localization
+
+Подписи, которые кит рисует сам (кнопки мастера, плейсхолдеры, статусы загрузки, aria-подписи),
+идут через локаль `I18nProvider` из `@reformer/core/i18n`. Приоритет в каждом компоненте:
+**явный проп → словарь активной локали → встроенный английский**.
+
+```tsx
+import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+// Константа модуля: загрузчик хранит кэш языков.
+const loadLocale = createLocaleLoader([loadKitLocale]);
+
+function App() {
+  const [lang, setLang] = useState('ru');
+  return (
+    <I18nProvider lang={lang} load={loadLocale}>
+      <Form />
+    </I18nProvider>
+  );
+}
+```
+
+- **Без провайдера кит говорит по-английски** («Next →», «Select an option...», «Loading data...»).
+- **Смена `lang` переводит подписи на месте**: дерево не перемонтируется, значения полей, шаг
+  мастера и открытые списки сохраняются.
+- **Свою формулировку для одного экземпляра** даёт проп (`nextLabel`, `placeholder`,
+  `addButtonLabel`, …), **для всего приложения** — ключ словаря вторым источником загрузчика:
+  `createLocaleLoader([loadKitLocale, () => ({ 'kit.formWizard.submit': 'Оформить' })])`.
+- **Локаль кита накопительная** — словари ядра (ошибки валидации, размер файла) и cdk плюс
+  подписи кита, поэтому `loadCoreLocale` и `loadCdkLocale` рядом не нужны.
+
+| Вид               | Импорт                                       | Для чего                                                                  |
+| ----------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
+| загрузчик         | `loadKitLocale` из `@reformer/ui-kit/locale` | основной путь: чанк языка по запросу                                      |
+| JSON-файл         | `@reformer/ui-kit/locale/ru.json`            | выложить на свой сервер, править без пересборки; образец для нового языка |
+| синхронный модуль | `ru` из `@reformer/ui-kit/locale/ru`         | SSR и тесты: `<I18nProvider locale={ru}>`                                 |
+
+Встроенные языки — `en` и `ru`. Ключи словаря — `kit.<компонент>.<имя>`:
+
+| Компонент                       | Ключи                                                                                                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FormWizard`                    | `kit.formWizard.prev`, `next`, `submit`, `validating`, `submitting`, `progress`, `stepsNav`, `stepLabel`                                                 |
+| `FormArray`, `FormArraySection` | `kit.formArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
+| `FormField`                     | `kit.formField.hintLabel`, `validating`                                                                                                                  |
+| `FileUpload*`                   | `kit.fileUpload.choose`, `dropzone`, `inputPlaceholder`, `clear`, `avatarLabel`, `error`                                                                 |
+| `AsyncBoundary*`                | `kit.asyncBoundary.loadingTitle`, `loadingSubtitle`, `errorTitle`, `retry`, `emptyTitle`                                                                 |
+| `Select`, `SelectMulti`         | `kit.select.placeholder`, `placeholderMulti`, `search`, `searchLabel`, `loading`, `loadingMore`, `loadError`, `retry`, `empty`, `selected`, `clear`      |
+| `Combobox*`                     | `kit.combobox.placeholder`, `placeholderMulti`, `search`, `empty`, `create`, `selected`, `clear`, `treePlaceholder`, `treePlaceholderMulti`, `treeEmpty` |
+
+Сообщения — строки ICU: `"kit.select.selected": "Selected: {count}"`. В каталоге компонентов у
+текстового пропа рядом с английским `default` стоит `x-messageKey` — ключ, по которому это
+умолчание переводится.
+
+Остальные компоненты кита (`Table`, `Tree`, `Pagination`, `Dialog`, `DatePicker`, `Calendar`
+и др.) на словарь ещё не переведены: их подписи пока зашиты и задаются пропсами.
 
 ## See also
 

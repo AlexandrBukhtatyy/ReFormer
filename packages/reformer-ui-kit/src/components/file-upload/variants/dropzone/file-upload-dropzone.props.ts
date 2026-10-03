@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 import {
   fileUploadSharedProperties,
   fileUploadSharedRuntimeProps,
@@ -14,6 +15,12 @@ export const fileUploadDropzonePropsSchema = {
   'x-registryName': 'FileUploadDropzone',
   'x-variantGroup': 'FileUpload',
   'x-variant': 'Зона',
-  properties: fileUploadSharedProperties,
+  properties: {
+    ...fileUploadSharedProperties,
+    placeholder: {
+      ...fileUploadSharedProperties.placeholder,
+      ...messageDefault('kit.fileUpload.dropzone'),
+    },
+  },
   'x-runtimeProps': fileUploadSharedRuntimeProps,
 } as const satisfies PropsSchema;

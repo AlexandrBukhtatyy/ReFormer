@@ -84,7 +84,7 @@ describe('AsyncBoundary — слоты и повтор', () => {
       <AsyncBoundary status="error" error="упало" onRetry={() => {}} />
     );
     expect(withRetry).toContain('data-slot="async-boundary-retry"');
-    expect(withRetry).toContain('Повторить');
+    expect(withRetry).toContain('Retry');
   });
 
   it('errorSlot как render-функция получает саму ошибку и retry', () => {
@@ -192,7 +192,7 @@ describe('AsyncBoundaryEmpty', () => {
   it('рендерит пустое состояние без role="alert"', () => {
     const html = renderToStaticMarkup(<AsyncBoundaryEmpty description="Заявок пока нет" />);
     expect(html).toContain('data-slot="async-boundary-empty"');
-    expect(html).toContain('Нет данных');
+    expect(html).toContain('No data');
     expect(html).toContain('Заявок пока нет');
     expect(html).not.toContain('role="alert"');
   });

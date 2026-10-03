@@ -1,6 +1,6 @@
 /**
  * FormWizardProgress — текстовый индикатор прогресса
- * («Шаг N из M • X% завершено»).
+ * («Step N of M • X% complete»; под русской локалью — «Шаг N из M • X% завершено»).
  *
  * Получает props через render-prop API из `<FormWizard.Progress>` слота.
  * Формат строки переопределяется через prop `format`.
@@ -8,6 +8,7 @@
 
 import type { FC, ReactNode } from 'react';
 import type { FormWizardProgressRenderProps } from '@reformer/cdk/form-wizard';
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 
 /**
@@ -20,17 +21,14 @@ export interface FormWizardProgressProps extends FormWizardProgressRenderProps {
   className?: string;
   /**
    * Кастомный форматтер строки прогресса. Получает `{ current, total, percent }`.
-   * По умолчанию — `'Шаг N из M • X% завершено'`.
+   * По умолчанию — строка `kit.formWizard.progress` из словаря локали.
    */
   format?: (props: FormWizardProgressRenderProps) => ReactNode;
 }
 
-const defaultFormat = ({ current, total, percent }: FormWizardProgressRenderProps): string =>
-  `Шаг ${current} из ${total} • ${percent}% завершено`;
-
 /**
- * Текстовый индикатор прогресса wizard'а — по умолчанию рендерит
- * «Шаг N из M • X% завершено». Формат строки переопределяется пропом `format`.
+ * Текстовый индикатор прогресса wizard'а — по умолчанию рендерит строку из словаря локали
+ * («Step N of M • X% complete»). Формат строки переопределяется пропом `format`.
  *
  * Рендерится из headless-слота `<FormWizard.Progress>` через render-prop
  * (`current`/`total`/`percent` приходят автоматически). Готовый {@link FormWizard}
@@ -50,13 +48,21 @@ const defaultFormat = ({ current, total, percent }: FormWizardProgressRenderProp
  */
 export const FormWizardProgress: FC<FormWizardProgressProps> = ({
   className,
-  format = defaultFormat,
+  format,
   ...renderProps
 }) => {
+  const t = useKitMessages();
   const classes = cn('text-center text-sm text-muted-foreground', className);
+  const progress = renderProps as FormWizardProgressRenderProps;
   return (
     <div data-slot="form-wizard-progress" className={classes}>
-      {format(renderProps as FormWizardProgressRenderProps)}
+      {format
+        ? format(progress)
+        : t('kit.formWizard.progress', {
+            current: progress.current,
+            total: progress.total,
+            percent: progress.percent,
+          })}
     </div>
   );
 };

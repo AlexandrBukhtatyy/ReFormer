@@ -12,6 +12,7 @@
  * рендерер (`items` из схемы), а не на headless-контрол `@reformer/cdk/form-array`.
  */
 import type { ReactNode } from 'react';
+import { useKitMessages } from '@/i18n/messages';
 import type { ArrayComponentProps, ArrayItemSlot } from '@/lib/array-slot';
 
 export interface FormArrayProps extends ArrayComponentProps {
@@ -28,9 +29,15 @@ export interface FormArrayProps extends ArrayComponentProps {
   /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   itemLabel?: string | ((model: any, index: number) => string);
-  /** Текст кнопки добавления. По умолчанию `'+ Добавить'`. */
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.add
+   */
   addButtonLabel?: string;
-  /** Текст кнопки удаления. По умолчанию `'Удалить'`. */
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formArray.remove
+   */
   removeButtonLabel?: string;
   /** Сообщение пустого состояния. */
   emptyMessage?: string;
@@ -60,8 +67,8 @@ export function FormArray({
   onMove,
   title,
   itemLabel,
-  addButtonLabel = '+ Добавить',
-  removeButtonLabel = 'Удалить',
+  addButtonLabel,
+  removeButtonLabel,
   emptyMessage,
   emptyMessageHint,
   reorderable = false,
@@ -69,17 +76,18 @@ export function FormArray({
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
 }: FormArrayProps): ReactNode {
+  const t = useKitMessages();
   const length = items.length;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getItemLabel = (model: any, index: number): string =>
     typeof itemLabel === 'function'
       ? itemLabel(model, index)
-      : `${(itemLabel as string) ?? title ?? 'Элемент'} #${index + 1}`;
+      : `${(itemLabel as string) ?? title ?? t('kit.formArray.item')} #${index + 1}`;
 
   const addBtn = (cls: string) => (
     <button type="button" data-testid="array-add" className={cls} onClick={onAdd}>
-      {addButtonLabel}
+      {addButtonLabel ?? t('kit.formArray.add')}
     </button>
   );
 
@@ -104,7 +112,7 @@ export function FormArray({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label="Переместить вверх"
+                        aria-label={t('kit.formArray.moveUp')}
                         data-testid={`array-item-${it.index}-move-up`}
                         className={MOVE_BTN}
                         disabled={it.index === 0}
@@ -114,7 +122,7 @@ export function FormArray({
                       </button>
                       <button
                         type="button"
-                        aria-label="Переместить вниз"
+                        aria-label={t('kit.formArray.moveDown')}
                         data-testid={`array-item-${it.index}-move-down`}
                         className={MOVE_BTN}
                         disabled={it.index === length - 1}
@@ -131,7 +139,7 @@ export function FormArray({
                       className={REMOVE_BTN}
                       onClick={() => onRemove?.(it.index)}
                     >
-                      {removeButtonLabel}
+                      {removeButtonLabel ?? t('kit.formArray.remove')}
                     </button>
                   ) : null}
                 </div>

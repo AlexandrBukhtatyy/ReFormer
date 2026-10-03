@@ -106,8 +106,8 @@ describe('FormArraySection (base carry)', () => {
     );
     expect(html).toContain('data-testid="array-item-0-move-up"');
     expect(html).toContain('data-testid="array-item-0-move-down"');
-    expect(html).toContain('aria-label="Переместить вверх"');
-    expect(html).toContain('aria-label="Переместить вниз"');
+    expect(html).toContain('aria-label="Move up"');
+    expect(html).toContain('aria-label="Move down"');
     // Первый элемент не может двигаться вверх — кнопка disabled.
     expect(html).toMatch(/array-item-0-move-up[^>]*disabled|disabled[^>]*array-item-0-move-up/);
   });

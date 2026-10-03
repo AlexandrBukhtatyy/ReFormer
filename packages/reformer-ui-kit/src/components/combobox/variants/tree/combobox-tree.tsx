@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ChevronsUpDownIcon, SearchIcon, XIcon } from 'lucide-react';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import {
@@ -95,6 +96,7 @@ export function TreeSearchField({
   onArrowDown: () => void;
   'data-testid'?: string;
 }): React.ReactElement {
+  const t = useKitMessages();
   return (
     <div data-slot="combobox-tree-search" className="flex h-9 items-center gap-2 border-b px-3">
       <SearchIcon className="size-4 shrink-0 opacity-50" />
@@ -104,7 +106,7 @@ export function TreeSearchField({
         spellCheck={false}
         data-testid={dataTestId}
         className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        placeholder={placeholder ?? 'Search...'}
+        placeholder={placeholder ?? t('kit.combobox.search')}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
@@ -140,11 +142,11 @@ export interface ComboboxTreeProps {
    * `'all'` разрешает выбрать и каталог.
    */
   selectable?: TreeSelectable;
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select a file...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию — из словаря локали. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  /** Подсказка в поле поиска. По умолчанию — из словаря локали. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния. По умолчанию `'No results found.'`. */
+  /** Текст пустого состояния. По умолчанию — из словаря локали. */
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
@@ -222,6 +224,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
   },
   ref
 ) {
+  const t = useKitMessages();
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -306,7 +309,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
               data-slot="combobox-tree-value"
               className={cn('truncate', selectedLabel === undefined && 'text-muted-foreground')}
             >
-              {selectedLabel ?? placeholder ?? 'Select a file...'}
+              {selectedLabel ?? placeholder ?? t('kit.combobox.treePlaceholder')}
             </span>
             <ChevronsUpDownIcon
               className={cn('size-4 shrink-0 opacity-50', CHEVRON_RESERVE[trailingCount])}
@@ -334,7 +337,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
             selectable={selectable}
             search={search}
             maxRows={maxRows}
-            emptyText={emptyText ?? 'No results found.'}
+            emptyText={emptyText ?? t('kit.combobox.treeEmpty')}
             data-testid={dataTestId === undefined ? undefined : `${dataTestId}-tree`}
             aria-labelledby={ariaLabelledBy}
             onActivate={handleActivate}
@@ -349,7 +352,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
               type="button"
               className={TRAILING_CLEAR}
               onClick={handleClear}
-              aria-label="Clear selection"
+              aria-label={t('kit.combobox.clear')}
               data-testid={dataTestId === undefined ? undefined : `${dataTestId}-clear`}
               tabIndex={-1}
             >

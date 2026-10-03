@@ -66,9 +66,9 @@ export class FieldTooltipsPage {
     return this.page.locator('[data-slot="tooltip-content"]');
   }
 
-  /** Крестик очистки внутри поля (у Select/Combobox — кнопка «Clear selection»). */
+  /** Крестик очистки внутри поля (у Select/Combobox — кнопка «Очистить выбор»). */
   clearButton(testId: string): Locator {
-    return this.field(testId).getByRole('button', { name: 'Clear selection' });
+    return this.field(testId).getByRole('button', { name: 'Очистить выбор' });
   }
 
   /** Шеврон — последний svg внутри триггера. */

@@ -2103,7 +2103,8 @@
             }
           },
           "title": {
-            "default": "Нет данных",
+            "default": "No data",
+            "x-messageKey": "kit.asyncBoundary.emptyTitle",
             "description": "Заголовок блока — выводится над содержимым.",
             "x-doc": {
               "group": "Control",
@@ -2158,7 +2159,8 @@
             }
           },
           "retryLabel": {
-            "default": "Повторить",
+            "default": "Retry",
+            "x-messageKey": "kit.asyncBoundary.retry",
             "description": "Подпись кнопки повтора.",
             "x-doc": {
               "group": "Behavior",
@@ -2167,7 +2169,8 @@
             }
           },
           "title": {
-            "default": "Ошибка загрузки",
+            "default": "Failed to load",
+            "x-messageKey": "kit.asyncBoundary.errorTitle",
             "description": "Заголовок блока — выводится над содержимым.",
             "x-doc": {
               "group": "Control",
@@ -2206,7 +2209,8 @@
             }
           },
           "subtitle": {
-            "default": "Пожалуйста, подождите",
+            "default": "Please wait",
+            "x-messageKey": "kit.asyncBoundary.loadingSubtitle",
             "description": "Вспомогательный текст под спиннером.",
             "x-doc": {
               "group": "Behavior",
@@ -2215,7 +2219,8 @@
             }
           },
           "title": {
-            "default": "Загрузка данных...",
+            "default": "Loading data...",
+            "x-messageKey": "kit.asyncBoundary.loadingTitle",
             "description": "Заголовок блока — выводится над содержимым.",
             "x-doc": {
               "group": "Control",
@@ -6049,7 +6054,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "No options found."
+            "default": "No options found.",
+            "x-messageKey": "kit.combobox.empty"
           },
           "id": {
             "type": "string",
@@ -6104,7 +6110,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Select an option..."
+            "default": "Select an option...",
+            "x-messageKey": "kit.combobox.placeholder"
           },
           "required": {
             "type": "boolean",
@@ -6122,7 +6129,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Search..."
+            "default": "Search...",
+            "x-messageKey": "kit.combobox.search"
           },
           "testId": {
             "type": "string",
@@ -6224,7 +6232,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "No options found."
+            "default": "No options found.",
+            "x-messageKey": "kit.combobox.empty"
           },
           "id": {
             "type": "string",
@@ -6288,7 +6297,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Select options..."
+            "default": "Select options...",
+            "x-messageKey": "kit.combobox.placeholderMulti"
           },
           "required": {
             "type": "boolean",
@@ -6306,7 +6316,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Search..."
+            "default": "Search...",
+            "x-messageKey": "kit.combobox.search"
           },
           "summaryThreshold": {
             "type": "number",
@@ -6421,7 +6432,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "No results found."
+            "default": "No results found.",
+            "x-messageKey": "kit.combobox.treeEmpty"
           },
           "id": {
             "type": "string",
@@ -6523,7 +6535,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Select a file..."
+            "default": "Select a file...",
+            "x-messageKey": "kit.combobox.treePlaceholder"
           },
           "required": {
             "type": "boolean",
@@ -6541,7 +6554,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Search..."
+            "default": "Search...",
+            "x-messageKey": "kit.combobox.search"
           },
           "selectable": {
             "type": "string",
@@ -6662,7 +6676,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "No results found."
+            "default": "No results found.",
+            "x-messageKey": "kit.combobox.treeEmpty"
           },
           "id": {
             "type": "string",
@@ -6774,7 +6789,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Select files..."
+            "default": "Select files...",
+            "x-messageKey": "kit.combobox.treePlaceholderMulti"
           },
           "required": {
             "type": "boolean",
@@ -6792,7 +6808,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Search..."
+            "default": "Search...",
+            "x-messageKey": "kit.combobox.search"
           },
           "selectable": {
             "type": "string",
@@ -11647,12 +11664,13 @@
           },
           "placeholder": {
             "type": "string",
-            "default": "Выбрать файлы' (button)",
             "description": "Видимый текст кнопки (button), зоны (dropzone) или пустого инпута (input). Подпись поля — отдельная конвенция label (рендерит FormField).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            }
+            },
+            "default": "Choose files",
+            "x-messageKey": "kit.fileUpload.choose"
           },
           "preventDuplicates": {
             "type": "boolean",
@@ -11820,7 +11838,8 @@
           },
           "label": {
             "type": "string",
-            "default": "Загрузить изображение",
+            "default": "Upload image",
+            "x-messageKey": "kit.fileUpload.avatarLabel",
             "description": "Доступное имя зоны (aria-label).",
             "x-doc": {
               "group": "Textfield",
@@ -12177,12 +12196,13 @@
           },
           "placeholder": {
             "type": "string",
-            "default": "Выбрать файлы' (button)",
             "description": "Видимый текст кнопки (button), зоны (dropzone) или пустого инпута (input). Подпись поля — отдельная конвенция label (рендерит FormField).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            }
+            },
+            "default": "Drag files here or click to choose",
+            "x-messageKey": "kit.fileUpload.dropzone"
           },
           "preventDuplicates": {
             "type": "boolean",
@@ -12459,12 +12479,13 @@
           },
           "placeholder": {
             "type": "string",
-            "default": "Выбрать файлы' (button)",
             "description": "Видимый текст кнопки (button), зоны (dropzone) или пустого инпута (input). Подпись поля — отдельная конвенция label (рендерит FormField).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            }
+            },
+            "default": "Choose files…",
+            "x-messageKey": "kit.fileUpload.inputPlaceholder"
           },
           "preventDuplicates": {
             "type": "boolean",
@@ -12584,8 +12605,9 @@
         "properties": {
           "addButtonLabel": {
             "type": "string",
-            "default": "+ Добавить",
-            "description": "Текст кнопки добавления. По умолчанию `'+ Добавить'`.",
+            "default": "+ Add",
+            "x-messageKey": "kit.formArray.add",
+            "description": "Текст кнопки добавления.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -12668,8 +12690,9 @@
           },
           "removeButtonLabel": {
             "type": "string",
-            "default": "Удалить",
-            "description": "Текст кнопки удаления. По умолчанию `'Удалить'`.",
+            "default": "Remove",
+            "x-messageKey": "kit.formArray.remove",
+            "description": "Текст кнопки удаления.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -12714,8 +12737,9 @@
         "properties": {
           "addButtonLabel": {
             "type": "string",
-            "default": "+ Добавить",
-            "description": "Текст кнопки добавления. По умолчанию `'+ Добавить'`.",
+            "default": "+ Add",
+            "x-messageKey": "kit.formArray.add",
+            "description": "Текст кнопки добавления.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -12822,8 +12846,9 @@
           },
           "removeButtonLabel": {
             "type": "string",
-            "default": "Удалить",
-            "description": "Текст кнопки удаления. По умолчанию `'Удалить'`.",
+            "default": "Remove",
+            "x-messageKey": "kit.formArray.remove",
+            "description": "Текст кнопки удаления.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -12962,6 +12987,16 @@
               "group": "Behavior",
               "type": "FormWizardStep<T, TBody>[]"
             }
+          },
+          "submitLabel": {
+            "type": "string",
+            "default": "Submit",
+            "x-messageKey": "kit.formWizard.submit",
+            "description": "Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
           }
         },
         "x-inherits": {
@@ -13029,8 +13064,9 @@
           },
           "nextLabel": {
             "type": "string",
-            "default": "Далее →",
-            "description": "Подпись кнопки «Далее». По умолчанию `'Далее →'`.",
+            "default": "Next →",
+            "x-messageKey": "kit.formWizard.next",
+            "description": "Подпись кнопки «Далее».",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -13046,8 +13082,9 @@
           },
           "prevLabel": {
             "type": "string",
-            "default": "← Назад",
-            "description": "Подпись кнопки «Назад». По умолчанию `'← Назад'`.",
+            "default": "← Back",
+            "x-messageKey": "kit.formWizard.prev",
+            "description": "Подпись кнопки «Назад».",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -13063,8 +13100,9 @@
           },
           "submitLabel": {
             "type": "string",
-            "default": "Отправить заявку",
-            "description": "Подпись кнопки отправки на последнем шаге. По умолчанию `'Отправить заявку'`.",
+            "default": "Submit",
+            "x-messageKey": "kit.formWizard.submit",
+            "description": "Подпись кнопки отправки на последнем шаге.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -13072,8 +13110,9 @@
           },
           "submittingLabel": {
             "type": "string",
-            "default": "Отправка...",
-            "description": "Подпись кнопки отправки во время submit. По умолчанию `'Отправка...'`.",
+            "default": "Submitting...",
+            "x-messageKey": "kit.formWizard.submitting",
+            "description": "Подпись кнопки отправки во время submit.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -13081,8 +13120,9 @@
           },
           "validatingLabel": {
             "type": "string",
-            "default": "Проверка...",
-            "description": "Подпись кнопки «Далее» во время валидации шага. По умолчанию `'Проверка...'`.",
+            "default": "Validating...",
+            "x-messageKey": "kit.formWizard.validating",
+            "description": "Подпись кнопки «Далее» во время валидации шага.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -19555,7 +19595,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Select an option..."
+            "default": "Select an option...",
+            "x-messageKey": "kit.select.placeholder"
           },
           "required": {
             "type": "boolean",
@@ -19997,7 +20038,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "No options found."
+            "default": "No options found.",
+            "x-messageKey": "kit.select.empty"
           },
           "id": {
             "type": "string",
@@ -20064,7 +20106,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Select options..."
+            "default": "Select options...",
+            "x-messageKey": "kit.select.placeholderMulti"
           },
           "required": {
             "type": "boolean",
@@ -20082,7 +20125,8 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Search..."
+            "default": "Search...",
+            "x-messageKey": "kit.select.search"
           },
           "selectedOptions": {
             "type": "array",
@@ -22222,8 +22266,9 @@
           },
           "navAriaLabel": {
             "type": "string",
-            "default": "Шаги формы",
-            "description": "Aria-label контейнера навигации. По умолчанию «Шаги формы».",
+            "default": "Form steps",
+            "x-messageKey": "kit.formWizard.stepsNav",
+            "description": "Aria-label контейнера навигации.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"

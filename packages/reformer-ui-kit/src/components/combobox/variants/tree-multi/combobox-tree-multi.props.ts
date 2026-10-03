@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 import {
   TREE_NODE_DOC_TYPE,
   treeNodeSchema,
@@ -49,19 +50,19 @@ export const comboboxTreeMultiPropsSchema = {
     },
     placeholder: {
       type: 'string',
-      default: 'Select files...',
+      ...messageDefault('kit.combobox.treePlaceholderMulti'),
       description: 'Подсказка в триггере, пока ничего не выбрано.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     searchPlaceholder: {
       type: 'string',
-      default: 'Search...',
+      ...messageDefault('kit.combobox.search'),
       description: 'Подсказка в поле поиска над деревом.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     emptyText: {
       type: 'string',
-      default: 'No results found.',
+      ...messageDefault('kit.combobox.treeEmpty'),
       description: 'Текст пустого состояния (по запросу ничего не совпало).',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

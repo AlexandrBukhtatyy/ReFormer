@@ -47,13 +47,13 @@ import { loadCdkLocale } from '@reformer/cdk/locale';
 cdk — headless: видимый текст пишет приложение. Но несколько строк cdk произносит сам, и они
 идут через локаль `I18nProvider` из `@reformer/core/i18n`:
 
-| Что | Ключи словаря |
-| --- | --- |
+| Что                                                                                                                                          | Ключи словаря                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Статусы `FileUpload` для скринридера (aria-live): файл добавлен, отклонён, удалён, загружен, загрузка прервана или не удалась, список очищен | `cdk.fileUpload.added`, `rejected`, `removed`, `uploaded`, `uploadAborted`, `uploadFailed`, `cleared` |
-| `aria-label` кнопок удаления и повтора у файла | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload` |
-| Текст ошибки `AsyncBoundary` / `useAsyncResource`, когда отказ не несёт своего текста | `cdk.asyncBoundary.unknownError` |
-| Размер файла в `FileUpload.ItemSize` | `format.fileSize.*` (словарь ядра) |
-| Тексты ошибок валидации в `FormField` | `validation.<code>` (словарь ядра) |
+| `aria-label` кнопок удаления и повтора у файла                                                                                               | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload`                                             |
+| Текст ошибки `AsyncBoundary` / `useAsyncResource`, когда отказ не несёт своего текста                                                        | `cdk.asyncBoundary.unknownError`                                                                      |
+| Размер файла в `FileUpload.ItemSize`                                                                                                         | `format.fileSize.*` (словарь ядра)                                                                    |
+| Тексты ошибок валидации в `FormField`                                                                                                        | `validation.<code>` (словарь ядра)                                                                    |
 
 - **Без провайдера cdk говорит по-английски** («Remove file a.png», «1.5 KB»). Русский и любой
   другой язык включает `I18nProvider`.
@@ -61,11 +61,11 @@ cdk — headless: видимый текст пишет приложение. Н�
   строкой, подписи кнопок получаются при рендере — список файлов при этом не перемонтируется.
 - **Локаль cdk накопительная** — словарь ядра плюс строки cdk — и отдаётся в трёх видах:
 
-| Вид | Импорт | Для чего |
-| --- | --- | --- |
-| загрузчик | `loadCdkLocale` из `@reformer/cdk/locale` | основной путь: чанк языка по запросу |
-| JSON-файл | `@reformer/cdk/locale/ru.json` | выложить на свой сервер, править без пересборки |
-| синхронный модуль | `ru` из `@reformer/cdk/locale/ru` | SSR и тесты |
+| Вид               | Импорт                                    | Для чего                                        |
+| ----------------- | ----------------------------------------- | ----------------------------------------------- |
+| загрузчик         | `loadCdkLocale` из `@reformer/cdk/locale` | основной путь: чанк языка по запросу            |
+| JSON-файл         | `@reformer/cdk/locale/ru.json`            | выложить на свой сервер, править без пересборки |
+| синхронный модуль | `ru` из `@reformer/cdk/locale/ru`         | SSR и тесты                                     |
 
 ```tsx
 import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
@@ -78,6 +78,9 @@ const loadLocale = createLocaleLoader([loadCdkLocale]);
   <App />
 </I18nProvider>;
 ```
+
+Приложению с `@reformer/ui-kit` вместо него нужен `loadKitLocale` из `@reformer/ui-kit/locale`: он
+включает и ядро, и cdk.
 
 Встроенные языки — `en` и `ru`; для остальных `loadCdkLocale` отдаёт `null`, и строки cdk
 остаются английскими, пока приложение не даст их своим источником (вторым в списке

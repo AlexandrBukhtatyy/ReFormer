@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 
+import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { defineFieldControl } from '@/fields/field-control';
@@ -62,11 +63,11 @@ export interface ComboboxTreeMultiProps {
    * Что можно выбрать. По умолчанию `'leaf'` — выбор файлов: щелчок по каталогу его раскрывает.
    */
   selectable?: TreeSelectable;
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select files...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию — из словаря локали. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  /** Подсказка в поле поиска. По умолчанию — из словаря локали. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния. По умолчанию `'No results found.'`. */
+  /** Текст пустого состояния. По умолчанию — из словаря локали. */
   emptyText?: string;
   /** Показывать крестик сброса ВСЕГО выбора справа от триггера. */
   clearable?: boolean;
@@ -148,6 +149,7 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
     },
     ref
   ) {
+    const t = useKitMessages();
     const [open, setOpen] = React.useState(false);
     const [search, setSearch] = React.useState('');
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -242,11 +244,11 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
             >
               {selected.length === 0 ? (
                 <span className="truncate text-muted-foreground">
-                  {placeholder ?? 'Select files...'}
+                  {placeholder ?? t('kit.combobox.treePlaceholderMulti')}
                 </span>
               ) : collapsed ? (
                 <span className="truncate" data-slot="combobox-tree-multi-summary">
-                  Selected: {selected.length}
+                  {t('kit.combobox.selected', { count: selected.length })}
                 </span>
               ) : (
                 // Чипы неинтерактивны намеренно: интерактивный элемент внутри `button` —
@@ -288,7 +290,7 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
               isNodeDisabled={maxItems === undefined ? undefined : isNodeDisabled}
               search={search}
               maxRows={maxRows}
-              emptyText={emptyText ?? 'No results found.'}
+              emptyText={emptyText ?? t('kit.combobox.treeEmpty')}
               data-testid={dataTestId === undefined ? undefined : `${dataTestId}-tree`}
               aria-labelledby={ariaLabelledBy}
               renderActions={(_node, state) =>
@@ -311,7 +313,7 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
                 type="button"
                 className={TRAILING_CLEAR}
                 onClick={handleClear}
-                aria-label="Clear selection"
+                aria-label={t('kit.combobox.clear')}
                 data-testid={dataTestId === undefined ? undefined : `${dataTestId}-clear`}
                 tabIndex={-1}
               >

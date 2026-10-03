@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 
 /**
  * Props-схема варианта `select/async` — единый источник `api.controls[]` (reformer-doc) и
@@ -37,7 +38,7 @@ export const selectAsyncPropsSchema = {
     },
     placeholder: {
       type: 'string',
-      default: 'Select an option...',
+      ...messageDefault('kit.select.placeholder'),
       description: 'Подсказка в триггере.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

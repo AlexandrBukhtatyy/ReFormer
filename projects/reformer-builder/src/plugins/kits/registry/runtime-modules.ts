@@ -128,6 +128,11 @@ const KIT_OWN_MODULES: readonly LazyModule[] = [
   ['@reformer/ui-kit/drawer', () => import('@reformer/ui-kit/drawer')],
   ['@reformer/ui-kit/fields', () => import('@reformer/ui-kit/fields')],
   ['@reformer/ui-kit/input-otp', () => import('@reformer/ui-kit/input-otp')],
+  // Локали кита: загрузчик и синхронные модули по языкам — форма со своим `I18nProvider`
+  // импортирует их так же, как у пользователя.
+  ['@reformer/ui-kit/locale', () => import('@reformer/ui-kit/locale')],
+  ['@reformer/ui-kit/locale/en', () => import('@reformer/ui-kit/locale/en')],
+  ['@reformer/ui-kit/locale/ru', () => import('@reformer/ui-kit/locale/ru')],
   ['@reformer/ui-kit/message-scroller', () => import('@reformer/ui-kit/message-scroller')],
   ['@reformer/ui-kit/meta', () => import('@reformer/ui-kit/meta')],
   ['@reformer/ui-kit/resizable', () => import('@reformer/ui-kit/resizable')],

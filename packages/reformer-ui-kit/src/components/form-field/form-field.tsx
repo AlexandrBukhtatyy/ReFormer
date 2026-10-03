@@ -4,6 +4,7 @@ import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/fo
 
 import { Field, FieldContent } from '@/components/field';
 import { InfoHint } from '@/components/info-hint';
+import { useKitMessages } from '@/i18n/messages';
 
 /** Props компонента {@link FormField}. */
 export interface FormFieldProps {
@@ -62,6 +63,7 @@ function FormFieldInner({
   customChildren,
 }: FormFieldInnerProps) {
   const { componentProps, pending, ids, label, disabled } = useFormFieldContext();
+  const t = useKitMessages();
   const testId = testIdProp ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
 
   // Иконка-подсказка живёт снаружи <label>: внутри него клик активировал бы контрол. Скрытый дубль
@@ -70,7 +72,7 @@ function FormFieldInner({
     <InfoHint
       content={labelTooltip}
       descriptionId={ids.hintId}
-      aria-label={label ? `Подсказка: ${label}` : undefined}
+      aria-label={label ? t('kit.formField.hintLabel', { label }) : undefined}
       data-testid={`label-tooltip-${testId}`}
     />
   ) : null;
@@ -138,7 +140,7 @@ function FormFieldInner({
 
         {pending && (
           <span role="status" aria-live="polite" className="text-sm text-muted-foreground">
-            Проверка...
+            {t('kit.formField.validating')}
           </span>
         )}
       </FieldContent>

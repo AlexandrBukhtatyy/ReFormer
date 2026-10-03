@@ -15,7 +15,18 @@ const pkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as {
 };
 
 // Фиксированные точки — не компоненты, каталога в src/components/ у них нет.
-const FIXED = new Set(['.', './meta', './fields', './styles', './catalog']);
+const FIXED = new Set([
+  '.',
+  './meta',
+  './fields',
+  './styles',
+  './catalog',
+  './locale',
+  './locale/en',
+  './locale/ru',
+  './locale/en.json',
+  './locale/ru.json',
+]);
 
 function componentDirs(): string[] {
   if (!existsSync(componentsDir)) return [];
@@ -41,6 +52,20 @@ describe('package.json#exports ↔ src/components', () => {
     });
     expect(pkg.exports['./styles']).toBe('./src/styles/theme.css');
     expect(pkg.exports['./catalog']).toBe('./component-catalog.json');
+  });
+
+  it('локали: загрузчик, синхронные модули по языкам и их JSON-копии', () => {
+    expect(pkg.exports['./locale']).toEqual({
+      types: './dist/locale.d.ts',
+      import: './dist/locale.js',
+    });
+    for (const code of ['en', 'ru']) {
+      expect(pkg.exports[`./locale/${code}`]).toEqual({
+        types: `./dist/locale/${code}.d.ts`,
+        import: `./dist/locale/${code}.js`,
+      });
+      expect(pkg.exports[`./locale/${code}.json`]).toBe(`./dist/locale/${code}.json`);
+    }
   });
 
   it('dir → export: каждый компонент с index.ts имеет subpath', () => {
