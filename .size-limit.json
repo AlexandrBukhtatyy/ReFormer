@@ -2,7 +2,7 @@
   {
     "name": "@reformer/core",
     "path": "packages/reformer/dist/index.js",
-    "limit": "21.5 kB"
+    "limit": "22.5 kB"
   },
   {
     "name": "@reformer/core (validators only)",

@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 import {
   defineFormBehavior,
   compute,
@@ -44,7 +44,7 @@ describe('W1 · cross-field equality (confirm password)', () => {
         );
       });
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
 
     model.password = 'secret';
     model.confirm = 'sicret';
@@ -77,7 +77,7 @@ describe('W2 · async uniqueness validation', () => {
         { debounce: 20 }
       );
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
 
     model.username = 'ad';
     model.username = 'admin'; // быстрые смены → debounce оставит последнюю
@@ -102,7 +102,7 @@ describe('W2 · async uniqueness validation', () => {
         form.username.setErrors(taken ? [{ code: 'taken', message: 'x' }] : []);
       });
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
 
     model.username = 'old'; // старый запрос (вернёт taken=true) — будет аннулирован
     await tick();
@@ -137,7 +137,7 @@ describe('W3 · conditional required', () => {
         );
       });
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
 
     await tick();
     expect(fieldErrors(form.email)).toHaveLength(0); // method=phone
@@ -171,7 +171,7 @@ describe('W4 · allocation sum-to-100', () => {
       );
       compute(m.$.valid, () => m.remaining === 0);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.rows.push({ percent: 30 });
     model.rows.push({ percent: 70 });
@@ -210,7 +210,7 @@ describe('W5 · auto-distribute remainder', () => {
         });
       });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     // F8: инкрементальный push строк запускает авто-распределение на промежуточных состояниях
     // (каскад затирает) — надёжно только при АТОМАРНОЙ установке набора строк (set).
@@ -237,7 +237,7 @@ describe('W6 · insert/edit mode', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       compute(m.$.total, () => m.price * m.qty);
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
 
     // payload с сервера СОДЕРЖИТ производное total:0 — оно игнорируется, total = price*qty
     model.set({ price: 10, qty: 3, total: 0 });
@@ -279,7 +279,7 @@ describe('W7 · dependent select (local options)', () => {
         form.region.updateComponentProps({ options: opts });
       });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.region = 'STALE';
     model.country = 'US';
@@ -308,7 +308,7 @@ describe('W8 · bidirectional convert (meters ↔ cm)', () => {
         (c) => c / 100
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.meters = 2;
     await tick();
@@ -345,7 +345,7 @@ describe('W9 · cascade clear depth 3', () => {
         m.district = '';
       });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.region = 'r';
     model.city = 'c';
@@ -371,7 +371,7 @@ describe('W10 · mutual compute', () => {
       compute(m.$.a, () => Math.max(m.b, 5));
       compute(m.$.b, () => Math.max(m.a, 3));
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
     expect(model.a).toBe(5);
     expect(model.b).toBe(5);
     // F7: НЕсходящийся цикл (a=b+1; b=a+1) контрактом не детектируется — это ответственность автора.
@@ -392,7 +392,7 @@ describe('W11 · at-least-one-of', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       compute(m.$.hasContact, () => Boolean(m.phone) || Boolean(m.email));
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
     expect(model.hasContact).toBe(false);
     model.email = 'a@b.c';
     expect(model.hasContact).toBe(true);
@@ -423,7 +423,7 @@ describe('W12 · throttle (custom operator)', () => {
         () => clock
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.term = 'a';
     await tick(); // t=0 → срабатывает 'a'
@@ -460,7 +460,7 @@ describe('W13 · per-row validation', () => {
         })
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.rows.push({ qty: 0, ok: false });
     model.rows.push({ qty: 5, ok: false });

@@ -21,11 +21,38 @@ export { ArrayNode } from './nodes/array-node';
 export { ModelArrayNode } from './nodes/model-array-node';
 export type { ModelArrayControl } from './nodes/model-array-node';
 
-// Сборка формы из модели + единой схемы.
-export { createForm, createFormFromModel } from './create-form';
-export type { CreateFormFromModelArgs } from './create-form';
+// Сборка одним вызовом: модель, форма, валидация и дерево для рендера.
+export { createForm } from './form-bundle';
+export type {
+  CreateFormConfig,
+  FormBundle,
+  FormRender,
+  ResolvedSchema,
+  SchemaResolver,
+} from './form-bundle';
 
-// Сборка формы ОДНИМ вызовом (модель + форма + валидация) — общий конфиг с `createReactForm`
+// Низкоуровневые фабрики: из модели и готового дерева; из конфига без модели.
+export { createFormFromModel, createLegacyForm } from './create-form';
+export type { CreateFormFromModelArgs } from './create-form';
+// Поддерево строки массива или подформы — одно на пару «билдер + под-модель».
+export { schemaSubtree } from './schema-subtree';
+
+// Схема-контроллер: правила узлов схемы по областям (корень, строка массива, подформа).
+export {
+  createSchemaController,
+  createSchemaScope,
+  createSchemaOverrideMaps,
+  unknownSchemaSelectors,
+} from './schema-controller';
+export type {
+  SchemaController,
+  SchemaScope,
+  SchemaNodeControl,
+  SchemaOverrideMaps,
+  NodeLifecycleHooks,
+} from './schema-controller';
+
+// Прежнее имя сборки одним вызовом и общий конфиг родственных фабрик — `createReactForm`
 // (@reformer/renderer-react) и `createJsonForm` (@reformer/renderer-json).
 export { createCoreForm } from './create-core-form';
 export type { CoreForm, CreateCoreFormConfig, CreateFormConfigBase } from './create-core-form';

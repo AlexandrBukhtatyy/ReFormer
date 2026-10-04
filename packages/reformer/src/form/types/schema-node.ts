@@ -2,7 +2,7 @@
  * Тип узла единой схемы (M1).
  *
  * Схема формы под архитектурой M1 — это layout-дерево узлов, которое обходят два места:
- *  - `createForm({ model, schema })` (`harvestFieldConfig`) — сбор конфига полей по идентичности
+ *  - `createFormFromModel({ model, schema })` (`harvestFieldConfig`) — сбор конфига полей по идентичности
  *    сигнала + item-фабрик массивов;
  *  - рендерер (`@reformer/renderer-react`: `RenderNode`) — отрисовка того же дерева.
  *
@@ -11,7 +11,7 @@
  *
  * ⚠️ Не путать с {@link FormSchema} — та описывает **data-shaped** конфиг (ключи повторяют структуру
  * данных `T`, `{ field: FieldConfig }`) и служит формой конфига для {@link GroupNode}. `FormSchemaNode`
- * же — **узел дерева** M1-схемы (лист/массив/контейнер), передаваемой в `createForm({ model, schema })`.
+ * же — **узел дерева** M1-схемы (лист/массив/контейнер), передаваемой в `createFormFromModel({ model, schema })`.
  *
  * Обход рекурсивен по идентичности сигнала (`node.value instanceof Signal`) и НЕ ограничен ключом
  * `children`: узлы могут лежать в `children`, в `componentProps.*` (напр. steps визарда) или под
@@ -42,17 +42,18 @@ export interface SchemaArrayControl {
   /** Реактивная длина. */
   readonly length: number;
   at(index: number): unknown;
-  push(item: unknown): void;
+  push(item?: unknown): void;
   removeAt(index: number): void;
 }
 
 /**
- * Узел единой схемы M1 — layout-дерево, обходимое `createForm({ model, schema })`
+ * Узел единой схемы M1 — layout-дерево, обходимое `createFormFromModel({ model, schema })`
  * и рендерерами (schema-валидация живёт отдельно — `@reformer/core/validation`).
  *
  * Узел совмещает несколько ролей (различаются рантаймом по форме):
- *  - **поле** — несёт `value: Signal` (сигнал модели `model.$.x`) + `component`/`validators`;
- *  - **массив** — `{ array: model.<path>, item(itemModel) }`;
+ *  - **поле** — `{ model: model.$.x, component, componentProps }`;
+ *  - **массив под-форм** — `{ model: model.$.items, item: (model) => узел }`;
+ *  - **подформа** — `{ model: model.$.group, part: (model) => узел }`;
  *  - **контейнер/ветка** — вложенные узлы (`children`), опц. условие `when`;
  *  - **record-of-fields** — под-узлы под произвольными именованными ключами (индексная сигнатура).
  *
@@ -63,9 +64,20 @@ export interface SchemaArrayControl {
  */
 export interface FormSchemaNode {
   /**
-   * «Ручка» значения поля — маркер узла-поля. Обычно сигнал модели (`model.$.<path>`), но форма
-   * зависит от таргета (для массива `model.$.x` — дерево сигналов; в renderer-типах сужается до
-   * `Signal`). Движок разбирает узел как поле рантаймом по `value instanceof Signal`.
+   * Привязка узла к части модели — ручка из дерева `model.$`. Чем узел является, решают ручка и
+   * соседние ключи:
+   *  - лист или массив (`model.$.email`, `model.$.tags`) — **поле**;
+   *  - массив вместе с {@link FormSchemaNode.item} — **массив под-форм**;
+   *  - группа вместе с {@link FormSchemaNode.part} — **подформа**.
+   *
+   * Узел распознаётся по значению, а не по имени ключа: в записи «имя поля → узел» поле данных
+   * может называться `model`, и тогда под этим ключом лежит обычный вложенный узел.
+   */
+  model?: unknown;
+  /**
+   * Прежняя запись привязки поля — то же, что {@link FormSchemaNode.model}.
+   *
+   * @deprecated Пишите `model: model.$.<path>`.
    */
   value?: unknown;
   /**
@@ -95,14 +107,27 @@ export interface FormSchemaNode {
    * выводит на своём месте в порядке следования.
    */
   children?: readonly (FormSchemaNode | string | number | Signal<any>)[];
-  /** Реактивный массив модели (`model.<path>`) — маркер узла-массива (вместе с `item`). */
+  /**
+   * Прежняя запись привязки массива под-форм — фасад `model.<path>` (вместе с `item`).
+   *
+   * @deprecated Пишите `model: model.$.<path>`.
+   */
   array?: SchemaArrayControl;
   /** Схема элемента массива: под-модель элемента → узел поддерева. */
-  item?: (itemModel: any) => FormSchemaNode;
+  item?: (model: any) => FormSchemaNode;
   /**
-   * Значение нового элемента массива для кнопки «Добавить»: либо готовое значение,
-   * либо фабрика `() => value`. Тип не различает варианты (union `unknown | (() => unknown)`
-   * схлопывается в `unknown`) — рантайм различает по `typeof initialValue === 'function'`.
+   * Подформа: под-модель группы → узел поддерева. Часть объявляется один раз и подключается к
+   * любой группе той же формы данных: `{ model: model.$.registrationAddress, part: address }`.
+   * Привязки внутри части идут через `$` полученной под-модели.
+   */
+  part?: (model: any) => FormSchemaNode;
+  /**
+   * Шаблон нового элемента массива для кнопки «Добавить»: либо готовое значение, либо фабрика
+   * `() => value`. Запасной путь — для форм, чья модель создаётся из данных без кода: шаблон,
+   * объявленный в модели (`arrayOf(blank)`), главнее.
+   *
+   * Тип не различает варианты (union `unknown | (() => unknown)` схлопывается в `unknown`) —
+   * рантайм различает по `typeof initialValue === 'function'`.
    */
   initialValue?: unknown;
   /** Свободная вложенность: record-of-fields и произвольные под-узлы. */

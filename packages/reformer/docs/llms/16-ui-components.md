@@ -19,7 +19,7 @@
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormField, Input, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -54,7 +54,7 @@ function RegistrationPage() {
         componentProps: { label: 'I agree to terms' },
       },
     };
-    return createForm<RegistrationForm>({ model, schema });
+    return createFormFromModel<RegistrationForm>({ model, schema });
   }, []);
 
   return (

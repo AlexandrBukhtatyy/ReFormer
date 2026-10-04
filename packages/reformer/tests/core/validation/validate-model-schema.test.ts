@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createModel } from '../../../src/model/index';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { required, min, minLength, email, pattern } from '../../../src/form/validators';
 import {
   validate,
@@ -60,7 +60,7 @@ function makeForm(over: Partial<F> = {}) {
       { value: model.$.ratio, component: C },
     ],
   };
-  const form = createForm<F>({ model, schema });
+  const form = createFormFromModel<F>({ model, schema });
   return { model, form };
 }
 

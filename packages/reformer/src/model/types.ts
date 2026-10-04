@@ -93,10 +93,13 @@ export interface ModelArray<U> {
   readonly __path: string;
   /** Реактивная длина. */
   readonly length: number;
-  /** Добавить элемент в конец (значение элемента целиком). */
-  push(item: U): void;
-  /** Вставить элемент по индексу. */
-  insertAt(index: number, item: U): void;
+  /**
+   * Добавить элемент в конец (значение элемента целиком). Без значения — элемент по шаблону
+   * массива (`arrayOf(blank)` в модели); шаблона нет — ошибка.
+   */
+  push(item?: U): void;
+  /** Вставить элемент по индексу. Без значения — элемент по шаблону, как у {@link push}. */
+  insertAt(index: number, item?: U): void;
   /** Удалить элемент по индексу. */
   removeAt(index: number): void;
   /** Переместить элемент. */

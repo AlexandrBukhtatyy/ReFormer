@@ -6,7 +6,7 @@
  * который вызывает `createForm({ behavior })`; жизненным циклом владеет форма.
  *
  * `current` — состояние модуля, и писатель (`__run`) живёт здесь же: наружу торчат только две
- * двери — {@link onDispose} (сток) и {@link getScope} (доступ к model/form).
+ * двери — {@link onDispose} (сток) и {@link getScope} (доступ к model/form/schema).
  *
  * @group Behaviors
  * @module form/behaviors/context
@@ -14,12 +14,14 @@
 
 import { effect as preactEffect } from '@preact/signals-core';
 import { runOutsideEffect, type BehaviorCleanup } from '../../index';
+import { createSchemaController, type SchemaController } from '../schema-controller';
 import type { BehaviorScope, FormBehavior } from './types';
 
 interface RunContext {
   cleanups: BehaviorCleanup[];
   model: unknown;
   form: unknown;
+  controller: SchemaController;
 }
 let current: RunContext | null = null;
 
@@ -38,32 +40,60 @@ export function onDispose(cleanup: BehaviorCleanup): void {
   requireCtx('onDispose').cleanups.push(cleanup);
 }
 
-/** Текущий scope ({ model, form }) активной схемы (escape hatch для кросс-операторов). */
+/**
+ * Зарегистрировать отписку, если оператор вызван внутри схемы поведения; вне схемы — ничего.
+ * Для операторов, которые работают и сами по себе (правила узлов схемы).
+ *
+ * @internal
+ */
+export function onDisposeIfActive(cleanup: BehaviorCleanup): void {
+  current?.cleanups.push(cleanup);
+}
+
+/** Текущая область ({ model, form, schema }) активной схемы (escape hatch для кросс-операторов). */
 export function getScope<T>(): BehaviorScope<T> {
   const ctx = requireCtx('getScope');
-  return { model: ctx.model, form: ctx.form } as BehaviorScope<T>;
+  return scopeOf(ctx) as BehaviorScope<T>;
 }
+
+/**
+ * Схема-контроллер сборки, в которой идёт активная схема: под-схемы (`apply`, `applyEach`)
+ * получают через него область своей под-модели.
+ *
+ * @internal
+ */
+export function getController(op = 'getController'): SchemaController {
+  return requireCtx(op).controller;
+}
+
+const scopeOf = (ctx: RunContext): BehaviorScope<unknown> =>
+  ({
+    model: ctx.model,
+    form: ctx.form,
+    schema: ctx.controller.scopeOf(ctx.model as object),
+  }) as BehaviorScope<unknown>;
 
 /**
  * Описать поведение формы декларативно. Возвращает {@link FormBehavior} для `createForm({ behavior })`.
  *
  * @example
  * ```ts
- * export const myBehavior = defineFormBehavior<MyForm>(({ model, form }) => {
+ * export const myBehavior = defineFormBehavior<MyForm>(({ model, form, schema }) => {
  *   compute(model.$.total, () => model.price * model.qty);
  *   enableWhen([model.$.city], () => Boolean(model.country));
  *   onChange(model.$.country, async (c) => form.city.updateComponentProps({ options: await load(c) }));
+ *   hideWhen(schema.node('delivery'), () => model.country === '');
  * });
  * ```
  */
 export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void): FormBehavior<T> {
   return {
-    __run(model, form) {
-      const ctx: RunContext = { cleanups: [], model, form };
+    __run(model, form, controller = createSchemaController()) {
+      const ctx: RunContext = { cleanups: [], model, form, controller };
       const prev = current;
       current = ctx;
       try {
-        setup({ model, form });
+        setup(scopeOf(ctx) as BehaviorScope<T>);
       } finally {
         current = prev;
       }

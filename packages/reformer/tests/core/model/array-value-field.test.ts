@@ -19,7 +19,7 @@ import {
   isModelContainerSignal,
   isValueSignal,
 } from '../../../src/model/index';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { getNodeForSignal } from '../../../src/form/signal-node-registry';
 import { isFieldNode } from '../../../src/form/type-guards';
 import {
@@ -143,7 +143,7 @@ describe('узел-массив модели — ручка значения', (
 
 describe('поле формы над массивом', () => {
   const build = (model: FormModel<Form>) =>
-    createForm<Form>({
+    createFormFromModel<Form>({
       model,
       schema: {
         component: Box,
@@ -207,7 +207,7 @@ describe('поле формы над массивом', () => {
 
   it('массив с item-схемой остаётся набором под-форм, даже если к нему привязали компонент', () => {
     const model = createModel<Form>({ ...initial(), rows: [{ label: 'x' }] });
-    const form = createForm<Form>({
+    const form = createFormFromModel<Form>({
       model,
       schema: {
         children: [
@@ -245,7 +245,7 @@ describe('валидация массива как значения', () => {
     validate(model.$.maybe, [required({ message: 'Выберите значение' })]);
   });
   const build = (model: FormModel<Form>) =>
-    createForm<Form>({
+    createFormFromModel<Form>({
       model,
       schema: {
         children: [
@@ -299,7 +299,7 @@ describe('поведение над массивом как значением',
         copyFrom(m.$.profile, m.$.copy);
       }
     );
-    const form = createForm({ model, behavior });
+    const form = createFormFromModel({ model, behavior });
 
     model.$.tags.value = ['a', 'b'];
     model.$.profile.langs.value = ['en'];
@@ -316,7 +316,7 @@ describe('поведение над массивом как значением',
     const behavior = defineFormBehavior<Form>(({ model: m }) => {
       enableWhen(m.$.tags, () => m.enabled);
     });
-    const form = createForm<Form>({
+    const form = createFormFromModel<Form>({
       model,
       schema: { children: [{ value: model.$.tags, component: Select }] },
       behavior,

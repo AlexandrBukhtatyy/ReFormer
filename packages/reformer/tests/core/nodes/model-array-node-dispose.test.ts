@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { createModel } from '../../../src/model/index';
 import { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import type { FormModel } from '../../../src/model/index';
 import type { FormProxy } from '../../../src/form/types/form-proxy';
 
@@ -33,7 +33,7 @@ const build = () => {
   const model = createModel<Form>({ rows: [] });
   const disposed: string[] = [];
   const arr = new ModelArrayNode<Row>(model.rows as never, (m) => {
-    const form = createForm<Row>({
+    const form = createFormFromModel<Row>({
       model: m as FormModel<Row>,
       schema: itemSchema(m as FormModel<Row>),
     }) as FormProxy<Row>;

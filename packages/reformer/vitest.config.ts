@@ -24,6 +24,8 @@ export default defineConfig({
       exclude: [
         'src/**/index.ts',
         'src/**/*.d.ts',
+        // Compile-time проверки типов: исполняет их `tsc`, а не vitest.
+        'src/**/*.type-test.ts',
         'src/form/types/**',
         'src/platforms/react/hooks/types.ts',
         'src/model/types.ts',

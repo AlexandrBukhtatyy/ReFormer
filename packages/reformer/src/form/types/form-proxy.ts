@@ -16,7 +16,7 @@
  *   items: Array<{ title: string }>;
  * }
  *
- * const form = createForm<MyForm>({ model, schema });
+ * const form = createFormFromModel<MyForm>({ model, schema });
  *
  * //  TypeScript знает, что это FieldNode<string>
  * form.name.setValue('John');
@@ -107,7 +107,7 @@ export type FormControlsProxy<T> = {
  *   };
  * }
  *
- * const form = createForm<UserForm>(schema);
+ * const form = createLegacyForm<UserForm>(schema);
  *
  * // Доступ к методам GroupNode
  * await form.validate();

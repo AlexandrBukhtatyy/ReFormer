@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createModel } from '../../../src/model/index';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { required, minLength } from '../../../src/form/validators';
 import { validate, defineValidationSchema } from '../../../src/form/validation';
 import { createFormValidation } from '../../../src/form/validation/strategy';
@@ -35,7 +35,7 @@ function makeForm(over: Partial<F> = {}) {
       { value: model.$.profile.city, component: C },
     ],
   };
-  const form = createForm<F>({ model, schema });
+  const form = createFormFromModel<F>({ model, schema });
   return { model, form };
 }
 

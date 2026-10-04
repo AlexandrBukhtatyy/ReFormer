@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { effect } from '@preact/signals-core';
 import { createModel } from '../../../src/model/index';
 import { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import type { FormModel } from '../../../src/model/index';
 
 interface Row {
@@ -27,7 +27,10 @@ const build = () => {
   const model = createModel<Form>({ rows: [] });
   // control = реактивный массив модели (value-proxy)
   const arr = new ModelArrayNode<Row>(model.rows as never, (m) =>
-    createForm<Row>({ model: m as FormModel<Row>, schema: itemSchema(m as FormModel<Row>) })
+    createFormFromModel<Row>({
+      model: m as FormModel<Row>,
+      schema: itemSchema(m as FormModel<Row>),
+    })
   );
   return { model, arr };
 };

@@ -2,13 +2,13 @@
  * Unit tests: массивы под M1 — model-owned + per-item createForm.
  *
  * Массив принадлежит модели (push/removeAt/length реактивны). Форма элемента строится
- * рекурсивно через createForm({ model: model.arr.at(i), schema: itemComponent(item) }),
+ * рекурсивно через createFormFromModel({ model: model.arr.at(i), schema: itemComponent(item) }),
  * привязываясь к сигналам под-модели элемента (запись доезжает в model.arr[i]).
  * Родительский createForm массив не материализует.
  */
 
 import { describe, it, expect } from 'vitest';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import { required } from '../../../src/form/validators';
 import type { FormModel } from '../../../src/model/index';
@@ -39,7 +39,7 @@ const itemSchema = (item: FormModel<CoBorrower>) => ({
 describe('Массивы под M1 (model-owned + per-item createForm)', () => {
   it('родительский createForm с массивом строится (массив пропускается, скаляры работают)', () => {
     const model = createModel<Form>({ loanAmount: 0, coBorrowers: [] });
-    const form = createForm<Form>({
+    const form = createFormFromModel<Form>({
       model,
       schema: { children: [{ value: model.$.loanAmount, component: InputStub }] },
     });
@@ -54,7 +54,7 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     model.coBorrowers.push({ personalData: { lastName: '' }, relationship: '', monthlyIncome: 0 });
 
     const item = model.coBorrowers.at(0)!;
-    const itemForm = createForm<CoBorrower>({ model: item, schema: itemSchema(item) });
+    const itemForm = createFormFromModel<CoBorrower>({ model: item, schema: itemSchema(item) });
 
     itemForm.relationship.setValue('брат');
     itemForm.personalData.lastName.setValue('Петров');
@@ -82,7 +82,7 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     model.coBorrowers.removeAt(0);
 
     const item = model.coBorrowers.at(0)!;
-    const itemForm = createForm<CoBorrower>({ model: item, schema: itemSchema(item) });
+    const itemForm = createFormFromModel<CoBorrower>({ model: item, schema: itemSchema(item) });
     expect(itemForm.personalData.lastName.value.value).toBe('B');
     itemForm.relationship.setValue('друг');
     expect(model.get().coBorrowers[0].relationship).toBe('друг');
@@ -98,7 +98,7 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
       ],
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const form = createForm<Form>({ model, schema }) as any;
+    const form = createFormFromModel<Form>({ model, schema }) as any;
 
     expect(form.coBorrowers).toBeDefined();
     expect(form.coBorrowers.length.value).toBe(0);

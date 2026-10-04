@@ -30,7 +30,8 @@ export type CallableRule = (
  * (`required()`/`min()`/… — они `(value, model, root) => …`) и inline-правила `(value) => …`
  * ОБА присваиваются в `Rule<TField>[]` без `any`, при этом сохраняется проверка типа поля
  * (`validate(model.$.age, [email()])` подсветится — `email` ждёт `string`, поле `number`).
- * На вызове раннер приводит правило к callable и передаёт `(value, model, model)`.
+ * На вызове раннер приводит правило к callable и передаёт `(value, scope, root)`: модель текущей
+ * области (в корне прогона — вся модель) и корень прогона.
  */
 export type Rule<TField> = (value: TField, scope: never, root: never) => ValidationError | null;
 

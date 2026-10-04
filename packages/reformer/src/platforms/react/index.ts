@@ -21,6 +21,8 @@ export { useFormValidation } from './hooks/use-form-validation';
 export type { UseFormValidationArgs, UseFormValidationResult } from './hooks/use-form-validation';
 export { useFormBundle } from './hooks/use-form-bundle';
 export type { FormBundleLike } from './hooks/use-form-bundle';
+// Контекст сборки: бандл `createForm` для компонентов внутри рендерера (визард).
+export { FormBundleContext, useFormBundleContext } from './form-bundle-context';
 export type { FieldControlState, ArrayControlState } from './hooks/types';
 
 // Связка поля с контролом: адаптер диалекта (статика `reformerAdapter`) и императивный handle.

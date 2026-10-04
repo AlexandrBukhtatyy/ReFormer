@@ -33,7 +33,7 @@ vi.mock('use-sync-external-store/shim', () => ({
 // Импортируем ПОСЛЕ vi.mock (hoisted): хук и фабрики формы (последние react не используют).
 import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 
 interface Form {
   email: string;
@@ -43,7 +43,7 @@ interface Form {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function build(): any {
   const model = createModel<Form>({ email: '', items: [] });
-  return createForm<Form>({
+  return createFormFromModel<Form>({
     model,
     schema: {
       children: [

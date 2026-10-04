@@ -76,6 +76,32 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 });
 ```
 
+### Вложенные области — массив в группе и в строке массива
+
+Узел `{ array, item }` и операторы `applyEach` / `apply` / `enableWhen` работают на любой глубине:
+цель оператора — **ручка** `model.$.…`, под-модель и нода находятся по её идентичности, а не по
+пути.
+
+```typescript
+const phoneBehavior = defineFormBehavior<Phone>(({ model: phone }) => {
+  enableWhen(phone.$.number, () => phone.primary);
+});
+
+const contactBehavior = defineFormBehavior<Contact>(({ model: contact }) => {
+  applyEach(contact.$.phones, phoneBehavior); // массив внутри строки
+  enableWhen(contact.$.address, () => contact.quantity > 0); // группа внутри строки
+  apply(contact.$.address, addressBehavior); // под-схема получает настоящую под-модель
+});
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  applyEach(model.$.contacts, contactBehavior);
+});
+```
+
+Ручка → value-фасад: `modelOf(model.$.address)` — под-модель (`get` / `set` / `patch`),
+`modelOf(model.$.phones)` — фасад массива (`push` / `removeAt` / `at`). Нода формы по ручке —
+`getNodeForSignal(model.$.address)`.
+
 ### Aggregate write — aggregateInto
 
 Агрегатная запись в строки (например, «последняя строка = 100 − Σ остальных»):

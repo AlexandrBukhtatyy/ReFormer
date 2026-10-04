@@ -106,6 +106,7 @@ export async function validateModel<T>(
 
   const ctx: VContext = {
     model: model as FormModel<unknown>,
+    root: model as FormModel<unknown>,
     errors: new Map(),
     pending: [],
     whenStack: [],

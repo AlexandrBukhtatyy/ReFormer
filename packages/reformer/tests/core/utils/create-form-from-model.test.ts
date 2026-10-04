@@ -1,5 +1,5 @@
 /**
- * Unit tests: createForm({ model, schema }) — сборка формы из FormModel + единой схемы (M1).
+ * Unit tests: createFormFromModel({ model, schema }) — сборка формы из FormModel + единой схемы (M1).
  *
  * Проверяет:
  * - дерево нод строится из структуры модели (objects + leaves)
@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 
 // Заглушки UI-компонентов (просто маркеры идентичности).
@@ -39,11 +39,11 @@ const build = () => {
       },
     ],
   };
-  const form = createForm<Form>({ model, schema });
+  const form = createFormFromModel<Form>({ model, schema });
   return { model, form, schema };
 };
 
-describe('createForm({ model, schema })', () => {
+describe('createFormFromModel({ model, schema })', () => {
   it('строит ноды и читает значения из модели', () => {
     const { model, form } = build();
     expect(form.email.value.value).toBe('');
@@ -73,7 +73,7 @@ describe('createForm({ model, schema })', () => {
 
   it('массивы не материализуются в родительской форме (model-owned)', () => {
     const model = createModel<{ name: string; tags: string[] }>({ name: '', tags: [] });
-    const form = createForm<{ name: string; tags: string[] }>({
+    const form = createFormFromModel<{ name: string; tags: string[] }>({
       model,
       schema: { children: [{ value: model.$.name, component: InputStub }] },
     });
@@ -84,21 +84,21 @@ describe('createForm({ model, schema })', () => {
   });
 });
 
-describe('createForm({ model, schema }) — узел формы внутри схемы', () => {
+describe('createFormFromModel({ model, schema }) — узел формы внутри схемы', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('FormProxy в схеме пропускается с подсказкой вместо переполнения стека', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
     // Первый проход: дерево без формы — так и надо строить схему для createForm.
-    const form = createForm<Form>({
+    const form = createFormFromModel<Form>({
       model,
       schema: { children: [{ value: model.$.email, component: InputStub }] },
     });
 
     // Второй проход: дерево, куда уже положили форму (типичный визард). Раньше рекурсивный обход
     // уходил по самоссылкам прокси и падал с RangeError.
-    const rebuilt = createForm<Form>({
+    const rebuilt = createFormFromModel<Form>({
       model,
       schema: {
         component: SectionStub,

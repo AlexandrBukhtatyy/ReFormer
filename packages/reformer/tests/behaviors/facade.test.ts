@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 import {
   defineFormBehavior,
   compute,
@@ -64,7 +64,7 @@ describe('defineFormBehavior + runner', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       compute(m.$.total, () => m.price * m.qty);
     });
-    const form = createForm<TForm>({ model, behavior });
+    const form = createFormFromModel<TForm>({ model, behavior });
 
     model.price = 10;
     model.qty = 3;
@@ -80,7 +80,7 @@ describe('defineFormBehavior + runner', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       copyFrom(m.$.email, m.$.emailCopy, { when: () => m.same });
     });
-    createForm<TForm>({ model, behavior });
+    createFormFromModel<TForm>({ model, behavior });
 
     model.email = 'a@b.c';
     expect(model.emailCopy).toBe(''); // same=false
@@ -97,7 +97,7 @@ describe('enableWhen', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       enableWhen([m.$.carBrand, m.$.carModel], () => m.loanType === 'car');
     });
-    const form = createForm<TForm>({ model, behavior }) as FormProxy<TForm>;
+    const form = createFormFromModel<TForm>({ model, behavior }) as FormProxy<TForm>;
 
     await tick();
     expect(node(form.carModel).disabled.value).toBe(true); // consumer → disabled
@@ -114,7 +114,7 @@ describe('enableWhen', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       enableWhen([m.$.carBrand], () => m.loanType === 'car', { resetOnDisable: true });
     });
-    createForm<TForm>({ model, behavior });
+    createFormFromModel<TForm>({ model, behavior });
 
     model.loanType = 'car';
     model.carBrand = 'toyota';
@@ -131,7 +131,7 @@ describe('групповые операции', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       copyFrom(m.$.addrA, m.$.addrB, { when: () => m.sameAddr });
     });
-    createForm<TForm>({ model, behavior });
+    createFormFromModel<TForm>({ model, behavior });
 
     model.addrA = { region: 'NW', zip: '123' };
     await tick();
@@ -151,7 +151,7 @@ describe('групповые операции', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       enableWhen(m.$.addrB, () => !m.sameAddr);
     });
-    const form = createForm<TForm>({ model, behavior }) as FormProxy<TForm>;
+    const form = createFormFromModel<TForm>({ model, behavior }) as FormProxy<TForm>;
 
     await tick();
     expect(node(form.addrB).disabled.value).toBe(false); // sameAddr=false → enabled
@@ -172,7 +172,7 @@ describe('apply (под-схема на несколько групп)', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       apply([m.$.addrA, m.$.addrB], addressBehavior);
     });
-    createForm<TForm>({ model, behavior });
+    createFormFromModel<TForm>({ model, behavior });
 
     model.addrA = { region: 'X', zip: 'ab12-99' };
     model.addrB = { region: 'Y', zip: '7777' };
@@ -189,7 +189,7 @@ describe('onChange debounce', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       onChange(m.$.carBrand, cb, { debounce: 50 });
     });
-    createForm<TForm>({ model, behavior });
+    createFormFromModel<TForm>({ model, behavior });
 
     model.carBrand = 'a';
     model.carBrand = 'b';

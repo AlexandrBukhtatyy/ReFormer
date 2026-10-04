@@ -13,7 +13,9 @@
  * Состав (реэкспорты — из тех же файлов, что использует зонтик `.`, поэтому `.` и `/model` — один
  * module-инстанс: общий `derived`-WeakMap, единая идентичность `Signal`):
  * - **модель** — `createModel` + типы `FormModel`/`ModelArray`/… + `PathAwareSignal`;
+ * - **шаблон элемента массива** — `arrayOf(blank)`: что кладёт `push()` без значения;
  * - **обход значений** — `eachLeafSignal` (листья) и `eachValueSignal` (листья и массивы целиком);
+ * - **ручка → фасад** — `modelOf(model.$.<группа | массив>)`: под-модель или фасад массива;
  * - **value-операции** (реактивные правила) — `computeFrom`/`copyFrom`/`watchField`/`transformValue`/
  *   `resetWhen`/`syncFields`/`revalidateWhen`;
  * - **producer-owned флаг** — `markDerived`/`isDerived`/`unmarkDerived`;
@@ -25,6 +27,8 @@
 
 // Реактивная модель данных.
 export { createModel, eachLeafSignal, eachValueSignal } from './create-model';
+// Массив модели с шаблоном нового элемента — `push()` / «Добавить» без значения.
+export { arrayOf } from './model-nodes';
 export type {
   FormModel,
   ModelArray,
@@ -37,6 +41,9 @@ export type {
   PathAwareSignal,
 } from './types';
 export { isModelContainerSignal, isValueSignal } from './model-signals-proxy';
+// Ручка `$` → value-фасад (под-модель группы или фасад массива), по идентичности.
+export { modelOf } from './model-value-proxy';
+export type { ModelOf } from './model-value-proxy';
 
 // Value-операции behavior (читают/пишут сигналы, нод/валидации не касаются).
 export {

@@ -55,7 +55,7 @@ function parsePathSegments(path: string): PathSegment[] {
  * GroupNode - узел для группы полей
  *
  * Создаётся из {@link FormSchema} (дерево field-конфигов). Обычно строится через `createForm`
- * (M1: `createForm({ model, schema })`); schema-валидация/behavior живут на слое модели
+ * (M1: `createFormFromModel({ model, schema })`); schema-валидация/behavior живут на слое модели
  * (`validateModel` из `@reformer/core/validation`, `computeFrom`/`enableWhen`/…), а не на ноде.
  *
  * @group Nodes
@@ -217,7 +217,7 @@ export class GroupNode<T> extends FormNode<T> {
     this.submitting = this.formSubmitter.submitting;
 
     // Proxy создаётся лениво при первом вызове getProxy().
-    // Для Proxy-доступа к полям используйте createForm() или getProxy().
+    // Для Proxy-доступа к полям используйте фабрику формы или getProxy().
   }
 
   // ============================================================================

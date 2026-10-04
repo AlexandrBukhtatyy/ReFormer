@@ -31,6 +31,12 @@ import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes'
 // и, главное, ОДИН агрегирующий `computed` на узел (иначе каждое обращение плодило бы новый).
 const signalsCache = new WeakMap<GroupNode | ArrayNode, any>();
 
+// Обратная карта: контейнерный узел дерева `$` → узел модели. По ней ручка (`model.$.<группа>`,
+// `model.$.<массив>`) находит свой value-фасад без обхода по пути — см. `modelOf`. Путь для этого
+// не годится: он абсолютный и меняется при перестановке строк массива, а области поведения и
+// формы строк вложенные.
+const nodeByContainer = new WeakMap<object, GroupNode | ArrayNode>();
+
 /**
  * Делегат `ReadonlySignal` над агрегатом контейнерного узла. Обычный объект, а НЕ подкласс/Proxy
  * вокруг инстанса `Computed`, по двум причинам:
@@ -131,7 +137,19 @@ export function signalsProxy(node: ModelNode): any {
   });
 
   signalsCache.set(node, proxy);
+  nodeByContainer.set(proxy, node);
   return proxy;
+}
+
+/**
+ * Узел модели за контейнерной ручкой дерева `$` (группа или массив). Для листа и для всего, что
+ * ручкой не является, — `undefined`.
+ *
+ * @internal
+ */
+export function containerNodeOf(handle: unknown): GroupNode | ArrayNode | undefined {
+  if (handle == null || typeof handle !== 'object') return undefined;
+  return nodeByContainer.get(handle);
 }
 
 /**

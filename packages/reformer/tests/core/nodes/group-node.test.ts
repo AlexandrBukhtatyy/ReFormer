@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createForm } from '../../../src/form/create-form';
+import { createLegacyForm } from '../../../src/form/create-form';
 import type {
   FormProxy,
   FormSchema,
@@ -91,14 +91,14 @@ describe('GroupNode', () => {
 
   describe('Initialization', () => {
     it('should create from simple schema', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.email).toBeDefined();
       expect(form.password).toBeDefined();
     });
 
     it('should create with new API (GroupNodeConfig)', () => {
-      const form = createForm<SimpleForm>({
+      const form = createLegacyForm<SimpleForm>({
         form: simpleSchema,
       });
 
@@ -107,7 +107,7 @@ describe('GroupNode', () => {
     });
 
     it('should create with nested groups', () => {
-      const form = createForm(nestedSchema);
+      const form = createLegacyForm(nestedSchema);
 
       expect(form.name).toBeDefined();
       expect(form.address).toBeDefined();
@@ -116,7 +116,7 @@ describe('GroupNode', () => {
     });
 
     it('should return Proxy from constructor', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       // Proxy позволяет обращаться к полям напрямую
       expect(form.email.value.value).toBe('');
@@ -129,14 +129,14 @@ describe('GroupNode', () => {
         password: { value: 'secret', component: null as ComponentInstance },
       };
 
-      const form = createForm(schemaWithValues);
+      const form = createLegacyForm(schemaWithValues);
 
       expect(form.email.value.value).toBe('test@mail.com');
       expect(form.password.value.value).toBe('secret');
     });
 
     it('should initialize with valid status', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.valid.value).toBe(true);
       expect(form.invalid.value).toBe(false);
@@ -144,31 +144,31 @@ describe('GroupNode', () => {
     });
 
     it('should initialize with touched = false', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.touched.value).toBe(false);
     });
 
     it('should initialize with dirty = false', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.dirty.value).toBe(false);
     });
 
     it('should initialize with pending = false', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.pending.value).toBe(false);
     });
 
     it('should initialize with submitting = false', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.submitting.value).toBe(false);
     });
 
     it('should initialize with empty errors', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       expect(form.errors.value).toEqual([]);
     });
@@ -182,7 +182,7 @@ describe('GroupNode', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm(simpleSchema);
+      form = createLegacyForm(simpleSchema);
     });
 
     it('should access field via Proxy', () => {
@@ -191,7 +191,7 @@ describe('GroupNode', () => {
     });
 
     it('should access nested field via Proxy', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
 
       expect(nestedForm.address.city).toBeDefined();
       expect(nestedForm.address.city.value.value).toBe('');
@@ -225,7 +225,7 @@ describe('GroupNode', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm(simpleSchema);
+      form = createLegacyForm(simpleSchema);
     });
 
     it('should return all values as object via getValue()', () => {
@@ -268,7 +268,7 @@ describe('GroupNode', () => {
     });
 
     it('should get nested values recursively', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
       nestedForm.address.city.setValue('Moscow');
       nestedForm.address.street.setValue('Main St');
 
@@ -282,7 +282,7 @@ describe('GroupNode', () => {
     });
 
     it('should set nested values recursively', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
 
       nestedForm.setValue({
         name: 'John',
@@ -312,7 +312,7 @@ describe('GroupNode', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         email: { value: 'initial@mail.com', component: null as ComponentInstance },
         password: { value: 'initial', component: null as ComponentInstance },
       });
@@ -378,7 +378,7 @@ describe('GroupNode', () => {
     });
 
     it('should reset nested forms recursively', () => {
-      const nestedForm = createForm<NestedForm>({
+      const nestedForm = createLegacyForm<NestedForm>({
         name: { value: 'Initial', component: null as ComponentInstance },
         address: {
           city: { value: 'Moscow', component: null as ComponentInstance },
@@ -401,7 +401,7 @@ describe('GroupNode', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm(simpleSchema);
+      form = createLegacyForm(simpleSchema);
     });
 
     describe('touched', () => {
@@ -455,7 +455,7 @@ describe('GroupNode', () => {
       });
 
       it('should be true during async validation', async () => {
-        const formWithAsync = createForm<SimpleForm>({
+        const formWithAsync = createLegacyForm<SimpleForm>({
           email: {
             value: '',
             component: null as ComponentInstance,
@@ -484,7 +484,7 @@ describe('GroupNode', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm(simpleSchema);
+      form = createLegacyForm(simpleSchema);
     });
 
     it('should markAsTouched() all fields recursively', () => {
@@ -532,7 +532,7 @@ describe('GroupNode', () => {
     });
 
     it('should cascade to nested groups', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
 
       nestedForm.markAsTouched();
 
@@ -550,7 +550,7 @@ describe('GroupNode', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm(simpleSchema);
+      form = createLegacyForm(simpleSchema);
     });
 
     it('should disable() all fields', () => {
@@ -579,7 +579,7 @@ describe('GroupNode', () => {
     });
 
     it('should cascade to nested groups', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
 
       nestedForm.disable();
 
@@ -595,7 +595,7 @@ describe('GroupNode', () => {
 
   describe('validate()', () => {
     it('should return true when all fields valid', async () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       const result = await form.validate();
 
@@ -604,7 +604,7 @@ describe('GroupNode', () => {
     });
 
     it('should return false when any field invalid', async () => {
-      const form = createForm<SimpleForm>({
+      const form = createLegacyForm<SimpleForm>({
         email: {
           value: '',
           component: null as ComponentInstance,
@@ -620,7 +620,7 @@ describe('GroupNode', () => {
     });
 
     it('should validate all fields', async () => {
-      const form = createForm<SimpleForm>({
+      const form = createLegacyForm<SimpleForm>({
         email: {
           value: '',
           component: null as ComponentInstance,
@@ -640,7 +640,7 @@ describe('GroupNode', () => {
     });
 
     it('should validate nested groups', async () => {
-      const nestedForm = createForm<NestedForm>({
+      const nestedForm = createLegacyForm<NestedForm>({
         name: {
           value: '',
           component: null as ComponentInstance,
@@ -670,7 +670,7 @@ describe('GroupNode', () => {
 
   describe('submit()', () => {
     it('should call onSubmit when form is valid', async () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       const onSubmit = vi.fn().mockResolvedValue('success');
 
       const result = await form.submit(onSubmit);
@@ -680,7 +680,7 @@ describe('GroupNode', () => {
     });
 
     it('should not call onSubmit when form is invalid', async () => {
-      const form = createForm<SimpleForm>({
+      const form = createLegacyForm<SimpleForm>({
         email: {
           value: '',
           component: null as ComponentInstance,
@@ -697,7 +697,7 @@ describe('GroupNode', () => {
     });
 
     it('should markAsTouched() before validation', async () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       const onSubmit = vi.fn().mockResolvedValue('success');
 
       await form.submit(onSubmit);
@@ -707,7 +707,7 @@ describe('GroupNode', () => {
     });
 
     it('should set submitting = true during execution', async () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       let submittingDuringCall = false;
 
       const onSubmit = vi.fn().mockImplementation(() => {
@@ -722,7 +722,7 @@ describe('GroupNode', () => {
     });
 
     it('should set submitting = false after error', async () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       const onSubmit = vi.fn().mockRejectedValue(new Error('Submit failed'));
 
       await expect(form.submit(onSubmit)).rejects.toThrow('Submit failed');
@@ -731,7 +731,7 @@ describe('GroupNode', () => {
     });
 
     it('should return result from onSubmit', async () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       const onSubmit = vi.fn().mockResolvedValue({ id: 123, status: 'created' });
 
       const result = await form.submit(onSubmit);
@@ -746,7 +746,7 @@ describe('GroupNode', () => {
 
   describe('linkFields', () => {
     it('should link two fields', () => {
-      const form = createForm<FormWithNumbers>({
+      const form = createLegacyForm<FormWithNumbers>({
         count: { value: 10, component: null as ComponentInstance },
         price: { value: 0, component: null as ComponentInstance },
       });
@@ -757,7 +757,7 @@ describe('GroupNode', () => {
     });
 
     it('should update target when source changes', () => {
-      const form = createForm<FormWithNumbers>({
+      const form = createLegacyForm<FormWithNumbers>({
         count: { value: 10, component: null as ComponentInstance },
         price: { value: 0, component: null as ComponentInstance },
       });
@@ -770,7 +770,7 @@ describe('GroupNode', () => {
     });
 
     it('should return unsubscribe function', () => {
-      const form = createForm<FormWithNumbers>({
+      const form = createLegacyForm<FormWithNumbers>({
         count: { value: 10, component: null as ComponentInstance },
         price: { value: 0, component: null as ComponentInstance },
       });
@@ -790,7 +790,7 @@ describe('GroupNode', () => {
 
   describe('watchField', () => {
     it('should call callback on field change', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       const callback = vi.fn();
 
       form.watchField('email', callback);
@@ -801,7 +801,7 @@ describe('GroupNode', () => {
     });
 
     it('should call callback immediately with current value', () => {
-      const form = createForm({
+      const form = createLegacyForm({
         email: { value: 'initial@mail.com', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
@@ -813,7 +813,7 @@ describe('GroupNode', () => {
     });
 
     it('should return unsubscribe function', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
       const callback = vi.fn();
 
       const unsubscribe = form.watchField('email', callback);
@@ -825,7 +825,7 @@ describe('GroupNode', () => {
     });
 
     it('should support nested paths', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
       const callback = vi.fn();
 
       nestedForm.watchFieldByPath('address.city', callback);
@@ -842,7 +842,7 @@ describe('GroupNode', () => {
 
   describe('getAllFields', () => {
     it('should return iterator of all fields', () => {
-      const form = createForm(simpleSchema);
+      const form = createLegacyForm(simpleSchema);
 
       const fields = Array.from(form.getAllFields());
 
@@ -850,7 +850,7 @@ describe('GroupNode', () => {
     });
 
     it('should include nested fields', () => {
-      const nestedForm = createForm(nestedSchema);
+      const nestedForm = createLegacyForm(nestedSchema);
 
       const fields = Array.from(nestedForm.getAllFields());
 
@@ -867,7 +867,7 @@ describe('GroupNode', () => {
     it('should handle empty schema', () => {
       type EmptyForm = Record<string, never>;
 
-      const emptyForm = createForm<EmptyForm>({});
+      const emptyForm = createLegacyForm<EmptyForm>({});
 
       expect(emptyForm.getValue()).toEqual({});
       expect(emptyForm.valid.value).toBe(true);
@@ -878,7 +878,7 @@ describe('GroupNode', () => {
         name: string;
       }
 
-      const singleForm = createForm<SingleForm>({
+      const singleForm = createLegacyForm<SingleForm>({
         name: { value: 'test', component: null as ComponentInstance },
       });
 
@@ -896,7 +896,7 @@ describe('GroupNode', () => {
         };
       }
 
-      const deepForm = createForm<DeepForm>({
+      const deepForm = createLegacyForm<DeepForm>({
         level1: {
           level2: {
             level3: {

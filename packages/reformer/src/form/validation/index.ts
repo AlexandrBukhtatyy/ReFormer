@@ -22,7 +22,7 @@
 export type { Rule, AsyncRule, ValidationSchema } from './types';
 
 // Операторы схемы (вызываются внутри defineValidationSchema).
-export { validate, validateAsync, validateWhen, cross, each, apply } from './operators';
+export { validate, validateAsync, validateWhen, cross, each, apply, applyEach } from './operators';
 
 // Определение схемы + внешний раннер.
 export { defineValidationSchema, validateModel } from './run';

@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type { FormProxy, ValidationError } from '../../../src/form/types/index';
-import { createForm } from '../../../src/form/create-form';
+import { createLegacyForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 interface TestForm {
@@ -17,7 +17,7 @@ interface TestForm {
 }
 
 const make = (): FormProxy<TestForm> =>
-  createForm<TestForm>({
+  createLegacyForm<TestForm>({
     email: { value: '', component: null as ComponentInstance },
     password: { value: '', component: null as ComponentInstance },
   });

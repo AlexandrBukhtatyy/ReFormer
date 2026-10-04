@@ -564,10 +564,10 @@ export class FieldNode<T> extends FormNode<T> {
    *
    * @example
    * Пример node-level: плоская схема с инлайн-значениями (back-compat путь до M1). В layout-схеме
-   * `createForm({ model, schema })` поля `validators` нет — правила живут в `defineValidationSchema`.
+   * `createFormFromModel({ model, schema })` поля `validators` нет — правила живут в `defineValidationSchema`.
    * ```typescript
    * // Сценарий 1: Instant feedback после submit
-   * const form = createForm({
+   * const form = createLegacyForm({
    *   email: {
    *     value: '',
    *     component: Input,

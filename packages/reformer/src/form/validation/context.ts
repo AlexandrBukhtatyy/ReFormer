@@ -17,8 +17,13 @@ import type { FormModel, PathAwareSignal, ValidationError } from '../../index';
 
 /** Сток одного прогона: модель scope, накопленные ошибки, незавершённые async-правила, гейты. */
 export interface VContext {
-  /** Модель текущего scope — источник снапшота для `cross` и модель для `apply`. */
+  /**
+   * Модель текущей области — источник снапшота для `cross` и модель для `apply`. В корне прогона
+   * это вся модель; внутри `apply(ручка, схема)` / `applyEach` — под-модель группы или строки.
+   */
   model: FormModel<unknown>;
+  /** Корень прогона — модель, с которой вызван раннер. Правило получает его третьим аргументом. */
+  root: FormModel<unknown>;
   /** Накопленные ошибки по сигналу (ключ — идентичность `PathAwareSignal`). */
   errors: Map<PathAwareSignal<unknown>, ValidationError[]>;
   /** Незавершённые async-правила (раннер их дожидается). */

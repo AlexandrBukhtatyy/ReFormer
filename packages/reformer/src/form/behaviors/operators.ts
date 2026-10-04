@@ -22,7 +22,8 @@ import {
   markDerived,
   unmarkDerived,
 } from '../../index';
-import { onDispose, getScope, effect, defer } from './context';
+import { getNodeForSignal } from '../signal-node-registry';
+import { onDispose, effect, defer } from './context';
 import {
   type GroupSignals,
   isLeafSignal,
@@ -40,12 +41,6 @@ interface NodeOps {
   enable(): void;
   disable(): void;
   reset(): void;
-}
-function nodeByPath(path: string | undefined): NodeOps | undefined {
-  if (!path) return undefined;
-  const { form } = getScope();
-  const node = (form as unknown as { getFieldByPath(p: string): unknown }).getFieldByPath(path);
-  return node as NodeOps | undefined;
 }
 
 /** Вычисляемое поле с auto-tracking: `target = read()` при изменении прочитанных сигналов. */
@@ -182,7 +177,9 @@ function enableGroup(
   condition: () => boolean,
   options?: { resetOnDisable?: boolean }
 ): void {
-  const node = nodeByPath(g.__path);
+  // Нода — по идентичности ручки, а не по пути: путь ручки абсолютный (`items.0.address`), а
+  // форма строки массива — отдельный корень. Поиск по пути в схеме строки ничего не находил.
+  const node = getNodeForSignal(g) as NodeOps | undefined;
   if (!node) return;
   effect(() => {
     const enabled = condition();

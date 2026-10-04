@@ -48,7 +48,7 @@ form.<field>.clearErrors();
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createForm, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -66,7 +66,7 @@ function RegistrationForm() {
   const { model, form } = useMemo(() => {
     const m = createModel<RegistrationFormData>({ username: '', email: '', password: '' });
     // schema здесь — layout-дерево нод (компоненты/раскладка), без валидаторов.
-    return { model: m, form: createForm({ model: m, schema: buildLayout(m) }) };
+    return { model: m, form: createFormFromModel({ model: m, schema: buildLayout(m) }) };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,7 +198,7 @@ const handleSubmit = async (e) => {
 
 ```typescript
 // ❌ Валидаторы в layout-дереве, отдаваемом в createForm — layout не несёт правил
-createForm({ model, schema: { username: { value: '', validators: [required()] } } });
+createFormFromModel({ model, schema: { username: { value: '', validators: [required()] } } });
 
 // ✅ Валидация — отдельная схема, прогоняется раннером
 const schema = defineValidationSchema<T>(({ model }) => {

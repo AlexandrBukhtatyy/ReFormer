@@ -30,7 +30,7 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 ### Initial values в модели
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Input, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
@@ -51,7 +51,7 @@ const schema = {
   },
   marketing: { value: model.$.marketing, component: CheckboxWithLabel, componentProps: { label: 'Рассылка' } },
 };
-const form = createForm({ model, schema });
+const form = createFormFromModel({ model, schema });
 // model.get() === { username: '', language: 'ru', marketing: true }
 // после правок: model.reset() возвращает к этим значениям
 ```
@@ -138,14 +138,14 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
 // ❌ model/form пересоздаются на каждый рендер → preload запускается каждый раз
 function MyForm() {
   const model = createModel<T>(initial);   // КАЖДЫЙ рендер!
-  const form = createForm({ model, schema });
+  const form = createFormFromModel({ model, schema });
 }
 
 // ✅ Стабильные ссылки через useMemo
 function MyForm() {
   const { model, form } = useMemo(() => {
     const m = createModel<T>(initial);
-    return { model: m, form: createForm({ model: m, schema: buildSchema(m) }) };
+    return { model: m, form: createFormFromModel({ model: m, schema: buildSchema(m) }) };
   }, []);
 }
 ```
