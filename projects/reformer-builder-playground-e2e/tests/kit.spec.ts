@@ -1,16 +1,12 @@
-import { existsSync } from 'fs';
-import path from 'path';
 import { test, expect } from './shared/fixtures';
-import { PLAYGROUND_DIR } from './shared/paths';
 
 /**
- * Кит из плагина проекта: `kit-hexa-ui` в `.ui_builder/plugins` playground.
+ * Кит из плагина проекта: пакет `kit-hexa-ui` в `.ui_builder/plugins` playground.
  *
- * Сборка плагина в git не едет (около 5 МБ), поэтому в обычную копию проекта она не попадает,
- * а эти тесты называют её явно — и пропускаются там, где она не собрана.
+ * Его сборка весит около 5 МБ, поэтому в обычную копию проекта каталог кита не входит —
+ * эти тесты просят его явно.
  */
-const KIT_PLUGIN = '.ui_builder/plugins/kit-hexa-ui';
-const kitBuilt = existsSync(path.join(PLAYGROUND_DIR, KIT_PLUGIN, 'main.js'));
+const KIT_PLUGIN = 'kit-hexa-ui';
 
 /**
  * Шум HexaUI в консоли: кит объявляет React до 18-го, а билдер работает на 19-м, и antd
@@ -24,15 +20,10 @@ const KNOWN_KIT_NOISE = [
 ];
 
 test.describe('Кит HexaUI — плагин проекта', () => {
-  test.skip(
-    !kitBuilt,
-    'плагин кита не собран: npm run plugins:hexa-ui -w reformer-builder-playground'
-  );
-
   test('кит появляется в сочетаниях и рисует форму', async ({ builder, page, pageErrors }) => {
     // Копия проекта тяжелее обычной на сборку плагина, и пространство имён кита грузится лениво.
     test.setTimeout(90_000);
-    await builder.openPlayground({ ignored: [KIT_PLUGIN] });
+    await builder.openPlayground({ plugins: [KIT_PLUGIN] });
 
     // Ячейка «движок · кит». Сочетания с китом плагина появляются, когда плагин его внёс, —
     // а плагины проекта поднимаются после открытия, поэтому список переоткрывается.

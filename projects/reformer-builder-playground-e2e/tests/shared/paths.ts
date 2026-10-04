@@ -1,7 +1,7 @@
 import path from 'path';
 
 /** Корень монорепозитория: `tests/shared` → пакет e2e → `projects` → корень. */
-const REPO_ROOT = path.resolve(__dirname, '../../../..');
+export const REPO_ROOT = path.resolve(__dirname, '../../../..');
 
 /** Пакет билдера — его dev-сервер или собранный `dist/` поднимает конфиг Playwright. */
 export const BUILDER_DIR = path.join(REPO_ROOT, 'projects', 'reformer-builder');

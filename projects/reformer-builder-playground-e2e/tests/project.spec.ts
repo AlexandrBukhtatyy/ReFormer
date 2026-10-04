@@ -7,7 +7,7 @@ test.describe('Открытие playground', () => {
   test('каталог открывается как проект: в дереве его файлы', async ({ builder }) => {
     await builder.openPlayground();
 
-    for (const name of ['.ui_builder', 'forms', 'scripts', 'package.json', 'README.md']) {
+    for (const name of ['.ui_builder', 'forms', 'package.json', 'README.md']) {
       await expect(builder.treeItem(name)).toBeVisible();
     }
   });
