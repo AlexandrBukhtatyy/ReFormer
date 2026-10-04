@@ -20,7 +20,7 @@
  */
 
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { PLAYGROUND_DIR } from './paths';
@@ -43,28 +43,23 @@ interface DiskFile {
 /** Каталог плагинов проекта — там их ищет билдер, там же лежат их пакеты. */
 const PLUGINS_DIR = '.ui_builder/plugins';
 
-/**
- * Плагины, которые лежат на «диске» всегда.
- *
- * Плагин проекта — пакет в `.ui_builder/plugins/<id>/`: исходники в `src/`, а в корне каталога —
- * сборка для билдера (`build:dev` пакета), её он и грузит. Сборку исключает `.gitignore` самого
- * плагина, поэтому в список файлов репозитория она не попадает и добавляется к копии отдельно.
- * Собирает её подготовка прогона (`global-setup.ts`).
- */
-const DEFAULT_PLUGINS = ['playground-hello'];
+/** Каталог исходников пакета плагина; его `manifest.json` и делает каталог пакетом плагина. */
+const PLUGIN_SOURCES = 'src';
 
 /**
- * Плагины, которые кладутся на «диск» только по просьбе теста.
+ * Плагины, которые кладутся на «диск» только по просьбе теста, — каталогами от каталога плагинов.
+ * Остальные плагины проекта лежат там всегда.
  *
- * Сборка кита HexaUI весит около 5 МБ: в каждой копии она стоила бы секунд каждому тесту.
- * Без теста, который её просит, каталога плагина в копии нет вовсе — включённый настройкой,
- * но отсутствующий плагин билдер пропускает молча.
+ * Сборка кита HexaUI весит около 5 МБ, сборка ассистента с корпусом знаний — около 8 МБ:
+ * в каждой копии они стоили бы секунд каждому тесту. Без теста, который такой плагин просит,
+ * его каталога в копии нет вовсе — включённый настройкой, но отсутствующий плагин билдер
+ * пропускает молча.
  */
-const OPTIONAL_PLUGINS = ['kit-hexa-ui'];
+const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai'];
 
 /** Что положить на «диск» сверх обычной копии. */
 export interface SeedOptions {
-  /** Плагины из числа необязательных — идентификаторами: `['kit-hexa-ui']`. */
+  /** Плагины из числа необязательных — каталогами: `['kit-hexa-ui']`. */
   readonly plugins?: readonly string[];
 }
 
@@ -91,15 +86,13 @@ const readFile = (root: string, filePath: string): DiskFile => ({
 });
 
 /**
- * Файлы проекта, как их видит git: отслеживаемые и новые, без игнорируемых.
+ * Файлы проекта, как их видит git: отслеживаемые и новые, без игнорируемых, — путями от корня.
  *
  * Одно правило вместо своего списка исключений: что `.gitignore` называет не-проектом
  * (`node_modules`, сборки, отчёты), то и в копию не едет. Заодно копия одинакова на любой
  * машине.
- *
- * @param skippedDirectories каталоги, которых в копии быть не должно, — пути от корня проекта.
  */
-function readRepositoryFiles(root: string, skippedDirectories: readonly string[]): DiskFile[] {
+function repositoryFiles(root: string): string[] {
   const listing = execFileSync(
     'git',
     ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
@@ -110,9 +103,30 @@ function readRepositoryFiles(root: string, skippedDirectories: readonly string[]
       .split('\0')
       // Удалённый из рабочего дерева файл в индексе ещё значится — на диске его нет.
       .filter((filePath) => filePath !== '' && existsSync(path.join(root, filePath)))
-      .filter((filePath) => !skippedDirectories.some((dir) => filePath.startsWith(`${dir}/`)))
       .sort()
-      .map((filePath) => readFile(root, filePath))
+  );
+}
+
+/**
+ * Пакеты плагинов проекта — каталогами от каталога плагинов: `playground-hello`, `rjsf/editor`.
+ *
+ * Правило то же, что у загрузчика билдера: пакет плагина лежит либо прямо в каталоге плагинов,
+ * либо уровнем ниже, в каталоге домена. Пакет узнаётся по манифесту исходников; ядро домена
+ * (`rjsf/core`) плагином не является и в копию не идёт.
+ */
+function pluginPackages(root: string): string[] {
+  const pluginsRoot = path.join(root, PLUGINS_DIR);
+  const directories = (dir: string): string[] =>
+    readdirSync(path.join(pluginsRoot, dir), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .filter((entry) => entry.name !== 'node_modules')
+      .map((entry) => (dir === '' ? entry.name : `${dir}/${entry.name}`))
+      .sort();
+  const isPackage = (dir: string): boolean =>
+    existsSync(path.join(pluginsRoot, dir, PLUGIN_SOURCES, 'manifest.json'));
+
+  return directories('').flatMap((dir) =>
+    isPackage(dir) ? [dir] : directories(dir).filter(isPackage)
   );
 }
 
@@ -195,14 +209,22 @@ export class PlaygroundDisk {
    * Требует уже открытой страницы билдера: OPFS принадлежит origin, и до навигации его нет.
    */
   async seed(options: SeedOptions = {}): Promise<void> {
-    const plugins = [...DEFAULT_PLUGINS, ...(options.plugins ?? [])];
-    const skipped = OPTIONAL_PLUGINS.filter((id) => !plugins.includes(id));
+    const requested = options.plugins ?? [];
+    const plugins = pluginPackages(PLAYGROUND_DIR)
+      .filter((dir) => !OPTIONAL_PLUGINS.includes(dir) || requested.includes(dir))
+      .map((dir) => `${PLUGINS_DIR}/${dir}`);
+    // Из каталога плагинов в копию идут только пакеты плагинов, и те без исходников: билдер
+    // грузит сборку, а сотни файлов `src/` стоили бы времени каждому тесту. Остальное там —
+    // ядра доменов и общие тестовые помощники — проекту, открытому билдером, не нужно.
+    const inPlugin = (filePath: string): boolean =>
+      plugins.some(
+        (dir) => filePath.startsWith(`${dir}/`) && !filePath.startsWith(`${dir}/${PLUGIN_SOURCES}/`)
+      );
     const files = [
-      ...readRepositoryFiles(
-        PLAYGROUND_DIR,
-        skipped.map((id) => `${PLUGINS_DIR}/${id}`)
-      ),
-      ...plugins.flatMap((id) => readPluginBuild(PLAYGROUND_DIR, `${PLUGINS_DIR}/${id}`)),
+      ...repositoryFiles(PLAYGROUND_DIR)
+        .filter((filePath) => !filePath.startsWith(`${PLUGINS_DIR}/`) || inPlugin(filePath))
+        .map((filePath) => readFile(PLAYGROUND_DIR, filePath)),
+      ...plugins.flatMap((dir) => readPluginBuild(PLAYGROUND_DIR, dir)),
     ];
     await this.page.evaluate(
       async ({ mount, name, files }) => {

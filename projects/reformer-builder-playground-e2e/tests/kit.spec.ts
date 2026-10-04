@@ -25,12 +25,12 @@ test.describe('Кит HexaUI — плагин проекта', () => {
     test.setTimeout(90_000);
     await builder.openPlayground({ plugins: [KIT_PLUGIN] });
 
-    // Ячейка «движок · кит». Сочетания с китом плагина появляются, когда плагин его внёс, —
+    // Ячейка «профиль · кит». Сочетания с китом плагина появляются, когда плагин его внёс, —
     // а плагины проекта поднимаются после открытия, поэтому список переоткрывается.
     const cell = builder.statusBar.getByRole('button', {
-      name: 'ReFormer + RJSF · ReFormer UI Kit',
+      name: 'Конструктор · ReFormer UI Kit',
     });
-    const hexa = page.getByRole('menuitemradio', { name: 'ReFormer + RJSF · Kaspersky HexaUI' });
+    const hexa = page.getByRole('menuitemradio', { name: 'Конструктор · Kaspersky HexaUI' });
     await expect(async () => {
       await cell.click();
       try {
@@ -44,7 +44,7 @@ test.describe('Кит HexaUI — плагин проекта', () => {
     // Кит меняется на лету, без перезагрузки.
     await hexa.click();
     await expect(
-      builder.statusBar.getByRole('button', { name: 'ReFormer + RJSF · Kaspersky HexaUI' })
+      builder.statusBar.getByRole('button', { name: 'Конструктор · Kaspersky HexaUI' })
     ).toBeVisible();
 
     await builder.openFile('forms/contact/form.schema.json');

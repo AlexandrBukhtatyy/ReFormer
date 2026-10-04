@@ -50,7 +50,7 @@ test.describe('Конфиг: один файл на запуск и проект
     // Проект просит другой состав. Применить его нечем — приложение уже собрано, — и это
     // говорится словами. Остальные поля уровня запуска совпали и в сообщение не попадают.
     const config = JSON.parse(await disk.readText(CONFIG));
-    config.preset = 'rjsf.builder';
+    config.preset = 'plain.builder';
     await disk.writeText(CONFIG, JSON.stringify(config, null, 2));
 
     await builder.openFolder();
