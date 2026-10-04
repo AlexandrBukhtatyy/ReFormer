@@ -26,3 +26,8 @@ packages/reformer-mcp/src/prompts/templates/
 
 # beads issue tracker — файлы ведёт bd (jsonl/yaml/backup), не prettier
 .beads/
+
+# Настройки проекта-образца пишет сам билдер (JSON.stringify с отступом 2) — при каждом открытии
+# проекта. prettier сворачивает короткий массив в одну строку, и тогда билдер переписывал бы файл
+# обратно: открытие каталога давало бы diff, а e2e «открытие проекта не меняет его файлы» падал бы
+projects/reformer-builder-playground/.ui_builder/settings.json

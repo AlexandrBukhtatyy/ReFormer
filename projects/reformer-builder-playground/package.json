@@ -1,0 +1,19 @@
+{
+  "name": "reformer-builder-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Проект-образец для @reformer/builder: его открывают e2e-тесты билдера, и на нём же пробуют плагины",
+  "scripts": {
+    "builder": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/builder.launch.json npm --prefix ../reformer-builder run dev -- --port 5184",
+    "builder:dist": "node ../reformer-builder/bin/reformer-builder.mjs --config builder.launch.json --host localhost --port 5184 --no-open",
+    "plugins:validate": "reformer-plugin validate .ui_builder/plugins/playground-hello",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-plugin-cli": "*",
+    "cross-env": "^7.0.3",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "workspace.plugins.enabled": [
+    "playground-hello"
+  ]
+}
