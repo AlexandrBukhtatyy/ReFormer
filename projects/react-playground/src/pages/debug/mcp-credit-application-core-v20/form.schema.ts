@@ -1,6 +1,6 @@
 // form.schema.ts — FieldConfig tree binding model signals → component/componentProps/testId.
 // Schema-driven UI: component + все props объявлены здесь; JSX рендерит <FormField control={...}/>.
-// Валидаторы живут в validation.ts (model-схема, исполняется validateFormModel).
+// Правила валидации живут в validation.ts и уходят в сборку полем `validation`.
 import { type FormModel } from '@reformer/core';
 import {
   CheckboxWithLabel,
@@ -42,7 +42,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
   // --- array item builders --------------------------------------------------
   const propertyItem = (item: FormModel<Property>) => ({
     type: {
-      value: item.$.type,
+      model: item.$.type,
       component: SelectAsync,
       componentProps: cp({
         label: 'Тип имущества',
@@ -51,7 +51,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     description: {
-      value: item.$.description,
+      model: item.$.description,
       component: Textarea,
       componentProps: cp({
         label: 'Описание',
@@ -60,7 +60,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     estimatedValue: {
-      value: item.$.estimatedValue,
+      model: item.$.estimatedValue,
       component: InputNumber,
       componentProps: cp({
         label: 'Оценочная стоимость (₽)',
@@ -68,7 +68,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     hasEncumbrance: {
-      value: item.$.hasEncumbrance,
+      model: item.$.hasEncumbrance,
       component: CheckboxWithLabel,
       componentProps: cp({ label: 'Имеется обременение (залог)', testId: 'hasEncumbrance' }),
     },
@@ -76,22 +76,22 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
 
   const existingLoanItem = (item: FormModel<ExistingLoan>) => ({
     bank: {
-      value: item.$.bank,
+      model: item.$.bank,
       component: Input,
       componentProps: cp({ label: 'Банк', testId: 'bank', placeholder: 'Название банка' }),
     },
     type: {
-      value: item.$.type,
+      model: item.$.type,
       component: Input,
       componentProps: cp({ label: 'Тип кредита', testId: 'type', placeholder: 'Тип кредита' }),
     },
     amount: {
-      value: item.$.amount,
+      model: item.$.amount,
       component: InputNumber,
       componentProps: cp({ label: 'Сумма кредита (₽)', testId: 'amount' }),
     },
     remainingAmount: {
-      value: item.$.remainingAmount,
+      model: item.$.remainingAmount,
       component: InputNumber,
       componentProps: cp({
         label: 'Остаток задолженности (₽)',
@@ -99,7 +99,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     monthlyPayment: {
-      value: item.$.monthlyPayment,
+      model: item.$.monthlyPayment,
       component: InputNumber,
       componentProps: cp({
         label: 'Ежемесячный платёж (₽)',
@@ -107,7 +107,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     maturityDate: {
-      value: item.$.maturityDate,
+      model: item.$.maturityDate,
       component: Input,
       componentProps: cp({ label: 'Дата погашения', testId: 'maturityDate', type: 'date' }),
     },
@@ -116,22 +116,22 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
   const coBorrowerItem = (item: FormModel<CoBorrower>) => ({
     personalData: {
       lastName: {
-        value: item.$.personalData.lastName,
+        model: item.$.personalData.lastName,
         component: Input,
         componentProps: cp({ label: 'Фамилия', testId: 'personalData-lastName' }),
       },
       firstName: {
-        value: item.$.personalData.firstName,
+        model: item.$.personalData.firstName,
         component: Input,
         componentProps: cp({ label: 'Имя', testId: 'personalData-firstName' }),
       },
       middleName: {
-        value: item.$.personalData.middleName,
+        model: item.$.personalData.middleName,
         component: Input,
         componentProps: cp({ label: 'Отчество', testId: 'personalData-middleName' }),
       },
       birthDate: {
-        value: item.$.personalData.birthDate,
+        model: item.$.personalData.birthDate,
         component: Input,
         componentProps: cp({
           label: 'Дата рождения',
@@ -140,7 +140,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       gender: {
-        value: item.$.personalData.gender,
+        model: item.$.personalData.gender,
         component: RadioGroupOptions,
         componentProps: cp({
           label: 'Пол',
@@ -149,23 +149,23 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       birthPlace: {
-        value: item.$.personalData.birthPlace,
+        model: item.$.personalData.birthPlace,
         component: Input,
         componentProps: cp({ label: 'Место рождения', testId: 'personalData-birthPlace' }),
       },
     },
     phone: {
-      value: item.$.phone,
+      model: item.$.phone,
       component: InputMask,
       componentProps: cp({ label: 'Телефон', testId: 'phone', mask: '+7 (999) 999-99-99' }),
     },
     email: {
-      value: item.$.email,
+      model: item.$.email,
       component: Input,
       componentProps: cp({ label: 'Email', testId: 'email', type: 'email' }),
     },
     relationship: {
-      value: item.$.relationship,
+      model: item.$.relationship,
       component: Input,
       componentProps: cp({
         label: 'Родство',
@@ -174,7 +174,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     monthlyIncome: {
-      value: item.$.monthlyIncome,
+      model: item.$.monthlyIncome,
       component: InputNumber,
       componentProps: cp({
         label: 'Ежемесячный доход (₽)',
@@ -186,12 +186,12 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
   return {
     // ===== Step 1 — loan =====
     loanType: {
-      value: model.$.loanType,
+      model: model.$.loanType,
       component: SelectAsync,
       componentProps: cp({ label: 'Тип кредита', testId: 'loanType', options: LOAN_TYPE_OPTIONS }),
     },
     loanAmount: {
-      value: model.$.loanAmount,
+      model: model.$.loanAmount,
       component: InputNumber,
       componentProps: cp({
         label: 'Сумма кредита (₽)',
@@ -201,17 +201,17 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     loanTerm: {
-      value: model.$.loanTerm,
+      model: model.$.loanTerm,
       component: InputNumber,
       componentProps: cp({ label: 'Срок кредита (месяцев)', testId: 'loanTerm' }),
     },
     loanPurpose: {
-      value: model.$.loanPurpose,
+      model: model.$.loanPurpose,
       component: Textarea,
       componentProps: cp({ label: 'Цель кредита', testId: 'loanPurpose', maxLength: 500 }),
     },
     propertyValue: {
-      value: model.$.propertyValue,
+      model: model.$.propertyValue,
       component: InputNumber,
       componentProps: cp({
         label: 'Стоимость недвижимости (₽)',
@@ -219,7 +219,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     initialPayment: {
-      value: model.$.initialPayment,
+      model: model.$.initialPayment,
       component: InputNumber,
       componentProps: roProps({
         label: 'Первоначальный взнос (₽)',
@@ -227,7 +227,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     carBrand: {
-      value: model.$.carBrand,
+      model: model.$.carBrand,
       component: Input,
       componentProps: cp({
         label: 'Марка автомобиля',
@@ -236,17 +236,17 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     carModel: {
-      value: model.$.carModel,
+      model: model.$.carModel,
       component: SelectAsync,
       componentProps: cp({ label: 'Модель автомобиля', testId: 'carModel', options: [] }),
     },
     carYear: {
-      value: model.$.carYear,
+      model: model.$.carYear,
       component: InputNumber,
       componentProps: cp({ label: 'Год выпуска', testId: 'carYear' }),
     },
     carPrice: {
-      value: model.$.carPrice,
+      model: model.$.carPrice,
       component: InputNumber,
       componentProps: cp({ label: 'Стоимость автомобиля (₽)', testId: 'carPrice' }),
     },
@@ -254,22 +254,22 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
     // ===== Step 2 — personal =====
     personalData: {
       lastName: {
-        value: model.$.personalData.lastName,
+        model: model.$.personalData.lastName,
         component: Input,
         componentProps: cp({ label: 'Фамилия', testId: 'personalData-lastName' }),
       },
       firstName: {
-        value: model.$.personalData.firstName,
+        model: model.$.personalData.firstName,
         component: Input,
         componentProps: cp({ label: 'Имя', testId: 'personalData-firstName' }),
       },
       middleName: {
-        value: model.$.personalData.middleName,
+        model: model.$.personalData.middleName,
         component: Input,
         componentProps: cp({ label: 'Отчество', testId: 'personalData-middleName' }),
       },
       birthDate: {
-        value: model.$.personalData.birthDate,
+        model: model.$.personalData.birthDate,
         component: Input,
         componentProps: cp({
           label: 'Дата рождения',
@@ -278,7 +278,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       gender: {
-        value: model.$.personalData.gender,
+        model: model.$.personalData.gender,
         component: RadioGroupOptions,
         componentProps: cp({
           label: 'Пол',
@@ -287,14 +287,14 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       birthPlace: {
-        value: model.$.personalData.birthPlace,
+        model: model.$.personalData.birthPlace,
         component: Input,
         componentProps: cp({ label: 'Место рождения', testId: 'personalData-birthPlace' }),
       },
     },
     passportData: {
       series: {
-        value: model.$.passportData.series,
+        model: model.$.passportData.series,
         component: InputMask,
         componentProps: cp({
           label: 'Серия паспорта',
@@ -303,7 +303,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       number: {
-        value: model.$.passportData.number,
+        model: model.$.passportData.number,
         component: InputMask,
         componentProps: cp({
           label: 'Номер паспорта',
@@ -312,7 +312,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       issueDate: {
-        value: model.$.passportData.issueDate,
+        model: model.$.passportData.issueDate,
         component: Input,
         componentProps: cp({
           label: 'Дата выдачи',
@@ -321,12 +321,12 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       issuedBy: {
-        value: model.$.passportData.issuedBy,
+        model: model.$.passportData.issuedBy,
         component: Input,
         componentProps: cp({ label: 'Кем выдан', testId: 'passportData-issuedBy' }),
       },
       departmentCode: {
-        value: model.$.passportData.departmentCode,
+        model: model.$.passportData.departmentCode,
         component: InputMask,
         componentProps: cp({
           label: 'Код подразделения',
@@ -336,19 +336,19 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       },
     },
     inn: {
-      value: model.$.inn,
+      model: model.$.inn,
       component: InputMask,
       componentProps: cp({ label: 'ИНН', testId: 'inn', mask: '999999999999' }),
     },
     snils: {
-      value: model.$.snils,
+      model: model.$.snils,
       component: InputMask,
       componentProps: cp({ label: 'СНИЛС', testId: 'snils', mask: '999-999-999 99' }),
     },
 
     // ===== Step 3 — contacts =====
     phoneMain: {
-      value: model.$.phoneMain,
+      model: model.$.phoneMain,
       component: InputMask,
       componentProps: cp({
         label: 'Основной телефон',
@@ -357,7 +357,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     phoneAdditional: {
-      value: model.$.phoneAdditional,
+      model: model.$.phoneAdditional,
       component: InputMask,
       componentProps: cp({
         label: 'Дополнительный телефон',
@@ -366,12 +366,12 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     email: {
-      value: model.$.email,
+      model: model.$.email,
       component: Input,
       componentProps: cp({ label: 'Email', testId: 'email', type: 'email' }),
     },
     emailAdditional: {
-      value: model.$.emailAdditional,
+      model: model.$.emailAdditional,
       component: Input,
       componentProps: cp({
         label: 'Дополнительный email',
@@ -380,7 +380,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     sameEmail: {
-      value: model.$.sameEmail,
+      model: model.$.sameEmail,
       component: CheckboxWithLabel,
       componentProps: cp({
         label: 'Дополнительный email совпадает с основным',
@@ -389,7 +389,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
     },
     registrationAddress: {
       region: {
-        value: model.$.registrationAddress.region,
+        model: model.$.registrationAddress.region,
         component: SelectAsync,
         componentProps: cp({
           label: 'Регион',
@@ -398,27 +398,27 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       city: {
-        value: model.$.registrationAddress.city,
+        model: model.$.registrationAddress.city,
         component: SelectAsync,
         componentProps: cp({ label: 'Город', testId: 'registrationAddress-city', options: [] }),
       },
       street: {
-        value: model.$.registrationAddress.street,
+        model: model.$.registrationAddress.street,
         component: Input,
         componentProps: cp({ label: 'Улица', testId: 'registrationAddress-street' }),
       },
       house: {
-        value: model.$.registrationAddress.house,
+        model: model.$.registrationAddress.house,
         component: Input,
         componentProps: cp({ label: 'Дом', testId: 'registrationAddress-house' }),
       },
       apartment: {
-        value: model.$.registrationAddress.apartment,
+        model: model.$.registrationAddress.apartment,
         component: Input,
         componentProps: cp({ label: 'Квартира', testId: 'registrationAddress-apartment' }),
       },
       postalCode: {
-        value: model.$.registrationAddress.postalCode,
+        model: model.$.registrationAddress.postalCode,
         component: InputMask,
         componentProps: cp({
           label: 'Индекс',
@@ -428,7 +428,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       },
     },
     sameAsRegistration: {
-      value: model.$.sameAsRegistration,
+      model: model.$.sameAsRegistration,
       component: CheckboxWithLabel,
       componentProps: cp({
         label: 'Адрес проживания совпадает с адресом регистрации',
@@ -437,7 +437,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
     },
     residenceAddress: {
       region: {
-        value: model.$.residenceAddress.region,
+        model: model.$.residenceAddress.region,
         component: SelectAsync,
         componentProps: cp({
           label: 'Регион',
@@ -446,27 +446,27 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         }),
       },
       city: {
-        value: model.$.residenceAddress.city,
+        model: model.$.residenceAddress.city,
         component: SelectAsync,
         componentProps: cp({ label: 'Город', testId: 'residenceAddress-city', options: [] }),
       },
       street: {
-        value: model.$.residenceAddress.street,
+        model: model.$.residenceAddress.street,
         component: Input,
         componentProps: cp({ label: 'Улица', testId: 'residenceAddress-street' }),
       },
       house: {
-        value: model.$.residenceAddress.house,
+        model: model.$.residenceAddress.house,
         component: Input,
         componentProps: cp({ label: 'Дом', testId: 'residenceAddress-house' }),
       },
       apartment: {
-        value: model.$.residenceAddress.apartment,
+        model: model.$.residenceAddress.apartment,
         component: Input,
         componentProps: cp({ label: 'Квартира', testId: 'residenceAddress-apartment' }),
       },
       postalCode: {
-        value: model.$.residenceAddress.postalCode,
+        model: model.$.residenceAddress.postalCode,
         component: InputMask,
         componentProps: cp({
           label: 'Индекс',
@@ -478,7 +478,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
 
     // ===== Step 4 — employment =====
     employmentStatus: {
-      value: model.$.employmentStatus,
+      model: model.$.employmentStatus,
       component: RadioGroupOptions,
       componentProps: cp({
         label: 'Статус занятости',
@@ -487,17 +487,17 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     companyName: {
-      value: model.$.companyName,
+      model: model.$.companyName,
       component: Input,
       componentProps: cp({ label: 'Название компании', testId: 'companyName' }),
     },
     companyInn: {
-      value: model.$.companyInn,
+      model: model.$.companyInn,
       component: InputMask,
       componentProps: cp({ label: 'ИНН компании', testId: 'companyInn', mask: '9999999999' }),
     },
     companyPhone: {
-      value: model.$.companyPhone,
+      model: model.$.companyPhone,
       component: InputMask,
       componentProps: cp({
         label: 'Телефон компании',
@@ -506,17 +506,17 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     companyAddress: {
-      value: model.$.companyAddress,
+      model: model.$.companyAddress,
       component: Input,
       componentProps: cp({ label: 'Адрес компании', testId: 'companyAddress' }),
     },
     position: {
-      value: model.$.position,
+      model: model.$.position,
       component: Input,
       componentProps: cp({ label: 'Должность', testId: 'position' }),
     },
     workExperienceTotal: {
-      value: model.$.workExperienceTotal,
+      model: model.$.workExperienceTotal,
       component: InputNumber,
       componentProps: cp({
         label: 'Общий стаж (месяцев)',
@@ -524,7 +524,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     workExperienceCurrent: {
-      value: model.$.workExperienceCurrent,
+      model: model.$.workExperienceCurrent,
       component: InputNumber,
       componentProps: cp({
         label: 'Стаж на текущем месте (месяцев)',
@@ -532,7 +532,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     monthlyIncome: {
-      value: model.$.monthlyIncome,
+      model: model.$.monthlyIncome,
       component: InputNumber,
       componentProps: cp({
         label: 'Ежемесячный доход (₽)',
@@ -540,7 +540,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     additionalIncome: {
-      value: model.$.additionalIncome,
+      model: model.$.additionalIncome,
       component: InputNumber,
       componentProps: cp({
         label: 'Дополнительный доход (₽)',
@@ -548,7 +548,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     additionalIncomeSource: {
-      value: model.$.additionalIncomeSource,
+      model: model.$.additionalIncomeSource,
       component: Input,
       componentProps: cp({
         label: 'Источник дополнительного дохода',
@@ -556,7 +556,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     businessType: {
-      value: model.$.businessType,
+      model: model.$.businessType,
       component: Input,
       componentProps: cp({
         label: 'Тип бизнеса',
@@ -565,19 +565,19 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     businessInn: {
-      value: model.$.businessInn,
+      model: model.$.businessInn,
       component: InputMask,
       componentProps: cp({ label: 'ИНН ИП', testId: 'businessInn', mask: '999999999999' }),
     },
     businessActivity: {
-      value: model.$.businessActivity,
+      model: model.$.businessActivity,
       component: Textarea,
       componentProps: cp({ label: 'Вид деятельности', testId: 'businessActivity' }),
     },
 
     // ===== Step 5 — additional =====
     maritalStatus: {
-      value: model.$.maritalStatus,
+      model: model.$.maritalStatus,
       component: RadioGroupOptions,
       componentProps: cp({
         label: 'Семейное положение',
@@ -586,37 +586,37 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     dependents: {
-      value: model.$.dependents,
+      model: model.$.dependents,
       component: InputNumber,
       componentProps: cp({ label: 'Количество иждивенцев', testId: 'dependents' }),
     },
     education: {
-      value: model.$.education,
+      model: model.$.education,
       component: SelectAsync,
       componentProps: cp({ label: 'Образование', testId: 'education', options: EDUCATION_OPTIONS }),
     },
     hasProperty: {
-      value: model.$.hasProperty,
+      model: model.$.hasProperty,
       component: CheckboxWithLabel,
       componentProps: cp({ label: 'У меня есть имущество', testId: 'hasProperty' }),
     },
-    properties: { array: model.properties, item: propertyItem },
+    properties: { model: model.$.properties, item: propertyItem },
     hasExistingLoans: {
-      value: model.$.hasExistingLoans,
+      model: model.$.hasExistingLoans,
       component: CheckboxWithLabel,
       componentProps: cp({ label: 'У меня есть другие кредиты', testId: 'hasExistingLoans' }),
     },
-    existingLoans: { array: model.existingLoans, item: existingLoanItem },
+    existingLoans: { model: model.$.existingLoans, item: existingLoanItem },
     hasCoBorrower: {
-      value: model.$.hasCoBorrower,
+      model: model.$.hasCoBorrower,
       component: CheckboxWithLabel,
       componentProps: cp({ label: 'Добавить созаёмщика', testId: 'hasCoBorrower' }),
     },
-    coBorrowers: { array: model.coBorrowers, item: coBorrowerItem },
+    coBorrowers: { model: model.$.coBorrowers, item: coBorrowerItem },
 
     // ===== Step 6 — confirmation =====
     agreePersonalData: {
-      value: model.$.agreePersonalData,
+      model: model.$.agreePersonalData,
       component: CheckboxWithLabel,
       componentProps: cp({
         label: 'Согласие на обработку персональных данных',
@@ -624,7 +624,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     agreeCreditHistory: {
-      value: model.$.agreeCreditHistory,
+      model: model.$.agreeCreditHistory,
       component: CheckboxWithLabel,
       componentProps: cp({
         label: 'Согласие на проверку кредитной истории',
@@ -632,7 +632,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     agreeMarketing: {
-      value: model.$.agreeMarketing,
+      model: model.$.agreeMarketing,
       component: CheckboxWithLabel,
       componentProps: cp({
         label: 'Согласие на получение маркетинговых материалов',
@@ -640,12 +640,12 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     agreeTerms: {
-      value: model.$.agreeTerms,
+      model: model.$.agreeTerms,
       component: CheckboxWithLabel,
       componentProps: cp({ label: 'Согласие с условиями кредитования', testId: 'agreeTerms' }),
     },
     confirmAccuracy: {
-      value: model.$.confirmAccuracy,
+      model: model.$.confirmAccuracy,
       component: CheckboxWithLabel,
       componentProps: cp({
         label: 'Подтверждаю точность введённых данных',
@@ -653,7 +653,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     electronicSignature: {
-      value: model.$.electronicSignature,
+      model: model.$.electronicSignature,
       component: InputMask,
       componentProps: cp({
         label: 'Код подтверждения из СМС',
@@ -664,7 +664,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
 
     // ===== Computed (readonly) =====
     interestRate: {
-      value: model.$.interestRate,
+      model: model.$.interestRate,
       component: InputNumber,
       componentProps: roProps({
         label: 'Процентная ставка (%)',
@@ -672,7 +672,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     monthlyPayment: {
-      value: model.$.monthlyPayment,
+      model: model.$.monthlyPayment,
       component: InputNumber,
       componentProps: roProps({
         label: 'Ежемесячный платёж (₽)',
@@ -680,22 +680,22 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     fullName: {
-      value: model.$.fullName,
+      model: model.$.fullName,
       component: Input,
       componentProps: roProps({ label: 'Полное имя', testId: 'fullName' }),
     },
     age: {
-      value: model.$.age,
+      model: model.$.age,
       component: InputNumber,
       componentProps: roProps({ label: 'Возраст (лет)', testId: 'age' }),
     },
     totalIncome: {
-      value: model.$.totalIncome,
+      model: model.$.totalIncome,
       component: InputNumber,
       componentProps: roProps({ label: 'Общий доход (₽)', testId: 'totalIncome' }),
     },
     paymentToIncomeRatio: {
-      value: model.$.paymentToIncomeRatio,
+      model: model.$.paymentToIncomeRatio,
       component: InputNumber,
       componentProps: roProps({
         label: 'Платёж от дохода (%)',
@@ -703,7 +703,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
       }),
     },
     coBorrowersIncome: {
-      value: model.$.coBorrowersIncome,
+      model: model.$.coBorrowersIncome,
       component: InputNumber,
       componentProps: roProps({
         label: 'Доход созаёмщиков (₽)',

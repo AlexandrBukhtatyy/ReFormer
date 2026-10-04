@@ -1,19 +1,24 @@
 /**
  * Валидация значений — отдельная TS-схема НАД МОДЕЛЬЮ.
  *
- * JSON-DSL несёт только layout: у field-ноды нет `validators`, оператора
- * `$validator(...)` не существует. Правила исполняет раннер `validateModel`,
- * а `createJsonForm({ validation: { steps, extras } })` собирает из них
- * `validateStep`/`validateAll` с адресацией по `selector` шага.
+ * Документ схемы несёт только разметку: у узла поля нет `validators`, оператора
+ * `$validator(...)` не существует. Правила уходят в сборку ДАННЫМИ —
+ * `createForm({ validation: { steps, extras } })`: сборка строит из них
+ * `validateStep`/`validateAll`, а визард берёт их сам. Ключ шага — `selector`
+ * узла шага в документе.
+ *
+ * Строки массивов — такие же схемы над элементом, подключённые через
+ * `applyEach(model.$.<массив>, правила)`: у строки своя область, `cross` внутри
+ * неё получает снапшот самой строки.
  *
  * Все схемы — module-level `const`: отмена устаревшего прогона ключуется по
  * паре `(model, schema)`, инлайн-стрелка ломает дедупликацию.
  */
-import type { ValidationError } from '@reformer/core';
+import type { FormValidation, ValidationError } from '@reformer/core';
 import {
+  applyEach,
   cross,
   defineValidationSchema,
-  each,
   validate,
   validateWhen,
   type ValidationSchema,
@@ -28,7 +33,13 @@ import {
 } from '@reformer/core/validators';
 
 import { CURRENT_YEAR_PLUS_ONE, maxLoanByIncome, maxTermByAge } from './data-sources';
-import type { CreditApplicationForm, StepSelector } from './types';
+import type {
+  CoBorrowerItem,
+  CreditApplicationForm,
+  ExistingLoanItem,
+  PropertyItem,
+  StepSelector,
+} from './types';
 
 type Form = CreditApplicationForm;
 
@@ -257,6 +268,45 @@ const employmentStep = defineValidationSchema<Form>(({ model }) => {
 /* Шаг 5 — дополнительная информация                                  */
 /* ------------------------------------------------------------------ */
 
+/** Правила строки массива `properties`. */
+const propertyItemRules = defineValidationSchema<PropertyItem>(({ model: item }) => {
+  validate(item.$.type, [required({ message: 'Выберите тип имущества' })]);
+  validate(item.$.description, [required({ message: 'Опишите имущество' })]);
+  validate(item.$.estimatedValue, [
+    required({ message: 'Укажите стоимость' }),
+    min(0, { message: 'Не может быть отрицательной' }),
+  ]);
+});
+
+/** Правила строки массива `existingLoans`. */
+const existingLoanItemRules = defineValidationSchema<ExistingLoanItem>(({ model: item }) => {
+  validate(item.$.bank, [required({ message: 'Укажите банк' })]);
+  validate(item.$.type, [required({ message: 'Укажите тип кредита' })]);
+  validate(item.$.amount, [required({ message: 'Укажите сумму' }), min(0)]);
+  validate(item.$.remainingAmount, [required({ message: 'Укажите остаток' }), min(0)]);
+  validate(item.$.monthlyPayment, [required({ message: 'Укажите платёж' }), min(0)]);
+  validate(item.$.maturityDate, [required({ message: 'Укажите дату погашения' })]);
+  // Остаток не больше суммы кредита: `cross` получает снапшот самой строки.
+  cross(item.$.remainingAmount, (loan: ExistingLoanItem) =>
+    (loan.remainingAmount ?? 0) > (loan.amount ?? 0)
+      ? { code: 'remaining-too-big', message: 'Остаток не может превышать сумму кредита' }
+      : null
+  );
+});
+
+/** Правила строки массива `coBorrowers`. */
+const coBorrowerItemRules = defineValidationSchema<CoBorrowerItem>(({ model: item }) => {
+  validate(item.$.personalData.lastName, [required({ message: 'Введите фамилию' })]);
+  validate(item.$.personalData.firstName, [required({ message: 'Введите имя' })]);
+  validate(item.$.personalData.middleName, [required({ message: 'Введите отчество' })]);
+  validate(item.$.personalData.birthDate, [required({ message: 'Укажите дату рождения' })]);
+  validate(item.$.personalData.birthPlace, [required({ message: 'Введите место рождения' })]);
+  validate(item.$.phone, [required({ message: 'Введите телефон' })]);
+  validate(item.$.email, [required({ message: 'Введите email' }), emailRule()]);
+  validate(item.$.relationship, [required({ message: 'Укажите родство' })]);
+  validate(item.$.monthlyIncome, [required({ message: 'Укажите доход' }), min(0)]);
+});
+
 const additionalStep = defineValidationSchema<Form>(({ model }) => {
   validate(model.$.maritalStatus, [required({ message: 'Укажите семейное положение' })]);
   validate(model.$.dependents, [
@@ -266,43 +316,9 @@ const additionalStep = defineValidationSchema<Form>(({ model }) => {
   ]);
   validate(model.$.education, [required({ message: 'Выберите уровень образования' })]);
 
-  each(model.properties, (item) => {
-    validate(item.$.type, [required({ message: 'Выберите тип имущества' })]);
-    validate(item.$.description, [required({ message: 'Опишите имущество' })]);
-    validate(item.$.estimatedValue, [
-      required({ message: 'Укажите стоимость' }),
-      min(0, { message: 'Не может быть отрицательной' }),
-    ]);
-  });
-
-  each(model.existingLoans, (item) => {
-    validate(item.$.bank, [required({ message: 'Укажите банк' })]);
-    validate(item.$.type, [required({ message: 'Укажите тип кредита' })]);
-    validate(item.$.amount, [required({ message: 'Укажите сумму' }), min(0)]);
-    validate(item.$.remainingAmount, [required({ message: 'Укажите остаток' }), min(0)]);
-    validate(item.$.monthlyPayment, [required({ message: 'Укажите платёж' }), min(0)]);
-    validate(item.$.maturityDate, [required({ message: 'Укажите дату погашения' })]);
-    // Остаток не больше суммы кредита. Снимок элемента берём в замыкание:
-    // cross всегда получает модель корневого scope.
-    const snapshot = item.get();
-    cross(item.$.remainingAmount, () =>
-      (snapshot.remainingAmount ?? 0) > (snapshot.amount ?? 0)
-        ? { code: 'remaining-too-big', message: 'Остаток не может превышать сумму кредита' }
-        : null
-    );
-  });
-
-  each(model.coBorrowers, (item) => {
-    validate(item.$.personalData.lastName, [required({ message: 'Введите фамилию' })]);
-    validate(item.$.personalData.firstName, [required({ message: 'Введите имя' })]);
-    validate(item.$.personalData.middleName, [required({ message: 'Введите отчество' })]);
-    validate(item.$.personalData.birthDate, [required({ message: 'Укажите дату рождения' })]);
-    validate(item.$.personalData.birthPlace, [required({ message: 'Введите место рождения' })]);
-    validate(item.$.phone, [required({ message: 'Введите телефон' })]);
-    validate(item.$.email, [required({ message: 'Введите email' }), emailRule()]);
-    validate(item.$.relationship, [required({ message: 'Укажите родство' })]);
-    validate(item.$.monthlyIncome, [required({ message: 'Укажите доход' }), min(0)]);
-  });
+  applyEach(model.$.properties, propertyItemRules);
+  applyEach(model.$.existingLoans, existingLoanItemRules);
+  applyEach(model.$.coBorrowers, coBorrowerItemRules);
 });
 
 /* ------------------------------------------------------------------ */
@@ -383,9 +399,9 @@ const crossFieldRules = defineValidationSchema<Form>(({ model }) => {
 });
 
 /**
- * Правила, адресованные по `selector` шага. Порядок ключей = порядок шагов,
- * поэтому `validateStep(n)` не зависит от индексации массива, а шаг без правил
- * объявляется явным `null`.
+ * Правила, адресованные по `selector` шага: ключ = `selector` узла шага в
+ * документе (`renderer.schema.ts`). Порядок ключей = порядок шагов; шаг без
+ * правил объявляется явным `null`.
  */
 export const stepValidation: Record<StepSelector, ValidationSchema<Form> | null> = {
   loan: loanStep,
@@ -396,7 +412,11 @@ export const stepValidation: Record<StepSelector, ValidationSchema<Form> | null>
   confirm: confirmStep,
 };
 
-export const creditValidation = {
+/**
+ * Правила формы — данными, полем `validation` сборки `createForm`: шаги
+ * проверяются при переходе, `extras` — только целиком, при отправке.
+ */
+export const creditValidation: FormValidation<Form> = {
   steps: stepValidation,
   extras: crossFieldRules,
 };

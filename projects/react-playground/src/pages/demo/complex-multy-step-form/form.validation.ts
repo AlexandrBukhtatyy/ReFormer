@@ -1,31 +1,31 @@
 /**
- * Единый слой валидации кредитной заявки — контракт `@reformer/core/validation`.
+ * Правила валидации кредитной заявки — контракт `@reformer/core/validation`.
  *
- * Каждый шаг — `ValidationSchema<Root>` (обычная функция `({ model }) => void`): значения проверяются
- * оператором `validate(sig, [rules])`, async — `validateAsync(sig, [asyncRules])`, условные ветки —
- * `validateWhen(cond, cb)`, cross-field — `cross(sig, fn)` (fn читает снапшот `model.get()`), массивы —
- * `each(arr, itemFn)`. Композиция формы — `apply(...шаги, fullExtras)`. Внешний раннер — `validateModel`.
+ * Схема правил — функция `({ model }) => void`. Значение поля проверяет `validate(ручка, правила)`,
+ * асинхронно — `validateAsync`, условную ветку включает `validateWhen(условие, ветка)`, правило
+ * над несколькими полями — `cross(ручка, функция)`: функция получает снимок модели своей области.
  *
- * Правила поля (`required`/`min`/…) переиспользуются как есть (value-only). Cross-field — обычные функции
- * `(f: Root) => ValidationError | null`; для элементов массива снапшот захватывается в замыкание (`im.get()`).
+ * Подформа и строки массивов — такие же схемы, подключённые привязкой:
+ * `apply(model.$.registrationAddress, addressRules)` и `applyEach(model.$.properties, propertyRules)`.
+ * У подключённой схемы своя область: `cross` внутри неё получает снимок адреса или строки, а не
+ * всей заявки.
  *
- * Используется всеми 3 вариантами флагмана через `makeCreditValidationConfig(model)` →
- * `{ validateStep, validateAll }` (колбэки для `FormWizard`). Сигнатура не менялась.
+ * Наружу уходит {@link creditApplicationValidation} — правила по шагам и правила всей формы.
+ * Ключ шага — `selector` узла шага в схеме; конфиг для визарда собирает сборка `createForm`.
  */
 
-import { type FormModel, type FormValidation, type ValidationError } from '@reformer/core';
+import type { FormValidation, ValidationError } from '@reformer/core';
 import {
   validate,
   validateAsync,
   validateWhen,
   cross,
-  each,
+  apply,
+  applyEach,
   defineValidationSchema,
   type Rule,
   type AsyncRule,
-  type ValidationSchema,
 } from '@reformer/core/validation';
-import { defineSteps } from '@reformer/cdk';
 import {
   required,
   min,
@@ -38,14 +38,13 @@ import {
   maxAge,
   pastDate,
 } from '@reformer/core/validators';
-import type { CreditApplicationForm } from '../types/credit-application';
-import type { Address } from '../components/nested-forms/Address/types';
-import type { Property } from '../components/nested-forms/Property/types';
-import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/types';
-import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
+import type { CreditApplicationForm } from './types/credit-application';
+import type { Address } from './components/nested-forms/Address/types';
+import type { Property } from './components/nested-forms/Property/types';
+import type { ExistingLoan } from './components/nested-forms/ExistingLoan/types';
+import type { CoBorrower } from './components/nested-forms/CoBorrower/types';
 
 type Root = CreditApplicationForm;
-type M = FormModel<CreditApplicationForm>;
 
 const CURRENT_YEAR = new Date().getFullYear();
 const RU_NAME = /^[А-ЯЁа-яё\s-]+$/;
@@ -55,7 +54,7 @@ const PHONE = /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/;
 // Переиспользуемые наборы правил
 // ============================================================================
 
-/** Правила ФИО (русское имя). Переиспользуется в step2 и в созаёмщике. */
+/** Правила ФИО (русское имя). Переиспользуются в шаге «Данные» и в созаёмщике. */
 const ruName = (label: string): Rule<string>[] => [
   required({ message: `${label} обязательно` }),
   minLength(2, { message: 'Минимум 2 символа' }),
@@ -514,7 +513,7 @@ const warnLowExperience = (f: Root): ValidationError | null =>
       }
     : null;
 
-// Per-item cross-field (читают снапшот элемента массива, захваченный в замыкание)
+// Правила над полями одной строки массива: получают снимок строки
 const remainingNotExceedAmount = (loan: ExistingLoan): ValidationError | null =>
   loan.remainingAmount > loan.amount
     ? { code: 'remainingExceedsAmount', message: 'Остаток долга не может превышать сумму кредита' }
@@ -554,12 +553,11 @@ const smsCode: AsyncRule<string> = async (value) => {
 };
 
 // ============================================================================
-// Под-схемы вложенных групп / элементов массивов
+// Правила подформы и строк массивов
 // ============================================================================
 
-/** Под-схема адреса — функция над FormModel<Address> (reuse прямым вызовом). */
-/** Под-схема адреса — функция над FormModel<Address> (reuse прямым вызовом). */
-const addressSchema: ValidationSchema<Address> = ({ model }) => {
+/** Правила адреса — объявлены один раз, подключаются к обоим адресам. */
+const addressRules = defineValidationSchema<Address>(({ model }) => {
   validate(model.$.region, ADDRESS_REGION_RULES);
   validate(model.$.city, ADDRESS_CITY_RULES);
   validate(model.$.street, ADDRESS_STREET_RULES);
@@ -567,42 +565,41 @@ const addressSchema: ValidationSchema<Address> = ({ model }) => {
   // apartment опционален в типе Address, но всегда материализован в модели
   validate(model.$.apartment!, ADDRESS_APARTMENT_RULES);
   validate(model.$.postalCode, ADDRESS_POSTAL_CODE_RULES);
-};
+});
 
-const propertyItem = (im: FormModel<Property>): void => {
-  validate(im.$.type, PROPERTY_TYPE_RULES);
-  validate(im.$.description, PROPERTY_DESCRIPTION_RULES);
-  validate(im.$.estimatedValue, PROPERTY_ESTIMATED_VALUE_RULES);
-};
+const propertyRules = defineValidationSchema<Property>(({ model }) => {
+  validate(model.$.type, PROPERTY_TYPE_RULES);
+  validate(model.$.description, PROPERTY_DESCRIPTION_RULES);
+  validate(model.$.estimatedValue, PROPERTY_ESTIMATED_VALUE_RULES);
+});
 
-const existingLoanItem = (im: FormModel<ExistingLoan>): void => {
-  const loan = im.get();
-  validate(im.$.bank, EXISTING_LOAN_BANK_RULES);
-  validate(im.$.type, EXISTING_LOAN_TYPE_RULES);
-  validate(im.$.amount, EXISTING_LOAN_AMOUNT_RULES);
-  validate(im.$.remainingAmount, EXISTING_LOAN_REMAINING_RULES);
-  cross(im.$.remainingAmount, () => remainingNotExceedAmount(loan));
-  validate(im.$.monthlyPayment, EXISTING_LOAN_MONTHLY_PAYMENT_RULES);
-  validate(im.$.maturityDate, EXISTING_LOAN_MATURITY_DATE_RULES);
-  cross(im.$.maturityDate, () => maturityInFuture(loan));
-};
+const existingLoanRules = defineValidationSchema<ExistingLoan>(({ model }) => {
+  validate(model.$.bank, EXISTING_LOAN_BANK_RULES);
+  validate(model.$.type, EXISTING_LOAN_TYPE_RULES);
+  validate(model.$.amount, EXISTING_LOAN_AMOUNT_RULES);
+  validate(model.$.remainingAmount, EXISTING_LOAN_REMAINING_RULES);
+  cross(model.$.remainingAmount, remainingNotExceedAmount);
+  validate(model.$.monthlyPayment, EXISTING_LOAN_MONTHLY_PAYMENT_RULES);
+  validate(model.$.maturityDate, EXISTING_LOAN_MATURITY_DATE_RULES);
+  cross(model.$.maturityDate, maturityInFuture);
+});
 
-const coBorrowerItem = (im: FormModel<CoBorrower>): void => {
-  validate(im.$.personalData.lastName, ruName('Фамилия'));
-  validate(im.$.personalData.firstName, ruName('Имя'));
-  validate(im.$.personalData.middleName, ruName('Отчество'));
-  validate(im.$.personalData.birthDate, CO_BORROWER_BIRTH_DATE_RULES);
-  validate(im.$.phone, CO_BORROWER_PHONE_RULES);
-  validate(im.$.email, EMAIL_REQUIRED_RULES);
-  validate(im.$.relationship, CO_BORROWER_RELATIONSHIP_RULES);
-  validate(im.$.monthlyIncome, CO_BORROWER_INCOME_RULES);
-};
+const coBorrowerRules = defineValidationSchema<CoBorrower>(({ model }) => {
+  validate(model.$.personalData.lastName, ruName('Фамилия'));
+  validate(model.$.personalData.firstName, ruName('Имя'));
+  validate(model.$.personalData.middleName, ruName('Отчество'));
+  validate(model.$.personalData.birthDate, CO_BORROWER_BIRTH_DATE_RULES);
+  validate(model.$.phone, CO_BORROWER_PHONE_RULES);
+  validate(model.$.email, EMAIL_REQUIRED_RULES);
+  validate(model.$.relationship, CO_BORROWER_RELATIONSHIP_RULES);
+  validate(model.$.monthlyIncome, CO_BORROWER_INCOME_RULES);
+});
 
 // ============================================================================
-// Per-step схемы валидации
+// Правила шагов
 // ============================================================================
 
-const step1 = defineValidationSchema<Root>(({ model }) => {
+const loanRules = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.loanType, LOAN_TYPE_RULES);
   validate(model.$.loanAmount, LOAN_AMOUNT_RULES);
   validateWhen(
@@ -632,7 +629,7 @@ const step1 = defineValidationSchema<Root>(({ model }) => {
   );
 });
 
-const step2 = defineValidationSchema<Root>(({ model }) => {
+const applicantRules = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.personalData.lastName, ruName('Фамилия'));
   validate(model.$.personalData.firstName, ruName('Имя'));
   validate(model.$.personalData.middleName, ruName('Отчество'));
@@ -649,22 +646,22 @@ const step2 = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.snils, SNILS_RULES);
 });
 
-const step3 = defineValidationSchema<Root>(({ model }) => {
+const contactsRules = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.phoneMain, PHONE_MAIN_RULES);
   validate(model.$.phoneAdditional, PHONE_FORMAT_RULES);
   cross(model.$.phoneAdditional, phoneAdditionalDiffers);
   validate(model.$.email, EMAIL_REQUIRED_RULES);
   validate(model.$.emailAdditional, EMAIL_FORMAT_RULES);
   cross(model.$.emailAdditional, emailAdditionalDiffers);
-  addressSchema({ model: model.registrationAddress });
+  apply(model.$.registrationAddress, addressRules);
   // адрес проживания — только если не совпадает с регистрацией
   validateWhen(
     () => model.sameAsRegistration === false,
-    () => addressSchema({ model: model.residenceAddress })
+    () => apply(model.$.residenceAddress, addressRules)
   );
 });
 
-const step4 = defineValidationSchema<Root>(({ model }) => {
+const employmentRules = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.employmentStatus, EMPLOYMENT_STATUS_RULES);
   validateWhen(
     () => model.employmentStatus === 'employed',
@@ -692,7 +689,7 @@ const step4 = defineValidationSchema<Root>(({ model }) => {
   cross(model.$.additionalIncomeSource, additionalIncomeSourceRequired);
 });
 
-const step5 = defineValidationSchema<Root>(({ model }) => {
+const additionalRules = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.maritalStatus, MARITAL_STATUS_RULES);
   validate(model.$.dependents, DEPENDENTS_RULES);
   validate(model.$.education, EDUCATION_RULES);
@@ -705,12 +702,12 @@ const step5 = defineValidationSchema<Root>(({ model }) => {
   cross(model.$.hasCoBorrower, (f: Root) =>
     notEmptyWhen(f, 'hasCoBorrower', 'coBorrowers', 'Добавьте информацию о созаемщике')
   );
-  each(model.properties, propertyItem);
-  each(model.existingLoans, existingLoanItem);
-  each(model.coBorrowers, coBorrowerItem);
+  applyEach(model.$.properties, propertyRules);
+  applyEach(model.$.existingLoans, existingLoanRules);
+  applyEach(model.$.coBorrowers, coBorrowerRules);
 });
 
-const step6 = defineValidationSchema<Root>(({ model }) => {
+const confirmationRules = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.agreePersonalData, AGREE_PERSONAL_DATA_RULES);
   validate(model.$.agreeCreditHistory, AGREE_CREDIT_HISTORY_RULES);
   validate(model.$.agreeTerms, AGREE_TERMS_RULES);
@@ -719,8 +716,8 @@ const step6 = defineValidationSchema<Root>(({ model }) => {
   validateAsync(model.$.electronicSignature, [smsCode]);
 });
 
-/** Cross-field/warnings уровня всей формы (вне per-step). */
-const fullExtras = defineValidationSchema<Root>(({ model }) => {
+/** Правила и предупреждения уровня всей формы: проверяются целиком, при отправке. */
+const crossStepRules = defineValidationSchema<Root>(({ model }) => {
   cross(model.$.monthlyPayment, paymentToIncome);
   cross(model.$.age, validateAge);
   cross(model.$.age, warnSeniorAge);
@@ -729,45 +726,28 @@ const fullExtras = defineValidationSchema<Root>(({ model }) => {
 });
 
 // ============================================================================
-// Публичный контракт для FormWizard
+// Правила формы
 // ============================================================================
 
 /**
- * Правила валидации формы как ДАННЫЕ — то, что уходит полем `validation` в фабрику формы
- * (`createCoreForm`/`createReactForm`/`createJsonForm`). Фабрика сама соберёт из них
- * `validateStep`/`validateAll` и контроллер живой стратегии.
+ * Правила валидации формы как ДАННЫЕ — то, что уходит полем `validation` в сборку `createForm`.
+ * Сборка сама соберёт из них `validateStep`/`validateAll` и контроллер живой стратегии.
  *
- * Правила адресованы по `selector` шага (loan/applicant/…), а не хрупким числовым индексом
- * `[step - 1]`: добавление или перестановка шага не рассинхронизирует их молча, а шаг без правил
- * объявляется ЯВНО. Порядок ключей = порядок шагов. `extras` (cross-field/warnings) проверяются
- * только целиком, на submit.
+ * Ключ шага — `selector` узла шага в схеме (loan/applicant/…), а не порядковый номер: добавление
+ * или перестановка шага не рассинхронизирует правила молча. `extras` проверяются только целиком,
+ * при отправке.
  *
  * Стабильная ссылка на уровне модуля обязательна: отмена устаревших прогонов ключуется по паре
  * `(model, schema)`.
  */
 export const creditApplicationValidation: FormValidation<Root> = {
   steps: {
-    loan: step1,
-    applicant: step2,
-    contacts: step3,
-    employment: step4,
-    additional: step5,
-    confirmation: step6,
+    loan: loanRules,
+    applicant: applicantRules,
+    contacts: contactsRules,
+    employment: employmentRules,
+    additional: additionalRules,
+    confirmation: confirmationRules,
   },
-  extras: fullExtras,
+  extras: crossStepRules,
 };
-
-/**
- * Тот же набор правил, но собранный под `FormWizard` руками — для варианта, который строит форму без
- * фабрики (`createForm` напрямую). Новый код берёт {@link creditApplicationValidation} и получает
- * готовый конфиг из бандла формы.
- */
-export function makeCreditValidationConfig(model: M) {
-  return defineSteps<
-    'loan' | 'applicant' | 'contacts' | 'employment' | 'additional' | 'confirmation',
-    Root
-  >(model, {
-    steps: creditApplicationValidation.steps as Record<string, ValidationSchema<Root> | null>,
-    extras: fullExtras,
-  });
-}

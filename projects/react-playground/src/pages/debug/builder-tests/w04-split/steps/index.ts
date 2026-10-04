@@ -2,7 +2,7 @@
 // steps/index.ts — шаги визарда по порядку: схема, валидация и render-слой каждого шага.
 // Регенерируется билдером (порядок шагов берётся из схемы); правки будут перезаписаны.
 
-import type { JsonFormStep } from '@reformer/renderer-json';
+import type { JsonFormStepV1 as JsonFormStep } from '@reformer/renderer-json';
 
 import step1Schema from './dannye/form.schema.json';
 import { stepValidation as step1Validation } from './dannye/form.validation';

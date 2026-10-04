@@ -1,7 +1,7 @@
 /**
  * Форма регистрации, описанная JSON-схемой ЦЕЛИКОМ.
  *
- * В JSX здесь только два компонента: провайдер реестра и рендерер. Всё остальное —
+ * В JSX здесь только рендерер. Всё остальное —
  * колонки, заголовки, поля, кнопки, панель состояния, блок подсказок и даже загрузка
  * префилла с индикатором/ошибкой/повтором — живёт в JSON.
  *
@@ -9,7 +9,8 @@
  * - [json-schema.json] — весь layout. Чистый JSON, может прийти строкой с сервера.
  * - [validation.ts] — правила значений TS-схемой над моделью (в JSON-DSL валидаторов нет).
  * - [registry.tsx] — компоненты, обработчики, UI-сигналы и PendingButton: то, что JSON выразить не может.
- * - [form-setup.ts] — сборка модели/формы/реестра, submit-флоу, data-behavior и render-behavior. Без React-хуков.
+ * - [form.behavior.ts] — единственное поведение: submit-флоу, реактивность данных, правила узлов.
+ * - [form-setup.ts] — сборка `createForm`: модель, дерево из схемы, реестр, поведение. Без React-хуков.
  *
  * Состояния отправки в `useState` нет: оно живёт в сигналах (`registry.ts`), поэтому
  * текстовый узел схемы подписывается на него напрямую.
@@ -20,22 +21,19 @@
  * поля вынесли бы из-под гейта и показывали при ошибке пустую форму.
  */
 
-import { JsonFormRenderer, JsonRendererProvider, useJsonForm } from '@reformer/renderer-json';
+import { useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
 import { createRegistrationSetup } from './form-setup';
 
 export default function RegistrationFormRendererJson() {
-  // Сборка одним проходом: бандл createJsonForm вместе с render-behavior. useJsonForm зовёт фабрику
-  // ровно один раз — повторная сборка создала бы новый реестр и новый тип AsyncBoundary, из-за чего
-  // загрузка префилла стартовала бы заново.
-  const jsonForm = useJsonForm(createRegistrationSetup);
+  // Сборка одним вызовом `createForm`. useFormBundle зовёт фабрику ровно один раз — повторная
+  // сборка создала бы новый реестр и новый тип AsyncBoundary, из-за чего загрузка префилла
+  // стартовала бы заново.
+  const registration = useFormBundle(createRegistrationSetup);
 
   return (
-    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-      <JsonFormRenderer<RegistrationFormData>
-        form={jsonForm}
-        validateSchema={import.meta.env.DEV}
-      />
-    </JsonRendererProvider>
+    // Обёртку поля рендерер берёт из бандла: её положил туда реестр (FIELD_WRAPPER).
+    <FormRenderer<RegistrationFormData> form={registration} />
   );
 }

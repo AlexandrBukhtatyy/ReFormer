@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { createCoreForm, useFormBundle } from '@reformer/core';
+import { createForm, useFormBundle } from '@reformer/core';
 import { FormField, ExampleCard, Button, InputSuggest } from '@reformer/ui-kit';
 import type { ResourceConfig } from '@reformer/cdk/option-source';
 
@@ -56,12 +56,12 @@ const companiesResource: ResourceConfig<string> = {
 
 export default function InputSuggestDemo() {
   const { form, model } = useFormBundle(() =>
-    createCoreForm<InputSuggestDemoForm>({
+    createForm<InputSuggestDemoForm>({
       initial: { city: null, position: null, company: null },
       schema: (m) => ({
         fields: [
           {
-            value: m.$.city,
+            model: m.$.city,
             component: InputSuggest,
             componentProps: {
               label: 'Город',
@@ -71,7 +71,7 @@ export default function InputSuggestDemo() {
             },
           },
           {
-            value: m.$.position,
+            model: m.$.position,
             component: InputSuggest,
             componentProps: {
               label: 'Должность',
@@ -82,7 +82,7 @@ export default function InputSuggestDemo() {
             },
           },
           {
-            value: m.$.company,
+            model: m.$.company,
             component: InputSuggest,
             componentProps: {
               label: 'Компания',

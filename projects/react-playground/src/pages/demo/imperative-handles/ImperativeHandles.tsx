@@ -1,5 +1,5 @@
 /**
- * Императивные handle полей UI-kit, доступные из render-схемы по селектору.
+ * Императивные handle полей UI-kit, доступные из схемы формы по селектору.
  *
  * Демонстрирует мост «селектор → живой компонент»: `schema.node(sel).getRef<H>()` отдаёт
  * императивный handle поля, которым behaviors/кнопки управляют тем, что НЕ выражается реактивно
@@ -18,11 +18,17 @@
  * `validateModel` разносит ошибки по нодам; «первое невалидное» находим чтением нод (не картой путей).
  */
 
-import { getNodeForSignal, type FormModel } from '@reformer/core';
+import {
+  createForm,
+  getNodeForSignal,
+  useFormBundle,
+  type FormModel,
+  type FormRender,
+  type FormSchemaNode,
+} from '@reformer/core';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
-import type { RenderNode, RenderSchemaProxy } from '@reformer/renderer-react';
+import { FormRenderer } from '@reformer/renderer-react';
 import {
   Box,
   FormField,
@@ -58,28 +64,28 @@ const CITIES = [
 ];
 
 /**
- * Единая схема (M1): лист несёт `value` (сигнал модели) + `component` + `componentProps`.
+ * Схема формы: узел поля несёт `model` (ручку модели) + `component` + `componentProps`.
  * Селектор задан ТОЛЬКО у пароля — остальные адресуются по `__path` сигнала.
  */
-function buildSchema(model: FormModel<ImperativeDemoForm>): RenderNode<ImperativeDemoForm> {
+function buildSchema(model: FormModel<ImperativeDemoForm>): FormSchemaNode {
   return {
     component: Box,
     componentProps: { className: 'space-y-4 bg-white p-6 rounded-lg shadow-md' },
     children: [
       {
-        value: model.$.email,
+        model: model.$.email,
         component: Input,
         componentProps: { label: 'Email', placeholder: 'you@example.com' },
       },
       {
         // Явный selector — проверяет ветку адресации по селектору (а не по __path).
         selector: 'pwd',
-        value: model.$.password,
+        model: model.$.password,
         component: InputPassword,
         componentProps: { label: 'Пароль', placeholder: 'Пароль' },
       },
       {
-        value: model.$.city,
+        model: model.$.city,
         component: SelectAsync,
         componentProps: {
           label: 'Город',
@@ -89,21 +95,21 @@ function buildSchema(model: FormModel<ImperativeDemoForm>): RenderNode<Imperativ
         },
       },
       {
-        value: model.$.amount,
+        model: model.$.amount,
         component: InputNumber,
         componentProps: { label: 'Сумма', placeholder: '0' },
       },
       {
-        value: model.$.nickname,
+        model: model.$.nickname,
         component: Input,
         componentProps: { label: 'Никнейм', placeholder: 'nickname' },
       },
     ],
-  } as unknown as RenderNode<ImperativeDemoForm>;
+  };
 }
 
 /**
- * Слой валидации (отдельно от render-схемы): email и nickname обязательны. Стабильный module-level
+ * Слой валидации (отдельно от схемы формы): email и nickname обязательны. Стабильный module-level
  * `const` — прогоняется по требованию через `validateModel`, ошибки сами доезжают до нод.
  */
 const imperativeValidation = defineValidationSchema<ImperativeDemoForm>(({ model }) => {
@@ -128,7 +134,7 @@ function ControlPanel({
   schema,
   model,
 }: {
-  schema: RenderSchemaProxy<ImperativeDemoForm>;
+  schema: FormRender;
   model: FormModel<ImperativeDemoForm>;
 }) {
   const btn =
@@ -209,10 +215,10 @@ function ControlPanel({
 function ImperativeHandles() {
   // Сборка одним вызовом. `setup` — фаза до первого рендера: ref'ы регистрируются заранее, иначе
   // панель управления получила бы пустые ссылки (getRef намеренно не бампает version-сигнал).
-  const demoForm = useReactForm(() =>
-    createReactForm<ImperativeDemoForm>({
+  const demoForm = useFormBundle(() =>
+    createForm<ImperativeDemoForm>({
       initial: { ...INITIAL },
-      schema: (model) => buildSchema(model) as never,
+      schema: buildSchema,
       setup: ({ render }) => {
         for (const { refKey } of FIELD_ORDER) render.node(refKey).getRef();
       },

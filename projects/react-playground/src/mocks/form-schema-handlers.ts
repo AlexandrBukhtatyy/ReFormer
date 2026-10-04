@@ -19,7 +19,7 @@
 import { http, HttpResponse, delay } from 'msw';
 import alertsSchema from '../pages/demo/alerts-list-renderer-json/json-schema.json';
 import registrationSchema from '../pages/demo/registration-form-renderer-json/json-schema.json';
-import creditSchema from '../pages/demo/complex-multy-step-form-renderer-json/json-schema.json';
+import creditSchema from '../pages/demo/complex-multy-step-form-renderer-json/form.schema.json';
 
 /** Базовый путь MSW-источника схем. Совпадает с тем, что подставляет стенд в `kind: 'http'`. */
 export const MOCK_FORMS_BASE = '/mock-forms';

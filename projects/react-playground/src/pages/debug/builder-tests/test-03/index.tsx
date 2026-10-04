@@ -9,7 +9,7 @@ import {
   JsonRendererProvider,
   createJsonForm,
   useJsonForm,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
 } from '@reformer/renderer-json';
 import rawSchema from './form.schema.json';
 import { createRegistry } from './registry';

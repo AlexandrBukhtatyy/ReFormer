@@ -22,7 +22,7 @@
  */
 
 import { useState } from 'react';
-import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, useFormBundle, type FormModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
@@ -166,7 +166,7 @@ function buildSchema(model: FormModel<TreeDemoForm>) {
     fields: [
       {
         // Скалярное поле — `model.$.configFile` уже сигнал, `signalAt` тут не нужен.
-        value: model.$.configFile,
+        model: model.$.configFile,
         component: ComboboxTree,
         componentProps: {
           label: 'Файл конфигурации',
@@ -221,7 +221,7 @@ const INITIAL: TreeDemoForm = {
 
 export default function TreeDemo() {
   const { form, model } = useFormBundle(() =>
-    createCoreForm<TreeDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
+    createForm<TreeDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
   );
 
   const [snapshot, setSnapshot] = useState<string | null>(null);
@@ -322,7 +322,7 @@ export default function TreeDemo() {
             description="Один узел; триггер показывает подпись выбранного, а у лениво прочитанного — сам адрес"
             bgColor="bg-white"
             code={`{
-  value: model.$.configFile,          // скаляр — сигнал напрямую
+  model: model.$.configFile,          // скаляр — сигнал напрямую
   component: ComboboxTree,
   componentProps: { nodes: FILE_TREE, clearable: true, maxRows: 10 },
 }

@@ -1,45 +1,40 @@
 /**
- * Страница «Заявка на кредит» (renderer-json).
+ * Страница «Заявка на кредит» — схема документом (формат 2) и реестр.
  *
- * Сборка формы — ОДИН проход через `createJsonForm`, стабилизированный
- * `useJsonForm` (ленивый `useState`; `useMemo` не годится — React вправе
- * сбросить кэш и потерять введённое). Бандл целиком уходит рендереру
- * пропом `form`.
+ * Сборка формы — ОДИН вызов `createForm`: модель, документ схемы, реестр,
+ * поведение и правила. Стабильность даёт `useFormBundle` (ленивый `useState`;
+ * `useMemo` не годится — React вправе сбросить кэш и потерять введённое).
+ * Бандл целиком уходит рендереру пропом `form`; обёртку поля рендерер берёт
+ * из бандла — её кладёт туда реестр (запись `FIELD_WRAPPER`).
+ *
+ * Визард — узел документа: форму и валидацию он берёт из сборки сам.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
-import {
-  createJsonForm,
-  JsonFormRenderer,
-  JsonRendererProvider,
-  useJsonForm,
-} from '@reformer/renderer-json';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import { AsyncBoundary, Button, ExampleCard } from '@reformer/ui-kit';
 
 import { loadApplicationBundle, type ApplicationBundle } from './api';
-import { creditFormBehavior } from './form.behavior';
+import { createCreditFormBehavior } from './form.behavior';
 import { createCreditModel } from './model';
-import { createCreditRenderBehavior } from './renderer.behavior';
 import { creditFormSchema } from './renderer.schema';
 import { createRegistry } from './registry';
 import type { CreditApplicationForm, FormMode } from './types';
 import { creditValidation } from './validation';
 
 const MOUNT_SNIPPET = [
-  'const jsonForm = useJsonForm(() =>',
-  '  createJsonForm<CreditApplicationForm>({',
+  'const bundle = useFormBundle(() =>',
+  '  createForm<CreditApplicationForm>({',
+  '    model: createCreditModel(prefill),',
   '    schema: creditFormSchema,',
   '    registry: createRegistry(dictionaries),',
-  '    model: createCreditModel(prefill),',
-  '    behavior: creditFormBehavior,',
+  '    behavior: createCreditFormBehavior({ mode, onSubmitted, onSubmitError }),',
   '    validation: creditValidation,',
-  '    renderBehavior: createCreditRenderBehavior,',
   '  })',
   ');',
   '',
-  '<JsonRendererProvider settings={{ registry: jsonForm.registry }}>',
-  '  <JsonFormRenderer form={jsonForm} validateSchema={import.meta.env.DEV} />',
-  '</JsonRendererProvider>',
+  '<FormRenderer form={bundle} />',
 ].join('\n');
 
 interface Scenario {
@@ -65,27 +60,25 @@ function CreditForm({ data, mode }: CreditFormProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const registry = useMemo(() => createRegistry(data.dictionaries), [data.dictionaries]);
-
-  const jsonForm = useJsonForm(() =>
-    createJsonForm<CreditApplicationForm>({
-      schema: creditFormSchema,
-      registry,
+  // Фабрика зовётся ровно один раз, поэтому реестр, режим и колбэки страницы замыкаются здесь:
+  // ссылки на них стабильны на всю жизнь формы.
+  const bundle = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
       model: createCreditModel(data.application ?? undefined),
-      behavior: creditFormBehavior,
+      schema: creditFormSchema,
+      registry: createRegistry(data.dictionaries),
+      behavior: createCreditFormBehavior({
+        mode,
+        onSubmitted: (message) => {
+          setError(null);
+          setStatus(message);
+        },
+        onSubmitError: (message) => {
+          setStatus(null);
+          setError(message);
+        },
+      }),
       validation: creditValidation,
-      renderBehavior: (form, model, validation) =>
-        createCreditRenderBehavior(form, model, validation, {
-          mode,
-          onSubmitted: (message) => {
-            setError(null);
-            setStatus(message);
-          },
-          onSubmitError: (message) => {
-            setStatus(null);
-            setError(message);
-          },
-        }),
     })
   );
 
@@ -109,12 +102,7 @@ function CreditForm({ data, mode }: CreditFormProps) {
           {error}
         </div>
       )}
-      <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-        <JsonFormRenderer<CreditApplicationForm>
-          form={jsonForm}
-          validateSchema={import.meta.env.DEV}
-        />
-      </JsonRendererProvider>
+      <FormRenderer form={bundle} />
     </div>
   );
 }

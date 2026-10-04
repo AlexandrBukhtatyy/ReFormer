@@ -2,7 +2,7 @@
 // Model is the single source of truth (M1). Every conditional field is materialized here
 // (enableWhen/compute/copyFrom operate on model.$.field signals — a non-materialized field has no signal).
 
-import { createModel, type FormModel } from '@reformer/core';
+import { arrayOf, createModel, type FormModel } from '@reformer/core';
 import type {
   Address,
   CoBorrower,
@@ -107,11 +107,11 @@ export function createInitialValues(): CreditApplicationForm {
     dependents: 0,
     education: 'higher',
     hasProperty: false,
-    properties: [],
+    properties: arrayOf(createBlankProperty),
     hasExistingLoans: false,
-    existingLoans: [],
+    existingLoans: arrayOf(createBlankExistingLoan),
     hasCoBorrower: false,
-    coBorrowers: [],
+    coBorrowers: arrayOf(createBlankCoBorrower),
     // Step 6
     agreePersonalData: false,
     agreeCreditHistory: false,

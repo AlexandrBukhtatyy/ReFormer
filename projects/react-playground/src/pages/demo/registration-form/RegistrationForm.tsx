@@ -1,18 +1,18 @@
 /**
  * Форма регистрации с ReFormer — контракт `@reformer/core/validation`.
  *
- * Демонстрирует РАЗДЕЛЕНИЕ render- и validation-слоёв:
- * - RENDER-схема (`buildSchema`) — только layout: `{ value, component, componentProps }`, без правил.
+ * Демонстрирует РАЗДЕЛЕНИЕ схемы формы и валидации:
+ * - схема (`buildSchema`) — только поля: `{ model, component, componentProps }`, без правил.
  * - VALIDATION-схема (`registrationValidation`) — стабильный module-level `const`
  *   `defineValidationSchema(({ model }) => …)` с операторами `validate` / `validateAsync` / `cross`.
- * - createForm({ model, schema }) → FormProxy (ноды привязаны к сигналам модели).
+ * - сборка `createForm({ initial, schema })` → бандл `{ model, form }` (ноды привязаны к модели).
  * - Стратегия валидации выбрана декларативно через `useFormValidation({ strategy: 'afterFirstSubmit' })`:
  *   тихо до первой отправки, затем живая проверка при вводе. `submit()` сам метит touched.
  * - Рендер через существующий <FormField control={form.x} /> (нода = сигнал модели).
  */
 
 import {
-  createCoreForm,
+  createForm,
   useFormBundle,
   useFormValidation,
   type FormModel,
@@ -139,12 +139,12 @@ const registrationValidation = defineValidationSchema<RegistrationFormData>(({ m
   validate(model.$.acceptTerms, [termsAccepted]);
 });
 
-// ── RENDER-схема: только layout (component + componentProps), без правил ─────
+// ── Схема формы: только поля (component + componentProps), без правил ────────
 function buildSchema(model: FormModel<RegistrationFormData>) {
   return {
     children: [
       {
-        value: model.$.username,
+        model: model.$.username,
         component: Input,
         componentProps: {
           label: 'Имя пользователя',
@@ -153,7 +153,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
         },
       },
       {
-        value: model.$.email,
+        model: model.$.email,
         component: Input,
         componentProps: {
           label: 'Email',
@@ -163,12 +163,12 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
         },
       },
       {
-        value: model.$.password,
+        model: model.$.password,
         component: InputPassword,
         componentProps: { label: 'Пароль', placeholder: 'Минимум 8 символов', testId: 'password' },
       },
       {
-        value: model.$.confirmPassword,
+        model: model.$.confirmPassword,
         component: InputPassword,
         componentProps: {
           label: 'Подтвердите пароль',
@@ -177,12 +177,12 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
         },
       },
       {
-        value: model.$.fullName,
+        model: model.$.fullName,
         component: Input,
         componentProps: { label: 'Полное имя', placeholder: 'Иван Иванов', testId: 'fullName' },
       },
       {
-        value: model.$.phone,
+        model: model.$.phone,
         component: InputMask,
         componentProps: {
           label: 'Телефон',
@@ -192,7 +192,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
         },
       },
       {
-        value: model.$.captcha,
+        model: model.$.captcha,
         component: Input,
         componentProps: {
           label: 'Введите captcha',
@@ -201,7 +201,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
         },
       },
       {
-        value: model.$.acceptTerms,
+        model: model.$.acceptTerms,
         component: CheckboxWithLabel,
         componentProps: { label: 'Я принимаю условия использования', testId: 'acceptTerms' },
       },
@@ -215,7 +215,7 @@ export default function RegistrationForm() {
   // `isValidating` для кнопки. Смешивать оба нельзя: два контроллера на одну пару (model, schema)
   // отменяли бы прогоны друг друга.
   const { model, form } = useFormBundle(() =>
-    createCoreForm<RegistrationFormData>({ initial: { ...INITIAL }, schema: buildSchema })
+    createForm<RegistrationFormData>({ initial: { ...INITIAL }, schema: buildSchema })
   );
 
   // Единый выбор стратегии (§7): afterFirstSubmit — тихо до первой отправки, затем живая проверка

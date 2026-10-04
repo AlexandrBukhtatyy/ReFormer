@@ -1,21 +1,19 @@
 /**
  * HTML-узлы в схеме — мини-пример, две колонки с одинаковым результатом:
  *
- * - слева типизованная RenderSchema (`component: 'div'`, `children: [model.$.x]`),
- * - справа JSON-схема (`"$html(div)"`, `"children": ["$model(x)"]`).
+ * - слева схема на TS (`component: 'div'`, `children: [model.$.x]`),
+ * - справа та же схема документом JSON (`"$html(div)"`, `"children": ["$model(x)"]`).
+ *
+ * Сборка и рендерер у колонок одни и те же — `createForm` и `FormRenderer`; отличается только вид
+ * схемы: билдер `(model) => узел` или документ с реестром.
  *
  * Каждая колонка со своей моделью, чтобы видеть, что реактивный текст обновляется независимо
  * и подписан именно на свою модель.
  */
 
-import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
-import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  createJsonForm,
-  useJsonForm,
-  type JsonFormSchema,
-} from '@reformer/renderer-json';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 import { createInstallmentModel, type InstallmentRequest } from './model';
 import { buildInstallmentSchema } from './react-schema';
@@ -49,18 +47,15 @@ function Panel({
 
 function TypedSchemaColumn() {
   // Сборка одним вызовом: форма нужна ради нод состояния полей, рендер идёт по её же схеме.
-  const installmentForm = useReactForm(() =>
-    createReactForm<InstallmentRequest>({
+  const installmentForm = useFormBundle(() =>
+    createForm<InstallmentRequest>({
       model: createInstallmentModel(),
       schema: buildInstallmentSchema,
     })
   );
 
   return (
-    <Panel
-      title="RenderSchema (renderer-react)"
-      hint="component: 'div' | 'h2' | 'hr', children: [model.$.fullName]"
-    >
+    <Panel title="Схема на TS" hint="component: 'div' | 'h2' | 'hr', children: [model.$.fullName]">
       <div data-testid="typed-schema">
         <FormRenderer<InstallmentRequest>
           form={installmentForm}
@@ -72,10 +67,10 @@ function TypedSchemaColumn() {
 }
 
 function JsonSchemaColumn() {
-  // Сборка одним проходом (§7): бандл createJsonForm, стабильный через useJsonForm (ленивый useState).
-  // Модель отдаём готовой (createInstallmentModel) — начальные значения те же.
-  const jsonForm = useJsonForm(() =>
-    createJsonForm<InstallmentRequest>({
+  // Та же сборка: схема — документ, дерево из него строит реестр. Модель отдаём готовой
+  // (createInstallmentModel) — начальные значения те же.
+  const jsonForm = useFormBundle(() =>
+    createForm<InstallmentRequest>({
       schema: installmentJsonSchema,
       registry: createHtmlNodesRegistry(),
       model: createInstallmentModel(),
@@ -84,16 +79,12 @@ function JsonSchemaColumn() {
 
   return (
     <Panel
-      title="JSON-схема (renderer-json)"
+      title="Схема документом JSON"
       hint='component: "$html(div)", children: ["$model(fullName)"]'
     >
       <div data-testid="json-schema">
-        <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-          <JsonFormRenderer<InstallmentRequest>
-            form={jsonForm}
-            validateSchema={import.meta.env.DEV}
-          />
-        </JsonRendererProvider>
+        {/* Обёртку поля рендерер берёт из бандла: её положил туда реестр (FIELD_WRAPPER). */}
+        <FormRenderer<InstallmentRequest> form={jsonForm} />
       </div>
     </Panel>
   );

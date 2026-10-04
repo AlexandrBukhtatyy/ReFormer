@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, useFormBundle, type FormModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
@@ -105,7 +105,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
   return {
     children: [
       {
-        value: model.$.documents,
+        model: model.$.documents,
         component: FileUploadBase,
         componentProps: {
           testId: 'documents',
@@ -118,7 +118,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
         },
       },
       {
-        value: model.$.dropzoneFiles,
+        model: model.$.dropzoneFiles,
         component: FileUploadDropzone,
         componentProps: {
           testId: 'dropzoneFiles',
@@ -129,7 +129,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
         },
       },
       {
-        value: model.$.attachments,
+        model: model.$.attachments,
         component: FileUploadInput,
         componentProps: {
           testId: 'attachments',
@@ -141,7 +141,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
         },
       },
       {
-        value: model.$.uploadedDocs,
+        model: model.$.uploadedDocs,
         component: FileUploadDropzone,
         componentProps: {
           testId: 'uploadedDocs',
@@ -152,7 +152,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
         },
       },
       {
-        value: model.$.preloadedDocs,
+        model: model.$.preloadedDocs,
         component: FileUploadBase,
         componentProps: {
           testId: 'preloadedDocs',
@@ -163,7 +163,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
         },
       },
       {
-        value: model.$.avatar,
+        model: model.$.avatar,
         component: FileUploadAvatar,
         componentProps: {
           testId: 'avatar',
@@ -188,7 +188,7 @@ const demoValidation = defineValidationSchema<FileUploadDemoForm>(({ model }) =>
 
 export default function FileUploadDemo() {
   const { form, model } = useFormBundle(() =>
-    createCoreForm<FileUploadDemoForm>({
+    createForm<FileUploadDemoForm>({
       initial: { ...INITIAL },
       schema: buildSchema,
       // Префилл «ранее загруженных» — фаза ПОСЛЕ сборки формы: фабрика узлов решает по текущему
@@ -234,7 +234,7 @@ export default function FileUploadDemo() {
             description="value = File[]; отбор: image/*+.pdf, до 5 МБ, максимум 3"
             bgColor="bg-white"
             code={`{
-  value: model.$.documents,
+  model: model.$.documents,
   component: FileUploadBase,
   componentProps: {
     accept: 'image/*,.pdf',
@@ -322,7 +322,7 @@ model.signalAt('preloadedDocs')!.value = [
             description="Одно изображение с превью: клик/drop по зоне, замена и удаление"
             bgColor="bg-white"
             code={`{
-  value: model.$.avatar,
+  model: model.$.avatar,
   component: FileUploadAvatar,
   componentProps: { maxFileSize: 2 * 1024 * 1024 },
 }`}

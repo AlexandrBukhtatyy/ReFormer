@@ -12,7 +12,7 @@ import {
   JsonRendererProvider,
   createJsonForm,
   useJsonForm,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
 } from '@reformer/renderer-json';
 import { Button } from '@reformer/ui-kit';
 import rawSchema from './form.json';

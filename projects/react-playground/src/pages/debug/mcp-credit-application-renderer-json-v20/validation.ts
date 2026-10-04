@@ -1,25 +1,23 @@
 // validation.ts — ВСЯ валидация над моделью на контракте `@reformer/core/validation`.
 // Каждый шаг — `ValidationSchema<Root>` (`({ model }) => void`): значения проверяются `validate(sig, [rules])`,
-// условные ветки — `validateWhen(cond, cb)`, cross-field — `cross(sig, fn)` (fn читает снапшот `model.get()`).
-// Композиция формы — `apply(...шаги)`. Внешний раннер — `validateModel`.
-// Экспорт makeValidationConfig → { validateStep, validateAll } (контракт FormWizardConfig).
+// условные ветки — `validateWhen(cond, cb)`, cross-field — `cross(sig, fn)` (fn получает снапшот своей
+// области). Массивы проверяются целиком — `cross` на has-флаге; построчных правил здесь нет.
+// Публичный контракт — `creditValidation`: правила шагов данными. У шагов документа нет `selector`,
+// поэтому N-й шаг берёт N-й ключ `steps`. Сборка `createForm` строит из них
+// `{ validateStep, validateAll }`, визард берёт их сам.
 
-import { type FormModel, type ValidationError } from '@reformer/core';
+import { type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateWhen,
   cross,
-  apply,
   defineValidationSchema,
-  validateModel,
   type Rule,
-  type ValidationSchema,
 } from '@reformer/core/validation';
 import { email, max, maxLength, min, minLength, required } from '@reformer/core/validators';
 import { CURRENT_YEAR_PLUS_ONE } from './data-sources';
 import type { CoBorrower, CreditApplicationForm, ExistingLoan, Property } from './types';
 
-type M = FormModel<CreditApplicationForm>;
 type Root = CreditApplicationForm;
 
 // ---- Reusable custom value-only rules (Rule<T>) -------------------------
@@ -274,22 +272,14 @@ const step6 = defineValidationSchema<Root>(({ model }) => {
 });
 
 // ============================================================================
-// Публичный контракт для FormWizard
+// Публичный контракт
 // ============================================================================
 
-const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2, step3, step4, step5, step6];
-
-/** Полная схема: все шаги. */
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
-
-/** Пустая схема — для шага вне диапазона (гасит ранее тронутые поля, возвращает valid). */
-const emptySchema: ValidationSchema<Root> = () => {};
-
-/** FormWizardConfig: per-step + full validation via validateModel. */
-export function makeValidationConfig(model: M) {
-  return {
-    validateStep: (step: number): Promise<boolean> =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
-  };
-}
+/**
+ * Правила формы — данными. Шаги документа (`renderer.schema.json`) идут без `selector`, поэтому
+ * связь по порядку: N-й шаг визарда проверяется N-м ключом `steps`. Полная схема (submit) собирается
+ * сборкой из тех же шагов. Схемы — стабильные `const`-ссылки (важно для отмены устаревших прогонов).
+ */
+export const creditValidation: FormValidation<Root> = {
+  steps: { step1, step2, step3, step4, step5, step6 },
+};

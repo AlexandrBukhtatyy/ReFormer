@@ -1,9 +1,19 @@
-// form.behavior.ts — defineFormBehavior: compute (8) / enableWhen (conditional) / copyFrom (2) / onChange (async + array reset).
-// Behavior operates on model.$.field signals; passed to createForm({ model, schema, behavior }).
+// form.behavior.ts — единственное поведение формы: связи над моделью (compute (8) / enableWhen /
+// copyFrom (2) / onChange) и правила узлов схемы (hideWhen условных секций, submit визарда).
+// Уходит полем `behavior` в сборку createForm({ model, schema, behavior, validation }).
 
 import { defineFormBehavior } from '@reformer/core/behaviors';
-import { compute, computeFrom, copyFrom, enableWhen, onChange } from '@reformer/core/behaviors';
+import {
+  compute,
+  computeFrom,
+  copyFrom,
+  enableWhen,
+  hideWhen,
+  onChange,
+  onComponentEvent,
+} from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from './types';
+import { submitCreditApplication } from './api';
 import { fetchCarModelsByBrand, fetchCitiesByRegion } from './data-sources';
 
 // ── Pure financial helpers ───────────────────────────────────────────────────
@@ -46,8 +56,15 @@ function calcAge(birthDate: string): number | null {
   return age;
 }
 
-export const creditApplicationBehavior = defineFormBehavior<CreditApplicationForm>(
-  ({ model, form }) => {
+/**
+ * Поведение формы — фабрика от колбэка хоста: результат отправки нужен странице, а не форме.
+ *
+ * @param onDone - Что сделать с ответом сервера после отправки.
+ */
+export const makeCreditApplicationBehavior = (
+  onDone?: (result: { id?: string; message: string }) => void
+) =>
+  defineFormBehavior<CreditApplicationForm>(({ model, form, schema }) => {
     // ── Conditional availability (enableWhen; skipped from validation while disabled) ──
     // mortgage
     enableWhen([model.$.propertyValue], () => model.loanType === 'mortgage', {
@@ -203,5 +220,20 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
     onChange(model.$.hasCoBorrower, (has) => {
       if (!has) clearArray(model.coBorrowers);
     });
-  }
-);
+
+    // ── Правила узлов схемы: условные секции скрыты, пока управляющее значение не совпало ──
+    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+    hideWhen(schema.node('car-section'), () => model.loanType !== 'car');
+    hideWhen(schema.node('employed-section'), () => model.employmentStatus !== 'employed');
+    hideWhen(schema.node('selfEmployed-section'), () => model.employmentStatus !== 'selfEmployed');
+    hideWhen(schema.node('residence-section'), () => model.sameAsRegistration === true);
+    hideWhen(schema.node('properties-section'), () => model.hasProperty !== true);
+    hideWhen(schema.node('existingLoans-section'), () => model.hasExistingLoans !== true);
+    hideWhen(schema.node('coBorrowers-section'), () => model.hasCoBorrower !== true);
+
+    // Отправка: `onSubmit` визарда аргументов не несёт — значения читаем из модели.
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+      const result = await submitCreditApplication(model.get());
+      onDone?.(result);
+    });
+  });

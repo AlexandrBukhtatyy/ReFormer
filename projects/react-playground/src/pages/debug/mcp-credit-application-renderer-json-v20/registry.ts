@@ -1,27 +1,24 @@
-// registry.ts — binds component names ($component(...)) and data-source
-// names ($dataSource(...)) used by renderer.schema.json. The Wizard shim adapts the
-// JSON Step container-nodes into ui-kit FormWizard's { number, title, icon, body }.
+// registry.ts — реестр: имена компонентов ($component(...)) и source-значений ($dataSource(...)),
+// на которые ссылается renderer.schema.json. Визард — библиотечный `FormWizard` под именем `Wizard`
+// (так он назван в документе): шаги он берёт из узлов-детей (`Step`), форму и валидацию — из сборки.
+// Запись `FIELD_WRAPPER` — обёртка поля: сборка кладёт её в бандл, рендерер берёт оттуда.
 
-import { createElement, type FC } from 'react';
 import {
   Box,
   CheckboxWithLabel,
   FormArray,
   FormField,
+  FormWizard,
   Input,
   InputMask,
+  InputNumber,
   RadioGroupOptions,
   Section,
   SelectAsync,
   Textarea,
-  FormWizard,
-  type FormWizardStep,
-  InputNumber,
 } from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
-import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import type { CreditApplicationForm } from './types';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
   CO_BORROWER_ITEM_LABEL,
   CURRENT_YEAR_PLUS_ONE,
@@ -36,58 +33,10 @@ import {
   REGIONS,
 } from './data-sources';
 
-/** Shape of a converted JSON Step container-node passed via componentProps.steps. */
-type StepRenderNode = {
-  componentProps?: { title?: string; icon?: string };
-  children?: RenderNode<CreditApplicationForm>[];
-};
-
-/**
- * `$component(Wizard)` shim: turns the JSON `Step` container-nodes into ui-kit
- * FormWizard steps (each step's children become a Box RenderNode `body`), and
- * threads through the injected `form` + validation config.
- *
- * It also supplies `renderStepBody`: ui-kit `FormWizard` deliberately does not depend on
- * `@reformer/renderer-react`, so turning a RenderNode `body` into a rendered tree is
- * injected here — the shim is exactly the application-side boundary for that.
- */
-const RendererFormWizard: FC<Record<string, unknown>> = (props) => {
-  const rawSteps = (props.steps as StepRenderNode[] | undefined) ?? [];
-  const steps = rawSteps.map((node, i) => ({
-    number: i + 1,
-    title: node.componentProps?.title ?? `Шаг ${i + 1}`,
-    icon: node.componentProps?.icon,
-    body: {
-      component: Box,
-      componentProps: { className: 'space-y-4' },
-      children: node.children ?? [],
-    },
-  })) as unknown as FormWizardStep<CreditApplicationForm>[];
-
-  return createElement(FormWizard as unknown as FC<Record<string, unknown>>, {
-    // Проброс `ref` обязателен: через него RenderSchema отдаёт `wizard.getRef()`.
-    // Без него handle пустой — молча ломаются programmatic submit и навигация
-    // (`wizardRef.current?.goToStep(...)`), причём ни tsc, ни валидаторы этого не видят.
-    ref: props.ref,
-    form: props.form,
-    steps,
-    config: { validateStep: props.validateStep, validateAll: props.validateAll },
-    renderStepBody: (body: RenderNode<CreditApplicationForm>, form: unknown) =>
-      createElement(RenderNodeComponent as unknown as FC<Record<string, unknown>>, {
-        node: body,
-        form,
-      }),
-    onSubmit: props.onSubmit,
-  });
-};
-
-export function createRegistry() {
+export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
-    // Wizard system components.
-    reg.component('Wizard', RendererFormWizard);
-    // The converter must resolve the `Step` name, but this component never renders: the shim
-    // above reads the Step node's title/icon and rebuilds its children as the step body.
-    // Registered as the canonical marker anyway — this example is read as the reference layout.
+    // Визард и его шаги: библиотечные компоненты под именами из документа, без прикладной обёртки.
+    reg.component('Wizard', FormWizard);
     reg.component('Step', Step);
 
     // Layout containers.

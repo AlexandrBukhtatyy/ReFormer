@@ -1,23 +1,27 @@
 /**
  * Страница-пример: «Заявка на кредит» на `@reformer/renderer-react`.
  *
- * Модуль плоский, все шаги визарда — внутри render-схемы (`renderer.schema.tsx`);
- * здесь только сборка бандла, предзагрузка данных и экраны состояний.
+ * Модуль плоский, все шаги визарда — внутри схемы (`renderer.schema.tsx`); здесь только сборка
+ * бандла, предзагрузка данных и экраны состояний.
+ *
+ * Сборка ОДНИМ вызовом: `createForm({ model, schema, behavior, validation })` →
+ * `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`. Визард — узел схемы,
+ * форму и валидацию он берёт из сборки сам.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 
-import type { FormModel, FormProxy } from '@reformer/core';
-import { createReactForm, FormRenderer, useReactForm } from '@reformer/renderer-react';
+import { createForm, useFormBundle, type FormModel, type FormProxy } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import { Button, FormField } from '@reformer/ui-kit';
 
 import { fetchCreditApplication, type SubmitApplicationResult } from './api';
 import { fetchDictionaries } from './data-sources';
-import { creditApplicationBehavior } from './form.behavior';
+import { makeCreditApplicationBehavior } from './form.behavior';
 import { createCreditApplicationModel } from './model';
-import { makeCreditApplicationRenderBehavior } from './renderer.behavior';
 import { buildCreditApplicationSchema } from './renderer.schema';
 import type { CreditApplicationForm, FormMode } from './types';
+import { creditApplicationValidation } from './validation';
 
 // ----------------------------------------------------------------------------------------------
 // Предзагрузка: заявка + справочники параллельно, с race-guard и отложенным updateComponentProps
@@ -75,7 +79,7 @@ function useCreditApplicationData(
     return () => {
       cancelled = true;
     };
-    // model / form стабильны — их создаёт useReactForm ровно один раз.
+    // model / form стабильны — их создаёт useFormBundle ровно один раз.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId]);
 
@@ -110,18 +114,19 @@ function CreditApplicationView({ mode, applicationId }: CreditApplicationViewPro
     setSubmitError(message);
   }, []);
 
-  // Форма собирается ОДИН раз: useReactForm — ленивый useState, а не useMemo.
-  const bundle = useReactForm(() =>
-    createReactForm<CreditApplicationForm>({
+  // Форма собирается ОДИН раз: useFormBundle зовёт фабрику однажды и держит бандл стабильным,
+  // поэтому режим и колбэки страницы замыкаются поведением на всё время жизни бандла.
+  const bundle = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
       model: createCreditApplicationModel(),
       schema: buildCreditApplicationSchema,
-      behavior: creditApplicationBehavior,
-      renderBehavior: makeCreditApplicationRenderBehavior({
+      behavior: makeCreditApplicationBehavior({
         mode,
         onSubmitStart,
         onSubmitSuccess,
         onSubmitError,
       }),
+      validation: creditApplicationValidation,
     })
   );
 
@@ -200,7 +205,7 @@ export default function NewMcpTestV2ReactPage() {
         </div>
       </div>
 
-      {/* key пересобирает бандл при смене режима/заявки: renderBehavior замыкает mode. */}
+      {/* key пересобирает бандл при смене режима/заявки: поведение замыкает mode. */}
       <CreditApplicationView
         key={`${mode}:${applicationId ?? 'new'}`}
         mode={mode}

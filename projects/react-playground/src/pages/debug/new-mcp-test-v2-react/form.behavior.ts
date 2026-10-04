@@ -1,6 +1,13 @@
 /**
- * Поведение модели формы «Заявка на кредит» — вычисляемые поля, условная доступность,
- * копирование, каскадные сбросы, асинхронные справочники и динамические лимиты.
+ * Поведение формы «Заявка на кредит» — единственное: и модель, и узлы схемы.
+ *
+ * - связи над моделью: вычисляемые поля, условная доступность, копирование, каскадные сбросы,
+ *   асинхронные справочники и динамические лимиты;
+ * - правила узлов схемы (`schema.node(selector)`): условная видимость секций, блокировка
+ *   readonly-полей и режима просмотра, отправка по `onSubmit` визарда. Их исполняет рендерер.
+ *
+ * Поведение — фабрика от настроек страницы (режим, колбэки отправки); уходит полем `behavior`
+ * в сборку `createForm({ model, schema, behavior, validation })`.
  *
  * Слой поведения НЕ владеет валидацией: единственный мост к раннеру — явный вызов
  * `validateModel` из `onChange` (живая проверка email с задержкой).
@@ -12,11 +19,15 @@ import {
   copyFrom,
   defineFormBehavior,
   enableWhen,
+  hideWhen,
   onChange,
+  onComponentEvent,
+  onInit,
   resetWhen,
 } from '@reformer/core/behaviors';
 import { validateModel } from '@reformer/core/validation';
 
+import { submitCreditApplication, type SubmitApplicationResult } from './api';
 import { fetchCarModels, fetchCitiesByRegion } from './data-sources';
 import {
   BASE_INTEREST_RATE,
@@ -25,8 +36,30 @@ import {
   MAX_INCOME_YEARS,
   PREFERRED_REGIONS,
   type CreditApplicationForm,
+  type FormMode,
 } from './types';
 import { emailLiveSchema } from './validation';
+
+/** Настройки страницы, которые замыкает поведение. */
+export type CreditBehaviorOptions = {
+  /** Режим формы: в `view` все поля блокируются целиком. */
+  mode: FormMode;
+  onSubmitStart: () => void;
+  onSubmitSuccess: (result: SubmitApplicationResult) => void;
+  onSubmitError: (message: string) => void;
+};
+
+/** Поля, которые считаются поведением и не редактируются вручную. */
+const READONLY_FIELDS = [
+  'interestRate',
+  'monthlyPayment',
+  'initialPayment',
+  'fullName',
+  'age',
+  'totalIncome',
+  'paymentToIncomeRatio',
+  'coBorrowersIncome',
+] as const;
 
 /** Аннуитетный платёж: P * (i * (1+i)^n) / ((1+i)^n − 1). */
 export function annuityMonthly(amount: number, months: number, ratePercent: number): number {
@@ -51,8 +84,12 @@ export function yearsSince(isoDate: string): number | null {
 
 const ABORTED = 'AbortError';
 
-export const creditApplicationBehavior = defineFormBehavior<CreditApplicationForm>(
-  ({ model, form }) => {
+/**
+ * Фабрика поведения. Замыкает настройки страницы, поэтому создаётся в `index.tsx` и передаётся в
+ * `createForm({ behavior })`; смена режима пересобирает бандл целиком (`key` у формы).
+ */
+export const makeCreditApplicationBehavior = (options: CreditBehaviorOptions) =>
+  defineFormBehavior<CreditApplicationForm>(({ model, form, schema }) => {
     // ------------------------------------------------------------------------------------
     // Вычисляемые поля
     // ------------------------------------------------------------------------------------
@@ -267,5 +304,55 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
       },
       { debounce: 500 }
     );
-  }
-);
+
+    // ------------------------------------------------------------------------------------
+    // Правила узлов схемы: условная видимость. Условие читает модель — оно реактивно и
+    // пересчитывается при изменении прочитанных значений.
+    // ------------------------------------------------------------------------------------
+
+    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+    hideWhen(schema.node('car-section'), () => model.loanType !== 'car');
+    hideWhen(schema.node('employed-section'), () => model.employmentStatus !== 'employed');
+    hideWhen(schema.node('self-employed-section'), () => model.employmentStatus !== 'selfEmployed');
+    hideWhen(schema.node('residence-section'), () => model.sameAsRegistration === true);
+    hideWhen(schema.node('properties-array'), () => model.hasProperty !== true);
+    hideWhen(schema.node('loans-array'), () => model.hasExistingLoans !== true);
+    hideWhen(schema.node('loans-hint'), () => model.hasExistingLoans !== true);
+    hideWhen(schema.node('coborrowers-array'), () => model.hasCoBorrower !== true);
+    hideWhen(schema.node('coBorrowersIncome'), () => model.hasCoBorrower !== true);
+    hideWhen(schema.node('additionalIncomeSource'), () => (model.additionalIncome ?? 0) <= 0);
+
+    // ------------------------------------------------------------------------------------
+    // Блокировки. Глобального `settings.readonly` нет; единственный рычаг — состояние
+    // ноды (`disable()`): `componentProps.disabled` затирается seam-ом и не работает.
+    // `onInit` синхронный и срабатывает до первого рендера; стоит после связей над моделью —
+    // в том же порядке, в каком правила узлов шли раньше.
+    // ------------------------------------------------------------------------------------
+
+    onInit(schema.node('wizard'), () => {
+      if (options.mode === 'view') {
+        form.disable();
+        return;
+      }
+      for (const field of READONLY_FIELDS) {
+        form[field].disable();
+      }
+    });
+
+    // ------------------------------------------------------------------------------------
+    // Отправка. Визард зовёт `onSubmit` только после успешной проверки всей формы и передаёт
+    // значения; при провале проверки он сам помечает поля `touched`, обработчик не вызывается.
+    // ------------------------------------------------------------------------------------
+
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditApplicationForm) => {
+      if (options.mode === 'view') return;
+      options.onSubmitStart();
+      try {
+        options.onSubmitSuccess(await submitCreditApplication(values));
+      } catch (error) {
+        options.onSubmitError(
+          error instanceof Error ? error.message : 'Не удалось отправить заявку.'
+        );
+      }
+    });
+  });

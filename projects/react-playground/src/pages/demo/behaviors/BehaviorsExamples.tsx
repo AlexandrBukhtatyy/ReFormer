@@ -1,11 +1,11 @@
 /**
- * Примеры поведений (behaviors) с ReFormer — новая архитектура (M1).
- * Behaviors работают на сигналах модели; ноды (form.x) отражают изменения.
+ * Примеры поведений (behaviors) с ReFormer.
+ * Поведения работают на ручках модели (`model.$.x`); ноды (form.x) отражают изменения.
  */
 
 import { useEffect } from 'react';
 import {
-  createCoreForm,
+  createForm,
   useFormBundle,
   useFormControl,
   useFormControlValue,
@@ -77,37 +77,37 @@ const INITIAL: BehaviorsDemoForm = {
 const amountWithinMax = (f: BehaviorsDemoForm): ValidationError | null =>
   f.amount > f.maxAmount ? { code: 'max', message: 'Превышен лимит' } : null;
 
-// RENDER-схема: только layout ({ value }), без validators — правила живут в amountValidation.
+// Схема формы: только поля ({ model }), без валидаторов — правила живут в amountValidation.
 function buildSchema(model: FormModel<BehaviorsDemoForm>) {
   // Поля рендерятся кастомными компонентами (raw <input>), поэтому component не задаём.
   return {
     children: [
-      { value: model.$.price },
-      { value: model.$.quantity },
-      { value: model.$.total },
-      { value: model.$.country },
-      { value: model.$.city },
-      { value: model.$.hasDiscount },
-      { value: model.$.discountPercent },
-      { value: model.$.isConfirmed },
-      { value: model.$.editableField },
-      { value: model.$.useShippingAsBilling },
-      { value: model.$.shippingAddress },
-      { value: model.$.billingAddress },
-      { value: model.$.watchedField },
-      { value: model.$.uppercaseField },
-      { value: model.$.paymentType },
-      { value: model.$.cardNumber },
-      { value: model.$.syncField1 },
-      { value: model.$.syncField2 },
-      { value: model.$.maxAmount },
-      { value: model.$.amount },
+      { model: model.$.price },
+      { model: model.$.quantity },
+      { model: model.$.total },
+      { model: model.$.country },
+      { model: model.$.city },
+      { model: model.$.hasDiscount },
+      { model: model.$.discountPercent },
+      { model: model.$.isConfirmed },
+      { model: model.$.editableField },
+      { model: model.$.useShippingAsBilling },
+      { model: model.$.shippingAddress },
+      { model: model.$.billingAddress },
+      { model: model.$.watchedField },
+      { model: model.$.uppercaseField },
+      { model: model.$.paymentType },
+      { model: model.$.cardNumber },
+      { model: model.$.syncField1 },
+      { model: model.$.syncField2 },
+      { model: model.$.maxAmount },
+      { model: model.$.amount },
     ],
   };
 }
 
 // VALIDATION-схема (стабильный module-level const — важно для отмены устаревших прогонов).
-// Прогоняется через validateModel; правила те же, что раньше жили в render-схеме.
+// Прогоняется через validateModel; правила те же, что раньше жили в схеме.
 const amountValidation = defineValidationSchema<BehaviorsDemoForm>(({ model }) => {
   validate(model.$.price, [
     required({ message: 'Укажите цену' }),
@@ -258,7 +258,7 @@ export default function BehaviorsExamples() {
   // Сборка одним вызовом. Поведение здесь НЕ в конфиге намеренно: пример показывает императивные
   // операторы (computeFrom/enableWhen/…), которые живут в эффекте со своим cleanup.
   const { form, model } = useFormBundle(() =>
-    createCoreForm<BehaviorsDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
+    createForm<BehaviorsDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
   );
 
   // Behaviors на сигналах модели (после createForm — реестр сигнал→нода заполнен для enable/disable).

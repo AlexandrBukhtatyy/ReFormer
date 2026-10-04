@@ -4,6 +4,11 @@
  * `*Field`-версии ui-kit уже value-based, поэтому `resolveFieldAdapter` не нужен.
  * Данные — только `reg.dataSource` + `$dataSource(NAME)`, функции — только
  * `reg.fn` + `$fn(name)`: виды раздельны, перекрёстная ссылка бросает.
+ *
+ * Визард (`$component(Wizard)`) — библиотечный `FormWizard`: шаги он берёт из
+ * узлов-детей (`$component(Step)`), форму и валидацию — из сборки `createForm`.
+ * Прикладной обёртки над ним нет. Запись `FIELD_WRAPPER` — обёртка поля: сборка
+ * кладёт её в бандл, рендерер берёт оттуда.
  */
 import { Step } from '@reformer/cdk/form-wizard';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
@@ -11,6 +16,7 @@ import {
   Box,
   CheckboxWithLabel,
   FormField,
+  FormWizard,
   Input,
   InputNumber,
   InputMask,
@@ -23,7 +29,6 @@ import {
 
 import type { Dictionaries } from './api';
 import { CAR_BRANDS, CURRENT_YEAR_PLUS_ONE, REGIONS } from './data-sources';
-import { RendererFormWizard } from './renderer.wizard';
 import {
   EDUCATION_LEVELS,
   EMPLOYMENT_STATUSES,
@@ -57,7 +62,8 @@ export function createRegistry(dictionaries: Dictionaries): ComponentRegistry {
     reg.component('Box', Box);
     reg.component('Section', Section);
     reg.component('FormArray', FormArray);
-    reg.component('Wizard', RendererFormWizard);
+    // Имена — те, что стоят в документе: `$component(Wizard)` и `$component(Step)`.
+    reg.component('Wizard', FormWizard);
     reg.component('Step', Step);
 
     /* --- справочники (константные) --- */

@@ -1,23 +1,44 @@
 /**
- * Поведение МОДЕЛИ: вычисляемые поля, копирование, условная доступность,
- * каскадные сбросы и асинхронная подгрузка справочников.
+ * Поведение формы — единственное: и модель, и узлы схемы.
  *
- * Реактивность РЕНДЕРА (hideWhen / patchProps / onInit) живёт отдельно —
- * в `renderer.behavior.ts`.
+ * - значения и состояние полей: вычисляемые поля, копирование, условная
+ *   доступность, каскадные сбросы, асинхронная подгрузка справочников;
+ * - правила узлов схемы (`schema.node(selector)`): видимость секций и
+ *   предупреждений, отправка формы визардом, режим «только чтение».
+ *
+ * Поведению нужны режим страницы и её колбэки, поэтому оно — фабрика
+ * {@link createCreditFormBehavior}. Уходит полем `behavior` в сборку `createForm`.
  */
 import {
   compute,
   computeFrom,
   copyFrom,
+  defer,
   defineFormBehavior,
   enableWhen,
+  hideWhen,
   onChange,
+  onComponentEvent,
+  onInit,
 } from '@reformer/core/behaviors';
 
+import { submitCreditApplication } from './api';
 import { loadCarModels, loadCities, maxLoanByIncome, maxTermByAge } from './data-sources';
-import { BASE_RATES, PREFERENTIAL_REGIONS, type CreditApplicationForm } from './types';
+import {
+  BASE_RATES,
+  PREFERENTIAL_REGIONS,
+  type CreditApplicationForm,
+  type FormMode,
+} from './types';
 
 type Form = CreditApplicationForm;
+
+/** Настройки поведения от страницы: режим формы и колбэки результата отправки. */
+export interface CreditBehaviorOptions {
+  mode: FormMode;
+  onSubmitted?: (message: string) => void;
+  onSubmitError?: (message: string) => void;
+}
 
 const ADDRESS_FIELDS = ['region', 'city', 'street', 'house', 'apartment', 'postalCode'] as const;
 
@@ -55,226 +76,310 @@ export function calcInterestRate(
   return Math.round(rate * 100) / 100;
 }
 
-export const creditFormBehavior = defineFormBehavior<Form>(({ model, form }) => {
-  /* ---------------- условные поля (спека: «Условные поля») ---------------- */
+/**
+ * Поведение формы — фабрика от настроек страницы. Зовётся один раз, внутри фабрики сборки
+ * (`useFormBundle`), поэтому ссылки на колбэки стабильны.
+ *
+ * @param options - Режим формы и колбэки результата отправки.
+ */
+export const createCreditFormBehavior = (options: CreditBehaviorOptions) =>
+  defineFormBehavior<Form>(({ model, form, schema }) => {
+    /* ---------------- условные поля (спека: «Условные поля») ---------------- */
 
-  enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {
-    resetOnDisable: true,
-  });
-
-  const carFields = [model.$.carBrand, model.$.carModel, model.$.carYear, model.$.carPrice];
-  for (const sig of carFields) {
-    enableWhen(sig, () => model.loanType === 'car', { resetOnDisable: true });
-  }
-
-  const employedFields = [
-    model.$.companyName,
-    model.$.companyInn,
-    model.$.companyPhone,
-    model.$.companyAddress,
-    model.$.position,
-  ];
-  for (const sig of employedFields) {
-    enableWhen(sig, () => model.employmentStatus === 'employed', { resetOnDisable: true });
-  }
-
-  const selfEmployedFields = [model.$.businessType, model.$.businessInn, model.$.businessActivity];
-  for (const sig of selfEmployedFields) {
-    enableWhen(sig, () => model.employmentStatus === 'selfEmployed', { resetOnDisable: true });
-  }
-
-  // Адрес проживания: доступен только когда он отличается от адреса регистрации.
-  // `resetOnDisable` НЕ ставим — «сброс» здесь делает копирование ниже.
-  for (const field of ADDRESS_FIELDS) {
-    enableWhen(model.$.residenceAddress[field], () => model.sameAsRegistration === false);
-  }
-
-  /* ---------------- копирование ---------------- */
-
-  for (const field of ADDRESS_FIELDS) {
-    copyFrom(model.$.registrationAddress[field], model.$.residenceAddress[field], {
-      when: () => model.sameAsRegistration === true,
+    enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {
+      resetOnDisable: true,
     });
-  }
 
-  copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail === true });
-
-  /* ---------------- вычисляемые поля ---------------- */
-
-  // C.1 — ставка. Auto-tracking: читаем loanType, регион, флаг и ДЛИНУ массива.
-  compute(model.$.interestRate, () =>
-    calcInterestRate(
-      model.loanType,
-      model.registrationAddress.region,
-      model.hasProperty,
-      model.properties.map(() => null).length
-    )
-  );
-
-  // C.2 — ежемесячный платёж (аннуитет).
-  computeFrom(
-    [model.$.loanAmount, model.$.loanTerm, model.$.interestRate],
-    model.$.monthlyPayment,
-    (amount, term, rate) =>
-      annuityPayment(Number(amount ?? 0), Number(term ?? 0), Number(rate ?? 0))
-  );
-
-  // C.3 — первоначальный взнос = 20 % стоимости; вне ипотеки поле обнуляется.
-  compute(model.$.initialPayment, () =>
-    model.loanType === 'mortgage' ? Math.round((model.propertyValue ?? 0) * 0.2) : null
-  );
-
-  // C.4 — ФИО одной строкой.
-  compute(model.$.fullName, () =>
-    [model.personalData.lastName, model.personalData.firstName, model.personalData.middleName]
-      .filter(Boolean)
-      .join(' ')
-  );
-
-  // C.5 — возраст.
-  compute(model.$.age, () => ageFromBirthDate(model.personalData.birthDate));
-
-  // C.6 — общий доход.
-  computeFrom(
-    [model.$.monthlyIncome, model.$.additionalIncome],
-    model.$.totalIncome,
-    (main, extra) => Number(main ?? 0) + Number(extra ?? 0)
-  );
-
-  // C.7 — доля платежа в доходе.
-  computeFrom(
-    [model.$.monthlyPayment, model.$.totalIncome],
-    model.$.paymentToIncomeRatio,
-    (payment, income) => {
-      const total = Number(income ?? 0);
-      if (!total) return null;
-      return Math.round(((Number(payment ?? 0) / total) * 100 + Number.EPSILON) * 10) / 10;
+    const carFields = [model.$.carBrand, model.$.carModel, model.$.carYear, model.$.carPrice];
+    for (const sig of carFields) {
+      enableWhen(sig, () => model.loanType === 'car', { resetOnDisable: true });
     }
-  );
 
-  // C.8 — сумма доходов созаемщиков: читаем value-proxy массива (реактивно и на
-  // добавление/удаление строк, и на правку поля внутри строки).
-  compute(model.$.coBorrowersIncome, () =>
-    model.coBorrowers.map((cb) => cb.monthlyIncome ?? 0).reduce((sum, v) => sum + v, 0)
-  );
+    const employedFields = [
+      model.$.companyName,
+      model.$.companyInn,
+      model.$.companyPhone,
+      model.$.companyAddress,
+      model.$.position,
+    ];
+    for (const sig of employedFields) {
+      enableWhen(sig, () => model.employmentStatus === 'employed', { resetOnDisable: true });
+    }
 
-  /* ---------------- каскадные сбросы + async-справочники ---------------- */
+    const selfEmployedFields = [
+      model.$.businessType,
+      model.$.businessInn,
+      model.$.businessActivity,
+    ];
+    for (const sig of selfEmployedFields) {
+      enableWhen(sig, () => model.employmentStatus === 'selfEmployed', { resetOnDisable: true });
+    }
 
-  // Первый прогон (`immediate: true`) нужен, чтобы справочник подгрузился и для
-  // ПРЕДЗАПОЛНЕННОЙ заявки; зависимое поле при этом чистить нельзя — иначе
-  // предзаполненное значение потеряется. Дальше срабатывает обычная логика
-  // «сменил источник → очистил зависимое».
-  let carBrandFirstRun = true;
-  let regionFirstRun = true;
-  let residenceRegionFirstRun = true;
+    // Адрес проживания: доступен только когда он отличается от адреса регистрации.
+    // `resetOnDisable` НЕ ставим — «сброс» здесь делает копирование ниже.
+    for (const field of ADDRESS_FIELDS) {
+      enableWhen(model.$.residenceAddress[field], () => model.sameAsRegistration === false);
+    }
 
-  // Смена марки: чистим модель и подгружаем список моделей (debounce 300 мс).
-  onChange(
-    model.$.carBrand,
-    async (brand, { signal }) => {
-      const isInitial = carBrandFirstRun;
-      carBrandFirstRun = false;
-      if (!isInitial) model.carModel = null;
-      if (!brand) {
-        form.carModel.updateComponentProps({ options: [] });
-        return;
+    /* ---------------- копирование ---------------- */
+
+    for (const field of ADDRESS_FIELDS) {
+      copyFrom(model.$.registrationAddress[field], model.$.residenceAddress[field], {
+        when: () => model.sameAsRegistration === true,
+      });
+    }
+
+    copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail === true });
+
+    /* ---------------- вычисляемые поля ---------------- */
+
+    // C.1 — ставка. Auto-tracking: читаем loanType, регион, флаг и ДЛИНУ массива.
+    compute(model.$.interestRate, () =>
+      calcInterestRate(
+        model.loanType,
+        model.registrationAddress.region,
+        model.hasProperty,
+        model.properties.map(() => null).length
+      )
+    );
+
+    // C.2 — ежемесячный платёж (аннуитет).
+    computeFrom(
+      [model.$.loanAmount, model.$.loanTerm, model.$.interestRate],
+      model.$.monthlyPayment,
+      (amount, term, rate) =>
+        annuityPayment(Number(amount ?? 0), Number(term ?? 0), Number(rate ?? 0))
+    );
+
+    // C.3 — первоначальный взнос = 20 % стоимости; вне ипотеки поле обнуляется.
+    compute(model.$.initialPayment, () =>
+      model.loanType === 'mortgage' ? Math.round((model.propertyValue ?? 0) * 0.2) : null
+    );
+
+    // C.4 — ФИО одной строкой.
+    compute(model.$.fullName, () =>
+      [model.personalData.lastName, model.personalData.firstName, model.personalData.middleName]
+        .filter(Boolean)
+        .join(' ')
+    );
+
+    // C.5 — возраст.
+    compute(model.$.age, () => ageFromBirthDate(model.personalData.birthDate));
+
+    // C.6 — общий доход.
+    computeFrom(
+      [model.$.monthlyIncome, model.$.additionalIncome],
+      model.$.totalIncome,
+      (main, extra) => Number(main ?? 0) + Number(extra ?? 0)
+    );
+
+    // C.7 — доля платежа в доходе.
+    computeFrom(
+      [model.$.monthlyPayment, model.$.totalIncome],
+      model.$.paymentToIncomeRatio,
+      (payment, income) => {
+        const total = Number(income ?? 0);
+        if (!total) return null;
+        return Math.round(((Number(payment ?? 0) / total) * 100 + Number.EPSILON) * 10) / 10;
       }
-      form.carModel.updateComponentProps({ options: [], placeholder: 'Загрузка…' });
-      try {
-        const options = await loadCarModels(brand, signal);
-        form.carModel.updateComponentProps({ options, placeholder: 'Выберите модель' });
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') return;
-        form.carModel.updateComponentProps({ options: [], placeholder: 'Не удалось загрузить' });
-      }
-    },
-    { debounce: 300, immediate: true }
-  );
+    );
 
-  // Смена региона регистрации: чистим город и подгружаем справочник городов.
-  onChange(
-    model.$.registrationAddress.region,
-    async (region, { signal }) => {
-      const isInitial = regionFirstRun;
-      regionFirstRun = false;
-      if (!isInitial) model.registrationAddress.city = '';
-      if (!region) {
-        form.registrationAddress.city.updateComponentProps({ options: [] });
-        return;
-      }
-      form.registrationAddress.city.updateComponentProps({ options: [], placeholder: 'Загрузка…' });
-      try {
-        const options = await loadCities(region, signal);
-        form.registrationAddress.city.updateComponentProps({
-          options,
-          placeholder: 'Выберите город',
-        });
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') return;
+    // C.8 — сумма доходов созаемщиков: читаем value-proxy массива (реактивно и на
+    // добавление/удаление строк, и на правку поля внутри строки).
+    compute(model.$.coBorrowersIncome, () =>
+      model.coBorrowers.map((cb) => cb.monthlyIncome ?? 0).reduce((sum, v) => sum + v, 0)
+    );
+
+    /* ---------------- каскадные сбросы + async-справочники ---------------- */
+
+    // Первый прогон (`immediate: true`) нужен, чтобы справочник подгрузился и для
+    // ПРЕДЗАПОЛНЕННОЙ заявки; зависимое поле при этом чистить нельзя — иначе
+    // предзаполненное значение потеряется. Дальше срабатывает обычная логика
+    // «сменил источник → очистил зависимое».
+    let carBrandFirstRun = true;
+    let regionFirstRun = true;
+    let residenceRegionFirstRun = true;
+
+    // Смена марки: чистим модель и подгружаем список моделей (debounce 300 мс).
+    onChange(
+      model.$.carBrand,
+      async (brand, { signal }) => {
+        const isInitial = carBrandFirstRun;
+        carBrandFirstRun = false;
+        if (!isInitial) model.carModel = null;
+        if (!brand) {
+          form.carModel.updateComponentProps({ options: [] });
+          return;
+        }
+        form.carModel.updateComponentProps({ options: [], placeholder: 'Загрузка…' });
+        try {
+          const options = await loadCarModels(brand, signal);
+          form.carModel.updateComponentProps({ options, placeholder: 'Выберите модель' });
+        } catch (error) {
+          if ((error as Error).name === 'AbortError') return;
+          form.carModel.updateComponentProps({ options: [], placeholder: 'Не удалось загрузить' });
+        }
+      },
+      { debounce: 300, immediate: true }
+    );
+
+    // Смена региона регистрации: чистим город и подгружаем справочник городов.
+    onChange(
+      model.$.registrationAddress.region,
+      async (region, { signal }) => {
+        const isInitial = regionFirstRun;
+        regionFirstRun = false;
+        if (!isInitial) model.registrationAddress.city = '';
+        if (!region) {
+          form.registrationAddress.city.updateComponentProps({ options: [] });
+          return;
+        }
         form.registrationAddress.city.updateComponentProps({
           options: [],
-          placeholder: 'Не удалось загрузить',
+          placeholder: 'Загрузка…',
         });
-      }
-    },
-    { debounce: 300, immediate: true }
-  );
+        try {
+          const options = await loadCities(region, signal);
+          form.registrationAddress.city.updateComponentProps({
+            options,
+            placeholder: 'Выберите город',
+          });
+        } catch (error) {
+          if ((error as Error).name === 'AbortError') return;
+          form.registrationAddress.city.updateComponentProps({
+            options: [],
+            placeholder: 'Не удалось загрузить',
+          });
+        }
+      },
+      { debounce: 300, immediate: true }
+    );
 
-  // То же для адреса проживания. Справочник грузим ВСЕГДА (в т.ч. когда регион
-  // приехал копированием), а зависимый город чистим только когда пользователь
-  // правит адрес проживания сам.
-  onChange(
-    model.$.residenceAddress.region,
-    async (region, { signal }) => {
-      const isInitial = residenceRegionFirstRun;
-      residenceRegionFirstRun = false;
-      if (!isInitial && !model.sameAsRegistration) model.residenceAddress.city = '';
-      if (!region) {
-        form.residenceAddress.city.updateComponentProps({ options: [] });
-        return;
-      }
-      form.residenceAddress.city.updateComponentProps({ options: [], placeholder: 'Загрузка…' });
+    // То же для адреса проживания. Справочник грузим ВСЕГДА (в т.ч. когда регион
+    // приехал копированием), а зависимый город чистим только когда пользователь
+    // правит адрес проживания сам.
+    onChange(
+      model.$.residenceAddress.region,
+      async (region, { signal }) => {
+        const isInitial = residenceRegionFirstRun;
+        residenceRegionFirstRun = false;
+        if (!isInitial && !model.sameAsRegistration) model.residenceAddress.city = '';
+        if (!region) {
+          form.residenceAddress.city.updateComponentProps({ options: [] });
+          return;
+        }
+        form.residenceAddress.city.updateComponentProps({ options: [], placeholder: 'Загрузка…' });
+        try {
+          const options = await loadCities(region, signal);
+          form.residenceAddress.city.updateComponentProps({
+            options,
+            placeholder: 'Выберите город',
+          });
+        } catch (error) {
+          if ((error as Error).name === 'AbortError') return;
+          form.residenceAddress.city.updateComponentProps({
+            options: [],
+            placeholder: 'Не удалось загрузить',
+          });
+        }
+      },
+      { debounce: 300, immediate: true }
+    );
+
+    /* ---------------- управление массивами по флагам ---------------- */
+
+    onChange(model.$.hasProperty, (on) => {
+      if (!on) model.properties.clear();
+    });
+    onChange(model.$.hasExistingLoans, (on) => {
+      if (!on) model.existingLoans.clear();
+    });
+    onChange(model.$.hasCoBorrower, (on) => {
+      if (!on) model.coBorrowers.clear();
+    });
+
+    /* ---------------- динамические лимиты ---------------- */
+
+    onChange(
+      model.$.totalIncome,
+      (income) => {
+        form.loanAmount.updateComponentProps({ max: maxLoanByIncome(Number(income ?? 0)) });
+      },
+      { immediate: true }
+    );
+
+    onChange(
+      model.$.age,
+      (age) => {
+        form.loanTerm.updateComponentProps({ max: maxTermByAge(Number(age ?? 0)) });
+      },
+      { immediate: true }
+    );
+
+    /* ================= правила узлов схемы (исполняет рендерер) ================= */
+
+    const wizard = schema.node('wizard');
+
+    /* ---------------- состояние «только чтение» ---------------- */
+
+    onInit(wizard, () => {
+      // Вычисляемые поля — readonly: `componentProps.disabled` в документе не работает
+      // by design, единственный рычаг — состояние ноды формы.
+      form.interestRate.disable();
+      form.monthlyPayment.disable();
+      form.initialPayment.disable();
+      form.fullName.disable();
+      form.age.disable();
+      form.totalIncome.disable();
+      form.paymentToIncomeRatio.disable();
+      form.coBorrowersIncome.disable();
+
+      // mode='view' — вся форма read-only одним каскадом с корня. Каскад отложен (`defer`,
+      // микротаск): `enableWhen` выше пишут состояние нод тоже отложенно и синхронный
+      // `disable()` перекрыли бы — условные поля с истинным условием остались бы доступными.
+      if (options.mode === 'view') defer(() => form.disable());
+    });
+
+    /* ---------------- отправка ---------------- */
+
+    // Визард зовёт обработчик только после успешной валидации всей формы (шаги + `extras`);
+    // при провале он сам помечает поля `touched`. Значения читаем из модели.
+    onComponentEvent(wizard, 'onSubmit', async () => {
       try {
-        const options = await loadCities(region, signal);
-        form.residenceAddress.city.updateComponentProps({ options, placeholder: 'Выберите город' });
+        const result = await submitCreditApplication(model.get());
+        options.onSubmitted?.(`${result.message} (№ ${result.id})`);
       } catch (error) {
-        if ((error as Error).name === 'AbortError') return;
-        form.residenceAddress.city.updateComponentProps({
-          options: [],
-          placeholder: 'Не удалось загрузить',
-        });
+        options.onSubmitError?.((error as Error).message);
       }
-    },
-    { debounce: 300, immediate: true }
-  );
+    });
 
-  /* ---------------- управление массивами по флагам ---------------- */
+    /* ---------------- условная видимость секций и подсказок ---------------- */
 
-  onChange(model.$.hasProperty, (on) => {
-    if (!on) model.properties.clear();
+    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+    hideWhen(schema.node('mortgage-hint'), () => model.loanType !== 'mortgage');
+    hideWhen(schema.node('car-section'), () => model.loanType !== 'car');
+
+    hideWhen(schema.node('employed-section'), () => model.employmentStatus !== 'employed');
+    hideWhen(schema.node('self-employed-section'), () => model.employmentStatus !== 'selfEmployed');
+    hideWhen(schema.node('self-employed-hint'), () => model.employmentStatus !== 'selfEmployed');
+
+    hideWhen(schema.node('residence-section'), () => model.sameAsRegistration === true);
+
+    hideWhen(schema.node('properties-array'), () => model.hasProperty !== true);
+    hideWhen(schema.node('existing-loans-array'), () => model.hasExistingLoans !== true);
+    hideWhen(schema.node('existing-loans-hint'), () => model.hasExistingLoans !== true);
+    hideWhen(schema.node('co-borrowers-array'), () => model.hasCoBorrower !== true);
+    hideWhen(schema.node('coBorrowersIncome'), () => model.hasCoBorrower !== true);
+
+    hideWhen(schema.node('additional-income-source'), () => (model.additionalIncome ?? 0) <= 0);
+
+    /* ---------------- предупреждения из спеки ---------------- */
+
+    // Блоки видны, только пока условие держится.
+    hideWhen(schema.node('warn-debt-load'), () => (model.paymentToIncomeRatio ?? 0) <= 40);
+    hideWhen(schema.node('warn-age'), () => (model.age ?? 0) <= 60);
+    hideWhen(
+      schema.node('warn-experience'),
+      () => model.workExperienceCurrent === null || model.workExperienceCurrent >= 3
+    );
   });
-  onChange(model.$.hasExistingLoans, (on) => {
-    if (!on) model.existingLoans.clear();
-  });
-  onChange(model.$.hasCoBorrower, (on) => {
-    if (!on) model.coBorrowers.clear();
-  });
-
-  /* ---------------- динамические лимиты ---------------- */
-
-  onChange(
-    model.$.totalIncome,
-    (income) => {
-      form.loanAmount.updateComponentProps({ max: maxLoanByIncome(Number(income ?? 0)) });
-    },
-    { immediate: true }
-  );
-
-  onChange(
-    model.$.age,
-    (age) => {
-      form.loanTerm.updateComponentProps({ max: maxTermByAge(Number(age ?? 0)) });
-    },
-    { immediate: true }
-  );
-});

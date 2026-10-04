@@ -1,17 +1,18 @@
-// validation.ts — ВСЯ валидация над моделью на контракте `@reformer/core/validation`.
-// Каждый шаг — `ValidationSchema<Root>` (`({ model }) => void`): значения проверяются `validate(sig, [rules])`,
-// условные ветки — `validateWhen(cond, cb)`, cross-field — `cross(sig, fn)` (fn читает снапшот `model.get()`),
-// массивы — `each(arr, itemFn)`. Композиция формы — `apply(...шаги)`. Внешний раннер — `validateModel`.
-// Экспорт creditValidation — правила как данные для поля `validation` фабрики формы.
-import { type FormModel, type FormValidation, type ValidationError } from '@reformer/core';
+// validation.ts — вся валидация формы на операторах `@reformer/core/validation`.
+// Каждый шаг — схема `({ model }) => void`: значения проверяет `validate(sig, [rules])`, условные
+// ветки — `validateWhen(cond, cb)`, правила над несколькими полями — `cross(sig, fn)` (fn получает
+// снимок своей области). Группа подключается через `apply(model.$.group, rules)`, массив — через
+// `applyEach(model.$.arr, itemRules)`: правила строки — такая же схема над элементом.
+// Экспорт `creditValidation` — правила шагов данными для поля `validation` сборки `createForm`.
+import { type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateWhen,
   cross,
-  each,
+  apply,
+  applyEach,
   defineValidationSchema,
   type Rule,
-  type ValidationSchema,
 } from '@reformer/core/validation';
 import { email, max, min, maxLength, minLength, required } from '@reformer/core/validators';
 import {
@@ -79,7 +80,7 @@ const additionalIncomeSourceRequired = (f: Root): ValidationError | null =>
     ? { code: 'required', message: 'Укажите источник дополнительного дохода' }
     : null;
 
-// Per-item cross-field (читает снапшот элемента массива, захваченный в замыкание)
+// Правило строки массива: `cross` в правилах строки получает снимок самой строки
 const remainingVsAmount = (loan: ExistingLoan): ValidationError | null =>
   loan.remainingAmount != null && loan.amount != null && loan.remainingAmount > loan.amount
     ? { code: 'exceedsAmount', message: 'Остаток не может превышать сумму кредита' }
@@ -87,40 +88,39 @@ const remainingVsAmount = (loan: ExistingLoan): ValidationError | null =>
 
 // ===== Под-схемы вложенных групп / элементов массивов =====
 
-/** Под-схема адреса — функция над FormModel<Address> (reuse прямым вызовом). */
-const addressSchema: ValidationSchema<Address> = ({ model }) => {
+/** Правила адреса — подключаются к группам адреса через `apply`. */
+const addressSchema = defineValidationSchema<Address>(({ model }) => {
   validate(model.$.region, [required()]);
   validate(model.$.city, [required()]);
   validate(model.$.street, [required()]);
   validate(model.$.house, [required()]);
   validate(model.$.postalCode, [required()]);
-};
+});
 
-const propertyItem = (im: FormModel<Property>): void => {
+const propertyItem = defineValidationSchema<Property>(({ model: im }) => {
   validate(im.$.type, [required()]);
   validate(im.$.description, [required()]);
   validate(im.$.estimatedValue, [required(), min(0)]);
-};
+});
 
-const existingLoanItem = (im: FormModel<ExistingLoan>): void => {
-  const loan = im.get();
+const existingLoanItem = defineValidationSchema<ExistingLoan>(({ model: im }) => {
   validate(im.$.bank, [required()]);
   validate(im.$.type, [required()]);
   validate(im.$.amount, [required(), min(0)]);
   validate(im.$.remainingAmount, [required(), min(0)]);
-  cross(im.$.remainingAmount, () => remainingVsAmount(loan));
+  cross(im.$.remainingAmount, remainingVsAmount);
   validate(im.$.monthlyPayment, [required(), min(0)]);
   validate(im.$.maturityDate, [required()]);
-};
+});
 
-const coBorrowerItem = (im: FormModel<CoBorrower>): void => {
+const coBorrowerItem = defineValidationSchema<CoBorrower>(({ model: im }) => {
   validate(im.$.personalData.lastName, [required()]);
   validate(im.$.personalData.firstName, [required()]);
   validate(im.$.phone, [required()]);
   validate(im.$.email, [required(), email()]);
   validate(im.$.relationship, [required()]);
   validate(im.$.monthlyIncome, [required(), min(0)]);
-};
+});
 
 // ===== Per-step schemas =====
 
@@ -169,10 +169,10 @@ const step3 = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.phoneMain, [required()]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.emailAdditional, [email()]);
-  addressSchema({ model: model.registrationAddress });
+  apply(model.$.registrationAddress, addressSchema);
   validateWhen(
     () => model.sameAsRegistration === false,
-    () => addressSchema({ model: model.residenceAddress })
+    () => apply(model.$.residenceAddress, addressSchema)
   );
 });
 
@@ -208,15 +208,15 @@ const step5 = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.education, [required()]);
   validateWhen(
     () => model.hasProperty === true,
-    () => each(model.properties, propertyItem)
+    () => applyEach(model.$.properties, propertyItem)
   );
   validateWhen(
     () => model.hasExistingLoans === true,
-    () => each(model.existingLoans, existingLoanItem)
+    () => applyEach(model.$.existingLoans, existingLoanItem)
   );
   validateWhen(
     () => model.hasCoBorrower === true,
-    () => each(model.coBorrowers, coBorrowerItem)
+    () => applyEach(model.$.coBorrowers, coBorrowerItem)
   );
 });
 
@@ -233,9 +233,9 @@ const step6 = defineValidationSchema<Root>(({ model }) => {
 // ===== Публичный контракт: правила как данные =====
 
 /**
- * Правила формы — то, что уходит полем `validation` в фабрику (`createCoreForm`). Ключи шагов
- * адресуют правила по имени, а не индексом: перестановка шага не рассинхронизирует их молча.
- * Фабрика соберёт отсюда `validateStep`/`validateAll` — контракт `FormWizardConfig`.
+ * Правила формы — уходят полем `validation` в сборку `createForm`; она строит из них
+ * `validateStep`/`validateAll` для визарда. Шаги в JSX заданы только номером, поэтому шаг N
+ * проверяется N-м ключом `steps` — ключи держим в порядке шагов.
  */
 export const creditValidation: FormValidation<Root> = {
   steps: {

@@ -1,65 +1,97 @@
 /**
  * CreditApplicationFormRendererJson
  *
- * Та же форма кредитной заявки, но layout описан в JSON-схеме.
+ * Та же форма кредитной заявки, но схема — документ JSON.
  *
  * Архитектура (файлы в папке):
- * - [json-schema.json] — layout формы как ЧИСТЫЙ JSON (операторы — строки `$model(...)` и т.п.;
- *   так схема может прийти строкой с сервера/CMS).
+ * - [form.schema.json] — схема формы как ЧИСТЫЙ JSON формата 2 (операторы — строки `$model(...)`
+ *   и т.п.; так схема может прийти строкой с сервера/CMS). Адрес и строки массивов — именованные
+ *   части документа (`parts`).
  * - [registry.ts] — реестр компонентов и source-значений.
- * - [render-behavior.ts] — обёртка над TS-variant behavior-ом: инжектит форму и валидацию
- *   в wizard через `onInit`, остальное делегирует общему поведению.
- * - [CreditApplicationFormRendererJson.tsx] — этот файл: собирает форму ОДНИМ вызовом
- *   `createJsonForm` (модель + форма + валидация + render-behavior) и рендерит бандл.
+ * - [CreditApplicationFormRendererJson.tsx] — этот файл: собирает форму ОДНИМ вызовом `createForm`
+ *   и рендерит бандл.
+ *
+ * Модель, правила и поведение — общие с вариантами «React руками» и renderer
+ * (`../complex-multy-step-form`). От renderer-варианта сборка отличается двумя строками конфига:
+ * `schema` — документ, а не билдер, и рядом с ним `registry`.
  */
 
+import { useEffect, useState } from 'react';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
-import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  createJsonForm,
-  useJsonForm,
-  type JsonFormSchema,
-} from '@reformer/renderer-json';
-import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
-import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
-import { creditApplicationValidation } from '../complex-multy-step-form/schemas/validation';
+import { SchemaErrorPanel, type JsonFormSchema } from '@reformer/renderer-json';
+import { createCreditApplicationModel } from '../complex-multy-step-form/model';
+import { creditApplicationBehavior } from '../complex-multy-step-form/form.behavior';
+import { creditApplicationValidation } from '../complex-multy-step-form/form.validation';
 import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import rawJsonSchema from './json-schema.json';
+import rawJsonSchema from './form.schema.json';
 import { createCreditApplicationRegistry } from './registry';
-import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
 
 // Чистый JSON импортируется как данные; операторы-строки (`$model(...)`) типизируются как `string`,
 // поэтому приводим к JsonFormSchema (это и есть сценарий «схема пришла строкой с сервера»).
 const creditApplicationJsonSchema =
   rawJsonSchema as unknown as JsonFormSchema<CreditApplicationForm>;
 
-export default function CreditApplicationFormRendererJson() {
-  // Сборка ОДНИМ вызовом: модель + форма из JSON-схемы + реестр + поведение + валидация +
-  // render-behavior. `useJsonForm` (ленивый useState) зовёт фабрику ровно один раз — в отличие от
-  // useMemo, кэш которого React вправе сбросить, потеряв введённое.
-  const jsonForm = useJsonForm(() =>
-    createJsonForm<CreditApplicationForm>({
-      schema: creditApplicationJsonSchema,
-      registry: createCreditApplicationRegistry(),
+const registry = createCreditApplicationRegistry();
+
+/**
+ * Проверка документа против мета-схемы и реестра — только в dev. Валидатор тянет ajv, поэтому
+ * грузится динамически и в прод-бандл не попадает.
+ *
+ * @returns `undefined`, пока проверка идёт; список ошибок (пустой — документ годен).
+ */
+function useSchemaErrors(): string[] | undefined {
+  const [errors, setErrors] = useState<string[] | undefined>(import.meta.env.DEV ? undefined : []);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    let cancelled = false;
+    import('@reformer/renderer-json/validate')
+      .then(({ validateFormSchema }) => {
+        if (!cancelled)
+          setErrors(validateFormSchema(creditApplicationJsonSchema, { registry }).errors);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setErrors([`Schema validator failed to load: ${String(error)}`]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return errors;
+}
+
+function CreditApplicationJsonForm() {
+  // Сборка ОДНИМ вызовом: модель, дерево из документа (его строит реестр), форма, поведение и
+  // валидация. `useFormBundle` зовёт фабрику ровно один раз — в отличие от useMemo, кэш которого
+  // React вправе сбросить, потеряв введённое.
+  const creditForm = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
       model: createCreditApplicationModel(),
+      schema: creditApplicationJsonSchema,
+      registry,
       behavior: creditApplicationBehavior,
       validation: creditApplicationValidation,
-      renderBehavior: createCreditApplicationJsonRenderBehavior,
     })
   );
+
+  // Обёртку поля рендерер берёт из бандла: её положил туда реестр (запись FIELD_WRAPPER).
+  return <FormRenderer form={creditForm} />;
+}
+
+export default function CreditApplicationFormRendererJson() {
+  // Негодный документ сборка не переживёт (`$component(...)` без записи в реестре бросает), поэтому
+  // форма собирается только после проверки — отдельным компонентом.
+  const schemaErrors = useSchemaErrors();
+  if (schemaErrors === undefined) return null;
+  if (schemaErrors.length > 0) return <SchemaErrorPanel errors={schemaErrors} />;
 
   return (
     <div className="w-full">
       {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5) — настройка хоста. */}
       <ValidationMessagesProvider resolver={fileUploadMessages}>
-        <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-          <JsonFormRenderer<CreditApplicationForm>
-            form={jsonForm}
-            validateSchema={import.meta.env.DEV}
-          />
-        </JsonRendererProvider>
+        <CreditApplicationJsonForm />
       </ValidationMessagesProvider>
     </div>
   );

@@ -1,8 +1,9 @@
-// model.ts — createModel + initial values + array-element factories.
-// Every field (incl. conditional / computed) is materialized here so behavior
-// signals (model.$.path) exist. Reused across all render targets.
+// model.ts — модель формы: createModel, начальные значения и шаблоны элементов массивов.
+// Все поля (в т.ч. условные и вычисляемые) материализованы здесь, чтобы у поведения были сигналы
+// (model.$.path). Шаблон нового элемента массива объявлен в модели — `arrayOf(blank)`: его берёт
+// кнопка «Добавить», `initialValue` в документе схемы не нужен.
 
-import { createModel, type FormModel } from '@reformer/core';
+import { arrayOf, createModel, type FormModel } from '@reformer/core';
 import type { Address, CoBorrower, CreditApplicationForm, ExistingLoan, Property } from './types';
 
 const blankAddress = (): Address => ({
@@ -106,11 +107,11 @@ export function createInitialValues(): CreditApplicationForm {
     dependents: 0,
     education: 'higher',
     hasProperty: false,
-    properties: [],
+    properties: arrayOf(blankProperty),
     hasExistingLoans: false,
-    existingLoans: [],
+    existingLoans: arrayOf(blankExistingLoan),
     hasCoBorrower: false,
-    coBorrowers: [],
+    coBorrowers: arrayOf(blankCoBorrower),
 
     // Step 6
     agreePersonalData: false,

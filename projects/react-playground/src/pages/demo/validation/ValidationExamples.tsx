@@ -1,13 +1,13 @@
 /**
  * Примеры валидации с ReFormer — контракт `@reformer/core/validation`.
  *
- * Разделение слоёв: RENDER-схема (`buildSchema`) несёт только layout
- * (`{ value, component, componentProps }`) и кормится в `createForm`. Правила живут отдельно —
+ * Разделение слоёв: схема формы (`buildSchema`) несёт только поля
+ * (`{ model, component, componentProps }`) и уходит в сборку `createForm`. Правила живут отдельно —
  * в стабильной module-level `ValidationSchema` (`demoValidation`), которую на submit прогоняет
  * внешний раннер `validateModel(model, schema)`.
  */
 
-import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, useFormBundle, type FormModel } from '@reformer/core';
 import {
   validate,
   defineValidationSchema,
@@ -69,67 +69,67 @@ const customPassword: Rule<string> = (value) => {
   return null;
 };
 
-// RENDER-схема: только layout, без правил (validators вынесены в demoValidation).
+// Схема формы: только поля, без правил (валидаторы вынесены в demoValidation).
 function buildSchema(model: FormModel<ValidationDemoForm>) {
   return {
     children: [
       {
-        value: model.$.requiredField,
+        model: model.$.requiredField,
         component: Input,
         componentProps: { placeholder: 'Обязательное поле' },
       },
       {
-        value: model.$.emailField,
+        model: model.$.emailField,
         component: Input,
         componentProps: { placeholder: 'email@example.com', type: 'email' },
       },
       {
-        value: model.$.minLengthField,
+        model: model.$.minLengthField,
         component: Input,
         componentProps: { placeholder: 'Минимум 5 символов' },
       },
       {
-        value: model.$.maxLengthField,
+        model: model.$.maxLengthField,
         component: Input,
         componentProps: { placeholder: 'Максимум 10 символов' },
       },
       {
-        value: model.$.minField,
+        model: model.$.minField,
         component: InputNumber,
         componentProps: { placeholder: 'Минимум 10' },
       },
       {
-        value: model.$.maxField,
+        model: model.$.maxField,
         component: InputNumber,
         componentProps: { placeholder: 'Максимум 100' },
       },
       {
-        value: model.$.patternField,
+        model: model.$.patternField,
         component: Input,
         componentProps: { placeholder: 'Только буквы' },
       },
       {
-        value: model.$.urlField,
+        model: model.$.urlField,
         component: Input,
         componentProps: { placeholder: 'https://example.com' },
       },
       {
-        value: model.$.phoneField,
+        model: model.$.phoneField,
         component: Input,
         componentProps: { placeholder: '+7 900 123-45-67', type: 'tel' },
       },
       {
-        value: model.$.numberField,
+        model: model.$.numberField,
         component: InputNumber,
         componentProps: { placeholder: 'Целое число' },
       },
       {
-        value: model.$.dateField,
+        model: model.$.dateField,
         component: Input,
         componentProps: { type: 'date' },
       },
       {
-        value: model.$.customField,
+        model: model.$.customField,
         component: Input,
         componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)' },
       },
@@ -187,7 +187,7 @@ export default function ValidationExamples() {
   // Сборка одним вызовом. Правила здесь прогоняются вручную по кнопке (`validateModel`), поэтому в
   // конфиг не передаются — пример показывает именно ручной прогон.
   const { form, model } = useFormBundle(() =>
-    createCoreForm<ValidationDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
+    createForm<ValidationDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
   );
 
   const handleValidateAll = async () => {
