@@ -18,6 +18,8 @@
  *   пакетом больше не бывает и не вкладывается: чужой домен расширяют возможностями.
  * - **CSS из кода — отказ.** Стили плагина объявляются в манифесте (`styles`), и только тогда
  *   оболочка их изолирует. Импорт `.css` из кода дал бы таблицу, о которой манифест молчит.
+ * - **`?raw` — текст файла строкой**, как у Vite: `import tpl from './form.eta?raw'`. Так плагин
+ *   держит шаблоны кодогенерации файлами, а не строками в коде; в `main.js` текст вложен.
  *
  * ## Что проверяется на выходе
  *
@@ -164,6 +166,32 @@ async function previousBuildFiles(outDir: string, id: string): Promise<string[] 
  * @param dir каталог исходников
  * @param files что сборка собирается записать — пути от каталога вывода
  */
+/** Суффикс импорта «текст файла строкой» — тот же, что у Vite. */
+const RAW_SUFFIX = '?raw';
+
+/**
+ * `import text from './file.eta?raw'` — содержимое файла строкой.
+ *
+ * Только относительные пути: текст берётся из исходников самого плагина. Пакетный спецификатор
+ * с `?raw` остаётся неразрешённым импортом — и сборка говорит об этом обычной ошибкой.
+ */
+const rawText: esbuild.Plugin = {
+  name: 'reformer-raw-text',
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      if (isBareSpecifier(args.path)) return undefined;
+      return {
+        path: resolve(args.resolveDir, args.path.slice(0, -RAW_SUFFIX.length)),
+        namespace: 'reformer-raw',
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: 'reformer-raw' }, async (args) => ({
+      contents: await readFile(args.path, 'utf8'),
+      loader: 'text',
+    }));
+  },
+};
+
 async function prepareOutDir(
   outDir: string,
   dir: string,
@@ -258,9 +286,13 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
       format: 'cjs',
       platform: 'browser',
       target: 'es2020',
+      // `import()` модуля рантайма обязан стать `require`: спецификатор разрешает линковщик
+      // оболочки, а нативный `import('@reformer/…')` в браузере не разрешается ничем. Свои
+      // модули плагина esbuild и так вкладывает — им это безразлично.
+      supported: { 'dynamic-import': false },
       jsx: 'automatic',
       logLevel: 'silent',
-      plugins: [runtimeModules],
+      plugins: [rawText, runtimeModules],
     });
     const css = result.outputFiles.find((file) => file.path.endsWith('.css'));
     if (css !== undefined) {

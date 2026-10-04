@@ -40,6 +40,7 @@ const USAGE = `Использование: reformer-plugin <команда> [а�
   validate [каталог]                           проверить плагин правилами оболочки
   build [каталог] [--out <каталог>]            собрать в каталог, который оболочка грузит как есть
   dev [каталог] --project <каталог проекта>    собирать в .ui_builder/plugins/<id>/ на каждое сохранение
+  dev [каталог] --out <каталог>                то же, но каталог вывода назван прямо
   pack [каталог] [--out <каталог>]             собрать и упаковать в npm-архив
 
 Параметры:
@@ -110,7 +111,7 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
     create: ['id', 'name'],
     validate: [],
     build: ['out'],
-    dev: ['project'],
+    dev: ['project', 'out'],
     pack: ['out'],
   };
   const extra = Object.keys(values).filter(
@@ -160,13 +161,17 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       return 0;
     }
     case 'dev': {
-      if (values.project === undefined) {
-        io.err('dev: не указан --project — корень проекта, в котором плагин будет подхвачен');
+      if ((values.project === undefined) === (values.out === undefined)) {
+        io.err(
+          'dev: нужен ровно один из параметров — --project (корень проекта, в котором плагин ' +
+            'будет подхвачен) или --out (каталог вывода)'
+        );
         return 2;
       }
       const session = startDev({
         dir: path(target ?? '.'),
-        project: path(values.project),
+        ...(values.project === undefined ? {} : { project: path(values.project) }),
+        ...(values.out === undefined ? {} : { outDir: path(values.out) }),
         onBuild: (result) => {
           if (printBuild(result)) {
             io.out(`✓ ${new Date().toLocaleTimeString()} собран в ${result.outDir}`);

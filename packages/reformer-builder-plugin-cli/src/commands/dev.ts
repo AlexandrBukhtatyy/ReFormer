@@ -6,6 +6,9 @@
  * Отдельного подкаталога «для разработки» нет: загрузчик считает плагином каждый
  * подкаталог каталога плагинов, и `development/` стал бы плагином с именем `development`.
  *
+ * `--out <каталог>` вместо `--project` называет каталог вывода прямо — для пакета, который
+ * собирается на месте (`dev src --out .`) и лежит не в `plugins/<id>/`, а в каталоге домена.
+ *
  * Перезагрузку делает оболочка, а не CLI: плагин, помеченный в списке «в разработке», перечитывается
  * при возврате фокуса в окно (`shell/platform/plugin/dev-watch`). Так правка во внешнем редакторе
  * доходит до билдера без канала между ними — File System Access наблюдать за файлами не даёт.
@@ -27,8 +30,10 @@ import { buildPlugin, type BuildResult } from './build.js';
 export interface DevOptions {
   /** Каталог исходников плагина. */
   readonly dir: string;
-  /** Корень проекта билдера, в котором плагин будет подхвачен. */
-  readonly project: string;
+  /** Корень проекта билдера, в котором плагин будет подхвачен. Одно из двух: он или `outDir`. */
+  readonly project?: string;
+  /** Каталог вывода, названный прямо. Перекрывает `project`. */
+  readonly outDir?: string;
   /** Пауза после последнего изменения перед пересборкой, мс. */
   readonly debounceMs?: number;
   /** Вызывается после каждой сборки, первой — сразу. */
@@ -56,7 +61,8 @@ async function outDirFor(dir: string, project: string): Promise<string | undefin
 
 export function startDev(options: DevOptions): DevSession {
   const dir = resolve(options.dir);
-  const project = resolve(options.project);
+  const project = options.project === undefined ? undefined : resolve(options.project);
+  const explicitOutDir = options.outDir === undefined ? undefined : resolve(options.outDir);
   const debounceMs = options.debounceMs ?? 100;
 
   let running: Promise<void> = Promise.resolve();
@@ -72,7 +78,10 @@ export function startDev(options: DevOptions): DevSession {
       pending = false;
       if (closed) return;
       // Без манифеста (или без id) каталог вывода не вычислить — сборка сама объяснит почему.
-      const outDir = (await outDirFor(dir, project)) ?? join(dir, 'dist');
+      const outDir =
+        explicitOutDir ??
+        (project === undefined ? undefined : await outDirFor(dir, project)) ??
+        join(dir, 'dist');
       options.onBuild(await buildPlugin({ dir, outDir }));
     });
     return running;

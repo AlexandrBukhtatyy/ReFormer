@@ -146,6 +146,39 @@ describe('build', () => {
     expect(codes(await buildPlugin({ dir }))).toEqual(['module-unavailable']);
   });
 
+  it('?raw вкладывает текст файла строкой', async () => {
+    await writeFile(join(dir, 'src/form.eta'), 'export const title = "<%= it.title %>";');
+    await main(
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "import template from './form.eta?raw';",
+        'export const TEMPLATE = template;',
+        "export default definePlugin({ id: 'acme-hello', activate() {} });",
+      ].join('\n')
+    );
+
+    const result = await buildPlugin({ dir });
+
+    expect(result.ok).toBe(true);
+    expect(await readFile(join(dir, 'dist/main.js'), 'utf8')).toContain('<%= it.title %>');
+  });
+
+  it('отложенный импорт модуля рантайма идёт через require оболочки, а не нативным import()', async () => {
+    await main(
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "export const loadCore = () => import('@reformer/core');",
+        "export default definePlugin({ id: 'acme-hello', activate() {} });",
+      ].join('\n')
+    );
+
+    expect((await buildPlugin({ dir })).ok).toBe(true);
+
+    const code = await readFile(join(dir, 'dist/main.js'), 'utf8');
+    expect(code).toContain('require("@reformer/core")');
+    expect(code).not.toMatch(/\bimport\(/);
+  });
+
   it('CSS из кода — отказ: стили объявляются в манифесте', async () => {
     await writeFile(join(dir, 'src/panel.css'), '.panel { color: red }');
     await main(
@@ -390,6 +423,18 @@ describe('командная строка', () => {
     expect(await readFile(join(pkg, 'src/src/main.ts'), 'utf8')).toContain('definePlugin');
   });
 
+  it('dev --out собирает в названный каталог; с --project вместе или без обоих — код 2', async () => {
+    const run = io();
+
+    expect(await runCli(['dev', 'acme-hello', '--out', 'out/acme'], run)).toBe(0);
+    expect(run.lines.err).toEqual([]);
+    expect(await readFile(join(root, 'out/acme/main.js'), 'utf8')).toContain('acme-hello');
+
+    expect(await runCli(['dev', 'acme-hello', '--out', 'out/acme', '--project', 'p'], io())).toBe(
+      2
+    );
+  });
+
   it('dev собирает один раз и закрывается, когда ожидание завершено', async () => {
     const run = io();
 
@@ -460,7 +505,7 @@ describe('build: вкладываемые пакеты', () => {
   it('@reformer/* вне списков из кода САМОГО плагина — по-прежнему отказ', async () => {
     await writeFile(
       join(plugin, 'src/main.ts'),
-      "import { x } from '@reformer/mcp/dist/core/generate/form-intent.js';\nexport default x;\n"
+      "import { x } from '@reformer/form-registry/dist/internal.js';\nexport default x;\n"
     );
 
     const result = await buildPlugin({ dir: plugin });
