@@ -41,21 +41,26 @@ interface FormFieldProps {
   control: FieldNode<any>;
   className?: string;
   testId?: string;
+  /** Подпись над контролом ('col', по умолчанию) или слева от него ('row') */
+  direction?: 'col' | 'row';
   /** Кастомный input — для использования с RenderSchema fieldWrapper */
   children?: React.ReactNode;
 }
 ```
 
-| Prop        | Тип            | Описание                                                                                                                                                     |
-| ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`   | `FieldNode<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
-| `className` | `string`       | Класс корневой `<div>`-обёртки.                                                                                                                              |
-| `testId`    | `string`       | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
-| `children`  | `ReactNode`    | Кастомный контрол: оборачивается в `CdkFormField.Control asChild`. См. сценарий 3.                                                                           |
+| Prop        | Тип              | Описание                                                                                                                                                     |
+| ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `control`   | `FieldNode<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
+| `className` | `string`         | Класс корневой `<div>`-обёртки.                                                                                                                              |
+| `testId`    | `string`         | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
+| `direction` | `'col' \| 'row'` | Раскладка подписи и контрола: `'col'` (по умолчанию) — подпись над контролом, `'row'` — слева от него. См. сценарий 5.                                       |
+| `children`  | `ReactNode`      | Кастомный контрол: оборачивается в `CdkFormField.Control asChild`. См. сценарий 3.                                                                           |
 
 `FormField` обёрнут в `React.memo` со сравнением по ссылочному равенству
 `control` — это критично для производительности больших форм (при ререндере
 родителя поле не пересчитывается, пока не сменился сам `FieldNode`).
+
+`direction` — проп самого `FormField`, а не `componentProps`: из схемы поля он не читается.
 
 ### Props поля, которые читает обёртка (`componentProps`)
 
@@ -288,6 +293,59 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - Класть в схему сам `CheckboxWithLabel` из `@reformer/ui-kit`.
 - Либо объявить статики на обёртке: `defineFieldControl(MyCheckbox, { adapter: checkedAdapter,
   layout: 'inline-label' })`.
+
+### 5. Подпись слева от контрола (`direction="row"`)
+
+По умолчанию (`direction="col"`) подпись стоит над контролом. `direction="row"` ставит её слева:
+
+```tsx
+<FormField control={form.email} direction="row" />
+```
+
+```
+Email   [ you@example.com        ]
+        Не передаём третьим лицам      <-- description
+        Введите email                  <-- error
+```
+
+- В ряд встают только подпись (вместе с иконкой `labelTooltip`) и колонка контрола. Описание,
+  ошибка и «Проверка…» остаются ПОД контролом, а не под подписью.
+- Подпись выровнена по базовой линии первой строки контрола — стоит на уровне текста в поле при
+  любой его высоте (`Input`, `Textarea`, `RadioGroup`).
+- Ширина подписи — по содержимому, но не больше половины ряда: длинная подпись переносится,
+  контрол занимает остаток.
+- У inline-контролов (`CheckboxWithLabel`, `SwitchWithLabel`) верхней подписи нет — для них
+  раскладка не меняется.
+- Корневой `Field` получает `data-orientation="horizontal"` (в `col` — `"vertical"`).
+
+Подписи разной длины дают «рваный» левый край контролов. Чтобы выровнять их в колонку, задай
+подписи фиксированную ширину через `className` — селектор покрывает и голую подпись, и ряд подписи
+с иконкой `labelTooltip`, а inline-контролы не задевает:
+
+```tsx
+<FormField
+  control={form.email}
+  direction="row"
+  className="[&>[data-slot^=field-label]]:w-40"
+/>
+```
+
+В `FormRenderer` обёртку поля вызывает рендерер и передаёт ей только `control`, `className`,
+`testId` и `children` — поэтому `direction` задаётся своей обёрткой поверх `FormField`:
+
+```tsx
+import { FormRenderer, type FieldWrapperProps } from '@reformer/renderer-react';
+import { FormField } from '@reformer/ui-kit';
+
+// Объявляется на уровне модуля: новая ссылка на каждый рендер перемонтировала бы все поля.
+const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="row" />;
+
+// Вся форма в ряд:
+<FormRenderer form={form} settings={{ fieldWrapper: RowField }} />;
+
+// Либо одно поле — через componentProps.fieldWrapper листа схемы:
+{ value: model.$.email, component: Input, componentProps: { label: 'Email', fieldWrapper: RowField } }
+```
 
 ## Anti-patterns
 

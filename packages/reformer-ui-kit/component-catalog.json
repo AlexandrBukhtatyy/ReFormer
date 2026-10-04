@@ -12908,6 +12908,16 @@
               "type": "FieldNode<any>"
             }
           },
+          "direction": {
+            "type": "string",
+            "enum": ["col", "row"],
+            "default": "col",
+            "description": "Раскладка подписи и контрола: `'col'` — подпись над контролом, `'row'` — слева от него. Описание, ошибка и «Проверка…» в обоих случаях остаются под контролом. У inline-контролов (Checkbox/Switch) верхней подписи нет — для них раскладка не меняется.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'col' | 'row'"
+            }
+          },
           "testId": {
             "type": "string",
             "description": "Префикс `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — берётся `componentProps.testId`, иначе `'unknown'`.",
