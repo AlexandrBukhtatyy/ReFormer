@@ -10,6 +10,7 @@
  */
 
 import type { JsonFormSchema } from './types/json-schema';
+import type { JsonFormSchemaV1 } from './types/json-schema-v1';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object';
@@ -17,7 +18,14 @@ function isObj(v: unknown): v is Record<string, unknown> {
 
 /** Похоже ли значение на JSON-ноду (несёт дискриминатор оператора или selector)? */
 function looksLikeNode(v: Record<string, unknown>): boolean {
-  return 'component' in v || 'value' in v || 'array' in v || 'selector' in v || 'children' in v;
+  return (
+    'component' in v ||
+    'model' in v ||
+    'value' in v ||
+    'array' in v ||
+    'selector' in v ||
+    'children' in v
+  );
 }
 
 function walkNode(node: unknown, out: Set<string>): void {
@@ -51,8 +59,12 @@ function walkComponentPropValue(v: unknown, out: Set<string>): void {
  * @param schema - JSON-схема формы.
  * @returns Множество известных селекторов.
  */
-export function collectSchemaSelectors(schema: JsonFormSchema): Set<string> {
+export function collectSchemaSelectors(schema: JsonFormSchema | JsonFormSchemaV1): Set<string> {
   const out = new Set<string>();
   walkNode(schema.root, out);
+  // Именованные части документа формата 2: их селекторы живут в областях подформ и строк, но
+  // «известными» считаются тоже — обход намеренно over-inclusive.
+  const parts = (schema as JsonFormSchema).parts;
+  if (isObj(parts)) for (const part of Object.values(parts)) walkNode(part, out);
   return out;
 }

@@ -19,6 +19,7 @@
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import {
   formSchemaMetaSchema,
+  formSchemaMetaSchemaV1,
   getComponentNames,
   getDataSourceNames,
   getFnNames,
@@ -29,6 +30,7 @@ import {
 import { parseOperator, isModelOp } from './operators';
 import { isAllowedHtmlTag } from './html/html-tags';
 import { isJsonStepRef } from './compose';
+import { schemaFormatOf } from './types/json-schema';
 import type { ComponentRegistry } from './registry/types';
 
 /** Результат валидации схемы. */
@@ -62,6 +64,8 @@ interface OperatorNameChecks {
   dataSourceNames?: string[];
   fnNames?: string[];
   localeKeys?: readonly string[];
+  /** Имена частей документа формата 2 (ключи `parts`) — то, что валидно в `$part(...)`. */
+  partNames?: string[];
 }
 
 /** Рекурсивно собирает ошибки неизвестных `$component/$dataSource/$fn`-имён и `$locale`-ключей по дереву. */
@@ -73,8 +77,12 @@ function walkOperatorNames(
 ): void {
   if (typeof node === 'string') {
     const op = parseOperator(node);
-    const { componentNames, dataSourceNames, fnNames, localeKeys } = checks;
-    if (op?.op === 'component' && componentNames && !componentNames.includes(op.arg)) {
+    const { componentNames, dataSourceNames, fnNames, localeKeys, partNames } = checks;
+    if (op?.op === 'part' && partNames && !partNames.includes(op.arg)) {
+      errors.push(
+        `${path || '/'}: unknown part "${op.arg}" — declare it in the document "parts" map`
+      );
+    } else if (op?.op === 'component' && componentNames && !componentNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown component "${op.arg}"`);
     } else if (op?.op === 'html' && !isAllowedHtmlTag(op.arg)) {
       // Whitelist статичен (не зависит от реестра), поэтому проверяется всегда — в отличие от
@@ -228,15 +236,19 @@ function walkStepRefs(node: unknown, path: string, errors: string[]): void {
   if (node === null || typeof node !== 'object') return;
   const n = node as Record<string, unknown>;
   const props = n.componentProps as Record<string, unknown> | undefined;
-  if (props !== null && typeof props === 'object' && Array.isArray(props.steps)) {
-    props.steps.forEach((step, i) => {
+  const report = (list: unknown[], at: string): void =>
+    list.forEach((step, i) => {
       if (isJsonStepRef(step)) {
         errors.push(
-          `${path ? `${path}.` : ''}componentProps.steps[${i}]: step reference "${step.$ref}" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating.`
+          `${path ? `${path}.` : ''}${at}[${i}]: step reference "${step.$ref}" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating.`
         );
       }
     });
+  // Прежний формат держит шаги в `componentProps.steps`, формат 2 — в `children` визарда.
+  if (props !== null && typeof props === 'object' && Array.isArray(props.steps)) {
+    report(props.steps, 'componentProps.steps');
   }
+  if (Array.isArray(n.children)) report(n.children, 'children');
   for (const [k, v] of Object.entries(n)) {
     walkStepRefs(v, path ? `${path}.${k}` : k, errors);
   }
@@ -258,14 +270,19 @@ function looksLikeArrayNode(n: Record<string, unknown>): boolean {
  * его листья — ключи вложенного элемента, а не текущего. Используется для проверки полноты
  * `initialValue` (§8).
  */
-function collectTemplateModelKeys(node: unknown, keys = new Set<string>()): Set<string> {
+function collectTemplateModelKeys(
+  node: unknown,
+  keys = new Set<string>(),
+  bindingKeys: readonly string[] = ['value', 'array']
+): Set<string> {
   if (Array.isArray(node)) {
-    node.forEach((v) => collectTemplateModelKeys(v, keys));
+    node.forEach((v) => collectTemplateModelKeys(v, keys, bindingKeys));
     return keys;
   }
   if (node !== null && typeof node === 'object') {
     const n = node as Record<string, unknown>;
-    for (const op of [n.value, n.array]) {
+    for (const bindingKey of bindingKeys) {
+      const op = n[bindingKey];
       if (isModelOp(op)) {
         const key = (parseOperator(op)?.arg ?? '').split('.')[0].split('[')[0];
         if (key) keys.add(key);
@@ -273,10 +290,52 @@ function collectTemplateModelKeys(node: unknown, keys = new Set<string>()): Set<
     }
     for (const [k, v] of Object.entries(n)) {
       if (k === 'item') continue; // не спускаемся в шаблон вложенного массива
-      collectTemplateModelKeys(v, keys);
+      collectTemplateModelKeys(v, keys, bindingKeys);
     }
   }
   return keys;
+}
+
+/**
+ * Формат 2: `initialValue` узла-массива необязателен (шаблон нового элемента живёт в модели —
+ * `arrayOf`), но если он задан, то обязан нести все ключи строки. Шаблон строки — вписанный узел
+ * либо именованная часть документа.
+ */
+function walkArrayInitialValueV2(
+  node: unknown,
+  path: string,
+  parts: Record<string, unknown>,
+  errors: string[]
+): void {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => walkArrayInitialValueV2(v, `${path}[${i}]`, parts, errors));
+    return;
+  }
+  if (node === null || typeof node !== 'object') return;
+  const n = node as Record<string, unknown>;
+  const initial = n.initialValue;
+  if (
+    isModelOp(n.model) &&
+    n.item !== undefined &&
+    initial !== null &&
+    typeof initial === 'object' &&
+    !Array.isArray(initial)
+  ) {
+    const partName = parseOperator(n.item)?.op === 'part' ? parseOperator(n.item)!.arg : undefined;
+    const template =
+      partName !== undefined ? parts[partName] : (n.item as { $template?: unknown }).$template;
+    const required = collectTemplateModelKeys(template, new Set(), ['model']);
+    const have = new Set(Object.keys(initial as Record<string, unknown>));
+    const missing = [...required].filter((k) => !have.has(k));
+    if (missing.length) {
+      errors.push(
+        `${path || '/'}: array node "initialValue" is missing element keys [${missing.join(', ')}] required by the item template — those "$model(...)" leaves would have no signal and render nothing.`
+      );
+    }
+  }
+  for (const [k, v] of Object.entries(n)) {
+    walkArrayInitialValueV2(v, path ? `${path}.${k}` : k, parts, errors);
+  }
 }
 
 /**
@@ -357,18 +416,35 @@ export function validateFormSchema(
 
   const errors: string[] = [];
 
+  // Формат документа выбирает мета-схему и обходчики: `format: 2` — новый, без поля — прежний.
+  const v2 = schemaFormatOf(schema) === 2;
+  const rawParts = v2 ? (schema as { parts?: unknown }).parts : undefined;
+  const parts =
+    rawParts !== null && typeof rawParts === 'object' && !Array.isArray(rawParts)
+      ? (rawParts as Record<string, unknown>)
+      : {};
+  const partNames = v2 ? Object.keys(parts) : undefined;
+
   // (a) Структура узлов + синтаксис операторов (имена НЕ enum-чекаются здесь — см. (b))
   const ajv = new Ajv({ allErrors: true });
-  const validateFn = ajv.compile(formSchemaMetaSchema);
+  const validateFn = ajv.compile(v2 ? formSchemaMetaSchema : formSchemaMetaSchemaV1);
   if (!validateFn(schema)) {
     for (const msg of formatAjvErrors(validateFn.errors, '')) errors.push(msg);
   }
 
-  // (b) Имена $component/$dataSource/$fn и ключи $locale по всему дереву (включая вложенные в opaque componentProps)
-  walkOperatorNames(schema, '', { componentNames, dataSourceNames, fnNames, localeKeys }, errors);
+  // (b) Имена $component/$dataSource/$fn, ключи $locale и имена $part по всему дереву (включая
+  // вложенные в opaque componentProps)
+  walkOperatorNames(
+    schema,
+    '',
+    { componentNames, dataSourceNames, fnNames, localeKeys, partNames },
+    errors
+  );
 
-  // (c) Array-узлы без initialValue → молчаливо ломающиеся элементы (см. walkArrayInitialValue)
-  walkArrayInitialValue(schema, '', errors);
+  // (c) Шаблон нового элемента массива. Прежний формат: без initialValue «Добавить» молча ломает
+  // элементы. Формат 2: шаблон живёт в модели, поэтому проверяется только полнота заданного.
+  if (v2) walkArrayInitialValueV2(schema, '', parts, errors);
+  else walkArrayInitialValue(schema, '', errors);
 
   // (e) Несобранная схема: ссылка на файл шага дошла бы до мастера объектом вместо шага.
   walkStepRefs(schema, '', errors);

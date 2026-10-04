@@ -12,7 +12,7 @@ import { JsonFormRenderer } from './json-form-renderer';
 import { defineRegistry } from '../registry/component-registry';
 import { FIELD_WRAPPER } from '../registry/constants';
 import { createJsonForm } from '../create-json-form';
-import type { JsonFormSchema } from '../types/json-schema';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '../types/json-schema-v1';
 
 interface Model {
   email: string;

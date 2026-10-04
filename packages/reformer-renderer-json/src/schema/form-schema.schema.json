@@ -1,15 +1,22 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reformer.dev/schemas/form-schema.schema.json",
-  "title": "ReFormer JSON form schema (M1, string-operator DSL)",
-  "description": "Base meta-schema: validates node structure + operator string syntax ($model/$component/$dataSource). Component-name enum is tightened per-app via buildFormSchemaMetaSchema; $dataSource names and $model paths are checked outside this schema.",
+  "title": "ReFormer JSON form schema (format 2, string-operator DSL)",
+  "description": "Base meta-schema: validates node structure + operator string syntax ($model/$component/$part/$dataSource). Component-name enum is tightened per-app via buildFormSchemaMetaSchema; $dataSource names, $part names and $model paths are checked outside this schema.",
   "type": "object",
-  "required": ["root"],
+  "required": ["format", "root"],
   "additionalProperties": false,
   "properties": {
     "$schema": { "type": "string" },
+    "format": {
+      "const": 2,
+      "description": "Document format. A document without this field is the previous format — convert it with migrateJsonSchema."
+    },
     "id": { "type": "string" },
-    "version": { "type": "string" },
+    "version": {
+      "type": "string",
+      "description": "Version of the form CONTENT (checked by the form registry). Unrelated to the document format."
+    },
     "meta": {
       "type": "object",
       "additionalProperties": false,
@@ -17,6 +24,11 @@
         "name": { "type": "string" },
         "description": { "type": "string" }
       }
+    },
+    "parts": {
+      "type": "object",
+      "description": "Named parts of the document: sub-forms and array row templates, referenced with \"$part(name)\". $model paths inside a part are relative to the sub-model it is attached to.",
+      "additionalProperties": { "$ref": "#/definitions/node" }
     },
     "root": { "$ref": "#/definitions/node" }
   },
@@ -30,6 +42,11 @@
       "type": "string",
       "pattern": "^\\$component\\(.+\\)$",
       "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema."
+    },
+    "partOp": {
+      "type": "string",
+      "pattern": "^\\$part\\(.+\\)$",
+      "description": "Named part of the document: \"$part(name)\" — a key of the root \"parts\" map (checked by validateFormSchema)."
     },
     "htmlOp": {
       "type": "string",
@@ -46,24 +63,35 @@
       "pattern": "^\\$(model|component|html|dataSource|fn|locale)\\(.+\\)$",
       "description": "Any DSL operator string (\"$model/$component/$dataSource/$fn/$locale(...)\") used as an escape hatch on a componentProps value (e.g. \"options\": \"$dataSource(LOAN_TYPES)\"). The component-props validator wraps every prop in anyOf:[honest type, operatorOp] via allowOperatorStrings, so an operator string is accepted wherever a literal value is."
     },
+    "stepRef": {
+      "type": "object",
+      "required": ["$ref"],
+      "additionalProperties": false,
+      "properties": { "$ref": { "type": "string" } },
+      "description": "A wizard step moved to its own file. Assemble the document with composeJsonFormSchema before rendering."
+    },
     "node": {
-      "$comment": "Discriminated by which operator key is present (array→value→component), mirroring the isArrayNode/isFieldNode/isContainerNode runtime guards. Using oneOf here made ajv (allErrors) report failures against all three branches for any single mistake, burying the real cause; if/then/else surfaces only the relevant branch's errors.",
-      "if": { "type": "object", "required": ["array"] },
+      "$comment": "Discriminated by which keys are present (model+item → array, model+part → sub-form, model → field, otherwise container), mirroring the isArrayNode/isPartNode/isFieldNode/isContainerNode runtime guards. Using oneOf here made ajv (allErrors) report failures against every branch for any single mistake, burying the real cause; if/then/else surfaces only the relevant branch's errors.",
+      "if": { "type": "object", "required": ["model", "item"] },
       "then": { "$ref": "#/definitions/arrayNode" },
       "else": {
-        "if": { "type": "object", "required": ["value"] },
-        "then": { "$ref": "#/definitions/fieldNode" },
-        "else": { "$ref": "#/definitions/containerNode" }
+        "if": { "type": "object", "required": ["model", "part"] },
+        "then": { "$ref": "#/definitions/partNode" },
+        "else": {
+          "if": { "type": "object", "required": ["model"] },
+          "then": { "$ref": "#/definitions/fieldNode" },
+          "else": { "$ref": "#/definitions/containerNode" }
+        }
       }
     },
     "fieldNode": {
       "type": "object",
-      "required": ["value"],
+      "required": ["model"],
       "additionalProperties": false,
       "properties": {
         "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
         "selector": { "type": "string" },
-        "value": { "$ref": "#/definitions/modelOp" },
+        "model": { "$ref": "#/definitions/modelOp" },
         "component": { "$ref": "#/definitions/componentOp" },
         "componentProps": { "type": "object" },
         "wrapper": { "$ref": "#/definitions/node" }
@@ -71,23 +99,42 @@
     },
     "arrayNode": {
       "type": "object",
-      "required": ["array", "item"],
+      "required": ["model", "item"],
       "additionalProperties": false,
       "properties": {
         "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
         "selector": { "type": "string" },
-        "array": { "$ref": "#/definitions/modelOp" },
+        "model": { "$ref": "#/definitions/modelOp" },
         "component": { "$ref": "#/definitions/componentOp" },
         "item": {
-          "type": "object",
-          "required": ["$template"],
-          "additionalProperties": false,
-          "properties": {
-            "$template": { "$ref": "#/definitions/node" }
+          "$comment": "A row template: an inline node ({ \"$template\": … }) or a named part (\"$part(name)\"). Dispatched with if/then/else for the same reason as \"node\".",
+          "if": { "type": "string" },
+          "then": { "$ref": "#/definitions/partOp" },
+          "else": {
+            "type": "object",
+            "required": ["$template"],
+            "additionalProperties": false,
+            "properties": {
+              "$template": { "$ref": "#/definitions/node" }
+            }
           }
         },
-        "initialValue": { "type": "object" },
+        "initialValue": {
+          "type": "object",
+          "description": "Fallback template of a new row. The template declared in the model (arrayOf) takes precedence."
+        },
         "componentProps": { "type": "object" }
+      }
+    },
+    "partNode": {
+      "type": "object",
+      "required": ["model", "part"],
+      "additionalProperties": false,
+      "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
+        "selector": { "type": "string" },
+        "model": { "$ref": "#/definitions/modelOp" },
+        "part": { "$ref": "#/definitions/partOp" }
       }
     },
     "containerNode": {
@@ -102,11 +149,15 @@
         },
         "componentProps": { "type": "object" },
         "children": {
-          "$comment": "A child is either a nested node (object) or a text part (string/number). Dispatched with if/then/else rather than anyOf for the same reason as \"node\": with allErrors ajv would report failures from every branch, burying the real cause.",
+          "$comment": "A child is a nested node (object), a wizard step reference ({ \"$ref\" }) or a text part (string/number). Dispatched with if/then/else rather than anyOf for the same reason as \"node\": with allErrors ajv would report failures from every branch, burying the real cause.",
           "type": "array",
           "items": {
             "if": { "type": "object" },
-            "then": { "$ref": "#/definitions/node" },
+            "then": {
+              "if": { "type": "object", "required": ["$ref"] },
+              "then": { "$ref": "#/definitions/stepRef" },
+              "else": { "$ref": "#/definitions/node" }
+            },
             "else": { "$ref": "#/definitions/textChild" }
           }
         }

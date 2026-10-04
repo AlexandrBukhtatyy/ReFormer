@@ -102,7 +102,7 @@ function MyFormPage() {
 - **Адаптеры контролов (`resolveFieldAdapter`)** — `JsonRendererSettings extends RendererSettings`, поэтому в `JsonRendererProvider` settings можно передать `resolveFieldAdapter(component) => FieldAdapter | undefined`. Компоненты `@reformer/ui-kit` регистрируются как есть — свой диалект они объявляют статикой `reformerAdapter`, и рендерер применяет её сам; СЫРОЙ контрол чужой библиотеки без статики (Checkbox `checked` + `onChange(event)`, Select `onChange(value, option)`, Radio `onChange(event)`) регистрируется по имени в реестре, а адаптер переводит seam `value` + `onChange(value)` на его диалект — без обёртки на каждый контрол. Детали — [03-registry.md](03-registry.md).
 - **`createJsonForm` / `useJsonForm`** — сборка формы одним проходом: `createJsonForm({ schema, registry, initial | model, behavior?, validation?, renderBehavior?, seed?, setup? })` → `{ model, form, schema, registry, validation?, renderBehavior? }`; `useJsonForm(factory)` (тот же `useFormBundle` из core) держит бандл стабильным и армит живую валидацию. Отдаётся рендереру пропом `form`. См. [05-cookbook.md](05-cookbook.md).
 - **`defineJsonSchema<T>`** — идентити-хелпер, типизирующий литерал схемы по форме `T`: пути `$model(...)` сужаются до `Path<T>` (опечатка — ошибка компиляции), не нужен `as unknown as JsonFormSchema`. См. [02-json-schema.md](02-json-schema.md).
-- **`convertJsonToM1Tree`** — низкоуровневый конвертер JSON → RenderNode-дерево для `createForm({ model, schema })` (обычно скрыт за `createJsonForm`).
+- **`convertJsonToM1Tree`** — низкоуровневый конвертер JSON → RenderNode-дерево для `createFormFromModel({ model, schema })` (обычно скрыт за `createJsonForm`).
 - **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается. Задавай его полем конфига `createJsonForm` — фабрика `(form, model, validation?) => RenderBehaviorFn<T>` получает уже собранные сущности, а ссылка выходит стабильной по построению (иначе — dev-warn + пересборка дерева на каждый рендер).
 
 ## Components and exports
@@ -120,7 +120,7 @@ function MyFormPage() {
 | `isFieldNode`, `isArrayNode`, `isContainerNode` | Type guards для узлов.                                                      |
 | `parseOperator`, `isModelOp`, `isComponentOp`, `isDataSourceOp` | Разбор и type-guards строк-операторов.                      |
 | `ModelOp`, `ComponentOp`, `DataSourceOp`        | Template-literal типы операторов.                                          |
-| `convertJsonToM1Tree`                           | JSON → сырое RenderNode-дерево (для `createForm({ model, schema })`).       |
+| `convertJsonToM1Tree`                           | JSON → сырое RenderNode-дерево (для `createFormFromModel({ model, schema })`).       |
 | `createRenderSchemaFromJsonM1`                  | JSON → `RenderSchemaFn` (низкоуровневый, для `FormRenderer`/`JsonFormRenderer`). |
 | `SchemaErrorPanel`                              | Панель ошибок валидации схемы (рисуется при `validateSchema` + невалидной схеме). |
 | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames` | Мета-схема form-DSL + утилиты (ajv-free). |

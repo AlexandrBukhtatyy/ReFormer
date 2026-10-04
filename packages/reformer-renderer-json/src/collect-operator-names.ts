@@ -17,6 +17,7 @@
 
 import { parseOperator } from './operators';
 import type { JsonFormSchema } from './types/json-schema';
+import type { JsonFormSchemaV1 } from './types/json-schema-v1';
 
 /** Имена, к которым схема обращается через операторы. */
 export interface OperatorNames {
@@ -43,7 +44,7 @@ export interface OperatorNames {
  * if (missing.length) throw new Error(`Не зарегистрированы: ${missing.join(', ')}`);
  * ```
  */
-export function collectOperatorNames(schema: JsonFormSchema): OperatorNames {
+export function collectOperatorNames(schema: JsonFormSchema | JsonFormSchemaV1): OperatorNames {
   const components = new Set<string>();
   const dataSources = new Set<string>();
   const fns = new Set<string>();
@@ -72,6 +73,8 @@ export function collectOperatorNames(schema: JsonFormSchema): OperatorNames {
   };
 
   scan(schema.root);
+  // Именованные части документа формата 2 — такие же узлы, просто вынесенные из дерева.
+  scan((schema as JsonFormSchema).parts);
 
   return {
     components: [...components],

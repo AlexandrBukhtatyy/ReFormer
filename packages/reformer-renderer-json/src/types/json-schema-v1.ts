@@ -1,0 +1,274 @@
+/**
+ * Типы JSON-схемы формы ПРЕЖНЕГО формата (v1): ключи привязки `value` / `array`, шаги визарда в
+ * `componentProps.steps`. Документ этого формата переводит в формат 2 `migrateJsonSchema`; читают
+ * его прежние точки входа — `createJsonForm`, `JsonFormRenderer`.
+ *
+ * Основные имена (`JsonFormSchema`, `JsonNode`, `isFieldNode`…) принадлежат формату 2 — `./json-schema`.
+ *
+ *
+ * Узел — дискриминированный union по строке-оператору, которую он несёт:
+ * - {@link JsonFieldNodeV1} — лист: `value: '$model(path)'` (+ опц. `component: '$component(Name)'`).
+ * - {@link JsonArrayNodeV1} — массив: `array: '$model(path)'` + `item: { $template }`.
+ * - {@link JsonContainerNodeV1} — контейнер: `component: '$component(Name)'` (+ `children`).
+ *
+ * `selector` — plain-строка, id для render-behavior (`schema.node('…')`), НЕ путь модели.
+ * Привязки — только строки-операторы из `operators.ts` (голые строки не резолвятся). Схема —
+ * чистый JSON (без вызовов функций), типобезопасна через template-literal типы.
+ *
+ * @module reformer/renderer-json/types
+ */
+
+import type { JsonTextChild } from './json-schema';
+
+import {
+  isModelOp,
+  isComponentOp,
+  isHtmlOp,
+  type ModelOp,
+  type ComponentOp,
+  type HtmlOp,
+} from '../operators';
+
+/** Лист формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input). */
+export interface JsonFieldNodeV1<T = unknown> {
+  /** Id для render-behavior (hideWhen/patchProps). Опционален. */
+  /**
+   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
+   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
+   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
+   *
+   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
+   */
+  $nodeId?: string;
+  selector?: string;
+  /** Привязка к сигналу модели: `'$model(personalData.lastName)'`. С типом `T` путь сужается до {@link Path}<T>. */
+  value: ModelOp<T>;
+  /** Компонент поля из реестра: `'$component(Select)'`. Опционален. */
+  component?: ComponentOp;
+  /** Props компонента; значения могут содержать строки-операторы (`'$dataSource(NAME)'`) или вложенные узлы. */
+  componentProps?: Record<string, unknown>;
+  /** Обёртка поля (например, FormField). */
+  wrapper?: JsonNodeV1<T>;
+}
+
+/**
+ * Итерация массива модели (`$model`) + шаблон элемента (`$template`).
+ *
+ * По умолчанию рендерится встроенной редактируемой секцией (add/remove/reorder). Опциональный
+ * `component` уводит рендер на зарегистрированный компонент — например `'$component(List)'` для
+ * chrome-less display-списка (алерты) или своя секция с кастомным хромом. Дисплей-vs-редактирование —
+ * это выбор компонента, а не отдельный тип узла. `initialValue` нужен только редактируемому пути
+ * (кнопка «Добавить»); при `component` display-компоненты его игнорируют.
+ */
+export interface JsonArrayNodeV1<T = unknown> {
+  /** Id для render-behavior. */
+  /**
+   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
+   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
+   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
+   *
+   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
+   */
+  $nodeId?: string;
+  selector?: string;
+  /** Привязка к массиву модели: `'$model(coBorrowers)'`. С типом `T` путь сужается до {@link Path}<T>. */
+  array: ModelOp<T>;
+  /**
+   * Шаблон под-схемы элемента (внутри `$model(...)` относителен к ЭЛЕМЕНТУ, не к корню `T`),
+   * поэтому его пути остаются нетипизированными (`JsonNodeV1` без параметра).
+   */
+  item: { $template: JsonNodeV1 };
+  /**
+   * Компонент-рендерер массива (`'$component(List)'`). Опционален: без него — встроенная
+   * редактируемая секция. С ним рендер идёт этим компонентом (он получает контрол массива,
+   * `item`-фабрику и готовые элементы children).
+   */
+  component?: ComponentOp;
+  /**
+   * «Пустой» элемент для кнопки «Добавить» (литерал-объект по форме элемента).
+   * Нужен, т.к. листья шаблона несут `value: '$model(...)'`, а не литерал-дефолт. Только для
+   * редактируемого (встроенного) пути.
+   */
+  initialValue?: Record<string, unknown>;
+  /** Оформление секции массива / пропсы компонента-рендерера. */
+  componentProps?: Record<string, unknown>;
+}
+
+/**
+ * Контейнер (Box/Section/Wizard/Step/…) с дочерними узлами — либо блок нативной вёрстки
+ * (`'$html(div)'`), для которого не нужен зарегистрированный компонент.
+ */
+export interface JsonContainerNodeV1<T = unknown> {
+  /** Id для render-behavior. */
+  /**
+   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
+   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
+   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
+   *
+   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
+   */
+  $nodeId?: string;
+  selector?: string;
+  /**
+   * Компонент-контейнер из реестра (`'$component(Section)'`) либо нативный HTML-тег
+   * (`'$html(div)'`). Для тега `componentProps` — DOM-атрибуты, и они проходят чистку
+   * (`sanitizeHtmlProps`): обработчики `on*`, `dangerouslySetInnerHTML` и `javascript:`-URL
+   * отбрасываются.
+   */
+  component: ComponentOp | HtmlOp;
+  /** Props компонента; значения могут содержать строки-операторы или вложенные узлы. */
+  componentProps?: Record<string, unknown>;
+  /**
+   * Содержимое узла: вложенные узлы и текстовые части ({@link JsonTextChild}) в любом порядке —
+   * текст можно ставить и после узла (`[{ "component": "$html(b)", … }, " и далее текст"]`).
+   */
+  children?: JsonChildV1<T>[];
+}
+
+/** Узел JSON-схемы (M1). `T` — форма модели: при указании `$model(...)` пути сужаются до {@link Path}<T>. */
+export type JsonNodeV1<T = unknown> =
+  | JsonFieldNodeV1<T>
+  | JsonArrayNodeV1<T>
+  | JsonContainerNodeV1<T>;
+
+/** Элемент `children`: вложенный узел либо текстовая часть ({@link JsonTextChild}). */
+export type JsonChildV1<T = unknown> = JsonNodeV1<T> | JsonTextChild;
+
+/**
+ * Корневая JSON-схема формы.
+ *
+ * @example
+ * ```ts
+ * const schema: JsonFormSchemaV1 = {
+ *   version: '1.0',
+ *   root: {
+ *     component: '$component(Box)',
+ *     children: [{ value: '$model(email)', component: '$component(Input)' }],
+ *   },
+ * };
+ * ```
+ */
+export interface JsonFormSchemaV1<T = unknown> {
+  /**
+   * Путь к мета-схеме для IDE (VSCode подсветит структуру/синтаксис/имена `$component`).
+   * Игнорируется конвертером. Сгенерировать конкретную мета-схему: `gen-form-json-schema.ts`.
+   */
+  $schema?: string;
+  /** Идентификатор схемы (произвольная строка: для реестров/трекинга). Игнорируется конвертером. */
+  id?: string;
+  /** Версия схемы (для миграций). */
+  version?: string;
+  /** Метаданные схемы (имя/описание — для каталогов/UI). Игнорируется конвертером. */
+  meta?: {
+    name?: string;
+    description?: string;
+  };
+  /** Корневой узел. С типом `T` пути `$model(...)` в дереве сужаются до {@link Path}<T>. */
+  root: JsonNodeV1<T>;
+}
+
+/**
+ * Файл шага визарда: узел шага без корня формы. Ключ — `node`, а не `root`, чтобы файл шага
+ * не принимался за самостоятельную форму.
+ *
+ * @example
+ * ```json
+ * { "$schema": "../../form-step.schema.json", "node": { "component": "$component(Step)", "children": [] } }
+ * ```
+ */
+export interface JsonFormStepV1<T = unknown> {
+  /** Путь к мета-схеме файла шага для IDE. Игнорируется при сборке. */
+  $schema?: string;
+  /** Узел шага — то, что встаёт в `componentProps.steps` на место ссылки. */
+  node: JsonNodeV1<T>;
+}
+
+/**
+ * Идентити-хелпер, ТИПИЗИРУЮЩИЙ литерал схемы по форме модели `T`: внутри `$model(...)` пути
+ * сужаются до {@link Path}<T> (опечатка ловится компилятором), и не нужен `as unknown as JsonFormSchemaV1`.
+ * Для схемы-строки-с-сервера (тип формы неизвестен) используйте `JsonFormSchemaV1` без параметра.
+ *
+ * @typeParam T - Форма данных модели.
+ * @param schema - Литерал схемы, типизируемый по `T`.
+ * @returns Та же схема с типом `JsonFormSchemaV1<T>`.
+ *
+ * @example
+ * ```ts
+ * interface CreditForm { loanType: string; personalData: { firstName: string } }
+ * const schema = defineJsonSchemaV1<CreditForm>({
+ *   version: '1.0',
+ *   root: {
+ *     component: '$component(Box)',
+ *     children: [{ value: '$model(personalData.firstName)', component: '$component(Input)' }],
+ *     // { value: '$model(loanTyp)' } — ошибка компиляции: нет такого пути в CreditForm
+ *   },
+ * });
+ * ```
+ */
+export function defineJsonSchemaV1<T = unknown>(schema: JsonFormSchemaV1<T>): JsonFormSchemaV1<T> {
+  return schema;
+}
+
+/**
+ * Type-guard: узел — массив (`array: '$model(...)'` + `item.$template`). Проверять ПЕРВЫМ
+ * (лист/контейнер отсеиваются после, т.к. массив тоже несёт `$model`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если узел — {@link JsonArrayNodeV1}.
+ *
+ * @example Сузить тип узла перед доступом к `item.$template`
+ * ```ts
+ * if (isArrayNodeV1(node)) {
+ *   node.array;            // ModelOp
+ *   node.item.$template;   // JsonNodeV1
+ * }
+ * ```
+ */
+export function isArrayNodeV1(node: JsonNodeV1): node is JsonArrayNodeV1 {
+  const n = node as JsonArrayNodeV1;
+  return (
+    isModelOp(n.array) && typeof n.item === 'object' && n.item !== null && '$template' in n.item
+  );
+}
+
+/**
+ * Type-guard: узел — лист (`value: '$model(...)'`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если узел — {@link JsonFieldNodeV1}.
+ *
+ * @example Сузить тип узла перед доступом к `value`/`component`
+ * ```ts
+ * if (isFieldNodeV1(node)) {
+ *   node.value;      // ModelOp
+ *   node.component;  // ComponentOp | undefined
+ * }
+ * ```
+ */
+export function isFieldNodeV1(node: JsonNodeV1): node is JsonFieldNodeV1 {
+  return isModelOp((node as JsonFieldNodeV1).value);
+}
+
+/**
+ * Type-guard: узел — контейнер (`component: '$component(...)'` или `'$html(...)'`,
+ * без `value`/`array`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если узел — {@link JsonContainerNodeV1}.
+ *
+ * @example Сузить тип узла перед обходом `children`
+ * ```ts
+ * if (isContainerNodeV1(node)) {
+ *   node.component;   // ComponentOp | HtmlOp
+ *   node.children?.forEach(walk);
+ * }
+ * ```
+ */
+export function isContainerNodeV1(node: JsonNodeV1): node is JsonContainerNodeV1 {
+  const component = (node as JsonContainerNodeV1).component;
+  return (
+    (isComponentOp(component) || isHtmlOp(component)) &&
+    !isFieldNodeV1(node) &&
+    !isArrayNodeV1(node)
+  );
+}

@@ -11,6 +11,7 @@
  */
 
 import metaSchema from './form-schema.schema.json';
+import metaSchemaV1 from './form-schema-v1.schema.json';
 import { ALLOWED_HTML_TAGS } from '../html/html-tags';
 import type { ComponentRegistry } from '../registry/types';
 
@@ -34,6 +35,18 @@ export type ComponentPropsSchema = Record<string, unknown>;
  * ```
  */
 export const formSchemaMetaSchema = metaSchema as Record<string, unknown>;
+
+/**
+ * Базовая мета-схема ПРЕЖНЕГО формата документа (v1: ключи `value` / `array`, шаги визарда в
+ * `componentProps.steps`). Нужна тем, кто ещё читает и правит документы v1; документ переводит в
+ * формат 2 `migrateJsonSchema`.
+ *
+ * @example
+ * ```ts
+ * formSchemaMetaSchemaV1.title; // 'ReFormer JSON form schema (M1, string-operator DSL)'
+ * ```
+ */
+export const formSchemaMetaSchemaV1 = metaSchemaV1 as Record<string, unknown>;
 
 /**
  * Имена компонентов реестра (тип `component`) — то, что валидно в `$component(...)`.
@@ -214,7 +227,30 @@ export interface BuildFormSchemaMetaSchemaOptions {
 export function buildFormSchemaMetaSchema(
   opts?: BuildFormSchemaMetaSchemaOptions
 ): Record<string, unknown> {
-  const schema = JSON.parse(JSON.stringify(metaSchema)) as {
+  return tightenMetaSchema(metaSchema, opts);
+}
+
+/**
+ * Конкретная мета-схема ПРЕЖНЕГО формата документа (v1) — то же сужение, что у
+ * {@link buildFormSchemaMetaSchema}, поверх {@link formSchemaMetaSchemaV1}.
+ *
+ * @example
+ * ```ts
+ * const schema = buildFormSchemaMetaSchemaV1({ componentNames: getComponentNames(registry) });
+ * ```
+ */
+export function buildFormSchemaMetaSchemaV1(
+  opts?: BuildFormSchemaMetaSchemaOptions
+): Record<string, unknown> {
+  return tightenMetaSchema(metaSchemaV1, opts);
+}
+
+/** Сужение базовой мета-схемы именами реестра — общее для обоих форматов документа. */
+function tightenMetaSchema(
+  base: unknown,
+  opts?: BuildFormSchemaMetaSchemaOptions
+): Record<string, unknown> {
+  const schema = JSON.parse(JSON.stringify(base)) as {
     definitions: Record<string, { pattern?: string; enum?: string[]; allOf?: unknown[] }>;
   };
   const names = opts?.componentNames;
@@ -272,7 +308,7 @@ export function toFormStepMetaSchema(
     $id: FORM_STEP_SCHEMA_ID,
     title: 'ReFormer JSON form step (a wizard step moved to its own file)',
     description:
-      'A wizard step referenced from the form schema via { "$ref": "./steps/<step>/form.schema.json" } in componentProps.steps. Assemble with composeJsonFormSchema before rendering.',
+      'A wizard step referenced from the form schema via { "$ref": "./steps/<step>/form.schema.json" } in the wizard children (componentProps.steps in the previous format). Assemble with composeJsonFormSchema before rendering.',
     type: 'object',
     required: ['node'],
     additionalProperties: false,
@@ -299,4 +335,22 @@ export function buildFormStepMetaSchema(
   opts?: BuildFormSchemaMetaSchemaOptions
 ): Record<string, unknown> {
   return toFormStepMetaSchema(buildFormSchemaMetaSchema(opts));
+}
+
+/**
+ * Мета-схема файла шага ПРЕЖНЕГО формата документа (v1):
+ * {@link buildFormSchemaMetaSchemaV1} + {@link toFormStepMetaSchema}.
+ *
+ * @param opts - Те же опции, что у {@link buildFormSchemaMetaSchema}.
+ * @returns Мета-схема файла шага (draft-07).
+ *
+ * @example
+ * ```ts
+ * const schema = buildFormStepMetaSchemaV1({ componentNames: getComponentNames(registry) });
+ * ```
+ */
+export function buildFormStepMetaSchemaV1(
+  opts?: BuildFormSchemaMetaSchemaOptions
+): Record<string, unknown> {
+  return toFormStepMetaSchema(buildFormSchemaMetaSchemaV1(opts));
 }

@@ -10,7 +10,7 @@
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, createModel } from '@reformer/core';
+import { createFormFromModel, createModel } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -27,7 +27,7 @@ export function MyFormPage() {
   const { model } = useMemo(() => {
     const model = createModel<MyForm>(initialValues);
     // Форма строится из JSON: конвертер биндит листья к сигналам модели.
-    createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+    createFormFromModel<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
     return { model };
   }, [registry]);
 
@@ -108,7 +108,7 @@ export function CreditFormPage() {
 ```tsx
 // Было (ручная сборка): createModel + createForm + convertJsonToM1Tree.
 const model = createModel<CreditForm>(INITIAL);
-const form = createForm<CreditForm>({
+const form = createFormFromModel<CreditForm>({
   model,
   schema: convertJsonToM1Tree(schema, registry, model),
   behavior: formBehavior,
@@ -354,7 +354,7 @@ function createMyRenderBehavior(
 ```typescript
 // Вариант A — сразу после сборки формы (самый прямой):
 const model = createModel<MyForm>(initialValues);
-const form = createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+const form = createFormFromModel<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
 form.disable(); // каскад disabled по всему дереву → вся форма read-only
 ```
 
