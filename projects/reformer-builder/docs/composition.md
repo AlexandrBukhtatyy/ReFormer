@@ -50,10 +50,12 @@
 
 ### ReFormer с HexaUI
 
-Кит HexaUI — внешний плагин (`packages/ui-kits/reformer-hexa-ui`). Сборка плагина:
+Кит HexaUI — внешний плагин, пакет `@reformer/kit-hexa-ui`. Живёт он в каталоге плагинов
+проекта-образца (`projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui`).
+Сборка плагина:
 
 ```bash
-npm run plugin:build -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, styles.css
+npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, styles.css
 ```
 
 Содержимое `dist/` кладётся в проект как `.ui_builder/plugins/kit-hexa-ui/`. Включить плагин
@@ -140,10 +142,11 @@ node bin/reformer-builder.mjs --config ../reformer-builder-playground/.ui_builde
 
 Файлы с HexaUI называют кит, но не привозят его: кит — плагин проекта. Пока проект с плагином
 не открыт, формы рисует встроенный кит, а HexaUI включается сам, как только плагин его внесёт.
-Проект для проверки — тот же проект-образец: плагин в нём уже включён, остаётся положить сборку:
+Проект для проверки — тот же проект-образец: пакет кита лежит в его каталоге плагинов и уже
+включён, остаётся его собрать (скрипты запуска образца делают это сами):
 
 ```bash
-npm run plugins:hexa-ui -w reformer-builder-playground   # .ui_builder/plugins/kit-hexa-ui/, не в git
+npm run plugins:build -w reformer-builder-playground   # сборка плагинов образца, не в git
 ```
 
 В билдере — «Открыть папку…» и выбрать `projects/reformer-builder-playground`.
