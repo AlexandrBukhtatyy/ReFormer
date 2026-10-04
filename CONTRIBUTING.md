@@ -84,6 +84,8 @@ Package scopes:
 Project scopes (не публикуются в npm):
 
 - `reformer-builder`, `react-playground`, `react-playground-e2e`
+- `reformer-builder-playground` — проект-образец, который билдер открывает как рабочий каталог (`projects/reformer-builder-playground`)
+- `reformer-builder-playground-e2e` — e2e-тесты билдера на этом проекте (`projects/reformer-builder-playground-e2e`)
 - `reformer-hexa-ui` — кит HexaUI и внешний плагин билдера (`packages/ui-kits/reformer-hexa-ui`)
 - `rjsf-kit-theme` — тема RJSF из любого кита (`packages/rjsf-kit-theme`, домен `rjsf` билдера)
 

@@ -51,6 +51,8 @@ npm run dev -w react-playground
 
 Инструкции по настройке, команды тестов и полный справочник команд — в [README.md](./projects/react-playground-e2e/README.md).
 
+E2E визуального билдера — отдельный проект: [reformer-builder-playground-e2e](./projects/reformer-builder-playground-e2e/README.md) открывает в билдере каталог-образец [reformer-builder-playground](./projects/reformer-builder-playground/README.md).
+
 ## Пакеты
 
 | Пакет                                                          | Описание                                                                 | Версия                                                                                                                      |

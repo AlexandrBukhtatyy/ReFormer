@@ -39,6 +39,9 @@ export default {
         'rjsf-kit-theme',
         'react-playground',
         'react-playground-e2e',
+        // Проект-образец, который билдер открывает как рабочий каталог, и e2e билдера на нём.
+        'reformer-builder-playground',
+        'reformer-builder-playground-e2e',
         'docs',
         'ci',
         'deps',
