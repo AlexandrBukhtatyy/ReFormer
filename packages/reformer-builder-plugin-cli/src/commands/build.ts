@@ -27,14 +27,24 @@
  *
  * ## Каталог вывода не чужой
  *
- * Перед записью каталог очищается, но только если он пуст или в нём лежит сборка ЭТОГО ЖЕ
- * плагина (манифест с тем же `id`). Иначе — отказ: `--out ~/project` не должен стирать проект.
+ * Сборка удаляет только то, что писала сама: файлы, которые называет манифест ПРОШЛОЙ сборки
+ * этого же плагина (тот же `id` и `main: "main.js"`). Каталог целиком она не стирает никогда —
+ * в нём может лежать больше, чем сборка.
+ *
+ * Так устроен пакет плагина, который собирается на месте: исходники в `src/`, а сборка —
+ * `build src --out .` — рядом, в корне каталога, откуда оболочка её и грузит. Каталог вывода,
+ * внутри которого лежат исходники, поэтому не чужой, даже когда он не пуст; файл, которого
+ * прошлая сборка не писала, в нём не перезаписывается.
+ *
+ * Отказов два. Непустой каталог без нашей сборки и без наших исходников — `output-not-ours`:
+ * `--out ~/project` не должен сорить в проекте. Сам каталог исходников — `output-is-source`:
+ * манифест и точка входа сборки легли бы поверх исходных.
  *
  * @module @reformer/builder-plugin-cli/commands/build
  */
 
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import {
   isBundledPluginModule,
@@ -108,31 +118,110 @@ const runtimeModules: esbuild.Plugin = {
   },
 };
 
-async function prepareOutDir(outDir: string, id: string): Promise<Finding | undefined> {
+/** `path` лежит внутри `parent` — строго: сам `parent` не считается. */
+function isInside(parent: string, path: string): boolean {
+  const offset = relative(parent, path);
+  return offset !== '' && !offset.startsWith('..') && !isAbsolute(offset);
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Файлы прошлой сборки этого плагина в каталоге вывода — по её манифесту.
+ *
+ * `undefined` — сборки там нет: манифеста нет, он чужой или это манифест исходников. Собранный
+ * манифест узнаётся по `main: "main.js"`: иначе манифест исходников с тем же `id` выдал бы
+ * исходники за сборку — и они были бы удалены.
+ */
+async function previousBuildFiles(outDir: string, id: string): Promise<string[] | undefined> {
+  let text: string;
+  try {
+    text = await readFile(join(outDir, PLUGIN_MANIFEST_FILE), 'utf8');
+  } catch {
+    return undefined;
+  }
+  const parsed = parsePluginManifest(text, { kind: 'project', dir: id });
+  if (!parsed.ok || parsed.manifest.main !== BUILT_MAIN) return undefined;
+  const { manifest } = parsed;
+  return [
+    PLUGIN_MANIFEST_FILE,
+    BUILT_MAIN,
+    ...(manifest.styles === undefined ? [] : [manifest.styles.file]),
+    ...Object.values(manifest.contributes?.messages ?? {}),
+  ];
+}
+
+/**
+ * Освобождает в каталоге вывода место под сборку — или отказывает, ничего не тронув.
+ *
+ * @param dir каталог исходников
+ * @param files что сборка собирается записать — пути от каталога вывода
+ */
+async function prepareOutDir(
+  outDir: string,
+  dir: string,
+  id: string,
+  files: readonly string[]
+): Promise<Finding | undefined> {
+  if (relative(outDir, dir) === '') {
+    return {
+      code: 'output-is-source',
+      message:
+        `каталог вывода «${outDir}» — сам каталог исходников: манифест и точка входа сборки ` +
+        'легли бы поверх исходных',
+    };
+  }
+
   let entries: string[];
   try {
     entries = await readdir(outDir);
   } catch {
     return undefined;
   }
-  if (entries.length > 0) {
-    let previousId: unknown;
-    try {
-      const text = await readFile(join(outDir, PLUGIN_MANIFEST_FILE), 'utf8');
-      previousId = (JSON.parse(text) as { id?: unknown }).id;
-    } catch {
-      previousId = undefined;
-    }
-    if (previousId !== id) {
-      return {
-        code: 'output-not-ours',
-        message:
-          `каталог вывода «${outDir}» не пуст и не содержит сборку «${id}»: ` +
-          'очищать чужой каталог сборка не станет',
-      };
+  if (entries.length === 0) return undefined;
+
+  const previous = await previousBuildFiles(outDir, id);
+  if (previous === undefined && !isInside(outDir, dir)) {
+    return {
+      code: 'output-not-ours',
+      message:
+        `каталог вывода «${outDir}» не пуст и не содержит сборку «${id}»: ` +
+        'писать в чужой каталог сборка не станет',
+    };
+  }
+
+  // Рядом со сборкой может лежать что угодно — исходники, package.json пакета. Своим сборка
+  // считает только то, что писала в прошлый раз.
+  const ours = new Set(previous ?? []);
+  for (const file of files) {
+    if (ours.has(file) || !(await exists(join(outDir, file)))) continue;
+    return {
+      code: 'output-not-ours',
+      file,
+      message: `в каталоге вывода «${outDir}» уже есть «${file}», и писала его не сборка «${id}»`,
+    };
+  }
+
+  const emptied = new Set<string>();
+  for (const file of ours) {
+    const target = resolve(outDir, file);
+    if (!isInside(outDir, target)) continue;
+    await rm(target, { force: true });
+    for (let parent = dirname(target); isInside(outDir, parent); parent = dirname(parent)) {
+      emptied.add(parent);
     }
   }
-  await rm(outDir, { recursive: true, force: true });
+  // Опустевший каталог словарей — тоже след прошлой сборки. Непустой `rmdir` не удалит.
+  for (const parent of [...emptied].sort((a, b) => b.length - a.length)) {
+    await rmdir(parent).catch(() => undefined);
+  }
   return undefined;
 }
 
@@ -240,7 +329,7 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
   const dryRun = await dryActivate(code, manifest);
   if (dryRun.findings.length > 0) return fail(...dryRun.findings);
 
-  const refused = await prepareOutDir(outDir, manifest.id);
+  const refused = await prepareOutDir(outDir, dir, manifest.id, [...files.keys()]);
   if (refused !== undefined) return fail(refused);
   for (const [path, content] of files) {
     const target = join(outDir, path);

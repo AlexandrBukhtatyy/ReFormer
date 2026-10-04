@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -29,8 +29,8 @@ afterEach(async () => {
 
 const main = (code: string) => writeFile(join(dir, 'src/main.ts'), code);
 
-async function patchManifest(patch: (value: Record<string, unknown>) => void) {
-  const file = join(dir, 'manifest.json');
+async function patchManifest(patch: (value: Record<string, unknown>) => void, at = dir) {
+  const file = join(at, 'manifest.json');
   const value = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
   patch(value);
   await writeFile(file, JSON.stringify(value));
@@ -64,6 +64,80 @@ describe('build', () => {
 
     expect(codes(await buildPlugin({ dir, outDir: foreign }))).toEqual(['output-not-ours']);
     expect(await readFile(join(foreign, 'notes.txt'), 'utf8')).toBe('не трогать');
+  });
+
+  it('манифест исходников с тем же id сборкой не считается', async () => {
+    // Копия исходников — каталог с «нашим» id. Сборкой её делает не id, а `main: "main.js"`.
+    const copy = join(root, 'copy');
+    await mkdir(copy);
+    await writeFile(
+      join(copy, 'manifest.json'),
+      await readFile(join(dir, 'manifest.json'), 'utf8')
+    );
+    await writeFile(join(copy, 'notes.txt'), 'не трогать');
+
+    expect(codes(await buildPlugin({ dir, outDir: copy }))).toEqual(['output-not-ours']);
+    expect(await readFile(join(copy, 'notes.txt'), 'utf8')).toBe('не трогать');
+  });
+
+  it('каталог исходников каталогом вывода быть не может', async () => {
+    const manifest = await readFile(join(dir, 'manifest.json'), 'utf8');
+
+    expect(codes(await buildPlugin({ dir, outDir: dir }))).toEqual(['output-is-source']);
+    expect(await readFile(join(dir, 'manifest.json'), 'utf8')).toBe(manifest);
+    expect(await readFile(join(dir, 'src/main.ts'), 'utf8')).toContain('definePlugin');
+  });
+
+  describe('на месте: исходники в src/ пакета, сборка — в его корне', () => {
+    let pkg: string;
+    let sources: string;
+
+    beforeEach(async () => {
+      pkg = join(root, 'project/.ui_builder/plugins/acme-pack');
+      sources = join(pkg, 'src');
+      const created = await createPlugin({ dir: sources, id: 'acme-pack', cliVersion: '1.0.0' });
+      expect(created.ok).toBe(true);
+      await writeFile(join(pkg, 'package.json'), '{ "name": "acme-pack" }');
+    });
+
+    it('пишет рядом с исходниками и не трогает то, чего не писала', async () => {
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+      // Вторая сборка — поверх первой: раньше на этом месте каталог стирался целиком.
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+
+      const manifest = await readFile(join(pkg, 'manifest.json'), 'utf8');
+      expect(parsePluginManifest(manifest, { kind: 'project', dir: 'acme-pack' }).ok).toBe(true);
+      expect(await readFile(join(pkg, 'main.js'), 'utf8')).toContain('acme-pack');
+      expect(await readFile(join(pkg, 'package.json'), 'utf8')).toBe('{ "name": "acme-pack" }');
+      expect(await readFile(join(sources, 'src/main.ts'), 'utf8')).toContain('definePlugin');
+    });
+
+    it('убирает файлы прошлой сборки, которых в новой нет', async () => {
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+      await patchManifest((value) => {
+        value.contributes = {};
+      }, sources);
+
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+
+      // Словарей в сборке больше нет — нет и их каталога; исходные словари на месте.
+      expect(await readdir(pkg)).toEqual(['main.js', 'manifest.json', 'package.json', 'src']);
+      expect(await readFile(join(sources, 'locales/ru.json'), 'utf8')).toContain('command.hello');
+    });
+
+    it('чужой файл на месте своего — отказ, и ничего не записано', async () => {
+      await mkdir(join(pkg, 'locales'));
+      await writeFile(join(pkg, 'locales/ru.json'), 'не трогать');
+
+      const result = await buildPlugin({ dir: sources, outDir: pkg });
+
+      expect(result).toMatchObject({
+        ok: false,
+        findings: [{ code: 'output-not-ours', file: 'locales/ru.json' }],
+      });
+      expect(await readFile(join(pkg, 'locales/ru.json'), 'utf8')).toBe('не трогать');
+      expect(await readdir(pkg)).toEqual(['locales', 'package.json', 'src']);
+    });
   });
 
   it('@reformer/*, которого оболочка не даёт, — отказ, а не вложенная копия', async () => {
@@ -301,6 +375,19 @@ describe('командная строка', () => {
     const run = io();
     expect(await runCli(['validate', 'acme-hello', '--out', 'x'], run)).toBe(2);
     expect(run.lines.err[0]).toBe('validate: параметры --out не принимаются');
+  });
+
+  it('dev в проект, где лежит сам пакет плагина, пишет рядом с исходниками', async () => {
+    const pkg = join(root, 'project/.ui_builder/plugins/acme-pack');
+    await createPlugin({ dir: join(pkg, 'src'), id: 'acme-pack', cliVersion: '1.0.0' });
+    const run = io();
+
+    const source = 'project/.ui_builder/plugins/acme-pack/src';
+    expect(await runCli(['dev', source, '--project', 'project'], run)).toBe(0);
+
+    expect(run.lines.err).toEqual([]);
+    expect(await readFile(join(pkg, 'main.js'), 'utf8')).toContain('acme-pack');
+    expect(await readFile(join(pkg, 'src/src/main.ts'), 'utf8')).toContain('definePlugin');
   });
 
   it('dev собирает один раз и закрывается, когда ожидание завершено', async () => {
