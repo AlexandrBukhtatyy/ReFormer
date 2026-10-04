@@ -395,18 +395,27 @@ describe('встроенный кит', () => {
     expect(descriptor.previewPolicy.get('Dialog')?.mode).toBe('limited');
   });
 
-  it('каждое поле каталога есть в пространстве имён, включая поля за подпутём', async () => {
-    const catalog = await loadBuiltinCatalog();
-    const namespace = await loadBuiltinNamespace();
+  // Свой запас времени: пространство имён кита — это импорт всего кита с подпутями, и на холодном
+  // кеше трансформаций он занимает секунды. В одиночку тест укладывается в обычные пять, а в полном
+  // прогоне, деля процессор с соседними файлами, — уже нет.
+  it(
+    'каждое поле каталога есть в пространстве имён, включая поля за подпутём',
+    {
+      timeout: 30_000,
+    },
+    async () => {
+      const catalog = await loadBuiltinCatalog();
+      const namespace = await loadBuiltinNamespace();
 
-    // `DatePicker`, `Calendar`, `Combobox*`, `InputOTP` в главный вход кита не входят
-    // (ReFormer-9r8q): без них превью рисовало бы заглушку, а тема RJSF — стандартный виджет.
-    const missing = (catalog.components ?? [])
-      .filter((record) => record.role === 'field')
-      .filter((record) => namespace[exportNameFor(record)] === undefined)
-      .map((record) => record.name);
-    expect(missing).toEqual([]);
-  });
+      // `DatePicker`, `Calendar`, `Combobox*`, `InputOTP` в главный вход кита не входят
+      // (ReFormer-9r8q): без них превью рисовало бы заглушку, а тема RJSF — стандартный виджет.
+      const missing = (catalog.components ?? [])
+        .filter((record) => record.role === 'field')
+        .filter((record) => namespace[exportNameFor(record)] === undefined)
+        .map((record) => record.name);
+      expect(missing).toEqual([]);
+    }
+  );
 
   it('словарь классов приезжает вместе с каталогом: до загрузки подсказывать нечем', async () => {
     const kits = createKitsService({ sources: [BUILTIN_KIT] });
