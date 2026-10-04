@@ -68,7 +68,10 @@ export interface FormArrayAddButtonProps<T extends object = Record<string, unkno
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
-  /** Начальное значение нового элемента (передаётся в `add()` → `ArrayNode.push`) */
+  /**
+   * Значение нового элемента (передаётся в `add()` → `ArrayNode.push`). Запасной путь: без него
+   * элемент берётся из шаблона массива модели — `arrayOf(blank)` из `@reformer/core`.
+   */
   initialValue?: Partial<T>;
   /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
   asChild?: boolean;

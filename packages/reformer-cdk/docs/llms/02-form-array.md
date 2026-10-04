@@ -32,7 +32,7 @@ import { FormArray } from '@reformer/cdk/form-array';
 | ------------------------ | ------------------------------- | ---------------------------------- |
 | `FormArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
 | `FormArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
-| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item                      |
+| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item (from model template) |
 | `FormArray.RemoveButton` | -                               | Removes current item (inside List) |
 | `FormArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
 | `FormArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
@@ -99,9 +99,12 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   control={form.properties} // FormArrayProxy<Property>
   itemComponent={PropertyForm}
   title="Properties"
-  initialValue={blankProperty()}
 />;
 ```
+
+The new item comes from the array template declared in the model —
+`createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` from `@reformer/core`). The
+`initialValue` prop is a fallback for an array whose model declares no template.
 
 Full prop list, RenderSchema and JSON variants: `find_recipe(topic="form-array-section")`.
 
