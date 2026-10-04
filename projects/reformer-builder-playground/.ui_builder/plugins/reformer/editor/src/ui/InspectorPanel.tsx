@@ -18,6 +18,13 @@
  * Правка «всем сразу» — отдельная работа со своими правилами (что делать с разными значениями
  * одного ключа), и притворяться, что правится первый, значило бы менять не то, на что смотрят.
  *
+ * ## Выбор — всегда список
+ *
+ * Флажков и радиокнопок в панели нет. Одно значение из нескольких — список с единичным
+ * выбором; булевы свойства секции — один список с мультивыбором, где выбранное и есть
+ * включённое (`sectionRows` модели). Десяток булевых свойств флажками растягивал бы панель
+ * на десять строк, а списком это одна строка, в которой видно сразу всё включённое.
+ *
  * ## Подсказка — значком у подписи
  *
  * Не строкой под полем. Описания пропсов в каталоге кита длинные, и под каждым полем они
@@ -30,7 +37,6 @@
 
 import { useId, type ReactElement } from 'react';
 import { Badge } from '@reformer/ui-kit/badge';
-import { Checkbox } from '@reformer/ui-kit/checkbox';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { InfoHint } from '@reformer/ui-kit/info-hint';
 import { Input } from '@reformer/ui-kit/input';
@@ -40,11 +46,18 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectMulti,
   SelectTrigger,
   SelectValue,
 } from '@reformer/ui-kit/select';
 import { Separator } from '@reformer/ui-kit/separator';
-import { inspectorModelFor, type InspectorField } from '../palette/inspector-model';
+import {
+  flagOn,
+  flagValue,
+  inspectorModelFor,
+  sectionRows,
+  type InspectorField,
+} from '../palette/inspector-model';
 import { setBindingOp, setPropOp, setTextOp } from '../model/ops';
 import { useActiveSession, useSessionState } from './useSession';
 import type { NodeId, SchemaEditorHost, Translate } from '../host';
@@ -154,15 +167,25 @@ export function InspectorPanel({ host, registry }: InspectorPanelProps): ReactEl
             <span className="text-muted-foreground text-[11px] font-medium uppercase">
               {t(`group.${section.group}`)}
             </span>
-            {section.fields.map((field) => (
-              <PropField
-                key={field.key}
-                field={field}
-                nodeId={inspector.nodeId}
-                session={session}
-                t={t}
-              />
-            ))}
+            {sectionRows(section).map((row) =>
+              row.kind === 'flags' ? (
+                <FlagsField
+                  key="flags"
+                  fields={row.fields}
+                  nodeId={inspector.nodeId}
+                  session={session}
+                  t={t}
+                />
+              ) : (
+                <PropField
+                  key={row.field.key}
+                  field={row.field}
+                  nodeId={inspector.nodeId}
+                  session={session}
+                  t={t}
+                />
+              )
+            )}
           </div>
         ))}
       </div>
@@ -253,6 +276,64 @@ function Field({
   );
 }
 
+/**
+ * Подсказка списка флагов: описания его свойств одной строкой.
+ *
+ * У пункта списка своей подсказки нет, а описания у флагов есть — и терять их из-за того, что
+ * флажки стали списком, незачем. Точка в конце описания снимается: части разделяет «;».
+ */
+function flagsHint(fields: readonly InspectorField[]): string | undefined {
+  const parts = fields
+    .filter((field) => hasHint(field.description))
+    .map((field) => `${field.label} — ${(field.description ?? '').replace(/[.\s]+$/, '')}`);
+  return parts.length === 0 ? undefined : parts.join('; ');
+}
+
+/**
+ * Булевы свойства секции — одним списком с мультивыбором: выбранное и есть включённое.
+ *
+ * Каждое свойство по-прежнему пишется своей операцией `set-prop`: список — способ показать,
+ * а в файле это те же отдельные свойства. Снятый пункт убирает свойство из `componentProps`,
+ * если выключено оно и по умолчанию (см. `flagValue`).
+ */
+function FlagsField({
+  fields,
+  nodeId,
+  session,
+  t,
+}: {
+  fields: readonly InspectorField[];
+  nodeId: NodeId;
+  session: SchemaSession;
+  t: Translate;
+}): ReactElement {
+  return (
+    <Field label={t('inspector.flags')} hint={flagsHint(fields)} t={t}>
+      {(control) => (
+        <SelectMulti
+          {...control}
+          data-testid="inspector-flags"
+          value={fields.filter(flagOn).map((field) => field.key)}
+          options={fields.map((field) => ({ value: field.key, label: field.label }))}
+          placeholder={t('inspector.flags.none')}
+          // Свёртка в «Выбрано: N» панели не нужна: флагов в секции единицы, а видеть надо
+          // именно КАКИЕ включены.
+          summaryThreshold={fields.length}
+          className="min-h-7 px-2 py-1 text-[12px]"
+          onChange={(next) => {
+            for (const field of fields) {
+              const on = next.includes(field.key);
+              if (on !== flagOn(field)) {
+                session.apply(setPropOp(nodeId, field.key, flagValue(field, on)));
+              }
+            }
+          }}
+        />
+      )}
+    </Field>
+  );
+}
+
 /** Одно свойство. Вид элемента управления выбран каталогом — см. `inspector-model`. */
 function PropField({
   field,
@@ -265,26 +346,9 @@ function PropField({
   session: SchemaSession;
   t: Translate;
 }): ReactElement {
-  // Адрес флажка: у него подпись стоит рядом, а не над контролом, и `Field` ему не подходит.
-  const checkboxId = useId();
   const set = (value: unknown): void => {
     session.apply(setPropOp(nodeId, field.key, value));
   };
-
-  if (field.editor === 'checkbox') {
-    return (
-      <div className="flex items-center gap-2">
-        <Checkbox
-          {...controlPropsOf(checkboxId, field.description)}
-          checked={field.value === true}
-          onCheckedChange={(checked) => {
-            set(checked === true ? true : undefined);
-          }}
-        />
-        <FieldLabel controlId={checkboxId} label={field.label} hint={field.description} t={t} />
-      </div>
-    );
-  }
 
   if (field.editor === 'select') {
     const options = field.options ?? [];

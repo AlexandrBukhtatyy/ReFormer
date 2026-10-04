@@ -10,7 +10,15 @@ import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogEntry } from '../../../core/catalog';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
-import { editorFor, inspectorModelFor, inspectorModelOf } from './inspector-model';
+import {
+  editorFor,
+  flagOn,
+  flagValue,
+  inspectorModelFor,
+  inspectorModelOf,
+  sectionRows,
+  type InspectorField,
+} from './inspector-model';
 import { indexNodes } from '../model/node-index';
 
 function sequentialIds(): NodeIdFactory {
@@ -60,7 +68,7 @@ function selectId(): string {
 
 describe('editorFor', () => {
   it('переводит вид свойства из каталога в элемент управления', () => {
-    expect(editorFor('boolean')).toBe('checkbox');
+    expect(editorFor('boolean')).toBe('flag');
     expect(editorFor('enum')).toBe('select');
     expect(editorFor('number')).toBe('number');
     expect(editorFor('text')).toBe('text');
@@ -93,7 +101,7 @@ describe('inspectorModelFor', () => {
     );
     expect(editors.get('label')).toBe('text');
     expect(editors.get('size')).toBe('select');
-    expect(editors.get('required')).toBe('checkbox');
+    expect(editors.get('required')).toBe('flag');
     expect(editors.get('maxLength')).toBe('number');
     expect(editors.get('options')).toBe('readonly');
   });
@@ -219,5 +227,64 @@ describe('варианты привязки', () => {
 
   it('контейнеру подсказывать нечего', () => {
     expect(inspectorModelFor(schema, [], [idAt(['root'])])?.bindingOptions).toEqual([]);
+  });
+});
+
+describe('строки секции: флаги — одним списком', () => {
+  const field = (key: string, editor: InspectorField['editor'], extra = {}): InspectorField => ({
+    key,
+    label: key,
+    editor,
+    group: 'State',
+    value: undefined,
+    ...extra,
+  });
+
+  it('булевы свойства секции сворачиваются в одну строку на месте первого из них', () => {
+    const rows = sectionRows({
+      group: 'State',
+      fields: [
+        field('label', 'text'),
+        field('readOnly', 'flag'),
+        field('size', 'select'),
+        field('required', 'flag'),
+      ],
+    });
+
+    expect(rows.map((row) => (row.kind === 'flags' ? 'flags' : row.field.key))).toEqual([
+      'label',
+      'flags',
+      'size',
+    ]);
+    const flags = rows.find((row) => row.kind === 'flags');
+    expect(flags?.kind === 'flags' && flags.fields.map((flag) => flag.key)).toEqual([
+      'readOnly',
+      'required',
+    ]);
+  });
+
+  it('секция без булевых свойств строки флагов не получает', () => {
+    const rows = sectionRows({ group: 'Control', fields: [field('label', 'text')] });
+
+    expect(rows).toEqual([{ kind: 'field', field: field('label', 'text') }]);
+  });
+
+  it('флаг включён значением узла, а без него — умолчанием каталога', () => {
+    expect(flagOn(field('required', 'flag'))).toBe(false);
+    expect(flagOn(field('required', 'flag', { value: true }))).toBe(true);
+    // Свойство, включённое китом по умолчанию, действует — и выглядит включённым.
+    expect(flagOn(field('clearable', 'flag', { fallback: true }))).toBe(true);
+    expect(flagOn(field('clearable', 'flag', { fallback: true, value: false }))).toBe(false);
+  });
+
+  it('совпавшее с умолчанием убирает свойство, отличное — пишется явно', () => {
+    const plain = field('required', 'flag');
+    expect(flagValue(plain, true)).toBe(true);
+    expect(flagValue(plain, false)).toBeUndefined();
+
+    // Иначе флаг, включённый по умолчанию, было бы нечем выключить.
+    const onByDefault = field('clearable', 'flag', { fallback: true });
+    expect(flagValue(onByDefault, false)).toBe(false);
+    expect(flagValue(onByDefault, true)).toBeUndefined();
   });
 });

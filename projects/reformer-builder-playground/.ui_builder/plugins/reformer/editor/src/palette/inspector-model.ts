@@ -51,7 +51,7 @@ import type { NodeId } from '../host';
  * а правится пока в JSON. Отдельный вид нужен, чтобы это состояние было видно на экране,
  * а не выглядело сломанным полем ввода.
  */
-export type InspectorEditor = 'text' | 'checkbox' | 'number' | 'select' | 'readonly';
+export type InspectorEditor = 'text' | 'flag' | 'number' | 'select' | 'readonly';
 
 /** Поле инспектора: свойство каталога вместе с текущим значением узла. */
 export interface InspectorField {
@@ -131,11 +131,70 @@ export interface InspectorModel {
   readonly sections: readonly InspectorSection[];
 }
 
+/**
+ * Строка секции инспектора: одно свойство — или все её флаги разом.
+ *
+ * Выбор в панели свойств всегда список. Одно значение из нескольких (`enum`) — список
+ * с единичным выбором; набор включаемых признаков (булевы свойства) — ОДИН список
+ * с мультивыбором, где выбранное и есть включённое. Флажков и переключателей-радио в панели
+ * нет: десяток булевых свойств флажками растягивал бы панель на десять строк, а списком это
+ * одна строка, в которой видно сразу всё включённое.
+ */
+export type InspectorRow =
+  | { readonly kind: 'field'; readonly field: InspectorField }
+  | { readonly kind: 'flags'; readonly fields: readonly InspectorField[] };
+
+/**
+ * Строки секции в порядке показа.
+ *
+ * Флаги секции сворачиваются в одну строку и встают на место ПЕРВОГО из них: порядок секции
+ * задаёт каталог, и переносить флаги в её конец значило бы спорить с ним. Группировка — по
+ * секции, а не одна на узел: «обязательное» и «только чтение» — состояние, «с поиском» —
+ * поведение, и каталог уже развёл их по группам.
+ */
+export function sectionRows(section: InspectorSection): InspectorRow[] {
+  const flags = section.fields.filter((field) => field.editor === 'flag');
+  const rows: InspectorRow[] = [];
+  let placed = false;
+  for (const field of section.fields) {
+    if (field.editor !== 'flag') {
+      rows.push({ kind: 'field', field });
+    } else if (!placed) {
+      rows.push({ kind: 'flags', fields: flags });
+      placed = true;
+    }
+  }
+  return rows;
+}
+
+/**
+ * Включён ли флаг: значение узла, а пока оно не задано — умолчание каталога.
+ *
+ * Модель умолчание в `value` не подставляет (в файле его нет), но список флагов показывает
+ * ДЕЙСТВУЮЩЕЕ состояние: свойство, включённое китом по умолчанию, иначе выглядело бы
+ * выключенным — и выключить его было бы нечем.
+ */
+export function flagOn(field: InspectorField): boolean {
+  return typeof field.value === 'boolean' ? field.value : field.fallback === true;
+}
+
+/**
+ * Что записать в узел, чтобы флаг стал `on`.
+ *
+ * Совпавшее с умолчанием каталога — `undefined`, то есть «убрать свойство»: свойство, которого
+ * в `componentProps` нет, и свойство, равное своему умолчанию, для кита одно и то же, а файл
+ * без лишней строки короче. Отличное от умолчания пишется явно — иначе флаг, включённый
+ * по умолчанию, нельзя было бы выключить.
+ */
+export function flagValue(field: InspectorField, on: boolean): boolean | undefined {
+  return on === (field.fallback === true) ? undefined : on;
+}
+
 /** Виджет каталога → элемент управления инспектора. Обоснование грубости — в шапке модуля. */
 export function editorFor(widget: InspectorWidget): InspectorEditor {
   switch (widget) {
     case 'boolean':
-      return 'checkbox';
+      return 'flag';
     case 'number':
       return 'number';
     case 'enum':
