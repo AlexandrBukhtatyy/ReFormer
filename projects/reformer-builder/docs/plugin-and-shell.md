@@ -744,8 +744,8 @@ export interface EditorProbe {
 того стека, чей документ, с условием по виду документа: `activeResourceKind == <provider-id>`.
 Оболочка своих команд отмены не заводит: у текстового документа своя отмена у Monaco, у каждого
 стека — свой вид документа, и условие по нему делает сочетания стеков непересекающимися. Образцы —
-плагин проекта-образца `reformer.editor-schema` (`form.schema`) и встроенный `plugins/plain/demo`
-(`plain.form`).
+плагины проекта-образца `reformer.editor-schema` (`form.schema`) и `reformer.rjsf.editor`
+(`rjsf.form`).
 
 ## Декорации ресурсов — ответ на вопрос «чей файловый список»
 
