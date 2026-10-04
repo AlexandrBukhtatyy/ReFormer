@@ -36,6 +36,8 @@
   "inspector.title": "Подпись",
   "inspector.type": "Тип значения",
   "inspector.required": "Обязательное",
+  "inspector.flags": "Включено",
+  "inspector.flags.none": "ничего не включено",
   "inspector.enum": "Варианты выбора",
   "inspector.enum.hint": "По одному в строке; пусто — без выбора.",
   "inspector.placeholder": "Подсказка в поле",

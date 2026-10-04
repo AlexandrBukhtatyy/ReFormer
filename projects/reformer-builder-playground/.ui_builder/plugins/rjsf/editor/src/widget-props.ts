@@ -15,6 +15,14 @@
  *
  * Значения лежат в `uiSchema[поле]['ui:options']` — там, где RJSF ждёт подсказки отрисовки.
  *
+ * ## Выбор — всегда список
+ *
+ * Флажков и радиокнопок в панели нет. Одно значение из нескольких правится списком с единичным
+ * выбором, а булевы свойства группы — ОДНОЙ строкой: списком с мультивыбором, где выбранное
+ * и есть включённое ({@link FieldFlag}). В неё попадают оба слоя — «обязательное» схемы и булевы
+ * пропсы контрола: человеку всё равно, где значение хранится. Формат документа от этого
+ * не меняется: каждый флаг пишется туда же, куда писал флажок.
+ *
  * @module plugins/rjsf/editor/widget-props
  */
 
@@ -29,7 +37,7 @@ const OPTIONS_KEY = 'ui:options';
  * Чем правится свойство. Пропсов без редактора (колбэки, слоты, составные значения) в панели
  * нет: JSON'ом формы их либо не задать вовсе, либо задают руками в тексте документа.
  */
-export type WidgetPropEditor = 'text' | 'checkbox' | 'number' | 'select';
+export type WidgetPropEditor = 'text' | 'flag' | 'number' | 'select';
 
 /** Свойство контрола вместе с текущим значением поля. */
 export interface WidgetPropField {
@@ -75,10 +83,13 @@ export const FIELD_GROUPS: readonly string[] = Object.freeze([
 ]);
 
 /** Свойства поля, которые ведёт схема формы, а не каталог кита. */
-export type FieldRowId = 'name' | 'widget' | 'label' | 'placeholder' | 'type' | 'enum' | 'required';
+export type FieldRowId = 'name' | 'widget' | 'label' | 'placeholder' | 'type' | 'enum';
+
+/** Булевы свойства поля, которые ведёт схема формы. */
+export type FieldFlagId = 'required';
 
 /** В какой группе стоит свойство схемы: рядом с родственными свойствами контрола. */
-const SCHEMA_ROW_GROUPS: Readonly<Record<FieldRowId, string>> = {
+const SCHEMA_ROW_GROUPS: Readonly<Record<FieldRowId | FieldFlagId, string>> = {
   name: 'Control',
   widget: 'Control',
   label: 'Textfield',
@@ -132,10 +143,21 @@ function groupOf(prop: WidgetPropField, address: string): string {
   return prop.group === 'Control' && !ROW_ORDER.includes(address) ? 'Behavior' : prop.group;
 }
 
-/** Строка панели свойств поля: свойство схемы либо свойство контрола. */
+/**
+ * Булево свойство поля — пункт списка флагов: свойство схемы либо свойство контрола.
+ *
+ * Ключи двух слоёв здесь не пересекаются: единственный флаг схемы — «обязательное», а одноимённый
+ * проп контрола тема до панели не доводит (его ведёт схема — `RESERVED_OPTION_PROPS` темы).
+ */
+export type FieldFlag =
+  | { readonly kind: 'field'; readonly id: FieldFlagId }
+  | { readonly kind: 'prop'; readonly prop: WidgetPropField };
+
+/** Строка панели свойств поля: свойство схемы, свойство контрола либо все флаги группы разом. */
 export type FieldRow =
   | { readonly kind: 'field'; readonly id: FieldRowId }
-  | { readonly kind: 'prop'; readonly prop: WidgetPropField };
+  | { readonly kind: 'prop'; readonly prop: WidgetPropField }
+  | { readonly kind: 'flags'; readonly flags: readonly FieldFlag[] };
 
 /** Группа панели со своими строками. */
 export interface FieldSection {
@@ -208,7 +230,7 @@ function editorOf(key: string, prop: Json): WidgetPropEditor | null {
     case 'text':
       return 'text';
     case 'boolean':
-      return 'checkbox';
+      return 'flag';
     case 'number':
       return 'number';
     case 'enum':
@@ -263,6 +285,52 @@ export function widgetPropsOf(
 }
 
 /**
+ * Действующее состояние булева свойства контрола: значение из документа, а без него — умолчание
+ * кита. Свойство, включённое китом по умолчанию, в списке стоит выбранным, хотя в документе
+ * его нет.
+ */
+export function flagOn(prop: WidgetPropField): boolean {
+  return typeof prop.value === 'boolean' ? prop.value : prop.fallback === true;
+}
+
+/**
+ * Что записать в `ui:options`, включая или выключая свойство: совпавшее с умолчанием кита
+ * из документа уходит (`undefined`), отличное — пишется явно, в том числе `false`.
+ */
+export function flagValue(prop: WidgetPropField, on: boolean): boolean | undefined {
+  return on === (prop.fallback === true) ? undefined : on;
+}
+
+/** Ключ флага — он же значение пункта в списке флагов. */
+export function flagKey(flag: FieldFlag): string {
+  return flag.kind === 'field' ? flag.id : flag.prop.key;
+}
+
+/** Место свойства в панели: обычная строка либо флаг — пункт общей строки своей группы. */
+type PlacedEntry = { readonly row: FieldRow } | { readonly flag: FieldFlag };
+
+interface Placed {
+  readonly address: string;
+  readonly group: string;
+  readonly entry: PlacedEntry;
+}
+
+/** Строки группы: флаги собраны в одну строку, и стоит она на месте первого из них. */
+function rowsOf(placed: readonly Placed[]): FieldRow[] {
+  const flags = placed.flatMap(({ entry }) => ('flag' in entry ? [entry.flag] : []));
+  const rows: FieldRow[] = [];
+  let listed = false;
+  for (const { entry } of placed) {
+    if ('row' in entry) rows.push(entry.row);
+    else if (!listed) {
+      rows.push({ kind: 'flags', flags });
+      listed = true;
+    }
+  }
+  return rows;
+}
+
+/**
  * Панель свойств поля: группы в порядке {@link FIELD_GROUPS}, внутри группы — {@link ROW_ORDER}.
  *
  * Свойства схемы и свойства контрола стоят в одних группах: человеку всё равно, где значение
@@ -271,6 +339,8 @@ export function widgetPropsOf(
  *
  * Свойства схемы есть у любого поля; подсказка в поле и варианты — у всех, кроме «да/нет»:
  * флажку вписывать нечего и выбирать не из чего.
+ *
+ * Булевы свойства группы — одна строка вида `flags`, на месте первого из них.
  */
 export function fieldPanelOf(
   field: RjsfFieldSchema,
@@ -278,25 +348,35 @@ export function fieldPanelOf(
   catalog: CatalogJson | null
 ): FieldPanelModel {
   const props = widgetPropsOf(field, ui, catalog);
-  const ids: FieldRowId[] = ['name', 'widget', 'label', 'type', 'required'];
+  const ids: FieldRowId[] = ['name', 'widget', 'label', 'type'];
   if (field.type !== 'boolean') ids.push('placeholder', 'enum');
+  const flagIds: FieldFlagId[] = ['required'];
 
-  interface Placed {
-    readonly address: string;
-    readonly group: string;
-    readonly row: FieldRow;
-  }
   const placed: Placed[] = [
     ...ids.map(
       (id): Placed => ({
         address: `field:${id}`,
         group: SCHEMA_ROW_GROUPS[id],
-        row: { kind: 'field', id },
+        entry: { row: { kind: 'field', id } },
+      })
+    ),
+    ...flagIds.map(
+      (id): Placed => ({
+        address: `field:${id}`,
+        group: SCHEMA_ROW_GROUPS[id],
+        entry: { flag: { kind: 'field', id } },
       })
     ),
     ...(props?.fields ?? []).map((prop): Placed => {
       const address = `prop:${prop.key}`;
-      return { address, group: groupOf(prop, address), row: { kind: 'prop', prop } };
+      return {
+        address,
+        group: groupOf(prop, address),
+        entry:
+          prop.editor === 'flag'
+            ? { flag: { kind: 'prop', prop } }
+            : { row: { kind: 'prop', prop } },
+      };
     }),
   ];
   const rank = (address: string): number => {
@@ -315,7 +395,7 @@ export function fieldPanelOf(
     sections: groups
       .map((group) => ({
         group,
-        rows: placed.filter((entry) => entry.group === group).map((entry) => entry.row),
+        rows: rowsOf(placed.filter((entry) => entry.group === group)),
       }))
       .filter((section) => section.rows.length > 0),
   };

@@ -17,6 +17,10 @@
  * знает модель панели (`../widget-props`). Списка свойств контрола у панели нет.
  * Подсказка свойства — значком (i) у подписи, а не строкой под полем.
  *
+ * Выбор в панели — всегда список: флажков и радиокнопок здесь нет. Одно значение из нескольких —
+ * список с единичным выбором, булевы свойства группы («обязательное» схемы и булевы пропсы
+ * контрола) — один список с мультивыбором, где выбранное и есть включённое.
+ *
  * Шапки и прокрутки здесь нет: имя панели и область прокрутки даёт оболочка, одинаково для всех
  * вкладов.
  *
@@ -29,6 +33,7 @@
 
 import { useId, useMemo, useState, type ReactElement } from 'react';
 import { InfoHint } from '@reformer/ui-kit/info-hint';
+import { SelectMulti } from '@reformer/ui-kit/select';
 import {
   RJSF_FIELD_TYPES,
   type RjsfEnumValue,
@@ -48,8 +53,12 @@ import { exportRjsfForm, type ExportOutcome, type RjsfServices } from '../comman
 import {
   FIELD_GROUPS,
   fieldPanelOf,
+  flagKey,
+  flagOn,
+  flagValue,
   retargetUi,
   withWidgetOption,
+  type FieldFlag,
   type FieldRowId,
   type WidgetPropField,
 } from '../widget-props';
@@ -240,14 +249,12 @@ function PropLabel(props: {
   controlId: string;
   label: string;
   hint?: string | undefined;
-  /** Подпись рядом с флажком — обычным начертанием, как у «Обязательное». */
-  plain?: boolean;
   t: Translate;
 }): ReactElement {
-  const { controlId, label, hint, plain = false, t } = props;
+  const { controlId, label, hint, t } = props;
   return (
     <span className="flex items-center gap-1.5">
-      <label htmlFor={controlId} className={plain ? undefined : 'font-medium'}>
+      <label htmlFor={controlId} className="font-medium">
         {label}
       </label>
       {hint !== undefined && (
@@ -258,6 +265,62 @@ function PropLabel(props: {
         />
       )}
     </span>
+  );
+}
+
+/**
+ * Подсказка списка флагов — описания его пунктов: у пункта списка своей подсказки нет,
+ * а у булевых пропсов кита описания есть. Флаг без описания в подсказку не попадает.
+ */
+function flagsHint(
+  flags: readonly FieldFlag[],
+  labelOf: (flag: FieldFlag) => string
+): string | undefined {
+  const parts = flags.flatMap((flag) => {
+    const description = flag.kind === 'prop' ? (flag.prop.description ?? '').trim() : '';
+    return description === '' ? [] : [`${labelOf(flag)} — ${description.replace(/[.\s]+$/, '')}`];
+  });
+  return parts.length === 0 ? undefined : parts.join('; ');
+}
+
+/**
+ * Булевы свойства группы — один список с мультивыбором: выбранное и есть включённое.
+ *
+ * Флажками это было по строке на свойство; списком — одна строка, в которой видно всё включённое.
+ * Список показывает ДЕЙСТВУЮЩЕЕ состояние: проп, включённый китом по умолчанию, стоит выбранным,
+ * хотя в документе его нет. Что из этого писать в документ, решает хозяин панели (`onChange`).
+ */
+function FlagsInput(props: {
+  group: string;
+  flags: readonly FieldFlag[];
+  /** Обязательность поля — единственный флаг, который ведёт схема, а не `ui:options`. */
+  required: boolean;
+  onChange: (selected: readonly string[]) => void;
+  t: Translate;
+}): ReactElement {
+  const { group, flags, required, onChange, t } = props;
+  const id = useId();
+  const labelOf = (flag: FieldFlag): string =>
+    flag.kind === 'field' ? t('inspector.required') : flag.prop.label;
+  const hint = flagsHint(flags, labelOf);
+  return (
+    <div className="flex flex-col gap-1">
+      <PropLabel controlId={id} label={t('inspector.flags')} hint={hint} t={t} />
+      <SelectMulti
+        id={id}
+        {...(hint === undefined ? {} : { 'aria-describedby': hintIdOf(id) })}
+        data-testid={`rjsf-flags-${group}`}
+        value={flags
+          .filter((flag) => (flag.kind === 'field' ? required : flagOn(flag.prop)))
+          .map(flagKey)}
+        options={flags.map((flag) => ({ value: flagKey(flag), label: labelOf(flag) }))}
+        placeholder={t('inspector.flags.none')}
+        // Сводка «выбрано: N» панели не нужна: включённое должно читаться без раскрытия списка.
+        summaryThreshold={flags.length}
+        className="min-h-8 rounded px-2 py-1 text-sm shadow-none"
+        onChange={onChange}
+      />
+    </div>
   );
 }
 
@@ -504,20 +567,27 @@ function FieldInspector(props: {
             t={t}
           />
         );
-      case 'required':
-        return (
-          <label key="field:required" className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              data-testid="rjsf-field-required"
-              checked={required}
-              onChange={(event) => {
-                apply({ type: 'set-field', params: { name, required: event.target.checked } });
-              }}
-            />
-            <span>{t('inspector.required')}</span>
-          </label>
-        );
+    }
+  };
+
+  /**
+   * Флаги группы после щелчка в списке. Пишется только изменившееся, и туда же, куда писал
+   * флажок: обязательность — в схему, булев проп контрола — в `ui:options` (совпавшее
+   * с умолчанием кита из документа уходит). Одна операция — одна запись в истории.
+   */
+  const setFlags = (flags: readonly FieldFlag[], selected: readonly string[]) => {
+    const params: { name: string; required?: boolean; ui?: RjsfFieldUi | null } = { name };
+    for (const flag of flags) {
+      const on = selected.includes(flagKey(flag));
+      if (flag.kind === 'field') {
+        if (on !== required) params.required = on;
+      } else if (on !== flagOn(flag.prop)) {
+        const current = params.ui === undefined ? ui : (params.ui ?? undefined);
+        params.ui = withWidgetOption(current, flag.prop.key, flagValue(flag.prop, on));
+      }
+    }
+    if (params.required !== undefined || params.ui !== undefined) {
+      apply({ type: 'set-field', params });
     }
   };
 
@@ -550,6 +620,17 @@ function FieldInspector(props: {
           {section.rows.map((row) =>
             row.kind === 'field' ? (
               schemaRow(row.id)
+            ) : row.kind === 'flags' ? (
+              <FlagsInput
+                key="flags"
+                group={section.group}
+                flags={row.flags}
+                required={required}
+                onChange={(selected) => {
+                  setFlags(row.flags, selected);
+                }}
+                t={t}
+              />
             ) : (
               <WidgetPropInput
                 key={`prop:${row.prop.key}`}
@@ -570,7 +651,10 @@ function FieldInspector(props: {
   );
 }
 
-/** Одно свойство контрола. Чем оно правится, решил каталог — см. `../widget-props`. */
+/**
+ * Одно свойство контрола. Чем оно правится, решил каталог — см. `../widget-props`.
+ * Булевых свойств здесь нет: они пункты списка флагов своей группы ({@link FlagsInput}).
+ */
 function WidgetPropInput(props: {
   field: WidgetPropField;
   onChange: (key: string, value: unknown, merge: boolean) => void;
@@ -580,28 +664,6 @@ function WidgetPropInput(props: {
   const id = useId();
   const testId = `rjsf-option-${field.key}`;
   const describedBy = field.description === undefined ? undefined : hintIdOf(id);
-
-  if (field.editor === 'checkbox') {
-    // Снятая галочка — не всегда «убрать свойство»: у пропа с умолчанием `true` это значение,
-    // и убрать надо то, что с умолчанием совпало.
-    const fallback = field.fallback === true;
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          id={id}
-          type="checkbox"
-          aria-describedby={describedBy}
-          data-testid={testId}
-          checked={typeof field.value === 'boolean' ? field.value : fallback}
-          onChange={(event) => {
-            const next = event.target.checked;
-            onChange(field.key, next === fallback ? undefined : next, false);
-          }}
-        />
-        <PropLabel controlId={id} label={field.label} hint={field.description} plain t={t} />
-      </div>
-    );
-  }
 
   if (field.editor === 'select') {
     const options = field.options ?? [];

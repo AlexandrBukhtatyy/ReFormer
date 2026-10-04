@@ -36,6 +36,8 @@
   "inspector.title": "Label",
   "inspector.type": "Value type",
   "inspector.required": "Required",
+  "inspector.flags": "Enabled",
+  "inspector.flags.none": "nothing enabled",
   "inspector.enum": "Choices",
   "inspector.enum.hint": "One per line; empty — no choice.",
   "inspector.placeholder": "Placeholder",

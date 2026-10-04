@@ -4,7 +4,8 @@
  * Проверяется то, из-за чего панель врала бы: чужая запись под виджетом, свойство, которое мост
  * до контрола не донесёт, второе место правки того, что ведёт схема, и мусор в `ui:options` после
  * смены виджета. И порядок строк панели: он задан правилом, а не разметкой, поэтому проверяется
- * здесь. Каталог — фикстура в форме настоящего (`propsSchema` с `x-doc`); React и DOM не нужны.
+ * здесь — вместе с тем, что булевы свойства группы стоят одной строкой-списком, а не флажками.
+ * Каталог — фикстура в форме настоящего (`propsSchema` с `x-doc`); React и DOM не нужны.
  *
  * @module plugins/rjsf/editor/widget-props.test
  */
@@ -12,7 +13,17 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogJson } from '@reformer/builder-plugin-api';
 import type { RjsfFieldSchema, RjsfFieldUi } from '../../core';
-import { fieldPanelOf, retargetUi, widgetPropsOf, withWidgetOption } from './widget-props';
+import {
+  fieldPanelOf,
+  flagKey,
+  flagOn,
+  flagValue,
+  retargetUi,
+  widgetPropsOf,
+  withWidgetOption,
+  type FieldFlag,
+  type FieldRow,
+} from './widget-props';
 
 type Record_ = CatalogJson['components'][number];
 
@@ -79,6 +90,18 @@ const CATALOG: CatalogJson = {
       loop: { type: 'boolean', 'x-doc': { group: 'Behavior', type: 'boolean' } },
       readOnly: { type: 'boolean', 'x-doc': { group: 'State', type: 'boolean' } },
     }),
+    // Булевы пропсы вперемешку с прочими, один включён китом по умолчанию.
+    record('Rating', {
+      count: { type: 'number', 'x-doc': { group: 'Behavior', type: 'number' } },
+      clearable: {
+        type: 'boolean',
+        default: true,
+        description: 'Крестик сброса значения.',
+        'x-doc': { group: 'Behavior', type: 'boolean' },
+      },
+      precision: { type: 'number', 'x-doc': { group: 'Behavior', type: 'number' } },
+      allowHalf: { type: 'boolean', 'x-doc': { group: 'Behavior', type: 'boolean' } },
+    }),
     record('Box', { padding: text('Control') }, 'container'),
   ],
 };
@@ -89,14 +112,32 @@ const NUMBER: RjsfFieldSchema = { type: 'number' };
 const keys = (field: RjsfFieldSchema, ui?: RjsfFieldUi, catalog: CatalogJson | null = CATALOG) =>
   widgetPropsOf(field, ui, catalog)?.fields.map((item) => item.key);
 
+const flagText = (flag: FieldFlag): string =>
+  flag.kind === 'field' ? flag.id : `.${flag.prop.key}`;
+
+/** Строка панели: свойство схемы — именем, свойство контрола — с точкой, флаги — в скобках. */
+const rowText = (row: FieldRow): string => {
+  if (row.kind === 'field') return row.id;
+  if (row.kind === 'prop') return `.${row.prop.key}`;
+  return `[${row.flags.map(flagText).join(' ')}]`;
+};
+
 /** Панель строками «группа: адреса» — так порядок читается глазами. */
 const layout = (field: RjsfFieldSchema, ui?: RjsfFieldUi, catalog: CatalogJson | null = CATALOG) =>
   fieldPanelOf(field, ui, catalog).sections.map(
-    (section) =>
-      `${section.group}: ${section.rows
-        .map((row) => (row.kind === 'field' ? row.id : `.${row.prop.key}`))
-        .join(' ')}`
+    (section) => `${section.group}: ${section.rows.map(rowText).join(' ')}`
   );
+
+/** Флаги группы — те, что стоят её единственной строкой-списком. */
+const flagsOf = (
+  group: string,
+  field: RjsfFieldSchema,
+  ui?: RjsfFieldUi,
+  catalog: CatalogJson | null = CATALOG
+): readonly FieldFlag[] =>
+  fieldPanelOf(field, ui, catalog)
+    .sections.find((section) => section.group === group)
+    ?.rows.flatMap((row) => (row.kind === 'flags' ? row.flags : [])) ?? [];
 
 describe('какая запись стоит за виджетом поля', () => {
   it('виджет кита под своим именем — его запись и его свойства', () => {
@@ -180,7 +221,7 @@ describe('какие свойства показаны и чем правятс�
       description: 'Подсказка в контроле.',
     });
     expect(at('type')).toMatchObject({ value: undefined, fallback: 'text' });
-    expect(at('readOnly')).toMatchObject({ label: 'Read Only', editor: 'checkbox' });
+    expect(at('readOnly')).toMatchObject({ label: 'Read Only', editor: 'flag' });
   });
 });
 
@@ -190,7 +231,7 @@ describe('порядок панели: общие группы, внутри —
       'Control: name widget .className',
       'Textfield: label .tooltip placeholder .type',
       'Options: type enum',
-      'State: required .readOnly',
+      'State: [required .readOnly]',
     ]);
   });
 
@@ -200,8 +241,8 @@ describe('порядок панели: общие группы, внутри —
       // Подсказке в поле и вариантам у «да/нет» взяться неоткуда.
       'Textfield: label .tooltip .hint',
       'Options: type',
-      'Behavior: .loop',
-      'State: required .readOnly',
+      'Behavior: [.loop]',
+      'State: [required .readOnly]',
     ]);
   });
 
@@ -212,7 +253,7 @@ describe('порядок панели: общие группы, внутри —
       'Options: type enum',
       // Технический проп из группы Control каталога в «Основные» не попадает.
       'Behavior: .orientation .step .name',
-      'State: required',
+      'State: [required]',
       'Ticks: .thumbLabel',
     ]);
   });
@@ -225,9 +266,75 @@ describe('порядок панели: общие группы, внутри —
       'Control: name widget',
       'Textfield: label placeholder',
       'Options: type enum',
-      'State: required',
+      'State: [required]',
     ]);
     expect(fieldPanelOf(STRING, undefined, CATALOG).component).toBe('Input');
+  });
+});
+
+describe('булевы свойства группы — одной строкой-списком', () => {
+  const RATING = { 'ui:widget': 'Rating' };
+
+  it('флаги группы собраны в одну строку — на месте первого из них', () => {
+    expect(layout(NUMBER, RATING)).toEqual([
+      'Control: name widget',
+      'Textfield: label placeholder',
+      'Options: type enum',
+      // В каталоге булевы пропсы стоят через один; прочие строки свой порядок сохранили.
+      'Behavior: .count [.clearable .allowHalf] .precision',
+      'State: [required]',
+    ]);
+  });
+
+  it('в одной строке — оба слоя: «обязательное» схемы и булевы пропсы контрола', () => {
+    const flags = flagsOf('State', STRING);
+
+    expect(flags.map((flag) => flag.kind)).toEqual(['field', 'prop']);
+    // Ключ флага — значение пункта списка: у двух слоёв он общий и в строке не повторяется.
+    expect(flags.map(flagKey)).toEqual(['required', 'readOnly']);
+  });
+
+  it('отдельной строкой булево свойство не стоит нигде', () => {
+    for (const ui of [undefined, RATING, { 'ui:widget': 'Slider' }]) {
+      const rows = fieldPanelOf(NUMBER, ui, CATALOG).sections.flatMap((section) => section.rows);
+
+      expect(rows.filter((row) => row.kind === 'prop' && row.prop.editor === 'flag')).toEqual([]);
+    }
+    const toggle = fieldPanelOf({ type: 'boolean' }, { 'ui:widget': 'Toggle' }, CATALOG);
+    // По списку на группу, а не один на поле: «с зацикливанием» — поведение, «только чтение» —
+    // состояние, и каталог уже развёл их по группам.
+    expect(
+      toggle.sections.map((section) => section.rows.filter((row) => row.kind === 'flags').length)
+    ).toEqual([0, 0, 0, 1, 1]);
+  });
+
+  it('список показывает действующее состояние: умолчание кита, пока значение не задано', () => {
+    const at = (ui: RjsfFieldUi) => {
+      const flag = flagsOf('Behavior', NUMBER, ui).find((item) => flagKey(item) === 'clearable');
+      if (flag?.kind !== 'prop') throw new Error('флага clearable нет');
+      return flag.prop;
+    };
+
+    // В документе свойства нет, а действует оно — кит включает его сам.
+    expect(flagOn(at(RATING))).toBe(true);
+    expect(flagOn(at({ ...RATING, 'ui:options': { clearable: false } }))).toBe(false);
+    expect(flagOn(at({ ...RATING, 'ui:options': { clearable: true } }))).toBe(true);
+    // Не булево значение (написано руками) умолчания не отменяет.
+    expect(flagOn(at({ ...RATING, 'ui:options': { clearable: 'да' } }))).toBe(true);
+  });
+
+  it('в документ пишется только отличное от умолчания кита', () => {
+    const [clearable, allowHalf] = flagsOf('Behavior', NUMBER, RATING).map((flag) => {
+      if (flag.kind !== 'prop') throw new Error('в «Поведении» флагов схемы нет');
+      return flag.prop;
+    });
+
+    // Умолчание `true`: выключить — явный `false`; убрать свойство вернуло бы умолчание.
+    expect(flagValue(clearable!, false)).toBe(false);
+    expect(flagValue(clearable!, true)).toBeUndefined();
+    // Умолчания нет: включить — `true`, выключенное в документе не лежит.
+    expect(flagValue(allowHalf!, true)).toBe(true);
+    expect(flagValue(allowHalf!, false)).toBeUndefined();
   });
 });
 

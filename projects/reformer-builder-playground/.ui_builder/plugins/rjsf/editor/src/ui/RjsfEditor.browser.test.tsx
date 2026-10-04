@@ -16,7 +16,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
-import { sampleForm } from '../../../core';
+import { sampleForm, type RjsfFieldUi } from '../../../core';
 import { renderReact } from '../../../../.shared/render';
 import type { CatalogJson, KitsService } from '@reformer/builder-plugin-api';
 import { RJSF_EDITOR_MESSAGES } from '../messages';
@@ -299,21 +299,48 @@ const KIT_RECORDS = [
         },
         tooltip: { type: 'string', 'x-doc': { group: 'Textfield', type: 'string' } },
         readOnly: { type: 'boolean', 'x-doc': { group: 'State', type: 'boolean' } },
+        // Включено китом по умолчанию — и единственный флаг с описанием.
+        clearable: {
+          type: 'boolean',
+          default: true,
+          description: 'Крестик сброса значения.',
+          'x-doc': { group: 'State', type: 'boolean' },
+        },
       },
     },
   },
 ] as unknown as CatalogJson['components'];
 
+/** Список флагов группы — его триггер; пункты появляются, когда список раскрыт. */
+const flags = (group = 'State') => page.getByTestId(`rjsf-flags-${group}`);
+
+/** Раскрывает список флагов группы и отдаёт его пункт по ключу свойства. */
+async function openFlags(group = 'State') {
+  await userEvent.click(flags(group));
+  await expect.element(flags(group)).toHaveAttribute('aria-expanded', 'true');
+  return (key: string) => page.getByTestId(`rjsf-flags-${group}-${key}`);
+}
+
 describe('свойства контрола — из каталога кита', () => {
   const option = (key: string): Element | null =>
     document.querySelector(`[data-testid="rjsf-option-${key}"]`);
-  /** Панель строками «группа: строки» — в том порядке, в каком они стоят на экране. */
+  /**
+   * Панель строками «группа: строки» — в том порядке, в каком они стоят на экране. Булевы
+   * свойства группы — одна строка `flags`: её пункты живут в раскрытом списке, а не в панели.
+   */
   const layout = (): string[] =>
     [...document.querySelectorAll('[data-testid^="rjsf-group-"]')].map((group) => {
       const rows = [
-        ...group.querySelectorAll('[data-testid^="rjsf-field-"], [data-testid^="rjsf-option-"]'),
+        ...group.querySelectorAll(
+          '[data-testid^="rjsf-field-"], [data-testid^="rjsf-option-"], [data-testid^="rjsf-flags-"]'
+        ),
       ]
-        .map((row) => row.getAttribute('data-testid')!.replace(/^rjsf-(field|option)-/, ''))
+        .map((row) =>
+          row
+            .getAttribute('data-testid')!
+            .replace(/^rjsf-(field|option)-/, '')
+            .replace(/^rjsf-flags-.*$/, 'flags')
+        )
         .join(' ');
       return `${group.querySelector(':scope > span')?.textContent}: ${rows}`;
     });
@@ -335,7 +362,9 @@ describe('свойства контрола — из каталога кита',
     await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
 
     await expect.element(page.getByTestId('rjsf-option-mask')).toBeVisible();
-    await expect.element(page.getByTestId('rjsf-option-readOnly')).not.toBeChecked();
+    // Булев проп нового контрола встал пунктом в список флагов — выключенным.
+    const flag = await openFlags();
+    await expect.element(flag('readOnly')).toHaveAttribute('aria-selected', 'false');
   });
 
   it('один список в общих группах: свойства схемы и контрола рядом, от важного к второстепенному', async () => {
@@ -348,7 +377,7 @@ describe('свойства контрола — из каталога кита',
       'Основные: name widget',
       'Текст: title tooltip placeholder mask',
       'Значения: type enum',
-      'Состояние: required readOnly',
+      'Состояние: flags',
     ]);
     // Отдельного блока «свойства компонента» в панели нет.
     expect(document.querySelector('[data-testid="rjsf-inspector"]')?.textContent).not.toContain(
@@ -362,7 +391,8 @@ describe('свойства контрола — из каталога кита',
     await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
 
     await userEvent.fill(page.getByTestId('rjsf-option-mask'), '+7 999');
-    await userEvent.click(page.getByTestId('rjsf-option-readOnly'));
+    const flag = await openFlags();
+    await userEvent.click(flag('readOnly'));
 
     expect(nameUi(first.model())).toEqual({
       'ui:placeholder': 'Как к вам обращаться',
@@ -371,8 +401,8 @@ describe('свойства контрола — из каталога кита',
     });
     await expect.element(page.getByTestId('rjsf-option-mask')).toHaveValue('+7 999');
 
+    await userEvent.click(flag('readOnly'));
     await userEvent.clear(page.getByTestId('rjsf-option-mask'));
-    await userEvent.click(page.getByTestId('rjsf-option-readOnly'));
 
     expect(nameUi(first.model())).toEqual({
       'ui:placeholder': 'Как к вам обращаться',
@@ -441,13 +471,122 @@ describe('свойства контрола — из каталога кита',
       'Основные: name widget',
       'Текст: title placeholder',
       'Значения: type enum',
-      'Состояние: required',
+      'Состояние: flags',
     ]);
 
     fake.load(KIT_RECORDS);
 
     await expect.element(page.getByTestId('rjsf-option-tooltip')).toBeVisible();
     expect(layout()[1]).toBe('Текст: title tooltip placeholder');
+  });
+});
+
+describe('булевы свойства — списком с мультивыбором', () => {
+  /** Выбирает поле `name` и ставит ему виджет кита с булевыми пропсами. */
+  async function mountMask() {
+    const mounted = mount({ kits: createFakeKits(KIT_RECORDS).kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
+    await expect.element(page.getByTestId('rjsf-option-mask')).toBeVisible();
+    return mounted;
+  }
+  /** Подсказки поля `name`: виджет и свойства контрола в `ui:options`. */
+  const nameUi = (form: ReturnType<typeof sampleForm>) =>
+    form.uiSchema?.name as RjsfFieldUi | undefined;
+  const maskOptions = (form: ReturnType<typeof sampleForm>) => nameUi(form)?.['ui:options'];
+
+  it('флажков и радиокнопок в панели нет: «обязательное» и булевы пропсы — один список', async () => {
+    await mountMask();
+    const panel = document.querySelector('[data-testid="rjsf-inspector"]')!;
+
+    expect(panel.querySelector('[role="checkbox"], input[type="checkbox"]')).toBeNull();
+    expect(panel.querySelector('[role="radio"], input[type="radio"]')).toBeNull();
+    // Отдельных строк у булевых свойств нет — они пункты списка, оба слоя вместе.
+    expect(document.querySelector('[data-testid="rjsf-field-required"]')).toBeNull();
+    expect(document.querySelector('[data-testid="rjsf-option-readOnly"]')).toBeNull();
+    const flag = await openFlags();
+    await expect.element(flag('required')).toHaveTextContent('Обязательное');
+    await expect.element(flag('readOnly')).toHaveTextContent('Read Only');
+    await expect.element(flag('clearable')).toHaveTextContent('Clearable');
+  });
+
+  it('«Обязательное» — пункт списка: щелчок пишет required схемы, а не ui:options', async () => {
+    const { first } = await mountMask();
+    // Поле `name` в образце обязательное — и в списке оно стоит выбранным.
+    await expect.element(flags()).toHaveTextContent('Обязательное');
+    const flag = await openFlags();
+    await expect.element(flag('required')).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.click(flag('required'));
+
+    expect(first.model().schema.required ?? []).not.toContain('name');
+    expect(maskOptions(first.model())).toBeUndefined();
+    await expect.element(flag('required')).toHaveAttribute('aria-selected', 'false');
+
+    await userEvent.click(flag('required'));
+
+    expect(first.model().schema.required).toEqual(['name']);
+  });
+
+  it('пункт пишет одно свойство и одной записью в истории: отмена снимает только его', async () => {
+    const { first } = await mountMask();
+    const flag = await openFlags();
+
+    await userEvent.click(flag('readOnly'));
+
+    expect(maskOptions(first.model())).toEqual({ readOnly: true });
+    // Соседние флаги той же группы не тронуты: обязательность на месте, умолчание не записано.
+    expect(first.model().schema.required).toEqual(['name']);
+
+    first.handle.undo();
+
+    expect(maskOptions(first.model())).toBeUndefined();
+    expect(nameUi(first.model())?.['ui:widget']).toBe('InputMask');
+  });
+
+  it('проп, включённый китом по умолчанию, показан включённым и выключается явно', async () => {
+    const { first } = await mountMask();
+    // В документе свойства нет, а действует оно — и в списке стоит выбранным.
+    expect(maskOptions(first.model())).toBeUndefined();
+    await expect.element(flags()).toHaveTextContent('Clearable');
+    const flag = await openFlags();
+    await expect.element(flag('clearable')).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.click(flag('clearable'));
+
+    // Убрать свойство мало — вернулось бы умолчание. Выключенное пишется как `false`.
+    expect(maskOptions(first.model())).toEqual({ clearable: false });
+
+    await userEvent.click(flag('clearable'));
+
+    expect(maskOptions(first.model())).toBeUndefined();
+  });
+
+  it('ничего не включено — список так и говорит', async () => {
+    mount();
+    await userEvent.click(page.getByRole('button', { name: /^age/ }));
+
+    // Кита нет: в списке один пункт — обязательность, и поле `age` необязательное.
+    await expect.element(flags()).toHaveTextContent('ничего не включено');
+  });
+
+  it('описания флагов собраны в подсказку списка', async () => {
+    await mountMask();
+
+    // У пункта списка своей подсказки нет; флаг без описания в подсказку не попадает.
+    await expect
+      .element(flags())
+      .toHaveAccessibleDescription('Clearable — Крестик сброса значения');
+    await expect.element(page.getByRole('button', { name: 'Подсказка: Включено' })).toBeVisible();
+  });
+
+  it('группа без описаний значка подсказки не получает', async () => {
+    mount();
+    await userEvent.click(page.getByRole('button', { name: /^age/ }));
+    await expect.element(flags()).toBeVisible();
+
+    expect(page.getByRole('button', { name: 'Подсказка: Включено' }).elements()).toHaveLength(0);
+    expect(flags().element().hasAttribute('aria-describedby')).toBe(false);
   });
 });
 
