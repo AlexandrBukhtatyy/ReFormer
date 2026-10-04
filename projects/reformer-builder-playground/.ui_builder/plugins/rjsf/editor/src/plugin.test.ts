@@ -62,7 +62,7 @@ describe('провайдер модели', () => {
     expect(isRjsfResource(fakeRef('form.json'), fakeProbe('{"version":"1.0","root":{}}'))).toBe(
       false
     );
-    expect(isRjsfResource(fakeRef('form.json'), fakeProbe('{"$schema":"plain-form/1"}'))).toBe(
+    expect(isRjsfResource(fakeRef('form.json'), fakeProbe('{"$schema":"other-form/1"}'))).toBe(
       false
     );
     expect(isRjsfResource(fakeRef('notes.md', 'text/markdown'), fakeProbe(text))).toBe(false);

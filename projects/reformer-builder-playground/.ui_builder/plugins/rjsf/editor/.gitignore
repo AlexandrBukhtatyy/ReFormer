@@ -2,3 +2,8 @@
 # Исходники — в src/, сборка для поставки (`npm run build:dist`) — в dist/.
 /manifest.json
 /main.js
+/styles.css
+
+# Таблица стилей плагина — её собирает `npm run generate:styles`: утилиты Tailwind,
+# которых нет в CSS билдера (см. `.shared/plugin-styles.mjs`).
+/src/styles.css

@@ -40,9 +40,6 @@ const FULL = [
 /** Основа без китов — состав профиля `builder.base`. */
 const BASE = FULL.filter((id) => id !== 'reformer.kits');
 
-/** Демо-стек поверх основы — состав профиля `plain.builder`. */
-const PLAIN_STACK = [...BASE, 'reformer.plain'].sort();
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -57,9 +54,7 @@ describe('applicationFromRuntime', { timeout: 30_000 }, () => {
   });
 
   it('preset называет профиль, и состав становится его составом', async () => {
-    await expect(idsOf(applicationFromRuntime({ preset: 'plain.builder' }))).resolves.toEqual(
-      PLAIN_STACK
-    );
+    await expect(idsOf(applicationFromRuntime({ preset: 'builder.base' }))).resolves.toEqual(BASE);
   });
 
   it('поправки применяются поверх профиля', async () => {
@@ -73,13 +68,13 @@ describe('applicationFromRuntime', { timeout: 30_000 }, () => {
   it('неизвестный пресет — предупреждение и профиль по умолчанию, а не белый экран', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const composition = applicationFromRuntime({ preset: 'plain.bulder' });
+    const composition = applicationFromRuntime({ preset: 'builder.bse' });
 
     await expect(idsOf(composition)).resolves.toEqual(FULL);
     // Молчаливый откат означал бы, что человек видит обычный билдер и не понимает, почему
     // его `preset` ничего не сделал.
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain('plain.bulder');
+    expect(String(warn.mock.calls[0]?.[0])).toContain('builder.bse');
   });
 
   it('опечатка в поправках — то же самое: предупреждение и профиль по умолчанию', async () => {
@@ -111,9 +106,9 @@ describe('applicationFromRuntime', { timeout: 30_000 }, () => {
 });
 
 describe('свои профили из конфига запуска', { timeout: 30_000 }, () => {
-  const PLAIN_OF_ACME = [...FULL, 'reformer.plain'].sort();
-
   it('свой профиль собирается поимённо поверх встроенной основы; прежние имена работают', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const ids = await idsOf(
       applicationFromRuntime({
         preset: 'acme',
@@ -122,13 +117,16 @@ describe('свои профили из конфига запуска', { timeout
             id: 'acme',
             extends: 'builder.base',
             // `kits` — прежнее имя `reformer.kits`: профиль в конфиге тоже пишет человек.
-            plugins: ['kits', 'reformer.plain'],
+            plugins: ['kits'],
           },
         ],
       })
     );
 
-    expect(ids).toEqual(PLAIN_OF_ACME);
+    expect(ids).toEqual(FULL);
+    // Основа с китами — это и состав по умолчанию, то есть ровно то, что дал бы откат на
+    // непонятый профиль. Отличает их только предупреждение: откат без него не случается.
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('свой профиль наследует другой свой', async () => {
@@ -136,13 +134,13 @@ describe('свои профили из конфига запуска', { timeout
       applicationFromRuntime({
         preset: 'acme-lite',
         profiles: [
-          { id: 'acme', extends: 'plain.builder', plugins: [] },
+          { id: 'acme', extends: 'builder.base', plugins: [] },
           { id: 'acme-lite', extends: 'acme', plugins: [], name: 'Облегчённый' },
         ],
       })
     );
 
-    expect(ids).toEqual(PLAIN_STACK);
+    expect(ids).toEqual(BASE);
   });
 
   it('имя встроенного профиля не подменяется: предупреждение и встроенный состав', async () => {
@@ -164,11 +162,11 @@ describe('свои профили из конфига запуска', { timeout
 
     const typo = applicationFromRuntime({
       preset: 'acme',
-      profiles: [{ id: 'acme', extends: 'builder.base', plugins: ['reformer.plian'] }],
+      profiles: [{ id: 'acme', extends: 'builder.base', plugins: ['reformer.kist'] }],
     });
     const unknownBase = applicationFromRuntime({
       preset: 'acme',
-      profiles: [{ id: 'acme', extends: 'plain.bulder', plugins: [] }],
+      profiles: [{ id: 'acme', extends: 'builder.bse', plugins: [] }],
     });
 
     await expect(idsOf(typo)).resolves.toEqual(FULL);
@@ -179,16 +177,11 @@ describe('свои профили из конфига запуска', { timeout
 
 describe('выбор человека поверх конфига запуска', { timeout: 30_000 }, () => {
   const BUILDER = { id: 'builder', name: 'Конструктор' };
-  const PLAIN = { id: 'plain.builder', name: 'Простая форма (демо-стек)' };
+  const BASE_PROFILE = { id: 'builder.base', name: 'Основа конструктора' };
   /** Список, из которого есть что выбирать: по умолчанию предложен один профиль. */
-  const BOTH = ['builder', 'plain.builder'];
-  /** Свой профиль с китами и демо-стеком. */
-  const ALL_STACKS = {
-    id: 'all-stacks',
-    name: 'Киты и демо-стек',
-    extends: 'builder',
-    plugins: ['reformer.plain'],
-  };
+  const BOTH = ['builder', 'builder.base'];
+  /** Свой профиль организации: существует, но в список выбора попадает только по имени. */
+  const OWN = { id: 'acme', name: 'Свой состав', extends: 'builder', plugins: [] };
   /** Свой профиль без переключателя: вернуться из него было бы нечем. */
   const NO_SWITCH = {
     id: 'no-switch',
@@ -212,50 +205,51 @@ describe('выбор человека поверх конфига запуска
   it('список из конфига предлагается к выбору', () => {
     const launch = launchFromRuntime({ presetChoices: BOTH }, null);
 
-    expect(launch.profileChoices).toEqual({ launch: BUILDER, offered: [BUILDER, PLAIN] });
+    expect(launch.profileChoices).toEqual({ launch: BUILDER, offered: [BUILDER, BASE_PROFILE] });
   });
 
   it('выбор человека собирает другой профиль; профиль запуска остаётся тем, что в конфиге', async () => {
-    const launch = launchFromRuntime({ presetChoices: BOTH }, 'plain.builder');
+    const launch = launchFromRuntime({ presetChoices: BOTH }, 'builder.base');
 
-    expect(launch.application.profile).toEqual(PLAIN);
+    expect(launch.application.profile).toEqual(BASE_PROFILE);
     expect(launch.profileChoices.launch).toEqual(BUILDER);
-    await expect(idsOf(launch.application)).resolves.toContain('reformer.plain');
+    await expect(idsOf(launch.application)).resolves.toEqual(BASE);
   });
 
   it('выбор сильнее preset конфига — в пределах предложенного', () => {
-    const launch = launchFromRuntime({ preset: 'plain.builder', presetChoices: BOTH }, 'builder');
+    const launch = launchFromRuntime({ preset: 'builder.base', presetChoices: BOTH }, 'builder');
 
     expect(launch.application.profile).toEqual(BUILDER);
-    expect(launch.profileChoices.launch).toEqual(PLAIN);
+    expect(launch.profileChoices.launch).toEqual(BASE_PROFILE);
   });
 
   it('выбор, равный профилю запуска, ничего не меняет', () => {
     const launch = launchFromRuntime(
-      { preset: 'plain.builder', presetChoices: BOTH },
-      'plain.builder'
+      { preset: 'builder.base', presetChoices: BOTH },
+      'builder.base'
     );
 
-    expect(launch.application.profile).toEqual(PLAIN);
+    expect(launch.application.profile).toEqual(BASE_PROFILE);
   });
 
   it('выбор вне предложенных не действует — и состав остаётся составом конфига, без шума', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
+    // Профиль настоящий и собирается — его просто нет среди предложенных.
     const launch = launchFromRuntime(
-      { preset: 'plain.builder', presetChoices: BOTH },
-      'builder.base'
+      { preset: 'builder.base', profiles: [OWN], presetChoices: BOTH },
+      'acme'
     );
 
     // Не профиль по умолчанию: человек не сделал ничего, за что его стоило бы увести с состава,
     // настроенного организацией.
-    expect(launch.application.profile).toEqual(PLAIN);
+    expect(launch.application.profile).toEqual(BASE_PROFILE);
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('пустой список и список из одного имени закрепляют состав', () => {
-    for (const presetChoices of [[], ['plain.builder']]) {
-      const launch = launchFromRuntime({ presetChoices }, 'plain.builder');
+    for (const presetChoices of [[], ['builder.base']]) {
+      const launch = launchFromRuntime({ presetChoices }, 'builder.base');
 
       expect(launch.application.profile).toEqual(BUILDER);
       expect(launch.profileChoices.offered).toEqual([]);
@@ -263,48 +257,48 @@ describe('выбор человека поверх конфига запуска
   });
 
   it('свой профиль вне списка остаётся профилем запуска, а предложенные — на выбор', () => {
-    const config = { preset: 'all-stacks', profiles: [ALL_STACKS], presetChoices: BOTH };
+    const config = { preset: 'acme', profiles: [OWN], presetChoices: BOTH };
 
     const onLaunch = launchFromRuntime(config, null);
-    const onChoice = launchFromRuntime(config, 'plain.builder');
+    const onChoice = launchFromRuntime(config, 'builder.base');
 
-    expect(onLaunch.application.profile).toEqual({ id: 'all-stacks', name: 'Киты и демо-стек' });
-    expect(onLaunch.profileChoices.offered).toEqual([BUILDER, PLAIN]);
-    expect(onChoice.application.profile).toEqual(PLAIN);
-    expect(onChoice.profileChoices.launch.id).toBe('all-stacks');
+    expect(onLaunch.application.profile).toEqual({ id: 'acme', name: 'Свой состав' });
+    expect(onLaunch.profileChoices.offered).toEqual([BUILDER, BASE_PROFILE]);
+    expect(onChoice.application.profile).toEqual(BASE_PROFILE);
+    expect(onChoice.profileChoices.launch.id).toBe('acme');
   });
 
   it('свой профиль можно предложить к выбору по имени', () => {
     const launch = launchFromRuntime(
-      { profiles: [ALL_STACKS], presetChoices: ['builder', 'all-stacks'] },
-      'all-stacks'
+      { profiles: [OWN], presetChoices: ['builder', 'acme'] },
+      'acme'
     );
 
-    expect(launch.application.profile.id).toBe('all-stacks');
+    expect(launch.application.profile.id).toBe('acme');
   });
 
   it('неизвестное имя в списке — предупреждение и пропуск, соседи остаются', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const launch = launchFromRuntime(
-      { presetChoices: ['builder', 'plain.bulder', 'plain.builder'] },
+      { presetChoices: ['builder', 'builder.bse', 'builder.base'] },
       null
     );
 
-    expect(launch.profileChoices.offered).toEqual([BUILDER, PLAIN]);
+    expect(launch.profileChoices.offered).toEqual([BUILDER, BASE_PROFILE]);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain('plain.bulder');
+    expect(String(warn.mock.calls[0]?.[0])).toContain('builder.bse');
   });
 
   it('профиль без переключателя не предлагается: вернуться из него было бы нечем', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const launch = launchFromRuntime(
-      { profiles: [NO_SWITCH], presetChoices: ['builder', 'plain.builder', 'no-switch'] },
+      { profiles: [NO_SWITCH], presetChoices: ['builder', 'builder.base', 'no-switch'] },
       'no-switch'
     );
 
-    expect(launch.profileChoices.offered).toEqual([BUILDER, PLAIN]);
+    expect(launch.profileChoices.offered).toEqual([BUILDER, BASE_PROFILE]);
     expect(launch.application.profile).toEqual(BUILDER);
     expect(String(warn.mock.calls[0]?.[0])).toContain('no-switch');
   });
@@ -314,7 +308,7 @@ describe('выбор человека поверх конфига запуска
 
     const launch = launchFromRuntime(
       { presetChoices: BOTH, plugins: { disable: [STACK_SWITCH_PLUGIN_ID] } },
-      'plain.builder'
+      'builder.base'
     );
 
     expect(launch.application.profile).toEqual(BUILDER);
@@ -326,7 +320,7 @@ describe('выбор человека поверх конфига запуска
   it('состав запуска без переключателя даёт именно его, что бы человек ни выбирал раньше', () => {
     const launch = launchFromRuntime(
       { preset: 'no-switch', profiles: [NO_SWITCH], presetChoices: BOTH },
-      'plain.builder'
+      'builder.base'
     );
 
     expect(launch.application.profile.id).toBe('no-switch');
@@ -336,7 +330,7 @@ describe('выбор человека поверх конфига запуска
   it('опечатка в preset: откат на профиль по умолчанию виден в имени собранного', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const launch = launchFromRuntime({ preset: 'plain.bulder' }, null);
+    const launch = launchFromRuntime({ preset: 'builder.bse' }, null);
 
     // Не «что написано в конфиге», а что собрано на самом деле — этим именем подписана ячейка.
     expect(launch.application.profile).toEqual(BUILDER);

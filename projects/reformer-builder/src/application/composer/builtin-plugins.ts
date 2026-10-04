@@ -113,23 +113,17 @@ type BuiltinPluginFactory = (ports: BuiltinPluginPorts) => Plugin;
 
 /**
  * Манифесты всех встроенных — статически: JSON — лист, кода плагина за ним нет.
- * Папка с манифестом и есть плагин; ядро домена (`core/`) манифеста не имеет.
+ * Папка с манифестом и есть плагин.
  */
 const MANIFESTS = import.meta.glob<unknown>('../../plugins/*/*/manifest.json', {
   eager: true,
   import: 'default',
 });
 
-/**
- * Барели плагинов — отложенными импортами: каждый становится своим файлом сборки.
- *
- * Ядра доменов исключены: это не плагины, а без исключения их барели стали бы отдельными
- * точками входа.
- */
-const MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>([
-  '../../plugins/*/*/index.ts',
-  '!../../plugins/*/core/index.ts',
-]);
+/** Барели плагинов — отложенными импортами: каждый становится своим файлом сборки. */
+const MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>(
+  '../../plugins/*/*/index.ts'
+);
 
 /** `…/plugins/<домен>/<плагин>/<файл>` → `<домен>/<плагин>`. */
 function directoryOf(file: string): string {

@@ -60,7 +60,6 @@ import { MONACO_MESSAGES } from '@/plugins/base/editor-monaco/messages';
 import { FILES_MESSAGES } from '@/plugins/base/files';
 import { KITS_MESSAGES } from '@/plugins/kits/registry/messages';
 import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/base/plugin-manager';
-import { PLAIN_MESSAGES } from '@/plugins/plain/demo/messages';
 import { PREVIEW_MESSAGES } from '@/plugins/base/preview/messages';
 import { STACK_SWITCH_MESSAGES } from '@/plugins/base/stack-switch/messages';
 
@@ -84,7 +83,6 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['base/editor-monaco', MONACO_MESSAGES],
   ['base/files', FILES_MESSAGES],
   ['kits/registry', KITS_MESSAGES],
-  ['plain/demo', PLAIN_MESSAGES],
   ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['base/preview', PREVIEW_MESSAGES],
   ['base/stack-switch', STACK_SWITCH_MESSAGES],

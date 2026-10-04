@@ -6,9 +6,9 @@
  * стека ReFormer:
  * киты — платформа, и RJSF берёт тот же активный кит, что рисует формы ReFormer.
  *
- * Отдельно — совмещённый состав: ReFormer, демо-стек и RJSF в одном приложении. Три формата
- * схемы лежат в `.json`, и отличают их только пробы по содержимому; если две пробы возьмутся
- * за один документ, у него окажется два предметных редактора.
+ * Отдельно — совмещённый состав: ReFormer и RJSF в одном приложении. Оба формата схемы лежат
+ * в `.json`, и отличают их только пробы по содержимому; если обе пробы возьмутся за один
+ * документ, у него окажется два предметных редактора.
  *
  * @module plugins/rjsf/integration/rjsf-profile.test
  */
@@ -17,7 +17,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
 import { builtinProfile } from '@/application/profiles/registry';
 import type { ApplicationComposition } from '@/shell/boot/composition';
-import { defineProfile } from '@/application/profiles/profile';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint, ResourceRef } from '@reformer/builder-plugin-api/internal';
 import {
@@ -32,7 +31,6 @@ import {
   type DocumentModelProvider,
 } from '@reformer/builder-plugin-api/internal';
 import { buildMenu, type MenuSubmenuNode } from '@/shell/platform/ui/menu/menu';
-import { printPlainForm, sampleForm as samplePlainForm } from '@/plugins/plain/core';
 import { printRjsfForm, sampleForm as sampleRjsfForm, type RjsfForm } from '../core';
 import {
   RJSF_EDITOR_PLUGIN_ID,
@@ -133,10 +131,9 @@ async function generateSections(started: BuilderApp): Promise<readonly GenerateS
   );
 }
 
-/** Три формата схемы — все в `.json`. */
+/** Два формата схемы — оба в `.json`. */
 const FORMATS = {
   reformer: JSON.stringify({ version: '1.0', root: { component: 'Box', children: [] } }),
-  plain: printPlainForm(samplePlainForm()),
   rjsf: printRjsfForm(sampleRjsfForm()),
 } as const;
 
@@ -298,17 +295,10 @@ describe('выделение формы RJSF в НАСТОЯЩЕЙ ручке м
   });
 });
 
-describe('совмещённый состав: ReFormer, демо-стек и RJSF', () => {
-  // Демо-стек — встроенный плагин билдера и приходит профилем; ReFormer и RJSF — плагины своих
-  // доменов и встают поверх него.
-  const withPlain = defineProfile({
-    id: 'combined.test',
-    name: 'Все стеки',
-    extends: builtinProfile('builder').id,
-    plugins: ['reformer.plain'],
-  });
+describe('совмещённый состав: ReFormer и RJSF', () => {
+  // Оба движка — плагины своих доменов и встают поверх одного состава билдера.
   const combined = (): ApplicationComposition =>
-    rjsfApplication(withDomainPlugins(fromProfile(withPlain), REFORMER_PLUGINS));
+    rjsfApplication(withDomainPlugins(fromProfile(builtinProfile('builder')), REFORMER_PLUGINS));
 
   it('собирается и поднимается целиком', async () => {
     const started = await start(combined());
@@ -334,7 +324,6 @@ describe('совмещённый состав: ReFormer, демо-стек и RJ
     const editors = started.extensions.get(EditorPoint);
     const expected = {
       reformer: 'editor-schema.canvas',
-      plain: 'plain.editor',
       rjsf: 'rjsf.editor',
     };
 

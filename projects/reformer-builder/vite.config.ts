@@ -68,30 +68,15 @@ function devRuntimeConfig(): Plugin {
 const WINDOWS_SEPARATOR = String.fromCharCode(92);
 const norm = (id: string): string => id.split(WINDOWS_SEPARATOR).join('/');
 
-/**
- * Чей это модуль: `…/src/plugins/<домен>/<плагин>/…` → `<домен>-<плагин>`.
- *
- * Ядро домена (`<домен>/core`) — общий код плагинов домена, а не плагин: его модули владельца
- * не дают и в чанк плагина попадают попутчиками, как код пакетов.
- */
+/** Чей это модуль: `…/src/plugins/<домен>/<плагин>/…` → `<домен>-<плагин>`. */
 const pluginOf = (id: string): string | undefined => {
   const marker = '/src/plugins/';
   const s = norm(id);
   const at = s.lastIndexOf(marker);
   if (at === -1) return undefined;
   const [domain, plugin, rest] = s.slice(at + marker.length).split('/', 3);
-  if (rest === undefined || plugin === 'core') return undefined;
+  if (rest === undefined) return undefined;
   return `${domain}-${plugin}`;
-};
-
-/** Чьё это ядро: `…/src/plugins/<домен>/core/…` → `<домен>`. */
-const coreOf = (id: string): string | undefined => {
-  const marker = '/src/plugins/';
-  const s = norm(id);
-  const at = s.lastIndexOf(marker);
-  if (at === -1) return undefined;
-  const [domain, folder, rest] = s.slice(at + marker.length).split('/', 3);
-  return folder === 'core' && rest !== undefined ? domain : undefined;
 };
 
 /** Словари оболочки: свой каталог, потому что их читают по одному и глазами. */
@@ -188,23 +173,15 @@ export default defineConfig({
 
           if (own.every(isShellLocale)) return 'assets/i18n/[name]-[hash].js';
 
-          // Общий код домена: чанк только из ядра одного домена (и пакетов). Ядра — бывшие
-          // пакеты стеков, и раньше такие чанки лежали в `assets/vendor/<пакет стека>/`.
-          const cores = new Set(own.map(coreOf));
-          if (cores.size === 1 && !cores.has(undefined)) {
-            return `assets/core/${[...cores][0]}/[name]-[hash].js`;
-          }
-
           // Чанк плагина: и сам барель, и его ленивые внутренности (BYOK, корпус знаний,
           // превью markdown). «Все модули этого плагина» — условие СЛИШКОМ строгое: рядом
-          // с кодом плагина в чанк почти всегда попадает код ядра домена и пакетов, и по такому
+          // с кодом плагина в чанк почти всегда попадает код пакетов и оболочки, и по такому
           // правилу плагин уезжал в `assets/js/` под именем `index`. Поэтому владелец —
           // единственный плагин среди владельцев, и его модулей должно быть не меньше половины
-          // собственного кода вне ядер: иначе это общий чанк, куда чужой модуль попал попутчиком.
+          // собственного кода: иначе это общий чанк, куда чужой модуль попал попутчиком.
           const owners = new Set(own.map(pluginOf).filter((id) => id !== undefined));
           const owned = own.filter((id) => pluginOf(id) !== undefined).length;
-          const outsideCores = own.filter((id) => coreOf(id) === undefined).length;
-          if (owners.size === 1 && owned * 2 >= outsideCores) {
+          if (owners.size === 1 && owned * 2 >= own.length) {
             const owner = [...owners][0];
             // У бареля `[name]` — всегда `index`, и `plugins/base-preview-index` ничего
             // не добавляет к `plugins/base-preview`. У остальных имя несёт смысл и остаётся.

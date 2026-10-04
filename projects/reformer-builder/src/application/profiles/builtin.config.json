@@ -20,12 +20,6 @@
       "name": "Конструктор",
       "extends": "builder.base",
       "plugins": ["reformer.kits"]
-    },
-    {
-      "id": "plain.builder",
-      "name": "Простая форма (демо-стек)",
-      "extends": "builder.base",
-      "plugins": ["reformer.plain"]
     }
   ]
 }

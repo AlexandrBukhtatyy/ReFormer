@@ -9,8 +9,8 @@
  * Проверка ПОИМЁННАЯ, а не числом. Порог «плагинов стало меньше» проходит и тогда, когда
  * из состава выпал не тот плагин: два вместо семи — это и «files, monaco», и «kits, preview».
  *
- * Короткие профили здесь свои, тестовые: встроенных у билдера три (`builder.base`, `builder`,
- * `plain.builder`), а движки форм в его состав не входят вовсе — они плагины проекта.
+ * Короткие профили здесь свои, тестовые: встроенных у билдера два (`builder.base`, `builder`),
+ * а движки форм в его состав не входят вовсе — они плагины проекта.
  *
  * @module application/composer/compose.test
  */
@@ -24,7 +24,6 @@ import { stubBuiltinOptions } from './testing';
 
 const builderProfile = builtinProfile('builder');
 const baseProfile = builtinProfile('builder.base');
-const plainProfile = builtinProfile('plain.builder');
 
 /** Короткий профиль: два плагина, ни превью, ни китов. */
 const shortProfile = defineProfile({
@@ -62,15 +61,12 @@ describe('fromProfile', () => {
     expect(ids.indexOf('reformer.kits')).toBe(ids.length - 1);
   });
 
-  it('профиль по умолчанию собирает всю карту, кроме демо-стека', async () => {
-    // Демо-стек — другой стек: в состав по умолчанию он не входит, его собирает
-    // `plain.builder`. Исключение — из его профиля, без общего с основой.
+  it('профиль по умолчанию собирает всю карту', async () => {
+    // Движков форм среди встроенных нет, поэтому плагина, который в карте есть, а в состав
+    // по умолчанию не входит, быть не может.
     const ids = await idsOf(fromProfile(builderProfile));
-    const others = new Set(plainProfile.plugins.filter((id) => !baseProfile.plugins.includes(id)));
 
-    expect([...ids].sort()).toEqual(
-      [...BUILTIN_PLUGINS.keys()].filter((id) => !others.has(id)).sort()
-    );
+    expect([...ids].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
   });
 
   it('поправки запуска доходят до состава', async () => {

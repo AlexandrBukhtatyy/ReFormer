@@ -24,7 +24,7 @@ import {
 
 describe('реестр профилей', () => {
   it('профили находятся по своему имени', () => {
-    for (const id of ['builder.base', 'builder', 'plain.builder']) {
+    for (const id of ['builder.base', 'builder']) {
       expect(findProfile(id)?.id).toBe(id);
     }
   });
@@ -41,7 +41,7 @@ describe('реестр профилей', () => {
   });
 
   it('имена уникальны: профиль не может перекрыть соседний', () => {
-    expect(PROFILES.size).toBe(3);
+    expect(PROFILES.size).toBe(2);
   });
 
   it('встроенный файл — чистый конфиг запуска: тот же разбор, ни одной проблемы', () => {

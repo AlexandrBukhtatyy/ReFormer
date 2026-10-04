@@ -93,28 +93,21 @@ describe('устройство плагина', () => {
   const pluginsDir = `${ROOT}/plugins`;
   const isDir = (path: string): boolean => statSync(path).isDirectory();
 
-  /**
-   * Ядро домена — не плагин: общий чистый код плагинов своего домена (`plugins/<домен>/core`).
-   * Плагины домена видят его, соседи по домену друг друга — нет (линтер).
-   */
-  const DOMAIN_CORE = 'core';
-
-  /** Домены — первый уровень: `base`, `kits`, `plain`. */
+  /** Домены — первый уровень: `base`, `kits`. */
   const domains = readdirSync(pluginsDir).filter((name) => isDir(`${pluginsDir}/${name}`));
 
-  /** Плагины — второй уровень, `домен/плагин`; ядро домена в их число не входит. */
+  /** Плагины — второй уровень, `домен/плагин`. */
   const plugins = domains.flatMap((domain) =>
     readdirSync(`${pluginsDir}/${domain}`)
-      .filter((name) => name !== DOMAIN_CORE && isDir(`${pluginsDir}/${domain}/${name}`))
+      .filter((name) => isDir(`${pluginsDir}/${domain}/${name}`))
       .map((name) => `${domain}/${name}`)
   );
 
-  it('в папке домена — только плагины и необязательное ядро', () => {
+  it('в папке домена — только плагины', () => {
     // Плагин узнаётся по манифесту и барелю. Файл прямо в папке домена или каталог без них —
-    // это код без хозяина: не плагин, который можно включить, и не ядро, которое видят плагины.
+    // это код без хозяина: его нельзя включить, и из плагинов его не видно (линтер).
     const stray = domains.flatMap((domain) =>
       readdirSync(`${pluginsDir}/${domain}`)
-        .filter((name) => name !== DOMAIN_CORE)
         .filter((name) => {
           const path = `${pluginsDir}/${domain}/${name}`;
           if (!isDir(path)) return true;
@@ -149,7 +142,7 @@ describe('устройство плагина', () => {
   });
 
   it('проверка не пуста: домены и плагины найдены', () => {
-    expect(domains.length).toBeGreaterThanOrEqual(3);
-    expect(plugins.length).toBeGreaterThanOrEqual(8);
+    expect(domains.length).toBeGreaterThanOrEqual(2);
+    expect(plugins.length).toBeGreaterThanOrEqual(7);
   });
 });

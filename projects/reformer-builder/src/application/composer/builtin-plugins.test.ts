@@ -55,9 +55,7 @@ import {
 import { fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
 
-const builderProfile = builtinProfile('builder');
 const baseProfile = builtinProfile('builder.base');
-const plainProfile = builtinProfile('plain.builder');
 
 /** Фабрика состава — `export default` бареля встроенного плагина. */
 type BuiltinFactory = (ports: BuiltinPluginPorts) => Plugin;
@@ -82,22 +80,8 @@ const PORT_READERS: Readonly<Record<string, true>> = {
  * Барели всех встроенных плагинов — тем же обходом папок, что у карты, но СВОИМ шаблоном:
  * совпадение найденного с картой и есть проверка, а общий шаблон сверял бы себя с собой.
  */
-const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>([
-  '../../plugins/*/*/index.ts',
-  '!../../plugins/*/core/index.ts',
-]);
-
-/**
- * Плагины других стеков: в карте есть, в профиль по умолчанию не входят.
- *
- * Выводятся из профилей этих стеков — их собственные списки без основы и без общего с профилем
- * по умолчанию (киты — платформа), — а не перечисляются здесь: новый стек добавляет свой
- * профиль, и исключение появляется само.
- */
-const OTHER_STACK_PLUGINS: ReadonlySet<string> = new Set(
-  [plainProfile]
-    .flatMap((profile) => profile.plugins)
-    .filter((id) => !builderProfile.plugins.includes(id))
+const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>(
+  '../../plugins/*/*/index.ts'
 );
 
 /**
@@ -161,7 +145,7 @@ describe('карта встроенных плагинов', () => {
     // один плагин молча перекрыл другой. Карта на это бросает при загрузке; здесь то же
     // утверждается на собранном значении.
     expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
-    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(8);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(7);
   });
 
   it('в карте — каждая папка с манифестом, и ни одной другой', () => {
@@ -183,7 +167,7 @@ describe('карта встроенных плагинов', () => {
     expect([...BUILTIN_PLUGINS.values()].map((entry) => entry.directory).sort()).toEqual(
       onDisk.sort()
     );
-    expect(onDisk.length).toBeGreaterThanOrEqual(8);
+    expect(onDisk.length).toBeGreaterThanOrEqual(7);
   });
 
   it('каталог каждого встроенного плагина — `домен/плагин` с его же манифестом', () => {
@@ -624,14 +608,14 @@ describe('состав и карта: каждый плагин своим фа�
     expect([...used].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
   });
 
-  it('профиль по умолчанию — вся карта, кроме других стеков', async () => {
-    // Демо-стек — ДРУГОЙ стек: его собирает `plain.builder` поверх основы, а в состав
-    // по умолчанию он не входит. Попади он туда — у `.json` появился бы предметный редактор,
-    // спорящий с движком, который принёс проект.
+  it('профиль по умолчанию — вся карта', async () => {
+    // Движков форм среди встроенных нет: всё, что лежит в карте, нужно любому конструктору
+    // и входит в состав по умолчанию. Встроенный плагин вне этого состава был бы предметным
+    // редактором, спорящим за `.json` с движком, который принёс проект.
     const all = await builderApplication.load(stubBuiltinOptions());
 
     expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
-      [...BUILTIN_PLUGINS.keys()].filter((id) => !OTHER_STACK_PLUGINS.has(id)).sort()
+      [...BUILTIN_PLUGINS.keys()].sort()
     );
   });
 
@@ -689,7 +673,7 @@ describe('состав и карта: каждый плагин своим фа�
 
   it('храповик не пуст: зоны обойдены и плагины у него есть', () => {
     // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
-    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(8);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(7);
   });
 });
 
@@ -698,9 +682,9 @@ describe('состав и карта: каждый плагин своим фа�
  *
  * Плагины стека берут от оболочки всё возможностями, а не портами, — и держится это ровно до
  * первого импорта: одна строка `import { KitsServiceToken } from '@/plugins/kits/registry'` в `boot`
- * возвращает порт, а вместе с ним знание о стеке. Ядра доменов (`@/plugins/<домен>/core`)
- * стережёт линтер; плагины стека — этот тест, потому что их список не пишется руками, а выводится
- * из профиля `builder.base`: что в основе — нейтрально, остальное — чей-то стек.
+ * возвращает порт, а вместе с ним знание о стеке. Стережёт это тест, а не линтер, потому что
+ * список плагинов стека не пишется руками, а выводится из профиля `builder.base`: что
+ * в основе — нейтрально, остальное — чей-то стек.
  *
  * Обходится `shell/` целиком, с тестами, КРОМЕ `shell/boot/integration/`: интеграционные тесты
  * проверяют собранное приложение и обязаны знать его состав (то же исключение у линтера).
@@ -745,6 +729,6 @@ describe('оболочка не знает стека', () => {
   it('храповик не пуст: файлы обойдены и плагины стека у него есть', () => {
     // Сломайся путь или выведи профиль основы весь набор — проверка выше осталась бы зелёной.
     expect(scan().files).toBeGreaterThan(100);
-    expect(stackDirectories).toEqual(expect.arrayContaining(['kits/registry', 'plain/demo']));
+    expect(stackDirectories).toEqual(['kits/registry']);
   });
 });

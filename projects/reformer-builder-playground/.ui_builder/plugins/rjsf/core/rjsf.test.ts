@@ -70,9 +70,9 @@ describe('разбор и печать', () => {
 
   it('проба по тексту узнаёт свой документ и не узнаёт чужие', () => {
     expect(looksLikeRjsfForm(printRjsfForm(form))).toBe(true);
-    // Схема ReFormer и простая форма демо-стека.
+    // Схема ReFormer и документ с чужим `$schema`.
     expect(looksLikeRjsfForm('{"version":"1.0","root":{}}')).toBe(false);
-    expect(looksLikeRjsfForm('{"$schema":"plain-form/1","fields":[]}')).toBe(false);
+    expect(looksLikeRjsfForm('{"$schema":"other-form/1","fields":[]}')).toBe(false);
   });
 
   it('отказ разбора называет, что не так', () => {
@@ -85,7 +85,7 @@ describe('разбор и печать', () => {
     expect(() => parseRjsfForm('{"$schema":"rjsf-form/1","schema":{"type":"array"}}')).toThrow(
       'schema.type'
     );
-    expect(isRjsfForm({ $schema: 'plain-form/1' })).toBe(false);
+    expect(isRjsfForm({ $schema: 'other-form/1' })).toBe(false);
   });
 });
 
