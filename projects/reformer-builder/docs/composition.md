@@ -191,3 +191,9 @@ npm run demo:project -w @reformer/builder   # .tmp/builder-presets-demo: пла�
 ```bash
 npm run dev:rjsf-hexa-ui -w @reformer/builder
 ```
+
+Постоянный каталог для таких проб — [`projects/reformer-builder-playground`](../../reformer-builder-playground/README.md):
+конфиг запуска, конфиг и настройки проекта, плагин в разработке и формы обоих движков.
+`npm run builder -w reformer-builder-playground` поднимает dev-сервер с его конфигом запуска
+(порт 5184). Его же открывают e2e-тесты билдера —
+[`projects/reformer-builder-playground-e2e`](../../reformer-builder-playground-e2e/README.md).
