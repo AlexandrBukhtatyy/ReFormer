@@ -126,7 +126,7 @@ function PackagesSection(): ReactNode {
   );
 }
 
-const QUICK_START = `import { createModel, createForm } from '@reformer/core';
+const QUICK_START = `import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
@@ -149,7 +149,7 @@ const validation = defineValidationSchema<{ email: string }>(({ model }) => {
 });
 
 // 4. Форма — узлы поверх сигналов модели
-const form = createForm({ model, schema });
+const form = createFormFromModel({ model, schema });
 
 // 5. Тонкий JSX — FormField делает всю работу
 function ContactForm() {

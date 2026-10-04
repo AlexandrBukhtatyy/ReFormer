@@ -18,11 +18,11 @@ sidebar_position: 1
 Рекомендуемый путь. Операторы (`compute`, `enableWhen`, `onChange`, …) вызываются внутри
 `defineFormBehavior(({ model, form }) => { … })` и **сами регистрируют свои отписки** — автор
 схемы не видит ни массива cleanup'ов, ни ручного управления жизненным циклом. Готовый behavior
-подключается к форме через `createForm({ model, schema, behavior })` — форма владеет его
+подключается к форме через `createFormFromModel({ model, schema, behavior })` — форма владеет его
 жизненным циклом.
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
 
 type OrderForm = {
@@ -43,7 +43,7 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
 });
 
 // schema привязывает поля к компонентам (см. «Быстрый старт»)
-const form = createForm<OrderForm>({ model, schema, behavior });
+const form = createFormFromModel<OrderForm>({ model, schema, behavior });
 ```
 
 ### 2. Императивные примитивы — `@reformer/core`
@@ -101,7 +101,7 @@ DSL из `@reformer/core/behaviors` — по умолчанию: единый `b
 ## Как это работает
 
 1. Объяви операторы внутри `defineFormBehavior(({ model, form }) => { … })`.
-2. Передай результат в `createForm({ model, schema, behavior })`.
+2. Передай результат в `createFormFromModel({ model, schema, behavior })`.
 3. Форма запускает поведение после построения нод: операторы подписываются на сигналы модели и
    срабатывают при изменениях, а их отписки собираются автоматически и вызываются при уничтожении
    формы.

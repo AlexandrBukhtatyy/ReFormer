@@ -15,7 +15,7 @@ sidebar_position: 2
 через сигнал под-модели `item.$.field`.
 
 ```typescript
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { title: string; amount: number | null };
@@ -37,7 +37,7 @@ const schema = {
   items: { array: model.items, item: itemSchema },
 };
 
-const form = createForm<OrderForm>({ model, schema });
+const form = createFormFromModel<OrderForm>({ model, schema });
 ```
 
 :::warning Тип элемента — через `type`, не `interface`
@@ -182,7 +182,7 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
   );
 });
 
-const form = createForm<OrderForm>({ model, schema, behavior });
+const form = createFormFromModel<OrderForm>({ model, schema, behavior });
 ```
 
 Почему это реактивно: `.map` читает сигнал самого массива (реагирует на `push` / `removeAt` /
@@ -218,7 +218,7 @@ const behavior = defineFormBehavior<Form>(({ model }) => {
 ```
 
 :::info Cleanup управляется формой
-Behavior, переданный в `createForm({ model, schema, behavior })`, сам следит за жизненным циклом:
+Behavior, переданный в `createFormFromModel({ model, schema, behavior })`, сам следит за жизненным циклом:
 подписки `compute` / `onChange` и per-item логика снимаются, когда форма уничтожается. Отдельно
 чистить подписки массива не нужно — при `removeAt` / `clear` ноды удалённых элементов утилизируются
 автоматически.

@@ -21,7 +21,7 @@ sidebar_position: 3
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
@@ -43,7 +43,7 @@ export function SignupForm() {
       name: { value: model.$.name, component: Input, componentProps: { label: 'Имя' } },
       email: { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
     };
-    const form = createForm<SignupForm>({ model, schema });
+    const form = createFormFromModel<SignupForm>({ model, schema });
     return { form, model };
   }, []);
 

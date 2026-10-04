@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo } from 'react';
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
@@ -32,7 +32,7 @@ function usePhoneForm(initial: Phone[] = [{ kind: 'Мобильный', number: 
       },
     });
     const schema = { phones: { array: model.phones, item: phoneItem } } as any;
-    const form = createForm<{ phones: Phone[] }>({ model, schema });
+    const form = createFormFromModel<{ phones: Phone[] }>({ model, schema });
     return { model, form: form as any };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

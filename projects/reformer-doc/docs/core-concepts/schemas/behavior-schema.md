@@ -6,7 +6,7 @@ sidebar_position: 4
 
 Behavior — это реактивная логика формы: вычисляемые поля, условная доступность, синхронизация и
 реакции на изменения. В M1 behavior описывается декларативно через `defineFormBehavior` и
-подключается при сборке формы — `createForm({ model, schema, behavior })`.
+подключается при сборке формы — `createFormFromModel({ model, schema, behavior })`.
 
 ## Определение behavior
 
@@ -14,7 +14,7 @@ Behavior — это реактивная логика формы: вычисля
 сигналам модели (`model.$.<field>`), а форма сама владеет их жизненным циклом (отписками):
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
 import { Input, InputNumber } from '@reformer/ui-kit';
 
@@ -41,7 +41,7 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
   enableWhen(model.$.discount, () => model.total > 500);
 });
 
-const form = createForm<OrderForm>({ model, schema, behavior });
+const form = createFormFromModel<OrderForm>({ model, schema, behavior });
 ```
 
 :::info Два способа писать behavior

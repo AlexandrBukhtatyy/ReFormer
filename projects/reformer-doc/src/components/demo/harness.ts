@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import type { ValidationSchema } from '@reformer/core/validation';
 
@@ -73,7 +73,7 @@ export function useDemoField(config: DemoFieldConfig) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const form = createForm<any>({ model, schema });
+    const form = createFormFromModel<any>({ model, schema });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const control = (form as any).field;
     // Правила — отдельным слоем (schema стабильна на жизнь демо, abort-дедуп работает).

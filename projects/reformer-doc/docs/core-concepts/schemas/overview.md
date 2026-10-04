@@ -19,7 +19,7 @@ ReFormer делит форму на три независимые заботы �
 | **Behavior**  | Реактивная логика и side-эффекты | `defineFormBehavior`                                  |
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
@@ -51,7 +51,7 @@ const behavior = defineFormBehavior<Person>(({ model }) => {
   );
 });
 
-const form = createForm<Person>({ model, schema, behavior });
+const form = createFormFromModel<Person>({ model, schema, behavior });
 
 // Валидацию запускает приложение (на submit / шаге wizard), а не форма:
 async function submit() {
@@ -105,7 +105,7 @@ const schema = {
 приём — **builder / под-схема**, принимающие под-модель (`FormModel<Sub>`):
 
 ```typescript
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { validate, defineValidationSchema, type ValidationSchema } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
@@ -156,7 +156,7 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
   addressBehaviors(model.shippingAddress);
 });
 
-const orderForm = createForm<OrderForm>({ model, schema, behavior });
+const orderForm = createFormFromModel<OrderForm>({ model, schema, behavior });
 ```
 
 Переиспользование работает на разной гранулярности:
@@ -213,7 +213,7 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
 (чтобы прочитать ошибку конкретного поля) формы:
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
@@ -229,7 +229,7 @@ describe('валидация person', () => {
       firstName: { value: model.$.firstName, component: Input },
       lastName: { value: model.$.lastName, component: Input },
     };
-    const form = createForm<Person>({ model, schema });
+    const form = createFormFromModel<Person>({ model, schema });
 
     // validateModel сам разносит ошибки по нодам формы и возвращает вердикт.
     const valid = await validateModel(model, personValidation);
@@ -266,7 +266,7 @@ const personValidation = defineValidationSchema<Person>(({ model }) => {
 ## Из чего собирается форма
 
 ```
-createForm({ model, schema, behavior })
+createFormFromModel({ model, schema, behavior })
 ├── model: FormModel<T>        → источник истины для значений
 ├── schema                     → layout-узлы: { value: signal, component?, componentProps? }
 └── behavior: FormBehavior<T>  → defineFormBehavior(...) — реактивная логика

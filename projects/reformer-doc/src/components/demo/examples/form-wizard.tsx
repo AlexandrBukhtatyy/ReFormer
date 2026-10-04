@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useRef, useState } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
@@ -37,7 +37,7 @@ function useWizardForm() {
         componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
       },
     } as any;
-    const form = createForm<WForm>({ model, schema }) as any;
+    const form = createFormFromModel<WForm>({ model, schema }) as any;
     const config = {
       validateStep: (step: number) =>
         validateModel(model, step === 1 ? step1Validation : step2Validation),

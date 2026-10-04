@@ -42,7 +42,7 @@ const ok = await validateModel(model, userValidation);
 хранить в `const`, передавать в `apply`, вызывать над под-моделью и юнит-тестировать без UI.
 
 :::info Layout и валидация — разные каналы
-Ту же модель форма получает через layout-схему (`createForm({ model, schema })` или JSON-DSL) — там
+Ту же модель форма получает через layout-схему (`createFormFromModel({ model, schema })` или JSON-DSL) — там
 только `value`/`component`/`componentProps`, но **никаких** `validators`. Схему layout'а и схему
 валидации можно менять независимо: правила пишутся раз, а вёрстка приходит хоть с сервера. См.
 [Схему формы](./form-schema).

@@ -41,7 +41,7 @@ const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
 
 ## Подключение в схему
 
-Валидаторы больше **не живут** в layout-схеме формы: `createForm({ model, schema })` несёт только
+Валидаторы больше **не живут** в layout-схеме формы: `createFormFromModel({ model, schema })` несёт только
 разметку и поведение. Правила — отдельная `ValidationSchema`, где синхронный `validate` даёт быстрый
 отсев, а `validateAsync` — серверную проверку:
 

@@ -19,7 +19,7 @@ sidebar_position: 3
 `createForm` возвращает proxy: к полям обращаются по имени, вложенность — цепочкой.
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Input } from '@reformer/ui-kit';
 
 type Form = { firstName: string; address: { city: string } };
@@ -33,7 +33,7 @@ const schema = {
   },
 };
 
-const form = createForm<Form>({ model, schema });
+const form = createFormFromModel<Form>({ model, schema });
 
 form.firstName; // FieldNode<string>
 form.address; // GroupNode

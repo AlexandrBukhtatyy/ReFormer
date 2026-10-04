@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
 import { FormWizard } from '@reformer/cdk/form-wizard';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
@@ -42,7 +42,7 @@ function useWizard() {
       },
     } as any;
 
-    const form = createForm<WForm>({ model, schema }) as any;
+    const form = createFormFromModel<WForm>({ model, schema }) as any;
     // config — колбэки поверх внешнего раннера validateModel (Promise<boolean>).
     const config = {
       validateStep: (step: number) =>
