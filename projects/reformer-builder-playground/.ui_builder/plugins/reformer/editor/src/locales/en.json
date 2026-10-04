@@ -59,6 +59,7 @@
   "inspector.binding.hint": "Path in the form model, without the $model() wrapper",
   "inspector.default": "Default: {value}",
   "inspector.empty": "Select a node on the canvas",
+  "inspector.hint": "Hint: {label}",
   "inspector.multi": "{count} nodes selected. Properties are edited one node at a time",
   "inspector.node": "Node",
   "inspector.readonly": "Edited in JSON",

@@ -59,6 +59,7 @@
   "inspector.binding.hint": "Путь в модели формы, без обёртки $model()",
   "inspector.default": "По умолчанию: {value}",
   "inspector.empty": "Выберите узел на канвасе",
+  "inspector.hint": "Подсказка: {label}",
   "inspector.multi": "Выбрано узлов: {count}. Свойства правятся по одному узлу",
   "inspector.node": "Узел",
   "inspector.readonly": "Правится в JSON",
