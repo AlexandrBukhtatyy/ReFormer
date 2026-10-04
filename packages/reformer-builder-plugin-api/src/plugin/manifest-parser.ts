@@ -265,7 +265,8 @@ function parseStage(
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  if (source.kind === 'project' && id !== source.dir) {
+  // В каталоге домена плагин лежит под именем своей роли, а не идентификатора: сверять не с чем.
+  if (source.kind === 'project' && source.group === undefined && id !== source.dir) {
     return problem(
       'id-mismatch',
       `манифест объявляет «${id}», а каталог называется «${source.dir}». ` +

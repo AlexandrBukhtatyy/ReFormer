@@ -158,6 +158,16 @@ describe('манифест отвергается', () => {
     expect(!result.ok && result.problem.message).toContain('acme-forms-dev');
   });
 
+  it('в каталоге домена имя каталога с идентификатором не сверяется', () => {
+    // `plugins/acme/editor/` — плагин «acme-forms»: каталог назван ролью в домене.
+    const source = { kind: 'project', dir: 'editor', group: 'acme' } as const;
+
+    const result = parsePluginManifest(JSON.stringify(good), source);
+
+    expect(result.ok && result.manifest.id).toBe('acme-forms');
+    expect(result.ok && result.manifest.source).toEqual(source);
+  });
+
   it('когда точка входа уводит за каталог плагина', () => {
     const result = parse({ ...good, main: '../../../etc/main.js' });
 

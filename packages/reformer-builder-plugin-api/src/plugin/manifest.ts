@@ -32,10 +32,15 @@ export const BUILDER_API_VERSION = '1.0.0';
  * грузить нечего. У ВСТРОЕННОГО каталога нет вовсе (он лежит в бандле оболочки, а имя его
  * папки — `ai` против идентификатора `reformer.ai`), и точки входа тоже нет: его код уже
  * здесь.
+ *
+ * `group` — каталог ДОМЕНА, в котором лежит плагин проекта: `plugins/<домен>/<плагин>/`. Домен
+ * держит несколько плагинов и их общее ядро рядом, поэтому каталог плагина там назван ролью
+ * (`editor`), а не идентификатором (`acme.forms.editor`) — и сверка с именем каталога снимается.
+ * Идентификатор такого плагина — тот, что объявлен в манифесте.
  */
 export type PluginSource =
   | { readonly kind: 'builtin' }
-  | { readonly kind: 'project'; readonly dir: string };
+  | { readonly kind: 'project'; readonly dir: string; readonly group?: string };
 
 /**
  * Общее у манифестов обеих поставок.
@@ -109,7 +114,7 @@ export interface PluginCompatibility {
 
 /** Манифест плагина каталога проекта: у него есть каталог и точка входа. */
 export interface ProjectPluginManifest extends PluginManifestBase {
-  readonly source: { readonly kind: 'project'; readonly dir: string };
+  readonly source: { readonly kind: 'project'; readonly dir: string; readonly group?: string };
   /** Точка входа ВНУТРИ каталога плагина, нормализованная: `main.js`, `dist/main.js`. */
   readonly main: string;
   /**

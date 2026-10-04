@@ -122,6 +122,7 @@ export const PLUGIN_RUNTIME_MODULES: readonly string[] = Object.freeze([
   '@reformer/core/validation',
   '@reformer/core/validators',
   '@reformer/renderer-json',
+  '@reformer/renderer-json/validate',
   '@reformer/renderer-react',
   '@reformer/form-registry',
   '@reformer/form-registry/react',
