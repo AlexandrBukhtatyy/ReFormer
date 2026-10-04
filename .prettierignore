@@ -44,6 +44,10 @@ projects/reformer-builder-playground/.ui_builder/plugins/*/*/manifest.json
 projects/reformer-builder-playground/.ui_builder/plugins/*/*/main.js
 projects/reformer-builder-playground/.ui_builder/plugins/*/*/styles.css
 projects/reformer-builder-playground/.ui_builder/plugins/*/*/locales/
+# Модули данных той же сборки: JSON, который плагин импортирует отложенно (у ассистента —
+# корпус знаний, мегабайты в одну строку)
+projects/reformer-builder-playground/.ui_builder/plugins/*/chunks/
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks/
 # …а исходники плагина первого уровня (`kit-hexa-ui/src/manifest.json`) под шаблон второго
 # уровня попадать не должны: это рукописные файлы, их prettier обязан проверять
 !projects/reformer-builder-playground/.ui_builder/plugins/*/src/manifest.json

@@ -277,9 +277,9 @@ jobs:
         # and the shared utils chunk — if the vite `external` predicate ever stops
         # excluding a heavy dep, its subpath balloons and this step goes red.
         # @size-limit/file measures brotli and does NOT follow imports.
-        # Последняя запись — плагин ИИ проекта-образца: в его `main.js` вложен корпус знаний,
-        # и рост корпуса виден только здесь. Файл появляется на шаге «Сборка плагинов
-        # проекта-образца» выше.
+        # Последние три записи — плагин ИИ проекта-образца: его `main.js` и корпус знаний,
+        # который сборка выносит модулями данных в `chunks/`. Рост корпуса виден только здесь.
+        # Файлы появляются на шаге «Сборка плагинов проекта-образца» выше.
         run: npm run size
 
       - name: Check generated form-schema is up to date

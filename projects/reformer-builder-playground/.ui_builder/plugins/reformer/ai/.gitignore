@@ -3,6 +3,8 @@
 /manifest.json
 /main.js
 /styles.css
+# Модули данных сборки: корпус знаний импортируется отложенно и уезжает из main.js сюда.
+/chunks/
 
 # База знаний ассистента — её собирает `npm run generate:knowledge`.
 /src/knowledge/generated/

@@ -148,8 +148,18 @@
     "limit": "1.5 kB"
   },
   {
-    "name": "плагин reformer.ai проекта-образца (с корпусом знаний)",
+    "name": "плагин reformer.ai проекта-образца (код)",
     "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/main.js",
-    "limit": "800 kB"
+    "limit": "360 kB"
+  },
+  {
+    "name": "плагин reformer.ai (корпус знаний: индекс)",
+    "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/chunks/knowledge-index.js",
+    "limit": "300 kB"
+  },
+  {
+    "name": "плагин reformer.ai (корпус знаний: документация)",
+    "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/chunks/knowledge-docs.js",
+    "limit": "420 kB"
   }
 ]

@@ -100,6 +100,9 @@ export default defineConfig([
     // ESLint не читает. Плагин лежит прямо в каталоге плагинов или в каталоге домена — два уровня
     'projects/reformer-builder-playground/.ui_builder/plugins/*/main.js',
     'projects/reformer-builder-playground/.ui_builder/plugins/*/*/main.js',
+    // Модули данных той же сборки — JSON, импортируемый отложенно (мегабайты корпуса знаний)
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/chunks',
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks',
     // Корпус знаний плагина ИИ — выход генератора (`npm run generate:knowledge`)
     'projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/knowledge/generated',
   ]),
