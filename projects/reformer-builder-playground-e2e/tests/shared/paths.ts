@@ -10,10 +10,11 @@ export const BUILDER_DIR = path.join(REPO_ROOT, 'projects', 'reformer-builder');
 export const PLAYGROUND_DIR = path.join(REPO_ROOT, 'projects', 'reformer-builder-playground');
 
 /**
- * Конфиг уровня ЗАПУСКА билдера: состав плагинов, локаль и тема.
+ * Конфиг билдера в playground — один файл на оба уровня чтения.
  *
- * Лежит в playground отдельным файлом, а не в его `.ui_builder/config.json`: тот читается ещё
- * и как конфиг ПРОЕКТА, а `preset`, `profiles` и `defaults` на уровне проекта не применяются —
- * билдер говорит об этом предупреждением при каждом открытии.
+ * Уровень ЗАПУСКА: лаунчер (или dev-сервер) отдаёт его приложению до сборки состава — отсюда
+ * профиль «ReFormer + RJSF», локаль и тема. Уровень ПРОЕКТА: открыв playground, приложение
+ * читает тот же файл ещё раз. Раскладка «запустил в корне проекта и его же открыл»: поля уровня
+ * запуска совпадают с конфигом запуска, и билдер о них не предупреждает.
  */
-export const LAUNCH_CONFIG = path.join(PLAYGROUND_DIR, 'builder.launch.json');
+export const PLAYGROUND_CONFIG = path.join(PLAYGROUND_DIR, '.ui_builder', 'config.json');

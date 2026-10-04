@@ -6,13 +6,20 @@
  * форма RJSF) живут в самих тестах — у каждого плагина своя разметка, и общий объект на всё
  * стал бы свалкой.
  *
- * Строки — русские: локаль закреплена конфигом запуска playground (`builder.launch.json`).
+ * Строки — русские: локаль закреплена конфигом playground (`.ui_builder/config.json`).
  *
  * @module tests/shared/builder-app.pom
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
-import type { PlaygroundDisk } from './playground-disk';
+import type { PlaygroundDisk, SeedOptions } from './playground-disk';
+
+declare global {
+  interface Window {
+    /** Тексты показанных уведомлений — пишет init-скрипт {@link BuilderApp.recordNotifications}. */
+    __e2eNotifications?: string[];
+  }
+}
 
 export class BuilderApp {
   /** «Открыть папку…» на стартовой странице. */
@@ -37,6 +44,37 @@ export class BuilderApp {
     this.palette = page.getByRole('dialog', { name: 'Палитра команд' });
   }
 
+  /**
+   * Включает запись уведомлений. Зовётся до первой навигации — как подмена выбора каталога.
+   *
+   * Уведомление живёт на экране около четырёх секунд, поэтому «сейчас их нет» ничего не говорит
+   * о том, были ли они: проверка, которая ждёт пустого списка, дождётся его и после
+   * предупреждения. Записываются все появившиеся — см. {@link shownNotifications}.
+   */
+  async recordNotifications(): Promise<void> {
+    await this.page.addInitScript(() => {
+      const shown: string[] = [];
+      window.__e2eNotifications = shown;
+      const record = (node: Node): void => {
+        if (!(node instanceof Element)) return;
+        // `data-sonner-toast` — разметка библиотеки уведомлений: строка списка в области
+        // «Уведомления». Узел может прийти и сам, и внутри только что вставленного списка.
+        const toasts = node.matches('[data-sonner-toast]')
+          ? [node]
+          : [...node.querySelectorAll('[data-sonner-toast]')];
+        for (const toast of toasts) shown.push(toast.textContent ?? '');
+      };
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) mutation.addedNodes.forEach(record);
+      }).observe(document, { childList: true, subtree: true });
+    });
+  }
+
+  /** Тексты всех уведомлений с последней загрузки страницы — включая уже исчезнувшие. */
+  shownNotifications(): Promise<string[]> {
+    return this.page.evaluate(() => [...(window.__e2eNotifications ?? [])]);
+  }
+
   /** Открывает билдер и ждёт оболочку. Проект при этом не открыт. */
   async goto(): Promise<void> {
     await this.page.goto('/');
@@ -47,14 +85,42 @@ export class BuilderApp {
    * Открывает playground как проект — тем же путём, что человек: «Открыть папку…» и выбор
    * каталога. Выбор подменён (см. {@link PlaygroundDisk}), всё остальное настоящее.
    */
-  async openPlayground(): Promise<void> {
+  async openPlayground(seed: SeedOptions = {}): Promise<void> {
     await this.goto();
-    await this.disk.seed();
+    await this.disk.seed(seed);
+    await this.openFolder();
+  }
+
+  /**
+   * «Открыть папку…» на уже открытом билдере — когда тест сначала правит «диск»:
+   * `goto()`, `disk.seed()`, правка, затем этот шаг.
+   */
+  async openFolder(): Promise<void> {
     await this.openFolderButton.click();
     await expect(this.projectTree).toBeVisible();
     await expect(this.statusBar).toContainText('Всё сохранено');
-    // Плагины из `.ui_builder/plugins` проекта поднимаются ПОЗЖЕ и отдельной цепочкой: сюда
-    // они ещё могли не дойти. Тест, которому нужен их вклад, ждёт сам вклад (`toPass`).
+    // Конфиг проекта и плагины из `.ui_builder/plugins` читаются ПОЗЖЕ, отдельной цепочкой:
+    // сюда она ещё могла не дойти. Кому нужен её итог — ждёт {@link projectPluginsReady}.
+  }
+
+  /**
+   * Ждёт конца цепочки открытия проекта: конфиг и настройки прочитаны, плагины каталога подняты.
+   *
+   * Признак — команда плагина `playground-hello` в палитре: плагины проекта поднимаются
+   * последним шагом цепочки. Палитра собирает пункты при открытии, поэтому она переоткрывается,
+   * пока команды нет.
+   */
+  async projectPluginsReady(): Promise<void> {
+    await expect(async () => {
+      await this.openPalette('Playground Hello');
+      try {
+        await expect(this.paletteOption('Playground Hello: привет')).toBeVisible({
+          timeout: 1_000,
+        });
+      } finally {
+        await this.closePalette();
+      }
+    }).toPass();
   }
 
   /**

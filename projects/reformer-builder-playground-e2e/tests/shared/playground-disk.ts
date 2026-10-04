@@ -19,7 +19,8 @@
  * @module tests/shared/playground-disk
  */
 
-import { readdirSync, readFileSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { PLAYGROUND_DIR } from './paths';
@@ -32,14 +33,22 @@ import { PLAYGROUND_DIR } from './paths';
  */
 const DISK_MOUNT = 'e2e-disk';
 
-/** Чего в копии нет: это не файлы проекта, и на них билдер упёрся бы в потолок листинга. */
-const SKIPPED_DIRECTORIES = new Set(['node_modules', '.git', 'dist']);
-
 /** Файл снимка. Содержимое — base64: аргумент `page.evaluate` обязан быть сериализуемым. */
 interface DiskFile {
   /** Путь от корня проекта, через `/`. */
   readonly path: string;
   readonly base64: string;
+}
+
+/** Что положить на «диск» сверх файлов репозитория. */
+export interface SeedOptions {
+  /**
+   * Каталоги проекта, которые git игнорирует, но тесту нужны, — пути от корня проекта.
+   *
+   * Сборка плагина кита HexaUI (`.ui_builder/plugins/kit-hexa-ui`) в git не едет, и в обычную
+   * копию не попадает; тест кита называет её здесь.
+   */
+  readonly ignored?: readonly string[];
 }
 
 /** Содержимое «диска»: путь от корня проекта → текст файла. */
@@ -59,20 +68,42 @@ declare global {
   }
 }
 
-/** Файлы каталога рекурсивно, в устойчивом порядке. */
-function readDirectory(root: string, relative = ''): DiskFile[] {
+const readFile = (root: string, filePath: string): DiskFile => ({
+  path: filePath,
+  base64: readFileSync(path.join(root, filePath)).toString('base64'),
+});
+
+/**
+ * Файлы проекта, как их видит git: отслеживаемые и новые, без игнорируемых.
+ *
+ * Одно правило вместо своего списка исключений: что `.gitignore` называет не-проектом
+ * (`node_modules`, сборки, отчёты), то и в копию не едет. Заодно копия одинакова на любой
+ * машине — локальная сборка плагина HexaUI её не меняет.
+ */
+function readRepositoryFiles(root: string): DiskFile[] {
+  const listing = execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+    { cwd: root, encoding: 'utf8' }
+  );
+  return (
+    listing
+      .split('\0')
+      // Удалённый из рабочего дерева файл в индексе ещё значится — на диске его нет.
+      .filter((filePath) => filePath !== '' && existsSync(path.join(root, filePath)))
+      .sort()
+      .map((filePath) => readFile(root, filePath))
+  );
+}
+
+/** Файлы каталога рекурсивно — для того, что git игнорирует. */
+function readDirectory(root: string, relative: string): DiskFile[] {
   const files: DiskFile[] = [];
   const entries = readdirSync(path.join(root, relative), { withFileTypes: true });
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const entryPath = relative === '' ? entry.name : `${relative}/${entry.name}`;
-    if (entry.isDirectory()) {
-      if (!SKIPPED_DIRECTORIES.has(entry.name)) files.push(...readDirectory(root, entryPath));
-    } else if (entry.isFile()) {
-      files.push({
-        path: entryPath,
-        base64: readFileSync(path.join(root, entryPath)).toString('base64'),
-      });
-    }
+    const entryPath = `${relative}/${entry.name}`;
+    if (entry.isDirectory()) files.push(...readDirectory(root, entryPath));
+    else if (entry.isFile()) files.push(readFile(root, entryPath));
   }
   return files;
 }
@@ -125,8 +156,11 @@ export class PlaygroundDisk {
    *
    * Требует уже открытой страницы билдера: OPFS принадлежит origin, и до навигации его нет.
    */
-  async seed(): Promise<void> {
-    const files = readDirectory(PLAYGROUND_DIR);
+  async seed(options: SeedOptions = {}): Promise<void> {
+    const files = [
+      ...readRepositoryFiles(PLAYGROUND_DIR),
+      ...(options.ignored ?? []).flatMap((directory) => readDirectory(PLAYGROUND_DIR, directory)),
+    ];
     await this.page.evaluate(
       async ({ mount, name, files }) => {
         const opfs = await navigator.storage.getDirectory();

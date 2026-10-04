@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
-import { BUILDER_DIR, LAUNCH_CONFIG } from './tests/shared/paths';
+import path from 'path';
+import { BUILDER_DIR, PLAYGROUND_CONFIG, PLAYGROUND_DIR } from './tests/shared/paths';
 
 /**
  * E2E билдера. Настройка — переменными окружения:
@@ -15,9 +16,10 @@ import { BUILDER_DIR, LAUNCH_CONFIG } from './tests/shared/paths';
  *   не подхватил билдер с чужим составом плагинов.
  * - BUILDER_E2E_BASE_URL: адрес уже запущенного билдера. Сервер тогда не поднимается вовсе.
  *
- * Конфиг запуска в обоих режимах один — `builder.launch.json` из playground. Тот же сервер
- * руками: `npm run builder -w reformer-builder-playground` (или `builder:dist`); запущенный
- * заранее, он переиспользуется прогоном.
+ * Конфиг запуска в обоих режимах один — `.ui_builder/config.json` playground: тот же файл, что
+ * билдер читает ещё раз как конфиг проекта, открыв каталог. Тот же сервер руками:
+ * `npm run builder -w reformer-builder-playground` (или `builder:dist`); запущенный заранее,
+ * он переиспользуется прогоном.
  */
 const TARGET = process.env.BUILDER_E2E_TARGET === 'dist' ? 'dist' : 'dev';
 const PORT = parseInt(process.env.BUILDER_E2E_PORT || '5184', 10);
@@ -56,13 +58,19 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command:
-            TARGET === 'dist'
-              ? `node bin/reformer-builder.mjs --config "${LAUNCH_CONFIG}" --host localhost --port ${PORT} --no-open`
-              : `npm run dev -- --port ${PORT}`,
-          cwd: BUILDER_DIR,
-          // Лаунчеру конфиг назван флагом; dev-сервер читает его из переменной (vite.config.ts).
-          env: TARGET === 'dist' ? {} : { REFORMER_BUILDER_CONFIG: LAUNCH_CONFIG },
+          // Лаунчер запускается В КАТАЛОГЕ playground и сам находит его `.ui_builder/config.json` —
+          // раскладка «запустил в корне проекта и его же открыл». Dev-сервер живёт в каталоге
+          // билдера, поэтому конфиг ему назван переменной (vite.config.ts).
+          ...(TARGET === 'dist'
+            ? {
+                command: `node "${path.join(BUILDER_DIR, 'bin', 'reformer-builder.mjs')}" --host localhost --port ${PORT} --no-open`,
+                cwd: PLAYGROUND_DIR,
+              }
+            : {
+                command: `npm run dev -- --port ${PORT}`,
+                cwd: BUILDER_DIR,
+                env: { REFORMER_BUILDER_CONFIG: PLAYGROUND_CONFIG },
+              }),
           url: BASE_URL,
           reuseExistingServer: !process.env.CI,
           // `npm run dev` сначала собирает корпус знаний ассистента (predev) — отсюда запас.

@@ -25,19 +25,13 @@ test.describe('Плагин проекта', () => {
 
   test('оболочка предлагает управление плагином проекта', async ({ builder }) => {
     await builder.openPlayground();
+    await builder.projectPluginsReady();
 
-    await expect(async () => {
-      await builder.openPalette('Playground Hello');
-      try {
-        await expect(builder.paletteOption('Плагины: выключить «Playground Hello»')).toBeVisible({
-          timeout: 1_000,
-        });
-        await expect(
-          builder.paletteOption('Плагины: наблюдать «Playground Hello» — режим разработки')
-        ).toBeVisible({ timeout: 1_000 });
-      } finally {
-        await builder.closePalette();
-      }
-    }).toPass();
+    await builder.openPalette('Playground Hello');
+
+    await expect(builder.paletteOption('Плагины: выключить «Playground Hello»')).toBeVisible();
+    await expect(
+      builder.paletteOption('Плагины: наблюдать «Playground Hello» — режим разработки')
+    ).toBeVisible();
   });
 });

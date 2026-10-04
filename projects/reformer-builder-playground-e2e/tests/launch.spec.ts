@@ -1,14 +1,15 @@
 import { test, expect } from './shared/fixtures';
 
 /**
- * Запуск: билдер собран конфигом запуска playground (`builder.launch.json`), проект ещё не открыт.
+ * Запуск: билдер собран конфигом запуска — `.ui_builder/config.json` playground. Проект ещё
+ * не открыт.
  */
 test.describe('Запуск билдера', () => {
   test('конфиг запуска применён: заголовок, состав и локаль', async ({ builder, page }) => {
     await builder.goto();
 
-    // branding.title конфига запуска.
-    await expect(page).toHaveTitle('ReFormer Builder');
+    // branding.title.
+    await expect(page).toHaveTitle('ReFormer Builder · Playground');
     // Профиль `playground` из конфига: его имя стоит в ячейке «движок · кит» строки состояния.
     await expect(
       builder.statusBar.getByRole('button', { name: 'ReFormer + RJSF · ReFormer UI Kit' })

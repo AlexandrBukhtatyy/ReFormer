@@ -32,7 +32,9 @@ export const test = base.extend<BuilderFixtures>({
   },
 
   builder: async ({ page, disk }, use) => {
-    await use(new BuilderApp(page, disk));
+    const builder = new BuilderApp(page, disk);
+    await builder.recordNotifications();
+    await use(builder);
   },
 
   pageErrors: [
