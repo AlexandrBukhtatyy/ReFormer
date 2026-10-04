@@ -32,7 +32,8 @@
  * у двух уровней не может быть двух пониманий формата, и «поле, о котором проектный конфиг
  * не знает вовсе» превратилось бы в «неизвестное поле» — сообщение, уводящее в сторону от
  * настоящей причины. Поэтому поле разбирается, а `boot` говорит словами, что оно не применено
- * (см. `boot`, чтение проектного конфига).
+ * (см. `boot`, чтение проектного конфига) — если оно записано иначе, чем в конфиге запуска:
+ * совпавшее поле запуск уже применил ({@link launchOnlyProblems}).
  *
  * @module shell/boot/runtime-config
  */
@@ -458,6 +459,63 @@ export function mergeRuntimeConfig(base: RuntimeConfig, over: RuntimeConfig): Ru
       ? { marketplace: { ...base.marketplace, ...over.marketplace } }
       : {}),
   };
+}
+
+/**
+ * Поля, действующие только на уровне запуска, и то, что о них говорится человеку.
+ *
+ * Порядок — порядок сообщений в уведомлении.
+ */
+const LAUNCH_ONLY_FIELDS = [
+  ['defaults', '«defaults» действуют только на уровне запуска — задайте их в конфиге лаунчера'],
+  ['preset', '«preset» действует только на уровне запуска — задайте его в конфиге лаунчера'],
+  [
+    'presetChoices',
+    '«presetChoices» действует только на уровне запуска — задайте его в конфиге лаунчера',
+  ],
+  ['profiles', '«profiles» действуют только на уровне запуска — задайте их в конфиге лаунчера'],
+  ['plugins', '«plugins» действуют только на уровне запуска — задайте их в конфиге лаунчера'],
+] as const satisfies readonly (readonly [keyof RuntimeConfig, string])[];
+
+/** Равенство значений конфига: по содержимому, порядок ключей объекта не значим. */
+function sameConfigValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((item, index) => sameConfigValue(item, b[index]))
+    );
+  }
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => Object.hasOwn(b, key) && sameConfigValue(a[key], b[key]))
+  );
+}
+
+/**
+ * Что в конфиге ПРОЕКТА не сработало: поля уровня запуска, записанные иначе, чем в конфиге
+ * запуска.
+ *
+ * Поле, совпавшее с конфигом запуска, действует — его применил запуск, — и сообщать о нём
+ * нечего. Это не послабление, а главный случай: билдер запустили в корне проекта и его же
+ * открыли, один `.ui_builder/config.json` прочитан обоими уровнями. Предупреждать о нём при
+ * каждом открытии значило бы объявить ошибкой раскладку, которую мы сами советуем, — и приучить
+ * человека не читать предупреждения.
+ *
+ * Расхождение — другое дело: проект просит состав или умолчание, которых запуск не дал. Это
+ * говорится словами, как и раньше.
+ */
+export function launchOnlyProblems(
+  launch: RuntimeConfig,
+  project: RuntimeConfig
+): readonly string[] {
+  return LAUNCH_ONLY_FIELDS.filter(
+    ([field]) => project[field] !== undefined && !sameConfigValue(project[field], launch[field])
+  ).map(([, message]) => message);
 }
 
 /**

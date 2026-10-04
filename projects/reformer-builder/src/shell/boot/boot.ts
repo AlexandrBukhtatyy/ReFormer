@@ -73,6 +73,7 @@ import { createMarketplaceClient } from '@/shell/platform/plugin/marketplace/reg
 import { updateRows } from '@/shell/boot/settings/plugins-tabs';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import {
+  launchOnlyProblems,
   mergeRuntimeConfig,
   readProjectRuntimeConfig,
   type ParsedRuntimeConfig,
@@ -886,33 +887,20 @@ export function boot(options: BootOptions): BuilderApp {
       })
       .then(async () => {
         // Конфиг уровня ПРОЕКТА: перекрывает конфиг запуска по полю. Дефолты темы/локали
-        // проектный уровень задать не может — умолчания настроек объявлены при сборке,
-        // и это говорится человеку словами, а не глотается.
+        // проектный уровень задать не может — умолчания настроек объявлены при сборке.
+        // Состав приложения тем более: он фиксируется ДО `boot`, при сборке композиции
+        // (`application/builder-application`), а эта строка выполняется после открытия
+        // проекта — когда плагины уже активированы и вклады розданы. Применить его здесь
+        // означало бы перезапуск приложения на открытии папки.
+        //
+        // Поэтому поле уровня запуска, записанное в проекте ИНАЧЕ, чем в конфиге запуска,
+        // называется человеку словами, а не глотается. Записанное так же — действует, его
+        // применил запуск: так выглядит билдер, запущенный в корне проекта и открывший его же.
         const parsed = source === null ? null : await readProjectRuntimeConfig(source);
         applyTitle(mergeRuntimeConfig(launchConfig, parsed?.config ?? {}));
         const problems = [
           ...(parsed?.problems ?? []),
-          ...(parsed?.config.defaults !== undefined
-            ? ['«defaults» действуют только на уровне запуска — задайте их в конфиге лаунчера']
-            : []),
-          // Состав приложения тем более: он фиксируется ДО `boot`, при сборке композиции
-          // (`application/builder-application`), а эта строка выполняется после открытия
-          // проекта — когда плагины уже активированы и вклады розданы. Применить его здесь
-          // означало бы перезапуск приложения на открытии папки.
-          ...(parsed?.config.preset !== undefined
-            ? ['«preset» действует только на уровне запуска — задайте его в конфиге лаунчера']
-            : []),
-          ...(parsed?.config.presetChoices !== undefined
-            ? [
-                '«presetChoices» действует только на уровне запуска — задайте его в конфиге лаунчера',
-              ]
-            : []),
-          ...(parsed?.config.profiles !== undefined
-            ? ['«profiles» действуют только на уровне запуска — задайте их в конфиге лаунчера']
-            : []),
-          ...(parsed?.config.plugins !== undefined
-            ? ['«plugins» действуют только на уровне запуска — задайте их в конфиге лаунчера']
-            : []),
+          ...(parsed === null ? [] : launchOnlyProblems(launchConfig, parsed.config)),
         ];
         if (problems.length > 0) {
           notifications.warning('config.problem.project', {

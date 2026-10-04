@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import {
   fetchRuntimeConfig,
+  launchOnlyProblems,
   mergeRuntimeConfig,
   parseRuntimeConfig,
   readProjectRuntimeConfig,
@@ -253,6 +254,76 @@ describe('mergeRuntimeConfig', () => {
     expect(mergeRuntimeConfig(base, { presetChoices: ['acme'] }).presetChoices).toEqual(['acme']);
     // Пустой список — не «ничего не сказано»: он убирает выбор, и объединение его бы вернуло.
     expect(mergeRuntimeConfig(base, { presetChoices: [] }).presetChoices).toEqual([]);
+  });
+});
+
+describe('launchOnlyProblems', () => {
+  /** Конфиг со всеми полями уровня запуска — образец «организация описала сборку». */
+  const launch = parseRuntimeConfig({
+    branding: { title: 'Формы Acme' },
+    preset: 'acme',
+    presetChoices: ['acme', 'rjsf.builder'],
+    profiles: [{ id: 'acme', extends: 'rjsf.builder', plugins: ['reformer.editor-markdown'] }],
+    plugins: { disable: ['reformer.ai'] },
+    defaults: { locale: 'ru', theme: 'light', settings: { 'plugin.kits.active': 'hexa-ui' } },
+  }).config;
+
+  it('один файл на оба уровня — проблем нет', () => {
+    // Билдер запустили в корне проекта и его же открыли: `.ui_builder/config.json` прочитан
+    // и лаунчером, и приложением. Всё, что в нём сказано, запуск уже применил.
+    expect(launchOnlyProblems(launch, launch)).toEqual([]);
+  });
+
+  it('совпадение считается по содержимому, а не по порядку ключей', () => {
+    // Те же значения, записанные в файле проекта в другом порядке, — тот же конфиг.
+    const project = parseRuntimeConfig({
+      defaults: { settings: { 'plugin.kits.active': 'hexa-ui' }, theme: 'light', locale: 'ru' },
+      plugins: { disable: ['reformer.ai'] },
+      profiles: [{ plugins: ['reformer.editor-markdown'], extends: 'rjsf.builder', id: 'acme' }],
+      presetChoices: ['acme', 'rjsf.builder'],
+      preset: 'acme',
+    }).config;
+
+    expect(launchOnlyProblems(launch, project)).toEqual([]);
+  });
+
+  it('проект без полей уровня запуска — проблем нет', () => {
+    expect(launchOnlyProblems(launch, { branding: { title: 'Проект' } })).toEqual([]);
+    expect(launchOnlyProblems({}, {})).toEqual([]);
+  });
+
+  it('называется каждое поле, записанное иначе, чем в конфиге запуска', () => {
+    const problems = launchOnlyProblems(launch, {
+      preset: 'minimal',
+      presetChoices: ['rjsf.builder', 'acme'],
+      profiles: [{ id: 'acme', extends: 'rjsf.builder', plugins: [] }],
+      plugins: { disable: [] },
+      defaults: { locale: 'ru', theme: 'dark' },
+    });
+
+    expect(problems).toHaveLength(5);
+    for (const field of ['defaults', 'preset', 'presetChoices', 'profiles', 'plugins']) {
+      expect(problems.some((problem) => problem.startsWith(`«${field}»`))).toBe(true);
+    }
+  });
+
+  it('совпавшие поля молчат, разошедшееся — названо одно', () => {
+    const problems = launchOnlyProblems(launch, { ...launch, preset: 'rjsf.builder' });
+
+    expect(problems).toEqual([
+      '«preset» действует только на уровне запуска — задайте его в конфиге лаунчера',
+    ]);
+  });
+
+  it('поле, которого в конфиге запуска нет вовсе, — расхождение', () => {
+    // Запуск без конфига (vite dev, чужой статик-сервер): проект просит состав, которого
+    // никто не собирал.
+    expect(launchOnlyProblems({}, { preset: 'rjsf.builder' })).toHaveLength(1);
+  });
+
+  it('порядок в списке значим: переставленный список — другое значение', () => {
+    // Первым в `presetChoices` и `plugins` стоит то, что выбирается первым.
+    expect(launchOnlyProblems(launch, { presetChoices: ['rjsf.builder', 'acme'] })).toHaveLength(1);
   });
 });
 
