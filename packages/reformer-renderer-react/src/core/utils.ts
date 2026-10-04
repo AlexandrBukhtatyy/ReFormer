@@ -4,52 +4,150 @@
  * @module reformer/renderer-react/utils
  */
 
-import { isValueSignal } from '@reformer/core';
+import { isModelContainerSignal, isValueSignal, modelOf } from '@reformer/core';
+import type { Signal } from '@reformer/core/signals';
 import type {
   RenderNode,
   ContainerRenderNode,
   ModelFieldRenderNode,
   ArrayRenderNode,
+  PartRenderNode,
+  RenderModelArrayControl,
 } from './types';
+
+// ============================================================================
+// Привязка узла к модели
+// ============================================================================
+
+/**
+ * Ручка значения поля: ключ `model` либо прежний `value`. Для узла, который полем не является, —
+ * `undefined`.
+ *
+ * @example
+ * ```typescript
+ * fieldBindingOf({ model: model.$.email, component: Input }); // model.$.email
+ * fieldBindingOf({ component: Section, children: [] }); // undefined
+ * ```
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function fieldBindingOf(node: unknown): Signal<any> | undefined {
+  const { model, value } = node as { model?: unknown; value?: unknown };
+  if (isValueSignal(model)) return model;
+  return isValueSignal(value) ? value : undefined;
+}
+
+/** Ручка массива дерева `model.$` — контейнер, который при этом ручка значения. */
+const isArrayHandle = (binding: unknown): boolean =>
+  isModelContainerSignal(binding) && isValueSignal(binding);
+
+/** Ручка группы дерева `model.$` — контейнер, который ручкой значения не является. */
+const isGroupHandle = (binding: unknown): boolean =>
+  isModelContainerSignal(binding) && !isValueSignal(binding);
+
+/**
+ * Фасад массива модели по узлу-массиву: привязка ручкой (`model: model.$.items`) либо, для
+ * прежней записи, самим фасадом (`array: model.items`). Для узла, который массивом под-форм не
+ * является, — `undefined`.
+ *
+ * @example
+ * ```typescript
+ * const control = arrayControlOf({ model: model.$.items, item });
+ * control?.push(); // новый элемент по шаблону модели
+ * ```
+ */
+export function arrayControlOf(node: unknown): RenderModelArrayControl | undefined {
+  const { model, array, item } = node as { model?: unknown; array?: unknown; item?: unknown };
+  if (typeof item !== 'function') return undefined;
+  if (isArrayHandle(model)) {
+    return modelOf(model as { peek(): unknown[] }) as unknown as RenderModelArrayControl;
+  }
+  const facade = array ?? model;
+  if (facade == null || typeof facade !== 'object' || isModelContainerSignal(facade)) {
+    return undefined;
+  }
+  return facade as RenderModelArrayControl;
+}
+
+/**
+ * Под-модель группы по узлу-подформе: привязка ручкой (`model: model.$.address`) либо самой
+ * под-моделью (`model: model.address`). Для узла, который подформой не является, — `undefined`.
+ *
+ * @example
+ * ```typescript
+ * partModelOf({ model: model.$.address, part: address }) === model.address; // true
+ * ```
+ */
+export function partModelOf(node: unknown): object | undefined {
+  const { model, part } = node as { model?: unknown; part?: unknown };
+  if (typeof part !== 'function' || model == null || typeof model !== 'object') return undefined;
+  if (isGroupHandle(model)) return modelOf(model as { peek(): object }) as object;
+  // Под-модель несёт свою ручку в `$`.
+  return isGroupHandle((model as { $?: unknown }).$) ? model : undefined;
+}
+
+// ============================================================================
+// Type guards узлов
+// ============================================================================
 
 /**
  * Type guard для {@link ModelFieldRenderNode} (M1): поле, привязанное к ручке значения модели —
  * листу либо массиву целиком (`model.$.<массив>`: мультивыбор, теги, список файлов).
- * Проверяется ПЕРВЫМ — такой узел несёт реальный `component`, иначе спутается с контейнером.
+ *
+ * Массив под-форм (`{ model, item }`) тоже привязан к ручке значения, но полем не является —
+ * он узнаётся раньше, по `item`.
  *
  * @param node - Узел {@link RenderNode}
- * @returns `true`, если узел — поле (`value` — ручка значения, см. `isValueSignal` ядра)
+ * @returns `true`, если узел — поле (привязка — ручка значения, см. `isValueSignal` ядра)
  *
  * @example Сужение к полю
  * ```typescript
  * if (isModelFieldRenderNode(node)) {
- *   node.value; // Signal модели
+ *   fieldBindingOf(node); // Signal модели
  *   node.component; // UI-компонент поля
  * }
  * ```
  */
 export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFieldRenderNode {
-  return isValueSignal((node as ModelFieldRenderNode).value);
+  return fieldBindingOf(node) !== undefined && !isArrayRenderNode(node);
 }
 
 /**
- * Type guard для {@link ArrayRenderNode} (M1): массив модели `{ array, item }`.
- * Проверяется до контейнера (у array-узла нет `component`).
+ * Type guard для {@link ArrayRenderNode} (M1): массив под-форм `{ model, item }`.
+ * Проверяется до поля и контейнера: ручка массива — тоже ручка значения, а `component` у узла
+ * необязателен.
  *
  * @param node - Узел {@link RenderNode}
- * @returns `true`, если узел — секция массива (есть `array` и `item`-фабрика)
+ * @returns `true`, если узел — секция массива (есть привязка к массиву и `item`-фабрика)
  *
  * @example Сужение к массиву
  * ```typescript
  * if (isArrayRenderNode(node)) {
- *   node.array; // реактивный массив модели
- *   node.item; // (itemModel) => RenderNode поддерева элемента
+ *   arrayControlOf(node); // реактивный массив модели
+ *   node.item; // (model) => RenderNode поддерева элемента
  * }
  * ```
  */
 export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T> {
-  const n = node as ArrayRenderNode<T>;
-  return n.array != null && typeof n.array === 'object' && typeof n.item === 'function';
+  return arrayControlOf(node) !== undefined;
+}
+
+/**
+ * Type guard для {@link PartRenderNode}: подформа `{ model, part }` — часть схемы, подключённая
+ * к группе модели.
+ *
+ * @param node - Узел {@link RenderNode}
+ * @returns `true`, если узел — подформа (привязка — группа модели, есть `part`-фабрика)
+ *
+ * @example Сужение к подформе
+ * ```typescript
+ * if (isPartRenderNode(node)) {
+ *   partModelOf(node); // под-модель группы
+ *   node.part; // (model) => RenderNode поддерева части
+ * }
+ * ```
+ */
+export function isPartRenderNode<T>(node: RenderNode<T>): node is PartRenderNode<T> {
+  return partModelOf(node) !== undefined;
 }
 
 /**

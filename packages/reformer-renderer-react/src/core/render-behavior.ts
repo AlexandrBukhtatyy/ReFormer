@@ -1,11 +1,11 @@
 /**
  * RenderBehaviorFn — поведение схемы рендера через standalone helpers
  *
- * Контракт аналогичен BehaviorSchemaFn из @reformer/core:
- * функция принимает schema и вызывает вспомогательные функции.
- *
- * Форма больше не передаётся напрямую — она читается через ref компонента
- * (например, FormWizardHandle.form). Условия реактивны через Preact computed().
+ * Сами операторы (`hideWhen`, `onComponentEvent`, `renderEffect`, `onInit`, `onMount`,
+ * `onUnmount`) живут в ядре — `@reformer/core/behaviors` — и вызываются прямо в поведении формы:
+ * `defineFormBehavior(({ model, form, schema }) => …)`. Отсюда они реэкспортируются для
+ * низкоуровневого рендера по `createRenderSchema`. Здесь остаются React-хуки, которыми рендерер
+ * исполняет записанные правила.
  *
  * @module reformer/renderer-react/render-behavior
  */
@@ -13,18 +13,29 @@
 import { useCallback, useEffect } from 'react';
 import { useSyncExternalStore } from 'react';
 import { computed, effect } from '@reformer/core/signals';
-import type { RenderSchemaProxy, RenderNodeControl } from './render-schema-proxy';
+import type { NodeLifecycleHooks, SchemaScope } from '@reformer/core';
+import {
+  hideWhen as coreHideWhen,
+  onComponentEvent as coreOnComponentEvent,
+  renderEffect as coreRenderEffect,
+  onInit as coreOnInit,
+  onMount as coreOnMount,
+  onUnmount as coreOnUnmount,
+} from '@reformer/core/behaviors';
+import type { RenderNodeControl, RenderSchemaProxy } from './render-schema-proxy';
 
 // ============================================================================
 // Public types
 // ============================================================================
 
 /**
- * Функция-схема поведения рендера.
- * Аналог BehaviorSchemaFn из @reformer/core, но для видимости нод.
+ * Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
  *
  * Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect).
  * Форма читается через ref wizard-компонента: `schema.node('wizard').getRef().current?.form`.
+ *
+ * В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
+ * полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
  *
  * @example
  * ```typescript
@@ -47,7 +58,7 @@ import type { RenderSchemaProxy, RenderNodeControl } from './render-schema-proxy
 export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
 
 // ============================================================================
-// Standalone helpers
+// Standalone helpers — тонкие обёртки над операторами ядра
 // ============================================================================
 
 /**
@@ -55,6 +66,9 @@ export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
  *
  * Условие реактивно — пересчитывается при изменении любого Preact-сигнала,
  * прочитанного внутри conditionFn (в т.ч. сигналов формы через ref).
+ *
+ * Тот же оператор, что `hideWhen` из `@reformer/core/behaviors`: в поведении формы он
+ * вызывается со схемой своей области — `hideWhen(schema.node('…'), () => model.x === …)`.
  *
  * @example
  * ```typescript
@@ -65,7 +79,7 @@ export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
  * ```
  */
 export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): void {
-  node.__overrideMaps.conditionRegistry.set(node.__selector, conditionFn);
+  coreHideWhen(node, conditionFn);
 }
 
 /**
@@ -82,24 +96,17 @@ export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): v
  * });
  * ```
  *
- * Для отправки формы этот механизм не нужен: кнопка мастера сама гейтит вызов через
- * `config.validateAll`, поэтому обработчик отправки передаётся пропом `onSubmit`
- * (см. `reformer://docs/cdk/multi-step-submit`). Подписка на `'onSubmit'` в обход
- * этого гейта — анти-паттерн: она вызывается по клику, до валидации.
+ * Обработчик отправки визарда — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`:
+ * кнопка мастера зовёт его только после успешной проверки всей формы
+ * (см. `reformer://docs/cdk/multi-step-submit`).
  */
-
 export function onComponentEvent(
   node: RenderNodeControl,
   event: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => any
 ): void {
-  const { callbackRegistry } = node.__overrideMaps;
-  if (!callbackRegistry.has(node.__selector)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callbackRegistry.set(node.__selector, new Map<string, (...args: any[]) => any>());
-  }
-  callbackRegistry.get(node.__selector)!.set(event, handler);
+  coreOnComponentEvent(node, event, handler);
 }
 
 /**
@@ -120,26 +127,11 @@ export function onComponentEvent(
  * });
  * ```
  */
-
 export function renderEffect<T>(
-  schema: RenderSchemaProxy<T>,
+  schema: RenderSchemaProxy<T> | SchemaScope,
   effectFn: () => void | (() => void)
 ): void {
-  schema.__overrideMaps.effectRegistry.push(effectFn);
-}
-
-// ----------------------------------------------------------------------------
-// Lifecycle helpers
-// ----------------------------------------------------------------------------
-
-function setLifecycleHook<K extends keyof import('./render-schema-proxy').NodeLifecycleHooks>(
-  node: RenderNodeControl,
-  hook: K,
-  value: NonNullable<import('./render-schema-proxy').NodeLifecycleHooks[K]>
-): void {
-  const { lifecycleRegistry } = node.__overrideMaps;
-  const existing = lifecycleRegistry.get(node.__selector) ?? {};
-  lifecycleRegistry.set(node.__selector, { ...existing, [hook]: value });
+  coreRenderEffect(schema, effectFn);
 }
 
 /**
@@ -148,23 +140,20 @@ function setLifecycleHook<K extends keyof import('./render-schema-proxy').NodeLi
  * рендер — внутри можно дергать `schema.node(selector).patchProps({ ... })`
  * для установки/обновления componentProps.
  *
- * Типичный кейс: создать форму/стейт, закрепить за нодой через patchProps.
- *
  * В ОТЛИЧИЕ от {@link onMount}/{@link onUnmount} это НЕ пер-нодовый lifecycle-хук: он не
- * привязан к монтированию какой-либо ноды и не хранится в lifecycleRegistry. Аргумент `_node`
- * принимается только ради симметрии сигнатуры с onMount/onUnmount и не используется — `fn`
- * вызывается синхронно в момент применения behavior к схеме.
+ * привязан к монтированию какой-либо ноды и не хранится в lifecycleRegistry. Аргумент `node`
+ * принимается только ради симметрии сигнатуры с onMount/onUnmount — `fn` вызывается синхронно
+ * в момент применения behavior к схеме.
  *
  * @example
  * ```typescript
- * onInit(schema.node('wizard'), () => {
- *   const form = createMyForm();
- *   schema.node('wizard').patchProps({ form });
+ * onInit(schema.node('summary'), () => {
+ *   schema.node('summary').patchProps({ currency: detectCurrency() });
  * });
  * ```
  */
-export function onInit(_node: RenderNodeControl, fn: () => void): void {
-  fn();
+export function onInit(node: RenderNodeControl, fn: () => void): void {
+  coreOnInit(node, fn);
 }
 
 /**
@@ -180,7 +169,7 @@ export function onInit(_node: RenderNodeControl, fn: () => void): void {
  * ```
  */
 export function onMount(node: RenderNodeControl, fn: () => void | (() => void)): void {
-  setLifecycleHook(node, 'onMount', fn);
+  coreOnMount(node, fn);
 }
 
 /**
@@ -194,7 +183,7 @@ export function onMount(node: RenderNodeControl, fn: () => void | (() => void)):
  * ```
  */
 export function onUnmount(node: RenderNodeControl, fn: () => void): void {
-  setLifecycleHook(node, 'onUnmount', fn);
+  coreOnUnmount(node, fn);
 }
 
 // ============================================================================
@@ -248,9 +237,7 @@ export function RenderBehaviorEffects({
  * Подключает lifecycle-хуки ноды (onMount/onUnmount).
  * onMount может вернуть cleanup-функцию — она вызовется до onUnmount.
  */
-export function useNodeLifecycle(
-  hooks: import('./render-schema-proxy').NodeLifecycleHooks | undefined
-): void {
+export function useNodeLifecycle(hooks: NodeLifecycleHooks | undefined): void {
   useEffect(() => {
     if (!hooks) return;
     const mountCleanup = hooks.onMount?.();

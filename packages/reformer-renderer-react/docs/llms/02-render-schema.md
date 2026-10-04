@@ -190,7 +190,7 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 - **Возвращать React-element вместо `RenderNode`** — `RenderSchemaFn` должна возвращать описание (`{ component, componentProps, children }` или `{ value, component }`), а не JSX. Сам JSX строит `FormRenderer`.
 - **Класть `children` в `componentProps`** — `children` это TOP-LEVEL свойство контейнера. Рендерер деструктурирует `const { children } = node`. В `componentProps.children` узлы не отрисуются.
 - **Хранить `RenderSchemaProxy` внутри компонента без `useMemo`** — на каждом ре-рендере создаётся новый proxy, что ломает override-карты и lifecycle-хуки.
-- **Забыть `createForm` перед рендером** — лист-узел резолвит state-ноду по сигналу через реестр. Без `createForm({ model, schema })` реестр пуст, поле логирует warning и рендерится как `null`.
+- **Забыть `createForm` перед рендером** — лист-узел резолвит state-ноду по сигналу через реестр. Без `createFormFromModel({ model, schema })` реестр пуст, поле логирует warning и рендерится как `null`.
 - **Заводить компонент ради статичного блока текста** — `{ component: 'div', children: [{ component: 'p', children: ['…'] }] }` описывает то же самое схемой; отдельный компонент нужен, когда есть своя логика или состояние.
 - **Ожидать реактивности от интерполяции строкой** — `children: [\`Платёж: ${model.$.x.value} ₽\`]` читает значение ОДИН раз при построении схемы. Реактивен только сам сигнал: `children: ['Платёж: ', model.$.x, ' ₽']`.
 

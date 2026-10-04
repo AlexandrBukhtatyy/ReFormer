@@ -9,7 +9,7 @@
 
 import type { ComponentType, ElementType } from 'react';
 import type { Signal } from '@reformer/core/signals';
-import type { FormSchemaNode, SchemaArrayControl } from '@reformer/core';
+import type { FormRender, FormSchemaNode, SchemaArrayControl } from '@reformer/core';
 
 // ============================================================================
 // RENDER SCHEMA
@@ -42,11 +42,16 @@ export type RenderSchemaFn<T> = () => RenderNode<T>;
  * Узел рендеринга формы
  *
  * Дискриминированный union из типов узлов:
- * - ModelFieldRenderNode — поле формы, привязанное к СИГНАЛУ модели (M1, единая схема)
- * - ArrayRenderNode — массив модели (M1): данные `{ array, item }`, рендер-секция
+ * - ModelFieldRenderNode — поле формы, привязанное к ручке модели: `{ model: model.$.x, component }`
+ * - ArrayRenderNode — массив под-форм: `{ model: model.$.items, item }`, рендер-секция
+ * - PartRenderNode — подформа: `{ model: model.$.group, part }`
  * - ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
  */
-export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
+export type RenderNode<T> =
+  | ModelFieldRenderNode
+  | ArrayRenderNode<T>
+  | PartRenderNode<T>
+  | ContainerRenderNode<T>;
 
 // ============================================================================
 // TEXT CONTENT
@@ -85,14 +90,21 @@ export type RenderChild<T> = RenderNode<T> | RenderTextPart;
  *
  * @example
  * ```typescript
- * { value: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип', options } }
+ * { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип', options } }
  * ```
  */
 export interface ModelFieldRenderNode extends FormSchemaNode {
   selector?: string;
-  /** Сигнал значения из модели (`model.$.<path>`). */
+  /** Привязка поля — сигнал значения из модели (`model.$.<path>`): лист или массив целиком. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: Signal<any>;
+  model?: Signal<any>;
+  /**
+   * Прежняя запись привязки — то же, что {@link ModelFieldRenderNode.model}.
+   *
+   * @deprecated Пишите `model: model.$.<path>`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value?: Signal<any>;
   /** UI-компонент поля (в рендере обязателен, в отличие от базового {@link FormSchemaNode}). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<any>;
@@ -151,7 +163,7 @@ export interface ArrayItemSlot {
 export interface ArrayComponentProps {
   /** Отрендеренные элементы массива в порядке следования. */
   items: ArrayItemSlot[];
-  /** Добавить элемент (значение резолвится рендерером из `initialValue` узла). */
+  /** Добавить элемент по шаблону массива: `arrayOf(blank)` в модели либо `initialValue` узла. */
   onAdd(): void;
   /** Удалить элемент по индексу. */
   onRemove(index: number): void;
@@ -160,20 +172,27 @@ export interface ArrayComponentProps {
 }
 
 /**
- * Узел-массив единой схемы (M1): данные принадлежат модели (`array`), форма элемента описывается
- * `item(itemModel)`. `createForm` материализует `ModelArrayNode` (по `{ array, item }`), рендерер
- * итерирует элементы и рисует поддерево `item(itemModel)` (листья на сигналах под-модели).
+ * Узел-массив единой схемы (M1): данные принадлежат модели, форма элемента описывается
+ * `item(model)`. `createForm` материализует `ModelArrayNode`, рендерер итерирует элементы и рисует
+ * поддерево строки (листья на сигналах под-модели). Шаблон нового элемента для «Добавить» — в
+ * модели: `arrayOf(blank)`.
  *
  * @example
  * ```typescript
- * { array: model.coBorrowers, initialValue: createBlankCoBorrower,
- *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+ * { model: model.$.coBorrowers, component: FormArray,
+ *   item: (model) => ({ component: Box, children: [{ model: model.$.phone, component: Input }] }) }
  * ```
  */
 export interface ArrayRenderNode<T> extends FormSchemaNode {
   selector?: string;
-  /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
-  array: RenderModelArrayControl;
+  /** Привязка массива под-форм — ручка `model.$.<массив>`. */
+  model?: unknown;
+  /**
+   * Прежняя запись привязки — фасад массива `model.<path>`.
+   *
+   * @deprecated Пишите `model: model.$.<path>`.
+   */
+  array?: RenderModelArrayControl;
   /**
    * Компонент-рендерер массива (из `$component(...)`): секция с add/remove/reorder либо
    * chrome-less список. Итерирует **рендерер**, а компонент получает результат обычными props —
@@ -186,12 +205,11 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
   component?: ComponentType<any>;
   /** Схема элемента: под-модель элемента → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: (itemModel: any) => RenderNode<T>;
+  item: (model: any) => RenderNode<T>;
   /**
-   * Значение нового элемента для кнопки «Добавить»: значение или фабрика `() => value`.
-   * `unknown | (() => …)` схлопывается в `unknown`; вариант выбирается в рантайме по
-   * `typeof === 'function'`. (Параметризовать по `T` нельзя: `T` здесь — payload
-   * `RenderNode<T>`, а не тип данных элемента.)
+   * Запасной шаблон нового элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+   * Действует, если модель своего шаблона не объявила (`arrayOf(blank)`), — так живут формы, чья
+   * модель строится из данных без кода. Вариант выбирается в рантайме по `typeof === 'function'`.
    */
   initialValue?: unknown;
   /** Оформление секции массива. */
@@ -208,6 +226,37 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
     reorderable?: boolean;
     [key: string]: unknown;
   };
+}
+
+// ============================================================================
+// PART RENDER NODE — подформа
+// ============================================================================
+
+/**
+ * Узел-подформа: часть схемы, подключённая к группе модели. Часть объявляется один раз как
+ * функция от под-модели и ставится в схему сколько угодно раз — к разным группам той же формы
+ * данных.
+ *
+ * У части своя область схемы: `selector` внутри неё ищется из поведения, подключённого к той же
+ * группе (`apply(model.$.group, groupBehavior)`), и два монтирования одной части не конфликтуют.
+ *
+ * @example
+ * ```typescript
+ * const address = (model: FormModel<Address>) => ({
+ *   component: Box,
+ *   children: [{ model: model.$.city, component: Input, componentProps: { label: 'Город' } }],
+ * });
+ *
+ * { model: model.$.registrationAddress, part: address }
+ * ```
+ */
+export interface PartRenderNode<T> extends FormSchemaNode {
+  selector?: string;
+  /** Привязка — ручка группы модели (`model.$.<группа>`). */
+  model: unknown;
+  /** Часть схемы: под-модель группы → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  part: (model: any) => RenderNode<T>;
 }
 
 // ============================================================================
@@ -356,12 +405,13 @@ export interface FormRendererProps<T> {
   render?: RenderSchemaFn<T>;
 
   /**
-   * Бандл `createReactForm` — поставляет схему (`form.render`), поэтому `render` передавать не
-   * нужно. Тип структурный намеренно: слой типов рендерера не зависит от фабрики.
+   * Бандл сборки `createForm` (`@reformer/core`) — готовое дерево и схема-контроллер в
+   * `form.render`. Принимается и прежний бандл `createReactForm`, у которого `form.render` —
+   * функция-схема. Тип структурный намеренно: слой типов рендерера не зависит от фабрик.
    *
    * Приоритет: явный `render` → `form.render`.
    */
-  form?: { render: RenderSchemaFn<T> };
+  form?: { render: RenderSchemaFn<T> | FormRender };
 
   /**
    * Настройки рендерера
@@ -373,6 +423,27 @@ export interface FormRendererProps<T> {
    */
   settings?: RendererSettings;
 }
+
+// ============================================================================
+// SELF-MANAGED CHILDREN
+// ============================================================================
+
+/**
+ * Функция отрисовки узла схемы — проп `renderNode`, который рендерер передаёт компонентам со
+ * статикой `__selfManagedChildren = true` (визард, табы). Компонент получает узлы-детей как
+ * данные и рисует нужные сам, не импортируя рендерер.
+ *
+ * @example
+ * ```tsx
+ * function Tabs({ children, renderNode }: { children: RenderNode<unknown>[]; renderNode: RenderNodeFn }) {
+ *   const [active] = useState(0);
+ *   return <div>{renderNode(children[active])}</div>;
+ * }
+ * Tabs.__selfManagedChildren = true;
+ * ```
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RenderNodeFn = (node: RenderNode<any>, key?: React.Key) => React.ReactNode;
 
 // ============================================================================
 // CONTAINER COMPONENT PROPS

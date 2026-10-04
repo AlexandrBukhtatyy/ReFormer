@@ -92,7 +92,6 @@ describe('array node с $component', () => {
     const node: any = {
       array: fakeArray([{ m: signal('x'), t: signal('info') }], { push, removeAt, move }),
       component: Capture,
-      // фабрика: рендерер обязан её вызвать, а не передать функцию в push как значение
       initialValue: () => ({ fresh: true }),
       item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
     };
@@ -103,7 +102,9 @@ describe('array node с $component', () => {
     props.onAdd();
     props.onRemove(0);
     props.onMove(0, 1);
-    expect(push).toHaveBeenCalledWith({ fresh: true });
+    // Шаблон нового элемента — дело массива модели (`arrayOf(blank)`; `initialValue` узла сборка
+    // регистрирует запасным): рендерер зовёт push() без значения.
+    expect(push).toHaveBeenCalledWith();
     expect(removeAt).toHaveBeenCalledWith(0);
     expect(move).toHaveBeenCalledWith(0, 1);
   });

@@ -13,7 +13,7 @@
  * @module reformer/renderer-react/create-react-form
  */
 
-import { createForm, createModel, buildValidation } from '@reformer/core';
+import { createFormFromModel, createModel, buildValidation } from '@reformer/core';
 import type {
   CoreForm,
   CreateFormConfigBase,
@@ -77,7 +77,7 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
 
   // Первый проход — БЕЗ формы: harvest в `createForm` обходит дерево рекурсией, а `FormProxy`
   // самоссылочен. Формы на этот момент всё равно ещё не существует.
-  const form = createForm<T>({
+  const form = createFormFromModel<T>({
     model,
     schema: config.schema(model) as never,
     ...(config.behavior ? { behavior: config.behavior } : {}),

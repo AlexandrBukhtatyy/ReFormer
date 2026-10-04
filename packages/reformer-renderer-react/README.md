@@ -28,7 +28,7 @@ npm install @reformer/renderer-react @reformer/core
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
 import { FormField, Input } from '@reformer/ui-kit';
 
@@ -45,7 +45,7 @@ function buildSchema(model: ReturnType<typeof createModel<MyForm>>) {
 export function MyFormPage() {
   const { model, schema } = useMemo(() => {
     const model = createModel<MyForm>({ email: '' });
-    createForm<MyForm>({ model, schema: buildSchema(model) });
+    createFormFromModel<MyForm>({ model, schema: buildSchema(model) });
     // Render schema (a plain builder, or a `createRenderSchema` proxy for behaviors)
     const schema = createRenderSchema<MyForm>(() => buildSchema(model));
     return { model, schema };

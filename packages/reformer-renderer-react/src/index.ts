@@ -39,6 +39,8 @@ export type {
   ContainerRenderNode,
   ContainerRenderNodeProps,
   ArrayRenderNode,
+  PartRenderNode,
+  RenderNodeFn,
   RenderModelArrayControl,
   ArrayItemSlot,
   ArrayComponentProps,
@@ -66,8 +68,13 @@ export {
 export {
   isModelFieldRenderNode,
   isArrayRenderNode,
+  isPartRenderNode,
   isContainerRenderNode,
   isHtmlTagRenderNode,
+  // Привязка узла к модели: ручка поля, фасад массива, под-модель подформы.
+  fieldBindingOf,
+  arrayControlOf,
+  partModelOf,
   VOID_HTML_TAGS,
 } from './core/utils';
 

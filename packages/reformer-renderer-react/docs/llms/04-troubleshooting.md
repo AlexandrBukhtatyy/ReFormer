@@ -16,7 +16,7 @@ import { FormField } from '@reformer/ui-kit';
 
 State-нода поля резолвится по сигналу через реестр `getNodeForSignal`, а реестр заполняет `createForm`. Если поле рисуется как `null` и в консоли `[RenderSchema] No form node for signal "<path>" — render value-leaf after createForm`:
 
-- Форма не построена из этой же схемы. Собери её из этой же схемы до рендера: канон — `createReactForm({ model | initial, schema })` (в React — внутри `useReactForm`), низкоуровневый путь — `createForm({ model, schema })`. Реестр `сигнал→нода` заполняется именно там.
+- Форма не построена из этой же схемы. Собери её из этой же схемы до рендера: канон — `createReactForm({ model | initial, schema })` (в React — внутри `useReactForm`), низкоуровневый путь — `createFormFromModel({ model, schema })`. Реестр `сигнал→нода` заполняется именно там.
 - Лист привязан к сигналу другой модели (не той, что передана в `createForm`). Убедись, что `value: model.$.<field>` берётся из того же `model`.
 - Внутри массива — под-модель элемента (`im.$.<field>`) должна проходить через `createForm`/`ModelArrayNode` (материализуется автоматически при обработке `ArrayRenderNode`).
 

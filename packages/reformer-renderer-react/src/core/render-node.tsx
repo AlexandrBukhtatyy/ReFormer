@@ -12,6 +12,8 @@ import {
   getFieldAdapter,
   getNodeForSignal,
   isValueSignal,
+  schemaSubtree,
+  unknownSchemaSelectors,
   useFieldHandleRef,
 } from '@reformer/core';
 import type {
@@ -23,22 +25,32 @@ import type {
   ArrayItemSlot,
   RenderModelArrayControl,
   RenderChild,
+  RenderNodeFn,
   RenderTextPart,
 } from './types';
 import {
+  arrayControlOf,
+  fieldBindingOf,
   isContainerRenderNode,
   isModelFieldRenderNode,
   isArrayRenderNode,
+  partModelOf,
   VOID_HTML_TAGS,
 } from './utils';
 import { useRenderContext } from './render-context';
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import {
   useHiddenOverride,
   usePropsOverride,
   RenderSchemaOverrideContext,
+  SchemaControllerContext,
 } from './render-schema-proxy';
-import { useCondition, useNodeLifecycle, useRefAttachmentWarning } from './render-behavior';
+import {
+  RenderBehaviorEffects,
+  useCondition,
+  useNodeLifecycle,
+  useRefAttachmentWarning,
+} from './render-behavior';
 
 /**
  * Props для RenderNodeComponent
@@ -184,7 +196,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   } = { ...node.componentProps, ...nodeComponentProps };
 
   // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
-  const path = (node.value as { __path?: string }).__path;
+  const path = (fieldBindingOf(node) as { __path?: string } | undefined)?.__path;
   const testId =
     typeof explicitTestId === 'string'
       ? explicitTestId
@@ -275,10 +287,65 @@ function stableKey(item: unknown): number {
 
 /**
  * Резолв `initialValue` элемента для кнопки «Добавить»: значение или фабрика `() => value`.
- * Экспортируется — им пользуются ui-kit-компоненты массива (`FormArray`) для `array.push(...)`.
+ *
+ * @deprecated Рендерер им больше не пользуется: «Добавить» зовёт `push()` без значения, а шаблон
+ *   нового элемента живёт в модели (`arrayOf(blank)`; `initialValue` узла — запасной).
  */
 export const resolveInitialValue = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
   typeof init === 'function' ? (init as () => unknown)() : init;
+
+// ============================================================================
+// Области схемы: строка массива и подформа
+// ============================================================================
+
+/** Области, для которых проверка селекторов уже выполнена, — предупреждаем один раз. */
+const checkedScopes = new WeakSet<object>();
+
+/**
+ * Граница области схемы. Поддерево строки массива или подформы получает хранилище СВОЕЙ области:
+ * селекторы внутри него адресуются из поведения, подключённого к той же под-модели
+ * (`applyEach` / `apply`), и не пересекаются ни с корнем, ни с соседними строками.
+ *
+ * Области есть только при рендере бандла `createForm` (схема-контроллер в контексте). При рендере
+ * по `createRenderSchema` область одна на всё дерево — граница прозрачна.
+ */
+function ScopeBoundary({
+  model,
+  tree,
+  children,
+}: {
+  /** Под-модель строки или группы — ключ области. */
+  model: unknown;
+  /** Поддерево области — по нему в dev сверяются селекторы правил. */
+  tree: unknown;
+  children: ReactNode;
+}): ReactNode {
+  const context = useContext(SchemaControllerContext);
+  const maps =
+    context && model != null && typeof model === 'object'
+      ? context.controller.scopeOf(model).__overrideMaps
+      : null;
+
+  useEffect(() => {
+    if (!maps || process.env.NODE_ENV === 'production' || checkedScopes.has(maps)) return;
+    checkedScopes.add(maps);
+    const unknown = unknownSchemaSelectors(maps, tree);
+    if (unknown.length > 0 && typeof console !== 'undefined') {
+      console.warn(
+        '[RenderSchema] поведение области обращается к узлам, которых нет в её поддереве: ' +
+          `${unknown.map((selector) => `"${selector}"`).join(', ')}. Правило ничего не сделает.`
+      );
+    }
+  }, [maps, tree]);
+
+  if (!maps) return children;
+  return (
+    <RenderSchemaOverrideContext.Provider value={maps}>
+      <RenderBehaviorEffects effectRegistry={maps.effectRegistry} />
+      {children}
+    </RenderSchemaOverrideContext.Provider>
+  );
+}
 
 /**
  * Один элемент модель-массива для компонента-рендерера: стабильный ключ, живой индекс, под-модель
@@ -312,35 +379,23 @@ export function useModelArrayItems(
   useModelArrayRevision(control); // ре-рендер при структурных изменениях (включая reorder)
   const length = control.length;
 
-  // Кэш поддеревьев по идентичности под-модели, ключ — фабрика `item` (сброс при смене схемы).
-  const cacheRef = useRef<{
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    itemFn: (itemModel: any) => RenderNode<unknown>;
-    map: WeakMap<object, RenderNode<unknown>>;
-  } | null>(null);
-  if (!cacheRef.current || cacheRef.current.itemFn !== item) {
-    cacheRef.current = { itemFn: item, map: new WeakMap() };
-  }
-  const getSubtree = (im: unknown): RenderNode<unknown> => {
-    if (im == null || typeof im !== 'object') return item(im);
-    const map = cacheRef.current!.map;
-    let sub = map.get(im as object);
-    if (sub === undefined) {
-      sub = item(im);
-      map.set(im as object, sub);
-    }
-    return sub;
-  };
+  // Поддерево строки — одно на пару «билдер + под-модель»: то же самое, по которому сборка
+  // построила форму строки. Билдер `item` вызывается один раз на строку.
+  const getSubtree = (im: unknown): RenderNode<unknown> =>
+    im == null || typeof im !== 'object' ? item(im) : schemaSubtree(item, im);
 
   return Array.from({ length }, (_, index) => {
     const model = control.at(index);
     const key = stableKey(model);
+    const subtree = getSubtree(model);
     return {
       key,
       index,
       model,
       element: (
-        <RenderNodeComponent key={key} node={getSubtree(model)} fieldWrapper={fieldWrapper} />
+        <ScopeBoundary key={key} model={model} tree={subtree}>
+          <RenderNodeComponent node={subtree} fieldWrapper={fieldWrapper} />
+        </ScopeBoundary>
       ),
     };
   });
@@ -348,12 +403,11 @@ export function useModelArrayItems(
 
 /** Однократное (на массив) предупреждение об узле без компонента-рендерера. */
 const warnedArrays = new WeakSet<object>();
-function warnArrayWithoutComponent(node: ArrayRenderNode<unknown>): void {
+function warnArrayWithoutComponent(control: RenderModelArrayControl): void {
   if (typeof console === 'undefined') return;
-  const control = node.array as unknown as object;
   if (warnedArrays.has(control)) return;
   warnedArrays.add(control);
-  const path = (node.array as { __path?: string }).__path;
+  const path = control.__path;
   console.warn(
     `[RenderSchema] Array node${path ? ` "${path}"` : ''} has no \`component\` — items are rendered ` +
       'without add/remove/reorder UI. Register an array component (e.g. `FormArray` from ' +
@@ -373,8 +427,9 @@ const ModelArrayFallback = memo(function ModelArrayFallback({
   node: ArrayRenderNode<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
-  const items = useModelArrayItems(node.array, node.item, fieldWrapper);
-  warnArrayWithoutComponent(node);
+  const control = arrayControlOf(node) as RenderModelArrayControl;
+  const items = useModelArrayItems(control, node.item, fieldWrapper);
+  warnArrayWithoutComponent(control);
   return <>{items.map((it) => it.element)}</>;
 });
 
@@ -396,16 +451,13 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
 }): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp = node.component as React.ComponentType<any>;
-  const control = node.array;
+  const control = arrayControlOf(node) as RenderModelArrayControl;
   const items = useModelArrayItems(control, node.item, fieldWrapper);
-  const { initialValue } = node;
 
-  // Колбэки стабильны по `control`/`initialValue` — иначе memo-компоненты потребителя ломались бы
-  // на каждый рендер секции.
-  const onAdd = useCallback(
-    () => control.push(resolveInitialValue(initialValue)),
-    [control, initialValue]
-  );
+  // Колбэки стабильны по `control` — иначе memo-компоненты потребителя ломались бы на каждый
+  // рендер секции. Новый элемент берётся из шаблона массива: `arrayOf(blank)` в модели либо
+  // `initialValue` узла, который сборка формы регистрирует запасным шаблоном.
+  const onAdd = useCallback(() => control.push(), [control]);
   const onRemove = useCallback((index: number) => control.removeAt(index), [control]);
   const onMove = useCallback((from: number, to: number) => control.move(from, to), [control]);
 
@@ -608,6 +660,13 @@ const RenderTextContent = memo(function RenderTextContent({
 });
 
 /**
+ * Отрисовать узел схемы. Передаётся пропом `renderNode` компонентам, которые управляют детьми
+ * сами (`__selfManagedChildren`): так UI-библиотека рисует полученные узлы, не зная о рендерере.
+ * Ссылка стабильна — пропсы memo-компонентов не дёргаются.
+ */
+const renderSchemaNode: RenderNodeFn = (node, key) => <RenderNodeComponent key={key} node={node} />;
+
+/**
  * Рекурсивный рендеринг узла {@link RenderNode}. Определяет тип узла и рендерит
  * соответственно: {@link ModelFieldRenderNode} → компонент поля с wrapper (значение
  * из сигнала модели, state — по сигналу через реестр), {@link ArrayRenderNode} → секция
@@ -645,6 +704,8 @@ export function RenderNodeComponent<T>({
   const propsOverride = usePropsOverride(selector);
   // Ref из registry (если зарегистрирован через schema.node(selector).getRef())
   const overrideMaps = useContext(RenderSchemaOverrideContext);
+  // Схема-контроллер сборки: есть при рендере бандла `createForm` (области по под-моделям).
+  const controllerContext = useContext(SchemaControllerContext);
   const nodeRef =
     selector && overrideMaps?.refRegistry.has(selector)
       ? overrideMaps.refRegistry.get(selector)
@@ -674,14 +735,48 @@ export function RenderNodeComponent<T>({
     return null;
   }
 
+  // Порядок веток: массив под-форм → подформа → поле → контейнер. Ручка массива — тоже ручка
+  // значения, поэтому `{ model, item }` узнаётся раньше поля.
+
+  // ========================================
+  // M1: ArrayRenderNode — массив под-форм { model, item }
+  // ========================================
+  if (isArrayRenderNode(node)) {
+    // Задан `component` ($component(FormArray)/$component(List)/своя секция) — рендерит он.
+    // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
+    return node.component ? (
+      <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
+    ) : (
+      <ModelArrayFallback node={node} fieldWrapper={fieldWrapper} />
+    );
+  }
+
+  // ========================================
+  // PartRenderNode — подформа { model, part }
+  // ========================================
+  const partModel = partModelOf(node);
+  if (partModel !== undefined) {
+    // Поддерево части — то же, по которому сборка привязала конфиг полей группы.
+    const subtree = schemaSubtree(
+      (node as { part: (model: unknown) => RenderNode<T> }).part,
+      partModel
+    );
+    return (
+      <ScopeBoundary model={partModel} tree={subtree}>
+        <RenderNodeComponent node={subtree} form={form} fieldWrapper={fieldWrapperProp} />
+      </ScopeBoundary>
+    );
+  }
+
   // ========================================
   // M1: ModelFieldRenderNode — лист на сигнале модели
   // ========================================
   if (isModelFieldRenderNode(node)) {
-    const fieldNode = getNodeForSignal(node.value) as FieldNode<unknown> | undefined;
+    const binding = fieldBindingOf(node) as Signal<unknown> & { __path?: string };
+    const fieldNode = getNodeForSignal(binding) as FieldNode<unknown> | undefined;
     if (!fieldNode) {
       if (typeof console !== 'undefined') {
-        const p = (node.value as { __path?: string }).__path;
+        const p = binding.__path;
         console.warn(
           `[RenderSchema] No form node for signal${p ? ` "${p}"` : ''} — render value-leaf after createForm.`
         );
@@ -691,10 +786,11 @@ export function RenderNodeComponent<T>({
     // Адресация ref листа: явный `selector` в приоритете, иначе — индексный путь модели
     // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FormArray
     // (`schema.node('phones.0.number').getRef()`) без перечисления индексов автором схемы.
-    const leafRefKey = selector ?? (node.value as { __path?: string }).__path;
-    const leafRef =
-      leafRefKey && overrideMaps?.refRegistry.has(leafRefKey)
-        ? overrideMaps.refRegistry.get(leafRefKey)
+    // Селектор ищется в своей области, а путь абсолютный — он ищется от корня сборки.
+    const leafRef = selector
+      ? overrideMaps?.refRegistry.get(selector)
+      : binding.__path
+        ? (controllerContext?.rootMaps ?? overrideMaps)?.refRegistry.get(binding.__path)
         : undefined;
     return (
       <ModelFieldRenderer
@@ -704,19 +800,6 @@ export function RenderNodeComponent<T>({
         nodeRef={leafRef}
         resolveFieldAdapter={settings?.resolveFieldAdapter}
       />
-    );
-  }
-
-  // ========================================
-  // M1: ArrayRenderNode — массив модели { array, item }
-  // ========================================
-  if (isArrayRenderNode(node)) {
-    // Задан `component` ($component(FormArray)/$component(List)/своя секция) — рендерит он.
-    // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
-    return node.component ? (
-      <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
-    ) : (
-      <ModelArrayFallback node={node} fieldWrapper={fieldWrapper} />
     );
   }
 
@@ -764,6 +847,8 @@ export function RenderNodeComponent<T>({
       // Такой компонент рендерит детей сам и ждёт УЗЛЫ — текстовые части ему не отдаём
       // (он бы попытался прочитать у строки `component`/`children`).
       const childrenProp = children !== undefined ? { children: nodesOnly(children) } : {};
+      // `renderNode` — способ отрисовать полученные узлы, не импортируя рендерер: компонент из
+      // UI-библиотеки (визард) зовёт его для тела шага.
       return (
         <SelfManagedComponent
           {...(selector !== undefined ? { selector } : {})}
@@ -771,6 +856,7 @@ export function RenderNodeComponent<T>({
           {...formProp}
           {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
           {...childrenProp}
+          renderNode={renderSchemaNode}
         />
       );
     }
