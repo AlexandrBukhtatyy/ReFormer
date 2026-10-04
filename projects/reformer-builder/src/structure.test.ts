@@ -29,71 +29,49 @@
  * переставшая быть нужной, роняет его тоже. Иначе список копил бы мёртвые строки,
  * а через год никто не знал бы, какие из них ещё что-то значат.
  *
+ * ## Правила — общие с доменами-плагинами проекта
+ *
+ * Сами правила (что считать модулем, пороги, служебные имена) лежат в `testing/structure`:
+ * теми же функциями свою раскладку проверяют домены ReFormer и RJSF, уехавшие из билдера
+ * в каталог плагинов проекта (`integration/structure.test.ts` домена).
+ *
  * @module structure.test
  */
 
 import { describe, expect, it } from 'vitest';
 import { readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-
-/** Сколько модулей в одном каталоге ещё читается списком. */
-const MODULE_LIMIT = 15;
+import {
+  dictionaryMisplaced,
+  DOMAIN_IN_ROOT_LIMIT,
+  domainModulesInRoot,
+  moduleCounts,
+  overLimit,
+  staleExceptions,
+  type LayoutExceptions,
+} from './testing/structure';
 
 /**
  * Каталоги, которым порог не писан, и почему.
  *
- * Планка исключения — не «сколько там сейчас», а «сколько допустимо»: она обязана оставлять
- * запас на рост, но падать, если каталог поедет дальше без разговора.
- *
  * Сейчас исключений нет: оба прежних (`ai/tools` и `core/form-model`) принадлежали домену
- * ReFormer, а он уехал из билдера в плагины проекта вместе со своими каталогами.
+ * ReFormer, а он уехал из билдера в плагины проекта вместе со своими каталогами — и своими
+ * исключениями.
  */
-const EXCEPTIONS: Readonly<Record<string, { readonly limit: number; readonly why: string }>> = {};
+const EXCEPTIONS: LayoutExceptions = {};
 
-/** Корневые каталоги `src/`, внутри которых считаем. */
-const ROOT = fileURLToPath(new URL('.', import.meta.url));
-
-const isModule = (name: string): boolean =>
-  /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) && !/\.browser\.test\.tsx?$/.test(name);
-
-/** Каталоги, которые не про исходники: снимки, голдены, фикстуры, словари. */
-const SKIP = new Set(['__golden__', '__fixtures__', '__snapshots__', 'locales', 'generated']);
-
-function moduleCounts(): Map<string, number> {
-  const counts = new Map<string, number>();
-  const walk = (absolute: string, relative: string): void => {
-    const entries = readdirSync(absolute);
-    let modules = 0;
-    for (const name of entries) {
-      const child = `${absolute}/${name}`;
-      if (statSync(child).isDirectory()) {
-        if (SKIP.has(name)) continue;
-        walk(child, relative === '' ? name : `${relative}/${name}`);
-      } else if (isModule(name)) {
-        modules += 1;
-      }
-    }
-    counts.set(relative === '' ? 'src' : relative, modules);
-  };
-  walk(ROOT.replace(/[\\/]$/, ''), '');
-  return counts;
-}
+/** Корневой каталог `src/`, внутри которого считаем. */
+const ROOT = fileURLToPath(new URL('.', import.meta.url)).replace(/[\\/]$/, '');
 
 describe('раскладка каталогов', () => {
-  const counts = moduleCounts();
+  const counts = moduleCounts(ROOT, 'src');
 
   it('в каталоге не больше пятнадцати модулей — или исключение с причиной', () => {
-    const over = [...counts]
-      .filter(([dir, n]) => n > (EXCEPTIONS[dir]?.limit ?? MODULE_LIMIT))
-      .map(([dir, n]) => `${dir}: ${n} модулей (порог ${EXCEPTIONS[dir]?.limit ?? MODULE_LIMIT})`);
-
-    expect(over).toEqual([]);
+    expect(overLimit(counts, EXCEPTIONS)).toEqual([]);
   });
 
   it('исключение, переставшее быть нужным, снимается', () => {
-    const stale = Object.keys(EXCEPTIONS).filter((dir) => (counts.get(dir) ?? 0) <= MODULE_LIMIT);
-
-    expect(stale).toEqual([]);
+    expect(staleExceptions(counts, EXCEPTIONS)).toEqual([]);
   });
 
   it('проверка не пуста: каталоги найдены и счёт ненулевой', () => {
@@ -112,26 +90,7 @@ describe('раскладка каталогов', () => {
  * доменных модулей и формально пройти. Поэтому корень проверяется отдельно — по СОСТАВУ.
  */
 describe('устройство плагина', () => {
-  /** Служебные имена контракта: их место — корень плагина, и только их. */
-  const SERVICE_NAMES = new Set([
-    'index.ts',
-    'plugin.ts',
-    'host.ts',
-    'contract.ts',
-    'messages.ts',
-    'testing.ts',
-  ]);
-
-  /**
-   * Сколько доменных модулей корень терпит, прежде чем их пора разложить.
-   *
-   * Ноль здесь был бы догмой: у валидатора схемы шесть чистых модулей без состояния, и шесть
-   * каталогов по одному файлу — это шум вместо навигации. Планка отделяет «маленький плагин
-   * живёт плоско» от «плагин пора разбирать».
-   */
-  const DOMAIN_IN_ROOT_LIMIT = 6;
-
-  const pluginsDir = `${ROOT.replace(/[\\/]$/, '')}/plugins`;
+  const pluginsDir = `${ROOT}/plugins`;
   const isDir = (path: string): boolean => statSync(path).isDirectory();
 
   /**
@@ -140,7 +99,7 @@ describe('устройство плагина', () => {
    */
   const DOMAIN_CORE = 'core';
 
-  /** Домены — первый уровень: `base`, `kits`, `reformer`, … */
+  /** Домены — первый уровень: `base`, `kits`, `plain`. */
   const domains = readdirSync(pluginsDir).filter((name) => isDir(`${pluginsDir}/${name}`));
 
   /** Плагины — второй уровень, `домен/плагин`; ядро домена в их число не входит. */
@@ -177,35 +136,12 @@ describe('устройство плагина', () => {
   });
 
   it('словарь плагина лежит в корне: по нему его находит проверка полноты', () => {
-    // i18n-completeness ищет словари по именам `locales` и `messages.ts` В КОРНЕ плагина.
-    // Уехавший в подкаталог словарь не сломает приложение — он просто выпадет из проверки,
-    // и его локали разъедутся молча. Поэтому условие охраняется здесь же.
-    const misplaced: string[] = [];
-    for (const name of plugins) {
-      const root = readdirSync(`${pluginsDir}/${name}`);
-      const hasDictionary = root.includes('locales') || root.includes('messages.ts');
-      if (hasDictionary) continue;
-      const deeper = root.some(
-        (entry) =>
-          statSync(`${pluginsDir}/${name}/${entry}`).isDirectory() &&
-          readdirSync(`${pluginsDir}/${name}/${entry}`).some(
-            (inner) => inner === 'locales' || inner === 'messages.ts'
-          )
-      );
-      if (deeper) misplaced.push(name);
-    }
-
-    expect(misplaced).toEqual([]);
+    expect(plugins.filter((name) => dictionaryMisplaced(`${pluginsDir}/${name}`))).toEqual([]);
   });
 
   it('доменная логика не копится в корне плагина', () => {
     const crowded = plugins
-      .map((name) => {
-        const domain = readdirSync(`${pluginsDir}/${name}`)
-          .filter((entry) => isModule(entry) && !SERVICE_NAMES.has(entry))
-          .filter((entry) => statSync(`${pluginsDir}/${name}/${entry}`).isFile());
-        return { name, domain };
-      })
+      .map((name) => ({ name, domain: domainModulesInRoot(`${pluginsDir}/${name}`) }))
       .filter(({ domain }) => domain.length > DOMAIN_IN_ROOT_LIMIT)
       .map(({ name, domain }) => `${name}: ${domain.length} доменных модулей в корне`);
 
