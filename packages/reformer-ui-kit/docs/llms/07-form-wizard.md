@@ -4,14 +4,73 @@
 `@reformer/cdk/form-wizard`. Один компонент покрывает все три флоу:
 TS-схема, renderer-react RenderSchema, renderer-json.
 
-## Базовое использование
+## В схеме формы
+
+Визард — обычный узел схемы. Шаги лежат в его `children`, форму и валидацию он берёт из сборки
+`createForm` сам. Прикладная обёртка, которая подставляла `form`, `config` и `steps`, не нужна.
+
+```tsx
+import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
+import { FormRenderer } from '@reformer/renderer-react';
+import { Step } from '@reformer/cdk/form-wizard';
+import { FormField, FormWizard, Input } from '@reformer/ui-kit';
+
+const creditSchema = (model: FormModel<CreditForm>) => ({
+  selector: 'wizard',
+  component: FormWizard,
+  children: [
+    {
+      selector: 'loan', // ключ правил шага в validation.steps
+      component: Step,
+      componentProps: { title: 'Кредит', icon: '💰' },
+      children: [{ model: model.$.loanAmount, component: Input }],
+    },
+    {
+      selector: 'contacts',
+      component: Step,
+      componentProps: { title: 'Контакты', icon: '📞' },
+      children: [{ model: model.$.phone, component: Input }],
+    },
+  ],
+});
+
+const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema }) => {
+  // Обработчик получает значения формы; зовётся только после успешной проверки всей формы.
+  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => api.submit(values));
+});
+
+const credit = useFormBundle(() =>
+  createForm<CreditForm>({
+    model: createCreditModel(),
+    schema: creditSchema,
+    behavior: creditBehavior,
+    validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossRules },
+  })
+);
+
+<FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
+```
+
+- **Шаг ↔ правила — по `selector`.** Переход «Далее» с шага проверяет `validation.steps[selector]`.
+  Перестановка шагов правила не сбивает. У шага без `selector` правила берутся по порядковому
+  номеру.
+- **Шаг без правил объявляется явно**: `confirm: null`. Шаг, которого нет в `validation.steps`,
+  и ключ, которому не нашлось шага, в dev дают предупреждение — иначе опечатка в селекторе молча
+  пропускала бы незаполненные обязательные поля.
+- Заголовок и иконка шага — `componentProps.title` и `componentProps.icon` узла шага.
+- Императивный доступ — `schema.node('wizard').getRef<FormWizardHandle<CreditForm>>()` в
+  поведении формы.
+- В JSON то же самое: `{ "component": "$component(FormWizard)", "children": [ шаги ] }`.
+
+## Базовое использование (разметка в JSX)
 
 ```tsx
 import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
-import { createModel, createForm, type FormProxy, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormProxy, type FormModel } from '@reformer/core';
 import {
   defineValidationSchema,
   validateModel,
@@ -51,7 +110,7 @@ const schema = {
     componentProps: { label: 'Подтверждаю' },
   },
 };
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 
 // Валидация — ОТДЕЛЬНЫЙ ambient-контракт `@reformer/core/validation`, а не поле layout-схемы.
 // Один шаг = одна `ValidationSchema<MyForm>` (`({ model }) => void`), правила поля —

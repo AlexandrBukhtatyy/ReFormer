@@ -117,13 +117,13 @@ import { Button } from '@reformer/ui-kit/button';
 ## Quick Start
 
 Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
-`createModel` → layout-схема → `createForm({ model, schema })`; валидация — отдельная
+`createModel` → layout-схема → `createFormFromModel({ model, schema })`; валидация — отдельная
 `defineValidationSchema`, запускаемая `validateModel`). `FormField` самостоятельно
 подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createForm, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
@@ -159,7 +159,7 @@ function RegistrationPage() {
       ],
     };
     // 3) createForm привязывает ноды к сигналам модели → FormProxy.
-    const form = createForm<RegistrationForm>({ model, schema });
+    const form = createFormFromModel<RegistrationForm>({ model, schema });
     return { model, form };
   }, []);
 

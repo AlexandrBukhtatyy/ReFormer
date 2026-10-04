@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormField } from './form-field';
 import { Input } from '@/components/input';
 
@@ -22,7 +22,7 @@ const TestInput = (props: Record<string, unknown>) => {
 function buildField(componentProps: Record<string, unknown>, component: any = TestInput) {
   const model = createModel<{ email: string }>({ email: '' });
   const schema = { children: [{ value: model.$.email, component, componentProps }] };
-  const form = createForm<{ email: string }>({ model, schema });
+  const form = createFormFromModel<{ email: string }>({ model, schema });
   return form.email as any;
 }
 

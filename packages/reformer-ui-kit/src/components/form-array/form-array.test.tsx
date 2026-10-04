@@ -9,7 +9,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createModel, createForm, type FormModel, type FormProxy } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel, type FormProxy } from '@reformer/core';
 import { FormArraySection } from './index';
 
 type Item = { name: string };
@@ -21,7 +21,7 @@ function buildArray(initial: Item[]): any {
     name: { value: item.$.name },
   });
   const schema = { items: { array: model.items, item: itemFn } } as any;
-  const form = createForm<{ items: Item[] }>({ model, schema });
+  const form = createFormFromModel<{ items: Item[] }>({ model, schema });
   return (form as any).items;
 }
 

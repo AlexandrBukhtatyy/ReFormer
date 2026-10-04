@@ -12964,6 +12964,14 @@
               "kind": "readonly"
             }
           },
+          "renderNode": {
+            "description": "Отрисовка узла схемы. Передаёт рендерер вместе с `children`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "((node: FormWizardStepNode, key?: Key | undefined) => ReactNode)",
+              "kind": "readonly"
+            }
+          },
           "renderStepBody": {
             "description": "Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и ComponentType; всё остальное (например узел RenderSchema) отдаётся сюда — так компонент не импортирует рендерер, а получает его как зависимость.",
             "x-doc": {

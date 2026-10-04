@@ -35,7 +35,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   </Section>
 );
 
-// Type-safe initialValue — generic выводится из control:
+// Generic выводится из control:
 <FormArraySection
   control={form.properties}                  // FormArrayProxy<Property>
   itemComponent={PropertyForm}
@@ -43,19 +43,25 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   addButtonLabel="+ Добавить имущество"
   emptyMessage="Нажмите «Добавить имущество» для добавления записи"
   hasItems={hasProperty}
-  initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 />
 
 // Если TS не выводит generic из union-типа control — укажите явно:
-<FormArraySection<Property>
-  control={form.properties}
-  itemComponent={PropertyForm}
-  initialValue={createProperty()}             // Partial<Property> — checked
-/>
+<FormArraySection<Property> control={form.properties} itemComponent={PropertyForm} />
 ```
 
-`initialValue` имеет тип `Partial<T>`, где `T` — тип элемента массива.
-Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
+Новый элемент кнопка «Добавить» берёт из шаблона массива — он объявляется в модели, рядом с
+остальными начальными значениями:
+
+```ts
+import { arrayOf, createModel } from '@reformer/core';
+
+const blankProperty = (): Property => ({ type: 'apartment', description: '', estimatedValue: 0 });
+
+const model = createModel<CreditApplication>({ properties: arrayOf(blankProperty) });
+```
+
+Проп `initialValue` (`Partial<T>`) остаётся запасным путём — для массива, у модели которого
+шаблона нет. Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
 
 ## Renderer-react RenderSchema
 
@@ -75,14 +81,15 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
     itemComponent: PropertyForm, // FC напрямую
     title: 'Имущество',
     addButtonLabel: '+ Добавить имущество',
-    initialValue: createBlankProperty(),
   },
 }));
 ```
 
 ui-kit FormArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
 
-> Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }`.
+> Основной способ в схеме — узел-массив с компонентом `FormArray`:
+> `{ model: model.$.properties, component: FormArray, item: (model) => ({ children: [{ model: model.$.type, component }] }) }`.
+> Строка описывается в той же схеме, а не отдельным React-компонентом.
 
 ## JSON (renderer-json)
 
@@ -162,7 +169,7 @@ defineRegistry((reg) => {
 | `emptyMessage`       | `string`                                                     | —                                    | Сообщение при пустом массиве                                       |
 | `emptyMessageHint`   | `string`                                                     | —                                    | Подсказка под emptyMessage                                         |
 | `hasItems`           | `boolean`                                                    | —                                    | `false` → секция полностью скрыта                                  |
-| `initialValue`       | `Partial<T>`                                                 | —                                    | Plain-leaf значения для новых items                                |
+| `initialValue`       | `Partial<T>`                                                 | —                                    | Запасной шаблон нового item; основной — `arrayOf(blank)` в модели  |
 | `showRemoveOnSingle` | `boolean`                                                    | `false`                              | Показывать «Удалить» при одном item                                |
 | `reorderable`        | `boolean`                                                    | `false`                              | Показывать кнопки ↑/↓ для перестановки элементов                   |
 | `maxItems`           | `number`                                                     | —                                    | Максимум items (AddButton скрывается при достижении)               |

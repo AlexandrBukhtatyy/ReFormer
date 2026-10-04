@@ -71,7 +71,7 @@ interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
 label сверху):
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ accept: boolean }>({ accept: false });
@@ -80,7 +80,7 @@ const schema = {
     { value: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
   ],
 };
-const form = createForm<{ accept: boolean }>({ model, schema });
+const form = createFormFromModel<{ accept: boolean }>({ model, schema });
 
 <FormField control={form.accept} testId="accept" />;
 ```
@@ -178,7 +178,7 @@ const LOAN_TYPES = [
 В составе формы:
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 
 const model = createModel<{ loanType: string }>({ loanType: 'consumer' });
 const schema = {
@@ -190,7 +190,7 @@ const schema = {
     },
   ],
 };
-const form = createForm<{ loanType: string }>({ model, schema });
+const form = createFormFromModel<{ loanType: string }>({ model, schema });
 
 <FormField control={form.loanType} testId="loan-type" />;
 ```
@@ -370,7 +370,7 @@ Grouped options:
 В составе формы:
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 
 const model = createModel<{ city: string }>({ city: '' });
 const schema = {
@@ -388,7 +388,7 @@ const schema = {
     },
   ],
 };
-const form = createForm<{ city: string }>({ model, schema });
+const form = createFormFromModel<{ city: string }>({ model, schema });
 
 <FormField control={form.city} testId="city" />;
 ```
@@ -586,7 +586,7 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 Выбор одного файла из объявленного дерева:
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import { ComboboxTree } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
@@ -618,7 +618,7 @@ const schema = {
     },
   },
 };
-const form = createForm<{ entry: string | null }>({ model, schema });
+const form = createFormFromModel<{ entry: string | null }>({ model, schema });
 
 <FormField control={form.entry} testId="entry" />;
 ```

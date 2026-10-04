@@ -128,7 +128,7 @@ const model = createModel<{ accept: boolean }>({ accept: false }); // false, н�
 const schema = {
   children: [{ value: model.$.accept, component: CheckboxWithLabel }],
 };
-const form = createForm<{ accept: boolean }>({ model, schema });
+const form = createFormFromModel<{ accept: boolean }>({ model, schema });
 ```
 
 ## 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
