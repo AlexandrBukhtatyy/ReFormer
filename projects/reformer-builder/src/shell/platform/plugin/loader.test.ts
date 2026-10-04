@@ -126,6 +126,95 @@ describe('обнаружение плагинов', () => {
   });
 });
 
+describe('каталог домена', () => {
+  it('плагины лежат уровнем ниже, идентификатор — из манифеста, ядро плагином не считается', async () => {
+    const { loader } = createHarness({
+      [dir('acme', 'core/index.js')]: 'exports.shared = 1;',
+      [dir('acme', 'editor/manifest.json')]: manifestOf({ id: 'acme.forms.editor' }),
+      [dir('acme', 'editor/main.js')]: pluginCode('acme.forms.editor'),
+      [dir('acme', 'render/manifest.json')]: manifestOf({ id: 'acme.forms.render' }),
+      [dir('acme', 'render/main.js')]: pluginCode('acme.forms.render'),
+      [dir('zeta', 'manifest.json')]: manifestOf({ id: 'zeta' }),
+    });
+
+    const found = await loader.discover();
+
+    expect(found.map((f) => [f.id, f.dir, f.problem?.code])).toEqual([
+      ['acme.forms.editor', `${PLUGIN_CATALOG_DIR}/acme/editor`, undefined],
+      ['acme.forms.render', `${PLUGIN_CATALOG_DIR}/acme/render`, undefined],
+      ['zeta', `${PLUGIN_CATALOG_DIR}/zeta`, undefined],
+    ]);
+    expect(found[0].manifest?.source).toEqual({ kind: 'project', dir: 'editor', group: 'acme' });
+
+    const result = await loader.load(found[0]);
+    expect(result.ok && result.loaded.plugin.id).toBe('acme.forms.editor');
+  });
+
+  it('несобранный плагин домена виден строкой с причиной, под идентификатором из исходников', async () => {
+    const { loader } = createHarness({
+      [dir('acme', 'editor/manifest.json')]: manifestOf({ id: 'acme.forms.editor' }),
+      [dir('acme', 'render/package.json')]: '{}',
+      [dir('acme', 'render/src/manifest.json')]: manifestOf({ id: 'acme.forms.render' }),
+    });
+
+    const found = await loader.discover();
+
+    expect(found.map((f) => [f.id, f.problem?.code])).toEqual([
+      ['acme.forms.editor', undefined],
+      ['acme.forms.render', 'manifest-missing'],
+    ]);
+    expect(found[1].problem?.message).toContain('acme/render');
+  });
+
+  it('пакет плагина без сборки — не домен: из исходников он не поднимается', async () => {
+    const { loader } = createHarness({
+      [dir('acme-forms', 'package.json')]: '{}',
+      [dir('acme-forms', 'src/manifest.json')]: manifestOf({ id: 'acme-forms', main: 'main.ts' }),
+      [dir('acme-forms', 'src/main.ts')]: 'export default { id: "acme-forms", activate() {} };',
+      [dir('acme-forms', 'dist/manifest.json')]: manifestOf({ id: 'acme-forms' }),
+      [dir('acme-forms', 'dist/main.js')]: pluginCode('acme-forms'),
+    });
+
+    const found = await loader.discover();
+
+    expect(found.map((f) => [f.id, f.problem?.code])).toEqual([['acme-forms', 'manifest-missing']]);
+  });
+
+  it('второй каталог с тем же идентификатором — отказ, рабочий плагин он не затирает', async () => {
+    const { loader } = createHarness({
+      [dir('acme', 'editor/manifest.json')]: manifestOf({ id: 'zeta' }),
+      [dir('zeta', 'manifest.json')]: manifestOf({ id: 'zeta' }),
+    });
+
+    const found = await loader.discover();
+
+    // Спор выигрывает плагин верхнего уровня: его идентификатор — имя его каталога.
+    expect(found.map((f) => [f.id, f.problem?.code])).toEqual([
+      ['acme/editor', 'id-taken'],
+      ['zeta', undefined],
+    ]);
+    expect(found[0].problem?.message).toContain(`${PLUGIN_CATALOG_DIR}/zeta`);
+  });
+});
+
+describe('пакет, собранный на месте', () => {
+  it('исходники и сборка для поставки лежат рядом, но в набор файлов не идут', async () => {
+    const { loader } = createHarness({
+      [dir('acme-forms', 'manifest.json')]: manifestOf({ id: 'acme-forms' }),
+      [dir('acme-forms', 'main.js')]: pluginCode('acme-forms'),
+      [dir('acme-forms', 'src/manifest.json')]: manifestOf({ id: 'acme-forms', main: 'main.ts' }),
+      [dir('acme-forms', 'src/main.ts')]: 'export default { id: "acme-forms", activate() {} };',
+      [dir('acme-forms', 'src/ui/view.tsx')]: 'export const View = () => null;',
+      [dir('acme-forms', 'dist/manifest.json')]: manifestOf({ id: 'acme-forms' }),
+      [dir('acme-forms', 'dist/main.js')]: pluginCode('acme-forms'),
+    });
+
+    const result = await loader.load((await loader.discover())[0]);
+
+    expect(result.ok && result.loaded.files).toEqual(['main.js']);
+  });
+});
+
 describe('загрузка кода плагина', () => {
   const load = async (harness: Harness, id = 'acme-forms') => {
     const found = (await harness.loader.discover()).find((f) => f.id === id);

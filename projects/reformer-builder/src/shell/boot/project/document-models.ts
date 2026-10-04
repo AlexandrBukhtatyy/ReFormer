@@ -81,6 +81,16 @@ export interface DocumentModelsOptions {
    * `TextEditorFocusToken`: в него пишет каждый текстовый редактор, включая внешний.
    */
   readonly isTextEditorFocused?: (id: ResourceId) => boolean;
+  /**
+   * Дождаться, пока состав провайдеров модели сложится.
+   *
+   * Провайдеры вносят и плагины ПРОЕКТА, а они поднимаются после открытия проекта, отдельной
+   * цепочкой. Вид документа решается один раз, при открытии: вкладка, восстановленная раньше
+   * (или файл, по которому щёлкнули в первые мгновения), осталась бы текстовой до закрытия —
+   * форма без своего редактора. Поэтому открытие ждёт этот сигнал. Отказ ожидания открытия
+   * не отменяет: документ откроется с теми провайдерами, что есть.
+   */
+  readonly providersReady?: () => Promise<void>;
   readonly historyLimit?: number;
   /**
    * Каталог изменился: в нём появился файл части составного документа. Дерево проекта само
@@ -185,8 +195,10 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
       if (existing !== undefined) return existing.document;
       if (document.kind === 'model') return document;
 
+      await options.providersReady?.().catch(() => undefined);
       const parts = await preloadParts(document, extensions, partsAccess(id));
-      // Пока читались части, тот же ресурс мог открыться вторым вызовом — надстройка одна.
+      // Пока ждали состав и читались части, тот же ресурс мог открыться вторым вызовом —
+      // надстройка одна.
       const raced = handles.get(id);
       if (raced !== undefined) return raced.document;
 

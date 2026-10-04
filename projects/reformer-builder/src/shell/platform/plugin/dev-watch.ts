@@ -113,10 +113,13 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
   ): Promise<ReadonlyMap<string, string | undefined> | null> => {
     const revisions = new Map<string, string | undefined>();
     const queue: string[] = [''];
+    // Каталог — из списка, а не из идентификатора: в каталоге домена они не совпадают.
+    const root =
+      deps.catalog.list().find((item) => item.id === pluginId)?.dir ?? `${dir}/${pluginId}`;
     try {
       while (queue.length > 0) {
         const relative = queue.shift() as string;
-        const base = relative === '' ? `${dir}/${pluginId}` : `${dir}/${pluginId}/${relative}`;
+        const base = relative === '' ? root : `${root}/${relative}`;
         const entries = [...(await source.list(base))].sort((a, b) =>
           a.name < b.name ? -1 : a.name > b.name ? 1 : 0
         );
@@ -129,7 +132,7 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
             continue;
           }
           if (revisions.size >= statLimit) return revisions;
-          const stat = await source.stat(`${dir}/${pluginId}/${path}`);
+          const stat = await source.stat(`${root}/${path}`);
           revisions.set(path, stat?.revision);
         }
       }
@@ -282,12 +285,17 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
         continue;
       }
       if (!path.startsWith(prefix)) continue;
-      const pluginId = path.slice(prefix.length).split('/')[0];
-      if (pluginId !== undefined && pluginId !== '') touched.add(pluginId);
+      touched.add(path);
     }
     if (touched.size === 0) return;
     const entries = deps.catalog.list();
-    for (const pluginId of touched) {
+    // Плагин — тот, в чьём каталоге лежит сохранённый файл; каталог берётся из списка.
+    const owners = new Set(
+      [...touched].flatMap(
+        (path) => entries.find((item) => path.startsWith(`${item.dir}/`))?.id ?? []
+      )
+    );
+    for (const pluginId of owners) {
       const entry = entries.find((item) => item.id === pluginId);
       if (entry !== undefined && watched(entry)) requestReload(pluginId);
     }

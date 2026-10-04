@@ -20,9 +20,14 @@ import { createPluginDevWatch } from './dev-watch';
 
 const SOURCE_ID = 'memory';
 
-function entry(id: string, state: ProjectPluginState, dev: boolean): ProjectPluginEntry {
+function entry(
+  id: string,
+  state: ProjectPluginState,
+  dev: boolean,
+  dir = `.ui_builder/plugins/${id}`
+): ProjectPluginEntry {
   // Слой здесь ни на что не влияет: наблюдение за файлами одинаково для обоих.
-  return { id, name: id, state, dev, layer: 'project' };
+  return { id, dir, name: id, state, dev, layer: 'project' };
 }
 
 /** Каталог-двойник: список подставляется тестом, вызовы записываются. */
@@ -114,7 +119,14 @@ const FILES = {
   '.ui_builder/plugins/demo/main.ts': 'export default 1;',
   '.ui_builder/plugins/other/manifest.json': '{"id":"other"}',
   '.ui_builder/plugins/other/main.ts': 'export default 2;',
+  // Плагин из каталога домена: каталог назван ролью, идентификатор — из манифеста.
+  '.ui_builder/plugins/acme/editor/manifest.json': '{"id":"acme.forms.editor"}',
+  '.ui_builder/plugins/acme/editor/main.js': 'module.exports = 1;',
 };
+
+/** Запись плагина домена: его каталог идентификатору не равен. */
+const domainEntry = (): ProjectPluginEntry =>
+  entry('acme.forms.editor', 'enabled', true, '.ui_builder/plugins/acme/editor');
 
 interface Rig {
   memory: MemorySource;
@@ -254,6 +266,27 @@ describe('сохранение из встроенного редактора', 
 
     rig.events.emit(WorkspaceDidChange, savedChange('.ui_builder/plugins/demo/main.ts'));
     await until(() => rig.fake.calls.includes('reload:demo'), 'перезагрузка по сохранению');
+    rig.watch.dispose();
+  });
+
+  it('плагин домена находится по своему каталогу, а не по идентификатору', async () => {
+    const rig = createRig([domainEntry()]);
+    await until(
+      () =>
+        rig.memory.calls.some(
+          (call) =>
+            call.op === 'stat' && call.path === '.ui_builder/plugins/acme/editor/manifest.json'
+        ),
+      'база плагина домена'
+    );
+
+    rig.memory.put('.ui_builder/plugins/acme/editor/main.js', 'module.exports = 2;');
+    rig.focus();
+    await until(() => rig.fake.calls.length === 1, 'перезагрузка по фокусу');
+
+    rig.events.emit(WorkspaceDidChange, savedChange('.ui_builder/plugins/acme/editor/main.js'));
+    await until(() => rig.fake.calls.length === 2, 'перезагрузка по сохранению');
+    expect(rig.fake.calls).toEqual(['reload:acme.forms.editor', 'reload:acme.forms.editor']);
     rig.watch.dispose();
   });
 

@@ -83,6 +83,11 @@ export type ProjectPluginLayer = 'project' | 'installed';
 /** Строка списка плагинов — всё, что нужно показать человеку. */
 export interface ProjectPluginEntry {
   readonly id: string;
+  /**
+   * Каталог плагина внутри источника его слоя. Идентификатору он равен не всегда: плагин
+   * из каталога домена лежит в `<домен>/<плагин>`.
+   */
+  readonly dir: string;
   /** Имя из манифеста; у неразобранного — идентификатор каталога. */
   readonly name: string;
   readonly version?: string;
@@ -323,6 +328,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       problem !== undefined ? 'failed' : enabled.has(record.found.id) ? 'enabled' : 'disabled';
     return {
       id: record.found.id,
+      dir: record.found.dir,
       name: manifest?.name ?? record.found.id,
       version: manifest?.version,
       state,

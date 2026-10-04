@@ -72,7 +72,11 @@ import { BUILDER_VERSION } from '@/shell/platform/version';
  * ничего бы не дал.
  */
 export interface DiscoveredPlugin {
-  /** Имя каталога. Оно же идентификатор — совпадение проверено при разборе манифеста. */
+  /**
+   * Идентификатор. У плагина верхнего уровня он же имя каталога — совпадение проверено при
+   * разборе манифеста; у плагина из каталога домена — объявленный манифестом. У битого, чей
+   * манифест не прочитан, — путь каталога от каталога плагинов (`<домен>/<плагин>`).
+   */
   readonly id: string;
   /** Путь каталога плагина внутри источника. */
   readonly dir: string;
@@ -200,6 +204,56 @@ function resolveEntry(files: ReadonlyMap<string, string>, main: string): string 
   return undefined;
 }
 
+const isManifestFile = (entry: Entry): boolean =>
+  entry.kind === 'file' && entry.name === PLUGIN_MANIFEST_FILE;
+
+/**
+ * Каталог исходников пакета плагина, собираемого на месте: `<плагин>/src/manifest.json` — манифест
+ * для сборки, а собранный лежит в корне каталога плагина (см. `reformer-plugin build src --out .`).
+ */
+const PLUGIN_SOURCES_DIR = 'src';
+
+/** `package.json` в каталоге без манифеста: пакет плагина, который не собрали, а не каталог домена. */
+const PACKAGE_FILE = 'package.json';
+
+/** Манифест каталога: текст — или почему его нет. */
+type ManifestRead =
+  | { readonly text: string }
+  | { readonly text?: undefined; readonly missing: boolean; readonly error: unknown };
+
+async function readManifest(source: PluginFilesSource, pluginDir: string): Promise<ManifestRead> {
+  try {
+    return { text: (await source.read(joinPath(pluginDir, PLUGIN_MANIFEST_FILE))).text };
+  } catch (error) {
+    return { missing: isSourceError(error, 'not-found'), error };
+  }
+}
+
+/** Отказ «манифеста нет / он не читается» — `label` называет каталог так, как его видит человек. */
+function manifestProblem(
+  label: string,
+  read: Extract<ManifestRead, { missing: boolean }>
+): PluginProblem {
+  return {
+    code: read.missing ? 'manifest-missing' : 'manifest-unreadable',
+    message: read.missing
+      ? `в каталоге «${label}» нет ${PLUGIN_MANIFEST_FILE}`
+      : `${PLUGIN_MANIFEST_FILE} не читается: ${describe(read.error)}`,
+    file: PLUGIN_MANIFEST_FILE,
+    cause: read.error,
+  };
+}
+
+/** `id` из текста манифеста, если он там есть и это строка. Разбор целиком здесь не нужен. */
+function declaredId(text: string): string | undefined {
+  try {
+    const id = (JSON.parse(text) as { id?: unknown }).id;
+    return typeof id === 'string' && id !== '' ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Читаемые записи одного уровня. Отсутствие каталога — пустой уровень, а не отказ. */
 async function listOrEmpty(source: PluginFilesSource, dir: string): Promise<readonly Entry[]> {
   try {
@@ -233,6 +287,10 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
     while (queue.length > 0) {
       const relative = queue.shift() as string;
       const entries = await listOrEmpty(source, joinPath(pluginDir, relative));
+      // Подкаталог со своим манифестом — другое дерево: исходники пакета (`src/`) или его сборка
+      // для поставки (`dist/`). Плагину, собранному в корень каталога, оно не нужно, а прочитанное
+      // целиком шло бы в счёт предела файлов — у большого плагина это сотни исходников.
+      if (relative !== '' && entries.some(isManifestFile)) continue;
       for (const entry of entries) {
         if (entry.name.startsWith('.')) continue;
         if (entry.kind === 'directory') {
@@ -260,6 +318,99 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
     return { ok: true, files };
   };
 
+  /**
+   * Плагины каталога ДОМЕНА — `<домен>/<плагин>/manifest.json`, уровнем ниже обычного.
+   *
+   * Домен держит рядом несколько плагинов и их общее ядро (`rjsf/core`, `rjsf/editor`,
+   * `rjsf/render`). Каталог плагина назван там ролью, поэтому идентификатор берётся из манифеста,
+   * а не из имени каталога.
+   *
+   * Домен узнаётся по тому, чего в нём НЕТ: ни манифеста, ни `package.json`. Каталог
+   * с `package.json` без манифеста — пакет плагина, который не собрали: о нём сообщает вызывающий,
+   * а заглядывать в его `src/` значило бы молча поднять плагин из исходников.
+   *
+   * Внутри домена плагин — подкаталог с манифестом. Подкаталог, где манифест есть только
+   * в `src/`, — плагин домена, который не собрали: он виден строкой с причиной. Всё остальное
+   * (ядро домена) плагином не является и пропускается.
+   *
+   * @returns `undefined` — каталог не домен: плагинов в нём нет.
+   */
+  const discoverDomain = async (
+    source: PluginFilesSource,
+    domain: string
+  ): Promise<readonly DiscoveredPlugin[] | undefined> => {
+    const domainDir = joinPath(dir, domain);
+    const entries = await listOrEmpty(source, domainDir);
+    if (entries.some((entry) => entry.kind === 'file' && entry.name === PACKAGE_FILE)) {
+      return undefined;
+    }
+
+    const members: DiscoveredPlugin[] = [];
+    for (const entry of entries) {
+      if (entry.kind !== 'directory' || entry.name.startsWith('.')) continue;
+      if (PLUGIN_SKIPPED_DIRS.includes(entry.name)) continue;
+      const pluginDir = joinPath(domainDir, entry.name);
+      const label = `${domain}/${entry.name}`;
+
+      const read = await readManifest(source, pluginDir);
+      if (read.text !== undefined) {
+        const parsed = parsePluginManifest(
+          read.text,
+          { kind: 'project', dir: entry.name, group: domain },
+          { builder: BUILDER_VERSION }
+        );
+        members.push(
+          parsed.ok
+            ? { id: parsed.manifest.id, dir: pluginDir, manifest: parsed.manifest }
+            : { id: declaredId(read.text) ?? label, dir: pluginDir, problem: parsed.problem }
+        );
+        continue;
+      }
+      if (!read.missing) {
+        members.push({ id: label, dir: pluginDir, problem: manifestProblem(label, read) });
+        continue;
+      }
+      const sources = await readManifest(source, joinPath(pluginDir, PLUGIN_SOURCES_DIR));
+      if (sources.text === undefined) continue;
+      members.push({
+        id: declaredId(sources.text) ?? label,
+        dir: pluginDir,
+        problem: manifestProblem(label, read),
+      });
+    }
+    return members.length > 0 ? members : undefined;
+  };
+
+  /**
+   * Один идентификатор — один плагин. В домене идентификатор объявляет манифест, и совпасть
+   * с соседом ему ничто не мешает. Второй каталог с тем же идентификатором остаётся в списке
+   * отказом — под ПУТЁМ каталога вместо идентификатора: под занятым именем он затёр бы
+   * в каталоге плагинов запись рабочего.
+   */
+  const withoutDuplicates = (found: readonly DiscoveredPlugin[]): readonly DiscoveredPlugin[] => {
+    // Плагин верхнего уровня владеет своим идентификатором без спора: у него это имя каталога.
+    const owners = new Map<string, string>();
+    for (const item of found) {
+      if (item.dir === joinPath(dir, item.id)) owners.set(item.id, item.dir);
+    }
+    return found.map((item) => {
+      const owner = owners.get(item.id);
+      if (owner === undefined || owner === item.dir) {
+        owners.set(item.id, item.dir);
+        return item;
+      }
+      return {
+        id: item.dir.slice(dir.length + 1),
+        dir: item.dir,
+        problem: {
+          code: 'id-taken',
+          message: `идентификатор «${item.id}» уже занят плагином из каталога «${owner}»`,
+          file: PLUGIN_MANIFEST_FILE,
+        },
+      };
+    });
+  };
+
   return {
     dir,
 
@@ -275,30 +426,22 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
         // ошибкой это назвать не за что.
         if (entry.kind !== 'directory' || entry.name.startsWith('.')) continue;
         const pluginDir = joinPath(dir, entry.name);
-        const manifestPath = joinPath(pluginDir, PLUGIN_MANIFEST_FILE);
 
-        let text: string;
-        try {
-          text = (await source.read(manifestPath)).text;
-        } catch (error) {
-          const missing = isSourceError(error, 'not-found');
-          found.push({
-            id: entry.name,
-            dir: pluginDir,
-            problem: {
-              code: missing ? 'manifest-missing' : 'manifest-unreadable',
-              message: missing
-                ? `в каталоге «${entry.name}» нет ${PLUGIN_MANIFEST_FILE}`
-                : `${PLUGIN_MANIFEST_FILE} не читается: ${describe(error)}`,
-              file: PLUGIN_MANIFEST_FILE,
-              cause: error,
-            },
-          });
+        const read = await readManifest(source, pluginDir);
+        if (read.text === undefined) {
+          const members = read.missing ? await discoverDomain(source, entry.name) : undefined;
+          if (members !== undefined) found.push(...members);
+          else
+            found.push({
+              id: entry.name,
+              dir: pluginDir,
+              problem: manifestProblem(entry.name, read),
+            });
           continue;
         }
 
         const parsed = parsePluginManifest(
-          text,
+          read.text,
           { kind: 'project', dir: entry.name },
           { builder: BUILDER_VERSION }
         );
@@ -309,7 +452,7 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
         );
       }
 
-      return found;
+      return withoutDuplicates(found);
     },
 
     async load(found: DiscoveredPlugin): Promise<PluginLoadResult> {

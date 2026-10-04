@@ -529,6 +529,15 @@ export function boot(options: BootOptions): BuilderApp {
   // и второй копии просто неоткуда взяться.
   services.register(TextEditorFocusToken, createTextEditorFocusRegistry());
   services.register(EditorViewStatesToken, createEditorViewStates());
+  /**
+   * Поднялись ли плагины каталога проекта. Подставляется ниже, когда появится их цепочка
+   * (`syncProjectPlugins`): открытие документа ждёт её, иначе провайдер модели из плагина
+   * проекта вносился бы уже после того, как вид документа решён.
+   *
+   * Ожидание не может зациклиться на самом себе: `activate` синхронный, и открыть документ
+   * изнутри цепочки плагин не может.
+   */
+  let projectPluginsSettled = (): Promise<void> => Promise.resolve();
   const project = createProjectHost({
     journals,
     sources,
@@ -541,6 +550,7 @@ export function boot(options: BootOptions): BuilderApp {
     // Через реестр, а не захваченным объектом: владелец состояния — служба, и спрашивать
     // её в момент вопроса дешевле, чем следить за тем, чтобы копия не разошлась.
     isTextEditorFocused: (id) => services.get(TextEditorFocusToken)?.isFocused(id) ?? false,
+    modelProvidersReady: () => projectPluginsSettled(),
     events,
     diagnostics,
     validation,
@@ -923,6 +933,7 @@ export function boot(options: BootOptions): BuilderApp {
       });
     return syncing;
   };
+  projectPluginsSettled = () => syncing;
   const projectPluginsSubscription = project.subscribe(() => void syncProjectPlugins());
 
   // Раскладка создаётся ЗДЕСЬ, ниже каталога проекта: слой правила зависит от того, откуда

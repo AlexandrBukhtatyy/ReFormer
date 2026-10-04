@@ -130,6 +130,8 @@ export interface ProjectHostOptions {
   readonly extensions?: Pick<ExtensionRegistry, 'get'>;
   /** В фокусе ли текстовый редактор документа — см. {@link WorkspaceSessionOptions}. */
   readonly isTextEditorFocused?: (id: ResourceId) => boolean;
+  /** Сложился ли состав провайдеров модели — см. {@link WorkspaceSessionOptions}. */
+  readonly modelProvidersReady?: () => Promise<void>;
   readonly events?: EventBus;
   readonly diagnostics?: DiagnosticsSink;
   readonly validation?: ValidationOrchestrator;
@@ -256,6 +258,7 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
       whenContext,
       extensions: options.extensions,
       isTextEditorFocused: options.isTextEditorFocused,
+      modelProvidersReady: options.modelProvidersReady,
       events: options.events,
       diagnostics: options.diagnostics,
       validation: options.validation,
