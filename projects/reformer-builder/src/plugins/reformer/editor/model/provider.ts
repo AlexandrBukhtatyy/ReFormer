@@ -43,7 +43,7 @@
  * @module plugins/reformer/editor/model/provider
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { ensureNodeIds, newNodeId, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import {
   ensureSchema,

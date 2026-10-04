@@ -28,7 +28,10 @@
  * @module plugins/reformer/ai/model/node-ref
  */
 
-import type { JsonNode, JsonFormSchema } from '@reformer/renderer-json';
+import type {
+  JsonNodeV1 as JsonNode,
+  JsonFormSchemaV1 as JsonFormSchema,
+} from '@reformer/renderer-json';
 import { componentOf, modelOf } from '@/plugins/reformer/core/form-model';
 import { isNodeLike } from '@/plugins/reformer/core/form-model';
 import { fromPointer, getAt, toPointer, type JsonPath } from '@/plugins/reformer/core/form-model';

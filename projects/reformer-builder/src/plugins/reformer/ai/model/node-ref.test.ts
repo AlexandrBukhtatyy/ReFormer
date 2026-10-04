@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { appendNode } from '@/plugins/reformer/core/form-model';
 import { emptySchema } from '@/plugins/reformer/core/form-model';
 import { getAt } from '@/plugins/reformer/core/form-model';

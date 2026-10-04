@@ -29,7 +29,7 @@
  * @module plugins/reformer/ai/session/bridge
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '@/plugins/reformer/core/form-model';
 import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
 import { applyChangeSet } from './apply';

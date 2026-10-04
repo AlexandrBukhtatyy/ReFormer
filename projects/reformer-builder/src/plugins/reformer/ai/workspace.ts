@@ -34,7 +34,7 @@
  */
 
 import { projectCatalog, type CatalogEntry } from '@/plugins/reformer/core/catalog';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import {
   KitsCapability,
   DocumentModelsCapability,

@@ -19,7 +19,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { useMemo, type ReactElement } from 'react';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { sampleSchema } from '@/plugins/reformer/core/testing';
 import { NODE_CLASS_PREFIX } from '@/plugins/reformer/core/form-model';

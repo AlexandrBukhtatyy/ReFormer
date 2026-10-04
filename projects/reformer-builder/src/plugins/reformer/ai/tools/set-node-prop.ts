@@ -11,7 +11,10 @@
  * @module plugins/reformer/ai/tools/set-node-prop
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { toInspectorProps } from '@/plugins/reformer/core/catalog';
 import { setComponentProp, setTextChild, textChildIndex } from '@/plugins/reformer/core/form-model';
 import { catalogEntry, type Catalog } from '../model/catalog-digest';

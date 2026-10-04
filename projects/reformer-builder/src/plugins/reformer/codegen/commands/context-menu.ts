@@ -44,7 +44,7 @@ import {
   SCHEMA_FILE_NAMES,
 } from '@/plugins/reformer/core/codegen';
 import { isFormSchema } from '@/plugins/reformer/core/form-model';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import {
   argsOfResource,
   asResourceTarget,

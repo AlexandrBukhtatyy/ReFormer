@@ -6,7 +6,12 @@
  * @module plugins/reformer/core/form-model/normalize
  */
 
-import type { ComponentOp, HtmlOp, JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  ComponentOp,
+  HtmlOp,
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
 
 /** Пустая схема для standalone-режима: корень — Box со `space-y-4`, без детей. */

@@ -21,13 +21,13 @@
  */
 
 import {
-  isArrayNode,
-  isContainerNode,
-  isFieldNode,
+  isArrayNodeV1 as isArrayNode,
+  isContainerNodeV1 as isContainerNode,
+  isFieldNodeV1 as isFieldNode,
   parseOperator,
-  type JsonArrayNode,
-  type JsonContainerNode,
-  type JsonNode,
+  type JsonArrayNodeV1 as JsonArrayNode,
+  type JsonContainerNodeV1 as JsonContainerNode,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import type { JsonPath } from './paths';
 import { LEAF_COMPONENT_NAMES } from '../kits/defaults';

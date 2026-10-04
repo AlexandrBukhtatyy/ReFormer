@@ -10,7 +10,12 @@
  * @module plugins/reformer/core/form-model/node-ref
  */
 
-import { isArrayNode, isFieldNode, parseOperator, type JsonNode } from '@reformer/renderer-json';
+import {
+  isArrayNodeV1 as isArrayNode,
+  isFieldNodeV1 as isFieldNode,
+  parseOperator,
+  type JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 
 /** Синтетическое каталожное имя array-узла без явного `component`. */
 export const ARRAY_COMPONENT_NAME = 'FormArray';

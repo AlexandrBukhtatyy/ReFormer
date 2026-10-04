@@ -8,7 +8,7 @@
  * @module plugins/reformer/ai/tools/insert-node
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { makeNodeFor } from '@/plugins/reformer/core/catalog';
 import { insertNode } from '@/plugins/reformer/core/form-model';
 import { catalogEntry, componentNames, type Catalog } from '../model/catalog-digest';

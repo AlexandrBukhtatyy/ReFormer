@@ -12,7 +12,10 @@
  * @module plugins/reformer/editor/editing/placement
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { canAcceptChildren, childSlots } from '@/plugins/reformer/core/form-model';
 import { getAt } from '@/plugins/reformer/core/form-model';
 import { indexNodes } from '../model/node-index';

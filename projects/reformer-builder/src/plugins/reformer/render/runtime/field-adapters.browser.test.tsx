@@ -18,7 +18,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import * as uiKit from '@reformer/ui-kit';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { builtinCatalog } from '@/plugins/reformer/core/testing';
 import type { KitNamespace } from '@reformer/builder-plugin-api';
 import type {

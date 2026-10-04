@@ -37,7 +37,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { useMemo, type ReactElement } from 'react';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '@/plugins/reformer/core/testing';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { renderReact } from '@/testing/render';

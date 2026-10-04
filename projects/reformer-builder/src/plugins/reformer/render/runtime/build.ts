@@ -21,7 +21,7 @@ import {
   createJsonForm,
   type ComponentRegistry,
   type JsonForm,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';

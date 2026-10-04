@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '@/plugins/reformer/core/testing';
 import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import { indexNodes } from './node-index';

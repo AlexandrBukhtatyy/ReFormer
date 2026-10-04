@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewContext } from '@reformer/builder-plugin-api';
 import { isFormSchema } from '@/plugins/reformer/core/form-model';

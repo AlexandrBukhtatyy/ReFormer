@@ -24,9 +24,9 @@
 import {
   isJsonStepRef,
   normalizeStepRef,
-  type JsonFormSchema,
-  type JsonFormStep,
-  type JsonNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonFormStepV1 as JsonFormStep,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
 import { ensureNodeIds, type NodeIdFactory } from './node-id';

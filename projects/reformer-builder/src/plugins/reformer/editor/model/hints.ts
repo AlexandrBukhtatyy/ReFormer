@@ -19,11 +19,11 @@
  */
 
 import {
-  buildFormSchemaMetaSchema,
+  buildFormSchemaMetaSchemaV1 as buildFormSchemaMetaSchema,
   parseOperator,
   toComponentPropsValidatorSchema,
   toFormStepMetaSchema,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import {

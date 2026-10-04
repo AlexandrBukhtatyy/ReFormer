@@ -20,7 +20,10 @@
  * @module plugins/reformer/editor/editing/duplicate
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { newNodeId, reissueNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import { getAt, type JsonPath } from '@/plugins/reformer/core/form-model';
 import { navIntentAt, type NavDir } from '@/plugins/reformer/core/form-model';

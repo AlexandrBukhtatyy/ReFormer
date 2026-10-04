@@ -14,7 +14,10 @@
  * @module plugins/reformer/core/form-model/rules-integrity
  */
 
-import { collectSchemaSelectors, type JsonFormSchema } from '@reformer/renderer-json';
+import {
+  collectSchemaSelectors,
+  type JsonFormSchemaV1 as JsonFormSchema,
+} from '@reformer/renderer-json';
 import { collectModelPaths } from './query';
 import type { FormRules } from './rules';
 

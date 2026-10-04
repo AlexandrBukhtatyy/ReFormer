@@ -14,7 +14,7 @@
  * @module plugins/reformer/ai/model/types
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { FormRules } from '@/plugins/reformer/core/form-model';
 import type { ValidateFormSchema } from './validate';

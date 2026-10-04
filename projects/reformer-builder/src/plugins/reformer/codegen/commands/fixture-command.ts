@@ -18,7 +18,7 @@
  * @module plugins/reformer/codegen/commands/fixture-command
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { emitFixture, fixturePathOf } from '@/plugins/reformer/core/form-fixture';
 import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';

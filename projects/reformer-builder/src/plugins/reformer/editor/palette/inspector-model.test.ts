@@ -5,7 +5,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { sampleSchema } from '@/plugins/reformer/core/testing';

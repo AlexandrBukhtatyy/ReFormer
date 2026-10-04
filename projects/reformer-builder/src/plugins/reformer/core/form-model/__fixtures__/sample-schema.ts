@@ -1,4 +1,4 @@
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 
 /**
  * Мини-схема для юнитов: RendererFormWizard с двумя шагами (children в `componentProps.steps`),

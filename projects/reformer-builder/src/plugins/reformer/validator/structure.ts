@@ -19,7 +19,10 @@
  * @module plugins/reformer/validator/structure
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { childSlots } from '@/plugins/reformer/core/form-model';
 import { componentOf } from '@/plugins/reformer/core/form-model';
 import { walkNodes } from '@/plugins/reformer/core/form-model';

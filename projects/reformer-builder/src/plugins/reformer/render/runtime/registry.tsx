@@ -22,7 +22,7 @@ import {
   defineRegistry,
   FIELD_WRAPPER,
   type ComponentRegistry,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
   type RegistryBuilder,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';

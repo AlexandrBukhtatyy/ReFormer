@@ -8,7 +8,7 @@
  * @module plugins/reformer/ai/tools/get-form-node
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { childSlots } from '@/plugins/reformer/core/form-model';
 import { type JsonPath } from '@/plugins/reformer/core/form-model';
 import { isResolved, resolveRef } from '../model/node-ref';

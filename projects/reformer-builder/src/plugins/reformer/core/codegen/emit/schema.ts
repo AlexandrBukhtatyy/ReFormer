@@ -17,7 +17,7 @@
  * @module plugins/reformer/core/codegen/emit/schema
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { EmitContext } from '../context';
 
 /** Маркер мета-схемы: app-level файл рядом с базовым реестром renderer-json. */

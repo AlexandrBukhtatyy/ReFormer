@@ -40,7 +40,7 @@ import { createDragSession } from './session/drag-session';
 import type { ExtensionPointRef, SchemaModelProviderSpec } from './host';
 import { getAt } from '@/plugins/reformer/core/form-model';
 import { nodeIdOf } from '@/plugins/reformer/core/form-model';
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { indexNodes } from './model/node-index';
 import {
   createSchemaEditorPlugin,

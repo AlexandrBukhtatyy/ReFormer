@@ -13,7 +13,7 @@
  * @module shell/boot/settings/schema-guard
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 
 /** Похоже ли значение на схему формы. `null` — не похоже, показывать нечего. */
 export function asFormSchema(value: unknown): JsonFormSchema | null {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { ensureSchema, isFormSchema, migrateTextNodes } from './normalize';
 
 describe('isFormSchema / ensureSchema', () => {

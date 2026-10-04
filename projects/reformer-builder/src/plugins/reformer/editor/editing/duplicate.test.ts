@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/plugins/reformer/core/form-model';
 import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import { getAt, type JsonPath } from '@/plugins/reformer/core/form-model';

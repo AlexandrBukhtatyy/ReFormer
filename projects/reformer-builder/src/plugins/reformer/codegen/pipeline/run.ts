@@ -16,7 +16,7 @@
 
 import { appSnippet, formNameOfSchemaPath } from '@/plugins/reformer/core/codegen';
 import { isFormSchema } from '@/plugins/reformer/core/form-model';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import { deliverModule, SourceReadOnlyError } from './deliver';

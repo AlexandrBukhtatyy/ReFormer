@@ -26,7 +26,7 @@
  * @module plugins/reformer/editor/live/live-context
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { Disposable, NodeId } from '@reformer/builder-plugin-api';
 import type { LiveSurfaceContext } from '@reformer/builder-plugin-api';
 import type { SchemaEditorState } from '../session/sessions';

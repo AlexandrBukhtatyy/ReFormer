@@ -15,10 +15,10 @@
 
 import {
   collectSchemaSelectors,
-  isArrayNode,
-  isContainerNode,
+  isArrayNodeV1 as isArrayNode,
+  isContainerNodeV1 as isContainerNode,
   parseOperator,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
 } from '@reformer/renderer-json';
 import { kebab } from '@reformer/builder-toolkit';
 import { isNodeLike, isStepsHostName } from '../form-model/node-kind';

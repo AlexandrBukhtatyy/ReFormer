@@ -42,7 +42,11 @@
  */
 
 import type { validateFormSchema } from '@reformer/renderer-json/validate';
-import { parseOperator, type JsonFormSchema, type JsonNode } from '@reformer/renderer-json';
+import {
+  parseOperator,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { isFormSchema } from '@/plugins/reformer/core/form-model';
 import { findDuplicateNodeIds, nodeIdOf } from '@/plugins/reformer/core/form-model';

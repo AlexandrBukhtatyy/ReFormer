@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { createToolRegistry } from './registry';
 import { setFormRulesTool } from './set-form-rules';
 import { emptyRules, type FormRules } from '@/plugins/reformer/core/form-model';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { ToolContext } from '../model/types';
 
 /** Форма с тремя связанными полями — минимум, на котором видно и цикл, и двойную запись. */

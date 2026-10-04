@@ -32,13 +32,13 @@
  */
 
 import {
-  isArrayNode,
-  isContainerNode,
-  isFieldNode,
+  isArrayNodeV1 as isArrayNode,
+  isContainerNodeV1 as isContainerNode,
+  isFieldNodeV1 as isFieldNode,
   parseOperator,
-  type JsonContainerNode,
-  type JsonFormSchema,
-  type JsonNode,
+  type JsonContainerNodeV1 as JsonContainerNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
 import { pathEquals, type JsonPath } from './paths';

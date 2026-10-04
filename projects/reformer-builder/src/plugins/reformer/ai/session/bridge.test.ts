@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { listComponents } from '../model/catalog-digest';

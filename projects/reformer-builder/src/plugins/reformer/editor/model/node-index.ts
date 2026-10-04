@@ -17,7 +17,10 @@
  * @module plugins/reformer/editor/model/node-index
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { nodeIdOf } from '@/plugins/reformer/core/form-model';
 import { toPointer, type JsonPath } from '@/plugins/reformer/core/form-model';
 import { walkNodes } from '@/plugins/reformer/core/form-model';

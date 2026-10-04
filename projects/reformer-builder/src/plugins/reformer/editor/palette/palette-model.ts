@@ -11,7 +11,7 @@
  * @module plugins/reformer/editor/palette/palette-model
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { displayName, groupByCategory, htmlTag } from '@/plugins/reformer/core/catalog';
 import type { CatalogEntry, CatalogRole } from '@/plugins/reformer/core/catalog';
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { checkRules, dropOrphanRules, ruleWarnings } from './rules-integrity';
 import { emptyRules, type FormRules } from './rules';
 

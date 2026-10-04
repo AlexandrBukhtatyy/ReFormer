@@ -1,7 +1,7 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { emptySchema } from '@/plugins/reformer/core/form-model';
 import { getAt } from '@/plugins/reformer/core/form-model';
 import { P, sampleSchema } from '@/plugins/reformer/core/testing';

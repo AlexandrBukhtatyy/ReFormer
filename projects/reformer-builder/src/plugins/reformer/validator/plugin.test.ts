@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { BUILTIN_CATALOG, builtinEntries } from '@/plugins/reformer/core/testing';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';

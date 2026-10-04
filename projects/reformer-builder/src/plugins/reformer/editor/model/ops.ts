@@ -51,11 +51,11 @@
  */
 
 import {
-  isArrayNode,
-  isFieldNode,
+  isArrayNodeV1 as isArrayNode,
+  isFieldNodeV1 as isFieldNode,
   parseOperator,
-  type JsonFormSchema,
-  type JsonNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { canAcceptChildren, childSlots, isNodeLike } from '@/plugins/reformer/core/form-model';
 import {

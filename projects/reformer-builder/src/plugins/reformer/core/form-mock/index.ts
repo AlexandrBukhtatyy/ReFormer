@@ -16,14 +16,14 @@
  */
 
 import {
-  isArrayNode,
-  isContainerNode,
-  isFieldNode,
+  isArrayNodeV1 as isArrayNode,
+  isContainerNodeV1 as isContainerNode,
+  isFieldNodeV1 as isFieldNode,
   parseOperator,
-  type JsonContainerNode,
-  type JsonFieldNode,
-  type JsonFormSchema,
-  type JsonNode,
+  type JsonContainerNodeV1 as JsonContainerNode,
+  type JsonFieldNodeV1 as JsonFieldNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from '../form-model/node-kind';
 import { collectOperatorNames, walkNodes } from '../form-model/query';
