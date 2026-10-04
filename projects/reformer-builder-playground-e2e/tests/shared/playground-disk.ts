@@ -137,8 +137,12 @@ interface BuiltManifest {
   readonly contributes?: { readonly messages?: Readonly<Record<string, string>> };
 }
 
+/** Каталог модулей данных сборки: JSON, который плагин импортирует отложенно. */
+const PLUGIN_CHUNKS = 'chunks';
+
 /**
- * Сборка плагина для билдера: файлы, которые называет её манифест в корне каталога плагина.
+ * Сборка плагина для билдера: файлы, которые называет её манифест в корне каталога плагина,
+ * и модули данных из `chunks/` — их манифест не называет, каталог принадлежит сборке.
  *
  * Список берётся из манифеста, а не обходом каталога: рядом со сборкой лежит сам пакет —
  * исходники, `node_modules`, сборка для поставки.
@@ -152,11 +156,16 @@ function readPluginBuild(root: string, pluginDir: string): DiskFile[] {
     );
   }
   const manifest = JSON.parse(readFileSync(path.join(root, manifestPath), 'utf8')) as BuiltManifest;
+  const chunksDir = path.join(root, pluginDir, PLUGIN_CHUNKS);
+  const chunks = existsSync(chunksDir)
+    ? readdirSync(chunksDir).map((name) => `${PLUGIN_CHUNKS}/${name}`)
+    : [];
   return [
     'manifest.json',
     manifest.main,
     ...(manifest.styles === undefined ? [] : [manifest.styles.file]),
     ...Object.values(manifest.contributes?.messages ?? {}),
+    ...chunks,
   ].map((file) => readFile(root, `${pluginDir}/${file}`));
 }
 

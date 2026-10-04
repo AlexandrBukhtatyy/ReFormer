@@ -25,6 +25,32 @@ test.describe('Плагин проекта', () => {
     }).toPass();
   });
 
+  test('ассистент поднят из сборки с модулями данных: его команды есть в палитре', async ({
+    builder,
+    disk,
+  }) => {
+    // Сборка ассистента — `main.js` и корпус знаний отдельными файлами в `chunks/`: код
+    // импортирует корпус отложенно, и в `main.js` он не вложен. В обычную копию проекта плагин
+    // не идёт (тяжёлый), поэтому тест просит его явно.
+    test.setTimeout(90_000);
+    await builder.openPlayground({ plugins: ['reformer/ai'] });
+
+    expect(await disk.exists('.ui_builder/plugins/reformer/ai/chunks/knowledge-index.js')).toBe(
+      true
+    );
+
+    await expect(async () => {
+      await builder.openPalette('Ассистент');
+      try {
+        await expect(builder.paletteOption('Ассистент: новый разговор')).toBeVisible({
+          timeout: 1_000,
+        });
+      } finally {
+        await builder.closePalette();
+      }
+    }).toPass();
+  });
+
   test('оболочка предлагает управление плагином проекта', async ({ builder }) => {
     await builder.openPlayground();
     await builder.projectPluginsReady();
