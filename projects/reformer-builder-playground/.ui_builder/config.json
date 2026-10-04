@@ -1,4 +1,17 @@
 {
   "$schema": "../../reformer-builder/runtime-config.schema.json",
-  "branding": { "title": "ReFormer Builder · Playground" }
+  "branding": { "title": "ReFormer Builder · Playground" },
+  "preset": "playground",
+  "profiles": [
+    {
+      "id": "playground",
+      "name": "ReFormer + RJSF",
+      "extends": "reformer.builder",
+      "plugins": ["reformer.rjsf.editor", "reformer.rjsf.render"]
+    }
+  ],
+  "defaults": {
+    "locale": "ru",
+    "theme": "light"
+  }
 }

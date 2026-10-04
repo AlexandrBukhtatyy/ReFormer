@@ -1,5 +1,6 @@
 {
   "workspace.plugins.enabled": [
-    "playground-hello"
+    "playground-hello",
+    "kit-hexa-ui"
   ]
 }

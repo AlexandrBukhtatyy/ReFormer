@@ -5,8 +5,13 @@
   "type": "module",
   "description": "Проект-образец для @reformer/builder: его открывают e2e-тесты билдера, и на нём же пробуют плагины",
   "scripts": {
-    "builder": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/builder.launch.json npm --prefix ../reformer-builder run dev -- --port 5184",
-    "builder:dist": "node ../reformer-builder/bin/reformer-builder.mjs --config builder.launch.json --host localhost --port 5184 --no-open",
+    "builder": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/config.json npm --prefix ../reformer-builder run dev -- --port 5184",
+    "builder:dist": "node ../reformer-builder/bin/reformer-builder.mjs --host localhost --port 5184 --no-open",
+    "preset:reformer-ui-kit": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/reformer-ui-kit.json npm --prefix ../reformer-builder run dev",
+    "preset:reformer-hexa-ui": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/reformer-hexa-ui.json npm --prefix ../reformer-builder run dev",
+    "preset:rjsf-ui-kit": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/rjsf-ui-kit.json npm --prefix ../reformer-builder run dev",
+    "preset:rjsf-hexa-ui": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/rjsf-hexa-ui.json npm --prefix ../reformer-builder run dev",
+    "plugins:hexa-ui": "node scripts/hexa-kit.mjs",
     "plugins:validate": "reformer-plugin validate .ui_builder/plugins/playground-hello",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

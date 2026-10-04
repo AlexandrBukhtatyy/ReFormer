@@ -33,6 +33,9 @@ npm run plugin:dev -w @reformer/kit-hexa-ui -- --project <каталог про�
 Собранный `dist/` кладётся в проект как `.ui_builder/plugins/kit-hexa-ui/` (или туда пишет
 `plugin:dev`). Дальше — включить плагин в списке плагинов и выбрать кит «Kaspersky HexaUI».
 
+Готовый проект для этого — `projects/reformer-builder-playground`: плагин в нём уже включён,
+а сборку кладёт `npm run plugins:hexa-ui -w reformer-builder-playground`.
+
 Что грузится когда:
 
 - **каталог** — значением при включении плагина: по нему кит виден в выборе;
