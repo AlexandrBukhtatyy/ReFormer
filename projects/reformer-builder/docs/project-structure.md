@@ -85,9 +85,6 @@ platform» читается из самого дерева, а слово «host
 ```text
 projects/reformer-builder/
 ├── docs/                           план, контракты этапов, журнал решений, этот файл
-├── presets/                        готовые конфиги запуска: движок × кит (см. composition.md)
-├── scripts/                        demo-project.mjs — проект с плагином HexaUI для проверки
-│                                   сочетаний, и его образцы форм
 │
 ├── src/
 │   ├── shell/

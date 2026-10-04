@@ -14,7 +14,9 @@
 (или `--config <path>`). Схема для автодополнения в IDE — `runtime-config.schema.json` пакета.
 Всё, что здесь описано, применяется только на уровне запуска: состав и умолчания фиксируются при
 сборке приложения, до открытия проекта. Те же поля в конфиге проекта разбираются, но не
-применяются — билдер говорит об этом уведомлением.
+применяются. Записаны они там иначе, чем в конфиге запуска, — билдер говорит об этом уведомлением;
+записаны так же — молчит: их уже применил запуск. Поэтому один `.ui_builder/config.json` на оба
+уровня — запустили билдер в корне проекта и его же открыли — предупреждений не даёт.
 
 ## Встроенные профили
 
@@ -115,8 +117,9 @@ npm run plugin:build -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js,
 
 ## Готовые конфиги: движок × кит
 
-Четыре сочетания собраны готовыми файлами в `projects/reformer-builder/presets/` — формат тот же,
-что у любого конфига запуска (`preset` и кит по умолчанию), ничего сверх рецептов выше:
+Четыре сочетания собраны готовыми файлами в
+`projects/reformer-builder-playground/.ui_builder/presets/` — формат тот же, что у любого конфига
+запуска (`preset` и кит по умолчанию), ничего сверх рецептов выше:
 
 | Файл                    | Движок   | Кит              |
 | ----------------------- | -------- | ---------------- |
@@ -126,22 +129,24 @@ npm run plugin:build -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js,
 | `rjsf-hexa-ui.json`     | RJSF     | Kaspersky HexaUI |
 
 ```bash
-npm run dev:rjsf-hexa-ui -w @reformer/builder                 # в разработке; dev:<имя> есть на каждый
-node bin/reformer-builder.mjs --config presets/rjsf-hexa-ui.json   # собранным билдером, из каталога пакета
+# в разработке; preset:<имя> есть на каждый
+npm run preset:rjsf-hexa-ui -w reformer-builder-playground
+# собранным билдером, из каталога пакета билдера
+node bin/reformer-builder.mjs --config ../reformer-builder-playground/.ui_builder/presets/rjsf-hexa-ui.json
 ```
 
-В npm-пакет каталог `presets/` не входит: это образцы репозитория. Вне его то же сочетание —
-две строки своего `.ui_builder/config.json`.
+Файлы — образцы репозитория и лежат в проекте-образце, а не в пакете билдера: в npm они не едут.
+Вне репозитория то же сочетание — две строки своего `.ui_builder/config.json`.
 
 Файлы с HexaUI называют кит, но не привозят его: кит — плагин проекта. Пока проект с плагином
 не открыт, формы рисует встроенный кит, а HexaUI включается сам, как только плагин его внесёт.
-Проект для проверки собирает скрипт:
+Проект для проверки — тот же проект-образец: плагин в нём уже включён, остаётся положить сборку:
 
 ```bash
-npm run demo:project -w @reformer/builder   # .tmp/builder-presets-demo: плагин, настройки, образцы форм
+npm run plugins:hexa-ui -w reformer-builder-playground   # .ui_builder/plugins/kit-hexa-ui/, не в git
 ```
 
-В билдере — «Открыть папку…» и выбрать этот каталог.
+В билдере — «Открыть папку…» и выбрать `projects/reformer-builder-playground`.
 
 ## Переключатель сочетаний
 
@@ -185,11 +190,11 @@ npm run demo:project -w @reformer/builder   # .tmp/builder-presets-demo: пла�
 `npm run dev` отдаёт конфиг запуска так же, как лаунчер: файл из переменной
 `REFORMER_BUILDER_CONFIG`, иначе `projects/reformer-builder/.ui_builder/config.json` (каталог
 в `.gitignore`). Файл читается на каждый запрос — правка видна после перезагрузки страницы.
-Путь в переменной отсчитывается от каталога пакета; скрипты `dev:<имя>` выставляют её на готовый
-конфиг из `presets/`:
+Путь в переменной отсчитывается от каталога пакета билдера; скрипты `preset:<имя>` проекта-образца
+выставляют её на готовый конфиг из его `.ui_builder/presets/`:
 
 ```bash
-npm run dev:rjsf-hexa-ui -w @reformer/builder
+npm run preset:rjsf-hexa-ui -w reformer-builder-playground
 ```
 
 Постоянный каталог для таких проб — [`projects/reformer-builder-playground`](../../reformer-builder-playground/README.md):
