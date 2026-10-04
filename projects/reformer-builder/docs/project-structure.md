@@ -46,6 +46,15 @@ platform» читается из самого дерева, а слово «host
 назывался «общим», хотя говорил на языке одного формата схемы. Почему ядро вернулось внутрь
 домена — `decisions-log.md`, «Ядро домена внутри домена».
 
+**Домены ReFormer и RJSF в билдере больше не живут.** С 2026-10 движки форм — плагины проекта:
+те же каталоги `<домен>/{core,<плагин>}`, но в `.ui_builder/plugins/` проекта-образца
+([`projects/reformer-builder-playground`](../../reformer-builder-playground/README.md)), по
+npm-пакету на плагин. В `src/plugins/` билдера остались основа (`base`), киты (`kits`)
+и демо-стек (`plain`) — единственный встроенный движок. Устройство домена от переезда
+не изменилось, поэтому всё, что ниже сказано про ядро и плагины домена, относится и к ним;
+отличия собраны в разделе «Домены — плагины проекта». Запись решения — `decisions-log.md`,
+«Движки форм — плагины проекта».
+
 Поверхность, которую видит плагин, живёт не в билдере, а в пакете
 `packages/reformer-builder-plugin-api`: плагин каталога проекта компилируется у себя, и компилировать
 его не против чего, пока контракт — исходники приложения. Билдер резолвит пакет в исходники
@@ -163,9 +172,8 @@ projects/reformer-builder/
 │   │   │                    `extends`, выбор провайдера (`providers`) там, где одну
 │   │   │                    возможность объявили двое. Встроенные лежат в
 │   │   │                    builtin.config.json — формат конфига запуска, тот же разбор:
-│   │   │                    builder.base (основа без стека), reformer.builder (основа +
-│   │   │                    стек ReFormer, умолчание), plain.builder (основа + демо-стек),
-│   │   │                    rjsf.builder (основа + киты + RJSF), minimal, ai-builder;
+│   │   │                    builder.base (основа без стека), builder (основа + киты,
+│   │   │                    умолчание), plain.builder (основа + демо-стек);
 │   │   │                    registry.ts читает файл и разрешает имя в профиль
 │   │   └── resolver/
 │   │       ├── profile-resolver.ts  `extends` цепочкой, дедупликация с порядком,
@@ -174,39 +182,24 @@ projects/reformer-builder/
 │   │       └── capability-resolver.ts  кто что даёт, чего не хватает, кто спорит за слот —
 │   │                          ДО загрузки кода; отказ здесь данные, а не исключение
 │   │
-│   ├── plugins/               ВСЯ ПРЕДМЕТНАЯ ЛОГИКА — по доменам: plugins/<домен>/<плагин>
+│   ├── plugins/               ВСТРОЕННЫЕ ПЛАГИНЫ — по доменам: plugins/<домен>/<плагин>
 │   │   │                      (анатомия плагина — в разделе ниже; id плагинов с раскладкой
-│   │   │                      не связаны: reformer.editor-schema лежит в reformer/editor)
+│   │   │                      не связаны: reformer.files лежит в base/files). Движков форм
+│   │   │                      ReFormer и RJSF здесь нет — они плагины проекта, см. ниже
 │   │   ├── base/                нужно любому конструктору, какой бы стек ни стоял
 │   │   │   ├── files/             ui/
 │   │   │   ├── editor-monaco/     runtime/ sync/ diagnostics/ ui/
 │   │   │   ├── editor-markdown/   render/ state/ ui/
 │   │   │   ├── plugin-manager/    управление плагинами каталога из палитры (флат)
-│   │   │   ├── preview/           ХОСТ превью, общий для стеков: live/ state/ surface/ schema/
+│   │   │   ├── preview/           ХОСТ превью, общий для стеков: live/ state/ surface/ schema/;
+│   │   │   │                      runtime-modules.ts — пакеты ядра форм для исполняемого кода
 │   │   │   └── stack-switch/      переключатель сочетаний «движок × кит»: ячейка строки
 │   │   │                          состояния и пункты палитры; ui/
 │   │   ├── kits/
 │   │   │   └── registry/          активный кит как сервис (флат)
-│   │   ├── reformer/            стек ReFormer
-│   │   │   ├── core/              ЯДРО домена — чистое, без React: form-model/ catalog/ kits/
-│   │   │   │                      codegen/ (+ шаблоны .eta) form-mock/ form-fixture/
-│   │   │   │                      form-inspect/ testing.ts
-│   │   │   ├── editor/            визуальный редактор: model/ session/ canvas/ schematic/
-│   │   │   │                      live/ editing/ palette/ ui/
-│   │   │   ├── render/            поверхности формы ReFormer и панель модели: compiling/
-│   │   │   │                      runtime/ schema/ surface/ ui/
-│   │   │   ├── validator/         валидатор схемы (флат — размер позволяет)
-│   │   │   ├── codegen/           pipeline/ (+ __golden__) commands/ ui/
-│   │   │   ├── templates/         content/ render/ commands/ stores/ ui/
-│   │   │   └── ai/                model/ loop/ tools/ session/ knowledge/ providers/ ui/
-│   │   ├── plain/
-│   │   │   ├── core/              ЯДРО демо-стека: формат plain-form/1, операции, проверки, печать
-│   │   │   └── demo/              демо-стек: провайдер, поверхность, валидатор, редактор, команды
-│   │   └── rjsf/                стек RJSF: формы react-jsonschema-form в активном ките
-│   │       ├── core/              ЯДРО: формат rjsf-form/1, операции, проверки, печать Form.tsx
-│   │       ├── editor/            провайдер, валидатор, редактор (структура ⇄ форма в полосе
-│   │       │                      вкладок), свойства поля — панелью справа, команды
-│   │       └── render/            поверхность превью: тема из кита (@reformer/rjsf-kit-theme)
+│   │   └── plain/
+│   │       ├── core/              ЯДРО демо-стека: формат plain-form/1, операции, проверки, печать
+│   │       └── demo/              демо-стек: провайдер, поверхность, валидатор, редактор, команды
 │   │
 │   ├── testing/               browser-setup (зашит в vitest.browser.config), render
 │   ├── main.tsx  App.tsx  index.css
@@ -216,6 +209,58 @@ projects/reformer-builder/
 ├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
 └── package.json
 ```
+
+### Домены — плагины проекта
+
+Движки форм лежат вне пакета билдера, в каталоге плагинов проекта-образца:
+
+```text
+projects/reformer-builder-playground/.ui_builder/plugins/
+├── reformer/                стек ReFormer
+│   ├── core/                  ЯДРО домена — чистое, без React: form-model/ catalog/ kits/
+│   │                          codegen/ (+ шаблоны .eta) form-mock/ form-fixture/
+│   │                          form-inspect/ testing.ts
+│   ├── editor/                reformer.editor-schema — визуальный редактор: model/ session/
+│   │                          canvas/ schematic/ live/ editing/ palette/ ui/
+│   ├── render/                reformer.preview-runtime — поверхности формы и панель модели:
+│   │                          compiling/ runtime/ schema/ surface/ ui/
+│   ├── validator/             reformer.validator-schema (флат — размер позволяет)
+│   ├── codegen/               reformer.codegen: pipeline/ (+ __golden__) commands/ ui/
+│   ├── templates/             reformer.templates: content/ render/ commands/ stores/ ui/
+│   ├── ai/                    reformer.ai: model/ loop/ tools/ session/ knowledge/ providers/ ui/
+│   └── integration/           плагины домена в собранном приложении — проверки, не плагин
+├── rjsf/                    стек RJSF: формы react-jsonschema-form в активном ките
+│   ├── core/                  ЯДРО: формат rjsf-form/1, операции, проверки, печать Form.tsx
+│   ├── editor/                reformer.rjsf.editor — провайдер, валидатор, редактор (структура
+│   │                          ⇄ форма в полосе вкладок), свойства поля, команды
+│   ├── render/                reformer.rjsf.render — поверхность превью: тема из кита
+│   │                          (@reformer/rjsf-kit-theme)
+│   └── integration/
+└── .shared/                 общее для пакетов: конфиги vitest, генератор стилей, сборка
+                             приложения с плагинами домена для интеграционных проверок
+```
+
+Плагин домена — npm-пакет: исходники и манифест в `src/`, вход — `src/main.ts`
+(`export default` — готовый плагин, а не фабрика состава), сборка для билдера — в корне
+каталога пакета. Внутри `src/` устройство прежнее (раздел «Устройство плагина»). Отличия
+от встроенного плагина:
+
+- **к ядру домена — относительным путём** (`../../core/form-model`), а не `@/plugins/…`:
+  псевдонима `@` у пакета плагина нет, исходников билдера он не видит вовсе;
+- **порты оболочки плагин собирает сам** из возможностей в `activate` — фабрики состава
+  с набором портов (`BuiltinPluginPorts`) у него нет;
+- **сборка вкладывает ядро в `main.js`** каждого плагина; пакеты ядра форм, React и SDK
+  остаются внешними (`PLUGIN_RUNTIME_MODULES` контракта) — их отдаёт билдер;
+- **недостающие классы Tailwind плагин везёт сам** — таблицей `styles` манифеста, которую
+  считает `.shared/plugin-styles.mjs` (подробности — README проекта-образца);
+- **границы стережёт корневой `eslint.config.js`**, а не линтер билдера: плагину виден SDK
+  (без `/internal`), ядро своего домена и свой `src/`; ядру — то же и без React. Каталог
+  `integration/` под правило не попадает — у него одного есть псевдоним `@` на исходники билдера;
+- **проверки раскладки билдера на них не действуют**: `structure.test.ts` обходит `src/`
+  билдера.
+
+Каталог плагинов проекта допускает ровно такой уровень вложенности: подкаталог без манифеста
+и без `package.json` — домен, его подкаталоги с манифестом — плагины (`shell/platform/plugin/loader`).
 
 ## Библиотека и плагин — не одно и то же
 
@@ -228,10 +273,11 @@ projects/reformer-builder/
 и жизненный цикл — в плагине, достаётся через сервис.**
 
 Пример на активном ките: контракт кита (типы каталога, дескриптор, точка и возможность) — в SDK,
-его ReFormer-проекция (`projectCatalog`) — `@/plugins/reformer/core/catalog` (чистые данные),
-а «какой кит активен сейчас» — сервис плагина `plugins/kits/registry/`. Второй пример — кодоген:
-`@/plugins/reformer/core/codegen` — машина печати (шаблоны, сборка контекста), а решение «какие
-файлы производить» — вклады в `plugins/reformer/codegen`.
+его ReFormer-проекция (`projectCatalog`) — ядро домена ReFormer, `reformer/core/catalog` (чистые
+данные), а «какой кит активен сейчас» — сервис встроенного плагина `plugins/kits/registry/`.
+Второй пример — кодоген: `reformer/core/codegen` — машина печати (шаблоны, сборка контекста),
+а решение «какие файлы производить» — вклады плагина `reformer/codegen`. (Пути домена ReFormer
+здесь и ниже — от каталога плагинов проекта-образца.)
 
 Вторая ось — **домен (стек)**. Общий чистый код лежит не «в билдере вообще», а в ядре того
 домена, на языке которого он говорит: модель схемы ReFormer нужна плагинам стека ReFormer и не
@@ -241,8 +287,8 @@ projects/reformer-builder/
 
 ### Модули ядра ReFormer
 
-Импорт — по модулю (его `index.ts`), а не по файлу:
-`import { insertNode } from '@/plugins/reformer/core/form-model'`.
+Импорт — по модулю (его `index.ts`), а не по файлу, относительным путём от плагина:
+`import { insertNode } from '../../core/form-model'`.
 
 | Модуль         | Что внутри                                                                                         |
 | -------------- | -------------------------------------------------------------------------------------------------- |
@@ -265,14 +311,17 @@ projects/reformer-builder/
 `DocumentRef.providerId` — провайдеру, который его разобрал, — а не по расширению: `.json`
 бывает схемой любого стека. Сегодня стеков три:
 
-| Стек                | Ядро                    | Плагины                                                                        | Профиль            |
-| ------------------- | ----------------------- | ------------------------------------------------------------------------------ | ------------------ |
-| ReFormer            | `plugins/reformer/core` | kits, validator-schema, editor-schema, preview-runtime, ai, codegen, templates | `reformer.builder` |
-| демо `plain-form/1` | `plugins/plain/core`    | plain                                                                          | `plain.builder`    |
-| RJSF `rjsf-form/1`  | `plugins/rjsf/core`     | kits, rjsf.editor, rjsf.render                                                 | `rjsf.builder`     |
+| Стек                | Ядро                 | Плагины                                                                  | Чем включается           |
+| ------------------- | -------------------- | ------------------------------------------------------------------------ | ------------------------ |
+| ReFormer            | `reformer/core`      | validator-schema, editor-schema, preview-runtime, ai, codegen, templates | настройками проекта      |
+| RJSF `rjsf-form/1`  | `rjsf/core`          | rjsf.editor, rjsf.render                                                 | настройками проекта      |
+| демо `plain-form/1` | `plugins/plain/core` | plain                                                                    | профилем `plain.builder` |
 
-Все три профиля наследуют `builder.base` — файлы, Monaco, markdown, управление плагинами, хост
-превью и переключатель сочетаний. Основа поднимается без единого плагина стека, и это проверено
+ReFormer и RJSF — плагины проекта: каждый включается отдельно, списком
+`workspace.plugins.enabled` в `.ui_builder/settings.json`. Демо-стек — встроенный, его называет
+профиль. Профили `builder` и `plain.builder` наследуют `builder.base` — файлы, Monaco, markdown,
+управление плагинами, хост превью и переключатель сочетаний; `builder` добавляет киты, на которых
+работают оба движка проекта. Основа поднимается без единого плагина стека, и это проверено
 интеграционным тестом.
 
 Что стеку нужно от оболочки, он берёт возможностями, а не портами:
@@ -293,7 +342,7 @@ projects/reformer-builder/
 ## Устройство плагина
 
 ```text
-plugins/reformer/editor/
+plugins/base/files/
 ├── index.ts          единственный экспорт наружу — обязателен у каждого плагина
 ├── plugin.ts         definePlugin + activate: регистрация вкладов   (+ plugin.test.ts)
 ├── host.ts           порт платформы: структурная копия интерфейса, который плагин
@@ -327,8 +376,8 @@ plugins/reformer/editor/
   Контракт у всех один, поэтому карта создаёт плагин, не зная, какой он.
 - **Словари везёт плагин.** Иначе платформа снова начнёт знать предметные строки.
   Пространство имён словаря — идентификатор плагина.
-- **Каталог плагина — `<домен>/<роль>`**: `reformer/editor`, `reformer/render`,
-  `reformer/validator`. Домен — чей это язык (стек ReFormer, основа, киты), роль — что плагин
+- **Каталог плагина — `<домен>/<роль>`**: `base/files`, `base/preview`,
+  `kits/registry`. Домен — чей это язык (основа, киты, стек), роль — что плагин
   делает; оба видны в дереве без открытия файлов. В папке домена — только плагины (манифест
   и `index.ts`) и необязательное ядро домена `core/`; это проверяет `structure.test.ts`.
 - **Идентификатор плагина от каталога не зависит.** Он persisted-ключ (словари, настройки,
@@ -373,6 +422,11 @@ plugins/reformer/editor/
 Разрешение «своё ядро, но не соседний плагин» — регулярное выражение, а не группа: gitignore-группа
 не умеет вернуть потомка запрещённого каталога.
 
+Домены-плагины проекта стережёт КОРНЕВОЙ `eslint.config.js` репозитория (блоки
+`DOMAIN_PLUGIN_BOUNDARY`): у пакета плагина нет псевдонима `@`, к ядру он ходит относительным
+путём, и запрет выражен регулярным выражением по пути — «выйти из своего пакета и войти в `src/`
+другого». Нарушение валит корневой `npm run lint`.
+
 Граница «оболочка не знает стека» держится двумя проверками. Ядра доменов
 (`@/plugins/<домен>/core`) запрещены во всём `src/shell/**` линтером. Плагины стека —
 храповиком в [builtin-plugins.test.ts](../src/application/composer/builtin-plugins.test.ts)
@@ -394,11 +448,6 @@ plugins/reformer/editor/
   `new URL('../..', import.meta.url)`: оба держатся на глубине файла от `src/`;
 - `shell/boot/integration/i18n-completeness.test.ts` — `new URL('../../../plugins', import.meta.url)`
   и обход в два уровня `домен/плагин`;
-- `plugins/reformer/ai/loop/prompt.test.ts` — читает собственный исходник `./prompt.ts` через `readFileSync`;
-- `plugins/reformer/codegen/pipeline/golden.test.ts` — `toMatchFileSnapshot('./__golden__/…')`:
-  голдены живут в каталоге теста и переезжают только вместе с ним;
-- `package.json` (`generate:knowledge`) и `.gitignore` монорепо — путь
-  `src/plugins/reformer/ai/knowledge/generated`;
 - `vitest.browser.config.ts` — `setupFiles: ['./src/testing/browser-setup.ts']`;
 - `src/index.css` — относительный `@source` до `packages/reformer-ui-kit`;
 - `vite.config.ts` — раскладка `dist/assets` разбирает путь модуля строками:
@@ -406,6 +455,14 @@ plugins/reformer/editor/
   уедет чанк (ядро домена `core/` владельца не даёт),
   `/src/shell/platform/services/i18n/locales/` отправляет словари в `assets/i18n/`.
   Переименование этих каталогов молча сложит всё в `assets/js/`;
+- **у доменов-плагинов проекта** (пути от каталога плагинов проекта-образца):
+  `reformer/ai/src/loop/prompt.test.ts` читает собственный исходник `./prompt.ts` через
+  `readFileSync`; `reformer/codegen/src/pipeline/golden.test.ts` —
+  `toMatchFileSnapshot('./__golden__/…')`, голдены переезжают только вместе с тестом;
+  `reformer/ai/package.json` (`generate:knowledge`) и его `.gitignore` — путь
+  `src/knowledge/generated`; `.shared/*` — относительные пути до корня репозитория, пакета
+  билдера и темы кита; корневые `.prettierignore`, `eslint.config.js`, `.size-limit.json`,
+  `scripts/check-peer-ranges.mjs` и `knip.json` называют каталог плагинов по имени;
 - `application/composer/builtin-plugins.ts` — шаблоны обхода `../../plugins/*/*/manifest.json`
   и `../../plugins/*/*/index.ts` (сборщику нужен литерал, переменной путь не задать).
   Шаблоны относительные: переезд самого файла карты или смена глубины каталогов плагинов
@@ -423,8 +480,8 @@ plugins/reformer/editor/
   ([structure.test.ts](../src/structure.test.ts)), а не памятью. Тесты в счёт не идут: `ops.test.ts`
   ищут не сам по себе, а вместе с `ops.ts`, и считать файлы значило бы наказывать за покрытие.
   Каталог сверх порога либо делится по темам (образцы — `shell/platform/workspace/`,
-  `plugins/base/preview/`), либо получает именованное исключение с причиной. Исключение сейчас одно:
-  `plugins/reformer/ai/tools`, где по файлу на инструмент — это и есть поверхность, которую видит модель.
+  `plugins/base/preview/`), либо получает именованное исключение с причиной. Исключений сейчас нет:
+  оба прежних принадлежали домену ReFormer и уехали вместе с ним.
 
 ## Каталог рядом с проектом
 
@@ -442,6 +499,8 @@ plugins/reformer/editor/
 │                          только на уровне запуска. Разбор и слияние — shell/boot/runtime-config
 ├── plugins/<id>/          manifest.json, main.js (собранный) или main.ts (в разработке),
 │                          styles.css, locales/. Уровень проекта
+├── plugins/<домен>/<п>/   то же на уровень глубже: каталог без манифеста — домен, его
+│                          подкаталоги с манифестом — плагины (так лежат движки форм)
 ├── templates/<slug>/      шаблоны форм. Уровень проекта
 └── codegen/*.eta          свои цели генерации. Уровень проекта
 ```
@@ -459,8 +518,10 @@ plugins/reformer/editor/
 
 Домен переносился почти дословно, оболочка и состояние написаны заново. Пути указаны
 в сегодняшних именах (после реорганизации 2026-09; тогда `shell/platform` назывался `host`,
-а `shell/boot` — `app`). `reformer/core/` — ядро домена ReFormer `plugins/reformer/core`
-(до 2026-09-18 — каталог `src/lib`, затем пакет `@reformer/builder-stack-reformer`).
+а `shell/boot` — `app`). `reformer/core/` — ядро домена ReFormer
+(до 2026-09-18 — каталог `src/lib`, затем пакет `@reformer/builder-stack-reformer`). С 2026-10
+всё, что в правой колонке начинается с `reformer/` и `plugins/reformer/`, лежит не в билдере,
+а в каталоге плагинов проекта-образца — `.ui_builder/plugins/reformer/`.
 
 | v1                                 | v2                                                       |
 | ---------------------------------- | -------------------------------------------------------- |
