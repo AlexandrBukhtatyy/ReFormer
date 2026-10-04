@@ -48,8 +48,9 @@ export default defineConfig([
     '**/_generated/**',
     // Auto-generated API docs from JSDoc
     'projects/reformer-doc/docs/api/**',
-    // Сборка плагина кита HexaUI в проекте-образце билдера: один main.js на 4 МБ, в git не едет
-    'projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui/**',
+    // Сборка плагинов проекта-образца для билдера: main.js в корне каталога плагина (у кита
+    // HexaUI — 4 МБ). В git не едет, но исключена вложенным .gitignore, которого ESLint не читает
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/main.js',
   ]),
 
   // Базовая конфигурация для всего TS/JS

@@ -18,18 +18,18 @@ reformer-builder-playground/
 │   ├── config.json                      конфиг: состав плагинов, заголовок, локаль, тема
 │   ├── settings.json                    настройки проекта: включённые плагины
 │   ├── presets/                         готовые конфиги запуска: движок × кит
-│   └── plugins/
-│       ├── playground-hello/            плагин в разработке (исходники, без сборки)
-│       │   ├── manifest.json
-│       │   ├── src/main.ts
-│       │   └── locales/{ru,en}.json
-│       └── kit-hexa-ui/                 сборка плагина кита HexaUI — не в git, см. «Кит HexaUI»
+│   └── plugins/                         плагины проекта — каждый отдельным npm-пакетом
+│       ├── playground-hello/
+│       │   ├── package.json             скрипты сборки: build:dev, build:dist
+│       │   ├── src/                     исходники: manifest.json, main.ts, locales/
+│       │   ├── manifest.json            ┐
+│       │   ├── main.js                  ├ сборка для билдера (build:dev) — не в git
+│       │   └── locales/                 ┘
+│       └── kit-hexa-ui/                 кит HexaUI — так же: src/ и сборка в корне каталога
 ├── forms/
 │   ├── contact/form.schema.json         форма ReFormer
 │   └── contact.rjsf.json                форма RJSF (`rjsf-form/1`)
-├── scripts/hexa-kit.mjs                 сборка плагина кита HexaUI в этот проект
-├── package.json                         скрипты и зависимости для разработки плагинов
-└── tsconfig.json                        проверка типов исходников плагинов
+└── package.json                         скрипты: запуск билдера, сборка плагинов
 ```
 
 ## Запуск билдера на этом проекте
@@ -41,6 +41,9 @@ npm run builder:dist -w reformer-builder-playground   # собранный би�
 
 Дальше в билдере — «Открыть папку…» и выбрать `projects/reformer-builder-playground`. Нужен
 Chromium-браузер (File System Access API).
+
+Каждый скрипт запуска сначала собирает плагины проекта (`plugins:build`, см. «Плагины»): билдер
+грузит их сборку, а в git она не едет.
 
 `builder:dist` берёт готовый `projects/reformer-builder/dist` — сначала
 `npm run build -w @reformer/builder`.
@@ -88,70 +91,96 @@ npm run preset:rjsf-hexa-ui -w reformer-builder-playground   # dev-сервер 
 Открыв под готовым конфигом этот же каталог, вы увидите предупреждение о `preset`, `profiles`
 и `defaults`: `config.json` проекта просит состав playground, а запущен другой. Так и задумано.
 
-Файлы с HexaUI называют кит, но не привозят его: кит — плагин проекта, см. «Кит HexaUI» ниже.
+Файлы с HexaUI называют кит, но не привозят его: кит — плагин проекта, см. «Плагины» ниже.
 Подробности о составах — [composition.md](../reformer-builder/docs/composition.md) билдера; что
 конфиги собирают именно своё сочетание, проверяет его тест `application/launch-presets.test.ts`.
 
-## Кит HexaUI
-
-Кит HexaUI ([`packages/ui-kits/reformer-hexa-ui`](../../packages/ui-kits/reformer-hexa-ui)) —
-внешний плагин: в составе билдера его нет, он лежит в проекте и включается его настройкой. Здесь
-он включён заранее (`kit-hexa-ui` в `.ui_builder/settings.json`), не хватает только сборки:
-
-```bash
-npm run plugins:hexa-ui -w reformer-builder-playground   # .ui_builder/plugins/kit-hexa-ui/
-```
-
-Сборка весит около 5 МБ и в git не едет (корневой `.gitignore`); после правки кита скрипт
-запускают заново. Пока её нет, билдер рисует формы встроенным китом и ни о чём не предупреждает.
-
-С собранным плагином кит появляется в ячейке «движок · кит» строки состояния и меняется на лету;
-готовые конфиги `*-hexa-ui` открывают его сразу. Для работы над самим китом удобнее наблюдение —
-пересборка на каждое сохранение:
-
-```bash
-npm run plugin:dev -w @reformer/kit-hexa-ui -- --project ../../../projects/reformer-builder-playground
-```
-
 ## Плагины
 
-`playground-hello` — шаблон `reformer-plugin create`: одна команда, подпись которой берётся из
-словаря плагина. Лежит исходниками: оболочка сама транспилирует `src/main.ts`. Включён настройкой
-проекта (`workspace.plugins.enabled` в `.ui_builder/settings.json`).
+Плагин, не входящий в состав билдера, — отдельный npm-пакет со своей сборкой. Пакеты плагинов
+этого проекта лежат там же, где билдер их ищет, — в `.ui_builder/plugins/<id>/`, — и собираются
+на месте. Сборок у пакета две, по скрипту на каждую:
 
-Цикл правки: поменять исходник → в палитре команд (`Ctrl+Shift+P`) «Плагины: перезагрузить
-«Playground Hello»». Чтобы оболочка перечитывала плагин сама при возврате в окно — «Плагины:
-наблюдать «Playground Hello» — режим разработки».
+| Скрипт       | Куда                    | Зачем                                           |
+| ------------ | ----------------------- | ----------------------------------------------- |
+| `build:dev`  | корень каталога плагина | её грузит билдер: `manifest.json`, `main.js`, … |
+| `build:dist` | `dist/`                 | поставка: то, что идёт в архив пакета           |
 
-Новый плагин:
-
-```bash
-cd projects/reformer-builder-playground
-npx reformer-plugin create .ui_builder/plugins/<id> --name "<Имя>"
-```
-
-Из созданного шаблоном нужны `manifest.json`, `src/` и `locales/`; вложенные `package.json`,
-`tsconfig.json`, `.gitignore` и `src/main.test.ts` можно удалить — зависимости и проверку типов
-даёт этот пакет. Включается плагин в списке плагинов билдера или строкой в
-`.ui_builder/settings.json`.
-
-Проверки:
+Обе — один и тот же `reformer-plugin build src` с разным `--out`: разбор манифеста, один
+`main.js`, «сухая» активация. Исходники вместе с их `manifest.json` лежат в `src/`. Собранное
+в git не едет: сборку для билдера исключает `.gitignore` самого плагина.
 
 ```bash
-npm run plugins:validate -w reformer-builder-playground   # манифест и файлы — правилами оболочки
-npm run typecheck -w reformer-builder-playground          # типы исходников плагинов
+npm run plugins:build -w reformer-builder-playground   # build:dev каждого пакета из .ui_builder/plugins
 ```
 
-Обе берут собранные `@reformer/builder-plugin-api` и `@reformer/builder-plugin-cli`
-(`npm run build -w <пакет>`, сначала контракт).
+Пока плагин не собран, манифеста в корне его каталога нет, и билдер, открыв проект, скажет об этом
+уведомлением «в каталоге … нет manifest.json». Скрипты запуска выше собирают плагины сами; если
+билдер запущен иначе, после клона репозитория соберите их до того, как открывать каталог.
+E2E собирает плагины перед каждым прогоном.
+
+Сборку делает CLI автора плагина, а он работает из своего `dist/`. В свежем клоне его сначала
+собирают — вместе с SDK:
+
+```bash
+npm run build -w @reformer/builder-plugin-api -w @reformer/builder-plugin-cli
+```
+
+### playground-hello
+
+Шаблон `reformer-plugin create`: одна команда, подпись которой берётся из словаря плагина.
+Включён настройкой проекта (`workspace.plugins.enabled` в `.ui_builder/settings.json`). Пакет —
+workspace монорепозитория, скрипты у него свои:
+
+```bash
+npm run build:dev -w playground-hello    # сборка для билдера — в корень каталога плагина
+npm run build:dist -w playground-hello   # сборка для поставки — в dist/
+npm run dev -w playground-hello          # build:dev на каждое сохранение исходников
+npm run validate -w playground-hello     # манифест и файлы — правилами оболочки
+npm run typecheck -w playground-hello
+npm test -w playground-hello
+npm run pack -w playground-hello         # архив пакета для npm
+```
+
+Цикл правки: поменять исходник → `build:dev` → в палитре команд (`Ctrl+Shift+P`) «Плагины:
+перезагрузить «Playground Hello»». Без ручных шагов — `npm run dev` в пакете и «Плагины:
+наблюдать «Playground Hello» — режим разработки» в билдере: первый пересобирает на сохранение,
+второй перечитывает плагин при возврате в окно.
+
+### Новый плагин
+
+Проще всего — от образца: скопировать каталог `playground-hello` под именем нового `id` (без
+`node_modules` и собранного) и поменять `id` и `name` в `src/manifest.json`, `id` в
+`src/main.ts` и `name` в `package.json`. Затем `npm install` в корне репозитория — пакет
+подхватится как workspace — и `npm run build:dev -w <имя пакета>`. Включается плагин в списке
+плагинов билдера или строкой в `.ui_builder/settings.json`.
+
+### Кит HexaUI
+
+Кит HexaUI — пакет `@reformer/kit-hexa-ui` в
+[`.ui_builder/plugins/kit-hexa-ui`](.ui_builder/plugins/kit-hexa-ui): и сам кит (поля, обёртка
+поля, провайдер темы, каталог компонентов), и плагин, который вносит его в билдер. Устроен как
+`playground-hello` — `src/`, `build:dev`, `build:dist`, — только сборка его весит около 5 МБ:
+внутри HexaUI с antd и styled-components.
+
+```bash
+npm run build:dev -w @reformer/kit-hexa-ui
+```
+
+Плагин включён заранее (`kit-hexa-ui` в `.ui_builder/settings.json`). Кит появляется в ячейке
+«движок · кит» строки состояния и меняется на лету; готовые конфиги `*-hexa-ui` открывают его
+сразу. Подробности — [README кита](.ui_builder/plugins/kit-hexa-ui/README.md).
 
 ## Что помнить
 
 - **Каталог — фикстура.** e2e снимает с него копию перед каждым тестом, поэтому любое изменение
   здесь — изменение входных данных тестов. Поменяли форму, плагин или конфиг — прогоните
-  `npm run test:e2e -w reformer-builder-playground-e2e`. В копию идёт то, что видит git:
-  игнорируемое (сборка кита HexaUI) в неё не попадает, и берёт её только тест самого кита.
+  `npm run test:e2e -w reformer-builder-playground-e2e`. В копию идёт то, что видит git,
+  и сборка плагинов для билдера; каталог кита HexaUI берёт только тест самого кита.
 - **Ручная работа меняет файлы.** Открытый руками проект билдер правит на диске: сохранённая
   форма, включённый плагин, подтверждённые права. Перед коммитом — `git status` на этот каталог.
 - **`.ui_builder/settings.json` пишет билдер** — при каждом открытии, своим форматом. Файл
   исключён из prettier (`.prettierignore`), иначе открытие проекта давало бы diff.
+- **Сборка плагинов исключена дважды.** `.gitignore` плагина prettier и ESLint не читают,
+  поэтому те же файлы названы в корневых `.prettierignore` и `eslint.config.js`. Новый файл
+  сборки в корне каталога плагина — строка и там.

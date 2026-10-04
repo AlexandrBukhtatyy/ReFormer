@@ -10,15 +10,15 @@
   },
   "files": [
     "src",
-    "catalog.json",
-    "manifest.json"
+    "catalog.json"
   ],
   "scripts": {
-    "test": "node ../../../scripts/run-vitest.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "plugin:validate": "reformer-plugin validate",
-    "plugin:build": "reformer-plugin build",
-    "plugin:dev": "reformer-plugin dev"
+    "validate": "reformer-plugin validate src",
+    "build:dev": "reformer-plugin build src --out .",
+    "build:dist": "reformer-plugin build src --out dist",
+    "dev": "reformer-plugin dev src --project ../../..",
+    "test": "node ../../../../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@kaspersky/hexa-ui": "^6.387.4",

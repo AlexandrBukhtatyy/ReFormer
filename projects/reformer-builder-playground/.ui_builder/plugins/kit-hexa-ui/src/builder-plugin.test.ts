@@ -10,7 +10,7 @@ import {
 } from '@reformer/builder-plugin-api';
 import { loadCatalogValidator } from '@reformer/builder-plugin-api/tooling';
 import catalogJson from '../catalog.json';
-import manifest from '../manifest.json';
+import manifest from './manifest.json';
 import pkg from '../package.json';
 import plugin from './builder-plugin';
 

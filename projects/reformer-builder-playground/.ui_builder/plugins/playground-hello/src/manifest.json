@@ -3,7 +3,7 @@
   "name": "Playground Hello",
   "version": "0.1.0",
   "apiVersion": "^1",
-  "main": "src/main.ts",
+  "main": "main.ts",
   "contributes": {
     "messages": {
       "ru": "locales/ru.json",

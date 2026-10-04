@@ -4,8 +4,9 @@
 поля на HexaUI `Field`, провайдер темы, каталог компонентов — и плагин ReFormer Builder, который
 ставит этот кит в билдер.
 
-Пакет приватный: он живёт в монорепо как пример кита, внесённого плагином. Билдер о HexaUI не знает
-ничего — ни в зависимостях, ни в составе.
+Пакет приватный: он живёт в монорепо как пример кита, внесённого плагином, — в каталоге плагинов
+проекта-образца (`projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui`), там же,
+где билдер его и находит. Билдер о HexaUI не знает ничего — ни в зависимостях, ни в составе.
 
 ## Кит в приложении
 
@@ -20,21 +21,22 @@ import catalog from '@reformer/kit-hexa-ui/catalog';
 
 ## Кит в билдере — внешним плагином
 
-Плагин — тот же пакет: `manifest.json` (id `kit-hexa-ui`), точка входа `src/builder-plugin.ts`,
-стили `src/builder-plugin.css`. Он вносит кит в точку `reformer.kit.source` и требует от оболочки
-службу китов `reformer.kit.catalog ^2`.
+Плагин — тот же пакет: манифест `src/manifest.json` (id `kit-hexa-ui`), точка входа
+`src/builder-plugin.ts`, стили `src/builder-plugin.css`. Он вносит кит в точку
+`reformer.kit.source` и требует от оболочки службу китов `reformer.kit.catalog ^2`.
 
 ```bash
-npm run plugin:validate -w @reformer/kit-hexa-ui   # пропустит ли оболочка
-npm run plugin:build -w @reformer/kit-hexa-ui      # сборка в dist/
-npm run plugin:dev -w @reformer/kit-hexa-ui -- --project <каталог проекта>
+npm run validate -w @reformer/kit-hexa-ui     # пропустит ли оболочка
+npm run build:dev -w @reformer/kit-hexa-ui    # сборка для билдера — в корень этого каталога
+npm run build:dist -w @reformer/kit-hexa-ui   # сборка для поставки — в dist/
+npm run dev -w @reformer/kit-hexa-ui          # build:dev на каждое сохранение исходников
 ```
 
-Собранный `dist/` кладётся в проект как `.ui_builder/plugins/kit-hexa-ui/` (или туда пишет
-`plugin:dev`). Дальше — включить плагин в списке плагинов и выбрать кит «Kaspersky HexaUI».
-
-Готовый проект для этого — `projects/reformer-builder-playground`: плагин в нём уже включён,
-а сборку кладёт `npm run plugins:hexa-ui -w reformer-builder-playground`.
+`build:dev` кладёт `manifest.json`, `main.js` и `styles.css` рядом с `src/` — в каталог плагина
+проекта-образца, откуда билдер их и грузит; в git они не едут (`.gitignore` пакета). В образце
+плагин уже включён: открыть `projects/reformer-builder-playground` и выбрать кит «Kaspersky
+HexaUI». В другой проект кладётся содержимое `dist/` — как `.ui_builder/plugins/kit-hexa-ui/`, —
+и плагин включается в списке плагинов.
 
 Что грузится когда:
 

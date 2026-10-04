@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": [".ui_builder/plugins/*/src/**/*.ts"]
+  "include": ["src"]
 }

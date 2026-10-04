@@ -33,7 +33,7 @@ const FORMS_DIR = fromHere('../../../reformer-builder-playground/forms/');
 /** Каталоги китов — источник истины для их идентификаторов и состава компонентов. */
 const KIT_CATALOGS = [
   fromHere('../../../../packages/reformer-ui-kit/component-catalog.json'),
-  fromHere('../../../../packages/ui-kits/reformer-hexa-ui/catalog.json'),
+  fromHere('../../../reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui/catalog.json'),
 ];
 
 interface KitCatalog {

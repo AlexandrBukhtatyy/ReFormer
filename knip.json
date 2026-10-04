@@ -1,6 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreWorkspaces": [".", "projects/*"],
+  "ignoreWorkspaces": [
+    ".",
+    "projects/*",
+    "projects/reformer-builder-playground/.ui_builder/plugins/*"
+  ],
   "workspaces": {
     "packages/reformer": {
       "entry": [

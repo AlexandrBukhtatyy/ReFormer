@@ -1,0 +1,5 @@
+# Сборка для билдера — `npm run build:dev`: он грузит плагин из корня этого каталога.
+# Исходники — в src/, сборка для поставки (`npm run build:dist`) — в dist/.
+/manifest.json
+/main.js
+/styles.css

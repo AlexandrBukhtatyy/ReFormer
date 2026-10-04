@@ -24,7 +24,7 @@ const CORE = 'reformer';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Все каталоги dist пакетов, включая вложенные группы (packages/ui-kits/*). */
+/** Все каталоги dist пакетов, включая вложенные группы (packages/<группа>/*). */
 function distDirs(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name === 'node_modules') continue;

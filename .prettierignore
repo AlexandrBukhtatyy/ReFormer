@@ -31,3 +31,11 @@ packages/reformer-mcp/src/prompts/templates/
 # проекта. prettier сворачивает короткий массив в одну строку, и тогда билдер переписывал бы файл
 # обратно: открытие каталога давало бы diff, а e2e «открытие проекта не меняет его файлы» падал бы
 projects/reformer-builder-playground/.ui_builder/settings.json
+
+# Сборка плагинов проекта-образца для билдера (`npm run build:dev` в пакете плагина) лежит в корне
+# каталога плагина и исключена ЕГО .gitignore — а вложенные .gitignore prettier не читает
+# и переформатировал бы main.js
+projects/reformer-builder-playground/.ui_builder/plugins/*/manifest.json
+projects/reformer-builder-playground/.ui_builder/plugins/*/main.js
+projects/reformer-builder-playground/.ui_builder/plugins/*/styles.css
+projects/reformer-builder-playground/.ui_builder/plugins/*/locales/
