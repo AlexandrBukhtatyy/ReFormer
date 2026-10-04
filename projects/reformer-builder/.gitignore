@@ -15,8 +15,3 @@ dist-ssr
 .DS_Store
 *.suo
 *.sw?
-
-# Корпус знаний ассистента: собирается из llms.txt установленных пакетов
-# (npm run generate:knowledge). Версия обязана совпадать со сборкой, а не с моментом,
-# когда его последний раз обновили руками, поэтому в git он не едет.
-src/plugins/reformer/ai/knowledge/generated/

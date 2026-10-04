@@ -20,7 +20,7 @@
  * этот: реестр служб `boot` наружу не отдаёт.
  *
  * Короткий профиль — не для полноты, а по существу: возможности оболочки не зависят от состава
- * плагинов, и `minimal` (без превью и редактора схемы) — единственный способ это утверждать.
+ * плагинов, и короткий состав (без превью и китов) — единственный способ это утверждать.
  *
  * @module shell/boot/integration/host-capabilities.test
  */
@@ -28,6 +28,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { builderApplication } from '@/application/builder-application';
 import { fromProfile } from '@/application/composer/compose';
+import { defineProfile } from '@/application/profiles/profile';
 import { builtinProfile } from '@/application/profiles/registry';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import { definePlugin } from '@reformer/builder-plugin-api/internal';
@@ -39,8 +40,13 @@ import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/h
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 
-const builderProfile = builtinProfile('reformer.builder');
-const minimalProfile = builtinProfile('minimal');
+const builderProfile = builtinProfile('builder');
+/** Короткий состав: файлы и текстовый редактор — ни превью, ни китов. */
+const minimalProfile = defineProfile({
+  id: 'minimal',
+  name: 'Минимальный',
+  plugins: ['reformer.files', 'reformer.editor-monaco'],
+});
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (как в `./minimal-profile`). */
 function stubBrowser(): void {

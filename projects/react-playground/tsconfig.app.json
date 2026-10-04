@@ -30,6 +30,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@builder-src/*": ["../reformer-builder/src/*"],
+      "@reformer-domain/*": ["../reformer-builder-playground/.ui_builder/plugins/reformer/*"],
       "@/shell/*": ["../reformer-builder/src/shell/*"],
       // Исходники билдера, включённые ниже, импортируют пакет контракта плагинов.
       "@reformer/builder-plugin-api": ["../../packages/reformer-builder-plugin-api/src/index.ts"],
@@ -46,10 +47,11 @@
     "../reformer-builder/src/shell/platform/modules",
     "../reformer-builder/src/shell/platform/plugin/typescript-transpiler.ts",
     "../../packages/reformer-builder-plugin-api/src/primitives/disposable.ts",
-    // Данные формы (фикстура, мок, инспектор модели) — ядро домена ReFormer билдера.
-    "../reformer-builder/src/plugins/reformer/core/form-fixture",
-    "../reformer-builder/src/plugins/reformer/core/form-inspect",
-    "../reformer-builder/src/plugins/reformer/core/form-mock"
+    // Данные формы (фикстура, мок, инспектор модели) — ядро домена ReFormer: оно лежит
+    // в каталоге плагинов проекта-образца билдера.
+    "../reformer-builder-playground/.ui_builder/plugins/reformer/core/form-fixture",
+    "../reformer-builder-playground/.ui_builder/plugins/reformer/core/form-inspect",
+    "../reformer-builder-playground/.ui_builder/plugins/reformer/core/form-mock"
   ],
   "exclude": ["src/mocks/_generated"]
 }

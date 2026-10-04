@@ -1,0 +1,26 @@
+{
+  "id": "reformer.codegen",
+  "name": "Генерация кода",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "styles": {
+    "file": "styles.css",
+    "isolation": "scoped"
+  },
+  "provides": [
+    {
+      "id": "reformer.codegen.printer",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": ["workspace.save"],
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
+      }
+    ]
+  }
+}

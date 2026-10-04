@@ -48,8 +48,8 @@ import {
 } from '@reformer/renderer-json';
 import { useFormControl } from '@reformer/core';
 import { useValidationMessage } from '@reformer/core/i18n';
-import { mergeFormData } from '@builder-src/plugins/reformer/core/form-fixture';
-import { synthMock } from '@builder-src/plugins/reformer/core/form-mock';
+import { mergeFormData } from '@reformer-domain/core/form-fixture';
+import { synthMock } from '@reformer-domain/core/form-mock';
 
 import { ModelInspector } from './ModelInspector';
 import { compileSources, extractContract, knownSpecifiers, type BuildProblem } from './compile';

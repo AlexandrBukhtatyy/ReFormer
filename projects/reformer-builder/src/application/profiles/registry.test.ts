@@ -24,7 +24,7 @@ import {
 
 describe('реестр профилей', () => {
   it('профили находятся по своему имени', () => {
-    for (const id of ['reformer.builder', 'rjsf.builder', 'minimal', 'ai-builder']) {
+    for (const id of ['builder.base', 'builder', 'plain.builder']) {
       expect(findProfile(id)?.id).toBe(id);
     }
   });
@@ -36,12 +36,12 @@ describe('реестр профилей', () => {
   });
 
   it('имя, написанное в коде, обязано существовать: builtinProfile бросает', () => {
-    expect(builtinProfile('minimal')).toBe(findProfile('minimal'));
+    expect(builtinProfile('builder.base')).toBe(findProfile('builder.base'));
     expect(() => builtinProfile('нет такого')).toThrow('встроенного профиля «нет такого» нет');
   });
 
   it('имена уникальны: профиль не может перекрыть соседний', () => {
-    expect(PROFILES.size).toBe(6);
+    expect(PROFILES.size).toBe(3);
   });
 
   it('встроенный файл — чистый конфиг запуска: тот же разбор, ни одной проблемы', () => {
@@ -53,15 +53,16 @@ describe('реестр профилей', () => {
     expect(parsed.config.profiles?.map((profile) => profile.id)).toEqual([...PROFILES.keys()]);
   });
 
-  it('профиль по умолчанию — «preset» встроенного файла, и это полный состав ReFormer', () => {
+  it('профиль по умолчанию — «preset» встроенного файла: основа и киты, без движков', () => {
+    // Движки форм в состав билдера не входят — они приходят плагинами открытого проекта.
     expect(defaultProfile).toBe(findProfile(builtinConfig.preset));
-    expect(defaultProfile.id).toBe('reformer.builder');
+    expect(defaultProfile.id).toBe('builder');
   });
 
   it('переключатель по умолчанию предлагает существующие профили, и умолчание среди них', () => {
-    // Имя в списке — такая же строка, как в `preset`: опечатка в нём молча убрала бы движок
+    // Имя в списке — такая же строка, как в `preset`: опечатка в нём молча убрала бы профиль
     // из выбора. А умолчание вне списка означало бы выбор, из которого нельзя вернуться назад.
-    expect(defaultPresetChoices).toEqual(['reformer.builder', 'rjsf.builder']);
+    expect(defaultPresetChoices).toEqual(['builder']);
     expect(defaultPresetChoices.filter((id) => findProfile(id) === undefined)).toEqual([]);
     expect(defaultPresetChoices).toContain(defaultProfile.id);
   });

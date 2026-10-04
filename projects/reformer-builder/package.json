@@ -15,14 +15,12 @@
   ],
   "scripts": {
     "dev": "vite",
-    "generate:knowledge": "node ../../packages/reformer-mcp/scripts/build-knowledge-bundle.mjs --out src/plugins/reformer/ai/knowledge/generated",
-    "build": "npm run generate:knowledge && tsc -b && vite build",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:browser": "node ../../scripts/run-vitest.mjs -c vitest.browser.config.ts",
-    "test:watch": "vitest watch",
-    "predev": "npm run generate:knowledge"
+    "test:watch": "vitest watch"
   },
   "keywords": [
     "reformer",
@@ -53,9 +51,6 @@
     "access": "public"
   },
   "devDependencies": {
-    "@ai-sdk/anthropic": "^4.0.38",
-    "@ai-sdk/openai": "^4.0.41",
-    "@ai-sdk/openai-compatible": "^3.0.30",
     "@eslint/js": "^9.39.1",
     "@monaco-editor/react": "^4.7.0",
     "@preact/signals-core": "^1.8.0",
@@ -64,14 +59,9 @@
     "@reformer/cdk": "*",
     "@reformer/core": "*",
     "@reformer/form-registry": "*",
-    "@reformer/mcp": "*",
     "@reformer/renderer-json": "*",
     "@reformer/renderer-react": "*",
-    "@reformer/rjsf-kit-theme": "*",
     "@reformer/ui-kit": "*",
-    "@rjsf/core": "^6.10.1",
-    "@rjsf/utils": "^6.10.1",
-    "@rjsf/validator-ajv8": "^6.10.1",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.1.17",
     "@types/node": "^24.10.1",
@@ -80,8 +70,6 @@
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/browser": "^4.0.15",
     "@vitest/browser-playwright": "^4.0.15",
-    "ai": "^7.0.63",
-    "ajv": "^8.17.1",
     "cmdk": "^1.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^5.2.0",

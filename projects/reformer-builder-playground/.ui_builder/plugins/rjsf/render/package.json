@@ -1,0 +1,31 @@
+{
+  "name": "@reformer/builder-rjsf-render",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Плагин ReFormer Builder «RJSF: превью формы в ките»: поверхность превью, рисующая форму rjsf-form/1 компонентами активного кита",
+  "scripts": {
+    "validate": "reformer-plugin validate src",
+    "build:dev": "reformer-plugin build src --out .",
+    "build:dist": "reformer-plugin build src --out dist",
+    "dev": "reformer-plugin dev src --out .",
+    "test": "node ../../../../../../scripts/run-vitest.mjs",
+    "test:browser": "node ../../../../../../scripts/run-vitest.mjs -c vitest.browser.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-plugin-cli": "*",
+    "@reformer/rjsf-kit-theme": "*",
+    "@rjsf/core": "^6.10.1",
+    "@rjsf/utils": "^6.10.1",
+    "@rjsf/validator-ajv8": "^6.10.1",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

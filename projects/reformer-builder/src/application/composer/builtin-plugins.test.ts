@@ -40,7 +40,6 @@ import { KITS_PLUGIN_ID } from '@/plugins/kits/registry';
 import type filesBuiltin from '@/plugins/base/files';
 import type monacoBuiltin from '@/plugins/base/editor-monaco';
 import type markdownBuiltin from '@/plugins/base/editor-markdown';
-import type schemaEditorBuiltin from '@/plugins/reformer/editor';
 import { KitsCapability } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '../builder-application';
 import { builtinProfile, PROFILES } from '../profiles/registry';
@@ -56,10 +55,9 @@ import {
 import { fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
 
-const builderProfile = builtinProfile('reformer.builder');
+const builderProfile = builtinProfile('builder');
 const baseProfile = builtinProfile('builder.base');
 const plainProfile = builtinProfile('plain.builder');
-const rjsfProfile = builtinProfile('rjsf.builder');
 
 /** Фабрика состава — `export default` бареля встроенного плагина. */
 type BuiltinFactory = (ports: BuiltinPluginPorts) => Plugin;
@@ -78,7 +76,6 @@ const PORT_READERS: Readonly<Record<string, true>> = {
   'base/files': true satisfies FitsPorts<typeof filesBuiltin>,
   'base/editor-monaco': true satisfies FitsPorts<typeof monacoBuiltin>,
   'base/editor-markdown': true satisfies FitsPorts<typeof markdownBuiltin>,
-  'reformer/editor': true satisfies FitsPorts<typeof schemaEditorBuiltin>,
 };
 
 /**
@@ -91,14 +88,14 @@ const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>([
 ]);
 
 /**
- * Плагины других стеков: в карте есть, в полный профиль ReFormer не входят.
+ * Плагины других стеков: в карте есть, в профиль по умолчанию не входят.
  *
- * Выводятся из профилей этих стеков — их собственные списки без основы и без общего с ReFormer
- * (киты — платформа, их берёт и RJSF), — а не перечисляются здесь: новый стек добавляет свой
+ * Выводятся из профилей этих стеков — их собственные списки без основы и без общего с профилем
+ * по умолчанию (киты — платформа), — а не перечисляются здесь: новый стек добавляет свой
  * профиль, и исключение появляется само.
  */
 const OTHER_STACK_PLUGINS: ReadonlySet<string> = new Set(
-  [plainProfile, rjsfProfile]
+  [plainProfile]
     .flatMap((profile) => profile.plugins)
     .filter((id) => !builderProfile.plugins.includes(id))
 );
@@ -164,7 +161,7 @@ describe('карта встроенных плагинов', () => {
     // один плагин молча перекрыл другой. Карта на это бросает при загрузке; здесь то же
     // утверждается на собранном значении.
     expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
-    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(8);
   });
 
   it('в карте — каждая папка с манифестом, и ни одной другой', () => {
@@ -186,7 +183,7 @@ describe('карта встроенных плагинов', () => {
     expect([...BUILTIN_PLUGINS.values()].map((entry) => entry.directory).sort()).toEqual(
       onDisk.sort()
     );
-    expect(onDisk.length).toBeGreaterThanOrEqual(11);
+    expect(onDisk.length).toBeGreaterThanOrEqual(8);
   });
 
   it('каталог каждого встроенного плагина — `домен/плагин` с его же манифестом', () => {
@@ -379,27 +376,21 @@ describe('состав встроенных плагинов', () => {
       [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
 
     expect(owners(PanelPoint)).toEqual([
-      'reformer.ai',
-      'reformer.codegen',
-      'reformer.editor-schema',
       'reformer.files',
-      // Поверхности формы ReFormer вносят панель модели: значения формы, состояние узлов
-      // и производные пути не видны больше нигде. Форму она не дублирует — её рисует редактор.
       // Превью-хост панелей не вносит: своего интерфейса у него нет.
-      'reformer.preview-runtime',
-      // Ячейка «движок · кит» — первая панель слота `statusbar`.
+      // Ячейка «профиль · кит» — первая панель слота `statusbar`.
       'reformer.stack-switch',
-      'reformer.templates',
     ]);
-    // Поверхности вносит плагин стека, а не хост: чем рисовать схему — знание стека.
-    expect(owners(PreviewSurfacePoint)).toEqual(['reformer.preview-runtime']);
+    // Поверхности вносит плагин стека, а не хост: чем рисовать схему — знание стека. Стеки
+    // форм — плагины проекта, и в составе билдера поверхностей нет.
+    expect(owners(PreviewSurfacePoint)).toEqual([]);
     expect(owners(EditorPoint)).toEqual([
       'reformer.editor-markdown',
       'reformer.editor-monaco',
-      'reformer.editor-schema',
       'reformer.files',
     ]);
-    expect(owners(DocumentModelPoint)).toEqual(['reformer.editor-schema']);
+    // Модель документа — вклад редактора стека; без него всё открывается текстом.
+    expect(owners(DocumentModelPoint)).toEqual([]);
   });
 
   it('markdown-файл достаётся markdown-редактору, а не Monaco', async () => {
@@ -495,7 +486,7 @@ describe('проверки выше не пусты', () => {
     h.plugins.registerAll(h.built);
     h.plugins.activateAll();
 
-    expect(h.built.length).toBeGreaterThanOrEqual(8);
+    expect(h.built.length).toBeGreaterThanOrEqual(7);
     expect(h.plugins.statuses().length).toBe(h.built.length);
     expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(4);
     expect(h.extensions.get(EditorPoint).length).toBeGreaterThanOrEqual(2);
@@ -633,10 +624,10 @@ describe('состав и карта: каждый плагин своим фа�
     expect([...used].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
   });
 
-  it('полный профиль ReFormer — вся карта, кроме других стеков', async () => {
-    // Демо-стек и RJSF — ДРУГИЕ стеки: их собирают `plain.builder` и `rjsf.builder` поверх
-    // основы, а в состав ReFormer они не входят. Попади туда хоть один — у `.json` появилось бы
-    // два предметных редактора.
+  it('профиль по умолчанию — вся карта, кроме других стеков', async () => {
+    // Демо-стек — ДРУГОЙ стек: его собирает `plain.builder` поверх основы, а в состав
+    // по умолчанию он не входит. Попади он туда — у `.json` появился бы предметный редактор,
+    // спорящий с движком, который принёс проект.
     const all = await builderApplication.load(stubBuiltinOptions());
 
     expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
@@ -675,8 +666,8 @@ describe('состав и карта: каждый плагин своим фа�
         if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
         const text = readFileSync(full, 'utf8');
         for (const id of BUILTIN_PLUGINS.keys()) {
-          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/reformer/ai`, а плагин
-          // зовётся `reformer.ai`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
+          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/base/files`, а плагин
+          // зовётся `reformer.files`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
           // и храповик молча перестал бы стеречь.
           const directory = builtinPluginDirectory(id);
           // Барель — это ТОЧНО `@/plugins/<каталог>`: `@/plugins/<каталог>/contract`
@@ -698,7 +689,7 @@ describe('состав и карта: каждый плагин своим фа�
 
   it('храповик не пуст: зоны обойдены и плагины у него есть', () => {
     // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
-    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(8);
   });
 });
 
@@ -754,13 +745,6 @@ describe('оболочка не знает стека', () => {
   it('храповик не пуст: файлы обойдены и плагины стека у него есть', () => {
     // Сломайся путь или выведи профиль основы весь набор — проверка выше осталась бы зелёной.
     expect(scan().files).toBeGreaterThan(100);
-    expect(stackDirectories).toEqual(
-      expect.arrayContaining([
-        'kits/registry',
-        'reformer/editor',
-        'reformer/render',
-        'reformer/codegen',
-      ])
-    );
+    expect(stackDirectories).toEqual(expect.arrayContaining(['kits/registry', 'plain/demo']));
   });
 });

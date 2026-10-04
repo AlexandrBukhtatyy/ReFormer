@@ -40,12 +40,17 @@ export default defineConfig({
       // бы `@` playground'а и увёл их в его src.
       '@/shell': path.resolve(__dirname, '../reformer-builder/src/shell'),
       // Помощники печати — в исходники тем же доводом. Данные формы (фикстура, мок, инспектор
-      // модели) берутся из ядра домена ReFormer билдера: `@builder-src/plugins/reformer/core/…`.
+      // модели) берутся из ядра домена ReFormer — оно живёт в каталоге плагинов проекта-образца
+      // билдера: `@reformer-domain/core/…`.
       '@reformer/builder-toolkit': path.resolve(
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
       ),
       '@builder-src': path.resolve(__dirname, '../reformer-builder/src'),
+      '@reformer-domain': path.resolve(
+        __dirname,
+        '../reformer-builder-playground/.ui_builder/plugins/reformer'
+      ),
       '@': path.resolve(__dirname, './src'),
     },
   },

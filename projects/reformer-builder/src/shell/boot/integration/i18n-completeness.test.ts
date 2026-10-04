@@ -36,34 +36,33 @@
  * набор совпал, а `{count}` в одной локали превратился в текст без числа. Обе проверки стоят
  * дешевле, чем поиск причины по маркеру на экране.
  *
+ * ## Плагины вне билдера проверяют себя сами
+ *
+ * Движки ReFormer и RJSF — плагины проекта и в состав билдера не входят. Их словари сверяют
+ * тем же правилом (`dictionary-checks`) интеграционные тесты их доменов.
+ *
  * @module shell/boot/integration/i18n-completeness.test
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { FALLBACK_LOCALE } from '@/shell/platform/services/i18n/i18n';
-import { parseMessage, type MessagePattern } from '@reformer/core/i18n';
+import {
+  brokenMessages,
+  extraLocales,
+  missingKeys,
+  type Dictionary,
+} from '@/shell/platform/services/i18n/dictionary-checks';
 import hostEn from '@/shell/platform/services/i18n/locales/en.json';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
-import { AI_MESSAGES } from '@/plugins/reformer/ai/messages';
-import { CODEGEN_MESSAGES } from '@/plugins/reformer/codegen/messages';
 import { MARKDOWN_MESSAGES } from '@/plugins/base/editor-markdown';
 import { MONACO_MESSAGES } from '@/plugins/base/editor-monaco/messages';
-import { SCHEMA_EDITOR_MESSAGES } from '@/plugins/reformer/editor/messages';
 import { FILES_MESSAGES } from '@/plugins/base/files';
 import { KITS_MESSAGES } from '@/plugins/kits/registry/messages';
 import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/base/plugin-manager';
 import { PLAIN_MESSAGES } from '@/plugins/plain/demo/messages';
 import { PREVIEW_MESSAGES } from '@/plugins/base/preview/messages';
-import { PREVIEW_RUNTIME_MESSAGES } from '@/plugins/reformer/render/messages';
-import { RJSF_EDITOR_MESSAGES } from '@/plugins/rjsf/editor/messages';
-import { RJSF_RENDER_MESSAGES } from '@/plugins/rjsf/render/messages';
 import { STACK_SWITCH_MESSAGES } from '@/plugins/base/stack-switch/messages';
-import { TEMPLATES_MESSAGES } from '@/plugins/reformer/templates/messages';
-
-/** Словарь одного владельца: локаль → ключ → сообщение. */
-type Dictionary = Readonly<Record<string, Readonly<Record<string, string>>>>;
 
 /**
  * Словарь Host собирается здесь из тех же файлов, которые грузит сам сервис.
@@ -81,113 +80,33 @@ const HOST_MESSAGES: Dictionary = { ru: hostRu, en: hostEn };
  */
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['host', HOST_MESSAGES],
-  ['reformer/ai', AI_MESSAGES],
-  ['reformer/codegen', CODEGEN_MESSAGES],
   ['base/editor-markdown', MARKDOWN_MESSAGES],
   ['base/editor-monaco', MONACO_MESSAGES],
-  ['reformer/editor', SCHEMA_EDITOR_MESSAGES],
   ['base/files', FILES_MESSAGES],
   ['kits/registry', KITS_MESSAGES],
   ['plain/demo', PLAIN_MESSAGES],
   ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['base/preview', PREVIEW_MESSAGES],
-  ['reformer/render', PREVIEW_RUNTIME_MESSAGES],
   ['base/stack-switch', STACK_SWITCH_MESSAGES],
-  ['reformer/templates', TEMPLATES_MESSAGES],
-  ['rjsf/editor', RJSF_EDITOR_MESSAGES],
-  ['rjsf/render', RJSF_RENDER_MESSAGES],
 ];
-
-/** Локали, в которых обязан быть каждый ключ. Резервная — первой, потому что за ней нет никого. */
-const REQUIRED_LOCALES: readonly string[] = [FALLBACK_LOCALE, 'ru'];
-
-/** Имена аргументов сообщения, включая те, что встречаются только внутри веток. */
-function argumentsOf(pattern: MessagePattern, out = new Set<string>()): Set<string> {
-  for (const node of pattern) {
-    if (node.kind === 'text') continue;
-    out.add(node.name);
-    if (node.kind === 'plural' || node.kind === 'select') {
-      for (const branch of node.branches.values()) argumentsOf(branch, out);
-    }
-  }
-  return out;
-}
-
-/** `владелец · ключ` — адрес, по которому промах ищется в репозитории. */
-function address(owner: string, key: string): string {
-  return `${owner} · ${key}`;
-}
 
 describe('словари: наборы ключей совпадают во всех локалях', () => {
   it.each(DICTIONARIES)('%s', (owner, dictionary) => {
-    // Объединение, а не «ключи основной локали»: иначе ключ, существующий ТОЛЬКО в английском,
-    // не проверялся бы вовсе — а это ровно тот случай, когда перевод забыли в основную локаль.
-    const all = new Set<string>();
-    for (const locale of REQUIRED_LOCALES) {
-      for (const key of Object.keys(dictionary[locale] ?? {})) all.add(key);
-    }
-
-    const missing: string[] = [];
-    for (const key of [...all].sort()) {
-      for (const locale of REQUIRED_LOCALES) {
-        if (dictionary[locale]?.[key] === undefined) {
-          missing.push(`${address(owner, key)}: нет в «${locale}»`);
-        }
-      }
-    }
-
-    expect(missing).toEqual([]);
+    expect(missingKeys(owner, dictionary)).toEqual([]);
   });
 
   it('локалей у каждого словаря ровно столько, сколько умеет приложение', () => {
-    const extra: string[] = [];
-    for (const [owner, dictionary] of DICTIONARIES) {
-      for (const locale of Object.keys(dictionary)) {
-        // Лишняя локаль не ошибка сама по себе, но она не проверяется на полноту ничем:
-        // список выше её не знает, и её ключи разъедутся молча.
-        if (!REQUIRED_LOCALES.includes(locale)) extra.push(`${owner}: локаль «${locale}»`);
-      }
-    }
-    expect(extra).toEqual([]);
+    expect(DICTIONARIES.flatMap(([owner, dictionary]) => extraLocales(owner, dictionary))).toEqual(
+      []
+    );
   });
 });
 
 describe('словари: сообщения разбираются и подставляют одно и то же', () => {
   it.each(DICTIONARIES)('%s', (owner, dictionary) => {
-    const broken: string[] = [];
-    const patterns = new Map<string, MessagePattern>();
+    const { broken, mismatched } = brokenMessages(owner, dictionary);
 
-    for (const locale of REQUIRED_LOCALES) {
-      for (const [key, message] of Object.entries(dictionary[locale] ?? {})) {
-        try {
-          patterns.set(`${locale} ${key}`, parseMessage(message));
-        } catch (error) {
-          broken.push(
-            `${address(owner, key)} [${locale}]: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      }
-    }
     expect(broken).toEqual([]);
-
-    // Имена аргументов сверяются с резервной локалью, а не попарно между всеми: пар было бы
-    // больше, а адресат один — тот, кто перевёл и потерял подстановку.
-    const mismatched: string[] = [];
-    for (const locale of REQUIRED_LOCALES) {
-      if (locale === FALLBACK_LOCALE) continue;
-      for (const key of Object.keys(dictionary[locale] ?? {})) {
-        const base = patterns.get(`${FALLBACK_LOCALE} ${key}`);
-        const other = patterns.get(`${locale} ${key}`);
-        if (base === undefined || other === undefined) continue;
-        const expected = [...argumentsOf(base)].sort().join(', ');
-        const actual = [...argumentsOf(other)].sort().join(', ');
-        if (expected !== actual) {
-          mismatched.push(
-            `${address(owner, key)}: «${FALLBACK_LOCALE}» ждёт {${expected}}, «${locale}» — {${actual}}`
-          );
-        }
-      }
-    }
     expect(mismatched).toEqual([]);
   });
 });

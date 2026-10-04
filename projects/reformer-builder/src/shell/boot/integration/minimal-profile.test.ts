@@ -21,7 +21,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
-import { builtinProfile } from '@/application/profiles/registry';
+import { defineProfile } from '@/application/profiles/profile';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
@@ -29,7 +29,12 @@ import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 
-const minimalProfile = builtinProfile('minimal');
+/** Короткий состав: файлы и текстовый редактор — ни превью, ни китов. */
+const minimalProfile = defineProfile({
+  id: 'minimal',
+  name: 'Минимальный',
+  plugins: ['reformer.files', 'reformer.editor-monaco'],
+});
 
 /**
  * Окружение браузера в объёме, который трогает `boot` при сборке.
@@ -58,7 +63,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('boot на профиле minimal', () => {
+describe('boot на коротком профиле', () => {
   async function start(): Promise<BuilderApp> {
     stubBrowser();
     app = boot({ application: fromProfile(minimalProfile) });
@@ -66,19 +71,15 @@ describe('boot на профиле minimal', () => {
     return app;
   }
 
-  it('приложение поднимается, и все три плагина активны', async () => {
+  it('приложение поднимается, и оба плагина активны', async () => {
     const started = await start();
 
     const statuses = started.plugins.statuses();
-    expect(statuses.map((s) => s.id).sort()).toEqual([
-      'reformer.editor-monaco',
-      'reformer.files',
-      'reformer.validator-schema',
-    ]);
+    expect(statuses.map((s) => s.id).sort()).toEqual(['reformer.editor-monaco', 'reformer.files']);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });
 
-  it('вкладов превью и редактора схемы в приложении НЕТ', async () => {
+  it('вкладов превью и китов в приложении НЕТ', async () => {
     const started = await start();
     const owners = <T>(point: ExtensionPoint<T>): string[] =>
       [...new Set(started.extensions.get(point).map((c) => c.pluginId))].sort();
@@ -92,20 +93,15 @@ describe('boot на профиле minimal', () => {
     expect(owners(DocumentModelPoint)).toEqual([]);
   });
 
-  it('команды в приложении есть, и все они от троих', async () => {
+  it('команды в приложении есть, и все они от двоих', async () => {
     // Без этого проверка выше проходила бы и на приложении, которое вообще не поднялось.
     const started = await start();
     const commands = started.commands.getAll();
 
-    expect(commands.length).toBeGreaterThanOrEqual(3);
+    expect(commands.length).toBeGreaterThanOrEqual(2);
     const foreign = commands
       .filter((c) => c.pluginId !== undefined)
-      .filter(
-        (c) =>
-          !['reformer.files', 'reformer.editor-monaco', 'reformer.validator-schema'].includes(
-            c.pluginId as string
-          )
-      );
+      .filter((c) => !['reformer.files', 'reformer.editor-monaco'].includes(c.pluginId as string));
     expect(foreign.map((c) => c.id)).toEqual([]);
   });
 });

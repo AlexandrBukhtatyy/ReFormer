@@ -44,22 +44,11 @@ const MODULE_LIMIT = 15;
  *
  * Планка исключения — не «сколько там сейчас», а «сколько допустимо»: она обязана оставлять
  * запас на рост, но падать, если каталог поедет дальше без разговора.
+ *
+ * Сейчас исключений нет: оба прежних (`ai/tools` и `core/form-model`) принадлежали домену
+ * ReFormer, а он уехал из билдера в плагины проекта вместе со своими каталогами.
  */
-const EXCEPTIONS: Readonly<Record<string, { readonly limit: number; readonly why: string }>> = {
-  'plugins/reformer/ai/tools': {
-    limit: 25,
-    why:
-      'по файлу на инструмент агента — сам НАБОР и есть поверхность, которую видит модель; ' +
-      'группировка инструментов по темам спрятала бы её состав, а он под храповиком ' +
-      'tool-surface.test.ts',
-  },
-  'plugins/reformer/core/form-model': {
-    limit: 17,
-    why:
-      'бывший модуль пакета стека перенесён в ядро домена как есть — перенос без правок ' +
-      'поведения; раскладка на подкаталоги за барелем — ReFormer-tbbt.10',
-  },
-};
+const EXCEPTIONS: Readonly<Record<string, { readonly limit: number; readonly why: string }>> = {};
 
 /** Корневые каталоги `src/`, внутри которых считаем. */
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
@@ -111,7 +100,7 @@ describe('раскладка каталогов', () => {
     // Без этого сломанный обход давал бы пустую карту и зелёный прогон на пустом множестве —
     // ровно та тишина, которую этот тест и заведён ловить.
     expect(counts.size).toBeGreaterThan(40);
-    expect([...counts.values()].reduce((a, b) => a + b, 0)).toBeGreaterThan(300);
+    expect([...counts.values()].reduce((a, b) => a + b, 0)).toBeGreaterThan(200);
   });
 });
 
@@ -224,7 +213,7 @@ describe('устройство плагина', () => {
   });
 
   it('проверка не пуста: домены и плагины найдены', () => {
-    expect(domains.length).toBeGreaterThanOrEqual(4);
-    expect(plugins.length).toBeGreaterThanOrEqual(10);
+    expect(domains.length).toBeGreaterThanOrEqual(3);
+    expect(plugins.length).toBeGreaterThanOrEqual(8);
   });
 });

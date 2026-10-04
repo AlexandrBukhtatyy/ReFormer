@@ -206,8 +206,8 @@ export default defineConfig({
           const outsideCores = own.filter((id) => coreOf(id) === undefined).length;
           if (owners.size === 1 && owned * 2 >= outsideCores) {
             const owner = [...owners][0];
-            // У бареля `[name]` — всегда `index`, и `plugins/reformer-ai-index` ничего
-            // не добавляет к `plugins/reformer-ai`. У остальных имя несёт смысл и остаётся.
+            // У бареля `[name]` — всегда `index`, и `plugins/base-preview-index` ничего
+            // не добавляет к `plugins/base-preview`. У остальных имя несёт смысл и остаётся.
             return chunk.name === 'index'
               ? `assets/plugins/${owner}-[hash].js`
               : `assets/plugins/${owner}-[name]-[hash].js`;
@@ -265,11 +265,6 @@ export default defineConfig({
       '@reformer/builder-toolkit': path.resolve(
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
-      ),
-      // Тема RJSF из кита — рантайм домена rjsf, в исходники тем же доводом.
-      '@reformer/rjsf-kit-theme': path.resolve(
-        __dirname,
-        '../../packages/rjsf-kit-theme/src/index.ts'
       ),
     },
   },

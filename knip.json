@@ -3,7 +3,8 @@
   "ignoreWorkspaces": [
     ".",
     "projects/*",
-    "projects/reformer-builder-playground/.ui_builder/plugins/*"
+    "projects/reformer-builder-playground/.ui_builder/plugins/*",
+    "projects/reformer-builder-playground/.ui_builder/plugins/*/*"
   ],
   "workspaces": {
     "packages/reformer": {
