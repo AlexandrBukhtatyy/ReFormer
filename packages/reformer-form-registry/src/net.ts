@@ -184,11 +184,30 @@ export function assertFormSchemaShape(url: string, data: unknown): void {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new FormFetchError('not-a-form-schema', url, 'ожидался объект схемы');
   }
-  if (!('root' in (data as Record<string, unknown>))) {
+  const doc = data as Record<string, unknown>;
+  if (!('root' in doc)) {
     throw new FormFetchError(
       'not-a-form-schema',
       url,
       'в объекте нет обязательного поля `root` — это не схема формы'
+    );
+  }
+  // Формат документа: без поля — прежний, `2` — текущий. Всё прочее этот код читать не умеет:
+  // документ выкатили вперёд кода, и собрать его «как получится» хуже, чем отказать.
+  if ('format' in doc && doc.format !== 2) {
+    throw new FormFetchError(
+      'not-a-form-schema',
+      url,
+      `неизвестный формат документа схемы: ${JSON.stringify(doc.format)} — этот код читает ` +
+        'формат 2 и прежний (без поля `format`)'
+    );
+  }
+  // Именованные части — словарь узлов. Массив или строка здесь означают чужой либо битый документ.
+  if ('parts' in doc && (!doc.parts || typeof doc.parts !== 'object' || Array.isArray(doc.parts))) {
+    throw new FormFetchError(
+      'not-a-form-schema',
+      url,
+      'поле `parts` должно быть объектом «имя части → узел»'
     );
   }
 }

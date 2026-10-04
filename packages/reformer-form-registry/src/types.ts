@@ -17,8 +17,30 @@
 
 import type { FormModel, FormProxy, FormValidation, FormValidationBundle } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
-import type { ComponentRegistry, JsonFormSchema } from '@reformer/renderer-json';
+import type { ComponentRegistry, JsonFormSchema, JsonFormSchemaV1 } from '@reformer/renderer-json';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
+
+/**
+ * Фабрика поведения формы от настроек МЕСТА МОНТИРОВАНИЯ.
+ *
+ * Колбэки вроде `onResult` принадлежат хосту — он решает, где и как показать результат, — поэтому
+ * в записи реестра их быть не может: она одна на все места, где форму покажут. Хост передаёт их
+ * пропом `behaviorOptions` у `FormOutlet` / `FormSlot`, запись получает их аргументом фабрики.
+ *
+ * @example
+ * ```ts
+ * behavior: {
+ *   kind: 'inline',
+ *   value: (options) =>
+ *     defineFormBehavior<MyForm>(({ model, schema }) => {
+ *       onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+ *         (options.onResult as (r: unknown) => void)?.(await submit(model.get()));
+ *       });
+ *     }),
+ * }
+ * ```
+ */
+export type FormBehaviorFactory<T> = (options: Record<string, unknown>) => FormBehavior<T>;
 
 /**
  * Источник ДАННЫХ: сериализуем, поэтому может приехать по сети.
@@ -96,8 +118,14 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   /** Кто зарегистрировал — для диагностики коллизий `id` между микрофронтами. */
   owner: string;
 
-  /** Схема формы. Единственная часть, которую можно тянуть по сети. */
-  schema: DataSource<JsonFormSchema<T>>;
+  /**
+   * Схема формы. Единственная часть, которую можно тянуть по сети.
+   *
+   * Документ прежнего формата (без `format: 2`) загрузчик переводит в формат 2 сам — в том числе
+   * тот, что лежит в постоянном кэше. Исключение — запись прежнего контракта с `renderBehavior`:
+   * её документ остаётся прежнего формата.
+   */
+  schema: DataSource<JsonFormSchema<T> | JsonFormSchemaV1<T>>;
   /**
    * Диапазон версий схемы, с которыми совместим ЭТОТ код (semver-range).
    * Закрывает режим отказа «схема ушла вперёд кода»: CDN отдал v2, а микрофронт
@@ -112,18 +140,28 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
 
   /** Расширение реестра компонентов поверх базового. */
   registry?: CodeSource<ComponentRegistry>;
-  /** Поведение модели: compute/copyFrom/enableWhen/onChange. */
-  behavior?: CodeSource<FormBehavior<T>>;
+  /**
+   * Поведение формы — единственное: и модель (compute / copyFrom / enableWhen / onChange), и узлы
+   * схемы (hideWhen / onComponentEvent / onMount через `schema.node(...)`).
+   *
+   * Либо само поведение, либо фабрика от настроек места монтирования ({@link FormBehaviorFactory}):
+   * хост передаёт их пропом `behaviorOptions`.
+   */
+  behavior?: CodeSource<FormBehavior<T> | FormBehaviorFactory<T>>;
   /** Правила валидации. См. {@link FormValidation} про стабильность ссылок. */
   validation?: CodeSource<FormValidation<T>>;
   /**
-   * Фабрика render-behavior. Получает готовые form/model и правила валидации —
-   * связывание валидации с формой происходит здесь.
+   * Фабрика render-behavior — прежний контракт. Запись с этим полем монтируется прежним путём
+   * (`createJsonForm` + `JsonFormRenderer`), и её документ схемы остаётся прежнего формата. В
+   * едином контракте правила узлов пишутся в `behavior`.
+   *
+   * Получает готовые form/model и правила валидации — связывание валидации с формой происходит
+   * здесь.
    *
    * Четвёртый параметр — настройки МЕСТА МОНТИРОВАНИЯ, а не формы: колбэки вроде `onResult`
    * принадлежат хосту (он решает, где и как показать результат), поэтому в записи реестра их
    * быть не может — она одна на все места, где форму покажут. Хост передаёт их пропом
-   * `renderBehaviorOptions` у `FormOutlet`/`FormSlot`.
+   * `behaviorOptions` (прежнее имя — `renderBehaviorOptions`) у `FormOutlet`/`FormSlot`.
    *
    * Без этого канала фабрики вида `(form, model, options)` — а именно такие генерирует билдер —
    * получали бы в третий аргумент `FormValidation`, что и не компилируется, и молча ломает

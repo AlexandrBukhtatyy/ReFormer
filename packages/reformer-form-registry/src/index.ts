@@ -16,6 +16,7 @@ export type {
   FormPlacement,
   FormAccess,
   DegradePolicy,
+  FormBehaviorFactory,
   FormEntry,
   ResolveContext,
   FormQuery,

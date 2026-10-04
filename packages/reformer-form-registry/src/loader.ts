@@ -12,23 +12,37 @@ import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core'
 import type { FormBehavior } from '@reformer/core/behaviors';
 import {
   composeRegistries,
+  migrateJsonSchema,
+  schemaFormatOf,
   type ComponentRegistry,
   type JsonFormSchema,
+  type JsonFormSchemaV1,
 } from '@reformer/renderer-json';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import type { SchemaCache } from './cache';
 import { assertFormSchemaShape, fetchJson } from './net';
 import { preflight, formatPreflight, type PreflightResult } from './preflight';
-import type { CodeSource, DataSource, FormEntry, FormValidation } from './types';
+import type {
+  CodeSource,
+  DataSource,
+  FormBehaviorFactory,
+  FormEntry,
+  FormValidation,
+} from './types';
 
 /** Всё, что нужно, чтобы синхронно собрать форму. */
 export interface LoadedForm<T extends object = Record<string, unknown>> {
-  schema: JsonFormSchema<T>;
+  /**
+   * Документ схемы. Формата 2 — у всех записей, кроме записей прежнего контракта (с
+   * `renderBehavior`): их документ остаётся прежнего формата и монтируется прежним путём.
+   */
+  schema: JsonFormSchema<T> | JsonFormSchemaV1<T>;
   /** Базовый реестр, скомпонованный с расширением записи. */
   registry: ComponentRegistry;
   initial?: T;
   makeModel?: () => FormModel<T>;
-  behavior?: FormBehavior<T>;
+  /** Поведение формы либо его фабрика от настроек места монтирования. */
+  behavior?: FormBehavior<T> | FormBehaviorFactory<T>;
   validation?: FormValidation<T>;
   makeRenderBehavior?: (
     form: FormProxy<T>,
@@ -76,6 +90,11 @@ export interface LoadFormOptions {
    * `'off'` — не проверять.
    */
   preflight?: 'error' | 'warn' | 'off';
+  /**
+   * Имена компонентов-визардов для перевода документа прежнего формата: их `componentProps.steps`
+   * становятся детьми узла. По умолчанию — `DEFAULT_STEP_HOSTS` из `@reformer/renderer-json`.
+   */
+  stepHosts?: readonly string[];
   /**
    * @param d.level - Серьёзность проблемы. В режиме `'error'` диагностики рассылаются ДО броска,
    *   поэтому уровень здесь не выводится из режима и передаётся явно.
@@ -151,11 +170,45 @@ async function loadCode<T>(
 }
 
 /**
+ * Приводит документ к формату, который понимает КОД записи.
+ *
+ * Запись единого контракта (без `renderBehavior`) собирает `createForm`, а он читает только
+ * формат 2. Документ же приходит откуда угодно — из бандла, по сети, из постоянного кэша, — и там
+ * вполне может лежать прежний формат: кэш переживает выкладку. Поэтому перевод делается здесь, на
+ * каждой загрузке, а не при записи в кэш: в кэше остаётся то, что отдал сервер.
+ *
+ * Запись прежнего контракта (с `renderBehavior`) документ формата 2 прочитать не может: её
+ * поведение написано под прежнюю сборку. Молча собрать такую форму без поведения хуже отказа.
+ */
+function schemaForEntry<T extends object>(
+  entry: FormEntry<T>,
+  schema: JsonFormSchema<T> | JsonFormSchemaV1<T>,
+  opts: LoadFormOptions
+): JsonFormSchema<T> | JsonFormSchemaV1<T> {
+  if (entry.renderBehavior) {
+    if (schemaFormatOf(schema) === 2) {
+      throw new FormLoadError(
+        entryKeyOf(entry),
+        'schema',
+        'документ схемы — формата 2, а запись несёт `renderBehavior` (прежний контракт). ' +
+          'Перенесите правила узлов в `behavior` и уберите `renderBehavior` либо отдайте ' +
+          'документ прежнего формата.'
+      );
+    }
+    return schema;
+  }
+  return migrateJsonSchema<T>(schema, opts.stepHosts ? { stepHosts: opts.stepHosts } : {});
+}
+
+/**
  * Загружает все части записи, компонует реестр и проверяет результат.
+ *
+ * Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`) — кроме записей
+ * прежнего контракта, у которых задан `renderBehavior`.
  *
  * @param entry - Запись реестра.
  * @param baseRegistry - Базовый реестр компонентов (общее ядро приложения).
- * @returns Готовый {@link LoadedForm} — остаётся синхронно вызвать `createJsonForm`.
+ * @returns Готовый {@link LoadedForm} — остаётся синхронно собрать форму.
  * @throws {FormLoadError} Часть не загрузилась.
  * @throws {FormPreflightError} Загрузилось, но не прошло проверки (при `preflight: 'error'`).
  */
@@ -166,7 +219,7 @@ export async function loadForm<T extends object>(
 ): Promise<LoadedForm<T>> {
   const key = entryKeyOf(entry);
 
-  const [schema, own, initial, makeModel, behavior, validation, makeRenderBehavior] =
+  const [rawSchema, own, initial, makeModel, behavior, validation, makeRenderBehavior] =
     await Promise.all([
       loadData(entry.schema, entry, 'schema', opts),
       loadCode(entry.registry, key, 'registry'),
@@ -177,7 +230,7 @@ export async function loadForm<T extends object>(
       loadCode(entry.renderBehavior, key, 'renderBehavior'),
     ]);
 
-  if (!schema) throw new FormLoadError(key, 'schema', 'схема не загрузилась');
+  if (!rawSchema) throw new FormLoadError(key, 'schema', 'схема не загрузилась');
   if (!initial && !makeModel) {
     throw new FormLoadError(
       key,
@@ -185,6 +238,7 @@ export async function loadForm<T extends object>(
       'нужны либо `initial` (начальные значения), либо `model` (фабрика модели)'
     );
   }
+  const schema = schemaForEntry(entry, rawSchema, opts);
 
   // Расширение записи перекрывает базу — last-wins, как у Object.assign.
   const registry = own ? composeRegistries(baseRegistry, own) : baseRegistry;

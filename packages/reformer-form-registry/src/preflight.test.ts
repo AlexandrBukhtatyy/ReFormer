@@ -4,7 +4,11 @@
  * Смысл каждой — поймать отказ, который иначе МОЛЧАЛИВ либо всплывает далеко от причины.
  */
 import { describe, it, expect } from 'vitest';
-import { defineRegistry, type JsonFormSchema } from '@reformer/renderer-json';
+import {
+  defineRegistry,
+  type JsonFormSchema as JsonFormSchemaV2,
+  type JsonFormSchemaV1 as JsonFormSchema,
+} from '@reformer/renderer-json';
 import { preflight, satisfiesRange, collectModelPaths, hasPath } from './preflight';
 import type { FormEntry } from './types';
 
@@ -188,6 +192,153 @@ describe('preflight — нематериализованные пути моде
 
   it('без начальных значений проверка пропускается', () => {
     expect(preflight({ entry: entry(), schema, registry }).ok).toBe(true);
+  });
+});
+
+describe('preflight — документ формата 2', () => {
+  interface V2 {
+    email: string;
+    registration: { city: string; flat: { number: string } };
+    residence: { city: string; flat: { number: string } };
+    rows: { name: string }[];
+  }
+
+  const v2 = {
+    format: 2,
+    id: 'a',
+    version: '1.0.0',
+    parts: {
+      address: {
+        selector: 'address-box',
+        component: '$component(Box)',
+        children: [
+          { model: '$model(city)', component: '$component(Input)' },
+          { model: '$model(flat)', part: '$part(flat)' },
+        ],
+      },
+      flat: { model: '$model(number)', component: '$component(Input)' },
+      row: { model: '$model(name)', component: '$component(Input)' },
+    },
+    root: {
+      component: '$component(Box)',
+      children: [
+        { selector: 'main', model: '$model(email)', component: '$component(Input)' },
+        { model: '$model(registration)', part: '$part(address)' },
+        { model: '$model(residence)', part: '$part(address)' },
+        { model: '$model(rows)', item: '$part(row)' },
+      ],
+    },
+  } as unknown as JsonFormSchemaV2<V2>;
+
+  const v2Initial: V2 = {
+    email: '',
+    registration: { city: '', flat: { number: '' } },
+    residence: { city: '', flat: { number: '' } },
+    rows: [],
+  };
+  const v2Entry = entry() as unknown as FormEntry<V2>;
+  const withParts = (parts: Record<string, unknown>): JsonFormSchemaV2<V2> =>
+    ({ ...v2, parts: { ...v2.parts, ...parts } }) as unknown as JsonFormSchemaV2<V2>;
+
+  it('всё сходится → ok, без замечаний', () => {
+    const r = preflight({ entry: v2Entry, schema: v2, registry, initial: v2Initial });
+    expect(r.problems).toEqual([]);
+  });
+
+  it('операторы внутри частей сверяются с реестром', () => {
+    const r = preflight({
+      entry: v2Entry,
+      registry,
+      initial: v2Initial,
+      schema: withParts({
+        row: {
+          model: '$model(name)',
+          component: '$component(Нет)',
+          componentProps: { options: '$dataSource(НЕТ)', format: '$fn(нет)' },
+        },
+      }),
+    });
+    expect(r.problems.map((p) => p.code).sort()).toEqual([
+      'missing-components',
+      'missing-data-sources',
+      'missing-fns',
+    ]);
+  });
+
+  it('селекторы внутри частей известны — ключ шага на них не считается промахом', () => {
+    const r = preflight({
+      entry: v2Entry,
+      schema: v2,
+      registry,
+      initial: v2Initial,
+      validation: { steps: { 'address-box': null, main: null } },
+    });
+    expect(r.problems).toEqual([]);
+  });
+
+  it('необъявленная часть → error с перечнем объявленных', () => {
+    const schema = {
+      ...v2,
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(registration)', part: '$part(adress)' },
+          { model: '$model(rows)', item: '$part(строка)' },
+        ],
+      },
+    } as unknown as JsonFormSchemaV2<V2>;
+    const r = preflight({ entry: v2Entry, schema, registry });
+    const p = r.problems.find((x) => x.code === 'missing-parts')!;
+    expect(r.ok).toBe(false);
+    expect(p.items.sort()).toEqual(['adress', 'строка']);
+    expect(p.message).toContain('address, flat, row');
+  });
+
+  it('пути части считаются от группы подключения, в том числе вложенной', () => {
+    expect(collectModelPaths(v2).sort()).toEqual([
+      'email',
+      'registration',
+      'registration.city',
+      'registration.flat',
+      'registration.flat.number',
+      'residence',
+      'residence.city',
+      'residence.flat',
+      'residence.flat.number',
+      'rows',
+    ]);
+  });
+
+  it('поля подформы нет в начальных значениях → warn с путём от корня', () => {
+    const r = preflight({
+      entry: v2Entry,
+      schema: v2,
+      registry,
+      initial: { ...v2Initial, residence: { city: '' } },
+    });
+    const p = r.problems.find((x) => x.code === 'unmaterialized-model-paths')!;
+    expect(p.items.sort()).toEqual(['residence.flat', 'residence.flat.number']);
+    expect(r.ok).toBe(true);
+  });
+
+  it('шаблон строки массива не проверяется: его пути относительны элементу', () => {
+    // `name` из части `row` в корне модели нет — и быть не должно.
+    const r = preflight({ entry: v2Entry, schema: v2, registry, initial: v2Initial });
+    expect(r.problems.find((x) => x.code === 'unmaterialized-model-paths')).toBeUndefined();
+  });
+
+  it('часть, подключающая саму себя, обход не зацикливает', () => {
+    const schema = withParts({
+      flat: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(number)', component: '$component(Input)' },
+          { model: '$model(inner)', part: '$part(flat)' },
+        ],
+      },
+    });
+    expect(collectModelPaths(schema)).toContain('registration.flat.inner');
+    expect(collectModelPaths(schema)).not.toContain('registration.flat.inner.inner');
   });
 });
 

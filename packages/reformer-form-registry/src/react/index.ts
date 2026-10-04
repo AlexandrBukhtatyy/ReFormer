@@ -18,7 +18,7 @@ export { FormOutlet, FormSlot, FormRoute } from './form-outlet';
 export type { FormOutletProps, FormMountProps } from './form-outlet';
 
 export { MountedForm } from './mounted-form';
-export type { MountedFormProps } from './mounted-form';
+export type { MountedFormProps, MountedFormBundle } from './mounted-form';
 
 export { useFormResource } from './use-form-resource';
 export type { FormResource, UseFormResourceOptions } from './use-form-resource';
