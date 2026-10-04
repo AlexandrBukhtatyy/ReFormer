@@ -22,6 +22,14 @@ import type {
   ValidationRuleIntent,
 } from './form-intent.js';
 import { UI_KIT_CONTAINER_EXPORTS, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+import {
+  buildFormSchemaJson,
+  buildFormSchemaJsonTs,
+  buildFormSchemaTs,
+  buildSchemaLayout,
+  collectSteps,
+  stepKeyOf,
+} from './schema-emit.js';
 
 /** Один файл бандла. */
 export interface BundleFile {
@@ -79,8 +87,13 @@ export function buildModelTs(intent: FormIntent): string {
   const lines: string[] = [];
   lines.push('/**');
   lines.push(` * Модель формы «${intent.formName}» — источник истины для всех остальных файлов.`);
-  lines.push(' * Валидация, поведение и layout ссылаются на ЭТИ пути; менять их надо здесь.');
+  lines.push(' * Валидация, поведение и схема ссылаются на ЭТИ пути; менять их надо здесь.');
   lines.push(' */');
+  lines.push(
+    intent.arrays.length > 0
+      ? "import { arrayOf, createModel } from '@reformer/core';"
+      : "import { createModel } from '@reformer/core';"
+  );
   lines.push('');
 
   // Типы элементов массивов объявляются до основного — иначе ссылка вперёд.
@@ -107,10 +120,110 @@ export function buildModelTs(intent: FormIntent): string {
   lines.push('};');
   lines.push('');
 
-  lines.push(`export const initialFormModel: ${intent.interfaceName} = {`);
-  lines.push(...renderInitial(tree, 1));
-  lines.push('};');
+  // Шаблон нового элемента живёт в модели, рядом с начальными значениями: `arrayOf(blank)`
+  // объявляет и массив, и то, чем его пополняет кнопка «Добавить». Узлу массива в схеме
+  // `initialValue` после этого не нужен — и разойтись с моделью ему не с чем.
+  for (const arr of intent.arrays) {
+    lines.push(`/** Шаблон нового элемента массива \`${arr.modelPath ?? arr.name}\`. */`);
+    lines.push(`const ${blankName(arr)} = (): ${arr.itemInterfaceName} => ({`);
+    // Значения — те же, что дал бы тип поля в корне модели: шаблон обязан подходить под
+    // тип элемента, а `null` для числа без `| null` в типе не собрался бы.
+    for (const f of arr.itemFields) {
+      lines.push(`  ${objectKey(f.name)}: ${initialLiteral(f)},`);
+    }
+    lines.push('});');
+    lines.push('');
+  }
+
+  // Фабрика, а не константа с начальными значениями: модель — по одной на сборку, и общий
+  // объект между двумя формами на странице делил бы состояние.
+  lines.push(
+    '/** Модель формы — по одной на сборку: `createForm({ model: createFormModel(), … })`. */'
+  );
+  lines.push('export const createFormModel = () =>');
+  lines.push(`  createModel<${intent.interfaceName}>({`);
+  lines.push(...renderInitial(tree, 2));
+  lines.push('  });');
   return lines.join('\n') + '\n';
+}
+
+// ---------------------------------------------------------------------------
+// index.tsx — сборка
+// ---------------------------------------------------------------------------
+
+/** Имя React-компонента формы: `LoanRequest` → `LoanRequestForm`, без удвоения `FormForm`. */
+function formComponentName(intent: FormIntent): string {
+  return /Form$/.test(intent.interfaceName) ? intent.interfaceName : `${intent.interfaceName}Form`;
+}
+
+/**
+ * Сборка формы — тело `index.tsx`.
+ *
+ * Файл пишет консумент (в нём живут загрузка, submit и оформление страницы), поэтому в бандл он
+ * не входит. Но именно здесь агенты чаще всего возвращались к прежнему контракту — три фабрики
+ * сборки, два хука, отдельный рендерер для JSON, — и манифест без этого образца оставлял
+ * единственный непокрытый файл на догадку. Сборка одна на все таргеты: меняется только вид
+ * схемы (функция или документ + `registry`) и то, кто рисует разметку.
+ */
+export function buildAssemblyTsx(intent: FormIntent): string {
+  const type = intent.interfaceName;
+  const name = formComponentName(intent);
+  const json = intent.target === 'renderer-json';
+  const lines: string[] = [];
+
+  lines.push("import { createForm, useFormBundle } from '@reformer/core';");
+  if (intent.target !== 'core')
+    lines.push("import { FormRenderer } from '@reformer/renderer-react';");
+  if (intent.target === 'renderer-react')
+    lines.push("import { FormField } from '@reformer/ui-kit';");
+  lines.push("import { formBehavior } from './form.behavior';");
+  lines.push("import { formSchema } from './form.schema';");
+  lines.push("import { formValidation } from './form.validation';");
+  lines.push(`import { createFormModel, type ${type} } from './model';`);
+  if (json) lines.push("import { createRegistry } from './registry';");
+  lines.push('');
+  if (json) {
+    // Реестр создаётся один раз на модуль: это код приложения, а не данные формы.
+    lines.push('const registry = createRegistry();');
+    lines.push('');
+  }
+  lines.push(`export function ${name}() {`);
+  lines.push(
+    '  // Фабрика выполняется один раз: `useMemo` здесь неверен — React вправе сбросить кэш.'
+  );
+  lines.push('  const bundle = useFormBundle(() =>');
+  lines.push(`    createForm<${type}>({`);
+  lines.push('      model: createFormModel(),');
+  lines.push('      schema: formSchema,');
+  if (json) lines.push('      registry,');
+  lines.push('      behavior: formBehavior,');
+  lines.push('      validation: formValidation,');
+  lines.push('    })');
+  lines.push('  );');
+  lines.push('');
+  if (intent.target === 'core') {
+    lines.push('  // Разметку рисуете сами: поля — `bundle.form.<путь>`, например');
+    lines.push('  // <FormField control={bundle.form.email} />. Правила узлов схемы (`hideWhen`)');
+    lines.push('  // исполняет только рендерер — видимость здесь остаётся условием в JSX.');
+    lines.push('  return null;');
+  } else if (json) {
+    lines.push('  // Обёртка поля приходит из реестра (`FIELD_WRAPPER`).');
+    lines.push('  return <FormRenderer form={bundle} />;');
+  } else {
+    lines.push('  return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;');
+  }
+  lines.push('}');
+  return lines.join('\n') + '\n';
+}
+
+/** Имя фабрики шаблона элемента: `PropertyItem` → `blankPropertyItem`. */
+function blankName(arr: ArrayIntent): string {
+  return `blank${arr.itemInterfaceName}`;
+}
+
+/** Ключ объектного литерала: идентификатор как есть, прочее — в кавычках. */
+function objectKey(key: string): string {
+  return /^[A-Za-z_$][\w$]*$/.test(key) ? key : JSON.stringify(key);
 }
 
 /**
@@ -190,7 +303,9 @@ function renderInitial(level: Map<string, ModelNode>, depth: number): string[] {
       continue;
     }
     if (node.kind === 'array') {
-      out.push(`${pad}${key}: ${JSON.stringify(node.array.initialValue)},`);
+      const rows = node.array.initialValue;
+      const initial = rows.length > 0 ? `, ${JSON.stringify(rows)}` : '';
+      out.push(`${pad}${key}: arrayOf(${blankName(node.array)}${initial}),`);
       continue;
     }
     out.push(`${pad}${key}: ${initialLiteral(node.field)},`);
@@ -349,6 +464,232 @@ export function buildValidationTs(intent: FormIntent): string {
 }
 
 // ---------------------------------------------------------------------------
+// form.validation.ts — единый контракт
+// ---------------------------------------------------------------------------
+
+/** Имя из ключа шага или имени массива → идентификатор с суффиксом: `loan` → `loanRules`. */
+function identifierFrom(source: string, suffix: string, taken: Set<string>): string {
+  const words = source.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const camel = words
+    .map(
+      (word, i) =>
+        (i === 0 ? word.charAt(0).toLowerCase() : word.charAt(0).toUpperCase()) + word.slice(1)
+    )
+    .join('');
+  const base = `${/^[A-Za-z_$]/.test(camel) ? camel : `step${camel}`}${suffix}`;
+  let name = base;
+  for (let i = 2; taken.has(name); i++) name = `${base}${i}`;
+  taken.add(name);
+  return name;
+}
+
+/** К какому шагу относится путь модели: поле, массив или поле подформы внутри шага. */
+function stepOfPath(
+  intent: FormIntent,
+  steps: ReturnType<typeof collectSteps>
+): Map<string, number> {
+  const owner = new Map<string, number>();
+  const walk = (node: LayoutNode, step: number, scope: string): void => {
+    const absolute = (ref: string): string => (scope ? `${scope}.${ref}` : ref);
+    if (node.kind === 'field' || node.kind === 'array') {
+      const path = absolute(node.ref);
+      const declared =
+        node.kind === 'field'
+          ? intent.fields.find((f) => f.name === path || (f.modelPath ?? f.name) === path)
+          : intent.arrays.find((a) => a.name === path || (a.modelPath ?? a.name) === path);
+      owner.set(declared?.modelPath ?? declared?.name ?? path, step);
+      // Правило может адресовать и имя сущности, и её путь в модели.
+      if (declared) owner.set(declared.name, step);
+      return;
+    }
+    if (node.kind === 'part') {
+      const part = intent.parts?.[node.part];
+      if (part) walk(part, step, absolute(node.ref));
+      return;
+    }
+    node.children.forEach((child) => walk(child, step, scope));
+  };
+  steps.forEach((step, index) => step.children.forEach((child) => walk(child, index, '')));
+  return owner;
+}
+
+/** Тело схемы формы или шага: правила как есть. */
+function ruleLines(rules: readonly ValidationRuleIntent[]): string[] {
+  return rules.map((rule) => validationRuleBlock({ ...rule, each: undefined }));
+}
+
+/**
+ * Тело схемы строки массива. Путь правила — от элемента: префикс с именем массива срезается.
+ * Условие `when` в схему строки не идёт — оно записано над корневой моделью и оборачивает само
+ * подключение схемы (см. `applyRowSchema`).
+ */
+function rowRuleLines(rules: readonly ValidationRuleIntent[], each: string): string[] {
+  return rules.map((rule) =>
+    validationRuleBlock({
+      ...rule,
+      each: undefined,
+      when: undefined,
+      target: rule.target.startsWith(`${each}.`) ? rule.target.slice(each.length + 1) : rule.target,
+    })
+  );
+}
+
+/** Схема правил строки массива и то, как она подключается. */
+interface RowSchema {
+  each: string;
+  /** Путь массива в модели. */
+  path: string;
+  itemType: string;
+  name: string;
+  /** Условие активности — общее для всех правил этой схемы. */
+  when?: string;
+  rules: ValidationRuleIntent[];
+}
+
+/** Подключение схемы строки: `applyEach`, при условии — внутри `validateWhen`. */
+function applyRowSchema(row: RowSchema): string {
+  const call = `applyEach(model.$.${row.path}, ${row.name});`;
+  return row.when ? `  validateWhen(() => ${row.when}, () => {\n    ${call}\n  });` : `  ${call}`;
+}
+
+/**
+ * `form.validation.ts` единого контракта.
+ *
+ * Отличия от {@link buildValidationTs}:
+ * - правила строк массива — отдельная схема над ЭЛЕМЕНТОМ, подключённая привязкой
+ *   `applyEach(model.$.items, itemRules)`; у неё своя область, и `cross` внутри получает снимок
+ *   строки;
+ * - у формы с шагами правила разложены по шагам и уходят объектом `FormValidation`: ключ шага —
+ *   `selector` узла шага в схеме, по нему визард находит правила шага. Шаг без правил объявлен
+ *   явно (`null`), правила вне шагов — в `extras` (проверяются целиком, при отправке).
+ */
+export function buildFormValidationTs(intent: FormIntent): string {
+  const taken = new Set<string>(['formValidation']);
+  const rowRules = intent.validation.filter((rule) => rule.each);
+  const formRules = intent.validation.filter((rule) => !rule.each);
+
+  // Правила строк — по массивам, в порядке первого упоминания. Правила одного массива с разными
+  // условиями `when` дают отдельные схемы: условие оборачивает подключение схемы целиком.
+  const rowSchemas: RowSchema[] = [];
+  for (const rule of rowRules) {
+    const each = rule.each as string;
+    let row = rowSchemas.find((r) => r.each === each && r.when === rule.when);
+    if (!row) {
+      const array = intent.arrays.find((a) => a.name === each || (a.modelPath ?? a.name) === each);
+      row = {
+        each,
+        path: array?.modelPath ?? array?.name ?? each,
+        itemType: array?.itemInterfaceName ?? 'Record<string, unknown>',
+        name: identifierFrom(each.split('.').pop() ?? each, 'RowRules', taken),
+        ...(rule.when ? { when: rule.when } : {}),
+        rules: [],
+      };
+      rowSchemas.push(row);
+    }
+    row.rules.push(rule);
+  }
+
+  const steps = collectSteps(intent.layoutRoot);
+  const owner = stepOfPath(intent, steps);
+  const stepSchemas = steps.map((step, index) => ({
+    key: stepKeyOf(step, index),
+    name: identifierFrom(stepKeyOf(step, index), 'Rules', taken),
+    rules: formRules.filter((rule) => owner.get(rule.target) === index),
+    rows: rowSchemas.filter((row) => (owner.get(row.path) ?? owner.get(row.each)) === index),
+  }));
+  const placed = new Set(stepSchemas.flatMap((step) => [...step.rules, ...step.rows]));
+  const restRules = formRules.filter((rule) => !placed.has(rule));
+  const restRows = rowSchemas.filter((row) => !placed.has(row));
+  const withSteps = steps.length > 0;
+
+  const { ops, validators } = validationImports(formRules.concat(rowRules));
+  const operators = ops.filter((op) => op !== 'each');
+  if (rowSchemas.length > 0) operators.push('applyEach');
+
+  const itemTypes = [...new Set(rowSchemas.map((row) => row.itemType))].filter(
+    (type) => type !== 'Record<string, unknown>'
+  );
+
+  const schema = (name: string, type: string, body: string[], exported = false): string[] => [
+    `${exported ? 'export ' : ''}const ${name} = defineValidationSchema<${type}>(({ model }) => {`,
+    ...(body.length > 0 ? body : ['  // Правил в intent не было — добавьте их здесь.']),
+    '});',
+    '',
+  ];
+  const applyRows = (rows: RowSchema[]): string[] => rows.map(applyRowSchema);
+
+  const lines: string[] = [];
+  lines.push('/**');
+  lines.push(` * Валидация формы «${intent.formName}» — правила над МОДЕЛЬЮ, не в схеме разметки.`);
+  if (withSteps) {
+    lines.push(' * Ключ шага — `selector` узла шага в схеме: по нему визард находит правила шага.');
+  }
+  lines.push(' * Подключение: createForm({ …, validation: formValidation }).');
+  lines.push(' */');
+  if (withSteps) lines.push("import type { FormValidation } from '@reformer/core';");
+  lines.push(`import { ${operators.sort().join(', ')} } from '@reformer/core/validation';`);
+  if (validators.length > 0) {
+    lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
+  }
+  lines.push(`import type { ${[intent.interfaceName, ...itemTypes].join(', ')} } from './model';`);
+  lines.push('');
+
+  for (const row of rowSchemas) {
+    lines.push(`/** Правила строки массива \`${row.path}\`: пути — от элемента. */`);
+    lines.push(...schema(row.name, row.itemType, rowRuleLines(row.rules, row.each)));
+  }
+
+  if (!withSteps) {
+    lines.push(
+      ...schema(
+        'formValidation',
+        intent.interfaceName,
+        [...ruleLines(formRules), ...applyRows(rowSchemas)],
+        true
+      )
+    );
+    return lines.join('\n').trimEnd() + '\n';
+  }
+
+  for (const step of stepSchemas) {
+    if (step.rules.length === 0 && step.rows.length === 0) continue;
+    lines.push(
+      ...schema(step.name, intent.interfaceName, [
+        ...ruleLines(step.rules),
+        ...applyRows(step.rows),
+      ])
+    );
+  }
+  const hasExtras = restRules.length > 0 || restRows.length > 0;
+  if (hasExtras) {
+    const extrasName = identifierFrom('crossStep', 'Rules', taken);
+    lines.push('/** Правила вне шагов: проверяются целиком, при отправке. */');
+    lines.push(
+      ...schema(extrasName, intent.interfaceName, [...ruleLines(restRules), ...applyRows(restRows)])
+    );
+    lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {`);
+    lines.push('  steps: {');
+    for (const step of stepSchemas) lines.push(`    ${stepEntry(step)},`);
+    lines.push('  },');
+    lines.push(`  extras: ${extrasName},`);
+    lines.push('};');
+    return lines.join('\n') + '\n';
+  }
+  lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {`);
+  lines.push('  steps: {');
+  for (const step of stepSchemas) lines.push(`    ${stepEntry(step)},`);
+  lines.push('  },');
+  lines.push('};');
+  return lines.join('\n') + '\n';
+}
+
+/** Запись шага в `steps`: схема правил либо явное «правил нет». */
+function stepEntry(step: { key: string; name: string; rules: unknown[]; rows: unknown[] }): string {
+  const value = step.rules.length === 0 && step.rows.length === 0 ? 'null' : step.name;
+  return `${objectKey(step.key)}: ${value}`;
+}
+
+// ---------------------------------------------------------------------------
 // behavior.ts
 // ---------------------------------------------------------------------------
 
@@ -432,6 +773,69 @@ export function buildBehaviorTs(intent: FormIntent): string {
   for (const b of intent.behavior) lines.push(renderBehavior(b));
   lines.push('});');
   return lines.join('\n') + '\n';
+}
+
+/**
+ * `form.behavior.ts` единого контракта: поведение формы одно — и связи над моделью, и правила
+ * узлов схемы.
+ *
+ * Отличие от {@link buildBehaviorTs}: правила видимости (`intent.visibility`) печатаются здесь же,
+ * оператором `hideWhen(schema.node(selector), условие)`, а не отдельным файлом слоя рендера.
+ * Правила узлов исполняет рендерер, поэтому для таргета `core` (разметка в JSX) они не
+ * печатаются — там видимость остаётся условием в компоненте.
+ *
+ * @returns Содержимое файла и предупреждения (правила видимости, опущенные для `core`).
+ */
+export function buildFormBehaviorTs(intent: FormIntent): { content: string; warnings: string[] } {
+  const warnings: string[] = [];
+  const withNodes = intent.visibility.length > 0 && intent.target !== 'core';
+  if (intent.visibility.length > 0 && !withNodes) {
+    warnings.push(
+      `Правил видимости: ${intent.visibility.length} — для таргета \`core\` они не напечатаны: ` +
+        'правила узлов схемы исполняет рендерер, а здесь разметку рисует JSX. Запишите условия в ' +
+        'компонентах шагов; чтобы поле при этом перестало валидироваться — `enableWhen`.'
+    );
+  }
+
+  const ops = [...new Set<string>(intent.behavior.map((b) => b.kind))];
+  if (withNodes) ops.push('hideWhen');
+  ops.sort();
+
+  const lines: string[] = [];
+  lines.push('/**');
+  lines.push(
+    withNodes
+      ? ` * Поведение формы «${intent.formName}» — связи над моделью и правила узлов схемы.`
+      : ` * Поведение формы «${intent.formName}» — реактивные связи над моделью.`
+  );
+  if (withNodes) {
+    lines.push(' * Скрытие узла НЕ убирает поле из модели: чтобы оно перестало валидироваться,');
+    lines.push(' * рядом нужен enableWhen.');
+  }
+  lines.push(' */');
+  lines.push(
+    `import { defineFormBehavior${ops.length ? `, ${ops.join(', ')}` : ''} } from '@reformer/core/behaviors';`
+  );
+  lines.push(`import type { ${intent.interfaceName} } from './model';`);
+  lines.push('');
+  lines.push(
+    `export const formBehavior = defineFormBehavior<${intent.interfaceName}>(({ ${
+      withNodes ? 'model, schema' : 'model'
+    } }) => {`
+  );
+  if (intent.behavior.length === 0 && !withNodes) {
+    lines.push('  // Поведения в intent не было — добавьте его здесь.');
+  }
+  for (const b of intent.behavior) lines.push(renderBehavior(b));
+  if (withNodes) {
+    if (intent.behavior.length > 0) lines.push('');
+    lines.push('  // Видимость узлов схемы — по `selector`.');
+    for (const v of intent.visibility) {
+      lines.push(`  hideWhen(schema.node('${v.selector}'), () => ${v.condition});`);
+    }
+  }
+  lines.push('});');
+  return { content: lines.join('\n') + '\n', warnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -518,6 +922,9 @@ function emptyValue(type: FieldType): unknown {
 
 function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
   switch (node.kind) {
+    // Подформ в прежнем формате нет — узел опускается (их печатает разметка формата 2).
+    case 'part':
+      return null;
     case 'field': {
       const f = intent.fields.find((x) => x.name === node.ref);
       return f ? fieldNode(f) : null;
@@ -629,6 +1036,9 @@ export function buildRendererSchemaTs(intent: FormIntent): string {
 const COMPONENT_IMPORTS: Readonly<Record<string, string>> = {
   ...UI_KIT_FIELD_EXPORTS,
   ...UI_KIT_CONTAINER_EXPORTS,
+  // Визард — библиотечный компонент ui-kit: шаги он берёт из узлов-детей, форму и валидацию —
+  // из сборки. Прикладной шим под именем `Wizard` больше не нужен.
+  FormWizard: 'FormWizard',
 };
 
 /**
@@ -649,8 +1059,12 @@ export function collectUsedComponents(intent: FormIntent): Set<string> {
   }
   const walk = (node: LayoutNode) => {
     if (node.kind === 'container') {
+      const steps = node.children.filter((c) => c.kind === 'step');
+      // Контейнер из одних шагов — визард: его рисует библиотечный `FormWizard`, а не компонент
+      // из intent (см. `buildSchemaLayout`).
+      if (steps.length > 0 && steps.length === node.children.length) used.add('FormWizard');
       // `htmlTag` рендерится через `$html(...)` и регистрации не требует.
-      if (!node.htmlTag) used.add(node.component);
+      else if (!node.htmlTag) used.add(node.component);
       node.children.forEach(walk);
     } else if (node.kind === 'step') {
       used.add('Step');
@@ -658,12 +1072,20 @@ export function collectUsedComponents(intent: FormIntent): Set<string> {
     }
   };
   walk(intent.layoutRoot);
+  for (const part of Object.values(intent.parts ?? {})) walk(part);
   return used;
 }
+
+/** Компоненты реестра не из ui-kit: откуда их импортировать. */
+const EXTRA_REGISTRY_IMPORTS: Readonly<Record<string, string>> = {
+  Step: '@reformer/cdk/form-wizard',
+};
 
 export function buildRegistryTs(intent: FormIntent): { content: string; warnings: string[] } {
   const warnings: string[] = [];
   const used = collectUsedComponents(intent);
+  const extra = [...used].filter((c) => EXTRA_REGISTRY_IMPORTS[c]).sort();
+  for (const c of extra) used.delete(c);
 
   const known = [...used].filter((c) => COMPONENT_IMPORTS[c]).sort();
   const unknown = [...used].filter((c) => !COMPONENT_IMPORTS[c]).sort();
@@ -679,6 +1101,7 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
   lines.push(` * Реестр компонентов формы «${intent.formName}»: что рендерить под каждый`);
   lines.push(' * `$component(...)` из layout-схемы. Новый компонент в схеме → регистрация здесь.');
   lines.push(' */');
+  for (const c of extra) lines.push(`import { ${c} } from '${EXTRA_REGISTRY_IMPORTS[c]}';`);
   lines.push(`import { ${['FormField', ...imports].join(', ')} } from '@reformer/ui-kit';`);
   lines.push(
     "import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';"
@@ -686,8 +1109,9 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
   lines.push('');
   lines.push('export function createRegistry(): ComponentRegistry {');
   lines.push('  return defineRegistry((reg) => {');
-  lines.push('    // Системная обёртка листа: label + ошибки.');
+  lines.push('    // Системная обёртка листа: label + ошибки. Сборка кладёт её в бандл формы.');
   lines.push('    reg.component(FIELD_WRAPPER, FormField);');
+  for (const c of extra) lines.push(`    reg.component('${c}', ${c});`);
   for (const c of known) lines.push(`    reg.component('${c}', ${COMPONENT_IMPORTS[c]});`);
   for (const c of unknown) lines.push(`    // TODO: reg.component('${c}', /* импорт */);`);
   for (const ds of intent.dataSources) {
@@ -752,6 +1176,10 @@ export interface LayoutFileSpec {
   scope?: 'root' | 'step';
 }
 
+/** Роль `form.behavior.ts` — одна на все таргеты: поведение формы единственное. */
+const BEHAVIOR_ROLE =
+  'поведение формы: связи над моделью (computeFrom / enableWhen / copyFrom) и правила узлов схемы (hideWhen по selector)';
+
 /**
  * Каноническая раскладка по таргетам — источник `06-form-directory-layout.md` §1.
  *
@@ -763,168 +1191,109 @@ export interface LayoutFileSpec {
  * происхождения у каждой строки.
  *
  * Правило имён одно на все таргеты: `form.<роль>` — артефакт формы, суффикс называет роль
- * (`schema` — разметка, `behavior` — поведение модели, `render` — поведение разметки,
- * `validation` — правила валидации); остальные файлы без префикса. Прежний префикс `renderer.` у слоя рендера давал два имени
- * одной роли в разных таргетах (`form.schema.ts` у core, `renderer.schema.ts` у рендереров) —
- * и таргет, в котором форма «переехала», находил чужие имена; `validation.ts` без префикса
- * выбивался из правила, хотя это такой же артефакт формы. Старые имена принимаются
- * валидатором с предупреждением (`LEGACY_STEMS` в `validate/layout.ts`).
+ * (`schema` — схема формы, `behavior` — поведение, `validation` — правила валидации); остальные
+ * файлы без префикса. Набор файлов у таргетов один и тот же: схема одна, поведение одно, сборка
+ * одна. renderer-json добавляет только `registry.ts`.
+ *
+ * Прежние имена принимаются валидатором с предупреждением (`LEGACY_STEMS` в `validate/layout.ts`):
+ * слой рендера `renderer.*`, `validation.ts` без префикса, а также `form.render.ts` и `wizard.tsx`
+ * прежнего контракта — правила узлов переехали в `form.behavior.ts`, визард стал библиотечным.
  */
 export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
   core: [
-    { path: 'index.tsx', role: 'точка входа; шаги wizard-а — инлайном или в `steps/<slug>/`' },
+    { path: 'index.tsx', role: 'точка входа: сборка `createForm` и разметка в JSX' },
     { path: 'types.ts', role: 'локальные типы модуля' },
-    { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
-    { path: 'form.schema.ts', role: 'схема разметки в TS', variants: ['form.schema.tsx'] },
-    { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
+    { path: 'model.ts', role: 'интерфейс модели, начальные значения и шаблоны элементов массивов' },
+    {
+      path: 'form.schema.ts',
+      role: 'схема формы в TS: по ней сборка строит форму; разметку рисует JSX',
+      variants: ['form.schema.tsx'],
+    },
+    { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
   ],
   'renderer-react': [
-    { path: 'index.tsx', role: 'точка входа; шаги wizard-а — инлайном или в `steps/<slug>/`' },
+    { path: 'index.tsx', role: 'точка входа: сборка `createForm` и `FormRenderer`' },
     { path: 'types.ts', role: 'локальные типы модуля' },
-    { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
+    { path: 'model.ts', role: 'интерфейс модели, начальные значения и шаблоны элементов массивов' },
     {
       path: 'form.schema.ts',
-      role: 'схема разметки в TS (`.tsx`, если внутри есть JSX)',
+      role: 'схема формы в TS: одно дерево на форму и на разметку (`.tsx`, если внутри есть JSX)',
       variants: ['form.schema.tsx'],
     },
-    { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
-    { path: 'form.render.ts', role: 'поведение разметки: hideWhen по selector' },
+    { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
   ],
   'renderer-json': [
-    { path: 'index.tsx', role: 'точка входа; шаги wizard-а — инлайном или в `steps/<slug>/`' },
+    { path: 'index.tsx', role: 'точка входа: сборка `createForm` и `FormRenderer`' },
     { path: 'types.ts', role: 'локальные типы модуля' },
-    { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
+    { path: 'model.ts', role: 'интерфейс модели, начальные значения и шаблоны элементов массивов' },
     {
       path: 'form.schema.ts',
-      role: 'схема в JSON-DSL через `defineJsonSchema<T>` — с ним пути `$model(...)` проверяются на компиляции, с чистым `.json` нет',
+      role: 'схема в JSON-DSL формата 2 через `defineJsonSchema<T>` — с ним пути `$model(...)` проверяются на компиляции, с чистым `.json` нет',
       variants: ['form.schema.tsx', 'form.schema.json'],
     },
-    { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
-    { path: 'form.render.ts', role: 'поведение разметки: hideWhen по selector' },
+    { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
     { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },
-    {
-      path: 'wizard.tsx',
-      role: 'прикладной шим wizard-а (библиотека `RendererFormWizard` не экспортирует); допустимо держать его и внутри `registry.ts`',
-      optional: true,
-    },
   ],
 };
 
 /** Каталог шагов визарда и его агрегатор — одни на все таргеты. */
 export const STEPS_DIR = 'steps';
 
+/** Файлы папки шага — одни на все таргеты; у renderer-json схема шага может быть и `.json`. */
+function stepLayout(schemaVariants: string[]): LayoutFileSpec[] {
+  return [
+    {
+      path: 'steps/index.ts',
+      role: 'агрегатор шагов: порядок шагов и их схемы',
+      optional: true,
+    },
+    {
+      path: 'form.validation.ts',
+      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.schema.ts',
+      role: 'схема шага: узел `Step` с полями; встаёт в `children` визарда',
+      variants: schemaVariants,
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.behavior.ts',
+      role: 'поведение в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+  ];
+}
+
 /**
  * Раскладка визарда по шагам — опциональная надстройка над `FORM_LAYOUT_CANON`.
  *
- * Шаги можно держать инлайном в `index.tsx` (и тогда этих файлов нет вовсе), а можно — по папке
- * на шаг: `steps/<slug>/`, где `<slug>` — kebab-слаг заголовка шага БЕЗ номера (порядок задаёт
- * `steps/index.ts`, поэтому перестановка шагов папки не трогает). Внутри папки шага имена те же,
- * что в корне: `form.validation.ts` — правила полей шага, `form.render.ts` — поведение разметки шага,
- * `form.schema.*` — разметка шага. Межшаговое остаётся в корневых файлах.
+ * Шаги можно держать в корневой схеме (и тогда этих файлов нет вовсе), а можно — по папке на
+ * шаг: `steps/<slug>/`, где `<slug>` — kebab-слаг заголовка шага БЕЗ номера (порядок задаёт
+ * агрегатор `steps/index.ts`, поэтому перестановка шагов папки не трогает). Внутри папки шага имена те же,
+ * что в корне: `form.schema.*` — схема шага, `form.validation.ts` — правила полей шага,
+ * `form.behavior.ts` — поведение шага. Межшаговое остаётся в корневых файлах.
  *
  * Все записи опциональны: обязательность шагов проверять нечем — сколько их и есть ли они,
  * знает только форма.
  */
 export const STEP_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
-  core: [
-    {
-      path: 'steps/index.ts',
-      role: 'агрегатор шагов: порядок и массивы `stepValidations` / схем шагов',
-      optional: true,
-    },
-    {
-      path: 'form.validation.ts',
-      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.schema.ts',
-      role: 'разметка шага',
-      variants: ['form.schema.tsx'],
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.behavior.ts',
-      role: 'поведение модели в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
-      optional: true,
-      scope: 'step',
-    },
-  ],
-  'renderer-react': [
-    {
-      path: 'steps/index.ts',
-      role: 'агрегатор шагов: порядок и массивы `stepValidations` / `stepRenders`',
-      optional: true,
-    },
-    {
-      path: 'form.validation.ts',
-      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.render.ts',
-      role: 'поведение разметки шага: hideWhen по selector узлов шага',
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.schema.ts',
-      role: 'разметка шага',
-      variants: ['form.schema.tsx'],
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.behavior.ts',
-      role: 'поведение модели в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
-      optional: true,
-      scope: 'step',
-    },
-  ],
-  'renderer-json': [
-    {
-      path: 'steps/index.ts',
-      role: 'агрегатор шагов: порядок и массивы `stepValidations` / `stepRenders`',
-      optional: true,
-    },
-    {
-      path: 'form.validation.ts',
-      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.render.ts',
-      role: 'поведение разметки шага: hideWhen по selector узлов шага',
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.schema.ts',
-      role: 'разметка шага',
-      variants: ['form.schema.tsx', 'form.schema.json'],
-      optional: true,
-      scope: 'step',
-    },
-    {
-      path: 'form.behavior.ts',
-      role: 'поведение модели в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
-      optional: true,
-      scope: 'step',
-    },
-  ],
+  core: stepLayout(['form.schema.tsx']),
+  'renderer-react': stepLayout(['form.schema.tsx']),
+  'renderer-json': stepLayout(['form.schema.tsx', 'form.schema.json']),
 };
 
 /** Путь файла шага от корня модуля: `steps/<slug>/<file>` для `scope: 'step'`. */
@@ -941,9 +1310,8 @@ export function layoutSpecPath(spec: LayoutFileSpec, slug = '<slug>'): string {
  *
  * @param withOptional - Дописать опциональные файлы и раскладку шагов. По умолчанию нет: в
  *   `plan_form` строка отвечает на «какие файлы завести сейчас». В `get_context` — да: там она
- *   единственный источник имён, а `wizard.tsx` (шим wizard-а, библиотека его не экспортирует) и
- *   файлы `steps/<slug>/` — как раз те имена, которые агенты выдумывали сами
- *   (`json-wizard.tsx`, `components/steps/Step1.tsx`).
+ *   единственный источник имён, а файлы `steps/<slug>/` — как раз те имена, которые агенты
+ *   выдумывали сами (`components/steps/Step1.tsx`).
  */
 export function renderLayoutLine(target: ReformerTargetStack, withOptional = false): string {
   const canon = FORM_LAYOUT_CANON[target];
@@ -960,7 +1328,7 @@ export function renderLayoutLine(target: ReformerTargetStack, withOptional = fal
         .join(' ')
     : '';
   return (
-    `Файлы модуля (${target}, плоский модуль; шаги wizard-а — инлайном или в \`steps/<slug>/\`): ${files}` +
+    `Файлы модуля (${target}, плоский модуль; шаги wizard-а — в корневой схеме или в \`steps/<slug>/\`): ${files}` +
     (optional ? ` (+ по необходимости ${optional})` : '') +
     '. Правило — `find_recipe directory-layout`, сверка имён — `validate_form kind="layout"`.'
   );
@@ -989,12 +1357,6 @@ export function renderStepLayoutNote(target: ReformerTargetStack): string {
   );
 }
 
-/** Файлы, которые манифест печатает, но в каталог модуля не кладут. */
-const NOT_A_MODULE_FILE: Record<string, string> = {
-  'layout.json':
-    'в каталог модуля не кладут: это данные для ручной сборки схемы, перенесите их в схему и не сохраняйте сам файл',
-};
-
 /**
  * Полный per-target список имён с пометкой, что сгенерировано, а что консумент пишет сам.
  *
@@ -1013,11 +1375,10 @@ export function renderLayoutChecklist(
   lines.push('');
   lines.push(
     'Модуль формы плоский: без `lib/` / `schema/` / `components/steps/`; шаги wizard-а — ' +
-      'инлайном в `index.tsx` или по папке на шаг `steps/<slug>/` (имена внутри те же). ' +
-      'Префикс `form.` — у артефактов формы, суффикс называет роль (`schema` — разметка, ' +
-      '`behavior` — поведение модели, `render` — поведение разметки, `validation` — ' +
-      'валидация); остальные файлы plain-named. Полное правило — ' +
-      '`find_recipe directory-layout`.'
+      'в корневой схеме или по папке на шаг `steps/<slug>/` (имена внутри те же). ' +
+      'Префикс `form.` — у артефактов формы, суффикс называет роль (`schema` — схема формы, ' +
+      '`behavior` — поведение формы: модель и узлы схемы, `validation` — валидация); ' +
+      'остальные файлы plain-named. Полное правило — `find_recipe directory-layout`.'
   );
   lines.push('');
 
@@ -1046,12 +1407,6 @@ export function renderLayoutChecklist(
   lines.push('| --- | --- | --- |');
   lines.push(...rows);
 
-  const transient = generated.filter((p) => NOT_A_MODULE_FILE[p]);
-  if (transient.length > 0) {
-    lines.push('');
-    for (const p of transient) lines.push(`\`${p}\` — ${NOT_A_MODULE_FILE[p]}.`);
-  }
-
   lines.push('');
   lines.push(renderStepLayoutNote(target));
 
@@ -1068,55 +1423,53 @@ export function renderLayoutChecklist(
 // ---------------------------------------------------------------------------
 
 /**
- * Файлы бандла для целевого стека.
+ * Файлы бандла для целевого стека — единый контракт формы.
  *
  * Раскладка — плоская (`minimalist`); артефакты формы названы `form.<роль>` (`form.schema`,
- * `form.behavior`, `form.render`, `form.validation`), остальные файлы — без префикса. Правило имён одно на все
- * таргеты (`FORM_LAYOUT_CANON`).
+ * `form.behavior`, `form.validation`), остальные файлы — без префикса. Правило имён и набор
+ * файлов одни на все таргеты (`FORM_LAYOUT_CANON`).
  *
- * Генерируется ПОДМНОЖЕСТВО набора: остальные файлы (`index.tsx`, `types.ts`, схема для core и
- * renderer-react, `data-sources.ts`, `api.ts`) пишет консумент. Полный набор с пометкой
- * происхождения печатает `renderLayoutChecklist` — без неё манифест читался как «файлов ровно
- * столько», и имена расходились с каноном.
+ * Схема печатается для каждого таргета: в TS (`core`, `renderer-react`) либо документом JSON-DSL
+ * формата 2 (`renderer-json`) — это одно и то же дерево в двух записях (`schema-emit.ts`).
+ * Правила видимости уходят в `form.behavior.ts`, отдельного файла слоя рендера нет.
+ *
+ * Генерируется ПОДМНОЖЕСТВО набора: остальные файлы (`index.tsx`, `types.ts`, `data-sources.ts`,
+ * `api.ts`) пишет консумент. Полный набор с пометкой происхождения печатает
+ * `renderLayoutChecklist` — без неё манифест читался как «файлов ровно столько», и имена
+ * расходились с каноном.
  */
 export function buildBundle(intent: FormIntent): {
   files: BundleFile[];
   warnings: string[];
-  /** Layout как чистый JSON — для кросс-проверки, независимо от того, в каком файле он отдан. */
+  /** Схема как чистый JSON (документ формата 2) — для кросс-проверки. */
   layoutJson: string;
 } {
   const warnings: string[] = [];
-  const layoutJson = buildLayoutJson(intent);
+  const layoutJson = buildFormSchemaJson(intent);
+  const behavior = buildFormBehaviorTs(intent);
+  warnings.push(...behavior.warnings);
+
   const files: BundleFile[] = [
     { path: 'model.ts', content: buildModelTs(intent) },
-    { path: 'form.validation.ts', content: buildValidationTs(intent) },
-    { path: 'form.behavior.ts', content: buildBehaviorTs(intent) },
+    { path: 'form.validation.ts', content: buildFormValidationTs(intent) },
+    { path: 'form.behavior.ts', content: behavior.content },
   ];
 
   if (intent.target === 'renderer-json') {
     // Отдаём канонический `.ts` (`defineJsonSchema<T>`), а не чистый `.json`: только он держит
     // compile-time проверку путей `$model(...)` — ни ajv, ни обход реестра опечатку в пути не
-    // ловят. Раньше здесь печатался `.json` с оговоркой в `## Warnings`; оговорку читают не все,
-    // а блок кода копируют все, и неканоничное имя расходилось дальше по проекту.
-    files.push({ path: 'form.schema.ts', content: buildRendererSchemaTs(intent) });
+    // ловят.
+    files.push({ path: 'form.schema.ts', content: buildFormSchemaJsonTs(intent) });
     const registry = buildRegistryTs(intent);
     files.push({ path: 'registry.ts', content: registry.content });
     warnings.push(...registry.warnings);
+    warnings.push(...buildSchemaLayout(intent).warnings);
   } else {
-    // core и renderer-react описывают разметку в TS; JSON здесь был бы чужим форматом,
-    // поэтому отдаём тот же layout как данные для ручной сборки схемы.
-    files.push({ path: 'layout.json', content: layoutJson });
-    warnings.push(
-      'Для target `' +
-        intent.target +
-        '` layout отдан как `layout.json` — перенесите его в form.schema.ts вручную: TS-схема держит ссылки на сигналы модели, которые в JSON невыразимы.'
-    );
-  }
-
-  // Файл render-поведения эмитим, только если есть что в него положить: пустой файл
-  // пришлось бы удалять руками, и он бы дезориентировал.
-  if (intent.visibility.length > 0 && intent.target !== 'core') {
-    files.push({ path: 'form.render.ts', content: buildRenderBehaviorTs(intent) });
+    // core и renderer-react получают ту же схему в TS: узлы держат ручки модели (`model.$.…`)
+    // и сами компоненты, а не их имена.
+    const schema = buildFormSchemaTs(intent);
+    files.push({ path: 'form.schema.ts', content: schema.content });
+    warnings.push(...schema.warnings);
   }
 
   return { files, warnings, layoutJson };

@@ -9,7 +9,7 @@
 - 02-tools.md — Tools
 - 03-prompts.md — Prompts
 - 04-resources.md — Resources
-- 05-m1-workflow.md — M1 form-building workflow
+- 05-m1-workflow.md — Form-building workflow
 - 06-form-directory-layout.md — Form directory layout (core / renderer-react / renderer-json)
 - API Reference (auto-generated from JSDoc)
 
@@ -21,28 +21,35 @@ This MCP server gives you everything needed to build a form with the ReFormer li
 **from this server alone** — no need to read the library source. It exposes documentation
 (resources), lookup tools, and workflow prompts.
 
-1. **Get oriented** — run the `start-here` prompt (or read this guide). It returns the M1
+1. **Get oriented** — run the `start-here` prompt (or read this guide). It returns the
    workflow and the map below.
 2. **Plan** — for a form from a spec, use the `plan-form` prompt (it reads and parses the spec
    file). For a free-text description, use `create-form`. To detect the target stack, `discover-context`.
-3. **Read the workflow** — the M1 build workflow (model → schema → validation → behaviors → arrays →
-   wizard → render). It is part of this guide; the whole self-doc is one resource: `reformer://guide`.
+3. **Read the workflow** — the build workflow of the unified form contract (model → one schema →
+   one assembly `createForm` → validation → the one behavior → wizard → draw). It is part of this
+   guide; the whole self-doc is one resource: `reformer://guide`. The contract in one place:
+   `find_recipe unified-contract`.
 4. **Look things up as you code**:
    - `find_recipe <topic>` — a worked example for a scenario (e.g. `wizard`, `form-array`, `cycle`, `json-schema`).
    - `get_symbol_docs <name>` — exact signature + `@example` of a function/type (e.g. `createForm`, `validateModel`).
    - `list_symbols` — the API surface by kind/package when you don't know the name.
-5. **Add features** with the focused prompts: `add-validation`, `add-behavior`, `add-form-array`, `add-wizard`.
-6. **Migrate render target**: `to-renderer` (core → renderer-react), `to-renderer-json` (react → JSON).
-7. **Check your work**:
-   - `check_behaviors` — declare compute/copy dependencies, get cycle detection.
-   - `validate_json_schema` — validate a renderer-json JSON schema before rendering.
-   - `review` — cross-package code-review checklist.
+5. **Add features** with the prompt `add-feature` — `feature`: `validation` | `behavior` | `array` | `wizard`.
+6. **Change who draws**: prompt `to-renderer` — `target`: `renderer-react` (JSX → `FormRenderer` over
+   the same schema) | `renderer-json` (the schema as a JSON document + registry).
+7. **Check your work** — one tool, `validate_form`, by `kind`:
+   - `layout` — file names of the form module against the canonical set;
+   - `code` — unknown symbols, operators outside their schema, keys and factories of the former contract;
+   - `behaviors` — declare compute/copy dependencies, get cycle detection;
+   - `json-schema` — a renderer-json document before rendering;
+   - `bundle` — a FormIntent and its schema against each other.
+
+   And the prompt `review` — a cross-package code-review checklist.
 
 ## 2. What's where
 
 The full self-doc of this server is one resource — `reformer://guide` (aka `reformer://docs/mcp`) —
 covering: **Tools** (callable lookup + validation), **Prompts** (one per workflow step),
-**Resources** (`reformer://docs/<pkg>[/<section>]` for the 5 library packages), and the **M1 workflow**.
+**Resources** (`reformer://docs/<pkg>[/<section>]` for the 5 library packages), and the **workflow**.
 Individual sections are addressable per-heading (slug from the H2 title); enumerate exact URIs with ListResources.
 
 ## 3. The 5 library packages (read their docs via resources)
@@ -50,15 +57,17 @@ Individual sections are addressable per-heading (slug from the H2 title); enumer
 - `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
 - `@reformer/cdk` — headless FormArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
 - `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
-- `@reformer/renderer-react` — declarative RenderSchema (`reformer://docs/renderer-react`).
-- `@reformer/renderer-json` — JSON schema + registry (`reformer://docs/renderer-json`).
+- `@reformer/renderer-react` — `FormRenderer`: draws the schema tree (`reformer://docs/renderer-react`).
+- `@reformer/renderer-json` — the schema as a JSON document + registry (`reformer://docs/renderer-json`).
 
 ## 4. Golden rules
 
-- **M1**: one `createModel` is the source of truth; schema leaves reference its signals (`value: model.$.x`).
-- Validation is a **separate on-demand schema**, not a schema-leaf concern: run `validateModel(model, schema)` from `@reformer/core/validation` (schema built with `defineValidationSchema(({ model }) => { validate(sig, [rules]); … })`), never `form.validate()`. Ambient operators inside the schema: `validate` / `validateAsync` / `validateWhen` / `cross` / `each` / `apply`; field rules (`required()`/`min()`/…) come from `@reformer/core/validators`. Layout/render leaves carry **no** validators.
+- **One contract for every way of drawing**: one schema tree, one binding handle, one assembly, one behavior. One `createModel` is the source of truth; schema nodes are bound to it by the key `model` and the handle `model.$.…` — field `{ model: model.$.x, component }`, array `{ model: model.$.items, item }`, sub-form `{ model: model.$.group, part }`. The keys `value:` / `array:` are the former contract.
+- **One assembly**: `useFormBundle(() => createForm({ model, schema, registry?, behavior?, validation? }))` → `{ model, form, validation?, render }`. `createCoreForm` / `createReactForm` / `createJsonForm` are the former contract.
+- **One behavior**: `defineFormBehavior(({ model, form, schema }) => …)` holds both the links over the model and the rules for schema nodes (`hideWhen(schema.node(selector), …)`). A separate `form.render.ts` / `renderBehavior` is the former contract.
+- Validation is a **separate on-demand schema**, not a schema-leaf concern: run `validateModel(model, schema)` from `@reformer/core/validation` (schema built with `defineValidationSchema(({ model }) => { validate(sig, [rules]); … })`), never `form.validate()`. Ambient operators inside the schema: `validate` / `validateAsync` / `validateWhen` / `cross` / `apply` (a sub-form) / `applyEach` (array rows); field rules (`required()`/`min()`/…) come from `@reformer/core/validators`. Schema nodes carry **no** validators.
 - The old validation contract is gone — don't use `validateFormModel`, schema leaves with `{ value, validators: [...] }`, `ModelValidator(value, scope, root)`, conditional `{ when, children }` nodes, or the path-based `ValidationSchemaFn` / `validate(path.x)`. Use the `@reformer/core/validation` operators above instead.
-- Prefer `createForm({ model, schema })` over legacy overloads.
+- Low-level `createFormFromModel({ model, schema })` stays for special cases; a form is assembled with `createForm`.
 
 ## 5. get_context
 
@@ -132,8 +141,9 @@ candidates with snippets, and the top hit is inlined when it matches a section h
   `form-array`→arrays, `cycle`→cycle-detection, `copy`→copy-from, `sync`→sync-fields (value
   propagation between fields — a **behavior**), and the validation contract:
   `validate`/`validation`/`cross`/`cross-field`/`validate-async`/`validate-when`→`validation`
-  (the `validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply` operators + the external
-  `validateModel(model, schema)` runner), `json-schema`, etc.
+  (the `validate`/`validateAsync`/`validateWhen`/`cross`/`apply`/`applyEach` operators + the external
+  `validateModel(model, schema)` runner), `json-schema`, `unified-contract` (the contract of a form in
+  one place: one schema, one assembly, one behavior), etc.
 - `package` (string, optional).
 
 Use to copy a correct pattern instead of guessing.
@@ -173,14 +183,23 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
   символ `@reformer/*` (`RF002`, с подсказкой похожих имён), импорт не из того пакета ИЛИ
   не из того подпути (`RF003` — `validate` живёт только в `@reformer/core/validation`),
   оператор валидации/поведения вне своей схемы (`RF004`/`RF005` — правило просто не
-  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` (`RF010`).
-- `kind: "json-schema"` — layout-DSL: структура узлов, синтаксис операторов, неизвестные
-  имена компонентов и источников данных.
+  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` и прежний контракт формы
+  (`RF010`): фабрики `createCoreForm` / `createReactForm` / `createJsonForm`, хуки `useReactForm` /
+  `useJsonForm`, `JsonFormRenderer`, ключи узла `value:` / `array:`, оператор `each`,
+  `makeValidationConfig`, поле `renderBehavior` — с названной заменой и адресом рецепта
+  `find_recipe unified-contract`.
+- `kind: "json-schema"` — документ схемы (JSON-DSL): структура узлов, синтаксис операторов,
+  неизвестные имена компонентов и источников данных. Принимает оба формата — текущий
+  (`"format": 2`: ключ `model`, словарь `parts`, оператор `$part`) и прежний.
 - `kind: "behaviors"` — циклы в вычисляемых полях (`RF006`), по объявленным
   `{ target, reads[] }`.
-- `kind: "bundle"` — `intent` + layout сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
-  модели, каждый `$component` зарегистрирован, каждая цель правила существует, селекторы
-  видимости присутствуют в разметке.
+- `kind: "bundle"` — `intent` + схема сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
+  модели (пути внутри части — от группы, к которой она подключена), каждый `$component`
+  зарегистрирован, каждая часть `$part` объявлена, каждая цель правила существует, селекторы
+  видимости присутствуют в схеме.
+- `kind: "layout"` — ИМЕНА файлов модуля формы против канона (`files[]` + `target`). Набор один
+  на все таргеты; файлы прежнего контракта (`form.render.ts`, `wizard.tsx`, `renderer.*`,
+  `validation.ts`) — предупреждения с подсказкой, куда перенести содержимое.
 
 Ограничения проверки печатаются ВСЕГДА, включая чистый отчёт: «✅ ошибок нет» не должно
 читаться как «код верен» — разбор построчный, без TypeScript-AST (это сознательный отказ:
@@ -191,7 +210,8 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 ## 12. plan_form
 
 Спека (markdown) или описание → `FormIntent`: машиночитаемый план формы (поля, массивы,
-правила, поведение, layout), который человек читает и правит до генерации кода.
+правила, поведение, разметка, подформы `parts`), который человек читает и правит до генерации
+кода.
 
 - `specPath` (string, optional) — путь к спеке, абсолютный или от корня репозитория.
 - `description` (string, optional) — свободное описание, если спеки нет.
@@ -201,10 +221,19 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 
 ## 13. generate_form
 
-`FormIntent` → бандл файлов (`model.ts`, `form.validation.ts`, `form.behavior.ts`, layout,
-`registry.ts`) плюс кросс-проверка файлов между собой. Возвращает МАНИФЕСТ — файлы пишет
-клиент через свой Write и свой permission-гейт: сервер живёт в своём процессе и корня
-репозитория не знает.
+`FormIntent` → бандл файлов единого контракта формы плюс кросс-проверка файлов между собой.
+Набор один на все таргеты: `model.ts` (фабрика модели, шаблоны строк массивов — `arrayOf`),
+`form.schema.ts` (одно дерево узлов: TS-билдер для `core` и `renderer-react`, документ формата 2
+в `defineJsonSchema<T>` для `renderer-json`), `form.validation.ts` (подформы — `apply`, массивы —
+`applyEach`, шаги визарда — по `selector`), `form.behavior.ts` (единственное поведение: связи над
+моделью и правила узлов схемы); `renderer-json` получает ещё `registry.ts`. Манифест печатает и
+образец сборки `index.tsx` — `createForm` + `useFormBundle`.
+
+Возвращает МАНИФЕСТ — файлы пишет клиент через свой Write и свой permission-гейт: сервер живёт
+в своём процессе и корня репозитория не знает.
+
+Подформа в intent: разметка объявляется один раз в `parts: { <имя>: LayoutNode }` и ставится узлом
+`{ kind: "part", ref: "<путь группы>", part: "<имя>" }`; пути полей внутри части — от группы.
 
 - `intent` (object, required) — обычно из `plan_form`; неполный нормализуется с warnings.
 - `target` (string, optional) — перекрывает `intent.target`.
@@ -249,8 +278,8 @@ at the resources/tools to read.
 | `add-feature` / `to-renderer` | `find_recipe` on the feature keyword, then `choose_api` |
 | `review` | `validate_form` — `kind: "layout"`, then `code` / `behaviors` / `json-schema` |
 
-No arguments. The entry point: returns the M1 workflow, the map of prompts/tools/resources,
-and the reading order.
+No arguments. The entry point: returns the workflow of the unified form contract (one schema, one
+assembly `createForm`, one behavior), the map of prompts/tools/resources, and the reading order.
 
 **Tool-only equivalent:** read the resource `reformer://guide`. It is the same document, and
 its opening lines carry the file-layout rule — which is the one thing worth reading before you
@@ -282,23 +311,23 @@ FormSchema reference, imports, stack-aware skeleton). Use for the initial form w
 
 Добавить одну возможность в существующую форму. Стадия выбирается аргументом:
 - `feature: "validation"` — правила валидации;
-- `feature: "behavior"` — реактивные связи;
-- `feature: "array"` — массив формы;
-- `feature: "wizard"` — шаги мастера.
+- `feature: "behavior"` — единственное поведение формы: связи над моделью и правила узлов схемы;
+- `feature: "array"` — массив под-форм (`arrayOf` в модели, узел `{ model, item }`, `applyEach`);
+- `feature: "wizard"` — шаги мастера (библиотечный `FormWizard` узлом схемы).
 
 Аргументы: `code` (текущий код формы) и `requirements` (что добавить; для `wizard` —
 перечень шагов и полей).
 
 Схлопывает прежние `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`:
 у всех четырёх одна форма аргументов, поэтому слияние не создаёт путаницы, а перечисление
-из четырёх записей стоило каждому клиенту токенов при подключении. Содержимое шаблонов
-не тронуто.
+из четырёх записей стоило каждому клиенту токенов при подключении.
 
 ## 20. to-renderer
 
-Перенести форму `@reformer/core` на рендерер. Целевой стек — аргумент:
-- `target: "renderer-react"` (по умолчанию) — RenderSchema;
-- `target: "renderer-json"` — JSON-DSL и реестр компонентов.
+Сменить способ отрисовки формы. Модель, валидация, поведение и вызов `createForm` остаются —
+меняется только то, кто рисует. Целевой стек — аргумент:
+- `target: "renderer-react"` (по умолчанию) — разметку из JSX рисует `FormRenderer` по той же схеме;
+- `target: "renderer-json"` — схема становится JSON-документом формата 2, плюс реестр компонентов.
 
 Аргументы: `code`, опционально `target`. Схлопывает прежние `to-renderer` и
 `to-renderer-json`.
@@ -349,7 +378,7 @@ or `search_docs`. Examples:
 - `reformer://docs/core` — model, schema, validators, behaviors, arrays, multi-step, common mistakes (~50 sections).
 - `reformer://docs/cdk/form-array`, `reformer://docs/cdk/form-navigation` — FormArray / FormWizard compounds.
 - `reformer://docs/ui-kit/form-field-integration`, `reformer://docs/ui-kit/choice-fields` — components.
-- `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — RenderSchema.
+- `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — the schema tree drawn by `FormRenderer`.
 - `reformer://docs/renderer-json/json-schema`, `.../registry` — JSON DSL + registry.
 
 ## 25. How this relates to tools
@@ -360,122 +389,213 @@ returns ranked `reformer://docs/…` candidates instead of a dead end. Resources
 sections when you want to browse or read a whole package. When you know the scenario, `find_recipe`
 is faster; when you want the full section text, read the resource.
 
-## 26. 0. Choose the render target
+## 26. 0. Choose who draws the markup
 
-**M1 form-building workflow**
+**Form-building workflow**
 
-The canonical order for building a ReFormer form (M1 = single reactive model is the
-source of truth). Follow it top to bottom. Each step lists the decision, the key API,
-and the traps the runtime would otherwise punish. Look up exact signatures with
-`get_symbol_docs`, worked examples with `find_recipe`.
+The canonical order for building a ReFormer form. A form is described ONE way for every way of
+drawing it: one schema tree, one binding handle (`model.$.…`), one assembly (`createForm`), one
+behavior. The single reactive model is the source of truth. Follow the steps top to bottom. Each
+lists the decision, the key API, and the traps the runtime would otherwise punish. Look up exact
+signatures with `get_symbol_docs`, worked examples with `find_recipe` (start with
+`find_recipe unified-contract`).
 
-- **core + ui-kit** — plain React: one `<FormField control={form.x} />` per field. Simplest.
-- **renderer-react** — declarative `RenderSchema` tree (layout + conditional display as data).
-- **renderer-json** — machine-readable JSON schema + a component `registry` (string operators).
+```ts
+// model.ts — initial values and templates of new array rows
+export const createCreditModel = () =>
+  createModel<CreditForm>({
+    loanType: 'consumer',
+    registrationAddress: blankAddress(),
+    properties: arrayOf(blankProperty),
+  });
 
-All three share steps 1–6; they differ only at step 7 — and at which factory step 3 calls.
+// form.schema.ts — one schema for every way of drawing
+export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
+  selector: 'wizard',
+  component: FormWizard,
+  children: [
+    {
+      selector: 'loan', // the key in validation.steps
+      component: Step,
+      componentProps: { title: 'Кредит' },
+      children: [
+        { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип' } }, // field
+        { model: model.$.registrationAddress, part: address }, // sub-form
+        { model: model.$.properties, component: FormArray, item: property }, // array of sub-forms
+      ],
+    },
+  ],
+});
+
+// index.tsx — one assembly, one hook
+const credit = useFormBundle(() =>
+  createForm<CreditForm>({
+    model: createCreditModel(),
+    schema: creditSchema, // JSON: schema: creditJson, registry
+    behavior: creditBehavior,
+    validation: creditValidation,
+  })
+);
+```
+
+| Layer      | field                             | array                                    | sub-form                              |
+| ---------- | --------------------------------- | ---------------------------------------- | ------------------------------------- |
+| schema     | `{ model: model.$.x, component }` | `{ model: model.$.items, item }`         | `{ model: model.$.group, part }`      |
+| validation | `validate(model.$.x, rules)`      | `applyEach(model.$.items, itemRules)`    | `apply(model.$.group, groupRules)`    |
+| behavior   | `compute(model.$.x, …)`           | `applyEach(model.$.items, itemBehavior)` | `apply(model.$.group, groupBehavior)` |
+
+- **core** — you write the markup in JSX: one `<FormField control={bundle.form.x} />` per field.
+- **renderer-react** — `FormRenderer` draws the schema tree (layout + conditional display as data).
+- **renderer-json** — the same tree as a JSON document + a component `registry` (string operators).
+
+Steps 1–6 are the same for all three. They differ only in the shape of the schema passed to the
+assembly (a builder or a document + `registry`) and in step 7.
 
 ## 27. 1. Model — `createModel<T>(initial)`
 
 The model owns all values. Decisions: the data shape as a `type` (NOT `interface` — see
 `find_recipe type-safety-recipes`), and full initial values.
 
-- Numbers optional → `null`; strings → `''`; arrays → `[]`.
-- Array items must initialise **every** field, or the item's sub-model has no signals for the missing ones.
-- Don't build the model by hand in a component: the one-call assembly in step 3 creates it inside
-  `useFormBundle` (a lazy `useState`). Not `useMemo` — React may drop its cache and rebuild the model,
-  losing typed input.
+- Numbers optional → `null`; strings → `''`.
+- An array of sub-forms is declared together with the template of a new row: `arrayOf(blank, items?)`.
+  «Add» is then `model.items.push()` with no argument. The template returns the FULL element with
+  plain values. An array that is the value of one field (a multi-select) is just `[]`.
+- Export a factory (`createMyModel`), one model per assembly. Don't create it with `useMemo` in a
+  component: the assembly in step 3 lives inside `useFormBundle` (a lazy `useState`).
 
 ```ts
-import { createModel } from '@reformer/core';
-type RegForm = { email: string; password: string; age: number | null };
-const model = createModel<RegForm>({ email: '', password: '', age: null });
-// model.email (value) · model.$.email (signal) · model.get() · model.set(full)
+import { arrayOf, createModel } from '@reformer/core';
+type RegForm = { email: string; password: string; age: number | null; phones: Phone[] };
+const blankPhone = (): Phone => ({ number: '', kind: 'mobile' });
+export const createRegModel = () =>
+  createModel<RegForm>({ email: '', password: '', age: null, phones: arrayOf(blankPhone) });
+// model.email (value) · model.$.email (binding handle) · model.get() · model.set(full)
 ```
 
-## 28. 2. Schema — field leaves
+## 28. 2. Schema — one tree of nodes
 
-The schema is a tree; each **field leaf** carries value-signal + component + props — **binding + display
-only, no validators**. Validation is a *separate* ambient schema (step 4), not a key on the leaf.
-Layout (Step/Section/Grid) stays in React, not in the schema.
+ONE schema: a field is described once and stands right where it is drawn. The schema is a builder
+`(model) => node`; a node is bound to the model by the key `model` and the handle `model.$.…` —
+**binding + display only, no validators**.
+
+| Node      | Shape                                                   | Told apart by                 |
+| --------- | ------------------------------------------------------- | ----------------------------- |
+| field     | `{ model, component, componentProps }`                  | has `model`, no `item`/`part` |
+| array     | `{ model, item, component, componentProps }`            | `model` + `item`              |
+| sub-form  | `{ model, part }`                                       | `model` + `part`              |
+| container | `{ component, componentProps, children }`               | has `children`, no `model`    |
 
 ```ts
-import { Input } from '@reformer/ui-kit';
-const schema = {
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import { Box, Input, Section } from '@reformer/ui-kit';
+
+// a sub-form (part): declared once, receives a sub-model, paths inside are relative to it
+const address = (model: FormModel<Address>): FormSchemaNode => ({
+  component: Box,
   children: [
-    { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
-    { value: model.$.password, component: Input, componentProps: { label: 'Password' } },
+    { model: model.$.region, component: Input, componentProps: { label: 'Регион' } },
+    { model: model.$.city, component: Input, componentProps: { label: 'Город' } },
   ],
-};
+});
+
+export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({
+  component: Box,
+  children: [
+    { model: model.$.email, component: Input, componentProps: { label: 'Email' } },
+    {
+      selector: 'registration',
+      component: Section,
+      componentProps: { title: 'Адрес регистрации' },
+      children: [{ model: model.$.registrationAddress, part: address }],
+    },
+  ],
+});
 ```
 
-Traps: `value: model.$.field` (a signal) — never `value: 'field'`. Don't forget `componentProps.label`.
-No `validators:` key on the leaf — the old `{ value, validators: [...] }` shape is gone; rules live in
-their own `defineValidationSchema` (step 4).
+Traps:
 
-## 29. 3. Assemble — ONE call per target
+- `model: model.$.field` (a handle) — never a string, never the form node `form.field`.
+- `model.$.…` is the handle for a field, a group AND an array. Without `$` you only read a value,
+  mutate (`model.items.push()`) or pass a sub-model on.
+- The keys `value:` / `array:`, the array facade `model.items` in a binding position, a second
+  «render schema» describing the same fields — the former contract.
+- No `validators:` key on a node — rules live in their own `defineValidationSchema` (step 4).
+- Containers are optional: whoever writes the markup in JSX keeps only field nodes in the schema.
+- `selector` is a node id for rules of the behavior (step 5), not a model path.
 
-The model, the form and (when rules are given) the validation are built in a single pass. Which factory
-you call depends only on how the form is rendered; the config is the same shape everywhere:
+## 29. 3. Assemble — ONE call, `createForm`
+
+The model, the schema tree, the form, the behavior and the validation are built in a single pass.
+The call is the same for every way of drawing; a JSON document goes in as `schema` together with
+`registry`.
 
 ```ts
-import { createCoreForm, useFormBundle } from '@reformer/core';
+import { createForm, useFormBundle } from '@reformer/core';
 
-const reg = useFormBundle(() =>
-  createCoreForm<RegForm>({
-    initial: INITIAL,             // or model: makeModel()
-    schema: buildSchema,          // BUILDER (model) => tree — leaves hold the model's own signals
-    behavior: formBehavior,       // optional, step 5
-    validation: formValidation,   // optional, step 4
+const bundle = useFormBundle(() =>
+  createForm<RegForm>({
+    model: createRegModel(), // or initial: INITIAL
+    schema: formSchema, // BUILDER (model) => node; JSON: the document + registry
+    behavior: formBehavior, // optional, step 5
+    validation: formValidation, // optional, step 4
   })
 );
-// reg.form.email is a node bound to model.$.email; reg.validation carries validateStep/validateAll
+// bundle = { model, form, validation?, render }
+// bundle.form.email is a node bound to model.$.email; bundle.validation carries validateStep/validateAll
 ```
 
-`createReactForm` (`@reformer/renderer-react`) adds the render schema, `createJsonForm`
-(`@reformer/renderer-json`) takes the JSON schema plus a registry. Both return the same bundle shape
-plus their own field(s). In React always wrap the factory in `useFormBundle` (aliased `useReactForm` /
-`useJsonForm`): it is a lazy `useState` and runs the factory once, while `useMemo` may drop its cache and
-rebuild the form, losing typed input.
+In React always wrap the factory in `useFormBundle`: it is a lazy `useState` and runs the factory
+once, while `useMemo` may drop its cache and rebuild the form, losing typed input.
 
-Low-level `createModel` + `createForm({ model, schema })` remain public for special cases; the overloads
-`createForm({ form: {...} })` and `createForm(flatSchema)` are legacy.
+`createCoreForm`, `createReactForm`, `createJsonForm` and the hooks `useReactForm` / `useJsonForm`
+are the former contract — three factories for three ways of drawing. Low-level
+`createFormFromModel({ model, schema })` remains public for special cases; the overloads
+`createLegacyForm({ form: {...} })` and `createLegacyForm(flatSchema)` are legacy.
 
-## 30. 4. Validation — `defineValidationSchema` + `validateModel(model, schema)`
+## 30. 4. Validation — `defineValidationSchema`
 
 Validation is its **own ambient schema** — a plain function over the model, imported from
-`@reformer/core/validation`, separate from the field schema (step 2) and from behaviors (step 5).
-It runs **on demand** (submit / step), not reactively. Never a `validators:` array on a leaf.
+`@reformer/core/validation`, separate from the form schema (step 2) and from the behavior (step 5).
+It runs **on demand** (submit / step), not reactively. Never a `validators:` array on a node.
 
-- **Schema**: `defineValidationSchema<T>(({ model }) => { … })` — a thin identity wrapper (like
-  `defineFormBehavior`). The body calls bare **operators**, valid only during a `validateModel` run:
-  - `validate(sig, rules[])` — sync value rules.
-  - `validateAsync(sig, asyncRules[])` — async rules `(value, { signal }) => Promise<ValidationError | null>`;
+- **Schema**: `defineValidationSchema<T>(({ model }) => { … })`. The body calls bare **operators**:
+  - `validate(model.$.x, rules[])` — sync value rules.
+  - `validateAsync(model.$.x, asyncRules[])` — async rules `(value, { signal }) => Promise<ValidationError | null>`;
     the runner awaits them and passes an `AbortSignal` so a superseded request is cancelled. Network failure → return `null`.
   - `validateWhen(() => cond, () => { … })` — conditional branch: rules inside are active when `cond` is true, else their fields are cleared.
-  - `cross(sig, (f) => err | null)` — cross-field; `f` is a **snapshot** of the current scope (`model.get()`), not `(value, scope, root)`.
-  - `each(model.arr, (im) => { … })` — per array item (`im` is the item sub-model).
-  - `apply(...schemas)` — compose sub-schemas over the same model (e.g. build the full schema from per-step ones).
-- **Rules** are factories from `@reformer/core/validators` (`required()`, `email()`, `min(50000)` — now
-  nullable-accepting), reused as-is, or inline `(value) => ValidationError | null`.
-- **Runner**: `validateModel(model, schema): Promise<boolean>` — routes each error into its own node
-  (`getNodeForSignal(sig).setErrors(...)`), clears fields that became valid, cancels a superseded run
-  (returns `false` — fail-closed), and returns `true` even when a `severity: 'warning'` error is showing
-  (warnings don't block submit). It — not `form.validate()` — is what executes the rules. Keep the schema a
-  **stable `const`** (identity keys the stale-run cancellation).
+  - `cross(model.$.x, (f) => err | null)` — cross-field; `f` is a **snapshot** of the current scope, not `(value, scope, root)`.
+  - `apply(model.$.group, groupRules)` — a sub-form: `groupRules` is a `defineValidationSchema<Group>` that receives the sub-model; one set of rules serves several groups.
+  - `applyEach(model.$.items, itemRules)` — the same for every element of an array.
+  - `apply(...schemas)` — compose schemas over the same model.
+
+  A schema attached with `apply` / `applyEach` has its own scope: `cross` inside it receives the
+  snapshot of the group / the row. `each(model.items, …)` and a direct call
+  `groupRules({ model: model.group })` are the former contract.
+- **Rules** are factories from `@reformer/core/validators` (`required()`, `email()`, `min(50000)`),
+  reused as-is, or inline `(value) => ValidationError | null`.
+- **To the assembly**: `validation: schema`, or — for a wizard — data
+  `{ steps: { <step selector>: schema | null }, extras? }`. The assembly builds
+  `bundle.validation` = `{ validateStep, validateAll, … }` from it.
+- **Runner**: `validateModel(model, schema): Promise<boolean>` — routes each error into its own node,
+  clears fields that became valid, cancels a superseded run (returns `false` — fail-closed), and
+  returns `true` even when a `severity: 'warning'` error is showing (warnings don't block submit).
+  Keep the schema a **stable `const`** (identity keys the stale-run cancellation).
 
 ```ts
-import { defineValidationSchema, validate, validateAsync, cross, validateModel }
-  from '@reformer/core/validation';
-import { required, email, minLength } from '@reformer/core/validators';
+import { apply, applyEach, cross, defineValidationSchema, validate, validateAsync } from '@reformer/core/validation';
+import { email, minLength, required } from '@reformer/core/validators';
 
-const schema = defineValidationSchema<RegForm>(({ model }) => {
+const phoneRules = defineValidationSchema<Phone>(({ model }) => {
+  validate(model.$.number, [required()]);
+});
+
+export const formValidation = defineValidationSchema<RegForm>(({ model }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
-  validate(model.$.confirmPassword, [required()]);
-  // cross-field reads a form snapshot — no scope/root params
+  // cross-field reads a snapshot of the scope — no scope/root params
   cross(model.$.confirmPassword, (f) =>
-    f.confirmPassword !== f.password ? { code: 'mismatch', message: 'Passwords differ' } : null);
+    f.confirmPassword !== f.password ? { code: 'mismatch', message: 'Passwords differ' } : null
+  );
   // async — receives { signal }; network failure returns null (never blocks submit)
   validateAsync(model.$.email, [
     async (value, { signal }) => {
@@ -483,143 +603,185 @@ const schema = defineValidationSchema<RegForm>(({ model }) => {
       return (await res.json()).available ? null : { code: 'email-taken', message: 'Email taken' };
     },
   ]);
+  apply(model.$.registrationAddress, addressRules); // sub-form
+  applyEach(model.$.phones, phoneRules); // array rows
 });
-
-const ok = await validateModel(model, schema); // Promise<boolean>
 ```
 
 Trap: the old `ModelValidator (value, scope, root)` placed in a leaf's `validators` is gone, and
 `validateFormModel` → `{ valid, errors }` is replaced by `validateModel` → `Promise<boolean>` that routes
-errors into the nodes itself. Cross-field is now `cross(sig, f => …)` over `model.get()`; async is
-`validateAsync` with `{ signal }`, not a `Promise`-returning `ModelValidator`.
+errors into the nodes itself.
 
-## 31. 5. Behaviors — reactive dynamics (optional)
+## 31. 5. Behavior — the ONLY behavior of the form (optional)
 
-Computed / copied / conditionally-enabled fields. Two styles: DSL `defineFormBehavior` + operators,
-or primitives in a `useEffect`. Register the DSL via the `behavior` field of the assembly call (step 3).
+One function, one file (`form.behavior.ts`), one `behavior` field of the assembly. Next to the model
+and the form it gets the schema, so links over the model and rules for schema nodes stand side by
+side. Everything is imported from `@reformer/core/behaviors`.
 
 ```ts
-import { defineFormBehavior } from '@reformer/core/behaviors';
-const behavior = defineFormBehavior<OrderForm>(({ model, form }) => {
-  compute(model.$.total, () => model.price * model.quantity);          // reads OTHER fields, writes its own
-  copyFrom(model.$.registration, model.$.residence, { when: () => model.sameAddress });
-  enableWhen(form.residence, () => model.sameAddress === false);        // state op — affects the node, not the value
+import { apply, applyEach, compute, defineFormBehavior, enableWhen, hideWhen, onComponentEvent } from '@reformer/core/behaviors';
+
+export const formBehavior = defineFormBehavior<CreditForm>(({ model, form, schema }) => {
+  const isMortgage = () => model.loanType === 'mortgage';
+
+  // links over the model
+  compute(model.$.monthlyPayment, () => computeMonthlyPayment(model)); // reads OTHER fields, writes its own
+  enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true });
+
+  // rules for schema nodes — addressed by `selector`
+  hideWhen(schema.node('mortgage'), () => !isMortgage());
+  onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+    await submitCreditApplication(model.get());
+  });
+
+  apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior); // sub-forms
+  applyEach(model.$.properties, propertyBehavior); // array rows
 });
 ```
 
-Trap: **cycles** (`compute(a, () => a)` or `a→b→a`) loop forever. Plan dependencies and run them
-through the `check_behaviors` tool; see `find_recipe cycle`.
+- Conditions read the **model** (`model.loanType`) in both kinds of rules — one constant serves
+  `enableWhen` and `hideWhen`. `form.loanType.value.value` in a condition is the former contract.
+- `hideWhen` hides a NODE; the field stays in the model and is still validated. When it must stop
+  participating, pair it with `enableWhen` (which of the two — `choose_api`).
+- Rules for nodes are executed by `FormRenderer`. When the markup is written by hand in JSX they do
+  nothing: visibility, submit and data loading stay in JSX there.
+- **Scopes are isolated.** `schema.node(selector)` sees its own scope only: the root behavior — the
+  root tree without the contents of array `item`s and sub-form `part`s. A node inside a row or a
+  part is addressed from the sub-behavior passed to `applyEach` / `apply`, which receives its own
+  `schema`. So two mounts of one part do not conflict.
+- A separate behavior for the render layer (`form.render.ts`, the `renderBehavior` field, a factory
+  `(form, model, validation) => (schema) => …`) is the former contract.
 
-Bridge to validation (the only overlap between the layers): behaviors don't own validation, but a
-behavior can *trigger* a re-run — `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.
+Trap: **cycles** (`compute(a, () => a)` or `a→b→a`) loop forever. Plan dependencies and run them
+through `validate_form kind="behaviors"`; see `find_recipe cycle`.
+
+Bridge to validation (the only overlap between the layers): a behavior can _trigger_ a re-run —
+`revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.
 
 ## 32. 6. Arrays & Wizard (when needed)
 
-- **Array** node in the schema: `{ array: model.items, item: (im) => itemSchema, initialValue: {...full...} }`.
-  In React use the `@reformer/cdk` `FormArray` compound; **key rows by `id`, not index**. `find_recipe form-array`.
-- **Wizard**: `@reformer/cdk` `FormWizardConfig = { validateStep?, validateAll? }` — two callbacks returning
-  `boolean | Promise<boolean>` (NOT schemas). Build them from validation schemas with a
-  `makeValidationConfig(model)` returning `{ validateStep: (n) => validateModel(model, STEP_SCHEMAS[n - 1]),
-  validateAll: () => validateModel(model, fullSchema) }`, where `fullSchema = defineValidationSchema(() =>
-  apply(...STEP_SCHEMAS, extras))`. `find_recipe wizard`.
+- **Array of sub-forms**: `arrayOf(blank)` in the model + the node
+  `{ model: model.$.items, component: FormArray, item: itemRow }`; `itemRow` is a part
+  `(model: FormModel<Item>) => node`. The node needs no `initialValue` — it is only a fallback for
+  forms whose model is created from data without code. In JSX use `FormArraySection` from
+  `@reformer/ui-kit` or the `@reformer/cdk` `FormArray` compound; **key rows by `id`, not index**.
+  `find_recipe form-array`.
+- **Wizard**: the library `FormWizard` (`@reformer/ui-kit`) as a schema node, steps are its
+  `children`: `{ selector: 'loan', component: Step, componentProps: { title, icon }, children }`
+  (`Step` from `@reformer/cdk/form-wizard`). A step is linked to its rules by `selector` —
+  `validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossStepRules }`; a
+  step without a `selector` falls back to its ordinal number. The wizard takes the form and the
+  validation from the assembly itself: no app shim, no `componentProps.steps`, no
+  `makeValidationConfig(model)`, no `onInit` + `patchProps({ form, config })` — all of it is the
+  former contract. In JSX `FormWizard` still takes `form`, `config={bundle.validation}` and `steps`
+  as props. `find_recipe wizard`.
 
-## 33. 7. Render
+## 33. 7. Draw
 
-The bundle from step 3 goes to the renderer as a single prop — targets differ only in what you assembled.
+The bundle from step 3 goes to whoever draws.
 
-- **ui-kit**: `<FormField control={bundle.form.email} />` per field; a wizard takes `config={bundle.validation}`.
-- **renderer-react**: the builder is `(model, form?) => RenderNode<T>` and `createReactForm` calls it twice
-  (without the form — to wire nodes, with it — to render), so you never write that pair yourself.
-  Conditional display via `hideWhen(node, () => cond)` inside the `renderBehavior` factory; mount with
-  `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`. `find_recipe render-schema`.
-- **renderer-json**: JSON with string operators `$model(path)` / `$component(Name)` / `$dataSource(NAME)`,
-  a `defineRegistry` mapping names → components, then `createJsonForm({ schema, registry, model | initial })`
-  and `<JsonRendererProvider settings={{ registry: bundle.registry }}>` + `<JsonFormRenderer form={bundle} />`.
-  **Validate the JSON with the `validate_json_schema` tool before rendering.** `find_recipe json-schema`.
+- **core**: `<FormField control={bundle.form.email} />` per field; a wizard takes `form={bundle.form}`
+  and `config={bundle.validation}`.
+- **renderer-react**: `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`
+  (`FormRenderer` from `@reformer/renderer-react`). `find_recipe render-schema`.
+- **renderer-json**: the tree as a document of format 2 — `{ "format": 2, "parts": { … }, "root": { … } }`
+  with string operators `$model(path)` / `$component(Name)` / `$dataSource(NAME)` / `$part(name)`,
+  a `defineRegistry` mapping names → components (incl. `FormWizard`, `Step`, `FIELD_WRAPPER`), then
+  the same `createForm({ model, schema: document, registry, … })` and `<FormRenderer form={bundle} />`
+  — the field wrapper comes from the registry. A document without `"format": 2` is the former format
+  (keys `value`/`array`, steps in `componentProps.steps`); `migrateJsonSchema` converts one.
+  **Validate the document with `validate_form kind="json-schema"` before rendering**, and in dev
+  call `validateFormSchema(document, { registry })` explicitly. `find_recipe json-schema`.
 - **Field components**: put the component ITSELF into `component` — `Input`, `InputNumber` (numbers; `Input` has no `type: 'number'`), `InputSuggest`, `SelectAsync` (registry `Select`), `CheckboxWithLabel` (`Checkbox`), `SwitchWithLabel` (`Switch`), `RadioGroupOptions` (`RadioGroup`), `DatePicker`, `FileUploadDropzone` / `FileUploadInput` (no `variant` prop), … A ui-kit control declares its dialect (`checked`/`onCheckedChange`, `onValueChange`, …) as a static adapter, and the field wrapper (`FormField.Control`, the renderer leaf) binds it to the value seam itself. The old `*Field` line (`InputField`, `SelectField`, `CheckboxField`, …) and `withFormControl` were removed without aliases.
-- **Raw third-party controls (non-ui-kit)**: add `resolveFieldAdapter(component) => FieldAdapter | undefined` to the renderer `settings` (both renderer-react and renderer-json) — the renderer maps the value-seam (`value` + `onChange(value)`) to each control's dialect. For your own control you can instead declare the dialect once with `defineFieldControl(Component, { adapter })` from `@reformer/ui-kit/fields`.
+- **Raw third-party controls (non-ui-kit)**: add `resolveFieldAdapter(component) => FieldAdapter | undefined` to the renderer `settings` — the renderer maps the value-seam (`value` + `onChange(value)`) to each control's dialect. For your own control you can instead declare the dialect once with `defineFieldControl(Component, { adapter })` from `@reformer/ui-kit/fields`.
 
-### Validation is a separate schema, not part of the render tree (renderer-react / renderer-json)
+### Validation is a separate schema, not part of the form schema
 
-The render tree (RenderSchema or JSON) describes **layout** and carries no validators — `JsonFieldNode`
-has no `validators`, a RenderSchema leaf is display config, and there is no `$validator(...)` JSON operator
-by design. Validation is its own `defineValidationSchema<T>(({ model }) => …)` bound to the same model and
-run with `validateModel(model, schema)` at submit / per step. So a renderer target keeps up to **three**
-artifacts over one model: the **field schema** (values + components — the tree the assembly call consumes;
-for renderer-json it is the JSON itself, converted inside `createJsonForm`), the **validation schema**
-(rules, for `validateModel`), and optionally a **behavior schema** (`defineFormBehavior`). Schema and rules stay
-independent: a layout pushed from the server changes display without touching the rules, and vice versa.
-For a wizard the validation schema is flat (all fields), independent of how steps nest in the render tree.
+The form schema (a TS tree or a JSON document) describes **binding and layout** and carries no
+validators — there is no `$validator(...)` JSON operator by design. Validation is its own
+`defineValidationSchema<T>(({ model }) => …)` bound to the same model. So a form keeps **three**
+artifacts over one model, the same for every way of drawing: the **schema** (`form.schema.ts`), the
+**validation** (`form.validation.ts`) and the **behavior** (`form.behavior.ts`). Schema and rules
+stay independent: a layout pushed from the server changes display without touching the rules, and
+vice versa.
 
 ## 34. Checklist before you finish
 
-1. Model initialises every field (incl. array-item fields). 2. Leaves are `{ value: model.$.x, component, ... }`
-— no `validators:` on the leaf. 3. Validation is a separate `defineValidationSchema` (rules = `@reformer/core/validators`
-factories, `cross`, `validateAsync`); run via `validateModel(model, schema)` → `Promise<boolean>`. 4. Behaviors are
-acyclic (`check_behaviors`). 5. Arrays keyed by `id`. 6. renderer-json schema passed `validate_json_schema` → `valid`.
+1. The model initialises every field; arrays of sub-forms are `arrayOf(blank)`. 2. Nodes are
+`{ model: model.$.x, component, ... }` — the key is `model`, no `validators:` on a node. 3. One
+assembly: `createForm` in `useFormBundle`. 4. Validation is a separate `defineValidationSchema`
+(sub-forms via `apply`, arrays via `applyEach`), passed as `validation`. 5. One behavior
+`({ model, form, schema })`, acyclic (`validate_form kind="behaviors"`). 6. Arrays keyed by `id`.
+7. A JSON document has `"format": 2` and passed `validate_form kind="json-schema"`. 8. The code
+passed `validate_form kind="code"` — it reports keys and factories of the former contract.
 
 ## 35. 1. Minimalist (default) — flat, one file per concern
 
 **Form directory layout (core / renderer-react / renderer-json)**
 
 How to organize the files of one form. **Default = minimalist:** a flat set of files — one
-`index.tsx` component plus one file per concern; wizard steps live inline in `index.tsx` or, one
-folder per step, in `steps/<slug>/`. **One naming rule for every target:** `form.<role>` is a form
-artifact whose suffix names its role (`form.schema` — markup, `form.behavior` — model behavior,
-`form.render` — render behavior, `form.validation` — validation); every other file is plain-named. The base file set is
-**identical across `@reformer/core`, `@reformer/renderer-react`, and `@reformer/renderer-json`**.
-Scale up to the folder layout (§3) only for large forms. Use `[form-name]` / `[FormName]` as
-placeholders.
+`index.tsx` component plus one file per concern; wizard steps live in the root schema or, one
+folder per step, in `steps/<slug>/`. **One naming rule and one file set for every target:**
+`form.<role>` is a form artifact whose suffix names its role (`form.schema` — the schema of the
+form, `form.behavior` — the behavior of the form, `form.validation` — validation); every other
+file is plain-named. The set is **identical across `@reformer/core`, `@reformer/renderer-react`,
+and `@reformer/renderer-json`** — the contract of a form does not depend on who draws it;
+renderer-json adds only `registry.ts`. Scale up to the folder layout (§3) only for large forms.
+Use `[form-name]` / `[FormName]` as placeholders.
 
 > **Кратко по-русски.** Раскладка файлов формы (form directory layout) — как назвать файлы формы и
 > куда положить каждый из них. Модуль формы — один каталог, и у каждой заботы в нём ровно один
 > канонический файл. Правило имён: `form.<роль>` — артефакт формы, суффикс называет роль
-> (`schema`, `behavior`, `render`, `validation`); остальные файлы без префикса; внутри папки шага
-> `steps/<slug>/` имена те же. Имена из §1 — контракт, а не рекомендация. Прежние `renderer.*` и `validation.ts` —
-> §7. Крупную форму раскладывают по папкам — §3.
+> (`schema`, `behavior`, `validation`); остальные файлы без префикса; внутри папки шага
+> `steps/<slug>/` имена те же. Схема одна, поведение одно, сборка одна — поэтому набор файлов у
+> всех таргетов одинаковый. Имена из §1 — контракт, а не рекомендация. Прежние имена
+> (`form.render.ts`, `wizard.tsx`, `renderer.*`, `validation.ts`) — §7. Крупную форму раскладывают
+> по папкам — §3.
 
 > **The names in §1 are the contract, not a suggestion.** Do not invent `schema.ts`, `behavior.ts`,
 > `json-schema.json`, `render-behavior.ts`, `initial-values.ts` or `dictionaries.ts` — every concern
 > below already has exactly one canonical filename. Older example directories in this repository were
-> written before this guide and still use the old names; they are references for *content*, never for
-> *naming*.
+> written before this guide and still use the old names; they are references for _content_, never for
+> _naming_.
 
 > The default this guide leads with is configurable — see §5 (`REFORMER_FORM_LAYOUT`). This guide
 > documents both the minimalist default and the folders scale-up regardless of the setting.
 
+What files should a form have? Exactly the set below — the same files for every target.
 Everything lives in the form module root (no `lib/` / `schema/` / `components/` nesting). A single
-`index.tsx` holds the whole form; one `form.validation.ts` holds all validation; every other
+`index.tsx` holds the assembly; one `form.validation.ts` holds all validation; every other
 concern is one file. The only allowed nesting is the optional per-step folder `steps/<slug>/` (below).
 
 **Naming rule:** `form.<role>` = an artifact of the form, the suffix names its role —
-`form.schema` (markup), `form.behavior` (model behavior), `form.render` (render behavior),
-`form.validation` (validation rules). Every other file is **plain-named**. The separator is a **dot**, never a dash and never a collapsed word:
-`form.render.ts`, not `form-render.ts` / `render-behavior.ts` / `renderBehavior.ts`. The rule is the
-same in every target — only the set of files differs.
+`form.schema` (the one schema tree), `form.behavior` (the one behavior: links over the model and
+rules for schema nodes), `form.validation` (validation rules). Every other file is **plain-named**.
+The separator is a **dot**, never a dash and never a collapsed word: `form.behavior.ts`, not
+`form-behavior.ts` / `behavior.ts` / `formBehavior.ts`.
 
-**Base — identical in every target:**
+**The set — identical in every target:**
 
 ```
 [form-name]/
-├── index.tsx           # entry + whole form: ONE assembly call (createCoreForm / createReactForm / createJsonForm) + render
+├── index.tsx           # entry: ONE assembly — createForm in useFormBundle — and whoever draws
 ├── types.ts            # form type + field enums + { value, label } option type + constant dictionaries
-├── model.ts            # createModel + initial values + array-element factories
-├── form.validation.ts  # ALL validation over the model → { validateStep, validateAll }
+├── model.ts            # createModel factory + initial values + new-row templates (arrayOf)
+├── form.schema.ts      # the schema: ONE tree of nodes — the form is built from it and drawn by it
+├── form.behavior.ts    # the ONLY behavior: links over the model + rules for schema nodes
+├── form.validation.ts  # ALL validation over the model; wizard: { steps: { <selector>: rules }, extras }
 ├── data-sources.ts     # options + async loaders (dataSources)
 └── api.ts              # submit + prefill / load
 ```
 
-**`form.schema.*` — the markup, one name in every target:**
+**`form.schema.*` — one tree, two notations:**
 
-| target           | file             | content                                                                                    |
-| ---------------- | ---------------- | ------------------------------------------------------------------------------------------ |
-| core             | `form.schema.ts` | M1 FormSchema `{ value: model.$.x, component, componentProps }`                             |
-| renderer-react   | `form.schema.ts` | RenderNode tree (`createRenderSchema`)                                                      |
-| renderer-json    | `form.schema.ts` | JSON-DSL literal (`$model` / `$component` / `$dataSource`) wrapped in `defineJsonSchema<T>` |
+| target         | file             | content                                                                                        |
+| -------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
+| core           | `form.schema.ts` | builder `(model) => node`: `{ model: model.$.x, component, componentProps }`; the markup is JSX |
+| renderer-react | `form.schema.ts` | the same builder, with containers — `FormRenderer` draws the tree                               |
+| renderer-json  | `form.schema.ts` | the same tree as a document of format 2 (`$model` / `$component` / `$part`) in `defineJsonSchema<T>` |
 
-- **`.tsx` instead of `.ts` is fine** when the schema itself contains JSX (a `renderStepBody` prop,
-  an inline cell renderer). Only the extension changes: `form.schema.tsx`, never `schema.tsx` /
-  `json-schema.ts`.
+- **`.tsx` instead of `.ts` is fine** when the schema itself contains JSX (an inline cell
+  renderer). Only the extension changes: `form.schema.tsx`, never `schema.tsx` / `json-schema.ts`.
 - **renderer-json — why `.ts` is the default.** `defineJsonSchema<T>` types the literal against `T`,
   so a typo inside `$model(personalData.frstName)` is a **compile-time** error — the main thing
   standing between the DSL and a field that silently binds to nothing.
@@ -627,74 +789,69 @@ same in every target — only the set of files differs.
   (`import raw from './form.schema.json'` plus a cast to `JsonFormSchema<T>`). Take it knowingly:
   **`$model` paths stop being type-checked**, and nothing else picks the slack up.
 
-**Behavior — two layers, two files:**
-
-- `form.behavior.ts` — model behavior (`defineFormBehavior`: compute / enableWhen / hideWhen /
-  copyFrom / onChange) — **all targets**.
-- `form.render.ts` — render behavior (hideWhen / renderEffect / navigation / submit /
-  data-loading) — **renderer-react & renderer-json only**.
+**Behavior — one layer, one file.** `form.behavior.ts` holds `defineFormBehavior<T>(({ model, form, schema }) => …)`:
+links over the model (compute / enableWhen / copyFrom / onChange) and rules for schema nodes
+(`hideWhen(schema.node('selector'), …)`, `onComponentEvent`, `onMount`) side by side — in **every**
+target. There is no separate file for the render layer.
 
 **renderer-json also adds** `registry.ts` (plain) — binds components and the data-sources **from
-`data-sources.ts`** to their `$component(...)` / `$dataSource(...)` names.
+`data-sources.ts`** to their `$component(...)` / `$dataSource(...)` names, including the library
+`FormWizard` / `Step` and the field wrapper `FIELD_WRAPPER`.
 
-**renderer-json, optional — `wizard.tsx`:** a multi-step JSON form has to register some component
-under `$component(Wizard)`, and **the library does not export one** (`RendererFormWizard` is
-application code). The shim that adapts ui-kit `FormWizard` to the JSON step shape lives in
-`wizard.tsx` or inline in `registry.ts` — **both are canonical**. See renderer-json
-[07-form-wizard.md](../../../reformer-renderer-json/docs/llms/07-form-wizard.md).
+**Wizard** is the library `FormWizard` standing in the schema as a node with the steps in
+`children` — it needs no file of its own. A step node carries a `selector`; the same word is the
+key of the step's rules in `form.validation.ts`.
 
-**Wizard steps, optional — `steps/<slug>/`:** keep the steps inline in `index.tsx`, **or** give each
+**Wizard steps, optional — `steps/<slug>/`:** keep the steps in the root schema, **or** give each
 step a folder named by the kebab slug of its title **without a number** (`Контакты` → `kontakty`;
 order comes from the aggregator, so reordering steps never renames folders). Inside a step folder
 the names are the same as in the root:
 
 ```
 steps/
-├── index.ts                # aggregator: step order + stepValidations[] / stepRenders[]
+├── index.ts                # aggregator: step order + the step schemas / rules
 └── kontakty/
-    ├── form.validation.ts  # rules of this step's fields → export const stepValidation
-    ├── form.render.ts      # render behavior of this step's nodes (renderer-* only)
-    └── form.schema.ts      # markup of this step (optional; .tsx / .json as in the root)
+    ├── form.schema.ts      # the step node `{ selector, component: Step, … }` (optional; .tsx / .json as in the root)
+    ├── form.validation.ts  # rules of this step's fields → export const stepRules
+    └── form.behavior.ts    # behavior within this step (optional)
 ```
 
-Cross-step rules and behavior stay in the root `form.validation.ts` / `form.behavior.ts` /
-`form.render.ts`.
+Cross-step rules and behavior stay in the root `form.validation.ts` / `form.behavior.ts`.
 
 A **data** schema (`form.schema.json`, renderer-json) is split by reference: the root keeps
-`{ "$ref": "./steps/<slug>/form.schema.json" }` in `componentProps.steps`, the step file is
+`{ "$ref": "./steps/<slug>/form.schema.json" }` among the wizard's `children`, the step file is
 `{ "$schema", "node": <Step> }` (key `node`, not `root`), `steps/index.ts` exports
-`stepSchemas: Record<ref, JsonFormStep>`, and `index.tsx` assembles the form with
-`composeJsonFormSchema(rawSchema, stepSchemas)` before `createJsonForm` — see renderer-json
-[07-form-wizard.md](../../../reformer-renderer-json/docs/llms/07-form-wizard.md#split-steps).
+`stepSchemas: Record<ref, JsonFormStep>`, and `index.tsx` assembles the document with
+`composeJsonFormSchema(rawSchema, stepSchemas)` before `createForm`.
 
 → per-target file sets:
 
 ```
-core (8):            index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts                  form.validation.ts  data-sources.ts  api.ts
-renderer-react (9):  index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.render.ts  form.validation.ts  data-sources.ts  api.ts
-renderer-json (10):  index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.render.ts  form.validation.ts  data-sources.ts  api.ts  registry.ts
+core (8):            index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts
+renderer-react (8):  index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts
+renderer-json (9):   index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts  registry.ts
 
 # same names, allowed shapes:
-any target                        schema holds JSX             -> form.schema.tsx
-renderer-json                     schema as raw data           -> form.schema.json  (no $model typing)
-renderer-json + wizard, optional  shim for $component(Wizard)  -> wizard.tsx        (or inline in registry.ts)
-any target + wizard, optional     steps as folders             -> steps/index.ts + steps/<slug>/{form.validation.ts, form.render.ts, form.schema.*}
+any target                     schema holds JSX        -> form.schema.tsx
+renderer-json                  schema as raw data      -> form.schema.json  (no $model typing)
+any target + wizard, optional  steps as folders        -> steps/index.ts + steps/<slug>/{form.schema.*, form.validation.ts, form.behavior.ts}
 ```
 
 Rules:
 
-- **Wizard steps inline in `index.tsx` or in `steps/<slug>/`** — never `components/steps/`,
-  `step1.tsx` or a numbered folder. Nested sub-forms (Address, PassportData, …) are inline blocks or
-  small local helper components in `index.tsx`, not separate files.
-- Leaves carry the **model signal** (`value: model.$.x`), never `form.X`.
-- **renderer-react / renderer-json**: `RenderNode` / `JsonFieldNode` carry **no `validators`** —
-  value validation is a separate `defineValidationSchema` over the model in `form.validation.ts`
-  (executed by `validateModel`, injected into the wizard as `{ validateStep, validateAll }`).
-- Derived fields → `form.behavior.ts`; domain constants/enums → `types.ts`; the two data concerns
-  are split: field options + async loaders → `data-sources.ts`, submit/prefill → `api.ts`.
-- **The per-target set is the whole module.** A concern with no file of its own does not get a new
-  file — it belongs inside one of these. The documented exceptions are the optional `wizard.tsx`
-  shim and the `steps/` folders above.
+- **Wizard steps in the root schema or in `steps/<slug>/`** — never `components/steps/`,
+  `step1.tsx` or a numbered folder. A nested sub-form (Address, PassportData, …) is a **part** — a
+  function `(model) => node` next to the schema that uses it, mounted with `{ model, part }` — not
+  a separate file per sub-form.
+- Nodes carry the **model handle** (`model: model.$.x`), never `form.X`; the key is `model`, not
+  `value` / `array`.
+- Schema nodes carry **no `validators`** — value validation is a separate `defineValidationSchema`
+  over the model in `form.validation.ts`, passed to the assembly as `validation`.
+- Derived fields and node visibility → `form.behavior.ts`; domain constants/enums → `types.ts`;
+  the two data concerns are split: field options + async loaders → `data-sources.ts`,
+  submit/prefill → `api.ts`.
+- **The set is the whole module.** A concern with no file of its own does not get a new file — it
+  belongs inside one of these. The documented exception is the `steps/` folders above.
 
 ## 36. 2. App-level infrastructure (renderer-json only) — recommendation, not a conformance bar
 
@@ -706,21 +863,22 @@ Rules:
 > app and the base registry actually starts getting copy-pasted.
 
 The base component **registry** is mostly shared across all JSON forms — ui-kit components plus the
-system containers (the `$component(Wizard)` shim, `Step`, `FIELD_WRAPPER`). The DSL meta-schema is
-generated from that registry. Neither belongs to a single form — once there is more than one, lift
-them to the app level (e.g. `src/renderer-json/`):
+system ones (`FormWizard`, `Step`, `FIELD_WRAPPER`). The DSL meta-schema is generated from that
+registry. Neither belongs to a single form — once there is more than one, lift them to the app
+level (e.g. `src/renderer-json/`):
 
 ```
 src/renderer-json/            # one per application
-├── registry.ts               # base ComponentRegistry: ui-kit + the $component(Wizard) shim / Step + FIELD_WRAPPER
+├── registry.ts               # base ComponentRegistry: ui-kit + FormWizard / Step + FIELD_WRAPPER
 └── form-schema.schema.json    # GENERATED DSL meta-schema (npm run gen:form-schema) — derived from the registry
 ```
 
-Once that app-level base exists, each form's own `registry.ts` composes it with the form's own
-components + `data-sources.ts`, and that composed registry goes into `createJsonForm({ registry })`;
-from then on do **not** copy the base registry or the meta-schema into a per-form file — regenerate
-the meta-schema with `npm run gen:form-schema` when the base registry changes. Until it exists, a
-self-contained per-form `registry.ts` is the correct shape, not a workaround.
+Once that app-level base exists, each form's own `registry.ts` composes it (`composeRegistries`)
+with the form's own components + `data-sources.ts`, and that composed registry goes into
+`createForm({ registry })`; from then on do **not** copy the base registry or the meta-schema into
+a per-form file — regenerate the meta-schema with `npm run gen:form-schema` when the base registry
+changes. Until it exists, a self-contained per-form `registry.ts` is the correct shape, not a
+workaround.
 
 > Raw (non-ui-kit) controls are bound by name the same way, but need a `resolveFieldAdapter` in the
 > renderer **settings** (see `@reformer/renderer-react`), not in the registry itself.
@@ -736,28 +894,28 @@ still the flat layout — they only move per-step pieces out of the root files):
 ├── [FormName]Form.tsx        # entry
 ├── index.ts                  # public re-exports
 ├── lib/                      # domain raw material (target-agnostic): types, constants, calc, custom-validators, api
-├── schema/                   # form definition: model.ts, form.schema.ts (.tsx / .json), form.behavior.ts (+ form.render.ts), form.validation.ts, data-sources.ts, create-form.ts
+├── schema/                   # form definition: model.ts, form.schema.ts (.tsx / .json), form.behavior.ts, form.validation.ts, data-sources.ts
 └── components/
-    ├── steps/                # one component per wizard step
+    ├── steps/                # one component per wizard step (markup written by hand)
     ├── nested-forms/         # reusable sub-forms (Address, PersonalData, …)
     └── ui/                   # helper blocks (summary, warnings, sections)
 ```
 
 **Centralized vs co-located** (folders only): keep one `form.schema.ts` / `form.validation.ts` /
-`form.behavior.ts` in `schema/` (easiest cross-target reuse), **or** co-locate each step's
-`form.schema.ts` / `form.validation.ts` / `form.render.ts` inside its `steps/[Step]/` folder while keeping
-the shared `model` + cross-step rules in `schema/`. Filenames keep their §1 stems inside folders
-too — folders change where a file lives, never what it is called. For cross-target reuse keep
-`lib/` + `schema/{model,form.behavior,form.validation}` once and add per-target presentation — never
-duplicate model/behavior/validation. The app-level registry + meta-schema (§2) are unchanged.
+`form.behavior.ts` in `schema/` (easiest reuse between ways of drawing), **or** co-locate each
+step's `form.schema.ts` / `form.validation.ts` / `form.behavior.ts` inside its `steps/[Step]/`
+folder while keeping the shared `model` + cross-step rules in `schema/`. Filenames keep their §1
+stems inside folders too — folders change where a file lives, never what it is called. The model,
+the schema, the behavior and the validation are written ONCE and shared by every way of drawing;
+only the entry differs. The app-level registry + meta-schema (§2) are unchanged.
 
 ## 38. 4. Scaling
 
-| Complexity              | Structure                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------- |
-| Tiny                    | single file: `index.tsx` (model + schema + component)                                        |
-| **Default (minimalist)**| flat files (§1) — plain-named base + `form.schema` / `form.behavior` / `form.render`; wizard steps inline or in `steps/<slug>/`; base identical across targets |
-| Large                   | folders (§3): `lib/` + `schema/` + `components/` (+ app-level registry/meta-schema for renderer-json) |
+| Complexity               | Structure                                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Tiny                     | single file: `index.tsx` (model + schema + component)                                                                                    |
+| **Default (minimalist)** | flat files (§1) — plain-named base + `form.schema` / `form.behavior` / `form.validation`; wizard steps in the root schema or in `steps/<slug>/`; identical across targets |
+| Large                    | folders (§3): `lib/` + `schema/` + `components/` (+ app-level registry/meta-schema for renderer-json)                                    |
 
 ## 39. 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
 
@@ -775,46 +933,49 @@ layouts regardless; the env var only changes which one `create-form` steers towa
 
 ## 40. 6. Reuse map
 
-| File                          | Role                                          | core | renderer-react | renderer-json |
-| ----------------------------- | --------------------------------------------- | :--: | :------------: | :-----------: |
-| `types.ts`                    | form type + enums + option type + constants   |  ✅  |     reuse      |     reuse     |
-| `model.ts`                    | reactive model (source of truth)              |  ✅  |     reuse      |     reuse     |
-| `form.validation.ts`          | validators + validateStep/validateAll         |  ✅  |     reuse      |     reuse     |
-| `data-sources.ts`             | options + async loaders (dataSources)         |  ✅  |     reuse      |     reuse     |
-| `api.ts`                      | submit + prefill/load                         |  ✅  |     reuse      |     reuse     |
-| `form.behavior.ts`            | model behavior                                |  ✅  |     reuse      |     reuse     |
-| `form.schema.ts`              | markup: M1 FormSchema / RenderNode tree / JSON-DSL literal | ✅ own | ✅ own | ✅ own |
-| `form.schema.tsx`             | same file when the schema contains JSX        | variant |    variant     |    variant    |
-| `form.schema.json`            | same DSL as raw data — no `$model` typing     |  —   |       —        |    variant    |
-| `form.render.ts`              | visibility / navigation / submit              |  —   |       ✅       | thin → shared |
-| `registry.ts`                 | binds components + data-sources to DSL names  |  —   |       —        |      ✅       |
-| `wizard.tsx`                  | app shim for `$component(Wizard)`             |  —   |       —        | optional (wizard) |
-| `steps/index.ts` + `steps/<slug>/…` | per-step validation / render / markup   | optional (wizard) | optional (wizard) | optional (wizard) |
-| **app** `registry.ts` (base)  | ui-kit + system components                    |  —   |       —        | app-level (§2, aspirational) |
-| **app** `form-schema.schema.json` | generated DSL meta-schema                 |  —   |       —        | app-level (§2, aspirational) |
+The contract of a form is the same for every way of drawing, so almost every file is written once.
+
+| File                                | Role                                                    |       core        |  renderer-react   |   renderer-json   |
+| ----------------------------------- | ------------------------------------------------------- | :---------------: | :---------------: | :---------------: |
+| `types.ts`                          | form type + enums + option type + constants             |        ✅         |       reuse       |       reuse       |
+| `model.ts`                          | reactive model (source of truth) + new-row templates    |        ✅         |       reuse       |       reuse       |
+| `form.validation.ts`                | rules; wizard: `{ steps, extras }`                      |        ✅         |       reuse       |       reuse       |
+| `form.behavior.ts`                  | the one behavior: model links + node rules              |        ✅         |       reuse       |       reuse       |
+| `data-sources.ts`                   | options + async loaders (dataSources)                   |        ✅         |       reuse       |       reuse       |
+| `api.ts`                            | submit + prefill/load                                   |        ✅         |       reuse       |       reuse       |
+| `form.schema.ts`                    | the one schema tree: TS builder / JSON document         |        ✅         |       reuse       | the same tree as a document |
+| `form.schema.tsx`                   | same file when the schema contains JSX                  |      variant      |      variant      |      variant      |
+| `form.schema.json`                  | same DSL as raw data — no `$model` typing               |         —         |         —         |      variant      |
+| `registry.ts`                       | binds components + data-sources to DSL names            |         —         |         —         |        ✅         |
+| `steps/index.ts` + `steps/<slug>/…` | per-step schema / validation / behavior                 | optional (wizard) | optional (wizard) | optional (wizard) |
+| **app** `registry.ts` (base)        | ui-kit + system components                              |         —         |         —         | app-level (§2, aspirational) |
+| **app** `form-schema.schema.json`   | generated DSL meta-schema                               |         —         |         —         | app-level (§2, aspirational) |
+
+Rule nodes of the behavior (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer.
+When the markup is written by hand (core) they do nothing: visibility, submit and data loading stay
+in the JSX of `index.tsx` there.
 
 Renaming any of these is a defect in itself: the stems above are the contract that reviews, generators
 and `find_recipe directory-layout` key on. Older example directories in this repository predate the
-contract and are **not** naming references — see the note in renderer-json
-[07-form-wizard.md](../../../reformer-renderer-json/docs/llms/07-form-wizard.md).
+contract and are **not** naming references.
 
-## 41. 7. Former names (`renderer.*`, `validation.ts`)
+## 41. 7. Former names (`form.render.ts`, `wizard.tsx`, `renderer.*`, `validation.ts`)
 
-Before the naming rule was unified, the render layer carried a `renderer.` prefix and validation
-lived in a plain `validation.ts`. Modules written
-that way keep working — `validate_form kind="layout"` reports these names as **warnings** (RF011,
-"outdated name, rename to …"), never as errors:
+The canon was aligned twice. First the render layer lost its `renderer.` prefix and validation got
+the `form.` prefix. Then the unified contract removed two roles altogether: the separate behavior of
+the render layer and the app shim of the wizard. Modules written the old way keep working —
+`validate_form kind="layout"` reports these names as **warnings**, never as errors:
 
-| former name             | canonical name                         |
-| ----------------------- | -------------------------------------- |
-| `renderer.schema.ts`    | `form.schema.ts` (`.tsx` / `.json` alike) |
-| `renderer.behavior.ts`  | `form.render.ts`                       |
-| `renderer.wizard.tsx`   | `wizard.tsx`                           |
-| `validation.ts`         | `form.validation.ts` (in `steps/<slug>/` too) |
+| former name                               | now                                                                                      | diagnostic |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
+| `renderer.schema.ts`                      | `form.schema.ts` (`.tsx` / `.json` alike) — rename                                       | RF011      |
+| `validation.ts`                           | `form.validation.ts` (in `steps/<slug>/` too) — rename                                   | RF011      |
+| `form.render.ts`, `renderer.behavior.ts`  | no such file: move the node rules into `form.behavior.ts` (in `steps/<slug>/` — into the step's own `form.behavior.ts`) | RF013      |
+| `wizard.tsx`, `renderer.wizard.tsx`       | no such file: the wizard is the library `FormWizard` node; delete the shim               | RF013      |
 
-Rename when you next touch the module; new code uses the canonical names only. With the unified
-names a schema file alone no longer tells the target apart — pass `target` to
-`validate_form kind="layout"` explicitly.
+Fix it when you next touch the module; new code uses the canonical names only. `core` and
+`renderer-react` share one file set, so the files alone no longer tell these targets apart — pass
+`target` to `validate_form kind="layout"` explicitly.
 
 ## 42. API Reference
 

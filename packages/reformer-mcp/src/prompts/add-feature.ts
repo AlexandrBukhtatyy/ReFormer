@@ -27,7 +27,7 @@ export type FormFeature = keyof typeof FEATURES;
 export const addFeaturePromptDefinition = {
   name: 'add-feature',
   description:
-    'Add one capability to an existing @reformer/core form: validation rules, reactive behaviour, a form array, or wizard steps. Pick the stage with `feature`.',
+    'Add one capability to an existing @reformer form: validation rules, behavior (links over the model and rules for schema nodes), an array of sub-forms, or wizard steps. The result is the same for every way of drawing the form. Pick the stage with `feature`.',
   arguments: [
     {
       name: 'feature',

@@ -18,8 +18,8 @@ Discovered via local detection + (when supported) one batched sampling call to t
 
 ## How to use
 
-Subsequent MCP prompts (`create-form`, `add-validation`, `add-behavior`,
-`add-form-array`, `add-wizard`, `plan-form`) accept `target` and `projectPath`
+Subsequent MCP prompts (`create-form`, `plan-form`, `to-renderer`) accept `target`, and
+`create-form` / `plan-form` also `projectPath`
 arguments. Use the values above when calling them, e.g.
 
 ```

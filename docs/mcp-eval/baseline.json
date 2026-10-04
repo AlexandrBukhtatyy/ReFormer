@@ -1,13 +1,13 @@
 {
   "strategy": "v6-choose",
   "serverVersion": "6.0.0",
-  "startupMs": 225,
-  "tasks": 55,
+  "startupMs": 359,
+  "tasks": 61,
   "static": {
-    "tools/list": 2432,
-    "resources/list": 549,
-    "prompts/list": 998,
-    "total": 3979
+    "tools/list": 2559,
+    "resources/list": 550,
+    "prompts/list": 1077,
+    "total": 4186
   },
   "toolset": {
     "tools": [
@@ -15,62 +15,62 @@
       "find_recipe",
       "search_docs"
     ],
-    "chars": 2858,
-    "tokens": 715
+    "chars": 2913,
+    "tokens": 728
   },
   "hitRate": 1,
-  "firstPassRate": 0.945,
+  "firstPassRate": 0.951,
   "tokensPerTask": {
     "median": 386,
-    "p95": 3524,
-    "total": 52491
+    "p95": 2762,
+    "total": 53429
   },
   "callsPerTask": {
     "median": 1,
-    "p95": 5
+    "p95": 4
   },
   "byCategory": {
     "basic": {
-      "total": 7,
-      "hit": 7,
-      "firstPass": 7,
-      "tokens": 5025
+      "total": 8,
+      "hit": 8,
+      "firstPass": 8,
+      "tokens": 5851
     },
     "validation": {
-      "total": 10,
-      "hit": 10,
-      "firstPass": 10,
-      "tokens": 5165
+      "total": 11,
+      "hit": 11,
+      "firstPass": 11,
+      "tokens": 4591
     },
     "behaviors": {
       "total": 11,
       "hit": 11,
       "firstPass": 11,
-      "tokens": 2576
+      "tokens": 2585
     },
     "arrays": {
-      "total": 6,
-      "hit": 6,
-      "firstPass": 5,
-      "tokens": 4193
+      "total": 7,
+      "hit": 7,
+      "firstPass": 6,
+      "tokens": 4448
     },
     "wizard": {
-      "total": 6,
-      "hit": 6,
-      "firstPass": 6,
-      "tokens": 6555
+      "total": 7,
+      "hit": 7,
+      "firstPass": 7,
+      "tokens": 6613
     },
     "renderers": {
-      "total": 10,
-      "hit": 10,
-      "firstPass": 8,
-      "tokens": 13774
+      "total": 12,
+      "hit": 12,
+      "firstPass": 10,
+      "tokens": 14237
     },
     "layout": {
       "total": 5,
       "hit": 5,
       "firstPass": 5,
-      "tokens": 15203
+      "tokens": 15104
     }
   },
   "misses": []

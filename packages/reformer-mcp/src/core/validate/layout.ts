@@ -111,8 +111,6 @@ function concernOf(canonPath: string): string {
   if (canonPath === `${STEPS_DIR}/index.ts`) return 'steps-index';
   if (stem === 'form.schema' || stem === 'renderer.schema') return 'schema';
   if (stem === 'form.behavior') return 'form-behavior';
-  if (stem === 'form.render' || stem === 'renderer.behavior') return 'render-behavior';
-  if (stem === 'wizard' || stem === 'renderer.wizard') return 'wizard';
   if (stem === 'form.validation' || stem === 'validation') return 'validation';
   return stem;
 }
@@ -121,9 +119,9 @@ const CONCERN_TITLE: Record<string, string> = {
   index: 'точка входа',
   types: 'типы и константы',
   model: 'модель и начальные значения',
-  schema: 'схема разметки',
-  'form-behavior': 'поведение модели',
-  'render-behavior': 'поведение разметки',
+  schema: 'схема формы',
+  'form-behavior': 'поведение формы',
+  'render-behavior': 'правила узлов схемы отдельным файлом',
   validation: 'валидация',
   'data-sources': 'справочники и загрузчики',
   api: 'загрузка и submit',
@@ -133,19 +131,34 @@ const CONCERN_TITLE: Record<string, string> = {
 };
 
 /**
+ * Роли прежнего контракта, которых в каноне больше нет ни у одного таргета.
+ *
+ * `render-behavior` — правила узлов схемы отдельным файлом (`form.render.ts`) и отдельным полем
+ * конфига (`renderBehavior`): поведение формы стало одним, правила узлов живут в
+ * `form.behavior.ts`. `wizard` — прикладной шим визарда (`wizard.tsx`): визард стал библиотечным.
+ *
+ * Файл такой роли — всегда ПРЕДУПРЕЖДЕНИЕ с подсказкой, куда перенести содержимое, и в корне,
+ * и в папке шага: по прежнему канону он был обязательным, ошибкой он не стал.
+ */
+const RETIRED_CONCERNS = new Set(['render-behavior', 'wizard']);
+
+/**
  * Прежние канонические имена → концерн.
  *
- * До выравнивания канона слой рендера назывался `renderer.*` (`renderer.schema.ts`,
- * `renderer.behavior.ts`, `renderer.wizard.tsx`), а валидация — `validation.ts` без префикса. Формы с такими именами написаны по прежнему
- * правилу, а не с ошибкой, поэтому они всегда дают ПРЕДУПРЕЖДЕНИЕ «переименуйте», а не ошибку:
- * работающую форму ради имени ломать незачем. Проверяются ДО `ALIASES` — иначе прежний канон
- * читался бы как промах агента.
+ * Канон выравнивался дважды. Сначала слой рендера назывался `renderer.*` (`renderer.schema.ts`,
+ * `renderer.behavior.ts`, `renderer.wizard.tsx`), а валидация — `validation.ts` без префикса.
+ * Затем единый контракт убрал сами роли `form.render.ts` и `wizard.tsx` (`RETIRED_CONCERNS`).
+ * Формы с такими именами написаны по прежнему правилу, а не с ошибкой, поэтому они всегда дают
+ * ПРЕДУПРЕЖДЕНИЕ, а не ошибку: работающую форму ради имени ломать незачем. Проверяются ДО
+ * `ALIASES` — иначе прежний канон читался бы как промах агента.
  */
 const LEGACY_STEMS: Record<string, string> = {
   rendererschema: 'schema',
   rendererbehavior: 'render-behavior',
   rendererbehaviour: 'render-behavior',
+  formrender: 'render-behavior',
   rendererwizard: 'wizard',
+  wizard: 'wizard',
   // `validation.ts` был каноном без префикса, пока правило `form.<роль>` не распространили на
   // валидацию: написанные по нему формы рабочие, поэтому — тоже предупреждение, а не ошибка.
   validation: 'validation',
@@ -185,7 +198,7 @@ const ALIASES: Record<string, string> = {
   layout: 'schema',
   layoutschema: 'schema',
   uischema: 'schema',
-  // поведение модели
+  // поведение формы
   behavior: 'form-behavior',
   behaviour: 'form-behavior',
   behaviors: 'form-behavior',
@@ -193,9 +206,8 @@ const ALIASES: Record<string, string> = {
   formbehavior: 'form-behavior',
   formbehaviour: 'form-behavior',
   modelbehavior: 'form-behavior',
-  // поведение разметки
+  // правила узлов схемы отдельным файлом — роли больше нет (`RETIRED_CONCERNS`)
   render: 'render-behavior',
-  formrender: 'render-behavior',
   formrenderer: 'render-behavior',
   renderbehavior: 'render-behavior',
   renderbehaviour: 'render-behavior',
@@ -228,23 +240,42 @@ const ALIASES: Record<string, string> = {
   componentsregistry: 'registry',
   renderregistry: 'registry',
   rendererregistry: 'registry',
-  // шим wizard-а
-  wizard: 'wizard',
+  // шим wizard-а — роли больше нет (`RETIRED_CONCERNS`)
   jsonwizard: 'wizard',
   formwizard: 'wizard',
   wizardshim: 'wizard',
   rendererformwizard: 'wizard',
 };
 
-/** Куда сворачивать файл, роли которого в этом таргете не существует. */
-function foldHint(concern: string, target: LayoutTarget): string {
+/**
+ * Куда сворачивать файл, роли которого в этом таргете не существует.
+ *
+ * @param at - Префикс папки шага (`steps/<slug>/`), когда файл лежит в ней: содержимое
+ *   переезжает в файл ТОЙ ЖЕ папки, а не в корневой.
+ */
+function foldHint(concern: string, target: LayoutTarget, at = ''): string {
   switch (concern) {
     case 'render-behavior':
-      return 'У `core` слоя рендера нет: поведение модели идёт в `form.behavior.ts`, всё остальное — в `index.tsx`.';
+      // Операторы узлов только записывают правило — исполняет его рендерер. В `core` разметку
+      // рисует JSX, поэтому совет «перенесите `hideWhen`» там был бы советом написать мёртвый код.
+      return target === 'core'
+        ? 'Отдельного файла для правил узлов схемы нет. В `core` разметку рисует JSX: видимость ' +
+            `и события держите условием в JSX (\`index.tsx\`), связи над моделью — в \`${at}form.behavior.ts\`.`
+        : 'Отдельного файла для правил узлов схемы больше нет — поведение формы одно. Перенесите ' +
+            "правила (`hideWhen`, `onComponentEvent`, `onMount` по `schema.node('selector')`) в " +
+            `\`${at}form.behavior.ts\` — \`defineFormBehavior(({ model, form, schema }) => …)\` — и удалите файл.`;
     case 'registry':
       return 'Реестр `$component(...)` нужен только `renderer-json`; здесь компоненты подставляются в схему напрямую.';
     case 'wizard':
-      return 'Шим нужен только `renderer-json` (библиотека `RendererFormWizard` не экспортирует); в этом таргете wizard собирается прямо в `index.tsx`.';
+      if (target === 'core') {
+        return 'Шим визарда не нужен: в `core` библиотечный `FormWizard` стоит прямо в JSX `index.tsx` (`form`, `config`, `steps` — пропсами).';
+      }
+      return (
+        'Шим визарда больше не нужен: визард — библиотечный `FormWizard` из `@reformer/ui-kit`, ' +
+        "узел схемы `{ selector: 'wizard', component: FormWizard, children: [шаги] }`; форму и " +
+        'валидацию он берёт из сборки сам. Удалите файл' +
+        (target === 'renderer-json' ? ' и зарегистрируйте `FormWizard` в `registry.ts`.' : '.')
+      );
     default:
       return `Роли «${CONCERN_TITLE[concern] ?? concern}» в наборе target=${target} нет — сверните файл в один из канонических.`;
   }
@@ -252,8 +283,8 @@ function foldHint(concern: string, target: LayoutTarget): string {
 
 /** Где держать шаги wizard-а — одна формулировка на все подсказки. */
 const STEPS_HINT =
-  'Шаги wizard-а — инлайном в `index.tsx` ИЛИ по папке на шаг `steps/<slug>/` ' +
-  '(kebab-слаг заголовка без номера; внутри — `form.validation.ts`, `form.render.ts`, `form.schema.*`) ' +
+  'Шаги wizard-а — в корневой схеме (`form.schema.*`) ИЛИ по папке на шаг `steps/<slug>/` ' +
+  '(kebab-слаг заголовка без номера; внутри — `form.schema.*`, `form.validation.ts`, `form.behavior.ts`) ' +
   'с агрегатором `steps/index.ts`.';
 
 /** Куда сворачивать файл, роли которого канон вообще не знает. */
@@ -326,10 +357,12 @@ export interface LayoutTargetGuess {
  * Отказать было бы формально честнее, но бесполезно: агент приходит сюда уже с написанными
  * файлами. Догадка всегда проговаривается в отчёте вслух, чтобы её можно было опровергнуть.
  *
- * Различают таргеты только файлы, которых у других нет: `registry.ts`, `wizard.tsx`,
- * `form.schema.json` — у renderer-json; `form.render.ts` без реестра — у renderer-react.
- * Набор без них (есть только общие `form.schema.ts`, `form.behavior.ts`, …) принимается за
- * `core` с пометкой «наугад». `null` — в наборе нет ни одного файла модуля формы.
+ * Различают таргеты только файлы, которых у других нет: `registry.ts` и `form.schema.json` — у
+ * renderer-json. У `core` и `renderer-react` набор имён один и тот же, поэтому набор без
+ * маркеров принимается за `core` с пометкой «наугад» — на претензии к именам это не влияет.
+ * Файлы прежнего контракта остаются маркерами: `wizard.tsx` был только у renderer-json,
+ * `form.render.ts` без реестра — у renderer-react. `null` — в наборе нет ни одного файла модуля
+ * формы.
  */
 export function inferLayoutTarget(files: readonly string[]): LayoutTargetGuess | null {
   const rootFiles = normalizePaths(files).filter((p) => !p.includes('/'));
@@ -361,7 +394,7 @@ export function inferLayoutTarget(files: readonly string[]): LayoutTargetGuess |
   if (renderMarker) {
     return {
       target: 'renderer-react',
-      basis: `есть \`${renderMarker}\` (слой рендера), а реестра \`registry.ts\` нет`,
+      basis: `есть \`${renderMarker}\` (слой рендера прежнего контракта), а реестра \`registry.ts\` нет`,
       certain: true,
     };
   }
@@ -373,8 +406,8 @@ export function inferLayoutTarget(files: readonly string[]): LayoutTargetGuess |
     return {
       target: 'core',
       basis:
-        'различающих файлов (`registry.ts`, `wizard.tsx`, `form.render.ts`, `form.schema.json`) ' +
-        'в наборе нет',
+        'различающих файлов (`registry.ts`, `form.schema.json`) в наборе нет — у `core` и ' +
+        '`renderer-react` набор имён один',
       certain: false,
     };
   }
@@ -421,9 +454,9 @@ function indexCanon(specs: readonly LayoutFileSpec[]): CanonIndex {
  * Сверить список файлов модуля с каноном таргета.
  *
  * Severity: имя вне канона у ОБЯЗАТЕЛЬНОГО концерна — ошибка (чинится переименованием), у
- * опционального (`wizard.tsx`) — предупреждение; прежнее каноническое имя (`renderer.*`) —
- * всегда предупреждение; отсутствие обязательного файла — ошибка; файл сверх набора —
- * предупреждение с указанием, куда его свернуть. Вложенность допустима ровно одна —
+ * опционального — предупреждение; прежнее каноническое имя (`renderer.*`, `form.render.ts`,
+ * `wizard.tsx`) — всегда предупреждение; отсутствие обязательного файла — ошибка; файл сверх
+ * набора — предупреждение с указанием, куда его свернуть. Вложенность допустима ровно одна —
  * `steps/index.ts` и `steps/<slug>/<файл шага>`; любая другая — ошибка.
  */
 export function validateLayout(files: readonly string[], target: LayoutTarget): LayoutCheckResult {
@@ -519,6 +552,22 @@ export function validateLayout(files: readonly string[], target: LayoutTarget): 
           message: `устаревшее имя: роль «${CONCERN_TITLE[legacy] ?? legacy}» теперь называется ${canonicalNames(legacySpec, at)}.`,
           path: rel,
           suggestion: `Переименуйте \`${base}\` → \`${renamedTo(legacySpec, ext)}\` (${legacySpec.role}).`,
+        });
+        continue;
+      }
+
+      // Роль прежнего контракта (`form.render.ts` шага, шим визарда): содержимое переезжает в
+      // файл той же папки — предупреждение, как и в корне.
+      const retired = legacy ?? ALIASES[key];
+      if (retired && RETIRED_CONCERNS.has(retired)) {
+        diagnostics.push({
+          code: 'RF013',
+          severity: 'warning',
+          message:
+            `файл сверх набора${legacy ? ' (устаревшее имя)' : ''}: роли ` +
+            `«${CONCERN_TITLE[retired] ?? retired}» в папке шага нет.`,
+          path: rel,
+          suggestion: foldHint(retired, target, at),
         });
         continue;
       }
@@ -685,7 +734,7 @@ export function validateLayout(files: readonly string[], target: LayoutTarget): 
       message: `Шаги разнесены по \`${STEPS_DIR}/<slug>/\`, но нет \`${stepsIndex.path}\` — ${stepsIndex.role}.`,
       suggestion:
         `Создайте \`${stepsIndex.path}\`: он задаёт порядок шагов и собирает их модули для ` +
-        'корневых `form.validation.ts` / `form.render.ts`.',
+        'корневых `form.schema.*` / `form.validation.ts` / `form.behavior.ts`.',
     });
   }
 
@@ -727,10 +776,11 @@ export function renderLayoutCanon(target: LayoutTarget): string {
   lines.push(
     'Модуль плоский: без `lib/` / `schema/` / `components/`; единственная вложенность — шаги ' +
       '`steps/<slug>/`. Правило имён: `form.<роль>` — артефакт формы, суффикс называет роль ' +
-      '(`schema` — разметка, `behavior` — поведение модели, `render` — поведение разметки, ' +
+      '(`schema` — схема формы, `behavior` — поведение формы: модель и узлы схемы, ' +
       '`validation` — валидация); остальные файлы без префикса. Прежние `renderer.schema.*` / ' +
-      '`renderer.behavior.ts` / `renderer.wizard.tsx` / `validation.ts` принимаются ' +
-      'с предупреждением. Полное правило — `find_recipe directory-layout`.'
+      '`validation.ts` принимаются с предупреждением «переименуйте»; `form.render.ts` / ' +
+      '`renderer.behavior.ts` и `wizard.tsx` / `renderer.wizard.tsx` прежнего контракта — ' +
+      'с предупреждением, куда перенести содержимое. Полное правило — `find_recipe directory-layout`.'
   );
   return lines.join('\n');
 }

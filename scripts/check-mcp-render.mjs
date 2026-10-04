@@ -39,7 +39,7 @@ process.chdir(repoRoot);
 
 /** Значения для аргументов промптов. Ключ — имя аргумента из его же определения. */
 const ARG_FIXTURES = {
-  code: '// RENDER_CHECK\nconst form = createForm({ name: { value: "" } });',
+  code: '// RENDER_CHECK\nconst form = createLegacyForm({ name: { value: "" } });',
   requirements: 'RENDER_CHECK: rule A; rule B.',
   description: 'RENDER_CHECK: form with name(string), age(number 18+).',
   steps: 'RENDER_CHECK: 1=personal; 2=address; 3=review.',

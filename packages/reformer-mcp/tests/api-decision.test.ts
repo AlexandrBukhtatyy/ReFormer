@@ -60,7 +60,24 @@ const CASES: Array<[string, string]> = [
   ['поле обязательно только когда установлен флаг', 'validateWhen'],
   ['required if the checkbox is checked', 'validateWhen'],
   ['confirmPassword должен совпадать с password', 'cross'],
-  ['провалидировать каждый элемент массива', 'each'],
+  // Массив в валидации подключается тем же именем, что в поведении, — `applyEach`.
+  ['провалидировать каждый элемент массива', 'applyEach'],
+  // Подформа — привязкой к под-модели: не массив и не «каждая строка».
+  ['один блок адреса используется в двух местах формы — подформа', 'apply'],
+  ['reuse the same address rules for two nested groups', 'apply'],
+  ['применить одни и те же правила адреса к двум группам формы', 'apply'],
+  ['поставить один и тот же блок адреса в JSON-схеме дважды', 'apply'],
+  // Массив под-форм объявляется в модели вместе с шаблоном нового элемента.
+  ['объявить в схеме массив объектов', 'arrayOf'],
+  ['задать шаблон нового элемента массива для кнопки «Добавить»', 'arrayOf'],
+  // Единый контракт: одна сборка, один рендерер, визард — узел схемы.
+  ['описать форму так, чтобы её можно было нарисовать и руками в JSX, и рендерером', 'createForm'],
+  ['собрать форму одним вызовом для рендерера', 'createForm'],
+  ['отрендерить форму из JSON-схемы', 'FormRenderer'],
+  ['смонтировать форму из render-схемы', 'FormRenderer'],
+  ['описать шаг визарда узлом схемы', 'FormWizard'],
+  // «Собрать форму» рядом с ререндером — про стабильность, а не про сборку.
+  ['собрать форму так, чтобы React не пересоздавал её на ререндере', 'useFormBundle'],
   // сборка и submit
   ['форма не должна пересоздаваться при ререндере', 'useFormBundle'],
   ['заблокировать кнопку отправки, пока форма невалидна', 'useFormValidation'],
@@ -146,6 +163,35 @@ describe('tool choose_api', () => {
     // Документация прямо предупреждает про подмену enableWhen — это и есть самое ценное.
     expect(text).toContain('## Anti-patterns recorded for this choice');
     expect(text).toContain('enableWhen');
+  });
+
+  it.runIf(hasSymbols)('имя из двух модулей отвечает каноничной записью слоя', async () => {
+    // `applyEach` есть и в поведении, и в валидации, а индекс отдаёт одно объявление: сигнатура
+    // из него учила бы импорту из чужого модуля.
+    const { content } = await chooseApiTool(
+      { requirement: 'провалидировать каждый элемент массива' },
+      k
+    );
+    const text = content[0].text;
+    expect(text).toContain('## Usage');
+    // Операторы валидации — из `/validation`, сами валидаторы — из `/validators`.
+    expect(text).toContain(
+      "import { applyEach, defineValidationSchema, validate } from '@reformer/core/validation';"
+    );
+    expect(text).toContain('applyEach(model.$.items, itemRules)');
+    expect(text, 'сигнатура поведения сюда не попадает').not.toContain('FormBehavior<');
+  });
+
+  it.runIf(hasSymbols)('подформа: одна привязка во всех трёх слоях', async () => {
+    const { content } = await chooseApiTool(
+      { requirement: 'подформа адреса подключается дважды' },
+      k
+    );
+    const text = content[0].text;
+    expect(text).toContain('`apply`');
+    expect(text).toContain('part: address');
+    expect(text).toContain('apply(model.$.registrationAddress, addressRules)');
+    expect(text, 'массив — соседнее решение').toContain('applyEach');
   });
 
   it.runIf(hasSymbols)(

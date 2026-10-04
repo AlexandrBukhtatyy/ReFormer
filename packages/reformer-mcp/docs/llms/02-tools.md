@@ -70,8 +70,9 @@ candidates with snippets, and the top hit is inlined when it matches a section h
   `form-array`→arrays, `cycle`→cycle-detection, `copy`→copy-from, `sync`→sync-fields (value
   propagation between fields — a **behavior**), and the validation contract:
   `validate`/`validation`/`cross`/`cross-field`/`validate-async`/`validate-when`→`validation`
-  (the `validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply` operators + the external
-  `validateModel(model, schema)` runner), `json-schema`, etc.
+  (the `validate`/`validateAsync`/`validateWhen`/`cross`/`apply`/`applyEach` operators + the external
+  `validateModel(model, schema)` runner), `json-schema`, `unified-contract` (the contract of a form in
+  one place: one schema, one assembly, one behavior), etc.
 - `package` (string, optional).
 
 Use to copy a correct pattern instead of guessing.
@@ -111,14 +112,23 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
   символ `@reformer/*` (`RF002`, с подсказкой похожих имён), импорт не из того пакета ИЛИ
   не из того подпути (`RF003` — `validate` живёт только в `@reformer/core/validation`),
   оператор валидации/поведения вне своей схемы (`RF004`/`RF005` — правило просто не
-  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` (`RF010`).
-- `kind: "json-schema"` — layout-DSL: структура узлов, синтаксис операторов, неизвестные
-  имена компонентов и источников данных.
+  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` и прежний контракт формы
+  (`RF010`): фабрики `createCoreForm` / `createReactForm` / `createJsonForm`, хуки `useReactForm` /
+  `useJsonForm`, `JsonFormRenderer`, ключи узла `value:` / `array:`, оператор `each`,
+  `makeValidationConfig`, поле `renderBehavior` — с названной заменой и адресом рецепта
+  `find_recipe unified-contract`.
+- `kind: "json-schema"` — документ схемы (JSON-DSL): структура узлов, синтаксис операторов,
+  неизвестные имена компонентов и источников данных. Принимает оба формата — текущий
+  (`"format": 2`: ключ `model`, словарь `parts`, оператор `$part`) и прежний.
 - `kind: "behaviors"` — циклы в вычисляемых полях (`RF006`), по объявленным
   `{ target, reads[] }`.
-- `kind: "bundle"` — `intent` + layout сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
-  модели, каждый `$component` зарегистрирован, каждая цель правила существует, селекторы
-  видимости присутствуют в разметке.
+- `kind: "bundle"` — `intent` + схема сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
+  модели (пути внутри части — от группы, к которой она подключена), каждый `$component`
+  зарегистрирован, каждая часть `$part` объявлена, каждая цель правила существует, селекторы
+  видимости присутствуют в схеме.
+- `kind: "layout"` — ИМЕНА файлов модуля формы против канона (`files[]` + `target`). Набор один
+  на все таргеты; файлы прежнего контракта (`form.render.ts`, `wizard.tsx`, `renderer.*`,
+  `validation.ts`) — предупреждения с подсказкой, куда перенести содержимое.
 
 Ограничения проверки печатаются ВСЕГДА, включая чистый отчёт: «✅ ошибок нет» не должно
 читаться как «код верен» — разбор построчный, без TypeScript-AST (это сознательный отказ:
@@ -129,7 +139,8 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 ## plan_form
 
 Спека (markdown) или описание → `FormIntent`: машиночитаемый план формы (поля, массивы,
-правила, поведение, layout), который человек читает и правит до генерации кода.
+правила, поведение, разметка, подформы `parts`), который человек читает и правит до генерации
+кода.
 
 - `specPath` (string, optional) — путь к спеке, абсолютный или от корня репозитория.
 - `description` (string, optional) — свободное описание, если спеки нет.
@@ -139,10 +150,19 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 
 ## generate_form
 
-`FormIntent` → бандл файлов (`model.ts`, `form.validation.ts`, `form.behavior.ts`, layout,
-`registry.ts`) плюс кросс-проверка файлов между собой. Возвращает МАНИФЕСТ — файлы пишет
-клиент через свой Write и свой permission-гейт: сервер живёт в своём процессе и корня
-репозитория не знает.
+`FormIntent` → бандл файлов единого контракта формы плюс кросс-проверка файлов между собой.
+Набор один на все таргеты: `model.ts` (фабрика модели, шаблоны строк массивов — `arrayOf`),
+`form.schema.ts` (одно дерево узлов: TS-билдер для `core` и `renderer-react`, документ формата 2
+в `defineJsonSchema<T>` для `renderer-json`), `form.validation.ts` (подформы — `apply`, массивы —
+`applyEach`, шаги визарда — по `selector`), `form.behavior.ts` (единственное поведение: связи над
+моделью и правила узлов схемы); `renderer-json` получает ещё `registry.ts`. Манифест печатает и
+образец сборки `index.tsx` — `createForm` + `useFormBundle`.
+
+Возвращает МАНИФЕСТ — файлы пишет клиент через свой Write и свой permission-гейт: сервер живёт
+в своём процессе и корня репозитория не знает.
+
+Подформа в intent: разметка объявляется один раз в `parts: { <имя>: LayoutNode }` и ставится узлом
+`{ kind: "part", ref: "<путь группы>", part: "<имя>" }`; пути полей внутри части — от группы.
 
 - `intent` (object, required) — обычно из `plan_form`; неполный нормализуется с warnings.
 - `target` (string, optional) — перекрывает `intent.target`.

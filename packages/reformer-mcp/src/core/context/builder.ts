@@ -252,6 +252,13 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
   for (const name of primary) {
     const sym = await findOneSymbol(k, name, '*');
     if (!sym) continue;
+    // Имя живёт в двух модулях (`apply`, `applyEach`) — индекс отдаёт одно объявление, и его
+    // сигнатура относилась бы к другому слою. Правило несёт каноничную запись само.
+    const usage = decision?.rule.recommend === name ? decision.rule.usage : undefined;
+    if (usage) {
+      signatures.push(`\`${sym.name}\` (${sym.package})\n\`\`\`typescript\n${usage}\n\`\`\``);
+      continue;
+    }
     signatures.push(`\`${sym.name}\` (${sym.package})\n\`\`\`typescript\n${sym.signature}\n\`\`\``);
     // Канонический пример — ОДИН, от самого уверенного символа: три примера подряд стоят
     // втрое дороже и почти всегда лишние.

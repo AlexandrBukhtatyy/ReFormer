@@ -274,12 +274,12 @@ function buildPlanVars(
     ? '✅ Поля с masks обнаружены — используй `InputMask` из `@reformer/ui-kit` с `componentProps.mask`.'
     : 'Маски не упомянуты.';
 
+  // Порядок один на все таргеты: контракт формы от способа отрисовки не зависит. Различается
+  // только последний шаг — где стоит визард.
   const promptOrder =
-    target === 'renderer-react'
-      ? '`create-form` (target=renderer-react) → `add-validation` → `add-behavior` → `add-form-array` (renderer-react section) → `add-wizard` (через `schema.node().setHidden()`)'
-      : target === 'renderer-json'
-        ? '`create-form` (target=renderer-json) → `add-validation` → `add-behavior` → `add-form-array` (renderer-json section с `CreditFormProvider`) → `add-wizard` (через `setHidden` из useEffect)'
-        : '`create-form` (target=core) → `add-validation` → `add-behavior` → `add-form-array` (с `useArrayLength` + JSX-conditional) → `add-wizard` (manual `useState currentStep` + `STEP_VALIDATIONS`)';
+    target === 'core'
+      ? '`create-form` (target=core) → `add-feature` по стадиям: `validation` → `behavior` → `array` → `wizard` (B1: `FormWizard` в JSX, `form` и `config` — из бандла сборки)'
+      : `\`create-form\` (target=${target}) → \`add-feature\` по стадиям: \`validation\` → \`behavior\` → \`array\` → \`wizard\` (B2: библиотечный \`FormWizard\` узлом схемы, шаги в \`children\`)`;
 
   return {
     formName: spec.formName,

@@ -213,7 +213,7 @@ describe('корпус — обрывов внутри блоков кода н�
     '§1 гайда раскладки отдаётся с блоком «Rules:» и полным набором имён',
     () => {
       // Именно эта секция и была обрезана; проверяем не длину, а те строки, ради которых
-      // её читают: контракт именования и правило «шаги инлайном или в steps/<slug>/».
+      // её читают: контракт именования и правило «шаги в корневой схеме или в steps/<slug>/».
       const docs = getFullDocs('@reformer/mcp');
       const meta = listSections('@reformer/mcp').find(
         (s) => s.slug === 'minimalist-default-flat-one-file-per-concern'
@@ -221,10 +221,10 @@ describe('корпус — обрывов внутри блоков кода н�
       expect(meta, 'секция раскладки пропала из llms.txt').toBeDefined();
       const body = extractSectionByMeta(docs, meta!) ?? '';
       expect(body).toContain('Rules:');
-      expect(body).toContain('Wizard steps inline in `index.tsx` or in `steps/<slug>/`');
+      expect(body).toContain('Wizard steps in the root schema or in `steps/<slug>/`');
       for (const file of [
         'form.schema.ts',
-        'form.render.ts',
+        'form.validation.ts',
         'steps/index.ts',
         'form.behavior.ts',
         'registry.ts',

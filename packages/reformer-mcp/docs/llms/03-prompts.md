@@ -19,8 +19,8 @@ at the resources/tools to read.
 
 ## start-here
 
-No arguments. The entry point: returns the M1 workflow, the map of prompts/tools/resources,
-and the reading order.
+No arguments. The entry point: returns the workflow of the unified form contract (one schema, one
+assembly `createForm`, one behavior), the map of prompts/tools/resources, and the reading order.
 
 **Tool-only equivalent:** read the resource `reformer://guide`. It is the same document, and
 its opening lines carry the file-layout rule — which is the one thing worth reading before you
@@ -52,23 +52,23 @@ FormSchema reference, imports, stack-aware skeleton). Use for the initial form w
 
 Добавить одну возможность в существующую форму. Стадия выбирается аргументом:
 - `feature: "validation"` — правила валидации;
-- `feature: "behavior"` — реактивные связи;
-- `feature: "array"` — массив формы;
-- `feature: "wizard"` — шаги мастера.
+- `feature: "behavior"` — единственное поведение формы: связи над моделью и правила узлов схемы;
+- `feature: "array"` — массив под-форм (`arrayOf` в модели, узел `{ model, item }`, `applyEach`);
+- `feature: "wizard"` — шаги мастера (библиотечный `FormWizard` узлом схемы).
 
 Аргументы: `code` (текущий код формы) и `requirements` (что добавить; для `wizard` —
 перечень шагов и полей).
 
 Схлопывает прежние `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`:
 у всех четырёх одна форма аргументов, поэтому слияние не создаёт путаницы, а перечисление
-из четырёх записей стоило каждому клиенту токенов при подключении. Содержимое шаблонов
-не тронуто.
+из четырёх записей стоило каждому клиенту токенов при подключении.
 
 ## to-renderer
 
-Перенести форму `@reformer/core` на рендерер. Целевой стек — аргумент:
-- `target: "renderer-react"` (по умолчанию) — RenderSchema;
-- `target: "renderer-json"` — JSON-DSL и реестр компонентов.
+Сменить способ отрисовки формы. Модель, валидация, поведение и вызов `createForm` остаются —
+меняется только то, кто рисует. Целевой стек — аргумент:
+- `target: "renderer-react"` (по умолчанию) — разметку из JSX рисует `FormRenderer` по той же схеме;
+- `target: "renderer-json"` — схема становится JSON-документом формата 2, плюс реестр компонентов.
 
 Аргументы: `code`, опционально `target`. Схлопывает прежние `to-renderer` и
 `to-renderer-json`.

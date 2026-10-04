@@ -114,6 +114,10 @@ export type LayoutNode =
   // подставлял имя массива, и правило, ссылавшееся на собственный selector из intent,
   // адресовало узел, которого в разметке нет.
   | { kind: 'array'; ref: string; selector?: string }
+  // Подформа: именованная часть (`FormIntent.parts`), подключённая к группе модели. `ref` — путь
+  // группы в области узла. Листья части ссылаются на поля ОТНОСИТЕЛЬНО группы (`city`, а не
+  // `registrationAddress.city`), поэтому одна часть подключается к нескольким группам.
+  | { kind: 'part'; ref: string; part: string; selector?: string }
   | {
       kind: 'container';
       component: string;
@@ -133,6 +137,12 @@ export interface FormIntent {
   target: ReformerTargetStack;
   layout: 'minimalist' | 'folders';
   layoutRoot: LayoutNode;
+  /**
+   * Именованные части разметки — подформы. Подключаются узлом `{ kind: 'part', ref, part }`.
+   * Листья части ссылаются на поля относительно группы подключения. Строки массивов сюда не
+   * входят: их часть генератор строит сам из `ArrayIntent.itemFields`.
+   */
+  parts?: Record<string, LayoutNode>;
   fields: FieldIntent[];
   arrays: ArrayIntent[];
   validation: ValidationRuleIntent[];
@@ -296,6 +306,9 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
         ...arrays.map((a) => ({ kind: 'array' as const, ref: a.name })),
       ],
     },
+    // Ключ появляется, только когда части заданы: intent ходит туда-обратно и попадает в снимки
+    // потребителей, пустой словарь там — шум.
+    ...(partial.parts && Object.keys(partial.parts).length > 0 ? { parts: partial.parts } : {}),
     fields,
     arrays,
     validation: partial.validation ?? [],
@@ -804,6 +817,20 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
     return kind === 'array' && selector ? { kind, ref, selector } : { kind, ref };
   }
 
+  if (kind === 'part' || kind === 'subform') {
+    const ref = asName(take(raw, 'ref', ['group', 'model', 'path'], ctx));
+    const part = asName(take(raw, 'part', ['name', 'partName'], ctx));
+    if (!ref || !part) {
+      ctx.problems.push({
+        at: `${at}.${ref ? 'part' : 'ref'}`,
+        message: 'узел подформы без группы или без имени части',
+        expected: '{ "kind": "part", "ref": "registrationAddress", "part": "address" }',
+      });
+      return null;
+    }
+    return { kind: 'part', ref, part, ...(selector ? { selector } : {}) };
+  }
+
   const children = asList(take(raw, 'children', ['items', 'nodes', 'fields'], ctx))
     .map((child, i) => readLayoutNode(child, `${at}.children[${i}]`, ctx))
     .filter((child): child is LayoutNode => child !== null);
@@ -820,7 +847,7 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
   if (kind && kind !== 'container' && kind !== 'group') {
     ctx.warnings.push(
       `${at}: вид узла \`${kind}\` контракту неизвестен — прочитан как контейнер ` +
-        '(допустимы field | array | container | step).'
+        '(допустимы field | array | part | container | step).'
     );
   }
   const htmlTag = asName(take(raw, 'htmlTag', ['tag', 'html'], ctx));
@@ -973,6 +1000,22 @@ export function readIntent(raw: unknown): IntentReading {
     ctx
   );
 
+  // Именованные части разметки (подформы): словарь «имя → узел».
+  const parts: Record<string, LayoutNode> = {};
+  const partsRaw = take(src, 'parts', ['subforms', 'fragments'], ctx);
+  if (isRecord(partsRaw)) {
+    for (const [name, raw] of Object.entries(partsRaw)) {
+      const node = readLayoutNode(raw, `parts.${name}`, ctx);
+      if (node) parts[name] = node;
+    }
+  } else if (partsRaw !== undefined) {
+    ctx.problems.push({
+      at: 'parts',
+      message: 'части разметки заданы не словарём',
+      expected: '{ "address": { "kind": "container", "component": "Box", "children": ["city"] } }',
+    });
+  }
+
   if (steps.length > 0 && !layoutRoot) {
     // Честнее сказать, чем достроить: раскладка шагов по разметке — прикладное решение
     // (у core и renderer-react шаги живут инлайном в `index.tsx`), и угадывать её тут нечем.
@@ -1003,6 +1046,7 @@ export function readIntent(raw: unknown): IntentReading {
     target: target ?? 'core',
     layout: asName(declaredLayout) === 'folders' ? 'folders' : 'minimalist',
     ...(layoutRoot ? { layoutRoot } : {}),
+    ...(Object.keys(parts).length > 0 ? { parts } : {}),
     fields,
     arrays,
     validation,

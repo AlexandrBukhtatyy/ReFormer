@@ -175,7 +175,7 @@ Expected: Empty list (or 1 prompt in debug mode)
   "method": "prompts/get",
   "params": {
     "name": "debug",
-    "arguments": { "code": "const form = createForm<T>({...})" }
+    "arguments": { "code": "const form = createLegacyForm<T>({...})" }
   }
 }
 ```

@@ -7,7 +7,7 @@
       "task": "создать форму логина с полями email и password",
       "target": "core",
       "queries": ["create form", "quick start", "form schema"],
-      "expectAny": ["createForm", "createCoreForm", "FormSchema"]
+      "expectAny": ["createForm"]
     },
     {
       "id": "basic/stable-assembly",
@@ -18,7 +18,7 @@
         "useMemo form rebuild",
         "lazy useState form"
       ],
-      "expectAny": ["useFormBundle", "useReactForm", "useJsonForm"]
+      "expectAny": ["useFormBundle"]
     },
     {
       "id": "basic/field-state",
@@ -53,7 +53,14 @@
       "task": "разложить файлы формы по каталогу проекта",
       "target": "core",
       "queries": ["form directory layout", "project structure", "where to put form files"],
-      "expectAny": ["model.ts", "validation.ts", "form.schema.ts"]
+      "expectAny": ["model.ts", "form.validation.ts", "form.schema.ts"]
+    },
+    {
+      "id": "basic/one-contract",
+      "task": "описать форму так, чтобы её можно было нарисовать и руками в JSX, и рендерером",
+      "target": "core",
+      "queries": ["one schema for jsx and renderer", "unified form contract", "unified-contract"],
+      "expectAny": ["model: model.$."]
     }
   ]
 }

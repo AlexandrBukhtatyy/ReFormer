@@ -36,6 +36,14 @@ export interface DecisionRule {
   because: string;
   /** Чем это НЕ является — самые частые подмены. */
   alternatives?: Array<{ symbol: string; when: string }>;
+  /**
+   * Каноничная запись вызова — печатается вместо сигнатуры и примера из индекса.
+   *
+   * Нужна, когда одно имя живёт в двух модулях: `apply` и `applyEach` есть и в поведении, и в
+   * валидации, а индекс символов отдаёт одно объявление. Его сигнатура и пример относились бы
+   * к другому слою, и ответ «каким оператором» учил бы чужому импорту.
+   */
+  usage?: string;
 }
 
 /**
@@ -169,7 +177,7 @@ export const DECISION_RULES: DecisionRule[] = [
     ],
     recommend: 'hideWhen',
     because:
-      'скрывает УЗЕЛ РАЗМЕТКИ (render-слой). Поле при этом остаётся в модели и валидируется — если оно должно перестать участвовать, это enableWhen',
+      "скрывает УЗЕЛ СХЕМЫ по `selector`: оператор поведения, пишется в `form.behavior.ts` — `hideWhen(schema.node('selector'), условие)` внутри `defineFormBehavior(({ model, schema }) => …)`. Правило исполняет рендерер; в разметке на JSX это обычное условие в компоненте. Поле при этом остаётся в модели и валидируется — если оно должно перестать участвовать, это enableWhen. На узле ШАГА библиотечного визарда правило прячет содержимое шага, но не сам шаг: динамическое число шагов собирается в JSX",
     alternatives: [
       { symbol: 'enableWhen', when: 'поле должно остаться видимым, но недоступным' },
       {
@@ -347,8 +355,63 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [
       /кажд(ый|ого) элемент.*валид|валид.*кажд(ый|ого) элемент|each (array )?item|per[- ]row validation|validate .* array item/i,
     ],
-    recommend: 'each',
-    because: 'применяет правила к каждому элементу массива, включая добавленные динамически',
+    recommend: 'applyEach',
+    because:
+      'применяет под-схему правил к каждому элементу массива, включая добавленные динамически; у элемента своя область — под-схема получает его под-модель, пути внутри относительны',
+    usage: [
+      "import { applyEach, defineValidationSchema, validate } from '@reformer/core/validation';",
+      "import { required } from '@reformer/core/validators';",
+      '',
+      'const itemRules = defineValidationSchema<Item>(({ model }) => {',
+      '  validate(model.$.title, [required()]);',
+      '});',
+      '',
+      'export const formValidation = defineValidationSchema<Form>(({ model }) => {',
+      '  applyEach(model.$.items, itemRules);',
+      '});',
+    ].join('\n'),
+    alternatives: [
+      {
+        symbol: 'apply',
+        when: 'те же правила нужны ОДНОЙ под-модели (подформа), а не каждому элементу массива',
+      },
+      { symbol: 'each', when: 'прежнее имя этого оператора — заменено на applyEach' },
+    ],
+  },
+  /**
+   * Подформа. Отдельное правило, а не альтернатива у массива: требование «один блок адреса в
+   * двух местах» не содержит ни слова про массив, и без своего правила уходило в поиск по
+   * символам, где `apply` тонет среди `applyEach` и `applyFormSchema`.
+   */
+  {
+    id: 'subform',
+    intent: 'одна группа полей (подформа) подключается к под-модели, возможно в нескольких местах',
+    cues: [
+      /подформ|под-форм|вложенн(ая|ую|ой|ые) (форм|групп)|sub-?form|nested (form|group)/i,
+      /переиспольз.{0,40}(групп|блок|част|адрес|правил)|(один|одна|одни) и (тот|та|те) же .{0,40}(в двух|в нескольких|дважды|к двум|к нескольким|для двух|для нескольких)|reus(e|able|ing) .{0,40}(group|part|block|rules|fragment)/i,
+    ],
+    unless: [/кажд(ой|ый|ую|ого) (строк|элемент)|per[- ](item|row)|each (row|item)/i],
+    recommend: 'apply',
+    because:
+      'подформа подключается привязкой к под-модели — одинаково во всех слоях: под-схема получает под-модель (`model`), пути внутри относительны, поэтому один набор правил ставится в несколько мест',
+    usage: [
+      '// схема: узел с `part` — часть строится для одной под-модели',
+      '{ model: model.$.registrationAddress, part: address }',
+      '// та же схема документом: часть объявлена в `parts`, пути внутри — от под-модели',
+      '// { "model": "$model(registrationAddress)", "part": "$part(address)" }',
+      '',
+      "// валидация — import { apply } from '@reformer/core/validation'",
+      'apply(model.$.registrationAddress, addressRules);',
+      '',
+      "// поведение — import { apply } from '@reformer/core/behaviors'",
+      'apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);',
+    ].join('\n'),
+    alternatives: [
+      {
+        symbol: 'applyEach',
+        when: 'часть строится для КАЖДОГО элемента массива (`item` в схеме), а не для одной под-модели',
+      },
+    ],
   },
   {
     id: 'validate-run',
@@ -361,7 +424,143 @@ export const DECISION_RULES: DecisionRule[] = [
       'внешний раннер: принимает модель и схему, возвращает boolean; поля обновляются как побочный эффект',
   },
 
+  /**
+   * Массив под-форм объявляется в МОДЕЛИ. Отдельное правило, потому что требование «объявить
+   * массив объектов» читалось раньше как вопрос про узел схемы — и ответ учил `initialValue` в
+   * узле, то есть шаблону элемента, продублированному вне модели.
+   */
+  {
+    id: 'declare-array',
+    intent: 'в форме появляется массив под-форм: его надо объявить и дать шаблон нового элемента',
+    cues: [
+      /объявить.{0,30}массив|массив (объектов|под-?форм)|declare .{0,30}array|array of (objects|sub-?forms)/i,
+      /шаблон нов(ого|ой) (элемент|строк)|(template|blank) .{0,20}(new )?(array )?(item|row)|new (row|item) template/i,
+    ],
+    unless: [/валид|validat|кажд(ой|ый|ую|ого)|each |per[- ](item|row)|очист|clear/i],
+    recommend: 'arrayOf',
+    because:
+      'массив под-форм объявляется в модели вместе с шаблоном нового элемента: `arrayOf(blank)`. Узел схемы после этого — `{ model: model.$.items, item }` без `initialValue`, а «Добавить» — `model.items.push()` без аргумента',
+    usage: [
+      "import { arrayOf, createModel } from '@reformer/core';",
+      '',
+      '// model.ts — шаблон возвращает ПОЛНЫЙ элемент с простыми значениями',
+      "const blankProperty = (): Property => ({ type: 'apartment', estimatedValue: 0 });",
+      'export const createMyModel = () =>',
+      '  createModel<MyForm>({ properties: arrayOf(blankProperty) });',
+      '',
+      '// form.schema.ts — `item` строится для каждого элемента',
+      '{ model: model.$.properties, component: FormArray, item: propertyRow }',
+      '',
+      '// где угодно',
+      'model.properties.push(); // новый элемент по шаблону',
+    ].join('\n'),
+    alternatives: [
+      {
+        symbol: 'applyEach',
+        when: 'массив уже объявлен, нужны правила или поведение для каждой его строки',
+      },
+    ],
+  },
+
   // --- сборка ----------------------------------------------------------------
+  /**
+   * Сборка и отрисовка. Раньше на каждый способ реализации была своя фабрика и свой рендерер,
+   * и вопрос «чем собрать» зависел от таргета; теперь ответ один — и это надо сказать прямо,
+   * иначе поиск по символам вернёт прежние `createReactForm` / `JsonFormRenderer`.
+   */
+  {
+    id: 'one-contract',
+    intent: 'форма описывается один раз для всех способов отрисовки и собирается одним вызовом',
+    cues: [
+      /един(ый|ого|ым) контракт|одн(а|у|ой) схем(а|у|ой)|unified (form )?contract|one schema/i,
+      /(и|как) руками.{0,40}рендерер|и в jsx.{0,40}рендерер|both .{0,30}(jsx|by hand).{0,30}renderer|собрать форму|assemble (the |a )?form/i,
+    ],
+    unless: [/пересозда|ререндер|re-?render|useMemo/i],
+    recommend: 'createForm',
+    because:
+      'контракт формы один на все способы отрисовки: одна схема-дерево с привязкой `model`, одно поведение, одна сборка. Различается только вид схемы (билдер или JSON-документ + `registry`) и то, кто рисует',
+    usage: [
+      "import { createForm, useFormBundle } from '@reformer/core';",
+      '',
+      '// form.schema.ts — одно дерево: поле стоит там, где оно рисуется',
+      'export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({',
+      '  component: Box,',
+      '  children: [{ model: model.$.email, component: Input, componentProps: { label: "Email" } }],',
+      '});',
+      '',
+      '// index.tsx — одна сборка, один хук',
+      'const bundle = useFormBundle(() =>',
+      '  createForm<MyForm>({ model: createMyModel(), schema: formSchema, behavior, validation })',
+      ');',
+      '',
+      '<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} /> // рендерер',
+      '<FormRenderer form={bundle} /> // JSON: schema — документ, плюс `registry`',
+      '<FormField control={bundle.form.email} /> // разметка руками в JSX',
+    ].join('\n'),
+    alternatives: [
+      { symbol: 'useFormBundle', when: 'вопрос про стабильность формы между ререндерами' },
+      {
+        symbol: 'createFormFromModel',
+        when: 'нужна только форма из готовой модели, без схемы-дерева, поведения и валидации',
+      },
+    ],
+  },
+  {
+    id: 'draw-form',
+    intent: 'собранную форму надо отрисовать',
+    cues: [
+      /(отрендерить|отрисовать|смонтировать|нарисовать) форму|(render|mount|draw) (the |a )?form\b/i,
+    ],
+    unless: [/массив|array|строк|rows?\b/i],
+    recommend: 'FormRenderer',
+    because:
+      'рендерер один на TS-схему и на JSON-документ: он получает бандл сборки `createForm` и рисует дерево схемы. Для JSON обёртка поля приходит из реестра (`FIELD_WRAPPER`), для TS — из `settings.fieldWrapper`',
+    usage: [
+      "import { createForm, useFormBundle } from '@reformer/core';",
+      "import { FormRenderer } from '@reformer/renderer-react';",
+      '',
+      '// TS-схема',
+      'const bundle = useFormBundle(() => createForm<MyForm>({ model, schema: formSchema }));',
+      '<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />',
+      '',
+      '// JSON-документ: тот же вызов, схема — документ, плюс реестр',
+      'const bundle = useFormBundle(() => createForm<MyForm>({ model, schema: document, registry }));',
+      '<FormRenderer form={bundle} />',
+    ].join('\n'),
+    alternatives: [
+      { symbol: 'FormField', when: 'разметка пишется руками в JSX — по полю на `bundle.form.x`' },
+    ],
+  },
+  {
+    id: 'wizard-node',
+    intent: 'визард и его шаги стоят узлами схемы',
+    cues: [
+      /(шаг|шаги|шагов) визарда.{0,40}(узл|схем)|визард.{0,40}(узлом|в схеме)|wizard.{0,40}(schema node|in the schema)|wizard step.{0,30}node/i,
+    ],
+    recommend: 'FormWizard',
+    because:
+      'визард — библиотечный компонент, стоящий узлом схемы; шаги — его обычные дети. Форму и валидацию он берёт из сборки сам, а шаг связан со своими правилами по `selector`',
+    usage: [
+      "import { Step } from '@reformer/cdk/form-wizard';",
+      "import { FormWizard } from '@reformer/ui-kit';",
+      '',
+      '{',
+      "  selector: 'wizard',",
+      '  component: FormWizard,',
+      '  children: [',
+      '    {',
+      "      selector: 'loan', // ключ в validation.steps",
+      '      component: Step,',
+      "      componentProps: { title: 'Кредит' },",
+      '      children: [{ model: model.$.loanType, component: SelectAsync }],',
+      '    },',
+      '  ],',
+      '}',
+      '',
+      '// form.validation.ts',
+      'export const formValidation = { steps: { loan: loanRules }, extras: crossStepRules };',
+    ].join('\n'),
+  },
   {
     id: 'stable-form',
     intent: 'форма не должна пересоздаваться при ререндере',
@@ -370,11 +569,7 @@ export const DECISION_RULES: DecisionRule[] = [
     ],
     recommend: 'useFormBundle',
     because:
-      'ленивый useState: фабрика выполняется ровно один раз. useMemo здесь неверен — React вправе сбросить кэш, и форма пересоберётся вместе с потерей введённого',
-    alternatives: [
-      { symbol: 'useReactForm', when: 'тот же хук под именем из @reformer/renderer-react' },
-      { symbol: 'useJsonForm', when: 'тот же хук под именем из @reformer/renderer-json' },
-    ],
+      'ленивый useState: фабрика выполняется ровно один раз. Хук один на все способы — `useFormBundle(() => createForm({ … }))`. useMemo здесь неверен — React вправе сбросить кэш, и форма пересоберётся вместе с потерей введённого',
   },
   {
     id: 'submit-guard',
@@ -394,7 +589,7 @@ export const DECISION_RULES: DecisionRule[] = [
     ],
     recommend: 'defineFormBehavior',
     because:
-      'ambient-сток для операторов поведения: внутри callback доступны compute/copyFrom/enableWhen и остальные',
+      'ambient-сток для операторов поведения: внутри callback `({ model, form, schema })` доступны compute/copyFrom/enableWhen и правила узлов схемы (hideWhen по `schema.node(selector)`) — поведение формы одно',
   },
   {
     id: 'declare-validation',
@@ -402,7 +597,7 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [/объявить (схему )?валид|схем(а|у) валидации|declare .* validation|validation schema/i],
     recommend: 'defineValidationSchema',
     because:
-      'ambient-сток для операторов валидации: внутри callback доступны validate/validateAsync/validateWhen/cross/each',
+      'ambient-сток для операторов валидации: внутри callback доступны validate/validateAsync/validateWhen/cross/apply/applyEach',
   },
 ];
 

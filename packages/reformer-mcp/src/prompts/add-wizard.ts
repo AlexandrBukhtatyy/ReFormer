@@ -3,7 +3,7 @@ import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 export const addWizardPromptDefinition = {
   name: 'add-wizard',
   description:
-    'Convert a single-form into a multi-step wizard via @reformer/cdk `FormWizard`. Slim+ prompt — full FormWizard compound API and step-machine recipes live in MCP resources.',
+    'Convert a single-page form into a multi-step wizard: the library `FormWizard` as a schema node with steps in `children` (or in JSX when the markup is written by hand); step rules are keyed by the step selector. Slim+ prompt — full FormWizard compound API and step-machine recipes live in MCP resources.',
   arguments: [
     {
       name: 'code',

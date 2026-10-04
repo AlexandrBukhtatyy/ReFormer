@@ -3,7 +3,7 @@ import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 export const addFormArrayPromptDefinition = {
   name: 'add-form-array',
   description:
-    'Turn a field into an array: array(...) in FormSchema + FormArray UI from @reformer/cdk. Slim+ prompt — full array recipes and FormArray compound API live in MCP resources.',
+    'Add an array of sub-forms: arrayOf(blank) in the model, a schema node { model, item }, applyEach in validation and behavior, FormArray UI. Slim+ prompt — full array recipes and FormArray compound API live in MCP resources.',
   arguments: [
     {
       name: 'code',

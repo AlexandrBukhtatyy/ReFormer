@@ -206,7 +206,7 @@ describe('бандл', () => {
 
 describe.runIf(hasCore)('сгенерированная форма работает', () => {
   let sandbox = '';
-  let initialFormModel: Record<string, unknown>;
+  let createFormModel: () => Record<string, unknown>;
   let formValidation: unknown;
   let formBehavior: unknown;
 
@@ -218,7 +218,7 @@ describe.runIf(hasCore)('сгенерированная форма работа�
     for (const f of bundle.files) writeFileSync(join(sandbox, f.path), f.content);
 
     const url = (p: string) => pathToFileURL(join(sandbox, p)).href;
-    initialFormModel = (await import(/* @vite-ignore */ url('model.ts'))).initialFormModel;
+    createFormModel = (await import(/* @vite-ignore */ url('model.ts'))).createFormModel;
     formValidation = (await import(/* @vite-ignore */ url('form.validation.ts'))).formValidation;
     formBehavior = (await import(/* @vite-ignore */ url('form.behavior.ts'))).formBehavior;
   });
@@ -229,8 +229,8 @@ describe.runIf(hasCore)('сгенерированная форма работа�
 
   /** Свежая форма на каждый кейс: поведение реактивно, состояние между кейсами не общее. */
   function makeForm() {
-    const model = core!.createModel({ ...initialFormModel });
-    const form = core!.createForm({ model, behavior: formBehavior });
+    const model = createFormModel();
+    const form = core!.createFormFromModel({ model, behavior: formBehavior });
     return { model, form };
   }
 

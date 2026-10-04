@@ -16,7 +16,7 @@ const TEMPLATES = {
 export const toRendererPromptDefinition = {
   name: 'to-renderer',
   description:
-    'Move an existing @reformer/core form onto a renderer: RenderSchema (renderer-react) or the JSON DSL (renderer-json).',
+    'Change who draws an existing @reformer form: FormRenderer over the same TS schema (renderer-react) or the schema as a JSON document of format 2 + registry (renderer-json). Model, validation, behavior and the createForm call stay.',
   arguments: [
     { name: 'code', description: 'Текущий код формы.', required: true },
     {

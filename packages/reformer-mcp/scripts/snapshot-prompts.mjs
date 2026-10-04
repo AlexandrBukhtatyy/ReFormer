@@ -16,7 +16,7 @@ const outDir = resolve(repoRoot, process.argv[2] ?? '.tmp/baseline');
 mkdirSync(outDir, { recursive: true });
 
 const FIXTURES = {
-  code: '// SNAPSHOT_FIXTURE_CODE\nconst form = createForm({ name: { value: "" } });',
+  code: '// SNAPSHOT_FIXTURE_CODE\nconst form = createLegacyForm({ name: { value: "" } });',
   requirements: 'SNAPSHOT_FIXTURE_REQS: rule A; rule B.',
   description: 'SNAPSHOT_FIXTURE_DESC: form with name(string), age(number 18+).',
   steps: 'SNAPSHOT_FIXTURE_STEPS: 1=personal; 2=address; 3=review.',
