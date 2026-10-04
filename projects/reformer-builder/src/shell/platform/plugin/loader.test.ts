@@ -316,6 +316,42 @@ describe('загрузка кода плагина', () => {
     );
     expect(result.ok && result.loaded.files).toEqual(['main.js', 'panel.js']);
   });
+
+  it('модуль данных из chunks/ исполняется при первом обращении, а не при загрузке', async () => {
+    // Так `reformer-plugin build` собирает отложенный импорт JSON: данные — отдельным файлом,
+    // в `main.js` — `require` внутри функции. Загрузка плагина модуль данных не трогает:
+    // ради этого корпус знаний ассистента и вынесен из `main.js`.
+    const harness = createHarness({
+      [dir('acme-forms', 'manifest.json')]: manifestOf({ id: 'acme-forms' }),
+      [dir('acme-forms', 'main.js')]: `
+        module.exports = {
+          id: 'acme-forms',
+          activate() {},
+          loadCorpus: () => Promise.resolve().then(() => require('./chunks/corpus.js')),
+        };
+      `,
+      [dir('acme-forms', 'chunks/corpus.js')]: `
+        globalThis.__acmeCorpusEvaluated = (globalThis.__acmeCorpusEvaluated ?? 0) + 1;
+        module.exports = { title: 'Справка' };
+      `,
+    });
+    const counter = globalThis as unknown as { __acmeCorpusEvaluated?: number };
+    delete counter.__acmeCorpusEvaluated;
+
+    const result = await load(harness);
+
+    expect(result.ok && result.loaded.files).toEqual(['main.js', 'chunks/corpus.js']);
+    expect(counter.__acmeCorpusEvaluated).toBeUndefined();
+
+    const plugin = (result.ok ? result.loaded.plugin : undefined) as unknown as {
+      loadCorpus: () => Promise<{ title: string }>;
+    };
+    expect((await plugin.loadCorpus()).title).toBe('Справка');
+    // Второе обращение берёт уже исполненный модуль.
+    await plugin.loadCorpus();
+    expect(counter.__acmeCorpusEvaluated).toBe(1);
+    delete counter.__acmeCorpusEvaluated;
+  });
 });
 
 /**
