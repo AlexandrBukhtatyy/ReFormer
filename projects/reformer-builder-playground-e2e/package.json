@@ -1,0 +1,20 @@
+{
+  "name": "reformer-builder-playground-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "E2E-тесты @reformer/builder: билдер открывает reformer-builder-playground как рабочий каталог",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:dist": "cross-env BUILDER_E2E_TARGET=dist playwright test",
+    "test:e2e:report": "playwright show-report",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.0",
+    "cross-env": "^7.0.3",
+    "typescript": "~5.9.3"
+  }
+}
