@@ -4,7 +4,8 @@
  * ## Что получается
  *
  * `manifest.json` (тот же, с `main: "main.js"` и `styles.file: "styles.css"`), один `main.js`,
- * `styles.css`, если стили объявлены, и словари по тем же путям, что в исходниках.
+ * `styles.css`, если стили объявлены, словари по тем же путям, что в исходниках, и модули
+ * данных в `chunks/` — если код импортирует JSON отложенно.
  *
  * - **`main.js` — CommonJS.** Линковщик оболочки исполняет модули как CommonJS, и готовый JS
  *   идёт у него без транспиляции (`shell/platform/modules/loader`): собери мы ESM, оболочке
@@ -20,6 +21,15 @@
  *   оболочка их изолирует. Импорт `.css` из кода дал бы таблицу, о которой манифест молчит.
  * - **`?raw` — текст файла строкой**, как у Vite: `import tpl from './form.eta?raw'`. Так плагин
  *   держит шаблоны кодогенерации файлами, а не строками в коде; в `main.js` текст вложен.
+ * - **Отложенный импорт JSON — отдельный файл.** `await import('./corpus.json')` — так автор
+ *   говорит «эти данные нужны не сразу». Вложенные в `main.js`, они разбирались бы движком при
+ *   каждой загрузке плагина, даже когда до них дело не дойдёт: мегабайты данных — мегабайты
+ *   разбора. Поэтому такой JSON уезжает модулем в `chunks/<имя>.js`, а в `main.js` остаётся
+ *   `require` — линковщик оболочки исполнит модуль при первом обращении. Статический
+ *   `import data from './a.json'` вкладывается, как и раньше. Код так не делится: общий для
+ *   двух файлов модуль пришлось бы вкладывать дважды, а у данных общего нет.
+ * - **Текст в UTF-8.** По умолчанию esbuild экранирует всё вне ASCII, и кириллица в строках
+ *   занимает втрое больше места. Оболочка читает файлы плагина как UTF-8.
  *
  * ## Что проверяется на выходе
  *
@@ -30,8 +40,9 @@
  * ## Каталог вывода не чужой
  *
  * Сборка удаляет только то, что писала сама: файлы, которые называет манифест ПРОШЛОЙ сборки
- * этого же плагина (тот же `id` и `main: "main.js"`). Каталог целиком она не стирает никогда —
- * в нём может лежать больше, чем сборка.
+ * этого же плагина (тот же `id` и `main: "main.js"`), и модули данных в `chunks/`, помеченные
+ * её первой строкой. Каталог целиком она не стирает никогда — в нём может лежать больше, чем
+ * сборка.
  *
  * Так устроен пакет плагина, который собирается на месте: исходники в `src/`, а сборка —
  * `build src --out .` — рядом, в корне каталога, откуда оболочка её и грузит. Каталог вывода,
@@ -46,7 +57,7 @@
  */
 
 import { mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import {
   isBundledPluginModule,
@@ -84,6 +95,15 @@ export type BuildResult =
 /** Имена, под которыми сборка кладёт код и стили. */
 const BUILT_MAIN = 'main.js';
 const BUILT_STYLES = 'styles.css';
+
+/** Каталог модулей данных — JSON, который код импортирует отложенно. */
+const BUILT_CHUNKS_DIR = 'chunks';
+
+/**
+ * Первая строка модуля данных. По ней сборка узнаёт СВОИ файлы в `chunks/`: манифест их
+ * не называет, а удалять по одному имени каталога значило бы стереть чужой файл.
+ */
+const chunkMarker = (id: string): string => `/* @reformer-plugin-data ${id} */`;
 
 const fail = (...findings: Finding[]): BuildResult => ({ ok: false, findings });
 
@@ -157,7 +177,63 @@ async function previousBuildFiles(outDir: string, id: string): Promise<string[] 
     BUILT_MAIN,
     ...(manifest.styles === undefined ? [] : [manifest.styles.file]),
     ...Object.values(manifest.contributes?.messages ?? {}),
+    ...(await previousChunks(outDir, id)),
   ];
+}
+
+/** Модули данных прошлой сборки: файлы `chunks/`, начинающиеся с её пометки. */
+async function previousChunks(outDir: string, id: string): Promise<string[]> {
+  let names: string[];
+  try {
+    names = await readdir(join(outDir, BUILT_CHUNKS_DIR));
+  } catch {
+    return [];
+  }
+  const marker = chunkMarker(id);
+  const ours: string[] = [];
+  for (const name of names) {
+    const path = `${BUILT_CHUNKS_DIR}/${name}`;
+    try {
+      if ((await readFile(join(outDir, path), 'utf8')).startsWith(marker)) ours.push(path);
+    } catch {
+      // Каталог или нечитаемый файл — не наш: его не трогаем.
+    }
+  }
+  return ours;
+}
+
+/** Имя файла модуля данных: по имени исходника, с номером при совпадении. */
+function chunkName(source: string, taken: ReadonlySet<string>): string {
+  const stem = basename(source, '.json').replace(/[^A-Za-z0-9._-]/g, '_') || 'data';
+  let name = `${stem}.js`;
+  for (let at = 2; taken.has(name); at += 1) name = `${stem}-${String(at)}.js`;
+  return name;
+}
+
+/**
+ * `await import('./data.json')` — модуль данных отдельным файлом, а не вложенный в `main.js`.
+ *
+ * Спецификатор подменяется путём будущего файла в `chunks/` и объявляется внешним: вместе
+ * с `supported: { 'dynamic-import': false }` это даёт `require('./chunks/…')`, который
+ * разрешает линковщик оболочки по набору файлов плагина. Сами файлы пишет {@link buildPlugin} —
+ * здесь только учёт: исходник → имя.
+ */
+function lazyData(chunks: Map<string, string>): esbuild.Plugin {
+  return {
+    name: 'reformer-lazy-data',
+    setup(build) {
+      build.onResolve({ filter: /\.json$/ }, (args) => {
+        if (args.kind !== 'dynamic-import' || isBareSpecifier(args.path)) return undefined;
+        const source = resolve(args.resolveDir, args.path);
+        let name = chunks.get(source);
+        if (name === undefined) {
+          name = chunkName(source, new Set(chunks.values()));
+          chunks.set(source, name);
+        }
+        return { path: `./${BUILT_CHUNKS_DIR}/${name}`, external: true };
+      });
+    },
+  };
 }
 
 /**
@@ -275,6 +351,9 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
   if (!validated.ok) return fail(...validated.findings);
   const { manifest } = validated;
 
+  /** Модули данных: исходный JSON → имя файла в `chunks/`. Наполняет {@link lazyData}. */
+  const chunks = new Map<string, string>();
+
   let code: string;
   try {
     const result = await esbuild.build({
@@ -288,11 +367,14 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
       target: 'es2020',
       // `import()` модуля рантайма обязан стать `require`: спецификатор разрешает линковщик
       // оболочки, а нативный `import('@reformer/…')` в браузере не разрешается ничем. Свои
-      // модули плагина esbuild и так вкладывает — им это безразлично.
+      // модули плагина esbuild и так вкладывает — им это безразлично; отложенный JSON уезжает
+      // в `chunks/` и приходит тем же `require`.
       supported: { 'dynamic-import': false },
+      // Без этого каждая буква вне ASCII — шесть символов экранирования вместо двух байт.
+      charset: 'utf8',
       jsx: 'automatic',
       logLevel: 'silent',
-      plugins: [rawText, runtimeModules],
+      plugins: [rawText, lazyData(chunks), runtimeModules],
     });
     const css = result.outputFiles.find((file) => file.path.endsWith('.css'));
     if (css !== undefined) {
@@ -346,6 +428,24 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
   const messages: Readonly<Record<string, string>> = manifest.contributes?.messages ?? {};
   for (const file of Object.values(messages)) {
     files.set(file, await readFile(join(dir, file), 'utf8'));
+  }
+  for (const [source, name] of chunks) {
+    let value: unknown;
+    try {
+      value = JSON.parse(await readFile(source, 'utf8')) as unknown;
+    } catch (error) {
+      return fail({
+        code: 'build-failed',
+        file: relative(dir, source),
+        message: `модуль данных не читается как JSON: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+    // Корректный JSON — корректное выражение JS: обёртки достаточно. Первая строка — пометка
+    // сборки, по ней следующая сборка узнает файл своим.
+    files.set(
+      `${BUILT_CHUNKS_DIR}/${name}`,
+      `${chunkMarker(manifest.id)}\nmodule.exports = ${JSON.stringify(value)};\n`
+    );
   }
 
   // Проверки выхода — ДО записи: не прошедшая их сборка не должна затирать прошлую рабочую.

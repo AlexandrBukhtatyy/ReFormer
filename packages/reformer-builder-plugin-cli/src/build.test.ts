@@ -179,6 +179,149 @@ describe('build', () => {
     expect(code).not.toMatch(/\bimport\(/);
   });
 
+  describe('отложенный импорт JSON', () => {
+    /** Плагин с данными, которые нужны не сразу: `loadCorpus` зовут по требованию. */
+    const lazyMain = (...imports: string[]) =>
+      main(
+        [
+          "import { definePlugin } from '@reformer/builder-plugin-api';",
+          ...imports,
+          "export default definePlugin({ id: 'acme-hello', activate() {} });",
+        ].join('\n')
+      );
+
+    it('уезжает модулем в chunks/, а в main.js остаётся require', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка", "items": [1, 2] }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+
+      const result = await buildPlugin({ dir });
+
+      expect(result).toMatchObject({ ok: true });
+      expect(result.ok && result.files).toContain('chunks/corpus.js');
+      const code = await readFile(join(dir, 'dist/main.js'), 'utf8');
+      expect(code).toContain('require("./chunks/corpus.js")');
+      // Сами данные в main.js не попали: иначе движок разбирал бы их при каждой загрузке плагина.
+      expect(code).not.toContain('Справка');
+      expect(await readFile(join(dir, 'dist/chunks/corpus.js'), 'utf8')).toContain('Справка');
+    });
+
+    it('собранное исполняется графом CommonJS — так его и грузит оболочка', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка" }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+
+      const required: string[] = [];
+      const evaluate = async (file: string): Promise<Record<string, unknown>> => {
+        const module = { exports: {} as Record<string, unknown> };
+        const source = await readFile(join(dir, 'dist', file), 'utf8');
+        const sources = new Map<string, Record<string, unknown>>();
+        if (file === 'main.js')
+          sources.set('./chunks/corpus.js', await evaluate('chunks/corpus.js'));
+        const requireFrom = (specifier: string): unknown => {
+          required.push(specifier);
+          // Модули рантайма здесь не нужны: проверяется только связь main.js → chunks/.
+          return sources.get(specifier) ?? { definePlugin: (plugin: unknown) => plugin };
+        };
+        // `new Function` — так модуль исполняет и линковщик оболочки.
+        new Function('exports', 'require', 'module', source)(module.exports, requireFrom, module);
+        return module.exports;
+      };
+
+      const exports = await evaluate('main.js');
+      // До первого обращения модуль данных не запрошен вовсе.
+      expect(required).not.toContain('./chunks/corpus.js');
+
+      const corpus = (await (exports.loadCorpus as () => Promise<{ default: unknown }>)()).default;
+
+      expect(corpus).toEqual({ title: 'Справка' });
+      expect(required).toContain('./chunks/corpus.js');
+    });
+
+    it('статический импорт JSON вкладывается, как и раньше', async () => {
+      await writeFile(join(dir, 'src/small.json'), '{ "title": "Вложено" }');
+      await lazyMain("import small from './small.json';", 'export const SMALL = small;');
+
+      const result = await buildPlugin({ dir });
+
+      expect(result.ok && result.files).not.toContain('chunks/small.js');
+      expect(await readFile(join(dir, 'dist/main.js'), 'utf8')).toContain('Вложено');
+    });
+
+    it('одноимённые файлы из разных каталогов получают разные модули', async () => {
+      await mkdir(join(dir, 'src/a'));
+      await mkdir(join(dir, 'src/b'));
+      await writeFile(join(dir, 'src/a/data.json'), '{ "from": "a" }');
+      await writeFile(join(dir, 'src/b/data.json'), '{ "from": "b" }');
+      await lazyMain(
+        "export const loadA = () => import('./a/data.json');",
+        "export const loadB = () => import('./b/data.json');"
+      );
+
+      const result = await buildPlugin({ dir });
+
+      expect(result.ok && [...result.files].filter((file) => file.startsWith('chunks/'))).toEqual([
+        'chunks/data.js',
+        'chunks/data-2.js',
+      ]);
+    });
+
+    it('пересборка убирает модуль, которого больше нет, а чужой файл в chunks/ не трогает', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка" }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+      await writeFile(join(dir, 'dist/chunks/notes.js'), '// не сборка: положено руками');
+
+      await lazyMain();
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+
+      // Свой файл сборка узнаёт по первой строке, а не по каталогу.
+      expect(await readdir(join(dir, 'dist/chunks'))).toEqual(['notes.js']);
+    });
+
+    it('чужой файл на месте модуля данных — отказ, и он цел', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка" }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+      await writeFile(join(dir, 'dist/chunks/corpus.js'), '// не сборка: положено руками');
+
+      const result = await buildPlugin({ dir });
+
+      expect(result).toMatchObject({
+        ok: false,
+        findings: [{ code: 'output-not-ours', file: 'chunks/corpus.js' }],
+      });
+      expect(await readFile(join(dir, 'dist/chunks/corpus.js'), 'utf8')).toBe(
+        '// не сборка: положено руками'
+      );
+    });
+
+    it('битый JSON — отказ с именем файла, а не модуль с мусором', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": ');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+
+      const result = await buildPlugin({ dir });
+
+      expect(result).toMatchObject({ ok: false, findings: [{ code: 'build-failed' }] });
+      expect(result.ok ? '' : result.findings[0].file?.split('\\').join('/')).toBe(
+        'src/corpus.json'
+      );
+    });
+  });
+
+  it('текст вне ASCII остаётся текстом, а не экранированием', async () => {
+    await main(
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "export const TITLE = 'Привет, плагин';",
+        "export default definePlugin({ id: 'acme-hello', activate() {} });",
+      ].join('\n')
+    );
+
+    expect((await buildPlugin({ dir })).ok).toBe(true);
+
+    expect(await readFile(join(dir, 'dist/main.js'), 'utf8')).toContain('Привет, плагин');
+  });
+
   it('CSS из кода — отказ: стили объявляются в манифесте', async () => {
     await writeFile(join(dir, 'src/panel.css'), '.panel { color: red }');
     await main(
