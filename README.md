@@ -96,14 +96,14 @@ npm install @reformer/renderer-json    # разметка как чистый JS
 ## Быстрый старт
 
 Архитектура **M1**: сначала создаётся **модель данных** (`createModel`) — источник истины
-значений, затем **форма** (`createForm({ model, schema })`), где схема (layout) привязывает каждое поле к
+значений, затем **форма** (`createFormFromModel({ model, schema })`), где схема (layout) привязывает каждое поле к
 сигналу модели (`model.$.field`) и несёт его `component` + `componentProps`. **Валидаторов в layout нет** —
 правила живут отдельным слоём (`defineValidationSchema` над той же моделью + раннер `validateModel`,
 см. [Валидаторы](#валидаторы)). В JSX рендерится один универсальный `<FormField control={form.x} />` на поле — без обёрток на каждое поле.
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
@@ -144,7 +144,7 @@ function LoginFormExample() {
     };
 
     // 3. Форма — реактивные ноды поверх сигналов модели.
-    const form = createForm<LoginForm>({ model, schema });
+    const form = createFormFromModel<LoginForm>({ model, schema });
     return { model, form };
   }, []);
 
@@ -199,7 +199,7 @@ function LoginFormExample() {
 - `apply(...schemas)` — композиция под-схем над той же моделью (например, «вся форма = все шаги»).
 
 ```tsx
-import { createModel, createForm, type ValidationError } from '@reformer/core';
+import { createModel, createFormFromModel, type ValidationError } from '@reformer/core';
 import {
   defineValidationSchema,
   validate,
@@ -287,7 +287,7 @@ const schema = {
   loanType: { value: model.$.loanType, component: Input },
   propertyValue: { value: model.$.propertyValue, component: InputNumber },
 };
-const form = createForm<RegistrationForm>({ model, schema });
+const form = createFormFromModel<RegistrationForm>({ model, schema });
 
 // Прогон по требованию (например, в onSubmit): разносит ошибки по нодам формы, возвращает boolean.
 const valid = await validateModel(model, registrationValidation);
@@ -302,13 +302,13 @@ const valid = await validateModel(model, registrationValidation);
 ## Поведения
 
 Реактивное поведение описывается декларативной схемой `defineFormBehavior<T>(({ model, form }) => …)`
-и подключается через `createForm({ model, schema, behavior })` — форма владеет жизненным циклом
+и подключается через `createFormFromModel({ model, schema, behavior })` — форма владеет жизненным циклом
 (подписки/очистка/защита от циклов внутри каждого оператора). Операции значений (`compute`,
 `computeFrom`, `copyFrom`) пишут сигналы модели (`model.$`), а операции состояния/UI (`enableWhen`,
 `onChange` + `updateComponentProps`) — ноды формы (`form.*`).
 
 ```tsx
-import { createForm } from '@reformer/core';
+import { createFormFromModel } from '@reformer/core';
 import {
   defineFormBehavior,
   compute,
@@ -342,7 +342,7 @@ const behavior = defineFormBehavior<OrderForm>(({ model, form }) => {
   });
 });
 
-const form = createForm<OrderForm>({ model, schema, behavior });
+const form = createFormFromModel<OrderForm>({ model, schema, behavior });
 ```
 
 > Полный набор DSL-операторов: `compute`, `computeFrom`, `copyFrom`, `onChange`, `enableWhen` /
@@ -425,7 +425,7 @@ import { FormArray } from '@reformer/cdk/form-array';
 import { useMemo, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import type { FormWizardConfig } from '@reformer/cdk/form-wizard';
-import { createModel, createForm, type FormModel, type FormProxy } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel, apply } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, InputPassword } from '@reformer/ui-kit';
@@ -472,7 +472,7 @@ function SignupWizard() {
         },
       ],
     };
-    const form = createForm<SignupForm>({ model, schema });
+    const form = createFormFromModel<SignupForm>({ model, schema });
     return { model, form };
   }, []);
 
@@ -511,13 +511,13 @@ function SignupWizard() {
 ### @reformer/renderer-react
 
 Разметка — TS-дерево `RenderNode<T>`: листья несут `value: model.$.x` (сигнал модели) + `component`.
-**Одно дерево** служит и форме (`createForm({ model, schema })` строит ноды), и рендеру
+**Одно дерево** служит и форме (`createFormFromModel({ model, schema })` строит ноды), и рендеру
 (`createRenderSchema(() => tree)` → `<FormRenderer />`). Аргумент `path` больше не нужен, обёртка
 `FormRoot` — тоже (привязка идёт через сигналы, а не через контекст-форму).
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormRenderer, createRenderSchema, type RenderNode } from '@reformer/renderer-react';
@@ -556,9 +556,9 @@ function LoginPage() {
     const model = createModel<LoginForm>({ email: '', password: '' });
     const tree = buildTree(model);
 
-    // createForm строит форму из того же дерева (сбор листьев по сигналу).
+    // createFormFromModel строит форму из того же дерева (сбор листьев по сигналу).
     // Отправка валидирует явно: `await validateModel(model, loginValidation)` — как в «Быстром старте».
-    const form = createForm<LoginForm>({ model, schema: tree });
+    const form = createFormFromModel<LoginForm>({ model, schema: tree });
 
     // RenderSchema-прокси для декларативного рендера (+ программное управление нодами:
     // schema.node('id').setHidden(true) / .patchProps({...})).
@@ -584,7 +584,7 @@ JSON нет — правила живут отдельной TS-схемой н�
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -635,8 +635,8 @@ function LoginPage() {
     });
 
     // 3. convertJsonToM1Tree резолвит операторы против реестра + модели → RenderNode-дерево,
-    //    из которого createForm строит форму (+ отдельная TS-схема валидации при необходимости).
-    const form = createForm<LoginForm>({
+    //    из которого createFormFromModel строит форму (+ отдельная TS-схема валидации при необходимости).
+    const form = createFormFromModel<LoginForm>({
       model,
       schema: convertJsonToM1Tree(jsonSchema, registry, model),
     });
