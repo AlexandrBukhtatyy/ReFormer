@@ -65,7 +65,7 @@ import type { NotificationsService } from '@reformer/builder-plugin-api/internal
 import type { PromptService } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import { CommandPalette } from '@/shell/platform/ui/menu/CommandPalette';
-import { EditorArea, EDITOR_NEXT_COMMAND_ID } from '@/shell/platform/ui/chrome/EditorArea';
+import { EditorArea } from '@/shell/platform/ui/chrome/EditorArea';
 import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from '@/shell/platform/ui/dialogs/HelpDialogs';
 import {
   KeybindingsDialog,
@@ -871,16 +871,6 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
   // ни панели, ни локаль на него не влияют, заголовки берутся из команд при построении.
   const builtinMenu = useMemo<readonly MenuEntry[]>(
     () => [
-      // Смена редактора документа. Была выпадающим списком в полосе вкладок и уехала
-      // оттуда: список занимал место у имён файлов и дублировал переключатель вида
-      // markdown, стоявший рядом. Здесь она пункт меню и команда палитры — то есть
-      // доступна, но ничего не занимает.
-      hostMenuEntry('shell.file.editor.next', {
-        kind: 'item',
-        menu: 'file',
-        command: EDITOR_NEXT_COMMAND_ID,
-        group: '3_view',
-      }),
       // Очистка кэша — своей группой, а не рядом с настройками: между «поменять цвет темы»
       // и «снести рабочую копию» обязана быть линия. Группа стоит перед настройками
       // (`8_` < `9_`), потому что это всё же обслуживание, а не первое, что ищут в меню.
