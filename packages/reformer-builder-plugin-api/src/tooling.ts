@@ -40,11 +40,15 @@ export {
 export { pluginFromExports } from './plugin/plugin-exports.js';
 export {
   BUILDER_API_VERSION,
+  PLUGIN_BUILD_FORMAT,
+  PLUGIN_LAZY_IMPORT,
   PLUGIN_MANIFEST_FILE,
   type BuiltinPluginManifest,
   type DeclaredKeybinding,
   type ManifestOf,
   type ManifestParseResult,
+  type PluginBuildFile,
+  type PluginBuildInfo,
   type PluginContributes,
   type PluginManifest,
   type PluginManifestBase,
