@@ -14,7 +14,7 @@ import {
   stepRefsOf,
   type StepOrigins,
 } from '../../../core/form-model';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { SCHEMA_FILE_NAMES, type KitView } from '../../../core/codegen';
 import { materialize, tokenize } from '../render/placeholders';

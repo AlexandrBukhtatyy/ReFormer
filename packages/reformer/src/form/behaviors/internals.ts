@@ -1,5 +1,5 @@
 /**
- * Внутренние утилиты слоя поведения: работа с групповыми узлами `$`, guard циклов, резолв пути.
+ * Внутренние утилиты слоя поведения: работа с групповыми узлами `$` и guard циклов.
  *
  * Ничего не знает про ambient-сток — это чистые функции над сигналами и value-proxy модели.
  * Наружу (в сабпат `/behaviors`) не экспортируется.
@@ -11,8 +11,6 @@
 import type { Signal } from '@preact/signals-core';
 import { isModelContainerSignal } from '../../index';
 import { isModelArraySignal } from '../../model/model-signals-proxy';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** Групповой узел дерева `$`: набор дочерних сигналов плюс служебный путь. */
 export type GroupSignals = Record<string, unknown> & { __path?: string };
@@ -84,9 +82,3 @@ export function makeCycleGuard(target: Signal<unknown>): (write: () => void) => 
     }
   };
 }
-
-export function getByPath(root: unknown, path: string): any {
-  return path.split('.').reduce<any>((o, k) => (o == null ? undefined : o[k]), root);
-}
-
-/* eslint-enable @typescript-eslint/no-explicit-any */

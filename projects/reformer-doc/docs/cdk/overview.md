@@ -60,14 +60,14 @@ import { FileUpload } from '@reformer/cdk/file-upload';
 анатомию:
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
 
 const model = createModel({
   items: [{ name: '' }],
 });
 
-const form = createForm({ model, schema });
+const form = createFormFromModel({ model, schema });
 
 <FormArray.Root control={form.items}>
   <FormArray.Empty>

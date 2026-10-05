@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { plainSchema } from './__fixtures__/kit';
 import { prepare } from './context';
 import { stepDirName } from '../form-model/step-dir';

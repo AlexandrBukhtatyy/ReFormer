@@ -30,7 +30,7 @@ import {
   JsonFormRenderer,
   JsonRendererProvider,
   type JsonForm,
-  type JsonFormSchema,
+  type JsonFormSchemaV1 as JsonFormSchema,
 } from '@reformer/renderer-json';
 import { initialValuesOf } from './initial-values';
 import type { PluginSettingsValues } from '@/shell/platform/services/plugin-settings';

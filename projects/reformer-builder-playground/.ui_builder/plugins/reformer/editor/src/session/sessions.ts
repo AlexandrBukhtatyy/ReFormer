@@ -48,7 +48,7 @@
  * @module plugins/reformer/editor/session/sessions
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { Disposable, ResourceId, SelectionService } from '@reformer/builder-plugin-api';
 import { indexNodes } from '../model/node-index';
 import { mergeKeyOf } from '../model/ops';

@@ -4,7 +4,7 @@
  * @module plugins/reformer/ai/tools/set-layout
  */
 
-import { isContainerNode } from '@reformer/renderer-json';
+import { isContainerNodeV1 as isContainerNode } from '@reformer/renderer-json';
 import { setComponentProp } from '../../../core/form-model';
 import { commitMutation } from '../loop/gate';
 import { layoutClassName, type LayoutParams } from '../model/layout';

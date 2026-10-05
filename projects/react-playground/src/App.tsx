@@ -151,7 +151,7 @@ const exampleGroups: ExampleGroup[] = [
         path: '/debug/mcca-renderer-react-v20',
         title: 'renderer-react v20',
         description:
-          'Сгенерировано MCP (v20, minimalist form-* layout) — renderer-react: createRenderSchema',
+          'Сгенерировано MCP (v20, minimalist form-* layout) — renderer-react: схема-дерево + FormRenderer',
       },
       {
         id: 'mcca-renderer-json-v20',

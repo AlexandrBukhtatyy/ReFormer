@@ -13,7 +13,7 @@
  * @module plugins/reformer/ai/loop/gate
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { MutationResult } from '../../../core/form-model';
 import type { FormRules } from '../../../core/form-model';
 import { validateSchema } from '../model/validate';

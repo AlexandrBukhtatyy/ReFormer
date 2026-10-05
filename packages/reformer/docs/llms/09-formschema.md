@@ -25,7 +25,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 ### Primitive Fields
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Input, InputNumber, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
@@ -66,7 +66,7 @@ const schema = {
   },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 ```
 
 ### Nested Objects
@@ -111,7 +111,7 @@ const schema = {
 
 ```typescript
 // M1: данные из модели + схема (+ опциональный декларативный behavior)
-const form = createForm<MyForm>({
+const form = createFormFromModel<MyForm>({
   model,                 // FormModel<MyForm> — обязателен
   schema,                // дерево узлов, привязанных к сигналам
   behavior: myBehavior,  // опционально: defineFormBehavior(...) из @reformer/core/behaviors
@@ -126,12 +126,12 @@ model.items.push({ id: '1', name: 'Item' }); // операции над масс
 > **Тип `schema` в M1 — `unknown`, не `FormSchema<T>`.** Это осознанно: интерпретатор обходит
 > произвольную структуру и собирает листья `{ value: signal, component?, ... }`, поэтому обёртки
 > (`{ children: [...] }`, wizard/steps) компилируются. Строгий `FormSchema<T>` (keyed-map по полям
-> `T`) применяется только на legacy-пути `createForm(schema)` без модели.
+> `T`) применяется только на legacy-пути `createLegacyForm(schema)` без модели.
 
 ### createForm Returns a Proxy
 
 ```typescript
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 
 form.email;          // FieldNode<string> — TypeScript знает тип
 form.address.city;   // FieldNode<string> — вложенный доступ

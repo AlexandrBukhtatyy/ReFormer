@@ -110,7 +110,7 @@ describe('builders', () => {
     );
     expect(ts).toContain('price: number;');
     expect(ts).toContain('items: OrderItem[];');
-    expect(ts).toContain('export const initialFormModel');
+    expect(ts).toContain('export const createFormModel = () =>');
   });
 
   /**
@@ -415,8 +415,12 @@ describe('builders', () => {
     expect(json.files.map((f) => f.path)).not.toContain('form.schema.json');
     const core = buildBundle(normalizeIntent({ ...goodIntent(), target: 'core' }));
     expect(core.files.map((f) => f.path)).not.toContain('registry.ts');
+    // Схема одна на все таргеты: `core` получает ту же `form.schema.ts`, а не `layout.json`
+    // с просьбой перенести разметку руками.
+    expect(core.files.map((f) => f.path)).toContain('form.schema.ts');
+    expect(core.files.map((f) => f.path)).not.toContain('layout.json');
     expect(core.warnings.join(' '), 'ограничение target должно быть названо').toMatch(
-      /layout\.json/
+      /правила узлов схемы исполняет рендерер/
     );
   });
 

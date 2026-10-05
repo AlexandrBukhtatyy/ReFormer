@@ -10,7 +10,7 @@
  * @module plugins/reformer/ai/model/changeset
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '../../../core/form-model';
 import type { ChangeOp, ToolOutcome } from './types';
 

@@ -15,7 +15,7 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { runAgentTurn } from '../loop/loop';
 import { createEditorToolRegistry } from '../tools';
 import { emptyRules } from '../../../core/form-model';

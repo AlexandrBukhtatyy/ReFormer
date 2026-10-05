@@ -1,6 +1,6 @@
 {
   "category": "validation",
-  "description": "Контракт @reformer/core/validation: validate / validateAsync / validateWhen / cross / each + внешний раннер validateModel.",
+  "description": "Контракт @reformer/core/validation: validate / validateAsync / validateWhen / cross / apply / applyEach + внешний раннер validateModel.",
   "tasks": [
     {
       "id": "validation/required",
@@ -72,7 +72,7 @@
       "task": "провалидировать каждый элемент массива",
       "target": "core",
       "queries": ["validate each array item", "per row validation", "validation inside form array"],
-      "expectAny": ["each("]
+      "expectAny": ["applyEach("]
     },
     {
       "id": "validation/revalidate",
@@ -91,6 +91,17 @@
       "target": "core",
       "queries": ["validate only current step", "step validation wizard", "validateStep"],
       "expectAny": ["validateStep"]
+    },
+    {
+      "id": "validation/subform",
+      "task": "применить одни и те же правила адреса к двум группам формы",
+      "target": "core",
+      "queries": [
+        "reuse validation rules for nested group",
+        "sub-form validation rules",
+        "подформа"
+      ],
+      "expectAny": ["apply(model.$."]
     }
   ]
 }

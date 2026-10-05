@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 import {
   defineFormBehavior,
   compute,
@@ -58,7 +58,7 @@ describe('Тир 1 · вычисления', () => {
       compute(m.$.discount, () => (m.subtotal > 1000 ? m.subtotal * 0.1 : 0));
       compute(m.$.total, () => m.subtotal + m.tax - m.discount);
     });
-    createForm<Order>({ model, behavior });
+    createFormFromModel<Order>({ model, behavior });
 
     model.subtotal = 2000;
     model.region = 'EU';
@@ -84,7 +84,7 @@ describe('Тир 1 · вычисления', () => {
       transformValue(m.$.phone, (v) => (v ?? '').replace(/\D/g, ''));
       transformValue(m.$.qty, (v) => Math.max(0, Math.min(100, v ?? 0)));
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.code = 'abc';
     model.phone = '+7 (912) 34';
@@ -126,7 +126,7 @@ describe('Тир 2 · условные поля', () => {
         resetOnDisable: true,
       });
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
     await tick();
     expect(node(form.cardNumber).disabled.value).toBe(false);
     expect(node(form.bankAccount).disabled.value).toBe(true);
@@ -149,7 +149,7 @@ describe('Тир 2 · условные поля', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       enableWhen(m.$.c, () => Boolean(m.a) && Boolean(m.b));
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
     await tick();
     expect(node(form.c).disabled.value).toBe(true);
     model.a = 'x';
@@ -183,7 +183,7 @@ describe('Тир 3 · копирование/синхронизация', () => 
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       copyFrom(m.$.shipping, m.$.billing, { when: () => m.sameAsShipping });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.shipping = { street: 'Main', city: 'NYC' };
     model.sameAsShipping = true;
@@ -203,7 +203,7 @@ describe('Тир 3 · копирование/синхронизация', () => 
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       syncFields(m.$.a, m.$.b);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.a = 'left';
     await tick();
@@ -225,7 +225,7 @@ describe('Тир 3 · копирование/синхронизация', () => 
       resetWhen(m.$.coupon, () => !m.hasCoupon, { resetValue: '' });
       revalidateWhen([m.$.max], revalidate);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.coupon = 'SALE';
     model.hasCoupon = false;
@@ -263,7 +263,7 @@ describe('Тир 4 · async-каскад', () => {
         m.city = '';
       });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.region = 'pre';
     model.city = 'pre';
@@ -302,7 +302,7 @@ describe('Тир 5 · массивы (агрегация)', () => {
         m.items.map((i) => (i.qty as number) * (i.price as number)).reduce((a, b) => a + b, 0)
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     expect(model.orderTotal).toBe(0);
     model.items.push({ qty: 2, price: 10 });
@@ -337,7 +337,7 @@ describe('Тир 5 · массивы (агрегация)', () => {
       compute(m.$.hasOverLimit, () => m.items.map((i) => i.qty as number).some((q) => q > 10));
       enableWhen(m.$.discountCode, () => m.items.length > 0);
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
     await tick();
     expect(model.itemCount).toBe(0);
     expect(node(form.discountCode).disabled.value).toBe(true);
@@ -373,7 +373,7 @@ describe('Тир 6 · массивы (per-item)', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       applyEach(m.$.items, rowBehavior);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.items.push({ qty: 2, price: 10, lineTotal: 0 });
     model.items.push({ qty: 3, price: 4, lineTotal: 0 });
@@ -414,7 +414,7 @@ describe('Тир 6 · массивы (per-item)', () => {
         m.items.map((i) => i.lineTotal as number).reduce((a, b) => a + b, 0)
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.items.push({ qty: 2, price: 10, lineTotal: 0 });
     model.items.push({ qty: 1, price: 100, lineTotal: 0 });
@@ -447,7 +447,7 @@ describe('Тир 7 · переиспользование/вложенность'
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       apply([m.$.person.address, m.$.company.address], addressBehavior);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.person.address.zip = 'ab123-99';
     model.company.address.zip = '7777';
@@ -473,7 +473,7 @@ describe('Тир 7 · переиспользование/вложенность'
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       apply([m.$.home, m.$.work], addressBehavior);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.home.zip = 'a1b2';
     await tick();
@@ -505,7 +505,7 @@ describe('Тир 8 · пользовательские операторы', () =
       maskDigits(m.$.phone);
       mirrorWith(m.$.src, m.$.mirror);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.score = 42;
     model.phone = '8-800-555';
@@ -534,7 +534,7 @@ describe('Тир 8 · пользовательские операторы', () =
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       persist(m.$.value, 'draft');
     });
-    const form = createForm<F>({ model, behavior });
+    const form = createFormFromModel<F>({ model, behavior });
 
     expect(store.draft).toBe('init');
     model.value = 'next';
@@ -561,7 +561,7 @@ describe('Тир 9 · lifecycle & guard', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       compute(m.$.total, () => m.price * m.qty);
     });
-    const form = createForm<F>({ model, behavior });
+    const form = createFormFromModel<F>({ model, behavior });
     model.price = 10;
     model.qty = 2;
     expect(model.total).toBe(20);
@@ -593,7 +593,7 @@ describe('Тир 10 · продвинутые кейсы', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       computeFrom([m.$.a, m.$.b], m.$.sum, (a, b) => a + b);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.a = 3;
     model.b = 4;
@@ -626,7 +626,7 @@ describe('Тир 10 · продвинутые кейсы', () => {
       compute(m.$.freeShipping, () => m.orderTotal >= 100);
       disableWhen(m.$.shippingCost, () => m.freeShipping); // бесплатная доставка → поле стоимости off
     });
-    const form = createForm<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
 
     model.items.push({ price: 40 });
     await tick();
@@ -663,7 +663,7 @@ describe('Тир 10 · продвинутые кейсы', () => {
         })
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.contacts.push({ name: 'a', primary: false });
     model.contacts.push({ name: 'b', primary: false });
@@ -697,7 +697,7 @@ describe('Тир 10 · продвинутые кейсы', () => {
         })
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.items.push({ qty: 1, price: 10, lineTotal: 0 }); // [10]
     model.items.push({ qty: 2, price: 10, lineTotal: 0 }); // [10,20]
@@ -726,7 +726,7 @@ describe('Тир 10 · продвинутые кейсы', () => {
         })
       );
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.rows.push({ address: { zip: '' } });
     model.rows.at(0).address.zip = 'ab123-99';

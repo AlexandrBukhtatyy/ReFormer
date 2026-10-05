@@ -20,7 +20,7 @@
  * @module plugins/reformer/editor/live/live-target
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { NodeId } from '@reformer/builder-plugin-api';
 import type { DragPayload } from '../editing/drag';
 import { orientationFromRects } from './live-zone';

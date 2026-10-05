@@ -72,7 +72,7 @@ function createFormValidation<T>(
 `markAsTouched` не нужен.
 
 ```tsx
-import { createModel, createForm, useFormValidation } from '@reformer/core';
+import { createModel, createFormFromModel, useFormValidation } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -87,7 +87,7 @@ const registrationValidation = defineValidationSchema<RegistrationData>(({ model
 
 function RegistrationForm() {
   const model = useMemo(() => createModel<RegistrationData>({ username: '', email: '', password: '' }), []);
-  const form = useMemo(() => createForm({ model }), [model]);
+  const form = useMemo(() => createFormFromModel({ model }), [model]);
 
   const { submit, isValidating } = useFormValidation({
     model,

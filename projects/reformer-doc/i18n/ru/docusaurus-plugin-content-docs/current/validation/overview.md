@@ -18,7 +18,7 @@ Layout-схема (дерево `RenderNode` / JSON / привязка комп�
 из `@reformer/core/validators`, возвращающие функцию `(value) => ValidationError | null`.
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
@@ -33,7 +33,7 @@ const schema = {
   email: { value: model.$.email, component: Input },
 };
 
-const form = createForm<ContactForm>({ model, schema });
+const form = createFormFromModel<ContactForm>({ model, schema });
 
 // Валидация — отдельная схема: обычная функция над моделью, обёрнутая в defineValidationSchema.
 const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {

@@ -174,7 +174,7 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
 My form doesn't show validation errors. What's wrong?
 
 const MyForm = () => {
-  const form = createForm<UserForm>({
+  const form = createLegacyForm<UserForm>({
     form: formSchema,
     validation: validationSchema,
   });
@@ -202,7 +202,7 @@ const MyForm = () => {
 
 ```typescript
 const MyForm = () => {
-  const form = useMemo(() => createForm<UserForm>({
+  const form = useMemo(() => createLegacyForm<UserForm>({
     form: formSchema,
     validation: validationSchema,
   }), []);

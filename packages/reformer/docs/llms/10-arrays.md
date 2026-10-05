@@ -6,7 +6,7 @@
 элемента из его под-модели (`FormModel<Item>`).
 
 ```typescript
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
@@ -25,7 +25,7 @@ const schema = {
   items: { array: model.items, item: itemSchema },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 ```
 
 > **Type constraint:** тип элемента `Item` объявляй через `type`-alias (не `interface`) — иначе
@@ -47,7 +47,7 @@ const model = createModel<MyForm>({ tags: [] });
 const schema = {
   tags: { value: model.$.tags, component: SelectMulti }, // поле над массивом целиком
 };
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 
 form.tags.setValue(['a', 'b']); // FieldNode<string[]>
 model.$.tags.value = ['c']; // ручка значения: заменяет массив целиком
@@ -62,6 +62,25 @@ validate(model.$.tags, [required(), maxLength(3)]); // правило получ
 - Запись в узел-ГРУППУ (`model.$.<группа>.value = …`) — ошибка: группа пишется по полям или через
   `model.patch(...)`.
 
+### Массив в группе и в строке другого массива
+
+Узел `{ array, item }` стоит на любой глубине: массив в группе получает ноду `form.<группа>.<массив>`,
+массив в строке — `form.<массив>.at(i).<массив>`. Под-схема строки объявляет свои массивы так же.
+
+```typescript
+const contactItem = (contact: FormModel<Contact>) => ({
+  name: { value: contact.$.name, component: Input },
+  phones: { array: contact.phones, item: phoneItem }, // массив в строке массива
+});
+
+const schema = {
+  hotlines: { array: model.details.hotlines, item: phoneItem }, // массив в группе
+  contacts: { array: model.contacts, item: contactItem },
+};
+```
+
+Поведение строк вложенного массива — `applyEach` внутри схемы строки, см. `21-array-operations.md`.
+
 ### Один массив — три слоя (три разных движка)
 
 Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко
@@ -73,7 +92,7 @@ validate(model.$.tags, [required(), maxLength(3)]); // правило получ
    `model.$.properties`.
 
    ```typescript
-   // узел схемы для createForm({ model, schema })
+   // узел схемы для createFormFromModel({ model, schema })
    properties: { array: model.properties, item: propertyItem },
    ```
 

@@ -48,6 +48,10 @@ const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
  * то есть `ArrayNode.push`. Должна находиться внутри `FormArray.Root` (или
  * эквивалентного провайдера), иначе `useFormArrayContext` бросит исключение.
  *
+ * Без `initialValue` новый элемент берётся из шаблона массива модели —
+ * `arrayOf(blank)` из `@reformer/core`, объявленного рядом с остальными начальными
+ * значениями. Проп `initialValue` — запасной путь для массива без шаблона.
+ *
  * Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий).
  * Передавайте его явно, если нужна type-safe проверка `initialValue`:
  * `<FormArray.AddButton<PropertyItem> initialValue={...}>`.
@@ -67,7 +71,16 @@ const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
  * </FormArray.Root>
  * ```
  *
- * @example С типизированным initialValue
+ * @example Шаблон нового элемента — в модели
+ * ```tsx
+ * // model.ts
+ * const model = createModel<Form>({ properties: arrayOf(blankProperty) });
+ *
+ * // разметка: значение нового элемента кнопке не нужно
+ * <FormArray.AddButton>+ Добавить объект</FormArray.AddButton>
+ * ```
+ *
+ * @example Запасной путь — типизированный initialValue для массива без шаблона
  * ```tsx
  * <FormArray.AddButton<Property> initialValue={{ type: 'apartment', estimatedValue: 0 }}>
  *   + Квартира
@@ -76,7 +89,7 @@ const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
  *
  * @example Своя кнопка через asChild (props мержатся в дочерний элемент)
  * ```tsx
- * <FormArray.AddButton asChild initialValue={{ name: '' }}>
+ * <FormArray.AddButton asChild>
  *   <MyButton variant="primary">+ Добавить</MyButton>
  * </FormArray.AddButton>
  * ```

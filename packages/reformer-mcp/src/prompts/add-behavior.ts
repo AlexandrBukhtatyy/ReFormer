@@ -3,11 +3,12 @@ import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 export const addBehaviorPromptDefinition = {
   name: 'add-behavior',
   description:
-    'Add behaviors (computeFrom, enableWhen, watchField, copyFrom, syncFields, revalidateWhen, resetWhen, transformValue) to an existing @reformer/core form. Slim+ prompt — full cycle-prevention checklist and behavior recipes live in MCP resources.',
+    'Add behavior to an existing @reformer form — the ONE behavior of the form: links over the model (compute, enableWhen, copyFrom, syncFields, revalidateWhen, resetWhen, transformValue) and rules for schema nodes (hideWhen by selector) in one defineFormBehavior. Slim+ prompt — full cycle-prevention checklist and behavior recipes live in MCP resources.',
   arguments: [
     {
       name: 'code',
-      description: 'Текущий код формы (FormSchema, behavior callback если есть).',
+      description:
+        'Текущий код формы (схема `form.schema.ts`, поведение `form.behavior.ts`, если оно уже есть).',
       required: true,
     },
     {

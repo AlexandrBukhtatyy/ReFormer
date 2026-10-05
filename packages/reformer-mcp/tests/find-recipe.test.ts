@@ -111,7 +111,7 @@ describe('findRecipeTool — алиасы раскладки файлов фор
     const { content } = await findRecipeTool({ topic: 'directory-layout' }, k);
     expect(content[0].text).toContain('docs/llms/06-form-directory-layout.md');
     expect(content[0].text).toContain('Rules:');
-    expect(content[0].text).toContain('Wizard steps inline in `index.tsx` or in `steps/<slug>/`');
+    expect(content[0].text).toContain('Wizard steps in the root schema or in `steps/<slug>/`');
     // Раздел прежних имён — в конце файла; он может срезаться бюджетом, §1 — нет.
     expect(content[0].text).toContain('steps/index.ts');
   });

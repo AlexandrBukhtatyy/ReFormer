@@ -40,7 +40,10 @@
  * @module plugins/reformer/validator/locate
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { findByPath } from '../../core/form-model';
 import { nodeIdOf } from '../../core/form-model';
 import type { JsonPath } from '../../core/form-model';

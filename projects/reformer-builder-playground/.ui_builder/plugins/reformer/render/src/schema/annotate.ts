@@ -22,14 +22,14 @@
  */
 
 import {
-  isArrayNode,
-  isContainerNode,
-  isFieldNode,
-  type JsonArrayNode,
-  type JsonContainerNode,
-  type JsonFieldNode,
-  type JsonFormSchema,
-  type JsonNode,
+  isArrayNodeV1 as isArrayNode,
+  isContainerNodeV1 as isContainerNode,
+  isFieldNodeV1 as isFieldNode,
+  type JsonArrayNodeV1 as JsonArrayNode,
+  type JsonContainerNodeV1 as JsonContainerNode,
+  type JsonFieldNodeV1 as JsonFieldNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { nodeIdOf } from '../../../core/form-model';
 import { isNodeLike } from '../../../core/form-model';

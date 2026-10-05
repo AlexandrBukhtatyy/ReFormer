@@ -30,7 +30,10 @@ import { synthMock } from '../../../core/form-mock';
 import { type FormMock } from '../../../core/codegen';
 import type { FormRules } from '../../../core/form-model';
 import { emptySchema } from '../../../core/form-model';
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
 import { tokenize } from '../render/placeholders';
 

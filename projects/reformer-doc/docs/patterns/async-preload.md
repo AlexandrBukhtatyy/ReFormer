@@ -14,7 +14,7 @@ sidebar_position: 4
 Начальные значения задаются в `createModel(initial)`. К ним же возвращает `model.reset()`.
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Input, SelectAsync } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en' };
@@ -36,7 +36,7 @@ const schema = {
   },
 };
 
-const form = createForm<ProfileForm>({ model, schema });
+const form = createFormFromModel<ProfileForm>({ model, schema });
 ```
 
 ## Стабильность инстанса
@@ -48,14 +48,14 @@ const form = createForm<ProfileForm>({ model, schema });
 // ❌ пересоздаётся на каждый рендер → preload запускается каждый раз
 function BadForm() {
   const model = createModel<ProfileForm>(initial);
-  const form = createForm({ model, schema });
+  const form = createFormFromModel({ model, schema });
 }
 
 // ✅ стабильные ссылки
 function GoodForm() {
   const { model, form } = useMemo(() => {
     const model = createModel<ProfileForm>(initial);
-    return { model, form: createForm({ model, schema: buildSchema(model) }) };
+    return { model, form: createFormFromModel({ model, schema: buildSchema(model) }) };
   }, []);
 }
 ```
@@ -141,7 +141,7 @@ export function useLoadProfile(
 function ProfileScreen({ userId }: { userId: string }) {
   const { model, form } = useMemo(() => {
     const model = createModel<ProfileForm>({ username: '', language: 'ru' });
-    return { model, form: createForm({ model, schema: buildSchema(model) }) };
+    return { model, form: createFormFromModel({ model, schema: buildSchema(model) }) };
   }, []);
 
   const { isLoading, error } = useLoadProfile(model, form, userId);
@@ -203,7 +203,7 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
   );
 });
 
-const form = createForm<AddressForm>({ model, schema, behavior: addressBehavior });
+const form = createFormFromModel<AddressForm>({ model, schema, behavior: addressBehavior });
 ```
 
 Жизненный цикл:

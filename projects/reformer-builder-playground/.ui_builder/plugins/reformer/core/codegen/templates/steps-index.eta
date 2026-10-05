@@ -2,7 +2,7 @@
 // Регенерируется билдером (порядок шагов берётся из схемы); правки будут перезаписаны.
 <% if (it.layout.isSplit) { -%>
 
-import type { JsonFormStep } from '@reformer/renderer-json';
+import type { JsonFormStepV1 as JsonFormStep } from '@reformer/renderer-json';
 <% } -%>
 
 <% for (const step of it.layout.steps) { -%>

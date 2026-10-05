@@ -6,6 +6,7 @@ export type {
   FormWizardProps,
   FormWizardStep,
   FormWizardStepBody,
+  FormWizardStepNode,
 } from './variants/base/form-wizard';
 export { StepIndicator } from './variants/base/step-indicator';
 export type { StepIndicatorProps } from './variants/base/step-indicator';

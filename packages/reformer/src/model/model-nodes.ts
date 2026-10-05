@@ -58,6 +58,71 @@ const deepEqual = (a: unknown, b: unknown): boolean => {
 };
 
 // ============================================================================
+// Шаблон нового элемента массива
+// ============================================================================
+
+/** Фабрика нового элемента массива. */
+type Blank = () => unknown;
+
+// Шаблон едет на самом массиве начальных значений под символом: массив остаётся обычным `U[]`
+// (тип данных формы не меняется), а в `Object.keys`/JSON/`clone` метка не попадает.
+const BLANK = Symbol.for('@reformer/core:arrayBlank');
+
+const blankOf = (value: unknown): Blank | undefined =>
+  Array.isArray(value) ? (value as { [BLANK]?: Blank })[BLANK] : undefined;
+
+/**
+ * Образец того же места модели внутри шаблона родительского массива. Ленивый: шаблон родителя
+ * ради него вызывается, только когда образец действительно понадобился.
+ */
+type Shape = () => unknown;
+
+const fieldOf = (shape: unknown, key: string): unknown =>
+  isPlainObject(shape) ? shape[key] : undefined;
+
+/**
+ * Массив модели с шаблоном нового элемента.
+ *
+ * Шаблон — фабрика значения, которое получает `push()` / `insertAt(i)` без аргумента: кнопка
+ * «Добавить» секции массива, `model.items.push()` в поведении. Объявляется там же, где остальные
+ * начальные значения, — в модели; схеме и JSX знать его не нужно.
+ *
+ * Возвращает обычный массив: тип поля остаётся `U[]`. Шаблон переживает `set` / `patch` / `reset`
+ * модели. Вложенные массивы объявляются внутри шаблона элемента — тогда и элементы, пришедшие
+ * обычными данными (загрузка с сервера), получают их шаблоны.
+ *
+ * Шаблон привязан к самому массиву, поэтому до `createModel` его нельзя копировать:
+ * `structuredClone`, `JSON.parse(JSON.stringify(…))` и `[...array]` отдают массив без шаблона, и
+ * `push()` без значения бросит ошибку. Начальные значения с `arrayOf` держат в фабрике
+ * (`const initial = () => ({ items: arrayOf(blank) })`), а не в константе, которую клонируют.
+ *
+ * @typeParam U - Тип элемента массива.
+ * @param blank - Фабрика нового элемента. Вызывается на каждое добавление — значение не делится
+ *   между элементами.
+ * @param items - Начальные элементы. По умолчанию массив пуст.
+ * @returns Массив начальных значений с шаблоном.
+ *
+ * @example
+ * ```typescript
+ * const blankPhone = () => ({ number: '' });
+ * const blankCoBorrower = () => ({ name: '', phones: arrayOf(blankPhone) });
+ *
+ * const model = createModel({ coBorrowers: arrayOf(blankCoBorrower) });
+ *
+ * model.coBorrowers.push(); // { name: '', phones: [] }
+ * model.coBorrowers.at(0).phones.push(); // { number: '' }
+ * model.coBorrowers.push({ name: 'Анна', phones: [] }); // значение целиком — как раньше
+ * ```
+ *
+ * @group Model
+ */
+export function arrayOf<U>(blank: () => U, items: readonly U[] = []): U[] {
+  const array = [...items];
+  Object.defineProperty(array, BLANK, { value: blank });
+  return array;
+}
+
+// ============================================================================
 // Внутренние узлы модели
 // ============================================================================
 
@@ -109,12 +174,18 @@ export class GroupNode {
   readonly kind = 'group' as const;
   readonly children = new Map<string, ModelNode>();
 
+  /**
+   * @param shape Образец той же группы из шаблона родительского массива: из него вложенные
+   *   массивы берут шаблоны, если значение пришло обычными данными (см. {@link ArrayNode}).
+   */
   constructor(
     initial: Record<string, unknown>,
-    public path: string
+    public path: string,
+    shape?: Shape
   ) {
     for (const key of Object.keys(initial)) {
-      this.children.set(key, buildNode(initial[key], joinPath(path, key)));
+      const childShape = shape && (() => fieldOf(shape(), key));
+      this.children.set(key, buildNode(initial[key], joinPath(path, key), childShape));
     }
   }
 
@@ -165,13 +236,64 @@ export class ArrayNode {
   readonly kind = 'array' as const;
   readonly items: Signal<ModelNode[]>;
   private initial: unknown[];
+  // Шаблон нового элемента (`arrayOf`). Принадлежит узлу, а не значению: `set`/`reset` заменяют
+  // элементы, узел остаётся — и шаблон с ним.
+  private blank: Blank | undefined;
+  // Запасной шаблон — `initialValue` узла-массива схемы.
+  private fallback: Blank | undefined;
+  // Образец элемента — один вызов шаблона. Нужен только ради вложенных шаблонов: элемент из
+  // обычных данных (`set` с сервера, `push(значение)`) метку `arrayOf` на своих массивах не несёт.
+  private sample: { readonly value: unknown } | undefined;
 
+  /** @param shape Образец того же массива из шаблона родителя (см. {@link GroupNode}). */
   constructor(
     initial: unknown[],
-    public path: string
+    public path: string,
+    private readonly shape?: Shape
   ) {
-    this.items = signal(initial.map((v, i) => buildNode(v, joinPath(path, i))));
+    this.blank = blankOf(initial);
+    this.items = signal(initial.map((v, i) => this.build(v, i)));
     this.initial = clone(initial);
+  }
+
+  /** Шаблон по старшинству: свой (`arrayOf`) → из шаблона родителя → из схемы. */
+  private template(): Blank | undefined {
+    this.blank ??= blankOf(this.shape?.());
+    return this.blank ?? this.fallback;
+  }
+
+  // Образец читается лениво — лишний вызов шаблона случается, только когда вложенному массиву
+  // элемента из обычных данных понадобился свой шаблон.
+  private readonly itemShape: Shape = () => {
+    if (!this.sample) {
+      const blank = this.template();
+      if (!blank) return undefined;
+      this.sample = { value: blank() };
+    }
+    return this.sample.value;
+  };
+
+  private build(value: unknown, index: number): ModelNode {
+    return buildNode(value, joinPath(this.path, index), this.itemShape);
+  }
+
+  /** Значение нового элемента: переданное либо из шаблона. */
+  private fresh(value: unknown): unknown {
+    if (value !== undefined) return value;
+    const blank = this.template();
+    if (!blank) {
+      throw new Error(
+        `[@reformer/core] ${this.path || 'массив'}: добавление элемента без значения, а шаблона ` +
+          'у массива нет. Объявите его в модели — `arrayOf(() => ({ … }))` — либо передайте ' +
+          'значение: `push(значение)`.'
+      );
+    }
+    return blank();
+  }
+
+  /** Шаблон из схемы (`initialValue` узла-массива) — запасной: шаблон модели главнее. */
+  provideBlank(blank: Blank): void {
+    this.fallback ??= blank;
   }
 
   rebase(path: string): void {
@@ -183,13 +305,13 @@ export class ArrayNode {
     this.items.peek().forEach((node, i) => node.rebase(joinPath(this.path, i)));
   }
 
-  push(value: unknown): void {
+  push(value?: unknown): void {
     const arr = this.items.peek();
-    this.items.value = [...arr, buildNode(value, joinPath(this.path, arr.length))];
+    this.items.value = [...arr, this.build(this.fresh(value), arr.length)];
   }
-  insertAt(index: number, value: unknown): void {
+  insertAt(index: number, value?: unknown): void {
     const arr = [...this.items.peek()];
-    arr.splice(index, 0, buildNode(value, joinPath(this.path, index)));
+    arr.splice(index, 0, this.build(this.fresh(value), index));
     this.items.value = arr;
     this.reindex();
   }
@@ -229,7 +351,7 @@ export class ArrayNode {
   }
   set(value: unknown): void {
     const arr = Array.isArray(value) ? value : [];
-    this.items.value = arr.map((v, i) => buildNode(v, joinPath(this.path, i)));
+    this.items.value = arr.map((v, i) => this.build(v, i));
   }
   resetToInitial(): void {
     this.set(clone(this.initial));
@@ -242,8 +364,12 @@ export class ArrayNode {
   }
 }
 
-function buildNode(value: unknown, path: string): ModelNode {
-  if (Array.isArray(value)) return new ArrayNode(value, path);
-  if (isPlainObject(value)) return new GroupNode(value, path);
+function buildNode(value: unknown, path: string, shape?: Shape): ModelNode {
+  if (Array.isArray(value)) return new ArrayNode(value, path, shape);
+  if (isPlainObject(value)) return new GroupNode(value, path, shape);
   return new LeafNode(value, path);
 }
+
+/** Значение `initialValue` узла-массива схемы как шаблон: фабрика — как есть, значение — копией. */
+export const blankFrom = (initialValue: unknown): Blank =>
+  typeof initialValue === 'function' ? (initialValue as Blank) : () => clone(initialValue);

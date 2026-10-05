@@ -38,11 +38,16 @@ type ValidationSchema<T> = (ctx: { model: FormModel<T> }) => void;
 | `validateAsync(sig, asyncRules[])` | асинхронные правила (раннер дожидается, прокидывает `AbortSignal`) |
 | `validateWhen(cond, cb)` | условная валидация: правила внутри активны/гасятся по `cond` (не трогает enable — это поведение) |
 | `cross(sig, fn)` | cross-field; `fn` получает снапшот модели ТЕКУЩЕГО scope (`model.get()`) |
-| `each(arr, itemFn)` | per-item по элементам массива модели |
+| `applyEach(model.$.items, itemSchema)` | схема элемента для каждой строки массива под-форм; у строки своя область |
+| `apply(model.$.group, groupSchema)` | схема подформы для группы модели; у группы своя область |
 | `apply(...schemas)` | композиция под-схем над той же моделью (заменяет пошаговую группировку) |
 
-Переиспользование под-модели (адрес и т.п.) — **прямой вызов**: `addressValidation({ model: model.registrationAddress })`
-(схема — обычная функция). Для cross над элементом массива/под-моделью захватывайте `im.get()` в замыкание.
+> **Заменено единым контрактом** ([synchronous-snacking-moon.md](synchronous-snacking-moon.md), шаги 3 и 5).
+> Раньше здесь значились `each(arr, itemFn)` и **прямой вызов** под-схемы
+> `addressValidation({ model: model.registrationAddress })` с захватом снапшота `im.get()` в замыкание.
+> Теперь подформа и массив подключаются привязкой — `apply(model.$.group, schema)` и
+> `applyEach(model.$.items, schema)`: у подключённой схемы своя область, и `cross` внутри неё получает
+> снапшот под-модели. `each` остаётся прежней записью `applyEach` до удаления старого API.
 
 ### `defineValidationSchema` + раннер
 
@@ -62,6 +67,10 @@ validateModel<T>(model: FormModel<T>, schema: ValidationSchema<T>): Promise<bool
   роутинг применяется только если не `aborted`); `AbortSignal` прокидывается в `validateAsync` для отмены fetch.
 
 ### Конфиг wizard'а (инвариант, слой потребления не меняется)
+
+> **Заменено единым контрактом** (шаги 6 и 8). `makeValidationConfig` руками больше не пишется: правила
+> передаются в сборку — `createForm({ validation: { steps: { loan: loanRules }, extras } })`, — а визард
+> берёт собранную валидацию из контекста сборки. Ключ шага в `steps` — `selector` узла шага.
 
 ```ts
 function makeValidationConfig(model: M) {

@@ -1,4 +1,5 @@
 {
+  "format": 2,
   "version": "1.0",
   "root": {
     "selector": "prefill-boundary",
@@ -46,7 +47,7 @@
                 },
                 "children": [
                   {
-                    "value": "$model(username)",
+                    "model": "$model(username)",
                     "component": "$component(Input)",
                     "componentProps": {
                       "label": "Имя пользователя",
@@ -57,7 +58,7 @@
                     }
                   },
                   {
-                    "value": "$model(email)",
+                    "model": "$model(email)",
                     "component": "$component(Input)",
                     "componentProps": {
                       "label": "Email",
@@ -76,7 +77,7 @@
                 },
                 "children": [
                   {
-                    "value": "$model(password)",
+                    "model": "$model(password)",
                     "component": "$component(InputPassword)",
                     "componentProps": {
                       "label": "Пароль",
@@ -86,7 +87,7 @@
                     }
                   },
                   {
-                    "value": "$model(confirmPassword)",
+                    "model": "$model(confirmPassword)",
                     "component": "$component(InputPassword)",
                     "componentProps": {
                       "label": "Подтвердите пароль",
@@ -98,7 +99,7 @@
                 ]
               },
               {
-                "value": "$model(fullName)",
+                "model": "$model(fullName)",
                 "component": "$component(Input)",
                 "componentProps": {
                   "label": "Полное имя",
@@ -114,7 +115,7 @@
                 },
                 "children": [
                   {
-                    "value": "$model(phone)",
+                    "model": "$model(phone)",
                     "component": "$component(InputMask)",
                     "componentProps": {
                       "label": "Телефон",
@@ -125,7 +126,7 @@
                     }
                   },
                   {
-                    "value": "$model(captcha)",
+                    "model": "$model(captcha)",
                     "component": "$component(Input)",
                     "componentProps": {
                       "label": "Введите captcha",
@@ -137,7 +138,7 @@
                 ]
               },
               {
-                "value": "$model(acceptTerms)",
+                "model": "$model(acceptTerms)",
                 "component": "$component(Checkbox)",
                 "componentProps": {
                   "label": "Я принимаю условия использования",

@@ -3,7 +3,7 @@ import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
 import { plainSchema } from './__fixtures__/kit';
 import { collect } from './collect';
 import { synthMock } from '../form-mock';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 
 function collectOf(schema = plainSchema()) {
   return collect(schema, synthMock(schema));

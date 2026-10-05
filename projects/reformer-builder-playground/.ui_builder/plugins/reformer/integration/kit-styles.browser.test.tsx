@@ -22,7 +22,7 @@ import type {
   PreviewContext,
   PreviewValues,
 } from '@reformer/builder-plugin-api';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
 import { createKitsService } from '../../forms/kits/src';
 import { projectCatalog } from '../core/catalog';

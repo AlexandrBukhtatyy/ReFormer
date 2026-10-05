@@ -19,7 +19,12 @@ import {
   type FormIntent,
   type IntentProblem,
 } from '../generate/form-intent.js';
-import { buildBundle, renderLayoutChecklist, renderLayoutLine } from '../generate/builders.js';
+import {
+  buildAssemblyTsx,
+  buildBundle,
+  renderLayoutChecklist,
+  renderLayoutLine,
+} from '../generate/builders.js';
 import { crossCheckBundle } from '../generate/cross-check.js';
 import { intentFromAnalysis } from '../generate/from-spec.js';
 import { analyzeSpec } from '../spec/analyze.js';
@@ -52,14 +57,14 @@ export const planFormToolDefinition = {
 export const generateFormToolDefinition = {
   name: 'generate_form',
   description:
-    'Compile a FormIntent into a form bundle (model.ts, form.validation.ts, form.behavior.ts, layout, registry) and cross-check the files against each other: every $model path exists in the model, every $component is registered, every rule and behaviour targets a real path, no compute cycles. Returns a manifest — you write the files yourself, under the canonical file names it prints for the target (rule: find_recipe directory-layout).',
+    'Compile a FormIntent into a form bundle (model.ts, form.schema.ts, form.validation.ts, form.behavior.ts, plus registry.ts for renderer-json) and cross-check the files against each other: every $model path exists in the model, every $component is registered, every $part is declared, every rule and behaviour targets a real path, no compute cycles. The contract is the same for every target: one schema tree, one behavior, one assembly — the manifest also prints the index.tsx assembly (createForm + useFormBundle). Returns a manifest — you write the files yourself, under the canonical file names it prints for the target (rule: find_recipe directory-layout).',
   inputSchema: {
     type: 'object' as const,
     properties: {
       intent: {
         type: 'object',
         description:
-          'FormIntent, typically from plan_form. Partial input is normalised with warnings.',
+          'FormIntent, typically from plan_form. Partial input is normalised with warnings. Reusable sub-form: declare its layout once in `parts: { <name>: LayoutNode }` and mount it with a layout node `{ kind: "part", ref: "<group path>", part: "<name>" }`; field refs inside a part are relative to the group.',
       },
       target: { type: 'string', description: 'Overrides intent.target.' },
     },
@@ -289,6 +294,21 @@ function buildManifest(args: GenerateFormArgs): {
     lines.push(file.content.trimEnd());
     lines.push('```');
   }
+
+  // Сборка — единственный файл, который консумент пишет целиком сам, и ровно в нём живут
+  // прежние фабрики. Образец печатается всегда, а не по запросу: молчание читалось бы как
+  // «собирайте как привыкли».
+  lines.push('');
+  lines.push('## Сборка — `index.tsx` (пишете сами)');
+  lines.push(
+    '_Образец, а не файл бандла: загрузку данных, submit и оформление страницы добавляете вы. ' +
+      'Сборка одна на все таргеты — `createForm` + `useFormBundle`; `createCoreForm`, ' +
+      '`createReactForm`, `createJsonForm` и `JsonFormRenderer` — прежний контракт._'
+  );
+  lines.push('');
+  lines.push('```tsx');
+  lines.push(buildAssemblyTsx(intent).trimEnd());
+  lines.push('```');
 
   return text(lines.join('\n'));
 }

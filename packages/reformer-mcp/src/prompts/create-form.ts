@@ -26,7 +26,7 @@ export const createFormPromptDefinition = {
     {
       name: 'target',
       description:
-        'Целевой стек: "core" (только @reformer/core + ручной React), "renderer-react" (TS RenderSchema через @reformer/renderer-react), "renderer-json" (JSON-схема через @reformer/renderer-json). По умолчанию "core".',
+        'Целевой стек: "core" (разметка руками в JSX), "renderer-react" (разметку рисует FormRenderer по TS-схеме), "renderer-json" (схема — JSON-документ + реестр). Контракт формы один на все три; различается только вид схемы и то, кто рисует. По умолчанию "core".',
       required: false,
     },
     {
@@ -39,9 +39,9 @@ export const createFormPromptDefinition = {
 };
 
 function targetLabelFor(target: ReformerTarget): string {
-  if (target === 'core') return '(только @reformer/core + ручной React-рендеринг)';
-  if (target === 'renderer-react') return '(@reformer/renderer-react + TS RenderSchema)';
-  return '(@reformer/renderer-json + JSON-схема + Registry)';
+  if (target === 'core') return '(разметка руками в JSX; схема, поведение и сборка — те же)';
+  if (target === 'renderer-react') return '(разметку рисует FormRenderer по TS-схеме)';
+  return '(схема — JSON-документ формата 2 + реестр компонентов)';
 }
 
 function rendererPrereqsFor(target: ReformerTarget): string {
@@ -110,14 +110,16 @@ function layoutGuidanceFor(mode: LayoutMode, target: ReformerTarget): string {
 
   return (
     '**Default layout = `minimalist`** (flat, one file per concern). Flat form module — no ' +
-    '`lib/` / `schema/` / `components/steps/` nesting. Wizard steps live inline in `index.tsx` ' +
+    '`lib/` / `schema/` / `components/steps/` nesting. Wizard steps live in the root schema ' +
     'OR one folder per step `steps/<slug>/` (kebab slug of the step title, no number) holding ' +
     `${stepFiles}, with the aggregator \`steps/index.ts\`. ` +
     `Canonical set for \`${target}\`: ${names(false)}` +
     (optionalNames ? ` (optional: ${optionalNames})` : '') +
-    '. Naming rule, identical across targets: `form.<role>` is a form artifact and its suffix ' +
-    'names the role (`schema` = markup, `behavior` = model behavior, `render` = render ' +
-    'behavior, `validation` = validation rules); every other file is plain-named, and a step folder reuses the same names. ' +
+    '. Naming rule and file set, identical across targets: `form.<role>` is a form artifact and ' +
+    'its suffix names the role (`schema` = the one schema tree, `behavior` = the one behavior: ' +
+    'model links and schema-node rules, `validation` = validation rules); every other file is ' +
+    'plain-named, and a step folder reuses the same names. There is no `form.render.ts` and no ' +
+    '`wizard.tsx` — those belong to the former contract. ' +
     (target === 'renderer-json'
       ? 'The schema is `form.schema.ts` — the same JSON-DSL literal wrapped in ' +
         '`defineJsonSchema<T>({ … })`, which keeps `$model(...)` paths checked at compile time; ' +

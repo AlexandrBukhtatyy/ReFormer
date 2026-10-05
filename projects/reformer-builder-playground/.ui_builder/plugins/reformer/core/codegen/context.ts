@@ -14,7 +14,7 @@
  * @module plugins/reformer/core/codegen/context
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '../form-model/rules';
 import { splitFormSchema, type SplitFormSchema, type StepOrigins } from '../form-model/composite';
 import { collect, type Collected } from './collect';

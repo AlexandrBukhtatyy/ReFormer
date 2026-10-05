@@ -1,22 +1,25 @@
 /**
  * Валидация формы «Заявка на кредит».
  *
- * Валидация — ОТДЕЛЬНЫЙ слой над моделью: render-дерево (`RenderNode`) валидаторов не несёт.
+ * Валидация — ОТДЕЛЬНЫЙ слой над моделью: дерево схемы валидаторов не несёт.
  * Схемы — стабильные module-level `const`: по паре `(model, schema)` раннер отменяет
  * устаревшие прогоны, инлайн-стрелка ломает эту дедупликацию.
+ *
+ * Строки массивов — такие же схемы над элементом, подключённые `applyEach(model.$.arr, rules)`:
+ * `cross` внутри них получает снапшот самой строки.
+ *
+ * Наружу уходит `creditApplicationValidation` — правила шагов данными; ключ шага = `selector`
+ * узла шага в схеме. Конфиг для визарда (`validateStep` / `validateAll`) собирает `createForm`.
  */
 
-import type { FormModel, ValidationError } from '@reformer/core';
+import type { FormValidation, ValidationError } from '@reformer/core';
 import {
-  apply,
+  applyEach,
   cross,
   defineValidationSchema,
-  each,
   validate,
-  validateModel,
   validateWhen,
   type Rule,
-  type ValidationSchema,
 } from '@reformer/core/validation';
 import {
   email,
@@ -38,7 +41,10 @@ import {
   MAX_INCOME_YEARS,
   PAYMENT_TO_INCOME_LIMIT,
   PAYMENT_TO_INCOME_WARNING,
+  type CoBorrowerItem,
   type CreditApplicationForm,
+  type ExistingLoanItem,
+  type PropertyItem,
 } from './types';
 
 type Root = CreditApplicationForm;
@@ -376,6 +382,67 @@ const step4 = defineValidationSchema<Root>(({ model }) => {
 });
 
 // --------------------------------------------------------------------------------------------
+// Правила строк массивов (шаг 5) — схемы над элементом, область каждой — сама строка
+// --------------------------------------------------------------------------------------------
+
+/** Снапшот строки приходит в `cross` аргументом: остаток задолженности не больше суммы. */
+const remainingVsAmount = (loan: ExistingLoanItem): ValidationError | null =>
+  loan.remainingAmount > loan.amount
+    ? {
+        code: 'remainingTooBig',
+        message: 'Остаток задолженности не может быть больше суммы кредита',
+      }
+    : null;
+
+const propertyRules = defineValidationSchema<PropertyItem>(({ model: im }) => {
+  validate(im.$.type, [required({ message: 'Выберите тип имущества' })]);
+  validate(im.$.description, [required({ message: 'Опишите имущество' })]);
+  validate(im.$.estimatedValue, [
+    required({ message: 'Укажите оценочную стоимость' }),
+    min(0, { message: 'Стоимость не может быть отрицательной' }),
+  ]);
+});
+
+const existingLoanRules = defineValidationSchema<ExistingLoanItem>(({ model: im }) => {
+  validate(im.$.bank, [required({ message: 'Укажите банк' })]);
+  validate(im.$.type, [required({ message: 'Укажите тип кредита' })]);
+  validate(im.$.amount, [
+    required({ message: 'Укажите сумму кредита' }),
+    min(0, { message: 'Сумма не может быть отрицательной' }),
+  ]);
+  validate(im.$.remainingAmount, [
+    required({ message: 'Укажите остаток задолженности' }),
+    min(0, { message: 'Остаток не может быть отрицательным' }),
+  ]);
+  cross(im.$.remainingAmount, remainingVsAmount);
+  validate(im.$.monthlyPayment, [
+    required({ message: 'Укажите ежемесячный платёж' }),
+    min(0, { message: 'Платёж не может быть отрицательным' }),
+  ]);
+  validate(im.$.maturityDate, [required({ message: 'Укажите дату погашения' })]);
+});
+
+const coBorrowerRules = defineValidationSchema<CoBorrowerItem>(({ model: im }) => {
+  validate(im.$.personalData.lastName, [required({ message: 'Укажите фамилию' })]);
+  validate(im.$.personalData.firstName, [required({ message: 'Укажите имя' })]);
+  validate(im.$.personalData.middleName, [required({ message: 'Укажите отчество' })]);
+  validate(im.$.personalData.birthDate, [required({ message: 'Укажите дату рождения' })]);
+  validate(im.$.phone, [
+    required({ message: 'Укажите телефон' }),
+    pattern(PHONE_RE, { message: 'Формат: +7 (999) 999-99-99' }),
+  ]);
+  validate(im.$.email, [
+    required({ message: 'Укажите email' }),
+    email({ message: 'Некорректный email' }),
+  ]);
+  validate(im.$.relationship, [required({ message: 'Укажите родство' })]);
+  validate(im.$.monthlyIncome, [
+    required({ message: 'Укажите доход созаёмщика' }),
+    min(0, { message: 'Доход не может быть отрицательным' }),
+  ]);
+});
+
+// --------------------------------------------------------------------------------------------
 // Шаг 5 — дополнительная информация, массивы
 // --------------------------------------------------------------------------------------------
 
@@ -388,61 +455,9 @@ const step5 = defineValidationSchema<Root>(({ model }) => {
   ]);
   validate(model.$.education, [required({ message: 'Выберите уровень образования' })]);
 
-  each(model.properties, (im) => {
-    validate(im.$.type, [required({ message: 'Выберите тип имущества' })]);
-    validate(im.$.description, [required({ message: 'Опишите имущество' })]);
-    validate(im.$.estimatedValue, [
-      required({ message: 'Укажите оценочную стоимость' }),
-      min(0, { message: 'Стоимость не может быть отрицательной' }),
-    ]);
-  });
-
-  each(model.existingLoans, (im) => {
-    const item = im.get();
-    validate(im.$.bank, [required({ message: 'Укажите банк' })]);
-    validate(im.$.type, [required({ message: 'Укажите тип кредита' })]);
-    validate(im.$.amount, [
-      required({ message: 'Укажите сумму кредита' }),
-      min(0, { message: 'Сумма не может быть отрицательной' }),
-    ]);
-    validate(im.$.remainingAmount, [
-      required({ message: 'Укажите остаток задолженности' }),
-      min(0, { message: 'Остаток не может быть отрицательным' }),
-    ]);
-    cross(im.$.remainingAmount, () =>
-      item.remainingAmount > item.amount
-        ? {
-            code: 'remainingTooBig',
-            message: 'Остаток задолженности не может быть больше суммы кредита',
-          }
-        : null
-    );
-    validate(im.$.monthlyPayment, [
-      required({ message: 'Укажите ежемесячный платёж' }),
-      min(0, { message: 'Платёж не может быть отрицательным' }),
-    ]);
-    validate(im.$.maturityDate, [required({ message: 'Укажите дату погашения' })]);
-  });
-
-  each(model.coBorrowers, (im) => {
-    validate(im.$.personalData.lastName, [required({ message: 'Укажите фамилию' })]);
-    validate(im.$.personalData.firstName, [required({ message: 'Укажите имя' })]);
-    validate(im.$.personalData.middleName, [required({ message: 'Укажите отчество' })]);
-    validate(im.$.personalData.birthDate, [required({ message: 'Укажите дату рождения' })]);
-    validate(im.$.phone, [
-      required({ message: 'Укажите телефон' }),
-      pattern(PHONE_RE, { message: 'Формат: +7 (999) 999-99-99' }),
-    ]);
-    validate(im.$.email, [
-      required({ message: 'Укажите email' }),
-      email({ message: 'Некорректный email' }),
-    ]);
-    validate(im.$.relationship, [required({ message: 'Укажите родство' })]);
-    validate(im.$.monthlyIncome, [
-      required({ message: 'Укажите доход созаёмщика' }),
-      min(0, { message: 'Доход не может быть отрицательным' }),
-    ]);
-  });
+  applyEach(model.$.properties, propertyRules);
+  applyEach(model.$.existingLoans, existingLoanRules);
+  applyEach(model.$.coBorrowers, coBorrowerRules);
 });
 
 // --------------------------------------------------------------------------------------------
@@ -474,32 +489,11 @@ export const emailLiveSchema = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.emailAdditional, [email({ message: 'Некорректный email' })]);
 });
 
-/** Схемы шагов в порядке следования визарда (1-based снаружи). */
-export const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [
-  step1,
-  step2,
-  step3,
-  step4,
-  step5,
-  step6,
-];
-
-/** Полная схема формы — композиция шагов. Стабильная ссылка. */
-export const fullValidationSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
-
-/** Шаг вне диапазона: пустая схема гасит ранее показанные ошибки, ничего не блокируя. */
-const emptySchema: ValidationSchema<Root> = () => {};
-
 /**
- * Контракт `FormWizardConfig` — две функции, возвращающие `boolean | Promise<boolean>`.
- * Раннер `validateModel` сам роутит ошибки в ноды формы, поэтому UI подсветит поля.
+ * Правила формы — данными. Ключ шага = `selector` узла шага в схеме (`renderer.schema.tsx`):
+ * визард проверяет шаг правилами под его селектором, а отправку — всеми шагами сразу.
+ * Схемы — стабильные `const`-ссылки (важно для отмены устаревших прогонов).
  */
-export function makeCreditValidationConfig(model: FormModel<Root>): {
-  validateStep: (step: number) => Promise<boolean>;
-  validateAll: () => Promise<boolean>;
-} {
-  return {
-    validateStep: (step: number) => validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema),
-    validateAll: () => validateModel(model, fullValidationSchema),
-  };
-}
+export const creditApplicationValidation: FormValidation<Root> = {
+  steps: { step1, step2, step3, step4, step5, step6 },
+};

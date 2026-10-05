@@ -22,7 +22,10 @@
  * @module plugins/reformer/validator/checks/model-paths
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import {
   boundPathsIn,
   collectModelReads,

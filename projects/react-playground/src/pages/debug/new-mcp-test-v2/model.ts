@@ -3,8 +3,11 @@
  *
  * Инициализируется КАЖДОЕ поле, включая поля элементов массивов: без сигнала
  * поле не отрендерится и не провалидируется.
+ *
+ * Здесь же — шаблоны новых элементов массивов: `arrayOf(blank, items)` объявляет, чем массив
+ * пополняет кнопка «Добавить». В документе схемы шаблона нет.
  */
-import { createModel } from '@reformer/core';
+import { arrayOf, createModel } from '@reformer/core';
 
 import type {
   AddressData,
@@ -30,12 +33,12 @@ export function emptyAddress(): AddressData {
   return { region: '', city: '', street: '', house: '', apartment: '', postalCode: '' };
 }
 
-/** Литерал нового элемента массива `properties` (он же `initialValue` array-ноды). */
+/** Шаблон нового элемента массива `properties`. */
 export function emptyProperty(): PropertyItem {
   return { type: 'apartment', description: '', estimatedValue: 0, hasEncumbrance: false };
 }
 
-/** Литерал нового элемента массива `existingLoans`. */
+/** Шаблон нового элемента массива `existingLoans`. */
 export function emptyExistingLoan(): ExistingLoanItem {
   return {
     bank: '',
@@ -47,7 +50,7 @@ export function emptyExistingLoan(): ExistingLoanItem {
   };
 }
 
-/** Литерал нового элемента массива `coBorrowers`. */
+/** Шаблон нового элемента массива `coBorrowers`. */
 export function emptyCoBorrower(): CoBorrowerItem {
   return {
     personalData: emptyPersonalData(),
@@ -151,6 +154,17 @@ export function mergeInitial(prefill?: Partial<CreditApplicationForm>): CreditAp
   return merged;
 }
 
+/**
+ * Модель заявки. Шаблоны элементов вешаются здесь, а не в `INITIAL_VALUES`: `structuredClone` в
+ * `mergeInitial` и массивы предзаполненной заявки дают обычные массивы — шаблон на них не
+ * переезжает.
+ */
 export function createCreditModel(prefill?: Partial<CreditApplicationForm>) {
-  return createModel<CreditApplicationForm>(mergeInitial(prefill));
+  const values = mergeInitial(prefill);
+  return createModel<CreditApplicationForm>({
+    ...values,
+    properties: arrayOf(emptyProperty, values.properties),
+    existingLoans: arrayOf(emptyExistingLoan, values.existingLoans),
+    coBorrowers: arrayOf(emptyCoBorrower, values.coBorrowers),
+  });
 }

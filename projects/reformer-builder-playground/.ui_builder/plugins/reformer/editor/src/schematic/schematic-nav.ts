@@ -28,7 +28,10 @@
  * @module plugins/reformer/editor/schematic/schematic-nav
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { childSlots, isNodeLike } from '../../../core/form-model';
 import { getAt, toPointer, type JsonPath } from '../../../core/form-model';
 import { navTarget, type NavDir } from '../../../core/form-model';

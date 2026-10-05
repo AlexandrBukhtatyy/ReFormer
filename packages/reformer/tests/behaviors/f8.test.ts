@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 import { defineFormBehavior, exclusiveFlag, aggregateInto } from '../../src/form/behaviors';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -23,7 +23,7 @@ describe('F8 · exclusiveFlag (single-selection)', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       exclusiveFlag<Contact>(m.$.contacts, (row) => row.$.primary);
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.contacts.push({ name: 'a', primary: false });
     model.contacts.push({ name: 'b', primary: false });
@@ -58,7 +58,7 @@ describe('F8 · aggregateInto (cross-row aggregate write)', () => {
         return [{ index: n - 1, patch: { percent: 100 - others } }];
       });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     // инкрементальный push (ранее хрупкий случай) — коалесинг считает по финальному состоянию
     model.rows.push({ percent: 0 });
@@ -89,7 +89,7 @@ describe('F8 · aggregateInto (cross-row aggregate write)', () => {
         return [{ index: n - 1, patch: { percent: 100 - others } }];
       });
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     model.set({ rows: [{ percent: 25 }, { percent: 25 }, { percent: 0 }] });
     await tick();

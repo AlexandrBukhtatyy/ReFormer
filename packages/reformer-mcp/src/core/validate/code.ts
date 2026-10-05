@@ -53,7 +53,15 @@ function parseImports(code: string): ParsedImport[] {
 }
 
 /** Операторы, которые обязаны вызываться внутри своей схемы. */
-const VALIDATION_OPERATORS = ['validate', 'validateAsync', 'validateWhen', 'cross', 'each'];
+const VALIDATION_OPERATORS = [
+  'validate',
+  'validateAsync',
+  'validateWhen',
+  'cross',
+  'each',
+  'apply',
+  'applyEach',
+];
 const BEHAVIOR_OPERATORS = [
   'compute',
   'computeFrom',
@@ -65,10 +73,58 @@ const BEHAVIOR_OPERATORS = [
   'resetWhen',
   'transformValue',
   'revalidateWhen',
+  'apply',
   'applyEach',
   'exclusiveFlag',
   'aggregateInto',
+  // Правила узлов схемы — такие же операторы поведения: вне `defineFormBehavior` запись в схему
+  // не привязана к жизни формы и не снимется вместе с ней.
+  'hideWhen',
+  'onComponentEvent',
+  'onMount',
+  'onUnmount',
+  'renderEffect',
 ];
+
+/** Операторы узлов схемы — подмножество {@link BEHAVIOR_OPERATORS}. */
+const NODE_OPERATORS = new Set([
+  'hideWhen',
+  'onComponentEvent',
+  'onMount',
+  'onUnmount',
+  'renderEffect',
+]);
+
+/**
+ * `apply` и `applyEach` есть в обоих слоях: правила подформы подключает оператор из
+ * `@reformer/core/validation`, поведение — из `@reformer/core/behaviors`. Чей вызов перед нами,
+ * решает модуль импорта, а не имя.
+ */
+const VALIDATION_MODULE = '@reformer/core/validation';
+const BEHAVIOR_MODULE = '@reformer/core/behaviors';
+
+/**
+ * Прежний контракт сборки: имя → чем заменить. Символы ещё экспортируются (помечены
+ * `@deprecated`), поэтому это предупреждение, а не ошибка.
+ */
+const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
+  createCoreForm:
+    '`createForm({ model, schema, behavior, validation })` из `@reformer/core` — одна сборка на все способы',
+  createReactForm:
+    '`createForm({ model, schema, behavior, validation })` из `@reformer/core`; бандл рисует `<FormRenderer form={bundle} />`',
+  createJsonForm:
+    '`createForm({ model, schema: document, registry, behavior, validation })` из `@reformer/core`; документ — формата 2 (`migrateJsonSchema` переводит прежний)',
+  useReactForm: '`useFormBundle` из `@reformer/core`',
+  useJsonForm: '`useFormBundle` из `@reformer/core`',
+  JsonFormRenderer: '`FormRenderer` из `@reformer/renderer-react` с бандлом `createForm`',
+  JsonRendererProvider:
+    'не нужен: реестр уходит в сборку — `createForm({ …, registry })`; несколько реестров объединяет `composeRegistries`',
+  each: '`applyEach(model.$.items, itemRules)` — правила строки отдельной схемой над элементом',
+  makeValidationConfig:
+    'конфиг визарда собирает сборка: `createForm({ …, validation: { steps, extras } })`',
+  convertJsonToM1Tree:
+    '`convertJsonSchema` для документа формата 2; обычно его зовёт сам реестр через `createForm({ registry })`',
+};
 
 /**
  * Диапазоны строк, находящиеся внутри вызова `fnName(`.
@@ -196,6 +252,19 @@ export async function validateCode(
           });
         }
       }
+      // Прежняя сборка: имя существует, но контракт заменён — называем замену прямо.
+      const replacement = LEGACY_ASSEMBLY[imported];
+      if (replacement && isLegacyImport(imported, imp.from)) {
+        diagnostics.push({
+          code: 'RF010',
+          severity: 'warning',
+          message: `\`${imported}\` — прежний контракт сборки формы.`,
+          line: imp.line,
+          suggestion: `Замена: ${replacement}.`,
+          fix: { tool: 'find_recipe', arguments: { topic: 'unified-contract' } },
+        });
+        continue;
+      }
       const deprecated = matches[0].tags.find((t) => t.tag === 'deprecated');
       if (deprecated) {
         diagnostics.push({
@@ -213,6 +282,12 @@ export async function validateCode(
   const validationRanges = rangesInside(source, 'defineValidationSchema');
   const behaviorRanges = rangesInside(source, 'defineFormBehavior');
   const importedLocals = new Set(reformerImports.flatMap((i) => i.names.map((n) => n.local)));
+  // Имя → модуль импорта: им разводятся одноимённые операторы двух слоёв (`apply`, `applyEach`).
+  const moduleOf = new Map<string, string>();
+  for (const imp of reformerImports) for (const n of imp.names) moduleOf.set(n.local, imp.from);
+  /** Оператор слоя: имя импортировано, и не из модуля другого слоя. */
+  const isFrom = (op: string, own: string, other: string): boolean =>
+    importedLocals.has(op) && (moduleOf.get(op) === own || moduleOf.get(op) !== other);
 
   for (let i = 0; i < lines.length; i++) {
     const lineNo = i + 1;
@@ -220,7 +295,7 @@ export async function validateCode(
     if (/^\s*(\/\/|\*|\/\*)/.test(text)) continue; // комментарий
 
     for (const op of VALIDATION_OPERATORS) {
-      if (!importedLocals.has(op)) continue;
+      if (!isFrom(op, VALIDATION_MODULE, BEHAVIOR_MODULE)) continue;
       if (!new RegExp(`(^|[^.\\w])${op}\\s*\\(`).test(text)) continue;
       if (inAnyRange(lineNo, validationRanges)) continue;
       diagnostics.push({
@@ -234,7 +309,10 @@ export async function validateCode(
     }
 
     for (const op of BEHAVIOR_OPERATORS) {
-      if (!importedLocals.has(op)) continue;
+      if (!isFrom(op, BEHAVIOR_MODULE, VALIDATION_MODULE)) continue;
+      // Одноимённые обёртки `@reformer/renderer-react` — прежний слой рендера: там правила узлов
+      // пишутся в функции `(schema) => …`, и вне `defineFormBehavior` им самое место.
+      if (NODE_OPERATORS.has(op) && moduleOf.get(op) !== BEHAVIOR_MODULE) continue;
       if (!new RegExp(`(^|[^.\\w])${op}\\s*\\(`).test(text)) continue;
       if (inAnyRange(lineNo, behaviorRanges)) continue;
       diagnostics.push({
@@ -281,6 +359,24 @@ export async function validateCode(
     }
   }
 
+  // --- RF010: ключи и поля прежнего контракта формы ------------------------------------
+  // Код с ними пока работает (ключи принимаются, фабрики помечены `@deprecated`), поэтому это
+  // предупреждения: назвать замену дешевле, чем дать прежней записи разойтись по новым формам.
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i];
+    if (/^\s*(\/\/|\*|\/\*)/.test(text)) continue;
+    for (const legacy of LEGACY_KEYS) {
+      if (!legacy.re.test(text)) continue;
+      diagnostics.push({
+        code: 'RF010',
+        severity: 'warning',
+        message: legacy.message,
+        line: i + 1,
+        suggestion: legacy.suggestion,
+      });
+    }
+  }
+
   const limitations = [
     'Разбор построчный, без TypeScript-AST: переименование при импорте (`X as Y`) отслеживается, ' +
       'но вложенные фабрики и динамические вызовы — нет.',
@@ -289,6 +385,50 @@ export async function validateCode(
   ];
   return { diagnostics, limitations };
 }
+
+/**
+ * Импорт относится к прежнему контракту сборки. `each` — имя общее: прежним считается только
+ * оператор валидации из `@reformer/core/validation`.
+ */
+function isLegacyImport(name: string, from: string): boolean {
+  return name === 'each' ? from === VALIDATION_MODULE : true;
+}
+
+/**
+ * Ключи и поля прежнего контракта в коде схемы и сборки: что найдено → чем заменить.
+ * Разбор построчный, поэтому шаблоны узкие: привязка обязана стоять рядом с ключом.
+ */
+const LEGACY_KEYS: ReadonlyArray<{ re: RegExp; message: string; suggestion: string }> = [
+  {
+    re: /\bvalue:\s*[A-Za-z_$][\w$]*\.\$\./,
+    message: 'Привязка поля ключом `value` — прежняя запись узла схемы.',
+    suggestion: 'Пишите `model: model.$.<path>`: привязка узла к модели — один ключ `model`.',
+  },
+  {
+    re: /\barray:\s*[A-Za-z_$][\w$]*\.(?!\$\.)[A-Za-z_$]/,
+    message:
+      'Привязка массива ключом `array` и фасадом `model.<path>` — прежняя запись узла схемы.',
+    suggestion: 'Пишите `model: model.$.<path>` вместе с `item` — ручка из `model.$`, как у поля.',
+  },
+  {
+    re: /["']value["']\s*:\s*["']\$model\(/,
+    message: 'Ключ `"value"` у узла JSON-схемы — прежний формат документа.',
+    suggestion:
+      'В формате 2 привязка — `"model": "$model(path)"`; документ целиком переводит `migrateJsonSchema`.',
+  },
+  {
+    re: /["']array["']\s*:\s*["']\$model\(/,
+    message: 'Ключ `"array"` у узла JSON-схемы — прежний формат документа.',
+    suggestion:
+      'В формате 2 массив — `"model": "$model(path)"` + `"item"`; документ целиком переводит `migrateJsonSchema`.',
+  },
+  {
+    re: /\brenderBehavior\s*:/,
+    message: 'Поле `renderBehavior` — прежний слой поведения разметки.',
+    suggestion:
+      'Правила узлов пишутся в единственном поведении формы: `defineFormBehavior(({ model, schema }) => { hideWhen(schema.node(selector), …) })`.',
+  },
+];
 
 /** Замена удалённого символа ui-kit (`*Field`, `withFormControl`); `undefined` — не удалён. */
 function removedUiKitReplacement(name: string): string | undefined {

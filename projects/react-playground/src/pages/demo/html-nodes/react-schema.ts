@@ -1,5 +1,5 @@
 /**
- * Типизованная RenderSchema мини-примера: `component` строкой-тегом + текст прямо в `children`.
+ * Схема мини-примера на TS: `component` строкой-тегом + текст прямо в `children`.
  *
  * Показывает, что презентационные блоки (заголовок, инфо-плашка, сводка, разделитель) больше
  * не требуют отдельного React-компонента с регистрацией — они описываются прямо в схеме.
@@ -9,8 +9,7 @@
  */
 
 import { computed } from '@reformer/core/signals';
-import type { FormModel } from '@reformer/core';
-import type { RenderNode } from '@reformer/renderer-react';
+import type { FormModel, FormSchemaNode } from '@reformer/core';
 import { Input, InputNumber } from '@reformer/ui-kit';
 import type { InstallmentRequest } from './model';
 
@@ -22,9 +21,7 @@ export const monthlyPayment = (model: FormModel<InstallmentRequest>) =>
     return Math.round(amount / months);
   });
 
-export function buildInstallmentSchema(
-  model: FormModel<InstallmentRequest>
-): RenderNode<InstallmentRequest> {
+export function buildInstallmentSchema(model: FormModel<InstallmentRequest>): FormSchemaNode {
   const monthly = monthlyPayment(model);
 
   return {
@@ -59,17 +56,17 @@ export function buildInstallmentSchema(
         componentProps: { className: 'space-y-4' },
         children: [
           {
-            value: model.$.fullName,
+            model: model.$.fullName,
             component: Input,
             componentProps: { label: 'ФИО', placeholder: 'Иванов Иван', testId: 'fullName' },
           },
           {
-            value: model.$.amount,
+            model: model.$.amount,
             component: InputNumber,
             componentProps: { label: 'Сумма (₽)', step: 1000, testId: 'amount' },
           },
           {
-            value: model.$.months,
+            model: model.$.months,
             component: InputNumber,
             componentProps: { label: 'Срок (мес.)', min: 1, testId: 'months' },
           },

@@ -7,7 +7,10 @@
  * @module plugins/reformer/ai/tools/set-node-model
  */
 
-import { isArrayNode, isFieldNode } from '@reformer/renderer-json';
+import {
+  isArrayNodeV1 as isArrayNode,
+  isFieldNodeV1 as isFieldNode,
+} from '@reformer/renderer-json';
 import { setNodeKey } from '../../../core/form-model';
 import { commitMutation } from '../loop/gate';
 import { componentOf, isResolved, labelOf, resolveRef } from '../model/node-ref';

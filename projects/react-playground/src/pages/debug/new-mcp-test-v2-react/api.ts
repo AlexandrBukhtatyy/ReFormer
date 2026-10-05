@@ -3,7 +3,7 @@
  * Оба эндпоинта в примере — mock-функции с задержкой (спека, раздел «API интеграция»).
  */
 
-import { INITIAL_CREDIT_APPLICATION } from './model';
+import { createInitialCreditApplication } from './model';
 import type { CreditApplicationForm } from './types';
 
 const REQUEST_DELAY_MS = 800;
@@ -129,7 +129,7 @@ export async function fetchCreditApplication(id: string): Promise<LoadApplicatio
 
   return {
     success: true,
-    data: { ...structuredClone(INITIAL_CREDIT_APPLICATION), ...structuredClone(saved) },
+    data: { ...createInitialCreditApplication(), ...structuredClone(saved) },
   };
 }
 

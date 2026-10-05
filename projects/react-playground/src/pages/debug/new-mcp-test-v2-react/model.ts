@@ -3,12 +3,13 @@
  *
  * Правила, зафиксированные документацией:
  * - инициализируется КАЖДОЕ поле, включая условные и вычисляемые;
- * - числа-необязательные → `null`, строки → `''`, массивы → `[]`;
+ * - числа-необязательные → `null`, строки → `''`, массивы → `arrayOf(шаблон)`: пустой список и
+ *   то, чем его пополняет кнопка «Добавить» (схеме шаблон знать не нужно);
  * - фабрики элементов массива возвращают ПЛОСКИЕ значения (не `FieldConfig`), иначе
  *   значение поля молча становится объектом и контрол рендерит `[object Object]`.
  */
 
-import { createModel, type FormModel } from '@reformer/core';
+import { arrayOf, createModel, type FormModel } from '@reformer/core';
 
 import type {
   AddressData,
@@ -37,86 +38,93 @@ const EMPTY_PERSONAL_DATA: PersonalData = {
   birthPlace: '',
 };
 
-/** Начальные значения формы — колонка «Значение» из спеки. */
-export const INITIAL_CREDIT_APPLICATION: CreditApplicationForm = {
-  // Шаг 1
-  loanType: 'consumer',
-  loanAmount: null,
-  loanTerm: 12,
-  loanPurpose: '',
-  propertyValue: null,
-  initialPayment: null,
-  carBrand: null,
-  carModel: null,
-  carYear: null,
-  carPrice: null,
+/**
+ * Начальные значения формы — колонка «Значение» из спеки.
+ *
+ * Фабрика, а не константа: метка шаблона `arrayOf` едет на самом массиве и копирование
+ * (`structuredClone`) её не переносит — в модель должен попасть свежий объект как есть.
+ */
+export function createInitialCreditApplication(): CreditApplicationForm {
+  return {
+    // Шаг 1
+    loanType: 'consumer',
+    loanAmount: null,
+    loanTerm: 12,
+    loanPurpose: '',
+    propertyValue: null,
+    initialPayment: null,
+    carBrand: null,
+    carModel: null,
+    carYear: null,
+    carPrice: null,
 
-  // Шаг 2
-  personalData: { ...EMPTY_PERSONAL_DATA },
-  passportData: {
-    series: '',
-    number: '',
-    issueDate: '',
-    issuedBy: '',
-    departmentCode: '',
-  },
-  inn: '',
-  snils: '',
+    // Шаг 2
+    personalData: { ...EMPTY_PERSONAL_DATA },
+    passportData: {
+      series: '',
+      number: '',
+      issueDate: '',
+      issuedBy: '',
+      departmentCode: '',
+    },
+    inn: '',
+    snils: '',
 
-  // Шаг 3
-  phoneMain: '',
-  phoneAdditional: null,
-  email: '',
-  emailAdditional: null,
-  sameEmail: false,
-  registrationAddress: { ...EMPTY_ADDRESS },
-  sameAsRegistration: true,
-  residenceAddress: { ...EMPTY_ADDRESS },
+    // Шаг 3
+    phoneMain: '',
+    phoneAdditional: null,
+    email: '',
+    emailAdditional: null,
+    sameEmail: false,
+    registrationAddress: { ...EMPTY_ADDRESS },
+    sameAsRegistration: true,
+    residenceAddress: { ...EMPTY_ADDRESS },
 
-  // Шаг 4
-  employmentStatus: 'employed',
-  companyName: null,
-  companyInn: null,
-  companyPhone: null,
-  companyAddress: null,
-  position: null,
-  workExperienceTotal: null,
-  workExperienceCurrent: null,
-  monthlyIncome: null,
-  additionalIncome: null,
-  additionalIncomeSource: null,
-  businessType: null,
-  businessInn: null,
-  businessActivity: null,
+    // Шаг 4
+    employmentStatus: 'employed',
+    companyName: null,
+    companyInn: null,
+    companyPhone: null,
+    companyAddress: null,
+    position: null,
+    workExperienceTotal: null,
+    workExperienceCurrent: null,
+    monthlyIncome: null,
+    additionalIncome: null,
+    additionalIncomeSource: null,
+    businessType: null,
+    businessInn: null,
+    businessActivity: null,
 
-  // Шаг 5
-  maritalStatus: 'single',
-  dependents: 0,
-  education: 'higher',
-  hasProperty: false,
-  properties: [],
-  hasExistingLoans: false,
-  existingLoans: [],
-  hasCoBorrower: false,
-  coBorrowers: [],
+    // Шаг 5
+    maritalStatus: 'single',
+    dependents: 0,
+    education: 'higher',
+    hasProperty: false,
+    properties: arrayOf(createBlankProperty),
+    hasExistingLoans: false,
+    existingLoans: arrayOf(createBlankExistingLoan),
+    hasCoBorrower: false,
+    coBorrowers: arrayOf(createBlankCoBorrower),
 
-  // Шаг 6
-  agreePersonalData: false,
-  agreeCreditHistory: false,
-  agreeMarketing: false,
-  agreeTerms: false,
-  confirmAccuracy: false,
-  electronicSignature: '',
+    // Шаг 6
+    agreePersonalData: false,
+    agreeCreditHistory: false,
+    agreeMarketing: false,
+    agreeTerms: false,
+    confirmAccuracy: false,
+    electronicSignature: '',
 
-  // Вычисляемые
-  interestRate: null,
-  monthlyPayment: null,
-  fullName: '',
-  age: null,
-  totalIncome: null,
-  paymentToIncomeRatio: null,
-  coBorrowersIncome: null,
-};
+    // Вычисляемые
+    interestRate: null,
+    monthlyPayment: null,
+    fullName: '',
+    age: null,
+    totalIncome: null,
+    paymentToIncomeRatio: null,
+    coBorrowersIncome: null,
+  };
+}
 
 /** Новый элемент массива properties — плоские значения. */
 export function createBlankProperty(): PropertyItem {
@@ -151,9 +159,7 @@ export function createBlankCoBorrower(): CoBorrowerItem {
   };
 }
 
-/** Создать модель формы. Экземпляр стабилизируется вызывающей стороной (`useReactForm`). */
-export function createCreditApplicationModel(
-  initial: CreditApplicationForm = INITIAL_CREDIT_APPLICATION
-): FormModel<CreditApplicationForm> {
-  return createModel<CreditApplicationForm>(structuredClone(initial));
+/** Создать модель формы. Экземпляр стабилизируется вызывающей стороной (`useFormBundle`). */
+export function createCreditApplicationModel(): FormModel<CreditApplicationForm> {
+  return createModel<CreditApplicationForm>(createInitialCreditApplication());
 }

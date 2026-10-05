@@ -4,7 +4,7 @@
  * Соседний `form-setup.ts` остаётся образцом прямого использования `renderer-json`; отличие ровно
  * одно — здесь форма не собирается на странице, а объявляется записью, и страница просит смонтировать
  * её по `id`. Данные, поведение и реестр компонентов у обоих способов общие (`model.ts`,
- * `render-behavior.ts`, `registry.tsx`), поэтому разъехаться они не могут.
+ * `form.behavior.ts`, `registry.tsx`), поэтому разъехаться они не могут.
  *
  * **Ограничение: одна смонтированная копия за раз.** `FormEntry.registry` — это `CodeSource`
  * ЭКЗЕМПЛЯРА, а не фабрики, поэтому реестр компонентов создаётся один раз на модуль. Внутри него
@@ -13,18 +13,17 @@
  * зарегистрирован ссылкой). Отсюда модульный `ui` — и отсюда же ограничение: две одновременно
  * смонтированные копии этой формы разделят `pending` и текст статуса. Для витрины с вкладками это
  * не проблема; если понадобится показывать копии рядом, реестр придётся параметризовать.
- * Протечка состояния МЕЖДУ монтажами закрыта сбросом в `createRegistrationRenderBehavior`.
+ * Протечка состояния МЕЖДУ монтажами закрыта сбросом в `createRegistrationBehavior`.
  *
  * @module react-playground/examples/registration-form-renderer-json/form-entry
  */
 
 import { signal } from '@reformer/core/signals';
-import type { DataSource, FormEntry } from '@reformer/form-registry';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { FormEntry } from '@reformer/form-registry';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
 import { createRegistrationRegistry, type FormUiState } from './registry';
-import { INITIAL, createRegistrationModel, registrationBehavior } from './model';
-import { createRegistrationRenderBehavior } from './render-behavior';
+import { INITIAL, createRegistrationModel } from './model';
+import { createRegistrationBehavior } from './form.behavior';
 import { registrationJsonSchema } from './form-setup';
 
 /** UI-состояние отправки, общее на модуль. Почему так — см. заголовок модуля. */
@@ -43,7 +42,7 @@ const registry = createRegistrationRegistry(ui);
  */
 export function makeRegistrationEntry(
   id: string,
-  schema: DataSource<JsonFormSchema<RegistrationFormData>>
+  schema: FormEntry<RegistrationFormData>['schema']
 ): FormEntry<RegistrationFormData> {
   return {
     id,
@@ -62,14 +61,12 @@ export function makeRegistrationEntry(
 
     // Код.
     registry: { kind: 'inline', value: registry },
-    behavior: { kind: 'inline', value: registrationBehavior },
+    // Поведение — ФАБРИКА: реестр форм зовёт её на каждый монтаж и получает свежее поведение,
+    // замкнутое на модульный `ui`. Настройки места монтирования этой форме не нужны.
+    behavior: { kind: 'inline', value: () => createRegistrationBehavior(ui) },
     // Валидация записи НЕ задаётся: `FormEntry.validation` ждёт форму `{ steps, extras }`
     // (пошаговая), а здесь валидация — `ValidationSchema`, которую прогоняет `validateModel` на
-    // submit. Она строится внутри render-behavior, где есть модель.
-    renderBehavior: {
-      kind: 'inline',
-      value: (form, model) => createRegistrationRenderBehavior(ui, form, model),
-    },
+    // submit. Она строится внутри поведения, где есть модель.
 
     meta: {
       name: 'Регистрация (реестр форм)',

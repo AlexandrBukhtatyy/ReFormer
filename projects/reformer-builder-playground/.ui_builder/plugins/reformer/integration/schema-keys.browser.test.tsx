@@ -16,7 +16,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useCallback, useMemo, useSyncExternalStore, type ReactElement } from 'react';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS } from '../core/form-model';
 import { getAt } from '../core/form-model';
 import type { CatalogEntry } from '../core/catalog';

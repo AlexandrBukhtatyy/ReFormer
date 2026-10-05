@@ -5,6 +5,7 @@
  */
 
 import type { ComponentType } from 'react';
+import type { FormModel, ResolvedSchema } from '@reformer/core';
 import type { LocaleResolver, LocaleService } from '../locale/locale-service';
 
 /**
@@ -50,6 +51,16 @@ export interface ComponentRegistry {
   getLocale?(): LocaleService | undefined;
   has(name: string): boolean;
   names(): string[];
+  /**
+   * Собрать дерево узлов из документа JSON-схемы формата 2 — этим методом реестр подключается к
+   * единой сборке: `createForm({ model, schema: document, registry })`. Вместе с деревом отдаёт
+   * обёртку поля (запись `FIELD_WRAPPER`) и границу ошибок схемы — их получит рендерер.
+   *
+   * Опционален — сторонние реализации `ComponentRegistry` без него продолжают компилироваться;
+   * сборка с таким реестром бросает понятную ошибку. Реестр из {@link defineRegistry} и
+   * {@link composeRegistries} метод несёт.
+   */
+  resolveSchema?(document: unknown, model: FormModel<never>): ResolvedSchema;
 }
 
 /**

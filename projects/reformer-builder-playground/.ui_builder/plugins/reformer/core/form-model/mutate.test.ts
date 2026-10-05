@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonNode, JsonFormSchema } from '@reformer/renderer-json';
+import type {
+  JsonNodeV1 as JsonNode,
+  JsonFormSchemaV1 as JsonFormSchema,
+} from '@reformer/renderer-json';
 import {
   setComponentProp,
   setNodeKey,

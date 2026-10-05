@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo } from 'react';
-import { createModel, createForm, useFormControlValue, type FormModel } from '@reformer/core';
+import {
+  createModel,
+  createFormFromModel,
+  useFormControlValue,
+  type FormModel,
+} from '@reformer/core';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
 import { FormField, Input, InputMask, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
@@ -34,7 +39,7 @@ function usePhonesForm(initial: Phone[] = [{ kind: 'Мобильный', number:
       },
       phones: { array: model.phones, item: phoneItem },
     } as any;
-    const form = createForm<{ hasPhones: boolean; phones: Phone[] }>({ model, schema });
+    const form = createFormFromModel<{ hasPhones: boolean; phones: Phone[] }>({ model, schema });
     return { model, form: form as any };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

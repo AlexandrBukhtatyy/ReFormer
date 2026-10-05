@@ -66,7 +66,7 @@ const checkedAdapter: FieldAdapter = {
 };
 MyCheckbox.reformerAdapter = checkedAdapter; // в ui-kit: defineFieldControl(MyCheckbox, { adapter })
 
-// схема: { value: model.$.agree, component: MyCheckbox } → <FormField.Control /> свяжет сам
+// схема: { model: model.$.agree, component: MyCheckbox } → <FormField.Control /> свяжет сам
 ```
 
 В режиме `asChild`/`children` привязки добавляются в диалекте ребёнка и **только те, которых у

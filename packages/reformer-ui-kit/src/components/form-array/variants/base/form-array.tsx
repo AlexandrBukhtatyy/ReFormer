@@ -18,7 +18,7 @@ import type { ArrayComponentProps, ArrayItemSlot } from '@/lib/array-slot';
 export interface FormArrayProps extends ArrayComponentProps {
   /** Отрендеренные элементы массива (инъектится рендерером). */
   items?: ArrayItemSlot[];
-  /** Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла). */
+  /** Добавить элемент (инъектится рендерером; элемент берётся из шаблона массива модели). */
   onAdd?: () => void;
   /** Удалить элемент по индексу (инъектится рендерером). */
   onRemove?: (index: number) => void;

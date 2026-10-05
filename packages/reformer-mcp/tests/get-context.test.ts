@@ -128,27 +128,34 @@ describe('get_context', () => {
       task: 'собрать многошаговую форму кредитной заявки',
       target: 'renderer-json',
     });
-    for (const file of ['form.schema.ts', 'form.render.ts', 'form.behavior.ts']) {
+    for (const file of ['form.schema.ts', 'form.behavior.ts', 'form.validation.ts']) {
       expect(r.text, `имя ${file} не доехало телом ответа`).toContain(file);
     }
+    // Файлов прежнего контракта в каноне нет — подсказывать их нельзя.
+    expect(r.text).not.toContain('form.render.ts');
+    expect(r.text).not.toContain('wizard.tsx');
     // Спорные имена доставлены — значит есть чем сверить: обе ручки названы тут же.
     expect(r.text).toContain('find_recipe directory-layout');
     expect(r.text).toMatch(/validate_form kind="layout"/);
   });
 
-  it.runIf(hasDocs)('набор имён свой у каждого target, лишнего не приносит', async () => {
+  it.runIf(hasDocs)('набор имён один на таргеты, реестр — только у renderer-json', async () => {
     const task = 'сделать форму заявки на кредит';
     const core = await buildContext(k, { task, target: 'core' });
     expect(core.text).toContain('form.schema.ts');
-    expect(core.text, 'core не знает слоя рендера').not.toContain('form.render.ts');
+    expect(core.text).toContain('form.behavior.ts');
     expect(core.text, 'реестр компонентов — только у renderer-json').not.toContain('registry.ts');
 
     const react = await buildContext(k, { task, target: 'renderer-react' });
-    expect(react.text).toContain('form.render.ts');
+    expect(react.text).toContain('form.behavior.ts');
+    expect(react.text, 'отдельного файла правил узлов нет').not.toContain('form.render.ts');
     // Раскладка шагов — опциональные имена, но именно их агенты выдумывали сами.
     expect(react.text).toContain('steps/index.ts');
     expect(react.text).toContain('steps/<slug>/form.validation.ts');
     expect(react.text).not.toContain('registry.ts');
+
+    const json = await buildContext(k, { task, target: 'renderer-json' });
+    expect(json.text).toContain('registry.ts');
   });
 
   it.runIf(hasDocs)('вопрос «куда положить» доезжает без слова «форма»', async () => {
@@ -162,17 +169,13 @@ describe('get_context', () => {
         'form.behavior.ts',
       ],
       [
-        'куда положить поведение слоя рендера — renderEffect, hideWhen по узлам схемы',
+        // Правила узлов схемы живут там же, где связи над моделью: поведение формы одно.
+        'куда положить правила узлов схемы — renderEffect, hideWhen по selector',
         'renderer-react',
-        'form.render.ts',
+        'form.behavior.ts',
       ],
       ['как назвать файл JSON-схемы формы на renderer-json', 'renderer-json', 'form.schema.ts'],
-      [
-        'куда положить app-shim компонента визарда для формы на JSON-схеме',
-        'renderer-json',
-        // Опциональный файл — то самое имя, вместо которого придумывали `json-wizard.tsx`.
-        'wizard.tsx',
-      ],
+      ['куда положить реестр компонентов для формы на JSON-схеме', 'renderer-json', 'registry.ts'],
     ];
     for (const [task, target, expected] of cases) {
       const r = await buildContext(k, { task, target });

@@ -45,7 +45,7 @@ forms/
 
 ## Сборка формы
 
-Файлы соединяются в одну фабрику `createXxxForm()`: модель → схема → behavior → `createForm`.
+Файлы соединяются в одну фабрику `createXxxForm()`: модель → схема → behavior → `createFormFromModel`.
 
 ```typescript title="forms/credit-application/model.ts"
 import { createModel, type FormModel } from '@reformer/core';
@@ -112,18 +112,18 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
 
 ```typescript title="forms/credit-application/index.tsx"
 import { useMemo } from 'react';
-import { createForm } from '@reformer/core';
+import { createFormFromModel } from '@reformer/core';
 import { createCreditApplicationModel } from './model';
 import { creditApplicationSchema } from './form.schema';
 import { creditApplicationBehavior } from './form.behavior';
 import type { CreditApplicationForm } from './types';
 
-// Одна фабрика собирает форму: model → schema → behavior → createForm
+// Одна фабрика собирает форму: model → schema → behavior → createFormFromModel
 export const createCreditApplicationForm = () => {
   const model = createCreditApplicationModel();
   return {
     model,
-    form: createForm<CreditApplicationForm>({
+    form: createFormFromModel<CreditApplicationForm>({
       model,
       schema: creditApplicationSchema(model),
       behavior: creditApplicationBehavior,

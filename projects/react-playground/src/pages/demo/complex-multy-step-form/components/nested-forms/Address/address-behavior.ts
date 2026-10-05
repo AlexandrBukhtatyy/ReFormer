@@ -3,7 +3,7 @@
  */
 
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
-import { loadOptionsOn } from '../../../schemas/operators';
+import { loadOptionsOn } from '../../../operators';
 import { fetchCities } from '../../../api';
 import type { Address } from './types';
 

@@ -198,7 +198,7 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 **Solution.** Глобального `settings.readonly`/`settings.mode` **нет** — `RendererSettings` несёт `fieldWrapper` и `resolveFieldAdapter` (адаптеры сырых контролов, см. рецепт ниже), режимного флага среди них нет. Канон — вызвать `form.disable()` на корневой форме после `createForm`. `disable()` каскадит `disabled` по всему поддереву (группа проставляет `disabled` себе и рекурсивно всем дочерним полям), а рендерер уже пробрасывает `state.disabled` в каждый инпут. Ничего в схеме менять не нужно.
 
 ```tsx
-const form = createForm({ model, schema });
+const form = createFormFromModel({ model, schema });
 
 // Вся форма в режиме просмотра — один вызов, каскадит по всем полям.
 form.disable();

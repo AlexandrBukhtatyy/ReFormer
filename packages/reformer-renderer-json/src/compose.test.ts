@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import Ajv from 'ajv';
 import { composeJsonFormSchema, isJsonStepRef, normalizeStepRef } from './compose';
-import { buildFormStepMetaSchema, FORM_STEP_SCHEMA_ID } from './schema';
+import {
+  buildFormStepMetaSchemaV1 as buildFormStepMetaSchema,
+  FORM_STEP_SCHEMA_ID,
+} from './schema';
 import { validateFormSchema } from './validate';
-import type { JsonFormSchema, JsonNode } from './types/json-schema';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from './types/json-schema-v1';
 
 const stepA: JsonNode = {
   component: '$component(Step)',

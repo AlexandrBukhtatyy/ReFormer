@@ -13,7 +13,7 @@
  * @module plugins/reformer/core/form-fixture/emit
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { classifyDataSources, mockOptions, synthMock } from '../form-mock';
 
 /** Литерал JSON с отступом в два пробела, сдвинутый на нужный уровень. */

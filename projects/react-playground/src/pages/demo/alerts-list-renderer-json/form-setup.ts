@@ -2,14 +2,14 @@
  * Сборка примера «Список алертов из модели».
  *
  * Массив `alerts` — часть модели. `behavior` (реактивность ДАННЫХ) пересобирает его при изменении
- * `amount`/`email`, а JSON-схема рендерит его узлом `{ array: '$model(alerts)', component:
+ * `amount`/`email`, а JSON-схема рендерит его узлом `{ model: '$model(alerts)', component:
  * '$component(List)', item: { $template } }`: `List` оформляет список, `Alert` на каждый элемент
  * получает `type`/`message` через `$model(...)`. Показ/скрытие алертов = мутация массива в behavior
  * (H1) — список ре-рендерится сам.
  */
 import { createModel, type FormModel } from '@reformer/core';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
-import { createJsonForm, type JsonForm, type JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormEntry } from '@reformer/form-registry';
 import { createAlertsRegistry } from './registry';
 import rawJsonSchema from './json-schema.json';
@@ -62,23 +62,12 @@ const alertsBehavior = defineFormBehavior<AlertsFormData>(({ model }) => {
   onChange(model.$.email, () => applyAlerts(model));
 });
 
-export function createAlertsSetup(): JsonForm<AlertsFormData> {
-  // Сборка одним проходом (§7): схема конвертируется внутри createJsonForm, наружу — готовый бандл.
-  const jsonForm = createJsonForm<AlertsFormData>({
-    schema: alertsJsonSchema,
-    registry: createAlertsRegistry(),
-    model: createAlertsModel(),
-    behavior: alertsBehavior,
-  });
-  return jsonForm;
-}
-
 /**
  * Модель с уже наполненным списком алертов.
  *
  * Наполнение вынесено сюда из пост-обработки готовой формы: `onChange` не срабатывает на
  * инициализации, а список должен быть непустым с первого кадра. Заодно это делает пример
- * пригодным для реестра форм — там форму собирает сам реестр, и вклиниться после `createJsonForm`
+ * пригодным для реестра форм — там форму собирает сам реестр, и вклиниться после сборки
  * потребителю негде.
  */
 export function createAlertsModel(): FormModel<AlertsFormData> {

@@ -28,7 +28,10 @@
  * @module plugins/reformer/editor/schematic/schematic-tree
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { nodeIdOf } from '../../../core/form-model';
 import {
   canAcceptChildren,

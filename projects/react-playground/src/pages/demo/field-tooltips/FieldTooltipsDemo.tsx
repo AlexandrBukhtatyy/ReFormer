@@ -8,9 +8,15 @@
  * «крестик очистки → (i) → родные элементы контрола» проверяется там по реальным координатам.
  */
 
-import { createCoreForm, createModel, useFormBundle, type FormModel } from '@reformer/core';
-import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
-import type { ReactForm, RenderNode } from '@reformer/renderer-react';
+import {
+  createForm,
+  createModel,
+  useFormBundle,
+  type FormBundle,
+  type FormModel,
+  type FormSchemaNode,
+} from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import {
   Button,
   CheckboxWithLabel,
@@ -78,7 +84,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
   return {
     fields: [
       {
-        value: model.$.email,
+        model: model.$.email,
         component: Input,
         componentProps: {
           label: 'Email',
@@ -89,7 +95,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.inn,
+        model: model.$.inn,
         component: Input,
         componentProps: {
           label: 'ИНН',
@@ -98,7 +104,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.password,
+        model: model.$.password,
         component: InputPassword,
         componentProps: {
           label: 'Пароль',
@@ -108,7 +114,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.city,
+        model: model.$.city,
         component: SelectAsync,
         componentProps: {
           label: 'Город',
@@ -120,7 +126,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.framework,
+        model: model.$.framework,
         component: Combobox,
         componentProps: {
           label: 'Фреймворк',
@@ -131,7 +137,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.comment,
+        model: model.$.comment,
         component: Textarea,
         componentProps: {
           label: 'Комментарий',
@@ -140,7 +146,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.agree,
+        model: model.$.agree,
         component: CheckboxWithLabel,
         componentProps: {
           label: 'Согласен с офертой',
@@ -149,7 +155,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.notify,
+        model: model.$.notify,
         component: SwitchWithLabel,
         componentProps: {
           label: 'Уведомления',
@@ -158,7 +164,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.plan,
+        model: model.$.plan,
         component: RadioGroupOptions,
         componentProps: {
           label: 'Тариф',
@@ -168,7 +174,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
         },
       },
       {
-        value: model.$.volume,
+        model: model.$.volume,
         component: Slider,
         componentProps: {
           label: 'Громкость',
@@ -188,13 +194,13 @@ interface RendererForm {
   country: string | null;
 }
 
-function buildRendererSchema(model: FormModel<RendererForm>): RenderNode<RendererForm> {
+function buildRendererSchema(model: FormModel<RendererForm>): FormSchemaNode {
   return {
     component: 'div',
     componentProps: { className: 'space-y-4' },
     children: [
       {
-        value: model.$.phone,
+        model: model.$.phone,
         component: Input,
         componentProps: {
           label: 'Телефон',
@@ -204,7 +210,7 @@ function buildRendererSchema(model: FormModel<RendererForm>): RenderNode<Rendere
         },
       },
       {
-        value: model.$.country,
+        model: model.$.country,
         component: SelectAsync,
         componentProps: {
           label: 'Страна',
@@ -221,7 +227,7 @@ function buildRendererSchema(model: FormModel<RendererForm>): RenderNode<Rendere
   };
 }
 
-function RendererSection({ rendererForm }: { rendererForm: ReactForm<RendererForm> }) {
+function RendererSection({ rendererForm }: { rendererForm: FormBundle<RendererForm> }) {
   return (
     <div data-testid="renderer-section">
       <FormRenderer<RendererForm> form={rendererForm} settings={{ fieldWrapper: FormField }} />
@@ -231,11 +237,11 @@ function RendererSection({ rendererForm }: { rendererForm: ReactForm<RendererFor
 
 export default function FieldTooltipsDemo() {
   const { form } = useFormBundle(() =>
-    createCoreForm<FieldTooltipsForm>({ initial: { ...INITIAL }, schema: buildSchema })
+    createForm<FieldTooltipsForm>({ initial: { ...INITIAL }, schema: buildSchema })
   );
   // Форма карточки renderer-react живёт здесь же: кнопки «Выключить/Включить» управляют обеими.
-  const rendererForm = useReactForm(() =>
-    createReactForm<RendererForm>({
+  const rendererForm = useFormBundle(() =>
+    createForm<RendererForm>({
       model: createModel<RendererForm>({ phone: '', country: 'ru' }),
       schema: buildRendererSchema,
     })

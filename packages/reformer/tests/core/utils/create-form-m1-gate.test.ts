@@ -1,5 +1,5 @@
 /**
- * Unit tests for createForm({ model, schema }) M1 fixes:
+ * Unit tests for createFormFromModel({ model, schema }) M1 fixes:
  *  - Defect 1/27 (gate submit()/validate() со schema-валидаторами) — УДАЛЁН: валидация вынесена
  *    во внешний `validateModel` из `@reformer/core/validation`; тесты gate удалены.
  *  - Defect 22: F9 derived-guard в GroupNode.setValue/patchValue сверяется с записываемым
@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import { markDerived } from '../../../src/model/derived-registry';
 
@@ -33,7 +33,7 @@ describe('createForm M1 — derived-guard в bulk-set (Defect 22)', () => {
         { value: model.$.total, component: InputStub },
       ],
     };
-    return { model, form: createForm<F>({ model, schema }) };
+    return { model, form: createFormFromModel<F>({ model, schema }) };
   };
 
   it('setValue не затирает compute-производное поле', () => {
@@ -76,7 +76,7 @@ describe('createForm M1 — DEV-предупреждение о нераспоз
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       children: [{ value: (model as any).email, component: InputStub }],
     };
-    createForm({ model, schema });
+    createFormFromModel({ model, schema });
 
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
@@ -86,7 +86,7 @@ describe('createForm M1 — DEV-предупреждение о нераспоз
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createModel<{ email: string }>({ email: '' });
     const schema = { children: [{ value: model.$.email, component: InputStub }] };
-    createForm({ model, schema });
+    createFormFromModel({ model, schema });
 
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
@@ -107,7 +107,7 @@ describe('createForm M1 — поле данных named "form" (Defect 31)', () 
         { value: model.$.email, component: InputStub },
       ],
     };
-    const built = createForm<WithForm>({ model, schema });
+    const built = createFormFromModel<WithForm>({ model, schema });
 
     const formField = built.getField('form');
     const emailField = built.getField('email');

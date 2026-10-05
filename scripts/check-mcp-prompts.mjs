@@ -57,45 +57,79 @@ const PRESENTATIONAL_AS_FIELD = [
 ];
 
 /**
- * Устаревшая РУЧНАЯ сборка формы. Само API живо (фабрики зовут его внутри), поэтому ловим не
- * упоминание символа, а связку: «создаём модель И тут же строим форму», «конвертируем JSON И
- * строим форму», а также снятые формы монтажа рендерера. Именно так промпты и разъезжались с
- * пакетами: `createJsonForm` появился, а боилерплейт в `create-form.md`/`add-wizard.md` ещё
- * полгода учил `convertJsonToM1Tree` + `<JsonFormRenderer schema=…>` — гейт этого не видел,
- * потому что проверял только снятые символы валидации.
+ * Прежний контракт формы. Единый контракт — одна схема-дерево с ключом `model`, одно поведение
+ * `({ model, form, schema })`, одна сборка `createForm`; всё, что перечислено ниже, промпт вправе
+ * упоминать ТОЛЬКО как «так больше не пишут».
+ *
+ * Ловим не только символы, но и связки. Именно так промпты разъезжались с пакетами:
+ * `createJsonForm` появился, а боилерплейт в `create-form.md`/`add-wizard.md` ещё полгода учил
+ * `convertJsonToM1Tree` + `<JsonFormRenderer schema=…>` — гейт этого не видел, потому что
+ * проверял только снятые символы валидации.
  */
+/** Низкоуровневая фабрика «форма из готовой модели» — не сборка формы. */
+const LOW_LEVEL_FORM_RE = /\bcreateFormFromModel\s*[<(]/;
+/** Любая фабрика формы: единая сборка, низкоуровневая и три прежние. */
+const ANY_FORM_FACTORY_RE =
+  /\bcreateForm(FromModel)?\s*[<(]|createJsonForm|createReactForm|createCoreForm/;
+
 const LEGACY_ASSEMBLY = [
   {
-    name: 'ручная связка createModel + createForm',
-    test: (t) => /createModel\s*[<(]/.test(t) && /\bcreateForm\s*[<(]/.test(t),
+    name: 'прежняя фабрика сборки (createCoreForm / createReactForm / createJsonForm) вместо createForm',
+    test: (t) => /\b(createCoreForm|createReactForm|createJsonForm)\b/.test(t),
   },
   {
-    name: 'ручная связка convertJsonToM1Tree + createForm',
-    test: (t) => /convertJsonToM1Tree/.test(t) && /\bcreateForm\s*[<(]/.test(t),
+    name: 'прежний хук сборки (useReactForm / useJsonForm) вместо useFormBundle',
+    test: (t) => /\b(useReactForm|useJsonForm)\b/.test(t),
+  },
+  {
+    name: 'прежний рендерер JSON (JsonFormRenderer / JsonRendererProvider) вместо FormRenderer',
+    test: (t) => /\b(JsonFormRenderer|JsonRendererProvider)\b/.test(t),
+  },
+  {
+    name: 'второе поведение (renderBehavior / form.render.ts) вместо единого form.behavior.ts',
+    test: (t) => /\brenderBehavior\b|RenderBehaviorFn|form\.render\.ts/.test(t),
+  },
+  {
+    name: 'прежний ключ узла (value: / array:) вместо model:',
+    test: (t) =>
+      /\bvalue:\s*['"]?(\$model\(|\w+\.\$\.)/.test(t) ||
+      /"value":\s*"\$model\(/.test(t) ||
+      /\barray:\s*['"]?(\$model\(|\w+\.\w)/.test(t) ||
+      /"array":\s*"\$model\(/.test(t),
+  },
+  {
+    name: 'прежний оператор валидации each(…) вместо applyEach',
+    test: (t) => /(^|[^\w.])each\(\s*\w+\./m.test(t),
+  },
+  {
+    name: 'ручная обёртка makeValidationConfig вместо validation: { steps, extras }',
+    test: (t) => /makeValidationConfig/.test(t),
+  },
+  {
+    name: 'прикладной шим визарда (RendererFormWizard / wizard.tsx / $component(Wizard))',
+    test: (t) => /RendererFormWizard|\bwizard\.tsx\b|\$component\(Wizard\)/.test(t),
+  },
+  {
+    name: 'ручная связка createModel + createFormFromModel',
+    test: (t) => /createModel\s*[<(]/.test(t) && LOW_LEVEL_FORM_RE.test(t),
+  },
+  {
+    name: 'ручная связка convertJsonToM1Tree + фабрика формы',
+    test: (t) => /convertJsonToM1Tree/.test(t) && ANY_FORM_FACTORY_RE.test(t),
   },
   {
     name: 'сборка формы в useMemo',
-    test: (t) =>
-      /useMemo\s*\(/.test(t) &&
-      /\bcreateForm\s*[<(]|createJsonForm|createReactForm|createCoreForm/.test(t),
+    test: (t) => /useMemo\s*\(/.test(t) && ANY_FORM_FACTORY_RE.test(t),
   },
   {
-    name: '<JsonFormRenderer schema={…}> вместо бандла form={…}',
-    test: (t) => /JsonFormRenderer[^]*?\sschema=\{/.test(t),
-  },
-  {
-    name: 'settings={{ registry, model }} у JsonRendererProvider',
+    name: 'settings={{ registry, model }} у провайдера рендерера',
     test: (t) => /settings=\{\{[^}]*\bmodel\b/.test(t),
-  },
-  {
-    name: 'снятый проп validate={…} у JsonFormRenderer (теперь validateSchema)',
-    test: (t) => /JsonFormRenderer[^]*?\svalidate=\{/.test(t),
   },
 ];
 
 /**
- * Промпты, обязанные учить сборке через фабрику: если файл вообще говорит про создание формы,
- * он должен назвать актуальную точку входа. Без этого «тихий разъезд» вернётся с другой стороны —
+ * Промпты, обязанные учить сборке: если файл вообще говорит про создание формы, он должен
+ * назвать актуальную точку входа. Без этого «тихий разъезд» вернётся с другой стороны —
  * промпт просто перестанет упоминать сборку, и проверка выше ничего не найдёт.
  */
 const MUST_MENTION_FACTORY = [
@@ -105,7 +139,7 @@ const MUST_MENTION_FACTORY = [
   'to-renderer-json.md',
   'add-wizard.md',
 ];
-const FACTORY_RE = /createCoreForm|createReactForm|createJsonForm/;
+const FACTORY_RE = /\bcreateForm\s*[<(]/;
 
 /**
  * Маркеры отрицательного контекста. Достаточно одного в блоке.
@@ -136,6 +170,10 @@ const NEGATIVE_MARKERS = [
   // Русскоязычные отрицания. Понадобились, когда корпус расширился с англоязычных промптов на
   // docs/llms и JSDoc: там «так больше нельзя» пишут по-русски, и без этих маркеров гейт валил
   // ровно те файлы, которые и объясняют, что API снято (17-nonexistent-api, 14-extended-mistakes).
+  // Прежний контракт формы: так названы в промптах ключи, фабрики и файлы, которые сменил
+  // единый контракт («the former contract», «прежний контракт»).
+  'former',
+  'прежн',
   'удал', // удалён / удалено / удалены / удалённого
   'снят', // снятый / снято / снята
   'больше нельзя',
@@ -217,7 +255,7 @@ for (const file of files) {
     violations.push({
       file,
       line: 1,
-      api: 'не упомянута ни одна фабрика сборки (createCoreForm / createReactForm / createJsonForm)',
+      api: 'не названа сборка формы — createForm',
       excerpt: content.split('\n').slice(0, 3).join('\n'),
     });
   }
@@ -292,7 +330,7 @@ for (const root of DOC_CORPUS_ROOTS) {
 }
 
 if (violations.length > 0) {
-  console.error(`✗ Материал MCP учит снятому API (${violations.length}):\n`);
+  console.error(`✗ Материал MCP учит снятому API или прежнему контракту (${violations.length}):\n`);
   for (const v of violations) {
     console.error(`  ${v.file}:${v.line} — ${v.api}`);
     console.error(
@@ -304,15 +342,16 @@ if (violations.length > 0) {
     console.error('');
   }
   console.error(
-    '  Снятое API можно упоминать ТОЛЬКО как «так больше нельзя»: добавьте в этот же блок\n' +
-      '  маркер отрицания (removed / obsolete / never emit / ❌ …) — как в add-validation.md\n' +
-      '  и create-form.md — либо перепишите блок на живой контракт:\n' +
-      '  defineValidationSchema + validate(sig, [rules]) + validateModel(model, schema).'
+    '  Снятое API и прежний контракт можно упоминать ТОЛЬКО как «так больше нельзя»: добавьте в\n' +
+      '  этот же блок маркер отрицания (removed / obsolete / former / never emit / ❌ …) — как в\n' +
+      '  add-validation.md и create-form.md — либо перепишите блок на живой контракт:\n' +
+      '  узел { model: model.$.x, component }, сборка createForm + useFormBundle, поведение\n' +
+      '  defineFormBehavior(({ model, form, schema }) => …), валидация defineValidationSchema.'
   );
   process.exit(1);
 }
 
 console.log(
   `✓ материал MCP: ${files.length} шаблон(ов) промптов + ${corpusFiles} файл(ов) JSDoc/docs-llms, ` +
-    `${checkedBlocks} блок(ов) со снятым API — все в отрицательном контексте`
+    `${checkedBlocks} блок(ов) со снятым API или прежним контрактом — все в отрицательном контексте`
 );

@@ -1,5 +1,6 @@
-// model.ts — createModel + initial values + array-element factories.
-import { createModel, type FormModel } from '@reformer/core';
+// model.ts — модель формы: начальные значения и шаблоны новых элементов массивов.
+// `arrayOf(blank)` — пустой массив и то, чем его пополняет кнопка «Добавить».
+import { arrayOf, createModel, type FormModel } from '@reformer/core';
 import type {
   Address,
   CoBorrower,
@@ -107,11 +108,11 @@ export const initialCreditForm = (): CreditForm => ({
   dependents: 0,
   education: 'higher',
   hasProperty: false,
-  properties: [],
+  properties: arrayOf(blankProperty),
   hasExistingLoans: false,
-  existingLoans: [],
+  existingLoans: arrayOf(blankExistingLoan),
   hasCoBorrower: false,
-  coBorrowers: [],
+  coBorrowers: arrayOf(blankCoBorrower),
 
   // Step 6
   agreePersonalData: false,

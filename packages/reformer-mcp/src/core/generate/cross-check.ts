@@ -47,57 +47,113 @@ function collectOperators(node: unknown, op: string, out: Set<string>): void {
   }
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/** Аргумент оператора: `$model(a.b)` → `a.b`; не оператор этого вида → `null`. */
+function operatorArg(value: unknown, op: string): string | null {
+  if (typeof value !== 'string') return null;
+  return value.match(new RegExp(`^\\$${op}\\(([^)]*)\\)$`))?.[1] ?? null;
+}
+
+/** Документ формата 2: дерево узлов и словарь именованных частей. */
+interface SchemaView {
+  root: unknown;
+  parts: Record<string, unknown>;
+  /** Формат 2: привязка ключом `model`, части, шаги в `children`. Иначе — прежний формат. */
+  v2: boolean;
+}
+
+/** Разобрать переданную схему: документ формата 2, прежний документ либо голое дерево. */
+function viewOf(schema: unknown): SchemaView {
+  if (isRecord(schema) && schema.format === 2) {
+    return { root: schema.root, parts: isRecord(schema.parts) ? schema.parts : {}, v2: true };
+  }
+  return { root: schema, parts: {}, v2: false };
+}
+
+/** Путь массива у узла-массива (любой формат); `null` — узел не массив под-форм. */
+function arrayPathOf(rec: Record<string, unknown>): string | null {
+  const legacy = operatorArg(rec.array, 'model');
+  if (legacy !== null) return legacy;
+  return rec.item !== undefined ? operatorArg(rec.model, 'model') : null;
+}
+
+/** Шаблон строки узла-массива: вписанный узел либо именованная часть документа. */
+function rowTemplateOf(rec: Record<string, unknown>, view: SchemaView): unknown {
+  const partName = operatorArg(rec.item, 'part');
+  if (partName !== null) return view.parts[partName];
+  return isRecord(rec.item) ? rec.item.$template : undefined;
+}
+
 /**
  * Собрать `$model(...)`-привязки с учётом области видимости.
  *
- * Внутри `item.$template` массива пути записываются ОТНОСИТЕЛЬНО элемента (`$model(type)`
- * в шаблоне `properties` означает `properties.type`) — так это описано в 02-json-schema.md.
- * Плоский обход этого не знал, и C1 сверял относительный путь с корнем модели: любая
- * вложенная группа внутри элемента массива («$model(personalData.lastName)») объявлялась
- * привязкой в никуда. Смягчение через суффиксное сравнение чинило симптом и ломало саму
- * проверку: корневой `$model(monthlyIncome)`, которого в модели нет, «находился» в
- * `coBorrowers.monthlyIncome`, то есть C1 пропускала ровно ту поломку, ради которой заведена.
+ * Внутри шаблона строки массива пути записываются ОТНОСИТЕЛЬНО элемента (`$model(type)` в
+ * шаблоне `properties` означает `properties.type`), внутри подформы — относительно группы, к
+ * которой часть подключена. Плоский обход этого не знал, и C1 сверял относительный путь с корнем
+ * модели: любая вложенная группа внутри элемента массива объявлялась привязкой в никуда.
+ * Смягчение через суффиксное сравнение чинило симптом и ломало саму проверку: корневой
+ * `$model(monthlyIncome)`, которого в модели нет, «находился» в `coBorrowers.monthlyIncome`.
  *
- * Поэтому префикс протаскивается по дереву: для поддерева `item.$template` узла с
- * `array: '$model(P)'` он равен `P + '.'`, для остальных ключей того же узла — прежний.
+ * Поэтому префикс протаскивается по дереву: для шаблона строки он равен `путь массива + '.'`,
+ * для части подформы — `путь группы + '.'`, для остальных ключей того же узла — прежний.
+ * Путь самой группы в результат не попадает: группа — не поле модели.
+ *
+ * @param stack - Части на пути от корня: часть, подключающая саму себя, обход не зацикливает.
  */
-function collectModelRefs(node: unknown, prefix: string, out: Set<string>): void {
-  if (typeof node === 'string') {
-    const m = node.match(/^\$model\(([^)]*)\)$/);
-    if (m) out.add(prefix + m[1]);
+function collectModelRefs(
+  node: unknown,
+  prefix: string,
+  out: Set<string>,
+  view: SchemaView,
+  stack: readonly string[] = []
+): void {
+  const path = operatorArg(node, 'model');
+  if (path !== null) {
+    out.add(prefix + path);
     return;
   }
   if (Array.isArray(node)) {
-    for (const v of node) collectModelRefs(v, prefix, out);
+    for (const v of node) collectModelRefs(v, prefix, out, view, stack);
     return;
   }
-  if (!node || typeof node !== 'object') return;
+  if (!isRecord(node)) return;
 
-  const rec = node as Record<string, unknown>;
-  const arrayOp = typeof rec.array === 'string' ? rec.array.match(/^\$model\(([^)]*)\)$/) : null;
-  const itemPrefix = arrayOp ? `${prefix}${arrayOp[1]}.` : prefix;
+  const arrayPath = arrayPathOf(node);
+  const groupPath = arrayPath === null && view.v2 ? operatorArg(node.model, 'model') : null;
+  const partName = operatorArg(node.part, 'part');
 
-  for (const [key, value] of Object.entries(rec)) {
-    // сам оператор массива — путь от текущей области, а не от элемента
-    if (key === 'array') {
-      collectModelRefs(value, prefix, out);
+  // Подформа: часть обходится в области своей группы.
+  if (groupPath !== null && partName !== null) {
+    if (!stack.includes(partName)) {
+      collectModelRefs(view.parts[partName], `${prefix}${groupPath}.`, out, view, [
+        ...stack,
+        partName,
+      ]);
+    }
+    return;
+  }
+
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'item' && arrayPath !== null) {
+      const rowPart = operatorArg(value, 'part');
+      if (rowPart !== null && stack.includes(rowPart)) continue;
+      collectModelRefs(
+        rowTemplateOf(node, view),
+        `${prefix}${arrayPath}.`,
+        out,
+        view,
+        rowPart !== null ? [...stack, rowPart] : stack
+      );
       continue;
     }
-    if (key === 'item' && arrayOp) {
-      // внутри item только $template живёт в области элемента
-      const item = value as Record<string, unknown> | null;
-      if (item && typeof item === 'object') {
-        for (const [ik, iv] of Object.entries(item)) {
-          collectModelRefs(iv, ik === '$template' ? itemPrefix : prefix, out);
-        }
-      }
-      continue;
-    }
-    collectModelRefs(value, prefix, out);
+    // сам оператор массива и остальные ключи узла — пути от текущей области
+    collectModelRefs(value, prefix, out, view, stack);
   }
 }
 
-/** Собрать все `selector` из дерева — по ним адресуется render-поведение. */
+/** Собрать все `selector` из дерева — по ним адресуются правила узлов из поведения. */
 function collectSelectors(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
     for (const v of node) collectSelectors(v, out);
@@ -110,7 +166,7 @@ function collectSelectors(node: unknown, out: Set<string>): void {
   }
 }
 
-/** Узлы массивов — для проверки initialValue против itemFields. */
+/** Узлы массивов под-форм — для проверки шаблона строки и `initialValue` против itemFields. */
 function collectArrayNodes(node: unknown, out: Array<Record<string, unknown>>): void {
   if (Array.isArray(node)) {
     for (const v of node) collectArrayNodes(v, out);
@@ -118,7 +174,7 @@ function collectArrayNodes(node: unknown, out: Array<Record<string, unknown>>): 
   }
   if (node && typeof node === 'object') {
     const rec = node as Record<string, unknown>;
-    if (typeof rec.array === 'string') out.push(rec);
+    if (arrayPathOf(rec) !== null) out.push(rec);
     for (const v of Object.values(rec)) collectArrayNodes(v, out);
   }
 }
@@ -126,14 +182,15 @@ function collectArrayNodes(node: unknown, out: Array<Record<string, unknown>>): 
 /**
  * Имена, которые реестр предоставляет всегда, без объявления в intent.
  *
- * `Wizard` — канонический ключ реестра для прикладного шима визарда (07-form-wizard.md):
- * библиотека компонент не экспортирует, приложение регистрирует свой. Полем intent
- * контейнер быть не может по определению, поэтому без этой записи C2 ругалась ровно на то,
- * что предписывает канон. `RendererFormWizard` оставлен для исторических примеров.
+ * `FormWizard` — библиотечный визард ui-kit: полем intent контейнер быть не может по
+ * определению, поэтому без этой записи C2 ругалась бы ровно на то, что предписывает канон.
+ * `Wizard` и `RendererFormWizard` — ключи прикладного шима прежнего контракта; оставлены,
+ * чтобы документы прежнего формата проверялись без ложных срабатываний.
  */
 const BUILTIN_COMPONENTS = new Set([
   'FIELD_WRAPPER',
   'Step',
+  'FormWizard',
   'Wizard',
   'RendererFormWizard',
   'Box',
@@ -157,7 +214,10 @@ export function crossCheckBundle(
   const models = new Set<string>();
   const components = new Set<string>();
   const dataSources = new Set<string>();
-  collectModelRefs(layoutJson, '', models);
+  // Привязки собираются от корня дерева: части документа формата 2 разворачиваются в области
+  // своих подключений. Имена компонентов, источников и селекторы — по всему документу.
+  const view = viewOf(layoutJson);
+  collectModelRefs(view.root, '', models, view);
   collectOperators(layoutJson, 'component', components);
   collectOperators(layoutJson, 'dataSource', dataSources);
 
@@ -244,29 +304,35 @@ export function crossCheckBundle(
     err('C7', `Цикл в вычисляемых полях: ${cycle.join(' → ')}. Рантайм бросит «Cycle detected».`);
   }
 
-  // C8 — у каждого узла массива есть initialValue, и его ключи совпадают с itemFields.
-  // Проверка, которую схема сделать не может: она видит `initialValue` как opaque-значение.
+  // C8 — узел массива под-форм собран верно: есть шаблон строки, а запасной `initialValue`
+  // (если задан) совпадает по ключам с itemFields. Проверка, которую схема сделать не может: она
+  // видит `initialValue` как opaque-значение.
   //
-  // По контракту renderer-json это литерал ОДНОГО пустого элемента (объект), а не список
-  // начальных строк: `ArrayIntent.initialValue` и `JsonArrayNode.initialValue` называются
-  // одинаково, но значат разное. Прежняя редакция требовала здесь массив — то есть закрепляла
-  // формат, который ajv-схема пакета отвергает.
+  // Формат 2: шаблон нового элемента живёт в модели (`arrayOf`), поэтому `initialValue` у узла
+  // необязателен; шаблон строки — именованная часть (`$part(name)`) либо `item.$template`.
+  // Прежний формат: `initialValue`-объект обязателен — без него первое добавление строки падает.
+  //
+  // В обоих форматах это литерал ОДНОГО пустого элемента (объект), а не список начальных строк:
+  // `ArrayIntent.initialValue` и `initialValue` узла называются одинаково, но значат разное.
   const arrayNodes: Array<Record<string, unknown>> = [];
   collectArrayNodes(layoutJson, arrayNodes);
   for (const node of arrayNodes) {
-    const path = String(node.array).replace(/^\$model\(|\)$/g, '');
+    const path = arrayPathOf(node) ?? '';
     const decl = intent.arrays.find((a) => (a.modelPath ?? a.name) === path);
     const sample = node.initialValue;
-    if (sample === null || typeof sample !== 'object' || Array.isArray(sample)) {
+    const isObject = sample !== null && typeof sample === 'object' && !Array.isArray(sample);
+    if (!isObject && (!view.v2 || sample !== undefined)) {
       err(
         'C8',
-        `Узел массива \`${path}\` без initialValue-объекта — первое добавление строки упадёт.`
+        view.v2
+          ? `Узел массива \`${path}\`: initialValue должен быть объектом — литералом одного пустого элемента.`
+          : `Узел массива \`${path}\` без initialValue-объекта — первое добавление строки упадёт.`
       );
-      continue;
+      if (!view.v2) continue;
     }
-    if (decl) {
+    if (decl && isObject) {
       const declared = new Set(decl.itemFields.map((f) => f.name));
-      const extra = Object.keys(sample).filter((k) => !declared.has(k));
+      const extra = Object.keys(sample as object).filter((k) => !declared.has(k));
       if (extra.length > 0) {
         err(
           'C8',
@@ -274,11 +340,34 @@ export function crossCheckBundle(
         );
       }
     }
-    // Шаблон элемента обязан лежать под `$template`: узел, положенный в `item` напрямую, ajv
-    // отвергает, а рендер не находит.
-    const item = node.item;
-    if (item === null || typeof item !== 'object' || !('$template' in (item as object))) {
-      err('C8', `Узел массива \`${path}\`: шаблон элемента должен лежать в \`item.$template\`.`);
+    // Шаблон строки: в формате 2 — именованная часть либо `item.$template`; в прежнем — только
+    // `item.$template` (узел, положенный в `item` напрямую, ajv отвергает, а рендер не находит).
+    const rowPart = view.v2 ? operatorArg(node.item, 'part') : null;
+    if (rowPart !== null) {
+      if (!(rowPart in view.parts)) {
+        err(
+          'C8',
+          `Узел массива \`${path}\`: шаблон строки \`$part(${rowPart})\` не объявлен в \`parts\` документа.`
+        );
+      }
+    } else if (!isRecord(node.item) || !('$template' in node.item)) {
+      err(
+        'C8',
+        view.v2
+          ? `Узел массива \`${path}\`: шаблон строки — \`"item": "$part(имя)"\` либо \`item.$template\`.`
+          : `Узел массива \`${path}\`: шаблон элемента должен лежать в \`item.$template\`.`
+      );
+    }
+  }
+
+  // Подформы: каждая ссылка `$part(name)` ведёт в объявленную часть.
+  if (view.v2) {
+    const usedParts = new Set<string>();
+    collectOperators(layoutJson, 'part', usedParts);
+    for (const name of usedParts) {
+      if (!(name in view.parts)) {
+        err('C8', `\`$part(${name})\` — такой части нет в \`parts\` документа.`);
+      }
     }
   }
 
@@ -318,6 +407,9 @@ export function crossCheckBundle(
  * Внутри `item.$template` все строки массива рендерятся по одному шаблону, поэтому их
  * идентификаторы совпадают по определению — это не дубль. Считаем такие вхождения один раз,
  * пометив областью, а дублями объявляем только совпадения в пределах одной области.
+ *
+ * Именованная часть документа формата 2 — своя область: её шаблон лежит в `parts` один раз,
+ * сколько бы узлов его ни подключало.
  */
 function collectTestIds(node: unknown, scope: string, out: Map<string, number>): void {
   if (Array.isArray(node)) {
@@ -327,6 +419,13 @@ function collectTestIds(node: unknown, scope: string, out: Map<string, number>):
   if (!node || typeof node !== 'object') return;
 
   const rec = node as Record<string, unknown>;
+  if (rec.format === 2 && isRecord(rec.parts)) {
+    for (const [name, part] of Object.entries(rec.parts)) {
+      collectTestIds(part, `${scope}/part:${name}`, out);
+    }
+    collectTestIds(rec.root, scope, out);
+    return;
+  }
   const props = rec.componentProps;
   if (props && typeof props === 'object' && !Array.isArray(props)) {
     const testId = (props as Record<string, unknown>).testId;
@@ -336,10 +435,10 @@ function collectTestIds(node: unknown, scope: string, out: Map<string, number>):
     }
   }
 
-  const arrayOp = typeof rec.array === 'string' ? rec.array.match(/^\$model\(([^)]*)\)$/) : null;
+  const arrayPath = arrayPathOf(rec);
   for (const [key, value] of Object.entries(rec)) {
     if (key === 'componentProps') continue;
-    const nextScope = key === 'item' && arrayOp ? `${scope}/${arrayOp[1]}` : scope;
+    const nextScope = key === 'item' && arrayPath !== null ? `${scope}/${arrayPath}` : scope;
     collectTestIds(value, nextScope, out);
   }
 }

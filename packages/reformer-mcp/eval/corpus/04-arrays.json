@@ -7,7 +7,7 @@
       "task": "объявить в схеме массив объектов",
       "target": "core",
       "queries": ["form array node", "array of objects in form schema", "form-array"],
-      "expectAny": ["initialValue", "item:", "ArrayNode"]
+      "expectAny": ["arrayOf(", "item:"]
     },
     {
       "id": "arrays/render",
@@ -47,6 +47,13 @@
       "target": "core",
       "queries": ["nested array inside array item", "array of arrays form", "nested form array"],
       "expectAny": ["вложен", "nested array", "itemModel"]
+    },
+    {
+      "id": "arrays/new-row-template",
+      "task": "задать шаблон нового элемента массива для кнопки «Добавить»",
+      "target": "core",
+      "queries": ["template of a new array item", "blank item for add button", "arrayOf"],
+      "expectAny": ["arrayOf("]
     }
   ]
 }

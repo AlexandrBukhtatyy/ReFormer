@@ -22,7 +22,10 @@
  * @module plugins/reformer/editor/canvas/canvas-tree
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { htmlTag } from '../../../core/catalog';
 import { nodeIdOf } from '../../../core/form-model';
 import { childSlots, kindOf, type ChildSlotKind, type NodeKind } from '../../../core/form-model';

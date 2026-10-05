@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 import { defineFormBehavior, compute, computeFrom } from '../../src/form/behaviors';
 
 describe('F7 · детект расходящихся циклов', () => {
@@ -19,7 +19,7 @@ describe('F7 · детект расходящихся циклов', () => {
       compute(m.$.a, () => m.b + 1);
       compute(m.$.b, () => m.a + 1); // a→b→a… без стабилизации
     });
-    expect(() => createForm<F>({ model, behavior })).toThrowError(/расходящийся цикл/);
+    expect(() => createFormFromModel<F>({ model, behavior })).toThrowError(/расходящийся цикл/);
   });
 
   it('расходящийся computeFrom-цикл → понятная ошибка', () => {
@@ -32,7 +32,7 @@ describe('F7 · детект расходящихся циклов', () => {
       computeFrom([m.$.b], m.$.a, (b) => (b as number) + 1);
       computeFrom([m.$.a], m.$.b, (a) => (a as number) + 1);
     });
-    expect(() => createForm<F>({ model, behavior })).toThrowError(/расходящийся цикл/);
+    expect(() => createFormFromModel<F>({ model, behavior })).toThrowError(/расходящийся цикл/);
   });
 
   it('сходящийся взаимный compute стабилизируется (НЕ ложное срабатывание)', () => {
@@ -45,7 +45,7 @@ describe('F7 · детект расходящихся циклов', () => {
       compute(m.$.a, () => Math.max(m.b, 5));
       compute(m.$.b, () => Math.max(m.a, 3));
     });
-    expect(() => createForm<F>({ model, behavior })).not.toThrow();
+    expect(() => createFormFromModel<F>({ model, behavior })).not.toThrow();
     expect(model.a).toBe(5);
     expect(model.b).toBe(5);
   });
@@ -62,7 +62,7 @@ describe('F7 · детект расходящихся циклов', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       compute(m.$.total, () => m.items.map((i) => i.x as number).reduce((a, b) => a + b, 0));
     });
-    createForm<F>({ model, behavior });
+    createFormFromModel<F>({ model, behavior });
 
     for (let i = 0; i < 300; i++) model.items.push({ x: 1 }); // 300 синхронных пересчётов total
     expect(model.total).toBe(300); // без ложного «расходящегося цикла»

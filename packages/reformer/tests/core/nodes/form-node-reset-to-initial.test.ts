@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 import { ArrayNode } from '../../../src/form/nodes/array-node';
-import { createForm } from '../../../src/form/create-form';
+import { createLegacyForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 import type { FormProxy } from '../../../src';
 
@@ -77,7 +77,7 @@ describe('FormNode - resetToInitial()', () => {
     let form: FormProxy<TestForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         email: { value: 'initial@mail.com', component: null as ComponentInstance },
         name: { value: 'John', component: null as ComponentInstance },
         age: { value: 25, component: null as ComponentInstance },
@@ -157,7 +157,7 @@ describe('FormNode - resetToInitial()', () => {
     let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         user: {
           name: { value: 'Initial Name', component: null as ComponentInstance },
           email: { value: 'initial@mail.com', component: null as ComponentInstance },
@@ -272,7 +272,7 @@ describe('FormNode - resetToInitial()', () => {
         bio: string;
       }
 
-      const form = createForm<UserForm>({
+      const form = createLegacyForm<UserForm>({
         email: { value: 'user@example.com', component: null as ComponentInstance },
         name: { value: 'John Doe', component: null as ComponentInstance },
         bio: { value: 'Initial bio', component: null as ComponentInstance },
@@ -300,7 +300,7 @@ describe('FormNode - resetToInitial()', () => {
         items: Array<{ task: string; done: boolean }>;
       }
 
-      const form = createForm<TodoForm>({
+      const form = createLegacyForm<TodoForm>({
         title: { value: 'My TODO List', component: null as ComponentInstance },
         items: [
           {

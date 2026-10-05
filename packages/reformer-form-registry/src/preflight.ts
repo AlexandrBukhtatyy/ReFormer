@@ -7,18 +7,23 @@
  * Preflight собирает полную картину и позволяет решить, что делать: показать панель или
  * подставить плейсхолдеры.
  *
- * Пять проверок, из которых четыре не делаются сегодня нигде:
+ * Шесть проверок, из которых пять не делаются сегодня нигде:
  *
  * | проверка | что ловит |
  * |---|---|
  * | `compatibleSchema` ↔ версия схемы | схема ушла вперёд кода: CDN отдал v2, поведение осталось v1 |
  * | `id`/`version` записи ↔ схемы | CDN отдал ЧУЖУЮ схему — форма молча пишет не те поля |
  * | имена операторов ⊆ реестр | ссылка на незарегистрированный компонент/источник/функцию |
+ * | имена `$part(...)` ⊆ `parts` документа | подформа или шаблон строки ссылается на необъявленную часть |
  * | ключи `validation.steps` ⊆ selector'ы | пошаговая валидация молча не срабатывает на переименованном шаге |
  * | пути `$model(...)` ⊆ начальные значения | поля нет в модели → нет сигнала → **ошибки валидации тихо исчезают** |
  *
  * Последняя — самая коварная: `validateModel` роутит ошибки через `getNodeForSignal(sig)?.setErrors(...)`,
  * и опциональная цепочка означает, что для нематериализованного поля ошибка просто исчезает.
+ *
+ * Документ принимается в обоих форматах. В формате 2 обход идёт и по именованным частям
+ * (`parts`): их операторы и селекторы учитываются наравне с корневым деревом, а пути модели
+ * внутри части считаются от группы, к которой она подключена.
  *
  * @module reformer/form-registry/preflight
  */
@@ -28,10 +33,15 @@ import {
   collectSchemaSelectors,
   getDataSourceNames,
   getFnNames,
+  schemaFormatOf,
   type ComponentRegistry,
   type JsonFormSchema,
+  type JsonFormSchemaV1,
 } from '@reformer/renderer-json';
 import type { FormEntry, FormValidation } from './types';
+
+/** Документ схемы любого формата. */
+type AnyFormSchema<T = unknown> = JsonFormSchema<T> | JsonFormSchemaV1<T>;
 
 export interface PreflightProblem {
   code:
@@ -40,6 +50,7 @@ export interface PreflightProblem {
     | 'missing-components'
     | 'missing-data-sources'
     | 'missing-fns'
+    | 'missing-parts'
     | 'unknown-step-selectors'
     | 'unmaterialized-model-paths';
   message: string;
@@ -111,22 +122,92 @@ export function satisfiesRange(version: string, range: string): boolean {
   }
 }
 
-/** Пути `$model(...)`, встреченные в схеме. */
-export function collectModelPaths(schema: JsonFormSchema): string[] {
+const MODEL_OP = /^\$model\(([^)]*)\)$/;
+const PART_OP = /^\$part\(([^)]*)\)$/;
+
+const modelPathOf = (v: unknown): string | undefined =>
+  typeof v === 'string' ? MODEL_OP.exec(v)?.[1] || undefined : undefined;
+const partNameOf = (v: unknown): string | undefined =>
+  typeof v === 'string' ? PART_OP.exec(v)?.[1] || undefined : undefined;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/** Именованные части документа формата 2; у прежнего формата их нет. */
+function partsOf(schema: AnyFormSchema): Record<string, unknown> {
+  const parts = (schema as { parts?: unknown }).parts;
+  return schemaFormatOf(schema) === 2 && isRecord(parts) ? parts : {};
+}
+
+/**
+ * Пути `$model(...)`, встреченные в схеме, — от корня модели.
+ *
+ * Прежний формат: все операторы дерева как есть.
+ *
+ * Формат 2: путь внутри именованной части относителен группе, к которой часть подключена, —
+ * он достраивается до пути от корня. Шаблон строки массива (`item`) не обходится: его пути
+ * относительны элементу, а массив на старте обычно пуст, и проверить их против начальных значений
+ * нечем. Сам массив в результат попадает.
+ */
+export function collectModelPaths(schema: AnyFormSchema): string[] {
   const out = new Set<string>();
-  const scan = (v: unknown): void => {
-    if (typeof v === 'string') {
-      const m = /^\$model\(([^)]*)\)$/.exec(v);
-      if (m?.[1]) out.add(m[1]);
+
+  if (schemaFormatOf(schema) !== 2) {
+    const scan = (v: unknown): void => {
+      const path = modelPathOf(v);
+      if (path) out.add(path);
+      else if (Array.isArray(v)) v.forEach(scan);
+      else if (isRecord(v)) for (const x of Object.values(v)) scan(x);
+    };
+    scan(schema.root);
+    return [...out];
+  }
+
+  const parts = partsOf(schema);
+  /** `stack` — части на пути от корня: защита от части, подключающей саму себя. */
+  const walk = (v: unknown, prefix: string, stack: readonly string[]): void => {
+    const path = modelPathOf(v);
+    if (path) {
+      out.add(prefix + path);
       return;
     }
     if (Array.isArray(v)) {
-      v.forEach(scan);
+      for (const x of v) walk(x, prefix, stack);
       return;
     }
-    if (v && typeof v === 'object') for (const x of Object.values(v)) scan(x);
+    if (!isRecord(v)) return;
+
+    const bound = modelPathOf(v.model);
+    const partName = partNameOf(v.part);
+    if (bound && partName) {
+      // Подформа: часть разворачивается от своей группы.
+      out.add(prefix + bound);
+      if (partName in parts && !stack.includes(partName)) {
+        walk(parts[partName], `${prefix}${bound}.`, [...stack, partName]);
+      }
+      return;
+    }
+    for (const [key, x] of Object.entries(v)) {
+      // Шаблон строки массива — пути относительны элементу, см. описание функции.
+      if (key === 'item' && bound) continue;
+      walk(x, prefix, stack);
+    }
+  };
+  walk(schema.root, '', []);
+  return [...out];
+}
+
+/** Имена частей, на которые документ ссылается оператором `$part(...)`. */
+function collectPartNames(schema: AnyFormSchema): string[] {
+  const out = new Set<string>();
+  const scan = (v: unknown): void => {
+    const name = partNameOf(v);
+    if (name) out.add(name);
+    else if (Array.isArray(v)) v.forEach(scan);
+    else if (isRecord(v)) for (const x of Object.values(v)) scan(x);
   };
   scan(schema.root);
+  scan(partsOf(schema));
   return [...out];
 }
 
@@ -146,7 +227,8 @@ export function hasPath(obj: unknown, path: string): boolean {
 
 export interface PreflightInput<T extends object> {
   entry: FormEntry<T>;
-  schema: JsonFormSchema<T>;
+  /** Документ схемы любого формата. */
+  schema: AnyFormSchema<T>;
   registry: ComponentRegistry;
   /** Начальные значения либо снимок модели. `undefined` — проверка путей пропускается. */
   initial?: unknown;
@@ -217,6 +299,21 @@ export function preflight<T extends object>(input: PreflightInput<T>): Preflight
       level: 'error',
       items: missingFns,
       message: `в реестре нет функций: ${missingFns.join(', ')}`,
+    });
+  }
+
+  // 3а. Имена частей против словаря `parts` документа. Конвертер на необъявленной части бросает —
+  //     и называет только первую.
+  const declaredParts = partsOf(schema);
+  const missingParts = collectPartNames(schema).filter((n) => !(n in declaredParts));
+  if (missingParts.length) {
+    problems.push({
+      code: 'missing-parts',
+      level: 'error',
+      items: missingParts,
+      message:
+        `документ ссылается на необъявленные части: ${missingParts.join(', ')}. ` +
+        `Объявленные в \`parts\`: ${Object.keys(declaredParts).sort().join(', ') || '(нет)'}.`,
     });
   }
 

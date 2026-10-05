@@ -1,7 +1,11 @@
 /**
  * Операторы поведения над коллекциями и под-моделями.
  *
- * Все четыре начинаются одинаково: `getScope()` → `__path` цели → ранний выход, если пути нет.
+ * Цель оператора — РУЧКА дерева `model.$` (`model.$.items`, `model.$.address`). Под-модель и нода
+ * формы находятся по идентичности ручки ({@link modelOf}, {@link getNodeForSignal}), а не по пути:
+ * путь абсолютный, а область вложенной схемы (строка массива, группа) — нет. Поэтому операторы
+ * работают одинаково в корневой схеме, в схеме строки и в схеме группы.
+ *
  * Различаются владением cleanup'ами: `apply` кладёт отписку под-схемы в РОДИТЕЛЬСКИЙ ambient-сток,
  * а `applyEach` держит отписки строк в собственном `Map` и снимает их при удалении строки.
  *
@@ -11,26 +15,31 @@
 
 import type { Signal } from '@preact/signals-core';
 import type { BehaviorCleanup, FormModel, FormProxy } from '../../index';
-import { getScope, onDispose, effect, defer, defineFormBehavior } from './context';
-import { type GroupSignals, isLeafSignal, asArray, getByPath } from './internals';
+import { getNodeForSignal } from '../signal-node-registry';
+import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
+import { getController, onDispose, effect, defer, defineFormBehavior } from './context';
+import { asArray } from './internals';
 import { onChange } from './operators';
 import type { FormBehavior } from './types';
 
-/** Лёгкая модель-обёртка над вложенными сигналами (для `apply`): `.$` + value-чтение. */
-function nestedModel<T>(groupSignals: GroupSignals): FormModel<T> {
-  return new Proxy(
-    {},
-    {
-      get: (_t, key) => {
-        if (key === '$') return groupSignals;
-        if (typeof key !== 'string') return undefined;
-        const child = groupSignals[key];
-        if (child == null) return undefined;
-        return isLeafSignal(child) ? child.value : nestedModel(child as GroupSignals);
-      },
-    }
-  ) as FormModel<T>;
+/** Минимальный интерфейс value-фасада массива модели, нужный операторам коллекций. */
+interface RowArray<TItem> {
+  readonly length: number;
+  at(index: number): FormModel<TItem> | undefined;
+  toArray(): TItem[];
 }
+
+/** Нода массива под-форм: формы строк и реактивная длина. */
+interface RowArrayNode {
+  at?: (index: number) => unknown;
+  length?: { value: number };
+}
+
+/** Путь ручки — только для сообщений об ошибках. */
+const pathOf = (handle: object): string => (handle as { __path?: string }).__path ?? '?';
+
+/** Оператор вызван внутри схемы поведения? Иначе — понятная ошибка до любых побочных эффектов. */
+const assertInsideSchema = (op: string): void => void getController(op);
 
 /**
  * Заглушка формы строки для НЕматериализованного массива: бросает понятную ошибку при доступе к ноде.
@@ -65,40 +74,44 @@ function unmaterializedRowForm<T>(path: string): FormProxy<T> {
  *   рендерится, а её сигналы зарегистрированы (`enableWhen` резолвит ноду). Без материализации доступ
  *   к `form.*` бросит понятную ошибку (см. {@link unmaterializedRowForm}).
  *
+ * Работает на любой глубине: массив в корне, в группе и в строке другого массива — в схеме строки
+ * можно снова вызвать `applyEach`.
+ *
  * @example
  * applyEach(model.$.items, defineFormBehavior<Item>(({ model: row, form }) => {
  *   compute(row.$.lineTotal, () => row.qty * row.price);    // value-op — всегда
  *   enableWhen(row.$.discount, () => row.qty > 10);          // node-op — нужна материализация массива
+ *   applyEach(row.$.phones, phoneBehavior);                  // массив внутри строки
  * }));
  */
 export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void {
-  const { model: rootModel, form: rootForm } = getScope();
-  const path = (array as GroupSignals).__path;
-  if (!path) return;
-  const arrValue = getByPath(rootModel, path); // value-proxy массива (at/length/map)
-  if (!arrValue) return;
-  const arrNode = (rootForm as unknown as { getFieldByPath(p: string): unknown }).getFieldByPath(
-    path
-  ) as { at?: (i: number) => unknown; length?: { value: number } } | undefined;
+  const controller = getController('applyEach'); // вне схемы поведения — понятная ошибка
+  const handle = arrayHandleOf(array);
+  if (!handle) return;
+  const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
+  const arrNode = getNodeForSignal(handle) as RowArrayNode | undefined;
   // Длину берём из НОДЫ массива (её сигнал обновляется ПОСЛЕ построения форм строк) — так rowForm готов
-  // к запуску row-поведения независимо от порядка effect'ов. Фолбэк — длина value-proxy модели
-  // (немат­ериализованный массив: форм строк нет, node-операции недоступны).
-  const lengthSignal = arrNode?.length;
+  // к запуску row-поведения независимо от порядка effect'ов. Фолбэк — длина value-фасада модели
+  // (нематериализованный массив: форм строк нет, node-операции недоступны). Поле над массивом
+  // целиком (мультивыбор) форм строк тоже не имеет — у его ноды нет `at`.
+  const rowForms = typeof arrNode?.at === 'function' ? arrNode : undefined;
+  const lengthSignal = rowForms?.length;
 
   // key = под-модель строки (стабильна по идентичности GroupNode через facadeCache)
   const activeByRow = new Map<unknown, BehaviorCleanup>();
 
   effect(() => {
-    const len = lengthSignal ? lengthSignal.value : (arrValue.length as number);
+    const len = lengthSignal ? lengthSignal.value : rows.length;
     const seen = new Set<unknown>();
     for (let i = 0; i < len; i++) {
-      const rowModel = arrValue.at(i);
+      const rowModel = rows.at(i);
       if (rowModel == null) continue;
       seen.add(rowModel);
       if (!activeByRow.has(rowModel)) {
         const rowForm =
-          (arrNode?.at?.(i) as FormProxy<TItem> | undefined) ?? unmaterializedRowForm<TItem>(path);
-        activeByRow.set(rowModel, itemSchema.__run(rowModel as FormModel<TItem>, rowForm));
+          (rowForms?.at?.(i) as FormProxy<TItem> | undefined) ??
+          unmaterializedRowForm<TItem>(pathOf(handle));
+        activeByRow.set(rowModel, itemSchema.__run(rowModel, rowForm, controller));
       }
     }
     // отписать исчезнувшие строки
@@ -115,12 +128,6 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
     for (const cleanup of activeByRow.values()) cleanup();
     activeByRow.clear();
   });
-}
-
-/** Минимальный интерфейс value-proxy массива модели (length/at), нужный кросс-строчным операторам. */
-interface RowArray<TItem> {
-  readonly length: number;
-  at(index: number): FormModel<TItem> | undefined;
 }
 
 /** Реактивно «потрогать» весь массив (длина + все поля строк), чтобы подписать на любые изменения. */
@@ -147,18 +154,17 @@ export function exclusiveFlag<TItem>(
   array: object,
   getFlag: (row: FormModel<TItem>) => Signal<boolean>
 ): void {
-  const { model } = getScope();
-  const path = (array as GroupSignals).__path;
-  if (!path) return;
-  const arrValue = getByPath(model, path) as RowArray<TItem> | undefined;
-  if (!arrValue) return;
+  assertInsideSchema('exclusiveFlag');
+  const handle = arrayHandleOf(array);
+  if (!handle) return;
+  const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   applyEach(
-    array,
+    handle,
     defineFormBehavior<TItem>(({ model: row }) => {
       onChange(getFlag(row), (on) => {
         if (!on) return;
-        for (let i = 0; i < arrValue.length; i++) {
-          const other = arrValue.at(i);
+        for (let i = 0; i < rows.length; i++) {
+          const other = rows.at(i);
           if (other && other !== row) {
             const flag = getFlag(other);
             if (flag.peek()) flag.value = false;
@@ -187,23 +193,22 @@ export function aggregateInto<TItem>(
   array: object,
   derive: (rows: TItem[]) => Array<{ index: number; patch: Partial<TItem> }>
 ): void {
-  const { model } = getScope();
-  const path = (array as GroupSignals).__path;
-  if (!path) return;
-  const arrValue = getByPath(model, path) as (RowArray<TItem> & { toArray(): TItem[] }) | undefined;
-  if (!arrValue) return;
+  assertInsideSchema('aggregateInto');
+  const handle = arrayHandleOf(array);
+  if (!handle) return;
+  const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   let scheduled = false;
   let runs = 0;
   effect(() => {
-    touchValue(arrValue); // подписка на длину + все поля строк
+    touchValue(rows); // подписка на длину + все поля строк
     if (scheduled) return;
     scheduled = true;
     defer(() => {
       scheduled = false;
-      const writes = derive(arrValue.toArray()); // derive по ФИНАЛЬНОМУ состоянию
+      const writes = derive(rows.toArray()); // derive по ФИНАЛЬНОМУ состоянию
       let changed = false;
       for (const { index, patch } of writes) {
-        const r = arrValue.at(index) as Record<string, unknown> | undefined;
+        const r = rows.at(index) as Record<string, unknown> | undefined;
         if (!r) continue;
         for (const [k, val] of Object.entries(patch as Record<string, unknown>)) {
           if (r[k] !== val) {
@@ -216,7 +221,7 @@ export function aggregateInto<TItem>(
       if (runs > 50) {
         runs = 0;
         throw new Error(
-          `[@reformer/core/behaviors] aggregateInto("${path}"): запись не сходится (>50 проходов) — ` +
+          `[@reformer/core/behaviors] aggregateInto("${pathOf(handle)}"): запись не сходится (>50 проходов) — ` +
             `derive должна быть идемпотентной на фикспоинте.`
         );
       }
@@ -224,21 +229,27 @@ export function aggregateInto<TItem>(
   });
 }
 
-/** Применить под-схему к одному или нескольким полям-группам (переиспользование). */
+/**
+ * Применить под-схему к одному или нескольким полям-группам (переиспользование).
+ *
+ * Под-схема получает scope группы: `model` — настоящая под-модель (`model.$.field`, чтение и
+ * запись значений, `get`/`set`/`patch`), `form` — нода группы. Цель — ручка группы
+ * (`model.$.address`); работает и в корневой схеме, и в схеме строки массива.
+ *
+ * @example
+ * apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
+ */
 export function apply<TField>(targets: object | object[], subSchema: FormBehavior<TField>): void {
-  const { form: rootForm } = getScope();
-  for (const t of asArray(targets)) {
-    const groupSignals = t as GroupSignals;
-    const path = groupSignals.__path;
-    if (!path) continue;
-    // Форма может отсутствовать (массив не материализован / form === null) — тогда под-схема
-    // работает только с моделью (value-операции), без доступа к ноде группы.
-    const node = rootForm
-      ? (rootForm as unknown as { getFieldByPath(p: string): unknown }).getFieldByPath(path)
-      : undefined;
-    const nestedForm = (
-      node ? ((node as { getProxy?: () => unknown }).getProxy?.() ?? node) : undefined
-    ) as FormProxy<TField>;
-    onDispose(subSchema.__run(nestedModel<TField>(groupSignals), nestedForm));
+  const controller = getController('apply'); // вне схемы поведения — понятная ошибка
+  for (const target of asArray(targets)) {
+    // Цель — группа. Массив и лист под-модели не имеют: массив подключают через `applyEach`.
+    const handle = groupHandleOf(target);
+    if (!handle) continue;
+    const subModel = modelOf(handle as { peek(): object }) as unknown as FormModel<TField>;
+    // Форма может отсутствовать (модель без формы, под-схема работает только со значениями) —
+    // тогда node-операции через `form.*` недоступны.
+    const node = getNodeForSignal(handle) as { getProxy?: () => unknown } | undefined;
+    const nestedForm = (node ? (node.getProxy?.() ?? node) : undefined) as FormProxy<TField>;
+    onDispose(subSchema.__run(subModel, nestedForm, controller));
   }
 }

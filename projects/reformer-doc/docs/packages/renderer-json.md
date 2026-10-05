@@ -108,7 +108,7 @@ export function MyFormPage() {
 - **Реестр** — `defineRegistry` строит карту имён на компоненты и dataSource-значения. `FIELD_WRAPPER` (`'$fieldWrapper'`) — зарезервированный ключ для компонента-обёртки полей (label, error, hint), обычно `FormField` из `@reformer/ui-kit`.
 - **Валидация схемы** — мета-схема form-DSL (`formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames`, ajv-free). Полный `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл); `JsonFormRenderer` грузит её динамически при `validate={true}`, ошибки рисует `SchemaErrorPanel`.
 
-Для низкоуровневого доступа доступны `convertJsonToM1Tree` (JSON → RenderNode-дерево для `createForm({ model, schema })`) и `createRenderSchemaFromJsonM1` (JSON → `RenderSchemaFn`), а также type guards `isFieldNode` / `isArrayNode` / `isContainerNode`. Обычно эти функции вызывать не нужно: `createJsonForm` инкапсулирует `convertJsonToM1Tree` + `createForm`, а `JsonFormRenderer` — `createRenderSchemaFromJsonM1`. Тяните их напрямую только для ручной сборки.
+Для низкоуровневого доступа доступны `convertJsonToM1Tree` (JSON → RenderNode-дерево для `createFormFromModel({ model, schema })`) и `createRenderSchemaFromJsonM1` (JSON → `RenderSchemaFn`), а также type guards `isFieldNode` / `isArrayNode` / `isContainerNode`. Обычно эти функции вызывать не нужно: `createJsonForm` инкапсулирует `convertJsonToM1Tree` + `createForm`, а `JsonFormRenderer` — `createRenderSchemaFromJsonM1`. Тяните их напрямую только для ручной сборки.
 
 ## Дальше
 

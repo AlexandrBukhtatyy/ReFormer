@@ -52,7 +52,7 @@ submit, на шаге wizard'а или по реакции behavior. Layout-сх
 ## Примитивные поля
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Input, InputNumber, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type MyForm = { name: string; age: number | null; agree: boolean; status: string };
@@ -88,7 +88,7 @@ const schema = {
   },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 ```
 
 Правила для этих полей (`required()`, `email()`, …) в узлах не задаются — они пишутся в отдельной схеме
@@ -133,7 +133,7 @@ Builder привязывает каждое поле к сигналам пер�
 элемента из его под-модели (`FormModel<Item>`):
 
 ```typescript
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
@@ -152,7 +152,7 @@ const schema = {
   items: { array: model.items, item: itemSchema },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 ```
 
 Массив в узле связывается через **value-proxy** `model.items` (он несёт путь), а не через сигнальный
@@ -187,7 +187,7 @@ model.$.<field>` типизирована, поэтому опечатка в и
 массива — через `.at(i)`:
 
 ```typescript
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 
 form.name; // FieldNode<string> — TypeScript знает тип
 form.address.city; // FieldNode<string> — вложенный доступ

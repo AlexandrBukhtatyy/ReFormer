@@ -17,7 +17,7 @@
 // Импорт ИМЕННО из subpath `/validate`: в основной точке входа `renderer-json` валидатора нет
 // специально — ajv не должен попадать в render-бандл. Тянуть его отсюда — то же решение этажом выше.
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import type { ComponentRegistry, JsonFormSchema } from '@reformer/renderer-json';
+import type { ComponentRegistry, JsonFormSchema, JsonFormSchemaV1 } from '@reformer/renderer-json';
 
 export interface ValidateOptions {
   registry?: ComponentRegistry;
@@ -53,7 +53,7 @@ const NO_REGISTRY = {} as ComponentRegistry;
  * @param opts - Реестр для сверки имён операторов.
  */
 export function validateSchemaCached(
-  schema: JsonFormSchema,
+  schema: JsonFormSchema | JsonFormSchemaV1,
   opts: ValidateOptions = {}
 ): ValidateResult {
   const registryKey = (opts.registry ?? NO_REGISTRY) as unknown as object;
@@ -92,7 +92,7 @@ export class SchemaInvalidError extends Error {
  */
 export function assertSchemaValid(
   entryKey: string,
-  schema: JsonFormSchema,
+  schema: JsonFormSchema | JsonFormSchemaV1,
   opts: ValidateOptions = {}
 ): void {
   const { valid, errors } = validateSchemaCached(schema, opts);

@@ -7,7 +7,7 @@
  * @module plugins/reformer/ai/loop/loop
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { FormRules } from '../../../core/form-model';
 import { joinWithinBudget } from './render-budget';

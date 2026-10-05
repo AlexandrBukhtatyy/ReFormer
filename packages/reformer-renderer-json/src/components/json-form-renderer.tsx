@@ -13,7 +13,7 @@ import {
   type RenderSchemaProxy,
 } from '@reformer/renderer-react';
 import type { FormModel } from '@reformer/core';
-import type { JsonFormSchema } from '../types/json-schema';
+import type { JsonFormSchemaV1 } from '../types/json-schema-v1';
 import type { JsonForm } from '../create-json-form';
 import { useJsonRendererSettingsUnchecked } from '../context/json-renderer-context';
 import { FIELD_WRAPPER } from '../registry/constants';
@@ -35,11 +35,11 @@ export interface JsonFormRendererProps<T> {
    */
   form?: JsonForm<T>;
   /**
-   * JSON-схема формы. См. {@link JsonFormSchema}. Опционально, если задан `form`. Тип намеренно
+   * JSON-схема формы. См. {@link JsonFormSchemaV1}. Опционально, если задан `form`. Тип намеренно
    * НЕ параметризован `T`: рендерер принимает любую схему (в т.ч. `.json`-импорт «строкой с сервера»);
    * типобезопасность путей `$model(...)` даётся на этапе авторинга (`defineJsonSchema<T>`/`createJsonForm<T>`).
    */
-  schema?: JsonFormSchema;
+  schema?: JsonFormSchemaV1;
   /**
    * Модель данных формы (M1). Листья схемы (`value: '$model(path)'`) биндятся к её сигналам
    * (`model.signalAt(path)`) конвертером {@link createRenderSchemaFromJsonM1}. Per-form состояние,
@@ -95,11 +95,11 @@ export interface JsonFormRendererProps<T> {
  *   JsonRendererProvider,
  *   defineRegistry,
  *   FIELD_WRAPPER,
- *   type JsonFormSchema,
+ *   type JsonFormSchemaV1,
  * } from '@reformer/renderer-json';
  *
  * // Привязки — строки-операторы: '$model(...)', '$component(...)', '$dataSource(...)'.
- * const schema: JsonFormSchema = {
+ * const schema: JsonFormSchemaV1 = {
  *   version: '1.0',
  *   root: {
  *     component: '$component(Box)',

@@ -9,7 +9,7 @@ import {
   LIST_PROP_KEYS,
   synthMock,
 } from './index';
-import type { JsonFieldNode } from '@reformer/renderer-json';
+import type { JsonFieldNodeV1 as JsonFieldNode } from '@reformer/renderer-json';
 
 const field = (component: string, props: Record<string, unknown> = {}): JsonFieldNode =>
   ({ value: '$model(x)', component, componentProps: props }) as unknown as JsonFieldNode;

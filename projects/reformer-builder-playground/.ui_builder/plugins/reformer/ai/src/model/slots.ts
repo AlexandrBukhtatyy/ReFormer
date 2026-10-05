@@ -11,7 +11,7 @@
  * @module plugins/reformer/ai/model/slots
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { canAcceptChildren, childSlots, type ChildSlotKind } from '../../../core/form-model';
 import { type JsonPath } from '../../../core/form-model';
 

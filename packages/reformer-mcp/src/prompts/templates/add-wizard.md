@@ -1,9 +1,7 @@
 You convert a single-page form into a multi-step wizard. Two questions to answer in order:
 
 1. **Which wizard implementation?** — pick by hierarchy (Section A).
-2. **How to integrate it with the form's target stack?** — pick by target (Section B).
-
-Sections are independent: any implementation from A composes with any integration from B.
+2. **How does it meet the form?** — pick by who draws the markup (Section B).
 
 ## Args
 
@@ -17,85 +15,42 @@ Sections are independent: any implementation from A composes with any integratio
 
 ---
 
+## What does not depend on the choice
+
+- **A step is linked to its rules by `selector`**: `validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossStepRules }` — the key is the `selector` of the step node in the schema, so reordering steps does not desynchronise rules. A step without a `selector` — and every step declared in JSX, where steps have only a `number` — falls back to its ordinal: step N uses the N-th key of `validation.steps`, so keep the keys in step order. A step with no rules is declared explicitly (`confirm: null`) — otherwise the following steps shift by one.
+- **Rules travel as DATA** in the `validation` field of `createForm`. The assembly turns them into `bundle.validation` = `{ validateStep, validateAll, createStepController, stepSelectors }` (`Promise<boolean>` where applicable). Nobody hand-rolls a `makeValidationConfig(model)` wrapper — that is the former contract.
+- **Per-step schemas** are ordinary `defineValidationSchema<Root>(({ model }) => { validate(model.$.x, [rules]); … })` functions (async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`, sub-forms via `apply`, arrays via `applyEach`). «Next» validates only the current step; submit runs every step plus `extras`. No duplicates between a step and `extras`.
+- **Don't rename fields** when grouping by step — only visual grouping.
+
+---
+
 ## Section A — Wizard implementation hierarchy (pick the highest applicable)
 
-### A1 (DEFAULT for ui-kit stacks) — `FormWizard` from `@reformer/ui-kit/form-wizard`
+### A1 (DEFAULT) — `FormWizard` from `@reformer/ui-kit`
 
-If the detected stack includes `@reformer/ui-kit`, **this is the default**. Import `FormWizard` from `@reformer/ui-kit/form-wizard`. Opinionated, batteries-included wrapper around the CDK compound: consistent step indicator + nav buttons + progress + accessibility + Russian-locale defaults wired by default. Minimum code.
-
-**Polymorphic `step.body` (Path C unified API):**
-
-{{{{raw}}}}
-
-```tsx
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-
-const steps: FormWizardStep<MyForm>[] = [
-  // Variant 1 — React FC: receives { control: FormProxy<T> } as prop
-  { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
-
-  // Variant 2 — Static JSX (ReactNode): rendered directly
-  { number: 2, title: 'Подтверждение', icon: '✓', body: <ConfirmationStep /> },
-
-  // Variant 3 — RenderNode subtree (used in renderer-react / renderer-json flows)
-  // ⚠ A leaf binds a MODEL SIGNAL: `{ value: model.$.X, component }`. The signal carries its
-  // own path — that's how the renderer resolves the node. Never pass a raw field name string.
-  {
-    number: 3,
-    title: 'Контакты',
-    icon: '📞',
-    body: {
-      component: Box,
-      children: [
-        { value: model.$.phoneMain, component: InputMask, componentProps: { label: 'Телефон' } },
-        { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
-      ],
-    },
-  },
-];
-
-<FormWizard
-  form={form}
-  config={credit.validation /* bundle from the assembly: { validateStep, validateAll, … } */}
-  steps={steps}
-  onSubmit={handleSubmit}
-/>;
-```
-
-{{{{/raw}}}}
-
-`step.body` is runtime-discriminated — pick whichever shape fits the consumer's flow. ui-kit handles the first two itself; for the RenderNode case it does NOT depend on `@reformer/renderer-react` (the design system must not pull in a renderer), so you supply the strategy: type the wizard as `FormWizard<T, RenderNode<T>>` and pass `renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}`.
+If the detected stack includes `@reformer/ui-kit`, **this is the default**. Opinionated, batteries-included wrapper around the CDK compound: step indicator + nav buttons + progress + accessibility + Russian-locale defaults wired by default. It is the ONLY implementation that works as a schema node out of the box (Section B2).
 
 If `@reformer/ui-kit` is NOT in package.json, skip to A2.
 
 ### A2 — Project-custom wizard wrapper, if one exists in the consumer project
 
-Some projects already have `src/components/AppWizard.tsx` or similar — a thin wrapper over CDK or a fully custom implementation matching project's UX guidelines. If you find such a file in the project (`src/components/`, `src/widgets/`, etc.), prefer it over building anew — consistency with existing app screens.
+Some projects already have `src/components/AppWizard.tsx` or similar — a thin wrapper over CDK or a fully custom implementation matching the project's UX guidelines. If you find such a file (`src/components/`, `src/widgets/`, etc.), prefer it over building anew — consistency with existing app screens.
 
 ### A3 — `@reformer/cdk` `FormWizard` compound
 
-Headless compound (`FormWizard.Root + Indicator + Step + Actions + Progress`) — full styling/UX control, you assemble the visual layer. Use when:
-
-- ui-kit doesn't export a high-level wizard, AND
-- you don't have a project-custom wrapper, AND
-- you want compound primitives (Indicator API, Actions slot, programmatic `goToStep` via ref).
+Headless compound (`FormWizard.Root + Indicator + Step + Actions + Progress`) — full styling/UX control, you assemble the visual layer. Use when ui-kit doesn't fit, there is no project wrapper, and you want compound primitives (Indicator API, Actions slot, programmatic `goToStep` via ref).
 
 See `reformer://docs/cdk/formwizard-indicator`, `formwizard-actions`, `formwizard-progress`, `external-control-via-ref-2`.
 
 ### A4 (last resort) — Manual `useState` wizard
 
-Plain `const [currentStep, setCurrentStep] = useState(1)` with own step indicator and nav buttons. Use only when:
-
-- A1, A2, A3 unavailable or unsuitable, OR
-- the wizard has unique flow constraints not expressible in CDK compound (e.g. dynamic step skipping, custom routing integration).
-
-For most multi-step forms A3 is the right level — A4 is opt-out, not default.
+Plain `const [currentStep, setCurrentStep] = useState(1)` with own step indicator and nav buttons. Only when A1–A3 are unavailable or the flow has constraints the compound cannot express (dynamic step skipping, custom routing integration).
 
 ### Decision flowchart
 
 ```
 ui-kit (@reformer/ui-kit) in package.json?
-  └─ Yes → A1 (FormWizard from @reformer/ui-kit/form-wizard) [DEFAULT]
+  └─ Yes → A1 (FormWizard from @reformer/ui-kit) [DEFAULT]
   └─ No  → continue
 
 Project-custom wizard wrapper in src/components/?
@@ -108,128 +63,123 @@ Need flow constraints CDK/ui-kit can't express?
 
 ---
 
-## Section B — Target-aware integration
+## Section B — How the wizard meets the form
 
-How wizard step visibility is wired to the form rendering. Independent of A.
+### B1 — markup by hand in JSX (`target=core`)
 
-### Integration B1 — `target=core` (no RenderSchema)
-
-Step bodies are plain React components rendered conditionally:
-
-- A1/A2/A3: Wizard's `<Step>` slot or equivalent renders the active step's body — no `setHidden` needed.
-- A4 (manual useState): JSX-conditional `{currentStep === 1 && <Step1Section />}`.
-
-Validation per step: `validateModel(model, stepSchema)` (`@reformer/core/validation`) — runs the step's `ValidationSchema<Root>`, routes errors into the form nodes (so fields light up), and returns `Promise<boolean>`. Cross-step full validation runs in the submit handler.
-
-⚠ **`validateModel(model, schema)` returns `Promise<boolean>` directly** — `true` when there are no _blocking_ errors. `severity: 'warning'` entries are non-blocking by construction: the runner still routes them into the nodes (the field shows the warning) but keeps the result `true`. So the wizard's boolean gate is just the runner's result — no manual `.errors` inspection, no warning-aware helper. This is exactly what the assembled `bundle.validation` exposes as `{ validateStep, validateAll }` (each `Promise<boolean>`):
-
-```ts
-import { validateModel } from '@reformer/core/validation';
-
-const validateStep = (step: number): Promise<boolean> =>
-  validateModel(model, STEP_SCHEMAS[step - 1]);
-
-// ❌ obsolete contract — the old `validateFormModel` returned `{ valid, errors }`, so people
-//    hand-rolled a warning-aware gate over `.errors`. Both the shape and the helper are gone.
-const res = await validateFormModel(model, schema);
-const ok = Object.values(res.errors)
-  .flat()
-  .every((e) => e.severity === 'warning');
-
-// ✅ `validateModel` already returns the boolean AND already treats warnings as non-blocking
-const ok = await validateModel(model, schema);
-if (!ok) return;
-```
-
-### Integration B2 — `target=renderer-react`
-
-Step bodies are RenderSchema sub-trees with `selector: 'step1'..'stepN'` on each step container.
-
-- **A1 (ui-kit FormWizard)**: pass `step.body: RenderNode<T>` (the subtree) **and** `renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}` — ui-kit does not import the renderer, so the wrapping is yours to supply. No `setHidden` needed — ui-kit handles step switching.
-- A2: if the wrapper accepts a `currentStep` prop and renders its `<Step>` slot, pass schema's pre-rendered nodes per step. Or use `setHidden` (next bullet).
-- A3/A4: `useEffect` toggling `schema.node('stepN').setHidden(currentStep !== n)` for each step.
-
-```tsx
-useEffect(() => {
-  for (let n = 1; n <= TOTAL_STEPS; n++) {
-    schema.node(`step${n}`).setHidden(n !== currentStep);
-  }
-}, [schema, currentStep]);
-```
-
-Conditional sub-sections within steps (mortgage, residence, etc.) get their own selectors and use top-level `hideWhen(proxy.node('selector'), () => ...)` after `createRenderSchema(...)` — NOT inside the node config.
-
-⚠️ **Внутри hideWhen-callback'а читай значение поля как `form.<field>.value.value` (двойной `.value`).** `field.value` возвращает Preact-Signal-объект, не значение. Сравнение `form.flag.value !== true` всегда true (Signal `!==` literal) → секция вечно скрыта без errors. См. add-behavior.md rule #11.
-
-### Integration B3 — `target=renderer-json`
-
-Same `setHidden` mechanics as B2, but the tree comes from JSON: `createJsonForm` converts it, builds the form and assembles the validation in one pass, and the resulting bundle is mounted as the single `form` prop of `JsonFormRenderer` (there is no `schema`+`model` pair to pass, and no pre-M1 `createRenderSchemaFromJson(...)` wrapper). Runtime entities that can't live in static JSON (a `FormProxy` for the wizard node, the assembled validation) are injected into nodes **by `selector`** from the render-behavior factory via `onInit`/`patchProps`.
+`FormWizard` gets everything by props: the form and the assembled validation come from the bundle, step bodies are React components.
 
 {{{{raw}}}}
 
 ```tsx
-import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core';
-import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  createJsonForm,
-  useJsonForm,
-  type JsonFormSchema,
-} from '@reformer/renderer-json';
-import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 
-const jsonSchema = rawJsonSchema as unknown as JsonFormSchema<MyForm>;
-
-// The factory receives what the assembly produced: form, model and the built validation
-// ({ validateStep, validateAll, … }) — exactly the props the wizard node needs.
-function createMyRenderBehavior(
-  form: FormProxy<MyForm>,
-  model: FormModel<MyForm>,
-  validation?: FormValidationBundle<MyForm>
-): RenderBehaviorFn<MyForm> {
-  return (schema) => {
-    onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, ...validation });
-    });
-    // A3/A4 manual wizard: drive schema.node('stepN').setHidden(...) React-mediated (see ⚠ below).
-  };
-}
+const steps: FormWizardStep<MyForm>[] = [
+  // React FC: receives { control: FormProxy<T> } as a prop
+  { number: 1, title: 'Кредит', icon: '💰', body: LoanStep },
+  // static JSX: rendered as is
+  { number: 2, title: 'Подтверждение', icon: '✓', body: <ConfirmationStep /> },
+];
 
 export function MyWizardPage() {
-  const jsonForm = useJsonForm(() =>
-    createJsonForm<MyForm>({
-      schema: jsonSchema,
-      registry: createMyRegistry(),
+  const { form, validation } = useFormBundle(() =>
+    createForm<MyForm>({
       model: createMyModel(),
+      schema: formSchema,
       behavior: formBehavior,
-      validation: formValidation, // { steps: { step1: …, step2: … }, extras? }
-      renderBehavior: createMyRenderBehavior,
+      validation: formValidation, // { steps: { loan: …, confirm: null }, extras? } — keys in step order
     })
   );
 
-  return (
-    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-      <JsonFormRenderer<MyForm> form={jsonForm} validateSchema={import.meta.env.DEV} />
-    </JsonRendererProvider>
-  );
+  return <FormWizard form={form} config={validation} steps={steps} onSubmit={handleSubmit} />;
 }
 ```
 
 {{{{/raw}}}}
 
-JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard`) the injected `form` lets `FormWizard` switch steps itself — no manual `setHidden` cascade. With **A3/A4** wire the step-visibility `setHidden` cascade React-mediated, exactly as B2. Conditional sub-sections via `useFormControlValue(form.field as never)` + a `useEffect` toggling `schema.node('subsection-selector').setHidden(...)`.
+- A3: the compound's `<Step>` slot renders the active step's body; A4: a JSX conditional `{currentStep === 1 && <Step1 />}`. Gate «Next» on `validation.validateStep(stepKey)`, submit on `validation.validateAll()`.
+- Rules for schema nodes (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer and do nothing here: visibility, submit and data loading stay in JSX.
 
-⚠️ **NEVER use raw `effect()` from `@preact/signals-core` для setHidden orchestration.** `setHidden` пишет в hidden-signal, raw `effect()` подписан на signals → infinite loop с «Cycle detected». Используй React-mediated bridge: `const x = useFormControlValue(form.x as never); useEffect(() => schema.node('y').setHidden(...), [schema, x])` — **отдельный `useEffect` per condition**. См. add-behavior.md rule #9 с примерами ❌/✅.
+### B2 — `FormRenderer` draws the form (`target=renderer-react` and `target=renderer-json`)
+
+The wizard is a **schema node**; the steps are its ordinary children. The library `FormWizard` builds steps from the child nodes (`selector`, `componentProps.title`, `componentProps.icon`) and takes the form and the validation from the assembly itself.
+
+```typescript
+// form.schema.ts
+import { Step } from '@reformer/cdk/form-wizard';
+import { FormWizard, Input, SelectAsync } from '@reformer/ui-kit';
+
+export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({
+  selector: 'wizard',
+  component: FormWizard,
+  children: [
+    {
+      selector: 'loan', // the key in validation.steps
+      component: Step,
+      componentProps: { title: 'Кредит', icon: '💰' },
+      children: [
+        { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип' } },
+      ],
+    },
+    {
+      selector: 'contacts',
+      component: Step,
+      componentProps: { title: 'Контакты', icon: '📞' },
+      children: [{ model: model.$.email, component: Input, componentProps: { label: 'Email' } }],
+    },
+  ],
+});
+```
+
+```typescript
+// form.behavior.ts — submit and other wizard events are rules for the node
+import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
+
+export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
+  onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+    await submitMyForm(model.get());
+  });
+});
+```
+
+`renderer-json` — the same tree as data; register the library components in `registry.ts` (`reg.component('FormWizard', FormWizard)`, `reg.component('Step', Step)`):
+
+```jsonc
+{
+  "format": 2,
+  "root": {
+    "selector": "wizard",
+    "component": "$component(FormWizard)",
+    "children": [
+      {
+        "selector": "loan",
+        "component": "$component(Step)",
+        "componentProps": { "title": "Кредит", "icon": "💰" },
+        "children": [{ "model": "$model(loanType)", "component": "$component(SelectAsync)" }],
+      },
+    ],
+  },
+}
+```
+
+What is NOT needed any more — all of it is the former contract, ❌ do not emit:
+
+- ❌ an app shim (`RendererFormWizard`, `wizard.tsx`, `$component(Wizard)`) — the wizard is the library component;
+- ❌ steps in `componentProps.steps` — steps are `children`;
+- ❌ the `(model, form?)` schema builder called twice, and `...(form ? { form } : {})` in `componentProps`;
+- ❌ injecting `form` and the validation config via `onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, config }))`;
+- ❌ `renderStepBody`, and a `useEffect` cascade of `schema.node('stepN').setHidden(n !== currentStep)`.
+
+**A2 / A3 / A4 with a renderer.** A component that manages its children itself declares the static `__selfManagedChildren = true`; the renderer then hands it the child NODES plus a `renderNode` function instead of rendered elements, and the component reads the form and the validation from `useFormBundleContext()` (`@reformer/core`). A custom wizard has to implement this protocol to stand in a schema — see `reformer://docs/renderer-react` («Компонент, который сам управляет детьми»). If that is not worth it, keep the wizard in JSX (B1) and draw each step with its own `FormRenderer`.
+
+**Conditional sub-sections inside steps** (mortgage, residence, …) get their own `selector` and a rule in the behavior: `hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage')`. The condition reads the MODEL (`model.loanType`), not `form.loanType.value.value`.
+
+**A conditional STEP** (a step that exists only under a condition) is NOT a node rule: the library wizard builds its steps from all child nodes, so `hideWhen` on a step node hides the step's content but leaves the step in the indicator and in navigation. A form with a dynamic step count keeps the wizard in JSX (B1) and renders the step conditionally — see `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`.
+
+**Scopes are isolated.** `schema.node(selector)` in the root behavior sees the root tree only — not the nodes inside an array `item` or a sub-form `part`. Reach those from the sub-behavior passed to `applyEach(model.$.items, itemBehavior)` / `apply(model.$.group, groupBehavior)`: it receives its own `schema`.
 
 ---
-
-## Common to every (A, B) combination
-
-- **Per-step validation schemas** (`STEP_SCHEMAS[step]` — each a `defineValidationSchema<Root>(({ model }) => { validate(model.$.x, [rules]); … })` function; async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`) drive `validateStep`; `goNext()` validates only the current step's schema via `validateModel(model, STEP_SCHEMAS[step - 1])`.
-- **Full schema** — `defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS, fullExtras))`: all step schemas plus a form-level cross-field/warnings schema (`fullExtras`), runs on submit (share reusable rule-sets as plain helper functions; no duplicates with per-step rules).
-- **Validation rules travel as DATA** — `{ steps: { step1: schema1, … }, extras? }` in the `validation` field of the assembly call. The factory turns them into `{ validateStep, validateAll, createStepController, stepSelectors }` (all `Promise<boolean>` where applicable) and puts that bundle into `bundle.validation` — pass it straight to `FormWizard config`. The hand-rolled `makeValidationConfig(model)` wrapper is only needed when the form is built without a factory.
-- **Don't rename fields** when grouping by step — only visual grouping.
-- **Conditional steps** — filter `STEPS` array dynamically OR `setCurrentStep(n)` directly (A4) / `useRef<FormWizardHandle>().goToStep(n)` (A3).
 
 ## Visual baseline (do NOT skip — A1/A2 give it for free; A3/A4 must wire it manually)
 
@@ -246,32 +196,31 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 
 **Mandatory based on chosen A and B:**
 
-- **A1 / A2**: read the wrapper's docs (ui-kit `reformer://docs/ui-kit/...` if A1, project README if A2).
+- always: `find_recipe unified-contract`, `find_recipe wizard`.
+- **A1 / A2**: the wrapper's docs (ui-kit `reformer://docs/ui-kit/...` if A1, project README if A2).
 - **A3**: `reformer://docs/cdk/formwizard-indicator`, `reformer://docs/cdk/formwizard-actions`, `reformer://docs/cdk/formwizard-progress`, `reformer://docs/cdk/external-control-via-ref-2`, `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`, `reformer://docs/cdk/multi-step-submit`.
-- **A4**: `reformer://docs/core/multi-step-form-validation` for `validateModel(model, schema)` semantics (per-step `defineValidationSchema` + `apply(...)` full schema).
-- **B2 / B3**: `reformer://docs/renderer-react/render-schema-proxy` for `schema.node().setHidden()` API.
-- **B3**: `reformer://docs/renderer-json/quick-start` for the M1 mount (`createJsonForm` + `JsonRendererProvider`/`JsonFormRenderer` (bundle via the `form` prop)) + `renderBehavior`/`onInit`/`patchProps` injection by `selector`.
+- **A4**: `reformer://docs/core/multi-step-form-validation` for `validateModel(model, schema)` semantics.
+- **B2**: `reformer://docs/renderer-react` (the bundle and node rules); for `renderer-json` also `reformer://docs/renderer-json/quick-start`.
 
 ## Task
 
 1. **Pick A** by walking the hierarchy A1 → A2 → A3 → A4 (the highest applicable wins).
-2. **Pick B** by target.
-3. State both choices in your output ("A=A3 (CDK FormWizard compound), B=B2 (renderer-react setHidden)").
-4. Split existing fields into steps per requirements.
-5. Build per-step `defineValidationSchema` functions and declare them as data: `const formValidation = { steps: { step1: …, step2: … }, extras: fullExtras }` → the `validation` field of `createCoreForm`/`createReactForm`/`createJsonForm`.
+2. **Pick B** by who draws the markup.
+3. State both choices in your output ("A=A1 (ui-kit FormWizard), B=B2 (schema node)").
+4. Split existing fields into steps per requirements; give every step a `selector`.
+5. Build per-step `defineValidationSchema` functions and declare them as data: `export const formValidation: FormValidation<MyForm> = { steps: { loan: …, contacts: … }, extras: crossStepRules }` → the `validation` field of `createForm`.
 6. Implement following A's API + B's integration.
-7. Add full visual baseline (or rely on A1/A2 if they ship it).
+7. Add the full visual baseline (or rely on A1/A2 if they ship it).
 
 ## Output checklist
 
 - [ ] Stated chosen (A, B) pair AND why each was picked
 - [ ] Read the Prerequisites for both A and B
-- [ ] Per-step `defineValidationSchema` functions cover all step fields; declared as `validation: { steps, extras }` and consumed from `bundle.validation`
-- [ ] Full schema (`apply(...STEP_SCHEMAS, fullExtras)`) includes cross-step rules
-- [ ] No duplicate validation between step and full
-- [ ] Navigation gated on `validateModel(model, schema)` result (a plain `Promise<boolean>`); warnings stay non-blocking via the runner (no hand-rolled `.errors` gate)
+- [ ] Per-step `defineValidationSchema` functions cover all step fields; declared as `validation: { steps, extras }`, keys = step selectors
+- [ ] Cross-step rules live in `extras`; no duplicate validation between a step and `extras`
+- [ ] Navigation gated on the assembled `bundle.validation` (`validateStep` / `validateAll`, plain `Promise<boolean>`); warnings stay non-blocking via the runner (no hand-rolled `.errors` gate)
+- [ ] (B2) the wizard is a schema node `{ selector: 'wizard', component: FormWizard, children: [steps] }`; no shim, no `componentProps.steps`, no `patchProps({ form, config })`
+- [ ] (B2) submit is `onComponentEvent(schema.node('wizard'), 'onSubmit', …)` in `form.behavior.ts`
 - [ ] Visual baseline present (step indicator strip with icons + en-dashes, `Card`-wrapped step, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4
 - [ ] No hand-written appearance classes (`bg-*`, `text-<color>-<shade>`, `border-<color>`, `shadow-*`, `rounded-*`) — layout and spacing only
 - [ ] testIds present per convention
-- [ ] (B2 / B3) all step containers have `selector: 'stepN'`
-- [ ] (B3) assembled with `createJsonForm` and mounted as `<JsonFormRenderer form={jsonForm} />`; `form` + validation injected into the wizard node from the `renderBehavior` factory via `onInit`/`patchProps` (by `selector`)

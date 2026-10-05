@@ -34,7 +34,7 @@ or `search_docs`. Examples:
 - `reformer://docs/core` — model, schema, validators, behaviors, arrays, multi-step, common mistakes (~50 sections).
 - `reformer://docs/cdk/form-array`, `reformer://docs/cdk/form-navigation` — FormArray / FormWizard compounds.
 - `reformer://docs/ui-kit/form-field-integration`, `reformer://docs/ui-kit/choice-fields` — components.
-- `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — RenderSchema.
+- `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — the schema tree drawn by `FormRenderer`.
 - `reformer://docs/renderer-json/json-schema`, `.../registry` — JSON DSL + registry.
 
 ## How this relates to tools

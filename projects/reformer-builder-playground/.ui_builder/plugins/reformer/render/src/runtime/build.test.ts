@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, newNodeId } from '../../../core/form-model';
 import { toDescriptor } from '@reformer/builder-plugin-api';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { NODE_CLASS_PREFIX } from '../schema/node-token';
 import { deepMerge } from '../../../core/form-fixture';
 import { buildRuntimeBundle } from './build';

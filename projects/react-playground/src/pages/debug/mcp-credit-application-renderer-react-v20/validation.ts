@@ -3,27 +3,24 @@
  *
  * Каждый шаг — `ValidationSchema<Root>` (обычная функция `({ model }) => void`): значения проверяются
  * оператором `validate(sig, [rules])`, условные ветки — `validateWhen(cond, cb)`, cross-field — `cross(sig, fn)`
- * (fn читает снапшот `model.get()`), массивы — `each(arr, itemFn)`. Композиция формы — `apply(...шаги)`.
- * Внешний раннер — `validateModel`.
+ * (fn читает снапшот своей области), массивы — `applyEach(model.$.arr, itemRules)`: правила строки —
+ * такая же схема над элементом.
  *
  * Правила поля (`required`/`min`/…) переиспользуются как есть (value-only). Cross-field — обычные функции
- * `(f: Root) => ValidationError | null`; для элементов массива снапшот захватывается в замыкание (`im.get()`).
+ * `(f: Root) => ValidationError | null`; в правилах строки `cross` получает снапшот самой строки.
  *
- * Публичный контракт — `makeCreditValidationConfig(model)` → `{ validateStep, validateAll }`
- * (колбэки для `FormWizard`). Сигнатура не менялась.
+ * Публичный контракт — `creditValidation`: правила шагов данными, ключ шага = `selector` узла шага в
+ * схеме. Сборка `createForm` строит из них `{ validateStep, validateAll }`, визард берёт их сам.
  */
 
-import { type FormModel, type ValidationError } from '@reformer/core';
+import { type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateWhen,
   cross,
-  each,
-  apply,
+  applyEach,
   defineValidationSchema,
-  validateModel,
   type Rule,
-  type ValidationSchema,
 } from '@reformer/core/validation';
 import {
   email,
@@ -40,7 +37,6 @@ import type { CoBorrower, CreditApplicationForm, ExistingLoan, PropertyItem } fr
 import { MAX_CAR_YEAR } from './types';
 
 type Root = CreditApplicationForm;
-type M = FormModel<CreditApplicationForm>;
 
 // ── Value-only custom / reusable rules ───────────────────────────────────────
 const mustBeTrue =
@@ -82,38 +78,37 @@ const sourceRequiredWhenIncome = (f: Root): ValidationError | null =>
     ? { code: 'required', message: 'Укажите источник дополнительного дохода' }
     : null;
 
-// per-item (снапшот ExistingLoan захвачен в замыкание): remainingAmount <= amount
+// per-item (снапшот строки приходит в `cross` сам): remainingAmount <= amount
 const remainingVsAmount = (loan: ExistingLoan): ValidationError | null =>
   loan.remainingAmount > loan.amount
     ? { code: 'tooBig', message: 'Остаток не может превышать сумму кредита' }
     : null;
 
 // ── Под-схемы элементов массивов ─────────────────────────────────────────────
-const propertyItem = (im: FormModel<PropertyItem>): void => {
+const propertyItem = defineValidationSchema<PropertyItem>(({ model: im }) => {
   validate(im.$.type, [required()]);
   validate(im.$.description, [required()]);
   validate(im.$.estimatedValue, [required(), min(0)]);
-};
+});
 
-const existingLoanItem = (im: FormModel<ExistingLoan>): void => {
-  const loan = im.get();
+const existingLoanItem = defineValidationSchema<ExistingLoan>(({ model: im }) => {
   validate(im.$.bank, [required()]);
   validate(im.$.type, [required()]);
   validate(im.$.amount, [required(), min(0)]);
   validate(im.$.remainingAmount, [required(), min(0)]);
-  cross(im.$.remainingAmount, () => remainingVsAmount(loan));
+  cross(im.$.remainingAmount, remainingVsAmount);
   validate(im.$.monthlyPayment, [required(), min(0)]);
   validate(im.$.maturityDate, [required()]);
-};
+});
 
-const coBorrowerItem = (im: FormModel<CoBorrower>): void => {
+const coBorrowerItem = defineValidationSchema<CoBorrower>(({ model: im }) => {
   validate(im.$.personalData.lastName, [required()]);
   validate(im.$.personalData.firstName, [required()]);
   validate(im.$.phone, [required(), phonePattern]);
   validate(im.$.email, [required(), email()]);
   validate(im.$.relationship, [required()]);
   validate(im.$.monthlyIncome, [required(), min(0)]);
-};
+});
 
 // ── Per-step схемы валидации ─────────────────────────────────────────────────
 const step1 = defineValidationSchema<Root>(({ model }) => {
@@ -242,17 +237,17 @@ const step5 = defineValidationSchema<Root>(({ model }) => {
   // properties[] (only when hasProperty)
   validateWhen(
     () => model.hasProperty === true,
-    () => each(model.properties, propertyItem)
+    () => applyEach(model.$.properties, propertyItem)
   );
   // existingLoans[] (only when hasExistingLoans)
   validateWhen(
     () => model.hasExistingLoans === true,
-    () => each(model.existingLoans, existingLoanItem)
+    () => applyEach(model.$.existingLoans, existingLoanItem)
   );
   // coBorrowers[] (only when hasCoBorrower)
   validateWhen(
     () => model.hasCoBorrower === true,
-    () => each(model.coBorrowers, coBorrowerItem)
+    () => applyEach(model.$.coBorrowers, coBorrowerItem)
   );
 });
 
@@ -270,25 +265,13 @@ const step6 = defineValidationSchema<Root>(({ model }) => {
 });
 
 // ============================================================================
-// Публичный контракт для FormWizard
+// Публичный контракт
 // ============================================================================
 
-const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2, step3, step4, step5, step6];
-
-/** Полная схема: все шаги (без form-level extras). */
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
-
-/** Пустая схема — для шага вне диапазона (гасит ранее тронутые поля, возвращает valid). */
-const emptySchema: ValidationSchema<Root> = () => {};
-
 /**
- * Конфиг валидации для `FormWizard`: per-step и полная валидация через `validateModel`.
- * Схемы — стабильные `const`-ссылки (важно для отмены устаревших прогонов в `validateModel`).
+ * Правила формы — данными. Ключ шага = `selector` узла шага в схеме (`renderer.schema.tsx`); схемы —
+ * стабильные `const`-ссылки (важно для отмены устаревших прогонов).
  */
-export function makeCreditValidationConfig(model: M) {
-  return {
-    validateStep: (step: number): Promise<boolean> =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
-  };
-}
+export const creditValidation: FormValidation<Root> = {
+  steps: { step1, step2, step3, step4, step5, step6 },
+};

@@ -9,6 +9,7 @@
  * - `"$dataSource(NAME)"`   — имя registry-source (`reg.dataSource`): options/itemLabel/константы/loading-компоненты.
  * - `"$fn(name)"`           — имя функции в реестре (`reg.fn`): форматтеры/компараторы/itemLabel/обработчики.
  * - `"$locale(key)"`        — ключ строки для сервиса локализации (`reg.locale`): резолвится в строку.
+ * - `"$part(name)"`         — именованная часть документа (`parts`): подформа или шаблон строки массива.
  *
  * Схема остаётся чистым JSON (копируется в `.json`, приходит строкой с сервера). Типобезопасность
  * на этапе компиляции даётся template-literal типами ({@link ModelOp} и т.д.) — литерал
@@ -74,16 +75,23 @@ export type FnOp = `$fn(${string})`;
 /** Строка-оператор ссылки на ключ локализации: `` `$locale(${key})` ``. */
 export type LocaleOp = `$locale(${string})`;
 
+/**
+ * Строка-оператор ссылки на именованную часть документа: `` `$part(${name})` ``. Часть лежит в
+ * корневом словаре `parts` схемы и подключается узлом-подформой (`{ model, part }`) либо шаблоном
+ * строки массива (`"item": "$part(name)"`).
+ */
+export type PartOp = `$part(${string})`;
+
 /** Любой строковый оператор JSON-схемы. */
-export type JsonOperator = ModelOp | ComponentOp | HtmlOp | DataSourceOp | FnOp | LocaleOp;
+export type JsonOperator = ModelOp | ComponentOp | HtmlOp | DataSourceOp | FnOp | LocaleOp | PartOp;
 
 /** Разобранный оператор: тип + аргумент (путь/имя/ключ/тег). */
 export interface ParsedOperator {
-  op: 'model' | 'component' | 'html' | 'dataSource' | 'fn' | 'locale';
+  op: 'model' | 'component' | 'html' | 'dataSource' | 'fn' | 'locale' | 'part';
   arg: string;
 }
 
-const OPERATOR_RE = /^\$(model|component|html|dataSource|fn|locale)\((.+)\)$/;
+const OPERATOR_RE = /^\$(model|component|html|dataSource|fn|locale|part)\((.+)\)$/;
 
 /**
  * Разбор строки-оператора `"$op(arg)"`. Возвращает `null` для не-операторов (обычных строк),
@@ -195,3 +203,18 @@ export const isFnOp = (v: unknown): v is FnOp => parseOperator(v)?.op === 'fn';
  * ```
  */
 export const isLocaleOp = (v: unknown): v is LocaleOp => parseOperator(v)?.op === 'locale';
+
+/**
+ * Type-guard: строка — оператор `"$part(...)"` (именованная часть документа).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link PartOp}.
+ *
+ * @example
+ * ```ts
+ * if (isPartOp(node.part)) {
+ *   const name = parseOperator(node.part)!.arg; // 'address'
+ * }
+ * ```
+ */
+export const isPartOp = (v: unknown): v is PartOp => parseOperator(v)?.op === 'part';

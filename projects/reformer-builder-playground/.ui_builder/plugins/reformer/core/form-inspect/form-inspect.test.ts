@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createForm, createModel } from '@reformer/core';
+import { createFormFromModel, createModel } from '@reformer/core';
 import { compute, defineFormBehavior } from '@reformer/core/behaviors';
 
 import {
@@ -43,7 +43,7 @@ function makeForm() {
   const behavior = defineFormBehavior<Order>(({ model: m }) => {
     compute(m.$.total, () => m.$.price.value * m.$.quantity.value);
   });
-  createForm({ model, behavior });
+  createFormFromModel({ model, behavior });
   return model;
 }
 

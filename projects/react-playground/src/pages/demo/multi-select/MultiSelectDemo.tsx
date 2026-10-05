@@ -2,7 +2,7 @@
  * Примеры множественного выбора — четыре контрола @reformer/ui-kit с одним контрактом значения.
  *
  * Поле мультивыбора — обычный массив модели: `tags: string[]` с начальным `[]`. Массив становится
- * ОДНИМ значением поля, когда схема привязывает к нему компонент (`value: model.$.tags`); правила
+ * ОДНИМ значением поля, когда схема привязывает к нему компонент (`model: model.$.tags`); правила
  * и поведение берут ту же ручку значения. Префилл — просто начальное значение.
  *
  * Одно поле (`days`) оставлено nullable — `string[] | null` с начальным `null`: так объявляют
@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, useFormBundle, type FormModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
@@ -99,7 +99,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
       {
         // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
         // Привязка компонента и делает массив полем; без неё форма массив пропускает.
-        value: model.$.tags,
+        model: model.$.tags,
         component: ToggleGroupMulti,
         componentProps: {
           label: 'Метки задачи',
@@ -109,7 +109,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.$.frameworks,
+        model: model.$.frameworks,
         component: ComboboxMulti,
         componentProps: {
           label: 'Фреймворки',
@@ -122,7 +122,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.$.countries,
+        model: model.$.countries,
         component: SelectMulti,
         componentProps: {
           label: 'Страны',
@@ -134,7 +134,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.$.days,
+        model: model.$.days,
         component: NativeSelectMulti,
         componentProps: {
           label: 'Рабочие дни',
@@ -145,7 +145,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         },
       },
       {
-        value: model.$.skills,
+        model: model.$.skills,
         component: ComboboxMulti,
         componentProps: {
           label: 'Навыки (с префиллом)',
@@ -170,7 +170,7 @@ const demoValidation = defineValidationSchema<MultiSelectDemoForm>(({ model }) =
 
 export default function MultiSelectDemo() {
   const { form, model } = useFormBundle(() =>
-    createCoreForm<MultiSelectDemoForm>({
+    createForm<MultiSelectDemoForm>({
       // Префилл — обычное начальное значение: форма собирается уже с ним, поэтому модель не
       // «изменена» сразу после загрузки, а `reset()` возвращает именно его.
       initial: { ...INITIAL },
@@ -202,7 +202,7 @@ export default function MultiSelectDemo() {
             description="2–7 вариантов, все видны сразу. Radix ToggleGroup type=multiple"
             bgColor="bg-white"
             code={`{
-  value: model.$.tags, // tags: string[], начальное []
+  model: model.$.tags, // tags: string[], начальное []
   component: ToggleGroupMulti,
   componentProps: { options: TAGS },
 }
@@ -245,7 +245,7 @@ validate(model.$.frameworks, [required(), maxLength(3)]);`}
             description="Нативный <select multiple>: no-JS/legacy. Здесь — nullable-поле"
             bgColor="bg-white"
             code={`// days: string[] | null, начальное null — пустой выбор хранится как null
-value: model.$.days,
+model: model.$.days,
 componentProps: {
   options: DAYS,
   rows: 5, // нативный size, число видимых строк
@@ -260,7 +260,7 @@ componentProps: {
             title="Префилл выбранного"
             description="Выбранное — начальное значение поля; reset() возвращает его"
             bgColor="bg-white"
-            code={`createCoreForm<Form>({
+            code={`createForm<Form>({
   initial: { ...INITIAL, skills: ['ts', 'react'] },
   schema: buildSchema,
 })`}

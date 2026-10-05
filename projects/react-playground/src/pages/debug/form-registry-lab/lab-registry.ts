@@ -17,11 +17,15 @@
  */
 
 import { createFormRegistry, type FormEntry, type FormRegistry } from '@reformer/form-registry';
-import type { JsonFormSchema } from '@reformer/renderer-json';
 import { alertsFormEntry } from '../../demo/alerts-list-renderer-json/form-setup';
 import { creditApplicationFormEntry } from '../../demo/complex-multy-step-form-registry/form-setup';
 import { registrationFormEntry } from '../../demo/registration-form-renderer-json/form-entry';
-import { SCHEMA_SOURCES, withSchemaSource, type SchemaSourceKind } from './schema-sources';
+import {
+  SCHEMA_SOURCES,
+  withSchemaSource,
+  type EntrySchema,
+  type SchemaSourceKind,
+} from './schema-sources';
 
 export interface LabForm {
   /** Идентификатор БЕЗ суффикса источника — им же назван файл схемы у статики и в MSW. */
@@ -35,12 +39,12 @@ export const LAB_FORMS: readonly LabForm[] = [
   {
     formId: 'registration-form',
     title: 'Регистрация',
-    note: 'Схема 9,7 КБ. AsyncBoundary грузит префилл — видно, что кэш схемы и загрузка данных независимы.',
+    note: 'Схема 9,8 КБ. AsyncBoundary грузит префилл — видно, что кэш схемы и загрузка данных независимы.',
   },
   {
     formId: 'credit-application',
     title: 'Кредитная заявка',
-    note: 'Схема 68 КБ — ради таких и заведён L2: переживает F5 вместо повторной закачки.',
+    note: 'Схема 55 КБ — ради таких и заведён L2: переживает F5 вместо повторной закачки.',
   },
   {
     formId: 'alerts-list',
@@ -55,7 +59,7 @@ export const LAB_FORMS: readonly LabForm[] = [
  * Так вариант «из бандла» гарантированно совпадает с тем, что монтирует обычная страница витрины:
  * второй импорт того же JSON дал бы формально другой объект и повод для расхождения.
  */
-function inlineSchemaOf<T extends object>(entry: FormEntry<T>): JsonFormSchema<T> {
+function inlineSchemaOf<T extends object>(entry: FormEntry<T>): EntrySchema<T> {
   if (entry.schema.kind !== 'inline') {
     throw new Error(
       `[стенд] Базовая запись "${entry.id}" обязана нести схему из бандла: от неё строятся все варианты`

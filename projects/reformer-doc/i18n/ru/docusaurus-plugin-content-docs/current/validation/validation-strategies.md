@@ -172,7 +172,7 @@ const valid = await validateModel(model, schema);
 единственный мост от реактивного слоя поведения к прогону валидации по требованию.
 
 ```typescript
-import { createModel, createForm, type ValidationError } from '@reformer/core';
+import { createModel, createFormFromModel, type ValidationError } from '@reformer/core';
 import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
@@ -199,7 +199,7 @@ const behavior = defineFormBehavior<PasswordForm>(({ model }) => {
 });
 
 // поведение подключается к форме; layout-схема (RenderNode) — отдельный аргумент:
-const form = createForm({ model, schema: layout, behavior });
+const form = createFormFromModel({ model, schema: layout, behavior });
 ```
 
 :::note `cross` берёт снапшот, а не живой сигнал

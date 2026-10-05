@@ -3,11 +3,12 @@ import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 export const addValidationPromptDefinition = {
   name: 'add-validation',
   description:
-    'Add validators (built-in or custom, sync/async, cross-field) to an existing @reformer/core form. Slim+ prompt — points the model at MCP resources for full reference; only critical inline rules are kept in the message body.',
+    'Add validation (built-in or custom rules, sync/async, cross-field, sub-forms via apply, arrays via applyEach) to an existing @reformer form — a standalone schema, the same for every way of drawing the form. Slim+ prompt — points the model at MCP resources for full reference; only critical inline rules are kept in the message body.',
   arguments: [
     {
       name: 'code',
-      description: 'Текущий код формы (FormSchema, createForm и т.п.).',
+      description:
+        'Текущий код формы (модель, схема `form.schema.ts`, сборка `createForm` и т.п.).',
       required: true,
     },
     {

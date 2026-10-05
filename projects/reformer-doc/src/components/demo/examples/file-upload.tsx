@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
 import type { FileUploadUploader, RemoteFileRef } from '@reformer/cdk/file-upload';
 import {
@@ -78,7 +78,7 @@ function PreloadedDemo() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const form = createForm<any>({ model, schema });
+    const form = createFormFromModel<any>({ model, schema });
     model.$.field.value = PRELOADED;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ref.current = (form as any).field;
@@ -255,7 +255,7 @@ validate(model.$.documents, [required({ message: 'Приложите хотя б
         'Начальное значение — RemoteFileRef[] с сервера: элементы показываются как uploaded (имя/размер из дескриптора), их можно удалять и добавлять новые. Дескрипторы можно положить прямо в initial модели либо записать в сигнал поля позже, когда ответ сервера придёт.',
       render: PreloadedDemo,
       code: `const model = createModel<FormShape>({ documents: [] });
-const form = createForm({ model, schema });
+const form = createFormFromModel({ model, schema });
 // префилл с сервера — в сигнал поля, когда ответ придёт:
 model.$.documents.value = [
   { id: 'doc-1', name: 'договор.pdf', size: 245760, type: 'application/pdf' },

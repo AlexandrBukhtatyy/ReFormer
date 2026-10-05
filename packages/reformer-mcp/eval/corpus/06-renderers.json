@@ -1,13 +1,13 @@
 {
   "category": "renderers",
-  "description": "renderer-react (RenderSchema) и renderer-json (JSON-DSL + реестр). Проверяем и то, что target отсекает нерелевантное.",
+  "description": "renderer-react (FormRenderer по дереву схемы) и renderer-json (документ формата 2 + реестр). Проверяем и то, что target отсекает нерелевантное.",
   "tasks": [
     {
       "id": "renderer-react/schema",
       "task": "описать разметку формы деревом вместо JSX",
       "target": "renderer-react",
-      "queries": ["render schema tree instead of jsx", "createRenderSchema", "render schema"],
-      "expectAny": ["createRenderSchema", "RenderSchema"]
+      "queries": ["schema tree instead of jsx", "form schema node tree", "render schema"],
+      "expectAny": ["FormSchemaNode", "model: model.$."]
     },
     {
       "id": "renderer-react/mount",
@@ -60,8 +60,12 @@
       "id": "renderer-json/mount",
       "task": "отрендерить форму из JSON-схемы",
       "target": "renderer-json",
-      "queries": ["render form from json schema", "JsonFormRenderer", "mount json form"],
-      "expectAny": ["JsonFormRenderer", "JsonRendererProvider"]
+      "queries": [
+        "render form from json schema",
+        "FormRenderer json document registry",
+        "mount json form"
+      ],
+      "expectAny": ["<FormRenderer form="]
     },
     {
       "id": "renderer-json/array-component",
@@ -87,6 +91,24 @@
       "target": "renderer-json",
       "queries": ["readonly field renderer-json", "view mode read only", "cookbook"],
       "expectAny": [".disable()"]
+    },
+    {
+      "id": "renderer-json/subform",
+      "task": "поставить один и тот же блок адреса в JSON-схеме дважды",
+      "target": "renderer-json",
+      "queries": ["reuse a fragment in json schema", "sub-form part in json document", "$part"],
+      "expectAny": ["$part("]
+    },
+    {
+      "id": "renderers/assembly",
+      "task": "собрать форму одним вызовом для рендерера",
+      "target": "renderer-react",
+      "queries": [
+        "assemble form bundle for renderer",
+        "createForm schema behavior validation",
+        "form-bundle"
+      ],
+      "expectAny": ["createForm"]
     }
   ]
 }

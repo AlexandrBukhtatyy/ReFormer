@@ -100,7 +100,7 @@ export const emailRules: Rule<string>[] = [required(), email()];
 **Использование:**
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 
 type ProfileForm = {
@@ -126,7 +126,7 @@ const schema = {
   newsletter: booleanField(model.$.newsletter),
 };
 
-const form = createForm<ProfileForm>({ model, schema });
+const form = createFormFromModel<ProfileForm>({ model, schema });
 
 // Валидация — отдельная схема, переиспользует те же списки правил.
 const profileValidation = defineValidationSchema<ProfileForm>(({ model }) => {
@@ -198,7 +198,7 @@ const schema = {
   shippingAddress: addressNodes(model.shippingAddress),
 };
 
-const form = createForm<UserForm>({ model, schema });
+const form = createFormFromModel<UserForm>({ model, schema });
 ```
 
 ## Переиспользуемые наборы валидаторов
@@ -351,7 +351,7 @@ const userBehavior = defineFormBehavior<UserForm>(({ model }) => {
   addressBehaviors(model.shippingAddress);
 });
 
-const form = createForm<UserForm>({ model, schema, behavior: userBehavior });
+const form = createFormFromModel<UserForm>({ model, schema, behavior: userBehavior });
 ```
 
 ## Операторы `apply` и `applyEach`
@@ -495,7 +495,7 @@ export { contactInfoBehaviors } from './behaviors';
 **Использование** — все три схемы модуля подключаются по своим каналам:
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineFormBehavior } from '@reformer/core/behaviors';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { Input } from '@reformer/ui-kit';
@@ -523,12 +523,12 @@ const schema = {
   contactInfo: contactInfoNodes(model.contactInfo),
 };
 
-// Behavior: createForm владеет lifecycle.
+// Behavior: createFormFromModel владеет lifecycle.
 const behavior = defineFormBehavior<MyForm>(({ model }) => {
   contactInfoBehaviors(model.contactInfo);
 });
 
-const form = createForm<MyForm>({ model, schema, behavior });
+const form = createFormFromModel<MyForm>({ model, schema, behavior });
 
 // Валидация: под-схему модуля вызываем прямым вызовом над под-моделью, прогон — по требованию.
 const myFormValidation = defineValidationSchema<MyForm>(({ model }) => {

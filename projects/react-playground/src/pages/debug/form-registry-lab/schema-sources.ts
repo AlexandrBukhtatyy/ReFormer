@@ -8,7 +8,7 @@
  * `/assets/*.json`.
  *
  * `&no-inline` обязателен и не косметичен. `assetsInlineLimit` по умолчанию 4096 байт, а схема
- * алертов весит 2040 — в прод-сборке она молча превратилась бы в `data:`-URL. `fetch` такой URL
+ * алертов весит 2297 — в прод-сборке она молча превратилась бы в `data:`-URL. `fetch` такой URL
  * проглотит и даже отдаст `application/json`, но сетевого запроса не будет вовсе: ни `ETag`, ни
  * `304`, ни попадания в кэш проверить стало бы нечем, а стенд бы об этом не сообщил.
  *
@@ -16,11 +16,14 @@
  */
 
 import type { DataSource, FormEntry } from '@reformer/form-registry';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonFormSchemaV1 } from '@reformer/renderer-json';
 import { MOCK_FORMS_BASE } from '../../../mocks/form-schema-handlers';
 import alertsSchemaUrl from '../../demo/alerts-list-renderer-json/json-schema.json?url&no-inline';
 import registrationSchemaUrl from '../../demo/registration-form-renderer-json/json-schema.json?url&no-inline';
-import creditSchemaUrl from '../../demo/complex-multy-step-form-renderer-json/json-schema.json?url&no-inline';
+import creditSchemaUrl from '../../demo/complex-multy-step-form-renderer-json/form.schema.json?url&no-inline';
+
+/** Документ схемы записи: формата 2 либо прежнего — загрузчик реестра принимает оба. */
+export type EntrySchema<T extends object> = JsonFormSchema<T> | JsonFormSchemaV1<T>;
 
 export type SchemaSourceKind = 'inline' | 'static' | 'msw';
 
@@ -67,8 +70,8 @@ const STATIC_URL: Record<string, string> = {
 export function schemaSource<T extends object>(
   formId: string,
   kind: SchemaSourceKind,
-  inline: JsonFormSchema<T>
-): DataSource<JsonFormSchema<T>> {
+  inline: EntrySchema<T>
+): DataSource<EntrySchema<T>> {
   if (kind === 'inline') return { kind: 'inline', value: inline };
   return { kind: 'http', url: sourceUrl(formId, kind)!, init: { cache: 'no-store' } };
 }
@@ -92,7 +95,7 @@ export function sourceUrl(formId: string, kind: SchemaSourceKind): string | unde
 export function withSchemaSource<T extends object>(
   base: FormEntry<T>,
   kind: SchemaSourceKind,
-  inline: JsonFormSchema<T>
+  inline: EntrySchema<T>
 ): FormEntry<T> {
   return {
     ...base,

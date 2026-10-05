@@ -104,11 +104,11 @@ ui-kit добавляет к ней разметку и стили:
 (не `Input` с `type: 'number'`).
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormField, Input } from '@reformer/ui-kit';
 
 const model = createModel<{ email: string }>({ email: '' });
-const form = createForm({
+const form = createFormFromModel({
   model,
   schema: {
     email: {

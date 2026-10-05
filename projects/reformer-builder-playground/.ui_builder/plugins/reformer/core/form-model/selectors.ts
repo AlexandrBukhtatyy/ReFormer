@@ -17,8 +17,8 @@
 import {
   collectSchemaSelectors,
   parseOperator,
-  type JsonFormSchema,
-  type JsonNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { kebab } from '@reformer/builder-toolkit';
 import { componentOf, labelOf, modelOf } from './node-ref';

@@ -40,7 +40,7 @@
 
 import { formNameOfSchemaPath, MODULE_FILES, SCHEMA_FILE_NAMES } from '../../../core/codegen';
 import { isFormSchema } from '../../../core/form-model';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import {
   argsOfResource,
   asResourceTarget,

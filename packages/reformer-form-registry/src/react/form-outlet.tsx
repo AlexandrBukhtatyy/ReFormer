@@ -7,17 +7,21 @@
 
 import { useCallback, useMemo, type ReactNode } from 'react';
 import type { FormModel } from '@reformer/core';
-import type { JsonForm } from '@reformer/renderer-json';
 import type { FormEntry, FormQuery } from '../types';
 import { entryKeyOf } from '../loader';
 import { useFormRegistryContext } from './context';
 import { useFormResource, type UseFormResourceOptions } from './use-form-resource';
-import { MountedForm } from './mounted-form';
+import { MountedForm, type MountedFormBundle } from './mounted-form';
 
 export interface FormMountProps<T extends object> {
   initial?: T;
   model?: FormModel<T>;
-  /** Настройки места монтирования для фабрики render-behavior (колбэки хоста). */
+  /**
+   * Настройки места монтирования — колбэки хоста (напр. `onResult`). Приходят аргументом в
+   * фабрику поведения записи (`FormEntry.behavior`).
+   */
+  behaviorOptions?: Record<string, unknown>;
+  /** @deprecated Прежнее имя {@link FormMountProps.behaviorOptions}. */
   renderBehaviorOptions?: Record<string, unknown>;
   /** Что показывать, пока части формы грузятся. */
   fallback?: ReactNode;
@@ -25,7 +29,7 @@ export interface FormMountProps<T extends object> {
   loadErrorFallback?: (error: Error, retry: () => void) => ReactNode;
   /** Что показывать, если форма упала на рендере. */
   errorFallback?: (error: Error, entry: FormEntry<T>) => ReactNode;
-  onReady?: (form: JsonForm<T>) => void;
+  onReady?: (form: MountedFormBundle<T>) => void;
 }
 
 export interface FormOutletProps<T extends object> extends FormMountProps<T> {
@@ -39,7 +43,7 @@ function EntryMount<T extends object>({
   ...rest
 }: { entry: FormEntry<T> } & FormMountProps<T>): ReactNode {
   const { baseRegistry, cache, options } = useFormRegistryContext();
-  const { onDiagnostic: report, preflight, fetchImpl } = options;
+  const { onDiagnostic: report, preflight, fetchImpl, stepHosts } = options;
   const { id, version, owner } = entry;
 
   // Загрузчик знает про часть формы и ключ записи, но не про `Diagnostic` хоста — здесь
@@ -56,8 +60,14 @@ function EntryMount<T extends object>({
   );
 
   const opts = useMemo<UseFormResourceOptions>(
-    () => ({ cache, preflight, fetchImpl, onDiagnostic: report ? onDiagnostic : undefined }),
-    [cache, preflight, fetchImpl, report, onDiagnostic]
+    () => ({
+      cache,
+      preflight,
+      fetchImpl,
+      stepHosts,
+      onDiagnostic: report ? onDiagnostic : undefined,
+    }),
+    [cache, preflight, fetchImpl, stepHosts, report, onDiagnostic]
   );
 
   const res = useFormResource<T>(entry, baseRegistry, opts);
@@ -72,7 +82,7 @@ function EntryMount<T extends object>({
       loaded={res.data}
       initial={rest.initial}
       model={rest.model}
-      renderBehaviorOptions={rest.renderBehaviorOptions}
+      behaviorOptions={rest.behaviorOptions ?? rest.renderBehaviorOptions}
       errorFallback={rest.errorFallback}
       onReady={rest.onReady}
     />
@@ -99,7 +109,7 @@ export function FormOutlet<T extends object = Record<string, unknown>>({
   if (!entry) return null;
 
   // key — полное пересоздание формы при смене записи или версии. Без него ленивый
-  // useState внутри useJsonForm вернул бы старую модель со старой схемой.
+  // useState внутри хука сборки вернул бы старую модель со старой схемой.
   return <EntryMount<T> key={entryKeyOf(entry)} entry={entry} {...rest} />;
 }
 

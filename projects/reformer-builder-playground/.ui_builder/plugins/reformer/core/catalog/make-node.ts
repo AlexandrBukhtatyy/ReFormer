@@ -6,7 +6,7 @@
  * @module plugins/reformer/core/catalog/make-node
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
 import { LEAF_COMPONENT_NAMES } from '../kits/defaults';

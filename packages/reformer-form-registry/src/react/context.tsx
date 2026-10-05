@@ -20,6 +20,12 @@ export interface FormRegistryOptions {
   preflight?: 'error' | 'warn' | 'off';
   /** Подменяемо в тестах и на стендах — например, чтобы считать сетевые запросы. */
   fetchImpl?: typeof fetch;
+  /**
+   * Имена компонентов-визардов для перевода документов прежнего формата: их
+   * `componentProps.steps` становятся детьми узла. Нужен, только если визард зарегистрирован не под
+   * именем из `DEFAULT_STEP_HOSTS`. Держите ссылку стабильной.
+   */
+  stepHosts?: readonly string[];
 }
 
 export interface FormRegistryContextValue {
@@ -66,7 +72,7 @@ export function FormRegistryProvider({
   // и держи мы объект в зависимостях целиком — контекст пересоздавался бы каждый рендер.
   // Раньше это стоило лишь лишних ре-рендеров, но с приходом `cache` в зависимости эффекта
   // загрузки такая нестабильность означала бы бесконечную перезагрузку формы.
-  const { onDiagnostic, preflight, fetchImpl } = options ?? {};
+  const { onDiagnostic, preflight, fetchImpl, stepHosts } = options ?? {};
 
   const value = useMemo<FormRegistryContextValue>(
     () => ({
@@ -75,9 +81,9 @@ export function FormRegistryProvider({
       ctx: context,
       baseRegistry,
       cache,
-      options: { onDiagnostic, preflight, fetchImpl },
+      options: { onDiagnostic, preflight, fetchImpl, stepHosts },
     }),
-    [registry, entries, context, baseRegistry, cache, onDiagnostic, preflight, fetchImpl]
+    [registry, entries, context, baseRegistry, cache, onDiagnostic, preflight, fetchImpl, stepHosts]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

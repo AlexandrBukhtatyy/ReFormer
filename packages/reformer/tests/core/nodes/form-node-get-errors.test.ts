@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FieldNode } from '../../../src/form/nodes/field-node';
-import { createForm } from '../../../src/form/create-form';
+import { createLegacyForm } from '../../../src/form/create-form';
 import type { ValidationError } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -207,7 +207,7 @@ describe('FormNode.getErrors()', () => {
     let form: GroupNode<{ email: string; password: string }>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
@@ -336,7 +336,7 @@ describe('FormNode.getErrors()', () => {
     }>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         confirmPassword: { value: '', component: null as ComponentInstance },

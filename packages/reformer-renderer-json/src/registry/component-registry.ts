@@ -4,9 +4,13 @@
  * @module reformer/renderer-json/registry/component-registry
  */
 
+import type { FormModel, FormSchemaNode, ResolvedSchema } from '@reformer/core';
 import type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './types';
 import type { LocaleService } from '../locale/locale-service';
-import { LOCALE_SERVICE } from './constants';
+import type { JsonFormSchema } from '../types/json-schema';
+import { convertJsonSchema } from '../converter/json-to-render-schema';
+import { SchemaErrorBoundary } from '../components/schema-error-boundary';
+import { FIELD_WRAPPER, LOCALE_SERVICE } from './constants';
 
 export class ComponentRegistryImpl implements ComponentRegistry {
   private own = new Map<string, ComponentMetadata>();
@@ -36,6 +40,20 @@ export class ComponentRegistryImpl implements ComponentRegistry {
     const parentNames = this.parent?.names() ?? [];
     const ownNames = Array.from(this.own.keys());
     return [...new Set([...parentNames, ...ownNames])];
+  }
+
+  /**
+   * Дерево узлов из документа формата 2 — точка подключения реестра к единой сборке `createForm`.
+   * Вместе с деревом отдаёт то, что раньше делал `JsonFormRenderer`: обёртку поля из записи
+   * `FIELD_WRAPPER` и границу ошибок схемы.
+   */
+  resolveSchema(document: unknown, model: FormModel<never>): ResolvedSchema {
+    const fieldWrapper = this.get(FIELD_WRAPPER)?.component;
+    return {
+      tree: convertJsonSchema(document as JsonFormSchema, this, model) as FormSchemaNode,
+      ...(fieldWrapper !== undefined ? { fieldWrapper } : {}),
+      errorBoundary: SchemaErrorBoundary,
+    };
   }
 
   _set(name: string, metadata: ComponentMetadata): void {

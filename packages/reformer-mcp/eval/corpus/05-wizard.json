@@ -1,6 +1,6 @@
 {
   "category": "wizard",
-  "description": "Многошаговые формы: конфиг, навигация, валидация шага, условный шаг.",
+  "description": "Многошаговые формы: визард узлом схемы, связь шага с правилами, навигация, валидация шага, условный шаг.",
   "tasks": [
     {
       "id": "wizard/config",
@@ -42,11 +42,25 @@
       "expectAny": ["setHidden", "hideWhen"]
     },
     {
-      "id": "wizard/render-node-body",
-      "task": "отрисовать тело шага визарда как поддерево render-схемы",
+      "id": "wizard/step-node",
+      "task": "описать шаг визарда узлом схемы",
       "target": "renderer-react",
-      "queries": ["wizard step body render node", "многошаговая форма renderer-react тело шага"],
-      "expectAny": ["renderStepBody"]
+      "queries": [
+        "wizard step as schema node",
+        "многошаговая форма renderer-react шаги в children"
+      ],
+      "expectAny": ["component: Step"]
+    },
+    {
+      "id": "wizard/step-rules-key",
+      "task": "связать шаг визарда с его правилами валидации",
+      "target": "renderer-react",
+      "queries": [
+        "wizard step validation rules key",
+        "validation steps by selector",
+        "form-wizard"
+      ],
+      "expectAny": ["steps: {"]
     }
   ]
 }

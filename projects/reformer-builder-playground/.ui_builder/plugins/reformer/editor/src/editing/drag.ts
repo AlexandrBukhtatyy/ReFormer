@@ -31,7 +31,10 @@
  * @module plugins/reformer/editor/editing/drag
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { isDegenerateWrapper } from '../../../core/form-model';
 import { canAcceptChildren, childSlots, isNodeLike } from '../../../core/form-model';
 import { getAt, type JsonPath } from '../../../core/form-model';

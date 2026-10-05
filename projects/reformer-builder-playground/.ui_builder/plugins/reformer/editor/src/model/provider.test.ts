@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { nodeIdOf, type NodeIdFactory } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';

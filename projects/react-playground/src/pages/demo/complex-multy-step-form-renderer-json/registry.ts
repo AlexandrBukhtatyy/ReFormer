@@ -3,13 +3,13 @@
  *
  * Содержит:
  * - Базовые ui-kit компоненты (Input, Select, Box, Section и т.д.).
- * - App-specific контейнеры (RendererFormWizard, Step и UI-блоки шага подтверждения).
- *   Массивы под M1 рендерятся native-веткой конвертера (`{ array, item }`), без shim.
- * - dataSource-функции (itemLabel-и, validation-фабрики).
+ * - Визард — библиотечный `FormWizard`: шаги он берёт из узлов-детей, форму и валидацию — из
+ *   сборки. Прикладной обёртки над ним нет.
+ * - Блоки приложения (секция адреса проживания, UI-блоки шага подтверждения).
+ * - dataSource-функции (itemLabel-и).
  * - Константы options (LOAN_TYPES, GENDERS и т.д.).
  *
- * Форма в реестр НЕ регистрируется — она живёт в closure behavior-а и попадает
- * в componentProps wizard-а через `onInit` + `schema.node('wizard').patchProps({ form })`.
+ * Запись `FIELD_WRAPPER` — обёртка поля: сборка кладёт её в бандл, рендерер берёт оттуда.
  */
 
 import type { FormProxy } from '@reformer/core';
@@ -28,13 +28,13 @@ import {
   Collapsible,
   FormField,
   FormArray,
+  FormWizard,
   Button,
   AsyncBoundary,
   InputNumber,
   FileUploadDropzone,
 } from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
-import { RendererFormWizard } from '../../../components/RendererFormWizard';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
 import {
@@ -82,7 +82,7 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     reg.component('Button', Button);
 
     // App-specific контейнеры
-    reg.component('RendererFormWizard', RendererFormWizard);
+    reg.component('FormWizard', FormWizard);
     reg.component('Step', Step);
     reg.component('ResidenceAddressSection', ResidenceAddressSection);
     reg.component('UnemployedWarning', UnemployedWarning);

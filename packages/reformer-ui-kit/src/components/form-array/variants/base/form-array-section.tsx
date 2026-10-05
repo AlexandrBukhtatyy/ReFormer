@@ -78,8 +78,10 @@ export interface FormArraySectionProps<T extends object> {
   hasItems?: boolean;
 
   /**
-   * Plain-leaf значения для новых items (передаётся в `FormArray.AddButton`).
-   * НЕ FieldConfig — только примитивы по форме item-типа `T`.
+   * Запасной шаблон нового item (передаётся в `FormArray.AddButton`). Основной путь — шаблон
+   * массива в модели, `arrayOf(blank)` из `@reformer/core`: тогда проп не нужен.
+   *
+   * Plain-leaf значения, НЕ FieldConfig — только примитивы по форме item-типа `T`.
    *
    * Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента.
    * Передавайте generic явно для лучшей type-safety:
@@ -190,7 +192,6 @@ function resolveArrayNode<T extends object>(
  *       addButtonLabel="+ Добавить имущество"
  *       emptyMessage='Нажмите "Добавить имущество" для добавления информации'
  *       hasItems={hasProperty}
- *       initialValue={createBlankProperty()}
  *       reorderable
  *     />
  *   );

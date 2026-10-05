@@ -36,7 +36,10 @@
  * @module plugins/reformer/editor/schematic/schematic-drop
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { newNodeId, nodeIdOf, reissueNodeIds, type NodeIdFactory } from '../../../core/form-model';
 import { isFlexWrapper, isNodeLike } from '../../../core/form-model';

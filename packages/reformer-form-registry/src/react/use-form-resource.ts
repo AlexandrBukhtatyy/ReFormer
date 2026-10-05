@@ -29,7 +29,7 @@ export type FormResource<T extends object> =
  */
 export type UseFormResourceOptions = Pick<
   LoadFormOptions,
-  'cache' | 'preflight' | 'onDiagnostic' | 'fetchImpl'
+  'cache' | 'preflight' | 'onDiagnostic' | 'fetchImpl' | 'stepHosts'
 >;
 
 export function useFormResource<T extends object>(

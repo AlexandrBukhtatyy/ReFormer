@@ -198,7 +198,7 @@ function PhoneList({ form, model }: { form: FormProxy<OrderForm>; model: FormMod
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
@@ -229,7 +229,7 @@ export function ContactFormView() {
       validate(model.$.email, [required(), email()]);
     });
 
-    const form = createForm<ContactForm>({ model, schema });
+    const form = createFormFromModel<ContactForm>({ model, schema });
     return { form, model, validation };
   }, []);
 

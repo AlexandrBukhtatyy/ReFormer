@@ -6,7 +6,8 @@
  * - ExistingLoanForm (кредиты)
  * - CoBorrowerForm (созаемщики с вложенной personalData)
  *
- * NOTE: Массивы будут активированы после раскомментирования в схеме
+ * Шаблон нового элемента секции берут из модели (`arrayOf` в `model.ts`) — проп `initialValue`
+ * им не нужен.
  */
 
 import type { FormProxy } from '@reformer/core';
@@ -16,11 +17,6 @@ import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
-import {
-  createBlankProperty,
-  createBlankExistingLoan,
-  createBlankCoBorrower,
-} from '../../../schemas/model';
 
 interface AdditionalInfoFormProps {
   control: FormProxy<CreditApplicationForm>;
@@ -61,7 +57,6 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           addButtonLabel="+ Добавить имущество"
           emptyMessage='Нажмите "Добавить имущество" для добавления информации'
           hasItems={hasProperty}
-          initialValue={createBlankProperty()}
           reorderable
         />
       </div>
@@ -77,7 +72,6 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           addButtonLabel="+ Добавить кредит"
           emptyMessage='Нажмите "Добавить кредит" для добавления информации'
           hasItems={hasExistingLoans}
-          initialValue={createBlankExistingLoan()}
           reorderable
         />
       </div>
@@ -93,7 +87,6 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           addButtonLabel="+ Добавить созаемщика"
           emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
           hasItems={hasCoBorrower}
-          initialValue={createBlankCoBorrower()}
           reorderable
         />
       </div>

@@ -11,7 +11,7 @@ createModel<T extends object>(initial: T): FormModel<T>
 // model.arrayField         → ModelArray<Item>            (push/removeAt/insertAt/move/swap/clear/at/map/length)
 
 // Форма (ноды поверх сигналов модели)
-createForm<T>({ model, schema, behavior? }): FormProxy<T>
+createFormFromModel<T>({ model, schema, behavior? }): FormProxy<T>
 // form.<field>             → FieldNode / GroupNode / FormArrayProxy
 // form.<field>.setValue(v) / .value.value / .errors.value / .disabled.value
 // form.<field>.enable() / .disable() / .reset() / .markAsTouched() / .setErrors([...])
@@ -67,7 +67,7 @@ maxAge(years: number, options?: { message?: string })
 `ValidationSchema` и гоняются раннером `validateModel` по требованию.
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createForm, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 
@@ -75,7 +75,7 @@ type Loan = { email: string; age: number | null; amount: number | null };
 const model = createModel<Loan>({ email: '', age: null, amount: null });
 
 // layout-схема createForm НЕ несёт validators — только привязка поля к сигналу + компонент
-const form = createForm({
+const form = createFormFromModel({
   model,
   schema: {
     email:  { value: model.$.email,  component: Input },
@@ -262,7 +262,7 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
   });
 });
 
-const form = createForm({ model, schema, behavior });
+const form = createFormFromModel({ model, schema, behavior });
 ```
 
 DSL-операторы: `compute` (auto-tracking, без явного списка источников), `computeFrom`, `copyFrom`,

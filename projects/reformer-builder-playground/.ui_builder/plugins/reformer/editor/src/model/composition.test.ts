@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { STEP_SCHEMA_MARKER } from '../../../core/form-model';
 import { formSchemaComposition } from './composition';
 import { parseFormSchema, printFormSchema } from './provider';

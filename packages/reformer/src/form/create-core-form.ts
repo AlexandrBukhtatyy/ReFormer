@@ -1,30 +1,20 @@
 /**
- * `createCoreForm` — сборка формы ОДНИМ вызовом для рендера собственными компонентами
- * (ui-kit / `@reformer/cdk`, без слоя рендер-схем).
+ * `createCoreForm` — прежнее имя сборки одним вызовом; теперь псевдоним `createForm`.
  *
- * Раньше страница писала это руками: `createModel` → `buildSchema(model)` → `createForm(...)` →
- * отдельный `useMemo` под конфиг валидации, и всё это внутри `useMemo`, который React вправе
- * сбросить (потеря введённого). Фабрика собирает то же самое за один проход и отдаёт бандл
- * `{ model, form, validation }`; стабильность даёт {@link useFormBundle}.
- *
- * Родственные фабрики того же вида — `createReactForm` (`@reformer/renderer-react`) и
- * `createJsonForm` (`@reformer/renderer-json`): у них тот же конфиг плюс то, что нужно их слою
- * рендера.
+ * Сборка стала одна на все способы реализации формы (`form-bundle`): тот же вызов отдаёт и форму
+ * для собственных компонентов, и дерево для рендерера. Здесь остаются имя и типы, на которые
+ * опираются родственные фабрики — `createReactForm` (`@reformer/renderer-react`) и
+ * `createJsonForm` (`@reformer/renderer-json`).
  *
  * @module form/create-core-form
  */
 
-import { createModel } from '../model/create-model';
 import type { FormModel } from '../model/types';
-import { createForm } from './create-form';
+import { createForm, type CreateFormConfig } from './form-bundle';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormBehavior } from './behaviors';
 import type { FormProxy } from './types/index';
-import {
-  buildValidation,
-  type FormValidation,
-  type FormValidationBundle,
-} from './validation/config';
+import type { FormValidation, FormValidationBundle } from './validation/config';
 import type { ValidationSchema } from './validation';
 
 /**
@@ -50,7 +40,7 @@ export interface CreateFormConfigBase<T, B> {
   seed?: (model: FormModel<T>) => void;
   /**
    * Донастройка ПОСЛЕ сборки. Единственное место для правок, которые обязаны идти следом за
-   * `createForm`: поле, чьё значение уже массив, ноды не получает (см. `buildModelConfig`),
+   * сборкой формы: поле, чьё значение уже массив, ноды не получает (см. `buildModelConfig`),
    * поэтому такой префилл выполняется здесь.
    */
   setup?: (bundle: B) => void;
@@ -66,14 +56,16 @@ export interface CoreForm<T> {
 /** Конфиг {@link createCoreForm}. */
 export interface CreateCoreFormConfig<T> extends CreateFormConfigBase<T, CoreForm<T>> {
   /**
-   * Билдер схемы формы. Именно функция, а не готовое дерево: листья схемы держат сами сигналы
-   * модели (`value: model.$.email`), поэтому построить дерево до модели нечем.
+   * Билдер схемы формы. Именно функция, а не готовое дерево: узлы схемы держат ручки модели
+   * (`model: model.$.email`), поэтому построить дерево до модели нечем.
    */
   schema?: (model: FormModel<T>) => FormSchemaNode;
 }
 
 /**
  * Собрать модель, форму и валидацию за один проход.
+ *
+ * @deprecated Пишите `createForm` — та же сборка, в бандле вдобавок дерево для рендерера.
  *
  * @typeParam T - Форма данных модели.
  * @param config - {@link CreateCoreFormConfig}: (`initial` | `model`) + опц. `schema`, `behavior`,
@@ -94,20 +86,5 @@ export interface CreateCoreFormConfig<T> extends CreateFormConfigBase<T, CoreFor
  * ```
  */
 export function createCoreForm<T extends object>(config: CreateCoreFormConfig<T>): CoreForm<T> {
-  if (!config.model && config.initial === undefined) {
-    throw new Error('createCoreForm: provide either `initial` (to create a model) or `model`.');
-  }
-  const model = config.model ?? createModel<T>(config.initial as T);
-  config.seed?.(model);
-
-  const form = createForm<T>({
-    model,
-    ...(config.schema ? { schema: config.schema(model) } : {}),
-    ...(config.behavior ? { behavior: config.behavior } : {}),
-  });
-
-  const validation = buildValidation(model, config.validation);
-  const bundle: CoreForm<T> = { model, form, ...(validation ? { validation } : {}) };
-  config.setup?.(bundle);
-  return bundle;
+  return createForm<T>(config as CreateFormConfig<T>);
 }

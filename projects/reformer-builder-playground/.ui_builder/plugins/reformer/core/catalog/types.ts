@@ -12,7 +12,7 @@
  * @module plugins/reformer/core/catalog/types
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import type { PropDoc, PropsSchema, PropWidget } from '@reformer/ui-kit/meta';
 import type { CatalogRole } from '@reformer/builder-plugin-api';
 

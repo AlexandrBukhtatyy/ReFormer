@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FormProxy, ValidationError } from '../../../src/form/types/index';
-import { createForm } from '../../../src/form/create-form';
+import { createLegacyForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Form-level Errors', () => {
@@ -19,7 +19,7 @@ describe('GroupNode - Form-level Errors', () => {
   let form: FormProxy<TestForm>;
 
   beforeEach(() => {
-    form = createForm<TestForm>({
+    form = createLegacyForm<TestForm>({
       email: { value: '', component: null as ComponentInstance },
       password: { value: '', component: null as ComponentInstance },
       confirmPassword: { value: '', component: null as ComponentInstance },
@@ -227,7 +227,7 @@ describe('GroupNode - Form-level Errors', () => {
     }
 
     it('should handle form-level errors in nested groups independently', () => {
-      const nestedForm = createForm<NestedForm>({
+      const nestedForm = createLegacyForm<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -257,7 +257,7 @@ describe('GroupNode - Form-level Errors', () => {
     });
 
     it('should clear form-level errors recursively', () => {
-      const nestedForm = createForm<NestedForm>({
+      const nestedForm = createLegacyForm<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },

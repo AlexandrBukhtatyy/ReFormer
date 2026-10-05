@@ -22,7 +22,7 @@ import type { ValidatorFn, AsyncValidatorFn, AnyFunction } from './index';
  * @group Types
  * @category Configuration Types
  * @remarks
- * В схеме `createForm({ model, schema })` лист связывают через **`value: model.$.field`**: harvest
+ * В схеме `createFormFromModel({ model, schema })` лист связывают через **`value: model.$.field`**: harvest
  * ловит узел по идентичности `Signal` (`node.value instanceof Signal` — см. `create-form.ts`) и
  * нормализует его в `valueSignal`. Писать `valueSignal:` **в самой схеме `createForm` нельзя** —
  * harvest его не подхватит (проверка идёт по `node.value`), и `component`/`componentProps` этого
@@ -93,7 +93,7 @@ type NonEmptyFieldConfig<T> = RequireAtLeastOne<FieldConfig<T>>;
  * Использует NonNullable для корректной обработки опциональных полей.
  *
  * ⚠️ Не путать с {@link FormSchemaNode} — тот описывает **узел дерева** M1-схемы (лист/массив/
- * контейнер), передаваемой в `createForm({ model, schema })`. `FormSchema` — это data-shaped конфиг
+ * контейнер), передаваемой в `createFormFromModel({ model, schema })`. `FormSchema` — это data-shaped конфиг
  * (ключи = поля данных), а не узел дерева.
  *
  * @group Types

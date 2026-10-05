@@ -1,30 +1,31 @@
 /**
  * CreditApplicationFormRenderer
  *
- * Та же форма кредитной заявки, но с использованием renderSchema API.
- * Демонстрирует полностью декларативный подход к описанию сложных multi-step форм.
+ * Та же форма кредитной заявки, нарисованная рендерером по схеме. Модель, схема, правила и
+ * поведение — общие с вариантом «React руками» (`../complex-multy-step-form`); эта страница только
+ * собирает форму и отдаёт бандл рендереру.
  *
  * Использует:
- * - FormRenderer с пользовательским CreditApplicationWizard компонентом
- * - Единую renderSchema для всей формы (включая навигацию)
- * - Переиспользует типы, схему, валидацию и API из complex-multy-step-form
+ * - `createForm` — одна сборка: модель, дерево схемы, форма, поведение, валидация;
+ * - `FormRenderer` — рисует дерево и исполняет правила узлов из поведения;
+ * - библиотечный `FormWizard` как узел схемы: форму и валидацию он берёт из сборки сам.
  */
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
-import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
-import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
-import type { RenderSchemaProxy } from '@reformer/renderer-react';
+import { createForm, useFormBundle, type FormRender } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 import { ValidationMessagesProvider } from '@reformer/cdk';
+import { createCreditApplicationModel } from '../complex-multy-step-form/model';
+import { creditApplicationSchema } from '../complex-multy-step-form/form.schema';
+import { creditApplicationBehavior } from '../complex-multy-step-form/form.behavior';
+import { creditApplicationValidation } from '../complex-multy-step-form/form.validation';
 import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
-import { buildCreditApplicationSchema } from './render-schema';
-import { createCreditApplicationRenderBehavior } from './render-behavior';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
 // Демо-панель для демонстрации программного управления схемой
-function SchemaControlPanel({ schema }: { schema: RenderSchemaProxy<CreditApplicationForm> }) {
+function SchemaControlPanel({ schema }: { schema: FormRender }) {
   const [mortgageHidden, setMortgageHidden] = useState(false);
   const [carHidden, setCarHidden] = useState(false);
   const [employerTitle, setEmployerTitle] = useState('Информация о работодателе');
@@ -43,7 +44,7 @@ function SchemaControlPanel({ schema }: { schema: RenderSchemaProxy<CreditApplic
           <ChevronRight className="w-4 h-4 text-blue-600 shrink-0" />
         )}
         <span className="text-sm font-semibold text-blue-800 group-hover:text-blue-600">
-          Программное управление схемой (createRenderSchema)
+          Программное управление схемой (bundle.render.node)
         </span>
         <span className="text-xs text-blue-700 font-normal">
           — управление через сигналы, перерисовывается только затронутая нода
@@ -114,14 +115,14 @@ function SchemaControlPanel({ schema }: { schema: RenderSchemaProxy<CreditApplic
 }
 
 function CreditApplicationFormRenderer() {
-  // Сборка ОДНИМ вызовом: модель + форма + render-схема + поведение. Двойной проход по билдеру
-  // (без формы — для нод, с формой — для рендера wizard-узла) фабрика делает сама.
-  const creditForm = useReactForm(() =>
-    createReactForm<CreditApplicationForm>({
+  // Сборка ОДНИМ вызовом: модель, дерево схемы, форма, поведение и валидация. `useFormBundle` зовёт
+  // фабрику ровно один раз и держит бандл стабильным между рендерами.
+  const creditForm = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
       model: createCreditApplicationModel(),
-      schema: buildCreditApplicationSchema,
+      schema: creditApplicationSchema,
       behavior: creditApplicationBehavior,
-      renderBehavior: (form) => createCreditApplicationRenderBehavior(form),
+      validation: creditApplicationValidation,
     })
   );
 

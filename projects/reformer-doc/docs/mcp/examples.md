@@ -158,7 +158,7 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
 
 const MyForm = () => {
   const model = createModel<UserForm>({ email: '', password: '' });
-  const form = createForm<UserForm>({ model, schema: buildSchema(model) });
+  const form = createFormFromModel<UserForm>({ model, schema: buildSchema(model) });
 
   const email = useFormControl(form.email);
 
@@ -186,14 +186,14 @@ AI найдёт проблемы:
 
 ```typescript
 import { useMemo } from 'react';
-import { createModel, createForm, useFormControl } from '@reformer/core';
+import { createModel, createFormFromModel, useFormControl } from '@reformer/core';
 import { validateModel } from '@reformer/core/validation';
 
 const MyForm = () => {
   // ✅ модель и форма создаются один раз
   const { model, form } = useMemo(() => {
     const m = createModel<UserForm>({ email: '', password: '' });
-    return { model: m, form: createForm<UserForm>({ model: m, schema: buildSchema(m) }) };
+    return { model: m, form: createFormFromModel<UserForm>({ model: m, schema: buildSchema(m) }) };
   }, []);
 
   const email = useFormControl(form.email);

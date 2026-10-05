@@ -13,7 +13,7 @@
  * @module reformer/renderer-json/create-json-form
  */
 
-import { createModel, createForm, buildValidation, useFormBundle } from '@reformer/core';
+import { createModel, createFormFromModel, buildValidation, useFormBundle } from '@reformer/core';
 import type {
   CoreForm,
   CreateFormConfigBase,
@@ -23,13 +23,14 @@ import type {
 } from '@reformer/core';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import type { ComponentRegistry } from './registry/types';
-import type { JsonFormSchema } from './types/json-schema';
+import { schemaFormatOf } from './types/json-schema';
+import type { JsonFormSchemaV1 } from './types/json-schema-v1';
 import { convertJsonToM1Tree } from './converter/json-to-render-schema';
 
 /** Собранная форма из JSON-схемы: источник истины для `<JsonFormRenderer form={…} />`. */
 export interface JsonForm<T> extends CoreForm<T> {
   /** Та же JSON-схема, из которой собраны model+form (рендерер строит из неё render-дерево). */
-  schema: JsonFormSchema<T>;
+  schema: JsonFormSchemaV1<T>;
   /** Реестр компонентов/source (нужен рендереру для резолва имён). */
   registry: ComponentRegistry;
   /**
@@ -43,7 +44,7 @@ export interface JsonForm<T> extends CoreForm<T> {
 /** Конфиг {@link createJsonForm}. Модель — либо `initial` (создаётся внутри), либо готовая `model`. */
 export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonForm<T>> {
   /** JSON-схема формы (типизируй по `T` через `defineJsonSchema<T>`). */
-  schema: JsonFormSchema<T>;
+  schema: JsonFormSchemaV1<T>;
   /** Реестр компонентов/source. */
   registry: ComponentRegistry;
   /** Фабрика render-behavior: получает уже собранные форму, модель и валидацию. */
@@ -85,13 +86,20 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
  */
 export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>): JsonForm<T> {
   const { schema, registry, behavior } = config;
+  if (schemaFormatOf(schema) === 2) {
+    throw new Error(
+      'createJsonForm: документ схемы — формата 2. Его собирает единая сборка: ' +
+        '`createForm({ model, schema, registry })` из `@reformer/core`, а рисует `FormRenderer` ' +
+        'из `@reformer/renderer-react`. `createJsonForm` читает только прежний формат.'
+    );
+  }
   if (!config.model && config.initial === undefined) {
     throw new Error('createJsonForm: provide either `initial` (to create a model) or `model`.');
   }
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
 
-  const form = createForm<T>({
+  const form = createFormFromModel<T>({
     model,
     schema: convertJsonToM1Tree(schema, registry, model),
     behavior,

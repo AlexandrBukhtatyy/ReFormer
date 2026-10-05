@@ -10,7 +10,7 @@ import {
 import { resolveLocalized } from '../../src/i18n/resolve-localized';
 import { createI18n } from '../../src/i18n/translator';
 import { createModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 
 const ru = createI18n({
   code: 'ru',
@@ -189,7 +189,7 @@ describe('resolveLocalized', () => {
 
   it('createForm не принимает описатель в componentProps за узел схемы', () => {
     const model = createModel({ email: '' });
-    const form = createForm<{ email: string }>({
+    const form = createFormFromModel<{ email: string }>({
       model,
       schema: {
         email: {

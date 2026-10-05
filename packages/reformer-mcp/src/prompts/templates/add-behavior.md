@@ -1,11 +1,32 @@
-You add behaviors to a `@reformer/core` form (M1 signal-based architecture).
+You add behavior to a `@reformer/*` form.
 
-Behaviors operate on **model signals** (`model.$.<field>`), NOT on a `path` argument. Two equivalent APIs:
+A form has **ONE behavior** — `form.behavior.ts`, one function, one `behavior` field of the assembly:
 
-- **Standalone primitives** from `@reformer/core` — `computeFrom` / `copyFrom` / `watchField` / `enableWhen` / `disableWhen` / `transformValue` / `resetWhen` / `syncFields` / `revalidateWhen`. Each returns a cleanup function; run them in a `useEffect` after `createForm` and dispose on unmount.
-- **Declarative DSL** `defineFormBehavior<T>(({ model, form }) => { … })` + operators from `@reformer/core/behaviors` (`compute` / `copyFrom` / `enableWhen` / `disableWhen` / `onChange` / `transformValue` / `apply`). The operators self-register in the active schema; the form owns their lifecycle (pass `behavior` to the assembly call: `createCoreForm`/`createReactForm`/`createJsonForm`, or to low-level `createForm`). No manual cleanup array.
+```typescript
+import { defineFormBehavior, compute, enableWhen, hideWhen } from '@reformer/core/behaviors';
 
-There is NO `BehaviorSchemaFn`, NO `behavior: (path) => {…}`, NO `validate(path.x)`. Path-based behaviors were removed. Value-ops write model signals (`model.$.x`); state/UI-ops (`enableWhen`, `updateComponentProps`, array `clear`) touch form nodes (`form.x`).
+export const formBehavior = defineFormBehavior<MyForm>(({ model, form, schema }) => {
+  const isMortgage = () => model.loanType === 'mortgage';
+
+  // links over the model
+  compute(model.$.total, () => model.price * model.quantity);
+  enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true });
+
+  // rules for schema nodes — addressed by `selector`
+  hideWhen(schema.node('mortgage'), () => !isMortgage());
+});
+```
+
+- **Links over the model** bind to the handle `model.$.<field>`: `compute` / `copyFrom` / `enableWhen` / `disableWhen` / `onChange` / `transformValue` / `resetWhen` / `syncFields` / `revalidateWhen`; `apply(model.$.group, groupBehavior)` for a sub-form, `applyEach(model.$.items, itemBehavior)` for array rows.
+- **Rules for schema nodes** address a node by `selector`: `hideWhen(schema.node('x'), cond)`, `onComponentEvent(schema.node('wizard'), 'onSubmit', handler)`, `onMount(schema.node('boundary'), load)`, `renderEffect(schema, fn)`. They are imported from the SAME module, `@reformer/core/behaviors`, and are executed by `FormRenderer`. When the markup is written by hand in JSX they do nothing — there visibility, submit and loading stay in JSX.
+- Conditions read the **model** (`model.loanType`), in both kinds of rules — so one constant serves `enableWhen` and `hideWhen`.
+- Operators self-register in the active behavior; the form owns their lifecycle. Pass the behavior to the assembly: `createForm({ …, behavior: formBehavior })`. No manual cleanup array.
+
+The former contract — a second behavior for the render layer (`form.render.ts`, the `renderBehavior` field, a factory `(form, model, validation) => (schema) => …`) — is gone: ❌ do not emit it. There is also NO `BehaviorSchemaFn`, NO `behavior: (path) => {…}`, NO `validate(path.x)`: path-based behaviors were removed.
+
+**Standalone primitives** from `@reformer/core` (`computeFrom` / `copyFrom` / `watchField` / `enableWhen` / …) still exist for code that lives outside a form's behavior: each returns a cleanup function, run them in a `useEffect` and dispose on unmount. For a form's own behavior prefer the DSL above; don't mix both for the same form.
+
+Value-ops write model signals (`model.$.x`); state/UI-ops (`enableWhen`, `updateComponentProps`, array `clear`) touch form nodes (`form.x`).
 
 ## Args
 
@@ -28,31 +49,26 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 5. **Guard `enable`/`disable`**: check `field.disabled.value` first — re-disable triggers spurious signal.
 6. **`revalidateWhen` bridges behavior→validation — its callback runs the separate validation layer: `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.** Validation is a standalone layer (`@reformer/core/validation`, a `defineValidationSchema(({ model }) => …)` function run by `validateModel`); layout/behavior nodes carry NO validators. Add `revalidateWhen` only when a behavior writes a field the user isn't editing (a `copyFrom`/`compute` target) whose validity must be re-checked — the wizard's `validateStep`/`validateAll` (both `validateModel`) already re-run on submit/step for user-edited fields, so don't double-run.
 7. **`computeFrom` sources are arbitrary model signals** — pass `[model.$.a, model.$.b.c]` from anywhere in the tree (cross-level is fine, signals carry their own path). Values arrive **positionally** in the same order: `computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty)`.
-8. **NEVER `enableWhen` on a whole `ArrayNode` with `resetOnDisable: true`** — verified browser-hang. For conditional array visibility use JSX-conditional (`{form.flag.value.value && <ArrayUI/>}`) or `hideWhen` (renderer).
-9. **NEVER combine raw `effect()` from `@preact/signals-core` with signal-write calls** (`schema.node().setHidden()`, `field.setValue()`, `field.disable()`, etc.) **inside the same callback**. setHidden writes the hidden-signal → effect dependency graph re-runs → infinite loop with «Cycle detected» runtime error.
-
-   **For React-side orchestration (B3 setHidden cascade в renderer-json A4 wizard pair, любые JSX-condition реакции на signals):** используй `useFormControlValue(form.X)` для signal→React-state bridge + **отдельный `useEffect` per source/condition**. React deps prevent infinite re-trigger.
+8. **NEVER `enableWhen` on a whole `ArrayNode` with `resetOnDisable: true`** — verified browser-hang. For conditional array visibility use the node rule `hideWhen(schema.node('array-selector'), () => !model.flag)`, or a JSX conditional when the markup is written by hand.
+9. **NEVER combine raw `effect()` from `@preact/signals-core` with signal-write calls** (`schema.node().setHidden()`, `field.setValue()`, `field.disable()`, etc.) **inside the same callback**. setHidden writes the hidden-signal → effect dependency graph re-runs → infinite loop with «Cycle detected» runtime error. Node visibility is DECLARED in the behavior, not driven by hand:
 
    ```tsx
-   // ❌ Cycle detected — effect reads signal, setHidden writes signal
+   // ❌ Cycle detected — effect reads a signal, setHidden writes a signal
    useEffect(() => {
      const dispose = effect(() => {
        const loanType = form.loanType.value.value;
-       schema.node('mortgage-section').setHidden(loanType !== 'mortgage');
-       schema.node('car-section').setHidden(loanType !== 'car');
+       bundle.render.node('mortgage-section').setHidden(loanType !== 'mortgage');
+       bundle.render.node('car-section').setHidden(loanType !== 'car');
      });
      return dispose;
-   }, [schema, form]);
+   }, [bundle, form]);
 
-   // ✅ React-mediated — signal subscribed via useFormControlValue, useEffect runs on deps change
-   const loanType = useFormControlValue(form.loanType as never) as string;
-   useEffect(() => {
-     schema.node('mortgage-section').setHidden(loanType !== 'mortgage');
-     schema.node('car-section').setHidden(loanType !== 'car');
-   }, [schema, loanType]);
+   // ✅ a rule for the node, in form.behavior.ts — the form owns its lifecycle
+   hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+   hideWhen(schema.node('car-section'), () => model.loanType !== 'car');
    ```
 
-   `effect()` raw — только для side-effects вне React (`console.log`, fetch, broadcasting events). Внутри React tree всегда mediate через `useFormControlValue`.
+   Imperative `setHidden` / `patchProps` (`bundle.render.node('x').setHidden(true)`) is for one-off actions from event handlers — a button that collapses a section. `effect()` raw — только для side-effects вне React (`console.log`, fetch, broadcasting events). Внутри React tree читай значение через `useFormControlValue`.
 
 10. **`computeFrom` passes POSITIONAL plain values, one per source signal.** The callback receives `(...values)` in the exact order of the `sources` array — NOT a keyed object. Subscribe to precisely the leaf signals you read; a nested field is just its own signal `model.$.<group>.<field>`. There is no "group node vs flat leaves" ambiguity under M1 — each source is a signal that carries its own path. **`as never` cast on the sources array is a red flag**: if a cast hides a type error, the source list is mistyped — fix the signal reference, don't cast.
 
@@ -81,22 +97,22 @@ compute(model.$.fullName, () =>
 );
 ```
 
-11. **Preact Signal двойной `.value` — обязательно при чтении значения из callback'а.** Для FieldNode `field.value` возвращает **сам Signal-объект** (`Signal<T>`), а **текущее значение** — это `field.value.value`. Сравнение `field.value !== 'foo'` — всегда true (Signal `!==` literal), `field.value === true` — всегда false. Тихий silent fail: hideWhen-условие никогда не срабатывает, секция вечно скрыта/видима, errors нет.
+11. **Условие читает МОДЕЛЬ, а не ноду формы.** Внутри поведения значение поля — это `model.<field>`: чтение через модель и даёт значение, и подписывает правило на изменения. Одинаково для связей над моделью (`enableWhen`/`disableWhen`/`copyFrom`) и для правил узлов (`hideWhen`).
 
-    **Где применимо:** любая callback-функция, которая читает значение поля из `form.<field>` (нода формы) напрямую. В первую очередь — `hideWhen(node, () => …)`, тело `effect()`, тело `useEffect`, `setValue` predicate. Если значение приходит через arg (`computeFrom((...values) => …)`, `watchField((newValue) => …)`, `onChange((value) => …)`) — там уже plain value, второй `.value` не нужен. Behaviors на сигналах модели (`enableWhen`/`disableWhen`/`copyFrom` conditions) читают `model.<field>` (значение через прокси), тоже без `.value`.
-
-    **NB:** именно второй `.value` подписывает effect/computeFrom-deps на signal. Если читаешь `field.value` (один) — subscription **не** регистрируется, реактивность ломается.
+    Нода формы (`form.<field>`) значением не является: `field.value` возвращает **сам Signal-объект** (`Signal<T>`), текущее значение — `field.value.value`. Сравнение `field.value !== 'foo'` — всегда true (Signal `!==` literal), `field.value === true` — всегда false. Тихий silent fail: условие никогда не срабатывает, секция вечно скрыта/видима, errors нет. Если значение приходит аргументом (`computeFrom((...values) => …)`, `onChange((value) => …)`) — там уже plain value.
 
     ```typescript
-    // ❌ Signal !== literal → всегда true → секция вечно скрыта; effect не подписан
-    hideWhen(proxy.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
-    hideWhen(proxy.node('properties-array'), () => form.hasProperty.value !== true);
+    // ❌ Signal !== literal → всегда true → секция вечно скрыта; подписки нет
+    hideWhen(schema.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
 
-    // ✅ field.value.value — current value; subscription регистрируется правильно
-    hideWhen(proxy.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
-    hideWhen(proxy.node('properties-array'), () => form.hasProperty.value.value !== true);
+    // ❌ работает, но это запись прежнего контракта: условие читало ноду формы
+    hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
 
-    // ✅ React-side через useFormControlValue (предпочтительнее в JSX) — bridge сам разворачивает .value.value
+    // ✅ условие читает модель
+    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+    hideWhen(schema.node('properties-array'), () => !model.hasProperty);
+
+    // ✅ в JSX (разметка руками) — useFormControlValue: bridge сам разворачивает .value.value
     const loanType = useFormControlValue(form.loanType as never) as string;
     {loanType === 'mortgage' && <MortgageSection/>}
     ```
@@ -119,7 +135,7 @@ compute(model.$.fullName, () =>
 
 13. **Не комбинируй `enableWhen + resetOnDisable: true` с `copyFrom` на одной и той же GroupNode (или включающей её).** Они конкурируют: `copyFrom` пишет значения в группу, `enableWhen` с `resetOnDisable` стирает их при срабатывании условия — порядок и тайминг непредсказуемы, а в worst-case race-condition выглядит как «иногда копируется, иногда пусто». Также: правило #8 уже запрещает `enableWhen + resetOnDisable` на whole ArrayNode (cycle на mount), но для GroupNode оно не падает технически, лишь портит данные.
 
-    **Как делать правильно**: оставь `copyFrom` для синхронизации значений; для скрытия секции используй JSX-conditional (`{condition && <Section/>}`) или `hideWhen(proxy.node('selector'), () => …)` в renderer-react. **Не блокируй disable'ом ту же группу, в которую пишет copyFrom**.
+    **Как делать правильно**: оставь `copyFrom` для синхронизации значений; для скрытия секции используй правило узла `hideWhen(schema.node('selector'), () => …)` (в разметке руками — JSX-conditional `{condition && <Section/>}`). **Не блокируй disable'ом ту же группу, в которую пишет copyFrom**.
 
     ```typescript
     // ❌ race: copyFrom пишет registrationAddress→residenceAddress, потом enableWhen
@@ -131,13 +147,12 @@ compute(model.$.fullName, () =>
       resetOnDisable: true,
     });
 
-    // ✅ copyFrom для значений; enable/disable группы БЕЗ resetOnDisable; скрытие — JSX
+    // ✅ copyFrom для значений; enable/disable группы БЕЗ resetOnDisable; скрытие — правило узла
     copyFrom(model.$.registrationAddress, model.$.residenceAddress, {
       when: () => model.sameAsRegistration === true,
     });
     enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false); // без resetOnDisable
-    // в index.tsx:
-    {!sameAsRegistration && <ResidenceAddressSection control={control}/>}
+    hideWhen(schema.node('residence'), () => model.sameAsRegistration === true);
     ```
 
     Copying a whole group signal (`model.$.registrationAddress → model.$.residenceAddress`) copies every field; there is no `fields: 'all'` option in M1 — pass the group signal, not a leaf.
@@ -149,9 +164,10 @@ compute(model.$.fullName, () =>
     ```typescript
     import type { OrderForm } from './types';
 
-    // ✅ standalone-примитивы (cleanup-массив в useEffect) — model типизирован
-    // одна сборка вместо createModel + createForm
-    const { model, form } = createCoreForm<OrderForm>({ initial: INITIAL, schema: buildSchema });
+    // ✅ standalone-примитивы (cleanup-массив в useEffect) — model типизирован сборкой
+    const { model } = useFormBundle(() =>
+      createForm<OrderForm>({ initial: INITIAL, schema: formSchema })
+    );
     useEffect(() => {
       const cleanups = [
         computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => price * qty),
@@ -210,10 +226,21 @@ compute(model.$.fullName, () =>
 
 ## 🎯 Hide vs Disable
 
-- **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).
-- **Disable** (`enableWhen`) → field stays visible, control greyed out. Use only for progressive disclosure (`confirmPassword` after `password`).
+- **Hide** (`hideWhen(schema.node('selector'), cond)` — a rule for a schema node; a JSX conditional when the markup is written by hand) → the node disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`). Hiding does NOT take the field out of the model: it is still validated.
+- **Disable** (`enableWhen`) → field stays visible, control greyed out, and it stops participating in validation. Use for progressive disclosure (`confirmPassword` after `password`).
 
-For type/status conditional fields **default = Hide, NOT Disable**.
+For type/status conditional fields **default = Hide, NOT Disable**. When a hidden field must also stop being validated, the two stand side by side with one shared condition: `enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true })` + `hideWhen(schema.node('mortgage'), () => !isMortgage())`.
+
+**Scopes are isolated.** `schema.node(selector)` sees the nodes of its own scope only: the root behavior — the root tree without the contents of array `item`s and sub-form `part`s. A node inside a row or a part is addressed from the sub-behavior, which receives its own `schema`:
+
+```typescript
+const addressBehavior = defineFormBehavior<Address>(({ model, schema }) => {
+  hideWhen(schema.node('apartment'), () => model.house === ''); // looked up inside the part
+});
+
+apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
+applyEach(model.$.properties, propertyBehavior);
+```
 
 ## TS2589 workaround (deeply nested forms)
 
@@ -245,9 +272,9 @@ Don't cast on simple forms — only when TS2589 actually appears.
 
 ## Task
 
-1. Pick an API: standalone primitives from `@reformer/core` (cleanup-array in `useEffect`) OR the `defineFormBehavior` DSL (`@reformer/core/behaviors`, passed as the `behavior` field of the assembly call). Don't mix both for the same form.
-2. Map each requirement to a behavior (`computeFrom`/`compute` / `watchField`/`onChange` / `enableWhen` / `disableWhen` / `copyFrom` / `syncFields` / `resetWhen` / `transformValue` / `revalidateWhen`).
-3. Use `apply([model.$.a, model.$.b], subBehavior)` (DSL) if a behavior repeats across multiple groups/fields.
+1. Write the form's behavior as ONE `defineFormBehavior<T>(({ model, form, schema }) => …)` in `form.behavior.ts`, passed as the `behavior` field of `createForm`. Standalone primitives (cleanup-array in `useEffect`) are for code outside the form; don't mix both for the same form.
+2. Map each requirement to a rule: a link over the model (`compute` / `onChange` / `enableWhen` / `disableWhen` / `copyFrom` / `syncFields` / `resetWhen` / `transformValue` / `revalidateWhen`) or a rule for a schema node (`hideWhen` / `onComponentEvent` / `onMount`). Not sure which of two similar operators — tool `choose_api`.
+3. Use `apply([model.$.a, model.$.b], subBehavior)` if a behavior repeats across groups, `applyEach(model.$.items, itemBehavior)` for array rows.
 4. Walk the cycle-prevention checklist for each `watchField`/`computeFrom` you add.
 5. Don't duplicate existing `watchField`/`onChange` callbacks — extend them.
 6. `computeFrom` sources are positional model signals (`model.$.<path>`) — cross-level is fine.
@@ -260,10 +287,12 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] Every `setValue` has equality guard
 - [ ] No `enableWhen` on whole ArrayNode
 - [ ] `computeFrom` callback читает источники **позиционно** в порядке массива sources (rule #10); никаких `as never` cast'ов на источниках, никакого keyed-`values` объекта
-- [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); React orchestration через `useFormControlValue` + `useEffect`
-- [ ] Все callback'и (`hideWhen`/`enableWhen`/`disableWhen`/`effect`/`useEffect`), читающие `form.<field>` напрямую, используют **двойной** `.value.value` (rule #11) — single `.value` сравнивается с Signal-объектом и тихо ломает условие
+- [ ] Поведение одно: правила узлов (`hideWhen` по `selector`) стоят в том же `defineFormBehavior`, что и связи над моделью — нет `form.render.ts` и `renderBehavior` (прежний контракт)
+- [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); видимость узлов объявлена правилами `hideWhen`
+- [ ] Условия читают модель (`model.<field>`), а не ноду формы (rule #11) — `form.<field>.value` сравнивается с Signal-объектом и тихо ломает условие
+- [ ] Узлы внутри строки массива и подформы адресуются из под-поведения (`applyEach` / `apply`), а не из корневого
 - [ ] `useFormControl` / `useFormControlValue` вызываются ТОЛЬКО на FieldNode (leaf). Никогда на FormProxy root, GroupNode, ArrayNode (rule #12) — иначе TypeError на componentProps.value
-- [ ] Никаких `enableWhen + resetOnDisable: true` на той же Group, в которую пишет `copyFrom` (rule #13) — race ломает данные. Скрытие — JSX-conditional / `hideWhen`
+- [ ] Никаких `enableWhen + resetOnDisable: true` на той же Group, в которую пишет `copyFrom` (rule #13) — race ломает данные. Скрытие — правило узла `hideWhen` (в разметке руками — JSX-conditional)
 - [ ] **Model generic зафиксирован**: `createModel<MyForm>` / `defineFormBehavior<MyForm>` (НЕ `<any>`, НЕ опущен) — silent fail на опечатках имён полей (rule #14, часть A)
 - [ ] **Содержательные callback'и (>5 lines, computeFrom, async watchField) extracted module-level** как типизированные функции `(form: MyForm) => Result`; inline OK только для коротких predicates / single setter (rule #14, часть B)
 - [ ] **Spec gaps section в dev-report.md**: для каждого правила из таблиц спеки (`Поведение при изменении полей и зависимости`, `Cross-validation`, `Async loaders`, `Warnings/Hints`) — отметка `реализовано (где) / отложено (почему) / не релевантно (почему)`. Молчаливое опущение запрещено

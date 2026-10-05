@@ -61,7 +61,7 @@
  * @module plugins/reformer/ai/model/validate
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { validateFormSchema } from '@reformer/renderer-json/validate';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogEntry } from '../../../core/catalog';

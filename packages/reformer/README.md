@@ -31,7 +31,7 @@ npm install @reformer/core@beta # Active development is underway, so you can try
 ## Quick Start
 
 ReFormer is built around the **M1 architecture**: a reactive `FormModel` owns the values, a layout
-schema binds field config (component / props) to the model's signals, and `createForm({ model, schema })`
+schema binds field config (component / props) to the model's signals, and `createFormFromModel({ model, schema })`
 wires them into a typed form. Validation is a **separate** ambient contract — `defineValidationSchema`,
 run on demand by `validateModel(model, schema)` — so the layout schema carries no validators.
 
@@ -39,7 +39,8 @@ run on demand by `validateModel(model, schema)` — so the layout schema carries
 import { useMemo } from 'react';
 import {
   createModel,
-  createForm,
+  createFormFromModel,
+  createLegacyForm,
   useFormControl,
   type FieldNode,
   type ValidationError,
@@ -121,7 +122,10 @@ const behavior = defineFormBehavior<RegistrationForm>(({ model, form }) => {
 
 // 6. Registration form component
 function RegistrationFormExample() {
-  const form = useMemo(() => createForm<RegistrationForm>({ model, schema, behavior }), []);
+  const form = useMemo(
+    () => createFormFromModel<RegistrationForm>({ model, schema, behavior }),
+    []
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

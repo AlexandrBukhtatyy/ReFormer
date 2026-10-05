@@ -120,7 +120,7 @@ NativeSelectMulti, аватар) иконка встаёт справа от к�
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Button, FormField, Input, SelectAsync } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -152,7 +152,7 @@ function RegistrationPage() {
         },
       ],
     };
-    return createForm<RegistrationForm>({ model, schema });
+    return createFormFromModel<RegistrationForm>({ model, schema });
   }, []);
 
   return (
@@ -176,7 +176,7 @@ function RegistrationPage() {
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm } from '@reformer/core';
+import { createFormFromModel } from '@reformer/core';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
 import { FormField, Input, InputNumber, Section } from '@reformer/ui-kit';
 import { createCreditApplicationModel } from './schemas/model';
@@ -194,7 +194,7 @@ function CreditApplicationPage() {
         { value: model.$.amount, component: InputNumber, componentProps: { testId: 'amount' } },
       ],
     }));
-    const form = createForm<CreditApplication>({ model, schema });
+    const form = createFormFromModel<CreditApplication>({ model, schema });
     return { form, schema };
   }, []);
 
@@ -267,7 +267,7 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 > `@reformer/ui-kit/fields`, — иначе подпись задвоится молча.
 
 ```tsx
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ accept: boolean }>({ accept: false });
@@ -280,7 +280,7 @@ const schema = {
     },
   ],
 };
-const form = createForm<{ accept: boolean }>({ model, schema });
+const form = createFormFromModel<{ accept: boolean }>({ model, schema });
 
 <FormField control={form.accept} testId="accept" />;
 // рендерится только чекбокс с label справа + error снизу.

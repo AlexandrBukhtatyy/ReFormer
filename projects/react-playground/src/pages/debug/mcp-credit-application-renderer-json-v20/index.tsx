@@ -1,23 +1,21 @@
-// index.tsx — entry: build the form bundle from the JSON schema in ONE pass
-// (createJsonForm) and render it via JsonFormRenderer with the `form` prop. The whole
-// 6-step wizard lives in renderer.schema.json; runtime wiring (submit / validation /
-// conditional sections) lives in the render-behavior.
+// index.tsx — точка входа: сборка формы и рендерер.
+// Сборка ОДНИМ вызовом: createForm({ model, schema, registry, behavior, validation }) →
+// <FormRenderer form={…} />. Все 6 шагов живут в renderer.schema.json (документ формата 2); визард —
+// узел схемы, форму и валидацию он берёт из сборки сам. Отправка и условные секции — в поведении.
 
 import { useState } from 'react';
-import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  createJsonForm,
-  useJsonForm,
-  type JsonFormSchema,
-} from '@reformer/renderer-json';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import rawJsonSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
 import { createCreditModel } from './model';
-import { creditBehavior } from './form.behavior';
-import { createJsonRenderBehavior } from './renderer.behavior';
+import { makeCreditBehavior } from './form.behavior';
+import { creditValidation } from './validation';
 import type { CreditApplicationForm } from './types';
 
+// Чистый JSON импортируется как данные: операторы-строки (`$model(...)`) типизируются как `string`,
+// поэтому приводим к JsonFormSchema.
 const jsonSchema = rawJsonSchema as unknown as JsonFormSchema<CreditApplicationForm>;
 
 type SubmitResult = { message: string; ok: boolean };
@@ -25,21 +23,20 @@ type SubmitResult = { message: string; ok: boolean };
 export default function CreditApplicationRendererJsonV20Page() {
   const [result, setResult] = useState<SubmitResult | null>(null);
 
-  // Сборка ОДНИМ вызовом: модель + форма из JSON-схемы + реестр + поведение + render-behavior.
-  // Модель передаём готовой (createCreditModel материализует все поля, включая условные/вычисляемые,
-  // чтобы сигналы behavior существовали). Опции места монтирования (`mode`, `onResult`) замыкаются
-  // здесь: фабрика зовётся один раз, поэтому ссылка на поведение стабильна.
-  const jsonForm = useJsonForm(() =>
-    createJsonForm<CreditApplicationForm>({
+  // Сборка ОДНИМ вызовом: модель, дерево из документа (его строит реестр), форма, поведение и
+  // валидация. Модель передаём готовой (createCreditModel материализует все поля, включая
+  // условные/вычисляемые, чтобы сигналы поведения существовали). Опции места монтирования (`mode`,
+  // `onResult`) замыкаются здесь: `useFormBundle` зовёт фабрику один раз, поэтому ссылка стабильна.
+  const creditForm = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
+      model: createCreditModel(),
       schema: jsonSchema,
       registry: createRegistry(),
-      model: createCreditModel(),
-      behavior: creditBehavior,
-      renderBehavior: (form, model) =>
-        createJsonRenderBehavior(form, model, {
-          mode: 'create',
-          onResult: (message, ok) => setResult({ message, ok }),
-        }),
+      behavior: makeCreditBehavior({
+        mode: 'create',
+        onResult: (message, ok) => setResult({ message, ok }),
+      }),
+      validation: creditValidation,
     })
   );
 
@@ -68,12 +65,8 @@ export default function CreditApplicationRendererJsonV20Page() {
         </div>
       )}
 
-      <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-        <JsonFormRenderer<CreditApplicationForm>
-          form={jsonForm}
-          validateSchema={import.meta.env.DEV}
-        />
-      </JsonRendererProvider>
+      {/* Обёртку поля рендерер берёт из бандла: её положил туда реестр (запись FIELD_WRAPPER). */}
+      <FormRenderer form={creditForm} />
     </div>
   );
 }

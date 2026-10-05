@@ -9,13 +9,13 @@
  * @module plugins/reformer/core/form-model/mutate
  */
 
-import { isContainerNode } from '@reformer/renderer-json';
+import { isContainerNodeV1 as isContainerNode } from '@reformer/renderer-json';
 import type {
   ComponentOp,
   HtmlOp,
-  JsonContainerNode,
-  JsonFormSchema,
-  JsonNode,
+  JsonContainerNodeV1 as JsonContainerNode,
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import {
   getAt,

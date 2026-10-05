@@ -3,11 +3,12 @@ import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 export const toRendererJsonPromptDefinition = {
   name: 'to-renderer-json',
   description:
-    'Migrate TS RenderSchema (@reformer/renderer-react) into JSON schema + Registry for @reformer/renderer-json. Slim+ prompt — migration cookbook / JsonFormSchema format / registry rules live in MCP resources.',
+    'Move a form schema from a TS builder to a JSON document of format 2 + Registry (@reformer/renderer-json): the same tree as data, parts via $part, the same createForm with `registry`; behavior and validation stay in TS. Slim+ prompt — JsonFormSchema format / registry rules live in MCP resources.',
   arguments: [
     {
       name: 'code',
-      description: 'Текущий код TS RenderSchema (RenderSchemaFn) и/или Form.',
+      description:
+        'Текущий код схемы формы на TS (`form.schema.ts`, билдер `(model) => узел`) и сборка.',
       required: true,
     },
   ],

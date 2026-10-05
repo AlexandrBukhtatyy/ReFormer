@@ -27,7 +27,7 @@
  */
 
 import type { ComponentType } from 'react';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../core/catalog';
 import type { FormRules } from '../../core/form-model';
 import type {

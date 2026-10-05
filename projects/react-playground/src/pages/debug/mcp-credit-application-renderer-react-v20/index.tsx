@@ -1,29 +1,27 @@
-// index.tsx — entry + whole form wiring (renderer-react / M1).
-// Сборка ОДНИМ вызовом: createReactForm({ model, schema, behavior, renderBehavior }) →
-// <FormRenderer form={…} settings={{ fieldWrapper: FormField }} />. All 6 steps + 3 arrays live in
-// renderer.schema.ts; двойной проход по билдеру (без формы — для нод, с формой — для рендера)
-// делает сама фабрика.
+// index.tsx — точка входа: сборка формы и рендерер.
+// Сборка ОДНИМ вызовом: createForm({ model, schema, behavior, validation }) →
+// <FormRenderer form={…} settings={{ fieldWrapper: FormField }} />. Все 6 шагов и 3 массива живут в
+// renderer.schema.tsx; визард — узел схемы, форму и валидацию он берёт из сборки сам.
 
-import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
 import { createCreditApplicationModel } from './model';
-import { creditApplicationBehavior } from './form.behavior';
+import { makeCreditApplicationBehavior } from './form.behavior';
 import { buildCreditApplicationSchema } from './renderer.schema';
-import { makeCreditRenderBehavior } from './renderer.behavior';
+import { creditValidation } from './validation';
 
 export default function CreditApplicationRendererReactV20() {
-  const creditForm = useReactForm(() =>
-    createReactForm<CreditApplicationForm>({
+  const creditForm = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
       model: createCreditApplicationModel(),
       schema: buildCreditApplicationSchema,
-      behavior: creditApplicationBehavior,
-      // hideWhen для условных секций + submit. Колбэк хоста замыкается здесь — фабрика зовётся
-      // один раз, поэтому ссылка стабильна.
-      renderBehavior: (_form, model) =>
-        makeCreditRenderBehavior(model, (result) => {
-          alert(result.message);
-        }),
+      // Колбэк хоста замыкается здесь — фабрика сборки зовётся один раз, поэтому ссылка стабильна.
+      behavior: makeCreditApplicationBehavior((result) => {
+        alert(result.message);
+      }),
+      validation: creditValidation,
     })
   );
 

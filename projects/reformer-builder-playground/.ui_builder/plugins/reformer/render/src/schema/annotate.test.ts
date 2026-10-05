@@ -5,7 +5,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, newNodeId, nodeIdOf } from '../../../core/form-model';
 import { walkNodes } from '../../../core/form-model';

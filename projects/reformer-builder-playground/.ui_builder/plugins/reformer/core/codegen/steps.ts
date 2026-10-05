@@ -17,12 +17,12 @@
  */
 
 import {
-  isArrayNode,
-  isContainerNode,
-  isFieldNode,
+  isArrayNodeV1 as isArrayNode,
+  isContainerNodeV1 as isContainerNode,
+  isFieldNodeV1 as isFieldNode,
   parseOperator,
-  type JsonFormSchema,
-  type JsonNode,
+  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonNodeV1 as JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from '../form-model/node-kind';
 import { firstWizardStepRefs, stepDirOfRef, type SplitFormSchema } from '../form-model/composite';

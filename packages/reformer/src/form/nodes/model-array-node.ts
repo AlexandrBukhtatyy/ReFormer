@@ -21,8 +21,8 @@ import type { FormProxy } from '../types/form-proxy';
 export interface ModelArrayControl<TItem extends object> {
   readonly length: number;
   at(index: number): FormModel<TItem> | undefined;
-  push(item: TItem): void;
-  insertAt(index: number, item: TItem): void;
+  push(item?: TItem): void;
+  insertAt(index: number, item?: TItem): void;
   removeAt(index: number): void;
   move(from: number, to: number): void;
   swap(a: number, b: number): void;
@@ -40,7 +40,7 @@ export interface ModelArrayControl<TItem extends object> {
  * reorder/повторном рендере не пересоздаются (состояние и валидация сохраняются). Реализует тот же
  * контракт, что ждут секции массива и `useFormControl` (`length`/`value`/`valid`/`errors`/`at`/`push`/…).
  *
- * Обычно создаётся не напрямую, а `createForm({ model, schema })`: когда в схеме встречается узел
+ * Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме встречается узел
  * массива `{ array: model.<field>, item: (item) => itemSchema }`, форма материализует его как
  * `ModelArrayNode` и кладёт под `form.<field>` (совместим с `FormArraySection`).
  *
@@ -55,7 +55,7 @@ export interface ModelArrayControl<TItem extends object> {
  *   qty: { value: item.$.qty, component: Input },
  * });
  *
- * const form = createForm({
+ * const form = createFormFromModel({
  *   model,
  *   schema: {
  *     children: [{ array: model.rows, item: rowItem }],
@@ -100,7 +100,7 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   /**
    * @param control Реактивный массив модели (`model.<path>`).
    * @param buildItem Строитель формы элемента по его под-модели (инъекция, чтобы избежать цикла
-   *   импорта с `create-form`). Обычно `(item) => createForm({ model: item, schema: itemSchema(item) })`.
+   *   импорта с `create-form`). Обычно `(item) => createFormFromModel({ model: item, schema: itemSchema(item) })`.
    */
   constructor(
     private readonly control: ModelArrayControl<T>,
@@ -174,11 +174,16 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   }
 
   // ── Мутации (делегируют массиву модели; effect пересоберёт itemNodes) ──────
+  /**
+   * Добавить элемент. Без значения — элемент по шаблону массива модели (`arrayOf(blank)` либо
+   * `initialValue` узла-массива схемы); шаблона нет — ошибка модели.
+   */
   push(item?: Partial<T>): void {
-    this.control.push((item ?? {}) as T);
+    this.control.push(item as T | undefined);
   }
+  /** Вставить элемент по индексу; без значения — по шаблону, как у {@link push}. */
   insert(index: number, item?: Partial<T>): void {
-    this.control.insertAt(index, (item ?? {}) as T);
+    this.control.insertAt(index, item as T | undefined);
   }
   removeAt(index: number): void {
     this.control.removeAt(index);

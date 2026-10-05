@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reformer.dev/schemas/form-schema.schema.json",
+  "title": "ReFormer JSON form schema (M1, string-operator DSL)",
+  "description": "Base meta-schema: validates node structure + operator string syntax ($model/$component/$dataSource). Component-name enum is tightened per-app via buildFormSchemaMetaSchema; $dataSource names and $model paths are checked outside this schema.",
+  "type": "object",
+  "required": ["root"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string" },
+    "version": { "type": "string" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "root": { "$ref": "#/definitions/node" }
+  },
+  "definitions": {
+    "modelOp": {
+      "type": "string",
+      "pattern": "^\\$model\\(.+\\)$",
+      "description": "Model binding: \"$model(path)\" — path resolved at runtime (not validated here)."
+    },
+    "componentOp": {
+      "type": "string",
+      "pattern": "^\\$component\\(.+\\)$",
+      "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema."
+    },
+    "htmlOp": {
+      "type": "string",
+      "pattern": "^\\$html\\([a-zA-Z][a-zA-Z0-9]*\\)$",
+      "description": "Native HTML tag: \"$html(div)\". The tag is checked against the presentational whitelist (isAllowedHtmlTag) by validateFormSchema and by the converter; buildFormSchemaMetaSchema tightens it to an enum for IDE completion."
+    },
+    "textChild": {
+      "description": "Text part of a node's children: a literal, or an operator string (\"$model(path)\" for reactive model values, \"$locale(key)\" for localized strings). Adjacent parts are joined without a separator.",
+      "$comment": "Types are listed as separate anyOf branches rather than a union \"type\": [\"string\",\"number\"] — ajv's strict mode rejects union type keywords unless allowUnionTypes is on, and validateFormSchema compiles this schema without it.",
+      "anyOf": [{ "type": "string" }, { "type": "number" }]
+    },
+    "operatorOp": {
+      "type": "string",
+      "pattern": "^\\$(model|component|html|dataSource|fn|locale)\\(.+\\)$",
+      "description": "Any DSL operator string (\"$model/$component/$dataSource/$fn/$locale(...)\") used as an escape hatch on a componentProps value (e.g. \"options\": \"$dataSource(LOAN_TYPES)\"). The component-props validator wraps every prop in anyOf:[honest type, operatorOp] via allowOperatorStrings, so an operator string is accepted wherever a literal value is."
+    },
+    "node": {
+      "$comment": "Discriminated by which operator key is present (array→value→component), mirroring the isArrayNode/isFieldNode/isContainerNode runtime guards. Using oneOf here made ajv (allErrors) report failures against all three branches for any single mistake, burying the real cause; if/then/else surfaces only the relevant branch's errors.",
+      "if": { "type": "object", "required": ["array"] },
+      "then": { "$ref": "#/definitions/arrayNode" },
+      "else": {
+        "if": { "type": "object", "required": ["value"] },
+        "then": { "$ref": "#/definitions/fieldNode" },
+        "else": { "$ref": "#/definitions/containerNode" }
+      }
+    },
+    "fieldNode": {
+      "type": "object",
+      "required": ["value"],
+      "additionalProperties": false,
+      "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
+        "selector": { "type": "string" },
+        "value": { "$ref": "#/definitions/modelOp" },
+        "component": { "$ref": "#/definitions/componentOp" },
+        "componentProps": { "type": "object" },
+        "wrapper": { "$ref": "#/definitions/node" }
+      }
+    },
+    "arrayNode": {
+      "type": "object",
+      "required": ["array", "item"],
+      "additionalProperties": false,
+      "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
+        "selector": { "type": "string" },
+        "array": { "$ref": "#/definitions/modelOp" },
+        "component": { "$ref": "#/definitions/componentOp" },
+        "item": {
+          "type": "object",
+          "required": ["$template"],
+          "additionalProperties": false,
+          "properties": {
+            "$template": { "$ref": "#/definitions/node" }
+          }
+        },
+        "initialValue": { "type": "object" },
+        "componentProps": { "type": "object" }
+      }
+    },
+    "containerNode": {
+      "type": "object",
+      "required": ["component"],
+      "additionalProperties": false,
+      "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
+        "selector": { "type": "string" },
+        "component": {
+          "anyOf": [{ "$ref": "#/definitions/componentOp" }, { "$ref": "#/definitions/htmlOp" }]
+        },
+        "componentProps": { "type": "object" },
+        "children": {
+          "$comment": "A child is either a nested node (object) or a text part (string/number). Dispatched with if/then/else rather than anyOf for the same reason as \"node\": with allErrors ajv would report failures from every branch, burying the real cause.",
+          "type": "array",
+          "items": {
+            "if": { "type": "object" },
+            "then": { "$ref": "#/definitions/node" },
+            "else": { "$ref": "#/definitions/textChild" }
+          }
+        }
+      }
+    }
+  }
+}

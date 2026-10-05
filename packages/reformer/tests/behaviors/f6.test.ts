@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createModel, type FormModel } from '../../src/model/index';
-import { createForm } from '../../src/form/create-form';
+import { createFormFromModel } from '../../src/form/create-form';
 import { defineFormBehavior, enableWhen, onChange, applyEach } from '../../src/form/behaviors';
 import type { FormProxy } from '../../src/form/types/index';
 
@@ -49,7 +49,11 @@ describe('F6 · per-row node operations (materialized array)', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       applyEach(m.$.items, rowBehavior);
     });
-    const form = createForm<F>({ model, schema: buildSchema(model), behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({
+      model,
+      schema: buildSchema(model),
+      behavior,
+    }) as FormProxy<F>;
 
     model.items.push({ qty: 5, discount: 0, unit: 'pcs' });
     await tick();
@@ -72,7 +76,11 @@ describe('F6 · per-row node operations (materialized array)', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       applyEach(m.$.items, rowBehavior);
     });
-    const form = createForm<F>({ model, schema: buildSchema(model), behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({
+      model,
+      schema: buildSchema(model),
+      behavior,
+    }) as FormProxy<F>;
 
     model.items.push({ qty: 1, discount: 0, unit: 'pcs' });
     await tick();
@@ -94,7 +102,7 @@ describe('F6 · per-row node operations (materialized array)', () => {
     const behavior = defineFormBehavior<G>(({ model: m }) => {
       applyEach(m.$.items, rowBehavior);
     });
-    createForm<G>({ model, behavior }); // БЕЗ schema → массив не материализован
+    createFormFromModel<G>({ model, behavior }); // БЕЗ schema → массив не материализован
     expect(() => model.items.push({ x: 1 })).toThrowError(/не материализован/);
   });
 });

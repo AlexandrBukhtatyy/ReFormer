@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { convertJsonToM1Tree } from './json-to-render-schema';
 import { defineRegistry } from '../registry/component-registry';
 import { createLocaleResolver, createLocaleService } from '../locale/locale-service';
-import type { JsonFormSchema } from '../types/json-schema';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '../types/json-schema-v1';
 import { createModel, type FormModel } from '@reformer/core';
 import { isModelFieldRenderNode } from '@reformer/renderer-react';
 

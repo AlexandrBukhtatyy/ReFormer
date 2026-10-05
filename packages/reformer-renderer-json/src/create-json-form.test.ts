@@ -3,7 +3,7 @@ import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import { createJsonForm } from './create-json-form';
-import { defineJsonSchema } from './types/json-schema';
+import { defineJsonSchemaV1 as defineJsonSchema } from './types/json-schema-v1';
 import { defineRegistry } from './registry/component-registry';
 import { FIELD_WRAPPER } from './registry/constants';
 

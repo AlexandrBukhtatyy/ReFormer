@@ -12,7 +12,7 @@
  * @module pages/debug/ui_builder/sources
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 
 /** Схема формы. В билдере её правят на канве; здесь она задана и не меняется. */
 export const DEMO_SCHEMA: JsonFormSchema = {

@@ -21,20 +21,50 @@ export type { SchemaErrorPanelProps } from './components/schema-error-panel';
 // JSON Schema Types
 // ============================================================================
 
+// Формат 2 — основные имена: привязка ключом `model`, подформы, именованные части документа.
 export type {
   JsonFormSchema,
   JsonNode,
   JsonFieldNode,
   JsonArrayNode,
+  JsonPartNode,
   JsonContainerNode,
   JsonChild,
   JsonTextChild,
   JsonFormStep,
   JsonStepRef,
 } from './types/json-schema';
-export { isFieldNode, isArrayNode, isContainerNode, defineJsonSchema } from './types/json-schema';
+export {
+  isFieldNode,
+  isArrayNode,
+  isPartNode,
+  isContainerNode,
+  defineJsonSchema,
+  schemaFormatOf,
+} from './types/json-schema';
 
-// Схема визарда, разбитая по шагам: сборка перед createJsonForm.
+// Прежний формат документа (ключи `value` / `array`, шаги в `componentProps.steps`) — суффикс V1.
+export type {
+  JsonFormSchemaV1,
+  JsonNodeV1,
+  JsonFieldNodeV1,
+  JsonArrayNodeV1,
+  JsonContainerNodeV1,
+  JsonChildV1,
+  JsonFormStepV1,
+} from './types/json-schema-v1';
+export {
+  isFieldNodeV1,
+  isArrayNodeV1,
+  isContainerNodeV1,
+  defineJsonSchemaV1,
+} from './types/json-schema-v1';
+
+// Перевод документа прежнего формата в формат 2.
+export { migrateJsonSchema, DEFAULT_STEP_HOSTS } from './migrate';
+export type { MigrateJsonSchemaOptions } from './migrate';
+
+// Схема визарда, разбитая по шагам: сборка перед сборкой формы.
 export { composeJsonFormSchema, isJsonStepRef, normalizeStepRef } from './compose';
 
 // Сборка формы из JSON-схемы одним проходом (§7): createJsonForm + стабильный хук useJsonForm.
@@ -50,6 +80,7 @@ export {
   isDataSourceOp,
   isFnOp,
   isLocaleOp,
+  isPartOp,
 } from './operators';
 export type {
   Path,
@@ -59,6 +90,7 @@ export type {
   DataSourceOp,
   FnOp,
   LocaleOp,
+  PartOp,
   JsonOperator,
   ParsedOperator,
 } from './operators';
@@ -120,6 +152,7 @@ export type {
 // ============================================================================
 
 export {
+  convertJsonSchema,
   createRenderSchemaFromJsonM1,
   convertJsonToM1Tree,
 } from './converter/json-to-render-schema';
@@ -135,6 +168,10 @@ export {
   formSchemaMetaSchema,
   buildFormSchemaMetaSchema,
   buildFormStepMetaSchema,
+  // Мета-схема прежнего формата документа (v1).
+  formSchemaMetaSchemaV1,
+  buildFormSchemaMetaSchemaV1,
+  buildFormStepMetaSchemaV1,
   toFormStepMetaSchema,
   FORM_STEP_SCHEMA_ID,
   getComponentNames,

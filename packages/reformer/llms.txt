@@ -39,6 +39,7 @@
 - 32-async-options-loading.md — async-options-loading
 - 33-validation-strategy.md — useFormValidation — Единый выбор стратегии валидации
 - 34-i18n.md — i18n — локаль, загрузка словарей и провайдер
+- 35-unified-contract.md — Единый контракт формы — одна схема, одна сборка, одно поведение
 - API Reference (auto-generated from JSDoc)
 
 ## 1. 1. API Reference
@@ -275,7 +276,7 @@ createModel<T extends object>(initial: T): FormModel<T>
 // model.arrayField         → ModelArray<Item>            (push/removeAt/insertAt/move/swap/clear/at/map/length)
 
 // Форма (ноды поверх сигналов модели)
-createForm<T>({ model, schema, behavior? }): FormProxy<T>
+createFormFromModel<T>({ model, schema, behavior? }): FormProxy<T>
 // form.<field>             → FieldNode / GroupNode / FormArrayProxy
 // form.<field>.setValue(v) / .value.value / .errors.value / .disabled.value
 // form.<field>.enable() / .disable() / .reset() / .markAsTouched() / .setErrors([...])
@@ -331,7 +332,7 @@ maxAge(years: number, options?: { message?: string })
 `ValidationSchema` и гоняются раннером `validateModel` по требованию.
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createForm, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 
@@ -339,7 +340,7 @@ type Loan = { email: string; age: number | null; amount: number | null };
 const model = createModel<Loan>({ email: '', age: null, amount: null });
 
 // layout-схема createForm НЕ несёт validators — только привязка поля к сигналу + компонент
-const form = createForm({
+const form = createFormFromModel({
   model,
   schema: {
     email:  { value: model.$.email,  component: Input },
@@ -526,7 +527,7 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
   });
 });
 
-const form = createForm({ model, schema, behavior });
+const form = createFormFromModel({ model, schema, behavior });
 ```
 
 DSL-операторы: `compute` (auto-tracking, без явного списка источников), `computeFrom`, `copyFrom`,
@@ -1112,7 +1113,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 ### Primitive Fields
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Input, InputNumber, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
@@ -1153,7 +1154,7 @@ const schema = {
   },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 ```
 
 ### Nested Objects
@@ -1198,7 +1199,7 @@ const schema = {
 
 ```typescript
 // M1: данные из модели + схема (+ опциональный декларативный behavior)
-const form = createForm<MyForm>({
+const form = createFormFromModel<MyForm>({
   model,                 // FormModel<MyForm> — обязателен
   schema,                // дерево узлов, привязанных к сигналам
   behavior: myBehavior,  // опционально: defineFormBehavior(...) из @reformer/core/behaviors
@@ -1213,12 +1214,12 @@ model.items.push({ id: '1', name: 'Item' }); // операции над масс
 > **Тип `schema` в M1 — `unknown`, не `FormSchema<T>`.** Это осознанно: интерпретатор обходит
 > произвольную структуру и собирает листья `{ value: signal, component?, ... }`, поэтому обёртки
 > (`{ children: [...] }`, wizard/steps) компилируются. Строгий `FormSchema<T>` (keyed-map по полям
-> `T`) применяется только на legacy-пути `createForm(schema)` без модели.
+> `T`) применяется только на legacy-пути `createLegacyForm(schema)` без модели.
 
 ### createForm Returns a Proxy
 
 ```typescript
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 
 form.email;          // FieldNode<string> — TypeScript знает тип
 form.address.city;   // FieldNode<string> — вложенный доступ
@@ -1239,7 +1240,7 @@ if (isFieldNode(node)) { /* ... */ }
 элемента из его под-модели (`FormModel<Item>`).
 
 ```typescript
-import { createModel, createForm, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
 import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
@@ -1258,7 +1259,7 @@ const schema = {
   items: { array: model.items, item: itemSchema },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 ```
 
 > **Type constraint:** тип элемента `Item` объявляй через `type`-alias (не `interface`) — иначе
@@ -1280,7 +1281,7 @@ const model = createModel<MyForm>({ tags: [] });
 const schema = {
   tags: { value: model.$.tags, component: SelectMulti }, // поле над массивом целиком
 };
-const form = createForm<MyForm>({ model, schema });
+const form = createFormFromModel<MyForm>({ model, schema });
 
 form.tags.setValue(['a', 'b']); // FieldNode<string[]>
 model.$.tags.value = ['c']; // ручка значения: заменяет массив целиком
@@ -1295,6 +1296,25 @@ validate(model.$.tags, [required(), maxLength(3)]); // правило получ
 - Запись в узел-ГРУППУ (`model.$.<группа>.value = …`) — ошибка: группа пишется по полям или через
   `model.patch(...)`.
 
+### Массив в группе и в строке другого массива
+
+Узел `{ array, item }` стоит на любой глубине: массив в группе получает ноду `form.<группа>.<массив>`,
+массив в строке — `form.<массив>.at(i).<массив>`. Под-схема строки объявляет свои массивы так же.
+
+```typescript
+const contactItem = (contact: FormModel<Contact>) => ({
+  name: { value: contact.$.name, component: Input },
+  phones: { array: contact.phones, item: phoneItem }, // массив в строке массива
+});
+
+const schema = {
+  hotlines: { array: model.details.hotlines, item: phoneItem }, // массив в группе
+  contacts: { array: model.contacts, item: contactItem },
+};
+```
+
+Поведение строк вложенного массива — `applyEach` внутри схемы строки, см. `21-array-operations.md`.
+
 ### Один массив — три слоя (три разных движка)
 
 Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко
@@ -1306,7 +1326,7 @@ validate(model.$.tags, [required(), maxLength(3)]); // правило получ
    `model.$.properties`.
 
    ```typescript
-   // узел схемы для createForm({ model, schema })
+   // узел схемы для createFormFromModel({ model, schema })
    properties: { array: model.properties, item: propertyItem },
    ```
 
@@ -1866,7 +1886,7 @@ the guide below.
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { FormField, Input, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -1901,7 +1921,7 @@ function RegistrationPage() {
         componentProps: { label: 'I agree to terms' },
       },
     };
-    return createForm<RegistrationForm>({ model, schema });
+    return createFormFromModel<RegistrationForm>({ model, schema });
   }, []);
 
   return (
@@ -2230,7 +2250,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
 - **Все поля должны быть материализованы в модели** (`createModel`), даже те, что показываются
   только под условием. `enableWhen`/`compute`/`copyFrom` принимают сигналы `model.$.field`, а не
   строковые пути; сигнала для несуществующего поля нет.
-- Поведение подключается к форме через `createForm({ model, schema, behavior })` — форма владеет
+- Поведение подключается к форме через `createFormFromModel({ model, schema, behavior })` — форма владеет
   жизненным циклом, DSL-операторы регистрируют свой cleanup сами (ручной массив cleanup'ов не нужен).
 - Таргетом может быть и **группа**: `enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false)`
   проходит по поддереву; без `resetOnDisable` значение группы сохраняется (удобно, когда оно копируется
@@ -2676,6 +2696,32 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
   );
 });
 ```
+
+### Вложенные области — массив в группе и в строке массива
+
+Узел `{ array, item }` и операторы `applyEach` / `apply` / `enableWhen` работают на любой глубине:
+цель оператора — **ручка** `model.$.…`, под-модель и нода находятся по её идентичности, а не по
+пути.
+
+```typescript
+const phoneBehavior = defineFormBehavior<Phone>(({ model: phone }) => {
+  enableWhen(phone.$.number, () => phone.primary);
+});
+
+const contactBehavior = defineFormBehavior<Contact>(({ model: contact }) => {
+  applyEach(contact.$.phones, phoneBehavior); // массив внутри строки
+  enableWhen(contact.$.address, () => contact.quantity > 0); // группа внутри строки
+  apply(contact.$.address, addressBehavior); // под-схема получает настоящую под-модель
+});
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  applyEach(model.$.contacts, contactBehavior);
+});
+```
+
+Ручка → value-фасад: `modelOf(model.$.address)` — под-модель (`get` / `set` / `patch`),
+`modelOf(model.$.phones)` — фасад массива (`push` / `removeAt` / `at`). Нода формы по ручке —
+`getNodeForSignal(model.$.address)`.
 
 ### Aggregate write — aggregateInto
 
@@ -3493,7 +3539,7 @@ form.<field>.clearErrors();
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createForm, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -3511,7 +3557,7 @@ function RegistrationForm() {
   const { model, form } = useMemo(() => {
     const m = createModel<RegistrationFormData>({ username: '', email: '', password: '' });
     // schema здесь — layout-дерево нод (компоненты/раскладка), без валидаторов.
-    return { model: m, form: createForm({ model: m, schema: buildLayout(m) }) };
+    return { model: m, form: createFormFromModel({ model: m, schema: buildLayout(m) }) };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -3643,7 +3689,7 @@ const handleSubmit = async (e) => {
 
 ```typescript
 // ❌ Валидаторы в layout-дереве, отдаваемом в createForm — layout не несёт правил
-createForm({ model, schema: { username: { value: '', validators: [required()] } } });
+createFormFromModel({ model, schema: { username: { value: '', validators: [required()] } } });
 
 // ✅ Валидация — отдельная схема, прогоняется раннером
 const schema = defineValidationSchema<T>(({ model }) => {
@@ -3735,7 +3781,7 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 ### Initial values в модели
 
 ```typescript
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Input, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
@@ -3756,7 +3802,7 @@ const schema = {
   },
   marketing: { value: model.$.marketing, component: CheckboxWithLabel, componentProps: { label: 'Рассылка' } },
 };
-const form = createForm({ model, schema });
+const form = createFormFromModel({ model, schema });
 // model.get() === { username: '', language: 'ru', marketing: true }
 // после правок: model.reset() возвращает к этим значениям
 ```
@@ -3843,14 +3889,14 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
 // ❌ model/form пересоздаются на каждый рендер → preload запускается каждый раз
 function MyForm() {
   const model = createModel<T>(initial);   // КАЖДЫЙ рендер!
-  const form = createForm({ model, schema });
+  const form = createFormFromModel({ model, schema });
 }
 
 // ✅ Стабильные ссылки через useMemo
 function MyForm() {
   const { model, form } = useMemo(() => {
     const m = createModel<T>(initial);
-    return { model: m, form: createForm({ model: m, schema: buildSchema(m) }) };
+    return { model: m, form: createFormFromModel({ model: m, schema: buildSchema(m) }) };
   }, []);
 }
 ```
@@ -4382,7 +4428,7 @@ function createFormValidation<T>(
 `markAsTouched` не нужен.
 
 ```tsx
-import { createModel, createForm, useFormValidation } from '@reformer/core';
+import { createModel, createFormFromModel, useFormValidation } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -4397,7 +4443,7 @@ const registrationValidation = defineValidationSchema<RegistrationData>(({ model
 
 function RegistrationForm() {
   const model = useMemo(() => createModel<RegistrationData>({ username: '', email: '', password: '' }), []);
-  const form = useMemo(() => createForm({ model }), [model]);
+  const form = useMemo(() => createFormFromModel({ model }), [model]);
 
   const { submit, isValidating } = useFormValidation({
     model,
@@ -4775,7 +4821,254 @@ const source = () => ({ weekStartsOn: 1, messages: {} });
 - [28-submit-and-reset.md](./28-submit-and-reset.md) — жизненный цикл формы; смена языка его не затрагивает
 - [33-validation-strategy.md](./33-validation-strategy.md) — когда запускается валидация
 
-## 94. API Reference
+## 94. Purpose
+
+**Единый контракт формы — одна схема, одна сборка, одно поведение**
+
+Форма описывается одинаково для всех способов реализации — разметка в JSX, рендерер по TS-схеме,
+рендерер по JSON. Схема одна (дерево узлов), привязка одна (ручка `model.$.…`), сборка одна
+(`createForm`), поведение одно (`defineFormBehavior`). Способы отличаются только видом схемы
+(билдер или документ) и тем, кто рисует результат.
+
+Прежние записи — ключи `value` / `array`, оператор `each`, `createCoreForm` — пока принимаются.
+Новый код пишется так, как описано здесь.
+
+| Слой      | поле                              | массив под-форм                           | подформа                              |
+| --------- | --------------------------------- | ----------------------------------------- | ------------------------------------- |
+| схема     | `{ model: model.$.x, component }` | `{ model: model.$.items, item }`          | `{ model: model.$.group, part }`      |
+| валидация | `validate(model.$.x, rules)`      | `applyEach(model.$.items, itemRules)`     | `apply(model.$.group, groupRules)`    |
+| поведение | `compute(model.$.x, …)`           | `applyEach(model.$.items, itemBehavior)`  | `apply(model.$.group, groupBehavior)` |
+
+Правило привязки: `model.$.…` — привязка (схема, правило, оператор). Без `$` — чтение значения
+(`model.loanType === 'mortgage'`), мутация (`model.items.push()`) и под-модель как область.
+
+## 95. Модель — начальные значения и шаблоны элементов
+
+```typescript
+import { arrayOf, createModel } from '@reformer/core';
+
+const blankPhone = (): Phone => ({ number: '' });
+const blankCoBorrower = (): CoBorrower => ({ name: '', phones: arrayOf(blankPhone) });
+
+export const createCreditModel = () =>
+  createModel<CreditForm>({
+    loanType: 'consumer',
+    registrationAddress: { city: '', street: '' },
+    coBorrowers: arrayOf(blankCoBorrower), // пустой массив + шаблон нового элемента
+    tags: [], // массив как одно значение поля — шаблон не нужен
+  });
+```
+
+`arrayOf(blank, items?)` возвращает обычный массив `U[]` и запоминает фабрику нового элемента.
+После этого `push()` и `insertAt(i)` без значения кладут элемент по шаблону — в модели, в ноде
+массива формы и в кнопке «Добавить» секции массива.
+
+- Шаблон переживает `set` / `patch` / `reset` модели.
+- Вложенный массив объявляется внутри шаблона элемента; элементы, пришедшие обычными данными
+  (загрузка с сервера), получают его шаблон из шаблона родителя.
+- У массива без шаблона `push()` без значения бросает ошибку с подсказкой.
+- Шаблон привязан к самому массиву: до `createModel` его нельзя копировать. `structuredClone`,
+  `JSON.parse(JSON.stringify(…))` и `[...array]` отдают массив без шаблона. Начальные значения с
+  `arrayOf` держат в фабрике, а не в константе, которую клонируют.
+
+## 96. Схема — одно дерево
+
+```typescript
+import type { FormModel } from '@reformer/core';
+
+// подформа: объявлена один раз, получает под-модель
+const address = (model: FormModel<Address>) => ({
+  component: Box,
+  children: [
+    { model: model.$.city, component: Input, componentProps: { label: 'Город' } },
+    { model: model.$.street, component: Input, componentProps: { label: 'Улица' } },
+  ],
+});
+
+// строка массива — такая же функция от под-модели
+const coBorrower = (model: FormModel<CoBorrower>) => ({
+  selector: 'co-borrower',
+  component: Box,
+  children: [{ model: model.$.name, component: Input, componentProps: { label: 'ФИО' } }],
+});
+
+export const creditSchema = (model: FormModel<CreditForm>) => ({
+  component: Box,
+  children: [
+    { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип' } }, // поле
+    { model: model.$.tags, component: SelectMulti }, // массив как одно значение
+    {
+      selector: 'registration',
+      component: Section,
+      componentProps: { title: 'Адрес регистрации' },
+      children: [{ model: model.$.registrationAddress, part: address }], // подформа
+    },
+    { model: model.$.coBorrowers, component: FormArray, item: coBorrower }, // массив под-форм
+  ],
+});
+```
+
+Чем узел является, решают ручка и соседние ключи:
+
+| Узел            | Как отличить                                  |
+| --------------- | --------------------------------------------- |
+| поле            | `model` — лист или массив; нет `item`, `part` |
+| массив под-форм | `model` — массив, `item` — функция            |
+| подформа        | `model` — группа, `part` — функция            |
+| контейнер       | есть `children`, нет `model`                  |
+
+- Узел узнаётся по ЗНАЧЕНИЮ: в записи «имя поля → узел» поле данных может называться `model`,
+  `item`, `part` или `value` — под таким ключом лежит обычный вложенный узел.
+- Поля подформы принадлежат той же форме: `form.registrationAddress.city`.
+- Билдер `item` / `part` вызывается один раз на под-модель; сборка и рендерер получают одно и то
+  же поддерево (`schemaSubtree(builder, subModel)`).
+- `initialValue` узла-массива — запасной шаблон нового элемента для форм, чья модель создаётся из
+  данных без кода. Шаблон модели (`arrayOf`) главнее.
+
+## 97. Валидация — подформа и массив подключаются привязкой
+
+```typescript
+import {
+  apply,
+  applyEach,
+  cross,
+  defineValidationSchema,
+  validate,
+  validateWhen,
+} from '@reformer/core/validation';
+
+const addressRules = defineValidationSchema<Address>(({ model }) => {
+  validate(model.$.city, [required()]);
+  cross<Address>(model.$.street, (address) =>
+    address.city !== '' && address.street === '' ? streetRequired : null
+  );
+});
+
+const coBorrowerRules = defineValidationSchema<CoBorrower>(({ model }) => {
+  validate(model.$.name, [required()]);
+});
+
+export const contactsRules = defineValidationSchema<CreditForm>(({ model }) => {
+  apply(model.$.registrationAddress, addressRules);
+  validateWhen(
+    () => !model.sameAsRegistration,
+    () => apply(model.$.residenceAddress, addressRules)
+  );
+  applyEach(model.$.coBorrowers, coBorrowerRules);
+});
+```
+
+- У схемы, подключённой через `apply(ручка, схема)` / `applyEach`, своя область: `model` — под-модель,
+  `cross` получает её снапшот. Захватывать снапшот в замыкание больше не нужно.
+- Одна и та же схема подключается и к группе, и к элементам массива.
+- `apply(model.$.a, rules)` принимает и массив ручек: `apply([model.$.a, model.$.b], rules)`.
+- `apply(schemaA, schemaB)` — композиция схем над той же моделью — остаётся.
+- Правило получает `(value, scope, root)`: модель области и корень прогона.
+- `each(model.items, (item) => …)` — прежняя запись `applyEach`: принимает фасад и ручку, области
+  не создаёт.
+
+## 98. Поведение — модель, форма и схема
+
+```typescript
+import {
+  apply,
+  applyEach,
+  defineFormBehavior,
+  enableWhen,
+  hideWhen,
+  onComponentEvent,
+  onMount,
+} from '@reformer/core/behaviors';
+
+const addressBehavior = defineFormBehavior<Address>(({ model, schema }) => {
+  hideWhen(schema.node('street'), () => model.city === ''); // узел ищется внутри части
+});
+
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, schema }) => {
+  const isMortgage = () => model.loanType === 'mortgage';
+
+  enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true });
+  hideWhen(schema.node('mortgage'), () => !isMortgage());
+  onComponentEvent(schema.node('wizard'), 'onSubmit', () => submitApplication(model.get()));
+  onMount(schema.node('data-boundary'), () => void loadApplication(model));
+
+  apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
+  applyEach(model.$.coBorrowers, coBorrowerBehavior);
+});
+```
+
+Операторы узлов схемы:
+
+| Оператор                                  | Что записывает                                             |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `hideWhen(node, condition)`               | узел скрыт, пока условие истинно                           |
+| `onComponentEvent(node, event, handler)`  | обработчик пропа-события компонента                        |
+| `onMount(node, fn)` / `onUnmount(node, fn)` | хуки монтирования узла                                   |
+| `onInit(node, fn)`                        | `fn` вызывается сразу, до первого рендера                  |
+| `renderEffect(schema, fn)`                | реактивный эффект, пока схема области смонтирована         |
+| `schema.node(sel).setHidden / patchProps` | принудительная видимость и пропсы узла                     |
+| `schema.node(sel).getRef()`               | ref на компонент узла — объект `{ current }`               |
+
+- **Области изолированы.** `schema.node(selector)` ищет узел только в своей области: корневое
+  поведение — в корневом дереве, поведение подформы и строки массива — в своём поддереве. До узла
+  строки или части корень дотягивается через `applyEach` / `apply`. Два монтирования одной части
+  не конфликтуют.
+- **Исключение — ref по пути модели**: `schema.node('phones.0.number').getRef()` ищется от корня.
+- **Операторы узлов только записывают правило — исполняет его рендерер.** При разметке в JSX они
+  ничего не делают: видимость, отправка и загрузка данных остаются в JSX.
+- Правило на селектор, которого нет в дереве, ничего не делает; в dev — предупреждение.
+
+## 99. Сборка — `createForm`
+
+```tsx
+import { createForm, useFormBundle } from '@reformer/core';
+
+const credit = useFormBundle(() =>
+  createForm<CreditForm>({
+    model: createCreditModel(), // либо initial: { … }
+    schema: creditSchema, // (model) => узел; для JSON — документ + registry
+    behavior: creditBehavior,
+    validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossRules },
+  })
+);
+// credit = { model, form, validation, render }
+
+<FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />; // рендерер
+<FormField control={credit.form.loanType} />; // разметка в JSX — та же сборка
+```
+
+- Порядок: модель → `seed` → дерево схемы → ноды формы → поведение → валидация → `setup`. Дерево
+  строится один раз.
+- `validation` в бандле типизирована по конфигу: правила переданы — поле есть всегда.
+- `render` — `{ tree, controller, node(selector) }`: готовое дерево и схема-контроллер сборки.
+- JSON: `createForm({ model, schema: document, registry })` — дерево собирает
+  `registry.resolveSchema`. Ядро документ не разбирает.
+- Внутри рендерера бандл доступен компонентам через `useFormBundleContext()` — так визард берёт
+  форму и валидацию сам.
+
+### Низкоуровневые фабрики
+
+| Задача                                         | Фабрика                                  |
+| ---------------------------------------------- | ---------------------------------------- |
+| форма из модели и готового дерева, без бандла  | `createFormFromModel({ model, schema })` |
+| форма без модели — плоская схема полей         | `createLegacyForm(schema)`               |
+
+`createForm` с готовым деревом вместо билдера или без модели бросает ошибку с отсылкой к нужной
+фабрике.
+
+## 100. Частые ошибки
+
+| Ошибка                                             | Как правильно                                           |
+| -------------------------------------------------- | ------------------------------------------------------- |
+| `model: model.address` (под-модель у поля)         | `model: model.$.address.city` — привязка всегда с `$`   |
+| `{ model: model.$.address, component }` без `part` | группа полем не бывает — нужен `part`                   |
+| `createForm({ model, schema: дерево })`            | `schema` — билдер `(model) => узел`                     |
+| `hideWhen(schema.node('row-узел'), …)` из корня    | внутри `applyEach(model.$.items, itemBehavior)`         |
+| `push({})` для новой строки                        | `arrayOf(blank)` в модели и `push()` без значения       |
+| `createModel(structuredClone(INITIAL))` с `arrayOf` | фабрика начальных значений — клон теряет шаблон массива |
+| `cross` в подформе читает корень                   | `apply(model.$.group, rules)` — область подформы        |
+
+## 101. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -4825,14 +5118,22 @@ _Source: src/form/types/index.ts_
 
 **Kind:** `function`
 
-Композиция под-схем в текущую (над той же моделью scope). Заменяет пошаговую группировку.
+Применить под-схему к одному или нескольким полям-группам (переиспользование).
+
+Под-схема получает scope группы: `model` — настоящая под-модель (`model.$.field`, чтение и
+запись значений, `get`/`set`/`patch`), `form` — нода группы. Цель — ручка группы
+(`model.$.address`); работает и в корневой схеме, и в схеме строки массива.
 
 **Signature:**
 ```typescript
-export function apply<T>(...schemas: ValidationSchema<T>[]): void
+export function apply<TField>(targets: object | object[], subSchema: FormBehavior<TField>): void
 ```
 
-_Source: src/form/validation/operators.ts_
+**Examples:**
+
+apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
+
+_Source: src/form/behaviors/collections.ts_
 
 ### applyEach
 
@@ -4848,6 +5149,9 @@ _Source: src/form/validation/operators.ts_
   рендерится, а её сигналы зарегистрированы (`enableWhen` резолвит ноду). Без материализации доступ
   к `form.*` бросит понятную ошибку (см. {@link unmaterializedRowForm}).
 
+Работает на любой глубине: массив в корне, в группе и в строке другого массива — в схеме строки
+можно снова вызвать `applyEach`.
+
 **Signature:**
 ```typescript
 export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void
@@ -4858,6 +5162,7 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
 applyEach(model.$.items, defineFormBehavior<Item>(({ model: row, form }) => {
   compute(row.$.lineTotal, () => row.qty * row.price);    // value-op — всегда
   enableWhen(row.$.discount, () => row.qty > 10);          // node-op — нужна материализация массива
+  applyEach(row.$.phones, phoneBehavior);                  // массив внутри строки
 }));
 
 _Source: src/form/behaviors/collections.ts_
@@ -5074,6 +5379,52 @@ export interface ArrayNodeLike {
 
 _Source: src/form/types/index.ts_
 
+### arrayOf
+
+**Kind:** `function`
+
+Массив модели с шаблоном нового элемента.
+
+Шаблон — фабрика значения, которое получает `push()` / `insertAt(i)` без аргумента: кнопка
+«Добавить» секции массива, `model.items.push()` в поведении. Объявляется там же, где остальные
+начальные значения, — в модели; схеме и JSX знать его не нужно.
+
+Возвращает обычный массив: тип поля остаётся `U[]`. Шаблон переживает `set` / `patch` / `reset`
+модели. Вложенные массивы объявляются внутри шаблона элемента — тогда и элементы, пришедшие
+обычными данными (загрузка с сервера), получают их шаблоны.
+
+Шаблон привязан к самому массиву, поэтому до `createModel` его нельзя копировать:
+`structuredClone`, `JSON.parse(JSON.stringify(…))` и `[...array]` отдают массив без шаблона, и
+`push()` без значения бросит ошибку. Начальные значения с `arrayOf` держат в фабрике
+(`const initial = () => ({ items: arrayOf(blank) })`), а не в константе, которую клонируют.
+
+**Signature:**
+```typescript
+export function arrayOf<U>(blank: () => U, items: readonly U[] = []): U[]
+```
+
+**Parameters:**
+- `blank` — - Фабрика нового элемента. Вызывается на каждое добавление — значение не делится
+между элементами.
+- `items` — - Начальные элементы. По умолчанию массив пуст.
+
+**Returns:** Массив начальных значений с шаблоном.
+
+**Examples:**
+
+```typescript
+const blankPhone = () => ({ number: '' });
+const blankCoBorrower = () => ({ name: '', phones: arrayOf(blankPhone) });
+
+const model = createModel({ coBorrowers: arrayOf(blankCoBorrower) });
+
+model.coBorrowers.push(); // { name: '', phones: [] }
+model.coBorrowers.at(0).phones.push(); // { number: '' }
+model.coBorrowers.push({ name: 'Анна', phones: [] }); // значение целиком — как раньше
+```
+
+_Source: src/model/model-nodes.ts_
+
 ### AsyncRule
 
 **Kind:** `type`
@@ -5167,11 +5518,19 @@ _Source: src/model/behaviors-value.ts_
 
 **Kind:** `type`
 
-Контекст схемы поведения: модель (значения/сигналы) + форма (ноды).
+Область схемы поведения: модель (значения и сигналы), форма (ноды) и схема (узлы разметки).
+
+`schema` адресует узлы СВОЕЙ области: в корневом поведении — корневое дерево, в поведении
+подформы (`apply`) и строки массива (`applyEach`) — поддерево этой части. Правила узлов
+(`hideWhen`, `onComponentEvent`, `onMount`) исполняет рендерер; без него они ничего не делают.
 
 **Signature:**
 ```typescript
-export type BehaviorScope<T> = { model: FormModel<T>; form: FormProxy<T> };
+export type BehaviorScope<T> = {
+  model: FormModel<T>;
+  form: FormProxy<T>;
+  schema: SchemaScope;
+};
 ```
 
 _Source: src/form/behaviors/types.ts_
@@ -5483,6 +5842,8 @@ const credit = useFormBundle(() =>
 return <FormWizard form={credit.form} config={credit.validation} steps={STEPS} />;
 ```
 
+**Deprecated:** Пишите `createForm` — та же сборка, в бандле вдобавок дерево для рендерера.
+
 _Source: src/form/create-core-form.ts_
 
 ### CreateCoreFormConfig
@@ -5495,8 +5856,8 @@ _Source: src/form/create-core-form.ts_
 ```typescript
 export interface CreateCoreFormConfig<T> extends CreateFormConfigBase<T, CoreForm<T>> {
   /**
-   * Билдер схемы формы. Именно функция, а не готовое дерево: листья схемы держат сами сигналы
-   * модели (`value: model.$.email`), поэтому построить дерево до модели нечем.
+   * Билдер схемы формы. Именно функция, а не готовое дерево: узлы схемы держат ручки модели
+   * (`model: model.$.email`), поэтому построить дерево до модели нечем.
    */
   schema?: (model: FormModel<T>) => FormSchemaNode;
 }
@@ -5508,53 +5869,89 @@ _Source: src/form/create-core-form.ts_
 
 **Kind:** `function`
 
-Создать форму из {@link FormModel} + единой схемы (архитектура M1, рекомендуемый путь).
+Собрать модель, форму, валидацию и дерево для рендера за один проход.
 
 **Signature:**
 ```typescript
-export function createForm<T>(args: CreateFormFromModelArgs<T>): FormProxy<T>;
+export function createForm<T extends object>(
+  config: CreateFormConfig<T> & { validation: FormValidation<T> | ValidationSchema<T> }
+): ValidatedFormBundle<T>;
 ```
 
 **Parameters:**
-- `args` — - Модель данных, layout-схема (component/componentProps) и (опционально) поведение
+- `config` — - {@link CreateFormConfig}: (`initial` | `model`) + опц. `schema`, `registry`,
+`behavior`, `validation`, `seed`, `setup`.
 
-**Returns:** Типизированная форма с Proxy-доступом к полям
+**Returns:** 
 
 **Examples:**
 
-Архитектура M1: `createModel` + layout-схема + `createForm({ model, schema })`
-```typescript
-import { createModel, createForm } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
-import { required, email, minLength } from '@reformer/core/validators';
-
-interface UserForm {
-email: string;
-password: string;
-}
-
-const model = createModel<UserForm>({ email: '', password: '' });
-
-// Layout-схема НЕ несёт validators — только component/componentProps.
-const schema = {
-children: [
-{ value: model.$.email, component: Input },
-{ value: model.$.password, component: Input },
-],
-};
-
-const form = createForm<UserForm>({ model, schema });
-form.email.setValue('test@mail.com');
-
-// Валидация — ОТДЕЛЬНАЯ схема, прогон внешним раннером (ошибки сами доезжают до нод):
-const validation = defineValidationSchema<UserForm>(({ model }) => {
-validate(model.$.email, [required(), email()]);
-validate(model.$.password, [required(), minLength(8)]);
-});
-const ok = await validateModel(model, validation);
+Рендерер по TS-схеме
+```tsx
+const credit = useFormBundle(() =>
+createForm<CreditForm>({
+model: createCreditModel(),
+schema: creditSchema, // (model) => узел
+behavior: creditBehavior,
+validation: { steps: { loan: loanRules }, extras: crossRules },
+})
+);
+return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
 ```
 
-_Source: src/form/create-form.ts_
+React-руками — та же сборка, разметка в JSX
+```tsx
+const credit = useFormBundle(() => createForm<CreditForm>({ initial, schema: creditSchema }));
+return <FormField control={credit.form.loanType} />;
+```
+
+JSON — документ схемы и реестр
+```tsx
+const credit = useFormBundle(() =>
+createForm<CreditForm>({ model: createCreditModel(), schema: creditJson, registry })
+);
+return <FormRenderer form={credit} />;
+```
+
+_Source: src/form/form-bundle.ts_
+
+### CreateFormConfig
+
+**Kind:** `interface`
+
+Конфиг {@link createForm}.
+
+**Signature:**
+```typescript
+export interface CreateFormConfig<T> {
+  /** Начальные значения — из них создаётся модель. Взаимоисключимо с `model`. */
+  initial?: T;
+  /** Готовая модель (если создана отдельной фабрикой). Приоритетнее `initial`. */
+  model?: FormModel<T>;
+  /**
+   * Схема формы: билдер дерева `(model) => узел` либо документ (JSON) — тогда нужен `registry`.
+   * Билдер, а не готовое дерево: узлы держат ручки модели (`model: model.$.email`), и построить
+   * дерево до модели нечем.
+   */
+  schema?: ((model: FormModel<T>) => FormSchemaNode) | object;
+  /** Реестр JSON-варианта: превращает документ схемы в дерево. */
+  registry?: SchemaResolver;
+  /** Поведение формы: значения, состояние нод и правила узлов схемы. */
+  behavior?: FormBehavior<T>;
+  /** Правила валидации: готовая схема либо {@link FormValidation} со стратегией и шагами. */
+  validation?: FormValidation<T> | ValidationSchema<T>;
+  /**
+   * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
+   * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
+   * инициализации не срабатывают).
+   */
+  seed?: (model: FormModel<T>) => void;
+  /** Донастройка ПОСЛЕ сборки: получает готовый бандл. */
+  setup?: (bundle: FormBundle<T>) => void;
+}
+```
+
+_Source: src/form/form-bundle.ts_
 
 ### CreateFormConfigBase
 
@@ -5581,7 +5978,7 @@ export interface CreateFormConfigBase<T, B> {
   seed?: (model: FormModel<T>) => void;
   /**
    * Донастройка ПОСЛЕ сборки. Единственное место для правок, которые обязаны идти следом за
-   * `createForm`: поле, чьё значение уже массив, ноды не получает (см. `buildModelConfig`),
+   * сборкой формы: поле, чьё значение уже массив, ноды не получает (см. `buildModelConfig`),
    * поэтому такой префилл выполняется здесь.
    */
   setup?: (bundle: B) => void;
@@ -5598,12 +5995,14 @@ _Source: src/form/create-core-form.ts_
 
 Значения принадлежат модели (источник истины), ноды формы держат UI/валидационное состояние и
 ссылаются на сигналы модели по идентичности (`node.value === model.$.path`). Обходит структуру
-модели, привязывает конфиг поля (component/componentProps) из схемы, материализует
-top-level массивы как {@link ModelArrayNode}, заполняет реестр сигнал→нода (для `enableWhen`/
-роутинга ошибок) и, при наличии, запускает декларативное поведение (cleanup живёт на форме).
+модели, привязывает конфиг поля (component/componentProps) из схемы, материализует массивы
+под-форм как {@link ModelArrayNode} (на любой глубине), заполняет реестр ручка→нода (для
+`enableWhen`, `apply`/`applyEach` и роутинга ошибок) и, при наличии, запускает декларативное
+поведение (cleanup живёт на форме).
 
-Обычно вызывается неявно через {@link createForm} с аргументом `{ model, schema }` — прямой вызов
-нужен редко (например, для построения формы элемента массива).
+Обычно вызывается сборкой одним вызовом (`createForm`): она строит дерево схемы, зовёт эту
+фабрику и собирает валидацию. Прямой вызов нужен там, где бандл не нужен, — форма элемента
+массива, тесты, свой слой сборки.
 
 **Signature:**
 ```typescript
@@ -5617,7 +6016,7 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormPr
 
 **Examples:**
 
-Форма из модели + схемы (эквивалент `createForm({ model, schema })`)
+Форма из модели + схемы (эквивалент `createFormFromModel({ model, schema })`)
 ```typescript
 import { createModel, createFormFromModel } from '@reformer/core';
 
@@ -5645,7 +6044,7 @@ console.log(model.email); // 'user@mail.com'
 ```
 
 **See also:**
-- {@link createForm} - основная фабрика (диспетчеризует сюда при аргументе `{ model, schema }`)
+- `createForm` — сборка одним вызовом: модель, форма, валидация и дерево для рендера
 
 _Source: src/form/create-form.ts_
 
@@ -5671,6 +6070,12 @@ export interface CreateFormFromModelArgs<T> {
    * заполнения реестра сигнал→нода; cleanup живёт на форме и вызывается в `form.dispose()`.
    */
   behavior?: FormBehavior<T>;
+  /**
+   * Схема-контроллер сборки: через него поведение получает `schema` своей области. Его передаёт
+   * сборка одним вызовом, чтобы правила узлов (`hideWhen`, `onComponentEvent`) дошли до рендерера.
+   * Без него поведение пишет правила в собственный контроллер, который никто не читает.
+   */
+  schemaController?: SchemaController;
 }
 ```
 
@@ -5735,6 +6140,37 @@ i18n.fileSize(1536);                 // '1,5 КБ'
 ```
 
 _Source: src/i18n/translator.ts_
+
+### createLegacyForm
+
+**Kind:** `function`
+
+Создать форму из плоской схемы полей с инлайн-значениями (`value: ''`) — путь ДО архитектуры M1.
+
+Значения живут в нодах, модели нет: поведение (`defineFormBehavior`) и внешняя валидация
+(`validateModel`) к такой форме не подключаются. Для нового кода — {@link createFormFromModel}
+либо сборка одним вызовом.
+
+**Signature:**
+```typescript
+export function createLegacyForm<T>(schema: FormSchema<T>): FormProxy<T>;
+```
+
+**Parameters:**
+- `schema` — - Схема полей формы
+
+**Returns:** Типизированная форма с Proxy-доступом к полям
+
+**Examples:**
+
+```typescript
+const form = createLegacyForm<UserForm>({
+  email: { value: '', component: Input },
+  password: { value: '', component: Input },
+});
+```
+
+_Source: src/form/create-form.ts_
 
 ### createLocaleLoader
 
@@ -5863,13 +6299,70 @@ model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tag
 
 _Source: src/model/create-model.ts_
 
+### createSchemaController
+
+**Kind:** `function`
+
+Схема-контроллер одной сборки формы.
+
+**Signature:**
+```typescript
+export function createSchemaController(): SchemaController
+```
+
+**Examples:**
+
+```typescript
+const controller = createSchemaController();
+const root = controller.scopeOf(model);
+root.node('mortgage').setHidden(true);
+
+controller.scopeOf(model.items.at(0)); // область строки — свои селекторы
+```
+
+_Source: src/form/schema-controller.ts_
+
+### createSchemaOverrideMaps
+
+**Kind:** `function`
+
+Пустое хранилище переопределений области.
+
+**Signature:**
+```typescript
+export function createSchemaOverrideMaps(): SchemaOverrideMaps
+```
+
+_Source: src/form/schema-controller.ts_
+
+### createSchemaScope
+
+**Kind:** `function`
+
+Схема области поверх хранилища: `node(selector)` → управление узлом.
+
+**Signature:**
+```typescript
+export function createSchemaScope(
+  maps: SchemaOverrideMaps = createSchemaOverrideMaps()
+): SchemaScope
+```
+
+**Parameters:**
+- `maps` — - Хранилище области; по умолчанию создаётся новое.
+
+_Source: src/form/schema-controller.ts_
+
 ### cross
 
 **Kind:** `function`
 
-Cross-field правило: `fn` получает СНАПШОТ модели текущего scope (`model.get()`) и вешает ошибку на `sig`.
-Для элементов массива / под-моделей захватывайте нужный снапшот в замыкание (`const item = im.get()`),
-т.к. `fn` всегда получает модель ТЕКУЩЕГО scope (корень прогона), а не под-модель.
+Cross-field правило: `fn` получает СНАПШОТ модели текущей области (`model.get()`) и вешает
+ошибку на `sig`.
+
+Область — та модель, с которой запущена схема: в корне прогона это вся форма, а в схеме,
+подключённой через {@link apply} / {@link applyEach}, — под-модель группы или строки массива.
+Поэтому правила подформы пишутся один раз и не знают, где она стоит.
 
 **Signature:**
 ```typescript
@@ -5922,10 +6415,11 @@ export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void):
 **Examples:**
 
 ```ts
-export const myBehavior = defineFormBehavior<MyForm>(({ model, form }) => {
+export const myBehavior = defineFormBehavior<MyForm>(({ model, form, schema }) => {
   compute(model.$.total, () => model.price * model.qty);
   enableWhen([model.$.city], () => Boolean(model.country));
   onChange(model.$.country, async (c) => form.city.updateComponentProps({ options: await load(c) }));
+  hideWhen(schema.node('delivery'), () => model.country === '');
 });
 ```
 
@@ -6019,17 +6513,20 @@ _Source: src/form/behaviors/node.ts_
 
 **Kind:** `function`
 
-Применить под-правила к КАЖДОМУ элементу текущего массива модели.
-`U extends object` — элементы должны быть под-моделями (объектами); массив примитивов — одно
-значение поля, его проверяют целиком: `validate(model.$.<массив>, [...])`.
+Применить под-правила к КАЖДОМУ элементу массива — прежняя запись {@link applyEach}.
+
+Колбэк получает под-модель элемента, но области не создаёт: `cross` внутри него видит снапшот
+корня прогона.
 
 **Signature:**
 ```typescript
 export function each<U extends object>(
-  arr: ModelArray<U>,
+  arr: ArrayBinding<U> | ModelArray<U>,
   itemFn: (item: FormModel<U>) => void
 ): void
 ```
+
+**Deprecated:** Пишите `applyEach(model.$.<массив>, schema)`.
 
 _Source: src/form/validation/operators.ts_
 
@@ -6892,12 +7389,56 @@ _Source: src/i18n/message-format.ts_
 **Signature:**
 ```typescript
 export interface FormBehavior<T> {
-  /** @internal Запускается `createForm` после построения нод и заполнения реестра сигнал→нода. */
-  __run(model: FormModel<T>, form: FormProxy<T>): BehaviorCleanup;
+  /**
+   * @internal Запускается сборкой формы после построения нод и заполнения реестра сигнал→нода.
+   * `controller` — схема-контроллер сборки; без него поведение получает собственный, который
+   * никто не читает (модель без рендерера).
+   */
+  __run(model: FormModel<T>, form: FormProxy<T>, controller?: SchemaController): BehaviorCleanup;
 }
 ```
 
 _Source: src/form/behaviors/types.ts_
+
+### FormBundle
+
+**Kind:** `interface`
+
+Результат {@link createForm}.
+
+**Signature:**
+```typescript
+export interface FormBundle<T> {
+  model: FormModel<T>;
+  form: FormProxy<T>;
+  /** Собранная валидация; есть, если в конфиге заданы правила. */
+  validation?: FormValidationBundle<T>;
+  render: FormRender;
+}
+```
+
+_Source: src/form/form-bundle.ts_
+
+### FormBundleContext
+
+**Kind:** `const`
+
+Контекст сборки. Значение — бандл `createForm`; вне рендерера — `null`.
+
+**Signature:**
+```typescript
+export const FormBundleContext
+```
+
+**Examples:**
+
+```tsx
+<FormBundleContext.Provider value={bundle}>
+  <MyWizard />
+</FormBundleContext.Provider>
+```
+
+_Source: src/platforms/react/form-bundle-context.ts_
 
 ### FormBundleLike
 
@@ -7165,7 +7706,7 @@ interface UserForm {
   };
 }
 
-const form = createForm<UserForm>(schema);
+const form = createLegacyForm<UserForm>(schema);
 
 // Доступ к методам GroupNode
 await form.validate();
@@ -7178,6 +7719,30 @@ form.profile.name.setValue('John');
 ```
 
 _Source: src/form/types/form-proxy.ts_
+
+### FormRender
+
+**Kind:** `interface`
+
+Часть бандла для рендерера: готовое дерево и схема-контроллер сборки.
+
+**Signature:**
+```typescript
+export interface FormRender {
+  /** Корневой узел дерева схемы; `undefined`, если схема не задана. */
+  readonly tree: FormSchemaNode | undefined;
+  /** Схема-контроллер сборки: области корня, строк массивов и подформ. */
+  readonly controller: SchemaController;
+  /** Управление узлом КОРНЕВОЙ области по его `selector`. */
+  node(selector: string): SchemaNodeControl;
+  /** Обёртка поля из реестра (JSON-вариант). */
+  readonly fieldWrapper?: unknown;
+  /** Граница ошибок из реестра (JSON-вариант). */
+  readonly errorBoundary?: unknown;
+}
+```
+
+_Source: src/form/form-bundle.ts_
 
 ### FormSchema
 
@@ -7192,7 +7757,7 @@ _Source: src/form/types/form-proxy.ts_
 Использует NonNullable для корректной обработки опциональных полей.
 
 ⚠️ Не путать с {@link FormSchemaNode} — тот описывает **узел дерева** M1-схемы (лист/массив/
-контейнер), передаваемой в `createForm({ model, schema })`. `FormSchema` — это data-shaped конфиг
+контейнер), передаваемой в `createFormFromModel({ model, schema })`. `FormSchema` — это data-shaped конфиг
 (ключи = поля данных), а не узел дерева.
 
 **Signature:**
@@ -7248,12 +7813,13 @@ _Source: src/form/types/deep-schema.ts_
 
 **Kind:** `interface`
 
-Узел единой схемы M1 — layout-дерево, обходимое `createForm({ model, schema })`
+Узел единой схемы M1 — layout-дерево, обходимое `createFormFromModel({ model, schema })`
 и рендерерами (schema-валидация живёт отдельно — `@reformer/core/validation`).
 
 Узел совмещает несколько ролей (различаются рантаймом по форме):
- - **поле** — несёт `value: Signal` (сигнал модели `model.$.x`) + `component`/`validators`;
- - **массив** — `{ array: model.<path>, item(itemModel) }`;
+ - **поле** — `{ model: model.$.x, component, componentProps }`;
+ - **массив под-форм** — `{ model: model.$.items, item: (model) => узел }`;
+ - **подформа** — `{ model: model.$.group, part: (model) => узел }`;
  - **контейнер/ветка** — вложенные узлы (`children`), опц. условие `when`;
  - **record-of-fields** — под-узлы под произвольными именованными ключами (индексная сигнатура).
 
@@ -7264,9 +7830,20 @@ _Source: src/form/types/deep-schema.ts_
 ```typescript
 export interface FormSchemaNode {
   /**
-   * «Ручка» значения поля — маркер узла-поля. Обычно сигнал модели (`model.$.<path>`), но форма
-   * зависит от таргета (для массива `model.$.x` — дерево сигналов; в renderer-типах сужается до
-   * `Signal`). Движок разбирает узел как поле рантаймом по `value instanceof Signal`.
+   * Привязка узла к части модели — ручка из дерева `model.$`. Чем узел является, решают ручка и
+   * соседние ключи:
+   *  - лист или массив (`model.$.email`, `model.$.tags`) — **поле**;
+   *  - массив вместе с {@link FormSchemaNode.item} — **массив под-форм**;
+   *  - группа вместе с {@link FormSchemaNode.part} — **подформа**.
+   *
+   * Узел распознаётся по значению, а не по имени ключа: в записи «имя поля → узел» поле данных
+   * может называться `model`, и тогда под этим ключом лежит обычный вложенный узел.
+   */
+  model?: unknown;
+  /**
+   * Прежняя запись привязки поля — то же, что {@link FormSchemaNode.model}.
+   *
+   * @deprecated Пишите `model: model.$.<path>`.
    */
   value?: unknown;
   /**
@@ -7296,14 +7873,27 @@ export interface FormSchemaNode {
    * выводит на своём месте в порядке следования.
    */
   children?: readonly (FormSchemaNode | string | number | Signal<any>)[];
-  /** Реактивный массив модели (`model.<path>`) — маркер узла-массива (вместе с `item`). */
+  /**
+   * Прежняя запись привязки массива под-форм — фасад `model.<path>` (вместе с `item`).
+   *
+   * @deprecated Пишите `model: model.$.<path>`.
+   */
   array?: SchemaArrayControl;
   /** Схема элемента массива: под-модель элемента → узел поддерева. */
-  item?: (itemModel: any) => FormSchemaNode;
+  item?: (model: any) => FormSchemaNode;
   /**
-   * Значение нового элемента массива для кнопки «Добавить»: либо готовое значение,
-   * либо фабрика `() => value`. Тип не различает варианты (union `unknown | (() => unknown)`
-   * схлопывается в `unknown`) — рантайм различает по `typeof initialValue === 'function'`.
+   * Подформа: под-модель группы → узел поддерева. Часть объявляется один раз и подключается к
+   * любой группе той же формы данных: `{ model: model.$.registrationAddress, part: address }`.
+   * Привязки внутри части идут через `$` полученной под-модели.
+   */
+  part?: (model: any) => FormSchemaNode;
+  /**
+   * Шаблон нового элемента массива для кнопки «Добавить»: либо готовое значение, либо фабрика
+   * `() => value`. Запасной путь — для форм, чья модель создаётся из данных без кода: шаблон,
+   * объявленный в модели (`arrayOf(blank)`), главнее.
+   *
+   * Тип не различает варианты (union `unknown | (() => unknown)` схлопывается в `unknown`) —
+   * рантайм различает по `typeof initialValue === 'function'`.
    */
   initialValue?: unknown;
   /** Свободная вложенность: record-of-fields и произвольные под-узлы. */
@@ -7522,21 +8112,22 @@ _Source: src/platforms/react/field-binding/field-adapter.ts_
 
 **Kind:** `function`
 
-Найти ноду формы по сигналу модели.
+Найти ноду формы по ручке модели.
 
-Используется state-операциями behavior (`enableWhen`/`disableWhen`) и роутингом ошибок
-валидации в ноды. Возвращает `undefined`, если форма ещё не построена или поле не
-материализовано в этой форме (например, элемент массива, который строится per-item).
+Используется state-операциями behavior (`enableWhen`/`disableWhen`), подключением под-схем
+(`apply`/`applyEach`) и роутингом ошибок валидации в ноды. Возвращает `undefined`, если форма
+ещё не построена или эта часть модели в форме не материализована (например, массив без
+item-схемы).
 
 **Signature:**
 ```typescript
-export function getNodeForSignal(signal: Signal<any>): FormNode<any> | undefined
+export function getNodeForSignal(signal: object): FormNode<any> | undefined
 ```
 
 **Parameters:**
-- `signal` — - Сигнал значения из {@link FormModel}
+- `signal` — - Ручка из {@link FormModel}: `model.$.<поле>`, `model.$.<группа>`, `model.$.<массив>`
 
-**Returns:** Нода формы для этого поля или `undefined`
+**Returns:** Нода формы — поля, группы или массива — либо `undefined`
 
 **Examples:**
 
@@ -7548,8 +8139,14 @@ const sig = model.$.email;
 getNodeForSignal(sig)?.setErrors([{ code: 'required', message: 'Обязательно' }]);
 ```
 
+Нода группы и строки массива
+```typescript
+getNodeForSignal(model.$.address)?.disable(); // группа целиком
+getNodeForSignal(model.$.phones[0])?.markAsTouched(); // форма строки массива
+```
+
 **See also:**
-- {@link registerSignalNode} - регистрация связи сигнал→нода
+- {@link registerSignalNode} - регистрация связи ручка→нода
 
 _Source: src/form/signal-node-registry.ts_
 
@@ -7583,7 +8180,7 @@ _Source: src/form/type-guards.ts_
 
 **Kind:** `function`
 
-Текущий scope ({ model, form }) активной схемы (escape hatch для кросс-операторов).
+Текущая область ({ model, form, schema }) активной схемы (escape hatch для кросс-операторов).
 
 **Signature:**
 ```typescript
@@ -7599,7 +8196,7 @@ _Source: src/form/behaviors/context.ts_
 GroupNode - узел для группы полей
 
 Создаётся из {@link FormSchema} (дерево field-конфигов). Обычно строится через `createForm`
-(M1: `createForm({ model, schema })`); schema-валидация/behavior живут на слое модели
+(M1: `createFormFromModel({ model, schema })`); schema-валидация/behavior живут на слое модели
 (`validateModel` из `@reformer/core/validation`, `computeFrom`/`enableWhen`/…), а не на ноде.
 
 **Signature:**
@@ -7645,6 +8242,28 @@ export interface GroupNodeConfig<T> {
 ```
 
 _Source: src/form/types/index.ts_
+
+### hideWhen
+
+**Kind:** `function`
+
+Скрывать узел, пока условие истинно.
+
+Условие реактивно: пересчитывается при изменении любого сигнала, прочитанного внутри него.
+Принудительное `schema.node(selector).setHidden(...)` главнее условия.
+
+**Signature:**
+```typescript
+export function hideWhen(node: SchemaNodeControl, condition: () => boolean): void
+```
+
+**Examples:**
+
+```typescript
+hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');
+```
+
+_Source: src/form/behaviors/schema-operators.ts_
 
 ### I18N_CONTEXT_MARKER
 
@@ -9137,10 +9756,13 @@ export interface ModelArray<U> {
   readonly __path: string;
   /** Реактивная длина. */
   readonly length: number;
-  /** Добавить элемент в конец (значение элемента целиком). */
-  push(item: U): void;
-  /** Вставить элемент по индексу. */
-  insertAt(index: number, item: U): void;
+  /**
+   * Добавить элемент в конец (значение элемента целиком). Без значения — элемент по шаблону
+   * массива (`arrayOf(blank)` в модели); шаблона нет — ошибка.
+   */
+  push(item?: U): void;
+  /** Вставить элемент по индексу. Без значения — элемент по шаблону, как у {@link push}. */
+  insertAt(index: number, item?: U): void;
   /** Удалить элемент по индексу. */
   removeAt(index: number): void;
   /** Переместить элемент. */
@@ -9177,8 +9799,8 @@ _Source: src/model/types.ts_
 export interface ModelArrayControl<TItem extends object> {
   readonly length: number;
   at(index: number): FormModel<TItem> | undefined;
-  push(item: TItem): void;
-  insertAt(index: number, item: TItem): void;
+  push(item?: TItem): void;
+  insertAt(index: number, item?: TItem): void;
   removeAt(index: number): void;
   move(from: number, to: number): void;
   swap(a: number, b: number): void;
@@ -9202,7 +9824,7 @@ _Source: src/form/nodes/model-array-node.ts_
 reorder/повторном рендере не пересоздаются (состояние и валидация сохраняются). Реализует тот же
 контракт, что ждут секции массива и `useFormControl` (`length`/`value`/`valid`/`errors`/`at`/`push`/…).
 
-Обычно создаётся не напрямую, а `createForm({ model, schema })`: когда в схеме встречается узел
+Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме встречается узел
 массива `{ array: model.<field>, item: (item) => itemSchema }`, форма материализует его как
 `ModelArrayNode` и кладёт под `form.<field>` (совместим с `FormArraySection`).
 
@@ -9222,7 +9844,7 @@ name: { value: item.$.name, component: Input },
 qty: { value: item.$.qty, component: Input },
 });
 
-const form = createForm({
+const form = createFormFromModel({
 model,
 schema: {
 children: [{ array: model.rows, item: rowItem }],
@@ -9299,6 +9921,57 @@ export type ModelObject<T> = {
 ```
 
 _Source: src/model/types.ts_
+
+### modelOf
+
+**Kind:** `function`
+
+Value-фасад по ручке дерева `model.$`: группа → под-модель {@link FormModel}, массив →
+{@link ModelArray}. Обратная операция к `model.$`: `modelOf(model.$.address) === model.address`.
+
+Ручка находит фасад по ИДЕНТИЧНОСТИ, а не по пути. Путь для этого не годится: он абсолютный
+(`items.0.phones`) и меняется при перестановке строк, а области поведения и формы строк
+вложенные — поиск по пути от под-модели строки ничего не находит.
+
+Лист ручкой контейнера не является — функция бросает. В частности, группа или массив,
+созданные из начального `null`, в модели — лист: вид узла фиксируется при создании.
+
+**Signature:**
+```typescript
+export function modelOf<V extends object | null | undefined>(handle: { peek(): V }): ModelOf<V>
+```
+
+**Parameters:**
+- `handle` — - Узел-группа или узел-массив дерева `model.$`.
+
+**Returns:** Под-модель группы либо фасад массива.
+
+**Examples:**
+
+```typescript
+const model = createModel({ address: { city: '' }, phones: [{ number: '' }] });
+
+modelOf(model.$.address).city = 'Казань'; // под-модель: чтение, запись, get/set/patch
+modelOf(model.$.phones).push({ number: '+7' }); // фасад массива: мутации и обход
+modelOf(model.$.phones[0]).number; // строка массива — тоже группа
+```
+
+_Source: src/model/model-value-proxy.ts_
+
+### ModelOf
+
+**Kind:** `type`
+
+Value-фасад для ручки {@link modelOf}: массив → {@link ModelArray}, объект → под-модель
+{@link FormModel}.
+
+**Signature:**
+```typescript
+export type ModelOf<V> =
+  NonNullable<V> extends ReadonlyArray<infer U> ? ModelArray<U> : FormModel<NonNullable<V>>;
+```
+
+_Source: src/model/model-value-proxy.ts_
 
 ### ModelSignals
 
@@ -9478,6 +10151,25 @@ const node = factory.createNode({ value: '', component: Input }); // → FieldNo
 
 _Source: src/form/factories/node-factory.ts_
 
+### NodeLifecycleHooks
+
+**Kind:** `interface`
+
+Хуки жизненного цикла узла схемы. Каждый хук опционален; повторная регистрация перезаписывает
+предыдущее значение.
+
+**Signature:**
+```typescript
+export interface NodeLifecycleHooks {
+  /** Срабатывает один раз при mount узла. Может вернуть cleanup-функцию. */
+  onMount?: () => void | (() => void);
+  /** Срабатывает один раз при unmount узла. */
+  onUnmount?: () => void;
+}
+```
+
+_Source: src/form/schema-controller.ts_
+
 ### nonNegative
 
 **Kind:** `function`
@@ -9572,6 +10264,34 @@ export function onChange<T>(
 
 _Source: src/form/behaviors/operators.ts_
 
+### onComponentEvent
+
+**Kind:** `function`
+
+Повесить обработчик на проп-событие компонента узла (`onSubmit`, `onChange`, …).
+
+Обработчик получает те же аргументы, что и исходный проп компонента, и перекрывает одноимённый
+проп из `componentProps`.
+
+**Signature:**
+```typescript
+export function onComponentEvent(
+  node: SchemaNodeControl,
+  event: string,
+  handler: (...args: any[]) => any
+): void
+```
+
+**Examples:**
+
+```typescript
+onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+  await submitApplication(model.get());
+});
+```
+
+_Source: src/form/behaviors/schema-operators.ts_
+
 ### onDispose
 
 **Kind:** `function`
@@ -9584,6 +10304,70 @@ export function onDispose(cleanup: BehaviorCleanup): void
 ```
 
 _Source: src/form/behaviors/context.ts_
+
+### onInit
+
+**Kind:** `function`
+
+Синхронный хук времени сборки: `fn` вызывается сразу, до первого рендера узла. Единственный
+хук, способный повлиять на первый рендер, — внутри можно править пропсы через
+`schema.node(selector).patchProps({ … })`.
+
+К монтированию узла не привязан; аргумент `node` принимается ради симметрии с
+{@link onMount} / {@link onUnmount}.
+
+**Signature:**
+```typescript
+export function onInit(_node: SchemaNodeControl, fn: () => void): void
+```
+
+**Examples:**
+
+```typescript
+onInit(schema.node('summary'), () => {
+  schema.node('summary').patchProps({ currency: detectCurrency() });
+});
+```
+
+_Source: src/form/behaviors/schema-operators.ts_
+
+### onMount
+
+**Kind:** `function`
+
+Хук после первого монтирования узла. Может вернуть очистку — она выполнится при размонтировании.
+
+**Signature:**
+```typescript
+export function onMount(node: SchemaNodeControl, fn: () => void | (() => void)): void
+```
+
+**Examples:**
+
+```typescript
+onMount(schema.node('data-boundary'), () => void loadApplication());
+```
+
+_Source: src/form/behaviors/schema-operators.ts_
+
+### onUnmount
+
+**Kind:** `function`
+
+Хук перед размонтированием узла.
+
+**Signature:**
+```typescript
+export function onUnmount(node: SchemaNodeControl, fn: () => void): void
+```
+
+**Examples:**
+
+```typescript
+onUnmount(schema.node('wizard'), () => saveDraft(model.get()));
+```
+
+_Source: src/form/behaviors/schema-operators.ts_
 
 ### parseMessage
 
@@ -9780,19 +10564,19 @@ _Source: src/form/validators/phone.ts_
 
 **Kind:** `function`
 
-Связать сигнал модели с его нодой формы.
+Связать ручку модели с её нодой формы.
 
-Вызывается движком при сборке формы (`createForm`/{@link createFormFromModel}) для каждого
-листового поля. Прикладной код обычно этот реестр не заполняет напрямую.
+Вызывается движком при сборке формы (`createForm`/{@link createFormFromModel}) для каждого поля,
+группы и массива под-форм. Прикладной код обычно этот реестр не заполняет напрямую.
 
 **Signature:**
 ```typescript
-export function registerSignalNode(signal: Signal<any>, node: FormNode<any>): void
+export function registerSignalNode(signal: object, node: FormNode<any>): void
 ```
 
 **Parameters:**
-- `signal` — - Сигнал значения из {@link FormModel} (ручка поля, `model.$.path`)
-- `node` — - Нода формы, отвечающая за это поле
+- `signal` — - Ручка из {@link FormModel}: сигнал листа, узел-массив или узел-группа дерева `model.$`
+- `node` — - Нода формы, отвечающая за эту часть модели
 
 **Examples:**
 
@@ -9806,9 +10590,34 @@ if (sig && node) registerSignalNode(sig, node);
 ```
 
 **See also:**
-- {@link getNodeForSignal} - обратный поиск ноды по сигналу
+- {@link getNodeForSignal} - обратный поиск ноды по ручке
 
 _Source: src/form/signal-node-registry.ts_
+
+### renderEffect
+
+**Kind:** `function`
+
+Реактивный эффект, живущий, пока схема области смонтирована рендерером.
+
+В отличие от `effect` поведения, запускается после монтирования — внутри доступны ref узлов
+(`schema.node(selector).getRef().current`). Может вернуть функцию очистки.
+
+**Signature:**
+```typescript
+export function renderEffect(schema: SchemaScope, effectFn: () => void | (() => void)): void
+```
+
+**Examples:**
+
+```typescript
+const wizard = schema.node('wizard').getRef<FormWizardHandle>();
+renderEffect(schema, () => {
+  if (model.loanType === 'mortgage') wizard.current?.goToStep(1);
+});
+```
+
+_Source: src/form/behaviors/schema-operators.ts_
 
 ### required
 
@@ -9873,6 +10682,27 @@ resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: 
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### ResolvedSchema
+
+**Kind:** `interface`
+
+Дерево, собранное реестром из документа схемы (JSON), и то, что реестр хочет донести до
+рендерера вместе с ним.
+
+**Signature:**
+```typescript
+export interface ResolvedSchema {
+  /** Корневой узел дерева. */
+  tree: FormSchemaNode;
+  /** Обёртка поля — компонент, которым рендерер оборачивает каждое поле. */
+  fieldWrapper?: unknown;
+  /** Граница ошибок — компонент, которым рендерер оборачивает дерево. */
+  errorBoundary?: unknown;
+}
+```
+
+_Source: src/form/form-bundle.ts_
 
 ### resolveLocalized
 
@@ -9961,7 +10791,8 @@ _Source: src/model/behaviors-value.ts_
 (`required()`/`min()`/… — они `(value, model, root) => …`) и inline-правила `(value) => …`
 ОБА присваиваются в `Rule<TField>[]` без `any`, при этом сохраняется проверка типа поля
 (`validate(model.$.age, [email()])` подсветится — `email` ждёт `string`, поле `number`).
-На вызове раннер приводит правило к callable и передаёт `(value, model, model)`.
+На вызове раннер приводит правило к callable и передаёт `(value, scope, root)`: модель текущей
+области (в корне прогона — вся модель) и корень прогона.
 
 **Signature:**
 ```typescript
@@ -10097,12 +10928,154 @@ export interface SchemaArrayControl {
   /** Реактивная длина. */
   readonly length: number;
   at(index: number): unknown;
-  push(item: unknown): void;
+  push(item?: unknown): void;
   removeAt(index: number): void;
 }
 ```
 
 _Source: src/form/types/schema-node.ts_
+
+### SchemaController
+
+**Kind:** `interface`
+
+Схема-контроллер сборки: области по под-моделям.
+
+**Signature:**
+```typescript
+export interface SchemaController {
+  /**
+   * Область под-модели: корня сборки, строки массива или группы подформы. Создаётся при первом
+   * обращении; повторное обращение отдаёт ту же область.
+   */
+  scopeOf(subModel: object): SchemaScope;
+}
+```
+
+_Source: src/form/schema-controller.ts_
+
+### SchemaNodeControl
+
+**Kind:** `interface`
+
+Управление одним узлом схемы. Получается через `schema.node(selector)`.
+
+**Signature:**
+```typescript
+export interface SchemaNodeControl {
+  /** Принудительно скрыть или показать узел, минуя условие `hideWhen`. */
+  setHidden(value: boolean): this;
+  /** Убрать принудительное значение — снова действует условие `hideWhen`. */
+  resetHidden(): this;
+  /** Подмешать объект в `componentProps` узла. */
+  patchProps(partial: Record<string, unknown>): this;
+  /** Убрать подмешанные пропсы. */
+  resetProps(): this;
+  /**
+   * Ref на компонент узла. Создаётся один раз на селектор; рендерер вешает его на компонент.
+   * Компонент обязан принимать `ref`.
+   */
+  getRef<H>(): { current: H | null };
+  /** @internal Селектор узла. */
+  __selector: string;
+  /** @internal Хранилище области. */
+  __overrideMaps: SchemaOverrideMaps;
+}
+```
+
+_Source: src/form/schema-controller.ts_
+
+### SchemaOverrideMaps
+
+**Kind:** `interface`
+
+Хранилище переопределений одной области схемы. Ключ каждой карты — `selector` узла.
+
+**Signature:**
+```typescript
+export interface SchemaOverrideMaps {
+  hiddenOverrides: Map<string, boolean | null>;
+  propsOverrides: Map<string, Record<string, unknown> | null>;
+  refRegistry: Map<string, { current: any }>;
+  /** Условия скрытия узлов: selector → реактивное условие. */
+  conditionRegistry: Map<string, () => boolean>;
+  /** Реактивные эффекты, живущие, пока область смонтирована (`renderEffect`). */
+  effectRegistry: Array<() => void | (() => void)>;
+  /** Обработчики событий компонентов: selector → { имя пропа → обработчик }. */
+  callbackRegistry: Map<string, Map<string, (...args: any[]) => any>>;
+  /** Хуки жизненного цикла узла: selector → { onMount, onUnmount }. */
+  lifecycleRegistry: Map<string, NodeLifecycleHooks>;
+  /** Общий счётчик изменений области. Узлы на него не подписываются — см. `versionFor`. */
+  version: Signal<number>;
+  /**
+   * Версия-сигнал одного селектора (создаётся лениво). Узел подписывается только на сигнал СВОЕГО
+   * селектора, поэтому `setHidden` / `patchProps` уведомляют один узел, а не всё дерево.
+   */
+  versionFor(selector: string): Signal<number>;
+}
+```
+
+_Source: src/form/schema-controller.ts_
+
+### SchemaResolver
+
+**Kind:** `interface`
+
+Реестр, умеющий превратить документ схемы в дерево. Метод необязателен: у интерфейса реестра
+есть сторонние реализации, и ядро документ само не разбирает.
+
+**Signature:**
+```typescript
+export interface SchemaResolver {
+  resolveSchema?(document: unknown, model: FormModel<never>): ResolvedSchema;
+}
+```
+
+_Source: src/form/form-bundle.ts_
+
+### SchemaScope
+
+**Kind:** `interface`
+
+Схема одной области: адресует узлы по `selector`.
+
+**Signature:**
+```typescript
+export interface SchemaScope {
+  /** Управление узлом области по его `selector`. */
+  node(selector: string): SchemaNodeControl;
+  /** @internal Хранилище области — его читает рендерер. */
+  __overrideMaps: SchemaOverrideMaps;
+}
+```
+
+_Source: src/form/schema-controller.ts_
+
+### schemaSubtree
+
+**Kind:** `function`
+
+Поддерево схемы для под-модели — результат `builder(subModel)`, один на пару.
+
+**Signature:**
+```typescript
+export function schemaSubtree<N>(builder: (subModel: any) => N, subModel: object): N
+```
+
+**Parameters:**
+- `builder` — - Билдер поддерева: `item` узла-массива или `part` узла-подформы.
+- `subModel` — - Под-модель строки массива или группы.
+
+**Returns:** Узел поддерева; повторный вызов с той же парой отдаёт тот же объект.
+
+**Examples:**
+
+```typescript
+const row = model.items.at(0);
+schemaSubtree(itemSchema, row) === schemaSubtree(itemSchema, row); // true
+```
+
+_Source: src/form/schema-subtree.ts_
 
 ### SetValueOptions
 
@@ -10332,6 +11305,36 @@ export type UnknownRecord = Record<string, unknown>;
 
 _Source: src/form/types/index.ts_
 
+### unknownSchemaSelectors
+
+**Kind:** `function`
+
+Селекторы, на которые в области записаны правила, но которых нет в её дереве. Такое правило
+ничего не делает — сборка и рендерер в dev предупреждают о нём.
+
+Ref в проверку не входит: его разрешено брать по абсолютному пути модели
+(`phones.0.number`), а такой строки при сборке может ещё не быть.
+
+**Signature:**
+```typescript
+export function unknownSchemaSelectors(maps: SchemaOverrideMaps, tree: unknown): string[]
+```
+
+**Parameters:**
+- `maps` — - Хранилище области.
+- `tree` — - Дерево (поддерево) области.
+
+**Returns:** Селекторы с правилами, не найденные в дереве.
+
+**Examples:**
+
+```typescript
+const scope = controller.scopeOf(model);
+unknownSchemaSelectors(scope.__overrideMaps, tree); // ['mortgage'] — узла с таким selector нет
+```
+
+_Source: src/form/schema-controller.ts_
+
 ### unmarkDerived
 
 **Kind:** `function`
@@ -10518,6 +11521,29 @@ const credit = useFormBundle(() => createCoreForm<CreditForm>({ model: createCre
 ```
 
 _Source: src/platforms/react/hooks/use-form-bundle.ts_
+
+### useFormBundleContext
+
+**Kind:** `function`
+
+Бандл сборки, внутри которой отрисован компонент; `null` — компонент стоит вне рендерера
+(например, визард в разметке React-руками получает форму и валидацию пропсами).
+
+**Signature:**
+```typescript
+export function useFormBundleContext<T = unknown>(): FormBundle<T> | null
+```
+
+**Examples:**
+
+```tsx
+function StepFooter() {
+  const bundle = useFormBundleContext<CreditForm>();
+  return <button onClick={() => bundle?.validation?.validateAll()}>Проверить</button>;
+}
+```
+
+_Source: src/platforms/react/form-bundle-context.ts_
 
 ### useFormControl
 

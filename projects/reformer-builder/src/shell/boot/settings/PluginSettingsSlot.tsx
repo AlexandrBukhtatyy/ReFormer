@@ -9,7 +9,7 @@
 
 import type { ReactElement } from 'react';
 import { Separator } from '@reformer/ui-kit/separator';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { SettingsSectionBodyProps } from '@/shell/platform/ui/dialogs/settings-ui';
 import type { PluginSettingsValues } from '@/shell/platform/services/plugin-settings';
 import { settingsCardStateOf, type PluginRow, type PluginSettingsHost } from './plugins-list';

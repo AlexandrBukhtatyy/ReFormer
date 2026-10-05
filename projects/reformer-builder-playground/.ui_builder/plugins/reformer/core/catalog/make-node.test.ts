@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseOperator, type JsonNode } from '@reformer/renderer-json';
+import { parseOperator, type JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
 import { COMPOUND_TEMPLATES, makeNodeFor, leafComponentNode, partNode } from './make-node';
 import { builtinEntries } from './__fixtures__/builtin-catalog';
 

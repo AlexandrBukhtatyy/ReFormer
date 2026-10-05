@@ -1,19 +1,21 @@
 /**
- * CreditApplicationForm
+ * CreditApplicationForm — вариант «React руками».
  *
- * Использует:
- * - FormWizard компонент для multi-step формы
- * - Actions с render props для навигационных кнопок
- * - Headless компоненты (Indicator, Progress) с render props
- * - GroupNode для вложенных форм и массивов
- * - validateForm для валидации по шагам
- * - useLoadCreditApplication для загрузки данных
- * - Полную типизацию TypeScript
+ * Сборка та же, что у renderer-вариантов: `createForm` с общими моделью, схемой, правилами и
+ * поведением. Из схемы эта страница берёт только поля — разметку, видимость секций, загрузку и
+ * отправку она рисует и ведёт сама, в JSX:
+ * - `FormWizard` получает `form`, `config` и `steps` пропсами;
+ * - тела шагов — React-компоненты с `<FormField control={…} />`;
+ * - правила узлов из поведения (`hideWhen`, `onMount`, `onComponentEvent`) исполняет рендерер,
+ *   которого здесь нет, — поэтому условия видимости записаны в компонентах шагов.
  */
 
 import { useRef } from 'react';
-import { useFormBundle } from '@reformer/core';
-import { createCreditApplicationFormM1 } from './schemas/create-form';
+import { createForm, useFormBundle } from '@reformer/core';
+import { createCreditApplicationModel } from './model';
+import { creditApplicationSchema } from './form.schema';
+import { creditApplicationBehavior } from './form.behavior';
+import { creditApplicationValidation } from './form.validation';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
 import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm';
@@ -51,7 +53,15 @@ function CreditApplicationForm() {
   //  Модель + форма + валидация — одним вызовом. useFormBundle зовёт фабрику ровно один раз и
   //  держит бандл стабильным (useMemo для этого не годится: React вправе сбросить его кэш).
   //  Поведение (compute/enableWhen/onChange) запускается внутри сборки.
-  const { form, validation } = useFormBundle(createCreditApplicationFormM1);
+  const { form, validation } = useFormBundle(() =>
+    createForm<CreditApplicationFormType>({
+      model: createCreditApplicationModel(),
+      // Из схемы берутся поля: компоненты и пропсы для `FormField`. Контейнеры не используются.
+      schema: creditApplicationSchema,
+      behavior: creditApplicationBehavior,
+      validation: creditApplicationValidation,
+    })
+  );
 
   //  ID заявки: '1' / '2' — редактирование, null — пустая форма (создание).
   const applicationId: string | null = '1';

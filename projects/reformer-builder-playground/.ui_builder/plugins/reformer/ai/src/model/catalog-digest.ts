@@ -15,7 +15,7 @@
  * @module plugins/reformer/ai/model/catalog-digest
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { isCompoundPart, partNamesOf } from '../../../core/catalog';
 import { makeNodeFor } from '../../../core/catalog';
 import type { CatalogEntry, CatalogRole } from '../../../core/catalog';

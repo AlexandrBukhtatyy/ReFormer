@@ -1,8 +1,9 @@
 // index.tsx — Заявка на кредит (core target, iter-20).
-// Сборка одним вызовом: createCoreForm({ model, schema, behavior, validation }) → FormWizard.
-// Все 6 шагов inline (FC-bodies), массивы inline через FormArraySection. Schema-driven UI.
-import { useEffect, useMemo, type FC } from 'react';
-import { createCoreForm, useFormControlValue, type FormProxy } from '@reformer/core';
+// Сборка одним вызовом: createForm({ model, schema, behavior, validation }) → FormWizard.
+// Все 6 шагов и массивы (FormArraySection) размечены здесь же, в JSX; компоненты и пропсы полей —
+// из схемы, шаблон нового элемента массива — из модели.
+import { useEffect, type FC } from 'react';
+import { createForm, useFormBundle, useFormControlValue, type FormProxy } from '@reformer/core';
 import {
   FormField,
   Section,
@@ -14,7 +15,7 @@ import {
 import { creditBehavior } from './form.behavior';
 import { buildCreditSchema } from './form.schema';
 import { creditValidation } from './validation';
-import { blankCoBorrower, blankExistingLoan, blankProperty, createCreditModel } from './model';
+import { createCreditModel } from './model';
 import { loadApplication, submitApplication } from './api';
 import type { CoBorrower, CreditForm, ExistingLoan, FormMode, Property } from './types';
 
@@ -193,7 +194,6 @@ const Step5Body: FC<{ control: FormProxy<CreditForm> }> = ({ control }) => {
           title="Имущество"
           addButtonLabel="+ Добавить имущество"
           emptyMessage="Нажмите «Добавить имущество» для добавления записи"
-          initialValue={blankProperty()}
         />
       )}
 
@@ -205,7 +205,6 @@ const Step5Body: FC<{ control: FormProxy<CreditForm> }> = ({ control }) => {
           title="Существующие кредиты"
           addButtonLabel="+ Добавить кредит"
           emptyMessage="Нажмите «Добавить кредит» для добавления записи"
-          initialValue={blankExistingLoan()}
         />
       )}
 
@@ -218,7 +217,6 @@ const Step5Body: FC<{ control: FormProxy<CreditForm> }> = ({ control }) => {
             title="Созаёмщики"
             addButtonLabel="+ Добавить созаёмщика"
             emptyMessage="Нажмите «Добавить созаёмщика» для добавления записи"
-            initialValue={blankCoBorrower()}
           />
           <FormField control={control.coBorrowersIncome} />
         </>
@@ -263,21 +261,16 @@ const STEPS: FormWizardStep<CreditForm>[] = [
   { number: 6, title: 'Подтверждение', icon: '✅', body: Step6Body },
 ];
 
-export default function McpCreditApplicationCoreV20({
-  applicationId = null,
-  mode = 'create',
-}: PageProps) {
-  // Сборка одним вызовом: модель + форма + валидация. Режим только для чтения меняет схему, поэтому
-  // при его смене форму пересобираем — отсюда ключ по `mode` вместо useFormBundle.
-  const { form, model, validation } = useMemo(
-    () =>
-      createCoreForm<CreditForm>({
-        model: createCreditModel(),
-        schema: (m) => buildCreditSchema(m, mode === 'view'),
-        behavior: creditBehavior,
-        validation: creditValidation,
-      }),
-    [mode]
+function CreditApplication({ applicationId, mode }: Required<PageProps>) {
+  // Сборка одним вызовом: модель + форма + валидация. useFormBundle зовёт фабрику один раз и
+  // держит бандл стабильным между рендерами.
+  const { form, model, validation } = useFormBundle(() =>
+    createForm<CreditForm>({
+      model: createCreditModel(),
+      schema: (m) => buildCreditSchema(m, mode === 'view'),
+      behavior: creditBehavior,
+      validation: creditValidation,
+    })
   );
 
   useEffect(() => {
@@ -303,7 +296,16 @@ export default function McpCreditApplicationCoreV20({
   return (
     <div className="mx-auto  p-6" data-testid="credit-application-core-v20">
       <h1 className="mb-6 text-2xl font-bold">Заявка на кредит</h1>
-      <FormWizard form={form} steps={STEPS} config={validation!} onSubmit={handleSubmit} />
+      <FormWizard form={form} steps={STEPS} config={validation} onSubmit={handleSubmit} />
     </div>
   );
+}
+
+export default function McpCreditApplicationCoreV20({
+  applicationId = null,
+  mode = 'create',
+}: PageProps) {
+  // Режим только для чтения меняет схему, а сборка зовётся один раз — поэтому при смене `mode`
+  // страницу перемонтируем ключом: форма собирается заново.
+  return <CreditApplication key={mode} applicationId={applicationId} mode={mode} />;
 }

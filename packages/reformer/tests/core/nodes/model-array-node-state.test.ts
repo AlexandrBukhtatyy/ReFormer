@@ -3,12 +3,12 @@
  *
  * Баг (до фикса): переопределён был только `onMarkAsTouched`; `markAsUntouched`/`markAsPristine`/
  * `markAsDirty`/`disable`/`enable` были no-op на элементах (базовые сигналы игнорируются, т.к.
- * агрегатное состояние выводится из детей). Тест строит ModelArrayNode через createForm({ array, item })
+ * агрегатное состояние выводится из детей). Тест строит ModelArrayNode через createLegacyForm({ array, item })
  * и проверяет, что операции доезжают до per-item форм.
  */
 
 import { describe, it, expect } from 'vitest';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import type { FormModel } from '../../../src/model/index';
 
@@ -30,7 +30,7 @@ function build(): any {
   const schema = {
     children: [{ array: model.rows, item: (it: FormModel<Item>) => itemSchema(it) }],
   };
-  const form = createForm<Form>({ model, schema }) as any;
+  const form = createFormFromModel<Form>({ model, schema }) as any;
   form.rows.push({ name: 'a', qty: 1 });
   form.rows.push({ name: 'b', qty: 2 });
   return form;

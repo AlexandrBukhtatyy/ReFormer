@@ -140,7 +140,7 @@ import { FormArray } from '@reformer/cdk/form-array';
 | ------------------------ | ------------------------------- | ---------------------------------- |
 | `FormArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
 | `FormArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
-| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item                      |
+| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item (from model template) |
 | `FormArray.RemoveButton` | -                               | Removes current item (inside List) |
 | `FormArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
 | `FormArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
@@ -207,9 +207,12 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   control={form.properties} // FormArrayProxy<Property>
   itemComponent={PropertyForm}
   title="Properties"
-  initialValue={blankProperty()}
 />;
 ```
+
+The new item comes from the array template declared in the model —
+`createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` from `@reformer/core`). The
+`initialValue` prop is a fallback for an array whose model declares no template.
 
 Full prop list, RenderSchema and JSON variants: `find_recipe(topic="form-array-section")`.
 
@@ -748,7 +751,7 @@ const checkedAdapter: FieldAdapter = {
 };
 MyCheckbox.reformerAdapter = checkedAdapter; // в ui-kit: defineFieldControl(MyCheckbox, { adapter })
 
-// схема: { value: model.$.agree, component: MyCheckbox } → <FormField.Control /> свяжет сам
+// схема: { model: model.$.agree, component: MyCheckbox } → <FormField.Control /> свяжет сам
 ```
 
 В режиме `asChild`/`children` привязки добавляются в диалекте ребёнка и **только те, которых у
@@ -4035,6 +4038,10 @@ _Source: src/components/form-array/FormArray.tsx_
 то есть `ArrayNode.push`. Должна находиться внутри `FormArray.Root` (или
 эквивалентного провайдера), иначе `useFormArrayContext` бросит исключение.
 
+Без `initialValue` новый элемент берётся из шаблона массива модели —
+`arrayOf(blank)` из `@reformer/core`, объявленного рядом с остальными начальными
+значениями. Проп `initialValue` — запасной путь для массива без шаблона.
+
 Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий).
 Передавайте его явно, если нужна type-safe проверка `initialValue`:
 `<FormArray.AddButton<PropertyItem> initialValue={...}>`.
@@ -4059,7 +4066,16 @@ export const FormArrayAddButton
 </FormArray.Root>
 ```
 
-С типизированным initialValue
+Шаблон нового элемента — в модели
+```tsx
+// model.ts
+const model = createModel<Form>({ properties: arrayOf(blankProperty) });
+
+// разметка: значение нового элемента кнопке не нужно
+<FormArray.AddButton>+ Добавить объект</FormArray.AddButton>
+```
+
+Запасной путь — типизированный initialValue для массива без шаблона
 ```tsx
 <FormArray.AddButton<Property> initialValue={{ type: 'apartment', estimatedValue: 0 }}>
 + Квартира
@@ -4068,7 +4084,7 @@ export const FormArrayAddButton
 
 Своя кнопка через asChild (props мержатся в дочерний элемент)
 ```tsx
-<FormArray.AddButton asChild initialValue={{ name: '' }}>
+<FormArray.AddButton asChild>
 <MyButton variant="primary">+ Добавить</MyButton>
 </FormArray.AddButton>
 ```
@@ -4092,7 +4108,10 @@ export interface FormArrayAddButtonProps<T extends object = Record<string, unkno
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
-  /** Начальное значение нового элемента (передаётся в `add()` → `ArrayNode.push`) */
+  /**
+   * Значение нового элемента (передаётся в `add()` → `ArrayNode.push`). Запасной путь: без него
+   * элемент берётся из шаблона массива модели — `arrayOf(blank)` из `@reformer/core`.
+   */
   initialValue?: Partial<T>;
   /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
   asChild?: boolean;

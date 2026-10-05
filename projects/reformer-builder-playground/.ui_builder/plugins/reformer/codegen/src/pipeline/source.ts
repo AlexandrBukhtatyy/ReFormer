@@ -13,7 +13,7 @@
  */
 
 import { joinFormSchema, stepRefsOf, type StepOrigins } from '../../../core/form-model';
-import { normalizeStepRef, type JsonFormSchema } from '@reformer/renderer-json';
+import { normalizeStepRef, type JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost } from '../host';
 

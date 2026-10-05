@@ -14,28 +14,32 @@
  * ReactNode и не ComponentType, уходит в `renderStepBody` — так ui-kit остаётся
  * независимым от `@reformer/renderer-react` (инъекция стратегии вместо импорта).
  *
- * Маркер `__selfManagedChildren = true` гарантирует, что при использовании
- * внутри RenderSchema родительский renderer пробрасывает `form` как prop
- * без рекурсивного обхода children.
+ * В схеме формы визард — обычный узел: `{ component: FormWizard, children: [шаги] }`. Маркер
+ * `__selfManagedChildren = true` просит рендерер отдать узлы шагов данными вместе с функцией их
+ * отрисовки (`renderNode`), а форму и валидацию визард берёт из контекста сборки `createForm`.
+ * Прикладная обёртка, которая подставляла `form`, `config` и `steps`, больше не нужна.
  */
 
 import {
   forwardRef,
   isValidElement,
+  useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   type ComponentType,
   type ForwardedRef,
+  type Key,
   type ReactElement,
   type ReactNode,
 } from 'react';
 import {
   FormWizard as FormWizardHeadless,
-  type FormWizardActionsProps as HeadlessFormWizardActionsProps,
+  type FormWizardConfig,
   type FormWizardHandle,
   type FormWizardProps as FormWizardHeadlessProps,
 } from '@reformer/cdk/form-wizard';
-import type { FormProxy } from '@reformer/core';
+import { useFormBundleContext, type FormProxy } from '@reformer/core';
 import { FormWizardActions } from './form-wizard-actions';
 import { FormWizardProgress } from './form-wizard-progress';
 import { StepIndicator } from './step-indicator';
@@ -106,15 +110,37 @@ export interface FormWizardStep<T, TBody = never> {
 }
 
 /**
+ * Узел шага в схеме формы — то, что рендерер передаёт визарду в `children`:
+ * `{ selector, component: Step, componentProps: { title, icon }, children: [...] }`.
+ *
+ * `selector` связывает шаг с его правилами: это ключ в `validation.steps` сборки. `title` и
+ * `icon` уходят в индикатор шагов; сам узел рисует рендерер (проп {@link FormWizardProps.renderNode}).
+ */
+export interface FormWizardStepNode {
+  /** Идентификатор шага — ключ его правил в `validation.steps`. */
+  selector?: string;
+  /** Пропсы компонента шага; `title` и `icon` читает индикатор. */
+  componentProps?: { title?: string; icon?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+/**
  * Пропсы {@link FormWizard}. Расширяют headless-пропсы из
- * `@reformer/cdk/form-wizard` (`form`, `config`, `onStepChange`, …), добавляя
- * декларативный `steps` и колбэк `onSubmit`.
+ * `@reformer/cdk/form-wizard` (`onStepChange`, `scrollToTop`), добавляя шаги и колбэк `onSubmit`.
+ *
+ * Два способа подключения:
+ *
+ * - **в схеме формы** — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`.
+ *   Рендерер передаёт узлы шагов и функцию их отрисовки, а форму и валидацию визард берёт из
+ *   контекста сборки `createForm`. Ни `form`, ни `config`, ни `steps` задавать не нужно;
+ * - **в JSX** — `form`, `config` и `steps` пропсами, как раньше.
  *
  * @typeParam T - Тип значения корневой формы. Ограничение `Record<string, any>`
  *   синхронизировано с headless-cdk и нужно только как bound для инференции
  *   generic'а T в JSX (в т.ч. при nullable-числах вида `number | null`).
  *
  * @see {@link FormWizardStep} — форма элемента `steps`.
+ * @see {@link FormWizardStepNode} — узел шага в схеме.
  * @see FormWizardHandle — императивный handle через `ref` (submit/навигация).
  */
 export interface FormWizardProps<
@@ -125,17 +151,34 @@ export interface FormWizardProps<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends Record<string, any>,
   TBody = never,
-> extends FormWizardHeadlessProps<T> {
+> extends Omit<FormWizardHeadlessProps<T>, 'form' | 'config' | 'children'> {
+  /** Форма. Внутри рендерера необязательна — берётся из контекста сборки `createForm`. */
+  form?: FormProxy<T>;
+  /**
+   * Колбэки валидации шага и всей формы. Внутри рендерера необязателен — собирается из
+   * валидации сборки: шаг проверяется правилами `validation.steps[selector шага]`.
+   */
+  config?: FormWizardConfig;
   /** Внешний CSS-класс корневого контейнера. */
   className?: string;
-  /** Декларативный список шагов (см. {@link FormWizardStep}). Порядок = порядок навигации. */
-  steps: FormWizardStep<T, TBody>[];
   /**
-   * Колбэк отправки формы на последнем шаге. Вызывается только после успешного
-   * `config.validateAll`; при провале не вызывается, а поля помечаются `touched`,
-   * чтобы ошибки стали видны. Без `config.validateAll` отправка не блокируется.
+   * Декларативный список шагов (см. {@link FormWizardStep}) — для разметки в JSX. Порядок =
+   * порядок навигации. В схеме формы шаги задаются дочерними узлами визарда.
    */
-  onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
+  steps?: FormWizardStep<T, TBody>[];
+  /**
+   * Узлы шагов из схемы формы ({@link FormWizardStepNode}). Передаёт рендерер: визард объявляет
+   * `__selfManagedChildren` и получает детей данными, а не отрисованными элементами.
+   */
+  children?: readonly FormWizardStepNode[];
+  /** Отрисовка узла схемы. Передаёт рендерер вместе с `children`. */
+  renderNode?: (node: FormWizardStepNode, key?: Key) => ReactNode;
+  /**
+   * Колбэк отправки формы на последнем шаге; получает значения формы. Вызывается только после
+   * успешной валидации всей формы; при провале не вызывается, а поля помечаются `touched`,
+   * чтобы ошибки стали видны. Без правил валидации отправка не блокируется.
+   */
+  onSubmit?: (values: T) => void | Promise<void>;
   /**
    * Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.
    * @defaultMessage kit.formWizard.submit
@@ -212,6 +255,70 @@ function isForeignBody(body: unknown): boolean {
   return !isValidElement(body as ReactElement);
 }
 
+/** Валидация сборки `createForm` в том объёме, который нужен визарду. */
+export interface WizardBundleValidation {
+  readonly stepSelectors: readonly string[];
+  validateStep(step: number | string): Promise<boolean>;
+  validateAll(): Promise<boolean>;
+}
+
+/**
+ * Колбэки валидации визарда из валидации сборки. Шаг ↔ правила — по `selector` узла шага; у шага
+ * без селектора — по порядковому номеру (так же, как раньше, когда связи по селектору не было).
+ *
+ * Экспортируется для модульных тестов; в публичный API (`index.ts`) НЕ выведено.
+ *
+ * @internal
+ */
+export function wizardConfigFromValidation(
+  validation: WizardBundleValidation | undefined,
+  stepSelectors: ReadonlyArray<string | undefined>
+): FormWizardConfig {
+  if (!validation) return {};
+  return {
+    validateStep: (step) => validation.validateStep(stepSelectors[step - 1] ?? step),
+    validateAll: () => validation.validateAll(),
+  };
+}
+
+/** Расхождение шагов схемы с ключами `validation.steps` — см. {@link stepRulesMismatch}. */
+export interface StepRulesMismatch {
+  /** Ключи правил, которым не нашлось шага: проверяются только при отправке. */
+  withoutStep: string[];
+  /** Шаги с `selector`, которого нет в `validation.steps`: переход с них ничего не проверяет. */
+  withoutRules: string[];
+}
+
+/**
+ * Сверка шагов схемы с ключами `validation.steps` — в обе стороны. Нужна потому, что прогон по
+ * неизвестному ключу берёт пустой набор правил и отвечает «валидно»: опечатка в селекторе шага
+ * молча пропускала бы незаполненные обязательные поля.
+ *
+ * Шаг без селектора связан с правилами по номеру — он занимает ключ на своей позиции.
+ *
+ * Экспортируется для модульных тестов; в публичный API (`index.ts`) НЕ выведено.
+ *
+ * @internal
+ * @returns Расхождение либо `null`, если шаги и ключи сходятся.
+ */
+export function stepRulesMismatch(
+  ruleKeys: readonly string[],
+  stepSelectors: ReadonlyArray<string | undefined>
+): StepRulesMismatch | null {
+  if (ruleKeys.length === 0) return null; // правила не разбиты по шагам — сверять нечего
+  const usedKeys = stepSelectors.map((selector, index) => selector ?? ruleKeys[index]);
+  const withoutStep = ruleKeys.filter((key) => !usedKeys.includes(key));
+  const withoutRules = stepSelectors.filter(
+    (selector): selector is string => selector !== undefined && !ruleKeys.includes(selector)
+  );
+  return withoutStep.length === 0 && withoutRules.length === 0
+    ? null
+    : { withoutStep, withoutRules };
+}
+
+/** Список имён для сообщения: `"loan", "contacts"`. */
+const quoted = (items: readonly string[]): string => items.map((item) => `"${item}"`).join(', ');
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function FormWizardInner<T extends Record<string, any>, TBody = never>(
   props: FormWizardProps<T, TBody>,
@@ -220,15 +327,96 @@ function FormWizardInner<T extends Record<string, any>, TBody = never>(
   const formWizardRef = useRef<FormWizardHandle<T>>(null);
   useImperativeHandle(ref, () => formWizardRef.current as FormWizardHandle<T>);
 
+  // Сборка `createForm`, внутри которой визард отрисован рендерером; в JSX её нет.
+  const bundle = useFormBundleContext<T>();
+  const form = props.form ?? (bundle?.form as FormProxy<T> | undefined);
+  if (!form) {
+    throw new Error(
+      '[ui-kit] FormWizard: нет формы. В JSX передайте `form` (и `config`, `steps`); в схеме ' +
+        'формы визард берёт её из сборки — рисуйте схему через `<FormRenderer form={bundle} />` ' +
+        'с бандлом `createForm`.'
+    );
+  }
+
+  const stepNodes = props.steps ? undefined : props.children;
+  const { renderNode, renderStepBody } = props;
+
+  // Шаги: явный список (JSX) либо узлы-дети из схемы — заголовок и иконка из пропсов узла шага,
+  // тело рисует рендерер.
+  const steps = useMemo<FormWizardStep<T, TBody>[]>(
+    () =>
+      props.steps ??
+      (stepNodes ?? []).map((node, index) => ({
+        number: index + 1,
+        title: node.componentProps?.title ?? '',
+        icon: node.componentProps?.icon,
+        body: node as unknown as TBody,
+      })),
+    [props.steps, stepNodes]
+  );
+
+  const validation = bundle?.validation as WizardBundleValidation | undefined;
+  // Селекторы шагов одной строкой: зависимость хуков устойчива к пересозданию массива детей.
+  const selectorKey = (stepNodes ?? []).map((node) => node.selector ?? '').join('\n');
+  const stepSelectors = useMemo(
+    () => selectorKey.split('\n').map((selector) => selector || undefined),
+    [selectorKey]
+  );
+  const explicitConfig = props.config;
+  const config = useMemo<FormWizardConfig>(
+    () => explicitConfig ?? wizardConfigFromValidation(validation, stepSelectors),
+    [explicitConfig, validation, stepSelectors]
+  );
+
+  const fromSchema = stepNodes !== undefined;
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    if (explicitConfig || !validation || !fromSchema) return;
+    const mismatch = stepRulesMismatch(validation.stepSelectors, stepSelectors);
+    if (!mismatch) return;
+    const { withoutStep, withoutRules } = mismatch;
+    console.warn(
+      '[ui-kit] FormWizard: шаги схемы и ключи `validation.steps` расходятся.' +
+        (withoutStep.length > 0
+          ? ` Ключи без шага: ${quoted(withoutStep)} — их правила проверяются только при отправке.`
+          : '') +
+        (withoutRules.length > 0
+          ? ` Шаги без ключа: ${quoted(withoutRules)} — переход с них ничего не проверяет; ` +
+            'шаг без правил объявляется явно: `ключ: null`.'
+          : '')
+    );
+  }, [explicitConfig, validation, fromSchema, stepSelectors]);
+
+  // Узел схемы рисует рендерер (`renderNode`); явная стратегия `renderStepBody` главнее.
+  const renderBody = useMemo(
+    () =>
+      renderStepBody ??
+      (renderNode ? (body: TBody) => renderNode(body as unknown as FormWizardStepNode) : undefined),
+    [renderStepBody, renderNode]
+  );
+
+  const { onSubmit } = props;
+  // Кнопка отправки зовёт колбэк после успешной валидации всей формы — отдаём ему значения.
+  const handleSubmit = useMemo(
+    () => (onSubmit ? () => onSubmit(form.getValue() as T) : undefined),
+    [onSubmit, form]
+  );
+
   // Headless Indicator принимает steps без body — только number/title/icon.
-  const indicatorSteps = props.steps.map(({ number, title, icon }) => ({
+  const indicatorSteps = steps.map(({ number, title, icon }) => ({
     number,
     title,
     icon,
   }));
 
   return (
-    <FormWizardHeadless ref={formWizardRef} form={props.form} config={props.config}>
+    <FormWizardHeadless
+      ref={formWizardRef}
+      form={form}
+      config={config}
+      onStepChange={props.onStepChange}
+      scrollToTop={props.scrollToTop}
+    >
       <FormWizardHeadless.Indicator steps={indicatorSteps}>
         {(indicatorProps) => <StepIndicator {...indicatorProps} className="mb-8" />}
       </FormWizardHeadless.Indicator>
@@ -237,14 +425,14 @@ function FormWizardInner<T extends Record<string, any>, TBody = never>(
         data-slot="form-wizard-body"
         className="bg-card text-card-foreground p-8 rounded-lg shadow-md border"
       >
-        {props.steps.map((step) => (
+        {steps.map((step) => (
           <FormWizardHeadless.Step key={step.number}>
-            {resolveStepBody(step.body, props.form, props.renderStepBody)}
+            {resolveStepBody(step.body, form, renderBody)}
           </FormWizardHeadless.Step>
         ))}
       </div>
 
-      <FormWizardHeadless.Actions onSubmit={props.onSubmit}>
+      <FormWizardHeadless.Actions onSubmit={handleSubmit}>
         {(actionsProps) => (
           <FormWizardActions {...actionsProps} submitLabel={props.submitLabel} className="mt-8" />
         )}
@@ -323,7 +511,43 @@ type FormWizardCompound = typeof FormWizardForwarded & {
  * }
  * ```
  *
- * @example renderer-react / renderer-json: тело шага — `RenderNode`, стратегия обязательна
+ * @example В схеме формы: шаги — дочерние узлы, форма и правила — из сборки
+ * ```tsx
+ * import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+ * import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
+ * import { FormRenderer } from '@reformer/renderer-react';
+ * import { Step } from '@reformer/cdk/form-wizard';
+ *
+ * const creditSchema = (model: FormModel<CreditApplication>) => ({
+ *   selector: 'wizard',
+ *   component: FormWizard,
+ *   children: [
+ *     {
+ *       selector: 'loan', // ключ правил шага в validation.steps
+ *       component: Step,
+ *       componentProps: { title: 'Кредит', icon: '💰' },
+ *       children: [{ model: model.$.loanAmount, component: InputNumber }],
+ *     },
+ *     { selector: 'confirm', component: Step, componentProps: { title: 'Подтверждение' } },
+ *   ],
+ * });
+ *
+ * const creditBehavior = defineFormBehavior<CreditApplication>(({ model, schema }) => {
+ *   onComponentEvent(schema.node('wizard'), 'onSubmit', () => api.submit(model.get()));
+ * });
+ *
+ * const credit = useFormBundle(() =>
+ *   createForm<CreditApplication>({
+ *     model: createCreditModel(),
+ *     schema: creditSchema,
+ *     behavior: creditBehavior,
+ *     validation: { steps: { loan: loanRules, confirm: null } },
+ *   })
+ * );
+ * return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
+ * ```
+ *
+ * @example Тело шага — узел схемы при разметке в JSX: стратегия отрисовки обязательна
  * ```tsx
  * import { RenderNodeComponent } from '@reformer/renderer-react';
  *
@@ -337,6 +561,7 @@ type FormWizardCompound = typeof FormWizardForwarded & {
  * ```
  *
  * @see {@link FormWizardStep} — форма элемента `steps`.
+ * @see {@link FormWizardStepNode} — узел шага в схеме формы.
  * @see {@link StepIndicator}, {@link FormWizardActions}, {@link FormWizardProgress} — слоты layout'а.
  */
 const FormWizard = Object.assign(FormWizardForwarded, {
@@ -346,9 +571,8 @@ const FormWizard = Object.assign(FormWizardForwarded, {
   Progress: FormWizardHeadless.Progress,
 }) as FormWizardCompound;
 
-// Маркер для интеграции с RenderNodeComponent: при использовании FormWizard
-// внутри RenderSchema родитель пробрасывает `form` prop напрямую, без обхода
-// `children` через рекурсивный рендерер.
+// Маркер для интеграции с рендерером: визард в схеме формы получает узлы шагов данными
+// (`children`) и функцию их отрисовки (`renderNode`) — без рекурсивного обхода детей рендерером.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (FormWizard as any).__selfManagedChildren = true;
 

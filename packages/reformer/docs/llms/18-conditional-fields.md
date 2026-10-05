@@ -56,7 +56,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
 - **Все поля должны быть материализованы в модели** (`createModel`), даже те, что показываются
   только под условием. `enableWhen`/`compute`/`copyFrom` принимают сигналы `model.$.field`, а не
   строковые пути; сигнала для несуществующего поля нет.
-- Поведение подключается к форме через `createForm({ model, schema, behavior })` — форма владеет
+- Поведение подключается к форме через `createFormFromModel({ model, schema, behavior })` — форма владеет
   жизненным циклом, DSL-операторы регистрируют свой cleanup сами (ручной массив cleanup'ов не нужен).
 - Таргетом может быть и **группа**: `enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false)`
   проходит по поддереву; без `resetOnDisable` значение группы сохраняется (удобно, когда оно копируется

@@ -7,7 +7,8 @@ import { resolve } from 'path';
 import { localeAssets } from '../../scripts/vite-locale-assets.mjs';
 
 // Тесты живут рядом с исходниками — в dist их декларации не нужны и уезжают в npm.
-const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
+// `*.type-test.ts` — compile-time проверки типов: их видит `tsc`, но не vitest и не сборка.
+const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx', '**/*.type-test.ts'];
 
 export default defineConfig({
   plugins: [

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../core/testing';
 import { ensureNodeIds, type NodeIdFactory } from '../../core/form-model';

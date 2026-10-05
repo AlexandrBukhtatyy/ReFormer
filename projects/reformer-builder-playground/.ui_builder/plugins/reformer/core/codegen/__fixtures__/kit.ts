@@ -9,7 +9,10 @@
  * @module plugins/reformer/core/codegen/__fixtures__/kit
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { builtinCatalog } from '../../catalog/__fixtures__/builtin-catalog';
 import { containerNode, fieldNode } from '../../catalog/make-node';
 import type { CatalogEntry } from '../../catalog/types';

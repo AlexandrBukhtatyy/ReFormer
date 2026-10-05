@@ -21,7 +21,7 @@ import type { IndexedAntiPattern } from '../index/types.js';
 export const chooseApiToolDefinition = {
   name: 'choose_api',
   description:
-    'Pick the right ReFormer operator for a requirement, stated in your own words ("field B is only available when A is filled", "shipping address copies billing", "clear the field when the parent choice changes"). Answers the question the docs search cannot: which of two similar operators applies — computeFrom vs copyFrom, copyFrom vs syncFields, enableWhen vs hideWhen, resetWhen vs enableWhen, validateWhen vs enableWhen, and resetWhen vs onChange (a predicate that holds vs the bare fact that a field changed — including clearing an array, which uses onChange + .clear(), never resetValue). Returns the recommended symbol with its signature, a canonical example, why it fits, the alternatives it is commonly confused with, and any anti-pattern the docs record for that choice. Deterministic — same requirement, same answer.',
+    'Pick the right ReFormer operator for a requirement, stated in your own words ("field B is only available when A is filled", "shipping address copies billing", "clear the field when the parent choice changes"). Answers the question the docs search cannot: which of two similar operators applies — computeFrom vs copyFrom, copyFrom vs syncFields, enableWhen vs hideWhen, resetWhen vs enableWhen, validateWhen vs enableWhen, apply vs applyEach (one sub-model vs every array row), and resetWhen vs onChange (a predicate that holds vs the bare fact that a field changed — including clearing an array, which uses onChange + .clear(), never resetValue). Returns the recommended symbol with its signature, a canonical example, why it fits, the alternatives it is commonly confused with, and any anti-pattern the docs record for that choice. Deterministic — same requirement, same answer.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -93,7 +93,15 @@ async function renderChoice(
   lines.push(`**Why \`${rule.recommend}\`:** ${rule.because}`);
   lines.push('');
 
-  if (sym) {
+  if (sym && rule.usage) {
+    // Имя живёт в двух модулях — сигнатура из индекса относилась бы к другому слою.
+    lines.push(`**Package:** \`${sym.package}\``);
+    lines.push('');
+    lines.push('## Usage');
+    lines.push('```typescript');
+    lines.push(rule.usage);
+    lines.push('```');
+  } else if (sym) {
     lines.push(`**Package:** \`${sym.package}\``);
     lines.push('');
     lines.push('## Signature');

@@ -9,6 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import type { FC } from 'react';
+import { createModel, useFormBundleContext } from '@reformer/core';
+import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
 import {
   createJsonForm,
   defineRegistry,
@@ -221,6 +223,170 @@ describe('MountedForm — синхронная сборка', () => {
       <MountedForm<Model> entry={entry({ id: 'a' }) as FormEntry<Model>} loaded={loaded} />
     );
     expect(html).toContain('data-wrapped="yes"');
+  });
+});
+
+describe('MountedForm — единая сборка (документ формата 2)', () => {
+  interface Shape {
+    email: string;
+    secret: string;
+    address: { city: string };
+  }
+
+  /** Зонд контекста сборки: печатает, видна ли из дерева собранная валидация. */
+  const BundleProbe: FC = () => {
+    const bundle = useFormBundleContext<Shape>();
+    return <b>{`валидация:${bundle?.validation ? 'есть' : 'нет'}`}</b>;
+  };
+
+  const registry: ComponentRegistry = defineRegistry((r) => {
+    r.component('Box', Box as FC);
+    r.component('Input', Field);
+    r.component('BundleProbe', BundleProbe);
+    r.component(FIELD_WRAPPER, MarkedWrapper as FC);
+  });
+
+  const v2 = {
+    format: 2,
+    parts: {
+      address: { model: '$model(city)', component: '$component(Input)' },
+    },
+    root: {
+      component: '$component(Box)',
+      children: [
+        { model: '$model(email)', component: '$component(Input)' },
+        {
+          selector: 'secret',
+          component: '$component(Box)',
+          children: [{ model: '$model(secret)', component: '$component(Input)' }],
+        },
+        { model: '$model(address)', part: '$part(address)' },
+        { component: '$component(BundleProbe)' },
+      ],
+    },
+  } as never;
+
+  const initial: Shape = { email: 'почта', secret: 'тайна', address: { city: 'Казань' } };
+  const v2Entry = entry({ id: 'v2' }) as unknown as FormEntry<Shape>;
+  const loadedV2 = (over: Partial<LoadedForm<Shape>> = {}): LoadedForm<Shape> => ({
+    schema: v2,
+    registry,
+    initial,
+    ...over,
+  });
+
+  // Значение поля в SSR-разметке отделено от подписи разделителем `<!-- -->` (два текстовых
+  // ребёнка) — утверждения ищут значение вместе с ним, чтобы не спутать его с другим текстом.
+  it('строит форму из документа: поля, подформа и обёртка поля из реестра', () => {
+    const html = renderToString(<MountedForm<Shape> entry={v2Entry} loaded={loadedV2()} />);
+    expect(html).toContain('<!-- -->почта');
+    expect(html).toContain('<!-- -->Казань');
+    expect(html).toContain('data-wrapped="yes"');
+  });
+
+  it('проп model перекрывает фабрику модели и initial записи', () => {
+    const html = renderToString(
+      <MountedForm<Shape>
+        entry={v2Entry}
+        loaded={loadedV2({ makeModel: () => createModel<Shape>({ ...initial, email: 'фабрика' }) })}
+        model={createModel<Shape>({ ...initial, email: 'из-модели' })}
+      />
+    );
+    expect(html).toContain('<!-- -->из-модели');
+    expect(html).not.toContain('фабрика');
+    expect(html).not.toContain('<!-- -->почта');
+  });
+
+  it('фабрика модели записи перекрывает initial записи', () => {
+    const html = renderToString(
+      <MountedForm<Shape>
+        entry={v2Entry}
+        loaded={loadedV2({ makeModel: () => createModel<Shape>({ ...initial, email: 'фабрика' }) })}
+      />
+    );
+    expect(html).toContain('<!-- -->фабрика');
+  });
+
+  it('правила узлов из поведения записи исполняются: скрытый узел не рисуется', () => {
+    const behavior = defineFormBehavior<Shape>(({ model, schema }) => {
+      hideWhen(schema.node('secret'), () => model.email !== '');
+    });
+    const html = renderToString(
+      <MountedForm<Shape> entry={v2Entry} loaded={loadedV2({ behavior })} />
+    );
+    expect(html).toContain('<!-- -->почта');
+    expect(html).not.toContain('тайна');
+  });
+
+  it('фабрика поведения получает настройки места монтирования', () => {
+    const seen: Record<string, unknown>[] = [];
+    const factory = (options: Record<string, unknown>) => {
+      seen.push(options);
+      return defineFormBehavior<Shape>(({ schema }) => {
+        hideWhen(schema.node('secret'), () => options.hideSecret === true);
+      });
+    };
+    const html = renderToString(
+      <MountedForm<Shape>
+        entry={v2Entry}
+        loaded={loadedV2({ behavior: factory })}
+        behaviorOptions={{ hideSecret: true }}
+      />
+    );
+    expect(seen).toEqual([{ hideSecret: true }]);
+    expect(html).not.toContain('тайна');
+  });
+
+  it('прежнее имя пропа — renderBehaviorOptions — работает; без настроек фабрика получает {}', () => {
+    const seen: Record<string, unknown>[] = [];
+    const factory = (options: Record<string, unknown>) => {
+      seen.push(options);
+      return defineFormBehavior<Shape>(() => undefined);
+    };
+    renderToString(
+      <MountedForm<Shape>
+        entry={v2Entry}
+        loaded={loadedV2({ behavior: factory })}
+        renderBehaviorOptions={{ legacy: 1 }}
+      />
+    );
+    renderToString(<MountedForm<Shape> entry={v2Entry} loaded={loadedV2({ behavior: factory })} />);
+    expect(seen).toEqual([{ legacy: 1 }, {}]);
+  });
+
+  it('собранная валидация доступна из дерева через контекст сборки', () => {
+    const without = renderToString(<MountedForm<Shape> entry={v2Entry} loaded={loadedV2()} />);
+    expect(without).toContain('валидация:нет');
+
+    const withRules = renderToString(
+      <MountedForm<Shape>
+        entry={v2Entry}
+        loaded={loadedV2({ validation: { steps: { secret: null } } })}
+      />
+    );
+    expect(withRules).toContain('валидация:есть');
+  });
+
+  it('документ прежнего формата у записи единого контракта переводится и монтируется', async () => {
+    const v1 = {
+      root: {
+        component: '$component(Box)',
+        children: [{ value: '$model(email)', component: '$component(Input)' }],
+      },
+    } as never;
+    const loaded = await loadForm<Shape>(
+      {
+        id: 'a',
+        version: '1.0.0',
+        owner: 'test',
+        schema: { kind: 'inline', value: v1 },
+        initial: { kind: 'inline', value: initial },
+      } as FormEntry<Shape>,
+      registry
+    );
+    const html = renderToString(<MountedForm<Shape> entry={v2Entry} loaded={loaded} />);
+    expect(loaded.schema).toMatchObject({ format: 2 });
+    expect(html).toContain('<!-- -->почта');
   });
 });
 

@@ -2,7 +2,7 @@
  * Декларативный контракт схемы поведения формы — `@reformer/core/behaviors`.
  *
  * Свободные операторы (`compute`/`copyFrom`/`enableWhen`/`onChange`/…) вызываются внутри
- * `defineFormBehavior(({ model, form }) => { … })` и САМИ регистрируют свои отписки в ambient-стоке —
+ * `defineFormBehavior(({ model, form, schema }) => { … })` и САМИ регистрируют свои отписки в ambient-стоке —
  * автор схемы не видит ни массива `cleanups`, ни `.push`, ни вызовов через точку. Жизненным циклом
  * владеет форма (`createForm({ behavior })`). Операторы — тонкие обёртки над примитивами слоя данных
  * ({@link module:model/behaviors-value}); пользовательские операторы пишутся так же и неотличимы от встроенных.
@@ -45,3 +45,14 @@ export {
 
 // Операторы над массивами и под-моделями.
 export { applyEach, exclusiveFlag, aggregateInto, apply } from './collections';
+
+// Операторы над узлами схемы: записывают правило, исполняет его рендерер.
+export {
+  hideWhen,
+  onComponentEvent,
+  renderEffect,
+  onInit,
+  onMount,
+  onUnmount,
+} from './schema-operators';
+export type { SchemaScope, SchemaNodeControl } from '../schema-controller';

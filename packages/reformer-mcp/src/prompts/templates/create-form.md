@@ -11,145 +11,161 @@ You design and write a new form on `@reformer/*`.
 
 ⚠️ **If the discovery block above contains a question for the orchestrator** — STOP and return the question. Do NOT fall back to plain HTML / inline-style — that invalidates the MCP test.
 
+## The contract — the same for every target
+
+A form is described ONE way, whoever draws it: markup by hand in JSX (`core`), `FormRenderer` over a TS schema (`renderer-react`), `FormRenderer` over a JSON document (`renderer-json`). The targets differ only in the shape of the schema (a builder function or a document + registry) and in who draws the markup.
+
+| File                 | What it holds                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `model.ts`           | the data type, initial values, templates of new array rows (`arrayOf(blank)`); a factory over `createModel<T>` |
+| `form.schema.ts`     | ONE tree of nodes: a field sits right where it is drawn                                                       |
+| `form.validation.ts` | rules over the model (`defineValidationSchema`) — prompt `add-feature`, `feature: validation` |
+| `form.behavior.ts`   | the ONLY behavior: links over the model and rules for schema nodes — prompt `add-feature`, `feature: behavior` |
+| `index.tsx`          | the assembly: `createForm` + `useFormBundle` + whoever draws                                                  |
+
 ## Critical inline rules
 
-- **Architecture M1**: `createModel<T>(initialValues)` holds the data (source of truth); the schema binds each field to a model signal (`value: model.$.field`) plus `component` / `componentProps`. Wiring is ONE call — `createCoreForm` (ui-kit target), `createReactForm` (renderer-react) or `createJsonForm` (renderer-json) — which builds the model, the form and (when given) the validation in a single pass and returns a bundle. Values live in the model, never in a standalone form config.
-- **FormSchema only declarative — layout carries NO validators**: this prompt does NOT add validation/behavior. Under the split contract the layout schema has no `validators` key at all — validation is a **separate** `defineValidationSchema<T>(({ model }) => …)` run on demand by `validateModel(model, schema)` (from `@reformer/core/validation`), and behavior is `defineFormBehavior`. Produce those with `add-validation` / `add-behavior` separately; every leaf here stays pure layout (`{ value, component, componentProps }`). A `validators: [...]` array on a leaf is the old shape — do not emit it.
-- **Stable assembly hook, NOT `useMemo`**: wrap the factory in `useFormBundle` (`@reformer/core`; re-exported as `useReactForm` / `useJsonForm` by the renderer packages) — `useFormBundle(() => createCoreForm<T>({ initial, schema: buildSchema, behavior, validation }))`. It calls the factory exactly once via a lazy `useState`; `useMemo` is wrong here because React may drop its cache and rebuild the form, losing typed input. The schema is passed as a BUILDER (`(model) => …`), never a prebuilt tree — leaves hold the model's own signals, so the tree cannot exist before the model.
-- **FormField** (from `@reformer/ui-kit`) usage: `<FormField control={form.x} testId="step1.x" />`. NOT the cdk compound `FormField.Root/Label/Control/Error` for ordinary fields.
-- **Leaf node shape**: `{ value: model.$.field, component: Input, componentProps: {...} }`. `value` is the model signal (`model.$.field`, a `PathAwareSignal`) — obligatory. Never a plain string field name, never a bare value.
-- **Array shape**: `{ array: model.<path>, item: (itemModel) => subSchema, initialValue }` — `array` is the reactive model array (`model.items`, not `model.$.items`), `item` builds the sub-schema from the element's sub-model (`FormModel<Item>`, access fields via `itemModel.$.field`). NEVER `{ value: [], itemSchema: {...} }` (silent corruption). Array mutations (`push`/`removeAt`) run on the model (`model.items.push(...)`), not the form.
-- **`initialValue`** (new-element factory/value for the array's Add button): PLAIN leaf values only — a full plain object matching the element shape. Never a FieldConfig (`{ value, component }`) — silent runtime corruption.
-- **Conditional fields → Hide, not Disable**. Type/status conditional (loanType, employmentStatus) → JSX-conditional (`{model.loanType === 'mortgage' && <FormField control={form.propertyValue} />}`) for `core`; `hideWhen` / `setHidden` on render-schema nodes for renderers. Progressive disclosure (`confirmPassword` after `password`) → `enableWhen(model.$.confirmPassword, () => !!model.password)` behavior (out of scope here — flag it for `add-behavior`).
-- **Spec compliance — literal**: every spec field = separate FormSchema field with the same name and the same step. No merging, no skipping, no moving.
-- **testId convention**: dotted path (`step1.loanAmount`, `step2.passportData.series`), never bare leaf names — collisions inevitable across steps. **NEVER pre-prefix `input-` to the testId value** — renderer auto-prefixes when emitting `data-testid="input-${testId}"`. Pre-prefixed `testId: 'input-step1.X'` produces double-prefixed `data-testid="input-input-step1.X"` → playwright selectors that look for `[data-testid^="input-step1."]` silently miss every field.
-- **User-facing strings**: from spec or in the user's native language. No default English `"Select an option..."` placeholders.
-- **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`. (Applies in the separate validation layer — validator factories `required()/min()/…` come from `@reformer/core/validators` and live inside the `defineValidationSchema`, never on layout leaves.)
-- **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`). Sub-agents intuitively reach for the HTML attribute name — that spams `Warning: Invalid DOM property '<name>'. Did you mean '<camelCase>'?` on every render.
+- **The model is the source of truth**: `createModel<T>(initialValues)` holds the data; values never live in the schema. Export a factory (`export const createMyModel = () => createModel<MyForm>({ … })`) — one model per assembly.
+- **One schema, one binding key — `model`**. A node is bound to a part of the model by the key `model` and the handle `model.$.…`:
 
-- **Inside a RenderSchema (`target=renderer-react`) — a leaf carries the MODEL SIGNAL (`value: model.$.x`), NEVER the resolved `form.X` FieldNode.** Under M1 the render tree binds to the model, and the state-node (errors/disabled) is resolved by signal through the registry that `createForm` populates:
-  - Leaf = `{ value: model.$.x, component: Input, componentProps: {...} }`. `isModelFieldRenderNode` sees `value` is a signal → resolves the state node via `getNodeForSignal` at render. **This is the renderer flow contract.**
-  - Putting the FieldNode `form.X` (or a `component: form.X`) into a node is wrong — it is not a signal and not a container component → the node is **silently ignored** by the renderer. Form looks empty, no console error.
-  - **`RenderSchemaFn<T>` takes NO argument** — it is `() => RenderNode<T>`. The legacy `path`-proxy argument was removed. A step body / array-item / nested helper receives the **model** (or a sub-model signal group like `model.$.address`), never a `path` and never the resolved `form` instance.
+  | Node      | Shape                                                          | Told apart by                |
+  | --------- | -------------------------------------------------------------- | ---------------------------- |
+  | field     | `{ model: model.$.email, component: Input, componentProps }`   | has `model`, no `item`/`part` |
+  | array     | `{ model: model.$.items, component: FormArray, item: itemRow }` | `model` + `item`             |
+  | sub-form  | `{ model: model.$.address, part: address }`                    | `model` + `part`             |
+  | container | `{ component: Section, componentProps, children: [ … ] }`      | has `children`, no `model`   |
+
+  `model.$.…` is ALWAYS the binding handle — for a field, a group and an array alike. Without `$` you only read a value (`model.loanType === 'mortgage'`), mutate (`model.items.push()`) or pass a sub-model on. The keys `value:` and `array:` and the array facade `model.items` in a binding position are the former contract — ❌ do not emit them.
+
+- **The schema is a BUILDER**, never a prebuilt tree: `export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({ … })`. Nodes hold the model's own handles, so the tree cannot exist before the model. The builder takes ONE argument — there is no `(model, form?)` second parameter and nobody calls it twice.
+- **Sub-form = a part**, declared once, mounted wherever needed: `const address = (model: FormModel<Address>): FormSchemaNode => ({ component: Box, children: [{ model: model.$.city, component: Input }] })`, then `{ model: model.$.registrationAddress, part: address }` and `{ model: model.$.residenceAddress, part: address }`. Inside a part every path is relative to the sub-model it receives. A title for one particular place is an ordinary container around the node.
+- **Array of sub-forms**: `{ model: model.$.properties, component: FormArray, item: propertyRow }` — `item` is the same kind of part, built for every element. The template of a NEW element lives in the model: `properties: arrayOf(blankProperty)` (`arrayOf` from `@reformer/core`), so the node carries no `initialValue` and «Add» is `model.properties.push()` with no argument. `component` is required for add/remove/reorder UI — the renderer ships no array chrome; use `FormArray` (editable) or `List` (display-only) from `@reformer/ui-kit`. An array that is the VALUE of one field (multi-select `tags: []`) is an ordinary field node and needs no template.
+- **The schema carries NO validators**: a leaf `validators: [...]` array is the old shape — do not emit it. Validation is a separate `defineValidationSchema<T>(({ model }) => …)`; behavior is `defineFormBehavior<T>(({ model, form, schema }) => …)`. This prompt does NOT write them — use the prompt `add-feature` (`feature: validation` / `feature: behavior`); every node here stays pure description.
+- **ONE assembly — `createForm`** (`@reformer/core`), wrapped in `useFormBundle`: `useFormBundle(() => createForm<MyForm>({ model: createMyModel(), schema: formSchema, behavior, validation }))` → a bundle `{ model, form, validation?, render }`. `useFormBundle` runs the factory exactly once (a lazy `useState`); `useMemo` is ❌ wrong here — React may drop its cache and rebuild the form, losing typed input. `createCoreForm` / `createReactForm` / `createJsonForm` and the hooks `useReactForm` / `useJsonForm` are the former contract — ❌ do not emit them.
+- **Who draws**:
+  - `renderer-react` — `<FormRenderer form={bundle} settings=\{{ fieldWrapper: FormField }} />` (`FormRenderer` from `@reformer/renderer-react`, `FormField` from `@reformer/ui-kit`);
+  - `renderer-json` — `<FormRenderer form={bundle} />`: the field wrapper comes from the registry entry `FIELD_WRAPPER`;
+  - `core` — your own JSX over the same bundle: `<FormField control={bundle.form.email} testId="email" />`. NOT the cdk compound `FormField.Root/Label/Control/Error` for ordinary fields.
+- **Conditional fields → hide, not disable**. Type/status conditional (loanType, employmentStatus) → a rule for a schema node in `form.behavior.ts`: `hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage')` — so give that container a `selector: 'mortgage'` now. Node rules are executed by the renderer; for `core` the same condition is a JSX conditional (`{model.loanType === 'mortgage' && <FormField … />}`). Progressive disclosure (`confirmPassword` after `password`) → `enableWhen(model.$.confirmPassword, () => !!model.password)` — out of scope here, flag it for `add-feature` (`feature: behavior`).
+- **Wizard** — a library component as a schema node, steps are its children: `{ selector: 'wizard', component: FormWizard, children: [{ selector: 'loan', component: Step, componentProps: { title: 'Кредит' }, children: [ … ] }] }` (`FormWizard` from `@reformer/ui-kit`, `Step` from `@reformer/cdk/form-wizard`). The step `selector` is the key of that step's rules in `validation.steps`. The wizard takes the form and the validation from the assembly itself — there is no app shim, no `componentProps.steps`, no `onInit`/`patchProps` injection. Details: prompt `add-feature` (`feature: wizard`).
+- **Spec compliance — literal**: every spec field = a separate schema field with the same name and the same step. No merging, no skipping, no moving.
+- **testId convention**: dotted path (`step1.loanAmount`, `step2.passportData.series`), never bare leaf names — collisions inevitable across steps. **NEVER pre-prefix `input-` to the testId value** — the renderer auto-prefixes when emitting `data-testid="input-${testId}"`. Pre-prefixed `testId: 'input-step1.X'` produces double-prefixed `data-testid="input-input-step1.X"` → playwright selectors that look for `[data-testid^="input-step1."]` silently miss every field.
+- **User-facing strings**: from spec or in the user's native language. No default English `"Select an option..."` placeholders.
+- **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`. (Applies in the separate validation layer — validator factories `required()/min()/…` come from `@reformer/core/validators` and live inside the `defineValidationSchema`, never on schema nodes.)
+- **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`).
+- **A field node carries the MODEL HANDLE (`model: model.$.x`), NEVER the resolved `form.X` FieldNode.** The tree binds to the model; the state node (errors/disabled) is resolved by the handle. Putting `form.X` into a node is wrong — it is neither a handle nor a component, so the node is **silently ignored**: the form looks empty, no console error. A step body / array row / sub-form receives the **model** (or its sub-model), never a `path` and never the `form` instance.
 
   ```typescript
-  // ❌ silent fail — renderer ignores these nodes (FieldNodes, not signals)
-  function step1Body(form: FormProxy<MyForm>): RenderNode<MyForm> {
-    return {
-      component: Box,
-      children: [
-        { component: form.email }, // FieldNode — ignored
-        { component: form.password }, // FieldNode — ignored
-      ],
-    };
-  }
+  // ❌ silent fail — FieldNodes, not handles; the renderer ignores these nodes
+  const step = (form: FormProxy<MyForm>) => ({
+    component: Box,
+    children: [{ component: form.email }, { component: form.password }],
+  });
 
-  // ✅ correct — leaves carry model signals; the schema fn takes no argument
-  const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
-    return () => ({
-      component: Box,
-      children: [step1Body(m)],
-    });
-  };
-  function step1Body(m: ModelSignals<MyForm>): RenderNode<MyForm> {
-    return {
-      component: Box,
-      children: [
-        { value: model.$.email, component: Input }, // model signal — resolved at render
-        { value: model.$.password, component: InputPassword },
-      ],
-    };
-  }
-  const schema = createRenderSchema<MyForm>(buildSchema(model));
+  // ✅ correct — nodes carry model handles; the builder takes the model only
+  export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({
+    component: Box,
+    children: [
+      { model: model.$.email, component: Input, componentProps: { label: 'Email' } },
+      { model: model.$.password, component: InputPassword, componentProps: { label: 'Пароль' } },
+    ],
+  });
   ```
 
-  When a step body / array item / nested helper needs field references, pass the model (or a sub-model signal group `model.$.user`) — never the resolved `form` instance, never a `path`.
+- **All input-rendering `componentProps` (`label`, `placeholder`, `options`, `mask`, `rows`, anything the component reads) MUST live on the field node's `componentProps`**. Symptoms when a prop is dropped: `label` missing → the field renders without a label; `options` missing → `RadioGroupOptions` throws `TypeError: t.map is not a function` at mount, `SelectAsync` shows an empty dropdown; `placeholder` missing → the input shows nothing.
 
-- **All input-rendering `componentProps` (`label`, `placeholder`, `options`, `mask`, `rows`, `type`, anything the leaf component reads) MUST live on the leaf node's `componentProps`** — the same tree that `createForm` consumes. For `target=renderer-json` this means the props belong on the `JsonNode` leaf (`{ value: '$model(x)', component: '$component(Select)', componentProps: { label, options: '$dataSource(OPTS)' } }`); the converter binds them onto the model field. Symptoms when a prop is dropped from the field leaf:
-  - `label` missing → field renders without a label (visual-only, but breaks UX);
-  - `options` missing → `RadioGroup` throws `TypeError: t.map is not a function` at mount; `Select` shows an empty dropdown;
-  - `placeholder` missing → input shows nothing.
-    Practical recipe for `renderer-json`: register option arrays / label-fns / loading-components via `reg.dataSource('NAME', value)` in `registry.ts`, and reference them from the JSON leaf's `componentProps` by operator string `'$dataSource(NAME)'`.
-
-## If `target=renderer-json` — assemble with `createJsonForm` (M1)
-
-Under M1 the JSON schema is a pure-string operator DSL. Bindings are encoded as strings: `'$model(path)'` (field/array), `'$component(Name)'` (registry component), `'$dataSource(NAME)'` (registry value/fn). The **model** owns the data; `createJsonForm` converts that same JSON, builds the form and returns a bundle `{ model, form, schema, registry, validation?, renderBehavior? }`, which goes to the renderer as the single `form` prop. Boilerplate (copy verbatim into `index.tsx`):
+## The assembly — `index.tsx`
 
 {{{{raw}}}}
 
 ```tsx
-import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  createJsonForm,
-  useJsonForm,
-} from '@reformer/renderer-json';
-import { jsonSchema } from './form.schema'; // defineJsonSchema<MyForm>({ … }) — $model paths are type-checked
-import { createMyRegistry } from './registry';
-import { createMyModel } from './model';
+import { createForm, useFormBundle } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
+import { FormField } from '@reformer/ui-kit';
 import { formBehavior } from './form.behavior';
+import { formSchema } from './form.schema';
 import { formValidation } from './form.validation';
-import { createMyRenderBehavior } from './form.render';
+import { createMyModel, type MyForm } from './model';
 
 export function MyFormPage() {
-  // ONE call: model + form + registry + behavior + validation + render behavior.
-  // useJsonForm (lazy useState) runs the factory exactly once — never useMemo.
-  const jsonForm = useJsonForm(() =>
-    createJsonForm<MyForm>({
-      schema: jsonSchema,
-      registry: createMyRegistry(),
+  // ONE call: model + schema tree + form + behavior + validation.
+  // useFormBundle (lazy useState) runs the factory exactly once — never useMemo.
+  const bundle = useFormBundle(() =>
+    createForm<MyForm>({
       model: createMyModel(),
+      schema: formSchema, // renderer-json: the document, plus `registry`
       behavior: formBehavior,
       validation: formValidation,
-      renderBehavior: createMyRenderBehavior,
     })
   );
 
-  return (
-    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-      <JsonFormRenderer<MyForm> form={jsonForm} validateSchema={import.meta.env.DEV} />
-    </JsonRendererProvider>
-  );
-}
-```
-
-The schema file is **`form.schema.ts`** — a `defineJsonSchema<MyForm>({ … })` literal, so a typo inside `$model(...)` fails to compile. Keeping the same DSL as raw data in `form.schema.json` (`import raw from './form.schema.json'` + `as unknown as JsonFormSchema<MyForm>`) is an accepted variant, but it gives up `$model` path typing and nothing else catches a bad path. A wizard additionally needs an app shim registered as `$component(Wizard)` — `RendererFormWizard` is **not** a library export — in `wizard.tsx` or inline in `registry.ts`. Wizard steps stay inline or go one folder per step `steps/<slug>/` (`form.validation.ts`, `form.render.ts`, `form.schema.*`) with `steps/index.ts`. Full per-target file set: `find_recipe directory-layout`.
-
-Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, the assembled validation) are injected by the render-behavior factory,
- addressing the node by `selector`. The factory receives what the form assembly already produced — the form, the model and the built validation bundle (`{ validateStep, validateAll, … }`):
-
-```tsx
-import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core';
-
-export function createMyRenderBehavior(
-  form: FormProxy<MyForm>,
-  model: FormModel<MyForm>,
-  validation?: FormValidationBundle<MyForm>
-): RenderBehaviorFn<MyForm> {
-  return (schema) => {
-    onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, ...validation });
-    });
-  };
+  // renderer-react
+  return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;
+  // renderer-json:  <FormRenderer form={bundle} />
+  // core:           your JSX — <FormField control={bundle.form.email} />
 }
 ```
 
 {{{{/raw}}}}
 
-**Field references in JSON — `value: '$model(path)'` operator, NOT a bare string, NOT `selector`.** Three distinct concepts:
+## If `target=renderer-json` — the same tree as a document (format 2)
 
-- `value: '$model(loanAmount)'` — the actual field path in the model (no `stepN.` prefix; nested is `'$model(personalData.firstName)'`; inside an array `$template` the path is relative to the element, `'$model(type)'`). This is what the converter resolves to a model signal. A bare `value: 'loanAmount'` or `component: 'Input'` does **not** resolve.
-- `selector: 'unique-id'` — plain-string node id for `setHidden` / `hideWhen` / `patchProps` / `onInit` via `schema.node(selector)`. **Not** a model path.
-- `testId: 'step1.loanAmount'` — DOM testId convention (dotted path with `stepN.` prefix). Stays in `componentProps`, doesn't drive field resolution.
+The schema is a pure-string operator DSL: `'$model(path)'` (field/group/array), `'$component(Name)'` (registry component), `'$dataSource(NAME)'` (registry value), `'$fn(name)'` (registry function), `'$part(name)'` (a named part of the document). The document is turned into a tree by the registry: pass both to the SAME `createForm` — `createForm<MyForm>({ model, schema: formSchema, registry, behavior, validation })`.
 
 ```jsonc
-// ❌ silent fail — bare strings never resolve; selector is not a path
-{ "selector": "step1.loanAmount", "component": "Input",
-  "componentProps": { "testId": "step1.loanAmount" } }
+{
+  "format": 2,
+  "parts": {
+    // a sub-form and an array row are the same thing: a part that receives a sub-model
+    "address": {
+      "component": "$component(Box)",
+      "children": [{ "model": "$model(city)", "component": "$component(Input)" }],
+    },
+    "propertyRow": {
+      "component": "$component(Box)",
+      "children": [{ "model": "$model(type)", "component": "$component(Input)" }],
+    },
+  },
+  "root": {
+    "selector": "wizard",
+    "component": "$component(FormWizard)",
+    "children": [
+      {
+        "selector": "loan",
+        "component": "$component(Step)",
+        "componentProps": { "title": "Кредит" },
+        "children": [
+          {
+            "model": "$model(loanType)",
+            "component": "$component(SelectAsync)",
+            "componentProps": { "label": "Тип", "options": "$dataSource(LOAN_TYPES)" },
+          },
+          { "model": "$model(registrationAddress)", "part": "$part(address)" },
+          {
+            "model": "$model(properties)",
+            "component": "$component(FormArray)",
+            "item": "$part(propertyRow)",
+          },
+        ],
+      },
+    ],
+  },
+}
+```
 
-// ✅ correct — value carries the $model operator; component carries $component
-{ "value": "$model(loanAmount)", "component": "$component(InputNumber)",
+- The schema file is **`form.schema.ts`** — a `defineJsonSchema<MyForm>({ format: 2, … })` literal, so a typo inside `$model(...)` fails to compile. Keeping the same DSL as raw data in `form.schema.json` is an accepted variant, but it gives up `$model` path typing and nothing else catches a bad path.
+- `"format": 2` is required — a document without it is the former format (keys `value`/`array`, steps in `componentProps.steps`) and the assembly does not read it; `migrateJsonSchema(v1)` converts one.
+- Paths inside a part are relative to the sub-model of the place it is mounted at (`"$model(city)"`, not `"$model(registrationAddress.city)"`).
+- `registry.ts`: every `$component(Name)` is registered with `reg.component(Name, Component)` — including the library `FormWizard` and `Step`; `reg.component(FIELD_WRAPPER, FormField)` sets the field wrapper; option arrays go through `reg.dataSource('NAME', value)` and are referenced as `'$dataSource(NAME)'` — never inline arrays in JSON.
+- `selector` is a plain-string node id for `schema.node(selector)` in the behavior — **not** a model path. `testId` stays in `componentProps` and does not drive field resolution.
+- Check the document in dev explicitly: `validateFormSchema(document, { registry })` from `@reformer/renderer-json/validate` (load it with a dynamic `import()` so ajv stays out of the production bundle) and show `SchemaErrorPanel` when it reports errors.
+
+```jsonc
+// ❌ former contract — keys `value` / `array`, bare strings never resolve
+{ "value": "$model(loanAmount)", "component": "Input" }
+
+// ✅ the binding key is `model`; the component is an operator
+{ "model": "$model(loanAmount)", "component": "$component(InputNumber)",
   "componentProps": { "testId": "step1.loanAmount", "label": "Сумма кредита" } }
 ```
 
@@ -159,12 +175,11 @@ export function createMyRenderBehavior(
 
 ## Prerequisites — read these resources via ReadMcpResourceTool
 
-**You MUST read these BEFORE writing schema. Skipping = wrong imports / wrong layout / wrong shape.**
+**You MUST read these BEFORE writing the schema. Skipping = wrong imports / wrong layout / wrong shape.**
 
+- `find_recipe unified-contract` — the contract in one place
 - `reformer://docs/core/import-patterns`
 - `reformer://docs/core/quick-start-minimal-working-form`
-- `reformer://docs/core/formschema-format-critically-important`
-- `reformer://docs/core/array-schema-format`
 - `reformer://docs/core/common-patterns`
 - `reformer://docs/core/ui-component-patterns`
 - `reformer://docs/core/non-existent-api-do-not-use`
@@ -176,24 +191,27 @@ export function createMyRenderBehavior(
 ## Task
 
 1. Stage 0 — verify detected stack (above). If gap → ask, don't code.
-2. Design form structure from description (fields, types, groups, arrays, nested forms).
-3. Write typed `interface MyForm { ... }` and a model factory on `createModel<MyForm>(initialValues)`.
-4. Write the schema as a BUILDER over the model (`(model) => ({ value: model.$.field, component, componentProps })`), then assemble in ONE call wrapped in `useFormBundle`: `createCoreForm<MyForm>({ model, schema })` for ui-kit, `createReactForm<MyForm>({ model, schema })` for `renderer-react` (its builder takes `(model, form?)` and the factory calls it twice — you never do that by hand), `createJsonForm<MyForm>({ schema, registry, model })` for `renderer-json` (schema is JSON data + `defineRegistry`).
-5. Use components from detected ui-kit + Tailwind layout from skeleton above.
-6. Organize files per the directory layout: {{{layoutGuidance}}}
-7. Don't add validation/behaviors — out of scope.
+2. Design the form structure from the description (fields, types, groups, arrays, sub-forms, steps).
+3. Write the typed `type MyForm = { ... }` and a model factory over `createModel<MyForm>(…)`; arrays of sub-forms as `arrayOf(blankRow)`.
+4. Write the schema as a BUILDER over the model (`(model) => node`), with field nodes `{ model: model.$.field, component, componentProps }`, sub-forms as parts, arrays with `item`. For `renderer-json` — the same tree as a format-2 document plus `registry.ts`.
+5. Assemble in ONE call wrapped in `useFormBundle`: `createForm<MyForm>({ model, schema, behavior?, validation? })` (+ `registry` for `renderer-json`).
+6. Use components from the detected ui-kit + Tailwind layout from the skeleton above.
+7. Organize files per the directory layout: {{{layoutGuidance}}}
+8. Don't add validation/behaviors — out of scope. Give `selector` to every container a later rule will address.
 
 ## Output checklist
 
 - [ ] Прочитал все ресурсы из Prerequisites: yes/no
-- [ ] Model holds data; assembly is ONE call (`createCoreForm` / `createReactForm` / `createJsonForm`) wrapped in `useFormBundle` — no hand-rolled `createModel` + `createForm` + `useMemo` chain
+- [ ] Model holds data; assembly is ONE `createForm` call wrapped in `useFormBundle` — no `createCoreForm` / `createReactForm` / `createJsonForm`, no `useMemo`
 - [ ] Used ui-kit + Tailwind from detected stack (not plain HTML)
 - [ ] All spec fields included (walked the list)
-- [ ] Leaf node complete: `{ value: model.$.field, component, componentProps }` per field (`value` is the model signal, not a bare name)
-- [ ] Conditional fields hidden via JSX/`hideWhen`/`setHidden`, NOT `enableWhen`
+- [ ] Field node complete: `{ model: model.$.field, component, componentProps }` per field — the binding key is `model`, the value is a handle, not a bare name
+- [ ] Conditional containers have a `selector`; hiding is a behavior rule (`hideWhen`) or a JSX conditional, NOT `enableWhen`
 - [ ] testId = dotted-path
-- [ ] Array node = `{ array: model.<path>, item: (itemModel) => sub, initialValue }`; `item` binds `itemModel.$.field`; `initialValue` is a PLAIN element object
+- [ ] Array node = `{ model: model.$.<path>, component, item }`; the new-row template is `arrayOf(blank)` in the model, no `initialValue` on the node
+- [ ] Sub-forms are parts (`{ model, part }`), declared once
+- [ ] Wizard (if any) = library `FormWizard` node with steps in `children`; every step has a `selector`
 - [ ] User-facing strings localized from spec
-- [ ] `Select`/`RadioGroup` have `options` on the leaf's `componentProps` (for `renderer-json` via `'$dataSource(NAME)'`), never dropped
-- [ ] All `label` / `placeholder` / mask / rows / type / etc. live on the leaf node's `componentProps`
+- [ ] `SelectAsync`/`RadioGroupOptions` have `options` on the node's `componentProps` (for `renderer-json` via `'$dataSource(NAME)'`), never dropped
+- [ ] (`renderer-json`) the document has `"format": 2`; every `$component(...)` and `FIELD_WRAPPER` is registered
 - [ ] Final note: «использовал `@reformer/ui-kit` + Tailwind по detected стеку» (or reason why not)

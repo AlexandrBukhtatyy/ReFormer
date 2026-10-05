@@ -10,8 +10,16 @@
  * @module model/model-value-proxy
  */
 
-import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes';
-import { signalsProxy, resolveSignalAt } from './model-signals-proxy';
+import { Signal } from '@preact/signals-core';
+import { type ModelNode, GroupNode, ArrayNode, blankFrom, isIndexKey } from './model-nodes';
+import {
+  signalsProxy,
+  resolveSignalAt,
+  containerNodeOf,
+  isModelArraySignal,
+  isModelContainerSignal,
+} from './model-signals-proxy';
+import type { FormModel, ModelArray } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -33,13 +41,23 @@ function nodeValue(node: ModelNode | undefined): unknown {
   return node.read(); // лист — реактивное чтение (подписка в effect/computed)
 }
 
+// Кэш фасадов массивов → стабильная идентичность (`model.items === model.items`). На неё опираются
+// узел массива формы (ключ эффекта синхронизации), рендерер (зависимость хуков) и привязка по
+// идентичности — без кэша каждое обращение к массиву отдавало бы новый прокси.
+const arrayFacadeCache = new WeakMap<ArrayNode, any>();
+
+// Обратный поиск: фасад массива → узел модели. По нему фасад находит свою ручку `$` (`signalsOf`).
+const arrayByFacade = new WeakMap<object, ArrayNode>();
+
 function arrayValueProxy(arr: ArrayNode): any {
+  const cached = arrayFacadeCache.get(arr);
+  if (cached) return cached;
   const api = {
     get length(): number {
       return arr.items.value.length;
     },
-    push: (v: unknown) => arr.push(v),
-    insertAt: (i: number, v: unknown) => arr.insertAt(i, v),
+    push: (v?: unknown) => arr.push(v),
+    insertAt: (i: number, v?: unknown) => arr.insertAt(i, v),
     removeAt: (i: number) => arr.removeAt(i),
     move: (f: number, t: number) => arr.move(f, t),
     swap: (a: number, b: number) => arr.swap(a, b),
@@ -55,7 +73,7 @@ function arrayValueProxy(arr: ArrayNode): any {
       for (let i = 0; i < list.length; i++) yield nodeValue(list[i]);
     },
   };
-  return new Proxy(api, {
+  const proxy = new Proxy(api, {
     get: (target, key, recv) => {
       if (key === '__path') return arr.path;
       if (typeof key === 'string' && isIndexKey(key))
@@ -67,6 +85,9 @@ function arrayValueProxy(arr: ArrayNode): any {
       return Reflect.has(target, key);
     },
   });
+  arrayFacadeCache.set(arr, proxy);
+  arrayByFacade.set(proxy, arr);
+  return proxy;
 }
 // ============================================================================
 // Фасад FormModel
@@ -136,6 +157,125 @@ export function makeFormModel(group: GroupNode): any {
   facadeCache.set(group, proxy);
   rootByFacade.set(proxy, group);
   return proxy;
+}
+
+// ============================================================================
+// Ручка `$` ↔ value-фасад
+// ============================================================================
+
+/**
+ * Value-фасад для ручки {@link modelOf}: массив → {@link ModelArray}, объект → под-модель
+ * {@link FormModel}.
+ *
+ * @group Model
+ */
+export type ModelOf<V> =
+  NonNullable<V> extends ReadonlyArray<infer U> ? ModelArray<U> : FormModel<NonNullable<V>>;
+
+/**
+ * Value-фасад по ручке дерева `model.$`: группа → под-модель {@link FormModel}, массив →
+ * {@link ModelArray}. Обратная операция к `model.$`: `modelOf(model.$.address) === model.address`.
+ *
+ * Ручка находит фасад по ИДЕНТИЧНОСТИ, а не по пути. Путь для этого не годится: он абсолютный
+ * (`items.0.phones`) и меняется при перестановке строк, а области поведения и формы строк
+ * вложенные — поиск по пути от под-модели строки ничего не находит.
+ *
+ * Лист ручкой контейнера не является — функция бросает. В частности, группа или массив,
+ * созданные из начального `null`, в модели — лист: вид узла фиксируется при создании.
+ *
+ * @typeParam V - Значение, которое хранит ручка (выводится из `peek()`).
+ * @param handle - Узел-группа или узел-массив дерева `model.$`.
+ * @returns Под-модель группы либо фасад массива.
+ * @throws TypeError если `handle` — лист или не ручка модели.
+ *
+ * @example
+ * ```typescript
+ * const model = createModel({ address: { city: '' }, phones: [{ number: '' }] });
+ *
+ * modelOf(model.$.address).city = 'Казань'; // под-модель: чтение, запись, get/set/patch
+ * modelOf(model.$.phones).push({ number: '+7' }); // фасад массива: мутации и обход
+ * modelOf(model.$.phones[0]).number; // строка массива — тоже группа
+ * ```
+ *
+ * @group Model
+ */
+export function modelOf<V extends object | null | undefined>(handle: { peek(): V }): ModelOf<V> {
+  const node = containerNodeOf(handle);
+  if (!node) {
+    const path = (handle as { __path?: unknown } | null)?.__path;
+    const at = typeof path === 'string' && path !== '' ? ` «${path}»` : '';
+    throw new TypeError(
+      handle instanceof Signal
+        ? `[@reformer/core] modelOf: ручка${at} — лист, у него нет под-модели. Группа или массив, ` +
+            'созданные из начального null, в модели тоже лист: задайте начальное значение ' +
+            'объектом или массивом.'
+        : '[@reformer/core] modelOf: ожидалась ручка группы или массива из дерева model.$ ' +
+            '(например, model.$.address или model.$.items).'
+    );
+  }
+  return (node.kind === 'group' ? makeFormModel(node) : arrayValueProxy(node)) as ModelOf<V>;
+}
+
+/**
+ * Ручка `$` по value-фасаду: под-модель → её `model.$`, фасад массива → узел-массив дерева `$`.
+ * Для всего остального — `undefined`.
+ *
+ * @internal
+ */
+export function signalsOf(facade: unknown): object | undefined {
+  if (facade == null || typeof facade !== 'object') return undefined;
+  const array = arrayByFacade.get(facade);
+  if (array) return signalsProxy(array);
+  const group = rootByFacade.get(facade);
+  return group ? signalsProxy(group) : undefined;
+}
+
+/**
+ * Ручка массива по привязке: сама ручка `model.$.<массив>` либо value-фасад `model.<массив>`.
+ * Для всего остального — `undefined`.
+ *
+ * @internal
+ */
+export function arrayHandleOf(binding: unknown): object | undefined {
+  if (isModelArraySignal(binding)) return binding as object;
+  const handle = signalsOf(binding);
+  return isModelArraySignal(handle) ? handle : undefined;
+}
+
+/**
+ * Ручка группы по привязке: `model.$.<группа>` либо под-модель `model.<группа>`. Для всего
+ * остального — `undefined`.
+ *
+ * @internal
+ */
+export function groupHandleOf(binding: unknown): object | undefined {
+  const handle = isModelContainerSignal(binding) ? (binding as object) : signalsOf(binding);
+  return handle !== undefined && !isModelArraySignal(handle) ? handle : undefined;
+}
+
+/**
+ * Запасной шаблон нового элемента массива — `initialValue` узла-массива схемы. Действует, только
+ * если модель своего шаблона не объявила (`arrayOf`): так живут формы, чья модель строится из
+ * данных без кода.
+ *
+ * @internal
+ */
+export function provideArrayBlank(handle: unknown, initialValue: unknown): void {
+  const node = containerNodeOf(handle);
+  if (node?.kind === 'array') node.provideBlank(blankFrom(initialValue));
+}
+
+/**
+ * Value-фасад модели (под-модель или фасад массива), а не обычный объект?
+ *
+ * Обходчикам чужих деревьев (схема формы) в фасад спускаться нельзя: чтение его ключей — это
+ * реактивное чтение значений модели.
+ *
+ * @internal
+ */
+export function isModelFacade(value: unknown): boolean {
+  if (value == null || typeof value !== 'object') return false;
+  return arrayByFacade.has(value) || rootByFacade.has(value);
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

@@ -154,9 +154,9 @@ describe('validate_form kind=code', () => {
 
   it("Input + type: 'number' и FileUpload + variant — RF010", async () => {
     const code = [
-      "{ value: model.$.qty, component: Input, componentProps: { type: 'number' } },",
-      "{ value: '$model(scan)', component: '$component(FileUpload)', componentProps: { variant: 'dropzone' } },",
-      '{ value: model.$.qty, component: InputNumber },',
+      "{ model: model.$.qty, component: Input, componentProps: { type: 'number' } },",
+      "{ model: '$model(scan)', component: '$component(FileUpload)', componentProps: { variant: 'dropzone' } },",
+      '{ model: model.$.qty, component: InputNumber },',
     ].join('\n');
     const lines = (await validateCode(k, code)).diagnostics
       .filter((d) => d.code === 'RF010')

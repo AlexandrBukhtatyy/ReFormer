@@ -12,12 +12,12 @@
 ## Schema-driven (canonical pattern)
 
 Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
-componentProps }` → `createForm({ model, schema })`; правила — отдельной
+componentProps }` → `createFormFromModel({ model, schema })`; правила — отдельной
 `defineValidationSchema`. Объяви InputMask как `component` листа; передай `mask`
 в `componentProps`:
 
 ```ts
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 import { InputMask } from '@reformer/ui-kit';
@@ -68,7 +68,7 @@ const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
   validate(model.$.snils, [required()]);
 });
 
-const form = createForm<ContactForm>({ model, schema });
+const form = createFormFromModel<ContactForm>({ model, schema });
 ```
 
 Render как обычно через `FormField`:

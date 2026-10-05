@@ -44,7 +44,7 @@ export type CreateUserRequest = {
 `value` (сигнал модели), `component`, `componentProps` — и **валидаторов не несёт**:
 
 ```typescript title="form.schema.ts"
-import { createModel, createForm } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
 import { Input, InputNumber } from '@reformer/ui-kit';
 import type { CreateUserRequest } from './types';
 
@@ -74,7 +74,7 @@ const schema = {
   },
 };
 
-const form = createForm<CreateUserRequest>({ model, schema });
+const form = createFormFromModel<CreateUserRequest>({ model, schema });
 ```
 
 Ограничения из OpenAPI (`required`, `minLength`, `format: email`, `minimum`) переносятся в **отдельную

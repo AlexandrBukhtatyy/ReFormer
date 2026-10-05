@@ -20,7 +20,7 @@
  * @module plugins/reformer/editor/testing
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../core/catalog';
 import type {
   Disposable,

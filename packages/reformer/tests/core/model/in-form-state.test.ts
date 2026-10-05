@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createForm } from '../../../src/form/create-form';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import { enableWhen, disableWhen } from '../../../src/form/index';
 
@@ -25,7 +25,7 @@ const buildLoan = () => {
       { value: model.$.propertyValue, component: InputStub },
     ],
   };
-  const form = createForm<LoanForm>({ model, schema });
+  const form = createFormFromModel<LoanForm>({ model, schema });
   return { model, form };
 };
 

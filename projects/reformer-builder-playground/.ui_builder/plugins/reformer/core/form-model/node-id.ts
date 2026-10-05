@@ -43,7 +43,10 @@
  * @module plugins/reformer/core/form-model/node-id
  */
 
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type {
+  JsonFormSchemaV1 as JsonFormSchema,
+  JsonNodeV1 as JsonNode,
+} from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
 
 /** Идентификатор узла: ровно 8 символов base36 (`[0-9a-z]`). */

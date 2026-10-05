@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ArrayNode } from '../../../src/form/nodes/array-node';
 import { FieldNode } from '../../../src/form/nodes/field-node';
-import { createForm } from '../../../src/form/create-form';
+import { createLegacyForm } from '../../../src/form/create-form';
 import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -55,7 +55,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         age: { value: 0, component: null as ComponentInstance },
@@ -75,12 +75,12 @@ describe('FormNode - touchAll()', () => {
     });
 
     it('should be equivalent to markAsTouched', () => {
-      const form1 = createForm({
+      const form1 = createLegacyForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
 
-      const form2 = createForm({
+      const form2 = createLegacyForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
@@ -108,7 +108,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -227,7 +227,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<ComplexForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         user: {
           profile: {
             firstName: { value: '', component: null as ComponentInstance },
@@ -299,7 +299,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<LoginForm>;
 
     beforeEach(() => {
-      form = createForm({
+      form = createLegacyForm({
         email: {
           value: '',
           component: null as ComponentInstance,
@@ -370,7 +370,7 @@ describe('FormNode - touchAll()', () => {
 
   describe('Edge cases', () => {
     it('should work on empty GroupNode', () => {
-      const form = createForm({});
+      const form = createLegacyForm({});
 
       expect(() => form.touchAll()).not.toThrow();
     });
@@ -394,7 +394,7 @@ describe('FormNode - touchAll()', () => {
         };
       }
 
-      const form = createForm<Form>({
+      const form = createLegacyForm<Form>({
         section1: {
           field1: { value: '', component: null as ComponentInstance },
           field2: { value: '', component: null as ComponentInstance },
