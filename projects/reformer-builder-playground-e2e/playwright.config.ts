@@ -31,6 +31,8 @@ const BASE_URL = EXTERNAL_BASE_URL || `http://localhost:${PORT}`;
  */
 export default defineConfig({
   testDir: './tests',
+  /* Плагины playground — пакеты со сборкой: билдер грузит её, поэтому она делается до тестов. */
+  globalSetup: './tests/shared/global-setup.ts',
   /* Тесты независимы: у каждого свой контекст браузера, а значит свои OPFS и IndexedDB. */
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

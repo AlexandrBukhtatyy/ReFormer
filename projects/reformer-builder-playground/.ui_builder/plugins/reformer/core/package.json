@@ -1,0 +1,22 @@
+{
+  "name": "@reformer/builder-reformer-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ядро домена ReFormer билдера: модель схемы формы, каталог компонентов, кодогенерация, фикстуры и моки. Не плагин — вкладывается в сборку плагинов домена",
+  "scripts": {
+    "test": "node ../../../../../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-toolkit": "*",
+    "@reformer/core": "*",
+    "@reformer/mcp": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/ui-kit": "*",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

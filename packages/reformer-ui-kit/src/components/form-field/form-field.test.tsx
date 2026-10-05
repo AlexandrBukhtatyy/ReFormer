@@ -172,6 +172,61 @@ describe('FormField — shadcn Field поверх @reformer/cdk', () => {
     });
   });
 
+  describe('direction — подпись над контролом (col) или слева от него (row)', () => {
+    const field = (extra: Record<string, unknown> = {}) =>
+      buildField({ label: 'Email', testId: 'email', ...extra });
+    /** Открывающий тег корневого `Field`. */
+    const root = (html: string) => html.match(/<div[^>]*data-slot="field"[^>]*>/)?.[0] ?? '';
+
+    it('по умолчанию col: DOM прежний — вертикальный Field без классов ряда', () => {
+      const plain = renderToStaticMarkup(<FormField control={field()} />);
+      expect(renderToStaticMarkup(<FormField control={field()} direction="col" />)).toBe(plain);
+      expect(root(plain)).toContain('data-orientation="vertical"');
+      expect(root(plain)).toContain('flex-col');
+      expect(root(plain)).not.toContain('flex-row');
+    });
+
+    it('row: горизонтальный Field, подпись по базовой линии контрола и не растягивается', () => {
+      const tag = root(renderToStaticMarkup(<FormField control={field()} direction="row" />));
+      expect(tag).toContain('data-orientation="horizontal"');
+      expect(tag).toContain('flex-row');
+      expect(tag).not.toContain('flex-col');
+      // Поправки перекрывают классы shadcn-варианта, а не дописываются рядом с ними.
+      expect(tag).toContain('has-[&gt;[data-slot=field-content]]:items-baseline');
+      expect(tag).not.toContain('items-start');
+      expect(tag).toContain('[&amp;&gt;[data-slot=field-label]]:flex-none');
+      expect(tag).not.toContain('flex-auto');
+    });
+
+    it('row: в ряду только подпись и колонка контрола — описание и ошибка остаются под ним', () => {
+      const html = renderToStaticMarkup(
+        <FormField control={field({ description: 'Не передаём третьим лицам' })} direction="row" />
+      );
+      const content = html.indexOf('data-slot="field-content"');
+      expect(html.indexOf('data-testid="label-email"')).toBeLessThan(content);
+      expect(html.indexOf('<input')).toBeGreaterThan(content);
+      expect(html.indexOf('data-slot="field-description"')).toBeGreaterThan(html.indexOf('<input'));
+    });
+
+    it('row + labelTooltip: слева ряд подписи с иконкой, тоже ограниченный половиной ширины', () => {
+      const html = renderToStaticMarkup(
+        <FormField control={field({ labelTooltip: 'Нужен для чеков' })} direction="row" />
+      );
+      expect(root(html)).toContain('[&amp;&gt;[data-slot=field-label-row]]:max-w-1/2');
+      expect(html.indexOf('data-slot="field-label-row"')).toBeLessThan(
+        html.indexOf('data-slot="field-content"')
+      );
+    });
+
+    it('row: className потребителя остаётся последним словом', () => {
+      const tag = root(
+        renderToStaticMarkup(<FormField control={field()} direction="row" className="gap-6" />)
+      );
+      expect(tag).toContain('gap-6');
+      expect(tag).not.toContain('gap-3');
+    });
+  });
+
   it('testId падает на componentProps.testId для input-<id>', () => {
     const html = renderToStaticMarkup(
       <FormField control={buildField({ label: 'X', testId: 'custom' })} />

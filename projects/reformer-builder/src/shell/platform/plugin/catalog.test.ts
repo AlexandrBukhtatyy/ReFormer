@@ -955,3 +955,199 @@ describe('слой установленных из npm', () => {
     expect(entry !== undefined && 'shadowed' in entry).toBe(false);
   });
 });
+
+describe('граф модулей плагина выгружается вместе с плагином', () => {
+  /**
+   * Каталог над загрузчиком, у которого видно, какие графы выгружены.
+   *
+   * Настоящий загрузчик отдаёт `dispose` графа модулей; здесь он подменён счётчиком — проверяется
+   * не сама выгрузка (она в `modules/loader.test`), а то, что каталог зовёт её вовремя.
+   */
+  function graphStand(code: string = contributingPlugin('acme', 'Панель')) {
+    const memory = createMemorySource({
+      [dir('acme', 'manifest.json')]: manifestOf('acme'),
+      [dir('acme', 'main.js')]: code,
+    });
+    const source: Source = {
+      ...memory,
+      capabilities: { ...memory.capabilities, executesCode: true },
+    };
+    const plugins = createPluginRegistry({
+      services: createServiceRegistry(),
+      extensions: createExtensionRegistry(),
+      commands: createCommandRegistry(),
+      events: createEventBus(),
+      storage: createMemoryStorageBackend(),
+      onError: vi.fn(),
+    });
+    const inner = createPluginLoader({
+      source: () => source,
+      modules: createModuleLoader({ builtins: [['@builder/sdk', { definePlugin, PanelPoint }]] }),
+    });
+    /** Выгрузки по порядку загрузок: `released[0]` — граф первой загрузки. */
+    const released: boolean[] = [];
+    const catalog = createProjectPluginCatalog({
+      loader: {
+        dir: inner.dir,
+        discover: () => inner.discover(),
+        load: async (found) => {
+          const result = await inner.load(found);
+          if (!result.ok) return result;
+          const at = released.push(false) - 1;
+          return {
+            ok: true,
+            loaded: {
+              ...result.loaded,
+              dispose: () => {
+                released[at] = true;
+              },
+            },
+          };
+        },
+      },
+      plugins,
+      enabled: createStore(),
+      onProblem: vi.fn(),
+    });
+    return { catalog, released, plugins };
+  }
+
+  it('выключение выгружает граф: отложенное чтение плагина исполнять уже некому', async () => {
+    const { catalog, released } = graphStand();
+    await catalog.refresh();
+    await catalog.enable('acme');
+    expect(released).toEqual([false]);
+
+    catalog.disable('acme');
+
+    expect(released).toEqual([true]);
+  });
+
+  it('перезагрузка выгружает граф прежнего экземпляра, а новый оставляет', async () => {
+    const { catalog, released } = graphStand();
+    await catalog.refresh();
+    await catalog.enable('acme');
+
+    await catalog.reload('acme');
+
+    expect(released).toEqual([true, false]);
+  });
+
+  it('плагин не активировался — его граф выгружен сразу', async () => {
+    const { catalog, released } = graphStand(`
+      const { definePlugin } = require('@builder/sdk');
+      module.exports = definePlugin({
+        id: 'acme',
+        activate() { throw new Error('не поднялся'); },
+      });
+    `);
+    await catalog.refresh();
+
+    expect(await catalog.enable('acme')).toBe(false);
+    expect(released).toEqual([true]);
+  });
+
+  it('снятие всех плагинов (закрытие проекта) выгружает их графы', async () => {
+    const { catalog, released } = graphStand();
+    await catalog.refresh();
+    await catalog.enable('acme');
+
+    catalog.deactivateAll();
+
+    expect(released).toEqual([true]);
+  });
+});
+
+describe('дочитка отложенного кода работающих плагинов', () => {
+  /** Каталог над загрузчиком, который записывает, чей отложенный код просили дочитать. */
+  function preloadStand(failing: readonly string[] = []) {
+    const files: Record<string, string> = {};
+    for (const id of ['alpha', 'beta', 'gamma']) {
+      files[dir(id, 'manifest.json')] = manifestOf(id);
+      files[dir(id, 'main.js')] = contributingPlugin(id, id);
+    }
+    const memory = createMemorySource(files);
+    const source: Source = {
+      ...memory,
+      capabilities: { ...memory.capabilities, executesCode: true },
+    };
+    const inner = createPluginLoader({
+      source: () => source,
+      modules: createModuleLoader({ builtins: [['@builder/sdk', { definePlugin, PanelPoint }]] }),
+    });
+    const order: string[] = [];
+    let running = 0;
+    let overlapped = false;
+    const catalog = createProjectPluginCatalog({
+      loader: {
+        dir: inner.dir,
+        discover: () => inner.discover(),
+        load: async (found) => {
+          const result = await inner.load(found);
+          if (!result.ok) return result;
+          return {
+            ok: true,
+            loaded: {
+              ...result.loaded,
+              preload: async () => {
+                running += 1;
+                overlapped ||= running > 1;
+                order.push(found.id);
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                running -= 1;
+                if (failing.includes(found.id)) throw new Error('нет сети');
+              },
+            },
+          };
+        },
+      },
+      plugins: createPluginRegistry({
+        services: createServiceRegistry(),
+        extensions: createExtensionRegistry(),
+        commands: createCommandRegistry(),
+        events: createEventBus(),
+        storage: createMemoryStorageBackend(),
+        onError: vi.fn(),
+      }),
+      enabled: createStore(),
+      onProblem: vi.fn(),
+    });
+    return { catalog, order, overlapped: () => overlapped };
+  }
+
+  it('дочитывает работающие плагины по одному, в порядке включения', async () => {
+    const { catalog, order, overlapped } = preloadStand();
+    await catalog.refresh();
+    await catalog.enable('beta');
+    await catalog.enable('alpha');
+
+    await catalog.preloadDeferred();
+
+    // «gamma» найден, но не включён: его код не исполнялся, и дочитывать за него нечего.
+    expect(order).toEqual(['beta', 'alpha']);
+    expect(overlapped()).toBe(false);
+  });
+
+  it('отказ дочитки одного плагина молчит и остальных не останавливает', async () => {
+    const { catalog, order } = preloadStand(['alpha']);
+    await catalog.refresh();
+    await catalog.enable('alpha');
+    await catalog.enable('beta');
+
+    await expect(catalog.preloadDeferred()).resolves.toBeUndefined();
+
+    expect(order).toEqual(['alpha', 'beta']);
+  });
+
+  it('выключенный плагин из очереди дочитки выбывает', async () => {
+    const { catalog, order } = preloadStand();
+    await catalog.refresh();
+    await catalog.enable('alpha');
+    await catalog.enable('beta');
+
+    catalog.disable('alpha');
+    await catalog.preloadDeferred();
+
+    expect(order).toEqual(['beta']);
+  });
+});

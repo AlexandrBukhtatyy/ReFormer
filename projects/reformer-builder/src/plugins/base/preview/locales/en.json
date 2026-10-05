@@ -1,4 +1,0 @@
-{
-  "refusal.source-forbids-code": "The source does not allow executing its code, so form sidecars are not compiled.",
-  "refusal.source-unknown": "The document source is unknown: executing code is refused until a project is open."
-}

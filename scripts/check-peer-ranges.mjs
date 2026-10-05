@@ -35,8 +35,12 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Где искать пакеты: каждый каталог с package.json. */
-const ROOTS = ['packages', 'packages/ui-kits', 'projects'];
+/**
+ * Где искать пакеты: каждый каталог с package.json. Плагины проекта-образца лежат и прямо
+ * в каталоге плагинов, и на уровень глубже — в каталогах доменов (`reformer/editor`).
+ */
+const PLUGINS = 'projects/reformer-builder-playground/.ui_builder/plugins';
+const ROOTS = ['packages', 'projects', PLUGINS, `${PLUGINS}/reformer`, `${PLUGINS}/rjsf`];
 
 /** Свои пакеты — правило 2, все остальные — правило 1. */
 const isInternal = (name) => name.startsWith('@reformer/');

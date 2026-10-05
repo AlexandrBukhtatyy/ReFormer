@@ -1,0 +1,21 @@
+{
+  "command.openProject": "Open folder…",
+  "command.save": "Save",
+  "command.saveAll": "Save all",
+  "command.openRecent": "Open Recent Project…",
+  "command.clearRecent": "Clear Recently Opened…",
+  "menu.recent": "Open Recent",
+  "menu.recent.more": "More…",
+  "recent.pick.title": "Recently opened projects",
+  "recent.pick.placeholder": "Project name…",
+  "recent.pick.empty": "No recent projects: folders you open will show up here.",
+  "recent.pick.remove": "Remove from Recently Opened",
+  "recent.clear.title": "Clear the list of recent projects?",
+  "recent.clear.description": "Only the list entries go away: working copies and unsaved changes stay.",
+  "recent.clear.confirm": "Clear",
+  "welcome.title": "Get Started",
+  "welcome.start": "Start",
+  "welcome.recent": "Recent",
+  "welcome.recent.empty": "No recent projects yet — folders you open will show up here.",
+  "welcome.unsupported": "This browser cannot open local directories — use Chrome or Edge."
+}

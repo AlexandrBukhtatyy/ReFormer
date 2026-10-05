@@ -77,6 +77,14 @@ export interface WorkspaceFilesService {
   /** Текст ресурса из рабочей копии; `null` — нет проекта, нет ресурса или он не читается текстом. */
   readText(id: ResourceId): Promise<string | null>;
   /**
+   * Байты ресурса из рабочей копии; `null` — такого ресурса нет.
+   *
+   * Байты, а не текст: картинка в проекте — `.png`, и чтение её текстом портит содержимое
+   * молча. Отсутствие файла отказом не выражается — для показа это обычный случай (опечатка
+   * в ссылке), а не сбой.
+   */
+  readBytes(id: ResourceId): Promise<Uint8Array | null>;
+  /**
    * Примет ли ИСТОЧНИК этого ресурса запись. Без проекта — `false`.
    *
    * Не то же, что «есть ли право у плагина»: право одно на всех и выражено самой дверью
@@ -123,7 +131,7 @@ export interface WorkspaceFilesService {
  * который собирала оболочка. Растит её тот, кто интерфейс меняет.
  */
 export const WorkspaceFilesCapability: Capability<WorkspaceFilesService> =
-  defineCapability<WorkspaceFilesService>({ id: 'reformer.workspace.files', version: '1.1.0' });
+  defineCapability<WorkspaceFilesService>({ id: 'reformer.workspace.files', version: '1.2.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const WorkspaceFilesServiceToken = WorkspaceFilesCapability;

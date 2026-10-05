@@ -1,0 +1,18 @@
+{
+  "root": "../reformer-builder-playground/.ui_builder/plugins",
+  "plugins": [
+    "base/files",
+    "base/monaco-editor",
+    "base/markdown-editor",
+    "forms/kits",
+    "forms/preview",
+    "reformer/editor",
+    "reformer/render",
+    "reformer/validator",
+    "reformer/codegen",
+    "reformer/templates",
+    "reformer/ai",
+    "rjsf/editor",
+    "rjsf/render"
+  ]
+}

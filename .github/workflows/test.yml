@@ -152,9 +152,10 @@ jobs:
         run: npm run test -w @reformer/builder-plugin-api
 
       # toolkit — нейтральные помощники печати стеков (Eta, маркер, имена). Предметный код
-      # доменов живёт ядрами внутри билдера (`src/plugins/<домен>/core`) и проверяется его
-      # тестами. Билдер резолвит toolkit в исходники и его dist не ждёт, но «Dist deps ↔ manifest»
-      # и «Exports ↔ dist» ниже сканируют dist/ всех packages/*.
+      # доменов живёт ядрами в каталоге плагинов проекта-образца (`.ui_builder/plugins/<домен>/core`)
+      # и проверяется тестами своих пакетов — шаг «Тесты доменов-плагинов» ниже. Сборка плагина
+      # вкладывает toolkit в `main.js` по его dist, а «Dist deps ↔ manifest» и «Exports ↔ dist»
+      # ниже сканируют dist/ всех packages/*.
       - name: Build @reformer/builder-toolkit
         run: npm run build -w @reformer/builder-toolkit
 
@@ -176,26 +177,57 @@ jobs:
         run: npm run test -w @reformer/kit-hexa-ui
 
       - name: Build @reformer/kit-hexa-ui builder plugin
-        run: npm run plugin:build -w @reformer/kit-hexa-ui
+        run: npm run build:dist -w @reformer/kit-hexa-ui
 
-      # Тема RJSF из кита — рантайм домена rjsf билдера (приватный пакет). Билдер резолвит её в
-      # исходники и dist не ждёт, но «Dist deps ↔ manifest» и «Exports ↔ dist» ниже сканируют
-      # dist/ всех packages/*. Идёт после @reformer/core: тема берёт адаптеры полей из его dist.
+      # Тема RJSF из кита — рантайм домена rjsf (приватный пакет). Плагин `reformer.rjsf.render`
+      # вкладывает её в свою сборку и находит по dist — поэтому идёт ДО сборки плагинов; его же
+      # сканируют «Dist deps ↔ manifest» и «Exports ↔ dist» ниже. Идёт после @reformer/core: тема
+      # берёт адаптеры полей из его dist.
       - name: Build @reformer/rjsf-kit-theme
         run: npm run build -w @reformer/rjsf-kit-theme
 
       - name: Run @reformer/rjsf-kit-theme tests
         run: npm run test -w @reformer/rjsf-kit-theme
 
+      # Основа (домен base: дерево файлов), платформа форм (домен forms: киты, превью-хост)
+      # и движки форм (домены reformer и rjsf) — плагины проекта-образца билдера, по пакету на плагин
+      # (`.ui_builder/plugins/<домен>/<плагин>`). Собираются тем же CLI, что у автора плагина, —
+      # на место, в корень каталога плагина: оттуда их грузит билдер. Сборке нужны dist контракта,
+      # CLI, toolkit, темы RJSF и @reformer/mcp: плагин ИИ первым делом гонит `generate:knowledge`,
+      # а тот берёт список пакетов и версию формата из `dist/core` самого MCP.
+      - name: Сборка плагинов проекта-образца
+        run: npm run plugins:build -w reformer-builder-playground
+
+      - name: Тесты доменов-плагинов
+        # Юниты плагинов и ядер доменов, плюс `integration/` — проверки собранного приложения с этими
+        # плагинами в составе. Здесь же живёт храповик `TOOL_SURFACE_BUDGET` плагина ИИ
+        # (reformer/ai/src/model/types.ts, тест reformer/ai/src/tools/tool-surface.test.ts): поверхность
+        # инструментов уходит в запрос модели на каждом шаге хода, её рост стоит токенов в каждом
+        # ходе каждого пользователя. Идёт ПОСЛЕ сборки плагинов: корпус знаний, который читают
+        # тесты плагина ИИ, появляется на диске только после `generate:knowledge`.
+        run: >-
+          npm run test
+          -w projects/reformer-builder-playground/.ui_builder/plugins/base
+          -w projects/reformer-builder-playground/.ui_builder/plugins/forms
+          -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
+          -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 
+      - name: Плагины приложения — рядом со сборкой билдера
+        # Платформа форм и движки едут вместе с билдером слоем «плагины приложения»: сборки пакетов для
+        # поставки (`build:dist`) складываются в `dist/plugins/` с индексом, по которому оболочка
+        # их находит. Тот же шаг делают release.yml и deploy-docs.yml; здесь он проверяет, что
+        # набор из `application-plugins.json` собирается, — иначе о несобранном плагине узнал бы
+        # только релиз. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
+        run: |
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
+
       - name: Run @reformer/builder tests
-        # Юниты билдера в CI не гонялись вовсе, и это оставляло без охраны храповик
-        # `TOOL_SURFACE_BUDGET` (src/plugins/reformer/ai/model/types.ts, тест src/plugins/reformer/ai/tools/
-        # tool-surface.test.ts): поверхность инструментов уходит в запрос модели на каждом шаге
-        # хода, её рост стоит токенов в каждом ходе каждого пользователя. Требует собранного
-        # @reformer/mcp — билдер берёт оттуда ядро знаний.
+        # Оболочка, основа конструктора и киты. Движков форм в составе билдера нет — их тесты
+        # шагом выше.
         run: npm run test -w @reformer/builder
 
       - name: MCP packaging smoke
@@ -258,6 +290,9 @@ jobs:
         # and the shared utils chunk — if the vite `external` predicate ever stops
         # excluding a heavy dep, its subpath balloons and this step goes red.
         # @size-limit/file measures brotli and does NOT follow imports.
+        # Последние три записи — плагин ИИ проекта-образца: его `main.js` и корпус знаний,
+        # который сборка выносит модулями данных в `chunks/`. Рост корпуса виден только здесь.
+        # Файлы появляются на шаге «Сборка плагинов проекта-образца» выше.
         run: npm run size
 
       - name: Check generated form-schema is up to date

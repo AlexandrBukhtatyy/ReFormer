@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import {
   emptyStateOf,
+  mergePluginLayers,
   settingsCardStateOf,
   toRows,
   type PluginCatalogEntry,
@@ -138,6 +139,53 @@ describe('чем раздел заменяет список', () => {
 
   it('есть что показать — заменять нечем', () => {
     expect(emptyStateOf(port([entry({ id: 'a' })]))).toBeNull();
+  });
+
+  it('проекта нет, а плагины приложения есть — показан список', () => {
+    // Плагины приложения работают и без проекта: «проект не открыт» скрыло бы их.
+    const files = entry({ id: 'files', state: 'enabled', layer: 'application' });
+
+    expect(emptyStateOf(port([files], { hasProject: false }))).toBeNull();
+  });
+});
+
+describe('плагины приложения в списке', () => {
+  it('строкой приложения управлять нельзя: ни выключить, ни перезагрузить', () => {
+    const [row] = toRows([entry({ id: 'files', state: 'enabled', layer: 'application' })]);
+
+    expect(row).toMatchObject({ on: true, locked: true, canReload: false, layer: 'application' });
+    // Плагин проекта остаётся управляемым.
+    expect(toRows([entry({ id: 'acme', state: 'enabled', layer: 'project' })])[0]).toMatchObject({
+      locked: false,
+      canReload: true,
+    });
+  });
+
+  it('два каталога дают один список: сначала приложение, затем проект', () => {
+    const merged = mergePluginLayers(
+      [entry({ id: 'files', layer: 'application', state: 'enabled' })],
+      [entry({ id: 'acme', layer: 'project' })]
+    );
+
+    expect(merged.map((item) => `${item.layer}:${item.id}`)).toEqual([
+      'application:files',
+      'project:acme',
+    ]);
+  });
+
+  it('копия плагина приложения из проекта — не вторая строка, а пометка на первой', () => {
+    const merged = mergePluginLayers(
+      [entry({ id: 'files', layer: 'application', state: 'enabled' })],
+      [
+        entry({ id: 'files', layer: 'project', overridden: 'application' }),
+        entry({ id: 'acme', layer: 'project' }),
+      ]
+    );
+
+    expect(merged.map((item) => item.id)).toEqual(['files', 'acme']);
+    // Без пометки человек правил бы файлы плагина в проекте, не понимая, почему правки не видны.
+    expect(merged[0]).toMatchObject({ layer: 'application', shadowed: 'project' });
+    expect(merged[1]).not.toHaveProperty('shadowed');
   });
 });
 

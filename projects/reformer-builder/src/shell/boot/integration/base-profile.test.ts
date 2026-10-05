@@ -5,9 +5,10 @@
  * `extends: 'builder.base'`, и если основа без стека ReFormer не встаёт — второй стек начинался
  * бы с правки основы. Проверяется настоящий `boot` с настоящими портами и службами.
  *
- * Превью-хост в основе ЕСТЬ, а поверхностей нет: чем рисовать схему — знание стека. Живой вид
- * при этом существует и честно отвечает «показывать нечем», а не отсутствует — редактор
- * другого стека найдёт его и внесёт свою поверхность.
+ * Платформы форм в основе НЕТ вовсе: ни китов, ни превью-хоста — они плагины приложения
+ * (домен `forms` образца). Живой вид поэтому отсутствует, и редактор стека обязан пережить
+ * это как названную деградацию; что он получает, когда платформа форм есть, проверяет стенд
+ * домена (`forms/integration/forms-platform.test`).
  *
  * @module shell/boot/integration/base-profile.test
  */
@@ -63,12 +64,9 @@ describe('boot на профиле builder.base', () => {
 
     const statuses = started.plugins.statuses();
     expect(statuses.map((s) => s.id).sort()).toEqual([
-      'reformer.editor-markdown',
-      'reformer.editor-monaco',
-      'reformer.files',
       'reformer.plugin-manager',
-      'reformer.preview',
-      'reformer.stack-switch',
+      'reformer.profile-switch',
+      'reformer.project',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });
@@ -81,19 +79,17 @@ describe('boot на профиле builder.base', () => {
     expect(owners(PreviewSurfacePoint)).toEqual([]);
     expect(owners(DocumentModelPoint)).toEqual([]);
     expect(owners(ValidatorPoint)).toEqual([]);
-    // Панель модели формы — вклад стека; у основы панели только свои: дерево файлов и ячейка
-    // переключателя сочетаний в строке состояния.
-    expect(owners(PanelPoint)).toEqual(['reformer.files', 'reformer.stack-switch']);
-    expect(owners(EditorPoint)).toEqual([
-      'reformer.editor-markdown',
-      'reformer.editor-monaco',
-      'reformer.files',
-    ]);
+    // Панель модели формы — вклад стека; у основы панели только свои: ячейка выбора профиля
+    // в строке состояния и стартовая страница. Дерево файлов и панель проблем — плагин приложения.
+    expect(owners(PanelPoint)).toEqual(['reformer.profile-switch', 'reformer.project']);
+    // Редакторов в основе нет: редактор кода — плагин приложения, как дерево файлов.
+    expect(owners(EditorPoint)).toEqual([]);
   });
 
-  it('живой вид есть и честно говорит, что показывать нечем', async () => {
+  it('живого вида в основе нет: превью-хост — плагин приложения, а не встроенный', async () => {
     const started = await start();
-    // Спрашивает ПЛАГИН — тем же путём, каким спросит редактор другого стека.
+    // Спрашивает ПЛАГИН — тем же путём, каким спросит редактор стека: возможность
+    // необязательная, и её отсутствие — названная деградация, а не отказ.
     let live: PreviewLiveService | undefined;
     started.plugins.register(
       definePlugin({
@@ -106,8 +102,6 @@ describe('boot на профиле builder.base', () => {
     );
     expect(started.plugins.activate('probe')).toBe(true);
 
-    expect(live).toBeDefined();
-    expect(live?.available()).toBe(false);
-    expect(live?.chosen('mem:form.json')).toBeNull();
+    expect(live).toBeUndefined();
   });
 });

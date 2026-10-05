@@ -50,6 +50,7 @@ import {
 import type { ComposedModule } from './composition';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import * as sdk from '@reformer/builder-plugin-api';
+import * as sdkTooling from '@reformer/builder-plugin-api/tooling';
 
 /**
  * Собственные модули оболочки: то, без чего не соберётся ни плагин, ни `.tsx` формы.
@@ -62,6 +63,10 @@ import * as sdk from '@reformer/builder-plugin-api';
 const HOST_MODULES: readonly ComposedModule[] = [
   ['@builder/sdk', sdk],
   ['@reformer/builder-plugin-api', sdk],
+  // Вход инструментов контракта — разбор манифеста, проверка каталога кита. Отдаётся тем же
+  // пакетом, что и сам контракт: плагин, вложивший свою копию, проверял бы каталог чужой схемой.
+  // Тяжёлое в нём (ajv) грузится по требованию внутри самого входа.
+  ['@reformer/builder-plugin-api/tooling', sdkTooling],
   ['react', react],
   ['react/jsx-runtime', jsxRuntime],
   ['react-dom', reactDom],
@@ -105,6 +110,11 @@ export interface PluginModules extends Disposable {
    * заполненный реестр, а не экономия.
    */
   warm(files?: ReadonlyMap<string, string>): Promise<void>;
+  /**
+   * Тот же прогрев, когда имена уже известны: собранный плагин называет нужные ему модули
+   * в манифесте (секция `build`), и читать их из текста незачем.
+   */
+  warmNamed(specifiers: readonly string[]): Promise<void>;
   /** Поддержка TypeScript. Наружу — ради тестов композиции и диагностики. */
   readonly typescript: TypeScriptSupport;
   /**
@@ -153,6 +163,7 @@ export function createPluginModules(options: PluginModulesOptions = {}): PluginM
     // Файлы, а не список имён: у вызывающего они уже есть, а спецификаторы из них читаются
     // одним проходом. Без файлов — прогрев всего: так зовут тесты композиции.
     warm: (files) => registry.warm(files === undefined ? undefined : collectBareSpecifiers(files)),
+    warmNamed: (specifiers) => registry.warm(specifiers),
 
     async prepareCached(files) {
       // Кэшируются только те файлы, которым нужен движок: для собранного `main.js` ключ

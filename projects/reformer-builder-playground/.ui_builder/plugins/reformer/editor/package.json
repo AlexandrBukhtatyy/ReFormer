@@ -1,0 +1,38 @@
+{
+  "name": "@reformer/builder-reformer-editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Плагин ReFormer Builder «Редактор схемы формы»: модель схемы, канвас, палитра компонентов и инспектор",
+  "scripts": {
+    "generate:styles": "node ../../.shared/plugin-styles.mjs",
+    "prevalidate": "npm run generate:styles",
+    "validate": "reformer-plugin validate src",
+    "prebuild:dev": "npm run generate:styles",
+    "prebuild:dist": "npm run generate:styles",
+    "predev": "npm run generate:styles",
+    "build:dev": "reformer-plugin build src --out .",
+    "build:dist": "reformer-plugin build src --out dist --minify",
+    "dev": "reformer-plugin dev src --out .",
+    "test": "node ../../../../../../scripts/run-vitest.mjs",
+    "test:browser": "node ../../../../../../scripts/run-vitest.mjs -c vitest.browser.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-plugin-cli": "*",
+    "@reformer/builder-toolkit": "*",
+    "@reformer/core": "*",
+    "@reformer/mcp": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/ui-kit": "*",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "lucide-react": "^0.553.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

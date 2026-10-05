@@ -14,9 +14,6 @@ import {
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import * as sdk from '@reformer/builder-plugin-api';
 import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
-import { builtinKit, wizardSchema } from '@/plugins/reformer/core/testing';
-import { prepare } from '@/plugins/reformer/core/codegen';
-import { wizardShimOf } from '@/plugins/reformer/core/codegen';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
 import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
@@ -64,22 +61,6 @@ describe('модули, доступные плагину каталога', () 
     const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     expect([...modules.specifiers].sort()).toEqual([...PLUGIN_RUNTIME_MODULES].sort());
-    modules.dispose();
-  });
-
-  it('спецификатор, который кодоген печатает для встроенного кита, реестр отдаёт', () => {
-    // Отказ, который это удерживает, уже случался: адаптер визарда объявлял подпуть, шим
-    // печатал `import … from '@reformer/ui-kit/form-wizard'`, и выгруженная форма не
-    // поднималась в превью — подпути кита реестр не отдаёт намеренно (см. шапку модуля).
-    // Снимок текста файла такое не ловит: он сверяет строку с собой же.
-    const shim = wizardShimOf(
-      prepare({ schema: wizardSchema(), formName: 'Заявка', kit: builtinKit() })
-    );
-
-    const modules = createPluginModules({ modules: RUNTIME_MODULES });
-
-    expect(shim).not.toBeNull();
-    expect(modules.specifiers).toContain(shim?.importFrom);
     modules.dispose();
   });
 

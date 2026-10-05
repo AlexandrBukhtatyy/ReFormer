@@ -51,13 +51,18 @@ import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
+import { traced, traceSinceStart } from '@/shell/platform/primitives/trace';
 import {
   createProjectPluginCatalog,
   type EnabledPluginsStore,
   type PluginPermissionsStore,
   type ProjectPluginCatalog,
 } from '@/shell/platform/plugin/catalog';
-import { isPluginPermission, type PluginPermission } from '@reformer/builder-plugin-api/internal';
+import {
+  isPluginPermission,
+  type PluginPermission,
+  type PluginProblem,
+} from '@reformer/builder-plugin-api/internal';
 import { createPluginDevWatch } from '@/shell/platform/plugin/dev-watch';
 import { createInstalledFiles } from '@/shell/platform/plugin/installed/files';
 import { installPluginFromNpm } from '@/shell/platform/plugin/installed/install';
@@ -71,7 +76,9 @@ import {
 } from '@/shell/platform/plugin/npm/registry';
 import { createMarketplaceClient } from '@/shell/platform/plugin/marketplace/registry';
 import { updateRows } from '@/shell/boot/settings/plugins-tabs';
-import { createPluginLoader } from '@/shell/platform/plugin/loader';
+import { createPluginLoader, type PluginFilesSource } from '@/shell/platform/plugin/loader';
+import { createApplicationPluginCatalog } from '@/shell/platform/plugin/application/catalog';
+import { APPLICATION_ROOT_DIR } from '@/shell/platform/plugin/application/files';
 import {
   launchOnlyProblems,
   mergeRuntimeConfig,
@@ -88,7 +95,8 @@ import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createFsSourceFactory } from '@/shell/platform/source/fs-access';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';
-import { createI18nService } from '@/shell/platform/services/i18n/i18n';
+import { createI18nService, loadBundledHostMessages } from '@/shell/platform/services/i18n/i18n';
+import { hostMessagesWith } from './application-messages';
 import { createPromptService } from '@/shell/platform/services/prompt';
 import { PromptServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createResourceClipboardService } from '@/shell/platform/services/resource-clipboard';
@@ -126,14 +134,12 @@ import {
 } from '@/shell/platform/workspace/storage/purge';
 import { createJournalRelief } from '@/shell/platform/workspace/journal/journal';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
-import { FILES_MESSAGES } from '@/plugins/base/files/messages';
-import { FILES_PLUGIN_ID } from '@/plugins/base/files/contract';
-import { createFilesHost } from '@/shell/boot/ports/files';
-import { createMarkdownHost } from '@/shell/boot/ports/markdown';
-import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
-import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import {
+  WorkspaceFilesServiceToken,
+  WorkspaceTreeCapability,
+} from '@reformer/builder-plugin-api/internal';
 import {
   DocumentModelsCapability,
   HostMessagesCapability,
@@ -142,7 +148,10 @@ import {
 import { PluginsCatalogServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceResourcesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
-import { createWorkspaceSave } from '@/shell/boot/ports/workspace-save';
+import { createWorkspaceSaveService } from '@/shell/boot/ports/workspace-save';
+import { createWorkspaceTreeService } from '@/shell/boot/ports/workspace-tree';
+import { createHostMessagesService } from '@/shell/boot/ports/host-messages';
+import { createDocumentModelsService } from '@/shell/boot/ports/document-models';
 import { createWorkspaceResourcesService } from '@/shell/boot/ports/workspace-resources';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
@@ -172,7 +181,7 @@ import { createPluginModules } from './plugin-modules';
 import { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api/internal';
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
 import { asFormSchema } from './settings/schema-guard';
-import type { ApplicationComposition, BuiltinPluginsOptions, ProfileChoices } from './composition';
+import type { ApplicationComposition, ProfileChoices } from './composition';
 import { ApplicationProfilesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createApplicationProfilesService } from './ports/application-profiles';
 import { readStoredPreset } from './stored-preset';
@@ -183,6 +192,7 @@ import {
 } from '@/shell/boot/project/project';
 import { createProjectStatusSource } from '@/shell/boot/project/project-status';
 import { createSettingsSections, LOCALE_SETTINGS_KEY } from './settings-sections';
+import { mergePluginLayers } from './settings/plugins-list';
 
 /** Ключ настройки локали. Объявлен рядом с полем, которое его пишет. */
 export { LOCALE_SETTINGS_KEY } from './settings-sections';
@@ -205,6 +215,14 @@ const DEFAULT_LOCALE = 'ru';
  * понадобится снова.
  */
 const BUILD_CACHE_BUDGET_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Сколько ждать простоя, прежде чем дочитывать отложенный код плагинов приложения.
+ *
+ * Простой наступает сразу после первого кадра, если человек ничего не делает; потолок нужен
+ * на случай, когда страница занята непрерывно, — дочитка тогда всё равно начнётся.
+ */
+const IDLE_PRELOAD_TIMEOUT_MS = 5000;
 
 /**
  * Список включённых плагинов поверх настроек.
@@ -323,6 +341,11 @@ export interface BuilderApp extends ShellHost {
    * живёт», каталог — «какие плагины лежат в проекте и какие из них человек включил».
    */
   readonly projectPlugins: ProjectPluginCatalog;
+  /**
+   * Плагины, приехавшие вместе с приложением: работают до открытия проекта и для любого
+   * проекта. Пуст, если своих плагинов у приложения нет.
+   */
+  readonly applicationPlugins: ProjectPluginCatalog;
   /** Открытый проект. Оболочка берёт отсюда вкладки, а панель проекта — дерево. */
   readonly project: ProjectHost;
   /**
@@ -378,6 +401,15 @@ export interface BootOptions {
    * и честно называет собранный профиль.
    */
   readonly profileChoices?: ProfileChoices;
+  /**
+   * Слой плагинов ПРИЛОЖЕНИЯ: файлы плагинов, приехавших вместе с приложением
+   * (`platform/plugin/application`). `null` или отсутствие — своих плагинов у приложения нет.
+   *
+   * Функцией с ожиданием, потому что слой узнаётся по сети (индекс рядом со сборкой), а `boot`
+   * синхронен: ответ читается внутри {@link BuilderApp.ready}, сразу за встроенными плагинами.
+   * Откуда его читать, решает `main.tsx`: оболочка знает форму слоя, а не его адрес.
+   */
+  readonly applicationPluginFiles?: () => Promise<PluginFilesSource | null>;
 }
 
 export function boot(options: BootOptions): BuilderApp {
@@ -437,17 +469,15 @@ export function boot(options: BootOptions): BuilderApp {
     createLayeredSettingsBackend({ browser: settingsStore, project: projectSettings }),
     { launchDefaults: launchConfig.defaults?.settings }
   );
-  const i18n = createI18nService();
+  // Словарь оболочки вместе с тем, как приложение называет себя: имя в шапке и «О программе»
+  // приходят с составом, у оболочки они нейтральные.
+  const i18n = createI18nService({
+    loadHostMessages: hostMessagesWith(loadBundledHostMessages, options.application.messages),
+  });
   // Словарь оболочки на чтение: коды диагностик (`errors.<code>`) и заголовки исправлений
   // переводит ОН, чтобы одна ошибка звучала одинаково в любом редакторе. Обёртка, а не сам
   // корень: `contribute` корня плагину не принадлежит.
-  services.register(HostMessagesCapability, {
-    get locale() {
-      return i18n.locale;
-    },
-    t: (key, params) => i18n.t(key, params),
-    onDidChangeLocale: (cb) => i18n.onDidChangeLocale(cb),
-  });
+  services.register(HostMessagesCapability, createHostMessagesService(i18n));
   const theme = createThemeService({
     settings,
     system: createBrowserSystemTheme(),
@@ -529,6 +559,15 @@ export function boot(options: BootOptions): BuilderApp {
   // и второй копии просто неоткуда взяться.
   services.register(TextEditorFocusToken, createTextEditorFocusRegistry());
   services.register(EditorViewStatesToken, createEditorViewStates());
+  /**
+   * Поднялись ли плагины каталога проекта. Подставляется ниже, когда появится их цепочка
+   * (`syncProjectPlugins`): открытие документа ждёт её, иначе провайдер модели из плагина
+   * проекта вносился бы уже после того, как вид документа решён.
+   *
+   * Ожидание не может зациклиться на самом себе: `activate` синхронный, и открыть документ
+   * изнутри цепочки плагин не может.
+   */
+  let projectPluginsSettled = (): Promise<void> => Promise.resolve();
   const project = createProjectHost({
     journals,
     sources,
@@ -541,6 +580,7 @@ export function boot(options: BootOptions): BuilderApp {
     // Через реестр, а не захваченным объектом: владелец состояния — служба, и спрашивать
     // её в момент вопроса дешевле, чем следить за тем, чтобы копия не разошлась.
     isTextEditorFocused: (id) => services.get(TextEditorFocusToken)?.isFocused(id) ?? false,
+    modelProvidersReady: () => projectPluginsSettled(),
     events,
     diagnostics,
     validation,
@@ -575,16 +615,19 @@ export function boot(options: BootOptions): BuilderApp {
   // Ручки модельных документов — тому плагину стека, чей провайдер документ разобрал. Раньше
   // ручку отдавал порт редактора схемы, и оболочка знала, какой провайдер чей; служба отдаёт
   // ручку ЛЮБОЙ модели с `unknown`, а сужает её сам плагин по `providerId`.
-  services.register(DocumentModelsCapability, {
-    handleOf: (id) => project.get()?.models.handleOf(id) ?? null,
-  });
+  services.register(DocumentModelsCapability, createDocumentModelsService({ project }));
   // Дверь НАРУЖУ, и единственная: раньше её раздавала композиция портом — по одному
   // на плагин, — потому что без политики прав отдавать её реестром было нельзя. Политика
   // появилась, и служба встала на общий адрес: кому её видно, решает право в манифесте.
-  services.register(WorkspaceSaveServiceToken, { save: createWorkspaceSave({ project }) });
+  services.register(WorkspaceSaveServiceToken, createWorkspaceSaveService({ project }));
   // Правка записей проекта — вторая привилегированная служба и по той же причине, что первая:
   // действие выходит наружу, за пределы рабочей копии в браузере.
   services.register(WorkspaceResourcesServiceToken, createWorkspaceResourcesService({ project }));
+  // Дерево проекта: тело панели и выделение. Место для дерева выбирает плагин, внёсший панель.
+  services.register(
+    WorkspaceTreeCapability,
+    createWorkspaceTreeService({ project, extensions, i18n, commands, whenContext })
+  );
 
   const plugins = createPluginRegistry({
     services,
@@ -647,7 +690,20 @@ export function boot(options: BootOptions): BuilderApp {
   // Греется то, что импортируют САМИ файлы, а не всё подряд: иначе каждая форма платила бы
   // за подпути кита с их зависимостями, которых в ней нет.
   services.register(ModuleLoaderCapability, {
-    load: pluginModules.modules.load,
+    // Параметры перечислены поимённо: у движка их больше, чем обещает контракт (дочитка графа
+    // по отложенному импорту — дело загрузчика плагинов), и лишнее плагину не передаётся.
+    load: (files, entry, loadOptions) =>
+      pluginModules.modules.load(
+        files,
+        entry,
+        loadOptions === undefined
+          ? undefined
+          : {
+              ready: loadOptions.ready,
+              overrides: loadOptions.overrides,
+              ambient: loadOptions.ambient,
+            }
+      ),
     prepare: async (files) => {
       const [primed] = await Promise.all([
         pluginModules.prepareCached(files),
@@ -725,6 +781,47 @@ export function boot(options: BootOptions): BuilderApp {
     dir: INSTALLED_ROOT_DIR,
   });
 
+  /** Что о плагине говорит каталог человеку: тост называет плагин, подробности — в консоли. */
+  const reportPluginProblem = (id: string, problem: PluginProblem): void => {
+    console.error(`[plugins] «${id}»: ${problem.code} — ${problem.message}`, problem.cause);
+    notifications.error('plugins.problem', { params: { id, message: problem.message } });
+  };
+
+  // 3б. Плагины ПРИЛОЖЕНИЯ — преемники встроенных: приехали вместе с приложением и работают
+  //     до открытия проекта и для любого проекта. Каталог тот же, что у проекта, политика
+  //     своя (`platform/plugin/application/catalog`). Здесь он только создаётся: файлы слоя
+  //     читаются по сети внутри `ready`, сразу за встроенными плагинами.
+  let applicationFiles: PluginFilesSource | null = null;
+  const applicationPlugins = createApplicationPluginCatalog({
+    loader: createPluginLoader({
+      source: () => applicationFiles,
+      modules: pluginModules.modules,
+      prepare: pluginModules.prepare,
+      warm: pluginModules.warm,
+      warmNamed: pluginModules.warmNamed,
+      // Файлы слоя лежат рядом с приложением и под работающим плагином не меняются: читать
+      // их можно по графу сборки — точку входа сразу, остальное по отложенному импорту.
+      onDemand: true,
+      // Отложенный импорт не удался и после повторов: плагин работает дальше, но человек
+      // должен узнать, почему вкладка пуста, — код плагина вправе отказ проглотить.
+      onLazyError: (id, error) =>
+        reportPluginProblem(id, {
+          code: 'code-failed',
+          message: error instanceof Error ? error.message : String(error),
+          cause: error,
+        }),
+      dir: APPLICATION_ROOT_DIR,
+    }),
+    plugins,
+    i18n,
+    keymap: {
+      registerRules: (source, layer, rules) => keymap.registerRules(source, layer, rules),
+    },
+    installStyles: (css, pluginId) => installPluginStyles(css, pluginId, document),
+    capabilities: () => options.application.capabilities,
+    onProblem: reportPluginProblem,
+  });
+
   const projectPlugins = createProjectPluginCatalog({
     installed: installedLoader,
     // Словарь плагина каталога вносит каталог — по тому же правилу, по которому словарь
@@ -751,8 +848,11 @@ export function boot(options: BootOptions): BuilderApp {
     // Что даёт остальное приложение: объявления встроенных из состава. Реестр служб на этот
     // вопрос ответить не может — он знает занятые слоты, а не версии, — а спрашивать надо
     // ДО того, как код внешнего плагина исполнится. Функцией, потому что каталог живёт дольше
-    // сборки и вправе спросить заново.
-    capabilities: () => options.application.capabilities,
+    // сборки и вправе спросить заново. Плагины приложения для плагина проекта — та же
+    // «остальная часть приложения», что и встроенные.
+    capabilities: () => [...options.application.capabilities, ...applicationPlugins.capabilities()],
+    // Копия плагина приложения в проекте не грузится: работает экземпляр приложения.
+    reserved: () => applicationPlugins.reserved(),
     enabled: createSettingsEnabledPlugins(settings),
     dev: createSettingsDevPlugins(settings),
     permissions: createSettingsPluginPermissions(settings),
@@ -768,26 +868,9 @@ export function boot(options: BootOptions): BuilderApp {
       }),
     // Отказ плагина — событие для человека, а не для консоли: тост говорит, ЧТО сломалось,
     // подробности (код, файл) остаются в списке плагинов и в консоли.
-    onProblem: (id, problem) => {
-      console.error(`[plugins] «${id}»: ${problem.code} — ${problem.message}`, problem.cause);
-      notifications.error('plugins.problem', { params: { id, message: problem.message } });
-    },
+    onProblem: reportPluginProblem,
   });
 
-  // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
-  // его тело для режима «рядом».
-  const monacoHost = createMonacoHost({ project, i18n, diagnostics, extensions });
-
-  /**
-   * Опции встроенного набора — ОДИН объект на всех.
-   *
-   * Плагины доезжают внутри `ready` (шаг 3 ниже) и получают ровно эти опции. Две копии
-   * объекта означали бы два порта у одного плагина: порт — это адаптер над платформой, и второй
-   * экземпляр ставил бы вторую подписку на те же события. Разделяемых РЕЕСТРОВ здесь больше
-   * нет ни одного — фокус, снимки вида
-   * и состояния превью стали возможностями и живут в реестре служб, — поэтому правильность
-   * больше не держится на «это обязан быть тот же объект».
-   */
   /**
    * Каталог плагинов — ПРИВИЛЕГИРОВАННАЯ служба (право `plugins.manage`).
    *
@@ -798,7 +881,14 @@ export function boot(options: BootOptions): BuilderApp {
    */
   services.register(PluginsCatalogServiceToken, {
     ...projectPlugins,
-    list: () => projectPlugins.list(),
+    // Служба управляет каталогом проекта и установленным из npm. Плагины приложения сюда
+    // не попадают вовсе: их набор задаёт сборка, и управлять им из палитры нечем.
+    list: () =>
+      projectPlugins
+        .list()
+        .flatMap((entry) =>
+          entry.layer === 'application' ? [] : [{ ...entry, layer: entry.layer }]
+        ),
     install: async () => {
       const name = await prompt.input({
         titleKey: 'shell.plugins.install.title',
@@ -836,12 +926,6 @@ export function boot(options: BootOptions): BuilderApp {
     },
   });
 
-  const builtinOptions: BuiltinPluginsOptions = {
-    files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
-    monaco: monacoHost,
-    markdown: createMarkdownHost({ project }),
-  };
-
   /**
    * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
    * на каждую смену проекта.
@@ -862,6 +946,8 @@ export function boot(options: BootOptions): BuilderApp {
    * `syncedSource`: тот меняется в начале цепочки, а верным ответ становится в её конце.
    */
   let pluginsSynced = true;
+  /** Когда слой плагинов приложения поднят (или стало ясно, что его нет). Задаётся ниже. */
+  let applicationSettled = (): Promise<void> => Promise.resolve();
   const syncProjectPlugins = (): Promise<void> => {
     const source = project.get()?.source ?? null;
     if (source === syncedSource) return syncing;
@@ -870,6 +956,9 @@ export function boot(options: BootOptions): BuilderApp {
     // Цепочкой, а не параллельно: две смены проекта подряд не должны включать плагины
     // прежнего каталога поверх нового.
     syncing = syncing
+      // Слой приложения поднимается первым: копия его плагина в проекте обязана застать
+      // идентификатор занятым, иначе она встала бы на его место раньше него.
+      .then(() => applicationSettled())
       .then(() => {
         // Плагины закрытого проекта уходят вместе с ним, а память о том, что человек их
         // включал, остаётся: вернётся проект — вернутся и они.
@@ -923,6 +1012,7 @@ export function boot(options: BootOptions): BuilderApp {
       });
     return syncing;
   };
+  projectPluginsSettled = () => syncing;
   const projectPluginsSubscription = project.subscribe(() => void syncProjectPlugins());
 
   // Раскладка создаётся ЗДЕСЬ, ниже каталога проекта: слой правила зависит от того, откуда
@@ -933,9 +1023,12 @@ export function boot(options: BootOptions): BuilderApp {
     settings,
     layerOf: (pluginId) => {
       if (pluginId === undefined) return 'host';
-      return projectPlugins.list().some((entry) => entry.id === pluginId)
-        ? 'catalog-plugin'
-        : 'builtin-plugin';
+      // Плагин приложения — тоже плагин каталога: его клавиши объявлены манифестом и стоят
+      // в том же слое раскладки, что и у плагина проекта.
+      const fromCatalog =
+        projectPlugins.list().some((entry) => entry.id === pluginId) ||
+        applicationPlugins.catalog.list().some((entry) => entry.id === pluginId);
+      return fromCatalog ? 'catalog-plugin' : 'builtin-plugin';
     },
   });
   // Раскладку читают и плагины: подсказка «нажмите X» обязана показывать действующее
@@ -975,18 +1068,13 @@ export function boot(options: BootOptions): BuilderApp {
 
   // 4. Настройки, словари, активация. Одна цепочка: локаль читается из настроек, поэтому
   //    её загрузка обязана идти после `hydrate`.
-  const ready = settings
-    .hydrate()
-    .then(() => i18n.setLocale(settings.get<string>(LOCALE_SETTINGS_KEY) ?? DEFAULT_LOCALE))
-    .then(() => {
-      // Словарь плагина регистрирует композиция: сервиса локализации в `PluginContext` нет,
-      // и это не упущение — вклад в словарь не снимается вместе с плагином, значит и частью
-      // его подписок быть не может.
-      const filesI18n = i18n.forPlugin(FILES_PLUGIN_ID);
-      for (const [locale, messages] of Object.entries(FILES_MESSAGES)) {
-        filesI18n.contribute(locale, messages);
-      }
-    })
+  const ready = traced('ready.settings', () => settings.hydrate())
+    .then(() =>
+      traced('ready.locale', () =>
+        i18n.setLocale(settings.get<string>(LOCALE_SETTINGS_KEY) ?? DEFAULT_LOCALE)
+      )
+    )
+
     // Встроенные плагины доезжают ЗДЕСЬ — до активации и, значит, до отрисовки: `main` рисует
     // по `ready`. Контракт «набор вкладов полон и детерминирован к моменту отрисовки»
     // соблюдён дословно; своим файлом приезжает только код.
@@ -1001,7 +1089,8 @@ export function boot(options: BootOptions): BuilderApp {
     // шагом и снял бы активацию плагинов каталога проекта заодно.
     .then(async () => {
       try {
-        for (const composed of await options.application.load(builtinOptions)) {
+        const builtins = await traced('ready.builtins', () => options.application.load());
+        for (const composed of builtins) {
           plugins.register(composed.plugin, composed.provides, composed.permissions);
         }
       } catch (error) {
@@ -1012,7 +1101,7 @@ export function boot(options: BootOptions): BuilderApp {
     .then(() => {
       // Отчёт не разбирается: отказавшие уже сообщены каналом диагностики рантайма плагинов,
       // а показать их человеку пока нечем — вклада в строку состояния на это нет.
-      plugins.activateAll();
+      traced('ready.activate', () => plugins.activateAll());
       // Проблемы конфига запуска показываются ПОСЛЕ словарей: тост переводится при показе.
       const configProblems = options.runtime?.problems ?? [];
       if (configProblems.length > 0) {
@@ -1021,9 +1110,48 @@ export function boot(options: BootOptions): BuilderApp {
         });
       }
     })
+    // Плагины приложения — сразу за встроенными и тоже до отрисовки: это часть приложения,
+    // и её вклады (дерево, редакторы) должны быть на месте к первому кадру. Отказ слоя запуск
+    // не отменяет: оболочка поднимается без него, как поднялась бы без индекса.
+    .then(async () => {
+      try {
+        applicationFiles =
+          (await traced('ready.app-index', () => options.applicationPluginFiles?.())) ?? null;
+        if (applicationFiles !== null) {
+          await traced('ready.app-plugins', () => applicationPlugins.start());
+        }
+      } catch (error) {
+        console.error('[boot] плагины приложения не загрузились', error);
+        notifications.error('plugins.lazy-failed');
+      }
+    })
     .catch((error: unknown) => {
       console.error('[boot] запуск прошёл не полностью', error);
-    });
+    })
+    .then(() => traceSinceStart('ready'));
+
+  // Дочитка отложенного кода плагинов приложения — в простое после запуска. До неё первый
+  // открытый файл ждал бы чтения движка редактора, а остановленный сервер ломал бы уже
+  // открытое приложение. Режим экономии трафика её отменяет: это ускорение за счёт сети.
+  void ready.then(
+    () => {
+      const connection =
+        typeof navigator === 'undefined'
+          ? undefined
+          : (navigator as { connection?: { saveData?: boolean } }).connection;
+      if (connection?.saveData === true) return;
+      const preload = (): void =>
+        void traced('plugins.preload', () => applicationPlugins.catalog.preloadDeferred());
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(preload, { timeout: IDLE_PRELOAD_TIMEOUT_MS });
+      } else if (typeof document !== 'undefined') {
+        setTimeout(preload, IDLE_PRELOAD_TIMEOUT_MS);
+      }
+    },
+    // Запуск не удался — дочитывать нечего; отказ покажет тот, кто ждёт `ready`.
+    () => undefined
+  );
+  applicationSettled = () => ready;
 
   return {
     extensions,
@@ -1050,8 +1178,23 @@ export function boot(options: BootOptions): BuilderApp {
        * не должно. Шесть строк ниже и есть граница: что в списке нет, то разделу недоступно.
        */
       plugins: {
-        list: () => projectPlugins.list(),
-        subscribe: (listener) => projectPlugins.subscribe(listener),
+        // Два каталога — один список: плагины приложения видны всегда, плагины проекта —
+        // пока проект открыт (после его закрытия каталог ещё помнит прежние строки).
+        list: () =>
+          mergePluginLayers(
+            applicationPlugins.catalog.list(),
+            project.get() === null ? [] : projectPlugins.list()
+          ),
+        subscribe: (listener) => {
+          const own = projectPlugins.subscribe(listener);
+          const application = applicationPlugins.catalog.subscribe(listener);
+          return toDisposable(() => {
+            own.dispose();
+            application.dispose();
+          });
+        },
+        // Действия — только над каталогом проекта: строки приложения раздел не трогает,
+        // а неизвестный идентификатор каталог пропускает.
         enable: (id) => projectPlugins.enable(id),
         disable: (id) => {
           projectPlugins.disable(id);
@@ -1181,6 +1324,7 @@ export function boot(options: BootOptions): BuilderApp {
     },
     plugins,
     projectPlugins,
+    applicationPlugins: applicationPlugins.catalog,
     project,
     ready,
 
@@ -1200,6 +1344,7 @@ export function boot(options: BootOptions): BuilderApp {
       focusSubscription.dispose();
       focusChecks?.dispose();
       projectPlugins.dispose();
+      applicationPlugins.catalog.dispose();
       pluginModules.dispose();
       plugins.deactivateAll();
       documents.dispose();

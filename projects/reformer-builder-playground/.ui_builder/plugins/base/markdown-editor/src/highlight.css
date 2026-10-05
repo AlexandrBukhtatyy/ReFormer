@@ -1,0 +1,63 @@
+/*
+ * Подсветка блоков кода. Своя палитра поверх классов `highlight.js`, а не его тема: тема
+ * принесла бы свои цвета фона и текста, и предпросмотр перестал бы совпадать с оболочкой
+ * ровно в тот момент, когда человек переключает светлую и тёмную. Цвета берутся из токенов
+ * кита, поэтому обе темы получаются сами.
+ *
+ * Токены — именно кита (`--chart-2`), а не переменные темы Tailwind (`--color-chart-2`):
+ * вторые билдер объявляет, только пока сам на них ссылается. Палитра жила в его CSS и держала
+ * их объявленными; уехав, перестала — и ссылка на необъявленную переменную молча дала бы
+ * унаследованный цвет вместо подсветки. Генератор такую ссылку в постоянном блоке не принимает.
+ *
+ * Постоянный блок таблицы стилей плагина: утилитами Tailwind эти правила не выражаются —
+ * классы расставляет чужая библиотека. В таблицу его дописывает генератор (`--include`).
+ */
+@layer components {
+  .hljs {
+    color: var(--foreground);
+  }
+  .hljs-comment,
+  .hljs-quote {
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal,
+  .hljs-doctag,
+  .hljs-name {
+    color: var(--primary);
+  }
+  .hljs-string,
+  .hljs-regexp,
+  .hljs-addition,
+  .hljs-attribute {
+    color: var(--chart-2);
+  }
+  .hljs-number,
+  .hljs-symbol,
+  .hljs-bullet,
+  .hljs-meta {
+    color: var(--chart-4);
+  }
+  .hljs-type,
+  .hljs-class .hljs-title,
+  .hljs-built_in {
+    color: var(--chart-1);
+  }
+  .hljs-title,
+  .hljs-section,
+  .hljs-function .hljs-title {
+    color: var(--chart-3);
+    font-weight: 600;
+  }
+  .hljs-deletion {
+    color: var(--destructive);
+  }
+  .hljs-emphasis {
+    font-style: italic;
+  }
+  .hljs-strong {
+    font-weight: 700;
+  }
+}

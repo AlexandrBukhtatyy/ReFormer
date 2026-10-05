@@ -1,0 +1,6 @@
+{
+  "id": "reformer.project",
+  "name": "Проект",
+  "apiVersion": "^1",
+  "permissions": ["workspace.resources", "workspace.save"]
+}

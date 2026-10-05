@@ -40,7 +40,12 @@ const USAGE = `Использование: reformer-plugin <команда> [а�
   validate [каталог]                           проверить плагин правилами оболочки
   build [каталог] [--out <каталог>]            собрать в каталог, который оболочка грузит как есть
   dev [каталог] --project <каталог проекта>    собирать в .ui_builder/plugins/<id>/ на каждое сохранение
+  dev [каталог] --out <каталог>                то же, но каталог вывода назван прямо
   pack [каталог] [--out <каталог>]             собрать и упаковать в npm-архив
+
+Параметры сборки (build, dev, pack):
+  --minify       сжать код, воркеры и стили — для сборки в поставку
+  --bundle-css   собрать CSS, который импортирует код, в объявленную таблицу стилей
 
 Параметры:
   -h, --help     эта справка
@@ -65,6 +70,8 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
         name: { type: 'string' },
         out: { type: 'string' },
         project: { type: 'string' },
+        minify: { type: 'boolean' },
+        'bundle-css': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
       },
@@ -109,9 +116,9 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
   const accepted: Record<string, readonly string[]> = {
     create: ['id', 'name'],
     validate: [],
-    build: ['out'],
-    dev: ['project'],
-    pack: ['out'],
+    build: ['out', 'minify', 'bundle-css'],
+    dev: ['project', 'out', 'minify', 'bundle-css'],
+    pack: ['out', 'minify', 'bundle-css'],
   };
   const extra = Object.keys(values).filter(
     (key) => key !== 'help' && key !== 'version' && !(accepted[command] ?? []).includes(key)
@@ -120,6 +127,12 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
     io.err(`${command}: параметры ${extra.map((key) => `--${key}`).join(', ')} не принимаются`);
     return 2;
   }
+
+  /** Параметры сборки — общие для build, dev и pack. */
+  const buildFlags = {
+    minify: values.minify === true,
+    bundleCss: values['bundle-css'] === true,
+  };
 
   switch (command) {
     case 'create': {
@@ -154,19 +167,34 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       const result = await buildPlugin({
         dir: path(target ?? '.'),
         outDir: values.out === undefined ? undefined : path(values.out),
+        ...buildFlags,
       });
       if (!printBuild(result)) return 1;
       io.out(`✓ ${result.manifest.id} ${result.manifest.version} собран в ${result.outDir}`);
+      // Строка есть только у плагина с отложенным кодом: у остальных всё читается сразу,
+      // и сообщать нечего.
+      if (result.code.deferredFiles > 0) {
+        const kilobytes = (bytes: number): string => `${String(Math.ceil(bytes / 1024))} КБ`;
+        io.out(
+          `  код: сразу ${kilobytes(result.code.eager)}, по требованию ` +
+            `${kilobytes(result.code.deferred)} (файлов: ${String(result.code.deferredFiles)})`
+        );
+      }
       return 0;
     }
     case 'dev': {
-      if (values.project === undefined) {
-        io.err('dev: не указан --project — корень проекта, в котором плагин будет подхвачен');
+      if ((values.project === undefined) === (values.out === undefined)) {
+        io.err(
+          'dev: нужен ровно один из параметров — --project (корень проекта, в котором плагин ' +
+            'будет подхвачен) или --out (каталог вывода)'
+        );
         return 2;
       }
       const session = startDev({
         dir: path(target ?? '.'),
-        project: path(values.project),
+        ...(values.project === undefined ? {} : { project: path(values.project) }),
+        ...(values.out === undefined ? {} : { outDir: path(values.out) }),
+        ...buildFlags,
         onBuild: (result) => {
           if (printBuild(result)) {
             io.out(`✓ ${new Date().toLocaleTimeString()} собран в ${result.outDir}`);
@@ -182,6 +210,7 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       const result = await packPlugin({
         dir: path(target ?? '.'),
         destination: values.out === undefined ? undefined : path(values.out),
+        ...buildFlags,
       });
       if (!result.ok) {
         printFindings(result.findings);

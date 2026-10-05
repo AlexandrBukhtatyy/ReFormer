@@ -54,7 +54,7 @@ function devRuntimeConfig(): Plugin {
  *
  * По умолчанию rollup ссыпает всё в один плоский `assets/`, и на сорока с лишним файлах это
  * перестаёт быть навигацией: по имени чанка не видно, чей он. Раскладываем по происхождению —
- * плагины, вендоры, monaco, стили, шрифты — и правила ниже единственное место, где это решается.
+ * плагины, вендоры, стили, шрифты — и правила ниже единственное место, где это решается.
  *
  * ВАЖНО, чтобы этого не продавали как ускорение: раскладка НИЧЕГО не переносит между чанками
  * и стартовый граф не меняет — она только даёт файлам адрес. Что в каком чанке лежит, решает
@@ -68,30 +68,15 @@ function devRuntimeConfig(): Plugin {
 const WINDOWS_SEPARATOR = String.fromCharCode(92);
 const norm = (id: string): string => id.split(WINDOWS_SEPARATOR).join('/');
 
-/**
- * Чей это модуль: `…/src/plugins/<домен>/<плагин>/…` → `<домен>-<плагин>`.
- *
- * Ядро домена (`<домен>/core`) — общий код плагинов домена, а не плагин: его модули владельца
- * не дают и в чанк плагина попадают попутчиками, как код пакетов.
- */
+/** Чей это модуль: `…/src/plugins/<домен>/<плагин>/…` → `<домен>-<плагин>`. */
 const pluginOf = (id: string): string | undefined => {
   const marker = '/src/plugins/';
   const s = norm(id);
   const at = s.lastIndexOf(marker);
   if (at === -1) return undefined;
   const [domain, plugin, rest] = s.slice(at + marker.length).split('/', 3);
-  if (rest === undefined || plugin === 'core') return undefined;
+  if (rest === undefined) return undefined;
   return `${domain}-${plugin}`;
-};
-
-/** Чьё это ядро: `…/src/plugins/<домен>/core/…` → `<домен>`. */
-const coreOf = (id: string): string | undefined => {
-  const marker = '/src/plugins/';
-  const s = norm(id);
-  const at = s.lastIndexOf(marker);
-  if (at === -1) return undefined;
-  const [domain, folder, rest] = s.slice(at + marker.length).split('/', 3);
-  return folder === 'core' && rest !== undefined ? domain : undefined;
 };
 
 /** Словари оболочки: свой каталог, потому что их читают по одному и глазами. */
@@ -122,8 +107,6 @@ const packageOf = (id: string): string | null => {
   }
   return null;
 };
-
-const isMonaco = (id: string): boolean => norm(id).includes('/node_modules/monaco-editor/');
 
 const FONT = new Set(['.ttf', '.woff', '.woff2', '.otf', '.eot']);
 const IMAGE = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif', '.ico']);
@@ -170,12 +153,6 @@ export default defineConfig({
           const real = chunk.moduleIds.filter((id) => !isVirtual(id));
           if (real.length === 0) return 'assets/js/[name]-[hash].js';
 
-          // Сначала monaco: `monaco-runtime` — это один модуль src на тысячу модулей движка,
-          // и проверку «все модули вендорные» он бы не прошёл. Отсюда доля, а не «все».
-          if (real.filter(isMonaco).length * 2 > real.length) {
-            return 'assets/monaco/[name]-[hash].js';
-          }
-
           const own = real.filter((id) => packageOf(id) === null);
           if (own.length === 0) {
             const packages = new Set(real.map(packageOf));
@@ -188,26 +165,18 @@ export default defineConfig({
 
           if (own.every(isShellLocale)) return 'assets/i18n/[name]-[hash].js';
 
-          // Общий код домена: чанк только из ядра одного домена (и пакетов). Ядра — бывшие
-          // пакеты стеков, и раньше такие чанки лежали в `assets/vendor/<пакет стека>/`.
-          const cores = new Set(own.map(coreOf));
-          if (cores.size === 1 && !cores.has(undefined)) {
-            return `assets/core/${[...cores][0]}/[name]-[hash].js`;
-          }
-
           // Чанк плагина: и сам барель, и его ленивые внутренности (BYOK, корпус знаний,
           // превью markdown). «Все модули этого плагина» — условие СЛИШКОМ строгое: рядом
-          // с кодом плагина в чанк почти всегда попадает код ядра домена и пакетов, и по такому
+          // с кодом плагина в чанк почти всегда попадает код пакетов и оболочки, и по такому
           // правилу плагин уезжал в `assets/js/` под именем `index`. Поэтому владелец —
           // единственный плагин среди владельцев, и его модулей должно быть не меньше половины
-          // собственного кода вне ядер: иначе это общий чанк, куда чужой модуль попал попутчиком.
+          // собственного кода: иначе это общий чанк, куда чужой модуль попал попутчиком.
           const owners = new Set(own.map(pluginOf).filter((id) => id !== undefined));
           const owned = own.filter((id) => pluginOf(id) !== undefined).length;
-          const outsideCores = own.filter((id) => coreOf(id) === undefined).length;
-          if (owners.size === 1 && owned * 2 >= outsideCores) {
+          if (owners.size === 1 && owned * 2 >= own.length) {
             const owner = [...owners][0];
-            // У бареля `[name]` — всегда `index`, и `plugins/reformer-ai-index` ничего
-            // не добавляет к `plugins/reformer-ai`. У остальных имя несёт смысл и остаётся.
+            // У бареля `[name]` — всегда `index`, и `plugins/base-preview-index` ничего
+            // не добавляет к `plugins/base-preview`. У остальных имя несёт смысл и остаётся.
             return chunk.name === 'index'
               ? `assets/plugins/${owner}-[hash].js`
               : `assets/plugins/${owner}-[name]-[hash].js`;
@@ -229,14 +198,15 @@ export default defineConfig({
   },
   /**
    * Воркеры собираются ОТДЕЛЬНЫМ прогоном rollup и `build.rollupOptions.output` не подчиняются
-   * вовсе — каталог им задаётся только здесь. Сегодня воркеры в проекте одни: `editor.worker`
-   * и `json.worker` из monaco, поэтому и каталог у них общий с движком.
+   * вовсе — каталог им задаётся только здесь. Своих воркеров у билдера сегодня нет: воркеры
+   * редактора кода уехали вместе с ним в плагин и едут внутри его сборки. Правило оставлено,
+   * чтобы первый же воркер оболочки не лёг в плоский `assets/`.
    */
   worker: {
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/monaco/[name]-[hash].js',
-        chunkFileNames: 'assets/monaco/[name]-[hash].js',
+        entryFileNames: 'assets/workers/[name]-[hash].js',
+        chunkFileNames: 'assets/workers/[name]-[hash].js',
       },
     },
   },
@@ -265,11 +235,6 @@ export default defineConfig({
       '@reformer/builder-toolkit': path.resolve(
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
-      ),
-      // Тема RJSF из кита — рантайм домена rjsf, в исходники тем же доводом.
-      '@reformer/rjsf-kit-theme': path.resolve(
-        __dirname,
-        '../../packages/rjsf-kit-theme/src/index.ts'
       ),
     },
   },

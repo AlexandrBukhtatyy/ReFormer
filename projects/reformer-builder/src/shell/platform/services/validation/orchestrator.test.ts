@@ -91,8 +91,11 @@ function setup(validators: readonly ValidatorContribution[]) {
   });
   const codes = (document: Document): string[] =>
     diagnostics.get(document.id).map((item) => item.code);
-  return { diagnostics, orchestrator, timers, codes };
+  return { diagnostics, orchestrator, timers, codes, plugin };
 }
+
+/** Перепроверка по смене состава отложена до конца текущей синхронной работы — микрозадачей. */
+const settled = (): Promise<void> => Promise.resolve();
 
 describe('быстрый уровень синхронен и публикует сразу', () => {
   it('находки есть сразу после watch — ни одного таймера не потребовалось', () => {
@@ -265,6 +268,123 @@ describe('результаты источников', () => {
     handle.setText('{"root":{}}');
 
     expect(validator.calls.length - before).toBe(1);
+  });
+});
+
+/**
+ * Валидатор приходит и уходит вместе с плагином, а плагин включают и выключают при открытых
+ * документах. Событием документа это не приходит — состав стережёт сам оркестратор.
+ */
+describe('смена состава валидаторов', () => {
+  it('валидатор, внесённый при открытом документе, проверяет его без правки (ReFormer-1mdw)', async () => {
+    const { orchestrator, codes, plugin } = setup([]);
+    const document = createDocument(schemaRef, '{}', false).document;
+    orchestrator.watch(document);
+    expect(codes(document)).toEqual([]);
+
+    plugin.contribute(
+      ValidatorPoint,
+      fastValidator('schema', () => ['schema.invalid'])
+    );
+    await settled();
+
+    expect(codes(document)).toEqual(['schema.invalid']);
+  });
+
+  it('снятый валидатор уносит свои находки — и быстрые, и дорогие', async () => {
+    const slow: ValidatorContribution = {
+      id: 'schema',
+      applies: () => true,
+      validate: () => [diagnostic('schema', 'schema.fast')],
+      validateAsync: () => Promise.resolve([diagnostic('schema', 'schema.slow')]),
+    };
+    const { orchestrator, codes, plugin, timers } = setup([
+      fastValidator('rules', () => ['rules.orphan']),
+    ]);
+    const contribution = plugin.contribute(ValidatorPoint, slow);
+    const document = createDocument(schemaRef, '{}', false).document;
+    orchestrator.watch(document);
+    timers.flush();
+    await settled();
+    expect(codes(document)).toEqual(['rules.orphan', 'schema.fast', 'schema.slow']);
+
+    contribution.dispose();
+    await settled();
+
+    // Обновлять находки снятого валидатора больше некому: оставшись, они висели бы до закрытия
+    // вкладки. Чужие при этом на месте.
+    expect(codes(document)).toEqual(['rules.orphan']);
+  });
+
+  it('дорогой проход снятого валидатора, досчитавший после снятия, не публикуется', async () => {
+    let finish: (items: readonly Diagnostic[]) => void = () => {};
+    const slow: ValidatorContribution = {
+      id: 'schema',
+      applies: () => true,
+      validateAsync: () =>
+        new Promise<readonly Diagnostic[]>((resolve) => {
+          finish = resolve;
+        }),
+    };
+    const { orchestrator, codes, plugin, timers } = setup([]);
+    const contribution = plugin.contribute(ValidatorPoint, slow);
+    const document = createDocument(schemaRef, '{}', false).document;
+    orchestrator.watch(document);
+    timers.flush();
+
+    contribution.dispose();
+    await settled();
+    finish([diagnostic('schema', 'schema.slow')]);
+    await settled();
+
+    expect(codes(document)).toEqual([]);
+  });
+
+  it('вклад не зовёт валидатор синхронно: плагин ещё не закончил активацию', async () => {
+    const { orchestrator, plugin } = setup([]);
+    const document = createDocument(schemaRef, '{}', false).document;
+    orchestrator.watch(document);
+    const first = fastValidator('schema', () => []);
+    const second = fastValidator('rules', () => []);
+
+    plugin.contribute(ValidatorPoint, first);
+    plugin.contribute(ValidatorPoint, second);
+
+    // Вклад вносится из `activate`: валидатор, вызванный посреди неё, увидел бы плагин
+    // наполовину собранным.
+    expect(first.calls).toHaveLength(0);
+    await settled();
+    // Два вклада подряд — один проход, а не по проходу на вклад.
+    expect(first.calls).toHaveLength(1);
+    expect(second.calls).toHaveLength(1);
+  });
+
+  it('документ, закрытый до отложенной перепроверки, находок не получает', async () => {
+    const { orchestrator, codes, plugin } = setup([]);
+    const document = createDocument(schemaRef, '{}', false).document;
+    const watch = orchestrator.watch(document);
+
+    plugin.contribute(
+      ValidatorPoint,
+      fastValidator('schema', () => ['schema.invalid'])
+    );
+    watch.dispose();
+    await settled();
+
+    expect(codes(document)).toEqual([]);
+  });
+
+  it('после dispose оркестратор состав не слушает', async () => {
+    const { orchestrator, plugin } = setup([]);
+    const document = createDocument(schemaRef, '{}', false).document;
+    orchestrator.watch(document);
+    orchestrator.dispose();
+    const late = fastValidator('schema', () => ['schema.invalid']);
+
+    plugin.contribute(ValidatorPoint, late);
+    await settled();
+
+    expect(late.calls).toHaveLength(0);
   });
 });
 

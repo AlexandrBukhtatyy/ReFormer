@@ -1,6 +1,0 @@
-{
-  "id": "reformer.files",
-  "name": "Файлы",
-  "apiVersion": "^1",
-  "permissions": ["workspace.resources"]
-}

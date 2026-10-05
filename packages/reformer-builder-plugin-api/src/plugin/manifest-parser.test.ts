@@ -158,6 +158,16 @@ describe('манифест отвергается', () => {
     expect(!result.ok && result.problem.message).toContain('acme-forms-dev');
   });
 
+  it('в каталоге домена имя каталога с идентификатором не сверяется', () => {
+    // `plugins/acme/editor/` — плагин «acme-forms»: каталог назван ролью в домене.
+    const source = { kind: 'project', dir: 'editor', group: 'acme' } as const;
+
+    const result = parsePluginManifest(JSON.stringify(good), source);
+
+    expect(result.ok && result.manifest.id).toBe('acme-forms');
+    expect(result.ok && result.manifest.source).toEqual(source);
+  });
+
   it('когда точка входа уводит за каталог плагина', () => {
     const result = parse({ ...good, main: '../../../etc/main.js' });
 
@@ -618,5 +628,78 @@ describe('compatibility.builder — вторая ось совместимост
     });
 
     expect(result.ok && 'compatibility' in result.manifest).toBe(false);
+  });
+});
+
+describe('build — секция сборки', () => {
+  const built = (build: unknown) => parse({ ...good, build });
+  const files = {
+    'main.js': { imports: ['chunks/shared-AAAA.js'], runtime: ['react'] },
+    'chunks/shared-AAAA.js': {},
+    'chunks/engine-BBBB.js': { imports: ['./chunks/shared-AAAA.js'] },
+  };
+
+  it('читает граф файлов и приводит пути к виду «от корня плагина»', () => {
+    const result = built({ format: 1, files });
+
+    expect(result.ok && result.manifest.build).toEqual({
+      format: 1,
+      files: {
+        'main.js': { imports: ['chunks/shared-AAAA.js'], runtime: ['react'] },
+        'chunks/shared-AAAA.js': {},
+        'chunks/engine-BBBB.js': { imports: ['chunks/shared-AAAA.js'] },
+      },
+    });
+  });
+
+  it('без секции манифест прежний: поля «build» в нём нет', () => {
+    const result = parse(good);
+
+    expect(result.ok && 'build' in result.manifest).toBe(false);
+  });
+
+  it('незнакомый формат — секции нет, а не отказ: плагин читается целиком, как раньше', () => {
+    // Плагин собран сборщиком новее оболочки. Читать по его графу она не умеет, но каталог
+    // плагина по-прежнему самодостаточен — отказывать тут значило бы ломать рабочий плагин.
+    const result = built({ format: 2, files: 'что угодно' });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && 'build' in result.manifest).toBe(false);
+  });
+
+  it('битая секция знакомого формата — отказ с советом пересобрать', () => {
+    const cases: unknown[] = [
+      'main.js',
+      { files },
+      { format: 1 },
+      { format: 1, files: [] },
+      { format: 1, files: { 'main.js': 'chunks/a.js' } },
+      { format: 1, files: { 'main.js': { imports: 'chunks/a.js' } } },
+      { format: 1, files: { 'main.js': { runtime: [''] } } },
+      { format: 1, files: { '../main.js': {} } },
+      { format: 1, files: { 'main.js': { imports: ['../outside.js'] } } },
+    ];
+
+    for (const build of cases) {
+      const result = built(build);
+
+      expect(result.ok || result.problem.code, JSON.stringify(build)).toBe('manifest-invalid');
+      expect(result.ok || result.problem.message).toContain('пересоберите плагин');
+    }
+  });
+
+  it('граф обязан быть замкнут: требуемый файл есть в списке', () => {
+    const result = built({ format: 1, files: { 'main.js': { imports: ['chunks/lost.js'] } } });
+
+    expect(result.ok || result.problem.message).toContain('«chunks/lost.js»');
+  });
+
+  it('у исходников секция не читается: её пишет сборка', () => {
+    const result = parsePluginSourceManifest(
+      JSON.stringify({ ...good, main: 'src/main.ts', build: { format: 1, files: 'мусор' } })
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && 'build' in result.manifest).toBe(false);
   });
 });

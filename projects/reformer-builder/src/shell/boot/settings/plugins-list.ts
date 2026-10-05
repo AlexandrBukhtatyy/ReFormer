@@ -28,9 +28,10 @@ export interface PluginRowProblem {
 /**
  * Откуда плагин взят. Копия перечисления каталога — структурно, без импорта.
  *
- * `installed` — слой OPFS (приехал из npm), `project` — папка открытого проекта.
+ * `installed` — слой OPFS (приехал из npm), `project` — папка открытого проекта,
+ * `application` — приехал вместе с приложением и работает для любого проекта.
  */
-export type PluginLayer = 'installed' | 'project';
+export type PluginLayer = 'installed' | 'project' | 'application';
 
 /** Запись каталога в том объёме, в каком её читает раздел. */
 export interface PluginCatalogEntry {
@@ -45,6 +46,32 @@ export interface PluginCatalogEntry {
   readonly layer?: PluginLayer;
   /** Слой, который перекрыт: тот же `id` нашёлся и там, но работает не он. */
   readonly shadowed?: PluginLayer;
+  /** Эта копия уступила плагину приложения с тем же `id` и не грузится. */
+  readonly overridden?: 'application';
+}
+
+/**
+ * Один список из двух каталогов: плагины приложения и плагины проекта.
+ *
+ * Копия плагина приложения, лежащая в проекте, отдельной строкой не показана: работает
+ * экземпляр приложения, и две строки с одним именем читались бы как два плагина. Вместо этого
+ * строка приложения помечена «перекрывает копию из проекта» — тем же `shadowed`, которым
+ * проект помечает перекрытый установленный. Без пометки человек правил бы файлы плагина
+ * в проекте, не понимая, почему правки не видны.
+ */
+export function mergePluginLayers(
+  application: readonly PluginCatalogEntry[],
+  project: readonly PluginCatalogEntry[]
+): readonly PluginCatalogEntry[] {
+  const overridden = new Set(
+    project.filter((entry) => entry.overridden !== undefined).map((entry) => entry.id)
+  );
+  return [
+    ...application.map((entry) =>
+      overridden.has(entry.id) ? { ...entry, shadowed: 'project' as const } : entry
+    ),
+    ...project.filter((entry) => entry.overridden === undefined),
+  ];
 }
 
 /**
@@ -104,6 +131,14 @@ export interface PluginRow {
    * (или, наоборот, ждёт установленную версию) и не понимает, почему ничего не меняется.
    */
   readonly shadowed: PluginLayer | null;
+  /**
+   * Строкой нельзя управлять: плагин приложения включён тем, кто приложение развернул.
+   *
+   * Выключить его отсюда значило бы выключить часть приложения до перезапуска — и только
+   * до него: набор задаёт сборка, а не настройки. Поэтому переключатель, пометка
+   * «в разработке» и перезагрузка у такой строки недоступны.
+   */
+  readonly locked: boolean;
 }
 
 /** Строки раздела в порядке показа. */
@@ -123,11 +158,12 @@ export function toRows(entries: readonly PluginCatalogEntry[]): readonly PluginR
         on: entry.state === 'enabled',
         toggle:
           entry.state === 'enabled' ? 'disable' : entry.state === 'failed' ? 'retry' : 'enable',
-        canReload: entry.state === 'enabled',
+        canReload: entry.state === 'enabled' && entry.layer !== 'application',
         problem: entry.problem ?? null,
         apiVersion: entry.manifest?.apiVersion ?? null,
         layer: entry.layer ?? null,
         shadowed: entry.shadowed ?? null,
+        locked: entry.layer === 'application',
       }))
   );
 }
@@ -188,7 +224,9 @@ export type PluginsEmptyState = 'loading' | 'no-project' | 'no-plugins' | null;
  * где их просто ещё не прочитали, и человек пошёл бы искать несуществующую поломку.
  */
 export function emptyStateOf(port: PluginsSettingsPort): PluginsEmptyState {
-  if (!port.hasProject()) return 'no-project';
+  // Плагины приложения видны и без проекта: «проект не открыт» — ответ только там, где
+  // показать действительно нечего.
+  if (!port.hasProject()) return port.list().length === 0 ? 'no-project' : null;
   if (!port.synced()) return 'loading';
   return port.list().length === 0 ? 'no-plugins' : null;
 }

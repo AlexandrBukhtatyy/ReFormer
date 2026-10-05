@@ -15,83 +15,109 @@ import {
   applicationFromRuntime,
   builderApplication,
   launchFromRuntime,
-  STACK_SWITCH_PLUGIN_ID,
+  PROFILE_SWITCH_PLUGIN_ID,
 } from './builder-application';
 import { BUILTIN_PLUGINS } from './composer/builtin-plugins';
-import { stubBuiltinOptions } from './composer/testing';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 
 async function idsOf(composition: ApplicationComposition): Promise<readonly string[]> {
-  const loaded = await composition.load(stubBuiltinOptions());
+  const loaded = await composition.load();
   return loaded.map((composed) => composed.plugin.id).sort();
 }
 
-const FULL = [
-  'reformer.ai',
-  'reformer.codegen',
-  'reformer.editor-markdown',
-  'reformer.editor-monaco',
-  'reformer.editor-schema',
-  'reformer.files',
-  'reformer.kits',
-  'reformer.plugin-manager',
-  'reformer.preview',
-  'reformer.preview-runtime',
-  'reformer.stack-switch',
-  'reformer.templates',
-  'reformer.validator-schema',
-];
+/**
+ * Состав по умолчанию: общая основа. Платформа форм (киты, превью-хост) и движки — плагины
+ * приложения, в состав встроенных они не входят.
+ */
+const FULL = ['reformer.plugin-manager', 'reformer.profile-switch', 'reformer.project'];
+
+/**
+ * Свой профиль организации: умолчание без управления плагинами — отличается от него одним
+ * плагином.
+ */
+const LITE_PROFILE = {
+  id: 'lite',
+  plugins: ['reformer.profile-switch', 'reformer.project'],
+};
+const LITE = FULL.filter((id) => id !== 'reformer.plugin-manager');
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Полный профиль собирается с ленивыми плагинами, и на холодном кэше трансформации (первый прогон
+// Профиль собирается с ленивыми плагинами, и на холодном кэше трансформации (первый прогон
 // после переезда файлов) первый такой тест не укладывается в 5 с умолчания — как и
 // builtin-plugins с keybindings-wiring (29a2d5d9). Таймаут на блок: холодным оказывается любой
 // первый по порядку, а порядок меняет фильтр `-t`.
 describe('applicationFromRuntime', { timeout: 30_000 }, () => {
-  it('без конфига — полный профиль', async () => {
+  it('без конфига — профиль по умолчанию', async () => {
     await expect(idsOf(applicationFromRuntime({}))).resolves.toEqual(FULL);
   });
 
   it('preset называет профиль, и состав становится его составом', async () => {
-    await expect(idsOf(applicationFromRuntime({ preset: 'minimal' }))).resolves.toEqual([
-      'reformer.editor-monaco',
-      'reformer.files',
-      'reformer.validator-schema',
-    ]);
+    await expect(
+      idsOf(applicationFromRuntime({ preset: 'lite', profiles: [LITE_PROFILE] }))
+    ).resolves.toEqual(LITE);
   });
 
   it('поправки применяются поверх профиля', async () => {
     const ids = await idsOf(
-      applicationFromRuntime({ preset: 'minimal', plugins: { enable: ['reformer.preview'] } })
+      applicationFromRuntime({
+        preset: 'lite',
+        profiles: [LITE_PROFILE],
+        plugins: { enable: ['reformer.plugin-manager'] },
+      })
     );
 
-    expect(ids).toEqual([
-      'reformer.editor-monaco',
-      'reformer.files',
-      'reformer.preview',
-      'reformer.validator-schema',
-    ]);
+    expect(ids).toEqual(FULL);
   });
 
-  it('неизвестный пресет — предупреждение и полный профиль, а не белый экран', async () => {
+  it('плагин, уехавший в плагины приложения, в поправках пропускается — состав остаётся настроенным', async () => {
+    // Конфиг написан, когда киты были встроенными. Отказ «неизвестный плагин» вернул бы
+    // человеку полный профиль вместо его собственного — из-за переезда, которого он не делал.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const composition = applicationFromRuntime({ preset: 'minimalll' });
+    const ids = await idsOf(
+      applicationFromRuntime({
+        preset: 'lite',
+        profiles: [LITE_PROFILE],
+        plugins: { disable: ['reformer.kits'], enable: ['preview'] },
+      })
+    );
 
-    await expect(idsOf(composition)).resolves.toEqual(FULL);
-    // Молчаливый откат означал бы, что человек видит полный билдер и не понимает, почему
-    // его `preset` ничего не сделал.
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain('minimalll');
+    expect(ids).toEqual(LITE);
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('плагином приложения');
   });
 
-  it('опечатка в поправках — то же самое: предупреждение и полный профиль', async () => {
+  it('неизвестный пресет — предупреждение и профиль по умолчанию, а не белый экран', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const composition = applicationFromRuntime({ preset: 'builder.bse' });
+
+    await expect(idsOf(composition)).resolves.toEqual(FULL);
+    // Молчаливый откат означал бы, что человек видит обычный билдер и не понимает, почему
+    // его `preset` ничего не сделал.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('builder.bse');
+  });
+
+  it('опечатка в поправках — то же самое: предупреждение и профиль по умолчанию', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const composition = applicationFromRuntime({ plugins: { disable: ['prewiew'] } });
+
+    await expect(idsOf(composition)).resolves.toEqual(FULL);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('плагин проекта в поправках состава — то же самое: состав называет только встроенных', async () => {
+    // Движок форм включается в проекте (`workspace.plugins.enabled`), а не конфигом запуска.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const composition = applicationFromRuntime({
+      plugins: { enable: ['reformer.editor-schema'] },
+    });
 
     await expect(idsOf(composition)).resolves.toEqual(FULL);
     expect(warn).toHaveBeenCalledTimes(1);
@@ -105,34 +131,42 @@ describe('applicationFromRuntime', { timeout: 30_000 }, () => {
 });
 
 describe('свои профили из конфига запуска', { timeout: 30_000 }, () => {
-  const RJSF_OF_ACME = [
-    'reformer.editor-markdown',
-    'reformer.editor-monaco',
-    'reformer.files',
-    'reformer.kits',
-    'reformer.plugin-manager',
-    'reformer.preview',
-    'reformer.rjsf.editor',
-    'reformer.rjsf.render',
-    'reformer.stack-switch',
-  ];
-
   it('свой профиль собирается поимённо поверх встроенной основы; прежние имена работают', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const ids = await idsOf(
       applicationFromRuntime({
         preset: 'acme',
         profiles: [
           {
             id: 'acme',
-            extends: 'builder.base',
-            // `kits` — прежнее имя `reformer.kits`: профиль в конфиге тоже пишет человек.
-            plugins: ['kits', 'reformer.rjsf.editor', 'reformer.rjsf.render'],
+            // Прежние имена: без пространства имён и переименованный переключатель —
+            // профиль в конфиге тоже пишет человек.
+            plugins: ['project', 'plugin-manager', 'stack-switch'],
           },
         ],
       })
     );
 
-    expect(ids).toEqual(RJSF_OF_ACME);
+    expect(ids).toEqual(['reformer.plugin-manager', 'reformer.profile-switch', 'reformer.project']);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('свой профиль, называющий уехавший плагин, собирается без него', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const ids = await idsOf(
+      applicationFromRuntime({
+        preset: 'acme',
+        // Так писали «основа с китами», пока киты были встроенными.
+        profiles: [{ id: 'acme', extends: 'builder.base', plugins: ['kits'] }],
+      })
+    );
+
+    expect(ids).toEqual(FULL);
+    // Не откат на непонятый профиль: собран именно «acme», а про пропущенное имя сказано.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('«acme»');
   });
 
   it('свой профиль наследует другой свой', async () => {
@@ -140,13 +174,13 @@ describe('свои профили из конфига запуска', { timeout
       applicationFromRuntime({
         preset: 'acme-lite',
         profiles: [
-          { id: 'acme', extends: 'rjsf.builder', plugins: [] },
+          { id: 'acme', extends: 'builder.base', plugins: [] },
           { id: 'acme-lite', extends: 'acme', plugins: [], name: 'Облегчённый' },
         ],
       })
     );
 
-    expect(ids).toEqual(RJSF_OF_ACME);
+    expect(ids).toEqual(FULL);
   });
 
   it('имя встроенного профиля не подменяется: предупреждение и встроенный состав', async () => {
@@ -154,25 +188,25 @@ describe('свои профили из конфига запуска', { timeout
 
     const ids = await idsOf(
       applicationFromRuntime({
-        preset: 'minimal',
-        profiles: [{ id: 'minimal', plugins: ['reformer.files'] }],
+        preset: 'builder.base',
+        profiles: [{ id: 'builder.base', plugins: ['reformer.project'] }],
       })
     );
 
-    expect(ids).toEqual(['reformer.editor-monaco', 'reformer.files', 'reformer.validator-schema']);
+    expect(ids).toEqual(FULL);
     expect(String(warn.mock.calls[0]?.[0])).toContain('совпадает со встроенным');
   });
 
-  it('опечатка в своём профиле — предупреждение и полный профиль', async () => {
+  it('опечатка в своём профиле — предупреждение и профиль по умолчанию', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const typo = applicationFromRuntime({
       preset: 'acme',
-      profiles: [{ id: 'acme', extends: 'builder.base', plugins: ['reformer.rjsf.editr'] }],
+      profiles: [{ id: 'acme', extends: 'builder.base', plugins: ['reformer.kist'] }],
     });
     const unknownBase = applicationFromRuntime({
       preset: 'acme',
-      profiles: [{ id: 'acme', extends: 'rjsf.bulder', plugins: [] }],
+      profiles: [{ id: 'acme', extends: 'builder.bse', plugins: [] }],
     });
 
     await expect(idsOf(typo)).resolves.toEqual(FULL);
@@ -182,145 +216,164 @@ describe('свои профили из конфига запуска', { timeout
 });
 
 describe('выбор человека поверх конфига запуска', { timeout: 30_000 }, () => {
-  const REFORMER = { id: 'reformer.builder', name: 'ReFormer' };
-  const RJSF = { id: 'rjsf.builder', name: 'RJSF' };
-  /** Свой профиль с обоими стеками — как в dev-конфиге билдера. */
-  const ALL_STACKS = {
-    id: 'all-stacks',
-    name: 'ReFormer + RJSF',
-    extends: 'reformer.builder',
-    plugins: ['reformer.rjsf.editor', 'reformer.rjsf.render'],
+  const BUILDER = { id: 'builder', name: 'Конструктор' };
+  const BASE_PROFILE = { id: 'builder.base', name: 'Основа конструктора' };
+  /** Список, из которого есть что выбирать: по умолчанию предложен один профиль. */
+  const BOTH = ['builder', 'builder.base'];
+  /** Свой профиль организации: существует, но в список выбора попадает только по имени. */
+  const OWN = { id: 'acme', name: 'Свой состав', extends: 'builder', plugins: [] };
+  /** Свой профиль без переключателя: вернуться из него было бы нечем. */
+  const NO_SWITCH = {
+    id: 'no-switch',
+    name: 'Без переключателя',
+    plugins: ['reformer.project', 'reformer.plugin-manager'],
   };
 
   it('имя переключателя — настоящий встроенный плагин', () => {
     // Константа написана строкой, как имена в профилях; переименуй плагин — выбор молча
     // перестал бы предлагаться, потому что «переключателя нет» ни в одном составе.
-    expect(BUILTIN_PLUGINS.has(STACK_SWITCH_PLUGIN_ID)).toBe(true);
+    expect(BUILTIN_PLUGINS.has(PROFILE_SWITCH_PLUGIN_ID)).toBe(true);
   });
 
-  it('без выбора — состав конфига и встроенный список предложенных', () => {
+  it('без конфига — состав по умолчанию; встроенный список из одного имени выбора не даёт', () => {
     const launch = launchFromRuntime({}, null);
 
-    expect(launch.application.profile).toEqual(REFORMER);
-    expect(launch.profileChoices).toEqual({ launch: REFORMER, offered: [REFORMER, RJSF] });
+    expect(launch.application.profile).toEqual(BUILDER);
+    expect(launch.profileChoices).toEqual({ launch: BUILDER, offered: [] });
+  });
+
+  it('список из конфига предлагается к выбору', () => {
+    const launch = launchFromRuntime({ presetChoices: BOTH }, null);
+
+    expect(launch.profileChoices).toEqual({ launch: BUILDER, offered: [BUILDER, BASE_PROFILE] });
   });
 
   it('выбор человека собирает другой профиль; профиль запуска остаётся тем, что в конфиге', async () => {
-    const launch = launchFromRuntime({}, 'rjsf.builder');
+    const launch = launchFromRuntime({ presetChoices: BOTH }, 'builder.base');
 
-    expect(launch.application.profile).toEqual(RJSF);
-    expect(launch.profileChoices.launch).toEqual(REFORMER);
-    await expect(idsOf(launch.application)).resolves.toContain('reformer.rjsf.editor');
+    expect(launch.application.profile).toEqual(BASE_PROFILE);
+    expect(launch.profileChoices.launch).toEqual(BUILDER);
+    await expect(idsOf(launch.application)).resolves.toEqual(FULL);
   });
 
   it('выбор сильнее preset конфига — в пределах предложенного', () => {
-    const launch = launchFromRuntime({ preset: 'rjsf.builder' }, 'reformer.builder');
+    const launch = launchFromRuntime({ preset: 'builder.base', presetChoices: BOTH }, 'builder');
 
-    expect(launch.application.profile).toEqual(REFORMER);
-    expect(launch.profileChoices.launch).toEqual(RJSF);
+    expect(launch.application.profile).toEqual(BUILDER);
+    expect(launch.profileChoices.launch).toEqual(BASE_PROFILE);
   });
 
   it('выбор, равный профилю запуска, ничего не меняет', () => {
-    const launch = launchFromRuntime({ preset: 'rjsf.builder' }, 'rjsf.builder');
+    const launch = launchFromRuntime(
+      { preset: 'builder.base', presetChoices: BOTH },
+      'builder.base'
+    );
 
-    expect(launch.application.profile).toEqual(RJSF);
+    expect(launch.application.profile).toEqual(BASE_PROFILE);
   });
 
   it('выбор вне предложенных не действует — и состав остаётся составом конфига, без шума', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const launch = launchFromRuntime({ preset: 'rjsf.builder' }, 'minimal');
+    // Профиль настоящий и собирается — его просто нет среди предложенных.
+    const launch = launchFromRuntime(
+      { preset: 'builder.base', profiles: [OWN], presetChoices: BOTH },
+      'acme'
+    );
 
-    // Не полный профиль: человек не сделал ничего, за что его стоило бы увести с состава,
+    // Не профиль по умолчанию: человек не сделал ничего, за что его стоило бы увести с состава,
     // настроенного организацией.
-    expect(launch.application.profile).toEqual(RJSF);
+    expect(launch.application.profile).toEqual(BASE_PROFILE);
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('пустой список и список из одного имени закрепляют состав', () => {
-    for (const presetChoices of [[], ['rjsf.builder']]) {
-      const launch = launchFromRuntime({ presetChoices }, 'rjsf.builder');
+    for (const presetChoices of [[], ['builder.base']]) {
+      const launch = launchFromRuntime({ presetChoices }, 'builder.base');
 
-      expect(launch.application.profile).toEqual(REFORMER);
+      expect(launch.application.profile).toEqual(BUILDER);
       expect(launch.profileChoices.offered).toEqual([]);
     }
   });
 
   it('свой профиль вне списка остаётся профилем запуска, а предложенные — на выбор', () => {
-    const config = { preset: 'all-stacks', profiles: [ALL_STACKS] };
+    const config = { preset: 'acme', profiles: [OWN], presetChoices: BOTH };
 
     const onLaunch = launchFromRuntime(config, null);
-    const onChoice = launchFromRuntime(config, 'rjsf.builder');
+    const onChoice = launchFromRuntime(config, 'builder.base');
 
-    expect(onLaunch.application.profile).toEqual({ id: 'all-stacks', name: 'ReFormer + RJSF' });
-    expect(onLaunch.profileChoices.offered).toEqual([REFORMER, RJSF]);
-    expect(onChoice.application.profile).toEqual(RJSF);
-    expect(onChoice.profileChoices.launch.id).toBe('all-stacks');
+    expect(onLaunch.application.profile).toEqual({ id: 'acme', name: 'Свой состав' });
+    expect(onLaunch.profileChoices.offered).toEqual([BUILDER, BASE_PROFILE]);
+    expect(onChoice.application.profile).toEqual(BASE_PROFILE);
+    expect(onChoice.profileChoices.launch.id).toBe('acme');
   });
 
   it('свой профиль можно предложить к выбору по имени', () => {
     const launch = launchFromRuntime(
-      { profiles: [ALL_STACKS], presetChoices: ['reformer.builder', 'all-stacks'] },
-      'all-stacks'
+      { profiles: [OWN], presetChoices: ['builder', 'acme'] },
+      'acme'
     );
 
-    expect(launch.application.profile.id).toBe('all-stacks');
+    expect(launch.application.profile.id).toBe('acme');
   });
 
   it('неизвестное имя в списке — предупреждение и пропуск, соседи остаются', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const launch = launchFromRuntime(
-      { presetChoices: ['reformer.builder', 'rjsf.bulder', 'rjsf.builder'] },
+      { presetChoices: ['builder', 'builder.bse', 'builder.base'] },
       null
     );
 
-    expect(launch.profileChoices.offered).toEqual([REFORMER, RJSF]);
+    expect(launch.profileChoices.offered).toEqual([BUILDER, BASE_PROFILE]);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain('rjsf.bulder');
+    expect(String(warn.mock.calls[0]?.[0])).toContain('builder.bse');
   });
 
   it('профиль без переключателя не предлагается: вернуться из него было бы нечем', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const launch = launchFromRuntime(
-      { presetChoices: ['reformer.builder', 'rjsf.builder', 'minimal'] },
-      'minimal'
+      { profiles: [NO_SWITCH], presetChoices: ['builder', 'builder.base', 'no-switch'] },
+      'no-switch'
     );
 
-    expect(launch.profileChoices.offered).toEqual([REFORMER, RJSF]);
-    expect(launch.application.profile).toEqual(REFORMER);
-    expect(String(warn.mock.calls[0]?.[0])).toContain('minimal');
+    expect(launch.profileChoices.offered).toEqual([BUILDER, BASE_PROFILE]);
+    expect(launch.application.profile).toEqual(BUILDER);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('no-switch');
   });
 
   it('переключатель убран поправкой состава — выбора нет, и сохранённый не действует', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const launch = launchFromRuntime(
-      { plugins: { disable: [STACK_SWITCH_PLUGIN_ID] } },
-      'rjsf.builder'
+      { presetChoices: BOTH, plugins: { disable: [PROFILE_SWITCH_PLUGIN_ID] } },
+      'builder.base'
     );
 
-    expect(launch.application.profile).toEqual(REFORMER);
+    expect(launch.application.profile).toEqual(BUILDER);
     expect(launch.profileChoices.offered).toEqual([]);
     // Организация убрала переключатель намеренно: предупреждать о каждом профиле списка незачем.
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('состав запуска без переключателя даёт именно его, что бы человек ни выбирал раньше', () => {
-    const launch = launchFromRuntime({ preset: 'minimal' }, 'rjsf.builder');
+    const launch = launchFromRuntime(
+      { preset: 'no-switch', profiles: [NO_SWITCH], presetChoices: BOTH },
+      'builder.base'
+    );
 
-    expect(launch.application.profile.id).toBe('minimal');
+    expect(launch.application.profile.id).toBe('no-switch');
     expect(launch.profileChoices.offered).toEqual([]);
   });
 
-  it('опечатка в preset: откат на полный профиль виден в имени собранного', () => {
+  it('опечатка в preset: откат на профиль по умолчанию виден в имени собранного', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const launch = launchFromRuntime({ preset: 'rjsf.bulder' }, null);
+    const launch = launchFromRuntime({ preset: 'builder.bse' }, null);
 
     // Не «что написано в конфиге», а что собрано на самом деле — этим именем подписана ячейка.
-    expect(launch.application.profile).toEqual(REFORMER);
-    expect(launch.profileChoices.launch).toEqual(REFORMER);
+    expect(launch.application.profile).toEqual(BUILDER);
+    expect(launch.profileChoices.launch).toEqual(BUILDER);
   });
 });

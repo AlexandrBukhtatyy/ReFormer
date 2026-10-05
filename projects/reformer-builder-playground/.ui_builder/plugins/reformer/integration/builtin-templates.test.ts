@@ -1,0 +1,121 @@
+/**
+ * Встроенные шаблоны — против настоящего печатника и настоящего предиката редактора схемы.
+ *
+ * Проверяется стык, который не виден ни одному из тестов по отдельности: шаблоны печатает
+ * КОДОГЕН, а открывает напечатанное РЕДАКТОР СХЕМЫ, и плагины друг друга не импортируют —
+ * встретиться они могут только здесь, в композиции. Разошлись они молча: схема (тогда ещё
+ * `renderer.schema.json`, теперь `form.schema.json`) уезжала со строкой-маркером `//` первой,
+ * переставала быть JSON, и форма, созданная по шаблону, открывалась голым текстом вместо канваса.
+ *
+ * @module shell/boot/integration/builtin-templates.test
+ */
+
+import { describe, expect, it } from 'vitest';
+import { MODULE_FILES, STEPS_INDEX } from '../core/codegen';
+import { builtinKit } from '../core/testing';
+import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
+import { looksLikeFormSchema } from '../editor/src/model/provider';
+import {
+  createBuiltinStore,
+  materializeFiles,
+  SIMPLE_TEMPLATE_ID,
+  WIZARD_TEMPLATE_ID,
+  TOKENS,
+  type ModulePrinter,
+} from '../templates/src';
+
+/** Тот же переходник к кодогену, что собирает композиция в `./boot`. */
+function printer(): ModulePrinter {
+  const view = builtinKit();
+  return async (schema, formName, seed) => {
+    const built = await generateModule(BUILTIN_TARGETS, {
+      schema,
+      formName,
+      rules: seed?.rules,
+      mock: seed?.mock,
+      kit: { kit: view.kit, catalog: view.catalog },
+    });
+    return built.files.map(({ path, content }) => ({ path, content }));
+  };
+}
+
+describe('форма по встроенному шаблону открывается редактором схемы', () => {
+  it('напечатанная схема — разбираемый json, который берёт редактор', async () => {
+    const templates = await createBuiltinStore({ print: printer() }).list();
+    expect(templates.length).toBeGreaterThan(0);
+
+    for (const template of templates) {
+      const files = materializeFiles(
+        template,
+        template.files.map((file) => file.path),
+        'test'
+      );
+      const schema = files.find((file) => file.path === MODULE_FILES.schema);
+
+      expect(schema, `шаблон «${template.name}» без схемы`).toBeDefined();
+      // Предикат ТОТ ЖЕ, по которому оболочка выбирает редактор: два разных ответа на этот
+      // вопрос означали бы вкладку с текстом там, где ожидается канвас.
+      expect(looksLikeFormSchema(schema?.content ?? ''), template.name).toBe(true);
+    }
+  });
+
+  it('«Пошаговая форма» создаёт папки шагов, простая — нет', async () => {
+    const templates = await createBuiltinStore({ print: printer() }).list();
+    const pathsOf = (id: string): readonly string[] => {
+      const template = templates.find((t) => t.id === id);
+      if (template === undefined) throw new Error(`нет шаблона ${id}`);
+      // Отмечена только точка входа — остальное обязано приехать зависимостями, включая шаги.
+      return materializeFiles(template, ['index.tsx'], 'test').map((file) => file.path);
+    };
+
+    const wizard = pathsOf(WIZARD_TEMPLATE_ID);
+    expect(wizard).toContain(STEPS_INDEX);
+    const stepFiles = wizard.filter((path) =>
+      /^steps\/[^/]+\/form\.(validation|render)\.ts$/.test(path)
+    );
+    // Два шага затравки — по два файла на шаг.
+    expect(stepFiles.length).toBeGreaterThanOrEqual(4);
+    expect(wizard).toContain(MODULE_FILES.wizard);
+
+    const simple = pathsOf(SIMPLE_TEMPLATE_ID);
+    expect(simple.some((path) => path.startsWith('steps/'))).toBe(false);
+  });
+});
+
+/**
+ * Проверка, переживающая переформатирование.
+ *
+ * Заведена под перевод печати на шаблонизатор: golden-снимки ловят СДВИГ вывода, но молчат про
+ * два отказа, которые от раскладки не зависят вовсе, — недоподставленный токен и пустой файл.
+ * Первый уезжает пользователю буквально строкой `__FormName__` в коде, второй выглядит как
+ * успешно созданная форма, у которой нечего открыть.
+ *
+ * Транспиляция сюда сознательно НЕ добавляется: она тянет чанк `typescript` на 3.5 МБ и снесла
+ * бы бюджет node-прогона в 7-8 секунд ради проверки, которую делает сборка примера.
+ */
+describe('встроенный шаблон материализуется без следов затравки', () => {
+  it('ни один токен имени не выжил и ни один файл не пуст', async () => {
+    const templates = await createBuiltinStore({ print: printer() }).list();
+    expect(templates.length).toBeGreaterThan(0);
+
+    for (const template of templates) {
+      const files = materializeFiles(
+        template,
+        template.files.map((file) => file.path),
+        // Кириллица с пробелом: транслитерация участвует в каждом файле, а базовое имя
+        // затравки (`sample`) обязано исчезнуть и из путей, и из текстов.
+        'Профиль пользователя'
+      );
+      expect(files.length, template.name).toBeGreaterThan(0);
+
+      for (const file of files) {
+        const where = `${template.name} → ${file.path}`;
+        expect(file.content.trim(), where).not.toBe('');
+        for (const token of Object.values(TOKENS)) {
+          expect(file.path, where).not.toContain(token);
+          expect(file.content, where).not.toContain(token);
+        }
+      }
+    }
+  });
+});

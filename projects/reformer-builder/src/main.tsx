@@ -4,7 +4,17 @@ import App from './App';
 import { launchFromRuntime } from './application/builder-application';
 import { boot } from './shell/boot/boot';
 import { fetchRuntimeConfig } from './shell/boot/runtime-config';
+import {
+  APPLICATION_ROOT_DIR,
+  loadApplicationFiles,
+} from './shell/platform/plugin/application/files';
 import { readStoredPreset } from './shell/boot/stored-preset';
+import {
+  printStartupSummary,
+  traced,
+  traceSinceStart,
+  traceSpan,
+} from './shell/platform/primitives/trace';
 import './index.css';
 
 // Бут синхронный — в отличие от v1, где он async из-за модульной мемоизации в графе
@@ -21,7 +31,15 @@ import './index.css';
 // Рядом с конфигом читается выбор профиля, сделанный человеком в строке состояния: он обязан
 // повлиять на сборку состава, а служба настроек появляется только внутри `boot`. Чтения
 // независимы и идут параллельно; отказ второго — тоже штатный `null`, «человек не выбирал».
+// Замер запуска: меры ставятся всегда (см. `shell/platform/primitives/trace`), а сводку
+// в консоль печатает адрес с параметром `rb-trace`. Буфер запросов расширен заранее: по
+// умолчанию он на 250 записей, а сводке нужны все файлы плагинов и чанки оболочки.
+const TRACE_FLAG = 'rb-trace';
+performance.setResourceTimingBufferSize?.(1000);
+const launchConfigRead = traceSpan('launch.config');
+
 void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, storedPreset]) => {
+  launchConfigRead();
   // Состав приложения приходит ОТСЮДА, а не изнутри оболочки. «Какие плагины образуют ReFormer
   // Builder» — вопрос приложения, а не механизма, который их поднимает: `boot` объявляет форму
   // композиции и получает её параметром. Знай он состав сам, второе приложение на той же оболочке
@@ -38,7 +56,19 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
   // Вместе с составом приложение отдаёт и сам список: оболочка профилей не знает, а службе
   // профилей нужно назвать их переключателю.
   const { application, profileChoices } = launchFromRuntime(runtime?.config ?? {}, storedPreset);
-  const app = boot({ runtime, application, profileChoices });
+  const app = traced('boot.sync', () =>
+    boot({
+      runtime,
+      application,
+      profileChoices,
+      // Плагины приложения лежат РЯДОМ СО СБОРКОЙ, в каталоге `plugins/` от её базового адреса:
+      // их кладёт туда тот, кто приложение разворачивает (лаунчер, сборка для поставки, Pages).
+      // Нет каталога — штатный `null`: так запускается билдер под `vite dev`, где плагины
+      // остаются плагинами открытого проекта.
+      applicationPluginFiles: () =>
+        loadApplicationFiles({ baseUrl: `${import.meta.env.BASE_URL}${APPLICATION_ROOT_DIR}/` }),
+    })
+  );
   const root = createRoot(document.getElementById('root')!);
 
   // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).
@@ -54,6 +84,13 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
         <App app={app} />
       </StrictMode>
     );
+
+    // Первый кадр — отметка, к которой сводится весь замер: всё, что до неё, человек ждёт
+    // перед пустым окном.
+    requestAnimationFrame(() => {
+      traceSinceStart('first-frame');
+      if (new URLSearchParams(window.location.search).has(TRACE_FLAG)) printStartupSummary();
+    });
 
     // Шаг 5: восстановление последнего проекта — ПОСЛЕ отрисовки и не блокируя её. Оно ждёт
     // IndexedDB и, возможно, разрешения на каталог, а «проект не открыт» — это нормальное

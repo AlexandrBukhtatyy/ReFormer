@@ -121,6 +121,21 @@ describe('правка записей проекта', () => {
     }
   });
 
+  it('недавние проекты читаются и без открытого: список живёт дольше любого проекта', async () => {
+    const app = harness();
+    try {
+      // Список — проекция записей рабочих областей; открытого проекта он не требует, иначе
+      // стартовая страница, для которой он и нужен, не показала бы ничего.
+      expect(app.resources.recentProjects.list()).toEqual([]);
+      // Открыть то, чего в списке нет, — отказ значением, а не исключением.
+      await expect(app.resources.recentProjects.open('нет-такого')).resolves.toBe(false);
+      const subscription = app.resources.recentProjects.onDidChange(() => {});
+      expect(() => subscription.dispose()).not.toThrow();
+    } finally {
+      app.dispose();
+    }
+  });
+
   it('открытие каталога спрашивает держателя проекта, а не решает само', async () => {
     const app = harness();
     try {

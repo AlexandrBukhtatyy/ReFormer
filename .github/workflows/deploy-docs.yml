@@ -10,14 +10,16 @@ on:
     # каталог компонентов, и заметить это было нечем. Точный список уже один раз разошёлся со
     # сборкой и разойдётся снова при следующем пакете, поэтому здесь намеренно широкий шаблон.
     #
-    # Цена — лишний прогон, когда менялись только тесты или пакет, в сайт не входящий (кит
-    # hexa-ui). mcp и form-registry к таким больше не относятся: оба попадают на Pages через
-    # билдер (см. «Build workspace packages»). Цена мала: цикл 5–8 минут, а `concurrency` ниже
+    # Цена — лишний прогон, когда менялись только тесты или пакет, в сайт не входящий (mcp,
+    # CLI плагинов). form-registry к таким не относится: он попадает на Pages через билдер
+    # (см. «Build workspace packages»). Цена мала: цикл 5–8 минут, а `concurrency` ниже
     # схлопывает серию пушей в один деплой. Пропущенная публикация обошлась бы дороже — она
     # молчалива.
     paths:
       - 'projects/reformer-doc/**'
       - 'projects/reformer-builder/**'
+      # Плагины приложения едут на Pages внутри билдера.
+      - 'projects/reformer-builder-playground/.ui_builder/plugins/**'
       - 'packages/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
@@ -57,10 +59,9 @@ jobs:
         # поэтому пакеты нужно собрать ДО сборки доков (в порядке зависимостей).
         # Иначе docusaurus build падает с «no valid target file was found».
         #
-        # @reformer/mcp здесь не ради доков, а ради билдера: его `build` первым делом гонит
-        # `generate:knowledge`, а тот берёт список пакетов и версию формата из `dist/core`
-        # самого MCP и без него завершается с ошибкой. Пропустив эту сборку, деплой падает
-        # не на доках, а сильно позже — на шаге «Build builder».
+        # @reformer/mcp в списке нет: докам он не нужен, а билдеру перестал быть нужен, когда
+        # движки форм вместе с корпусом знаний уехали из него в плагины проекта (корпус теперь
+        # собирает пакет плагина ИИ, а не `build` билдера).
         #
         # @reformer/form-registry — тоже ради билдера: его реестр модулей отдаёт пакет коду формы
         # (`shell/boot/plugin-modules.ts`), а `tsc -b` билдера берёт типы пакета из `dist/`.
@@ -74,7 +75,6 @@ jobs:
           npm run build -w @reformer/renderer-react
           npm run build -w @reformer/ui-kit
           npm run build -w @reformer/form-registry
-          npm run build -w @reformer/mcp
           npm run build -w @reformer/builder-plugin-api
 
       - name: Build documentation
@@ -86,6 +86,20 @@ jobs:
         env:
           BUILDER_BASE: /ReFormer/builder/
         run: npm run build -w @reformer/builder
+
+      - name: Плагины приложения — в dist билдера
+        # Билдер на Pages везёт движки форм сам: сборки пакетов плагинов для поставки складываются
+        # в `dist/plugins/`, и оболочка читает их от своего базового адреса (`/ReFormer/builder/`).
+        # Плагинам нужны dist CLI, toolkit, темы RJSF и MCP (корпус знаний ассистента) — докам они
+        # не нужны, поэтому собираются здесь, а не в общем списке выше. Идёт ПОСЛЕ сборки билдера:
+        # `vite build` очищает `dist`.
+        run: |
+          npm run build -w @reformer/mcp
+          npm run build -w @reformer/builder-toolkit
+          npm run build -w @reformer/builder-plugin-cli
+          npm run build -w @reformer/rjsf-kit-theme
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
 
       - name: Assemble site (docs at root, builder under /builder)
         # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder.

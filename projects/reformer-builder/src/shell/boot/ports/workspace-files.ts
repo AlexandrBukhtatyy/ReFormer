@@ -69,6 +69,14 @@ export function createWorkspaceFilesService(
       return session.workspace.readText(id).catch(() => null);
     },
 
+    async readBytes(id: ResourceId) {
+      const session = project.get();
+      if (session === null) return null;
+      // Картинки, которой нет, в чужом README сколько угодно: это состояние показа,
+      // а не сбой рабочей области.
+      return session.workspace.readBytes(id).catch(() => null);
+    },
+
     async refresh(dir: ResourceId) {
       // Тот же глагол, которым чинит себя дерево после операций над записями.
       await project.get()?.resources.refresh(dir);

@@ -102,7 +102,9 @@ export interface I18nServiceOptions {
 const HOST_NAMESPACE = '';
 
 /** Словари Host, поставляемые вместе с ним. Список локалей явный: шаблонный `import()` не типизуем. */
-async function loadBundledHostMessages(locale: string): Promise<Readonly<Record<string, string>>> {
+export async function loadBundledHostMessages(
+  locale: string
+): Promise<Readonly<Record<string, string>>> {
   if (locale === 'en') return (await import('./locales/en.json')).default;
   if (locale === 'ru') return (await import('./locales/ru.json')).default;
   return {};

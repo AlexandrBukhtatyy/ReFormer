@@ -29,7 +29,41 @@
  */
 
 import { defineCapability, type Capability } from '../primitives/capability.js';
+import type { Disposable } from '../primitives/disposable.js';
 import type { ResourceId } from '../primitives/resource.js';
+
+/** Недавний проект — в объёме списка. */
+export interface RecentProject {
+  readonly id: string;
+  /** Имя каталога: пути File System Access не даёт. */
+  readonly label: string;
+  readonly lastOpenedAt: number;
+}
+
+/**
+ * Недавние проекты: список и глаголы над ним.
+ *
+ * Часть ЭТОЙ службы, а не соседней непривилегированной: открыть проект из списка — то же
+ * действие, что {@link WorkspaceResourcesService.openProject}, только без диалога выбора.
+ * Список живёт дольше любого проекта, поэтому читается и без открытого.
+ */
+export interface RecentProjects {
+  /** Свежий первым, без открытого сейчас и без убранных. Ссылка стабильна между изменениями. */
+  list(): readonly RecentProject[];
+  /** Список сменился — по этому сигналу перерисовываются меню и стартовая страница. */
+  onDidChange(cb: () => void): Disposable;
+  /**
+   * Открывает проект из списка. `false` — не открылся; почему — уже сказало уведомление.
+   *
+   * Звать из обработчика щелчка или клавиши: разрешение на каталог браузер спрашивает только
+   * по жесту человека.
+   */
+  open(id: string): Promise<boolean>;
+  /** Убирает проект из списка. Рабочая копия остаётся — это не удаление. */
+  forget(id: string): Promise<void>;
+  /** Убирает из списка всё, кроме открытого сейчас проекта. */
+  clear(): Promise<void>;
+}
 
 /**
  * Итог пакетной операции: что получилось и что нет.
@@ -53,6 +87,8 @@ export interface WorkspaceResourcesService {
   canOpenProject(): boolean;
   /** Показывает человеку выбор каталога и открывает проект. `false` — не выбрали. */
   openProject(): Promise<boolean>;
+  /** Недавно открытые проекты. */
+  readonly recentProjects: RecentProjects;
 
   createFile(dir: ResourceId, name: string, text?: string): Promise<ResourceId>;
   createDirectory(dir: ResourceId, name: string): Promise<ResourceId>;
@@ -66,11 +102,12 @@ export interface WorkspaceResourcesService {
  * Возможность «правка записей проекта».
  *
  * Провайдер — оболочка. Версия `1.0.0` — исходная; растит её тот, кто меняет интерфейс.
+ * `1.1.0` — минор: {@link WorkspaceResourcesService.recentProjects}.
  */
 export const WorkspaceResourcesCapability: Capability<WorkspaceResourcesService> =
   defineCapability<WorkspaceResourcesService>({
     id: 'reformer.workspace.resources',
-    version: '1.0.0',
+    version: '1.1.0',
   });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */

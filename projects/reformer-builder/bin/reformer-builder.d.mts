@@ -11,6 +11,8 @@ export interface LauncherOpts {
   version: boolean;
   /** Путь к конфигу билдера (`--config`) или `null` (авто-детект `.ui_builder/config.json` в cwd). */
   config: string | null;
+  /** Каталог плагинов приложения (`--plugins`) или `null` — раздаётся `dist/plugins`. */
+  plugins: string | null;
 }
 
 export interface RuntimeBundleResult {
@@ -21,6 +23,9 @@ export interface RuntimeBundleResult {
 /** URL раздачи конфига запуска. */
 export const RUNTIME_BUNDLE_URL: string;
 
+/** Адрес каталога плагинов приложения, со слэшами по краям. */
+export const PLUGINS_URL_PREFIX: string;
+
 export function parseArgs(argv: string[]): LauncherOpts;
 
 export function loadRuntimeBundle(
@@ -30,5 +35,6 @@ export function loadRuntimeBundle(
 
 export function createRequestHandler(
   indexHtmlPath: string,
-  runtimeBundleBody: Buffer
+  runtimeBundleBody: Buffer,
+  options?: { pluginsDir?: string | null; rootDir?: string }
 ): (req: unknown, res: unknown) => Promise<void>;

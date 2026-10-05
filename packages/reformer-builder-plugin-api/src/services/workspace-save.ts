@@ -16,9 +16,9 @@
  * `workspace.save` в манифесте и кому человек его подтвердил. Отказ — отсутствие объекта
  * (`capabilities.get` вернёт `undefined`, `require` откажет), а не совет не делать.
  *
- * Объём — ровно одна операция и ни членом больше: «сохранить набор адресов». Расхождения
- * с источником сюда не попадают — их показывает диалог слияния, и знает о них тот, кто
- * его открывает.
+ * Объём — сохранение и ничего сверх: набор адресов, всё изменённое и вопрос «есть ли что
+ * сохранять». Расхождения с источником сюда не попадают — их показывает диалог слияния,
+ * и знает о них тот, кто его открывает.
  *
  * @module @reformer/builder-plugin-api/services/workspace-save
  */
@@ -34,14 +34,25 @@ export interface WorkspaceSaveService {
    * наружу не отдаются: показать их некому, кроме рабочей области, а она о них знает и так.
    */
   save(ids: readonly ResourceId[]): Promise<boolean>;
+  /**
+   * Сохраняет всё изменённое. `false` — проекта нет или что-то не сохранилось.
+   *
+   * Отдельный глагол, а не «`save` со списком всех изменённых»: списка изменённого у плагина
+   * нет, и собирать его ради одной команды значило бы отдать наружу устройство рабочей копии.
+   */
+  saveAll(): Promise<boolean>;
+  /** Есть ли несохранённые правки — во всей рабочей области. Без проекта — `false`. */
+  isDirty(): boolean;
 }
 
 /**
  * Возможность «сохранить в источник». Привилегированная: оболочка сверяет право
  * `workspace.save` перед тем, как отдать её плагину.
+ *
+ * `1.1.0` — минор: {@link WorkspaceSaveService.saveAll} и {@link WorkspaceSaveService.isDirty}.
  */
 export const WorkspaceSaveCapability: Capability<WorkspaceSaveService> =
-  defineCapability<WorkspaceSaveService>({ id: 'reformer.workspace.save', version: '1.0.0' });
+  defineCapability<WorkspaceSaveService>({ id: 'reformer.workspace.save', version: '1.1.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const WorkspaceSaveServiceToken = WorkspaceSaveCapability;

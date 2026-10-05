@@ -41,7 +41,10 @@ interface Published {
 /** Сессия с реестром вкладов, в котором лежит провайдер подставного формата. */
 function harness(
   files: Readonly<Record<string, string>> = { 'form.lines': 'n1 alpha\nn2 beta' },
-  options: { readonly withProvider?: boolean } = {}
+  options: {
+    readonly withProvider?: boolean;
+    readonly providersReady?: () => Promise<void>;
+  } = {}
 ) {
   seq += 1;
   const workspaceId = `wsm-${seq}`;
@@ -74,6 +77,7 @@ function harness(
     whenContext,
     extensions,
     isTextEditorFocused: (id) => focused.has(id),
+    modelProvidersReady: options.providersReady,
     diagnostics: {
       publish: (resource, diagnosticSource, items) =>
         published.push({ resource, source: diagnosticSource, items }),
@@ -82,6 +86,7 @@ function harness(
 
   return {
     session,
+    extensions,
     whenContext,
     published,
     focused,
@@ -103,6 +108,36 @@ describe('надстройка модели на открытии докумен
 
     expect(h.session.documents.documentOf(h.id('notes.md'))?.kind).toBe('text');
     expect(h.session.models.handleOf(h.id('notes.md'))).toBeNull();
+    h.dispose();
+  });
+
+  it('открытие ждёт состава провайдеров: плагин проекта, поднявшийся позже, успевает взяться', async () => {
+    let settle: () => void = () => undefined;
+    const ready = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const h = harness(undefined, { withProvider: false, providersReady: () => ready });
+
+    // Вкладка восстанавливается сразу после открытия проекта, а плагин проекта с провайдером
+    // модели поднимается позже — отдельной цепочкой.
+    const opening = h.session.documents.open(h.id('form.lines'));
+    h.extensions.forPlugin('lines').contribute(DocumentModelPoint, createLinesProvider());
+    settle();
+    await opening;
+
+    // Без ожидания документ открылся бы текстовым и остался таким до закрытия вкладки.
+    expect(h.session.documents.documentOf(h.id('form.lines'))?.kind).toBe('model');
+    h.dispose();
+  });
+
+  it('отказ ожидания открытия не отменяет: документ открывается с тем составом, что есть', async () => {
+    const h = harness(undefined, {
+      providersReady: () => Promise.reject(new Error('цепочка плагинов упала')),
+    });
+
+    await h.session.documents.open(h.id('form.lines'));
+
+    expect(h.session.documents.documentOf(h.id('form.lines'))?.kind).toBe('model');
     h.dispose();
   });
 

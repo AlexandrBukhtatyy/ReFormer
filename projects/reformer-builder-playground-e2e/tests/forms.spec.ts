@@ -1,7 +1,8 @@
 import { test, expect } from './shared/fixtures';
 
 /**
- * Формы playground в редакторах обоих движков: состав `ReFormer + RJSF` конфига запуска.
+ * Формы playground в редакторах обоих движков. Движки — плагины проекта: пакеты в каталогах
+ * доменов `.ui_builder/plugins/reformer` и `.ui_builder/plugins/rjsf`.
  */
 test.describe('Форма RJSF', () => {
   const FORM = 'forms/contact.rjsf.json';
@@ -56,5 +57,29 @@ test.describe('Форма ReFormer', () => {
         .getByRole('navigation', { name: 'Панели слева' })
         .getByRole('button', { name: 'Компоненты' })
     ).toBeVisible();
+  });
+
+  test('классы редактора, которых нет в CSS билдера, приходят таблицей стилей плагина', async ({
+    builder,
+    page,
+  }) => {
+    await builder.openPlayground();
+    await builder.openFile('forms/contact/form.schema.json');
+    await expect(page.getByRole('tree', { name: 'Дерево схемы формы' })).toBeVisible();
+
+    // `p-2.5` — отступ блока схемы: в исходниках билдера его нет, и правило собирает сам плагин
+    // (`npm run generate:styles`). Без таблицы плагина класс молчит: вёрстка не падает, а теряет
+    // отступ. Проба стоит в контейнере плагина — только там действует его таблица.
+    const padding = await page.evaluate(() => {
+      const scope = document.querySelector('[data-rb-plugin="reformer.editor-schema"]');
+      if (scope === null) return null;
+      const probe = document.createElement('div');
+      probe.className = 'p-2.5';
+      scope.append(probe);
+      const value = getComputedStyle(probe).paddingTop;
+      probe.remove();
+      return value;
+    });
+    expect(padding).toBe('10px');
   });
 });

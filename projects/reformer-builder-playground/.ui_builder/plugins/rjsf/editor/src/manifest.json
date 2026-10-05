@@ -1,0 +1,28 @@
+{
+  "id": "reformer.rjsf.editor",
+  "name": "RJSF: редактор формы",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "styles": {
+    "file": "styles.css",
+    "isolation": "scoped"
+  },
+  "permissions": ["workspace.save"],
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.editor",
+        "range": "^1"
+      },
+      {
+        "id": "reformer.preview.live",
+        "range": "^1"
+      },
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
+      }
+    ]
+  }
+}

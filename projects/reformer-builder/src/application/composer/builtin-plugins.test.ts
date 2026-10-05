@@ -3,10 +3,9 @@
  * с настоящими вещами платформы.
  *
  * Каждый плагин покрыт своими тестами, и все они зелёные, — но проверяют они плагин на своих
- * двойниках. Ошибка сборки живёт между ними, и её не видит никто: порт, проглотивший аргумент,
- * компилируется (реализация с меньшим числом параметров присваивается функции с бо́льшим),
- * а вклад, ушедший в точку с другим `id`, теряется молча: реестр ключуется ИМЕНЕМ точки,
- * поэтому разъехавшаяся копия объявления — не ошибка компиляции, а пустая панель.
+ * двойниках. Ошибка сборки живёт между ними, и её не видит никто: служба, которой плагин ждёт,
+ * а оболочка не даёт, — это не ошибка компиляции, а пустая панель; вклад, ушедший в точку
+ * с другим `id`, теряется молча, потому что реестр ключуется ИМЕНЕМ точки.
  *
  * Оба случая в этом проекте уже происходили. Отсюда этот файл.
  *
@@ -31,76 +30,36 @@ import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
-import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
-import { KITS_PLUGIN_ID } from '@/plugins/kits/registry';
-// Только ТИПЫ фабрик состава — для сверки с набором портов ниже; код плагинов сюда не едет.
-import type filesBuiltin from '@/plugins/base/files';
-import type monacoBuiltin from '@/plugins/base/editor-monaco';
-import type markdownBuiltin from '@/plugins/base/editor-markdown';
-import type schemaEditorBuiltin from '@/plugins/reformer/editor';
-import { KitsCapability } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '../builder-application';
-import { builtinProfile, PROFILES } from '../profiles/registry';
+import { PROFILES } from '../profiles/registry';
 import {
   builtinPluginDirectory,
-  builtinPluginPorts,
   BUILTIN_MANIFESTS,
   BUILTIN_PLUGIN_NAMESPACE,
   BUILTIN_PLUGINS,
   canonicalPluginId,
-  type BuiltinPluginPorts,
 } from './builtin-plugins';
 import { fromProfile } from './compose';
-import { stubBuiltinOptions, stubHostCapabilities } from './testing';
-
-const builderProfile = builtinProfile('reformer.builder');
-const baseProfile = builtinProfile('builder.base');
-const plainProfile = builtinProfile('plain.builder');
-const rjsfProfile = builtinProfile('rjsf.builder');
-
-/** Фабрика состава — `export default` бареля встроенного плагина. */
-type BuiltinFactory = (ports: BuiltinPluginPorts) => Plugin;
-type FitsPorts<F> = F extends BuiltinFactory ? true : false;
+import { stubHostCapabilities } from './testing';
 
 /**
- * Плагины, чья фабрика состава ЧИТАЕТ набор портов, — и сверка их типов с этим набором.
- *
- * Карта находит барели обходом папок, а обход типов не несёт: фабрику она зовёт как функцию от
- * набора портов, не зная, что та из него возьмёт. Статическая сверка поэтому живёт здесь —
- * `true satisfies …` не скомпилируется, как только порт или точка расширения разойдутся
- * с тем, что объявил плагин. Список сверяется с настоящим поведением тестом ниже: фабрика,
- * начавшая читать порты, обязана появиться здесь.
+ * Нижняя граница числа встроенных. Предметное уезжает в плагины приложения, и встроенных
+ * остаётся всё меньше; порог держит одно — что обход папок не пуст.
  */
-const PORT_READERS: Readonly<Record<string, true>> = {
-  'base/files': true satisfies FitsPorts<typeof filesBuiltin>,
-  'base/editor-monaco': true satisfies FitsPorts<typeof monacoBuiltin>,
-  'base/editor-markdown': true satisfies FitsPorts<typeof markdownBuiltin>,
-  'reformer/editor': true satisfies FitsPorts<typeof schemaEditorBuiltin>,
-};
+const MIN_BUILTIN = 3;
+
+/** Фабрика состава — `export default` бареля встроенного плагина. Аргументов у неё нет. */
+type BuiltinFactory = () => Plugin;
 
 /**
  * Барели всех встроенных плагинов — тем же обходом папок, что у карты, но СВОИМ шаблоном:
  * совпадение найденного с картой и есть проверка, а общий шаблон сверял бы себя с собой.
  */
-const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>([
-  '../../plugins/*/*/index.ts',
-  '!../../plugins/*/core/index.ts',
-]);
-
-/**
- * Плагины других стеков: в карте есть, в полный профиль ReFormer не входят.
- *
- * Выводятся из профилей этих стеков — их собственные списки без основы и без общего с ReFormer
- * (киты — платформа, их берёт и RJSF), — а не перечисляются здесь: новый стек добавляет свой
- * профиль, и исключение появляется само.
- */
-const OTHER_STACK_PLUGINS: ReadonlySet<string> = new Set(
-  [plainProfile, rjsfProfile]
-    .flatMap((profile) => profile.plugins)
-    .filter((id) => !builderProfile.plugins.includes(id))
+const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>(
+  '../../plugins/*/*/index.ts'
 );
 
 /**
@@ -130,8 +89,7 @@ async function loadPluginLocale(id: string): Promise<Record<string, string> | nu
 
 async function harness() {
   const services = createServiceRegistry();
-  // Возможности оболочки — до активации, как в `boot`: без реестра фокуса и хранилища
-  // снимков вида редактор кода не имеет права работать и отказывается подниматься.
+  // Возможности оболочки — до активации, как в `boot`: плагин берёт их из контекста.
   stubHostCapabilities(services);
   const extensions = createExtensionRegistry();
   const commands = createCommandRegistry();
@@ -147,7 +105,7 @@ async function harness() {
   });
 
   // Ждём ОБЕ фазы: состав проверяется целиком, а не только той половиной, что едет в entry.
-  const composed = await builderApplication.load(stubBuiltinOptions());
+  const composed = await builderApplication.load();
   const built = composed.map((entry) => entry.plugin);
 
   /** Регистрация как в `boot`: вместе с плагином уходит то, что он ОБЕЩАЛ дать остальным. */
@@ -164,7 +122,7 @@ describe('карта встроенных плагинов', () => {
     // один плагин молча перекрыл другой. Карта на это бросает при загрузке; здесь то же
     // утверждается на собранном значении.
     expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
-    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(MIN_BUILTIN);
   });
 
   it('в карте — каждая папка с манифестом, и ни одной другой', () => {
@@ -186,7 +144,7 @@ describe('карта встроенных плагинов', () => {
     expect([...BUILTIN_PLUGINS.values()].map((entry) => entry.directory).sort()).toEqual(
       onDisk.sort()
     );
-    expect(onDisk.length).toBeGreaterThanOrEqual(11);
+    expect(onDisk.length).toBeGreaterThanOrEqual(MIN_BUILTIN);
   });
 
   it('каталог каждого встроенного плагина — `домен/плагин` с его же манифестом', () => {
@@ -218,10 +176,9 @@ describe('карта встроенных плагинов', () => {
     // Ключ карты — идентификатор из МАНИФЕСТА, а плагин называет себя сам (`plugin.id`).
     // Разойтись они могут, и ловится это только здесь — сборкой настоящих плагинов из карты:
     // заодно проверяется, что у каждой найденной папки фабрика состава есть и отдаёт плагин.
-    const options = stubBuiltinOptions();
     const mismatched: string[] = [];
     for (const [id, entry] of BUILTIN_PLUGINS) {
-      const plugin = await entry.create(options);
+      const plugin = await entry.create();
       if (plugin.id !== id) mismatched.push(`${id} → ${plugin.id}`);
     }
 
@@ -246,12 +203,16 @@ describe('карта встроенных плагинов', () => {
     }
   });
 
-  it('объявленное манифестом совпадает с токеном, которым плагин регистрирует', () => {
-    // Прежде объявление и токен были ОДНИМ объектом, и разойтись им было нечем. Теперь
-    // объявление — данные манифеста, и сверка переехала сюда: рантайм проверяет только
-    // идентификатор («что-то под этим именем зарегистрировано»), а ВЕРСИЯ разошлась бы молча —
-    // резолвер обещал бы потребителю одну, а реестр служб держал бы другую.
-    expect(BUILTIN_PLUGINS.get(KITS_PLUGIN_ID)?.manifest.provides).toEqual([KitsCapability]);
+  it('встроенные ничего не обещают остальным: возможности дают плагины приложения', () => {
+    // Последним встроенным с возможностью был редактор кода (`reformer.editor`); он уехал
+    // в плагины приложения вместе с проверкой «объявленное манифестом совпадает с токеном» —
+    // она теперь в стенде домена base. Встроенный, который снова что-то пообещает, обязан
+    // получить такую же сверку здесь: версия в манифесте и в токене расходится молча.
+    const promising = [...BUILTIN_PLUGINS.values()]
+      .filter((entry) => (entry.manifest.provides ?? []).length > 0)
+      .map((entry) => entry.manifest.id);
+
+    expect(promising).toEqual([]);
   });
 
   it('манифест ЕСТЬ у каждого, он встроенной поставки и назван своим каталогом', () => {
@@ -267,63 +228,27 @@ describe('карта встроенных плагинов', () => {
       [...BUILTIN_PLUGINS.keys()].sort()
     );
   });
-
-  it('объявленное в карте действительно регистрируется при активации', async () => {
-    // Рантайм проверяет это сам (фаза `provides`), поэтому достаточно поднять состав:
-    // невыполненное обещание переводит плагин в `failed`, а не проходит молча.
-    const services = createServiceRegistry();
-    const registry = createPluginRegistry({
-      services,
-      extensions: createExtensionRegistry(),
-      commands: createCommandRegistry(),
-      events: createEventBus(),
-      storage: createMemoryStorageBackend(),
-      onError: vi.fn(),
-    });
-    const entry = BUILTIN_PLUGINS.get(KITS_PLUGIN_ID);
-    if (entry === undefined) throw new Error('киты не в карте');
-
-    registry.register(await entry.create(stubBuiltinOptions()), entry.manifest.provides);
-
-    expect(registry.activate(KITS_PLUGIN_ID)).toBe(true);
-    expect(services.get(KitsCapability)).toBeDefined();
-  });
 });
 
 describe('фабрика состава', () => {
-  it('у каждого плагина она есть и берёт из набора портов только то, что в нём лежит', async () => {
-    // Набор портов один на всех, и плагин берёт из него своё по имени. Опечатка в имени
-    // (`ports.filez`) компилируется — параметр фабрики объявляет сам плагин — и дала бы
-    // `undefined` вместо порта. Здесь набор обёрнут: чтение имени, которого в нём нет, записывается.
-    const ports = builtinPluginPorts(stubBuiltinOptions());
-    const unknown: string[] = [];
-    const readers: string[] = [];
+  it('у каждого плагина она есть и не принимает НИЧЕГО: портов оболочка не даёт', async () => {
+    // Раньше фабрика получала набор портов, собранных оболочкой. Теперь всё, что плагину нужно,
+    // он берёт из контекста службами SDK — встроенный наравне с плагином каталога. Параметр
+    // у фабрики означал бы, что кто-то снова собирается что-то передать мимо контекста.
+    const withParameters: string[] = [];
     const found: string[] = [];
 
     for (const [file, load] of Object.entries(BARRELS)) {
       const directory = /\/plugins\/([^/]+\/[^/]+)\/index\.ts$/.exec(file)?.[1] ?? file;
       found.push(directory);
-      let read = false;
-      const recording = new Proxy(ports, {
-        get(target, key, receiver) {
-          if (typeof key === 'string') {
-            read = true;
-            if (!(key in target)) unknown.push(`${directory}: ${key}`);
-          }
-          return Reflect.get(target, key, receiver) as unknown;
-        },
-      });
+      const factory = (await load()).default;
+      if (factory.length > 0) withParameters.push(directory);
 
-      const plugin = (await load()).default(recording);
-
+      const plugin = factory();
       expect(builtinPluginDirectory(plugin.id)).toBe(directory);
-      if (read) readers.push(directory);
     }
 
-    expect(unknown).toEqual([]);
-    // Читающие порты плагины сверены с набором ТИПАМИ (`PORT_READERS`): новый читатель обязан
-    // появиться в том списке, иначе его параметры проверял бы только этот тест.
-    expect(readers.sort()).toEqual(Object.keys(PORT_READERS).sort());
+    expect(withParameters).toEqual([]);
     // Обход теста и обход карты нашли одно и то же.
     expect(found.sort()).toEqual([...BUILTIN_PLUGINS.values()].map((e) => e.directory).sort());
   }, 30_000);
@@ -353,7 +278,9 @@ describe('состав встроенных плагинов', () => {
     h.plugins.activateAll();
 
     const declared = h.composed.flatMap((entry) => entry.provides ?? []);
-    expect(declared.length).toBeGreaterThanOrEqual(2);
+    // Сегодня встроенные ничего не обещают: обещающие плагины — плагины приложения, и что их
+    // обещанное зарегистрировано, проверяют стенды доменов. Утверждение оставлено для
+    // встроенного, который пообещает снова, — пустой список оно проходит честно.
     expect(declared.filter((capability) => h.services.get(capability) === undefined)).toEqual([]);
     // Обратная сторона: ни один не переведён в `failed` за неисполненное обещание.
     expect(h.plugins.failures().filter((failure) => failure.phase === 'provides')).toEqual([]);
@@ -379,50 +306,19 @@ describe('состав встроенных плагинов', () => {
       [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
 
     expect(owners(PanelPoint)).toEqual([
-      'reformer.ai',
-      'reformer.codegen',
-      'reformer.editor-schema',
-      'reformer.files',
-      // Поверхности формы ReFormer вносят панель модели: значения формы, состояние узлов
-      // и производные пути не видны больше нигде. Форму она не дублирует — её рисует редактор.
-      // Превью-хост панелей не вносит: своего интерфейса у него нет.
-      'reformer.preview-runtime',
-      // Ячейка «движок · кит» — первая панель слота `statusbar`.
-      'reformer.stack-switch',
-      'reformer.templates',
+      // Дерева файлов и панели проблем среди встроенных нет: плагин файлов — плагин приложения.
+      // Ячейка выбора профиля — первая панель слота `statusbar`.
+      'reformer.profile-switch',
+      // Стартовая страница в слоте `editor.main`.
+      'reformer.project',
     ]);
-    // Поверхности вносит плагин стека, а не хост: чем рисовать схему — знание стека.
-    expect(owners(PreviewSurfacePoint)).toEqual(['reformer.preview-runtime']);
-    expect(owners(EditorPoint)).toEqual([
-      'reformer.editor-markdown',
-      'reformer.editor-monaco',
-      'reformer.editor-schema',
-      'reformer.files',
-    ]);
-    expect(owners(DocumentModelPoint)).toEqual(['reformer.editor-schema']);
-  });
-
-  it('markdown-файл достаётся markdown-редактору, а не Monaco', async () => {
-    // Проверка ЗДЕСЬ, а не в плагине: приоритеты сравниваются между плагинами, а плагин
-    // видит только свой. Числа были равны — и `.md` доставался Monaco просто потому, что
-    // тот зарегистрирован раньше; кнопки предпросмотра при этом рисовались и «не работали».
-    const h = await harness();
-    h.plugins.registerAll(h.built);
-    h.plugins.activateAll();
-
-    const ref = {
-      id: 'mem:README.md',
-      sourceId: 'mem',
-      path: 'README.md',
-      name: 'README.md',
-      kind: 'file' as const,
-      mediaType: 'text/markdown',
-    };
-    const winner = resolveEditor(h.extensions.get(EditorPoint), ref, {
-      text: () => Promise.resolve('# заголовок'),
-    });
-
-    expect(winner?.value.id).toBe('markdown.editor');
+    // Поверхности вносит плагин стека: чем рисовать схему — знание стека. Стеки форм и сам
+    // превью-хост — плагины приложения, и в составе встроенных поверхностей нет.
+    expect(owners(PreviewSurfacePoint)).toEqual([]);
+    // Редакторов среди встроенных нет вовсе: и редактор кода — плагин приложения.
+    expect(owners(EditorPoint)).toEqual([]);
+    // Модель документа — вклад редактора стека; без него всё открывается текстом.
+    expect(owners(DocumentModelPoint)).toEqual([]);
   });
 
   it('у каждого вклада есть владелец, и он настоящий плагин', async () => {
@@ -495,11 +391,11 @@ describe('проверки выше не пусты', () => {
     h.plugins.registerAll(h.built);
     h.plugins.activateAll();
 
-    expect(h.built.length).toBeGreaterThanOrEqual(8);
+    expect(h.built.length).toBeGreaterThanOrEqual(MIN_BUILTIN);
     expect(h.plugins.statuses().length).toBe(h.built.length);
-    expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(4);
-    expect(h.extensions.get(EditorPoint).length).toBeGreaterThanOrEqual(2);
-    expect(h.commands.getAll().length).toBeGreaterThanOrEqual(5);
+    // Ячейка профиля и стартовая страница: панели файлов уехали вместе с плагином файлов.
+    expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(2);
+    expect(h.commands.getAll().length).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -542,14 +438,14 @@ describe('заголовки команд разрешаются в словар
     h.plugins.activateAll();
 
     const owned = h.commands.getAll().filter((c) => c.pluginId !== undefined);
-    expect(owned.length).toBeGreaterThanOrEqual(5);
+    expect(owned.length).toBeGreaterThanOrEqual(3);
 
     // Громкость динамического пути: `import(\`../../plugins/…\`)` в loadPluginLocale резолвится
     // относительно ЭТОГО файла, а отказ глотается try/catch. Сломай переезд файла этот путь —
     // проверка ключей выше осталась бы зелёной, сверив пустое множество словарей. Поэтому здесь
     // утверждается сам факт загрузки: словари у встроенных плагинов действительно находятся.
     const dictionaries = await Promise.all(h.built.map((p) => loadPluginLocale(p.id)));
-    expect(dictionaries.filter((d) => d !== null).length).toBeGreaterThanOrEqual(5);
+    expect(dictionaries.filter((d) => d !== null).length).toBeGreaterThanOrEqual(MIN_BUILTIN);
   });
 });
 
@@ -625,7 +521,7 @@ describe('состав и карта: каждый плагин своим фа�
     // состава остался бы зелёным: он проверяет то, что собралось.
     const used = new Set<string>();
     for (const profile of PROFILES.values()) {
-      for (const composed of await fromProfile(profile).load(stubBuiltinOptions())) {
+      for (const composed of await fromProfile(profile).load()) {
         used.add(composed.plugin.id);
       }
     }
@@ -633,14 +529,14 @@ describe('состав и карта: каждый плагин своим фа�
     expect([...used].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
   });
 
-  it('полный профиль ReFormer — вся карта, кроме других стеков', async () => {
-    // Демо-стек и RJSF — ДРУГИЕ стеки: их собирают `plain.builder` и `rjsf.builder` поверх
-    // основы, а в состав ReFormer они не входят. Попади туда хоть один — у `.json` появилось бы
-    // два предметных редактора.
-    const all = await builderApplication.load(stubBuiltinOptions());
+  it('профиль по умолчанию — вся карта', async () => {
+    // Движков форм среди встроенных нет: всё, что лежит в карте, нужно любому конструктору
+    // и входит в состав по умолчанию. Встроенный плагин вне этого состава был бы предметным
+    // редактором, спорящим за `.json` с движком, который принёс проект.
+    const all = await builderApplication.load();
 
     expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
-      [...BUILTIN_PLUGINS.keys()].filter((id) => !OTHER_STACK_PLUGINS.has(id)).sort()
+      [...BUILTIN_PLUGINS.keys()].sort()
     );
   });
 
@@ -675,8 +571,8 @@ describe('состав и карта: каждый плагин своим фа�
         if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
         const text = readFileSync(full, 'utf8');
         for (const id of BUILTIN_PLUGINS.keys()) {
-          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/reformer/ai`, а плагин
-          // зовётся `reformer.ai`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
+          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/base/project`, а плагин
+          // зовётся `reformer.project`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
           // и храповик молча перестал бы стеречь.
           const directory = builtinPluginDirectory(id);
           // Барель — это ТОЧНО `@/plugins/<каталог>`: `@/plugins/<каталог>/contract`
@@ -698,32 +594,29 @@ describe('состав и карта: каждый плагин своим фа�
 
   it('храповик не пуст: зоны обойдены и плагины у него есть', () => {
     // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
-    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(MIN_BUILTIN);
   });
 });
 
 /**
- * ХРАПОВИК границы «оболочка не знает стека».
+ * ХРАПОВИК границы «оболочка не знает плагинов».
  *
- * Плагины стека берут от оболочки всё возможностями, а не портами, — и держится это ровно до
- * первого импорта: одна строка `import { KitsServiceToken } from '@/plugins/kits/registry'` в `boot`
- * возвращает порт, а вместе с ним знание о стеке. Ядра доменов (`@/plugins/<домен>/core`)
- * стережёт линтер; плагины стека — этот тест, потому что их список не пишется руками, а выводится
- * из профиля `builder.base`: что в основе — нейтрально, остальное — чей-то стек.
+ * Плагин берёт от оболочки всё возможностями, а не портами, — и держится это ровно до первого
+ * импорта: одна строка `import { … } from '@/plugins/base/files'` в `boot` возвращает порт,
+ * а вместе с ним знание о плагине. Импортов `@/plugins` в оболочке нет НИ ОДНОГО: последние
+ * три порта (файлы, редактор кода, markdown) сняты, когда всё нужное им появилось службами SDK.
+ * Отсюда и следствие, ради которого это делалось: любой встроенный плагин можно вынести
+ * из сборки, не тронув оболочку.
  *
  * Обходится `shell/` целиком, с тестами, КРОМЕ `shell/boot/integration/`: интеграционные тесты
  * проверяют собранное приложение и обязаны знать его состав (то же исключение у линтера).
- * Импорт ТИПА тоже нарушение: тип порта — это и есть знание, которое убирали.
+ * Импорт ТИПА тоже нарушение: тип порта — это и есть знание, которое убрали.
  */
-describe('оболочка не знает стека', () => {
+describe('оболочка не знает плагинов', () => {
   const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
-  const neutral = new Set(baseProfile.plugins);
-  const stackDirectories = BUILTIN_MANIFESTS.map((manifest) => manifest.id)
-    .filter((id) => !neutral.has(id))
-    .map((id) => builtinPluginDirectory(id));
 
-  const scan = (): { readonly files: number; readonly offenders: readonly string[] } => {
-    const offenders: string[] = [];
+  const scan = (): { readonly files: number; readonly imported: readonly string[] } => {
+    const imported: string[] = [];
     let files = 0;
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir)) {
@@ -736,31 +629,23 @@ describe('оболочка не знает стека', () => {
         if (!/\.tsx?$/.test(entry)) continue;
         files += 1;
         const text = readFileSync(full, 'utf8');
-        for (const directory of stackDirectories) {
-          // Барель и любой подмодуль: `@/plugins/kits/registry`, `@/plugins/kits/registry/manifest.json`.
-          const pattern = new RegExp("from '@/plugins/" + directory + "(/[^']*)?'");
-          if (pattern.test(text)) offenders.push(full.slice(root.length) + ' → ' + directory);
+        // Барель и любой подмодуль: `@/plugins/base/files`, `@/plugins/base/files/contract`.
+        for (const match of text.matchAll(/from '(@\/plugins\/[^']*)'/g)) {
+          imported.push(full.slice(root.length) + ' → ' + String(match[1]));
         }
       }
     };
     walk(root + '/shell');
-    return { files, offenders };
+    return { files, imported };
   };
 
-  it('src/shell не импортирует плагины, которых нет в builder.base', () => {
-    expect(scan().offenders).toEqual([]);
+  it('src/shell не импортирует @/plugins вовсе', () => {
+    expect(scan().imported).toEqual([]);
   });
 
-  it('храповик не пуст: файлы обойдены и плагины стека у него есть', () => {
-    // Сломайся путь или выведи профиль основы весь набор — проверка выше осталась бы зелёной.
+  it('храповик не пуст: файлы оболочки обойдены, и плагины, которые можно импортировать, есть', () => {
+    // Сломайся путь обхода — проверка выше осталась бы зелёной на пустом множестве файлов.
     expect(scan().files).toBeGreaterThan(100);
-    expect(stackDirectories).toEqual(
-      expect.arrayContaining([
-        'kits/registry',
-        'reformer/editor',
-        'reformer/render',
-        'reformer/codegen',
-      ])
-    );
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(MIN_BUILTIN);
   });
 });

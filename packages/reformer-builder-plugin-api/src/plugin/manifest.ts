@@ -32,10 +32,15 @@ export const BUILDER_API_VERSION = '1.0.0';
  * грузить нечего. У ВСТРОЕННОГО каталога нет вовсе (он лежит в бандле оболочки, а имя его
  * папки — `ai` против идентификатора `reformer.ai`), и точки входа тоже нет: его код уже
  * здесь.
+ *
+ * `group` — каталог ДОМЕНА, в котором лежит плагин проекта: `plugins/<домен>/<плагин>/`. Домен
+ * держит несколько плагинов и их общее ядро рядом, поэтому каталог плагина там назван ролью
+ * (`editor`), а не идентификатором (`acme.forms.editor`) — и сверка с именем каталога снимается.
+ * Идентификатор такого плагина — тот, что объявлен в манифесте.
  */
 export type PluginSource =
   | { readonly kind: 'builtin' }
-  | { readonly kind: 'project'; readonly dir: string };
+  | { readonly kind: 'project'; readonly dir: string; readonly group?: string };
 
 /**
  * Общее у манифестов обеих поставок.
@@ -107,9 +112,46 @@ export interface PluginCompatibility {
   readonly builder: string;
 }
 
+/** Формат секции сборки, который понимает эта версия контракта. */
+export const PLUGIN_BUILD_FORMAT = 1;
+
+/**
+ * Имя, под которым собранный код плагина зовёт отложенный импорт.
+ *
+ * Отложенный импорт своего файла или пакета (`import()` в исходниках автора) сборщик
+ * превращает в вызов этой функции. Её даёт
+ * оболочка: дочитывает файл и всё, что ему нужно, и исполняет в графе модулей плагина. Имя —
+ * часть формата сборки, поэтому оно одно на сборщик и оболочку и живёт в контракте.
+ */
+export const PLUGIN_LAZY_IMPORT = '__reformerImport';
+
+/** Что файлу сборки нужно СРАЗУ — до того, как он исполнится. */
+export interface PluginBuildFile {
+  /** Свои файлы, которые он требует при исполнении, — пути от корня плагина. */
+  readonly imports?: readonly string[];
+  /** Модули оболочки, которые он требует при исполнении. */
+  readonly runtime?: readonly string[];
+}
+
+/**
+ * Секция сборки: какие файлы в ней есть и что каждому нужно сразу.
+ *
+ * Пишет её `reformer-plugin build`, автор плагина — никогда. Нужна оболочке, чтобы читать
+ * каталог плагина не целиком: при включении — точку входа и то, что она требует статически,
+ * остальное — когда код дойдёт до своего `import()`. Без секции (плагин собран прежним
+ * сборщиком или лежит исходниками) оболочка читает каталог целиком, как читала.
+ *
+ * Отложенные рёбра секция не называет: их называет сам код в момент импорта.
+ */
+export interface PluginBuildInfo {
+  readonly format: typeof PLUGIN_BUILD_FORMAT;
+  /** Путь файла от корня плагина → что ему нужно сразу. Перечислены все файлы кода сборки. */
+  readonly files: Readonly<Record<string, PluginBuildFile>>;
+}
+
 /** Манифест плагина каталога проекта: у него есть каталог и точка входа. */
 export interface ProjectPluginManifest extends PluginManifestBase {
-  readonly source: { readonly kind: 'project'; readonly dir: string };
+  readonly source: { readonly kind: 'project'; readonly dir: string; readonly group?: string };
   /** Точка входа ВНУТРИ каталога плагина, нормализованная: `main.js`, `dist/main.js`. */
   readonly main: string;
   /**
@@ -117,6 +159,8 @@ export interface ProjectPluginManifest extends PluginManifestBase {
    * оболочки и токенами кита и выглядит родным бесплатно.
    */
   readonly styles?: PluginStyles;
+  /** Секция сборки — есть у плагина, собранного сборщиком с делением кода. */
+  readonly build?: PluginBuildInfo;
 }
 
 /**

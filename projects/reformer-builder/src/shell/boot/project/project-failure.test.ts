@@ -19,18 +19,18 @@ describe('сообщение', () => {
 
   it('причина недоступности выбирает сообщение', () => {
     expect(projectFailureMessageKey({ kind: 'unavailable', reason: 'denied' })).toBe(
-      'files.notify.unavailable.denied'
+      'shell.project.unavailable.denied'
     );
     expect(projectFailureMessageKey({ kind: 'unavailable', reason: 'missing' })).toBe(
-      'files.notify.unavailable.missing'
+      'shell.project.unavailable.missing'
     );
-    expect(projectFailureMessageKey({ kind: 'unavailable' })).toBe('files.notify.unavailable');
+    expect(projectFailureMessageKey({ kind: 'unavailable' })).toBe('shell.project.unavailable');
   });
 
   it('у неподдержки и сбоя — свои сообщения', () => {
-    expect(projectFailureMessageKey({ kind: 'unsupported' })).toBe('files.notify.unsupported');
+    expect(projectFailureMessageKey({ kind: 'unsupported' })).toBe('shell.project.unsupported');
     expect(projectFailureMessageKey({ kind: 'failed', error: new Error('отказ') })).toBe(
-      'files.notify.failed'
+      'shell.project.failed'
     );
   });
 });
@@ -45,7 +45,7 @@ describe('кнопка', () => {
     );
     action?.run();
 
-    expect(action?.titleKey).toBe('files.notify.action.grant');
+    expect(action?.titleKey).toBe('shell.project.action.grant');
     expect(a.reopen).toHaveBeenCalledWith('w1');
     expect(a.forget).not.toHaveBeenCalled();
   });
@@ -59,7 +59,7 @@ describe('кнопка', () => {
     );
     action?.run();
 
-    expect(action?.titleKey).toBe('files.notify.action.forget');
+    expect(action?.titleKey).toBe('shell.project.action.forget');
     expect(a.forget).toHaveBeenCalledWith('w1');
     expect(a.reopen).not.toHaveBeenCalled();
   });

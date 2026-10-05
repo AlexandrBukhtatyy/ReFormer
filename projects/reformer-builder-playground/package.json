@@ -5,20 +5,25 @@
   "type": "module",
   "description": "Проект-образец для @reformer/builder: его открывают e2e-тесты билдера, и на нём же пробуют плагины",
   "scripts": {
-    "builder": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/config.json npm --prefix ../reformer-builder run dev -- --port 5184",
-    "builder:dist": "node ../reformer-builder/bin/reformer-builder.mjs --host localhost --port 5184 --no-open",
-    "preset:reformer-ui-kit": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/reformer-ui-kit.json npm --prefix ../reformer-builder run dev",
-    "preset:reformer-hexa-ui": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/reformer-hexa-ui.json npm --prefix ../reformer-builder run dev",
-    "preset:rjsf-ui-kit": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/rjsf-ui-kit.json npm --prefix ../reformer-builder run dev",
-    "preset:rjsf-hexa-ui": "cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/rjsf-hexa-ui.json npm --prefix ../reformer-builder run dev",
-    "plugins:hexa-ui": "node scripts/hexa-kit.mjs",
-    "plugins:validate": "reformer-plugin validate .ui_builder/plugins/playground-hello",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "builder": "npm run plugins:build && cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/config.json npm --prefix ../reformer-builder run dev -- --port 5184",
+    "builder:dist": "npm run plugins:build && node ../reformer-builder/bin/reformer-builder.mjs --host localhost --port 5184 --no-open",
+    "preset:ui-kit": "npm run plugins:build && cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/ui-kit.json npm --prefix ../reformer-builder run dev",
+    "preset:hexa-ui": "npm run plugins:build && cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/hexa-ui.json npm --prefix ../reformer-builder run dev",
+    "plugins:build": "npm run build:dev --if-present -w .ui_builder/plugins -w .ui_builder/plugins/base -w .ui_builder/plugins/forms -w .ui_builder/plugins/reformer -w .ui_builder/plugins/rjsf",
+    "plugins:dist": "npm run build:dist --if-present -w .ui_builder/plugins/base -w .ui_builder/plugins/forms -w .ui_builder/plugins/reformer -w .ui_builder/plugins/rjsf"
   },
   "devDependencies": {
-    "@reformer/builder-plugin-api": "*",
-    "@reformer/builder-plugin-cli": "*",
+    "@tailwindcss/vite": "^4.1.17",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/browser-playwright": "^4.0.15",
     "cross-env": "^7.0.3",
-    "typescript": "~5.9.3"
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tailwindcss": "^4.1.17",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
   }
 }

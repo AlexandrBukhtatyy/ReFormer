@@ -130,7 +130,7 @@ export interface Diagnostic {
   readonly source: string;
   readonly severity: DiagnosticSeverity;
   /**
-   * Ключ i18n, не текст. Голый код (`schema.unknown-component`) переводится словарём
+   * Ключ i18n, не текст. Голый код (`workspace.import-unresolved`) переводится словарём
    * оболочки по ключу `errors.<code>`; код вида `<plugin-id>:<code>` — словарём ВНЁСШЕГО
    * плагина по ключу `errors.<code>` (см. {@link pluginDiagnosticCode}).
    */

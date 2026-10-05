@@ -1,6 +1,33 @@
 {
   "workspace.plugins.enabled": [
     "playground-hello",
-    "kit-hexa-ui"
-  ]
+    "kit-hexa-ui",
+    "reformer.files",
+    "reformer.editor-monaco",
+    "reformer.editor-markdown",
+    "reformer.kits",
+    "reformer.preview",
+    "reformer.editor-schema",
+    "reformer.preview-runtime",
+    "reformer.validator-schema",
+    "reformer.codegen",
+    "reformer.templates",
+    "reformer.ai",
+    "reformer.rjsf.editor",
+    "reformer.rjsf.render"
+  ],
+  "workspace.plugins.permissions": {
+    "reformer.files": [
+      "workspace.resources"
+    ],
+    "reformer.codegen": [
+      "workspace.save"
+    ],
+    "reformer.templates": [
+      "workspace.save"
+    ],
+    "reformer.rjsf.editor": [
+      "workspace.save"
+    ]
+  }
 }

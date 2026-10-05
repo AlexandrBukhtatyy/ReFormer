@@ -212,12 +212,15 @@ export function createPluginsSettingsBody(
           const working = busy.has(row.id);
           const open = expanded === row.id;
           return (
-            <div key={row.id} className="border-border border-b py-2 last:border-b-0">
+            <div
+              key={`${row.layer ?? ''}:${row.id}`}
+              className="border-border border-b py-2 last:border-b-0"
+            >
               <div className="flex items-center gap-3">
                 <Checkbox
                   id={`plugin-${row.id}`}
                   checked={row.on}
-                  disabled={working}
+                  disabled={working || row.locked}
                   data-testid={`settings-plugin-${row.id}-toggle`}
                   aria-label={i18n.t(
                     row.toggle === 'disable'
@@ -242,9 +245,9 @@ export function createPluginsSettingsBody(
                 {row.dev && (
                   <Badge variant="secondary">{i18n.t('shell.settings.plugins.dev')}</Badge>
                 )}
-                {row.layer === 'installed' && (
+                {(row.layer === 'installed' || row.layer === 'application') && (
                   <Badge variant="outline">
-                    {i18n.t('shell.settings.plugins.layer.installed')}
+                    {i18n.t(`shell.settings.plugins.layer.${row.layer}`)}
                   </Badge>
                 )}
                 {row.shadowed !== null && (
@@ -278,6 +281,7 @@ export function createPluginsSettingsBody(
                     <Checkbox
                       id={`plugin-${row.id}-dev`}
                       checked={row.dev}
+                      disabled={row.locked}
                       data-testid={`settings-plugin-${row.id}-dev`}
                       onCheckedChange={(checked) => {
                         port.setDev(row.id, checked === true);

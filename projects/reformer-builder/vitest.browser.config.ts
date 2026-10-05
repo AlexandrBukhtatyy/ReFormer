@@ -68,26 +68,13 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
       ),
-      // Тема RJSF из кита — рантайм домена rjsf, в исходники тем же доводом.
-      '@reformer/rjsf-kit-theme': path.resolve(
-        __dirname,
-        '../../packages/rjsf-kit-theme/src/index.ts'
-      ),
     },
   },
   // Подсветка блоков кода грузится динамическим импортом, а Vite предзаготавливает
   // зависимости по СТАТИЧЕСКИМ импортам. Без этой строки первый же тест с блоком кода
   // получает «Failed to fetch dynamically imported module» и перезагрузку прогона.
-  // RJSF — тем же доводом: превью домена rjsf грузит его лениво, при первом показе формы.
   optimizeDeps: {
-    include: [
-      'highlight.js/lib/common',
-      '@rjsf/core',
-      '@rjsf/utils',
-      '@rjsf/validator-ajv8',
-      'date-fns',
-      'react-day-picker',
-    ],
+    include: ['highlight.js/lib/common', 'date-fns', 'react-day-picker'],
   },
   test: {
     name: 'browser',

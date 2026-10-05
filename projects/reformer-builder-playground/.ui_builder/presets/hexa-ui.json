@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../reformer-builder/runtime-config.schema.json",
+  "defaults": {
+    "settings": {
+      "plugin.kits.active": "hexa-ui"
+    }
+  }
+}

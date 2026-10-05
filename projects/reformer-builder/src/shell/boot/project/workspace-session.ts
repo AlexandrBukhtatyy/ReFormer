@@ -256,6 +256,8 @@ export interface WorkspaceSessionOptions {
    * набранное на полуслове.
    */
   readonly isTextEditorFocused?: (id: ResourceId) => boolean;
+  /** Сложился ли состав провайдеров модели — см. `DocumentModelsOptions.providersReady`. */
+  readonly modelProvidersReady?: () => Promise<void>;
   readonly events?: EventBus;
   readonly diagnostics?: DiagnosticsSink;
   /** Оркестратор валидации приложения. Без него сессия работает, но находок не будет. */
@@ -307,6 +309,7 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     extensions: options.extensions ?? { get: () => [] },
     diagnostics: options.diagnostics,
     isTextEditorFocused: options.isTextEditorFocused,
+    providersReady: options.modelProvidersReady,
     // Дерево создаётся ниже; к моменту первой записи части оно уже есть.
     onDidCreatePart: (dir) => {
       void tree.refresh(dir);

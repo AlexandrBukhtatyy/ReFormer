@@ -40,15 +40,32 @@ interface DiskFile {
   readonly base64: string;
 }
 
-/** Что положить на «диск» сверх файлов репозитория. */
+/** Каталог плагинов проекта — там их ищет билдер, там же лежат их пакеты. */
+const PLUGINS_DIR = '.ui_builder/plugins';
+
+/** Каталог исходников пакета плагина; его `manifest.json` и делает каталог пакетом плагина. */
+const PLUGIN_SOURCES = 'src';
+
+/**
+ * Плагины, которые кладутся на «диск» только по просьбе теста, — каталогами от каталога плагинов.
+ * Остальные плагины проекта лежат там всегда.
+ *
+ * Сборка кита HexaUI весит около 5 МБ, сборка ассистента с корпусом знаний — около 8 МБ:
+ * в каждой копии они стоили бы секунд каждому тесту. Без теста, который такой плагин просит,
+ * его каталога в копии нет вовсе — включённый настройкой, но отсутствующий плагин билдер
+ * пропускает молча.
+ */
+const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai'];
+
+/** Что положить на «диск» сверх обычной копии. */
 export interface SeedOptions {
+  /** Плагины из числа необязательных — каталогами: `['kit-hexa-ui']`. */
+  readonly plugins?: readonly string[];
   /**
-   * Каталоги проекта, которые git игнорирует, но тесту нужны, — пути от корня проекта.
-   *
-   * Сборка плагина кита HexaUI (`.ui_builder/plugins/kit-hexa-ui`) в git не едет, и в обычную
-   * копию не попадает; тест кита называет её здесь.
+   * `false` — проект без каталога плагинов вовсе: так выглядит чужой проект, открытый билдером.
+   * Всё, что в нём работает, приехало с приложением (слой плагинов приложения).
    */
-  readonly ignored?: readonly string[];
+  readonly projectPlugins?: boolean;
 }
 
 /** Содержимое «диска»: путь от корня проекта → текст файла. */
@@ -74,13 +91,13 @@ const readFile = (root: string, filePath: string): DiskFile => ({
 });
 
 /**
- * Файлы проекта, как их видит git: отслеживаемые и новые, без игнорируемых.
+ * Файлы проекта, как их видит git: отслеживаемые и новые, без игнорируемых, — путями от корня.
  *
  * Одно правило вместо своего списка исключений: что `.gitignore` называет не-проектом
  * (`node_modules`, сборки, отчёты), то и в копию не едет. Заодно копия одинакова на любой
- * машине — локальная сборка плагина HexaUI её не меняет.
+ * машине.
  */
-function readRepositoryFiles(root: string): DiskFile[] {
+function repositoryFiles(root: string): string[] {
   const listing = execFileSync(
     'git',
     ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
@@ -92,20 +109,69 @@ function readRepositoryFiles(root: string): DiskFile[] {
       // Удалённый из рабочего дерева файл в индексе ещё значится — на диске его нет.
       .filter((filePath) => filePath !== '' && existsSync(path.join(root, filePath)))
       .sort()
-      .map((filePath) => readFile(root, filePath))
   );
 }
 
-/** Файлы каталога рекурсивно — для того, что git игнорирует. */
-function readDirectory(root: string, relative: string): DiskFile[] {
-  const files: DiskFile[] = [];
-  const entries = readdirSync(path.join(root, relative), { withFileTypes: true });
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const entryPath = `${relative}/${entry.name}`;
-    if (entry.isDirectory()) files.push(...readDirectory(root, entryPath));
-    else if (entry.isFile()) files.push(readFile(root, entryPath));
+/**
+ * Пакеты плагинов проекта — каталогами от каталога плагинов: `playground-hello`, `rjsf/editor`.
+ *
+ * Правило то же, что у загрузчика билдера: пакет плагина лежит либо прямо в каталоге плагинов,
+ * либо уровнем ниже, в каталоге домена. Пакет узнаётся по манифесту исходников; ядро домена
+ * (`rjsf/core`) плагином не является и в копию не идёт.
+ */
+function pluginPackages(root: string): string[] {
+  const pluginsRoot = path.join(root, PLUGINS_DIR);
+  const directories = (dir: string): string[] =>
+    readdirSync(path.join(pluginsRoot, dir), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .filter((entry) => entry.name !== 'node_modules')
+      .map((entry) => (dir === '' ? entry.name : `${dir}/${entry.name}`))
+      .sort();
+  const isPackage = (dir: string): boolean =>
+    existsSync(path.join(pluginsRoot, dir, PLUGIN_SOURCES, 'manifest.json'));
+
+  return directories('').flatMap((dir) =>
+    isPackage(dir) ? [dir] : directories(dir).filter(isPackage)
+  );
+}
+
+/** То, что из собранного манифеста плагина нужно, чтобы назвать файлы сборки. */
+interface BuiltManifest {
+  readonly main: string;
+  readonly styles?: { readonly file: string };
+  readonly contributes?: { readonly messages?: Readonly<Record<string, string>> };
+}
+
+/** Каталог модулей данных сборки: JSON, который плагин импортирует отложенно. */
+const PLUGIN_CHUNKS = 'chunks';
+
+/**
+ * Сборка плагина для билдера: файлы, которые называет её манифест в корне каталога плагина,
+ * и модули данных из `chunks/` — их манифест не называет, каталог принадлежит сборке.
+ *
+ * Список берётся из манифеста, а не обходом каталога: рядом со сборкой лежит сам пакет —
+ * исходники, `node_modules`, сборка для поставки.
+ */
+function readPluginBuild(root: string, pluginDir: string): DiskFile[] {
+  const manifestPath = `${pluginDir}/manifest.json`;
+  if (!existsSync(path.join(root, manifestPath))) {
+    throw new Error(
+      `в playground нет «${manifestPath}»: плагин не собран. ` +
+        'Плагины проекта собирает «npm run plugins:build -w reformer-builder-playground»'
+    );
   }
-  return files;
+  const manifest = JSON.parse(readFileSync(path.join(root, manifestPath), 'utf8')) as BuiltManifest;
+  const chunksDir = path.join(root, pluginDir, PLUGIN_CHUNKS);
+  const chunks = existsSync(chunksDir)
+    ? readdirSync(chunksDir).map((name) => `${PLUGIN_CHUNKS}/${name}`)
+    : [];
+  return [
+    'manifest.json',
+    manifest.main,
+    ...(manifest.styles === undefined ? [] : [manifest.styles.file]),
+    ...Object.values(manifest.contributes?.messages ?? {}),
+    ...chunks,
+  ].map((file) => readFile(root, `${pluginDir}/${file}`));
 }
 
 export class PlaygroundDisk {
@@ -157,9 +223,22 @@ export class PlaygroundDisk {
    * Требует уже открытой страницы билдера: OPFS принадлежит origin, и до навигации его нет.
    */
   async seed(options: SeedOptions = {}): Promise<void> {
+    const requested = options.plugins ?? [];
+    const plugins = (options.projectPlugins === false ? [] : pluginPackages(PLAYGROUND_DIR))
+      .filter((dir) => !OPTIONAL_PLUGINS.includes(dir) || requested.includes(dir))
+      .map((dir) => `${PLUGINS_DIR}/${dir}`);
+    // Из каталога плагинов в копию идут только пакеты плагинов, и те без исходников: билдер
+    // грузит сборку, а сотни файлов `src/` стоили бы времени каждому тесту. Остальное там —
+    // ядра доменов и общие тестовые помощники — проекту, открытому билдером, не нужно.
+    const inPlugin = (filePath: string): boolean =>
+      plugins.some(
+        (dir) => filePath.startsWith(`${dir}/`) && !filePath.startsWith(`${dir}/${PLUGIN_SOURCES}/`)
+      );
     const files = [
-      ...readRepositoryFiles(PLAYGROUND_DIR),
-      ...(options.ignored ?? []).flatMap((directory) => readDirectory(PLAYGROUND_DIR, directory)),
+      ...repositoryFiles(PLAYGROUND_DIR)
+        .filter((filePath) => !filePath.startsWith(`${PLUGINS_DIR}/`) || inPlugin(filePath))
+        .map((filePath) => readFile(PLAYGROUND_DIR, filePath)),
+      ...plugins.flatMap((dir) => readPluginBuild(PLAYGROUND_DIR, dir)),
     ];
     await this.page.evaluate(
       async ({ mount, name, files }) => {
@@ -202,6 +281,17 @@ export class PlaygroundDisk {
       },
       { target: filePath, content: text }
     );
+  }
+
+  /** Удаляет файл или каталог с «диска» — как будто его там и не было. */
+  async remove(entryPath: string): Promise<void> {
+    await this.page.evaluate(async (target) => {
+      const segments = target.split('/');
+      const name = segments.pop() ?? '';
+      let directory = await window.__e2eDisk!.root();
+      for (const segment of segments) directory = await directory.getDirectoryHandle(segment);
+      await directory.removeEntry(name, { recursive: true });
+    }, entryPath);
   }
 
   /** Есть ли файл на «диске». */

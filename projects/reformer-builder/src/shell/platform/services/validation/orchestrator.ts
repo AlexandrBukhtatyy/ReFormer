@@ -57,8 +57,11 @@ export interface DiagnosticsSink {
   publish(resource: ResourceId, source: string, items: readonly Diagnostic[]): void;
 }
 
-/** Минимум реестра, нужный для чтения валидаторов: годится и корневой, и вид плагина. */
-export type ValidatorSource = Pick<ExtensionRegistry, 'get'>;
+/**
+ * Минимум реестра, нужный оркестратору: прочитать валидаторы и узнать, что их состав сменился.
+ * Годится и корневой реестр, и вид плагина.
+ */
+export type ValidatorSource = Pick<ExtensionRegistry, 'get' | 'observe'>;
 
 /**
  * Отложенный запуск. Возвращает отмену.
@@ -78,6 +81,13 @@ export interface ValidationOrchestratorOptions {
   /** Задержка дорогого уровня, мс. По умолчанию {@link DEFAULT_ASYNC_DELAY_MS}. */
   readonly delay?: number;
   readonly schedule?: Schedule;
+  /**
+   * Отложить до конца текущей синхронной работы. По умолчанию — микрозадача.
+   *
+   * Нужен перепроверке по смене состава: вклад вносится из `activate` плагина, и валидатор,
+   * вызванный тем же стеком, увидел бы плагин наполовину собранным.
+   */
+  readonly defer?: (run: () => void) => void;
 }
 
 export interface ValidationOrchestrator {
@@ -109,14 +119,16 @@ export interface ValidationOrchestrator {
   /**
    * Перепроверяет все наблюдаемые документы, даже если сами они не менялись.
    *
-   * Существует потому, что находка зависит не только от документа: сменился кит — сменился
-   * каталог компонентов, включился плагин — появился валидатор. Ни то ни другое не приходит
-   * событием документа, и без перепроверки красное подчёркивание держалось бы до следующего
-   * нажатия клавиши.
+   * Существует потому, что находка зависит не только от документа, и не всякая перемена мира
+   * приходит событием документа: без перепроверки красное подчёркивание держалось бы до
+   * следующего нажатия клавиши.
    *
-   * Смену входов ОДНОГО валидатора (каталог кита у валидатора схемы) оркестратор ловит сам —
-   * через {@link ValidatorContribution.onDidChangeInputs} — и перепроверяет только документы,
-   * за которые тот берётся. Этот вызов — для остального: зовёт тот, кто мир и поменял.
+   * Две перемены оркестратор ловит сам, и звать его ради них не нужно. Смену входов ОДНОГО
+   * валидатора (каталог кита у валидатора схемы) — через
+   * {@link ValidatorContribution.onDidChangeInputs}: перепроверяются только документы, за
+   * которые тот берётся. Смену СОСТАВА валидаторов (плагин включили или выключили при открытых
+   * документах) — наблюдением за точкой расширения. Этот вызов — для остального: зовёт тот,
+   * кто мир и поменял.
    */
   revalidate(): void;
 
@@ -186,6 +198,11 @@ export function createValidationOrchestrator(
   const { extensions, diagnostics } = options;
   const delay = options.delay ?? DEFAULT_ASYNC_DELAY_MS;
   const schedule = options.schedule ?? defaultSchedule;
+  const defer =
+    options.defer ??
+    ((run: () => void): void => {
+      queueMicrotask(run);
+    });
   const watched = new Map<ResourceId, WatchState>();
 
   /**
@@ -382,6 +399,53 @@ export function createValidationOrchestrator(
     release(document.id, state);
   };
 
+  /**
+   * Убирает находки валидаторов, которых в точке расширения больше нет.
+   *
+   * По СОСТАВУ точки, а не по тому, кто берётся за документ: валидатор, чей `applies` упал
+   * или временно ответил «нет», остаётся вкладом, и его прошлые находки — последнее, что он
+   * видел. А находки снятого вклада обновлять некому вовсе — оставшись, они висели бы до
+   * закрытия вкладки.
+   */
+  const dropGone = (id: ResourceId, state: WatchState): void => {
+    const alive = new Set<string>();
+    for (const contribution of extensions.get(ValidatorPoint)) {
+      alive.add(fastSource(contribution.value.id));
+      alive.add(asyncSource(contribution.value.id));
+    }
+    for (const source of [...state.sources]) {
+      if (alive.has(source)) continue;
+      state.sources.delete(source);
+      diagnostics.publish(id, source, []);
+    }
+  };
+
+  /**
+   * Состав валидаторов сменился: плагин включили или выключили при открытых документах.
+   *
+   * Перепроверка отложена до конца текущей синхронной работы. Вклад вносится из `activate`,
+   * и вызванный тем же стеком валидатор увидел бы плагин наполовину собранным; заодно
+   * несколько вкладов подряд (плагин с двумя валидаторами, цепочка активаций) дают один
+   * проход, а не по проходу на вклад.
+   */
+  let membershipPending = false;
+  let disposed = false;
+  const membership = extensions.observe(ValidatorPoint, () => {
+    if (membershipPending || watched.size === 0) return;
+    membershipPending = true;
+    defer(() => {
+      membershipPending = false;
+      if (disposed) return;
+      for (const [id, state] of [...watched]) {
+        // Идущий дорогой проход отменяется раньше, чем убираются находки: иначе проход снятого
+        // валидатора, досчитав, вернул бы их обратно.
+        cancelAsync(state);
+        dropGone(id, state);
+        refresh(id, state);
+      }
+    });
+  });
+
   return {
     validate(document) {
       return runFast(document, watched.get(document.id));
@@ -433,6 +497,8 @@ export function createValidationOrchestrator(
     },
 
     dispose() {
+      disposed = true;
+      membership.dispose();
       for (const [id, state] of [...watched]) {
         watched.delete(id);
         release(id, state);

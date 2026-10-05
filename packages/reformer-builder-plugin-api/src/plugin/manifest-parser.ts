@@ -67,11 +67,14 @@ import { normalizeModulePath } from '../primitives/module-path.js';
 import { isPluginPermission, PLUGIN_PERMISSIONS, type PluginPermission } from './permissions.js';
 import {
   BUILDER_API_VERSION,
+  PLUGIN_BUILD_FORMAT,
   PLUGIN_MANIFEST_FILE,
   type DeclaredKeybinding,
   type ManifestOf,
   type ManifestParseResult,
   type PluginManifestBase,
+  type PluginBuildFile,
+  type PluginBuildInfo,
   type PluginCompatibility,
   type PluginContributes,
   type PluginProblem,
@@ -236,7 +239,7 @@ type StagedManifest = PluginManifestBase & StagedEntry;
 
 /** То, что у поставок разное: точка входа со стилями — или ничего, у встроенного. */
 type StagedEntry =
-  | { readonly main: string; readonly styles?: PluginStyles }
+  | { readonly main: string; readonly styles?: PluginStyles; readonly build?: PluginBuildInfo }
   | { readonly main?: undefined };
 
 function parseStage(
@@ -265,7 +268,8 @@ function parseStage(
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  if (source.kind === 'project' && id !== source.dir) {
+  // В каталоге домена плагин лежит под именем своей роли, а не идентификатора: сверять не с чем.
+  if (source.kind === 'project' && source.group === undefined && id !== source.dir) {
     return problem(
       'id-mismatch',
       `манифест объявляет «${id}», а каталог называется «${source.dir}». ` +
@@ -389,7 +393,95 @@ function parseEntry(
   const styles = parseStyles(fields.styles);
   if (styles !== undefined && 'ok' in styles) return styles;
 
-  return { main, ...(styles === undefined ? {} : { styles: styles.styles }) };
+  // Секция сборки бывает только у СОБРАННОГО манифеста: её пишет сборщик. В исходном её
+  // не читаем вовсе — что бы там ни стояло, сборка запишет своё.
+  const build = source.kind === 'source' ? undefined : parseBuild(fields.build);
+  if (build !== undefined && 'ok' in build) return build;
+
+  return {
+    main,
+    ...(styles === undefined ? {} : { styles: styles.styles }),
+    ...(build === undefined ? {} : { build: build.build }),
+  };
+}
+
+/** Список путей или имён: массив непустых строк. `undefined` — поля нет. */
+function stringList(raw: unknown): readonly string[] | undefined | null {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) return null;
+  return raw.every((item) => typeof item === 'string' && item !== '') ? (raw as string[]) : null;
+}
+
+/**
+ * Разбирает `build` — секцию сборки (см. {@link PluginBuildInfo}).
+ *
+ * Незнакомый `format` — не ошибка, а «секции нет»: плагин собран сборщиком новее этой
+ * оболочки, читать по его графу она не умеет, но и ломаться не обязана — прочитает каталог
+ * целиком, как читала плагины без секции. Знакомый формат с битым содержимым — отказ: по
+ * неверному графу оболочка недочитала бы файл и упала бы уже при исполнении, без объяснения.
+ */
+function parseBuild(
+  raw: unknown
+): { build: PluginBuildInfo } | { ok: false; problem: PluginProblem } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const invalid = (message: string): { ok: false; problem: PluginProblem } =>
+    problem(
+      'manifest-invalid',
+      `секция «build»: ${message}. Её пишет сборщик — пересоберите плагин`,
+      {
+        file: PLUGIN_MANIFEST_FILE,
+      }
+    );
+  if (typeof raw !== 'object' || Array.isArray(raw)) return invalid('должна быть объектом');
+
+  const fields = raw as Record<string, unknown>;
+  if (typeof fields.format !== 'number') return invalid('нет числового поля «format»');
+  if (fields.format !== PLUGIN_BUILD_FORMAT) return undefined;
+
+  const filesRaw = fields.files;
+  if (typeof filesRaw !== 'object' || filesRaw === null || Array.isArray(filesRaw)) {
+    return invalid('поле «files» должно быть объектом «путь → что нужно файлу»');
+  }
+
+  const files: Record<string, PluginBuildFile> = {};
+  for (const [pathRaw, entryRaw] of Object.entries(filesRaw as Record<string, unknown>)) {
+    const path = normalizeModulePath(pathRaw);
+    if (path === undefined || path === '') {
+      return invalid(`файл «${pathRaw}» выходит за каталог плагина`);
+    }
+    if (typeof entryRaw !== 'object' || entryRaw === null || Array.isArray(entryRaw)) {
+      return invalid(`запись файла «${pathRaw}» должна быть объектом`);
+    }
+    const entry = entryRaw as Record<string, unknown>;
+    const importsRaw = stringList(entry.imports);
+    const runtime = stringList(entry.runtime);
+    if (importsRaw === null || runtime === null) {
+      return invalid(`у файла «${pathRaw}» поля «imports» и «runtime» — списки непустых строк`);
+    }
+    const imports: string[] = [];
+    for (const item of importsRaw ?? []) {
+      const target = normalizeModulePath(item);
+      if (target === undefined || target === '') {
+        return invalid(`файл «${pathRaw}» требует «${item}» — путь выходит за каталог плагина`);
+      }
+      imports.push(target);
+    }
+    files[path] = {
+      ...(importsRaw === undefined ? {} : { imports }),
+      ...(runtime === undefined ? {} : { runtime }),
+    };
+  }
+
+  // Граф обязан быть замкнут: файл, которого в списке нет, оболочка не прочла бы заранее,
+  // и статический `require` на него упал бы при исполнении.
+  for (const [path, entry] of Object.entries(files)) {
+    const missing = (entry.imports ?? []).find((target) => files[target] === undefined);
+    if (missing !== undefined) {
+      return invalid(`файл «${path}» требует «${missing}», которого в списке файлов нет`);
+    }
+  }
+
+  return { build: { format: PLUGIN_BUILD_FORMAT, files } };
 }
 
 /**

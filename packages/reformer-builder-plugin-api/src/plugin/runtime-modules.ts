@@ -110,6 +110,9 @@ const KIT_SUBPATHS: readonly string[] = [
 export const PLUGIN_RUNTIME_MODULES: readonly string[] = Object.freeze([
   '@builder/sdk',
   '@reformer/builder-plugin-api',
+  // Вход инструментов: разбор манифеста и проверка каталога кита по схеме. Его берёт плагин
+  // китов — той же копией, что и оболочка, а не своей, вложенной в сборку.
+  '@reformer/builder-plugin-api/tooling',
   'react',
   'react/jsx-runtime',
   'react-dom',
@@ -122,11 +125,15 @@ export const PLUGIN_RUNTIME_MODULES: readonly string[] = Object.freeze([
   '@reformer/core/validation',
   '@reformer/core/validators',
   '@reformer/renderer-json',
+  '@reformer/renderer-json/validate',
   '@reformer/renderer-react',
   '@reformer/form-registry',
   '@reformer/form-registry/react',
   '@reformer/form-registry/storage',
   '@reformer/ui-kit',
+  // Каталог кита — JSON: модулем служит сам каталог (`import('…').then((m) => m.default)`).
+  // Его читает плагин китов у встроенного кита — той же версии, что и компоненты.
+  '@reformer/ui-kit/catalog',
   ...KIT_SUBPATHS,
   '@reformer/cdk',
   '@reformer/cdk/async-boundary',

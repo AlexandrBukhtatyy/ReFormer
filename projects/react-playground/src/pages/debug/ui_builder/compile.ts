@@ -35,7 +35,7 @@ import * as signalsCore from '@preact/signals-core';
 import { createModuleLoader } from '@builder-src/shell/platform/modules/loader';
 import { createModuleRegistry } from '@builder-src/shell/platform/modules/registry';
 import { createTypeScriptSupport } from '@builder-src/shell/platform/plugin/typescript-transpiler';
-import { createAmbient, type FormFixture } from '@builder-src/plugins/reformer/core/form-fixture';
+import { createAmbient, type FormFixture } from '@reformer-domain/core/form-fixture';
 
 /** Сбой сборки — данные, а не исключение: битый исходник это обычное состояние редактора. */
 export interface BuildProblem {
@@ -224,7 +224,7 @@ export function extractContract(modules: ReadonlyMap<string, unknown>): FormCont
   const initial = pick('model.ts', 'initialFormModel');
   // Имена фабрики исторически три: кодоген билдера печатает `createJsonRenderBehavior`,
   // шаблон визарда — `createRenderBehavior`, ранние формы — готовую `formRenderBehavior`.
-  // Разбор тот же, что в билдере (`plugins/base/preview/compiling/exports`), и по той же причине:
+  // Разбор тот же, что в билдере (`plugins/forms/preview/compiling/exports`), и по той же причине:
   // различаем по ИМЕНИ экспорта, а не по арности — обе функции одного аргумента.
   const renderBehavior =
     pick('renderer.behavior.ts', 'createJsonRenderBehavior') ??

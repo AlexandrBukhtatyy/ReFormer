@@ -27,6 +27,7 @@ const row = (id: string, dev = false): PluginRow => ({
   version: null,
   state: 'disabled',
   dev,
+  locked: false,
   on: false,
   toggle: 'enable',
   canReload: false,

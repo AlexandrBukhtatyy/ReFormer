@@ -28,7 +28,7 @@ import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface WorkspaceResourcesDeps {
   /** Держатель проекта: операции и открытие каталога живут у него. */
-  readonly project: Pick<ProjectHost, 'get' | 'open' | 'canOpen'>;
+  readonly project: Pick<ProjectHost, 'get' | 'open' | 'canOpen' | 'openWorkspace' | 'recent'>;
 }
 
 /**
@@ -55,6 +55,16 @@ export function createWorkspaceResourcesService(
   return {
     canOpenProject: () => deps.project.canOpen(),
     openProject: () => deps.project.open(),
+
+    // Недавние — проекция записей рабочих областей, которой владеет держатель проекта.
+    // Список живёт дольше любой сессии, поэтому и спрашивается у держателя, а не у сессии.
+    recentProjects: {
+      list: () => deps.project.recent.get(),
+      onDidChange: (cb) => deps.project.recent.subscribe(cb),
+      open: (id) => deps.project.openWorkspace(id),
+      forget: (id) => deps.project.recent.forget(id),
+      clear: () => deps.project.recent.clear(),
+    },
 
     createFile: async (dir: ResourceId, name: string, text?: string) =>
       (await operations()).createFile(dir, name, text),

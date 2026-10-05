@@ -13,7 +13,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
-import { builtinProfile } from '@/application/profiles/registry';
+import { defineProfile } from '@/application/profiles/profile';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import { readStoredPreset } from '@/shell/boot/stored-preset';
 import type { ApplicationProfilesService } from '@reformer/builder-plugin-api/internal';
@@ -23,7 +23,13 @@ import {
 } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 
-const minimal = fromProfile(builtinProfile('minimal'));
+const minimal = fromProfile(
+  defineProfile({
+    id: 'minimal',
+    name: 'Минимальный',
+    plugins: ['reformer.project', 'reformer.plugin-manager'],
+  })
+);
 const REFORMER = { id: 'reformer.builder', name: 'ReFormer' };
 const RJSF = { id: 'rjsf.builder', name: 'RJSF' };
 

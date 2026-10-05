@@ -10,13 +10,19 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RUNTIME_BUNDLE_PATH } from './runtime-config';
+import {
+  APPLICATION_INDEX_FILE,
+  APPLICATION_ROOT_DIR,
+  parseApplicationPluginIndex,
+} from '@/shell/platform/plugin/application/files';
 
 process.env.REFORMER_BUILDER_TEST = '1';
 const bin = await import('../../../bin/reformer-builder.mjs');
+const index = await import('../../../bin/plugins-index.mjs');
 
 let dir: string;
 beforeAll(async () => {
@@ -50,7 +56,13 @@ describe('parseArgs', () => {
       host: '127.0.0.1',
       open: true,
       config: null,
+      plugins: null,
     });
+  });
+
+  it('--plugins (пробел и =-форма) называет каталог плагинов приложения', () => {
+    expect(bin.parseArgs(['--plugins', 'out/plugins']).plugins).toBe('out/plugins');
+    expect(bin.parseArgs(['--plugins=../p']).plugins).toBe('../p');
   });
 });
 
@@ -131,5 +143,173 @@ describe('createRequestHandler', () => {
     expect([400, 404, 500]).toContain(traversal.status);
     expect(traversal.body === undefined || typeof traversal.body === 'string').toBe(true);
     expect(String(traversal.body ?? '')).not.toContain('root:');
+  });
+
+  describe('кэш браузера: метка версии и «не изменился»', () => {
+    // Оболочка спрашивает файлы плагинов с `no-cache`: каждый запуск идёт к серверу. Без метки
+    // версии ответом было полное тело — мегабайты на запуск; с ней — пустой 304.
+    let root: string;
+    beforeAll(async () => {
+      root = join(dir, 'static');
+      await mkdir(join(root, 'assets'), { recursive: true });
+      await mkdir(join(root, 'plugins', 'base', 'files'), { recursive: true });
+      await writeFile(join(root, 'index.html'), '<!doctype html><title>оболочка</title>');
+      await writeFile(join(root, 'assets', 'index-AbC123.js'), 'console.log("чанк")');
+      await writeFile(join(root, 'plugins', 'base', 'files', 'main.js'), 'module.exports = {};');
+    });
+
+    const handlerOf = () =>
+      bin.createRequestHandler(join(root, 'index.html'), Buffer.from('{}'), { rootDir: root });
+    const get = async (url: string, headers: Record<string, string> = {}): Promise<FakeRes> => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url, headers }, res);
+      return res;
+    };
+    const PLUGIN = '/plugins/base/files/main.js';
+
+    it('файл отдаётся с меткой; повторный вопрос с ней — 304 без тела', async () => {
+      const first = await get(PLUGIN);
+      expect(first.status).toBe(200);
+      expect(String(first.body)).toBe('module.exports = {};');
+      const etag = String(first.headers.ETag);
+      expect(etag).toMatch(/^"[0-9a-f]+-[0-9a-f]+"$/);
+
+      const again = await get(PLUGIN, { 'if-none-match': etag });
+
+      expect(again.status).toBe(304);
+      expect(again.body).toBeUndefined();
+      // Метка и правило кэша едут и с 304: браузер обновляет ими свою запись.
+      expect(again.headers.ETag).toBe(etag);
+    });
+
+    it('список меток и слабая форма тоже узнаются; чужая метка — полный ответ', async () => {
+      const etag = String((await get(PLUGIN)).headers.ETag);
+
+      expect((await get(PLUGIN, { 'if-none-match': `"прежняя", W/${etag}` })).status).toBe(304);
+      expect((await get(PLUGIN, { 'if-none-match': '"не-та"' })).status).toBe(200);
+    });
+
+    it('файл изменился — метка другая, и старая больше не подходит', async () => {
+      const before = String((await get(PLUGIN)).headers.ETag);
+      await writeFile(join(root, 'plugins', 'base', 'files', 'main.js'), 'module.exports = 1;');
+      // Время изменения сдвигается явно: на быстром диске две записи попадают в одну отметку.
+      const later = new Date(Date.now() + 5_000);
+      await utimes(join(root, 'plugins', 'base', 'files', 'main.js'), later, later);
+
+      const after = await get(PLUGIN, { 'if-none-match': before });
+
+      expect(after.status).toBe(200);
+      expect(after.headers.ETag).not.toBe(before);
+      expect(String(after.body)).toBe('module.exports = 1;');
+    });
+
+    it('навсегда кэшируются только чанки с хэшем в имени; страница и плагины — с вопросом', async () => {
+      expect((await get('/assets/index-AbC123.js')).headers['Cache-Control']).toContain(
+        'immutable'
+      );
+      expect((await get('/')).headers['Cache-Control']).toBe('no-cache');
+      expect((await get(PLUGIN)).headers['Cache-Control']).toBe('no-cache');
+      // Навигационный маршрут отдаёт страницу приложения — и её тоже переспрашивают.
+      expect((await get('/settings')).headers['Cache-Control']).toBe('no-cache');
+    });
+
+    it('запрос без заголовков не роняет раздачу', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: PLUGIN }, res);
+
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('каталог плагинов приложения (--plugins)', () => {
+    let plugins: string;
+    beforeAll(async () => {
+      plugins = join(dir, 'app-plugins');
+      await mkdir(join(plugins, 'forms', 'kits', 'chunks'), { recursive: true });
+      await mkdir(join(plugins, 'forms', 'kits', 'node_modules', 'dep'), { recursive: true });
+      await mkdir(join(plugins, '.shared'), { recursive: true });
+      await writeFile(join(plugins, 'forms', 'kits', 'manifest.json'), '{"id":"reformer.kits"}');
+      await writeFile(join(plugins, 'forms', 'kits', 'main.js'), 'module.exports = {};');
+      await writeFile(join(plugins, 'forms', 'kits', 'chunks', 'data.js'), 'module.exports = 1;');
+      await writeFile(join(plugins, 'forms', 'kits', 'node_modules', 'dep', 'index.js'), '');
+      await writeFile(join(plugins, '.shared', 'vitest.ts'), '');
+      await writeFile(join(dir, 'secret.txt'), 'секрет');
+    });
+
+    const handlerOf = () =>
+      bin.createRequestHandler('/x/index.html', Buffer.from('{}'), { pluginsDir: plugins });
+
+    it('индекс строится с диска: файлы плагинов без node_modules и имён с точки', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}index.json` }, res);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['Content-Type']).toContain('application/json');
+      expect(JSON.parse(String(res.body))).toEqual({
+        version: 1,
+        files: ['forms/kits/chunks/data.js', 'forms/kits/main.js', 'forms/kits/manifest.json'],
+      });
+    });
+
+    it('файл плагина отдаётся из каталога флага, а не из dist', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}forms/kits/main.js` }, res);
+
+      expect(res.status).toBe(200);
+      expect(String(res.body)).toBe('module.exports = {};');
+    });
+
+    it('файла нет — 404, а не страница приложения', async () => {
+      // SPA-fallback вместо кода плагина исполнился бы как код и упал синтаксической ошибкой.
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}forms/absent` }, res);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('выход за каталог плагинов не отдаёт чужой файл', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}%2e%2e/secret.txt` }, res);
+
+      expect([400, 404]).toContain(res.status);
+      expect(String(res.body ?? '')).not.toContain('секрет');
+    });
+
+    it('без флага адрес плагинов — обычная статика dist', async () => {
+      // Файл есть только в каталоге флага: без флага его отдавать неоткуда, что бы ни лежало
+      // в собранном `dist/plugins` на этой машине.
+      await mkdir(join(plugins, 'only-with-flag'), { recursive: true });
+      await writeFile(join(plugins, 'only-with-flag', 'main.js'), 'module.exports = {};');
+      const url = `${bin.PLUGINS_URL_PREFIX}only-with-flag/main.js`;
+
+      const withFlag = fakeRes();
+      await handlerOf()({ method: 'GET', url }, withFlag);
+      expect(withFlag.status).toBe(200);
+
+      const withoutFlag = fakeRes();
+      await bin.createRequestHandler('/x/index.html', Buffer.from('{}'))(
+        { method: 'GET', url },
+        withoutFlag
+      );
+      expect(withoutFlag.status).toBe(404);
+    });
+  });
+});
+
+describe('индекс плагинов приложения', () => {
+  it('формат индекса у лаунчера и оболочки один', async () => {
+    const built = await index.buildPluginsIndex(join(dir, 'app-plugins'));
+
+    // Оболочка принимает ровно то, что строит лаунчер: версия и плоский список путей.
+    expect(parseApplicationPluginIndex(built)).toEqual(built);
+    expect(index.PLUGINS_INDEX_FILE).toBe(APPLICATION_INDEX_FILE);
+    expect(bin.PLUGINS_URL_PREFIX).toBe(`/${APPLICATION_ROOT_DIR}/`);
+  });
+
+  it('каталога нет — пустой индекс, а не отказ', async () => {
+    expect(await index.buildPluginsIndex(join(dir, 'нет-такого'))).toEqual({
+      version: 1,
+      files: [],
+    });
   });
 });

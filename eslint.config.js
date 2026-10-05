@@ -35,6 +35,53 @@ const NO_PLATFORMS = {
     'Сшивает их единственная точка — корневой src/index.ts.',
 };
 
+/**
+ * Домены-плагины проекта-образца билдера: `.ui_builder/plugins/<домен>/{core,<плагин>}`.
+ *
+ * Пока домены жили внутри билдера, их границы стерёг его eslint.config.js по псевдониму
+ * `@/plugins/…`. Пакетами они ходят к ядру относительным путём, и стеречь приходится путь:
+ *
+ *   плагин → контракт (`@reformer/builder-plugin-api`, без `/internal`), ядро СВОЕГО домена, свой src/
+ *   ядро   → то же и без React: интерфейс — работа плагинов домена
+ *
+ * Сосед по домену достижим только через точки расширения и возможности: иначе его нельзя
+ * ни выключить, ни заменить, а сборка каждого плагина вложила бы в себя копию соседа.
+ * Каталог `integration/` под правило не попадает намеренно: он проверяет собранное приложение
+ * и обязан знать и оболочку (`@/…`), и все плагины домена сразу.
+ */
+const DOMAIN_PLUGINS = 'projects/reformer-builder-playground/.ui_builder/plugins/*';
+
+const DOMAIN_PLUGIN_BOUNDARY = [
+  {
+    regex: '^@/',
+    message:
+      'Плагин проекта не видит исходников билдера: платформа доступна только через ' +
+      '@reformer/builder-plugin-api',
+  },
+  {
+    // Второй вход пакета — примитивы целиком, для оболочки. Плагин обязан обходиться контрактом:
+    // иначе его сборка зависела бы от того, чего у стороннего автора плагина нет.
+    regex: '^@reformer/builder-plugin-api/internal$',
+    message: 'Плагину — только контракт: @reformer/builder-plugin-api, без /internal',
+  },
+  {
+    // Выход из своего пакета вверх и вход в `src/` другого — это сосед по домену. Ядро лежит
+    // без `src/` (`../../core/…`), общие помощники тестов — в `.shared`: под шаблон не попадают.
+    regex: '^(?:\\.\\./)+(?:[^./][^/]*/src|integration)(?:/|$)',
+    message:
+      'Соседний плагин домена — только через SDK (точки расширения, возможности); общий ' +
+      'предметный код кладите в ядро домена (core/)',
+  },
+];
+
+/**
+ * Через `paths`, а не `patterns`: в `patterns` действует gitignore-синтаксис, где `react`
+ * совпадает с ЛЮБЫМ сегментом пути (см. NO_REACT_PATHS выше).
+ */
+const DOMAIN_CORE_NO_REACT = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client'].map(
+  (name) => ({ name, message: 'Ядро домена без React: интерфейс — работа плагинов домена' })
+);
+
 export default defineConfig([
   globalIgnores([
     '**/dist',
@@ -48,8 +95,16 @@ export default defineConfig([
     '**/_generated/**',
     // Auto-generated API docs from JSDoc
     'projects/reformer-doc/docs/api/**',
-    // Сборка плагина кита HexaUI в проекте-образце билдера: один main.js на 4 МБ, в git не едет
-    'projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui/**',
+    // Сборка плагинов проекта-образца для билдера: main.js в корне каталога плагина (у кита
+    // HexaUI — 4 МБ, у плагина ИИ — 8). В git не едет, но исключена вложенным .gitignore, которого
+    // ESLint не читает. Плагин лежит прямо в каталоге плагинов или в каталоге домена — два уровня
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/main.js',
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/*/main.js',
+    // Модули данных той же сборки — JSON, импортируемый отложенно (мегабайты корпуса знаний)
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/chunks',
+    'projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks',
+    // Корпус знаний плагина ИИ — выход генератора (`npm run generate:knowledge`)
+    'projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/knowledge/generated',
   ]),
 
   // Базовая конфигурация для всего TS/JS
@@ -98,6 +153,9 @@ export default defineConfig([
       // и печатает отчёт. Живёт рядом с пакетом (packages/*/eval/), а не в scripts/.
       '**/eval/**/*.{js,mjs,cjs}',
       '**/bin/**/*.{js,mjs,cjs}',
+      // Общие скрипты сборки плагинов проекта-образца (генератор их таблиц стилей): запускаются
+      // node'ом из каталога пакета плагина, а не исполняются в браузере.
+      'projects/reformer-builder-playground/.ui_builder/plugins/.shared/**/*.mjs',
       '**/*.config.{js,mjs,cjs,ts}',
       '**/.*rc.{js,mjs,cjs}',
       '**/vite.config.*',
@@ -190,6 +248,21 @@ export default defineConfig([
       '@typescript-eslint/no-restricted-imports': [
         'error',
         { patterns: [NO_PLATFORMS], paths: NO_REACT_PATHS },
+      ],
+    },
+  },
+
+  // Границы доменов-плагинов проекта-образца билдера — см. DOMAIN_PLUGIN_BOUNDARY.
+  {
+    files: [`${DOMAIN_PLUGINS}/*/src/**/*.{ts,tsx}`],
+    rules: { 'no-restricted-imports': ['error', { patterns: DOMAIN_PLUGIN_BOUNDARY }] },
+  },
+  {
+    files: [`${DOMAIN_PLUGINS}/core/**/*.{ts,tsx}`],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: DOMAIN_PLUGIN_BOUNDARY, paths: DOMAIN_CORE_NO_REACT },
       ],
     },
   },

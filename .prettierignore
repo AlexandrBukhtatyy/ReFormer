@@ -31,3 +31,29 @@ packages/reformer-mcp/src/prompts/templates/
 # проекта. prettier сворачивает короткий массив в одну строку, и тогда билдер переписывал бы файл
 # обратно: открытие каталога давало бы diff, а e2e «открытие проекта не меняет его файлы» падал бы
 projects/reformer-builder-playground/.ui_builder/settings.json
+
+# Сборка плагинов проекта-образца для билдера (`npm run build:dev` в пакете плагина) лежит в корне
+# каталога плагина и исключена ЕГО .gitignore — а вложенные .gitignore prettier не читает
+# и переформатировал бы main.js. Плагин лежит либо прямо в каталоге плагинов, либо в каталоге
+# домена (`reformer/editor`), поэтому шаблонов два уровня
+projects/reformer-builder-playground/.ui_builder/plugins/*/manifest.json
+projects/reformer-builder-playground/.ui_builder/plugins/*/main.js
+projects/reformer-builder-playground/.ui_builder/plugins/*/styles.css
+projects/reformer-builder-playground/.ui_builder/plugins/*/locales/
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/manifest.json
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/main.js
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/styles.css
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/locales/
+# Модули данных той же сборки: JSON, который плагин импортирует отложенно (у ассистента —
+# корпус знаний, мегабайты в одну строку)
+projects/reformer-builder-playground/.ui_builder/plugins/*/chunks/
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks/
+# …а исходники плагина первого уровня (`kit-hexa-ui/src/manifest.json`) под шаблон второго
+# уровня попадать не должны: это рукописные файлы, их prettier обязан проверять
+!projects/reformer-builder-playground/.ui_builder/plugins/*/src/manifest.json
+!projects/reformer-builder-playground/.ui_builder/plugins/*/src/styles.css
+!projects/reformer-builder-playground/.ui_builder/plugins/*/src/locales/
+# Корпус знаний плагина ИИ — выход генератора (`npm run generate:knowledge`), в git не едет
+projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/knowledge/generated/
+# Таблицы стилей плагинов-движков — выход генератора (`npm run generate:styles`), в git не едут
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/src/styles.css

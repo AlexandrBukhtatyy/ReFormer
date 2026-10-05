@@ -5,6 +5,10 @@ import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/fo
 import { Field, FieldContent } from '@/components/field';
 import { InfoHint } from '@/components/info-hint';
 import { useKitMessages } from '@/i18n/messages';
+import { cn } from '@/lib/utils';
+
+/** Раскладка подписи относительно контрола: `col` — над ним, `row` — слева от него. */
+export type FormFieldDirection = 'col' | 'row';
 
 /** Props компонента {@link FormField}. */
 export interface FormFieldProps {
@@ -22,11 +26,30 @@ export interface FormFieldProps {
    */
   testId?: string;
   /**
+   * Раскладка подписи и контрола: `'col'` — подпись над контролом, `'row'` — слева от него.
+   * Описание, ошибка и «Проверка…» в обоих случаях остаются под контролом. У inline-контролов
+   * (Checkbox/Switch) верхней подписи нет — для них раскладка не меняется.
+   *
+   * @default 'col'
+   */
+  direction?: FormFieldDirection;
+  /**
    * Кастомный input — оборачивается в `CdkFormField.Control asChild` (нестандартный контрол,
    * не зарегистрированный в `control.component`).
    */
   children?: React.ReactNode;
 }
+
+/**
+ * Поправки к `orientation="horizontal"` shadcn `Field` — тот рассчитан на пару «чекбокс + текст»,
+ * а здесь справа стоит колонка «контрол → описание → ошибка»:
+ * - подпись не растягивается (у shadcn — `flex-auto`) и занимает не больше половины ряда: длинная
+ *   переносится, а не выдавливает контрол;
+ * - выравнивание по базовой линии первой строки контрола (у shadcn — `items-start`): подпись стоит
+ *   на уровне текста в поле при любой его высоте, а не у верхнего края.
+ */
+const ROW_CLASS =
+  'gap-3 has-[>[data-slot=field-content]]:items-baseline [&>[data-slot=field-label]]:flex-none [&>[data-slot=field-label]]:max-w-1/2 [&>[data-slot=field-label-row]]:max-w-1/2';
 
 /**
  * Контролы с inline-раскладкой (CheckboxWithLabel/SwitchWithLabel — сами рисуют подпись рядом с
@@ -44,6 +67,7 @@ function hasInlineLabel(component: unknown): boolean {
 interface FormFieldInnerProps {
   className?: string;
   testIdProp?: string;
+  direction: FormFieldDirection;
   inlineLabel: boolean;
   description?: string;
   labelTooltip?: string;
@@ -57,6 +81,7 @@ interface FormFieldInnerProps {
 function FormFieldInner({
   className,
   testIdProp,
+  direction,
   inlineLabel,
   description,
   labelTooltip,
@@ -93,9 +118,12 @@ function FormFieldInner({
     <CdkFormField.Control data-testid={`input-${testId}`} />
   );
 
+  const row = direction === 'row';
+
   return (
     <Field
-      className={className}
+      orientation={row ? 'horizontal' : 'vertical'}
+      className={row ? cn(ROW_CLASS, className) : className}
       data-testid={`field-${testId}`}
       // Маркер для `group-data-[disabled=true]/field:*` (shadcn Field): без него подпись выключенного
       // поля оставалась яркой. Атрибут ставится только у выключенного поля — иначе DOM прежний.
@@ -148,7 +176,13 @@ function FormFieldInner({
   );
 }
 
-const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId, children }) => {
+const FormFieldComponent: React.FC<FormFieldProps> = ({
+  control,
+  className,
+  testId,
+  direction = 'col',
+  children,
+}) => {
   const inlineLabel = hasInlineLabel(control.component);
   // peek: structural, без подписки — hasDescription нужен ДО Root. Ограничение: `description`
   // фиксируется первым рендером (компонент memo'ится по control). Динамическая смена description
@@ -169,6 +203,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
       <FormFieldInner
         className={className}
         testIdProp={testId}
+        direction={direction}
         inlineLabel={inlineLabel}
         description={description}
         labelTooltip={labelTooltip}
@@ -183,6 +218,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
  * `@reformer/cdk/form-field`: `Label` → `Control` → `Error` (+ опц. `Description`, pending).
  * Подключается `<FormField control={…} />` или как `fieldWrapper` для `FormRenderer`.
  *
+ * - `direction` — подпись над контролом (`'col'`, по умолчанию) или слева от него (`'row'`).
  * - Для inline-контролов (Checkbox/Switch — `reformerLayout='inline-label'`) верхняя подпись не рендерится.
  * - `componentProps.labelTooltip` — иконка (i) с тултипом после подписи (у inline-контролов — справа от
  *   контрола). Подсказка внутри самого контрола — отдельный проп `tooltip`.
@@ -195,5 +231,6 @@ export const FormField = React.memo(
     prev.control === next.control &&
     prev.className === next.className &&
     prev.testId === next.testId &&
+    prev.direction === next.direction &&
     prev.children === next.children
 );

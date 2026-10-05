@@ -135,6 +135,43 @@ function TooltipUsage() {
   );
 }
 
+/**
+ * direction="row" — подпись слева от контрола. Подписям задана общая ширина: без неё контролы
+ * начинались бы каждый со своей позиции.
+ */
+function RowUsage() {
+  const { control: emailControl } = useDemoField({
+    initial: '',
+    component: Input,
+    componentProps: {
+      label: 'Email',
+      type: 'email',
+      placeholder: 'you@example.com',
+      description: 'Не передаём email третьим сторонам.',
+    },
+    validators: [required({ message: 'Введите email' }), email()],
+    touched: true,
+  });
+  const { control: innControl } = useDemoField({
+    initial: '',
+    component: Input,
+    componentProps: {
+      label: 'ИНН организации',
+      placeholder: '7700000000',
+      labelTooltip: 'Нужен для выставления счёта',
+    },
+  });
+  const labelColumn = '[&>[data-slot^=field-label]]:w-40';
+  return (
+    <div
+      style={{ maxWidth: 460, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}
+    >
+      <FormField control={emailControl as any} direction="row" className={labelColumn} />
+      <FormField control={innControl as any} direction="row" className={labelColumn} />
+    </div>
+  );
+}
+
 export const uiKitFormFieldDocConfig: ComponentDocConfig = {
   name: 'FormField',
   importFrom: '@reformer/ui-kit',
@@ -194,6 +231,26 @@ email: {
 
 <FormField control={form.inn} />`,
     },
+    {
+      id: 'direction',
+      title: 'Подпись слева (direction="row")',
+      description:
+        'direction="row" ставит подпись слева от контрола; hint и ошибка остаются под контролом, а не под подписью. Подпись выровнена по базовой линии текста в поле и занимает не больше половины ряда. Общая ширина подписей задана через className — без неё контролы начинались бы каждый со своей позиции.',
+      render: RowUsage,
+      code: `import { FormField } from '@reformer/ui-kit';
+
+// direction — проп самого FormField (не componentProps). По умолчанию 'col' — подпись сверху.
+<FormField control={form.email} direction="row" />
+
+// Подписи одной ширины — контролы встают в колонку:
+const labelColumn = '[&>[data-slot^=field-label]]:w-40';
+<FormField control={form.email} direction="row" className={labelColumn} />
+<FormField control={form.inn} direction="row" className={labelColumn} />
+
+// В FormRenderer — своей обёрткой (объявляется на уровне модуля):
+const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="row" />;
+<FormRenderer form={form} settings={{ fieldWrapper: RowField }} />`,
+    },
   ],
   props: [
     {
@@ -240,6 +297,13 @@ email: {
       name: 'testId',
       type: 'string',
       description: 'Префикс data-testid: field-/label-/input-/error-<id>.',
+    },
+    {
+      name: 'direction',
+      type: "'col' | 'row'",
+      default: "'col'",
+      description:
+        'Раскладка подписи и контрола: col — подпись над контролом, row — слева от него (hint и ошибка остаются под контролом). Проп самого FormField, из componentProps не читается. У inline-контролов (Checkbox/Switch) раскладка не меняется.',
     },
   ],
 };

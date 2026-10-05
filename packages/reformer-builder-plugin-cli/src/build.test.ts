@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { parsePluginManifest } from '@reformer/builder-plugin-api/tooling';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { runCli, type CliIo } from './cli.js';
 import { buildPlugin, type BuildResult } from './commands/build.js';
@@ -29,8 +29,8 @@ afterEach(async () => {
 
 const main = (code: string) => writeFile(join(dir, 'src/main.ts'), code);
 
-async function patchManifest(patch: (value: Record<string, unknown>) => void) {
-  const file = join(dir, 'manifest.json');
+async function patchManifest(patch: (value: Record<string, unknown>) => void, at = dir) {
+  const file = join(at, 'manifest.json');
   const value = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
   patch(value);
   await writeFile(file, JSON.stringify(value));
@@ -66,10 +66,260 @@ describe('build', () => {
     expect(await readFile(join(foreign, 'notes.txt'), 'utf8')).toBe('не трогать');
   });
 
+  it('манифест исходников с тем же id сборкой не считается', async () => {
+    // Копия исходников — каталог с «нашим» id. Сборкой её делает не id, а `main: "main.js"`.
+    const copy = join(root, 'copy');
+    await mkdir(copy);
+    await writeFile(
+      join(copy, 'manifest.json'),
+      await readFile(join(dir, 'manifest.json'), 'utf8')
+    );
+    await writeFile(join(copy, 'notes.txt'), 'не трогать');
+
+    expect(codes(await buildPlugin({ dir, outDir: copy }))).toEqual(['output-not-ours']);
+    expect(await readFile(join(copy, 'notes.txt'), 'utf8')).toBe('не трогать');
+  });
+
+  it('каталог исходников каталогом вывода быть не может', async () => {
+    const manifest = await readFile(join(dir, 'manifest.json'), 'utf8');
+
+    expect(codes(await buildPlugin({ dir, outDir: dir }))).toEqual(['output-is-source']);
+    expect(await readFile(join(dir, 'manifest.json'), 'utf8')).toBe(manifest);
+    expect(await readFile(join(dir, 'src/main.ts'), 'utf8')).toContain('definePlugin');
+  });
+
+  describe('на месте: исходники в src/ пакета, сборка — в его корне', () => {
+    let pkg: string;
+    let sources: string;
+
+    beforeEach(async () => {
+      pkg = join(root, 'project/.ui_builder/plugins/acme-pack');
+      sources = join(pkg, 'src');
+      const created = await createPlugin({ dir: sources, id: 'acme-pack', cliVersion: '1.0.0' });
+      expect(created.ok).toBe(true);
+      await writeFile(join(pkg, 'package.json'), '{ "name": "acme-pack" }');
+    });
+
+    it('пишет рядом с исходниками и не трогает то, чего не писала', async () => {
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+      // Вторая сборка — поверх первой: раньше на этом месте каталог стирался целиком.
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+
+      const manifest = await readFile(join(pkg, 'manifest.json'), 'utf8');
+      expect(parsePluginManifest(manifest, { kind: 'project', dir: 'acme-pack' }).ok).toBe(true);
+      expect(await readFile(join(pkg, 'main.js'), 'utf8')).toContain('acme-pack');
+      expect(await readFile(join(pkg, 'package.json'), 'utf8')).toBe('{ "name": "acme-pack" }');
+      expect(await readFile(join(sources, 'src/main.ts'), 'utf8')).toContain('definePlugin');
+    });
+
+    it('убирает файлы прошлой сборки, которых в новой нет', async () => {
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+      await patchManifest((value) => {
+        value.contributes = {};
+      }, sources);
+
+      expect((await buildPlugin({ dir: sources, outDir: pkg })).ok).toBe(true);
+
+      // Словарей в сборке больше нет — нет и их каталога; исходные словари на месте.
+      expect(await readdir(pkg)).toEqual(['main.js', 'manifest.json', 'package.json', 'src']);
+      expect(await readFile(join(sources, 'locales/ru.json'), 'utf8')).toContain('command.hello');
+    });
+
+    it('чужой файл на месте своего — отказ, и ничего не записано', async () => {
+      await mkdir(join(pkg, 'locales'));
+      await writeFile(join(pkg, 'locales/ru.json'), 'не трогать');
+
+      const result = await buildPlugin({ dir: sources, outDir: pkg });
+
+      expect(result).toMatchObject({
+        ok: false,
+        findings: [{ code: 'output-not-ours', file: 'locales/ru.json' }],
+      });
+      expect(await readFile(join(pkg, 'locales/ru.json'), 'utf8')).toBe('не трогать');
+      expect(await readdir(pkg)).toEqual(['locales', 'package.json', 'src']);
+    });
+  });
+
   it('@reformer/*, которого оболочка не даёт, — отказ, а не вложенная копия', async () => {
     await main(`import { x } from '@reformer/not-a-runtime-module';\nexport default x;\n`);
 
     expect(codes(await buildPlugin({ dir }))).toEqual(['module-unavailable']);
+  });
+
+  it('?raw вкладывает текст файла строкой', async () => {
+    await writeFile(join(dir, 'src/form.eta'), 'export const title = "<%= it.title %>";');
+    await main(
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "import template from './form.eta?raw';",
+        'export const TEMPLATE = template;',
+        "export default definePlugin({ id: 'acme-hello', activate() {} });",
+      ].join('\n')
+    );
+
+    const result = await buildPlugin({ dir });
+
+    expect(result.ok).toBe(true);
+    expect(await readFile(join(dir, 'dist/main.js'), 'utf8')).toContain('<%= it.title %>');
+  });
+
+  it('отложенный импорт модуля рантайма идёт через require оболочки, а не нативным import()', async () => {
+    await main(
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "export const loadCore = () => import('@reformer/core');",
+        "export default definePlugin({ id: 'acme-hello', activate() {} });",
+      ].join('\n')
+    );
+
+    expect((await buildPlugin({ dir })).ok).toBe(true);
+
+    const code = await readFile(join(dir, 'dist/main.js'), 'utf8');
+    expect(code).toContain('require("@reformer/core")');
+    expect(code).not.toMatch(/\bimport\(/);
+  });
+
+  describe('отложенный импорт JSON', () => {
+    /** Плагин с данными, которые нужны не сразу: `loadCorpus` зовут по требованию. */
+    const lazyMain = (...imports: string[]) =>
+      main(
+        [
+          "import { definePlugin } from '@reformer/builder-plugin-api';",
+          ...imports,
+          "export default definePlugin({ id: 'acme-hello', activate() {} });",
+        ].join('\n')
+      );
+
+    it('уезжает модулем в chunks/, а в main.js остаётся вызов оболочки', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка", "items": [1, 2] }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+
+      const result = await buildPlugin({ dir });
+
+      expect(result).toMatchObject({ ok: true });
+      expect(result.ok && result.files).toContain('chunks/corpus.js');
+      const code = await readFile(join(dir, 'dist/main.js'), 'utf8');
+      expect(code).toContain('__reformerImport("./chunks/corpus.js")');
+      // Сами данные в main.js не попали: иначе движок разбирал бы их при каждой загрузке плагина.
+      expect(code).not.toContain('Справка');
+      expect(await readFile(join(dir, 'dist/chunks/corpus.js'), 'utf8')).toContain('Справка');
+    });
+
+    it('собранное исполняется графом CommonJS — так его и грузит оболочка', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка" }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+
+      const required: string[] = [];
+      const evaluate = async (file: string): Promise<Record<string, unknown>> => {
+        const module = { exports: {} as Record<string, unknown> };
+        const source = await readFile(join(dir, 'dist', file), 'utf8');
+        const sources = new Map<string, Record<string, unknown>>();
+        if (file === 'main.js')
+          sources.set('./chunks/corpus.js', await evaluate('chunks/corpus.js'));
+        const requireFrom = (specifier: string): unknown => {
+          required.push(specifier);
+          // Модули рантайма здесь не нужны: проверяется только связь main.js → chunks/.
+          return sources.get(specifier) ?? { definePlugin: (plugin: unknown) => plugin };
+        };
+        // `new Function` — так модуль исполняет и линковщик оболочки.
+        new Function('exports', 'require', 'module', source)(module.exports, requireFrom, module);
+        return module.exports;
+      };
+
+      const exports = await evaluate('main.js');
+      // До первого обращения модуль данных не запрошен вовсе.
+      expect(required).not.toContain('./chunks/corpus.js');
+
+      const corpus = (await (exports.loadCorpus as () => Promise<{ default: unknown }>)()).default;
+
+      expect(corpus).toEqual({ title: 'Справка' });
+      expect(required).toContain('./chunks/corpus.js');
+    });
+
+    it('статический импорт JSON вкладывается, как и раньше', async () => {
+      await writeFile(join(dir, 'src/small.json'), '{ "title": "Вложено" }');
+      await lazyMain("import small from './small.json';", 'export const SMALL = small;');
+
+      const result = await buildPlugin({ dir });
+
+      expect(result.ok && result.files).not.toContain('chunks/small.js');
+      expect(await readFile(join(dir, 'dist/main.js'), 'utf8')).toContain('Вложено');
+    });
+
+    it('одноимённые файлы из разных каталогов получают разные модули', async () => {
+      await mkdir(join(dir, 'src/a'));
+      await mkdir(join(dir, 'src/b'));
+      await writeFile(join(dir, 'src/a/data.json'), '{ "from": "a" }');
+      await writeFile(join(dir, 'src/b/data.json'), '{ "from": "b" }');
+      await lazyMain(
+        "export const loadA = () => import('./a/data.json');",
+        "export const loadB = () => import('./b/data.json');"
+      );
+
+      const result = await buildPlugin({ dir });
+
+      expect(result.ok && [...result.files].filter((file) => file.startsWith('chunks/'))).toEqual([
+        'chunks/data.js',
+        'chunks/data-2.js',
+      ]);
+    });
+
+    it('пересборка убирает модуль, которого больше нет, а чужой файл в chunks/ не трогает', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка" }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+      await writeFile(join(dir, 'dist/chunks/notes.js'), '// не сборка: положено руками');
+
+      await lazyMain();
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+
+      // Свой файл сборка узнаёт по первой строке, а не по каталогу.
+      expect(await readdir(join(dir, 'dist/chunks'))).toEqual(['notes.js']);
+    });
+
+    it('чужой файл на месте модуля данных — отказ, и он цел', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка" }');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+      expect((await buildPlugin({ dir })).ok).toBe(true);
+      await writeFile(join(dir, 'dist/chunks/corpus.js'), '// не сборка: положено руками');
+
+      const result = await buildPlugin({ dir });
+
+      expect(result).toMatchObject({
+        ok: false,
+        findings: [{ code: 'output-not-ours', file: 'chunks/corpus.js' }],
+      });
+      expect(await readFile(join(dir, 'dist/chunks/corpus.js'), 'utf8')).toBe(
+        '// не сборка: положено руками'
+      );
+    });
+
+    it('битый JSON — отказ с именем файла, а не модуль с мусором', async () => {
+      await writeFile(join(dir, 'src/corpus.json'), '{ "title": ');
+      await lazyMain("export const loadCorpus = () => import('./corpus.json');");
+
+      const result = await buildPlugin({ dir });
+
+      expect(result).toMatchObject({ ok: false, findings: [{ code: 'build-failed' }] });
+      expect(result.ok ? '' : result.findings[0].file?.split('\\').join('/')).toBe(
+        'src/corpus.json'
+      );
+    });
+  });
+
+  it('текст вне ASCII остаётся текстом, а не экранированием', async () => {
+    await main(
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "export const TITLE = 'Привет, плагин';",
+        "export default definePlugin({ id: 'acme-hello', activate() {} });",
+      ].join('\n')
+    );
+
+    expect((await buildPlugin({ dir })).ok).toBe(true);
+
+    expect(await readFile(join(dir, 'dist/main.js'), 'utf8')).toContain('Привет, плагин');
   });
 
   it('CSS из кода — отказ: стили объявляются в манифесте', async () => {
@@ -151,6 +401,41 @@ describe('build', () => {
       expect(result.ok).toBe(true);
       expect(result.ok && result.notices[0]).toContain('«provides» и каталоги китов не проверены');
     });
+  });
+
+  it('пробный запуск не печатает за плагин: сказанное на заглушках — не его состояние', async () => {
+    // Плагин китов, получив вместо каталога заглушку, пишет «каталог не принят» — и при каждой
+    // сборке рабочего плагина это читалось бы как поломка. Вывод глушится и синхронный, и
+    // отложенный: второй приходит уже после `activate`.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await main(
+      `import { definePlugin } from '@reformer/builder-plugin-api';
+` +
+        `export default definePlugin({
+` +
+        `  id: 'acme-hello',
+` +
+        `  activate() {
+` +
+        `    console.error('сразу');
+` +
+        `    void Promise.resolve().then(() => console.warn('позже'));
+` +
+        `  },
+` +
+        `});
+`
+    );
+
+    const result = await buildPlugin({ dir });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(result).toMatchObject({ ok: true, notices: [] });
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    error.mockRestore();
+    warn.mockRestore();
   });
 
   describe('кит, внесённый плагином', () => {
@@ -303,6 +588,31 @@ describe('командная строка', () => {
     expect(run.lines.err[0]).toBe('validate: параметры --out не принимаются');
   });
 
+  it('dev в проект, где лежит сам пакет плагина, пишет рядом с исходниками', async () => {
+    const pkg = join(root, 'project/.ui_builder/plugins/acme-pack');
+    await createPlugin({ dir: join(pkg, 'src'), id: 'acme-pack', cliVersion: '1.0.0' });
+    const run = io();
+
+    const source = 'project/.ui_builder/plugins/acme-pack/src';
+    expect(await runCli(['dev', source, '--project', 'project'], run)).toBe(0);
+
+    expect(run.lines.err).toEqual([]);
+    expect(await readFile(join(pkg, 'main.js'), 'utf8')).toContain('acme-pack');
+    expect(await readFile(join(pkg, 'src/src/main.ts'), 'utf8')).toContain('definePlugin');
+  });
+
+  it('dev --out собирает в названный каталог; с --project вместе или без обоих — код 2', async () => {
+    const run = io();
+
+    expect(await runCli(['dev', 'acme-hello', '--out', 'out/acme'], run)).toBe(0);
+    expect(run.lines.err).toEqual([]);
+    expect(await readFile(join(root, 'out/acme/main.js'), 'utf8')).toContain('acme-hello');
+
+    expect(await runCli(['dev', 'acme-hello', '--out', 'out/acme', '--project', 'p'], io())).toBe(
+      2
+    );
+  });
+
   it('dev собирает один раз и закрывается, когда ожидание завершено', async () => {
     const run = io();
 
@@ -373,7 +683,7 @@ describe('build: вкладываемые пакеты', () => {
   it('@reformer/* вне списков из кода САМОГО плагина — по-прежнему отказ', async () => {
     await writeFile(
       join(plugin, 'src/main.ts'),
-      "import { x } from '@reformer/mcp/dist/core/generate/form-intent.js';\nexport default x;\n"
+      "import { x } from '@reformer/form-registry/dist/internal.js';\nexport default x;\n"
     );
 
     const result = await buildPlugin({ dir: plugin });

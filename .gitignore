@@ -50,9 +50,3 @@ coverage/
 # Конфиг запуска разработчика для `npm run dev` билдера (dev-эндпоинт runtime.json в vite.config):
 # у каждого свой состав и свои умолчания — в репозиторий не едет.
 projects/reformer-builder/.ui_builder/
-
-# Сборка плагина кита HexaUI в проекте-образце билдера (npm run plugins:hexa-ui
-# -w reformer-builder-playground): ~5 МБ производного от packages/ui-kits/reformer-hexa-ui.
-# Плагин включён настройкой проекта, сборка в репозиторий не едет. Правило стоит ЗДЕСЬ, а не
-# в .gitignore проекта: вложенный файл prettier не читает и переформатировал бы main.js.
-projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui/

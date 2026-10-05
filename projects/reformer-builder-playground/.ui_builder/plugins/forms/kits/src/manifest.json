@@ -1,0 +1,13 @@
+{
+  "id": "reformer.kits",
+  "name": "Киты",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "provides": [
+    {
+      "id": "reformer.kit.catalog",
+      "version": "2.1.0"
+    }
+  ]
+}

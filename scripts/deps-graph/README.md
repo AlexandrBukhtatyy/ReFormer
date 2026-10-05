@@ -70,8 +70,8 @@ HTML — страница dependency-cruiser: наведение подсвеч�
 | `--out <каталог>` | куда писать вместо `.tmp/deps-graph`                                                               |
 
 ```bash
-npm run deps:graph -- @reformer/builder --focus plugins/rjsf              # домен RJSF и его соседи
-npm run deps:graph -- @reformer/builder --modules --focus plugins/rjsf/   # он же по файлам
+npm run deps:graph -- @reformer/builder --focus plugins/kits              # домен китов и его соседи
+npm run deps:graph -- @reformer/builder --modules --focus plugins/kits/   # он же по файлам
 npm run deps:graph -- @reformer/core --npm                                # с внешними пакетами
 ```
 

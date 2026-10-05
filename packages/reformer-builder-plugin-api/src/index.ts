@@ -67,6 +67,10 @@ export type { Disposable } from './primitives/disposable.js';
 
 // Адресация: ресурс, на который смотрит документ.
 export type { ResourceId, ResourceRef } from './primitives/resource.js';
+// Два вопроса об адресе и типе, на которые отвечает платформа: «как это назвать человеку»
+// и «читается ли это текстом». Путевой арифметики здесь нет намеренно — её даёт служба
+// записей (`WorkspaceFilesService.parentOf/resolve/fromRoot`).
+export { isTextMediaType, resourceNameOf } from './primitives/resource.js';
 
 // Правила имён записей — платформенные, потому что их проверяет не только плагин файлов:
 // шаблон формы спрашивает имя каталога ровно теми же правилами, и вторая их реализация
@@ -272,9 +276,14 @@ export {
   WorkspaceResourcesCapability,
 } from './services/workspace-resources.js';
 export type {
+  RecentProject,
+  RecentProjects,
   WorkspaceResourcesService,
   WorkspaceBatchResult,
 } from './services/workspace-resources.js';
+// Дерево проекта: готовая панель и выделение в ней. Место для дерева выбирает плагин.
+export { WorkspaceTreeCapability } from './services/workspace-tree.js';
+export type { WorkspaceTreeService } from './services/workspace-tree.js';
 export { WorkspaceSaveServiceToken, WorkspaceSaveCapability } from './services/workspace-save.js';
 export type { WorkspaceSaveService } from './services/workspace-save.js';
 // Имена прав — чтобы манифест писался против типа, а не против строки в документации.
@@ -300,7 +309,7 @@ export type { WriteOptions } from './workspace/write-options.js';
 // область догнала буфер по модели (встроенный Monaco зовёт тот же глагол своим портом).
 // Порядок несущий: `flush` спрашивает этот же реестр и при живом фокусе отложит перерисовку
 // снова.
-// Образец — обработчики фокуса в `plugins/base/editor-monaco/ui/MonacoEditor.tsx`.
+// Образец — обработчики фокуса в `plugins/base/monaco-editor/ui/MonacoEditor.tsx`.
 // Токен, а не фабрика: реестр один на приложение — это возможность ОБОЛОЧКИ
 // (`platform/services/host-capabilities`), и заводит её запуск, а не плагин.
 export { TextEditorFocusToken } from './workspace/model/text-editor-focus.js';
@@ -361,6 +370,7 @@ export type {
 export { DocumentModelPoint } from './workspace/model/provider.js';
 export type {
   DocumentModelProvider,
+  DocumentNodeAnchor,
   EditOp,
   ApplyResult,
   NodeId,

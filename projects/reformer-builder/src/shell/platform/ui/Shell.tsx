@@ -4,7 +4,7 @@
  * ## Оболочка не знает ни одной предметной сущности
  *
  * В этом файле нет ни «палитры», ни «инспектора», ни «схемы» — только слоты и вклады.
- * Правило проверяется линтером (host не импортирует `@/plugins` и ядра доменов), но смысл его
+ * Правило проверяется линтером (host не импортирует `@/plugins`), но смысл его
  * не в проверке: как только оболочка узнает про палитру, «показывать ли палитру сейчас»
  * станет её решением, и мы получим ровно дефект v1 — палитра компонентов на вкладке
  * с markdown и пустой инспектор рядом. Здесь на этот вопрос отвечает предикат `when`
@@ -65,7 +65,7 @@ import type { NotificationsService } from '@reformer/builder-plugin-api/internal
 import type { PromptService } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import { CommandPalette } from '@/shell/platform/ui/menu/CommandPalette';
-import { EditorArea, EDITOR_NEXT_COMMAND_ID } from '@/shell/platform/ui/chrome/EditorArea';
+import { EditorArea } from '@/shell/platform/ui/chrome/EditorArea';
 import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from '@/shell/platform/ui/dialogs/HelpDialogs';
 import {
   KeybindingsDialog,
@@ -226,6 +226,12 @@ const MAIN_PANEL_IDS: readonly string[] = ['left', 'center', 'right'];
 
 const CENTER_GROUP = 'center';
 const CENTER_PANEL_IDS: readonly string[] = ['editor', 'bottom'];
+
+/**
+ * Сколько кадров ждать, пока группа раскладки зарегистрирует поздно появившийся нижний док.
+ * На практике хватает одного-двух; запас — на медленную машину, предел — от вечного цикла.
+ */
+const BOTTOM_SYNC_ATTEMPTS = 30;
 
 /**
  * Команда «панель»: с адресом переключает конкретную панель, без адреса — боковую целиком.
@@ -741,34 +747,67 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
   // Раскладка приводится к режиму, а не наоборот: истина о том, свёрнут ли док, живёт
   // в настройках и переживает перезагрузку, а размер панели — состояние библиотеки.
   // Обе стороны идемпотентны: `collapse` у свёрнутой и `expand` у раскрытой не делают ничего.
+  //
+  // Док бывает ПОЗДНИМ: первая нижняя панель приходит от плагина, поднявшегося после оболочки
+  // (плагин приложения или проекта), и панель раскладки монтируется в уже живую группу. Ручка
+  // у неё появляется сразу, а ограничения группа выводит позже — императивный вызов до этого
+  // библиотека встречает исключением. Поэтому приведение повторяется по кадрам, пока панель
+  // не зарегистрирована; число попыток ограничено, чтобы настоящая поломка не стала вечным
+  // циклом.
+  const hasBottom = bottom.length > 0;
   useEffect(() => {
-    const panel = bottomPanel.current;
-    if (panel === null) return;
+    if (!hasBottom) return;
+    let frame: number | null = null;
+    let attempts = 0;
 
-    if (bottomDock.mode === 'hidden') {
-      panel.collapse();
-      return;
-    }
+    const apply = (): void => {
+      const panel = bottomPanel.current;
+      if (panel === null) return;
 
-    if (bottomDock.mode === 'minimal') {
-      // Высота запоминается ПЕРЕД сворачиванием: разворачивать надо в ту, что человек
-      // выставил разделителем, а не в общее умолчание. Записывается только настоящая
-      // рабочая высота — иначе повторное сворачивание запомнило бы высоту полосы
-      // и «развернуть» перестало бы разворачивать.
-      const size = panel.getSize().inPixels;
-      if (size > STRIP_HEIGHT.full) lastFullSize.current = size;
-      panel.resize(STRIP_HEIGHT.minimal);
-      return;
-    }
+      if (bottomDock.mode === 'hidden') {
+        panel.collapse();
+        return;
+      }
 
-    // Полный вид. `expand` здесь НЕДОСТАТОЧЕН: из свёрнутого состояния панель не схлопнута,
-    // а уменьшена прямым размером, и по правилу библиотеки «развернуть» у не-схлопнутой
-    // не делает ничего — панель осталась бы высотой в полосу. Поэтому размер ставится прямо.
-    if (panel.isCollapsed()) panel.expand();
-    if (panel.getSize().inPixels <= STRIP_HEIGHT.full) {
-      panel.resize(lastFullSize.current ?? DEFAULT_BOTTOM_SIZE);
-    }
-  }, [bottomDock.mode, bottomPanel]);
+      if (bottomDock.mode === 'minimal') {
+        // Высота запоминается ПЕРЕД сворачиванием: разворачивать надо в ту, что человек
+        // выставил разделителем, а не в общее умолчание. Записывается только настоящая
+        // рабочая высота — иначе повторное сворачивание запомнило бы высоту полосы
+        // и «развернуть» перестало бы разворачивать.
+        const size = panel.getSize().inPixels;
+        if (size > STRIP_HEIGHT.full) lastFullSize.current = size;
+        panel.resize(STRIP_HEIGHT.minimal);
+        return;
+      }
+
+      // Полный вид. `expand` здесь НЕДОСТАТОЧЕН: из свёрнутого состояния панель не схлопнута,
+      // а уменьшена прямым размером, и по правилу библиотеки «развернуть» у не-схлопнутой
+      // не делает ничего — панель осталась бы высотой в полосу. Поэтому размер ставится прямо.
+      if (panel.isCollapsed()) panel.expand();
+      if (panel.getSize().inPixels <= STRIP_HEIGHT.full) {
+        panel.resize(lastFullSize.current ?? DEFAULT_BOTTOM_SIZE);
+      }
+    };
+
+    const sync = (): void => {
+      frame = null;
+      try {
+        apply();
+      } catch (error) {
+        attempts += 1;
+        if (attempts > BOTTOM_SYNC_ATTEMPTS) {
+          console.error('[shell] нижний док не привёлся к своему режиму', error);
+          return;
+        }
+        frame = requestAnimationFrame(sync);
+      }
+    };
+    sync();
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [bottomDock.mode, bottomPanel, hasBottom]);
 
   useEffect(() => {
     const subscription = commands.register({
@@ -871,16 +910,6 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
   // ни панели, ни локаль на него не влияют, заголовки берутся из команд при построении.
   const builtinMenu = useMemo<readonly MenuEntry[]>(
     () => [
-      // Смена редактора документа. Была выпадающим списком в полосе вкладок и уехала
-      // оттуда: список занимал место у имён файлов и дублировал переключатель вида
-      // markdown, стоявший рядом. Здесь она пункт меню и команда палитры — то есть
-      // доступна, но ничего не занимает.
-      hostMenuEntry('shell.file.editor.next', {
-        kind: 'item',
-        menu: 'file',
-        command: EDITOR_NEXT_COMMAND_ID,
-        group: '3_view',
-      }),
       // Очистка кэша — своей группой, а не рядом с настройками: между «поменять цвет темы»
       // и «снести рабочую копию» обязана быть линия. Группа стоит перед настройками
       // (`8_` < `9_`), потому что это всё же обслуживание, а не первое, что ищут в меню.

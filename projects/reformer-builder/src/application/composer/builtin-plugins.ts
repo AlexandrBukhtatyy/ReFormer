@@ -35,11 +35,12 @@
  * нечитаемо до его загрузки, а отвечать «собирается ли состав» надо раньше.
  *
  * Создаёт плагин его ФАБРИКА СОСТАВА — `export default` бареля. Контракт у всех один: функция
- * от набора портов ({@link BuiltinPluginPorts}), из которого плагин берёт своё по имени. Раньше
- * фабрики звались по-разному и аргументы каждой собирались здесь — поэтому найти плагин по папке
- * было нельзя: надо было знать, как его создать.
+ * БЕЗ аргументов. Всё, что плагину нужно от оболочки, он берёт из контекста службами SDK —
+ * встроенный ровно так же, как плагин каталога. Раньше фабрика получала набор портов, собранных
+ * оболочкой, и ради их типов оболочка импортировала плагины; ещё раньше фабрики звались
+ * по-разному, и найти плагин по папке было нельзя: надо было знать, как его создать.
  *
- * Каталогу идентификатор НЕ равен: плагин зовётся `reformer.ai`, а лежит в `plugins/reformer/ai`.
+ * Каталогу идентификатор НЕ равен: плагин зовётся `reformer.files`, а лежит в `plugins/base/files`.
  * Пространство имён (`BUILTIN_PLUGIN_NAMESPACE`) разводит встроенных с плагинами каталога
  * проекта, у которых имя — имя папки в `.ui_builder/plugins`. Идентификатор берётся из
  * манифеста, каталог — из пути, по которому манифест найден ({@link builtinPluginDirectory}).
@@ -69,67 +70,29 @@
  * @module application/composer/builtin-plugins
  */
 
-import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
 import { parsePluginManifestValue } from '@reformer/builder-plugin-api/internal';
 import { type BuiltinPluginManifest } from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
-import { EditorPoint } from '@reformer/builder-plugin-api/internal';
-import { PanelPoint } from '@reformer/builder-plugin-api/internal';
-import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { BUILDER_VERSION } from '@/shell/platform/version';
 
 // Кода плагинов здесь нет ВОВСЕ — ни значением, ни типом: он приезжает обходом ниже.
 
-/**
- * Что получает фабрика состава: порты оболочки и точки расширения.
- *
- * Порты — то, что `boot` умеет дать ({@link BuiltinPluginsOptions}). Точки подставляются ЗДЕСЬ:
- * плагин объявляет их структурно, потому что публичный SDK панелей, редакторов и моделей
- * документов не отдаёт, а импортировать `@/shell` плагину нельзя.
- *
- * Плагин берёт из набора своё ПО ИМЕНИ и объявляет нужное сам, типом параметра фабрики. Набор
- * один на всех — поэтому фабрику можно позвать, не зная, какой это плагин.
- */
-export interface BuiltinPluginPorts extends BuiltinPluginsOptions {
-  readonly panelPoint: typeof PanelPoint;
-  readonly editorPoint: typeof EditorPoint;
-  readonly modelPoint: typeof DocumentModelPoint;
-}
-
-/** Набор портов для фабрик состава из опций, собранных оболочкой. */
-export function builtinPluginPorts(options: BuiltinPluginsOptions): BuiltinPluginPorts {
-  return {
-    files: options.files,
-    monaco: options.monaco,
-    markdown: options.markdown,
-    panelPoint: PanelPoint,
-    editorPoint: EditorPoint,
-    modelPoint: DocumentModelPoint,
-  };
-}
-
-/** Фабрика состава — `export default` бареля встроенного плагина. */
-type BuiltinPluginFactory = (ports: BuiltinPluginPorts) => Plugin;
+/** Фабрика состава — `export default` бареля встроенного плагина. Аргументов у неё нет. */
+type BuiltinPluginFactory = () => Plugin;
 
 /**
  * Манифесты всех встроенных — статически: JSON — лист, кода плагина за ним нет.
- * Папка с манифестом и есть плагин; ядро домена (`core/`) манифеста не имеет.
+ * Папка с манифестом и есть плагин.
  */
 const MANIFESTS = import.meta.glob<unknown>('../../plugins/*/*/manifest.json', {
   eager: true,
   import: 'default',
 });
 
-/**
- * Барели плагинов — отложенными импортами: каждый становится своим файлом сборки.
- *
- * Ядра доменов исключены: это не плагины, а без исключения их барели стали бы отдельными
- * точками входа.
- */
-const MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>([
-  '../../plugins/*/*/index.ts',
-  '!../../plugins/*/core/index.ts',
-]);
+/** Барели плагинов — отложенными импортами: каждый становится своим файлом сборки. */
+const MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>(
+  '../../plugins/*/*/index.ts'
+);
 
 /** `…/plugins/<домен>/<плагин>/<файл>` → `<домен>/<плагин>`. */
 function directoryOf(file: string): string {
@@ -155,7 +118,7 @@ export interface BuiltinPluginEntry {
    * выполняется синхронно до первого `await`), — поэтому вызов всех фабрик подряд даёт столько
    * же параллельных запросов, сколько плагинов, а не цепочку.
    */
-  readonly create: (options: BuiltinPluginsOptions) => Promise<Plugin>;
+  readonly create: () => Promise<Plugin>;
 }
 
 /**
@@ -188,9 +151,9 @@ function builtinEntry(directory: string, raw: unknown): BuiltinPluginEntry {
   return {
     manifest,
     directory,
-    create: async (options) => {
+    create: async () => {
       const module = await load();
-      return module.default(builtinPluginPorts(options));
+      return module.default();
     },
   };
 }
@@ -265,21 +228,85 @@ export function builtinPluginDirectory(id: string): string {
 }
 
 /**
+ * Переименования, которые из карты не вывести: плагин сменил имя, а не получил префикс.
+ *
+ * `stack-switch` — «переключатель сочетаний» — вёл две оси, профиль и кит. Киты уехали в плагины
+ * приложения вместе со своим выбором, и от плагина осталась одна ось: выбор профиля. Конфиг,
+ * называющий прежнее имя, имеет в виду именно его — без переключателя профиль не предлагается
+ * к выбору (`application/builder-application`).
+ */
+const RENAMED_PLUGIN_IDS: readonly (readonly [string, string])[] = [
+  ['reformer.stack-switch', 'reformer.profile-switch'],
+  ['stack-switch', 'reformer.profile-switch'],
+];
+
+/**
  * Прежние имена встроенных плагинов → нынешние.
  *
  * ВЫВОДИТСЯ из карты, а не перечисляется руками: переименование было механическим
  * (`ai` → `reformer.ai`), значит второй, написанный от руки список разошёлся бы с первым молча —
  * а «молча» здесь означает состав, собранный не тот, который человек описал в конфиге.
+ * Немеханические переименования дописаны отдельным коротким списком выше.
  *
  * Что все встроенные живут в пространстве имён — утверждение ТЕСТА рядом, а не догадка,
  * поэтому пересечься с нынешним именем псевдоним не может. Отбор по префиксу тут не страховка
  * от этого, а условие осмысленности `slice`: снимать нечего у имени, которое префикса не имеет.
  */
-const LEGACY_PLUGIN_IDS: ReadonlyMap<string, string> = new Map(
-  [...BUILTIN_PLUGINS.keys()]
+const LEGACY_PLUGIN_IDS: ReadonlyMap<string, string> = new Map([
+  ...[...BUILTIN_PLUGINS.keys()]
     .filter((id) => id.startsWith(BUILTIN_PLUGIN_NAMESPACE))
-    .map((id): readonly [string, string] => [id.slice(BUILTIN_PLUGIN_NAMESPACE.length), id])
-);
+    .map((id): readonly [string, string] => [id.slice(BUILTIN_PLUGIN_NAMESPACE.length), id]),
+  ...RENAMED_PLUGIN_IDS,
+]);
+
+/**
+ * Имена плагинов, которые были встроенными и стали плагинами ПРИЛОЖЕНИЯ.
+ *
+ * Такой плагин едет вместе с приложением отдельным пакетом (`shell/platform/plugin/application`),
+ * и составом встроенных он больше не управляется: профилем его не назвать, поправкой
+ * `plugins.enable/disable` — не включить и не выключить. Но конфиг, написанный раньше, его
+ * называет, и отвечать на это отказом «неизвестный плагин» значило бы оставить человека
+ * с полным профилем вместо настроенного — из-за переезда, которого он не делал. Поэтому такие
+ * имена пропускаются со словом в консоль (`./compose`, `application/builder-application`).
+ *
+ * Список пишется руками и только растёт: вывести его неоткуда — плагина в карте уже нет.
+ */
+const APPLICATION_PLUGIN_IDS: ReadonlySet<string> = new Set([
+  'reformer.editor-monaco',
+  'editor-monaco',
+  'reformer.editor-markdown',
+  'editor-markdown',
+  'reformer.files',
+  'files',
+  'reformer.kits',
+  'kits',
+  'reformer.preview',
+  'preview',
+]);
+
+/** Стал ли встроенный когда-то плагин плагином приложения. */
+export function isApplicationPluginId(id: string): boolean {
+  return APPLICATION_PLUGIN_IDS.has(id);
+}
+
+/**
+ * Имена списка без тех, что уехали в плагины приложения; о каждом пропуске сказано в консоль.
+ *
+ * @param where что за список — для сообщения: «plugins.disable», «профиль „minimal“».
+ */
+export function withoutApplicationPlugins(
+  ids: readonly string[],
+  where: string
+): readonly string[] {
+  return ids.filter((id) => {
+    if (!isApplicationPluginId(id)) return true;
+    console.warn(
+      `[application] ${where}: плагин «${id}» больше не встроенный — он едет плагином ` +
+        'приложения и составом профиля не управляется. Имя пропущено'
+    );
+    return false;
+  });
+}
 
 /**
  * Нынешнее имя плагина по тому, которое написал человек.

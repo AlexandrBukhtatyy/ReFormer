@@ -41,13 +41,13 @@ export function projectFailureMessageKey(failure: ProjectFailure): string | null
     case 'cancelled':
       return null;
     case 'unsupported':
-      return 'files.notify.unsupported';
+      return 'shell.project.unsupported';
     case 'unavailable':
       return failure.reason === undefined
-        ? 'files.notify.unavailable'
-        : `files.notify.unavailable.${failure.reason}`;
+        ? 'shell.project.unavailable'
+        : `shell.project.unavailable.${failure.reason}`;
     case 'failed':
-      return 'files.notify.failed';
+      return 'shell.project.failed';
   }
 }
 
@@ -69,14 +69,14 @@ export function projectFailureAction(
   switch (failure.reason) {
     case 'denied':
       return {
-        titleKey: 'files.notify.action.grant',
+        titleKey: 'shell.project.action.grant',
         run: () => {
           actions.reopen(workspaceId);
         },
       };
     case 'missing':
       return {
-        titleKey: 'files.notify.action.forget',
+        titleKey: 'shell.project.action.forget',
         run: () => {
           actions.forget(workspaceId);
         },

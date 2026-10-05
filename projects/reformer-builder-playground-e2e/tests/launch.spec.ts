@@ -5,15 +5,15 @@ import { test, expect } from './shared/fixtures';
  * не открыт.
  */
 test.describe('Запуск билдера', () => {
-  test('конфиг запуска применён: заголовок, состав и локаль', async ({ builder, page }) => {
+  test('конфиг запуска применён: заголовок, профиль и локаль', async ({ builder, page }) => {
     await builder.goto();
 
     // branding.title.
     await expect(page).toHaveTitle('ReFormer Builder · Playground');
-    // Профиль `playground` из конфига: его имя стоит в ячейке «движок · кит» строки состояния.
-    await expect(
-      builder.statusBar.getByRole('button', { name: 'ReFormer + RJSF · ReFormer UI Kit' })
-    ).toBeVisible();
+    // Состава конфиг не задаёт: движки и платформа форм — плагины. В строке состояния —
+    // встроенный профиль билдера; он один, выбирать не из чего, поэтому это подпись,
+    // а не переключатель. Кит называет своя ячейка — она приходит с плагином китов.
+    await expect(builder.statusBar).toContainText('Конструктор');
     // defaults.locale.
     await expect(builder.statusBar).toContainText('Язык: RU');
   });

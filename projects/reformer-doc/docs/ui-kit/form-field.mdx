@@ -22,4 +22,8 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 в самом контроле (её рисует поле: у `Input`/`Select` внутри справа, у `Checkbox`/`Radio` после
 текста). Строительный блок обеих — [`InfoHint`](./info-hint).
 
+Подпись по умолчанию стоит над полем. Проп `direction="row"` ставит её слева от контрола — hint и
+ошибка при этом остаются под контролом. Это проп самого `FormField` (не `componentProps`): в
+`FormRenderer` его задают своей обёрткой поверх `FormField` — см. пример «Подпись слева».
+
 <ComponentDoc config={uiKitFormFieldDocConfig} />
