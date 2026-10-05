@@ -49,6 +49,7 @@
   ],
   "dependencies": {
     "@reformer/builder-plugin-api": "*",
+    "es-module-lexer": "^1.7.0",
     "esbuild": "^0.27.1"
   },
   "devDependencies": {

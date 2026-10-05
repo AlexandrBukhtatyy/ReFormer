@@ -171,6 +171,15 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       });
       if (!printBuild(result)) return 1;
       io.out(`✓ ${result.manifest.id} ${result.manifest.version} собран в ${result.outDir}`);
+      // Строка есть только у плагина с отложенным кодом: у остальных всё читается сразу,
+      // и сообщать нечего.
+      if (result.code.deferredFiles > 0) {
+        const kilobytes = (bytes: number): string => `${String(Math.ceil(bytes / 1024))} КБ`;
+        io.out(
+          `  код: сразу ${kilobytes(result.code.eager)}, по требованию ` +
+            `${kilobytes(result.code.deferred)} (файлов: ${String(result.code.deferredFiles)})`
+        );
+      }
       return 0;
     }
     case 'dev': {

@@ -190,7 +190,7 @@ describe('build', () => {
         ].join('\n')
       );
 
-    it('уезжает модулем в chunks/, а в main.js остаётся require', async () => {
+    it('уезжает модулем в chunks/, а в main.js остаётся вызов оболочки', async () => {
       await writeFile(join(dir, 'src/corpus.json'), '{ "title": "Справка", "items": [1, 2] }');
       await lazyMain("export const loadCorpus = () => import('./corpus.json');");
 
@@ -199,7 +199,7 @@ describe('build', () => {
       expect(result).toMatchObject({ ok: true });
       expect(result.ok && result.files).toContain('chunks/corpus.js');
       const code = await readFile(join(dir, 'dist/main.js'), 'utf8');
-      expect(code).toContain('require("./chunks/corpus.js")');
+      expect(code).toContain('__reformerImport("./chunks/corpus.js")');
       // Сами данные в main.js не попали: иначе движок разбирал бы их при каждой загрузке плагина.
       expect(code).not.toContain('Справка');
       expect(await readFile(join(dir, 'dist/chunks/corpus.js'), 'utf8')).toContain('Справка');

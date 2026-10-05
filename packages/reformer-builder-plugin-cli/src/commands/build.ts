@@ -17,8 +17,18 @@
  *   esbuild: модуль, нужный и `main.js`, и отложенному файлу, попадает в ОБЩИЙ чанк и существует
  *   в одном экземпляре — вложенный дважды, он раздвоил бы своё состояние (настройку загрузчика,
  *   реестр). Деление есть только у ESM, а оболочке нужен CommonJS, поэтому сборка идёт в два
- *   шага: ESM с делением, затем каждый файл переводится в CommonJS — `import()` становится
- *   отложенным `require`, который разрешает линковщик оболочки по набору файлов плагина.
+ *   шага: ESM с делением, затем каждый файл переводится в CommonJS.
+ * - **`import()` — вызов хост-функции.** Между шагами каждый отложенный импорт переписывается
+ *   в `__reformerImport("./chunks/…")` (имя — `PLUGIN_LAZY_IMPORT` контракта). Функцию даёт
+ *   оболочка: она ЧИТАЕТ файл и всё, что ему нужно, только сейчас, и исполняет в том же графе
+ *   модулей. Останься импорт отложенным `require`, откладывался бы один разбор: `require`
+ *   синхронен, и читать каталог плагина оболочке приходилось бы целиком при каждом запуске.
+ *   Оболочке, которая функцию не даёт, хватает пролога в начале файла — запасной реализации
+ *   через тот же `require`: собранный каталог остаётся самодостаточным графом CommonJS.
+ * - **Граф файлов — в манифесте.** Секция `build` называет каждый файл кода и то, что ему
+ *   нужно сразу: свои файлы (`imports`) и модули оболочки (`runtime`). По ней оболочка читает
+ *   при включении точку входа с её статическим замыканием, а не каталог. Отложенных рёбер
+ *   в секции нет — их называет сам код в момент импорта.
  * - **Модули рантайма — внешние, ровно по списку** `PLUGIN_RUNTIME_MODULES`. Вложенная копия
  *   React или ядра форм — второй экземпляр и тихая поломка. Импорт `@reformer/*` или
  *   `@builder/*`, которого в списке нет, — ОТКАЗ сборки: вложить его нельзя (тот же второй
@@ -45,7 +55,7 @@
  *   говорит «эти данные нужны не сразу». Вложенные в `main.js`, они разбирались бы движком при
  *   каждой загрузке плагина, даже когда до них дело не дойдёт: мегабайты данных — мегабайты
  *   разбора. Поэтому такой JSON уезжает модулем в `chunks/<имя>.js`, а в `main.js` остаётся
- *   `require` — линковщик оболочки исполнит модуль при первом обращении. Статический
+ *   вызов хост-функции — оболочка прочтёт и исполнит модуль при первом обращении. Статический
  *   `import data from './a.json'` вкладывается, как и раньше. Имя такого файла — по имени
  *   исходника, без хэша: данные меняются чаще кода, и стабильное имя не плодит файлов.
  * - **Текст в UTF-8.** По умолчанию esbuild экранирует всё вне ASCII, и кириллица в строках
@@ -77,17 +87,21 @@
  */
 
 import { mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, posix, relative, resolve } from 'node:path';
 
 import {
   isBundledPluginModule,
   isPluginCodeFile,
   parsePluginManifest,
+  PLUGIN_BUILD_FORMAT,
   PLUGIN_FILE_LIMIT,
+  PLUGIN_LAZY_IMPORT,
   PLUGIN_MANIFEST_FILE,
   PLUGIN_RUNTIME_MODULES,
+  type PluginBuildFile,
   type PluginSourceManifest,
 } from '@reformer/builder-plugin-api/tooling';
+import { init as initLexer, parse as parseModule } from 'es-module-lexer';
 import * as esbuild from 'esbuild';
 
 import { dryActivate } from './dry-run.js';
@@ -114,6 +128,15 @@ export type BuildResult =
       readonly manifest: PluginSourceManifest;
       readonly outDir: string;
       readonly files: readonly string[];
+      /**
+       * Сколько кода оболочка прочтёт при включении плагина и сколько — когда до него дойдёт
+       * дело; байты. «Сразу» — точка входа и её статическое замыкание.
+       */
+      readonly code: {
+        readonly eager: number;
+        readonly deferred: number;
+        readonly deferredFiles: number;
+      };
       /** Проверки, которые не удалось довести до конца вне оболочки. Не отказы. */
       readonly notices: readonly string[];
     }
@@ -197,17 +220,125 @@ const runtimeModules = (requiredByCall: Set<string>): esbuild.Plugin => ({
 /**
  * Подсказки прогрева: модули рантайма, которые в собранном коде названы не словом `require`.
  *
- * Оболочка узнаёт, какие модули плагину подставить, по тексту его файлов — ищет
- * `require("…")`. Вложенная CommonJS-зависимость, зовущая `require('react')`, в ESM-сборке
- * получает этот вызов через помощника esbuild под другим именем — и оболочка его не видит:
- * модуль остался бы непрогретым и плагин упал бы на первом же обращении. Строка ниже называет
- * такой модуль оболочке и ничего не исполняет.
+ * Оболочка, читающая каталог плагина целиком (плагин проекта; любая оболочка старше секции
+ * `build`), узнаёт, какие модули плагину подставить, по тексту его файлов — ищет
+ * `require("…")`. Двух видов обращений она так не видит: вложенная CommonJS-зависимость,
+ * зовущая `require('react')`, в ESM-сборке получает этот вызов через помощника esbuild под
+ * другим именем, а отложенный импорт пакета стал вызовом хост-функции. Модуль остался бы
+ * непрогретым, и плагин упал бы на первом же обращении. Строка ниже называет такой модуль
+ * оболочке и ничего не исполняет.
+ *
+ * Оболочке, читающей по секции `build`, подсказки не нужны и ею не читаются: что греть сразу,
+ * говорят списки `runtime`, а отложенный пакет она греет в момент импорта.
  */
 function warmHints(specifiers: ReadonlySet<string>): string {
   return [...specifiers]
     .sort()
     .map((specifier) => `void 0 && require(${JSON.stringify(specifier)});\n`)
     .join('');
+}
+
+/** Отложенные импорты файла, переписанные в вызовы хост-функции. */
+interface DeferredImports {
+  readonly code: string;
+  /** Цели в порядке появления: путь от корня плагина с `./` либо имя пакета. */
+  readonly targets: readonly string[];
+}
+
+/**
+ * Переписывает `import("…")` файла сборки в вызов хост-функции оболочки.
+ *
+ * По диапазонам лексера, а не поиском подстроки: строка, похожая на импорт, внутри данных
+ * (текст справки, шаблон кода) у лексера остаётся строкой. Цель называется путём ОТ КОРНЯ
+ * плагина: хост-функция одна на весь граф и не знает, из какого файла её позвали.
+ *
+ * Не трогаются вычисляемый спецификатор — читать заранее по нему нечего — и импорт со вторым
+ * аргументом. Первый esbuild в граф не вносит. Второго в его выводе не бывает: атрибуты импорта
+ * он под целевую версию снимает сам (`with { type: 'json' }`) либо отвергает; уцелей такой
+ * импорт, сборка отказала бы на сверке с графом, а не отложила бы его молча наполовину.
+ *
+ * @param path путь файла от корня плагина
+ * @param isDataModule спецификатор назван сборкой и уже считается от корня (см. {@link lazyData})
+ */
+function deferImports(
+  code: string,
+  path: string,
+  isDataModule: (specifier: string) => boolean
+): DeferredImports {
+  const [imports] = parseModule(code, path);
+  const targets: string[] = [];
+  let out = '';
+  let at = 0;
+  for (const item of imports) {
+    // `d` — позиция скобки у `import()`; у статического импорта и `import.meta` она меньше нуля.
+    if (item.d < 0 || item.n === undefined || item.a > -1) continue;
+    const target =
+      isBareSpecifier(item.n) || isDataModule(item.n)
+        ? item.n
+        : `./${posix.join(posix.dirname(path), item.n)}`;
+    targets.push(target);
+    // Выражение заменяется целиком, вместе со скобками: комментарий внутри `import()` esbuild
+    // сохраняет, и вызов остался бы разорванным на строки.
+    out += `${code.slice(at, item.ss)}${PLUGIN_LAZY_IMPORT}(${JSON.stringify(target)})`;
+    at = item.se;
+  }
+  return { code: out + code.slice(at), targets };
+}
+
+/** Вызов хост-функции с этой целью в тексте есть — в любых кавычках, какие выбрал сжиматель. */
+function hasLazyCall(code: string, target: string): boolean {
+  return ['"', "'", '`'].some((quote) =>
+    code.includes(`${PLUGIN_LAZY_IMPORT}(${quote}${target}${quote})`)
+  );
+}
+
+/**
+ * Пролог файла с отложенными импортами: хост-функция оболочки, а без неё — запасная.
+ *
+ * Оболочка подставляет функцию параметром модуля (лексически, как `require`), и `var` с тем же
+ * именем параметр не затирает. Нет параметра — оболочка старше секции `build` или это пробный
+ * запуск сборщика: каталог плагина прочитан целиком, и отложенный импорт исполняется тем же
+ * `require`, что и раньше. Цель названа от корня плагина, `require` считает путь от своего
+ * файла — отсюда поправка на глубину.
+ *
+ * Обёртка экспортов — дословно `__toESM` esbuild: модуль с `__esModule` отдаёт свои экспорты,
+ * любой другой (данные, CommonJS) ещё и `default`. Ровно это получал код, пока импорт был
+ * отложенным `require`, и ровно это же делает хост-функция оболочки.
+ */
+function lazyImportProlog(path: string): string {
+  const depth = path.split('/').length - 1;
+  const up = depth === 0 ? './' : '../'.repeat(depth);
+  const name = PLUGIN_LAZY_IMPORT;
+  return (
+    `var ${name} = typeof ${name} === "function" ? ${name} : function (path) { ` +
+    'return Promise.resolve().then(function () { ' +
+    `var mod = require(path.charAt(0) === "." ? ${JSON.stringify(up)} + path.slice(2) : path); ` +
+    'var target = mod != null ? Object.create(Object.getPrototypeOf(mod)) : {}; ' +
+    'if (!mod || !mod.__esModule) ' +
+    'Object.defineProperty(target, "default", { value: mod, enumerable: true }); ' +
+    'if (mod && typeof mod === "object" || typeof mod === "function") ' +
+    'Object.getOwnPropertyNames(mod).forEach(function (key) { ' +
+    'if (Object.prototype.hasOwnProperty.call(target, key)) return; ' +
+    'var desc = Object.getOwnPropertyDescriptor(mod, key); ' +
+    'Object.defineProperty(target, key, { get: function () { return mod[key]; }, ' +
+    'enumerable: !desc || desc.enumerable }); ' +
+    '}); return target; }); };\n'
+  );
+}
+
+/** Файлы, которые нужны файлу сразу, — он сам и всё, что он требует статически. */
+function eagerClosure(
+  entry: string,
+  graph: Readonly<Record<string, PluginBuildFile>>
+): ReadonlySet<string> {
+  const seen = new Set<string>();
+  const queue = [entry];
+  for (let path = queue.pop(); path !== undefined; path = queue.pop()) {
+    if (seen.has(path) || graph[path] === undefined) continue;
+    seen.add(path);
+    queue.push(...(graph[path].imports ?? []));
+  }
+  return seen;
 }
 
 /** `path` лежит внутри `parent` — строго: сам `parent` не считается. */
@@ -284,10 +415,10 @@ function chunkName(source: string, taken: ReadonlySet<string>): string {
 /**
  * `await import('./data.json')` — модуль данных отдельным файлом, а не вложенный в `main.js`.
  *
- * Спецификатор подменяется путём будущего файла в `chunks/` и объявляется внешним: вместе
- * с `supported: { 'dynamic-import': false }` это даёт `require('./chunks/…')`, который
- * разрешает линковщик оболочки по набору файлов плагина. Сами файлы пишет {@link buildPlugin} —
- * здесь только учёт: исходник → имя.
+ * Спецификатор подменяется путём будущего файла в `chunks/` — ОТ КОРНЯ плагина, из какого бы
+ * файла ни шёл импорт, — и объявляется внешним: {@link deferImports} превращает такой импорт
+ * в вызов хост-функции с этим же путём. Сами файлы пишет {@link buildPlugin} — здесь только
+ * учёт: исходник → имя.
  */
 function lazyData(chunks: Map<string, string>): esbuild.Plugin {
   return {
@@ -511,6 +642,8 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 
   /** Собранный код: путь от каталога вывода → текст CommonJS. */
   const scripts = new Map<string, string>();
+  /** Граф файлов кода — секция `build` манифеста: что каждому файлу нужно сразу. */
+  const graph: Record<string, PluginBuildFile> = {};
   /** CSS, который импортирует код, — одной таблицей. */
   let codeStyles: string | undefined;
   try {
@@ -580,14 +713,87 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
       codeStyles = entrySheet.text;
     }
 
-    // Шаг второй: каждый файл — в CommonJS. `import()` обязан стать `require`: спецификатор
-    // разрешает линковщик оболочки — и модуля рантайма, и своего чанка, — а нативный
-    // `import('@reformer/…')` в браузере не разрешается ничем.
-    const dataChunks = [...chunks.values()];
+    // Между шагами: отложенные импорты — в вызовы хост-функции, и заодно граф файлов. Граф
+    // берётся из отчёта esbuild, а не из текста: что файлу нужно сразу, сборщик знает точно.
+    await initLexer;
+    const builtPath = (absolute: string): string =>
+      relative(outDir, absolute).split('\\').join('/');
+    const outputs = new Map(
+      Object.entries(result.metafile.outputs).map(
+        ([key, output]) => [builtPath(resolve(dir, key)), output] as const
+      )
+    );
+    const dataSpecifiers = new Set(
+      [...chunks.values()].map((name) => `./${BUILT_CHUNKS_DIR}/${name}`)
+    );
+    const rewritten: Array<{ path: string; deferred: DeferredImports }> = [];
+    /** Пакеты, импортированные отложенно, — для подсказок прогрева. */
+    const deferredPackages = new Set<string>();
+    const attributed = new Set<string>();
     for (const file of result.outputFiles) {
       if (!file.path.endsWith('.js')) continue;
       const path = pathOf(file);
-      const converted = await esbuild.transform(file.text, {
+      const edges = outputs.get(path)?.imports ?? [];
+      const deferred = deferImports(file.text, path, (specifier) => dataSpecifiers.has(specifier));
+
+      // Сверка с отчётом сборщика: переписано ровно то, что он считает отложенным. Расхождение
+      // значит импорт, который останется `require` на непрочитанный файл, — у человека это
+      // выглядело бы как «файл не найден» при первом открытии, а не при сборке.
+      const expected = edges
+        .filter((edge) => edge.kind === 'dynamic-import')
+        .map((edge) =>
+          edge.external === true ? edge.path : `./${builtPath(resolve(dir, edge.path))}`
+        );
+      const stray = [
+        ...expected.filter((target) => !deferred.targets.includes(target)),
+        ...deferred.targets.filter((target) => !expected.includes(target)),
+      ];
+      if (stray.length > 0) {
+        return fail({
+          code: 'build-failed',
+          file: path,
+          message:
+            `отложенный импорт «${stray[0]}» в «${path}» не сошёлся с отчётом сборщика: ` +
+            'перевести его в вызов оболочки нельзя',
+        });
+      }
+
+      const imports = edges
+        .filter((edge) => edge.kind === 'import-statement' && edge.external !== true)
+        .map((edge) => builtPath(resolve(dir, edge.path)));
+      const runtime = edges
+        .filter(
+          (edge) =>
+            edge.external === true &&
+            (edge.kind === 'import-statement' || edge.kind === 'require-call') &&
+            isBareSpecifier(edge.path)
+        )
+        .map((edge) => edge.path);
+      for (const specifier of runtime) attributed.add(specifier);
+      graph[path] = {
+        ...(imports.length === 0 ? {} : { imports: [...new Set(imports)].sort() }),
+        ...(runtime.length === 0 ? {} : { runtime: [...new Set(runtime)].sort() }),
+      };
+      for (const target of deferred.targets) {
+        if (isBareSpecifier(target)) deferredPackages.add(target);
+      }
+      rewritten.push({ path, deferred });
+    }
+    // `require()` из вложенной зависимости, который отчёт не отнёс ни к одному файлу, нужен
+    // неизвестно кому — значит, сразу.
+    const orphans = [...requiredByCall].filter((specifier) => !attributed.has(specifier));
+    if (orphans.length > 0 && graph[BUILT_MAIN] !== undefined) {
+      graph[BUILT_MAIN] = {
+        ...graph[BUILT_MAIN],
+        runtime: [...new Set([...(graph[BUILT_MAIN].runtime ?? []), ...orphans])].sort(),
+      };
+    }
+
+    // Шаг второй: каждый файл — в CommonJS. Нативный `import()` в собранном остаться не может:
+    // `import('@reformer/…')` в браузере не разрешается ничем. Литеральные уже стали вызовами
+    // хост-функции, вычисляемый здесь превращается в отложенный `require`.
+    for (const { path, deferred } of rewritten) {
+      const converted = await esbuild.transform(deferred.code, {
         loader: 'js',
         format: 'cjs',
         target: 'es2020',
@@ -596,18 +802,22 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
         minify,
         logLevel: 'silent',
       });
-      let code = converted.code;
-      if (path === BUILT_MAIN) {
-        code = warmHints(requiredByCall) + code;
-      } else {
-        // Модуль данных назван путём от `main.js`; из файла, который сам лежит в `chunks/`,
-        // он — сосед.
-        for (const name of dataChunks) {
-          code = code.split(`./${BUILT_CHUNKS_DIR}/${name}`).join(`./${name}`);
-        }
-        code = `${chunkMarker(manifest.id)}\n${code}`;
+      const lost = deferred.targets.find((target) => !hasLazyCall(converted.code, target));
+      if (lost !== undefined) {
+        return fail({
+          code: 'build-failed',
+          file: path,
+          message: `вызов оболочки для отложенного импорта «${lost}» потерян при переводе в CommonJS`,
+        });
       }
-      scripts.set(path, code);
+      // Пролог и подсказки дописываются ПОСЛЕ перевода: сжиматель их не трогает, а имя
+      // хост-функции остаётся тем, которое знает оболочка. Директива строгого режима обязана
+      // остаться первой — иначе модуль, написанный как ESM, исполнился бы нестрогим.
+      const head =
+        (deferred.targets.length > 0 ? lazyImportProlog(path) : '') +
+        (path === BUILT_MAIN ? warmHints(new Set([...requiredByCall, ...deferredPackages])) : '');
+      const code = head === '' ? converted.code : `"use strict";\n${head}${converted.code}`;
+      scripts.set(path, path === BUILT_MAIN ? code : `${chunkMarker(manifest.id)}\n${code}`);
     }
   } catch (error) {
     return fail(...buildFailure(error));
@@ -648,6 +858,15 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
   if (manifest.styles !== undefined) {
     raw.styles = { ...(raw.styles as object), file: BUILT_STYLES };
   }
+  // Модуль данных никого не требует, но в графе назван: оболочка читает только названное.
+  for (const name of chunks.values()) graph[`${BUILT_CHUNKS_DIR}/${name}`] = {};
+  const graphPaths = Object.keys(graph).sort(
+    (a, b) => Number(b === BUILT_MAIN) - Number(a === BUILT_MAIN) || a.localeCompare(b, 'en')
+  );
+  raw.build = {
+    format: PLUGIN_BUILD_FORMAT,
+    files: Object.fromEntries(graphPaths.map((path) => [path, graph[path]])),
+  };
   const manifestText = `${JSON.stringify(raw, null, 2)}\n`;
 
   const files = new Map<string, string>([[PLUGIN_MANIFEST_FILE, manifestText], ...scripts]);
@@ -696,5 +915,20 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
     await writeFile(target, content, 'utf8');
   }
 
-  return { ok: true, manifest, outDir, files: [...files.keys()], notices: dryRun.notices };
+  const eager = eagerClosure(BUILT_MAIN, graph);
+  const size = (paths: readonly string[]): number =>
+    paths.reduce((sum, path) => sum + Buffer.byteLength(files.get(path) ?? '', 'utf8'), 0);
+  const deferredPaths = graphPaths.filter((path) => !eager.has(path));
+  return {
+    ok: true,
+    manifest,
+    outDir,
+    files: [...files.keys()],
+    code: {
+      eager: size([...eager]),
+      deferred: size(deferredPaths),
+      deferredFiles: deferredPaths.length,
+    },
+    notices: dryRun.notices,
+  };
 }
