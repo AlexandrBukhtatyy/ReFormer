@@ -37,6 +37,7 @@ export function withDomainPlugins(
   return Object.freeze({
     profile: base.profile,
     modules: base.modules,
+    ...(base.messages === undefined ? {} : { messages: base.messages }),
     capabilities: Object.freeze([
       ...base.capabilities,
       ...plugins.flatMap((entry) =>

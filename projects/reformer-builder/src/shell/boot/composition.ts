@@ -60,6 +60,19 @@ export interface ComposedPlugin {
 }
 
 /**
+ * Ключи словаря оболочки, которыми приложение называет СЕБЯ: имя в шапке и строка
+ * в «О программе». Список закрытый: приложение представляется, а не переписывает оболочку —
+ * любой другой ключ из {@link ApplicationComposition.messages} пропускается с предупреждением.
+ */
+export const APPLICATION_MESSAGE_KEYS: readonly string[] = Object.freeze([
+  'app.title',
+  'shell.help.about.description',
+]);
+
+/** Тексты приложения: локаль → ключ оболочки → текст. */
+export type ApplicationMessages = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+/**
  * Состав приложения: плагины и то, что они объявили.
  *
  * Плагины — одной загрузкой: каждый приезжает своим файлом, и `boot` дожидается всех внутри
@@ -105,6 +118,14 @@ export interface ApplicationComposition {
    * модулей создаётся ДО загрузки плагинов, а занять защищённый слот можно только при создании.
    */
   readonly modules: readonly ComposedModule[];
+  /**
+   * Как приложение называет себя — см. {@link APPLICATION_MESSAGE_KEYS}.
+   *
+   * Часть состава по той же причине, что и профиль: «что собрано» и «как это называется» —
+   * про одно приложение. Без поля оболочка показывает свои нейтральные тексты: она — база,
+   * и имени у неё нет.
+   */
+  readonly messages?: ApplicationMessages;
 }
 
 /**

@@ -94,7 +94,8 @@ import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createFsSourceFactory } from '@/shell/platform/source/fs-access';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';
-import { createI18nService } from '@/shell/platform/services/i18n/i18n';
+import { createI18nService, loadBundledHostMessages } from '@/shell/platform/services/i18n/i18n';
+import { hostMessagesWith } from './application-messages';
 import { createPromptService } from '@/shell/platform/services/prompt';
 import { PromptServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createResourceClipboardService } from '@/shell/platform/services/resource-clipboard';
@@ -459,7 +460,11 @@ export function boot(options: BootOptions): BuilderApp {
     createLayeredSettingsBackend({ browser: settingsStore, project: projectSettings }),
     { launchDefaults: launchConfig.defaults?.settings }
   );
-  const i18n = createI18nService();
+  // Словарь оболочки вместе с тем, как приложение называет себя: имя в шапке и «О программе»
+  // приходят с составом, у оболочки они нейтральные.
+  const i18n = createI18nService({
+    loadHostMessages: hostMessagesWith(loadBundledHostMessages, options.application.messages),
+  });
   // Словарь оболочки на чтение: коды диагностик (`errors.<code>`) и заголовки исправлений
   // переводит ОН, чтобы одна ошибка звучала одинаково в любом редакторе. Обёртка, а не сам
   // корень: `contribute` корня плагину не принадлежит.

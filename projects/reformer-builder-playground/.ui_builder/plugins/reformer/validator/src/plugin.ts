@@ -59,10 +59,13 @@ import type { FormRules } from '../../core/form-model';
 import {
   definePlugin,
   KitsCapability,
+  pluginDiagnosticCode,
+  pluginMessageKey,
   withUsableFixes,
   ValidatorPoint,
   type CapabilityAccess,
   type CommandLookup,
+  type Diagnostic,
   type Disposable,
   type DocumentRef,
   type Plugin,
@@ -72,6 +75,7 @@ import {
 import { isFormSchemaDocument as isStackFormSchemaDocument } from '../../core/form-model';
 import { checkForm, type ValidateFormSchema } from './check';
 import { SCHEMA_VALIDATOR_ID } from './codes';
+import { SCHEMA_VALIDATOR_MESSAGES } from './messages';
 
 /** Идентификатор плагина: пространство имён во всех реестрах. */
 export const SCHEMA_VALIDATOR_PLUGIN_ID = manifest.id;
@@ -228,6 +232,33 @@ function followKitCatalog(capabilities: CapabilityAccess, cb: () => void): Dispo
   });
 }
 
+/** Код находки в том виде, в каком валидатор его публикует: с владельцем. */
+export function publishedCode(code: string): string {
+  return pluginDiagnosticCode(SCHEMA_VALIDATOR_PLUGIN_ID, code);
+}
+
+/**
+ * Находка в том виде, в каком она уходит в службу диагностик: с владельцем.
+ *
+ * Проверки отдают голые коды (`schema.unknown-component`) и голые ключи подписей исправлений —
+ * они чистые функции и о плагине не знают. Владельца получает ПУБЛИКУЕМОЕ: по нему тот, кто
+ * находку показывает, находит текст в словаре этого плагина, а не оболочки.
+ */
+export function ownedDiagnostic(found: Diagnostic): Diagnostic {
+  return {
+    ...found,
+    code: publishedCode(found.code),
+    ...(found.fixes === undefined
+      ? {}
+      : {
+          fixes: found.fixes.map((fix) => ({
+            ...fix,
+            titleKey: pluginMessageKey(SCHEMA_VALIDATOR_PLUGIN_ID, fix.titleKey),
+          })),
+        }),
+  };
+}
+
 /** Вклад валидатора — отдельно от плагина, чтобы тест звал его без реестров. */
 export function createSchemaValidator(
   options: SchemaValidatorOptions,
@@ -275,8 +306,11 @@ export function createSchemaValidator(
       // между публикацией и нажатием плагин могут выключить, — но кнопки-обманки она уже
       // не породит.
       const hasCommand = options.hasCommand;
-      if (hasCommand === undefined) return found;
-      return withUsableFixes(found, hasCommand, { onUnavailable: reportUnavailable });
+      const usable =
+        hasCommand === undefined
+          ? found
+          : withUsableFixes(found, hasCommand, { onUnavailable: reportUnavailable });
+      return usable.map(ownedDiagnostic);
     },
   };
 }
@@ -297,6 +331,9 @@ export function createSchemaValidatorPlugin(options: SchemaValidatorOptions): Pl
   return definePlugin({
     id: SCHEMA_VALIDATOR_PLUGIN_ID,
     activate(ctx) {
+      for (const [locale, messages] of Object.entries(SCHEMA_VALIDATOR_MESSAGES)) {
+        ctx.i18n.contribute(locale, messages);
+      }
       const deferred = createDeferredSchemaCheck();
       const withCommands: SchemaValidatorOptions = {
         ...options,

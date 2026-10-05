@@ -17,6 +17,7 @@ import {
   type ValidatorContribution,
 } from '@reformer/builder-plugin-api';
 import { CODES, COMMANDS, SCHEMA_VALIDATOR_ID } from './codes';
+import { publishedCode } from './plugin';
 import {
   createDeferredSchemaCheck,
   createSchemaValidator,
@@ -103,7 +104,7 @@ describe('вклад валидатора', () => {
     const found = validator.validate?.(contextOf(schema)) ?? [];
 
     expect(found.map((item) => item.source)).toEqual([SCHEMA_VALIDATOR_ID]);
-    expect(found[0].code).toBe(CODES.UNKNOWN_COMPONENT);
+    expect(found[0].code).toBe(publishedCode(CODES.UNKNOWN_COMPONENT));
   });
 
   it('каталог читается в момент проверки: кит переключают', () => {
@@ -134,7 +135,9 @@ describe('вклад валидатора', () => {
     const found = validator.validate?.(contextOf(schema)) ?? [];
 
     expect(asked.map((doc) => doc.id)).toEqual(['fs:forms/credit.json']);
-    expect(found.map((item) => item.code)).toContain(CODES.RULE_VALIDATION_TARGET_MISSING);
+    expect(found.map((item) => item.code)).toContain(
+      publishedCode(CODES.RULE_VALIDATION_TARGET_MISSING)
+    );
   });
 
   it('без модели валидатор разбирает текст сам — и сам отвечает за ошибку разбора', () => {
@@ -147,7 +150,7 @@ describe('вклад валидатора', () => {
 
     const found = validator.validate?.(broken) ?? [];
 
-    expect(found.map((item) => item.code)).toEqual([CODES.PARSE_FAILED]);
+    expect(found.map((item) => item.code)).toEqual([publishedCode(CODES.PARSE_FAILED)]);
     expect(found[0].target.kind).toBe('range');
   });
 
@@ -178,7 +181,7 @@ describe('быстрые исправления отбираются по рее
 
     const found = validator.validate?.(contextOf(schema)) ?? [];
 
-    expect(found.map((item) => item.code)).toEqual([CODES.UNKNOWN_COMPONENT]);
+    expect(found.map((item) => item.code)).toEqual([publishedCode(CODES.UNKNOWN_COMPONENT)]);
     expect(fixesOf(found)).toEqual([]);
     warn.mockRestore();
   });
@@ -233,6 +236,7 @@ describe('плагин', () => {
     const contributed: { point: string; id: string | undefined; value: unknown }[] = [];
     const ctx = {
       id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      i18n: { contribute: () => ({ dispose: () => {} }) },
       subscriptions: [],
       extensions: {
         contribute: (point: { id: string }, value: unknown, meta?: { id?: string }) => {
@@ -274,7 +278,7 @@ describe('плагин', () => {
 
     // Кит, действовавший на активации, про «Inpt» не знает.
     expect(validator.validate?.(contextOf(schema))?.map((item) => item.code)).toEqual([
-      CODES.UNKNOWN_COMPONENT,
+      publishedCode(CODES.UNKNOWN_COMPONENT),
     ]);
 
     // Кит переключили ПОСЛЕ активации — и находка обязана исчезнуть на следующем проходе.
@@ -355,6 +359,7 @@ describe('плагин сообщает оркестратору о смене �
     const contributed: ValidatorContribution[] = [];
     const ctx = {
       id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      i18n: { contribute: () => ({ dispose: () => {} }) },
       subscriptions: [],
       extensions: {
         contribute: (_point: unknown, value: ValidatorContribution) => {
@@ -442,6 +447,7 @@ describe('плагин сообщает оркестратору о смене �
     const contributed: unknown[] = [];
     const ctx = {
       id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      i18n: { contribute: () => ({ dispose: () => {} }) },
       subscriptions: [],
       extensions: {
         contribute: (_point: unknown, value: unknown) => {
@@ -506,7 +512,7 @@ describe('проверка по мета-схеме грузится по тре
         root: { component: '$component(Инпут)', value: '$model(a)' },
       } as unknown as JsonFormSchema)
     );
-    expect(unknown.map((item) => item.code)).toContain(CODES.UNKNOWN_COMPONENT);
+    expect(unknown.map((item) => item.code)).toContain(publishedCode(CODES.UNKNOWN_COMPONENT));
   });
 
   it('подходящий документ заводит загрузку: applies зовут раньше validate', () => {
@@ -655,6 +661,7 @@ describe('проверка по мета-схеме грузится по тре
     const contributed: unknown[] = [];
     const ctx = {
       id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      i18n: { contribute: () => ({ dispose: () => {} }) },
       subscriptions: [] as { dispose(): void }[],
       extensions: {
         contribute: (_point: unknown, value: unknown) => {

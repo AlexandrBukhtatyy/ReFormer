@@ -253,13 +253,13 @@ describe('createPreviewSessions — свод диагностик', () => {
     expect(sink.writes).toContainEqual({
       resource: 'fake:form/validation.ts',
       source: 'preview.build',
-      codes: ['build.transpile'],
+      codes: ['reformer.preview:build.transpile'],
     });
     // Находка без файла относится к самому документу схемы.
     expect(sink.writes).toContainEqual({
       resource: 'a',
       source: 'preview.build',
-      codes: ['build.render'],
+      codes: ['reformer.preview:build.render'],
     });
   });
 
@@ -287,7 +287,7 @@ describe('createPreviewSessions — свод диагностик', () => {
     expect(sink.writes).toContainEqual({
       resource: 'a',
       source: 'preview.build',
-      codes: ['build.render'],
+      codes: ['reformer.preview:build.render'],
     });
   });
 
@@ -386,7 +386,11 @@ describe('createPreviewSessions — правка файла снимает ег�
     store.report('compiling', [{ ...BROKEN_SIDECAR }]);
 
     expect(sink.writes).toEqual([
-      { resource: 'fake:form/validation.ts', source: 'preview.build', codes: ['build.transpile'] },
+      {
+        resource: 'fake:form/validation.ts',
+        source: 'preview.build',
+        codes: ['reformer.preview:build.transpile'],
+      },
     ]);
   });
 

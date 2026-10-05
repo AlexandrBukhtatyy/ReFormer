@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { pluginDiagnosticCode } from '@reformer/builder-plugin-api/internal';
+import { pluginDiagnosticCode, pluginMessageKey } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createHostMessagesService } from './host-messages';
 
@@ -22,9 +22,10 @@ async function harness() {
       }),
   });
   await i18n.setLocale('ru');
-  i18n
-    .forPlugin('acme.rjsf')
-    .contribute('ru', { 'errors.rjsf.bad-type': 'Тип «{type}» не знаком' });
+  i18n.forPlugin('acme.rjsf').contribute('ru', {
+    'errors.rjsf.bad-type': 'Тип «{type}» не знаком',
+    'quickfix.rename': 'Исправить имя «{name}»',
+  });
   return { i18n, messages: createHostMessagesService(i18n) };
 }
 
@@ -53,6 +54,19 @@ describe('перевод кода находки', () => {
     const { messages } = await harness();
 
     expect(messages.t('quickfix.remove')).toBe('Убрать');
+  });
+
+  it('ключ с владельцем переводит словарь владельца: подпись исправления едет с плагином', async () => {
+    // Подписи быстрых исправлений лежали в словаре оболочки — вместе с текстами находок форм.
+    // Теперь они у плагина, который исправление завёл; показывающий (панель проблем, канвас)
+    // передаёт ключ как получил, и о владельце не знает.
+    const { messages } = await harness();
+
+    expect(messages.t(pluginMessageKey('acme.rjsf', 'quickfix.rename'), { name: 'titel' })).toBe(
+      'Исправить имя «titel»'
+    );
+    // Тот же ключ без владельца в словаре оболочки не находится — путаницы словарей нет.
+    expect(messages.t('quickfix.rename')).not.toBe('Исправить имя «{name}»');
   });
 
   it('локаль и её смена — те же, что у корня: реактивный перевод строится над службой', async () => {

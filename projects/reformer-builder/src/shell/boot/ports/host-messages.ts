@@ -13,6 +13,7 @@
 
 import {
   splitDiagnosticCode,
+  splitMessageKey,
   type HostMessagesService,
 } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
@@ -22,7 +23,14 @@ export function createHostMessagesService(i18n: RootI18nService): HostMessagesSe
     get locale() {
       return i18n.locale;
     },
-    t: (key, params) => i18n.t(key, params),
+    t(key, params) {
+      // Ключ с владельцем (`<plugin-id>:<ключ>`) — словарём владельца. Так подпись быстрого
+      // исправления переводит тот, кто исправление завёл, а показывает её кто угодно.
+      const owned = splitMessageKey(key);
+      return owned.pluginId === null
+        ? i18n.t(key, params)
+        : i18n.forPlugin(owned.pluginId).t(owned.key, params);
+    },
     onDidChangeLocale: (cb) => i18n.onDidChangeLocale(cb),
 
     diagnosticMessage(code, params) {

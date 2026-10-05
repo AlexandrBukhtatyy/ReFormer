@@ -156,13 +156,13 @@ npm install --save-dev @reformer/builder-plugin-api
 
 Редактор модели — плагин стека, и всё, что ему нужно от оболочки, он берёт возможностями:
 
-| Возможность                                              | Что даёт                                                                                                                                                       |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DocumentModelsCapability` (`reformer.workspace.models`) | `handleOf(id)` — ручка модельного документа: модель, правка операциями, история; `ownerOf(id)` и `partsOf(id)` — составной документ и его части (с версии 1.1) |
-| `WorkspaceFilesCapability` (`reformer.workspace.files`)  | соседи, чтение, адресация; `executesCode(id)` и `onDidChange` — с версии 1.1; `readBytes(id)` — с версии 1.2                                                   |
-| `WorkspaceTreeCapability` (`reformer.workspace.tree`)    | дерево проекта: готовая панель `Panel` и `selection()` — что в ней выделено                                                                                    |
-| `ModuleLoaderCapability` (`reformer.modules`)            | загрузчик модулей с прогретым компилятором — исполнить код рабочей копии                                                                                       |
-| `HostMessagesCapability` (`reformer.host.messages`)      | словарь оболочки на чтение; `diagnosticMessage(code)` переводит код находки словарём его владельца (с версии 1.1)                                              |
+| Возможность                                              | Что даёт                                                                                                                                                                                  |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DocumentModelsCapability` (`reformer.workspace.models`) | `handleOf(id)` — ручка модельного документа: модель, правка операциями, история; `ownerOf(id)` и `partsOf(id)` — составной документ и его части (с версии 1.1)                            |
+| `WorkspaceFilesCapability` (`reformer.workspace.files`)  | соседи, чтение, адресация; `executesCode(id)` и `onDidChange` — с версии 1.1; `readBytes(id)` — с версии 1.2                                                                              |
+| `WorkspaceTreeCapability` (`reformer.workspace.tree`)    | дерево проекта: готовая панель `Panel` и `selection()` — что в ней выделено                                                                                                               |
+| `ModuleLoaderCapability` (`reformer.modules`)            | загрузчик модулей с прогретым компилятором — исполнить код рабочей копии                                                                                                                  |
+| `HostMessagesCapability` (`reformer.host.messages`)      | словарь оболочки на чтение; `diagnosticMessage(code)` переводит код находки словарём его владельца (с версии 1.1), `t(key)` — ключ с владельцем словарём плагина-владельца (с версии 1.2) |
 
 Ручка отдаёт модель как `unknown`: оболочка держит провайдеров разом несколько и ни одной модели
 не знает. Плагин сверяет `handle.document.providerId` со своим провайдером и только тогда сужает

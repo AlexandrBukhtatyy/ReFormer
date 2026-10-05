@@ -26,8 +26,16 @@
  * @module plugins/forms/preview/state/problem-diagnostics
  */
 
-import type { Diagnostic, ResourceId } from '@reformer/builder-plugin-api';
+import {
+  pluginDiagnosticCode,
+  type Diagnostic,
+  type ResourceId,
+} from '@reformer/builder-plugin-api';
 import type { PreviewProblem, PreviewProblemPhase } from '../contract';
+import manifest from '../manifest.json';
+
+/** Владелец кодов сборки — этот плагин: идентификатор из манифеста, как у самого плагина. */
+const PREVIEW_PLUGIN_ID = manifest.id;
 
 /**
  * Источник, под которым находки сборки публикуются в службу диагностик.
@@ -37,9 +45,13 @@ import type { PreviewProblem, PreviewProblemPhase } from '../contract';
  */
 export const BUILD_DIAGNOSTICS_SOURCE = 'preview.build';
 
-/** Код диагностики по фазе: ключ словаря Host — `errors.build.<фаза>`. */
+/**
+ * Код диагностики по фазе — с владельцем: текст лежит в словаре этого плагина
+ * (`errors.build.<фаза>`), а не оболочки. Сборка формы — дело превью-хоста, и оболочка о ней
+ * не знает.
+ */
 export function buildCode(phase: PreviewProblemPhase): string {
-  return `build.${phase}`;
+  return pluginDiagnosticCode(PREVIEW_PLUGIN_ID, `build.${phase}`);
 }
 
 /** Ресурс, к которому относится находка: свой файл, если он назван, иначе документ схемы. */

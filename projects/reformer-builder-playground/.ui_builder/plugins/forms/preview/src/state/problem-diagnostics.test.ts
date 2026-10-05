@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PreviewProblem } from '../contract';
+import { PREVIEW_MESSAGES } from '../messages';
 import {
   BUILD_DIAGNOSTICS_SOURCE,
   buildCode,
@@ -43,7 +44,7 @@ describe('toDiagnostic', () => {
     expect(diagnostic).toEqual({
       source: BUILD_DIAGNOSTICS_SOURCE,
       severity: 'error',
-      code: 'build.evaluate',
+      code: 'reformer.preview:build.evaluate',
       params: { file: 'model.ts', message: 'бросил' },
       target: { kind: 'resource' },
     });
@@ -59,9 +60,13 @@ describe('toDiagnostic', () => {
     expect(diagnostic.target).toEqual({ kind: 'range', range: { start: 40, end: 41 } });
   });
 
-  it('код читается словарём Host по ключу errors.build.<фаза>', () => {
+  it('код несёт владельца: текст читается словарём плагина по ключу errors.build.<фаза>', () => {
     for (const phase of ['schema', 'resolve', 'transpile', 'evaluate', 'render'] as const) {
-      expect(buildCode(phase)).toBe(`build.${phase}`);
+      expect(buildCode(phase)).toBe(`reformer.preview:build.${phase}`);
+      // И текст на месте: кода без строки в словаре человек увидел бы самим кодом.
+      for (const locale of ['ru', 'en']) {
+        expect(PREVIEW_MESSAGES[locale]).toHaveProperty([`errors.build.${phase}`]);
+      }
     }
   });
 });
@@ -75,7 +80,7 @@ describe('groupByResource', () => {
     ]);
     expect([...groups.keys()]).toEqual(['r:validation.ts', DOC]);
     expect(groups.get('r:validation.ts')?.map((item) => item.params?.message)).toEqual(['a', 'c']);
-    expect(groups.get(DOC)?.map((item) => item.code)).toEqual(['build.render']);
+    expect(groups.get(DOC)?.map((item) => item.code)).toEqual(['reformer.preview:build.render']);
   });
 
   it('пустой список — пустая карта: снимать публикации решает тот, кто помнит прошлые', () => {

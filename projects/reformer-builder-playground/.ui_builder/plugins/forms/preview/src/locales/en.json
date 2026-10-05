@@ -1,4 +1,9 @@
 {
+  "errors.build.evaluate": "The file threw while executing: {message}",
+  "errors.build.render": "The form did not render: {message}",
+  "errors.build.resolve": "An import could not be resolved: {message}",
+  "errors.build.schema": "The schema did not build into a form: {message}",
+  "errors.build.transpile": "The file does not compile: {message}",
   "refusal.source-forbids-code": "The source does not allow executing its code, so form sidecars are not compiled.",
   "refusal.source-unknown": "The document source is unknown: executing code is refused until a project is open."
 }

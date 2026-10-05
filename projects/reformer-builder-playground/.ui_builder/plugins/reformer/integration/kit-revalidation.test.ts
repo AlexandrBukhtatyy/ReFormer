@@ -53,6 +53,7 @@ import { BUILTIN_CATALOG } from '../core/testing';
 import { createSchemaModelProvider } from '../editor/src/model/provider';
 import { createSchemaValidatorPlugin, SCHEMA_VALIDATOR_PLUGIN_ID } from '../validator/src/plugin';
 import { CODES } from '../validator/src/codes';
+import { publishedCode } from '../validator/src/plugin';
 
 let seq = 0;
 
@@ -197,26 +198,26 @@ describe('смена кита перепроверяет открытые схе
     disposables.push(form.services.register(KitsCapability, kit as unknown as KitsService));
 
     // Каталог в пути: сверять имена не с чем, и валидатор об именах молчит.
-    expect(form.codes()).not.toContain(CODES.UNKNOWN_COMPONENT);
+    expect(form.codes()).not.toContain(publishedCode(CODES.UNKNOWN_COMPONENT));
 
     kit.arrive(BUILTIN_CATALOG);
 
-    expect(form.codes()).toContain(CODES.UNKNOWN_COMPONENT);
+    expect(form.codes()).toContain(publishedCode(CODES.UNKNOWN_COMPONENT));
   });
 
   it('плагин китов поднялся после открытия формы — опечатка видна без правки', async () => {
     const form = await openForm();
-    expect(form.codes()).not.toContain(CODES.UNKNOWN_COMPONENT);
+    expect(form.codes()).not.toContain(publishedCode(CODES.UNKNOWN_COMPONENT));
 
     const kit = lazyKit();
     kit.arrive(BUILTIN_CATALOG);
     const registration = form.services.register(KitsCapability, kit as unknown as KitsService);
 
-    expect(form.codes()).toContain(CODES.UNKNOWN_COMPONENT);
+    expect(form.codes()).toContain(publishedCode(CODES.UNKNOWN_COMPONENT));
 
     // Плагин китов выключили: сверять снова не с чем, и устаревшая находка уходит.
     registration.dispose();
 
-    expect(form.codes()).not.toContain(CODES.UNKNOWN_COMPONENT);
+    expect(form.codes()).not.toContain(publishedCode(CODES.UNKNOWN_COMPONENT));
   });
 });

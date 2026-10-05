@@ -25,6 +25,7 @@
  */
 
 import type { ApplicationComposition, ComposedPlugin } from '@/shell/boot/composition';
+import { BUILDER_IDENTITY } from '../identity';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { findProfile } from '../profiles/registry';
 import type { ApplicationProfile } from '../profiles/profile';
@@ -113,6 +114,7 @@ export function fromProfile(
     pluginIds: Object.freeze([...ids]),
     capabilities: capabilities.providers,
     modules: RUNTIME_MODULES,
+    messages: BUILDER_IDENTITY,
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
     // столько параллельных запросов, сколько плагинов в составе, а не цепочка.
     load: async (): Promise<readonly ComposedPlugin[]> =>

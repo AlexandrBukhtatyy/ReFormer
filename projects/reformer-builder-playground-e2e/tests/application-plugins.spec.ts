@@ -1,4 +1,8 @@
+import path from 'path';
 import { test, expect } from './shared/fixtures';
+
+/** Скриншоты визуальной проверки — рядом с остальными снимками билдера (в git не едут). */
+const SHOTS = path.resolve(__dirname, '../../react-playground-e2e/screenshots/builder-app-plugins');
 
 /**
  * Плагины приложения: приехали вместе с собранным билдером и работают для любого проекта.
@@ -29,6 +33,35 @@ test.describe('Плагины приложения', () => {
 
     await builder.openFile('forms/contact/form.schema.json');
     await expect(page.getByRole('tree', { name: 'Дерево схемы формы' })).toBeVisible();
+  });
+
+  test('пустой слой — чистая оболочка: стартовая страница и ни слова о формах', async ({
+    builder,
+    page,
+  }) => {
+    // Оболочка — база для разных приложений. Без плагинов приложения от конструктора форм
+    // в ней остаётся только имя, которым приложение назвало себя: ни дерева, ни редакторов,
+    // ни китов, ни текстов о формах — ни в интерфейсе, ни в палитре команд.
+    await page.route('**/plugins/index.json', (route) =>
+      route.fulfill({ json: { version: 1, plugins: [] } })
+    );
+    await builder.goto();
+
+    await expect(page.getByRole('heading', { name: 'Начало работы' })).toBeVisible();
+    await expect(builder.statusBar).toContainText('Конструктор');
+    await expect(builder.statusBar).not.toContainText('ReFormer UI Kit');
+
+    // Слова предметной области — от начала слова: «формат» и «информация» не в счёт.
+    const SUBJECT = /(?<![а-яё])форм(?!ат)|(?<![а-яё])кит(?![а-яё])|превью|схем/i;
+    expect(await page.locator('body').innerText()).not.toMatch(SUBJECT);
+
+    await builder.openPalette();
+    const commands = await builder.palette.getByRole('option').allInnerTexts();
+    expect(commands.length).toBeGreaterThan(3);
+    expect(commands.filter((title) => SUBJECT.test(title))).toEqual([]);
+    await builder.closePalette();
+
+    await page.screenshot({ path: path.join(SHOTS, '13-clean-shell.png') });
   });
 
   test('команды плагинов приложения есть в палитре до открытия проекта', async ({ builder }) => {
