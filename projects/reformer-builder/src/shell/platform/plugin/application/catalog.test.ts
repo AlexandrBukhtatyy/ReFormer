@@ -326,3 +326,145 @@ describe('плагин проекта рядом с плагинами прил�
     expect(stand.panels()).toEqual(['Дерево приложения']);
   });
 });
+
+describe('предзагрузка: файлы читаются разом, включение — по одному', () => {
+  /** Журнал событий стенда: чтения источника и активации плагинов в порядке наступления. */
+  function loggingStand(
+    files: Record<string, string>,
+    layer: 'application' | 'project',
+    extra: {
+      reserved?: () => ReadonlySet<string>;
+      enabled?: readonly string[];
+      confirmPermissions?: () => Promise<boolean>;
+    } = {}
+  ) {
+    const log: string[] = [];
+    const inner = executable(files);
+    const source: PluginFilesSource = {
+      ...inner,
+      read: (path) => {
+        log.push(`read:${path}`);
+        return inner.read(path);
+      },
+    };
+    const plugins = createPluginRegistry({
+      services: createServiceRegistry(),
+      extensions: createExtensionRegistry(),
+      commands: createCommandRegistry(),
+      events: createEventBus(),
+      storage: createMemoryStorageBackend(),
+      onError: vi.fn(),
+    });
+    const modules = createModuleLoader({
+      builtins: [
+        [
+          '@builder/sdk',
+          { definePlugin, PanelPoint, note: (event: string) => void log.push(event) },
+        ],
+      ],
+    });
+    const dir = layer === 'application' ? APPLICATION_ROOT_DIR : PLUGIN_CATALOG_DIR;
+    const loader = createPluginLoader({ source: () => source, modules, dir });
+    const catalog =
+      layer === 'application'
+        ? createApplicationPluginCatalog({ loader, plugins }).catalog
+        : createProjectPluginCatalog({
+            loader,
+            plugins,
+            enabled: memoryStore(extra.enabled),
+            reserved: extra.reserved,
+            confirmPermissions: extra.confirmPermissions,
+          });
+    return { catalog, log };
+  }
+
+  /** Плагин, отмечающий свою активацию в журнале стенда. */
+  const notingPlugin = (id: string): string => `
+    const { definePlugin, note } = require('@builder/sdk');
+    module.exports = definePlugin({ id: ${JSON.stringify(id)}, activate() { note('activate:${id}'); } });
+  `;
+
+  it('код всех плагинов слоя запрошен до первой активации, а активации идут по порядку', async () => {
+    const { catalog, log } = loggingStand(
+      {
+        [app('alpha', 'manifest.json')]: manifestOf('alpha'),
+        [app('alpha', 'main.js')]: notingPlugin('alpha'),
+        [app('beta', 'manifest.json')]: manifestOf('beta'),
+        [app('beta', 'main.js')]: notingPlugin('beta'),
+        [app('gamma', 'manifest.json')]: manifestOf('gamma'),
+        [app('gamma', 'main.js')]: notingPlugin('gamma'),
+      },
+      'application'
+    );
+
+    await catalog.refresh();
+    log.length = 0;
+    await catalog.restoreEnabled();
+
+    const firstActivation = log.findIndex((event) => event.startsWith('activate:'));
+    const codeReads = log
+      .map((event, at) => ({ event, at }))
+      .filter(({ event }) => event.endsWith('/main.js'));
+    // Раньше третий плагин начинал читаться, только когда активировались первые два: каждый
+    // файл стоил отдельного круга сети. Теперь чтение не ждёт очереди включения.
+    expect(codeReads).toHaveLength(3);
+    expect(codeReads.every(({ at }) => at < firstActivation)).toBe(true);
+    // Порядок включения при этом прежний — порядок каталога.
+    expect(log.filter((event) => event.startsWith('activate:'))).toEqual([
+      'activate:alpha',
+      'activate:beta',
+      'activate:gamma',
+    ]);
+  });
+
+  it('перекрытая копия плагина приложения заранее не читается', async () => {
+    // Образец открывает каталог, из которого собран слой приложения: все его плагины там
+    // перекрыты. Без проверки каждый был бы прочитан с диска впустую.
+    const { catalog, log } = loggingStand(
+      {
+        [proj('files', 'manifest.json')]: manifestOf('files'),
+        [proj('files', 'main.js')]: notingPlugin('files'),
+        [proj('own', 'manifest.json')]: manifestOf('own'),
+        [proj('own', 'main.js')]: notingPlugin('own'),
+      },
+      'project',
+      { enabled: ['files', 'own'], reserved: () => new Set(['files']) }
+    );
+
+    await catalog.refresh();
+    log.length = 0;
+    await catalog.restoreEnabled();
+
+    expect(log).not.toContain(`read:${proj('files', 'main.js')}`);
+    expect(log).toContain(`read:${proj('own', 'main.js')}`);
+    expect(log.filter((event) => event.startsWith('activate:'))).toEqual(['activate:own']);
+  });
+
+  it('плагин с неподтверждёнными правами не читается, пока человек не ответил', async () => {
+    let answer = (_agreed: boolean): void => {};
+    const asked = new Promise<boolean>((resolve) => (answer = resolve));
+    const { catalog, log } = loggingStand(
+      {
+        [proj('writer', 'manifest.json')]: manifestOf('writer', {
+          permissions: ['workspace.save'],
+        }),
+        [proj('writer', 'main.js')]: notingPlugin('writer'),
+      },
+      'project',
+      { enabled: ['writer'], confirmPermissions: () => asked }
+    );
+
+    await catalog.refresh();
+    log.length = 0;
+    const restoring = catalog.restoreEnabled();
+    // Вопрос задан и висит: чтение чужого кода до ответа — уже половина включения.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(log).not.toContain(`read:${proj('writer', 'main.js')}`);
+
+    answer(false);
+    await restoring;
+
+    expect(log).not.toContain(`read:${proj('writer', 'main.js')}`);
+    expect(log.filter((event) => event.startsWith('activate:'))).toEqual([]);
+  });
+});

@@ -110,6 +110,11 @@ export interface PluginModules extends Disposable {
    * заполненный реестр, а не экономия.
    */
   warm(files?: ReadonlyMap<string, string>): Promise<void>;
+  /**
+   * Тот же прогрев, когда имена уже известны: собранный плагин называет нужные ему модули
+   * в манифесте (секция `build`), и читать их из текста незачем.
+   */
+  warmNamed(specifiers: readonly string[]): Promise<void>;
   /** Поддержка TypeScript. Наружу — ради тестов композиции и диагностики. */
   readonly typescript: TypeScriptSupport;
   /**
@@ -158,6 +163,7 @@ export function createPluginModules(options: PluginModulesOptions = {}): PluginM
     // Файлы, а не список имён: у вызывающего они уже есть, а спецификаторы из них читаются
     // одним проходом. Без файлов — прогрев всего: так зовут тесты композиции.
     warm: (files) => registry.warm(files === undefined ? undefined : collectBareSpecifiers(files)),
+    warmNamed: (specifiers) => registry.warm(specifiers),
 
     async prepareCached(files) {
       // Кэшируются только те файлы, которым нужен движок: для собранного `main.js` ключ

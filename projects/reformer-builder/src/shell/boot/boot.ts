@@ -51,6 +51,7 @@ import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
+import { traced, traceSinceStart } from '@/shell/platform/primitives/trace';
 import {
   createProjectPluginCatalog,
   type EnabledPluginsStore,
@@ -214,6 +215,14 @@ const DEFAULT_LOCALE = 'ru';
  * понадобится снова.
  */
 const BUILD_CACHE_BUDGET_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Сколько ждать простоя, прежде чем дочитывать отложенный код плагинов приложения.
+ *
+ * Простой наступает сразу после первого кадра, если человек ничего не делает; потолок нужен
+ * на случай, когда страница занята непрерывно, — дочитка тогда всё равно начнётся.
+ */
+const IDLE_PRELOAD_TIMEOUT_MS = 5000;
 
 /**
  * Список включённых плагинов поверх настроек.
@@ -681,7 +690,20 @@ export function boot(options: BootOptions): BuilderApp {
   // Греется то, что импортируют САМИ файлы, а не всё подряд: иначе каждая форма платила бы
   // за подпути кита с их зависимостями, которых в ней нет.
   services.register(ModuleLoaderCapability, {
-    load: pluginModules.modules.load,
+    // Параметры перечислены поимённо: у движка их больше, чем обещает контракт (дочитка графа
+    // по отложенному импорту — дело загрузчика плагинов), и лишнее плагину не передаётся.
+    load: (files, entry, loadOptions) =>
+      pluginModules.modules.load(
+        files,
+        entry,
+        loadOptions === undefined
+          ? undefined
+          : {
+              ready: loadOptions.ready,
+              overrides: loadOptions.overrides,
+              ambient: loadOptions.ambient,
+            }
+      ),
     prepare: async (files) => {
       const [primed] = await Promise.all([
         pluginModules.prepareCached(files),
@@ -776,6 +798,18 @@ export function boot(options: BootOptions): BuilderApp {
       modules: pluginModules.modules,
       prepare: pluginModules.prepare,
       warm: pluginModules.warm,
+      warmNamed: pluginModules.warmNamed,
+      // Файлы слоя лежат рядом с приложением и под работающим плагином не меняются: читать
+      // их можно по графу сборки — точку входа сразу, остальное по отложенному импорту.
+      onDemand: true,
+      // Отложенный импорт не удался и после повторов: плагин работает дальше, но человек
+      // должен узнать, почему вкладка пуста, — код плагина вправе отказ проглотить.
+      onLazyError: (id, error) =>
+        reportPluginProblem(id, {
+          code: 'code-failed',
+          message: error instanceof Error ? error.message : String(error),
+          cause: error,
+        }),
       dir: APPLICATION_ROOT_DIR,
     }),
     plugins,
@@ -1034,9 +1068,12 @@ export function boot(options: BootOptions): BuilderApp {
 
   // 4. Настройки, словари, активация. Одна цепочка: локаль читается из настроек, поэтому
   //    её загрузка обязана идти после `hydrate`.
-  const ready = settings
-    .hydrate()
-    .then(() => i18n.setLocale(settings.get<string>(LOCALE_SETTINGS_KEY) ?? DEFAULT_LOCALE))
+  const ready = traced('ready.settings', () => settings.hydrate())
+    .then(() =>
+      traced('ready.locale', () =>
+        i18n.setLocale(settings.get<string>(LOCALE_SETTINGS_KEY) ?? DEFAULT_LOCALE)
+      )
+    )
 
     // Встроенные плагины доезжают ЗДЕСЬ — до активации и, значит, до отрисовки: `main` рисует
     // по `ready`. Контракт «набор вкладов полон и детерминирован к моменту отрисовки»
@@ -1052,7 +1089,8 @@ export function boot(options: BootOptions): BuilderApp {
     // шагом и снял бы активацию плагинов каталога проекта заодно.
     .then(async () => {
       try {
-        for (const composed of await options.application.load()) {
+        const builtins = await traced('ready.builtins', () => options.application.load());
+        for (const composed of builtins) {
           plugins.register(composed.plugin, composed.provides, composed.permissions);
         }
       } catch (error) {
@@ -1063,7 +1101,7 @@ export function boot(options: BootOptions): BuilderApp {
     .then(() => {
       // Отчёт не разбирается: отказавшие уже сообщены каналом диагностики рантайма плагинов,
       // а показать их человеку пока нечем — вклада в строку состояния на это нет.
-      plugins.activateAll();
+      traced('ready.activate', () => plugins.activateAll());
       // Проблемы конфига запуска показываются ПОСЛЕ словарей: тост переводится при показе.
       const configProblems = options.runtime?.problems ?? [];
       if (configProblems.length > 0) {
@@ -1077,8 +1115,11 @@ export function boot(options: BootOptions): BuilderApp {
     // не отменяет: оболочка поднимается без него, как поднялась бы без индекса.
     .then(async () => {
       try {
-        applicationFiles = (await options.applicationPluginFiles?.()) ?? null;
-        if (applicationFiles !== null) await applicationPlugins.start();
+        applicationFiles =
+          (await traced('ready.app-index', () => options.applicationPluginFiles?.())) ?? null;
+        if (applicationFiles !== null) {
+          await traced('ready.app-plugins', () => applicationPlugins.start());
+        }
       } catch (error) {
         console.error('[boot] плагины приложения не загрузились', error);
         notifications.error('plugins.lazy-failed');
@@ -1086,7 +1127,30 @@ export function boot(options: BootOptions): BuilderApp {
     })
     .catch((error: unknown) => {
       console.error('[boot] запуск прошёл не полностью', error);
-    });
+    })
+    .then(() => traceSinceStart('ready'));
+
+  // Дочитка отложенного кода плагинов приложения — в простое после запуска. До неё первый
+  // открытый файл ждал бы чтения движка редактора, а остановленный сервер ломал бы уже
+  // открытое приложение. Режим экономии трафика её отменяет: это ускорение за счёт сети.
+  void ready.then(
+    () => {
+      const connection =
+        typeof navigator === 'undefined'
+          ? undefined
+          : (navigator as { connection?: { saveData?: boolean } }).connection;
+      if (connection?.saveData === true) return;
+      const preload = (): void =>
+        void traced('plugins.preload', () => applicationPlugins.catalog.preloadDeferred());
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(preload, { timeout: IDLE_PRELOAD_TIMEOUT_MS });
+      } else if (typeof document !== 'undefined') {
+        setTimeout(preload, IDLE_PRELOAD_TIMEOUT_MS);
+      }
+    },
+    // Запуск не удался — дочитывать нечего; отказ покажет тот, кто ждёт `ready`.
+    () => undefined
+  );
   applicationSettled = () => ready;
 
   return {

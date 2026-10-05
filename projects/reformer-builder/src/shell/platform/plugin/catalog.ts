@@ -61,6 +61,7 @@ import { compileWhen, WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { KeymapService } from '@reformer/builder-plugin-api/internal';
 import type { PluginRegistry } from './registry';
+import { traced } from '@/shell/platform/primitives/trace';
 
 /**
  * Состояние строки в списке плагинов.
@@ -292,6 +293,13 @@ export interface ProjectPluginCatalog extends Disposable {
    * с ним, а память о том, что человек их включал, — остаться.
    */
   deactivateAll(): void;
+  /**
+   * Дочитывает отложенный код работающих плагинов — по одному, в порядке включения.
+   *
+   * Зовётся в простое после запуска. Касается только плагинов, читаемых по графу сборки
+   * (слой приложения); остальным дочитывать нечего. Отказы молчат: это ускорение.
+   */
+  preloadDeferred(): Promise<void>;
 }
 
 interface CatalogRecord {
@@ -457,9 +465,27 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     }
   };
 
+  /**
+   * Графы модулей включённых плагинов: идентификатор → как выгрузить.
+   *
+   * Плагин приложения дочитывает свой код по отложенному импорту, и чтение может закончиться
+   * уже после выключения. Выгруженный граф такое чтение отвергает — иначе исполнился бы код
+   * плагина, вклады которого сняты.
+   */
+  const graphs = new Map<
+    string,
+    { readonly dispose?: () => void; readonly preload?: () => Promise<void> }
+  >();
+
+  const releaseGraph = (id: string): void => {
+    graphs.get(id)?.dispose?.();
+    graphs.delete(id);
+  };
+
   const deactivate = (id: string): void => {
     uninstallStyles(id);
     if (registered.has(id)) deps.plugins.deactivate(id);
+    releaseGraph(id);
   };
 
   /** Подписка на манифестные клавиши: одна на весь каталог, замещается целиком. */
@@ -469,9 +495,14 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     // Порядок несущий: установленные читаются ПЕРВЫМИ, проект вторым и затирает совпадения.
     // Так «положить плагин в проект» всегда значит «работать будет он» — то самое правило,
     // которым автор плагина правит его у себя, не удаляя установленную версию.
+    // Читаются слои разом — друг от друга они не зависят; несущий здесь порядок РАЗБОРА.
+    const [installed, own] = await Promise.all([
+      deps.installed?.discover() ?? [],
+      deps.loader.discover(),
+    ]);
     const layers: readonly { layer: ProjectPluginLayer; found: readonly DiscoveredPlugin[] }[] = [
-      { layer: 'installed', found: (await deps.installed?.discover()) ?? [] },
-      { layer: deps.layer ?? 'project', found: await deps.loader.discover() },
+      { layer: 'installed', found: installed },
+      { layer: deps.layer ?? 'project', found: own },
     ];
     const seen = new Set<string>();
 
@@ -608,15 +639,18 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
    * Отказ не запоминается: человек, передумавший завтра, включит плагин и подтвердит, а запись
    * «отказано» превратила бы это в поиск места, где отказ отменяют.
    */
+  /** Права из манифеста, которых этому плагину ещё не подтвердили. */
+  const missingPermissions = (id: string, manifest?: PluginManifest): PluginPermission[] => {
+    const already = grants[id] ?? [];
+    return (manifest?.permissions ?? []).filter((permission) => !already.includes(permission));
+  };
+
   const permissionsGranted = async (
     id: string,
     manifest?: PluginManifest
   ): Promise<PluginProblem | undefined> => {
-    const asked = manifest?.permissions ?? [];
-    if (asked.length === 0) return undefined;
-
     const already = grants[id] ?? [];
-    const missing = asked.filter((permission) => !already.includes(permission));
+    const missing = missingPermissions(id, manifest);
     if (missing.length === 0) return undefined;
 
     const agreed = (await deps.confirmPermissions?.(id, missing)) ?? false;
@@ -659,6 +693,28 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
         `${unmet.map((item) => describeUnmet(item, available)).join('; ')}`,
       file: 'manifest.json',
     };
+  };
+
+  /**
+   * Стоит ли читать файлы плагина заранее — дойдёт ли включение до загрузки.
+   *
+   * Те же проверки, что стоят в {@link enablePlugin} перед `load`, но без их последствий:
+   * здесь ничего не сообщается и не записывается, отказ выскажет само включение. Чтение — не
+   * исполнение, и ошибиться в сторону «прочитали зря» безопасно; важно не читать заведомо
+   * лишнего. Образец открывает каталог, из которого собран слой приложения: все его плагины
+   * там перекрыты, и без проверки каждый был бы прочитан с диска впустую.
+   *
+   * Плагин, которому права ещё не подтверждены, не предзагружается: человек может отказать.
+   * У слоя приложения вопроса нет — права там выдаются из манифеста.
+   */
+  const worthPrefetching = (id: string, record: CatalogRecord): boolean => {
+    if (record.found.problem !== undefined) return false;
+    if (deps.plugins.isActive(id) && registered.has(id)) return false;
+    if (isOverridden(id)) return false;
+    if (unsatisfiedRequires(id, record.found.manifest) !== undefined) return false;
+    return (
+      deps.layer === 'application' || missingPermissions(id, record.found.manifest).length === 0
+    );
   };
 
   const enablePlugin = async (id: string): Promise<boolean> => {
@@ -725,6 +781,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
             `идентификатор «${id}» уже занят другим плагином оболочки. ` +
             'Переименуйте каталог и поле «id» в манифесте',
         };
+        result.loaded.dispose?.();
         record.problem = problem;
         enabled.delete(id);
         persist();
@@ -740,7 +797,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
         grants[id] ?? []
       );
       registered.add(id);
-      deps.plugins.activate(id);
+      traced(`plugin.activate:${id}`, () => deps.plugins.activate(id));
     } else {
       // Уже зарегистрирован — значит это повторное включение или перезагрузка: подменяем
       // экземпляр под тем же идентификатором, для чего `reload` и существует. Манифест
@@ -753,8 +810,14 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       );
     }
 
+    // Граф прежнего экземпляра (перезагрузка) выгружается ПОСЛЕ замены: до неё им ещё
+    // пользуется работающий код.
+    releaseGraph(id);
+    graphs.set(id, { dispose: result.loaded.dispose, preload: result.loaded.preload });
+
     const status = deps.plugins.status(id);
     if (status?.state !== 'active') {
+      releaseGraph(id);
       const failure = status?.failure;
       const problem: PluginProblem = {
         // Обещание, не выполненное к концу `activate`, — отдельная причина: `activate`
@@ -775,11 +838,11 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     // Стили ставятся ПОСЛЕ активации: упавший при активации плагин своих таблиц
     // на странице не оставляет. Отказ разбора CSS плагин не роняет — он записывается
     // в отчёт и виден человеком, а сам плагин продолжает работать без оформления.
-    installStyles(id, result.loaded.styles);
+    traced(`plugin.styles:${id}`, () => installStyles(id, result.loaded.styles));
     // Словари — сразу за стилями и по тем же правилам: после активации, отказ не роняет
     // плагин. Разница одна, и она в комментарии к `contributeMessages`: это единственный
     // вклад, который выключение плагина НЕ снимает.
-    contributeMessages(id, result.loaded.messages);
+    traced(`plugin.messages:${id}`, () => contributeMessages(id, result.loaded.messages));
 
     record.problem = undefined;
     enabled.add(id);
@@ -892,6 +955,14 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
         }
       }
 
+      // Чтение — заранее и разом; включение ниже остаётся по одному. Предзагружаются только
+      // те, кого цикл действительно дойдёт грузить, — по тем же догрузочным проверкам.
+      for (const [id, record] of records) {
+        if (!enabled.has(id) || !worthPrefetching(id, record)) continue;
+        const loader = record.layer === 'installed' ? deps.installed : deps.loader;
+        loader?.prefetch?.(record.found);
+      }
+
       const started: string[] = [];
       // Порядок обхода — по каталогу, а не по сохранённому списку: он ничего не значит,
       // как и порядок активации вообще (см. `./registry`).
@@ -901,6 +972,17 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       }
       notify();
       return started;
+    },
+
+    async preloadDeferred(): Promise<void> {
+      // По одному: дочитка идёт в простое и не должна занять сеть разом, если человек уже
+      // что-то открывает. Снимок идентификаторов — список за это время может измениться.
+      for (const id of [...graphs.keys()]) {
+        const graph = graphs.get(id);
+        // Плагин выключен или перезагружен, пока шла очередь, — его граф уже другой.
+        if (graph?.preload === undefined) continue;
+        await graph.preload().catch(() => undefined);
+      }
     },
 
     deactivateAll(): void {
