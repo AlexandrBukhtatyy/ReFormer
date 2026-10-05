@@ -50,6 +50,7 @@ import {
 import type { ComposedModule } from './composition';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import * as sdk from '@reformer/builder-plugin-api';
+import * as sdkTooling from '@reformer/builder-plugin-api/tooling';
 
 /**
  * Собственные модули оболочки: то, без чего не соберётся ни плагин, ни `.tsx` формы.
@@ -62,6 +63,10 @@ import * as sdk from '@reformer/builder-plugin-api';
 const HOST_MODULES: readonly ComposedModule[] = [
   ['@builder/sdk', sdk],
   ['@reformer/builder-plugin-api', sdk],
+  // Вход инструментов контракта — разбор манифеста, проверка каталога кита. Отдаётся тем же
+  // пакетом, что и сам контракт: плагин, вложивший свою копию, проверял бы каталог чужой схемой.
+  // Тяжёлое в нём (ajv) грузится по требованию внутри самого входа.
+  ['@reformer/builder-plugin-api/tooling', sdkTooling],
   ['react', react],
   ['react/jsx-runtime', jsxRuntime],
   ['react-dom', reactDom],

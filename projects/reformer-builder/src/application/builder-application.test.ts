@@ -15,7 +15,7 @@ import {
   applicationFromRuntime,
   builderApplication,
   launchFromRuntime,
-  STACK_SWITCH_PLUGIN_ID,
+  PROFILE_SWITCH_PLUGIN_ID,
 } from './builder-application';
 import { BUILTIN_PLUGINS } from './composer/builtin-plugins';
 import { stubBuiltinOptions } from './composer/testing';
@@ -26,19 +26,29 @@ async function idsOf(composition: ApplicationComposition): Promise<readonly stri
   return loaded.map((composed) => composed.plugin.id).sort();
 }
 
-/** Состав по умолчанию: основа и киты. Движки форм — плагины проекта, в состав они не входят. */
+/**
+ * Состав по умолчанию: общая основа. Платформа форм (киты, превью-хост) и движки — плагины
+ * приложения, в состав встроенных они не входят.
+ */
 const FULL = [
   'reformer.editor-markdown',
   'reformer.editor-monaco',
   'reformer.files',
-  'reformer.kits',
   'reformer.plugin-manager',
-  'reformer.preview',
-  'reformer.stack-switch',
+  'reformer.profile-switch',
 ];
 
-/** Основа без китов — состав профиля `builder.base`. */
-const BASE = FULL.filter((id) => id !== 'reformer.kits');
+/** Свой профиль организации: умолчание без markdown — отличается от него одним плагином. */
+const LITE_PROFILE = {
+  id: 'lite',
+  plugins: [
+    'reformer.files',
+    'reformer.editor-monaco',
+    'reformer.plugin-manager',
+    'reformer.profile-switch',
+  ],
+};
+const LITE = FULL.filter((id) => id !== 'reformer.editor-markdown');
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -54,15 +64,39 @@ describe('applicationFromRuntime', { timeout: 30_000 }, () => {
   });
 
   it('preset называет профиль, и состав становится его составом', async () => {
-    await expect(idsOf(applicationFromRuntime({ preset: 'builder.base' }))).resolves.toEqual(BASE);
+    await expect(
+      idsOf(applicationFromRuntime({ preset: 'lite', profiles: [LITE_PROFILE] }))
+    ).resolves.toEqual(LITE);
   });
 
   it('поправки применяются поверх профиля', async () => {
     const ids = await idsOf(
-      applicationFromRuntime({ preset: 'builder.base', plugins: { enable: ['reformer.kits'] } })
+      applicationFromRuntime({
+        preset: 'lite',
+        profiles: [LITE_PROFILE],
+        plugins: { enable: ['reformer.editor-markdown'] },
+      })
     );
 
     expect(ids).toEqual(FULL);
+  });
+
+  it('плагин, уехавший в плагины приложения, в поправках пропускается — состав остаётся настроенным', async () => {
+    // Конфиг написан, когда киты были встроенными. Отказ «неизвестный плагин» вернул бы
+    // человеку полный профиль вместо его собственного — из-за переезда, которого он не делал.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const ids = await idsOf(
+      applicationFromRuntime({
+        preset: 'lite',
+        profiles: [LITE_PROFILE],
+        plugins: { disable: ['reformer.kits'], enable: ['preview'] },
+      })
+    );
+
+    expect(ids).toEqual(LITE);
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('плагином приложения');
   });
 
   it('неизвестный пресет — предупреждение и профиль по умолчанию, а не белый экран', async () => {
@@ -115,18 +149,33 @@ describe('свои профили из конфига запуска', { timeout
         profiles: [
           {
             id: 'acme',
-            extends: 'builder.base',
-            // `kits` — прежнее имя `reformer.kits`: профиль в конфиге тоже пишет человек.
-            plugins: ['kits'],
+            // Прежние имена: без пространства имён и переименованный переключатель —
+            // профиль в конфиге тоже пишет человек.
+            plugins: ['files', 'editor-monaco', 'stack-switch'],
           },
         ],
       })
     );
 
-    expect(ids).toEqual(FULL);
-    // Основа с китами — это и состав по умолчанию, то есть ровно то, что дал бы откат на
-    // непонятый профиль. Отличает их только предупреждение: откат без него не случается.
+    expect(ids).toEqual(['reformer.editor-monaco', 'reformer.files', 'reformer.profile-switch']);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('свой профиль, называющий уехавший плагин, собирается без него', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const ids = await idsOf(
+      applicationFromRuntime({
+        preset: 'acme',
+        // Так писали «основа с китами», пока киты были встроенными.
+        profiles: [{ id: 'acme', extends: 'builder.base', plugins: ['kits'] }],
+      })
+    );
+
+    expect(ids).toEqual(FULL);
+    // Не откат на непонятый профиль: собран именно «acme», а про пропущенное имя сказано.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('«acme»');
   });
 
   it('свой профиль наследует другой свой', async () => {
@@ -140,7 +189,7 @@ describe('свои профили из конфига запуска', { timeout
       })
     );
 
-    expect(ids).toEqual(BASE);
+    expect(ids).toEqual(FULL);
   });
 
   it('имя встроенного профиля не подменяется: предупреждение и встроенный состав', async () => {
@@ -153,7 +202,7 @@ describe('свои профили из конфига запуска', { timeout
       })
     );
 
-    expect(ids).toEqual(BASE);
+    expect(ids).toEqual(FULL);
     expect(String(warn.mock.calls[0]?.[0])).toContain('совпадает со встроенным');
   });
 
@@ -192,7 +241,7 @@ describe('выбор человека поверх конфига запуска
   it('имя переключателя — настоящий встроенный плагин', () => {
     // Константа написана строкой, как имена в профилях; переименуй плагин — выбор молча
     // перестал бы предлагаться, потому что «переключателя нет» ни в одном составе.
-    expect(BUILTIN_PLUGINS.has(STACK_SWITCH_PLUGIN_ID)).toBe(true);
+    expect(BUILTIN_PLUGINS.has(PROFILE_SWITCH_PLUGIN_ID)).toBe(true);
   });
 
   it('без конфига — состав по умолчанию; встроенный список из одного имени выбора не даёт', () => {
@@ -213,7 +262,7 @@ describe('выбор человека поверх конфига запуска
 
     expect(launch.application.profile).toEqual(BASE_PROFILE);
     expect(launch.profileChoices.launch).toEqual(BUILDER);
-    await expect(idsOf(launch.application)).resolves.toEqual(BASE);
+    await expect(idsOf(launch.application)).resolves.toEqual(FULL);
   });
 
   it('выбор сильнее preset конфига — в пределах предложенного', () => {
@@ -307,7 +356,7 @@ describe('выбор человека поверх конфига запуска
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const launch = launchFromRuntime(
-      { presetChoices: BOTH, plugins: { disable: [STACK_SWITCH_PLUGIN_ID] } },
+      { presetChoices: BOTH, plugins: { disable: [PROFILE_SWITCH_PLUGIN_ID] } },
       'builder.base'
     );
 

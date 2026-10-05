@@ -231,7 +231,7 @@ export interface PreviewHost {
    *
    * Арифметику путей делает платформа (`dirname`/`joinPath` живут в `host/primitives/resource`,
    * и плагину они недоступны), а РЕШЕНИЕ, какие из этих файлов составляют форму и что считать
-   * точкой входа, принимает плагин — это предметное знание, ради которого `plugins/base/preview`
+   * точкой входа, принимает плагин — это предметное знание, ради которого `plugins/forms/preview`
    * и существует отдельно от `host/modules`.
    */
   siblings(id: ResourceId): Promise<readonly ResourceRef[]>;

@@ -5,10 +5,9 @@
  */
 
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
-import { fromProfile } from '@/application/composer/compose';
-import { builtinProfile } from '@/application/profiles/registry';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 import { withDomainPlugins, type DomainPlugin } from '../../.shared/application';
+import { formsApplication } from '../../forms/integration/application';
 import { createAiPlugin } from '../ai/src';
 import aiManifest from '../ai/src/manifest.json';
 import { createCodegenPlugin } from '../codegen/src';
@@ -35,7 +34,12 @@ export const REFORMER_PLUGINS: readonly DomainPlugin[] = [
   { manifest: templatesManifest, create: () => createTemplatesPlugin() },
 ];
 
-/** Основа, киты и плагины домена ReFormer. */
+/**
+ * Встроенные, платформа форм (киты, превью-хост) и плагины домена ReFormer.
+ *
+ * Платформа форм — отдельный домен плагинов, и движок без неё не рисует ничего: стенд строится
+ * поверх её стенда, как в приложении движок встаёт поверх плагинов приложения.
+ */
 export function reformerApplication(): ApplicationComposition {
-  return withDomainPlugins(fromProfile(builtinProfile('builder')), REFORMER_PLUGINS);
+  return withDomainPlugins(formsApplication(), REFORMER_PLUGINS);
 }

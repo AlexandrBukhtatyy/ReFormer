@@ -259,21 +259,79 @@ export function builtinPluginDirectory(id: string): string {
 }
 
 /**
+ * Переименования, которые из карты не вывести: плагин сменил имя, а не получил префикс.
+ *
+ * `stack-switch` — «переключатель сочетаний» — вёл две оси, профиль и кит. Киты уехали в плагины
+ * приложения вместе со своим выбором, и от плагина осталась одна ось: выбор профиля. Конфиг,
+ * называющий прежнее имя, имеет в виду именно его — без переключателя профиль не предлагается
+ * к выбору (`application/builder-application`).
+ */
+const RENAMED_PLUGIN_IDS: readonly (readonly [string, string])[] = [
+  ['reformer.stack-switch', 'reformer.profile-switch'],
+  ['stack-switch', 'reformer.profile-switch'],
+];
+
+/**
  * Прежние имена встроенных плагинов → нынешние.
  *
  * ВЫВОДИТСЯ из карты, а не перечисляется руками: переименование было механическим
  * (`ai` → `reformer.ai`), значит второй, написанный от руки список разошёлся бы с первым молча —
  * а «молча» здесь означает состав, собранный не тот, который человек описал в конфиге.
+ * Немеханические переименования дописаны отдельным коротким списком выше.
  *
  * Что все встроенные живут в пространстве имён — утверждение ТЕСТА рядом, а не догадка,
  * поэтому пересечься с нынешним именем псевдоним не может. Отбор по префиксу тут не страховка
  * от этого, а условие осмысленности `slice`: снимать нечего у имени, которое префикса не имеет.
  */
-const LEGACY_PLUGIN_IDS: ReadonlyMap<string, string> = new Map(
-  [...BUILTIN_PLUGINS.keys()]
+const LEGACY_PLUGIN_IDS: ReadonlyMap<string, string> = new Map([
+  ...[...BUILTIN_PLUGINS.keys()]
     .filter((id) => id.startsWith(BUILTIN_PLUGIN_NAMESPACE))
-    .map((id): readonly [string, string] => [id.slice(BUILTIN_PLUGIN_NAMESPACE.length), id])
-);
+    .map((id): readonly [string, string] => [id.slice(BUILTIN_PLUGIN_NAMESPACE.length), id]),
+  ...RENAMED_PLUGIN_IDS,
+]);
+
+/**
+ * Имена плагинов, которые были встроенными и стали плагинами ПРИЛОЖЕНИЯ.
+ *
+ * Такой плагин едет вместе с приложением отдельным пакетом (`shell/platform/plugin/application`),
+ * и составом встроенных он больше не управляется: профилем его не назвать, поправкой
+ * `plugins.enable/disable` — не включить и не выключить. Но конфиг, написанный раньше, его
+ * называет, и отвечать на это отказом «неизвестный плагин» значило бы оставить человека
+ * с полным профилем вместо настроенного — из-за переезда, которого он не делал. Поэтому такие
+ * имена пропускаются со словом в консоль (`./compose`, `application/builder-application`).
+ *
+ * Список пишется руками и только растёт: вывести его неоткуда — плагина в карте уже нет.
+ */
+const APPLICATION_PLUGIN_IDS: ReadonlySet<string> = new Set([
+  'reformer.kits',
+  'kits',
+  'reformer.preview',
+  'preview',
+]);
+
+/** Стал ли встроенный когда-то плагин плагином приложения. */
+export function isApplicationPluginId(id: string): boolean {
+  return APPLICATION_PLUGIN_IDS.has(id);
+}
+
+/**
+ * Имена списка без тех, что уехали в плагины приложения; о каждом пропуске сказано в консоль.
+ *
+ * @param where что за список — для сообщения: «plugins.disable», «профиль „minimal“».
+ */
+export function withoutApplicationPlugins(
+  ids: readonly string[],
+  where: string
+): readonly string[] {
+  return ids.filter((id) => {
+    if (!isApplicationPluginId(id)) return true;
+    console.warn(
+      `[application] ${where}: плагин «${id}» больше не встроенный — он едет плагином ` +
+        'приложения и составом профиля не управляется. Имя пропущено'
+    );
+    return false;
+  });
+}
 
 /**
  * Нынешнее имя плагина по тому, которое написал человек.

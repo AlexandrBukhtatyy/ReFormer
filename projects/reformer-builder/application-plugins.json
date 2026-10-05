@@ -1,6 +1,8 @@
 {
   "root": "../reformer-builder-playground/.ui_builder/plugins",
   "plugins": [
+    "forms/kits",
+    "forms/preview",
     "reformer/editor",
     "reformer/render",
     "reformer/validator",

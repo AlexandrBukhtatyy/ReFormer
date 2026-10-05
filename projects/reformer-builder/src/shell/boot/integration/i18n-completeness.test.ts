@@ -58,10 +58,8 @@ import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
 import { MARKDOWN_MESSAGES } from '@/plugins/base/editor-markdown';
 import { MONACO_MESSAGES } from '@/plugins/base/editor-monaco/messages';
 import { FILES_MESSAGES } from '@/plugins/base/files';
-import { KITS_MESSAGES } from '@/plugins/kits/registry/messages';
 import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/base/plugin-manager';
-import { PREVIEW_MESSAGES } from '@/plugins/base/preview/messages';
-import { STACK_SWITCH_MESSAGES } from '@/plugins/base/stack-switch/messages';
+import { PROFILE_SWITCH_MESSAGES } from '@/plugins/base/profile-switch/messages';
 
 /**
  * Словарь Host собирается здесь из тех же файлов, которые грузит сам сервис.
@@ -82,10 +80,8 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['base/editor-markdown', MARKDOWN_MESSAGES],
   ['base/editor-monaco', MONACO_MESSAGES],
   ['base/files', FILES_MESSAGES],
-  ['kits/registry', KITS_MESSAGES],
   ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
-  ['base/preview', PREVIEW_MESSAGES],
-  ['base/stack-switch', STACK_SWITCH_MESSAGES],
+  ['base/profile-switch', PROFILE_SWITCH_MESSAGES],
 ];
 
 describe('словари: наборы ключей совпадают во всех локалях', () => {

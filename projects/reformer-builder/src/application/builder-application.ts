@@ -14,7 +14,7 @@
 
 import type { ApplicationComposition, ProfileChoices } from '@/shell/boot/composition';
 import type { RuntimeConfig } from '@/shell/boot/runtime-config';
-import { canonicalPluginId } from './composer/builtin-plugins';
+import { canonicalPluginId, withoutApplicationPlugins } from './composer/builtin-plugins';
 import { fromProfile, type ProfileComposition } from './composer/compose';
 import { profileFromConfig, type ApplicationProfile } from './profiles/profile';
 import { defaultPresetChoices, defaultProfile, findProfile } from './profiles/registry';
@@ -23,12 +23,12 @@ import { defaultPresetChoices, defaultProfile, findProfile } from './profiles/re
 export const builderApplication: ProfileComposition = fromProfile(defaultProfile);
 
 /**
- * Плагин-переключатель сочетаний — именем, как плагины названы в профилях.
+ * Плагин выбора профиля — именем, как плагины названы в профилях.
  *
  * Строкой, а не импортом из плагина: состав знает плагины по именам, а сверяет имена с картой
  * встроенных резолвер. То, что имя настоящее, стережёт тест этого модуля.
  */
-export const STACK_SWITCH_PLUGIN_ID = 'reformer.stack-switch';
+export const PROFILE_SWITCH_PLUGIN_ID = 'reformer.profile-switch';
 
 type ProfileLookup = (id: string) => ApplicationProfile | undefined;
 
@@ -52,7 +52,10 @@ export function configProfiles(
       );
       continue;
     }
-    own.set(profile.id, profileFromConfig(profile, canonicalPluginId));
+    // Плагин, уехавший из встроенных в плагины приложения, профилем больше не назвать —
+    // но профиль, написанный раньше, его называет. Имя пропускается, а не роняет профиль.
+    const plugins = withoutApplicationPlugins(profile.plugins, `профиль «${profile.id}»`);
+    own.set(profile.id, profileFromConfig({ ...profile, plugins }, canonicalPluginId));
   }
   return own;
 }
@@ -140,7 +143,7 @@ export interface Launch {
 export function launchFromRuntime(config: RuntimeConfig, stored: string | null): Launch {
   const lookup = lookupOf(config);
   const launch = launchComposition(config, lookup);
-  const offered = launch.pluginIds.includes(STACK_SWITCH_PLUGIN_ID)
+  const offered = launch.pluginIds.includes(PROFILE_SWITCH_PLUGIN_ID)
     ? offeredCompositions(config, lookup)
     : [];
   const chosen =
@@ -184,10 +187,10 @@ function offeredCompositions(
       );
       continue;
     }
-    if (!composition.pluginIds.includes(STACK_SWITCH_PLUGIN_ID)) {
+    if (!composition.pluginIds.includes(PROFILE_SWITCH_PLUGIN_ID)) {
       console.warn(
         `[application] профиль «${id}» из «presetChoices» пропущен: в нём нет переключателя ` +
-          `«${STACK_SWITCH_PLUGIN_ID}», и вернуться из него было бы нечем`
+          `«${PROFILE_SWITCH_PLUGIN_ID}», и вернуться из него было бы нечем`
       );
       continue;
     }

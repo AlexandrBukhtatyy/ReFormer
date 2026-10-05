@@ -14,8 +14,6 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fromProfile } from '@/application/composer/compose';
-import { builtinProfile } from '@/application/profiles/registry';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint, ResourceRef } from '@reformer/builder-plugin-api/internal';
@@ -45,6 +43,7 @@ import {
 import { createDocument } from '@/shell/platform/workspace/document';
 import { withDomainPlugins } from '../../.shared/application';
 import { REFORMER_PLUGINS } from '../../reformer/integration/application';
+import { formsApplication } from '../../forms/integration/application';
 import { rjsfApplication } from './application';
 import { createModelDocument } from '@/shell/platform/workspace/model/model-document';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
@@ -149,9 +148,9 @@ describe('boot с плагинами домена RJSF', () => {
       'reformer.kits',
       'reformer.plugin-manager',
       'reformer.preview',
+      'reformer.profile-switch',
       'reformer.rjsf.editor',
       'reformer.rjsf.render',
-      'reformer.stack-switch',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });
@@ -298,7 +297,7 @@ describe('выделение формы RJSF в НАСТОЯЩЕЙ ручке м
 describe('совмещённый состав: ReFormer и RJSF', () => {
   // Оба движка — плагины своих доменов и встают поверх одного состава билдера.
   const combined = (): ApplicationComposition =>
-    rjsfApplication(withDomainPlugins(fromProfile(builtinProfile('builder')), REFORMER_PLUGINS));
+    rjsfApplication(withDomainPlugins(formsApplication(), REFORMER_PLUGINS));
 
   it('собирается и поднимается целиком', async () => {
     const started = await start(combined());

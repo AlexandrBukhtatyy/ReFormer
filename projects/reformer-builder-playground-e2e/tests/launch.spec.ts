@@ -10,10 +10,10 @@ test.describe('Запуск билдера', () => {
 
     // branding.title.
     await expect(page).toHaveTitle('ReFormer Builder · Playground');
-    // Состава конфиг не задаёт: движки — плагины проекта. В строке состояния — встроенный
-    // профиль билдера и кит по умолчанию; выбирать пока не из чего, поэтому это подпись,
-    // а не переключатель.
-    await expect(builder.statusBar).toContainText('Конструктор · ReFormer UI Kit');
+    // Состава конфиг не задаёт: движки и платформа форм — плагины. В строке состояния —
+    // встроенный профиль билдера; он один, выбирать не из чего, поэтому это подпись,
+    // а не переключатель. Кит называет своя ячейка — она приходит с плагином китов.
+    await expect(builder.statusBar).toContainText('Конструктор');
     // defaults.locale.
     await expect(builder.statusBar).toContainText('Язык: RU');
   });

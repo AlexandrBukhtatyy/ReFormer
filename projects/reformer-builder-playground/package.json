@@ -9,8 +9,8 @@
     "builder:dist": "npm run plugins:build && node ../reformer-builder/bin/reformer-builder.mjs --host localhost --port 5184 --no-open",
     "preset:ui-kit": "npm run plugins:build && cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/ui-kit.json npm --prefix ../reformer-builder run dev",
     "preset:hexa-ui": "npm run plugins:build && cross-env REFORMER_BUILDER_CONFIG=../reformer-builder-playground/.ui_builder/presets/hexa-ui.json npm --prefix ../reformer-builder run dev",
-    "plugins:build": "npm run build:dev --if-present -w .ui_builder/plugins -w .ui_builder/plugins/reformer -w .ui_builder/plugins/rjsf",
-    "plugins:dist": "npm run build:dist --if-present -w .ui_builder/plugins/reformer -w .ui_builder/plugins/rjsf"
+    "plugins:build": "npm run build:dev --if-present -w .ui_builder/plugins -w .ui_builder/plugins/forms -w .ui_builder/plugins/reformer -w .ui_builder/plugins/rjsf",
+    "plugins:dist": "npm run build:dist --if-present -w .ui_builder/plugins/forms -w .ui_builder/plugins/reformer -w .ui_builder/plugins/rjsf"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",

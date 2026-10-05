@@ -4,10 +4,9 @@
  * @module plugins/rjsf/integration/application
  */
 
-import { fromProfile } from '@/application/composer/compose';
-import { builtinProfile } from '@/application/profiles/registry';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 import { withDomainPlugins, type DomainPlugin } from '../../.shared/application';
+import { formsApplication } from '../../forms/integration/application';
 import { createRjsfEditorPlugin } from '../editor/src';
 import editorManifest from '../editor/src/manifest.json';
 import { createRjsfRenderPlugin } from '../render/src';
@@ -19,9 +18,12 @@ export const RJSF_PLUGINS: readonly DomainPlugin[] = [
   { manifest: renderManifest, create: () => createRjsfRenderPlugin() },
 ];
 
-/** Основа, киты и плагины домена RJSF; `base` — состав, поверх которого они встают. */
+/**
+ * Встроенные, платформа форм и плагины домена RJSF; `base` — состав, поверх которого они встают.
+ * По умолчанию это стенд домена forms: киты и превью-хост — плагины, а не встроенные.
+ */
 export function rjsfApplication(
-  base: ApplicationComposition = fromProfile(builtinProfile('builder'))
+  base: ApplicationComposition = formsApplication()
 ): ApplicationComposition {
   return withDomainPlugins(base, RJSF_PLUGINS);
 }

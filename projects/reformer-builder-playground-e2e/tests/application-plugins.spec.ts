@@ -40,6 +40,35 @@ test.describe('Плагины приложения', () => {
     await expect(builder.paletteOption('Ассистент: новый разговор')).toBeVisible();
   });
 
+  test('платформа форм работает до открытия проекта: кит назван своей ячейкой', async ({
+    builder,
+  }) => {
+    await builder.goto();
+
+    // Киты — плагин приложения. Его ячейка стоит в строке состояния рядом со встроенным выбором
+    // профиля; кит пока один, поэтому это подпись, а не переключатель.
+    await expect(builder.statusBar).toContainText('Конструктор');
+    await expect(builder.statusBar).toContainText('ReFormer UI Kit');
+  });
+
+  test('копия плагина приложения в проекте уступает молча', async ({ builder, page }) => {
+    // Образец включает у себя и киты, и движки — те же плагины, что приехали с приложением.
+    // Двойной активации быть не должно: работает экземпляр приложения, копия помечена.
+    await builder.openPlayground();
+
+    await builder.openPalette('Настройки');
+    await builder.palette.getByRole('option').first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Плагины' }).click();
+
+    await expect(page.getByTestId('settings-plugins')).toContainText(
+      'перекрывает копию из проекта'
+    );
+    // Форма при этом открывается редактором: уступившая копия ничего не сломала.
+    await page.keyboard.press('Escape');
+    await builder.openFile('forms/contact/form.schema.json');
+    await expect(page.getByRole('tree', { name: 'Дерево схемы формы' })).toBeVisible();
+  });
+
   test('раздел «Плагины» называет слой и не даёт выключить плагин приложения', async ({
     builder,
     page,

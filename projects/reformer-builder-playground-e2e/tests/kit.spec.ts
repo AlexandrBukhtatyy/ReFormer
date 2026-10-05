@@ -20,17 +20,16 @@ const KNOWN_KIT_NOISE = [
 ];
 
 test.describe('Кит HexaUI — плагин проекта', () => {
-  test('кит появляется в сочетаниях и рисует форму', async ({ builder, page, pageErrors }) => {
+  test('кит появляется в списке китов и рисует форму', async ({ builder, page, pageErrors }) => {
     // Копия проекта тяжелее обычной на сборку плагина, и пространство имён кита грузится лениво.
     test.setTimeout(90_000);
     await builder.openPlayground({ plugins: [KIT_PLUGIN] });
 
-    // Ячейка «профиль · кит». Сочетания с китом плагина появляются, когда плагин его внёс, —
-    // а плагины проекта поднимаются после открытия, поэтому список переоткрывается.
-    const cell = builder.statusBar.getByRole('button', {
-      name: 'Конструктор · ReFormer UI Kit',
-    });
-    const hexa = page.getByRole('menuitemradio', { name: 'Конструктор · Kaspersky HexaUI' });
+    // Ячейка «кит» — вклад плагина китов. Пока кит один, она подпись; кнопкой она становится,
+    // когда плагин внёс второй, — а плагины проекта поднимаются после открытия, поэтому список
+    // переоткрывается.
+    const cell = builder.statusBar.getByRole('button', { name: 'ReFormer UI Kit' });
+    const hexa = page.getByRole('menuitemradio', { name: /Kaspersky HexaUI/ });
     await expect(async () => {
       await cell.click();
       try {
@@ -43,9 +42,7 @@ test.describe('Кит HexaUI — плагин проекта', () => {
 
     // Кит меняется на лету, без перезагрузки.
     await hexa.click();
-    await expect(
-      builder.statusBar.getByRole('button', { name: 'Конструктор · Kaspersky HexaUI' })
-    ).toBeVisible();
+    await expect(builder.statusBar.getByRole('button', { name: 'Kaspersky HexaUI' })).toBeVisible();
 
     await builder.openFile('forms/contact/form.schema.json');
     await page

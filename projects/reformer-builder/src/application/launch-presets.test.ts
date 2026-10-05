@@ -8,7 +8,8 @@
  * Здесь это проверяется тем же путём, каким конфиг проходит при запуске: разбор, затем сборка
  * состава. Тест живёт в билдере, а не рядом с файлами: проверяет он сборку состава, а она здесь.
  *
- * Движка готовый конфиг не выбирает: движки форм — плагины проекта, и включает их проект.
+ * Движка готовый конфиг не выбирает: движки форм — плагины. Не выбирает он и состав: киты
+ * едут плагином приложения, и готовый конфиг только называет кит по умолчанию его настройкой.
  *
  * @module application/launch-presets.test
  */
@@ -37,9 +38,6 @@ interface KitCatalog {
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(file, 'utf8')) as unknown;
 const kits = KIT_CATALOGS.map((file) => readJson(file) as KitCatalog);
-
-/** Плагин китов: настройка кита по умолчанию имеет смысл, только пока он в составе. */
-const KITS_PLUGIN = 'reformer.kits';
 
 const KIT_SETTING = 'plugin.kits.active';
 
@@ -73,7 +71,7 @@ describe('готовые конфиги запуска', { timeout: 30_000 }, ()
     expect(parsed.problems).toEqual([]);
   });
 
-  it.each(presets)('$name собирает состав с китами, а не состав отказа', async ({ parsed }) => {
+  it.each(presets)('$name собирает настроенный состав, а не состав отказа', async ({ parsed }) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const ids = await idsOf(applicationFromRuntime(parsed.config));
@@ -81,6 +79,6 @@ describe('готовые конфиги запуска', { timeout: 30_000 }, ()
     // Откат на профиль по умолчанию всегда сопровождается предупреждением — его отсутствие
     // и есть доказательство, что конфиг применён как написан.
     expect(warn).not.toHaveBeenCalled();
-    expect(ids).toContain(KITS_PLUGIN);
+    expect(ids.length).toBeGreaterThan(0);
   });
 });

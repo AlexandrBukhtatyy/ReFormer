@@ -3,7 +3,7 @@
  *
  * Сквозная проверка трёх частей, каждая из которых проверена у себя: оболочка ставит стили плагина
  * с изоляцией `scoped` под `[data-rb-plugin="<плагин>"]` (`shell/platform/plugin/styles`), служба
- * китов даёт рамку с этим атрибутом (`plugins/kits/registry/frame`), поверхность превью кладёт
+ * китов даёт рамку с этим атрибутом (`plugins/forms/kits/frame`), поверхность превью кладёт
  * форму в рамку (`plugins/reformer/render`). Разойдись литерал атрибута или порядок обёрток —
  * каждая часть осталась бы зелёной у себя, а тема кита плагина либо не доехала бы до формы, либо
  * перекрасила бы билдер.
@@ -24,7 +24,7 @@ import type {
 } from '@reformer/builder-plugin-api';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
-import { createKitsService } from '@/plugins/kits/registry';
+import { createKitsService } from '../../forms/kits/src';
 import { projectCatalog } from '../core/catalog';
 import { builtinSurfaces } from '../render/src/plugin';
 import { RUNTIME_SURFACE_ID } from '../render/src/runtime/surface';

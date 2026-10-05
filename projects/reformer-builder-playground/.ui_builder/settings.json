@@ -2,6 +2,8 @@
   "workspace.plugins.enabled": [
     "playground-hello",
     "kit-hexa-ui",
+    "reformer.kits",
+    "reformer.preview",
     "reformer.editor-schema",
     "reformer.preview-runtime",
     "reformer.validator-schema",

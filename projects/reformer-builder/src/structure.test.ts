@@ -93,7 +93,7 @@ describe('устройство плагина', () => {
   const pluginsDir = `${ROOT}/plugins`;
   const isDir = (path: string): boolean => statSync(path).isDirectory();
 
-  /** Домены — первый уровень: `base`, `kits`. */
+  /** Домены — первый уровень. Сейчас он один — `base`: киты уехали в плагины приложения. */
   const domains = readdirSync(pluginsDir).filter((name) => isDir(`${pluginsDir}/${name}`));
 
   /** Плагины — второй уровень, `домен/плагин`. */
@@ -142,7 +142,9 @@ describe('устройство плагина', () => {
   });
 
   it('проверка не пуста: домены и плагины найдены', () => {
-    expect(domains.length).toBeGreaterThanOrEqual(2);
-    expect(plugins.length).toBeGreaterThanOrEqual(7);
+    // Встроенных остаётся всё меньше: предметное уезжает в плагины приложения. Порог держит
+    // одно — что обход не пуст.
+    expect(domains.length).toBeGreaterThanOrEqual(1);
+    expect(plugins.length).toBeGreaterThanOrEqual(3);
   });
 });

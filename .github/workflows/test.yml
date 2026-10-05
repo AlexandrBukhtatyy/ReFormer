@@ -189,7 +189,8 @@ jobs:
       - name: Run @reformer/rjsf-kit-theme tests
         run: npm run test -w @reformer/rjsf-kit-theme
 
-      # Движки форм (домены reformer и rjsf) — плагины проекта-образца билдера, по пакету на плагин
+      # Платформа форм (домен forms: киты, превью-хост) и движки форм (домены reformer и rjsf) —
+      # плагины проекта-образца билдера, по пакету на плагин
       # (`.ui_builder/plugins/<домен>/<плагин>`). Собираются тем же CLI, что у автора плагина, —
       # на место, в корень каталога плагина: оттуда их грузит билдер. Сборке нужны dist контракта,
       # CLI, toolkit, темы RJSF и @reformer/mcp: плагин ИИ первым делом гонит `generate:knowledge`,
@@ -206,6 +207,7 @@ jobs:
         # тесты плагина ИИ, появляется на диске только после `generate:knowledge`.
         run: >-
           npm run test
+          -w projects/reformer-builder-playground/.ui_builder/plugins/forms
           -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
           -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf
 
@@ -213,7 +215,7 @@ jobs:
         run: npm run build -w @reformer/builder
 
       - name: Плагины приложения — рядом со сборкой билдера
-        # Движки форм едут вместе с билдером слоем «плагины приложения»: сборки пакетов для
+        # Платформа форм и движки едут вместе с билдером слоем «плагины приложения»: сборки пакетов для
         # поставки (`build:dist`) складываются в `dist/plugins/` с индексом, по которому оболочка
         # их находит. Тот же шаг делают release.yml и deploy-docs.yml; здесь он проверяет, что
         # набор из `application-plugins.json` собирается, — иначе о несобранном плагине узнал бы

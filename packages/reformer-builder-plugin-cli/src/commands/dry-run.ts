@@ -26,6 +26,13 @@
  * значение службы, которой здесь нет). Такой исход возвращается ЗАМЕТКОЙ «не проверено»,
  * а не отказом, и сборка проходит. Отказом становится только то, что видно наверняка.
  *
+ * По той же причине код плагина здесь НЕ ПИШЕТ В КОНСОЛЬ: ему подставлена немая. Всё, что плагин
+ * сказал бы, исполняясь на заглушках, — следствие заглушек, а не его состояния: плагин китов,
+ * получив вместо каталога пустышку, честно пишет «каталог не принят», и человек, собирающий
+ * рабочий плагин, читал бы это при каждой сборке как поломку. Подменяется имя `console` в области
+ * видимости кода плагина, а не глобальный объект: сообщения самого сборщика не теряются, и
+ * отложенный вывод (после `await`) глушится так же, как синхронный.
+ *
  * @module @reformer/builder-plugin-cli/commands/dry-run
  */
 
@@ -67,6 +74,14 @@ function createStub(): unknown {
   });
   return proxy;
 }
+
+/** Консоль для кода плагина в пробном запуске: принимает любой вызов и ничего не печатает. */
+const SILENT_CONSOLE: unknown = new Proxy(
+  {},
+  {
+    get: () => () => undefined,
+  }
+);
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -157,12 +172,14 @@ export async function dryActivate(
 
   const module = { exports: {} as unknown };
   try {
-    const evaluate = new Function('module', 'exports', 'require', code) as (
+    // Четвёртый параметр затеняет глобальную консоль ТОЛЬКО для кода плагина.
+    const evaluate = new Function('module', 'exports', 'require', 'console', code) as (
       m: typeof module,
       e: unknown,
-      r: typeof requireShim
+      r: typeof requireShim,
+      c: unknown
     ) => void;
-    evaluate(module, module.exports, requireShim);
+    evaluate(module, module.exports, requireShim, SILENT_CONSOLE);
   } catch (error) {
     return {
       findings: [],

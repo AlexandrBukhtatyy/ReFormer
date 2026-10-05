@@ -11,15 +11,14 @@
         "reformer.editor-monaco",
         "reformer.editor-markdown",
         "reformer.plugin-manager",
-        "reformer.preview",
-        "reformer.stack-switch"
+        "reformer.profile-switch"
       ]
     },
     {
       "id": "builder",
       "name": "Конструктор",
       "extends": "builder.base",
-      "plugins": ["reformer.kits"]
+      "plugins": []
     }
   ]
 }

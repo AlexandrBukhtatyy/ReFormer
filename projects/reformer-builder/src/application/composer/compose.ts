@@ -38,7 +38,7 @@ import {
   resolveProviders,
   type PluginOverrides,
 } from '../resolver/profile-resolver';
-import { BUILTIN_PLUGINS, canonicalPluginId } from './builtin-plugins';
+import { BUILTIN_PLUGINS, canonicalPluginId, withoutApplicationPlugins } from './builtin-plugins';
 import { RUNTIME_MODULES } from './runtime-modules';
 
 /**
@@ -133,7 +133,9 @@ export function fromProfile(
 }
 
 /**
- * Приводит имена поправок к нынешним — прежние остаются рабочими.
+ * Приводит имена поправок к нынешним — прежние остаются рабочими. Имена плагинов, уехавших
+ * из встроенных в плагины приложения, пропускаются: составом встроенных они не управляются,
+ * а отказ на них стоил бы человеку всего настроенного состава.
  *
  * Отсутствующий список остаётся отсутствующим, а не превращается в пустой: у резолвера
  * «поправки не заданы» и «задан пустой список» и так совпадают, но пустое поле в объекте
@@ -141,10 +143,10 @@ export function fromProfile(
  */
 function canonicalOverrides(overrides?: PluginOverrides): PluginOverrides | undefined {
   if (overrides === undefined) return undefined;
-  const map = (list?: readonly string[]): readonly string[] | undefined =>
-    list?.map(canonicalPluginId);
-  const enable = map(overrides.enable);
-  const disable = map(overrides.disable);
+  const map = (list: readonly string[] | undefined, where: string) =>
+    list === undefined ? undefined : withoutApplicationPlugins(list, where).map(canonicalPluginId);
+  const enable = map(overrides.enable, 'plugins.enable');
+  const disable = map(overrides.disable, 'plugins.disable');
   return {
     ...(enable !== undefined ? { enable } : {}),
     ...(disable !== undefined ? { disable } : {}),

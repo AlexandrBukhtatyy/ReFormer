@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { parsePluginManifest } from '@reformer/builder-plugin-api/tooling';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { runCli, type CliIo } from './cli.js';
 import { buildPlugin, type BuildResult } from './commands/build.js';
@@ -401,6 +401,41 @@ describe('build', () => {
       expect(result.ok).toBe(true);
       expect(result.ok && result.notices[0]).toContain('«provides» и каталоги китов не проверены');
     });
+  });
+
+  it('пробный запуск не печатает за плагин: сказанное на заглушках — не его состояние', async () => {
+    // Плагин китов, получив вместо каталога заглушку, пишет «каталог не принят» — и при каждой
+    // сборке рабочего плагина это читалось бы как поломка. Вывод глушится и синхронный, и
+    // отложенный: второй приходит уже после `activate`.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await main(
+      `import { definePlugin } from '@reformer/builder-plugin-api';
+` +
+        `export default definePlugin({
+` +
+        `  id: 'acme-hello',
+` +
+        `  activate() {
+` +
+        `    console.error('сразу');
+` +
+        `    void Promise.resolve().then(() => console.warn('позже'));
+` +
+        `  },
+` +
+        `});
+`
+    );
+
+    const result = await buildPlugin({ dir });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(result).toMatchObject({ ok: true, notices: [] });
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    error.mockRestore();
+    warn.mockRestore();
   });
 
   describe('кит, внесённый плагином', () => {
