@@ -220,14 +220,56 @@ function resolveFsPath(pathname, rootDir = distDir) {
   return full;
 }
 
-async function sendFile(res, filePath, statusCode = 200) {
+/**
+ * Чанки оболочки: Vite кладёт их в `assets/` под именем с хэшем содержимого, поэтому под одним
+ * именем содержимое не меняется никогда — браузер вправе не спрашивать о них вовсе.
+ */
+const IMMUTABLE_URL_PREFIX = '/assets/';
+const CACHE_REVALIDATE = 'no-cache';
+const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
+
+/**
+ * Метка версии файла — размер и время изменения.
+ *
+ * Не хэш содержимого: ради него файл пришлось бы прочитать, а метка нужна именно затем, чтобы
+ * НЕ читать. Совпадение размера в пределах одной отметки времени у изменившегося файла на
+ * нынешних файловых системах не встречается.
+ */
+function etagOf(info) {
+  return `"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
+}
+
+/** Заголовок `If-None-Match` называет эту метку: списком, слабой формой или звёздочкой. */
+function matchesEtag(header, etag) {
+  if (typeof header !== 'string' || header === '') return false;
+  return header
+    .split(',')
+    .map((item) => item.trim().replace(/^W\//, ''))
+    .some((item) => item === '*' || item === etag);
+}
+
+/**
+ * Отдаёт файл — или «не изменился», если у браузера он уже есть.
+ *
+ * Оболочка запрашивает файлы плагинов с `cache: 'no-cache'`: каждый запуск спрашивает сервер
+ * заново. Без метки версии ответом было полное тело — мегабайты на каждый запуск; с ней тот же
+ * вопрос стоит одного `stat` и пустого ответа 304.
+ */
+async function sendFile(req, res, filePath, options = {}) {
+  const info = await stat(filePath);
+  const etag = etagOf(info);
+  const headers = {
+    ETag: etag,
+    'Cache-Control': options.immutable === true ? CACHE_IMMUTABLE : CACHE_REVALIDATE,
+  };
+  if (matchesEtag(req.headers?.['if-none-match'], etag)) {
+    res.writeHead(304, headers);
+    res.end();
+    return;
+  }
   const body = await readFile(filePath);
   const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-  res.writeHead(statusCode, {
-    'Content-Type': type,
-    'Content-Length': body.length,
-    'Cache-Control': 'no-cache',
-  });
+  res.writeHead(200, { ...headers, 'Content-Type': type, 'Content-Length': body.length });
   res.end(body);
 }
 
@@ -256,7 +298,7 @@ async function servePlugins(req, res, pathname, pluginsDir) {
   }
   try {
     if (!(await stat(target)).isFile()) throw new Error('не файл');
-    await sendFile(res, target);
+    await sendFile(req, res, target);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not Found');
@@ -266,6 +308,8 @@ async function servePlugins(req, res, pathname, pluginsDir) {
 export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options = {}) {
   /** Каталог из `--plugins`; без него плагины приложения — обычная статика `dist/plugins`. */
   const pluginsDir = options.pluginsDir ?? null;
+  /** Корень статики. Параметр — ради тестов: собранного `dist` на машине может не быть. */
+  const rootDir = options.rootDir ?? distDir;
   return async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' });
@@ -287,7 +331,7 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options =
       await servePlugins(req, res, pathname, pluginsDir);
       return;
     }
-    const target = resolveFsPath(pathname === '/' ? '/index.html' : pathname);
+    const target = resolveFsPath(pathname === '/' ? '/index.html' : pathname, rootDir);
     if (target === null) {
       res.writeHead(400);
       res.end('Bad Request');
@@ -299,14 +343,16 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options =
         const dirIndex = join(target, 'index.html');
         try {
           await stat(dirIndex);
-          await sendFile(res, dirIndex);
+          await sendFile(req, res, dirIndex);
           return;
         } catch {
-          await sendFile(res, indexHtmlPath);
+          await sendFile(req, res, indexHtmlPath);
           return;
         }
       }
-      await sendFile(res, target);
+      // Навсегда кэшируется только сам файл по адресу с хэшем; `index.html` и всё прочее
+      // переспрашиваются каждый раз — иначе новая сборка не доехала бы до человека.
+      await sendFile(req, res, target, { immutable: pathname.startsWith(IMMUTABLE_URL_PREFIX) });
     } catch {
       // Файла нет. Реальный отсутствующий ассет (есть расширение) → 404.
       // Навигационный маршрут (без расширения) → SPA-fallback на index.html.
@@ -315,7 +361,7 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options =
         res.end('Not Found');
       } else {
         try {
-          await sendFile(res, indexHtmlPath);
+          await sendFile(req, res, indexHtmlPath);
         } catch {
           res.writeHead(500);
           res.end('Internal Server Error');

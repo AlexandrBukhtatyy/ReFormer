@@ -36,5 +36,5 @@ export function loadRuntimeBundle(
 export function createRequestHandler(
   indexHtmlPath: string,
   runtimeBundleBody: Buffer,
-  options?: { pluginsDir?: string | null }
+  options?: { pluginsDir?: string | null; rootDir?: string }
 ): (req: unknown, res: unknown) => Promise<void>;

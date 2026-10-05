@@ -10,7 +10,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RUNTIME_BUNDLE_PATH } from './runtime-config';
@@ -143,6 +143,82 @@ describe('createRequestHandler', () => {
     expect([400, 404, 500]).toContain(traversal.status);
     expect(traversal.body === undefined || typeof traversal.body === 'string').toBe(true);
     expect(String(traversal.body ?? '')).not.toContain('root:');
+  });
+
+  describe('кэш браузера: метка версии и «не изменился»', () => {
+    // Оболочка спрашивает файлы плагинов с `no-cache`: каждый запуск идёт к серверу. Без метки
+    // версии ответом было полное тело — мегабайты на запуск; с ней — пустой 304.
+    let root: string;
+    beforeAll(async () => {
+      root = join(dir, 'static');
+      await mkdir(join(root, 'assets'), { recursive: true });
+      await mkdir(join(root, 'plugins', 'base', 'files'), { recursive: true });
+      await writeFile(join(root, 'index.html'), '<!doctype html><title>оболочка</title>');
+      await writeFile(join(root, 'assets', 'index-AbC123.js'), 'console.log("чанк")');
+      await writeFile(join(root, 'plugins', 'base', 'files', 'main.js'), 'module.exports = {};');
+    });
+
+    const handlerOf = () =>
+      bin.createRequestHandler(join(root, 'index.html'), Buffer.from('{}'), { rootDir: root });
+    const get = async (url: string, headers: Record<string, string> = {}): Promise<FakeRes> => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url, headers }, res);
+      return res;
+    };
+    const PLUGIN = '/plugins/base/files/main.js';
+
+    it('файл отдаётся с меткой; повторный вопрос с ней — 304 без тела', async () => {
+      const first = await get(PLUGIN);
+      expect(first.status).toBe(200);
+      expect(String(first.body)).toBe('module.exports = {};');
+      const etag = String(first.headers.ETag);
+      expect(etag).toMatch(/^"[0-9a-f]+-[0-9a-f]+"$/);
+
+      const again = await get(PLUGIN, { 'if-none-match': etag });
+
+      expect(again.status).toBe(304);
+      expect(again.body).toBeUndefined();
+      // Метка и правило кэша едут и с 304: браузер обновляет ими свою запись.
+      expect(again.headers.ETag).toBe(etag);
+    });
+
+    it('список меток и слабая форма тоже узнаются; чужая метка — полный ответ', async () => {
+      const etag = String((await get(PLUGIN)).headers.ETag);
+
+      expect((await get(PLUGIN, { 'if-none-match': `"прежняя", W/${etag}` })).status).toBe(304);
+      expect((await get(PLUGIN, { 'if-none-match': '"не-та"' })).status).toBe(200);
+    });
+
+    it('файл изменился — метка другая, и старая больше не подходит', async () => {
+      const before = String((await get(PLUGIN)).headers.ETag);
+      await writeFile(join(root, 'plugins', 'base', 'files', 'main.js'), 'module.exports = 1;');
+      // Время изменения сдвигается явно: на быстром диске две записи попадают в одну отметку.
+      const later = new Date(Date.now() + 5_000);
+      await utimes(join(root, 'plugins', 'base', 'files', 'main.js'), later, later);
+
+      const after = await get(PLUGIN, { 'if-none-match': before });
+
+      expect(after.status).toBe(200);
+      expect(after.headers.ETag).not.toBe(before);
+      expect(String(after.body)).toBe('module.exports = 1;');
+    });
+
+    it('навсегда кэшируются только чанки с хэшем в имени; страница и плагины — с вопросом', async () => {
+      expect((await get('/assets/index-AbC123.js')).headers['Cache-Control']).toContain(
+        'immutable'
+      );
+      expect((await get('/')).headers['Cache-Control']).toBe('no-cache');
+      expect((await get(PLUGIN)).headers['Cache-Control']).toBe('no-cache');
+      // Навигационный маршрут отдаёт страницу приложения — и её тоже переспрашивают.
+      expect((await get('/settings')).headers['Cache-Control']).toBe('no-cache');
+    });
+
+    it('запрос без заголовков не роняет раздачу', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: PLUGIN }, res);
+
+      expect(res.status).toBe(200);
+    });
   });
 
   describe('каталог плагинов приложения (--plugins)', () => {
