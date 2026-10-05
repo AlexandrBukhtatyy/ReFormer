@@ -2,7 +2,8 @@
   "root": "../reformer-builder-playground/.ui_builder/plugins",
   "plugins": [
     "base/files",
-    "base/editor-markdown",
+    "base/monaco-editor",
+    "base/markdown-editor",
     "forms/kits",
     "forms/preview",
     "reformer/editor",

@@ -34,10 +34,10 @@ import {
   MONACO_EDITOR_ID,
   monacoEditorContribution,
   viewStatesOver,
-} from '@/plugins/base/editor-monaco';
+} from '../../base/monaco-editor/src';
 import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
-import { monacoHostFromContext } from '@/plugins/base/editor-monaco/host-from-context';
+import { monacoHostFromContext } from '../../base/monaco-editor/src/host-from-context';
 import { createDocumentModelsService } from '@/shell/boot/ports/document-models';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createHostMessagesService } from '@/shell/boot/ports/host-messages';

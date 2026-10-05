@@ -29,12 +29,7 @@ async function idsOf(composition: ApplicationComposition): Promise<readonly stri
  * Состав по умолчанию: общая основа. Платформа форм (киты, превью-хост) и движки — плагины
  * приложения, в состав встроенных они не входят.
  */
-const FULL = [
-  'reformer.editor-monaco',
-  'reformer.plugin-manager',
-  'reformer.profile-switch',
-  'reformer.project',
-];
+const FULL = ['reformer.plugin-manager', 'reformer.profile-switch', 'reformer.project'];
 
 /**
  * Свой профиль организации: умолчание без управления плагинами — отличается от него одним
@@ -42,7 +37,7 @@ const FULL = [
  */
 const LITE_PROFILE = {
   id: 'lite',
-  plugins: ['reformer.editor-monaco', 'reformer.profile-switch', 'reformer.project'],
+  plugins: ['reformer.profile-switch', 'reformer.project'],
 };
 const LITE = FULL.filter((id) => id !== 'reformer.plugin-manager');
 
@@ -147,13 +142,13 @@ describe('свои профили из конфига запуска', { timeout
             id: 'acme',
             // Прежние имена: без пространства имён и переименованный переключатель —
             // профиль в конфиге тоже пишет человек.
-            plugins: ['project', 'editor-monaco', 'stack-switch'],
+            plugins: ['project', 'plugin-manager', 'stack-switch'],
           },
         ],
       })
     );
 
-    expect(ids).toEqual(['reformer.editor-monaco', 'reformer.profile-switch', 'reformer.project']);
+    expect(ids).toEqual(['reformer.plugin-manager', 'reformer.profile-switch', 'reformer.project']);
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -231,7 +226,7 @@ describe('выбор человека поверх конфига запуска
   const NO_SWITCH = {
     id: 'no-switch',
     name: 'Без переключателя',
-    plugins: ['reformer.project', 'reformer.editor-monaco'],
+    plugins: ['reformer.project', 'reformer.plugin-manager'],
   };
 
   it('имя переключателя — настоящий встроенный плагин', () => {

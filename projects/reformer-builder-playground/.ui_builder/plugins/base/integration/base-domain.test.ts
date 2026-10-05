@@ -21,6 +21,8 @@ import {
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 import { FILES_PLUGIN_ID } from '../files/src';
+import { TextEditorCapability } from '../monaco-editor/src';
+import monacoManifest from '../monaco-editor/src/manifest.json';
 import { baseApplication } from './application';
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке. */
@@ -93,6 +95,26 @@ describe('boot с доменом base', () => {
     expect(owned(ResourceDecorationPoint)).toContain('files.diagnostics');
     // Заголовок общего подменю дерева: его наполняют движки, а вносит плагин файлов.
     expect(owned(MenuPoint)).toContain('files.context.generate');
+  });
+
+  it('редактор кода даёт возможность «reformer.editor»: манифест объявляет её тем же токеном', async () => {
+    // Объявление — данные манифеста, токен — значение в коде, и разойтись им ничто не мешает.
+    // Рантайм сверяет только идентификатор («что-то под этим именем зарегистрировано»), а ВЕРСИЯ
+    // разошлась бы молча: резолвер обещал бы потребителю одну, реестр служб держал бы другую.
+    expect(monacoManifest.provides).toEqual([
+      { id: TextEditorCapability.id, version: TextEditorCapability.version },
+    ]);
+
+    // И обещанное действительно зарегистрировано: тело редактора одалживают предпросмотр
+    // markdown («рядом») и исходник схемы формы. Проверяет это сам рантайм — фазой `provides`
+    // после активации: невыполненное обещание переводит плагин в `failed`.
+    const started = await start();
+    expect(started.plugins.failures().filter((failure) => failure.phase === 'provides')).toEqual(
+      []
+    );
+    expect(
+      started.plugins.statuses().find((status) => status.id === monacoManifest.id)?.state
+    ).toBe('active');
   });
 
   it('markdown-файл достаётся markdown-редактору, а не редактору кода', async () => {

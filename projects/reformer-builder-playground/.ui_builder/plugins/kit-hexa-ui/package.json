@@ -15,7 +15,7 @@
   "scripts": {
     "validate": "reformer-plugin validate src",
     "build:dev": "reformer-plugin build src --out .",
-    "build:dist": "reformer-plugin build src --out dist",
+    "build:dist": "reformer-plugin build src --out dist --minify",
     "dev": "reformer-plugin dev src --project ../../..",
     "test": "node ../../../../../scripts/run-vitest.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"

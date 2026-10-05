@@ -54,7 +54,7 @@ function devRuntimeConfig(): Plugin {
  *
  * По умолчанию rollup ссыпает всё в один плоский `assets/`, и на сорока с лишним файлах это
  * перестаёт быть навигацией: по имени чанка не видно, чей он. Раскладываем по происхождению —
- * плагины, вендоры, monaco, стили, шрифты — и правила ниже единственное место, где это решается.
+ * плагины, вендоры, стили, шрифты — и правила ниже единственное место, где это решается.
  *
  * ВАЖНО, чтобы этого не продавали как ускорение: раскладка НИЧЕГО не переносит между чанками
  * и стартовый граф не меняет — она только даёт файлам адрес. Что в каком чанке лежит, решает
@@ -108,8 +108,6 @@ const packageOf = (id: string): string | null => {
   return null;
 };
 
-const isMonaco = (id: string): boolean => norm(id).includes('/node_modules/monaco-editor/');
-
 const FONT = new Set(['.ttf', '.woff', '.woff2', '.otf', '.eot']);
 const IMAGE = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif', '.ico']);
 
@@ -154,12 +152,6 @@ export default defineConfig({
         chunkFileNames(chunk) {
           const real = chunk.moduleIds.filter((id) => !isVirtual(id));
           if (real.length === 0) return 'assets/js/[name]-[hash].js';
-
-          // Сначала monaco: `monaco-runtime` — это один модуль src на тысячу модулей движка,
-          // и проверку «все модули вендорные» он бы не прошёл. Отсюда доля, а не «все».
-          if (real.filter(isMonaco).length * 2 > real.length) {
-            return 'assets/monaco/[name]-[hash].js';
-          }
 
           const own = real.filter((id) => packageOf(id) === null);
           if (own.length === 0) {
@@ -206,14 +198,15 @@ export default defineConfig({
   },
   /**
    * Воркеры собираются ОТДЕЛЬНЫМ прогоном rollup и `build.rollupOptions.output` не подчиняются
-   * вовсе — каталог им задаётся только здесь. Сегодня воркеры в проекте одни: `editor.worker`
-   * и `json.worker` из monaco, поэтому и каталог у них общий с движком.
+   * вовсе — каталог им задаётся только здесь. Своих воркеров у билдера сегодня нет: воркеры
+   * редактора кода уехали вместе с ним в плагин и едут внутри его сборки. Правило оставлено,
+   * чтобы первый же воркер оболочки не лёг в плоский `assets/`.
    */
   worker: {
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/monaco/[name]-[hash].js',
-        chunkFileNames: 'assets/monaco/[name]-[hash].js',
+        entryFileNames: 'assets/workers/[name]-[hash].js',
+        chunkFileNames: 'assets/workers/[name]-[hash].js',
       },
     },
   },

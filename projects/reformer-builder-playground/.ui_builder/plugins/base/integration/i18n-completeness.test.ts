@@ -16,12 +16,14 @@ import {
   missingKeys,
   type Dictionary,
 } from '@/shell/platform/services/i18n/dictionary-checks';
-import { MARKDOWN_MESSAGES } from '../editor-markdown/src/messages';
+import { MARKDOWN_MESSAGES } from '../markdown-editor/src/messages';
 import { FILES_MESSAGES } from '../files/src/messages';
+import { MONACO_MESSAGES } from '../monaco-editor/src/messages';
 
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
-  ['editor-markdown', MARKDOWN_MESSAGES],
+  ['markdown-editor', MARKDOWN_MESSAGES],
   ['files', FILES_MESSAGES],
+  ['monaco-editor', MONACO_MESSAGES],
 ];
 
 describe('словари: наборы ключей совпадают во всех локалях', () => {

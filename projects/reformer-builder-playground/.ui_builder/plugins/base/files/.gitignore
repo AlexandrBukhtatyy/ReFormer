@@ -3,6 +3,8 @@
 /manifest.json
 /main.js
 /styles.css
+# Отложенные модули сборки: код и данные, которые плагин импортирует через `import()`.
+/chunks/
 /locales/
 
 # Таблица стилей плагина — её собирает `npm run generate:styles`: утилиты Tailwind,

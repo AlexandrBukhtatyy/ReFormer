@@ -34,6 +34,10 @@ export interface DevOptions {
   readonly project?: string;
   /** Каталог вывода, названный прямо. Перекрывает `project`. */
   readonly outDir?: string;
+  /** Сжимать ли сборку — как у `build`. */
+  readonly minify?: boolean;
+  /** Собирать ли CSS из кода в таблицу стилей — как у `build`. */
+  readonly bundleCss?: boolean;
   /** Пауза после последнего изменения перед пересборкой, мс. */
   readonly debounceMs?: number;
   /** Вызывается после каждой сборки, первой — сразу. */
@@ -82,7 +86,14 @@ export function startDev(options: DevOptions): DevSession {
         explicitOutDir ??
         (project === undefined ? undefined : await outDirFor(dir, project)) ??
         join(dir, 'dist');
-      options.onBuild(await buildPlugin({ dir, outDir }));
+      options.onBuild(
+        await buildPlugin({
+          dir,
+          outDir,
+          minify: options.minify,
+          bundleCss: options.bundleCss,
+        })
+      );
     });
     return running;
   };

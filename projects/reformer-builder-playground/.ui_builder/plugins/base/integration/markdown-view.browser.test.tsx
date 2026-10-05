@@ -37,8 +37,8 @@ import { createDocument } from '@/shell/platform/workspace/document';
 import { type Document } from '@reformer/builder-plugin-api/internal';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '../../.shared/render';
-import type { MarkdownHost } from '../editor-markdown/src';
-import { createMarkdownPlugin, TextEditorCapability } from '../editor-markdown/src';
+import type { MarkdownHost } from '../markdown-editor/src';
+import { createMarkdownPlugin, TextEditorCapability } from '../markdown-editor/src';
 
 const HOST_MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.empty': 'Нет открытых редакторов',

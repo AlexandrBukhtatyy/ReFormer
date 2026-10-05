@@ -55,7 +55,6 @@ import {
 } from '@/shell/platform/services/i18n/dictionary-checks';
 import hostEn from '@/shell/platform/services/i18n/locales/en.json';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
-import { MONACO_MESSAGES } from '@/plugins/base/editor-monaco/messages';
 import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/base/plugin-manager';
 import { PROFILE_SWITCH_MESSAGES } from '@/plugins/base/profile-switch/messages';
 import { PROJECT_MESSAGES } from '@/plugins/base/project/messages';
@@ -76,7 +75,6 @@ const HOST_MESSAGES: Dictionary = { ru: hostRu, en: hostEn };
  */
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['host', HOST_MESSAGES],
-  ['base/editor-monaco', MONACO_MESSAGES],
   ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['base/profile-switch', PROFILE_SWITCH_MESSAGES],
   ['base/project', PROJECT_MESSAGES],

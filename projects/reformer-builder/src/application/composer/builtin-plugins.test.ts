@@ -33,8 +33,6 @@ import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
-import { MONACO_PLUGIN_ID } from '@/plugins/base/editor-monaco/contract';
-import { TextEditorCapability } from '@/plugins/base/editor-monaco/plugin';
 import { builderApplication } from '../builder-application';
 import { PROFILES } from '../profiles/registry';
 import {
@@ -91,8 +89,7 @@ async function loadPluginLocale(id: string): Promise<Record<string, string> | nu
 
 async function harness() {
   const services = createServiceRegistry();
-  // Возможности оболочки — до активации, как в `boot`: без реестра фокуса и хранилища
-  // снимков вида редактор кода не имеет права работать и отказывается подниматься.
+  // Возможности оболочки — до активации, как в `boot`: плагин берёт их из контекста.
   stubHostCapabilities(services);
   const extensions = createExtensionRegistry();
   const commands = createCommandRegistry();
@@ -206,14 +203,16 @@ describe('карта встроенных плагинов', () => {
     }
   });
 
-  it('объявленное манифестом совпадает с токеном, которым плагин регистрирует', () => {
-    // Прежде объявление и токен были ОДНИМ объектом, и разойтись им было нечем. Теперь
-    // объявление — данные манифеста, и сверка переехала сюда: рантайм проверяет только
-    // идентификатор («что-то под этим именем зарегистрировано»), а ВЕРСИЯ разошлась бы молча —
-    // резолвер обещал бы потребителю одну, а реестр служб держал бы другую.
-    expect(BUILTIN_PLUGINS.get(MONACO_PLUGIN_ID)?.manifest.provides).toEqual([
-      TextEditorCapability,
-    ]);
+  it('встроенные ничего не обещают остальным: возможности дают плагины приложения', () => {
+    // Последним встроенным с возможностью был редактор кода (`reformer.editor`); он уехал
+    // в плагины приложения вместе с проверкой «объявленное манифестом совпадает с токеном» —
+    // она теперь в стенде домена base. Встроенный, который снова что-то пообещает, обязан
+    // получить такую же сверку здесь: версия в манифесте и в токене расходится молча.
+    const promising = [...BUILTIN_PLUGINS.values()]
+      .filter((entry) => (entry.manifest.provides ?? []).length > 0)
+      .map((entry) => entry.manifest.id);
+
+    expect(promising).toEqual([]);
   });
 
   it('манифест ЕСТЬ у каждого, он встроенной поставки и назван своим каталогом', () => {
@@ -228,29 +227,6 @@ describe('карта встроенных плагинов', () => {
     expect(BUILTIN_MANIFESTS.map((manifest) => manifest.id).sort()).toEqual(
       [...BUILTIN_PLUGINS.keys()].sort()
     );
-  });
-
-  it('объявленное в карте действительно регистрируется при активации', async () => {
-    // Рантайм проверяет это сам (фаза `provides`), поэтому достаточно поднять состав:
-    // невыполненное обещание переводит плагин в `failed`, а не проходит молча.
-    const services = createServiceRegistry();
-    // Возможности оболочки — до активации, как в `boot`: без них редактор кода не поднимается.
-    stubHostCapabilities(services);
-    const registry = createPluginRegistry({
-      services,
-      extensions: createExtensionRegistry(),
-      commands: createCommandRegistry(),
-      events: createEventBus(),
-      storage: createMemoryStorageBackend(),
-      onError: vi.fn(),
-    });
-    const entry = BUILTIN_PLUGINS.get(MONACO_PLUGIN_ID);
-    if (entry === undefined) throw new Error('редактор кода не в карте');
-
-    registry.register(await entry.create(), entry.manifest.provides);
-
-    expect(registry.activate(MONACO_PLUGIN_ID)).toBe(true);
-    expect(services.get(TextEditorCapability)).toBeDefined();
   });
 });
 
@@ -302,8 +278,9 @@ describe('состав встроенных плагинов', () => {
     h.plugins.activateAll();
 
     const declared = h.composed.flatMap((entry) => entry.provides ?? []);
-    // Обещает среди встроенных один редактор кода: возможности форм дают плагины приложения.
-    expect(declared.length).toBeGreaterThanOrEqual(1);
+    // Сегодня встроенные ничего не обещают: обещающие плагины — плагины приложения, и что их
+    // обещанное зарегистрировано, проверяют стенды доменов. Утверждение оставлено для
+    // встроенного, который пообещает снова, — пустой список оно проходит честно.
     expect(declared.filter((capability) => h.services.get(capability) === undefined)).toEqual([]);
     // Обратная сторона: ни один не переведён в `failed` за неисполненное обещание.
     expect(h.plugins.failures().filter((failure) => failure.phase === 'provides')).toEqual([]);
@@ -338,7 +315,8 @@ describe('состав встроенных плагинов', () => {
     // Поверхности вносит плагин стека: чем рисовать схему — знание стека. Стеки форм и сам
     // превью-хост — плагины приложения, и в составе встроенных поверхностей нет.
     expect(owners(PreviewSurfacePoint)).toEqual([]);
-    expect(owners(EditorPoint)).toEqual(['reformer.editor-monaco']);
+    // Редакторов среди встроенных нет вовсе: и редактор кода — плагин приложения.
+    expect(owners(EditorPoint)).toEqual([]);
     // Модель документа — вклад редактора стека; без него всё открывается текстом.
     expect(owners(DocumentModelPoint)).toEqual([]);
   });
@@ -417,7 +395,6 @@ describe('проверки выше не пусты', () => {
     expect(h.plugins.statuses().length).toBe(h.built.length);
     // Ячейка профиля и стартовая страница: панели файлов уехали вместе с плагином файлов.
     expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(2);
-    expect(h.extensions.get(EditorPoint).length).toBeGreaterThanOrEqual(1);
     expect(h.commands.getAll().length).toBeGreaterThanOrEqual(3);
   });
 });

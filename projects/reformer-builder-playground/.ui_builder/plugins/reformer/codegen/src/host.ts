@@ -5,7 +5,7 @@
  *
  * Плагин видит платформу только через `@reformer/builder-plugin-api` (проверяется линтером), а в `@reformer/builder-plugin-api` нет ни рабочей
  * области, ни возможностей источника, ни сервиса китов. Недостающее приходит ПАРАМЕТРОМ — тем же
- * приёмом, каким объявляют свою потребность `plugins/forms/preview/host` и `plugins/base/editor-monaco/host`.
+ * приёмом, каким объявляют свою потребность `plugins/forms/preview/host` и `plugins/base/monaco-editor/host`.
  *
  * ## Записи «мимо всех» здесь нет и быть не может
  *

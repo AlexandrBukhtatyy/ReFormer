@@ -6,11 +6,11 @@
  * настоящие службы, настоящая последовательность запуска. Вопрос другой — переживёт ли
  * оболочка отсутствие плагина, которого она никогда не видела отсутствующим.
  *
- * Вопрос не праздный. `boot` до сих пор берёт из плагинов четыре значения (тело Monaco,
- * токен китов, словарь и идентификатор файлов) и собирает порты для ВСЕХ встроенных, включая
- * тех, кого профиль не назвал. Порт без потребителя обязан оставаться
- * безвредным — иначе «минимальный профиль» означал бы правку оболочки, то есть ровно то,
- * ради отмены чего заведены профили.
+ * Вопрос не праздный. Оболочка годами видела состав целиком и могла молча рассчитывать на
+ * плагин, которого в коротком составе нет: на редактор, на дерево, на управление плагинами.
+ * «Минимальный профиль», требующий правки оболочки, — ровно то, ради отмены чего заведены
+ * профили. Редактора кода и дерева среди встроенных уже нет — они плагины приложения, — так
+ * что короткий состав здесь ещё и без единого редактора.
  *
  * Каталог `integration/` — единственное место оболочки, которому разрешено импортировать
  * `@/application` (исключение прописано в eslint.config.js): проверяется здесь собранное
@@ -29,11 +29,11 @@ import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 
-/** Короткий состав: файлы и текстовый редактор — ни превью, ни китов. */
+/** Короткий состав: проект и управление плагинами — ни выбора профиля, ни превью, ни китов. */
 const minimalProfile = defineProfile({
   id: 'minimal',
   name: 'Минимальный',
-  plugins: ['reformer.project', 'reformer.editor-monaco'],
+  plugins: ['reformer.project', 'reformer.plugin-manager'],
 });
 
 /**
@@ -76,7 +76,7 @@ describe('boot на коротком профиле', () => {
 
     const statuses = started.plugins.statuses();
     expect(statuses.map((s) => s.id).sort()).toEqual([
-      'reformer.editor-monaco',
+      'reformer.plugin-manager',
       'reformer.project',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
@@ -90,9 +90,9 @@ describe('boot на коротком профиле', () => {
     // Поимённо, а не «меньше, чем у полного»: порог прошёл бы и тогда, когда из состава
     // выпал не тот плагин.
     expect(owners(PanelPoint)).toEqual(['reformer.project']);
-    expect(owners(EditorPoint)).toEqual(['reformer.editor-monaco']);
-    // Модельных документов не вносит никто: структурная модель формы — вклад редактора схемы,
-    // и без него `.json` открывается текстом. Это и есть обещанная деградация.
+    // Редактора нет ни одного: редактор кода — плагин приложения, и без него файл открыть нечем.
+    expect(owners(EditorPoint)).toEqual([]);
+    // Модельных документов не вносит никто: структурная модель формы — вклад редактора схемы.
     expect(owners(DocumentModelPoint)).toEqual([]);
   });
 
@@ -105,7 +105,7 @@ describe('boot на коротком профиле', () => {
     const foreign = commands
       .filter((c) => c.pluginId !== undefined)
       .filter(
-        (c) => !['reformer.project', 'reformer.editor-monaco'].includes(c.pluginId as string)
+        (c) => !['reformer.project', 'reformer.plugin-manager'].includes(c.pluginId as string)
       );
     expect(foreign.map((c) => c.id)).toEqual([]);
   });

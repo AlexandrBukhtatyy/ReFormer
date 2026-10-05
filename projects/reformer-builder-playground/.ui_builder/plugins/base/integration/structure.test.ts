@@ -12,6 +12,6 @@ import { describeDomainStructure } from '../../.shared/domain-structure';
 
 describeDomainStructure({
   domainDir: fileURLToPath(new URL('..', import.meta.url)),
-  minPlugins: 2,
+  minPlugins: 3,
   minModules: 20,
 });

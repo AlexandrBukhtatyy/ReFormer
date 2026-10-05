@@ -3,6 +3,7 @@
     "playground-hello",
     "kit-hexa-ui",
     "reformer.files",
+    "reformer.editor-monaco",
     "reformer.editor-markdown",
     "reformer.kits",
     "reformer.preview",

@@ -2,4 +2,6 @@
 # Исходники — в src/, сборка для поставки (`npm run build:dist`) — в dist/.
 /manifest.json
 /main.js
+# Отложенные модули сборки: код и данные, которые плагин импортирует через `import()`.
+/chunks/
 /styles.css

@@ -16,6 +16,10 @@ import { parsePluginStylesArgs, pluginStyles, PLUGIN_STYLES_SCRIPT } from './plu
 /** Команды, перед которыми таблица обязана быть собрана: все они читают манифест со стилями. */
 const BEFORE = ['prebuild:dev', 'prebuild:dist', 'predev', 'prevalidate'] as const;
 
+/** Команды, собирающие плагин, и параметр, которым сборка берёт CSS из кода. */
+const BUILDS = ['build:dev', 'build:dist', 'dev'] as const;
+const BUNDLE_CSS_FLAG = '--bundle-css';
+
 export interface PluginStylesReport {
   /** Каталог плагина внутри домена. */
   readonly plugin: string;
@@ -25,6 +29,11 @@ export interface PluginStylesReport {
   readonly declared: boolean;
   /** Пакет собирает таблицу перед каждой командой, которой она нужна. */
   readonly generated: boolean;
+  /**
+   * Сборка дописывает в таблицу CSS, который импортирует код (`--bundle-css`): стили сторонней
+   * библиотеки. Такому плагину таблица нужна, даже когда своих правил Tailwind у него нет.
+   */
+  readonly codeCss: boolean;
 }
 
 interface PackageJson {
@@ -58,6 +67,9 @@ export async function pluginStylesReport(domainDir: string): Promise<PluginStyle
       generated: BEFORE.every((hook) =>
         (scripts[hook] ?? '').includes(`npm run ${PLUGIN_STYLES_SCRIPT}`)
       ),
+      // Во всех трёх командах сборки разом: таблица, собранная с чужим CSS только «в поставку»,
+      // означала бы редактор без стилей при сборке на месте.
+      codeCss: BUILDS.every((script) => (scripts[script] ?? '').includes(BUNDLE_CSS_FLAG)),
     });
   }
   return report;

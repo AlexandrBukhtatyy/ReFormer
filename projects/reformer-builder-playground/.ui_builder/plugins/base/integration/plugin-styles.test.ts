@@ -25,11 +25,18 @@ describe('стили плагинов домена', { timeout: 120_000 }, () =>
     const named = (items: typeof report): string[] => items.map((item) => item.plugin);
 
     // Без этого пустой обход дал бы зелёный прогон на пустом множестве.
-    expect(report.length).toBeGreaterThanOrEqual(2);
+    expect(report.length).toBeGreaterThanOrEqual(3);
 
     expect(named(report.filter((item) => item.rules > 0 && !item.declared))).toEqual([]);
     expect(named(report.filter((item) => item.declared && !item.generated))).toEqual([]);
-    expect(named(report.filter((item) => item.declared && item.rules === 0))).toEqual([]);
+    // Пустая таблица — лишняя, если только сборка не дописывает в неё CSS сторонней
+    // библиотеки: редактор кода своих правил Tailwind не везёт, а стили Monaco — везёт.
+    expect(
+      named(report.filter((item) => item.declared && item.rules === 0 && !item.codeCss))
+    ).toEqual([]);
+    expect(named(report.filter((item) => item.codeCss))).toEqual(['monaco-editor']);
+    // CSS из кода без объявленной таблицы сборка не примет — но узнать об этом лучше здесь.
+    expect(named(report.filter((item) => item.codeCss && !item.declared))).toEqual([]);
   });
 
   it('правила плагина Tailwind лежат слоем ниже утилит, палитра — после них', async () => {
@@ -37,7 +44,7 @@ describe('стили плагинов домена', { timeout: 120_000 }, () =>
     // утилиты, оставшейся у билдера: `max-w-none` перестаёт снимать ширину колонки. Слой ниже
     // утилит возвращает «утилита сильнее типографики» каскадом. Палитра подсветки стоит в том
     // же слое ПОСЛЕ типографики — иначе `color: inherit` у `pre code` стёр бы цвет блока.
-    const plugin = join(DOMAIN, 'editor-markdown');
+    const plugin = join(DOMAIN, 'markdown-editor');
     const { css } = await pluginStyles(plugin, {
       plugins: ['@tailwindcss/typography'],
       includes: [join(plugin, 'src', 'highlight.css')],
@@ -71,7 +78,7 @@ describe('стили плагинов домена', { timeout: 120_000 }, () =>
       const stable = join(dir, 'stable.css');
       writeFileSync(fragile, '.mark {\n  color: var(--color-chart-2);\n}\n');
       writeFileSync(stable, '.mark {\n  color: var(--chart-2);\n}\n');
-      const plugin = join(DOMAIN, 'editor-markdown');
+      const plugin = join(DOMAIN, 'markdown-editor');
 
       await expect(pluginStyles(plugin, { includes: [fragile] })).rejects.toThrow(
         /--color-chart-2 → var\(--chart-2\)/

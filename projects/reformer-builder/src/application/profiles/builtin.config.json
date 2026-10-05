@@ -6,12 +6,7 @@
     {
       "id": "builder.base",
       "name": "Основа конструктора",
-      "plugins": [
-        "reformer.project",
-        "reformer.editor-monaco",
-        "reformer.plugin-manager",
-        "reformer.profile-switch"
-      ]
+      "plugins": ["reformer.project", "reformer.plugin-manager", "reformer.profile-switch"]
     },
     {
       "id": "builder",

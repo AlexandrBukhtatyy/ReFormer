@@ -13,7 +13,7 @@
     "prebuild:dist": "npm run generate:knowledge && npm run generate:styles",
     "predev": "npm run generate:knowledge && npm run generate:styles",
     "build:dev": "reformer-plugin build src --out .",
-    "build:dist": "reformer-plugin build src --out dist",
+    "build:dist": "reformer-plugin build src --out dist --minify",
     "dev": "reformer-plugin dev src --out .",
     "test": "node ../../../../../../scripts/run-vitest.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"

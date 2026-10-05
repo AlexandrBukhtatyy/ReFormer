@@ -33,6 +33,13 @@
  * видимости кода плагина, а не глобальный объект: сообщения самого сборщика не теряются, и
  * отложенный вывод (после `await`) глушится так же, как синхронный.
  *
+ * ## Чанки
+ *
+ * `main.js` вправе требовать соседние файлы сборки: общий чанк — сразу, отложенный — при первом
+ * обращении. Здесь они исполняются тем же правилом, что у линковщика оболочки: путь считается
+ * от требующего файла, модуль исполняется один раз. Отложенный чанк при активации не требуется
+ * и потому не исполняется — тяжёлый движок, которому нужен DOM, пробный запуск не трогает.
+ *
  * @module @reformer/builder-plugin-cli/commands/dry-run
  */
 
@@ -153,33 +160,66 @@ async function checkKits(
   return { findings, notices };
 }
 
+/** Путь файла сборки, названного относительным спецификатором из другого её файла. */
+function resolveBuilt(specifier: string, from: string): string {
+  const parts = from.split('/').slice(0, -1);
+  for (const part of specifier.split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') parts.pop();
+    else parts.push(part);
+  }
+  return parts.join('/');
+}
+
+/** Имя точки входа в наборе файлов сборки. */
+const ENTRY = 'main.js';
+
 /**
  * @param code собранный `main.js` (CommonJS)
  * @param manifest манифест, против которого сверяются `id` и `provides`
+ * @param files остальные файлы сборки — путь от её корня → текст; из них берутся чанки
  */
 export async function dryActivate(
   code: string,
-  manifest: Pick<PluginManifestBase, 'id' | 'provides'>
+  manifest: Pick<PluginManifestBase, 'id' | 'provides'>,
+  files: ReadonlyMap<string, string> = new Map()
 ): Promise<DryRunResult> {
   const pluginApi = (await import('@reformer/builder-plugin-api')) as Record<string, unknown>;
 
-  const requireShim = (specifier: string): unknown => {
-    if (PLUGIN_API_SPECIFIERS.has(specifier)) return pluginApi;
-    if (PLUGIN_RUNTIME_MODULES.includes(specifier)) return createStub();
-    // Сюда сборка не пропускает: всё, что не модуль рантайма, вложено в `main.js`.
-    throw new Error(`модуль «${specifier}» оболочка не подставляет`);
-  };
+  /** Исполненные файлы сборки: путь → `module`. Модуль исполняется один раз, как у оболочки. */
+  const loaded = new Map<string, { exports: unknown }>();
 
-  const module = { exports: {} as unknown };
-  try {
+  const requireFrom =
+    (from: string) =>
+    (specifier: string): unknown => {
+      if (PLUGIN_API_SPECIFIERS.has(specifier)) return pluginApi;
+      if (PLUGIN_RUNTIME_MODULES.includes(specifier)) return createStub();
+      if (specifier.startsWith('.')) return evaluate(resolveBuilt(specifier, from)).exports;
+      // Сюда сборка не пропускает: всё, что не модуль рантайма, вложено в её файлы.
+      throw new Error(`модуль «${specifier}» оболочка не подставляет`);
+    };
+
+  const evaluate = (path: string): { exports: unknown } => {
+    const done = loaded.get(path);
+    if (done !== undefined) return done;
+    const source = path === ENTRY ? code : files.get(path);
+    if (source === undefined) throw new Error(`файла «${path}» в сборке нет`);
+    const module = { exports: {} as unknown };
+    loaded.set(path, module);
     // Четвёртый параметр затеняет глобальную консоль ТОЛЬКО для кода плагина.
-    const evaluate = new Function('module', 'exports', 'require', 'console', code) as (
+    const run = new Function('module', 'exports', 'require', 'console', source) as (
       m: typeof module,
       e: unknown,
-      r: typeof requireShim,
+      r: (specifier: string) => unknown,
       c: unknown
     ) => void;
-    evaluate(module, module.exports, requireShim, SILENT_CONSOLE);
+    run(module, module.exports, requireFrom(path), SILENT_CONSOLE);
+    return module;
+  };
+
+  let module: { exports: unknown };
+  try {
+    module = evaluate(ENTRY);
   } catch (error) {
     return {
       findings: [],

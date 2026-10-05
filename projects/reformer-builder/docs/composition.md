@@ -36,7 +36,7 @@
 из настроек нельзя — набор задаёт сборка. В разделе настроек «Плагины» они помечены «приложение».
 
 Набор опубликованного билдера — список [`application-plugins.json`](../application-plugins.json):
-основа (дерево файлов, предпросмотр markdown), платформа форм (реестр китов и превью-хост), оба движка форм и ассистент. Сборку раскладывает `npm run build:plugins` (после `npm run build`
+основа (дерево файлов, редактор кода, предпросмотр markdown), платформа форм (реестр китов и превью-хост), оба движка форм и ассистент. Сборку раскладывает `npm run build:plugins` (после `npm run build`
 и `build:dist` пакетов плагинов) — в `dist/plugins/`, сохраняя раскладку каталога плагинов.
 Свой набор, не пересобирая билдер, называет флаг лаунчера:
 
@@ -57,9 +57,9 @@ npx reformer-builder --plugins ./my-plugins
 ## Движки форм — плагины
 
 Встроенных движков форм у билдера нет, как нет и ничего другого про формы. Сам он — оболочка:
-открытие проекта и сохранение, редактор кода, управление плагинами, выбор профиля.
+открытие проекта и сохранение, управление плагинами, выбор профиля.
 Остальное приносят плагины: основу (дерево файлов, панель проблем, операции над записями,
-предпросмотр markdown),
+редактор кода, предпросмотр markdown),
 платформу форм (реестр китов и превью-хост — то, чем пользуется любой движок) и сами движки —
 формат схемы, её редактор, поверхности превью, валидатор, генерацию кода, шаблоны, ассистента. Едут они вместе с приложением (см. выше) или лежат в `.ui_builder/plugins/`
 открытого проекта. Без них файл формы открывается текстом.
@@ -68,12 +68,12 @@ npx reformer-builder --plugins ./my-plugins
 ([`projects/reformer-builder-playground`](../../reformer-builder-playground/README.md)), по пакету
 на плагин:
 
-| Домен    | Каталог                         | Плагины (идентификаторы)                                                                                                                        |
-| -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| base     | `.ui_builder/plugins/base/`     | `reformer.files` — дерево файлов, панель проблем, текстовый редактор, операции над записями; `reformer.editor-markdown` — предпросмотр markdown |
-| forms    | `.ui_builder/plugins/forms/`    | `reformer.kits`, `reformer.preview` — платформа форм, общая для движков                                                                         |
-| ReFormer | `.ui_builder/plugins/reformer/` | `reformer.editor-schema`, `reformer.preview-runtime`, `reformer.validator-schema`, `reformer.codegen`, `reformer.templates`, `reformer.ai`      |
-| RJSF     | `.ui_builder/plugins/rjsf/`     | `reformer.rjsf.editor`, `reformer.rjsf.render`                                                                                                  |
+| Домен    | Каталог                         | Плагины (идентификаторы)                                                                                                                                              |
+| -------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base     | `.ui_builder/plugins/base/`     | `reformer.files` — дерево файлов, панель проблем, операции над записями; `reformer.editor-monaco` — редактор кода; `reformer.editor-markdown` — предпросмотр markdown |
+| forms    | `.ui_builder/plugins/forms/`    | `reformer.kits`, `reformer.preview` — платформа форм, общая для движков                                                                                               |
+| ReFormer | `.ui_builder/plugins/reformer/` | `reformer.editor-schema`, `reformer.preview-runtime`, `reformer.validator-schema`, `reformer.codegen`, `reformer.templates`, `reformer.ai`                            |
+| RJSF     | `.ui_builder/plugins/rjsf/`     | `reformer.rjsf.editor`, `reformer.rjsf.render`                                                                                                                        |
 
 Каталог плагинов допускает один уровень вложенности. Подкаталог без `manifest.json`
 и без `package.json` — **домен**; его подкаталоги с манифестом — плагины, а прочие (`core/` —
@@ -88,6 +88,7 @@ npx reformer-builder --plugins ./my-plugins
 {
   "workspace.plugins.enabled": [
     "reformer.files",
+    "reformer.editor-monaco",
     "reformer.editor-markdown",
     "reformer.kits",
     "reformer.preview",
@@ -105,7 +106,9 @@ npx reformer-builder --plugins ./my-plugins
 }
 ```
 
-Без `reformer.files` у проекта нет дерева файлов: открыть форму нечем; без
+Без `reformer.files` у проекта нет дерева файлов: открыть форму нечем. Без
+`reformer.editor-monaco` нет редактора кода: текстовый файл открывается запасным полем ввода
+плагина файлов, а исходник схемы и режим «рядом» у markdown показать нечем. Без
 `reformer.editor-markdown` markdown-файл открывается исходником, без предпросмотра. Платформа форм нужна
 любому движку: без `reformer.kits` форму нечем рисовать, без `reformer.preview` её негде показать. Остальное включается по одному: проекту без ассистента
 достаточно не называть `reformer.ai`,
@@ -118,10 +121,10 @@ npx reformer-builder --plugins ./my-plugins
 
 ## Встроенные профили
 
-| Профиль        | Что внутри                                                  |
-| -------------- | ----------------------------------------------------------- |
-| `builder`      | профиль по умолчанию: основа как есть                       |
-| `builder.base` | основа: проект, Monaco, управление плагинами, выбор профиля |
+| Профиль        | Что внутри                                          |
+| -------------- | --------------------------------------------------- |
+| `builder`      | профиль по умолчанию: основа как есть               |
+| `builder.base` | основа: проект, управление плагинами, выбор профиля |
 
 Встроенные профили — тот же формат, что у своего профиля ниже: они лежат в
 `src/application/profiles/builtin.config.json`, файле формата конфига запуска, вшитом в сборку.
@@ -135,9 +138,10 @@ npx reformer-builder --plugins ./my-plugins
 и поправкой `plugins.enable` / `plugins.disable` не включить и не выключить: первое делают
 настройки проекта, второе — набор, с которым собран билдер.
 
-Дерево файлов, предпросмотр markdown, киты и превью-хост раньше были встроенными, и их имена
-(`reformer.files`, `reformer.editor-markdown`, `reformer.kits`, `reformer.preview`, `files`,
-`editor-markdown`, `kits`, `preview`) могли остаться в чьём-то конфиге. Такое имя в профиле или поправке
+Дерево файлов, редактор кода, предпросмотр markdown, киты и превью-хост раньше были
+встроенными, и их имена (`reformer.files`, `reformer.editor-monaco`, `reformer.editor-markdown`,
+`reformer.kits`, `reformer.preview`, `files`, `editor-monaco`, `editor-markdown`, `kits`,
+`preview`) могли остаться в чьём-то конфиге. Такое имя в профиле или поправке
 пропускается с предупреждением в консоли — состав собирается без него, а не откатывается
 к умолчанию.
 
@@ -172,18 +176,13 @@ npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, s
     {
       "id": "acme",
       "name": "Формы Acme",
-      "plugins": [
-        "reformer.project",
-        "reformer.editor-monaco",
-        "reformer.plugin-manager",
-        "reformer.profile-switch"
-      ]
+      "plugins": ["reformer.project", "reformer.profile-switch"]
     }
   ]
 }
 ```
 
-Это та же основа под своим именем. Профиль конфига — те же данные, что у встроенного: `id`,
+Это основа без управления плагинами. Профиль конфига — те же данные, что у встроенного: `id`,
 `name`, `extends` (встроенный или другой свой профиль), `plugins` (встроенные плагины — свои
 или сверх унаследованных), `providers` (выбор провайдера возможности, когда её дают двое). `id`
 не может совпадать со встроенным — такой профиль пропускается с предупреждением. Прежние имена

@@ -34,6 +34,10 @@ export interface PackOptions {
   readonly dir: string;
   /** Куда положить архив; умолчание — каталог исходников. */
   readonly destination?: string;
+  /** Сжимать ли сборку — как у `build`. */
+  readonly minify?: boolean;
+  /** Собирать ли CSS из кода в таблицу стилей — как у `build`. */
+  readonly bundleCss?: boolean;
 }
 
 export type PackResult =
@@ -46,7 +50,12 @@ export async function packPlugin(options: PackOptions): Promise<PackResult> {
   const staging = await mkdtemp(join(tmpdir(), 'reformer-plugin-pack-'));
 
   try {
-    const built = await buildPlugin({ dir, outDir: staging });
+    const built = await buildPlugin({
+      dir,
+      outDir: staging,
+      minify: options.minify,
+      bundleCss: options.bundleCss,
+    });
     if (!built.ok) return built;
     const { manifest } = built;
 
