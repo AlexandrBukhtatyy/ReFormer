@@ -12,19 +12,13 @@
  * @module plugins/base/markdown-editor/ui/MarkdownEditor
  */
 
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useRef,
-  useSyncExternalStore,
-  type ReactElement,
-} from 'react';
+import { Suspense, useCallback, useRef, useSyncExternalStore, type ReactElement } from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { useTranslate, type PluginI18n, type ResourceId } from '@reformer/builder-plugin-api';
 import type { MarkdownHost, TextEditorProvider } from '../host';
 import type { MarkdownViewStore } from '../state/sessions';
+import { retryingLazy } from './retrying-lazy';
 /**
  * Рендер грузится ЛЕНИВО, и это не оптимизация «на всякий случай».
  *
@@ -32,8 +26,11 @@ import type { MarkdownViewStore } from '../state/sessions';
  * остальная оболочка. В главном чанке он означал бы, что за предпросмотр платит каждый
  * запуск приложения, включая тот, где ни одного `.md` не открывали. Ровно так же он
  * грузился в v1 и по той же причине.
+ *
+ * Чанк дочитывает оболочка по сети, поэтому обёртка — с повтором: отказ загрузки не остаётся
+ * в компоненте до перезагрузки страницы (см. `./retrying-lazy`).
  */
-const MarkdownPreview = lazy(async () => {
+const MarkdownPreview = retryingLazy(async () => {
   const module = await import('./MarkdownPreview');
   return { default: module.MarkdownPreview };
 });

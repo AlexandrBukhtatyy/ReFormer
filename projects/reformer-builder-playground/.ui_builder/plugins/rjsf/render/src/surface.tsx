@@ -12,7 +12,7 @@
  * @module plugins/rjsf/render/surface
  */
 
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RJSF_PROVIDER_ID } from '../../core';
 import type {
@@ -22,11 +22,15 @@ import type {
   PreviewSurface,
 } from '@reformer/builder-plugin-api';
 import { RJSF_SURFACE_ID } from './contract';
+import { retryingLazy } from './ui/retrying-lazy';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
-/** RJSF, валидатор и тема — ленивым чанком: нужны только тому, кто открыл форму. */
-const RjsfPreview = lazy(() => import('./ui/RjsfPreview'));
+/**
+ * RJSF, валидатор и тема — ленивым чанком: нужны только тому, кто открыл форму. Чанк дочитывает
+ * оболочка по сети, поэтому обёртка — с повтором: отказ загрузки не остаётся в компоненте.
+ */
+const RjsfPreview = retryingLazy(() => import('./ui/RjsfPreview'));
 
 export interface RjsfSurfaceDeps {
   readonly t: Translate;
