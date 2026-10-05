@@ -18,8 +18,14 @@
  * встраивается плагином (`.ui_builder/plugins/`), а не файлом данных — плагин привозит
  * и каталог, и код компонентов.
  *
+ * Плагины ПРИЛОЖЕНИЯ — те, что едут вместе с ним и работают для любого проекта, — лежат
+ * в `dist/plugins/` рядом со сборкой и раздаются как обычная статика. Флаг `--plugins`
+ * подменяет этот каталог своим: его файлы и индекс (`plugins/index.json`) отдаются с диска
+ * на каждый запрос — так набор плагинов собирают под организацию, не пересобирая билдер,
+ * и так же проверяют свежесобранные плагины.
+ *
  * Использование:
- *   npx reformer-builder [--port <n>] [--host <h>] [--no-open] [--config <path>]
+ *   npx reformer-builder [--port <n>] [--host <h>] [--no-open] [--config <path>] [--plugins <dir>]
  */
 
 import { createServer } from 'node:http';
@@ -27,9 +33,16 @@ import { readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { extname, join, normalize, resolve, sep } from 'node:path';
+import { buildPluginsIndex, PLUGINS_INDEX_FILE } from './plugins-index.mjs';
 
 /** URL, по которому SPA забирает конфиг (совпадает с RUNTIME_BUNDLE_PATH в shell/boot/runtime-config). */
 export const RUNTIME_BUNDLE_URL = '/__reformer-builder/runtime.json';
+
+/**
+ * Адрес каталога плагинов приложения (каталог — APPLICATION_ROOT_DIR из
+ * shell/platform/plugin/application/files): SPA читает оттуда индекс и файлы плагинов.
+ */
+export const PLUGINS_URL_PREFIX = '/plugins/';
 
 /** Путь авто-детекта конфига в cwd, если флаг `--config` не задан. */
 const DEFAULT_CONFIG_FILE = join('.ui_builder', 'config.json');
@@ -117,6 +130,8 @@ export function parseArgs(argv) {
     version: false,
     /** Явно переданный путь к конфигу (null — не задан, будет авто-детект в cwd). */
     config: null,
+    /** Каталог плагинов приложения вместо `dist/plugins` (null — раздаётся собранный). */
+    plugins: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -130,6 +145,8 @@ export function parseArgs(argv) {
     else if (a.startsWith('--host=')) opts.host = a.slice('--host='.length);
     else if (a === '--config') opts.config = String(argv[++i]);
     else if (a.startsWith('--config=')) opts.config = a.slice('--config='.length);
+    else if (a === '--plugins') opts.plugins = String(argv[++i]);
+    else if (a.startsWith('--plugins=')) opts.plugins = a.slice('--plugins='.length);
     else {
       console.error(`reformer-builder: неизвестный аргумент "${a}" (см. --help)`);
       process.exit(1);
@@ -153,6 +170,7 @@ function printHelp() {
       --host <h>       Хост (по умолчанию 127.0.0.1)
       --no-open        Не открывать браузер автоматически
       --config <path>  Конфиг билдера (JSON): брендинг, дефолты UI, состав плагинов
+      --plugins <dir>  Каталог плагинов приложения вместо встроенного в сборку
   -h, --help           Показать эту справку
   -v, --version        Показать версию
 
@@ -188,8 +206,8 @@ function openBrowser(url) {
   }
 }
 
-/** Резолв запрошенного пути в файл внутри distDir с защитой от path-traversal. */
-function resolveFsPath(pathname) {
+/** Резолв запрошенного пути в файл внутри каталога с защитой от path-traversal. */
+function resolveFsPath(pathname, rootDir = distDir) {
   let decoded;
   try {
     decoded = decodeURIComponent(pathname);
@@ -197,8 +215,8 @@ function resolveFsPath(pathname) {
     return null;
   }
   const rel = normalize(decoded).replace(/^(\.\.(\/|\\|$))+/, '');
-  const full = join(distDir, rel);
-  if (full !== distDir && !full.startsWith(distDir + sep)) return null;
+  const full = join(rootDir, rel);
+  if (full !== rootDir && !full.startsWith(rootDir + sep)) return null;
   return full;
 }
 
@@ -213,7 +231,41 @@ async function sendFile(res, filePath, statusCode = 200) {
   res.end(body);
 }
 
-export function createRequestHandler(indexHtmlPath, runtimeBundleBody) {
+/**
+ * Каталог плагинов приложения, заданный флагом: индекс строится на каждый запрос, файл
+ * читается с диска. Отсутствующий файл — честный 404 без SPA-fallback: страница приложения
+ * вместо кода плагина исполнилась бы как код и упала бы невнятной синтаксической ошибкой.
+ */
+async function servePlugins(req, res, pathname, pluginsDir) {
+  const inside = pathname.slice(PLUGINS_URL_PREFIX.length);
+  if (inside === PLUGINS_INDEX_FILE) {
+    const body = Buffer.from(JSON.stringify(await buildPluginsIndex(pluginsDir)));
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': body.length,
+      'Cache-Control': 'no-cache',
+    });
+    res.end(req.method === 'HEAD' ? undefined : body);
+    return;
+  }
+  const target = resolveFsPath(inside, pluginsDir);
+  if (target === null) {
+    res.writeHead(400);
+    res.end('Bad Request');
+    return;
+  }
+  try {
+    if (!(await stat(target)).isFile()) throw new Error('не файл');
+    await sendFile(res, target);
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not Found');
+  }
+}
+
+export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options = {}) {
+  /** Каталог из `--plugins`; без него плагины приложения — обычная статика `dist/plugins`. */
+  const pluginsDir = options.pluginsDir ?? null;
   return async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' });
@@ -229,6 +281,10 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody) {
         'Cache-Control': 'no-cache',
       });
       res.end(req.method === 'HEAD' ? undefined : runtimeBundleBody);
+      return;
+    }
+    if (pluginsDir !== null && pathname.startsWith(PLUGINS_URL_PREFIX)) {
+      await servePlugins(req, res, pathname, pluginsDir);
       return;
     }
     const target = resolveFsPath(pathname === '/' ? '/index.html' : pathname);
@@ -316,7 +372,12 @@ async function main() {
   const runtime = await loadRuntimeBundle(opts, process.cwd());
   const runtimeBundleBody = Buffer.from(JSON.stringify(runtime.payload));
 
-  const server = createServer(createRequestHandler(indexHtmlPath, runtimeBundleBody));
+  // Без хвостового разделителя — по той же причине, что и `distDir` (проверка границы каталога).
+  const pluginsDir =
+    opts.plugins === null ? null : resolve(process.cwd(), opts.plugins).replace(/[\\/]+$/, '');
+  const server = createServer(
+    createRequestHandler(indexHtmlPath, runtimeBundleBody, { pluginsDir })
+  );
   let port;
   try {
     port = await listenWithFallback(server, opts.host, opts.port);
@@ -330,6 +391,7 @@ async function main() {
   console.log(`\n  reformer-builder v${await readVersion()}`);
   console.log(`  Локальный сервер:  ${url}`);
   if (runtime.sources.config) console.log(`  Конфиг из файла:   ${runtime.sources.config}`);
+  if (pluginsDir !== null) console.log(`  Плагины из каталога: ${pluginsDir}`);
   console.log(`  Режим «открыть папку проекта» требует Chromium-браузер (File System Access API).`);
   console.log(`  Остановить: Ctrl+C\n`);
 

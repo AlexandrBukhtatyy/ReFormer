@@ -61,6 +61,11 @@ const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai'];
 export interface SeedOptions {
   /** Плагины из числа необязательных — каталогами: `['kit-hexa-ui']`. */
   readonly plugins?: readonly string[];
+  /**
+   * `false` — проект без каталога плагинов вовсе: так выглядит чужой проект, открытый билдером.
+   * Всё, что в нём работает, приехало с приложением (слой плагинов приложения).
+   */
+  readonly projectPlugins?: boolean;
 }
 
 /** Содержимое «диска»: путь от корня проекта → текст файла. */
@@ -219,7 +224,7 @@ export class PlaygroundDisk {
    */
   async seed(options: SeedOptions = {}): Promise<void> {
     const requested = options.plugins ?? [];
-    const plugins = pluginPackages(PLAYGROUND_DIR)
+    const plugins = (options.projectPlugins === false ? [] : pluginPackages(PLAYGROUND_DIR))
       .filter((dir) => !OPTIONAL_PLUGINS.includes(dir) || requested.includes(dir))
       .map((dir) => `${PLUGINS_DIR}/${dir}`);
     // Из каталога плагинов в копию идут только пакеты плагинов, и те без исходников: билдер

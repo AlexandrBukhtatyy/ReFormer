@@ -4,6 +4,10 @@ import App from './App';
 import { launchFromRuntime } from './application/builder-application';
 import { boot } from './shell/boot/boot';
 import { fetchRuntimeConfig } from './shell/boot/runtime-config';
+import {
+  APPLICATION_ROOT_DIR,
+  loadApplicationFiles,
+} from './shell/platform/plugin/application/files';
 import { readStoredPreset } from './shell/boot/stored-preset';
 import './index.css';
 
@@ -38,7 +42,17 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
   // Вместе с составом приложение отдаёт и сам список: оболочка профилей не знает, а службе
   // профилей нужно назвать их переключателю.
   const { application, profileChoices } = launchFromRuntime(runtime?.config ?? {}, storedPreset);
-  const app = boot({ runtime, application, profileChoices });
+  const app = boot({
+    runtime,
+    application,
+    profileChoices,
+    // Плагины приложения лежат РЯДОМ СО СБОРКОЙ, в каталоге `plugins/` от её базового адреса:
+    // их кладёт туда тот, кто приложение разворачивает (лаунчер, сборка для поставки, Pages).
+    // Нет каталога — штатный `null`: так запускается билдер под `vite dev`, где плагины
+    // остаются плагинами открытого проекта.
+    applicationPluginFiles: () =>
+      loadApplicationFiles({ baseUrl: `${import.meta.env.BASE_URL}${APPLICATION_ROOT_DIR}/` }),
+  });
   const root = createRoot(document.getElementById('root')!);
 
   // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).

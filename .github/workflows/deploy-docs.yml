@@ -18,6 +18,8 @@ on:
     paths:
       - 'projects/reformer-doc/**'
       - 'projects/reformer-builder/**'
+      # Плагины приложения едут на Pages внутри билдера.
+      - 'projects/reformer-builder-playground/.ui_builder/plugins/**'
       - 'packages/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
@@ -84,6 +86,20 @@ jobs:
         env:
           BUILDER_BASE: /ReFormer/builder/
         run: npm run build -w @reformer/builder
+
+      - name: Плагины приложения — в dist билдера
+        # Билдер на Pages везёт движки форм сам: сборки пакетов плагинов для поставки складываются
+        # в `dist/plugins/`, и оболочка читает их от своего базового адреса (`/ReFormer/builder/`).
+        # Плагинам нужны dist CLI, toolkit, темы RJSF и MCP (корпус знаний ассистента) — докам они
+        # не нужны, поэтому собираются здесь, а не в общем списке выше. Идёт ПОСЛЕ сборки билдера:
+        # `vite build` очищает `dist`.
+        run: |
+          npm run build -w @reformer/mcp
+          npm run build -w @reformer/builder-toolkit
+          npm run build -w @reformer/builder-plugin-cli
+          npm run build -w @reformer/rjsf-kit-theme
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
 
       - name: Assemble site (docs at root, builder under /builder)
         # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder.

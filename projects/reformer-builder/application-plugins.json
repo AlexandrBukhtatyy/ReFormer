@@ -1,0 +1,13 @@
+{
+  "root": "../reformer-builder-playground/.ui_builder/plugins",
+  "plugins": [
+    "reformer/editor",
+    "reformer/render",
+    "reformer/validator",
+    "reformer/codegen",
+    "reformer/templates",
+    "reformer/ai",
+    "rjsf/editor",
+    "rjsf/render"
+  ]
+}

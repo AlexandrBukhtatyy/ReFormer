@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:plugins": "node scripts/collect-application-plugins.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node ../../scripts/run-vitest.mjs",

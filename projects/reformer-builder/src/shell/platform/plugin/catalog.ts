@@ -77,8 +77,11 @@ export type ProjectPluginState = 'disabled' | 'enabled' | 'failed';
  * Показывается человеку и потому обязано существовать: при совпадении идентификаторов
  * побеждает каталог проекта, и без этой пометки человек правил бы файлы в проекте, не понимая,
  * почему работает не он, — или наоборот.
+ *
+ * `application` — плагины, приехавшие вместе с приложением (`./application/files`). Каталог
+ * у них свой, отдельный экземпляр: они живут дольше проекта и доверены на уровне запуска.
  */
-export type ProjectPluginLayer = 'project' | 'installed';
+export type ProjectPluginLayer = 'project' | 'installed' | 'application';
 
 /** Строка списка плагинов — всё, что нужно показать человеку. */
 export interface ProjectPluginEntry {
@@ -104,6 +107,13 @@ export interface ProjectPluginEntry {
   readonly layer: ProjectPluginLayer;
   /** Тот же плагин есть и в другом слое — значит этот его перекрыл. */
   readonly shadowed?: ProjectPluginLayer;
+  /**
+   * Плагин с этим идентификатором уже работает в слое приложения — эта копия не грузится.
+   *
+   * Обратное `shadowed`: там этот экземпляр победил, здесь — уступил. Строка остаётся в списке,
+   * иначе человек правил бы файлы плагина в проекте, не понимая, почему правки не видны.
+   */
+  readonly overridden?: 'application';
   readonly manifest?: PluginManifest;
   /** Почему `failed`. У остальных состояний отсутствует. */
   readonly problem?: PluginProblem;
@@ -174,6 +184,32 @@ export interface ProjectPluginCatalogDeps {
    * приложение без установки из npm работает как раньше.
    */
   readonly installed?: PluginLoader;
+  /**
+   * Каким слоем называть найденное основным загрузчиком. По умолчанию — `project`.
+   *
+   * Каталог плагинов приложения — тот же каталог над другим загрузчиком, и слой в строке
+   * списка обязан говорить правду о том, откуда плагин взялся.
+   */
+  readonly layer?: ProjectPluginLayer;
+  /**
+   * Идентификаторы, занятые слоем приложения: копия такого плагина здесь не грузится.
+   *
+   * Плагин приложения — преемник встроенного, а встроенный из каталога подменить нельзя.
+   * Отличие в том, КАК об этом сказано: занятый встроенным идентификатор — ошибка автора
+   * (`id-taken`), а копия плагина приложения в проекте — обычное дело (образец открывает
+   * каталог, из которого плагины приложения и собраны), поэтому она просто помечена
+   * {@link ProjectPluginEntry.overridden} и молчит.
+   *
+   * Функция: набор известен после запуска слоя приложения и меняется, если его плагин упал.
+   */
+  readonly reserved?: () => ReadonlySet<string>;
+  /**
+   * Имя источника манифестных клавиш в раскладке. По умолчанию — {@link CATALOG_KEYBINDINGS_SOURCE}.
+   *
+   * Каталог публикует свои клавиши разом и замещает прежние под тем же именем, поэтому двум
+   * каталогам нужны два имени — иначе второй стирал бы клавиши первого.
+   */
+  readonly keybindingsSource?: string;
   /** Без него включённые не переживают перезагрузку вкладки — но каталог работает. */
   readonly enabled?: EnabledPluginsStore;
   /**
@@ -321,11 +357,21 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     });
   };
 
+  /** Занят ли идентификатор слоем приложения — тогда копия из этого каталога не грузится. */
+  const isOverridden = (id: string): boolean => deps.reserved?.().has(id) ?? false;
+
   const entryOf = (record: CatalogRecord): ProjectPluginEntry => {
     const problem = record.found.problem ?? record.problem;
     const manifest = record.found.manifest;
+    const overridden = isOverridden(record.found.id);
+    // Перекрытая копия не работает, что бы ни говорил список включённых: работает плагин
+    // приложения, а эта строка — про файлы в проекте.
     const state: ProjectPluginState =
-      problem !== undefined ? 'failed' : enabled.has(record.found.id) ? 'enabled' : 'disabled';
+      problem !== undefined
+        ? 'failed'
+        : enabled.has(record.found.id) && !overridden
+          ? 'enabled'
+          : 'disabled';
     return {
       id: record.found.id,
       dir: record.found.dir,
@@ -335,6 +381,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       dev: dev.has(record.found.id),
       layer: record.layer,
       ...(record.shadowed === undefined ? {} : { shadowed: record.shadowed }),
+      ...(overridden ? { overridden: 'application' as const } : {}),
       manifest,
       problem,
     };
@@ -424,7 +471,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     // которым автор плагина правит его у себя, не удаляя установленную версию.
     const layers: readonly { layer: ProjectPluginLayer; found: readonly DiscoveredPlugin[] }[] = [
       { layer: 'installed', found: (await deps.installed?.discover()) ?? [] },
-      { layer: 'project', found: await deps.loader.discover() },
+      { layer: deps.layer ?? 'project', found: await deps.loader.discover() },
     ];
     const seen = new Set<string>();
 
@@ -474,6 +521,9 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     if (deps.keymap === undefined) return;
 
     const declared = [...records.values()].flatMap((record) => {
+      // Клавиши перекрытой копии публикует каталог приложения — из манифеста того экземпляра,
+      // который работает. Второе правило на ту же команду было бы дублем в таблице клавиш.
+      if (isOverridden(record.found.id)) return [];
       const keybindings = record.found.manifest?.contributes?.keybindings ?? [];
       return keybindings.map((item) => ({ pluginId: record.found.id, item }));
     });
@@ -483,7 +533,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       declared.length === 0
         ? null
         : deps.keymap.registerRules(
-            CATALOG_KEYBINDINGS_SOURCE,
+            deps.keybindingsSource ?? CATALOG_KEYBINDINGS_SOURCE,
             'catalog-plugin',
             declared.flatMap(({ pluginId, item }) => {
               // Манифест уже проверен разбором: сюда попадает только разбираемое сочетание
@@ -623,6 +673,9 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       enabled.add(id);
       return true;
     }
+    // Плагин приложения с этим идентификатором уже работает: копия молча уступает. Список
+    // включённых не трогаем — исчезнет слой приложения (dev-запуск), и она поднимется сама.
+    if (isOverridden(id)) return false;
 
     // Требования сверяются ДО загрузки: чужой код не должен исполниться в мире, где ему
     // нечем работать. Отказ не гасит строку в списке — он её и объясняет, ровно как

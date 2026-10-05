@@ -212,6 +212,16 @@ jobs:
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 
+      - name: Плагины приложения — рядом со сборкой билдера
+        # Движки форм едут вместе с билдером слоем «плагины приложения»: сборки пакетов для
+        # поставки (`build:dist`) складываются в `dist/plugins/` с индексом, по которому оболочка
+        # их находит. Тот же шаг делают release.yml и deploy-docs.yml; здесь он проверяет, что
+        # набор из `application-plugins.json` собирается, — иначе о несобранном плагине узнал бы
+        # только релиз. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
+        run: |
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
+
       - name: Run @reformer/builder tests
         # Оболочка, основа конструктора и киты. Движков форм в составе билдера нет — их тесты
         # шагом выше.

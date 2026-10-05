@@ -23,6 +23,8 @@ on:
     paths:
       - 'packages/**'
       - 'projects/reformer-builder/**'
+      # Плагины приложения едут в dist билдера: их правка — тоже повод для выпуска.
+      - 'projects/reformer-builder-playground/.ui_builder/plugins/**'
       - '.github/workflows/release.yml'
   workflow_dispatch: # для ручного re-run без коммита (например после исправления git tags)
 
@@ -85,6 +87,17 @@ jobs:
         # → base '/' (в отличие от Pages-сборки в deploy-docs.yml), чтобы ассеты/Monaco-воркеры
         # грузились с корня статик-сервера.
         run: npm run build -w @reformer/builder
+
+      - name: Плагины приложения — в dist билдера
+        # Опубликованный билдер везёт движки форм сам: сборки пакетов плагинов для поставки
+        # складываются в `dist/plugins/` (поле `files` пакета уже включает `dist`). Без этого шага
+        # `npx reformer-builder` открывал бы форму текстом. Тема RJSF — рантайм плагина
+        # `reformer.rjsf.render`, сборка находит её по dist; остальное (CLI, toolkit, MCP) собрано
+        # выше. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
+        run: |
+          npm run build -w @reformer/rjsf-kit-theme
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
 
       # Тесты не повторяем: needs: test (reusable test.yml) уже собрал и прогнал
       # тесты всех пакетов + dist-deps/size/typecheck.

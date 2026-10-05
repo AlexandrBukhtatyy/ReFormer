@@ -14,9 +14,15 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RUNTIME_BUNDLE_PATH } from './runtime-config';
+import {
+  APPLICATION_INDEX_FILE,
+  APPLICATION_ROOT_DIR,
+  parseApplicationPluginIndex,
+} from '@/shell/platform/plugin/application/files';
 
 process.env.REFORMER_BUILDER_TEST = '1';
 const bin = await import('../../../bin/reformer-builder.mjs');
+const index = await import('../../../bin/plugins-index.mjs');
 
 let dir: string;
 beforeAll(async () => {
@@ -50,7 +56,13 @@ describe('parseArgs', () => {
       host: '127.0.0.1',
       open: true,
       config: null,
+      plugins: null,
     });
+  });
+
+  it('--plugins (пробел и =-форма) называет каталог плагинов приложения', () => {
+    expect(bin.parseArgs(['--plugins', 'out/plugins']).plugins).toBe('out/plugins');
+    expect(bin.parseArgs(['--plugins=../p']).plugins).toBe('../p');
   });
 });
 
@@ -131,5 +143,97 @@ describe('createRequestHandler', () => {
     expect([400, 404, 500]).toContain(traversal.status);
     expect(traversal.body === undefined || typeof traversal.body === 'string').toBe(true);
     expect(String(traversal.body ?? '')).not.toContain('root:');
+  });
+
+  describe('каталог плагинов приложения (--plugins)', () => {
+    let plugins: string;
+    beforeAll(async () => {
+      plugins = join(dir, 'app-plugins');
+      await mkdir(join(plugins, 'forms', 'kits', 'chunks'), { recursive: true });
+      await mkdir(join(plugins, 'forms', 'kits', 'node_modules', 'dep'), { recursive: true });
+      await mkdir(join(plugins, '.shared'), { recursive: true });
+      await writeFile(join(plugins, 'forms', 'kits', 'manifest.json'), '{"id":"reformer.kits"}');
+      await writeFile(join(plugins, 'forms', 'kits', 'main.js'), 'module.exports = {};');
+      await writeFile(join(plugins, 'forms', 'kits', 'chunks', 'data.js'), 'module.exports = 1;');
+      await writeFile(join(plugins, 'forms', 'kits', 'node_modules', 'dep', 'index.js'), '');
+      await writeFile(join(plugins, '.shared', 'vitest.ts'), '');
+      await writeFile(join(dir, 'secret.txt'), 'секрет');
+    });
+
+    const handlerOf = () =>
+      bin.createRequestHandler('/x/index.html', Buffer.from('{}'), { pluginsDir: plugins });
+
+    it('индекс строится с диска: файлы плагинов без node_modules и имён с точки', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}index.json` }, res);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['Content-Type']).toContain('application/json');
+      expect(JSON.parse(String(res.body))).toEqual({
+        version: 1,
+        files: ['forms/kits/chunks/data.js', 'forms/kits/main.js', 'forms/kits/manifest.json'],
+      });
+    });
+
+    it('файл плагина отдаётся из каталога флага, а не из dist', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}forms/kits/main.js` }, res);
+
+      expect(res.status).toBe(200);
+      expect(String(res.body)).toBe('module.exports = {};');
+    });
+
+    it('файла нет — 404, а не страница приложения', async () => {
+      // SPA-fallback вместо кода плагина исполнился бы как код и упал синтаксической ошибкой.
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}forms/absent` }, res);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('выход за каталог плагинов не отдаёт чужой файл', async () => {
+      const res = fakeRes();
+      await handlerOf()({ method: 'GET', url: `${bin.PLUGINS_URL_PREFIX}%2e%2e/secret.txt` }, res);
+
+      expect([400, 404]).toContain(res.status);
+      expect(String(res.body ?? '')).not.toContain('секрет');
+    });
+
+    it('без флага адрес плагинов — обычная статика dist', async () => {
+      // Файл есть только в каталоге флага: без флага его отдавать неоткуда, что бы ни лежало
+      // в собранном `dist/plugins` на этой машине.
+      await mkdir(join(plugins, 'only-with-flag'), { recursive: true });
+      await writeFile(join(plugins, 'only-with-flag', 'main.js'), 'module.exports = {};');
+      const url = `${bin.PLUGINS_URL_PREFIX}only-with-flag/main.js`;
+
+      const withFlag = fakeRes();
+      await handlerOf()({ method: 'GET', url }, withFlag);
+      expect(withFlag.status).toBe(200);
+
+      const withoutFlag = fakeRes();
+      await bin.createRequestHandler('/x/index.html', Buffer.from('{}'))(
+        { method: 'GET', url },
+        withoutFlag
+      );
+      expect(withoutFlag.status).toBe(404);
+    });
+  });
+});
+
+describe('индекс плагинов приложения', () => {
+  it('формат индекса у лаунчера и оболочки один', async () => {
+    const built = await index.buildPluginsIndex(join(dir, 'app-plugins'));
+
+    // Оболочка принимает ровно то, что строит лаунчер: версия и плоский список путей.
+    expect(parseApplicationPluginIndex(built)).toEqual(built);
+    expect(index.PLUGINS_INDEX_FILE).toBe(APPLICATION_INDEX_FILE);
+    expect(bin.PLUGINS_URL_PREFIX).toBe(`/${APPLICATION_ROOT_DIR}/`);
+  });
+
+  it('каталога нет — пустой индекс, а не отказ', async () => {
+    expect(await index.buildPluginsIndex(join(dir, 'нет-такого'))).toEqual({
+      version: 1,
+      files: [],
+    });
   });
 });
