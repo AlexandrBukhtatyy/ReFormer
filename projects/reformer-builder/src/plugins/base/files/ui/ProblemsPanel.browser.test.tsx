@@ -76,11 +76,7 @@ function fakeHost(openResource: (id: ResourceId) => void): FilesHost {
     useQuickFixTitle: () => (key: string) =>
       key === FIX.titleKey ? 'Убрать осиротевшее правило' : key,
     hasProject: () => true,
-    save: () => Promise.resolve(true),
-    saveAll: () => Promise.resolve(true),
-    activeResource: () => RESOURCE,
     openResource,
-    isDirty: () => false,
     documentOf: () => null,
     writeText: () => Promise.resolve(),
     isTextual: () => true,

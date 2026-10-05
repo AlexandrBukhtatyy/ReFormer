@@ -16,11 +16,7 @@ import type {
   Plugin,
   PluginPermission,
 } from '@reformer/builder-plugin-api/internal';
-import type {
-  ApplicationComposition,
-  BuiltinPluginsOptions,
-  ComposedPlugin,
-} from '@/shell/boot/composition';
+import type { ApplicationComposition, ComposedPlugin } from '@/shell/boot/composition';
 
 /** Плагин домена для состава: манифест его исходников и способ его создать. */
 export interface DomainPlugin {
@@ -47,9 +43,9 @@ export function withDomainPlugins(
         (entry.manifest.provides ?? []).map((declared) => ({ ...declared, by: entry.manifest.id }))
       ),
     ]),
-    load: async (options: BuiltinPluginsOptions): Promise<readonly ComposedPlugin[]> =>
+    load: async (): Promise<readonly ComposedPlugin[]> =>
       Object.freeze([
-        ...(await base.load(options)),
+        ...(await base.load()),
         ...plugins.map(
           (entry): ComposedPlugin => ({
             plugin: entry.create(),

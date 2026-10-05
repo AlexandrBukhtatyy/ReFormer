@@ -39,6 +39,7 @@ import {
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import type { MarkdownHost, TextEditorProvider } from './host';
+import { markdownHostFromContext } from './host-from-context';
 import { isMarkdown } from './render/markdown';
 import { MARKDOWN_MESSAGES } from './messages';
 import { createMarkdownViewStore, type MarkdownViewStore } from './state/sessions';
@@ -341,17 +342,21 @@ export function markdownMenuItems(
 }
 
 export interface MarkdownPluginOptions {
-  readonly host: MarkdownHost;
+  /**
+   * Порт предпросмотра. Необязателен и ЗАПАСНОЙ: по умолчанию плагин собирает его сам
+   * из контекста (`./host-from-context`). Параметр — только для тестов.
+   */
+  readonly host?: MarkdownHost;
   /** Приёмник словаря. Без него строки показываются маркерами промаха. */
   readonly i18n?: { contribute(locale: string, messages: Readonly<Record<string, string>>): void };
 }
 
-export function createMarkdownPlugin(options: MarkdownPluginOptions): Plugin {
-  const { host } = options;
-
+export function createMarkdownPlugin(options: MarkdownPluginOptions = {}): Plugin {
   return definePlugin({
     id: MARKDOWN_PLUGIN_ID,
     activate(ctx) {
+      const host = options.host ?? markdownHostFromContext(ctx);
+
       // Словарь уходит в ЕГО пространство имён — поле контекста, а не подставленный порт:
       // `editor.label` у markdown и у Monaco — две разные строки.
       for (const [locale, messages] of Object.entries(MARKDOWN_MESSAGES)) {

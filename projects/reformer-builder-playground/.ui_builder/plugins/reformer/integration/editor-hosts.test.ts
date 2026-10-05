@@ -37,10 +37,18 @@ import {
 } from '@/plugins/base/editor-monaco';
 import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
-import { createMonacoHost } from '@/shell/boot/ports/monaco';
+import { monacoHostFromContext } from '@/plugins/base/editor-monaco/host-from-context';
+import { createDocumentModelsService } from '@/shell/boot/ports/document-models';
+import { createDocumentsService } from '@/shell/boot/ports/documents';
+import { createHostMessagesService } from '@/shell/boot/ports/host-messages';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { schemaHostFromContext } from '../editor/src/host-from-context';
-import { DocumentModelsCapability } from '@reformer/builder-plugin-api/internal';
+import {
+  DiagnosticsServiceToken,
+  DocumentModelsCapability,
+  DocumentsServiceToken,
+  HostMessagesCapability,
+} from '@reformer/builder-plugin-api/internal';
 import { KitsCapability, type CatalogJson } from '@reformer/builder-plugin-api/internal';
 
 let seq = 0;
@@ -95,16 +103,22 @@ function harness() {
       }),
   });
 
-  services.register(DocumentModelsCapability, {
-    handleOf: (id) => project.get()?.models.handleOf(id) ?? null,
-  });
+  // Службы оболочки — те же, что регистрирует `boot`: оба редактора собирают порт из них сами.
+  services.register(DocumentModelsCapability, createDocumentModelsService({ project }));
+  services.register(DocumentsServiceToken, createDocumentsService({ project }));
+  services.register(DiagnosticsServiceToken, diagnostics);
+  services.register(HostMessagesCapability, createHostMessagesService(i18n));
 
   return {
     project,
     focused,
     services,
     i18n,
-    monaco: createMonacoHost({ project, i18n, diagnostics, extensions }),
+    monaco: monacoHostFromContext({
+      services,
+      extensions: extensions.forPlugin('reformer.editor-monaco'),
+      i18n: i18n.forPlugin('reformer.editor-monaco'),
+    }),
     schema: schemaHostFromContext({ services, i18n: i18n.forPlugin('reformer.editor-schema') }),
     id: (path: string): ResourceId => `${sourceId}:${path}`,
     open: async (path: string) => {

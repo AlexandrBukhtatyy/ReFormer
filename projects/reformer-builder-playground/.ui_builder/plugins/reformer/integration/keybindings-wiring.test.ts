@@ -32,7 +32,6 @@ import { provablyDisjoint } from '@reformer/builder-plugin-api/internal';
 import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';
 import { whenContext } from '@reformer/builder-plugin-api/internal';
-import { stubBuiltinOptions } from '@/application/composer/testing';
 import { reformerApplication } from './application';
 
 /** Команды всех встроенных плагинов — ровно те, что получит собранное приложение. */
@@ -50,7 +49,7 @@ async function builtinCommands(): Promise<readonly CommandContribution[]> {
   // Состав берётся ПОЛНЫЙ — основа билдера, киты и все плагины домена: раскладка, проверенная
   // на другом наборе, ничего не значила бы — конфликт сочетаний живёт ровно между плагинами,
   // которых собрали вместе.
-  for (const composed of await reformerApplication().load(stubBuiltinOptions())) {
+  for (const composed of await reformerApplication().load()) {
     plugins.register(composed.plugin, composed.provides);
   }
   plugins.activateAll();

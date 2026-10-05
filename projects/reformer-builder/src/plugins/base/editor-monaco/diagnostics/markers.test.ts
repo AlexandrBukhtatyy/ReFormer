@@ -9,6 +9,9 @@ import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { hasNodeTargets, planMarkers } from './markers';
 import { indexNodeRanges, indexTextNodes, pathKey, type NodeLocation } from './node-ranges';
 
+/** Ключи узла схемы ReFormer — то, что редактору сообщает провайдер модели. */
+const ANCHOR = { idKey: '$nodeId', labelKey: 'component' } as const;
+
 const NO_NODES: ReadonlyMap<string, NodeLocation> = new Map();
 
 function diagnostic(target: Diagnostic['target'], code = 'schema.invalid'): Diagnostic {
@@ -59,7 +62,7 @@ describe('planMarkers', () => {
   it('цель-узел переводится в место идентификатора', () => {
     const text = '{ "$nodeId": "aaaa0000", "component": "Input" }';
     const items = [diagnostic({ kind: 'node', nodeId: 'aaaa0000' })];
-    const plan = planMarkers(items, text, indexNodeRanges(text));
+    const plan = planMarkers(items, text, indexNodeRanges(text, ANCHOR));
     expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe('"aaaa0000"');
   });
 
@@ -74,7 +77,7 @@ describe('planMarkers', () => {
     // Так выглядит форма из кодогена: идентификаторы выданы моделью, в файл ещё не записаны.
     const text =
       '{ "root": { "component": "$html(div)", "children": [{ "component": "$component(Inpit)" }] } }';
-    const index = indexTextNodes(text);
+    const index = indexTextNodes(text, ANCHOR);
     const paths = new Map([['child000', ['root', 'children', 0]]]);
     const items = [diagnostic({ kind: 'node', nodeId: 'child000' })];
     const plan = planMarkers(items, text, index.byId, (nodeId) => {
@@ -94,7 +97,7 @@ describe('planMarkers', () => {
       anchor: { start: 0, end: 1 },
       node: { start: 0, end: 1 },
     });
-    const plan = planMarkers(items, text, indexNodeRanges(text), fallback);
+    const plan = planMarkers(items, text, indexNodeRanges(text, ANCHOR), fallback);
     expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe('"aaaa0000"');
   });
 
@@ -140,7 +143,7 @@ describe('planMarkers: цель, суженная до свойства узла
   }
 }`;
   const at = (target: Diagnostic['target']): string => {
-    const plan = planMarkers([diagnostic(target)], TEXT, indexNodeRanges(TEXT));
+    const plan = planMarkers([diagnostic(target)], TEXT, indexNodeRanges(TEXT, ANCHOR));
     return TEXT.slice(plan.markers[0].range.start, plan.markers[0].range.end);
   };
 
@@ -174,7 +177,7 @@ describe('planMarkers: цель, суженная до свойства узла
 
   it('сужение работает и у узла, найденного запасным резолвером', () => {
     const text = '{ "root": { "component": "$html(div)", "componentProps": { "hint": 1 } } }';
-    const index = indexTextNodes(text);
+    const index = indexTextNodes(text, ANCHOR);
     const items = [
       diagnostic({ kind: 'node', nodeId: 'child000', within: ['componentProps', 'hint'] }),
     ];
@@ -199,7 +202,7 @@ describe('planMarkers: проблема приложенного файла', ()
     const plan = planMarkers(
       [diagnostic({ kind: 'attached' }), diagnostic({ kind: 'node', nodeId: 'aaaa0000' })],
       text,
-      indexNodeRanges(text)
+      indexNodeRanges(text, ANCHOR)
     );
     expect(plan.markers).toHaveLength(1);
     expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe('"aaaa0000"');

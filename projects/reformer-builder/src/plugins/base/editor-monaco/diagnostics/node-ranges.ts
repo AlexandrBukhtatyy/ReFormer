@@ -33,9 +33,17 @@
  * ## Что подчёркивается у узла без идентификатора
  *
  * Не объект целиком — контейнер занимает сотни строк, и маркер на всём поддереве закрашивает
- * половину файла. Якорь выбирается по говорящести: значение `component` (там стоит имя, которого
- * нет в каталоге), иначе первый ключ объекта, иначе открывающая скобка. Для узла с
- * идентификатором якорем остаётся сам идентификатор — короткий и однозначный.
+ * половину файла. Якорь выбирается по говорящести: значение «говорящего» ключа формата (у схемы
+ * ReFormer это `component` — там стоит имя, которого нет в каталоге), иначе первый ключ объекта,
+ * иначе открывающая скобка. Для узла с идентификатором якорем остаётся сам идентификатор —
+ * короткий и однозначный.
+ *
+ * ## Ключи узла — знание формата, и редактор их не знает
+ *
+ * Каким ключом записан идентификатор и какой ключ «говорящий», сообщает провайдер модели
+ * документа (`DocumentModelProvider.nodeAnchor` в SDK), а сюда оно приходит параметром. Пока
+ * ключи были зашиты здесь, редактор кода знал ровно один формат. Без якоря указатель по
+ * идентификатору пуст, а по пути — полон: путь у объекта есть в любом JSON.
  *
  * ## Свойство внутри узла ищется отдельным проходом, а не третьей картой указателя
  *
@@ -62,16 +70,7 @@
  * @module plugins/base/editor-monaco/diagnostics/node-ranges
  */
 
-import type { TextRange } from '@reformer/builder-plugin-api';
-
-/**
- * Имя поля идентификатора. Форма — `^[0-9a-z]{8}$`, но проверять её здесь незачем:
- * искать надо то, что записал провайдер модели, а не то, что мы считаем правильным.
- */
-export const NODE_ID_KEY = '$nodeId';
-
-/** Ключ, чьё значение — самое говорящее место узла без идентификатора. */
-const COMPONENT_KEY = 'component';
+import type { DocumentNodeAnchor, TextRange } from '@reformer/builder-plugin-api';
 
 /** Путь значения в JSON: ключи объектов и индексы массивов от корня документа. */
 export type TextPath = readonly (string | number)[];
@@ -182,8 +181,18 @@ function anchorOf(frame: Frame): TextRange {
  * Незакрытая строка, лишняя скобка, оборванный файл — не повод отказываться от уже
  * найденного: набранный наполовину JSON это НОРМАЛЬНОЕ состояние буфера, и половина
  * указателя лучше, чем ничего.
+ *
+ * @param anchor ключи узла из формата документа; `null` — формат их не объявил (или у документа
+ *   нет модели), и узлы находятся только по пути.
  */
-export function indexTextNodes(text: string): TextNodeIndex {
+export function indexTextNodes(
+  text: string,
+  anchor: DocumentNodeAnchor | null = null
+): TextNodeIndex {
+  // Форма идентификатора здесь не проверяется: искать надо то, что записал провайдер модели,
+  // а не то, что мы считаем правильным.
+  const idKey = anchor?.idKey ?? null;
+  const labelKey = anchor?.labelKey ?? null;
   const byId = new Map<string, NodeLocation>();
   const byPath = new Map<string, NodeLocation>();
   const stack: Frame[] = [];
@@ -207,10 +216,10 @@ export function indexTextNodes(text: string): TextNodeIndex {
         continue;
       }
       if (frame?.object === true) {
-        if (frame.key === NODE_ID_KEY) {
+        if (idKey !== null && frame.key === idKey) {
           frame.nodeId = token.value;
           frame.idAnchor = { start: i, end: token.end };
-        } else if (frame.key === COMPONENT_KEY) {
+        } else if (labelKey !== null && frame.key === labelKey) {
           frame.componentAnchor = { start: i, end: token.end };
         }
       }
@@ -275,8 +284,11 @@ export function indexTextNodes(text: string): TextNodeIndex {
 }
 
 /** Указатель «идентификатор узла → место в тексте» — половина {@link indexTextNodes}. */
-export function indexNodeRanges(text: string): ReadonlyMap<string, NodeLocation> {
-  return indexTextNodes(text).byId;
+export function indexNodeRanges(
+  text: string,
+  anchor: DocumentNodeAnchor | null
+): ReadonlyMap<string, NodeLocation> {
+  return indexTextNodes(text, anchor).byId;
 }
 
 /** Место свойства внутри узла. */

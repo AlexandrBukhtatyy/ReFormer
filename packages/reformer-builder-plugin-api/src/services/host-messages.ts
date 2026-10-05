@@ -24,12 +24,29 @@ import { defineCapability, type Capability } from '../primitives/capability.js';
 import type { PluginI18n } from './i18n.js';
 
 /** Словарь оболочки: локаль, перевод ключа без приставки плагина, смена локали. */
-export type HostMessagesService = Pick<PluginI18n, 'locale' | 't' | 'onDidChangeLocale'>;
+export interface HostMessagesService extends Pick<
+  PluginI18n,
+  'locale' | 't' | 'onDidChangeLocale'
+> {
+  /**
+   * Текст находки по её КОДУ — словарём того, кто код завёл.
+   *
+   * Код без владельца (`schema.unknown-component`) переводит словарь оболочки, ключом
+   * `errors.<код>`. Код с владельцем (`<plugin-id>:<код>`, см. `pluginDiagnosticCode`) —
+   * словарь плагина-владельца, тем же ключом в его пространстве имён: плагин, принёсший свой
+   * формат, в словарь оболочки не пишет, и оболочка его ошибок не знает.
+   *
+   * Тот, кто находку ПОКАЗЫВАЕТ (редактор кода, панель проблем), раскладки чужих словарей знать
+   * не обязан: он передаёт код как есть. Реактивным перевод делает `useTranslate` над этой же
+   * службой — смена локали у всех словарей одна.
+   */
+  diagnosticMessage(code: string, params?: Record<string, unknown>): string;
+}
 
 /**
  * Возможность «словарь оболочки». Провайдер — оболочка.
  *
- * Версия `1.0.0` — исходная.
+ * Версия `1.0.0` — исходная. `1.1.0` — минор: {@link HostMessagesService.diagnosticMessage}.
  */
 export const HostMessagesCapability: Capability<HostMessagesService> =
-  defineCapability<HostMessagesService>({ id: 'reformer.host.messages', version: '1.0.0' });
+  defineCapability<HostMessagesService>({ id: 'reformer.host.messages', version: '1.1.0' });

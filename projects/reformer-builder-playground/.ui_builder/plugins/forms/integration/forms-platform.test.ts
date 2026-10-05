@@ -94,6 +94,7 @@ describe('boot с платформой форм и без движка', () => {
       'reformer.plugin-manager',
       'reformer.preview',
       'reformer.profile-switch',
+      'reformer.project',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });

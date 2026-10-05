@@ -1,0 +1,21 @@
+{
+  "command.openProject": "Открыть папку…",
+  "command.save": "Сохранить",
+  "command.saveAll": "Сохранить всё",
+  "command.openRecent": "Открыть недавний проект…",
+  "command.clearRecent": "Очистить список недавних…",
+  "menu.recent": "Недавно открытые",
+  "menu.recent.more": "Ещё…",
+  "recent.pick.title": "Недавно открытые проекты",
+  "recent.pick.placeholder": "Имя проекта…",
+  "recent.pick.empty": "Недавних проектов нет: открытые папки появятся здесь.",
+  "recent.pick.remove": "Убрать из списка недавних",
+  "recent.clear.title": "Очистить список недавних проектов?",
+  "recent.clear.description": "Уйдут только строки списка: рабочие копии и несохранённые правки проектов останутся.",
+  "recent.clear.confirm": "Очистить",
+  "welcome.title": "Начало работы",
+  "welcome.start": "Начало",
+  "welcome.recent": "Недавно открытые",
+  "welcome.recent.empty": "Недавних проектов пока нет — открытые папки появятся здесь.",
+  "welcome.unsupported": "Этот браузер не умеет открывать локальные каталоги — нужен Chrome или Edge."
+}

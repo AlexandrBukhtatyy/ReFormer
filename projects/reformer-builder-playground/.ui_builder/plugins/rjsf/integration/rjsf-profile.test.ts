@@ -149,6 +149,7 @@ describe('boot с плагинами домена RJSF', () => {
       'reformer.plugin-manager',
       'reformer.preview',
       'reformer.profile-switch',
+      'reformer.project',
       'reformer.rjsf.editor',
       'reformer.rjsf.render',
     ]);

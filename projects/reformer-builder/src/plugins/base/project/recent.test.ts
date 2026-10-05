@@ -1,10 +1,10 @@
 /**
- * Тесты недавно открытых в плагине файлов: команды и подменю «Файл › Недавно открытые».
+ * Тесты недавно открытых в плагине «Проект»: команды и подменю «Файл › Недавно открытые».
  *
- * Порт и службы — двойники. Проверяется то, чем владеет плагин: какие команды, на каких
+ * Службы — двойники. Проверяется то, чем владеет плагин: какие команды, на каких
  * клавишах, что они спрашивают и куда ведут, и как список ложится в меню.
  *
- * @module plugins/base/files/recent.test
+ * @module plugins/base/project/recent.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -13,13 +13,13 @@ import type {
   Disposable,
   MenuContribution,
   PromptService,
+  RecentProject,
+  RecentProjects,
   WhenContext,
 } from '@reformer/builder-plugin-api';
-import type { FilesRecentProject, FilesRecentProjects } from './host';
+import { CLEAR_RECENT_COMMAND_ID, OPEN_RECENT_COMMAND_ID } from './contract';
 import {
-  CLEAR_RECENT_COMMAND_ID,
   MENU_RECENT_LIMIT,
-  OPEN_RECENT_COMMAND_ID,
   RECENT_SUBMENU,
   recentCommands,
   recentMenuItems,
@@ -34,11 +34,11 @@ const context: WhenContext = {
   previewMode: null,
 };
 
-function project(id: string, lastOpenedAt = 1): FilesRecentProject {
+function project(id: string, lastOpenedAt = 1): RecentProject {
   return { id, label: `папка-${id}`, lastOpenedAt };
 }
 
-function fakeRecent(list: readonly FilesRecentProject[] = [project('a'), project('b')]) {
+function fakeRecent(list: readonly RecentProject[] = [project('a'), project('b')]) {
   const listeners = new Set<() => void>();
   const recent = {
     list: () => list,
@@ -50,10 +50,10 @@ function fakeRecent(list: readonly FilesRecentProject[] = [project('a'), project
         },
       };
     },
-    open: vi.fn<FilesRecentProjects['open']>(() => Promise.resolve(true)),
-    forget: vi.fn<FilesRecentProjects['forget']>(() => Promise.resolve()),
-    clear: vi.fn<FilesRecentProjects['clear']>(() => Promise.resolve()),
-  } satisfies FilesRecentProjects;
+    open: vi.fn<RecentProjects['open']>(() => Promise.resolve(true)),
+    forget: vi.fn<RecentProjects['forget']>(() => Promise.resolve()),
+    clear: vi.fn<RecentProjects['clear']>(() => Promise.resolve()),
+  } satisfies RecentProjects;
   return {
     ...recent,
     fire: () => {
@@ -94,7 +94,7 @@ function command(id: string, deps: RecentCommandsDeps) {
 
 /** Вклад меню по идентификатору — без корня: у того нет ни группы, ни сигнала. */
 function menuValue(
-  recent: FilesRecentProjects,
+  recent: RecentProjects,
   id: string
 ): Exclude<MenuContribution, { kind: 'root' }> {
   const found = recentMenuItems(recent).find((it) => it.id === id)?.value;
@@ -135,7 +135,7 @@ describe('«Открыть недавний проект…»', () => {
     expect(pick).toHaveBeenCalledWith(
       expect.objectContaining({
         titleKey: 'recent.pick.title',
-        pluginId: 'reformer.files',
+        pluginId: 'reformer.project',
         items: [
           { id: 'a', label: 'папка-a', description: 'в 10' },
           { id: 'b', label: 'папка-b', description: 'в 20' },
@@ -201,7 +201,7 @@ describe('«Очистить список недавних…»', () => {
     await command(CLEAR_RECENT_COMMAND_ID, { recent, prompt }).run();
 
     expect(confirm).toHaveBeenCalledWith(
-      expect.objectContaining({ titleKey: 'recent.clear.title', pluginId: 'reformer.files' })
+      expect.objectContaining({ titleKey: 'recent.clear.title', pluginId: 'reformer.project' })
     );
     expect(recent.clear).toHaveBeenCalledOnce();
   });
@@ -218,7 +218,7 @@ describe('«Очистить список недавних…»', () => {
 
 describe('подменю «Файл › Недавно открытые»', () => {
   it('стоит в «Файле» сразу за «Открыть папку…»', () => {
-    expect(menuValue(fakeRecent(), 'files.menu.recent')).toMatchObject({
+    expect(menuValue(fakeRecent(), 'project.menu.recent')).toMatchObject({
       kind: 'submenu',
       menu: 'file',
       submenu: RECENT_SUBMENU,
@@ -230,7 +230,7 @@ describe('подменю «Файл › Недавно открытые»', () =
 
   it('проекты — пунктами команды открытия с адресом проекта, не больше десяти', () => {
     const many = Array.from({ length: 12 }, (_, index) => project(`p${String(index)}`));
-    const dynamic = menuValue(fakeRecent(many), 'files.menu.recent.projects');
+    const dynamic = menuValue(fakeRecent(many), 'project.menu.recent.projects');
     if (dynamic.kind !== 'dynamic') throw new Error('ожидалась динамическая группа');
 
     const items = dynamic.items(context, undefined);
@@ -245,14 +245,14 @@ describe('подменю «Файл › Недавно открытые»', () =
   });
 
   it('«Ещё…» — та же команда без аргументов: у пункта видно Ctrl+R', () => {
-    const more = menuValue(fakeRecent(), 'files.menu.recent.more');
+    const more = menuValue(fakeRecent(), 'project.menu.recent.more');
 
     expect(more).toMatchObject({ kind: 'item', command: OPEN_RECENT_COMMAND_ID });
     expect(more).not.toHaveProperty('args');
   });
 
   it('очистка — отдельной группой в конце подменю', () => {
-    expect(menuValue(fakeRecent(), 'files.menu.recent.clear')).toMatchObject({
+    expect(menuValue(fakeRecent(), 'project.menu.recent.clear')).toMatchObject({
       kind: 'item',
       command: CLEAR_RECENT_COMMAND_ID,
       group: '3_clear',
@@ -265,8 +265,8 @@ describe('подменю «Файл › Недавно открытые»', () =
     // не посчитался бы — тест проверял бы множество, а не меню.
     const submenu = vi.fn();
     const projects = vi.fn();
-    menuValue(recent, 'files.menu.recent').onDidChange?.(submenu);
-    menuValue(recent, 'files.menu.recent.projects').onDidChange?.(projects);
+    menuValue(recent, 'project.menu.recent').onDidChange?.(submenu);
+    menuValue(recent, 'project.menu.recent.projects').onDidChange?.(projects);
 
     recent.fire();
 

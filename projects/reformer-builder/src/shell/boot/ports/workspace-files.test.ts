@@ -156,6 +156,20 @@ describe('чтение рабочей области', () => {
     h.dispose();
   });
 
+  it('байты ресурса: содержимое как есть, а отсутствие — `null`, не отказ', async () => {
+    // Байтами читают картинки предпросмотра: чтение текстом испортило бы их молча. Файла,
+    // которого нет, в чужом README сколько угодно — это состояние показа, а не сбой.
+    const h = harness();
+    await expect(h.files.readBytes(h.id('forms/credit/validation.ts'))).resolves.toBeNull();
+
+    await h.open();
+
+    const bytes = await h.files.readBytes(h.id('forms/credit/validation.ts'));
+    expect(new TextDecoder().decode(bytes ?? new Uint8Array())).toBe('export const rules = {};');
+    await expect(h.files.readBytes(h.id('forms/credit/нет.png'))).resolves.toBeNull();
+    h.dispose();
+  });
+
   it('корень проекта — корень ИСТОЧНИКА, а не каталог открытого файла', async () => {
     const h = harness();
     await h.open();

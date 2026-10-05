@@ -1,17 +1,23 @@
 /**
  * Тесты плагина файлов.
  *
- * Порт платформы здесь подставной — настоящий собирается композицией и требует рабочей
- * области. Проверяется то, чем владеет плагин: состав вкладов, применимость команд и правило
- * «за какой файл берётся текстовый редактор». Платформа в этих ответах не участвует.
+ * Порт здесь подставной — настоящий плагин собирает сам из служб оболочки
+ * (`./host-from-context`), и проверен он отдельно. Проверяется то, чем владеет плагин: состав
+ * вкладов и правило «за какой файл берётся текстовый редактор». Открытие проекта, недавние
+ * и сохранение — в плагине «Проект».
  *
  * @module plugins/base/files/plugin.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { DiagnosticsServiceToken } from '@reformer/builder-plugin-api';
-import type { WorkspaceResourcesService } from '@reformer/builder-plugin-api';
+import {
+  DiagnosticsServiceToken,
+  EditorPoint,
+  MenuPoint,
+  PanelPoint,
+  ResourceDecorationPoint,
+} from '@reformer/builder-plugin-api';
 import type {
   Diagnostic,
   DiagnosticsService,
@@ -20,32 +26,19 @@ import type {
   ResourceId,
   ResourceRef,
 } from '@reformer/builder-plugin-api';
-import type {
-  ExtensionPointRef,
-  FilesEditorSpec,
-  FilesHost,
-  FilesPanelSpec,
-  FilesRecentProjects,
-} from './host';
-import { CLEAR_RECENT_COMMAND_ID, OPEN_RECENT_COMMAND_ID } from './recent';
+import type { FilesHost } from './host';
+import { FILES_MESSAGES } from './messages';
 import {
   createFilesPlugin,
-  filesWelcomePanel,
-  FILES_WELCOME_PANEL_ID,
-  filesCommands,
   filesDiagnosticsDecoration,
   filesProblemsPanel,
   filesTextEditor,
-  filesMenuItems,
   filesTreePanel,
   FILES_DIAGNOSTICS_DECORATION_ID,
   FILES_PLUGIN_ID,
   FILES_PROBLEMS_PANEL_ID,
   FILES_TEXT_EDITOR_ID,
   FILES_TREE_PANEL_ID,
-  OPEN_PROJECT_COMMAND_ID,
-  SAVE_ALL_COMMAND_ID,
-  SAVE_COMMAND_ID,
   TEXT_EDITOR_PRIORITY,
 } from './plugin';
 
@@ -78,36 +71,8 @@ function fakeDiagnostics(): DiagnosticsService {
   };
 }
 
-/** Контекст применимости в том виде, в каком его видит предикат команды. */
-function context(activeEditorId: string | null) {
-  return {
-    focus: 'editable' as const,
-    activeEditorId,
-    activeResourceKind: null,
-    hasSelection: false,
-    previewMode: null,
-  };
-}
-
 function ref(path: string, mediaType: string): ResourceRef {
   return { id: `fs:${path}`, sourceId: 'fs', path, name: path, kind: 'file', mediaType };
-}
-
-/** Двойник привилегированной службы записей: по умолчанию всё разрешено и всё получается. */
-function fakeResources(
-  overrides: Partial<WorkspaceResourcesService> = {}
-): WorkspaceResourcesService {
-  return {
-    canOpenProject: () => true,
-    openProject: () => Promise.resolve(true),
-    createFile: () => Promise.resolve('fs:new.txt'),
-    createDirectory: () => Promise.resolve('fs:dir'),
-    rename: () => Promise.resolve('fs:renamed.txt'),
-    move: () => Promise.resolve('fs:moved.txt'),
-    remove: () => Promise.resolve({ done: [], failed: [] }),
-    copy: () => Promise.resolve({ done: [], failed: [] }),
-    ...overrides,
-  };
 }
 
 function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
@@ -115,10 +80,6 @@ function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
     ResourceTreePanel: () => null,
     useTranslate: () => (key: string) => key,
     hasProject: () => true,
-    save: () => Promise.resolve(true),
-    saveAll: () => Promise.resolve(true),
-    activeResource: () => 'fs:a.txt',
-    isDirty: () => false,
     documentOf: () => null,
     writeText: () => Promise.resolve(),
     isTextual: (mediaType: string) => mediaType.startsWith('text/'),
@@ -140,9 +101,16 @@ function fakeContext(withDiagnostics = true) {
   const contributed: { point: string; id: string | undefined; value: unknown }[] = [];
   const registered: { id: string }[] = [];
   const diagnostics = fakeDiagnostics();
+  /** Словарь, внесённый плагином: локаль → ключ → текст. */
+  const dictionary = new Map<string, Readonly<Record<string, string>>>();
   const ctx = {
     id: FILES_PLUGIN_ID,
     subscriptions: [],
+    i18n: {
+      contribute: (locale: string, messages: Readonly<Record<string, string>>) => {
+        dictionary.set(locale, messages);
+      },
+    },
     services: {
       get: (token: unknown) =>
         withDiagnostics && token === DiagnosticsServiceToken ? diagnostics : undefined,
@@ -161,11 +129,8 @@ function fakeContext(withDiagnostics = true) {
       execute: () => Promise.resolve(undefined),
     },
   } as unknown as PluginContext;
-  return { ctx, contributed, registered, diagnostics };
+  return { ctx, contributed, registered, diagnostics, dictionary };
 }
-
-const panelPoint = { id: 'panel' } as ExtensionPointRef<FilesPanelSpec>;
-const editorPoint = { id: 'editor' } as ExtensionPointRef<FilesEditorSpec>;
 
 describe('панель проекта', () => {
   it('стоит в левом доке и рисуется телом, которое дала платформа', () => {
@@ -174,17 +139,30 @@ describe('панель проекта', () => {
     const panel = filesTreePanel(host);
 
     expect(panel).toMatchObject({ id: FILES_TREE_PANEL_ID, slot: 'panel.left' });
-    expect(panel.Body).toBe(host.ResourceTreePanel);
+    expect(panel?.Body).toBe(host.ResourceTreePanel);
   });
 
   it('заголовок — ключ в пространстве имён плагина, а не готовая строка', () => {
-    expect(filesTreePanel(fakeHost()).titleKey).toBe('panel.title');
+    expect(filesTreePanel(fakeHost())?.titleKey).toBe('panel.title');
+  });
+
+  it('оболочка дерева не даёт — панели нет вовсе, а не пустая вкладка в рейле', () => {
+    // Тело панели — возможность оболочки (`reformer.workspace.tree`). Приложение на той же
+    // оболочке вправе её не давать: плагин остаётся панелью проблем и текстовым редактором.
+    const host = fakeHost({ ResourceTreePanel: undefined });
+
+    expect(filesTreePanel(host)).toBeNull();
+
+    const { ctx, contributed } = fakeContext();
+    createFilesPlugin({ host }).activate(ctx);
+    expect(contributed.map((entry) => entry.id)).not.toContain(FILES_TREE_PANEL_ID);
+    expect(contributed.map((entry) => entry.id)).toContain(FILES_PROBLEMS_PANEL_ID);
   });
 });
 
 describe('текстовый редактор', () => {
   it('берётся за то, что читается текстом, с наименьшим приоритетом', () => {
-    const editor: FilesEditorSpec = filesTextEditor(fakeHost());
+    const editor = filesTextEditor(fakeHost());
 
     expect(
       editor.canOpen(ref('readme.md', 'text/markdown'), { text: () => Promise.resolve('') })
@@ -208,126 +186,49 @@ describe('текстовый редактор', () => {
   });
 });
 
-describe('команды', () => {
-  it('плагин везёт ровно три команды', () => {
-    expect(filesCommands(fakeHost()).map((command) => command.id)).toEqual([
-      OPEN_PROJECT_COMMAND_ID,
-      SAVE_COMMAND_ID,
-      SAVE_ALL_COMMAND_ID,
-    ]);
-  });
-
-  it('сохранение доступно только при открытом редакторе', () => {
-    const [, save] = filesCommands(fakeHost());
-
-    expect(save.enabled?.(context('fs:a.txt'))).toBe(true);
-    expect(save.enabled?.(context(null))).toBe(false);
-  });
-
-  it('сохранение работает и в поле ввода: иначе оно недоступно при наборе', () => {
-    const [, save] = filesCommands(fakeHost());
-
-    expect(save.keybinding).toBe('mod+s');
-    expect(save.allowInEditable).toBe(true);
-  });
-
-  it('сохраняет активный ресурс, а не «какой-нибудь»', async () => {
-    const save = vi.fn((id: ResourceId) => Promise.resolve(id !== null));
-    const [, command] = filesCommands(fakeHost({ activeResource: () => 'fs:b.txt', save }));
-
-    await command.run();
-
-    expect(save).toHaveBeenCalledWith('fs:b.txt');
-  });
-
-  it('исчезнувшая между проверкой и запуском вкладка не приводит к записи не того файла', async () => {
-    const save = vi.fn((id: ResourceId) => Promise.resolve(id !== null));
-    const [, command] = filesCommands(fakeHost({ activeResource: () => null, save }));
-
-    await expect(command.run()).resolves.toBe(false);
-    expect(save).not.toHaveBeenCalled();
-  });
-
-  it('«сохранить всё» доступно только при открытом проекте', () => {
-    const [, , saveAll] = filesCommands(fakeHost({ hasProject: () => false }));
-
-    expect(saveAll.enabled?.(context('fs:a.txt'))).toBe(false);
-  });
-
-  it('открытие проекта недоступно там, где движок не умеет выбирать каталог', () => {
-    const [open] = filesCommands(fakeHost(), fakeResources({ canOpenProject: () => false }));
-
-    expect(open.enabled?.(context(null))).toBe(false);
-  });
-
-  it('без права открытия каталога команда недоступна, а не падает при нажатии', async () => {
-    // `workspace.resources` не подтверждено — служба не пришла. Это названная деградация:
-    // панель остаётся просмотром, и нажать «Открыть папку…» нельзя.
-    const [open] = filesCommands(fakeHost(), null);
-
-    expect(open.enabled?.(context(null))).toBe(false);
-    await expect(open.run?.(undefined)).resolves.toBe(false);
-  });
-});
-
-describe('пункты меню', () => {
-  it('все три стоят в меню «Файл» и ссылаются на команды плагина', () => {
-    expect(filesMenuItems().map((item) => item.value)).toEqual([
-      expect.objectContaining({ kind: 'item', menu: 'file', command: OPEN_PROJECT_COMMAND_ID }),
-      expect.objectContaining({ kind: 'item', menu: 'file', command: SAVE_COMMAND_ID }),
-      expect.objectContaining({ kind: 'item', menu: 'file', command: SAVE_ALL_COMMAND_ID }),
-    ]);
-  });
-
-  it('ни один не несёт своего заголовка: имя приходит от команды', () => {
-    for (const { value } of filesMenuItems()) {
-      expect(value).not.toHaveProperty('titleKey');
-    }
-  });
-
-  it('открытие и сохранение — разные группы: линия между ними появится сама', () => {
-    const [open, save, saveAll] = filesMenuItems().map((item) => item.value);
-
-    expect(open).toMatchObject({ group: '1_open' });
-    expect(save).toMatchObject({ group: '2_save' });
-    expect(saveAll).toMatchObject({ group: '2_save' });
-  });
-});
-
 describe('активация', () => {
-  it('регистрирует команды и вносит панели, редактор и пункты меню', () => {
-    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
+  it('вносит панели, редактор, пункты меню и пометку — в точки SDK, без подстановок', () => {
+    const plugin = createFilesPlugin({ host: fakeHost() });
     const { ctx, contributed, registered } = fakeContext();
 
     plugin.activate(ctx);
 
-    // Команды рабочей области идут первыми и в этом порядке; за ними — команды операций
-    // над ресурсами, состав которых этот тест не сторожит: их владелец `./operations`,
-    // и перечислять их здесь значило бы ломать этот тест на каждой новой операции.
-    expect(registered.slice(0, 3).map((command) => command.id)).toEqual([
-      OPEN_PROJECT_COMMAND_ID,
-      SAVE_COMMAND_ID,
-      SAVE_ALL_COMMAND_ID,
-    ]);
+    // Команды — операции над ресурсами; их состав этот тест не сторожит: владелец
+    // `./operations`, и перечислять их здесь значило бы ломать тест на каждой новой операции.
+    // Сторожится обратное: команд ПРОЕКТА здесь больше нет — они у плагина «Проект».
+    expect(registered.length).toBeGreaterThan(0);
+    expect(
+      registered.map((command) => command.id).filter((id) => /save|openProject/i.test(id))
+    ).toEqual([]);
 
     const points = contributed.map((entry) => `${entry.point}:${entry.id ?? ''}`);
     expect(points).toEqual(
       expect.arrayContaining([
-        `panel:${FILES_TREE_PANEL_ID}`,
-        `panel:${FILES_PROBLEMS_PANEL_ID}`,
-        `editor:${FILES_TEXT_EDITOR_ID}`,
-        'menu:files.menu.openProject',
-        'menu:files.menu.save',
-        'menu:files.menu.saveAll',
+        `${PanelPoint.id}:${FILES_TREE_PANEL_ID}`,
+        `${PanelPoint.id}:${FILES_PROBLEMS_PANEL_ID}`,
+        `${EditorPoint.id}:${FILES_TEXT_EDITOR_ID}`,
         // Заголовок общего подменю «Сгенерировать»: его наполняют стеки, а вносит основа.
-        'menu:files.context.generate',
-        `resource.decoration:${FILES_DIAGNOSTICS_DECORATION_ID}`,
+        `${MenuPoint.id}:files.context.generate`,
+        `${ResourceDecorationPoint.id}:${FILES_DIAGNOSTICS_DECORATION_ID}`,
       ])
     );
+    // Пунктов меню «Файл» плагин больше не вносит: открыть и сохранить — дело «Проекта».
+    expect(points.filter((point) => point.startsWith(`${MenuPoint.id}:files.menu.`))).toEqual([]);
+  });
+
+  it('словарь вносит сам плагин: заголовки панелей и команд не остаются маркерами промаха', () => {
+    // Раньше словарь регистрировала композиция, и ради этого оболочка импортировала плагин.
+    const { ctx, dictionary } = fakeContext();
+
+    createFilesPlugin({ host: fakeHost() }).activate(ctx);
+
+    expect(dictionary.get('ru')).toEqual(FILES_MESSAGES.ru);
+    expect(dictionary.get('en')).toEqual(FILES_MESSAGES.en);
+    expect(FILES_MESSAGES.ru?.['panel.title']).toBeDefined();
   });
 
   it('всё зарегистрированное лежит в подписках: иначе выключение плагина оставит следы', () => {
-    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
+    const plugin = createFilesPlugin({ host: fakeHost() });
     const { ctx, contributed, registered } = fakeContext();
 
     plugin.activate(ctx);
@@ -338,9 +239,7 @@ describe('активация', () => {
   });
 
   it('идентификатор плагина — пространство имён во всех реестрах', () => {
-    expect(createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint }).id).toBe(
-      FILES_PLUGIN_ID
-    );
+    expect(createFilesPlugin({ host: fakeHost() }).id).toBe(FILES_PLUGIN_ID);
   });
 });
 
@@ -356,7 +255,7 @@ describe('панель проблем', () => {
   });
 
   it('вносится и без службы диагностик: без неё она просто пуста', () => {
-    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
+    const plugin = createFilesPlugin({ host: fakeHost() });
     const { ctx, contributed } = fakeContext(false);
 
     plugin.activate(ctx);
@@ -365,7 +264,7 @@ describe('панель проблем', () => {
   });
 
   it('а вот пометка без службы НЕ вносится: вклад, который всегда молчит, лишний', () => {
-    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
+    const plugin = createFilesPlugin({ host: fakeHost() });
     const { ctx, contributed } = fakeContext(false);
 
     plugin.activate(ctx);
@@ -427,81 +326,5 @@ describe('пометка на файле', () => {
     subscription?.dispose();
     diagnostics.publish(file.id, 'validator.schema', []);
     expect(changed).toHaveBeenCalledOnce();
-  });
-});
-
-/** Список недавних в объёме порта; каждый метод — шпион, чтобы видеть, кто его трогал. */
-function fakeRecent() {
-  return {
-    list: vi.fn(() => []),
-    onDidChange: vi.fn(() => ({ dispose: () => undefined })),
-    open: vi.fn(() => Promise.resolve(true)),
-    forget: vi.fn(() => Promise.resolve()),
-    clear: vi.fn(() => Promise.resolve()),
-  } satisfies FilesRecentProjects;
-}
-
-describe('недавно открытые', () => {
-  it('без списка от композиции плагин не вносит ни подменю, ни команд', () => {
-    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
-    const { ctx, contributed, registered } = fakeContext();
-
-    plugin.activate(ctx);
-
-    expect(registered.map((command) => command.id)).not.toContain(OPEN_RECENT_COMMAND_ID);
-    expect(contributed.map((entry) => entry.id)).not.toContain('files.menu.recent');
-  });
-
-  it('со списком — команды и подменю «Файл › Недавно открытые», всё в подписках', () => {
-    const plugin = createFilesPlugin({
-      host: fakeHost({ recent: fakeRecent() }),
-      panelPoint,
-      editorPoint,
-    });
-    const { ctx, contributed, registered } = fakeContext();
-
-    plugin.activate(ctx);
-
-    expect(registered.map((command) => command.id)).toEqual(
-      expect.arrayContaining([OPEN_RECENT_COMMAND_ID, CLEAR_RECENT_COMMAND_ID])
-    );
-    expect(contributed.map((entry) => `${entry.point}:${entry.id ?? ''}`)).toEqual(
-      expect.arrayContaining([
-        'menu:files.menu.recent',
-        'menu:files.menu.recent.projects',
-        'menu:files.menu.recent.more',
-        'menu:files.menu.recent.clear',
-      ])
-    );
-    expect(ctx.subscriptions).toHaveLength(registered.length + contributed.length);
-  });
-
-  it('активация список не читает: только регистрирует', () => {
-    const recent = fakeRecent();
-    const plugin = createFilesPlugin({ host: fakeHost({ recent }), panelPoint, editorPoint });
-
-    plugin.activate(fakeContext().ctx);
-
-    expect(recent.list).not.toHaveBeenCalled();
-    expect(recent.onDidChange).not.toHaveBeenCalled();
-  });
-});
-
-describe('стартовая страница', () => {
-  it('стоит в центре: слот editor.main для неё и заведён', () => {
-    expect(
-      filesWelcomePanel(fakeHost(), { openFolder: () => undefined, openRecent: () => undefined })
-    ).toMatchObject({ id: FILES_WELCOME_PANEL_ID, slot: 'editor.main', titleKey: 'welcome.title' });
-  });
-
-  it('вносится и без списка недавних: «Открыть папку…» нужна всегда', () => {
-    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
-    const { ctx, contributed } = fakeContext();
-
-    plugin.activate(ctx);
-
-    expect(contributed.map((entry) => `${entry.point}:${entry.id ?? ''}`)).toContain(
-      `panel:${FILES_WELCOME_PANEL_ID}`
-    );
   });
 });

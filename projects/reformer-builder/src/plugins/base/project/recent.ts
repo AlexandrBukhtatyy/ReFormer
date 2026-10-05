@@ -4,17 +4,18 @@
  * ## Почему здесь, а не в оболочке
  *
  * Список платформенный — записи рабочих областей держит держатель проекта. А решение «показать
- * его подменю «Файл» и открывать проект вот этой командой» — предметное, то же, что у «Открыть
- * папку…». Поэтому данные и глагол «открыть по id» приходят портом (`FilesHost.recent`),
- * а подменю, команды и стартовую страницу вносит плагин.
+ * его подменю «Файл» и открывать проект вот этой командой» — то же, что у «Открыть папку…».
+ * Поэтому данные и глагол «открыть по id» отдаёт служба записей проекта
+ * (`WorkspaceResourcesService.recentProjects`), а подменю, команды и стартовую страницу вносит
+ * плагин.
  *
  * ## Одна команда на «открыть недавний»
  *
- * `files.openRecent` с `{ id }` открывает этот проект, без аргументов — показывает весь список.
+ * `project.openRecent` с `{ id }` открывает этот проект, без аргументов — показывает весь список.
  * Пункты подменю и строки стартовой страницы ссылаются на неё же: одно действие — одна
  * команда в палитре, в меню, у клавиши и у ассистента.
  *
- * @module plugins/base/files/recent
+ * @module plugins/base/project/recent
  */
 
 import type {
@@ -23,15 +24,10 @@ import type {
   MenuDynamicItem,
   PromptPickItem,
   PromptService,
+  RecentProject,
+  RecentProjects,
 } from '@reformer/builder-plugin-api';
-import type { FilesRecentProject, FilesRecentProjects } from './host';
-import { FILES_PLUGIN_ID } from './plugin';
-
-/** Открыть недавний проект: с `{ id }` — этот, без аргументов — выбор из списка. */
-export const OPEN_RECENT_COMMAND_ID = 'files.openRecent';
-
-/** Убрать из списка все недавние проекты, кроме открытого. */
-export const CLEAR_RECENT_COMMAND_ID = 'files.clearRecent';
+import { CLEAR_RECENT_COMMAND_ID, OPEN_RECENT_COMMAND_ID, PROJECT_PLUGIN_ID } from './contract';
 
 /** Адрес подменю «Файл › Недавно открытые». */
 export const RECENT_SUBMENU = 'file/recent';
@@ -43,7 +39,7 @@ export const MENU_RECENT_LIMIT = 10;
 export const WELCOME_RECENT_LIMIT = 5;
 
 export interface RecentCommandsDeps {
-  readonly recent: FilesRecentProjects;
+  readonly recent: RecentProjects;
   /** Служба запросов. Без неё список не показать и очистку не подтвердить. */
   readonly prompt?: PromptService | null;
   /** Подпись даты у пункта списка. Параметр — ради тестов: `Intl` зависит от окружения. */
@@ -70,7 +66,7 @@ function defaultFormatDate(timestamp: number): string {
 }
 
 function pickItem(
-  project: FilesRecentProject,
+  project: RecentProject,
   formatDate: (timestamp: number) => string
 ): PromptPickItem {
   return { id: project.id, label: project.label, description: formatDate(project.lastOpenedAt) };
@@ -83,7 +79,7 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
   return [
     {
       id: OPEN_RECENT_COMMAND_ID,
-      titleKey: 'files.command.openRecent',
+      titleKey: 'command.openRecent',
       keybinding: 'mod+r',
       // Сочетание обязано работать и в поле ввода, и в Monaco: браузер отдаёт `Ctrl+R`
       // странице, только если правило сработало, — иначе страница перезагрузится.
@@ -111,7 +107,7 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
             labelKey: 'recent.pick.remove',
             run: (projectId) => recent.forget(projectId),
           },
-          pluginId: FILES_PLUGIN_ID,
+          pluginId: PROJECT_PLUGIN_ID,
         });
         if (chosen === null) return false;
         return recent.open(chosen);
@@ -119,7 +115,7 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
     },
     {
       id: CLEAR_RECENT_COMMAND_ID,
-      titleKey: 'files.command.clearRecent',
+      titleKey: 'command.clearRecent',
       enabled: () => deps.prompt != null && recent.list().length > 0,
       async run() {
         const prompt = deps.prompt;
@@ -128,7 +124,7 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
           titleKey: 'recent.clear.title',
           descriptionKey: 'recent.clear.description',
           confirmKey: 'recent.clear.confirm',
-          pluginId: FILES_PLUGIN_ID,
+          pluginId: PROJECT_PLUGIN_ID,
         });
         if (!confirmed) return false;
         await recent.clear();
@@ -146,13 +142,13 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
  * и меню не меняет состав от того, открывал ли человек что-нибудь раньше.
  */
 export function recentMenuItems(
-  recent: FilesRecentProjects
+  recent: RecentProjects
 ): readonly { id: string; value: MenuContribution }[] {
   const onDidChange = (cb: () => void) => recent.onDidChange(cb);
 
   return [
     {
-      id: 'files.menu.recent',
+      id: 'project.menu.recent',
       value: {
         kind: 'submenu',
         menu: 'file',
@@ -165,7 +161,7 @@ export function recentMenuItems(
       },
     },
     {
-      id: 'files.menu.recent.projects',
+      id: 'project.menu.recent.projects',
       value: {
         kind: 'dynamic',
         menu: RECENT_SUBMENU,
@@ -185,7 +181,7 @@ export function recentMenuItems(
       },
     },
     {
-      id: 'files.menu.recent.more',
+      id: 'project.menu.recent.more',
       value: {
         kind: 'item',
         menu: RECENT_SUBMENU,
@@ -197,7 +193,7 @@ export function recentMenuItems(
       },
     },
     {
-      id: 'files.menu.recent.clear',
+      id: 'project.menu.recent.clear',
       value: {
         kind: 'item',
         menu: RECENT_SUBMENU,

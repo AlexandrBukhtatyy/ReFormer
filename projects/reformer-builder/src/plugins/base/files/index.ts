@@ -5,15 +5,10 @@
  * внутреннее и меняется без согласования. Правило проверяется запретом импорта
  * из каталога чужого плагина глубже его корня.
  *
- * Состав продиктован фактическим потреблением, а не воображением: композиции нужны
- * фабрика плагина, его идентификатор (для пространства имён словаря и владельца команд),
- * словарь и тип порта, который она обязана реализовать в `shell/boot/ports/files.ts`.
- *
  * @module plugins/base/files/index
  */
 
-import { createFilesPlugin, type FilesPluginOptions } from './plugin';
-import type { FilesHost } from './host';
+import { createFilesPlugin } from './plugin';
 
 export { createFilesPlugin, FILES_PLUGIN_ID } from './plugin';
 export type { FilesPluginOptions } from './plugin';
@@ -22,18 +17,8 @@ export type { FilesDocument, FilesHost, Translate } from './host';
 
 /**
  * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
- * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
- * Плагину нужен порт дерева файлов и две точки расширения: панели и редакторы SDK наружу не
- * отдаёт, а импортировать оболочку плагину нельзя, поэтому точки приходят параметром.
+ * `application/composer/builtin-plugins`. Портов плагину не нужно: всё берётся из контекста.
  */
-export default function builtin(ports: {
-  readonly files: FilesHost;
-  readonly panelPoint: FilesPluginOptions['panelPoint'];
-  readonly editorPoint: FilesPluginOptions['editorPoint'];
-}) {
-  return createFilesPlugin({
-    host: ports.files,
-    panelPoint: ports.panelPoint,
-    editorPoint: ports.editorPoint,
-  });
+export default function builtin() {
+  return createFilesPlugin();
 }

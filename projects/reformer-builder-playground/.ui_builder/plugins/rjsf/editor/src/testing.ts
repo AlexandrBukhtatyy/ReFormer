@@ -220,6 +220,8 @@ export function createFakeRjsfWorkspace(options: FakeRjsfWorkspaceOptions = {}):
       files: () => files,
       models: () => models,
       save: () => ({
+        saveAll: () => Promise.resolve(true),
+        isDirty: () => false,
         save: (ids: readonly ResourceId[]) => {
           saved.push(ids);
           return Promise.resolve(true);

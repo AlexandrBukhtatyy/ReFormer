@@ -8,14 +8,12 @@
  *
  * **Что плагин делает сам, а что получает.** Сам: идентификатор, словарь, приоритет, тело
  * редактора, состояние вида, разметку по диагностикам, связь с буфером. Получает: рабочую
- * область, службу диагностик и перевод — четырьмя глаголами через порт (см. `./host`).
- * Точку расширения редакторов он берёт прямо из `@reformer/builder-plugin-api`: она там уже есть, и подставлять
- * её параметром, как это вынужден делать плагин файлов, больше не нужно.
+ * область, службу диагностик, знание формата документа и перевод — службами SDK, из контекста
+ * (`./host-from-context`). Тело редактора при этом пишется против порта (`./host`): тест
+ * подставляет его целиком.
  *
- * **Почему фабрика, а не готовый объект.** `definePlugin` возвращает замороженный плагин,
- * а порт платформы известен только композиции. Тот же приём, что у `createFilesPlugin`:
- * `app/plugins.ts` собирает список функцией именно потому, что плагинам нужны части
- * композиции.
+ * **Почему фабрика, а не готовый объект.** Тесту нужно подставить порт, реестр фокуса
+ * и снимки вида; в приложении фабрика зовётся без аргументов, и всё берётся из контекста.
  *
  * @module plugins/base/editor-monaco/plugin
  */
@@ -32,6 +30,7 @@ import {
   type ResourceId,
   type TextEditorFocusRegistry,
 } from '@reformer/builder-plugin-api';
+import { monacoHostFromContext } from './host-from-context';
 import type { MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import { contributeMessages } from './messages';
@@ -71,8 +70,11 @@ export interface TextEditorProvider {
 }
 
 export interface MonacoEditorPluginOptions {
-  /** Порт платформы. Подставляется композицией — см. `./host`. */
-  readonly host: MonacoHost;
+  /**
+   * Порт редактора. Необязателен и ЗАПАСНОЙ: по умолчанию плагин собирает его сам из контекста
+   * (`./host-from-context`), как обязан любой плагин из каталога. Параметр — только для тестов.
+   */
+  readonly host?: MonacoHost;
   /**
    * Реестр фокуса текстового редактора — платформенный, см. `TextEditorFocusToken` в `@reformer/builder-plugin-api`.
    *
@@ -140,12 +142,11 @@ export function monacoEditorContribution(options: {
  * мегабайты на активации, замедлял бы запуск оболочки ради вкладки, которую могут
  * и не открыть.
  */
-export function createMonacoEditorPlugin(options: MonacoEditorPluginOptions): Plugin {
-  const host = options.host;
-
+export function createMonacoEditorPlugin(options: MonacoEditorPluginOptions = {}): Plugin {
   return definePlugin({
     id: MONACO_PLUGIN_ID,
     activate(ctx) {
+      const host = options.host ?? monacoHostFromContext(ctx);
       // Службы Host: композиция регистрирует их до активации любого плагина, поэтому `require`
       // здесь законен — правило «искать сервис в момент использования» про сервисы ЧУЖИХ
       // плагинов. Без реестра фокуса редактор не имеет права работать: набранное терялось бы

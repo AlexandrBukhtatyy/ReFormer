@@ -35,9 +35,10 @@
  * нечитаемо до его загрузки, а отвечать «собирается ли состав» надо раньше.
  *
  * Создаёт плагин его ФАБРИКА СОСТАВА — `export default` бареля. Контракт у всех один: функция
- * от набора портов ({@link BuiltinPluginPorts}), из которого плагин берёт своё по имени. Раньше
- * фабрики звались по-разному и аргументы каждой собирались здесь — поэтому найти плагин по папке
- * было нельзя: надо было знать, как его создать.
+ * БЕЗ аргументов. Всё, что плагину нужно от оболочки, он берёт из контекста службами SDK —
+ * встроенный ровно так же, как плагин каталога. Раньше фабрика получала набор портов, собранных
+ * оболочкой, и ради их типов оболочка импортировала плагины; ещё раньше фабрики звались
+ * по-разному, и найти плагин по папке было нельзя: надо было знать, как его создать.
  *
  * Каталогу идентификатор НЕ равен: плагин зовётся `reformer.files`, а лежит в `plugins/base/files`.
  * Пространство имён (`BUILTIN_PLUGIN_NAMESPACE`) разводит встроенных с плагинами каталога
@@ -69,47 +70,15 @@
  * @module application/composer/builtin-plugins
  */
 
-import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
 import { parsePluginManifestValue } from '@reformer/builder-plugin-api/internal';
 import { type BuiltinPluginManifest } from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
-import { EditorPoint } from '@reformer/builder-plugin-api/internal';
-import { PanelPoint } from '@reformer/builder-plugin-api/internal';
-import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { BUILDER_VERSION } from '@/shell/platform/version';
 
 // Кода плагинов здесь нет ВОВСЕ — ни значением, ни типом: он приезжает обходом ниже.
 
-/**
- * Что получает фабрика состава: порты оболочки и точки расширения.
- *
- * Порты — то, что `boot` умеет дать ({@link BuiltinPluginsOptions}). Точки подставляются ЗДЕСЬ:
- * плагин объявляет их структурно, потому что публичный SDK панелей, редакторов и моделей
- * документов не отдаёт, а импортировать `@/shell` плагину нельзя.
- *
- * Плагин берёт из набора своё ПО ИМЕНИ и объявляет нужное сам, типом параметра фабрики. Набор
- * один на всех — поэтому фабрику можно позвать, не зная, какой это плагин.
- */
-export interface BuiltinPluginPorts extends BuiltinPluginsOptions {
-  readonly panelPoint: typeof PanelPoint;
-  readonly editorPoint: typeof EditorPoint;
-  readonly modelPoint: typeof DocumentModelPoint;
-}
-
-/** Набор портов для фабрик состава из опций, собранных оболочкой. */
-export function builtinPluginPorts(options: BuiltinPluginsOptions): BuiltinPluginPorts {
-  return {
-    files: options.files,
-    monaco: options.monaco,
-    markdown: options.markdown,
-    panelPoint: PanelPoint,
-    editorPoint: EditorPoint,
-    modelPoint: DocumentModelPoint,
-  };
-}
-
-/** Фабрика состава — `export default` бареля встроенного плагина. */
-type BuiltinPluginFactory = (ports: BuiltinPluginPorts) => Plugin;
+/** Фабрика состава — `export default` бареля встроенного плагина. Аргументов у неё нет. */
+type BuiltinPluginFactory = () => Plugin;
 
 /**
  * Манифесты всех встроенных — статически: JSON — лист, кода плагина за ним нет.
@@ -149,7 +118,7 @@ export interface BuiltinPluginEntry {
    * выполняется синхронно до первого `await`), — поэтому вызов всех фабрик подряд даёт столько
    * же параллельных запросов, сколько плагинов, а не цепочку.
    */
-  readonly create: (options: BuiltinPluginsOptions) => Promise<Plugin>;
+  readonly create: () => Promise<Plugin>;
 }
 
 /**
@@ -182,9 +151,9 @@ function builtinEntry(directory: string, raw: unknown): BuiltinPluginEntry {
   return {
     manifest,
     directory,
-    create: async (options) => {
+    create: async () => {
       const module = await load();
-      return module.default(builtinPluginPorts(options));
+      return module.default();
     },
   };
 }

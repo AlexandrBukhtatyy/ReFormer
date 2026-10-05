@@ -60,6 +60,7 @@ import { MONACO_MESSAGES } from '@/plugins/base/editor-monaco/messages';
 import { FILES_MESSAGES } from '@/plugins/base/files';
 import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/base/plugin-manager';
 import { PROFILE_SWITCH_MESSAGES } from '@/plugins/base/profile-switch/messages';
+import { PROJECT_MESSAGES } from '@/plugins/base/project/messages';
 
 /**
  * Словарь Host собирается здесь из тех же файлов, которые грузит сам сервис.
@@ -82,6 +83,7 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['base/files', FILES_MESSAGES],
   ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['base/profile-switch', PROFILE_SWITCH_MESSAGES],
+  ['base/project', PROJECT_MESSAGES],
 ];
 
 describe('словари: наборы ключей совпадают во всех локалях', () => {

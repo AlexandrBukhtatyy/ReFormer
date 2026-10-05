@@ -33,6 +33,21 @@ export interface DocumentModelsService {
    * править нечего.
    */
   handleOf(id: ResourceId): ModelDocumentHandle<unknown> | null;
+  /**
+   * Корень составного документа, ЧАСТЬЮ которого является ресурс, либо `null`.
+   *
+   * Файл части (шаг разбитой формы) своей модели не имеет — он открыт текстом, — но находки
+   * и подсказки ему даёт документ, в который он входит. Спрашивает это тот, кто часть
+   * показывает: редактор кода видит только адрес открытой вкладки.
+   */
+  ownerOf(id: ResourceId): ResourceId | null;
+  /**
+   * Файлы частей, из которых документ собран сейчас. У документа одним файлом и у ресурса
+   * без модели — пусто.
+   *
+   * Обратный вопрос к {@link ownerOf}: смена находок корня — повод перечитать и его части.
+   */
+  partsOf(id: ResourceId): readonly ResourceId[];
 }
 
 /**
@@ -42,4 +57,4 @@ export interface DocumentModelsService {
  * Версия `1.0.0` — исходная.
  */
 export const DocumentModelsCapability: Capability<DocumentModelsService> =
-  defineCapability<DocumentModelsService>({ id: 'reformer.workspace.models', version: '1.0.0' });
+  defineCapability<DocumentModelsService>({ id: 'reformer.workspace.models', version: '1.1.0' });

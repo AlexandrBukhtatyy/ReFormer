@@ -39,6 +39,7 @@ const NOOP: Disposable = Object.freeze({ dispose: () => {} });
 const NO_MESSAGES: HostMessagesService = Object.freeze({
   locale: '',
   t: (key: string) => key,
+  diagnosticMessage: (code: string) => code,
   onDidChangeLocale: () => NOOP,
 });
 
@@ -53,13 +54,14 @@ export function schemaHostFromContext(
     return useTranslate(ctx.i18n);
   }
 
-  // Коды находок переводит словарь ОБОЛОЧКИ, а не плагина: одна ошибка обязана звучать
-  // одинаково на узле канваса, в подчёркивании редактора кода и в панели проблем. Приставку
-  // `errors.` ставит порт — плагин передаёт голый код.
+  // Коды находок переводит словарь ВЛАДЕЛЬЦА кода, а не этого плагина: одна ошибка обязана
+  // звучать одинаково на узле канваса, в подчёркивании редактора кода и в панели проблем.
+  // Чей словарь и какая приставка — знает служба; плагин передаёт голый код.
   function useDiagnosticMessage(): Translate {
-    const source = messages();
-    const t = useTranslate(source ?? NO_MESSAGES);
-    return (code, params) => (source === undefined ? code : t(`errors.${code}`, params));
+    const source = messages() ?? NO_MESSAGES;
+    // Подписка на смену локали: значение нужно не переводу, а перерисовке.
+    useTranslate(source);
+    return (code, params) => source.diagnosticMessage(code, params);
   }
 
   // Заголовок исправления — ГОТОВЫЙ ключ словаря оболочки, без приставки: у исправления нет кода.

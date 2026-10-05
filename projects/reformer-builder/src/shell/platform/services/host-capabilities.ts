@@ -32,6 +32,7 @@ import { EditorViewStatesCapability } from '@reformer/builder-plugin-api/interna
 import { TextEditorFocusCapability } from '@reformer/builder-plugin-api/internal';
 import { DocumentsCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceFilesCapability } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceTreeCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceResourcesCapability } from '@reformer/builder-plugin-api/internal';
 import { PluginsCatalogCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveCapability } from '@reformer/builder-plugin-api/internal';
@@ -58,6 +59,7 @@ export const HOST_PROVIDER_ID = 'builder.host';
 export const HOST_CAPABILITIES: readonly Capability<unknown>[] = Object.freeze([
   DocumentsCapability,
   WorkspaceFilesCapability,
+  WorkspaceTreeCapability,
   DocumentModelsCapability,
   ModuleLoaderCapability,
   HostMessagesCapability,

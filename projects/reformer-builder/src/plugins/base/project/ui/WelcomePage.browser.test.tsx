@@ -2,28 +2,27 @@
  * Стартовая страница в настоящем браузере.
  *
  * Проверяется то, чего компиляция не видит: сколько проектов показано и куда ведёт щелчок,
- * перерисовка по сигналу порта и поведение там, где выбрать каталог нечем. Перевод здесь —
+ * перерисовка по сигналу службы и поведение там, где выбрать каталог нечем. Перевод здесь —
  * сами ключи: словарь проверяется отдельно (`shell/boot/integration/i18n-completeness`).
  *
- * @module plugins/base/files/ui/WelcomePage.browser.test
+ * @module plugins/base/project/ui/WelcomePage.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
-import type { Disposable } from '@reformer/builder-plugin-api';
+import type { Disposable, RecentProject, RecentProjects } from '@reformer/builder-plugin-api';
 import { renderReact } from '@/testing/render';
-import type { FilesHost, FilesRecentProject, FilesRecentProjects } from '../host';
 import { WelcomePage } from './WelcomePage';
 
-function project(id: string): FilesRecentProject {
+function project(id: string): RecentProject {
   return { id, label: `папка-${id}`, lastOpenedAt: 1 };
 }
 
 /** Список недавних, который умеет меняться: `set` — «пришло новое чтение хранилища». */
-function fakeRecent(initial: readonly FilesRecentProject[]) {
+function fakeRecent(initial: readonly RecentProject[]) {
   let list = initial;
   const listeners = new Set<() => void>();
-  const recent: FilesRecentProjects = {
+  const recent: RecentProjects = {
     list: () => list,
     onDidChange: (cb): Disposable => {
       listeners.add(cb);
@@ -39,30 +38,19 @@ function fakeRecent(initial: readonly FilesRecentProject[]) {
   };
   return {
     recent,
-    set: (next: readonly FilesRecentProject[]) => {
+    set: (next: readonly RecentProject[]) => {
       list = next;
       for (const cb of [...listeners]) cb();
     },
   };
 }
 
-function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
-  return {
-    ResourceTreePanel: () => null,
-    useTranslate: () => (key: string) => key,
-    hasProject: () => false,
-    save: () => Promise.resolve(true),
-    saveAll: () => Promise.resolve(true),
-    activeResource: () => null,
-    isDirty: () => false,
-    documentOf: () => null,
-    writeText: () => Promise.resolve(),
-    isTextual: () => true,
-    treeSelection: () => [],
-    treeRoot: () => null,
-    ...overrides,
-  };
-}
+/** Перевод — сами ключи: словарь проверяется отдельно. */
+const i18n = {
+  locale: 'ru',
+  t: (key: string) => key,
+  onDidChangeLocale: (): Disposable => ({ dispose: () => {} }),
+};
 
 describe('стартовая страница', () => {
   it('показывает пять последних и «Ещё…», щелчок открывает проект по адресу', async () => {
@@ -71,7 +59,8 @@ describe('стартовая страница', () => {
 
     renderReact(
       <WelcomePage
-        host={fakeHost({ recent })}
+        i18n={i18n}
+        recent={recent}
         openFolder={() => undefined}
         openRecent={openRecent}
       />
@@ -92,7 +81,8 @@ describe('стартовая страница', () => {
 
     renderReact(
       <WelcomePage
-        host={fakeHost({ recent })}
+        i18n={i18n}
+        recent={recent}
         openFolder={() => undefined}
         openRecent={() => undefined}
       />
@@ -104,12 +94,13 @@ describe('стартовая страница', () => {
       .not.toBeInTheDocument();
   });
 
-  it('список обновляется по сигналу порта: только что открытый проект появляется сам', async () => {
+  it('список обновляется по сигналу службы: только что открытый проект появляется сам', async () => {
     const { recent, set } = fakeRecent([]);
 
     renderReact(
       <WelcomePage
-        host={fakeHost({ recent })}
+        i18n={i18n}
+        recent={recent}
         openFolder={() => undefined}
         openRecent={() => undefined}
       />
@@ -121,14 +112,12 @@ describe('стартовая страница', () => {
     await expect.element(page.getByRole('button', { name: 'папка-a' })).toBeVisible();
   });
 
-  it('без списка от композиции раздела недавних нет, а «Открыть папку…» есть', async () => {
+  it('без службы недавних раздела нет, а «Открыть папку…» есть', async () => {
     renderReact(
-      <WelcomePage host={fakeHost()} openFolder={() => undefined} openRecent={() => undefined} />
+      <WelcomePage i18n={i18n} openFolder={() => undefined} openRecent={() => undefined} />
     );
 
-    await expect
-      .element(page.getByRole('button', { name: 'files.command.openProject' }))
-      .toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'command.openProject' })).toBeVisible();
     await expect.element(page.getByText('welcome.recent.empty')).not.toBeInTheDocument();
   });
 
@@ -136,14 +125,9 @@ describe('стартовая страница', () => {
     const openFolder = vi.fn();
 
     renderReact(
-      <WelcomePage
-        host={fakeHost()}
-        canOpenFolder
-        openFolder={openFolder}
-        openRecent={() => undefined}
-      />
+      <WelcomePage i18n={i18n} canOpenFolder openFolder={openFolder} openRecent={() => undefined} />
     );
-    await userEvent.click(page.getByRole('button', { name: 'files.command.openProject' }));
+    await userEvent.click(page.getByRole('button', { name: 'command.openProject' }));
 
     expect(openFolder).toHaveBeenCalledOnce();
   });
@@ -154,16 +138,14 @@ describe('стартовая страница', () => {
     // их незачем — объяснение на экране одно и то же.
     renderReact(
       <WelcomePage
-        host={fakeHost()}
+        i18n={i18n}
         canOpenFolder={false}
         openFolder={() => undefined}
         openRecent={() => undefined}
       />
     );
 
-    await expect
-      .element(page.getByRole('button', { name: 'files.command.openProject' }))
-      .toBeDisabled();
+    await expect.element(page.getByRole('button', { name: 'command.openProject' })).toBeDisabled();
     await expect.element(page.getByText('welcome.unsupported')).toBeVisible();
   });
 });

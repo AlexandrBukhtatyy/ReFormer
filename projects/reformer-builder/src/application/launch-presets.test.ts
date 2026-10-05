@@ -20,7 +20,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 import { parseRuntimeConfig, type RuntimeConfig } from '@/shell/boot/runtime-config';
 import { applicationFromRuntime } from './builder-application';
-import { stubBuiltinOptions } from './composer/testing';
 
 const fromHere = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
@@ -52,7 +51,7 @@ const presets = presetFiles.map((name) => ({
 const kitOf = (config: RuntimeConfig): unknown => config.defaults?.settings?.[KIT_SETTING];
 
 async function idsOf(composition: ApplicationComposition): Promise<readonly string[]> {
-  const loaded = await composition.load(stubBuiltinOptions());
+  const loaded = await composition.load();
   return loaded.map((composed) => composed.plugin.id);
 }
 

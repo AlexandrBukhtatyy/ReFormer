@@ -20,7 +20,6 @@ import { defineProfile } from '../profiles/profile';
 import { builtinProfile } from '../profiles/registry';
 import { BUILTIN_PLUGINS } from './builtin-plugins';
 import { fromProfile } from './compose';
-import { stubBuiltinOptions } from './testing';
 
 const builderProfile = builtinProfile('builder');
 const baseProfile = builtinProfile('builder.base');
@@ -45,7 +44,7 @@ const lookup = (id: string) =>
 
 /** Идентификаторы собранного состава — в том порядке, в каком их отдала композиция. */
 async function idsOf(composition: ReturnType<typeof fromProfile>): Promise<readonly string[]> {
-  const built = await composition.load(stubBuiltinOptions());
+  const built = await composition.load();
   return built.map((composed) => composed.plugin.id);
 }
 
@@ -203,7 +202,7 @@ describe('fromProfile', () => {
     // состав без него — унаследованных в приложении не было бы вовсе.
     const composition = fromProfile(builderProfile);
 
-    expect((await composition.load(stubBuiltinOptions())).length).toBe(baseProfile.plugins.length);
+    expect((await composition.load()).length).toBe(baseProfile.plugins.length);
     expect(baseProfile.plugins.length).toBeGreaterThan(0);
   });
 });

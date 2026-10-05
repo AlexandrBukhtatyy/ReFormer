@@ -1,30 +1,14 @@
 /**
  * Публичная поверхность плагина предпросмотра markdown.
  *
- * ## Что нужно от композиции
- *
- * ```ts
- * createMarkdownPlugin({
- *   host: markdownHost,                          // порт платформы, см. `./host`
- *   i18n: i18n.forPlugin(MARKDOWN_PLUGIN_ID),    // пока в PluginContext своего i18n нет
- * });
- * ```
- *
- * Порт (`app/markdown-host.ts`) обязан дать:
- *
- * - **документ и его текст** — `documentOf`, `activeDocument`: рендер идёт из буфера, а не
- *   из файла, поэтому предпросмотр обновляется по мере набора;
- * - **байты и адреса** — `readBytes`, `resourceAt`: картинки лежат в проекте, и путь из
- *   markdown превращается в адрес ресурса только платформой;
- * - **переход по ссылке** — `openResource`: ссылка на соседний файл открывает вкладку;
- * - **редактор кода** — `TextEditor`: режим «рядом» показывает исходник тем же редактором,
- *   которым правится обычная code-вкладка. Без него режима нет вовсе.
+ * Портов от композиции плагину не нужно: вкладки, документы, байты картинок и адреса он
+ * берёт из контекста службами SDK (`./host-from-context`), а редактор кода для режима «рядом» —
+ * возможностью соседа (`reformer.editor`). Без неё режима нет вовсе.
  *
  * @module plugins/base/editor-markdown/index
  */
 
 import { createMarkdownPlugin } from './plugin';
-import type { MarkdownHost } from './host';
 
 export {
   createMarkdownPlugin,
@@ -40,9 +24,9 @@ export { MARKDOWN_MESSAGES } from './messages';
 
 /**
  * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
- * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
- * Плагину нужен порт предпросмотра markdown.
+ * `application/composer/builtin-plugins`. Портов плагину не нужно: вкладки, документы,
+ * байты картинок и адреса он берёт из контекста сам.
  */
-export default function builtin(ports: { readonly markdown: MarkdownHost }) {
-  return createMarkdownPlugin({ host: ports.markdown });
+export default function builtin() {
+  return createMarkdownPlugin();
 }

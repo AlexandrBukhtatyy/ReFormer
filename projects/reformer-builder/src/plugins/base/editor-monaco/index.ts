@@ -1,5 +1,5 @@
 /**
- * Публичная поверхность плагина: то, что берёт композиция, и ничего больше.
+ * Публичная поверхность плагина: то, что берут состав приложения и стенды, и ничего больше.
  *
  * Всё остальное — связь с буфером, разметка, состояние вида, настройка Monaco — внутреннее
  * и меняется без согласования. Композиции нужно ровно три вещи:
@@ -27,7 +27,6 @@
  */
 
 import { createMonacoEditorPlugin } from './plugin';
-import type { MonacoHost } from './host';
 
 export { createMonacoEditorPlugin, monacoEditorContribution } from './plugin';
 export { MONACO_EDITOR_ID, MONACO_PLUGIN_ID, type MonacoEditorPluginOptions } from './plugin';
@@ -41,10 +40,9 @@ export type { MessageSink, MonacoDiagnostics, MonacoDocument, MonacoHost, Transl
 
 /**
  * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
- * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
- * Плагину нужен порт редактора кода. Реестр фокуса и хранилище снимков вида — возможности
- * оболочки, их плагин берёт из `ctx.services` сам.
+ * `application/composer/builtin-plugins`. Портов плагину не нужно: рабочую область, свод
+ * находок, реестр фокуса и хранилище снимков вида он берёт из контекста сам.
  */
-export default function builtin(ports: { readonly monaco: MonacoHost }) {
-  return createMonacoEditorPlugin({ host: ports.monaco });
+export default function builtin() {
+  return createMonacoEditorPlugin();
 }

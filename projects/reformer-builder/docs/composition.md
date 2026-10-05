@@ -112,10 +112,10 @@ npx reformer-builder --plugins ./my-plugins
 
 ## Встроенные профили
 
-| Профиль        | Что внутри                                                           |
-| -------------- | -------------------------------------------------------------------- |
-| `builder`      | профиль по умолчанию: основа как есть                                |
-| `builder.base` | основа: файлы, Monaco, markdown, управление плагинами, выбор профиля |
+| Профиль        | Что внутри                                                                   |
+| -------------- | ---------------------------------------------------------------------------- |
+| `builder`      | профиль по умолчанию: основа как есть                                        |
+| `builder.base` | основа: проект, файлы, Monaco, markdown, управление плагинами, выбор профиля |
 
 Встроенные профили — тот же формат, что у своего профиля ниже: они лежат в
 `src/application/profiles/builtin.config.json`, файле формата конфига запуска, вшитом в сборку.
@@ -166,6 +166,7 @@ npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, s
       "id": "acme",
       "name": "Формы Acme",
       "plugins": [
+        "reformer.project",
         "reformer.files",
         "reformer.editor-monaco",
         "reformer.plugin-manager",

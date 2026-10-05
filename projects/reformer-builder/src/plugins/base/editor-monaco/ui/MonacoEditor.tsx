@@ -350,7 +350,9 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
       const items = host.diagnostics.get(documentId);
       const text = model.getValue();
       const withNodes = hasNodeTargets(items);
-      const index = withNodes ? indexTextNodes(text) : NO_INDEX;
+      const index = withNodes
+        ? indexTextNodes(text, host.nodeAnchorFor?.(documentId) ?? null)
+        : NO_INDEX;
       // Узел, чьего идентификатора в тексте нет, ищется по пути: «идентификатор → путь» знает
       // порт по модели документа, «путь → место» — указатель по этому же тексту.
       const paths = withNodes ? (host.locateNodes?.(documentId) ?? null) : null;

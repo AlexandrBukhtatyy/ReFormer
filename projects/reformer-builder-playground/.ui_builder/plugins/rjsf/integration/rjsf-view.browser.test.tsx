@@ -152,7 +152,11 @@ async function mountWithPlugin(options: { withPreview?: boolean; withTextEditor?
     documentOf: (id: ResourceId) => documents.documentOf(id),
     onDidChange: (cb: () => void) => documents.subscribe(cb),
   } as unknown as DocumentsService);
-  services.register(DocumentModelsCapability, { handleOf: (id) => models.handleOf(id) });
+  services.register(DocumentModelsCapability, {
+    handleOf: (id) => models.handleOf(id),
+    ownerOf: () => null,
+    partsOf: () => [],
+  });
   // Поверхность превью — двойником: проверяется переключение вида, а не отрисовка RJSF.
   const live = createFakeLive();
   if (options.withPreview !== false) services.register(PreviewLiveCapability, live);

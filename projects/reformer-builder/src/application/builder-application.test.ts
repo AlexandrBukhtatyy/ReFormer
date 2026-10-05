@@ -18,11 +18,10 @@ import {
   PROFILE_SWITCH_PLUGIN_ID,
 } from './builder-application';
 import { BUILTIN_PLUGINS } from './composer/builtin-plugins';
-import { stubBuiltinOptions } from './composer/testing';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 
 async function idsOf(composition: ApplicationComposition): Promise<readonly string[]> {
-  const loaded = await composition.load(stubBuiltinOptions());
+  const loaded = await composition.load();
   return loaded.map((composed) => composed.plugin.id).sort();
 }
 
@@ -36,6 +35,7 @@ const FULL = [
   'reformer.files',
   'reformer.plugin-manager',
   'reformer.profile-switch',
+  'reformer.project',
 ];
 
 /** Свой профиль организации: умолчание без markdown — отличается от него одним плагином. */
@@ -46,6 +46,7 @@ const LITE_PROFILE = {
     'reformer.editor-monaco',
     'reformer.plugin-manager',
     'reformer.profile-switch',
+    'reformer.project',
   ],
 };
 const LITE = FULL.filter((id) => id !== 'reformer.editor-markdown');

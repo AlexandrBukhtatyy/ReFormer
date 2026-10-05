@@ -132,14 +132,12 @@ import {
 } from '@/shell/platform/workspace/storage/purge';
 import { createJournalRelief } from '@/shell/platform/workspace/journal/journal';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
-import { FILES_MESSAGES } from '@/plugins/base/files/messages';
-import { FILES_PLUGIN_ID } from '@/plugins/base/files/contract';
-import { createFilesHost } from '@/shell/boot/ports/files';
-import { createMarkdownHost } from '@/shell/boot/ports/markdown';
-import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
-import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import {
+  WorkspaceFilesServiceToken,
+  WorkspaceTreeCapability,
+} from '@reformer/builder-plugin-api/internal';
 import {
   DocumentModelsCapability,
   HostMessagesCapability,
@@ -148,7 +146,10 @@ import {
 import { PluginsCatalogServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceResourcesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
-import { createWorkspaceSave } from '@/shell/boot/ports/workspace-save';
+import { createWorkspaceSaveService } from '@/shell/boot/ports/workspace-save';
+import { createWorkspaceTreeService } from '@/shell/boot/ports/workspace-tree';
+import { createHostMessagesService } from '@/shell/boot/ports/host-messages';
+import { createDocumentModelsService } from '@/shell/boot/ports/document-models';
 import { createWorkspaceResourcesService } from '@/shell/boot/ports/workspace-resources';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
@@ -178,7 +179,7 @@ import { createPluginModules } from './plugin-modules';
 import { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api/internal';
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
 import { asFormSchema } from './settings/schema-guard';
-import type { ApplicationComposition, BuiltinPluginsOptions, ProfileChoices } from './composition';
+import type { ApplicationComposition, ProfileChoices } from './composition';
 import { ApplicationProfilesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createApplicationProfilesService } from './ports/application-profiles';
 import { readStoredPreset } from './stored-preset';
@@ -462,13 +463,7 @@ export function boot(options: BootOptions): BuilderApp {
   // Словарь оболочки на чтение: коды диагностик (`errors.<code>`) и заголовки исправлений
   // переводит ОН, чтобы одна ошибка звучала одинаково в любом редакторе. Обёртка, а не сам
   // корень: `contribute` корня плагину не принадлежит.
-  services.register(HostMessagesCapability, {
-    get locale() {
-      return i18n.locale;
-    },
-    t: (key, params) => i18n.t(key, params),
-    onDidChangeLocale: (cb) => i18n.onDidChangeLocale(cb),
-  });
+  services.register(HostMessagesCapability, createHostMessagesService(i18n));
   const theme = createThemeService({
     settings,
     system: createBrowserSystemTheme(),
@@ -606,16 +601,19 @@ export function boot(options: BootOptions): BuilderApp {
   // Ручки модельных документов — тому плагину стека, чей провайдер документ разобрал. Раньше
   // ручку отдавал порт редактора схемы, и оболочка знала, какой провайдер чей; служба отдаёт
   // ручку ЛЮБОЙ модели с `unknown`, а сужает её сам плагин по `providerId`.
-  services.register(DocumentModelsCapability, {
-    handleOf: (id) => project.get()?.models.handleOf(id) ?? null,
-  });
+  services.register(DocumentModelsCapability, createDocumentModelsService({ project }));
   // Дверь НАРУЖУ, и единственная: раньше её раздавала композиция портом — по одному
   // на плагин, — потому что без политики прав отдавать её реестром было нельзя. Политика
   // появилась, и служба встала на общий адрес: кому её видно, решает право в манифесте.
-  services.register(WorkspaceSaveServiceToken, { save: createWorkspaceSave({ project }) });
+  services.register(WorkspaceSaveServiceToken, createWorkspaceSaveService({ project }));
   // Правка записей проекта — вторая привилегированная служба и по той же причине, что первая:
   // действие выходит наружу, за пределы рабочей копии в браузере.
   services.register(WorkspaceResourcesServiceToken, createWorkspaceResourcesService({ project }));
+  // Дерево проекта: тело панели и выделение. Место для дерева выбирает плагин, внёсший панель.
+  services.register(
+    WorkspaceTreeCapability,
+    createWorkspaceTreeService({ project, extensions, i18n, commands, whenContext })
+  );
 
   const plugins = createPluginRegistry({
     services,
@@ -834,20 +832,6 @@ export function boot(options: BootOptions): BuilderApp {
     onProblem: reportPluginProblem,
   });
 
-  // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
-  // его тело для режима «рядом».
-  const monacoHost = createMonacoHost({ project, i18n, diagnostics, extensions });
-
-  /**
-   * Опции встроенного набора — ОДИН объект на всех.
-   *
-   * Плагины доезжают внутри `ready` (шаг 3 ниже) и получают ровно эти опции. Две копии
-   * объекта означали бы два порта у одного плагина: порт — это адаптер над платформой, и второй
-   * экземпляр ставил бы вторую подписку на те же события. Разделяемых РЕЕСТРОВ здесь больше
-   * нет ни одного — фокус, снимки вида
-   * и состояния превью стали возможностями и живут в реестре служб, — поэтому правильность
-   * больше не держится на «это обязан быть тот же объект».
-   */
   /**
    * Каталог плагинов — ПРИВИЛЕГИРОВАННАЯ служба (право `plugins.manage`).
    *
@@ -902,12 +886,6 @@ export function boot(options: BootOptions): BuilderApp {
       await projectPlugins.refresh();
     },
   });
-
-  const builtinOptions: BuiltinPluginsOptions = {
-    files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
-    monaco: monacoHost,
-    markdown: createMarkdownHost({ project }),
-  };
 
   /**
    * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
@@ -1054,15 +1032,7 @@ export function boot(options: BootOptions): BuilderApp {
   const ready = settings
     .hydrate()
     .then(() => i18n.setLocale(settings.get<string>(LOCALE_SETTINGS_KEY) ?? DEFAULT_LOCALE))
-    .then(() => {
-      // Словарь плагина регистрирует композиция: сервиса локализации в `PluginContext` нет,
-      // и это не упущение — вклад в словарь не снимается вместе с плагином, значит и частью
-      // его подписок быть не может.
-      const filesI18n = i18n.forPlugin(FILES_PLUGIN_ID);
-      for (const [locale, messages] of Object.entries(FILES_MESSAGES)) {
-        filesI18n.contribute(locale, messages);
-      }
-    })
+
     // Встроенные плагины доезжают ЗДЕСЬ — до активации и, значит, до отрисовки: `main` рисует
     // по `ready`. Контракт «набор вкладов полон и детерминирован к моменту отрисовки»
     // соблюдён дословно; своим файлом приезжает только код.
@@ -1077,7 +1047,7 @@ export function boot(options: BootOptions): BuilderApp {
     // шагом и снял бы активацию плагинов каталога проекта заодно.
     .then(async () => {
       try {
-        for (const composed of await options.application.load(builtinOptions)) {
+        for (const composed of await options.application.load()) {
           plugins.register(composed.plugin, composed.provides, composed.permissions);
         }
       } catch (error) {

@@ -24,11 +24,7 @@
  * @module application/composer/compose
  */
 
-import type {
-  ApplicationComposition,
-  BuiltinPluginsOptions,
-  ComposedPlugin,
-} from '@/shell/boot/composition';
+import type { ApplicationComposition, ComposedPlugin } from '@/shell/boot/composition';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { findProfile } from '../profiles/registry';
 import type { ApplicationProfile } from '../profiles/profile';
@@ -119,11 +115,11 @@ export function fromProfile(
     modules: RUNTIME_MODULES,
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
     // столько параллельных запросов, сколько плагинов в составе, а не цепочка.
-    load: async (options: BuiltinPluginsOptions): Promise<readonly ComposedPlugin[]> =>
+    load: async (): Promise<readonly ComposedPlugin[]> =>
       Object.freeze(
         await Promise.all(
           entries.map(async (entry) => ({
-            plugin: await entry.create(options),
+            plugin: await entry.create(),
             provides: entry.manifest.provides,
             permissions: entry.manifest.permissions,
           }))

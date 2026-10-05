@@ -8,13 +8,18 @@
  * Страница ничего не делает сама: «открыть папку» и «открыть недавний» — команды плагина,
  * и она их только зовёт. Поэтому щелчок здесь и пункт меню не могут разойтись в поведении.
  *
- * @module plugins/base/files/ui/WelcomePage
+ * @module plugins/base/project/ui/WelcomePage
  */
 
 import { useCallback, useSyncExternalStore, type ReactElement } from 'react';
 import { FolderOpen } from 'lucide-react';
+import {
+  useTranslate,
+  type PluginI18n,
+  type RecentProject,
+  type RecentProjects,
+} from '@reformer/builder-plugin-api';
 import { Button } from '@reformer/ui-kit/button';
-import type { FilesHost, FilesRecentProject, FilesRecentProjects } from '../host';
 import { WELCOME_RECENT_LIMIT } from '../recent';
 
 /** Что страница зовёт. Команды живут в плагине — сюда приходят готовые вызовы. */
@@ -26,21 +31,27 @@ export interface WelcomePageActions {
 }
 
 export interface WelcomePageProps extends WelcomePageActions {
-  readonly host: FilesHost;
+  /** Словарь плагина: локаль меняется, и страница обязана перерисоваться. */
+  readonly i18n: Pick<PluginI18n, 'locale' | 't' | 'onDidChangeLocale'>;
+  /**
+   * Недавние проекты. Без них (право `workspace.resources` не подтверждено) раздела нет,
+   * а «Открыть папку…» остаётся — погашенной.
+   */
+  readonly recent?: RecentProjects;
   /**
    * Умеет ли приложение выбрать каталог И разрешено ли это плагину.
    *
-   * Значением, а не вопросом к порту: ответ складывается из движка браузера и права
+   * Значением, а не вопросом к службе: ответ складывается из движка браузера и права
    * `workspace.resources`, а страница ни о том, ни о другом знать не должна.
    */
   readonly canOpenFolder?: boolean;
 }
 
 /** Пустой список: одна ссылка вместо нового массива — её сравнивает `useSyncExternalStore`. */
-const NO_PROJECTS: readonly FilesRecentProject[] = Object.freeze([]);
+const NO_PROJECTS: readonly RecentProject[] = Object.freeze([]);
 
-/** Недавние как состояние React: снимок порта стабилен между изменениями. */
-function useRecentProjects(recent: FilesRecentProjects | undefined): readonly FilesRecentProject[] {
+/** Недавние как состояние React: снимок службы стабилен между изменениями. */
+function useRecentProjects(recent: RecentProjects | undefined): readonly RecentProject[] {
   const subscribe = useCallback(
     (listener: () => void) => {
       if (recent === undefined) return () => undefined;
@@ -56,13 +67,14 @@ function useRecentProjects(recent: FilesRecentProjects | undefined): readonly Fi
 }
 
 export function WelcomePage({
-  host,
+  i18n,
+  recent,
   openFolder,
   openRecent,
   canOpenFolder = false,
 }: WelcomePageProps): ReactElement {
-  const t = host.useTranslate();
-  const projects = useRecentProjects(host.recent);
+  const t = useTranslate(i18n);
+  const projects = useRecentProjects(recent);
   const canOpen = canOpenFolder;
   const shown = projects.slice(0, WELCOME_RECENT_LIMIT);
 
@@ -71,8 +83,8 @@ export function WelcomePage({
       <div className="mx-auto flex w-full max-w-xl flex-col gap-8 px-8 py-16">
         <h1 className="text-lg font-semibold">{t('welcome.title')}</h1>
 
-        <section aria-labelledby="files-welcome-start" className="flex flex-col gap-2">
-          <h2 id="files-welcome-start" className="text-muted-foreground text-xs font-medium">
+        <section aria-labelledby="project-welcome-start" className="flex flex-col gap-2">
+          <h2 id="project-welcome-start" className="text-muted-foreground text-xs font-medium">
             {t('welcome.start')}
           </h2>
           <div>
@@ -84,15 +96,15 @@ export function WelcomePage({
               onClick={openFolder}
             >
               <FolderOpen />
-              {t('files.command.openProject')}
+              {t('command.openProject')}
             </Button>
           </div>
           {!canOpen && <p className="text-muted-foreground text-xs">{t('welcome.unsupported')}</p>}
         </section>
 
-        {host.recent !== undefined && (
-          <section aria-labelledby="files-welcome-recent" className="flex flex-col gap-2">
-            <h2 id="files-welcome-recent" className="text-muted-foreground text-xs font-medium">
+        {recent !== undefined && (
+          <section aria-labelledby="project-welcome-recent" className="flex flex-col gap-2">
+            <h2 id="project-welcome-recent" className="text-muted-foreground text-xs font-medium">
               {t('welcome.recent')}
             </h2>
             {shown.length === 0 ? (

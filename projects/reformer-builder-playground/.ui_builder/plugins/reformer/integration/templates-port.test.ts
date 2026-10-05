@@ -44,7 +44,7 @@ import {
   type WorkspaceSession,
 } from '@/shell/boot/project/workspace-session';
 import type { ProjectHost } from '@/shell/boot/project/project';
-import { createWorkspaceSave } from '@/shell/boot/ports/workspace-save';
+import { createWorkspaceSaveService } from '@/shell/boot/ports/workspace-save';
 
 let seq = 0;
 
@@ -101,7 +101,7 @@ function harness(files: Readonly<Record<string, string>>) {
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
   // Сохранение — привилегированная служба: здесь она есть, потому что тест проверяет путь
   // ДО источника. Отказ по праву проверяется отдельно, на реестре и каталоге.
-  services.register(WorkspaceSaveServiceToken, { save: createWorkspaceSave({ project }) });
+  services.register(WorkspaceSaveServiceToken, createWorkspaceSaveService({ project }));
   const ctx = {
     id: TEMPLATES_PLUGIN_ID,
     services,
