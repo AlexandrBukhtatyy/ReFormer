@@ -45,7 +45,7 @@ const builderProfile = builtinProfile('builder');
 const minimalProfile = defineProfile({
   id: 'minimal',
   name: 'Минимальный',
-  plugins: ['reformer.files', 'reformer.editor-monaco'],
+  plugins: ['reformer.project', 'reformer.editor-monaco'],
 });
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (как в `./minimal-profile`). */

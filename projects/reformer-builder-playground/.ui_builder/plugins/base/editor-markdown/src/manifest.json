@@ -1,7 +1,13 @@
 {
   "id": "reformer.editor-markdown",
   "name": "Markdown",
+  "version": "0.1.0",
   "apiVersion": "^1",
+  "main": "main.ts",
+  "styles": {
+    "file": "styles.css",
+    "isolation": "scoped"
+  },
   "requires": {
     "optional": [
       {

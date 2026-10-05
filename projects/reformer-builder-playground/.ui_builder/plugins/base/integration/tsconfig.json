@@ -1,0 +1,21 @@
+{
+  "extends": "../../../../../reformer-builder/tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../../../../../reformer-builder/src/*"],
+      "@reformer/builder-plugin-api": [
+        "../../../../../../packages/reformer-builder-plugin-api/src/index.ts"
+      ],
+      "@reformer/builder-plugin-api/internal": [
+        "../../../../../../packages/reformer-builder-plugin-api/src/internal.ts"
+      ],
+      "@reformer/builder-plugin-api/tooling": [
+        "../../../../../../packages/reformer-builder-plugin-api/src/tooling.ts"
+      ],
+      "vitest/browser": ["../../../../node_modules/@vitest/browser/context"]
+    }
+  },
+  "include": ["."]
+}

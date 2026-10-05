@@ -30,26 +30,21 @@ async function idsOf(composition: ApplicationComposition): Promise<readonly stri
  * приложения, в состав встроенных они не входят.
  */
 const FULL = [
-  'reformer.editor-markdown',
   'reformer.editor-monaco',
-  'reformer.files',
   'reformer.plugin-manager',
   'reformer.profile-switch',
   'reformer.project',
 ];
 
-/** Свой профиль организации: умолчание без markdown — отличается от него одним плагином. */
+/**
+ * Свой профиль организации: умолчание без управления плагинами — отличается от него одним
+ * плагином.
+ */
 const LITE_PROFILE = {
   id: 'lite',
-  plugins: [
-    'reformer.files',
-    'reformer.editor-monaco',
-    'reformer.plugin-manager',
-    'reformer.profile-switch',
-    'reformer.project',
-  ],
+  plugins: ['reformer.editor-monaco', 'reformer.profile-switch', 'reformer.project'],
 };
-const LITE = FULL.filter((id) => id !== 'reformer.editor-markdown');
+const LITE = FULL.filter((id) => id !== 'reformer.plugin-manager');
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -75,7 +70,7 @@ describe('applicationFromRuntime', { timeout: 30_000 }, () => {
       applicationFromRuntime({
         preset: 'lite',
         profiles: [LITE_PROFILE],
-        plugins: { enable: ['reformer.editor-markdown'] },
+        plugins: { enable: ['reformer.plugin-manager'] },
       })
     );
 
@@ -152,13 +147,13 @@ describe('свои профили из конфига запуска', { timeout
             id: 'acme',
             // Прежние имена: без пространства имён и переименованный переключатель —
             // профиль в конфиге тоже пишет человек.
-            plugins: ['files', 'editor-monaco', 'stack-switch'],
+            plugins: ['project', 'editor-monaco', 'stack-switch'],
           },
         ],
       })
     );
 
-    expect(ids).toEqual(['reformer.editor-monaco', 'reformer.files', 'reformer.profile-switch']);
+    expect(ids).toEqual(['reformer.editor-monaco', 'reformer.profile-switch', 'reformer.project']);
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -199,7 +194,7 @@ describe('свои профили из конфига запуска', { timeout
     const ids = await idsOf(
       applicationFromRuntime({
         preset: 'builder.base',
-        profiles: [{ id: 'builder.base', plugins: ['reformer.files'] }],
+        profiles: [{ id: 'builder.base', plugins: ['reformer.project'] }],
       })
     );
 
@@ -236,7 +231,7 @@ describe('выбор человека поверх конфига запуска
   const NO_SWITCH = {
     id: 'no-switch',
     name: 'Без переключателя',
-    plugins: ['reformer.files', 'reformer.editor-monaco'],
+    plugins: ['reformer.project', 'reformer.editor-monaco'],
   };
 
   it('имя переключателя — настоящий встроенный плагин', () => {

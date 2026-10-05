@@ -27,7 +27,7 @@ const minimal = fromProfile(
   defineProfile({
     id: 'minimal',
     name: 'Минимальный',
-    plugins: ['reformer.files', 'reformer.editor-monaco'],
+    plugins: ['reformer.project', 'reformer.editor-monaco'],
   })
 );
 const REFORMER = { id: 'reformer.builder', name: 'ReFormer' };

@@ -4,10 +4,10 @@
  * Полный профиль проверяется рядом (`builtin-plugins.test`), и проверка там устроена так,
  * что «всё на месте» она видит, а «лишнего нет» — нет: состав, где всё есть, ничем не
  * отличается от состава, где отключение не сработало. Значит утверждение «короткий профиль
- * поднимается БЕЗ markdown и управления плагинами» может жить только здесь.
+ * поднимается БЕЗ управления плагинами и выбора профиля» может жить только здесь.
  *
  * Проверка ПОИМЁННАЯ, а не числом. Порог «плагинов стало меньше» проходит и тогда, когда
- * из состава выпал не тот плагин: два вместо пяти — это и «files, monaco», и «markdown, files».
+ * из состава выпал не тот плагин: два вместо четырёх — это и «project, monaco», и «plugin-manager, project».
  *
  * Короткие профили здесь свои, тестовые: встроенных у билдера два (`builder.base`, `builder`),
  * и состав у них один. Платформа форм и движки в него не входят вовсе — они плагины приложения.
@@ -24,11 +24,11 @@ import { fromProfile } from './compose';
 const builderProfile = builtinProfile('builder');
 const baseProfile = builtinProfile('builder.base');
 
-/** Короткий профиль: два плагина, ни markdown, ни управления плагинами. */
+/** Короткий профиль: два плагина, ни управления плагинами, ни выбора профиля. */
 const shortProfile = defineProfile({
   id: 'short.test',
   name: 'Короткий',
-  plugins: ['reformer.files', 'reformer.editor-monaco'],
+  plugins: ['reformer.project', 'reformer.editor-monaco'],
 });
 
 /** Профиль со своим плагином поверх основы — ради порядка склейки. */
@@ -36,7 +36,7 @@ const extendedProfile = defineProfile({
   id: 'extended.test',
   name: 'С добавкой',
   extends: 'short.test',
-  plugins: ['reformer.editor-markdown'],
+  plugins: ['reformer.plugin-manager'],
 });
 
 const lookup = (id: string) =>
@@ -53,11 +53,11 @@ afterEach(() => {
 });
 
 describe('fromProfile', () => {
-  it('короткий профиль: два плагина поимённо, без markdown и управления плагинами', async () => {
+  it('короткий профиль: два плагина поимённо, без управления плагинами и выбора профиля', async () => {
     const ids = await idsOf(fromProfile(shortProfile));
 
-    expect([...ids].sort()).toEqual(['reformer.editor-monaco', 'reformer.files']);
-    expect(ids).not.toContain('reformer.editor-markdown');
+    expect([...ids].sort()).toEqual(['reformer.editor-monaco', 'reformer.project']);
+    expect(ids).not.toContain('reformer.profile-switch');
     expect(ids).not.toContain('reformer.plugin-manager');
   });
 
@@ -71,11 +71,11 @@ describe('fromProfile', () => {
   });
 
   it('унаследованное идёт перед своим: порядок склейки доходит до состава', async () => {
-    // Markdown объявлен в самом профиле, остальные унаследованы. Порядок обязан быть
-    // «основа, потом своё» — тот же, что отдал резолвер.
+    // Управление плагинами объявлено в самом профиле, остальные унаследованы. Порядок обязан
+    // быть «основа, потом своё» — тот же, что отдал резолвер.
     const ids = await idsOf(fromProfile(extendedProfile, undefined, lookup));
 
-    expect(ids).toEqual(['reformer.files', 'reformer.editor-monaco', 'reformer.editor-markdown']);
+    expect(ids).toEqual(['reformer.project', 'reformer.editor-monaco', 'reformer.plugin-manager']);
   });
 
   it('профиль по умолчанию собирает всю карту', async () => {
@@ -87,21 +87,21 @@ describe('fromProfile', () => {
   });
 
   it('поправки запуска доходят до состава', async () => {
-    const ids = await idsOf(fromProfile(shortProfile, { enable: ['reformer.editor-markdown'] }));
+    const ids = await idsOf(fromProfile(shortProfile, { enable: ['reformer.plugin-manager'] }));
     expect([...ids].sort()).toEqual([
-      'reformer.editor-markdown',
       'reformer.editor-monaco',
-      'reformer.files',
+      'reformer.plugin-manager',
+      'reformer.project',
     ]);
 
     const without = await idsOf(
       fromProfile(builderProfile, {
-        disable: ['reformer.editor-markdown', 'reformer.plugin-manager'],
+        disable: ['reformer.profile-switch', 'reformer.plugin-manager'],
       })
     );
-    expect(without).not.toContain('reformer.editor-markdown');
+    expect(without).not.toContain('reformer.profile-switch');
     expect(without).not.toContain('reformer.plugin-manager');
-    expect(without).toContain('reformer.files');
+    expect(without).toContain('reformer.project');
   });
 
   it('неизвестное имя в профиле — отказ при сборке приложения, а не позже', () => {
@@ -110,7 +110,7 @@ describe('fromProfile', () => {
     const broken = defineProfile({
       id: 'broken',
       name: 'Битый',
-      plugins: ['reformer.files', 'markdwn'],
+      plugins: ['reformer.project', 'markdwn'],
     });
 
     expect(() => fromProfile(broken)).toThrow(/неизвестный плагин «markdwn»/);
@@ -137,11 +137,11 @@ describe('fromProfile', () => {
 
   it('прежнее имя в поправках запуска работает: конфиг человека переименование переживает', async () => {
     // `.ui_builder/config.json` пишет и хранит пользователь, мигрировать его нам нечем.
-    // «Без markdown» обязано значить то же самое и через год после смены пространства имён,
-    // иначе переименование тихо ВЕРНУЛО бы в состав выключенный плагин.
-    const without = await idsOf(fromProfile(builderProfile, { disable: ['editor-markdown'] }));
-    expect(without).not.toContain('reformer.editor-markdown');
-    expect(without).toContain('reformer.files');
+    // «Без управления плагинами» обязано значить то же самое и через год после смены
+    // пространства имён, иначе переименование тихо ВЕРНУЛО бы в состав выключенный плагин.
+    const without = await idsOf(fromProfile(builderProfile, { disable: ['plugin-manager'] }));
+    expect(without).not.toContain('reformer.plugin-manager');
+    expect(without).toContain('reformer.project');
 
     // Переименование не механическое: «переключатель сочетаний» стал «выбором профиля».
     const wider = await idsOf(fromProfile(shortProfile, { enable: ['reformer.stack-switch'] }));
@@ -153,10 +153,15 @@ describe('fromProfile', () => {
     // ничего не значит — но ронять из-за неё настроенный состав нельзя.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const ids = await idsOf(fromProfile(shortProfile, { disable: ['kits'], enable: ['preview'] }));
+    const ids = await idsOf(
+      fromProfile(shortProfile, {
+        disable: ['kits', 'reformer.files', 'editor-markdown'],
+        enable: ['preview'],
+      })
+    );
 
-    expect([...ids].sort()).toEqual(['reformer.editor-monaco', 'reformer.files']);
-    expect(warn).toHaveBeenCalledTimes(2);
+    expect([...ids].sort()).toEqual(['reformer.editor-monaco', 'reformer.project']);
+    expect(warn).toHaveBeenCalledTimes(4);
     expect(String(warn.mock.calls[0]?.[0])).toContain('плагином приложения');
   });
 
@@ -175,12 +180,12 @@ describe('fromProfile', () => {
     const wrong = defineProfile({
       id: 'wrong-choice',
       name: 'Не тот',
-      plugins: ['reformer.files', 'reformer.editor-monaco'],
-      providers: { 'reformer.editor': 'reformer.files' },
+      plugins: ['reformer.project', 'reformer.editor-monaco'],
+      providers: { 'reformer.editor': 'reformer.project' },
     });
 
     expect(() => fromProfile(wrong)).toThrow(
-      /«reformer.files» выбран провайдером «reformer.editor»/
+      /«reformer.project» выбран провайдером «reformer.editor»/
     );
   });
 
@@ -188,7 +193,7 @@ describe('fromProfile', () => {
     const absent = defineProfile({
       id: 'absent-choice',
       name: 'Нет такого',
-      plugins: ['reformer.files'],
+      plugins: ['reformer.project'],
       providers: { 'reformer.editor': 'reformer.editor-monaco' },
     });
 

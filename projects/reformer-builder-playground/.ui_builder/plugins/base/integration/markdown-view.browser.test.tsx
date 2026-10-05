@@ -6,11 +6,11 @@
  * на котором «кнопка есть, но не работает»: пункт собран верно, команда зарегистрирована,
  * а применимость посчитана по состоянию, которого в этот момент нет.
  *
- * Тест живёт в КОМПОЗИЦИИ, а не в плагине: он поднимает настоящую оболочку, а
- * `plugins/**` не видит `@/shell` — это правило слоёв, и обходить его тестом нельзя.
- * Композиции же видны обе стороны, и именно она отвечает за то, что они сходятся.
+ * Тест живёт в стенде домена, а не в пакете плагина: он поднимает настоящую оболочку, а пакет
+ * плагина исходников билдера не видит — это правило слоёв, и обходить его тестом нельзя.
+ * Стенду же видны обе стороны.
  *
- * @module shell/boot/integration/markdown-view.browser.test
+ * @module plugins/base/integration/markdown-view.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -36,9 +36,9 @@ import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/inte
 import { createDocument } from '@/shell/platform/workspace/document';
 import { type Document } from '@reformer/builder-plugin-api/internal';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
-import { renderReact } from '@/testing/render';
-import type { MarkdownHost } from '@/plugins/base/editor-markdown';
-import { createMarkdownPlugin, TextEditorCapability } from '@/plugins/base/editor-markdown';
+import { renderReact } from '../../.shared/render';
+import type { MarkdownHost } from '../editor-markdown/src';
+import { createMarkdownPlugin, TextEditorCapability } from '../editor-markdown/src';
 
 const HOST_MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.empty': 'Нет открытых редакторов',

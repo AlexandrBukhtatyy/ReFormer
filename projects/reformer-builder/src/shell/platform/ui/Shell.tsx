@@ -228,6 +228,12 @@ const CENTER_GROUP = 'center';
 const CENTER_PANEL_IDS: readonly string[] = ['editor', 'bottom'];
 
 /**
+ * Сколько кадров ждать, пока группа раскладки зарегистрирует поздно появившийся нижний док.
+ * На практике хватает одного-двух; запас — на медленную машину, предел — от вечного цикла.
+ */
+const BOTTOM_SYNC_ATTEMPTS = 30;
+
+/**
  * Команда «панель»: с адресом переключает конкретную панель, без адреса — боковую целиком.
  *
  * Экспортируется, потому что это общая дверь, а не внутренность оболочки: её зовут сочетание
@@ -741,34 +747,67 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
   // Раскладка приводится к режиму, а не наоборот: истина о том, свёрнут ли док, живёт
   // в настройках и переживает перезагрузку, а размер панели — состояние библиотеки.
   // Обе стороны идемпотентны: `collapse` у свёрнутой и `expand` у раскрытой не делают ничего.
+  //
+  // Док бывает ПОЗДНИМ: первая нижняя панель приходит от плагина, поднявшегося после оболочки
+  // (плагин приложения или проекта), и панель раскладки монтируется в уже живую группу. Ручка
+  // у неё появляется сразу, а ограничения группа выводит позже — императивный вызов до этого
+  // библиотека встречает исключением. Поэтому приведение повторяется по кадрам, пока панель
+  // не зарегистрирована; число попыток ограничено, чтобы настоящая поломка не стала вечным
+  // циклом.
+  const hasBottom = bottom.length > 0;
   useEffect(() => {
-    const panel = bottomPanel.current;
-    if (panel === null) return;
+    if (!hasBottom) return;
+    let frame: number | null = null;
+    let attempts = 0;
 
-    if (bottomDock.mode === 'hidden') {
-      panel.collapse();
-      return;
-    }
+    const apply = (): void => {
+      const panel = bottomPanel.current;
+      if (panel === null) return;
 
-    if (bottomDock.mode === 'minimal') {
-      // Высота запоминается ПЕРЕД сворачиванием: разворачивать надо в ту, что человек
-      // выставил разделителем, а не в общее умолчание. Записывается только настоящая
-      // рабочая высота — иначе повторное сворачивание запомнило бы высоту полосы
-      // и «развернуть» перестало бы разворачивать.
-      const size = panel.getSize().inPixels;
-      if (size > STRIP_HEIGHT.full) lastFullSize.current = size;
-      panel.resize(STRIP_HEIGHT.minimal);
-      return;
-    }
+      if (bottomDock.mode === 'hidden') {
+        panel.collapse();
+        return;
+      }
 
-    // Полный вид. `expand` здесь НЕДОСТАТОЧЕН: из свёрнутого состояния панель не схлопнута,
-    // а уменьшена прямым размером, и по правилу библиотеки «развернуть» у не-схлопнутой
-    // не делает ничего — панель осталась бы высотой в полосу. Поэтому размер ставится прямо.
-    if (panel.isCollapsed()) panel.expand();
-    if (panel.getSize().inPixels <= STRIP_HEIGHT.full) {
-      panel.resize(lastFullSize.current ?? DEFAULT_BOTTOM_SIZE);
-    }
-  }, [bottomDock.mode, bottomPanel]);
+      if (bottomDock.mode === 'minimal') {
+        // Высота запоминается ПЕРЕД сворачиванием: разворачивать надо в ту, что человек
+        // выставил разделителем, а не в общее умолчание. Записывается только настоящая
+        // рабочая высота — иначе повторное сворачивание запомнило бы высоту полосы
+        // и «развернуть» перестало бы разворачивать.
+        const size = panel.getSize().inPixels;
+        if (size > STRIP_HEIGHT.full) lastFullSize.current = size;
+        panel.resize(STRIP_HEIGHT.minimal);
+        return;
+      }
+
+      // Полный вид. `expand` здесь НЕДОСТАТОЧЕН: из свёрнутого состояния панель не схлопнута,
+      // а уменьшена прямым размером, и по правилу библиотеки «развернуть» у не-схлопнутой
+      // не делает ничего — панель осталась бы высотой в полосу. Поэтому размер ставится прямо.
+      if (panel.isCollapsed()) panel.expand();
+      if (panel.getSize().inPixels <= STRIP_HEIGHT.full) {
+        panel.resize(lastFullSize.current ?? DEFAULT_BOTTOM_SIZE);
+      }
+    };
+
+    const sync = (): void => {
+      frame = null;
+      try {
+        apply();
+      } catch (error) {
+        attempts += 1;
+        if (attempts > BOTTOM_SYNC_ATTEMPTS) {
+          console.error('[shell] нижний док не привёлся к своему режиму', error);
+          return;
+        }
+        frame = requestAnimationFrame(sync);
+      }
+    };
+    sync();
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [bottomDock.mode, bottomPanel, hasBottom]);
 
   useEffect(() => {
     const subscription = commands.register({

@@ -26,7 +26,7 @@ import type {
   Disposable,
   ResourceId,
 } from '@reformer/builder-plugin-api';
-import { renderReact } from '@/testing/render';
+import { renderReact } from '../../../../.shared/render';
 import type { CommandAccess } from '../diagnostics';
 import type { FilesHost } from '../host';
 import { ProblemsPanel } from './ProblemsPanel';

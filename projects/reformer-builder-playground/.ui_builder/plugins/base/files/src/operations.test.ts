@@ -238,7 +238,7 @@ describe('создание', () => {
 
     expect(h.command(NEW_FILE_COMMAND_ID).enabled?.(context())).toBe(false);
     await h.command(NEW_FILE_COMMAND_ID).run({ dir: ROOT });
-    expect(h.errors).toContain('files.notify.noProject');
+    expect(h.errors).toContain('reformer.files:notify.noProject');
   });
 });
 
@@ -290,7 +290,7 @@ describe('удаление', () => {
 
     await h.command(DELETE_COMMAND_ID).run();
 
-    expect(h.errors).toContain('files.notify.delete.failed');
+    expect(h.errors).toContain('reformer.files:notify.delete.failed');
   });
 });
 

@@ -24,10 +24,36 @@
  * Запуск — из каталога пакета плагина, перед его сборкой (`prebuild:dev`, `prebuild:dist`,
  * `predev`); `src/styles.css` в git не едет.
  *
- *   node ../../.shared/plugin-styles.mjs [--with <каталог>]…
+ *   node ../../.shared/plugin-styles.mjs [--with <каталог>]… [--plugin <пакет>]… [--include <файл>]…
  *
  * `--with` добавляет к исходникам плагина каталог, чьи классы рисует этот плагин (ядро домена:
  * классы каталога тегов и шаблонов печати попадают в превью данными, а не разметкой).
+ *
+ * `--plugin` подключает плагин Tailwind (`@tailwindcss/typography`). Классы, которые существуют
+ * только благодаря ему (`prose`), плагин везёт ВСЕГДА, что бы ни нашёл сканер в исходниках
+ * билдера: билдер этого плагина Tailwind не подключает, и правила для такого класса у него нет,
+ * даже если само слово встретилось в его тексте. «Существует только благодаря плагину»
+ * вычисляется, а не перечисляется: каждый кандидат спрашивается у Tailwind дважды — с плагином
+ * и без.
+ *
+ * Правила таких классов идут в слой `components`, а не `utilities`. В одной сборке Tailwind
+ * типографика стоит раньше утилит, и на равной специфичности побеждает утилита: `max-w-none`
+ * снимает ширину колонки, `p-3` — поля блока кода. В таблице плагина этот порядок теряется:
+ * оболочка дописывает к селектору контейнер, правило типографики становится сильнее утилиты,
+ * оставшейся у билдера, и колонка молча сужается до 65ch. Слой ниже утилит возвращает прежнее
+ * «утилита сильнее типографики» — уже не порядком, а каскадом, и для утилит билдера тоже.
+ * Постоянные блоки (`--include`), объявленные в том же слое, идут после и на равной
+ * специфичности побеждают типографику.
+ *
+ * `--include` дописывает к таблице постоянный блок CSS из файла пакета — правила, которые
+ * утилитами не выражаются: палитра подсветки кода живёт на классах чужой библиотеки. Блок идёт
+ * как есть и считается в `rules` — плагин, у которого есть только он, тоже обязан объявить
+ * таблицу.
+ *
+ * Блок обязан ссылаться на токены кита (`--chart-2`), а не на переменные темы Tailwind
+ * (`--color-chart-2`): вторые в CSS билдера объявлены, только пока он сам ими пользуется,
+ * и ссылка на необъявленную переменную молчит — правило есть, а цвет унаследован. Tailwind этот
+ * блок не обрабатывает, подставить значение некому, поэтому такая ссылка — отказ сборки.
  *
  * @module plugins/.shared/plugin-styles
  */
@@ -51,6 +77,8 @@ export const PLUGIN_STYLES_SCRIPT = 'generate:styles';
 
 /** Файлы, классы из которых плагин не рисует: проверки и их данные. */
 const NOT_RENDERED = [
+  // Любой CSS пакета: постоянные блоки (`--include`) — не разметка, классы в них не утилиты.
+  '**/*.css',
   '**/*.test.*',
   '**/__snapshots__/**',
   '**/__fixtures__/**',
@@ -67,26 +95,70 @@ async function loadTailwind() {
   const fromBuilder = createRequire(resolve(BUILDER, 'package.json'));
   const fromVitePlugin = createRequire(fromBuilder.resolve('@tailwindcss/vite'));
   const load = (name) => import(pathToFileURL(fromVitePlugin.resolve(name)).href);
-  const [{ compile }, { Scanner }] = await Promise.all([
+  const [node, { Scanner }] = await Promise.all([
     load('@tailwindcss/node'),
     load('@tailwindcss/oxide'),
   ]);
-  return { compile, Scanner };
+  return {
+    compile: node.compile,
+    // Дизайн-система отвечает по ОДНОМУ кандидату: есть ли у него правило. Компилятор так
+    // не умеет — он отдаёт таблицу на весь набор разом.
+    loadDesignSystem: node.__unstable__loadDesignSystem,
+    Scanner,
+  };
 }
 
 const cssPath = (from, to) => relative(from, to).split('\\').join('/');
 
-/** Аргументы запуска: каталоги `--with`, разрешённые от каталога пакета. */
+const USAGE = '[--with <каталог>]… [--plugin <пакет>]… [--include <файл>]…';
+
+/**
+ * Аргументы запуска: каталоги `--with` и файлы `--include` — разрешённые от каталога пакета,
+ * плагины Tailwind `--plugin` — именами пакетов.
+ */
 export function parsePluginStylesArgs(argv, packageDir) {
-  const extra = [];
-  for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] !== '--with' || argv[index + 1] === undefined) {
-      throw new Error(`неизвестный аргумент «${argv[index]}». Ожидается: [--with <каталог>]…`);
+  const options = { extraDirs: [], plugins: [], includes: [] };
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index];
+    const value = argv[index + 1];
+    if (value === undefined || !['--with', '--plugin', '--include'].includes(flag)) {
+      throw new Error(`неизвестный аргумент «${flag}». Ожидается: ${USAGE}`);
     }
-    extra.push(resolve(packageDir, argv[index + 1]));
-    index += 1;
+    if (flag === '--with') options.extraDirs.push(resolve(packageDir, value));
+    else if (flag === '--plugin') options.plugins.push(value);
+    else options.includes.push(resolve(packageDir, value));
   }
-  return extra;
+  return options;
+}
+
+/**
+ * Переменные темы Tailwind, которые объявляет кит (`@theme inline`): имя → на что оно ссылается.
+ *
+ * В документе их может не быть: Tailwind эмитит переменную темы, только когда на неё ссылается
+ * CSS, который он собирает, — то есть CSS билдера. Токены же кита (`:root`) есть всегда.
+ */
+function kitThemeVariables() {
+  const theme = readFileSync(KIT_THEME, 'utf8');
+  const block = /@theme[^{]*\{([^}]*)\}/.exec(theme)?.[1] ?? '';
+  return new Map(
+    [...block.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()])
+  );
+}
+
+/** Постоянный блок не вправе ссылаться на переменные темы Tailwind — см. шапку модуля. */
+function assertKitTokensOnly(file, css, packageDir) {
+  const theme = kitThemeVariables();
+  const fragile = [
+    ...new Set(
+      [...css.matchAll(/var\(\s*(--[\w-]+)/g)].map((match) => match[1]).filter((n) => theme.has(n))
+    ),
+  ].sort();
+  if (fragile.length === 0) return;
+  const hints = fragile.map((name) => `${name} → ${theme.get(name)}`).join(', ');
+  throw new Error(
+    `«${cssPath(packageDir, file)}» ссылается на переменные темы Tailwind — билдер объявляет их, ` +
+      `только пока сам ими пользуется. Нужны токены кита: ${hints}`
+  );
 }
 
 const rendered = (base) => [
@@ -113,32 +185,81 @@ async function builderCandidates(tailwind) {
 /**
  * Таблица недостающих утилит пакета плагина.
  *
- * `rules` — сколько правил-утилит получилось. Ноль значит, что плагину свой CSS не нужен:
- * кандидатов вне CSS билдера сканер находит всегда (любое слово из кода — кандидат), а правилом
- * становится только настоящий класс.
+ * `rules` — сколько правил получилось: утилит и правил постоянных блоков. Ноль значит, что
+ * плагину свой CSS не нужен: кандидатов вне CSS билдера сканер находит всегда (любое слово
+ * из кода — кандидат), а правилом становится только настоящий класс.
+ *
+ * @param options `extraDirs`, `plugins`, `includes` — см. шапку модуля; всё необязательно.
  */
-export async function pluginStyles(packageDir, extraDirs = []) {
+export async function pluginStyles(packageDir, options = {}) {
+  const { extraDirs = [], plugins = [], includes = [] } = options;
   const tailwind = await loadTailwind();
   const provided = await builderCandidates(tailwind);
 
-  const own = [resolve(packageDir, 'src'), ...extraDirs].flatMap(rendered);
-  const missing = new tailwind.Scanner({ sources: own })
-    .scan()
-    .filter((candidate) => !provided.has(candidate))
-    .sort();
+  const own = new tailwind.Scanner({
+    sources: [resolve(packageDir, 'src'), ...extraDirs].flatMap(rendered),
+  }).scan();
 
   // Тема по умолчанию эмитится: `--color-amber-700` билдер объявляет, только если сам им
   // пользуется. Тема кита — ссылкой: её токены живут в `:root` билдера и меняются с темой.
   const outputDir = dirname(resolve(packageDir, PLUGIN_STYLES_FILE));
-  const input = [
-    '@layer theme, utilities;',
-    "@import 'tailwindcss/theme.css' layer(theme);",
-    "@import 'tailwindcss/utilities.css' layer(utilities) source(none);",
-    `@reference '${cssPath(outputDir, KIT_THEME)}';`,
-  ].join('\n');
-  const compiler = await tailwind.compile(input, { base: outputDir, onDependency() {} });
-  const css = compiler.build(missing);
-  const rules = (css.match(/^ {2}\.[^\n]*\{$/gm) ?? []).length;
+  const inputFor = (withPlugins, layer = 'utilities') =>
+    [
+      '@layer theme, components, utilities;',
+      "@import 'tailwindcss/theme.css' layer(theme);",
+      `@import 'tailwindcss/utilities.css' layer(${layer}) source(none);`,
+      `@reference '${cssPath(outputDir, KIT_THEME)}';`,
+      ...(withPlugins ? plugins.map((name) => `@plugin '${name}';`) : []),
+    ].join('\n');
+
+  // Классы плагина Tailwind — мимо разности: правила для них у билдера нет, даже если слово
+  // встретилось в его тексте (см. шапку модуля).
+  const pluginOnly = new Set();
+  if (plugins.length > 0) {
+    const [extended, plain] = await Promise.all([
+      tailwind.loadDesignSystem(inputFor(true), { base: outputDir }),
+      tailwind.loadDesignSystem(inputFor(false), { base: outputDir }),
+    ]);
+    const withPlugins = extended.candidatesToCss(own);
+    const without = plain.candidatesToCss(own);
+    own.forEach((candidate, index) => {
+      if (withPlugins[index] !== null && without[index] === null) pluginOnly.add(candidate);
+    });
+  }
+
+  const needed = own
+    .filter((candidate) => pluginOnly.has(candidate) || !provided.has(candidate))
+    .sort();
+
+  // Две сборки: классы плагина Tailwind — в слой `components`, остальное — в `utilities`
+  // (см. шапку модуля). Порядок внутри каждой — тот, что дал бы Tailwind в одной сборке.
+  const build = async (candidates, layer) => {
+    if (candidates.length === 0) return '';
+    const compiler = await tailwind.compile(inputFor(true, layer), {
+      base: outputDir,
+      onDependency() {},
+    });
+    return compiler.build(candidates);
+  };
+  const [components, utilities] = await Promise.all([
+    build(
+      needed.filter((candidate) => pluginOnly.has(candidate)),
+      'components'
+    ),
+    build(
+      needed.filter((candidate) => !pluginOnly.has(candidate)),
+      'utilities'
+    ),
+  ]);
+  const blocks = includes.map((file) => {
+    const block = readFileSync(file, 'utf8').trim();
+    assertKitTokensOnly(file, block, packageDir);
+    return `/* ${cssPath(packageDir, file)} */\n${block}\n`;
+  });
+  const css = [components, utilities, ...blocks].filter((part) => part !== '').join('\n');
+  // Правило-утилита стоит внутри `@layer` — с отступом в два пробела; правило постоянного
+  // блока — у края либо так же внутри слоя. Считается и то и другое: оба требуют таблицы.
+  const rules = (css.match(/^(?: {2})?\.[^\n{}]*\{$/gm) ?? []).length;
   return { css, rules };
 }
 
@@ -152,8 +273,8 @@ const HEADER = [
 
 async function main() {
   const packageDir = process.cwd();
-  const extra = parsePluginStylesArgs(process.argv.slice(2), packageDir);
-  const { css, rules } = await pluginStyles(packageDir, extra);
+  const options = parsePluginStylesArgs(process.argv.slice(2), packageDir);
+  const { css, rules } = await pluginStyles(packageDir, options);
   const output = resolve(packageDir, PLUGIN_STYLES_FILE);
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, HEADER + css);

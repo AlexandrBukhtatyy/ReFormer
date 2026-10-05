@@ -30,7 +30,6 @@ import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
-import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
@@ -330,9 +329,7 @@ describe('состав встроенных плагинов', () => {
       [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
 
     expect(owners(PanelPoint)).toEqual([
-      // Панель проблем. Панели дерева в этом стенде нет: её тело — возможность оболочки
-      // (`reformer.workspace.tree`), а стенд поднимает только то, без чего плагины не встают.
-      'reformer.files',
+      // Дерева файлов и панели проблем среди встроенных нет: плагин файлов — плагин приложения.
       // Ячейка выбора профиля — первая панель слота `statusbar`.
       'reformer.profile-switch',
       // Стартовая страница в слоте `editor.main`.
@@ -341,36 +338,9 @@ describe('состав встроенных плагинов', () => {
     // Поверхности вносит плагин стека: чем рисовать схему — знание стека. Стеки форм и сам
     // превью-хост — плагины приложения, и в составе встроенных поверхностей нет.
     expect(owners(PreviewSurfacePoint)).toEqual([]);
-    expect(owners(EditorPoint)).toEqual([
-      'reformer.editor-markdown',
-      'reformer.editor-monaco',
-      'reformer.files',
-    ]);
+    expect(owners(EditorPoint)).toEqual(['reformer.editor-monaco']);
     // Модель документа — вклад редактора стека; без него всё открывается текстом.
     expect(owners(DocumentModelPoint)).toEqual([]);
-  });
-
-  it('markdown-файл достаётся markdown-редактору, а не Monaco', async () => {
-    // Проверка ЗДЕСЬ, а не в плагине: приоритеты сравниваются между плагинами, а плагин
-    // видит только свой. Числа были равны — и `.md` доставался Monaco просто потому, что
-    // тот зарегистрирован раньше; кнопки предпросмотра при этом рисовались и «не работали».
-    const h = await harness();
-    h.plugins.registerAll(h.built);
-    h.plugins.activateAll();
-
-    const ref = {
-      id: 'mem:README.md',
-      sourceId: 'mem',
-      path: 'README.md',
-      name: 'README.md',
-      kind: 'file' as const,
-      mediaType: 'text/markdown',
-    };
-    const winner = resolveEditor(h.extensions.get(EditorPoint), ref, {
-      text: () => Promise.resolve('# заголовок'),
-    });
-
-    expect(winner?.value.id).toBe('markdown.editor');
   });
 
   it('у каждого вклада есть владелец, и он настоящий плагин', async () => {
@@ -445,11 +415,10 @@ describe('проверки выше не пусты', () => {
 
     expect(h.built.length).toBeGreaterThanOrEqual(MIN_BUILTIN);
     expect(h.plugins.statuses().length).toBe(h.built.length);
-    // Панель проблем, ячейка профиля и стартовая страница. Панели дерева в стенде нет:
-    // её тело — возможность оболочки, а стенд поднимает только обязательные службы.
-    expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(3);
-    expect(h.extensions.get(EditorPoint).length).toBeGreaterThanOrEqual(2);
-    expect(h.commands.getAll().length).toBeGreaterThanOrEqual(5);
+    // Ячейка профиля и стартовая страница: панели файлов уехали вместе с плагином файлов.
+    expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(2);
+    expect(h.extensions.get(EditorPoint).length).toBeGreaterThanOrEqual(1);
+    expect(h.commands.getAll().length).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -492,7 +461,7 @@ describe('заголовки команд разрешаются в словар
     h.plugins.activateAll();
 
     const owned = h.commands.getAll().filter((c) => c.pluginId !== undefined);
-    expect(owned.length).toBeGreaterThanOrEqual(5);
+    expect(owned.length).toBeGreaterThanOrEqual(3);
 
     // Громкость динамического пути: `import(\`../../plugins/…\`)` в loadPluginLocale резолвится
     // относительно ЭТОГО файла, а отказ глотается try/catch. Сломай переезд файла этот путь —
@@ -625,8 +594,8 @@ describe('состав и карта: каждый плагин своим фа�
         if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
         const text = readFileSync(full, 'utf8');
         for (const id of BUILTIN_PLUGINS.keys()) {
-          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/base/files`, а плагин
-          // зовётся `reformer.files`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
+          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/base/project`, а плагин
+          // зовётся `reformer.project`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
           // и храповик молча перестал бы стеречь.
           const directory = builtinPluginDirectory(id);
           // Барель — это ТОЧНО `@/plugins/<каталог>`: `@/plugins/<каталог>/contract`

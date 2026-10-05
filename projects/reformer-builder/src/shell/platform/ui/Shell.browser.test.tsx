@@ -9,7 +9,7 @@
  * @module shell/platform/ui/Shell.browser.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createElement, type ReactElement } from 'react';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
@@ -473,6 +473,64 @@ describe('рейлы доков: одна панель в зоне, как в п
 
     // Та же высота, что была: разворачиваем в рабочую, а не в полосу и не в минимум.
     expect(Math.abs(height() - full)).toBeLessThan(2);
+  });
+
+  it('нижняя панель, внесённая ПОСЛЕ монтирования оболочки, встаёт без отказа раскладки', async () => {
+    // Плагин приложения или проекта поднимается позже оболочки, и его панель «Проблемы» —
+    // первая в нижнем доке. Док при этом монтируется в уже живую группу раскладки, а её
+    // ограничения для новой панели выводятся кадром позже: императивный вызов до этого —
+    // отказ библиотеки («Panel constraints not found»), который раньше ронял раскладку.
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent): void => void errors.push(event.error ?? event.message);
+    window.addEventListener('error', onError);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation((...args) => {
+      errors.push(args[0]);
+    });
+    try {
+      const extensions = createExtensionRegistry();
+      const i18n = createI18nService();
+      await i18n.setLocale('ru');
+      i18n.forPlugin('late').contribute('ru', { 'panel.problems.title': 'Проблемы' });
+      const settings = createSettingsService(createInMemorySettingsBackend({}));
+      await settings.hydrate();
+
+      renderReact(
+        createElement(Shell, {
+          host: {
+            extensions,
+            whenContext: createWhenContextStore(),
+            settings,
+            commands: createCommandRegistry(),
+            i18n,
+            status: STATUS,
+          } as never,
+        })
+      );
+      await expect.element(page.getByRole('banner')).toBeVisible();
+
+      extensions.forPlugin('late').contribute(
+        PanelPoint,
+        {
+          id: 'problems',
+          slot: 'panel.bottom',
+          titleKey: 'panel.problems.title',
+          Body: Body('Проблемы'),
+        },
+        { id: 'problems' }
+      );
+
+      await expect.element(page.getByText('тело Проблемы')).toBeVisible();
+      // Отказ библиотеки приходит не сразу — на кадре, когда док сверяет размер с режимом.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Только отказы раскладки: стенд без команд оболочки сам пишет о непоказанных пунктах меню.
+      expect(errors.map(String).filter((text) => /constraints|нижний док/.test(text))).toEqual([]);
+      // И док действительно развёрнут, а не остался полосой нулевой высоты.
+      const body = page.getByText('тело Проблемы').element();
+      expect(body.getBoundingClientRect().height).toBeGreaterThan(0);
+    } finally {
+      window.removeEventListener('error', onError);
+      consoleError.mockRestore();
+    }
   });
 
   it('без правых панелей правого рейла нет вовсе', async () => {

@@ -9,10 +9,9 @@
  * @module plugins/forms/integration/application
  */
 
-import { fromProfile } from '@/application/composer/compose';
-import { builtinProfile } from '@/application/profiles/registry';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 import { withDomainPlugins, type DomainPlugin } from '../../.shared/application';
+import { baseApplication } from '../../base/integration/application';
 import { createKitsPlugin } from '../kits/src';
 import kitsManifest from '../kits/src/manifest.json';
 import { createPreviewPlugin } from '../preview/src';
@@ -27,10 +26,11 @@ export const FORMS_PLUGINS: readonly DomainPlugin[] = [
 /**
  * Состав приложения с платформой форм.
  *
- * @param base на чём строить; по умолчанию — встроенный состав билдера.
+ * @param base на чём строить; по умолчанию — встроенные и домен base (дерево файлов, панель
+ *   проблем): платформа форм и движки вносят свои пункты в его подменю.
  */
 export function formsApplication(
-  base: ApplicationComposition = fromProfile(builtinProfile('builder'))
+  base: ApplicationComposition = baseApplication()
 ): ApplicationComposition {
   return withDomainPlugins(base, FORMS_PLUGINS);
 }

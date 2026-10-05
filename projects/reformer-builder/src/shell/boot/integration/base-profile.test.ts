@@ -64,9 +64,7 @@ describe('boot на профиле builder.base', () => {
 
     const statuses = started.plugins.statuses();
     expect(statuses.map((s) => s.id).sort()).toEqual([
-      'reformer.editor-markdown',
       'reformer.editor-monaco',
-      'reformer.files',
       'reformer.plugin-manager',
       'reformer.profile-switch',
       'reformer.project',
@@ -82,18 +80,10 @@ describe('boot на профиле builder.base', () => {
     expect(owners(PreviewSurfacePoint)).toEqual([]);
     expect(owners(DocumentModelPoint)).toEqual([]);
     expect(owners(ValidatorPoint)).toEqual([]);
-    // Панель модели формы — вклад стека; у основы панели только свои: дерево файлов и панель
-    // проблем, ячейка выбора профиля в строке состояния, стартовая страница.
-    expect(owners(PanelPoint)).toEqual([
-      'reformer.files',
-      'reformer.profile-switch',
-      'reformer.project',
-    ]);
-    expect(owners(EditorPoint)).toEqual([
-      'reformer.editor-markdown',
-      'reformer.editor-monaco',
-      'reformer.files',
-    ]);
+    // Панель модели формы — вклад стека; у основы панели только свои: ячейка выбора профиля
+    // в строке состояния и стартовая страница. Дерево файлов и панель проблем — плагин приложения.
+    expect(owners(PanelPoint)).toEqual(['reformer.profile-switch', 'reformer.project']);
+    expect(owners(EditorPoint)).toEqual(['reformer.editor-monaco']);
   });
 
   it('живого вида в основе нет: превью-хост — плагин приложения, а не встроенный', async () => {

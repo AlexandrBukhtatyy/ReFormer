@@ -6,11 +6,24 @@ export const PLUGIN_STYLES_FILE: string;
 /** Имя npm-скрипта, которым пакет плагина собирает таблицу. */
 export const PLUGIN_STYLES_SCRIPT: string;
 
-/** Аргументы запуска: каталоги `--with`, разрешённые от каталога пакета. */
-export function parsePluginStylesArgs(argv: readonly string[], packageDir: string): string[];
+/** Что генератору сказано сверх исходников плагина. */
+export interface PluginStylesOptions {
+  /** Каталоги, чьи классы рисует этот плагин (`--with`). */
+  readonly extraDirs?: readonly string[];
+  /** Плагины Tailwind — именами пакетов (`--plugin`). */
+  readonly plugins?: readonly string[];
+  /** Файлы постоянных блоков CSS (`--include`). */
+  readonly includes?: readonly string[];
+}
 
-/** Таблица недостающих утилит пакета плагина; `rules` — число правил-утилит в ней. */
+/** Аргументы запуска; пути разрешены от каталога пакета. */
+export function parsePluginStylesArgs(
+  argv: readonly string[],
+  packageDir: string
+): Required<PluginStylesOptions>;
+
+/** Таблица стилей пакета плагина; `rules` — число правил в ней. */
 export function pluginStyles(
   packageDir: string,
-  extraDirs?: readonly string[]
+  options?: PluginStylesOptions
 ): Promise<{ readonly css: string; readonly rules: number }>;

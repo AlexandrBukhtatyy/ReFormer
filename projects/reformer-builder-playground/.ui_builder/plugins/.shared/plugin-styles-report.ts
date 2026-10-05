@@ -48,8 +48,8 @@ export async function pluginStylesReport(domainDir: string): Promise<PluginStyle
     const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as { styles?: unknown };
     const scripts =
       (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as PackageJson).scripts ?? {};
-    const extra = parsePluginStylesArgs(generatorArgs(scripts[PLUGIN_STYLES_SCRIPT]), dir);
-    const { rules } = await pluginStyles(dir, extra);
+    const options = parsePluginStylesArgs(generatorArgs(scripts[PLUGIN_STYLES_SCRIPT]), dir);
+    const { rules } = await pluginStyles(dir, options);
 
     report.push({
       plugin,

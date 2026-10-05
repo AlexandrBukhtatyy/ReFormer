@@ -8,9 +8,7 @@
       "name": "Основа конструктора",
       "plugins": [
         "reformer.project",
-        "reformer.files",
         "reformer.editor-monaco",
-        "reformer.editor-markdown",
         "reformer.plugin-manager",
         "reformer.profile-switch"
       ]

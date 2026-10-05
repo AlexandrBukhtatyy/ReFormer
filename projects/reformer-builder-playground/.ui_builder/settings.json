@@ -2,6 +2,8 @@
   "workspace.plugins.enabled": [
     "playground-hello",
     "kit-hexa-ui",
+    "reformer.files",
+    "reformer.editor-markdown",
     "reformer.kits",
     "reformer.preview",
     "reformer.editor-schema",
@@ -14,6 +16,9 @@
     "reformer.rjsf.render"
   ],
   "workspace.plugins.permissions": {
+    "reformer.files": [
+      "workspace.resources"
+    ],
     "reformer.codegen": [
       "workspace.save"
     ],

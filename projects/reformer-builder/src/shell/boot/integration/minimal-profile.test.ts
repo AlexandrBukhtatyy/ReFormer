@@ -33,7 +33,7 @@ import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testin
 const minimalProfile = defineProfile({
   id: 'minimal',
   name: 'Минимальный',
-  plugins: ['reformer.files', 'reformer.editor-monaco'],
+  plugins: ['reformer.project', 'reformer.editor-monaco'],
 });
 
 /**
@@ -75,7 +75,10 @@ describe('boot на коротком профиле', () => {
     const started = await start();
 
     const statuses = started.plugins.statuses();
-    expect(statuses.map((s) => s.id).sort()).toEqual(['reformer.editor-monaco', 'reformer.files']);
+    expect(statuses.map((s) => s.id).sort()).toEqual([
+      'reformer.editor-monaco',
+      'reformer.project',
+    ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });
 
@@ -86,8 +89,8 @@ describe('boot на коротком профиле', () => {
 
     // Поимённо, а не «меньше, чем у полного»: порог прошёл бы и тогда, когда из состава
     // выпал не тот плагин.
-    expect(owners(PanelPoint)).toEqual(['reformer.files']);
-    expect(owners(EditorPoint)).toEqual(['reformer.editor-monaco', 'reformer.files']);
+    expect(owners(PanelPoint)).toEqual(['reformer.project']);
+    expect(owners(EditorPoint)).toEqual(['reformer.editor-monaco']);
     // Модельных документов не вносит никто: структурная модель формы — вклад редактора схемы,
     // и без него `.json` открывается текстом. Это и есть обещанная деградация.
     expect(owners(DocumentModelPoint)).toEqual([]);
@@ -101,7 +104,9 @@ describe('boot на коротком профиле', () => {
     expect(commands.length).toBeGreaterThanOrEqual(2);
     const foreign = commands
       .filter((c) => c.pluginId !== undefined)
-      .filter((c) => !['reformer.files', 'reformer.editor-monaco'].includes(c.pluginId as string));
+      .filter(
+        (c) => !['reformer.project', 'reformer.editor-monaco'].includes(c.pluginId as string)
+      );
     expect(foreign.map((c) => c.id)).toEqual([]);
   });
 });

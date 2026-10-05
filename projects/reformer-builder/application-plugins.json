@@ -1,6 +1,8 @@
 {
   "root": "../reformer-builder-playground/.ui_builder/plugins",
   "plugins": [
+    "base/files",
+    "base/editor-markdown",
     "forms/kits",
     "forms/preview",
     "reformer/editor",

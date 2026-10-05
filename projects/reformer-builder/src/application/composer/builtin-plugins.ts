@@ -272,6 +272,10 @@ const LEGACY_PLUGIN_IDS: ReadonlyMap<string, string> = new Map([
  * Список пишется руками и только растёт: вывести его неоткуда — плагина в карте уже нет.
  */
 const APPLICATION_PLUGIN_IDS: ReadonlySet<string> = new Set([
+  'reformer.editor-markdown',
+  'editor-markdown',
+  'reformer.files',
+  'files',
   'reformer.kits',
   'kits',
   'reformer.preview',

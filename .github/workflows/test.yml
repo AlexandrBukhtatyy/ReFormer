@@ -189,8 +189,8 @@ jobs:
       - name: Run @reformer/rjsf-kit-theme tests
         run: npm run test -w @reformer/rjsf-kit-theme
 
-      # Платформа форм (домен forms: киты, превью-хост) и движки форм (домены reformer и rjsf) —
-      # плагины проекта-образца билдера, по пакету на плагин
+      # Основа (домен base: дерево файлов), платформа форм (домен forms: киты, превью-хост)
+      # и движки форм (домены reformer и rjsf) — плагины проекта-образца билдера, по пакету на плагин
       # (`.ui_builder/plugins/<домен>/<плагин>`). Собираются тем же CLI, что у автора плагина, —
       # на место, в корень каталога плагина: оттуда их грузит билдер. Сборке нужны dist контракта,
       # CLI, toolkit, темы RJSF и @reformer/mcp: плагин ИИ первым делом гонит `generate:knowledge`,
@@ -207,6 +207,7 @@ jobs:
         # тесты плагина ИИ, появляется на диске только после `generate:knowledge`.
         run: >-
           npm run test
+          -w projects/reformer-builder-playground/.ui_builder/plugins/base
           -w projects/reformer-builder-playground/.ui_builder/plugins/forms
           -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
           -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf

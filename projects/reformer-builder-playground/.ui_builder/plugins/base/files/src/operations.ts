@@ -30,6 +30,7 @@ import {
   RESOURCE_CONTEXT_MENU,
   RESOURCE_GENERATE_MENU,
   argsOfResource,
+  pluginMessageKey,
   selectedIds,
   validateResourceName,
   whenResource,
@@ -179,10 +180,19 @@ export function nameValidator(): (value: string) => string | null {
  */
 const IN_TREE = 'focus == tree';
 
+/**
+ * Ключ уведомления в словаре ЭТОГО плагина.
+ *
+ * Уведомление показывает оболочка, а текст принадлежит плагину: ключ с владельцем
+ * (`<plugin-id>:<key>`) переводится его словарём. Раньше тексты лежали в словаре оболочки —
+ * и оболочка знала о плагине файлов.
+ */
+const notifyKey = (key: string): string => pluginMessageKey(FILES_PLUGIN_ID, key);
+
 /** Сообщение об отказе — человеку, а не в консоль. */
 function report(deps: FilesOperationsDeps, messageKey: string, error?: unknown): void {
   if (error !== undefined) console.error(`[files] ${messageKey}`, error);
-  deps.notifications?.error(messageKey);
+  deps.notifications?.error(notifyKey(messageKey));
 }
 
 /**
@@ -195,7 +205,7 @@ function report(deps: FilesOperationsDeps, messageKey: string, error?: unknown):
 function operationsOf(deps: FilesOperationsDeps): WorkspaceResourcesService | null {
   const operations = deps.resources ?? null;
   if (operations === null || !deps.host.hasProject()) {
-    report(deps, 'files.notify.noProject');
+    report(deps, 'notify.noProject');
     return null;
   }
   return operations;
@@ -238,7 +248,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           await operations.createFile(dir, name);
           return true;
         } catch (error) {
-          report(deps, 'files.notify.create.failed', error);
+          report(deps, 'notify.create.failed', error);
           return false;
         }
       },
@@ -257,7 +267,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           await operations.createDirectory(dir, name);
           return true;
         } catch (error) {
-          report(deps, 'files.notify.create.failed', error);
+          report(deps, 'notify.create.failed', error);
           return false;
         }
       },
@@ -284,7 +294,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           await operations.rename(id, name);
           return true;
         } catch (error) {
-          report(deps, 'files.notify.rename.failed', error);
+          report(deps, 'notify.rename.failed', error);
           return false;
         }
       },
@@ -312,7 +322,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
 
         const result = await operations.remove(ids);
         // Частичный отказ — норма для набора: сообщаем ровно о том, что не удалось.
-        if (result.failed.length > 0) report(deps, 'files.notify.delete.failed');
+        if (result.failed.length > 0) report(deps, 'notify.delete.failed');
         return result.failed.length === 0;
       },
     },
@@ -364,7 +374,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
               await operations.move(id, dir);
               moved += 1;
             } catch (error) {
-              report(deps, 'files.notify.paste.failed', error);
+              report(deps, 'notify.paste.failed', error);
             }
           }
           // Вырезанное вставляется ОДИН раз: после переноса исходников больше нет,
@@ -374,7 +384,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
         }
 
         const result = await operations.copy(state.items, dir);
-        if (result.failed.length > 0) report(deps, 'files.notify.paste.failed');
+        if (result.failed.length > 0) report(deps, 'notify.paste.failed');
         return result.failed.length === 0;
       },
     },
@@ -390,10 +400,10 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
         const text = ids.map((id) => id.slice(id.indexOf(':') + 1)).join('\n');
         try {
           await deps.writeSystemClipboard(text);
-          deps.notifications?.info('files.notify.path.copied');
+          deps.notifications?.info(notifyKey('notify.path.copied'));
           return true;
         } catch (error) {
-          report(deps, 'files.notify.path.failed', error);
+          report(deps, 'notify.path.failed', error);
           return false;
         }
       },
