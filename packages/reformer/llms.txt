@@ -7059,7 +7059,7 @@ export interface FormLocale {
 const ru: FormLocale = {
   code: 'ru',
   weekStartsOn: 1,
-  messages: { 'kit.selectMulti.selected': 'Выбрано: {count}' },
+  messages: { 'kit.select.selected': 'Выбрано: {count}' },
 };
 ```
 
