@@ -9,7 +9,14 @@
 
 import type { ComponentType, ElementType } from 'react';
 import type { Signal } from '@reformer/core/signals';
-import type { FormRender, FormSchemaNode, SchemaArrayControl } from '@reformer/core';
+import type {
+  FormRender,
+  SchemaArrayControl,
+  SchemaArrayNode,
+  SchemaContainerNode,
+  SchemaFieldNode,
+  SchemaPartNode,
+} from '@reformer/core';
 
 // ============================================================================
 // RENDER SCHEMA
@@ -93,19 +100,8 @@ export type RenderChild<T> = RenderNode<T> | RenderTextPart;
  * { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип', options } }
  * ```
  */
-export interface ModelFieldRenderNode extends FormSchemaNode {
-  selector?: string;
-  /** Привязка поля — сигнал значения из модели (`model.$.<path>`): лист или массив целиком. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  model?: Signal<any>;
-  /**
-   * Прежняя запись привязки — то же, что {@link ModelFieldRenderNode.model}.
-   *
-   * @deprecated Пишите `model: model.$.<path>`.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value?: Signal<any>;
-  /** UI-компонент поля (в рендере обязателен, в отличие от базового {@link FormSchemaNode}). */
+export interface ModelFieldRenderNode extends SchemaFieldNode {
+  /** UI-компонент поля (в рендере обязателен, в отличие от узла ядра {@link SchemaFieldNode}). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<any>;
   /** Props компонента (+ опц. `testId`/`className`/`fieldWrapper`/`wrapper`). */
@@ -183,16 +179,7 @@ export interface ArrayComponentProps {
  *   item: (model) => ({ component: Box, children: [{ model: model.$.phone, component: Input }] }) }
  * ```
  */
-export interface ArrayRenderNode<T> extends FormSchemaNode {
-  selector?: string;
-  /** Привязка массива под-форм — ручка `model.$.<массив>`. */
-  model?: unknown;
-  /**
-   * Прежняя запись привязки — фасад массива `model.<path>`.
-   *
-   * @deprecated Пишите `model: model.$.<path>`.
-   */
-  array?: RenderModelArrayControl;
+export interface ArrayRenderNode<T> extends SchemaArrayNode {
   /**
    * Компонент-рендерер массива (из `$component(...)`): секция с add/remove/reorder либо
    * chrome-less список. Итерирует **рендерер**, а компонент получает результат обычными props —
@@ -206,12 +193,6 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
   /** Схема элемента: под-модель элемента → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: (model: any) => RenderNode<T>;
-  /**
-   * Запасной шаблон нового элемента для кнопки «Добавить»: значение или фабрика `() => value`.
-   * Действует, если модель своего шаблона не объявила (`arrayOf(blank)`), — так живут формы, чья
-   * модель строится из данных без кода. Вариант выбирается в рантайме по `typeof === 'function'`.
-   */
-  initialValue?: unknown;
   /** Оформление секции массива. */
   componentProps?: {
     title?: string;
@@ -250,10 +231,7 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
  * { model: model.$.registrationAddress, part: address }
  * ```
  */
-export interface PartRenderNode<T> extends FormSchemaNode {
-  selector?: string;
-  /** Привязка — ручка группы модели (`model.$.<группа>`). */
-  model: unknown;
+export interface PartRenderNode<T> extends SchemaPartNode {
   /** Часть схемы: под-модель группы → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   part: (model: any) => RenderNode<T>;
@@ -313,13 +291,7 @@ export interface ContainerRenderNodeProps {
  * }
  * ```
  */
-export interface ContainerRenderNode<T> extends FormSchemaNode {
-  /**
-   * Идентификатор узла — используется составными компонентами (wizard, tabs)
-   * и renderBehavior (b.hideWhen).
-   */
-  selector?: string;
-
+export interface ContainerRenderNode<T> extends SchemaContainerNode {
   /**
    * React-компонент контейнера либо нативный HTML-тег строкой (`'div'`, `'section'`, `'p'`).
    * В рендере обязателен. Для тега `componentProps` — это DOM-атрибуты (`className`, `id`,

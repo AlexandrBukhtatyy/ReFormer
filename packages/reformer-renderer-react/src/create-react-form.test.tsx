@@ -38,7 +38,7 @@ const buildSchema = (model: FormModel<F>, form?: FormProxy<F>): RenderNode<F> =>
     selector: 'wizard',
     component: Wizard,
     componentProps: { form },
-    children: [{ value: model.$.email, component: Input }],
+    children: [{ model: model.$.email, component: Input }],
   }) as unknown as RenderNode<F>;
 
 describe('createReactForm — сборка', () => {

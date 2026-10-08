@@ -31,9 +31,8 @@ import type {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function fieldBindingOf(node: unknown): Signal<any> | undefined {
-  const { model, value } = node as { model?: unknown; value?: unknown };
-  if (isValueSignal(model)) return model;
-  return isValueSignal(value) ? value : undefined;
+  const { model } = node as { model?: unknown };
+  return isValueSignal(model) ? model : undefined;
 }
 
 /** Ручка массива дерева `model.$` — контейнер, который при этом ручка значения. */
@@ -45,9 +44,9 @@ const isGroupHandle = (binding: unknown): boolean =>
   isModelContainerSignal(binding) && !isValueSignal(binding);
 
 /**
- * Фасад массива модели по узлу-массиву: привязка ручкой (`model: model.$.items`) либо, для
- * прежней записи, самим фасадом (`array: model.items`). Для узла, который массивом под-форм не
- * является, — `undefined`.
+ * Фасад массива модели по узлу-массиву: привязка ручкой (`model: model.$.items`) либо самим
+ * фасадом (`model: model.items`). Для узла, который массивом под-форм не является, —
+ * `undefined`.
  *
  * @example
  * ```typescript
@@ -56,16 +55,15 @@ const isGroupHandle = (binding: unknown): boolean =>
  * ```
  */
 export function arrayControlOf(node: unknown): RenderModelArrayControl | undefined {
-  const { model, array, item } = node as { model?: unknown; array?: unknown; item?: unknown };
+  const { model, item } = node as { model?: unknown; item?: unknown };
   if (typeof item !== 'function') return undefined;
   if (isArrayHandle(model)) {
     return modelOf(model as { peek(): unknown[] }) as unknown as RenderModelArrayControl;
   }
-  const facade = array ?? model;
-  if (facade == null || typeof facade !== 'object' || isModelContainerSignal(facade)) {
+  if (model == null || typeof model !== 'object' || isModelContainerSignal(model)) {
     return undefined;
   }
-  return facade as RenderModelArrayControl;
+  return model as RenderModelArrayControl;
 }
 
 /**
