@@ -66,6 +66,8 @@ describe('плагин «Превью приложением»', () => {
     const panel = contributed[0]?.value as PanelContribution;
     expect(panel.slot).toBe('panel.right');
     expect(panel.titleKey).toBe('panel.title');
+    // Переключатель режима — действие панели: оболочка рисует его в шапке дока.
+    expect(panel.Actions).toBeTypeOf('function');
     // Вклад снимается вместе с плагином: подписка обязана попасть в его список.
     expect(ctx.subscriptions).toHaveLength(1);
   });

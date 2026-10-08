@@ -29,6 +29,8 @@ import {
 } from '@reformer/builder-plugin-api';
 import manifest from './manifest.json';
 import { APP_PREVIEW_MESSAGES } from './messages';
+import { createPreviewModeStore } from './model';
+import { PreviewModeSwitch } from './ui/PreviewModeSwitch';
 import { PreviewPanel } from './ui/PreviewPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
@@ -56,6 +58,10 @@ export function createAppPreviewPlugin(): Plugin {
       // области панель не узнала бы, какую форму показывать, поэтому условие одно на всё.
       if (preview === undefined || documents === undefined || files === undefined) return;
 
+      // Режим — один на плагин: переключатель стоит в шапке дока, рамка — в теле панели,
+      // а это два разных поддерева оболочки.
+      const mode = createPreviewModeStore();
+
       ctx.subscriptions.push(
         ctx.extensions.contribute(
           PanelPoint,
@@ -67,7 +73,10 @@ export function createAppPreviewPlugin(): Plugin {
             // Рамка с приложением — сама область просмотра: панели нужна вся высота дока,
             // а прокручивается в ней документ приложения, не панель.
             fill: true,
-            Body: () => createElement(PreviewPanel, { preview, documents, files, i18n: ctx.i18n }),
+            Body: () =>
+              createElement(PreviewPanel, { preview, documents, files, mode, i18n: ctx.i18n }),
+            // Переключатель режима — в шапке дока: в теле панели он отнимал бы строку у рамки.
+            Actions: () => createElement(PreviewModeSwitch, { mode, i18n: ctx.i18n }),
           },
           { id: APP_PREVIEW_PANEL_ID }
         )

@@ -18,6 +18,8 @@ import {
 } from '@reformer/builder-plugin-api';
 import { renderReact } from '../../../../.shared/render';
 import ru from '../locales/ru.json';
+import { createPreviewModeStore } from '../model';
+import { PreviewModeSwitch } from './PreviewModeSwitch';
 import { PreviewPanel, type PreviewPanelProps } from './PreviewPanel';
 
 const ORIGIN = 'http://app-preview.invalid';
@@ -75,6 +77,7 @@ function stand(options: { active: string | null; entries?: readonly ResourceRef[
     props: {
       preview,
       i18n,
+      mode: createPreviewModeStore(),
       documents: {
         activeResource: () => active,
         onDidChange: (cb) => {
@@ -105,7 +108,21 @@ function stand(options: { active: string | null; entries?: readonly ResourceRef[
   };
 }
 
+/**
+ * Панель вместе с переключателем режима — как в билдере: переключатель оболочка рисует
+ * в шапке дока, вне панели, а режим у них общий.
+ */
+function renderPreview(props: PreviewPanelProps): void {
+  renderReact(
+    <>
+      <PreviewModeSwitch mode={props.mode} i18n={props.i18n} />
+      <PreviewPanel {...props} />
+    </>
+  );
+}
+
 const frame = (): HTMLIFrameElement | null => document.querySelector('iframe');
+const panel = (): HTMLElement | null => document.querySelector('[data-app-preview="panel"]');
 
 const CONTACT = [file('src/forms/contact/form.schema.json'), file('src/forms/contact/index.tsx')];
 
@@ -113,7 +130,7 @@ describe('режим «форма»', () => {
   it('открывает стенд формы, чей модуль лежит рядом с открытым файлом', async () => {
     const { props } = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
 
     await vi.waitFor(() => {
       expect(frame()?.getAttribute('src')).toBe(standOf('src/forms/contact/index.tsx'));
@@ -123,7 +140,7 @@ describe('режим «форма»', () => {
   it('называет рамку именем из контракта: по нему приложение узнаёт, что оно в превью', async () => {
     const { props } = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
 
     await vi.waitFor(() => {
       expect(frame()?.getAttribute('name')).toBe(APP_PREVIEW_FRAME_NAME);
@@ -133,7 +150,7 @@ describe('режим «форма»', () => {
   it('без открытого файла говорит, что открыть, а рамку не рисует', async () => {
     const { props } = stand({ active: null });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
 
     await expect.element(page.getByRole('status')).toHaveTextContent('Откройте файл формы');
     expect(frame()).toBeNull();
@@ -145,7 +162,7 @@ describe('режим «форма»', () => {
       entries: [file('src/forms/contact/form.schema.json')],
     });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
 
     await expect.element(page.getByRole('status')).toHaveTextContent('index.tsx');
     expect(frame()).toBeNull();
@@ -156,7 +173,7 @@ describe('режим «форма»', () => {
       active: 'fs:src/forms/contact/form.schema.json',
       entries: [file('src/forms/contact/form.schema.json')],
     });
-    renderReact(<PreviewPanel {...stage.props} />);
+    renderPreview(stage.props);
     await expect.element(page.getByRole('status')).toHaveTextContent('index.tsx');
 
     // Кодоген напечатал модуль формы и записал его на диск.
@@ -173,7 +190,7 @@ describe('режим «форма»', () => {
       active: 'fs:src/forms/contact/form.schema.json',
       entries: [...CONTACT, file('src/services/cities.ts')],
     });
-    renderReact(<PreviewPanel {...stage.props} />);
+    renderPreview(stage.props);
     await vi.waitFor(() => {
       expect(frame()?.getAttribute('src')).toBe(standOf('src/forms/contact/index.tsx'));
     });
@@ -184,10 +201,6 @@ describe('режим «форма»', () => {
 
     // Поиск модуля у нового файла — несколько чтений каталога; ждём, пока панель их закончит.
     await new Promise((resolve) => setTimeout(resolve, 50));
-    // Форма названа в панели: она уже не из каталога открытого файла.
-    await expect
-      .element(page.getByText('src/forms/contact/index.tsx', { exact: false }))
-      .toBeInTheDocument();
     // Та же рамка, а не новая с тем же адресом: введённое в форму не пропало.
     expect(frame()).toBe(before);
     expect(page.getByRole('status').elements()).toHaveLength(0);
@@ -198,7 +211,7 @@ describe('режим «форма»', () => {
       active: 'fs:src/forms/contact/form.schema.json',
       entries: [...CONTACT, file('src/services/cities.ts')],
     });
-    renderReact(<PreviewPanel {...stage.props} />);
+    renderPreview(stage.props);
     await vi.waitFor(() => {
       expect(frame()).not.toBeNull();
     });
@@ -216,7 +229,7 @@ describe('режим «приложение»', () => {
   it('открывает страницу, с которой включили билдер', async () => {
     const { props } = stand({ active: null });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
     await userEvent.click(page.getByRole('button', { name: 'Приложение', exact: true }));
 
     await vi.waitFor(() => {
@@ -227,7 +240,7 @@ describe('режим «приложение»', () => {
   it('адрес из адресной строки открывается в рамке и включает режим «приложение»', async () => {
     const { props } = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
     await userEvent.fill(page.getByRole('textbox'), '/orders');
     await userEvent.keyboard('{Enter}');
 
@@ -242,7 +255,7 @@ describe('режим «приложение»', () => {
   it('адрес другого сайта не открывается и помечается', async () => {
     const { props } = stand({ active: null });
 
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
     await userEvent.click(page.getByRole('button', { name: 'Приложение', exact: true }));
     await userEvent.fill(page.getByRole('textbox'), 'https://example.com/');
     await userEvent.keyboard('{Enter}');
@@ -255,7 +268,7 @@ describe('режим «приложение»', () => {
 describe('обновление рамки', () => {
   it('после записи файлов рамка заменяется новой — приложение показано заново', async () => {
     const stage = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
-    renderReact(<PreviewPanel {...stage.props} />);
+    renderPreview(stage.props);
     await vi.waitFor(() => {
       expect(frame()).not.toBeNull();
     });
@@ -271,7 +284,7 @@ describe('обновление рамки', () => {
 
   it('кнопка «Обновить» заменяет рамку сразу', async () => {
     const { props } = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
-    renderReact(<PreviewPanel {...props} />);
+    renderPreview(props);
     await vi.waitFor(() => {
       expect(frame()).not.toBeNull();
     });
@@ -285,10 +298,50 @@ describe('обновление рамки', () => {
   });
 });
 
+describe('раскладка панели', () => {
+  it('над рамкой одна строка: адрес, «Обновить» и отдельная вкладка', async () => {
+    const { props } = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
+    renderPreview(props);
+    await vi.waitFor(() => {
+      expect(frame()).not.toBeNull();
+    });
+
+    const row = page.getByRole('textbox').element().parentElement;
+    const inRow = (name: string | RegExp): boolean =>
+      row?.contains(page.getByRole('button', { name }).element()) === true;
+    expect(inRow('Обновить')).toBe(true);
+    expect(inRow(/отдельной вкладке/)).toBe(true);
+    // Кроме строки адреса и области рамки в панели ничего нет: ни второй строки, ни подписи.
+    expect(panel()?.children).toHaveLength(2);
+  });
+
+  it('переключателя режима в панели нет: он стоит в шапке дока', async () => {
+    const { props } = stand({ active: null });
+    renderPreview(props);
+
+    await expect.element(page.getByRole('group', { name: 'Что показывать' })).toBeVisible();
+    expect(panel()?.querySelector('[role="group"]')).toBeNull();
+  });
+
+  it('действия в строке адреса адрес не отправляют: режим остаётся прежним', async () => {
+    const { props } = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
+    renderPreview(props);
+    await vi.waitFor(() => {
+      expect(frame()).not.toBeNull();
+    });
+
+    await userEvent.click(page.getByRole('button', { name: 'Обновить' }));
+
+    await expect
+      .element(page.getByRole('button', { name: 'Форма', exact: true }))
+      .toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
 describe('приложение в отдельной вкладке', () => {
   it('открывается страница приложения — а не стенд формы, даже из режима «форма»', async () => {
     const stage = stand({ active: 'fs:src/forms/contact/form.schema.json', entries: CONTACT });
-    renderReact(<PreviewPanel {...stage.props} />);
+    renderPreview(stage.props);
 
     await userEvent.click(page.getByRole('button', { name: /отдельной вкладке/ }));
 

@@ -104,8 +104,8 @@ test.describe('Билдер внутри приложения', () => {
     // Только форма: ни шапки приложения, ни кнопки билдера внутри его же превью.
     await expect(form.getByRole('navigation', { name: 'Разделы приложения' })).toHaveCount(0);
     await expect(form.locator('[data-reformer-builder="toggle"]')).toHaveCount(0);
-    // Панель называет, чей это модуль.
-    await expect(host.previewPanel).toContainText(FORM_MODULE);
+    // В рамке стенд именно этого модуля.
+    await host.expectPreviewOf(FORM_MODULE);
 
     // Стили у формы — приложения: колонка формы ограничена его утилитой ширины.
     const column = form.locator('[data-reformer-builder-stand="form"] > div');
@@ -226,7 +226,7 @@ test.describe('Билдер внутри приложения', () => {
     // Сервис лежит не в каталоге формы — форма при этом остаётся на экране.
     await host.builder.openFile(SERVICE);
     await host.openPreview();
-    await expect(host.previewPanel).toContainText(FORM_MODULE);
+    await host.expectPreviewOf(FORM_MODULE);
     await expect(form.getByRole('heading', { name: 'Обратная связь' })).toBeVisible();
 
     // Подпись опции: `label: city.name` → `label: city.region`. Курсор — в конец строки,

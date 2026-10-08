@@ -4,9 +4,9 @@
  * @module plugins/base/app-preview/model.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ResourceRef } from '@reformer/builder-plugin-api';
-import { formModulePath, previewTarget, resolveAddress } from './model';
+import { createPreviewModeStore, formModulePath, previewTarget, resolveAddress } from './model';
 
 function entry(path: string, kind: ResourceRef['kind'] = 'file'): ResourceRef {
   return {
@@ -75,6 +75,43 @@ describe('что показывает панель', () => {
     expect(previewTarget({ ...base, mode: 'form', hasDocument: true, modulePath: null })).toEqual({
       kind: 'no-module',
     });
+  });
+});
+
+describe('режим превью — один на шапку дока и панель', () => {
+  it('сначала показывается форма', () => {
+    expect(createPreviewModeStore().get()).toBe('form');
+  });
+
+  it('смена режима будит подписчиков', () => {
+    const store = createPreviewModeStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.set('page');
+
+    expect(store.get()).toBe('page');
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('тот же режим подписчиков не будит', () => {
+    const store = createPreviewModeStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.set('form');
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('снятая подписка о смене не узнаёт', () => {
+    const store = createPreviewModeStore();
+    const listener = vi.fn();
+    store.subscribe(listener).dispose();
+
+    store.set('page');
+
+    expect(listener).not.toHaveBeenCalled();
   });
 });
 

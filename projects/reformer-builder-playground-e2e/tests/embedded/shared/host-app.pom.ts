@@ -98,11 +98,27 @@ export class HostApp {
     await expect(this.previewPanel).toBeVisible();
   }
 
-  /** Переключатель «что показывать»: одна форма или приложение целиком. */
+  /**
+   * Переключатель «что показывать»: одна форма или приложение целиком.
+   *
+   * Стоит в шапке дока, а не в панели, поэтому ищется по всей странице.
+   */
   previewMode(name: 'Форма' | 'Приложение'): Locator {
-    return this.previewPanel
-      .getByRole('group', { name: 'Что показывать' })
-      .getByRole('button', { name });
+    return this.page.getByRole('group', { name: 'Что показывать' }).getByRole('button', { name });
+  }
+
+  /**
+   * Рамка превью открыта на стенде этого модуля формы.
+   *
+   * Панель модуль не называет: он виден только в адресе рамки, параметром стенда.
+   */
+  async expectPreviewOf(modulePath: string): Promise<void> {
+    await expect
+      .poll(async () => {
+        const src = await this.page.locator(PREVIEW_FRAME).getAttribute('src');
+        return src === null ? [] : [...new URL(src).searchParams.values()];
+      })
+      .toContain(modulePath);
   }
 
   /** Адресная строка панели превью. */

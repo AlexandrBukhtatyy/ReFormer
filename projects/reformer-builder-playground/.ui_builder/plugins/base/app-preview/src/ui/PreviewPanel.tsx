@@ -18,6 +18,12 @@
  * то, что записано, наверняка. Делается она с задержкой: dev-сервер приложения замечает запись
  * не мгновенно.
  *
+ * ## Режим — в шапке дока
+ *
+ * Переключатель «форма / приложение» стоит в шапке дока (`PreviewModeSwitch`), а её рисует
+ * оболочка. Поэтому режим панель не хранит, а читает из общего хранилища плагина. Над рамкой
+ * остаётся одна строка — адрес и действия над тем, что по нему открыто.
+ *
  * ## Свои стили — встроенные
  *
  * Панель обходится токенами кита и встроенными стилями: своей таблицы стилей у плагина нет,
@@ -51,8 +57,9 @@ import {
   previewTarget,
   RELOAD_DELAY_MS,
   resolveAddress,
-  type PreviewMode,
+  type PreviewModeStore,
 } from '../model';
+import { usePreviewMode } from './usePreviewMode';
 
 /** Модуль формы на экране: каталог, где он найден, и путь от корня проекта. */
 interface ShownModule {
@@ -64,6 +71,8 @@ export interface PreviewPanelProps {
   readonly preview: AppPreviewService;
   readonly documents: Pick<DocumentsService, 'activeResource' | 'onDidChange'>;
   readonly files: Pick<WorkspaceFilesService, 'parentOf' | 'list'>;
+  /** Режим превью: его переключают в шапке дока, а панель показывает. */
+  readonly mode: PreviewModeStore;
   readonly i18n: Pick<PluginI18n, 'locale' | 't' | 'onDidChangeLocale'>;
   /** Открыть адрес в новой вкладке. Параметр ради тестов. */
   readonly openTab?: (url: string) => void;
@@ -83,34 +92,16 @@ const PANEL: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 12,
 };
-const TOOLBAR: CSSProperties = {
+// Строка адреса — единственная над рамкой; черта под ней отделяет панель от документа
+// приложения, у которого фон свой.
+const ADDRESS_ROW: CSSProperties = {
   display: 'flex',
   flex: 'none',
-  alignItems: 'center',
+  alignItems: 'stretch',
   gap: 6,
   padding: '6px 8px',
+  borderBottom: '1px solid var(--border)',
 };
-const SEGMENTS: CSSProperties = {
-  display: 'flex',
-  flex: 'none',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  overflow: 'hidden',
-};
-// Составные свойства (`font`, `border`) с их частями в одном элементе не смешиваются: React
-// при смене стиля снимает их по одному, и часть пережила бы целое.
-const SEGMENT: CSSProperties = {
-  padding: '3px 8px',
-  border: 0,
-  fontFamily: 'inherit',
-  fontSize: 'inherit',
-  fontWeight: 400,
-  color: 'inherit',
-  background: 'transparent',
-  cursor: 'pointer',
-};
-const SEGMENT_ACTIVE: CSSProperties = { ...SEGMENT, background: 'var(--accent)', fontWeight: 600 };
-const ADDRESS_FORM: CSSProperties = { display: 'flex', flex: 'none', padding: '0 8px 6px' };
 const ADDRESS: CSSProperties = {
   flex: 1,
   minWidth: 0,
@@ -133,15 +124,6 @@ const ACTION: CSSProperties = {
   color: 'inherit',
   background: 'transparent',
   cursor: 'pointer',
-};
-// Первое действие прижимает оба к правому краю строки.
-const ACTION_FIRST: CSSProperties = { ...ACTION, marginLeft: 'auto' };
-const NOTICE: CSSProperties = {
-  flex: 'none',
-  padding: '3px 8px',
-  borderTop: '1px solid var(--border)',
-  borderBottom: '1px solid var(--border)',
-  color: 'var(--muted-foreground)',
 };
 const BODY: CSSProperties = { position: 'relative', flex: 1, minHeight: 0 };
 // Фон рамки белый намеренно: это документ приложения, и тема билдера к нему не относится.
@@ -175,7 +157,7 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
   const active = useActiveDocument(documents);
   const reloadDelay = props.reloadDelayMs ?? RELOAD_DELAY_MS;
 
-  const [mode, setMode] = useState<PreviewMode>('form');
+  const mode = usePreviewMode(props.mode);
   // Адрес страницы читается один раз: дальше человек ходит по приложению сам.
   const [address, setAddress] = useState(() => preview.pageUrl());
   const [draft, setDraft] = useState(address);
@@ -285,7 +267,7 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
     currentPage.current = resolved;
     setAddress(resolved);
     setDraft(resolved);
-    setMode('page');
+    props.mode.set('page');
     setGeneration((value) => value + 1);
   };
 
@@ -316,32 +298,24 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
 
   return (
     <div style={PANEL} data-app-preview="panel">
-      <div style={TOOLBAR}>
-        <div role="group" aria-label={t('mode.label')} style={SEGMENTS}>
-          <button
-            type="button"
-            aria-pressed={mode === 'form'}
-            style={mode === 'form' ? SEGMENT_ACTIVE : SEGMENT}
-            onClick={() => {
-              setMode('form');
-            }}
-          >
-            {t('mode.form')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === 'page'}
-            style={mode === 'page' ? SEGMENT_ACTIVE : SEGMENT}
-            onClick={() => {
-              setMode('page');
-            }}
-          >
-            {t('mode.page')}
-          </button>
-        </div>
+      {/* Действия стоят в строке адреса: оба — про то, что по нему открыто. Кнопки внутри
+          формы объявлены `type="button"`, иначе нажатие отправляло бы адрес. */}
+      <form style={ADDRESS_ROW} onSubmit={submitAddress}>
+        <input
+          type="text"
+          aria-label={t('address.label')}
+          aria-invalid={invalid}
+          title={invalid ? t('address.invalid') : undefined}
+          style={invalid ? ADDRESS_INVALID : ADDRESS}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setInvalid(false);
+          }}
+        />
         <button
           type="button"
-          style={ACTION_FIRST}
+          style={ACTION}
           title={t('action.reload')}
           aria-label={t('action.reload')}
           onClick={reload}
@@ -359,29 +333,7 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
         >
           ↗
         </button>
-      </div>
-      {/* Адрес — своей строкой: док узкий, и рядом с переключателем и кнопками от адреса
-          оставалось бы несколько знаков. */}
-      <form style={ADDRESS_FORM} onSubmit={submitAddress}>
-        <input
-          type="text"
-          aria-label={t('address.label')}
-          aria-invalid={invalid}
-          title={invalid ? t('address.invalid') : undefined}
-          style={invalid ? ADDRESS_INVALID : ADDRESS}
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            setInvalid(false);
-          }}
-        />
       </form>
-      <div style={NOTICE}>
-        {/* В режиме «форма» названа сама форма: она может быть не из каталога открытого файла. */}
-        {mode === 'form' && shown !== null
-          ? t('notice.form', { path: shown.path })
-          : t('notice.saved')}
-      </div>
       <div style={BODY}>
         {target.kind === 'frame' ? (
           <iframe

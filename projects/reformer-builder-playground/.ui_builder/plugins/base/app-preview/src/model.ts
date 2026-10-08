@@ -17,10 +17,48 @@
  * @module plugins/base/app-preview/model
  */
 
-import type { ResourceRef } from '@reformer/builder-plugin-api';
+import type { Disposable, ResourceRef } from '@reformer/builder-plugin-api';
 
 /** Что показывать: одну форму или приложение целиком. */
 export type PreviewMode = 'form' | 'page';
+
+/**
+ * Режим превью — один на плагин.
+ *
+ * Переключатель режима стоит в шапке дока, а рамка — в теле панели: оболочка рисует их двумя
+ * разными React-поддеревьями, и общего состояния у них нет. Поэтому режим живёт здесь,
+ * а обе стороны на него подписаны.
+ */
+export interface PreviewModeStore {
+  get(): PreviewMode;
+  /** Сменить режим. Тот же режим слушателей не будит. */
+  set(mode: PreviewMode): void;
+  /** Подписаться на смену. Освобождение снимает подписку; повторное безвредно. */
+  subscribe(listener: () => void): Disposable;
+}
+
+export function createPreviewModeStore(initial: PreviewMode = 'form'): PreviewModeStore {
+  let mode = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => mode,
+    set: (next) => {
+      if (next === mode) return;
+      mode = next;
+      // Копия набора: слушатель вправе отписаться прямо в обработчике, а обход живого
+      // множества при этом пропустил бы соседа.
+      for (const listener of [...listeners]) listener();
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return {
+        dispose: () => {
+          listeners.delete(listener);
+        },
+      };
+    },
+  };
+}
 
 /** Имя модуля формы в её каталоге. */
 export const FORM_MODULE_NAME = 'index.tsx';
