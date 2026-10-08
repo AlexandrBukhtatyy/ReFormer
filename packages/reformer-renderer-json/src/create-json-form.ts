@@ -7,7 +7,7 @@
  * инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry, validation?,
  * renderBehavior? }`, который целиком отдаётся рендереру пропом `form`.
  *
- * Конфиг общий с `createCoreForm` (`@reformer/core`) и `createReactForm`
+ * Конфиг общий с `createForm` (`@reformer/core`) и `createReactForm`
  * (`@reformer/renderer-react`); отличие — JSON-схема как данные и реестр компонентов.
  *
  * @module reformer/renderer-json/create-json-form
