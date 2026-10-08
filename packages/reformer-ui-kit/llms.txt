@@ -8471,8 +8471,8 @@ _Source: src/components/form-array/variants/base/form-array-section.tsx_
 **Signature:**
 ```typescript
 export interface FormArraySectionProps<T extends object> {
-  /** Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy. */
-  control: FormArrayProxy<T> | ArrayNode<T> | undefined;
+  /** Узел массива формы (`form.<массив>`). */
+  control: ModelArrayNode<T> | undefined;
 
   /** React FC получает `control: FormProxy<T>` для каждого элемента. */
   itemComponent: ComponentType<{ control: FormProxy<T> }>;

@@ -26,7 +26,7 @@ function fakeArray(items: any[]): any {
 const render = (node: any): string => renderToStaticMarkup(<FormRenderer render={() => node} />);
 
 const listNode = (items: any[], componentProps?: any) => ({
-  array: fakeArray(items),
+  model: fakeArray(items),
   item: (im: any) => ({ component: 'span', children: [im.label] }),
   component: List,
   initialValue: () => ({}),

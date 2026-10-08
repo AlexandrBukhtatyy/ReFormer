@@ -10,12 +10,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ComponentType, type ReactNode } from 'react';
-import {
-  useFormControl,
-  type ArrayNode,
-  type FormArrayProxy,
-  type FormProxy,
-} from '@reformer/core';
+import { useFormControl, type ModelArrayNode, type FormProxy } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
 import { useKitMessages } from '@/i18n/messages';
 
@@ -41,8 +36,8 @@ export interface FieldWrapperProps {
  * @typeParam T - Тип одного элемента массива (object).
  */
 export interface FormArraySectionProps<T extends object> {
-  /** Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy. */
-  control: FormArrayProxy<T> | ArrayNode<T> | undefined;
+  /** Узел массива формы (`form.<массив>`). */
+  control: ModelArrayNode<T> | undefined;
 
   /** React FC получает `control: FormProxy<T>` для каждого элемента. */
   itemComponent: ComponentType<{ control: FormProxy<T> }>;
@@ -124,7 +119,7 @@ export interface FormArraySectionProps<T extends object> {
 function resolveArrayNode<T extends object>(
   control: FormArraySectionProps<T>['control'],
   hasRendererSeam = false
-): ArrayNode<T> | null {
+): ModelArrayNode<T> | null {
   if (!control) {
     // Молчать здесь дорого: без `control` секция возвращает null, и в JSON-схеме это выглядит
     // как «массив просто не отрисовался» — ни ошибки, ни предупреждения. Самая частая причина
@@ -141,13 +136,13 @@ function resolveArrayNode<T extends object>(
     }
     return null;
   }
-  // ArrayNode / ModelArrayNode / FormArrayProxy — распознаём по array-методам.
+  // Узел массива распознаём по array-методам.
   if (
     typeof control === 'object' &&
-    typeof (control as ArrayNode<T>).push === 'function' &&
-    typeof (control as ArrayNode<T>).removeAt === 'function'
+    typeof control.push === 'function' &&
+    typeof control.removeAt === 'function'
   ) {
-    return control as ArrayNode<T>;
+    return control;
   }
   if (typeof console !== 'undefined') {
     console.warn('[FormArraySection] control is not an ArrayNode/FormArrayProxy.');
