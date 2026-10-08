@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useFormControl, type ArrayNode } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import type { ListControl, ListItem } from './types';
 
 /**
@@ -41,9 +41,7 @@ export interface UseListReturn<T extends object> {
 export function useList<T extends object>(control: ListControl<T>): UseListReturn<T> {
   // Подписка на length И value: ссылка `value` меняется при add/remove/reorder модели, что
   // заставляет memo пересчитаться (иначе фильтрация/перестановка не отразилась бы в UI).
-  // ModelArrayNode структурно совместим с ArrayNode для useFormControl (duck-typed по length/map);
-  // cast нужен лишь потому, что перегрузка типизирована строго под ArrayNode.
-  const { length, value } = useFormControl(control as ArrayNode<T>);
+  const { length, value } = useFormControl(control);
 
   const items = useMemo(
     () =>
