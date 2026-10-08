@@ -17,7 +17,6 @@
 import type { FormValidation, ValidationError } from '@reformer/core';
 import {
   applyEach,
-  cross,
   defineValidationSchema,
   validate,
   validateWhen,
@@ -47,7 +46,7 @@ type Form = CreditApplicationForm;
 /* Шаг 1 — параметры кредита                                          */
 /* ------------------------------------------------------------------ */
 
-const loanStep = defineValidationSchema<Form>(({ model }) => {
+const loanStep = defineValidationSchema<Form>(({ model, cross }) => {
   validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
   validate(model.$.loanAmount, [
     required({ message: 'Укажите сумму кредита' }),
@@ -129,7 +128,7 @@ const loanStep = defineValidationSchema<Form>(({ model }) => {
 /* Шаг 2 — персональные данные                                        */
 /* ------------------------------------------------------------------ */
 
-const personalStep = defineValidationSchema<Form>(({ model }) => {
+const personalStep = defineValidationSchema<Form>(({ model, cross }) => {
   validate(model.$.personalData.lastName, [required({ message: 'Введите фамилию' })]);
   validate(model.$.personalData.firstName, [required({ message: 'Введите имя' })]);
   validate(model.$.personalData.middleName, [required({ message: 'Введите отчество' })]);
@@ -199,7 +198,7 @@ const contactsStep = defineValidationSchema<Form>(({ model }) => {
 /* Шаг 4 — занятость и доходы                                         */
 /* ------------------------------------------------------------------ */
 
-const employmentStep = defineValidationSchema<Form>(({ model }) => {
+const employmentStep = defineValidationSchema<Form>(({ model, cross }) => {
   validate(model.$.employmentStatus, [required({ message: 'Укажите статус занятости' })]);
 
   validateWhen(
@@ -279,7 +278,7 @@ const propertyItemRules = defineValidationSchema<PropertyItem>(({ model: item })
 });
 
 /** Правила строки массива `existingLoans`. */
-const existingLoanItemRules = defineValidationSchema<ExistingLoanItem>(({ model: item }) => {
+const existingLoanItemRules = defineValidationSchema<ExistingLoanItem>(({ model: item, cross }) => {
   validate(item.$.bank, [required({ message: 'Укажите банк' })]);
   validate(item.$.type, [required({ message: 'Укажите тип кредита' })]);
   validate(item.$.amount, [required({ message: 'Укажите сумму' }), min(0)]);
@@ -349,7 +348,7 @@ const confirmStep = defineValidationSchema<Form>(({ model }) => {
 /* Cross-field правила всей формы (только на submit)                  */
 /* ------------------------------------------------------------------ */
 
-const crossFieldRules = defineValidationSchema<Form>(({ model }) => {
+const crossFieldRules = defineValidationSchema<Form>(({ model, cross }) => {
   // Платёж не более 50 % дохода. Носитель — редактируемая сумма кредита.
   cross(model.$.loanAmount, (f: Form) =>
     (f.paymentToIncomeRatio ?? 0) > 50

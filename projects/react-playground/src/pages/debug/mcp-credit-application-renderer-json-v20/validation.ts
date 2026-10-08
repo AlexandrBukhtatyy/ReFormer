@@ -10,7 +10,6 @@ import { type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateWhen,
-  cross,
   defineValidationSchema,
   type Rule,
 } from '@reformer/core/validation';
@@ -122,7 +121,7 @@ const coBorrowersValid = (list: CoBorrower[]): ValidationError | null => {
 
 // ---- Per-step схемы валидации -------------------------------------------
 
-const step1 = defineValidationSchema<Root>(({ model }) => {
+const step1 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
   validate(model.$.loanAmount, [
     required({ message: 'Укажите сумму кредита' }),
@@ -206,7 +205,7 @@ const step3 = defineValidationSchema<Root>(({ model }) => {
   );
 });
 
-const step4 = defineValidationSchema<Root>(({ model }) => {
+const step4 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.employmentStatus, [required()]);
   validate(model.$.workExperienceTotal, [required(), min(0)]);
   validate(model.$.workExperienceCurrent, [required(), min(0)]);
@@ -241,7 +240,7 @@ const step4 = defineValidationSchema<Root>(({ model }) => {
   );
 });
 
-const step5 = defineValidationSchema<Root>(({ model }) => {
+const step5 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.maritalStatus, [required()]);
   validate(model.$.dependents, [required(), min(0), max(10)]);
   validate(model.$.education, [required()]);

@@ -21,7 +21,6 @@ import {
 import {
   validate,
   validateAsync,
-  cross,
   defineValidationSchema,
   type Rule,
   type AsyncRule,
@@ -101,7 +100,7 @@ const emailAvailable: AsyncRule<string> = async (value) => {
 };
 
 // ── Схема валидации (стабильный module-level const) ──────────────────────────
-const registrationValidation = defineValidationSchema<RegistrationFormData>(({ model }) => {
+const registrationValidation = defineValidationSchema<RegistrationFormData>(({ model, cross }) => {
   validate(model.$.username, [
     required({ message: 'Имя пользователя обязательно' }),
     minLength(3, { message: 'Минимум 3 символа' }),

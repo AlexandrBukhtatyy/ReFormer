@@ -18,7 +18,6 @@ import { type FormModel, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateAsync,
-  cross,
   defineValidationSchema,
   validateModel,
   type Rule,
@@ -85,7 +84,7 @@ const passwordsMatch = (f: Root): ValidationError | null =>
 
 // ── Схема валидации ──────────────────────────────────────────────────────────
 
-const registrationSchema = defineValidationSchema<Root>(({ model }) => {
+const registrationSchema = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.username, [
     required({ message: 'Имя пользователя обязательно' }),
     minLength(3, { message: 'Минимум 3 символа' }),
