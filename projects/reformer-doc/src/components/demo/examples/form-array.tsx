@@ -209,7 +209,7 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
   props: [
     {
       name: 'control',
-      type: 'FormArrayProxy<T> | ArrayNode<T>',
+      type: 'ModelArrayNode<T>',
       description: 'Массив формы (form.<array>). Обязателен.',
     },
     {

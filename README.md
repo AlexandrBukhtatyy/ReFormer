@@ -182,7 +182,7 @@ function LoginFormExample() {
 ## Валидаторы
 
 Валидация — **отдельный слой**, а не часть layout-схемы. Правила объявляются схемой
-`defineValidationSchema<T>(({ model }) => …)` над той же моделью; операторы импортируются из
+`defineValidationSchema<T>(({ model, cross }) => …)` над той же моделью; операторы импортируются из
 `@reformer/core/validation`. Раннер `validateModel(model, schema)` прогоняет схему **по требованию**
 (отправка / шаг мастера): разносит ошибки по нодам формы (поле само подсветится), гасит поля, ставшие
 валидными, и возвращает `boolean` (правило с `severity: 'warning'` не блокирует). ⚠️ `form.validate()` /
@@ -194,8 +194,8 @@ function LoginFormExample() {
 - `validate(sig, [rules])` — синхронные правила поля; `rules` — фабрики или `Rule<T>` `(value) => ValidationError | null`.
 - `validateAsync(sig, [asyncRules])` — асинхронные правила `(value, { signal }) => Promise<…>` (раннер их дожидается; сетевой сбой → верните `null`).
 - `validateWhen(() => cond, () => { … })` — условная валидация: правила внутри активны/гасятся по `cond` (включение/сброс поля — дело поведения `enableWhen`, не валидации).
-- `cross(sig, (f) => err | null)` — cross-field; `f` — снапшот модели scope (`model.get()`), соседние поля читаем из него.
-- `each(arr, (im) => { … })` — правила на каждый элемент массива модели (`im` — под-модель элемента).
+- `cross(sig, (f) => err | null)` — cross-field; берётся из аргумента схемы (`({ model, cross }) => …`), не импортируется. `f` — снапшот модели scope (`model.get()`), соседние поля читаем из него.
+- `applyEach(model.$.items, itemRules)` — правила на каждый элемент массива: `itemRules` — такая же схема над элементом.
 - `apply(...schemas)` — композиция под-схем над той же моделью (например, «вся форма = все шаги»).
 
 ```tsx
@@ -205,7 +205,6 @@ import {
   validate,
   validateAsync,
   validateWhen,
-  cross,
   validateModel,
   type Rule,
   type AsyncRule,
@@ -248,7 +247,7 @@ const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
 
 // Схема ПРАВИЛ над моделью — стабильный module-level `const`
 // (раннер ключит отмену устаревших прогонов по идентичности схемы).
-const registrationValidation = defineValidationSchema<RegistrationForm>(({ model }) => {
+const registrationValidation = defineValidationSchema<RegistrationForm>(({ model, cross }) => {
   validate(model.$.username, [required(), minLength(3)]);
   validateAsync(model.$.username, [usernameAvailable]);
 
