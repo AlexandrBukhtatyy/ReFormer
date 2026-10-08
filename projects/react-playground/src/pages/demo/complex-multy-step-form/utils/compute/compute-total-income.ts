@@ -1,25 +1,13 @@
-/**
- * Вычисление общего дохода (основной + дополнительный)
- */
+import type { CreditApplicationForm } from '../../types/credit-application';
 
-/**
- * Вычисление общего дохода (основной + дополнительный)
- *
- * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
- *
- * @param params - Объект с параметрами
- * @param params.monthlyIncome - Основной доход (₽)
- * @param params.additionalIncome - Дополнительный доход (₽)
- * @returns общий доход (₽)
- */
+/** Общий доход (₽): основной, дополнительный и доход созаёмщиков. */
 export function computeTotalIncome({
   monthlyIncome,
   additionalIncome,
   coBorrowersIncome,
-}: {
-  monthlyIncome: number;
-  additionalIncome: number;
-  coBorrowersIncome?: number;
-}): number {
-  return (monthlyIncome || 0) + (additionalIncome || 0) + (coBorrowersIncome || 0);
+}: Pick<
+  CreditApplicationForm,
+  'monthlyIncome' | 'additionalIncome' | 'coBorrowersIncome'
+>): number {
+  return (monthlyIncome ?? 0) + (additionalIncome ?? 0) + coBorrowersIncome;
 }

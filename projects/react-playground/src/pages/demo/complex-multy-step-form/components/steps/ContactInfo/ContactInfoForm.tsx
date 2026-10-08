@@ -11,6 +11,7 @@ import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
+import { livesElsewhere } from '../../../model/predicates';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import { ResidenceAddressSection } from '../../ui/ResidenceAddressSection';
 
@@ -43,7 +44,7 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
         <AddressForm control={control.registrationAddress} testIdPrefix="registrationAddress" />
       </div>
       <FormField control={control.sameAsRegistration} testId="sameAsRegistration" />
-      {!sameAsRegistration && (
+      {livesElsewhere(sameAsRegistration) && (
         <ResidenceAddressSection>
           <AddressForm control={control.residenceAddress} testIdPrefix="residenceAddress" />
         </ResidenceAddressSection>

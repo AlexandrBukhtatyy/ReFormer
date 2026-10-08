@@ -1,7 +1,3 @@
-// ============================================================================
-// Базовые типы
-// ============================================================================
-
 import type { Address } from '../components/nested-forms/Address/types';
 import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
 import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/types';
@@ -14,26 +10,24 @@ export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'ret
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
 
-// ============================================================================
-// Основной интерфейс формы
-// ============================================================================
-
+/** Числовое поле ввода бывает пустым — тогда его значение `null`. */
 export interface CreditApplicationForm {
   // Шаг 1: Основная информация
   loanType: LoanType;
-  loanAmount: number;
+  loanAmount: number | null;
   loanTerm: number;
   loanPurpose: string;
 
-  // Специфичные поля для ипотеки
-  propertyValue: number;
-  initialPayment: number;
+  // Ипотека
+  propertyValue: number | null;
+  /** Вводится пользователем; для ипотеки подставляется расчётом — 20 % стоимости. */
+  initialPayment: number | null;
 
-  // Специфичные поля для автокредита
+  // Автокредит
   carBrand: string;
   carModel: string;
-  carYear: number;
-  carPrice: number;
+  carYear: number | null;
+  carPrice: number | null;
 
   // Шаг 2: Персональные данные
   personalData: PersonalData;
@@ -46,6 +40,8 @@ export interface CreditApplicationForm {
   phoneAdditional: string;
   email: string;
   emailAdditional: string;
+  /** Дополнительный email совпадает с основным. */
+  sameEmail: boolean;
   registrationAddress: Address;
   sameAsRegistration: boolean;
   residenceAddress: Address;
@@ -57,10 +53,10 @@ export interface CreditApplicationForm {
   companyPhone: string;
   companyAddress: string;
   position: string;
-  workExperienceTotal: number;
-  workExperienceCurrent: number;
-  monthlyIncome: number;
-  additionalIncome: number;
+  workExperienceTotal: number | null;
+  workExperienceCurrent: number | null;
+  monthlyIncome: number | null;
+  additionalIncome: number | null;
   additionalIncomeSource: string;
   businessType: string;
   businessInn: string;
@@ -70,7 +66,7 @@ export interface CreditApplicationForm {
   maritalStatus: MaritalStatus;
   dependents: number;
   education: EducationLevel;
-  /** Сканы документов (deferred: File[] уходит на submit через FormData). Опционально. */
+  /** Сканы документов: `File[]` уходит при отправке через FormData. */
   documents: File[] | null;
   hasProperty: boolean;
   properties: Property[];
@@ -87,7 +83,7 @@ export interface CreditApplicationForm {
   confirmAccuracy: boolean;
   electronicSignature: string;
 
-  // Вычисляемые поля (computed fields)
+  // Вычисляемые поля: значения пишет поведение (`compute`)
   interestRate: number;
   monthlyPayment: number;
   fullName: string;
@@ -95,5 +91,4 @@ export interface CreditApplicationForm {
   totalIncome: number;
   paymentToIncomeRatio: number;
   coBorrowersIncome: number;
-  sameEmail: boolean;
 }

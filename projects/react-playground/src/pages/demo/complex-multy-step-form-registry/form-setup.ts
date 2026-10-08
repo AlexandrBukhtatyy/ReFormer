@@ -5,6 +5,8 @@
  * из документа), и из тех же файлов: документ схемы и реестр компонентов импортируются оттуда,
  * модель, правила и поведение — из `complex-multy-step-form`. Отличие ровно одно: форма не
  * собирается на странице, а объявляется записью — страница лишь просит смонтировать её по `id`.
+ * Сборку выполняет реестр, поэтому связка узлов (загрузка, отправка, навигация) приходит не полем
+ * `setup`, а в составе поведения записи.
  *
  * Разложение по источникам показывает границу «данные / код», ради которой реестр и заведён:
  * документ схемы сериализуем и может приехать по сети (`kind: 'http'`), а реестр компонентов,
@@ -15,9 +17,9 @@
 
 import type { FormEntry } from '@reformer/form-registry';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { createCreditApplicationModel } from '../complex-multy-step-form/model';
-import { creditApplicationBehavior } from '../complex-multy-step-form/form.behavior';
-import { creditApplicationValidation } from '../complex-multy-step-form/form.validation';
+import { creditApplicationRegistryBehavior } from '../complex-multy-step-form/application/renderer';
+import { createCreditApplicationModel } from '../complex-multy-step-form/model/model';
+import { creditApplicationValidation } from '../complex-multy-step-form/validation/form';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import rawJsonSchema from '../complex-multy-step-form-renderer-json/form.schema.json';
 import { createCreditApplicationRegistry } from '../complex-multy-step-form-renderer-json/registry';
@@ -35,11 +37,11 @@ export const creditApplicationFormEntry: FormEntry<CreditApplicationForm> = {
   // Данные.
   schema: { kind: 'inline', value: creditApplicationJsonSchema },
 
-  // Код. Поведение одно: и модель, и узлы схемы (видимость секций, загрузка, отправка). Форму и
-  // валидацию визард берёт из сборки сам — доносить их до узла отдельным слоем не нужно.
+  // Код. Поведение записи — правила заявки и связка узлов схемы (загрузка, отправка, навигация).
+  // Форму и валидацию визард берёт из сборки сам — доносить их до узла отдельным слоем не нужно.
   registry: { kind: 'inline', value: createCreditApplicationRegistry() },
   model: { kind: 'inline', value: createCreditApplicationModel },
-  behavior: { kind: 'inline', value: creditApplicationBehavior },
+  behavior: { kind: 'inline', value: creditApplicationRegistryBehavior({ applicationId: '1' }) },
   validation: { kind: 'inline', value: creditApplicationValidation },
 
   meta: {

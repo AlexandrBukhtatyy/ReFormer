@@ -6,8 +6,8 @@
  * - ExistingLoanForm (кредиты)
  * - CoBorrowerForm (созаемщики с вложенной personalData)
  *
- * Шаблон нового элемента секции берут из модели (`arrayOf` в `model.ts`) — проп `initialValue`
- * им не нужен.
+ * Шаблон нового элемента секции берут из модели (`arrayOf` в `model/initial-value.ts`) — проп
+ * `initialValue` им не нужен.
  */
 
 import type { FormProxy } from '@reformer/core';
@@ -23,9 +23,9 @@ interface AdditionalInfoFormProps {
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
-  const hasProperty = useFormControlValue(control.hasProperty) as boolean;
-  const hasExistingLoans = useFormControlValue(control.hasExistingLoans) as boolean;
-  const hasCoBorrower = useFormControlValue(control.hasCoBorrower) as boolean;
+  const hasProperty = useFormControlValue(control.hasProperty);
+  const hasExistingLoans = useFormControlValue(control.hasExistingLoans);
+  const hasCoBorrower = useFormControlValue(control.hasCoBorrower);
 
   return (
     <div className="space-y-6" data-testid="step-additional-info">

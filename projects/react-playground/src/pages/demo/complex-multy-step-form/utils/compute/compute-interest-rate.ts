@@ -1,63 +1,31 @@
-/**
- * Вычисление процентной ставки на основе типа кредита и дополнительных условий
- */
+import type { LoanType } from '../../types/credit-application';
 
-/**
- * Вычисление процентной ставки на основе типа кредита и дополнительных условий
- *
- * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
- *
- * @param params - Объект с параметрами
- * @param params.loanType - Тип кредита
- * @param params.registrationAddress - Адрес регистрации (объект)
- * @param params.hasProperty - Наличие имущества
- * @param params.properties - Массив имущества
- * @returns процентная ставка (%)
- */
+const BASE_RATES: Record<LoanType, number> = {
+  consumer: 15.5,
+  mortgage: 8.5,
+  car: 12.0,
+  business: 18.0,
+  refinancing: 14.0,
+};
+const DEFAULT_RATE = 15.0;
+
+/** Процентная ставка (%): базовая по типу кредита с надбавками и скидками. */
 export function computeInterestRate({
   loanType,
-  registrationAddress,
+  region,
   hasProperty,
-  properties,
+  propertyCount,
 }: {
-  loanType: string;
-  registrationAddress: unknown;
+  loanType: LoanType;
+  region: string;
   hasProperty: boolean;
-  properties: unknown[];
+  propertyCount: number;
 }): number {
-  // Базовые ставки по типам кредита
-  const baseRates: Record<string, number> = {
-    consumer: 15.5,
-    mortgage: 8.5,
-    car: 12.0,
-    business: 18.0,
-    refinancing: 14.0,
-  };
-
-  let rate = baseRates[loanType] || 15.0;
-
-  // Надбавки и скидки
-  if (loanType === 'mortgage') {
-    // Надбавка за регион (Москва дороже)
-    const region = (registrationAddress as Record<string, unknown>)?.region;
-    if (region === 'moscow') {
-      rate += 0.5;
-    }
-  }
-
-  if (loanType === 'car') {
-    // Скидка за КАСКО (если есть)
-    // TODO: Нужно добавить параметр carInsurance
-    // const hasInsurance = carInsurance === true;
-    // if (hasInsurance) {
-    //   rate -= 1.0;
-    // }
-  }
-
-  // Скидка за обеспечение (имущество)
-  if (hasProperty === true && properties && properties.length > 0) {
-    rate -= 0.5;
-  }
-
+  let rate = BASE_RATES[loanType] ?? DEFAULT_RATE;
+  // Надбавка за регион: Москва дороже
+  if (loanType === 'mortgage' && region === 'moscow') rate += 0.5;
+  // TODO: скидка за КАСКО для автокредита — нужен параметр carInsurance
+  // Скидка за обеспечение имуществом
+  if (hasProperty && propertyCount > 0) rate -= 0.5;
   return Math.max(rate, 0);
 }

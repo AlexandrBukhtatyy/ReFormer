@@ -3,25 +3,27 @@
  * Поведения работают на ручках модели (`model.$.x`); ноды (form.x) отражают изменения.
  */
 
-import { useEffect } from 'react';
 import {
   createForm,
   useFormBundle,
   useFormControl,
   useFormControlValue,
-  computeFrom,
-  enableWhen,
-  disableWhen,
-  copyFrom,
-  watchField,
-  transformValue,
-  resetWhen,
-  syncFields,
-  revalidateWhen,
   type FieldNode,
   type FormModel,
   type ValidationError,
 } from '@reformer/core';
+import {
+  computeFrom,
+  copyFrom,
+  defineFormBehavior,
+  disableWhen,
+  enableWhen,
+  onChange,
+  resetWhen,
+  revalidateWhen,
+  syncFields,
+  transformValue,
+} from '@reformer/core/behaviors';
 import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import { ExampleCard } from '@reformer/ui-kit';
@@ -254,39 +256,40 @@ function SelectField({
   );
 }
 
-export default function BehaviorsExamples() {
-  // Сборка одним вызовом. Поведение здесь НЕ в конфиге намеренно: пример показывает императивные
-  // операторы (computeFrom/enableWhen/…), которые живут в эффекте со своим cleanup.
-  const { form, model } = useFormBundle(() =>
-    createForm<BehaviorsDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
+// Поведение формы: операторы сами регистрируются в схеме поведения, жизненным циклом владеет
+// форма — очистка при её снятии происходит без ручного списка отписок.
+const demoBehavior = defineFormBehavior<BehaviorsDemoForm>(({ model }) => {
+  computeFrom(
+    [model.$.price, model.$.quantity],
+    model.$.total,
+    (price: number, quantity: number) => (price || 0) * (quantity || 0)
   );
+  enableWhen(model.$.city, () => Boolean(model.country), { resetOnDisable: true });
+  enableWhen(model.$.discountPercent, () => model.hasDiscount === true, {
+    resetOnDisable: true,
+  });
+  disableWhen(model.$.editableField, () => model.isConfirmed === true);
+  copyFrom(model.$.shippingAddress, model.$.billingAddress, {
+    when: () => model.useShippingAsBilling === true,
+  });
+  onChange(model.$.watchedField, () => {});
+  transformValue(model.$.uppercaseField, (value) => (value ?? '').toUpperCase());
+  resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
+  syncFields(model.$.syncField1, model.$.syncField2);
+  revalidateWhen([model.$.maxAmount], () => {
+    void validateModel(model, amountValidation);
+  });
+});
 
-  // Behaviors на сигналах модели (после createForm — реестр сигнал→нода заполнен для enable/disable).
-  useEffect(() => {
-    const cleanups = [
-      computeFrom(
-        [model.$.price, model.$.quantity],
-        model.$.total,
-        (p, q) => ((p as number) || 0) * ((q as number) || 0)
-      ),
-      enableWhen(model.$.city, () => Boolean(model.country), { resetOnDisable: true }),
-      enableWhen(model.$.discountPercent, () => model.hasDiscount === true, {
-        resetOnDisable: true,
-      }),
-      disableWhen(model.$.editableField, () => model.isConfirmed === true),
-      copyFrom(model.$.shippingAddress, model.$.billingAddress, {
-        when: () => model.useShippingAsBilling === true,
-      }),
-      watchField(model.$.watchedField, () => {}),
-      transformValue(model.$.uppercaseField, (v) => (v ?? '').toUpperCase()),
-      resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' }),
-      syncFields(model.$.syncField1, model.$.syncField2),
-      revalidateWhen([model.$.maxAmount], () => {
-        void validateModel(model, amountValidation);
-      }),
-    ];
-    return () => cleanups.forEach((c) => c());
-  }, [model]);
+export default function BehaviorsExamples() {
+  // Сборка одним вызовом: модель, форма и поведение.
+  const { form } = useFormBundle(() =>
+    createForm<BehaviorsDemoForm>({
+      initial: { ...INITIAL },
+      schema: buildSchema,
+      behavior: demoBehavior,
+    })
+  );
 
   const hasDiscount = useFormControlValue(form.hasDiscount) as boolean;
   const country = useFormControlValue(form.country) as string;
@@ -396,10 +399,10 @@ export default function BehaviorsExamples() {
         </ExampleCard>
 
         <ExampleCard
-          title="watchField"
+          title="onChange"
           description="Отслеживание изменений поля"
           bgColor="bg-white"
-          code={`watchField(model.$.watchedField, (value) => { ... })`}
+          code={`onChange(model.$.watchedField, (value) => { ... })`}
         >
           <TextField
             control={form.watchedField}

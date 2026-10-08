@@ -95,7 +95,7 @@ const messages = createMessageResolver({
 
 function buildSchema(model: FormModel<MultiSelectDemoForm>) {
   return {
-    fields: [
+    children: [
       {
         // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
         // Привязка компонента и делает массив полем; без неё форма массив пропускает.
