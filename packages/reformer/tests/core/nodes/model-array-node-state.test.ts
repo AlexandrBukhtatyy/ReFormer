@@ -1,5 +1,5 @@
 /**
- * Regression: ModelArrayNode форвардит ВСЕ state-hook'и к элементам, а не только touchAll.
+ * Regression: ModelArrayNode форвардит ВСЕ state-hook'и к элементам, а не только markAsTouched.
  *
  * Баг (до фикса): переопределён был только `onMarkAsTouched`; `markAsUntouched`/`markAsPristine`/
  * `markAsDirty`/`disable`/`enable` были no-op на элементах (базовые сигналы игнорируются, т.к.

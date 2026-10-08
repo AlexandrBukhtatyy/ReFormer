@@ -131,7 +131,7 @@ export function runOutsideEffect(fn: () => void | Promise<void>): () => void {
  * async-rejection) маршрутизируются dev-логгером (logDeferError).
  *
  * @param callback - Функция для выполнения
- * @param withDebounce - Функция debounce обёртки из BehaviorRegistry
+ * @param withDebounce - Обёртка, откладывающая вызов (debounce)
  * @returns Обёрнутая функция
  *
  * @example

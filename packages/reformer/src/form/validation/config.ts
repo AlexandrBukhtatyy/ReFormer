@@ -3,7 +3,7 @@
  * готовые функции.
  *
  * Движок тот же, что у `validateModel` и `createFormValidation`, но собранный один раз вместе с
- * формой — см. {@link module:reformer/form/create-core-form}.
+ * формой — см. `createForm`.
  *
  * `form.validate()` и `form.submit()` правил не запускают: ноды отражают своё текущее состояние,
  * а schema-валидация — внешний прогон, который сам разносит ошибки по нодам.

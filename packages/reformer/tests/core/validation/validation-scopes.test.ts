@@ -14,8 +14,6 @@ import {
   validate,
   validateAsync,
   validateWhen,
-  cross,
-  each,
   apply,
   applyEach,
   defineValidationSchema,
@@ -87,18 +85,16 @@ const error = (code: string): ValidationError => ({ code, message: code });
 const codesOf = (node: { errors: { value: ValidationError[] } }) =>
   node.errors.value.map((item) => item.code);
 
-const addressRules = defineValidationSchema<Address>(({ model }) => {
+const addressRules = defineValidationSchema<Address>(({ model, cross }) => {
   validate(model.$.city, [required()]);
-  cross<Address>(model.$.street, (address) =>
+  cross(model.$.street, (address) =>
     address.city !== '' && address.street === '' ? error('streetRequired') : null
   );
 });
 
-const propertyRules = defineValidationSchema<Property>(({ model }) => {
+const propertyRules = defineValidationSchema<Property>(({ model, cross }) => {
   validate(model.$.type, [required()]);
-  cross<Property>(model.$.price, (property) =>
-    property.price > property.limit ? error('overLimit') : null
-  );
+  cross(model.$.price, (property) => (property.price > property.limit ? error('overLimit') : null));
 });
 
 describe('apply(ручка группы, схема)', () => {
@@ -216,9 +212,9 @@ describe('apply(ручка группы, схема)', () => {
   it('после подформы область родителя возвращается', async () => {
     const model = createShape({ registration: { city: 'Казань', street: 'Баумана' } });
     let snapshot: unknown;
-    const rules = defineValidationSchema<Shape>(({ model }) => {
+    const rules = defineValidationSchema<Shape>(({ model, cross }) => {
       apply(model.$.registration, addressRules);
-      cross<Shape>(model.$.sameAddress, (shape) => {
+      cross(model.$.sameAddress, (shape) => {
         snapshot = shape;
         return null;
       });
@@ -344,20 +340,5 @@ describe('applyEach(ручка массива, схема)', () => {
     await expect(validateModel(model, rules)).rejects.toThrow(
       /applyEach: ожидался массив под-форм модели/
     );
-  });
-});
-
-describe('each — прежняя запись', () => {
-  it('принимает и фасад, и ручку массива', async () => {
-    const model = createShape({ properties: [{ type: '', price: 0, limit: 0 }] });
-    const byHandle = defineValidationSchema<Shape>(({ model }) => {
-      each(model.$.properties, (property) => validate(property.$.type, [required()]));
-    });
-    const byFacade = defineValidationSchema<Shape>(({ model }) => {
-      each(model.properties, (property) => validate(property.$.type, [required()]));
-    });
-
-    expect(await validateModel(model, byHandle)).toBe(false);
-    expect(await validateModel(model, byFacade)).toBe(false);
   });
 });

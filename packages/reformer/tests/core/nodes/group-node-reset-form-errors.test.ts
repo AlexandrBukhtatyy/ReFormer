@@ -1,9 +1,9 @@
 /**
- * Unit test for Defect 2: GroupNode.reset()/resetToInitial() должны очищать form-level ошибки.
+ * Unit test for Defect 2: GroupNode.reset() должен очищать form-level ошибки.
  *
  * До фикса reset() итерировал только дочерние поля и не трогал _formErrors, поэтому после
  * form.setErrors([...]) + form.reset() форма оставалась invalid с устаревшей ошибкой уровня формы
- * (несогласованно с ArrayNode.reset()/ModelArrayNode.reset(), которые очищают _arrayErrors).
+ * (несогласованно с ModelArrayNode.reset(), который очищает _arrayErrors).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -43,17 +43,6 @@ describe('GroupNode.reset() — form-level errors (Defect 2)', () => {
     form.setErrors([serverError]);
 
     form.reset({ email: 'x@y.z', password: 'pw' });
-
-    expect(form.errors.value).toHaveLength(0);
-    expect(form.valid.value).toBe(true);
-  });
-
-  it('resetToInitial() тоже очищает form-level ошибки', () => {
-    const form = make();
-    form.setErrors([serverError]);
-    expect(form.valid.value).toBe(false);
-
-    form.resetToInitial();
 
     expect(form.errors.value).toHaveLength(0);
     expect(form.valid.value).toBe(true);

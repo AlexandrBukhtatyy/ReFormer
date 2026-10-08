@@ -126,20 +126,6 @@ export function scopeOf<T>(model: FormModel<T>): ValidationScope<T> {
   };
 }
 
-/**
- * Cross-field правило: `fn` получает СНАПШОТ модели текущей области (`model.get()`) и вешает
- * ошибку на `sig`.
- *
- * @deprecated Берите `cross` из аргумента схемы — `({ model, cross }) => …`: тип снимка выводится
- * из схемы, и указывать его руками (`cross<Form>(…)`) не нужно.
- */
-export function cross<TSnapshot>(
-  sig: PathAwareSignal<unknown>,
-  fn: (form: TSnapshot) => ValidationError | null
-): void {
-  crossOver(requireCtx('cross').model, sig, fn);
-}
-
 /** Привязка к группе: ручка `model.$.<группа>` (тип значения — из её `peek()`). */
 interface GroupBinding<V> {
   peek(): V;
@@ -198,24 +184,6 @@ export function applyEach<U extends object>(
   const rows = rowsOf('applyEach', array);
   const len = rows.length;
   for (let i = 0; i < len; i++) runScoped(ctx, rows.at(i), schema);
-}
-
-/**
- * Применить под-правила к КАЖДОМУ элементу массива — прежняя запись {@link applyEach}.
- *
- * Колбэк получает под-модель элемента, но области не создаёт: `cross` внутри него видит снапшот
- * корня прогона.
- *
- * @deprecated Пишите `applyEach(model.$.<массив>, schema)`.
- */
-export function each<U extends object>(
-  arr: ArrayBinding<U> | ModelArray<U>,
-  itemFn: (item: FormModel<U>) => void
-): void {
-  requireCtx('each');
-  const rows = rowsOf('each', arr);
-  const len = rows.length;
-  for (let i = 0; i < len; i++) itemFn(rows.at(i) as FormModel<U>);
 }
 
 /**

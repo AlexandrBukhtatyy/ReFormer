@@ -2,7 +2,7 @@
  * Unit-тесты нового контракта валидации — `@reformer/core/validation` (validateModel + операторы).
  *
  * Покрывает: boolean-результат, warning-неблокирование, validateWhen-гейтинг + гашение, validateAsync,
- * cross (снапшот), apply-композицию, each-массивы, роутинг ошибок в ноды + очистку, owned на пару
+ * cross (снапшот), apply-композицию, applyEach-массивы, роутинг ошибок в ноды + очистку, owned на пару
  * (model, schema), defineValidationSchema (identity), вызов оператора вне прогона.
  */
 
@@ -14,9 +14,8 @@ import {
   validate,
   validateAsync,
   validateWhen,
-  cross,
-  each,
   apply,
+  applyEach,
   defineValidationSchema,
   validateModel,
   type ValidationSchema,
@@ -75,8 +74,8 @@ describe('@reformer/core/validation — validateModel + операторы', () 
   });
 
   it('warning не блокирует submit (severity:"warning" → valid)', async () => {
-    const schema: ValidationSchema<F> = ({ model }) => {
-      cross(model.$.ratio, (f: F) =>
+    const schema: ValidationSchema<F> = ({ model, cross }) => {
+      cross(model.$.ratio, (f) =>
         f.ratio > 40 ? { code: 'warn', message: 'высокая нагрузка', severity: 'warning' } : null
       );
     };
@@ -119,12 +118,13 @@ describe('@reformer/core/validation — validateModel + операторы', () 
     expect(await validateModel(makeModel({ name: 'x' }), schema)).toBe(false);
   });
 
-  it('each: per-item валидация массива', async () => {
+  it('applyEach: per-item валидация массива', async () => {
+    const itemRules = defineValidationSchema<F['items'][number]>(({ model }) => {
+      validate(model.$.email, [required({ message: 'email' }), email({ message: 'bad' })]);
+      validate(model.$.amount, [min(100, { message: 'min100' })]);
+    });
     const schema: ValidationSchema<F> = ({ model }) => {
-      each(model.items, (im) => {
-        validate(im.$.email, [required({ message: 'email' }), email({ message: 'bad' })]);
-        validate(im.$.amount, [min(100, { message: 'min100' })]);
-      });
+      applyEach(model.$.items, itemRules);
     };
     expect(await validateModel(makeModel({ items: [] }), schema)).toBe(true); // пустой массив
     expect(
@@ -199,8 +199,8 @@ describe('@reformer/core/validation — validateModel + операторы', () 
 
   it('cross: снапшот модели читается через fn', async () => {
     const { model, form } = makeForm({ age: 10 });
-    const schema: ValidationSchema<F> = ({ model }) =>
-      cross(model.$.age, (f: F) => (f.age < 18 ? { code: 'minor', message: 'меньше 18' } : null));
+    const schema: ValidationSchema<F> = ({ model, cross }) =>
+      cross(model.$.age, (f) => (f.age < 18 ? { code: 'minor', message: 'меньше 18' } : null));
     await validateModel(model, schema);
     expect(form.age.errors.value.map((e) => e.message)).toEqual(['меньше 18']);
   });

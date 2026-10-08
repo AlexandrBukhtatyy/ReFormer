@@ -2,7 +2,7 @@
  * FormNode - абстрактный базовый класс для всех узлов формы
  *
  * Аналог AbstractControl из Angular Forms
- * Унифицирует работу с полями (FieldNode), группами (GroupNode) и массивами (ArrayNode)
+ * Унифицирует работу с полями (FieldNode), группами (GroupNode) и массивами (ModelArrayNode)
  *
  * Использует Template Method паттерн для управления состоянием:
  * - Публичные методы (markAsTouched, disable и т.д.) реализованы в базовом классе
@@ -95,7 +95,7 @@ export abstract class FormNode<T> {
    * Текущее значение узла
    * - Для FieldNode: значение поля
    * - Для GroupNode: объект со значениями всех полей
-   * - Для ArrayNode: массив значений элементов
+   * - Для ModelArrayNode: массив значений элементов
    */
   abstract readonly value: ReadonlySignal<T>;
 
@@ -139,7 +139,7 @@ export abstract class FormNode<T> {
    * Частично обновить значение узла
    * Для FieldNode: работает как setValue
    * Для GroupNode: обновляет только указанные поля
-   * Для ArrayNode: обновляет только указанные элементы
+   * Для ModelArrayNode: обновляет только указанные элементы
    *
    * @param value - частичное значение для обновления
    */
@@ -314,35 +314,6 @@ export abstract class FormNode<T> {
   }
 
   /**
-   * Пометить все поля (включая вложенные) как touched
-   * Алиас для markAsTouched(), но более явно показывает намерение
-   * пометить ВСЕ поля рекурсивно
-   *
-   * Полезно для:
-   * - Показа всех ошибок валидации перед submit
-   * - Принудительного отображения ошибок при нажатии "Validate All"
-   * - Отображения невалидных полей в wizard/step form
-   *
-   * @example
-   * ```typescript
-   * // Показать все ошибки перед submit
-   * form.touchAll();
-   * const isValid = await form.validate();
-   * if (!isValid) {
-   *   // Все ошибки теперь видны пользователю
-   * }
-   *
-   * // Или использовать submit() который уже вызывает touchAll
-   * await form.submit(async (values) => {
-   *   await api.save(values);
-   * });
-   * ```
-   */
-  touchAll(): void {
-    this.markAsTouched();
-  }
-
-  /**
    * Отметить, что у узла идёт проверка: раннер схемы валидации зовёт метод парой
    * (`true` … `false`) на время async-правил поля.
    *
@@ -406,7 +377,7 @@ export abstract class FormNode<T> {
    *
    * Переопределите в наследниках для дополнительной логики:
    * - GroupNode: пометить все дочерние узлы как touched
-   * - ArrayNode: пометить все элементы массива как touched
+   * - ModelArrayNode: пометить все элементы массива как touched
    * - FieldNode: пустая реализация (нет дочерних узлов)
    *
    * @example
@@ -427,7 +398,7 @@ export abstract class FormNode<T> {
    *
    * Переопределите в наследниках для дополнительной логики:
    * - GroupNode: пометить все дочерние узлы как untouched
-   * - ArrayNode: пометить все элементы массива как untouched
+   * - ModelArrayNode: пометить все элементы массива как untouched
    * - FieldNode: пустая реализация (нет дочерних узлов)
    */
   protected onMarkAsUntouched(): void {
@@ -439,7 +410,7 @@ export abstract class FormNode<T> {
    *
    * Переопределите в наследниках для дополнительной логики:
    * - GroupNode: может обновить родительскую форму
-   * - ArrayNode: может обновить родительскую форму
+   * - ModelArrayNode: может обновить родительскую форму
    * - FieldNode: пустая реализация
    */
   protected onMarkAsDirty(): void {
@@ -451,7 +422,7 @@ export abstract class FormNode<T> {
    *
    * Переопределите в наследниках для дополнительной логики:
    * - GroupNode: пометить все дочерние узлы как pristine
-   * - ArrayNode: пометить все элементы массива как pristine
+   * - ModelArrayNode: пометить все элементы массива как pristine
    * - FieldNode: пустая реализация
    */
   protected onMarkAsPristine(): void {
@@ -463,7 +434,7 @@ export abstract class FormNode<T> {
    *
    * Переопределите в наследниках для дополнительной логики:
    * - GroupNode: отключить все дочерние узлы
-   * - ArrayNode: отключить все элементы массива
+   * - ModelArrayNode: отключить все элементы массива
    * - FieldNode: очистить ошибки валидации
    *
    * @example
@@ -483,7 +454,7 @@ export abstract class FormNode<T> {
    *
    * Переопределите в наследниках для дополнительной логики:
    * - GroupNode: включить все дочерние узлы
-   * - ArrayNode: включить все элементы массива
+   * - ModelArrayNode: включить все элементы массива
    * - FieldNode: пустая реализация
    */
   protected onEnable(): void {

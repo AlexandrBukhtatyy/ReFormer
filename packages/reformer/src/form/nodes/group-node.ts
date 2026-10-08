@@ -4,44 +4,22 @@
  * Представляет группу полей (объект), где каждое поле может быть:
  * - FieldNode (простое поле)
  * - GroupNode (вложенная группа)
- * - ArrayNode (массив форм)
+ * - ModelArrayNode (массив под-форм)
  *
  * Наследует от FormNode и реализует все его абстрактные методы
  *
  * @group Nodes
  */
 
-import { signal, computed, effect, batch } from '@preact/signals-core';
+import { signal, computed, batch } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
-import type { ValidationError, FieldStatus, FormValue, ArrayNodeLike } from '../types/index';
+import type { ValidationError, FieldStatus, FormValue } from '../types/index';
 import type { FormProxy } from '../types/form-proxy';
-import { uniqueId, SubscriptionKey } from '../unique-id';
-import { SubscriptionManager } from './subscription-manager';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
-import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../form-submitter';
+import { FormSubmitter, type SubmitOptions } from '../form-submitter';
 import { isDerived } from '../../model/derived-registry';
-
-/** Сегмент пути к полю: ключ + опциональный индекс массива (`items[0]` → `{ key: 'items', index: 0 }`). */
-interface PathSegment {
-  key: string;
-  index?: number;
-}
-
-/**
- * Разбор строкового пути в сегменты (заменяет legacy `FieldPathNavigator.parsePath`).
- * Поддерживает `a`, `a.b.c`, `items[0]`, `items[0].name`. Возвращает `[]` для некорректного пути.
- */
-function parsePathSegments(path: string): PathSegment[] {
-  const out: PathSegment[] = [];
-  for (const raw of path.split('.')) {
-    const m = /^([^[\]]+)(?:\[(\d+)\])?$/.exec(raw);
-    if (!m) return [];
-    out.push(m[2] !== undefined ? { key: m[1], index: Number(m[2]) } : { key: m[1] });
-  }
-  return out;
-}
 
 /**
  * GroupNode - узел для группы полей
@@ -70,15 +48,10 @@ export class GroupNode<T> extends FormNode<T> {
   public id = crypto.randomUUID();
 
   /**
-   * Коллекция полей формы (упрощённый Map вместо FieldRegistry)
+   * Ноды детей по именам полей данных
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly _fields = new Map<keyof T, FormNode<any>>();
-
-  /**
-   * Менеджер подписок для централизованного cleanup
-   */
-  private disposers = new SubscriptionManager();
 
   /**
    * Ссылка на Proxy-инстанс
@@ -91,7 +64,7 @@ export class GroupNode<T> extends FormNode<T> {
   private _behaviorCleanup?: () => void;
 
   // ============================================================================
-  // Приватные сигналы состояния (inline из StateManager)
+  // Приватные сигналы состояния
   // ============================================================================
 
   /** Управление отправкой формы */
@@ -105,7 +78,7 @@ export class GroupNode<T> extends FormNode<T> {
   private readonly _formErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
 
   /**
-   * M1: связь листовой ноды-ребёнка → её сигнал модели (тот, что помечает `markDerived`).
+   * Связь листовой ноды-ребёнка → её сигнал модели (тот, что помечает `markDerived`).
    * Нужна bulk-сеттерам (`setValue`/`patchValue`), чтобы корректно определять derived-поля:
    * `field.value` — computed-обёртка, отличная от записываемого сигнала модели. @internal
    */
@@ -213,7 +186,7 @@ export class GroupNode<T> extends FormNode<T> {
     for (const [key, fieldValue] of Object.entries(value as any)) {
       const field = this._fields.get(key as keyof T);
       if (field) {
-        // F9: производные поля (цели compute) не затираем при bulk-set. Сверяем с записываемым
+        // Производные поля (цели compute) не затираем при bulk-set. Сверяем с записываемым
         // сигналом модели (его помечает markDerived), а не с computed-обёрткой field.value.
         const derivedSig = this._fieldSignals.get(field) ?? (field.value as Signal<unknown>);
         if (isDerived(derivedSig)) continue;
@@ -229,7 +202,7 @@ export class GroupNode<T> extends FormNode<T> {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
-          // F9: производные поля (цели compute) не затираем при bulk-patch. Сверяем с записываемым
+          // Производные поля (цели compute) не затираем при bulk-patch. Сверяем с записываемым
           // сигналом модели (его помечает markDerived), а не с computed-обёрткой field.value.
           const derivedSig = this._fieldSignals.get(field) ?? (field.value as Signal<unknown>);
           if (isDerived(derivedSig)) continue;
@@ -241,44 +214,28 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
-   * Сбросить форму к указанным значениям (или к initialValues)
+   * Сбросить группу: значения, ошибки и флаги touched / dirty всех полей.
    *
-   * @param value - опциональный объект со значениями для сброса
+   * Без аргумента значения возвращаются к тем, с которыми форма создана. Это форма «с чистого
+   * листа», а не точка отсчёта модели: после загрузки данных и `model.captureInitial()` к
+   * загруженным значениям возвращает `model.reset()`, а не этот метод.
    *
-   * @remarks
-   * Рекурсивно вызывает reset() для всех полей формы
+   * @param value - значения для сброса; поле без значения возвращается к значению создания
    *
    * @example
    * ```typescript
-   * // Сброс к initialValues
-   * form.reset();
-   *
-   * // Сброс к новым значениям
-   * form.reset({ email: 'new@mail.com', password: '' });
+   * form.reset(); // к значениям, с которыми форма создана
+   * form.reset({ email: 'new@mail.com', password: '' }); // к новым значениям
    * ```
    */
   reset(value?: T): void {
     // Сбрасываем и form-level ошибки (setErrors) — иначе форма остаётся invalid после reset.
-    // Согласовано с ArrayNode.reset()/ModelArrayNode.reset(), которые очищают свои _arrayErrors.
+    // Так же ModelArrayNode.reset() очищает свои _arrayErrors.
     this._formErrors.value = [];
     this._fields.forEach((field, key) => {
       const resetValue = value?.[key];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       field.reset(resetValue as any);
-    });
-  }
-
-  /**
-   * Сбросить форму к исходным значениям (initialValues)
-   */
-  resetToInitial(): void {
-    this._formErrors.value = [];
-    this._fields.forEach((field) => {
-      if ('resetToInitial' in field && typeof field.resetToInitial === 'function') {
-        field.resetToInitial();
-      } else {
-        field.reset();
-      }
     });
   }
 
@@ -310,15 +267,9 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
-   * Получить поле по ключу
-   */
-  getField<K extends keyof T>(key: K): FormNode<T[K]> | undefined {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return this._fields.get(key) as any;
-  }
-
-  /**
-   * Получить Map всех полей формы (для совместимости)
+   * Ноды детей по именам полей данных. По наличию этого свойства гарды типов отличают группу
+   * от поля; для доступа к полю пользуйтесь прокси формы — `form.email`, а для поля, имя
+   * которого занято членом ноды (`value`, `errors`, `status`), — `form.$.value`.
    */
   get fields(): Map<keyof T, FormNode<FormValue>> {
     return this._fields;
@@ -328,8 +279,7 @@ export class GroupNode<T> extends FormNode<T> {
    * Получить Proxy-инстанс для прямого доступа к полям
    *
    * Proxy позволяет обращаться к полям формы напрямую через точечную нотацию:
-   * - form.email вместо form.fields.get('email')
-   * - form.address.city вместо form.fields.get('address').fields.get('city')
+   * `form.email`, `form.address.city`.
    *
    * @returns Proxy-инстанс с типобезопасным доступом к полям или сама форма, если proxy не доступен
    *
@@ -347,13 +297,6 @@ export class GroupNode<T> extends FormNode<T> {
       this._proxyInstance = this.buildProxy();
     }
     return this._proxyInstance;
-  }
-
-  /**
-   * Получить все поля формы как итератор
-   */
-  getAllFields(): IterableIterator<FormNode<FormValue>> {
-    return this._fields.values();
   }
 
   // ============================================================================
@@ -377,7 +320,7 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   // ============================================================================
-  // Дополнительные методы (из FormStore)
+  // Отправка формы
   // ============================================================================
 
   /**
@@ -388,200 +331,15 @@ export class GroupNode<T> extends FormNode<T> {
    * @returns Результат от onSubmit или `null` если валидация не пройдена
    *
    * @remarks
-   * `null` перегружен: он означает и «валидация не пройдена», и легитимный `null`-результат
-   * `onSubmit` (или void-обработчик). Если вызывающей стороне нужно различать эти случаи —
-   * используйте {@link submitWithResult}, который возвращает явный флаг `success`.
+   * `null` перегружен: он означает и «на полях есть блокирующие ошибки», и легитимный
+   * `null`-результат `onSubmit` (или void-обработчик). Чтобы различать эти случаи, проверяйте
+   * валидность до отправки — `validation.validateAll()` сборки либо `validateModel`.
    */
   async submit<R>(
     onSubmit: (values: T) => Promise<R> | R,
     options?: SubmitOptions
   ): Promise<R | null> {
     return this.formSubmitter.submit(onSubmit, options);
-  }
-
-  /**
-   * Отправить форму с расширенным результатом
-   *
-   * @param onSubmit - Callback для отправки данных
-   * @param options - Опции submit
-   * @returns Объект SubmitResult с данными, статусом и возможной ошибкой
-   */
-  async submitWithResult<R>(
-    onSubmit: (values: T) => Promise<R> | R,
-    options?: SubmitOptions
-  ): Promise<SubmitResult<R>> {
-    return this.formSubmitter.submitWithResult(onSubmit, options);
-  }
-
-  /**
-   * Получить вложенное поле по пути
-   *
-   * Поддерживаемые форматы путей:
-   * - Simple: "email" - получить поле верхнего уровня
-   * - Nested: "address.city" - получить вложенное поле
-   * - Array index: "items[0]" - получить элемент массива по индексу
-   * - Combined: "items[0].name" - получить поле элемента массива
-   *
-   * @param path - Путь к полю
-   * @returns FormNode если найдено, undefined если путь не существует
-   *
-   * @example
-   * ```typescript
-   * const model = createModel({
-   *   email: '',
-   *   address: { city: '' },
-   *   items: arrayOf(() => ({ name: '' }), [{ name: '' }]),
-   * });
-   * const form = createFormFromModel({ model, schema });
-   *
-   * form.getFieldByPath('email');           // FieldNode
-   * form.getFieldByPath('address.city');    // FieldNode
-   * form.getFieldByPath('items[0]');        // GroupNode
-   * form.getFieldByPath('items[0].name');   // FieldNode
-   * form.getFieldByPath('invalid.path');    // undefined
-   * ```
-   */
-  public getFieldByPath(path: string): FormNode<FormValue> | undefined {
-    // Проверка на некорректные пути (leading/trailing dots)
-    if (path.startsWith('.') || path.endsWith('.')) {
-      return undefined;
-    }
-
-    const segments = parsePathSegments(path);
-    if (segments.length === 0) {
-      return undefined;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let current: FormNode<FormValue> | undefined = this as any;
-
-    for (const segment of segments) {
-      // Доступ к полю
-      if (!(current instanceof GroupNode)) {
-        return undefined;
-      }
-
-      current = current.getField(segment.key as unknown as never);
-      if (!current) return undefined;
-
-      // Если есть индекс, получаем элемент массива
-      if (segment.index !== undefined) {
-        // Используем duck typing вместо instanceof из-за circular dependency
-        if (
-          'at' in current &&
-          'length' in current &&
-          typeof (current as ArrayNodeLike).at === 'function'
-        ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const item: FormNode<any> | undefined = (current as ArrayNodeLike).at(segment.index);
-          if (!item) return undefined;
-          current = item;
-        } else {
-          return undefined;
-        }
-      }
-    }
-
-    return current;
-  }
-
-  // ============================================================================
-  // Методы-помощники для реактивности (Фаза 1)
-  // ============================================================================
-
-  /**
-   * Связывает два поля: при изменении source автоматически обновляется target
-   */
-  linkFields<K1 extends keyof T, K2 extends keyof T>(
-    sourceKey: K1,
-    targetKey: K2,
-    transform?: (value: T[K1]) => T[K2]
-  ): () => void {
-    const sourceField = this._fields.get(sourceKey);
-    const targetField = this._fields.get(targetKey);
-
-    if (!sourceField || !targetField) {
-      const missingField = !sourceField ? sourceKey : targetKey;
-      throw new Error(`GroupNode.linkFields: field "${String(missingField)}" not found`);
-    }
-
-    const dispose = effect(() => {
-      const sourceValue = sourceField.value.value;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const transformedValue = transform ? transform(sourceValue as any) : (sourceValue as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      targetField.setValue(transformedValue as any);
-    });
-
-    const key = uniqueId(SubscriptionKey.LinkFields);
-    return this.disposers.add(key, dispose);
-  }
-
-  /**
-   * Подписка на изменения вложенного поля по строковому пути
-   * Поддерживает вложенные пути типа "address.city"
-   *
-   * @param fieldPath - Строковый путь к полю (например, "address.city")
-   * @param callback - Функция, вызываемая при изменении поля
-   * @returns Функция отписки для cleanup
-   *
-   * @example
-   * ```typescript
-   * // Подписка на изменение страны для загрузки городов
-   * const dispose = form.watchField(
-   *   'registrationAddress.country',
-   *   async (countryCode) => {
-   *     if (countryCode) {
-   *       const cities = await fetchCitiesByCountry(countryCode);
-   *       form.registrationAddress.city.updateComponentProps({
-   *         options: cities
-   *       });
-   *     }
-   *   }
-   * );
-   *
-   * // Cleanup
-   * useEffect(() => dispose, []);
-   * ```
-   */
-  /** Подписка на top-level поле — value типизирован как `T[K]`. */
-  watchField<K extends keyof T & string>(
-    fieldPath: K,
-    callback: (value: T[K]) => void | Promise<void>
-  ): () => void {
-    const field = this.getFieldByPath(fieldPath);
-
-    if (!field) {
-      throw new Error(`GroupNode.watchField: field "${fieldPath}" not found`);
-    }
-
-    const dispose = effect(() => {
-      // Мост FormValue → T[K]: fieldPath — статически известный ключ K узла,
-      // поэтому значение поля действительно имеет тип T[K].
-      callback(field.value.value as T[K]);
-    });
-
-    const key = uniqueId(SubscriptionKey.WatchField);
-    return this.disposers.add(key, dispose);
-  }
-
-  /**
-   * Подписка на вложенное поле по строковому пути ("address.city").
-   * Путь нельзя выразить в типах узла → value честно `unknown`, потребитель сужает.
-   */
-  watchFieldByPath(path: string, callback: (value: unknown) => void | Promise<void>): () => void {
-    const field = this.getFieldByPath(path);
-
-    if (!field) {
-      throw new Error(`GroupNode.watchFieldByPath: field "${path}" not found`);
-    }
-
-    const dispose = effect(() => {
-      callback(field.value.value);
-    });
-
-    const key = uniqueId(SubscriptionKey.WatchField);
-    return this.disposers.add(key, dispose);
   }
 
   /**
@@ -609,8 +367,8 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
-   * Связать листовую ноду-ребёнка с её сигналом модели (M1). Вызывается `createForm` для каждого
-   * листового поля на его владеющей группе — используется bulk-сеттерами для derived-guard (F9).
+   * Связать листовую ноду-ребёнка с её сигналом модели. Вызывается `createForm` для каждого
+   * листового поля на его владеющей группе — по нему bulk-сеттеры узнают производные поля.
    * @internal
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -624,7 +382,6 @@ export class GroupNode<T> extends FormNode<T> {
   dispose(): void {
     this._behaviorCleanup?.();
     this._behaviorCleanup = undefined;
-    this.disposers.dispose();
     this._fields.forEach((field) => {
       if ('dispose' in field && typeof field.dispose === 'function') {
         field.dispose();

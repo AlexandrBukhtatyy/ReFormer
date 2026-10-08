@@ -17,7 +17,6 @@ export { FormNode } from './nodes/form-node';
 export { FieldNode } from './nodes/field-node';
 export { GroupNode } from './nodes/group-node';
 export { ModelArrayNode } from './nodes/model-array-node';
-export type { ModelArrayControl } from './nodes/model-array-node';
 
 // Сборка одним вызовом: модель, форма, валидация и дерево для рендера.
 export { createForm } from './form-bundle';
@@ -39,7 +38,6 @@ export { schemaSubtree } from './schema-subtree';
 export {
   createSchemaController,
   createSchemaScope,
-  createSchemaOverrideMaps,
   unknownSchemaSelectors,
 } from './schema-controller';
 export type {
@@ -50,24 +48,17 @@ export type {
   NodeLifecycleHooks,
 } from './schema-controller';
 
-// Прежнее имя сборки одним вызовом и общий конфиг родственных фабрик — `createReactForm`
-// (@reformer/renderer-react) и `createJsonForm` (@reformer/renderer-json).
-export { createCoreForm } from './create-core-form';
-export type { CoreForm, CreateCoreFormConfig, CreateFormConfigBase } from './create-core-form';
+// Общий конфиг родственных фабрик — `createReactForm` (@reformer/renderer-react) и
+// `createJsonForm` (@reformer/renderer-json).
+export type { CoreForm, CreateFormConfigBase } from './form-config-base';
 export { buildValidation } from './validation/config';
 export type { FormValidation, FormValidationBundle } from './validation/config';
 
 // Валидация: контракт `@reformer/core/validation` (validateModel + операторы) — отдельный сабпат,
-// в root не реэкспортируется. Старый дерево-движок (`validateFormModel`/`validateModel`(tree)) удалён.
+// в root не реэкспортируется.
 // Шов сигнал→нода.
 export { registerSignalNode, getNodeForSignal } from './signal-node-registry';
 
-// Submit / статус / предикаты нод / id.
-export { FormSubmitter } from './form-submitter';
-export { SubscriptionManager } from './nodes/subscription-manager';
-export type { SubmittableForm, SubmitOptions, SubmitResult } from './form-submitter';
-// FormStatusMachine и StatusEvent убраны из публичной поверхности в 7.0: машина — внутренняя
-// деталь FieldNode, снаружи её никто не конструировал. Класс живёт в './status-machine'.
-export { isFormNode, isFieldNode, isGroupNode, isArrayNode, getNodeType } from './type-guards';
-// uniqueId убран из публичной поверхности в 7.0: его параметр типизирован `SubscriptionKeyType`,
-// который барель не отдаёт, — типобезопасно вызвать функцию извне пакета было невозможно.
+// Опции отправки формы и предикаты нод. FormSubmitter и машина статуса — внутренние детали нод.
+export type { SubmitOptions } from './form-submitter';
+export { isFormNode, isFieldNode, isGroupNode, isArrayNode } from './type-guards';

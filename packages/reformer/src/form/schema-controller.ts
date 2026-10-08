@@ -117,7 +117,7 @@ export interface SchemaController {
  *
  * @group Schema
  */
-export function createSchemaOverrideMaps(): SchemaOverrideMaps {
+function createSchemaOverrideMaps(): SchemaOverrideMaps {
   const selectorVersions = new Map<string, Signal<number>>();
   return {
     hiddenOverrides: new Map(),

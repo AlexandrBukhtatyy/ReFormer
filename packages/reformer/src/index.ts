@@ -37,7 +37,6 @@ export { runOutsideEffect, safeCallback, safeDebouncedCallback } from './model/s
 export * from './form/index';
 // React-биндинги: единственный слой с runtime-зависимостью от react.
 export * from './platforms/react/index';
-// Validators namespace удалён в 7.0: `import { validators } from '@reformer/core'` больше нет.
 // Правила берите из сабпата — `@reformer/core/validators` (весь набор) либо гранулярно
 // (`@reformer/core/validators/required`), это ещё и лучше тришейкается.
 

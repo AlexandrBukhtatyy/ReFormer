@@ -212,7 +212,7 @@ export class GroupNode {
     batch(() => {
       for (const [key, node] of this.children) {
         if (!(key in v)) continue;
-        // F9: производные поля (цели compute) не затираем значением из payload — ими владеет compute.
+        // Производные поля (цели compute) не затираем значением из payload — ими владеет compute.
         if (node.kind === 'leaf' && isDerived(node.signal)) continue;
         node.set(v[key]);
       }

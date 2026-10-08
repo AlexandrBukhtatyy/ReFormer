@@ -109,8 +109,8 @@ describe('createForm M1 — поле данных named "form" (Defect 31)', () 
     };
     const built = createFormFromModel<WithForm>({ model, schema });
 
-    const formField = built.getField('form');
-    const emailField = built.getField('email');
+    const formField = built.fields.get('form');
+    const emailField = built.fields.get('email');
     expect(formField).toBeDefined();
     expect(emailField).toBeDefined();
     expect(formField!.value.value).toBe('hi');

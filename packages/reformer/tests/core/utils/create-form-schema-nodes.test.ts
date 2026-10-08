@@ -221,13 +221,9 @@ describe('Поля данных с именами ключей узла', () => 
       },
     });
 
-    // `form.value` занято самой формой (значение группы) — поля берём по пути.
-    const fieldAt = (key: string) =>
-      (form as unknown as { getFieldByPath(path: string): { component: unknown } }).getFieldByPath(
-        key
-      );
-    for (const key of ['model', 'item', 'part', 'children', 'value']) {
-      expect(fieldAt(key).component, key).toBe(InputStub);
+    // `form.value` занято самой формой (значение группы) — поля берём через `form.$`.
+    for (const key of ['model', 'item', 'part', 'children', 'value'] as const) {
+      expect(form.$[key].component, key).toBe(InputStub);
     }
   });
 });

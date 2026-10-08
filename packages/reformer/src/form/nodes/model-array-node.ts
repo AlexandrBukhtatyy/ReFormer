@@ -117,7 +117,7 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
     // при reorder/повторном рендере не пересоздаются (состояние сохраняется). Выпавшие элементы
     // (removeAt/clear/setValue/reset мутируют массив модели → эффект перезапускается) детерминированно
     // диспозятся и вытесняются из кэша — иначе форма удалённого элемента продолжала бы владеть живыми
-    // подписками (disposeSync вложенных ModelArrayNode, cleanup поведений, watch/computeFrom). Реордер
+    // подписками (disposeSync вложенных ModelArrayNode, cleanup поведений). Реордер
     // (move/swap) не меняет набор фасадов, поэтому ничего не диспозит.
     this.disposeSync = effect(() => {
       const len = control.length; // зависимость от длины массива модели
@@ -221,9 +221,6 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   reset(values?: T[]): void {
     this._arrayErrors.value = [];
     this.setValue(values ?? this.initial);
-  }
-  resetToInitial(): void {
-    this.reset(this.initial);
   }
   /** Текущая валидность массива: нет ошибок самого массива и все строки валидны. */
   validate(): Promise<boolean> {

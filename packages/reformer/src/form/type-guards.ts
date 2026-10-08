@@ -92,8 +92,8 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
 /**
  * Проверить, является ли значение GroupNode (объект с вложенными полями)
  *
- * GroupNode представляет объект с вложенными полями формы: имеет навигацию по полям
- * (`getFieldByPath`/`fields`) и НЕ имеет array-методов (`items`/`push`/`removeAt`).
+ * GroupNode представляет объект с вложенными полями формы: держит карту нод детей (`fields`)
+ * и прокси доступа к ним (`getProxy`) и НЕ имеет array-методов (`items`/`push`/`removeAt`).
  *
  * @param value - Значение для проверки
  * @returns true если value является GroupNode
@@ -101,14 +101,14 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
  * @example
  * ```typescript
  * if (isGroupNode(node)) {
- *   node.getFieldByPath('user.email'); //  OK
+ *   node.fields.size; //  OK
  * }
  * ```
  */
 export function isGroupNode(value: unknown): value is GroupNode<object> {
   return (
     isFormNode(value) &&
-    'getFieldByPath' in value &&
+    'getProxy' in value &&
     'fields' in value &&
     // GroupNode НЕ имеет items/push/removeAt (это ModelArrayNode)
     !('items' in value) &&
@@ -148,25 +148,4 @@ export function isArrayNode(value: unknown): value is ModelArrayNode<object> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     typeof (value as any).removeAt === 'function'
   );
-}
-
-/**
- * Получить тип узла как строку (для отладки)
- *
- * Полезно для логирования и отладки
- *
- * @param node - Узел для проверки
- * @returns Строковое название типа узла
- *
- * @example
- * ```typescript
- * console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
- * ```
- */
-export function getNodeType(node: unknown): string {
-  if (isFieldNode(node)) return 'FieldNode';
-  if (isGroupNode(node)) return 'GroupNode';
-  if (isArrayNode(node)) return 'ArrayNode';
-  if (isFormNode(node)) return 'FormNode';
-  return 'Unknown';
 }

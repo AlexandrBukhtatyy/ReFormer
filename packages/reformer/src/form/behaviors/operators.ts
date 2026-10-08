@@ -48,9 +48,9 @@ export function compute<R>(
   read: () => R,
   options?: { when?: () => boolean }
 ): void {
-  markDerived(target); // F9: bulk-load (set/patch/patchValue) не затирает вычисляемое поле
+  markDerived(target); // bulk-load (set/patch/patchValue) не затирает вычисляемое поле
   onDispose(() => unmarkDerived(target)); // при снятии behavior снова разрешаем bulk-set (refcount)
-  const guard = makeCycleGuard(target as Signal<unknown>); // F7: детект расходящегося цикла
+  const guard = makeCycleGuard(target as Signal<unknown>); // детект расходящегося цикла
   effect(() => {
     if (options?.when && !options.when()) return;
     const next = read();
@@ -68,7 +68,7 @@ export function computeFrom<R>(
   fn: (...values: any[]) => R,
   options?: { when?: (...values: any[]) => boolean }
 ): void {
-  markDerived(target); // F9: см. compute
+  markDerived(target); // см. compute
   onDispose(() => unmarkDerived(target)); // refcount: см. compute
   const guard = makeCycleGuard(target as Signal<unknown>); // F7
   effect(() => {
@@ -110,7 +110,7 @@ export function copyFrom<T>(
  *
  * Для async-колбэков 2-м аргументом приходит `{ signal }` (AbortSignal): при следующей смене значения
  * предыдущий `signal` аннулируется. Передавай его в `fetch` (сетевая отмена) или проверяй
- * `signal.aborted` перед применением результата — это убирает гонки устаревших ответов (F2).
+ * `signal.aborted` перед применением результата — это убирает гонки устаревших ответов.
  */
 export function onChange<T>(
   source: ReadonlySignal<T>,

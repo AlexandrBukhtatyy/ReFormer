@@ -4,19 +4,17 @@
  * Покрывает:
  * - Инициализация (конструктор, дефолтные значения)
  * - Signals (value, touched, dirty, status, valid, invalid, errors, pending)
- * - Reset (reset, resetToInitial)
+ * - Reset
  * - Enable/disable
  * - shouldShowError computed
  * - componentProps
  * - validate() как отражение ошибок, пришедших извне
- * - watch / computeFrom
  *
  * Другие тесты в отдельных файлах:
- * - field-node-cleanup.test.ts - dispose mechanism
  * - field-node-model-binding.test.ts - привязка к сигналу модели
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 import type { ValidationError } from '../../../src/form/types/index';
@@ -386,31 +384,17 @@ describe('FieldNode', () => {
     });
   });
 
-  describe('resetToInitial()', () => {
-    it('should reset to initial value even after reset(newValue)', () => {
+  describe('reset() after reset(value)', () => {
+    it('should return to the creation value: reset(value) does not move it', () => {
       const field = fieldOf('initial');
 
       field.setValue('changed');
       field.reset('temp');
       expect(field.value.value).toBe('temp');
 
-      field.resetToInitial();
+      field.reset();
 
       expect(field.value.value).toBe('initial');
-    });
-
-    it('should clear state like reset()', () => {
-      const field = fieldOf('initial');
-
-      field.setValue('changed');
-      field.markAsTouched();
-      field.setErrors([REQUIRED]);
-
-      field.resetToInitial();
-
-      expect(field.errors.value).toEqual([]);
-      expect(field.touched.value).toBe(false);
-      expect(field.dirty.value).toBe(false);
     });
   });
 
@@ -496,93 +480,7 @@ describe('FieldNode', () => {
   });
 
   // ==========================================================================
-  // 10. watch / computeFrom
-  // ==========================================================================
-
-  describe('watch()', () => {
-    it('should call callback immediately with current value', () => {
-      const field = fieldOf('initial');
-      const callback = vi.fn();
-
-      field.watch(callback);
-
-      expect(callback).toHaveBeenCalledTimes(1);
-      expect(callback).toHaveBeenCalledWith('initial', expect.any(AbortSignal));
-    });
-
-    it('should call callback on value change', () => {
-      const field = fieldOf('initial');
-      const callback = vi.fn();
-
-      field.watch(callback);
-      field.setValue('changed');
-
-      expect(callback).toHaveBeenCalledTimes(2);
-      expect(callback).toHaveBeenLastCalledWith('changed', expect.any(AbortSignal));
-    });
-
-    it('should return unsubscribe function', () => {
-      const field = fieldOf('initial');
-      const callback = vi.fn();
-
-      const unsubscribe = field.watch(callback);
-      unsubscribe();
-      field.setValue('changed');
-
-      expect(callback).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('computeFrom()', () => {
-    it('should compute value from single source', () => {
-      const source = fieldOf(100);
-      const target = fieldOf(0);
-
-      target.computeFrom([source.value], (value: number) => value * 2);
-
-      expect(target.value.value).toBe(200);
-    });
-
-    it('should update when source changes', () => {
-      const source = fieldOf(100);
-      const target = fieldOf(0);
-
-      target.computeFrom([source.value], (value: number) => value * 2);
-      source.setValue(50);
-
-      expect(target.value.value).toBe(100);
-    });
-
-    it('should compute from multiple sources', () => {
-      const price = fieldOf(100);
-      const quantity = fieldOf(2);
-      const total = fieldOf(0);
-
-      total.computeFrom(
-        [price.value, quantity.value],
-        (priceValue: number, quantityValue: number) => priceValue * quantityValue
-      );
-
-      expect(total.value.value).toBe(200);
-
-      quantity.setValue(5);
-      expect(total.value.value).toBe(500);
-    });
-
-    it('should return unsubscribe function', () => {
-      const source = fieldOf(100);
-      const target = fieldOf(0);
-
-      const unsubscribe = target.computeFrom([source.value], (value: number) => value * 2);
-      unsubscribe();
-      source.setValue(50);
-
-      expect(target.value.value).toBe(200);
-    });
-  });
-
-  // ==========================================================================
-  // 11. Edge Cases
+  // 10. Edge Cases
   // ==========================================================================
 
   describe('Edge Cases', () => {

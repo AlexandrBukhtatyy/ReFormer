@@ -11,7 +11,7 @@
 
 import type { FormModel } from '../../model/types';
 import { email, min, minLength, required } from '../validators';
-import { apply, applyEach, each, validate } from './operators';
+import { apply, applyEach, validate } from './operators';
 import { defineValidationSchema } from './run';
 import type { Rule, ValidationSchema } from './types';
 
@@ -40,8 +40,10 @@ export function validationOperatorTypeChecks(model: FormModel<Shape>): void {
   // Массив под-форм: ручкой и, для совместимости, фасадом.
   applyEach(model.$.phones, phoneRules);
   applyEach(model.phones, phoneRules);
-  each(model.$.phones, (phone) => void phone.$.number);
-  each(model.phones, (phone) => void phone.$.number);
+  // Схема строки, записанная на месте: тип элемента выводится из ручки массива.
+  applyEach(model.$.phones, ({ model: phone }) => {
+    validate(phone.$.number, [required()]);
+  });
   // Композиция схем над той же моделью.
   apply(shapeRules, shapeRules);
 
