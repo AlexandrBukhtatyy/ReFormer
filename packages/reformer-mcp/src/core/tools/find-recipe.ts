@@ -132,7 +132,7 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   enablewhen: ['conditional-fields', 'api-signatures'],
   'validate-when': ['validation', 'conditional-fields'],
   'conditional-validation': ['validation', 'conditional-fields'],
-  // validation contract (@reformer/core/validation): validate/validateAsync/validateWhen/cross/each/apply
+  // validation contract (@reformer/core/validation): validate/validateAsync/validateWhen/apply/applyEach, cross of the scope
   // + external runner validateModel(model, schema). Maps to the renderer 06-validation recipe and
   // core multi-step; async → async-validator-debounce; cross-field → common-patterns.
   validation: ['validation', 'multi-step'],

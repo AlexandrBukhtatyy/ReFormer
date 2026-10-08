@@ -53,15 +53,7 @@ function parseImports(code: string): ParsedImport[] {
 }
 
 /** Операторы, которые обязаны вызываться внутри своей схемы. */
-const VALIDATION_OPERATORS = [
-  'validate',
-  'validateAsync',
-  'validateWhen',
-  'cross',
-  'each',
-  'apply',
-  'applyEach',
-];
+const VALIDATION_OPERATORS = ['validate', 'validateAsync', 'validateWhen', 'apply', 'applyEach'];
 const BEHAVIOR_OPERATORS = [
   'compute',
   'computeFrom',
@@ -104,12 +96,22 @@ const VALIDATION_MODULE = '@reformer/core/validation';
 const BEHAVIOR_MODULE = '@reformer/core/behaviors';
 
 /**
+ * Имена, удалённые из `@reformer/core`: имя → чем заменить. Импорт такого имени не соберётся,
+ * поэтому это ошибка — но с названной заменой, а не «не существует, возможно, вы имели в виду…».
+ */
+const REMOVED_FROM_CORE: Readonly<Record<string, string>> = {
+  createCoreForm:
+    '`createForm({ model, schema, behavior, validation })` из `@reformer/core` — одна сборка на все способы',
+  each: '`applyEach(model.$.items, itemRules)` — правила строки отдельной схемой над элементом',
+  cross:
+    '`cross` из аргумента схемы — `defineValidationSchema<T>(({ model, cross }) => …)`; импортировать его не нужно',
+};
+
+/**
  * Прежний контракт сборки: имя → чем заменить. Символы ещё экспортируются (помечены
  * `@deprecated`), поэтому это предупреждение, а не ошибка.
  */
 const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
-  createCoreForm:
-    '`createForm({ model, schema, behavior, validation })` из `@reformer/core` — одна сборка на все способы',
   createReactForm:
     '`createForm({ model, schema, behavior, validation })` из `@reformer/core`; бандл рисует `<FormRenderer form={bundle} />`',
   createJsonForm:
@@ -119,7 +121,6 @@ const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
   JsonFormRenderer: '`FormRenderer` из `@reformer/renderer-react` с бандлом `createForm`',
   JsonRendererProvider:
     'не нужен: реестр уходит в сборку — `createForm({ …, registry })`; несколько реестров объединяет `composeRegistries`',
-  each: '`applyEach(model.$.items, itemRules)` — правила строки отдельной схемой над элементом',
   makeValidationConfig:
     'конфиг визарда собирает сборка: `createForm({ …, validation: { steps, extras } })`',
   convertJsonToM1Tree:
@@ -203,6 +204,21 @@ export async function validateCode(
         });
         continue;
       }
+      const removedFromCore =
+        matches.length === 0 && imp.from.startsWith('@reformer/core')
+          ? REMOVED_FROM_CORE[imported]
+          : undefined;
+      if (removedFromCore) {
+        diagnostics.push({
+          code: 'RF010',
+          severity: 'error',
+          message: `\`${imported}\` удалён из @reformer/core.`,
+          line: imp.line,
+          suggestion: `Замена: ${removedFromCore}.`,
+          fix: { tool: 'find_recipe', arguments: { topic: 'unified-contract' } },
+        });
+        continue;
+      }
       if (matches.length === 0) {
         const suggestions = await suggestNames(k, imported);
         diagnostics.push({
@@ -254,7 +270,7 @@ export async function validateCode(
       }
       // Прежняя сборка: имя существует, но контракт заменён — называем замену прямо.
       const replacement = LEGACY_ASSEMBLY[imported];
-      if (replacement && isLegacyImport(imported, imp.from)) {
+      if (replacement) {
         diagnostics.push({
           code: 'RF010',
           severity: 'warning',
@@ -384,14 +400,6 @@ export async function validateCode(
       'со скобками в строках — поэтому это warning, а не error.',
   ];
   return { diagnostics, limitations };
-}
-
-/**
- * Импорт относится к прежнему контракту сборки. `each` — имя общее: прежним считается только
- * оператор валидации из `@reformer/core/validation`.
- */
-function isLegacyImport(name: string, from: string): boolean {
-  return name === 'each' ? from === VALIDATION_MODULE : true;
 }
 
 /**

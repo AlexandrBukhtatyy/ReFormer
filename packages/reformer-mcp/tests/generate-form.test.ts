@@ -289,7 +289,7 @@ describe('builders', () => {
           ' * Валидация формы «Mix» — правила над МОДЕЛЬЮ, не в layout-схеме.',
           ' * Запуск: validateModel(model, formValidation).',
           ' */',
-          "import { validate, defineValidationSchema, validateAsync, validateWhen, each } from '@reformer/core/validation';",
+          "import { validate, defineValidationSchema, validateAsync, validateWhen, applyEach } from '@reformer/core/validation';",
           "import { email, min, minLength, required } from '@reformer/core/validators';",
           "import type { MixForm } from './model';",
           '',
@@ -300,7 +300,7 @@ describe('builders', () => {
           '  validateWhen(() => model.type.value === "legal", () => {',
           '    validate(model.$.inn, [minLength(10)]);',
           '  });',
-          '  each(model.$.items, (item) => {',
+          '  applyEach(model.$.items, ({ model: item }) => {',
           '    validate(item.$.amount, [required(), min(1)]);',
           '  });',
           '  validateAsync(model.$.x, [checkX]);',
@@ -367,10 +367,10 @@ describe('builders', () => {
       expect(ts).not.toMatch(/makeValidationConfig|apply/);
     });
 
-    it('операторы берутся по подмножеству: each/validateWhen только когда нужны', () => {
+    it('операторы берутся по подмножеству: applyEach/validateWhen только когда нужны', () => {
       const opts = { interfaceName: 'T', exportName: 'v', typeImport: './types' };
       const eachOnly = buildValidationSchemaTs([MIX[3]], opts);
-      expect(eachOnly).toContain('import { validate, defineValidationSchema, each } from');
+      expect(eachOnly).toContain('import { validate, defineValidationSchema, applyEach } from');
       expect(eachOnly).not.toContain('validateWhen');
       expect(eachOnly).not.toContain('validateAsync');
       const header = buildValidationSchemaTs([], {

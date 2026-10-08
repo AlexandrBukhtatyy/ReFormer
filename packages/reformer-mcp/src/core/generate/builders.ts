@@ -376,7 +376,7 @@ function validationImports(rules: readonly ValidationRuleIntent[]): {
   const ops = ['validate', 'defineValidationSchema'];
   if (rules.some((r) => r.async)) ops.push('validateAsync');
   if (rules.some((r) => r.when)) ops.push('validateWhen');
-  if (rules.some((r) => r.each)) ops.push('each');
+  if (rules.some((r) => r.each)) ops.push('applyEach');
   return { ops, validators: collectValidators([...rules]) };
 }
 
@@ -394,7 +394,8 @@ function validationRuleBlock(rule: ValidationRuleIntent): string {
     block = `  validateWhen(() => ${rule.when}, () => {\n${body.map((b) => `    ${b}`).join('\n')}\n  });`;
   }
   if (rule.each) {
-    block = `  each(model.$.${rule.each}, (item) => {\n${body
+    // Правила строки — схема над элементом, записанная на месте: `applyEach` отдаёт ей под-модель.
+    block = `  applyEach(model.$.${rule.each}, ({ model: item }) => {\n${body
       .map((b) => `    ${b.replace(`model.$.${rule.target}`, `item.$.${rule.target}`)}`)
       .join('\n')}\n  });`;
   }
@@ -602,9 +603,8 @@ export function buildFormValidationTs(intent: FormIntent): string {
   const restRows = rowSchemas.filter((row) => !placed.has(row));
   const withSteps = steps.length > 0;
 
-  const { ops, validators } = validationImports(formRules.concat(rowRules));
-  const operators = ops.filter((op) => op !== 'each');
-  if (rowSchemas.length > 0) operators.push('applyEach');
+  // `applyEach` в списке уже есть, когда у формы есть правила строк: его добавляет `validationImports`.
+  const { ops: operators, validators } = validationImports(formRules.concat(rowRules));
 
   const itemTypes = [...new Set(rowSchemas.map((row) => row.itemType))].filter(
     (type) => type !== 'Record<string, unknown>'

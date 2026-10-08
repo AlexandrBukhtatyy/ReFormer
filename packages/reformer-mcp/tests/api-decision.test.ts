@@ -87,7 +87,7 @@ describe('decide/api-decision — таблица правил', () => {
   it.runIf(hasSymbols)('рекомендуемый символ существует как публичный экспорт', async () => {
     const missing: string[] = [];
     for (const rule of DECISION_RULES) {
-      if ((await findOneSymbol(rule.recommend)) === null) {
+      if ((await findOneSymbol(rule.declaredIn ?? rule.recommend)) === null) {
         missing.push(`${rule.id} → ${rule.recommend}`);
       }
     }
@@ -180,6 +180,21 @@ describe('tool choose_api', () => {
     );
     expect(text).toContain('applyEach(model.$.items, itemRules)');
     expect(text, 'сигнатура поведения сюда не попадает').not.toContain('FormBehavior<');
+  });
+
+  it.runIf(hasSymbols)('cross — член области схемы: берётся из её аргумента', async () => {
+    // Экспорта `cross` нет: ответ обязан показать, откуда оператор берётся, а не сообщить, что
+    // символ не найден в индексе.
+    const { content } = await chooseApiTool(
+      { requirement: 'confirmPassword должен совпадать с password' },
+      k
+    );
+    const text = content[0].text;
+    expect(text).toContain('# choose_api: `cross`');
+    expect(text).toContain('## Usage');
+    expect(text).toContain('defineValidationSchema<Signup>(({ model, cross }) => {');
+    expect(text).not.toMatch(/import \{[^}]*\bcross\b[^}]*\}/);
+    expect(text).not.toContain('не найден в индексе');
   });
 
   it.runIf(hasSymbols)('подформа: одна привязка во всех трёх слоях', async () => {
