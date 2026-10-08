@@ -1,0 +1,28 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Контакты"
+    },
+    "children": [
+      {
+        "value": "$model(city)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Город",
+          "options": "$dataSource(CITY_LIST)"
+        }
+      },
+      {
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Электронная почта",
+          "required": true
+        }
+      }
+    ],
+    "selector": "kontakty-section"
+  }
+}

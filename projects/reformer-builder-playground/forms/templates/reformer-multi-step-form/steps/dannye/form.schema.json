@@ -1,0 +1,36 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Данные"
+    },
+    "children": [
+      {
+        "value": "$model(lastName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Фамилия",
+          "required": true
+        }
+      },
+      {
+        "value": "$model(firstName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя",
+          "required": true
+        }
+      },
+      {
+        "value": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Полное имя",
+          "readOnly": true
+        }
+      }
+    ],
+    "selector": "dannye-section"
+  }
+}

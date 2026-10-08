@@ -1,0 +1,26 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "component": "$component(Wizard)",
+        "componentProps": {
+          "steps": [
+            {
+              "$ref": "./steps/dannye/form.schema.json"
+            },
+            {
+              "$ref": "./steps/kontakty/form.schema.json"
+            }
+          ]
+        },
+        "selector": "wizard"
+      }
+    ]
+  }
+}

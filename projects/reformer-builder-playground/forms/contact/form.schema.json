@@ -9,22 +9,39 @@
     },
     "children": [
       {
-        "$nodeId": "demoname",
-        "selector": "name",
-        "value": "$model(name)",
-        "component": "$component(Input)",
+        "$nodeId": "2fvbboa1",
+        "component": "$html(div)",
         "componentProps": {
-          "label": "Имя",
-          "placeholder": "Как к вам обращаться"
-        }
+          "className": "flex gap-4"
+        },
+        "children": [
+          {
+            "$nodeId": "demoname",
+            "selector": "name",
+            "value": "$model(name)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "placeholder": "Как к вам обращаться"
+            }
+          },
+          {
+            "$nodeId": "demomail",
+            "selector": "email",
+            "value": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Email"
+            }
+          }
+        ]
       },
       {
-        "$nodeId": "demomail",
-        "selector": "email",
-        "value": "$model(email)",
-        "component": "$component(Input)",
+        "$nodeId": "ggjp5tr9",
+        "value": "$model(newField)",
+        "component": "$component(Checkbox)",
         "componentProps": {
-          "label": "Email"
+          "label": "Checkbox"
         }
       },
       {
@@ -35,8 +52,14 @@
         "componentProps": {
           "label": "Как связаться",
           "options": [
-            { "value": "email", "label": "Email" },
-            { "value": "phone", "label": "Телефон" }
+            {
+              "value": "email",
+              "label": "Email"
+            },
+            {
+              "value": "phone",
+              "label": "Телефон"
+            }
           ]
         }
       },
@@ -47,6 +70,22 @@
         "component": "$component(Checkbox)",
         "componentProps": {
           "label": "Согласен на обработку данных"
+        }
+      },
+      {
+        "$nodeId": "um6zmmom",
+        "value": "$model(newField)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Select"
+        }
+      },
+      {
+        "$nodeId": "lse4h9pg",
+        "value": "$model(newField)",
+        "component": "$component(Slider)",
+        "componentProps": {
+          "label": "Slider"
         }
       }
     ]

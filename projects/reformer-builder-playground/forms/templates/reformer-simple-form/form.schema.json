@@ -1,0 +1,60 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "value": "$model(lastName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Фамилия",
+          "required": true
+        }
+      },
+      {
+        "value": "$model(firstName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя",
+          "required": true
+        }
+      },
+      {
+        "value": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Полное имя",
+          "readOnly": true
+        }
+      },
+      {
+        "value": "$model(city)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Город",
+          "options": "$dataSource(CITY_LIST)"
+        }
+      },
+      {
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Электронная почта",
+          "required": true
+        }
+      },
+      {
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": ["Отправить"]
+      }
+    ]
+  }
+}
