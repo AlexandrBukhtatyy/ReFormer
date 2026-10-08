@@ -163,15 +163,13 @@ describe('FormArraySection (base carry)', () => {
     expect(html).toBe('');
   });
 
-  it('невалидный control (не ArrayNode) → предупреждение и пустая строка', () => {
+  it('невалидный control (не ModelArrayNode) → предупреждение и пустая строка', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const html = renderToStaticMarkup(
       <FormArraySection<Item> control={{} as any} itemComponent={ItemMarker} title="X" />
     );
     expect(html).toBe('');
-    expect(warn).toHaveBeenCalledWith(
-      '[FormArraySection] control is not an ArrayNode/FormArrayProxy.'
-    );
+    expect(warn).toHaveBeenCalledWith('[FormArraySection] control is not a ModelArrayNode.');
     warn.mockRestore();
   });
 });
