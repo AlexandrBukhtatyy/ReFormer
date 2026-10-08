@@ -32,6 +32,12 @@ export interface DecisionRule {
   unless?: RegExp[];
   /** Рекомендуемый символ. Обязан существовать — проверяется тестом. */
   recommend: string;
+  /**
+   * Экспорт, в котором объявлен рекомендуемый оператор, когда сам он не экспортируется:
+   * `cross` — член области схемы (`ValidationScope`), его берут из аргумента схемы. Существование
+   * проверяется по этому имени, оно же даёт пакет в ответе; запись вызова — в `usage`.
+   */
+  declaredIn?: string;
   /** Почему именно он. Одна фраза, по существу требования. */
   because: string;
   /** Чем это НЕ является — самые частые подмены. */
@@ -70,7 +76,7 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [
       /(?=[\s\S]*(сумм|итог|среднее|количеств|подсч[ёе]т|total|sum\b|count\b|average|aggregate))(?=[\s\S]*(масс|элемент|строк|списк|позици|array|items?\b|rows?\b|FormArray))/i,
     ],
-    // Поведение на КАЖДОМ элементе — это applyEach/each, а не агрегат в одно поле.
+    // Поведение на КАЖДОМ элементе — это applyEach, а не агрегат в одно поле.
     unless: [/кажд|each\b|per\s+item|на\s+элемент/i],
     recommend: 'compute',
     because:
@@ -346,8 +352,22 @@ export const DECISION_RULES: DecisionRule[] = [
       /совпада|сравн|подтвержд|confirm|match(es)? (the )?(password|other)|cross[- ]field|two fields/i,
     ],
     recommend: 'cross',
+    declaredIn: 'ValidationScope',
     because:
-      'кросс-полевое правило видит снимок модели целиком, поэтому может сравнивать поля между собой',
+      'кросс-полевое правило видит снимок модели целиком, поэтому может сравнивать поля между собой; `cross` берётся из аргумента схемы, а не импортируется',
+    usage: [
+      "import type { ValidationError } from '@reformer/core';",
+      "import { defineValidationSchema, validate } from '@reformer/core/validation';",
+      "import { required } from '@reformer/core/validators';",
+      '',
+      'const passwordsMatch = (form: Signup): ValidationError | null =>',
+      "  form.confirm !== form.password ? { code: 'mismatch', message: 'Пароли не совпадают' } : null;",
+      '',
+      'export const formValidation = defineValidationSchema<Signup>(({ model, cross }) => {',
+      '  validate(model.$.confirm, [required()]);',
+      '  cross(model.$.confirm, passwordsMatch); // ошибка вешается на confirm',
+      '});',
+    ].join('\n'),
   },
   {
     id: 'validate-each',
@@ -375,7 +395,6 @@ export const DECISION_RULES: DecisionRule[] = [
         symbol: 'apply',
         when: 'те же правила нужны ОДНОЙ под-модели (подформа), а не каждому элементу массива',
       },
-      { symbol: 'each', when: 'прежнее имя этого оператора — заменено на applyEach' },
     ],
   },
   /**

@@ -60,7 +60,7 @@ export function writeGroup(g: GroupSignals, val: Record<string, unknown>): void 
 }
 
 /**
- * Guard от расходящихся циклов пересчёта (F7). Расходящийся взаимный compute/computeFrom (без
+ * Guard от расходящихся циклов пересчёта. Расходящийся взаимный compute/computeFrom (без
  * стабилизации) preact обрывает невнятным «Cycle detected» — перехватываем и заменяем понятной
  * ошибкой с именем поля и подсказкой. Сходящиеся compute (упираются в peek-guard) и массовые
  * синхронные мутации цикла не порождают → не затрагиваются.

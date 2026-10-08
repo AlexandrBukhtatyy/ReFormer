@@ -124,10 +124,10 @@ function useEmptyControl(): ArrayControlState<object> {
 }
 
 /**
- * React-хук для подписки на состояние {@link ArrayNode}.
+ * React-хук для подписки на состояние {@link ModelArrayNode}.
  *
  * @typeParam T - Тип элемента массива
- * @param control - ArrayNode или undefined
+ * @param control - ModelArrayNode или undefined
  * @returns Состояние массива {@link ArrayControlState}
  *
  * @group React Hooks
@@ -148,7 +148,7 @@ export function useFormControl<T extends object>(
 export function useFormControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T>;
 
 /**
- * React-хук для подписки на состояние формы (FieldNode или ArrayNode).
+ * React-хук для подписки на состояние формы (FieldNode или ModelArrayNode).
  *
  * Обеспечивает реактивную связь между состоянием формы и React-компонентами.
  * Использует `useSyncExternalStore` для оптимальной интеграции с React 18+
@@ -169,8 +169,8 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * Для подписки только на значение используйте {@link useFormControlValue} -
  * это предотвратит лишние ре-рендеры при изменении других свойств.
  *
- * @typeParam T - Тип значения (для FieldNode) или элемента (для ArrayNode)
- * @param control - FieldNode, ArrayNode или undefined
+ * @typeParam T - Тип значения (для FieldNode) или элемента (для ModelArrayNode)
+ * @param control - FieldNode, ModelArrayNode или undefined
  * @returns Объект состояния {@link FieldControlState} или {@link ArrayControlState}
  *
  * @example Текстовое поле с валидацией
@@ -293,7 +293,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * }
  *
  * interface AddressListProps {
- *   control: ArrayNode<Address>;
+ *   control: ModelArrayNode<Address>;
  * }
  *
  * function AddressList({ control }: AddressListProps) {
@@ -350,7 +350,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * @example Условный рендеринг с undefined
  * ```tsx
  * interface FormProps {
- *   optionalField?: ArrayNode<string>;
+ *   optionalField?: ModelArrayNode<string>;
  * }
  *
  * function Form({ optionalField }: FormProps) {
@@ -367,7 +367,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  *
  * @see {@link useFormControlValue} - для подписки только на значение
  * @see {@link FieldControlState} - тип состояния для FieldNode
- * @see {@link ArrayControlState} - тип состояния для ArrayNode
+ * @see {@link ArrayControlState} - тип состояния для ModelArrayNode
  *
  * @group React Hooks
  */
@@ -377,7 +377,7 @@ export function useFormControl(
   const isArrayNode = control && 'length' in control && 'map' in control;
 
   // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков (useCallback +
-  // useSignalSubscription), поэтому переключение control между undefined / FieldNode / ArrayNode
+  // useSignalSubscription), поэтому переключение control между undefined / FieldNode / ModelArrayNode
   // НЕ меняет число/порядок хуков (иначе React крашит «Rendered more hooks than previous render»).
   if (!control) {
     // eslint-disable-next-line react-hooks/rules-of-hooks

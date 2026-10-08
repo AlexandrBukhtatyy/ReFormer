@@ -45,6 +45,28 @@
 | `FormSchema<T>`, `GroupNodeConfig<T>` | `FormSchemaNode`                          | Схема — дерево узлов, а не запись по полям      |
 | `ValidatorFn`, `AsyncValidatorFn`, `Validator<TForm, TField>` | `Rule<T>`, `AsyncRule<T>` из `@reformer/core/validation` | Правило — функция одного аргумента |
 
+### Удалено: подписки на нодах, доступ по строковому пути, псевдонимы
+
+Реакции живут на слое модели (`defineFormBehavior`), поле берётся через прокси формы, у каждой
+операции одно имя.
+
+| Wrong                            | Correct                                          | Notes                                          |
+| -------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
+| `field.watch(cb)`, `form.watchField('email', cb)`, `form.watchFieldByPath(path, cb)` | `onChange(model.$.email, cb)` в `defineFormBehavior`; вне поведения — `watchField(model.$.email, cb)` из `@reformer/core/model` | Подписок на ноде нет |
+| `field.computeFrom(sources, fn)`, `form.linkFields('a', 'b', fn)` | `compute(model.$.b, () => fn(model.a))` в `defineFormBehavior` | Вычисляемое значение — оператор поведения |
+| `field.dispose()`                | —                                                | У ноды поля нет подписок; `dispose()` есть у формы и у ноды массива |
+| `form.getFieldByPath('address.city')`, `form.getField('email')` | `form.address.city`, `form.email`; имя, занятое членом ноды, — `form.$.value` | Строковых путей к нодам нет |
+| `form.getAllFields()`            | `form.fields.values()`                           | Карта «имя поля → нода» — `form.fields`        |
+| `form.touchAll()`                | `form.markAsTouched()`                           | Отметка каскадная: уходит во все вложенные поля |
+| `form.resetToInitial()`, `field.resetToInitial()` | `form.reset()` — к значениям создания формы; `model.reset()` — к точке отсчёта модели | См. `28-submit-and-reset.md` |
+| `form.submitWithResult(handler)`, `SubmitResult` | `await validateModel(model, schema)`, затем `form.submit(handler)` | Валидность проверяется до отправки |
+| `getNodeType(node)`              | `isFieldNode` / `isGroupNode` / `isArrayNode`    | Вид ноды — гардами типов                       |
+| `each(model.items, (item) => …)` | `applyEach(model.$.items, itemRules)`            | Правила строки — отдельная схема над элементом |
+| `import { cross } from '@reformer/core/validation'` | `defineValidationSchema(({ model, cross }) => …)` | `cross` — только из аргумента схемы |
+| `createCoreForm`, `CreateCoreFormConfig` | `createForm`, `CreateFormConfig`         | Сборка одна                                    |
+| `FormArrayProxy<T>`              | `ModelArrayNode<T>`                              | Псевдоним типа удалён                          |
+| `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | — | Внутренние детали, из пакета не экспортируются |
+
 ### Прежние ключи узла схемы
 
 | Wrong                            | Correct                                          | Notes                                          |

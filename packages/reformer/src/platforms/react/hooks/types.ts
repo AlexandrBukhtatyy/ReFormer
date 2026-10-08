@@ -221,7 +221,7 @@ export interface FieldControlState<T> {
 }
 
 /**
- * Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link ArrayNode}.
+ * Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link ModelArrayNode}.
  *
  * Содержит реактивные данные массива: значения элементов, длину, состояние валидации
  * и флаги взаимодействия.
@@ -236,7 +236,7 @@ export interface FieldControlState<T> {
  * }
  *
  * interface Props {
- *   control: ArrayNode<Phone>;
+ *   control: ModelArrayNode<Phone>;
  * }
  *
  * function PhoneList({ control }: Props) {
@@ -363,7 +363,7 @@ export interface ArrayControlState<T> {
 
   /**
    * Флаг отключения массива.
-   * `true` когда массив отключён (`ArrayNode.disable()`), в том числе через
+   * `true` когда массив отключён (`ModelArrayNode.disable()`), в том числе через
    * распространение disable от родительской группы.
    *
    * Используйте для отключения UI-действий добавления/удаления, когда массив

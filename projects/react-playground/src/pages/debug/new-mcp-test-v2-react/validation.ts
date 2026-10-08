@@ -15,7 +15,6 @@
 import type { FormValidation, ValidationError } from '@reformer/core';
 import {
   applyEach,
-  cross,
   defineValidationSchema,
   validate,
   validateWhen,
@@ -180,7 +179,7 @@ const paymentToIncome = (f: Root): ValidationError | null => {
 // Шаг 1 — основная информация о кредите
 // --------------------------------------------------------------------------------------------
 
-const step1 = defineValidationSchema<Root>(({ model }) => {
+const step1 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
   validate(model.$.loanAmount, [
     required({ message: 'Укажите сумму кредита' }),
@@ -241,7 +240,7 @@ const step1 = defineValidationSchema<Root>(({ model }) => {
 // Шаг 2 — персональные данные
 // --------------------------------------------------------------------------------------------
 
-const step2 = defineValidationSchema<Root>(({ model }) => {
+const step2 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.personalData.lastName, [required({ message: 'Укажите фамилию' })]);
   validate(model.$.personalData.firstName, [required({ message: 'Укажите имя' })]);
   validate(model.$.personalData.middleName, [required({ message: 'Укажите отчество' })]);
@@ -322,7 +321,7 @@ const step3 = defineValidationSchema<Root>(({ model }) => {
 // Шаг 4 — занятость и доход
 // --------------------------------------------------------------------------------------------
 
-const step4 = defineValidationSchema<Root>(({ model }) => {
+const step4 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.employmentStatus, [required({ message: 'Укажите статус занятости' })]);
 
   validateWhen(
@@ -403,7 +402,7 @@ const propertyRules = defineValidationSchema<PropertyItem>(({ model: im }) => {
   ]);
 });
 
-const existingLoanRules = defineValidationSchema<ExistingLoanItem>(({ model: im }) => {
+const existingLoanRules = defineValidationSchema<ExistingLoanItem>(({ model: im, cross }) => {
   validate(im.$.bank, [required({ message: 'Укажите банк' })]);
   validate(im.$.type, [required({ message: 'Укажите тип кредита' })]);
   validate(im.$.amount, [

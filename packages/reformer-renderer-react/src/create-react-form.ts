@@ -7,7 +7,7 @@
  * дерево С формой в `createForm` роняет harvest переполнением стека (прокси самоссылочен),
  * а дерево БЕЗ формы в рендере оставляет визард без источника значений — без единой ошибки.
  *
- * Конфиг общий с `createCoreForm` (`@reformer/core`) и `createJsonForm`
+ * Конфиг общий с `createForm` (`@reformer/core`) и `createJsonForm`
  * (`@reformer/renderer-json`); отличие — билдер схемы и `renderBehavior`.
  *
  * @module reformer/renderer-react/create-react-form
@@ -25,7 +25,7 @@ import type { RenderNode } from './core/types';
 import type { RenderBehaviorFn } from './core/render-behavior';
 import { createRenderSchema, type RenderSchemaProxy } from './core/render-schema-proxy';
 
-/** Результат {@link createReactForm}: бандл `createCoreForm` + готовая к рендеру схема. */
+/** Результат {@link createReactForm}: модель, форма, валидация + готовая к рендеру схема. */
 export interface ReactForm<T> extends CoreForm<T> {
   /** Схема для `<FormRenderer form={…} />` — с уже наложенным render-behavior. */
   render: RenderSchemaProxy<T>;

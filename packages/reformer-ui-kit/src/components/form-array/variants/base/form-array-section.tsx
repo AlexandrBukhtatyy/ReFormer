@@ -1,8 +1,8 @@
 /**
  * FormArraySection — переиспользуемый wrapper для FormArray управления.
  *
- * `control` принимает `FormArrayProxy<T>` или уже-резолвленный `ArrayNode<T>`/`ModelArrayNode<T>`
- * (M1). `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
+ * `control` принимает ноду массива под-форм — `ModelArrayNode<T>` (`form.<массив>`).
+ * `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
  *
  * Маркер `__selfManagedChildren = true` гарантирует автоинъекцию `form` +
  * `fieldWrapper` от родителя-renderer'а.
@@ -145,7 +145,7 @@ function resolveArrayNode<T extends object>(
     return control;
   }
   if (typeof console !== 'undefined') {
-    console.warn('[FormArraySection] control is not an ArrayNode/FormArrayProxy.');
+    console.warn('[FormArraySection] control is not a ModelArrayNode.');
   }
   return null;
 }
@@ -156,8 +156,8 @@ function resolveArrayNode<T extends object>(
  * «Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
  * удаления и перестановки ↑/↓) и сообщение пустого состояния.
  *
- * `control` принимает `FormArrayProxy<T>` или уже-резолвленный
- * `ArrayNode<T>`/`ModelArrayNode<T>`. `itemComponent` — единственная форма
+ * `control` принимает ноду массива под-форм — `ModelArrayNode<T>`
+ * (`form.<массив>`). `itemComponent` — единственная форма
  * рендера элемента: `ComponentType<{ control: FormProxy<T> }>` (тот же контракт,
  * что у шага {@link FormWizardStep}). Внутри `RenderNodeComponent` проп `form`
  * инъектится автоматически (маркер `__selfManagedChildren`).

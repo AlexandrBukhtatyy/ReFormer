@@ -82,7 +82,7 @@ async function renderChoice(
   rule: DecisionRule,
   requirement: string
 ): Promise<string> {
-  const sym = await findOneSymbol(k, rule.recommend);
+  const sym = await findOneSymbol(k, rule.declaredIn ?? rule.recommend);
   const lines: string[] = [];
 
   lines.push(`# choose_api: \`${rule.recommend}\``);

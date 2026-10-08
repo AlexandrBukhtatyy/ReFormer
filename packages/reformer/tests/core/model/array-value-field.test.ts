@@ -201,8 +201,8 @@ describe('поле формы над массивом', () => {
     const form = build(model);
 
     // `backup` в схеме не упомянут, `rows` — набор под-форм без item-схемы.
-    expect(form.getFieldByPath('backup')).toBeUndefined();
-    expect(form.getFieldByPath('rows')).toBeUndefined();
+    expect(form.fields.has('backup')).toBe(false);
+    expect(form.fields.has('rows')).toBe(false);
   });
 
   it('массив с item-схемой остаётся набором под-форм, даже если к нему привязали компонент', () => {

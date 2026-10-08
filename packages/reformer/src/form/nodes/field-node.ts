@@ -7,12 +7,10 @@
  * @group Nodes
  */
 
-import { signal, computed, effect } from '@preact/signals-core';
+import { signal, computed } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import type { FieldConfig, FieldStatus, ValidationError } from '../types/index';
-import { SubscriptionManager } from './subscription-manager';
-import { uniqueId, SubscriptionKey } from '../unique-id';
 import { FormStatusMachine } from '../status-machine';
 
 /**
@@ -78,16 +76,14 @@ export class FieldNode<T> extends FormNode<T> {
   // Конфигурация
   // ============================================================================
 
-  private initialValue: T;
+  /**
+   * Значение, с которым создана нода, — к нему возвращает {@link FieldNode.reset} без аргумента.
+   * Это не точка отсчёта модели: `model.captureInitial()` его не меняет.
+   */
+  private readonly defaultValue: T;
 
   /** Сколько прогонов валидации сейчас ждут async-правила этого поля. */
   private pendingRuns = 0;
-
-  /**
-   * Менеджер подписок для централизованного cleanup
-   * Использует SubscriptionManager вместо массива для управления подписками
-   */
-  private disposers = new SubscriptionManager();
 
   public readonly component: FieldConfig<T>['component'];
 
@@ -102,8 +98,8 @@ export class FieldNode<T> extends FormNode<T> {
 
     // Нода не владеет значением: источник истины — сигнал модели.
     this._value = config.valueSignal;
-    // initialValue — снимок значения на момент построения (для reset/resetToInitial)
-    this.initialValue = this._value.peek();
+    // Снимок значения на момент построения — к нему возвращает reset() без аргумента.
+    this.defaultValue = this._value.peek();
     this._errors = signal<ValidationError[]>([]);
     // _touched, _dirty инициализируются в FormNode
     this._componentProps = signal(config.componentProps || {});
@@ -147,43 +143,13 @@ export class FieldNode<T> extends FormNode<T> {
   }
 
   /**
-   * Сбросить поле к указанному значению (или к initialValue)
+   * Сбросить поле: значение, ошибки и флаги touched / dirty.
    *
-   * @param value - опциональное значение для сброса. Если не указано, используется initialValue
+   * Без аргумента значение возвращается к тому, с которым нода создана. Это значение формы «с
+   * чистого листа», а не точка отсчёта модели: после загрузки данных и `model.captureInitial()`
+   * к загруженным значениям возвращает `model.reset()`, а не этот метод.
    *
-   * @remarks
-   * Этот метод:
-   * - Устанавливает значение в value или initialValue
-   * - Очищает ошибки валидации
-   * - Сбрасывает touched/dirty флаги
-   * - Устанавливает статус в 'valid'
-   *
-   * Если вам нужно сбросить к исходному значению, используйте resetToInitial()
-   *
-   * @example
-   * ```typescript
-   * // Сброс к initialValue
-   * field.reset();
-   *
-   * // Сброс к новому значению
-   * field.reset('new value');
-   * ```
-   */
-  reset(value?: T): void {
-    this._value.value = value !== undefined ? value : this.initialValue;
-    this._errors.value = [];
-    this._touched.value = false;
-    this._dirty.value = false;
-    this.syncStatus();
-  }
-
-  /**
-   * Сбросить поле к исходному значению (initialValue)
-   *
-   * @remarks
-   * Алиас для reset() без параметров, но более явный:
-   * - resetToInitial() - явно показывает намерение вернуться к начальному значению
-   * - reset() - может принимать новое значение
+   * @param value - значение для сброса; не задано — значение, с которым создана нода
    *
    * @example
    * ```typescript
@@ -191,15 +157,16 @@ export class FieldNode<T> extends FormNode<T> {
    * const field = new FieldNode({ valueSignal: model.$.name });
    *
    * field.setValue('changed');
-   * field.reset('temp value');
-   * console.log(field.value.value); // 'temp value'
-   *
-   * field.resetToInitial();
-   * console.log(field.value.value); // 'initial'
+   * field.reset('temp value'); // 'temp value'
+   * field.reset(); // 'initial'
    * ```
    */
-  resetToInitial(): void {
-    this.reset(this.initialValue);
+  reset(value?: T): void {
+    this._value.value = value !== undefined ? value : this.defaultValue;
+    this._errors.value = [];
+    this._touched.value = false;
+    this._dirty.value = false;
+    this.syncStatus();
   }
 
   /**
@@ -288,111 +255,5 @@ export class FieldNode<T> extends FormNode<T> {
       ...this._componentProps.value,
       ...props,
     };
-  }
-
-  // ============================================================================
-  // Методы-помощники для реактивности (Фаза 1)
-  // ============================================================================
-
-  /**
-   * Подписка на изменения значения поля
-   * Автоматически отслеживает изменения через @preact/signals effect
-   *
-   * @param callback - Функция, вызываемая при изменении значения.
-   *   Для async операций передается AbortSignal во втором параметре.
-   * @returns Функция отписки для cleanup
-   *
-   * @example
-   * ```typescript
-   * // Синхронный callback
-   * const unsubscribe = form.email.watch((value) => {
-   *   console.log('Email changed:', value);
-   * });
-   *
-   * // Асинхронный callback с поддержкой отмены
-   * const unsubscribe = form.email.watch(async (value, signal) => {
-   *   const result = await fetch('/api/validate', { signal });
-   *   // ...
-   * });
-   *
-   * // Cleanup
-   * useEffect(() => unsubscribe, []);
-   * ```
-   */
-  watch(callback: (value: T, signal: AbortSignal) => void | Promise<void>): () => void {
-    // AbortController для отмены async операций при dispose
-    const abortController = new AbortController();
-
-    const dispose = effect(() => {
-      const currentValue = this.value.value; // track changes
-      callback(currentValue, abortController.signal);
-    });
-
-    // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = uniqueId(SubscriptionKey.Watch);
-    return this.disposers.add(key, () => {
-      // Отменяем async операции перед dispose
-      abortController.abort();
-      dispose();
-    });
-  }
-
-  /**
-   * Вычисляемое значение из других полей
-   * Автоматически обновляет текущее поле при изменении источников
-   *
-   * @param sources - Массив ReadonlySignal для отслеживания
-   * @param computeFn - Функция вычисления нового значения
-   * @returns Функция отписки для cleanup
-   *
-   * @example
-   * ```typescript
-   * // Автоматический расчет первоначального взноса (20% от стоимости)
-   * const dispose = form.initialPayment.computeFrom(
-   *   [form.propertyValue.value],
-   *   (propertyValue) => {
-   *     return propertyValue ? propertyValue * 0.2 : null;
-   *   }
-   * );
-   *
-   * // Cleanup
-   * useEffect(() => dispose, []);
-   * ```
-   */
-  computeFrom<TSource extends readonly unknown[]>(
-    sources: ReadonlySignal<TSource[number]>[],
-    computeFn: (...values: TSource) => T
-  ): () => void {
-    const dispose = effect(() => {
-      // Читаем все источники для отслеживания
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sourceValues = sources.map((source) => source.value) as any as TSource;
-
-      // Вычисляем новое значение
-      const newValue = computeFn(...sourceValues);
-
-      this.setValue(newValue);
-    });
-
-    // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = uniqueId(SubscriptionKey.ComputeFrom);
-    return this.disposers.add(key, dispose);
-  }
-
-  /**
-   * Очистить все ресурсы
-   * Должен вызываться при unmount компонента
-   *
-   * @example
-   * ```typescript
-   * useEffect(() => {
-   *   return () => {
-   *     field.dispose();
-   *   };
-   * }, []);
-   * ```
-   */
-  dispose(): void {
-    this.disposers.dispose();
   }
 }

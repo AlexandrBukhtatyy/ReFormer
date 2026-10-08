@@ -34,7 +34,7 @@ import type { FormBehavior } from './behaviors';
 import type { SchemaController } from './schema-controller';
 
 /**
- * Аргументы createForm под архитектуру M1: данные приходят из {@link FormModel},
+ * Аргументы сборки формы из модели: данные приходят из {@link FormModel},
  * конфиг полей (component/componentProps) — из единой схемы.
  *
  * @group Utilities
@@ -284,7 +284,7 @@ function buildGroupNode(
   }
 
   const group = new GroupNode<unknown>(fields);
-  // F9: связать листовую ноду с её сигналом модели на ВЛАДЕЮЩЕЙ группе, чтобы bulk-set/patch
+  // Связать листовую ноду с её сигналом модели на ВЛАДЕЮЩЕЙ группе, чтобы bulk-set/patch
   // (GroupNode.setValue/patchValue) сверял derived-guard с записываемым сигналом, а не с
   // computed-обёрткой field.value (которую markDerived никогда не помечает).
   for (const [node, signal] of leaves) group.registerFieldSignal(node, signal);
@@ -292,7 +292,7 @@ function buildGroupNode(
 }
 
 /**
- * Собрать форму из {@link FormModel} и единой схемы (низкоуровневая фабрика архитектуры M1).
+ * Собрать форму из {@link FormModel} и единой схемы (низкоуровневая фабрика).
  *
  * Значения принадлежат модели (источник истины), ноды формы держат UI/валидационное состояние и
  * ссылаются на сигналы модели по идентичности. Обходит структуру модели и строит ноды по виду её

@@ -1,9 +1,9 @@
 /**
- * Реестр «ручка модели → нода формы» (M1).
+ * Реестр «ручка модели → нода формы».
  *
- * Заменяет навигацию по строковому пути (`FieldPathNavigator`) для state-операций behavior
- * (`enableWhen`/`disableWhen`), подключения под-схем (`apply`/`applyEach`) и in-form роутинга ошибок
- * валидации. Заполняется в `createForm` при сборке формы из модели.
+ * По нему находят ноду state-операции behavior (`enableWhen`/`disableWhen`), подключение
+ * под-схем (`apply`/`applyEach`) и разнос ошибок валидации. Заполняется в `createForm` при сборке
+ * формы из модели.
  *
  * Ключ — ИДЕНТИЧНОСТЬ ручки дерева `model.$`, а не путь: сигнал листа, узел-массив или узел-группа.
  * Путь для этого не годится: он абсолютный (`items.0.phones`) и меняется при перестановке строк, а
@@ -33,9 +33,9 @@ const registry = new WeakMap<object, FormNode<any>>();
  * ```typescript
  * import { registerSignalNode } from '@reformer/core';
  *
- * const sig = model.signalAt('profile.email');
- * const node = group.getFieldByPath('profile.email');
- * if (sig && node) registerSignalNode(sig, node);
+ * const sig = model.$.profile.email;
+ * const node = new FieldNode({ valueSignal: sig });
+ * registerSignalNode(sig, node);
  * ```
  *
  * @see {@link getNodeForSignal} - обратный поиск ноды по ручке

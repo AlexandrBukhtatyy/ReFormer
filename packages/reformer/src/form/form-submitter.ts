@@ -37,18 +37,6 @@ export interface SubmitOptions {
 }
 
 /**
- * Результат submit
- */
-export interface SubmitResult<R> {
-  /** Успешно ли выполнен submit */
-  success: boolean;
-  /** Результат от onSubmit callback */
-  data: R | null;
-  /** Ошибка, если submit не удался */
-  error?: Error;
-}
-
-/**
  * FormSubmitter - управляет процессом отправки формы
  *
  * @example
@@ -92,9 +80,9 @@ export class FormSubmitter<T extends object> {
    * @returns Результат от onSubmit или `null` если валидация не пройдена
    *
    * @remarks
-   * Возвращаемый `null` неоднозначен: он сигналит и провал валидации, и легитимный `null`,
-   * который вернул `onSubmit` (или void-обработчик). Чтобы различать эти случаи, используйте
-   * {@link submitWithResult} — он отдаёт явный флаг `success`.
+   * Возвращаемый `null` неоднозначен: он сигналит и блокирующие ошибки на полях, и легитимный
+   * `null`, который вернул `onSubmit` (или void-обработчик). Чтобы различать эти случаи,
+   * проверяйте валидность до отправки — `validation.validateAll()` сборки либо `validateModel`.
    *
    * @example
    * ```typescript
@@ -136,65 +124,6 @@ export class FormSubmitter<T extends object> {
     try {
       const result = await onSubmit(this.form.getValue());
       return result;
-    } finally {
-      this._submitting.value = false;
-    }
-  }
-
-  /**
-   * Отправить форму с расширенным результатом
-   *
-   * В отличие от submit(), возвращает объект с информацией об успехе/ошибке
-   *
-   * @param onSubmit - Callback для отправки данных
-   * @param options - Опции submit
-   * @returns Объект SubmitResult с данными и статусом
-   *
-   * @example
-   * ```typescript
-   * const result = await submitter.submitWithResult(async (values) => {
-   *   return await api.saveForm(values);
-   * });
-   *
-   * if (result.success) {
-   *   console.log('Сохранено:', result.data);
-   * } else if (result.error) {
-   *   console.error('Ошибка:', result.error.message);
-   * } else {
-   *   console.log('Валидация не пройдена');
-   * }
-   * ```
-   */
-  async submitWithResult<R>(
-    onSubmit: (values: T) => Promise<R> | R,
-    options?: SubmitOptions
-  ): Promise<SubmitResult<R>> {
-    const { skipValidation = false, skipTouch = false } = options || {};
-
-    // Помечаем все поля как touched
-    if (!skipTouch) {
-      this.form.markAsTouched();
-    }
-
-    // Валидируем форму
-    if (!skipValidation) {
-      const isValid = await this.form.validate();
-      if (!isValid) {
-        return { success: false, data: null };
-      }
-    }
-
-    this._submitting.value = true;
-
-    try {
-      const data = await onSubmit(this.form.getValue());
-      return { success: true, data };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        error: error instanceof Error ? error : new Error(String(error)),
-      };
     } finally {
       this._submitting.value = false;
     }

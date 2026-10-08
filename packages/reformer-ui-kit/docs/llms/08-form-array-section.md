@@ -37,7 +37,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 
 // Generic выводится из control:
 <FormArraySection
-  control={form.properties}                  // FormArrayProxy<Property>
+  control={form.properties}                  // ModelArrayNode<Property>
   itemComponent={PropertyForm}
   title="Имущество"
   addButtonLabel="+ Добавить имущество"
@@ -160,7 +160,7 @@ defineRegistry((reg) => {
 
 | Prop                 | Type                                                         | Default                              | Описание                                                           |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
-| `control`            | `FormArrayProxy<T> \| ArrayNode<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
+| `control`            | `ModelArrayNode<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
 | `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                             | FC для рендера каждого item                                        |
 | `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
 | `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                    | Метка над каждым item                                              |

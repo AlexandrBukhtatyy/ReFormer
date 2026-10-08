@@ -128,7 +128,7 @@ export function makeFormModel(group: GroupNode): any {
     {},
     {
       get: (_t, key) => {
-        // Паритет с прежним groupValueProxy: путь группы читаем и на под-модели (не enumerable — см. ownKeys ниже).
+        // Путь группы читаем и на под-модели (не enumerable — см. ownKeys ниже).
         if (key === '__path') return group.path;
         if (typeof key !== 'string') return undefined;
         // Поле формы затеняет одноимённый метод API (редкий краевой случай).
@@ -222,7 +222,7 @@ export function modelOf<V extends object | null | undefined>(handle: { peek(): V
  *
  * @internal
  */
-export function signalsOf(facade: unknown): object | undefined {
+function signalsOf(facade: unknown): object | undefined {
   if (facade == null || typeof facade !== 'object') return undefined;
   const array = arrayByFacade.get(facade);
   if (array) return signalsProxy(array);

@@ -1,7 +1,7 @@
 /**
  * Утилита для создания агрегированных сигналов контейнерных узлов
  *
- * Устраняет дублирование кода между GroupNode и ArrayNode
+ * Устраняет дублирование кода между GroupNode и ModelArrayNode
  * для computed signals: valid, invalid, pending, touched, dirty, errors, status
  *
  * @module form/aggregate-signals
@@ -52,7 +52,7 @@ export interface AggregateSignalsOptions<T> {
 /**
  * Создать агрегированные computed signals для контейнерного узла
  *
- * Используется в GroupNode и ArrayNode для унификации логики
+ * Используется в GroupNode и ModelArrayNode для унификации логики
  * вычисления состояния на основе дочерних узлов.
  *
  * @param options - Опции конфигурации
@@ -70,7 +70,7 @@ export interface AggregateSignalsOptions<T> {
  * // ...
  * ```
  *
- * @example ArrayNode
+ * @example ModelArrayNode
  * ```typescript
  * const signals = createAggregateSignals({
  *   getChildren: () => this.items.value,

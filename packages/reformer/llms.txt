@@ -505,8 +505,7 @@ const signupValidation = defineValidationSchema<Signup>(({ model, cross }) => {
 });
 ```
 
-> Свободный `cross`, импортированный из `@reformer/core/validation`, оставлен для совместимости и
-> помечен `@deprecated`: тип снимка у него не выводится. Бери `cross` из аргумента схемы.
+> `cross` берётся только из аргумента схемы: из `@reformer/core/validation` он не импортируется.
 
 ### Conditional & array validation
 
@@ -2380,6 +2379,28 @@ function ShadcnFormField({ control }: { control: FieldNode<string> }) {
 | `FormSchema<T>`, `GroupNodeConfig<T>` | `FormSchemaNode`                          | Схема — дерево узлов, а не запись по полям      |
 | `ValidatorFn`, `AsyncValidatorFn`, `Validator<TForm, TField>` | `Rule<T>`, `AsyncRule<T>` из `@reformer/core/validation` | Правило — функция одного аргумента |
 
+### Удалено: подписки на нодах, доступ по строковому пути, псевдонимы
+
+Реакции живут на слое модели (`defineFormBehavior`), поле берётся через прокси формы, у каждой
+операции одно имя.
+
+| Wrong                            | Correct                                          | Notes                                          |
+| -------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
+| `field.watch(cb)`, `form.watchField('email', cb)`, `form.watchFieldByPath(path, cb)` | `onChange(model.$.email, cb)` в `defineFormBehavior`; вне поведения — `watchField(model.$.email, cb)` из `@reformer/core/model` | Подписок на ноде нет |
+| `field.computeFrom(sources, fn)`, `form.linkFields('a', 'b', fn)` | `compute(model.$.b, () => fn(model.a))` в `defineFormBehavior` | Вычисляемое значение — оператор поведения |
+| `field.dispose()`                | —                                                | У ноды поля нет подписок; `dispose()` есть у формы и у ноды массива |
+| `form.getFieldByPath('address.city')`, `form.getField('email')` | `form.address.city`, `form.email`; имя, занятое членом ноды, — `form.$.value` | Строковых путей к нодам нет |
+| `form.getAllFields()`            | `form.fields.values()`                           | Карта «имя поля → нода» — `form.fields`        |
+| `form.touchAll()`                | `form.markAsTouched()`                           | Отметка каскадная: уходит во все вложенные поля |
+| `form.resetToInitial()`, `field.resetToInitial()` | `form.reset()` — к значениям создания формы; `model.reset()` — к точке отсчёта модели | См. `28-submit-and-reset.md` |
+| `form.submitWithResult(handler)`, `SubmitResult` | `await validateModel(model, schema)`, затем `form.submit(handler)` | Валидность проверяется до отправки |
+| `getNodeType(node)`              | `isFieldNode` / `isGroupNode` / `isArrayNode`    | Вид ноды — гардами типов                       |
+| `each(model.items, (item) => …)` | `applyEach(model.$.items, itemRules)`            | Правила строки — отдельная схема над элементом |
+| `import { cross } from '@reformer/core/validation'` | `defineValidationSchema(({ model, cross }) => …)` | `cross` — только из аргумента схемы |
+| `createCoreForm`, `CreateCoreFormConfig` | `createForm`, `CreateFormConfig`         | Сборка одна                                    |
+| `FormArrayProxy<T>`              | `ModelArrayNode<T>`                              | Псевдоним типа удалён                          |
+| `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | — | Внутренние детали, из пакета не экспортируются |
+
 ### Прежние ключи узла схемы
 
 | Wrong                            | Correct                                          | Notes                                          |
@@ -4056,6 +4077,12 @@ A: `reset()` возвращает к initial-снимку (значения на
 меняют initial. Чтобы сделать загруженные данные новой «точкой отсчёта» — вызови
 `model.captureInitial()` после загрузки.
 
+**Q: Чем `form.reset()` отличается от `model.reset()`?**
+A: `model.reset()` возвращает значения к точке отсчёта модели — initial-снимку либо последнему
+`model.captureInitial()`. `form.reset()` сбрасывает ноды: ошибки, флаги touched / dirty и значения
+— к тем, с которыми форма создана, то есть к «чистому листу», а не к загруженным данным. После
+загрузки данных и `captureInitial()` к ним возвращает `model.reset()`.
+
 **Q: Disabled-поля участвуют в submit-данных?**
 A: `model.get()` возвращает значения всех полей. Фильтруй вручную после `get()` или используй
 `enableWhen({ resetOnDisable: true })`, чтобы при disable поле возвращалось к initial.
@@ -5198,8 +5225,8 @@ const source = () => ({ weekStartsOn: 1, messages: {} });
 (билдер или документ) и тем, кто рисует результат.
 
 Прежние записи узла — ключи `value` / `array` и запись «имя поля → узел» — удалены: тип узла
-закрыт, сборка их не читает. Оператор `each`, свободный `cross` и имя `createCoreForm` пока
-принимаются; новый код пишется так, как описано здесь.
+закрыт, сборка их не читает. Удалены и оператор `each`, свободный `cross` и имя `createCoreForm`:
+их заменяют `applyEach` со схемой строки, `cross` из аргумента схемы и `createForm`.
 
 | Слой      | поле                              | массив под-форм                           | подформа                              |
 | --------- | --------------------------------- | ----------------------------------------- | ------------------------------------- |
@@ -5340,10 +5367,8 @@ export const contactsRules = defineValidationSchema<CreditForm>(({ model }) => {
   сверяется с типом поля; набор правил объявляют типом поля (`Rule<LoanType>[]`,
   `Rule<number | null>[]`).
 - `ValidationError.message` необязателен: без него текст берётся из словаря локали по коду.
-- Свободный `cross` из `@reformer/core/validation` помечен `@deprecated`: тип снимка у него не
-  выводится.
-- `each(model.items, (item) => …)` — прежняя запись `applyEach`: принимает фасад и ручку, области
-  не создаёт.
+- `cross` берётся только из аргумента схемы: свободного оператора с таким именем в
+  `@reformer/core/validation` нет. Нет и `each` — правила строки подключает `applyEach`.
 
 ### Результат прогона
 
@@ -5581,7 +5606,7 @@ _Source: src/form/validation/run.ts_
 
 **Kind:** `interface`
 
-Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link ArrayNode}.
+Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link ModelArrayNode}.
 
 Содержит реактивные данные массива: значения элементов, длину, состояние валидации
 и флаги взаимодействия.
@@ -5682,7 +5707,7 @@ export interface ArrayControlState<T> {
 
   /**
    * Флаг отключения массива.
-   * `true` когда массив отключён (`ArrayNode.disable()`), в том числе через
+   * `true` когда массив отключён (`ModelArrayNode.disable()`), в том числе через
    * распространение disable от родительской группы.
    *
    * Используйте для отключения UI-действий добавления/удаления, когда массив
@@ -5709,7 +5734,7 @@ number: string;
 }
 
 interface Props {
-control: ArrayNode<Phone>;
+control: ModelArrayNode<Phone>;
 }
 
 function PhoneList({ control }: Props) {
@@ -5742,23 +5767,6 @@ Add Phone
 - {@link FieldControlState} - состояние для полей
 
 _Source: src/platforms/react/hooks/types.ts_
-
-### ArrayNodeLike
-
-**Kind:** `interface`
-
-Интерфейс для узлов-массивов (с методом at)
-Используется для duck typing при обходе путей
-
-**Signature:**
-```typescript
-export interface ArrayNodeLike {
-  at(index: number): FormNode<unknown> | undefined;
-  length: unknown;
-}
-```
-
-_Source: src/form/types/index.ts_
 
 ### arrayOf
 
@@ -6096,7 +6104,7 @@ _Source: src/runtime-token.ts_
 
 **Kind:** `interface`
 
-Результат {@link createCoreForm}: модель, форма и (если заданы правила) собранная валидация.
+Общая часть результата фабрик: модель, форма и (если заданы правила) собранная валидация.
 
 **Signature:**
 ```typescript
@@ -6107,61 +6115,7 @@ export interface CoreForm<T> {
 }
 ```
 
-_Source: src/form/create-core-form.ts_
-
-### createCoreForm
-
-**Kind:** `function`
-
-Собрать модель, форму и валидацию за один проход.
-
-**Signature:**
-```typescript
-export function createCoreForm<T extends object>(config: CreateCoreFormConfig<T>): CoreForm<T>
-```
-
-**Parameters:**
-- `config` — - {@link CreateCoreFormConfig}: (`initial` | `model`) + опц. `schema`, `behavior`,
-`validation`, `seed`, `setup`.
-
-**Returns:** 
-
-**Examples:**
-
-```tsx
-const credit = useFormBundle(() =>
-  createCoreForm<CreditForm>({
-    model: createCreditModel(),
-    schema: buildCreditSchema,
-    behavior: creditBehavior,
-    validation: { steps: { loan: loanRules, confirm: null }, extras: crossRules },
-  })
-);
-return <FormWizard form={credit.form} config={credit.validation} steps={STEPS} />;
-```
-
-**Deprecated:** Пишите `createForm` — та же сборка, в бандле вдобавок дерево для рендерера.
-
-_Source: src/form/create-core-form.ts_
-
-### CreateCoreFormConfig
-
-**Kind:** `interface`
-
-Конфиг {@link createCoreForm}.
-
-**Signature:**
-```typescript
-export interface CreateCoreFormConfig<T> extends CreateFormConfigBase<T, CoreForm<T>> {
-  /**
-   * Билдер схемы формы. Именно функция, а не готовое дерево: узлы схемы держат ручки модели
-   * (`model: model.$.email`), поэтому построить дерево до модели нечем.
-   */
-  schema?: (model: FormModel<T>) => FormSchemaNode;
-}
-```
-
-_Source: src/form/create-core-form.ts_
+_Source: src/form/form-config-base.ts_
 
 ### createForm
 
@@ -6274,22 +6228,18 @@ export interface CreateFormConfigBase<T, B> {
    * инициализации не срабатывают).
    */
   seed?: (model: FormModel<T>) => void;
-  /**
-   * Донастройка ПОСЛЕ сборки. Единственное место для правок, которые обязаны идти следом за
-   * сборкой формы: поле, чьё значение уже массив, ноды не получает (см. `buildModelConfig`),
-   * поэтому такой префилл выполняется здесь.
-   */
+  /** Донастройка ПОСЛЕ сборки: получает готовый бандл фабрики. */
   setup?: (bundle: B) => void;
 }
 ```
 
-_Source: src/form/create-core-form.ts_
+_Source: src/form/form-config-base.ts_
 
 ### createFormFromModel
 
 **Kind:** `function`
 
-Собрать форму из {@link FormModel} и единой схемы (низкоуровневая фабрика архитектуры M1).
+Собрать форму из {@link FormModel} и единой схемы (низкоуровневая фабрика).
 
 Значения принадлежат модели (источник истины), ноды формы держат UI/валидационное состояние и
 ссылаются на сигналы модели по идентичности. Обходит структуру модели и строит ноды по виду её
@@ -6350,7 +6300,7 @@ _Source: src/form/create-form.ts_
 
 **Kind:** `interface`
 
-Аргументы createForm под архитектуру M1: данные приходят из {@link FormModel},
+Аргументы сборки формы из модели: данные приходят из {@link FormModel},
 конфиг полей (component/componentProps) — из единой схемы.
 
 **Signature:**
@@ -6534,7 +6484,7 @@ _Source: src/i18n/message-format.ts_
 
 **Kind:** `function`
 
-Создать реактивную модель данных формы (слой M1).
+Создать реактивную модель данных формы.
 
 **Signature:**
 ```typescript
@@ -6589,19 +6539,6 @@ controller.scopeOf(model.items.at(0)); // область строки — сво
 
 _Source: src/form/schema-controller.ts_
 
-### createSchemaOverrideMaps
-
-**Kind:** `function`
-
-Пустое хранилище переопределений области.
-
-**Signature:**
-```typescript
-export function createSchemaOverrideMaps(): SchemaOverrideMaps
-```
-
-_Source: src/form/schema-controller.ts_
-
 ### createSchemaScope
 
 **Kind:** `function`
@@ -6619,26 +6556,6 @@ export function createSchemaScope(
 - `maps` — - Хранилище области; по умолчанию создаётся новое.
 
 _Source: src/form/schema-controller.ts_
-
-### cross
-
-**Kind:** `function`
-
-Cross-field правило: `fn` получает СНАПШОТ модели текущей области (`model.get()`) и вешает
-ошибку на `sig`.
-
-**Signature:**
-```typescript
-export function cross<TSnapshot>(
-  sig: PathAwareSignal<unknown>,
-  fn: (form: TSnapshot) => ValidationError | null
-): void
-```
-
-**Deprecated:** Берите `cross` из аргумента схемы — `({ model, cross }) => …`: тип снимка выводится
-из схемы, и указывать его руками (`cross<Form>(…)`) не нужно.
-
-_Source: src/form/validation/operators.ts_
 
 ### DEFAULT_LOCALE
 
@@ -6759,27 +6676,6 @@ export function disableWhen(
 ```
 
 _Source: src/form/behaviors/operators.ts_
-
-### each
-
-**Kind:** `function`
-
-Применить под-правила к КАЖДОМУ элементу массива — прежняя запись {@link applyEach}.
-
-Колбэк получает под-модель элемента, но области не создаёт: `cross` внутри него видит снапшот
-корня прогона.
-
-**Signature:**
-```typescript
-export function each<U extends object>(
-  arr: ArrayBinding<U> | ModelArray<U>,
-  itemFn: (item: FormModel<U>) => void
-): void
-```
-
-**Deprecated:** Пишите `applyEach(model.$.<массив>, schema)`.
-
-_Source: src/form/validation/operators.ts_
 
 ### eachLeafSignal
 
@@ -7480,42 +7376,6 @@ validate(model.$.documents, [fileType('image/*,.pdf', { message: 'Только �
 
 _Source: src/form/validators/file-type.ts_
 
-### FormArrayProxy
-
-**Kind:** `type`
-
-Узел массива под-форм в типах прокси формы — {@link ModelArrayNode} над массивом модели.
-
-**Signature:**
-```typescript
-export type FormArrayProxy<T extends object> = ModelArrayNode<T>;
-```
-
-**Examples:**
-
-```typescript
-interface TodoItem {
-  title: string;
-  completed: boolean;
-}
-
-const todos: FormArrayProxy<TodoItem> = form.todos;
-
-// Мутации уходят в массив модели
-todos.push({ title: 'New todo', completed: false });
-todos.removeAt(0);
-
-// Доступ к форме строки
-todos.at(0)?.title.setValue('Updated title');
-
-// Итерация
-todos.forEach((item, index) => {
-  console.log(item.title.value.value);
-});
-```
-
-_Source: src/form/types/form-proxy.ts_
-
 ### formatPattern
 
 **Kind:** `function`
@@ -7617,38 +7477,6 @@ export interface FormBundleLike {
 ```
 
 _Source: src/platforms/react/hooks/use-form-bundle.ts_
-
-### FormControlsProxy
-
-**Kind:** `type`
-
-Мапит тип модели данных T на правильные типы узлов формы
-
-Рекурсивно определяет типы узлов на основе структуры данных:
-- `T[K] extends Array<infer U>` где U - объект → `FormArrayProxy<U>`
-- `T[K] extends Array<infer U>` где U - примитив → `FieldNode<T[K]>` (массив как обычное поле)
-- `T[K] extends object` → `FormProxy<T[K]>` (вложенная форма с типизацией)
-- `T[K]` примитив → `FieldNode<T[K]>` (простое поле)
-
-Использует NonNullable для правильной обработки опциональных полей
-
-**Signature:**
-```typescript
-export type FormControlsProxy<T> = {
-  // `-?` снимает опциональность: для каждого поля схемы прокси всегда содержит узел
-  // (включая опциональные поля — у них узел существует, опционально лишь значение).
-  // Без этого `control.optionalField` имел бы тип `FieldNode<...> | undefined`.
-  [K in keyof T]-?: NonNullable<T[K]> extends ReadonlyArray<infer U>
-    ? IsGroupObject<U> extends true
-      ? FormArrayProxy<U & object> // Массив объектов → FormArrayProxy
-      : FieldNode<T[K]> // Массив примитивов → FieldNode
-    : IsGroupObject<NonNullable<T[K]>> extends true
-      ? FormProxy<NonNullable<T[K]>> // Обычный объект → FormProxy (рекурсивно!)
-      : FieldNode<T[K]>; // Примитивы и спец-объекты (Date/File/Blob) → FieldNode
-};
-```
-
-_Source: src/form/types/form-proxy.ts_
 
 ### FormLocale
 
@@ -7842,36 +7670,6 @@ export type FormSchemaNode =
 ```
 
 _Source: src/form/types/schema-node.ts_
-
-### FormSubmitter
-
-**Kind:** `class`
-
-FormSubmitter - управляет процессом отправки формы
-
-**Signature:**
-```typescript
-export class FormSubmitter<T extends object> {
-  /** Внутренний сигнал состояния отправки */ /* … */ }
-```
-
-**Examples:**
-
-```typescript
-const submitter = new FormSubmitter(form);
-
-// Простой submit
-const result = await submitter.submit(async (values) => {
-  return await api.saveForm(values);
-});
-
-// Проверка состояния
-if (submitter.submitting.value) {
-  console.log('Форма отправляется...');
-}
-```
-
-_Source: src/form/form-submitter.ts_
 
 ### FormValidation
 
@@ -8104,32 +7902,6 @@ getNodeForSignal(model.$.phones[0])?.markAsTouched(); // форма строки
 - {@link registerSignalNode} - регистрация связи ручка→нода
 
 _Source: src/form/signal-node-registry.ts_
-
-### getNodeType
-
-**Kind:** `function`
-
-Получить тип узла как строку (для отладки)
-
-Полезно для логирования и отладки
-
-**Signature:**
-```typescript
-export function getNodeType(node: unknown): string
-```
-
-**Parameters:**
-- `node` — - Узел для проверки
-
-**Returns:** Строковое название типа узла
-
-**Examples:**
-
-```typescript
-console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
-```
-
-_Source: src/form/type-guards.ts_
 
 ### getScope
 
@@ -8571,8 +8343,8 @@ _Source: src/form/type-guards.ts_
 
 Проверить, является ли значение GroupNode (объект с вложенными полями)
 
-GroupNode представляет объект с вложенными полями формы: имеет навигацию по полям
-(`getFieldByPath`/`fields`) и НЕ имеет array-методов (`items`/`push`/`removeAt`).
+GroupNode представляет объект с вложенными полями формы: держит карту нод детей (`fields`)
+и прокси доступа к ним (`getProxy`) и НЕ имеет array-методов (`items`/`push`/`removeAt`).
 
 **Signature:**
 ```typescript
@@ -8588,7 +8360,7 @@ export function isGroupNode(value: unknown): value is GroupNode<object>
 
 ```typescript
 if (isGroupNode(node)) {
-  node.getFieldByPath('user.email'); //  OK
+  node.fields.size; //  OK
 }
 ```
 
@@ -9686,29 +9458,6 @@ export interface ModelArray<U> {
 
 _Source: src/model/types.ts_
 
-### ModelArrayControl
-
-**Kind:** `interface`
-
-Минимальный контракт реактивного массива модели, используемый узлом.
-
-**Signature:**
-```typescript
-export interface ModelArrayControl<TItem extends object> {
-  readonly length: number;
-  at(index: number): FormModel<TItem> | undefined;
-  push(item?: TItem): void;
-  insertAt(index: number, item?: TItem): void;
-  removeAt(index: number): void;
-  move(from: number, to: number): void;
-  swap(a: number, b: number): void;
-  clear(): void;
-  toArray(): TItem[];
-}
-```
-
-_Source: src/form/nodes/model-array-node.ts_
-
 ### ModelArrayNode
 
 **Kind:** `class`
@@ -10078,7 +9827,7 @@ _Source: src/form/validators/non-zero.ts_
 
 Для async-колбэков 2-м аргументом приходит `{ signal }` (AbortSignal): при следующей смене значения
 предыдущий `signal` аннулируется. Передавай его в `fetch` (сетевая отмена) или проверяй
-`signal.aborted` перед применением результата — это убирает гонки устаревших ответов (F2).
+`signal.aborted` перед применением результата — это убирает гонки устаревших ответов.
 
 **Signature:**
 ```typescript
@@ -10403,9 +10152,9 @@ export function registerSignalNode(signal: object, node: FormNode<any>): void
 ```typescript
 import { registerSignalNode } from '@reformer/core';
 
-const sig = model.signalAt('profile.email');
-const node = group.getFieldByPath('profile.email');
-if (sig && node) registerSignalNode(sig, node);
+const sig = model.$.profile.email;
+const node = new FieldNode({ valueSignal: sig });
+registerSignalNode(sig, node);
 ```
 
 **See also:**
@@ -10760,7 +10509,7 @@ export function safeDebouncedCallback(
 
 **Parameters:**
 - `callback` — - Функция для выполнения
-- `withDebounce` — - Функция debounce обёртки из BehaviorRegistry
+- `withDebounce` — - Обёртка, откладывающая вызов (debounce)
 
 **Returns:** Обёрнутая функция
 
@@ -11131,90 +10880,6 @@ export interface SubmitOptions {
 
 _Source: src/form/form-submitter.ts_
 
-### SubmitResult
-
-**Kind:** `interface`
-
-Результат submit
-
-**Signature:**
-```typescript
-export interface SubmitResult<R> {
-  /** Успешно ли выполнен submit */
-  success: boolean;
-  /** Результат от onSubmit callback */
-  data: R | null;
-  /** Ошибка, если submit не удался */
-  error?: Error;
-}
-```
-
-_Source: src/form/form-submitter.ts_
-
-### SubmittableForm
-
-**Kind:** `interface`
-
-Интерфейс формы для FormSubmitter
-Минимальный контракт для работы с любой формой
-
-**Signature:**
-```typescript
-export interface SubmittableForm<T extends object> {
-  /** Пометить все поля как touched */
-  markAsTouched(): void;
-  /** Валидировать форму */
-  validate(): Promise<boolean>;
-  /** Получить значения формы */
-  getValue(): T;
-}
-```
-
-_Source: src/form/form-submitter.ts_
-
-### SubscriptionManager
-
-**Kind:** `class`
-
-Менеджер подписок для FormNode
-
-Централизует управление effect-подписками в узлах формы,
-предотвращает утечки памяти и упрощает отладку.
-
-Каждая подписка имеет уникальный ключ, что позволяет:
-- Отписываться от конкретной подписки по ключу
-- Автоматически заменять существующие подписки
-- Отслеживать количество активных подписок (для отладки)
-
-**Signature:**
-```typescript
-export class SubscriptionManager {
-  /**
-   * Хранилище подписок
-   * Ключ: уникальный идентификатор подписки
-   * Значение: функция отписки (dispose)
-   */ /* … */ }
-```
-
-**Examples:**
-
-```typescript
-class FieldNode {
-  private subscriptions = new SubscriptionManager();
-
-  watch(callback: Function) {
-    const dispose = effect(() => callback(this.value.value));
-    return this.subscriptions.add('watch', dispose);
-  }
-
-  dispose() {
-    this.subscriptions.clear();
-  }
-}
-```
-
-_Source: src/form/nodes/subscription-manager.ts_
-
 ### syncFields
 
 **Kind:** `function`
@@ -11440,7 +11105,7 @@ _Source: src/form/validators/url.ts_
 
 React-хук для подписки только на длину массива.
 
-Оптимизированная версия {@link useFormControl} для ArrayNode, которая
+Оптимизированная версия {@link useFormControl} для ModelArrayNode, которая
 подписывается только на сигнал `length`. Компонент не будет ре-рендериться
 при изменении значений вложенных полей.
 
@@ -11450,7 +11115,7 @@ export function useArrayLength<T extends object>(control: ModelArrayNode<T>): nu
 ```
 
 **Parameters:**
-- `control` — - ArrayNode для подписки
+- `control` — - ModelArrayNode для подписки
 
 **Returns:** Текущая длина массива
 
@@ -11512,14 +11177,14 @@ export function useFormBundle<B extends FormBundleLike>(factory: () => B): B
 ```
 
 **Parameters:**
-- `factory` — - Фабрика бандла, обычно `() => createCoreForm({…})`.
+- `factory` — - Фабрика бандла, обычно `() => createForm({…})`.
 
 **Returns:** Стабильный бандл.
 
 **Examples:**
 
 ```tsx
-const credit = useFormBundle(() => createCoreForm<CreditForm>({ model: createCreditModel() }));
+const credit = useFormBundle(() => createForm<CreditForm>({ model: createCreditModel() }));
 ```
 
 _Source: src/platforms/react/hooks/use-form-bundle.ts_
@@ -11551,7 +11216,7 @@ _Source: src/platforms/react/form-bundle-context.ts_
 
 **Kind:** `function`
 
-React-хук для подписки на состояние формы (FieldNode или ArrayNode).
+React-хук для подписки на состояние формы (FieldNode или ModelArrayNode).
 
 Обеспечивает реактивную связь между состоянием формы и React-компонентами.
 Использует `useSyncExternalStore` для оптимальной интеграции с React 18+
@@ -11580,7 +11245,7 @@ export function useFormControl(
 ```
 
 **Parameters:**
-- `control` — - FieldNode, ArrayNode или undefined
+- `control` — - FieldNode, ModelArrayNode или undefined
 
 **Returns:** Объект состояния {@link FieldControlState} или {@link ArrayControlState}
 
@@ -11706,7 +11371,7 @@ city: string;
 }
 
 interface AddressListProps {
-control: ArrayNode<Address>;
+control: ModelArrayNode<Address>;
 }
 
 function AddressList({ control }: AddressListProps) {
@@ -11763,7 +11428,7 @@ Add Address
 Условный рендеринг с undefined
 ```tsx
 interface FormProps {
-optionalField?: ArrayNode<string>;
+optionalField?: ModelArrayNode<string>;
 }
 
 function Form({ optionalField }: FormProps) {
@@ -11781,7 +11446,7 @@ return <div>Items: {length}</div>;
 **See also:**
 - {@link useFormControlValue} - для подписки только на значение
 - {@link FieldControlState} - тип состояния для FieldNode
-- {@link ArrayControlState} - тип состояния для ArrayNode
+- {@link ArrayControlState} - тип состояния для ModelArrayNode
 
 _Source: src/platforms/react/hooks/useFormControl.ts_
 
@@ -11896,7 +11561,7 @@ const price = useFormControlValue(item.price);
 return <span>Итого: ${(quantity * price).toFixed(2)}</span>;
 }
 
-function OrderList({ items }: { items: ArrayNode<OrderItem> }) {
+function OrderList({ items }: { items: ModelArrayNode<OrderItem> }) {
 return (
 <div>
 {items.map((item, index) => (

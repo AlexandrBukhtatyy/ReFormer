@@ -28,7 +28,7 @@ import {
 
 interface FileUploadDemoForm {
   // FileUploadValue (union массивов) — форма мапит поле в FieldNode (лист),
-  // а не в FormArrayProxy: массив файлов — атомарное значение, не форма-массив.
+  // а не в ModelArrayNode: массив файлов — атомарное значение, не форма-массив.
   documents: FileUploadValue;
   dropzoneFiles: FileUploadValue;
   attachments: FileUploadValue;

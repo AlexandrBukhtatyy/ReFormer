@@ -61,7 +61,7 @@ type IsGroupObject<V> =
  * Мапит тип модели данных T на правильные типы узлов формы
  *
  * Рекурсивно определяет типы узлов на основе структуры данных:
- * - `T[K] extends Array<infer U>` где U - объект → `FormArrayProxy<U>`
+ * - `T[K] extends Array<infer U>` где U - объект → `ModelArrayNode<U>`
  * - `T[K] extends Array<infer U>` где U - примитив → `FieldNode<T[K]>` (массив как обычное поле)
  * - `T[K] extends object` → `FormProxy<T[K]>` (вложенная форма с типизацией)
  * - `T[K]` примитив → `FieldNode<T[K]>` (простое поле)
@@ -73,13 +73,13 @@ type IsGroupObject<V> =
  *
  * @template T - Тип модели данных формы
  */
-export type FormControlsProxy<T> = {
+type FormControlsProxy<T> = {
   // `-?` снимает опциональность: для каждого поля схемы прокси всегда содержит узел
   // (включая опциональные поля — у них узел существует, опционально лишь значение).
   // Без этого `control.optionalField` имел бы тип `FieldNode<...> | undefined`.
   [K in keyof T]-?: NonNullable<T[K]> extends ReadonlyArray<infer U>
     ? IsGroupObject<U> extends true
-      ? FormArrayProxy<U & object> // Массив объектов → FormArrayProxy
+      ? ModelArrayNode<U & object> // Массив объектов → нода массива под-форм
       : FieldNode<T[K]> // Массив примитивов → FieldNode
     : IsGroupObject<NonNullable<T[K]>> extends true
       ? FormProxy<NonNullable<T[K]>> // Обычный объект → FormProxy (рекурсивно!)
@@ -148,35 +148,3 @@ export type FormProxy<T> = GroupNode<T> &
      */
     readonly $: FormControlsProxy<T>;
   };
-
-/**
- * Узел массива под-форм в типах прокси формы — {@link ModelArrayNode} над массивом модели.
- *
- * @group Types
- * @category Proxy Types
- *
- * @template T - Тип модели данных элемента массива
- *
- * @example
- * ```typescript
- * interface TodoItem {
- *   title: string;
- *   completed: boolean;
- * }
- *
- * const todos: FormArrayProxy<TodoItem> = form.todos;
- *
- * // Мутации уходят в массив модели
- * todos.push({ title: 'New todo', completed: false });
- * todos.removeAt(0);
- *
- * // Доступ к форме строки
- * todos.at(0)?.title.setValue('Updated title');
- *
- * // Итерация
- * todos.forEach((item, index) => {
- *   console.log(item.title.value.value);
- * });
- * ```
- */
-export type FormArrayProxy<T extends object> = ModelArrayNode<T>;

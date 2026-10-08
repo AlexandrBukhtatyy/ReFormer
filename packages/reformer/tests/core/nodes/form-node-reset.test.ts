@@ -1,5 +1,5 @@
 /**
- * Unit tests for FormNode.resetToInitial()
+ * Unit tests for FormNode.reset()
  *
  * Tests resetting to initial values vs reset() with new values
  */
@@ -12,7 +12,7 @@ import { ComponentInstance } from '../../test-utils/types';
 import type { FormProxy } from '../../../src';
 import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
-describe('FormNode - resetToInitial()', () => {
+describe('FormNode - reset()', () => {
   describe('FieldNode', () => {
     it('should reset to initialValue', () => {
       const field = new FieldNode({
@@ -23,7 +23,7 @@ describe('FormNode - resetToInitial()', () => {
       field.setValue('changed');
       expect(field.value.value).toBe('changed');
 
-      field.resetToInitial();
+      field.reset();
       expect(field.value.value).toBe('initial');
     });
 
@@ -37,8 +37,8 @@ describe('FormNode - resetToInitial()', () => {
       field.reset('temp value');
       expect(field.value.value).toBe('temp value');
 
-      // resetToInitial() should restore to 'initial', not 'temp value'
-      field.resetToInitial();
+      // reset() should restore to 'initial', not 'temp value'
+      field.reset();
       expect(field.value.value).toBe('initial');
     });
 
@@ -57,7 +57,7 @@ describe('FormNode - resetToInitial()', () => {
       expect(field.dirty.value).toBe(true);
       expect(field.errors.value).toHaveLength(1);
 
-      field.resetToInitial();
+      field.reset();
 
       expect(field.value.value).toBe('');
       expect(field.touched.value).toBe(false);
@@ -94,7 +94,7 @@ describe('FormNode - resetToInitial()', () => {
         age: 30,
       });
 
-      form.resetToInitial();
+      form.reset();
 
       expect(form.getValue()).toEqual({
         email: 'initial@mail.com',
@@ -116,8 +116,8 @@ describe('FormNode - resetToInitial()', () => {
         age: 99,
       });
 
-      // resetToInitial() should restore to initial values
-      form.resetToInitial();
+      // reset() should restore to initial values
+      form.reset();
 
       expect(form.getValue()).toEqual({
         email: 'initial@mail.com',
@@ -134,7 +134,7 @@ describe('FormNode - resetToInitial()', () => {
       expect(form.email.touched.value).toBe(true);
       expect(form.name.dirty.value).toBe(true);
 
-      form.resetToInitial();
+      form.reset();
 
       expect(form.email.touched.value).toBe(false);
       expect(form.name.dirty.value).toBe(false);
@@ -172,7 +172,7 @@ describe('FormNode - resetToInitial()', () => {
       form.user.email.setValue('changed@mail.com');
       form.settings.theme.setValue('dark');
 
-      form.resetToInitial();
+      form.reset();
 
       expect(form.user.name.value.value).toBe('Initial Name');
       expect(form.user.email.value.value).toBe('initial@mail.com');
@@ -184,7 +184,7 @@ describe('FormNode - resetToInitial()', () => {
       form.settings.theme.setValue('dark');
 
       // Reset only user group
-      form.user.resetToInitial();
+      form.user.reset();
 
       expect(form.user.name.value.value).toBe('Initial Name');
       expect(form.settings.theme.value.value).toBe('dark'); // Not affected
@@ -217,7 +217,7 @@ describe('FormNode - resetToInitial()', () => {
       arrayNode.push({ name: 'New Item', price: 300 });
       expect(arrayNode.length.value).toBe(3);
 
-      arrayNode.resetToInitial();
+      arrayNode.reset();
 
       expect(arrayNode.length.value).toBe(2);
       expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
@@ -230,8 +230,8 @@ describe('FormNode - resetToInitial()', () => {
       expect(arrayNode.length.value).toBe(1);
       expect(arrayNode.at(0)?.name.value.value).toBe('Temp 1');
 
-      // resetToInitial() should restore initialItems
-      arrayNode.resetToInitial();
+      // reset() should restore initialItems
+      arrayNode.reset();
 
       expect(arrayNode.length.value).toBe(2);
       expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
@@ -242,7 +242,7 @@ describe('FormNode - resetToInitial()', () => {
       arrayNode.clear();
       expect(arrayNode.length.value).toBe(0);
 
-      arrayNode.resetToInitial();
+      arrayNode.reset();
 
       expect(arrayNode.length.value).toBe(2);
       expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
@@ -257,7 +257,7 @@ describe('FormNode - resetToInitial()', () => {
       emptyArray.push({ name: 'Item', price: 100 });
       expect(emptyArray.length.value).toBe(1);
 
-      emptyArray.resetToInitial();
+      emptyArray.reset();
 
       expect(emptyArray.length.value).toBe(0);
     });
@@ -283,7 +283,7 @@ describe('FormNode - resetToInitial()', () => {
       form.bio.setValue('New bio text');
 
       // User clicks Cancel button
-      form.resetToInitial();
+      form.reset();
 
       // Form restored to initial state
       expect(form.getValue()).toEqual({
@@ -315,14 +315,14 @@ describe('FormNode - resetToInitial()', () => {
       form.items.at(0)?.task.setValue('Modified task');
 
       // Cancel changes
-      form.resetToInitial();
+      form.reset();
 
       expect(form.title.value.value).toBe('My TODO List');
       expect(form.items.length.value).toBe(1);
       expect(form.items.at(0)?.task.value.value).toBe('Initial task');
     });
 
-    it('should handle reset vs resetToInitial flow', () => {
+    it('should handle reset with a value and reset without it', () => {
       const field = new FieldNode({
         valueSignal: signal('original'),
         component: null as ComponentInstance,
@@ -337,7 +337,7 @@ describe('FormNode - resetToInitial()', () => {
       expect(field.value.value).toBe('server value');
 
       // Scenario 3: User cancels and wants original
-      field.resetToInitial();
+      field.reset();
       expect(field.value.value).toBe('original'); // Back to initial, not server value
     });
   });
@@ -350,7 +350,7 @@ describe('FormNode - resetToInitial()', () => {
       });
 
       field.setValue('changed');
-      field.resetToInitial();
+      field.reset();
 
       expect(field.value.value).toBeNull();
     });
@@ -362,7 +362,7 @@ describe('FormNode - resetToInitial()', () => {
       });
 
       field.setValue('changed');
-      field.resetToInitial();
+      field.reset();
 
       expect(field.value.value).toBe('');
     });
@@ -374,7 +374,7 @@ describe('FormNode - resetToInitial()', () => {
       });
 
       field.setValue(100);
-      field.resetToInitial();
+      field.reset();
 
       expect(field.value.value).toBe(0);
     });
@@ -387,17 +387,17 @@ describe('FormNode - resetToInitial()', () => {
 
       // First reset
       field.setValue('change1');
-      field.resetToInitial();
+      field.reset();
       expect(field.value.value).toBe('initial');
 
       // Second reset
       field.setValue('change2');
-      field.resetToInitial();
+      field.reset();
       expect(field.value.value).toBe('initial');
 
       // Third reset
       field.reset('temp');
-      field.resetToInitial();
+      field.reset();
       expect(field.value.value).toBe('initial');
     });
   });

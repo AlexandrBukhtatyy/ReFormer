@@ -167,12 +167,14 @@ Validation is its **own ambient schema** — a plain function over the model, im
 `@reformer/core/validation`, separate from the form schema (step 2) and from the behavior (step 5).
 It runs **on demand** (submit / step), not reactively. Never a `validators:` array on a node.
 
-- **Schema**: `defineValidationSchema<T>(({ model }) => { … })`. The body calls bare **operators**:
+- **Schema**: `defineValidationSchema<T>(({ model, cross }) => { … })`. The body calls bare **operators**
+  imported from `@reformer/core/validation` and `cross` taken from the schema argument:
   - `validate(model.$.x, rules[])` — sync value rules.
   - `validateAsync(model.$.x, asyncRules[])` — async rules `(value, { signal }) => Promise<ValidationError | null>`;
     the runner awaits them and passes an `AbortSignal` so a superseded request is cancelled. Network failure → return `null`.
   - `validateWhen(() => cond, () => { … })` — conditional branch: rules inside are active when `cond` is true, else their fields are cleared.
-  - `cross(model.$.x, (f) => err | null)` — cross-field; `f` is a **snapshot** of the current scope, not `(value, scope, root)`.
+  - `cross(model.$.x, (f) => err | null)` — cross-field; a member of the schema argument, not an
+    import. `f` is a **snapshot** of the current scope, not `(value, scope, root)`.
   - `apply(model.$.group, groupRules)` — a sub-form: `groupRules` is a `defineValidationSchema<Group>` that receives the sub-model; one set of rules serves several groups.
   - `applyEach(model.$.items, itemRules)` — the same for every element of an array.
   - `apply(...schemas)` — compose schemas over the same model.
@@ -191,14 +193,14 @@ It runs **on demand** (submit / step), not reactively. Never a `validators:` arr
   Keep the schema a **stable `const`** (identity keys the stale-run cancellation).
 
 ```ts
-import { apply, applyEach, cross, defineValidationSchema, validate, validateAsync } from '@reformer/core/validation';
+import { apply, applyEach, defineValidationSchema, validate, validateAsync } from '@reformer/core/validation';
 import { email, minLength, required } from '@reformer/core/validators';
 
 const phoneRules = defineValidationSchema<Phone>(({ model }) => {
   validate(model.$.number, [required()]);
 });
 
-export const formValidation = defineValidationSchema<RegForm>(({ model }) => {
+export const formValidation = defineValidationSchema<RegForm>(({ model, cross }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
   // cross-field reads a snapshot of the scope — no scope/root params

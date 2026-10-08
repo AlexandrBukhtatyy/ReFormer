@@ -38,21 +38,4 @@ export type {
 // Re-exports from form-proxy (Typed Proxy Access)
 // ============================================================================
 
-export type { FormControlsProxy, FormProxy, FormArrayProxy } from './form-proxy';
-
-// ============================================================================
-// Utility Types для избежания инлайновых типов
-// ============================================================================
-
-/**
- * Интерфейс для узлов-массивов (с методом at)
- * Используется для duck typing при обходе путей
- * @internal
- */
-export interface ArrayNodeLike {
-  at(index: number): FormNode<unknown> | undefined;
-  length: unknown;
-}
-
-// Импортируем FormNode для типа ArrayNodeLike
-import type { FormNode } from '../nodes/form-node';
+export type { FormProxy } from './form-proxy';

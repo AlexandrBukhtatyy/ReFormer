@@ -1,8 +1,8 @@
 /**
  * Декларативный контракт СХЕМЫ ВАЛИДАЦИИ — `@reformer/core/validation`.
  *
- * Схема валидации — обычная функция `(ctx: { model }) => void`. Внутри вызываются свободные операторы
- * (`validate`/`validateAsync`/`validateWhen`/`cross`/`apply`/`applyEach`), которые САМИ пишут ошибки в
+ * Схема валидации — обычная функция `({ model, cross }) => void`. Внутри вызываются свободные операторы
+ * (`validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach`) и `cross` области, которые САМИ пишут ошибки в
  * ambient-сток текущего прогона — автор не видит ни коллектора, ни `getNodeForSignal`, ни `.push`.
  * Раннер открывает ambient-окно на время СИНХРОННОГО прогона схемы и дожидается async-правил
  * ({@link runValidation} — сбор результата), затем разносит ошибки по нодам формы, гася поля, ставшие
@@ -31,7 +31,7 @@ export type {
 } from './types';
 
 // Операторы схемы (вызываются внутри defineValidationSchema).
-export { validate, validateAsync, validateWhen, cross, each, apply, applyEach } from './operators';
+export { validate, validateAsync, validateWhen, apply, applyEach } from './operators';
 
 // Определение схемы + раннер: сбор результата, разнос по нодам и оба шага одним вызовом.
 export { defineValidationSchema, runValidation, applyValidationResult, validateModel } from './run';

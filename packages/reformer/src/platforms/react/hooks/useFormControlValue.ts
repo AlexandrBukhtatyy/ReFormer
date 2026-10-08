@@ -104,7 +104,7 @@ import type { FormValue } from '../../../form/types/index';
  *   return <span>Итого: ${(quantity * price).toFixed(2)}</span>;
  * }
  *
- * function OrderList({ items }: { items: ArrayNode<OrderItem> }) {
+ * function OrderList({ items }: { items: ModelArrayNode<OrderItem> }) {
  *   return (
  *     <div>
  *       {items.map((item, index) => (

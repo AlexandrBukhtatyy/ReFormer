@@ -1,7 +1,7 @@
 /**
  * `useFormBundle` — стабильность формы между рендерами + арминг живой валидации.
  *
- * Общий хук для всех фабрик семейства (`createCoreForm`, `createReactForm`, `createJsonForm`):
+ * Общий хук для всех фабрик семейства (`createForm`, `createReactForm`, `createJsonForm`):
  * пакеты рендера реэкспортируют его как `useReactForm` / `useJsonForm`, чтобы вызов читался в
  * терминах своего слоя.
  *
@@ -24,12 +24,12 @@ export interface FormBundleLike {
  * (не при SSR — там эффекты не выполняются).
  *
  * @typeParam B - Тип бандла конкретной фабрики.
- * @param factory - Фабрика бандла, обычно `() => createCoreForm({…})`.
+ * @param factory - Фабрика бандла, обычно `() => createForm({…})`.
  * @returns Стабильный бандл.
  *
  * @example
  * ```tsx
- * const credit = useFormBundle(() => createCoreForm<CreditForm>({ model: createCreditModel() }));
+ * const credit = useFormBundle(() => createForm<CreditForm>({ model: createCreditModel() }));
  * ```
  *
  * @remarks

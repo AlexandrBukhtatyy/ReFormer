@@ -24,7 +24,7 @@ import {
   syncFields,
   transformValue,
 } from '@reformer/core/behaviors';
-import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import { ExampleCard } from '@reformer/ui-kit';
 
@@ -110,7 +110,7 @@ function buildSchema(model: FormModel<BehaviorsDemoForm>) {
 
 // VALIDATION-схема (стабильный module-level const — важно для отмены устаревших прогонов).
 // Прогоняется через validateModel; правила те же, что раньше жили в схеме.
-const amountValidation = defineValidationSchema<BehaviorsDemoForm>(({ model }) => {
+const amountValidation = defineValidationSchema<BehaviorsDemoForm>(({ model, cross }) => {
   validate(model.$.price, [
     required({ message: 'Укажите цену' }),
     min(0, { message: 'Не отрицательное' }),

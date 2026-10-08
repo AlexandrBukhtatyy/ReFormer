@@ -1,12 +1,12 @@
 /**
- * Unit tests: `createCoreForm` — сборка модели, формы и валидации ОДНИМ вызовом.
+ * Unit tests: `createForm` — сборка модели, формы и валидации ОДНИМ вызовом.
  *
  * Проверяет: обе ветки модели (`initial` | `model`), проброс схемы и behavior, фазы `seed`/`setup`
  * (и то, ради чего они разведены), сборку валидации из шагов, стабильность ссылки на полную схему.
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createCoreForm } from '../../../src/form/create-core-form';
+import { createForm } from '../../../src/form/form-bundle';
 import { buildValidation } from '../../../src/form/validation/config';
 import { createModel } from '../../../src/model/index';
 import { defineFormBehavior, computeFrom } from '../../../src/form/behaviors';
@@ -31,9 +31,9 @@ const schemaOf = (model: { $: { email: unknown; password: unknown } }) => ({
   ],
 });
 
-describe('createCoreForm — модель и форма', () => {
+describe('createForm — модель и форма', () => {
   it('создаёт модель из initial и строит форму по схеме', () => {
-    const bundle = createCoreForm<F>({
+    const bundle = createForm<F>({
       initial: { ...INITIAL },
       schema: (model) => schemaOf(model) as never,
     });
@@ -45,34 +45,34 @@ describe('createCoreForm — модель и форма', () => {
 
   it('принимает готовую модель (приоритетнее initial)', () => {
     const model = createModel<F>({ ...INITIAL, email: 'ready@x' });
-    const bundle = createCoreForm<F>({ model, initial: { ...INITIAL } });
+    const bundle = createForm<F>({ model, initial: { ...INITIAL } });
     expect(bundle.model).toBe(model);
     expect(bundle.model.email).toBe('ready@x');
   });
 
   it('бросает, если не заданы ни initial, ни model', () => {
-    expect(() => createCoreForm<F>({})).toThrow(/initial|model/i);
+    expect(() => createForm<F>({})).toThrow(/initial|model/i);
   });
 
   it('запускает behavior', () => {
     const behavior = defineFormBehavior<F>(({ model }) => {
       computeFrom([model.$.price], model.$.total, (price) => (price as number) * 2);
     });
-    const bundle = createCoreForm<F>({ initial: { ...INITIAL }, behavior });
+    const bundle = createForm<F>({ initial: { ...INITIAL }, behavior });
     bundle.model.price = 21;
     expect(bundle.model.total).toBe(42);
   });
 
   it('без валидации бандл не несёт её поля', () => {
-    const bundle = createCoreForm<F>({ initial: { ...INITIAL } });
+    const bundle = createForm<F>({ initial: { ...INITIAL } });
     expect(bundle.validation).toBeUndefined();
   });
 });
 
-describe('createCoreForm — фазы seed/setup', () => {
+describe('createForm — фазы seed/setup', () => {
   it('seed правит модель ДО сборки формы, setup — после', () => {
     const order: string[] = [];
-    const bundle = createCoreForm<F>({
+    const bundle = createForm<F>({
       initial: { ...INITIAL },
       schema: (model) => {
         order.push('schema');
@@ -94,7 +94,7 @@ describe('createCoreForm — фазы seed/setup', () => {
 
   it('setup получает тот же бандл, что возвращается наружу', () => {
     let captured: unknown;
-    const bundle = createCoreForm<F>({ initial: { ...INITIAL }, setup: (b) => (captured = b) });
+    const bundle = createForm<F>({ initial: { ...INITIAL }, setup: (b) => (captured = b) });
     expect(captured).toBe(bundle);
   });
 });
@@ -167,7 +167,7 @@ describe('buildValidation', () => {
 
   it('контроллер формы армится снаружи и гоняет живую валидацию', async () => {
     const model = createModel<F>({ ...INITIAL, email: 'a@b.c' });
-    const bundle = createCoreForm<F>({
+    const bundle = createForm<F>({
       model,
       schema: (m) => schemaOf(m) as never,
       validation: { schema: emailRules, strategy: 'change' },

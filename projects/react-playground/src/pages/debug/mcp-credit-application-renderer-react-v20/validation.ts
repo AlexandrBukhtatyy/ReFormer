@@ -17,7 +17,6 @@ import { type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateWhen,
-  cross,
   applyEach,
   defineValidationSchema,
   type Rule,
@@ -91,7 +90,7 @@ const propertyItem = defineValidationSchema<PropertyItem>(({ model: im }) => {
   validate(im.$.estimatedValue, [required(), min(0)]);
 });
 
-const existingLoanItem = defineValidationSchema<ExistingLoan>(({ model: im }) => {
+const existingLoanItem = defineValidationSchema<ExistingLoan>(({ model: im, cross }) => {
   validate(im.$.bank, [required()]);
   validate(im.$.type, [required()]);
   validate(im.$.amount, [required(), min(0)]);
@@ -111,7 +110,7 @@ const coBorrowerItem = defineValidationSchema<CoBorrower>(({ model: im }) => {
 });
 
 // ── Per-step схемы валидации ─────────────────────────────────────────────────
-const step1 = defineValidationSchema<Root>(({ model }) => {
+const step1 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
   validate(model.$.loanAmount, [
     required({ message: 'Введите сумму' }),
@@ -196,7 +195,7 @@ const step3 = defineValidationSchema<Root>(({ model }) => {
   );
 });
 
-const step4 = defineValidationSchema<Root>(({ model }) => {
+const step4 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.employmentStatus, [required()]);
   validate(model.$.workExperienceTotal, [required(), min(0)]);
   validate(model.$.workExperienceCurrent, [required(), min(0)]);

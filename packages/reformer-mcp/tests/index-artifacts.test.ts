@@ -13,7 +13,7 @@
  *     llms.txt и занимает слаг первой) и не срезала ведущий числовой префикс заголовка.
  *  2. Индекс покрывает ВСЮ публичную поверхность. До починки генератор читал только
  *     `src/index.ts` и терял 62 символа `@reformer/core` — весь DSL behaviors и validation
- *     (`compute`, `validate`, `validateAsync`, `cross`, `each`, `defineFormBehavior`, …),
+ *     (`compute`, `validate`, `validateAsync`, `defineFormBehavior`, …),
  *     то есть ровно то, что решает корректность формы. Их не было и в самом llms.txt.
  *  3. Ядро DSL (23 оператора) присутствует поимённо — это те API, вокруг которых строятся
  *     все рецепты, и потеря любого из них ломает генерацию.
@@ -177,8 +177,9 @@ describe('llms-index.json — артефакт билда', () => {
       'validate',
       'validateAsync',
       'validateWhen',
-      'cross',
-      'each',
+      'apply',
+      // `cross` — член области схемы: в индексе живёт её тип
+      'ValidationScope',
       'defineValidationSchema',
       'validateModel',
       // сборка

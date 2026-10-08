@@ -131,7 +131,7 @@ function RegistrationFormExample() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.touchAll();
+    form.markAsTouched();
     // Validate the whole model against the validation schema (sync + async) on demand;
     // errors route into the form nodes, so the UI highlights the offending fields.
     // `true` only when nothing blocks: a failed async rule blocks as well.

@@ -9,7 +9,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createForm } from '../../../src/form/form-bundle';
-import { createCoreForm } from '../../../src/form/create-core-form';
 import { arrayOf, createModel, type FormModel } from '../../../src/model/index';
 import { defineFormBehavior, hideWhen, applyEach } from '../../../src/form/behaviors';
 import { defineValidationSchema, validate } from '../../../src/form/validation';
@@ -127,13 +126,6 @@ describe('createForm — сборка', () => {
     bundle.form.email.setValue('x');
     expect(bundle.model.email).toBe('x');
     expect(bundle.validation).toBeUndefined();
-  });
-
-  it('`createCoreForm` — та же сборка под прежним именем', () => {
-    const bundle = createCoreForm<Shape>({ initial: { ...INITIAL }, schema: shapeSchema });
-
-    expect(bundle.form.email.component).toBe(InputStub);
-    expect((bundle as { render?: unknown }).render).toBeDefined();
   });
 });
 

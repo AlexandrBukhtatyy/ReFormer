@@ -204,7 +204,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 );
 
 <FormArraySection
-  control={form.properties} // FormArrayProxy<Property>
+  control={form.properties} // ModelArrayNode<Property>
   itemComponent={PropertyForm}
   title="Properties"
 />;

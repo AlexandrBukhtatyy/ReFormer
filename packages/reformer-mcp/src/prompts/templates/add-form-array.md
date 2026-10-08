@@ -149,7 +149,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 3. **Validation** — a separate `defineValidationSchema`, never on schema nodes. Row rules are their own schema over the element, attached with `applyEach`:
 
    ```typescript
-   const propertyRules = defineValidationSchema<Property>(({ model }) => {
+   const propertyRules = defineValidationSchema<Property>(({ model, cross }) => {
      validate(model.$.type, [required({ message: 'Укажите тип' })]);
      // `cross` inside row rules receives the snapshot of the ROW, not of the whole form
      cross(model.$.estimatedValue, (row) =>
@@ -157,7 +157,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
      );
    });
 
-   export const formValidation = defineValidationSchema<MyForm>(({ model }) => {
+   export const formValidation = defineValidationSchema<MyForm>(({ model, cross }) => {
      applyEach(model.$.properties, propertyRules);
      // array-level «must not be empty» — a cross on the flag that reads the array off the snapshot
      cross(model.$.hasProperty, (form) =>

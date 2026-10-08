@@ -442,6 +442,21 @@ describe('validate_form kind=code — прежний контракт', () => {
     expect(rf010[0].fix).toEqual({ tool: 'find_recipe', arguments: { topic: 'unified-contract' } });
   });
 
+  it('удалённое из ядра имя — RF010-ошибка с названной заменой, а не «не существует»', async () => {
+    const code = [
+      "import { createCoreForm } from '@reformer/core';",
+      "import { cross, each, validate } from '@reformer/core/validation';",
+    ].join('\n');
+    const { diagnostics } = await validateCode(k, code);
+    expect(diagnostics.map((d) => d.code)).not.toContain('RF002');
+    const removed = diagnostics.filter((d) => d.code === 'RF010');
+    expect(removed.map((d) => d.severity)).toEqual(['error', 'error', 'error']);
+    const suggestions = removed.map((d) => d.suggestion).join('\n');
+    expect(suggestions).toMatch(/createForm\(/);
+    expect(suggestions).toMatch(/из аргумента схемы/);
+    expect(suggestions).toMatch(/applyEach\(/);
+  });
+
   it('прежние ключи узла — RF010', async () => {
     expect(await codes('{ value: model.$.loanType, component: Select },')).toContain(
       'RF010:warning'

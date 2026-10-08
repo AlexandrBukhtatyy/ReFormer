@@ -1,7 +1,7 @@
 /**
- * Unit tests for FormNode.touchAll()
+ * Unit tests for FormNode.markAsTouched()
  *
- * Tests that touchAll() correctly marks all fields as touched recursively
+ * Tests that markAsTouched() correctly marks all fields as touched recursively
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -16,7 +16,7 @@ import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
-describe('FormNode - touchAll()', () => {
+describe('FormNode - markAsTouched()', () => {
   describe('FieldNode', () => {
     it('should mark field as touched', () => {
       const field = new FieldNode({
@@ -26,7 +26,7 @@ describe('FormNode - touchAll()', () => {
 
       expect(field.touched.value).toBe(false);
 
-      field.touchAll();
+      field.markAsTouched();
 
       expect(field.touched.value).toBe(true);
     });
@@ -42,7 +42,7 @@ describe('FormNode - touchAll()', () => {
         component: null as ComponentInstance,
       });
 
-      field1.touchAll();
+      field1.markAsTouched();
       field2.markAsTouched();
 
       expect(field1.touched.value).toBe(field2.touched.value);
@@ -72,7 +72,7 @@ describe('FormNode - touchAll()', () => {
       expect(form.password.touched.value).toBe(false);
       expect(form.age.touched.value).toBe(false);
 
-      form.touchAll();
+      form.markAsTouched();
 
       expect(form.email.touched.value).toBe(true);
       expect(form.password.touched.value).toBe(true);
@@ -90,7 +90,7 @@ describe('FormNode - touchAll()', () => {
         password: { value: '', component: null as ComponentInstance },
       });
 
-      form1.touchAll();
+      form1.markAsTouched();
       form2.markAsTouched();
 
       expect(form1.email.touched.value).toBe(form2.email.touched.value);
@@ -131,7 +131,7 @@ describe('FormNode - touchAll()', () => {
       expect(form.address.city.touched.value).toBe(false);
       expect(form.address.street.touched.value).toBe(false);
 
-      form.touchAll();
+      form.markAsTouched();
 
       expect(form.user.name.touched.value).toBe(true);
       expect(form.user.email.touched.value).toBe(true);
@@ -143,8 +143,8 @@ describe('FormNode - touchAll()', () => {
       expect(form.user.name.touched.value).toBe(false);
       expect(form.user.email.touched.value).toBe(false);
 
-      // Call touchAll on nested group
-      form.user.touchAll();
+      // Call markAsTouched on nested group
+      form.user.markAsTouched();
 
       expect(form.user.name.touched.value).toBe(true);
       expect(form.user.email.touched.value).toBe(true);
@@ -180,7 +180,7 @@ describe('FormNode - touchAll()', () => {
       expect(arrayNode.at(1)?.name.touched.value).toBe(false);
       expect(arrayNode.at(2)?.name.touched.value).toBe(false);
 
-      arrayNode.touchAll();
+      arrayNode.markAsTouched();
 
       expect(arrayNode.at(0)?.name.touched.value).toBe(true);
       expect(arrayNode.at(1)?.name.touched.value).toBe(true);
@@ -188,7 +188,7 @@ describe('FormNode - touchAll()', () => {
     });
 
     it('should mark all fields in all array items', () => {
-      arrayNode.touchAll();
+      arrayNode.markAsTouched();
 
       // Check all fields in all items
       for (let i = 0; i < 3; i++) {
@@ -203,8 +203,8 @@ describe('FormNode - touchAll()', () => {
       expect(item?.name.touched.value).toBe(false);
       expect(item?.price.touched.value).toBe(false);
 
-      // Call touchAll on single item
-      item?.touchAll();
+      // Call markAsTouched on single item
+      item?.markAsTouched();
 
       expect(item?.name.touched.value).toBe(true);
       expect(item?.price.touched.value).toBe(true);
@@ -253,24 +253,24 @@ describe('FormNode - touchAll()', () => {
     });
 
     it('should mark all deeply nested fields as touched', () => {
-      form.touchAll();
+      form.markAsTouched();
 
       // Nested object fields
       expect(form.user.profile.firstName.touched.value).toBe(true);
       expect(form.user.profile.lastName.touched.value).toBe(true);
 
-      // Array fields (use getFieldByPath for 'value' field to avoid conflict with FormNode.value)
+      // Array fields (поле `value` затенено `FormNode.value` — берём его через `$`)
       const item0 = form.user.contacts.at(0);
       const item1 = form.user.contacts.at(1);
 
       expect(item0?.type.touched.value).toBe(true);
-      expect(item0?.getFieldByPath('value')?.touched.value).toBe(true);
+      expect(item0?.$.value.touched.value).toBe(true);
       expect(item1?.type.touched.value).toBe(true);
-      expect(item1?.getFieldByPath('value')?.touched.value).toBe(true);
+      expect(item1?.$.value.touched.value).toBe(true);
     });
 
     it('should work on nested group', () => {
-      form.user.profile.touchAll();
+      form.user.profile.markAsTouched();
 
       expect(form.user.profile.firstName.touched.value).toBe(true);
       expect(form.user.profile.lastName.touched.value).toBe(true);
@@ -280,15 +280,15 @@ describe('FormNode - touchAll()', () => {
     });
 
     it('should work on nested array', () => {
-      form.user.contacts.touchAll();
+      form.user.contacts.markAsTouched();
 
       const item0 = form.user.contacts.at(0);
       const item1 = form.user.contacts.at(1);
 
       expect(item0?.type.touched.value).toBe(true);
-      expect(item0?.getFieldByPath('value')?.touched.value).toBe(true);
+      expect(item0?.$.value.touched.value).toBe(true);
       expect(item1?.type.touched.value).toBe(true);
-      expect(item1?.getFieldByPath('value')?.touched.value).toBe(true);
+      expect(item1?.$.value.touched.value).toBe(true);
 
       // Profile not affected
       expect(form.user.profile.firstName.touched.value).toBe(false);
@@ -314,8 +314,8 @@ describe('FormNode - touchAll()', () => {
       form = createFormFromModel<LoginForm>({ model });
     });
 
-    it('should show all errors when touchAll is called before validate', async () => {
-      // Before touchAll - errors not visible
+    it('should show all errors when markAsTouched is called before validate', async () => {
+      // Before markAsTouched - errors not visible
       expect(form.email.shouldShowError.value).toBe(false);
       expect(form.password.shouldShowError.value).toBe(false);
 
@@ -327,7 +327,7 @@ describe('FormNode - touchAll()', () => {
       expect(form.password.shouldShowError.value).toBe(false);
 
       // Touch all fields
-      form.touchAll();
+      form.markAsTouched();
 
       // Now errors are visible
       expect(form.email.shouldShowError.value).toBe(true);
@@ -338,7 +338,7 @@ describe('FormNode - touchAll()', () => {
       const onSubmit = async (values: LoginForm) => values;
       await validateModel(model, loginRules);
 
-      // Submit will call touchAll internally
+      // Submit marks all fields as touched internally
       const result = await form.submit(onSubmit);
 
       // Form invalid
@@ -355,7 +355,7 @@ describe('FormNode - touchAll()', () => {
 
     it('should be useful for "Validate All" button', async () => {
       // User clicks "Validate All" button
-      form.touchAll();
+      form.markAsTouched();
       await validateModel(model, loginRules);
 
       // All errors visible even without submit
@@ -369,7 +369,7 @@ describe('FormNode - touchAll()', () => {
     it('should work on empty GroupNode', () => {
       const form = formFromFields({});
 
-      expect(() => form.touchAll()).not.toThrow();
+      expect(() => form.markAsTouched()).not.toThrow();
     });
 
     it('should work on empty array', () => {
@@ -377,7 +377,7 @@ describe('FormNode - touchAll()', () => {
         name: { value: '', component: null as ComponentInstance },
       });
 
-      expect(() => arrayNode.touchAll()).not.toThrow();
+      expect(() => arrayNode.markAsTouched()).not.toThrow();
     });
 
     it('should not affect untouched fields when called on subset', () => {
@@ -401,7 +401,7 @@ describe('FormNode - touchAll()', () => {
         },
       });
 
-      form.section1.touchAll();
+      form.section1.markAsTouched();
 
       expect(form.section1.field1.touched.value).toBe(true);
       expect(form.section1.field2.touched.value).toBe(true);

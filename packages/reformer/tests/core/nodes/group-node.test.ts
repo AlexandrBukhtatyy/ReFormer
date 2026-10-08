@@ -4,19 +4,16 @@
  * Покрывает:
  * - Инициализация (конструктор, Proxy)
  * - getValue / setValue / patchValue
- * - reset / resetToInitial
+ * - reset
  * - Доступ к полям через Proxy
  * - Агрегация состояния (valid, invalid, touched, dirty, pending, status)
  * - markAsTouched/markAsUntouched/markAsDirty/markAsPristine (каскадные)
  * - enable/disable (каскадные)
  * - validate()
  * - submit()
- * - linkFields / watchField (базовые тесты)
  *
  * Другие тесты в отдельных файлах:
- * - group-node-cleanup.test.ts - dispose mechanism
  * - group-node-form-errors.test.ts - form-level errors
- * - group-node-get-field-by-path.test.ts - path navigation
  * - group-node-reference-equality.test.ts - value caching
  */
 
@@ -44,11 +41,6 @@ interface NestedForm {
     city: string;
     street: string;
   };
-}
-
-interface FormWithNumbers {
-  count: number;
-  price: number;
 }
 
 const simpleSchema: TestFields<SimpleForm> = {
@@ -200,10 +192,9 @@ describe('GroupNode', () => {
       expect(form.email.value.value).toBe('test@mail.com');
     });
 
-    it('should get field via getField()', () => {
-      const emailField = form.getField('email');
-
-      expect(emailField).toBe(form.email);
+    it('should keep the same node in the fields map', () => {
+      expect(form.fields.get('email')).toBe(form.email);
+      expect(form.fields.size).toBe(2);
     });
 
     it('should return same instance on multiple accesses', () => {
@@ -305,7 +296,7 @@ describe('GroupNode', () => {
   // 4. reset / resetToInitial
   // ==========================================================================
 
-  describe('reset / resetToInitial', () => {
+  describe('reset', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
@@ -364,11 +355,11 @@ describe('GroupNode', () => {
       expect(form.email.errors.value).toEqual([]);
     });
 
-    it('should resetToInitial() always use initial values', () => {
+    it('should return to creation values by reset() after reset(values)', () => {
       form.reset({ email: 'temp', password: 'temp' });
       expect(form.email.value.value).toBe('temp');
 
-      form.resetToInitial();
+      form.reset();
 
       expect(form.email.value.value).toBe('initial@mail.com');
       expect(form.password.value.value).toBe('initial');
@@ -499,13 +490,6 @@ describe('GroupNode', () => {
       expect(form.email.dirty.value).toBe(false);
       expect(form.password.dirty.value).toBe(false);
       expect(form.dirty.value).toBe(false);
-    });
-
-    it('should touchAll() work as markAsTouched()', () => {
-      form.touchAll();
-
-      expect(form.email.touched.value).toBe(true);
-      expect(form.password.touched.value).toBe(true);
     });
 
     it('should cascade to nested groups', () => {
@@ -712,126 +696,7 @@ describe('GroupNode', () => {
   });
 
   // ==========================================================================
-  // 10. linkFields
-  // ==========================================================================
-
-  describe('linkFields', () => {
-    it('should link two fields', () => {
-      const form = formFromFields<FormWithNumbers>({
-        count: { value: 10, component: null as ComponentInstance },
-        price: { value: 0, component: null as ComponentInstance },
-      });
-
-      form.linkFields('count', 'price', (count: number) => count * 100);
-
-      expect(form.price.value.value).toBe(1000);
-    });
-
-    it('should update target when source changes', () => {
-      const form = formFromFields<FormWithNumbers>({
-        count: { value: 10, component: null as ComponentInstance },
-        price: { value: 0, component: null as ComponentInstance },
-      });
-
-      form.linkFields('count', 'price', (count: number) => count * 100);
-
-      form.count.setValue(20);
-
-      expect(form.price.value.value).toBe(2000);
-    });
-
-    it('should return unsubscribe function', () => {
-      const form = formFromFields<FormWithNumbers>({
-        count: { value: 10, component: null as ComponentInstance },
-        price: { value: 0, component: null as ComponentInstance },
-      });
-
-      const unsubscribe = form.linkFields('count', 'price', (count: number) => count * 100);
-
-      unsubscribe();
-      form.count.setValue(20);
-
-      expect(form.price.value.value).toBe(1000); // Not updated
-    });
-  });
-
-  // ==========================================================================
-  // 11. watchField
-  // ==========================================================================
-
-  describe('watchField', () => {
-    it('should call callback on field change', () => {
-      const form = formFromFields(simpleSchema);
-      const callback = vi.fn();
-
-      form.watchField('email', callback);
-
-      form.email.setValue('test@mail.com');
-
-      expect(callback).toHaveBeenCalledWith('test@mail.com');
-    });
-
-    it('should call callback immediately with current value', () => {
-      const form = formFromFields({
-        email: { value: 'initial@mail.com', component: null as ComponentInstance },
-        password: { value: '', component: null as ComponentInstance },
-      });
-      const callback = vi.fn();
-
-      form.watchField('email', callback);
-
-      expect(callback).toHaveBeenCalledWith('initial@mail.com');
-    });
-
-    it('should return unsubscribe function', () => {
-      const form = formFromFields(simpleSchema);
-      const callback = vi.fn();
-
-      const unsubscribe = form.watchField('email', callback);
-
-      unsubscribe();
-      form.email.setValue('test@mail.com');
-
-      expect(callback).toHaveBeenCalledTimes(1); // Only initial call
-    });
-
-    it('should support nested paths', () => {
-      const nestedForm = formFromFields(nestedSchema);
-      const callback = vi.fn();
-
-      nestedForm.watchFieldByPath('address.city', callback);
-
-      nestedForm.address.city.setValue('Moscow');
-
-      expect(callback).toHaveBeenCalledWith('Moscow');
-    });
-  });
-
-  // ==========================================================================
-  // 12. getAllFields
-  // ==========================================================================
-
-  describe('getAllFields', () => {
-    it('should return iterator of all fields', () => {
-      const form = formFromFields(simpleSchema);
-
-      const fields = Array.from(form.getAllFields());
-
-      expect(fields).toHaveLength(2);
-    });
-
-    it('should include nested fields', () => {
-      const nestedForm = formFromFields(nestedSchema);
-
-      const fields = Array.from(nestedForm.getAllFields());
-
-      // getAllFields возвращает прямых потомков: name + address = 2
-      expect(fields.length).toBe(2);
-    });
-  });
-
-  // ==========================================================================
-  // 13. Edge Cases
+  // 10. Edge Cases
   // ==========================================================================
 
   describe('Edge Cases', () => {
@@ -878,12 +743,12 @@ describe('GroupNode', () => {
       });
 
       expect(deepForm.level1.level2.level3.title.value.value).toBe('deep');
-      expect(deepForm.getFieldByPath('level1.level2.level3.title')?.value.value).toBe('deep');
+      expect(deepForm.$.level1.$.level2.$.level3.$.title.value.value).toBe('deep');
     });
   });
 
   // ==========================================================================
-  // 14. Имена полей данных
+  // 11. Имена полей данных
   // ==========================================================================
 
   describe('Field names', () => {
@@ -926,15 +791,15 @@ describe('GroupNode', () => {
       });
     });
 
-    it('should reach every such field by path and write through to the model', () => {
+    it('should reach every such field via `form.$` and write through to the model', () => {
       const { model, form } = build();
 
-      for (const path of ['schema', 'form', 'value', 'valueSignal', 'component']) {
-        const field = form.getFieldByPath(path);
-        expect(field, path).toBeDefined();
-        field!.setValue(`${path}-changed`);
+      for (const name of ['schema', 'form', 'value', 'valueSignal', 'component'] as const) {
+        const field = form.$[name];
+        expect(field, name).toBeDefined();
+        field.setValue(`${name}-changed`);
       }
-      form.getFieldByPath('nested.form.schema')!.setValue('deep-changed');
+      form.$.nested.$.form.$.schema.setValue('deep-changed');
 
       expect(model.get()).toMatchObject({
         schema: 'schema-changed',
@@ -949,8 +814,8 @@ describe('GroupNode', () => {
     it('should keep a group named `form` a group', () => {
       const { form } = build();
 
-      const nestedForm = form.getFieldByPath('nested.form');
-      expect(nestedForm?.getValue()).toEqual({ schema: 'nfs' });
+      const nestedForm = form.$.nested.$.form;
+      expect(nestedForm.getValue()).toEqual({ schema: 'nfs' });
     });
 
     it('should bind schema config to such fields by handle', () => {
@@ -967,7 +832,7 @@ describe('GroupNode', () => {
         },
       });
 
-      const field = form.getFieldByPath('schema') as unknown as {
+      const field = form.$.schema as unknown as {
         component: unknown;
         componentProps: { value: Record<string, unknown> };
       };

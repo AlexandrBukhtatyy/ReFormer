@@ -6,12 +6,12 @@ import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
 /**
  * React-хук для подписки только на длину массива.
  *
- * Оптимизированная версия {@link useFormControl} для ArrayNode, которая
+ * Оптимизированная версия {@link useFormControl} для ModelArrayNode, которая
  * подписывается только на сигнал `length`. Компонент не будет ре-рендериться
  * при изменении значений вложенных полей.
  *
  * @typeParam T - Тип элемента массива
- * @param control - ArrayNode для подписки
+ * @param control - ModelArrayNode для подписки
  * @returns Текущая длина массива
  *
  * @example

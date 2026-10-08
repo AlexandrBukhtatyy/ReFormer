@@ -217,8 +217,7 @@ const signupValidation = defineValidationSchema<Signup>(({ model, cross }) => {
 });
 ```
 
-> Свободный `cross`, импортированный из `@reformer/core/validation`, оставлен для совместимости и
-> помечен `@deprecated`: тип снимка у него не выводится. Бери `cross` из аргумента схемы.
+> `cross` берётся только из аргумента схемы: из `@reformer/core/validation` он не импортируется.
 
 ### Conditional & array validation
 
