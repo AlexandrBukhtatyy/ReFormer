@@ -85,29 +85,17 @@ export interface NodeState {
   readonly errors: readonly string[];
   /** Цель `compute`: запись игнорируется поведением, и панель обязана сказать это заранее. */
   readonly derived: boolean;
-  /**
-   * Когда контрол на самом деле пишет в модель.
-   *
-   * `blur`/`submit` означают, что правка из панели равна «ввёл и ушёл с поля», а не «печатает
-   * прямо сейчас»: контрол при такой настройке держит значение у себя и пишет позже.
-   *
-   * Умолчание ядра — `blur`, то есть это касается ВСЕХ полей, а не редких. Поведение
-   * предсказуемое, но панель обязана его показать: человек, правящий значение, видит форму
-   * такой, какой она станет после ухода с поля.
-   */
-  readonly updateOn: 'change' | 'blur' | 'submit';
 }
 
 /** Узел формы в объёме, которым пользуется панель. Структурная копия `FormNode`. */
 interface FieldNodeLike {
   getValue?(): unknown;
-  setValue?(value: unknown, options?: { emitEvent?: boolean }): void;
+  setValue?(value: unknown): void;
   markAsTouched?(): void;
-  resetToInitial?(): void;
+  reset?(): void;
   disable?(): void;
   enable?(): void;
   setErrors?(errors: readonly { code?: string; message?: string }[]): void;
-  getUpdateOn?(): 'change' | 'blur' | 'submit';
   touched?: { readonly value: boolean };
   dirty?: { readonly value: boolean };
   disabled?: { readonly value: boolean };
@@ -152,14 +140,13 @@ export function readNodeState(model: unknown, path: string): NodeState | null {
     disabled: node.disabled?.value === true,
     errors: (node.errors?.value ?? []).map((error) => error.message ?? error.code ?? 'ошибка'),
     derived: signal === undefined ? false : isDerived(signal as never),
-    updateOn: node.getUpdateOn?.() ?? 'change',
   };
 }
 
 /** Как писать значение. */
 export interface WriteOptions {
   /**
-   * Сырая запись: значение ложится в модель, событие изменения не идёт, `touched` не поднимается.
+   * Сырая запись: значение ложится в модель, `touched` не поднимается.
    *
    * Ради этого режима правка модели и заводится: подать форме то, чего интерфейс не производит —
    * `null` в обязательном, число вне `min`, значение вне списка опций. Так выглядят данные,
@@ -190,7 +177,7 @@ export function writeValue(
   const node = nodeAt(model, path) as FieldNodeLike | null;
   if (typeof node?.setValue !== 'function') return 'read-only';
 
-  node.setValue(value, options.raw === true ? { emitEvent: false } : undefined);
+  node.setValue(value);
   // Как ввод человеком: контрол на blur зовёт ровно это.
   if (options.raw !== true) node.markAsTouched?.();
   return null;
@@ -199,8 +186,8 @@ export function writeValue(
 /** Операции над узлом сверх записи значения — по одному вызову каждая. */
 export function resetNode(model: unknown, path: string): boolean {
   const node = nodeAt(model, path) as FieldNodeLike | null;
-  if (typeof node?.resetToInitial !== 'function') return false;
-  node.resetToInitial();
+  if (typeof node?.reset !== 'function') return false;
+  node.reset();
   return true;
 }
 
