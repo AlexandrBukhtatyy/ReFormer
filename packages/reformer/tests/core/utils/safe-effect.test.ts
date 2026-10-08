@@ -2,7 +2,7 @@
  * Unit-тесты планировщика отложенных записей safe-effect.
  *
  * Покрывают:
- * - F7  — маршрутизация ошибок: синхронный throw и async-rejection уходят в FormErrorHandler,
+ * - F7  — маршрутизация ошибок: синхронный throw и async-rejection уходят в dev-лог,
  *          а не всплывают неперехваченными / не тонут как unhandledRejection; изоляция соседних записей.
  * - F7  — liveness: runOutsideEffect возвращает отменитель ещё не выполненной записи.
  * - F10 — safeCallback/safeDebouncedCallback: форвардинг аргументов, отсутствие двойного defer.
@@ -47,7 +47,7 @@ describe('runOutsideEffect', () => {
     expect(order).toEqual([1, 2, 3]);
   });
 
-  it('F7: синхронный throw маршрутизируется в FormErrorHandler и НЕ рвёт соседние записи', async () => {
+  it('F7: синхронный throw уходит в dev-лог и НЕ рвёт соседние записи', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     let ranAfter = false;
     runOutsideEffect(() => {

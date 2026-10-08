@@ -1,14 +1,15 @@
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
-import type { CreditApplicationForm, LoanType } from '../../../types/credit-application';
+import { isBusinessLoan, isCarLoan, isMortgage } from '../../../model/predicates';
+import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface BasicInfoFormProps {
   control: FormProxy<CreditApplicationForm>;
 }
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {
-  const loanType = useFormControlValue(control.loanType) as LoanType;
+  const loanType = useFormControlValue(control.loanType);
 
   return (
     <div className="space-y-6" data-testid="step-basic-info">
@@ -20,7 +21,7 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
       <FormField control={control.loanTerm} testId="loanTerm" />
       <FormField control={control.loanPurpose} testId="loanPurpose" />
 
-      {loanType === 'mortgage' && (
+      {isMortgage(loanType) && (
         <>
           <h3 className="text-lg font-semibold mt-4">Информация о недвижимости</h3>
           <FormField control={control.propertyValue} testId="propertyValue" />
@@ -28,7 +29,7 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
         </>
       )}
 
-      {loanType === 'car' && (
+      {isCarLoan(loanType) && (
         <>
           <h3 className="text-lg font-semibold mt-4">Информация об автомобиле</h3>
           <FormField control={control.carBrand} testId="carBrand" />
@@ -40,7 +41,7 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
         </>
       )}
 
-      {loanType === 'business' && (
+      {isBusinessLoan(loanType) && (
         <>
           <h3 className="text-lg font-semibold mt-4">Информация о бизнесе</h3>
           <FormField control={control.businessType} testId="businessType" />

@@ -5,17 +5,22 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ArrayNode } from '../../../src/form/nodes/array-node';
+import { signal } from '@preact/signals-core';
+import type { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
+import { createModel, type FormModel } from '../../../src/model/index';
+import { createFormFromModel } from '../../../src/form/create-form';
+import { defineValidationSchema, validate, validateModel } from '../../../src/form/validation';
+import { required } from '../../../src/form/validators';
 import { FieldNode } from '../../../src/form/nodes/field-node';
-import { createLegacyForm } from '../../../src/form/create-form';
 import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
+import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
 describe('FormNode - touchAll()', () => {
   describe('FieldNode', () => {
     it('should mark field as touched', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 
@@ -28,12 +33,12 @@ describe('FormNode - touchAll()', () => {
 
     it('should be equivalent to markAsTouched', () => {
       const field1 = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 
       const field2 = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 
@@ -55,7 +60,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         age: { value: 0, component: null as ComponentInstance },
@@ -75,12 +80,12 @@ describe('FormNode - touchAll()', () => {
     });
 
     it('should be equivalent to markAsTouched', () => {
-      const form1 = createLegacyForm({
+      const form1 = formFromFields({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
 
-      const form2 = createLegacyForm({
+      const form2 = formFromFields({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
@@ -108,7 +113,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -150,16 +155,16 @@ describe('FormNode - touchAll()', () => {
     });
   });
 
-  describe('ArrayNode', () => {
+  describe('ModelArrayNode', () => {
     interface ItemForm {
       name: string;
       price: number;
     }
 
-    let arrayNode: ArrayNode<ItemForm>;
+    let arrayNode: ModelArrayNode<ItemForm>;
 
     beforeEach(() => {
-      arrayNode = new ArrayNode<ItemForm>({
+      arrayNode = arrayFromFields<ItemForm>({
         name: { value: '', component: null as ComponentInstance },
         price: { value: 0, component: null as ComponentInstance },
       });
@@ -227,7 +232,7 @@ describe('FormNode - touchAll()', () => {
     let form: FormProxy<ComplexForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         user: {
           profile: {
             firstName: { value: '', component: null as ComponentInstance },
@@ -296,25 +301,17 @@ describe('FormNode - touchAll()', () => {
       password: string;
     }
 
+    const loginRules = defineValidationSchema<LoginForm>(({ model }) => {
+      validate(model.$.email, [required({ message: 'Required' })]);
+      validate(model.$.password, [required({ message: 'Required' })]);
+    });
+
+    let model: FormModel<LoginForm>;
     let form: FormProxy<LoginForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
-        email: {
-          value: '',
-          component: null as ComponentInstance,
-          validators: [
-            (value: string) => (value === '' ? { code: 'required', message: 'Required' } : null),
-          ],
-        },
-        password: {
-          value: '',
-          component: null as ComponentInstance,
-          validators: [
-            (value: string) => (value === '' ? { code: 'required', message: 'Required' } : null),
-          ],
-        },
-      });
+      model = createModel<LoginForm>({ email: '', password: '' });
+      form = createFormFromModel<LoginForm>({ model });
     });
 
     it('should show all errors when touchAll is called before validate', async () => {
@@ -323,7 +320,7 @@ describe('FormNode - touchAll()', () => {
       expect(form.password.shouldShowError.value).toBe(false);
 
       // Validate to trigger errors
-      await form.validate();
+      await validateModel(model, loginRules);
 
       // Still not visible because not touched
       expect(form.email.shouldShowError.value).toBe(false);
@@ -339,6 +336,7 @@ describe('FormNode - touchAll()', () => {
 
     it('should work with submit flow', async () => {
       const onSubmit = async (values: LoginForm) => values;
+      await validateModel(model, loginRules);
 
       // Submit will call touchAll internally
       const result = await form.submit(onSubmit);
@@ -358,25 +356,24 @@ describe('FormNode - touchAll()', () => {
     it('should be useful for "Validate All" button', async () => {
       // User clicks "Validate All" button
       form.touchAll();
-      await form.validate();
+      await validateModel(model, loginRules);
 
       // All errors visible even without submit
-      if (!form.valid.value) {
-        expect(form.email.shouldShowError.value).toBe(true);
-        expect(form.password.shouldShowError.value).toBe(true);
-      }
+      expect(form.valid.value).toBe(false);
+      expect(form.email.shouldShowError.value).toBe(true);
+      expect(form.password.shouldShowError.value).toBe(true);
     });
   });
 
   describe('Edge cases', () => {
     it('should work on empty GroupNode', () => {
-      const form = createLegacyForm({});
+      const form = formFromFields({});
 
       expect(() => form.touchAll()).not.toThrow();
     });
 
-    it('should work on empty ArrayNode', () => {
-      const arrayNode = new ArrayNode({
+    it('should work on empty array', () => {
+      const arrayNode = arrayFromFields({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -394,7 +391,7 @@ describe('FormNode - touchAll()', () => {
         };
       }
 
-      const form = createLegacyForm<Form>({
+      const form = formFromFields<Form>({
         section1: {
           field1: { value: '', component: null as ComponentInstance },
           field2: { value: '', component: null as ComponentInstance },

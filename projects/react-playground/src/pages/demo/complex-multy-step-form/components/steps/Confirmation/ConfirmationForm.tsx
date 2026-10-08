@@ -17,13 +17,13 @@ interface ConfirmationFormProps {
 
 export function ConfirmationForm({ control }: ConfirmationFormProps) {
   // Use hooks to get reactive values for display
-  const interestRate = useFormControlValue(control.interestRate) as number;
-  const monthlyPayment = useFormControlValue(control.monthlyPayment) as number;
-  const fullName = useFormControlValue(control.fullName) as string;
-  const age = useFormControlValue(control.age) as number | null;
-  const totalIncome = useFormControlValue(control.totalIncome) as number;
-  const paymentToIncomeRatio = useFormControlValue(control.paymentToIncomeRatio) as number;
-  const coBorrowersIncome = useFormControlValue(control.coBorrowersIncome) as number;
+  const interestRate = useFormControlValue(control.interestRate);
+  const monthlyPayment = useFormControlValue(control.monthlyPayment);
+  const fullName = useFormControlValue(control.fullName);
+  const age = useFormControlValue(control.age);
+  const totalIncome = useFormControlValue(control.totalIncome);
+  const paymentToIncomeRatio = useFormControlValue(control.paymentToIncomeRatio);
+  const coBorrowersIncome = useFormControlValue(control.coBorrowersIncome);
 
   return (
     <div className="space-y-6" data-testid="step-confirmation">

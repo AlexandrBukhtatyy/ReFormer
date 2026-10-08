@@ -20,13 +20,13 @@ interface F {
   items: Item[];
 }
 
-// Схема с МАТЕРИАЛИЗОВАННЫМ массивом: { array: model.items, item: (im) => <schema строки> }
+// Схема с МАТЕРИАЛИЗОВАННЫМ массивом: { model: model.$.items, item: (im) => <schema строки> }
 const buildSchema = (model: FormModel<F>) => ({
   children: [
     {
-      array: model.items,
+      model: model.$.items,
       item: (im: FormModel<Item>) => ({
-        children: [{ value: im.$.qty }, { value: im.$.discount }, { value: im.$.unit }],
+        children: [{ model: im.$.qty }, { model: im.$.discount }, { model: im.$.unit }],
       }),
     },
   ],

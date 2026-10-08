@@ -6,7 +6,8 @@
  * @module form/validators/non-zero
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -15,7 +16,7 @@ import { validationError } from './validation-error';
  * Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
- * @returns Чистый валидатор {@link Validator} для числового поля
+ * @returns Правило {@link Rule} для числового поля
  *
  * @example Проверка «не ноль»
  * ```typescript
@@ -28,13 +29,11 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function nonZero<TForm = unknown, TField extends number | null | undefined = number>(
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function nonZero(options?: ValidateOptions): Rule<number | null | undefined> {
   return (value) => {
     if (value === null || value === undefined) return null;
-    if (typeof value !== 'number' || isNaN(value as number)) return null;
-    if ((value as number) === 0) {
+    if (typeof value !== 'number' || isNaN(value)) return null;
+    if (value === 0) {
       return validationError('nonZero', options);
     }
     return null;

@@ -82,7 +82,7 @@ const INITIAL: FieldTooltipsForm = {
 
 function buildSchema(model: FormModel<FieldTooltipsForm>) {
   return {
-    fields: [
+    children: [
       {
         model: model.$.email,
         component: Input,

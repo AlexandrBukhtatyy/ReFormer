@@ -32,58 +32,6 @@ export type FormValue =
   | { [key: string]: FormValue };
 
 /**
- * Синхронная функция валидации
- * @group Types
- * @category Validation Types
- */
-export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
-
-/**
- * Опции для асинхронного валидатора
- * @group Types
- * @category Validation Types
- */
-export interface AsyncValidatorOptions {
-  /**
-   * AbortSignal для отмены валидации
-   * Позволяет отменить асинхронную операцию при новой валидации
-   */
-  signal?: AbortSignal;
-}
-
-/**
- * Асинхронная функция валидации
- *
- * @param value - Значение для валидации
- * @param options - Опции валидации (опционально)
- * @returns Promise с ошибкой валидации или null если значение валидно
- *
- * @example
- * ```typescript
- * // Простой валидатор (без поддержки отмены)
- * const emailExists: AsyncValidatorFn<string> = async (value) => {
- *   const exists = await checkEmail(value);
- *   return exists ? { code: 'exists', message: 'Email already exists' } : null;
- * };
- *
- * // Валидатор с поддержкой отмены
- * const emailExistsAbortable: AsyncValidatorFn<string> = async (value, options) => {
- *   const exists = await fetch(`/api/check-email?email=${value}`, {
- *     signal: options?.signal // Передаём signal в fetch для отмены запроса
- *   });
- *   return exists ? { code: 'exists', message: 'Email already exists' } : null;
- * };
- * ```
- *
- * @group Types
- * @category Validation Types
- */
-export type AsyncValidatorFn<T = FormValue> = (
-  value: T,
-  options?: AsyncValidatorOptions
-) => Promise<ValidationError | null>;
-
-/**
  * Ошибка валидации
  * @group Types
  * @category Validation Types
@@ -91,10 +39,10 @@ export type AsyncValidatorFn<T = FormValue> = (
 export interface ValidationError {
   code: string;
   /**
-   * Готовый текст ошибки. Пустая строка — «автор правила текста не задавал»: отображаемую строку
-   * тогда даёт резолвер по `code` (словарь локали `validation.<code>`).
+   * Готовый текст ошибки. Не задан — отображаемую строку даёт резолвер по `code` (словарь локали
+   * `validation.<code>`); пустая строка значит то же самое.
    */
-  message: string;
+  message?: string;
   /** Ключ сообщения в словаре приложения; при наличии в активной локали важнее `message`. */
   messageKey?: string;
   params?: Record<string, FormValue>;

@@ -29,12 +29,12 @@ const build = () => {
     component: SectionStub,
     componentProps: { title: 'Root' },
     children: [
-      { value: model.$.email, component: InputStub },
+      { model: model.$.email, component: InputStub },
       {
         component: SectionStub,
         children: [
-          { value: model.$.profile.name, component: InputStub },
-          { value: model.$.profile.age, component: InputStub },
+          { model: model.$.profile.name, component: InputStub },
+          { model: model.$.profile.age, component: InputStub },
         ],
       },
     ],
@@ -75,7 +75,7 @@ describe('createFormFromModel({ model, schema })', () => {
     const model = createModel<{ name: string; tags: string[] }>({ name: '', tags: [] });
     const form = createFormFromModel<{ name: string; tags: string[] }>({
       model,
-      schema: { children: [{ value: model.$.name, component: InputStub }] },
+      schema: { children: [{ model: model.$.name, component: InputStub }] },
     });
     form.name.setValue('ok');
     expect(model.name).toBe('ok');
@@ -87,27 +87,26 @@ describe('createFormFromModel({ model, schema })', () => {
 describe('createFormFromModel({ model, schema }) — узел формы внутри схемы', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('FormProxy в схеме пропускается с подсказкой вместо переполнения стека', () => {
+  it('FormProxy в componentProps сборке не мешает: пропсы обход не читает', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
-    // Первый проход: дерево без формы — так и надо строить схему для createForm.
     const form = createFormFromModel<Form>({
       model,
-      schema: { children: [{ value: model.$.email, component: InputStub }] },
+      schema: { children: [{ model: model.$.email, component: InputStub }] },
     });
 
-    // Второй проход: дерево, куда уже положили форму (типичный визард). Раньше рекурсивный обход
-    // уходил по самоссылкам прокси и падал с RangeError.
+    // Дерево, куда уже положили форму (типичный визард). Прокси формы самоссылочен, но в
+    // `componentProps` обход не заглядывает.
     const rebuilt = createFormFromModel<Form>({
       model,
       schema: {
         component: SectionStub,
         componentProps: { form },
-        children: [{ value: model.$.email, component: InputStub }],
+        children: [{ model: model.$.email, component: InputStub }],
       },
     });
 
-    expect(rebuilt.email.component).toBe(InputStub); // остальная схема отхарвестилась
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('узел формы (FormProxy)'));
+    expect(rebuilt.email.component).toBe(InputStub);
+    expect(warn).not.toHaveBeenCalled();
   });
 });

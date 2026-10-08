@@ -9,7 +9,7 @@
 
 ## API
 
-Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
+Одинаково в примитиве (`@reformer/core/model`) и DSL (`@reformer/core/behaviors`):
 
 ```typescript
 // примитив: возвращает cleanup
@@ -55,7 +55,7 @@ export const mortgageBehavior = defineFormBehavior<MortgageForm>(({ model }) => 
 ### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { resetWhen } from '@reformer/core';
+import { resetWhen } from '@reformer/core/model';
 const stop = resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 

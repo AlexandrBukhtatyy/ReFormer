@@ -1,7 +1,8 @@
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
-import type { CreditApplicationForm, EmploymentStatus } from '../../../types/credit-application';
+import { isEmployed, isSelfEmployed, isUnemployed } from '../../../model/predicates';
+import type { CreditApplicationForm } from '../../../types/credit-application';
 import { UnemployedWarning } from '../../ui/UnemployedWarning';
 
 interface EmploymentFormProps {
@@ -9,7 +10,7 @@ interface EmploymentFormProps {
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {
-  const employmentStatus = useFormControlValue(control.employmentStatus) as EmploymentStatus;
+  const employmentStatus = useFormControlValue(control.employmentStatus);
 
   return (
     <div className="space-y-6" data-testid="step-employment">
@@ -21,7 +22,7 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
         <FormField control={control.employmentStatus} testId="employmentStatus" />
       </div>
 
-      {employmentStatus === 'employed' && (
+      {isEmployed(employmentStatus) && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold mt-6">Информация о работодателе</h3>
           <FormField control={control.companyName} testId="companyName" />
@@ -40,7 +41,7 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
         </div>
       )}
 
-      {employmentStatus === 'selfEmployed' && (
+      {isSelfEmployed(employmentStatus) && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold mt-6">Информация о бизнесе</h3>
           <FormField control={control.businessType} testId="businessType" />
@@ -49,7 +50,7 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
         </div>
       )}
 
-      {employmentStatus !== 'unemployed' && (
+      {!isUnemployed(employmentStatus) && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold mt-6">Доход</h3>
           <FormField control={control.monthlyIncome} testId="monthlyIncome" />
@@ -60,7 +61,7 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
         </div>
       )}
 
-      {employmentStatus === 'unemployed' && <UnemployedWarning className={'mt-6'} />}
+      {isUnemployed(employmentStatus) && <UnemployedWarning className={'mt-6'} />}
     </div>
   );
 }

@@ -22,7 +22,7 @@
  */
 
 import { useState } from 'react';
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, useFormBundle, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
@@ -161,9 +161,9 @@ const messages = createMessageResolver({
   required: () => 'Выберите файл',
 });
 
-function buildSchema(model: FormModel<TreeDemoForm>) {
+function buildSchema(model: FormModel<TreeDemoForm>): FormSchemaNode {
   return {
-    fields: [
+    children: [
       {
         // Скалярное поле — `model.$.configFile` уже сигнал, `signalAt` тут не нужен.
         model: model.$.configFile,
@@ -186,7 +186,7 @@ function buildSchema(model: FormModel<TreeDemoForm>) {
       {
         // `model.signalAt(path)!`, а НЕ `model.$.assetFiles`: у поля типа `T[]` `$`-тип
         // разворачивается в ModelArraySignals, и `$.assetFiles` — контейнер-прокси, а не сигнал.
-        value: model.signalAt('assetFiles')!,
+        model: model.signalAt('assetFiles')!,
         component: ComboboxTreeMulti,
         componentProps: {
           label: 'Ресурсы сборки',
@@ -338,7 +338,7 @@ validate(model.signalAt('configFile')!, [required()]);
             description="Набор узлов: чипы до трёх, дальше сводка; потолок maxItems гасит невыбранные строки"
             bgColor="bg-white"
             code={`{
-  value: model.signalAt('assetFiles')!, // МАССИВ — только signalAt, не model.$
+  model: model.signalAt('assetFiles')!, // МАССИВ — только signalAt, не model.$
   component: ComboboxTreeMulti,
   componentProps: { nodes: FILE_TREE, maxItems: 4, summaryThreshold: 3 },
 }

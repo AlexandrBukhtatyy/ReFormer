@@ -1,28 +1,25 @@
 /**
  * CreditApplicationFormRenderer
  *
- * Та же форма кредитной заявки, нарисованная рендерером по схеме. Модель, схема, правила и
- * поведение — общие с вариантом «React руками» (`../complex-multy-step-form`); эта страница только
- * собирает форму и отдаёт бандл рендереру.
+ * Та же форма кредитной заявки, нарисованная рендерером по схеме. Сборка — общая с вариантом
+ * «React руками» (`../complex-multy-step-form/application/create`); эта страница добавляет к ней
+ * связку узлов (загрузка, отправка, навигация) и отдаёт бандл рендереру.
  *
  * Использует:
- * - `createForm` — одна сборка: модель, дерево схемы, форма, поведение, валидация;
+ * - `createCreditApplication` — одна сборка: модель, дерево схемы, форма, поведение, валидация;
  * - `FormRenderer` — рисует дерево и исполняет правила узлов из поведения;
  * - библиотечный `FormWizard` как узел схемы: форму и валидацию он берёт из сборки сам.
  */
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { createForm, useFormBundle, type FormRender } from '@reformer/core';
+import { useFormBundle, type FormRender } from '@reformer/core';
 import { FormRenderer } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 import { ValidationMessagesProvider } from '@reformer/cdk';
-import { createCreditApplicationModel } from '../complex-multy-step-form/model';
-import { creditApplicationSchema } from '../complex-multy-step-form/form.schema';
-import { creditApplicationBehavior } from '../complex-multy-step-form/form.behavior';
-import { creditApplicationValidation } from '../complex-multy-step-form/form.validation';
+import { createCreditApplication } from '../complex-multy-step-form/application/create';
+import { rendererSetup } from '../complex-multy-step-form/application/renderer';
 import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
-import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
 // Демо-панель для демонстрации программного управления схемой
 function SchemaControlPanel({ schema }: { schema: FormRender }) {
@@ -115,15 +112,11 @@ function SchemaControlPanel({ schema }: { schema: FormRender }) {
 }
 
 function CreditApplicationFormRenderer() {
-  // Сборка ОДНИМ вызовом: модель, дерево схемы, форма, поведение и валидация. `useFormBundle` зовёт
-  // фабрику ровно один раз и держит бандл стабильным между рендерами.
+  // Сборка заявки — общая на все варианты; сверху — связка узлов: загрузку, отправку и навигацию
+  // исполняет рендерер. `useFormBundle` зовёт фабрику ровно один раз и держит бандл стабильным
+  // между рендерами.
   const creditForm = useFormBundle(() =>
-    createForm<CreditApplicationForm>({
-      model: createCreditApplicationModel(),
-      schema: creditApplicationSchema,
-      behavior: creditApplicationBehavior,
-      validation: creditApplicationValidation,
-    })
+    createCreditApplication({ setup: rendererSetup({ applicationId: '1' }) })
   );
 
   return (

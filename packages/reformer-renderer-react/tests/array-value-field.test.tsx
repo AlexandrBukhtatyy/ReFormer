@@ -2,7 +2,7 @@
  * Поле, привязанное к массиву целиком: мультивыбор, теги, список файлов.
  *
  * Узел-массив дерева `model.$` — ручка значения, но не `instanceof Signal`. Рендерер отличал поле
- * от контейнера именно этой проверкой, поэтому узел `{ value: model.$.tags, component }` уходил в
+ * от контейнера именно этой проверкой, поэтому узел `{ model: model.$.tags, component }` уходил в
  * ветку контейнера: компонент рисовался без `value`/`onChange`. Здесь закреплено, что такой узел —
  * поле, и что массив в тексте и в пропсах читается значением.
  *
@@ -43,11 +43,11 @@ describe('узел схемы с массивом в value', () => {
   it('распознаётся как поле, а не как контейнер', () => {
     const model = createModel<F>({ ...INITIAL });
 
-    expect(isModelFieldRenderNode({ value: model.$.tags, component: Multi } as any)).toBe(true);
-    expect(isModelFieldRenderNode({ value: model.$.name, component: Multi } as any)).toBe(true);
+    expect(isModelFieldRenderNode({ model: model.$.tags, component: Multi } as any)).toBe(true);
+    expect(isModelFieldRenderNode({ model: model.$.name, component: Multi } as any)).toBe(true);
     // Группа полем не бывает: её узел — контейнер.
-    expect(isModelFieldRenderNode({ value: model.$.profile, component: Multi } as any)).toBe(false);
-    expect(isContainerRenderNode({ value: model.$.profile, component: Multi } as any)).toBe(true);
+    expect(isModelFieldRenderNode({ model: model.$.profile, component: Multi } as any)).toBe(false);
+    expect(isContainerRenderNode({ model: model.$.profile, component: Multi } as any)).toBe(true);
   });
 
   it('компонент получает значение массива и onChange — в корне и во вложенной группе', () => {
@@ -57,8 +57,8 @@ describe('узел схемы с массивом в value', () => {
         ({
           component: 'div',
           children: [
-            { value: model.$.tags, component: Multi, componentProps: { label: 'Теги' } },
-            { value: model.$.profile.langs, component: Multi },
+            { model: model.$.tags, component: Multi, componentProps: { label: 'Теги' } },
+            { model: model.$.profile.langs, component: Multi },
           ],
         }) as unknown as RenderNode<F>,
     });

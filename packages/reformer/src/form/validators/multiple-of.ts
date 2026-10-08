@@ -6,7 +6,8 @@
  * @module form/validators/multiple-of
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -17,7 +18,7 @@ import { validationError } from './validation-error';
  * @param divisor - Делитель: значение должно быть кратно ему
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадает `multipleOf` (делитель).
- * @returns Чистый валидатор {@link Validator} для числового поля
+ * @returns Правило {@link Rule} для числового поля
  *
  * @example Проверка кратности
  * ```typescript
@@ -30,17 +31,17 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function multipleOf<TForm = unknown, TField extends number | null | undefined = number>(
+export function multipleOf(
   divisor: number,
   options?: ValidateOptions
-): Validator<TForm, TField> {
+): Rule<number | null | undefined> {
   // `%` точен только для двоично-представимых чисел: 0.3 % 0.1 === 0.0999…, поэтому сравниваем
   // остаток с допуском (иначе десятичный шаг вроде multipleOf(0.5) даёт ложные ошибки).
   const EPSILON = 1e-9;
   return (value) => {
     if (value === null || value === undefined) return null;
-    if (typeof value !== 'number' || isNaN(value as number)) return null;
-    const remainder = Math.abs((value as number) % divisor);
+    if (typeof value !== 'number' || isNaN(value)) return null;
+    const remainder = Math.abs(value % divisor);
     const isMultiple = remainder <= EPSILON || Math.abs(remainder - Math.abs(divisor)) <= EPSILON;
     if (!isMultiple) {
       return validationError('multipleOf', options, { multipleOf: divisor });

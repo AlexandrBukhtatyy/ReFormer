@@ -1,20 +1,8 @@
-/**
- * Вычисление первоначального взноса (20% от стоимости недвижимости)
- */
+import type { CreditApplicationForm } from '../../types/credit-application';
 
-/**
- * Вычисление первоначального взноса (20% от стоимости недвижимости)
- *
- * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
- *
- * @param params - Объект с параметрами
- * @param params.propertyValue - Стоимость недвижимости (₽)
- * @returns первоначальный взнос (₽)
- */
-export function computeInitialPayment({ propertyValue }: { propertyValue: number }): number {
-  if (!propertyValue) {
-    return 0;
-  }
-
-  return Math.round(propertyValue * 0.2);
+/** Первоначальный взнос (₽): 20 % стоимости недвижимости. */
+export function computeInitialPayment({
+  propertyValue,
+}: Pick<CreditApplicationForm, 'propertyValue'>): number {
+  return propertyValue ? Math.round(propertyValue * 0.2) : 0;
 }

@@ -6,7 +6,8 @@
  * @module form/validators/url
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
@@ -34,7 +35,7 @@ export interface UrlValidatorOptions extends ValidateOptions {
  * дополнительно ограничивает набор допустимых протоколов.
  *
  * @param options - Опции валидатора {@link UrlValidatorOptions}
- * @returns Чистый валидатор {@link Validator} для строкового поля
+ * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка URL
  * ```typescript
@@ -49,15 +50,13 @@ export interface UrlValidatorOptions extends ValidateOptions {
  * });
  * ```
  */
-export function url<TForm = unknown, TField extends string | null | undefined = string>(
-  options?: UrlValidatorOptions
-): Validator<TForm, TField> {
+export function url(options?: UrlValidatorOptions): Rule<string | null | undefined> {
   return (value) => {
     if (!value) {
       return null;
     }
 
-    const v = value as string;
+    const v = value;
     const regex = options?.requireProtocol ? URL_REQUIRE_PROTOCOL : URL_WITH_PROTOCOL;
 
     if (!regex.test(v)) {

@@ -43,13 +43,13 @@ describe('pattern — stateful RegExp determinism (regression #20)', () => {
 });
 
 describe('pattern — default message (regression #17)', () => {
-  it('без options.message возвращает пустое message (fallback на code)', () => {
+  it('без options.message текста у ошибки нет (fallback на code)', () => {
     const v = pattern(/^\d+$/) as unknown as (
       value: unknown
-    ) => { code: string; message: string; params: Record<string, unknown> } | null;
+    ) => { code: string; message?: string; params: Record<string, unknown> } | null;
     const err = v('abc');
     expect(err?.code).toBe('pattern');
-    expect(err?.message).toBe('');
+    expect(err?.message).toBeUndefined();
     expect(err?.params.pattern).toBe('^\\d+$');
   });
 

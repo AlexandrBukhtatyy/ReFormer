@@ -11,15 +11,15 @@
 import { describe, it, expect } from 'vitest';
 import { required } from '../../../src/form/validators/required';
 
-const v = required() as unknown as (value: unknown) => { code: string; message: string } | null;
+const v = required() as unknown as (value: unknown) => { code: string; message?: string } | null;
 
 describe('required — default message (regression #17)', () => {
-  it('без options.message возвращает пустое message (fallback на code)', () => {
+  it('без options.message текста у ошибки нет (fallback на code)', () => {
     const err = v(null);
     expect(err).not.toBeNull();
     expect(err?.code).toBe('required');
-    // Ключ фикса: message === '' → резолвер `message || code` доберётся до кода
-    expect(err?.message).toBe('');
+    // Ключ фикса: `message` не задан → резолвер берёт текст по коду
+    expect(err?.message).toBeUndefined();
   });
 
   it('per-field message сохраняется', () => {

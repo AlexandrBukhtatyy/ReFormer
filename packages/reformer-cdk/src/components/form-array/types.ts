@@ -1,22 +1,18 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ArrayNode, ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
+import type { ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
 
 /**
- * Узел массива, принимаемый CDK-компонентами FormArray.
- *
- * Legacy {@link ArrayNode} (владеет элементами сам) ИЛИ M1 {@link ModelArrayNode} (делегирует
- * массиву модели). Оба структурно реализуют используемый CDK контракт
- * (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/`errors`/…), но
- * ModelArrayNode расширяет `FormNode<T[]>`, а не `ArrayNode`, поэтому нужен явный union — иначе
- * консументы M1 (у которых `form.<field>` материализуется как ModelArrayNode) вынуждены кастовать.
+ * Узел массива, принимаемый CDK-компонентами FormArray, — {@link ModelArrayNode}: узел формы над
+ * массивом модели (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/
+ * `errors`/…).
  */
-export type FormArrayControl<T extends object> = ArrayNode<T> | ModelArrayNode<T>;
+export type FormArrayControl<T extends object> = ModelArrayNode<T>;
 
 /**
  * Props for FormArray.Root component
  */
 export interface FormArrayRootProps<T extends object> {
-  /** The array control from the form — legacy ArrayNode или M1 ModelArrayNode */
+  /** The array control from the form */
   control: FormArrayControl<T>;
   /** Child components */
   children: ReactNode;

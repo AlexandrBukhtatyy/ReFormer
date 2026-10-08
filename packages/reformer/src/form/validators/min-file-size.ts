@@ -6,7 +6,8 @@
  * @module form/validators/min-file-size
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { toFileArray } from './file-utils';
 import { validationError } from './validation-error';
 
@@ -22,7 +23,7 @@ import { validationError } from './validation-error';
  * @param minSize - Минимально допустимый размер файла в байтах (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `minFileSize`, `fileName` и `actualSize`.
- * @returns Чистый валидатор {@link Validator} для файла или массива файлов
+ * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Отсев пустых файлов
  * ```typescript
@@ -35,10 +36,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function minFileSize<TForm = unknown, TField = unknown>(
-  minSize: number,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function minFileSize(minSize: number, options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

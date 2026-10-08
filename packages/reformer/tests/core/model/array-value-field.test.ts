@@ -148,10 +148,10 @@ describe('поле формы над массивом', () => {
       schema: {
         component: Box,
         children: [
-          { value: model.$.name, component: Select },
-          { value: model.$.tags, component: Select, componentProps: { label: 'Теги' } },
-          { value: model.$.maybe, component: Select },
-          { value: model.$.profile.langs, component: Select },
+          { model: model.$.name, component: Select },
+          { model: model.$.tags, component: Select, componentProps: { label: 'Теги' } },
+          { model: model.$.maybe, component: Select },
+          { model: model.$.profile.langs, component: Select },
         ],
       },
     });
@@ -211,10 +211,10 @@ describe('поле формы над массивом', () => {
       model,
       schema: {
         children: [
-          { value: model.$.rows, component: Box },
+          { model: model.$.rows, component: Box },
           {
-            array: model.rows,
-            item: (row: FormModel<Row>) => ({ value: row.$.label, component: Select }),
+            model: model.$.rows,
+            item: (row: FormModel<Row>) => ({ model: row.$.label, component: Select }),
           },
         ],
       },
@@ -249,8 +249,8 @@ describe('валидация массива как значения', () => {
       model,
       schema: {
         children: [
-          { value: model.$.tags, component: Select },
-          { value: model.$.maybe, component: Select },
+          { model: model.$.tags, component: Select },
+          { model: model.$.maybe, component: Select },
         ],
       },
     });
@@ -318,7 +318,7 @@ describe('поведение над массивом как значением',
     });
     const form = createFormFromModel<Form>({
       model,
-      schema: { children: [{ value: model.$.tags, component: Select }] },
+      schema: { children: [{ model: model.$.tags, component: Select }] },
       behavior,
     });
 

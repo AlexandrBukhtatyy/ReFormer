@@ -1,10 +1,5 @@
 import { useMemo } from 'react';
-import {
-  useFormControl,
-  type ArrayNode,
-  type FormProxy,
-  type ValidationError,
-} from '@reformer/core';
+import { useFormControl, type FormProxy, type ValidationError } from '@reformer/core';
 // FormArrayItem объявлен один раз в FormArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FormArrayItem } from './FormArrayContext';
 import type { FormArrayControl } from './types';
@@ -109,9 +104,7 @@ export function useFormArray<T extends object>(
 ): UseFormArrayReturn<T> {
   // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
   // the same length — without it the memo below would not recompute and the UI would not reorder.
-  // ModelArrayNode структурно совместим с ArrayNode для useFormControl (duck-typed по length/map);
-  // cast нужен лишь потому, что перегрузка типизирована строго под ArrayNode.
-  const { length, value, errors, valid, invalid } = useFormControl(control as ArrayNode<T>);
+  const { length, value, errors, valid, invalid } = useFormControl(control);
 
   // Memoize items array - recalculates when length OR order changes. Хелперы reorder выводятся на
   // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FormArray.List.

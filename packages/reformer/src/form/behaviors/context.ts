@@ -13,7 +13,8 @@
  */
 
 import { effect as preactEffect } from '@preact/signals-core';
-import { runOutsideEffect, type BehaviorCleanup } from '../../index';
+import type { BehaviorCleanup } from '../../model/behaviors-value';
+import { runOutsideEffect } from '../../model/safe-effect';
 import { createSchemaController, type SchemaController } from '../schema-controller';
 import type { BehaviorScope, FormBehavior } from './types';
 

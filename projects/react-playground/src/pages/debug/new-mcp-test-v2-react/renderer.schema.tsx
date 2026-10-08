@@ -494,7 +494,7 @@ export function buildCreditApplicationSchema(
       children: [
         {
           selector: `${prefix}-region`,
-          value: signals.region,
+          model: signals.region,
           component: Select,
           componentProps: {
             label: 'Регион',
@@ -505,7 +505,7 @@ export function buildCreditApplicationSchema(
         },
         {
           selector: `${prefix}-city`,
-          value: signals.city,
+          model: signals.city,
           component: Select,
           componentProps: {
             label: 'Город',
@@ -522,7 +522,7 @@ export function buildCreditApplicationSchema(
       children: [
         {
           selector: `${prefix}-street`,
-          value: signals.street,
+          model: signals.street,
           component: Input,
           componentProps: {
             label: 'Улица',
@@ -532,13 +532,13 @@ export function buildCreditApplicationSchema(
         },
         {
           selector: `${prefix}-house`,
-          value: signals.house,
+          model: signals.house,
           component: Input,
           componentProps: { label: 'Дом', placeholder: '№', testId: `${prefix}-house` },
         },
         {
           selector: `${prefix}-apartment`,
-          value: signals.apartment,
+          model: signals.apartment,
           component: Input,
           componentProps: { label: 'Квартира', placeholder: '№', testId: `${prefix}-apartment` },
         },
@@ -546,7 +546,7 @@ export function buildCreditApplicationSchema(
     },
     {
       selector: `${prefix}-postalCode`,
-      value: signals.postalCode,
+      model: signals.postalCode,
       component: InputMask,
       componentProps: {
         label: 'Индекс',

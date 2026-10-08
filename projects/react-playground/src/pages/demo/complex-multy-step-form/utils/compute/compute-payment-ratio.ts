@@ -1,27 +1,10 @@
-/**
- * Вычисление процента платежа от дохода
- */
+import type { CreditApplicationForm } from '../../types/credit-application';
 
-/**
- * Вычисление процента платежа от дохода
- *
- * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
- *
- * @param params - Объект с параметрами
- * @param params.monthlyPayment - Ежемесячный платеж (₽)
- * @param params.totalIncome - Общий доход (₽)
- * @returns процент платежа от дохода (%)
- */
+/** Доля платежа в доходе (%). */
 export function computePaymentRatio({
   monthlyPayment,
   totalIncome,
-}: {
-  monthlyPayment: number;
-  totalIncome: number;
-}): number {
-  if (!monthlyPayment || !totalIncome || totalIncome === 0) {
-    return 0;
-  }
-
+}: Pick<CreditApplicationForm, 'monthlyPayment' | 'totalIncome'>): number {
+  if (!monthlyPayment || !totalIncome) return 0;
   return Math.round((monthlyPayment / totalIncome) * 100);
 }

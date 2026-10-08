@@ -51,7 +51,7 @@ describe('array node с $component', () => {
     const el0 = { m: signal('Alpha'), t: signal('info') };
     const el1 = { m: signal('Beta'), t: signal('error') };
     const node: any = {
-      array: fakeArray([el0, el1]),
+      model: fakeArray([el0, el1]),
       component: ListWrap,
       componentProps: { className: 'space-y-2' },
       initialValue: () => ({}),
@@ -72,7 +72,7 @@ describe('array node с $component', () => {
     // message — сигнал; без unwrap Alert получил бы объект Signal вместо строки.
     const el = { m: signal('Warning!'), t: signal('warning') };
     const node: any = {
-      array: fakeArray([el]),
+      model: fakeArray([el]),
       component: ListWrap,
       initialValue: () => ({}),
       item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
@@ -90,7 +90,7 @@ describe('array node с $component', () => {
       return null;
     };
     const node: any = {
-      array: fakeArray([{ m: signal('x'), t: signal('info') }], { push, removeAt, move }),
+      model: fakeArray([{ m: signal('x'), t: signal('info') }], { push, removeAt, move }),
       component: Capture,
       initialValue: () => ({ fresh: true }),
       item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
@@ -111,7 +111,7 @@ describe('array node с $component', () => {
 
   it('без component — безхромный fallback: элементы есть, UI управления нет', () => {
     const node: any = {
-      array: fakeArray([{ m: signal('x'), t: signal('info') }]),
+      model: fakeArray([{ m: signal('x'), t: signal('info') }]),
       initialValue: () => ({}),
       item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
     };

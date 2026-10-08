@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { FieldNode } from '../../../form/nodes/field-node';
-import type { ArrayNode } from '../../../form/nodes/array-node';
+import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
 import type { FormValue, ValidationError } from '../../../form/types/index';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
@@ -57,7 +57,7 @@ function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldContr
 }
 
 /** @internal */
-function useArrayControl<T extends object>(control: ArrayNode<T>): ArrayControlState<T> {
+function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayControlState<T> {
   const signals = {
     value: control.value,
     length: control.length,
@@ -133,7 +133,7 @@ function useEmptyControl(): ArrayControlState<object> {
  * @group React Hooks
  */
 export function useFormControl<T extends object>(
-  control: ArrayNode<T> | undefined
+  control: ModelArrayNode<T> | undefined
 ): ArrayControlState<T>;
 
 /**
@@ -372,7 +372,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * @group React Hooks
  */
 export function useFormControl(
-  control: FieldNode<FormValue> | ArrayNode<object> | undefined
+  control: FieldNode<FormValue> | ModelArrayNode<object> | undefined
 ): FieldControlState<FormValue> | ArrayControlState<object> {
   const isArrayNode = control && 'length' in control && 'map' in control;
 
@@ -386,7 +386,7 @@ export function useFormControl(
 
   if (isArrayNode) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useArrayControl(control as ArrayNode<object>);
+    return useArrayControl(control as ModelArrayNode<object>);
   }
 
   // eslint-disable-next-line react-hooks/rules-of-hooks

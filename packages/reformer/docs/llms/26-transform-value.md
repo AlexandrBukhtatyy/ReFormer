@@ -11,7 +11,7 @@
 
 ## API
 
-Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
+Одинаково в примитиве (`@reformer/core/model`) и DSL (`@reformer/core/behaviors`):
 
 ```typescript
 // примитив: возвращает cleanup
@@ -22,7 +22,7 @@ function transformValue<T>(target: Signal<T>, transformer: (value: T) => T): voi
 ```
 
 `target` — сигнал (`model.$.field`). `transformer` — чистая идемпотентная функция значения.
-Дополнительных опций (`debounce`, `onUserChangeOnly`, `emitEvent`) и готового набора
+Дополнительных опций (`debounce`, `onUserChangeOnly`) и готового набора
 `transformers`/`createTransformer` НЕТ — трансформер пишется как обычная функция.
 
 ## Examples
@@ -70,7 +70,7 @@ export const contactBehavior = defineFormBehavior<ContactForm>(({ model }) => {
 ### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { transformValue } from '@reformer/core';
+import { transformValue } from '@reformer/core/model';
 const stop = transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 

@@ -6,7 +6,8 @@
  * @module form/validators/max-length
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -19,7 +20,7 @@ import { validationError } from './validation-error';
  * @param maxLen - Максимально допустимая длина (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `maxLength` и `actualLength`.
- * @returns Чистый валидатор {@link Validator} для строки или массива
+ * @returns Правило {@link Rule} для строки или массива
  *
  * @example Максимальная длина строки
  * ```typescript
@@ -33,10 +34,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function maxLength<TForm = unknown, TField = unknown>(
-  maxLen: number,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function maxLength(maxLen: number, options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

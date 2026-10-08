@@ -12765,10 +12765,11 @@
             }
           },
           "control": {
+            "type": "object",
             "description": "Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy.",
             "x-doc": {
               "group": "Behavior",
-              "type": "ArrayNode<T> | FormArrayProxy<T>",
+              "type": "ModelArrayNode<T>",
               "kind": "readonly"
             }
           },

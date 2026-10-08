@@ -6,7 +6,8 @@
  * @module form/validators/required
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -19,7 +20,7 @@ import { validationError } from './validation-error';
  * Для boolean полей требуется значение `true`.
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
- * @returns Чистый валидатор {@link Validator} для поля схемы
+ * @returns Правило {@link Rule} для поля схемы
  *
  * @example Обязательные поля в схеме формы
  * ```typescript
@@ -34,9 +35,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function required<TForm = unknown, TField = unknown>(
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function required(options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     const isEmpty =
       value === null ||

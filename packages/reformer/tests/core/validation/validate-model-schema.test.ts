@@ -53,11 +53,11 @@ function makeForm(over: Partial<F> = {}) {
   const schema = {
     component: C,
     children: [
-      { value: model.$.name, component: C },
-      { value: model.$.age, component: C },
-      { value: model.$.loanType, component: C },
-      { value: model.$.extra, component: C },
-      { value: model.$.ratio, component: C },
+      { model: model.$.name, component: C },
+      { model: model.$.age, component: C },
+      { model: model.$.loanType, component: C },
+      { model: model.$.extra, component: C },
+      { model: model.$.ratio, component: C },
     ],
   };
   const form = createFormFromModel<F>({ model, schema });
@@ -108,7 +108,7 @@ describe('@reformer/core/validation — validateModel + операторы', () 
     expect(await validateModel(makeModel({ name: 'free' }), asyncFail)).toBe(true);
   });
 
-  it('validateAsync: сбой правила (throw) НЕ блокирует', async () => {
+  it('validateAsync: сбой правила (throw) блокирует — результата проверки нет', async () => {
     const schema: ValidationSchema<F> = ({ model }) => {
       validateAsync(model.$.name, [
         async () => {
@@ -116,7 +116,7 @@ describe('@reformer/core/validation — validateModel + операторы', () 
         },
       ]);
     };
-    expect(await validateModel(makeModel({ name: 'x' }), schema)).toBe(true);
+    expect(await validateModel(makeModel({ name: 'x' }), schema)).toBe(false);
   });
 
   it('each: per-item валидация массива', async () => {

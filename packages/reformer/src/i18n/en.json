@@ -38,5 +38,7 @@
   "validation.maxTotalFileSize": "The total size of the files exceeds {maxTotalFileSize}",
   "validation.fileExists": "File {fileName} has already been added",
   "validation.uploadAborted": "Upload cancelled",
-  "validation.uploadFailed": "Failed to upload {fileName}"
+  "validation.uploadFailed": "Failed to upload {fileName}",
+
+  "validation.ruleFailed": "Could not check this field. Try again"
 }

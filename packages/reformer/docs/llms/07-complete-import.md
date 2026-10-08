@@ -1,40 +1,34 @@
 ## Import Patterns
 
 ```typescript
-// Модель, форма, хуки, типы, примитивы behaviors — из @reformer/core
+// Модель, форма, хуки, типы — из @reformer/core
 import {
   // фабрики
   createModel,
   createForm,
+  createFormFromModel,
+  arrayOf, // массив модели с шаблоном новой строки
   // хуки
+  useFormBundle,
   useFormControl,
   useFormControlValue,
   useArrayLength,
-  // примитивы behaviors (принимают сигналы, возвращают cleanup)
-  computeFrom,
-  copyFrom,
-  watchField,
-  enableWhen,
-  disableWhen,
-  transformValue,
-  resetWhen,
-  syncFields,
-  revalidateWhen,
 } from '@reformer/core';
 
 // Типы
 import type {
   FormModel,        // реактивная модель данных
   FormProxy,        // тип формы для props компонентов
-  FieldNode,        // узел одного поля
-  GroupNode,        // узел группы
-  ArrayNode,        // узел массива
+  FormBundle,       // результат createForm: { model, form, validation, render }
+  FieldNode,        // нода одного поля
+  GroupNode,        // нода группы
+  ModelArrayNode,   // нода массива под-форм
   ModelArray,       // реактивный массив модели (push/removeAt/at/map/length)
-  ModelSignals,     // дерево сигналов ($)
-  PathAwareSignal,  // сигнал, знающий свой путь
+  ModelSignals,     // дерево ручек ($)
+  PathAwareSignal,  // ручка, знающая свой путь
   ValidationError,
-  FieldConfig,      // { value, component, componentProps?, ... } — layout, БЕЗ валидаторов
-  FormSchema,
+  FormSchemaNode,   // узел схемы: поле | массив под-форм | подформа | контейнер
+  FormValidation,   // правила формы как данные: { steps, extras, strategy }
   FieldControlState,
 } from '@reformer/core';
 
@@ -44,15 +38,17 @@ import {
   validate,
   validateAsync,
   validateWhen,
-  cross,
-  each,
-  apply,
-  validateModel, // раннер: validateModel(model, schema) => Promise<boolean>
+  apply,     // правила подформы: apply(model.$.group, rules); композиция: apply(rulesA, rulesB)
+  applyEach, // правила строк массива: applyEach(model.$.items, rules)
+  validateModel, // раннер: сбор + разнос, Promise<boolean>
+  runValidation, // только сбор: Promise<ValidationResult>
+  applyValidationResult, // разнос собранного результата по нодам
 } from '@reformer/core/validation';
 import type {
   Rule,             // (value) => ValidationError | null
   AsyncRule,        // (value, { signal }) => Promise<ValidationError | null>
-  ValidationSchema,
+  ValidationSchema, // ({ model, cross }) => void — cross берётся из аргумента схемы
+  ValidationResult, // { status, errors, failures }
 } from '@reformer/core/validation';
 
 // Валидаторы — чистые фабрики из /validators (кладутся в validate(sig, [...]))
@@ -76,11 +72,14 @@ import {
   aggregateInto,
   exclusiveFlag,
 } from '@reformer/core/behaviors';
+
+// Примитивы над сигналами (принимают сигналы, возвращают cleanup) — из /model, в корне их нет
+import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
 ```
 
 ### Form-shape тип должен быть `type`, а не `interface`
 
-Прокси `createForm<T>` и типы `ArrayNode<U>` / `GroupNode<U>` требуют, чтобы form-shape
+Прокси `createForm<T>` и типы `ModelArrayNode<U>` / `GroupNode<U>` требуют, чтобы form-shape
 структурно совпадал с `Record<string, FormValue>`. У `interface` нет неявной index signature,
 поэтому объявляй form-shape (и типы элементов массива, и вложенные группы) через `type`-alias:
 

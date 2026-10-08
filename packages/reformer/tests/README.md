@@ -12,7 +12,6 @@
 tests/
 ├── behaviors/              # DSL поведения          → src/form/behaviors/
 ├── core/
-│   ├── factories/          # NodeFactory            → src/form/factories/
 │   ├── model/              # модель данных          → src/model/
 │   ├── nodes/              # узлы формы             → src/form/nodes/
 │   ├── types/              # типы                   → src/form/types/
@@ -22,13 +21,13 @@ tests/
 ├── hooks/                  # React-хуки             → src/platforms/react/hooks/
 ├── i18n/                   # локализация            → src/i18n/, src/platforms/react/i18n/, src/locale/
 ├── model/                  # сабпат @reformer/core/model (гарантия единого рантайма)
-└── test-utils/             # общие типы для тестов
+└── test-utils/             # общие типы и помощник сборки формы для тестов
 ```
 
 ## Принципы
 
 1. **Один исходник — один тестовый файл.** Крупные модули дробятся по темам:
-   `field-node-cleanup.test.ts`, `field-node-error-handling.test.ts`, …
+   `field-node-cleanup.test.ts`, `field-node-model-binding.test.ts`, …
 2. **Импорт по относительному пути** к `src/`. ⚠️ `tsc` каталог `tests/` НЕ проверяет
    (`tsconfig.json` → `include: ["src"]`), поэтому битый путь всплывёт только на прогоне тестов —
    после любого переноса файлов в `src/` гоняйте `npm test`, а не только `npm run typecheck`.
@@ -53,8 +52,8 @@ npm test -- --coverage
 
 ## Test Statistics
 
-- **Total Test Files**: 58
-- **Total Tests**: 808
+- **Total Test Files**: 67
+- **Total Tests**: 1055
 
 ## Writing New Tests
 

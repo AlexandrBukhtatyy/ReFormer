@@ -14,13 +14,13 @@ import { FormArraySection } from './index';
 
 type Item = { name: string };
 
-/** Поднимает M1-форму с массивом `items` (schema-нода `{ array, item }`). */
+/** Поднимает форму с массивом `items` (узел схемы `{ model, item }`). */
 function buildArray(initial: Item[]): any {
   const model = createModel<{ items: Item[] }>({ items: initial });
   const itemFn = (item: FormModel<Item>) => ({
-    name: { value: item.$.name },
+    children: [{ model: item.$.name }],
   });
-  const schema = { items: { array: model.items, item: itemFn } } as any;
+  const schema = { children: [{ model: model.$.items, item: itemFn }] };
   const form = createFormFromModel<{ items: Item[] }>({ model, schema });
   return (form as any).items;
 }

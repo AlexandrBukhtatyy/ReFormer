@@ -6,8 +6,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FormProxy } from '../../../src';
-import { createLegacyForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
+import { formFromFields } from '../../test-utils/form-from-fields';
 
 describe('GroupNode - getFieldByPath()', () => {
   describe('Simple paths', () => {
@@ -20,7 +20,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         email: { value: 'test@mail.com', component: null as ComponentInstance },
         password: { value: 'secret', component: null as ComponentInstance },
         age: { value: 25, component: null as ComponentInstance },
@@ -66,7 +66,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         user: {
           name: { value: 'John', component: null as ComponentInstance },
           email: { value: 'john@mail.com', component: null as ComponentInstance },
@@ -129,7 +129,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<FormWithArray>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         items: [
           {
             name: { value: 'Item 1', component: null as ComponentInstance },
@@ -208,7 +208,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<ComplexForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         contacts: [
           {
             email: { value: 'contact1@mail.com', component: null as ComponentInstance },
@@ -276,7 +276,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         email: { value: 'test@mail.com', component: null as ComponentInstance },
       });
     });
@@ -326,7 +326,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<TestForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         email: { value: '', component: null as ComponentInstance },
         user: {
           name: { value: 'John', component: null as ComponentInstance },
@@ -371,7 +371,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: FormProxy<UserForm>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         profile: {
           firstName: { value: 'John', component: null as ComponentInstance },
           lastName: { value: 'Doe', component: null as ComponentInstance },

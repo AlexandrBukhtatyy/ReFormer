@@ -12,7 +12,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
 
   beforeEach(() => {
     field = new FieldNode({
-      value: '',
+      valueSignal: signal(''),
       component: null as ComponentInstance,
     });
   });
@@ -139,7 +139,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
       const source2 = signal(20);
 
       const field2 = new FieldNode<string>({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 
@@ -213,107 +213,6 @@ describe('FieldNode - Cleanup (dispose)', () => {
     });
   });
 
-  describe('debounce timer cleanup', () => {
-    it('should clear debounce timer on dispose', async () => {
-      const asyncValidator = vi.fn(async (value: string) => {
-        return value.length < 3 ? { code: 'minLength', message: 'Too short' } : null;
-      });
-
-      const fieldWithDebounce = new FieldNode({
-        value: '',
-        component: null as ComponentInstance,
-        asyncValidators: [asyncValidator],
-        debounce: 500,
-      });
-
-      // Trigger validation with debounce
-      fieldWithDebounce.setValue('ab');
-      void fieldWithDebounce.validate();
-
-      // Dispose before debounce completes
-      fieldWithDebounce.dispose();
-
-      // Wait for debounce (should be cancelled)
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
-      // Validator should NOT have been called (debounce cancelled)
-      // Note: This test may be flaky depending on implementation
-      // The important part is that dispose() clears the timer
-      expect(() => fieldWithDebounce.dispose()).not.toThrow();
-    });
-
-    it('should resolve pending debounce promise on dispose (prevent memory leak)', async () => {
-      const fieldWithDebounce = new FieldNode({
-        value: '',
-        component: null as ComponentInstance,
-        asyncValidators: [
-          async () => {
-            await new Promise((resolve) => setTimeout(resolve, 10));
-            return null;
-          },
-        ],
-        debounce: 500,
-      });
-
-      fieldWithDebounce.setValue('test');
-      const validatePromise = fieldWithDebounce.validate();
-
-      // Dispose во время debounce (до того как таймер сработает)
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      fieldWithDebounce.dispose();
-
-      // Промис должен resolve(false), а не зависнуть навсегда
-      const result = await Promise.race([
-        validatePromise,
-        new Promise<string>((resolve) => setTimeout(() => resolve('timeout'), 200)),
-      ]);
-
-      // Если промис resolve'ится корректно - получим false
-      // Если промис зависает - получим 'timeout'
-      expect(result).toBe(false);
-    });
-
-    it('should abort async validation on dispose', async () => {
-      let wasAborted = false;
-
-      const fieldWithAsync = new FieldNode({
-        value: '',
-        component: null as ComponentInstance,
-        asyncValidators: [
-          async (_value, options) => {
-            try {
-              await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(resolve, 500);
-                options?.signal?.addEventListener('abort', () => {
-                  clearTimeout(timeout);
-                  wasAborted = true;
-                  reject(new DOMException('Aborted', 'AbortError'));
-                });
-              });
-              return null;
-            } catch (e) {
-              if (e instanceof DOMException && e.name === 'AbortError') {
-                throw e;
-              }
-              return null;
-            }
-          },
-        ],
-      });
-
-      fieldWithAsync.setValue('test');
-      const validatePromise = fieldWithAsync.validate();
-
-      // Dispose через 50ms (валидация ещё выполняется)
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      fieldWithAsync.dispose();
-
-      await validatePromise;
-
-      expect(wasAborted).toBe(true);
-    });
-  });
-
   describe('edge cases', () => {
     it('should handle dispose() called multiple times', () => {
       const callback = vi.fn();
@@ -331,7 +230,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
 
     it('should handle dispose() on field without subscriptions', () => {
       const emptyField = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 

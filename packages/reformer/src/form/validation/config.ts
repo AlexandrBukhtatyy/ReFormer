@@ -2,22 +2,20 @@
  * Валидация как ЧАСТЬ КОНФИГА формы: правила описываются данными, а фабрика формы собирает из них
  * готовые функции.
  *
- * Раньше правила и форма жили порознь: приложение отдельно строило форму, отдельно звало
- * `defineSteps`/`validateModel` и руками сводило результат в проп визарда. Здесь тот же движок
- * (`validateModel` + `createFormValidation`), но собранный один раз вместе с формой — см.
- * {@link module:reformer/form/create-core-form}.
+ * Движок тот же, что у `validateModel` и `createFormValidation`, но собранный один раз вместе с
+ * формой — см. {@link module:reformer/form/create-core-form}.
  *
- * Привязки к `form.validate()`/`submit()` по-прежнему НЕТ: ноды отражают своё текущее состояние, а
- * schema-валидация остаётся внешним прогоном, который сам роутит ошибки в ноды.
+ * `form.validate()` и `form.submit()` правил не запускают: ноды отражают своё текущее состояние,
+ * а schema-валидация — внешний прогон, который сам разносит ошибки по нодам.
  *
  * @module form/validation/config
  */
 
-import type { ReadonlySignal } from '@preact/signals-core';
+import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
 import type { FormModel } from '../../model/types';
 import { apply } from './operators';
-import { defineValidationSchema, validateModel } from './run';
-import type { ValidationSchema } from './types';
+import { defineValidationSchema, runAndApply } from './run';
+import type { ValidationResult, ValidationSchema } from './types';
 import {
   createFormValidation,
   type FormValidationController,
@@ -61,14 +59,26 @@ export interface FormValidationBundle<T> {
   readonly stepSelectors: readonly string[];
   /** Полный прогон с раскрытием ошибок. Синоним {@link FormValidationBundle.validateAll}. */
   validate(): Promise<boolean>;
+  /** Полный прогон с раскрытием ошибок; `true` только при статусе `valid`. */
   validateAll(): Promise<boolean>;
   /** Прогон правил одного шага: по номеру (1-based, как у визарда) или по селектору. */
   validateStep(step: number | string): Promise<boolean>;
+  /**
+   * Тот же полный прогон, что {@link FormValidationBundle.validateAll}, с полным результатом: по
+   * статусу отличают ошибки (`invalid`) от сбоя правила (`error`) и отмены (`cancelled`).
+   */
+  runAll(): Promise<ValidationResult>;
+  /** Тот же прогон шага, что {@link FormValidationBundle.validateStep}, с полным результатом. */
+  runStep(step: number | string): Promise<ValidationResult>;
   /** Контроллер живой валидации ШАГА; `null` — у шага нет правил либо стратегия `submit`. */
   createStepController(step: number | string): FormValidationController | null;
   /** Контроллер живой валидации ФОРМЫ. Армится хуком (`useFormBundle`), не фабрикой. */
   readonly controller: FormValidationController;
-  /** Идёт ли прогон — реактивный сигнал (для тонкой подписки в UI). */
+  /**
+   * Идёт ли прогон — полный либо шага (`validateStep` / `runStep`). Реактивный сигнал для тонкой
+   * подписки в UI. Живую валидацию шага показывает сигнал её контроллера
+   * ({@link FormValidationBundle.createStepController}).
+   */
   readonly validating: ReadonlySignal<boolean>;
 }
 
@@ -95,6 +105,9 @@ const EMPTY: ValidationSchema<never> = () => {};
  * });
  * await v!.validateStep(1);   // правила шага `loan`
  * await v!.validateAll();     // все шаги + extras
+ *
+ * const result = await v!.runAll();
+ * if (result.status === 'error') showToast('Не удалось проверить форму, повторите попытку');
  * ```
  */
 export function buildValidation<T>(
@@ -130,13 +143,27 @@ export function buildValidation<T>(
     liveAfterSubmit,
   });
 
+  // Прогоны шага идут мимо контроллера формы, поэтому считаются отдельно.
+  const stepRuns = signal(0);
+  const runStep = async (step: number | string): Promise<ValidationResult> => {
+    stepRuns.value++;
+    try {
+      return await runAndApply(model, schemaAt(step) ?? (EMPTY as ValidationSchema<T>), {
+        touch: true,
+      });
+    } finally {
+      stepRuns.value--;
+    }
+  };
+
   return {
     schema: fullSchema,
     stepSelectors,
     validate: () => controller.validate(),
     validateAll: () => controller.validate(),
-    validateStep: (step) =>
-      validateModel(model, schemaAt(step) ?? (EMPTY as ValidationSchema<T>), { touch: true }),
+    validateStep: async (step) => (await runStep(step)).status === 'valid',
+    runAll: () => controller.run(),
+    runStep,
     createStepController: (step) => {
       // Живая валидация шага имеет смысл только при live-стратегии; шаг без правил не армируем.
       if (!strategy || strategy === 'submit') return null;
@@ -146,6 +173,6 @@ export function buildValidation<T>(
       return createFormValidation(model, schema, { strategy, debounce, liveAfterSubmit });
     },
     controller,
-    validating: controller.validating,
+    validating: computed(() => controller.validating.value || stepRuns.value > 0),
   };
 }

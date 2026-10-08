@@ -224,22 +224,23 @@ export function createSchemaController(): SchemaController {
 }
 
 /**
- * Селекторы узлов дерева области. Внутрь `item` и `part` не заходит — это функции, их поддеревья
- * принадлежат другим областям.
+ * Селекторы узлов дерева области: узел и его `children`. Внутрь `item` и `part` обход не
+ * заходит — это функции, их поддеревья принадлежат другим областям.
+ *
+ * @param node - Узел дерева области.
+ * @param onSelector - Вызывается для каждого встреченного `selector` (в том числе повторного).
  */
-function collectSelectors(node: unknown, out: Set<string>, visited: WeakSet<object>): void {
-  if (node == null || typeof node !== 'object') return;
-  if (isValueSignal(node) || isModelContainerSignal(node) || isModelFacade(node)) return;
-  if ((node as { $$typeof?: unknown }).$$typeof !== undefined) return;
-  if (visited.has(node)) return;
-  visited.add(node);
-  if (Array.isArray(node)) {
-    for (const child of node) collectSelectors(child, out, visited);
-    return;
-  }
-  const selector = (node as { selector?: unknown }).selector;
-  if (typeof selector === 'string') out.add(selector);
-  for (const child of Object.values(node)) collectSelectors(child, out, visited);
+export function eachSchemaSelector(node: unknown, onSelector: (selector: string) => void): void {
+  const visit = (current: unknown, visited: WeakSet<object>): void => {
+    if (current == null || typeof current !== 'object') return;
+    if (isValueSignal(current) || isModelContainerSignal(current) || isModelFacade(current)) return;
+    if (visited.has(current)) return;
+    visited.add(current);
+    const { selector, children } = current as { selector?: unknown; children?: unknown };
+    if (typeof selector === 'string') onSelector(selector);
+    if (Array.isArray(children)) for (const child of children) visit(child, visited);
+  };
+  visit(node, new WeakSet());
 }
 
 /**
@@ -263,7 +264,7 @@ function collectSelectors(node: unknown, out: Set<string>, visited: WeakSet<obje
  */
 export function unknownSchemaSelectors(maps: SchemaOverrideMaps, tree: unknown): string[] {
   const known = new Set<string>();
-  collectSelectors(tree, known, new WeakSet());
+  eachSchemaSelector(tree, (selector) => known.add(selector));
   const used = new Set<string>([
     ...maps.hiddenOverrides.keys(),
     ...maps.propsOverrides.keys(),

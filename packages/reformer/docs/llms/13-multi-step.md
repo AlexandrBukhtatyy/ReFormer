@@ -1,11 +1,45 @@
 ## 12. MULTI-STEP FORM VALIDATION
 
-Каждый шаг — своя `ValidationSchema<Form>` (обычная функция `({ model }) => void`, обёрнутая
-`defineValidationSchema`). Переход к следующему шагу проверяется `validateModel(model, stepSchema)`;
-полный submit — по общей схеме (композиция шагов через `apply(...)`). `validateModel` сам разносит
-ошибки по нодам формы (`getNodeForSignal(sig).setErrors(...)`), поэтому UI подсветит проблемные поля
-текущего шага автоматически. Валидация живёт ОТДЕЛЬНО от layout: сам `RenderNode`/JSON-узел валидаторов
-не несёт — схема инъектируется в рантайме и роутит ошибки по тем же нодам.
+Каждый шаг — своя `ValidationSchema<Form>` (обычная функция `({ model, cross }) => void`, обёрнутая
+`defineValidationSchema`). Правила шагов передаются сборке формы данными — `validation: { steps, extras }`;
+сборка отдаёт прогон шага и полный прогон. Раннер сам разносит ошибки по нодам формы, поэтому UI
+подсветит проблемные поля текущего шага автоматически. Валидация живёт ОТДЕЛЬНО от схемы формы: узел
+схемы (TS или JSON) правил не несёт.
+
+### Через сборку формы — `validation: { steps, extras }`
+
+Ключ `steps` — `selector` узла шага в схеме; порядок ключей — порядок шагов. `extras` — правила всей
+формы, которые проверяются только целиком.
+
+```typescript
+import { createForm } from '@reformer/core';
+
+const { form, validation } = createForm<Form>({
+  initial,
+  schema: formSchema, // узлы шагов несут selector: 'loan', 'applicant'
+  validation: {
+    steps: { loan: step1Schema, applicant: step2Schema }, // null — шаг без правил
+    extras: crossStepRules,
+  },
+});
+
+await validation.validateStep(1);        // правила шага: по номеру (с 1) либо по селектору — 'loan'
+await validation.validateAll();          // все шаги + extras
+const result = await validation.runStep('loan'); // то же с полным результатом
+// result.status: 'valid' | 'invalid' | 'error' (правило не удалось проверить) | 'cancelled'
+validation.validating.value;             // идёт ли прогон — полный либо шага
+```
+
+`validation` структурно совместима с конфигом визарда: `<FormWizard form={form} config={validation} … />`.
+В dev сборка предупреждает о ключе `steps`, для которого в схеме нет шага с таким `selector`.
+
+В большой форме шаг объявляют один раз — в списке шагов (`flow/`): из него строятся и узлы шагов
+схемы, и `validation.steps`. См. `15-project-structure.md`.
+
+### Вручную — `validateModel` по схеме шага
+
+Тот же результат без сборки: переход к следующему шагу проверяется `validateModel(model, stepSchema)`,
+полный submit — по общей схеме (композиция шагов через `apply(...)`).
 
 ```typescript
 import { type FormModel } from '@reformer/core';

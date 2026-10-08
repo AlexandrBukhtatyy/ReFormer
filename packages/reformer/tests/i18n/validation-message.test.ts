@@ -97,16 +97,19 @@ const FAILING: ReadonlyArray<
 /** Коды, которые выдаёт отбор файлов в cdk: словарь для них тоже держит ядро. */
 const CDK_ONLY_CODES = ['fileExists', 'uploadAborted', 'uploadFailed'];
 
+/** Код раннера схемы: async-правило не вернуло результат (сеть, исключение). */
+const RUNNER_CODES = ['ruleFailed'];
+
 const en = createI18n(DEFAULT_LOCALE);
 const ru = createI18n(ruLocale);
 
 describe('правила каталога: умолчание сообщения', () => {
-  it.each(FAILING)('%s — без options.message кладёт пустую строку', (code, fail) => {
+  it.each(FAILING)('%s — без options.message текста у ошибки нет', (code, fail) => {
     const error = fail();
 
     expect(error, `правило «${code}» не сработало на нарушающем значении`).not.toBeNull();
     expect(error!.code).toBe(code);
-    expect(error!.message).toBe('');
+    expect(error!).not.toHaveProperty('message');
     expect(error!.messageKey).toBeUndefined();
   });
 
@@ -139,7 +142,7 @@ describe('правила каталога: умолчание сообщения
 });
 
 describe('словари ядра: текст есть у каждого кода', () => {
-  const codes = [...FAILING.map(([code]) => code), ...CDK_ONLY_CODES];
+  const codes = [...FAILING.map(([code]) => code), ...CDK_ONLY_CODES, ...RUNNER_CODES];
 
   it.each(codes)('validation.%s — в en и в ru', (code) => {
     expect(enJson).toHaveProperty([`validation.${code}`]);

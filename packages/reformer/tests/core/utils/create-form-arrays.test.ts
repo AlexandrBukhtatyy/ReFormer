@@ -10,7 +10,6 @@
 import { describe, it, expect } from 'vitest';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
-import { required } from '../../../src/form/validators';
 import type { FormModel } from '../../../src/model/index';
 
 const InputStub = () => null;
@@ -30,9 +29,9 @@ interface Form {
 const itemSchema = (item: FormModel<CoBorrower>) => ({
   component: BoxStub,
   children: [
-    { value: item.$.personalData.lastName, component: InputStub },
-    { value: item.$.relationship, component: InputStub, validators: [required()] },
-    { value: item.$.monthlyIncome, component: InputStub },
+    { model: item.$.personalData.lastName, component: InputStub },
+    { model: item.$.relationship, component: InputStub },
+    { model: item.$.monthlyIncome, component: InputStub },
   ],
 });
 
@@ -41,7 +40,7 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     const model = createModel<Form>({ loanAmount: 0, coBorrowers: [] });
     const form = createFormFromModel<Form>({
       model,
-      schema: { children: [{ value: model.$.loanAmount, component: InputStub }] },
+      schema: { children: [{ model: model.$.loanAmount, component: InputStub }] },
     });
     form.loanAmount.setValue(500000);
     expect(model.loanAmount).toBe(500000);
@@ -92,9 +91,9 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     const model = createModel<Form>({ loanAmount: 0, coBorrowers: [] });
     const schema = {
       children: [
-        { value: model.$.loanAmount, component: InputStub },
+        { model: model.$.loanAmount, component: InputStub },
         // массив-узел: { array: model.<path>, item: (itemModel) => schema }
-        { array: model.coBorrowers, item: (it: FormModel<CoBorrower>) => itemSchema(it) },
+        { model: model.$.coBorrowers, item: (it: FormModel<CoBorrower>) => itemSchema(it) },
       ],
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,5 +117,47 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
 
     form.coBorrowers.removeAt(0);
     expect(form.coBorrowers.length.value).toBe(0);
+  });
+
+  it('после model.patch формы строк готовы сразу; загруженное — точка отсчёта формы', () => {
+    const model = createModel<Form>({ loanAmount: 0, coBorrowers: [] });
+    const form = createFormFromModel<Form>({
+      model,
+      schema: {
+        children: [
+          { model: model.$.loanAmount, component: InputStub },
+          { model: model.$.coBorrowers, item: (it: FormModel<CoBorrower>) => itemSchema(it) },
+        ],
+      },
+    });
+
+    // Ответ сервера пишется в модель: строки и их формы строятся тем же тактом.
+    model.patch({
+      loanAmount: 500000,
+      coBorrowers: [
+        { personalData: { lastName: 'Иванов' }, relationship: 'брат', monthlyIncome: 100 },
+        { personalData: { lastName: 'Петрова' }, relationship: 'сестра', monthlyIncome: 200 },
+      ],
+    });
+    model.captureInitial();
+
+    expect(form.coBorrowers.length.value).toBe(2);
+    const names: string[] = [];
+    form.coBorrowers.forEach((row) => {
+      // У строки готовы ноды полей с конфигом из схемы строки — им можно раздать справочники.
+      expect(row.relationship.component).toBe(InputStub);
+      row.relationship.updateComponentProps({ options: ['брат', 'сестра'] });
+      names.push(row.personalData.lastName.value.value);
+    });
+    expect(names).toEqual(['Иванов', 'Петрова']);
+
+    // Запись в модель ноды «изменёнными» не делает, и модель считает загруженное исходным.
+    expect(form.dirty.value).toBe(false);
+    expect(model.isDirty()).toBe(false);
+
+    form.loanAmount.setValue(1);
+    model.reset();
+    expect(model.loanAmount).toBe(500000);
+    expect(form.coBorrowers.length.value).toBe(2);
   });
 });

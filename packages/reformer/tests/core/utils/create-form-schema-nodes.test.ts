@@ -69,14 +69,16 @@ describe('Ключ `model` — поле', () => {
     expect((form as unknown as { tags: { component: unknown } }).tags.component).toBe(SelectStub);
   });
 
-  it('прежний ключ `value` по-прежнему принимается', () => {
+  it('прежний ключ `value` привязкой не считается', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createShape();
     const form = createFormFromModel<Shape>({
       model,
-      schema: { children: [{ value: model.$.title, component: InputStub }] },
+      schema: { children: [{ value: model.$.title, component: InputStub }] } as never,
     });
 
-    expect(form.title.component).toBe(InputStub);
+    expect(form.title.component).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('`value`: привязка поля'));
   });
 
   it('группа без `part` полем не становится — предупреждение', () => {
@@ -88,7 +90,7 @@ describe('Ключ `model` — поле', () => {
       schema: { children: [{ model: model.$.registration, component: InputStub }] },
     });
 
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('не распознан как поле'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('привязка узла не распознана'));
   });
 });
 
@@ -195,23 +197,27 @@ describe('Узел-массив `{ model, item }`', () => {
   });
 });
 
-describe('Запись «имя поля → узел»: поля данных с именами ключей узла', () => {
-  it('поля `model`, `item`, `part`, `value` — обычные вложенные узлы', () => {
+describe('Поля данных с именами ключей узла', () => {
+  it('поля `model`, `item`, `part`, `children`, `value` получают конфиг как любые другие', () => {
     interface Reserved {
       model: string;
       item: string;
       part: string;
+      children: string;
       value: string;
     }
-    const model = createModel<Reserved>({ model: '', item: '', part: '', value: '' });
+    const model = createModel<Reserved>({ model: '', item: '', part: '', children: '', value: '' });
 
     const form = createFormFromModel<Reserved>({
       model,
       schema: {
-        model: { model: model.$.model, component: InputStub },
-        item: { model: model.$.item, component: InputStub },
-        part: { model: model.$.part, component: InputStub },
-        value: { model: model.$.value, component: InputStub },
+        children: [
+          { model: model.$.model, component: InputStub },
+          { model: model.$.item, component: InputStub },
+          { model: model.$.part, component: InputStub },
+          { model: model.$.children, component: InputStub },
+          { model: model.$.value, component: InputStub },
+        ],
       },
     });
 
@@ -220,7 +226,7 @@ describe('Запись «имя поля → узел»: поля данных �
       (form as unknown as { getFieldByPath(path: string): { component: unknown } }).getFieldByPath(
         key
       );
-    for (const key of ['model', 'item', 'part', 'value']) {
+    for (const key of ['model', 'item', 'part', 'children', 'value']) {
       expect(fieldAt(key).component, key).toBe(InputStub);
     }
   });

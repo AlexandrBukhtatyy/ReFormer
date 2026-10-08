@@ -6,7 +6,8 @@
  * @module form/validators/min-files
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { toFileArray } from './file-utils';
 import { validationError } from './validation-error';
 
@@ -20,7 +21,7 @@ import { validationError } from './validation-error';
  * @param min - Минимально допустимое количество файлов (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `minFiles` и `actualCount`.
- * @returns Чистый валидатор {@link Validator} для файла или массива файлов
+ * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Не менее двух документов
  * ```typescript
@@ -33,10 +34,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function minFiles<TForm = unknown, TField = unknown>(
-  min: number,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function minFiles(min: number, options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

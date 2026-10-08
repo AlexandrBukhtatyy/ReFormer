@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { ArrayNode, FormProxy, ValidationError } from '@reformer/core';
+import type { ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
 
 /**
  * Представляет элемент массива с контролом, индексом и действиями (включая хелперы reorder,
@@ -61,13 +61,8 @@ export interface FormArrayContextValue<T extends object = Record<string, unknown
   valid: boolean;
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */
   invalid: boolean;
-  /**
-   * Оригинальный узел массива. Типизирован как `ArrayNode<T>` (не union с `ModelArrayNode`),
-   * чтобы существующие консументы контекста, передающие `control` в `useFormControl` (AddButton/
-   * RemoveButton), продолжали типизироваться под array-перегрузку. M1 `ModelArrayNode` совместим
-   * структурно и корректно работает в рантайме (контекст `<any>`-стёрт при создании в FormArray.Root).
-   */
-  control: ArrayNode<T>;
+  /** Оригинальный узел массива. */
+  control: ModelArrayNode<T>;
 }
 
 /**

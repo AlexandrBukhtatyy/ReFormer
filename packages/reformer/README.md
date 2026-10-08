@@ -30,22 +30,23 @@ npm install @reformer/core@beta # Active development is underway, so you can try
 
 ## Quick Start
 
-ReFormer is built around the **M1 architecture**: a reactive `FormModel` owns the values, a layout
-schema binds field config (component / props) to the model's signals, and `createFormFromModel({ model, schema })`
-wires them into a typed form. Validation is a **separate** ambient contract — `defineValidationSchema`,
-run on demand by `validateModel(model, schema)` — so the layout schema carries no validators.
+A reactive `FormModel` owns the values, a form schema — a tree of nodes — binds field config
+(component / props) to the model's handles (`model.$.<field>`), and
+`createFormFromModel({ model, schema })` wires them into a typed form. Validation is a **separate**
+contract — `defineValidationSchema`, run on demand by `validateModel(model, schema)` — so the form
+schema carries no validators.
 
 ```tsx
 import { useMemo } from 'react';
 import {
   createModel,
   createFormFromModel,
-  createLegacyForm,
   useFormControl,
   type FieldNode,
+  type FormSchemaNode,
   type ValidationError,
 } from '@reformer/core';
-import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
@@ -82,28 +83,29 @@ const model = createModel<RegistrationForm>({
   confirmPassword: '',
 });
 
-// 3. Layout schema — binds field config (component / props) to model signals
-//    (`model.$.<field>`). Layout carries NO validators; rules live in the
-//    validation schema below.
-const schema = {
+// 3. Form schema — a tree of nodes. A field node binds field config (component / props)
+//    to a model handle (`model: model.$.<field>`); nested nodes live in `children`.
+//    The schema carries NO validators; rules live in the validation schema below.
+const schema: FormSchemaNode = {
   children: [
-    { value: model.$.username, component: Input },
-    { value: model.$.email, component: Input },
-    { value: model.$.password, component: Input },
-    { value: model.$.confirmPassword, component: Input },
+    { model: model.$.username, component: Input },
+    { model: model.$.email, component: Input },
+    { model: model.$.password, component: Input },
+    { model: model.$.confirmPassword, component: Input },
   ],
 };
 
-// 4. Validation schema — a separate ambient contract from `@reformer/core/validation`,
+// 4. Validation schema — a separate contract from `@reformer/core/validation`,
 //    run on demand (not reactive). Field rules go through `validate(sig, [rules])`;
-//    cross-field rules through `cross(sig, snapshot => error | null)` where the snapshot
-//    is `model.get()`. Rule factories (`required()`/…) come from `@reformer/core/validators`.
-const passwordsMatch = (f: RegistrationForm): ValidationError | null =>
-  f.confirmPassword && f.password && f.confirmPassword !== f.password
+//    cross-field rules through `cross(sig, snapshot => error | null)` taken from the schema
+//    argument — the snapshot is the model value, its type is inferred. Rule factories
+//    (`required()`/…) come from `@reformer/core/validators`.
+const passwordsMatch = (form: RegistrationForm): ValidationError | null =>
+  form.confirmPassword && form.password && form.confirmPassword !== form.password
     ? { code: 'mismatch', message: 'Passwords do not match' }
     : null;
 
-const validationSchema = defineValidationSchema<RegistrationForm>(({ model }) => {
+const validationSchema = defineValidationSchema<RegistrationForm>(({ model, cross }) => {
   validate(model.$.username, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
@@ -132,6 +134,7 @@ function RegistrationFormExample() {
     form.touchAll();
     // Validate the whole model against the validation schema (sync + async) on demand;
     // errors route into the form nodes, so the UI highlights the offending fields.
+    // `true` only when nothing blocks: a failed async rule blocks as well.
     const valid = await validateModel(model, validationSchema);
     if (valid) {
       console.log('Form data:', model.get());

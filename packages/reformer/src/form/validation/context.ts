@@ -13,7 +13,9 @@
  * @module form/validation/context
  */
 
-import type { FormModel, PathAwareSignal, ValidationError } from '../../index';
+import type { FormModel, PathAwareSignal } from '../../model/types';
+import type { ValidationError } from '../types/contracts';
+import type { ValidationFailure } from './types';
 
 /** Сток одного прогона: модель scope, накопленные ошибки, незавершённые async-правила, гейты. */
 export interface VContext {
@@ -22,12 +24,17 @@ export interface VContext {
    * это вся модель; внутри `apply(ручка, схема)` / `applyEach` — под-модель группы или строки.
    */
   model: FormModel<unknown>;
-  /** Корень прогона — модель, с которой вызван раннер. Правило получает его третьим аргументом. */
-  root: FormModel<unknown>;
   /** Накопленные ошибки по сигналу (ключ — идентичность `PathAwareSignal`). */
   errors: Map<PathAwareSignal<unknown>, ValidationError[]>;
   /** Незавершённые async-правила (раннер их дожидается). */
   pending: Promise<void>[];
+  /** Поля с async-правилами: на время ожидания раннер держит их ноды в `pending`. */
+  asyncFields: Set<PathAwareSignal<unknown>>;
+  /**
+   * Правила, которые не вернули результат. Список — один на весь прогон: области `apply` /
+   * `applyEach` получают поверхностную копию контекста и пишут в ту же ссылку.
+   */
+  failures: ValidationFailure[];
   /** Стек активных условий `validateWhen` (все должны быть истинны, чтобы правило сработало). */
   whenStack: Array<() => boolean>;
   /** Отмена устаревшего прогона: прокидывается в async-правила, гасит роутинг после await. */

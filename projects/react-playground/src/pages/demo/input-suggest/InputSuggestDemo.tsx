@@ -59,7 +59,7 @@ export default function InputSuggestDemo() {
     createForm<InputSuggestDemoForm>({
       initial: { city: null, position: null, company: null },
       schema: (m) => ({
-        fields: [
+        children: [
           {
             model: m.$.city,
             component: InputSuggest,

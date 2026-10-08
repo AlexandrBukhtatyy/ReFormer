@@ -29,8 +29,8 @@ describe('createForm M1 — derived-guard в bulk-set (Defect 22)', () => {
     const model = createModel<F>({ a: 1, total: 0 });
     const schema = {
       children: [
-        { value: model.$.a, component: InputStub },
-        { value: model.$.total, component: InputStub },
+        { model: model.$.a, component: InputStub },
+        { model: model.$.total, component: InputStub },
       ],
     };
     return { model, form: createFormFromModel<F>({ model, schema }) };
@@ -82,10 +82,10 @@ describe('createForm M1 — DEV-предупреждение о нераспоз
     spy.mockRestore();
   });
 
-  it('НЕ предупреждает при корректном value: model.$.x', () => {
+  it('НЕ предупреждает при корректном model: model.$.x', () => {
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createModel<{ email: string }>({ email: '' });
-    const schema = { children: [{ value: model.$.email, component: InputStub }] };
+    const schema = { children: [{ model: model.$.email, component: InputStub }] };
     createFormFromModel({ model, schema });
 
     expect(spy).not.toHaveBeenCalled();
@@ -103,8 +103,8 @@ describe('createForm M1 — поле данных named "form" (Defect 31)', () 
     const model = createModel<WithForm>({ form: 'hi', email: '' });
     const schema = {
       children: [
-        { value: model.$.form, component: InputStub },
-        { value: model.$.email, component: InputStub },
+        { model: model.$.form, component: InputStub },
+        { model: model.$.email, component: InputStub },
       ],
     };
     const built = createFormFromModel<WithForm>({ model, schema });

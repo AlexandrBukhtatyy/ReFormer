@@ -39,11 +39,11 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 
 ### Низкоуровневый примитив watchField
 
-`watchField` из `@reformer/core` — базовая подписка на изменение сигнала (без debounce и
+`watchField` из `@reformer/core/model` — базовая подписка на изменение сигнала (без debounce и
 AbortSignal). `onChange` построен поверх него. Для простых синхронных реакций:
 
 ```typescript
-import { watchField } from '@reformer/core';
+import { watchField } from '@reformer/core/model';
 
 // вызывается при каждом изменении (по умолчанию НЕ на инициализации)
 const stop = watchField(model.$.country, (country) => {

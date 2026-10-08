@@ -1,15 +1,12 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ArrayNode, ModelArrayNode, FormProxy } from '@reformer/core';
+import type { ModelArrayNode, FormProxy } from '@reformer/core';
 
 /**
- * Узел массива, принимаемый CDK-компонентом {@link List}.
- *
- * Идентичен {@link FormArrayControl} — legacy {@link ArrayNode} (владеет элементами) ИЛИ M1
- * {@link ModelArrayNode} (делегирует массиву модели). `List` использует лишь read-часть контракта
- * (`map`/`at`/`length`/`value`), поэтому мутационные методы здесь не нужны, но union тот же:
- * консументы M1 (у которых `form.<field>` материализуется как ModelArrayNode) не должны кастовать.
+ * Узел массива, принимаемый CDK-компонентом {@link List}, — тот же {@link ModelArrayNode}, что у
+ * {@link FormArrayControl}. `List` использует лишь read-часть контракта
+ * (`map`/`at`/`length`/`value`): мутационные методы ему не нужны.
  */
-export type ListControl<T extends object> = ArrayNode<T> | ModelArrayNode<T>;
+export type ListControl<T extends object> = ModelArrayNode<T>;
 
 /**
  * Один элемент списка — контрол, индекс и стабильный ключ. В отличие от
@@ -28,7 +25,7 @@ export interface ListItem<T extends object> {
  * Props for List.Root component
  */
 export interface ListRootProps<T extends object> {
-  /** Массив-контрол из формы — legacy ArrayNode или M1 ModelArrayNode */
+  /** Массив-контрол из формы */
   control: ListControl<T>;
   /** Дочерние компоненты */
   children: ReactNode;

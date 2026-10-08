@@ -3,17 +3,16 @@
  *
  * Проверяет ключевой механизм Ф3: значение принадлежит модели, нода ссылается на сигнал.
  * - двусторонняя связь node ↔ model (через valueSignal)
- * - валидация работает на инъектированном сигнале
+ * - ошибки схемы валидации приходят на ноду по её сигналу
  * - dirty (edit-tracking) и reset сохраняют семантику
  */
 
 import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/form/nodes/field-node';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
-import type { ValidatorFn } from '../../../src/form/types/index';
-
-const required: ValidatorFn<string> = (v) =>
-  v === '' || v == null ? { code: 'required', message: 'Обязательно' } : null;
+import { defineValidationSchema, validate, validateModel } from '../../../src/form/validation';
+import { required } from '../../../src/form/validators';
 
 describe('FieldNode + FormModel binding (M1)', () => {
   it('value ноды читается из сигнала модели', () => {
@@ -37,14 +36,21 @@ describe('FieldNode + FormModel binding (M1)', () => {
     expect(node.value.value).toBe('from-model@mail.com');
   });
 
-  it('валидация работает на сигнале модели', async () => {
+  it('ошибки схемы валидации приходят на ноду по сигналу модели', async () => {
     const model = createModel<{ email: string }>({ email: '' });
-    const node = new FieldNode<string>({ valueSignal: model.$.email, validators: [required] });
-    await node.validate();
-    expect(node.invalid.value).toBe(true);
-    node.setValue('ok@mail.com');
-    await node.validate();
-    expect(node.valid.value).toBe(true);
+    const form = createFormFromModel({ model });
+    const rules = defineValidationSchema<{ email: string }>(({ model: scope }) => {
+      validate(scope.$.email, [required({ message: 'Обязательно' })]);
+    });
+
+    await validateModel(model, rules);
+    expect(form.email.invalid.value).toBe(true);
+    await expect(form.email.validate()).resolves.toBe(false);
+
+    form.email.setValue('ok@mail.com');
+    await validateModel(model, rules);
+    expect(form.email.valid.value).toBe(true);
+    await expect(form.email.validate()).resolves.toBe(true);
   });
 
   it('dirty: false изначально, true после setValue', () => {
@@ -75,7 +81,7 @@ describe('FieldNode + FormModel binding (M1)', () => {
 
   it('component опционален (core без UI)', () => {
     const model = createModel<{ age: number }>({ age: 0 });
-    const node = new FieldNode<number>({ valueSignal: model.$.age, validators: [] });
+    const node = new FieldNode<number>({ valueSignal: model.$.age });
     expect(node.component).toBeUndefined();
     node.setValue(42);
     expect(model.age).toBe(42);

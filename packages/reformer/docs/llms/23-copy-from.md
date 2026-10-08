@@ -9,7 +9,7 @@
 
 ## API
 
-Есть две формы. **Примитив из `@reformer/core`** (сигнал → сигнал):
+Есть две формы. **Примитив из `@reformer/core/model`** (сигнал → сигнал):
 
 ```typescript
 function copyFrom<T>(
@@ -92,7 +92,7 @@ export const contactBehavior = defineFormBehavior<ContactForm>(({ model }) => {
 ### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { copyFrom } from '@reformer/core';
+import { copyFrom } from '@reformer/core/model';
 
 const cleanups = [
   copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail === true }),

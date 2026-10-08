@@ -38,5 +38,7 @@
   "validation.maxTotalFileSize": "Суммарный размер файлов больше {maxTotalFileSize}",
   "validation.fileExists": "Файл {fileName} уже добавлен",
   "validation.uploadAborted": "Загрузка прервана",
-  "validation.uploadFailed": "Не удалось загрузить файл {fileName}"
+  "validation.uploadFailed": "Не удалось загрузить файл {fileName}",
+
+  "validation.ruleFailed": "Не удалось проверить поле. Повторите попытку"
 }

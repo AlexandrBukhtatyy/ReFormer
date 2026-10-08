@@ -2,8 +2,8 @@
 
 ### Imports rule (#1 cause of cascading errors — read first)
 
-- Модель/форма/хуки/типы (`FormModel`, `ValidationError`)/**примитивы behaviors** — из `@reformer/core`.
-- Схема валидации (`defineValidationSchema` + операторы `validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`) и раннер `validateModel` — из `@reformer/core/validation`.
+- Модель/форма/хуки/типы (`FormModel`, `FormSchemaNode`, `ValidationError`) — из `@reformer/core`.
+- Схема валидации (`defineValidationSchema` + операторы `validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach`) и раннер `validateModel` — из `@reformer/core/validation`. `cross` берётся из аргумента схемы.
 - Чистые фабрики валидаторов (`required`/`min`/`email`/…) — из `@reformer/core/validators`.
 - Декларативный DSL поведения (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
 
@@ -15,7 +15,7 @@ import {
   useFormControl,
   useFormControlValue,
   type FormProxy,
-  type FieldConfig,
+  type FormSchemaNode,
   type FormModel,
   type ValidationError,
 } from '@reformer/core';
@@ -25,22 +25,23 @@ import {
   validate,
   validateAsync,
   validateWhen,
-  cross,
-  each,
   apply,
+  applyEach,
   validateModel,
   type Rule,
   type AsyncRule,
   type ValidationSchema,
 } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
-// либо примитивы behaviors из основного пакета:
-import { computeFrom, enableWhen, copyFrom } from '@reformer/core';
-// либо декларативный DSL поведения:
-import { defineFormBehavior, compute, onChange } from '@reformer/core/behaviors';
+// поведение формы — декларативный DSL:
+import { defineFormBehavior, compute, enableWhen, copyFrom, onChange } from '@reformer/core/behaviors';
+// примитивы над сигналами (вне формы, возвращают cleanup) — отдельный сабпат:
+import { computeFrom, watchField } from '@reformer/core/model';
 ```
 
-> **watchField живёт в `@reformer/core`** (низкоуровневый примитив), НЕ в `@reformer/core/behaviors`.
+> **В корне `@reformer/core` операторов поведения нет.** `computeFrom`, `copyFrom`, `watchField`,
+> `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` — примитивы сабпата
+> `@reformer/core/model`; `enableWhen` / `disableWhen` — только операторы `@reformer/core/behaviors`.
 > В DSL для реакции на изменения используется `onChange`.
 
 ### Значения — в модели, не в форме
@@ -83,15 +84,15 @@ enableWhen(model.$.city, () => Boolean(model.country), { resetOnDisable: true })
 computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => price * qty);
 ```
 
-### Валидаторы — оператор `validate`, а не layout-нода
+### Валидаторы — оператор `validate`, а не узел схемы
 
-Валидация — **отдельный слой** (`@reformer/core/validation`), а не поле layout-ноды. Layout
-(схема `createForm` / JSON-DSL) больше **не несёт** `validators`: правила живут в `ValidationSchema`,
-а прогоняет их внешний раннер `validateModel`. ⚠️ `form.validate()`/`submit()` schema-валидацию
-**НЕ запускают** — прогон только через `validateModel(model, schema)`.
+Валидация — **отдельный слой** (`@reformer/core/validation`), а не ключ узла. Схема формы
+(билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationSchema`, а запускает
+их раннер. ⚠️ `form.validate()`/`submit()` правил **НЕ запускают** — прогон только через
+`validation` сборки либо `validateModel(model, schema)`.
 
 ```typescript
-// ❌ WRONG - дерево { value, validators } и позиционная строка удалены
+// ❌ WRONG - ключей value и validators у узла нет, как и записи «имя → узел»
 const schema = {
   email: { value: model.$.email, component: Input, validators: [required(), email()] },
 };
@@ -108,7 +109,8 @@ const emailSchema = defineValidationSchema<MyForm>(({ model }) => {
   ]);
 });
 
-// прогон по требованию (submit/шаг): ошибки сами доезжают до нод формы, warnings не блокируют
+// прогон по требованию (submit/шаг): ошибки сами доезжают до нод формы, warnings не блокируют.
+// Отклонённое async-правило — сбой: прогон не проходит, на поле ошибка `ruleFailed`.
 const ok = await validateModel(model, emailSchema);
 ```
 
@@ -124,21 +126,21 @@ watchField(path.amount, (amount, ctx) => {
 // ✅ CORRECT - compute (поведение) на сигналах; cross-field (валидация) через оператор cross
 compute(model.$.total, () => (model.amount ?? 0) * (model.rate ?? 0));
 
-// cross-field правило — обычная функция над снапшотом Root (`model.get()`), навешивается через cross(sig, fn):
-const amountVsMax = (f: MyForm): ValidationError | null =>
-  f.amount != null && f.maxAmount != null && f.amount > f.maxAmount
+// cross-field правило — обычная функция над снимком модели; `cross` берётся из аргумента схемы:
+const amountVsMax = (form: MyForm): ValidationError | null =>
+  form.amount != null && form.maxAmount != null && form.amount > form.maxAmount
     ? { code: 'tooBig', message: 'Превышает лимит' }
     : null;
 
-const amountSchema = defineValidationSchema<MyForm>(({ model }) => {
-  cross(model.$.amount, amountVsMax); // fn получает model.get(), вешает ошибку на model.$.amount
+const amountSchema = defineValidationSchema<MyForm>(({ model, cross }) => {
+  cross(model.$.amount, amountVsMax); // check получает снимок модели, ошибка — на model.$.amount
 });
 ```
 
 ### Form-shape types — `type` over `interface`
 
 ```typescript
-// ❌ interface лишён неявной index signature; конструкции ArrayNode<T> его отвергают
+// ❌ interface лишён неявной index signature; конструкции ModelArrayNode<T> его отвергают
 export interface PropertyItem {
   type: PropertyType;
   description: string;

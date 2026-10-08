@@ -6,7 +6,8 @@
  * @module form/validators/file-type
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { matchesFileAccept, toFileArray } from './file-utils';
 import { validationError } from './validation-error';
 
@@ -25,7 +26,7 @@ import { validationError } from './validation-error';
  * @param accept - Accept-строка допустимых типов, например `'image/*,.pdf'`
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `accept` и `fileName` (первый нарушивший файл).
- * @returns Чистый валидатор {@link Validator} для файла или массива файлов
+ * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Только изображения и PDF
  * ```typescript
@@ -38,10 +39,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function fileType<TForm = unknown, TField = unknown>(
-  accept: string,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function fileType(accept: string, options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

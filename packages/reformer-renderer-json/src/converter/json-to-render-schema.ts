@@ -197,7 +197,7 @@ interface ConvertContext {
   parts: Record<string, unknown>;
   /**
    * Формат 2: привязка одним ключом `model`, на выходе — узлы с ручками модели (`model`).
-   * Формат v1: ключи `value` / `array`, на выходе — прежние `value` / `array`.
+   * Формат v1: ключи `value` / `array`; на выходе — те же узлы с привязкой `model` (массив — фасадом).
    */
   v2: boolean;
 }
@@ -342,7 +342,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
     if (!v2) {
       return {
         ...selector,
-        array: resolveModelPath(scope, path),
+        model: resolveModelPath(scope, path),
         ...(component ? { component } : {}),
         initialValue: () => (initial ? cloneLiteral(initial) : {}),
         item,
@@ -402,7 +402,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
       : undefined;
     return {
       ...selector,
-      [v2 ? 'model' : 'value']: signal,
+      model: signal,
       component: resolveComponent(n.component as string | undefined, registry),
       componentProps: fieldWrapper ? { ...(componentProps ?? {}), fieldWrapper } : componentProps,
     } as unknown as RenderNode<T>;

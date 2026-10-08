@@ -57,24 +57,24 @@ const createShape = () =>
   createModel<Shape>({ title: '', details: { note: '', hotlines: [] }, contacts: [] });
 
 const phoneItem = (phone: FormModel<Phone>) => ({
-  children: [{ value: phone.$.number }, { value: phone.$.primary }],
+  children: [{ model: phone.$.number }, { model: phone.$.primary }],
 });
 const contactItem = (contact: FormModel<Contact>) => ({
   children: [
-    { value: contact.$.name },
-    { value: contact.$.quantity },
-    { value: contact.$.share },
-    { value: contact.$.address.city },
-    { value: contact.$.address.street },
-    { array: contact.phones, item: phoneItem }, // массив в строке массива
+    { model: contact.$.name },
+    { model: contact.$.quantity },
+    { model: contact.$.share },
+    { model: contact.$.address.city },
+    { model: contact.$.address.street },
+    { model: contact.$.phones, item: phoneItem }, // массив в строке массива
   ],
 });
 const buildSchema = (model: FormModel<Shape>) => ({
   children: [
-    { value: model.$.title },
-    { value: model.$.details.note },
-    { array: model.details.hotlines, item: phoneItem }, // массив в группе
-    { array: model.contacts, item: contactItem },
+    { model: model.$.title },
+    { model: model.$.details.note },
+    { model: model.$.details.hotlines, item: phoneItem }, // массив в группе
+    { model: model.$.contacts, item: contactItem },
   ],
 });
 

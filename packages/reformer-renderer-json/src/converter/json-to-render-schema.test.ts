@@ -361,17 +361,17 @@ describe('массив как значение поля (`$model(<массив>)
   const model = createModel({ name: '', tags: [] as string[], profile: { langs: ['en'] } });
   const convertReal = (
     root: unknown
-  ): { value: unknown; componentProps?: Record<string, unknown> } =>
+  ): { model: unknown; componentProps?: Record<string, unknown> } =>
     convertJsonToM1Tree({ root } as JsonFormSchema, registry, model) as never;
 
   it('узел-поле получает ручку массива и распознаётся рендерером как поле', () => {
     const node = convertReal({ value: '$model(tags)', component: '$component(Input)' });
 
-    expect(node.value).toBe(model.$.tags);
+    expect(node.model).toBe(model.$.tags);
     expect(isModelFieldRenderNode(node as never)).toBe(true);
     // Вложенный путь — тем же способом.
     const nested = convertReal({ value: '$model(profile.langs)', component: '$component(Input)' });
-    expect(nested.value).toBe(model.$.profile.langs);
+    expect(nested.model).toBe(model.$.profile.langs);
   });
 
   it('`$model(<массив>)` в componentProps отдаёт ту же ручку — рендерер развернёт её в значение', () => {

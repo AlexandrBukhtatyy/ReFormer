@@ -9,10 +9,11 @@
  * @module form/validation/operators
  */
 
-import type { FormModel, ModelArray, PathAwareSignal, ValidationError } from '../../index';
+import type { FormModel, ModelArray, PathAwareSignal } from '../../model/types';
+import type { ValidationError } from '../types/contracts';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
 import { requireCtx, runWithContext, touch, gated, type VContext } from './context';
-import type { AsyncRule, CallableRule, Rule, ValidationSchema } from './types';
+import type { AsyncRule, Rule, ValidationSchema, ValidationScope } from './types';
 
 /**
  * Синхронные правила поля.
@@ -32,14 +33,21 @@ export function validate<TField>(sig: PathAwareSignal<TField>, rules: Rule<TFiel
   if (!gated(ctx)) return;
   const value = sig.peek();
   for (const rule of rules) {
-    const err = (rule as unknown as CallableRule)(value, ctx.model, ctx.root);
-    if (err) bucket.push(err as ValidationError);
+    const err = rule(value);
+    if (err) bucket.push(err);
   }
 }
 
+/** Код блокирующей ошибки поля, чьё async-правило не вернуло результат. */
+const RULE_FAILED = 'ruleFailed';
+
 /**
- * Асинхронные правила поля (зеркалит движковое разделение `validators` / `asyncValidators`).
- * Раннер дожидается их и прокидывает `AbortSignal` для отмены устаревших ответов.
+ * Асинхронные правила поля. Раннер дожидается их и прокидывает `AbortSignal` для отмены
+ * устаревших ответов.
+ *
+ * Отклонённое правило (сеть, исключение) — сбой проверки: он попадает в `failures` результата
+ * прогона, статус прогона становится `error`, а на поле ложится блокирующая ошибка `ruleFailed`
+ * (текст — из словаря локали). Отмена устаревшего прогона сбоем не считается.
  *
  * @example
  * ```ts
@@ -54,18 +62,25 @@ export function validateAsync<TField>(
   rules: AsyncRule<TField>[]
 ): void {
   const ctx = requireCtx('validateAsync');
-  const bucket = touch(ctx, sig as PathAwareSignal<unknown>);
+  const handle = sig as PathAwareSignal<unknown>;
+  const bucket = touch(ctx, handle);
   if (!gated(ctx)) return;
   const value = sig.peek();
   const signal = ctx.signal;
+  ctx.asyncFields.add(handle);
   for (const rule of rules) {
     ctx.pending.push(
-      rule(value, { signal }).then(
+      // Вызов внутри исполнителя промиса: синхронное исключение правила — такой же сбой.
+      new Promise<ValidationError | null>((resolve) => resolve(rule(value, { signal }))).then(
         (err) => {
           if (err && !signal.aborted) bucket.push(err);
         },
-        () => {
-          /* сбой/отмена async-правила НЕ блокирует submit */
+        (error: unknown) => {
+          if (signal.aborted) return;
+          ctx.failures.push({ handle, error });
+          if (!bucket.some((existing) => existing.code === RULE_FAILED)) {
+            bucket.push({ code: RULE_FAILED });
+          }
         }
       )
     );
@@ -86,23 +101,43 @@ export function validateWhen(cond: () => boolean, cb: () => void): void {
   }
 }
 
+/** Правило над несколькими полями: снимок модели `model` → ошибка на поле `sig`. */
+function crossOver(
+  model: FormModel<unknown>,
+  sig: PathAwareSignal<unknown>,
+  check: (snapshot: never) => ValidationError | null
+): void {
+  const ctx = requireCtx('cross');
+  const bucket = touch(ctx, sig);
+  if (!gated(ctx)) return;
+  const err = check(model.get() as never);
+  if (err) bucket.push(err);
+}
+
+/**
+ * Область схемы над моделью: сама модель и `cross`, снимок которого — эта модель.
+ *
+ * @internal
+ */
+export function scopeOf<T>(model: FormModel<T>): ValidationScope<T> {
+  return {
+    model,
+    cross: (handle, check) => crossOver(model as FormModel<unknown>, handle, check),
+  };
+}
+
 /**
  * Cross-field правило: `fn` получает СНАПШОТ модели текущей области (`model.get()`) и вешает
  * ошибку на `sig`.
  *
- * Область — та модель, с которой запущена схема: в корне прогона это вся форма, а в схеме,
- * подключённой через {@link apply} / {@link applyEach}, — под-модель группы или строки массива.
- * Поэтому правила подформы пишутся один раз и не знают, где она стоит.
+ * @deprecated Берите `cross` из аргумента схемы — `({ model, cross }) => …`: тип снимка выводится
+ * из схемы, и указывать его руками (`cross<Form>(…)`) не нужно.
  */
 export function cross<TSnapshot>(
   sig: PathAwareSignal<unknown>,
   fn: (form: TSnapshot) => ValidationError | null
 ): void {
-  const ctx = requireCtx('cross');
-  const bucket = touch(ctx, sig);
-  if (!gated(ctx)) return;
-  const err = fn(ctx.model.get() as TSnapshot);
-  if (err) bucket.push(err);
+  crossOver(requireCtx('cross').model, sig, fn);
 }
 
 /** Привязка к группе: ручка `model.$.<группа>` (тип значения — из её `peek()`). */
@@ -119,7 +154,7 @@ interface ArrayBinding<U> {
 function runScoped(ctx: VContext, model: unknown, schema: ValidationSchema<never>): void {
   const scoped = model as FormModel<unknown>;
   runWithContext({ ...ctx, model: scoped }, () =>
-    (schema as ValidationSchema<unknown>)({ model: scoped })
+    (schema as ValidationSchema<unknown>)(scopeOf(scoped))
   );
 }
 
@@ -145,9 +180,9 @@ function rowsOf(op: string, array: unknown): { length: number; at(index: number)
  *
  * @example
  * ```ts
- * const propertyRules = defineValidationSchema<Property>(({ model }) => {
+ * const propertyRules = defineValidationSchema<Property>(({ model, cross }) => {
  *   validate(model.$.type, [required()]);
- *   cross<Property>(model.$.estimatedValue, (property) =>
+ *   cross(model.$.estimatedValue, (property) =>
  *     property.hasEncumbrance && property.estimatedValue < 100_000 ? tooCheap : null
  *   );
  * });
@@ -220,7 +255,7 @@ export function apply<T>(...schemas: ValidationSchema<T>[]): void;
 export function apply(...args: unknown[]): void {
   const ctx = requireCtx('apply');
   if (typeof args[0] === 'function') {
-    for (const schema of args as ValidationSchema<unknown>[]) schema({ model: ctx.model });
+    for (const schema of args as ValidationSchema<unknown>[]) schema(scopeOf(ctx.model));
     return;
   }
   const [groups, schema] = args as [unknown, ValidationSchema<never>];

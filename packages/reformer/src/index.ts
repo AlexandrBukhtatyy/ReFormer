@@ -9,11 +9,30 @@
 
 // Общие + form типы (словарь значения/валидации — form/types/contracts).
 export * from './form/types/index';
-// Фабрики нод.
-export * from './form/factories/index';
-// Model-модуль: модель, value-операции, producer-флаг, утилиты субстрата.
-export * from './model/index';
-// Form-модуль: ноды, createForm, enableWhen/disableWhen, submit
+// Model-модуль: модель, producer-флаг, утилиты субстрата. Низкоуровневые операторы над сигналами
+// (`computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`,
+// `revalidateWhen`) в зонтик не входят: поведение формы пишут операторами
+// `@reformer/core/behaviors`, а сами примитивы остаются в сабпате `@reformer/core/model`.
+export { createModel, eachLeafSignal, eachValueSignal } from './model/create-model';
+export { arrayOf } from './model/model-nodes';
+export type {
+  FormModel,
+  ModelArray,
+  ModelArraySignals,
+  ModelGroupSignals,
+  ModelObject,
+  ModelValue,
+  ModelSignals,
+  ModelApi,
+  PathAwareSignal,
+} from './model/types';
+export { isModelContainerSignal, isValueSignal } from './model/model-signals-proxy';
+export { modelOf } from './model/model-value-proxy';
+export type { ModelOf } from './model/model-value-proxy';
+export type { BehaviorCleanup } from './model/behaviors-value';
+export { markDerived, isDerived, unmarkDerived } from './model/derived-registry';
+export { runOutsideEffect, safeCallback, safeDebouncedCallback } from './model/safe-effect';
+// Form-модуль: ноды, createForm, submit
 // (schema-валидация — отдельный сабпат @reformer/core/validation).
 export * from './form/index';
 // React-биндинги: единственный слой с runtime-зависимостью от react.

@@ -39,8 +39,8 @@ function build(): any {
     model,
     schema: {
       children: [
-        { value: model.$.email },
-        { array: model.items, item: (it: any) => ({ children: [{ value: it.$.x }] }) },
+        { model: model.$.email },
+        { model: model.$.items, item: (it: any) => ({ children: [{ model: it.$.x }] }) },
       ],
     },
   }) as any;

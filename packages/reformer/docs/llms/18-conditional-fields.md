@@ -137,7 +137,7 @@ function MortgageFields({ form }: { form: CreditForm }) {
 
 - **Нет branch-узла `{ when, children }` в дереве схемы.** Старая схема была деревом
   `{ value, validators: [...] }` с ветками `{ when: (scope, root) => boolean, children: [...] }`,
-  которое обходил `validateFormModel`. Теперь схема — функция `({ model }) => void`, а условие —
+  которое обходил `validateFormModel`. Теперь схема — функция `({ model, cross }) => void`, а условие —
   оператор `validateWhen(() => cond, () => {…})`; отдельного объекта-узла нет.
 
   ```typescript
@@ -155,24 +155,31 @@ function MortgageFields({ form }: { form: CreditForm }) {
   которого больше нет. Оборачивай условные правила оператором `validateWhen`.
 
 - **`ValidationSchemaFn` удалён** (тип старой path-схемы). Тип схемы — `ValidationSchema<T>`
-  (`(ctx: { model: FormModel<T> }) => void`), фабрика-обёртка — `defineValidationSchema<T>(fn)`.
+  (`(scope: { model: FormModel<T>; cross }) => void`), фабрика-обёртка — `defineValidationSchema<T>(fn)`.
 
-- **Cross-field — обычная функция над снапшотом, а не `ModelValidator (value, scope, root)`.**
-  Соседние поля читаются из снимка модели (`f: Root`, эквивалент `model.get()`), а правило навешивается
-  оператором `cross(sig, fn)`. Каноничное использование — `complex-multy-step-form/schemas/validation.ts`.
+- **Cross-field — обычная функция над снимком, а не `ModelValidator (value, scope, root)`.**
+  Правило значения — `Rule<T> = (value: T) => error | null`, параметров `scope` / `root` у него нет.
+  Соседние поля читаются из снимка модели, а правило вешается оператором `cross(sig, check)` из
+  аргумента схемы. Каноничное использование — каталог `validation/` формы `complex-multy-step-form`.
 
   ```typescript
-  import { cross } from '@reformer/core/validation';
+  import { defineValidationSchema } from '@reformer/core/validation';
   import type { ValidationError } from '@reformer/core';
 
-  // (f: Root) => error — сравнение с соседним полем, без scope/root-параметров
-  const passwordsMatch = (f: { password: string; confirmPassword: string }): ValidationError | null =>
-    f.confirmPassword && f.password && f.confirmPassword !== f.password
+  type Passwords = { password: string; confirmPassword: string };
+
+  // (snapshot) => error — сравнение с соседним полем
+  const passwordsMatch = (passwords: Passwords): ValidationError | null =>
+    passwords.confirmPassword &&
+    passwords.password &&
+    passwords.confirmPassword !== passwords.password
       ? { code: 'mismatch', message: 'Пароли не совпадают' }
       : null;
 
-  // внутри defineValidationSchema — fn получает снапшот текущего scope (model.get()):
-  cross(model.$.confirmPassword, passwordsMatch);
+  // cross — из аргумента схемы; check получает снимок модели области:
+  const passwordRules = defineValidationSchema<Passwords>(({ model, cross }) => {
+    cross(model.$.confirmPassword, passwordsMatch);
+  });
   ```
 
 ## See also

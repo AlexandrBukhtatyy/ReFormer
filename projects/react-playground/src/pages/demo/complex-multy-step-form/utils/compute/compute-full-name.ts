@@ -1,23 +1,10 @@
-/**
- * Вычисление полного имени (конкатенация Фамилия Имя Отчество)
- */
+import type { PersonalData } from '../../components/nested-forms/PersonalData/types';
 
-import type { PersonalData } from '../../components/nested-forms/PersonalData/PersonalDataForm';
-
-/**
- * Вычисление полного имени (конкатенация Фамилия Имя Отчество)
- *
- * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
- *
- * @param params - Объект с параметрами
- * @param params.personalData - Объект с данными о человеке
- * @returns полное имя
- */
-export function computeFullName({ personalData }: { personalData: PersonalData }): string {
-  const data = personalData;
-  const lastName = data?.lastName || '';
-  const firstName = data?.firstName || '';
-  const middleName = data?.middleName || '';
-
+/** Полное имя: «Фамилия Имя Отчество» без пустых частей. */
+export function computeFullName({
+  lastName,
+  firstName,
+  middleName,
+}: Pick<PersonalData, 'lastName' | 'firstName' | 'middleName'>): string {
   return [lastName, firstName, middleName].filter(Boolean).join(' ');
 }

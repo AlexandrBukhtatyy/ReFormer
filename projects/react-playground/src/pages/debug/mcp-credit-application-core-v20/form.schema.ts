@@ -1,7 +1,7 @@
 // form.schema.ts — FieldConfig tree binding model signals → component/componentProps/testId.
 // Schema-driven UI: component + все props объявлены здесь; JSX рендерит <FormField control={...}/>.
 // Правила валидации живут в validation.ts и уходят в сборку полем `validation`.
-import { type FormModel } from '@reformer/core';
+import { type FormModel, type FormSchemaNode } from '@reformer/core';
 import {
   CheckboxWithLabel,
   Input,
@@ -25,11 +25,30 @@ import {
 } from './types';
 import { REGION_OPTIONS } from './data-sources';
 
+/** Запись «имя → узел, группа полей или массив под-форм». */
+type FieldRecord = Record<string, unknown>;
+
+/**
+ * Дерево узлов из записи «имя поля → узел». Вложенные узлы сборка читает только из `children`,
+ * поэтому запись раскладывается в детей: группа полей — вложенный контейнер, строка массива
+ * под-форм — такое же дерево из её записи.
+ */
+function treeOf(fields: FieldRecord): FormSchemaNode {
+  const children = Object.values(fields).map((entry): FormSchemaNode => {
+    const node = entry as { model?: unknown; item?: (row: never) => FieldRecord };
+    if (node.model === undefined) return treeOf(entry as FieldRecord);
+    const { item } = node;
+    if (typeof item !== 'function') return entry as FormSchemaNode;
+    return { model: node.model, item: (row: never) => treeOf(item(row)) } as FormSchemaNode;
+  });
+  return { children };
+}
+
 /**
  * Строит схему формы. `readOnly=true` (mode='view') делает все поля disabled.
  * Computed-поля (interestRate/monthlyPayment/…) всегда readonly.
  */
-export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false) {
+export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false): FormSchemaNode {
   // merge disabled в componentProps при view-mode
   const cp = (props: Record<string, unknown>) => (readOnly ? { ...props, disabled: true } : props);
   // computed / readonly props (всегда disabled)
@@ -183,7 +202,7 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
     },
   });
 
-  return {
+  return treeOf({
     // ===== Step 1 — loan =====
     loanType: {
       model: model.$.loanType,
@@ -710,5 +729,5 @@ export function buildCreditSchema(model: FormModel<CreditForm>, readOnly = false
         testId: 'coBorrowersIncome',
       }),
     },
-  };
+  });
 }

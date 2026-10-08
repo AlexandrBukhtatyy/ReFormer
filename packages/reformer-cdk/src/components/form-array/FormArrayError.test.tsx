@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { ArrayNode, ValidationError } from '@reformer/core';
+import type { ModelArrayNode, ValidationError } from '@reformer/core';
 import { FormArrayContext } from './FormArrayContext';
 import { FormArrayError } from './FormArrayError';
 import type { FormArrayContextValue } from './FormArrayContext';
@@ -32,7 +32,7 @@ function ctx(errors: ValidationError[]): FormArrayContextValue {
     errors,
     valid: errors.length === 0,
     invalid: errors.length > 0,
-    control: {} as unknown as ArrayNode<Record<string, unknown>>,
+    control: {} as unknown as ModelArrayNode<Record<string, unknown>>,
   };
 }
 

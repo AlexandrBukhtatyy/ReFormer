@@ -2,9 +2,9 @@
  * Сборка ошибки валидации — общая для всех правил каталога.
  *
  * Правило несёт только `code` и `params`: готового текста у него нет, поэтому `message` по
- * умолчанию пуст, и отображаемую строку даёт резолвер по коду (см. `resolveValidationError` в
- * `@reformer/core/i18n`). Пустое `message` — это и есть признак «автор текста не задавал»: по нему
- * резолвер отличает явное сообщение правила от умолчания.
+ * умолчанию не задан, и отображаемую строку даёт резолвер по коду (см. `resolveValidationError` в
+ * `@reformer/core/i18n`). Отсутствие `message` — это и есть признак «автор текста не задавал»: по
+ * нему резолвер отличает явное сообщение правила от умолчания.
  *
  * @module form/validators/validation-error
  */
@@ -24,9 +24,9 @@ export function validationError(
 ): ValidationError {
   const error: ValidationError = {
     code,
-    message: options?.message ?? '',
     params: params === undefined ? options?.params : { ...params, ...options?.params },
   };
+  if (options?.message !== undefined) error.message = options.message;
   if (options?.messageKey !== undefined) error.messageKey = options.messageKey;
   return error;
 }

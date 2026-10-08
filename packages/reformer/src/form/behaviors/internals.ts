@@ -9,7 +9,7 @@
  */
 
 import type { Signal } from '@preact/signals-core';
-import { isModelContainerSignal } from '../../index';
+import { isModelContainerSignal } from '../../model/model-signals-proxy';
 import { isModelArraySignal } from '../../model/model-signals-proxy';
 
 /** Групповой узел дерева `$`: набор дочерних сигналов плюс служебный путь. */

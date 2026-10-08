@@ -7,8 +7,9 @@
 (`createForm`), поведение одно (`defineFormBehavior`). Способы отличаются только видом схемы
 (билдер или документ) и тем, кто рисует результат.
 
-Прежние записи — ключи `value` / `array`, оператор `each`, `createCoreForm` — пока принимаются.
-Новый код пишется так, как описано здесь.
+Прежние записи узла — ключи `value` / `array` и запись «имя поля → узел» — удалены: тип узла
+закрыт, сборка их не читает. Оператор `each`, свободный `cross` и имя `createCoreForm` пока
+принимаются; новый код пишется так, как описано здесь.
 
 | Слой      | поле                              | массив под-форм                           | подформа                              |
 | --------- | --------------------------------- | ----------------------------------------- | ------------------------------------- |
@@ -51,10 +52,10 @@ export const createCreditModel = () =>
 ## Схема — одно дерево
 
 ```typescript
-import type { FormModel } from '@reformer/core';
+import type { FormModel, FormSchemaNode } from '@reformer/core';
 
 // подформа: объявлена один раз, получает под-модель
-const address = (model: FormModel<Address>) => ({
+const address = (model: FormModel<Address>): FormSchemaNode => ({
   component: Box,
   children: [
     { model: model.$.city, component: Input, componentProps: { label: 'Город' } },
@@ -63,13 +64,13 @@ const address = (model: FormModel<Address>) => ({
 });
 
 // строка массива — такая же функция от под-модели
-const coBorrower = (model: FormModel<CoBorrower>) => ({
+const coBorrower = (model: FormModel<CoBorrower>): FormSchemaNode => ({
   selector: 'co-borrower',
   component: Box,
   children: [{ model: model.$.name, component: Input, componentProps: { label: 'ФИО' } }],
 });
 
-export const creditSchema = (model: FormModel<CreditForm>) => ({
+export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
   component: Box,
   children: [
     { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип' } }, // поле
@@ -94,8 +95,13 @@ export const creditSchema = (model: FormModel<CreditForm>) => ({
 | подформа        | `model` — группа, `part` — функция            |
 | контейнер       | есть `children`, нет `model`                  |
 
-- Узел узнаётся по ЗНАЧЕНИЮ: в записи «имя поля → узел» поле данных может называться `model`,
-  `item`, `part` или `value` — под таким ключом лежит обычный вложенный узел.
+- Тип узла `FormSchemaNode` закрыт: опечатка в ключе, группа без `part`, `item` не на массиве и
+  привязка value-фасадом (`model: model.email`) не компилируются.
+- Вложенные узлы читаются только из `children` и из поддерева `part`. В `componentProps` и под
+  произвольными ключами сборка не заглядывает; в dev она предупреждает о ключах узла, которые не
+  читает.
+- Вид ноды формы определяет узел модели, а не имя: поле данных может называться `value`, `schema`,
+  `form`, `model` или `children`.
 - Поля подформы принадлежат той же форме: `form.registrationAddress.city`.
 - Билдер `item` / `part` вызывается один раз на под-модель; сборка и рендерер получают одно и то
   же поддерево (`schemaSubtree(builder, subModel)`).
@@ -108,15 +114,15 @@ export const creditSchema = (model: FormModel<CreditForm>) => ({
 import {
   apply,
   applyEach,
-  cross,
   defineValidationSchema,
   validate,
   validateWhen,
 } from '@reformer/core/validation';
 
-const addressRules = defineValidationSchema<Address>(({ model }) => {
+const addressRules = defineValidationSchema<Address>(({ model, cross }) => {
   validate(model.$.city, [required()]);
-  cross<Address>(model.$.street, (address) =>
+  // cross — из аргумента схемы: снимок области (Address) выведен, приведения не нужны
+  cross(model.$.street, (address) =>
     address.city !== '' && address.street === '' ? streetRequired : null
   );
 });
@@ -136,13 +142,32 @@ export const contactsRules = defineValidationSchema<CreditForm>(({ model }) => {
 ```
 
 - У схемы, подключённой через `apply(ручка, схема)` / `applyEach`, своя область: `model` — под-модель,
-  `cross` получает её снапшот. Захватывать снапшот в замыкание больше не нужно.
+  `cross` из аргумента схемы получает её снимок. Захватывать снимок в замыкание не нужно.
 - Одна и та же схема подключается и к группе, и к элементам массива.
 - `apply(model.$.a, rules)` принимает и массив ручек: `apply([model.$.a, model.$.b], rules)`.
 - `apply(schemaA, schemaB)` — композиция схем над той же моделью — остаётся.
-- Правило получает `(value, scope, root)`: модель области и корень прогона.
+- Правило значения — `Rule<T> = (value: T) => ValidationError | null`: один аргумент. Тип значения
+  сверяется с типом поля; набор правил объявляют типом поля (`Rule<LoanType>[]`,
+  `Rule<number | null>[]`).
+- `ValidationError.message` необязателен: без него текст берётся из словаря локали по коду.
+- Свободный `cross` из `@reformer/core/validation` помечен `@deprecated`: тип снимка у него не
+  выводится.
 - `each(model.items, (item) => …)` — прежняя запись `applyEach`: принимает фасад и ручку, области
   не создаёт.
+
+### Результат прогона
+
+```typescript
+const result = await credit.validation.runAll(); // либо runStep('loan'), runValidation(model, rules)
+// result.status: 'valid' | 'invalid' | 'error' | 'cancelled'
+// result.errors: Map<ручка поля, ошибки>;  result.failures: правила, не вернувшие результат
+```
+
+- `validateAll()` / `validateStep()` / `validateModel()` отвечают `boolean`: `true` только для `valid`.
+- **Сбой async-правила блокирует**: статус `error`, на поле — ошибка `{ code: 'ruleFailed' }`.
+- Отменённый прогон (`cancelled`) по нодам не разносится.
+- Пока идут async-правила поля, его нода в `pending`; `validation.validating` — идёт ли прогон.
+- `form.validate()` / `form.submit()` правил не запускают: они отражают ошибки, которые разнёс раннер.
 
 ## Поведение — модель, форма и схема
 
@@ -215,7 +240,10 @@ const credit = useFormBundle(() =>
 ```
 
 - Порядок: модель → `seed` → дерево схемы → ноды формы → поведение → валидация → `setup`. Дерево
-  строится один раз.
+  строится один раз. Ноды строятся по виду узла модели: лист и массив-значение — `FieldNode`,
+  группа — `GroupNode`, массив под-форм — `ModelArrayNode`.
+- В dev сборка проверяет селекторы корневого дерева: повтор `selector`, правило поведения на узел,
+  которого нет, и ключ `validation.steps` без шага с таким `selector` дают предупреждение.
 - `validation` в бандле типизирована по конфигу: правила переданы — поле есть всегда.
 - `render` — `{ tree, controller, node(selector) }`: готовое дерево и схема-контроллер сборки.
 - JSON: `createForm({ model, schema: document, registry })` — дерево собирает
@@ -223,15 +251,12 @@ const credit = useFormBundle(() =>
 - Внутри рендерера бандл доступен компонентам через `useFormBundleContext()` — так визард берёт
   форму и валидацию сам.
 
-### Низкоуровневые фабрики
+### Низкоуровневая фабрика
 
-| Задача                                         | Фабрика                                  |
-| ---------------------------------------------- | ---------------------------------------- |
-| форма из модели и готового дерева, без бандла  | `createFormFromModel({ model, schema })` |
-| форма без модели — плоская схема полей         | `createLegacyForm(schema)`               |
+`createFormFromModel({ model, schema })` — форма из модели и готового дерева, без бандла.
 
-`createForm` с готовым деревом вместо билдера или без модели бросает ошибку с отсылкой к нужной
-фабрике.
+Формы без модели нет: значения принадлежат модели. `createForm` без `model` и `initial` либо с
+готовым деревом вместо билдера бросает ошибку с подсказкой.
 
 ## Частые ошибки
 
@@ -244,3 +269,7 @@ const credit = useFormBundle(() =>
 | `push({})` для новой строки                        | `arrayOf(blank)` в модели и `push()` без значения       |
 | `createModel(structuredClone(INITIAL))` с `arrayOf` | фабрика начальных значений — клон теряет шаблон массива |
 | `cross` в подформе читает корень                   | `apply(model.$.group, rules)` — область подформы        |
+| `{ value: model.$.x }`, `{ array: model.items }`   | `{ model: model.$.x }`, `{ model: model.$.items, item }` |
+| узлы записью `{ email: { model, component } }`     | `{ children: [{ model, component }] }`                  |
+| `Rule<unknown>[]` и `(form: Root)` с приведением   | `Rule<ТипПоля>[]`, `cross` из аргумента схемы           |
+| `try { … } catch { return null }` в async-правиле «на всякий случай» | сбой правила блокирует сам; `catch` — только если проверка необязательна |

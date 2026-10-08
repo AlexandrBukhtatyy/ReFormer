@@ -31,7 +31,7 @@ import type { FieldStatus } from './types/index';
  * console.log(statusMachine.pending.value); // true
  *
  * // Завершение валидации с ошибками
- * statusMachine.completeValidation(true);
+ * statusMachine.setErrors(true);
  * console.log(statusMachine.invalid.value); // true
  *
  * // Отключение поля
@@ -92,36 +92,7 @@ export class FormStatusMachine {
   }
 
   /**
-   * Завершить валидацию
-   *
-   * @param hasErrors - Есть ли ошибки валидации
-   *
-   * @example
-   * ```typescript
-   * // Валидация успешна
-   * statusMachine.completeValidation(false);
-   * // status: 'valid'
-   *
-   * // Есть ошибки
-   * statusMachine.completeValidation(true);
-   * // status: 'invalid'
-   * ```
-   */
-  completeValidation(hasErrors: boolean): void {
-    // Guard против устаревшего async-результата: если поле, пока шла валидация,
-    // перешло в 'disabled', результат не применяем. Во всех остальных состояниях
-    // (pending — обычный async-путь; valid/invalid — sync-путь) завершаем.
-    // NB: `=== 'pending' || !== 'disabled'` тождественно `!== 'disabled'` — прежний
-    // первый дизъюнкт был мёртвым кодом.
-    if (this._status.value !== 'disabled') {
-      this._status.value = hasErrors ? 'invalid' : 'valid';
-    }
-  }
-
-  /**
-   * Установить ошибки напрямую (без перехода через pending)
-   *
-   * Используется для синхронной валидации или установки ошибок извне
+   * Установить статус по наличию ошибок. Снимает и `pending`: проверка закончилась.
    *
    * @param hasErrors - Есть ли ошибки
    *

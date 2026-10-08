@@ -6,7 +6,8 @@
  * @module form/validators/max-files
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { toFileArray } from './file-utils';
 import { validationError } from './validation-error';
 
@@ -20,7 +21,7 @@ import { validationError } from './validation-error';
  * @param max - Максимально допустимое количество файлов (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `maxFiles` и `actualCount`.
- * @returns Чистый валидатор {@link Validator} для файла или массива файлов
+ * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Не более трёх вложений
  * ```typescript
@@ -33,10 +34,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function maxFiles<TForm = unknown, TField = unknown>(
-  max: number,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function maxFiles(max: number, options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

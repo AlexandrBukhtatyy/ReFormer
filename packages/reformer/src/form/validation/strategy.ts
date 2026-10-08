@@ -2,27 +2,20 @@
  * Единый декларативный выбор СТРАТЕГИИ валидации — `@reformer/core/validation`.
  *
  * Стратегия решает только **КОГДА** запускать schema-валидацию и **с каким `touch`**. Движок прогона
- * не дублируется: {@link validateModel} уже разносит ошибки по нодам, гасит валидные диффом, отменяет
+ * не дублируется: раннер (`./run`) уже разносит ошибки по нодам, гасит валидные диффом, отменяет
  * устаревший прогон (`AbortController`) и дедуплицирует по идентичности `(model, schema)`. Реактивные
  * триггеры (`change`/`blur`) строятся тем же паттерном, что `revalidateWhen`: один `effect`, подписка на
  * ручки значений модели через {@link eachValueSignal} (без ручного перечисления зависимостей).
- *
- * Слой A (функциональная схema) остаётся источником истины; node-level валидаторы Слоя B (`updateOn`)
- * НЕ задействуются — не смешивайте их с активной schema-стратегией на одних и тех же полях (оба пишут
- * ошибки в ноду → мерцание).
  *
  * @module form/validation/strategy
  */
 
 import { effect, signal, type ReadonlySignal } from '@preact/signals-core';
-import {
-  getNodeForSignal,
-  eachValueSignal,
-  type FormModel,
-  type PathAwareSignal,
-} from '../../index';
-import { validateModel } from './run';
-import type { ValidationSchema } from './types';
+import { eachValueSignal } from '../../model/create-model';
+import type { FormModel, PathAwareSignal } from '../../model/types';
+import { getNodeForSignal } from '../signal-node-registry';
+import { runAndApply } from './run';
+import type { ValidationResult, ValidationSchema } from './types';
 
 /**
  * Когда запускается schema-валидация:
@@ -45,9 +38,15 @@ export interface ValidationStrategyOptions {
 export interface FormValidationController {
   /**
    * Полный прогон схемы с раскрытием ошибок (`touch: true`) — для submit. Также переводит
-   * `afterFirstSubmit` в live-фазу. Возвращает `false`, если есть блокирующие ошибки.
+   * `afterFirstSubmit` в live-фазу. Возвращает `true` только для статуса `valid`: ошибки, сбой
+   * правила и отмена дают `false`.
    */
   validate(): Promise<boolean>;
+  /**
+   * Тот же полный прогон, что {@link FormValidationController.validate}, с полным результатом:
+   * по статусу отличают ошибки (`invalid`) от сбоя правила (`error`) и отмены (`cancelled`).
+   */
+  run(): Promise<ValidationResult>;
   /**
    * Армировать реактивные подписки стратегии. Идемпотентно. Возвращает `dispose`. НЕ звать при SSR.
    *
@@ -65,15 +64,15 @@ export interface FormValidationController {
 }
 
 /**
- * Собрать контроллер валидации формы с выбранной стратегией запуска. Переиспользует
- * {@link validateModel} как единственный движок прогона.
+ * Собрать контроллер валидации формы с выбранной стратегией запуска. Движок прогона — тот же, что у
+ * `validateModel`.
  *
  * Фабрика ЧИСТАЯ до `start()` (никаких подписок) — безопасна для SSR/headless. Реактивные триггеры
  * арминуются только в `start()` (в React — из `useEffect`).
  *
  * @typeParam T - Форма данных модели.
  * @param model - Модель данных.
- * @param schema - Схема валидации. **Стабильная ссылка** (иначе `validateModel` не отменит устаревший прогон).
+ * @param schema - Схема валидации. **Стабильная ссылка** (иначе устаревший прогон не отменится).
  * @param options - {@link ValidationStrategyOptions}.
  *
  * @example
@@ -99,18 +98,27 @@ export function createFormValidation<T>(
   let disposeFx: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const run = async (touch: boolean): Promise<boolean> => {
+  const run = async (touch: boolean): Promise<ValidationResult> => {
     inFlight++;
     _validating.value = true;
     try {
-      return await validateModel(model, schema, { touch });
+      return await runAndApply(model, schema, { touch });
     } finally {
       if (--inFlight === 0) _validating.value = false;
     }
   };
 
   const fireLive = (): void => {
-    void run(false); // live-прогон НЕ метит touched — ошибки видны только по dirty/touched
+    // live-прогон НЕ метит touched — ошибки видны только по dirty/touched. Результат никто не ждёт,
+    // поэтому исключение схемы ловится здесь: иначе оно осталось бы необработанным отклонением.
+    run(false).catch((error: unknown) => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(
+          '[@reformer/core/validation] живой прогон схемы завершился исключением',
+          error
+        );
+      }
+    });
   };
   const fireLiveDebounced = (): void => {
     if (!debounce) {
@@ -143,6 +151,9 @@ export function createFormValidation<T>(
 
   const controller: FormValidationController = {
     async validate() {
+      return (await controller.run()).status === 'valid';
+    },
+    run() {
       submitted = true; // двигает afterFirstSubmit в live-фазу
       return run(true); // submit → touch:true (раскрыть все ошибки)
     },

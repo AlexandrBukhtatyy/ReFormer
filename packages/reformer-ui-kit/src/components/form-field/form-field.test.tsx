@@ -21,7 +21,7 @@ const TestInput = (props: Record<string, unknown>) => {
 
 function buildField(componentProps: Record<string, unknown>, component: any = TestInput) {
   const model = createModel<{ email: string }>({ email: '' });
-  const schema = { children: [{ value: model.$.email, component, componentProps }] };
+  const schema = { children: [{ model: model.$.email, component, componentProps }] };
   const form = createFormFromModel<{ email: string }>({ model, schema });
   return form.email as any;
 }

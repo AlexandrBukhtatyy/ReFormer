@@ -8,7 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { GroupNode } from '../../../src/form/nodes/group-node';
+import { createModel } from '../../../src/model/index';
+import { createFormFromModel } from '../../../src/form/create-form';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 
 interface ShadowedModel {
@@ -19,13 +20,13 @@ interface ShadowedModel {
 }
 
 function makeForm() {
-  const node = new GroupNode<ShadowedModel>({
-    status: { value: 'active', component: null },
-    id: { value: 'user-42', component: null },
-    value: { value: 'raw', component: null },
-    email: { value: 'e@x.com', component: null },
-  } as never);
-  return node.getProxy();
+  const model = createModel<ShadowedModel>({
+    status: 'active',
+    id: 'user-42',
+    value: 'raw',
+    email: 'e@x.com',
+  });
+  return createFormFromModel<ShadowedModel>({ model });
 }
 
 describe('FormProxy — затенение полей членами GroupNode (defect #28)', () => {
@@ -86,11 +87,8 @@ describe('FormProxy — затенение полей членами GroupNode (
       pristine: string;
       enabled: string;
     }
-    const form = new GroupNode<MirrorModel>({
-      untouched: { value: 'u', component: null },
-      pristine: { value: 'p', component: null },
-      enabled: { value: 'e', component: null },
-    } as never).getProxy();
+    const model = createModel<MirrorModel>({ untouched: 'u', pristine: 'p', enabled: 'e' });
+    const form = createFormFromModel<MirrorModel>({ model });
 
     expect(form.untouched).toBeInstanceOf(FieldNode);
     expect(form.untouched.value.value).toBe('u');

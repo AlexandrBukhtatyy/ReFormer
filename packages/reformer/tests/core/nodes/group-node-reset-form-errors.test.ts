@@ -8,8 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import type { FormProxy, ValidationError } from '../../../src/form/types/index';
-import { createLegacyForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
+import { formFromFields } from '../../test-utils/form-from-fields';
 
 interface TestForm {
   email: string;
@@ -17,7 +17,7 @@ interface TestForm {
 }
 
 const make = (): FormProxy<TestForm> =>
-  createLegacyForm<TestForm>({
+  formFromFields<TestForm>({
     email: { value: '', component: null as ComponentInstance },
     password: { value: '', component: null as ComponentInstance },
   });
