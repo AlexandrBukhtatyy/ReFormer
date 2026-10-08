@@ -1,9 +1,8 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
 import { launchFromRuntime } from './application/builder-application';
 import { boot } from './shell/boot/boot';
+import { createBrowserTabEnvironment } from './shell/boot/environment';
 import { fetchRuntimeConfig } from './shell/boot/runtime-config';
+import { mountStandaloneShell } from './shell/standalone/mount';
 import {
   APPLICATION_ROOT_DIR,
   loadApplicationFiles,
@@ -61,6 +60,9 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
       runtime,
       application,
       profileChoices,
+      // Окружение названо явно, хотя совпадает с умолчанием сборки: это вход оболочки «своя
+      // вкладка», и чей здесь документ, должно читаться из него, а не из умолчания.
+      environment: createBrowserTabEnvironment(),
       // Плагины приложения лежат РЯДОМ СО СБОРКОЙ, в каталоге `plugins/` от её базового адреса:
       // их кладёт туда тот, кто приложение разворачивает (лаунчер, сборка для поставки, Pages).
       // Нет каталога — штатный `null`: так запускается билдер под `vite dev`, где плагины
@@ -69,32 +71,16 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
         loadApplicationFiles({ baseUrl: `${import.meta.env.BASE_URL}${APPLICATION_ROOT_DIR}/` }),
     })
   );
-  const root = createRoot(document.getElementById('root')!);
-
-  // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).
-  // Это не «загрузочный экран»: обе вещи читаются оболочкой **один раз** при монтировании —
-  // раскладка панелей и словарь локали, — поэтому отрисовка раньше означала бы не «быстрее»,
-  // а «сохранённые размеры не применились и вместо строк маркеры промаха».
-  //
-  // Отказ уже обработан внутри `boot`, поэтому `then` здесь один и без ветки ошибки:
-  // приложение обязано открыться даже с недогруженными настройками.
-  void app.ready.then(() => {
-    root.render(
-      <StrictMode>
-        <App app={app} />
-      </StrictMode>
-    );
-
+  // Как рисовать и когда поднимать проект — дело оболочки «своя вкладка»; вход только соединяет
+  // её с составом и говорит, что считать первым кадром.
+  mountStandaloneShell({
+    app,
+    container: document.getElementById('root')!,
     // Первый кадр — отметка, к которой сводится весь замер: всё, что до неё, человек ждёт
     // перед пустым окном.
-    requestAnimationFrame(() => {
+    onFirstFrame: () => {
       traceSinceStart('first-frame');
       if (new URLSearchParams(window.location.search).has(TRACE_FLAG)) printStartupSummary();
-    });
-
-    // Шаг 5: восстановление последнего проекта — ПОСЛЕ отрисовки и не блокируя её. Оно ждёт
-    // IndexedDB и, возможно, разрешения на каталог, а «проект не открыт» — это нормальное
-    // состояние интерфейса, которое обязано быть видно сразу.
-    void app.restore();
+    },
   });
 });

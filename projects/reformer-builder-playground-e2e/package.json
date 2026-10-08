@@ -8,6 +8,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:dist": "cross-env BUILDER_E2E_TARGET=dist playwright test",
+    "test:e2e:embedded": "cross-env BUILDER_E2E_TARGET=embedded playwright test",
     "test:e2e:report": "playwright show-report",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

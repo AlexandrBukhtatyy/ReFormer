@@ -47,6 +47,10 @@ const SNAPSHOT = Object.freeze({ hasWorkspace: false });
  */
 const Body = (text: string) => (): ReactElement => createElement('p', null, `тело ${text}`);
 
+/** Тело панели, которая занимает область дока целиком: корень растягивается сам. */
+const FillBody = (text: string) => (): ReactElement =>
+  createElement('p', { style: { flex: '1 1 0', minHeight: 0, margin: 0 } }, `тело ${text}`);
+
 /**
  * Заголовок панели — КЛЮЧ словаря плагина, а не литерал. В тесте словарь подставляется
  * прямо здесь: иначе на экране были бы маркеры промаха, и проверка «видно ли панель»
@@ -63,6 +67,8 @@ async function shell(
     badge?: string;
     /** Подпись кнопки в шапке дока: панель отдаёт свои действия оболочке. */
     action?: string;
+    /** Панель занимает область дока целиком и прокручивает себя сама. */
+    fill?: boolean;
   }[],
   /** Сохранённая высота нижней панели: как если бы человек уже двигал разделитель. */
   bottomSize?: number
@@ -75,7 +81,8 @@ async function shell(
         id: p.id,
         slot: p.slot,
         titleKey: KEY(p.id),
-        Body: Body(p.title),
+        Body: p.fill === true ? FillBody(p.title) : Body(p.title),
+        fill: p.fill,
         railPlacement: p.railPlacement,
         Badge:
           p.badge === undefined
@@ -541,5 +548,31 @@ describe('рейлы доков: одна панель в зоне, как в п
 
     // Ровно один рейл: правого нет вовсе, а не «есть, но пустой».
     expect(page.getByRole('navigation').elements()).toHaveLength(1);
+  });
+
+  it('панель, занимающая область целиком, получает всю высоту дока', async () => {
+    // Рамке с чужим документом высоту взять неоткуда: тело обычной панели лежит
+    // в прокручиваемой области, где высоту задаёт содержимое, и «растянуться» там не на что.
+    await shell([{ id: 'preview', slot: 'panel.right', title: 'Превью', fill: true }]);
+    await expect.element(page.getByText('тело Превью')).toBeVisible();
+
+    const body = page.getByText('тело Превью').element().getBoundingClientRect();
+    const dock = page
+      .getByRole('complementary', { name: 'Правая панель' })
+      .element()
+      .getBoundingClientRect();
+
+    // До нижнего края дока, а не на высоту строки текста.
+    expect(Math.round(body.bottom)).toBe(Math.round(dock.bottom));
+    expect(body.height).toBeGreaterThan(200);
+    expect(Math.round(body.width)).toBe(Math.round(dock.width));
+  });
+
+  it('обычной панели высоту задаёт содержимое: растягивать её оболочка не берётся', async () => {
+    await shell([{ id: 'inspector', slot: 'panel.right', title: 'Свойства' }]);
+    await expect.element(page.getByText('тело Свойства')).toBeVisible();
+
+    const body = page.getByText('тело Свойства').element().getBoundingClientRect();
+    expect(body.height).toBeLessThan(60);
   });
 });

@@ -1,0 +1,16 @@
+{
+  "panel.title": "Preview",
+  "mode.label": "What to show",
+  "mode.form": "Form",
+  "mode.page": "Application",
+  "address.label": "Application page address",
+  "action.reload": "Reload",
+  "action.openTab": "Open the application in a separate tab",
+  "frame.form": "The form as the application renders it",
+  "frame.page": "Application",
+  "notice.saved": "Showing what is saved: an edit appears after saving.",
+  "notice.form": "{path} — showing what is saved: an edit appears after saving.",
+  "empty.noDocument": "Open a form file — the form as the application renders it will appear here.",
+  "empty.noModule": "The folder of the open file has no form module {name}. Generate the form module or switch to “Application”.",
+  "address.invalid": "The address must lead to this same application."
+}

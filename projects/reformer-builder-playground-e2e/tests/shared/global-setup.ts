@@ -21,7 +21,7 @@
  */
 
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { REPO_ROOT } from './paths';
 
@@ -30,20 +30,28 @@ function npm(command: string): void {
   execSync(`npm ${command}`, { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
+/** Пакет, который сборке плагинов нужен собранным. */
+interface RequiredBuild {
+  /** Каталог пакета в `packages/`. */
+  readonly dir: string;
+  /** Файл его `dist/`, по которому видно, что сборка есть. */
+  readonly file: string;
+  /** Имя пакета — для команды сборки. */
+  readonly name: string;
+}
+
 /**
- * Что нужно сборке плагинов собранным — в порядке зависимостей: каталог пакета, файл его
- * `dist/`, по которому видно, что сборка есть, и имя пакета.
+ * Что нужно сборке плагинов собранным — в порядке зависимостей.
+ *
+ * Список лежит данными: тем же списком пользуется запуск приложения-образца в прогоне
+ * `embedded` (`tests/embedded/shared/serve-host.mjs`), а он стартует раньше этой подготовки.
  */
-const REQUIRED_BUILDS: readonly (readonly [dir: string, file: string, name: string])[] = [
-  ['reformer-mcp', 'core/bundle.js', '@reformer/mcp'],
-  ['reformer-builder-plugin-api', 'index.js', '@reformer/builder-plugin-api'],
-  ['reformer-builder-toolkit', 'index.js', '@reformer/builder-toolkit'],
-  ['reformer-builder-plugin-cli', 'cli.js', '@reformer/builder-plugin-cli'],
-  ['rjsf-kit-theme', 'index.js', '@reformer/rjsf-kit-theme'],
-];
+const REQUIRED_BUILDS = JSON.parse(
+  readFileSync(path.join(__dirname, 'required-builds.json'), 'utf8')
+) as readonly RequiredBuild[];
 
 export default function globalSetup(): void {
-  for (const [dir, file, name] of REQUIRED_BUILDS) {
+  for (const { dir, file, name } of REQUIRED_BUILDS) {
     if (!existsSync(path.join(REPO_ROOT, 'packages', dir, 'dist', file))) {
       npm(`run build -w ${name}`);
     }

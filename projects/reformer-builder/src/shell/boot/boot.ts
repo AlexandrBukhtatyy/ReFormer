@@ -128,10 +128,6 @@ import {
   createWorkspaceMetaStore,
   WORKSPACE_DB_NAME,
 } from '@/shell/platform/workspace/storage/idb';
-import {
-  browserPurgeEnvironment,
-  purgeOriginStorage,
-} from '@/shell/platform/workspace/storage/purge';
 import { createJournalRelief } from '@/shell/platform/workspace/journal/journal';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
@@ -182,6 +178,7 @@ import { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api/interna
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
 import { asFormSchema } from './settings/schema-guard';
 import type { ApplicationComposition, ProfileChoices } from './composition';
+import { createBrowserTabEnvironment, type ShellEnvironment } from './environment';
 import { ApplicationProfilesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createApplicationProfilesService } from './ports/application-profiles';
 import { readStoredPreset } from './stored-preset';
@@ -410,16 +407,25 @@ export interface BootOptions {
    * Откуда его читать, решает `main.tsx`: оболочка знает форму слоя, а не его адрес.
    */
   readonly applicationPluginFiles?: () => Promise<PluginFilesSource | null>;
+  /**
+   * Место, где запущена сборка: что ей позволено делать с документом и источником
+   * (`./environment`). Без значения — своя вкладка браузера, как было всегда.
+   *
+   * Необязательное, в отличие от состава: умолчание здесь не тянет в `boot` ничего, кроме
+   * платформы, а назвать окружение обязан только тот, у кого оно другое, — оболочка,
+   * встроенная в чужое приложение.
+   */
+  readonly environment?: ShellEnvironment;
 }
 
 export function boot(options: BootOptions): BuilderApp {
   /** Конфиг уровня запуска. Проектный уровень читается позже, на каждое открытие проекта. */
   const launchConfig: RuntimeConfig = options.runtime?.config ?? {};
-  /** Титул до конфига — то, что написано в index.html; к нему возвращаемся без конфига. */
-  const builtinTitle = typeof document === 'undefined' ? '' : document.title;
+  // Окружение создаётся ПЕРВЫМ делом: умолчание запоминает заголовок документа таким, каким
+  // он был до конфига, — к нему возвращаются, когда конфиг заголовка не называет.
+  const environment = options.environment ?? createBrowserTabEnvironment();
   const applyTitle = (config: RuntimeConfig): void => {
-    if (typeof document === 'undefined') return;
-    document.title = config.branding?.title ?? builtinTitle;
+    environment.applyTitle?.(config.branding?.title);
   };
   applyTitle(launchConfig);
 
@@ -481,7 +487,7 @@ export function boot(options: BootOptions): BuilderApp {
   const theme = createThemeService({
     settings,
     system: createBrowserSystemTheme(),
-    root: typeof document === 'undefined' ? null : document.documentElement,
+    root: environment.themeRoot,
     // Дефолт из конфига запуска. Именно здесь, а не позже: умолчание объявляется один раз.
     defaultPreference: launchConfig.defaults?.theme,
   });
@@ -505,21 +511,27 @@ export function boot(options: BootOptions): BuilderApp {
   services.register(PromptServiceToken, prompt);
   services.register(ResourceClipboardServiceToken, clipboard);
 
+  // Возможности самой оболочки — после служб Host и до плагинов: плагин спрашивает реестр
+  // при активации и обязан уже застать ответ.
+  environment.registerCapabilities?.(services);
+
   // Перезапуск приложения — один на оба случая, когда он нужен: очистка хранилища и смена
   // профиля состава. Оболочке звать его напрямую нельзя (в её тестах это перезапуск прогона),
-  // поэтому глагол живёт здесь и уходит портом.
-  const reload = (): void => {
-    window.location.reload();
-  };
+  // поэтому глагол приходит от окружения и уходит дальше портом. Окружение вправе его не дать
+  // (страница чужого приложения) — тогда нет ни смены профиля, ни очистки.
+  const reload = environment.reload;
+  const purgeStorage = environment.purgeStorage?.bind(environment);
   // Профили состава: что собрано и на что можно пересобрать. Имена приходят от того, кто
   // собрал состав; оболочка добавляет запись выбора и перезапуск.
   services.register(
     ApplicationProfilesServiceToken,
     createApplicationProfilesService({
       current: options.application.profile,
-      choices: options.profileChoices,
+      // Без перезапуска выбор не предлагается вовсе: записанный, но не применённый профиль
+      // выглядел бы как кнопка, которая ничего не делает.
+      choices: reload === undefined ? undefined : options.profileChoices,
       settings,
-      reload,
+      reload: reload ?? ((): void => undefined),
       stored: readStoredPreset,
     })
   );
@@ -1309,19 +1321,23 @@ export function boot(options: BootOptions): BuilderApp {
     // композиция — она эти хранилища и завела. Оболочке уходит порт из двух глаголов,
     // а не список баз: перечисление, протёкшее в оболочку, разошлось бы с составом
     // хранилищ при первом же новом кэше.
-    storage: {
-      // Известные базы — запасной путь на движки без `indexedDB.databases()`; там, где
-      // перечисление есть, оно полнее любого списка (см. шапку `storage/purge`).
-      purge: () =>
-        purgeOriginStorage(
-          browserPurgeEnvironment({ knownDatabases: [WORKSPACE_DB_NAME, HANDLES_DB_NAME] })
-        ),
-      // Перезапуск, а не `dispose` с пересборкой: после очистки в памяти остаётся
-      // приложение поверх снесённого хранилища, и половину удалённого оно создаст заново
-      // первой же записью. Заодно закрытие страницы доводит до конца отложенные
-      // (`blocked`) удаления баз.
-      reload,
-    },
+    //
+    // МОЖНО ли его сносить, решает окружение: источник встроенного билдера общий с приложением.
+    // Без порта команда «Очистить кэш» не регистрируется, и пункт меню не рисуется.
+    ...(purgeStorage === undefined || reload === undefined
+      ? {}
+      : {
+          storage: {
+            // Известные базы — запасной путь на движки без `indexedDB.databases()`; там, где
+            // перечисление есть, оно полнее любого списка (см. шапку `storage/purge`).
+            purge: () => purgeStorage({ databases: [WORKSPACE_DB_NAME, HANDLES_DB_NAME] }),
+            // Перезапуск, а не `dispose` с пересборкой: после очистки в памяти остаётся
+            // приложение поверх снесённого хранилища, и половину удалённого оно создаст заново
+            // первой же записью. Заодно закрытие страницы доводит до конца отложенные
+            // (`blocked`) удаления баз.
+            reload,
+          },
+        }),
     plugins,
     projectPlugins,
     applicationPlugins: applicationPlugins.catalog,

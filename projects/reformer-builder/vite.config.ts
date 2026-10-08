@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { readFile } from 'node:fs/promises';
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
+import { BUILDER_DEDUPE, builderSourceAliases } from './vite/source-resolve.mjs';
 
 /** Адрес конфига запуска — тот же, что у лаунчера (`bin/reformer-builder.mjs`) и SPA. */
 const RUNTIME_BUNDLE_PATH = '/__reformer-builder/runtime.json';
@@ -211,31 +212,10 @@ export default defineConfig({
     },
   },
   resolve: {
-    // Дедупликация singleton-рантаймов при workspace-линке: одна копия React, Radix и
-    // @preact/signals-core на всё дерево (иначе `instanceof Signal` / контекст Radix ломаются).
-    dedupe: ['react', 'react-dom', 'radix-ui', '@preact/signals-core'],
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      // Порядок значим: подпуть обязан стоять ПЕРЕД корнем, иначе корневой псевдоним
-      // съедает '/internal' и оболочка получает поверхность плагина вместо примитивов.
-      '@reformer/builder-plugin-api/internal': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-plugin-api/src/internal.ts'
-      ),
-      // Инструменты автора плагина (разбор манифеста, проверка каталога кита) — тем же приёмом.
-      '@reformer/builder-plugin-api/tooling': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-plugin-api/src/tooling.ts'
-      ),
-      '@reformer/builder-plugin-api': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-plugin-api/src/index.ts'
-      ),
-      // Нейтральные помощники печати стеков — в исходники тем же доводом.
-      '@reformer/builder-toolkit': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-toolkit/src/index.ts'
-      ),
-    },
+    // Дедупликация singleton-рантаймов при workspace-линке и псевдонимы исходников — из общего
+    // модуля: тем же списком пользуется приложение, в которое билдер встроен, и два списка
+    // разошлись бы при первой же правке (см. `./vite/source-resolve.mjs`).
+    dedupe: [...BUILDER_DEDUPE],
+    alias: builderSourceAliases(),
   },
 });

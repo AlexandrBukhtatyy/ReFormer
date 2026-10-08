@@ -350,6 +350,29 @@ function PanelBody({ entry }: { entry: PanelEntry }): ReactElement {
 }
 
 /**
+ * Тело панели в области дока.
+ *
+ * Обычной панели прокрутку ведёт оболочка: содержимое растёт по высоте, полосу рисует
+ * `ScrollArea`. Панель с признаком `fill` получает область целиком, колонкой, — её корневой
+ * элемент растягивается сам (обёртка плагина раскладке прозрачна), а что внутри
+ * прокручивается, решает панель.
+ */
+function DockBody({ entry }: { entry: PanelEntry }): ReactElement {
+  if (entry.value.fill === true) {
+    return (
+      <div data-panel-fill="" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <PanelBody entry={entry} />
+      </div>
+    );
+  }
+  return (
+    <ScrollArea className="min-h-0 flex-1">
+      <PanelBody entry={entry} />
+    </ScrollArea>
+  );
+}
+
+/**
  * Шапка панели: один вид у левого дока и у стопок, поэтому один компонент.
  *
  * Заголовок остаётся `<h2>`, а не компонентом кита, намеренно. Ближайшее, что кит предлагает,
@@ -908,17 +931,25 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
    */
   // Список постоянный, поэтому и ссылка постоянная: пересобирать его не на что —
   // ни панели, ни локаль на него не влияют, заголовки берутся из команд при построении.
+  // Меняется он только вместе с окружением оболочки: пункта очистки нет там, где нет команды.
+  const canPurgeStorage = storage !== undefined;
   const builtinMenu = useMemo<readonly MenuEntry[]>(
     () => [
       // Очистка кэша — своей группой, а не рядом с настройками: между «поменять цвет темы»
       // и «снести рабочую копию» обязана быть линия. Группа стоит перед настройками
       // (`8_` < `9_`), потому что это всё же обслуживание, а не первое, что ищут в меню.
-      hostMenuEntry('shell.file.storage.purge', {
-        kind: 'item',
-        menu: 'file',
-        command: STORAGE_PURGE_COMMAND_ID,
-        group: '8_maintenance',
-      }),
+      // Оболочка без обслуживания хранилища (билдер внутри чужого приложения: хранилище
+      // origin общее с ним) команды не регистрирует — и пункт на неё не ссылается.
+      ...(canPurgeStorage
+        ? [
+            hostMenuEntry('shell.file.storage.purge', {
+              kind: 'item',
+              menu: 'file',
+              command: STORAGE_PURGE_COMMAND_ID,
+              group: '8_maintenance',
+            }),
+          ]
+        : []),
       // Настройки — в «Файле», рядом с открытием проекта: это первое место, где их ищут,
       // и там же они стоят в редакторах, на которые человек насмотрелся до нас.
       hostMenuEntry('shell.file.settings', {
@@ -939,7 +970,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
         group: '2_about',
       }),
     ],
-    []
+    [canPurgeStorage]
   );
 
   const { t } = i18n;
@@ -1001,9 +1032,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                   className="flex min-h-0 flex-1 flex-col"
                 >
                   <PanelHeading title={panelTitle(i18n, activeLeft)} entry={activeLeft} />
-                  <ScrollArea className="min-h-0 flex-1">
-                    <PanelBody entry={activeLeft} />
-                  </ScrollArea>
+                  <DockBody entry={activeLeft} />
                 </aside>
               </ResizablePanel>
               <ResizableHandle withHandle />
@@ -1079,11 +1108,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                       {bottomDock.mode !== 'hidden' && (
                         <BottomTabs i18n={i18n} tabs={bottom} dock={bottomDock} />
                       )}
-                      {activeBottom !== null && (
-                        <ScrollArea className="min-h-0 flex-1">
-                          <PanelBody entry={activeBottom} />
-                        </ScrollArea>
-                      )}
+                      {activeBottom !== null && <DockBody entry={activeBottom} />}
                     </section>
                   </ResizablePanel>
                 </>
@@ -1108,9 +1133,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                   className="flex min-h-0 flex-1 flex-col"
                 >
                   <PanelHeading title={panelTitle(i18n, activeRight)} entry={activeRight} />
-                  <ScrollArea className="min-h-0 flex-1">
-                    <PanelBody entry={activeRight} />
-                  </ScrollArea>
+                  <DockBody entry={activeRight} />
                 </aside>
               </ResizablePanel>
             </>

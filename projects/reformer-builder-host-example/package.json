@@ -1,0 +1,33 @@
+{
+  "name": "reformer-builder-host-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Приложение-образец со встроенным @reformer/builder: билдер открывается поверх страницы, а форму в его превью рисует само приложение",
+  "scripts": {
+    "dev": "vite",
+    "builder:plugins": "npm run plugins:dist -w reformer-builder-playground && node ../reformer-builder/scripts/collect-application-plugins.mjs --list ../reformer-builder/application-plugins.embedded.json --out public/builder-plugins",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "@reformer/core": "*",
+    "@reformer/form-registry": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/renderer-react": "*",
+    "@reformer/ui-kit": "*",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
+  },
+  "devDependencies": {
+    "@reformer/builder": "*",
+    "@tailwindcss/vite": "^4.1.17",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "tailwindcss": "^4.1.17",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2"
+  }
+}

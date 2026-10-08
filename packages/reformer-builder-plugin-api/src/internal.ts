@@ -54,6 +54,7 @@ export * from './services/workspace-resources.js';
 export * from './services/workspace-save.js';
 export * from './services/workspace-tree.js';
 export * from './services/preview.js';
+export * from './services/app-preview.js';
 export * from './services/document-models.js';
 export * from './services/modules.js';
 export * from './services/host-messages.js';

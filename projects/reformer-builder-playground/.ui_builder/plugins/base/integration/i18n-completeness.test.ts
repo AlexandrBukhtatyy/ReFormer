@@ -16,11 +16,13 @@ import {
   missingKeys,
   type Dictionary,
 } from '@/shell/platform/services/i18n/dictionary-checks';
+import { APP_PREVIEW_MESSAGES } from '../app-preview/src/messages';
 import { MARKDOWN_MESSAGES } from '../markdown-editor/src/messages';
 import { FILES_MESSAGES } from '../files/src/messages';
 import { MONACO_MESSAGES } from '../monaco-editor/src/messages';
 
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
+  ['app-preview', APP_PREVIEW_MESSAGES],
   ['markdown-editor', MARKDOWN_MESSAGES],
   ['files', FILES_MESSAGES],
   ['monaco-editor', MONACO_MESSAGES],

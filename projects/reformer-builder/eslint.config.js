@@ -16,7 +16,9 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  * помощники печати — `@reformer/builder-toolkit`):
  *   shell/platform/        платформа          → только shell/platform/ и внешние библиотеки
  *   plugins/<домен>/<п>/   плагин             → контракт плагина и свой каталог
- *   shell/boot/            сборка оболочки    → всё, КРОМЕ состава приложения
+ *   shell/boot/            сборка оболочки    → всё, КРОМЕ состава приложения и оболочек
+ *   shell/standalone/      оболочка «вкладка» → сборка и платформа; не состав и не соседняя оболочка
+ *   shell/embedded/        оболочка «в чужом приложении» → то же самое
  *   application/           состав приложения  → всё
  *
  * ОГРАНИЧЕНИЕ реализации: правила ловят импорты через псевдоним `@/…` и глубокие относительные
@@ -52,6 +54,27 @@ const denyApplication = [
   {
     group: ['@/application/*', '@/application'],
     message: 'Оболочка не знает состава приложения: состав приходит параметром в boot',
+  },
+];
+
+/**
+ * Оболочек две, и ни сборка, ни платформа, ни соседняя оболочка о них не знают.
+ *
+ * Сборка одна на обе: `boot` получает окружение параметром (`shell/boot/environment`) и не
+ * вправе спрашивать, кто его вызвал, — иначе вопрос «чей это документ» вернулся бы в неё
+ * условиями. Оболочки друг друга тоже не импортируют: общее у них лежит в сборке, а различное
+ * тем и различно, что не делится.
+ */
+const denyStandaloneShell = [
+  {
+    group: ['@/shell/standalone/*', '@/shell/standalone'],
+    message: 'Оболочку «своя вкладка» знает только вход main.tsx: общее лежит в shell/boot',
+  },
+];
+const denyEmbeddedShell = [
+  {
+    group: ['@/shell/embedded/*', '@/shell/embedded'],
+    message: 'Встроенную оболочку знает только вход библиотеки: общее лежит в shell/boot',
   },
 ];
 
@@ -108,7 +131,43 @@ export default defineConfig([
     // Задай мы здесь только `denyFromPlatform`, платформа тихо потеряла бы запрет на `@/application`.
     files: ['src/shell/platform/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [...denyFromPlatform, ...denyApplication] }],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...denyFromPlatform,
+            ...denyStandaloneShell,
+            ...denyEmbeddedShell,
+            ...denyApplication,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Сборка одна на обе оболочки и ни одну из них не знает. Список склеен с запретом состава
+    // по той же причине, что у платформы: блоки не складываются.
+    files: ['src/shell/boot/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...denyStandaloneShell, ...denyEmbeddedShell, ...denyApplication] },
+      ],
+    },
+  },
+  {
+    files: ['src/shell/standalone/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [...denyEmbeddedShell, ...denyApplication] }],
+    },
+  },
+  {
+    files: ['src/shell/embedded/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...denyStandaloneShell, ...denyApplication] },
+      ],
     },
   },
   {

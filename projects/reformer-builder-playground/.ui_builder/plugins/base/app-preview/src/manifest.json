@@ -1,0 +1,15 @@
+{
+  "id": "reformer.app-preview",
+  "name": "Превью приложением",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.app.preview",
+        "range": "^1"
+      }
+    ]
+  }
+}

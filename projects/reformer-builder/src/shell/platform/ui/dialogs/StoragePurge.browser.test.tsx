@@ -62,12 +62,19 @@ async function mount(storage?: { purge: () => Promise<PurgeReport>; reload: () =
 
 describe('очистка кэша из меню «Файл»', () => {
   it('без порта композиции пункта нет вовсе — не серым, а никак', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     await mount();
 
     await userEvent.click(page.getByRole('menuitem', { name: 'Файл' }));
 
     await expect.element(page.getByRole('menuitem', { name: 'Настройки' })).toBeVisible();
     expect(page.getByRole('menuitem', { name: 'Очистить кэш' }).elements()).toHaveLength(0);
+    // И не «пункт сломан»: оболочка без обслуживания хранилища (билдер внутри чужого
+    // приложения) — обычный состав, а запись меню на команду, которой нет, оболочка
+    // отбрасывала с ошибкой в консоли.
+    const complaints = errors.mock.calls.map((call) => call.map(String).join(' '));
+    errors.mockRestore();
+    expect(complaints.filter((text) => text.includes('shell.file.storage.purge'))).toEqual([]);
   });
 
   it('согласие ведёт к очистке и перезапуску', async () => {

@@ -1,0 +1,56 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "selector": "name",
+        "value": "$model(name)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя",
+          "required": true
+        }
+      },
+      {
+        "selector": "email",
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Email",
+          "required": true
+        }
+      },
+      {
+        "selector": "city",
+        "value": "$model(city)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Город",
+          "placeholder": "Выберите город"
+        }
+      },
+      {
+        "selector": "agree",
+        "value": "$model(agree)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Согласен на обработку данных"
+        }
+      },
+      {
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": ["Отправить"]
+      }
+    ],
+    "selector": "contact-section"
+  }
+}

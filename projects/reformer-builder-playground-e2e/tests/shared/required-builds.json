@@ -1,0 +1,15 @@
+[
+  { "dir": "reformer-mcp", "file": "core/bundle.js", "name": "@reformer/mcp" },
+  {
+    "dir": "reformer-builder-plugin-api",
+    "file": "index.js",
+    "name": "@reformer/builder-plugin-api"
+  },
+  { "dir": "reformer-builder-toolkit", "file": "index.js", "name": "@reformer/builder-toolkit" },
+  {
+    "dir": "reformer-builder-plugin-cli",
+    "file": "cli.js",
+    "name": "@reformer/builder-plugin-cli"
+  },
+  { "dir": "rjsf-kit-theme", "file": "index.js", "name": "@reformer/rjsf-kit-theme" }
+]

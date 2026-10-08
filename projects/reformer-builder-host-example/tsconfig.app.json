@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "types": ["vite/client", "node"],
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    "baseUrl": ".",
+    "paths": {
+      // Билдер собирается из исходников (см. `vite.config.ts`), поэтому и типы его — из них же.
+      // Список повторяет псевдонимы сборки `@reformer/builder/vite/source-resolve.mjs`
+      // и уйдёт вместе с ними, когда у билдера появится библиотечная сборка: останется
+      // обычная зависимость от пакета.
+      "@reformer/builder": ["../reformer-builder/src/index.ts"],
+      "@/*": ["../reformer-builder/src/*"],
+      "@reformer/builder-plugin-api": ["../../packages/reformer-builder-plugin-api/src/index.ts"],
+      "@reformer/builder-plugin-api/internal": [
+        "../../packages/reformer-builder-plugin-api/src/internal.ts"
+      ],
+      "@reformer/builder-plugin-api/tooling": [
+        "../../packages/reformer-builder-plugin-api/src/tooling.ts"
+      ],
+      "@reformer/builder-toolkit": ["../../packages/reformer-builder-toolkit/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

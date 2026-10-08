@@ -105,6 +105,10 @@ export default defineConfig([
     'projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks',
     // Корпус знаний плагина ИИ — выход генератора (`npm run generate:knowledge`)
     'projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/knowledge/generated',
+    // Каталог плагинов билдера в статике приложения-образца — та же сборка плагинов, собранная
+    // для поставки (`npm run builder:plugins`). В git не едет по той же причине и так же
+    // невидимо для ESLint
+    'projects/reformer-builder-host-example/public/builder-plugins',
   ]),
 
   // Базовая конфигурация для всего TS/JS
