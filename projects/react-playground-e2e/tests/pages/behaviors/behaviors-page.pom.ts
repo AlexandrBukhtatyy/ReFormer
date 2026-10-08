@@ -8,7 +8,7 @@ export interface BehaviorsPageOptions {
 /**
  * Page Object Model for Behaviors Examples Page
  * Tests reactive behaviors: computeFrom, enableWhen, disableWhen, copyFrom,
- * watchField, transformValue, resetWhen, syncFields, revalidateWhen
+ * onChange, transformValue, resetWhen, syncFields, revalidateWhen
  */
 export class BehaviorsPage {
   readonly page: Page;
