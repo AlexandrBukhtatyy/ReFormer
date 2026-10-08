@@ -46,7 +46,7 @@ import type {
 } from '@reformer/builder-plugin-api';
 import type { MonacoDocument, MonacoHost, Translate } from '../host';
 import { shouldStopPropagation } from '../sync/input';
-import { languageFor, modelPathFor } from '../runtime/language';
+import { languageFor, modelPathFor, typingSuggestionsFor } from '../runtime/language';
 import { hasNodeTargets, planMarkers, type MarkerDraft } from '../diagnostics/markers';
 import { ensureMonacoRuntime } from '../runtime/monaco-setup';
 import {
@@ -399,8 +399,10 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
     };
   }, [mounted, host, documentId, diagnosticMessage, value]);
 
+  const language = languageFor(document.ref.mediaType);
   const options = useMemo<MonacoEditor.IStandaloneEditorConstructionOptions>(
     () => ({
+      ...typingSuggestionsFor(language),
       ariaLabel: t('editor.label'),
       automaticLayout: true,
       fontSize: 12,
@@ -416,7 +418,7 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
       // всплывали бы видимым текстом под оболочкой. Свой контейнер лежит внутри скоупа.
       ...(ariaContainer === null ? {} : { ariaContainerElement: ariaContainer }),
     }),
-    [t, ariaContainer]
+    [t, ariaContainer, language]
   );
 
   if (failure !== null) {
@@ -440,7 +442,7 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
         <Editor
           className="min-h-0 flex-1"
           height="100%"
-          language={languageFor(document.ref.mediaType)}
+          language={language}
           loading={<LoadingSkeleton label={t('editor.loading')} />}
           onChange={(next) => {
             if (next === undefined) return;

@@ -170,6 +170,84 @@ test.describe('Редактор кода', () => {
     await page.screenshot({ path: path.join(SHOTS, '11-code-editor-schema-hints.png') });
   });
 
+  test('исходник схемы формы: подсказки в строках открываются при наборе, без Ctrl+Space', async ({
+    builder,
+    page,
+  }) => {
+    // Всё содержательное в схеме формы — внутри строк: `$component(…)`, `$model(…)`, значения
+    // пропсов из перечислений каталога. Monaco в строках сам ничего не предлагает, и пока это
+    // не было включено, список открывался только по Ctrl+Space — подсказок будто не было.
+    await builder.goto();
+    await builder.disk.seed();
+    await builder.disk.writeText(
+      'forms/typing/form.schema.json',
+      JSON.stringify(
+        {
+          $schema: './form-schema.schema.json',
+          version: '1.0',
+          root: {
+            $nodeId: 'root',
+            component: '$html(div)',
+            children: [
+              {
+                $nodeId: 'name',
+                value: '$model(name)',
+                component: '$component(Input)',
+                componentProps: { label: '', type: '' },
+              },
+              { $nodeId: 'blank', component: '' },
+              { $nodeId: 'bound', value: '$model(' },
+            ],
+          },
+        },
+        null,
+        2
+      )
+    );
+    await builder.openFolder();
+    await builder.openFile('forms/typing/form.schema.json');
+    await builder.openPalette('Показать исходник');
+    await builder.paletteOption('Показать исходник').click();
+    const editor = editorOf(page);
+    await expect(editor.locator('.view-lines')).toContainText('"$schema"');
+
+    const suggest = editor.locator('.suggest-widget');
+    const rows = suggest.locator('.monaco-list-row');
+    /** Курсор — перед закрывающей кавычкой значения в строке с этим текстом. */
+    const typeInside = async (lineText: string, text: string): Promise<void> => {
+      await editor.locator('.view-line', { hasText: lineText }).first().click();
+      await page.keyboard.press('End');
+      await page.keyboard.press('ArrowLeft');
+      await page.keyboard.type(text, { delay: 50 });
+    };
+    const close = async (): Promise<void> => {
+      await page.keyboard.press('Escape');
+      await expect(suggest).not.toHaveClass(/(^|\s)visible(\s|$)/);
+    };
+
+    // Имя компонента: список — из каталога активного кита, а не слова документа.
+    await typeInside('"component": ""', '$component(Sel');
+    await expect(suggest).toHaveClass(/(^|\s)visible(\s|$)/);
+    await expect(rows.filter({ hasText: '$component(Select)' }).first()).toBeVisible();
+    await page.screenshot({ path: path.join(SHOTS, '14-code-editor-typing-hints.png') });
+    await close();
+
+    // Путь модели после `$model(`: подсказка провайдера модели формы.
+    await typeInside('"value": "$model("', 'n');
+    await expect(rows.filter({ hasText: 'name' }).first()).toBeVisible();
+    await close();
+
+    // Значение пропса из перечисления каталога.
+    await typeInside('"type": ""', 'e');
+    await expect(rows.filter({ hasText: 'email' }).first()).toBeVisible();
+    await close();
+
+    // Подпись — свободный текст: подсказывать нечего, и слова документа список не открывают.
+    await typeInside('"label": ""', 'Им');
+    await page.waitForTimeout(1_000);
+    await expect(suggest).not.toHaveClass(/(^|\s)visible(\s|$)/);
+  });
+
   test('тёмная тема: редактор темнеет вместе с оболочкой', async ({ builder, page }) => {
     await builder.openPlayground();
     await builder.openPalette('Настройки');

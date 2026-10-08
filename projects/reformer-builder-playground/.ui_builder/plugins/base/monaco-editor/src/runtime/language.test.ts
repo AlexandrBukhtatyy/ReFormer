@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { languageFor, modelPathFor, PLAIN_TEXT_LANGUAGE } from './language';
+import { languageFor, modelPathFor, PLAIN_TEXT_LANGUAGE, typingSuggestionsFor } from './language';
 
 describe('languageFor', () => {
   it.each([
@@ -34,6 +34,20 @@ describe('languageFor', () => {
 
   it('неизвестный тип открывается без подсветки, а не отказом', () => {
     expect(languageFor('application/x-newfangled')).toBe(PLAIN_TEXT_LANGUAGE);
+  });
+});
+
+describe('typingSuggestionsFor', () => {
+  it('в JSON список открывается и внутри строк — там живут $component(…) и $model(…)', () => {
+    expect(typingSuggestionsFor('json')).toEqual({
+      quickSuggestions: { other: 'on', comments: 'off', strings: 'on' },
+      suggest: { showWords: false },
+    });
+  });
+
+  it('у остальных языков умолчания Monaco: в TypeScript слова документа — единственные подсказки', () => {
+    expect(typingSuggestionsFor('typescript')).toEqual({});
+    expect(typingSuggestionsFor(PLAIN_TEXT_LANGUAGE)).toEqual({});
   });
 });
 

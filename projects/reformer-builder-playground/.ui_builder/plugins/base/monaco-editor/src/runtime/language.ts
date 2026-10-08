@@ -25,6 +25,8 @@
  * @module plugins/base/monaco-editor/runtime/language
  */
 
+import type { editor as MonacoEditor } from 'monaco-editor';
+
 /** Язык для всего, чему не нашлось разметки: подсветки нет, редактор работает. */
 export const PLAIN_TEXT_LANGUAGE = 'plaintext';
 
@@ -84,6 +86,27 @@ export function languageFor(mediaType: string): string {
     if (bySuffix !== undefined) return bySuffix;
   }
   return PLAIN_TEXT_LANGUAGE;
+}
+
+/**
+ * Когда список подсказок открывается сам — по языку документа.
+ *
+ * У JSON всё содержательное лежит ВНУТРИ строк: имена компонентов в `$component(…)`, теги
+ * `$html(…)`, пути `$model(…)`, значения пропсов из перечислений каталога. Monaco в строках
+ * при наборе ничего не предлагает (`quickSuggestions.strings` по умолчанию выключен), и список
+ * открывался только по Ctrl+Space — при обычном наборе подсказок будто не было вовсе.
+ *
+ * Включено это только для JSON и вместе с запретом подсказок «по словам документа»: в строке
+ * без перечисления (`label`, `placeholder`) подсказывать нечего, и без запрета ввод подписи
+ * обрастал бы списком случайных слов. Запрет — `suggest.showWords` редактора, а не глобальный
+ * `wordBasedSuggestions`: тот выключил бы слова и в TypeScript, где других подсказок нет.
+ */
+export function typingSuggestionsFor(language: string): MonacoEditor.IEditorOptions {
+  if (language !== 'json') return {};
+  return {
+    quickSuggestions: { other: 'on', comments: 'off', strings: 'on' },
+    suggest: { showWords: false },
+  };
 }
 
 /**
