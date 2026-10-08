@@ -14,7 +14,7 @@
 
 ## Шаг 1 — построить схему валидации над моделью { #build-schema }
 
-Схема валидации — обычная функция над (под)моделью, обёрнутая `defineValidationSchema<T>(({ model }) => { … })`. Внутри — голые **операторы** из `@reformer/core/validation`: `validate(sig, [rules])` (синхронные правила поля, **массив**), `validateAsync(sig, [asyncRules])` (async-правила), `validateWhen(() => cond, () => …)` (условные ветки), `cross(sig, fn)` (cross-field по снапшоту `model.get()`), `each(arr, itemFn)` (per-item массивы), `apply(...schemas)` (композиция под-схем). `sig` — сигнал модели (`model.$.path`), **не** RenderNode: схема валидации это отдельный TS-файл, она не пересекается с render-деревом. Встроенные фабрики правил импортируются из `@reformer/core/validators`.
+Схема валидации — обычная функция над (под)моделью, обёрнутая `defineValidationSchema<T>(({ model, cross }) => { … })`. Внутри — голые **операторы** из `@reformer/core/validation`: `validate(sig, [rules])` (синхронные правила поля, **массив**), `validateAsync(sig, [asyncRules])` (async-правила), `validateWhen(() => cond, () => …)` (условные ветки), `applyEach(model.$.items, itemRules)` (правила строк массива), `apply(...schemas)` (композиция под-схем) — и `cross(sig, fn)` из аргумента схемы (cross-field по снапшоту `model.get()`; не импортируется). `sig` — сигнал модели (`model.$.path`), **не** RenderNode: схема валидации это отдельный TS-файл, она не пересекается с render-деревом. Встроенные фабрики правил импортируются из `@reformer/core/validators`.
 
 ```typescript
 import { type FormModel } from '@reformer/core';
@@ -47,7 +47,7 @@ const step2 = defineValidationSchema<Root>(({ model }) => {
 const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2];
 ```
 
-Условные ветки (`validateWhen(() => model.loanType === 'mortgage', () => { … })`), cross-field (`cross(sig, fn)`), async (`validateAsync(sig, [rule])`), секции массивов (`each(model.items, im => { … })`) и композиция под-схем (`apply(...schemas)`) — тот же контракт, что в TS-форме. Полное описание операторов `@reformer/core/validation` и раннера `validateModel` — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
+Условные ветки (`validateWhen(() => model.loanType === 'mortgage', () => { … })`), cross-field (`cross(sig, fn)` из аргумента схемы), async (`validateAsync(sig, [rule])`), секции массивов (`applyEach(model.$.items, itemRules)`) и композиция под-схем (`apply(...schemas)`) — тот же контракт, что в TS-форме. Полное описание операторов `@reformer/core/validation` и раннера `validateModel` — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
 ## Шаг 2 — исполнить: `{ validateStep, validateAll }` { #execute }
 
@@ -143,7 +143,6 @@ import { type FormModel } from '@reformer/core';
 import {
   validate,
   validateWhen,
-  cross,
   apply,
   defineValidationSchema,
   validateModel,
@@ -155,7 +154,7 @@ import type { CreditForm } from './types';
 type Root = CreditForm;
 type M = FormModel<CreditForm>;
 
-const step1 = defineValidationSchema<Root>(({ model }) => {
+const step1 = defineValidationSchema<Root>(({ model, cross }) => {
   validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
   validate(model.$.loanAmount, [required(), min(50000, { message: 'Минимум 50 000 ₽' })]);
   // Условная ветка + cross-field: активна только для ипотеки, читает снапшот формы.
@@ -238,5 +237,5 @@ export function buildSchema(
 - [02-render-schema.md](02-render-schema.md) — структура `RenderNode`: лист-поле несёт только layout, массивы (`array: model.<path>`).
 - [03-render-behavior.md](03-render-behavior.md) — `onInit`/`patchProps` для инъекции конфига в wizard-узел; `revalidateWhen`-мост к `validateModel`.
 - [01-overview.md](01-overview.md) — wizard-узел, `FormWizardConfig` (`{ validateStep?, validateAll? }`), передача `form` через `componentProps`.
-- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы `ValidationSchema` (`validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`), раннер `validateModel`, `STEP_SCHEMAS`, конфиг wizard'а.
+- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы `ValidationSchema` (`validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach` и `cross` области), раннер `validateModel`, `STEP_SCHEMAS`, конфиг wizard'а.
 - `@reformer/renderer-json` [06-validation.md](../../../reformer-renderer-json/docs/llms/06-validation.md) — родственный паттерн для JSON-схемы (та же model-валидация, инъекция через render-behavior).
