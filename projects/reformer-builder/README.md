@@ -24,12 +24,126 @@ npx reformer-builder [--port 4321] [--host 127.0.0.1] [--no-open] [--config <pat
 
 ## Внутри своего приложения
 
-Тот же билдер открывается и поверх страницы разрабатываемого приложения: компонент
-`<ReformerBuilder>` вокруг приложения, кнопка «Билдер» в dev-режиме, а форму в превью рисует
-само приложение — со своим API и своими провайдерами. Пока это сборка из исходников внутри
-монорепозитория, без публикации. Устройство и подключение —
-[docs/embedding.md](docs/embedding.md), рабочий образец —
+Тот же билдер открывается поверх страницы разрабатываемого приложения: кнопка «Билдер»
+в dev-режиме, тот же интерфейс оверлеем, а форму в превью рисует само приложение — со своим API
+и своими провайдерами. Файлы проекта билдер правит прямо на диске, как и в своей вкладке.
+
+Пока это сборка из исходников внутри монорепозитория: пакет для встраивания не публикуется.
+Устройство — [docs/embedding.md](docs/embedding.md), рабочий образец —
 [projects/reformer-builder-host-example](../reformer-builder-host-example).
+
+### Попробовать на образце
+
+```bash
+npm run builder:plugins -w reformer-builder-host-example   # каталог плагинов билдера
+npm run dev -w reformer-builder-host-example               # http://localhost:5175/contact
+```
+
+### Подключить к своему приложению
+
+**1. Зависимости.** В `devDependencies` приложения — `@reformer/builder`, `@tailwindcss/vite`
+и `tailwindcss`: стили билдера собирает сборщик приложения. React — 19-й.
+
+**2. Сборка.** Псевдонимы исходников билдера и список рантаймов, которым положена одна копия
+на страницу, билдер отдаёт сам:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { builderHostResolve } from '@reformer/builder/vite/source-resolve.mjs';
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: builderHostResolve(),
+});
+```
+
+**3. Типы.** Те же псевдонимы — в `paths` файла `tsconfig` приложения (пути от его каталога):
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@reformer/builder": ["../reformer-builder/src/index.ts"],
+      "@/*": ["../reformer-builder/src/*"],
+      "@reformer/builder-plugin-api": ["../../packages/reformer-builder-plugin-api/src/index.ts"],
+      "@reformer/builder-plugin-api/internal": [
+        "../../packages/reformer-builder-plugin-api/src/internal.ts"
+      ],
+      "@reformer/builder-plugin-api/tooling": [
+        "../../packages/reformer-builder-plugin-api/src/tooling.ts"
+      ],
+      "@reformer/builder-toolkit": ["../../packages/reformer-builder-toolkit/src/index.ts"]
+    }
+  }
+}
+```
+
+**4. Компонент.** Оборачивает приложение ВНУТРИ его провайдеров: форму в превью рисует это же
+приложение, и провайдеры ей нужны те же.
+
+```tsx
+// main.tsx
+import { ReformerBuilder } from '@reformer/builder';
+
+createRoot(document.getElementById('root')!).render(
+  <AppProviders>
+    <ReformerBuilder pluginsUrl="/builder-plugins/">
+      <App />
+    </ReformerBuilder>
+  </AppProviders>
+);
+```
+
+**5. Каталог плагинов.** Плагины билдера — отдельная сборка, приложение раздаёт её своей
+статикой по адресу из `pluginsUrl`. Из корня репозитория:
+
+```bash
+npm run plugins:dist -w reformer-builder-playground
+node projects/reformer-builder/scripts/collect-application-plugins.mjs \
+  --list projects/reformer-builder/application-plugins.embedded.json \
+  --out projects/<приложение>/public/builder-plugins
+```
+
+Повторять после правок плагинов. Сборке нужны собранные `@reformer/builder-plugin-api`,
+`@reformer/builder-plugin-cli`, `@reformer/builder-toolkit`, `@reformer/rjsf-kit-theme`
+и `@reformer/mcp` (`npm run build -w <пакет>`). Каталог — сборка, в git его не кладут.
+
+### Работа
+
+1. Запустите dev-сервер приложения и откройте любую его страницу в Chromium.
+2. Нажмите «Билдер» в углу страницы — он откроется поверх приложения.
+3. «Открыть папку…» → каталог приложения, тот, что раздаёт dev-сервер. Выбор нужен один раз.
+4. Откройте файл формы и панель «Превью» на правом рейле:
+   - **Форма** — только компонент формы: компонент, экспортированный по умолчанию из
+     `index.tsx` её каталога (так модуль формы печатает кодоген билдера);
+   - **Приложение** — страница целиком, с адресной строкой;
+   - **↗** — то же приложение в отдельной вкладке, уже без билдера.
+5. Правьте форму или любой файл проекта и сохраняйте (Ctrl+S): файл пишется на диск,
+   превью показывает результат.
+6. «Закрыть билдер» — приложение на той же странице и в том же состоянии.
+
+Если файл поправили мимо билдера (в IDE), при сохранении он спросит: переписать своей
+версией, взять версию с диска или объединить правки.
+
+### Пропы компонента
+
+| Проп          | Что задаёт                                                                        |
+| ------------- | --------------------------------------------------------------------------------- |
+| `pluginsUrl`  | адрес каталога плагинов билдера                                                   |
+| `projectBase` | префикс адреса, если в билдере открыта не корневая папка dev-сервера              |
+| `loadForm`    | своя загрузка модуля формы — для сборщиков, которые не отдают исходники по адресу |
+| `enabled`     | включён ли билдер; по умолчанию — везде, кроме прод-сборки                        |
+| `labels`      | подписи кнопки и оверлея                                                          |
+
+### Ограничения
+
+- Только Chromium (Chrome, Edge): проект открывается через File System Access.
+- Только dev-режим: в прод-сборке компонент рисует одно приложение.
+- Своего псевдонима `@` у приложения быть не должно — он занят исходниками билдера.
+- Пока билдер открыт, его стили действуют на весь документ; закрытый их снимает.
 
 ## Конфигурация — каталог `.ui_builder/`
 
