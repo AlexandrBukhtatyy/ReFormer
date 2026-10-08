@@ -2,12 +2,14 @@
 
 ## Purpose
 
-Канонический submit-флоу под M1: «запустить полную валидацию данных (`validateModel`) →
+Канонический submit-флоу: «запустить полную валидацию данных (`validateModel`) →
 проверить `boolean`-результат → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
 Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidationSchema`), она
-НЕ входит в layout-дерево, которое получает `createForm`. Раннер `validateModel(model, schema)` сам роутит
-ошибки в ноды формы, поэтому UI подсветит проблемные поля, а наружу вернёт лишь `boolean`
-(false = есть блокирующая ошибка; `severity:'warning'` показывается, но submit не блокирует).
+НЕ входит в схему формы, которую получает `createForm`. Раннер `validateModel(model, schema)` сам
+разносит ошибки по нодам формы, поэтому UI подсветит проблемные поля, а наружу вернёт `boolean`:
+`true` — блокирующих ошибок нет (`severity:'warning'` показывается, но отправку не блокирует);
+`false` — есть ошибки, правило не удалось проверить (сбой async-правила) либо прогон отменён.
+Отличить эти случаи — `runValidation` / `validation.runAll()` с полным результатом.
 `model.reset()` возвращает значения к initial-снимку.
 
 ## API
@@ -23,17 +25,25 @@ interface ModelApi<T> {
   captureInitial(): void;           // зафиксировать текущие как новый initial
 }
 
-// Валидация данных — headless-раннер: находит ноды по сигналам модели, роутит в них ошибки,
-// отменяет устаревшие прогоны той же (model, schema). Возвращает ТОЛЬКО boolean:
-validateModel<T>(model: FormModel<T>, schema: ValidationSchema<T>): Promise<boolean>
-// true  = нет блокирующих ошибок (severity:'warning' не блокирует, но показывается).
-// false = есть блокирующая ошибка; она уже проставлена в ноду → UI подсветит поле.
+// Валидация данных — headless-раннер: находит ноды по сигналам модели, разносит по ним ошибки,
+// отменяет устаревшие прогоны той же (model, schema):
+validateModel<T>(model: FormModel<T>, schema: ValidationSchema<T>, options?: { touch?: boolean }): Promise<boolean>
+// true  = статус 'valid': блокирующих ошибок нет (severity:'warning' не блокирует, но показывается).
+// false = 'invalid' (ошибки уже в нодах → UI подсветит поля), 'error' (правило не удалось
+//         проверить — на поле ошибка ruleFailed) либо 'cancelled' (прогон вытеснен новым).
 
-// Схема валидации — отдельный слой над моделью (не смешивается с layout):
-defineValidationSchema<T>(({ model }) => {
+// Полный результат вместо boolean — статус, ошибки по ручкам полей, сбои правил:
+runValidation<T>(model, schema): Promise<ValidationResult>           // только сбор
+applyValidationResult(result, options?: { touch?: boolean }): void   // разнос по нодам
+
+// Схема валидации — отдельный слой над моделью (не смешивается со схемой формы):
+defineValidationSchema<T>(({ model, cross }) => {
   validate(model.$.field, [rules]);          // синхронные правила поля
-  // validateAsync / validateWhen / cross / each / apply — см. contract-spec
+  // validateAsync / validateWhen / cross / apply / applyEach — см. 03-api-signatures.md
 }): ValidationSchema<T>
+
+// form.validate() / form.submit(handler) правил НЕ запускают: validate() отвечает текущей
+// валидностью нод, submit() не зовёт обработчик, пока на нодах есть блокирующие ошибки.
 
 // Нода поля/формы (для точечной работы с UI-состоянием):
 form.markAsTouched();                         // тронуть все поля (показать ошибки)
@@ -54,7 +64,7 @@ import { required, email, minLength } from '@reformer/core/validators';
 
 type RegistrationFormData = { username: string; email: string; password: string };
 
-// Валидация — отдельная схема над моделью. НЕ входит в layout, который получает createForm.
+// Валидация — отдельная схема над моделью. НЕ входит в схему формы, которую получает createForm.
 // Стабильная module-level `const`-ссылка — чтобы validateModel мог отменять устаревшие прогоны.
 const registrationSchema = defineValidationSchema<RegistrationFormData>(({ model }) => {
   validate(model.$.username, [required({ message: 'Имя обязательно' }), minLength(3)]);
@@ -65,8 +75,8 @@ const registrationSchema = defineValidationSchema<RegistrationFormData>(({ model
 function RegistrationForm() {
   const { model, form } = useMemo(() => {
     const m = createModel<RegistrationFormData>({ username: '', email: '', password: '' });
-    // schema здесь — layout-дерево нод (компоненты/раскладка), без валидаторов.
-    return { model: m, form: createFormFromModel({ model: m, schema: buildLayout(m) }) };
+    // schema здесь — дерево узлов (компоненты и привязки к модели), без правил.
+    return { model: m, form: createFormFromModel({ model: m, schema: buildSchema(m) }) };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,8 +207,11 @@ const handleSubmit = async (e) => {
 ```
 
 ```typescript
-// ❌ Валидаторы в layout-дереве, отдаваемом в createForm — layout не несёт правил
-createFormFromModel({ model, schema: { username: { value: '', validators: [required()] } } });
+// ❌ Правила в узле схемы формы — ключа validators у узла нет, схема формы правил не несёт
+createFormFromModel({
+  model,
+  schema: { children: [{ model: model.$.username, component: Input, validators: [required()] }] },
+});
 
 // ✅ Валидация — отдельная схема, прогоняется раннером
 const schema = defineValidationSchema<T>(({ model }) => {
@@ -240,6 +253,11 @@ A: `model.reset()` меняет значения; ошибки в нодах ч�
 A: Это правило с `severity: 'warning'` — оно показывается, но submit не блокирует, поэтому раннер
 и вернул `true`. Блокируют только ошибки без `severity` (default). Чтобы не пускать submit при
 warning — проверяй его отдельно, вне `validateModel`.
+
+**Q: `validateModel` вернул `false`, а ошибок правил в форме нет — на поле «Не удалось проверить поле».**
+A: Async-правило не вернуло результат (сеть, исключение). Сбой блокирует: прогон получает статус
+`error`, поле — ошибку `{ code: 'ruleFailed' }`. Причина лежит в `result.failures` результата
+`runValidation` / `validation.runAll()`. Повторный прогон после восстановления сети снимет ошибку.
 
 **Q: `reset()` не возвращает данные, загруженные с сервера.**
 A: `reset()` возвращает к initial-снимку (значения на момент `createModel`). `set/patch` НЕ

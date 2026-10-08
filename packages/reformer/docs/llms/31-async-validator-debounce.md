@@ -6,8 +6,12 @@ async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<Val
 (`@reformer/core/validation`) и исполняется внешним раннером `validateModel` (async-правила
 прогоняются параллельно через `Promise.all`, раннер их дожидается).
 
-Слои разделены: layout (`createForm`-схема / JSON) НЕ несёт валидаторов — правила живут в
+Слои разделены: схема формы (билдер `createForm` / JSON) правил НЕ несёт — они живут в
 отдельной функции-схеме `defineValidationSchema<T>(({ model }) => …)`.
+
+**Сбой async-правила блокирует.** Если правило отклонило промис (сеть, исключение), прогон получает
+статус `error`, а поле — ошибку `{ code: 'ruleFailed' }` («Не удалось проверить поле. Повторите
+попытку»): форму, которую не удалось проверить, раннер валидной не считает.
 
 ```ts
 import { createModel } from '@reformer/core';
@@ -24,13 +28,11 @@ import { required, email } from '@reformer/core/validators';
 // `signal` — AbortSignal устаревшего прогона: прокинь его в fetch, чтобы отменить in-flight.
 const checkEmailUnique: AsyncRule<string> = async (value, { signal }) => {
   if (!value) return null; // пусто = валидно (sync `required` отдельно)
-  try {
-    const res = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, { signal });
-    const { available } = (await res.json()) as { available: boolean };
-    return available ? null : { code: 'email-taken', message: 'Email уже зарегистрирован' };
-  } catch {
-    return null; // сетевой сбой/отмена НЕ блокирует submit — возвращаем null, а не ошибку
-  }
+  // try/catch не нужен: отклонённый запрос раннер запишет сбоем правила (статус `error`,
+  // ошибка `ruleFailed` на поле), а отмену устаревшего прогона отличит сам по `signal`.
+  const res = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, { signal });
+  const { available } = (await res.json()) as { available: boolean };
+  return available ? null : { code: 'email-taken', message: 'Email уже зарегистрирован' };
 };
 
 const model = createModel<{ email: string }>({ email: '' });
@@ -51,12 +53,50 @@ const ok = await validateModel(model, schema); // Promise<boolean>
    `validate`/`validateAsync`/`cross` регистрируют правила своих полей.
 2. Sync-правила выполняются сразу; async-правила из `validateAsync` собираются и после закрытия
    ambient-окна дожидаются параллельно (`Promise.all`) с прокинутым `AbortSignal`.
-3. Ошибки роутятся в ноды формы (`getNodeForSignal(sig).setErrors(...)`), UI подсвечивает поле;
-   поля, ставшие валидными, гасятся (`setErrors([])`).
-4. Возвращает `Promise<boolean>` — `true`, если нет блокирующих ошибок (`severity:'warning'`
-   не блокирует). Устаревший (отменённый) прогон возвращает `false` — ему нельзя доверять для submit.
+3. Пока async-правила поля не завершились, его нода в состоянии `pending`
+   (`form.email.pending.value`, `useFormControl(form.email).pending`).
+4. Ошибки разносятся по нодам формы, UI подсвечивает поле; поля, ставшие валидными, гасятся.
+   Отклонённое правило даёт на своём поле ошибку `ruleFailed`.
+5. Возвращает `Promise<boolean>` — `true` только при статусе `valid` (`severity:'warning'`
+   не блокирует). Ошибки (`invalid`), сбой правила (`error`) и устаревший отменённый прогон
+   (`cancelled`) дают `false`.
 
-Синхронного варианта у нового контракта нет: раннер один — `validateModel`, и он всегда `async`.
+Синхронного варианта у контракта нет: раннер всегда `async`.
+
+### Результат прогона и сбой правила
+
+`validateModel` отвечает `boolean`. Когда нужно отличить «в форме ошибки» от «проверить не
+удалось», бери полный результат — `runValidation(model, schema)` либо `validation.runAll()` /
+`validation.runStep(step)` сборки формы:
+
+```ts
+import { applyValidationResult, runValidation } from '@reformer/core/validation';
+
+const result = await runValidation(model, schema); // только сбор: ни ошибок, ни pending на нодах
+if (result.status === 'cancelled') return; // вытеснен более новым прогоном — не разносится
+applyValidationResult(result, { touch: true }); // ошибки (и ruleFailed) — на поля
+
+if (result.status === 'error') {
+  // result.failures: [{ handle, error }] — какое правило и почему не вернуло результат
+  showToast('Не удалось проверить форму. Повторите попытку');
+} else if (result.status === 'valid') {
+  await submit(model.get());
+}
+```
+
+Если сбой сети НЕ должен блокировать отправку (проверка необязательна), перехвати его в самом
+правиле и верни `null` — это явное решение автора правила, а не поведение по умолчанию:
+
+```ts
+const softCheck: AsyncRule<string> = async (value, { signal }) => {
+  try {
+    const res = await fetch(`/api/check?value=${encodeURIComponent(value)}`, { signal });
+    return (await res.json()).ok ? null : { code: 'rejected', message: 'Значение отклонено' };
+  } catch {
+    return null; // осознанно: недоступность сервиса проверку не проваливает
+  }
+};
+```
 
 ### Sync и async — два оператора
 
@@ -72,25 +112,17 @@ validateAsync(model.$.inn, [checkInnInRegistry]); // обращение к API �
 
 ### UI integration
 
-`validateModel(...)` возвращает `Promise<boolean>` — индикатор проверки держи вокруг этого
-`await`. Раннер схемы **не** выставляет per-field `pending` на ноде (он роутит только ошибки через
-`setErrors`), поэтому спиннер async-валидации — это собственный флаг (обычно form-level, как
-`ui.pending` в submit-флоу, или локальный state компонента):
+Пока идут async-правила поля, раннер держит его ноду в `pending` — индикатор проверки поля
+берётся из состояния ноды, свой флаг не нужен:
 
 ```tsx
-const [checking, setChecking] = useState(false);
+const { errors, pending, shouldShowError } = useFormControl(form.email);
 
-const runValidation = async (): Promise<boolean> => {
-  setChecking(true);
-  try {
-    return await validateModel(model, schema);
-  } finally {
-    setChecking(false);
-  }
-};
-
-return checking ? <Spinner /> : errors.length ? <Error errors={errors} /> : null;
+return pending ? <Spinner /> : shouldShowError ? <Error errors={errors} /> : null;
 ```
+
+Индикатор прогона всей формы — сигнал `validation.validating` сборки (`createForm`): он истинен,
+пока идёт полный прогон либо прогон шага.
 
 ### Debounce и отмена
 
@@ -114,9 +146,9 @@ return checking ? <Spinner /> : errors.length ? <Error errors={errors} /> : null
   ```
 
   Либо оборачивай в свой debounce колбэк `revalidateWhen([...], () => void validateModel(...))`.
-- **Async cross-field** — инлайн `validateAsync`-правило, замыкающее `model` и читающее снапшот
-  соседей `model.get()` до первого `await` (у `AsyncRule` нет `root`, только `value` + `signal`;
-  `cross(...)` — синхронный):
+- **Async cross-field** — инлайн `validateAsync`-правило, замыкающее `model` и читающее снимок
+  соседей `model.get()` до первого `await` (`AsyncRule` получает только `value` и `signal`;
+  `cross` — синхронный):
 
   ```ts
   validateAsync(model.$.email, [

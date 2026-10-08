@@ -10,7 +10,9 @@
  */
 
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
-import type { BehaviorCleanup, FormModel, FormProxy } from '../../index';
+import type { BehaviorCleanup } from '../../model/behaviors-value';
+import type { FormModel } from '../../model/types';
+import type { FormProxy } from '../types/index';
 import type { SchemaController, SchemaScope } from '../schema-controller';
 
 /**

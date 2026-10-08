@@ -1,10 +1,10 @@
 /**
- * ModelArrayNode — узел массива, делегирующий данные массиву {@link FormModel} (M1).
+ * ModelArrayNode — узел массива под-форм, делегирующий данные массиву {@link FormModel}.
  *
- * В отличие от {@link ArrayNode} (владеет элементами сам), `ModelArrayNode` НЕ владеет данными:
- * массив принадлежит модели (`model.<path>`), а узел держит per-item GroupNode-прокси, привязанные
- * к сигналам под-моделей элементов, и синхронизирует их с длиной массива модели. Реализует тот же
- * контракт, что ждут `FormArraySection`/`useFormControl` (length/value/valid/errors/at/push/…).
+ * Узел НЕ владеет данными: массив принадлежит модели (`model.<path>`), а узел держит per-item
+ * GroupNode-прокси, привязанные к сигналам под-моделей элементов, и синхронизирует их с длиной
+ * массива модели. Реализует контракт, который ждут `FormArraySection`/`useFormControl`
+ * (length/value/valid/errors/at/push/…).
  *
  * @group Nodes
  * @module form/nodes/model-array-node
@@ -31,41 +31,45 @@ export interface ModelArrayControl<TItem extends object> {
 }
 
 /**
- * Узел массива, делегирующий данные массиву {@link FormModel} (архитектура M1).
+ * Узел массива под-форм, делегирующий данные массиву {@link FormModel}.
  *
- * В отличие от {@link ArrayNode} (владеет элементами сам), `ModelArrayNode` НЕ владеет данными:
- * массив принадлежит модели, а узел держит per-item формы элементов (привязанные к сигналам
- * под-моделей) и синхронизирует их с длиной массива модели. Мутации (`push`/`removeAt`/`move`/…)
- * делегируются массиву модели; per-item формы кэшируются по идентичности под-модели, поэтому при
- * reorder/повторном рендере не пересоздаются (состояние и валидация сохраняются). Реализует тот же
- * контракт, что ждут секции массива и `useFormControl` (`length`/`value`/`valid`/`errors`/`at`/`push`/…).
+ * Узел НЕ владеет данными: массив принадлежит модели, а узел держит per-item формы элементов
+ * (привязанные к сигналам под-моделей) и синхронизирует их с длиной массива модели. Мутации
+ * (`push`/`removeAt`/`move`/…) делегируются массиву модели; per-item формы кэшируются по
+ * идентичности под-модели, поэтому при reorder/повторном рендере не пересоздаются (состояние и
+ * ошибки сохраняются). Реализует контракт, который ждут секции массива и `useFormControl`
+ * (`length`/`value`/`valid`/`errors`/`at`/`push`/…).
  *
- * Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме встречается узел
- * массива `{ array: model.<field>, item: (item) => itemSchema }`, форма материализует его как
- * `ModelArrayNode` и кладёт под `form.<field>` (совместим с `FormArraySection`).
+ * Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме
+ * встречается узел массива `{ model: model.$.<field>, item: (model) => узел }`, форма
+ * материализует его как `ModelArrayNode` и кладёт под `form.<field>` (совместим с
+ * `FormArraySection`).
  *
  * @group Nodes
  *
- * @example Массив как часть формы (через createForm)
+ * @example Массив как часть формы
  * ```typescript
- * const model = createModel<{ rows: { name: string; qty: number }[] }>({ rows: [] });
+ * interface Row {
+ *   name: string;
+ *   qty: number;
+ * }
+ * const model = createModel<{ rows: Row[] }>({ rows: arrayOf(() => ({ name: '', qty: 0 })) });
  *
- * const rowItem = (item: FormModel<{ name: string; qty: number }>) => ({
- *   name: { value: item.$.name, component: Input },
- *   qty: { value: item.$.qty, component: Input },
+ * const row = (model: FormModel<Row>) => ({
+ *   children: [
+ *     { model: model.$.name, component: Input },
+ *     { model: model.$.qty, component: Input },
+ *   ],
  * });
  *
  * const form = createFormFromModel({
  *   model,
- *   schema: {
- *     children: [{ array: model.rows, item: rowItem }],
- *   },
+ *   schema: { children: [{ model: model.$.rows, item: row }] },
  * });
  *
- * const rows = form.rows as unknown as ModelArrayNode<{ name: string; qty: number }>;
- * rows.push({ name: 'A', qty: 1 });   // мутация уезжает в model.rows
- * rows.at(0)?.name.setValue('B');     // правка поля элемента доезжает в под-модель
- * rows.length.value;                  // 1 (реактивная длина)
+ * form.rows.push({ name: 'A', qty: 1 });   // мутация уезжает в model.rows
+ * form.rows.at(0)?.name.setValue('B');     // правка поля элемента доезжает в под-модель
+ * form.rows.length.value;                  // 1 (реактивная длина)
  * ```
  */
 export class ModelArrayNode<T extends object> extends FormNode<T[]> {
@@ -221,13 +225,9 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   resetToInitial(): void {
     this.reset(this.initial);
   }
-  async validate(): Promise<boolean> {
-    const results = await Promise.all(
-      this.itemNodes.value.map((n) =>
-        (n as unknown as { validate: () => Promise<boolean> }).validate()
-      )
-    );
-    return results.every(Boolean) && this._arrayErrors.value.length === 0;
+  /** Текущая валидность массива: нет ошибок самого массива и все строки валидны. */
+  validate(): Promise<boolean> {
+    return Promise.resolve(this.valid.value);
   }
   setErrors(errors: ValidationError[]): void {
     this._arrayErrors.value = errors;
@@ -242,7 +242,7 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   // ── Hooks (forward к элементам) ────────────────────────────────────────────
   // Агрегатное состояние (touched/dirty/status) выводится из детей (createAggregateSignals), поэтому
   // базовые сигналы бесполезны для чтения — состояние меняется ТОЛЬКО через per-item формы. Форвардим
-  // ВСЕ hook'и (как ArrayNode), иначе markAsUntouched/Pristine/Dirty/disable/enable молча no-op.
+  // ВСЕ hook'и, иначе markAsUntouched/Pristine/Dirty/disable/enable молча no-op.
   protected override onMarkAsTouched(): void {
     this.itemNodes.value.forEach((n) =>
       (n as unknown as { markAsTouched?: () => void }).markAsTouched?.()

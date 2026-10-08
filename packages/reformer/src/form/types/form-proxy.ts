@@ -24,7 +24,7 @@
  * //  TypeScript знает, что это GroupNode<{city: string}>
  * form.address.city.setValue('Moscow');
  *
- * //  TypeScript знает, что это ArrayNode<{title: string}>
+ * //  TypeScript знает, что это ModelArrayNode<{title: string}>
  * form.items.push({ title: 'New Item' });
  * ```
  */
@@ -33,7 +33,7 @@
 // Циклические type-only ссылки (nodes ↔ form-proxy) TypeScript разрешает корректно.
 import type { FieldNode } from '../nodes/field-node';
 import type { GroupNode } from '../nodes/group-node';
-import type { ArrayNode } from '../nodes/array-node';
+import type { ModelArrayNode } from '../nodes/model-array-node';
 
 /**
  * Признак «объект-группа» — обычный объект, который нужно обернуть в под-форму.
@@ -52,7 +52,7 @@ type IsGroupObject<V> =
     : V extends Date | File | Blob
       ? false
       : V extends (...args: never[]) => unknown
-        ? false // функции — листья (как в deep-schema), а не вложенные группы
+        ? false // функции — листья, а не вложенные группы
         : V extends object
           ? true
           : false;
@@ -107,10 +107,9 @@ export type FormControlsProxy<T> = {
  *   };
  * }
  *
- * const form = createLegacyForm<UserForm>(schema);
+ * const form = createFormFromModel<UserForm>({ model, schema });
  *
  * // Доступ к методам GroupNode
- * await form.validate();
  * const values = form.getValue();
  * console.log(form.valid.value);
  *
@@ -151,9 +150,7 @@ export type FormProxy<T> = GroupNode<T> &
   };
 
 /**
- * Комбинированный тип для ArrayNode с Proxy доступом к элементам
- *
- * Объединяет методы и свойства ArrayNode с типизированным доступом к элементам массива.
+ * Узел массива под-форм в типах прокси формы — {@link ModelArrayNode} над массивом модели.
  *
  * @group Types
  * @category Proxy Types
@@ -167,35 +164,19 @@ export type FormProxy<T> = GroupNode<T> &
  *   completed: boolean;
  * }
  *
- * const todos: FormArrayProxy<TodoItem> = new ArrayNode(schema);
+ * const todos: FormArrayProxy<TodoItem> = form.todos;
  *
- * // Доступ к методам ArrayNode
+ * // Мутации уходят в массив модели
  * todos.push({ title: 'New todo', completed: false });
  * todos.removeAt(0);
  *
- * // Доступ к элементам (через Proxy)
+ * // Доступ к форме строки
  * todos.at(0)?.title.setValue('Updated title');
  *
  * // Итерация
- * todos.forEach((item, i) => {
+ * todos.forEach((item, index) => {
  *   console.log(item.title.value.value);
  * });
  * ```
  */
-export type FormArrayProxy<T extends object> = ArrayNode<T> & {
-  /**
-   * Безопасный доступ к элементу массива по индексу
-   * Возвращает GroupNode с типизированными полями или undefined
-   */
-  at(index: number): FormProxy<T> | undefined;
-
-  /**
-   * Итерация по элементам массива с типизированными элементами
-   */
-  forEach(callback: (item: FormProxy<T>, index: number) => void): void;
-
-  /**
-   * Маппинг элементов массива с типизированными элементами
-   */
-  map<R>(callback: (item: FormProxy<T>, index: number) => R): R[];
-};
+export type FormArrayProxy<T extends object> = ModelArrayNode<T>;

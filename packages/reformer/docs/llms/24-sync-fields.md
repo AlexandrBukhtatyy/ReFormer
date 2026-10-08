@@ -10,7 +10,7 @@
 
 ## API
 
-Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
+Одинаково в примитиве (`@reformer/core/model`) и DSL (`@reformer/core/behaviors`):
 
 ```typescript
 // примитив: возвращает cleanup
@@ -57,7 +57,7 @@ export const codeBehavior = defineFormBehavior<DisplayForm>(({ model }) => {
 ### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { syncFields } from '@reformer/core';
+import { syncFields } from '@reformer/core/model';
 const stop = syncFields(model.$.syncField1, model.$.syncField2);
 // stop() — отписаться
 ```

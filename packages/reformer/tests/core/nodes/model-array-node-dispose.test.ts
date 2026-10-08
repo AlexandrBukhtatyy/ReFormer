@@ -22,7 +22,7 @@ interface Form {
 }
 
 const itemSchema = (item: FormModel<Row>) => ({
-  children: [{ value: item.$.name }, { value: item.$.qty }],
+  children: [{ model: item.$.name }, { model: item.$.qty }],
 });
 
 /**

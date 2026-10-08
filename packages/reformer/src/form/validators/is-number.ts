@@ -6,7 +6,8 @@
  * @module form/validators/is-number
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -17,7 +18,7 @@ import { validationError } from './validation-error';
  * и `NaN` — это его задача.
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
- * @returns Чистый валидатор {@link Validator} для числового поля
+ * @returns Правило {@link Rule} для числового поля
  *
  * @example Проверка, что значение — число
  * ```typescript
@@ -30,12 +31,10 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function isNumber<TForm = unknown, TField extends number | null | undefined = number>(
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function isNumber(options?: ValidateOptions): Rule<number | null | undefined> {
   return (value) => {
     if (value === null || value === undefined) return null;
-    if (typeof value !== 'number' || isNaN(value as number)) {
+    if (typeof value !== 'number' || isNaN(value)) {
       return validationError('isNumber', options);
     }
     return null;

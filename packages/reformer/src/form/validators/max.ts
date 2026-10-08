@@ -6,7 +6,8 @@
  * @module form/validators/max
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -17,7 +18,7 @@ import { validationError } from './validation-error';
  * @param maxValue - Максимально допустимое значение (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `max` и `actual`.
- * @returns Чистый валидатор {@link Validator} для числового поля
+ * @returns Правило {@link Rule} для числового поля
  *
  * @example Максимальное значение числового поля
  * ```typescript
@@ -31,15 +32,12 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function max<TForm = unknown, TField extends number | null | undefined = number>(
-  maxValue: number,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function max(maxValue: number, options?: ValidateOptions): Rule<number | null | undefined> {
   return (value) => {
     if (value === null || value === undefined) {
       return null;
     }
-    if ((value as number) > maxValue) {
+    if (value > maxValue) {
       return validationError('max', options, { max: maxValue, actual: value });
     }
     return null;

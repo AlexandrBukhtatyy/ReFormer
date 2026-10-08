@@ -210,6 +210,106 @@ describe('createForm — схема в поведении', () => {
   });
 });
 
+describe('createForm — проверки селекторов при сборке', () => {
+  const stepsSchema = (model: FormModel<Shape>) => ({
+    selector: 'wizard',
+    component: SectionStub,
+    children: [
+      {
+        selector: 'contacts',
+        component: SectionStub,
+        children: [{ model: model.$.email, component: InputStub }],
+      },
+      {
+        selector: 'details',
+        component: SectionStub,
+        children: [{ model: model.$.kind, component: InputStub }],
+      },
+    ],
+  });
+  const kindRules = defineValidationSchema<Shape>(({ model }) => {
+    validate(model.$.kind, [required()]);
+  });
+
+  it('повтор `selector` в корневом дереве — предупреждение', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    createForm<Shape>({
+      initial: { ...INITIAL },
+      schema: (model) => ({
+        children: [
+          { selector: 'section', component: SectionStub },
+          { selector: 'section', component: SectionStub },
+          { selector: 'other', component: SectionStub, children: [{ selector: 'other' }] },
+          { model: model.$.email, component: InputStub },
+        ],
+      }),
+    });
+
+    const [message] =
+      warn.mock.calls.find(([text]) => String(text).includes('повторяются селекторы')) ?? [];
+    expect(message).toContain('"section", "other"');
+  });
+
+  it('селектор строки массива корневому дереву не принадлежит — повтором не считается', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    createForm<Shape>({
+      initial: { ...INITIAL, rows: [{ name: 'a' }, { name: 'b' }] },
+      schema: (model) => ({
+        children: [
+          { selector: 'row', component: SectionStub },
+          { model: model.$.rows, item: rowItem },
+        ],
+      }),
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('ключ `validation.steps` без шага в дереве — предупреждение', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    createForm<Shape>({
+      initial: { ...INITIAL },
+      schema: stepsSchema,
+      validation: { steps: { contacts: emailRules, detials: kindRules } },
+    });
+
+    const [message] = warn.mock.calls.find(([text]) => String(text).includes('нет шага')) ?? [];
+    expect(message).toContain('"detials"');
+    expect(message).not.toContain('"contacts"');
+  });
+
+  it('все ключи `validation.steps` совпали с шагами — предупреждений нет', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    createForm<Shape>({
+      initial: { ...INITIAL },
+      schema: stepsSchema,
+      validation: { steps: { contacts: emailRules, details: null } },
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('дерево шагов не описывает (визард собран в JSX) — ключи шагов не сверяются', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    createForm<Shape>({
+      initial: { ...INITIAL },
+      schema: (model) => ({ children: [{ model: model.$.email, component: InputStub }] }),
+      validation: { steps: { contacts: emailRules, details: kindRules } },
+    });
+    createForm<Shape>({
+      initial: { ...INITIAL },
+      validation: { steps: { contacts: emailRules } },
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+});
+
 describe('createForm — документ схемы и реестр', () => {
   const document = { format: 2, root: { component: '$component(Section)' } };
 
@@ -251,10 +351,10 @@ describe('createForm — гарды на прежние способы вызо�
     );
   });
 
-  it('конфиг без модели — отсылка к createLegacyForm', () => {
-    const legacy = { email: { value: '', component: InputStub } };
+  it('конфиг без модели — требование модели', () => {
+    const fieldsWithoutModel = { email: { value: '', component: InputStub } };
 
-    expect(() => createForm<Shape>(legacy as never)).toThrow(/нужна модель.*createLegacyForm/s);
+    expect(() => createForm<Shape>(fieldsWithoutModel as never)).toThrow(/нужна модель.*initial/s);
     expect(() => createForm<Shape>({})).toThrow(/initial|model/i);
   });
 });

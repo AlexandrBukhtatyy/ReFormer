@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createLegacyForm } from '../../../src/form/create-form';
 import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
+import { formFromFields } from '../../test-utils/form-from-fields';
 
 describe('GroupNode - Cleanup (dispose)', () => {
   interface TestForm {
@@ -17,7 +17,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
   let form: FormProxy<TestForm>;
 
   beforeEach(() => {
-    form = createLegacyForm<TestForm>({
+    form = formFromFields<TestForm>({
       email: { value: '', component: null as ComponentInstance },
       password: { value: '', component: null as ComponentInstance },
       age: { value: 0, component: null as ComponentInstance },
@@ -45,7 +45,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
     });
 
     it('should cleanup multiple linkFields subscriptions', () => {
-      const form2 = createLegacyForm<TestForm>({
+      const form2 = formFromFields<TestForm>({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         age: { value: 0, component: null as ComponentInstance },
@@ -163,7 +163,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         };
       }
 
-      const nestedForm = createLegacyForm<NestedForm>({
+      const nestedForm = formFromFields<NestedForm>({
         user: {
           profile: {
             name: { value: '', component: null as ComponentInstance },
@@ -225,7 +225,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         };
       }
 
-      const nestedForm = createLegacyForm<NestedForm>({
+      const nestedForm = formFromFields<NestedForm>({
         user: {
           email: { value: '', component: null as ComponentInstance },
           profile: {
@@ -273,7 +273,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         };
       }
 
-      const deepForm = createLegacyForm<DeepForm>({
+      const deepForm = formFromFields<DeepForm>({
         level1: {
           level2: {
             level3: {
@@ -348,7 +348,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
     });
 
     it('should handle dispose() on empty form', () => {
-      const emptyForm = createLegacyForm<Record<string, never>>({});
+      const emptyForm = formFromFields<Record<string, never>>({});
 
       expect(() => emptyForm.dispose()).not.toThrow();
     });

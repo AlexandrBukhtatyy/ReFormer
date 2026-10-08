@@ -12,29 +12,19 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../src/form/nodes/field-node';
 import type { FormControlState } from '../../src/platforms/react/hooks/useFormControl';
-import type { ValidatorFn, AsyncValidatorFn, FormValue } from '../../src/form/types/index';
+import type { FormValue, ValidationError } from '../../src/form/types/index';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MockComponent: React.ComponentType<any> = () => null;
 
 // ============================================================================
-// Тестовые валидаторы
+// Ошибка поля: на ноду её ставит раннер схемы валидации (`setErrors`)
 // ============================================================================
 
-const requiredValidator: ValidatorFn<string> = (value) => {
-  return value === '' || value === null || value === undefined
-    ? { code: 'required', message: 'Field is required' }
-    : null;
-};
-
-const asyncValidator =
-  (delay: number): AsyncValidatorFn<string> =>
-  async (value) => {
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    return value === 'taken' ? { code: 'taken', message: 'Value already taken' } : null;
-  };
+const REQUIRED_ERROR: ValidationError = { code: 'required', message: 'Field is required' };
 
 // ============================================================================
 // Helper для тестирования хука без React рендера
@@ -74,7 +64,7 @@ describe('useFormControl', () => {
 
     beforeEach(() => {
       field = new FieldNode({
-        value: 'initial',
+        valueSignal: signal('initial'),
         component: MockComponent,
       });
     });
@@ -150,7 +140,7 @@ describe('useFormControl', () => {
   describe('Signal reactivity', () => {
     it('should reflect value changes from control', () => {
       const field = new FieldNode({
-        value: 'initial',
+        valueSignal: signal('initial'),
         component: MockComponent,
       });
 
@@ -165,7 +155,7 @@ describe('useFormControl', () => {
 
     it('should reflect touched changes from control', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -180,7 +170,7 @@ describe('useFormControl', () => {
 
     it('should reflect dirty changes from control', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -195,7 +185,7 @@ describe('useFormControl', () => {
 
     it('should reflect errors changes from control', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -209,12 +199,10 @@ describe('useFormControl', () => {
       expect(state.errors.value[0].code).toBe('custom');
     });
 
-    it('should reflect valid/invalid changes from control', async () => {
+    it('should reflect valid/invalid changes from control', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
-        validators: [requiredValidator],
-        updateOn: 'submit',
       });
 
       const state = simulateUseFormControl(field);
@@ -222,36 +210,20 @@ describe('useFormControl', () => {
       expect(state.valid.value).toBe(true);
       expect(state.invalid.value).toBe(false);
 
-      await field.validate();
+      field.setErrors([REQUIRED_ERROR]);
 
       expect(state.valid.value).toBe(false);
       expect(state.invalid.value).toBe(true);
-    });
 
-    it('should reflect pending changes during async validation', async () => {
-      const field = new FieldNode({
-        value: 'test',
-        component: MockComponent,
-        asyncValidators: [asyncValidator(50)],
-        updateOn: 'submit',
-      });
+      field.clearErrors();
 
-      const state = simulateUseFormControl(field);
-
-      expect(state.pending.value).toBe(false);
-
-      const validatePromise = field.validate();
-
-      expect(state.pending.value).toBe(true);
-
-      await validatePromise;
-
-      expect(state.pending.value).toBe(false);
+      expect(state.valid.value).toBe(true);
+      expect(state.invalid.value).toBe(false);
     });
 
     it('should reflect disabled changes from control', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -268,21 +240,21 @@ describe('useFormControl', () => {
       expect(state.disabled.value).toBe(false);
     });
 
-    it('should reflect shouldShowError changes', async () => {
+    it('should reflect shouldShowError changes', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
-        validators: [requiredValidator],
-        updateOn: 'blur',
       });
 
       const state = simulateUseFormControl(field);
 
       expect(state.shouldShowError.value).toBe(false);
 
-      // Mark as touched triggers validation on blur
+      // Ошибка есть, но поле не тронуто — показывать рано
+      field.setErrors([REQUIRED_ERROR]);
+      expect(state.shouldShowError.value).toBe(false);
+
       field.markAsTouched();
-      await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(state.shouldShowError.value).toBe(true);
     });
@@ -295,7 +267,7 @@ describe('useFormControl', () => {
   describe('Different value types', () => {
     it('should work with string values', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: MockComponent,
       });
 
@@ -306,7 +278,7 @@ describe('useFormControl', () => {
 
     it('should work with number values', () => {
       const field = new FieldNode({
-        value: 42,
+        valueSignal: signal(42),
         component: MockComponent,
       });
 
@@ -317,7 +289,7 @@ describe('useFormControl', () => {
 
     it('should work with boolean values', () => {
       const field = new FieldNode({
-        value: true,
+        valueSignal: signal(true),
         component: MockComponent,
       });
 
@@ -328,7 +300,7 @@ describe('useFormControl', () => {
 
     it('should work with null values', () => {
       const field = new FieldNode<string | null>({
-        value: null,
+        valueSignal: signal(null),
         component: MockComponent,
       });
 
@@ -340,7 +312,7 @@ describe('useFormControl', () => {
     it('should work with object values', () => {
       const objValue = { name: 'John', age: 30 };
       const field = new FieldNode({
-        value: objValue,
+        valueSignal: signal(objValue),
         component: MockComponent,
       });
 
@@ -352,7 +324,7 @@ describe('useFormControl', () => {
     it('should work with array values', () => {
       const arrayValue = [1, 2, 3];
       const field = new FieldNode({
-        value: arrayValue,
+        valueSignal: signal(arrayValue),
         component: MockComponent,
       });
 
@@ -369,7 +341,7 @@ describe('useFormControl', () => {
   describe('Initial states', () => {
     it('should handle initially disabled field', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
         disabled: true,
       });
@@ -382,7 +354,7 @@ describe('useFormControl', () => {
 
     it('should handle field with initial errors', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -396,7 +368,7 @@ describe('useFormControl', () => {
 
     it('should handle pre-touched field', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -409,7 +381,7 @@ describe('useFormControl', () => {
 
     it('should handle pre-dirtied field', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
       });
 
@@ -426,26 +398,23 @@ describe('useFormControl', () => {
   // ==========================================================================
 
   describe('Integration scenarios', () => {
-    it('should track full form field lifecycle', async () => {
+    it('should track full form field lifecycle', () => {
       const field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: MockComponent,
-        validators: [requiredValidator],
-        updateOn: 'change', // Use 'change' for immediate validation feedback
       });
 
       const state = simulateUseFormControl(field);
 
-      // Initial state - no validation runs until setValue is called
+      // Initial state - no validation has run yet
       expect(state.value.value).toBe('');
       expect(state.touched.value).toBe(false);
       expect(state.dirty.value).toBe(false);
-      expect(state.valid.value).toBe(true); // Valid initially (no validation yet)
+      expect(state.valid.value).toBe(true);
       expect(state.shouldShowError.value).toBe(false);
 
       // User starts typing valid value
       field.setValue('a');
-      await new Promise((resolve) => setTimeout(resolve, 10));
       expect(state.dirty.value).toBe(true);
       expect(state.valid.value).toBe(true);
       expect(state.shouldShowError.value).toBe(false);
@@ -454,36 +423,34 @@ describe('useFormControl', () => {
       field.markAsTouched();
       expect(state.touched.value).toBe(true);
 
-      // User clears the field - validation runs on change
+      // User clears the field - the validation run routes the error to the node
       field.setValue('');
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      field.setErrors([REQUIRED_ERROR]);
 
       expect(state.valid.value).toBe(false);
       expect(state.shouldShowError.value).toBe(true);
       expect(state.errors.value[0].code).toBe('required');
 
-      // User fixes the error
+      // User fixes the error - the next run clears it
       field.setValue('valid value');
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      field.setErrors([]);
 
       expect(state.valid.value).toBe(true);
       expect(state.shouldShowError.value).toBe(false);
       expect(state.errors.value).toEqual([]);
     });
 
-    it('should handle reset correctly', async () => {
+    it('should handle reset correctly', () => {
       const field = new FieldNode({
-        value: 'initial',
+        valueSignal: signal('initial'),
         component: MockComponent,
-        validators: [requiredValidator],
-        updateOn: 'change',
       });
 
       const state = simulateUseFormControl(field);
 
       // Make changes
       field.setValue('');
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      field.setErrors([REQUIRED_ERROR]);
       field.markAsTouched();
 
       expect(state.dirty.value).toBe(true);
@@ -502,7 +469,7 @@ describe('useFormControl', () => {
 
     it('should handle disable/enable cycle', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: MockComponent,
       });
 
@@ -528,7 +495,7 @@ describe('useFormControl', () => {
   describe('FormControlState type', () => {
     it('should have correct structure', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: MockComponent,
       });
 
@@ -548,7 +515,7 @@ describe('useFormControl', () => {
 
     it('should return exactly 9 properties', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: MockComponent,
       });
 
@@ -565,7 +532,7 @@ describe('useFormControl', () => {
   describe('Reference identity', () => {
     it('should return the same signal references as control', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: MockComponent,
       });
 

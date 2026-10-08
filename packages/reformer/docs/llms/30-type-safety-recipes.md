@@ -1,10 +1,10 @@
 ## 30. TYPE-SAFETY RECIPES
 
-Идиоматичные паттерны, которые держат сгенерированный код без `any` и `as`-кастов под M1.
+Идиоматичные паттерны, которые держат сгенерированный код без `any` и `as`-кастов.
 
 ### Recipe 1 — Imports (root cause prevention)
 
-- Модель/форма/хуки/типы/**примитивы behaviors** — из `@reformer/core`.
+- Модель/форма/хуки/типы — из `@reformer/core`; примитивы над сигналами — из `@reformer/core/model`.
 - Схема валидации (операторы + раннер `validateModel`) — из `@reformer/core/validation`.
 - Чистые фабрики валидаторов — из `@reformer/core/validators`.
 - Декларативный DSL (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
@@ -15,12 +15,11 @@ import {
   createForm,
   type FormModel,
   type FormProxy,
-  type ModelSignals,
+  type FormSchemaNode,
 } from '@reformer/core';
 import {
   defineValidationSchema,
   validate,
-  cross,
   validateModel,
   type Rule,
 } from '@reformer/core/validation';
@@ -28,12 +27,13 @@ import { required, min, max, email } from '@reformer/core/validators';
 import { defineFormBehavior, compute, enableWhen, onChange } from '@reformer/core/behaviors';
 ```
 
-> **watchField — из `@reformer/core`** (примитив), НЕ из `@reformer/core/behaviors` (там `onChange`).
+> **watchField — из `@reformer/core/model`** (примитив), НЕ из `@reformer/core/behaviors` (там `onChange`)
+> и не из корня `@reformer/core`.
 
 ### Recipe 2 — Form-shape types as `type`, not `interface`
 
 `Record<string, FormValue>` требует index signature. У `interface` её нет неявно; у `type` —
-структурно. Объявляй через `type`-alias всё, что попадает в `FormProxy<T>`/`ArrayNode<T>`:
+структурно. Объявляй через `type`-alias всё, что попадает в `FormProxy<T>`/`ModelArrayNode<T>`:
 корневую форму, вложенные группы, типы элементов массива.
 
 ```typescript
@@ -50,43 +50,50 @@ export type CreditApplicationForm = {
 };
 ```
 
-### Recipe 3 — Схема привязана к сигналам модели
+### Recipe 3 — Схема привязана к ручкам модели
 
-`value` поля — это сигнал модели (`model.$.field`), а не литерал. Тип поля выводится из сигнала.
-Layout-схема БЕЗ валидаторов — правила живут в отдельной validation-схеме.
+Привязка узла — ручка модели (`model: model.$.field`), а не литерал. Тип узла `FormSchemaNode`
+закрыт: вид узла (поле, массив под-форм, подформа) сверяется с тем, чем является привязка, а
+опечатка в ключе не компилируется. Правил в схеме нет — они живут в отдельной схеме валидации.
 
 ```typescript
-const model = createModel<CreditApplicationForm>(initial);
+const creditSchema = (model: FormModel<CreditApplicationForm>): FormSchemaNode => ({
+  children: [
+    { model: model.$.loanAmount, component: InputNumber },
+    // вложенная группа — подформа: билдер получает под-модель FormModel<PersonalData>
+    { model: model.$.personalData, part: personalData },
+    // массив под-форм — { model, item }: билдер получает под-модель строки
+    { model: model.$.properties, component: FormArray, item: propertyRow },
+  ],
+});
 
-const schema = {
-  loanAmount: { value: model.$.loanAmount, component: InputNumber },
-  // вложенная группа — builder, принимающий ModelSignals<Sub>
-  personalData: personalDataNodes(model.$.personalData),
-  // массив — { array, item }
-  properties: { array: model.properties, item: propertyItem },
-};
+// правила — отдельно; тип правила сверяется с типом поля
+const LOAN_AMOUNT_RULES: Rule<number | null>[] = [required(), min(50000)];
 
-// правила — отдельно; типы полей выводятся из сигналов
 const validation = defineValidationSchema<CreditApplicationForm>(({ model }) => {
-  validate(model.$.loanAmount, [required(), min(50000)]);
+  validate(model.$.loanAmount, LOAN_AMOUNT_RULES);
 });
 ```
 
-### Recipe 4 — Cross-field валидаторы: `cross` над типизированным снапшотом
+### Recipe 4 — Cross-field валидаторы: `cross` над типизированным снимком
 
-Правило — обычная функция `(f: Root) => ValidationError | null` над снапшотом `model.get()`.
-Соседние поля читаются без `as`; ошибка вешается на поле-носитель `sig`:
+Правило — обычная функция `(snapshot: T) => ValidationError | null`. Оператор `cross` берётся из
+аргумента схемы: тип снимка выведен из схемы, соседние поля читаются без `as`, ошибка вешается на
+поле-носитель:
 
 ```typescript
 import type { ValidationError } from '@reformer/core';
 
-const initialPaymentVsProperty = (f: CreditApplicationForm): ValidationError | null =>
-  f.initialPayment && f.propertyValue && f.initialPayment > f.propertyValue
+const initialPaymentVsProperty = (application: CreditApplicationForm): ValidationError | null =>
+  application.initialPayment &&
+  application.propertyValue &&
+  application.initialPayment > application.propertyValue
     ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
     : null;
 
-// внутри defineValidationSchema<CreditApplicationForm>(({ model }) => { ... }):
-cross(model.$.initialPayment, initialPaymentVsProperty);
+const loanRules = defineValidationSchema<CreditApplicationForm>(({ model, cross }) => {
+  cross(model.$.initialPayment, initialPaymentVsProperty);
+});
 ```
 
 ### Recipe 5 — `compute` читает модель напрямую (без аннотаций)

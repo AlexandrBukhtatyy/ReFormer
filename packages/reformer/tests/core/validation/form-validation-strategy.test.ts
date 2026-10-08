@@ -30,9 +30,9 @@ function makeForm(over: Partial<F> = {}) {
   const schema = {
     component: C,
     children: [
-      { value: model.$.name, component: C },
-      { value: model.$.age, component: C },
-      { value: model.$.profile.city, component: C },
+      { model: model.$.name, component: C },
+      { model: model.$.age, component: C },
+      { model: model.$.profile.city, component: C },
     ],
   };
   const form = createFormFromModel<F>({ model, schema });

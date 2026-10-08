@@ -6,7 +6,8 @@
  * @module form/validators/max-date
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { parseDate, normalizeDate } from './date-utils';
 import { validationError } from './validation-error';
 
@@ -19,7 +20,7 @@ import { validationError } from './validation-error';
  * @param maxDateValue - Максимально допустимая дата (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадает `maxDate`.
- * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Максимальная дата
  * ```typescript
@@ -32,15 +33,15 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function maxDate<
-  TForm = unknown,
-  TField extends string | Date | null | undefined = string | Date,
->(maxDateValue: Date, options?: ValidateOptions): Validator<TForm, TField> {
+export function maxDate(
+  maxDateValue: Date,
+  options?: ValidateOptions
+): Rule<string | Date | null | undefined> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-    const parsed = parseDate(value as string | Date);
+    const parsed = parseDate(value);
     if (parsed === null) {
       return null;
     }

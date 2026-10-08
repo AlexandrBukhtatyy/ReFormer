@@ -20,7 +20,7 @@ interface Form {
 }
 
 const itemSchema = (item: FormModel<Row>) => ({
-  children: [{ value: item.$.name }, { value: item.$.qty }],
+  children: [{ model: item.$.name }, { model: item.$.qty }],
 });
 
 const build = () => {
@@ -148,6 +148,32 @@ describe('ModelArrayNode', () => {
     arr.swap(0, 2);
     expect(arr.map((i) => i.name.value.value)).toEqual(['C', 'B', 'A']);
     expect(model.get().rows.map((r) => r.name)).toEqual(['C', 'B', 'A']);
+  });
+
+  it('swap с тем же индексом или за границами ничего не меняет', () => {
+    const { arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+    arr.push({ name: 'B', qty: 2 });
+
+    arr.swap(1, 1);
+    arr.swap(0, 5);
+    arr.swap(-1, 0);
+    expect(arr.map((i) => i.name.value.value)).toEqual(['A', 'B']);
+  });
+
+  it('validate() учитывает ошибки уровня массива и совпадает с valid', async () => {
+    const { arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+
+    arr.setErrors([{ code: 'minItems', message: 'минимум 2 элемента' }]);
+    expect(arr.valid.value).toBe(false);
+    await expect(arr.validate()).resolves.toBe(false);
+    // validate() ничего не стирает
+    expect(arr.errors.value.map((error) => error.code)).toEqual(['minItems']);
+
+    arr.clearErrors();
+    expect(arr.valid.value).toBe(true);
+    await expect(arr.validate()).resolves.toBe(true);
   });
 
   it('move реактивен (effect перезапускается при перестановке)', () => {

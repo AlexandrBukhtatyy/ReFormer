@@ -1,8 +1,8 @@
 /**
  * FieldNode - узел поля формы
  *
- * Представляет одно поле формы с валидацией и состоянием
- * Наследует от FormNode и реализует все его абстрактные методы
+ * Держит состояние одного поля: touched / dirty / status / errors / componentProps. Значением
+ * не владеет — ссылается на сигнал модели.
  *
  * @group Nodes
  */
@@ -10,36 +10,29 @@
 import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
-import type { SetValueOptions } from './form-node';
-import type {
-  FieldConfig,
-  FieldStatus,
-  ValidationError,
-  ValidatorFn,
-  AsyncValidatorFn,
-} from '../types/index';
+import type { FieldConfig, FieldStatus, ValidationError } from '../types/index';
 import { SubscriptionManager } from './subscription-manager';
 import { uniqueId, SubscriptionKey } from '../unique-id';
-import { FormErrorHandler, ErrorStrategy } from '../validation/error-handler';
 import { FormStatusMachine } from '../status-machine';
 
 /**
  * FieldNode - узел для отдельного поля формы
  *
+ * Правил валидации нода не исполняет: они живут в схеме валидации
+ * (`defineValidationSchema`, `@reformer/core/validation`), а раннер разносит ошибки по нодам
+ * через {@link FieldNode.setErrors}.
+ *
  * @group Nodes
  *
  * @example
- * Пример node-level: конфиг УЗЛА, а не layout-схема M1 (в ней поля `validators` нет).
  * ```typescript
- * const field = new FieldNode({
- *   value: '',
- *   component: Input,
- *   validators: [required, email],
- * });
+ * const model = createModel({ email: '' });
+ * const field = new FieldNode({ valueSignal: model.$.email, component: Input });
  *
  * field.setValue('test@mail.com');
- * await field.validate();
- * console.log(field.valid.value); // true
+ * model.email; // 'test@mail.com'
+ * field.setErrors([{ code: 'taken', message: 'Занято' }]);
+ * field.valid.value; // false
  * ```
  */
 export class FieldNode<T> extends FormNode<T> {
@@ -85,21 +78,10 @@ export class FieldNode<T> extends FormNode<T> {
   // Конфигурация
   // ============================================================================
 
-  private validators: ValidatorFn<T>[];
-  private asyncValidators: AsyncValidatorFn<T>[];
-  private updateOn: 'change' | 'blur' | 'submit';
   private initialValue: T;
-  private currentAbortController?: AbortController;
-  private debounceMs: number;
-  private validateDebounceTimer?: ReturnType<typeof setTimeout>;
-  /**
-   * Pending debounced validation state
-   * Contains resolve function and AbortController for cancellation
-   */
-  private pendingValidation?: {
-    resolve: (value: boolean) => void;
-    abortController: AbortController;
-  };
+
+  /** Сколько прогонов валидации сейчас ждут async-правила этого поля. */
+  private pendingRuns = 0;
 
   /**
    * Менеджер подписок для централизованного cleanup
@@ -116,19 +98,10 @@ export class FieldNode<T> extends FormNode<T> {
   constructor(config: FieldConfig<T>) {
     super();
 
-    // Сохраняем конфигурацию
-    this.validators = config.validators || [];
-    this.asyncValidators = config.asyncValidators || [];
-    this.updateOn = config.updateOn || 'blur';
-    this.debounceMs = config.debounce || 0;
     this.component = config.component;
 
-    // Инициализация приватных сигналов.
-    // M1: если передан valueSignal (из FormModel) — используем его как источник истины значения
-    // (нода НЕ владеет значением, а ссылается на сигнал модели). Иначе создаём собственный сигнал
-    // из литерала config.value (legacy-путь). FieldConfig.value имеет тип T | null, но FieldNode
-    // всегда работает с T; null трактуется как начальное значение типа T.
-    this._value = config.valueSignal ?? signal(config.value as T);
+    // Нода не владеет значением: источник истины — сигнал модели.
+    this._value = config.valueSignal;
     // initialValue — снимок значения на момент построения (для reset/resetToInitial)
     this.initialValue = this._value.peek();
     this._errors = signal<ValidationError[]>([]);
@@ -164,33 +137,9 @@ export class FieldNode<T> extends FormNode<T> {
     return this._value.peek();
   }
 
-  setValue(value: T, options?: SetValueOptions): void {
+  setValue(value: T): void {
     this._value.value = value;
     this._dirty.value = true;
-
-    if (options?.emitEvent === false) {
-      return;
-    }
-
-    const hasOwnValidators = this.validators.length > 0 || this.asyncValidators.length > 0;
-    const hasErrors = this._errors.value.length > 0;
-
-    // 1. Если updateOn === 'change' → всегда валидируем
-    if (this.updateOn === 'change') {
-      this.validate();
-      return;
-    }
-
-    // 2. Если updateOn === 'blur' или 'submit':
-    //    Валидируем только если у поля есть ошибки и собственные валидаторы
-    //    Это позволяет скрывать ошибку при исправлении значения
-    //    Поведение:
-    //    - Если значение некорректно → обновляем/показываем ошибку
-    //    - Если значение корректно → скрываем ошибку
-    //    Но первая валидация произойдет только при blur/submit
-    if (hasErrors && hasOwnValidators) {
-      this.validate();
-    }
   }
 
   patchValue(value: Partial<T>): void {
@@ -225,8 +174,7 @@ export class FieldNode<T> extends FormNode<T> {
     this._errors.value = [];
     this._touched.value = false;
     this._dirty.value = false;
-    // Сбрасываем статус через statusMachine
-    this.statusMachine.setErrors(false);
+    this.syncStatus();
   }
 
   /**
@@ -237,14 +185,10 @@ export class FieldNode<T> extends FormNode<T> {
    * - resetToInitial() - явно показывает намерение вернуться к начальному значению
    * - reset() - может принимать новое значение
    *
-   * Полезно когда:
-   * - Пользователь нажал "Cancel" - вернуть форму в исходное состояние
-   * - Форма была изменена через reset(newValue), но нужно вернуться к самому началу
-   * - Явное намерение показать "отмену всех изменений"
-   *
    * @example
    * ```typescript
-   * const field = new FieldNode({ value: 'initial', component: Input });
+   * const model = createModel({ name: 'initial' });
+   * const field = new FieldNode({ valueSignal: model.$.name });
    *
    * field.setValue('changed');
    * field.reset('temp value');
@@ -259,263 +203,54 @@ export class FieldNode<T> extends FormNode<T> {
   }
 
   /**
-   * Cancel any pending validation (debounced or running)
-   * @private
-   * @remarks
-   * Centralizes all cancellation logic:
-   * - Aborts pending debounced validation and resolves its promise
-   * - Clears debounce timer
-   * - Aborts currently running async validation
-   */
-  private cancelPendingValidation(): void {
-    // Cancel pending debounced validation
-    if (this.pendingValidation) {
-      this.pendingValidation.abortController.abort();
-      this.pendingValidation.resolve(false);
-      this.pendingValidation = undefined;
-    }
-
-    // Clear debounce timer
-    if (this.validateDebounceTimer) {
-      clearTimeout(this.validateDebounceTimer);
-      this.validateDebounceTimer = undefined;
-    }
-
-    // Abort currently running validation
-    if (this.currentAbortController) {
-      this.currentAbortController.abort();
-      this.currentAbortController = undefined;
-    }
-  }
-
-  /**
-   * Запустить валидацию поля
-   * @param options - опции валидации
-   * @returns `Promise<boolean>` - true если поле валидно
+   * Текущая валидность поля.
    *
-   * @remarks
-   * Метод защищен от race conditions через AbortController.
-   * При быстром вводе только последняя валидация применяет результаты.
+   * Правил нода не исполняет: метод отражает ошибки, которые разнёс раннер схемы валидации
+   * (`validateModel` из `@reformer/core/validation`), и ничего не стирает.
    *
-   * @example
-   * ```typescript
-   * // Обычная валидация
-   * await field.validate();
-   *
-   * // С debounce
-   * await field.validate({ debounce: 300 });
-   * ```
+   * @returns `true`, если у поля нет блокирующих ошибок (`severity: 'warning'` не блокирует)
    */
-  async validate(options?: { debounce?: number }): Promise<boolean> {
-    const debounceMs = options?.debounce ?? this.debounceMs;
-
-    // Cancel any pending validation first
-    this.cancelPendingValidation();
-
-    // Without debounce - run immediately
-    if (debounceMs <= 0 || this.asyncValidators.length === 0) {
-      return this.validateImmediate();
-    }
-
-    // With debounce - create AbortController for this validation
-    const abortController = new AbortController();
-
-    return new Promise<boolean>((resolve) => {
-      // Save pending state for cancellation
-      this.pendingValidation = { resolve, abortController };
-
-      this.validateDebounceTimer = setTimeout(async () => {
-        this.validateDebounceTimer = undefined;
-
-        // Check if this validation was cancelled
-        if (abortController.signal.aborted) {
-          resolve(false);
-          return;
-        }
-
-        // Clear pending state before running
-        this.pendingValidation = undefined;
-
-        // Pass abortController to validateImmediate
-        const result = await this.validateImmediate(abortController);
-        resolve(result);
-      }, debounceMs);
-
-      // Listen for abort to resolve early
-      abortController.signal.addEventListener(
-        'abort',
-        () => {
-          if (this.validateDebounceTimer) {
-            clearTimeout(this.validateDebounceTimer);
-            this.validateDebounceTimer = undefined;
-          }
-          resolve(false);
-        },
-        { once: true }
-      );
-    });
-  }
-
-  /**
-   * Немедленная валидация без debounce
-   * @private
-   * @param providedController - AbortController from debounced validate()
-   * @remarks
-   * Защищена от race conditions через AbortController:
-   * - Отменяет предыдущую валидацию при запуске новой (if no controller provided)
-   * - Передаёт AbortSignal в async валидаторы для отмены операций (например, fetch)
-   * - Проверяет signal.aborted в ключевых точках
-   */
-  private async validateImmediate(providedController?: AbortController): Promise<boolean> {
-    // Use provided controller or create a new one
-    const abortController = providedController ?? new AbortController();
-
-    // Abort previous validation only if no controller was provided
-    // (i.e., called directly without debounce)
-    if (!providedController) {
-      this.currentAbortController?.abort();
-    }
-
-    this.currentAbortController = abortController;
-    const { signal } = abortController;
-
-    // Синхронная валидация
-    const syncErrors: ValidationError[] = [];
-    for (const validator of this.validators) {
-      const error = validator(this._value.value);
-      if (error) syncErrors.push(error);
-    }
-
-    // Проверка abort после синхронной валидации
-    if (signal.aborted) {
-      return false;
-    }
-
-    if (syncErrors.length > 0) {
-      this._errors.value = syncErrors;
-      // Only blocking errors (not warnings) affect validity
-      const hasBlockingErrors = syncErrors.some((e) => e.severity !== 'warning');
-      this.statusMachine.setErrors(hasBlockingErrors);
-      if (hasBlockingErrors) {
-        return false;
-      }
-    }
-
-    // Асинхронная валидация - ПАРАЛЛЕЛЬНО с поддержкой отмены
-    if (this.asyncValidators.length > 0) {
-      if (signal.aborted) {
-        return false;
-      }
-
-      // Начинаем асинхронную валидацию через statusMachine
-      this.statusMachine.startValidation();
-
-      try {
-        // Выполняем все async валидаторы параллельно
-        // Передаём signal для возможности отмены (если валидатор поддерживает)
-        const asyncResults = await Promise.all(
-          this.asyncValidators.map(async (validator) => {
-            // Проверка abort перед каждым валидатором
-            if (signal.aborted) {
-              throw new DOMException('Validation aborted', 'AbortError');
-            }
-
-            try {
-              // Передаём signal в валидатор (опционально)
-              const result = await validator(this._value.value, { signal });
-
-              // Проверка abort после выполнения
-              if (signal.aborted) {
-                throw new DOMException('Validation aborted', 'AbortError');
-              }
-
-              return result;
-            } catch (error) {
-              // Пробрасываем AbortError
-              if (error instanceof DOMException && error.name === 'AbortError') {
-                throw error;
-              }
-              // Используем централизованный обработчик ошибок
-              return FormErrorHandler.handle(
-                error,
-                'FieldNode AsyncValidator',
-                ErrorStrategy.CONVERT
-              );
-            }
-          })
-        );
-
-        // Проверка abort после Promise.all
-        if (signal.aborted) {
-          return false;
-        }
-
-        const asyncErrors = asyncResults.filter((e): e is ValidationError => e !== null);
-        if (asyncErrors.length > 0) {
-          this._errors.value = asyncErrors;
-          // Only blocking errors (not warnings) affect validity
-          const hasBlockingErrors = asyncErrors.some((e) => e.severity !== 'warning');
-          this.statusMachine.completeValidation(hasBlockingErrors);
-          // Return valid if only warnings
-          if (hasBlockingErrors) {
-            return false;
-          }
-        }
-      } catch (error) {
-        // Валидация была отменена - это нормально
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return false;
-        }
-        throw error;
-      }
-    }
-
-    // Финальная проверка abort
-    if (signal.aborted) {
-      return false;
-    }
-
-    // Очищаем ошибки только если у поля есть собственные валидаторы
-    // Если валидаторов нет, значит используется ValidationSchema на уровне формы
-    // и ошибки устанавливаются извне через setErrors()
-    const hasOwnValidators = this.validators.length > 0 || this.asyncValidators.length > 0;
-
-    if (hasOwnValidators) {
-      this._errors.value = [];
-      // Завершаем валидацию успешно
-      this.statusMachine.completeValidation(false);
-    }
-
-    // Return valid if no blocking errors (warnings don't block)
-    return !this._errors.value.some((e) => e.severity !== 'warning');
+  validate(): Promise<boolean> {
+    return Promise.resolve(!this.hasBlockingErrors());
   }
 
   setErrors(errors: ValidationError[]): void {
     this._errors.value = errors;
-    // Only blocking errors (not warnings) affect validity
-    const hasBlockingErrors = errors.some((e) => e.severity !== 'warning');
-    this.statusMachine.setErrors(hasBlockingErrors);
+    this.syncStatus();
   }
 
   clearErrors(): void {
     this._errors.value = [];
-    this.statusMachine.setErrors(false);
+    this.syncStatus();
+  }
+
+  /**
+   * Отметить, что у поля идёт проверка: раннер схемы валидации зовёт метод парой на время
+   * async-правил. Вызовы считаются — поле остаётся в `pending`, пока идёт хотя бы один прогон
+   * (устаревший прогон снимает только свою отметку).
+   */
+  override setPending(pending: boolean): void {
+    this.pendingRuns = Math.max(0, this.pendingRuns + (pending ? 1 : -1));
+    this.syncStatus();
+  }
+
+  /** Есть ли у поля блокирующие ошибки (`severity: 'warning'` не блокирует). */
+  private hasBlockingErrors(): boolean {
+    return this._errors.peek().some((error) => error.severity !== 'warning');
+  }
+
+  /**
+   * Привести статус к состоянию поля: идёт проверка — `pending`, иначе по ошибкам. Отключённое
+   * поле статус не меняет — его определит `enable()`.
+   */
+  private syncStatus(): void {
+    if (this.pendingRuns > 0) this.statusMachine.startValidation();
+    else this.statusMachine.setErrors(this.hasBlockingErrors());
   }
 
   // ============================================================================
   // Protected hooks (Template Method pattern)
   // ============================================================================
-
-  /**
-   * Hook: вызывается после markAsTouched()
-   *
-   * Для FieldNode: если updateOn === 'blur', запускаем валидацию
-   */
-  protected onMarkAsTouched(): void {
-    if (this.updateOn === 'blur') {
-      this.validate();
-    }
-  }
 
   /**
    * Hook: вызывается после disable()
@@ -530,12 +265,11 @@ export class FieldNode<T> extends FormNode<T> {
   /**
    * Hook: вызывается после enable()
    *
-   * Для FieldNode: синхронизируем statusMachine и запускаем валидацию
+   * Для FieldNode: синхронизируем statusMachine — статус определяют текущие ошибки
    */
   protected onEnable(): void {
-    // enable() определит статус (valid/invalid) на основе ошибок после валидации
-    this.statusMachine.enable(this._errors.value.length > 0);
-    this.validate();
+    this.statusMachine.enable(this.hasBlockingErrors());
+    this.syncStatus();
   }
 
   /**
@@ -554,48 +288,6 @@ export class FieldNode<T> extends FormNode<T> {
       ...this._componentProps.value,
       ...props,
     };
-  }
-
-  /**
-   * Динамически изменяет триггер валидации (updateOn)
-   * Полезно для адаптивной валидации - например, переключиться на instant feedback после первого submit
-   *
-   * @param updateOn - новый триггер валидации: 'change' | 'blur' | 'submit'
-   *
-   * @example
-   * Пример node-level: плоская схема с инлайн-значениями (back-compat путь до M1). В layout-схеме
-   * `createFormFromModel({ model, schema })` поля `validators` нет — правила живут в `defineValidationSchema`.
-   * ```typescript
-   * // Сценарий 1: Instant feedback после submit
-   * const form = createLegacyForm({
-   *   email: {
-   *     value: '',
-   *     component: Input,
-   *     updateOn: 'submit', // Изначально валидация только при submit
-   *     validators: [required, email],
-   *   },
-   * });
-   *
-   * await form.submit(async (values) => {
-   *   // После submit переключаем на instant feedback
-   *   form.email.setUpdateOn('change');
-   *   await api.save(values);
-   * });
-   *
-   * // Теперь валидация происходит при каждом изменении
-   *
-   * // Сценарий 2: Прогрессивное улучшение
-   * form.email.setUpdateOn('blur');  // Сначала только при blur
-   * // ... пользователь начинает вводить ...
-   * form.email.setUpdateOn('change'); // Переключаем на change для real-time feedback
-   * ```
-   */
-  setUpdateOn(updateOn: 'change' | 'blur' | 'submit'): void {
-    this.updateOn = updateOn;
-  }
-
-  getUpdateOn(): 'change' | 'blur' | 'submit' {
-    return this.updateOn;
   }
 
   // ============================================================================
@@ -679,8 +371,7 @@ export class FieldNode<T> extends FormNode<T> {
       // Вычисляем новое значение
       const newValue = computeFn(...sourceValues);
 
-      // Устанавливаем значение без триггера событий (избегаем циклов)
-      this.setValue(newValue, { emitEvent: false });
+      this.setValue(newValue);
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
@@ -689,15 +380,8 @@ export class FieldNode<T> extends FormNode<T> {
   }
 
   /**
-   * Очистить все ресурсы и таймеры
+   * Очистить все ресурсы
    * Должен вызываться при unmount компонента
-   *
-   * @remarks
-   * Освобождает все ресурсы:
-   * - Отписывает все subscriptions через SubscriptionManager
-   * - Отменяет pending/running валидации через cancelPendingValidation()
-   *
-   * Использует try-finally для гарантированного cleanup даже при ошибках.
    *
    * @example
    * ```typescript
@@ -709,13 +393,6 @@ export class FieldNode<T> extends FormNode<T> {
    * ```
    */
   dispose(): void {
-    try {
-      // Очищаем все subscriptions через SubscriptionManager
-      this.disposers.dispose();
-    } finally {
-      // Cancel all pending validations (debounced and running)
-      // Guaranteed to run even if disposers.dispose() throws
-      this.cancelPendingValidation();
-    }
+    this.disposers.dispose();
   }
 }

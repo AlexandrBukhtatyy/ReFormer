@@ -26,8 +26,8 @@ const INITIAL: F = { email: '', password: '', total: 0, price: 10 };
 
 const schemaOf = (model: { $: { email: unknown; password: unknown } }) => ({
   children: [
-    { value: model.$.email, component: InputStub },
-    { value: model.$.password, component: InputStub },
+    { model: model.$.email, component: InputStub },
+    { model: model.$.password, component: InputStub },
   ],
 });
 

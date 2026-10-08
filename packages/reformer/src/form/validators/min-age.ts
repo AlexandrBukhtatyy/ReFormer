@@ -6,7 +6,8 @@
  * @module form/validators/min-age
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { parseDate, calculateAge } from './date-utils';
 import { validationError } from './validation-error';
 
@@ -19,7 +20,7 @@ import { validationError } from './validation-error';
  * @param minAgeValue - Минимально допустимый возраст (в полных годах)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `minAge` и `currentAge`.
- * @returns Чистый валидатор {@link Validator} для поля даты рождения (`string | Date`)
+ * @returns Правило {@link Rule} для поля даты рождения (`string | Date`)
  *
  * @example Минимальный возраст
  * ```typescript
@@ -32,15 +33,15 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function minAge<
-  TForm = unknown,
-  TField extends string | Date | null | undefined = string | Date,
->(minAgeValue: number, options?: ValidateOptions): Validator<TForm, TField> {
+export function minAge(
+  minAgeValue: number,
+  options?: ValidateOptions
+): Rule<string | Date | null | undefined> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-    const parsed = parseDate(value as string | Date);
+    const parsed = parseDate(value);
     if (parsed === null) {
       return null;
     }

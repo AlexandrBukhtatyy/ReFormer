@@ -1,11 +1,12 @@
 ## 17. COMPUTE vs ONCHANGE
 
-Под M1 behaviors работают на сигналах модели. Есть два способа их писать:
+Поведение работает на сигналах модели. Писать его можно двумя способами:
 
-- **примитивы из `@reformer/core`** — принимают сигналы, возвращают cleanup, вызываются
-  императивно (например, в `useEffect`), cleanup складывается в массив;
 - **декларативный DSL из `@reformer/core/behaviors`** — `defineFormBehavior(...)` + операторы,
-  cleanup управляется формой, передаётся в `createForm({ behavior })`.
+  cleanup управляется формой, передаётся в `createForm({ behavior })`. Это способ для формы;
+- **примитивы из `@reformer/core/model`** — принимают сигналы, возвращают cleanup, вызываются
+  императивно (например, в `useEffect`), cleanup складывается в массив. Нужны вне формы; в корне
+  `@reformer/core` их нет.
 
 Для производных значений — `compute`/`computeFrom`. Для side-эффектов на изменение (async,
 обновление componentProps) — `onChange` (DSL) или примитив `watchField`.
@@ -79,7 +80,7 @@ compute(model.$.interestRate, () => computeRate(model.properties.map(() => null)
 источников приходят в `fn` позиционно.
 
 ```typescript
-import { computeFrom } from '@reformer/core/behaviors'; // или из '@reformer/core' как примитив
+import { computeFrom } from '@reformer/core/behaviors'; // примитив — из '@reformer/core/model'
 
 computeFrom(
   [model.$.loanAmount, model.$.loanTerm, model.$.interestRate],
@@ -88,7 +89,7 @@ computeFrom(
 );
 ```
 
-> Примитив `computeFrom` из `@reformer/core` имеет ту же сигнатуру и возвращает cleanup-функцию.
+> Примитив `computeFrom` из `@reformer/core/model` имеет ту же сигнатуру и возвращает cleanup-функцию.
 
 ### onChange — реакция на изменение (async, side-effects)
 
@@ -113,11 +114,11 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 
 ### Примитив watchField
 
-Низкоуровневая подписка из `@reformer/core` (без debounce/AbortSignal). `onChange` построен
+Низкоуровневая подписка из `@reformer/core/model` (без debounce/AbortSignal). `onChange` построен
 поверх неё. Для простых синхронных реакций:
 
 ```typescript
-import { watchField } from '@reformer/core';
+import { watchField } from '@reformer/core/model';
 const stop = watchField(model.$.country, () => { model.city = ''; });
 ```
 

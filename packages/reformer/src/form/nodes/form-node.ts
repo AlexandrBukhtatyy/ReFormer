@@ -15,35 +15,24 @@ import { signal, computed, type ReadonlySignal, type Signal } from '@preact/sign
 import type { FieldStatus, ValidationError, ErrorFilterOptions } from '../types/index';
 
 /**
- * Опции для setValue
- * @group Nodes
- */
-export interface SetValueOptions {
-  /** Не вызывать событие изменения (не триггерить валидацию) */
-  emitEvent?: boolean;
-  // onlySelf удалён в 7.0: опция объявлялась, но не была реализована ни одной из четырёх
-  // реализаций setValue — передача значения ни на что не влияла.
-}
-
-/**
  * Абстрактный базовый класс для всех узлов формы.
  *
  * Все узлы (поля, группы, массивы) наследуют от этого класса и реализуют
- * единый интерфейс для работы с состоянием и валидацией.
+ * единый интерфейс для работы с состоянием и ошибками.
  *
  * Template Method паттерн используется для управления состоянием:
  * общие signals (`_touched`, `_dirty`, `_status`) живут в базовом классе,
- * publi-методы (`markAsTouched`, `disable`, …) реализованы здесь, а protected
+ * public-методы (`markAsTouched`, `disable`, …) реализованы здесь, а protected
  * hooks (`onMarkAsTouched`, `onDisable`, …) переопределяются в наследниках.
  *
  * @group Nodes
  *
  * @example
  * ```typescript
- * // FormNode не используется напрямую — экземпляры приходят из getReformerForm.
- * import { getReformerForm, FormNode } from '@reformer/core';
+ * // FormNode не используется напрямую — экземпляры приходят из сборки формы.
+ * import { createForm, FormNode } from '@reformer/core';
  *
- * const form = getReformerForm({ email: '' });
+ * const { form } = createForm({ initial: { email: '' } });
  * form.email instanceof FormNode; // true
  * form.email.markAsTouched();
  * ```
@@ -143,9 +132,8 @@ export abstract class FormNode<T> {
   /**
    * Установить значение узла
    * @param value - новое значение
-   * @param options - опции установки значения
    */
-  abstract setValue(value: T, options?: SetValueOptions): void;
+  abstract setValue(value: T): void;
 
   /**
    * Частично обновить значение узла
@@ -168,8 +156,12 @@ export abstract class FormNode<T> {
   // ============================================================================
 
   /**
-   * Запустить валидацию узла
-   * @returns `Promise<boolean>` - true если валидация успешна
+   * Текущая валидность узла.
+   *
+   * Правил узел не исполняет: метод отражает ошибки, которые разнёс раннер схемы валидации
+   * (`validateModel` из `@reformer/core/validation`), и ничего не стирает.
+   *
+   * @returns `Promise<boolean>` - true, если у узла и его детей нет блокирующих ошибок
    */
   abstract validate(): Promise<boolean>;
 
@@ -242,7 +234,7 @@ export abstract class FormNode<T> {
 
       // Фильтр по сообщению (частичное совпадение, регистронезависимый)
       if (options.message !== undefined) {
-        if (!error.message.toLowerCase().includes(options.message.toLowerCase())) {
+        if (!(error.message ?? '').toLowerCase().includes(options.message.toLowerCase())) {
           return false;
         }
       }
@@ -349,6 +341,17 @@ export abstract class FormNode<T> {
   touchAll(): void {
     this.markAsTouched();
   }
+
+  /**
+   * Отметить, что у узла идёт проверка: раннер схемы валидации зовёт метод парой
+   * (`true` … `false`) на время async-правил поля.
+   *
+   * По умолчанию ничего не делает: `pending` контейнеров (группа, массив) выводится из детей.
+   *
+   * @param pending - `true` — проверка началась, `false` — закончилась
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setPending(pending: boolean): void {}
 
   // ============================================================================
   // Методы управления доступностью (Template Method)

@@ -4,10 +4,10 @@
 
 Одна декларативная точка выбора «когда прогонять схему валидации» вместо ручной разводки
 `markAsTouched` + `validateModel` + `revalidateWhen` + `useState(pending)`. Аддитивный слой над
-функциональной схемой (`@reformer/core/validation`): переиспользует `validateModel` как
-ЕДИНСТВЕННЫЙ движок (роутинг ошибок в ноды, отмена устаревших прогонов, дедуп по `(model, schema)`),
-второго движка не заводит. Node-level `updateOn` / `debounce` на самой ноде поля (legacy-триггеры)
-этот API НЕ трогает.
+функциональной схемой (`@reformer/core/validation`): переиспользует раннер схемы как
+ЕДИНСТВЕННЫЙ движок (разнос ошибок по нодам, отмена устаревших прогонов, дедуп по `(model, schema)`),
+второго движка не заводит. Других триггеров валидации нет: у ноды поля собственных валидаторов,
+`updateOn` и `debounce` не бывает — когда запускать проверку, решает только стратегия.
 
 Стратегия определяет только момент запуска и раскрытие ошибок — сами правила остаются в отдельной
 `defineValidationSchema<T>(({ model }) => …)`.
@@ -37,6 +37,7 @@ interface ValidationStrategyOptions {
 }
 interface FormValidationController {
   validate(): Promise<boolean>;        // полный прогон, touch:true (раскрыть ВСЕ ошибки); переводит afterFirstSubmit в live-фазу
+  run(): Promise<ValidationResult>;    // тот же прогон с полным результатом: valid | invalid | error | cancelled
   start(): () => void;                 // армит реактивные подписки (ТОЛЬКО на клиенте) → dispose
   dispose(): void;
   readonly isValidating: boolean;
@@ -169,10 +170,11 @@ function MyForm() {
 ```
 
 ```typescript
-// ❌ Node-level updateOn (Слой B) И активная schema-стратегия на ОДНОМ поле → оба пишут ошибки в ноду → мерцание
-// узел поля: { updateOn: 'blur', … } + useFormValidation({ strategy: 'blur', schema: включает это же поле })
+// ❌ updateOn / debounce / validators в узле схемы — таких ключей у узла нет, сборка их не читает
+// { model: model.$.email, component: Input, updateOn: 'blur', validators: [required()] }
 
-// ✅ Одно поле обслуживает ОДИН слой: либо node-level updateOn, либо schema-стратегия — не оба сразу
+// ✅ Момент запуска — стратегия формы; правила — схема валидации
+// createForm({ …, validation: { schema: formValidation, strategy: 'blur', debounce: 300 } })
 ```
 
 ```typescript

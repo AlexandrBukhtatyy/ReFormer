@@ -5,10 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../../src/form/nodes/field-node';
-import { createLegacyForm } from '../../../src/form/create-form';
 import type { ValidationError } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
+import { formFromFields } from '../../test-utils/form-from-fields';
 
 describe('FormNode.getErrors()', () => {
   describe('FieldNode', () => {
@@ -16,7 +17,7 @@ describe('FormNode.getErrors()', () => {
 
     beforeEach(() => {
       field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
     });
@@ -207,7 +208,7 @@ describe('FormNode.getErrors()', () => {
     let form: GroupNode<{ email: string; password: string }>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
@@ -264,7 +265,7 @@ describe('FormNode.getErrors()', () => {
 
     beforeEach(() => {
       field = new FieldNode({
-        value: '',
+        valueSignal: signal(''),
         component: null as ComponentInstance,
       });
     });
@@ -336,7 +337,7 @@ describe('FormNode.getErrors()', () => {
     }>;
 
     beforeEach(() => {
-      form = createLegacyForm({
+      form = formFromFields({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         confirmPassword: { value: '', component: null as ComponentInstance },
@@ -404,6 +405,19 @@ describe('FormNode.getErrors()', () => {
 
       expect(validationErrors.length).toBe(2);
       expect(serverErrors.length).toBe(1);
+    });
+  });
+
+  describe('errors without message', () => {
+    it('should skip an error without message in the message filter', () => {
+      const field = new FieldNode({ valueSignal: signal('') });
+      // Правила каталога текста не несут: его даёт словарь локали по коду.
+      field.setErrors([{ code: 'required' }, { code: 'custom', message: 'Password is weak' }]);
+
+      expect(field.getErrors({ message: 'password' }).map((error) => error.code)).toEqual([
+        'custom',
+      ]);
+      expect(field.getErrors({ code: 'required' })).toEqual([{ code: 'required' }]);
     });
   });
 });

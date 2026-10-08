@@ -18,8 +18,10 @@ import { createFormFromModel } from './create-form';
 import type { FormBehavior } from './behaviors';
 import {
   createSchemaController,
+  eachSchemaSelector,
   type SchemaController,
   type SchemaNodeControl,
+  type SchemaOverrideMaps,
   unknownSchemaSelectors,
 } from './schema-controller';
 import type { FormSchemaNode } from './types/schema-node';
@@ -126,6 +128,57 @@ type ValidatedFormBundle<T> = FormBundle<T> & { validation: FormValidationBundle
 
 const AT = '[@reformer/core] createForm';
 
+/** Имена в кавычках через запятую — для текста предупреждения. */
+const quoted = (names: readonly string[]): string => names.map((name) => `"${name}"`).join(', ');
+
+/**
+ * Dev-проверки селекторов корневого дерева: правила поведения без узла, повторы `selector` и
+ * ключи `validation.steps` без шага.
+ */
+function checkSelectors<T>(
+  tree: FormSchemaNode | undefined,
+  maps: SchemaOverrideMaps,
+  validation: CreateFormConfig<T>['validation']
+): void {
+  const unknown = unknownSchemaSelectors(maps, tree);
+  if (unknown.length > 0) {
+    console.warn(
+      `${AT}: поведение обращается к узлам схемы, которых нет в корневом дереве: ` +
+        `${quoted(unknown)}. Правило ничего не сделает. ` +
+        'Узлы строки массива и подформы адресуются из их поведения — через `applyEach` / `apply`.'
+    );
+  }
+
+  const selectors = new Set<string>();
+  const repeated = new Set<string>();
+  eachSchemaSelector(tree, (selector) => {
+    if (selectors.has(selector)) repeated.add(selector);
+    else selectors.add(selector);
+  });
+  if (repeated.size > 0) {
+    console.warn(
+      `${AT}: в корневом дереве схемы повторяются селекторы: ${quoted([...repeated])}. ` +
+        'По `selector` узел адресуют поведение и визард: правило, записанное на такой селектор, ' +
+        'получат все узлы с этим именем. Дайте узлам разные селекторы.'
+    );
+  }
+
+  const steps = typeof validation === 'object' ? validation.steps : undefined;
+  if (steps) {
+    const keys = Object.keys(steps);
+    const missing = keys.filter((key) => !selectors.has(key));
+    // Если ни один ключ не совпал с узлом, шаги дерево не описывает вовсе (визард собран в JSX) —
+    // сверять не с чем. Частичное совпадение — опечатка в ключе либо в `selector` шага.
+    if (missing.length > 0 && missing.length < keys.length) {
+      console.warn(
+        `${AT}: в \`validation.steps\` есть ключи, для которых в дереве схемы нет шага с таким ` +
+          `\`selector\`: ${quoted(missing)}. Правила этих ключей при переходе между шагами не ` +
+          'запустятся.'
+      );
+    }
+  }
+}
+
 /** Дерево схемы и то, что реестр передал вместе с ним. */
 function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Partial<ResolvedSchema> {
   const { schema, registry } = config;
@@ -192,9 +245,8 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
   const given = config?.model as { signalAt?: unknown } | undefined;
   if (typeof given?.signalAt !== 'function' && config?.initial === undefined) {
     throw new Error(
-      `${AT}: нужна модель — \`model\` либо \`initial\`. Форму без модели — из плоской схемы ` +
-        "полей (`{ email: { value: '', component } }`) или конфига группы — собирает " +
-        '`createLegacyForm(...)`.'
+      `${AT}: нужна модель — \`model\` либо \`initial\`. Значения формы принадлежат модели: ` +
+        "`createForm({ initial: { email: '' }, schema })`."
     );
   }
   const model = config.model ?? createModel<T>(config.initial as T);
@@ -211,14 +263,7 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
   });
 
   if (process.env.NODE_ENV !== 'production') {
-    const unknown = unknownSchemaSelectors(root.__overrideMaps, tree);
-    if (unknown.length > 0) {
-      console.warn(
-        `${AT}: поведение обращается к узлам схемы, которых нет в корневом дереве: ` +
-          `${unknown.map((selector) => `"${selector}"`).join(', ')}. Правило ничего не сделает. ` +
-          'Узлы строки массива и подформы адресуются из их поведения — через `applyEach` / `apply`.'
-      );
-    }
+    checkSelectors(tree, root.__overrideMaps, config.validation);
   }
 
   const validation = buildValidation(model, config.validation);

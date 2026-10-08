@@ -42,7 +42,7 @@ export type LocalizableText = string | MessageDescriptor;
  *
  * @example
  * ```ts
- * { value: model.$.email, component: Input, componentProps: { label: msg('profile.email.label') } }
+ * { model: model.$.email, component: Input, componentProps: { label: msg('profile.email.label') } }
  * ```
  */
 export function msg(

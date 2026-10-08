@@ -19,7 +19,7 @@
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormSchemaNode } from '@reformer/core';
 import { FormField, Input, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -31,28 +31,30 @@ type RegistrationForm = {
 function RegistrationPage() {
   const form = useMemo(() => {
     const model = createModel<RegistrationForm>({ email: '', country: 'ru', agree: false });
-    const schema = {
-      email: {
-        value: model.$.email,
-        component: Input,
-        componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-      },
-      country: {
-        value: model.$.country,
-        component: SelectAsync,
-        componentProps: {
-          label: 'Country',
-          options: [
-            { value: 'ru', label: 'Россия' },
-            { value: 'by', label: 'Беларусь' },
-          ],
+    const schema: FormSchemaNode = {
+      children: [
+        {
+          model: model.$.email,
+          component: Input,
+          componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
         },
-      },
-      agree: {
-        value: model.$.agree,
-        component: CheckboxWithLabel,
-        componentProps: { label: 'I agree to terms' },
-      },
+        {
+          model: model.$.country,
+          component: SelectAsync,
+          componentProps: {
+            label: 'Country',
+            options: [
+              { value: 'ru', label: 'Россия' },
+              { value: 'by', label: 'Беларусь' },
+            ],
+          },
+        },
+        {
+          model: model.$.agree,
+          component: CheckboxWithLabel,
+          componentProps: { label: 'I agree to terms' },
+        },
+      ],
     };
     return createFormFromModel<RegistrationForm>({ model, schema });
   }, []);
@@ -93,7 +95,7 @@ function RegistrationPage() {
 ✅ Всё это в схеме:
 
 ```ts
-{ email: { component: Input, componentProps: { label: 'Email' } } }
+{ model: model.$.email, component: Input, componentProps: { label: 'Email' } }
 ```
 
 ```tsx

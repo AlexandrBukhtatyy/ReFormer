@@ -12,7 +12,7 @@
  *
  * if (isFieldNode(node)) {
  *   // TypeScript знает, что node это FieldNode
- *   node.validators;
+ *   node.updateComponentProps({ placeholder: 'Email' });
  * }
  * ```
  */
@@ -20,7 +20,7 @@
 import type { FormNode } from './nodes/form-node';
 import type { FieldNode } from './nodes/field-node';
 import type { GroupNode } from './nodes/group-node';
-import type { ArrayNode } from './nodes/array-node';
+import type { ModelArrayNode } from './nodes/model-array-node';
 import type { FormValue } from './types/index';
 
 /**
@@ -59,8 +59,8 @@ export function isFormNode(value: unknown): value is FormNode<FormValue> {
 /**
  * Проверить, является ли значение FieldNode (примитивное поле)
  *
- * FieldNode представляет примитивное поле формы (string, number, boolean и т.д.)
- * и имеет валидаторы, но не имеет вложенных полей или элементов массива
+ * FieldNode представляет поле формы над сигналом модели: несёт пропсы компонента
+ * и не имеет вложенных полей или элементов массива
  *
  * @group Utilities
  * @category Type Guards
@@ -71,8 +71,7 @@ export function isFormNode(value: unknown): value is FormNode<FormValue> {
  * @example
  * ```typescript
  * if (isFieldNode(node)) {
- *   node.validators; //  OK
- *   node.asyncValidators; //  OK
+ *   node.componentProps.value; //  OK
  *   node.markAsTouched(); //  OK
  * }
  * ```
@@ -80,11 +79,10 @@ export function isFormNode(value: unknown): value is FormNode<FormValue> {
 export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
   return (
     isFormNode(value) &&
-    'validators' in value &&
-    'asyncValidators' in value &&
-    // FieldNode имеет markAsTouched метод
+    // Пропсы компонента есть только у поля
+    'componentProps' in value &&
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (value as any).markAsTouched === 'function' &&
+    typeof (value as any).updateComponentProps === 'function' &&
     // У FieldNode нет fields или items
     !('fields' in value) &&
     !('items' in value)
@@ -112,7 +110,7 @@ export function isGroupNode(value: unknown): value is GroupNode<object> {
     isFormNode(value) &&
     'getFieldByPath' in value &&
     'fields' in value &&
-    // GroupNode НЕ имеет items/push/removeAt (это ArrayNode/ModelArrayNode)
+    // GroupNode НЕ имеет items/push/removeAt (это ModelArrayNode)
     !('items' in value) &&
     !('push' in value) &&
     !('removeAt' in value)
@@ -120,13 +118,13 @@ export function isGroupNode(value: unknown): value is GroupNode<object> {
 }
 
 /**
- * Проверить, является ли значение ArrayNode (массив форм)
+ * Проверить, является ли значение узлом массива под-форм ({@link ModelArrayNode})
  *
- * ArrayNode представляет массив вложенных форм (обычно GroupNode)
+ * Узел массива держит формы строк (GroupNode)
  * и имеет array-like методы (push, removeAt, at)
  *
  * @param value - Значение для проверки
- * @returns true если value является ArrayNode
+ * @returns true если value является узлом массива под-форм
  *
  * @example
  * ```typescript
@@ -137,7 +135,7 @@ export function isGroupNode(value: unknown): value is GroupNode<object> {
  * }
  * ```
  */
-export function isArrayNode(value: unknown): value is ArrayNode<object> {
+export function isArrayNode(value: unknown): value is ModelArrayNode<object> {
   return (
     isFormNode(value) &&
     'items' in value &&

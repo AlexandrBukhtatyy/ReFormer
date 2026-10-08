@@ -192,15 +192,17 @@ describe('resolveLocalized', () => {
     const form = createFormFromModel<{ email: string }>({
       model,
       schema: {
-        email: {
-          value: model.$.email,
-          component: () => null,
-          componentProps: {
-            label: msg('profile.email.label'),
-            options: [{ value: 'a', label: msg('opt.a') }],
+        children: [
+          {
+            model: model.$.email,
+            component: () => null,
+            componentProps: {
+              label: msg('profile.email.label'),
+              options: [{ value: 'a', label: msg('opt.a') }],
+            },
           },
-        },
-      } as never,
+        ],
+      },
     });
     const props = (
       form as unknown as { email: { componentProps: { value: Record<string, unknown> } } }

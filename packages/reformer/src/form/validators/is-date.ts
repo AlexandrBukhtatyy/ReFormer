@@ -6,7 +6,8 @@
  * @module form/validators/is-date
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { parseDate } from './date-utils';
 import { validationError } from './validation-error';
 
@@ -17,7 +18,7 @@ import { validationError } from './validation-error';
  * пропускаются (используйте {@link required} для обязательности).
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
- * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Проверка валидности даты
  * ```typescript
@@ -30,15 +31,12 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function isDate<
-  TForm = unknown,
-  TField extends string | Date | null | undefined = string | Date,
->(options?: ValidateOptions): Validator<TForm, TField> {
+export function isDate(options?: ValidateOptions): Rule<string | Date | null | undefined> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-    const parsed = parseDate(value as string | Date);
+    const parsed = parseDate(value);
     if (parsed === null) {
       return validationError('date_invalid', options);
     }

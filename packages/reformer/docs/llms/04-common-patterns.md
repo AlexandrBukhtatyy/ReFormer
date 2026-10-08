@@ -1,21 +1,13 @@
 ## 3. COMMON PATTERNS
 
-Все паттерны — на архитектуре M1: значения в модели (`model.$.field`), поведение (`defineFormBehavior`)
-на живых сигналах, валидация — отдельной ambient-схемой (`defineValidationSchema`, прогон по требованию
-через `validateModel`). Слои раздельны: layout НЕ несёт validators.
+Значения живут в модели (`model.$.field`), поведение (`defineFormBehavior`) работает на живых
+сигналах, валидация — отдельная схема (`defineValidationSchema`, прогон по требованию через
+раннер). Слои раздельны: схема формы правил НЕ несёт.
 
 ### Conditional Fields with Auto-Reset
 
-```typescript
-import { enableWhen } from '@reformer/core';
-
-// поле включается по условию; при выключении — сброс к initial
-enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {
-  resetOnDisable: true,
-});
-```
-
-Или декларативно внутри `defineFormBehavior`:
+`enableWhen` — оператор поведения: поле включается по условию, при выключении сбрасывается к
+initial. Вызывается внутри `defineFormBehavior`:
 
 ```typescript
 import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
@@ -112,34 +104,35 @@ async function handleSubmit(e: React.FormEvent) {
 }
 ```
 
-Multi-step: держи отдельные под-схемы на шаг и вызывай `validateModel(model, stepSchema)`. Для wizard'а —
-`makeValidationConfig(model)` → `{ validateStep, validateAll }` (`validateAll` прогоняет полную
-`apply(...STEP_SCHEMAS, extras)`). См. `13-multi-step.md`, `28-submit-and-reset.md`.
+Multi-step: правила шагов — поле `validation: { steps, extras }` сборки `createForm` (ключ `steps` —
+`selector` шага). Сборка отдаёт `validation.validateStep(step)` и `validation.validateAll()` (все
+шаги + `extras`); визард принимает её как есть. См. `13-multi-step.md`, `28-submit-and-reset.md`.
 
 ### Cross-field validation — через `cross`
 
-Cross-field правило — обычная функция над **снапшотом** модели (`fn` получает `model.get()`),
-навешивается оператором `cross(sig, fn)` на поле-носитель ошибки внутри схемы:
+Cross-field правило — обычная функция над **снимком** модели. Оператор `cross` берётся из
+аргумента схемы и вешает правило на поле-носитель ошибки; тип снимка выведен из схемы:
 
 ```typescript
-import { defineValidationSchema, validate, cross } from '@reformer/core/validation';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import type { ValidationError } from '@reformer/core';
 
-// снапшот формы читается напрямую — без каста, соседние поля доступны как поля объекта
-const initialPaymentVsProperty = (f: MyForm): ValidationError | null =>
-  f.initialPayment && f.propertyValue && f.initialPayment > f.propertyValue
+// снимок формы читается напрямую — без каста, соседние поля доступны как поля объекта
+const initialPaymentVsProperty = (form: MyForm): ValidationError | null =>
+  form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue
     ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
     : null;
 
-const schema = defineValidationSchema<MyForm>(({ model }) => {
+const schema = defineValidationSchema<MyForm>(({ model, cross }) => {
   validate(model.$.initialPayment, [required(), min(0)]);
   cross(model.$.initialPayment, initialPaymentVsProperty); // ошибка сядет на initialPayment
 });
 ```
 
-> Для элемента массива / под-модели захвати нужный снапшот в замыкание (`const item = im.get();
-> cross(im.$.x, () => rule(item))`) — `fn` всегда получает модель ТЕКУЩЕГО scope, а не под-модель.
+> Правила строки массива и подформы — отдельная схема над их типом, подключённая через
+> `applyEach(model.$.items, rowRules)` / `apply(model.$.group, groupRules)`. У такой схемы своя
+> область: её `cross` получает снимок строки или группы.
 
 ### Conditional validation — `validateWhen`
 
@@ -148,15 +141,17 @@ const schema = defineValidationSchema<MyForm>(({ model }) => {
 включение/выключение самих проверок:
 
 ```typescript
-import { validateWhen, validate, cross } from '@reformer/core/validation';
+import { defineValidationSchema, validateWhen, validate } from '@reformer/core/validation';
 
-validateWhen(
-  () => model.loanType === 'mortgage',
-  () => {
-    validate(model.$.propertyValue, [required(), min(1000000)]);
-    cross(model.$.initialPayment, initialPaymentVsProperty);
-  }
-);
+const loanRules = defineValidationSchema<MyForm>(({ model, cross }) => {
+  validateWhen(
+    () => model.loanType === 'mortgage',
+    () => {
+      validate(model.$.propertyValue, [required(), min(1000000)]);
+      cross(model.$.initialPayment, initialPaymentVsProperty);
+    }
+  );
+});
 ```
 
 ### Перезапуск прогона — `revalidateWhen` (мост поведение → валидация)

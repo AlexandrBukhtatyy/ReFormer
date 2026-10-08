@@ -6,7 +6,8 @@
  * @module form/validators/max-total-file-size
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { toFileArray } from './file-utils';
 import { validationError } from './validation-error';
 
@@ -20,7 +21,7 @@ import { validationError } from './validation-error';
  * @param maxTotal - Максимально допустимый суммарный размер в байтах (включительно)
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадают `maxTotalFileSize` и `actualTotal`.
- * @returns Чистый валидатор {@link Validator} для файла или массива файлов
+ * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Суммарно не более 20 МБ
  * ```typescript
@@ -33,10 +34,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function maxTotalFileSize<TForm = unknown, TField = unknown>(
-  maxTotal: number,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function maxTotalFileSize(maxTotal: number, options?: ValidateOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

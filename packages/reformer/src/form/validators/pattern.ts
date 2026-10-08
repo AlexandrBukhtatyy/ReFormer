@@ -6,7 +6,8 @@
  * @module form/validators/pattern
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -18,7 +19,7 @@ import { validationError } from './validation-error';
  * @param regex - Регулярное выражение для проверки значения
  * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
  *   попадает `pattern` (строка-источник regex).
- * @returns Чистый валидатор {@link Validator} для строкового поля
+ * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка по регулярному выражению
  * ```typescript
@@ -32,10 +33,7 @@ import { validationError } from './validation-error';
  * });
  * ```
  */
-export function pattern<TForm = unknown, TField extends string | null | undefined = string>(
-  regex: RegExp,
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function pattern(regex: RegExp, options?: ValidateOptions): Rule<string | null | undefined> {
   // Клонируем regex: с флагами /g или /y `RegExp.test` stateful (двигает `lastIndex`
   // между вызовами), из-за чего один и тот же ввод чередовал бы valid/invalid. Клон
   // изолирует состояние от экземпляра вызывающего кода; `lastIndex` сбрасываем на каждый вызов.
@@ -45,7 +43,7 @@ export function pattern<TForm = unknown, TField extends string | null | undefine
       return null;
     }
     re.lastIndex = 0;
-    if (!re.test(value as string)) {
+    if (!re.test(value)) {
       return validationError('pattern', options, { pattern: regex.source });
     }
     return null;

@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
-import { enableWhen, disableWhen } from '../../../src/form/index';
+import { enableWhen, disableWhen } from '../../../src/form/behaviors/node';
 
 const InputStub = () => null;
 // микротаск-флаш (enableWhen пишет состояние через runOutsideEffect = queueMicrotask)
@@ -21,8 +21,8 @@ const buildLoan = () => {
   const model = createModel<LoanForm>({ loanType: 'consumer', propertyValue: 0 });
   const schema = {
     children: [
-      { value: model.$.loanType, component: InputStub },
-      { value: model.$.propertyValue, component: InputStub },
+      { model: model.$.loanType, component: InputStub },
+      { model: model.$.propertyValue, component: InputStub },
     ],
   };
   const form = createFormFromModel<LoanForm>({ model, schema });

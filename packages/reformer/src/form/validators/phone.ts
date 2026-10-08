@@ -6,7 +6,8 @@
  * @module form/validators/phone
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 /**
@@ -43,7 +44,7 @@ export interface PhoneValidatorOptions extends ValidateOptions {
  *
  * @param options - Опции валидатора {@link PhoneValidatorOptions}. В `params` ошибки
  *   автоматически попадает выбранный `format`.
- * @returns Чистый валидатор {@link Validator} для строкового поля
+ * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка номера телефона
  * ```typescript
@@ -56,9 +57,7 @@ export interface PhoneValidatorOptions extends ValidateOptions {
  * });
  * ```
  */
-export function phone<TForm = unknown, TField extends string | null | undefined = string>(
-  options?: PhoneValidatorOptions
-): Validator<TForm, TField> {
+export function phone(options?: PhoneValidatorOptions): Rule<string | null | undefined> {
   const format: PhoneFormat = options?.format ?? 'any';
   const regex = PHONE_PATTERNS[format];
 
@@ -66,7 +65,7 @@ export function phone<TForm = unknown, TField extends string | null | undefined 
     if (!value) {
       return null;
     }
-    if (!regex.test(value as string)) {
+    if (!regex.test(value)) {
       return validationError('phone', options, { format });
     }
     return null;

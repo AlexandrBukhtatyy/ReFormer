@@ -2,50 +2,60 @@
 
 Массивы объектов — **model-owned**: данные принадлежат модели (`model.arrayField` — это
 `ModelArray<Item>` с реактивными `push`/`removeAt`/`length`). В схеме массив объявляется узлом
-`{ array: model.<path>, item: (itemModel) => subSchema }`, где `item` строит под-схему одного
-элемента из его под-модели (`FormModel<Item>`).
+`{ model: model.$.<path>, item: (itemModel) => узел }`, где `item` строит разметку одной строки
+из её под-модели (`FormModel<Item>`).
 
 ```typescript
-import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
-import { Input, InputNumber } from '@reformer/ui-kit';
+import {
+  arrayOf,
+  createModel,
+  createFormFromModel,
+  type FormModel,
+  type FormSchemaNode,
+} from '@reformer/core';
+import { FormArray, Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
 
-const model = createModel<MyForm>({ items: [] });
+// arrayOf(blank) — пустой список и шаблон строки для кнопки «Добавить»
+const blankItem = (): Item => ({ id: '', name: '', price: 0 });
+const model = createModel<MyForm>({ items: arrayOf(blankItem) });
 
-// под-схема одного элемента (item.$.field — сигнал под-модели)
-const itemSchema = (item: FormModel<Item>) => ({
-  id:    { value: item.$.id,    component: Input },
-  name:  { value: item.$.name,  component: Input },
-  price: { value: item.$.price, component: InputNumber },
+// разметка одной строки (item.$.field — ручка под-модели строки)
+const itemRow = (item: FormModel<Item>): FormSchemaNode => ({
+  children: [
+    { model: item.$.id, component: Input },
+    { model: item.$.name, component: Input },
+    { model: item.$.price, component: InputNumber },
+  ],
 });
 
-const schema = {
-  items: { array: model.items, item: itemSchema },
+const schema: FormSchemaNode = {
+  children: [{ model: model.$.items, component: FormArray, item: itemRow }],
 };
 
 const form = createFormFromModel<MyForm>({ model, schema });
+form.items; // ModelArrayNode<Item> — форма каждой строки: form.items.at(i)
 ```
 
-> **Type constraint:** тип элемента `Item` объявляй через `type`-alias (не `interface`) — иначе
-> он не совместим с `Record<string, FormValue>` и `ArrayNode<Item>` его отвергнет.
-> См. `30-type-safety-recipes.md`.
+> Привязка массива — **ручка** `model.$.items`, как у поля и подформы. `item` на привязке, которая
+> массивом не является (лист, группа), — ошибка компиляции.
 
 ### Массив как ОДНО значение поля
 
 Массив бывает не набором под-форм, а одним значением: мультивыбор, теги, список файлов. Чем он
-является, решает **схема**, а не данные: `{ array, item }` — набор под-форм, а узел поля
-`{ value: model.$.<путь>, component }` — одно значение. Массив, к которому в схеме ничего не
-привязано, в форму не попадает.
+является, решает **схема**, а не данные: `{ model, item }` — набор под-форм, а узел поля
+`{ model: model.$.<путь>, component }` без `item` — одно значение. Массив, к которому в схеме
+ничего не привязано, в форму не попадает.
 
 ```typescript
 type MyForm = { tags: string[] };
 
 const model = createModel<MyForm>({ tags: [] });
 
-const schema = {
-  tags: { value: model.$.tags, component: SelectMulti }, // поле над массивом целиком
+const schema: FormSchemaNode = {
+  children: [{ model: model.$.tags, component: SelectMulti }], // поле над массивом целиком
 };
 const form = createFormFromModel<MyForm>({ model, schema });
 
@@ -54,7 +64,7 @@ model.$.tags.value = ['c']; // ручка значения: заменяет м�
 validate(model.$.tags, [required(), maxLength(3)]); // правило получает массив
 ```
 
-- `model.$.<массив>` — записываемая ручка значения (`PathAwareSignal`): подходит для `value:` в
+- `model.$.<массив>` — записываемая ручка значения (`PathAwareSignal`): подходит для `model:` в
   схеме, `validate`/`cross`, `enableWhen`/`copyFrom` и для `model.signalAt(path)`.
 - Узел-массив хранит только массив: запись `null`/`undefined` даёт `[]`. Нужно отличать «не
   выбирали» от «выбрали ничего» — объявляй поле `T[] | null` с начальным `null`: в рантайме это
@@ -64,18 +74,22 @@ validate(model.$.tags, [required(), maxLength(3)]); // правило получ
 
 ### Массив в группе и в строке другого массива
 
-Узел `{ array, item }` стоит на любой глубине: массив в группе получает ноду `form.<группа>.<массив>`,
-массив в строке — `form.<массив>.at(i).<массив>`. Под-схема строки объявляет свои массивы так же.
+Узел `{ model, item }` стоит на любой глубине: массив в группе получает ноду `form.<группа>.<массив>`,
+массив в строке — `form.<массив>.at(i).<массив>`. Разметка строки объявляет свои массивы так же.
 
 ```typescript
-const contactItem = (contact: FormModel<Contact>) => ({
-  name: { value: contact.$.name, component: Input },
-  phones: { array: contact.phones, item: phoneItem }, // массив в строке массива
+const contactRow = (contact: FormModel<Contact>): FormSchemaNode => ({
+  children: [
+    { model: contact.$.name, component: Input },
+    { model: contact.$.phones, item: phoneRow }, // массив в строке массива
+  ],
 });
 
-const schema = {
-  hotlines: { array: model.details.hotlines, item: phoneItem }, // массив в группе
-  contacts: { array: model.contacts, item: contactItem },
+const schema: FormSchemaNode = {
+  children: [
+    { model: model.$.details.hotlines, item: phoneRow }, // массив в группе
+    { model: model.$.contacts, item: contactRow },
+  ],
 };
 ```
 
@@ -86,36 +100,36 @@ const schema = {
 Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко
 перепутать, но каждая корректна только в своём контексте:
 
-1. **Layout-схема `createForm`** — единственная форма, которую ест `createForm`:
-   `{ array: model.<path>, item: (itemModel) => subSchema }`. Массив связывается через
-   **value-proxy** `model.properties` (он несёт `__path`), а **не** через сигнальный
-   `model.$.properties`.
+1. **Схема формы** — узел `{ model: model.$.<path>, item: (itemModel) => узел }` среди `children`
+   дерева:
 
    ```typescript
-   // узел схемы для createFormFromModel({ model, schema })
-   properties: { array: model.properties, item: propertyItem },
+   // узел схемы для createForm / createFormFromModel
+   { model: model.$.properties, component: FormArray, item: propertyRow },
    ```
 
-2. **Validation-схема (`@reformer/core/validation`)** — per-item правила пишутся оператором
-   `each(arr, (im) => {...})` внутри `defineValidationSchema`; `im` — под-модель элемента
-   (`im.$.field` — его сигналы). Запуск — внешним `validateModel(model, schema)`.
+2. **Схема валидации (`@reformer/core/validation`)** — правила строки объявляются отдельной схемой
+   над типом строки и подключаются оператором `applyEach(model.$.<массив>, схема)`. У схемы строки
+   своя область: её `cross` получает снимок строки. Запуск — `validateModel(model, schema)`.
 
    ```typescript
-   // внутри defineValidationSchema<MyForm>(({ model }) => { ... })
-   each(model.properties, (im) => {
-     validate(im.$.description, [required()]);
-     validate(im.$.estimatedValue, [required(), min(1)]);
+   const propertyRules = defineValidationSchema<Property>(({ model }) => {
+     validate(model.$.description, [required()]);
+     validate(model.$.estimatedValue, [required(), min(1)]);
    });
+
+   // внутри defineValidationSchema<MyForm>(({ model }) => { ... })
+   applyEach(model.$.properties, propertyRules);
    ```
 
 3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
    а не со схемой: `<FormArray.Root control={form.properties}>` (CDK) или `FormArraySection` из
    `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
 
-> **Не путай форму по движку.** `createForm` принимает **только** `{ array, item }`;
-> per-item валидация — это `each(model.<array>, (im) => ...)` в validation-схеме; `FormArray.Root
-> control={form.x}` (или `FormArraySection`) — рендер. `each` в layout-схеме `createForm`
-> не подхватится, а `{ array, item }` в validation-схеме не обходится.
+> **Не путай запись по движку.** Схема формы — узел `{ model, item }`; правила строк —
+> `applyEach(model.$.<массив>, схема)` в схеме валидации; `FormArray.Root control={form.x}` (или
+> `FormArraySection`) — рендер. `applyEach` в схеме формы не подхватится, а узел `{ model, item }`
+> схема валидации не обходит.
 
 ### Array operations — на модели
 
@@ -183,28 +197,27 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
 ### Array Cross-Validation
 
-Whole-array правило пишется оператором `cross(sig, (f) => ...)`: `f` — снапшот `model.get()`
-(плоские значения), ошибка вешается на поле-носитель `sig`. Per-item правила — `each`
-(см. выше, оба — из `@reformer/core/validation`).
+Правило над всем массивом пишется оператором `cross` из аргумента схемы: `check` получает снимок
+модели области (`model.get()`, плоские значения), ошибка вешается на поле-носитель. Тип снимка
+выведен из схемы. Правила строк — `applyEach` (см. выше).
 
 Носитель — любое **скалярное** поле формы (флаг `hasItems`, итоговая сумма и т.п.), у которого
-есть сигнал `model.$.<field>` и нода в форме:
+есть ручка `model.$.<field>` и нода в форме:
 
 ```typescript
-import { cross } from '@reformer/core/validation';
-
 type MyForm = { hasItems: boolean; items: Item[] };
 
-// внутри defineValidationSchema<MyForm>(({ model }) => { ... })
-cross(model.$.hasItems, (f: MyForm) => {
-  const names = f.items.map((i) => i.name);
-  return names.length !== new Set(names).size
-    ? { code: 'duplicate', message: 'Item names must be unique' }
-    : null;
+defineValidationSchema<MyForm>(({ model, cross }) => {
+  cross(model.$.hasItems, (form) => {
+    const names = form.items.map((item) => item.name);
+    return names.length !== new Set(names).size
+      ? { code: 'duplicate', message: 'Item names must be unique' }
+      : null;
+  });
 });
 ```
 
 ## See also
 
-- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, per-item валидация `each`
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, правила строк `applyEach`
 - CDK / ui-kit form-array (`FormArray.Root`, `FormArraySection`) — `find_recipe(topic="form-array")`

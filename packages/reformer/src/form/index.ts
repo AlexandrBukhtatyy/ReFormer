@@ -2,7 +2,7 @@
  * Модуль `form` — доменный слой формы поверх реактивной модели (`model`).
  *
  * Ноды (value/touched/dirty/status/errors/componentProps), сборка формы из модели по идентичности
- * сигнала (`createForm`), state-операции над нодами (`enableWhen`/`disableWhen`), submit/статус.
+ * сигнала (`createForm`), submit/статус.
  * React-биндинги вынесены в `platforms/react` — этот слой от React не зависит.
  * Schema-валидация — внешний контракт `@reformer/core/validation` (`validateModel`),
  * роутит ошибки в ноды через реестр сигнал→нода. Зависит от `model` (form→model разрешено);
@@ -14,10 +14,8 @@
 
 // Ноды формы.
 export { FormNode } from './nodes/form-node';
-export type { SetValueOptions } from './nodes/form-node';
 export { FieldNode } from './nodes/field-node';
 export { GroupNode } from './nodes/group-node';
-export { ArrayNode } from './nodes/array-node';
 export { ModelArrayNode } from './nodes/model-array-node';
 export type { ModelArrayControl } from './nodes/model-array-node';
 
@@ -31,8 +29,8 @@ export type {
   SchemaResolver,
 } from './form-bundle';
 
-// Низкоуровневые фабрики: из модели и готового дерева; из конфига без модели.
-export { createFormFromModel, createLegacyForm } from './create-form';
+// Низкоуровневая фабрика: из модели и готового дерева.
+export { createFormFromModel } from './create-form';
 export type { CreateFormFromModelArgs } from './create-form';
 // Поддерево строки массива или подформы — одно на пару «билдер + под-модель».
 export { schemaSubtree } from './schema-subtree';
@@ -61,12 +59,6 @@ export type { FormValidation, FormValidationBundle } from './validation/config';
 
 // Валидация: контракт `@reformer/core/validation` (validateModel + операторы) — отдельный сабпат,
 // в root не реэкспортируется. Старый дерево-движок (`validateFormModel`/`validateModel`(tree)) удалён.
-// State-операции над нодами.
-export { enableWhen, disableWhen } from './behaviors/node';
-
-// Обработчик ошибок валидации (конвертация throw → ValidationError, dev-лог).
-export { FormErrorHandler, ErrorStrategy } from './validation/error-handler';
-
 // Шов сигнал→нода.
 export { registerSignalNode, getNodeForSignal } from './signal-node-registry';
 

@@ -3,7 +3,7 @@
  *
  * Баг (до фикса): переопределён был только `onMarkAsTouched`; `markAsUntouched`/`markAsPristine`/
  * `markAsDirty`/`disable`/`enable` были no-op на элементах (базовые сигналы игнорируются, т.к.
- * агрегатное состояние выводится из детей). Тест строит ModelArrayNode через createLegacyForm({ array, item })
+ * агрегатное состояние выводится из детей). Тест строит ModelArrayNode через createFormFromModel (узел { array, item })
  * и проверяет, что операции доезжают до per-item форм.
  */
 
@@ -21,14 +21,14 @@ interface Form {
 }
 
 const itemSchema = (it: FormModel<Item>) => ({
-  children: [{ value: it.$.name }, { value: it.$.qty }],
+  children: [{ model: it.$.name }, { model: it.$.qty }],
 });
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function build(): any {
   const model = createModel<Form>({ rows: [] });
   const schema = {
-    children: [{ array: model.rows, item: (it: FormModel<Item>) => itemSchema(it) }],
+    children: [{ model: model.$.rows, item: (it: FormModel<Item>) => itemSchema(it) }],
   };
   const form = createFormFromModel<Form>({ model, schema }) as any;
   form.rows.push({ name: 'a', qty: 1 });

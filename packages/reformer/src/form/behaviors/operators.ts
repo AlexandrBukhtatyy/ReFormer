@@ -13,15 +13,14 @@ import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import {
   copyFrom as coreCopyFrom,
   watchField as coreWatchField,
-  enableWhen as coreEnableWhen,
   transformValue as coreTransformValue,
   resetWhen as coreResetWhen,
   syncFields as coreSyncFields,
   revalidateWhen as coreRevalidateWhen,
-  runOutsideEffect,
-  markDerived,
-  unmarkDerived,
-} from '../../index';
+} from '../../model/behaviors-value';
+import { markDerived, unmarkDerived } from '../../model/derived-registry';
+import { runOutsideEffect } from '../../model/safe-effect';
+import { enableWhen as coreEnableWhen } from './node';
 import { getNodeForSignal } from '../signal-node-registry';
 import { onDispose, effect, defer } from './context';
 import {

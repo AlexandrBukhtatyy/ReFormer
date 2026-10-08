@@ -6,7 +6,8 @@
  * @module form/validators/email
  */
 
-import type { Validator, ValidateOptions } from '../types/validation-schema';
+import type { ValidateOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
 import { validationError } from './validation-error';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,7 +19,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * (`''`/`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
- * @returns Чистый валидатор {@link Validator} для строкового поля
+ * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка формата email
  * ```typescript
@@ -31,14 +32,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * });
  * ```
  */
-export function email<TForm = unknown, TField extends string | null | undefined = string>(
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function email(options?: ValidateOptions): Rule<string | null | undefined> {
   return (value) => {
     if (!value) {
       return null;
     }
-    if (!EMAIL_REGEX.test(value as string)) {
+    if (!EMAIL_REGEX.test(value)) {
       return validationError('email', options);
     }
     return null;

@@ -151,13 +151,13 @@ describe('apply(ручка группы, схема)', () => {
     expect(codesOf(form.residence.city)).toEqual([]);
   });
 
-  it('правило получает область вторым аргументом и корень прогона третьим', async () => {
-    const model = createShape();
-    const seen: unknown[] = [];
-    const spy = ((value: unknown, scope: unknown, root: unknown) => {
-      seen.push(scope, root);
+  it('правило получает только значение поля', async () => {
+    const model = createShape({ registration: { city: 'Казань', street: 'Баумана' } });
+    const seen: unknown[][] = [];
+    const spy = (...received: unknown[]) => {
+      seen.push(received);
       return null;
-    }) as never;
+    };
     const subRules = defineValidationSchema<Address>(({ model }) => {
       validate(model.$.city, [spy]);
     });
@@ -167,7 +167,50 @@ describe('apply(ручка группы, схема)', () => {
 
     await validateModel(model, rules);
 
-    expect(seen).toEqual([model.registration, model]);
+    expect(seen).toEqual([['Казань']]);
+  });
+
+  it('cross области получает снимок своей модели, а не корня прогона', async () => {
+    const model = createShape({ registration: { city: 'Казань', street: 'Баумана' } });
+    const snapshots: unknown[] = [];
+    const subRules = defineValidationSchema<Address>(({ model, cross }) => {
+      cross(model.$.city, (address) => {
+        snapshots.push(address);
+        return null;
+      });
+    });
+    const rules = defineValidationSchema<Shape>(({ model, cross }) => {
+      cross(model.$.registration.city, (shape) => {
+        snapshots.push(shape);
+        return null;
+      });
+      apply(model.$.registration, subRules);
+    });
+
+    await validateModel(model, rules);
+
+    expect(snapshots).toEqual([model.get(), { city: 'Казань', street: 'Баумана' }]);
+  });
+
+  it('cross внешней области внутри подформы сохраняет снимок своей модели', async () => {
+    const model = createShape({ registration: { city: 'Казань', street: 'Баумана' } });
+    const snapshots: unknown[] = [];
+    const rules = defineValidationSchema<Shape>(({ model, cross }) => {
+      apply(
+        model.$.registration,
+        defineValidationSchema<Address>(({ model: address }) => {
+          // `cross` взят из внешней области: его снимок — вся форма.
+          cross(address.$.city, (shape) => {
+            snapshots.push(shape);
+            return null;
+          });
+        })
+      );
+    });
+
+    await validateModel(model, rules);
+
+    expect(snapshots).toEqual([model.get()]);
   });
 
   it('после подформы область родителя возвращается', async () => {

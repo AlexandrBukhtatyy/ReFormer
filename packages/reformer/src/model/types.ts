@@ -157,7 +157,7 @@ export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>
  * push/removeAt/move).
  *
  * В отличие от группы, узел ЗАПИСЫВАЕМ: `model.$.tags.value = ['a']` заменяет массив целиком. Это
- * делает его {@link PathAwareSignal} — к нему привязывают поле (`{ value: model.$.tags, component }`),
+ * делает его {@link PathAwareSignal} — к нему привязывают поле (`{ model: model.$.tags, component }`),
  * правило (`validate(model.$.tags, …)`) и поведение, как к листу. Так массив служит ОДНИМ значением
  * поля: мультивыбор, теги, список файлов.
  *

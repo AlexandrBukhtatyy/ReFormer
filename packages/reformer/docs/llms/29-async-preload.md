@@ -30,26 +30,32 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 ### Initial values в модели
 
 ```typescript
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormSchemaNode } from '@reformer/core';
 import { Input, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
 
 const model = createModel<ProfileForm>({ username: '', language: 'ru', marketing: true });
-const schema = {
-  username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
-  language: {
-    value: model.$.language,
-    component: SelectAsync,
-    componentProps: {
-      label: 'Язык',
-      options: [
-        { value: 'ru', label: 'Русский' },
-        { value: 'en', label: 'English' },
-      ],
+const schema: FormSchemaNode = {
+  children: [
+    { model: model.$.username, component: Input, componentProps: { label: 'Username' } },
+    {
+      model: model.$.language,
+      component: SelectAsync,
+      componentProps: {
+        label: 'Язык',
+        options: [
+          { value: 'ru', label: 'Русский' },
+          { value: 'en', label: 'English' },
+        ],
+      },
     },
-  },
-  marketing: { value: model.$.marketing, component: CheckboxWithLabel, componentProps: { label: 'Рассылка' } },
+    {
+      model: model.$.marketing,
+      component: CheckboxWithLabel,
+      componentProps: { label: 'Рассылка' },
+    },
+  ],
 };
 const form = createFormFromModel({ model, schema });
 // model.get() === { username: '', language: 'ru', marketing: true }

@@ -5,19 +5,20 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 import { GroupNode } from '../../../src/form/nodes/group-node';
-import { ArrayNode } from '../../../src/form/nodes/array-node';
+import type { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
 import { FormNode } from '../../../src/form/nodes/form-node';
-import { createLegacyForm } from '../../../src/form/create-form';
 import { isArrayNode, isFieldNode, isGroupNode } from '../../../src/form/type-guards';
 import { ComponentInstance } from '../../test-utils/types';
+import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
 describe('FormNode Type Guards', () => {
   describe('isFieldNode()', () => {
     it('should return true for FieldNode', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: null as ComponentInstance,
       });
 
@@ -25,7 +26,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should return false for GroupNode', () => {
-      const group = createLegacyForm({
+      const group = formFromFields({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -33,7 +34,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should return false for ArrayNode', () => {
-      const array = new ArrayNode({
+      const array = arrayFromFields({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -42,7 +43,7 @@ describe('FormNode Type Guards', () => {
 
     it('should allow TypeScript type narrowing', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: null as ComponentInstance,
       });
 
@@ -57,7 +58,7 @@ describe('FormNode Type Guards', () => {
 
   describe('isGroupNode()', () => {
     it('should return true for GroupNode', () => {
-      const group = createLegacyForm({
+      const group = formFromFields({
         name: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
       });
@@ -67,7 +68,7 @@ describe('FormNode Type Guards', () => {
 
     it('should return false for FieldNode', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: null as ComponentInstance,
       });
 
@@ -75,7 +76,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should return false for ArrayNode', () => {
-      const array = new ArrayNode({
+      const array = arrayFromFields({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -83,7 +84,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should allow TypeScript type narrowing', () => {
-      const group = createLegacyForm({
+      const group = formFromFields({
         name: { value: 'John', component: null as ComponentInstance },
       });
 
@@ -97,7 +98,7 @@ describe('FormNode Type Guards', () => {
 
   describe('isArrayNode()', () => {
     it('should return true for ArrayNode', () => {
-      const array = new ArrayNode({
+      const array = arrayFromFields({
         name: { value: '', component: null as ComponentInstance },
         age: { value: 0, component: null as ComponentInstance },
       });
@@ -107,7 +108,7 @@ describe('FormNode Type Guards', () => {
 
     it('should return false for FieldNode', () => {
       const field = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: null as ComponentInstance,
       });
 
@@ -115,7 +116,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should return false for GroupNode', () => {
-      const group = createLegacyForm({
+      const group = formFromFields({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -123,7 +124,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should allow TypeScript type narrowing', () => {
-      const array = new ArrayNode({
+      const array = arrayFromFields({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -145,7 +146,7 @@ describe('FormNode Type Guards', () => {
         tags: Array<{ label: string }>;
       }
 
-      const form = createLegacyForm<Form>({
+      const form = formFromFields<Form>({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -179,10 +180,10 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should handle type guards in conditional logic', () => {
-      const nodes: Array<FieldNode<unknown> | GroupNode<unknown> | ArrayNode<unknown>> = [
-        new FieldNode({ value: 'test', component: null as ComponentInstance }),
-        createLegacyForm({ name: { value: '', component: null as ComponentInstance } }),
-        new ArrayNode({ name: { value: '', component: null as ComponentInstance } }),
+      const nodes: Array<FieldNode<unknown> | GroupNode<unknown> | ModelArrayNode<object>> = [
+        new FieldNode({ valueSignal: signal('test'), component: null as ComponentInstance }),
+        formFromFields({ name: { value: '', component: null as ComponentInstance } }),
+        arrayFromFields({ name: { value: '', component: null as ComponentInstance } }),
       ];
 
       let fieldCount = 0;
@@ -237,10 +238,10 @@ describe('FormNode Type Guards', () => {
 
   describe('TypeScript type narrowing', () => {
     it('should narrow union types correctly', () => {
-      type FormNodeUnion = FieldNode<string> | GroupNode<unknown> | ArrayNode<unknown>;
+      type FormNodeUnion = FieldNode<string> | GroupNode<unknown> | ModelArrayNode<object>;
 
       const node: FormNodeUnion = new FieldNode({
-        value: 'test',
+        valueSignal: signal('test'),
         component: null as ComponentInstance,
       });
 
@@ -263,9 +264,12 @@ describe('FormNode Type Guards', () => {
         return 'unknown';
       }
 
-      const field = new FieldNode({ value: 'test', component: null as ComponentInstance });
-      const group = createLegacyForm({ name: { value: '', component: null as ComponentInstance } });
-      const array = new ArrayNode({ name: { value: '', component: null as ComponentInstance } });
+      const field = new FieldNode({
+        valueSignal: signal('test'),
+        component: null as ComponentInstance,
+      });
+      const group = formFromFields({ name: { value: '', component: null as ComponentInstance } });
+      const array = arrayFromFields({ name: { value: '', component: null as ComponentInstance } });
 
       expect(processNode(field)).toBe('field');
       expect(processNode(group)).toBe('group');

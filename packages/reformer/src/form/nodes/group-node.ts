@@ -13,18 +13,10 @@
 
 import { signal, computed, effect, batch } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
-import { FormNode, type SetValueOptions } from './form-node';
-import type {
-  ValidationError,
-  FieldStatus,
-  FormSchema,
-  GroupNodeConfig,
-  FormValue,
-  ArrayNodeLike,
-} from '../types/index';
+import { FormNode } from './form-node';
+import type { ValidationError, FieldStatus, FormValue, ArrayNodeLike } from '../types/index';
 import type { FormProxy } from '../types/form-proxy';
 import { uniqueId, SubscriptionKey } from '../unique-id';
-import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from './subscription-manager';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
@@ -54,24 +46,21 @@ function parsePathSegments(path: string): PathSegment[] {
 /**
  * GroupNode - узел для группы полей
  *
- * Создаётся из {@link FormSchema} (дерево field-конфигов). Обычно строится через `createForm`
- * (M1: `createFormFromModel({ model, schema })`); schema-валидация/behavior живут на слое модели
- * (`validateModel` из `@reformer/core/validation`, `computeFrom`/`enableWhen`/…), а не на ноде.
+ * Собирается из готовых нод детей. Обычно группу строит сборка формы
+ * (`createFormFromModel({ model, schema })`) по виду узлов модели; схема валидации и поведение
+ * живут на слое модели (`validateModel` из `@reformer/core/validation`,
+ * `defineFormBehavior`), а не на ноде.
  *
  * @group Nodes
  *
  * @example
  * ```typescript
- * const form = new GroupNode({
- *   email: { valueSignal: model.$.email, component: Input },
- *   password: { valueSignal: model.$.password, component: Input },
- * });
+ * const model = createModel({ email: '', password: '' });
+ * const form = createFormFromModel({ model });
  *
  * // Прямой доступ к полям через Proxy
- * const proxy = form.getProxy();
- * proxy.email.setValue('test@mail.com');
- * await proxy.validate();
- * console.log(proxy.valid.value);
+ * form.email.setValue('test@mail.com');
+ * console.log(form.valid.value);
  * ```
  */
 export class GroupNode<T> extends FormNode<T> {
@@ -100,11 +89,6 @@ export class GroupNode<T> extends FormNode<T> {
    * Cleanup декларативной схемы поведения (createForm({ behavior })). Вызывается в dispose().
    */
   private _behaviorCleanup?: () => void;
-
-  /**
-   * Фабрика для создания узлов формы
-   */
-  private readonly nodeFactory = new NodeFactory();
 
   // ============================================================================
   // Приватные сигналы состояния (inline из StateManager)
@@ -143,44 +127,23 @@ export class GroupNode<T> extends FormNode<T> {
   public readonly submitting: ReadonlySignal<boolean>;
 
   // ============================================================================
-  // Конструктор с перегрузками
+  // Конструктор
   // ============================================================================
 
   /**
-   * Создать GroupNode только со схемой формы (обратная совместимость)
+   * @param fields - Готовые ноды детей по именам полей данных. Вид ребёнка (поле, группа, массив)
+   *   определён тем, какую ноду передали: по именам и значениям группа ничего не угадывает,
+   *   поэтому поле данных может называться как угодно.
    */
-  constructor(schema: FormSchema<T>);
-
-  /**
-   * Создать GroupNode с полной конфигурацией (form, behavior, validation)
-   */
-  constructor(config: GroupNodeConfig<T>);
-
-  constructor(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(fields: Iterable<readonly [string, FormNode<any>]>) {
     super();
 
     // Инициализация FormSubmitter (должна быть первой, т.к. submitting сигнал используется ниже)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.formSubmitter = new FormSubmitter(this as any);
 
-    // Принимаем либо плоскую FormSchema (M1-путь createForm), либо обёртку `{ form: FormSchema }`.
-    // Строкового ключа `'form' in x` мало: поле данных верхнего уровня, буквально названное `form`,
-    // тоже породило бы ключ `form`. Различаем по форме значения: у обёртки `form` — это под-схема
-    // (её значения — FieldConfig'и), а у поля-данных `form` — сам FieldConfig (несёт «ручку»
-    // значения `valueSignal`/`value`). Так поле, названное `form`, больше не ломает форму.
-    const formVal = (schemaOrConfig as { form?: unknown }).form;
-    const formIsFieldConfig =
-      formVal != null &&
-      typeof formVal === 'object' &&
-      ('valueSignal' in formVal || 'value' in formVal);
-    const isConfig = 'form' in schemaOrConfig && !formIsFieldConfig;
-    const formSchema = isConfig
-      ? (schemaOrConfig as GroupNodeConfig<T>).form
-      : (schemaOrConfig as FormSchema<T>);
-
-    // Создать поля из схемы с поддержкой вложенности
-    for (const [key, fieldConfig] of Object.entries(formSchema)) {
-      const node = this.createNode(fieldConfig);
+    for (const [key, node] of fields) {
       this._fields.set(key as keyof T, node);
     }
 
@@ -245,7 +208,7 @@ export class GroupNode<T> extends FormNode<T> {
     return result;
   }
 
-  setValue(value: T, options?: SetValueOptions): void {
+  setValue(value: T): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const [key, fieldValue] of Object.entries(value as any)) {
       const field = this._fields.get(key as keyof T);
@@ -255,15 +218,13 @@ export class GroupNode<T> extends FormNode<T> {
         const derivedSig = this._fieldSignals.get(field) ?? (field.value as Signal<unknown>);
         if (isDerived(derivedSig)) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        field.setValue(fieldValue as any, options);
+        field.setValue(fieldValue as any);
       }
     }
   }
 
   patchValue(value: Partial<T>): void {
     // Используем batch чтобы все обновления происходили атомарно
-    // emitEvent: false предотвращает N валидаций при обновлении N полей
-    // Валидация НЕ запускается автоматически - вызовите validate() если нужно
     batch(() => {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
@@ -273,7 +234,7 @@ export class GroupNode<T> extends FormNode<T> {
           const derivedSig = this._fieldSignals.get(field) ?? (field.value as Signal<unknown>);
           if (isDerived(derivedSig)) continue;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          field.setValue(fieldValue as any, { emitEvent: false });
+          field.setValue(fieldValue as any);
         }
       }
     });
@@ -321,21 +282,16 @@ export class GroupNode<T> extends FormNode<T> {
     });
   }
 
-  async validate(): Promise<boolean> {
-    // Очищаем ошибки перед валидацией
-    this.clearErrors();
-
-    // Валидация всех полей (legacy-путь: у FieldNode есть собственные валидаторы).
-    await Promise.all(Array.from(this._fields.values()).map((field) => field.validate()));
-
-    // Schema-валидация живёт ВНЕ формы: `validateModel(model, schema)` из `@reformer/core/validation`
-    // прогоняется приложением по требованию и сам роутит ошибки в ноды (setErrors). `validate()`/
-    // `submit()` отражают текущее состояние нод (+ собственные валидаторы FieldNode), а не запускают
-    // schema-валидацию.
-    const fieldsValid = Array.from(this._fields.values()).every(
-      (field) => field.valid.value || field.disabled.value
-    );
-    return fieldsValid;
+  /**
+   * Текущая валидность группы: нет form-level ошибок и все включённые дети валидны.
+   *
+   * Правил группа не исполняет и ошибок не стирает. Schema-валидация живёт ВНЕ формы:
+   * `validateModel(model, schema)` из `@reformer/core/validation` прогоняется приложением по
+   * требованию и сам разносит ошибки по нодам (`setErrors`); `validate()` и `submit()` отражают
+   * то, что он разнёс.
+   */
+  validate(): Promise<boolean> {
+    return Promise.resolve(this.valid.value);
   }
 
   /**
@@ -379,12 +335,9 @@ export class GroupNode<T> extends FormNode<T> {
    *
    * @example
    * ```typescript
-   * const form = new GroupNode({
-   *   email: { value: '', component: Input },
-   *   name: { value: '', component: Input },
-   * });
+   * const model = createModel({ email: '', name: '' });
+   * const proxy = createFormFromModel({ model });
    *
-   * const proxy = form.getProxy();
    * console.log(proxy.email.value.value); // Прямой доступ к полю
    * ```
    */
@@ -474,13 +427,12 @@ export class GroupNode<T> extends FormNode<T> {
    *
    * @example
    * ```typescript
-   * const form = new GroupNode({
-   *   email: { value: '', component: Input },
-   *   address: {
-   *     city: { value: '', component: Input }
-   *   },
-   *   items: [{ name: { value: '', component: Input } }]
+   * const model = createModel({
+   *   email: '',
+   *   address: { city: '' },
+   *   items: arrayOf(() => ({ name: '' }), [{ name: '' }]),
    * });
+   * const form = createFormFromModel({ model, schema });
    *
    * form.getFieldByPath('email');           // FieldNode
    * form.getFieldByPath('address.city');    // FieldNode
@@ -534,31 +486,6 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   // ============================================================================
-  // Private методы для создания узлов
-  // ============================================================================
-
-  /**
-   * Создать узел на основе конфигурации
-   *
-   * ✅ РЕФАКТОРИНГ: Полное делегирование NodeFactory
-   *
-   * NodeFactory теперь обрабатывает:
-   * - Массивы [schema, ...items]
-   * - FieldConfig
-   * - GroupConfig
-   * - ArrayConfig
-   *
-   * @param config Конфигурация узла
-   * @returns Созданный узел формы
-   * @private
-   */
-  private createNode(config: unknown): FormNode<unknown> {
-    //  Полное делегирование NodeFactory
-    // NodeFactory теперь поддерживает массивы напрямую
-    return this.nodeFactory.createNode(config);
-  }
-
-  // ============================================================================
   // Методы-помощники для реактивности (Фаза 1)
   // ============================================================================
 
@@ -583,7 +510,7 @@ export class GroupNode<T> extends FormNode<T> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transformedValue = transform ? transform(sourceValue as any) : (sourceValue as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      targetField.setValue(transformedValue as any, { emitEvent: false });
+      targetField.setValue(transformedValue as any);
     });
 
     const key = uniqueId(SubscriptionKey.LinkFields);
