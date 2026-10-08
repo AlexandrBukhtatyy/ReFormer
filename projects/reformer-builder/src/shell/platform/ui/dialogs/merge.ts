@@ -44,13 +44,28 @@ export interface MergeColumn {
   /** Есть ли что показывать. Ложно у основания, которого нет, и у исчезнувшего файла. */
   readonly available: boolean;
   readonly lines: readonly string[];
+  /**
+   * Номера строк (с нуля), которых нет в основании, — то, что эта сторона добавила или
+   * изменила. По ним колонка показывает, ГДЕ правка: файл в сотню строк ради одной изменённой
+   * человек читать не станет. У основания и у стороны без основания — пусто.
+   */
+  readonly changed: readonly number[];
   /** Насколько эта сторона ушла от основания. У самого основания — нули. */
   readonly added: number;
   readonly removed: number;
 }
 
+/**
+ * Почему диалог открыт.
+ *
+ * `mergeable` — правки не пересеклись и результат разобрался: слияние готово, и человеку
+ * остаётся его подтвердить. Спросить всё равно надо: он правил файл руками в другом месте
+ * и вправе знать, что с этой правкой стало, — а заодно вправе от неё отказаться.
+ */
+export type MergeDialogReason = AskReason | 'mergeable';
+
 export interface MergeDialogModel {
-  readonly reason: AskReason;
+  readonly reason: MergeDialogReason;
   /** Всегда три и всегда в одном порядке: основание, наша, источника. */
   readonly columns: readonly MergeColumn[];
   /** Исходы, которые сейчас имеют смысл. Пусто не бывает: «оставить свою» есть всегда. */
@@ -58,6 +73,11 @@ export interface MergeDialogModel {
   readonly conflicts: number;
   /** Заготовка ручного слияния: слитый текст с разметкой, а при её отсутствии — наша версия. */
   readonly seed: string;
+  /**
+   * Готовое слияние: правки обеих сторон без спорных участков, разобранное обратно. Есть
+   * только при {@link MergeDialogReason} `mergeable` — его можно принять одной кнопкой.
+   */
+  readonly mergedText?: string;
   /** Сообщение повторного разбора — только когда слияние не разобралось. */
   readonly failure?: string;
 }
@@ -77,17 +97,38 @@ export function validateManualMerge(text: string): ManualMergeCheck {
   return hasConflictMarkers(text) ? 'markers' : 'ok';
 }
 
+/** Номера строк нового текста, которых нет в прежнем. */
+function addedLines(ops: readonly { readonly type: 'same' | 'add' | 'del' }[]): number[] {
+  const added: number[] = [];
+  let line = 0;
+  for (const op of ops) {
+    if (op.type === 'del') continue;
+    if (op.type === 'add') added.push(line);
+    line += 1;
+  }
+  return added;
+}
+
 function column(id: MergeColumnId, text: string | null, base: string | null): MergeColumn {
   if (text === null) {
-    return { id, available: false, lines: [], added: 0, removed: 0 };
+    return { id, available: false, lines: [], changed: [], added: 0, removed: 0 };
   }
   if (id === 'base') {
     // Основание — точка отсчёта, и считать его отклонение от себя незачем.
-    return { id, available: true, lines: text.split('\n'), added: 0, removed: 0 };
+    return { id, available: true, lines: text.split('\n'), changed: [], added: 0, removed: 0 };
   }
   // Основания нет — сравнивать не с чем, и весь текст честно считается добавленным.
-  const stat = diffStat(diffLines(base ?? '', text));
-  return { id, available: true, lines: text.split('\n'), added: stat.added, removed: stat.removed };
+  const ops = diffLines(base ?? '', text);
+  const stat = diffStat(ops);
+  return {
+    id,
+    available: true,
+    lines: text.split('\n'),
+    // Без основания «изменено всё» — правда, но подсвеченная целиком колонка ничего не говорит.
+    changed: base === null ? [] : addedLines(ops),
+    added: stat.added,
+    removed: stat.removed,
+  };
 }
 
 /**
@@ -97,7 +138,9 @@ function column(id: MergeColumnId, text: string | null, base: string | null): Me
  * то есть делать работу, которая уже сделана, и делать её на каждую перерисовку.
  */
 export function describeMergeDialog(sides: MergeSides, plan: MergePlan): MergeDialogModel {
-  const reason: AskReason = plan.kind === 'ask' ? plan.reason : 'conflict';
+  // Готовое слияние — свой повод: назвать его «правки пересеклись» было бы неправдой.
+  const reason: MergeDialogReason =
+    plan.kind === 'ask' ? plan.reason : plan.kind === 'auto' ? 'mergeable' : 'conflict';
   const columns: readonly MergeColumn[] = [
     column('base', sides.base, sides.base),
     column('ours', sides.ours, sides.base),
@@ -112,13 +155,14 @@ export function describeMergeDialog(sides: MergeSides, plan: MergePlan): MergeDi
     choices.push('merged');
   }
 
-  const merged = plan.kind === 'ask' ? plan.merged : undefined;
+  const merged = plan.kind === 'identical' ? undefined : plan.merged;
   return {
     reason,
     columns,
     choices,
     conflicts: merged?.conflicts ?? 0,
     seed: merged?.text ?? sides.ours,
+    ...(plan.kind === 'auto' ? { mergedText: plan.text } : {}),
     ...(plan.kind === 'ask' && plan.failure !== undefined ? { failure: plan.failure } : {}),
   };
 }

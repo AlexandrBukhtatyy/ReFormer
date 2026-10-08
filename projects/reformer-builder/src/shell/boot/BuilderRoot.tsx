@@ -11,6 +11,9 @@
  * не может быть полем собранного приложения: поле не перерисовало бы оболочку, когда проект
  * наконец открылся.
  *
+ * По той же причине здесь стоит и вопрос о расхождении с источником: он принадлежит открытому
+ * проекту, а не оболочке, и появляется вместе с ним.
+ *
  * Корень один на обе оболочки — вкладку браузера (`shell/standalone`) и страницу чужого
  * приложения (`shell/embedded`): рисуют они одно и то же, различается то, что вокруг.
  *
@@ -19,6 +22,7 @@
 
 import { useMemo, type ReactElement } from 'react';
 import { Shell, type ShellHost } from '@/shell/platform/ui/Shell';
+import { MergeQuestionHost } from '@/shell/boot/project/MergeQuestionHost';
 import { useProjectSession } from '@/shell/boot/project/useProject';
 import type { BuilderApp } from './boot';
 
@@ -30,5 +34,10 @@ export function BuilderRoot({ app }: { app: BuilderApp }): ReactElement {
     () => ({ ...app, documents: session?.documents ?? null }),
     [app, session]
   );
-  return <Shell host={host} />;
+  return (
+    <>
+      <Shell host={host} />
+      {session !== null && <MergeQuestionHost flow={session.merge} i18n={app.i18n} />}
+    </>
+  );
 }

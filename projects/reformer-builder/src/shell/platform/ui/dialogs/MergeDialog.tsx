@@ -26,7 +26,7 @@
  * @module shell/platform/ui/dialogs/MergeDialog
  */
 
-import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
 import {
@@ -58,6 +58,13 @@ export interface MergeEditorProps {
   readonly ariaLabel: string;
 }
 
+/** Почему прошлый ответ не принят: текст ручного слияния не разобрался либо запись не удалась. */
+export interface MergeDialogProblem {
+  readonly kind: 'unparsable' | 'failed';
+  /** Сообщение разбора или источника — подставляется в фразу словаря. */
+  readonly message: string;
+}
+
 export interface MergeDialogProps {
   readonly open: boolean;
   /** Имя файла — оно, а не путь: путь уезжает в подсказку заголовка. */
@@ -65,6 +72,8 @@ export interface MergeDialogProps {
   readonly path?: string;
   readonly sides: MergeSides;
   readonly plan: MergePlan;
+  /** Отказ прошлого ответа. Диалог при этом остаётся открытым: набранное не теряется. */
+  readonly problem?: MergeDialogProblem;
   readonly i18n: I18nService;
   /** Закрыть, ничего не решив. Расхождение при этом остаётся. */
   readonly onCancel: () => void;
@@ -83,11 +92,21 @@ function ColumnView({
   column,
   title,
   emptyLabel,
+  focusLine,
 }: {
   readonly column: MergeColumn;
   readonly title: string;
   readonly emptyLabel: string;
+  /** Строка, на которой колонка открывается: первая правка любой из сторон. */
+  readonly focusLine: number | undefined;
 }): ReactElement {
+  const changed = useMemo(() => new Set(column.changed), [column.changed]);
+  // Правка — одна строка из сотни: колонка открывается на ней, а не на шапке файла.
+  const focused = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    focused.current?.scrollIntoView({ block: 'center' });
+  }, [column, focusLine]);
+
   return (
     <section className="flex min-w-0 flex-1 flex-col rounded-md border border-border">
       <header className="flex items-center justify-between gap-2 border-b border-border px-2 py-1">
@@ -104,7 +123,16 @@ function ColumnView({
             {column.lines.map((line, index) => (
               // Ключ по номеру строки: строки не переупорядочиваются, а совпадающие строки
               // в тексте обычны — ключ по содержимому дал бы дубли.
-              <li key={index} className="flex gap-2 px-2">
+              <li
+                key={index}
+                ref={index === focusLine ? focused : undefined}
+                data-changed={changed.has(index) ? '' : undefined}
+                className={
+                  changed.has(index)
+                    ? 'flex gap-2 border-l-2 border-primary bg-accent px-2'
+                    : 'flex gap-2 border-l-2 border-transparent px-2'
+                }
+              >
                 <span className="w-8 shrink-0 text-right text-muted-foreground select-none">
                   {index + 1}
                 </span>
@@ -126,6 +154,7 @@ export function MergeDialog({
   path,
   sides,
   plan,
+  problem,
   i18n,
   onCancel,
   onResolve,
@@ -149,6 +178,15 @@ export function MergeDialog({
     setTab('compare');
   }
 
+  // Все три колонки открываются на одной строке — первой правке любой из сторон: иначе
+  // основание показывало бы шапку файла, а стороны — его середину.
+  const focusLine = useMemo(() => {
+    const firsts = (['ours', 'theirs'] as const)
+      .map((id) => columnOf(model, id).changed[0])
+      .filter((line) => line !== undefined);
+    return firsts.length === 0 ? undefined : Math.min(...firsts);
+  }, [model]);
+
   const manualCheck = validateManualMerge(manual);
   const canMerge = model.choices.includes('merged');
   const canTakeTheirs = model.choices.includes('theirs');
@@ -161,8 +199,10 @@ export function MergeDialog({
         if (!next) onCancel();
       }}
     >
-      {/* `aria-describedby` не гасится: описание здесь настоящее, и Radix связывает его сам. */}
-      <DialogContent className="sm:max-w-5xl">
+      {/* `aria-describedby` не гасится: описание здесь настоящее, и Radix связывает его сам.
+          Колонка сетки диалога ограничена его шириной явно: по умолчанию она растёт до самой
+          длинной строки файла, и колонки сравнения вместе с кнопками уезжали за край окна. */}
+      <DialogContent className="grid-cols-[minmax(0,1fr)] sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle title={path}>{t('shell.merge.title', { name })}</DialogTitle>
           <DialogDescription>
@@ -194,6 +234,7 @@ export function MergeDialog({
                   column={columnOf(model, id)}
                   title={t(COLUMN_KEYS[id])}
                   emptyLabel={t('shell.merge.column.empty')}
+                  focusLine={focusLine}
                 />
               ))}
             </div>
@@ -227,6 +268,14 @@ export function MergeDialog({
           </TabsContent>
         </Tabs>
 
+        {problem !== undefined && (
+          <p role="alert" className="text-[12px] text-destructive">
+            {t(problem.kind === 'unparsable' ? 'shell.merge.failure' : 'shell.merge.writeFailed', {
+              message: problem.message,
+            })}
+          </p>
+        )}
+
         <DialogFooter>
           <Button variant="ghost" onClick={onCancel}>
             {t('shell.merge.cancel')}
@@ -259,6 +308,18 @@ export function MergeDialog({
               >
                 {t('shell.merge.keepOurs')}
               </Button>
+              {/* Правки не пересеклись и результат разобрался: слияние готово, и принять его
+                  можно, не заходя в ручное. Главная кнопка — потому что при таком исходе
+                  не проигрывает ни одна сторона. */}
+              {model.mergedText !== undefined && (
+                <Button
+                  onClick={() => {
+                    onResolve('merged', model.mergedText);
+                  }}
+                >
+                  {t('shell.merge.applyMerged')}
+                </Button>
+              )}
             </>
           )}
         </DialogFooter>

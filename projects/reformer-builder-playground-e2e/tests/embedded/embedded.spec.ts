@@ -251,6 +251,46 @@ test.describe('Билдер внутри приложения', () => {
     await page.screenshot({ path: path.join(SHOTS, '05-service-edited.png') });
   });
 
+  test('файл поправили в IDE, пока он правился в билдере: сохранение спрашивает и объединяет', async ({
+    host,
+    disk,
+    page,
+  }) => {
+    await host.openBuilderWithProject('/contact');
+    await host.builder.openFile(SERVICE);
+
+    // Правка в билдере — подпись опции, как в тесте выше.
+    const editor = editorOf(page);
+    await editor.locator('.view-line', { hasText: 'label: city.name' }).click();
+    await page.keyboard.press('End');
+    for (let step = 0; step < 5; step++) await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ControlOrMeta+Shift+ArrowLeft');
+    await page.keyboard.type('region', TYPING);
+    await expect(host.builder.statusBar).toContainText('1 несохранённый файл');
+
+    // Правка «в IDE» — другая строка того же файла, записанная мимо билдера. Файл под
+    // dev-сервером приложения меняется вместе с ней: проект у них один.
+    const original = await disk.readText(SERVICE);
+    await disk.writeText(SERVICE, original.replace('@module services/cities', '@module ide-edit'));
+    expect(disk.readServed(SERVICE)).toContain('@module ide-edit');
+
+    await host.builder.save();
+
+    // Билдер не затирает чужую правку молча и не упирается в «изменён снаружи», а спрашивает.
+    const dialog = page.getByRole('dialog', { name: 'Файл «cities.ts» изменился в источнике' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Правки не пересеклись');
+    await expect(dialog.getByRole('button', { name: 'Переписать своей версией' })).toBeVisible();
+    await page.screenshot({ path: path.join(SHOTS, '06-changed-outside.png') });
+    await dialog.getByRole('button', { name: 'Объединить правки' }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(host.builder.statusBar).toContainText('Всё сохранено');
+    const served = disk.readServed(SERVICE);
+    expect(served).toContain('label: city.region }));');
+    expect(served).toContain('@module ide-edit');
+  });
+
   test('правка, которую не обновить «на лету»: билдер остаётся, страница обновляется при закрытии', async ({
     host,
     disk,

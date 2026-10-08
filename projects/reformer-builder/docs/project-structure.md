@@ -173,7 +173,9 @@ projects/reformer-builder/
 │   │       │                    от оболочки. Адаптеров под конкретный плагин здесь нет:
 │   │       │                    оболочка не импортирует `@/plugins` вовсе
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,
-│   │       │                    project-status, useProject, ProjectTree
+│   │       │                    project-status, useProject, ProjectTree; merge-flow +
+│   │       │                    MergeQuestionHost — вопрос о расхождении с источником:
+│   │       │                    сохранение наткнулось на файл, изменённый снаружи
 │   │       └── integration/     интеграционные тесты СБОРКИ — единственное узаконенное
 │   │                            исключение из правила «тест рядом с кодом»
 │   │

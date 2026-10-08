@@ -97,6 +97,46 @@ describe('заготовка ручного слияния', () => {
   });
 });
 
+describe('где именно правка', () => {
+  it('у каждой стороны помечены строки, которых нет в основании', () => {
+    const dialog = model({ base: 'a\nb\nc', ours: 'A\nb\nc', theirs: 'a\nb\nновая\nC' });
+
+    expect(columnOf(dialog, 'ours').changed).toEqual([0]);
+    expect(columnOf(dialog, 'theirs').changed).toEqual([2, 3]);
+    // Основание — точка отсчёта: отмечать в нём нечего.
+    expect(columnOf(dialog, 'base').changed).toEqual([]);
+  });
+
+  it('без основания не помечено ничего: «изменено всё» колонке сказать нечего', () => {
+    const dialog = model({ base: null, ours: 'a\nb', theirs: 'c\nd' });
+
+    expect(columnOf(dialog, 'ours').changed).toEqual([]);
+    expect(columnOf(dialog, 'theirs').changed).toEqual([]);
+  });
+});
+
+describe('готовое слияние', () => {
+  it('правки не пересеклись и результат разобрался — слияние предложено готовым исходом', () => {
+    // Диалог открывают и здесь: на сохранении спрашивают всегда, а не только при споре.
+    const dialog = model({ base: 'a\nb\nc', ours: 'A\nb\nc', theirs: 'a\nb\nC' });
+
+    expect(dialog.reason).toBe('mergeable');
+    expect(dialog.mergedText).toBe('A\nb\nC');
+    // Тот же текст — заготовка ручного слияния: его можно и поправить перед записью.
+    expect(dialog.seed).toBe('A\nb\nC');
+    expect(dialog.conflicts).toBe(0);
+    expect(dialog.choices).toEqual(['ours', 'theirs', 'merged']);
+  });
+
+  it('спорный участок или неразобранный результат готовым исходом не предлагаются', () => {
+    expect(model({}).mergedText).toBeUndefined();
+
+    const sides = sidesOf({ base: 'a\nb\nc', ours: 'A\nb\nc', theirs: 'a\nb\nC' });
+    const unparsable = planMerge(sides, () => ({ ok: false, message: 'json.unexpected-token' }));
+    expect(describeMergeDialog(sides, unparsable).mergedText).toBeUndefined();
+  });
+});
+
 describe('приём ручного слияния', () => {
   it('оставшаяся разметка не даёт подтвердить', () => {
     expect(validateManualMerge('a\n<<<<<<< наша версия\nb')).toBe('markers');

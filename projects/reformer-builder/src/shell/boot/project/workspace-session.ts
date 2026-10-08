@@ -45,8 +45,11 @@ import type { DivergenceWatch } from '@/shell/platform/workspace/merge/divergenc
 import { createWorkspace } from '@/shell/platform/workspace/workspace';
 import type { WorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';
 import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
+import { ALWAYS_PARSES, type VerifyText } from '@/shell/platform/workspace/merge/resolve';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createDocumentModels, type DocumentModels } from './document-models';
 import { createDocumentSave, type DocumentSave } from './document-save';
+import { createMergeFlow, type MergeFlow } from './merge-flow';
 import { watchOpenedTabs } from './opened-tabs';
 
 /**
@@ -207,6 +210,11 @@ export interface WorkspaceSession extends Disposable {
    * а человек либо в окне (команда рядом), либо вне его (узнает при возврате фокуса).
    */
   readonly divergence: DivergenceWatch;
+  /**
+   * Вопрос о расхождении: сохранение наткнулось на файл, изменённый в источнике, и человек
+   * выбирает — переписать, взять версию источника или сравнить и слить. См. `./merge-flow`.
+   */
+  readonly merge: MergeFlow;
   readonly tree: ResourceTreeStore;
   /**
    * Операции над записями проекта: создать, переименовать, удалить, скопировать.
@@ -326,7 +334,59 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     invalidate: (dir) => tree.refresh(dir),
   });
 
-  const saving = createDocumentSave({ workspace, models, resources });
+  const plainSaving = createDocumentSave({ workspace, models, resources });
+
+  /**
+   * Повторный разбор текста ресурса — его же провайдером модели.
+   *
+   * У текстового документа разбирать нечем, и это не заглушка: у markdown и сайдкара разбора
+   * действительно нет. Провайдер ищется по ручке открытого документа: слияние идёт только
+   * у открытых, а ручка знает, чей разбор.
+   */
+  const verifyOf = (id: ResourceId): VerifyText => {
+    const providerId = models.handleOf(id)?.document.providerId;
+    if (providerId === undefined) return ALWAYS_PARSES;
+    const provider = (options.extensions?.get(DocumentModelPoint) ?? []).find(
+      (contribution) => contribution.value.id === providerId
+    )?.value;
+    if (provider === undefined) return ALWAYS_PARSES;
+    return (text) => {
+      try {
+        provider.parse(text);
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : String(error) };
+      }
+    };
+  };
+
+  const merge = createMergeFlow({
+    workspace,
+    divergence,
+    isDirty: (id) => plainSaving.isDirty(id),
+    verifyOf,
+  });
+
+  /**
+   * Сохранение, которое не бросает человека на конфликте.
+   *
+   * Отказ-конфликт виден только тому, кто позвал сохранение, а зовут его многие: Ctrl+S,
+   * «Сохранить всё», закрытие вкладки, панели плагинов. Поэтому расхождение уходит
+   * в наблюдение и в очередь вопросов ЗДЕСЬ, в единственной двери наружу, а не в каждом
+   * месте вызова: забывшее про это место оставляло бы человека с «файл изменён снаружи»
+   * и без способа что-то с этим сделать.
+   */
+  const saving: DocumentSave = {
+    ...plainSaving,
+    async save(id) {
+      const result = await plainSaving.save(id);
+      if (result.conflicts.length > 0) {
+        divergence.noteConflicts(result.conflicts);
+        void merge.ask(result.conflicts.map((conflict) => conflict.id));
+      }
+      return result;
+    },
+  };
 
   /**
    * Вкладки открывают документ ЧЕРЕЗ надстройку модели.
@@ -374,6 +434,7 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     source,
     workspace,
     divergence,
+    merge,
     documents,
     models,
     tree,
@@ -384,6 +445,8 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
       for (const subscription of subscriptions) subscription.dispose();
       subscriptions.length = 0;
       documents.dispose();
+      // До наблюдения: вопрос подписан на него и снимает подписку сам.
+      merge.dispose();
       divergence.dispose?.();
       // После вкладок: их `dispose` не закрывает ресурсы, а ручки держат подписку на буфер
       // и историю — снимать их обязан тот, кто их завёл.
