@@ -97,7 +97,7 @@ packages/<package>/
  *
  * @example Текстовое поле с валидацией
  * ```tsx
- * import { useFormControl } from '@reformer/core';
+ * import { useFormControl } from '@reformer/core/react';
  *
  * function EmailField({ control }) {
  *   const { value, error, setValue, blur } = useFormControl(control);
