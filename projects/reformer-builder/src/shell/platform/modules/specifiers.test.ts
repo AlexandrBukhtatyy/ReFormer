@@ -13,13 +13,13 @@ describe('чтение импортов набора файлов', () => {
           `import type { FormProxy } from '@reformer/core';\n` +
           `export { List } from '@reformer/ui-kit/list';\n` +
           `import '@reformer/ui-kit/styles';\n` +
-          `const cdk = require('@reformer/cdk/form-array');\n` +
+          `const cdk = require('@reformer/cdk/field-array');\n` +
           `const lazy = await import('@reformer/ui-kit/combobox');\n`
       )
     );
 
     expect(found).toEqual([
-      '@reformer/cdk/form-array',
+      '@reformer/cdk/field-array',
       '@reformer/core',
       '@reformer/ui-kit',
       '@reformer/ui-kit/combobox',
