@@ -27,6 +27,7 @@ import * as signalsCore from '@preact/signals-core';
 import * as reformerCore from '@reformer/core';
 import * as reformerBehaviors from '@reformer/core/behaviors';
 import * as reformerModel from '@reformer/core/model';
+import * as reformerReact from '@reformer/core/react';
 import * as reformerSignals from '@reformer/core/signals';
 import * as reformerValidation from '@reformer/core/validation';
 import * as reformerValidators from '@reformer/core/validators';
@@ -42,6 +43,8 @@ export const modules: readonly (readonly [specifier: string, exports: unknown])[
   ['@reformer/core', reformerCore],
   ['@reformer/core/behaviors', reformerBehaviors],
   ['@reformer/core/model', reformerModel],
+  // Хуки нод и связка поля с контролом: их берут киты и код превью — той же копией, что билдер.
+  ['@reformer/core/react', reformerReact],
   ['@reformer/core/signals', reformerSignals],
   ['@reformer/core/validation', reformerValidation],
   ['@reformer/core/validators', reformerValidators],

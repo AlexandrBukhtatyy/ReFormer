@@ -20,7 +20,8 @@
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
-import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 import { FileUpload, useFileUploadContext } from '@reformer/cdk/file-upload';
 import { loadCdkLocale } from '@reformer/cdk/locale';

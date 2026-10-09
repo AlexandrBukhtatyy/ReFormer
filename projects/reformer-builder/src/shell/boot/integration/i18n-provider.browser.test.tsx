@@ -1,7 +1,7 @@
 /**
  * Провайдер локализации ядра вживую: загрузка языка, переключение на лету, отказ.
  *
- * `I18nProvider` живёт в `@reformer/core/i18n`, но проверяется здесь: у ядра нет браузерного
+ * `I18nProvider` живёт в `@reformer/core/react`, но проверяется здесь: у ядра нет браузерного
  * прогона (его тесты рендерят через `renderToStaticMarkup`, где эффекты не выполняются), а связка
  * «эффект запускает загрузку → хранилище меняет состояние → дерево перерисовывается» видна только
  * в настоящем React DOM. Оболочка билдера — первый потребитель провайдера, и тест идёт против
@@ -17,14 +17,8 @@
 import { StrictMode, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
-import {
-  createLocaleLoader,
-  I18nProvider,
-  useI18n,
-  useMessages,
-  type FormLocale,
-  type LocaleLoad,
-} from '@reformer/core/i18n';
+import { createLocaleLoader, type FormLocale, type LocaleLoad } from '@reformer/core/i18n';
+import { I18nProvider, useI18n, useMessages } from '@reformer/core/react';
 import { renderReact } from '@/testing/render';
 
 /** Встроенная английская таблица условного пакета. */
