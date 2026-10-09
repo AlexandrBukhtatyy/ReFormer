@@ -6,7 +6,6 @@ import {
   useFieldHandleRef,
   type FieldHandle,
   type FieldSeam,
-  type FormValue,
 } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
@@ -90,7 +89,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
 
     const seam: FieldSeam = {
       value,
-      onChange: (v: unknown) => control.setValue(v as FormValue),
+      onChange: (v: unknown) => control.setValue(v),
       onBlur: () => control.markAsTouched(),
     };
 

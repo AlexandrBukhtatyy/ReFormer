@@ -4913,7 +4913,7 @@ Context value provided by FormField.Root
 
 **Signature:**
 ```typescript
-export interface FormFieldContextValue<T extends FormValue = FormValue> {
+export interface FormFieldContextValue<T = unknown> {
   // ─── Field state ──────────────────────────────────────────────────────────
   value: T;
   errors: ValidationError[];
@@ -5313,7 +5313,7 @@ and provides all field state to child FormField.* components.
 
 **Signature:**
 ```typescript
-function FormFieldRoot<T extends FormValue>({
+function FormFieldRoot<T>({
   control,
   children,
   id,
@@ -5362,7 +5362,7 @@ Props for FormField.Root
 
 **Signature:**
 ```typescript
-export interface FormFieldRootProps<T extends FormValue = FormValue> {
+export interface FormFieldRootProps<T = unknown> {
   /** The FieldNode control from the form */
   control: FieldNode<T>;
   children: ReactNode;
@@ -8185,10 +8185,7 @@ directly onto your own elements. No prescribed DOM structure.
 
 **Signature:**
 ```typescript
-export function useFormField<T extends FormValue>(
-  control: FieldNode<T>,
-  id?: string
-): UseFormFieldReturn<T>
+export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFieldReturn<T>
 ```
 
 **Examples:**
@@ -8235,7 +8232,7 @@ _Source: src/components/form-field/useFormField.ts_
 
 **Signature:**
 ```typescript
-export function useFormFieldContext<T extends FormValue = FormValue>(): FormFieldContextValue<T>
+export function useFormFieldContext<T = unknown>(): FormFieldContextValue<T>
 ```
 
 **Returns:** Текущий {@link FormFieldContextValue}.
@@ -8367,7 +8364,7 @@ Return type of useFormField hook
 
 **Signature:**
 ```typescript
-export interface UseFormFieldReturn<T extends FormValue = FormValue> {
+export interface UseFormFieldReturn<T = unknown> {
   /** Spread onto <label> */
   labelProps: UseFormFieldLabelProps;
   /** Spread onto the interactive control; includes value */
@@ -8402,7 +8399,7 @@ Field state returned by useFormField
 
 **Signature:**
 ```typescript
-export interface UseFormFieldState<T extends FormValue = FormValue> {
+export interface UseFormFieldState<T = unknown> {
   value: T;
   errors: ValidationError[];
   /** First error message, only set when shouldShowError is true */

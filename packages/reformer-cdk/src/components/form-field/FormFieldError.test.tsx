@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FieldNode, FormValue, ValidationError } from '@reformer/core';
+import type { FieldNode, ValidationError } from '@reformer/core';
 import { FormFieldContext } from './FormFieldContext';
 import { FormFieldError } from './FormFieldError';
 import type { FormFieldContextValue } from './types';
@@ -22,7 +22,7 @@ const ERRORS: ValidationError[] = [
 
 function ctxWithErrors(errors: ValidationError[]): FormFieldContextValue {
   return {
-    value: '' as FormValue,
+    value: '',
     errors,
     pending: false,
     disabled: false,
@@ -34,7 +34,7 @@ function ctxWithErrors(errors: ValidationError[]): FormFieldContextValue {
     label: undefined,
     required: true,
     componentProps: {},
-    control: {} as unknown as FieldNode<FormValue>,
+    control: {} as unknown as FieldNode<unknown>,
     ids: {
       controlId: 'control-x',
       labelId: 'label-x',

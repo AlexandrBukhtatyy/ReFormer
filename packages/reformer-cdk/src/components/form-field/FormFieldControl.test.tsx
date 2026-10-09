@@ -9,7 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { forwardRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FieldNode, FormValue } from '@reformer/core';
+import type { FieldNode } from '@reformer/core';
 import { FormFieldContext } from './FormFieldContext';
 import { FormFieldControl } from './FormFieldControl';
 import type { FormFieldContextValue } from './types';
@@ -26,7 +26,7 @@ function makeCtx(overrides: Partial<FormFieldContextValue> = {}): {
     markAsTouched,
     component: () => null,
     value: 'hello',
-  } as unknown as FieldNode<FormValue>;
+  } as unknown as FieldNode<unknown>;
 
   const ctx: FormFieldContextValue = {
     value: 'hello',
@@ -138,7 +138,7 @@ describe('FormField.Control — aria-describedby', () => {
       return null;
     };
     const { ctx } = makeCtx({ hasHint: true, hasDescription: true });
-    const control = { ...ctx.control, component: Auto } as unknown as FieldNode<FormValue>;
+    const control = { ...ctx.control, component: Auto } as unknown as FieldNode<unknown>;
     renderToStaticMarkup(
       <FormFieldContext.Provider value={{ ...ctx, control }}>
         <FormFieldControl />
@@ -161,7 +161,7 @@ describe('FormField.Control — адаптер контрола (статика 
     ctxOverrides: Partial<FormFieldContextValue> = {}
   ): { props: Record<string, unknown>; setValue: ReturnType<typeof vi.fn> } {
     const { ctx, setValue } = makeCtx(ctxOverrides);
-    const control = { ...ctx.control, component } as unknown as FieldNode<FormValue>;
+    const control = { ...ctx.control, component } as unknown as FieldNode<unknown>;
     renderToStaticMarkup(
       <FormFieldContext.Provider value={{ ...ctx, control }}>
         <FormFieldControl />

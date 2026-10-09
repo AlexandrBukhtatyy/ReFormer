@@ -1,5 +1,4 @@
 import { createContext, useContext } from 'react';
-import type { FormValue } from '@reformer/core';
 import type { FormFieldContextValue } from './types';
 
 /**
@@ -57,7 +56,7 @@ export const FormFieldContext = createContext<FormFieldContextValue<any> | null>
  * </FormField.Root>
  * ```
  */
-export function useFormFieldContext<T extends FormValue = FormValue>(): FormFieldContextValue<T> {
+export function useFormFieldContext<T = unknown>(): FormFieldContextValue<T> {
   const ctx = useContext(FormFieldContext) as FormFieldContextValue<T> | null;
   if (!ctx) {
     throw new Error(

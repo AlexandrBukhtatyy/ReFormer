@@ -1,5 +1,5 @@
 import type { HTMLAttributes, LabelHTMLAttributes, ReactNode } from 'react';
-import type { FieldNode, FormValue, ValidationError } from '@reformer/core';
+import type { FieldNode, ValidationError } from '@reformer/core';
 
 /**
  * Stable IDs for all accessible elements of a form field
@@ -20,7 +20,7 @@ export interface FormFieldIds {
 /**
  * Context value provided by FormField.Root
  */
-export interface FormFieldContextValue<T extends FormValue = FormValue> {
+export interface FormFieldContextValue<T = unknown> {
   // ─── Field state ──────────────────────────────────────────────────────────
   value: T;
   errors: ValidationError[];
@@ -50,7 +50,7 @@ export interface FormFieldContextValue<T extends FormValue = FormValue> {
 /**
  * Props for FormField.Root
  */
-export interface FormFieldRootProps<T extends FormValue = FormValue> {
+export interface FormFieldRootProps<T = unknown> {
   /** The FieldNode control from the form */
   control: FieldNode<T>;
   children: ReactNode;

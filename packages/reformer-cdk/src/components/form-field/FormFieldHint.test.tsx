@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FieldNode, FormValue } from '@reformer/core';
+import type { FieldNode } from '@reformer/core';
 import { FormFieldContext } from './FormFieldContext';
 import { FormFieldHint } from './FormFieldHint';
 import type { FormFieldContextValue } from './types';
@@ -16,7 +16,7 @@ const ctx = {
     errorId: 'error-x',
     hintId: 'hint-x',
   },
-  control: {} as FieldNode<FormValue>,
+  control: {} as FieldNode<unknown>,
 } as unknown as FormFieldContextValue;
 
 function render(node: React.ReactNode): string {

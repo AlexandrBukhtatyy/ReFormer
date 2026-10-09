@@ -1,17 +1,12 @@
 import { useId, useMemo } from 'react';
-import {
-  useFormControl,
-  type FieldNode,
-  type FormValue,
-  type ValidationError,
-} from '@reformer/core';
+import { useFormControl, type FieldNode, type ValidationError } from '@reformer/core';
 import type { FormFieldIds } from './types';
 import { useValidationErrorResolver } from '../../validation/error-resolver';
 
 /**
  * Field state returned by useFormField
  */
-export interface UseFormFieldState<T extends FormValue = FormValue> {
+export interface UseFormFieldState<T = unknown> {
   value: T;
   errors: ValidationError[];
   /** First error message, only set when shouldShowError is true */
@@ -66,7 +61,7 @@ export interface UseFormFieldHintProps {
 /**
  * Return type of useFormField hook
  */
-export interface UseFormFieldReturn<T extends FormValue = FormValue> {
+export interface UseFormFieldReturn<T = unknown> {
   /** Spread onto <label> */
   labelProps: UseFormFieldLabelProps;
   /** Spread onto the interactive control; includes value */
@@ -127,10 +122,7 @@ export interface UseFormFieldReturn<T extends FormValue = FormValue> {
  * };
  * ```
  */
-export function useFormField<T extends FormValue>(
-  control: FieldNode<T>,
-  id?: string
-): UseFormFieldReturn<T> {
+export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFieldReturn<T> {
   const reactId = useId();
   const baseId = id ?? reactId;
   const resolveError = useValidationErrorResolver();

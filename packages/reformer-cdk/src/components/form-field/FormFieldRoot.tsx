@@ -1,5 +1,5 @@
 import { useId, useMemo } from 'react';
-import { useFormControl, type FormValue } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormFieldContext } from './FormFieldContext';
 import { useValidationErrorResolver } from '../../validation/error-resolver';
 import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './types';
@@ -38,7 +38,7 @@ import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './
  * </FormField.Root>
  * ```
  */
-function FormFieldRoot<T extends FormValue>({
+function FormFieldRoot<T>({
   control,
   children,
   id,
