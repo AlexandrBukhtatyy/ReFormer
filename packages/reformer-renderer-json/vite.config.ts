@@ -15,7 +15,7 @@ const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 // ТОЧНО, поэтому '@reformer/core' НЕ покрывает '@reformer/core/signals'. Пока список был
 // перечислением, subpath `/signals` в нём отсутствовал — и rollup инлайнил в dist/index.js
 // вторую копию рантайма @preact/signals-core вместе с собственным классом `Signal`.
-// Проверки `v instanceof Signal` в locale/use-signal-value.ts сравнивались с ЧУЖИМ классом
+// Тогдашние проверки `v instanceof Signal` в locale/use-signal-value.ts сравнивались с ЧУЖИМ классом
 // и всегда давали false: <I18n> с `$model(...)` рендерил объект вместо значения и терял
 // реактивность. Тесты этого не видели (vitest резолвит один инстанс модуля), ломался
 // только собранный артефакт.
