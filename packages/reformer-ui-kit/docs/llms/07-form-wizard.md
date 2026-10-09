@@ -10,7 +10,8 @@ TS-схема, renderer-react RenderSchema, renderer-json.
 `createForm` сам. Прикладная обёртка, которая подставляла `form`, `config` и `steps`, не нужна.
 
 ```tsx
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
 import { FormRenderer } from '@reformer/renderer-react';
 import { Step } from '@reformer/cdk/form-wizard';

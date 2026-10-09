@@ -216,7 +216,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 `defineFieldControl` не создаёт обёртку — он вешает на компонент статику `reformerAdapter` и
 возвращает тот же компонент, поэтому ref не проходит через лишний слой и не пишется дважды.
 
-`FieldAdapter` — один тип на всех (`@reformer/core`, реэкспорт в `@reformer/ui-kit/fields` и
+`FieldAdapter` — один тип на всех (`@reformer/core/react`, реэкспорт в `@reformer/ui-kit/fields` и
 `@reformer/renderer-react`): статика `reformerAdapter` компонента и
 `RendererSettings.resolveFieldAdapter` (для чужих компонентов без статики) описывают диалект
 одинаково. Rich-handle объявляйте рядом с композитом и реэкспортируйте из barrel компонента.

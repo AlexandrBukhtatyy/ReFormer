@@ -8,7 +8,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createForm, FormBundleContext } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { FormBundleContext } from '@reformer/core/react';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormWizard, type FormWizardStepNode } from './index';

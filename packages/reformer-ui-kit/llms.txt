@@ -288,11 +288,12 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 ## 6. Localization
 
 Подписи, которые кит рисует сам (кнопки мастера, плейсхолдеры, статусы загрузки, aria-подписи),
-идут через локаль `I18nProvider` из `@reformer/core/i18n`. Приоритет в каждом компоненте:
+идут через локаль `I18nProvider` из `@reformer/core/react`. Приоритет в каждом компоненте:
 **явный проп → словарь активной локали → встроенный английский**.
 
 ```tsx
-import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { loadKitLocale } from '@reformer/ui-kit/locale';
 
 // Константа модуля: загрузчик хранит кэш языков.
@@ -2739,7 +2740,8 @@ TS-схема, renderer-react RenderSchema, renderer-json.
 `createForm` сам. Прикладная обёртка, которая подставляла `form`, `config` и `steps`, не нужна.
 
 ```tsx
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
 import { FormRenderer } from '@reformer/renderer-react';
 import { Step } from '@reformer/cdk/form-wizard';
@@ -3656,7 +3658,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 `defineFieldControl` не создаёт обёртку — он вешает на компонент статику `reformerAdapter` и
 возвращает тот же компонент, поэтому ref не проходит через лишний слой и не пишется дважды.
 
-`FieldAdapter` — один тип на всех (`@reformer/core`, реэкспорт в `@reformer/ui-kit/fields` и
+`FieldAdapter` — один тип на всех (`@reformer/core/react`, реэкспорт в `@reformer/ui-kit/fields` и
 `@reformer/renderer-react`): статика `reformerAdapter` компонента и
 `RendererSettings.resolveFieldAdapter` (для чужих компонентов без статики) описывают диалект
 одинаково. Rich-handle объявляйте рядом с композитом и реэкспортируйте из barrel компонента.
@@ -8272,7 +8274,7 @@ _Source: src/fields/field-tooltip.tsx_
 `testId` — meta-проп: уходит в `data-testid`, в примитив/DOM как проп не течёт.
 `description` — под shadcn `Field` (`FieldDescription`); FormField перестроен на нём в волне 0.
 `labelTooltip` — иконка (i) после подписи; как и `testId`, до контрола не доходит (срезает
-обёртка поля — `bindFieldProps` в `@reformer/core`). Подсказка ВНУТРИ контрола — отдельный проп `tooltip` (`field-common.props.ts`).
+обёртка поля — `bindFieldProps` в `@reformer/core/react`). Подсказка ВНУТРИ контрола — отдельный проп `tooltip` (`field-common.props.ts`).
 
 **Signature:**
 ```typescript
@@ -8736,7 +8738,8 @@ onSubmit={onSubmit}
 
 В схеме формы: шаги — дочерние узлы, форма и правила — из сборки
 ```tsx
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
 import { FormRenderer } from '@reformer/renderer-react';
 import { Step } from '@reformer/cdk/form-wizard';

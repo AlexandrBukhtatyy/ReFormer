@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { I18nProvider } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { ru } from '@/locale/ru';
 import {
   FileUploadBase,

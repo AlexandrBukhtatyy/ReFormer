@@ -1,4 +1,4 @@
-import type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core/react';
 
 /**
  * Раскладка контрола в `FormField`: `inline-label` — контрол сам рисует подпись справа от себя

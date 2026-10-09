@@ -1,5 +1,5 @@
 import type { ComponentType, Ref } from 'react';
-import { bindFieldProps, getFieldAdapter } from '@reformer/core';
+import { bindFieldProps, getFieldAdapter } from '@reformer/core/react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

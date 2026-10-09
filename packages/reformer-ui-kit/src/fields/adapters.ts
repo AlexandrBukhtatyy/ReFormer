@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core/react';
 
 /**
  * Переиспользуемые пресеты {@link FieldAdapter} под event-shapes shadcn-контролов.

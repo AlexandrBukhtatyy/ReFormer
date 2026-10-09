@@ -24,7 +24,7 @@
 // Контракт контрола с формой: статики адаптера и раскладки.
 export { defineFieldControl } from './field-control';
 export type { FieldControlLayout, FieldControlStatics } from './field-control';
-export type { FieldAdapter } from '@reformer/core';
+export type { FieldAdapter } from '@reformer/core/react';
 
 // Подсказка-иконка (i) у контрола — проп `tooltip`: декоратор для примитивов и хук для композитов.
 export {

@@ -8,7 +8,7 @@
  * @module i18n/messages
  */
 
-import { useMessages } from '@reformer/core/i18n';
+import { useMessages } from '@reformer/core/react';
 import { kitEn } from './message-default';
 
 export type { KitMessageKey } from './message-default';

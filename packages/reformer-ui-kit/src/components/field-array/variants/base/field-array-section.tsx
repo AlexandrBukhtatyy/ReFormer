@@ -10,7 +10,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ComponentType, type ReactNode } from 'react';
-import { useFormControl, type ModelArrayNode, type FormProxy } from '@reformer/core';
+import { type ModelArrayNode, type FormProxy } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { FieldArray } from '@reformer/cdk/field-array';
 import { useKitMessages } from '@/i18n/messages';
 

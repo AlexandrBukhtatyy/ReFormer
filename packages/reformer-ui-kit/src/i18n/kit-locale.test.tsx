@@ -10,12 +10,12 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   createLocaleLoader,
-  I18nProvider,
   messageArguments,
   parseMessage,
   translateBuiltin,
   validateLocale,
 } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { en as cdkEn } from '@reformer/cdk/locale/en';
 import { ru as cdkRu } from '@reformer/cdk/locale/ru';
 import {

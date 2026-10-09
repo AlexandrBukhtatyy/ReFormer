@@ -4,5 +4,5 @@
  * расширяют {@link FieldHandle}. Реэкспорт — чтобы композиты кита импортировали его по-прежнему
  * из `@/fields/field-handle`.
  */
-export { makeElementFieldHandle } from '@reformer/core';
-export type { FieldHandle } from '@reformer/core';
+export { makeElementFieldHandle } from '@reformer/core/react';
+export type { FieldHandle } from '@reformer/core/react';

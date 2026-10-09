@@ -268,11 +268,12 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 ## Localization
 
 Подписи, которые кит рисует сам (кнопки мастера, плейсхолдеры, статусы загрузки, aria-подписи),
-идут через локаль `I18nProvider` из `@reformer/core/i18n`. Приоритет в каждом компоненте:
+идут через локаль `I18nProvider` из `@reformer/core/react`. Приоритет в каждом компоненте:
 **явный проп → словарь активной локали → встроенный английский**.
 
 ```tsx
-import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { loadKitLocale } from '@reformer/ui-kit/locale';
 
 // Константа модуля: загрузчик хранит кэш языков.

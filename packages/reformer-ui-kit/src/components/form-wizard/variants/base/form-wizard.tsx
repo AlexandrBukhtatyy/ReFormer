@@ -39,7 +39,8 @@ import {
   type FormWizardHandle,
   type FormWizardProps as FormWizardHeadlessProps,
 } from '@reformer/cdk/form-wizard';
-import { useFormBundleContext, type FormProxy } from '@reformer/core';
+import { type FormProxy } from '@reformer/core';
+import { useFormBundleContext } from '@reformer/core/react';
 import { FormWizardActions } from './form-wizard-actions';
 import { FormWizardProgress } from './form-wizard-progress';
 import { StepIndicator } from './step-indicator';
@@ -513,7 +514,8 @@ type FormWizardCompound = typeof FormWizardForwarded & {
  *
  * @example В схеме формы: шаги — дочерние узлы, форма и правила — из сборки
  * ```tsx
- * import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+ * import { createForm, type FormModel } from '@reformer/core';
+ * import { useFormBundle } from '@reformer/core/react';
  * import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
  * import { FormRenderer } from '@reformer/renderer-react';
  * import { Step } from '@reformer/cdk/form-wizard';
