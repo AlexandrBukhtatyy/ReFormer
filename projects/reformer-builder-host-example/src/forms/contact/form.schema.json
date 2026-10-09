@@ -2,30 +2,44 @@
   "$schema": "./form-schema.schema.json",
   "version": "1.0",
   "root": {
+    "$nodeId": "aoumk954",
     "component": "$component(Box)",
     "componentProps": {
       "className": "space-y-4"
     },
     "children": [
       {
-        "selector": "name",
-        "value": "$model(name)",
-        "component": "$component(Input)",
+        "$nodeId": "ruaqsnpi",
+        "component": "$html(div)",
         "componentProps": {
-          "label": "Имя",
-          "required": true
-        }
+          "className": "flex gap-4"
+        },
+        "children": [
+          {
+            "$nodeId": "r64mr9ti",
+            "selector": "name",
+            "value": "$model(name)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "required": true,
+              "type": "text"
+            }
+          },
+          {
+            "$nodeId": "5k6zh7qa",
+            "selector": "email",
+            "value": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Email",
+              "required": true
+            }
+          }
+        ]
       },
       {
-        "selector": "email",
-        "value": "$model(email)",
-        "component": "$component(Input)",
-        "componentProps": {
-          "label": "Email",
-          "required": true
-        }
-      },
-      {
+        "$nodeId": "pslgns7a",
         "selector": "city",
         "value": "$model(city)",
         "component": "$component(Select)",
@@ -35,6 +49,7 @@
         }
       },
       {
+        "$nodeId": "6ika59bj",
         "selector": "agree",
         "value": "$model(agree)",
         "component": "$component(Checkbox)",
@@ -43,6 +58,7 @@
         }
       },
       {
+        "$nodeId": "3agdoozo",
         "component": "$component(Button)",
         "selector": "submit",
         "componentProps": {
