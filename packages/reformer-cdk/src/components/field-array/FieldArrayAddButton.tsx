@@ -1,5 +1,5 @@
 import { forwardRef, type ForwardedRef, type ReactElement } from 'react';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { Slot } from '../form-wizard/Slot';
 import { useFieldArrayContext } from './FieldArrayContext';
 import type { FieldArrayAddButtonProps } from './types';

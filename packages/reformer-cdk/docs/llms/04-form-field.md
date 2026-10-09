@@ -17,7 +17,7 @@ Headless compound component для построения доступной (a11y
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
-| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
+| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core/react`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
 | `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
@@ -52,11 +52,11 @@ function EmailField({ control }: { control: typeof form.email }) {
 компонентами не нужно. Форма говорит на value-based seam (`value` + `onChange(value)` + `onBlur`),
 а контрол — на своём диалекте (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие в
 `onChange`, …). Диалект компонент объявляет статикой `reformerAdapter` (тип `FieldAdapter` из
-`@reformer/core`); `Control` читает её через `getFieldAdapter(component)` и применяет
+`@reformer/core/react`); `Control` читает её через `getFieldAdapter(component)` и применяет
 `bindFieldProps`. Нет статики — seam проходит как есть.
 
 ```tsx
-import type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core/react';
 
 const checkedAdapter: FieldAdapter = {
   valueProp: 'checked',
@@ -180,7 +180,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 - **По умолчанию текст даёт локаль.** Порядок: `messageKey` автора правила → явное `message` →
   словарь активной локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
-  `I18nProvider` из `@reformer/core/i18n`; без него тексты английские. Смена языка переводит уже
+  `I18nProvider` из `@reformer/core/react`; без него тексты английские. Смена языка переводит уже
   показанные ошибки без повторной валидации.
 - **`ValidationMessagesProvider` — полное переопределение.** Смонтированный провайдер заменяет
   резолвер целиком: локаль для ошибок в его поддереве не участвует, а таблица из
@@ -188,7 +188,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
   берутся из своего источника.
 
 ```tsx
-import { I18nProvider } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 
 // Обычная локализация: провайдер языка, без отдельной таблицы ошибок.
 <I18nProvider lang="ru" load={loadLocale}>

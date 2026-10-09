@@ -16,7 +16,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 import type { ValidationError } from '@reformer/core';
-import { useValidationMessage } from '@reformer/core/i18n';
+import { useValidationMessage } from '@reformer/core/react';
 
 /** Преобразует ошибку валидации в отображаемую строку. */
 export type ValidationErrorResolver = (error: ValidationError) => string;
@@ -121,7 +121,7 @@ export function ValidationMessagesProvider(props: {
  * @example Кастомный рендер ошибок с активным резолвером
  * ```tsx
  * import { useValidationErrorResolver } from '@reformer/cdk';
- * import { useFormControl } from '@reformer/core';
+ * import { useFormControl } from '@reformer/core/react';
  *
  * function FieldErrors({ control }: { control: FieldNode<string> }) {
  *   const resolve = useValidationErrorResolver();

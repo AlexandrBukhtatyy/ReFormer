@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import type { ListControl, ListItem } from './types';
 
 /**

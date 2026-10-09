@@ -109,7 +109,7 @@ function AddPropertyMenu() {
 
 ```tsx
 import { useMemo } from 'react';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { validateModel } from '@reformer/core/validation';
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 

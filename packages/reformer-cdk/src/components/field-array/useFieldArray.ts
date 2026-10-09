@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useFormControl, type FormProxy, type ValidationError } from '@reformer/core';
+import { type FormProxy, type ValidationError } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 // FieldArrayItem объявлен один раз в FieldArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FieldArrayItem } from './FieldArrayContext';
 import type { FieldArrayControl } from './types';

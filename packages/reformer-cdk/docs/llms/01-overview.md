@@ -45,7 +45,7 @@ import { loadCdkLocale } from '@reformer/cdk/locale';
 ## Localization
 
 cdk — headless: видимый текст пишет приложение. Но несколько строк cdk произносит сам, и они
-идут через локаль `I18nProvider` из `@reformer/core/i18n`:
+идут через локаль `I18nProvider` из `@reformer/core/react`:
 
 | Что                                                                                                                                          | Ключи словаря                                                                                         |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -68,7 +68,8 @@ cdk — headless: видимый текст пишет приложение. Н�
 | синхронный модуль | `ru` из `@reformer/cdk/locale/ru`         | SSR и тесты                                     |
 
 ```tsx
-import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { loadCdkLocale } from '@reformer/cdk/locale';
 
 // Константа модуля: загрузчик хранит кэш языков.

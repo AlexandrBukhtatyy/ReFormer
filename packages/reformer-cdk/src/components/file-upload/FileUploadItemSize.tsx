@@ -1,5 +1,5 @@
 import { forwardRef, type HTMLAttributes } from 'react';
-import { useI18n } from '@reformer/core/i18n';
+import { useI18n } from '@reformer/core/react';
 import { useFileUploadItemContext } from './FileUploadContext';
 
 /** Props `FileUpload.ItemSize`. */

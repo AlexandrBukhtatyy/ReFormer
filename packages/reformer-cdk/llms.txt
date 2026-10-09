@@ -62,7 +62,7 @@ import { loadCdkLocale } from '@reformer/cdk/locale';
 ## 5. Localization
 
 cdk — headless: видимый текст пишет приложение. Но несколько строк cdk произносит сам, и они
-идут через локаль `I18nProvider` из `@reformer/core/i18n`:
+идут через локаль `I18nProvider` из `@reformer/core/react`:
 
 | Что                                                                                                                                          | Ключи словаря                                                                                         |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -85,7 +85,8 @@ cdk — headless: видимый текст пишет приложение. Н�
 | синхронный модуль | `ru` из `@reformer/cdk/locale/ru`         | SSR и тесты                                     |
 
 ```tsx
-import { createLocaleLoader, I18nProvider } from '@reformer/core/i18n';
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { loadCdkLocale } from '@reformer/cdk/locale';
 
 // Константа модуля: загрузчик хранит кэш языков.
@@ -705,7 +706,7 @@ Headless compound component для построения доступной (a11y
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
-| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
+| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core/react`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
 | `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
@@ -740,11 +741,11 @@ function EmailField({ control }: { control: typeof form.email }) {
 компонентами не нужно. Форма говорит на value-based seam (`value` + `onChange(value)` + `onBlur`),
 а контрол — на своём диалекте (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие в
 `onChange`, …). Диалект компонент объявляет статикой `reformerAdapter` (тип `FieldAdapter` из
-`@reformer/core`); `Control` читает её через `getFieldAdapter(component)` и применяет
+`@reformer/core/react`); `Control` читает её через `getFieldAdapter(component)` и применяет
 `bindFieldProps`. Нет статики — seam проходит как есть.
 
 ```tsx
-import type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core/react';
 
 const checkedAdapter: FieldAdapter = {
   valueProp: 'checked',
@@ -868,7 +869,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 - **По умолчанию текст даёт локаль.** Порядок: `messageKey` автора правила → явное `message` →
   словарь активной локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
-  `I18nProvider` из `@reformer/core/i18n`; без него тексты английские. Смена языка переводит уже
+  `I18nProvider` из `@reformer/core/react`; без него тексты английские. Смена языка переводит уже
   показанные ошибки без повторной валидации.
 - **`ValidationMessagesProvider` — полное переопределение.** Смонтированный провайдер заменяет
   резолвер целиком: локаль для ошибок в его поддереве не участвует, а таблица из
@@ -876,7 +877,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
   берутся из своего источника.
 
 ```tsx
-import { I18nProvider } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 
 // Обычная локализация: провайдер языка, без отдельной таблицы ошибок.
 <I18nProvider lang="ru" load={loadLocale}>
@@ -1133,7 +1134,7 @@ function Panel({ status, error, reload, children }: Props) {
 - **Отложенный спиннер.** `delayMs={200}` — статус остаётся честным (`'loading'`), откладывается только показ слота. Ответ за 120 мс проходит `loading → ready`, а пользователь не видит вспышки.
 - **Stale-while-revalidate.** При обновлении держите `status: 'ready'` и поднимайте `refreshing` — контент остаётся на экране, регион помечается занятым.
 - **Множественная загрузка как одна единица.** Заявка + справочники грузятся `Promise.all`; падение любого — общий `error`. Разные сообщения различают причину.
-- **Текст ошибки по умолчанию.** Без `toError` в `error` попадает текст отказа: `message` у `Error` или сама строка. Отказ без текста (`reject({ status: 500 })`) даёт фразу «Unknown error» на языке активной локали — ключ `cdk.asyncBoundary.unknownError`, язык задаёт `I18nProvider` из `@reformer/core/i18n`. Фраза берётся в момент отказа: смена языка уже показанную ошибку не переводит.
+- **Текст ошибки по умолчанию.** Без `toError` в `error` попадает текст отказа: `message` у `Error` или сама строка. Отказ без текста (`reject({ status: 500 })`) даёт фразу «Unknown error» на языке активной локали — ключ `cdk.asyncBoundary.unknownError`, язык задаёт `I18nProvider` из `@reformer/core/react`. Фраза берётся в момент отказа: смена языка уже показанную ошибку не переводит.
 
 ## 35. Anti-patterns
 
@@ -1257,7 +1258,7 @@ function AddPropertyMenu() {
 
 ```tsx
 import { useMemo } from 'react';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { validateModel } from '@reformer/core/validation';
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
@@ -4762,7 +4763,7 @@ _Source: src/components/option-source/option-source.ts_
 
 Человекочитаемый размер файла по-английски: `1024`-base, одна цифра после точки, без хвоста
 `.0`. Функция чистая и языка не знает; размер по активной локали («1,5 КБ») даёт
-`useI18n().fileSize` из `@reformer/core/i18n` — им пользуется `FileUpload.ItemSize`.
+`useI18n().fileSize` из `@reformer/core/react` — им пользуется `FileUpload.ItemSize`.
 
 **Signature:**
 ```typescript
@@ -4957,7 +4958,7 @@ props pre-wired: `value`, `onChange`, `onBlur`, `disabled`, `aria-*` attributes,
 and all `componentProps` from the field config.
 
 The control's own dialect (`checked`/`onCheckedChange`, `value`/`onValueChange`, DOM event,
-…) is taken from its `reformerAdapter` static (see `getFieldAdapter` in `@reformer/core`) —
+…) is taken from its `reformerAdapter` static (see `getFieldAdapter` in `@reformer/core/react`) —
 a component is bound as is, no per-control "field" wrapper is needed. The forwarded ref gets
 the control's own imperative handle, or a baseline `FieldHandle` built from its DOM node.
 
@@ -8628,7 +8629,7 @@ export function useValidationErrorResolver(): ValidationErrorResolver
 Кастомный рендер ошибок с активным резолвером
 ```tsx
 import { useValidationErrorResolver } from '@reformer/cdk';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 function FieldErrors({ control }: { control: FieldNode<string> }) {
 const resolve = useValidationErrorResolver();

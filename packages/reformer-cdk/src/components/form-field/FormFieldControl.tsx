@@ -6,7 +6,7 @@ import {
   useFieldHandleRef,
   type FieldHandle,
   type FieldSeam,
-} from '@reformer/core';
+} from '@reformer/core/react';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
 import type { FormFieldControlProps } from './types';
@@ -19,7 +19,7 @@ import type { FormFieldControlProps } from './types';
  * and all `componentProps` from the field config.
  *
  * The control's own dialect (`checked`/`onCheckedChange`, `value`/`onValueChange`, DOM event,
- * …) is taken from its `reformerAdapter` static (see `getFieldAdapter` in `@reformer/core`) —
+ * …) is taken from its `reformerAdapter` static (see `getFieldAdapter` in `@reformer/core/react`) —
  * a component is bound as is, no per-control "field" wrapper is needed. The forwarded ref gets
  * the control's own imperative handle, or a baseline `FieldHandle` built from its DOM node.
  *

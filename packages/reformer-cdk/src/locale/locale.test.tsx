@@ -7,12 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  createLocaleLoader,
-  I18nProvider,
-  translateBuiltin,
-  validateLocale,
-} from '@reformer/core/i18n';
+import { createLocaleLoader, translateBuiltin, validateLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { en as coreEn } from '@reformer/core/locale/en';
 import { ru as coreRu } from '@reformer/core/locale/ru';
 import { FileUpload } from '../components/file-upload/FileUpload';

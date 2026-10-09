@@ -1,5 +1,6 @@
 import { useId, useMemo } from 'react';
-import { useFormControl, type FieldNode, type ValidationError } from '@reformer/core';
+import { type FieldNode, type ValidationError } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import type { FormFieldIds } from './types';
 import { useValidationErrorResolver } from '../../validation/error-resolver';
 

@@ -1,5 +1,5 @@
 import { forwardRef, useContext } from 'react';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { Slot } from '../form-wizard/Slot';
 import { FieldArrayContext, useFieldArrayItemContext } from './FieldArrayContext';
 import type { FieldArrayRemoveButtonProps } from './types';

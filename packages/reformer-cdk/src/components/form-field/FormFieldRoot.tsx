@@ -1,5 +1,5 @@
 import { useId, useMemo } from 'react';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { FormFieldContext } from './FormFieldContext';
 import { useValidationErrorResolver } from '../../validation/error-resolver';
 import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './types';

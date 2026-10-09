@@ -368,7 +368,7 @@ export function fileItemKey(file: File, seq: number): string {
 /**
  * Человекочитаемый размер файла по-английски: `1024`-base, одна цифра после точки, без хвоста
  * `.0`. Функция чистая и языка не знает; размер по активной локали («1,5 КБ») даёт
- * `useI18n().fileSize` из `@reformer/core/i18n` — им пользуется `FileUpload.ItemSize`.
+ * `useI18n().fileSize` из `@reformer/core/react` — им пользуется `FileUpload.ItemSize`.
  *
  * @example
  * ```ts
