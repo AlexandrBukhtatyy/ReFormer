@@ -10,7 +10,7 @@
  * @module model/model-value-proxy
  */
 
-import { Signal } from '@preact/signals-core';
+import { isSignal } from '../signals';
 import { type ModelNode, GroupNode, ArrayNode, blankFrom, isIndexKey } from './model-nodes';
 import {
   signalsProxy,
@@ -118,7 +118,7 @@ export function makeFormModel(group: GroupNode): any {
     $: signalsProxy(group),
     get: () => group.peek(),
     set: (v: Record<string, unknown>) => group.set(v),
-    patch: (v: Record<string, unknown>) => group.set(v),
+    patch: (v: Record<string, unknown>) => group.patch(v),
     isDirty: () => group.dirty(),
     reset: () => group.resetToInitial(),
     captureInitial: () => group.captureInitial(),
@@ -205,7 +205,7 @@ export function modelOf<V extends object | null | undefined>(handle: { peek(): V
     const path = (handle as { __path?: unknown } | null)?.__path;
     const at = typeof path === 'string' && path !== '' ? ` «${path}»` : '';
     throw new TypeError(
-      handle instanceof Signal
+      isSignal(handle) && !isModelContainerSignal(handle)
         ? `[@reformer/core] modelOf: ручка${at} — лист, у него нет под-модели. Группа или массив, ` +
             'созданные из начального null, в модели тоже лист: задайте начальное значение ' +
             'объектом или массивом.'

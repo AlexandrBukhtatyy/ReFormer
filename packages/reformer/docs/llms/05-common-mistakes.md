@@ -146,7 +146,7 @@ export interface PropertyItem {
   description: string;
 }
 
-// ✅ type alias структурно совместим с Record<string, FormValue>
+// ✅ type alias структурно совместим с Record<string, unknown>
 export type PropertyItem = {
   type: PropertyType;
   description: string;

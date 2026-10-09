@@ -9,7 +9,7 @@
  * @module form/validators/validation-error
  */
 
-import type { FormValue, ValidationError } from '../types/contracts';
+import type { ValidationError } from '../types/contracts';
 import type { ValidateOptions } from '../types/validation-schema';
 
 /**
@@ -20,7 +20,7 @@ import type { ValidateOptions } from '../types/validation-schema';
 export function validationError(
   code: string,
   options: ValidateOptions | undefined,
-  params?: Record<string, FormValue>
+  params?: Record<string, unknown>
 ): ValidationError {
   const error: ValidationError = {
     code,

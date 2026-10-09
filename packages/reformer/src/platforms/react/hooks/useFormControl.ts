@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { FieldNode } from '../../../form/nodes/field-node';
 import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
-import type { FormValue, ValidationError } from '../../../form/types/index';
+import type { ValidationError } from '../../../form/types/index';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
   useSignalSubscription,
@@ -10,7 +10,7 @@ import {
 } from './useSignalSubscription';
 
 /** @internal */
-function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T> {
+function useFieldControl<T>(control: FieldNode<T>): FieldControlState<T> {
   const signals = {
     value: control.value,
     disabled: control.disabled,
@@ -145,7 +145,7 @@ export function useFormControl<T extends object>(
  *
  * @group React Hooks
  */
-export function useFormControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T>;
+export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
 
 /**
  * React-хук для подписки на состояние формы (FieldNode или ModelArrayNode).
@@ -372,8 +372,8 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * @group React Hooks
  */
 export function useFormControl(
-  control: FieldNode<FormValue> | ModelArrayNode<object> | undefined
-): FieldControlState<FormValue> | ArrayControlState<object> {
+  control: FieldNode<unknown> | ModelArrayNode<object> | undefined
+): FieldControlState<unknown> | ArrayControlState<object> {
   const isArrayNode = control && 'length' in control && 'map' in control;
 
   // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков (useCallback +
@@ -390,5 +390,5 @@ export function useFormControl(
   }
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useFieldControl(control as FieldNode<FormValue>);
+  return useFieldControl(control as FieldNode<unknown>);
 }

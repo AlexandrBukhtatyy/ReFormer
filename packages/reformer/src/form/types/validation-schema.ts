@@ -6,8 +6,6 @@
  * `validateModel(model, schema)`; правила там — `Rule<T> = (value) => error | null`.
  */
 
-import type { FormValue } from './index';
-
 // ============================================================================
 // Опции валидации
 // ============================================================================
@@ -33,5 +31,5 @@ export interface ValidateOptions {
    */
   messageKey?: string;
   /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
-  params?: Record<string, FormValue>;
+  params?: Record<string, unknown>;
 }

@@ -205,16 +205,61 @@ export class GroupNode {
     for (const [key, node] of this.children) out[key] = node.peek();
     return out;
   }
+  /**
+   * Полная установка: значение ожидается целиком. Ключи, которых в нём нет, остаются прежними —
+   * как у {@link patch}, — но в dev о них сообщает предупреждение: неполный объект в `set` — почти
+   * всегда ошибка вызывающего кода, а не намерение.
+   */
   set(value: unknown): void {
-    if (value == null || typeof value !== 'object') return;
+    const missing: string[] = [];
+    this.write(value, missing);
+    if (missing.length > 0 && process.env.NODE_ENV !== 'production') {
+      const at = this.path === '' ? 'model' : `model.${this.path}`;
+      const what =
+        value == null || typeof value !== 'object'
+          ? 'значение не объект — группа осталась прежней'
+          : `в значении нет ключей ${missing.map((key) => `«${key}»`).join(', ')} — ` +
+            'эти поля остались прежними';
+      console.warn(
+        `[@reformer/core] ${at}.set(...): ${what}. \`set\` ожидает объект целиком; для ` +
+          'частичного обновления есть `patch`.'
+      );
+    }
+  }
+
+  /**
+   * Частичное обновление: записываются только переданные ключи. Вложенная группа сливается так
+   * же, массив заменяется целиком.
+   */
+  patch(value: unknown): void {
+    this.write(value, undefined);
+  }
+
+  /**
+   * Запись значения по ключам группы. Лишние ключи значения игнорируются, производные поля не
+   * затираются.
+   *
+   * @param missing - Куда складывать пути ключей, для которых значение не пришло. Передаётся при
+   *   полной установке ({@link set}); при частичной ({@link patch}) — `undefined`.
+   */
+  private write(value: unknown, missing: string[] | undefined): void {
+    if (value == null || typeof value !== 'object') {
+      // Группа без объекта-значения не записана вовсе — для полной установки это недостающий ключ.
+      missing?.push(this.path);
+      return;
+    }
     const v = value as Record<string, unknown>;
     // batch: иначе подписчик агрегата группы (`model.$.<group>`) получит по уведомлению на каждое поле.
     batch(() => {
       for (const [key, node] of this.children) {
-        if (!(key in v)) continue;
         // Производные поля (цели compute) не затираем значением из payload — ими владеет compute.
         if (node.kind === 'leaf' && isDerived(node.signal)) continue;
-        node.set(v[key]);
+        if (!(key in v)) {
+          missing?.push(joinPath(this.path, key));
+          continue;
+        }
+        if (node.kind === 'group') node.write(v[key], missing);
+        else node.set(v[key]);
       }
     });
   }

@@ -2,8 +2,8 @@
  * Дерево `$` — доступ к сигналам модели и резолв пути в сигнал.
  *
  * Лист отдаётся как сам {@link PathAwareSignal}; группа/массив — как контейнерный узел:
- * сигнал агрегированного значения ПЛЮС доступ к детям по имени/индексу. Контейнер намеренно
- * НЕ `instanceof Signal` — по этой проверке лист отличают от группы, см. {@link containerSignal}.
+ * сигнал агрегированного значения ПЛЮС доступ к детям по имени/индексу. Лист от контейнера
+ * отличает служебный ключ `__kind` (`'group'` / `'array'`), см. {@link isModelContainerSignal}.
  *
  * ## Массив — ещё и ручка значения
  *
@@ -17,7 +17,8 @@
  * @module model/model-signals-proxy
  */
 
-import { computed, Signal, type ReadonlySignal } from '@preact/signals-core';
+import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
+import { isSignal } from '../signals';
 import type { PathAwareSignal } from './types';
 import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes';
 
@@ -39,12 +40,10 @@ const nodeByContainer = new WeakMap<object, GroupNode | ArrayNode>();
 
 /**
  * Делегат `ReadonlySignal` над агрегатом контейнерного узла. Обычный объект, а НЕ подкласс/Proxy
- * вокруг инстанса `Computed`, по двум причинам:
- * - методы замкнуты на `agg`, поэтому receiver прокси не утекает в preact как `this` (иначе его
- *   запись во внутренние поля (`this._targets = …`) ушла бы в set-трап);
- * - `instanceof Signal` остаётся `false`, а проверками `value instanceof Signal` по кодовой базе
- *   лист отличают от группы (`create-form`, renderer-react/json). `ReadonlySignal` — структурный
- *   интерфейс, так что совместимость по типам сохраняется.
+ * вокруг инстанса `Computed`: методы замкнуты на `agg`, поэтому receiver прокси не утекает в
+ * preact как `this` (иначе его запись во внутренние поля (`this._targets = …`) ушла бы в
+ * set-трап). `ReadonlySignal` — структурный интерфейс, так что совместимость по типам сохраняется;
+ * метку сигнала (`brand`) делегат несёт, поэтому `isSignal` его узнаёт.
  */
 function containerSignal(node: GroupNode | ArrayNode): ReadonlySignal<unknown> {
   const agg = computed(() => node.read());
@@ -178,12 +177,11 @@ export function isModelArraySignal(value: unknown): boolean {
 }
 
 /**
- * «Ручка значения», к которой можно привязать поле: лист (`instanceof Signal`) либо узел-массив
+ * «Ручка значения», к которой можно привязать поле: лист (сигнал, не контейнер) либо узел-массив
  * дерева `model.$` (значение — массив целиком, `.value` читается и пишется).
  *
  * Группа сюда не входит: она читается целиком, но не пишется и полем не бывает. Этой проверкой
- * `createForm` и рендереры отличают узел-поле схемы (`{ value, component }`) от контейнера —
- * вместо голого `value instanceof Signal`, который узел-массив не проходит.
+ * `createForm` и рендереры отличают узел-поле схемы (`{ model, component }`) от контейнера.
  *
  * @group Model
  * @example
@@ -195,7 +193,7 @@ export function isModelArraySignal(value: unknown): boolean {
  * ```
  */
 export function isValueSignal(value: unknown): value is Signal<unknown> {
-  return value instanceof Signal || isModelArraySignal(value);
+  return isModelArraySignal(value) || (isSignal(value) && !isModelContainerSignal(value));
 }
 
 // ============================================================================

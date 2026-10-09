@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../src/form/nodes/field-node';
-import type { FormValue, ValidationError } from '../../src/form/types/index';
+import type { ValidationError } from '../../src/form/types/index';
 
 /** Сигналы ноды поля, которые читает `useFormControl`. */
 type FormControlState<T> = Pick<
@@ -49,7 +49,7 @@ const REQUIRED_ERROR: ValidationError = { code: 'required', message: 'Field is r
  * Симулирует вызов useFormControl без React рендера
  * Возвращает объект с теми же полями, что и хук
  */
-function simulateUseFormControl<T extends FormValue>(control: FieldNode<T>): FormControlState<T> {
+function simulateUseFormControl<T>(control: FieldNode<T>): FormControlState<T> {
   return {
     value: control.value,
     errors: control.errors,

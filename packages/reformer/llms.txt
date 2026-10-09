@@ -977,7 +977,7 @@ export interface PropertyItem {
   description: string;
 }
 
-// ✅ type alias структурно совместим с Record<string, FormValue>
+// ✅ type alias структурно совместим с Record<string, unknown>
 export type PropertyItem = {
   type: PropertyType;
   description: string;
@@ -1097,7 +1097,7 @@ import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
 ### Form-shape тип должен быть `type`, а не `interface`
 
 Прокси `createForm<T>` и типы `ModelArrayNode<U>` / `GroupNode<U>` требуют, чтобы form-shape
-структурно совпадал с `Record<string, FormValue>`. У `interface` нет неявной index signature,
+структурно совпадал с `Record<string, unknown>`. У `interface` нет неявной index signature,
 поэтому объявляй form-shape (и типы элементов массива, и вложенные группы) через `type`-alias:
 
 ```typescript
@@ -2345,6 +2345,8 @@ function ShadcnFormField({ control }: { control: FieldNode<string> }) {
 | Wrong                            | Correct                                          | Notes                                          |
 | -------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
 | `useForm`                        | `createModel` + `createForm`                     | Хука useForm нет                               |
+| `FormValue`                      | тип значения самого поля либо `unknown`          | Тип удалён: модель обобщённая (`createModel<T>`), параметры ошибки — `Record<string, unknown>` |
+| `value instanceof Signal`        | `isSignal(value)` из `@reformer/core/signals`    | Проверка по классу не узнаёт сигнал другой копии рантайма; ручку поля проверяет `isValueSignal` |
 | `validateForm`, `validateFormModel` | `validateModel(model, schema)` из `@reformer/core/validation` | Legacy-движок дерева `{ value, validators }` удалён; внешний раннер — `validateModel` |
 | `validateModelSync`              | `await validateModel(model, schema)`             | Синхронного раннера нет — прогон асинхронный (`Promise<boolean>`) |
 | `applyWhen`                      | `validateWhen(() => cond, () => { … })`          | Условная валидация — оператором `validateWhen`, не узлом `{ when, children }` |
@@ -3831,8 +3833,8 @@ A: Схема — обычная функция, поэтому опиши ст�
 // Модель (источник истины значений):
 interface ModelApi<T> {
   get(): T;                         // снимок значений — для submit
-  set(value: T): void;              // полная установка (все ключи T)
-  patch(value: Partial<T>): void;   // частичное слияние
+  set(value: T): void;              // полная установка (все ключи T); при нехватке ключей — dev-предупреждение
+  patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком
   isDirty(): boolean;               // отличаются ли значения от initial-снимка
   reset(): void;                    // вернуть к initial-снимку
   captureInitial(): void;           // зафиксировать текущие как новый initial
@@ -4111,7 +4113,8 @@ race-guard через deps). Динамические `componentProps` (опци
 ```typescript
 // Модель:
 model.set(value: T): void;            // полная установка значений (load полного DTO). Не меняет initial.
-model.patch(value: Partial<T>): void; // частичное слияние (только переданные ключи). Не меняет initial.
+                                      // DTO без части ключей: поля остаются прежними, в dev — предупреждение.
+model.patch(value: DeepPartial<T>): void; // частичное слияние (только переданные ключи, на любой глубине групп). Не меняет initial.
 model.reset(): void;                  // вернуть к initial-снимку
 model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 
@@ -4331,7 +4334,7 @@ import { defineFormBehavior, compute, enableWhen, onChange } from '@reformer/cor
 
 ### Recipe 2 — Form-shape types as `type`, not `interface`
 
-`Record<string, FormValue>` требует index signature. У `interface` её нет неявно; у `type` —
+`Record<string, unknown>` требует index signature. У `interface` её нет неявно; у `type` —
 структурно. Объявляй через `type`-alias всё, что попадает в `FormProxy<T>`/`ModelArrayNode<T>`:
 корневую форму, вложенные группы, типы элементов массива.
 
@@ -6078,8 +6081,7 @@ guard распознаёт дубль рантайма.
 
 Почему именно объект, а не строка с версией: две копии ОДНОЙ версии ломают всё ровно так же,
 как две копии разных версий, — раздваиваются модульные `WeakMap` (`derived-registry`,
-`signal-node-registry`) и перестают работать проверки `instanceof Signal`. Сравнение версий
-такой случай пропустило бы.
+`signal-node-registry`). Сравнение версий такой случай пропустило бы.
 
 **Signature:**
 ```typescript
@@ -6557,6 +6559,29 @@ export function createSchemaScope(
 
 _Source: src/form/schema-controller.ts_
 
+### DeepPartial
+
+**Kind:** `type`
+
+Частичное значение модели для {@link ModelApi.patch}: любой ключ можно опустить на любой
+глубине вложенных групп. Массив передаётся целиком — он заменяется, а не сливается.
+
+**Signature:**
+```typescript
+export type DeepPartial<T> = {
+  [K in keyof T]?: DeepPartialValue<T[K]>;
+};
+```
+
+**Examples:**
+
+```typescript
+type Profile = { name: string; address: { city: string; street: string }; tags: string[] };
+const update: DeepPartial<Profile> = { address: { city: 'Казань' } };
+```
+
+_Source: src/model/types.ts_
+
 ### DEFAULT_LOCALE
 
 **Kind:** `const`
@@ -6802,7 +6827,7 @@ export interface ErrorFilterOptions {
   message?: string;
 
   /** Фильтр по параметрам ошибки */
-  params?: Record<string, FormValue>;
+  params?: Record<string, unknown>;
 
   /** Кастомный предикат для фильтрации */
   predicate?: (error: ValidationError) => boolean;
@@ -7784,29 +7809,6 @@ export interface FormValidationController {
 
 _Source: src/form/validation/strategy.ts_
 
-### FormValue
-
-**Kind:** `type`
-
-Represents any valid form value type
-Use this instead of 'any' for form values to maintain type safety
-
-**Signature:**
-```typescript
-export type FormValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Date
-  | File
-  | FormValue[]
-  | { [key: string]: FormValue };
-```
-
-_Source: src/form/types/contracts.ts_
-
 ### futureDate
 
 **Kind:** `function`
@@ -8270,7 +8272,7 @@ FieldNode представляет поле формы над сигналом �
 
 **Signature:**
 ```typescript
-export function isFieldNode(value: unknown): value is FieldNode<FormValue>
+export function isFieldNode(value: unknown): value is FieldNode<unknown>
 ```
 
 **Parameters:**
@@ -8318,7 +8320,7 @@ _Source: src/form/validators/file-utils.ts_
 
 **Signature:**
 ```typescript
-export function isFormNode(value: unknown): value is FormNode<FormValue>
+export function isFormNode(value: unknown): value is FormNode<unknown>
 ```
 
 **Parameters:**
@@ -8437,16 +8439,41 @@ validate(model.$.amount, [required(), isNumber({ message: 'Введите чис
 
 _Source: src/form/validators/is-number.ts_
 
+### isSignal
+
+**Kind:** `function`
+
+Значение — сигнал: результат `signal()` или `computed()`, в том числе созданный другой копией
+рантайма.
+
+Контейнерные узлы дерева `model.$` (группа, массив) тоже проходят проверку: это сигналы
+агрегированного значения. Лист от контейнера отличает `isModelContainerSignal`, а ручку, к
+которой можно привязать поле, — `isValueSignal` (оба — из `@reformer/core`).
+
+**Signature:**
+```typescript
+export function isSignal(value: unknown): value is ReadonlySignal<unknown>
+```
+
+**Examples:**
+
+```typescript
+isSignal(signal(1)); // true
+isSignal(computed(() => 1)); // true
+isSignal({ value: 1 }); // false
+```
+
+_Source: src/signals.ts_
+
 ### isValueSignal
 
 **Kind:** `function`
 
-«Ручка значения», к которой можно привязать поле: лист (`instanceof Signal`) либо узел-массив
+«Ручка значения», к которой можно привязать поле: лист (сигнал, не контейнер) либо узел-массив
 дерева `model.$` (значение — массив целиком, `.value` читается и пишется).
 
 Группа сюда не входит: она читается целиком, но не пишется и полем не бывает. Этой проверкой
-`createForm` и рендереры отличают узел-поле схемы (`{ value, component }`) от контейнера —
-вместо голого `value instanceof Signal`, который узел-массив не проходит.
+`createForm` и рендереры отличают узел-поле схемы (`{ model, component }`) от контейнера.
 
 **Signature:**
 ```typescript
@@ -9386,13 +9413,17 @@ export interface ModelApi<T> {
    * Полная установка значений: принимает объект целиком (все ключи `T`) и записывает их в модель.
    * Производными полями (цели `compute`) владеет compute — их значения из payload игнорируются.
    * Не меняет initial-снимок. Для частичного обновления (только переданные ключи) — {@link ModelApi.patch}.
+   *
+   * Если в объекте не хватает ключей (значение пришло без типа — например, с сервера), эти поля
+   * остаются прежними, а в dev выводится предупреждение со списком.
    */
   set(value: T): void;
   /**
    * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
-   * отсутствующие ключи НЕ трогаются. Не меняет initial-снимок.
+   * отсутствующие ключи НЕ трогаются. Вложенные группы сливаются так же, массив заменяется
+   * целиком. Не меняет initial-снимок.
    */
-  patch(value: Partial<T>): void;
+  patch(value: DeepPartial<T>): void;
   /** Отличаются ли текущие значения от initial-снимка (value-diff). */
   isDirty(): boolean;
   /** Сбросить значения к initial-снимку. */
@@ -11240,8 +11271,8 @@ React-хук для подписки на состояние формы (FieldNo
 **Signature:**
 ```typescript
 export function useFormControl(
-  control: FieldNode<FormValue> | ModelArrayNode<object> | undefined
-): FieldControlState<FormValue> | ArrayControlState<object>
+  control: FieldNode<unknown> | ModelArrayNode<object> | undefined
+): FieldControlState<unknown> | ArrayControlState<object>
 ```
 
 **Parameters:**
@@ -11475,7 +11506,7 @@ React-хук для подписки только на значение поля
 
 **Signature:**
 ```typescript
-export function useFormControlValue<T extends FormValue>(control: FieldNode<T>): T
+export function useFormControlValue<T>(control: FieldNode<T>): T
 ```
 
 **Parameters:**
@@ -11944,7 +11975,7 @@ export interface ValidateOptions {
    */
   messageKey?: string;
   /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
-  params?: Record<string, FormValue>;
+  params?: Record<string, unknown>;
 }
 ```
 
@@ -11981,7 +12012,7 @@ export interface ValidationError {
   message?: string;
   /** Ключ сообщения в словаре приложения; при наличии в активной локали важнее `message`. */
   messageKey?: string;
-  params?: Record<string, FormValue>;
+  params?: Record<string, unknown>;
   /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
   severity?: 'error' | 'warning';
 }

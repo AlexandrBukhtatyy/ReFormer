@@ -14,7 +14,7 @@
 import { signal, computed, batch } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
-import type { ValidationError, FieldStatus, FormValue } from '../types/index';
+import type { ValidationError, FieldStatus } from '../types/index';
 import type { FormProxy } from '../types/form-proxy';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
@@ -271,7 +271,7 @@ export class GroupNode<T> extends FormNode<T> {
    * от поля; для доступа к полю пользуйтесь прокси формы — `form.email`, а для поля, имя
    * которого занято членом ноды (`value`, `errors`, `status`), — `form.$.value`.
    */
-  get fields(): Map<keyof T, FormNode<FormValue>> {
+  get fields(): Map<keyof T, FormNode<unknown>> {
     return this._fields;
   }
 

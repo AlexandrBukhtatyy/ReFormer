@@ -11,6 +11,8 @@
 | Wrong                            | Correct                                          | Notes                                          |
 | -------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
 | `useForm`                        | `createModel` + `createForm`                     | Хука useForm нет                               |
+| `FormValue`                      | тип значения самого поля либо `unknown`          | Тип удалён: модель обобщённая (`createModel<T>`), параметры ошибки — `Record<string, unknown>` |
+| `value instanceof Signal`        | `isSignal(value)` из `@reformer/core/signals`    | Проверка по классу не узнаёт сигнал другой копии рантайма; ручку поля проверяет `isValueSignal` |
 | `validateForm`, `validateFormModel` | `validateModel(model, schema)` из `@reformer/core/validation` | Legacy-движок дерева `{ value, validators }` удалён; внешний раннер — `validateModel` |
 | `validateModelSync`              | `await validateModel(model, schema)`             | Синхронного раннера нет — прогон асинхронный (`Promise<boolean>`) |
 | `applyWhen`                      | `validateWhen(() => cond, () => { … })`          | Условная валидация — оператором `validateWhen`, не узлом `{ when, children }` |

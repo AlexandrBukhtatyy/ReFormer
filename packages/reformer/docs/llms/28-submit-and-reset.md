@@ -18,8 +18,8 @@
 // Модель (источник истины значений):
 interface ModelApi<T> {
   get(): T;                         // снимок значений — для submit
-  set(value: T): void;              // полная установка (все ключи T)
-  patch(value: Partial<T>): void;   // частичное слияние
+  set(value: T): void;              // полная установка (все ключи T); при нехватке ключей — dev-предупреждение
+  patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком
   isDirty(): boolean;               // отличаются ли значения от initial-снимка
   reset(): void;                    // вернуть к initial-снимку
   captureInitial(): void;           // зафиксировать текущие как новый initial

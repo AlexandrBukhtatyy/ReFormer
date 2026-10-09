@@ -30,6 +30,7 @@ export { createModel, eachLeafSignal, eachValueSignal } from './create-model';
 // Массив модели с шаблоном нового элемента — `push()` / «Добавить» без значения.
 export { arrayOf } from './model-nodes';
 export type {
+  DeepPartial,
   FormModel,
   ModelArray,
   ModelArraySignals,

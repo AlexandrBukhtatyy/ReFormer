@@ -34,6 +34,34 @@ export type PathAwareSignal<T> = Signal<T> & {
 type Opaque = Date | File | Blob;
 
 /**
+ * Значение одного ключа в {@link DeepPartial}: вложенная группа — частично, массив и спец-объект
+ * (Date/File/Blob) — целиком.
+ * @internal
+ */
+type DeepPartialValue<V> =
+  NonNullable<V> extends ReadonlyArray<unknown> | Opaque
+    ? V
+    : NonNullable<V> extends object
+      ? DeepPartial<NonNullable<V>> | Extract<V, null | undefined>
+      : V;
+
+/**
+ * Частичное значение модели для {@link ModelApi.patch}: любой ключ можно опустить на любой
+ * глубине вложенных групп. Массив передаётся целиком — он заменяется, а не сливается.
+ *
+ * @example
+ * ```typescript
+ * type Profile = { name: string; address: { city: string; street: string }; tags: string[] };
+ * const update: DeepPartial<Profile> = { address: { city: 'Казань' } };
+ * ```
+ *
+ * @group Model
+ */
+export type DeepPartial<T> = {
+  [K in keyof T]?: DeepPartialValue<T[K]>;
+};
+
+/**
  * Фасад элемента массива при обходе (`at`/`map`/`forEach`): массив → {@link ModelArray},
  * Opaque (Date/File/Blob) и примитив → значение, объект → под-модель {@link FormModel}.
  * Зеркалит листовой/объектный сплит {@link ModelValue} (но объект → под-модель с API),
@@ -210,13 +238,17 @@ export interface ModelApi<T> {
    * Полная установка значений: принимает объект целиком (все ключи `T`) и записывает их в модель.
    * Производными полями (цели `compute`) владеет compute — их значения из payload игнорируются.
    * Не меняет initial-снимок. Для частичного обновления (только переданные ключи) — {@link ModelApi.patch}.
+   *
+   * Если в объекте не хватает ключей (значение пришло без типа — например, с сервера), эти поля
+   * остаются прежними, а в dev выводится предупреждение со списком.
    */
   set(value: T): void;
   /**
    * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
-   * отсутствующие ключи НЕ трогаются. Не меняет initial-снимок.
+   * отсутствующие ключи НЕ трогаются. Вложенные группы сливаются так же, массив заменяется
+   * целиком. Не меняет initial-снимок.
    */
-  patch(value: Partial<T>): void;
+  patch(value: DeepPartial<T>): void;
   /** Отличаются ли текущие значения от initial-снимка (value-diff). */
   isDirty(): boolean;
   /** Сбросить значения к initial-снимку. */

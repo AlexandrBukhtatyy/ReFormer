@@ -32,7 +32,7 @@ import { defineFormBehavior, compute, enableWhen, onChange } from '@reformer/cor
 
 ### Recipe 2 — Form-shape types as `type`, not `interface`
 
-`Record<string, FormValue>` требует index signature. У `interface` её нет неявно; у `type` —
+`Record<string, unknown>` требует index signature. У `interface` её нет неявно; у `type` —
 структурно. Объявляй через `type`-alias всё, что попадает в `FormProxy<T>`/`ModelArrayNode<T>`:
 корневую форму, вложенные группы, типы элементов массива.
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
-import { signal } from '@preact/signals-core';
+import { computed, signal } from '@preact/signals-core';
 import {
   defineMessages,
   isMessageDescriptor,
@@ -167,6 +167,26 @@ describe('resolveLocalized', () => {
     expect(resolveLocalized(descriptor, ru)).toBe('1 попытка');
     attempts.value = 5;
     expect(resolveLocalized(descriptor, ru)).toBe('5 попыток');
+  });
+
+  it('вычисляемый сигнал в подстановке читается так же, как обычный', () => {
+    const attempts = signal(1);
+    const doubled = computed(() => attempts.value * 2);
+    const descriptor = msg('profile.attempts', { count: doubled });
+
+    expect(resolveLocalized(descriptor, ru)).toBe('2 попытки');
+    attempts.value = 3;
+    expect(resolveLocalized(descriptor, ru)).toBe('6 попыток');
+  });
+
+  it('сигнал из другой копии рантайма узнаётся по метке, а не по классу', () => {
+    // У чужой копии свой класс Signal — `instanceof` на нём не сработал бы.
+    const foreign = { brand: Symbol.for('preact-signals'), value: 5, label: msg('opt.a') };
+
+    expect(resolveLocalized(msg('profile.attempts', { count: foreign }), ru)).toBe('5 попыток');
+    // Внутрь сигнала обход не заходит: его поля — не пропсы.
+    const props = { counter: foreign };
+    expect(resolveLocalized(props, ru)).toBe(props);
   });
 
   it('не заходит в сигналы, React-элементы, функции и экземпляры классов', () => {

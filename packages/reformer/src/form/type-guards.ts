@@ -21,7 +21,6 @@ import type { FormNode } from './nodes/form-node';
 import type { FieldNode } from './nodes/field-node';
 import type { GroupNode } from './nodes/group-node';
 import type { ModelArrayNode } from './nodes/model-array-node';
-import type { FormValue } from './types/index';
 
 /**
  * Проверить, является ли значение любым FormNode
@@ -42,7 +41,7 @@ import type { FormValue } from './types/index';
  * }
  * ```
  */
-export function isFormNode(value: unknown): value is FormNode<FormValue> {
+export function isFormNode(value: unknown): value is FormNode<unknown> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -76,7 +75,7 @@ export function isFormNode(value: unknown): value is FormNode<FormValue> {
  * }
  * ```
  */
-export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
+export function isFieldNode(value: unknown): value is FieldNode<unknown> {
   return (
     isFormNode(value) &&
     // Пропсы компонента есть только у поля

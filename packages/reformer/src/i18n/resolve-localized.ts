@@ -4,7 +4,7 @@
  * @module i18n/resolve-localized
  */
 
-import { Signal } from '@preact/signals-core';
+import { isSignal } from '../signals';
 import { isMessageDescriptor } from './descriptor';
 import type { MessageValues } from './message-format';
 import type { I18nHandle } from './translator';
@@ -20,7 +20,7 @@ function isPlainObject(value: object): value is Record<string, unknown> {
  * либо `__kind`), React-элементы (`$$typeof`).
  */
 function isOpaque(value: object): boolean {
-  if (value instanceof Signal) return true;
+  if (isSignal(value)) return true;
   const probe = value as { __path?: unknown; __kind?: unknown; $$typeof?: unknown };
   return probe.$$typeof !== undefined || probe.__path !== undefined || probe.__kind !== undefined;
 }
@@ -33,7 +33,7 @@ function readValues(
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(values)) {
     const value = values[key];
-    out[key] = value instanceof Signal ? (value.value as unknown) : value;
+    out[key] = isSignal(value) ? value.value : value;
   }
   return out;
 }

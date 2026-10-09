@@ -2,7 +2,6 @@ import { useCallback, useRef } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { effect } from '@preact/signals-core';
 import type { FieldNode } from '../../../form/nodes/field-node';
-import type { FormValue } from '../../../form/types/index';
 
 /**
  * React-хук для подписки только на значение поля.
@@ -174,7 +173,7 @@ import type { FormValue } from '../../../form/types/index';
  *
  * @group React Hooks
  */
-export function useFormControlValue<T extends FormValue>(control: FieldNode<T>): T {
+export function useFormControlValue<T>(control: FieldNode<T>): T {
   const cacheRef = useRef<{ value: T }>({ value: control.value.value });
 
   const subscribe = useCallback(

@@ -39,7 +39,7 @@ import type { ModelArrayNode } from '../nodes/model-array-node';
  * Признак «объект-группа» — обычный объект, который нужно обернуть в под-форму.
  *
  * Исключает массивы, спец-объекты (`Date`/`File`/`Blob`) и примитивы.
- * Используется как дискриминатор вместо `extends FormFields` (`Record<string, FormValue>`):
+ * Используется как дискриминатор вместо `extends Record<string, unknown>`:
  * пользовательские модели почти всегда объявлены через `interface`, который НЕ assignable
  * к Record-типу (у интерфейса нет неявной index signature), и потому ошибочно проваливался
  * бы в ветку `FieldNode`. Проверка `extends object` корректно ловит и `interface`, и `type`.

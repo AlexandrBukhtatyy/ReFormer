@@ -80,7 +80,7 @@ import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
 ### Form-shape тип должен быть `type`, а не `interface`
 
 Прокси `createForm<T>` и типы `ModelArrayNode<U>` / `GroupNode<U>` требуют, чтобы form-shape
-структурно совпадал с `Record<string, FormValue>`. У `interface` нет неявной index signature,
+структурно совпадал с `Record<string, unknown>`. У `interface` нет неявной index signature,
 поэтому объявляй form-shape (и типы элементов массива, и вложенные группы) через `type`-alias:
 
 ```typescript

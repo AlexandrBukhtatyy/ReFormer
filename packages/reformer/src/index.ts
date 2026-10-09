@@ -16,6 +16,7 @@ export * from './form/types/index';
 export { createModel, eachLeafSignal, eachValueSignal } from './model/create-model';
 export { arrayOf } from './model/model-nodes';
 export type {
+  DeepPartial,
   FormModel,
   ModelArray,
   ModelArraySignals,
