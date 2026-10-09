@@ -41,11 +41,11 @@ import { useMemo } from 'react';
 import {
   createModel,
   createFormFromModel,
-  useFormControl,
   type FieldNode,
   type FormSchemaNode,
   type ValidationError,
 } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';

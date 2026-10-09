@@ -1,7 +1,7 @@
 {
   "name": "@reformer/core",
   "version": "6.0.0",
-  "description": "Reactive form state management library for React with signals-based architecture",
+  "description": "Reactive form state management on signals: a UI-agnostic core with React bindings in @reformer/core/react",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,6 +18,10 @@
     "./i18n": {
       "types": "./dist/i18n.d.ts",
       "import": "./dist/i18n.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
     },
     "./locale": {
       "types": "./dist/locale.d.ts",
@@ -185,6 +189,14 @@
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
   },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@preact/signals-core": "^1.8.0",
     "use-sync-external-store": "^1.2.0"
@@ -196,6 +208,7 @@
     "@vitest/coverage-v8": "~4.0.15",
     "intl-messageformat": "^12.1.2",
     "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",

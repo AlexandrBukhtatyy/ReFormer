@@ -13,6 +13,9 @@
 | `useForm`                        | `createModel` + `createForm`                     | Хука useForm нет                               |
 | `FormValue`                      | тип значения самого поля либо `unknown`          | Тип удалён: модель обобщённая (`createModel<T>`), параметры ошибки — `Record<string, unknown>` |
 | `value instanceof Signal`        | `isSignal(value)` из `@reformer/core/signals`    | Проверка по классу не узнаёт сигнал другой копии рантайма; ручку поля проверяет `isValueSignal` |
+| `import { useFormControl, useFormBundle, … } from '@reformer/core'` | те же имена из `@reformer/core/react` | Корень ядра без React: хуки (`useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`, `useFormBundle`), `FormBundleContext`, связка поля (`bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`) и типы снимков (`FieldControlState`, `ArrayControlState`) отдаёт только сабпат `/react` |
+| `import { I18nProvider, useI18n, … } from '@reformer/core/i18n'` | те же имена из `@reformer/core/react` | `/i18n` — локаль, перевод и тексты ошибок без React; провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`) переехали в `/react` |
+| `ElementType` / `ComponentType` в типе узла схемы | `ComponentRef` из `@reformer/core` | Типы схемы и ноды не импортируют типы React: `component` — непрозрачная ссылка (`string | object`), к типу своего UI-слоя её приводит рендерер |
 | `validateForm`, `validateFormModel` | `validateModel(model, schema)` из `@reformer/core/validation` | Legacy-движок дерева `{ value, validators }` удалён; внешний раннер — `validateModel` |
 | `validateModelSync`              | `await validateModel(model, schema)`             | Синхронного раннера нет — прогон асинхронный (`Promise<boolean>`) |
 | `applyWhen`                      | `validateWhen(() => cond, () => { … })`          | Условная валидация — оператором `validateWhen`, не узлом `{ when, children }` |
@@ -114,7 +117,8 @@ import { transformers } from '@reformer/core/behaviors';                        
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';              // NO!
 
 // CORRECT
-import { createModel, createForm, useFormControl } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import type { FormModel, FormSchemaNode, ValidationError } from '@reformer/core';
 // Операторы валидации + раннер + defineValidationSchema — отдельный сабпуть:
 import {

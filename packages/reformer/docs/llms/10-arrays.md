@@ -166,7 +166,7 @@ model.items.map((item, i) => item.name);             // item — FormModel<Item>
 Каждый элемент массива — под-форма (`FormProxy<Item>`). Итерируй через `form.items.map`:
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
+import { useArrayLength } from '@reformer/core/react';
 
 function ItemsList({ form }: { form: FormProxy<MyForm> }) {
   const length = useArrayLength(form.items);

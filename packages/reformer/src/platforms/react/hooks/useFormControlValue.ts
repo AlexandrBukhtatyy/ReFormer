@@ -29,7 +29,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *
  * @example Условный рендеринг секции
  * ```tsx
- * import { useFormControlValue } from '@reformer/core';
+ * import { useFormControlValue } from '@reformer/core/react';
  *
  * interface FormFields {
  *   hasShipping: FieldNode<boolean>;
@@ -137,7 +137,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  * // Основной редактор использует useFormControl для полного состояния
  * function MarkdownEditor({ control }: MarkdownEditorProps) {
  *   const { value, shouldShowError, errors } = useFormControl(control);
- *   const message = useValidationMessage(); // из '@reformer/core/i18n'
+ *   const message = useValidationMessage(); // из '@reformer/core/react'
  *
  *   return (
  *     <div className="editor-container">

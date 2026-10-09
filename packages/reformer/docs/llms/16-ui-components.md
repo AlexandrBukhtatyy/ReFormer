@@ -127,7 +127,7 @@ props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте р
 
 ```tsx
 import type { FieldNode } from '@reformer/core';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 type MyFormFieldProps<T> = { control: FieldNode<T> }; // ← ОДИН prop
 
@@ -159,7 +159,7 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 <MyFormField control={form.email} /> // ← без label-prop
 ```
 
-### Связывание поля с контролом — `FieldAdapter` (`@reformer/core`)
+### Связывание поля с контролом — `FieldAdapter` (`@reformer/core/react`)
 
 Контролы говорят на разных диалектах (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие
 в `onChange`), форма — на value-based seam (`value` + `onChange(value)` + `onBlur`). Перевод

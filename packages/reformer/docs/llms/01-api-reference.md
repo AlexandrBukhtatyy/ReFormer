@@ -10,10 +10,12 @@
 | `defineValidationSchema`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`          | `@reformer/core/validation` |
 | `validateModel`, `runValidation`, `applyValidationResult` (раннер)                                    | `@reformer/core/validation` |
 | `Rule`, `AsyncRule`, `ValidationSchema`, `ValidationScope`, `ValidationResult` (типы)                | `@reformer/core/validation` |
-| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`                            | `@reformer/core`            |
+| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`       | `@reformer/core/react`      |
+| `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля) | `@reformer/core/react`      |
+| `I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`                                      | `@reformer/core/react`      |
 | `FormModel`, `FormProxy`, `FormBundle`, `FieldNode`, `GroupNode`, `ModelArrayNode`                   | `@reformer/core`            |
 | `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                          | `@reformer/core`            |
-| `ValidationError`, `FormSchemaNode`, `FormValidation`, `FieldControlState`                            | `@reformer/core`            |
+| `ValidationError`, `FormSchemaNode`, `FormValidation`, `ComponentRef`                                 | `@reformer/core`            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                | `@reformer/core/validators` |
 | `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators` |

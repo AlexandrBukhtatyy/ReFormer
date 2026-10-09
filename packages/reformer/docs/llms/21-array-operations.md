@@ -35,7 +35,7 @@ model.items.clear();                             // очистить
 ### Rendering Arrays
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
+import { useArrayLength } from '@reformer/core/react';
 
 function ItemsList({ form }: { form: FormProxy<MyForm> }) {
   const length = useArrayLength(form.items);

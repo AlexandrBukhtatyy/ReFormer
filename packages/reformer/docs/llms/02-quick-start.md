@@ -14,13 +14,8 @@
 либо `validateModel(model, schema)`.
 
 ```typescript
-import {
-  createForm,
-  useFormBundle,
-  type FormModel,
-  type FormProxy,
-  type FormSchemaNode,
-} from '@reformer/core';
+import { createForm, type FormModel, type FormProxy, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';

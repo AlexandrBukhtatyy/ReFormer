@@ -1,11 +1,10 @@
 /**
- * Подпуть `@reformer/core/i18n` — локализация форм: объект локали, загрузка словарей, провайдер,
- * перевод и форматирование, описатели авторских подписей.
+ * Подпуть `@reformer/core/i18n` — локализация форм без React: объект локали, загрузка словарей,
+ * перевод и форматирование, тексты ошибок, описатели авторских подписей.
  *
- * Вторая точка сшивки слоёв после корневого `index.ts`: чистая часть лежит в `src/i18n/`
- * (без React), привязка к React — в `src/platforms/react/i18n/`. Из главной бочки `@reformer/core`
- * этот модуль не реэкспортируется: канонический импорт один, а контекст обязан существовать в
- * единственном экземпляре на все пакеты `@reformer/*`.
+ * Провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`) отдаёт вход
+ * `@reformer/core/react`. Из главной бочки `@reformer/core` этот модуль не реэкспортируется:
+ * канонический импорт один.
  *
  * @group i18n
  * @module i18n
@@ -52,14 +51,3 @@ export { resolveValidationError } from './i18n/validation-message';
 export { msg, defineMessages, isMessageDescriptor, MESSAGE_DESCRIPTOR } from './i18n/descriptor';
 export type { MessageDescriptor, LocalizableText } from './i18n/descriptor';
 export { resolveLocalized } from './i18n/resolve-localized';
-
-// React.
-export { I18nProvider } from './platforms/react/i18n/provider';
-export type {
-  I18nProviderProps,
-  I18nStaticProviderProps,
-  I18nLoadingProviderProps,
-} from './platforms/react/i18n/provider';
-export { useI18n, useMessages, useValidationMessage } from './platforms/react/i18n/hooks';
-export { I18N_CONTEXT_MARKER } from './platforms/react/i18n/context';
-export type { I18nContextValue } from './platforms/react/i18n/context';

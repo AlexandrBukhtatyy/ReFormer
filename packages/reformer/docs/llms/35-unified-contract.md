@@ -221,7 +221,8 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 ## Сборка — `createForm`
 
 ```tsx
-import { createForm, useFormBundle } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 
 const credit = useFormBundle(() =>
   createForm<CreditForm>({

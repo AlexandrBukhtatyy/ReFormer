@@ -12,13 +12,12 @@
 import {
   createModel,
   createForm,
-  useFormControl,
-  useFormControlValue,
   type FormProxy,
   type FormSchemaNode,
   type FormModel,
   type ValidationError,
 } from '@reformer/core';
+import { useFormControl, useFormControlValue } from '@reformer/core/react';
 // схема валидации + раннер — отдельный слой:
 import {
   defineValidationSchema,

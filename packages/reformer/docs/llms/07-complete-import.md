@@ -1,19 +1,22 @@
 ## Import Patterns
 
 ```typescript
-// Модель, форма, хуки, типы — из @reformer/core
+// Модель, форма, типы — из @reformer/core. React здесь нет: корень работает и на сервере
 import {
-  // фабрики
   createModel,
   createForm,
   createFormFromModel,
   arrayOf, // массив модели с шаблоном новой строки
-  // хуки
+} from '@reformer/core';
+
+// Привязка к React — хуки, связка поля с контролом, провайдер локали — из /react
+import {
   useFormBundle,
   useFormControl,
   useFormControlValue,
   useArrayLength,
-} from '@reformer/core';
+} from '@reformer/core/react';
+import type { FieldControlState } from '@reformer/core/react';
 
 // Типы
 import type {
@@ -29,7 +32,6 @@ import type {
   ValidationError,
   FormSchemaNode,   // узел схемы: поле | массив под-форм | подформа | контейнер
   FormValidation,   // правила формы как данные: { steps, extras, strategy }
-  FieldControlState,
 } from '@reformer/core';
 
 // Схема валидации: операторы + раннер — из /validation

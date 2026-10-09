@@ -4,8 +4,8 @@
  * @group Types
  */
 
-import type { ComponentType } from 'react';
 import type { Signal } from '@preact/signals-core';
+import type { ComponentRef } from './schema-node';
 
 /**
  * Конфигурация {@link FieldNode}: сигнал значения из модели и то, что нода берёт из узла схемы.
@@ -27,8 +27,7 @@ export interface FieldConfig<T> {
    * UI-компонент поля. Опционален: core-часть можно использовать без ссылки на компонент
    * (значение и состояние работают без UI; компонент нужен только для рендеринга).
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component?: ComponentType<any>;
+  component?: ComponentRef;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   componentProps?: any;
   disabled?: boolean;

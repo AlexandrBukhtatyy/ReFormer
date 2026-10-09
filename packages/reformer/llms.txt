@@ -1,7 +1,7 @@
 # ReFormer CORE - LLM Integration Guide
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
-> Reactive form state management library for React with signals-based architecture
+> Reactive form state management on signals: a UI-agnostic core with React bindings in @reformer/core/react
 > Package: @reformer/core  •  Version: 6.0.0
 
 ## Table of Contents
@@ -56,10 +56,12 @@
 | `defineValidationSchema`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`          | `@reformer/core/validation` |
 | `validateModel`, `runValidation`, `applyValidationResult` (раннер)                                    | `@reformer/core/validation` |
 | `Rule`, `AsyncRule`, `ValidationSchema`, `ValidationScope`, `ValidationResult` (типы)                | `@reformer/core/validation` |
-| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`                            | `@reformer/core`            |
+| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`       | `@reformer/core/react`      |
+| `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля) | `@reformer/core/react`      |
+| `I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`                                      | `@reformer/core/react`      |
 | `FormModel`, `FormProxy`, `FormBundle`, `FieldNode`, `GroupNode`, `ModelArrayNode`                   | `@reformer/core`            |
 | `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                          | `@reformer/core`            |
-| `ValidationError`, `FormSchemaNode`, `FormValidation`, `FieldControlState`                            | `@reformer/core`            |
+| `ValidationError`, `FormSchemaNode`, `FormValidation`, `ComponentRef`                                 | `@reformer/core`            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                | `@reformer/core/validators` |
 | `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators` |
@@ -129,13 +131,8 @@ const { value, errors, disabled } = useFormControl(control.loanType);
 либо `validateModel(model, schema)`.
 
 ```typescript
-import {
-  createForm,
-  useFormBundle,
-  type FormModel,
-  type FormProxy,
-  type FormSchemaNode,
-} from '@reformer/core';
+import { createForm, type FormModel, type FormProxy, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
@@ -843,13 +840,12 @@ const schema = defineValidationSchema<MyForm>(({ model }) => {
 import {
   createModel,
   createForm,
-  useFormControl,
-  useFormControlValue,
   type FormProxy,
   type FormSchemaNode,
   type FormModel,
   type ValidationError,
 } from '@reformer/core';
+import { useFormControl, useFormControlValue } from '@reformer/core/react';
 // схема валидации + раннер — отдельный слой:
 import {
   defineValidationSchema,
@@ -1018,19 +1014,22 @@ if (isFieldNode(node)) { ... }
 **complete-import**
 
 ```typescript
-// Модель, форма, хуки, типы — из @reformer/core
+// Модель, форма, типы — из @reformer/core. React здесь нет: корень работает и на сервере
 import {
-  // фабрики
   createModel,
   createForm,
   createFormFromModel,
   arrayOf, // массив модели с шаблоном новой строки
-  // хуки
+} from '@reformer/core';
+
+// Привязка к React — хуки, связка поля с контролом, провайдер локали — из /react
+import {
   useFormBundle,
   useFormControl,
   useFormControlValue,
   useArrayLength,
-} from '@reformer/core';
+} from '@reformer/core/react';
+import type { FieldControlState } from '@reformer/core/react';
 
 // Типы
 import type {
@@ -1046,7 +1045,6 @@ import type {
   ValidationError,
   FormSchemaNode,   // узел схемы: поле | массив под-форм | подформа | контейнер
   FormValidation,   // правила формы как данные: { steps, extras, strategy }
-  FieldControlState,
 } from '@reformer/core';
 
 // Схема валидации: операторы + раннер — из /validation
@@ -1521,7 +1519,7 @@ model.items.map((item, i) => item.name);             // item — FormModel<Item>
 Каждый элемент массива — под-форма (`FormProxy<Item>`). Итерируй через `form.items.map`:
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
+import { useArrayLength } from '@reformer/core/react';
 
 function ItemsList({ form }: { form: FormProxy<MyForm> }) {
   const length = useArrayLength(form.items);
@@ -2240,7 +2238,7 @@ props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте р
 
 ```tsx
 import type { FieldNode } from '@reformer/core';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 type MyFormFieldProps<T> = { control: FieldNode<T> }; // ← ОДИН prop
 
@@ -2272,7 +2270,7 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 <MyFormField control={form.email} /> // ← без label-prop
 ```
 
-### Связывание поля с контролом — `FieldAdapter` (`@reformer/core`)
+### Связывание поля с контролом — `FieldAdapter` (`@reformer/core/react`)
 
 Контролы говорят на разных диалектах (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие
 в `onChange`), форма — на value-based seam (`value` + `onChange(value)` + `onBlur`). Перевод
@@ -2347,6 +2345,9 @@ function ShadcnFormField({ control }: { control: FieldNode<string> }) {
 | `useForm`                        | `createModel` + `createForm`                     | Хука useForm нет                               |
 | `FormValue`                      | тип значения самого поля либо `unknown`          | Тип удалён: модель обобщённая (`createModel<T>`), параметры ошибки — `Record<string, unknown>` |
 | `value instanceof Signal`        | `isSignal(value)` из `@reformer/core/signals`    | Проверка по классу не узнаёт сигнал другой копии рантайма; ручку поля проверяет `isValueSignal` |
+| `import { useFormControl, useFormBundle, … } from '@reformer/core'` | те же имена из `@reformer/core/react` | Корень ядра без React: хуки (`useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`, `useFormBundle`), `FormBundleContext`, связка поля (`bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`) и типы снимков (`FieldControlState`, `ArrayControlState`) отдаёт только сабпат `/react` |
+| `import { I18nProvider, useI18n, … } from '@reformer/core/i18n'` | те же имена из `@reformer/core/react` | `/i18n` — локаль, перевод и тексты ошибок без React; провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`) переехали в `/react` |
+| `ElementType` / `ComponentType` в типе узла схемы | `ComponentRef` из `@reformer/core` | Типы схемы и ноды не импортируют типы React: `component` — непрозрачная ссылка (`string | object`), к типу своего UI-слоя её приводит рендерер |
 | `validateForm`, `validateFormModel` | `validateModel(model, schema)` из `@reformer/core/validation` | Legacy-движок дерева `{ value, validators }` удалён; внешний раннер — `validateModel` |
 | `validateModelSync`              | `await validateModel(model, schema)`             | Синхронного раннера нет — прогон асинхронный (`Promise<boolean>`) |
 | `applyWhen`                      | `validateWhen(() => cond, () => { … })`          | Условная валидация — оператором `validateWhen`, не узлом `{ when, children }` |
@@ -2448,7 +2449,8 @@ import { transformers } from '@reformer/core/behaviors';                        
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';              // NO!
 
 // CORRECT
-import { createModel, createForm, useFormControl } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import type { FormModel, FormSchemaNode, ValidationError } from '@reformer/core';
 // Операторы валидации + раннер + defineValidationSchema — отдельный сабпуть:
 import {
@@ -2620,7 +2622,7 @@ const ok: boolean = await validateModel(model, schema);
 и делай ранний `return null`. Хук возвращает **только значение** (без деструктуризации `{ value }`).
 
 ```tsx
-import { useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 
 function MortgageFields({ form }: { form: CreditForm }) {
   const loanType = useFormControlValue(form.loanType);
@@ -2978,7 +2980,7 @@ model.items.clear();                             // очистить
 ### Rendering Arrays
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
+import { useArrayLength } from '@reformer/core/react';
 
 function ItemsList({ form }: { form: FormProxy<MyForm> }) {
   const length = useArrayLength(form.items);
@@ -4764,7 +4766,7 @@ loadOptionsOn(model.$.carBrand, form.carModel, fetchCarModels, { resetTarget: tr
 
 ## 78. API
 
-Основной способ — React-хук `useFormValidation` из `@reformer/core` (рядом с `useFormControl`).
+Основной способ — React-хук `useFormValidation` из `@reformer/core/react` (рядом с `useFormControl`).
 Под ним — headless-фабрика `createFormValidation` из `@reformer/core/validation` (для SSR / тестов /
 не-React потребителей).
 
@@ -4823,7 +4825,8 @@ function createFormValidation<T>(
 `markAsTouched` не нужен.
 
 ```tsx
-import { createModel, createFormFromModel, useFormValidation } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
+import { useFormValidation } from '@reformer/core/react';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -5039,7 +5042,7 @@ export const loadLocale = createLocaleLoader([
 ## 86. Провайдер
 
 ```tsx
-import { I18nProvider } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 
 function App() {
   const [lang, setLang] = useState('ru');
@@ -5176,7 +5179,6 @@ expect(validateLocale(ruJson, enJson)).toEqual([]);
 import { I18nProvider } from '@reformer/core';
 
 // ✅ Единственный путь импорта — подпуть i18n
-import { I18nProvider } from '@reformer/core/i18n';
 ```
 
 ```tsx
@@ -5441,7 +5443,8 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 ## 99. Сборка — `createForm`
 
 ```tsx
-import { createForm, useFormBundle } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 
 const credit = useFormBundle(() =>
   createForm<CreditForm>({
@@ -5984,6 +5987,30 @@ export interface ChangeContext {
 ```
 
 _Source: src/form/behaviors/types.ts_
+
+### ComponentRef
+
+**Kind:** `type`
+
+Ссылка на компонент узла схемы: то, что слой представления умеет нарисовать. Для React это
+компонент (функция либо объект `forwardRef`/`memo`) или имя HTML-тега (`'div'`, `'h3'`).
+
+Ядро ссылку не интерпретирует и о слое представления не знает: она доезжает до рендерера как
+есть, а к типу своего UI-слоя её приводит уже он.
+
+**Signature:**
+```typescript
+export type ComponentRef = string | object;
+```
+
+**Examples:**
+
+```ts
+const byComponent: ComponentRef = Input; // React-компонент
+const byTag: ComponentRef = 'section'; // HTML-тег
+```
+
+_Source: src/form/types/schema-node.ts_
 
 ### compute
 
@@ -7010,8 +7037,7 @@ export interface FieldConfig<T> {
    * UI-компонент поля. Опционален: core-часть можно использовать без ссылки на компонент
    * (значение и состояние работают без UI; компонент нужен только для рендеринга).
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component?: ComponentType<any>;
+  component?: ComponentRef;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   componentProps?: any;
   disabled?: boolean;
@@ -7087,7 +7113,7 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { errors } = useFormControl(field);
-   * const message = useValidationMessage(); // из '@reformer/core/i18n'
+   * const message = useValidationMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <ul className="error-list">
@@ -7155,7 +7181,7 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { shouldShowError, errors } = useFormControl(field);
-   * const message = useValidationMessage(); // из '@reformer/core/i18n'
+   * const message = useValidationMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <div>
@@ -7224,7 +7250,7 @@ control: FieldNode<string>;
 
 function TextField({ control }: Props) {
 const state = useFormControl(control);
-const message = useValidationMessage(); // из '@reformer/core/i18n'
+const message = useValidationMessage(); // из '@reformer/core/react'
 
 return (
 <div>
@@ -11284,8 +11310,7 @@ export function useFormControl(
 
 Текстовое поле с валидацией
 ```tsx
-import { useFormControl } from '@reformer/core';
-import { useValidationMessage } from '@reformer/core/i18n';
+import { useFormControl, useValidationMessage } from '@reformer/core/react';
 import type { FieldNode } from '@reformer/core';
 
 interface TextFieldProps {
@@ -11370,7 +11395,7 @@ control: FieldNode<string>;
 
 function Select({ control }: SelectProps) {
 const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
-const message = useValidationMessage(); // из '@reformer/core/i18n'
+const message = useValidationMessage(); // из '@reformer/core/react'
 const options = componentProps.options as Array<{ value: string; label: string }>;
 
 return (
@@ -11518,7 +11543,7 @@ export function useFormControlValue<T>(control: FieldNode<T>): T
 
 Условный рендеринг секции
 ```tsx
-import { useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 
 interface FormFields {
 hasShipping: FieldNode<boolean>;
@@ -11626,7 +11651,7 @@ dangerouslySetInnerHTML={{ __html: html }}
 // Основной редактор использует useFormControl для полного состояния
 function MarkdownEditor({ control }: MarkdownEditorProps) {
 const { value, shouldShowError, errors } = useFormControl(control);
-const message = useValidationMessage(); // из '@reformer/core/i18n'
+const message = useValidationMessage(); // из '@reformer/core/react'
 
 return (
 <div className="editor-container">

@@ -22,6 +22,7 @@ export type { ValidateOptions } from './validation-schema';
 // ============================================================================
 
 export type {
+  ComponentRef,
   FormSchemaNode,
   SchemaFieldNode,
   SchemaArrayNode,

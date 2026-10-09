@@ -14,7 +14,7 @@
 
 ## API
 
-Основной способ — React-хук `useFormValidation` из `@reformer/core` (рядом с `useFormControl`).
+Основной способ — React-хук `useFormValidation` из `@reformer/core/react` (рядом с `useFormControl`).
 Под ним — headless-фабрика `createFormValidation` из `@reformer/core/validation` (для SSR / тестов /
 не-React потребителей).
 
@@ -73,7 +73,8 @@ function createFormValidation<T>(
 `markAsTouched` не нужен.
 
 ```tsx
-import { createModel, createFormFromModel, useFormValidation } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
+import { useFormValidation } from '@reformer/core/react';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 

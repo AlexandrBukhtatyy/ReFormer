@@ -112,7 +112,7 @@ const ok: boolean = await validateModel(model, schema);
 и делай ранний `return null`. Хук возвращает **только значение** (без деструктуризации `{ value }`).
 
 ```tsx
-import { useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 
 function MortgageFields({ form }: { form: CreditForm }) {
   const loanType = useFormControlValue(form.loanType);

@@ -1,13 +1,16 @@
 /**
  * Состав корневого экспорта `@reformer/core`: низкоуровневые операторы над сигналами и нодами в
  * зонтик не входят. Поведение формы пишут операторами `@reformer/core/behaviors`; примитивы над
- * сигналами остаются в сабпате `@reformer/core/model`.
+ * сигналами остаются в сабпате `@reformer/core/model`. React-привязок в корне и в `/i18n` нет:
+ * их отдаёт сабпат `@reformer/core/react`.
  */
 
 import { describe, it, expect } from 'vitest';
 import * as core from '../../../src/index';
 import * as model from '../../../src/model/index';
 import * as behaviors from '../../../src/form/behaviors';
+import * as i18n from '../../../src/i18n';
+import * as react from '../../../src/react';
 
 const VALUE_OPERATORS = [
   'computeFrom',
@@ -35,8 +38,6 @@ describe('корневой экспорт @reformer/core', () => {
       'FieldNode',
       'GroupNode',
       'ModelArrayNode',
-      'useFormControl',
-      'useFormBundle',
       'markDerived',
       'runOutsideEffect',
     ]) {
@@ -53,6 +54,53 @@ describe('корневой экспорт @reformer/core', () => {
       'ErrorStrategy',
     ]) {
       expect(core, name).not.toHaveProperty(name);
+    }
+  });
+});
+
+/** Хуки нод, контекст сборки и связка поля с контролом — состав `platforms/react`. */
+const REACT_BINDINGS = [
+  'useFormControl',
+  'useFormControlValue',
+  'useArrayLength',
+  'useFormValidation',
+  'useFormBundle',
+  'FormBundleContext',
+  'useFormBundleContext',
+  'getFieldAdapter',
+  'bindFieldProps',
+  'FIELD_WRAPPER_ONLY_PROPS',
+  'makeElementFieldHandle',
+  'useFieldHandleRef',
+];
+/** React-часть локализации: провайдер, хуки и метка контекста. */
+const REACT_I18N = [
+  'I18nProvider',
+  'useI18n',
+  'useMessages',
+  'useValidationMessage',
+  'I18N_CONTEXT_MARKER',
+];
+
+describe('React-привязки ядра', () => {
+  it.each(REACT_BINDINGS)('корень @reformer/core не отдаёт %s', (name) => {
+    expect(core).not.toHaveProperty(name);
+  });
+
+  it.each(REACT_I18N)('@reformer/core/i18n не отдаёт %s', (name) => {
+    expect(i18n).not.toHaveProperty(name);
+    expect(core).not.toHaveProperty(name);
+  });
+
+  it('@reformer/core/react отдаёт хуки, связку поля и React-часть локализации', () => {
+    for (const name of [...REACT_BINDINGS, ...REACT_I18N]) {
+      expect(react, name).toHaveProperty(name);
+    }
+  });
+
+  it('@reformer/core/i18n без React по-прежнему отдаёт перевод и тексты ошибок', () => {
+    for (const name of ['createI18n', 'resolveValidationError', 'msg', 'resolveLocalized']) {
+      expect(i18n, name).toHaveProperty(name);
     }
   });
 });

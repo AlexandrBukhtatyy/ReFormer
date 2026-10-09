@@ -175,8 +175,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *
  * @example Текстовое поле с валидацией
  * ```tsx
- * import { useFormControl } from '@reformer/core';
- * import { useValidationMessage } from '@reformer/core/i18n';
+ * import { useFormControl, useValidationMessage } from '@reformer/core/react';
  * import type { FieldNode } from '@reformer/core';
  *
  * interface TextFieldProps {
@@ -261,7 +260,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *
  * function Select({ control }: SelectProps) {
  *   const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
- *   const message = useValidationMessage(); // из '@reformer/core/i18n'
+ *   const message = useValidationMessage(); // из '@reformer/core/react'
  *   const options = componentProps.options as Array<{ value: string; label: string }>;
  *
  *   return (

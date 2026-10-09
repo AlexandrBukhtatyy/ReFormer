@@ -16,7 +16,7 @@ import type { ValidationError } from '../../../form/types/index';
  *
  * function TextField({ control }: Props) {
  *   const state = useFormControl(control);
- *   const message = useValidationMessage(); // из '@reformer/core/i18n'
+ *   const message = useValidationMessage(); // из '@reformer/core/react'
  *
  *   return (
  *     <div>
@@ -94,7 +94,7 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { errors } = useFormControl(field);
-   * const message = useValidationMessage(); // из '@reformer/core/i18n'
+   * const message = useValidationMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <ul className="error-list">
@@ -162,7 +162,7 @@ export interface FieldControlState<T> {
    * @example
    * ```tsx
    * const { shouldShowError, errors } = useFormControl(field);
-   * const message = useValidationMessage(); // из '@reformer/core/i18n'
+   * const message = useValidationMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <div>

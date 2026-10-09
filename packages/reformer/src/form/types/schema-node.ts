@@ -25,10 +25,26 @@
  * @module form/types/schema-node
  */
 
-import type { ElementType } from 'react';
 import type { Signal } from '../../signals';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Ссылка на компонент узла схемы: то, что слой представления умеет нарисовать. Для React это
+ * компонент (функция либо объект `forwardRef`/`memo`) или имя HTML-тега (`'div'`, `'h3'`).
+ *
+ * Ядро ссылку не интерпретирует и о слое представления не знает: она доезжает до рендерера как
+ * есть, а к типу своего UI-слоя её приводит уже он.
+ *
+ * @example
+ * ```ts
+ * const byComponent: ComponentRef = Input; // React-компонент
+ * const byTag: ComponentRef = 'section'; // HTML-тег
+ * ```
+ *
+ * @group Types
+ */
+export type ComponentRef = string | object;
 
 /**
  * Контракт реактивного массива модели — фасада `model.<массив>`. Рендерерский
@@ -79,7 +95,7 @@ interface SchemaNodeBase {
    * прямо в схеме. Опционален: ядро работает без UI и `component` не интерпретирует — он доезжает
    * до рендерера как есть.
    */
-  component?: ElementType;
+  component?: ComponentRef;
   /**
    * Пропсы компонента. Вложенных узлов здесь нет: обход схемы в пропсы не заглядывает, дети узла
    * пишутся в `children`.
