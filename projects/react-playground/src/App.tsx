@@ -8,10 +8,6 @@ import CreditApplicationFormRegistry from './pages/demo/complex-multy-step-form-
 import RegistrationForm from './pages/demo/registration-form/RegistrationForm';
 import ValidationExamples from './pages/demo/validation/ValidationExamples';
 import BehaviorsExamples from './pages/demo/behaviors/BehaviorsExamples';
-import MccaCoreV20 from './pages/debug/mcp-credit-application-core-v20';
-import MccaRendererReactV20 from './pages/debug/mcp-credit-application-renderer-react-v20';
-import MccaRendererJsonV20 from './pages/debug/mcp-credit-application-renderer-json-v20';
-import NewMcpTestV2 from './pages/debug/new-mcp-test-v2';
 import ImperativeHandles from './pages/demo/imperative-handles/ImperativeHandles';
 import HtmlNodesExample from './pages/demo/html-nodes/HtmlNodesExample';
 import RegistrationFormJson from './pages/demo/registration-form-renderer-json/RegistrationFormRendererJson';
@@ -37,10 +33,6 @@ type ExamplePage =
   | 'complex-renderer'
   | 'json-renderer'
   | 'form-registry'
-  | 'mcca-core-v20'
-  | 'mcca-renderer-react-v20'
-  | 'mcca-renderer-json-v20'
-  | 'new-mcp-test-v2'
   | 'imperative-handles'
   | 'html-nodes'
   | 'registration-json'
@@ -132,39 +124,6 @@ const exampleGroups: ExampleGroup[] = [
         path: '/demo/form-registry',
         title: 'Реестр форм',
         description: 'Та же JSON-форма, но смонтирована по id через @reformer/form-registry',
-      },
-    ],
-  },
-  {
-    section: 'debug',
-    title: 'MCP-генерация',
-    items: [
-      {
-        id: 'mcca-core-v20',
-        path: '/debug/mcca-core-v20',
-        title: 'core v20',
-        description:
-          'Сгенерировано MCP (v20, minimalist form-* layout) — core: createForm + FormWizard',
-      },
-      {
-        id: 'mcca-renderer-react-v20',
-        path: '/debug/mcca-renderer-react-v20',
-        title: 'renderer-react v20',
-        description:
-          'Сгенерировано MCP (v20, minimalist form-* layout) — renderer-react: схема-дерево + FormRenderer',
-      },
-      {
-        id: 'mcca-renderer-json-v20',
-        path: '/debug/mcca-renderer-json-v20',
-        title: 'renderer-json v20',
-        description:
-          'Сгенерировано MCP (v20, minimalist form-* layout) — renderer-json: JSON + registry',
-      },
-      {
-        id: 'new-mcp-test-v2',
-        path: '/debug/new-mcp-test-v2',
-        title: 'new-mcp-test-v2 (renderer-json)',
-        description: 'MCP-only прогон: заявка на кредит по спеке, 6 шагов, renderer-json',
       },
     ],
   },
@@ -409,10 +368,6 @@ function Layout() {
             <Route path="/demo/complex-renderer" element={<CreditApplicationFormRenderer />} />
             <Route path="/demo/json-renderer" element={<RegistrationFormRendererJson />} />
             <Route path="/demo/form-registry" element={<CreditApplicationFormRegistry />} />
-            <Route path="/debug/mcca-core-v20" element={<MccaCoreV20 />} />
-            <Route path="/debug/mcca-renderer-react-v20" element={<MccaRendererReactV20 />} />
-            <Route path="/debug/mcca-renderer-json-v20" element={<MccaRendererJsonV20 />} />
-            <Route path="/debug/new-mcp-test-v2" element={<NewMcpTestV2 />} />
             <Route path="/demo/imperative-handles" element={<ImperativeHandles />} />
             <Route path="/demo/html-nodes" element={<HtmlNodesExample />} />
             <Route path="/demo/registration-json" element={<RegistrationFormJson />} />
