@@ -366,7 +366,7 @@ export interface ModelArrayItem {
  * Итерация модель-массива для компонента-рендерера: подписка на структурные изменения массива
  * (add/remove/**reorder**) + кэш поддеревьев по идентичности элемента + обёртка в
  * {@link RenderNodeComponent}. Возвращает на элемент `{ key, index, model, element }`. Единственная
- * копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FormArray` (add/remove/reorder):
+ * копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FieldArray` (add/remove/reorder):
  * хром — их, данные (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный
  * снапшот {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
  */
@@ -410,7 +410,7 @@ function warnArrayWithoutComponent(control: RenderModelArrayControl): void {
   const path = control.__path;
   console.warn(
     `[RenderSchema] Array node${path ? ` "${path}"` : ''} has no \`component\` — items are rendered ` +
-      'without add/remove/reorder UI. Register an array component (e.g. `FormArray` from ' +
+      'without add/remove/reorder UI. Register an array component (e.g. `FieldArray` from ' +
       '@reformer/ui-kit) and set `component` on the node.'
   );
 }
@@ -418,7 +418,7 @@ function warnArrayWithoutComponent(control: RenderModelArrayControl): void {
 /**
  * Fallback для узла-массива БЕЗ `component`: рендерит только элементы — без секции, кнопок и
  * какого-либо оформления. UI управления (добавить/удалить/переставить) — задача компонента
- * (`$component(FormArray)` из `@reformer/ui-kit` либо своего), рендерер разметку не шипает.
+ * (`$component(FieldArray)` из `@reformer/ui-kit` либо своего), рендерер разметку не шипает.
  */
 const ModelArrayFallback = memo(function ModelArrayFallback({
   node,
@@ -742,7 +742,7 @@ export function RenderNodeComponent<T>({
   // M1: ArrayRenderNode — массив под-форм { model, item }
   // ========================================
   if (isArrayRenderNode(node)) {
-    // Задан `component` ($component(FormArray)/$component(List)/своя секция) — рендерит он.
+    // Задан `component` ($component(FieldArray)/$component(List)/своя секция) — рендерит он.
     // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
     return node.component ? (
       <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
@@ -784,7 +784,7 @@ export function RenderNodeComponent<T>({
       return null;
     }
     // Адресация ref листа: явный `selector` в приоритете, иначе — индексный путь модели
-    // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FormArray
+    // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FieldArray
     // (`schema.node('phones.0.number').getRef()`) без перечисления индексов автором схемы.
     // Селектор ищется в своей области, а путь абсолютный — он ищется от корня сборки.
     const leafRef = selector
@@ -831,7 +831,7 @@ export function RenderNodeComponent<T>({
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
     // form пробрасывается в self-managed компоненты как prop, чтобы они могли
     // вызывать `<RenderNodeComponent form={form} ...>` для своих дочерних узлов
-    // (используется в RendererFormArraySection, RendererFormWizard и т.п.).
+    // (используется в RendererFieldArraySection, RendererFormWizard и т.п.).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!isHtmlTag && (Component as any).__selfManagedChildren === true) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

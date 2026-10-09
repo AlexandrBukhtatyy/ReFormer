@@ -51,7 +51,7 @@ function MyFormPage() {
 | Узел            | Запись                                                 |
 | --------------- | ------------------------------------------------------ |
 | поле            | `{ model: model.$.email, component, componentProps }`  |
-| массив под-форм | `{ model: model.$.items, component: FormArray, item }` |
+| массив под-форм | `{ model: model.$.items, component: FieldArray, item }` |
 | подформа        | `{ model: model.$.address, part }`                     |
 | контейнер       | `{ component, componentProps, children }`              |
 
@@ -69,7 +69,7 @@ const address = (model: FormModel<Address>): RenderNode<MyForm> => ({
 { model: model.$.residenceAddress, part: address }
 
 // строка массива — такая же функция от под-модели
-{ model: model.$.coBorrowers, component: FormArray, item: coBorrower }
+{ model: model.$.coBorrowers, component: FieldArray, item: coBorrower }
 ```
 
 Порядок распознавания: `item` → `part` → поле → контейнер. Прежние ключи `value` (поле) и `array`

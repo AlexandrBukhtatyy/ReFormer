@@ -142,7 +142,7 @@ export interface ArrayItemSlot {
 }
 
 /**
- * Контракт компонента-рендерера массива (`{ array, item, component }` → `$component(FormArray)`
+ * Контракт компонента-рендерера массива (`{ array, item, component }` → `$component(FieldArray)`
  * / `$component(List)`): готовые элементы + мутации массива обычными колбэками.
  *
  * Компонент — «humble object»: он не подписывается на модель и не вызывает хуки рендерера,
@@ -175,7 +175,7 @@ export interface ArrayComponentProps {
  *
  * @example
  * ```typescript
- * { model: model.$.coBorrowers, component: FormArray,
+ * { model: model.$.coBorrowers, component: FieldArray,
  *   item: (model) => ({ component: Box, children: [{ model: model.$.phone, component: Input }] }) }
  * ```
  */
@@ -186,7 +186,7 @@ export interface ArrayRenderNode<T> extends SchemaArrayNode {
    * {@link ArrayComponentProps} (`items` + `onAdd`/`onRemove`/`onMove`) плюс `componentProps` узла.
    *
    * Без `component` узел рендерится безхромным fallback'ом (только элементы, без кнопок) —
-   * зарегистрируй `FormArray` из `@reformer/ui-kit` или свой компонент, если нужен UI управления.
+   * зарегистрируй `FieldArray` из `@reformer/ui-kit` или свой компонент, если нужен UI управления.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component?: ComponentType<any>;
