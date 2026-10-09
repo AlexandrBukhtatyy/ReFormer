@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import * as uiKit from '@reformer/ui-kit';
-import { getFieldAdapter } from '@reformer/core';
+import { getFieldAdapter } from '@reformer/core/react';
 import { CONTRACT_STATICS, isolateComponent } from './stubs';
 
 /** Собственные ключи-контракты компонента: то, по чему его узнают рендерер и кит. */

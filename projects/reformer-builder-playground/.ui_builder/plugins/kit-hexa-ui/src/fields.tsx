@@ -35,7 +35,7 @@
 import { createElement } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { Checkbox as HexaCheckbox, Select as HexaSelect, Textbox } from '@kaspersky/hexa-ui';
-import type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core/react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -50,7 +50,7 @@ export interface FieldControlStatics {
 
 /**
  * Пропсы, адресованные обёртке поля, а не контролу: их рисует `FormField` кита (HexaUI `Field`).
- * `labelTooltip` здесь нет — его срезает `bindFieldProps` из `@reformer/core` у любого контрола.
+ * `labelTooltip` здесь нет — его срезает `bindFieldProps` из `@reformer/core/react` у любого контрола.
  */
 const WRAPPER_PROPS = ['label', 'required', 'description', 'tooltip'];
 
