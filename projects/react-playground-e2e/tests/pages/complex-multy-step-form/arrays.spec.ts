@@ -42,7 +42,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       await creditForm.toggleAddCoBorrower(true);
 
-      // FormArray стартует с 1 элементом из схемы [coBorrowersFormSchema]
+      // FieldArray стартует с 1 элементом из схемы [coBorrowersFormSchema]
       // Получаем начальное количество форм созаемщиков
       const coBorrowerForms = creditForm.page.locator('[data-testid="input-coBorrower-lastName"]');
       const initialCount = await coBorrowerForms.count();
@@ -423,7 +423,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       await creditForm.toggleAddCoBorrower(true);
 
-      // FormArray стартует с начальным элементом (или несколькими)
+      // FieldArray стартует с начальным элементом (или несколькими)
       const coBorrowerForms = creditForm.page.locator('[data-testid="input-coBorrower-lastName"]');
       const initialCount = await coBorrowerForms.count();
 
