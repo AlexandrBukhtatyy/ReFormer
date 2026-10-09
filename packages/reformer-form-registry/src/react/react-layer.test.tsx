@@ -9,7 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import type { FC } from 'react';
-import { createModel, useFormBundleContext } from '@reformer/core';
+import { createModel } from '@reformer/core';
+import { useFormBundleContext } from '@reformer/core/react';
 import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
 import {
   createJsonForm,

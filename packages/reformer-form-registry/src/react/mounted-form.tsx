@@ -14,7 +14,8 @@
  */
 
 import { useEffect, useMemo, type ReactNode } from 'react';
-import { createForm, useFormBundle, type FormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormBundle, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import type { FormBehavior } from '@reformer/core/behaviors';
 import { FormRenderer } from '@reformer/renderer-react';
 import {
