@@ -49,7 +49,7 @@ Peer-зависимости: `react`, `@rjsf/core`, `@rjsf/utils`, `@reformer/co
 `"ui:widget": "Switch"` рисует переключатель кита, даже если флажком стал `Checkbox`.
 
 **Мост.** Виджет — один на все поля: значение идёт через адаптер поля кита (`reformerAdapter`,
-`bindFieldProps` из `@reformer/core`), как у `FormField`. Досказывается то, в чём соглашения RJSF и
+`bindFieldProps` из `@reformer/core/react`), как у `FormField`. Досказывается то, в чём соглашения RJSF и
 полей ReFormer расходятся:
 
 - варианты выбора — пропом `options` в форме `{ value, label }`, только контролу, объявившему

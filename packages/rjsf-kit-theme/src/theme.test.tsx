@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { withTheme } from '@rjsf/core';
 import type { RJSFSchema, UiSchema, WidgetProps } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
-import type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core/react';
 import {
   createKitTheme,
   kitWidget,

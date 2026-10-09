@@ -2,7 +2,7 @@
  * Виджеты RJSF из полей кита — мостом через адаптер поля.
  *
  * Поле кита уже умеет жить в форме: контрол объявляет свой диалект статикой `reformerAdapter`
- * (`checked`/`onCheckedChange`, событие вместо значения…), и `bindFieldProps` из `@reformer/core`
+ * (`checked`/`onCheckedChange`, событие вместо значения…), и `bindFieldProps` из `@reformer/core/react`
  * сводит его к value-based seam. RJSF отдаёт виджету ровно такой seam — `value`, `onChange(value)`,
  * `onBlur(id, value)`. Мост поэтому один на все поля: ни одного виджета под конкретный компонент.
  *
@@ -30,7 +30,7 @@
  */
 
 import { createElement, type ComponentType } from 'react';
-import { bindFieldProps, getFieldAdapter } from '@reformer/core';
+import { bindFieldProps, getFieldAdapter } from '@reformer/core/react';
 import { rangeSpec, type EnumOptionsType, type Widget, type WidgetProps } from '@rjsf/utils';
 
 /** Контрол подписывает себя сам (чекбокс, переключатель) — маркер полей ReFormer. */
