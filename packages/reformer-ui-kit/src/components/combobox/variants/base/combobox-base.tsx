@@ -4,6 +4,7 @@ import { CheckIcon, ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { followFieldFontSize } from '@/fields/field-font-size';
 import {
   useFieldTooltip,
   CHEVRON_RESERVE,
@@ -204,8 +205,14 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
             />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
-          <Command>
+        {/* `text-sm` — размер списка, пока поле не найдено. `Command` свой размер снимает:
+            иначе корень перебил бы взятый у поля (`followFieldFontSize`). */}
+        <PopoverContent
+          ref={followFieldFontSize}
+          align="start"
+          className="w-(--radix-popover-trigger-width) p-0 text-sm"
+        >
+          <Command className="text-[length:inherit]">
             <CommandInput
               placeholder={searchPlaceholder ?? t('kit.combobox.search')}
               value={search}

@@ -40,6 +40,31 @@
 Иконка у ПОДПИСИ поля — отдельный проп `labelTooltip`, его рисует `FormField`
 (см. [05-form-field-integration.md](05-form-field-integration.md)).
 
+## Размер выпадающего списка
+
+Список поля рисуется в портале, но набран тем же размером шрифта, что и само поле: при
+раскрытии он берёт размер у своего триггера. Чтобы сделать компактными и поле, и список,
+достаточно сжать поле — пункты отдельно стилизовать не нужно:
+
+```tsx
+<SelectMulti className="min-h-7 text-[12px]" value={flags} onChange={setFlags} options={options} />
+
+<Select value={size} onValueChange={setSize}>
+  <SelectTrigger size="sm" className="w-full text-[12px]">
+    <SelectValue placeholder="Размер" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="sm">Малый</SelectItem>
+    <SelectItem value="lg">Большой</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+Так ведут себя составной `Select`, `SelectAsync`, `SelectMulti`, `Combobox`, `ComboboxMulti`
+и `InputSuggest`. У `ComboboxTree` / `ComboboxTreeMulti` за полем идёт только поле поиска:
+строки дерева своего размера, их высоту задаёт `rowHeight` у `Tree`. Размер, заданный
+списку явно (`style={{ fontSize }}` на `SelectContent`), не перебивается.
+
 ## Checkbox
 
 В форму — `CheckboxWithLabel` (registry `Checkbox`): чекбокс с подписью справа. Голый `Checkbox`

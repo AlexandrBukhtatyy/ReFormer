@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { defineFieldControl } from '@/fields/field-control';
 import { multiValueAdapter } from '@/fields/adapters';
+import { followFieldFontSize } from '@/fields/field-font-size';
 
 import {
   useFieldTooltip,
@@ -324,7 +325,13 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
+        {/* `text-sm` — размер списка, пока поле не найдено; пункты, поиск и служебные строки
+            своего размера не задают и идут за полем (`followFieldFontSize`). */}
+        <PopoverContent
+          ref={followFieldFontSize}
+          align="start"
+          className="w-(--radix-popover-trigger-width) p-0 text-sm"
+        >
           {showSearch && (
             <div className="sticky top-0 z-10 border-b bg-popover p-1">
               <input
@@ -332,7 +339,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
                 value={ro.searchInput}
                 onChange={(e) => ro.setSearchInput(e.target.value)}
                 placeholder={searchPlaceholder ?? t('kit.select.search')}
-                className="w-full rounded-sm border border-input px-2 py-1 text-sm outline-none focus:border-ring"
+                className="w-full rounded-sm border border-input px-2 py-1 outline-none focus:border-ring"
                 aria-label={t('kit.select.searchLabel')}
               />
             </div>
@@ -348,12 +355,10 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             data-slot="select-multi-list"
           >
             {loadError && (
-              <div className="px-2 py-1.5 text-sm text-destructive">
-                {t('kit.select.loadError')}
-              </div>
+              <div className="px-2 py-1.5 text-destructive">{t('kit.select.loadError')}</div>
             )}
             {!loadError && options.length === 0 && !ro.loadingMore && (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+              <div className="px-2 py-1.5 text-muted-foreground">
                 {emptyText ?? t('kit.select.empty')}
               </div>
             )}
@@ -371,7 +376,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
                   onClick={() => !blocked && toggle(option.value)}
                   onMouseEnter={() => setActiveIndex(index)}
                   className={cn(
-                    'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm select-none',
+                    'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 select-none',
                     'data-[active]:bg-accent data-[active]:text-accent-foreground',
                     blocked && 'pointer-events-none opacity-50'
                   )}

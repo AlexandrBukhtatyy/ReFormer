@@ -12,6 +12,7 @@ import { Spinner } from '@/components/spinner';
 import { Input } from '../base/input-base';
 import { defineFieldControl } from '@/fields/field-control';
 import { textValueAdapter } from '@/fields/adapters';
+import { followFieldFontSize } from '@/fields/field-font-size';
 
 // ReFormer-original (не shadcn): Input с подсказками. Логика — headless `useAutocomplete` из
 // @reformer/cdk; здесь только разметка: shadcn Input + список в Popover, привязанном к полю через
@@ -43,7 +44,7 @@ export interface InputSuggestProps extends Omit<
 }
 
 const ITEM_CLASS =
-  'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[active=true]:bg-accent data-[active=true]:text-accent-foreground';
+  'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 outline-hidden select-none data-[active=true]:bg-accent data-[active=true]:text-accent-foreground';
 
 /**
  * InputSuggest (вариант `suggest`): текстовое поле со свободным вводом и списком подсказок.
@@ -98,9 +99,12 @@ const InputSuggest = React.forwardRef<HTMLInputElement, InputSuggestProps>(funct
           if (e.target === inputRef.current) e.preventDefault();
         }}
       >
+        {/* Ссылка — на сам список, а не на `PopoverContent`: поле называет в `aria-controls`
+            его. `text-sm` — размер подсказок, пока поле не найдено (`followFieldFontSize`). */}
         <div
+          ref={followFieldFontSize}
           {...ac.getListboxProps({
-            className: 'max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto',
+            className: 'max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto text-sm',
             onScroll: handleScroll,
           })}
         >

@@ -4,6 +4,7 @@ import { ChevronsUpDownIcon, SearchIcon, XIcon } from 'lucide-react';
 import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { followFieldFontSize } from '@/fields/field-font-size';
 import {
   useFieldTooltip,
   CHEVRON_RESERVE,
@@ -105,7 +106,7 @@ export function TreeSearchField({
         autoComplete="off"
         spellCheck={false}
         data-testid={dataTestId}
-        className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-10 w-full rounded-md bg-transparent py-3 outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
         placeholder={placeholder ?? t('kit.combobox.search')}
         value={value}
         onChange={(event) => {
@@ -316,7 +317,14 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
             />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
+        {/* За размером поля идёт поле поиска: `text-sm` — его размер, пока поле не найдено
+            (`followFieldFontSize`). Строки дерева — нет: их высота задана числом, от которого
+            считается окно виртуального списка, и размер шрифта у строки свой. */}
+        <PopoverContent
+          ref={followFieldFontSize}
+          align="start"
+          className="w-(--radix-popover-trigger-width) p-0 text-sm"
+        >
           <TreeSearchField
             value={search}
             onChange={setSearch}

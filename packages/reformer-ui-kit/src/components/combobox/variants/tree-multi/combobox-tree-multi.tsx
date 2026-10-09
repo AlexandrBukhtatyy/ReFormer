@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { defineFieldControl } from '@/fields/field-control';
 import { multiValueAdapter } from '@/fields/adapters';
+import { followFieldFontSize } from '@/fields/field-font-size';
 
 import {
   useFieldTooltip,
@@ -267,7 +268,12 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
               />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
+          {/* За размером поля идёт поле поиска (см. `../tree/combobox-tree.tsx`). */}
+          <PopoverContent
+            ref={followFieldFontSize}
+            align="start"
+            className="w-(--radix-popover-trigger-width) p-0 text-sm"
+          >
             <TreeSearchField
               value={search}
               onChange={setSearch}

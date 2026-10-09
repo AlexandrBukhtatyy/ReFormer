@@ -192,7 +192,7 @@ const SelectAsync = React.forwardRef<
           // чтобы ввод шёл в поле, а не «прыгал» по опциям.
           onKeyDown={(e) => e.stopPropagation()}
           placeholder={t('kit.select.search')}
-          className="w-full rounded-sm border border-input px-2 py-1 text-sm outline-none focus:border-ring"
+          className="w-full rounded-sm border border-input px-2 py-1 outline-none focus:border-ring"
           aria-label={t('kit.select.searchLabel')}
         />
       </div>
@@ -238,12 +238,11 @@ const SelectAsync = React.forwardRef<
             header={searchHeader}
             onViewportScroll={ro.flags.paginated ? handleViewportScroll : undefined}
           >
+            {/* Размер шрифта строкам не задаётся: его несёт `SelectContent`, а берёт у триггера. */}
             {initialLoading ? (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                {t('kit.select.loading')}
-              </div>
+              <div className="px-2 py-1.5 text-muted-foreground">{t('kit.select.loading')}</div>
             ) : loadError ? (
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-destructive">
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-destructive">
                 <span>{t('kit.select.loadError')}</span>
                 <button
                   type="button"
@@ -258,9 +257,7 @@ const SelectAsync = React.forwardRef<
                 </button>
               </div>
             ) : options.length === 0 ? (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                {t('kit.select.empty')}
-              </div>
+              <div className="px-2 py-1.5 text-muted-foreground">{t('kit.select.empty')}</div>
             ) : (
               <>
                 {(() => {

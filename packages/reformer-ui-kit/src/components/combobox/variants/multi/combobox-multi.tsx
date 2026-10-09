@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { defineFieldControl } from '@/fields/field-control';
 import { multiValueAdapter } from '@/fields/adapters';
+import { followFieldFontSize } from '@/fields/field-font-size';
 
 import {
   useFieldTooltip,
@@ -244,8 +245,14 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
               />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
-            <Command>
+          {/* `text-sm` — размер списка, пока поле не найдено. `Command` свой размер снимает:
+              иначе корень перебил бы взятый у поля (`followFieldFontSize`). */}
+          <PopoverContent
+            ref={followFieldFontSize}
+            align="start"
+            className="w-(--radix-popover-trigger-width) p-0 text-sm"
+          >
+            <Command className="text-[length:inherit]">
               <CommandInput
                 placeholder={searchPlaceholder ?? t('kit.combobox.search')}
                 value={search}
