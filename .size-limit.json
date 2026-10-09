@@ -25,6 +25,11 @@
     "limit": "4 kB"
   },
   {
+    "name": "@reformer/core (react only)",
+    "path": "packages/reformer/dist/react.js",
+    "limit": "5 kB"
+  },
+  {
     "name": "@reformer/core (i18n: ICU + loader chunk)",
     "path": "packages/reformer/dist/loader-*.js",
     "limit": "4 kB"

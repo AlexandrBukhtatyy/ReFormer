@@ -12,9 +12,9 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  * `ComponentType`/`ElementType`; они стираются при компиляции и рантайма не тянут.
  */
 const REACT_MESSAGE =
-  'Рантайм-зависимость от React живёт только в src/platforms/**. Слои model и form ' +
-  'платформо-независимы: новый хук или подписку добавляйте в platforms/react. Type-only ' +
-  'импорт (import type { ComponentType }) разрешён — он стирается при компиляции.';
+  'Зависимость от React живёт только в src/platforms/** и отдаётся входом @reformer/core/react. ' +
+  'Слои model, form и i18n платформо-независимы и в рантайме, и в типах: новый хук или подписку ' +
+  'добавляйте в platforms/react, а компонент узла схемы типизируйте как ComponentRef.';
 
 /**
  * Пакеты React перечислены через `paths` (точное совпадение спецификатора), а НЕ через
@@ -26,13 +26,13 @@ const NO_REACT_PATHS = [
   'react-dom',
   'use-sync-external-store',
   'use-sync-external-store/shim',
-].map((name) => ({ name, allowTypeImports: true, message: REACT_MESSAGE }));
+].map((name) => ({ name, allowTypeImports: false, message: REACT_MESSAGE }));
 
 const NO_PLATFORMS = {
   group: ['**/platforms/**', '**/platforms'],
   message:
-    'Обратная зависимость слой→платформа запрещена: model и form не знают про биндинги. ' +
-    'Сшивает их единственная точка — корневой src/index.ts.',
+    'Обратная зависимость слой→платформа запрещена: model, form и i18n не знают про биндинги. ' +
+    'Платформу отдаёт единственный вход — src/react.ts (@reformer/core/react).',
 };
 
 /**
@@ -200,9 +200,10 @@ export default defineConfig([
   // 1. model ⇏ form (M1-модуляризация): реактивный субстрат (signals + модель + value-операции +
   //    producer-флаг + утилиты) НЕ импортирует form-слой. Обратное (form → model) разрешено.
   //    Держит слои расцепленными для subpath `@reformer/core/model`.
-  // 2. model ⇏ react и form ⇏ react: рантайм-зависимость от React живёт только в
-  //    src/platforms/**. Type-only импорты разрешены (см. NO_REACT_PATHS).
+  // 2. model ⇏ react и form ⇏ react: зависимость от React живёт только в src/platforms/**.
+  //    Type-only импорты запрещены тоже (см. NO_REACT_PATHS): типы схемы не тянут типы React.
   // 3. model ⇏ platforms и form ⇏ platforms: обратной зависимости слой→платформа нет.
+  // 4. Корневой вход и вход i18n ⇏ platforms: React отдаёт только src/react.ts.
   //
   // ВАЖНО: новые паттерны для model/** дописываются В ЭТОТ блок. Отдельный блок с тем же
   // правилом для тех же файлов перезаписал бы его целиком — flat-config мержит по ключу
@@ -241,11 +242,19 @@ export default defineConfig([
     },
   },
 
-  // i18n-слой и встроенные локали: данные и чистые функции, без рантайма React и без
-  // платформенных биндингов. React-привязка (контекст, провайдер, хуки) лежит в
-  // src/platforms/react/i18n, а сшивает слои бочка подпутя src/i18n.ts.
+  // i18n-слой и встроенные локали: данные и чистые функции, без React и без платформенных
+  // биндингов. React-привязка (контекст, провайдер, хуки) лежит в src/platforms/react/i18n
+  // и отдаётся входом src/react.ts.
+  //
+  // Сюда же — корневой вход и вход i18n: они собирают слои и обязаны оставаться без React,
+  // иначе `import '@reformer/core'` снова потянет его на сервере.
   {
-    files: ['packages/reformer/src/i18n/**/*.ts', 'packages/reformer/src/locale/**/*.ts'],
+    files: [
+      'packages/reformer/src/i18n/**/*.ts',
+      'packages/reformer/src/locale/**/*.ts',
+      'packages/reformer/src/index.ts',
+      'packages/reformer/src/i18n.ts',
+    ],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

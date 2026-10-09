@@ -14,14 +14,21 @@
 //   check-subpaths.mjs   — «subpath реально импортируется у потребителя?» (npm pack, только ui-kit)
 //   этот скрипт          — «exports и dist описывают одно и то же?» (статически, без сборки тарбола)
 //
-// Проверяет два направления:
+// Проверяет три вещи:
 //   (а) фантом  — ключ есть в exports, файла в dist нет;
-//   (б) сирота  — entry собирается vite, ключа в exports нет.
+//   (б) сирота  — entry собирается vite, ключа в exports нет;
+//   (в) React   — вход, которому React не положен, не тянет его ни прямо, ни через свои чанки.
 //
 // Направление (б) требует, чтобы `lib.entry` в vite.config.ts был литеральным объектом.
 // Там, где entry генерируется (ui-kit строит его глобом), проверка (б) пропускается —
 // у такого пакета список по построению не может разъехаться, и его уже страхует
 // check-subpaths.mjs.
+//
+// Про (в). Корень `@reformer/core` и его сабпаты обязаны работать без React — на сервере и с
+// другим слоем представления; React отдаёт единственный вход `@reformer/core/react`. Линтер
+// стережёт исходники (границы слоёв в eslint.config.js), но не сборку: общий чанк, в который
+// rollup сложил бы хук вместе с нодой формы, вернул бы `import 'react'` в корень при чистых
+// исходниках. Поэтому замыкание импортов считается по собранному dist.
 //
 // Использование:
 //   node scripts/check-exports-dist.mjs                     # все packages/*
@@ -71,6 +78,44 @@ function viteEntryKeys(pkgDir) {
   return keys.size > 0 ? keys : null;
 }
 
+/**
+ * Пакеты с входами без React: имя пакета → ключи `exports`, которым React разрешён.
+ * Всем остальным входам такого пакета он запрещён во всём замыкании импортов.
+ */
+const REACT_ALLOWED_ENTRIES = new Map([['@reformer/core', new Set(['./react'])]]);
+
+/** Спецификаторы, означающие зависимость от React. */
+const REACT_SPECIFIER = /^(react|react-dom|use-sync-external-store)(\/|$)/;
+
+/** Спецификаторы модуля: `from '…'`, `import '…'` и `import('…')`. */
+function importSpecifiers(file) {
+  const src = readFileSync(file, 'utf8');
+  return [...src.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["']([^"']+)["']/g)].map((m) => m[1]);
+}
+
+/**
+ * Цепочка импортов от входа до React, если она есть.
+ *
+ * @returns Массив «вход → чанк → … → react» либо null, когда замыкание от React свободно.
+ */
+function reactImportChain(entryFile) {
+  const queue = [[entryFile]];
+  const seen = new Set([entryFile]);
+  while (queue.length > 0) {
+    const chain = queue.shift();
+    const file = chain[chain.length - 1];
+    for (const specifier of importSpecifiers(file)) {
+      if (REACT_SPECIFIER.test(specifier)) return [...chain, specifier];
+      if (!specifier.startsWith('.')) continue; // прочие внешние зависимости
+      const next = path.resolve(path.dirname(file), specifier);
+      if (seen.has(next) || !next.endsWith('.js') || !existsSync(next)) continue;
+      seen.add(next);
+      queue.push([...chain, next]);
+    }
+  }
+  return null;
+}
+
 /** @returns {{ ok: boolean, name: string, message: string }} */
 function checkPackage(pkgDir) {
   const pkg = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
@@ -116,11 +161,46 @@ function checkPackage(pkgDir) {
     }
   }
 
+  // (в) React в замыкании входа, которому он не положен.
+  const reactAllowed = REACT_ALLOWED_ENTRIES.get(pkg.name);
+  let reactNote = '';
+  if (reactAllowed) {
+    const leaks = [];
+    let checked = 0;
+    for (const [key, value] of Object.entries(pkg.exports)) {
+      if (reactAllowed.has(key) || key.includes('*')) continue;
+      const target = exportTargets(value).find((t) => typeof t === 'string' && t.endsWith('.js'));
+      if (!target) continue; // не модуль: JSON-копия локали
+      const entryFile = path.join(pkgDir, target);
+      if (!existsSync(entryFile)) continue; // фантом уже отмечен в (а)
+      checked++;
+      const chain = reactImportChain(entryFile);
+      if (chain) {
+        const shown = chain.map((step) =>
+          path.isAbsolute(step) ? path.relative(pkgDir, step).replaceAll('\\', '/') : `'${step}'`
+        );
+        leaks.push(`${key}: ${shown.join(' → ')}`);
+      }
+    }
+    if (leaks.length > 0) {
+      problems.push(
+        `${leaks.length} вход(ов) тянут React, хотя он разрешён только в ` +
+          `${[...reactAllowed].join(', ')}:\n` +
+          leaks.map((leak) => `    ${leak}`).join('\n')
+      );
+    }
+    reactNote = `; ${checked} вход(ов) без React`;
+  }
+
   if (problems.length > 0) {
     return { ok: false, name: pkg.name, message: problems.join('\n  ') };
   }
   const count = Object.keys(pkg.exports).length;
-  return { ok: true, name: pkg.name, message: `${count} экспортов сходятся с dist/${skipped}` };
+  return {
+    ok: true,
+    name: pkg.name,
+    message: `${count} экспортов сходятся с dist/${skipped}${reactNote}`,
+  };
 }
 
 const results = targetDirs().map(checkPackage);
