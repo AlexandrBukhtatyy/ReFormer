@@ -1,35 +1,35 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import type { FormProxy } from '@reformer/core';
-import { useFormArray } from './useFormArray';
-import { FormArrayContext, type FormArrayContextValue } from './FormArrayContext';
-import { FormArrayList } from './FormArrayList';
-import { FormArrayAddButton } from './FormArrayAddButton';
-import { FormArrayRemoveButton } from './FormArrayRemoveButton';
-import { FormArrayEmpty } from './FormArrayEmpty';
-import { FormArrayCount } from './FormArrayCount';
-import { FormArrayItemIndex } from './FormArrayItemIndex';
-import { FormArrayError } from './FormArrayError';
-import type { FormArrayRootProps } from './types';
+import { useFieldArray } from './useFieldArray';
+import { FieldArrayContext, type FieldArrayContextValue } from './FieldArrayContext';
+import { FieldArrayList } from './FieldArrayList';
+import { FieldArrayAddButton } from './FieldArrayAddButton';
+import { FieldArrayRemoveButton } from './FieldArrayRemoveButton';
+import { FieldArrayEmpty } from './FieldArrayEmpty';
+import { FieldArrayCount } from './FieldArrayCount';
+import { FieldArrayItemIndex } from './FieldArrayItemIndex';
+import { FieldArrayError } from './FieldArrayError';
+import type { FieldArrayRootProps } from './types';
 
 /**
- * Handle exposed via ref for external control of {@link FormArray}.
+ * Handle exposed via ref for external control of {@link FieldArray}.
  *
- * Имперо-API для случаев, когда триггер находится вне дерева `FormArray.Root`
+ * Имперо-API для случаев, когда триггер находится вне дерева `FieldArray.Root`
  * (тулбар страницы, диалог подтверждения, async-эффект). Получают через
- * `useRef<FormArrayHandle<T>>(null)` и передают в `<FormArray.Root ref={...}>`.
+ * `useRef<FieldArrayHandle<T>>(null)` и передают в `<FieldArray.Root ref={...}>`.
  *
  * Свойства `length` / `isEmpty` — снимок на момент рендера. Реактивную длину
  * для условного UI снаружи берите через `useFormControl(arrayNode).length`.
  *
- * @typeParam T - Тип одного элемента массива (как в `FormArray.Root control={...}`).
+ * @typeParam T - Тип одного элемента массива (как в `FieldArray.Root control={...}`).
  *
  * @example Тулбар «Добавить / Очистить» поверх массива
  * ```tsx
  * import { useRef } from 'react';
- * import { FormArray, type FormArrayHandle } from '@reformer/cdk/form-array';
+ * import { FieldArray, type FieldArrayHandle } from '@reformer/cdk/field-array';
  *
  * function PropertiesEditor({ form }: Props) {
- *   const arrayRef = useRef<FormArrayHandle<Property>>(null);
+ *   const arrayRef = useRef<FieldArrayHandle<Property>>(null);
  *
  *   return (
  *     <>
@@ -44,9 +44,9 @@ import type { FormArrayRootProps } from './types';
  *           Очистить
  *         </button>
  *       </div>
- *       <FormArray.Root ref={arrayRef} control={form.properties}>
- *         <FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
- *       </FormArray.Root>
+ *       <FieldArray.Root ref={arrayRef} control={form.properties}>
+ *         <FieldArray.List>{({ control }) => <PropertyForm control={control} />}</FieldArray.List>
+ *       </FieldArray.Root>
  *     </>
  *   );
  * }
@@ -54,7 +54,7 @@ import type { FormArrayRootProps } from './types';
  *
  * @example Импорт массива из API: insert + at для проверки дублей
  * ```tsx
- * const arrayRef = useRef<FormArrayHandle<Contact>>(null);
+ * const arrayRef = useRef<FieldArrayHandle<Contact>>(null);
  *
  * async function importFromCSV(rows: Contact[]) {
  *   for (const row of rows) {
@@ -67,7 +67,7 @@ import type { FormArrayRootProps } from './types';
  * }
  * ```
  */
-export interface FormArrayHandle<T extends object> {
+export interface FieldArrayHandle<T extends object> {
   /** Add a new item to the end of the array */
   add: (value?: Partial<T>) => void;
   /** Remove all items from the array */
@@ -89,39 +89,39 @@ export interface FormArrayHandle<T extends object> {
 }
 
 /**
- * FormArray.Root - Context provider for form array compound component
+ * FieldArray.Root - Context provider for form array compound component
  *
  * Supports ref for external control via useImperativeHandle.
  *
  * @example Basic usage
  * ```tsx
- * <FormArray.Root control={form.properties}>
- *   <FormArray.List>
+ * <FieldArray.Root control={form.properties}>
+ *   <FieldArray.List>
  *     {({ control }) => <PropertyForm control={control} />}
- *   </FormArray.List>
- *   <FormArray.AddButton>Add Property</FormArray.AddButton>
- * </FormArray.Root>
+ *   </FieldArray.List>
+ *   <FieldArray.AddButton>Add Property</FieldArray.AddButton>
+ * </FieldArray.Root>
  * ```
  *
  * @example With ref for external control
  * ```tsx
- * const arrayRef = useRef<FormArrayHandle<Property>>(null);
+ * const arrayRef = useRef<FieldArrayHandle<Property>>(null);
  *
  * // Later, control from outside:
  * arrayRef.current?.add({ type: 'apartment' });
  * arrayRef.current?.clear();
  * arrayRef.current?.removeAt(0);
  *
- * <FormArray.Root ref={arrayRef} control={form.properties}>
+ * <FieldArray.Root ref={arrayRef} control={form.properties}>
  *   ...
- * </FormArray.Root>
+ * </FieldArray.Root>
  * ```
  */
-function FormArrayRootInner<T extends object>(
-  { control, children }: FormArrayRootProps<T>,
-  ref: React.ForwardedRef<FormArrayHandle<T>>
+function FieldArrayRootInner<T extends object>(
+  { control, children }: FieldArrayRootProps<T>,
+  ref: React.ForwardedRef<FieldArrayHandle<T>>
 ) {
-  const arrayState = useFormArray(control);
+  const arrayState = useFieldArray(control);
 
   // Expose methods via ref
   useImperativeHandle(
@@ -141,31 +141,31 @@ function FormArrayRootInner<T extends object>(
   );
 
   // FormProxy<T> не assignable к FormProxy<any> (у конкретного T нет index-signature): React-контекст
-  // хранит generic-erased `<any>`, типобезопасность возвращает useFormArrayContext<T>() на чтении.
+  // хранит generic-erased `<any>`, типобезопасность возвращает useFieldArrayContext<T>() на чтении.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const contextValue = { ...arrayState, control } as FormArrayContextValue<any>;
-  return <FormArrayContext.Provider value={contextValue}>{children}</FormArrayContext.Provider>;
+  const contextValue = { ...arrayState, control } as FieldArrayContextValue<any>;
+  return <FieldArrayContext.Provider value={contextValue}>{children}</FieldArrayContext.Provider>;
 }
 
 // Typed forwardRef for generic component
-const FormArrayRoot = forwardRef(FormArrayRootInner) as <T extends object>(
-  props: FormArrayRootProps<T> & { ref?: React.ForwardedRef<FormArrayHandle<T>> }
+const FieldArrayRoot = forwardRef(FieldArrayRootInner) as <T extends object>(
+  props: FieldArrayRootProps<T> & { ref?: React.ForwardedRef<FieldArrayHandle<T>> }
 ) => React.ReactElement;
 
 // Compound component type with all sub-components attached
-type FormArrayComponent = typeof FormArrayRoot & {
-  Root: typeof FormArrayRoot;
-  List: typeof FormArrayList;
-  AddButton: typeof FormArrayAddButton;
-  RemoveButton: typeof FormArrayRemoveButton;
-  Empty: typeof FormArrayEmpty;
-  Count: typeof FormArrayCount;
-  ItemIndex: typeof FormArrayItemIndex;
-  Error: typeof FormArrayError;
+type FieldArrayComponent = typeof FieldArrayRoot & {
+  Root: typeof FieldArrayRoot;
+  List: typeof FieldArrayList;
+  AddButton: typeof FieldArrayAddButton;
+  RemoveButton: typeof FieldArrayRemoveButton;
+  Empty: typeof FieldArrayEmpty;
+  Count: typeof FieldArrayCount;
+  ItemIndex: typeof FieldArrayItemIndex;
+  Error: typeof FieldArrayError;
 };
 
 /**
- * FormArray - Headless compound component for managing form arrays
+ * FieldArray - Headless compound component for managing form arrays
  *
  * Provides complete flexibility for building array UI while handling
  * all the form array state and actions internally.
@@ -177,16 +177,16 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * - **Type Safe** - full TypeScript support
  *
  * ## Sub-components
- * - `FormArray.Root` - context provider, accepts ref for external control
- * - `FormArray.List` - iterates over array items
- * - `FormArray.AddButton` - button to add item
- * - `FormArray.RemoveButton` - button to remove item (inside List)
- * - `FormArray.Empty` - content for empty state
- * - `FormArray.Count` - display item count
- * - `FormArray.ItemIndex` - display item index (inside List)
- * - `FormArray.Error` - display array-level validation errors (e.g. minItems)
+ * - `FieldArray.Root` - context provider, accepts ref for external control
+ * - `FieldArray.List` - iterates over array items
+ * - `FieldArray.AddButton` - button to add item
+ * - `FieldArray.RemoveButton` - button to remove item (inside List)
+ * - `FieldArray.Empty` - content for empty state
+ * - `FieldArray.Count` - display item count
+ * - `FieldArray.ItemIndex` - display item index (inside List)
+ * - `FieldArray.Error` - display array-level validation errors (e.g. minItems)
  *
- * ## FormArrayHandle API (ref)
+ * ## FieldArrayHandle API (ref)
  * - `add(value?)` - add item to the end
  * - `insert(index, value?)` - insert item at position
  * - `removeAt(index)` - remove item by index
@@ -199,40 +199,40 @@ type FormArrayComponent = typeof FormArrayRoot & {
  *
  * @example Basic usage
  * ```tsx
- * <FormArray.Root control={form.properties}>
- *   <h3>Properties (<FormArray.Count />)</h3>
+ * <FieldArray.Root control={form.properties}>
+ *   <h3>Properties (<FieldArray.Count />)</h3>
  *
- *   <FormArray.Empty>
+ *   <FieldArray.Empty>
  *     <p className="text-gray-500">No properties added</p>
- *   </FormArray.Empty>
+ *   </FieldArray.Empty>
  *
- *   <FormArray.List className="space-y-4">
+ *   <FieldArray.List className="space-y-4">
  *     {({ control }) => (
  *       <div className="p-4 border rounded">
  *         <div className="flex justify-between mb-2">
- *           <h4>Property #<FormArray.ItemIndex /></h4>
- *           <FormArray.RemoveButton className="text-red-500">
+ *           <h4>Property #<FieldArray.ItemIndex /></h4>
+ *           <FieldArray.RemoveButton className="text-red-500">
  *             Remove
- *           </FormArray.RemoveButton>
+ *           </FieldArray.RemoveButton>
  *         </div>
  *         <PropertyForm control={control} />
  *       </div>
  *     )}
- *   </FormArray.List>
+ *   </FieldArray.List>
  *
- *   <FormArray.AddButton className="mt-4 btn-primary">
+ *   <FieldArray.AddButton className="mt-4 btn-primary">
  *     + Add Property
- *   </FormArray.AddButton>
- * </FormArray.Root>
+ *   </FieldArray.AddButton>
+ * </FieldArray.Root>
  * ```
  *
  * @example External control via ref
  * ```tsx
  * import { useRef } from 'react';
- * import { FormArray, FormArrayHandle } from '@reformer/cdk/form-array';
+ * import { FieldArray, FieldArrayHandle } from '@reformer/cdk/field-array';
  *
  * function PropertiesManager() {
- *   const arrayRef = useRef<FormArrayHandle<Property>>(null);
+ *   const arrayRef = useRef<FieldArrayHandle<Property>>(null);
  *
  *   // Programmatic control from outside
  *   const handleAddApartment = () => {
@@ -264,22 +264,22 @@ type FormArrayComponent = typeof FormArrayRoot & {
  *         <button onClick={handleClearAll}>Clear all</button>
  *       </div>
  *
- *       <FormArray.Root ref={arrayRef} control={form.properties}>
- *         <FormArray.List>
+ *       <FieldArray.Root ref={arrayRef} control={form.properties}>
+ *         <FieldArray.List>
  *           {({ control }) => <PropertyForm control={control} />}
- *         </FormArray.List>
- *       </FormArray.Root>
+ *         </FieldArray.List>
+ *       </FieldArray.Root>
  *     </div>
  *   );
  * }
  * ```
  *
- * @example Using useFormArray hook for full customization
+ * @example Using useFieldArray hook for full customization
  * ```tsx
- * import { useFormArray } from '@reformer/cdk/form-array';
+ * import { useFieldArray } from '@reformer/cdk/field-array';
  *
  * function CustomArrayUI() {
- *   const { items, add, isEmpty, length } = useFormArray(form.properties);
+ *   const { items, add, isEmpty, length } = useFieldArray(form.properties);
  *
  *   return (
  *     <div>
@@ -296,14 +296,14 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * }
  * ```
  */
-export const FormArray = FormArrayRoot as FormArrayComponent;
+export const FieldArray = FieldArrayRoot as FieldArrayComponent;
 
 // Attach sub-components
-FormArray.Root = FormArrayRoot;
-FormArray.List = FormArrayList;
-FormArray.AddButton = FormArrayAddButton;
-FormArray.RemoveButton = FormArrayRemoveButton;
-FormArray.Empty = FormArrayEmpty;
-FormArray.Count = FormArrayCount;
-FormArray.ItemIndex = FormArrayItemIndex;
-FormArray.Error = FormArrayError;
+FieldArray.Root = FieldArrayRoot;
+FieldArray.List = FieldArrayList;
+FieldArray.AddButton = FieldArrayAddButton;
+FieldArray.RemoveButton = FieldArrayRemoveButton;
+FieldArray.Empty = FieldArrayEmpty;
+FieldArray.Count = FieldArrayCount;
+FieldArray.ItemIndex = FieldArrayItemIndex;
+FieldArray.Error = FieldArrayError;

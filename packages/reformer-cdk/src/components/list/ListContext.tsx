@@ -3,7 +3,7 @@ import type { ListItem } from './types';
 
 /**
  * Контекст уровня списка. Read-only: только `items` + производные (`length`/`isEmpty`), без
- * мутационных действий (ср. {@link FormArrayContextValue}).
+ * мутационных действий (ср. {@link FieldArrayContextValue}).
  */
 export interface ListContextValue<T extends object = Record<string, unknown>> {
   /** Элементы списка с их контролами */

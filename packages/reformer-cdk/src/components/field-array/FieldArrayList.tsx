@@ -1,17 +1,17 @@
 import { createElement } from 'react';
 import {
-  FormArrayItemContext,
-  useFormArrayContext,
-  type FormArrayItemContextValue,
-} from './FormArrayContext';
-import type { FormArrayListProps } from './types';
+  FieldArrayItemContext,
+  useFieldArrayContext,
+  type FieldArrayItemContextValue,
+} from './FieldArrayContext';
+import type { FieldArrayListProps } from './types';
 
 /**
- * FormArray.List - Iterates over array items and provides item context
+ * FieldArray.List - Iterates over array items and provides item context
  *
  * @example Basic usage
  * ```tsx
- * <FormArray.List>
+ * <FieldArray.List>
  *   {({ control, index, remove }) => (
  *     <div>
  *       <span>Item #{index + 1}</span>
@@ -19,27 +19,27 @@ import type { FormArrayListProps } from './types';
  *       <ItemForm control={control} />
  *     </div>
  *   )}
- * </FormArray.List>
+ * </FieldArray.List>
  * ```
  *
  * @example With custom container
  * ```tsx
- * <FormArray.List className="space-y-4" as="ul">
+ * <FieldArray.List className="space-y-4" as="ul">
  *   {(item) => <li><ItemForm control={item.control} /></li>}
- * </FormArray.List>
+ * </FieldArray.List>
  * ```
  */
-export function FormArrayList<T extends object>({
+export function FieldArrayList<T extends object>({
   children,
   className,
   as = 'div',
-}: FormArrayListProps<T>) {
-  const { items, move } = useFormArrayContext<T>();
+}: FieldArrayListProps<T>) {
+  const { items, move } = useFieldArrayContext<T>();
   const total = items.length;
 
   const content = items.map((item) => {
     // Производные хелперы реордера вычисляются здесь (нужна текущая длина), чтобы не раздувать
-    // базовую запись item в useFormArray/контексте.
+    // базовую запись item в useFieldArray/контексте.
     const enriched = {
       ...item,
       moveUp: () => move(item.index, item.index - 1),
@@ -47,13 +47,13 @@ export function FormArrayList<T extends object>({
       canMoveUp: item.index > 0,
       canMoveDown: item.index < total - 1,
     };
-    // Контекст хранит generic-erased `<any>` (FormProxy<T> ↛ FormProxy<any>); чтение — через useFormArrayItemContext<T>().
+    // Контекст хранит generic-erased `<any>` (FormProxy<T> ↛ FormProxy<any>); чтение — через useFieldArrayItemContext<T>().
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const itemContextValue = enriched as FormArrayItemContextValue<any>;
+    const itemContextValue = enriched as FieldArrayItemContextValue<any>;
     return (
-      <FormArrayItemContext.Provider key={item.id} value={itemContextValue}>
+      <FieldArrayItemContext.Provider key={item.id} value={itemContextValue}>
         {children(enriched)}
-      </FormArrayItemContext.Provider>
+      </FieldArrayItemContext.Provider>
     );
   });
 

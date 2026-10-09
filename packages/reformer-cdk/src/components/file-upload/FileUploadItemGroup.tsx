@@ -7,7 +7,7 @@ export interface FileUploadItemGroupProps extends Omit<
   HTMLAttributes<HTMLUListElement>,
   'children'
 > {
-  /** Render prop: вызывается для каждого элемента списка (как `FormArray.List`). */
+  /** Render prop: вызывается для каждого элемента списка (как `FieldArray.List`). */
   children: (item: FileUploadItem) => ReactNode;
 }
 

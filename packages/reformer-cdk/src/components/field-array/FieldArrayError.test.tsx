@@ -1,23 +1,23 @@
 /**
- * Unit-тесты FormArray.Error — вывод валидации уровня массива в CDK (defect #42).
+ * Unit-тесты FieldArray.Error — вывод валидации уровня массива в CDK (defect #42).
  *
  * Проверяет, что array-level ошибки (`minItems` / «At least one phone required») выводятся через
- * подкомпонент `FormArray.Error`, читающий `errors` из контекста FormArray — без обхода CDK через
+ * подкомпонент `FieldArray.Error`, читающий `errors` из контекста FieldArray — без обхода CDK через
  * `useFormControl(control)`. Паритет с FormField.Error: default / multi / render, и «ничего при 0».
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ModelArrayNode, ValidationError } from '@reformer/core';
-import { FormArrayContext } from './FormArrayContext';
-import { FormArrayError } from './FormArrayError';
-import type { FormArrayContextValue } from './FormArrayContext';
+import { FieldArrayContext } from './FieldArrayContext';
+import { FieldArrayError } from './FieldArrayError';
+import type { FieldArrayContextValue } from './FieldArrayContext';
 
 const ERRORS: ValidationError[] = [
   { code: 'minItems', message: 'At least one phone required' },
   { code: 'maxItems', message: 'Too many items' },
 ];
 
-function ctx(errors: ValidationError[]): FormArrayContextValue {
+function ctx(errors: ValidationError[]): FieldArrayContextValue {
   return {
     items: [],
     length: 0,
@@ -38,29 +38,29 @@ function ctx(errors: ValidationError[]): FormArrayContextValue {
 
 const render = (errors: ValidationError[], node: React.ReactElement) =>
   renderToStaticMarkup(
-    <FormArrayContext.Provider value={ctx(errors)}>{node}</FormArrayContext.Provider>
+    <FieldArrayContext.Provider value={ctx(errors)}>{node}</FieldArrayContext.Provider>
   );
 
-describe('FormArray.Error', () => {
+describe('FieldArray.Error', () => {
   it('ничего не рендерит когда ошибок нет', () => {
-    expect(render([], <FormArrayError />)).toBe('');
+    expect(render([], <FieldArrayError />)).toBe('');
   });
 
   it('по умолчанию рендерит первую ошибку массива', () => {
-    const html = render(ERRORS, <FormArrayError />);
+    const html = render(ERRORS, <FieldArrayError />);
     expect(html).toContain('At least one phone required');
     expect(html).not.toContain('Too many items');
     expect(html).toContain('role="alert"');
   });
 
   it('multi рендерит все ошибки массива', () => {
-    const html = render(ERRORS, <FormArrayError multi />);
+    const html = render(ERRORS, <FieldArrayError multi />);
     expect(html).toContain('At least one phone required');
     expect(html).toContain('Too many items');
   });
 
   it('render-проп кастомно рендерит каждую ошибку', () => {
-    const html = render(ERRORS, <FormArrayError render={(e) => <span>{e.code}</span>} />);
+    const html = render(ERRORS, <FieldArrayError render={(e) => <span>{e.code}</span>} />);
     expect(html).toContain('minItems');
     expect(html).toContain('maxItems');
   });

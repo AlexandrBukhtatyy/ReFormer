@@ -1,5 +1,5 @@
 /**
- * Unit-тесты CDK List — display-итерация массива модели (read-only брат FormArray).
+ * Unit-тесты CDK List — display-итерация массива модели (read-only брат FieldArray).
  *
  * По конвенции пакета: инъекция контекста + renderToStaticMarkup (без jsdom). Реактивность на
  * мутацию массива покрывается интеграционными тестами renderer-react (ModelListRenderer).

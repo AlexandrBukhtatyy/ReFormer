@@ -1,23 +1,23 @@
 # Troubleshooting / FAQ
 
-Типичные проблемы при использовании `@reformer/cdk` (FormField, FormArray, FormWizard) с краткими причинами и решениями.
+Типичные проблемы при использовании `@reformer/cdk` (FormField, FieldArray, FormWizard) с краткими причинами и решениями.
 
-## `FormArray.AddButton` не появляется на странице
+## `FieldArray.AddButton` не появляется на странице
 
-**Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
+**Причина.** `FieldArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FieldArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
 
-**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFormArrayContext().add()` из своей кнопки (см. [06-recipes.md → Custom AddButton](06-recipes.md)).
+**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFieldArrayContext().add()` из своей кнопки (см. [06-recipes.md → Custom AddButton](06-recipes.md)).
 
 ```tsx
-<FormArray.Root control={form.items}>
-  <FormArray.List>{renderItem}</FormArray.List>
-  <FormArray.AddButton>+ Добавить</FormArray.AddButton>
-</FormArray.Root>
+<FieldArray.Root control={form.items}>
+  <FieldArray.List>{renderItem}</FieldArray.List>
+  <FieldArray.AddButton>+ Добавить</FieldArray.AddButton>
+</FieldArray.Root>
 ```
 
-## `FormArray.List` ререндерит весь массив при изменении одного элемента
+## `FieldArray.List` ререндерит весь массив при изменении одного элемента
 
-**Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FormArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
+**Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FieldArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
 
 **Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни элемента) и `id` для key.
 
@@ -26,10 +26,10 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
   <PropertyForm control={control} />
 ));
 
-<FormArray.List>{({ control, id }) => <Item key={id} control={control} />}</FormArray.List>;
+<FieldArray.List>{({ control, id }) => <Item key={id} control={control} />}</FieldArray.List>;
 ```
 
-`useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
+`useFieldArray` мемоизирует `items` по длине массива (см. `useFieldArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
 
 ## `FormWizardHandle.goToStep` возвращает `false`
 
@@ -72,13 +72,13 @@ const config: FormWizardConfig = {
 };
 ```
 
-## `useFormArrayContext` бросает исключение
+## `useFieldArrayContext` бросает исключение
 
-**Сообщение.** `Error: FormArray.* components must be used within FormArray.Root or RenderSchema FormArray`.
+**Сообщение.** `Error: FieldArray.* components must be used within FieldArray.Root or RenderSchema FieldArray`.
 
-**Причина.** Хук вызван вне дерева `FormArray.Root`. Часто — в компоненте, который рендерится через портал (Modal, Tooltip), либо рядом с `Root`, а не внутри.
+**Причина.** Хук вызван вне дерева `FieldArray.Root`. Часто — в компоненте, который рендерится через портал (Modal, Tooltip), либо рядом с `Root`, а не внутри.
 
-**Решение.** Поместите потребителя внутрь `FormArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FormArrayHandle` снаружи.
+**Решение.** Поместите потребителя внутрь `FieldArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FieldArrayHandle` снаружи.
 
 ## `useFormFieldContext` бросает исключение
 
@@ -135,14 +135,14 @@ const handleSubmit = async () => {
 };
 ```
 
-## `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
+## `FieldArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 
 **Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
 
 **Решение.** Используйте `id` из item-render-props, который ReFormer присваивает каждому элементу при `push`/`insert`:
 
 ```tsx
-<FormArray.List>
+<FieldArray.List>
   {({ control, id, remove }) => (
     <div key={id}>
       {' '}
@@ -150,10 +150,10 @@ const handleSubmit = async () => {
       <ItemForm control={control} />
     </div>
   )}
-</FormArray.List>
+</FieldArray.List>
 ```
 
-Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
+Сам `FieldArray.List` уже использует `item.id` для ключа `<FieldArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
 
 ## `FormWizard` показывает «No validateStep callback configured for step N» в консоли
 
@@ -161,7 +161,7 @@ const handleSubmit = async () => {
 
 **Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
 
-## Ref `FormArrayHandle.length` / `isEmpty` не обновляется
+## Ref `FieldArrayHandle.length` / `isEmpty` не обновляется
 
 **Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
 

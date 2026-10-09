@@ -23,7 +23,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
         'async-boundary': resolve(__dirname, 'src/components/async-boundary/index.ts'),
-        'form-array': resolve(__dirname, 'src/components/form-array/index.ts'),
+        'field-array': resolve(__dirname, 'src/components/field-array/index.ts'),
         list: resolve(__dirname, 'src/components/list/index.ts'),
         'form-wizard': resolve(__dirname, 'src/components/form-wizard/index.ts'),
         'form-field': resolve(__dirname, 'src/components/form-field/index.ts'),

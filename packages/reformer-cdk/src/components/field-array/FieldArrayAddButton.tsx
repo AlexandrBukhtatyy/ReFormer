@@ -1,14 +1,14 @@
 import { forwardRef, type ForwardedRef, type ReactElement } from 'react';
 import { useFormControl } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
-import { useFormArrayContext } from './FormArrayContext';
-import type { FormArrayAddButtonProps } from './types';
+import { useFieldArrayContext } from './FieldArrayContext';
+import type { FieldArrayAddButtonProps } from './types';
 
-function FormArrayAddButtonInner<T extends object>(
-  { children, initialValue, asChild = false, disabled, ...props }: FormArrayAddButtonProps<T>,
+function FieldArrayAddButtonInner<T extends object>(
+  { children, initialValue, asChild = false, disabled, ...props }: FieldArrayAddButtonProps<T>,
   ref: ForwardedRef<HTMLButtonElement>
 ) {
-  const { add, control } = useFormArrayContext<T>();
+  const { add, control } = useFieldArrayContext<T>();
   // Отражаем disabled-состояние массива: после ArrayNode.disable() (в т.ч. каскадом от группы)
   // массив структурно неизменяем, поэтому кнопка добавления должна быть отключена.
   const { disabled: arrayDisabled } = useFormControl(control);
@@ -32,21 +32,21 @@ function FormArrayAddButtonInner<T extends object>(
   );
 }
 
-const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
+const FieldArrayAddButtonForwarded = forwardRef(FieldArrayAddButtonInner) as <
   T extends object = Record<string, unknown>,
 >(
-  props: FormArrayAddButtonProps<T> & { ref?: React.Ref<HTMLButtonElement> }
+  props: FieldArrayAddButtonProps<T> & { ref?: React.Ref<HTMLButtonElement> }
 ) => ReactElement | null;
 
-(FormArrayAddButtonForwarded as { displayName?: string }).displayName = 'FormArray.AddButton';
+(FieldArrayAddButtonForwarded as { displayName?: string }).displayName = 'FieldArray.AddButton';
 
 /**
- * `FormArray.AddButton` — кнопка добавления нового элемента в массив.
+ * `FieldArray.AddButton` — кнопка добавления нового элемента в массив.
  *
  * Рендерит `<button type="button">` (или произвольный элемент через `asChild`),
- * по клику вызывает `add(initialValue)` из контекста {@link FormArrayContext},
- * то есть `ArrayNode.push`. Должна находиться внутри `FormArray.Root` (или
- * эквивалентного провайдера), иначе `useFormArrayContext` бросит исключение.
+ * по клику вызывает `add(initialValue)` из контекста {@link FieldArrayContext},
+ * то есть `ArrayNode.push`. Должна находиться внутри `FieldArray.Root` (или
+ * эквивалентного провайдера), иначе `useFieldArrayContext` бросит исключение.
  *
  * Без `initialValue` новый элемент берётся из шаблона массива модели —
  * `arrayOf(blank)` из `@reformer/core`, объявленного рядом с остальными начальными
@@ -54,21 +54,21 @@ const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
  *
  * Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий).
  * Передавайте его явно, если нужна type-safe проверка `initialValue`:
- * `<FormArray.AddButton<PropertyItem> initialValue={...}>`.
+ * `<FieldArray.AddButton<PropertyItem> initialValue={...}>`.
  *
  * @typeParam T - Тип одного элемента массива.
  *
- * @example Внутри compound-разметки FormArray
+ * @example Внутри compound-разметки FieldArray
  * ```tsx
- * <FormArray.Root control={form.properties}>
- *   <FormArray.List>
+ * <FieldArray.Root control={form.properties}>
+ *   <FieldArray.List>
  *     {({ control }) => <PropertyForm control={control} />}
- *   </FormArray.List>
+ *   </FieldArray.List>
  *
- *   <FormArray.AddButton className="btn-primary">
+ *   <FieldArray.AddButton className="btn-primary">
  *     + Добавить объект
- *   </FormArray.AddButton>
- * </FormArray.Root>
+ *   </FieldArray.AddButton>
+ * </FieldArray.Root>
  * ```
  *
  * @example Шаблон нового элемента — в модели
@@ -77,21 +77,21 @@ const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
  * const model = createModel<Form>({ properties: arrayOf(blankProperty) });
  *
  * // разметка: значение нового элемента кнопке не нужно
- * <FormArray.AddButton>+ Добавить объект</FormArray.AddButton>
+ * <FieldArray.AddButton>+ Добавить объект</FieldArray.AddButton>
  * ```
  *
  * @example Запасной путь — типизированный initialValue для массива без шаблона
  * ```tsx
- * <FormArray.AddButton<Property> initialValue={{ type: 'apartment', estimatedValue: 0 }}>
+ * <FieldArray.AddButton<Property> initialValue={{ type: 'apartment', estimatedValue: 0 }}>
  *   + Квартира
- * </FormArray.AddButton>
+ * </FieldArray.AddButton>
  * ```
  *
  * @example Своя кнопка через asChild (props мержатся в дочерний элемент)
  * ```tsx
- * <FormArray.AddButton asChild>
+ * <FieldArray.AddButton asChild>
  *   <MyButton variant="primary">+ Добавить</MyButton>
- * </FormArray.AddButton>
+ * </FieldArray.AddButton>
  * ```
  */
-export const FormArrayAddButton = FormArrayAddButtonForwarded;
+export const FieldArrayAddButton = FieldArrayAddButtonForwarded;

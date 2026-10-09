@@ -1,5 +1,5 @@
 /**
- * Re-export FormArray context from core
+ * Re-export FieldArray context from core
  *
  * Контекст определён в @reformer/core для обеспечения совместимости
  * между RenderSchema (core) и compound-компонентами (ui).
@@ -10,9 +10,9 @@ import type { ModelArrayNode, FormProxy, ValidationError } from '@reformer/core'
 
 /**
  * Представляет элемент массива с контролом, индексом и действиями (включая хелперы reorder,
- * чтобы консументы сырого `useFormArray`/контекста получали тот же набор, что и `FormArray.List`).
+ * чтобы консументы сырого `useFieldArray`/контекста получали тот же набор, что и `FieldArray.List`).
  */
-export interface FormArrayItem<T extends object> {
+export interface FieldArrayItem<T extends object> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -34,9 +34,9 @@ export interface FormArrayItem<T extends object> {
 /**
  * Контекст уровня массива
  */
-export interface FormArrayContextValue<T extends object = Record<string, unknown>> {
+export interface FieldArrayContextValue<T extends object = Record<string, unknown>> {
   /** Массив элементов с контролами и действиями */
-  items: FormArrayItem<T>[];
+  items: FieldArrayItem<T>[];
   /** Текущая длина массива */
   length: number;
   /** Пустой ли массив */
@@ -68,7 +68,7 @@ export interface FormArrayContextValue<T extends object = Record<string, unknown
 /**
  * Контекст уровня элемента массива
  */
-export interface FormArrayItemContextValue<T extends object = Record<string, unknown>> {
+export interface FieldArrayItemContextValue<T extends object = Record<string, unknown>> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -88,53 +88,53 @@ export interface FormArrayItemContextValue<T extends object = Record<string, unk
 }
 
 /**
- * React context, который снабжает дочерние компоненты `FormArray` (List, AddButton, …)
- * текущим `ArrayNode` и хелперами. Создаётся `FormArray.Root`. Читать через {@link useFormArrayContext}.
+ * React context, который снабжает дочерние компоненты `FieldArray` (List, AddButton, …)
+ * текущим `ArrayNode` и хелперами. Создаётся `FieldArray.Root`. Читать через {@link useFieldArrayContext}.
  *
  * @example
  * ```tsx
- * import { FormArrayContext } from '@reformer/cdk/form-array';
+ * import { FieldArrayContext } from '@reformer/cdk/field-array';
  *
  * function MyConsumer() {
- *   const ctx = useContext(FormArrayContext);
+ *   const ctx = useContext(FieldArrayContext);
  *   return <span>items: {ctx?.items.length}</span>;
  * }
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const FormArrayContext = createContext<FormArrayContextValue<any> | null>(null);
+export const FieldArrayContext = createContext<FieldArrayContextValue<any> | null>(null);
 
 /**
- * React context, видимый внутри `FormArray.List` для одного элемента массива.
+ * React context, видимый внутри `FieldArray.List` для одного элемента массива.
  * Содержит `control`, `index`, `id`, `remove()` и хелперы реордера
- * (`moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`). Читать через {@link useFormArrayItemContext}.
+ * (`moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`). Читать через {@link useFieldArrayItemContext}.
  *
  * @example
  * ```tsx
- * import { FormArrayItemContext } from '@reformer/cdk/form-array';
+ * import { FieldArrayItemContext } from '@reformer/cdk/field-array';
  *
  * function CurrentIndex() {
- *   const item = useContext(FormArrayItemContext);
+ *   const item = useContext(FieldArrayItemContext);
  *   return <small>#{item?.index}</small>;
  * }
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const FormArrayItemContext = createContext<FormArrayItemContextValue<any> | null>(null);
+export const FieldArrayItemContext = createContext<FieldArrayItemContextValue<any> | null>(null);
 
 /**
- * Хук для доступа к контексту `FormArray`. Бросает исключение, если вызван вне
- * `FormArray.Root` или эквивалентного провайдера.
+ * Хук для доступа к контексту `FieldArray`. Бросает исключение, если вызван вне
+ * `FieldArray.Root` или эквивалентного провайдера.
  *
- * @returns Текущий {@link FormArrayContextValue}.
- * @throws Error если используется вне `FormArray.Root`.
+ * @returns Текущий {@link FieldArrayContextValue}.
+ * @throws Error если используется вне `FieldArray.Root`.
  *
  * @example Кастомный AddButton с predefined значением
  * ```tsx
- * import { useFormArrayContext } from '@reformer/cdk/form-array';
+ * import { useFieldArrayContext } from '@reformer/cdk/field-array';
  *
  * function AddDraftButton() {
- *   const { add } = useFormArrayContext<Item>();
+ *   const { add } = useFieldArrayContext<Item>();
  *   return (
  *     <button onClick={() => add({ status: 'draft', createdAt: Date.now() })}>
  *       + Add Draft
@@ -146,37 +146,37 @@ export const FormArrayItemContext = createContext<FormArrayItemContextValue<any>
  * @example Счётчик и условный empty-state из произвольного места дерева
  * ```tsx
  * function ItemsBadge() {
- *   const { length, isEmpty } = useFormArrayContext();
+ *   const { length, isEmpty } = useFieldArrayContext();
  *   if (isEmpty) return <span className="text-gray-400">Нет элементов</span>;
  *   return <span className="badge">{length}</span>;
  * }
  * ```
  */
-export function useFormArrayContext<
+export function useFieldArrayContext<
   T extends object = Record<string, unknown>,
->(): FormArrayContextValue<T> {
-  const context = useContext(FormArrayContext) as FormArrayContextValue<T> | null;
+>(): FieldArrayContextValue<T> {
+  const context = useContext(FieldArrayContext) as FieldArrayContextValue<T> | null;
   if (!context) {
     throw new Error(
-      'FormArray.* components must be used within FormArray.Root or RenderSchema FormArray'
+      'FieldArray.* components must be used within FieldArray.Root or RenderSchema FieldArray'
     );
   }
   return context;
 }
 
 /**
- * Хук для доступа к контексту текущего элемента внутри `FormArray.List`.
+ * Хук для доступа к контексту текущего элемента внутри `FieldArray.List`.
  *
- * @returns Текущий {@link FormArrayItemContextValue} (`control`, `index`, `id`, `remove`,
+ * @returns Текущий {@link FieldArrayItemContextValue} (`control`, `index`, `id`, `remove`,
  *   `moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`).
- * @throws Error если используется вне `FormArray.List` или item-шаблона.
+ * @throws Error если используется вне `FieldArray.List` или item-шаблона.
  *
  * @example Кнопка удаления текущего элемента
  * ```tsx
- * import { useFormArrayItemContext } from '@reformer/cdk/form-array';
+ * import { useFieldArrayItemContext } from '@reformer/cdk/field-array';
  *
  * function ItemRemoveButton() {
- *   const { remove } = useFormArrayItemContext();
+ *   const { remove } = useFieldArrayItemContext();
  *   return <button onClick={remove}>×</button>;
  * }
  * ```
@@ -184,7 +184,7 @@ export function useFormArrayContext<
  * @example Доступ к control + index для условной валидации
  * ```tsx
  * function ItemHeader() {
- *   const { control, index } = useFormArrayItemContext<Property>();
+ *   const { control, index } = useFieldArrayItemContext<Property>();
  *   const { value: type } = useFormControl(control.type);
  *   return (
  *     <h4>
@@ -194,13 +194,13 @@ export function useFormArrayContext<
  * }
  * ```
  */
-export function useFormArrayItemContext<
+export function useFieldArrayItemContext<
   T extends object = Record<string, unknown>,
->(): FormArrayItemContextValue<T> {
-  const context = useContext(FormArrayItemContext) as FormArrayItemContextValue<T> | null;
+>(): FieldArrayItemContextValue<T> {
+  const context = useContext(FieldArrayItemContext) as FieldArrayItemContextValue<T> | null;
   if (!context) {
     throw new Error(
-      'FormArray.Item* components must be used within FormArray.List or item template'
+      'FieldArray.Item* components must be used within FieldArray.List or item template'
     );
   }
   return context;

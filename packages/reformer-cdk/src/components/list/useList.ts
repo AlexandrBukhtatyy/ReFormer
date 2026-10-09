@@ -15,7 +15,7 @@ export interface UseListReturn<T extends object> {
 }
 
 /**
- * Headless-хук display-итерации массива модели — read-only брат {@link useFormArray}.
+ * Headless-хук display-итерации массива модели — read-only брат {@link useFieldArray}.
  *
  * Реактивно подписывается на длину/значение массива и раскладывает его на элементы
  * `{ control, index, id }`. НЕ отдаёт `add`/`remove`/`move` — для display-списков (например,

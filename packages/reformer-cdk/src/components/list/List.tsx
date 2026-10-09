@@ -13,7 +13,7 @@ import type { ListRootProps, ListItemsProps, ListEmptyProps } from './types';
  * List.Root — контекст-провайдер display-списка.
  *
  * Принимает `control` (legacy `ArrayNode` или M1 `ModelArrayNode`) и раздаёт элементы дочерним
- * `List.Items` / `List.Empty`. В отличие от `FormArray.Root` не даёт add/remove/reorder.
+ * `List.Items` / `List.Empty`. В отличие от `FieldArray.Root` не даёт add/remove/reorder.
  */
 function ListRoot<T extends object>({ control, children }: ListRootProps<T>) {
   const state = useList(control);
@@ -71,7 +71,7 @@ type ListComponent = typeof ListRoot & {
 /**
  * List — headless compound для display-итерации массива модели.
  *
- * Read-only брат {@link FormArray}: перебирает элементы массива и рендерит на каждый произвольную
+ * Read-only брат {@link FieldArray}: перебирает элементы массива и рендерит на каждый произвольную
  * разметку, БЕЗ кнопок add/remove/reorder. Для списков, которые не редактируются пользователем, а
  * показываются/скрываются через мутацию массива в behavior (например, алерты).
  *

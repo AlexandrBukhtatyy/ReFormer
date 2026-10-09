@@ -2,20 +2,20 @@
 
 Готовые рецепты для нетривиальных задач: вложенные массивы, кастомный AddButton, динамическое количество шагов в wizard, externally-controlled wizard. Каждый рецепт — Problem → Solution → Notes.
 
-## Nested FormArray
+## Nested FieldArray
 
 ### Problem
 
-В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Контролы вложенных массивов — это `ArrayNode<T>` внутри `FormProxy<Property>`, и стандартного `FormArray.Root + List` достаточно, чтобы рендерить любую глубину.
+В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Контролы вложенных массивов — это `ArrayNode<T>` внутри `FormProxy<Property>`, и стандартного `FieldArray.Root + List` достаточно, чтобы рендерить любую глубину.
 
 ### Solution
 
 ```tsx
-import { FormArray } from '@reformer/cdk/form-array';
+import { FieldArray } from '@reformer/cdk/field-array';
 import { FormField } from '@reformer/ui-kit';
 
-<FormArray.Root control={form.properties}>
-  <FormArray.List className="space-y-4">
+<FieldArray.Root control={form.properties}>
+  <FieldArray.List className="space-y-4">
     {({ control: property, index, remove }) => (
       <fieldset className="border rounded p-4">
         <legend className="flex justify-between w-full">
@@ -29,8 +29,8 @@ import { FormField } from '@reformer/ui-kit';
         <FormField control={property.estimatedValue} />
 
         <h4 className="mt-4 mb-2">Совладельцы</h4>
-        <FormArray.Root control={property.coOwners}>
-          <FormArray.List className="space-y-2">
+        <FieldArray.Root control={property.coOwners}>
+          <FieldArray.List className="space-y-2">
             {({ control: owner, index: ownerIdx, remove: removeOwner }) => (
               <div className="flex gap-2">
                 <FormField control={owner.fullName} className="flex-1" />
@@ -40,39 +40,39 @@ import { FormField } from '@reformer/ui-kit';
                 </button>
               </div>
             )}
-          </FormArray.List>
-          <FormArray.AddButton className="btn-secondary mt-2">
+          </FieldArray.List>
+          <FieldArray.AddButton className="btn-secondary mt-2">
             + Добавить совладельца
-          </FormArray.AddButton>
-        </FormArray.Root>
+          </FieldArray.AddButton>
+        </FieldArray.Root>
       </fieldset>
     )}
-  </FormArray.List>
-  <FormArray.AddButton className="btn-primary">+ Добавить имущество</FormArray.AddButton>
-</FormArray.Root>;
+  </FieldArray.List>
+  <FieldArray.AddButton className="btn-primary">+ Добавить имущество</FieldArray.AddButton>
+</FieldArray.Root>;
 ```
 
 ### Notes
 
-- Каждый `FormArray.Root` создаёт собственный `FormArrayContext`. Внутренний `useFormArrayContext()` (например, в `AddButton`) видит ближайший провайдер — в примере выше `coOwners`, не `properties`.
-- `FormArray.List` мемоизирует элементы по `length` массива (см. `useFormArray`); смена порядка/количества внутреннего массива не дёргает внешний `List`.
-- `useFormArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
-- Рендер-проп `FormArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
+- Каждый `FieldArray.Root` создаёт собственный `FieldArrayContext`. Внутренний `useFieldArrayContext()` (например, в `AddButton`) видит ближайший провайдер — в примере выше `coOwners`, не `properties`.
+- `FieldArray.List` мемоизирует элементы по `length` массива (см. `useFieldArray`); смена порядка/количества внутреннего массива не дёргает внешний `List`.
+- `useFieldArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
+- Рендер-проп `FieldArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
 
 ## Custom AddButton
 
 ### Problem
 
-`FormArray.AddButton` рендерит обычный `<button>` (или Slot через `asChild`). Иногда нужно совсем другое UI: dropdown с выбором типа, drag-drop файлов, шаблоны заготовок. Самый чистый путь — обойти compound-компонент и вызвать `useFormArrayContext()` напрямую.
+`FieldArray.AddButton` рендерит обычный `<button>` (или Slot через `asChild`). Иногда нужно совсем другое UI: dropdown с выбором типа, drag-drop файлов, шаблоны заготовок. Самый чистый путь — обойти compound-компонент и вызвать `useFieldArrayContext()` напрямую.
 
 ### Solution
 
 ```tsx
-import { useFormArrayContext } from '@reformer/cdk/form-array';
+import { useFieldArrayContext } from '@reformer/cdk/field-array';
 import { Menu } from '@/ui';
 
 function AddPropertyMenu() {
-  const { add } = useFormArrayContext<Property>();
+  const { add } = useFieldArrayContext<Property>();
 
   return (
     <Menu>
@@ -86,18 +86,18 @@ function AddPropertyMenu() {
   );
 }
 
-<FormArray.Root control={form.properties}>
-  <FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
+<FieldArray.Root control={form.properties}>
+  <FieldArray.List>{({ control }) => <PropertyForm control={control} />}</FieldArray.List>
   <AddPropertyMenu />
-</FormArray.Root>;
+</FieldArray.Root>;
 ```
 
 ### Notes
 
-- Хук работает только внутри `FormArray.Root` — снаружи бросает `Error: FormArray.* components must be used within FormArray.Root`.
+- Хук работает только внутри `FieldArray.Root` — снаружи бросает `Error: FieldArray.* components must be used within FieldArray.Root`.
 - `add(value?: Partial<T>)` пропускает значение в `control.push(value)` — не задавать поля можно, ReFormer возьмёт значения по умолчанию из схемы.
-- Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FormArrayHandle<T>>` + `arrayRef.current?.add(...)`.
-- Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFormArray`).
+- Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FieldArrayHandle<T>>` + `arrayRef.current?.add(...)`.
+- Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFieldArray`).
 
 ## Conditional / dynamic step count in FormWizard
 
@@ -220,7 +220,7 @@ function Page({ form, config }: Props) {
 
 ## See also
 
-- [02-form-array.md](02-form-array.md) — основы FormArray (compound API, ref-handle).
+- [02-field-array.md](02-field-array.md) — основы FieldArray (compound API, ref-handle).
 - [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
 - [04-form-field.md](04-form-field.md) — компоновка одного поля.
 - [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки и пути их обхода.

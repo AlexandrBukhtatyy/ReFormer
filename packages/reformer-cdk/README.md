@@ -18,19 +18,19 @@ npm install @reformer/cdk @reformer/core
 
 ## Components
 
-### FormArray
+### FieldArray
 
 Manage dynamic form arrays with add/remove functionality.
 
 ```tsx
-import { FormArray } from '@reformer/cdk/form-array';
+import { FieldArray } from '@reformer/cdk/field-array';
 
-<FormArray.Root control={form.items}>
-  <FormArray.Empty>
+<FieldArray.Root control={form.items}>
+  <FieldArray.Empty>
     <p>No items yet</p>
-  </FormArray.Empty>
+  </FieldArray.Empty>
 
-  <FormArray.List>
+  <FieldArray.List>
     {({ control, index, remove }) => (
       <div>
         <span>Item #{index + 1}</span>
@@ -38,10 +38,10 @@ import { FormArray } from '@reformer/cdk/form-array';
         <button onClick={remove}>Remove</button>
       </div>
     )}
-  </FormArray.List>
+  </FieldArray.List>
 
-  <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>;
+  <FieldArray.AddButton>Add Item</FieldArray.AddButton>
+</FieldArray.Root>;
 ```
 
 ### FormWizard
@@ -127,7 +127,7 @@ call (here, through these callbacks — the wizard's built-in submit passes `ski
 For full customization, use the hooks directly:
 
 ```tsx
-import { useFormArray } from '@reformer/cdk/form-array';
+import { useFieldArray } from '@reformer/cdk/field-array';
 import { useFormWizard } from '@reformer/cdk/form-wizard';
 ```
 

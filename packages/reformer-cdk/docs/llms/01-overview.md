@@ -15,7 +15,7 @@
 | --------------- | --------------------------------------------------------- |
 | `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)   |
 | `Autocomplete`  | Free-text input with suggestions (static or async source) |
-| `FormArray`     | Manage dynamic form arrays                                |
+| `FieldArray`     | Manage dynamic form arrays                                |
 | `FormField`     | Accessible field anatomy (label/control/…)                |
 | `FormWizard`    | Multi-step form wizard                                    |
 
@@ -29,13 +29,13 @@ npm install @reformer/cdk @reformer/core
 
 ```typescript
 // All components
-import { AsyncBoundary, FormArray, FormField, FormWizard } from '@reformer/cdk';
+import { AsyncBoundary, FieldArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
 import { AsyncBoundary, useAsyncBoundary } from '@reformer/cdk/async-boundary';
 import { Autocomplete, useAutocomplete } from '@reformer/cdk/autocomplete';
 import { useResourceOptions, type ResourceConfig } from '@reformer/cdk/option-source';
-import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FieldArray, useFieldArray } from '@reformer/cdk/field-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 import { FileUpload, useFileUpload } from '@reformer/cdk/file-upload';

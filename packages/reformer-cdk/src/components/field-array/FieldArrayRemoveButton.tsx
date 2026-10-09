@@ -1,41 +1,41 @@
 import { forwardRef, useContext } from 'react';
 import { useFormControl } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
-import { FormArrayContext, useFormArrayItemContext } from './FormArrayContext';
-import type { FormArrayRemoveButtonProps } from './types';
+import { FieldArrayContext, useFieldArrayItemContext } from './FieldArrayContext';
+import type { FieldArrayRemoveButtonProps } from './types';
 
 /**
- * FormArray.RemoveButton - Button to remove current item (must be inside FormArray.List)
+ * FieldArray.RemoveButton - Button to remove current item (must be inside FieldArray.List)
  *
  * @example Basic usage
  * ```tsx
- * <FormArray.List>
+ * <FieldArray.List>
  *   {({ control }) => (
  *     <div>
  *       <ItemForm control={control} />
- *       <FormArray.RemoveButton className="text-red-500">
+ *       <FieldArray.RemoveButton className="text-red-500">
  *         Remove
- *       </FormArray.RemoveButton>
+ *       </FieldArray.RemoveButton>
  *     </div>
  *   )}
- * </FormArray.List>
+ * </FieldArray.List>
  * ```
  *
  * @example With custom button (asChild)
  * ```tsx
- * <FormArray.RemoveButton asChild>
+ * <FieldArray.RemoveButton asChild>
  *   <IconButton icon="trash" aria-label="Remove" />
- * </FormArray.RemoveButton>
+ * </FieldArray.RemoveButton>
  * ```
  */
-export const FormArrayRemoveButton = forwardRef<HTMLButtonElement, FormArrayRemoveButtonProps>(
+export const FieldArrayRemoveButton = forwardRef<HTMLButtonElement, FieldArrayRemoveButtonProps>(
   ({ children, asChild = false, disabled, ...props }, ref) => {
-    const { remove } = useFormArrayItemContext();
-    // Отражаем disabled-состояние родительского массива (доступно внутри FormArray.List →
-    // FormArray.Root). Читаем через сырой useContext, чтобы не бросать вне Root; при отсутствии
+    const { remove } = useFieldArrayItemContext();
+    // Отражаем disabled-состояние родительского массива (доступно внутри FieldArray.List →
+    // FieldArray.Root). Читаем через сырой useContext, чтобы не бросать вне Root; при отсутствии
     // контекста useFormControl(undefined) даёт disabled=false. После arrayNode.disable() массив
     // структурно неизменяем, поэтому кнопка удаления должна быть отключена.
-    const arrayContext = useContext(FormArrayContext);
+    const arrayContext = useContext(FieldArrayContext);
     const { disabled: arrayDisabled } = useFormControl(arrayContext?.control);
     const isDisabled = disabled || arrayDisabled;
 
@@ -58,4 +58,4 @@ export const FormArrayRemoveButton = forwardRef<HTMLButtonElement, FormArrayRemo
   }
 );
 
-FormArrayRemoveButton.displayName = 'FormArray.RemoveButton';
+FieldArrayRemoveButton.displayName = 'FieldArray.RemoveButton';

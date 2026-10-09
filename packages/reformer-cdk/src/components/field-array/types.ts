@@ -2,28 +2,28 @@ import type { ReactNode, ElementType } from 'react';
 import type { ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
 
 /**
- * Узел массива, принимаемый CDK-компонентами FormArray, — {@link ModelArrayNode}: узел формы над
+ * Узел массива, принимаемый CDK-компонентами FieldArray, — {@link ModelArrayNode}: узел формы над
  * массивом модели (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/
  * `errors`/…).
  */
-export type FormArrayControl<T extends object> = ModelArrayNode<T>;
+export type FieldArrayControl<T extends object> = ModelArrayNode<T>;
 
 /**
- * Props for FormArray.Root component
+ * Props for FieldArray.Root component
  */
-export interface FormArrayRootProps<T extends object> {
+export interface FieldArrayRootProps<T extends object> {
   /** The array control from the form */
-  control: FormArrayControl<T>;
+  control: FieldArrayControl<T>;
   /** Child components */
   children: ReactNode;
 }
 
 /**
- * Props for FormArray.List component
+ * Props for FieldArray.List component
  */
-export interface FormArrayListProps<T extends object> {
+export interface FieldArrayListProps<T extends object> {
   /** Render function for each item */
-  children: (item: FormArrayItemRenderProps<T>) => ReactNode;
+  children: (item: FieldArrayItemRenderProps<T>) => ReactNode;
   /** Optional className for the list container */
   className?: string;
   /** Optional element type for the container (default: 'div') */
@@ -31,9 +31,9 @@ export interface FormArrayListProps<T extends object> {
 }
 
 /**
- * Props passed to the render function in FormArray.List
+ * Props passed to the render function in FieldArray.List
  */
-export interface FormArrayItemRenderProps<T extends object> {
+export interface FieldArrayItemRenderProps<T extends object> {
   /** The form control for this item */
   control: FormProxy<T>;
   /** Zero-based index of the item */
@@ -53,14 +53,14 @@ export interface FormArrayItemRenderProps<T extends object> {
 }
 
 /**
- * Props for FormArray.AddButton component
+ * Props for FieldArray.AddButton component
  *
  * Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий) —
  * для совместимости. Для type-safe initialValue передавайте generic явно
- * (`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
- * `FormArraySection<T>` из `@reformer/ui-kit`.
+ * (`<FieldArray.AddButton<PropertyItem> ...>`) либо проксируйте через
+ * `FieldArraySection<T>` из `@reformer/ui-kit`.
  */
-export interface FormArrayAddButtonProps<T extends object = Record<string, unknown>> extends Omit<
+export interface FieldArrayAddButtonProps<T extends object = Record<string, unknown>> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -74,9 +74,9 @@ export interface FormArrayAddButtonProps<T extends object = Record<string, unkno
 }
 
 /**
- * Props for FormArray.RemoveButton component
+ * Props for FieldArray.RemoveButton component
  */
-export interface FormArrayRemoveButtonProps extends Omit<
+export interface FieldArrayRemoveButtonProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -85,37 +85,37 @@ export interface FormArrayRemoveButtonProps extends Omit<
 }
 
 /**
- * Props for FormArray.Empty component
+ * Props for FieldArray.Empty component
  */
-export interface FormArrayEmptyProps {
+export interface FieldArrayEmptyProps {
   /** Content to show when array is empty */
   children: ReactNode;
 }
 
 /**
- * Props for FormArray.Count component
+ * Props for FieldArray.Count component
  */
-export interface FormArrayCountProps {
+export interface FieldArrayCountProps {
   /** Custom render function for the count */
   render?: (count: number) => ReactNode;
 }
 
 /**
- * Props for FormArray.ItemIndex component
+ * Props for FieldArray.ItemIndex component
  */
-export interface FormArrayItemIndexProps {
+export interface FieldArrayItemIndexProps {
   /** Custom render function for the index (receives 0-based index) */
   render?: (index: number) => ReactNode;
 }
 
 /**
- * Props for FormArray.Error component — рендерит ошибки уровня массива
+ * Props for FieldArray.Error component — рендерит ошибки уровня массива
  * (например `minItems` / «At least one phone required») из `control.errors`.
  *
  * Паритет с `FormField.Error`: `multi` рендерит все ошибки, `render` — кастомный рендер на ошибку,
  * `children` переопределяет содержимое. Ничего не рендерит, когда ошибок нет.
  */
-export interface FormArrayErrorProps extends Omit<
+export interface FieldArrayErrorProps extends Omit<
   React.HTMLAttributes<HTMLParagraphElement>,
   'role'
 > {

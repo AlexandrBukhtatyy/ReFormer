@@ -1,18 +1,21 @@
-# FormArray
+# FieldArray
 
 Headless compound component for managing form arrays.
+
+> Renamed from `FormArray`: the component family is `FieldArray*`, the hook is `useFieldArray`,
+> the subpath is `@reformer/cdk/field-array`. The old names are not exported.
 
 ## Basic Usage
 
 ```tsx
-import { FormArray } from '@reformer/cdk/form-array';
+import { FieldArray } from '@reformer/cdk/field-array';
 
-<FormArray.Root control={form.items}>
-  <FormArray.Empty>
+<FieldArray.Root control={form.items}>
+  <FieldArray.Empty>
     <p>No items added</p>
-  </FormArray.Empty>
+  </FieldArray.Empty>
 
-  <FormArray.List>
+  <FieldArray.List>
     {({ control, index, remove }) => (
       <div key={control.id}>
         <h4>Item #{index + 1}</h4>
@@ -20,28 +23,28 @@ import { FormArray } from '@reformer/cdk/form-array';
         <button onClick={remove}>Remove</button>
       </div>
     )}
-  </FormArray.List>
+  </FieldArray.List>
 
-  <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>;
+  <FieldArray.AddButton>Add Item</FieldArray.AddButton>
+</FieldArray.Root>;
 ```
 
 ## Sub-components
 
 | Component                | Props                           | Purpose                            |
 | ------------------------ | ------------------------------- | ---------------------------------- |
-| `FormArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
-| `FormArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
-| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item (from model template) |
-| `FormArray.RemoveButton` | -                               | Removes current item (inside List) |
-| `FormArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
-| `FormArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
-| `FormArray.ItemIndex`    | `render?: (index) => ReactNode` | Displays current index             |
+| `FieldArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
+| `FieldArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
+| `FieldArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item (from model template) |
+| `FieldArray.RemoveButton` | -                               | Removes current item (inside List) |
+| `FieldArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
+| `FieldArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
+| `FieldArray.ItemIndex`    | `render?: (index) => ReactNode` | Displays current index             |
 
 ## List Render Props
 
 ```typescript
-interface FormArrayItemRenderProps<T> {
+interface FieldArrayItemRenderProps<T> {
   control: FormProxy<T>; // Form control for item
   index: number; // Zero-based index
   id: string | number; // Unique key
@@ -58,34 +61,34 @@ Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
 
 ## Typed item access (avoid `FormProxy<object>`)
 
-`FormArray.List` gets its `control` from `FormArrayContext`, which is typed
+`FieldArray.List` gets its `control` from `FieldArrayContext`, which is typed
 `any` (it has to accept any element type). The generic `T` you write on the
-JSX tag is **not** inferred through React context, so a bare `<FormArray.List>`
+JSX tag is **not** inferred through React context, so a bare `<FieldArray.List>`
 defaults `T` to `object` and the render-prop `control` is `FormProxy<object>`.
 Accessing item fields then fails to compile:
 
 ```tsx
-<FormArray.List>
+<FieldArray.List>
   {({ control: item }) => (
     // ❌ TS2339: Property 'type' does not exist on type 'FormProxy<object>'
     <FormField control={item.type} />
   )}
-</FormArray.List>
+</FieldArray.List>
 ```
 
-The compound (`FormArray.Root` / `FormArray.List`) is **headless and
+The compound (`FieldArray.Root` / `FieldArray.List`) is **headless and
 render-prop-untyped by design**. For typed access to item fields, use one of
-the paths below. Prefer `FormArraySection` (canonical) or `useFormArray` — both
+the paths below. Prefer `FieldArraySection` (canonical) or `useFieldArray` — both
 infer the element type, so you cannot forget the annotation.
 
-### Canonical: ui-kit `FormArraySection` + typed `itemComponent`
+### Canonical: ui-kit `FieldArraySection` + typed `itemComponent`
 
-The typed, styled array UI lives in `@reformer/ui-kit/form-array`, not in the
+The typed, styled array UI lives in `@reformer/ui-kit/field-array`, not in the
 CDK compound. Its `itemComponent` FC receives a fully typed
 `control: FormProxy<T>` (T inferred from `control`), so item fields resolve:
 
 ```tsx
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import type { FormProxy } from '@reformer/core';
 
 const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
@@ -95,7 +98,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   </>
 );
 
-<FormArraySection
+<FieldArraySection
   control={form.properties} // ModelArrayNode<Property>
   itemComponent={PropertyForm}
   title="Properties"
@@ -106,17 +109,17 @@ The new item comes from the array template declared in the model —
 `createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` from `@reformer/core`). The
 `initialValue` prop is a fallback for an array whose model declares no template.
 
-Full prop list, RenderSchema and JSON variants: `find_recipe(topic="form-array-section")`.
+Full prop list, RenderSchema and JSON variants: `find_recipe(topic="field-array-section")`.
 
-### CDK-native typed: `useFormArray<T>` hook
+### CDK-native typed: `useFieldArray<T>` hook
 
 If you need the headless hook (custom layout, no ui-kit dependency),
-`useFormArray(control)` infers `T` from the array control — every
+`useFieldArray(control)` infers `T` from the array control — every
 `item.control` is `FormProxy<T>`, no explicit type argument required:
 
 ```tsx
 function ExistingLoansList({ control }: { control: FormProxy<Application> }) {
-  const { items, add } = useFormArray(control.existingLoans); // T = ExistingLoan inferred
+  const { items, add } = useFieldArray(control.existingLoans); // T = ExistingLoan inferred
 
   return (
     <>
@@ -133,27 +136,27 @@ function ExistingLoansList({ control }: { control: FormProxy<Application> }) {
 }
 ```
 
-### Staying on the compound: pin `FormArray.List<T>`
+### Staying on the compound: pin `FieldArray.List<T>`
 
 The JSX tag accepts an explicit type argument, which restores the item type:
 
 ```tsx
-<FormArray.List<Property>>
+<FieldArray.List<Property>>
   {({ control: item }) => <FormField control={item.type} />} {/* ✅ typed */}
-</FormArray.List>
+</FieldArray.List>
 ```
 
-You must repeat `<T>` on **every** `FormArray.List` — miss one and it silently
+You must repeat `<T>` on **every** `FieldArray.List` — miss one and it silently
 falls back to `FormProxy<object>`. When you access item fields directly, reach
-for `FormArraySection` or `useFormArray` instead.
+for `FieldArraySection` or `useFieldArray` instead.
 
 ## External Control via Ref
 
 ```tsx
 import { useRef } from 'react';
-import { FormArray, FormArrayHandle } from '@reformer/cdk/form-array';
+import { FieldArray, FieldArrayHandle } from '@reformer/cdk/field-array';
 
-const arrayRef = useRef<FormArrayHandle<ItemType>>(null);
+const arrayRef = useRef<FieldArrayHandle<ItemType>>(null);
 
 // Control from outside
 arrayRef.current?.add({ name: 'New' });
@@ -161,15 +164,15 @@ arrayRef.current?.removeAt(0);
 arrayRef.current?.move(2, 0);
 arrayRef.current?.clear();
 
-<FormArray.Root ref={arrayRef} control={form.items}>
+<FieldArray.Root ref={arrayRef} control={form.items}>
   ...
-</FormArray.Root>;
+</FieldArray.Root>;
 ```
 
-## FormArrayHandle API
+## FieldArrayHandle API
 
 ```typescript
-interface FormArrayHandle<T> {
+interface FieldArrayHandle<T> {
   add: (value?: Partial<T>) => void;
   clear: () => void;
   insert: (index: number, value?: Partial<T>) => void;
@@ -185,15 +188,15 @@ interface FormArrayHandle<T> {
 > `length` / `isEmpty` are a snapshot at render time. For a reactive length
 > outside the array, subscribe via `useFormControl(form.items).length`.
 
-## useFormArray Hook
+## useFieldArray Hook
 
 For full customization without compound components:
 
 ```tsx
-import { useFormArray } from '@reformer/cdk/form-array';
+import { useFieldArray } from '@reformer/cdk/field-array';
 
 function CustomList() {
-  const { items, add, isEmpty, length } = useFormArray(form.items);
+  const { items, add, isEmpty, length } = useFieldArray(form.items);
 
   return (
     <div>
@@ -211,11 +214,11 @@ function CustomList() {
 }
 ```
 
-### UseFormArrayReturn
+### UseFieldArrayReturn
 
 ```typescript
-interface UseFormArrayReturn<T> {
-  items: FormArrayItem<T>[]; // { control, index, id, remove }
+interface UseFieldArrayReturn<T> {
+  items: FieldArrayItem<T>[]; // { control, index, id, remove }
   length: number;
   isEmpty: boolean;
   add: (value?: Partial<T>) => void; // push to end

@@ -15,9 +15,9 @@
       "types": "./dist/async-boundary.d.ts",
       "import": "./dist/async-boundary.js"
     },
-    "./form-array": {
-      "types": "./dist/form-array.d.ts",
-      "import": "./dist/form-array.js"
+    "./field-array": {
+      "types": "./dist/field-array.d.ts",
+      "import": "./dist/field-array.js"
     },
     "./list": {
       "types": "./dist/list.d.ts",
@@ -72,7 +72,7 @@
     "forms",
     "headless-ui",
     "compound-components",
-    "form-array",
+    "field-array",
     "multi-step-form",
     "wizard",
     "reformer",

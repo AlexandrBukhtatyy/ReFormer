@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
 import { useFormControl, type FormProxy, type ValidationError } from '@reformer/core';
-// FormArrayItem объявлен один раз в FormArrayContext (устранён дубль-интерфейс с тем же именем).
-import type { FormArrayItem } from './FormArrayContext';
-import type { FormArrayControl } from './types';
+// FieldArrayItem объявлен один раз в FieldArrayContext (устранён дубль-интерфейс с тем же именем).
+import type { FieldArrayItem } from './FieldArrayContext';
+import type { FieldArrayControl } from './types';
 
 /**
- * Return type for useFormArray hook
+ * Return type for useFieldArray hook
  */
-export interface UseFormArrayReturn<T extends object> {
+export interface UseFieldArrayReturn<T extends object> {
   /** Array of items with their controls and actions */
-  items: FormArrayItem<T>[];
+  items: FieldArrayItem<T>[];
   /** Current number of items in the array */
   length: number;
   /** Whether the array is empty */
@@ -45,7 +45,7 @@ export interface UseFormArrayReturn<T extends object> {
  * @example Basic usage
  * ```tsx
  * function PropertyList() {
- *   const { items, add, isEmpty } = useFormArray(form.properties);
+ *   const { items, add, isEmpty } = useFieldArray(form.properties);
  *
  *   return (
  *     <div>
@@ -66,7 +66,7 @@ export interface UseFormArrayReturn<T extends object> {
  * @example With initial values + clear / insert
  * ```tsx
  * function PropertyToolbar() {
- *   const { add, clear, insert, length } = useFormArray(form.properties);
+ *   const { add, clear, insert, length } = useFieldArray(form.properties);
  *
  *   return (
  *     <div className="flex gap-2">
@@ -85,10 +85,10 @@ export interface UseFormArrayReturn<T extends object> {
  *
  * @example Кастомный AddButton снаружи compound API (drop-down)
  * ```tsx
- * import { useFormArrayContext } from '@reformer/cdk/form-array';
+ * import { useFieldArrayContext } from '@reformer/cdk/field-array';
  *
  * function AddPropertyMenu() {
- *   const { add } = useFormArrayContext<Property>();
+ *   const { add } = useFieldArrayContext<Property>();
  *   return (
  *     <Menu>
  *       <Menu.Trigger>+ Добавить ▾</Menu.Trigger>
@@ -99,15 +99,15 @@ export interface UseFormArrayReturn<T extends object> {
  * }
  * ```
  */
-export function useFormArray<T extends object>(
-  control: FormArrayControl<T>
-): UseFormArrayReturn<T> {
+export function useFieldArray<T extends object>(
+  control: FieldArrayControl<T>
+): UseFieldArrayReturn<T> {
   // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
   // the same length — without it the memo below would not recompute and the UI would not reorder.
   const { length, value, errors, valid, invalid } = useFormControl(control);
 
   // Memoize items array - recalculates when length OR order changes. Хелперы reorder выводятся на
-  // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FormArray.List.
+  // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FieldArray.List.
   const items = useMemo(
     () =>
       control.map((itemControl, index) => ({

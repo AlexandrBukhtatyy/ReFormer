@@ -43,38 +43,38 @@ export type {
 } from './components/async-boundary';
 
 // ============================================================================
-// FormArray - Headless compound component for managing form arrays
+// FieldArray - Headless compound component for managing form arrays
 // ============================================================================
 export {
-  FormArray,
-  FormArrayList,
-  FormArrayAddButton,
-  FormArrayRemoveButton,
-  FormArrayEmpty,
-  FormArrayCount,
-  FormArrayItemIndex,
-  useFormArray,
-  FormArrayContext,
-  FormArrayItemContext,
-  useFormArrayContext,
-  useFormArrayItemContext,
-} from './components/form-array';
+  FieldArray,
+  FieldArrayList,
+  FieldArrayAddButton,
+  FieldArrayRemoveButton,
+  FieldArrayEmpty,
+  FieldArrayCount,
+  FieldArrayItemIndex,
+  useFieldArray,
+  FieldArrayContext,
+  FieldArrayItemContext,
+  useFieldArrayContext,
+  useFieldArrayItemContext,
+} from './components/field-array';
 
 export type {
-  FormArrayHandle,
-  FormArrayItem,
-  UseFormArrayReturn,
-  FormArrayRootProps,
-  FormArrayListProps,
-  FormArrayItemRenderProps,
-  FormArrayAddButtonProps,
-  FormArrayRemoveButtonProps,
-  FormArrayEmptyProps,
-  FormArrayCountProps,
-  FormArrayItemIndexProps,
-  FormArrayContextValue,
-  FormArrayItemContextValue,
-} from './components/form-array';
+  FieldArrayHandle,
+  FieldArrayItem,
+  UseFieldArrayReturn,
+  FieldArrayRootProps,
+  FieldArrayListProps,
+  FieldArrayItemRenderProps,
+  FieldArrayAddButtonProps,
+  FieldArrayRemoveButtonProps,
+  FieldArrayEmptyProps,
+  FieldArrayCountProps,
+  FieldArrayItemIndexProps,
+  FieldArrayContextValue,
+  FieldArrayItemContextValue,
+} from './components/field-array';
 
 // ============================================================================
 // List - Headless compound component for display-iterating a model array
