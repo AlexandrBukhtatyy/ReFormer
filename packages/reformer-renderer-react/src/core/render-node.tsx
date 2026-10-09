@@ -8,14 +8,12 @@ import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 
 import { effect, type Signal } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import {
-  bindFieldProps,
-  getFieldAdapter,
   getNodeForSignal,
   isValueSignal,
   schemaSubtree,
   unknownSchemaSelectors,
-  useFieldHandleRef,
 } from '@reformer/core';
+import { bindFieldProps, getFieldAdapter, useFieldHandleRef } from '@reformer/core/react';
 import type {
   RenderNode,
   FieldWrapperProps,

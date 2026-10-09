@@ -8,13 +8,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactNode } from 'react';
-import {
-  arrayOf,
-  createForm,
-  createModel,
-  useFormBundleContext,
-  type FormModel,
-} from '@reformer/core';
+import { arrayOf, createForm, createModel, type FormModel } from '@reformer/core';
+import { useFormBundleContext } from '@reformer/core/react';
 import {
   apply,
   applyEach,

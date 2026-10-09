@@ -5,7 +5,8 @@
  */
 
 import { type ComponentType, type ReactNode } from 'react';
-import { FormBundleContext, type FormBundle, type FormRender } from '@reformer/core';
+import { type FormBundle, type FormRender } from '@reformer/core';
+import { FormBundleContext } from '@reformer/core/react';
 import type { FieldWrapperProps, FormRendererProps, RenderNode, RendererSettings } from './types';
 import { RenderNodeComponent } from './render-node';
 import { RenderContextProvider } from './render-context';
@@ -86,7 +87,8 @@ function BundleRenderer<T>({
  *
  * @example Сборка и рендер
  * ```tsx
- * import { createForm, useFormBundle } from '@reformer/core';
+ * import { createForm } from '@reformer/core';
+ * import { useFormBundle } from '@reformer/core/react';
  * import { FormRenderer } from '@reformer/renderer-react';
  * import { FormField } from '@reformer/ui-kit';
  *

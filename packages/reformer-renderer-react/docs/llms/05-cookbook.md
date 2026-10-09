@@ -10,7 +10,8 @@
 
 ```tsx
 import { FormField as CdkFormField } from '@reformer/cdk/form-field';
-import { useFormControl, type FieldNode } from '@reformer/core';
+import { type FieldNode } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { FormRenderer, type FieldWrapperProps } from '@reformer/renderer-react';
 
 function MyFieldWrapper({ control, className, children, testId }: FieldWrapperProps) {
@@ -304,7 +305,7 @@ const adapters = new Map<unknown, FieldAdapter>([
 - `toValue` — обратный путь: coerce `null`/`undefined` под контракт контрола (`Checkbox` не любит `undefined` в `checked`).
 - `componentProps` (после `strip`) спредятся ПЕРВЫМИ — seam (`value`/`onChange`/`onBlur`) перекрывает их при совпадении ключей. `strip` убирает служебные ключи, на которые контрол ругается неизвестным пропом. Blur по умолчанию идёт как `onBlur`; нестандартный канал — через `bindBlur(onBlur) => props`.
 - `data-testid="input-{testId}"` проставляется автоматически, если его нет в props (testId — из `componentProps.testId` или пути сигнала).
-- `FieldAdapter` — один тип на всех (`@reformer/core`, реэкспорт в `@reformer/renderer-react` и `@reformer/ui-kit/fields`): его же кладут в статику `reformerAdapter` через `defineFieldControl`, все поля опциональны. Пресеты кита (`checkedAdapter`, `valueChangeAdapter`, `nativeInputAdapter`, …) из `@reformer/ui-kit/fields` годятся и для `resolveFieldAdapter`.
+- `FieldAdapter` — один тип на всех (`@reformer/core/react`, реэкспорт в `@reformer/renderer-react` и `@reformer/ui-kit/fields`): его же кладут в статику `reformerAdapter` через `defineFieldControl`, все поля опциональны. Пресеты кита (`checkedAdapter`, `valueChangeAdapter`, `nativeInputAdapter`, …) из `@reformer/ui-kit/fields` годятся и для `resolveFieldAdapter`.
 - То же работает в `@reformer/renderer-json` без изменений кода: `resolveFieldAdapter` передаётся в `settings` у `JsonRendererProvider` и применяется к контролам, зарегистрированным в реестре по имени (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md)).
 
 ## See also

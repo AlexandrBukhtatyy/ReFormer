@@ -86,7 +86,7 @@ export type { RenderSchemaProxy, RenderNodeControl } from './core/render-schema-
 // хук стабильности из core под именем этого слоя.
 export { createReactForm } from './create-react-form';
 export type { ReactForm, CreateReactFormConfig } from './create-react-form';
-export { useFormBundle as useReactForm } from '@reformer/core';
+export { useFormBundle as useReactForm } from '@reformer/core/react';
 
 // Declarative render behavior
 export {

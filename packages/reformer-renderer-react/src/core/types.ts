@@ -342,8 +342,8 @@ export interface FieldWrapperProps {
  * `reformerAdapter`; {@link RendererSettings.resolveFieldAdapter} нужен только для чужих
  * компонентов, на которые статику не повесить.
  */
-export type { FieldAdapter } from '@reformer/core';
-import type { FieldAdapter } from '@reformer/core';
+export type { FieldAdapter } from '@reformer/core/react';
+import type { FieldAdapter } from '@reformer/core/react';
 
 /**
  * Настройки рендерера формы

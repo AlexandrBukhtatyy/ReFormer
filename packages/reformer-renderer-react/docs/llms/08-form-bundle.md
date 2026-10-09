@@ -12,7 +12,8 @@
 ## Сборка и рендер
 
 ```tsx
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
 import { FormRenderer, type RenderNode } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
