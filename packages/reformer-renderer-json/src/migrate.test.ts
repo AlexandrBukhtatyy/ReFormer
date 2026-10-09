@@ -68,7 +68,7 @@ describe('migrateJsonSchema: узлы', () => {
     const migrated = migrateJsonSchema({
       root: {
         array: '$model(phones)',
-        component: '$component(FormArray)',
+        component: '$component(FieldArray)',
         initialValue: { number: '' },
         item: { $template: { value: '$model(number)', component: '$component(Input)' } },
       },
@@ -76,7 +76,7 @@ describe('migrateJsonSchema: узлы', () => {
 
     expect(migrated.root).toEqual({
       model: '$model(phones)',
-      component: '$component(FormArray)',
+      component: '$component(FieldArray)',
       initialValue: { number: '' },
       item: { $template: { model: '$model(number)', component: '$component(Input)' } },
     });

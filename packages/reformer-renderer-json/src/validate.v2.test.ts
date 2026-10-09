@@ -20,7 +20,7 @@ import {
 } from './types/json-schema';
 
 const opts = {
-  componentNames: ['Input', 'Box', 'Section', 'FormArray', 'FormWizard', 'Step'],
+  componentNames: ['Input', 'Box', 'Section', 'FieldArray', 'FormWizard', 'Step'],
   dataSourceNames: ['LOAN_TYPES'],
 };
 
@@ -56,7 +56,7 @@ const document: JsonFormSchema = {
           {
             selector: 'co-borrowers',
             model: '$model(coBorrowers)',
-            component: '$component(FormArray)',
+            component: '$component(FieldArray)',
             item: '$part(coBorrower)',
           },
         ],
@@ -295,7 +295,7 @@ describe('обходчики документа формата 2', () => {
     const names = collectOperatorNames(document);
     expect([...names.components].sort()).toEqual([
       'Box',
-      'FormArray',
+      'FieldArray',
       'FormWizard',
       'Input',
       'Step',

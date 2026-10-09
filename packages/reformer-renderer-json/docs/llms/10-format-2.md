@@ -38,7 +38,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
       { "model": "$model(residenceAddress)", "part": "$part(address)" },
       {
         "model": "$model(coBorrowers)",
-        "component": "$component(FormArray)",
+        "component": "$component(FieldArray)",
         "item": "$part(coBorrower)"
       }
     ]
@@ -57,7 +57,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 | Узел            | Запись                                                                    |
 | --------------- | ------------------------------------------------------------------------- |
 | поле            | `{ "model": "$model(email)", "component": "$component(Input)" }`          |
-| массив под-форм | `{ "model": "$model(items)", "component": "$component(FormArray)", "item" }` |
+| массив под-форм | `{ "model": "$model(items)", "component": "$component(FieldArray)", "item" }` |
 | подформа        | `{ "model": "$model(address)", "part": "$part(address)" }`                |
 | контейнер       | `{ "component": "$component(Box)", "children": [] }`                      |
 
@@ -85,7 +85,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 ```json
 {
   "model": "$model(phones)",
-  "component": "$component(FormArray)",
+  "component": "$component(FieldArray)",
   "item": { "$template": { "model": "$model(number)", "component": "$component(Input)" } }
 }
 ```

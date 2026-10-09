@@ -7,7 +7,7 @@
 - **`JsonFormSchema`** — корневой документ: `version` (для миграций), опциональный `$schema` (путь к мета-схеме для IDE), единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
   - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
-  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + `component: '$component(FormArray)'` (редактируемая секция) либо `'$component(List)'` (display-список без add/remove) + `initialValue` (литерал нового элемента для кнопки «Добавить»; нужен только редактируемой секции). Без `component` элементы отрисуются, но UI управления не будет — см. ниже.
+  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + `component: '$component(FieldArray)'` (редактируемая секция) либо `'$component(List)'` (display-список без add/remove) + `initialValue` (литерал нового элемента для кнопки «Добавить»; нужен только редактируемой секции). Без `component` элементы отрисуются, но UI управления не будет — см. ниже.
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` (вложенные узлы и текстовые части вперемешку).
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели. В `value` и `componentProps` резолвится через `model.signalAt(path)` в ручку значения: сигнал листа либо массив целиком (поле-мультивыбор: `"value": "$model(tags)"` для `tags: string[]`). В `array` — value-прокси массива (набор под-форм).
@@ -112,7 +112,7 @@ const schema: JsonFormSchema = {
     placeholder: '$locale(fields.email.placeholder)',
     // `$fn` подставляет функцию по ссылке — но только в проп, который у компонента есть.
     // У `Input` пропа-форматтера нет: значение уйдёт в componentProps и будет проигнорировано.
-    // Пример настоящего функционального пропа — `itemLabel` у FormArray, см. ниже.
+    // Пример настоящего функционального пропа — `itemLabel` у FieldArray, см. ниже.
   },
 }
 ```
@@ -148,7 +148,7 @@ const schema: JsonFormSchema = {
 
 Массив рендерится **зарегистрированным компонентом** — он и определяет, редактируемая это секция или display-список. Дисплей-vs-редактирование — выбор компонента, а не отдельный тип узла:
 
-- **`component: '$component(FormArray)'`** → редактируемая секция с кнопками «Добавить»/«Удалить»/↑↓ (нужен `initialValue`);
+- **`component: '$component(FieldArray)'`** → редактируемая секция с кнопками «Добавить»/«Удалить»/↑↓ (нужен `initialValue`);
 - **`component: '$component(List)'`** → chrome-less display-список (`List` из `@reformer/ui-kit`): без add/remove, `initialValue` не нужен. Для списков, которые не редактируются, а показываются/скрываются мутацией массива в behavior (алерты, бейджи).
 - **без `component`** → безхромный fallback: элементы отрисуются, но UI управления не будет (плюс предупреждение в консоли). Практически всегда это ошибка — укажи `component`.
 

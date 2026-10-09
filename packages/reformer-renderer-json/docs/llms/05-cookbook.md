@@ -175,9 +175,9 @@ const jsonForm = useJsonForm(() =>
 
 ## Display-список из массива модели { #display-list }
 
-**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который даёт `FormArray`.
+**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который даёт `FieldArray`.
 
-**Solution.** Тот же array-node, но `component: '$component(List)'` вместо `'$component(FormArray)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
+**Solution.** Тот же array-node, но `component: '$component(List)'` вместо `'$component(FieldArray)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
 
 ```typescript
 // schema
@@ -212,7 +212,7 @@ defineFormBehavior<FormShape>(({ model }) => {
 
 - Дисплей vs редактирование = выбор компонента, а не тип узла. Без `component` тот же узел рендерится встроенной редактируемой секцией (и требует `initialValue`).
 - Компонент-обёртка получает готовые элементы `children` (+ `array`/`item`/`fieldWrapper` — если хочет сам итерировать/добавлять хром).
-- Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FormArray` без мутаций) и `useList`.
+- Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FieldArray` без мутаций) и `useList`.
 
 ## dataSource-значения и функции { #datasource }
 

@@ -92,7 +92,7 @@ const registry = defineRegistry((reg) => {
 ```jsonc
 {
   array: '$model(properties)',
-  component: '$component(FormArray)',
+  component: '$component(FieldArray)',
   componentProps: {
     itemLabel: '$fn(propertyItemLabel)',    // → функция по ссылке
   },
@@ -130,6 +130,22 @@ const settings: JsonRendererSettings = {
 ```
 
 Обычным value-based контролам (Input/Select/…) ничего из этого не нужно — `control` им не передаётся, и это норма.
+
+### Прежние имена переименованных компонентов
+
+Документ схемы хранится отдельно от кода и переживает релиз библиотеки, поэтому реестр понимает
+имя, под которым компонент назывался раньше:
+
+| В документе                    | Запись реестра      |
+| ------------------------------ | ------------------- |
+| `$component(FormArray)`        | `FieldArray`        |
+| `$component(FormArraySection)` | `FieldArraySection` |
+
+Псевдоним срабатывает, только когда записи под прежним именем в реестре нет: зарегистрировал
+`reg.component('FormArray', Свой)` — получишь свою запись. `registry.get` и `registry.has` прежнее
+имя разрешают, `registry.names()` его не перечисляет, `validateFormSchema` считает известным. В dev
+реестр один раз на имя пишет в консоль, что документ пора обновить. Новые документы пиши с
+`$component(FieldArray)`.
 
 ## Anti-patterns
 

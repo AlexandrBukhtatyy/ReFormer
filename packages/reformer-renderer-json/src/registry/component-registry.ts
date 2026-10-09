@@ -11,13 +11,34 @@ import type { JsonFormSchema } from '../types/json-schema';
 import { convertJsonSchema } from '../converter/json-to-render-schema';
 import { SchemaErrorBoundary } from '../components/schema-error-boundary';
 import { FIELD_WRAPPER, LOCALE_SERVICE } from './constants';
+import { renamedComponentOf, warnRenamedComponent } from './renamed-components';
 
 export class ComponentRegistryImpl implements ComponentRegistry {
   private own = new Map<string, ComponentMetadata>();
   private parent: ComponentRegistryImpl | null = null;
 
   get(name: string): ComponentMetadata | undefined {
-    return this.own.get(name) ?? this.parent?.get(name);
+    const exact = this.lookup(name);
+    if (exact !== undefined) return exact;
+    const renamedTo = this.renamedEntryNameOf(name);
+    if (renamedTo === undefined) return undefined;
+    warnRenamedComponent(name, renamedTo);
+    return this.lookup(renamedTo);
+  }
+
+  /** Запись ровно под этим именем — своя либо из цепочки parent, без псевдонимов. */
+  private lookup(name: string): ComponentMetadata | undefined {
+    return this.own.get(name) ?? this.parent?.lookup(name);
+  }
+
+  /**
+   * Имя записи-компонента, на которую указывает прежнее имя переименованного компонента:
+   * документ старше релиза, а запись в реестре лежит уже под новым именем.
+   */
+  private renamedEntryNameOf(name: string): string | undefined {
+    const renamedTo = renamedComponentOf(name);
+    if (renamedTo === undefined) return undefined;
+    return this.lookup(renamedTo)?.type === 'component' ? renamedTo : undefined;
   }
 
   getDataSource<T = unknown>(name: string): T | undefined {
@@ -33,7 +54,7 @@ export class ComponentRegistryImpl implements ComponentRegistry {
   }
 
   has(name: string): boolean {
-    return this.own.has(name) || (this.parent?.has(name) ?? false);
+    return this.lookup(name) !== undefined || this.renamedEntryNameOf(name) !== undefined;
   }
 
   names(): string[] {

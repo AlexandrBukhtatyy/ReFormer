@@ -69,7 +69,7 @@ export interface JsonFieldNode<T = unknown> {
  * Шаблон строки — либо вписанный узел (`{ "$template": {…} }`), либо именованная часть документа
  * (`"$part(name)"`). Пути `$model(...)` внутри шаблона относительны СТРОКЕ, а не корню формы.
  *
- * Без `component` рендерится безхромно (только строки); компонент секции — `'$component(FormArray)'`
+ * Без `component` рендерится безхромно (только строки); компонент секции — `'$component(FieldArray)'`
  * (добавить / удалить / переставить) либо `'$component(List)'` для списка без управления.
  */
 export interface JsonArrayNode<T = unknown> {
@@ -90,7 +90,7 @@ export interface JsonArrayNode<T = unknown> {
    * СТРОКЕ, не к корню `T`, поэтому пути шаблона остаются нетипизированными.
    */
   item: { $template: JsonNode } | PartOp;
-  /** Компонент-рендерер массива (`'$component(FormArray)'`). */
+  /** Компонент-рендерер массива (`'$component(FieldArray)'`). */
   component?: ComponentOp;
   /**
    * Запасной шаблон нового элемента для кнопки «Добавить» (литерал-объект по форме элемента).

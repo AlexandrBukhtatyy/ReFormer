@@ -32,6 +32,7 @@ import { isAllowedHtmlTag } from './html/html-tags';
 import { isJsonStepRef } from './compose';
 import { schemaFormatOf } from './types/json-schema';
 import type { ComponentRegistry } from './registry/types';
+import { renamedComponentOf } from './registry/renamed-components';
 
 /** Результат валидации схемы. */
 export interface FormSchemaValidationResult {
@@ -68,6 +69,16 @@ interface OperatorNameChecks {
   partNames?: string[];
 }
 
+/**
+ * Известно ли имя компонента: само либо как прежнее имя переименованного — реестр разрешает его
+ * в запись под новым именем, поэтому документ со старым именем проверку проходит.
+ */
+function isKnownComponent(name: string, componentNames: readonly string[]): boolean {
+  if (componentNames.includes(name)) return true;
+  const renamedTo = renamedComponentOf(name);
+  return renamedTo !== undefined && componentNames.includes(renamedTo);
+}
+
 /** Рекурсивно собирает ошибки неизвестных `$component/$dataSource/$fn`-имён и `$locale`-ключей по дереву. */
 function walkOperatorNames(
   node: unknown,
@@ -82,7 +93,11 @@ function walkOperatorNames(
       errors.push(
         `${path || '/'}: unknown part "${op.arg}" — declare it in the document "parts" map`
       );
-    } else if (op?.op === 'component' && componentNames && !componentNames.includes(op.arg)) {
+    } else if (
+      op?.op === 'component' &&
+      componentNames &&
+      !isKnownComponent(op.arg, componentNames)
+    ) {
       errors.push(`${path || '/'}: unknown component "${op.arg}"`);
     } else if (op?.op === 'html' && !isAllowedHtmlTag(op.arg)) {
       // Whitelist статичен (не зависит от реестра), поэтому проверяется всегда — в отличие от
@@ -210,9 +225,12 @@ function walkComponentProps(
     typeof n.componentProps === 'object' &&
     !Array.isArray(n.componentProps)
   ) {
-    const schema = propSchemas[op.arg];
+    // Прежнее имя переименованного компонента проверяется по схеме пропсов нынешнего.
+    const name =
+      propSchemas[op.arg] !== undefined ? op.arg : (renamedComponentOf(op.arg) ?? op.arg);
+    const schema = propSchemas[name];
     if (schema) {
-      const validate = getComponentPropsValidator(op.arg, schema, ajv, cache);
+      const validate = getComponentPropsValidator(name, schema, ajv, cache);
       if (validate && !validate(n.componentProps)) {
         const base = `${path ? `${path}.` : ''}componentProps`;
         for (const msg of formatAjvErrors(validate.errors, base)) errors.push(msg);
