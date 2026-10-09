@@ -11,13 +11,8 @@
  * - Рендер через существующий <FormField control={form.x} /> (нода = сигнал модели).
  */
 
-import {
-  createForm,
-  useFormBundle,
-  useFormValidation,
-  type FormModel,
-  type ValidationError,
-} from '@reformer/core';
+import { createForm, type FormModel, type ValidationError } from '@reformer/core';
+import { useFormBundle, useFormValidation } from '@reformer/core/react';
 import {
   validate,
   validateAsync,

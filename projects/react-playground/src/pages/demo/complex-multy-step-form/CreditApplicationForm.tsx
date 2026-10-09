@@ -8,7 +8,7 @@
  */
 
 import { useRef } from 'react';
-import { useFormBundle } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { AsyncBoundary, FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { ValidationMessagesProvider } from '@reformer/cdk';

@@ -1,4 +1,5 @@
-import { useFormControlValue, type FormProxy } from '@reformer/core';
+import { type FormProxy } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import {

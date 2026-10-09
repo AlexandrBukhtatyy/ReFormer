@@ -21,11 +21,11 @@
 import {
   createForm,
   getNodeForSignal,
-  useFormBundle,
   type FormModel,
   type FormRender,
   type FormSchemaNode,
 } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormRenderer } from '@reformer/renderer-react';

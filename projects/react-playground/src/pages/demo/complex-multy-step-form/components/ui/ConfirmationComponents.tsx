@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 import { useFormWizard } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../../types/credit-application';
 

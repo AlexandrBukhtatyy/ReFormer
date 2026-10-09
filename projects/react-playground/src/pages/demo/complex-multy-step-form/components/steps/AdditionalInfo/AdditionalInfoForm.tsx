@@ -11,7 +11,7 @@
  */
 
 import type { FormProxy } from '@reformer/core';
-import { useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 import { FormField, FieldArraySection } from '@reformer/ui-kit';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';

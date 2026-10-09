@@ -3,15 +3,8 @@
  * Поведения работают на ручках модели (`model.$.x`); ноды (form.x) отражают изменения.
  */
 
-import {
-  createForm,
-  useFormBundle,
-  useFormControl,
-  useFormControlValue,
-  type FieldNode,
-  type FormModel,
-  type ValidationError,
-} from '@reformer/core';
+import { createForm, type FieldNode, type FormModel, type ValidationError } from '@reformer/core';
+import { useFormBundle, useFormControl, useFormControlValue } from '@reformer/core/react';
 import {
   computeFrom,
   copyFrom,

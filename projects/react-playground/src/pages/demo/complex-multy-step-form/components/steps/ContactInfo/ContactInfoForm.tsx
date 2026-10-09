@@ -8,7 +8,7 @@
  */
 
 import type { FormProxy } from '@reformer/core';
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
 import { livesElsewhere } from '../../../model/predicates';

@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useFormBundle } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { SchemaErrorPanel, type JsonFormSchema } from '@reformer/renderer-json';

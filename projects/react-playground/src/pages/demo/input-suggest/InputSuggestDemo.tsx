@@ -7,7 +7,8 @@
  */
 
 import { useState } from 'react';
-import { createForm, useFormBundle } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormField, ExampleCard, Button, InputSuggest } from '@reformer/ui-kit';
 import type { ResourceConfig } from '@reformer/cdk/option-source';
 

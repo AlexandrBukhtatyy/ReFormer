@@ -11,11 +11,11 @@
 import {
   createForm,
   createModel,
-  useFormBundle,
   type FormBundle,
   type FormModel,
   type FormSchemaNode,
 } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import {
   Button,

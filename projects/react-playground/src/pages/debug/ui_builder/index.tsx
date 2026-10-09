@@ -46,8 +46,7 @@ import {
   type ComponentRegistry,
   type JsonForm,
 } from '@reformer/renderer-json';
-import { useFormControl } from '@reformer/core';
-import { useValidationMessage } from '@reformer/core/i18n';
+import { useFormControl, useValidationMessage } from '@reformer/core/react';
 import { mergeFormData } from '@reformer-domain/core/form-fixture';
 import { synthMock } from '@reformer-domain/core/form-mock';
 

@@ -22,7 +22,7 @@ import UiBuilderDemo from './pages/debug/ui_builder';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
-import { I18nProvider } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
 import { DEFAULT_LANG, loadLocale } from './i18n';
 type ExamplePage =
   | 'simple'

@@ -21,7 +21,7 @@
  * поля вынесли бы из-под гейта и показывали при ошибке пустую форму.
  */
 
-import { useFormBundle } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
 import { createRegistrationSetup } from './form-setup';

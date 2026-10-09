@@ -10,7 +10,8 @@
  */
 
 import { useState } from 'react';
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';

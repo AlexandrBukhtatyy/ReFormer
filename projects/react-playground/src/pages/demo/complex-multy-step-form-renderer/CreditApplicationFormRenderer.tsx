@@ -13,7 +13,8 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useFormBundle, type FormRender } from '@reformer/core';
+import { type FormRender } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 import { ValidationMessagesProvider } from '@reformer/cdk';

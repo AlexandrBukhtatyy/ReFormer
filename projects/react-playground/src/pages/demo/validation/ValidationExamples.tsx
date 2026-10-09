@@ -7,7 +7,8 @@
  * внешний раннер `validateModel(model, schema)`.
  */
 
-import { createForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import {
   validate,
   defineValidationSchema,

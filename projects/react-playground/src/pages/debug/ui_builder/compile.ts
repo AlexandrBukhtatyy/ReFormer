@@ -26,6 +26,7 @@
 
 import * as reformerCore from '@reformer/core';
 import * as reformerBehaviors from '@reformer/core/behaviors';
+import * as reformerReact from '@reformer/core/react';
 import * as reformerValidation from '@reformer/core/validation';
 import * as reformerValidators from '@reformer/core/validators';
 import * as rendererJson from '@reformer/renderer-json';
@@ -68,6 +69,7 @@ function createLoader() {
     ['@preact/signals-core', signalsCore],
     ['@reformer/core', reformerCore],
     ['@reformer/core/behaviors', reformerBehaviors],
+    ['@reformer/core/react', reformerReact],
     ['@reformer/core/validation', reformerValidation],
     ['@reformer/core/validators', reformerValidators],
     ['@reformer/renderer-json', rendererJson],

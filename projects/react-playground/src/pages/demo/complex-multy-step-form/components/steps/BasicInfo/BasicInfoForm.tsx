@@ -1,5 +1,5 @@
 import type { FormProxy } from '@reformer/core';
-import { useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
 import { isBusinessLoan, isCarLoan, isMortgage } from '../../../model/predicates';
 import type { CreditApplicationForm } from '../../../types/credit-application';
