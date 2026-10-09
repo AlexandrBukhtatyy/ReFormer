@@ -90,7 +90,7 @@ describe('guard — реакция на дубль', () => {
     stampRuntime('@reformer/core', {});
     stampRuntime('@reformer/core', {});
     const msg = checkRuntime().duplicates[0].message;
-    expect(msg).toMatch(/instanceof Signal/);
+    expect(msg).toMatch(/реактивность/);
     expect(msg).toMatch(/enableWhen/);
     expect(msg).toMatch(/МОЛЧА/);
     expect(msg).toMatch(/Module Federation|import map|externals/); // что делать

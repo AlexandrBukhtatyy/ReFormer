@@ -7,7 +7,8 @@
  * собранных бандла грузят по своей копии, и ни один из них при этом не «неправильный».
  *
  * Что ломается от дубля, и почему это не видно:
- * - Две копии `@preact/signals-core` → восемь точек `instanceof Signal` дают `false`.
+ * - Две копии `@preact/signals-core` → у каждой свой граф зависимостей: эффект одной копии не
+ *   подписывается на сигнал другой, и реактивность между ними пропадает.
  * - Две копии `@reformer/core` → раздваиваются модульные `WeakMap`: `derived-registry` (bulk-set
  *   **затирает вычисляемые поля** — тихая порча данных) и `signal-node-registry` (`enableWhen`
  *   становится **тихим no-op**).
@@ -90,7 +91,7 @@ export function stampRuntime(pkg: string, token: unknown): void {
 function describe(pkg: string, copies: number): string {
   return (
     `[form-registry/guard] в одном realm загружено ${copies} копии "${pkg}". ` +
-    `Это ломает проверки идентичности (instanceof Signal) и раздваивает модульные реестры ядра: ` +
+    `Это разрывает реактивность между копиями и раздваивает модульные реестры ядра: ` +
     `bulk-set затирает вычисляемые поля, enableWhen превращается в no-op — и всё это МОЛЧА. ` +
     `Сведите пакет к одной копии: общий chunk в Module Federation, import map либо externals.`
   );
