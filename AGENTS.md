@@ -9,7 +9,7 @@
 | Пакет                      | docs/llms/                                                                                 | Что внутри                                    |
 | -------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | `@reformer/core`           | [packages/reformer/docs/llms/](packages/reformer/docs/llms/)                               | API, валидаторы, behaviors, типы, hooks.      |
-| `@reformer/cdk`            | [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/)                       | Headless: FormArray, FormWizard, FormField.   |
+| `@reformer/cdk`            | [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/)                       | Headless: FieldArray, FormWizard, FormField.  |
 | `@reformer/ui-kit`         | [packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/)                 | Стилизованные компоненты на Tailwind + Radix. |
 | `@reformer/renderer-react` | [packages/reformer-renderer-react/docs/llms/](packages/reformer-renderer-react/docs/llms/) | Рендерер схем для React.                      |
 | `@reformer/renderer-json`  | [packages/reformer-renderer-json/docs/llms/](packages/reformer-renderer-json/docs/llms/)   | JSON-схема, реестр компонентов.               |
@@ -28,7 +28,7 @@ claude mcp add --transport stdio reformer -- reformer-mcp
 ### Эталонные примеры
 
 - Простая форма: [projects/react-playground/src/pages/demo/registration-form/RegistrationForm.tsx](projects/react-playground/src/pages/demo/registration-form/RegistrationForm.tsx)
-- Multi-step wizard + FormArray: [projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx](projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx)
+- Multi-step wizard + FieldArray: [projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx](projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx)
 - JSON-renderer: [projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/](projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/)
 
 ### Команды документации

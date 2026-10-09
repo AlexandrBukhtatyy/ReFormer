@@ -58,7 +58,7 @@ E2E визуального билдера — отдельный проект: [
 | Пакет                                                          | Описание                                                                 | Версия                                                                                                                      |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | [@reformer/core](./packages/reformer)                          | Ядро управления состоянием форм на сигнальной архитектуре                | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
-| [@reformer/cdk](./packages/reformer-cdk)                       | Headless-составные компоненты — `FormArray`, `FormWizard`, `FormField`   | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
+| [@reformer/cdk](./packages/reformer-cdk)                       | Headless-составные компоненты — `FieldArray`, `FormWizard`, `FormField`  | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
 | [@reformer/ui-kit](./packages/reformer-ui-kit)                 | 72 компонента на shadcn/ui (new-york, Tailwind CSS v4), готовые для форм | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
 | [@reformer/renderer-react](./packages/reformer-renderer-react) | React-рендерер на основе схемы — TS `RenderSchema` → JSX                 | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
 | [@reformer/renderer-json](./packages/reformer-renderer-json)   | Рендерер на основе JSON — `JsonFormSchema` + реестр компонентов          | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
@@ -73,7 +73,7 @@ E2E визуального билдера — отдельный проект: [
 - **TypeScript-first** — полный вывод типов и типобезопасность
 - **Tree-shaking** — импортируйте только то, что нужно
 - **Многошаговые формы** — поддержка мастера с валидацией по шагам
-- **Динамические массивы** — добавление/удаление элементов формы через FormArray
+- **Динамические массивы** — добавление/удаление элементов формы через FieldArray
 - **React с 16.8 по 19** — широкая совместимость
 
 ## Установка
@@ -85,7 +85,7 @@ npm install @reformer/core
 # Стилизованные инпуты + обёртка FormField (используются в «Быстром старте» ниже)
 npm install @reformer/ui-kit
 
-# Опционально: headless-составные компоненты (FormArray, FormWizard)
+# Опционально: headless-составные компоненты (FieldArray, FormWizard)
 npm install @reformer/cdk
 
 # Опционально: рендеринг на основе схемы (выберите один — см. «Рендеринг: три подхода»)
@@ -353,16 +353,16 @@ const form = createFormFromModel<OrderForm>({ model, schema, behavior });
 
 ## Массивы и многошаговые формы
 
-### FormArray
+### FieldArray
 
 Массивы объектов принадлежат модели (`model.items`) и объявляются в схеме нодой
 `{ array: model.items, item: (itemModel) => itemSchema }`. UI строится либо стилизованным
-`FormArraySection` (типизированный `itemComponent` — **канонический вариант**), либо
-headless-составным `FormArray.*` из `@reformer/cdk/form-array`.
+`FieldArraySection` (типизированный `itemComponent` — **канонический вариант**), либо
+headless-составным `FieldArray.*` из `@reformer/cdk/field-array`.
 
 ```tsx
-// Канонический вариант: типизированная стилизованная секция из @reformer/ui-kit/form-array.
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+// Канонический вариант: типизированная стилизованная секция из @reformer/ui-kit/field-array.
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import { FormField } from '@reformer/ui-kit';
 import type { FormProxy } from '@reformer/core';
 import type { FC } from 'react';
@@ -377,7 +377,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   </>
 );
 
-<FormArraySection
+<FieldArraySection
   control={form.properties}
   itemComponent={PropertyForm}
   title="Имущество"
@@ -386,16 +386,16 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 ```
 
 ```tsx
-// Headless-составной вариант: полный контроль над разметкой (@reformer/cdk/form-array).
+// Headless-составной вариант: полный контроль над разметкой (@reformer/cdk/field-array).
 // Пин типа <Property> на List возвращает типизированный элемент.
-import { FormArray } from '@reformer/cdk/form-array';
+import { FieldArray } from '@reformer/cdk/field-array';
 
-<FormArray.Root control={form.properties}>
-  <FormArray.Empty>
+<FieldArray.Root control={form.properties}>
+  <FieldArray.Empty>
     <p>Пока нет элементов</p>
-  </FormArray.Empty>
+  </FieldArray.Empty>
 
-  <FormArray.List<Property>>
+  <FieldArray.List<Property>>
     {({ control, index, remove }) => (
       <div key={control.id}>
         <h4>Элемент №{index + 1}</h4>
@@ -405,10 +405,10 @@ import { FormArray } from '@reformer/cdk/form-array';
         </button>
       </div>
     )}
-  </FormArray.List>
+  </FieldArray.List>
 
-  <FormArray.AddButton>Добавить элемент</FormArray.AddButton>
-</FormArray.Root>;
+  <FieldArray.AddButton>Добавить элемент</FieldArray.AddButton>
+</FieldArray.Root>;
 ```
 
 ### FormWizard (многошаговый мастер)

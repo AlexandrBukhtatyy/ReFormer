@@ -112,7 +112,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
 
 - **Fenced block с языком** (` ```tsx `, ` ```typescript `, ` ```bash `).
 - **Самодостаточный**: импорты + минимальная обвязка. Агент должен иметь возможность скопировать блок в новый файл и почти запустить.
-- **Короткий**: 5–30 строк. Длинные сценарии (multi-step forms, FormArray + FormWizard) выносим в `docs/llms/`/`projects/react-playground/` и ссылаемся через `@see`.
+- **Короткий**: 5–30 строк. Длинные сценарии (multi-step forms, FieldArray + FormWizard) выносим в `docs/llms/`/`projects/react-playground/` и ссылаемся через `@see`.
 - **Заголовок (опционально)**: первая строка после `@example` — короткое описание сценария (`@example Текстовое поле с валидацией`).
 - Если у символа есть несколько типичных сценариев — допускается несколько `@example` подряд.
 

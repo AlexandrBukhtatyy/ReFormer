@@ -257,11 +257,11 @@ card({
   version: 'v6.0.0',
   role: 'Headless-компоненты поверх ядра (без стилей)',
   body:
-    'src/components/: form-array · form-wizard · form-field\n' +
+    'src/components/: field-array · form-wizard · form-field\n' +
     '                 file-upload · async-boundary\n' +
     'src/validation/: error-resolver\n' +
     '\n' +
-    '6 subpath-экспортов: ./form-array ./form-wizard\n' +
+    '6 subpath-экспортов: ./field-array ./form-wizard\n' +
     './form-field ./file-upload ./async-boundary\n' +
     'внешних runtime-зависимостей нет (react — peer)',
   metrics: '78 файлов · 9 060 строк · 9 тестов · бюджет 10 kB',
