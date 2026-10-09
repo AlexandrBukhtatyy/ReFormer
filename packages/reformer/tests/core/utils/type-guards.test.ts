@@ -180,7 +180,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should handle type guards in conditional logic', () => {
-      const nodes: Array<FieldNode<unknown> | GroupNode<unknown> | ModelArrayNode<object>> = [
+      const nodes: unknown[] = [
         new FieldNode({ valueSignal: signal('test'), component: null as ComponentInstance }),
         formFromFields({ name: { value: '', component: null as ComponentInstance } }),
         arrayFromFields({ name: { value: '', component: null as ComponentInstance } }),

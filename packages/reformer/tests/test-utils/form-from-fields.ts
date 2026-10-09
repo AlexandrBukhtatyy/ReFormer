@@ -16,7 +16,11 @@ import { createFormFromModel } from '../../src/form/create-form';
 import { FieldNode } from '../../src/form/nodes/field-node';
 import type { ModelArrayNode } from '../../src/form/nodes/model-array-node';
 import type { FieldConfig, FormProxy } from '../../src/form/types/index';
-import type { FormSchemaNode } from '../../src/form/types/schema-node';
+import type {
+  FormSchemaNode,
+  SchemaArrayHandle,
+  SchemaValueHandle,
+} from '../../src/form/types/schema-node';
 
 /** Описание поля: начальное значение и то, что нода берёт из узла схемы. */
 interface TestField<V> {
@@ -29,7 +33,7 @@ interface TestField<V> {
 /** Описание полей формы данных `T`: поле, вложенная группа или массив под-форм. */
 export type TestFields<T> = {
   [K in keyof T]: NonNullable<T[K]> extends ReadonlyArray<infer U>
-    ? TestField<T[K]> | [TestFields<U>, ...Partial<U>[]]
+    ? TestField<T[K]> | [TestFields<U>, ...(TestFields<U> | Partial<U>)[]]
     : NonNullable<T[K]> extends object
       ? TestField<T[K]> | TestFields<NonNullable<T[K]>>
       : TestField<T[K]>;
@@ -89,7 +93,7 @@ function nodesOf(fields: Fields, model: { $: Record<string, unknown> }): FormSch
     const handle = model.$[key];
     if (isField(entry)) {
       nodes.push({
-        model: handle,
+        model: handle as SchemaValueHandle,
         component: entry.component as FormSchemaNode['component'],
         componentProps: entry.componentProps,
         disabled: entry.disabled,
@@ -97,7 +101,7 @@ function nodesOf(fields: Fields, model: { $: Record<string, unknown> }): FormSch
     } else if (Array.isArray(entry)) {
       const rowFields = entry[0] as Fields;
       nodes.push({
-        model: handle,
+        model: handle as SchemaArrayHandle,
         item: (rowModel: { $: Record<string, unknown> }) => ({
           children: nodesOf(rowFields, rowModel),
         }),

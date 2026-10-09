@@ -39,9 +39,9 @@ describe('runOutsideEffect', () => {
 
   it('несколько отложенных записей тика применяются в порядке постановки', async () => {
     const order: number[] = [];
-    runOutsideEffect(() => order.push(1));
-    runOutsideEffect(() => order.push(2));
-    runOutsideEffect(() => order.push(3));
+    runOutsideEffect(() => void order.push(1));
+    runOutsideEffect(() => void order.push(2));
+    runOutsideEffect(() => void order.push(3));
     expect(order).toEqual([]); // отложено
     await flush();
     expect(order).toEqual([1, 2, 3]);
@@ -87,9 +87,9 @@ describe('runOutsideEffect', () => {
 
   it('отмена одной записи не мешает остальным записям тика', async () => {
     const order: string[] = [];
-    runOutsideEffect(() => order.push('a'));
-    const cancel = runOutsideEffect(() => order.push('b'));
-    runOutsideEffect(() => order.push('c'));
+    runOutsideEffect(() => void order.push('a'));
+    const cancel = runOutsideEffect(() => void order.push('b'));
+    runOutsideEffect(() => void order.push('c'));
     cancel();
     await flush();
     expect(order).toEqual(['a', 'c']);

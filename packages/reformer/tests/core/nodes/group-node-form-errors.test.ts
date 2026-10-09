@@ -338,7 +338,7 @@ describe('GroupNode - Form-level Errors', () => {
   describe('Edge cases', () => {
     it('should handle setErrors with undefined', () => {
       // Не должно упасть
-      expect(() => form.setErrors([] as unknown)).not.toThrow();
+      expect(() => form.setErrors([])).not.toThrow();
     });
 
     it('should handle clearErrors on fresh form', () => {

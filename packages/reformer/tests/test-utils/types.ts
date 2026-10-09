@@ -1,1 +1,7 @@
-export type ComponentInstance = unknown;
+/**
+ * Тип заглушки компонента в тестах нод: `component: null as ComponentInstance`.
+ *
+ * Компонент тестам нод не нужен, но конфиг ноды и описание поля требуют разных типов. `never`
+ * подходит обоим: `null` к нему приводится, а само значение присваивается любому типу.
+ */
+export type ComponentInstance = never;

@@ -133,6 +133,7 @@ describe('групповые операции', () => {
     });
     createFormFromModel<TForm>({ model, behavior });
 
+    // @ts-expect-error — тип фасада не описывает присваивание объекта группе (ReFormer-c245)
     model.addrA = { region: 'NW', zip: '123' };
     await tick();
     expect(model.addrB).toEqual({ region: '', zip: '' }); // sameAddr=false
@@ -141,6 +142,7 @@ describe('групповые операции', () => {
     await tick();
     expect(model.addrB).toEqual({ region: 'NW', zip: '123' });
 
+    // @ts-expect-error — тип фасада не описывает присваивание объекта группе (ReFormer-c245)
     model.addrA = { region: 'SE', zip: '999' };
     await tick();
     expect(model.addrB).toEqual({ region: 'SE', zip: '999' }); // реактивно
@@ -174,7 +176,9 @@ describe('apply (под-схема на несколько групп)', () => {
     });
     createFormFromModel<TForm>({ model, behavior });
 
+    // @ts-expect-error — тип фасада не описывает присваивание объекта группе (ReFormer-c245)
     model.addrA = { region: 'X', zip: 'ab12-99' };
+    // @ts-expect-error — то же
     model.addrB = { region: 'Y', zip: '7777' };
     await tick(); // transformValue пишет через runOutsideEffect (микротаск)
     expect(model.addrA.zip).toBe('129'); // 'ab12-99' → '1299' → slice(0,3) → '129'

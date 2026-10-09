@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../../src/form/nodes/field-node';
+import type { GroupNode } from '../../../src/form/nodes/group-node';
 import type { ValidationError } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields } from '../../test-utils/form-from-fields';
@@ -184,7 +185,7 @@ describe('FormNode.getErrors()', () => {
 
       const result = field.getErrors({
         code: 'minLength',
-        predicate: (err) => (err.params?.minLength ?? 0) >= 8,
+        predicate: (err) => Number(err.params?.minLength ?? 0) >= 8,
       });
 
       expect(result.length).toBe(1);

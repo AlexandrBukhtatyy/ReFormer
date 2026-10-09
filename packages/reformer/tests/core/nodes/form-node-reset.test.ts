@@ -156,7 +156,7 @@ describe('FormNode - reset()', () => {
     let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
-      form = formFromFields({
+      form = formFromFields<NestedForm>({
         user: {
           name: { value: 'Initial Name', component: null as ComponentInstance },
           email: { value: 'initial@mail.com', component: null as ComponentInstance },

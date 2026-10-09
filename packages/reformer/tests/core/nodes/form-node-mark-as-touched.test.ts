@@ -113,7 +113,7 @@ describe('FormNode - markAsTouched()', () => {
     let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
-      form = formFromFields({
+      form = formFromFields<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -232,7 +232,7 @@ describe('FormNode - markAsTouched()', () => {
     let form: FormProxy<ComplexForm>;
 
     beforeEach(() => {
-      form = formFromFields({
+      form = formFromFields<ComplexForm>({
         user: {
           profile: {
             firstName: { value: '', component: null as ComponentInstance },

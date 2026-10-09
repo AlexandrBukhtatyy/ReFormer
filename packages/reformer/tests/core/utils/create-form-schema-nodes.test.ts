@@ -87,6 +87,7 @@ describe('Ключ `model` — поле', () => {
 
     createFormFromModel<Shape>({
       model,
+      // @ts-expect-error — группа без `part`: тип узла её не принимает, тест проверяет рантайм
       schema: { children: [{ model: model.$.registration, component: InputStub }] },
     });
 
@@ -116,6 +117,7 @@ describe('Узел-подформа `{ model, part }`', () => {
     const model = createShape();
     const form = createFormFromModel<Shape>({
       model,
+      // @ts-expect-error — привязка под-моделью: сборка её принимает, тип узла ждёт ручку `$`
       schema: { children: [{ model: model.registration, part: address }] },
     });
 

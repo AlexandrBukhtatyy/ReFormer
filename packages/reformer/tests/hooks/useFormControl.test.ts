@@ -14,8 +14,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../src/form/nodes/field-node';
-import type { FormControlState } from '../../src/platforms/react/hooks/useFormControl';
 import type { FormValue, ValidationError } from '../../src/form/types/index';
+
+/** Сигналы ноды поля, которые читает `useFormControl`. */
+type FormControlState<T> = Pick<
+  FieldNode<T>,
+  | 'value'
+  | 'errors'
+  | 'pending'
+  | 'disabled'
+  | 'touched'
+  | 'dirty'
+  | 'valid'
+  | 'invalid'
+  | 'shouldShowError'
+>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MockComponent: React.ComponentType<any> = () => null;

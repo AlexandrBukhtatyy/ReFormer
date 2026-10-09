@@ -185,10 +185,12 @@ describe('Тир 3 · копирование/синхронизация', () => 
     });
     createFormFromModel<F>({ model, behavior });
 
+    // @ts-expect-error — тип фасада не описывает присваивание объекта группе (ReFormer-c245)
     model.shipping = { street: 'Main', city: 'NYC' };
     model.sameAsShipping = true;
     await tick();
     expect(model.billing).toEqual({ street: 'Main', city: 'NYC' });
+    // @ts-expect-error — то же
     model.shipping = { street: 'Oak', city: 'LA' };
     await tick();
     expect(model.billing).toEqual({ street: 'Oak', city: 'LA' });
