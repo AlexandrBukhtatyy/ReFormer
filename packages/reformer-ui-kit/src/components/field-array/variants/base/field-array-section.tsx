@@ -1,5 +1,5 @@
 /**
- * FormArraySection — переиспользуемый wrapper для FormArray управления.
+ * FieldArraySection — переиспользуемый wrapper для FieldArray управления.
  *
  * `control` принимает ноду массива под-форм — `ModelArrayNode<T>` (`form.<массив>`).
  * `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
@@ -11,7 +11,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ComponentType, type ReactNode } from 'react';
 import { useFormControl, type ModelArrayNode, type FormProxy } from '@reformer/core';
-import { FormArray } from '@reformer/cdk/form-array';
+import { FieldArray } from '@reformer/cdk/field-array';
 import { useKitMessages } from '@/i18n/messages';
 
 /**
@@ -31,11 +31,11 @@ export interface FieldWrapperProps {
 }
 
 /**
- * Пропсы {@link FormArraySection}.
+ * Пропсы {@link FieldArraySection}.
  *
  * @typeParam T - Тип одного элемента массива (object).
  */
-export interface FormArraySectionProps<T extends object> {
+export interface FieldArraySectionProps<T extends object> {
   /** Узел массива формы (`form.<массив>`). */
   control: ModelArrayNode<T> | undefined;
 
@@ -50,13 +50,13 @@ export interface FormArraySectionProps<T extends object> {
 
   /**
    * Текст кнопки добавления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.add
+   * @defaultMessage kit.fieldArray.add
    */
   addButtonLabel?: string;
 
   /**
    * Текст кнопки удаления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.remove
+   * @defaultMessage kit.fieldArray.remove
    */
   removeButtonLabel?: string;
 
@@ -73,14 +73,14 @@ export interface FormArraySectionProps<T extends object> {
   hasItems?: boolean;
 
   /**
-   * Запасной шаблон нового item (передаётся в `FormArray.AddButton`). Основной путь — шаблон
+   * Запасной шаблон нового item (передаётся в `FieldArray.AddButton`). Основной путь — шаблон
    * массива в модели, `arrayOf(blank)` из `@reformer/core`: тогда проп не нужен.
    *
    * Plain-leaf значения, НЕ FieldConfig — только примитивы по форме item-типа `T`.
    *
    * Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента.
    * Передавайте generic явно для лучшей type-safety:
-   * `<FormArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.
+   * `<FieldArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.
    */
   initialValue?: Partial<T>;
 
@@ -117,21 +117,21 @@ export interface FormArraySectionProps<T extends object> {
 }
 
 function resolveArrayNode<T extends object>(
-  control: FormArraySectionProps<T>['control'],
+  control: FieldArraySectionProps<T>['control'],
   hasRendererSeam = false
 ): ModelArrayNode<T> | null {
   if (!control) {
     // Молчать здесь дорого: без `control` секция возвращает null, и в JSON-схеме это выглядит
     // как «массив просто не отрисовался» — ни ошибки, ни предупреждения. Самая частая причина
-    // ровно одна: под `$component(FormArray)` зарегистрировали ЭТОТ компонент вместо `FormArray`.
+    // ровно одна: под `$component(FieldArray)` зарегистрировали ЭТОТ компонент вместо `FieldArray`.
     // Признак — рендерер прислал свой seam (items/onAdd), а `control` не пришёл вовсе.
     if (typeof console !== 'undefined') {
       console.warn(
         hasRendererSeam
-          ? '[FormArraySection] control не передан, зато пришли items/onAdd — похоже, компонент ' +
-              'зарегистрирован в JSON-реестре. Для renderer-json нужен FormArray: ' +
-              "reg.component('FormArray', FormArray) из @reformer/ui-kit/form-array."
-          : '[FormArraySection] control не передан — секция не отрисована.'
+          ? '[FieldArraySection] control не передан, зато пришли items/onAdd — похоже, компонент ' +
+              'зарегистрирован в JSON-реестре. Для renderer-json нужен FieldArray: ' +
+              "reg.component('FieldArray', FieldArray) из @reformer/ui-kit/field-array."
+          : '[FieldArraySection] control не передан — секция не отрисована.'
       );
     }
     return null;
@@ -145,14 +145,14 @@ function resolveArrayNode<T extends object>(
     return control;
   }
   if (typeof console !== 'undefined') {
-    console.warn('[FormArraySection] control is not a ModelArrayNode.');
+    console.warn('[FieldArraySection] control is not a ModelArrayNode.');
   }
   return null;
 }
 
 /**
  * Готовая UI-секция для динамического массива форм — стилизованная обёртка поверх
- * headless-compound `@reformer/cdk/form-array`. Рендерит заголовок, кнопку
+ * headless-compound `@reformer/cdk/field-array`. Рендерит заголовок, кнопку
  * «Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
  * удаления и перестановки ↑/↓) и сообщение пустого состояния.
  *
@@ -166,20 +166,20 @@ function resolveArrayNode<T extends object>(
  * `false` секция скрывается целиком.
  *
  * **Не для renderer-json.** Там массив описывается array-нодой, а компонент получает от
- * рендерера seam `items`/`onAdd`/`onRemove`/`onMove` — под `$component(FormArray)` нужен
- * {@link FormArray}. Если зарегистрировать сюда `FormArraySection`, `control` не придёт
+ * рендерера seam `items`/`onAdd`/`onRemove`/`onMove` — под `$component(FieldArray)` нужен
+ * {@link FieldArray}. Если зарегистрировать сюда `FieldArraySection`, `control` не придёт
  * и секция вернёт `null` (в dev это теперь сопровождается предупреждением в консоли).
  *
  * @typeParam T - Тип одного элемента массива (object).
  *
  * @example Массив «Имущество» под чекбоксом-переключателем
  * ```tsx
- * import { FormArraySection } from '@reformer/ui-kit/form-array';
+ * import { FieldArraySection } from '@reformer/ui-kit/field-array';
  *
  * function AdditionalInfo({ control }: { control: FormProxy<CreditApplication> }) {
  *   const hasProperty = useFormControlValue(control.hasProperty) as boolean;
  *   return (
- *     <FormArraySection
+ *     <FieldArraySection
  *       title="Имущество"
  *       control={control.properties}
  *       itemComponent={PropertyForm}
@@ -193,7 +193,7 @@ function resolveArrayNode<T extends object>(
  * }
  * ```
  */
-export function FormArraySection<T extends object>({
+export function FieldArraySection<T extends object>({
   control,
   itemComponent: ItemComponent,
   title,
@@ -210,10 +210,10 @@ export function FormArraySection<T extends object>({
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
   ...rest
-}: FormArraySectionProps<T>): ReactNode {
+}: FieldArraySectionProps<T>): ReactNode {
   const t = useKitMessages();
   // Seam рендерера (`items`/`onAdd`) в пропах этого компонента не объявлен: его получает
-  // `FormArray`. Пришёл — значит компонент подставлен вместо `FormArray` в JSON-реестре.
+  // `FieldArray`. Пришёл — значит компонент подставлен вместо `FieldArray` в JSON-реестре.
   const hasRendererSeam = 'items' in rest || 'onAdd' in rest;
   const arrayNode = resolveArrayNode<T>(control, hasRendererSeam);
 
@@ -233,27 +233,27 @@ export function FormArraySection<T extends object>({
   const getItemLabel = (control: FormProxy<T>, index: number): string =>
     typeof itemLabel === 'function'
       ? itemLabel(control, index)
-      : `${itemLabel ?? title ?? t('kit.formArray.item')} #${index + 1}`;
+      : `${itemLabel ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
 
   return (
-    <FormArray.Root control={arrayNode}>
-      <section className={className} data-slot="form-array-section">
+    <FieldArray.Root control={arrayNode}>
+      <section className={className} data-slot="field-array-section">
         {title ? (
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">{title}</h3>
             {atMaxItems ? null : (
-              <FormArray.AddButton
+              <FieldArray.AddButton
                 initialValue={initialValue}
                 data-testid="array-add"
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
               >
-                {addButtonLabel ?? t('kit.formArray.add')}
-              </FormArray.AddButton>
+                {addButtonLabel ?? t('kit.fieldArray.add')}
+              </FieldArray.AddButton>
             )}
           </div>
         ) : null}
 
-        <FormArray.List className="space-y-3">
+        <FieldArray.List className="space-y-3">
           {({ control: itemForm, index, remove, moveUp, moveDown, canMoveUp, canMoveDown }) => {
             const showRemove = showRemoveOnSingle || length > 1;
             return (
@@ -270,7 +270,7 @@ export function FormArraySection<T extends object>({
                             type="button"
                             onClick={moveUp}
                             disabled={!canMoveUp}
-                            aria-label={t('kit.formArray.moveUp')}
+                            aria-label={t('kit.fieldArray.moveUp')}
                             data-testid={`array-item-${index}-move-up`}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
                           >
@@ -280,7 +280,7 @@ export function FormArraySection<T extends object>({
                             type="button"
                             onClick={moveDown}
                             disabled={!canMoveDown}
-                            aria-label={t('kit.formArray.moveDown')}
+                            aria-label={t('kit.fieldArray.moveDown')}
                             data-testid={`array-item-${index}-move-down`}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
                           >
@@ -295,7 +295,7 @@ export function FormArraySection<T extends object>({
                           data-testid={`array-item-${index}-remove`}
                           className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2"
                         >
-                          {removeButtonLabel ?? t('kit.formArray.remove')}
+                          {removeButtonLabel ?? t('kit.fieldArray.remove')}
                         </button>
                       ) : null}
                     </div>
@@ -305,36 +305,36 @@ export function FormArraySection<T extends object>({
               </div>
             );
           }}
-        </FormArray.List>
+        </FieldArray.List>
 
         {length === 0 && emptyMessage ? (
-          <FormArray.Empty>
+          <FieldArray.Empty>
             <div className="p-4 bg-muted border rounded text-center text-muted-foreground">
               {emptyMessage}
               {emptyMessageHint && (
                 <div className="mt-2 text-xs text-muted-foreground/80">{emptyMessageHint}</div>
               )}
             </div>
-          </FormArray.Empty>
+          </FieldArray.Empty>
         ) : null}
 
         {/* If no title is provided, render the AddButton as a footer. */}
         {!title && !atMaxItems ? (
           <div>
-            <FormArray.AddButton
+            <FieldArray.AddButton
               initialValue={initialValue}
               data-testid="array-add"
               className="text-sm text-primary hover:text-primary/80 hover:underline"
             >
-              {addButtonLabel ?? t('kit.formArray.add')}
-            </FormArray.AddButton>
+              {addButtonLabel ?? t('kit.fieldArray.add')}
+            </FieldArray.AddButton>
           </div>
         ) : null}
       </section>
-    </FormArray.Root>
+    </FieldArray.Root>
   );
 }
 
 // Маркер для интеграции с RenderNodeComponent — компонент сам управляет
 // рендером своих children (items), родитель только пробрасывает `form`.
-(FormArraySection as any).__selfManagedChildren = true;
+(FieldArraySection as any).__selfManagedChildren = true;

@@ -1,6 +1,6 @@
 /**
- * Unit-тесты FormArraySection — ReFormer-специфичный carry-компонент (не shadcn),
- * стилизованная UI-обёртка поверх headless-compound `@reformer/cdk/form-array`.
+ * Unit-тесты FieldArraySection — ReFormer-специфичный carry-компонент (не shadcn),
+ * стилизованная UI-обёртка поверх headless-compound `@reformer/cdk/field-array`.
  *
  * SSR-подход (renderToStaticMarkup + regex): проверяем разметку, метки, кнопки
  * (add/remove/reorder), пустое состояние, maxItems и guard-ветки (hasItems=false,
@@ -10,7 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createModel, createFormFromModel, type FormModel, type FormProxy } from '@reformer/core';
-import { FormArraySection } from './index';
+import { FieldArraySection } from './index';
 
 type Item = { name: string };
 
@@ -30,10 +30,10 @@ const ItemMarker = (_: { control: FormProxy<Item> }) => (
   <div data-slot="item-body">тело-элемента</div>
 );
 
-describe('FormArraySection (base carry)', () => {
+describe('FieldArraySection (base carry)', () => {
   it('рендерит заголовок, кнопку добавления и карточки элементов', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }, { name: 'b' }])}
         itemComponent={ItemMarker}
         title="Имущество"
@@ -42,7 +42,7 @@ describe('FormArraySection (base carry)', () => {
       />
     );
     // data-slot корневой секции (добавлен при порте v7).
-    expect(html).toContain('data-slot="form-array-section"');
+    expect(html).toContain('data-slot="field-array-section"');
     // Заголовок секции — h3.
     expect(html).toMatch(/<h3[^>]*>Имущество<\/h3>/);
     // Кнопка добавления с меткой.
@@ -60,7 +60,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('при length > 1 показывает кнопки «Удалить» на каждом элементе', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }, { name: 'b' }])}
         itemComponent={ItemMarker}
         title="Список"
@@ -74,7 +74,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('единственный элемент по умолчанию без «Удалить» (showRemoveOnSingle=false)', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }])}
         itemComponent={ItemMarker}
         title="Список"
@@ -85,7 +85,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('showRemoveOnSingle=true показывает «Удалить» даже для одного элемента', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }])}
         itemComponent={ItemMarker}
         title="Список"
@@ -97,7 +97,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('reorderable рендерит кнопки перестановки ↑/↓ с aria-label', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }, { name: 'b' }])}
         itemComponent={ItemMarker}
         title="Список"
@@ -114,7 +114,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('пустой массив с emptyMessage рендерит сообщение и подсказку', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([])}
         itemComponent={ItemMarker}
         emptyMessage="Нажмите «Добавить» для добавления информации"
@@ -127,7 +127,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('без title кнопка добавления рендерится как футер', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([])}
         itemComponent={ItemMarker}
         addButtonLabel="+ Добавить"
@@ -141,7 +141,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('maxItems достигнут — кнопка добавления скрыта', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }, { name: 'b' }])}
         itemComponent={ItemMarker}
         title="Список"
@@ -153,7 +153,7 @@ describe('FormArraySection (base carry)', () => {
 
   it('hasItems=false скрывает секцию целиком (пустая строка)', () => {
     const html = renderToStaticMarkup(
-      <FormArraySection<Item>
+      <FieldArraySection<Item>
         control={buildArray([{ name: 'a' }])}
         itemComponent={ItemMarker}
         title="Имущество"
@@ -166,10 +166,10 @@ describe('FormArraySection (base carry)', () => {
   it('невалидный control (не ModelArrayNode) → предупреждение и пустая строка', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const html = renderToStaticMarkup(
-      <FormArraySection<Item> control={{} as any} itemComponent={ItemMarker} title="X" />
+      <FieldArraySection<Item> control={{} as any} itemComponent={ItemMarker} title="X" />
     );
     expect(html).toBe('');
-    expect(warn).toHaveBeenCalledWith('[FormArraySection] control is not a ModelArrayNode.');
+    expect(warn).toHaveBeenCalledWith('[FieldArraySection] control is not a ModelArrayNode.');
     warn.mockRestore();
   });
 });

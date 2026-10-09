@@ -1,15 +1,15 @@
 /**
- * Unit-тесты ui-kit FormArray — editable-секция массива для renderer-json (`$component(FormArray)`).
- * (Отдельно от form-array.test.tsx, который покрывает FormArraySection — React/TS-контракт.)
+ * Unit-тесты ui-kit FieldArray — editable-секция массива для renderer-json (`$component(FieldArray)`).
+ * (Отдельно от field-array.test.tsx, который покрывает FieldArraySection — React/TS-контракт.)
  *
- * Рендерим настоящий путь: узел `{ array, item, component: FormArray }` через `FormRenderer`.
+ * Рендерим настоящий путь: узел `{ array, item, component: FieldArray }` через `FormRenderer`.
  * Проверяем хром + data-testid, совместимые со встроенной секцией (миграция эквивалентна).
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FormRenderer } from '@reformer/renderer-react';
-import { FormArray } from './variants/base/form-array';
-import { FormArraySection } from './variants/base/form-array-section';
+import { FieldArray } from './variants/base/field-array';
+import { FieldArraySection } from './variants/base/field-array-section';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -30,12 +30,12 @@ const render = (node: any): string => renderToStaticMarkup(<FormRenderer render=
 const faNode = (items: any[], componentProps?: any) => ({
   model: fakeArray(items),
   item: (im: any) => ({ component: 'span', children: [im.name] }),
-  component: FormArray,
+  component: FieldArray,
   initialValue: () => ({}),
   componentProps,
 });
 
-describe('FormArray (ui-kit, renderer-json)', () => {
+describe('FieldArray (ui-kit, renderer-json)', () => {
   it('рендерит заголовок, кнопку «Добавить» и карточки элементов', () => {
     const html = render(
       faNode([{ name: 'a' }, { name: 'b' }], { title: 'Созаёмщики', addButtonLabel: '+ Добавить' })
@@ -79,7 +79,7 @@ describe('FormArray (ui-kit, renderer-json)', () => {
   // Если этот тест начнёт требовать FormRenderer — связь с renderer-react вернулась.
   it('рендерится на фейковых items без формы и без рендерера', () => {
     const html = renderToStaticMarkup(
-      <FormArray
+      <FieldArray
         title="Созаёмщики"
         reorderable
         items={[
@@ -94,11 +94,11 @@ describe('FormArray (ui-kit, renderer-json)', () => {
     expect(html).toContain('Первый');
   });
 
-  // Регресс: под `$component(FormArray)` легко зарегистрировать соседний FormArraySection —
+  // Регресс: под `$component(FieldArray)` легко зарегистрировать соседний FieldArraySection —
   // имена похожи, а JSDoc называл его «готовой UI-секцией для массива». Контракты разные:
   // рендерер шлёт items/onAdd, а Section ждёт control+itemComponent, поэтому секция уходила
   // в `return null` — пустой экран без единого сигнала. Диагностика этого стоила ~40 минут.
-  it('FormArraySection вместо FormArray: пустой рендер сопровождается подсказкой в консоли', () => {
+  it('FieldArraySection вместо FieldArray: пустой рендер сопровождается подсказкой в консоли', () => {
     const warnings: string[] = [];
     const original = console.warn;
     console.warn = (...args: unknown[]) => void warnings.push(args.join(' '));
@@ -108,12 +108,12 @@ describe('FormArray (ui-kit, renderer-json)', () => {
       // Рендерер даёт ему seam массива (items/onAdd/...) и не даёт `control`.
       html = render({
         ...faNode([{ name: 'a' }], { title: 'Имущество' }),
-        component: FormArraySection,
+        component: FieldArraySection,
       });
     } finally {
       console.warn = original;
     }
     expect(html).not.toContain('Имущество');
-    expect(warnings.join('\n')).toMatch(/FormArray.*@reformer\/ui-kit\/form-array/s);
+    expect(warnings.join('\n')).toMatch(/FieldArray.*@reformer\/ui-kit\/field-array/s);
   });
 });

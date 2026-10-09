@@ -11099,6 +11099,295 @@
       "palette": false
     },
     {
+      "name": "FieldArray",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "addButtonLabel": {
+            "type": "string",
+            "default": "+ Add",
+            "x-messageKey": "kit.fieldArray.add",
+            "description": "Текст кнопки добавления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "cardClassName": {
+            "type": "string",
+            "default": "mb-4 p-4 bg-card text-card-foreground rounded border",
+            "description": "Класс card-обёртки элемента.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "default": "space-y-3 mt-2",
+            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "emptyMessage": {
+            "type": "string",
+            "description": "Сообщение пустого состояния.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "emptyMessageHint": {
+            "type": "string",
+            "description": "Подсказка под пустым состоянием.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "itemLabel": {
+            "description": "Метка элемента — префикс-строка или функция `(model, index) => string`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string | ((model: any, index: number) => string)",
+              "kind": "readonly"
+            }
+          },
+          "items": {
+            "type": "array",
+            "description": "Отрендеренные элементы массива (инъектится рендерером).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ArrayItemSlot[]"
+            }
+          },
+          "onAdd": {
+            "description": "Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "(() => void)",
+              "kind": "readonly"
+            }
+          },
+          "onMove": {
+            "description": "Переместить элемент (инъектится рендерером). Нужен при `reorderable`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "((from: number, to: number) => void)",
+              "kind": "readonly"
+            }
+          },
+          "onRemove": {
+            "description": "Удалить элемент по индексу (инъектится рендерером).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "((index: number) => void)",
+              "kind": "readonly"
+            }
+          },
+          "removeButtonLabel": {
+            "type": "string",
+            "default": "Remove",
+            "x-messageKey": "kit.fieldArray.remove",
+            "description": "Текст кнопки удаления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "reorderable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Кнопки ↑/↓ перестановки. По умолчанию `false`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "showRemoveOnSingle": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать «Удалить» когда остался один элемент. По умолчанию `false`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "Заголовок блока — выводится над содержимым.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "palette": false
+    },
+    {
+      "name": "FieldArraySection",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "addButtonLabel": {
+            "type": "string",
+            "default": "+ Add",
+            "x-messageKey": "kit.fieldArray.add",
+            "description": "Текст кнопки добавления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "cardClassName": {
+            "type": "string",
+            "default": "mb-4 p-4 bg-card text-card-foreground rounded border",
+            "description": "Класс card-обёртки каждого item.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "default": "space-y-3 mt-2",
+            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "control": {
+            "type": "object",
+            "description": "Уже-резолвленный ArrayNode/ModelArrayNode/FieldArrayProxy.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ModelArrayNode<T>",
+              "kind": "readonly"
+            }
+          },
+          "emptyMessage": {
+            "type": "string",
+            "description": "Сообщение пустого состояния.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "emptyMessageHint": {
+            "type": "string",
+            "description": "Подсказка под пустым состоянием.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "fieldWrapper": {
+            "description": "Field wrapper для дочерних полей. Авто-инъектится `RenderNodeComponent`; переопределить для использования другого wrapper в этой секции.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ComponentType<FieldWrapperProps>",
+              "kind": "readonly"
+            }
+          },
+          "form": {
+            "description": "FormProxy. Авто-инъектится `RenderNodeComponent` через `__selfManagedChildren` маркер. Передавать вручную — только при использовании вне стандартного render-tree.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "FormProxy<unknown>",
+              "kind": "readonly"
+            }
+          },
+          "hasItems": {
+            "type": "boolean",
+            "description": "Условие видимости секции. Если `false` — секция полностью скрыта. Удобно для toggle-чекбоксов вида «У меня есть имущество».",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "initialValue": {
+            "type": "object",
+            "description": "Plain-leaf значения для новых items (передаётся в `FieldArray.AddButton`). НЕ FieldConfig — только примитивы по форме item-типа `T`. Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента. Передавайте generic явно для лучшей type-safety: `<FieldArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "Partial<T>"
+            }
+          },
+          "itemComponent": {
+            "description": "React FC получает `control: FormProxy<T>` для каждого элемента.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ComponentType<{ control: FormProxy<T>; }>",
+              "kind": "readonly"
+            }
+          },
+          "itemLabel": {
+            "description": "Метка для каждого item — строка-префикс или функция.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string | ((control: FormProxy<T>, index: number) => string)",
+              "kind": "readonly"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Максимум items — AddButton отключается при достижении.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "removeButtonLabel": {
+            "type": "string",
+            "default": "Remove",
+            "x-messageKey": "kit.fieldArray.remove",
+            "description": "Текст кнопки удаления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "reorderable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false` (обратная совместимость — существующие массивы не меняются).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "showRemoveOnSingle": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать «Удалить» когда остался один элемент. По умолчанию `false`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "Заголовок блока — выводится над содержимым.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "palette": false
+    },
+    {
       "name": "FieldContent",
       "role": "container",
       "propsSchema": {
@@ -12594,295 +12883,6 @@
         }
       },
       "compoundParent": "FileUpload",
-      "palette": false
-    },
-    {
-      "name": "FormArray",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "addButtonLabel": {
-            "type": "string",
-            "default": "+ Add",
-            "x-messageKey": "kit.formArray.add",
-            "description": "Текст кнопки добавления.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "cardClassName": {
-            "type": "string",
-            "default": "mb-4 p-4 bg-card text-card-foreground rounded border",
-            "description": "Класс card-обёртки элемента.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "className": {
-            "type": "string",
-            "default": "space-y-3 mt-2",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "emptyMessage": {
-            "type": "string",
-            "description": "Сообщение пустого состояния.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "emptyMessageHint": {
-            "type": "string",
-            "description": "Подсказка под пустым состоянием.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "itemLabel": {
-            "description": "Метка элемента — префикс-строка или функция `(model, index) => string`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string | ((model: any, index: number) => string)",
-              "kind": "readonly"
-            }
-          },
-          "items": {
-            "type": "array",
-            "description": "Отрендеренные элементы массива (инъектится рендерером).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "ArrayItemSlot[]"
-            }
-          },
-          "onAdd": {
-            "description": "Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "(() => void)",
-              "kind": "readonly"
-            }
-          },
-          "onMove": {
-            "description": "Переместить элемент (инъектится рендерером). Нужен при `reorderable`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((from: number, to: number) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onRemove": {
-            "description": "Удалить элемент по индексу (инъектится рендерером).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((index: number) => void)",
-              "kind": "readonly"
-            }
-          },
-          "removeButtonLabel": {
-            "type": "string",
-            "default": "Remove",
-            "x-messageKey": "kit.formArray.remove",
-            "description": "Текст кнопки удаления.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "reorderable": {
-            "type": "boolean",
-            "default": false,
-            "description": "Кнопки ↑/↓ перестановки. По умолчанию `false`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "showRemoveOnSingle": {
-            "type": "boolean",
-            "default": false,
-            "description": "Показывать «Удалить» когда остался один элемент. По умолчанию `false`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "title": {
-            "type": "string",
-            "description": "Заголовок блока — выводится над содержимым.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          }
-        }
-      },
-      "palette": false
-    },
-    {
-      "name": "FormArraySection",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "addButtonLabel": {
-            "type": "string",
-            "default": "+ Add",
-            "x-messageKey": "kit.formArray.add",
-            "description": "Текст кнопки добавления.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "cardClassName": {
-            "type": "string",
-            "default": "mb-4 p-4 bg-card text-card-foreground rounded border",
-            "description": "Класс card-обёртки каждого item.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "className": {
-            "type": "string",
-            "default": "space-y-3 mt-2",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "control": {
-            "type": "object",
-            "description": "Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "ModelArrayNode<T>",
-              "kind": "readonly"
-            }
-          },
-          "emptyMessage": {
-            "type": "string",
-            "description": "Сообщение пустого состояния.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "emptyMessageHint": {
-            "type": "string",
-            "description": "Подсказка под пустым состоянием.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "fieldWrapper": {
-            "description": "Field wrapper для дочерних полей. Авто-инъектится `RenderNodeComponent`; переопределить для использования другого wrapper в этой секции.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "ComponentType<FieldWrapperProps>",
-              "kind": "readonly"
-            }
-          },
-          "form": {
-            "description": "FormProxy. Авто-инъектится `RenderNodeComponent` через `__selfManagedChildren` маркер. Передавать вручную — только при использовании вне стандартного render-tree.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "FormProxy<unknown>",
-              "kind": "readonly"
-            }
-          },
-          "hasItems": {
-            "type": "boolean",
-            "description": "Условие видимости секции. Если `false` — секция полностью скрыта. Удобно для toggle-чекбоксов вида «У меня есть имущество».",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "initialValue": {
-            "type": "object",
-            "description": "Plain-leaf значения для новых items (передаётся в `FormArray.AddButton`). НЕ FieldConfig — только примитивы по форме item-типа `T`. Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента. Передавайте generic явно для лучшей type-safety: `<FormArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "Partial<T>"
-            }
-          },
-          "itemComponent": {
-            "description": "React FC получает `control: FormProxy<T>` для каждого элемента.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "ComponentType<{ control: FormProxy<T>; }>",
-              "kind": "readonly"
-            }
-          },
-          "itemLabel": {
-            "description": "Метка для каждого item — строка-префикс или функция.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string | ((control: FormProxy<T>, index: number) => string)",
-              "kind": "readonly"
-            }
-          },
-          "maxItems": {
-            "type": "number",
-            "description": "Максимум items — AddButton отключается при достижении.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "removeButtonLabel": {
-            "type": "string",
-            "default": "Remove",
-            "x-messageKey": "kit.formArray.remove",
-            "description": "Текст кнопки удаления.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "reorderable": {
-            "type": "boolean",
-            "default": false,
-            "description": "Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false` (обратная совместимость — существующие массивы не меняются).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "showRemoveOnSingle": {
-            "type": "boolean",
-            "default": false,
-            "description": "Показывать «Удалить» когда остался один элемент. По умолчанию `false`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "title": {
-            "type": "string",
-            "description": "Заголовок блока — выводится над содержимым.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          }
-        }
-      },
       "palette": false
     },
     {

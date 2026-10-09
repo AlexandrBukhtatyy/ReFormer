@@ -23,7 +23,7 @@ import {
   AsyncBoundaryError,
   AsyncBoundaryLoading,
 } from '@/components/async-boundary';
-import { FormArray } from '@/components/form-array';
+import { FieldArray } from '@/components/field-array';
 import { FormWizardActions, FormWizardProgress, StepIndicator } from '@/components/form-wizard';
 import { SelectMulti } from '@/components/select';
 import { en } from '../locale/en';
@@ -70,11 +70,11 @@ describe('словари кита', () => {
       'Шаг 2 из 6 • 33% завершено'
     );
     expect(tRu('kit.formWizard.stepsNav')).toBe('Шаги формы');
-    expect(tRu('kit.formArray.add')).toBe('+ Добавить');
-    expect(tRu('kit.formArray.remove')).toBe('Удалить');
-    expect(tRu('kit.formArray.item')).toBe('Элемент');
-    expect(tRu('kit.formArray.moveUp')).toBe('Переместить вверх');
-    expect(tRu('kit.formArray.moveDown')).toBe('Переместить вниз');
+    expect(tRu('kit.fieldArray.add')).toBe('+ Добавить');
+    expect(tRu('kit.fieldArray.remove')).toBe('Удалить');
+    expect(tRu('kit.fieldArray.item')).toBe('Элемент');
+    expect(tRu('kit.fieldArray.moveUp')).toBe('Переместить вверх');
+    expect(tRu('kit.fieldArray.moveDown')).toBe('Переместить вниз');
     expect(tRu('kit.formField.hintLabel', { label: 'Email' })).toBe('Подсказка: Email');
     expect(tRu('kit.formField.validating')).toBe('Проверка...');
     expect(tRu('kit.asyncBoundary.loadingTitle')).toBe('Загрузка данных...');
@@ -171,7 +171,7 @@ describe('умолчания пропсов в каталоге', () => {
 
   it('у переведённых компонентов в каталоге не осталось русских умолчаний', () => {
     const translated =
-      /^(AsyncBoundary|Combobox|FileUpload|FormArray|FormWizard|Select|StepIndicator)/;
+      /^(AsyncBoundary|Combobox|FileUpload|FieldArray|FormWizard|Select|StepIndicator)/;
     const cyrillic = catalog.components
       .filter((component) => translated.test(component.name))
       .flatMap((component) =>
@@ -215,7 +215,7 @@ describe('строки компонентов', () => {
     expect(renderToStaticMarkup(<AsyncBoundaryLoading />)).toContain('Loading data...');
     expect(renderToStaticMarkup(<AsyncBoundaryError onRetry={() => {}} />)).toContain('Retry');
     expect(renderToStaticMarkup(<AsyncBoundaryEmpty />)).toContain('No data');
-    expect(renderToStaticMarkup(<FormArray title="Phones" />)).toContain('+ Add');
+    expect(renderToStaticMarkup(<FieldArray title="Phones" />)).toContain('+ Add');
   });
 
   it('под русской локалью — русские', () => {
@@ -228,7 +228,7 @@ describe('строки компонентов', () => {
     expect(underRu(<AsyncBoundaryLoading />)).toContain('Пожалуйста, подождите');
     expect(underRu(<AsyncBoundaryError onRetry={() => {}} />)).toContain('Ошибка загрузки');
     expect(underRu(<AsyncBoundaryEmpty />)).toContain('Нет данных');
-    expect(underRu(<FormArray title="Телефоны" />)).toContain('+ Добавить');
+    expect(underRu(<FieldArray title="Телефоны" />)).toContain('+ Добавить');
     expect(
       underRu(<SelectMulti value={['a', 'b', 'c', 'd']} onChange={() => {}} options={[]} />)
     ).toContain('Выбрано: 4');

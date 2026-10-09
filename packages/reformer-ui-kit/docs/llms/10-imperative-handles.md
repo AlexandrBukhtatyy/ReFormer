@@ -2,7 +2,7 @@
 
 Каждое поле ui-kit отдаёт типизированный императивный handle через `ref` (строит его обёртка
 поля — см. «Своё поле с handle»). Из render-схемы он достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
-тот же, что уже использовался для `FormWizard`/`FormArray`, но теперь работает и для листовых полей.
+тот же, что уже использовался для `FormWizard`/`FieldArray`, но теперь работает и для листовых полей.
 
 ## Когда императив, а когда реактив
 
@@ -75,7 +75,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 
 Благодаря `__path` путь модели — **одновременно ключ ref и адрес сигнала** (`model.signalAt(path)`),
 поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
-`FormArray` индексы не нужно перечислять в схеме.
+`FieldArray` индексы не нужно перечислять в схеме.
 
 ## Контракты handle
 
@@ -101,7 +101,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 `Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он живёт
 контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
 объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
-способом, что у `FormWizard` и `FormArray`.
+способом, что у `FormWizard` и `FieldArray`.
 
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
@@ -156,13 +156,13 @@ renderEffect(schema, () => {
 });
 ```
 
-## Рецепт: фокус в поле только что добавленной строки FormArray
+## Рецепт: фокус в поле только что добавленной строки FieldArray
 
 ```tsx
-import type { FormArrayHandle } from '@reformer/cdk';
+import type { FieldArrayHandle } from '@reformer/cdk';
 import type { FieldHandle } from '@reformer/ui-kit';
 
-const phones = schema.node('phones').getRef<FormArrayHandle<Phone>>();
+const phones = schema.node('phones').getRef<FieldArrayHandle<Phone>>();
 phones.current?.add({ number: '' });
 
 // строка ещё не смонтирована — ждём коммита React

@@ -23,11 +23,11 @@
   "kit.fileUpload.avatarLabel": "Загрузить изображение",
   "kit.fileUpload.error": "Ошибка",
 
-  "kit.formArray.add": "+ Добавить",
-  "kit.formArray.remove": "Удалить",
-  "kit.formArray.item": "Элемент",
-  "kit.formArray.moveUp": "Переместить вверх",
-  "kit.formArray.moveDown": "Переместить вниз",
+  "kit.fieldArray.add": "+ Добавить",
+  "kit.fieldArray.remove": "Удалить",
+  "kit.fieldArray.item": "Элемент",
+  "kit.fieldArray.moveUp": "Переместить вверх",
+  "kit.fieldArray.moveDown": "Переместить вниз",
 
   "kit.formField.hintLabel": "Подсказка: {label}",
   "kit.formField.validating": "Проверка...",

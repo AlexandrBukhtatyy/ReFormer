@@ -1,9 +1,9 @@
 // ReFormer-специфичные carry-компоненты (не shadcn):
-// - FormArraySection — UI-обёртка поверх headless-compound `@reformer/cdk/form-array` (React/TS,
+// - FieldArraySection — UI-обёртка поверх headless-compound `@reformer/cdk/field-array` (React/TS,
 //   контракт control + itemComponent);
-// - FormArray — editable-секция для renderer-json (`$component(FormArray)`, контракт
+// - FieldArray — editable-секция для renderer-json (`$component(FieldArray)`, контракт
 //   items + onAdd/onRemove/onMove). Двойник display-компонента `List`.
-export { FormArraySection } from './variants/base/form-array-section';
-export type { FormArraySectionProps } from './variants/base/form-array-section';
-export { FormArray } from './variants/base/form-array';
-export type { FormArrayProps } from './variants/base/form-array';
+export { FieldArraySection } from './variants/base/field-array-section';
+export type { FieldArraySectionProps } from './variants/base/field-array-section';
+export { FieldArray } from './variants/base/field-array';
+export type { FieldArrayProps } from './variants/base/field-array';

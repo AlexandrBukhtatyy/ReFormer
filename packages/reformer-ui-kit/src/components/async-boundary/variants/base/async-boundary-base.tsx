@@ -457,7 +457,7 @@ function AsyncBoundaryInner<T>(
 }
 
 // Дженерик + forwardRef: React.forwardRef стирает параметр типа, поэтому результат
-// приводим к дженерик-сигнатуре вручную — тот же приём, что у FormArray/FormWizard в CDK.
+// приводим к дженерик-сигнатуре вручную — тот же приём, что у FieldArray/FormWizard в CDK.
 // (Обычные shadcn-порты forwardRef не используют; здесь он нужен ради AsyncBoundaryHandle.)
 const AsyncBoundary = React.forwardRef(AsyncBoundaryInner) as (<T = unknown>(
   props: AsyncBoundaryProps<T> & {

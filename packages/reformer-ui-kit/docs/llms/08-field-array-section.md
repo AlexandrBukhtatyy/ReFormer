@@ -1,21 +1,26 @@
-# FormArraySection — UI для FormArray
+# FieldArraySection — UI для FieldArray
 
-`@reformer/ui-kit/form-array` — стилизованный wrapper поверх headless
-`@reformer/cdk/form-array`.
+`@reformer/ui-kit/field-array` — стилизованный wrapper поверх headless
+`@reformer/cdk/field-array`.
+
+> Прежние имена — `FormArraySection`, `FormArray`, сабпат `@reformer/ui-kit/form-array`, ключи
+> локали `kit.formArray.*` — больше не экспортируются: теперь `FieldArraySection`, `FieldArray`,
+> `@reformer/ui-kit/field-array`, `kit.fieldArray.*`. В JSON-документе `$component(FormArray)`
+> продолжает работать: реестр renderer-json разрешает прежнее имя в запись `FieldArray`.
 
 В пакете **два** компонента массива, и путать их нельзя:
 
 | Компонент          | Для чего                                   | Контракт                                                |
 | ------------------ | ------------------------------------------ | ------------------------------------------------------- |
-| `FormArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
-| `FormArray`        | **renderer-json**, `$component(FormArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
+| `FieldArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
+| `FieldArray`        | **renderer-json**, `$component(FieldArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
 
-Этот документ — про `FormArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
+Этот документ — про `FieldArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
 
 ## Базовое использование (TS-flow)
 
 ```tsx
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import type { FormProxy } from '@reformer/core';
 
 // ВАЖНО: используйте `type`, не `interface` — иначе тип элемента не
@@ -36,7 +41,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 );
 
 // Generic выводится из control:
-<FormArraySection
+<FieldArraySection
   control={form.properties}                  // ModelArrayNode<Property>
   itemComponent={PropertyForm}
   title="Имущество"
@@ -46,7 +51,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 />
 
 // Если TS не выводит generic из union-типа control — укажите явно:
-<FormArraySection<Property> control={form.properties} itemComponent={PropertyForm} />
+<FieldArraySection<Property> control={form.properties} itemComponent={PropertyForm} />
 ```
 
 Новый элемент кнопка «Добавить» берёт из шаблона массива — он объявляется в модели, рядом с
@@ -66,16 +71,16 @@ const model = createModel<CreditApplication>({ properties: arrayOf(blankProperty
 ## Renderer-react RenderSchema
 
 M1: схема без аргумента `path` (`createRenderSchema<T>(() => ...)`). `control`
-ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FormArraySection`
+ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FieldArraySection`
 резолвит его в `ArrayNode` внутри.
 
 ```tsx
 import { createRenderSchema } from '@reformer/renderer-react';
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
 const renderSchema = createRenderSchema<CreditApplication>(() => ({
   selector: 'properties-section',
-  component: FormArraySection,
+  component: FieldArraySection,
   componentProps: {
     control: model.properties, // ModelArray → резолвится в ArrayNode
     itemComponent: PropertyForm, // FC напрямую
@@ -85,25 +90,25 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
 }));
 ```
 
-ui-kit FormArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
+ui-kit FieldArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
 
-> Основной способ в схеме — узел-массив с компонентом `FormArray`:
-> `{ model: model.$.properties, component: FormArray, item: (model) => ({ children: [{ model: model.$.type, component }] }) }`.
+> Основной способ в схеме — узел-массив с компонентом `FieldArray`:
+> `{ model: model.$.properties, component: FieldArray, item: (model) => ({ children: [{ model: model.$.type, component }] }) }`.
 > Строка описывается в той же схеме, а не отдельным React-компонентом.
 
 ## JSON (renderer-json)
 
-**В renderer-json нужен `FormArray`, а не `FormArraySection`.** Это разные компоненты с разными
-контрактами, и подмена стоит дорого: `FormArraySection` требует пропы `control` + `itemComponent`,
+**В renderer-json нужен `FieldArray`, а не `FieldArraySection`.** Это разные компоненты с разными
+контрактами, и подмена стоит дорого: `FieldArraySection` требует пропы `control` + `itemComponent`,
 которых JSON-конвертер не передаёт (он инъектит `items`/`onAdd`/`onRemove`/`onMove`), поэтому
 секция уходит в `return null` — **пустой экран без единой ошибки и предупреждения**.
 
 ```ts
 // registry.ts
-import { FormArray } from '@reformer/ui-kit/form-array';
+import { FieldArray } from '@reformer/ui-kit/field-array';
 
 defineRegistry((reg) => {
-  reg.component('FormArray', FormArray); // ← имя из JSON `$component(FormArray)`
+  reg.component('FieldArray', FieldArray); // ← имя из JSON `$component(FieldArray)`
 });
 ```
 
@@ -114,7 +119,7 @@ defineRegistry((reg) => {
 {
   "selector": "properties-array",
   "array": "$model(properties)",
-  "component": "$component(FormArray)",
+  "component": "$component(FieldArray)",
   "initialValue": { "type": "apartment", "description": "", "estimatedValue": 0 },
   "componentProps": {
     "title": "Имущество",
@@ -150,10 +155,10 @@ defineRegistry((reg) => {
 
 ```jsonc
 // ❌ так секция молча не отрисуется: контракт TS-flow в JSON-схеме
-{ "component": "FormArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
+{ "component": "FieldArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
 
-// ✅ array-нода + FormArray в реестре
-{ "array": "$model(properties)", "component": "$component(FormArray)", "item": { "$template": { } } }
+// ✅ array-нода + FieldArray в реестре
+{ "array": "$model(properties)", "component": "$component(FieldArray)", "item": { "$template": { } } }
 ```
 
 ## Props (полный список)

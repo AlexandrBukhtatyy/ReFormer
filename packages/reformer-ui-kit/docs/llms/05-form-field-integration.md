@@ -350,7 +350,7 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
 ## Anti-patterns
 
 - Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
-  именно `FieldNode<T>`. Для массивов используй `FormArray.Root` из CDK; для
+  именно `FieldNode<T>`. Для массивов используй `FieldArray.Root` из CDK; для
   groups — отдельные `FormField` на каждое лиственное поле.
 - Динамически менять `control` (`<FormField control={isAdvanced ? form.x : form.y} />`)
   — `React.memo` не пересоздаст внутренний `Root`, но сам `Root` сменит контекст,

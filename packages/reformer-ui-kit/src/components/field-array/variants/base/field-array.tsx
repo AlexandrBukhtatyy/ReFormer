@@ -1,21 +1,21 @@
 /**
- * FormArray — editable-секция массива для renderer-json (`$component(FormArray)`).
+ * FieldArray — editable-секция массива для renderer-json (`$component(FieldArray)`).
  *
  * Редактируемый двойник {@link List}: элементы приходят **уже отрендеренными** в пропе `items`
- * (`{ key, index, model, children }`), а FormArray добавляет хром — заголовок, кнопку «Добавить»,
+ * (`{ key, index, model, children }`), а FieldArray добавляет хром — заголовок, кнопку «Добавить»,
  * карточку с меткой на элемент, кнопки удаления и (опц.) перестановки ↑/↓. Мутации массива идут
  * через колбэки `onAdd`/`onRemove`/`onMove`, поэтому компонент не знает ни про модель, ни про
  * рендерер: итерация, подписка и кэш — на вызывающей стороне.
  *
  * `data-testid` (`array-add`, `array-item-N`, `-remove`, `-move-up/down`) — стабильный публичный
- * контракт: на них завязаны e2e-тесты. Отличается от `FormArraySection` тем, что рассчитан на
- * рендерер (`items` из схемы), а не на headless-контрол `@reformer/cdk/form-array`.
+ * контракт: на них завязаны e2e-тесты. Отличается от `FieldArraySection` тем, что рассчитан на
+ * рендерер (`items` из схемы), а не на headless-контрол `@reformer/cdk/field-array`.
  */
 import type { ReactNode } from 'react';
 import { useKitMessages } from '@/i18n/messages';
 import type { ArrayComponentProps, ArrayItemSlot } from '@/lib/array-slot';
 
-export interface FormArrayProps extends ArrayComponentProps {
+export interface FieldArrayProps extends ArrayComponentProps {
   /** Отрендеренные элементы массива (инъектится рендерером). */
   items?: ArrayItemSlot[];
   /** Добавить элемент (инъектится рендерером; элемент берётся из шаблона массива модели). */
@@ -31,12 +31,12 @@ export interface FormArrayProps extends ArrayComponentProps {
   itemLabel?: string | ((model: any, index: number) => string);
   /**
    * Текст кнопки добавления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.add
+   * @defaultMessage kit.fieldArray.add
    */
   addButtonLabel?: string;
   /**
    * Текст кнопки удаления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.remove
+   * @defaultMessage kit.fieldArray.remove
    */
   removeButtonLabel?: string;
   /** Сообщение пустого состояния. */
@@ -60,7 +60,7 @@ const REMOVE_BTN =
 const MOVE_BTN =
   'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9';
 
-export function FormArray({
+export function FieldArray({
   items = [],
   onAdd,
   onRemove,
@@ -75,7 +75,7 @@ export function FormArray({
   showRemoveOnSingle = false,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
-}: FormArrayProps): ReactNode {
+}: FieldArrayProps): ReactNode {
   const t = useKitMessages();
   const length = items.length;
 
@@ -83,16 +83,16 @@ export function FormArray({
   const getItemLabel = (model: any, index: number): string =>
     typeof itemLabel === 'function'
       ? itemLabel(model, index)
-      : `${(itemLabel as string) ?? title ?? t('kit.formArray.item')} #${index + 1}`;
+      : `${(itemLabel as string) ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
 
   const addBtn = (cls: string) => (
     <button type="button" data-testid="array-add" className={cls} onClick={onAdd}>
-      {addButtonLabel ?? t('kit.formArray.add')}
+      {addButtonLabel ?? t('kit.fieldArray.add')}
     </button>
   );
 
   return (
-    <section className={className} data-slot="form-array">
+    <section className={className} data-slot="field-array">
       {title ? (
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">{title}</h3>
@@ -112,7 +112,7 @@ export function FormArray({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label={t('kit.formArray.moveUp')}
+                        aria-label={t('kit.fieldArray.moveUp')}
                         data-testid={`array-item-${it.index}-move-up`}
                         className={MOVE_BTN}
                         disabled={it.index === 0}
@@ -122,7 +122,7 @@ export function FormArray({
                       </button>
                       <button
                         type="button"
-                        aria-label={t('kit.formArray.moveDown')}
+                        aria-label={t('kit.fieldArray.moveDown')}
                         data-testid={`array-item-${it.index}-move-down`}
                         className={MOVE_BTN}
                         disabled={it.index === length - 1}
@@ -139,7 +139,7 @@ export function FormArray({
                       className={REMOVE_BTN}
                       onClick={() => onRemove?.(it.index)}
                     >
-                      {removeButtonLabel ?? t('kit.formArray.remove')}
+                      {removeButtonLabel ?? t('kit.fieldArray.remove')}
                     </button>
                   ) : null}
                 </div>

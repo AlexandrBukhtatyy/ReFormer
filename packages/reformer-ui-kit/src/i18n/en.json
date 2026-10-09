@@ -23,11 +23,11 @@
   "kit.fileUpload.avatarLabel": "Upload image",
   "kit.fileUpload.error": "Error",
 
-  "kit.formArray.add": "+ Add",
-  "kit.formArray.remove": "Remove",
-  "kit.formArray.item": "Item",
-  "kit.formArray.moveUp": "Move up",
-  "kit.formArray.moveDown": "Move down",
+  "kit.fieldArray.add": "+ Add",
+  "kit.fieldArray.remove": "Remove",
+  "kit.fieldArray.item": "Item",
+  "kit.fieldArray.moveUp": "Move up",
+  "kit.fieldArray.moveDown": "Move down",
 
   "kit.formField.hintLabel": "Hint: {label}",
   "kit.formField.validating": "Validating...",

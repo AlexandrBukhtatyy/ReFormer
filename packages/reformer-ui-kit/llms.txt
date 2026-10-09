@@ -12,7 +12,7 @@
 - 05-form-field-integration.md — FormField integration
 - 06-troubleshooting.md — Troubleshooting / FAQ
 - 07-form-wizard.md — FormWizard — multi-step форма
-- 08-form-array-section.md — FormArraySection — UI для FormArray
+- 08-field-array-section.md — FieldArraySection — UI для FieldArray
 - 09-input-mask.md — InputMask — поля с маской ввода
 - 10-imperative-handles.md — Императивные handle полей — управление компонентом по селектору
 - 11-form-layout.md — Form layout — отступы, сетка и группировка полей
@@ -30,7 +30,7 @@
 `<FormField control={form.email} />` или к регистрации компонента в `RenderSchema`
 рендерера — сам компонент, без обёрток.
 
-В отличие от headless-уровня `@reformer/cdk` (компоненты `FormArray`,
+В отличие от headless-уровня `@reformer/cdk` (компоненты `FieldArray`,
 `FormWizard`, `FormField` без стилей), `ui-kit` уже имеет:
 
 - стили (Tailwind utility-классы + темизация через CSS-переменные),
@@ -328,7 +328,7 @@ function App() {
 | Компонент                       | Ключи                                                                                                                                                    |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormWizard`                    | `kit.formWizard.prev`, `next`, `submit`, `validating`, `submitting`, `progress`, `stepsNav`, `stepLabel`                                                 |
-| `FormArray`, `FormArraySection` | `kit.formArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
+| `FieldArray`, `FieldArraySection` | `kit.fieldArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
 | `FormField`                     | `kit.formField.hintLabel`, `validating`                                                                                                                  |
 | `FileUpload*`                   | `kit.fileUpload.choose`, `dropzone`, `inputPlaceholder`, `clear`, `avatarLabel`, `error`                                                                 |
 | `AsyncBoundary*`                | `kit.asyncBoundary.loadingTitle`, `loadingSubtitle`, `errorTitle`, `retry`, `emptyTitle`                                                                 |
@@ -2314,7 +2314,7 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
 ## 34. Anti-patterns
 
 - Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
-  именно `FieldNode<T>`. Для массивов используй `FormArray.Root` из CDK; для
+  именно `FieldNode<T>`. Для массивов используй `FieldArray.Root` из CDK; для
   groups — отдельные `FormField` на каждое лиственное поле.
 - Динамически менять `control` (`<FormField control={isAdvanced ? form.x : form.y} />`)
   — `React.memo` не пересоздаст внутренний `Root`, но сам `Root` сменит контекст,
@@ -3092,22 +3092,27 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 
 ## 59. Базовое использование (TS-flow)
 
-**FormArraySection — UI для FormArray**
+**FieldArraySection — UI для FieldArray**
 
-`@reformer/ui-kit/form-array` — стилизованный wrapper поверх headless
-`@reformer/cdk/form-array`.
+`@reformer/ui-kit/field-array` — стилизованный wrapper поверх headless
+`@reformer/cdk/field-array`.
+
+> Прежние имена — `FormArraySection`, `FormArray`, сабпат `@reformer/ui-kit/form-array`, ключи
+> локали `kit.formArray.*` — больше не экспортируются: теперь `FieldArraySection`, `FieldArray`,
+> `@reformer/ui-kit/field-array`, `kit.fieldArray.*`. В JSON-документе `$component(FormArray)`
+> продолжает работать: реестр renderer-json разрешает прежнее имя в запись `FieldArray`.
 
 В пакете **два** компонента массива, и путать их нельзя:
 
 | Компонент          | Для чего                                   | Контракт                                                |
 | ------------------ | ------------------------------------------ | ------------------------------------------------------- |
-| `FormArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
-| `FormArray`        | **renderer-json**, `$component(FormArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
+| `FieldArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
+| `FieldArray`        | **renderer-json**, `$component(FieldArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
 
-Этот документ — про `FormArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
+Этот документ — про `FieldArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
 
 ```tsx
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import type { FormProxy } from '@reformer/core';
 
 // ВАЖНО: используйте `type`, не `interface` — иначе тип элемента не
@@ -3128,7 +3133,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 );
 
 // Generic выводится из control:
-<FormArraySection
+<FieldArraySection
   control={form.properties}                  // ModelArrayNode<Property>
   itemComponent={PropertyForm}
   title="Имущество"
@@ -3138,7 +3143,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 />
 
 // Если TS не выводит generic из union-типа control — укажите явно:
-<FormArraySection<Property> control={form.properties} itemComponent={PropertyForm} />
+<FieldArraySection<Property> control={form.properties} itemComponent={PropertyForm} />
 ```
 
 Новый элемент кнопка «Добавить» берёт из шаблона массива — он объявляется в модели, рядом с
@@ -3158,16 +3163,16 @@ const model = createModel<CreditApplication>({ properties: arrayOf(blankProperty
 ## 60. Renderer-react RenderSchema
 
 M1: схема без аргумента `path` (`createRenderSchema<T>(() => ...)`). `control`
-ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FormArraySection`
+ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FieldArraySection`
 резолвит его в `ArrayNode` внутри.
 
 ```tsx
 import { createRenderSchema } from '@reformer/renderer-react';
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
 const renderSchema = createRenderSchema<CreditApplication>(() => ({
   selector: 'properties-section',
-  component: FormArraySection,
+  component: FieldArraySection,
   componentProps: {
     control: model.properties, // ModelArray → резолвится в ArrayNode
     itemComponent: PropertyForm, // FC напрямую
@@ -3177,25 +3182,25 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
 }));
 ```
 
-ui-kit FormArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
+ui-kit FieldArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
 
-> Основной способ в схеме — узел-массив с компонентом `FormArray`:
-> `{ model: model.$.properties, component: FormArray, item: (model) => ({ children: [{ model: model.$.type, component }] }) }`.
+> Основной способ в схеме — узел-массив с компонентом `FieldArray`:
+> `{ model: model.$.properties, component: FieldArray, item: (model) => ({ children: [{ model: model.$.type, component }] }) }`.
 > Строка описывается в той же схеме, а не отдельным React-компонентом.
 
 ## 61. JSON (renderer-json)
 
-**В renderer-json нужен `FormArray`, а не `FormArraySection`.** Это разные компоненты с разными
-контрактами, и подмена стоит дорого: `FormArraySection` требует пропы `control` + `itemComponent`,
+**В renderer-json нужен `FieldArray`, а не `FieldArraySection`.** Это разные компоненты с разными
+контрактами, и подмена стоит дорого: `FieldArraySection` требует пропы `control` + `itemComponent`,
 которых JSON-конвертер не передаёт (он инъектит `items`/`onAdd`/`onRemove`/`onMove`), поэтому
 секция уходит в `return null` — **пустой экран без единой ошибки и предупреждения**.
 
 ```ts
 // registry.ts
-import { FormArray } from '@reformer/ui-kit/form-array';
+import { FieldArray } from '@reformer/ui-kit/field-array';
 
 defineRegistry((reg) => {
-  reg.component('FormArray', FormArray); // ← имя из JSON `$component(FormArray)`
+  reg.component('FieldArray', FieldArray); // ← имя из JSON `$component(FieldArray)`
 });
 ```
 
@@ -3206,7 +3211,7 @@ defineRegistry((reg) => {
 {
   "selector": "properties-array",
   "array": "$model(properties)",
-  "component": "$component(FormArray)",
+  "component": "$component(FieldArray)",
   "initialValue": { "type": "apartment", "description": "", "estimatedValue": 0 },
   "componentProps": {
     "title": "Имущество",
@@ -3242,10 +3247,10 @@ defineRegistry((reg) => {
 
 ```jsonc
 // ❌ так секция молча не отрисуется: контракт TS-flow в JSON-схеме
-{ "component": "FormArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
+{ "component": "FieldArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
 
-// ✅ array-нода + FormArray в реестре
-{ "array": "$model(properties)", "component": "$component(FormArray)", "item": { "$template": { } } }
+// ✅ array-нода + FieldArray в реестре
+{ "array": "$model(properties)", "component": "$component(FieldArray)", "item": { "$template": { } } }
 ```
 
 ## 62. Props (полный список)
@@ -3439,7 +3444,7 @@ import InputMask from 'react-input-mask';
 
 Каждое поле ui-kit отдаёт типизированный императивный handle через `ref` (строит его обёртка
 поля — см. «Своё поле с handle»). Из render-схемы он достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
-тот же, что уже использовался для `FormWizard`/`FormArray`, но теперь работает и для листовых полей.
+тот же, что уже использовался для `FormWizard`/`FieldArray`, но теперь работает и для листовых полей.
 
 Handle покрывает ТОЛЬКО то, что не выражается реактивно. Всё остальное остаётся в behaviors —
 дублировать его через handle нельзя, иначе появятся два способа делать одно и то же.
@@ -3510,7 +3515,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 
 Благодаря `__path` путь модели — **одновременно ключ ref и адрес сигнала** (`model.signalAt(path)`),
 поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
-`FormArray` индексы не нужно перечислять в схеме.
+`FieldArray` индексы не нужно перечислять в схеме.
 
 ## 73. Контракты handle
 
@@ -3536,7 +3541,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 `Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он живёт
 контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
 объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
-способом, что у `FormWizard` и `FormArray`.
+способом, что у `FormWizard` и `FieldArray`.
 
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
@@ -3591,13 +3596,13 @@ renderEffect(schema, () => {
 });
 ```
 
-## 76. Рецепт: фокус в поле только что добавленной строки FormArray
+## 76. Рецепт: фокус в поле только что добавленной строки FieldArray
 
 ```tsx
-import type { FormArrayHandle } from '@reformer/cdk';
+import type { FieldArrayHandle } from '@reformer/cdk';
 import type { FieldHandle } from '@reformer/ui-kit';
 
-const phones = schema.node('phones').getRef<FormArrayHandle<Phone>>();
+const phones = schema.node('phones').getRef<FieldArrayHandle<Phone>>();
 phones.current?.add({ number: '' });
 
 // строка ещё не смонтирована — ждём коммита React
@@ -3690,7 +3695,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 | ---------------------------------- | ----------- | ----------------------------------------- |
 | Шаг визарда / корень страницы      | `space-y-6` | обёртка вокруг заголовка и групп          |
 | Логическая группа полей            | `space-y-4` | секция с заголовком `h3` и полями         |
-| Элемент массива (`FormArray` item) | `space-y-3` | карточка одной записи                     |
+| Элемент массива (`FieldArray` item) | `space-y-3` | карточка одной записи                     |
 | Внутри поля                        | —           | ничего не пишем, отступы даёт `FormField` |
 
 ```tsx
@@ -3780,7 +3785,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 </div>
 ```
 
-Повторяющиеся записи — `FormArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
+Повторяющиеся записи — `FieldArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
 списка и карточка для элемента, переопределять их не нужно.
 
 ## 83. Layout across targets
@@ -3794,7 +3799,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 | `<div className="grid …">`    | `Box` + тот же `className`                                                              | `$component(Box)` + тот же `className`                                              |
 | `<Card>`                      | `component: Card`                                                                        | `$component(Card)`                                                                  |
 
-В JSON компонент обязан быть в реестре: `Box`, `Section`, `FormArray` регистрируют обычно
+В JSON компонент обязан быть в реестре: `Box`, `Section`, `FieldArray` регистрируют обычно
 сразу, `Card` и `Alert` — нет.
 
 ```typescript
@@ -3882,7 +3887,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — что `FormField` рисует сам.
 - [07-form-wizard.md](07-form-wizard.md) — хром многошаговой формы.
-- [08-form-array-section.md](08-form-array-section.md) — секция повторяющихся записей.
+- [08-field-array-section.md](08-field-array-section.md) — секция повторяющихся записей.
 - [renderer-react](../../../reformer-renderer-react/docs/llms/) — layout в `RenderSchema`.
 - [renderer-json](../../../reformer-renderer-json/docs/llms/) — layout в JSON.
 
@@ -7734,6 +7739,241 @@ toValue: (v) => v ?? false,
 
 _Source: ../reformer/src/platforms/react/field-binding/field-adapter.ts_
 
+### FieldArray
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function FieldArray({
+  items = [],
+  onAdd,
+  onRemove,
+  onMove,
+  title,
+  itemLabel,
+  addButtonLabel,
+  removeButtonLabel,
+  emptyMessage,
+  emptyMessageHint,
+  reorderable = false,
+  showRemoveOnSingle = false,
+  className = 'space-y-3 mt-2',
+  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
+}: FieldArrayProps): ReactNode
+```
+
+_Source: src/components/field-array/variants/base/field-array.tsx_
+
+### FieldArrayProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FieldArrayProps extends ArrayComponentProps {
+  /** Отрендеренные элементы массива (инъектится рендерером). */
+  items?: ArrayItemSlot[];
+  /** Добавить элемент (инъектится рендерером; элемент берётся из шаблона массива модели). */
+  onAdd?: () => void;
+  /** Удалить элемент по индексу (инъектится рендерером). */
+  onRemove?: (index: number) => void;
+  /** Переместить элемент (инъектится рендерером). Нужен при `reorderable`. */
+  onMove?: (from: number, to: number) => void;
+  /** Заголовок секции (h3). */
+  title?: string;
+  /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  itemLabel?: string | ((model: any, index: number) => string);
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.fieldArray.add
+   */
+  addButtonLabel?: string;
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.fieldArray.remove
+   */
+  removeButtonLabel?: string;
+  /** Сообщение пустого состояния. */
+  emptyMessage?: string;
+  /** Подсказка под пустым состоянием. */
+  emptyMessageHint?: string;
+  /** Кнопки ↑/↓ перестановки. По умолчанию `false`. */
+  reorderable?: boolean;
+  /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
+  showRemoveOnSingle?: boolean;
+  /** Внешний className секции. */
+  className?: string;
+  /** Класс card-обёртки элемента. */
+  cardClassName?: string;
+}
+```
+
+_Source: src/components/field-array/variants/base/field-array.tsx_
+
+### FieldArraySection
+
+**Kind:** `function`
+
+Готовая UI-секция для динамического массива форм — стилизованная обёртка поверх
+headless-compound `@reformer/cdk/field-array`. Рендерит заголовок, кнопку
+«Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
+удаления и перестановки ↑/↓) и сообщение пустого состояния.
+
+`control` принимает ноду массива под-форм — `ModelArrayNode<T>`
+(`form.<массив>`). `itemComponent` — единственная форма
+рендера элемента: `ComponentType<{ control: FormProxy<T> }>` (тот же контракт,
+что у шага {@link FormWizardStep}). Внутри `RenderNodeComponent` проп `form`
+инъектится автоматически (маркер `__selfManagedChildren`).
+
+Проп `hasItems` удобен для toggle-чекбоксов («У меня есть имущество»): при
+`false` секция скрывается целиком.
+
+**Не для renderer-json.** Там массив описывается array-нодой, а компонент получает от
+рендерера seam `items`/`onAdd`/`onRemove`/`onMove` — под `$component(FieldArray)` нужен
+{@link FieldArray}. Если зарегистрировать сюда `FieldArraySection`, `control` не придёт
+и секция вернёт `null` (в dev это теперь сопровождается предупреждением в консоли).
+
+**Signature:**
+```typescript
+export function FieldArraySection<T extends object>({
+  control,
+  itemComponent: ItemComponent,
+  title,
+  itemLabel,
+  addButtonLabel,
+  removeButtonLabel,
+  emptyMessage,
+  emptyMessageHint,
+  hasItems,
+  initialValue,
+  showRemoveOnSingle = false,
+  reorderable = false,
+  maxItems,
+  className = 'space-y-3 mt-2',
+  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
+  ...rest
+}: FieldArraySectionProps<T>): ReactNode
+```
+
+**Examples:**
+
+Массив «Имущество» под чекбоксом-переключателем
+```tsx
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
+
+function AdditionalInfo({ control }: { control: FormProxy<CreditApplication> }) {
+const hasProperty = useFormControlValue(control.hasProperty) as boolean;
+return (
+<FieldArraySection
+title="Имущество"
+control={control.properties}
+itemComponent={PropertyForm}
+itemLabel="Имущество"
+addButtonLabel="+ Добавить имущество"
+emptyMessage='Нажмите "Добавить имущество" для добавления информации'
+hasItems={hasProperty}
+reorderable
+/>
+);
+}
+```
+
+_Source: src/components/field-array/variants/base/field-array-section.tsx_
+
+### FieldArraySectionProps
+
+**Kind:** `interface`
+
+Пропсы {@link FieldArraySection}.
+
+**Signature:**
+```typescript
+export interface FieldArraySectionProps<T extends object> {
+  /** Узел массива формы (`form.<массив>`). */
+  control: ModelArrayNode<T> | undefined;
+
+  /** React FC получает `control: FormProxy<T>` для каждого элемента. */
+  itemComponent: ComponentType<{ control: FormProxy<T> }>;
+
+  /** Заголовок секции (рендерится h3). */
+  title?: string;
+
+  /** Метка для каждого item — строка-префикс или функция. */
+  itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
+
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.fieldArray.add
+   */
+  addButtonLabel?: string;
+
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.fieldArray.remove
+   */
+  removeButtonLabel?: string;
+
+  /** Сообщение пустого состояния. */
+  emptyMessage?: string;
+
+  /** Подсказка под пустым состоянием. */
+  emptyMessageHint?: string;
+
+  /**
+   * Условие видимости секции. Если `false` — секция полностью скрыта.
+   * Удобно для toggle-чекбоксов вида «У меня есть имущество».
+   */
+  hasItems?: boolean;
+
+  /**
+   * Запасной шаблон нового item (передаётся в `FieldArray.AddButton`). Основной путь — шаблон
+   * массива в модели, `arrayOf(blank)` из `@reformer/core`: тогда проп не нужен.
+   *
+   * Plain-leaf значения, НЕ FieldConfig — только примитивы по форме item-типа `T`.
+   *
+   * Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента.
+   * Передавайте generic явно для лучшей type-safety:
+   * `<FieldArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.
+   */
+  initialValue?: Partial<T>;
+
+  /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
+  showRemoveOnSingle?: boolean;
+
+  /**
+   * Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false`
+   * (обратная совместимость — существующие массивы не меняются).
+   */
+  reorderable?: boolean;
+
+  /** Максимум items — AddButton отключается при достижении. */
+  maxItems?: number;
+
+  /** Внешний className секции. */
+  className?: string;
+
+  /** Класс card-обёртки каждого item. */
+  cardClassName?: string;
+
+  /**
+   * FormProxy. Авто-инъектится `RenderNodeComponent` через
+   * `__selfManagedChildren` маркер. Передавать вручную — только при
+   * использовании вне стандартного render-tree.
+   */
+  form?: FormProxy<unknown>;
+
+  /**
+   * Field wrapper для дочерних полей. Авто-инъектится `RenderNodeComponent`;
+   * переопределить для использования другого wrapper в этой секции.
+   */
+  fieldWrapper?: ComponentType<FieldWrapperProps>;
+}
+```
+
+_Source: src/components/field-array/variants/base/field-array-section.tsx_
+
 ### FieldContent
 
 **Kind:** `function`
@@ -8361,241 +8601,6 @@ export const fileUploadSingleAdapter: KitFieldAdapter
 ```
 
 _Source: src/components/file-upload/variants/avatar/file-upload-avatar.tsx_
-
-### FormArray
-
-**Kind:** `function`
-
-**Signature:**
-```typescript
-export function FormArray({
-  items = [],
-  onAdd,
-  onRemove,
-  onMove,
-  title,
-  itemLabel,
-  addButtonLabel,
-  removeButtonLabel,
-  emptyMessage,
-  emptyMessageHint,
-  reorderable = false,
-  showRemoveOnSingle = false,
-  className = 'space-y-3 mt-2',
-  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
-}: FormArrayProps): ReactNode
-```
-
-_Source: src/components/form-array/variants/base/form-array.tsx_
-
-### FormArrayProps
-
-**Kind:** `interface`
-
-**Signature:**
-```typescript
-export interface FormArrayProps extends ArrayComponentProps {
-  /** Отрендеренные элементы массива (инъектится рендерером). */
-  items?: ArrayItemSlot[];
-  /** Добавить элемент (инъектится рендерером; элемент берётся из шаблона массива модели). */
-  onAdd?: () => void;
-  /** Удалить элемент по индексу (инъектится рендерером). */
-  onRemove?: (index: number) => void;
-  /** Переместить элемент (инъектится рендерером). Нужен при `reorderable`. */
-  onMove?: (from: number, to: number) => void;
-  /** Заголовок секции (h3). */
-  title?: string;
-  /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  itemLabel?: string | ((model: any, index: number) => string);
-  /**
-   * Текст кнопки добавления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.add
-   */
-  addButtonLabel?: string;
-  /**
-   * Текст кнопки удаления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.remove
-   */
-  removeButtonLabel?: string;
-  /** Сообщение пустого состояния. */
-  emptyMessage?: string;
-  /** Подсказка под пустым состоянием. */
-  emptyMessageHint?: string;
-  /** Кнопки ↑/↓ перестановки. По умолчанию `false`. */
-  reorderable?: boolean;
-  /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
-  showRemoveOnSingle?: boolean;
-  /** Внешний className секции. */
-  className?: string;
-  /** Класс card-обёртки элемента. */
-  cardClassName?: string;
-}
-```
-
-_Source: src/components/form-array/variants/base/form-array.tsx_
-
-### FormArraySection
-
-**Kind:** `function`
-
-Готовая UI-секция для динамического массива форм — стилизованная обёртка поверх
-headless-compound `@reformer/cdk/form-array`. Рендерит заголовок, кнопку
-«Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
-удаления и перестановки ↑/↓) и сообщение пустого состояния.
-
-`control` принимает ноду массива под-форм — `ModelArrayNode<T>`
-(`form.<массив>`). `itemComponent` — единственная форма
-рендера элемента: `ComponentType<{ control: FormProxy<T> }>` (тот же контракт,
-что у шага {@link FormWizardStep}). Внутри `RenderNodeComponent` проп `form`
-инъектится автоматически (маркер `__selfManagedChildren`).
-
-Проп `hasItems` удобен для toggle-чекбоксов («У меня есть имущество»): при
-`false` секция скрывается целиком.
-
-**Не для renderer-json.** Там массив описывается array-нодой, а компонент получает от
-рендерера seam `items`/`onAdd`/`onRemove`/`onMove` — под `$component(FormArray)` нужен
-{@link FormArray}. Если зарегистрировать сюда `FormArraySection`, `control` не придёт
-и секция вернёт `null` (в dev это теперь сопровождается предупреждением в консоли).
-
-**Signature:**
-```typescript
-export function FormArraySection<T extends object>({
-  control,
-  itemComponent: ItemComponent,
-  title,
-  itemLabel,
-  addButtonLabel,
-  removeButtonLabel,
-  emptyMessage,
-  emptyMessageHint,
-  hasItems,
-  initialValue,
-  showRemoveOnSingle = false,
-  reorderable = false,
-  maxItems,
-  className = 'space-y-3 mt-2',
-  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
-  ...rest
-}: FormArraySectionProps<T>): ReactNode
-```
-
-**Examples:**
-
-Массив «Имущество» под чекбоксом-переключателем
-```tsx
-import { FormArraySection } from '@reformer/ui-kit/form-array';
-
-function AdditionalInfo({ control }: { control: FormProxy<CreditApplication> }) {
-const hasProperty = useFormControlValue(control.hasProperty) as boolean;
-return (
-<FormArraySection
-title="Имущество"
-control={control.properties}
-itemComponent={PropertyForm}
-itemLabel="Имущество"
-addButtonLabel="+ Добавить имущество"
-emptyMessage='Нажмите "Добавить имущество" для добавления информации'
-hasItems={hasProperty}
-reorderable
-/>
-);
-}
-```
-
-_Source: src/components/form-array/variants/base/form-array-section.tsx_
-
-### FormArraySectionProps
-
-**Kind:** `interface`
-
-Пропсы {@link FormArraySection}.
-
-**Signature:**
-```typescript
-export interface FormArraySectionProps<T extends object> {
-  /** Узел массива формы (`form.<массив>`). */
-  control: ModelArrayNode<T> | undefined;
-
-  /** React FC получает `control: FormProxy<T>` для каждого элемента. */
-  itemComponent: ComponentType<{ control: FormProxy<T> }>;
-
-  /** Заголовок секции (рендерится h3). */
-  title?: string;
-
-  /** Метка для каждого item — строка-префикс или функция. */
-  itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
-
-  /**
-   * Текст кнопки добавления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.add
-   */
-  addButtonLabel?: string;
-
-  /**
-   * Текст кнопки удаления. По умолчанию — из словаря локали.
-   * @defaultMessage kit.formArray.remove
-   */
-  removeButtonLabel?: string;
-
-  /** Сообщение пустого состояния. */
-  emptyMessage?: string;
-
-  /** Подсказка под пустым состоянием. */
-  emptyMessageHint?: string;
-
-  /**
-   * Условие видимости секции. Если `false` — секция полностью скрыта.
-   * Удобно для toggle-чекбоксов вида «У меня есть имущество».
-   */
-  hasItems?: boolean;
-
-  /**
-   * Запасной шаблон нового item (передаётся в `FormArray.AddButton`). Основной путь — шаблон
-   * массива в модели, `arrayOf(blank)` из `@reformer/core`: тогда проп не нужен.
-   *
-   * Plain-leaf значения, НЕ FieldConfig — только примитивы по форме item-типа `T`.
-   *
-   * Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента.
-   * Передавайте generic явно для лучшей type-safety:
-   * `<FormArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.
-   */
-  initialValue?: Partial<T>;
-
-  /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
-  showRemoveOnSingle?: boolean;
-
-  /**
-   * Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false`
-   * (обратная совместимость — существующие массивы не меняются).
-   */
-  reorderable?: boolean;
-
-  /** Максимум items — AddButton отключается при достижении. */
-  maxItems?: number;
-
-  /** Внешний className секции. */
-  className?: string;
-
-  /** Класс card-обёртки каждого item. */
-  cardClassName?: string;
-
-  /**
-   * FormProxy. Авто-инъектится `RenderNodeComponent` через
-   * `__selfManagedChildren` маркер. Передавать вручную — только при
-   * использовании вне стандартного render-tree.
-   */
-  form?: FormProxy<unknown>;
-
-  /**
-   * Field wrapper для дочерних полей. Авто-инъектится `RenderNodeComponent`;
-   * переопределить для использования другого wrapper в этой секции.
-   */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
-}
-```
-
-_Source: src/components/form-array/variants/base/form-array-section.tsx_
 
 ### FormField
 

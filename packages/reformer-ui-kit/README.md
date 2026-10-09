@@ -12,7 +12,7 @@
 ## Что нового в v7
 
 - **Полный набор shadcn/ui** — 75 компонентов (все примитивы shadcn + ReFormer-специфичные:
-  `Box`, `Section`, `FormField`, `FormArraySection`, `FormWizard`, `AsyncBoundary`,
+  `Box`, `Section`, `FormField`, `FieldArraySection`, `FormWizard`, `AsyncBoundary`,
   `InputMask`, `InputPassword`, `Tree`, `ExampleCard`).
 - **Дерево** — `Tree`: плотный навигатор по иерархии (файлы, категории, оргструктура) с ленивым
   чтением уровней и виртуальным скроллом. Само дерево не поле формы, но на нём стоят варианты
@@ -300,12 +300,12 @@ function LoanFormExample() {
 
 ```tsx
 // Стилизованная секция массива (типизированный itemComponent)
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 // Многошаговый мастер
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 ```
 
-Полные примеры `FormArraySection` и `FormWizard` — в корневом
+Полные примеры `FieldArraySection` и `FormWizard` — в корневом
 [README проекта](../../README.md#массивы-и-многошаговые-формы).
 
 ## License

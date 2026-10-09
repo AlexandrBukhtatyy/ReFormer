@@ -8,7 +8,7 @@
 `<FormField control={form.email} />` или к регистрации компонента в `RenderSchema`
 рендерера — сам компонент, без обёрток.
 
-В отличие от headless-уровня `@reformer/cdk` (компоненты `FormArray`,
+В отличие от headless-уровня `@reformer/cdk` (компоненты `FieldArray`,
 `FormWizard`, `FormField` без стилей), `ui-kit` уже имеет:
 
 - стили (Tailwind utility-классы + темизация через CSS-переменные),
@@ -308,7 +308,7 @@ function App() {
 | Компонент                       | Ключи                                                                                                                                                    |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormWizard`                    | `kit.formWizard.prev`, `next`, `submit`, `validating`, `submitting`, `progress`, `stepsNav`, `stepLabel`                                                 |
-| `FormArray`, `FormArraySection` | `kit.formArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
+| `FieldArray`, `FieldArraySection` | `kit.fieldArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
 | `FormField`                     | `kit.formField.hintLabel`, `validating`                                                                                                                  |
 | `FileUpload*`                   | `kit.fileUpload.choose`, `dropzone`, `inputPlaceholder`, `clear`, `avatarLabel`, `error`                                                                 |
 | `AsyncBoundary*`                | `kit.asyncBoundary.loadingTitle`, `loadingSubtitle`, `errorTitle`, `retry`, `emptyTitle`                                                                 |

@@ -32,7 +32,7 @@
 | ---------------------------------- | ----------- | ----------------------------------------- |
 | Шаг визарда / корень страницы      | `space-y-6` | обёртка вокруг заголовка и групп          |
 | Логическая группа полей            | `space-y-4` | секция с заголовком `h3` и полями         |
-| Элемент массива (`FormArray` item) | `space-y-3` | карточка одной записи                     |
+| Элемент массива (`FieldArray` item) | `space-y-3` | карточка одной записи                     |
 | Внутри поля                        | —           | ничего не пишем, отступы даёт `FormField` |
 
 ```tsx
@@ -122,7 +122,7 @@
 </div>
 ```
 
-Повторяющиеся записи — `FormArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
+Повторяющиеся записи — `FieldArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
 списка и карточка для элемента, переопределять их не нужно.
 
 ## Layout across targets
@@ -136,7 +136,7 @@
 | `<div className="grid …">`    | `Box` + тот же `className`                                                              | `$component(Box)` + тот же `className`                                              |
 | `<Card>`                      | `component: Card`                                                                        | `$component(Card)`                                                                  |
 
-В JSON компонент обязан быть в реестре: `Box`, `Section`, `FormArray` регистрируют обычно
+В JSON компонент обязан быть в реестре: `Box`, `Section`, `FieldArray` регистрируют обычно
 сразу, `Card` и `Alert` — нет.
 
 ```typescript
@@ -224,6 +224,6 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — что `FormField` рисует сам.
 - [07-form-wizard.md](07-form-wizard.md) — хром многошаговой формы.
-- [08-form-array-section.md](08-form-array-section.md) — секция повторяющихся записей.
+- [08-field-array-section.md](08-field-array-section.md) — секция повторяющихся записей.
 - [renderer-react](../../../reformer-renderer-react/docs/llms/) — layout в `RenderSchema`.
 - [renderer-json](../../../reformer-renderer-json/docs/llms/) — layout в JSON.
