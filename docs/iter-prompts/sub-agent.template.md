@@ -50,7 +50,7 @@
    - Поля per-step + типы
    - Валидации (sync + async)
    - Computed-fields (formula-based)
-   - FormArray sections (списки)
+   - FieldArray sections (списки)
    - Conditional fields — видимость/доступность через enableWhen, условная валидация через branch-node { when, children } (НЕ applyWhen — такого экспорта нет)
 
 2. **Discovery через MCP** — обязательный набор для полной реализации спеки:
@@ -111,7 +111,7 @@
 > - **Все поля** каждого шага (~80 полей всего) — не пропускать, не объединять, не упрощать
 > - **Все computed fields** через `computeFrom` (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`)
 > - **Все conditional rendering** через `enableWhen` (видимость/доступность, `{ resetOnDisable }`) + branch-node `{ when, children }` (условная валидация) — mortgage, car, employed, selfEmployed, sameAsRegistration, hasProperty, hasExistingLoans, hasCoBorrower. ⚠️ `applyWhen` — ЛОКАЛЬНЫЙ typed-хелпер примеров, НЕ экспорт `@reformer/core`
-> - **Все FormArray sections** — `properties[]`, `existingLoans[]`, `coBorrowers[]` со всеми полями элементов
+> - **Все FieldArray sections** — `properties[]`, `existingLoans[]`, `coBorrowers[]` со всеми полями элементов
 > - **Все validators** из спеки — `required`, `min`/`max`, `minLength`/`maxLength`, `pattern`, `email`, cross-field validations
 > - **Async validators** где описаны в спеке (email uniqueness, INN validation)
 > - **Async options loading** где описаны (city by region, carModel by carBrand)
@@ -189,7 +189,7 @@ residenceAddress: {
   // ...
 },
 
-// FormArraySection items — POM ставит индекс сам (`data-testid="input-properties-0-type"`).
+// FieldArraySection items — POM ставит индекс сам (`data-testid="input-properties-0-type"`).
 // Внутри item-template используй имена полей item, БЕЗ префикса массива:
 properties: [{
   type:           { value: 'apartment', component: SelectAsync, componentProps: { label: 'Тип', testId: 'type', options: [...] } },

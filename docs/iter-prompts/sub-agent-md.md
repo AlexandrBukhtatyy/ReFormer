@@ -59,7 +59,7 @@ mkdir -p .tmp/iter-artifacts/{RUN_ID}/{TARGET}
    - Поля per-step + типы
    - Валидации (sync + async)
    - Computed-fields (formula-based)
-   - FormArray sections (списки)
+   - FieldArray sections (списки)
    - Conditional fields — видимость/доступность через enableWhen, условная валидация через branch-node { when, children } (НЕ applyWhen — такого экспорта нет)
 
 2. **Discovery через MCP** — обязательный набор для полной реализации спеки:
@@ -124,7 +124,7 @@ mkdir -p .tmp/iter-artifacts/{RUN_ID}/{TARGET}
 > - **Все поля** каждого шага (~80 полей всего) — не пропускать, не объединять, не упрощать
 > - **Все computed fields** через `computeFrom` (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`)
 > - **Все conditional rendering** через `enableWhen` (видимость/доступность, `{ resetOnDisable }`) + branch-node `{ when, children }` (условная валидация) — mortgage, car, employed, selfEmployed, sameAsRegistration, hasProperty, hasExistingLoans, hasCoBorrower. ⚠️ `applyWhen` — ЛОКАЛЬНЫЙ typed-хелпер примеров, НЕ экспорт `@reformer/core`
-> - **Все FormArray sections** — `properties[]`, `existingLoans[]`, `coBorrowers[]` со всеми полями элементов
+> - **Все FieldArray sections** — `properties[]`, `existingLoans[]`, `coBorrowers[]` со всеми полями элементов
 > - **Все validators** из спеки — `required`, `min`/`max`, `minLength`/`maxLength`, `pattern`, `email`, cross-field
 > - **Async validators** где описаны (email uniqueness, INN validation)
 > - **Async options loading** где описаны (city by region, carModel by carBrand)
@@ -184,7 +184,7 @@ passportData: {
   number: { value: '', component: Input, componentProps: { label: 'Номер', testId: 'passportData-number' } },
 },
 
-// FormArraySection items — consumer ставит индекс сам. Внутри item-template имена полей БЕЗ префикса массива:
+// FieldArraySection items — consumer ставит индекс сам. Внутри item-template имена полей БЕЗ префикса массива:
 properties: [{
   type:           { value: 'apartment', component: SelectAsync,   componentProps: { label: 'Тип',       testId: 'type', options: [...] } },
   estimatedValue: { value: 0,           component: InputNumber,    componentProps: { label: 'Стоимость', testId: 'estimatedValue' } },

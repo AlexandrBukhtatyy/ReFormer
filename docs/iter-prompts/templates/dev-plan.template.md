@@ -19,7 +19,7 @@
   - ...
 - **Computed fields**:
   - `<target field>` ← derived from [`<src1>`, `<src2>`] via formula `<short>`
-- **FormArray sections**:
+- **FieldArray sections**:
   - `<array name>` (item type `<ItemType>`, min/max items: ...)
 - **Conditional fields** (enableWhen / branch-node `{ when, children }`):
   - `<field>` shown when `<predicate>`

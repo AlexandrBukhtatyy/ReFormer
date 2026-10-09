@@ -33,7 +33,7 @@ mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGE
 
 У тебя есть MCP-сервер `@reformer/mcp` с tools `mcp__reformer__find_recipe` / `mcp__reformer__get_symbol_docs` / `mcp__reformer__report_issue`.
 
-**Используй его по максимуму** — это первоисточник recipes и symbol-docs для всех `@reformer/*` пакетов. Если перед написанием кода для механизма (валидация, computed-fields, FormArray, async-validators, async-options, masks, conditional rendering, multi-step wizard и т.д.) ты НЕ вызвал MCP — это пробел в твоей работе.
+**Используй его по максимуму** — это первоисточник recipes и symbol-docs для всех `@reformer/*` пакетов. Если перед написанием кода для механизма (валидация, computed-fields, FieldArray, async-validators, async-options, masks, conditional rendering, multi-step wizard и т.д.) ты НЕ вызвал MCP — это пробел в твоей работе.
 
 Если recipe не подошёл — попробуй другой keyword. Если MCP вообще ничего не дал по теме — это сигнал к `report_issue`.
 
@@ -45,7 +45,7 @@ mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGE
 
 - **Top-level**: `testId === fieldName`. Пример: `loanAmount` → `testId: 'loanAmount'`.
 - **Nested groups**: `parentField-childField` через дефис. Пример: `personalData.lastName` → `testId: 'personalData-lastName'`, `passportData.series` → `testId: 'passportData-series'`.
-- **Array items** (внутри FormArraySection / item-template): `testId` per item-leaf БЕЗ префикса массива (POM-консумеры ставят индекс сами).
+- **Array items** (внутри FieldArraySection / item-template): `testId` per item-leaf БЕЗ префикса массива (POM-консумеры ставят индекс сами).
 
 Пример (схема):
 

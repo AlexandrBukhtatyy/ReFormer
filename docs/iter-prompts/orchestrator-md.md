@@ -21,7 +21,7 @@
 
 ### Структурные якоря спеки (backstop для C1/C6)
 
-Из `docs/specs/credit-application-form.md`: **6 шагов** · **8 computed** (`interestRate, monthlyPayment, initialPayment, fullName, age, totalIncome, paymentToIncomeRatio, coBorrowersIncome`) · **3 FormArray** (`properties, existingLoans, coBorrowers`) · **8 conditional-групп** (mortgage / car / employed / selfEmployed / sameAsRegistration / hasProperty / hasExistingLoans / hasCoBorrower) · **~80 leaf-полей**.
+Из `docs/specs/credit-application-form.md`: **6 шагов** · **8 computed** (`interestRate, monthlyPayment, initialPayment, fullName, age, totalIncome, paymentToIncomeRatio, coBorrowersIncome`) · **3 FieldArray** (`properties, existingLoans, coBorrowers`) · **8 conditional-групп** (mortgage / car / employed / selfEmployed / sameAsRegistration / hasProperty / hasExistingLoans / hasCoBorrower) · **~80 leaf-полей**.
 
 ---
 
