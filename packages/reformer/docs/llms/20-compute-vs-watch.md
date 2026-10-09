@@ -40,7 +40,7 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 > отследится и пересчёта не будет. Читай поля по отдельности (`model.field` или `model.$.field.value`).
 > `model.get()` — только вне реактивного контекста (в `onChange`, обработчиках событий).
 
-### Computed sum over a FormArray
+### Computed sum over a FieldArray
 
 Агрегат по массиву (сумма доходов созаёмщиков и т.п.) считается **реактивно** через value-proxy
 массива — `model.<array>.map(...)`:

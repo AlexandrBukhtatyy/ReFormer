@@ -13,7 +13,7 @@ import {
   type FormModel,
   type FormSchemaNode,
 } from '@reformer/core';
-import { FormArray, Input, InputNumber } from '@reformer/ui-kit';
+import { FieldArray, Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
@@ -32,7 +32,7 @@ const itemRow = (item: FormModel<Item>): FormSchemaNode => ({
 });
 
 const schema: FormSchemaNode = {
-  children: [{ model: model.$.items, component: FormArray, item: itemRow }],
+  children: [{ model: model.$.items, component: FieldArray, item: itemRow }],
 };
 
 const form = createFormFromModel<MyForm>({ model, schema });
@@ -105,7 +105,7 @@ const schema: FormSchemaNode = {
 
    ```typescript
    // узел схемы для createForm / createFormFromModel
-   { model: model.$.properties, component: FormArray, item: propertyRow },
+   { model: model.$.properties, component: FieldArray, item: propertyRow },
    ```
 
 2. **Схема валидации (`@reformer/core/validation`)** — правила строки объявляются отдельной схемой
@@ -123,12 +123,12 @@ const schema: FormSchemaNode = {
    ```
 
 3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
-   а не со схемой: `<FormArray.Root control={form.properties}>` (CDK) или `FormArraySection` из
+   а не со схемой: `<FieldArray.Root control={form.properties}>` (CDK) или `FieldArraySection` из
    `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
 
 > **Не путай запись по движку.** Схема формы — узел `{ model, item }`; правила строк —
-> `applyEach(model.$.<массив>, схема)` в схеме валидации; `FormArray.Root control={form.x}` (или
-> `FormArraySection`) — рендер. `applyEach` в схеме формы не подхватится, а узел `{ model, item }`
+> `applyEach(model.$.<массив>, схема)` в схеме валидации; `FieldArray.Root control={form.x}` (или
+> `FieldArraySection`) — рендер. `applyEach` в схеме формы не подхватится, а узел `{ model, item }`
 > схема валидации не обходит.
 
 ### Array operations — на модели
@@ -191,7 +191,7 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 }
 ```
 
-> В монорепо для массивов используется готовый `FormArraySection` из `@reformer/ui-kit`
+> В монорепо для массивов используется готовый `FieldArraySection` из `@reformer/ui-kit`
 > (`control={form.items}`, `itemComponent`, `initialValue`, add/remove/reorder из коробки).
 > См. `find_recipe(topic="form-array")`.
 
@@ -220,4 +220,4 @@ defineValidationSchema<MyForm>(({ model, cross }) => {
 ## See also
 
 - [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, правила строк `applyEach`
-- CDK / ui-kit form-array (`FormArray.Root`, `FormArraySection`) — `find_recipe(topic="form-array")`
+- CDK / ui-kit field-array (`FieldArray.Root`, `FieldArraySection`) — `find_recipe(topic="form-array")`

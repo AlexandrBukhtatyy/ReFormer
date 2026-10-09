@@ -56,7 +56,7 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 }
 ```
 
-> В монорепо используется `FormArraySection` из `@reformer/ui-kit`: `control={form.items}`,
+> В монорепо используется `FieldArraySection` из `@reformer/ui-kit`: `control={form.items}`,
 > `itemComponent`, `initialValue`, add/remove/reorder из коробки. См. `find_recipe(topic="form-array")`.
 
 ### Per-item behavior — applyEach

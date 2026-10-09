@@ -114,7 +114,7 @@ export interface SchemaFieldNode extends SchemaNodeBase {
  *
  * @example
  * ```ts
- * { model: model.$.phones, component: FormArray, item: (row) => ({ children: [...] }) }
+ * { model: model.$.phones, component: FieldArray, item: (row) => ({ children: [...] }) }
  * ```
  *
  * @group Types

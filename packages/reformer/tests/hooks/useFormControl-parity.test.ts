@@ -3,7 +3,7 @@
  *
  * - Поле (FieldNode) должно отдавать реактивный `dirty` (раньше отсутствовал в FieldControlState).
  * - Массив (ArrayNode) должен отдавать реактивный `disabled` (раньше отсутствовал в
- *   ArrayControlState) — иначе CDK FormArray не может наблюдать отключённый массив.
+ *   ArrayControlState) — иначе CDK FieldArray не может наблюдать отключённый массив.
  *
  * React-хуки замоканы (как в useFormControl-rules-of-hooks.test.ts): useSyncExternalStore
  * просто возвращает getSnapshot(), поэтому каждый вызов useFormControl(node) даёт свежий

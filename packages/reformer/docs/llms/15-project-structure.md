@@ -7,16 +7,16 @@ file at the module root, and the whole form (entry + all wizard steps inline) li
 behavior, renderer targets only), `form.validation.ts` (validation rules); every other file has
 no prefix. The old `renderer.schema.*` / `renderer.behavior.ts` / `renderer.wizard.tsx` /
 `validation.ts` names still work with a warning. No folders until the form grows (see "Scaling
-up" below). Arrays are declared in `form.schema.ts` and rendered with `FormArraySection` — no
+up" below). Arrays are declared in `form.schema.ts` and rendered with `FieldArraySection` — no
 per-step component files.
 
 ```
 src/
-├── components/ui/                # App-wide reusable UI (FormField, FormArraySection, ...)
+├── components/ui/                # App-wide reusable UI (FormField, FieldArraySection, ...)
 │
 ├── forms/
 │   └── [form-name]/              # Form module — flat, one file per concern
-│       ├── index.tsx             # entry + whole form: ONE createForm call → <FormWizard> with all steps inline; arrays via FormArraySection
+│       ├── index.tsx             # entry + whole form: ONE createForm call → <FormWizard> with all steps inline; arrays via FieldArraySection
 │       ├── types.ts              # form type + enums + { value, label } option type + constant dictionaries
 │       ├── model.ts              # createModel + initial values + empty-array-element factories
 │       ├── form.schema.ts        # schema builder (model) => node tree: { model: model.$.x, component, componentProps }
@@ -54,7 +54,7 @@ export const creditApplicationSchema = (
   children: [
     { model: model.$.loanType, component: SelectAsync, componentProps: { /* ... */ } }, // field
     { model: model.$.registrationAddress, part: address }, // sub-form: group + part
-    { model: model.$.properties, component: FormArray, item: propertyRow }, // array of sub-forms
+    { model: model.$.properties, component: FieldArray, item: propertyRow }, // array of sub-forms
   ],
 });
 

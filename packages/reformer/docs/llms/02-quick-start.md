@@ -111,7 +111,7 @@ function FormStep({ form }: FormStepProps) {
 
 ```typescript
 import { arrayOf, createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
-import { FormArray, InputNumber, SelectAsync, Textarea } from '@reformer/ui-kit';
+import { FieldArray, InputNumber, SelectAsync, Textarea } from '@reformer/ui-kit';
 
 type PropertyItem = {
   type: 'apartment' | 'house';
@@ -144,7 +144,7 @@ const propertyRow = (item: FormModel<PropertyItem>): FormSchemaNode => ({
 const { model, form } = createForm<MyForm>({
   initial: { properties: arrayOf(blankProperty) },
   schema: (model) => ({
-    children: [{ model: model.$.properties, component: FormArray, item: propertyRow }],
+    children: [{ model: model.$.properties, component: FieldArray, item: propertyRow }],
   }),
 });
 

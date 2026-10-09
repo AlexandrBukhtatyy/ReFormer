@@ -138,7 +138,7 @@ const itemRow = (item: FormModel<Item>): FormSchemaNode => ({
 });
 
 const schema: FormSchemaNode = {
-  children: [{ model: model.$.items, component: FormArray, item: itemRow }],
+  children: [{ model: model.$.items, component: FieldArray, item: itemRow }],
 };
 ```
 

@@ -81,7 +81,7 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
       componentProps: { title: 'Адрес регистрации' },
       children: [{ model: model.$.registrationAddress, part: address }], // подформа
     },
-    { model: model.$.coBorrowers, component: FormArray, item: coBorrower }, // массив под-форм
+    { model: model.$.coBorrowers, component: FieldArray, item: coBorrower }, // массив под-форм
   ],
 });
 ```

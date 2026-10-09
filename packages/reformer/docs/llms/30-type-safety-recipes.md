@@ -63,7 +63,7 @@ const creditSchema = (model: FormModel<CreditApplicationForm>): FormSchemaNode =
     // вложенная группа — подформа: билдер получает под-модель FormModel<PersonalData>
     { model: model.$.personalData, part: personalData },
     // массив под-форм — { model, item }: билдер получает под-модель строки
-    { model: model.$.properties, component: FormArray, item: propertyRow },
+    { model: model.$.properties, component: FieldArray, item: propertyRow },
   ],
 });
 

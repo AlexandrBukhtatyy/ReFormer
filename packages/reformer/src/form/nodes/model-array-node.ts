@@ -3,7 +3,7 @@
  *
  * Узел НЕ владеет данными: массив принадлежит модели (`model.<path>`), а узел держит per-item
  * GroupNode-прокси, привязанные к сигналам под-моделей элементов, и синхронизирует их с длиной
- * массива модели. Реализует контракт, который ждут `FormArraySection`/`useFormControl`
+ * массива модели. Реализует контракт, который ждут `FieldArraySection`/`useFormControl`
  * (length/value/valid/errors/at/push/…).
  *
  * @group Nodes
@@ -43,7 +43,7 @@ export interface ModelArrayControl<TItem extends object> {
  * Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме
  * встречается узел массива `{ model: model.$.<field>, item: (model) => узел }`, форма
  * материализует его как `ModelArrayNode` и кладёт под `form.<field>` (совместим с
- * `FormArraySection`).
+ * `FieldArraySection`).
  *
  * @group Nodes
  *

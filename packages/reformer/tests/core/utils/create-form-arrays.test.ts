@@ -25,7 +25,7 @@ interface Form {
   coBorrowers: CoBorrower[];
 }
 
-// Схема элемента массива (как itemComponent в RendererFormArraySection).
+// Схема элемента массива (как itemComponent в RendererFieldArraySection).
 const itemSchema = (item: FormModel<CoBorrower>) => ({
   component: BoxStub,
   children: [

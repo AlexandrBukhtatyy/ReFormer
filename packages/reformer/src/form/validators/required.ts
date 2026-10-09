@@ -16,7 +16,7 @@ import { validationError } from './validation-error';
  * Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
  *
  * Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
- * обязательный multi-select / FormArray без выбранных элементов).
+ * обязательный multi-select / FieldArray без выбранных элементов).
  * Для boolean полей требуется значение `true`.
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`

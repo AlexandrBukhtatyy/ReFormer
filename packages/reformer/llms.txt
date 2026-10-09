@@ -226,7 +226,7 @@ function FormStep({ form }: FormStepProps) {
 
 ```typescript
 import { arrayOf, createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
-import { FormArray, InputNumber, SelectAsync, Textarea } from '@reformer/ui-kit';
+import { FieldArray, InputNumber, SelectAsync, Textarea } from '@reformer/ui-kit';
 
 type PropertyItem = {
   type: 'apartment' | 'house';
@@ -259,7 +259,7 @@ const propertyRow = (item: FormModel<PropertyItem>): FormSchemaNode => ({
 const { model, form } = createForm<MyForm>({
   initial: { properties: arrayOf(blankProperty) },
   schema: (model) => ({
-    children: [{ model: model.$.properties, component: FormArray, item: propertyRow }],
+    children: [{ model: model.$.properties, component: FieldArray, item: propertyRow }],
   }),
 });
 
@@ -1306,7 +1306,7 @@ const itemRow = (item: FormModel<Item>): FormSchemaNode => ({
 });
 
 const schema: FormSchemaNode = {
-  children: [{ model: model.$.items, component: FormArray, item: itemRow }],
+  children: [{ model: model.$.items, component: FieldArray, item: itemRow }],
 };
 ```
 
@@ -1368,7 +1368,7 @@ import {
   type FormModel,
   type FormSchemaNode,
 } from '@reformer/core';
-import { FormArray, Input, InputNumber } from '@reformer/ui-kit';
+import { FieldArray, Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
@@ -1387,7 +1387,7 @@ const itemRow = (item: FormModel<Item>): FormSchemaNode => ({
 });
 
 const schema: FormSchemaNode = {
-  children: [{ model: model.$.items, component: FormArray, item: itemRow }],
+  children: [{ model: model.$.items, component: FieldArray, item: itemRow }],
 };
 
 const form = createFormFromModel<MyForm>({ model, schema });
@@ -1460,7 +1460,7 @@ const schema: FormSchemaNode = {
 
    ```typescript
    // узел схемы для createForm / createFormFromModel
-   { model: model.$.properties, component: FormArray, item: propertyRow },
+   { model: model.$.properties, component: FieldArray, item: propertyRow },
    ```
 
 2. **Схема валидации (`@reformer/core/validation`)** — правила строки объявляются отдельной схемой
@@ -1478,12 +1478,12 @@ const schema: FormSchemaNode = {
    ```
 
 3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
-   а не со схемой: `<FormArray.Root control={form.properties}>` (CDK) или `FormArraySection` из
+   а не со схемой: `<FieldArray.Root control={form.properties}>` (CDK) или `FieldArraySection` из
    `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
 
 > **Не путай запись по движку.** Схема формы — узел `{ model, item }`; правила строк —
-> `applyEach(model.$.<массив>, схема)` в схеме валидации; `FormArray.Root control={form.x}` (или
-> `FormArraySection`) — рендер. `applyEach` в схеме формы не подхватится, а узел `{ model, item }`
+> `applyEach(model.$.<массив>, схема)` в схеме валидации; `FieldArray.Root control={form.x}` (или
+> `FieldArraySection`) — рендер. `applyEach` в схеме формы не подхватится, а узел `{ model, item }`
 > схема валидации не обходит.
 
 ### Array operations — на модели
@@ -1546,7 +1546,7 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 }
 ```
 
-> В монорепо для массивов используется готовый `FormArraySection` из `@reformer/ui-kit`
+> В монорепо для массивов используется готовый `FieldArraySection` из `@reformer/ui-kit`
 > (`control={form.items}`, `itemComponent`, `initialValue`, add/remove/reorder из коробки).
 > См. `find_recipe(topic="form-array")`.
 
@@ -1575,7 +1575,7 @@ defineValidationSchema<MyForm>(({ model, cross }) => {
 ## 11. See also
 
 - [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, правила строк `applyEach`
-- CDK / ui-kit form-array (`FormArray.Root`, `FormArraySection`) — `find_recipe(topic="form-array")`
+- CDK / ui-kit field-array (`FieldArray.Root`, `FieldArraySection`) — `find_recipe(topic="form-array")`
 
 ## 12. 10. ASYNC REACTION — onChange (CRITICALLY IMPORTANT)
 
@@ -1909,16 +1909,16 @@ file at the module root, and the whole form (entry + all wizard steps inline) li
 behavior, renderer targets only), `form.validation.ts` (validation rules); every other file has
 no prefix. The old `renderer.schema.*` / `renderer.behavior.ts` / `renderer.wizard.tsx` /
 `validation.ts` names still work with a warning. No folders until the form grows (see "Scaling
-up" below). Arrays are declared in `form.schema.ts` and rendered with `FormArraySection` — no
+up" below). Arrays are declared in `form.schema.ts` and rendered with `FieldArraySection` — no
 per-step component files.
 
 ```
 src/
-├── components/ui/                # App-wide reusable UI (FormField, FormArraySection, ...)
+├── components/ui/                # App-wide reusable UI (FormField, FieldArraySection, ...)
 │
 ├── forms/
 │   └── [form-name]/              # Form module — flat, one file per concern
-│       ├── index.tsx             # entry + whole form: ONE createForm call → <FormWizard> with all steps inline; arrays via FormArraySection
+│       ├── index.tsx             # entry + whole form: ONE createForm call → <FormWizard> with all steps inline; arrays via FieldArraySection
 │       ├── types.ts              # form type + enums + { value, label } option type + constant dictionaries
 │       ├── model.ts              # createModel + initial values + empty-array-element factories
 │       ├── form.schema.ts        # schema builder (model) => node tree: { model: model.$.x, component, componentProps }
@@ -1956,7 +1956,7 @@ export const creditApplicationSchema = (
   children: [
     { model: model.$.loanType, component: SelectAsync, componentProps: { /* ... */ } }, // field
     { model: model.$.registrationAddress, part: address }, // sub-form: group + part
-    { model: model.$.properties, component: FormArray, item: propertyRow }, // array of sub-forms
+    { model: model.$.properties, component: FieldArray, item: propertyRow }, // array of sub-forms
   ],
 });
 
@@ -2832,7 +2832,7 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 > отследится и пересчёта не будет. Читай поля по отдельности (`model.field` или `model.$.field.value`).
 > `model.get()` — только вне реактивного контекста (в `onChange`, обработчиках событий).
 
-### Computed sum over a FormArray
+### Computed sum over a FieldArray
 
 Агрегат по массиву (сумма доходов созаёмщиков и т.п.) считается **реактивно** через value-proxy
 массива — `model.<array>.map(...)`:
@@ -2999,7 +2999,7 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 }
 ```
 
-> В монорепо используется `FormArraySection` из `@reformer/ui-kit`: `control={form.items}`,
+> В монорепо используется `FieldArraySection` из `@reformer/ui-kit`: `control={form.items}`,
 > `itemComponent`, `initialValue`, add/remove/reorder из коробки. См. `find_recipe(topic="form-array")`.
 
 ### Per-item behavior — applyEach
@@ -4365,7 +4365,7 @@ const creditSchema = (model: FormModel<CreditApplicationForm>): FormSchemaNode =
     // вложенная группа — подформа: билдер получает под-модель FormModel<PersonalData>
     { model: model.$.personalData, part: personalData },
     // массив под-форм — { model, item }: билдер получает под-модель строки
-    { model: model.$.properties, component: FormArray, item: propertyRow },
+    { model: model.$.properties, component: FieldArray, item: propertyRow },
   ],
 });
 
@@ -5301,7 +5301,7 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
       componentProps: { title: 'Адрес регистрации' },
       children: [{ model: model.$.registrationAddress, part: address }], // подформа
     },
-    { model: model.$.coBorrowers, component: FormArray, item: coBorrower }, // массив под-форм
+    { model: model.$.coBorrowers, component: FieldArray, item: coBorrower }, // массив под-форм
   ],
 });
 ```
@@ -9505,7 +9505,7 @@ _Source: src/model/types.ts_
 Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме
 встречается узел массива `{ model: model.$.<field>, item: (model) => узел }`, форма
 материализует его как `ModelArrayNode` и кладёт под `form.<field>` (совместим с
-`FormArraySection`).
+`FieldArraySection`).
 
 **Signature:**
 ```typescript
@@ -10227,7 +10227,7 @@ _Source: src/form/behaviors/schema-operators.ts_
 Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
 
 Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
-обязательный multi-select / FormArray без выбранных элементов).
+обязательный multi-select / FieldArray без выбранных элементов).
 Для boolean полей требуется значение `true`.
 
 **Signature:**
@@ -10623,7 +10623,7 @@ export interface SchemaArrayNode extends SchemaNodeBase {
 **Examples:**
 
 ```ts
-{ model: model.$.phones, component: FormArray, item: (row) => ({ children: [...] }) }
+{ model: model.$.phones, component: FieldArray, item: (row) => ({ children: [...] }) }
 ```
 
 _Source: src/form/types/schema-node.ts_
