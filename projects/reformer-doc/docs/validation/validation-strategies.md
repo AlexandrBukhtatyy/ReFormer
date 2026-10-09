@@ -13,13 +13,14 @@ sidebar_position: 5
 
 ## Выбор стратегии одним пропом — `useFormValidation`
 
-Хук `useFormValidation` из `@reformer/core` берёт модель, схему и стратегию — и сам армит нужные
+Хук `useFormValidation` из `@reformer/core/react` берёт модель, схему и стратегию — и сам армит нужные
 подписки. Возвращает `submit()` (полный прогон, метит touched, раскрывает все ошибки), `validate()`
 (тот же полный прогон) и флаг `isValidating`.
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createFormFromModel, useFormValidation } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
+import { useFormValidation } from '@reformer/core/react';
 import { validate, defineValidationSchema } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 

@@ -103,7 +103,7 @@ UI подсвечивает), и headless (server action, юнит-тест — 
 В компонентах реактивное состояние поля читают через `useFormControl`:
 
 ```tsx
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 function NameField() {
   const { value, errors, valid, shouldShowError } = useFormControl(form.name);

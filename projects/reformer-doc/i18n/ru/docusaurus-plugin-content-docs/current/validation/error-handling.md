@@ -51,7 +51,7 @@ const weakPassword = (value: string) =>
 Реактивный массив `errors` (плюс флаг `shouldShowError`):
 
 ```tsx
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 function Field() {
   const { errors, shouldShowError } = useFormControl(form.email);

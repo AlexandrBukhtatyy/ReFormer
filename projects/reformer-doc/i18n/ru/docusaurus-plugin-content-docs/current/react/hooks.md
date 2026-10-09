@@ -25,7 +25,7 @@ ReFormer даёт три хука для чтения состояния нод 
 контрола.
 
 ```tsx
-import { useFormControl } from '@reformer/core';
+import { useFormControl, useFormControlValue, useArrayLength } from '@reformer/core/react';
 import type { FieldNode } from '@reformer/core';
 
 function TextField({ control, label }: { control: FieldNode<string>; label: string }) {
@@ -105,7 +105,6 @@ const { value } = useFormControlValue(form.email); // ❌ значение — �
 Типичный сценарий — условный рендер по значению другого поля:
 
 ```tsx
-import { useFormControlValue } from '@reformer/core';
 import type { FormProxy } from '@reformer/core';
 
 function ShippingSection({ form }: { form: FormProxy<CheckoutForm> }) {
@@ -144,7 +143,6 @@ function ShippingSection({ form }: { form: FormProxy<CheckoutForm> }) {
 изменении полей внутри элементов.
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import type { FormModel, FormProxy } from '@reformer/core';
 

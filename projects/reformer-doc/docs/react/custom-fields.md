@@ -44,7 +44,7 @@ sidebar_position: 3
 внутри.
 
 ```tsx
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import type { FieldNode } from '@reformer/core';
 
 type MyFormFieldProps<T> = { control: FieldNode<T> }; // ← один prop
@@ -88,7 +88,6 @@ export function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 `componentProps.options`, а не из JSX-пропса.
 
 ```tsx
-import { useFormControl } from '@reformer/core';
 import type { FieldNode } from '@reformer/core';
 
 type Option = { value: string; label: string };

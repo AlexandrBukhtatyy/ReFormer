@@ -94,7 +94,12 @@ const config: Config = {
     [
       'docusaurus-plugin-typedoc',
       {
-        entryPoints: ['../../packages/reformer/src/index.ts'],
+        // Два входа ядра: корень без React и привязка к React. Оба помечены `@mergeModuleWith`,
+        // поэтому справочник остаётся плоским (api/functions, api/interfaces…), без уровня модулей.
+        entryPoints: [
+          '../../packages/reformer/src/index.ts',
+          '../../packages/reformer/src/react.ts',
+        ],
         tsconfig: '../../packages/reformer/tsconfig.typedoc.json',
         readme: 'none',
         // Сортировка: enum, interface, type-alias, class, function, variable

@@ -186,7 +186,8 @@ AI найдёт проблемы:
 
 ```typescript
 import { useMemo } from 'react';
-import { createModel, createFormFromModel, useFormControl } from '@reformer/core';
+import { createModel, createFormFromModel } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { validateModel } from '@reformer/core/validation';
 
 const MyForm = () => {

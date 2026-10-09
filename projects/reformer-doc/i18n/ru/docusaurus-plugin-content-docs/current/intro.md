@@ -68,7 +68,7 @@ createModel     привязка       createForm     defineFormBehavior
 | **Behaviors**    | `@reformer/core/behaviors`  | декларативный DSL `defineFormBehavior` + операторы `compute`, `onChange`, `enableWhen`, `copyFrom`, …                                            |
 | **Signals**      | `@reformer/core/signals`    | единый реактивный рантайм (`signal`, `computed`, `effect`, `batch`) для интеграций                                                               |
 
-**React-хуки** (`@reformer/core`): `useFormControl` (полное состояние поля), `useFormControlValue`
+**React-хуки** (`@reformer/core/react`): `useFormControl` (полное состояние поля), `useFormControlValue`
 (значение `T` напрямую), `useArrayLength` (реактивная длина массива).
 
 ## Дальше

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
-import { getFieldAdapter, useFormControlValue } from '@reformer/core';
+import { getFieldAdapter, useFormControlValue } from '@reformer/core/react';
 import { validateModel } from '@reformer/core/validation';
 import { FormField } from '@reformer/ui-kit';
 import { nativeInputAdapter, sliderAdapter } from '@reformer/ui-kit/fields';

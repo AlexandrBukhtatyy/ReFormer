@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo } from 'react';
-import {
-  createModel,
-  createFormFromModel,
-  useFormControlValue,
-  type FormModel,
-} from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import { FormField, Input, InputMask, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';

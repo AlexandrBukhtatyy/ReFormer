@@ -30,7 +30,8 @@ npm install @reformer/core @reformer/ui-kit
 
 ```typescript
 // Ядро: модель, форма, ноды, хуки
-import { createModel, createForm, useFormControl } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 // Валидаторы — чистые фабрики
 import { required, email, min, minLength } from '@reformer/core/validators';

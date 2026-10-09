@@ -113,7 +113,8 @@ const form = contact.form;
 работу по связыванию поля с состоянием.
 
 ```tsx
-import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
+import { createCoreForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, Textarea, Button } from '@reformer/ui-kit';

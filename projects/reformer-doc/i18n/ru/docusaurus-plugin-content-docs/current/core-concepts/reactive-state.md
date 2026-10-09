@@ -64,7 +64,7 @@ model.name = 'Jane'; // логирует: name изменилось: Jane
 `useSyncExternalStore` и корректно интегрированы с React 18+:
 
 ```tsx
-import { useFormControl, useFormControlValue } from '@reformer/core';
+import { useFormControl, useFormControlValue } from '@reformer/core/react';
 
 // Полное состояние поля — ре-рендер при изменении любого его сигнала
 function NameField({ control }) {

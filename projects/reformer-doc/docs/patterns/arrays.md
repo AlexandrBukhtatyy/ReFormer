@@ -119,7 +119,7 @@ model.items.clear(); // очистить всё
 на добавление/удаление элементов.
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
+import { useArrayLength } from '@reformer/core/react';
 
 const length = useArrayLength(form.items);
 // length: number — реактивно обновляется на push / removeAt / reorder
@@ -131,7 +131,6 @@ const length = useArrayLength(form.items);
 точечный доступ — `form.items.at(i)`. Мутации в обработчиках — на модели.
 
 ```tsx
-import { useArrayLength } from '@reformer/core';
 import { FormField, Button } from '@reformer/ui-kit';
 import type { FormProxy, FormModel } from '@reformer/core';
 
