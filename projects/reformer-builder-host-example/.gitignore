@@ -1,2 +1,0 @@
-# Каталог плагинов билдера — сборка, её делает `npm run builder:plugins`.
-public/builder-plugins/

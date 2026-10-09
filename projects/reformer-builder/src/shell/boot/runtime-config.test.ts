@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import {
+  fetchRuntimeBundle,
   fetchRuntimeConfig,
   launchOnlyProblems,
   mergeRuntimeConfig,
@@ -18,6 +19,7 @@ import {
   readProjectRuntimeConfig,
   RUNTIME_CONFIG_KEYS,
   RUNTIME_PROFILE_KEYS,
+  type RuntimeBundle,
 } from './runtime-config';
 
 describe('parseRuntimeConfig', () => {
@@ -379,6 +381,40 @@ describe('fetchRuntimeConfig', () => {
       Promise.resolve(responseOf({ config: { defaults: { locale: 'en' } } }))
     );
     expect(result?.config.defaults?.locale).toBe('en');
+  });
+
+  describe('что сервер сообщает о себе', () => {
+    const bundleOf = (body: unknown, ok = true): Promise<RuntimeBundle> =>
+      fetchRuntimeBundle(() => Promise.resolve(responseOf(body, ok)));
+
+    it('билдер рядом с приложением называет сервер — и без файла конфига', async () => {
+      await expect(bundleOf({ config: null, embedded: true })).resolves.toEqual({
+        config: null,
+        embedded: true,
+      });
+    });
+
+    it('лаунчер о приложении не говорит: это своя вкладка', async () => {
+      const bundle = await bundleOf({ config: { defaults: { locale: 'en' } } });
+
+      expect(bundle.embedded).toBe(false);
+      expect(bundle.config?.config.defaults?.locale).toBe('en');
+    });
+
+    it('признаком считается только `true`: чужое значение — не приложение рядом', async () => {
+      expect((await bundleOf({ config: null, embedded: 'да' })).embedded).toBe(false);
+      expect((await bundleOf({ config: null, embedded: 1 })).embedded).toBe(false);
+    });
+
+    it('сервера нет — конфига нет и приложения рядом нет', async () => {
+      const absent = { config: null, embedded: false };
+
+      await expect(bundleOf({}, false)).resolves.toEqual(absent);
+      await expect(bundleOf('<html>')).resolves.toEqual(absent);
+      await expect(fetchRuntimeBundle(() => Promise.reject(new Error('сеть')))).resolves.toEqual(
+        absent
+      );
+    });
   });
 });
 

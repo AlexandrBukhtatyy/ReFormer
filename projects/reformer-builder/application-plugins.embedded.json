@@ -6,6 +6,7 @@
     "base/markdown-editor",
     "base/app-preview",
     "forms/kits",
+    "forms/preview",
     "reformer/editor",
     "reformer/validator",
     "reformer/codegen",

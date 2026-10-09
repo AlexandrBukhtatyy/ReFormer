@@ -23,6 +23,8 @@ import {
 process.env.REFORMER_BUILDER_TEST = '1';
 const bin = await import('../../../bin/reformer-builder.mjs');
 const index = await import('../../../bin/plugins-index.mjs');
+const serve = await import('../../../bin/plugins-serve.mjs');
+const runtime = await import('../../../bin/runtime-bundle.mjs');
 
 let dir: string;
 beforeAll(async () => {
@@ -245,10 +247,19 @@ describe('createRequestHandler', () => {
 
       expect(res.status).toBe(200);
       expect(res.headers['Content-Type']).toContain('application/json');
-      expect(JSON.parse(String(res.body))).toEqual({
-        version: 1,
-        files: ['forms/kits/chunks/data.js', 'forms/kits/main.js', 'forms/kits/manifest.json'],
-      });
+      const built = JSON.parse(String(res.body)) as {
+        version: number;
+        files: string[];
+        revisions?: Record<string, string>;
+      };
+      expect(built.version).toBe(1);
+      expect(built.files).toEqual([
+        'forms/kits/chunks/data.js',
+        'forms/kits/main.js',
+        'forms/kits/manifest.json',
+      ]);
+      // Каталог из флага живой: индекс называет ревизию каждого плагина.
+      expect(Object.keys(built.revisions ?? {})).toEqual(['forms/kits']);
     });
 
     it('файл плагина отдаётся из каталога флага, а не из dist', async () => {
@@ -311,5 +322,320 @@ describe('индекс плагинов приложения', () => {
       version: 1,
       files: [],
     });
+  });
+});
+
+describe('набор плагинов называет тот, кто разворачивает', () => {
+  // Живой каталог разрабатываемых пакетов: плагин собран в корень своего каталога, рядом лежат
+  // его исходники и сборка для поставки — каждый со своим манифестом.
+  let live: string;
+  beforeAll(async () => {
+    live = join(dir, 'live-plugins');
+    const built = join(live, 'base', 'files');
+    await mkdir(join(built, 'chunks'), { recursive: true });
+    await mkdir(join(built, 'src', 'ui'), { recursive: true });
+    await mkdir(join(built, 'dist'), { recursive: true });
+    await writeFile(join(built, 'manifest.json'), '{"id":"reformer.files"}');
+    await writeFile(join(built, 'main.js'), 'module.exports = {};');
+    await writeFile(join(built, 'chunks', 'tree.js'), 'module.exports = 1;');
+    await writeFile(join(built, 'src', 'manifest.json'), '{"id":"reformer.files"}');
+    await writeFile(join(built, 'src', 'ui', 'Tree.tsx'), 'export {};');
+    await writeFile(join(built, 'dist', 'manifest.json'), '{"id":"reformer.files"}');
+    await writeFile(join(built, 'dist', 'main.js'), 'module.exports = {};');
+
+    const preview = join(live, 'forms', 'preview');
+    await mkdir(preview, { recursive: true });
+    await writeFile(join(preview, 'manifest.json'), '{"id":"reformer.preview"}');
+    await writeFile(join(preview, 'main.js'), 'module.exports = {};');
+
+    // Пакет плагина, который ещё не собирали: манифест есть только в исходниках.
+    const unbuilt = join(live, 'base', 'app-preview');
+    await mkdir(join(unbuilt, 'src'), { recursive: true });
+    await writeFile(join(unbuilt, 'package.json'), '{}');
+    await writeFile(join(unbuilt, 'src', 'manifest.json'), '{"id":"reformer.app-preview"}');
+  });
+
+  it('исходники и сборка для поставки внутри собранного плагина в индекс не идут', async () => {
+    const built = await index.buildPluginsIndex(live);
+
+    expect(built.files).toContain('base/files/main.js');
+    expect(built.files).toContain('base/files/chunks/tree.js');
+    expect(built.files.filter((file) => file.startsWith('base/files/src/'))).toEqual([]);
+    expect(built.files.filter((file) => file.startsWith('base/files/dist/'))).toEqual([]);
+  });
+
+  it('список оставляет только названные плагины', async () => {
+    const built = await index.buildPluginsIndex(live, { include: ['base/files'] });
+
+    expect(built.files).toEqual([
+      'base/files/chunks/tree.js',
+      'base/files/main.js',
+      'base/files/manifest.json',
+    ]);
+  });
+
+  it('названный, но не собранный плагин назван отдельно — и остаётся в индексе', async () => {
+    const scan = await index.scanPlugins(live, {
+      include: ['base/files', 'base/app-preview', 'base/нет-такого'],
+    });
+
+    expect(scan.missing).toEqual(['base/app-preview', 'base/нет-такого']);
+    // Оболочка увидит пакет без манифеста и назовёт причину в списке плагинов.
+    expect(scan.index.files).toContain('base/app-preview/package.json');
+    expect(scan.index.files).toContain('base/files/main.js');
+  });
+
+  describe('раздача каталога со списком', () => {
+    interface FakeRes {
+      status: number;
+      body: unknown;
+      writeHead(code: number): void;
+      end(body?: unknown): void;
+    }
+    const fakeRes = (): FakeRes => ({
+      status: 0,
+      body: undefined,
+      writeHead(code) {
+        this.status = code;
+      },
+      end(body) {
+        this.body = body;
+      },
+    });
+    const get = async (
+      inside: string,
+      onMissing?: (plugins: readonly string[]) => void
+    ): Promise<FakeRes> => {
+      const res = fakeRes();
+      await serve.servePluginsDir({ method: 'GET', headers: {} }, res, inside, {
+        dir: live,
+        include: ['base/files', 'base/app-preview'],
+        ...(onMissing === undefined ? {} : { onMissing }),
+      });
+      return res;
+    };
+
+    it('индекс несёт только названные плагины, о несобранных сказано вызывающему', async () => {
+      const missing: string[][] = [];
+      const res = await get('index.json', (plugins) => missing.push([...plugins]));
+
+      expect(res.status).toBe(200);
+      const files = (JSON.parse(String(res.body)) as { files: string[] }).files;
+      expect(files).toContain('base/files/main.js');
+      expect(files.filter((file) => file.startsWith('forms/'))).toEqual([]);
+      expect(missing).toEqual([['base/app-preview']]);
+    });
+
+    it('файл названного плагина отдаётся, файл остальных — нет', async () => {
+      expect((await get('base/files/main.js')).status).toBe(200);
+      expect((await get('forms/preview/main.js')).status).toBe(404);
+    });
+
+    it('адрес с выходом наверх набор не обходит', async () => {
+      expect((await get('base/files/../../forms/preview/main.js')).status).toBe(404);
+    });
+  });
+});
+
+describe('набор плагинов по названному пути', () => {
+  it('каталог идёт целиком', async () => {
+    const plugins = join(dir, 'set-dir');
+    await mkdir(plugins, { recursive: true });
+
+    expect(index.resolvePluginsSet(plugins + '/')).toEqual({ dir: plugins });
+  });
+
+  it('файл — список набора: корень считается от каталога списка', async () => {
+    const lists = join(dir, 'set-lists');
+    await mkdir(lists, { recursive: true });
+    const list = join(lists, 'application-plugins.json');
+    await writeFile(list, JSON.stringify({ root: '../set-dir', plugins: ['base/files'] }));
+
+    expect(index.resolvePluginsSet(list)).toEqual({
+      dir: join(dir, 'set-dir'),
+      include: ['base/files'],
+    });
+  });
+
+  it('пути нет или список не называет корень и плагины — отказ, а не пустой набор', async () => {
+    const broken = join(dir, 'set-broken.json');
+    await writeFile(broken, JSON.stringify({ plugins: ['base/files'] }));
+
+    expect(() => index.resolvePluginsSet(join(dir, 'set-absent'))).toThrow();
+    expect(() => index.resolvePluginsSet(broken)).toThrow(/root/);
+  });
+});
+
+describe('живой каталог называет ревизии плагинов', () => {
+  let live: string;
+  const file = (...parts: string[]): string => join(live, ...parts);
+  /** Время правки, заведомо отличное от прежнего: у файловых систем оно бывает секундным. */
+  let stamp = Date.now() / 1000;
+  const write = async (path: string, text: string): Promise<void> => {
+    await writeFile(path, text);
+    stamp += 10;
+    await utimes(path, stamp, stamp);
+  };
+
+  beforeAll(async () => {
+    live = join(dir, 'revisions');
+    for (const plugin of [['base', 'files'], ['forms', 'preview'], ['hello']]) {
+      await mkdir(file(...plugin, 'chunks'), { recursive: true });
+      await writeFile(file(...plugin, 'manifest.json'), JSON.stringify({ id: plugin.join('.') }));
+      await writeFile(file(...plugin, 'main.js'), 'module.exports = 1;');
+      await writeFile(file(...plugin, 'chunks', 'part.js'), 'module.exports = 2;');
+    }
+    // Исходники пакета внутри собранного плагина — другое дерево: на ревизию не влияют.
+    await mkdir(file('base', 'files', 'src'), { recursive: true });
+    await writeFile(file('base', 'files', 'src', 'manifest.json'), '{}');
+    await writeFile(file('base', 'files', 'src', 'main.ts'), 'export {};');
+    // Файл каталога домена не принадлежит ни одному плагину.
+    await writeFile(file('base', 'README.md'), '# base');
+  });
+
+  const revisionsOf = async (
+    memo = index.createRevisionMemo(),
+    include?: readonly string[]
+  ): Promise<Record<string, string>> => {
+    const built = await index.buildPluginsIndex(live, {
+      revisions: memo,
+      ...(include === undefined ? {} : { include }),
+    });
+    return built.revisions ?? {};
+  };
+
+  it('без памяти отпечатков ревизий нет: каталог считается неизменным', async () => {
+    expect(await index.buildPluginsIndex(live)).not.toHaveProperty('revisions');
+  });
+
+  it('ревизия — у каждого плагина: и верхнего уровня, и внутри каталога домена', async () => {
+    const revisions = await revisionsOf();
+
+    expect(Object.keys(revisions).sort()).toEqual(['base/files', 'forms/preview', 'hello']);
+    for (const revision of Object.values(revisions)) expect(revision).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it('оболочка читает индекс с ревизиями — формат у них один', async () => {
+    const built = await index.buildPluginsIndex(live, { revisions: index.createRevisionMemo() });
+
+    expect(parseApplicationPluginIndex(built)).toEqual(built);
+  });
+
+  it('правка файла меняет ревизию его плагина — и только его', async () => {
+    const memo = index.createRevisionMemo();
+    const before = await revisionsOf(memo);
+
+    await write(file('forms', 'preview', 'chunks', 'part.js'), 'module.exports = 3;');
+    const after = await revisionsOf(memo);
+
+    expect(after['forms/preview']).not.toBe(before['forms/preview']);
+    expect(after['base/files']).toBe(before['base/files']);
+    expect(after.hello).toBe(before.hello);
+  });
+
+  it('файл переписан тем же содержимым — ревизия прежняя: пересборка без правок не перезагружает', async () => {
+    const memo = index.createRevisionMemo();
+    const before = await revisionsOf(memo);
+
+    await write(file('hello', 'main.js'), 'module.exports = 1;');
+
+    expect((await revisionsOf(memo)).hello).toBe(before.hello);
+  });
+
+  it('файл появился или исчез — ревизия другая', async () => {
+    const memo = index.createRevisionMemo();
+    const before = await revisionsOf(memo);
+
+    await write(file('hello', 'chunks', 'extra.js'), '');
+    const added = await revisionsOf(memo);
+    await rm(file('hello', 'chunks', 'extra.js'));
+    const removed = await revisionsOf(memo);
+
+    expect(added.hello).not.toBe(before.hello);
+    expect(removed.hello).toBe(before.hello);
+  });
+
+  it('исходники пакета и файлы каталога домена ревизий не трогают', async () => {
+    const memo = index.createRevisionMemo();
+    const before = await revisionsOf(memo);
+
+    await write(file('base', 'files', 'src', 'main.ts'), 'export const changed = true;');
+    await write(file('base', 'README.md'), '# base, поправлен');
+
+    expect(await revisionsOf(memo)).toEqual(before);
+  });
+
+  it('память отпечатков не решает за диск: без неё ревизии те же', async () => {
+    const memo = index.createRevisionMemo();
+    await revisionsOf(memo);
+
+    expect(await revisionsOf(memo)).toEqual(await revisionsOf());
+  });
+
+  it('названный плагин имеет ревизию и до сборки — появится каталог, она изменится', async () => {
+    const memo = index.createRevisionMemo();
+    const include = ['hello', 'base/soon'];
+    const before = await revisionsOf(memo, include);
+    expect(Object.keys(before).sort()).toEqual(['base/soon', 'hello']);
+
+    await mkdir(file('base', 'soon'), { recursive: true });
+    await write(file('base', 'soon', 'manifest.json'), '{"id":"soon"}');
+    const after = await revisionsOf(memo, include);
+
+    expect(after['base/soon']).not.toBe(before['base/soon']);
+    expect(after.hello).toBe(before.hello);
+    await rm(file('base', 'soon'), { recursive: true });
+  });
+});
+
+describe('чтение конфига запуска', () => {
+  it('файла нет, файл не JSON и разобранный файл различаются значением, а не исключением', async () => {
+    await writeFile(join(dir, 'broken.json'), '{ не json');
+    await writeFile(join(dir, 'fine.json'), '{"preset":"builder.base"}');
+
+    expect(await runtime.readConfigFile(join(dir, 'absent.json'))).toMatchObject({
+      ok: false,
+      reason: 'missing',
+    });
+    expect(await runtime.readConfigFile(join(dir, 'broken.json'))).toMatchObject({
+      ok: false,
+      reason: 'invalid',
+    });
+    expect(await runtime.readConfigFile(join(dir, 'fine.json'))).toEqual({
+      ok: true,
+      config: { preset: 'builder.base' },
+    });
+  });
+
+  it('dev-сервер молчит о файле по умолчанию, которого нет, и говорит о явном и о битом', async () => {
+    const reported: string[] = [];
+    const report = (message: string): void => {
+      reported.push(message);
+    };
+    const absent = join(dir, 'absent.json');
+
+    expect(
+      await runtime.readConfigForDevServer({ file: absent, explicit: false, report })
+    ).toBeNull();
+    expect(reported).toEqual([]);
+
+    expect(
+      await runtime.readConfigForDevServer({ file: absent, explicit: true, report })
+    ).toBeNull();
+    expect(
+      await runtime.readConfigForDevServer({
+        file: join(dir, 'broken.json'),
+        explicit: false,
+        report,
+      })
+    ).toBeNull();
+    expect(reported).toHaveLength(2);
+  });
+
+  it('ответ несёт конфиг и то, что сервер сообщает о себе', () => {
+    expect(JSON.parse(String(runtime.runtimeBundleBody(undefined)))).toEqual({ config: null });
+    expect(
+      JSON.parse(String(runtime.runtimeBundleBody({ preset: 'x' }, { embedded: true })))
+    ).toEqual({ config: { preset: 'x' }, embedded: true });
   });
 });

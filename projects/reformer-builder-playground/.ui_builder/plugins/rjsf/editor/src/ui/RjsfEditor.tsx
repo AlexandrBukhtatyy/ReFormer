@@ -105,7 +105,9 @@ function LiveForm(props: {
   return (
     <div className="min-h-0 flex-1 overflow-auto" data-testid="rjsf-live">
       {chosen?.notice != null && <p className="px-4 pt-2 text-xs">{chosen.notice}</p>}
-      <div ref={element} />
+      {/* Гибкая колонка во всю высоту области: поверхность, которой нужна вся высота (рамка
+          с формой приложения), растягивается в ней, а обычная форма ложится сверху, как лежала. */}
+      <div ref={element} className="flex min-h-full flex-col" />
     </div>
   );
 }

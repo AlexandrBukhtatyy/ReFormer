@@ -1,10 +1,17 @@
 /**
- * Плагин «Превью приложением»: панель, в которой форму и страницу рисует само приложение.
+ * Плагин «Превью приложением»: форму и страницу рисует само запущенное приложение.
  *
  * **Для кого он.** Для билдера, встроенного в приложение. Там форму в превью рисует не билдер,
  * а приложение — со своим реестром, своим API и своими провайдерами, — и билдеру остаётся
  * открыть его адрес в рамке. В самостоятельном билдере приложения рядом нет, и плагин ничего
- * не вносит: ни панели, ни команд.
+ * не вносит: ни вида, ни панели.
+ *
+ * **Что он вносит.** Два вида, и у каждого своё место:
+ *
+ * - **форма** — поверхность превью (`./form-surface`). Её показывает вид «Форма» открытой
+ *   вкладки, тот же, что в билдере без приложения: кнопка со значком в полосе вкладок. Плагин
+ *   не заводит ни кнопки, ни тела вкладки — он только отвечает на вопрос «чем нарисовать»;
+ * - **приложение** — панель в правом доке (`./ui/PreviewPanel`): страница целиком.
  *
  * **Откуда он знает адреса.** Из возможности `reformer.app.preview`, которую даёт оболочка,
  * встроенная в приложение. Возможности нет — приложения нет: спрашивается она при активации,
@@ -14,6 +21,11 @@
  * форма собрана. Путь модуля формы — единственное, что уходит в адрес; что по нему нарисовать,
  * решает приложение.
  *
+ * **Зачем ему право сохранять.** Приложение рисует то, что записано на диск. Несохранённую
+ * правку вид «Форма» не покажет, и говорит об этом полосой над формой; кнопка в полосе
+ * сохраняет всё изменённое — тем же путём, что Ctrl+S. Право (`workspace.save`) объявлено
+ * в манифесте; им же плагин узнаёт, есть ли несохранённое вообще.
+ *
  * @module plugins/base/app-preview/plugin
  */
 
@@ -22,15 +34,15 @@ import { MonitorPlay } from 'lucide-react';
 import {
   AppPreviewCapability,
   definePlugin,
-  DocumentsServiceToken,
   PanelPoint,
+  PreviewSurfacePoint,
   WorkspaceFilesServiceToken,
+  WorkspaceSaveCapability,
   type Plugin,
 } from '@reformer/builder-plugin-api';
+import { APP_FORM_SURFACE_ID, createFormSurface } from './form-surface';
 import manifest from './manifest.json';
 import { APP_PREVIEW_MESSAGES } from './messages';
-import { createPreviewModeStore } from './model';
-import { PreviewModeSwitch } from './ui/PreviewModeSwitch';
 import { PreviewPanel } from './ui/PreviewPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
@@ -52,15 +64,8 @@ export function createAppPreviewPlugin(): Plugin {
       }
 
       const preview = ctx.services.get(AppPreviewCapability);
-      const documents = ctx.services.get(DocumentsServiceToken);
-      const files = ctx.services.get(WorkspaceFilesServiceToken);
-      // Приложения рядом нет (самостоятельный билдер) — показывать нечего. Без служб рабочей
-      // области панель не узнала бы, какую форму показывать, поэтому условие одно на всё.
-      if (preview === undefined || documents === undefined || files === undefined) return;
-
-      // Режим — один на плагин: переключатель стоит в шапке дока, рамка — в теле панели,
-      // а это два разных поддерева оболочки.
-      const mode = createPreviewModeStore();
+      // Приложения рядом нет (самостоятельный билдер) — показывать нечего.
+      if (preview === undefined) return;
 
       ctx.subscriptions.push(
         ctx.extensions.contribute(
@@ -73,12 +78,30 @@ export function createAppPreviewPlugin(): Plugin {
             // Рамка с приложением — сама область просмотра: панели нужна вся высота дока,
             // а прокручивается в ней документ приложения, не панель.
             fill: true,
-            Body: () =>
-              createElement(PreviewPanel, { preview, documents, files, mode, i18n: ctx.i18n }),
-            // Переключатель режима — в шапке дока: в теле панели он отнимал бы строку у рамки.
-            Actions: () => createElement(PreviewModeSwitch, { mode, i18n: ctx.i18n }),
+            // Шапки нет: панель называет себя адресной строкой, а «Превью» уже написано
+            // на её кнопке рейла. Строка шапки нужнее приложению в рамке.
+            headless: true,
+            Body: () => createElement(PreviewPanel, { preview, i18n: ctx.i18n }),
           },
           { id: APP_PREVIEW_PANEL_ID }
+        )
+      );
+
+      // Форма — видом открытой вкладки. Поверхности нужна рабочая область: модуль формы она
+      // ищет в каталоге документа. Без неё документов нет, и показывать форму не у чего.
+      const files = ctx.services.get(WorkspaceFilesServiceToken);
+      if (files === undefined) return;
+      ctx.subscriptions.push(
+        ctx.extensions.contribute(
+          PreviewSurfacePoint,
+          createFormSurface({
+            preview,
+            files,
+            // Спрашивается в момент вопроса: право могли не дать, а службу — снять.
+            saving: () => ctx.services.get(WorkspaceSaveCapability),
+            t: (key, params) => ctx.i18n.t(key, params),
+          }),
+          { id: APP_FORM_SURFACE_ID }
         )
       );
     },

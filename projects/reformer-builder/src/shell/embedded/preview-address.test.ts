@@ -5,22 +5,34 @@
  * возвращает тот же путь модуля, который в него положили; адрес страницы никогда не содержит
  * параметра стенда; путь, уводящий с источника или из проекта, стенд загружать отказывается.
  *
+ * Сторон у уговора две, и импортировать друг друга целиком они не вправе: адреса строит билдер
+ * (`./preview-address`), читает их клиент в документе приложения (`client/addresses`). Поэтому
+ * тест один на обе: он и есть место, где видно, что они говорят об одном и том же.
+ *
  * @module shell/embedded/preview-address.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
 import { APP_PREVIEW_FRAME_NAME } from '@reformer/builder-plugin-api/internal';
 import {
+  BUILDER_URL,
+  FORM_STAND_PARAM,
+  isPreviewFrame,
+  isShellFrame,
+  moduleUrlOf,
+  SHELL_FRAME_NAME,
+  standRequest,
+} from '@/client/addresses';
+import { RUNTIME_BUNDLE_PATH } from '@/shell/boot/runtime-config';
+import {
   createAppPreviewService,
   createSourceWriteSignal,
-  FORM_STAND_PARAM,
   formUrlOf,
-  isPreviewFrame,
-  moduleUrlOf,
   pageUrlOf,
-  standRequest,
   type PageLocation,
 } from './preview-address';
+
+const { BUILDER_URL_PREFIX } = await import('../../../vite/endpoints.mjs');
 
 const at = (path: string): PageLocation => {
   const url = new URL(path, 'http://localhost:5173');
@@ -28,13 +40,27 @@ const at = (path: string): PageLocation => {
 };
 
 describe('рамка превью', () => {
-  it('узнаётся по имени окна', () => {
+  it('узнаётся по имени окна — тому, которым её называет плагин превью', () => {
     expect(isPreviewFrame({ name: APP_PREVIEW_FRAME_NAME })).toBe(true);
   });
 
   it('любое другое окно — обычная страница, даже если оно тоже рамка', () => {
     expect(isPreviewFrame({ name: '' })).toBe(false);
     expect(isPreviewFrame({ name: 'чужая-рамка' })).toBe(false);
+    expect(isPreviewFrame({ name: SHELL_FRAME_NAME })).toBe(false);
+  });
+});
+
+describe('рамка билдера', () => {
+  it('узнаётся по своему имени, и рамкой превью не считается', () => {
+    expect(isShellFrame({ name: SHELL_FRAME_NAME })).toBe(true);
+    expect(isShellFrame({ name: APP_PREVIEW_FRAME_NAME })).toBe(false);
+    expect(isShellFrame({ name: '' })).toBe(false);
+  });
+
+  it('открывается по адресу, под которым билдер отдаёт dev-сервер и ищет свой конфиг', () => {
+    expect(BUILDER_URL).toBe(BUILDER_URL_PREFIX);
+    expect(RUNTIME_BUNDLE_PATH.startsWith(BUILDER_URL)).toBe(true);
   });
 });
 

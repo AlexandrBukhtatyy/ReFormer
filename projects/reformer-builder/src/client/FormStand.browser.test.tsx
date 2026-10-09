@@ -1,7 +1,7 @@
 /**
  * Стенд формы: приложение рисует один компонент — и говорит словами, когда рисовать нечего.
  *
- * @module shell/embedded/FormStand.browser.test
+ * @module client/FormStand.browser.test
  */
 
 import type { ReactElement } from 'react';

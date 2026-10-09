@@ -1,7 +1,7 @@
 /**
  * Режим билдера: переживает перезагрузку страницы и не падает без хранилища.
  *
- * @module shell/embedded/mode.test
+ * @module client/mode.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

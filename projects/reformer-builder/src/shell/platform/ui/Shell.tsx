@@ -406,6 +406,17 @@ function PanelHeading({ title, entry }: { title: string; entry: PanelEntry }): R
 }
 
 /**
+ * Шапка дока — если панель её не отменила.
+ *
+ * Панель с признаком `headless` называет себя сама (адресная строка над рамкой превью),
+ * и шапка над ней повторяла бы подпись кнопки рейла, отнимая у тела строку. Имя у панели при
+ * этом остаётся: оно на кнопке рейла.
+ */
+function DockHeading({ title, entry }: { title: string; entry: PanelEntry }): ReactElement | null {
+  return entry.value.headless === true ? null : <PanelHeading title={title} entry={entry} />;
+}
+
+/**
  * Левый рейл: вкладки левого дока сверху, вклады слота `rail.left` снизу.
  *
  * Кнопка вкладки — `Toggle` кита, а не своя. Совпадение здесь не стилистическое: у вкладки
@@ -420,7 +431,26 @@ function PanelHeading({ title, entry }: { title: string; entry: PanelEntry }): R
  * Подсказка — `Tooltip` кита вместо атрибута `title`. Атрибут остался бы вторым, нативным
  * всплытием поверх первого; доступное имя даёт `aria-label`, а `Tooltip` привязывается
  * к кнопке через `aria-describedby` сам.
+ *
+ * Вид кнопки открытой панели висит на `aria-pressed`, а не на `data-state`, и это не вкус.
+ * Кнопка — потомок `TooltipTrigger asChild`, а тот пишет в неё СВОЙ `data-state`
+ * (`closed` / `delayed-open`). Переключатель ставит `data-state="on"` раньше, чем
+ * разворачивает полученные пропсы, поэтому значение подсказки его перетирает — и стили
+ * `data-[state=on]` не срабатывали никогда: кнопка открытой панели выглядела как закрытой.
+ * `aria-pressed` ставит только переключатель, и спорить за него не с кем.
  */
+/**
+ * Вид вкладки рейла. Открытая панель — заливка и полный цвет значка: на фоне рейла серый
+ * «акцент» кита почти не отличим от самого рейла, поэтому заливка берётся долей основного
+ * цвета темы. Наведение на нажатую кнопку вида не снимает: у переключателя кита наведение
+ * красит фон и текст в приглушённые, и без своей пары открытая панель под курсором гасла бы.
+ */
+const RAIL_TAB_CLASS = [
+  'text-muted-foreground size-8 cursor-pointer text-[12px] font-medium',
+  'aria-pressed:bg-primary/10 aria-pressed:text-primary',
+  'aria-pressed:hover:bg-primary/15 aria-pressed:hover:text-primary',
+].join(' ');
+
 /**
  * Одна вкладка рейла.
  *
@@ -451,7 +481,7 @@ function RailTab({
           onPressedChange={() => {
             dock.toggle(entry.value.id);
           }}
-          className="text-muted-foreground data-[state=on]:text-accent-foreground size-8 cursor-pointer text-[12px] font-medium"
+          className={RAIL_TAB_CLASS}
         >
           {Icon === undefined ? (
             <span aria-hidden="true">{panelInitial(title)}</span>
@@ -1031,7 +1061,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                   data-focus-zone="panel"
                   className="flex min-h-0 flex-1 flex-col"
                 >
-                  <PanelHeading title={panelTitle(i18n, activeLeft)} entry={activeLeft} />
+                  <DockHeading title={panelTitle(i18n, activeLeft)} entry={activeLeft} />
                   <DockBody entry={activeLeft} />
                 </aside>
               </ResizablePanel>
@@ -1132,7 +1162,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                   data-focus-zone="panel"
                   className="flex min-h-0 flex-1 flex-col"
                 >
-                  <PanelHeading title={panelTitle(i18n, activeRight)} entry={activeRight} />
+                  <DockHeading title={panelTitle(i18n, activeRight)} entry={activeRight} />
                   <DockBody entry={activeRight} />
                 </aside>
               </ResizablePanel>

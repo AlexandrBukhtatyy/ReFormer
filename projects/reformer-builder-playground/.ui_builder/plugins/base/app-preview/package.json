@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Плагин ReFormer Builder «Превью приложением»: панель, в которой форму и страницу рисует само запущенное приложение, — для билдера, встроенного в приложение",
+  "description": "Плагин ReFormer Builder «Превью приложением»: форму (видом вкладки) и страницу (панелью) рисует само запущенное приложение — для билдера, встроенного в приложение",
   "scripts": {
     "validate": "reformer-plugin validate src",
     "build:dev": "reformer-plugin build src --out .",

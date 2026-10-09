@@ -12,7 +12,7 @@ import { BUILDER_DIR, PLAYGROUND_CONFIG, PLAYGROUND_DIR } from './tests/shared/p
  *   получает человек из `npx reformer-builder`. Нужен готовый `projects/reformer-builder/dist`
  *   (`npm run build -w @reformer/builder`).
  *   `embedded` — билдер, встроенный в приложение: dev-сервер приложения-образца
- *   (`projects/reformer-builder-host-example`) над его копией. Свой набор тестов —
+ *   (`projects/reformer-builder-host-example`) над его копией; он же отдаёт билдер. Свой набор тестов —
  *   `tests/embedded/`; остальные тесты в этой цели не идут, и наоборот.
  * - BUILDER_E2E_PORT: порт сервера (умолчание 5184, у `embedded` — 5185). 5173 занят
  *   react-playground, 5174 — dev билдера с конфигом самого разработчика; свой порт нужен, чтобы
@@ -45,7 +45,7 @@ export default defineConfig({
   testDir: './tests',
   ...(EMBEDDED ? { testMatch: `${EMBEDDED_TESTS}/*.spec.ts` } : { testIgnore: EMBEDDED_TESTS }),
   /* Плагины playground — пакеты со сборкой: билдер грузит её, поэтому она делается до тестов.
-     Встроенному билдеру плагины раздаёт приложение, и готовит их сам его сервер. */
+     Встроенному билдеру плагины раздаёт dev-сервер приложения, и собирает их его запуск. */
   globalSetup: EMBEDDED ? undefined : './tests/shared/global-setup.ts',
   /* Тесты независимы: у каждого свой контекст браузера, а значит свои OPFS и IndexedDB.
      У встроенного билдера общее есть — копия приложения на диске под его сервером: тесты
@@ -99,7 +99,7 @@ export default defineConfig({
           url: BASE_URL,
           reuseExistingServer: !process.env.CI,
           // `npm run dev` сначала собирает корпус знаний ассистента (predev) — отсюда запас.
-          // У встроенного билдера перед стартом сервера собираются плагины для поставки.
+          // У встроенного билдера перед стартом сервера собираются плагины.
           timeout: EMBEDDED ? 600_000 : 180_000,
         },
       }),

@@ -81,17 +81,18 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Build @reformer/builder (npm base '/')
+      - name: Build @reformer/builder (относительный base)
         # Билдер — Vite-SPA (projects/*), публикуется prebuilt-бандлом. Собираем ПОСЛЕ 6 пакетов:
         # tsc -b / vite build резолвят @reformer/* из их собранного dist. BUILDER_BASE НЕ выставляем
-        # → base '/' (в отличие от Pages-сборки в deploy-docs.yml), чтобы ассеты/Monaco-воркеры
-        # грузились с корня статик-сервера.
+        # → base './' (в отличие от Pages-сборки в deploy-docs.yml): один и тот же dist отдаёт
+        # и лаунчер с корня своего сервера, и плагин dev-сервера приложения под своим префиксом.
         run: npm run build -w @reformer/builder
 
       - name: Плагины приложения — в dist билдера
         # Опубликованный билдер везёт движки форм сам: сборки пакетов плагинов для поставки
         # складываются в `dist/plugins/` (поле `files` пакета уже включает `dist`). Без этого шага
-        # `npx reformer-builder` открывал бы форму текстом. Тема RJSF — рантайм плагина
+        # `npx reformer-builder` открывал бы форму текстом. В каталог идут оба набора — своей
+        # вкладки и билдера, встроенного в приложение; индекс лаунчера называет первый. Тема RJSF — рантайм плагина
         # `reformer.rjsf.render`, сборка находит её по dist; остальное (CLI, toolkit, MCP) собрано
         # выше. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
         run: |

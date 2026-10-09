@@ -69,6 +69,8 @@ async function shell(
     action?: string;
     /** Панель занимает область дока целиком и прокручивает себя сама. */
     fill?: boolean;
+    /** Панель без шапки дока: называет себя сама. */
+    headless?: boolean;
   }[],
   /** Сохранённая высота нижней панели: как если бы человек уже двигал разделитель. */
   bottomSize?: number
@@ -83,6 +85,7 @@ async function shell(
         titleKey: KEY(p.id),
         Body: p.fill === true ? FillBody(p.title) : Body(p.title),
         fill: p.fill,
+        headless: p.headless,
         railPlacement: p.railPlacement,
         Badge:
           p.badge === undefined
@@ -152,6 +155,53 @@ describe('рейлы доков: одна панель в зоне, как в п
 
     await expect.element(page.getByText('тело Ассистент')).toBeVisible();
     expect(page.getByText('тело Свойства').elements()).toHaveLength(0);
+  });
+
+  it('кнопка открытой панели отличается цветом: по рейлу видно, что открыто', async () => {
+    // Вид нажатой кнопки висел на `data-state="on"`, а этот атрибут у кнопки рейла
+    // перетирает подсказка, в которую она обёрнута, — и открытая панель на рейле выглядела
+    // как закрытая. Проверяется вычисленный стиль: разметка «нажато» была верной и тогда.
+    await shell([
+      { id: 'inspector', slot: 'panel.right', title: 'Свойства' },
+      { id: 'chat', slot: 'panel.right', title: 'Ассистент' },
+    ]);
+    await expect.element(page.getByText('тело Свойства')).toBeVisible();
+    const look = (name: string): { background: string; color: string } => {
+      const style = getComputedStyle(page.getByRole('button', { name }).element());
+      return { background: style.backgroundColor, color: style.color };
+    };
+    // Курсор — в стороне от рейла: наведение красит кнопку по-своему и сравнение бы спутало.
+    await userEvent.hover(page.getByText('тело Свойства'));
+
+    const open = look('Свойства');
+    const closed = look('Ассистент');
+    expect(open.background).not.toBe(closed.background);
+    expect(open.color).not.toBe(closed.color);
+
+    // Открыли другую — цвета поменялись местами: цвет следует за панелью, а не за кнопкой.
+    await userEvent.click(page.getByRole('button', { name: 'Ассистент' }));
+    await expect.element(page.getByText('тело Ассистент')).toBeVisible();
+    await userEvent.hover(page.getByText('тело Ассистент'));
+
+    await expect.poll(() => look('Ассистент')).toEqual(open);
+    await expect.poll(() => look('Свойства')).toEqual(closed);
+  });
+
+  it('свёрнутый док — ни одна кнопка рейла не выглядит открытой', async () => {
+    await shell([
+      { id: 'inspector', slot: 'panel.right', title: 'Свойства' },
+      { id: 'chat', slot: 'panel.right', title: 'Ассистент' },
+    ]);
+    await expect.element(page.getByText('тело Свойства')).toBeVisible();
+    const background = (name: string): string =>
+      getComputedStyle(page.getByRole('button', { name }).element()).backgroundColor;
+
+    await userEvent.click(page.getByRole('button', { name: 'Свойства' }));
+    await userEvent.hover(page.getByRole('navigation', { name: 'Панели справа' }), {
+      position: { x: 1, y: 300 },
+    });
+
+    await expect.poll(() => background('Свойства')).toBe(background('Ассистент'));
   });
 
   it('повторный щелчок по активной вкладке сворачивает док', async () => {
@@ -566,6 +616,38 @@ describe('рейлы доков: одна панель в зоне, как в п
     expect(Math.round(body.bottom)).toBe(Math.round(dock.bottom));
     expect(body.height).toBeGreaterThan(200);
     expect(Math.round(body.width)).toBe(Math.round(dock.width));
+  });
+
+  it('панель без шапки: заголовка в доке нет, тело начинается у его верхнего края', async () => {
+    // Панель с адресной строкой называет себя сама: шапка над ней повторяла бы подпись
+    // кнопки рейла и отнимала строку у рамки.
+    await shell([
+      { id: 'preview', slot: 'panel.right', title: 'Превью', fill: true, headless: true },
+    ]);
+    await expect.element(page.getByText('тело Превью')).toBeVisible();
+
+    expect(page.getByRole('heading', { name: 'Превью' }).elements()).toHaveLength(0);
+    const body = page.getByText('тело Превью').element().getBoundingClientRect();
+    const dock = page
+      .getByRole('complementary', { name: 'Правая панель' })
+      .element()
+      .getBoundingClientRect();
+    expect(Math.round(body.top)).toBe(Math.round(dock.top));
+    expect(Math.round(body.bottom)).toBe(Math.round(dock.bottom));
+    // Имя у панели осталось — на кнопке рейла: найти и свернуть её по-прежнему есть чем.
+    await expect.element(page.getByRole('button', { name: 'Превью' })).toBeVisible();
+  });
+
+  it('шапку убирает только сама панель: у соседа по доку она на месте', async () => {
+    await shell([
+      { id: 'preview', slot: 'panel.right', title: 'Превью', fill: true, headless: true },
+      { id: 'inspector', slot: 'panel.right', title: 'Свойства' },
+    ]);
+    await expect.element(page.getByText('тело Превью')).toBeVisible();
+
+    await userEvent.click(page.getByRole('button', { name: 'Свойства' }));
+
+    await expect.element(page.getByRole('heading', { name: 'Свойства' })).toBeVisible();
   });
 
   it('обычной панели высоту задаёт содержимое: растягивать её оболочка не берётся', async () => {

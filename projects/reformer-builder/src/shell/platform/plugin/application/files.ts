@@ -17,6 +17,14 @@
  * приложения. Отсутствие индекса поэтому не отказ и не предупреждение. Dev-сервер и лаунчер
  * отвечают на неизвестный путь страницей приложения — такой ответ читается так же, как 404.
  *
+ * ## Живой каталог называет ревизии
+ *
+ * Обычно слой не меняется, пока приложение работает: его положили рядом со сборкой. Но каталог
+ * бывает и живым — каталог разрабатываемых плагинов, который сервер отдаёт с диска (флаг
+ * `--plugins` лаунчера, плагин dev-сервера приложения). Такой сервер дописывает к индексу
+ * ревизию каждого плагина; по ним наблюдатель (`./live`) узнаёт, что плагин пересобрали.
+ * Нет ревизий — слой неизменный, и наблюдать нечего.
+ *
  * ## Исполнение не спрашивает проект
  *
  * У установленных из npm право исполнять код принадлежит открытому проекту (`../installed/files`):
@@ -51,6 +59,18 @@ export const APPLICATION_INDEX_VERSION = 1;
 export interface ApplicationPluginIndex {
   readonly version: typeof APPLICATION_INDEX_VERSION;
   readonly files: readonly string[];
+  /**
+   * Каталог плагина от корня слоя → ревизия его файлов. Только у живого каталога.
+   *
+   * Ревизия — непрозрачный маркер, сравнимый лишь на равенство, как ревизия источника.
+   */
+  readonly revisions?: Readonly<Record<string, string>>;
+}
+
+/** Слой приложения как источник файлов — и то, что он знает о своих версиях. */
+export interface ApplicationFilesSource extends PluginFilesSource {
+  /** Ревизии плагинов живого каталога; `undefined` — слой неизменный. */
+  readonly revisions?: ReadonlyMap<string, string>;
 }
 
 /** Путь индекса: относительный, с разделителем `/`, без выхода за корень. */
@@ -59,13 +79,32 @@ function isIndexPath(value: unknown): value is string {
   return value.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
 }
 
+/** Ревизии индекса; `undefined` — их нет либо записаны они не так, и каталог считается неизменным. */
+function parseRevisions(value: unknown): Readonly<Record<string, string>> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value);
+  const valid = entries.every(
+    ([dir, revision]) => isIndexPath(dir) && typeof revision === 'string' && revision !== ''
+  );
+  return valid ? Object.fromEntries(entries) : undefined;
+}
+
 /** Разбирает индекс; `null` — это не индекс известной версии. */
 export function parseApplicationPluginIndex(value: unknown): ApplicationPluginIndex | null {
   if (typeof value !== 'object' || value === null) return null;
-  const { version, files } = value as { version?: unknown; files?: unknown };
+  const { version, files, revisions } = value as {
+    version?: unknown;
+    files?: unknown;
+    revisions?: unknown;
+  };
   if (version !== APPLICATION_INDEX_VERSION || !Array.isArray(files)) return null;
   if (!files.every(isIndexPath)) return null;
-  return { version: APPLICATION_INDEX_VERSION, files };
+  const parsed = parseRevisions(revisions);
+  return {
+    version: APPLICATION_INDEX_VERSION,
+    files,
+    ...(parsed === undefined ? {} : { revisions: parsed }),
+  };
 }
 
 export interface ApplicationFilesDeps {
@@ -85,14 +124,17 @@ function relative(path: string): string | undefined {
 
 const withSlash = (url: string): string => (url.endsWith('/') ? url : `${url}/`);
 
-export function createApplicationFiles(deps: ApplicationFilesDeps): PluginFilesSource {
+export function createApplicationFiles(deps: ApplicationFilesDeps): ApplicationFilesSource {
   const fetchFn = deps.fetch ?? fetch;
   const baseUrl = withSlash(deps.baseUrl);
   const files = new Set(deps.index.files);
+  const revisions =
+    deps.index.revisions === undefined ? undefined : new Map(Object.entries(deps.index.revisions));
 
   return {
     id: APPLICATION_SOURCE_ID,
     capabilities: { executesCode: true },
+    ...(revisions === undefined ? {} : { revisions }),
 
     list(dir: string): Promise<readonly Entry[]> {
       const inside = relative(dir);
@@ -162,7 +204,7 @@ export interface LoadApplicationFilesDeps {
  */
 export async function loadApplicationFiles(
   deps: LoadApplicationFilesDeps
-): Promise<PluginFilesSource | null> {
+): Promise<ApplicationFilesSource | null> {
   const fetchFn = deps.fetch ?? fetch;
   const url = withSlash(deps.baseUrl) + APPLICATION_INDEX_FILE;
   let payload: unknown;

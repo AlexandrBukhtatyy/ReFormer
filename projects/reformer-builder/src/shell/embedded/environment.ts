@@ -1,18 +1,19 @@
 /**
- * Окружение «страница чужого приложения» — билдер здесь гость.
+ * Окружения билдера, открытого рядом с приложением.
  *
- * Отличается от вкладки браузера (`shell/boot/environment`) тем, чего в нём НЕТ:
+ * ## Свой документ, общий источник
  *
- * - заголовка — он принадлежит странице приложения;
- * - перезапуска — перезагрузить чужую страницу билдер не вправе, а с ним уходит и выбор
- *   профиля состава;
- * - очистки хранилища — источник общий с приложением, и «очистить кэш билдера» стёрло бы
- *   данные приложения.
+ * Билдер отдаёт dev-сервер приложения, и открыт он в СВОЁМ документе — в рамке поверх страницы
+ * либо вкладкой с того же адреса. Поэтому с документом он хозяин, как во вкладке
+ * (`shell/boot/environment`): заголовок, класс темы и перезагрузка — его собственные, и ни одно
+ * из них приложению не мешает. Вместе с перезагрузкой остаётся и выбор профиля состава.
  *
- * А есть в нём одно своё: возможность «превью приложением» — адреса, по которым приложение
- * показывает себя и одну форму. Корень темы приходит от того, кто управляет присутствием
- * билдера в документе (`./document-presence`): класс темы стоит на странице, только пока
- * открыт оверлей.
+ * Отличий от вкладки два:
+ *
+ * - **очистки хранилища нет.** Источник общий с приложением, и «очистить кэш билдера» стёрло бы
+ *   данные приложения;
+ * - **есть возможность «превью приложением»** — адреса, по которым приложение показывает себя
+ *   и одну форму.
  *
  * @module shell/embedded/environment
  */
@@ -21,17 +22,18 @@ import {
   AppPreviewCapability,
   type AppPreviewService,
 } from '@reformer/builder-plugin-api/internal';
-import type { ShellEnvironment } from '@/shell/boot/environment';
-import type { ThemeRoot } from '@/shell/platform/services/theme';
+import { createBrowserTabEnvironment, type ShellEnvironment } from '@/shell/boot/environment';
 
 export interface EmbeddedEnvironmentOptions {
-  readonly themeRoot: ThemeRoot;
   readonly appPreview: AppPreviewService;
 }
 
 export function createEmbeddedEnvironment(options: EmbeddedEnvironmentOptions): ShellEnvironment {
+  const tab = createBrowserTabEnvironment();
   return {
-    themeRoot: options.themeRoot,
+    applyTitle: (title) => tab.applyTitle?.(title),
+    themeRoot: tab.themeRoot,
+    reload: tab.reload,
     registerCapabilities(services) {
       services.register(AppPreviewCapability, options.appPreview);
     },

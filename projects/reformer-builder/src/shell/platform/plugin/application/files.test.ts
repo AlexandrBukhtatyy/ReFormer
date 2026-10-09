@@ -64,6 +64,38 @@ describe('разбор индекса', () => {
   });
 });
 
+describe('ревизии живого каталога', () => {
+  const LIVE: ApplicationPluginIndex = {
+    ...INDEX,
+    revisions: { hello: 'a1', 'forms/kits': 'b2', 'forms/preview': 'c3' },
+  };
+
+  it('индекс с ревизиями разбирается вместе с ними', () => {
+    expect(parseApplicationPluginIndex(LIVE)).toEqual(LIVE);
+  });
+
+  it('ревизии записаны не так — индекс остаётся, каталог считается неизменным', () => {
+    for (const revisions of [
+      'a1',
+      ['a1'],
+      { hello: 1 },
+      { hello: '' },
+      { '../hello': 'a1' },
+      { '': 'a1' },
+    ]) {
+      expect(parseApplicationPluginIndex({ ...INDEX, revisions })).toEqual(INDEX);
+    }
+  });
+
+  it('слой живого каталога называет ревизии своих плагинов, слой поставки — нет', () => {
+    const live = createApplicationFiles({ baseUrl: BASE, index: LIVE, fetch: network({}) });
+    const shipped = createApplicationFiles({ baseUrl: BASE, index: INDEX, fetch: network({}) });
+
+    expect(Object.fromEntries(live.revisions ?? [])).toEqual(LIVE.revisions);
+    expect(shipped.revisions).toBeUndefined();
+  });
+});
+
 describe('список каталога — из индекса', () => {
   const files = createApplicationFiles({ baseUrl: BASE, index: INDEX, fetch: network({}) });
 

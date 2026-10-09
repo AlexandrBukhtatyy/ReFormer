@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Приложение-образец со встроенным @reformer/builder: билдер открывается поверх страницы, а форму в его превью рисует само приложение",
   "scripts": {
+    "predev": "npm run plugins:build -w reformer-builder-playground",
     "dev": "vite",
-    "builder:plugins": "npm run plugins:dist -w reformer-builder-playground && node ../reformer-builder/scripts/collect-application-plugins.mjs --list ../reformer-builder/application-plugins.embedded.json --out public/builder-plugins",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
   },

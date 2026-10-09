@@ -518,24 +518,53 @@ export function launchOnlyProblems(
   ).map(([, message]) => message);
 }
 
+/** Что сервер запуска отвечает по {@link RUNTIME_BUNDLE_PATH}. */
+export interface RuntimeBundle {
+  /** Конфиг уровня запуска; `null` — файла нет, билдер работает на вшитых дефолтах. */
+  readonly config: ParsedRuntimeConfig | null;
+  /**
+   * Билдер открыт рядом с приложением и делит с ним источник: его отдаёт dev-сервер
+   * приложения (`vite/plugin.mjs`), а не лаунчер.
+   *
+   * Признак ставит СЕРВЕР, и только он: страница узнать этого о себе не может. «Я в рамке»
+   * не годится — тот же адрес открывается и вкладкой, и окружение вкладки там означало бы
+   * право снести хранилище приложения.
+   */
+  readonly embedded: boolean;
+}
+
+const NO_BUNDLE: RuntimeBundle = Object.freeze({ config: null, embedded: false });
+
 /**
- * Забирает конфиг уровня запуска у лаунчера. Лаунчера может не быть вовсе (vite dev,
- * раздача с другого сервера) — тогда ответ не JSON или не 200, и это НЕ ошибка:
- * билдер работает на вшитых дефолтах, как v1 без файлов.
+ * Забирает ответ сервера запуска. Сервера может не быть вовсе (vite dev, раздача с другого
+ * сервера) — тогда ответ не JSON или не 200, и это НЕ ошибка: билдер работает на вшитых
+ * дефолтах во вкладке браузера, как v1 без файлов.
  */
-export async function fetchRuntimeConfig(
-  fetchFn: typeof fetch = fetch
-): Promise<ParsedRuntimeConfig | null> {
+export async function fetchRuntimeBundle(fetchFn: typeof fetch = fetch): Promise<RuntimeBundle> {
   let payload: unknown;
   try {
     const response = await fetchFn(RUNTIME_BUNDLE_PATH, { cache: 'no-cache' });
-    if (!response.ok) return null;
+    if (!response.ok) return NO_BUNDLE;
     payload = await response.json();
   } catch {
-    return null;
+    return NO_BUNDLE;
   }
-  if (!isRecord(payload) || payload.config === null || payload.config === undefined) return null;
-  return parseRuntimeConfig(payload.config);
+  if (!isRecord(payload)) return NO_BUNDLE;
+  return {
+    config:
+      payload.config === null || payload.config === undefined
+        ? null
+        : parseRuntimeConfig(payload.config),
+    // Строго `true`: любое другое значение — сервер, который о приложении не говорил.
+    embedded: payload.embedded === true,
+  };
+}
+
+/** Конфиг уровня запуска из ответа сервера — см. {@link fetchRuntimeBundle}. */
+export async function fetchRuntimeConfig(
+  fetchFn: typeof fetch = fetch
+): Promise<ParsedRuntimeConfig | null> {
+  return (await fetchRuntimeBundle(fetchFn)).config;
 }
 
 /**

@@ -31,6 +31,9 @@ import { PlaygroundDisk } from '../../shared/playground-disk';
 /** Имя функции страницы, которой зеркало отдаёт записанный файл. */
 const MIRROR_BINDING = '__e2eMirrorWrite';
 
+/** Имя окна рамки превью — `APP_PREVIEW_FRAME_NAME` контракта плагинов. */
+const PREVIEW_FRAME_NAME = 'reformer-builder-preview';
+
 declare global {
   interface Window {
     __e2eMirrorWrite?: (filePath: string, base64: string) => Promise<void>;
@@ -74,34 +77,38 @@ export class HostDisk extends PlaygroundDisk {
       this.touched.add(filePath);
     });
 
-    await this.hostPage.addInitScript((binding) => {
-      // Рамки превью — тоже документы этой страницы; пишет в проект только верхний.
-      if (window.top !== window) return;
-      const createWritable = FileSystemFileHandle.prototype.createWritable;
-      FileSystemFileHandle.prototype.createWritable = async function (
-        this: FileSystemFileHandle,
-        ...options
-      ) {
-        const stream = await createWritable.apply(this, options);
-        const close = stream.close.bind(stream);
-        stream.close = async () => {
-          await close();
-          const mirror = (window as unknown as Record<string, unknown>)[binding] as
-            | ((filePath: string, base64: string) => Promise<void>)
-            | undefined;
-          // В OPFS у билдера есть и свои каталоги (рабочие копии, кэш сборки): зеркалится
-          // только то, что лежит в каталоге проекта.
-          const root = await window.__e2eDisk?.root().catch(() => null);
-          const segments = root == null ? null : await root.resolve(this);
-          if (mirror === undefined || segments == null) return;
-          const bytes = new Uint8Array(await (await this.getFile()).arrayBuffer());
-          let binary = '';
-          for (const byte of bytes) binary += String.fromCharCode(byte);
-          await mirror(segments.join('/'), btoa(binary));
+    await this.hostPage.addInitScript(
+      ({ binding, previewFrame }) => {
+        // Документов на странице три, и пишут в проект два: билдер в своей рамке и сам тест
+        // из верхнего документа (правка «в IDE»). Рамка превью — приложение, оно в проект не пишет.
+        if (window.name === previewFrame) return;
+        const createWritable = FileSystemFileHandle.prototype.createWritable;
+        FileSystemFileHandle.prototype.createWritable = async function (
+          this: FileSystemFileHandle,
+          ...options
+        ) {
+          const stream = await createWritable.apply(this, options);
+          const close = stream.close.bind(stream);
+          stream.close = async () => {
+            await close();
+            const mirror = (window as unknown as Record<string, unknown>)[binding] as
+              | ((filePath: string, base64: string) => Promise<void>)
+              | undefined;
+            // В OPFS у билдера есть и свои каталоги (рабочие копии, кэш сборки): зеркалится
+            // только то, что лежит в каталоге проекта.
+            const root = await window.__e2eDisk?.root().catch(() => null);
+            const segments = root == null ? null : await root.resolve(this);
+            if (mirror === undefined || segments == null) return;
+            const bytes = new Uint8Array(await (await this.getFile()).arrayBuffer());
+            let binary = '';
+            for (const byte of bytes) binary += String.fromCharCode(byte);
+            await mirror(segments.join('/'), btoa(binary));
+          };
+          return stream;
         };
-        return stream;
-      };
-    }, MIRROR_BINDING);
+      },
+      { binding: MIRROR_BINDING, previewFrame: PREVIEW_FRAME_NAME }
+    );
   }
 
   /** Кладёт на «диск» приложение-образец — тот же набор файлов, что в копии под сервером. */
@@ -124,6 +131,17 @@ export class HostDisk extends PlaygroundDisk {
   /** Текст файла в копии на настоящем диске — то, что читает dev-сервер приложения. */
   readServed(filePath: string): string {
     return readFileSync(path.join(HOST_E2E_DIR, filePath), 'utf8');
+  }
+
+  /**
+   * Пишет файл в копию на настоящем диске мимо билдера — то, что dev-сервер читает сам
+   * (конфиг запуска). Файл возвращается на место вместе с остальными тронутыми.
+   */
+  writeServed(filePath: string, text: string): void {
+    const target = path.join(HOST_E2E_DIR, filePath);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, text);
+    this.touched.add(filePath);
   }
 
   /**

@@ -18,7 +18,8 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  *   plugins/<домен>/<п>/   плагин             → контракт плагина и свой каталог
  *   shell/boot/            сборка оболочки    → всё, КРОМЕ состава приложения и оболочек
  *   shell/standalone/      оболочка «вкладка» → сборка и платформа; не состав и не соседняя оболочка
- *   shell/embedded/        оболочка «в чужом приложении» → то же самое
+ *   shell/embedded/        билдер рядом с приложением → то же самое, плюс договор с клиентом
+ *   client/                клиент в документе приложения → только React и свой каталог
  *   application/           состав приложения  → всё
  *
  * ОГРАНИЧЕНИЕ реализации: правила ловят импорты через псевдоним `@/…` и глубокие относительные
@@ -75,6 +76,37 @@ const denyEmbeddedShell = [
   {
     group: ['@/shell/embedded/*', '@/shell/embedded'],
     message: 'Встроенную оболочку знает только вход библиотеки: общее лежит в shell/boot',
+  },
+];
+
+/**
+ * Клиент билдера живёт в ЧУЖОМ документе и собирается чужим сборщиком.
+ *
+ * `client/` — то, что приложение импортирует из `@reformer/builder`: кнопка, рамка и стенд
+ * формы. Компилирует его сборщик приложения своими настройками, поэтому в нём нет ничего,
+ * кроме React: ни псевдонима `@`, ни пакетов билдера, ни `react-dom` (корень React у приложения
+ * свой). Один импорт внутрь билдера вернул бы приложению всё, от чего рамка его избавила, —
+ * псевдонимы, Tailwind и сборки пакетов.
+ *
+ * В обратную сторону клиента знает только `shell/embedded`: адреса и имена рамок — договор двух
+ * сторон, и объявлен он у клиента, потому что импортировать может только билдер.
+ */
+const denyFromClient = [
+  { group: ['@/*'], message: 'Клиент не импортирует билдер: его собирает приложение' },
+  {
+    group: ['@reformer/*'],
+    message: 'Клиент не тянет в приложение пакеты билдера: только React',
+  },
+  {
+    group: ['react-dom', 'react-dom/*'],
+    message: 'Корень React у приложения свой: клиент рисует в его дереве',
+  },
+  { group: ['../*'], message: 'Клиент импортирует только своих соседей' },
+];
+const denyClient = [
+  {
+    group: ['@/client/*', '@/client'],
+    message: 'Клиент в документе приложения знает только shell/embedded: это их договор',
   },
 ];
 
@@ -138,6 +170,7 @@ export default defineConfig([
             ...denyFromPlatform,
             ...denyStandaloneShell,
             ...denyEmbeddedShell,
+            ...denyClient,
             ...denyApplication,
           ],
         },
@@ -151,14 +184,24 @@ export default defineConfig([
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [...denyStandaloneShell, ...denyEmbeddedShell, ...denyApplication] },
+        {
+          patterns: [
+            ...denyStandaloneShell,
+            ...denyEmbeddedShell,
+            ...denyClient,
+            ...denyApplication,
+          ],
+        },
       ],
     },
   },
   {
     files: ['src/shell/standalone/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [...denyEmbeddedShell, ...denyApplication] }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...denyEmbeddedShell, ...denyClient, ...denyApplication] },
+      ],
     },
   },
   {
@@ -181,6 +224,12 @@ export default defineConfig([
   {
     files: ['src/plugins/**/*.{ts,tsx}'],
     rules: { 'no-restricted-imports': ['error', { patterns: denyFromPlugins }] },
+  },
+  {
+    // Тесты клиента — не клиент: их собирает билдер, и стенд отрисовки они берут у него.
+    files: ['src/client/**/*.{ts,tsx}'],
+    ignores: ['src/client/**/*.test.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { patterns: denyFromClient }] },
   },
   {
     // `application/` — композиция, и ей можно всё: `@/shell`, `@/plugins` и оба входа пакета

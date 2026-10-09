@@ -1,15 +1,21 @@
 /**
- * Панель превью: рамка, в которой форму или страницу рисует само запущенное приложение.
+ * Панель превью: рамка, в которой запущенное приложение показано целиком.
  *
  * ## Рамка, а не отрисовка здесь
  *
- * Билдер, встроенный в приложение, его устройства не знает: реестр, API и провайдеры формы
- * есть только у приложения. Поэтому панель ничего не рисует сама — она открывает адрес
- * приложения в рамке. У формы там настоящие стили и настоящая область просмотра, а стили
- * билдера в рамку не попадают вовсе: это отдельный документ.
+ * Билдер, встроенный в приложение, его устройства не знает: маршруты, API и провайдеры есть
+ * только у приложения. Поэтому панель ничего не рисует сама — она открывает адрес приложения
+ * в рамке, и стили билдера в неё не попадают вовсе: это отдельный документ.
  *
  * Рамка названа именем из контракта (`APP_PREVIEW_FRAME_NAME`): по нему компонент билдера
  * в приложении узнаёт, что открыт в превью, и не показывает кнопку билдера внутри самого себя.
+ *
+ * ## Здесь приложение, а форма — во вкладке
+ *
+ * Одну форму показывает вид «Форма» открытой вкладки (`../form-surface`), как и в билдере без
+ * приложения. Панели остаётся страница целиком: по ней ходят адресной строкой, чтобы увидеть
+ * форму на её месте, среди остального приложения. Переключателя «форма / приложение» поэтому
+ * нет — это были два ответа на разные вопросы в одном месте.
  *
  * ## После записи рамка перезагружается
  *
@@ -17,12 +23,6 @@
  * сохраняет — правка схемы приехала бы, а форма осталась прежней. Перезагрузка рамки показывает
  * то, что записано, наверняка. Делается она с задержкой: dev-сервер приложения замечает запись
  * не мгновенно.
- *
- * ## Режим — в шапке дока
- *
- * Переключатель «форма / приложение» стоит в шапке дока (`PreviewModeSwitch`), а её рисует
- * оболочка. Поэтому режим панель не хранит, а читает из общего хранилища плагина. Над рамкой
- * остаётся одна строка — адрес и действия над тем, что по нему открыто.
  *
  * ## Свои стили — встроенные
  *
@@ -43,36 +43,14 @@ import {
 } from 'react';
 import {
   APP_PREVIEW_FRAME_NAME,
-  useActiveDocument,
   useTranslate,
   type AppPreviewService,
-  type DocumentsService,
   type PluginI18n,
-  type ResourceId,
-  type WorkspaceFilesService,
 } from '@reformer/builder-plugin-api';
-import {
-  FORM_MODULE_NAME,
-  formModulePath,
-  previewTarget,
-  RELOAD_DELAY_MS,
-  resolveAddress,
-  type PreviewModeStore,
-} from '../model';
-import { usePreviewMode } from './usePreviewMode';
-
-/** Модуль формы на экране: каталог, где он найден, и путь от корня проекта. */
-interface ShownModule {
-  readonly directory: ResourceId;
-  readonly path: string;
-}
+import { RELOAD_DELAY_MS, resolveAddress } from '../model';
 
 export interface PreviewPanelProps {
-  readonly preview: AppPreviewService;
-  readonly documents: Pick<DocumentsService, 'activeResource' | 'onDidChange'>;
-  readonly files: Pick<WorkspaceFilesService, 'parentOf' | 'list'>;
-  /** Режим превью: его переключают в шапке дока, а панель показывает. */
-  readonly mode: PreviewModeStore;
+  readonly preview: Pick<AppPreviewService, 'pageUrl' | 'onDidWriteSource'>;
   readonly i18n: Pick<PluginI18n, 'locale' | 't' | 'onDidChangeLocale'>;
   /** Открыть адрес в новой вкладке. Параметр ради тестов. */
   readonly openTab?: (url: string) => void;
@@ -135,15 +113,6 @@ const FRAME: CSSProperties = {
   border: 0,
   background: '#fff',
 };
-const EMPTY: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100%',
-  padding: 16,
-  textAlign: 'center',
-  color: 'var(--muted-foreground)',
-};
 
 const defaultOpenTab = (url: string): void => {
   // Без связи с открывшим окном: новая вкладка не наследует режим билдера и показывает
@@ -152,12 +121,10 @@ const defaultOpenTab = (url: string): void => {
 };
 
 export function PreviewPanel(props: PreviewPanelProps): ReactElement {
-  const { preview, documents, files } = props;
+  const { preview } = props;
   const t = useTranslate(props.i18n);
-  const active = useActiveDocument(documents);
   const reloadDelay = props.reloadDelayMs ?? RELOAD_DELAY_MS;
 
-  const mode = usePreviewMode(props.mode);
   // Адрес страницы читается один раз: дальше человек ходит по приложению сам.
   const [address, setAddress] = useState(() => preview.pageUrl());
   const [draft, setDraft] = useState(address);
@@ -165,54 +132,10 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
   /** Смена значения перезагружает рамку: она монтируется заново. */
   const [generation, setGeneration] = useState(0);
   /**
-   * Модуль формы, который показывает режим «форма».
-   *
-   * Он НЕ обязан лежать рядом с открытым файлом. Форму правят не только в её каталоге: сервис,
-   * из которого она берёт словарь, лежит в другом месте, и открыть его — не причина убрать
-   * форму с экрана. Поэтому форма остаётся прежней, пока у открытого файла нет своей.
-   */
-  const [shown, setShown] = useState<ShownModule | null>(null);
-  const shownNow = useRef<ShownModule | null>(null);
-  /**
    * Где приложение в рамке находится СЕЙЧАС. Человек ходит по нему сам, и перезагрузка обязана
    * вернуть его туда же, а не на адрес, с которого рамка открылась.
    */
   const currentPage = useRef(address);
-
-  // Каталоги читаются заново при каждой смене файла и после каждой записи: модуль формы мог
-  // появиться — его только что напечатал кодоген — или исчезнуть.
-  const [writes, setWrites] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
-    const show = (next: ShownModule | null): void => {
-      shownNow.current = next;
-      setShown(next);
-    };
-    const moduleIn = async (directory: ResourceId): Promise<string | null> =>
-      // Каталог не прочитался (проект закрыли, каталог удалили) — модуля в нём нет.
-      formModulePath(await files.list(directory).catch(() => []));
-
-    const search = async (): Promise<void> => {
-      if (active !== null) {
-        const directory = files.parentOf(active);
-        const path = await moduleIn(directory);
-        if (cancelled) return;
-        if (path !== null) {
-          show({ directory, path });
-          return;
-        }
-      }
-      // Своего модуля у открытого файла нет — остаётся прежняя форма, если она ещё на месте.
-      const previous = shownNow.current;
-      if (previous === null) return;
-      const path = await moduleIn(previous.directory);
-      if (!cancelled && path !== previous.path) show(null);
-    };
-    void search();
-    return () => {
-      cancelled = true;
-    };
-  }, [active, files, writes]);
 
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   /**
@@ -222,16 +145,14 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
    * без загрузки документа, и событие таких переходов не видит.
    */
   const livePage = useCallback((): string => {
-    if (mode === 'page') {
-      try {
-        const href = frameRef.current?.contentWindow?.location.href;
-        if (href !== undefined && href !== 'about:blank') currentPage.current = href;
-      } catch {
-        // Рамка ушла на другой источник — её адрес недоступен; остаётся последний известный.
-      }
+    try {
+      const href = frameRef.current?.contentWindow?.location.href;
+      if (href !== undefined && href !== 'about:blank') currentPage.current = href;
+    } catch {
+      // Рамка ушла на другой источник — её адрес недоступен; остаётся последний известный.
     }
     return currentPage.current;
-  }, [mode]);
+  }, []);
 
   const reload = useCallback(() => {
     setAddress(livePage());
@@ -241,7 +162,6 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const subscription = preview.onDidWriteSource(() => {
-      setWrites((count) => count + 1);
       // Несколько записей подряд (схема и её сайдкары) — одна перезагрузка.
       if (timer.current !== null) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
@@ -267,13 +187,11 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
     currentPage.current = resolved;
     setAddress(resolved);
     setDraft(resolved);
-    props.mode.set('page');
     setGeneration((value) => value + 1);
   };
 
-  /** Рамка загрузила страницу: в режиме «приложение» адресная строка идёт за переходами. */
+  /** Рамка загрузила страницу: адресная строка идёт за переходами по приложению. */
   const followFrame = (frame: HTMLIFrameElement): void => {
-    if (mode !== 'page') return;
     let href: string | undefined;
     try {
       href = frame.contentWindow?.location.href;
@@ -286,15 +204,6 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
     setDraft(href);
     setInvalid(false);
   };
-
-  const target = previewTarget({
-    mode,
-    pageAddress: address,
-    // Форма на экране есть и без открытого файла — та, что осталась от прежнего.
-    hasDocument: active !== null || shown !== null,
-    modulePath: shown?.path ?? null,
-    formUrl: (path) => preview.formUrl(path),
-  });
 
   return (
     <div style={PANEL} data-app-preview="panel">
@@ -335,26 +244,18 @@ export function PreviewPanel(props: PreviewPanelProps): ReactElement {
         </button>
       </form>
       <div style={BODY}>
-        {target.kind === 'frame' ? (
-          <iframe
-            // Новый ключ — новая рамка: перезагрузка не зависит от того, что внутри.
-            key={`${target.url}#${generation}`}
-            ref={frameRef}
-            name={APP_PREVIEW_FRAME_NAME}
-            title={t(mode === 'form' ? 'frame.form' : 'frame.page')}
-            src={target.url}
-            style={FRAME}
-            onLoad={(event) => {
-              followFrame(event.currentTarget);
-            }}
-          />
-        ) : (
-          <div role="status" style={EMPTY}>
-            {target.kind === 'no-document'
-              ? t('empty.noDocument')
-              : t('empty.noModule', { name: FORM_MODULE_NAME })}
-          </div>
-        )}
+        <iframe
+          // Новый ключ — новая рамка: перезагрузка не зависит от того, что внутри.
+          key={`${address}#${generation}`}
+          ref={frameRef}
+          name={APP_PREVIEW_FRAME_NAME}
+          title={t('frame.page')}
+          src={address}
+          style={FRAME}
+          onLoad={(event) => {
+            followFrame(event.currentTarget);
+          }}
+        />
       </div>
     </div>
   );

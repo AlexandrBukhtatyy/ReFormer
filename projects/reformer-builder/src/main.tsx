@@ -1,7 +1,8 @@
 import { launchFromRuntime } from './application/builder-application';
 import { boot } from './shell/boot/boot';
 import { createBrowserTabEnvironment } from './shell/boot/environment';
-import { fetchRuntimeConfig } from './shell/boot/runtime-config';
+import { fetchRuntimeBundle } from './shell/boot/runtime-config';
+import { createEmbedding } from './shell/embedded/embedding';
 import { mountStandaloneShell } from './shell/standalone/mount';
 import {
   APPLICATION_ROOT_DIR,
@@ -20,8 +21,9 @@ import './index.css';
 // `store`/`catalog` (конфиг обязан встать до первого импорта этих модулей). В v2 такого графа
 // нет: реестры и сервисы создаются явно, а не на импорте.
 //
-// Единственное, что стоит ПЕРЕД бутом, — конфиг уровня запуска от лаунчера
-// (`.ui_builder/config.json` каталога, где сделали `npx reformer-builder`). Это не возврат
+// Единственное, что стоит ПЕРЕД бутом, — ответ сервера запуска: конфиг уровня запуска
+// (`.ui_builder/config.json` каталога, где сделали `npx reformer-builder` либо запустили
+// dev-сервер приложения с плагином билдера) и то, что сервер сообщает о себе. Это не возврат
 // старой болезни: сам boot остаётся синхронным и получает конфиг ПАРАМЕТРОМ, а ждать ответ
 // приходится потому, что дефолты темы и локали применяются регистрацией умолчаний настроек —
 // она однократная и происходит при сборке. Заход один, на localhost, и отказ (нет лаунчера —
@@ -37,8 +39,13 @@ const TRACE_FLAG = 'rb-trace';
 performance.setResourceTimingBufferSize?.(1000);
 const launchConfigRead = traceSpan('launch.config');
 
-void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, storedPreset]) => {
+void Promise.all([fetchRuntimeBundle(), readStoredPreset()]).then(([bundle, storedPreset]) => {
   launchConfigRead();
+  const runtime = bundle.config;
+  // Билдер отдаёт dev-сервер приложения — значит, рядом есть приложение и источник у них общий.
+  // Вход один на оба случая: различается только окружение. Что сервер это сообщил, а не страница
+  // догадалась, — см. `RuntimeBundle.embedded`.
+  const embedding = bundle.embedded ? createEmbedding(window) : null;
   // Состав приложения приходит ОТСЮДА, а не изнутри оболочки. «Какие плагины образуют ReFormer
   // Builder» — вопрос приложения, а не механизма, который их поднимает: `boot` объявляет форму
   // композиции и получает её параметром. Знай он состав сам, второе приложение на той же оболочке
@@ -60,9 +67,9 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
       runtime,
       application,
       profileChoices,
-      // Окружение названо явно, хотя совпадает с умолчанием сборки: это вход оболочки «своя
-      // вкладка», и чей здесь документ, должно читаться из него, а не из умолчания.
-      environment: createBrowserTabEnvironment(),
+      // Окружение названо явно, хотя у вкладки оно совпадает с умолчанием сборки: чей здесь
+      // документ и чей источник, должно читаться из входа, а не из умолчания.
+      environment: embedding?.environment ?? createBrowserTabEnvironment(),
       // Плагины приложения лежат РЯДОМ СО СБОРКОЙ, в каталоге `plugins/` от её базового адреса:
       // их кладёт туда тот, кто приложение разворачивает (лаунчер, сборка для поставки, Pages).
       // Нет каталога — штатный `null`: так запускается билдер под `vite dev`, где плагины
@@ -71,6 +78,9 @@ void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, sto
         loadApplicationFiles({ baseUrl: `${import.meta.env.BASE_URL}${APPLICATION_ROOT_DIR}/` }),
     })
   );
+  // Сохранения проекта — событие для превью приложением: следить за ними начинают, когда
+  // сборка уже есть.
+  embedding?.attach(app);
   // Как рисовать и когда поднимать проект — дело оболочки «своя вкладка»; вход только соединяет
   // её с составом и говорит, что считать первым кадром.
   mountStandaloneShell({

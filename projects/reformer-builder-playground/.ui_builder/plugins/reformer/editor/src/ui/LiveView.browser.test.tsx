@@ -213,6 +213,34 @@ describe('живой вид', () => {
     }
   });
 
+  it('поверхность в чужом документе не объявляет выбранный узел «не показанным»', async () => {
+    // Так рисует форму приложение, в которое встроен билдер: рамка, внутрь которой не заглянуть.
+    const fixture = mount({ live: createFakeLivePort({ external: true }) });
+    try {
+      await vi.waitFor(() => {
+        expect(fixture.live.mounts()).toBe(1);
+      });
+
+      // Узел выбран в дереве, до перехода к форме: выделение переживает смену вида.
+      const selected = fixture.idAt(['root']);
+      fixture.registry.get(DOCUMENT)?.setSelection([selected]);
+
+      // Выделение дошло до живого вида: оно стоит в его правилах подсветки. Полоса про
+      // «не показанный» узел появлялась следом, отдельной перерисовкой, — ждём и её срок.
+      await vi.waitFor(() => {
+        const rules = [...document.querySelectorAll('style')].map((style) => style.textContent);
+        expect(rules.join(' ')).toContain(selected);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Про хит-тест сказано, и этого достаточно: узла в нашем DOM нет не потому, что он
+      // «на другом шаге», а потому, что чужой документ не виден вовсе.
+      expect(document.body.textContent).toContain('live.no-hit-test');
+      expect(document.body.textContent).not.toContain('live.offscreen');
+    } finally {
+      fixture.unmount();
+    }
+  });
+
   it('без применимой поверхности живой вид объясняет пустоту словами', async () => {
     const fixture = mount({ live: createFakeLivePort({ empty: true }) });
     try {

@@ -16,20 +16,28 @@
  * Запуск: `node scripts/collect-application-plugins.mjs` из каталога билдера, ПОСЛЕ `vite build`
  * (он очищает `dist`) и после `build:dist` пакетов плагинов.
  *
- * ## Не только рядом со сборкой билдера
+ * ## Один каталог на два набора
  *
- * Билдер, встроенный в приложение, запускает не лаунчер, а само приложение: каталог плагинов
- * оно раздаёт своей статикой, и состав у него свой — без плагинов, которыми форму рисует
- * билдер (её там рисует приложение). Поэтому и список, и каталог назначения можно назвать:
+ * Наборов плагинов приложения два: у билдера в своей вкладке и у билдера, встроенного
+ * в приложение (`application-plugins.embedded.json`). Второму не нужны рендереры — плагины,
+ * которыми форму рисует сам билдер, — зато нужен плагин «Превью приложением»: форму там рисует
+ * приложение. Превью-хост есть в обоих: он не рисует, а выбирает, чем. Различаются наборы
+ * парой плагинов, поэтому каталог один — их объединение, — а набор выбирает тот, кто каталог
+ * отдаёт:
+ *
+ * - лаунчер отдаёт `index.json`, записанный здесь, — в нём набор своей вкладки;
+ * - плагин dev-сервера приложения (`vite/plugin.mjs`) строит индекс сам, по второму списку.
+ *
+ * ## Свой список и свой каталог
  *
  * ```
- * node scripts/collect-application-plugins.mjs --list application-plugins.embedded.json \
- *   --out ../my-app/public/builder-plugins
+ * node scripts/collect-application-plugins.mjs --list my-plugins.json --out ../somewhere/plugins
  * ```
  *
- * `--list` — путь от текущего каталога; `root` внутри списка считается от каталога самого
- * списка. `--out` — путь от текущего каталога. С названным `--out` собранный билдер не нужен:
- * плагины кладутся не в его `dist`.
+ * Так собирают каталог под флаг `--plugins` лаунчера. С названным `--list` в каталог идёт ровно
+ * он, без второго набора. `--list` — путь от текущего каталога; `root` внутри списка считается
+ * от каталога самого списка. `--out` — путь от текущего каталога; с ним собранный билдер
+ * не нужен: плагины кладутся не в его `dist`.
  *
  * @module scripts/collect-application-plugins
  */
@@ -56,10 +64,6 @@ const argument = (name) => {
 const builderDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const listArgument = argument('--list');
 const outArgument = argument('--out');
-const listPath =
-  listArgument === undefined
-    ? join(builderDir, 'application-plugins.json')
-    : resolve(process.cwd(), listArgument);
 /** Каталог по умолчанию — рядом со сборкой билдера; названный — где угодно. */
 const besideBuilder = outArgument === undefined;
 const outDir = besideBuilder
@@ -74,34 +78,60 @@ const isDirectory = async (path) => {
   }
 };
 
-const list = JSON.parse(await readFile(listPath, 'utf8'));
-if (typeof list.root !== 'string' || !Array.isArray(list.plugins)) {
-  fail(`«${listPath}» должен называть «root» и список «plugins»`);
-}
+/**
+ * Читает список: каталоги плагинов и корень, от которого они считаются.
+ *
+ * `root` — от каталога списка, а не билдера: список может лежать где угодно, и «где плагины»
+ * он называет относительно себя.
+ */
+const readList = async (listPath) => {
+  const list = JSON.parse(await readFile(listPath, 'utf8'));
+  if (typeof list.root !== 'string' || !Array.isArray(list.plugins)) {
+    fail(`«${listPath}» должен называть «root» и список «plugins»`);
+  }
+  return { root: resolve(dirname(listPath), list.root), plugins: list.plugins };
+};
+
+/** Набор, который попадает в индекс. */
+const indexed = await readList(
+  listArgument === undefined
+    ? join(builderDir, 'application-plugins.json')
+    : resolve(process.cwd(), listArgument)
+);
+/** Набор билдера, встроенного в приложение: едет в том же каталоге, но мимо индекса. */
+const embedded =
+  listArgument === undefined
+    ? await readList(join(builderDir, 'application-plugins.embedded.json'))
+    : { root: indexed.root, plugins: [] };
+
 if (besideBuilder && !(await isDirectory(join(builderDir, 'dist')))) {
   fail('нет dist/ билдера — сначала соберите его (npm run build)');
 }
 
-// От каталога списка, а не билдера: список встроенного состава может лежать где угодно,
-// и «где плагины» он называет относительно себя.
-const root = resolve(dirname(listPath), list.root);
+/** Каталог плагина → его сборка для поставки. Плагин, названный обоими списками, — один. */
+const builds = new Map();
+for (const { root, plugins } of [indexed, embedded]) {
+  for (const plugin of plugins) builds.set(plugin, join(root, plugin, 'dist'));
+}
+
 // Каталог пересобирается целиком: плагин, убранный из списка, не должен остаться в поставке.
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 
-for (const plugin of list.plugins) {
-  const built = join(root, plugin, 'dist');
+for (const [plugin, built] of builds) {
   if (!(await isDirectory(built))) {
     fail(
       `плагин «${plugin}» не собран для поставки: нет «${built}».\n` +
-        `  Соберите: npm run build:dist -w ${join(root, plugin)}`
+        `  Соберите: npm run build:dist -w ${dirname(built)}`
     );
   }
   await cp(built, join(outDir, plugin), { recursive: true });
 }
 
-const index = await buildPluginsIndex(outDir);
+const index = await buildPluginsIndex(outDir, { include: indexed.plugins });
 await writeFile(join(outDir, PLUGINS_INDEX_FILE), `${JSON.stringify(index, null, 2)}\n`);
+const beside = builds.size - indexed.plugins.length;
 console.log(
-  `✓ плагины приложения: ${list.plugins.length} шт., файлов ${index.files.length} → ${outDir}`
+  `✓ плагины приложения: ${indexed.plugins.length} шт., файлов ${index.files.length} → ${outDir}` +
+    (beside > 0 ? `\n  и ещё ${beside} — только для билдера, встроенного в приложение` : '')
 );

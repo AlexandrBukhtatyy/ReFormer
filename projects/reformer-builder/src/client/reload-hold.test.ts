@@ -5,7 +5,7 @@
  * Проверяется решение: какая перезагрузка останавливается, какая проходит, и что отложенная
  * выполняется ровно один раз — при выключении режима.
  *
- * @module shell/embedded/reload-hold.test
+ * @module client/reload-hold.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

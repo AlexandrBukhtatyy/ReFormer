@@ -9,4 +9,5 @@
  */
 
 export { APP_PREVIEW_PANEL_ID, APP_PREVIEW_PLUGIN_ID, createAppPreviewPlugin } from './plugin';
+export { APP_FORM_SURFACE_ID } from './form-surface';
 export { APP_PREVIEW_MESSAGES } from './messages';

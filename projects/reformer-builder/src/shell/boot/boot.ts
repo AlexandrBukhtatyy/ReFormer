@@ -76,9 +76,13 @@ import {
 } from '@/shell/platform/plugin/npm/registry';
 import { createMarketplaceClient } from '@/shell/platform/plugin/marketplace/registry';
 import { updateRows } from '@/shell/boot/settings/plugins-tabs';
-import { createPluginLoader, type PluginFilesSource } from '@/shell/platform/plugin/loader';
+import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import { createApplicationPluginCatalog } from '@/shell/platform/plugin/application/catalog';
-import { APPLICATION_ROOT_DIR } from '@/shell/platform/plugin/application/files';
+import {
+  APPLICATION_ROOT_DIR,
+  type ApplicationFilesSource,
+} from '@/shell/platform/plugin/application/files';
+import { createApplicationPluginsWatch } from '@/shell/platform/plugin/application/live';
 import {
   launchOnlyProblems,
   mergeRuntimeConfig,
@@ -406,7 +410,7 @@ export interface BootOptions {
    * синхронен: ответ читается внутри {@link BuilderApp.ready}, сразу за встроенными плагинами.
    * Откуда его читать, решает `main.tsx`: оболочка знает форму слоя, а не его адрес.
    */
-  readonly applicationPluginFiles?: () => Promise<PluginFilesSource | null>;
+  readonly applicationPluginFiles?: () => Promise<ApplicationFilesSource | null>;
   /**
    * Место, где запущена сборка: что ей позволено делать с документом и источником
    * (`./environment`). Без значения — своя вкладка браузера, как было всегда.
@@ -803,7 +807,7 @@ export function boot(options: BootOptions): BuilderApp {
   //     до открытия проекта и для любого проекта. Каталог тот же, что у проекта, политика
   //     своя (`platform/plugin/application/catalog`). Здесь он только создаётся: файлы слоя
   //     читаются по сети внутри `ready`, сразу за встроенными плагинами.
-  let applicationFiles: PluginFilesSource | null = null;
+  let applicationFiles: ApplicationFilesSource | null = null;
   const applicationPlugins = createApplicationPluginCatalog({
     loader: createPluginLoader({
       source: () => applicationFiles,
@@ -813,6 +817,10 @@ export function boot(options: BootOptions): BuilderApp {
       warmNamed: pluginModules.warmNamed,
       // Файлы слоя лежат рядом с приложением и под работающим плагином не меняются: читать
       // их можно по графу сборки — точку входа сразу, остальное по отложенному импорту.
+      // У живого каталога это верно с оговоркой: между пересборкой плагина и его
+      // перезагрузкой (`applicationWatch` ниже) отложенный импорт может не найти файла.
+      // Окно сужает дочитка — при запуске в простое, после перезагрузки сразу, — а отказ
+      // в нём — обычный `onLazyError`.
       onDemand: true,
       // Отложенный импорт не удался и после повторов: плагин работает дальше, но человек
       // должен узнать, почему вкладка пуста, — код плагина вправе отказ проглотить.
@@ -1074,6 +1082,23 @@ export function boot(options: BootOptions): BuilderApp {
     catalog: projectPlugins,
     source: () => project.get()?.source ?? null,
     events,
+    window,
+    document,
+  });
+
+  /**
+   * Наблюдатель ЖИВОГО слоя плагинов приложения: каталог, который сервер разработки отдаёт
+   * с диска, пересобирают под работающим приложением, и пересобранный плагин перезагружается
+   * по возврату фокуса. У слоя, положенного рядом со сборкой, ревизий нет — тогда каждый шаг
+   * наблюдателя холостой и в сеть не ходит.
+   */
+  const applicationWatch = createApplicationPluginsWatch({
+    current: () => applicationFiles,
+    load: async () => (await options.applicationPluginFiles?.()) ?? null,
+    replace: (files) => {
+      applicationFiles = files;
+    },
+    catalog: applicationPlugins.catalog,
     window,
     document,
   });
@@ -1357,6 +1382,7 @@ export function boot(options: BootOptions): BuilderApp {
     dispose() {
       projectPluginsSubscription.dispose();
       devWatch.dispose();
+      applicationWatch.dispose();
       focusSubscription.dispose();
       focusChecks?.dispose();
       projectPlugins.dispose();

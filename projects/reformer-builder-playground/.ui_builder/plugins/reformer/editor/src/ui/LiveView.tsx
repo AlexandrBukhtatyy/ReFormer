@@ -402,7 +402,10 @@ export function LiveView({
 
   useEffect(() => {
     const surface = mountPoint.current;
-    if (surface === null || active === null) {
+    // Поверхность, чей документ нам не виден (форма в рамке приложения), узлов в нашем DOM
+    // не оставляет вовсе: «узел не показан» было бы там неправдой про каждый выбранный узел.
+    // Почему подсветки нет, уже сказала полоса про хит-тест.
+    if (surface === null || active === null || !selectable) {
       setOffscreen(false);
       return;
     }
@@ -417,7 +420,7 @@ export function LiveView({
     // `nearest` не двигает уже видимое: выбор в дереве обязан показать узел, но щелчок
     // по самой форме не должен дёргать её под курсором.
     element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [active, state.model]);
+  }, [active, selectable, state.model]);
 
   /** Поставить ручку к активному узлу либо спрятать, если его на экране нет. */
   const syncGrip = useCallback(() => {

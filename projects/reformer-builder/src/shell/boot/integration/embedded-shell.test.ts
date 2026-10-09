@@ -1,12 +1,16 @@
 /**
- * Сборка в окружении «страница чужого приложения»: билдер поднимается гостем.
+ * Сборка рядом с приложением: что билдер делает и чего НЕ делает с документом и источником.
  *
- * Сборка одна на обе оболочки, и отличие встроенной — в том, чего она НЕ делает с документом
- * и источником приложения. Проверяется поимённо, а не «окружение передано»: каждое из этих
- * действий в чужом приложении — порча, и молча вернуться оно может одной строкой в `boot`.
+ * Сборка одна на все места запуска, различается окружение. Проверяется поимённо, а не
+ * «окружение передано»: каждое из этих действий в чужом приложении — порча, и молча вернуться
+ * оно может одной строкой в `boot`.
  *
- * Рядом — тот же `boot` без окружения: умолчание обязано остаться вкладкой браузера, иначе
- * десяток вызывающих (тесты сборки, домены-плагины) тихо получили бы гостя вместо хозяина.
+ * Мест два:
+ *
+ * - **рядом с приложением** — свой документ (рамка или вкладка), общий источник: билдер
+ *   хозяин документа, но хранилище источника не сносит и знает адреса приложения;
+ * - **без названного окружения** — своя вкладка браузера. Умолчание обязано остаться ею, иначе
+ *   десяток вызывающих (тесты сборки, домены-плагины) тихо получили бы другое окружение.
  *
  * @module shell/boot/integration/embedded-shell.test
  */
@@ -15,8 +19,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
 import { defineProfile } from '@/application/profiles/profile';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
-import { createEmbeddedEnvironment } from '@/shell/embedded/environment';
-import { createAppPreviewService, createSourceWriteSignal } from '@/shell/embedded/preview-address';
+import {
+  appLocationOf,
+  createEmbedding,
+  followProjectSaves,
+  type EmbeddingWindow,
+} from '@/shell/embedded/embedding';
 import {
   AppPreviewCapability,
   ApplicationProfilesServiceToken,
@@ -59,18 +67,6 @@ function stubBrowser(): DocumentDouble {
   return documentDouble;
 }
 
-const appPreview = createAppPreviewService(
-  () => ({ origin: 'http://localhost:5173', pathname: '/contacts', search: '', hash: '' }),
-  createSourceWriteSignal()
-);
-
-/** Корень темы, который ничего не трогает и помнит, о чём его просили. */
-function recordingThemeRoot(): {
-  readonly classList: { add(token: string): void; remove(token: string): void };
-} {
-  return { classList: { add: () => {}, remove: () => {} } };
-}
-
 let app: BuilderApp | null = null;
 
 afterEach(() => {
@@ -102,8 +98,31 @@ async function askFromPlugin(started: BuilderApp): Promise<{
   return { preview, profiles };
 }
 
-describe('сборка на странице чужого приложения', () => {
-  function startEmbedded(): { readonly started: BuilderApp; readonly page: DocumentDouble } {
+const ORIGIN = 'http://localhost:5175';
+const BUILDER_PATH = '/__reformer-builder/';
+
+/** Окно билдера в рамке: у страницы-хозяина свой адрес, и по ней ходят. */
+function framedWindow(host: { pathname: string; search?: string }): EmbeddingWindow {
+  const parent = {
+    location: { origin: ORIGIN, pathname: host.pathname, search: host.search ?? '', hash: '' },
+  } as EmbeddingWindow;
+  return { location: { origin: ORIGIN, pathname: BUILDER_PATH, search: '', hash: '' }, parent };
+}
+
+/** Окно билдера, открытого вкладкой: рамки нет, окно само себе родитель. */
+function tabWindow(): EmbeddingWindow {
+  const win = {
+    location: { origin: ORIGIN, pathname: BUILDER_PATH, search: '', hash: '' },
+  } as { location: EmbeddingWindow['location']; parent: EmbeddingWindow };
+  win.parent = win;
+  return win;
+}
+
+describe('сборка рядом с приложением', () => {
+  function startBeside(win: EmbeddingWindow = framedWindow({ pathname: '/contacts' })): {
+    readonly started: BuilderApp;
+    readonly page: DocumentDouble;
+  } {
     const page = stubBrowser();
     app = boot({
       application,
@@ -115,45 +134,153 @@ describe('сборка на странице чужого приложения',
         launch: minimalProfile,
         offered: [minimalProfile, { id: 'other', name: 'Другой' }],
       },
-      environment: createEmbeddedEnvironment({ themeRoot: recordingThemeRoot(), appPreview }),
+      environment: createEmbedding(win).environment,
     });
     return { started: app, page };
   }
 
-  it('заголовок страницы остаётся заголовком приложения, даже если конфиг называет свой', async () => {
-    const { started, page } = startEmbedded();
+  it('документ у билдера свой: заголовок и тема — его', async () => {
+    const { started, page } = startBeside();
     await started.ready;
 
-    expect(page.title).toBe('Приложение-хозяин');
-  });
-
-  it('класс темы на корень документа не ставится: тему применяет тот, кто дал корень', async () => {
-    const { started, page } = startEmbedded();
-    await started.ready;
-
-    expect([...page.themeClasses]).toEqual([]);
+    expect(page.title).toBe('Мой билдер');
+    expect([...page.themeClasses]).toEqual(['dark']);
   });
 
   it('очистки хранилища нет: источник общий с приложением', async () => {
-    const { started } = startEmbedded();
+    const { started } = startBeside();
     await started.ready;
 
     expect(started.storage).toBeUndefined();
   });
 
-  it('выбор профиля не предлагается: применить его без перезагрузки страницы нечем', async () => {
-    const { started } = startEmbedded();
+  it('выбор профиля предлагается: перезагрузить свой документ билдер вправе', async () => {
+    const { started } = startBeside();
     const { profiles } = await askFromPlugin(started);
 
-    expect(profiles?.offered()).toEqual([]);
+    expect(profiles?.offered().map((profile) => profile.id)).toEqual(['minimal', 'other']);
   });
 
-  it('плагин находит возможность «превью приложением» и получает адреса приложения', async () => {
-    const { started } = startEmbedded();
+  it('в рамке адреса превью — страницы, поверх которой билдер открыт', async () => {
+    const { started } = startBeside(framedWindow({ pathname: '/contacts', search: '?tab=open' }));
     const { preview } = await askFromPlugin(started);
 
-    expect(preview?.pageUrl()).toBe('http://localhost:5173/contacts');
+    expect(preview?.pageUrl()).toBe(`${ORIGIN}/contacts?tab=open`);
     expect(preview?.formUrl('src/forms/contact/index.tsx')).toContain('/contacts?');
+  });
+
+  it('вкладкой с того же адреса превью — корень приложения, а не адрес самого билдера', async () => {
+    const { started } = startBeside(tabWindow());
+    const { preview } = await askFromPlugin(started);
+
+    expect(preview?.pageUrl()).toBe(`${ORIGIN}/`);
+  });
+});
+
+describe('где приложение', () => {
+  it('адрес страницы-хозяина читается в момент вопроса: по приложению ходят', () => {
+    const win = framedWindow({ pathname: '/contacts' });
+    const location = appLocationOf(win);
+    expect(location().pathname).toBe('/contacts');
+
+    (win.parent.location as { pathname: string }).pathname = '/orders';
+
+    expect(location().pathname).toBe('/orders');
+  });
+
+  it('рамку держит страница другого источника — приложением считается корень своего', () => {
+    const win = {
+      location: { origin: ORIGIN, pathname: BUILDER_PATH, search: '', hash: '' },
+      parent: {
+        get location(): never {
+          throw new Error('Blocked a frame with origin');
+        },
+      },
+    } as unknown as EmbeddingWindow;
+
+    expect(appLocationOf(win)()).toEqual({ origin: ORIGIN, pathname: '/', search: '', hash: '' });
+  });
+});
+
+describe('сохранения проекта — событие для превью', () => {
+  interface Change {
+    readonly type: string;
+  }
+  type Listener = (event: { readonly changes: readonly Change[] }) => void;
+  interface OpenedWorkspace {
+    readonly listeners: Set<Listener>;
+    emit(changes: readonly Change[]): void;
+  }
+
+  /** Проект в объёме, который нужен слежению: сессия с рабочей областью и её смена. */
+  function projectDouble(): {
+    readonly project: Pick<BuilderApp, 'project'>;
+    readonly projectListeners: Set<() => void>;
+    open(): OpenedWorkspace;
+  } {
+    const projectListeners = new Set<() => void>();
+    let session: unknown = null;
+    return {
+      projectListeners,
+      project: {
+        project: {
+          get: () => session,
+          subscribe: (listener: () => void) => {
+            projectListeners.add(listener);
+            return { dispose: () => projectListeners.delete(listener) };
+          },
+        },
+      } as unknown as Pick<BuilderApp, 'project'>,
+      open() {
+        const listeners = new Set<Listener>();
+        session = {
+          workspace: {
+            onDidChange: (cb: Listener) => {
+              listeners.add(cb);
+              return { dispose: () => listeners.delete(cb) };
+            },
+          },
+        };
+        for (const listener of [...projectListeners]) listener();
+        return {
+          listeners,
+          emit: (changes) => {
+            for (const listener of [...listeners]) listener({ changes });
+          },
+        };
+      },
+    };
+  }
+
+  it('сохранение сообщается, прочие перемены рабочей области — нет', () => {
+    const { project, open } = projectDouble();
+    const emit = vi.fn();
+    followProjectSaves(project, { emit });
+    const workspace = open();
+
+    workspace.emit([{ type: 'changed' }]);
+    expect(emit).not.toHaveBeenCalled();
+
+    workspace.emit([{ type: 'changed' }, { type: 'saved' }]);
+    expect(emit).toHaveBeenCalledTimes(1);
+  });
+
+  it('подписка переезжает вместе с проектом и снимается целиком', () => {
+    const { project, open, projectListeners } = projectDouble();
+    const emit = vi.fn();
+    const following = followProjectSaves(project, { emit });
+    const first = open();
+    const second = open();
+
+    // Прежняя рабочая область больше не слушается.
+    expect(first.listeners.size).toBe(0);
+    second.emit([{ type: 'saved' }]);
+    expect(emit).toHaveBeenCalledTimes(1);
+
+    following.dispose();
+
+    expect(second.listeners.size).toBe(0);
+    expect(projectListeners.size).toBe(0);
   });
 });
 

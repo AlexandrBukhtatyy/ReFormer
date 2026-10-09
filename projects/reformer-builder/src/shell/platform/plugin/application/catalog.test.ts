@@ -441,7 +441,7 @@ describe('предзагрузка: файлы читаются разом, вк
   });
 
   it('плагин с неподтверждёнными правами не читается, пока человек не ответил', async () => {
-    let answer = (_agreed: boolean): void => {};
+    let answer: (agreed: boolean) => void = () => {};
     const asked = new Promise<boolean>((resolve) => (answer = resolve));
     const { catalog, log } = loggingStand(
       {

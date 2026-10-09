@@ -32,46 +32,23 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { extname, join, normalize, resolve, sep } from 'node:path';
-import { buildPluginsIndex, PLUGINS_INDEX_FILE } from './plugins-index.mjs';
+import { join, resolve } from 'node:path';
+import { createRevisionMemo } from './plugins-index.mjs';
+import { PLUGINS_URL_PREFIX, servePluginsDir } from './plugins-serve.mjs';
+import {
+  DEFAULT_CONFIG_FILE,
+  readConfigFile,
+  RUNTIME_BUNDLE_URL,
+  runtimeBundleBody,
+} from './runtime-bundle.mjs';
+import { createStaticHandler, sendJson, trimTrailingSeparators } from './static.mjs';
 
-/** URL, по которому SPA забирает конфиг (совпадает с RUNTIME_BUNDLE_PATH в shell/boot/runtime-config). */
-export const RUNTIME_BUNDLE_URL = '/__reformer-builder/runtime.json';
+// Адреса — общие с плагином Vite, поэтому объявлены в соседних модулях; отсюда они видны тем,
+// кто сверяет лаунчер с SPA (`shell/boot/launcher.test`).
+export { PLUGINS_URL_PREFIX, RUNTIME_BUNDLE_URL };
 
-/**
- * Адрес каталога плагинов приложения (каталог — APPLICATION_ROOT_DIR из
- * shell/platform/plugin/application/files): SPA читает оттуда индекс и файлы плагинов.
- */
-export const PLUGINS_URL_PREFIX = '/plugins/';
-
-/** Путь авто-детекта конфига в cwd, если флаг `--config` не задан. */
-const DEFAULT_CONFIG_FILE = join('.ui_builder', 'config.json');
-
-// Без хвостового разделителя: иначе `distDir + sep` даёт двойной слэш и проверка
-// границы каталога в resolveFsPath() никогда не совпадает (все запросы → 400).
-const distDir = fileURLToPath(new URL('../dist/', import.meta.url)).replace(/[\\/]+$/, '');
+const distDir = trimTrailingSeparators(fileURLToPath(new URL('../dist/', import.meta.url)));
 const pkgUrl = new URL('../package.json', import.meta.url);
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.ttf': 'font/ttf',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.wasm': 'application/wasm',
-  '.map': 'application/json; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
-};
 
 async function readVersion() {
   try {
@@ -88,22 +65,17 @@ async function readVersion() {
  * к использованию, и молча проигнорировать его значило бы обмануть положившего.
  */
 async function readRuntimeFile(path, { explicit }) {
-  let text;
-  try {
-    text = await readFile(path, 'utf8');
-  } catch (err) {
-    if (explicit) {
-      console.error(`reformer-builder: не удалось прочитать конфиг "${path}": ${err.message}`);
-      process.exit(1);
-    }
-    return null;
-  }
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    console.error(`reformer-builder: невалидный JSON в конфиге "${path}": ${err.message}`);
+  const result = await readConfigFile(path);
+  if (result.ok) return result.config;
+  if (result.reason === 'invalid') {
+    console.error(`reformer-builder: невалидный JSON в конфиге "${path}": ${result.message}`);
     process.exit(1);
   }
+  if (explicit) {
+    console.error(`reformer-builder: не удалось прочитать конфиг "${path}": ${result.message}`);
+    process.exit(1);
+  }
+  return null;
 }
 
 /**
@@ -206,110 +178,14 @@ function openBrowser(url) {
   }
 }
 
-/** Резолв запрошенного пути в файл внутри каталога с защитой от path-traversal. */
-function resolveFsPath(pathname, rootDir = distDir) {
-  let decoded;
-  try {
-    decoded = decodeURIComponent(pathname);
-  } catch {
-    return null;
-  }
-  const rel = normalize(decoded).replace(/^(\.\.(\/|\\|$))+/, '');
-  const full = join(rootDir, rel);
-  if (full !== rootDir && !full.startsWith(rootDir + sep)) return null;
-  return full;
-}
-
-/**
- * Чанки оболочки: Vite кладёт их в `assets/` под именем с хэшем содержимого, поэтому под одним
- * именем содержимое не меняется никогда — браузер вправе не спрашивать о них вовсе.
- */
-const IMMUTABLE_URL_PREFIX = '/assets/';
-const CACHE_REVALIDATE = 'no-cache';
-const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
-
-/**
- * Метка версии файла — размер и время изменения.
- *
- * Не хэш содержимого: ради него файл пришлось бы прочитать, а метка нужна именно затем, чтобы
- * НЕ читать. Совпадение размера в пределах одной отметки времени у изменившегося файла на
- * нынешних файловых системах не встречается.
- */
-function etagOf(info) {
-  return `"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
-}
-
-/** Заголовок `If-None-Match` называет эту метку: списком, слабой формой или звёздочкой. */
-function matchesEtag(header, etag) {
-  if (typeof header !== 'string' || header === '') return false;
-  return header
-    .split(',')
-    .map((item) => item.trim().replace(/^W\//, ''))
-    .some((item) => item === '*' || item === etag);
-}
-
-/**
- * Отдаёт файл — или «не изменился», если у браузера он уже есть.
- *
- * Оболочка запрашивает файлы плагинов с `cache: 'no-cache'`: каждый запуск спрашивает сервер
- * заново. Без метки версии ответом было полное тело — мегабайты на каждый запуск; с ней тот же
- * вопрос стоит одного `stat` и пустого ответа 304.
- */
-async function sendFile(req, res, filePath, options = {}) {
-  const info = await stat(filePath);
-  const etag = etagOf(info);
-  const headers = {
-    ETag: etag,
-    'Cache-Control': options.immutable === true ? CACHE_IMMUTABLE : CACHE_REVALIDATE,
-  };
-  if (matchesEtag(req.headers?.['if-none-match'], etag)) {
-    res.writeHead(304, headers);
-    res.end();
-    return;
-  }
-  const body = await readFile(filePath);
-  const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-  res.writeHead(200, { ...headers, 'Content-Type': type, 'Content-Length': body.length });
-  res.end(body);
-}
-
-/**
- * Каталог плагинов приложения, заданный флагом: индекс строится на каждый запрос, файл
- * читается с диска. Отсутствующий файл — честный 404 без SPA-fallback: страница приложения
- * вместо кода плагина исполнилась бы как код и упала бы невнятной синтаксической ошибкой.
- */
-async function servePlugins(req, res, pathname, pluginsDir) {
-  const inside = pathname.slice(PLUGINS_URL_PREFIX.length);
-  if (inside === PLUGINS_INDEX_FILE) {
-    const body = Buffer.from(JSON.stringify(await buildPluginsIndex(pluginsDir)));
-    res.writeHead(200, {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Content-Length': body.length,
-      'Cache-Control': 'no-cache',
-    });
-    res.end(req.method === 'HEAD' ? undefined : body);
-    return;
-  }
-  const target = resolveFsPath(inside, pluginsDir);
-  if (target === null) {
-    res.writeHead(400);
-    res.end('Bad Request');
-    return;
-  }
-  try {
-    if (!(await stat(target)).isFile()) throw new Error('не файл');
-    await sendFile(req, res, target);
-  } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not Found');
-  }
-}
-
-export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options = {}) {
+export function createRequestHandler(indexHtmlPath, runtimeBody, options = {}) {
   /** Каталог из `--plugins`; без него плагины приложения — обычная статика `dist/plugins`. */
   const pluginsDir = options.pluginsDir ?? null;
+  // Каталог из флага живой — его пересобирают под работающим билдером, — поэтому индекс несёт
+  // ревизии плагинов.
+  const pluginRevisions = createRevisionMemo();
   /** Корень статики. Параметр — ради тестов: собранного `dist` на машине может не быть. */
-  const rootDir = options.rootDir ?? distDir;
+  const serveStatic = createStaticHandler({ rootDir: options.rootDir ?? distDir, indexHtmlPath });
   return async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' });
@@ -319,55 +195,17 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody, options =
     const pathname = (req.url || '/').split('?')[0].split('#')[0];
     // Конфиг уровня запуска — отдаём ДО резолва static/dist.
     if (pathname === RUNTIME_BUNDLE_URL) {
-      res.writeHead(200, {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Content-Length': runtimeBundleBody.length,
-        'Cache-Control': 'no-cache',
-      });
-      res.end(req.method === 'HEAD' ? undefined : runtimeBundleBody);
+      sendJson(req, res, runtimeBody);
       return;
     }
     if (pluginsDir !== null && pathname.startsWith(PLUGINS_URL_PREFIX)) {
-      await servePlugins(req, res, pathname, pluginsDir);
+      await servePluginsDir(req, res, pathname.slice(PLUGINS_URL_PREFIX.length), {
+        dir: pluginsDir,
+        revisions: pluginRevisions,
+      });
       return;
     }
-    const target = resolveFsPath(pathname === '/' ? '/index.html' : pathname, rootDir);
-    if (target === null) {
-      res.writeHead(400);
-      res.end('Bad Request');
-      return;
-    }
-    try {
-      const info = await stat(target);
-      if (info.isDirectory()) {
-        const dirIndex = join(target, 'index.html');
-        try {
-          await stat(dirIndex);
-          await sendFile(req, res, dirIndex);
-          return;
-        } catch {
-          await sendFile(req, res, indexHtmlPath);
-          return;
-        }
-      }
-      // Навсегда кэшируется только сам файл по адресу с хэшем; `index.html` и всё прочее
-      // переспрашиваются каждый раз — иначе новая сборка не доехала бы до человека.
-      await sendFile(req, res, target, { immutable: pathname.startsWith(IMMUTABLE_URL_PREFIX) });
-    } catch {
-      // Файла нет. Реальный отсутствующий ассет (есть расширение) → 404.
-      // Навигационный маршрут (без расширения) → SPA-fallback на index.html.
-      if (extname(pathname)) {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Not Found');
-      } else {
-        try {
-          await sendFile(req, res, indexHtmlPath);
-        } catch {
-          res.writeHead(500);
-          res.end('Internal Server Error');
-        }
-      }
-    }
+    await serveStatic(req, res, pathname);
   };
 }
 
@@ -416,14 +254,11 @@ async function main() {
   }
 
   const runtime = await loadRuntimeBundle(opts, process.cwd());
-  const runtimeBundleBody = Buffer.from(JSON.stringify(runtime.payload));
+  const runtimeBody = runtimeBundleBody(runtime.payload.config);
 
-  // Без хвостового разделителя — по той же причине, что и `distDir` (проверка границы каталога).
   const pluginsDir =
-    opts.plugins === null ? null : resolve(process.cwd(), opts.plugins).replace(/[\\/]+$/, '');
-  const server = createServer(
-    createRequestHandler(indexHtmlPath, runtimeBundleBody, { pluginsDir })
-  );
+    opts.plugins === null ? null : trimTrailingSeparators(resolve(process.cwd(), opts.plugins));
+  const server = createServer(createRequestHandler(indexHtmlPath, runtimeBody, { pluginsDir }));
   let port;
   try {
     port = await listenWithFallback(server, opts.host, opts.port);

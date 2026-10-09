@@ -327,6 +327,11 @@ export interface FakeLivePortOptions {
   readonly executesCode?: boolean;
   /** Уже переведённая причина отката; `null` — выбор без отката. */
   readonly notice?: string | null;
+  /**
+   * Поверхность в ЧУЖОМ документе — как рамка, в которой форму рисует приложение: хит-теста
+   * нет, realm другой, и узлов формы в DOM живого вида она не оставляет.
+   */
+  readonly external?: boolean;
 }
 
 export function createFakeLivePort(options: FakeLivePortOptions = {}): FakeLivePort {
@@ -338,6 +343,14 @@ export function createFakeLivePort(options: FakeLivePortOptions = {}): FakeLiveP
   /** Плоский обход схемы: каждому узлу с адресом — свой элемент с токеном. */
   const draw = (element: HTMLElement, model: unknown): void => {
     element.replaceChildren();
+    if (options.external === true) {
+      // Чужой документ: в нашем DOM от формы остаётся один непрозрачный элемент.
+      const frame = element.ownerDocument.createElement('div');
+      frame.dataset.fakeSurface = 'external';
+      frame.style.cssText = 'min-height:32px;';
+      element.append(frame);
+      return;
+    }
     // Контракт отдаёт модель `unknown`: сужает её поверхность, и двойник — так же.
     const schema: JsonFormSchema | null = isFormSchema(model) ? model : null;
     if (schema === null) return;
@@ -368,8 +381,8 @@ export function createFakeLivePort(options: FakeLivePortOptions = {}): FakeLiveP
         : {
             id: 'fake.surface',
             title: 'двойник',
-            hitTest: options.hitTest ?? true,
-            sameRealm: true,
+            hitTest: options.external === true ? false : (options.hitTest ?? true),
+            sameRealm: options.external !== true,
             executesCode: options.executesCode ?? false,
             notice: options.notice ?? null,
           },

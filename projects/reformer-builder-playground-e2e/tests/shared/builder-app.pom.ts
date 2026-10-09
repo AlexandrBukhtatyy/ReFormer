@@ -11,7 +11,7 @@
  * @module tests/shared/builder-app.pom
  */
 
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
 import type { PlaygroundDisk, SeedOptions } from './playground-disk';
 
 declare global {
@@ -19,6 +19,17 @@ declare global {
     /** Тексты показанных уведомлений — пишет init-скрипт {@link BuilderApp.recordNotifications}. */
     __e2eNotifications?: string[];
   }
+}
+
+/** Где искать оболочку билдера: страница целиком либо рамка на ней. */
+export interface BuilderRoot {
+  /**
+   * Документ, в котором нарисован билдер. По умолчанию — сама страница; у билдера, встроенного
+   * в приложение, это рамка поверх страницы приложения.
+   */
+  readonly root?: Page | FrameLocator;
+  /** Имя окна этой рамки — чтобы читать значения из её документа, а не из страницы. */
+  readonly frameName?: string;
 }
 
 export class BuilderApp {
@@ -30,18 +41,22 @@ export class BuilderApp {
   readonly tabs: Locator;
   readonly statusBar: Locator;
   readonly palette: Locator;
+  private readonly frameName: string | undefined;
 
   constructor(
     readonly page: Page,
-    readonly disk: PlaygroundDisk
+    readonly disk: PlaygroundDisk,
+    where: BuilderRoot = {}
   ) {
-    this.openFolderButton = page
+    const root = where.root ?? page;
+    this.frameName = where.frameName;
+    this.openFolderButton = root
       .getByRole('main', { name: 'Редактор' })
       .getByRole('button', { name: 'Открыть папку…' });
-    this.projectTree = page.getByRole('tree', { name: 'Ресурсы проекта' });
-    this.tabs = page.getByRole('tablist', { name: 'Открытые документы' });
-    this.statusBar = page.getByRole('contentinfo', { name: 'Строка состояния' });
-    this.palette = page.getByRole('dialog', { name: 'Палитра команд' });
+    this.projectTree = root.getByRole('tree', { name: 'Ресурсы проекта' });
+    this.tabs = root.getByRole('tablist', { name: 'Открытые документы' });
+    this.statusBar = root.getByRole('contentinfo', { name: 'Строка состояния' });
+    this.palette = root.getByRole('dialog', { name: 'Палитра команд' });
   }
 
   /**
@@ -72,7 +87,13 @@ export class BuilderApp {
 
   /** Тексты всех уведомлений с последней загрузки страницы — включая уже исчезнувшие. */
   shownNotifications(): Promise<string[]> {
-    return this.page.evaluate(() => [...(window.__e2eNotifications ?? [])]);
+    // Запись ведётся в каждом документе своя: уведомления билдера — в документе билдера.
+    const frame =
+      this.frameName === undefined
+        ? this.page.mainFrame()
+        : this.page.frame({ name: this.frameName });
+    if (frame === null) return Promise.resolve([]);
+    return frame.evaluate(() => [...(window.__e2eNotifications ?? [])]);
   }
 
   /** Открывает билдер и ждёт оболочку. Проект при этом не открыт. */

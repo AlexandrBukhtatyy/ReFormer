@@ -1,12 +1,12 @@
 /**
- * Модель панели превью: какой адрес приложения открыть в рамке — и когда открывать нечего.
+ * Модель превью приложением: где лежит модуль формы и какой адрес принять из адресной строки.
  *
  * @module plugins/base/app-preview/model.test
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { ResourceRef } from '@reformer/builder-plugin-api';
-import { createPreviewModeStore, formModulePath, previewTarget, resolveAddress } from './model';
+import { formModulePath, resolveAddress } from './model';
 
 function entry(path: string, kind: ResourceRef['kind'] = 'file'): ResourceRef {
   return {
@@ -19,7 +19,7 @@ function entry(path: string, kind: ResourceRef['kind'] = 'file'): ResourceRef {
   };
 }
 
-describe('модуль формы в каталоге открытого файла', () => {
+describe('модуль формы в каталоге документа', () => {
   it('это index.tsx — путь отдаётся от корня проекта', () => {
     const entries = [
       entry('src/forms/contact/form.schema.json'),
@@ -40,78 +40,6 @@ describe('модуль формы в каталоге открытого фай�
 
   it('пустой каталог — модуля нет', () => {
     expect(formModulePath([])).toBeNull();
-  });
-});
-
-describe('что показывает панель', () => {
-  const formUrl = (modulePath: string): string => `http://app/?stand=${modulePath}`;
-  const base = { pageAddress: 'http://app/contacts', formUrl };
-
-  it('режим «приложение» — страница, какой бы файл ни был открыт', () => {
-    expect(previewTarget({ ...base, mode: 'page', hasDocument: false, modulePath: null })).toEqual({
-      kind: 'frame',
-      url: 'http://app/contacts',
-    });
-  });
-
-  it('режим «форма» с модулем — стенд этой формы', () => {
-    expect(
-      previewTarget({
-        ...base,
-        mode: 'form',
-        hasDocument: true,
-        modulePath: 'src/forms/contact/index.tsx',
-      })
-    ).toEqual({ kind: 'frame', url: 'http://app/?stand=src/forms/contact/index.tsx' });
-  });
-
-  it('режим «форма» без открытого файла — показывать нечего, и это не «нет модуля»', () => {
-    expect(previewTarget({ ...base, mode: 'form', hasDocument: false, modulePath: null })).toEqual({
-      kind: 'no-document',
-    });
-  });
-
-  it('режим «форма», файл открыт, а модуля рядом нет — сказано именно это', () => {
-    expect(previewTarget({ ...base, mode: 'form', hasDocument: true, modulePath: null })).toEqual({
-      kind: 'no-module',
-    });
-  });
-});
-
-describe('режим превью — один на шапку дока и панель', () => {
-  it('сначала показывается форма', () => {
-    expect(createPreviewModeStore().get()).toBe('form');
-  });
-
-  it('смена режима будит подписчиков', () => {
-    const store = createPreviewModeStore();
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    store.set('page');
-
-    expect(store.get()).toBe('page');
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-
-  it('тот же режим подписчиков не будит', () => {
-    const store = createPreviewModeStore();
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    store.set('form');
-
-    expect(listener).not.toHaveBeenCalled();
-  });
-
-  it('снятая подписка о смене не узнаёт', () => {
-    const store = createPreviewModeStore();
-    const listener = vi.fn();
-    store.subscribe(listener).dispose();
-
-    store.set('page');
-
-    expect(listener).not.toHaveBeenCalled();
   });
 });
 

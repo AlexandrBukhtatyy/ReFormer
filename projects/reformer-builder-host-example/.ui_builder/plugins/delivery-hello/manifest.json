@@ -1,0 +1,13 @@
+{
+  "id": "delivery-hello",
+  "name": "Delivery Hello",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "contributes": {
+    "messages": {
+      "ru": "locales/ru.json",
+      "en": "locales/en.json"
+    }
+  }
+}

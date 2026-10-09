@@ -2,13 +2,18 @@
 
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFile } from 'node:fs/promises';
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
+import { createRevisionMemo, resolvePluginsSet } from './bin/plugins-index.mjs';
+import { PLUGINS_URL_PREFIX, servePluginsDir } from './bin/plugins-serve.mjs';
+import {
+  DEFAULT_CONFIG_FILE,
+  readConfigForDevServer,
+  RUNTIME_BUNDLE_URL,
+  runtimeBundleBody,
+} from './bin/runtime-bundle.mjs';
+import { sendJson } from './bin/static.mjs';
 import { BUILDER_DEDUPE, builderSourceAliases } from './vite/source-resolve.mjs';
-
-/** Адрес конфига запуска — тот же, что у лаунчера (`bin/reformer-builder.mjs`) и SPA. */
-const RUNTIME_BUNDLE_PATH = '/__reformer-builder/runtime.json';
 
 /**
  * Конфиг запуска в `npm run dev` — то, что в сборке отдаёт лаунчер.
@@ -18,33 +23,68 @@ const RUNTIME_BUNDLE_PATH = '/__reformer-builder/runtime.json';
  * Конфиг ищется как у лаунчера: файл из `REFORMER_BUILDER_CONFIG`, иначе
  * `<cwd>/.ui_builder/config.json`. Читается на каждый запрос — правка файла видна после
  * перезагрузки страницы, без перезапуска сервера. Формат не проверяется и здесь: разбор со
- * словами о каждом поле — у SPA.
+ * словами о каждом поле — у SPA. Адрес, чтение и ответ — общие с лаунчером
+ * (`bin/runtime-bundle.mjs`).
  */
 function devRuntimeConfig(): Plugin {
   return {
     name: 'reformer-builder:dev-runtime-config',
     apply: 'serve',
     configureServer(server) {
-      server.middlewares.use(RUNTIME_BUNDLE_PATH, (_request, response) => {
+      server.middlewares.use(RUNTIME_BUNDLE_URL, (request, response) => {
         const explicit = process.env.REFORMER_BUILDER_CONFIG;
-        const file = path.resolve(process.cwd(), explicit ?? '.ui_builder/config.json');
-        void readFile(file, 'utf8')
-          .then((text) => JSON.parse(text) as unknown)
-          .catch((error: NodeJS.ErrnoException) => {
-            // Нет файла по умолчанию — норма: билдер работает на вшитых дефолтах. Явно названный
-            // и битый — ошибка, о которой разработчик узнаёт в терминале, а не догадкой.
-            if (explicit !== undefined || error.code !== 'ENOENT') {
-              server.config.logger.error(
-                `[runtime.json] конфиг «${file}» не прочитан: ${error.message}`
-              );
-            }
-            return null;
-          })
-          .then((config) => {
-            response.setHeader('Content-Type', 'application/json; charset=utf-8');
-            response.setHeader('Cache-Control', 'no-cache');
-            response.end(JSON.stringify({ config }));
-          });
+        void readConfigForDevServer({
+          file: path.resolve(process.cwd(), explicit ?? DEFAULT_CONFIG_FILE),
+          explicit: explicit !== undefined,
+          report: (message) => {
+            server.config.logger.error(message);
+          },
+        }).then((config) => {
+          sendJson(request, response, runtimeBundleBody(config));
+        });
+      });
+    },
+  };
+}
+
+/**
+ * Плагины приложения в `npm run dev` — то, что в сборке лежит в `dist/plugins/`, а лаунчеру
+ * называют флагом `--plugins`.
+ *
+ * По умолчанию слоя под dev-сервером нет: дерево файлов, редакторы и движки приходят плагинами
+ * ОТКРЫТОГО проекта — так их и разрабатывают, с перезапуском по правке. Но тот, кто правит саму
+ * оболочку и открыл не проект-образец, получал пустое окно: проект открыт, показать его нечем.
+ *
+ * `REFORMER_BUILDER_PLUGINS` называет, откуда взять слой, — путь от каталога пакета билдера:
+ * каталог плагинов (отдаётся целиком, как у `--plugins`) либо файл набора
+ * (`application-plugins.json`: корень и список каталогов). Каталог живой: индекс несёт
+ * ревизии, и пересобранный плагин оболочка перезагружает сама, по возврату фокуса.
+ */
+function devApplicationPlugins(): Plugin {
+  return {
+    name: 'reformer-builder:dev-application-plugins',
+    apply: 'serve',
+    configureServer(server) {
+      const named = process.env.REFORMER_BUILDER_PLUGINS;
+      if (named === undefined || named === '') return;
+      const plugins = {
+        ...resolvePluginsSet(path.resolve(process.cwd(), named)),
+        revisions: createRevisionMemo(),
+        onMissing: (missing: readonly string[]) => {
+          server.config.logger.warnOnce(
+            `[reformer-builder] плагины не собраны: ${missing.join(', ')}`
+          );
+        },
+      };
+      // Каталог — `plugins/` от базового адреса: там же SPA ищет его в собранном билдере.
+      const prefix = server.config.base + PLUGINS_URL_PREFIX.slice(1);
+      server.middlewares.use((request, response, next) => {
+        const pathname = (request.url ?? '/').split('?')[0];
+        if (!pathname.startsWith(prefix)) {
+          next();
+          return;
+        }
+        servePluginsDir(request, response, pathname.slice(prefix.length), plugins).catch(next);
       });
     },
   };
@@ -112,12 +152,24 @@ const packageOf = (id: string): string | null => {
 const FONT = new Set(['.ttf', '.woff', '.woff2', '.otf', '.eot']);
 const IMAGE = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif', '.ico']);
 
+/**
+ * Базовый адрес приложения.
+ *
+ * Сборка для поставки — относительная (`./`): один и тот же `dist` отдаёт лаунчер с корня
+ * своего сервера и плагин dev-сервера приложения под `/__reformer-builder/` (`vite/plugin.mjs`).
+ * С абсолютной базой собранная страница искала бы чанки в корне чужого сервера. Относительная
+ * годится потому, что страница у билдера одна: клиентской маршрутизации нет.
+ *
+ * Dev-сервер остаётся на `/`; под адресом приложения его базу задаёт плагин. GitHub Pages
+ * называет свой подкаталог переменной `BUILDER_BASE` (CI).
+ */
+const baseOf = (command: 'build' | 'serve'): string =>
+  process.env.BUILDER_BASE ?? (command === 'build' ? './' : '/');
+
 // https://vite.dev/config/
-export default defineConfig({
-  // Prod-сборка для GitHub Pages идёт в подкаталог /ReFormer/builder/, поэтому base
-  // задаётся через env (BUILDER_BASE) в CI. Локально (dev, preview) остаётся «/».
-  base: process.env.BUILDER_BASE ?? '/',
-  plugins: [react(), tailwindcss(), devRuntimeConfig()],
+export default defineConfig(({ command }) => ({
+  base: baseOf(command),
+  plugins: [react(), tailwindcss(), devRuntimeConfig(), devApplicationPlugins()],
   server: {
     // 5173 занят react-playground (и e2e ждёт его именно там), поэтому билдер живёт на 5174.
     // strictPort — чтобы порт не уезжал молча: адрес билдера должен быть предсказуем.
@@ -212,10 +264,9 @@ export default defineConfig({
     },
   },
   resolve: {
-    // Дедупликация singleton-рантаймов при workspace-линке и псевдонимы исходников — из общего
-    // модуля: тем же списком пользуется приложение, в которое билдер встроен, и два списка
-    // разошлись бы при первой же правке (см. `./vite/source-resolve.mjs`).
+    // Дедупликация singleton-рантаймов при workspace-линке и псевдонимы исходников —
+    // см. `./vite/source-resolve.mjs`.
     dedupe: [...BUILDER_DEDUPE],
     alias: builderSourceAliases(),
   },
-});
+}));

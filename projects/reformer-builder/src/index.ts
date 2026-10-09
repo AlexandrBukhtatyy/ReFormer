@@ -1,10 +1,10 @@
 /**
- * Вход библиотеки: билдер, встроенный в приложение.
+ * Вход библиотеки: клиент билдера для приложения, в которое он встроен.
  *
  * ```tsx
  * createRoot(container).render(
  *   <AppProviders>
- *     <ReformerBuilder pluginsUrl="/builder-plugins/">
+ *     <ReformerBuilder>
  *       <App />
  *     </ReformerBuilder>
  *   </AppProviders>
@@ -12,35 +12,17 @@
  * ```
  *
  * Компонент оборачивает приложение: на обычной странице рисует его и кнопку «Билдер», по кнопке
- * открывает билдер оверлеем, а в рамке превью показывает приложение — либо одну форму — без
- * билдера. Об устройстве приложения билдер не знает: превью рисует само приложение.
+ * открывает билдер в рамке поверх страницы, а в рамке превью показывает приложение — либо одну
+ * форму — без билдера. Об устройстве приложения билдер не знает: превью рисует само приложение.
  *
- * Модуль лёгкий намеренно. Оболочка, состав плагинов и стили приезжают отдельным чанком
- * (`./embedded-runtime`) по первому включению режима, а в прод-сборке приложения компонент
- * рисует только приложение.
+ * Сам билдер в сборку приложения не попадает: его отдаёт dev-сервер приложения, плагином
+ * `@reformer/builder/vite`. Здесь — только клиент, и импортирует он один React.
  *
- * Самостоятельный билдер — другой вход, `./main`.
+ * Самостоятельный билдер — другой вход, `./main`; он же открывается в рамке.
  *
  * @module index
  */
 
-import { createElement, type ReactElement } from 'react';
-import {
-  ReformerBuilderFrame,
-  type EmbeddedRuntimeLoader,
-  type ReformerBuilderProps,
-} from './shell/embedded/ReformerBuilderFrame';
-
-export type { FormModuleLoader } from './shell/embedded/FormStand';
-export type {
-  ReformerBuilderLabels,
-  ReformerBuilderProps,
-} from './shell/embedded/ReformerBuilderFrame';
-
-/** Одна ссылка на всю страницу: загрузчик стоит в зависимостях эффекта запуска. */
-const loadRuntime: EmbeddedRuntimeLoader = (request) =>
-  import('./embedded-runtime').then((module) => module.start(request));
-
-export function ReformerBuilder(props: ReformerBuilderProps): ReactElement {
-  return createElement(ReformerBuilderFrame, { ...props, loadRuntime });
-}
+export { ReformerBuilder } from './client/ReformerBuilder';
+export type { ReformerBuilderLabels, ReformerBuilderProps } from './client/ReformerBuilder';
+export type { FormModuleLoader } from './client/FormStand';

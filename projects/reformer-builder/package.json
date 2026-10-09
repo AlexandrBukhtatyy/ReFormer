@@ -6,9 +6,24 @@
   "bin": {
     "reformer-builder": "./bin/reformer-builder.mjs"
   },
+  "exports": {
+    ".": "./src/index.ts",
+    "./vite": {
+      "types": "./vite/plugin.d.mts",
+      "default": "./vite/plugin.mjs"
+    },
+    "./runtime-config.schema.json": "./runtime-config.schema.json",
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "bin",
+    "vite",
+    "src/index.ts",
+    "src/client",
+    "!src/client/**/*.test.ts",
+    "!src/client/**/*.test.tsx",
+    "application-plugins.embedded.json",
     "runtime-config.schema.json",
     "README.md",
     "LICENSE"
