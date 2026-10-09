@@ -7,7 +7,7 @@ import {
   Box,
   CheckboxWithLabel,
   FileUploadDropzone,
-  FormArray,
+  FieldArray,
   InputNumber,
   RadioGroupOptions,
   Section,
@@ -101,7 +101,7 @@ export const additionalStep = (model: FormModel<CreditApplicationForm>): FormSch
           {
             selector: 'properties-array',
             model: model.$.properties,
-            component: FormArray,
+            component: FieldArray,
             componentProps: {
               title: 'Имущество',
               reorderable: true,
@@ -128,7 +128,7 @@ export const additionalStep = (model: FormModel<CreditApplicationForm>): FormSch
           {
             selector: 'existing-loans-array',
             model: model.$.existingLoans,
-            component: FormArray,
+            component: FieldArray,
             componentProps: {
               title: 'Существующие кредиты',
               reorderable: true,
@@ -155,7 +155,7 @@ export const additionalStep = (model: FormModel<CreditApplicationForm>): FormSch
           {
             selector: 'co-borrowers-array',
             model: model.$.coBorrowers,
-            component: FormArray,
+            component: FieldArray,
             componentProps: {
               title: 'Созаемщики',
               reorderable: true,

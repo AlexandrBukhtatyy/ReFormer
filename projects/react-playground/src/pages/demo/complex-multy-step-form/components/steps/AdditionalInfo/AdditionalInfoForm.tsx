@@ -12,7 +12,7 @@
 
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormField, FormArraySection } from '@reformer/ui-kit';
+import { FormField, FieldArraySection } from '@reformer/ui-kit';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
@@ -49,7 +49,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       <div className="space-y-4">
         <FormField control={control.hasProperty} testId="hasProperty" />
 
-        <FormArraySection
+        <FieldArraySection
           title="Имущество"
           control={control.properties}
           itemComponent={PropertyForm}
@@ -64,7 +64,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       <div className="space-y-4">
         <FormField control={control.hasExistingLoans} testId="hasExistingLoans" />
 
-        <FormArraySection
+        <FieldArraySection
           title="Существующие кредиты"
           control={control.existingLoans}
           itemComponent={ExistingLoanForm}
@@ -79,7 +79,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       <div className="space-y-4">
         <FormField control={control.hasCoBorrower} testId="hasCoBorrower" />
 
-        <FormArraySection
+        <FieldArraySection
           title="Созаемщики"
           control={control.coBorrowers}
           itemComponent={CoBorrowerForm}

@@ -1193,7 +1193,7 @@
                       {
                         "selector": "properties-array",
                         "model": "$model(properties)",
-                        "component": "$component(FormArray)",
+                        "component": "$component(FieldArray)",
                         "componentProps": {
                           "title": "Имущество",
                           "reorderable": true,
@@ -1221,7 +1221,7 @@
                       {
                         "selector": "existing-loans-array",
                         "model": "$model(existingLoans)",
-                        "component": "$component(FormArray)",
+                        "component": "$component(FieldArray)",
                         "componentProps": {
                           "title": "Существующие кредиты",
                           "reorderable": true,
@@ -1249,7 +1249,7 @@
                       {
                         "selector": "co-borrowers-array",
                         "model": "$model(coBorrowers)",
-                        "component": "$component(FormArray)",
+                        "component": "$component(FieldArray)",
                         "componentProps": {
                           "title": "Созаемщики",
                           "reorderable": true,

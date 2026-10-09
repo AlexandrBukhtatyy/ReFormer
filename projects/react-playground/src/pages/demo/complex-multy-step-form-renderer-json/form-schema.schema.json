@@ -69,7 +69,7 @@
         "$component(FileUploadDropzone)",
         "$component(Box)",
         "$component(Section)",
-        "$component(FormArray)",
+        "$component(FieldArray)",
         "$component(Collapsible)",
         "$component(AsyncBoundary)",
         "$component(FormField)",

@@ -27,7 +27,7 @@ import {
   Section,
   Collapsible,
   FormField,
-  FormArray,
+  FieldArray,
   FormWizard,
   Button,
   AsyncBoundary,
@@ -75,7 +75,7 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
 
     reg.component('Box', Box);
     reg.component('Section', Section);
-    reg.component('FormArray', FormArray);
+    reg.component('FieldArray', FieldArray);
     reg.component('Collapsible', Collapsible);
     reg.component('AsyncBoundary', AsyncBoundary);
     reg.component('FormField', FormField);
