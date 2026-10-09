@@ -6,7 +6,7 @@ import {
   useFormControlValue,
   type FormModel,
 } from '@reformer/core';
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import { FormField, Input, InputMask, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
@@ -56,7 +56,7 @@ function SectionTitled() {
   const { form } = usePhonesForm();
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormArraySection
+      <FieldArraySection
         control={form.phones}
         itemComponent={PhoneItem}
         title="Телефоны"
@@ -74,7 +74,7 @@ function SectionFooter() {
   const { form } = usePhonesForm([]);
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormArraySection
+      <FieldArraySection
         control={form.phones}
         itemComponent={PhoneItem}
         itemLabel="Телефон"
@@ -93,7 +93,7 @@ function SectionHasItems() {
   return (
     <div style={{ maxWidth: 480, width: '100%', display: 'grid', gap: 12 }}>
       <FormField control={form.hasPhones} />
-      <FormArraySection
+      <FieldArraySection
         control={form.phones}
         itemComponent={PhoneItem}
         title="Телефоны"
@@ -111,7 +111,7 @@ function SectionReorderMax() {
   ]);
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormArraySection
+      <FieldArraySection
         control={form.phones}
         itemComponent={PhoneItem}
         title="Телефоны (макс. 3)"
@@ -123,11 +123,11 @@ function SectionReorderMax() {
   );
 }
 
-export const uiKitFormArrayDocConfig: ComponentDocConfig = {
-  name: 'FormArraySection',
-  importFrom: '@reformer/ui-kit/form-array',
+export const uiKitFieldArrayDocConfig: ComponentDocConfig = {
+  name: 'FieldArraySection',
+  importFrom: '@reformer/ui-kit/field-array',
   description:
-    'Готовая UI-секция динамического массива форм — стилизованная обёртка поверх headless @reformer/cdk/form-array: заголовок, кнопка «Добавить», карточки с меткой, удаление/перестановка и пустое состояние из коробки. itemComponent — единственный контракт рендера элемента: ComponentType<{ control: FormProxy<T> }>.',
+    'Готовая UI-секция динамического массива форм — стилизованная обёртка поверх headless @reformer/cdk/field-array: заголовок, кнопка «Добавить», карточки с меткой, удаление/перестановка и пустое состояние из коробки. itemComponent — единственный контракт рендера элемента: ComponentType<{ control: FormProxy<T> }>.',
   variants: [
     {
       id: 'titled',
@@ -135,7 +135,7 @@ export const uiKitFormArrayDocConfig: ComponentDocConfig = {
       description:
         'title + itemLabel + addButtonLabel: кнопка добавления в шапке, карточка на каждый элемент, empty-state с подсказкой.',
       render: SectionTitled,
-      code: `import { FormArraySection } from '@reformer/ui-kit/form-array';
+      code: `import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
 const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
   <>
@@ -144,7 +144,7 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
   </>
 );
 
-<FormArraySection
+<FieldArraySection
   control={form.phones}
   itemComponent={PhoneItem}
   title="Телефоны"
@@ -161,7 +161,7 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
       description:
         'Без title кнопка добавления рендерится футером-ссылкой под списком. showRemoveOnSingle показывает «Удалить» даже у единственного элемента.',
       render: SectionFooter,
-      code: `<FormArraySection
+      code: `<FieldArraySection
   control={form.phones}
   itemComponent={PhoneItem}
   itemLabel="Телефон"
@@ -182,7 +182,7 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
       code: `const hasPhones = useFormControlValue(form.hasPhones) as boolean;
 
 <FormField control={form.hasPhones} />
-<FormArraySection
+<FieldArraySection
   control={form.phones}
   itemComponent={PhoneItem}
   title="Телефоны"
@@ -196,7 +196,7 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
       description:
         'reorderable добавляет кнопки ↑/↓ каждому элементу; maxItems отключает «Добавить» при достижении лимита.',
       render: SectionReorderMax,
-      code: `<FormArraySection
+      code: `<FieldArraySection
   control={form.phones}
   itemComponent={PhoneItem}
   title="Телефоны (макс. 3)"

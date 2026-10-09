@@ -68,7 +68,7 @@ Assist:
 - `create-form` — спроектировать и сгенерировать форму по описанию (`description`, `target`: `core` / `renderer-react` / `renderer-json`).
 - `add-validation` — подобрать built-in / кастомные / async / cross-field валидаторы под требования.
 - `add-behavior` — встроить behavior (`computeFrom`, `enableWhen`, `watchField`, `copyFrom`, `syncFields`, `resetWhen`, `transformValue`, `revalidateWhen`).
-- `add-form-array` — превратить поле в массив через `array(...)` + `FormArray` UI.
+- `add-form-array` — превратить поле в массив через `array(...)` + `FieldArray` UI.
 - `add-wizard` — превратить single-form в multi-step `FormWizard`.
 - `to-renderer` — миграция `@reformer/core` + ручной JSX → TS RenderSchema (`renderer-react`).
 - `to-renderer-json` — миграция TS RenderSchema → JsonFormSchema + Registry.

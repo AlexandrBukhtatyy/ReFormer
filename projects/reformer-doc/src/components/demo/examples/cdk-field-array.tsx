@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo } from 'react';
 import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
-import { FormArray, useFormArray } from '@reformer/cdk/form-array';
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import { FieldArray, useFieldArray } from '@reformer/cdk/field-array';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
@@ -38,15 +38,15 @@ function usePhoneForm(initial: Phone[] = [{ kind: 'Мобильный', number: 
   }, []);
 }
 
-function FormArrayBasic() {
+function FieldArrayBasic() {
   const { form } = usePhoneForm();
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormArray.Root control={form.phones}>
-        <FormArray.Empty>
+      <FieldArray.Root control={form.phones}>
+        <FieldArray.Empty>
           <p style={{ color: 'var(--ifm-color-emphasis-600)' }}>Телефоны не добавлены</p>
-        </FormArray.Empty>
-        <FormArray.List>
+        </FieldArray.Empty>
+        <FieldArray.List>
           {({ control, index, remove }: any) => (
             <div style={CARD}>
               <div
@@ -68,11 +68,11 @@ function FormArrayBasic() {
               </div>
             </div>
           )}
-        </FormArray.List>
-        <FormArray.AddButton initialValue={{ kind: '', number: '' }}>
+        </FieldArray.List>
+        <FieldArray.AddButton initialValue={{ kind: '', number: '' }}>
           + Добавить телефон
-        </FormArray.AddButton>
-      </FormArray.Root>
+        </FieldArray.AddButton>
+      </FieldArray.Root>
     </div>
   );
 }
@@ -84,11 +84,11 @@ const PhoneItem = ({ control }: { control: any }) => (
   </div>
 );
 
-function FormArraySectionDemo() {
+function FieldArraySectionDemo() {
   const { form } = usePhoneForm();
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormArraySection
+      <FieldArraySection
         control={form.phones}
         itemComponent={PhoneItem}
         title="Телефоны"
@@ -98,15 +98,15 @@ function FormArraySectionDemo() {
   );
 }
 
-function FormArrayReorder() {
+function FieldArrayReorder() {
   const { form } = usePhoneForm([
     { kind: 'Мобильный', number: '' },
     { kind: 'Рабочий', number: '' },
   ]);
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormArray.Root control={form.phones}>
-        <FormArray.List>
+      <FieldArray.Root control={form.phones}>
+        <FieldArray.List>
           {({ control, index, remove, moveUp, moveDown, canMoveUp, canMoveDown }: any) => (
             <div style={{ ...CARD, display: 'flex', alignItems: 'flex-end', gap: 8 }}>
               <div style={{ flex: 1 }}>
@@ -132,18 +132,18 @@ function FormArrayReorder() {
               </span>
             </div>
           )}
-        </FormArray.List>
-        <FormArray.AddButton initialValue={{ kind: '', number: '' }}>
+        </FieldArray.List>
+        <FieldArray.AddButton initialValue={{ kind: '', number: '' }}>
           + Добавить
-        </FormArray.AddButton>
-      </FormArray.Root>
+        </FieldArray.AddButton>
+      </FieldArray.Root>
     </div>
   );
 }
 
-function UseFormArrayDemo() {
+function UseFieldArrayDemo() {
   const { form } = usePhoneForm();
-  const { items, add, length } = useFormArray(form.phones);
+  const { items, add, length } = useFieldArray(form.phones);
   return (
     <div style={{ maxWidth: 480, width: '100%' }}>
       <p style={{ fontSize: 13, color: 'var(--ifm-color-emphasis-700)' }}>
@@ -166,9 +166,9 @@ function UseFormArrayDemo() {
   );
 }
 
-export const formArrayDocConfig: ComponentDocConfig = {
-  name: 'FormArray',
-  importFrom: '@reformer/cdk/form-array',
+export const fieldArrayDocConfig: ComponentDocConfig = {
+  name: 'FieldArray',
+  importFrom: '@reformer/cdk/field-array',
   description:
     'Headless compound-компонент для динамических массивов: add / remove / reorder через render-props.',
   variants: [
@@ -176,10 +176,10 @@ export const formArrayDocConfig: ComponentDocConfig = {
       id: 'headless',
       title: 'Headless (add / remove)',
       description: 'Root + List + AddButton. Разметку и стили пишете сами.',
-      render: FormArrayBasic,
-      code: `<FormArray.Root control={form.phones}>
-  <FormArray.Empty><p>Телефоны не добавлены</p></FormArray.Empty>
-  <FormArray.List>
+      render: FieldArrayBasic,
+      code: `<FieldArray.Root control={form.phones}>
+  <FieldArray.Empty><p>Телефоны не добавлены</p></FieldArray.Empty>
+  <FieldArray.List>
     {({ control, index, remove }) => (
       <div>
         <strong>Телефон #{index + 1}</strong>
@@ -188,19 +188,19 @@ export const formArrayDocConfig: ComponentDocConfig = {
         <button onClick={remove}>Удалить</button>
       </div>
     )}
-  </FormArray.List>
-  <FormArray.AddButton initialValue={{ kind: '', number: '' }}>
+  </FieldArray.List>
+  <FieldArray.AddButton initialValue={{ kind: '', number: '' }}>
     + Добавить телефон
-  </FormArray.AddButton>
-</FormArray.Root>`,
+  </FieldArray.AddButton>
+</FieldArray.Root>`,
     },
     {
       id: 'styled',
       title: 'Стилизованный (ui-kit)',
       description:
-        'FormArraySection из @reformer/ui-kit — готовый вид поверх cdk, itemComponent типизирован.',
-      render: FormArraySectionDemo,
-      code: `import { FormArraySection } from '@reformer/ui-kit/form-array';
+        'FieldArraySection из @reformer/ui-kit — готовый вид поверх cdk, itemComponent типизирован.',
+      render: FieldArraySectionDemo,
+      code: `import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
 const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
   <>
@@ -209,7 +209,7 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
   </>
 );
 
-<FormArraySection
+<FieldArraySection
   control={form.phones}
   itemComponent={PhoneItem}
   title="Телефоны"
@@ -222,8 +222,8 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
       id: 'reorder',
       title: 'Переупорядочивание',
       description: 'moveUp / moveDown / canMoveUp / canMoveDown сохраняют состояние элементов.',
-      render: FormArrayReorder,
-      code: `<FormArray.List>
+      render: FieldArrayReorder,
+      code: `<FieldArray.List>
   {({ control, remove, moveUp, moveDown, canMoveUp, canMoveDown }) => (
     <div>
       <FormField control={control.number} />
@@ -232,16 +232,16 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
       <button onClick={remove}>×</button>
     </div>
   )}
-</FormArray.List>`,
+</FieldArray.List>`,
     },
     {
       id: 'hook',
-      title: 'Хук useFormArray',
+      title: 'Хук useFieldArray',
       description: 'Полная свобода layout без compound-компонентов. T выводится из control.',
-      render: UseFormArrayDemo,
-      code: `import { useFormArray } from '@reformer/cdk/form-array';
+      render: UseFieldArrayDemo,
+      code: `import { useFieldArray } from '@reformer/cdk/field-array';
 
-const { items, add, length } = useFormArray(form.phones);
+const { items, add, length } = useFieldArray(form.phones);
 
 <>
   <p>Всего: {length}</p>
@@ -257,38 +257,38 @@ const { items, add, length } = useFormArray(form.phones);
   ],
   props: [
     {
-      name: 'FormArray.Root',
+      name: 'FieldArray.Root',
       type: 'control: ArrayNode<T>',
       description: 'Провайдер контекста массива. Оборачивает остальные части.',
     },
     {
-      name: 'FormArray.List',
+      name: 'FieldArray.List',
       type: 'children: (item) => ReactNode',
       description:
         'Итерация по элементам (render-props: control, index, remove, moveUp/moveDown, canMoveUp/canMoveDown).',
     },
     {
-      name: 'FormArray.AddButton',
+      name: 'FieldArray.AddButton',
       type: 'initialValue?: Partial<T>',
       description: 'Добавляет новый элемент в конец.',
     },
     {
-      name: 'FormArray.RemoveButton',
+      name: 'FieldArray.RemoveButton',
       type: '—',
       description: 'Удаляет текущий элемент (внутри List).',
     },
     {
-      name: 'FormArray.Empty',
+      name: 'FieldArray.Empty',
       type: 'children: ReactNode',
       description: 'Показывается, когда массив пуст.',
     },
     {
-      name: 'FormArray.Count',
+      name: 'FieldArray.Count',
       type: 'render?: (count) => ReactNode',
       description: 'Отображает число элементов.',
     },
     {
-      name: 'useFormArray(control)',
+      name: 'useFieldArray(control)',
       type: '→ { items, add, clear, insert, move, swap, length, isEmpty }',
       description: 'Хук для полностью кастомной раскладки; T выводится из control.',
     },

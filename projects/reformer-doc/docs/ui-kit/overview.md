@@ -78,12 +78,12 @@ Tailwind-входе:
 [`@reformer/cdk`](../cdk/overview)**. Логика (состояние, render-props, контекст) живёт в cdk,
 ui-kit добавляет к ней разметку и стили:
 
-| Компонент ui-kit                    | Headless-основа                | Роль                                            |
-| ----------------------------------- | ------------------------------ | ----------------------------------------------- |
-| [`FormField`](../cdk/form-field)    | `@reformer/cdk/form-field`     | Обёртка «Label → Control → Error (+ pending)»   |
-| [`FormArraySection`](./form-array)  | `@reformer/cdk/form-array`     | Стилизованная секция динамического массива форм |
-| [`FormWizard`](./form-navigation)   | `@reformer/cdk/form-wizard`    | Многошаговый мастер с индикатором и навигацией  |
-| [`AsyncBoundary`](./async-boundary) | `@reformer/cdk/async-boundary` | Состояния `loading` / `error` / `ready`         |
+| Компонент ui-kit                     | Headless-основа                | Роль                                            |
+| ------------------------------------ | ------------------------------ | ----------------------------------------------- |
+| [`FormField`](../cdk/form-field)     | `@reformer/cdk/form-field`     | Обёртка «Label → Control → Error (+ pending)»   |
+| [`FieldArraySection`](./field-array) | `@reformer/cdk/field-array`    | Стилизованная секция динамического массива форм |
+| [`FormWizard`](./form-navigation)    | `@reformer/cdk/form-wizard`    | Многошаговый мастер с индикатором и навигацией  |
+| [`AsyncBoundary`](./async-boundary)  | `@reformer/cdk/async-boundary` | Состояния `loading` / `error` / `ready`         |
 
 Если готовая разметка не подходит — берите headless-версию из cdk напрямую и стройте свой UI.
 

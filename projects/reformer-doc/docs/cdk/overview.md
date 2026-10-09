@@ -24,9 +24,9 @@ Peer-зависимости: `@reformer/core`, `react`, `react-dom` — npm 7+ �
 
 ## Компоненты
 
-- [**FormArray**](./form-array) — динамические add/remove/reorder массивы. Части: `FormArray`,
-  `FormArrayList`, `FormArrayAddButton`, `FormArrayRemoveButton`, `FormArrayEmpty`,
-  `FormArrayCount`, `FormArrayItemIndex`; хук `useFormArray`.
+- [**FieldArray**](./field-array) — динамические add/remove/reorder массивы. Части: `FieldArray`,
+  `FieldArrayList`, `FieldArrayAddButton`, `FieldArrayRemoveButton`, `FieldArrayEmpty`,
+  `FieldArrayCount`, `FieldArrayItemIndex`; хук `useFieldArray`.
 - [**FormWizard**](./form-wizard) — многошаговый визард с пошаговой валидацией. Части:
   `FormWizard`, `FormWizardStep`, `FormWizardIndicator`, `FormWizardActions`,
   `FormWizardProgress`; хук `useFormWizard`.
@@ -44,10 +44,10 @@ Peer-зависимости: `@reformer/core`, `react`, `react-dom` — npm 7+ �
 
 ```typescript
 // Всё сразу
-import { FormArray, FormField, FormWizard } from '@reformer/cdk';
+import { FieldArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (рекомендуется)
-import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FieldArray, useFieldArray } from '@reformer/cdk/field-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 import { AsyncBoundary } from '@reformer/cdk/async-boundary';
@@ -61,7 +61,7 @@ import { FileUpload } from '@reformer/cdk/file-upload';
 
 ```tsx
 import { createModel, createFormFromModel } from '@reformer/core';
-import { FormArray } from '@reformer/cdk/form-array';
+import { FieldArray } from '@reformer/cdk/field-array';
 
 const model = createModel({
   items: [{ name: '' }],
@@ -69,12 +69,12 @@ const model = createModel({
 
 const form = createFormFromModel({ model, schema });
 
-<FormArray.Root control={form.items}>
-  <FormArray.Empty>
+<FieldArray.Root control={form.items}>
+  <FieldArray.Empty>
     <p>Пока нет элементов</p>
-  </FormArray.Empty>
+  </FieldArray.Empty>
 
-  <FormArray.List>
+  <FieldArray.List>
     {({ control, index, remove }) => (
       <div>
         <span>Элемент #{index + 1}</span>
@@ -82,10 +82,10 @@ const form = createFormFromModel({ model, schema });
         <button onClick={remove}>Удалить</button>
       </div>
     )}
-  </FormArray.List>
+  </FieldArray.List>
 
-  <FormArray.AddButton>Добавить</FormArray.AddButton>
-</FormArray.Root>;
+  <FieldArray.AddButton>Добавить</FieldArray.AddButton>
+</FieldArray.Root>;
 ```
 
 Каждый элемент разметки — ваш: cdk не навязывает ни тегов, ни классов, только прокидывает

@@ -161,7 +161,7 @@ function ItemsList({ form, model }: { form: FormProxy<OrderForm>; model: FormMod
 ```
 
 :::tip Готовый компонент массива
-В `@reformer/ui-kit` есть `FormArraySection` (`control={form.items}`, `itemComponent`,
+В `@reformer/ui-kit` есть `FieldArraySection` (`control={form.items}`, `itemComponent`,
 `initialValue`, add / remove / reorder из коробки) — используйте его, если не нужна своя разметка.
 :::
 

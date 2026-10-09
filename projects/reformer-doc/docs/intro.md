@@ -49,7 +49,7 @@ createModel     привязка       createForm     defineFormBehavior
 | Пакет                                                       | Назначение                                              |
 | ----------------------------------------------------------- | ------------------------------------------------------- |
 | `@reformer/core`                                            | ядро: модель, схема, форма, behaviors, валидаторы, хуки |
-| [`@reformer/cdk`](/docs/cdk/overview)                       | headless-компоненты (FormArray, FormWizard, FormField)  |
+| [`@reformer/cdk`](/docs/cdk/overview)                       | headless-компоненты (FieldArray, FormWizard, FormField) |
 | [`@reformer/ui-kit`](/docs/ui-kit/overview)                 | готовые стилизованные поля (Input, Select, Checkbox, …) |
 | [`@reformer/renderer-react`](/docs/packages/renderer-react) | рендеринг формы из render-схемы                         |
 | [`@reformer/renderer-json`](/docs/packages/renderer-json)   | форма из JSON-описания                                  |

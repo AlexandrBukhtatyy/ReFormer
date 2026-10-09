@@ -116,7 +116,7 @@ const sidebars: SidebarsConfig = {
   cdkSidebar: [
     'cdk/overview',
     'cdk/async-boundary',
-    'cdk/form-array',
+    'cdk/field-array',
     'cdk/form-wizard',
     'cdk/form-field',
   ],
@@ -254,7 +254,7 @@ const sidebars: SidebarsConfig = {
         'ui-kit/table',
         'ui-kit/sidebar',
         'ui-kit/form-field',
-        'ui-kit/form-array',
+        'ui-kit/field-array',
         'ui-kit/form-navigation',
       ],
     },
