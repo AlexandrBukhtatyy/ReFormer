@@ -31,7 +31,7 @@ A form is described ONE way, whoever draws it: markup by hand in JSX (`core`), `
   | Node      | Shape                                                          | Told apart by                |
   | --------- | -------------------------------------------------------------- | ---------------------------- |
   | field     | `{ model: model.$.email, component: Input, componentProps }`   | has `model`, no `item`/`part` |
-  | array     | `{ model: model.$.items, component: FormArray, item: itemRow }` | `model` + `item`             |
+  | array     | `{ model: model.$.items, component: FieldArray, item: itemRow }` | `model` + `item`             |
   | sub-form  | `{ model: model.$.address, part: address }`                    | `model` + `part`             |
   | container | `{ component: Section, componentProps, children: [ … ] }`      | has `children`, no `model`   |
 
@@ -39,7 +39,7 @@ A form is described ONE way, whoever draws it: markup by hand in JSX (`core`), `
 
 - **The schema is a BUILDER**, never a prebuilt tree: `export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({ … })`. Nodes hold the model's own handles, so the tree cannot exist before the model. The builder takes ONE argument — there is no `(model, form?)` second parameter and nobody calls it twice.
 - **Sub-form = a part**, declared once, mounted wherever needed: `const address = (model: FormModel<Address>): FormSchemaNode => ({ component: Box, children: [{ model: model.$.city, component: Input }] })`, then `{ model: model.$.registrationAddress, part: address }` and `{ model: model.$.residenceAddress, part: address }`. Inside a part every path is relative to the sub-model it receives. A title for one particular place is an ordinary container around the node.
-- **Array of sub-forms**: `{ model: model.$.properties, component: FormArray, item: propertyRow }` — `item` is the same kind of part, built for every element. The template of a NEW element lives in the model: `properties: arrayOf(blankProperty)` (`arrayOf` from `@reformer/core`), so the node carries no `initialValue` and «Add» is `model.properties.push()` with no argument. `component` is required for add/remove/reorder UI — the renderer ships no array chrome; use `FormArray` (editable) or `List` (display-only) from `@reformer/ui-kit`. An array that is the VALUE of one field (multi-select `tags: []`) is an ordinary field node and needs no template.
+- **Array of sub-forms**: `{ model: model.$.properties, component: FieldArray, item: propertyRow }` — `item` is the same kind of part, built for every element. The template of a NEW element lives in the model: `properties: arrayOf(blankProperty)` (`arrayOf` from `@reformer/core`), so the node carries no `initialValue` and «Add» is `model.properties.push()` with no argument. `component` is required for add/remove/reorder UI — the renderer ships no array chrome; use `FieldArray` (editable) or `List` (display-only) from `@reformer/ui-kit`. An array that is the VALUE of one field (multi-select `tags: []`) is an ordinary field node and needs no template.
 - **The schema carries NO validators**: a leaf `validators: [...]` array is the old shape — do not emit it. Validation is a separate `defineValidationSchema<T>(({ model }) => …)`; behavior is `defineFormBehavior<T>(({ model, form, schema }) => …)`. This prompt does NOT write them — use the prompt `add-feature` (`feature: validation` / `feature: behavior`); every node here stays pure description.
 - **ONE assembly — `createForm`** (`@reformer/core`), wrapped in `useFormBundle`: `useFormBundle(() => createForm<MyForm>({ model: createMyModel(), schema: formSchema, behavior, validation }))` → a bundle `{ model, form, validation?, render }`. `useFormBundle` runs the factory exactly once (a lazy `useState`); `useMemo` is ❌ wrong here — React may drop its cache and rebuild the form, losing typed input. `createCoreForm` / `createReactForm` / `createJsonForm` and the hooks `useReactForm` / `useJsonForm` are the former contract — ❌ do not emit them.
 - **Who draws**:
@@ -143,7 +143,7 @@ The schema is a pure-string operator DSL: `'$model(path)'` (field/group/array), 
           { "model": "$model(registrationAddress)", "part": "$part(address)" },
           {
             "model": "$model(properties)",
-            "component": "$component(FormArray)",
+            "component": "$component(FieldArray)",
             "item": "$part(propertyRow)",
           },
         ],

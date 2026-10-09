@@ -16,9 +16,9 @@
       "queries": [
         "render array rows with add and remove",
         "array add remove ui",
-        "FormArray component"
+        "FieldArray component"
       ],
-      "expectAny": ["FormArray"]
+      "expectAny": ["FieldArray"]
     },
     {
       "id": "arrays/length",

@@ -228,7 +228,7 @@ describe('validate_form kind=bundle', () => {
   const arrayIntent = {
     formName: 'Loan',
     fields: [
-      { name: 'coBorrowers', type: 'array' as const, component: 'FormArray' },
+      { name: 'coBorrowers', type: 'array' as const, component: 'FieldArray' },
       { name: 'coBorrowers.personalData.lastName', type: 'string' as const, component: 'Input' },
     ],
   };
@@ -239,7 +239,7 @@ describe('validate_form kind=bundle', () => {
       children: [
         {
           array: '$model(coBorrowers)',
-          component: '$component(FormArray)',
+          component: '$component(FieldArray)',
           item: {
             $template: {
               component: '$component(Box)',
@@ -274,7 +274,7 @@ describe('validate_form kind=bundle', () => {
     const intent = {
       formName: 'Loan',
       fields: [
-        { name: 'coBorrowers', type: 'array' as const, component: 'FormArray' },
+        { name: 'coBorrowers', type: 'array' as const, component: 'FieldArray' },
         { name: 'coBorrowers.monthlyIncome', type: 'number' as const, component: 'Input' },
       ],
     };

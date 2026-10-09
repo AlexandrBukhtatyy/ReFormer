@@ -194,7 +194,7 @@ function extractArrays(content: string): string[] {
       if (!patterns.includes(m)) patterns.push(m);
     }
   }
-  const genericRegex = /\bмассив|\barray|\bFormArray\b/i;
+  const genericRegex = /\bмассив|\barray|\b(?:Form|Field)Array\b/i;
   if (patterns.length === 0 && genericRegex.test(content)) {
     patterns.push('(см. секцию массивов в спеке)');
   }

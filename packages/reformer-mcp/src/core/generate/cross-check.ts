@@ -195,7 +195,7 @@ const BUILTIN_COMPONENTS = new Set([
   'RendererFormWizard',
   'Box',
   'Section',
-  'FormArray',
+  'FieldArray',
 ]);
 
 export function crossCheckBundle(

@@ -159,7 +159,7 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
   // если нашлось меньше трёх секций. Условие по КОЛИЧЕСТВУ оказалось ловушкой — BM25 внутри
   // одного пакета всегда находит хоть что-нибудь, поэтому запрос «отрисовать строки массива»
   // при `target: core` набирал шесть посторонних core-секций (`API Reference`,
-  // `SCHEMA FORMAT`, `Anti-patterns`) и до cdk, где живёт `FormArray`, дело не доходило.
+  // `SCHEMA FORMAT`, `Anti-patterns`) и до cdk, где живёт `FieldArray`, дело не доходило.
   // Буст решает исходную задачу (при прочих равных ядро впереди), не отсекая соседей.
   const OWN_PACKAGE_BOOST = 1.25;
   const sectionHits = searchSections(k, task, undefined, 14)
@@ -172,7 +172,7 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
   // --- рекомендованные символы, дедуплицированные -----------------------------
   const decision = chooseApi(task)[0] ?? null;
   // Символы ищем по ВСЕМ допустимым пакетам, а не только по целевому: ответ на «отрисовать
-  // строки массива» — `FormArray` из cdk, и при жёсткой привязке к `core` выдача заполнялась
+  // строки массива» — `FieldArray` из cdk, и при жёсткой привязке к `core` выдача заполнялась
   // случайным ядерным символом. Сужение по цели делается фильтром, а не запретом поиска.
   const ranked = rankSymbolsForQuery(k, task, sectionHits, '*', 8).filter(
     (h) => !allowPackages || allowPackages.includes(h.symbol.package)

@@ -55,7 +55,7 @@ Individual sections are addressable per-heading (slug from the H2 title); enumer
 ## 3. The 5 library packages (read their docs via resources)
 
 - `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
-- `@reformer/cdk` — headless FormArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
+- `@reformer/cdk` — headless FieldArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
 - `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
 - `@reformer/renderer-react` — `FormRenderer`: draws the schema tree (`reformer://docs/renderer-react`).
 - `@reformer/renderer-json` — the schema as a JSON document + registry (`reformer://docs/renderer-json`).
@@ -125,7 +125,7 @@ arguments are exact.
 Full JSDoc for one public symbol of any `@reformer/*` package: description, signature,
 params, `@returns`, every `@example`, source path.
 
-- `symbol` (string, required) — e.g. `"createForm"`, `"validateModel"`, `"FormArray"`.
+- `symbol` (string, required) — e.g. `"createForm"`, `"validateModel"`, `"FieldArray"`.
 - `package` (string, optional) — e.g. `"@reformer/core"`; omit to search all.
 
 Use before writing code against an unfamiliar symbol.
@@ -376,7 +376,7 @@ Each package's sections come from its `docs/llms/*.md`. Discover exact slugs via
 or `search_docs`. Examples:
 
 - `reformer://docs/core` — model, schema, validators, behaviors, arrays, multi-step, common mistakes (~50 sections).
-- `reformer://docs/cdk/form-array`, `reformer://docs/cdk/form-navigation` — FormArray / FormWizard compounds.
+- `reformer://docs/cdk/field-array`, `reformer://docs/cdk/form-navigation` — FieldArray / FormWizard compounds.
 - `reformer://docs/ui-kit/form-field-integration`, `reformer://docs/ui-kit/choice-fields` — components.
 - `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — the schema tree drawn by `FormRenderer`.
 - `reformer://docs/renderer-json/json-schema`, `.../registry` — JSON DSL + registry.
@@ -421,7 +421,7 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
       children: [
         { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип' } }, // field
         { model: model.$.registrationAddress, part: address }, // sub-form
-        { model: model.$.properties, component: FormArray, item: property }, // array of sub-forms
+        { model: model.$.properties, component: FieldArray, item: property }, // array of sub-forms
       ],
     },
   ],
@@ -663,10 +663,10 @@ Bridge to validation (the only overlap between the layers): a behavior can _trig
 ## 32. 6. Arrays & Wizard (when needed)
 
 - **Array of sub-forms**: `arrayOf(blank)` in the model + the node
-  `{ model: model.$.items, component: FormArray, item: itemRow }`; `itemRow` is a part
+  `{ model: model.$.items, component: FieldArray, item: itemRow }`; `itemRow` is a part
   `(model: FormModel<Item>) => node`. The node needs no `initialValue` — it is only a fallback for
-  forms whose model is created from data without code. In JSX use `FormArraySection` from
-  `@reformer/ui-kit` or the `@reformer/cdk` `FormArray` compound; **key rows by `id`, not index**.
+  forms whose model is created from data without code. In JSX use `FieldArraySection` from
+  `@reformer/ui-kit` or the `@reformer/cdk` `FieldArray` compound; **key rows by `id`, not index**.
   `find_recipe form-array`.
 - **Wizard**: the library `FormWizard` (`@reformer/ui-kit`) as a schema node, steps are its
   `children`: `{ selector: 'loan', component: Step, componentProps: { title, icon }, children }`

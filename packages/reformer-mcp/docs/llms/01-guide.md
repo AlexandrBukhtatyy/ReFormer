@@ -40,7 +40,7 @@ Individual sections are addressable per-heading (slug from the H2 title); enumer
 ## The 5 library packages (read their docs via resources)
 
 - `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
-- `@reformer/cdk` — headless FormArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
+- `@reformer/cdk` — headless FieldArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
 - `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
 - `@reformer/renderer-react` — `FormRenderer`: draws the schema tree (`reformer://docs/renderer-react`).
 - `@reformer/renderer-json` — the schema as a JSON document + registry (`reformer://docs/renderer-json`).

@@ -152,6 +152,51 @@ describe('validate_form kind=code', () => {
     expect(diagnostics.some((d) => d.code === 'RF002')).toBe(false);
   });
 
+  it('прежнее имя компонента массива — RF010 с новым именем, а не «не существует»', async () => {
+    const { diagnostics } = await validateCode(
+      k,
+      [
+        "import { FormArray, FormArraySection } from '@reformer/ui-kit';",
+        "import { useFormArray } from '@reformer/cdk/form-array';",
+      ].join('\n')
+    );
+    const rf010 = diagnostics.filter((d) => d.code === 'RF010');
+
+    expect(rf010.map((d) => d.line)).toEqual([1, 1, 2]);
+    expect(rf010.map((d) => d.suggestion).join('\n')).toMatch(
+      /`FieldArray`[\s\S]*`FieldArraySection`[\s\S]*`useFieldArray`/
+    );
+    expect(rf010[2].message).toContain('@reformer/cdk');
+    expect(diagnostics.some((d) => d.code === 'RF002' || d.code === 'RF003')).toBe(false);
+  });
+
+  it('новые имена компонента массива диагностик не дают', async () => {
+    const { diagnostics } = await validateCode(
+      k,
+      [
+        "import { FieldArray, FieldArraySection } from '@reformer/ui-kit';",
+        "import { useFieldArray } from '@reformer/cdk/field-array';",
+      ].join('\n')
+    );
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('имя вне семейства и имя без замены в пакете остаются обычной ошибкой', async () => {
+    const { diagnostics } = await validateCode(
+      k,
+      [
+        "import { FormArrayNoSuchPart } from '@reformer/ui-kit';",
+        "import { FormArray } from '@reformer/renderer-json';",
+      ].join('\n')
+    );
+
+    expect(diagnostics.some((d) => d.code === 'RF010')).toBe(false);
+    // RF002 «не существует» либо RF003 «живёт в другом пакете» — но не переименование.
+    const unknown = diagnostics.filter((d) => d.code === 'RF002' || d.code === 'RF003');
+    expect(unknown.map((d) => d.line)).toEqual([1, 2]);
+  });
+
   it("Input + type: 'number' и FileUpload + variant — RF010", async () => {
     const code = [
       "{ model: model.$.qty, component: Input, componentProps: { type: 'number' } },",

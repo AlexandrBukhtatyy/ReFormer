@@ -14,7 +14,7 @@ You are a senior reviewer for ReFormer-based forms. Audit the supplied code agai
 - Arrays: the new-row template is `arrayOf(blank)` in the model; validation and behavior of rows go through `applyEach`, sub-forms through `apply` (not `each`, not a direct call of a sub-schema).
 - Field reads ONLY through `useFormControl` / `useFormControlValue` — never raw `.value.value`.
 - Validators come from `@reformer/core/validators/*`. Behaviors from `@reformer/core/behaviors/*`. No inline duplicates of built-ins.
-- FormArray uses headless compound API (`FormArray.Root/.List/.Item/.AddButton`) — no manual array state.
+- FieldArray uses headless compound API (`FieldArray.Root/.List/.Item/.AddButton`) — no manual array state.
 - FormWizard — no custom step machine. Drawn by the renderer it is the library `FormWizard` as a schema node with steps in `children` (step `selector` = key in `validation.steps`); no app shim, no `componentProps.steps`, no `patchProps({ form, config })`.
 - `renderer-react`: drawn by `<FormRenderer form={bundle} settings=\{{ fieldWrapper: FormField }} />`; nobody calls `createRenderSchema` by hand.
 - `renderer-json`: the document has `"format": 2`; every `$component(Name)` and every `$part(name)` resolves; `FIELD_WRAPPER` is set; drawn by `<FormRenderer form={bundle} />`.

@@ -49,7 +49,7 @@ export interface ArrayIntent {
    * и это ровно та ошибка, которую `validateFormSchema` поймать не может.
    */
   initialValue: unknown[];
-  /** Компонент, рисующий строки (`FormArray` из ui-kit либо свой). */
+  /** Компонент, рисующий строки (`FieldArray` из ui-kit либо свой). */
   component?: string;
 }
 
@@ -459,7 +459,7 @@ const DEFAULT_COMPONENT: Record<FieldType, string> = {
   number: 'InputNumber',
   boolean: 'Checkbox',
   date: 'DatePicker',
-  array: 'FormArray',
+  array: 'FieldArray',
   object: 'Input',
 };
 

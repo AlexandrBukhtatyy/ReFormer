@@ -209,7 +209,7 @@ describe('form.schema.ts — TS-таргеты', () => {
 
   it('массив под-форм: `item` — часть строки, шаблон элемента в схему не дублируется', () => {
     expect(ts).toMatch(
-      /model: model\.\$\.properties,\s+component: FormArray,\s+item: propertiesRow,/
+      /model: model\.\$\.properties,\s+component: FieldArray,\s+item: propertiesRow,/
     );
     expect(ts).toContain('const propertiesRow = (model: FormModel<PropertyItem>): FormSchemaNode');
     expect(ts).not.toContain('initialValue');
@@ -247,7 +247,7 @@ describe('form.schema.ts — документ формата 2', () => {
     });
     expect(step[2]).toMatchObject({
       model: '$model(properties)',
-      component: '$component(FormArray)',
+      component: '$component(FieldArray)',
       item: '$part(propertiesRow)',
     });
     expect(step[2].initialValue, 'шаблон элемента — в модели').toBeUndefined();

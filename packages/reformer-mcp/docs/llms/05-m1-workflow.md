@@ -28,7 +28,7 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
       children: [
         { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип' } }, // field
         { model: model.$.registrationAddress, part: address }, // sub-form
-        { model: model.$.properties, component: FormArray, item: property }, // array of sub-forms
+        { model: model.$.properties, component: FieldArray, item: property }, // array of sub-forms
       ],
     },
   ],
@@ -272,10 +272,10 @@ Bridge to validation (the only overlap between the layers): a behavior can _trig
 ## 6. Arrays & Wizard (when needed)
 
 - **Array of sub-forms**: `arrayOf(blank)` in the model + the node
-  `{ model: model.$.items, component: FormArray, item: itemRow }`; `itemRow` is a part
+  `{ model: model.$.items, component: FieldArray, item: itemRow }`; `itemRow` is a part
   `(model: FormModel<Item>) => node`. The node needs no `initialValue` — it is only a fallback for
-  forms whose model is created from data without code. In JSX use `FormArraySection` from
-  `@reformer/ui-kit` or the `@reformer/cdk` `FormArray` compound; **key rows by `id`, not index**.
+  forms whose model is created from data without code. In JSX use `FieldArraySection` from
+  `@reformer/ui-kit` or the `@reformer/cdk` `FieldArray` compound; **key rows by `id`, not index**.
   `find_recipe form-array`.
 - **Wizard**: the library `FormWizard` (`@reformer/ui-kit`) as a schema node, steps are its
   `children`: `{ selector: 'loan', component: Step, componentProps: { title, icon }, children }`

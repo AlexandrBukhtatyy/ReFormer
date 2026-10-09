@@ -52,7 +52,10 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   computed: ['compute-vs-watch'],
   derived: ['compute-vs-watch'],
   // arrays
-  'form-array': ['arrays', 'array-operations', 'array-cleanup'],
+  // `field-array` — имя файлов cdk и ui-kit (02-field-array.md, 08-field-array-section.md): до
+  // переименования компонента ключ сценария `form-array` совпадал с ними сам.
+  'form-array': ['field-array', 'arrays', 'array-operations', 'array-cleanup'],
+  'field-array': ['arrays', 'array-operations', 'array-cleanup'],
   array: ['arrays'],
   // Точка входа. Топик `start-here` попадал в секцию «Prompts» и отсылал к механизму,
   // которого у агентного консумента нет вовсе (клиенты prompts не выставляют). Рабочая

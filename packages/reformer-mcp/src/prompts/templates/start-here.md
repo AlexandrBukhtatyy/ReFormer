@@ -14,7 +14,7 @@ one assembly.
 2. **Schema** — ONE tree of nodes, a builder `(model) => node`. The binding key is `model`, the
    binding handle is `model.$.…` — for a field, a group and an array alike:
    field `{ model: model.$.email, component, componentProps }`, array
-   `{ model: model.$.items, component: FormArray, item: itemRow }`, sub-form
+   `{ model: model.$.items, component: FieldArray, item: itemRow }`, sub-form
    `{ model: model.$.address, part: address }`, container `{ component, children }`. The keys
    `value:` / `array:` are the former contract. The schema carries **no** validation: a leaf
    `validators: [...]` array still type-checks (legacy field) but the engine that ran it was

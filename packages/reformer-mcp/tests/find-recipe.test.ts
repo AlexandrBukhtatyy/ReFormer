@@ -142,6 +142,33 @@ describe('findRecipeTool — алиасы раскладки файлов фор
   });
 });
 
+describe('findRecipeTool — компонент массива после переименования в FieldArray', () => {
+  it.runIf(hasDocs)(
+    'ключ сценария `form-array` по-прежнему ведёт в документ компонента',
+    async () => {
+      // Файлы cdk и ui-kit переименованы (02-field-array.md, 08-field-array-section.md), а ключ
+      // сценария остался прежним: раньше он совпадал с именем файла сам, теперь — через алиас.
+      for (const topic of ['form-array', 'field-array']) {
+        const cdk = await findRecipeTool({ topic, package: 'cdk' }, k);
+        expect(cdk.content[0].text, `топик "${topic}" в cdk`).toContain(
+          'docs/llms/02-field-array.md'
+        );
+        const uiKit = await findRecipeTool({ topic, package: 'ui-kit' }, k);
+        expect(uiKit.content[0].text, `топик "${topic}" в ui-kit`).toContain(
+          'docs/llms/08-field-array-section.md'
+        );
+      }
+    }
+  );
+
+  it.runIf(hasDocs)('в ядре оба ключа ведут в рецепт массивов', async () => {
+    for (const topic of ['form-array', 'field-array']) {
+      const { content } = await findRecipeTool({ topic, package: 'core' }, k);
+      expect(content[0].text, `топик "${topic}" в core`).toContain('docs/llms/10-arrays.md');
+    }
+  });
+});
+
 describe('findRecipeTool — missing / invalid topic guard (defect 79)', () => {
   it('returns a friendly message instead of throwing when topic is omitted', async () => {
     const res = await findRecipeTool({} as unknown as FindRecipeArgs, k);

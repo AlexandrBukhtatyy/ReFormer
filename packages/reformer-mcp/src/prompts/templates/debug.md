@@ -16,7 +16,7 @@ You are an expert debugger for ReFormer forms.
 - Async validators MUST be `await`-ed in submit; checking `isValid` before await returns stale value.
 - `markAsTouched()` on blur — without it, errors don't surface until submit.
 - Validators imported from `@reformer/core/validators` (built-in factories: `required`/`min`/`email`/…) — NOT from `/behaviors` (which exports behavior operators like `apply`/`copyFrom`, a separate surface — easy to import the wrong subpath).
-- The template of a new array row (`arrayOf(blank)` in the model; the fallback `initialValue` of an array node / `FormArray.AddButton`) MUST return plain leaf values (`{ name: '' }`), NEVER a field config (`{ name: { model, component } }`) — silent corruption. `model.items.push()` with no argument throws when the model declared no template.
+- The template of a new array row (`arrayOf(blank)` in the model; the fallback `initialValue` of an array node / `FieldArray.AddButton`) MUST return plain leaf values (`{ name: '' }`), NEVER a field config (`{ name: { model, component } }`) — silent corruption. `model.items.push()` with no argument throws when the model declared no template.
 
 ## Prerequisites — read these resources via ReadMcpResourceTool
 

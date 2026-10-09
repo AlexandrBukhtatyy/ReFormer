@@ -190,6 +190,19 @@ export async function validateCode(
   for (const imp of reformerImports) {
     const basePackage = imp.from.split('/').slice(0, 2).join('/');
     for (const { imported } of imp.names) {
+      // Переименованное семейство компонента массива — не опечатка (RF002) и не «живёт в другом
+      // пакете» (RF003), а прежнее имя с известным новым: называем его прямо.
+      const renamedTo = await renamedFieldArraySymbol(k, imported, basePackage);
+      if (renamedTo) {
+        diagnostics.push({
+          code: 'RF010',
+          severity: 'error',
+          message: `\`${imported}\` в ${basePackage} переименован в \`${renamedTo}\`.`,
+          line: imp.line,
+          suggestion: `Замена: \`${renamedTo}\` из \`${basePackage}\` либо из сабпата \`${basePackage}/field-array\`.`,
+        });
+        continue;
+      }
       const matches = await findSymbolAnywhere(k, imported);
       // Удалённые `*Field`-обёртки ui-kit и `withFormControl` — не опечатка (RF002), а снятое
       // API с известной заменой: называем её прямо, а не угадываем похожие имена.
@@ -443,6 +456,29 @@ function removedUiKitReplacement(name: string): string | undefined {
   const exp = replacementExportFor(name);
   if (exp) return `\`${exp}\` — в \`component\` поля кладётся сам компонент`;
   return REMOVED_UI_KIT_SYMBOLS[name];
+}
+
+/** Пакеты, где семейство компонента массива сменило имя: `FormArray*` → `FieldArray*`. */
+const FIELD_ARRAY_PACKAGES: ReadonlySet<string> = new Set(['@reformer/cdk', '@reformer/ui-kit']);
+
+/**
+ * Нынешнее имя переименованного компонента массива (`FormArraySection` → `FieldArraySection`,
+ * `useFormArray` → `useFieldArray`); `undefined` — имя не из этого семейства. Проверка привязана
+ * к пакету импорта: то же имя в другом пакете — отдельный символ со своей судьбой. Замена
+ * называется, только если она есть среди публичных символов пакета.
+ */
+async function renamedFieldArraySymbol(
+  k: Knowledge,
+  name: string,
+  basePackage: string
+): Promise<string | undefined> {
+  if (!FIELD_ARRAY_PACKAGES.has(basePackage) || !/^(?:[Uu]se)?FormArray/.test(name))
+    return undefined;
+  const renamedTo = name.replace('FormArray', 'FieldArray');
+  const pkg = KNOWN_PACKAGES.find((known) => known === basePackage);
+  if (pkg === undefined) return undefined;
+  const exists = (await publicSymbols(k, pkg)).some((symbol) => symbol.name === renamedTo);
+  return exists ? renamedTo : undefined;
 }
 
 /** Спецификаторы импорта символа в этом пакете. Пусто — индекса нет, проверку пропускаем. */

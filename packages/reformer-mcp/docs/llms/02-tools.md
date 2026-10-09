@@ -54,7 +54,7 @@ arguments are exact.
 Full JSDoc for one public symbol of any `@reformer/*` package: description, signature,
 params, `@returns`, every `@example`, source path.
 
-- `symbol` (string, required) — e.g. `"createForm"`, `"validateModel"`, `"FormArray"`.
+- `symbol` (string, required) — e.g. `"createForm"`, `"validateModel"`, `"FieldArray"`.
 - `package` (string, optional) — e.g. `"@reformer/core"`; omit to search all.
 
 Use before writing code against an unfamiliar symbol.

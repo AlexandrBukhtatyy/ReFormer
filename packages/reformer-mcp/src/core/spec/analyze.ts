@@ -175,7 +175,7 @@ export function extractArrays(content: string): string[] {
     /\b(?:hasProperty|hasExistingLoans|hasCoBorrower|properties|existingLoans|coBorrowers)\b/g
   );
   for (const m of matches ?? []) if (!patterns.includes(m)) patterns.push(m);
-  if (patterns.length === 0 && /\bмассив|\barray|\bFormArray\b/i.test(content)) {
+  if (patterns.length === 0 && /\bмассив|\barray|\b(?:Form|Field)Array\b/i.test(content)) {
     patterns.push('(см. секцию массивов в спеке)');
   }
   return patterns;
@@ -271,6 +271,8 @@ export function parseTypeCell(cell: string): { type: FieldType; component: strin
     Toggle: 'boolean',
     DatePicker: 'date',
     Calendar: 'date',
+    FieldArray: 'array',
+    // Прежнее имя компонента: спека — внешний документ и может называть массив по-старому.
     FormArray: 'array',
   };
   if (!(component in byComponent)) return null;

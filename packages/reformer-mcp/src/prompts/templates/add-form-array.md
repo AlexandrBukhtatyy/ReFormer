@@ -5,7 +5,7 @@ An array is one thing in every layer — it is bound by the handle `model.$.<arr
 | Layer      | Where                | How                                                                |
 | ---------- | -------------------- | ------------------------------------------------------------------ |
 | model      | `model.ts`           | `properties: arrayOf(blankProperty)` — the array and its new-row template |
-| schema     | `form.schema.ts`     | `{ model: model.$.properties, component: FormArray, item: propertyRow }`  |
+| schema     | `form.schema.ts`     | `{ model: model.$.properties, component: FieldArray, item: propertyRow }`  |
 | validation | `form.validation.ts` | `applyEach(model.$.properties, propertyRules)`                     |
 | behavior   | `form.behavior.ts`   | `applyEach(model.$.properties, propertyBehavior)`                  |
 
@@ -45,7 +45,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 
 2. **Never `enableWhen({ resetOnDisable: true })` on a whole array** — browser hang. Conditional visibility of the array = the node rule `hideWhen(schema.node('properties'), () => !model.hasProperty)` (a JSX conditional when the markup is written by hand).
 
-3. **Schema node = `{ model: model.$.<path>, item }`** — `model` is the handle (`model.$.properties`), `item` is a part `(model: FormModel<Item>) => node` whose leaves bind to the row's own handles (`model.$.<field>`). NEVER a tuple `arrField: [itemSchema]`, NEVER `{ value: [], itemSchema: {…} }`. The node needs no `initialValue`: it is only a fallback for forms whose model is created from data without code, and the model's template wins. When the node is drawn by `FormRenderer`, add `component: FormArray` (`"$component(FormArray)"` in JSON) — the renderer ships no array markup of its own, so without a component you get the rows but no add/remove/reorder UI. `List` from `@reformer/ui-kit` is the display-only variant.
+3. **Schema node = `{ model: model.$.<path>, item }`** — `model` is the handle (`model.$.properties`), `item` is a part `(model: FormModel<Item>) => node` whose leaves bind to the row's own handles (`model.$.<field>`). NEVER a tuple `arrField: [itemSchema]`, NEVER `{ value: [], itemSchema: {…} }`. The node needs no `initialValue`: it is only a fallback for forms whose model is created from data without code, and the model's template wins. When the node is drawn by `FormRenderer`, add `component: FieldArray` (`"$component(FieldArray)"` in JSON) — the renderer ships no array markup of its own, so without a component you get the rows but no add/remove/reorder UI. `List` from `@reformer/ui-kit` is the display-only variant.
 
    ```typescript
    // form.schema.ts
@@ -61,7 +61,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
    {
      selector: 'properties',
      model: model.$.properties,
-     component: FormArray,
+     component: FieldArray,
      componentProps: { title: 'Имущество', addButtonLabel: '+ Добавить имущество' },
      item: propertyRow,
    }
@@ -83,7 +83,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
      },
      "root": {
        "model": "$model(properties)",
-       "component": "$component(FormArray)",
+       "component": "$component(FieldArray)",
        "item": "$part(propertyRow)",
      },
    }
@@ -97,7 +97,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 
 6. **`selector` vs the model path — different things, do NOT mix.** `model: model.$.loanAmount` / `"model": "$model(loanAmount)"` is the binding; `selector: 'unique-id'` is a plain-string node id for `schema.node(selector)` in the behavior; `testId: 'step1.loanAmount'` is the DOM convention and stays in `componentProps`. A bare `"component": "Input"` (no operator) does NOT resolve.
 
-7. **Markup by hand in JSX** — `FormArraySection` from `@reformer/ui-kit` with an `itemComponent`:
+7. **Markup by hand in JSX** — `FieldArraySection` from `@reformer/ui-kit` with an `itemComponent`:
 
    ```tsx
    const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
@@ -107,7 +107,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
      </Section>
    );
 
-   <FormArraySection
+   <FieldArraySection
      control={form.properties}
      itemComponent={PropertyForm}
      title="Имущество"
@@ -115,7 +115,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
    />;
    ```
 
-   No `initialValue` prop: «Add» takes the template from the model. Need a custom compound layout? `<FormArray.Root control={form.<arr>}>` + `<FormArray.List>` + `<FormArray.AddButton>` (CDK).
+   No `initialValue` prop: «Add» takes the template from the model. Need a custom compound layout? `<FieldArray.Root control={form.<arr>}>` + `<FieldArray.List>` + `<FieldArray.AddButton>` (CDK).
 
 8. **Scopes are isolated.** A rule in the ROOT behavior cannot address a node inside a row: `schema.node(selector)` there sees the root tree only. Rules for nodes of a row go into the row's sub-behavior, which receives its own `schema` and its own `model`:
 
@@ -145,7 +145,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 ## Task
 
 1. **Model** — declare the array with its template: `<path>: arrayOf(blankItem)`; `blankItem` returns the FULL element with plain values.
-2. **Schema** — add the node `{ model: model.$.<path>, component: FormArray, item: itemRow }`; the row is a part `(model: FormModel<Item>) => node`. For JSON — a named part and `"item": "$part(itemRow)"`.
+2. **Schema** — add the node `{ model: model.$.<path>, component: FieldArray, item: itemRow }`; the row is a part `(model: FormModel<Item>) => node`. For JSON — a named part and `"item": "$part(itemRow)"`.
 3. **Validation** — a separate `defineValidationSchema`, never on schema nodes. Row rules are their own schema over the element, attached with `applyEach`:
 
    ```typescript
@@ -171,7 +171,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 4. **Behavior** — per-row links and node rules go through `applyEach(model.$.<path>, itemBehavior)` in `form.behavior.ts`.
 5. **Cleanup on an external trigger** (a flag turned off) — `onChange(model.$.flag, (on) => { if (!on && model.<arr>.length > 0) model.<arr>.clear(); })`. A `clearWhenOff(...)` shorthand is NOT a `@reformer/core` export — define it yourself if you want it (see `reformer://docs/core/array-cleanup-pattern`). Never `resetValue` on an array.
 6. **Nested arrays** — nest another `{ model: model.$.<path>, item }` inside the row part and `arrayOf(...)` inside the row template.
-7. **UI** — the renderer draws the node through `component: FormArray`; by hand in JSX — `FormArraySection` (rule #7).
+7. **UI** — the renderer draws the node through `component: FieldArray`; by hand in JSX — `FieldArraySection` (rule #7).
 
 ## Output checklist
 
@@ -183,5 +183,5 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 - [ ] Per-row behavior attached with `applyEach`; nodes of a row addressed from the row's own `schema`
 - [ ] Cleanup wired (`model.<arr>.clear()` guarded by length) if applicable
 - [ ] (renderer) Checkbox without `CdkFormField.Label` wrapper
-- [ ] (JSX) `FormArraySection` with an FC `itemComponent`, no `initialValue` prop
+- [ ] (JSX) `FieldArraySection` with an FC `itemComponent`, no `initialValue` prop
 - [ ] (renderer-json) the row is a named part referenced as `"item": "$part(name)"` (or inline `$template`); every `$component` registered

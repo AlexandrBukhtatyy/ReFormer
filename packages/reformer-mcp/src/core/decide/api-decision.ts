@@ -74,7 +74,7 @@ export const DECISION_RULES: DecisionRule[] = [
     // вычислении, а «массив» — в правилах про each/applyEach. Совпадать должно И то, И другое,
     // в любом порядке — отсюда lookahead вместо перечисления.
     cues: [
-      /(?=[\s\S]*(сумм|итог|среднее|количеств|подсч[ёе]т|total|sum\b|count\b|average|aggregate))(?=[\s\S]*(масс|элемент|строк|списк|позици|array|items?\b|rows?\b|FormArray))/i,
+      /(?=[\s\S]*(сумм|итог|среднее|количеств|подсч[ёе]т|total|sum\b|count\b|average|aggregate))(?=[\s\S]*(масс|элемент|строк|списк|позици|array|items?\b|rows?\b|FieldArray))/i,
     ],
     // Поведение на КАЖДОМ элементе — это applyEach, а не агрегат в одно поле.
     unless: [/кажд|each\b|per\s+item|на\s+элемент/i],
@@ -468,7 +468,7 @@ export const DECISION_RULES: DecisionRule[] = [
       '  createModel<MyForm>({ properties: arrayOf(blankProperty) });',
       '',
       '// form.schema.ts — `item` строится для каждого элемента',
-      '{ model: model.$.properties, component: FormArray, item: propertyRow }',
+      '{ model: model.$.properties, component: FieldArray, item: propertyRow }',
       '',
       '// где угодно',
       'model.properties.push(); // новый элемент по шаблону',

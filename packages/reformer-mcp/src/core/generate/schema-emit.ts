@@ -187,7 +187,7 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
           // видимости, и подмена дала бы правило на узел, которого в разметке нет.
           selector: node.selector ?? a.name,
           model: `$model(${scope ? node.ref : (a.modelPath ?? a.name)})`,
-          component: `$component(${a.component ?? 'FormArray'})`,
+          component: `$component(${a.component ?? 'FieldArray'})`,
           item: `$part(${rowPart(a)})`,
         };
       }

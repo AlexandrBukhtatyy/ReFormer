@@ -76,7 +76,7 @@
         "editable array section registry",
         "form-array"
       ],
-      "expectAny": ["reg.component('FormArray'", "$component(FormArray)"]
+      "expectAny": ["reg.component('FieldArray'", "$component(FieldArray)"]
     },
     {
       "id": "renderer-json/wizard-submit",

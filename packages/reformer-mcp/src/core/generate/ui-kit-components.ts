@@ -49,7 +49,7 @@ export const UI_KIT_FIELD_EXPORTS: Readonly<Record<string, string>> = {
 export const UI_KIT_CONTAINER_EXPORTS: Readonly<Record<string, string>> = {
   Box: 'Box',
   Section: 'Section',
-  FormArray: 'FormArray',
+  FieldArray: 'FieldArray',
 };
 
 /**

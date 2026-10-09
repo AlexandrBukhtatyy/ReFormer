@@ -938,7 +938,7 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
         // после подмены не оказывалось — и кросс-проверка выдавала C6 на собственный вывод).
         selector: node.selector ?? a.name,
         array: `$model(${a.modelPath ?? a.name})`,
-        component: `$component(${a.component ?? 'FormArray'})`,
+        component: `$component(${a.component ?? 'FieldArray'})`,
         initialValue: emptyItem(a),
         item: {
           $template: {
@@ -1054,7 +1054,7 @@ export function collectUsedComponents(intent: FormIntent): Set<string> {
   const used = new Set<string>();
   for (const f of intent.fields) used.add(f.component);
   for (const a of intent.arrays) {
-    used.add(a.component ?? 'FormArray');
+    used.add(a.component ?? 'FieldArray');
     for (const f of a.itemFields) used.add(f.component);
   }
   const walk = (node: LayoutNode) => {
