@@ -12,7 +12,7 @@
  * и плагин, собранный «правильно», падал бы на спецификаторе, которого нет в реестре.
  *
  * Подпути перечислены поимённо: реестр резолвит ТОЧНЫМ совпадением, и `@reformer/cdk` не
- * покрывает `@reformer/cdk/form-array`. Сборщику при этом годится и префикс — всё, что начинается
+ * покрывает `@reformer/cdk/field-array`. Сборщику при этом годится и префикс — всё, что начинается
  * с `@reformer/`, защищено оболочкой целиком и подменить его плагин не может.
  *
  * @module @reformer/builder-plugin-api/plugin/runtime-modules
@@ -56,7 +56,7 @@ const KIT_SUBPATHS: readonly string[] = [
   '@reformer/ui-kit/field',
   '@reformer/ui-kit/fields',
   '@reformer/ui-kit/file-upload',
-  '@reformer/ui-kit/form-array',
+  '@reformer/ui-kit/field-array',
   '@reformer/ui-kit/form-field',
   '@reformer/ui-kit/form-wizard',
   '@reformer/ui-kit/hover-card',
@@ -138,7 +138,7 @@ export const PLUGIN_RUNTIME_MODULES: readonly string[] = Object.freeze([
   '@reformer/cdk',
   '@reformer/cdk/async-boundary',
   '@reformer/cdk/file-upload',
-  '@reformer/cdk/form-array',
+  '@reformer/cdk/field-array',
   '@reformer/cdk/form-field',
   '@reformer/cdk/form-wizard',
   '@reformer/cdk/list',

@@ -175,7 +175,7 @@ describe('словарь классов и политика групп', () => {
           record('Input', { role: 'field' }),
           record('Slider', { role: 'field', classGroups: ['spacing', 'sizing'] }),
           record('Box'),
-          record('FormArray', { role: 'array' }),
+          record('FieldArray', { role: 'array' }),
         ],
       })
     );
@@ -183,7 +183,7 @@ describe('словарь классов и политика групп', () => {
     expect(d.classGroupPolicy.get('Slider')).toEqual(new Set(['spacing', 'sizing']));
     // '*' и роль без правила — «ограничений нет», ключ не заводится.
     expect(d.classGroupPolicy.has('Box')).toBe(false);
-    expect(d.classGroupPolicy.has('FormArray')).toBe(false);
+    expect(d.classGroupPolicy.has('FieldArray')).toBe(false);
   });
 });
 
