@@ -228,13 +228,18 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
                     value={option.label}
                     onSelect={() => handleSelect(option.value)}
                   >
+                    {option.label}
+                    {/* Отметка выбора — у правого края пункта, как у составного `Select`:
+                        подписи всех списков кита начинаются с одного отступа. Невыбранный
+                        пункт держит под неё место, иначе длинная подпись переносилась бы
+                        по-разному у выбранного и остальных. */}
                     <CheckIcon
+                      data-slot="combobox-check"
                       className={cn(
-                        'mr-2 size-4',
+                        'ml-auto size-4',
                         value === option.value ? 'opacity-100' : 'opacity-0'
                       )}
                     />
-                    {option.label}
                   </CommandItem>
                 ))}
               </CommandGroup>

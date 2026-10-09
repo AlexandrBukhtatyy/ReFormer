@@ -11,7 +11,9 @@
  *   с мультивыбором, и щелчок по пункту пишет в узел то же отдельное свойство, что раньше
  *   писал флажок;
  * - привязка к модели — список кита с вводом своего пути, а не поле ввода с родным списком
- *   браузера: тот же вид, что у соседних списков, и одна правка на выбор.
+ *   браузера: тот же вид, что у соседних списков, и одна правка на выбор;
+ * - отметка выбранного пункта во всех списках панели стоит у правого края, а подписи пунктов
+ *   начинаются с одного отступа: списки трёх разных устройств читаются как один компонент.
  *
  * @module plugins/reformer/editor/ui/InspectorPanel.browser.test
  */
@@ -23,6 +25,7 @@ import type { CatalogEntry } from '../../../core/catalog';
 import { sampleSchema } from '../../../core/testing';
 import { renderReact } from '../../../../.shared/render';
 import { indexNodes } from '../model/node-index';
+import { setPropOp } from '../model/ops';
 import { createSessionRegistry, type SchemaSession } from '../session/sessions';
 import { createFakeSchemaHost } from '../testing';
 import { InspectorPanel } from './InspectorPanel';
@@ -548,5 +551,99 @@ describe('выпадающий список — того же кегля, что
     await openList(container, BINDING);
 
     expect(fontSizeOf(document.querySelector('[cmdk-input]'))).toBe('12px');
+  });
+});
+
+describe('отметка выбора — у правого края пункта', () => {
+  /** Что измеряем у выбранного пункта: отступ подписи слева и место отметки справа. */
+  interface Marked {
+    /** От левого края пункта до начала подписи. */
+    readonly labelOffset: number;
+    /** От конца подписи до начала отметки: отрицательное — отметка стоит левее подписи. */
+    readonly labelToMark: number;
+    /** От конца отметки до правого края пункта. */
+    readonly markGap: number;
+  }
+
+  /**
+   * Выбранный пункт открытого списка — тот, чья отметка видна.
+   *
+   * По `aria-selected` его не найти: у списка на `cmdk` этот атрибут означает «под курсором»,
+   * а не «выбран». Отметка же есть у всех трёх устройств: у выбранного она видима, у остальных
+   * прозрачна либо не отрисована вовсе.
+   */
+  function measureMarked(): Marked {
+    for (const option of document.querySelectorAll<HTMLElement>('[role="option"]')) {
+      const mark = Array.from(option.querySelectorAll('svg')).find(
+        (icon) => getComputedStyle(icon).opacity !== '0' && icon.getBoundingClientRect().width > 0
+      );
+      if (mark === undefined) continue;
+      const walker = document.createTreeWalker(option, NodeFilter.SHOW_TEXT);
+      let text = walker.nextNode();
+      while (text !== null && (text.textContent ?? '').trim() === '') text = walker.nextNode();
+      if (text === null) throw new Error('у выбранного пункта нет подписи');
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const label = range.getBoundingClientRect();
+      const item = option.getBoundingClientRect();
+      const icon = mark.getBoundingClientRect();
+      return {
+        labelOffset: Math.round(label.left - item.left),
+        labelToMark: Math.round(icon.left - label.right),
+        markGap: Math.round(item.right - icon.right),
+      };
+    }
+    throw new Error('выбранного пункта в открытом списке нет');
+  }
+
+  /** Раскрывает список строки и меряет его выбранный пункт. */
+  async function openAndMeasure(container: HTMLElement, key: string): Promise<Marked> {
+    const { control } = rowOf(container, key);
+    if (control === null) throw new Error(`контрола «${key}» в панели нет`);
+    await userEvent.click(control);
+    await expect.poll(() => control.getAttribute('aria-expanded')).toBe('true');
+    await expect.poll(() => document.querySelectorAll('[role="option"]').length).not.toBe(0);
+    return measureMarked();
+  }
+
+  /** Панель с выбранным значением и у списка выбора: в образце размер не задан. */
+  async function mountWithSize(): Promise<HTMLElement> {
+    const { container, session } = await mount();
+    const id = indexNodes(session.get().model).idAt(SELECT_PATH);
+    if (id === undefined) throw new Error('в образце нет поля Select');
+    session.apply(setPropOp(id, 'size', 'sm'));
+    await expect.poll(() => rowOf(container, 'Size').control?.textContent).toBe('sm');
+    return container;
+  }
+
+  // Три строки — три устройства списка в ките: свой listbox в поповере, Radix Select и cmdk.
+  // У Radix отметка всегда стояла справа; два других рисовали её слева от подписи, и подписи
+  // пунктов в соседних списках одной панели начинались с разного отступа.
+  it.each([
+    ['список флагов', FLAGS],
+    ['список выбора', 'Size'],
+    ['привязка', BINDING],
+  ])('%s: отметка правее подписи и у края пункта', async (_title, key) => {
+    const container = await mountWithSize();
+
+    const marked = await openAndMeasure(container, key);
+
+    expect(marked.labelToMark).toBeGreaterThanOrEqual(0);
+    // Отступ пункта — восемь пикселей; отметка стоит вплотную к нему, а не посреди строки.
+    expect(marked.markGap).toBeGreaterThanOrEqual(4);
+    expect(marked.markGap).toBeLessThanOrEqual(10);
+  });
+
+  it('подписи пунктов всех трёх списков начинаются с одного отступа', async () => {
+    const offsets: number[] = [];
+    for (const key of [FLAGS, 'Size', BINDING]) {
+      const container = await mountWithSize();
+      offsets.push((await openAndMeasure(container, key)).labelOffset);
+      unmount?.();
+      unmount = undefined;
+    }
+
+    // Отметки слева больше нет ни у одного: подпись стоит сразу за отступом пункта.
+    expect(offsets).toEqual([8, 8, 8]);
   });
 });

@@ -381,8 +381,13 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
                     blocked && 'pointer-events-none opacity-50'
                   )}
                 >
-                  <CheckIcon className={cn('size-4', checked ? 'opacity-100' : 'opacity-0')} />
                   {option.label}
+                  {/* Отметка — у правого края, как у составного `Select`; место под неё
+                      занято и у невыбранного пункта. */}
+                  <CheckIcon
+                    data-slot="select-multi-check"
+                    className={cn('ml-auto size-4 shrink-0', checked ? 'opacity-100' : 'opacity-0')}
+                  />
                 </div>
               );
             })}

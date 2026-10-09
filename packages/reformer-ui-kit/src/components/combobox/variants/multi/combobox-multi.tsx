@@ -273,6 +273,9 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                         onSelect={() => toggle(option.value)}
                         data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
                       >
+                        {option.label}
+                        {/* Чекбокс — у правого края пункта: отметка выбора во всех списках
+                            кита стоит справа, а подпись начинается с левого отступа. */}
                         <Checkbox
                           checked={checked}
                           // `[&_svg]:text-primary-foreground!` — не косметика, а обход правила
@@ -285,11 +288,10 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                           // самой иконке снаружи нельзя — отсюда `!`. Тот же приём и по той же
                           // причине использует upstream: `*:[svg]:text-destructive!` в
                           // context-menu / dropdown-menu / menubar.
-                          className="pointer-events-none mr-2 [&_svg]:text-primary-foreground!"
+                          className="pointer-events-none ml-auto [&_svg]:text-primary-foreground!"
                           tabIndex={-1}
                           aria-hidden="true"
                         />
-                        {option.label}
                       </CommandItem>
                     );
                   })}

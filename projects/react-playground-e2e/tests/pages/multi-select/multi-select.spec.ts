@@ -84,6 +84,60 @@ test.describe('Множественный выбор', () => {
     await po.close();
   });
 
+  test('отметка выбора — у правого края пункта: чекбокс ComboboxMulti и галочка SelectMulti', async ({
+    page,
+  }) => {
+    // Во всех списках кита подпись пункта начинается сразу за его отступом, а отметка выбора
+    // стоит справа, как у составного Select. Раньше чекбокс и галочка стояли слева от подписи,
+    // и подписи соседних списков одной формы начинались с разного отступа.
+    const measure = (testId: string, mark: string) =>
+      page.evaluate(
+        ({ testId, mark }) => {
+          const item = document.querySelector(`[data-testid="${testId}"]`);
+          const sign = item?.querySelector(mark);
+          if (!item || !sign) return null;
+          const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+          let text = walker.nextNode();
+          while (text !== null && (text.textContent ?? '').trim() === '') text = walker.nextNode();
+          if (text === null) return null;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const label = range.getBoundingClientRect();
+          const box = item.getBoundingClientRect();
+          const signBox = sign.getBoundingClientRect();
+          return {
+            labelOffset: Math.round(label.left - box.left),
+            labelToMark: Math.round(signBox.left - label.right),
+            markGap: Math.round(box.right - signBox.right),
+          };
+        },
+        { testId, mark }
+      );
+    const expectMarkOnTheRight = (
+      geometry: { labelOffset: number; labelToMark: number; markGap: number } | null
+    ) => {
+      expect(geometry).not.toBeNull();
+      // Подпись — сразу за отступом пункта (8px), отметка — правее неё и у самого края.
+      expect(geometry!.labelOffset).toBe(8);
+      expect(geometry!.labelToMark).toBeGreaterThanOrEqual(0);
+      expect(geometry!.markGap).toBe(8);
+    };
+
+    await po.open('frameworks');
+    await po.option('frameworks', 'next').click();
+    // Чекбокс виден у каждого пункта — и у отмеченного, и у пустого.
+    expectMarkOnTheRight(await measure('input-frameworks-next', '[data-slot="checkbox"]'));
+    expectMarkOnTheRight(await measure('input-frameworks-remix', '[data-slot="checkbox"]'));
+    await po.close();
+
+    await po.open('countries');
+    await po.option('countries', 'ru').click();
+    expectMarkOnTheRight(await measure('input-countries-ru', '[data-slot="select-multi-check"]'));
+    // У невыбранного пункта место под галочку занято: подпись стоит там же.
+    expectMarkOnTheRight(await measure('input-countries-de', '[data-slot="select-multi-check"]'));
+    await po.close();
+  });
+
   test('ComboboxMulti: maxItems гасит невыбранные, но снять уже выбранное можно', async () => {
     await po.pickMany('frameworks', ['next', 'remix', 'astro']);
     await po.expectValue('frameworks', ['next', 'remix', 'astro']);
