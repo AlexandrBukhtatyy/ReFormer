@@ -142,7 +142,7 @@ function NameField() {
 interface ValidationError {
   code: string; // машинный код: 'required', 'email', 'minLength', …
   message: string; // текст для пользователя
-  params?: Record<string, FormValue>; // данные ошибки: { minLength: 2, actualLength: 1 }
+  params?: Record<string, unknown>; // данные ошибки: { minLength: 2, actualLength: 1 }
   severity?: 'error' | 'warning'; // 'error' (по умолчанию) блокирует submit; 'warning' — нет
 }
 ```

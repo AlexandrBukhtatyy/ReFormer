@@ -15,7 +15,7 @@ sidebar_position: 6
 interface ValidationError {
   code: string; // машинный код: 'required', 'email', 'passwordMismatch', …
   message: string; // текст для пользователя
-  params?: Record<string, FormValue>; // данные ошибки: { minLength: 8, actualLength: 3 }
+  params?: Record<string, unknown>; // данные ошибки: { minLength: 8, actualLength: 3 }
   severity?: 'error' | 'warning'; // 'error' (по умолчанию) блокирует submit; 'warning' — нет
 }
 ```
@@ -96,7 +96,7 @@ getNodeForSignal(model.$.email)?.getErrors(); // ValidationError[] | undefined
 interface ErrorFilterOptions {
   code?: string | string[]; // по коду (одному или нескольким)
   message?: string; // частичное совпадение по тексту (регистронезависимо)
-  params?: Record<string, FormValue>; // по значениям params
+  params?: Record<string, unknown>; // по значениям params
   predicate?: (error: ValidationError) => boolean; // произвольный предикат
 }
 ```
