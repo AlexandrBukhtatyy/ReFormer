@@ -453,7 +453,7 @@ function renderComment(comment: string | ts.NodeArray<ts.JSDocComment>): string 
 
 function resolveModule(fromFile: string, spec: string): string | null {
   // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше любой не-относительный спецификатор
-  // отбрасывался, и `export { useFormBundle as useReactForm } from '@reformer/core'`
+  // отбрасывался, и `export { useFormBundle as useReactForm } from '@reformer/core/react'`
   // (packages/reformer-renderer-react/src/index.ts) терялся целиком: символ есть в публичном
   // API, а `get_symbol_docs('useReactForm')` отвечал «not found» — при том, что ТРИ шаблона
   // промптов этого же сервера (start-here, create-form, to-renderer) учат звать именно

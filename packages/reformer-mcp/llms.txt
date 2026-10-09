@@ -530,7 +530,8 @@ The call is the same for every way of drawing; a JSON document goes in as `schem
 `registry`.
 
 ```ts
-import { createForm, useFormBundle } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 
 const bundle = useFormBundle(() =>
   createForm<RegForm>({

@@ -116,8 +116,8 @@ const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
     '`createForm({ model, schema, behavior, validation })` из `@reformer/core`; бандл рисует `<FormRenderer form={bundle} />`',
   createJsonForm:
     '`createForm({ model, schema: document, registry, behavior, validation })` из `@reformer/core`; документ — формата 2 (`migrateJsonSchema` переводит прежний)',
-  useReactForm: '`useFormBundle` из `@reformer/core`',
-  useJsonForm: '`useFormBundle` из `@reformer/core`',
+  useReactForm: '`useFormBundle` из `@reformer/core/react`',
+  useJsonForm: '`useFormBundle` из `@reformer/core/react`',
   JsonFormRenderer: '`FormRenderer` из `@reformer/renderer-react` с бандлом `createForm`',
   JsonRendererProvider:
     'не нужен: реестр уходит в сборку — `createForm({ …, registry })`; несколько реестров объединяет `composeRegistries`',

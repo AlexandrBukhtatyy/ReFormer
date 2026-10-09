@@ -30,7 +30,7 @@ describe('symbols-parser — переименовывающие реэкспор
     'кросс-пакетный алиас виден под публичным именем',
     () => {
       // packages/reformer-renderer-react/src/index.ts:
-      //   export { useFormBundle as useReactForm } from '@reformer/core';
+      //   export { useFormBundle as useReactForm } from '@reformer/core/react';
       const sym = findSymbol('useReactForm');
       expect(
         sym,

@@ -110,7 +110,7 @@ export const REMOVED_FIELD_EXPORTS: Readonly<Record<string, string>> = {
 /** Прочие удалённые символы ui-kit и то, чем их заменить (для диагностики кода). */
 export const REMOVED_UI_KIT_SYMBOLS: Readonly<Record<string, string>> = {
   withFormControl: '`defineFieldControl(Component, { adapter })` из `@reformer/ui-kit/fields`',
-  stripWrapperProps: 'ничего — пропсы обёртки срезает `bindFieldProps` из `@reformer/core`',
+  stripWrapperProps: 'ничего — пропсы обёртки срезает `bindFieldProps` из `@reformer/core/react`',
   SwitchControlProps: '`SwitchWithLabelProps`',
 };
 

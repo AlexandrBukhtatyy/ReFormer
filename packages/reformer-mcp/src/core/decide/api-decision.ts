@@ -499,7 +499,8 @@ export const DECISION_RULES: DecisionRule[] = [
     because:
       'контракт формы один на все способы отрисовки: одна схема-дерево с привязкой `model`, одно поведение, одна сборка. Различается только вид схемы (билдер или JSON-документ + `registry`) и то, кто рисует',
     usage: [
-      "import { createForm, useFormBundle } from '@reformer/core';",
+      "import { createForm } from '@reformer/core';",
+      "import { useFormBundle } from '@reformer/core/react';",
       '',
       '// form.schema.ts — одно дерево: поле стоит там, где оно рисуется',
       'export const formSchema = (model: FormModel<MyForm>): FormSchemaNode => ({',
@@ -535,7 +536,8 @@ export const DECISION_RULES: DecisionRule[] = [
     because:
       'рендерер один на TS-схему и на JSON-документ: он получает бандл сборки `createForm` и рисует дерево схемы. Для JSON обёртка поля приходит из реестра (`FIELD_WRAPPER`), для TS — из `settings.fieldWrapper`',
     usage: [
-      "import { createForm, useFormBundle } from '@reformer/core';",
+      "import { createForm } from '@reformer/core';",
+      "import { useFormBundle } from '@reformer/core/react';",
       "import { FormRenderer } from '@reformer/renderer-react';",
       '',
       '// TS-схема',

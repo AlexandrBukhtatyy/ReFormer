@@ -171,7 +171,8 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   const json = intent.target === 'renderer-json';
   const lines: string[] = [];
 
-  lines.push("import { createForm, useFormBundle } from '@reformer/core';");
+  lines.push("import { createForm } from '@reformer/core';");
+  lines.push("import { useFormBundle } from '@reformer/core/react';");
   if (intent.target !== 'core')
     lines.push("import { FormRenderer } from '@reformer/renderer-react';");
   if (intent.target === 'renderer-react')

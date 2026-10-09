@@ -325,7 +325,8 @@ describe('сборка — index.tsx', () => {
   it('одна фабрика и один хук на все таргеты', () => {
     for (const target of TARGETS) {
       const tsx = buildAssemblyTsx(loanIntent(target));
-      expect(tsx).toContain("import { createForm, useFormBundle } from '@reformer/core';");
+      expect(tsx).toContain("import { createForm } from '@reformer/core';");
+      expect(tsx).toContain("import { useFormBundle } from '@reformer/core/react';");
       expect(tsx).toContain('createForm<LoanRequest>({');
       expect(tsx).toContain('model: createFormModel(),');
       expect(tsx).toContain('behavior: formBehavior,');
@@ -455,6 +456,26 @@ describe('validate_form kind=code — прежний контракт', () => {
     expect(suggestions).toMatch(/createForm\(/);
     expect(suggestions).toMatch(/из аргумента схемы/);
     expect(suggestions).toMatch(/applyEach\(/);
+  });
+
+  it('React-привязки из корня ядра и из /i18n — RF003 с адресом @reformer/core/react', async () => {
+    const code = [
+      "import { createForm, useFormControl, type FieldAdapter } from '@reformer/core';",
+      "import { useI18n, msg } from '@reformer/core/i18n';",
+      "import { useFormBundle, I18nProvider } from '@reformer/core/react';",
+    ].join('\n');
+    const { diagnostics } = await validateCode(k, code);
+    const wrongEntry = diagnostics.filter((d) => d.code === 'RF003');
+
+    // `createForm`, `msg` и уже правильные импорты из /react диагностик не дают.
+    expect(diagnostics.map((d) => d.code)).toEqual(['RF003', 'RF003', 'RF003']);
+    expect(wrongEntry.map((d) => d.line)).toEqual([1, 1, 2]);
+    expect(wrongEntry.map((d) => d.message).join('\n')).toMatch(
+      /useFormControl[\s\S]*FieldAdapter[\s\S]*useI18n/
+    );
+    for (const diagnostic of wrongEntry) {
+      expect(diagnostic.suggestion).toContain('@reformer/core/react');
+    }
   });
 
   it('прежние ключи узла — RF010', async () => {

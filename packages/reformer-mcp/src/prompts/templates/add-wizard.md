@@ -72,7 +72,8 @@ Need flow constraints CDK/ui-kit can't express?
 {{{{raw}}}}
 
 ```tsx
-import { createForm, useFormBundle } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 
 const steps: FormWizardStep<MyForm>[] = [
@@ -171,7 +172,7 @@ What is NOT needed any more — all of it is the former contract, ❌ do not emi
 - ❌ injecting `form` and the validation config via `onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, config }))`;
 - ❌ `renderStepBody`, and a `useEffect` cascade of `schema.node('stepN').setHidden(n !== currentStep)`.
 
-**A2 / A3 / A4 with a renderer.** A component that manages its children itself declares the static `__selfManagedChildren = true`; the renderer then hands it the child NODES plus a `renderNode` function instead of rendered elements, and the component reads the form and the validation from `useFormBundleContext()` (`@reformer/core`). A custom wizard has to implement this protocol to stand in a schema — see `reformer://docs/renderer-react` («Компонент, который сам управляет детьми»). If that is not worth it, keep the wizard in JSX (B1) and draw each step with its own `FormRenderer`.
+**A2 / A3 / A4 with a renderer.** A component that manages its children itself declares the static `__selfManagedChildren = true`; the renderer then hands it the child NODES plus a `renderNode` function instead of rendered elements, and the component reads the form and the validation from `useFormBundleContext()` (`@reformer/core/react`). A custom wizard has to implement this protocol to stand in a schema — see `reformer://docs/renderer-react` («Компонент, который сам управляет детьми»). If that is not worth it, keep the wizard in JSX (B1) and draw each step with its own `FormRenderer`.
 
 **Conditional sub-sections inside steps** (mortgage, residence, …) get their own `selector` and a rule in the behavior: `hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage')`. The condition reads the MODEL (`model.loanType`), not `form.loanType.value.value`.
 
