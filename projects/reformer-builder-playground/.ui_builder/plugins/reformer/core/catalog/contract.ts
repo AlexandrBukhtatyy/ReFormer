@@ -84,7 +84,7 @@ export function composeCatalogJson(
   componentsCfg?: ComponentsFilter
 ): CatalogJson {
   const synthetic = syntheticRecords(componentsCfg?.synthetic);
-  // Синтетическая запись выигрывает у одноимённой клиентской: `FormArray` у билдера — это
+  // Синтетическая запись выигрывает у одноимённой клиентской: `FieldArray` у билдера — это
   // array-узел (role `array`, свои props повторяющегося блока), а у кита так называется обычный
   // React-компонент. Пока кит не поставлял его в каталоге, столкновения не было; теперь, когда он
   // описывает все свои экспорты, дубль имени надо снимать здесь — иначе array-узел подменяется

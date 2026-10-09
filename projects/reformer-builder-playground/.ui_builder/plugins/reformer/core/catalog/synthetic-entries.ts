@@ -27,8 +27,8 @@ export interface SyntheticOptions {
   html?: boolean;
   /** Ограничить набор HTML-тегов (деф. — все известные билдеру теги). */
   htmlTags?: string[];
-  /** Включать `FormArray` (деф. true). */
-  formArray?: boolean;
+  /** Включать `FieldArray` (деф. true). */
+  fieldArray?: boolean;
   /** Включать `Wizard` + `Step` (деф. true). */
   wizard?: boolean;
 }
@@ -80,6 +80,13 @@ const stepPropsSchema: PropsSchema = {
  * полный набор (поведение как раньше).
  */
 export function syntheticRecords(cfg?: SyntheticOptions): CatalogRecord[] {
+  // Секция приходит из конфига клиента, то есть из данных: прежний ключ компилятор не поймает,
+  // а молча пропущенный тогл вернул бы в палитру запись, которую клиент отключал.
+  if (cfg !== undefined && 'formArray' in cfg) {
+    throw new Error(
+      'Ключ конфигурации `components.synthetic.formArray` переименован в `fieldArray`.'
+    );
+  }
   const specs =
     cfg?.htmlTags && cfg.htmlTags.length
       ? HTML_TAG_SPECS.filter((s) => cfg.htmlTags!.includes(s.tag))
@@ -94,7 +101,7 @@ export function syntheticRecords(cfg?: SyntheticOptions): CatalogRecord[] {
           propsSchema: htmlPropsSchema(spec),
         }));
   const array: CatalogRecord = {
-    name: 'FormArray',
+    name: 'FieldArray',
     role: 'array',
     category: 'Массив',
     propsSchema: arrayPropsSchema,
@@ -114,7 +121,7 @@ export function syntheticRecords(cfg?: SyntheticOptions): CatalogRecord[] {
     propsSchema: stepPropsSchema,
   };
   const out: CatalogRecord[] = [...html];
-  if (cfg?.formArray !== false) out.push(array);
+  if (cfg?.fieldArray !== false) out.push(array);
   if (cfg?.wizard !== false) out.push(wizard, step);
   return out;
 }

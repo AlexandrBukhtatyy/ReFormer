@@ -41,7 +41,7 @@ export { ARRAY_COMPONENT_NAME, componentOf, labelOf, modelOf } from '../../../co
 
 /** Что вызывающий рассчитывает найти по адресу. Любое заданное поле обязано совпасть. */
 export interface NodeExpectation {
-  /** Каталожное имя: `Input`, `$html(div)`, `FormArray`. `null` — не проверять (см. `EXPECT_PROP`). */
+  /** Каталожное имя: `Input`, `$html(div)`, `FieldArray`. `null` — не проверять (см. `EXPECT_PROP`). */
   component?: string | null;
   /** Путь модели без обёртки оператора: `applicant.email`. `null` — не проверять. */
   model?: string | null;

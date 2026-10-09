@@ -29,7 +29,7 @@ describe('чтение узла', () => {
   it('componentOf: компонент, html-тег и array без component', () => {
     const schema = sampleSchema();
     expect(componentOf(at(schema, P.step0field0))).toBe('Select');
-    expect(componentOf(at(schema, P.array))).toBe('FormArray');
+    expect(componentOf(at(schema, P.array))).toBe('FieldArray');
     const html = { component: '$html(div)', children: [] } as unknown as JsonNode;
     expect(componentOf(html)).toBe('$html(div)');
   });

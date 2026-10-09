@@ -251,7 +251,7 @@ describe('уникальность адресов', () => {
             {
               $nodeId: 'ssssssss',
               array: '$model(items)',
-              component: '$component(FormArray)',
+              component: '$component(FieldArray)',
               item: { $template: { $nodeId: 'ssssssss', component: '$html(div)', children: [] } },
             },
           ],

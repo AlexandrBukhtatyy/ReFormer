@@ -94,7 +94,7 @@ export function previewHostFromContext(ctx: Pick<PluginContext, 'services' | 'i1
       return service === undefined ? NO_CATALOG : projectCatalog(service.catalogJson()).entries;
     },
     // Дескриптор ПРОЕКЦИИ, а не службы: он собран по каталогу вместе с синтетикой билдера, и
-    // политика превью и групп классов у записей `$html`/`FormArray` — та же, что у кодогена.
+    // политика превью и групп классов у записей `$html`/`FieldArray` — та же, что у кодогена.
     kit: () => {
       const service = kit();
       return service === undefined ? null : projectCatalog(service.catalogJson()).descriptor;

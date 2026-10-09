@@ -158,8 +158,8 @@ describe('активный кит', () => {
   it('каталог отдаётся таким, каким его поставил кит: синтетика — дело стека', () => {
     const kits = createKitsService({ sources: [KIT_A] });
 
-    // Служба нейтральна: записи палитры ReFormer (`$html`, `FormArray`) добавляет его проекция.
-    expect(names(kits.catalogJson())).not.toContain('FormArray');
+    // Служба нейтральна: записи палитры ReFormer (`$html`, `FieldArray`) добавляет его проекция.
+    expect(names(kits.catalogJson())).not.toContain('FieldArray');
   });
 
   it('снимки стабильны между сменами и обновляются вместе с китом', async () => {

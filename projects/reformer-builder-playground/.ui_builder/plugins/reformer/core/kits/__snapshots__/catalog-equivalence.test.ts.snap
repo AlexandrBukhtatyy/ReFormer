@@ -240,7 +240,7 @@ exports[`каталог: отпечаток не меняется > состав
   "$html(li)|container|HTML||||||fc6adf2b|{"children":[],"component":"$html(li)","componentProps":{}}",
   "$html(hr)|container|HTML||||||fc6adf2b|{"component":"$html(hr)","componentProps":{}}",
   "$html(img)|container|HTML||||||e98e4af1|{"component":"$html(img)","componentProps":{}}",
-  "FormArray|array|Массив||||||59036b17|{"array":"$model(items)","componentProps":{"addButtonLabel":"+ Добавить элемент"},"item":{"$template":{"children":[],"component":"$component(Box)","componentProps":{"className":"space-y-3"}}}}",
+  "FieldArray|array|Массив||||||59036b17|{"array":"$model(items)","componentProps":{"addButtonLabel":"+ Добавить элемент"},"item":{"$template":{"children":[],"component":"$component(Box)","componentProps":{"className":"space-y-3"}}}}",
   "Wizard|container|Мастер||||||f7b00415|{"component":"$component(Wizard)","componentProps":{"steps":[{"children":[],"component":"$component(Step)","componentProps":{"title":"Шаг 1"}}]}}",
   "Step|container|Мастер||||||02666ea6|{"children":[],"component":"$component(Step)","componentProps":{"title":"Шаг"}}",
 ]

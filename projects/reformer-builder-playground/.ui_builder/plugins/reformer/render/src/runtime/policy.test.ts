@@ -33,7 +33,7 @@ const Component = (): null => null;
 
 describe('isRegistrable', () => {
   it('array-узлы и html-теги рендерятся мимо реестра', () => {
-    expect(isRegistrable({ name: 'FormArray', role: 'array' })).toBe(false);
+    expect(isRegistrable({ name: 'FieldArray', role: 'array' })).toBe(false);
     expect(isRegistrable({ name: '$html(div)', role: 'container' })).toBe(false);
     expect(isRegistrable({ name: 'Input', role: 'field' })).toBe(true);
   });

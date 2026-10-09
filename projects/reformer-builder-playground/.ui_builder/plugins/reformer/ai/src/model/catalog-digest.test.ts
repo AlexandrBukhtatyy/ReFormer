@@ -75,10 +75,10 @@ describe('listComponents', () => {
   });
 
   it('структурные компоненты формы доходят до модели', () => {
-    // Wizard, Step и FormArray — единственный способ построить мастер и повторяющийся блок.
+    // Wizard, Step и FieldArray — единственный способ построить мастер и повторяющийся блок.
     // Системный промпт учит агента мастеру, а список их не показывал.
     const text = renderComponentList(listComponents(catalog), 1500);
-    for (const name of ['Wizard', 'Step', 'FormArray']) {
+    for (const name of ['Wizard', 'Step', 'FieldArray']) {
       expect(text, `${name} не дошёл до модели`).toContain(name);
     }
   });

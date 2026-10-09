@@ -27,7 +27,7 @@ describe('composeCatalogJson (каталог ui-kit + синтетические
     for (const name of Object.keys(defaultPropSchemas)) expect(names.has(name)).toBe(true);
     // Синтетические билдера.
     expect(names.has('$html(div)')).toBe(true);
-    expect(names.has('FormArray')).toBe(true);
+    expect(names.has('FieldArray')).toBe(true);
   });
 
   it('все компоненты доступны: minimal-записи тоже в каталоге', () => {
@@ -46,7 +46,7 @@ describe('composeCatalogJson (каталог ui-kit + синтетические
     );
     expect(json.components.find((c) => c.name === 'Input')?.role).toBe('field');
     expect(json.components.find((c) => c.name === 'Box')?.role).toBe('container');
-    expect(json.components.find((c) => c.name === 'FormArray')?.role).toBe('array');
+    expect(json.components.find((c) => c.name === 'FieldArray')?.role).toBe('array');
   });
 });
 
@@ -120,18 +120,28 @@ describe('источник каталога и фильтры (аргумент�
     expect(names.has('Input')).toBe(true);
   });
 
-  it('synthetic-тоглы: отключить wizard/formArray, сузить html', () => {
+  it('synthetic-тоглы: отключить wizard/fieldArray, сузить html', () => {
     const names = new Set(
       composeCatalogJson(BUILTIN_CATALOG, {
-        synthetic: { wizard: false, formArray: false, htmlTags: ['div'] },
+        synthetic: { wizard: false, fieldArray: false, htmlTags: ['div'] },
       }).components.map((c) => c.name)
     );
     expect(names.has('Wizard')).toBe(false);
     expect(names.has('Step')).toBe(false);
-    expect(names.has('FormArray')).toBe(false);
+    expect(names.has('FieldArray')).toBe(false);
     expect(names.has('$html(div)')).toBe(true);
     expect(names.has('$html(section)')).toBe(false);
     expect(names.has('Input')).toBe(true); // компоненты каталога не тронуты
+  });
+
+  it('прежний ключ тогла `formArray` — ошибка, а не молча пропущенная настройка', () => {
+    // Конфиг клиента — данные: без ошибки запись массива вернулась бы в палитру незаметно.
+    const legacy = { synthetic: { formArray: false } } as unknown as Parameters<
+      typeof composeCatalogJson
+    >[1];
+    expect(() => composeCatalogJson(BUILTIN_CATALOG, legacy)).toThrow(
+      /synthetic.formArray.*fieldArray/
+    );
   });
 
   it('categoryByName переопределяет категорию', () => {
@@ -139,16 +149,16 @@ describe('источник каталога и фильтры (аргумент�
     expect(entries.find((e) => e.name === 'Input')?.category).toBe('Кастом-поля');
   });
 
-  it('синтетическая запись выигрывает у одноимённой клиентской (FormArray — array-узел)', () => {
-    // У кита `FormArray` — обычный React-компонент; у билдера — array-узел со своей ролью.
+  it('синтетическая запись выигрывает у одноимённой клиентской (FieldArray — array-узел)', () => {
+    // У кита `FieldArray` — обычный React-компонент; у билдера — array-узел со своей ролью.
     // Дубль имени снимается на границе источника, иначе ломается ТИП узла, а не только палитра.
     const json = composeCatalogJson({
       version: '1.0',
-      components: [{ name: 'FormArray', role: 'container', propsSchema: {} }],
+      components: [{ name: 'FieldArray', role: 'container', propsSchema: {} }],
     });
-    const formArray = json.components.filter((c) => c.name === 'FormArray');
-    expect(formArray).toHaveLength(1);
-    expect(formArray[0].role).toBe('array');
+    const fieldArray = json.components.filter((c) => c.name === 'FieldArray');
+    expect(fieldArray).toHaveLength(1);
+    expect(fieldArray[0].role).toBe('array');
   });
 
   it('записи с palette: false в каталог не идут (метаданные без размещаемого узла)', () => {

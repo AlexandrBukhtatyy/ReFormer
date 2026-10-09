@@ -38,7 +38,7 @@ import { EMPTY_CLASS, encodeNodeToken } from './node-token';
 /**
  * Дефолт `className` array-узла без собственного компонента.
  *
- * У `ModelArraySectionRenderer` (и у `FormArray`/`FormArraySection` кита) это ДЕФОЛТ ПАРАМЕТРА,
+ * У `ModelArraySectionRenderer` (и у `FieldArray`/`FieldArraySection` кита) это ДЕФОЛТ ПАРАМЕТРА,
  * а не слияние: передав только токен, мы отняли бы у списка отступы. Поэтому дефолт
  * подставляется явно. Значение перенесено из v1 дословно — оно принадлежит рендереру,
  * а не превью.

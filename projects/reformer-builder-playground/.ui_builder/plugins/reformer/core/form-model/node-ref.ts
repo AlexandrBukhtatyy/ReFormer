@@ -18,7 +18,7 @@ import {
 } from '@reformer/renderer-json';
 
 /** Синтетическое каталожное имя array-узла без явного `component`. */
-export const ARRAY_COMPONENT_NAME = 'FormArray';
+export const ARRAY_COMPONENT_NAME = 'FieldArray';
 
 /**
  * Каталожное имя узла — ровно тот словарь, которым оперируют палитра и вставка узла.

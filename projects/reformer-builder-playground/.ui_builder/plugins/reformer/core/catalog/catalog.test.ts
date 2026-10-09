@@ -14,7 +14,7 @@ describe('buildCatalog', () => {
     expect(names.has('$html(div)')).toBe(true);
     expect(names.has('$html(h1)')).toBe(true);
     expect(names.has('$html(a)')).toBe(true);
-    expect(names.has('FormArray')).toBe(true);
+    expect(names.has('FieldArray')).toBe(true);
   });
 
   it('все $html-теги в разделе «HTML» (синтетика билдера), с их props', () => {
@@ -59,7 +59,7 @@ describe('buildCatalog', () => {
     expect(catalog.find((e) => e.name === 'Input')!.category).toBe('Поля ввода');
     expect(catalog.find((e) => e.name === 'Box')!.category).toBe('Контейнеры');
     expect(catalog.find((e) => e.name === '$html(div)')!.category).toBe('HTML');
-    expect(catalog.find((e) => e.name === 'FormArray')!.category).toBe('Массив');
+    expect(catalog.find((e) => e.name === 'FieldArray')!.category).toBe('Массив');
   });
 
   it('дескриптор выводится из того же каталога и возвращается вместе с записями', () => {

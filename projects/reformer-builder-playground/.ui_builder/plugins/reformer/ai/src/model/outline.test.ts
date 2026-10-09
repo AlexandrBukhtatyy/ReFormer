@@ -14,7 +14,7 @@ describe('buildOutline', () => {
       ['/root/componentProps/steps/0/children/0', 'Select', 'children'],
       ['/root/componentProps/steps/0/children/1', 'InputNumber', 'children'],
       ['/root/componentProps/steps/1', 'Step', 'steps'],
-      ['/root/componentProps/steps/1/children/0', 'FormArray', 'children'],
+      ['/root/componentProps/steps/1/children/0', 'FieldArray', 'children'],
       ['/root/componentProps/steps/1/children/0/item/$template', 'Box', 'template'],
       ['/root/componentProps/steps/1/children/0/item/$template/children/0', 'Select', 'children'],
     ]);
