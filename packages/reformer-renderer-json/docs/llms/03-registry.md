@@ -109,7 +109,7 @@ const registry = defineRegistry((reg) => {
 Контрол, который сам потребляет ноду формы (§3.1) — включи передачу `control` явно:
 
 ```typescript
-import { useFormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 
 // Контрол читает ноду напрямую (свои сигналы valid/errors/…):
 function StepDots({ control }: { control: FieldNode<number> }) {

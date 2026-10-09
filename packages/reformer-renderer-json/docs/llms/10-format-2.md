@@ -138,7 +138,8 @@ export const createMyModel = () =>
 ## Сборка и рендер
 
 ```tsx
-import { createForm, useFormBundle } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import rawSchema from './form.schema.json';

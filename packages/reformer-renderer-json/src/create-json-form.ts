@@ -13,7 +13,8 @@
  * @module reformer/renderer-json/create-json-form
  */
 
-import { createModel, createFormFromModel, buildValidation, useFormBundle } from '@reformer/core';
+import { createModel, createFormFromModel, buildValidation } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import type {
   CoreForm,
   CreateFormConfigBase,
@@ -125,7 +126,7 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
  * поэтому model/form переживают ре-рендеры. `useMemo` для этого не годится — React вправе сбросить
  * его кэш и пересоздать форму (потеря введённого). Живая валидация армируется в эффекте.
  *
- * Это общий хук семейства (`useFormBundle` из `@reformer/core`) под именем JSON-слоя: он не сужает
+ * Это общий хук семейства (`useFormBundle` из `@reformer/core/react`) под именем JSON-слоя: он не сужает
  * результат до `JsonForm<T>`, поэтому расширенные бандлы (со своими полями) переживают его без
  * потерь.
  *
