@@ -32,6 +32,8 @@ export function browserTestConfig() {
         '@rjsf/core',
         '@rjsf/utils',
         '@rjsf/validator-ajv8',
+        // За комбобоксом кита: найденный посреди прогона, он приходит со своей копией React.
+        'cmdk',
         'date-fns',
         'react-day-picker',
       ],

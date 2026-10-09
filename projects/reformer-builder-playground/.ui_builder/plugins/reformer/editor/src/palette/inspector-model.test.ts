@@ -218,14 +218,16 @@ describe('варианты привязки', () => {
     return entry.id;
   };
 
-  it('поле формы — пути формы без своего', () => {
+  it('поле формы — пути формы, свой среди них', () => {
     const model = inspectorModelFor(schema, [], [idAt(['root', 'children', 0])]);
-    expect(model?.bindingOptions).toEqual(['email', 'items']);
+    // Свой путь не выкинут: список показывает текущее значение выбранным.
+    expect(model?.binding).toBe('fullName');
+    expect(model?.bindingOptions).toEqual(['fullName', 'email', 'items']);
   });
 
   it('поле внутри шаблона — пути элемента', () => {
     const at = ['root', 'children', 2, 'item', '$template', 'children', 1];
-    expect(inspectorModelFor(schema, [], [idAt(at)])?.bindingOptions).toEqual(['price']);
+    expect(inspectorModelFor(schema, [], [idAt(at)])?.bindingOptions).toEqual(['price', 'qty']);
   });
 
   it('контейнеру подсказывать нечего', () => {

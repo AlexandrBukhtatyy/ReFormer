@@ -118,10 +118,11 @@ export interface InspectorModel {
   /** Привязывается ли узел к модели вообще (поле и массив — да, контейнер — нет). */
   readonly bindable: boolean;
   /**
-   * Пути, уже объявленные в той области модели, где лежит узел, — подсказка полю привязки.
+   * Пути, уже объявленные в той области модели, где лежит узел, — варианты списка привязки.
    *
    * Внутри шаблона элемента массива это пути ЭЛЕМЕНТА: там пишется `price`, а не
-   * `items.price`. Своя привязка узла в список не входит — подсказывать её незачем.
+   * `items.price`. Своя привязка узла в список входит: она тоже объявлена в этой области,
+   * и список показывает её выбранной — как любой список показывает текущее значение.
    */
   readonly bindingOptions: readonly string[];
   /**
@@ -261,7 +262,7 @@ export function inspectorModelOf(
     known: record !== undefined,
     binding: modelOf(node) ?? null,
     bindable: kind !== 'container',
-    bindingOptions: kind === 'container' ? [] : bound.filter((path) => path !== modelOf(node)),
+    bindingOptions: kind === 'container' ? [] : bound,
     text: textOf(node),
     sections,
   };

@@ -3,6 +3,7 @@
   "command.generate": "Export form to code",
   "form.name": "Form name",
   "form.name.hint": "Directory, type and route names are derived from it.",
+  "form.name.hint.label": "Hint for the “Form name” field",
   "kit.active": "Kit: {label} ({package})",
   "action.generate": "Generate",
   "action.running": "Generating…",

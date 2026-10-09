@@ -1,4 +1,11 @@
+import path from 'path';
 import { test, expect } from './shared/fixtures';
+
+/** Снимки панели свойств — рядом с остальными снимками билдера. */
+const SHOTS = path.resolve(
+  __dirname,
+  '../../react-playground-e2e/screenshots/builder-inspector-binding'
+);
 
 /**
  * Формы playground в редакторах обоих движков. Движки — плагины проекта: пакеты в каталогах
@@ -81,5 +88,80 @@ test.describe('Форма ReFormer', () => {
       return value;
     });
     expect(padding).toBe('10px');
+  });
+
+  test('привязка к модели — список кита: путь выбирается из объявленных или вводится новый', async ({
+    builder,
+    disk,
+    page,
+  }) => {
+    const FORM = 'forms/contact/form.schema.json';
+    /** Привязка поля с подписью «Email», как она записана в файле формы. */
+    const emailBinding = async (): Promise<string | undefined> => {
+      const found: string[] = [];
+      const visit = (node: unknown): void => {
+        if (Array.isArray(node)) return node.forEach(visit);
+        if (typeof node !== 'object' || node === null) return;
+        const record = node as { value?: string; componentProps?: { label?: string } };
+        if (record.componentProps?.label === 'Email' && record.value !== undefined) {
+          found.push(record.value);
+        }
+        Object.values(node).forEach(visit);
+      };
+      visit(JSON.parse(await disk.readText(FORM)));
+      return found[0];
+    };
+
+    await builder.openPlayground();
+    expect(await emailBinding()).toBe('$model(email)');
+    await builder.openFile(FORM);
+    await page
+      .getByRole('tree', { name: 'Дерево схемы формы' })
+      .getByRole('treeitem', { name: 'Email' })
+      .click();
+    await page
+      .getByRole('navigation', { name: 'Панели справа' })
+      .getByRole('button', { name: 'Свойства' })
+      .click();
+
+    // Поле привязки — кнопка-список кита, как соседние списки панели, а не ввод с родным
+    // выпадающим списком браузера. Модуль комбобокса плагин получает от оболочки: в браузерных
+    // тестах плагина кит подменён исходниками, и только здесь видно, что он доезжает.
+    const binding = page.getByLabel('Привязка к модели', { exact: true });
+    await expect(binding).toHaveRole('combobox');
+    await expect(binding).toHaveText('email');
+    await page.screenshot({
+      path: path.join(SHOTS, '01-binding-closed.png'),
+      animations: 'disabled',
+    });
+
+    await binding.click();
+    // Объявленные пути формы — пунктами; путь соседнего поля среди них.
+    const option = (name: string | RegExp) => page.getByRole('option', { name, exact: true });
+    await expect(option('email')).toBeVisible();
+    await expect(option('name')).toBeVisible();
+    await page.screenshot({
+      path: path.join(SHOTS, '02-binding-open.png'),
+      animations: 'disabled',
+    });
+
+    // Новый путь пишется в поиске и создаётся пунктом списка.
+    await page.getByPlaceholder('Путь в модели…').fill('contact.email');
+    const create = page.getByRole('option', { name: /contact.email/ });
+    await expect(create).toBeVisible();
+    await page.screenshot({
+      path: path.join(SHOTS, '03-binding-new-path.png'),
+      animations: 'disabled',
+    });
+    await create.click();
+
+    await expect(binding).toHaveText('contact.email');
+    await page.screenshot({
+      path: path.join(SHOTS, '04-binding-changed.png'),
+      animations: 'disabled',
+    });
+    await builder.save();
+    await expect(builder.statusBar).toContainText('Всё сохранено');
+    expect(await emailBinding()).toBe('$model(contact.email)');
   });
 });

@@ -6,6 +6,14 @@
  * столько, сколько нужно на раскладку (`div` колонок и отступов): раскладочных примитивов кит
  * не предлагает, а заворачивать `flex`-колонку в компонент значило бы завести свой.
  *
+ * ## Тот же шаг, что у панели свойств
+ *
+ * Панель стоит в одном доке со «Свойствами», и поле в ней — такая же строка: подпись слева,
+ * поле справа, подсказка значком у подписи, высота поля и кнопок — та же. Раньше поле и кнопка
+ * здесь были в размере кита по умолчанию (на треть крупнее), а подпись стояла над полем: две
+ * соседние вкладки одного дока выглядели как два разных приложения. Класс строки повторён
+ * из панели свойств дословно — почему не вынесен, сказано там.
+ *
  * ## Отчёт живёт в панели, а не в тосте
  *
  * Пропущенный файл и записанный — разные исходы, и различить их нужно ПОСЛЕ того, как тост
@@ -19,6 +27,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode 
 import { Alert, AlertDescription } from '@reformer/ui-kit/alert';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
+import { InfoHint } from '@reformer/ui-kit/info-hint';
 import { Input } from '@reformer/ui-kit/input';
 import { Item, ItemContent, ItemTitle } from '@reformer/ui-kit/item';
 import { Label } from '@reformer/ui-kit/label';
@@ -31,6 +40,19 @@ import type { CodegenProblem } from '../pipeline/generate';
 import type { CodegenHost, Translate } from '../host';
 import { defaultFormName, runCodegen } from '../pipeline/run';
 import type { CodegenSessions, CodegenState, CodegenStore } from '../pipeline/state';
+
+/** Строка поля — та же сетка, что у строки свойства в панели «Свойства». */
+const ROW_CLASS = 'grid grid-cols-[minmax(0,min(45%,9rem))_minmax(0,1fr)] items-start gap-x-2';
+
+/** Высота строки подписи — высота поля: текст встаёт напротив его текста. */
+const LABEL_CLASS = 'flex min-h-7 min-w-0 items-center gap-1.5';
+
+/** Поле и кнопка в размере панели свойств: на шаг ниже размера кита и мельче текстом. */
+const CONTROL_CLASS = 'h-7 text-[12px]';
+
+/** Адреса поля имени формы и скрытого текста его подсказки. */
+const FORM_NAME_ID = 'codegen-form-name';
+const FORM_NAME_HINT_ID = 'codegen-form-name-hint';
 
 export interface ExportPanelProps {
   readonly host: CodegenHost;
@@ -158,16 +180,32 @@ function ExportFor({
   const running = state.phase === 'running';
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-3">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="codegen-form-name">{t('form.name')}</Label>
+    <div className="flex h-full min-h-0 flex-col gap-2 p-2">
+      <div className={ROW_CLASS} data-export-row="">
+        <span className={LABEL_CLASS}>
+          {/* `block`, а не `flex` кита: многоточие у гибкого контейнера не рисуется. */}
+          <Label
+            htmlFor={FORM_NAME_ID}
+            title={t('form.name')}
+            className="block min-w-0 truncate text-[11px]"
+          >
+            {t('form.name')}
+          </Label>
+          {/* Значок стоит вне подписи: внутри неё щелчок по значку уводил бы фокус в поле. */}
+          <InfoHint
+            content={t('form.name.hint')}
+            descriptionId={FORM_NAME_HINT_ID}
+            aria-label={t('form.name.hint.label')}
+          />
+        </span>
         <Input
-          id="codegen-form-name"
+          id={FORM_NAME_ID}
+          aria-describedby={FORM_NAME_HINT_ID}
           data-testid="input-formName"
+          className={CONTROL_CLASS}
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
-        <span className="text-muted-foreground text-[11px]">{t('form.name.hint')}</span>
       </div>
 
       {kit === null ? null : (
@@ -176,7 +214,13 @@ function ExportFor({
         </span>
       )}
 
-      <Button size="sm" disabled={running} onClick={generate} data-testid="button-generate">
+      <Button
+        size="sm"
+        className={CONTROL_CLASS}
+        disabled={running}
+        onClick={generate}
+        data-testid="button-generate"
+      >
         {running ? t('action.running') : t('action.generate')}
       </Button>
 
@@ -214,7 +258,7 @@ function ViewInspector({ view, t }: { view: object; t: Translate }): ReactNode {
       <Button
         size="sm"
         variant="ghost"
-        className="justify-start px-0"
+        className={`${CONTROL_CLASS} justify-start px-0`}
         onClick={() => {
           setOpen((value) => !value);
         }}
@@ -274,7 +318,7 @@ function LayoutReport({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="self-start"
+                    className={`${CONTROL_CLASS} self-start`}
                     onClick={() => {
                       open(host.resolve(delivery.dir, ...entry.replacedBy.split('/')));
                     }}
@@ -312,7 +356,12 @@ function Report({ state, t, onEject, host }: ReportProps): ReactNode {
   const skipped = new Map((delivery?.skipped ?? []).map((s) => [s.path, s.reason]));
 
   return (
-    <div className="flex flex-col gap-3">
+    // `contain-inline-size`: отчёт не сообщает родителю свою ширину. Область прокрутки дока —
+    // таблица, и она растягивается по самому широкому содержимому; без этого панель целиком
+    // раздвигал блок кода с длинной строкой, и поле имени с кнопкой уезжали за край дока.
+    // С ним отчёт занимает ширину дока, блок кода прокручивается сам, а строки файлов
+    // переносят свои метки.
+    <div className="flex flex-col gap-3 [contain:inline-size]" data-testid="codegen-report">
       <section className="flex flex-col gap-1">
         <h3 className="text-foreground text-[12px] font-semibold">{t('files.title')}</h3>
         {state.files.map((file) => {
@@ -335,6 +384,7 @@ function Report({ state, t, onEject, host }: ReportProps): ReactNode {
                 <Button
                   size="sm"
                   variant="ghost"
+                  className={CONTROL_CLASS}
                   title={t('command.eject-template')}
                   onClick={() => {
                     onEject(file.targetId);

@@ -25,6 +25,36 @@
  * включённое (`sectionRows` модели). Десяток булевых свойств флажками растягивал бы панель
  * на десять строк, а списком это одна строка, в которой видно сразу всё включённое.
  *
+ * Привязка к модели — тоже список кита, но с вводом своего значения (`Combobox` в режиме
+ * `creatable`): путь — свободный текст, и новый объявляется ровно здесь, а список предлагает
+ * уже объявленные. Раньше это было поле ввода с родным `datalist`: стрелку и выпадающий список
+ * рисовал браузер, и рядом со списками кита поле выглядело чужим. Заодно правка привязки стала
+ * одной операцией на выбор, а не операцией на каждую букву — недописанный путь в документ
+ * больше не попадает.
+ *
+ * Крестика очистки у привязки нет. Узел без привязки модель считает контейнером, а контейнеру
+ * строка привязки не положена: снятая привязка унесла бы строку целиком, и вернуть её из панели
+ * было бы нечем. Так вело себя и поле ввода, стоило стереть в нём текст до конца.
+ *
+ * ## Подпись слева, поле справа
+ *
+ * Свойство — одна строка: подпись в левой колонке, контрол в правой. Столбиком (подпись над
+ * полем) панель была вдвое выше, и десяток свойств компонента не помещался в док без
+ * прокрутки; строкой их видно сразу, а взгляд идёт по ровной колонке подписей, как в любом
+ * инспекторе свойств.
+ *
+ * Колонка подписей — доля ширины панели с потолком ({@link ROW_CLASS}): в узком доке подпись
+ * и поле делят место почти поровну, в широком лишнее достаётся полю. Подпись в одну строку
+ * и обрезается многоточием — полный текст остаётся подсказкой браузера: перенос сделал бы
+ * строки разной высоты и сломал колонку. Верх строки — по первой строке контрола, а не
+ * по центру: список флагов растёт вниз, и подпись у его середины читалась бы как подпись
+ * чего-то другого.
+ *
+ * Те же строки — у панели экспорта формы (`plugins/reformer/codegen`): панели стоят в одном
+ * доке, и разный шаг полей в соседних вкладках выглядел бы ошибкой вёрстки. Класс строки
+ * повторён там дословно, а не вынесен в ядро домена: таблицу стилей плагина собирает сканер
+ * его собственных исходников, и класс, пришедший из чужого каталога, остался бы без правила.
+ *
  * ## Подсказка — значком у подписи
  *
  * Не строкой под полем. Описания пропсов в каталоге кита длинные, и под каждым полем они
@@ -37,6 +67,7 @@
 
 import { useId, type ReactElement } from 'react';
 import { Badge } from '@reformer/ui-kit/badge';
+import { Combobox } from '@reformer/ui-kit/combobox';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { InfoHint } from '@reformer/ui-kit/info-hint';
 import { Input } from '@reformer/ui-kit/input';
@@ -103,25 +134,25 @@ export function InspectorPanel({ host, registry }: InspectorPanelProps): ReactEl
 
         {inspector.bindable && (
           <Field label={t('inspector.binding')} hint={t('inspector.binding.hint')} t={t}>
-            {/* Родной `datalist`, а не выпадающий выбор: привязка — СВОБОДНЫЙ текст, новый
-                путь объявляется ровно здесь, а список лишь предлагает уже объявленные. */}
             {(control) => (
-              <>
-                <Input
-                  {...control}
-                  value={inspector.binding ?? ''}
-                  list={`binding-options-${inspector.nodeId}`}
-                  className="h-7 font-mono text-[12px]"
-                  onChange={(event) => {
-                    session.apply(setBindingOp(inspector.nodeId, event.target.value));
-                  }}
-                />
-                <datalist id={`binding-options-${inspector.nodeId}`}>
-                  {inspector.bindingOptions.map((path) => (
-                    <option key={path} value={path} />
-                  ))}
-                </datalist>
-              </>
+              <Combobox
+                {...control}
+                data-testid="inspector-binding"
+                value={inspector.binding}
+                options={inspector.bindingOptions.map((path) => ({ value: path, label: path }))}
+                // Привязка — свободный текст: новый путь объявляется ровно здесь. Поэтому
+                // список с вводом своего значения, а не выбор из готовых.
+                creatable
+                placeholder={t('inspector.binding.none')}
+                searchPlaceholder={t('inspector.binding.search')}
+                emptyText={t('inspector.binding.empty')}
+                className="h-7 text-[12px]"
+                onChange={(next) => {
+                  // Щелчок по уже выбранному пути — не правка: пустой шаг в истории ни к чему.
+                  if (next === null || next === inspector.binding) return;
+                  session.apply(setBindingOp(inspector.nodeId, next));
+                }}
+              />
             )}
           </Field>
         )}
@@ -204,6 +235,18 @@ function Message({ title }: { title: string }): ReactElement {
   );
 }
 
+/**
+ * Строка свойства: колонка подписи и колонка контрола.
+ *
+ * Подписи отдано 45% ширины, но не больше девяти `rem`: «Привязка к модели» со значком
+ * подсказки в док по умолчанию помещается целиком, а расширенный док отдаёт место полю.
+ * `minmax(0, …)` у обеих колонок — чтобы длинное значение не раздвигало сетку за край панели.
+ */
+const ROW_CLASS = 'grid grid-cols-[minmax(0,min(45%,9rem))_minmax(0,1fr)] items-start gap-x-2';
+
+/** Высота строки подписи — высота однострочного контрола: текст встаёт напротив его текста. */
+const LABEL_CLASS = 'flex min-h-7 min-w-0 items-center gap-1.5';
+
 /** Адрес скрытого текста подсказки — на него ссылается `aria-describedby` контрола. */
 const hintIdOf = (controlId: string): string => `${controlId}-hint`;
 
@@ -240,8 +283,9 @@ function FieldLabel({
   t: Translate;
 }): ReactElement {
   return (
-    <span className="flex items-center gap-1.5">
-      <Label htmlFor={controlId} className="text-[11px]">
+    <span className={LABEL_CLASS}>
+      {/* `block`, а не `flex` кита: многоточие у гибкого контейнера не рисуется. */}
+      <Label htmlFor={controlId} title={label} className="block min-w-0 truncate text-[11px]">
         {label}
       </Label>
       {hasHint(hint) && (
@@ -269,7 +313,7 @@ function Field({
 }): ReactElement {
   const id = useId();
   return (
-    <div className="flex flex-col gap-1">
+    <div className={ROW_CLASS} data-inspector-row="">
       <FieldLabel controlId={id} label={label} hint={hint} t={t} />
       {children(controlPropsOf(id, hint))}
     </div>
@@ -364,12 +408,14 @@ function PropField({
               set(original ?? next);
             }}
           >
-            <SelectTrigger {...control} size="sm" className="text-[12px]">
+            {/* Во всю колонку и высотой с поле ввода: у кита список по ширине значения
+                и на шаг выше, и в сетке строк это торчало бы и вбок, и вниз. */}
+            <SelectTrigger {...control} size="sm" className="w-full text-[12px] data-[size=sm]:h-7">
               <SelectValue placeholder={t('inspector.unset')} />
             </SelectTrigger>
             <SelectContent>
               {options.map((option) => (
-                <SelectItem key={String(option)} value={String(option)} className="text-[12px]">
+                <SelectItem key={String(option)} value={String(option)}>
                   {String(option)}
                 </SelectItem>
               ))}

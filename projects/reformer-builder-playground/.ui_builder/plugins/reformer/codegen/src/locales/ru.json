@@ -3,6 +3,7 @@
   "command.generate": "Экспортировать форму в код",
   "form.name": "Имя формы",
   "form.name.hint": "Из него выводятся имя каталога, тип и маршрут.",
+  "form.name.hint.label": "Подсказка к полю «Имя формы»",
   "kit.active": "Кит: {label} ({package})",
   "action.generate": "Сгенерировать",
   "action.running": "Генерируем…",
