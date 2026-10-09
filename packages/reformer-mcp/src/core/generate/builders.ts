@@ -100,7 +100,7 @@ export function buildModelTs(intent: FormIntent): string {
   //
   // `type`, а не `interface`: правило корпуса (core «TYPE-SAFETY RECIPES» Recipe 2,
   // reformer://guide §27). У interface нет неявной индексной сигнатуры, поэтому он не
-  // присваивается `Record<string, FormValue>` — а на это ограничение опираются `FormProxy<T>`,
+  // присваивается `Record<string, unknown>` — а на это ограничение опираются `FormProxy<T>`,
   // `ArrayNode<T>` и generic-constraint `FormWizard<T>`. Сервер, печатающий interface, нарушал
   // собственное правило и отдавал консументу тип, который тот потом менял руками.
   for (const arr of intent.arrays) {
