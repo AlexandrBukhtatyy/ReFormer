@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useState } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidation, validate, apply, validateModel } from '@reformer/core/validation';
+import { useState } from 'react';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { FormWizard } from '@reformer/cdk/form-wizard';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
@@ -24,41 +25,40 @@ const step1Validation = defineValidation<WForm>(({ model }) => {
 const step2Validation = defineValidation<WForm>(({ model }) => {
   validate(model.$.phone, [required({ code: 'phone.required' })]);
 });
-const fullValidation = defineValidation<WForm>(() => apply(step1Validation, step2Validation));
-
 /** Тексты замечаний демо: правила несут код, строку по коду даёт словарь формы. */
 const WIZARD_MESSAGES = defineIssueMessages({
   'name.required': 'Введите имя',
   'phone.required': 'Введите телефон',
 });
 
-function useWizard() {
-  return useMemo(() => {
-    const model = createModel<WForm>({ name: '', email: '', phone: '' });
-    // Layout-схема без валидаторов — только component/componentProps.
-    const schema = {
-      name: { value: model.$.name, component: Input, componentProps: { label: 'Имя' } },
-      email: {
-        value: model.$.email,
-        component: Input,
-        componentProps: { label: 'Email', type: 'email' },
+/** Сборка визарда: разметка полей и поток шагов — шаг проверяет свои правила. */
+function useWizardBundle() {
+  return useFormBundle(() =>
+    createForm<WForm>({
+      initial: { name: '', email: '', phone: '' },
+      schema: (model) => ({
+        children: [
+          { model: model.$.name, component: Input, componentProps: { label: 'Имя' } },
+          {
+            model: model.$.email,
+            component: Input,
+            componentProps: { label: 'Email', type: 'email' },
+          },
+          {
+            model: model.$.phone,
+            component: InputMask,
+            componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
+          },
+        ],
+      }),
+      flow: {
+        steps: [
+          { id: 'contact', rules: step1Validation },
+          { id: 'phone', rules: step2Validation },
+        ],
       },
-      phone: {
-        value: model.$.phone,
-        component: InputMask,
-        componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-      },
-    } as any;
-
-    const form = createFormFromModel<WForm>({ model, schema }) as any;
-    // config — колбэки поверх внешнего раннера validateModel (Promise<boolean>).
-    const config = {
-      validateStep: (step: number) =>
-        validateModel(model, step === 1 ? step1Validation : step2Validation),
-      validateAll: () => validateModel(model, fullValidation),
-    };
-    return { model, form, config };
-  }, []);
+    })
+  );
 }
 
 const Step1 = ({ control }: { control: any }) => (
@@ -70,12 +70,13 @@ const Step1 = ({ control }: { control: any }) => (
 const Step2 = ({ control }: { control: any }) => <FormField control={control.phone} />;
 
 function WizardRenderProps() {
-  const { model, form, config } = useWizard();
+  const bundle = useWizardBundle();
+  const { form } = bundle;
   const [done, setDone] = useState<string | null>(null);
   return (
     <ValidationMessagesProvider messages={WIZARD_MESSAGES}>
       <div style={{ maxWidth: 460, width: '100%' }}>
-        <FormWizard form={form} config={config}>
+        <FormWizard form={form} flow={bundle.flow}>
           <FormWizard.Progress>
             {({ current, total, percent }: any) => (
               <div style={{ marginBottom: 12 }}>
@@ -109,7 +110,11 @@ function WizardRenderProps() {
           <FormWizard.Step component={Step2} control={form} />
 
           <FormWizard.Actions
-            onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
+            onSubmit={() =>
+              void bundle.submit(async (values) =>
+                setDone('✅ Отправлено: ' + JSON.stringify(values))
+              )
+            }
           >
             {({ prev, next, submit, isFirstStep, isLastStep }: any) => (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
@@ -141,10 +146,11 @@ function WizardRenderProps() {
 }
 
 function WizardCompound() {
-  const { form, config } = useWizard();
+  const bundle = useWizardBundle();
+  const { form } = bundle;
   return (
     <div style={{ maxWidth: 460, width: '100%' }}>
-      <FormWizard form={form} config={config}>
+      <FormWizard form={form} flow={bundle.flow}>
         <FormWizard.Indicator steps={STEPS}>
           {({ steps, goToStep }: any) => (
             <nav style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -188,7 +194,7 @@ export const formWizardDocConfig: ComponentDocConfig = {
   name: 'FormWizard',
   importFrom: '@reformer/cdk/form-wizard',
   description:
-    'Headless многошаговый визард с пошаговой валидацией. config — пара колбэков validateStep / validateAll.',
+    'Headless многошаговый визард с пошаговой валидацией. Шаги и их правила — поток сборки createForm({ flow }).',
   variants: [
     {
       id: 'render-props',
@@ -196,26 +202,33 @@ export const formWizardDocConfig: ComponentDocConfig = {
       description:
         'Прогресс сверху, навигация — через render-props. Далее блокируется, пока шаг невалиден.',
       render: WizardRenderProps,
-      code: `import { defineValidation, validate, apply, validateModel } from '@reformer/core/validation';
+      code: `import { defineValidation, validate } from '@reformer/core/validation';
 
 const step1Validation = defineValidation<WForm>(({ model }) => {
   validate(model.$.name, [required()]);
   validate(model.$.email, [required(), email()]);
 });
-const fullValidation = defineValidation<WForm>(() => apply(step1Validation, step2Validation));
 
-const config: FormWizardConfig = {
-  validateStep: (step) => validateModel(model, step === 1 ? step1Validation : step2Validation),
-  validateAll: () => validateModel(model, fullValidation),
-};
+const bundle = useFormBundle(() =>
+  createForm<WForm>({
+    initial,
+    schema,
+    flow: {
+      steps: [
+        { id: 'contact', rules: step1Validation },
+        { id: 'phone', rules: step2Validation },
+      ],
+    },
+  })
+);
 
-<FormWizard form={form} config={config}>
+<FormWizard form={bundle.form} flow={bundle.flow}>
   <FormWizard.Progress>
     {({ current, total, percent }) => <Bar current={current} total={total} percent={percent} />}
   </FormWizard.Progress>
   <FormWizard.Step component={Step1} control={form} />
   <FormWizard.Step component={Step2} control={form} />
-  <FormWizard.Actions onSubmit={handleSubmit}>
+  <FormWizard.Actions onSubmit={() => void bundle.submit(api.send)}>
     {({ prev, next, submit, isLastStep }) => (
       <>
         <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>
@@ -254,9 +267,9 @@ const config: FormWizardConfig = {
   props: [
     {
       name: 'FormWizard',
-      type: 'form, config',
+      type: 'form, flow',
       description:
-        'Root-провайдер. config = { validateStep?, validateAll? } — колбэки, возвращающие boolean | Promise<boolean>.',
+        'Root-провайдер. flow — поток шагов сборки (bundle.flow): «Далее» зовёт flow.next(), который проверяет правила шага. Без flow визард берёт поток из сборки в контексте, иначе строит позиционный поток без правил.',
     },
     {
       name: 'FormWizard.Step',
