@@ -102,7 +102,7 @@ const LEGACY_ASSEMBLY = [
     test: (t) => /(^|[^\w.])each\(\s*\w+\./m.test(t),
   },
   {
-    name: 'ручная обёртка makeValidationConfig вместо validation: { steps, extras }',
+    name: 'ручная обёртка makeValidationConfig вместо потока шагов flow: { steps } сборки',
     test: (t) => /makeValidationConfig/.test(t),
   },
   {
