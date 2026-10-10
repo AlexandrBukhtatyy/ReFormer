@@ -346,7 +346,7 @@ if (violations.length > 0) {
       '  этот же блок маркер отрицания (removed / obsolete / former / never emit / ❌ …) — как в\n' +
       '  add-validation.md и create-form.md — либо перепишите блок на живой контракт:\n' +
       '  узел { model: model.$.x, component }, сборка createForm + useFormBundle, поведение\n' +
-      '  defineFormBehavior(({ model, form, schema }) => …), валидация defineValidationSchema.'
+      '  defineFormBehavior(({ model, form, schema }) => …), валидация defineValidation.'
   );
   process.exit(1);
 }
