@@ -58,7 +58,7 @@ function unmaterializedRowForm<T>(path: string): FormGroup<T> {
           `[@reformer/core/behaviors] applyEach: форма строки массива "${path}" недоступна (form.${String(
             key
           )}) — массив не материализован в схеме формы. Per-row node-операции ` +
-            `(enableWhen/updateComponentProps/reset) требуют узла { array, item } в схеме; ` +
+            `(enableWhen/updateComponentProps/reset) требуют узла { model, item } в схеме; ` +
             `value-операции (row.$.*: compute/copyFrom/transformValue) работают и без материализации.`
         );
       },
@@ -73,7 +73,7 @@ function unmaterializedRowForm<T>(path: string): FormGroup<T> {
  * Под-схема получает scope строки: `model` (под-модель строки — `row.$.field`) и `form` (нода строки).
  * - Value-операции (`compute`/`copyFrom`/`transformValue` на `row.$.*`) работают всегда.
  * - Node-операции (`enableWhen`/`updateComponentProps`/`reset` через `form.*`) требуют, чтобы массив был
- *   МАТЕРИАЛИЗОВАН в форме (узел `{ array, item }` в схеме) — тогда `form` строки = та же нода, что
+ *   МАТЕРИАЛИЗОВАН в форме (узел `{ model: model.$.<массив>, item }` в схеме) — тогда `form` строки = та же нода, что
  *   рендерится, а её сигналы зарегистрированы (`enableWhen` резолвит ноду). Без материализации доступ
  *   к `form.*` бросит понятную ошибку (см. {@link unmaterializedRowForm}).
  *

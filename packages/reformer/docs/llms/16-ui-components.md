@@ -18,46 +18,48 @@
 ### Default — FormField из ui-kit (canonical)
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createFormFromModel, type FormSchemaNode } from '@reformer/core';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormField, Input, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit';
 
-type RegistrationForm = {
+interface RegistrationForm {
   email: string;
   country: string;
   agree: boolean;
-};
+}
 
 function RegistrationPage() {
-  const form = useMemo(() => {
-    const model = createModel<RegistrationForm>({ email: '', country: 'ru', agree: false });
-    const schema: FormSchemaNode = {
-      children: [
-        {
-          model: model.$.email,
-          component: Input,
-          componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-        },
-        {
-          model: model.$.country,
-          component: SelectAsync,
-          componentProps: {
-            label: 'Country',
-            options: [
-              { value: 'ru', label: 'Россия' },
-              { value: 'by', label: 'Беларусь' },
-            ],
+  // useFormBundle вызывает фабрику ровно один раз и держит сборку стабильной между рендерами
+  const { form } = useFormBundle(() =>
+    createForm<RegistrationForm>({
+      initial: { email: '', country: 'ru', agree: false },
+      schema: (model: FormModel<RegistrationForm>): FormSchemaNode => ({
+        children: [
+          {
+            model: model.$.email,
+            component: Input,
+            componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
           },
-        },
-        {
-          model: model.$.agree,
-          component: CheckboxWithLabel,
-          componentProps: { label: 'I agree to terms' },
-        },
-      ],
-    };
-    return createFormFromModel<RegistrationForm>({ model, schema });
-  }, []);
+          {
+            model: model.$.country,
+            component: SelectAsync,
+            componentProps: {
+              label: 'Country',
+              options: [
+                { value: 'ru', label: 'Россия' },
+                { value: 'by', label: 'Беларусь' },
+              ],
+            },
+          },
+          {
+            model: model.$.agree,
+            component: CheckboxWithLabel,
+            componentProps: { label: 'I agree to terms' },
+          },
+        ],
+      }),
+    })
+  );
 
   return (
     <form>
@@ -72,7 +74,8 @@ function RegistrationPage() {
 
 `FormField` сам читает `componentProps.label`, `componentProps.placeholder`,
 `componentProps.options` через `useFormControl(...).componentProps` и применяет
-их к нужному `<input>`/`<select>`/etc. Error rendering, `pending` для async-валидаций,
+их к нужному `<input>`/`<select>`/etc. Текст замечания (по коду — словарь формы из
+`ValidationMessagesProvider messages`, затем локаль), `pending` для async-валидаций,
 `data-testid` для e2e — всё из коробки.
 
 ### Anti-patterns (не делай так)
@@ -127,12 +130,14 @@ props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте р
 
 ```tsx
 import type { FormControl } from '@reformer/core';
-import { useFormControl } from '@reformer/core/react';
+import { useFormControl, useIssueMessage } from '@reformer/core/react';
+import { formMessages } from './form.validation'; // defineIssueMessages — константа модуля
 
 type MyFormFieldProps<T> = { control: FormControl<T> }; // ← ОДИН prop
 
 function MyFormField<T>({ control }: MyFormFieldProps<T>) {
-  const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const message = useIssueMessage(formMessages); // текст замечания по коду
   // componentProps = { label, placeholder, type, options, ... } — из СХЕМЫ
   const cp = (componentProps ?? {}) as Record<string, unknown>;
 
@@ -147,11 +152,15 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
         onChange={(e) => (control.setValue as (v: unknown) => void)(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {shouldShowError && errors[0] && <span>{errors[0].message}</span>}
+      {shouldShowError && issues[0] && <span>{message(issues[0])}</span>}
     </label>
   );
 }
 ```
+
+Внутри дерева с `ValidationMessagesProvider` (cdk) вместо `useIssueMessage(formMessages)` берут
+`useIssueMessageResolver()` из `@reformer/cdk` — он учитывает словари всех провайдеров выше. См.
+`36-issue-messages.md`.
 
 Использование — как у `FormField`:
 
@@ -200,7 +209,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 function ShadcnFormField({ control }: { control: FormControl<string> }) {
-  const { value, errors, disabled, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const message = useIssueMessage(formMessages);
   const cp = (componentProps ?? {}) as Record<string, unknown>;
 
   return (
@@ -211,7 +221,7 @@ function ShadcnFormField({ control }: { control: FormControl<string> }) {
         onChange={(e) => control.setValue(e.target.value)}
         disabled={disabled}
       />
-      {errors[0] && <p className="text-red-500">{errors[0].message}</p>}
+      {shouldShowError && issues[0] && <p className="text-red-500">{message(issues[0])}</p>}
     </div>
   );
 }

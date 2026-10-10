@@ -1,48 +1,124 @@
 ## 12. MULTI-STEP FORM VALIDATION
 
-Каждый шаг — своя `ValidationDefinition<Form>` (обычная функция `({ model, cross }) => void`, обёрнутая
-`defineValidation`). Правила шагов передаются сборке формы данными — `validation: { steps, extras }`;
-сборка отдаёт прогон шага и полный прогон. Раннер сам разносит ошибки по нодам формы, поэтому UI
-подсветит проблемные поля текущего шага автоматически. Валидация живёт ОТДЕЛЬНО от схемы формы: узел
-схемы (TS или JSON) правил не несёт.
+Многошаговая форма — **поток шагов** сборки: `createForm({ flow: { steps: [{ id, rules }] } })`.
+Каждый шаг — идентификатор и своя `ValidationDefinition<Form>` (обычная функция
+`({ model, cross }) => void`, обёрнутая `defineValidation`). Идентификатор шага — `selector` узла
+шага в схеме. Правила вне шагов (межшаговые) — `validation: { extras }`: они проверяются только
+целиком, при отправке. Валидация живёт ОТДЕЛЬНО от схемы формы: узел схемы (TS или JSON) правил не
+несёт.
 
-### Через сборку формы — `validation: { steps, extras }`
+Сборка отдаёт поток `bundle.flow` (`next` / `previous` / `goTo`), проверку шага
+`bundle.validateStep(id)`, полную проверку `bundle.validate()` и отправку `bundle.submit(handler)`.
+Замечания разносятся по нодам сами — UI подсветит поля текущего шага. Полный справочник —
+[38-form-flow.md](./38-form-flow.md).
 
-Ключ `steps` — `selector` узла шага в схеме; порядок ключей — порядок шагов. `extras` — правила всей
-формы, которые проверяются только целиком.
+### Поток шагов сборки
 
 ```typescript
 import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 
-const { form, validation } = createForm<Form>({
-  initial,
-  schema: formSchema, // узлы шагов несут selector: 'loan', 'applicant'
-  validation: {
-    steps: { loan: step1Schema, applicant: step2Schema }, // null — шаг без правил
-    extras: crossStepRules,
-  },
-});
+const createLoanForm = () =>
+  createForm<Form>({
+    initial,
+    schema: formSchema, // узлы шагов несут selector: 'loan', 'applicant', 'confirm'
+    validation: { extras: crossStepRules }, // правила всей формы — только целиком
+    flow: {
+      steps: [
+        { id: 'loan', rules: loanRules },
+        { id: 'applicant', rules: applicantRules },
+        { id: 'confirm' }, // шаг без правил
+      ],
+    },
+  });
 
-await validation.validateStep(1);        // правила шага: по номеру (с 1) либо по селектору — 'loan'
-await validation.validateAll();          // все шаги + extras
-const result = await validation.runStep('loan'); // то же с полным результатом
-// result.status: 'valid' | 'invalid' | 'error' (правило не удалось проверить) | 'cancelled'
-validation.validating.value;             // идёт ли прогон — полный либо шага
+// в компоненте: фабрика вызывается один раз, сборка стабильна между рендерами
+const loan = useFormBundle(createLoanForm);
+
+// в обработчиках событий
+await loan.flow?.next(); // проверить правила текущего шага и перейти → FlowTransition
+await loan.validateStep('loan'); // правила одного шага → ValidationResult
+await loan.validate(); // все шаги + extras → ValidationResult
+await loan.submit(sendLoan); // один прогон всех правил; обработчик — только при valid
+loan.validating.value; // идёт ли проверка — полная либо шага
 ```
 
-`validation` структурно совместима с конфигом визарда: `<FormWizard form={form} config={validation} … />`.
-В dev сборка предупреждает о ключе `steps`, для которого в схеме нет шага с таким `selector`.
+- Полный набор правил — правила всех шагов и `extras`; свой полный набор задаёт
+  `validation: { rules }` (тогда правила шагов работают только для `validateStep` / `next`).
+- `next()` на шаге с замечаниями остаётся на месте: `{ status: 'stayed', reason: 'invalid',
+  validation }`; поля шага помечаются тронутыми. Переход — `{ status: 'moved', from, to }`.
+- `goTo(id)` открывает первый шаг и шаги после пройденных; прыжок вперёд через непройденный шаг —
+  `reason: 'locked'`. Назад — всегда.
+- В dev сборка предупреждает о шаге `flow.steps`, для которого в схеме нет узла с таким `selector`.
+- Правила (`loanRules`, `extras`) — стабильные ссылки: константы модуля через `defineValidation`.
 
 В большой форме шаг объявляют один раз — в списке шагов (`flow/`): из него строятся и узлы шагов
-схемы, и `validation.steps`. См. `15-project-structure.md`.
+схемы, и `flow.steps` сборки. См. `15-project-structure.md`.
 
-### Вручную — `validateModel` по схеме шага
+### Визард — адаптер потока
 
-Тот же результат без сборки: переход к следующему шагу проверяется `validateModel(model, stepSchema)`,
-полный submit — по общей схеме (композиция шагов через `apply(...)`).
+`FormWizard` из `@reformer/cdk` и `@reformer/ui-kit` рисует поток и зовёт его переходы:
+
+```tsx
+import { FormWizard } from '@reformer/ui-kit';
+
+function LoanWizard() {
+  const loan = useFormBundle(createLoanForm);
+  const send = async () => {
+    const outcome = await loan.submit(sendLoan);
+    if (outcome.status !== 'submitted') showHint('Проверьте форму');
+  };
+  return <FormWizard form={loan.form} flow={loan.flow} steps={STEPS} onSubmit={send} />;
+}
+```
+
+- В JSX — `form`, `flow={bundle.flow}` и `steps` пропсами; отправку проверяет приложение через
+  `bundle.submit(handler)`.
+- В схеме формы — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`, шаг —
+  `{ selector: 'loan', component: Step, componentProps: { title }, children: [...] }`. Внутри
+  рендерера визард берёт форму и поток из сборки сам, а его `onSubmit` зовётся через
+  `bundle.submit` — только после успешной проверки всей формы.
+- Без `flow` и без сборки в контексте визард строит позиционный поток **без правил**.
+- Навигация снаружи визарда — через сам поток: `bundle.flow?.goTo('loan')`; в поведении — `flow` из
+  области (`defineFormBehavior(({ model, flow }) => …)`).
+
+### Шаги без визарда — `useFormFlow`
+
+```tsx
+import { useFormFlow } from '@reformer/core/react';
+
+function MultiStepForm() {
+  const loan = useFormBundle(createLoanForm);
+  const flow = loan.flow!;
+  const { current, isFirst, isLast, validating } = useFormFlow(flow);
+
+  return (
+    <div>
+      {current === 'loan' && <LoanFields form={loan.form} />}
+      {current === 'applicant' && <ApplicantFields form={loan.form} />}
+      {current === 'confirm' && <Summary form={loan.form} />}
+
+      <button onClick={() => flow.previous()} disabled={isFirst}>
+        Back
+      </button>
+      {isLast ? (
+        <button onClick={() => void loan.submit(sendLoan)}>Submit</button>
+      ) : (
+        <button onClick={() => void flow.next()} disabled={validating}>
+          Next
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+### Без сборки — `validateModel` по схеме шага
+
+Тот же результат без `createForm`: переход проверяется `validateModel(model, stepSchema)`, полный
+submit — по общей схеме (композиция шагов через `apply(...)`).
 
 ```typescript
-import { type FormModel } from '@reformer/core';
 import {
   validate,
   apply,
@@ -52,74 +128,31 @@ import {
 } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
-// Под-схема шага — обычная функция ({ model }) => void. Значения проверяет оператор validate(sig, [rules]).
-const step1Schema = defineValidation<Form>(({ model }) => {
+const loanRules = defineValidation<Form>(({ model }) => {
   validate(model.$.loanType, [required()]);
   validate(model.$.loanAmount, [required(), min(50000)]);
 });
 
-const step2Schema = defineValidation<Form>(({ model }) => {
+const applicantRules = defineValidation<Form>(({ model }) => {
   validate(model.$.personalData.firstName, [required()]);
   validate(model.$.personalData.lastName, [required()]);
 });
 
-// Карта шагов + полная схема (композиция под-схем через apply — заменяет пошаговую группировку деревом)
-const STEP_SCHEMAS: readonly ValidationDefinition<Form>[] = [step1Schema, step2Schema];
-const fullSchema = defineValidation<Form>(() => apply(...STEP_SCHEMAS));
+const STEP_RULES: readonly ValidationDefinition<Form>[] = [loanRules, applicantRules];
+const fullRules = defineValidation<Form>(() => apply(...STEP_RULES));
+
+// true = нет блокирующих замечаний (severity:'warning' не блокирует); замечания уже в нодах
+const stepOk = await validateModel(model, STEP_RULES[index], { touch: true });
+const allOk = await validateModel(model, fullRules, { touch: true });
 ```
 
-```typescript
-// Переход к следующему шагу. validateModel возвращает Promise<boolean> (true = нет блокирующих ошибок;
-// severity:'warning' не блокирует). Устаревшие прогоны той же (model, schema) отменяются автоматически.
-const goToNextStep = async () => {
-  const ok = await validateModel(model, STEP_SCHEMAS[currentStep - 1]);
-  if (!ok) return; // ошибки уже проставлены в ноды текущего шага
-  setCurrentStep(currentStep + 1);
-};
+Поток без сборки собирает `createFormFlow({ steps, validateStep })` — см. `38-form-flow.md`.
 
-// Полный submit — по общей схеме
-const handleSubmit = async () => {
-  const ok = await validateModel(model, fullSchema);
-  if (ok) {
-    await onSubmit(model.get());
-  }
-};
-```
+### Удалено
 
-Слой-потребитель (`FormWizard`) обычно оборачивает это в конфиг с per-step и полной валидацией:
-
-```typescript
-function makeValidationConfig(model: FormModel<Form>) {
-  return {
-    validateStep: (n: number): Promise<boolean> => validateModel(model, STEP_SCHEMAS[n - 1]),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
-  };
-}
-```
-
-### Multi-Step Component Example
-
-```tsx
-function MultiStepForm() {
-  const [step, setStep] = useState(1);
-
-  const nextStep = async () => {
-    const ok = await validateModel(model, STEP_SCHEMAS[step - 1]);
-    if (ok) setStep(step + 1);
-  };
-
-  return (
-    <div>
-      {step === 1 && <Step1Fields form={form} />}
-      {step === 2 && <Step2Fields form={form} />}
-
-      <button onClick={() => setStep(step - 1)} disabled={step === 1}>
-        Back
-      </button>
-      <button onClick={step === 2 ? handleSubmit : nextStep}>
-        {step === 2 ? 'Submit' : 'Next'}
-      </button>
-    </div>
-  );
-}
-```
+| Прежний контракт                                         | Сейчас                                                    |
+| -------------------------------------------------------- | --------------------------------------------------------- |
+| `validation: { steps: { loan: rules } }`                 | `flow: { steps: [{ id: 'loan', rules }] }`                |
+| `bundle.validation.validateStep(n)` / `.validateAll()` / `.runStep()` / `.runAll()` | `bundle.validateStep(id)` / `bundle.validate()` |
+| `<FormWizard config={…} ref={…}>`, `FormWizardConfig`, `FormWizardHandle` | `<FormWizard flow={bundle.flow}>`, навигация — `bundle.flow` |
+| `defineSteps`, `useWizardStepValidation`                 | `flow` сборки; живая проверка — `validation.strategy`     |

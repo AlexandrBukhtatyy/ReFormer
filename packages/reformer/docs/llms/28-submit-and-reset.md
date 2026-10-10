@@ -2,22 +2,33 @@
 
 ## Purpose
 
-Канонический submit-флоу: «запустить полную валидацию данных (`validateModel`) →
-проверить `boolean`-результат → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
-Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidation`), она
-НЕ входит в схему формы, которую получает `createForm`. Раннер `validateModel(model, schema)` сам
-разносит ошибки по нодам формы, поэтому UI подсветит проблемные поля, а наружу вернёт `boolean`:
-`true` — блокирующих ошибок нет (`severity:'warning'` показывается, но отправку не блокирует);
-`false` — есть ошибки, правило не удалось проверить (сбой async-правила) либо прогон отменён.
-Отличить эти случаи — `runValidation` / `validation.runAll()` с полным результатом.
-`model.reset()` возвращает значения к initial-снимку.
+Канонический submit-флоу — один вызов уровня формы: `bundle.submit(handler)`. Он прогоняет все
+правила один раз, разносит замечания по нодам и зовёт обработчик со значениями модели
+(`model.get()`) только при статусе `valid`. Результат — объект `SubmitResult`, по которому
+отличают отправку (`submitted`), замечания в форме (`invalid`), сбой проверки (`error`), отмену
+(`cancelled`) и исключение обработчика (`failed`). После успеха — `model.reset()` (к initial-снимку)
+либо `model.captureInitial()` (сохранённые значения — новая точка отсчёта).
+
+Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidation`): она
+НЕ входит в схему формы и уходит в сборку полем `validation` (шаги — `flow`). Без сборки тот же
+результат даёт раннер `validateModel(model, schema)`.
 
 ## API
 
 ```typescript
+// Уровень формы — сборка createForm (см. 38-form-flow.md)
+bundle.submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
+type SubmitResult<R> =
+  | { status: 'submitted'; result: R } // обработчик отработал
+  | { status: 'invalid' | 'error' | 'cancelled'; validation: ValidationResult } // не вызывался
+  | { status: 'failed'; error: unknown }; // обработчик бросил исключение
+bundle.validate(): Promise<ValidationResult>; // проверить всю форму без отправки
+bundle.submitting: ReadonlySignal<boolean>; // работает обработчик
+bundle.validating: ReadonlySignal<boolean>; // идёт проверка
+
 // Модель (источник истины значений):
 interface ModelApi<T> {
-  get(): T;                         // снимок значений — для submit
+  get(): T;                         // снимок значений — его получает обработчик submit
   set(value: T): void;              // полная установка (все ключи T); при нехватке ключей — dev-предупреждение
   patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком
   isDirty(): boolean;               // отличаются ли значения от initial-снимка
@@ -25,31 +36,20 @@ interface ModelApi<T> {
   captureInitial(): void;           // зафиксировать текущие как новый initial
 }
 
-// Валидация данных — headless-раннер: находит ноды по сигналам модели, разносит по ним ошибки,
+// Раннер без сборки — headless: находит ноды по сигналам модели, разносит по ним замечания,
 // отменяет устаревшие прогоны той же (model, schema):
 validateModel<T>(model: FormModel<T>, schema: ValidationDefinition<T>, options?: { touch?: boolean }): Promise<boolean>
-// true  = статус 'valid': блокирующих ошибок нет (severity:'warning' не блокирует, но показывается).
-// false = 'invalid' (ошибки уже в нодах → UI подсветит поля), 'error' (правило не удалось
-//         проверить — на поле ошибка ruleFailed) либо 'cancelled' (прогон вытеснен новым).
-
-// Полный результат вместо boolean — статус, ошибки по ручкам полей, сбои правил:
+// true  = статус 'valid': блокирующих замечаний нет (severity:'warning' не блокирует, но показывается).
+// false = 'invalid', 'error' (правило не удалось проверить — на поле замечание ruleFailed) либо 'cancelled'.
 runValidation<T>(model, schema): Promise<ValidationResult>           // только сбор
 applyValidationResult(result, options?: { touch?: boolean }): void   // разнос по нодам
 
-// Схема валидации — отдельный слой над моделью (не смешивается со схемой формы):
-defineValidation<T>(({ model, cross }) => {
-  validate(model.$.field, [rules]);          // синхронные правила поля
-  // validateAsync / validateWhen / cross / apply / applyEach — см. 03-api-signatures.md
-}): ValidationDefinition<T>
-
-// form.validate() / form.submit(handler) правил НЕ запускают: validate() отвечает текущей
-// валидностью нод, submit() не зовёт обработчик, пока на нодах есть блокирующие ошибки.
-
-// Нода поля/формы (для точечной работы с UI-состоянием):
-form.markAsTouched();                         // тронуть все поля (показать ошибки)
-form.clearIssues();                           // снять ошибки со всех нод
-form.<field>.setIssues([{ code, message }]);  // серверная/бизнес-ошибка в конкретное поле
+// Нода поля/формы (точечная работа с UI-состоянием):
+form.markAsTouched();                         // тронуть все поля (показать замечания)
+form.clearIssues();                           // снять замечания со всех нод
+form.<field>.setIssues([{ code, params }]);   // серверная/бизнес-ошибка в конкретное поле
 form.<field>.clearIssues();
+form.reset();                                 // ноды: значения создания формы, замечания, touched, dirty
 ```
 
 ## Examples
@@ -57,46 +57,48 @@ form.<field>.clearIssues();
 ### Базовый submit-handler
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createForm, createFormFromModel } from '@reformer/core';
-import { defineValidation, validate, validateModel } from '@reformer/core/validation';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
-type RegistrationFormData = { username: string; email: string; password: string };
+interface RegistrationFormData {
+  username: string;
+  email: string;
+  password: string;
+}
 
-// Валидация — отдельная схема над моделью. НЕ входит в схему формы, которую получает createForm.
-// Стабильная module-level `const`-ссылка — чтобы validateModel мог отменять устаревшие прогоны.
-const registrationSchema = defineValidation<RegistrationFormData>(({ model }) => {
+// Валидация — отдельная схема над моделью; стабильная module-level `const`-ссылка.
+const registrationRules = defineValidation<RegistrationFormData>(({ model }) => {
   validate(model.$.username, [required({ code: 'username.required' }), minLength(3)]);
   validate(model.$.email, [required({ code: 'email.required' }), email()]);
   validate(model.$.password, [required({ code: 'password.required' }), minLength(8)]);
 });
 
+const createRegistration = () =>
+  createForm<RegistrationFormData>({
+    initial: { username: '', email: '', password: '' },
+    schema: registrationSchema, // (model) => дерево узлов, без правил
+    validation: registrationRules,
+  });
+
+async function register(values: RegistrationFormData): Promise<Response> {
+  return fetch('/api/v1/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(values),
+  });
+}
+
 function RegistrationForm() {
-  const { model, form } = useMemo(() => {
-    const m = createModel<RegistrationFormData>({ username: '', email: '', password: '' });
-    // schema здесь — дерево узлов (компоненты и привязки к модели), без правил.
-    return { model: m, form: createFormFromModel({ model: m, schema: buildSchema(m) }) };
-  }, []);
+  const registration = useFormBundle(createRegistration);
+  const { form, model } = registration;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched(); // показать ошибки на всех полях
-
-    // Шаг 1: прогон валидации данных. Ошибки автоматически проставятся в ноды → UI подсветит.
-    const valid = await validateModel(model, registrationSchema);
-    if (!valid) return;
-
-    // Шаг 2: достать чистые данные и отправить
-    const payload = model.get();
-    const response = await fetch('/api/v1/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    // Шаг 3: чистый старт после успеха
-    if (response.ok) model.reset();
+    // Один прогон правил: при замечаниях обработчик не вызывается, поля помечены тронутыми.
+    const outcome = await registration.submit(register);
+    if (outcome.status === 'submitted' && outcome.result.ok) model.reset(); // чистый старт
   };
 
   return (
@@ -110,30 +112,52 @@ function RegistrationForm() {
 }
 ```
 
-### Submit с error-handling и серверными ошибками
+### Submit с разбором результата и серверными замечаниями
 
 ```tsx
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
-  form.markAsTouched();
 
-  const valid = await validateModel(model, registrationSchema);
-  if (!valid) return;
-
-  try {
-    const response = await api.register(model.get());
-    if (response.success) {
-      model.reset();
-      navigate('/welcome');
-    } else {
-      // Серверная бизнес-ошибка — НЕ сбрасываем форму, кладём ошибку в поле
-      form.username.setIssues([{ code: 'taken' }]);
+  const outcome = await registration.submit(async (values) => {
+    const response = await api.register(values);
+    if (!response.success) {
+      // Серверная бизнес-ошибка — НЕ сбрасываем форму, кладём замечание в поле
+      registration.form.username.setIssues([{ code: 'username.taken' }]);
     }
-  } catch (error) {
-    // Сеть/неожиданная ошибка — оставляем значения
-    showToast(`Ошибка сети: ${(error as Error).message}`);
+    return response;
+  });
+
+  switch (outcome.status) {
+    case 'submitted':
+      if (outcome.result.success) {
+        registration.model.reset();
+        navigate('/welcome');
+      }
+      break;
+    case 'invalid': // замечания уже на полях
+      break;
+    case 'error': // async-правило не ответило — outcome.validation.failures
+      showToast('Не удалось проверить форму, повторите попытку');
+      break;
+    case 'failed': // обработчик бросил исключение (сеть) — значения остаются
+      showToast(`Ошибка сети: ${String(outcome.error)}`);
+      break;
   }
 }
+```
+
+Текст кода `username.taken` — запись в словаре формы (`defineIssueMessages`), см.
+`36-issue-messages.md`.
+
+### Значения для сервера
+
+Обработчик получает `model.get()` — все значения модели, включая вычисляемые поля. Поля, которых
+сервер не ждёт, отрезает сам обработчик: удобно держать ввод и расчёт разными типами
+(`CreditApplication` и `CreditApplicationDerived`, форма — их пересечение) и функцию
+`toPayload(values): CreditApplication`, убирающую вычисляемые ключи.
+
+```typescript
+const outcome = await credit.submit((values) => api.send(toApplicationPayload(values)));
 ```
 
 ### Reset с подтверждением
@@ -160,21 +184,21 @@ function ActionButtons({ model }: { model: FormModel<RegistrationFormData> }) {
 }
 ```
 
-### Использование вне React (server action / Node)
+### Без сборки — раннер (server action / Node)
 
 Раннер headless — работает без UI-компонентов, только с моделью и схемой:
 
 ```typescript
 import { createModel } from '@reformer/core';
-import { validateModel } from '@reformer/core/validation';
+import { runValidation } from '@reformer/core/validation';
 
 async function processFormPayload(rawData: Partial<MyForm>) {
   const model = createModel<MyForm>(initialValues);
   model.patch(rawData); // частичный load данных
 
-  // validateModel находит ноды по сигналам модели и роутит в них ошибки, возвращая boolean.
-  const valid = await validateModel(model, myFormSchema);
-  if (!valid) return { ok: false as const };
+  // Полный результат: статус и замечания по ручкам полей — без нод формы
+  const result = await runValidation(model, myFormRules);
+  if (result.status !== 'valid') return { ok: false as const, status: result.status };
   return { ok: true as const, data: model.get() };
 }
 ```
@@ -182,42 +206,59 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 ## Anti-patterns
 
 ```typescript
-// ❌ Обращение к .valid: раннер возвращает boolean, а не { valid, errors }
-const result = await validateModel(model, schema);
-if (!result.valid) return; // result — boolean, .valid === undefined → guard никогда не сработает
+// ❌ Отправка в обход проверки — правила не прогнаны, замечания не показаны
+await api.send(bundle.model.get());
 
-// ✅ Результат — сам boolean
-const valid = await validateModel(model, schema);
-if (!valid) return;
+// ✅ Проверка и отправка одним вызовом
+await bundle.submit(api.send);
 ```
 
 ```typescript
-// ❌ Чтение результата валидации без await — сабмитим по неполному вердикту
+// ❌ Результат как boolean — объект всегда truthy
+if (await bundle.submit(api.send)) navigate('/done');
+
+// ✅ Статус результата
+const outcome = await bundle.submit(api.send);
+if (outcome.status === 'submitted') navigate('/done');
+```
+
+```typescript
+// ❌ Методы проверки и отправки на ноде — удалены
+await form.validate();
+await form.submit(api.send);
+
+// ✅ Уровень формы — у сборки
+await bundle.validate();
+await bundle.submit(api.send);
+```
+
+```typescript
+// ❌ Чтение результата без await — сабмитим по неполному вердикту
 const handleSubmit = (e) => {
   e.preventDefault();
-  validateModel(model, schema); // Promise проигнорирован, async-валидаторы не дождались
-  submit(model.get());
+  validateModel(model, schema); // Promise проигнорирован, async-правила не дождались
+  send(model.get());
 };
 
-// ✅ Дождаться и проверить boolean
+// ✅ bundle.submit дожидается async-правил сам
 const handleSubmit = async (e) => {
   e.preventDefault();
-  if (await validateModel(model, schema)) submit(model.get());
+  await bundle.submit(send);
 };
 ```
 
 ```typescript
 // ❌ Правила в узле схемы формы — ключа validators у узла нет, схема формы правил не несёт
-createFormFromModel({
-  model,
-  schema: { children: [{ model: model.$.username, component: Input, validators: [required()] }] },
+createForm({
+  initial,
+  schema: (model) => ({ children: [{ model: model.$.username, component: Input, validators: [required()] }] }),
 });
 
-// ✅ Валидация — отдельная схема, прогоняется раннером
-const schema = defineValidation<T>(({ model }) => {
+// ✅ Валидация — отдельная схема, уходит в сборку полем validation
+const rules = defineValidation<T>(({ model }) => {
   validate(model.$.username, [required()]);
 });
-await validateModel(model, schema);
+createForm({ initial, schema, validation: rules });
 ```
 
 ```typescript
@@ -225,11 +266,11 @@ await validateModel(model, schema);
 await api.send(model.get());
 model.reset();
 
-// ✅ Reset только после успеха
-try {
-  await api.send(model.get());
-  model.reset();
-} catch (err) { showError(err); }
+// ✅ Reset только после успеха — внутри обработчика либо по статусу 'submitted'
+const outcome = await bundle.submit(async (values) => {
+  await api.send(values);
+  bundle.model.reset();
+});
 ```
 
 ```typescript
@@ -244,20 +285,20 @@ model.reset();
 
 ## Troubleshooting
 
-**Q: После `reset()` в UI остались старые ошибки.**
-A: `model.reset()` меняет значения; ошибки в нодах чистит валидация. Перезапусти
-`validateModel(model, schema)` после reset (валидные поля погаснут сами), либо очисти напрямую —
-`form.clearIssues()` / `form.<field>.clearIssues()`.
+**Q: После `reset()` в UI остались старые замечания.**
+A: `model.reset()` меняет значения; замечания в нодах чистит валидация. Перезапусти
+`bundle.validate()` после reset (валидные поля погаснут сами), очисти напрямую —
+`form.clearIssues()` / `form.<field>.clearIssues()`, либо сбрось ноды — `form.reset()`.
 
-**Q: `validateModel` вернул `true`, но в поле висит ошибка.**
-A: Это правило с `severity: 'warning'` — оно показывается, но submit не блокирует, поэтому раннер
-и вернул `true`. Блокируют только ошибки без `severity` (default). Чтобы не пускать submit при
-warning — проверяй его отдельно, вне `validateModel`.
+**Q: `submit` вызвал обработчик, но в поле висит замечание.**
+A: Это правило с `severity: 'warning'` — оно показывается, но отправку не блокирует. Блокируют только
+замечания без `severity` (по умолчанию `'error'`). Чтобы не пускать submit при warning — проверь
+`(await bundle.validate()).issues` сам до отправки.
 
-**Q: `validateModel` вернул `false`, а ошибок правил в форме нет — на поле «Не удалось проверить поле».**
-A: Async-правило не вернуло результат (сеть, исключение). Сбой блокирует: прогон получает статус
-`error`, поле — ошибку `{ code: 'ruleFailed' }`. Причина лежит в `result.failures` результата
-`runValidation` / `validation.runAll()`. Повторный прогон после восстановления сети снимет ошибку.
+**Q: `submit` вернул `status: 'error'`, а замечаний правил в форме нет — на поле «Не удалось проверить поле».**
+A: Async-правило не вернуло результат (сеть, исключение). Сбой блокирует: на поле — замечание
+`{ code: 'ruleFailed' }`. Причина — в `outcome.validation.failures`. Повторная отправка после
+восстановления сети снимет замечание.
 
 **Q: `reset()` не возвращает данные, загруженные с сервера.**
 A: `reset()` возвращает к initial-снимку (значения на момент `createModel`). `set/patch` НЕ
@@ -266,18 +307,20 @@ A: `reset()` возвращает к initial-снимку (значения на
 
 **Q: Чем `form.reset()` отличается от `model.reset()`?**
 A: `model.reset()` возвращает значения к точке отсчёта модели — initial-снимку либо последнему
-`model.captureInitial()`. `form.reset()` сбрасывает ноды: ошибки, флаги touched / dirty и значения
+`model.captureInitial()`. `form.reset()` сбрасывает ноды: замечания, флаги touched / dirty и значения
 — к тем, с которыми форма создана, то есть к «чистому листу», а не к загруженным данным. После
 загрузки данных и `captureInitial()` к ним возвращает `model.reset()`.
 
 **Q: Disabled-поля участвуют в submit-данных?**
-A: `model.get()` возвращает значения всех полей. Фильтруй вручную после `get()` или используй
-`enableWhen({ resetOnDisable: true })`, чтобы при disable поле возвращалось к initial.
+A: Обработчик получает `model.get()` — значения всех полей. Фильтруй сам либо используй
+`enableWhen({ resetOnDisable: true })`, чтобы при disable поле возвращалось к initial. Замечания
+отключённых полей сняты, в проверку они не входят.
 
 ## See also
 
+- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `validateStep`, `submit`, поток шагов
 - [29-async-preload.md](./29-async-preload.md) — initial values и preload через `set`/`patch`
-- [13-multi-step.md](./13-multi-step.md) — пошаговая валидация через `validateModel` (`validateStep`/`validateAll`)
+- [13-multi-step.md](./13-multi-step.md) — пошаговая форма: поток `flow`, визард
 - [27-revalidate-when.md](./27-revalidate-when.md) — мост «поведение → валидация»: `revalidateWhen([deps], () => void validateModel(model, schema))`
-- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры модели и `validateModel`
+- [36-issue-messages.md](./36-issue-messages.md) — тексты замечаний по коду
 - [05-common-mistakes.md](./05-common-mistakes.md) — типичные ошибки

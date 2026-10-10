@@ -4,7 +4,8 @@
 [![npm downloads](https://img.shields.io/npm/dm/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Reactive form state management library for React with signals-based architecture.
+Reactive form state management on signals: a UI-agnostic core with React bindings in
+`@reformer/core/react`.
 
 ## Playground
 
@@ -17,10 +18,12 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 ## Features
 
 - Signals-based reactive state management
-- Declarative form validation
+- Declarative form validation with typed rules and status results
+- Validation issues without text: codes and params, texts from a form dictionary and the locale
 - Dynamic form behaviors
+- Multi-step flows: step rules, transitions, `submit` with a result object
 - TypeScript support
-- Tree-shakeable exports
+- Tree-shakeable exports; the root entry has no React dependency
 
 ## Installation
 
@@ -31,28 +34,44 @@ npm install @reformer/core@beta # Active development is underway, so you can try
 ## Quick Start
 
 A reactive `FormModel` owns the values, a form schema — a tree of nodes — binds field config
-(component / props) to the model's handles (`model.$.<field>`), and
-`createFormFromModel({ model, schema })` wires them into a typed form. Validation is a **separate**
-contract — `defineValidation`, run on demand by `validateModel(model, schema)` — so the form
-schema carries no validators.
+(component / props) to the model's handles (`model.$.<field>`), and `createForm` assembles the
+model, the form and the form level (`validate`, `submit`, step flow) in one call. Validation is a
+**separate** contract — `defineValidation` — so the form schema carries no validators. A rule
+reports a code, not a text: the text comes from a form dictionary (`defineIssueMessages`) on top of
+the locale.
 
 ```tsx
-import { useMemo } from 'react';
 import {
-  createModel,
-  createFormFromModel,
+  createForm,
   type FormControl,
+  type FormModel,
   type FormSchemaNode,
   type ValidationIssue,
 } from '@reformer/core';
-import { useFormControl } from '@reformer/core/react';
-import { validate, defineValidation, validateModel } from '@reformer/core/validation';
+import { useFormBundle, useFormControl, useIssueMessage } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { validate, defineValidation } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
-// 0. Simple FormField component
+// 1. Form data type — `interface` or `type`, both work
+interface RegistrationForm {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+// 2. Issue texts by code — the form dictionary (built-in codes fall back to the locale)
+const messages = defineIssueMessages({
+  'username.required': 'Enter a username',
+  'confirmPassword.mismatch': 'Passwords do not match',
+});
+
+// 3. Simple FormField component: the issue text comes from the resolver
 function FormField({ label, control }: { label: string; control: FormControl<string> }) {
-  const { value, errors, shouldShowError } = useFormControl(control);
+  const { value, issues, shouldShowError } = useFormControl(control);
+  const message = useIssueMessage(messages);
 
   return (
     <div>
@@ -62,83 +81,69 @@ function FormField({ label, control }: { label: string; control: FormControl<str
         onChange={(e) => control.setValue(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {shouldShowError && <span className="error">{errors[0].message}</span>}
+      {shouldShowError && issues[0] && <span className="error">{message(issues[0])}</span>}
     </div>
   );
 }
 
-// 1. Define form interface
-interface RegistrationForm {
-  username: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-// 2. Reactive model — the source of truth for values
-const model = createModel<RegistrationForm>({
-  username: '',
-  email: '',
-  password: '',
-  confirmPassword: '',
-});
-
-// 3. Form schema — a tree of nodes. A field node binds field config (component / props)
+// 4. Form schema — a tree of nodes. A field node binds field config (component / props)
 //    to a model handle (`model: model.$.<field>`); nested nodes live in `children`.
 //    The schema carries NO validators; rules live in the validation schema below.
-const schema: FormSchemaNode = {
+const schema = (model: FormModel<RegistrationForm>): FormSchemaNode => ({
   children: [
-    { model: model.$.username, component: Input },
-    { model: model.$.email, component: Input },
-    { model: model.$.password, component: Input },
-    { model: model.$.confirmPassword, component: Input },
+    { model: model.$.username, component: 'input' },
+    { model: model.$.email, component: 'input' },
+    { model: model.$.password, component: 'input' },
+    { model: model.$.confirmPassword, component: 'input' },
   ],
-};
+});
 
-// 4. Validation schema — a separate contract from `@reformer/core/validation`,
-//    run on demand (not reactive). Field rules go through `validate(sig, [rules])`;
-//    cross-field rules through `cross(sig, snapshot => error | null)` taken from the schema
-//    argument — the snapshot is the model value, its type is inferred. Rule factories
-//    (`required()`/…) come from `@reformer/core/validators`.
+// 5. Validation schema — a separate contract from `@reformer/core/validation`.
+//    Field rules go through `validate(sig, [rules])`; cross-field rules through
+//    `cross(sig, snapshot => issue | null)` taken from the schema argument — the snapshot is the
+//    model value, its type is inferred. Rule factories come from `@reformer/core/validators`.
 const passwordsMatch = (form: RegistrationForm): ValidationIssue | null =>
   form.confirmPassword && form.password && form.confirmPassword !== form.password
-    ? { code: 'mismatch' }
+    ? { code: 'confirmPassword.mismatch' }
     : null;
 
-const validationSchema = defineValidation<RegistrationForm>(({ model, cross }) => {
-  validate(model.$.username, [required(), minLength(2)]);
+const validation = defineValidation<RegistrationForm>(({ model, cross }) => {
+  validate(model.$.username, [required({ code: 'username.required' }), minLength(2)]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
   validate(model.$.confirmPassword, [required()]);
   cross(model.$.confirmPassword, passwordsMatch);
 });
 
-// 5. Behavior — declarative reactive logic, run by `createForm({ behavior })`.
-//    Validation runs on demand, so the stale cross-field error on `confirmPassword`
-//    is cleared the moment `password` changes — a behavior→validation bridge.
+// 6. Behavior — declarative reactive logic, run by `createForm({ behavior })`.
+//    Validation runs on demand, so the stale cross-field issue on `confirmPassword`
+//    is cleared the moment `password` changes.
 const behavior = defineFormBehavior<RegistrationForm>(({ model, form }) => {
   onChange(model.$.password, () => {
     form.confirmPassword.clearIssues();
   });
 });
 
-// 6. Registration form component
+// 7. One assembly: model, form, behavior, validation and the form level
+const createRegistration = () =>
+  createForm<RegistrationForm>({
+    initial: { username: '', email: '', password: '', confirmPassword: '' },
+    schema,
+    behavior,
+    validation,
+  });
+
 function RegistrationFormExample() {
-  const form = useMemo(
-    () => createFormFromModel<RegistrationForm>({ model, schema, behavior }),
-    []
-  );
+  // useFormBundle calls the factory exactly once and keeps the bundle stable between renders
+  const bundle = useFormBundle(createRegistration);
+  const { form } = bundle;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched();
-    // Validate the whole model against the validation schema (sync + async) on demand;
-    // errors route into the form nodes, so the UI highlights the offending fields.
-    // `true` only when nothing blocks: a failed async rule blocks as well.
-    const valid = await validateModel(model, validationSchema);
-    if (valid) {
-      console.log('Form data:', model.get());
-    }
+    // One run of all the rules (sync + async). Issues land on the form nodes and the fields are
+    // marked touched; the handler is called only when the status is 'valid'.
+    const outcome = await bundle.submit((values) => console.log('Form data:', values));
+    if (outcome.status === 'error') console.warn('Could not check the form, try again');
   };
 
   return (
@@ -152,6 +157,11 @@ function RegistrationFormExample() {
   );
 }
 ```
+
+`bundle.submit(handler)` returns a `SubmitResult`: `submitted` (with the handler's result),
+`invalid` / `error` / `cancelled` (with the validation result; the handler was not called) or
+`failed` (the handler threw). Multi-step forms declare their steps in the same call —
+`createForm({ flow: { steps: [{ id, rules }] } })` — and navigate with `bundle.flow.next()`.
 
 ## License
 

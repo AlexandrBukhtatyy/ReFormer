@@ -1,7 +1,8 @@
 ## 18. ARRAY OPERATIONS
 
-Массивы объектов — model-owned. Мутации делаются через `ModelArray` (`model.arrayField`);
-рендер — через ноду формы (`form.items.map` / `.at`).
+Массивы объектов — model-owned. Мутации делаются через `ModelArray` (`model.arrayField`) либо через
+ноду формы `FormArray` (`form.items`) — она данными не владеет и передаёт мутацию в массив модели;
+рендер — через ноду формы (`form.items.map` / `.at` / `.keyAt`).
 
 ### Array Access
 
@@ -15,18 +16,33 @@ model.items.toArray();          // снимок значений
 // Через ноду формы (рендер / доступ к нодам полей)
 form.items.at(0);               // FormGroup<Item> | undefined
 form.items.map((item, i) => …); // item — FormGroup<Item>
+form.items.length;              // число строк (число, не сигнал; в эффекте подписывает)
+form.items.keyAt(0);            // стабильный ключ строки — не меняется при move/swap
 ```
 
-### Array Methods (на модели)
+### Array Methods
 
 ```typescript
+// на модели
 model.items.push({ name: '', price: 0 });        // добавить в конец (ПЛОСКИЕ значения!)
+model.items.push();                              // по шаблону arrayOf(blank)
 model.items.insertAt(0, { name: '', price: 0 }); // вставить по индексу
 model.items.removeAt(index);                     // удалить по индексу
 model.items.move(fromIndex, toIndex);            // переместить
 model.items.swap(a, b);                          // поменять местами
 model.items.clear();                             // очистить
+
+// на ноде формы — те же мутации (вставка называется insert)
+form.items.push();
+form.items.insert(0, { name: '', price: 0 });
+form.items.removeAt(index);
+form.items.move(fromIndex, toIndex);
+form.items.swap(a, b);
+form.items.clear();
 ```
+
+Формы строк держатся за под-модели элементов: после `move` / `swap` строка остаётся той же нодой
+со своими `touched` и замечаниями.
 
 > **push принимает ПЛОСКИЕ значения** (`{ name, price }`), а НЕ FieldConfig-шаблон
 > (`{ value, component }`). Component/componentProps берутся из `item`-фабрики схемы.
@@ -43,21 +59,22 @@ function ItemsList({ form }: { form: FormGroup<MyForm> }) {
   return (
     <div>
       {form.items.map((item, index) => (
-        <div key={index}>
+        <div key={form.items.keyAt(index)}>
           <FormField control={item.name} />
           <FormField control={item.price} />
-          <button onClick={() => model.items.removeAt(index)}>Remove</button>
+          <button onClick={() => form.items.removeAt(index)}>Remove</button>
         </div>
       ))}
       {length === 0 && <p>No items yet</p>}
-      <button onClick={() => model.items.push({ name: '', price: 0 })}>Add Item</button>
+      <button onClick={() => form.items.push({ name: '', price: 0 })}>Add Item</button>
     </div>
   );
 }
 ```
 
 > В монорепо используется `FieldArraySection` из `@reformer/ui-kit`: `control={form.items}`,
-> `itemComponent`, `initialValue`, add/remove/reorder из коробки. См. `find_recipe(topic="form-array")`.
+> `itemComponent`, add/remove/reorder из коробки; шаблон новой строки — `arrayOf(blank)` в модели.
+> См. `find_recipe(topic="field-array")`.
 
 ### Per-item behavior — applyEach
 
@@ -78,7 +95,7 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 
 ### Вложенные области — массив в группе и в строке массива
 
-Узел `{ array, item }` и операторы `applyEach` / `apply` / `enableWhen` работают на любой глубине:
+Узел `{ model: model.$.<массив>, item }` и операторы `applyEach` / `apply` / `enableWhen` работают на любой глубине:
 цель оператора — **ручка** `model.$.…`, под-модель и нода находятся по её идентичности, а не по
 пути.
 
@@ -130,7 +147,7 @@ import type { ValidationIssue } from '@reformer/core';
 const percentagesSumTo100 = (form: MyForm): ValidationIssue | null => {
   const total = form.items.reduce((sum, item) => sum + (item.percentage || 0), 0);
   return Math.abs(total - 100) > 0.01
-    ? { code: 'invalid_total' }
+    ? { code: 'items.percentTotal', params: { total } } // текст кода — в словаре формы
     : null;
 };
 

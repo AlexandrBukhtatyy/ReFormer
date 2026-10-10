@@ -78,15 +78,15 @@ validateFormModel(model, legacySchema);
 
 // ✅ новое: cross-правило — обычная функция над снимком модели
 const field1LessThanField2 = (form: Form): ValidationIssue | null =>
-  form.field1 > form.field2 ? { code: 'error' } : null;
+  form.field1 > form.field2 ? { code: 'field1.notLess' } : null;
 
 const schema = defineValidation<Form>(({ model, cross }) => {
   validate(model.$.field1, [required()]);
-  cross(model.$.field1, field1LessThanField2); // правило на поле-носителе ошибки
+  cross(model.$.field1, field1LessThanField2); // правило на поле-носителе замечания
 });
 
-// Прогон — ТОЛЬКО раннером; ошибки сами доезжают до нод формы.
-// ⚠️ form.validate()/submit() правил НЕ запускают — отражают уже разнесённые ошибки.
+// Прогон — уровнем формы (createForm({ …, validation: schema })): bundle.validate() /
+// bundle.submit(handler); без сборки — раннер. Замечания сами доезжают до нод формы.
 await validateModel(model, schema);
 
 // Перезапуск правила при изменении соседнего поля — мост «поведение → валидация»:
@@ -97,4 +97,5 @@ revalidateWhen([model.$.field2], () => void validateModel(model, schema));
 > существуют — в `@reformer/core/validation` (активны только внутри прогона схемы); `cross` — в аргументе
 > схемы. УДАЛЕНЫ: `applyWhen`, `validateGroup`/`validateTree`/`validateForm`/`validateFormModel`,
 > типы `FieldPath`/`ValidationSchemaFn`/`BehaviorSchemaFn` и `ctx.form.*`/`ctx.setFieldValue` (наследие
-> path-based архитектуры). См. `17-nonexistent-api.md`.
+> path-based архитектуры), а также текст в правиле (`message`), методы проверки на нодах
+> (`form.validate()` / `form.submit()`) и `validation.steps` сборки. См. `17-nonexistent-api.md`.

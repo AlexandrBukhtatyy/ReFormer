@@ -148,38 +148,43 @@ const schema: FormSchemaNode = {
 ### createForm API
 
 ```typescript
-// Сборка одним вызовом: модель, форма, валидация и дерево для рендера
+// Сборка одним вызовом: модель, форма, уровень формы и дерево для рендера
 const bundle = createForm<MyForm>({
   initial,                 // либо готовая модель: model
   schema: (model) => tree, // билдер дерева: узлы держат ручки модели
   behavior: myBehavior,    // опционально: defineFormBehavior(...) из @reformer/core/behaviors
-  validation: myRules,     // опционально: схема либо { steps, extras }
+  validation: myRules,     // опционально: схема либо { rules?, extras?, strategy? }
+  flow: { steps: [{ id: 'loan', rules: loanRules }] }, // опционально: шаги, id = selector шага
 });
+bundle.render.tree; // CompiledSchema — то же дерево после компиляции
 
 // Низкоуровневая фабрика: готовые модель и дерево
 const form = createFormFromModel<MyForm>({ model, schema, behavior: myBehavior });
 
-// Доступ к нодам через Proxy
+// Доступ к нодам
 form.name.setValue('John');
 form.address.city.value.value; // текущее значение (через сигнал)
-model.items.push({ id: '1', name: 'Item' }); // операции над массивом — на модели
+model.items.push({ id: '1', name: 'Item' }); // операции над массивом — на модели (или form.items.push)
 ```
 
-Сборка компилирует дерево (`compileSchema`): повтор `selector` в одной области (корень, строка
-массива, подформа) — исключение с путями обоих узлов. В dev правило поведения на узел, которого нет
-в дереве, и ключ `validation.steps`, для которого нет шага с таким `selector`, дают предупреждение
-в консоли.
+Сборка компилирует дерево один раз (`compileSchema`): у каждого узла — вид (`field | array | part |
+container | text`), идентификатор (`selector` либо позиционный путь `#/0/2`) и область (`#`,
+`#/address`, `#/phones[<ключ>]`). Повтор `selector` в одной области (корень, строка массива,
+подформа) — исключение с путями обоих узлов. В dev правило поведения на узел, которого нет в
+дереве, и шаг `flow.steps`, для которого нет узла с таким `selector`, дают предупреждение в
+консоли. Подробно — [37-compiled-schema.md](./37-compiled-schema.md).
 
-### createForm Returns a Proxy
+### Ноды формы — типы и гарды
 
 ```typescript
 const form = createFormFromModel<MyForm>({ model, schema });
 
 form.email;          // FormControl<string> — TypeScript знает тип
-form.address.city;   // FormControl<string> — вложенный доступ
-form.items.at(0);    // FormGroup<ItemType> — форма строки массива
+form.address.city;   // FormControl<string> — вложенный доступ (form.address — FormGroup)
+form.items.at(0);    // FormGroup<ItemType> | undefined — форма строки массива
+form.$.value;        // поле с именем члена ноды (value, issues, reset, …) — через `$`
 
-// IMPORTANT: Proxy не проходит instanceof! Используй type guards:
+// FormControl / FormGroup / FormArray — интерфейсы, instanceof не работает. Вид ноды — гардами:
 import { isFormControl, isFormGroup, isFormArray } from '@reformer/core';
 if (isFormControl(node)) { /* ... */ }
 ```

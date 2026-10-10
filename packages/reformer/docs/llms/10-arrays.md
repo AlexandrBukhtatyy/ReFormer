@@ -131,9 +131,10 @@ const schema: FormSchemaNode = {
 > `FieldArraySection`) — рендер. `applyEach` в схеме формы не подхватится, а узел `{ model, item }`
 > схема валидации не обходит.
 
-### Array operations — на модели
+### Array operations — на модели или на ноде
 
-Мутации массива делаются через `ModelArray` (`model.items`), а не через ноду формы:
+Мутации массива делаются через `ModelArray` (`model.items`) либо через ноду формы `FormArray`
+(`form.items`) — нода данными не владеет и передаёт мутацию в тот же массив модели:
 
 ```typescript
 model.items.push({ id: '1', name: '', price: 0 });   // добавить в конец (плоские значения!)
@@ -145,7 +146,17 @@ model.items.clear();
 model.items.length;                                  // реактивная длина
 model.items.at(0);                                   // под-модель элемента (FormModel<Item>)
 model.items.map((item, i) => item.name);             // item — FormModel<Item>
+
+// та же мутация через ноду формы (у ноды вставка — insert, у модели — insertAt)
+form.items.push();                                   // строка по шаблону arrayOf(blank)
+form.items.insert(0, { id: '3', name: '', price: 0 });
+form.items.removeAt(index);
+form.items.length;                                   // число строк (число, не сигнал)
+form.items.keyAt(index);                             // стабильный ключ строки
 ```
+
+Формы строк держатся за под-модели элементов и при `move` / `swap` не пересоздаются; ключ строки
+(`keyAt`) не меняется при перестановке — его и берут для React `key`.
 
 > **Плоские значения при push.** В `push`/`insertAt` передавай payload из **плоских значений**
 > (`{ id, name, price }`), а НЕ FieldConfig-шаблон (`{ value, component }`). Component/componentProps
@@ -174,16 +185,16 @@ function ItemsList({ form }: { form: FormGroup<MyForm> }) {
   return (
     <div>
       {form.items.map((item, index) => (
-        <div key={index}>
+        <div key={form.items.keyAt(index)}>
           <FormField control={item.name} />
           <FormField control={item.price} />
-          <button onClick={() => model.items.removeAt(index)}>Remove</button>
+          <button onClick={() => form.items.removeAt(index)}>Remove</button>
         </div>
       ))}
 
       {length === 0 && <p>No items yet</p>}
 
-      <button onClick={() => model.items.push({ id: crypto.randomUUID(), name: '', price: 0 })}>
+      <button onClick={() => form.items.push({ id: crypto.randomUUID(), name: '', price: 0 })}>
         Add Item
       </button>
     </div>
@@ -192,8 +203,10 @@ function ItemsList({ form }: { form: FormGroup<MyForm> }) {
 ```
 
 > В монорепо для массивов используется готовый `FieldArraySection` из `@reformer/ui-kit`
-> (`control={form.items}`, `itemComponent`, `initialValue`, add/remove/reorder из коробки).
-> См. `find_recipe(topic="form-array")`.
+> (`control={form.items}`, `itemComponent`, add/remove/reorder из коробки; шаблон новой строки —
+> `arrayOf(blank)` в модели, проп `initialValue` — запасной путь). В схеме массив под-форм рисует
+> компонент `FieldArray` узла `{ model, component: FieldArray, item }`.
+> См. `find_recipe(topic="field-array")`.
 
 ### Array Cross-Validation
 
@@ -211,7 +224,7 @@ defineValidation<MyForm>(({ model, cross }) => {
   cross(model.$.hasItems, (form) => {
     const names = form.items.map((item) => item.name);
     return names.length !== new Set(names).size
-      ? { code: 'duplicate' }
+      ? { code: 'items.duplicate' }
       : null;
   });
 });
@@ -220,4 +233,5 @@ defineValidation<MyForm>(({ model, cross }) => {
 ## See also
 
 - [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, правила строк `applyEach`
-- CDK / ui-kit field-array (`FieldArray.Root`, `FieldArraySection`) — `find_recipe(topic="form-array")`
+- [37-compiled-schema.md](./37-compiled-schema.md) — область строки `#/items[<ключ>]` и `keyAt`
+- CDK / ui-kit field-array (`FieldArray.Root`, `FieldArraySection`) — `find_recipe(topic="field-array")`

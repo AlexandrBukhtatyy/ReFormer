@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Загрузка формы данными с сервера под M1: (1) **initial values** в `createModel(...)`; (2)
+Загрузка формы данными с сервера: (1) **initial values** в `createModel(...)` / `createForm({ initial })`; (2)
 **`model.set` / `model.patch`** для загрузки/обновления значений; (3) **external React-hook**
 для full-blown async preload (параллельный fetch заявки + справочников, обработка ошибок,
 race-guard через deps). Динамические `componentProps` (опции селектов) обновляются через
@@ -34,7 +34,11 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 import { createModel, createFormFromModel, type FormSchemaNode } from '@reformer/core';
 import { Input, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
-type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
+interface ProfileForm {
+  username: string;
+  language: 'ru' | 'en';
+  marketing: boolean;
+}
 
 const model = createModel<ProfileForm>({ username: '', language: 'ru', marketing: true });
 const schema: FormSchemaNode = {
@@ -109,7 +113,7 @@ export function useLoadCreditApplication(
     })();
 
     return () => { cancelled = true; };
-  }, [applicationId]); // model/form стабильны (создан через useMemo)
+  }, [applicationId]); // model/form стабильны (сборка через useFormBundle)
 
   return state;
 }
@@ -144,16 +148,13 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
 ```typescript
 // ❌ model/form пересоздаются на каждый рендер → preload запускается каждый раз
 function MyForm() {
-  const model = createModel<T>(initial);   // КАЖДЫЙ рендер!
-  const form = createFormFromModel({ model, schema });
+  const bundle = createForm<T>({ initial, schema }); // КАЖДЫЙ рендер!
 }
 
-// ✅ Стабильные ссылки через useMemo
+// ✅ Стабильная сборка: useFormBundle вызывает фабрику ровно один раз (useMemo React вправе
+// сбросить и пересобрать форму, потеряв введённое)
 function MyForm() {
-  const { model, form } = useMemo(() => {
-    const m = createModel<T>(initial);
-    return { model: m, form: createFormFromModel({ model: m, schema: buildSchema(m) }) };
-  }, []);
+  const { model, form } = useFormBundle(() => createForm<T>({ initial, schema }));
 }
 ```
 
@@ -181,8 +182,10 @@ useEffect(() => {
 
 ## Troubleshooting
 
-**Q: После `set`/`patch` не показываются ошибки.**
-A: `set`/`patch` не запускают валидацию. После загрузки вызови `await validateModel(model, schema)` (внешний раннер из `@reformer/core/validation`).
+**Q: После `set`/`patch` не показываются замечания.**
+A: `set`/`patch` не запускают валидацию (кроме живой стратегии `change`). После загрузки вызови
+`await bundle.validate()`; без сборки — `await validateModel(model, schema)` из
+`@reformer/core/validation`.
 
 **Q: Опции в `<Select>` не появляются после `updateComponentProps`.**
 A: (1) Оберни вызов в `queueMicrotask`; (2) убедись, что компонент подписан через `useFormControl`;

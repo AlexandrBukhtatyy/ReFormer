@@ -2,9 +2,11 @@
 
 ### Imports rule (#1 cause of cascading errors — read first)
 
-- Модель/форма/хуки/типы (`FormModel`, `FormSchemaNode`, `ValidationIssue`) — из `@reformer/core`.
+- Модель/форма/типы (`createForm`, `FormModel`, `FormSchemaNode`, `ValidationIssue`, `FormFlow`) — из `@reformer/core`.
+- Хуки (`useFormBundle`, `useFormControl`, `useFormFlow`, `useIssueMessage`, …) и `I18nProvider` — из `@reformer/core/react`.
 - Схема валидации (`defineValidation` + операторы `validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach`) и раннер `validateModel` — из `@reformer/core/validation`. `cross` берётся из аргумента схемы.
 - Чистые фабрики валидаторов (`required`/`min`/`email`/…) — из `@reformer/core/validators`.
+- Словарь текстов замечаний (`defineIssueMessages`, `resolveIssueMessage`) — из `@reformer/core/i18n`.
 - Декларативный DSL поведения (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
 
 ```typescript
@@ -17,7 +19,8 @@ import {
   type FormModel,
   type ValidationIssue,
 } from '@reformer/core';
-import { useFormControl, useFormControlValue } from '@reformer/core/react';
+import { useFormBundle, useFormControl, useFormControlValue } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
 // схема валидации + раннер — отдельный слой:
 import {
   defineValidation,
@@ -45,7 +48,8 @@ import { computeFrom, watchField } from '@reformer/core/model';
 
 ### Значения — в модели, не в форме
 
-Под M1 источник истины значений — модель. Форма (ноды) отражает их.
+Источник истины значений — модель. Форма (ноды) отражает их; `form.x.setValue(v)` пишет в ту же
+модель.
 
 ```typescript
 // ✅ читаем/пишем значение
@@ -68,7 +72,7 @@ const { value: loanType } = useFormControlValue(control.loanType);
 const loanType = useFormControlValue(control.loanType);
 
 // ALSO CORRECT - useFormControl returns object
-const { value, errors } = useFormControl(control.loanType);
+const { value, issues } = useFormControl(control.loanType);
 ```
 
 ### Behaviors принимают СИГНАЛЫ, а не пути/форму
@@ -86,9 +90,10 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 ### Валидаторы — оператор `validate`, а не узел схемы
 
 Валидация — **отдельный слой** (`@reformer/core/validation`), а не ключ узла. Схема формы
-(билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationDefinition`, а запускает
-их раннер. ⚠️ `form.validate()`/`submit()` правил **НЕ запускают** — прогон только через
-`validation` сборки либо `validateModel(model, schema)`.
+(билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationDefinition` и уходят в
+сборку полем `validation` (шаги — `flow`). Запуск — уровнем формы: `bundle.submit(handler)`,
+`bundle.validate()`, `bundle.validateStep(id)`; без сборки — `validateModel(model, schema)`. У нод
+методов `validate()` / `submit()` нет.
 
 ```typescript
 // ❌ WRONG - ключей value и validators у узла нет, как и записи «имя → узел»
@@ -96,21 +101,27 @@ const schema = {
   email: { value: model.$.email, component: Input, validators: [required(), email()] },
 };
 validate(path.email, required(), 'Email is required'); // старая сигнатура validate() — удалена
+required({ message: 'Email is required' }); // опции message нет — текст живёт в словаре формы
 
-// ✅ CORRECT - операторы validate/validateAsync внутри defineValidation; фабрики с options
+// ✅ CORRECT - операторы validate/validateAsync внутри defineValidation; у правила — код
 const emailSchema = defineValidation<MyForm>(({ model }) => {
   validate(model.$.email, [required({ code: 'email.required' }), email()]);
   validateAsync(model.$.email, [
     async (value, { signal }) => {
       const res = await fetch(`/api/free?email=${value}`, { signal });
-      return (await res.json()).free ? null : { code: 'taken' };
+      return (await res.json()).free ? null : { code: 'email.taken' };
     },
   ]);
 });
+// тексты кодов — словарь формы
+export const formMessages = defineIssueMessages({
+  'email.required': 'Укажите email',
+  'email.taken': 'Email уже занят',
+});
 
-// прогон по требованию (submit/шаг): ошибки сами доезжают до нод формы, warnings не блокируют.
-// Отклонённое async-правило — сбой: прогон не проходит, на поле ошибка `ruleFailed`.
-const ok = await validateModel(model, emailSchema);
+// прогон — уровнем формы: замечания сами доезжают до нод, warnings не блокируют.
+// Отклонённое async-правило — сбой: статус `error`, на поле замечание `ruleFailed`.
+const outcome = await bundle.submit(api.send); // createForm({ …, validation: emailSchema })
 ```
 
 ### Cross-field — оператор `cross`, а не `ctx.form`
@@ -128,7 +139,7 @@ compute(model.$.total, () => (model.amount ?? 0) * (model.rate ?? 0));
 // cross-field правило — обычная функция над снимком модели; `cross` берётся из аргумента схемы:
 const amountVsMax = (form: MyForm): ValidationIssue | null =>
   form.amount != null && form.maxAmount != null && form.amount > form.maxAmount
-    ? { code: 'tooBig' }
+    ? { code: 'amount.tooBig', params: { max: form.maxAmount } }
     : null;
 
 const amountSchema = defineValidation<MyForm>(({ model, cross }) => {
@@ -136,33 +147,46 @@ const amountSchema = defineValidation<MyForm>(({ model, cross }) => {
 });
 ```
 
-### Form-shape types — `type` over `interface`
+### Form-shape types — `interface` или `type`
+
+Форму данных можно объявлять и `interface`, и `type` — оба работают с `createModel<T>`,
+`createForm<T>`, `FormGroup<T>` и `FormArray<T>`. Группу от поля `FormGroup` отличает по виду
+значения (обычный объект, а не массив, дата, файл или функция), а не по index signature. Эталонная
+форма (`CreditApplication`) объявлена через `interface`.
 
 ```typescript
-// ❌ interface лишён неявной index signature; конструкции FormArray<T> его отвергают
+// ✅ interface
 export interface PropertyItem {
   type: PropertyType;
   description: string;
 }
 
-// ✅ type alias структурно совместим с Record<string, unknown>
+// ✅ type alias — то же самое
 export type PropertyItem = {
   type: PropertyType;
   description: string;
 };
 ```
 
+Единственная оговорка — свои обобщённые хелперы: `interface` не присваивается
+`Record<string, unknown>` (у него нет неявной index signature). Ограничение пиши через
+`T extends object`, а не `T extends Record<string, unknown>`.
+
 `number | null` — конвенциональный тип для очищенного поля; встроенные валидаторы
 (`min`, `max`, `minLength`, `maxLength`, `minDate`, `maxDate`, `minAge`, `maxAge`) пропускают
 пустые значения внутри.
 
-### Proxy не проходит instanceof
+### Вид ноды — гардами, а не instanceof
+
+`FormControl`, `FormGroup`, `FormArray` — интерфейсы: классов нод в публичном API нет, проверка
+`instanceof` не скомпилируется. Вид ноды различают гарды по метке вида:
 
 ```typescript
-// ❌ instanceof на Proxy не работает
+// ❌ FormControl — тип, а не класс
 if (node instanceof FormControl) { ... }
 
 // ✅ type guards
-import { isFormControl, isFormGroup, isFormArray } from '@reformer/core';
-if (isFormControl(node)) { ... }
+import { isFormNode, isFormControl, isFormGroup, isFormArray } from '@reformer/core';
+if (isFormControl(node)) node.updateComponentProps({ placeholder: 'Email' });
+if (isFormArray(node)) node.push();
 ```

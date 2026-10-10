@@ -69,14 +69,14 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 });
 ```
 
-> Низкоуровневый аналог — примитив `watchField(model.$.region, cb)` из `@reformer/core` (без debounce/AbortSignal;
+> Низкоуровневый аналог — примитив `watchField(model.$.region, cb)` из `@reformer/core/model` (без debounce/AbortSignal;
 > для сети предпочтителен `onChange`). См. `20-compute-vs-watch.md`, `32-async-options-loading.md`.
 
 ### Reading values
 
 ```typescript
-// В React-компоненте — хуки
-const { value, errors, disabled } = useFormControl(form.email);
+// В React-компоненте — хуки (@reformer/core/react)
+const { value, issues, disabled } = useFormControl(form.email);
 const loanType = useFormControlValue(form.loanType); // значение напрямую
 
 // Вне React — из модели
@@ -88,25 +88,30 @@ model.get();             // весь объект-снимок
 
 ### Submit + validation
 
-Валидация — отдельная `ValidationDefinition<T>` (`defineValidation`), а не часть layout. Раннер
-`validateModel(model, schema)` сам роутит ошибки в ноды формы и возвращает `Promise<boolean>`
-(`false` = есть блокирующая ошибка; `severity: 'warning'` не блокирует).
+Валидация — отдельная `ValidationDefinition<T>` (`defineValidation`), а не часть layout; в сборку
+она уходит полем `validation`. `bundle.submit(handler)` прогоняет все правила один раз, разносит
+замечания по нодам и зовёт обработчик только при статусе `valid` (`severity: 'warning'` не
+блокирует). Результат — `SubmitResult`.
 
 ```typescript
-import { validateModel } from '@reformer/core/validation';
-
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
-  const ok = await validateModel(model, schema); // ошибки сами доезжают до нод формы (UI подсветит)
-  if (!ok) return;                               // false → есть блокирующая ошибка
-  await api.send(model.get());
-  model.reset(); // к initial-снимку
+  const outcome = await bundle.submit(async (values) => {
+    await api.send(values);
+    bundle.model.reset(); // к initial-снимку — только после успеха
+  });
+  if (outcome.status === 'invalid') showHint('Проверьте форму'); // поля уже подсвечены
 }
 ```
 
-Multi-step: правила шагов — поле `validation: { steps, extras }` сборки `createForm` (ключ `steps` —
-`selector` шага). Сборка отдаёт `validation.validateStep(step)` и `validation.validateAll()` (все
-шаги + `extras`); визард принимает её как есть. См. `13-multi-step.md`, `28-submit-and-reset.md`.
+Без сборки — раннер `validateModel(model, schema)`: сам разносит замечания по нодам и отвечает
+`Promise<boolean>`.
+
+Multi-step: шаги и их правила — поток сборки `createForm({ flow: { steps: [{ id, rules }] } })`
+(`id` — `selector` шага), правила вне шагов — `validation: { extras }`. Сборка отдаёт
+`bundle.validateStep(id)`, `bundle.validate()` и поток `bundle.flow` (`next` / `previous` / `goTo`);
+визард принимает поток пропом `flow`. См. `13-multi-step.md`, `28-submit-and-reset.md`,
+`38-form-flow.md`.
 
 ### Cross-field validation — через `cross`
 
@@ -121,7 +126,7 @@ import type { ValidationIssue } from '@reformer/core';
 // снимок формы читается напрямую — без каста, соседние поля доступны как поля объекта
 const initialPaymentVsProperty = (form: MyForm): ValidationIssue | null =>
   form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue
-    ? { code: 'tooHigh' }
+    ? { code: 'initialPaymentTooHigh' } // текст кода — в словаре формы (defineIssueMessages)
     : null;
 
 const schema = defineValidation<MyForm>(({ model, cross }) => {
@@ -156,8 +161,10 @@ const loanRules = defineValidation<MyForm>(({ model, cross }) => {
 
 ### Перезапуск прогона — `revalidateWhen` (мост поведение → валидация)
 
-Схема прогоняется по требованию (submit/шаг). Чтобы перезапустить её при изменении зависимости —
-`revalidateWhen` из **поведения** (единственный мост поведение → валидация):
+Схема прогоняется по требованию (submit/шаг) либо живой стратегией сборки
+(`validation: { strategy: 'change' }`, см. `33-validation-strategy.md`). Чтобы перезапустить
+отдельную схему при изменении зависимости — `revalidateWhen` из **поведения** (мост
+поведение → валидация):
 
 ```typescript
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';

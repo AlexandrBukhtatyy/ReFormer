@@ -1,37 +1,51 @@
 ## Import Patterns
 
 ```typescript
-// Модель, форма, типы — из @reformer/core. React здесь нет: корень работает и на сервере
+// Модель, форма, уровень формы, типы — из @reformer/core. React здесь нет: корень работает и на сервере
 import {
   createModel,
   createForm,
   createFormFromModel,
   arrayOf, // массив модели с шаблоном новой строки
+  compileSchema, // авторское дерево → CompiledSchema (обычно не нужен: createForm компилирует сам)
+  createFormFlow, // поток шагов без сборки
+  isFormControl,
+  isFormGroup,
+  isFormArray,
 } from '@reformer/core';
 
-// Привязка к React — хуки, связка поля с контролом, провайдер локали — из /react
+// Привязка к React — хуки, контекст сборки, связка поля с контролом, провайдер локали — из /react
 import {
   useFormBundle,
   useFormControl,
   useFormControlValue,
   useArrayLength,
+  useFormFlow, // снимок потока шагов для рендера
+  useIssueMessage, // текст замечания: словарь формы → локаль → английский → код
+  I18nProvider,
 } from '@reformer/core/react';
 import type { FieldControlState } from '@reformer/core/react';
 
 // Типы
 import type {
-  FormModel,        // реактивная модель данных
-  FormGroup,        // тип формы для props компонентов
-  FormBundle,       // результат createForm: { model, form, validation, render }
-  FormControl,        // нода одного поля
-  FormGroup,        // нода группы
-  FormArray,   // нода массива под-форм
-  ModelArray,       // реактивный массив модели (push/removeAt/at/map/length)
-  ModelSignals,     // дерево ручек ($)
-  PathAwareSignal,  // ручка, знающая свой путь
-  ValidationIssue,
-  FormSchemaNode,   // узел схемы: поле | массив под-форм | подформа | контейнер
-  FormValidation,   // правила формы как данные: { steps, extras, strategy }
+  FormModel, // реактивная модель данных
+  FormBundle, // результат createForm: { model, form, render, flow, validate, validateStep, submit, … }
+  FormNode, // общий контракт ноды
+  FormControl, // нода одного поля
+  FormGroup, // нода группы — тип формы для props компонентов
+  FormArray, // нода массива под-форм
+  ModelArray, // реактивный массив модели (push/removeAt/at/map/length)
+  ModelSignals, // дерево ручек ($)
+  PathAwareSignal, // ручка, знающая свой путь
+  ValidationIssue, // { code, params?, severity? } — без текста
+  RuleOptions, // { code?, params? } — опции фабрик правил
+  FormSchemaNode, // узел схемы: поле | массив под-форм | подформа | контейнер
+  CompiledSchema, // скомпилированная схема: bundle.render.tree
+  FormValidation, // правила формы как данные: { rules?, extras?, strategy?, debounce? }
+  FormFlowConfig, // поток шагов в конфиге: { steps: [{ id, rules? }] }
+  FormFlow, // поток шагов сборки: current, next(), previous(), goTo(id)
+  FlowTransition, // итог перехода: moved | stayed
+  SubmitResult, // итог bundle.submit: submitted | invalid | error | cancelled | failed
 } from '@reformer/core';
 
 // Схема валидации: операторы + раннер — из /validation
@@ -40,21 +54,24 @@ import {
   validate,
   validateAsync,
   validateWhen,
-  apply,     // правила подформы: apply(model.$.group, rules); композиция: apply(rulesA, rulesB)
+  apply, // правила подформы: apply(model.$.group, rules); композиция: apply(rulesA, rulesB)
   applyEach, // правила строк массива: applyEach(model.$.items, rules)
-  validateModel, // раннер: сбор + разнос, Promise<boolean>
+  validateModel, // раннер без сборки: сбор + разнос, Promise<boolean>
   runValidation, // только сбор: Promise<ValidationResult>
   applyValidationResult, // разнос собранного результата по нодам
 } from '@reformer/core/validation';
 import type {
-  Rule,             // (value) => ValidationIssue | null
-  AsyncRule,        // (value, { signal }) => Promise<ValidationIssue | null>
+  Rule, // (value) => ValidationIssue | null
+  AsyncRule, // (value, { signal }) => Promise<ValidationIssue | null>
   ValidationDefinition, // ({ model, cross }) => void — cross берётся из аргумента схемы
-  ValidationResult, // { status, errors, failures }
+  ValidationResult, // { status, issues, failures }
 } from '@reformer/core/validation';
 
 // Валидаторы — чистые фабрики из /validators (кладутся в validate(sig, [...]))
 import { required, min, max, email, minLength, pattern } from '@reformer/core/validators';
+
+// Тексты замечаний и локаль без React — из /i18n
+import { defineIssueMessages, resolveIssueMessage, createI18n } from '@reformer/core/i18n';
 
 // Декларативный DSL behaviors — из /behaviors
 import {
@@ -73,28 +90,32 @@ import {
   applyEach,
   aggregateInto,
   exclusiveFlag,
+  hideWhen, // операторы узлов схемы — исполняет рендерер
+  renderEffect,
 } from '@reformer/core/behaviors';
 
 // Примитивы над сигналами (принимают сигналы, возвращают cleanup) — из /model, в корне их нет
 import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
 ```
 
-### Form-shape тип должен быть `type`, а не `interface`
+### Форма данных — `interface` или `type`
 
-Прокси `createForm<T>` и типы `FormArray<U>` / `FormGroup<U>` требуют, чтобы form-shape
-структурно совпадал с `Record<string, unknown>`. У `interface` нет неявной index signature,
-поэтому объявляй form-shape (и типы элементов массива, и вложенные группы) через `type`-alias:
+Оба варианта работают одинаково: `createModel<T>`, `createForm<T>`, `FormGroup<T>` и `FormArray<T>`
+принимают и `interface`, и `type`-alias — для корня, вложенных групп и элементов массивов. Группу
+от поля сборка отличает по виду значения (обычный объект — группа; массив объектов — массив
+под-форм; примитив, массив примитивов, дата, файл — поле), а не по index signature.
 
 ```typescript
-export type AddressForm = {
+export interface AddressForm {
   street: string;
   city: string;
-};
+}
 
-export type CoBorrower = {
+export interface CoBorrower {
   fullName: string;
   phone: string;
-};
+}
 ```
 
-См. `30-type-safety-recipes.md`.
+Оговорка для своих обобщённых хелперов: `interface` не присваивается `Record<string, unknown>`, поэтому
+ограничение пиши `T extends object`. См. `30-type-safety-recipes.md`.

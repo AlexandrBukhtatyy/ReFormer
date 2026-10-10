@@ -3,18 +3,19 @@
 Для проверок типа «уникальность email», «валидация ИНН через API», «проверка адреса» —
 async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<ValidationIssue | null>`.
 Оно регистрируется оператором `validateAsync(sig, [asyncRules])` внутри схемы валидации
-(`@reformer/core/validation`) и исполняется внешним раннером `validateModel` (async-правила
-прогоняются параллельно через `Promise.all`, раннер их дожидается).
+(`@reformer/core/validation`) и исполняется прогоном — уровнем формы (`bundle.validate()`,
+`bundle.submit(handler)`, `flow.next()`) либо раннером `validateModel`. Async-правила прогоняются
+параллельно через `Promise.all`, прогон их дожидается.
 
 Слои разделены: схема формы (билдер `createForm` / JSON) правил НЕ несёт — они живут в
 отдельной функции-схеме `defineValidation<T>(({ model }) => …)`.
 
 **Сбой async-правила блокирует.** Если правило отклонило промис (сеть, исключение), прогон получает
-статус `error`, а поле — ошибку `{ code: 'ruleFailed' }` («Не удалось проверить поле. Повторите
-попытку»): форму, которую не удалось проверить, раннер валидной не считает.
+статус `error`, а поле — замечание `{ code: 'ruleFailed' }` («Не удалось проверить поле. Повторите
+попытку»): форму, которую не удалось проверить, прогон валидной не считает.
 
 ```ts
-import { createModel } from '@reformer/core';
+import { createForm, createModel } from '@reformer/core';
 import {
   validate,
   validateAsync,
@@ -32,10 +33,8 @@ const checkEmailUnique: AsyncRule<string> = async (value, { signal }) => {
   // ошибка `ruleFailed` на поле), а отмену устаревшего прогона отличит сам по `signal`.
   const res = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, { signal });
   const { available } = (await res.json()) as { available: boolean };
-  return available ? null : { code: 'email-taken' };
+  return available ? null : { code: 'email.taken' }; // текст кода — в словаре формы
 };
-
-const model = createModel<{ email: string }>({ email: '' });
 
 // Схема — обычная функция над моделью; sync и async — разными операторами на одном сигнале.
 const schema = defineValidation<{ email: string }>(({ model }) => {
@@ -43,45 +42,54 @@ const schema = defineValidation<{ email: string }>(({ model }) => {
   validateAsync(model.$.email, [checkEmailUnique]); // async-правило
 });
 
-// Прогон по требованию (submit / шаг):
+// В сборке — прогон уровнем формы:
+const signup = createForm<{ email: string }>({ initial: { email: '' }, validation: schema });
+const outcome = await signup.submit(api.signup); // обработчик — только когда все правила ответили valid
+
+// Без сборки — раннер:
+const model = createModel<{ email: string }>({ email: '' });
 const ok = await validateModel(model, schema); // Promise<boolean>
 ```
 
 ### Как это исполняется
 
-1. `validateModel(model, schema)` открывает ambient-окно и **синхронно** прогоняет схему:
+1. Прогон (`bundle.validate()` / `validateModel(model, schema)`) открывает ambient-окно и
+   **синхронно** прогоняет схему:
    `validate`/`validateAsync`/`cross` регистрируют правила своих полей.
 2. Sync-правила выполняются сразу; async-правила из `validateAsync` собираются и после закрытия
    ambient-окна дожидаются параллельно (`Promise.all`) с прокинутым `AbortSignal`.
 3. Пока async-правила поля не завершились, его нода в состоянии `pending`
    (`form.email.pending.value`, `useFormControl(form.email).pending`).
-4. Ошибки разносятся по нодам формы, UI подсвечивает поле; поля, ставшие валидными, гасятся.
-   Отклонённое правило даёт на своём поле ошибку `ruleFailed`.
-5. Возвращает `Promise<boolean>` — `true` только при статусе `valid` (`severity:'warning'`
-   не блокирует). Ошибки (`invalid`), сбой правила (`error`) и устаревший отменённый прогон
-   (`cancelled`) дают `false`.
+4. Замечания разносятся по нодам формы, UI подсвечивает поле; поля, ставшие валидными, гасятся.
+   Отклонённое правило даёт на своём поле замечание `ruleFailed`.
+5. Итог — `ValidationResult` со статусом (`bundle.validate()`, `runValidation`) либо `boolean`
+   (`validateModel`: `true` только при `valid`; `severity:'warning'` не блокирует). Замечания
+   (`invalid`), сбой правила (`error`) и устаревший отменённый прогон (`cancelled`) — не `valid`.
 
-Синхронного варианта у контракта нет: раннер всегда `async`.
+Синхронного варианта у контракта нет: прогон всегда `async`.
 
 ### Результат прогона и сбой правила
 
-`validateModel` отвечает `boolean`. Когда нужно отличить «в форме ошибки» от «проверить не
-удалось», бери полный результат — `runValidation(model, schema)` либо `validation.runAll()` /
-`validation.runStep(step)` сборки формы:
+Когда нужно отличить «в форме замечания» от «проверить не удалось», бери полный результат —
+`bundle.validate()` / `bundle.validateStep(id)` сборки, а для отправки — статус `SubmitResult`:
+
+```ts
+const outcome = await bundle.submit(api.send);
+if (outcome.status === 'error') {
+  // outcome.validation.failures: [{ handle, error }] — какое правило и почему не вернуло результат
+  showToast('Не удалось проверить форму. Повторите попытку');
+}
+```
+
+Без сборки — `runValidation(model, schema)` (только сбор) и `applyValidationResult`:
 
 ```ts
 import { applyValidationResult, runValidation } from '@reformer/core/validation';
 
-const result = await runValidation(model, schema); // только сбор: ни ошибок, ни pending на нодах
+const result = await runValidation(model, schema); // только сбор: ни замечаний, ни pending на нодах
 if (result.status === 'cancelled') return; // вытеснен более новым прогоном — не разносится
-applyValidationResult(result, { touch: true }); // ошибки (и ruleFailed) — на поля
-
-if (result.status === 'error') {
-  // result.failures: [{ handle, error }] — какое правило и почему не вернуло результат
-  showToast('Не удалось проверить форму. Повторите попытку');
-} else if (result.status === 'valid') {
-  await submit(model.get());
-}
+applyValidationResult(result, { touch: true }); // замечания (и ruleFailed) — на поля
+if (result.status === 'valid') await send(model.get());
 ```
 
 Если сбой сети НЕ должен блокировать отправку (проверка необязательна), перехвати его в самом
@@ -116,25 +124,27 @@ validateAsync(model.$.inn, [checkInnInRegistry]); // обращение к API �
 берётся из состояния ноды, свой флаг не нужен:
 
 ```tsx
-const { errors, pending, shouldShowError } = useFormControl(form.email);
+const { issues, pending, shouldShowError } = useFormControl(form.email);
+const message = useIssueMessage(formMessages); // @reformer/core/react
 
-return pending ? <Spinner /> : shouldShowError ? <Error errors={errors} /> : null;
+return pending ? <Spinner /> : shouldShowError ? <Error text={message(issues[0])} /> : null;
 ```
 
-Индикатор прогона всей формы — сигнал `validation.validating` сборки (`createForm`): он истинен,
-пока идёт полный прогон либо прогон шага.
+Индикатор прогона всей формы — сигнал `bundle.validating` сборки (`createForm`): он истинен,
+пока идёт полный прогон либо прогон шага; `bundle.submitting` — пока работает обработчик отправки.
 
 ### Debounce и отмена
 
-- **Отмена устаревших — раннером, бесплатно.** Быстрый повторный `validateModel(model, schema)`
-  той же пары `(model, schema)` отменяет предыдущий in-flight прогон через `AbortController`;
-  его `AbortSignal` прокинут в `validateAsync`-правила, поэтому `fetch(url, { signal })` рвётся
-  сам. Ручной debounce для КОРРЕКТНОСТИ не нужен — держи схему стабильным `const`
-  (`defineValidation`), иначе отмена не сматчит прогоны по идентичности.
-- Валидация запускается on-demand (submit / шаг / через `revalidateWhen`), а не на каждый
-  keystroke — отдельный `debounce` в правиле обычно не нужен.
-- Если нужно дебаунсить дорогой async-валидатор относительно частых изменений — триггерь прогон
-  из поведения через `onChange`, который даёт debounce из коробки:
+- **Отмена устаревших — бесплатно.** Быстрый повторный прогон той же пары `(model, schema)`
+  отменяет предыдущий in-flight прогон через `AbortController`; его `AbortSignal` прокинут в
+  `validateAsync`-правила, поэтому `fetch(url, { signal })` рвётся сам. Ручной debounce для
+  КОРРЕКТНОСТИ не нужен — держи схему стабильным `const` (`defineValidation`), иначе отмена не
+  сматчит прогоны по идентичности.
+- Валидация запускается on-demand (submit / шаг / через `revalidateWhen`) либо живой стратегией
+  сборки — `validation: { rules, strategy: 'change', debounce: 300 }` (см. `33-validation-strategy.md`):
+  у живой фазы debounce встроен.
+- Если нужно дебаунсить дорогой async-валидатор относительно частых изменений одного поля — триггерь
+  прогон из поведения через `onChange`, который даёт debounce из коробки:
 
   ```ts
   import { defineFormBehavior, onChange } from '@reformer/core/behaviors';

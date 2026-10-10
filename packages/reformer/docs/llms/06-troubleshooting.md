@@ -2,10 +2,15 @@
 
 | Error                                                  | Cause                                                    | Solution                                          |
 | ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------- |
-| `'string' is not assignable to '{ message?: string }'` | Валидатору передали строку вместо options                | Используй `required({ code: 'field.required' })`         |
-| `Module has no exported member`                        | Неверный источник импорта                                | `watchField`/примитивы — из `@reformer/core/model`; DSL — из `@reformer/core/behaviors`; фабрики — из `@reformer/core/validators` |
+| `'message' does not exist in type 'RuleOptions'`       | Текст передан в правило — у правил текста нет            | `required({ code: 'phone.required' })` + запись `'phone.required'` в `defineIssueMessages`; см. 36-issue-messages.md |
+| `'string' is not assignable to 'RuleOptions'`          | Валидатору передали строку вместо options                | `required({ code: 'field.required' })`            |
+| `Module has no exported member`                        | Неверный источник импорта                                | хуки и `I18nProvider` — из `@reformer/core/react`; `watchField`/примитивы — из `@reformer/core/model`; DSL — из `@reformer/core/behaviors`; фабрики — из `@reformer/core/validators`; удалённое — 17-nonexistent-api.md |
 | `undefined` из `useFormControlValue`                   | Деструктурировали хук                                    | `const v = useFormControlValue(...)` — без деструктуризации |
 | `enableWhen`/`disableWhen` не срабатывает              | Поле не материализовано в форме (элемент массива)        | Убедись, что поле есть в схеме `createForm`; для per-item — `applyEach` |
 | `Cycle detected`                                       | Взаимные `compute`/`computeFrom` без стабилизации        | Разорви цикл через условие `when` или `peek`; см. 22-cycle-detection.md |
-| Значение поля не пишется                               | Пишем в форму вместо модели                              | Значения принадлежат модели: `model.field = ...` / `model.$.field.value = ...` |
-| Ошибки не появляются после submit                      | Не вызвали `validateModel` (`form.submit()` НЕ гоняет schema-валидацию) | `await validateModel(model, schema)` из `@reformer/core/validation` — он роутит ошибки в ноды |
+| Значение поля не пишется                               | Пишем в форму вместо модели                              | Значения принадлежат модели: `model.field = ...` / `model.$.field.value = ...` / `form.field.setValue(...)` |
+| Замечания не появляются после submit                   | Отправка в обход проверки (`api.send(model.get())`)      | `await bundle.submit(handler)` — один прогон правил, поля помечаются тронутыми; без сборки — `await validateModel(model, schema)` |
+| На поле текст вида `loanAmount.required`               | Свой код правила без записи в словаре формы              | Добавь код в `defineIssueMessages` и подключи `ValidationMessagesProvider messages` (cdk) |
+| `compileSchema: в области «#» селектор «X» повторяется` | Два узла с одним `selector` в одной области схемы       | Разные селекторы; см. 37-compiled-schema.md       |
+| `createForm: шага «X» нет в потоке` / `FormFlow: шага «X» нет` | `validateStep(id)` / `flow.goTo(id)` с неизвестным шагом | `id` — из `flow.steps`; см. 38-form-flow.md |
+| `flow.goTo(id)` вернул `reason: 'locked'`              | Прыжок вперёд через непройденный шаг                     | Вперёд — `flow.next()`; `goTo` — назад и на открытые шаги |

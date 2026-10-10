@@ -228,7 +228,7 @@ export async function runAndApply<T>(
  * Провалидировать модель ЛЮБОЙ схемой (шаг или вся форма): собрать результат и разнести ошибки по
  * нодам формы. Возвращает `true` только для статуса `valid`: ошибки, сбой правила и отмена дают
  * `false` (**fail-closed**). Чтобы различить их, берите {@link runValidation} либо
- * `validation.runAll()` / `validation.runStep()` сборки формы.
+ * `bundle.validate()` / `bundle.validateStep(id)` сборки формы.
  *
  * Гашение — на пару (model, schema): `validateModel(model, step2)` и `validateModel(model, form)`
  * не мешают друг другу. Устаревший прогон (быстрый повторный вызов той же (model, schema))

@@ -8,28 +8,86 @@ createModel<T extends object>(initial: T): FormModel<T>
 // model.get() / model.set(full) / model.patch(partial) / model.isDirty()
 // model.reset() / model.captureInitial() / model.signalAt(path)
 // model.$.field            → PathAwareSignal<FieldType>  (ручка: привязка в схеме, правиле, операторе)
-// model.arrayField         → ModelArray<Item>            (push/removeAt/insertAt/move/swap/clear/at/map/length)
+// model.arrayField         → ModelArray<Item>            (push/insertAt/removeAt/move/swap/clear/at/map/length)
 
-// Сборка одним вызовом: модель, форма, валидация и дерево для рендера
-createForm<T>({ initial | model, schema: (model) => tree, behavior?, validation? }): FormBundle<T>
-// bundle = { model, form, validation, render }
+// Сборка одним вызовом: модель, форма, уровень формы и дерево для рендера
+createForm<T extends object>({
+  initial | model,
+  schema?: (model) => tree,          // билдер; JSON — документ + registry
+  behavior?,                         // defineFormBehavior(...)
+  validation?,                       // ValidationDefinition<T> | { rules?, extras?, strategy?, debounce? }
+  flow?,                             // { steps: [{ id, rules? }] } — id = selector узла шага
+  seed?, setup?,
+}): FormBundle<T>
+// bundle = { model, form, render, flow, validating, submitting, validate, validateStep, submit }
+//   (+ служебное validation: { rules, controller } | undefined — его армирует useFormBundle)
+// await bundle.validate()           → ValidationResult (вся форма; замечания показываются)
+// await bundle.validateStep('loan') → ValidationResult (правила шага; неизвестный шаг — исключение)
+// await bundle.submit(handler)      → SubmitResult<R> (один прогон; обработчик — только при valid)
+// bundle.flow?.next() / previous() / goTo(id) → FlowTransition
+// bundle.render.tree                → CompiledSchema (см. 37-compiled-schema.md)
 
-// Низкоуровневая фабрика: форма из готовых модели и дерева
-createFormFromModel<T>({ model, schema, behavior? }): FormGroup<T>
-// form.<field>             → FormControl / FormGroup / FormArray
-// form.<field>.setValue(v) / .value.value / .issues.value / .disabled.value / .pending.value
-// form.<field>.enable() / .disable() / .reset() / .markAsTouched() / .setIssues([...])
-// form.<field>.updateComponentProps({ ... })
-
-// Валидация данных — ОТДЕЛЬНЫЙ контракт `@reformer/core/validation`: схема формы правил не несёт.
-// Схема валидации — функция над моделью; раннер собирает результат и разносит ошибки по нодам формы.
-validateModel<T>(model, schema, options?: { touch?: boolean }): Promise<boolean>
-runValidation<T>(model, schema): Promise<ValidationResult>          // только сбор, ноды не трогает
-applyValidationResult(result, options?: { touch?: boolean }): void  // разнос по нодам
-// schema = defineValidation<T>(({ model, cross }) => { validate(...); ... })
-// ⚠️ form.submit() / form.validate() правил НЕ запускают: они отражают ошибки, которые уже разнёс
-//    раннер. Перед отправкой — validation.validateAll() сборки либо validateModel(model, schema).
+// Низкоуровневая фабрика: форма из готовых модели и дерева, без уровня формы
+createFormFromModel<T>({ model, schema?, behavior? }): FormGroup<T>
 ```
+
+### Form nodes
+
+Ноды строит сборка; прикладной код работает с ними через интерфейсы. Классов нод в публичном
+API нет — вид ноды узнают гардами `isFormControl` / `isFormGroup` / `isFormArray`.
+
+```typescript
+interface FormNode<T> {
+  readonly value: ReadonlySignal<T>;
+  readonly valid: ReadonlySignal<boolean>;   // нет блокирующих замечаний, не disabled, не pending
+  readonly invalid: ReadonlySignal<boolean>;
+  readonly pending: ReadonlySignal<boolean>; // идёт async-правило
+  readonly disabled: ReadonlySignal<boolean>;
+  readonly touched: ReadonlySignal<boolean>;
+  readonly dirty: ReadonlySignal<boolean>;
+  readonly issues: ReadonlySignal<readonly ValidationIssue[]>; // у группы и массива — свои и детей
+  getValue(): T;
+  setValue(value: T): void;                 // пишет в модель
+  reset(value?: T): void;                   // значение и состояние — к начальным
+  markAsTouched(): void;                    // у группы — каскадно
+  markAsUntouched(): void;
+  enable(): void;
+  disable(): void;
+  setIssues(issues: readonly ValidationIssue[]): void; // ответ сервера, своя проверка
+  clearIssues(): void;
+}
+
+interface FormControl<T> extends FormNode<T> {
+  readonly component: ComponentRef | undefined;
+  readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
+  readonly shouldShowError: ReadonlySignal<boolean>; // invalid && (touched || dirty)
+  updateComponentProps(patch: Record<string, unknown>): void;
+}
+
+interface FormArray<T extends object> extends FormNode<T[]> {
+  readonly length: number;                  // число; чтение в эффекте/computed подписывает
+  at(index: number): FormGroup<T> | undefined;
+  map<R>(fn: (row: FormGroup<T>, index: number) => R): R[];
+  forEach(fn: (row: FormGroup<T>, index: number) => void): void;
+  keyAt(index: number): string;             // стабильный ключ строки — React `key`
+  push(item?: T): void;                     // без значения — по шаблону arrayOf(blank)
+  insert(index: number, item?: T): void;
+  removeAt(index: number): void;
+  move(from: number, to: number): void;
+  swap(first: number, second: number): void;
+  clear(): void;
+}
+
+// Группа: члены FormNode + ноды полей по именам + пространство `$` со всеми полями
+type FormGroup<T> = FormNode<T> & /* поля по именам */ & { readonly $: FormFields<T> };
+// form.email                — FormControl<string>
+// form.address.city         — FormControl<string> (вложенная группа — FormGroup)
+// form.items                — FormArray<Item> (массив объектов); form.tags — FormControl<string[]>
+// form.$.value              — поле, затенённое членом FormNode (value, issues, reset, …)
+```
+
+Поле затеняют только члены `FormNode`: поле данных `value` берётся через `form.$.value`. Имена
+`id`, `status`, `fields`, `submit` — обычные поля (`form.status`).
 
 ### Validators
 
@@ -45,7 +103,7 @@ minLength(length: number, options?: RuleOptions)      // Rule<unknown>: стро
 maxLength(length: number, options?: RuleOptions)
 email(options?: RuleOptions)                          // Rule<string | null | undefined>
 pattern(regex: RegExp, options?: RuleOptions)
-url(options?: RuleOptions & { requireProtocol?: boolean })
+url(options?: RuleOptions & { requireProtocol?: boolean; allowedProtocols?: string[] })
 phone(options?: RuleOptions & { format?: PhoneFormat })
 // Number validator factories — Rule<number | null | undefined>
 isNumber(options?: RuleOptions)
@@ -55,12 +113,19 @@ nonNegative(options?: RuleOptions)       // value >= 0
 nonZero(options?: RuleOptions)            // value !== 0
 // Date validator factories — Rule<string | Date | null | undefined>
 isDate(options?: RuleOptions)
-minDate(date: Date | string, options?: RuleOptions)
-maxDate(date: Date | string, options?: RuleOptions)
+minDate(date: Date, options?: RuleOptions)
+maxDate(date: Date, options?: RuleOptions)
 pastDate(options?: RuleOptions)
 futureDate(options?: RuleOptions)
 minAge(years: number, options?: RuleOptions)
 maxAge(years: number, options?: RuleOptions)
+// File validator factories — Rule<unknown>: файл либо массив файлов
+fileType(accept: string, options?: RuleOptions)
+maxFileSize(bytes: number, options?: RuleOptions)
+minFileSize(bytes: number, options?: RuleOptions)
+maxFiles(count: number, options?: RuleOptions)
+minFiles(count: number, options?: RuleOptions)
+maxTotalFileSize(bytes: number, options?: RuleOptions)
 ```
 
 Тип значения правила сверяется с типом поля: `validate(model.$.age, [email()])` для числового поля
@@ -72,17 +137,21 @@ maxAge(years: number, options?: RuleOptions)
 по коду при отображении даёт словарь — словарь формы (`defineIssueMessages`), затем словарь локали
 (`validation.<code>`): «Обязательное поле» под русской локалью, английская фраза без провайдера.
 Текст конкретного поля — свой код (`required({ code: 'phone.required' })`) и запись в словаре
-формы. Подробно — [34-i18n.md](./34-i18n.md).
+формы. Подробно — [36-issue-messages.md](./36-issue-messages.md).
 
 Использование: схема формы привязывает поля к ручкам модели, правила живут отдельной
-`ValidationDefinition` и запускаются раннером по требованию.
+`ValidationDefinition` и уходят в сборку полем `validation`.
 
 ```typescript
 import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 
-type Loan = { email: string; age: number | null; amount: number | null };
+interface Loan {
+  email: string;
+  age: number | null;
+  amount: number | null;
+}
 
 // схема формы правил не несёт — только привязка поля к ручке модели + компонент
 const loanSchema = (model: FormModel<Loan>): FormSchemaNode => ({
@@ -100,19 +169,20 @@ const loanValidation = defineValidation<Loan>(({ model }) => {
   validate(model.$.amount, [min(0), max(1000)]);
 });
 
-const { model, form, validation } = createForm<Loan>({
+const loan = createForm<Loan>({
   initial: { email: '', age: null, amount: null },
   schema: loanSchema,
   validation: loanValidation,
 });
 
-const ok = await validation.validateAll(); // Promise<boolean>; ошибки сами доедут до form.<field>.errors
+const result = await loan.validate(); // ValidationResult; замечания сами доедут до loan.form.<field>.issues
+if (result.status === 'valid') send(loan.model.get());
 ```
 
 ### Custom & cross-field validators
 
 Контракт валидации — `@reformer/core/validation`. Схема (`ValidationDefinition<T>`) — обычная функция
-над (под)моделью; внутри вызываются операторы, которые сами пишут ошибки в сток текущего прогона —
+над (под)моделью; внутри вызываются операторы, которые сами пишут замечания в сток текущего прогона —
 автор коллектора не видит.
 
 ```typescript
@@ -140,7 +210,8 @@ type ValidationDefinition<T> = (scope: ValidationScope<T>) => void;
 | `apply(...schemas: ValidationDefinition<T>[])` | композиция схем над той же моделью |
 | `defineValidation<T>(fn): ValidationDefinition<T>` | тонкая identity-обёртка (типизация/discoverability) |
 
-Раннер:
+Прогон. В сборке — уровень формы (`bundle.validate()`, `bundle.validateStep(id)`,
+`bundle.submit(handler)`, см. [38-form-flow.md](./38-form-flow.md)). Без сборки — раннер:
 
 | Функция | Что делает |
 |---|---|
@@ -153,25 +224,25 @@ type ValidationStatus = 'valid' | 'invalid' | 'cancelled' | 'error';
 
 interface ValidationResult {
   readonly status: ValidationStatus;
-  /** Ошибки по ручке поля `model.$.…`; путь — `handle.__path`. */
-  readonly errors: ReadonlyMap<PathAwareSignal<unknown>, readonly ValidationIssue[]>;
+  /** Замечания по ручке поля `model.$.…`; путь — `handle.__path`. */
+  readonly issues: ReadonlyMap<PathAwareSignal<unknown>, readonly ValidationIssue[]>;
   /** Правила, которые не вернули результат (сеть, исключение). */
   readonly failures: readonly { handle: PathAwareSignal<unknown>; error: unknown }[];
 }
 ```
 
-- `valid` — блокирующих ошибок нет (`severity: 'warning'` не блокирует);
-- `invalid` — есть блокирующие ошибки;
-- `error` — async-правило не вернуло результат: сбой **блокирует**, на поле ставится ошибка
+- `valid` — блокирующих замечаний нет (`severity: 'warning'` не блокирует);
+- `invalid` — есть блокирующие замечания;
+- `error` — async-правило не вернуло результат: сбой **блокирует**, на поле ставится замечание
   `{ code: 'ruleFailed' }` («Не удалось проверить поле. Повторите попытку»), причина — в `failures`;
 - `cancelled` — прогон вытеснен более новым по той же паре (модель, схема); такой результат не
   разносится.
 
-`validateModel` отвечает `false` на всё, кроме `valid`. Различить ошибки, сбой и отмену —
-`runValidation` либо `validation.runAll()` / `validation.runStep(step)` сборки формы:
+`validateModel` отвечает `false` на всё, кроме `valid`. Различить замечания, сбой и отмену —
+`bundle.validate()` сборки либо `runValidation`:
 
 ```typescript
-const result = await validation.runAll();
+const result = await bundle.validate();
 if (result.status === 'error') showToast('Не удалось проверить форму, повторите попытку');
 ```
 
@@ -187,35 +258,41 @@ import {
 } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
-type Signup = { password: string; confirm: string; email: string };
+interface Signup {
+  password: string;
+  confirm: string;
+  email: string;
+}
 
 // Правило значения (Rule<T>)
 const strongPassword: Rule<string> = (value) =>
-  value.length < 8 ? { code: 'too-short' } : null;
+  value.length < 8 ? { code: 'password.weak', params: { minLength: 8 } } : null;
 
 // Правило над несколькими полями: обычная функция над снимком модели
 const passwordsMatch = (signup: Signup): ValidationIssue | null =>
   signup.confirm && signup.password && signup.confirm !== signup.password
-    ? { code: 'mismatch' }
+    ? { code: 'confirm.mismatch' }
     : null;
 
 // Async (AsyncRule<T>): получает { signal }. Отклонённый промис — сбой правила: прогон получает
-// статус `error`, поле — ошибку `ruleFailed`. Если сетевой сбой не должен блокировать отправку,
+// статус `error`, поле — замечание `ruleFailed`. Если сетевой сбой не должен блокировать отправку,
 // перехвати его в правиле и верни `null`.
 const emailUnique: AsyncRule<string> = async (value, { signal }) => {
   if (!value) return null;
   const response = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, { signal });
   return (await response.json()).available
     ? null
-    : { code: 'taken' };
+    : { code: 'email.taken' };
 };
 
 const signupValidation = defineValidation<Signup>(({ model, cross }) => {
   validate(model.$.password, [required(), strongPassword]);
   validate(model.$.confirm, [required()]);
-  cross(model.$.confirm, passwordsMatch); // ошибка вешается на confirm
+  cross(model.$.confirm, passwordsMatch); // замечание вешается на confirm
   validateAsync(model.$.email, [emailUnique]);
 });
+// Тексты кодов 'password.weak', 'confirm.mismatch', 'email.taken' — в словаре формы
+// (defineIssueMessages), см. 36-issue-messages.md
 ```
 
 > `cross` берётся только из аргумента схемы: из `@reformer/core/validation` он не импортируется.
@@ -225,7 +302,7 @@ const signupValidation = defineValidation<Signup>(({ model, cross }) => {
 Условные ветки, подформы и массивы — операторы внутри схемы (не узлы дерева):
 
 - **условная ветка** `validateWhen(() => cond, () => { validate(...) })` — правила внутри активны только
-  при истинном условии; при ложном ошибки полей ветки гасятся. Enable/сброс поля — дело поведения;
+  при истинном условии; при ложном замечания полей ветки гасятся. Enable/сброс поля — дело поведения;
 - **подформа** `apply(model.$.group, groupRules)` — схема над типом группы; принимает и массив ручек;
 - **массив** `applyEach(model.$.items, rowRules)` — схема над типом строки применяется к каждой строке;
 - **композиция** `apply(...schemas)` — объединяет схемы над той же моделью.
@@ -255,7 +332,7 @@ const loanRules = defineValidation<LoanForm>(({ model }) => {
 const coBorrowerRules = defineValidation<CoBorrower>(({ model, cross }) => {
   validate(model.$.income, [required(), min(10_000)]);
   cross(model.$.income, (coBorrower) =>
-    coBorrower.income < coBorrower.loanShare ? { code: 'tooLow' } : null);
+    coBorrower.income < coBorrower.loanShare ? { code: 'income.tooLow' } : null);
 });
 
 const additionalRules = defineValidation<LoanForm>(({ model }) => {
@@ -263,23 +340,29 @@ const additionalRules = defineValidation<LoanForm>(({ model }) => {
 });
 ```
 
-Пошаговая и полная валидация — поле `validation` сборки: ключ `steps` — `selector` шага в схеме.
+Пошаговая и полная валидация — поток шагов сборки: `flow.steps[].id` — `selector` шага в схеме,
+`validation.extras` — правила вне шагов.
 
 ```typescript
-const { validation } = createForm<LoanForm>({
+const loan = createForm<LoanForm>({
   initial,
   schema: loanSchema,
-  validation: {
-    steps: { loan: loanRules, additional: additionalRules }, // ключ = selector шага
-    extras: crossStepRules, // правила всей формы — проверяются только целиком
+  validation: { extras: crossStepRules }, // правила всей формы — проверяются только целиком
+  flow: {
+    steps: [
+      { id: 'loan', rules: loanRules }, // id = selector узла шага
+      { id: 'additional', rules: additionalRules },
+    ],
   },
 });
 
-await validation.validateStep('loan');   // правила одного шага: по селектору либо по номеру (с 1)
-await validation.validateAll();          // все шаги + extras
-await validation.runStep('loan');        // то же с полным результатом (ValidationResult)
-validation.validating.value;             // идёт ли прогон — полный либо шага
+await loan.validateStep('loan'); // правила одного шага → ValidationResult
+await loan.validate(); // все шаги + extras → ValidationResult
+await loan.flow?.next(); // проверить текущий шаг и перейти → FlowTransition
+loan.validating.value; // идёт ли проверка — полная либо шага
 ```
+
+Подробно — [13-multi-step.md](./13-multi-step.md) и [38-form-flow.md](./38-form-flow.md).
 
 ### Behaviors
 
@@ -299,6 +382,9 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 
 const { form } = createForm<MyForm>({ initial, schema, behavior });
 ```
+
+Область поведения — `{ model, form, schema, flow }`: `schema` адресует узлы своей области
+(`schema.node(selector)`), `flow` — поток шагов сборки (без `flow` в конфиге — `undefined`).
 
 DSL-операторы: `compute` (auto-tracking, без явного списка источников), `computeFrom`, `copyFrom`,
 `onChange` (реакция на изменение; `{ debounce, immediate }`, 2-й аргумент колбэка — `{ signal }` AbortSignal),

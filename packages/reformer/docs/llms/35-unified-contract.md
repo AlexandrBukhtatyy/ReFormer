@@ -149,23 +149,29 @@ export const contactsRules = defineValidation<CreditForm>(({ model }) => {
 - Правило значения — `Rule<T> = (value: T) => ValidationIssue | null`: один аргумент. Тип значения
   сверяется с типом поля; набор правил объявляют типом поля (`Rule<LoanType>[]`,
   `Rule<number | null>[]`).
-- `ValidationIssue.message` необязателен: без него текст берётся из словаря локали по коду.
+- Текста у замечания нет: `ValidationIssue = { code, params?, severity? }`. Правило несёт код
+  (встроенный либо свой — `required({ code: 'street.required' })`), строку по коду даёт словарь
+  формы (`defineIssueMessages`) поверх словаря локали — см. `36-issue-messages.md`.
 - `cross` берётся только из аргумента схемы: свободного оператора с таким именем в
   `@reformer/core/validation` нет. Нет и `each` — правила строки подключает `applyEach`.
 
 ### Результат прогона
 
 ```typescript
-const result = await credit.validation.runAll(); // либо runStep('loan'), runValidation(model, rules)
+const result = await credit.validate(); // либо credit.validateStep('loan'), runValidation(model, rules)
 // result.status: 'valid' | 'invalid' | 'error' | 'cancelled'
-// result.errors: Map<ручка поля, ошибки>;  result.failures: правила, не вернувшие результат
+// result.issues: Map<ручка поля, замечания>;  result.failures: правила, не вернувшие результат
+
+const outcome = await credit.submit(sendApplication); // SubmitResult
+// outcome.status: 'submitted' | 'invalid' | 'error' | 'cancelled' | 'failed'
 ```
 
-- `validateAll()` / `validateStep()` / `validateModel()` отвечают `boolean`: `true` только для `valid`.
-- **Сбой async-правила блокирует**: статус `error`, на поле — ошибка `{ code: 'ruleFailed' }`.
+- `validateModel()` (раннер без сборки) отвечает `boolean`: `true` только для `valid`.
+- **Сбой async-правила блокирует**: статус `error`, на поле — замечание `{ code: 'ruleFailed' }`.
 - Отменённый прогон (`cancelled`) по нодам не разносится.
-- Пока идут async-правила поля, его нода в `pending`; `validation.validating` — идёт ли прогон.
-- `form.validate()` / `form.submit()` правил не запускают: они отражают ошибки, которые разнёс раннер.
+- Пока идут async-правила поля, его нода в `pending`; `credit.validating` — идёт ли проверка.
+- У нод методов `validate()` / `submit()` нет: проверка и отправка — уровень формы, см.
+  `38-form-flow.md`.
 
 ## Поведение — модель, форма и схема
 
@@ -178,19 +184,24 @@ import {
   hideWhen,
   onComponentEvent,
   onMount,
+  renderEffect,
 } from '@reformer/core/behaviors';
 
 const addressBehavior = defineFormBehavior<Address>(({ model, schema }) => {
   hideWhen(schema.node('street'), () => model.city === ''); // узел ищется внутри части
 });
 
-export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, schema }) => {
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, schema, flow }) => {
   const isMortgage = () => model.loanType === 'mortgage';
 
   enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true });
   hideWhen(schema.node('mortgage'), () => !isMortgage());
-  onComponentEvent(schema.node('wizard'), 'onSubmit', () => submitApplication(model.get()));
+  // визард в рендерере зовёт onSubmit через bundle.submit — только после успешной проверки
+  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => sendApplication(values));
   onMount(schema.node('data-boundary'), () => void loadApplication(model));
+  renderEffect(schema, () => {
+    if (isMortgage()) flow?.goTo('loan'); // поток шагов сборки; без flow — undefined
+  });
 
   apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
   applyEach(model.$.coBorrowers, coBorrowerBehavior);
@@ -209,6 +220,8 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 | `schema.node(sel).setHidden / patchProps` | принудительная видимость и пропсы узла                     |
 | `schema.node(sel).getRef()`               | ref на компонент узла — объект `{ current }`               |
 
+- Область поведения — `{ model, form, schema, flow }`: `flow` — поток шагов сборки, один на всю
+  сборку (его же получают поведения подформ и строк).
 - **Области изолированы.** `schema.node(selector)` ищет узел только в своей области: корневое
   поведение — в корневом дереве, поведение подформы и строки массива — в своём поддереве. До узла
   строки или части корень дотягивается через `applyEach` / `apply`. Два монтирования одной части
@@ -229,27 +242,30 @@ const credit = useFormBundle(() =>
     model: createCreditModel(), // либо initial: { … }
     schema: creditSchema, // (model) => узел; для JSON — документ + registry
     behavior: creditBehavior,
-    validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossRules },
+    validation: { extras: crossRules }, // правила вне шагов; голая схема = { rules }
+    flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] },
   })
 );
-// credit = { model, form, validation, render }
+// credit = { model, form, render, flow, validating, submitting, validate, validateStep, submit }
 
 <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />; // рендерер
 <FormField control={credit.form.loanType} />; // разметка в JSX — та же сборка
 ```
 
-- Порядок: модель → `seed` → дерево схемы → компиляция → ноды формы → поведение → валидация →
-  `setup`. Дерево строится и компилируется один раз. Ноды строятся по виду узла модели: лист и
-  массив-значение — `FormControl`, группа — `FormGroup`, массив под-форм — `FormArray`.
+- Порядок: модель → `seed` → дерево схемы → компиляция → уровень формы (правила, поток шагов) →
+  ноды формы → поведение → `setup`. Дерево строится и компилируется один раз. Ноды строятся по
+  виду узла модели: лист и массив-значение — `FormControl`, группа — `FormGroup`, массив
+  под-форм — `FormArray`.
 - Повтор `selector` в одной области — исключение при сборке. В dev правило поведения на узел,
-  которого нет, и ключ `validation.steps` без шага с таким `selector` дают предупреждение.
-- `validation` в бандле типизирована по конфигу: правила переданы — поле есть всегда.
-- `render` — `{ tree, controller, node(selector) }`: скомпилированная схема (`CompiledSchema`) и
-  схема-контроллер сборки.
+  которого нет, и шаг `flow.steps` без узла с таким `selector` дают предупреждение.
+- Уровень формы: `validate()` и `validateStep(id)` → `ValidationResult`, `submit(handler)` →
+  `SubmitResult`, `flow` — поток шагов (`next` / `previous` / `goTo`). См. `38-form-flow.md`.
+- `render` — `{ tree, controller, node(selector) }`: скомпилированная схема (`CompiledSchema`, см.
+  `37-compiled-schema.md`) и схема-контроллер сборки.
 - JSON: `createForm({ model, schema: document, registry })` — дерево собирает
   `registry.resolveSchema`. Ядро документ не разбирает.
 - Внутри рендерера бандл доступен компонентам через `useFormBundleContext()` — так визард берёт
-  форму и валидацию сам.
+  форму и поток шагов сам и отправляет через `bundle.submit`.
 
 ### Низкоуровневая фабрика
 
@@ -260,7 +276,7 @@ const credit = useFormBundle(() =>
 
 ## Частые ошибки
 
-| Ошибка                                             | Как правильно                                           |
+| ❌ Ошибка                                          | Как правильно                                           |
 | -------------------------------------------------- | ------------------------------------------------------- |
 | `model: model.address` (под-модель у поля)         | `model: model.$.address.city` — привязка всегда с `$`   |
 | `{ model: model.$.address, component }` без `part` | группа полем не бывает — нужен `part`                   |
@@ -273,3 +289,7 @@ const credit = useFormBundle(() =>
 | узлы записью `{ email: { model, component } }`     | `{ children: [{ model, component }] }`                  |
 | `Rule<unknown>[]` и `(form: Root)` с приведением   | `Rule<ТипПоля>[]`, `cross` из аргумента схемы           |
 | `try { … } catch { return null }` в async-правиле «на всякий случай» | сбой правила блокирует сам; `catch` — только если проверка необязательна |
+| `validation: { steps: { loan: rules } }`           | `flow: { steps: [{ id: 'loan', rules }] }`              |
+| `required({ message: '…' })`                       | `required({ code: '<поле>.required' })` + `defineIssueMessages` |
+| два узла с одним `selector` в одной области        | разные селекторы — повтор бросает исключение            |
+| отправка `api.send(model.get())` в обход проверки  | `bundle.submit(api.send)`                               |

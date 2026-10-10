@@ -1,18 +1,29 @@
 ## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
-Под M1 значения живут в модели. Есть три контекста чтения: value-доступ модели, сигналы, и React-хуки.
+Значения живут в модели. Есть три контекста чтения: value-доступ модели, сигналы, и React-хуки
+(`@reformer/core/react`).
 
 ### В React-компоненте — хуки
 
 ```typescript
-// Полное состояние поля (объект)
-const { value, errors, disabled, touched, shouldShowError } = useFormControl(control.email);
+// Полное состояние поля (объект); текст замечания — useIssueMessage(messages)(issues[0])
+const { value, issues, disabled, touched, shouldShowError } = useFormControl(control.email);
 
 // Только значение (напрямую, БЕЗ деструктуризации!)
 const email = useFormControlValue(control.email);
 
 // Реактивная длина массива
 const count = useArrayLength(control.items);
+```
+
+### Вне React — нода формы
+
+```typescript
+form.email.value.value;      // сигнал значения ноды (реактивно в effect/computed)
+form.email.getValue();       // значение без подписки
+form.email.issues.value;     // замечания: ValidationIssue[] — код и параметры, без текста
+form.items.length;           // число строк массива (число; в эффекте подписывает)
+form.getValue();             // значение группы целиком
 ```
 
 ### Вне React — модель

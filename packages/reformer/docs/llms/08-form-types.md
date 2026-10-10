@@ -1,11 +1,12 @@
 ## 7. FORM TYPE DEFINITION
 
-Form-shape объявляй через `type`-alias (не `interface` — см. `30-type-safety-recipes.md`).
-Тип описывает форму ДАННЫХ (то, что кладётся в `createModel`), без узлов/сигналов.
+Форму данных объявляй через `interface` или `type`-alias — оба варианта работают одинаково (см.
+`30-type-safety-recipes.md`). Тип описывает форму ДАННЫХ (то, что кладётся в `createModel`), без
+узлов/сигналов.
 
 ```typescript
 // CORRECT form type definition
-type MyForm = {
+interface MyForm {
   // Required fields
   name: string;
   email: string;
@@ -28,7 +29,7 @@ type MyForm = {
     id: string;
     name: string;
   }>;
-};
+}
 
 // Модель создаётся из initial-значений этого типа
 const model = createModel<MyForm>({
@@ -45,3 +46,9 @@ const model = createModel<MyForm>({
 `number | null` / `string | null` работают со встроенными валидаторами напрямую —
 `min`/`max`/`minLength`/`minDate`/`minAge` пропускают пустые значения внутри, guard `if (v != null)`
 не нужен.
+
+Какой ноде формы соответствует поле, решает вид значения: объект — `FormGroup`
+(`form.address.city`), массив объектов — `FormArray` (`form.items.at(0)`), примитив, массив
+примитивов, `Date`, `File` — `FormControl`. Вычисляемые поля (цели `compute`) удобно держать
+отдельным типом и объявлять форму пересечением: `type MyFormFull = MyForm & MyFormDerived` — тогда
+на сервер уходит только ввод (`MyForm`), а вычисляемые ключи отрезаются перед отправкой.

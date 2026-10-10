@@ -9,22 +9,25 @@
 
 **Модель данных** — источник истины значений. Схема — дерево узлов, привязанных к ручкам модели
 (`model: model.$.field`). Сборка идёт ОДНИМ вызовом `createForm`: он создаёт модель, строит форму,
-запускает поведение и собирает валидацию. Правил в схеме нет — они живут в отдельной схеме
-`defineValidation` из `@reformer/core/validation`, а запускает их раннер: `validation` сборки
-либо `validateModel(model, schema)`.
+запускает поведение и собирает уровень формы — проверку и отправку. Правил в схеме нет — они
+живут в отдельной схеме `defineValidation` из `@reformer/core/validation` и уходят в сборку полем
+`validation`; запускает их `bundle.submit(handler)` / `bundle.validate()`. Текста у правил нет:
+правило несёт код, строку по коду даёт словарь формы (`defineIssueMessages`).
 
 ```typescript
 import { createForm, type FormModel, type FormGroup, type FormSchemaNode } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
-// 1. Define form type as `type` alias (not `interface` — see Recipe 2)
-type ContactForm = {
+// 1. Form data type — `interface` or `type`, both work
+interface ContactForm {
   name: string;
   email: string;
-};
+}
 
 // 2. Схема — билдер (model) => дерево узлов. Узел поля: привязка `model` + component/componentProps.
 //    Вложенные узлы лежат в `children`. Правил здесь нет — они в отдельной схеме (шаг 3).
@@ -43,13 +46,19 @@ const contactSchema = (model: FormModel<ContactForm>): FormSchemaNode => ({
   ],
 });
 
-// 3. Схема валидации — отдельный слой (@reformer/core/validation)
+// 3. Схема валидации — отдельный слой (@reformer/core/validation). Правило несёт код, не текст.
 const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.name, [required({ code: 'name.required' })]);
-  validate(model.$.email, [required({ code: 'email.required' }), email({ code: 'email.email' })]);
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
 });
 
-// 4. Сборка ОДНИМ вызовом: модель из initial + ноды поверх её сигналов + валидация.
+// 4. Тексты замечаний по кодам — словарь формы (встроенный код `email` берёт текст из локали)
+const contactMessages = defineIssueMessages({
+  'name.required': 'Укажите имя',
+  'email.required': 'Укажите email',
+});
+
+// 5. Сборка ОДНИМ вызовом: модель из initial + ноды поверх её сигналов + уровень формы.
 const createContactForm = () =>
   createForm<ContactForm>({
     initial: { name: '', email: '' },
@@ -57,30 +66,32 @@ const createContactForm = () =>
     validation: contactValidation,
   });
 
-// 5. Use in React component — thin JSX, FormField does ALL heavy lifting
+// 6. Use in React component — thin JSX, FormField does ALL heavy lifting
 function ContactFormComponent() {
   // useFormBundle зовёт фабрику ровно один раз и держит сборку стабильной между рендерами.
-  const { model, form, validation } = useFormBundle(createContactForm);
+  const contact = useFormBundle(createContactForm);
+  const { form } = contact;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Правила запускает раннер: validateAll() проверяет модель, разносит ошибки по полям и
-    // показывает их. true — только если блокирующих ошибок нет.
-    if (await validation.validateAll()) {
-      console.log('Form submitted:', model.get());
-    }
+    // Один прогон всех правил: при замечаниях обработчик не вызывается, а поля помечаются
+    // тронутыми — FormField покажет замечания.
+    const outcome = await contact.submit((values) => api.send(values));
+    if (outcome.status === 'submitted') console.log('Form submitted');
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <FormField control={form.name} testId="name" />
-      <FormField control={form.email} testId="email" />
-      <Button type="submit">Send</Button>
-    </form>
+    <ValidationMessagesProvider messages={contactMessages}>
+      <form onSubmit={handleSubmit}>
+        <FormField control={form.name} testId="name" />
+        <FormField control={form.email} testId="email" />
+        <Button type="submit">Send</Button>
+      </form>
+    </ValidationMessagesProvider>
   );
 }
 
-// 6. Pass form to child components via props (NOT context!)
+// 7. Pass form to child components via props (NOT context!)
 type FormStepProps = {
   form: FormGroup<ContactForm>;
 };
@@ -94,9 +105,11 @@ function FormStep({ form }: FormStepProps) {
 > константой модуля. Иначе форма пересоздаётся на каждый рендер. См. `28-submit-and-reset.md`,
 > `29-async-preload.md`.
 
-> **`form.validate()` и `form.submit()` правил не запускают.** Они отражают ошибки, которые уже
-> разнёс раннер: `submit` не вызовет обработчик, пока на полях есть блокирующие ошибки, но сам
-> схему не прогоняет. Перед отправкой вызывай `validation.validateAll()` (или `validateModel`).
+> **Проверка и отправка — уровень формы.** `bundle.submit(handler)` прогоняет все правила один раз
+> и зовёт обработчик только при статусе `valid`; результат — `SubmitResult`
+> (`submitted` / `invalid` / `error` / `cancelled` / `failed`). `bundle.validate()` проверяет всю
+> форму и отвечает `ValidationResult`. У нод методов `validate()` / `submit()` нет. Многошаговая
+> форма — `createForm({ flow: { steps: [{ id, rules }] } })`, см. `38-form-flow.md`.
 
 ### Arrays of objects — узел `{ model, item }`
 
@@ -148,7 +161,9 @@ model.properties.push(); // новая строка по шаблону
 model.properties.push({ type: 'house', description: '', estimatedValue: 0 });
 model.properties.removeAt(0);
 model.properties.length; // реактивная длина
-form.properties.at(0); // форма строки
+form.properties.at(0); // форма строки (FormGroup<PropertyItem>)
+form.properties.length; // число строк (число, не сигнал)
+form.properties.keyAt(0); // стабильный ключ строки — для React `key`
 ```
 
 Подробнее в `10-arrays.md`, `21-array-operations.md` и `find_recipe(topic="form-array")`.

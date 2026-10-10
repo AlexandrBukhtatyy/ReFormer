@@ -2,14 +2,17 @@
 
 ## Purpose
 
-«Показать поле X только если Y» под M1 решается тремя независимыми механизмами — выбирай по
-тому, что именно должно быть условным:
+«Показать поле X только если Y» решается тремя независимыми механизмами — выбирай по тому, что
+именно должно быть условным:
 
 1. **Видимость / доступность** (поле остаётся в модели, но выключается/включается и не валидируется)
    — behaviors: `enableWhen`, а для условной записи значения — `compute` / `copyFrom` с опцией `{ when }`.
 2. **Условная валидация** (правила применяются только в истинной ветке) — оператор
-   `validateWhen(() => cond, () => {…})` внутри схемы `defineValidation`, прогоняется раннером `validateModel`.
-3. **Скрытие из разметки** (узел вообще не рендерится) — `useFormControlValue` + условный рендер в JSX.
+   `validateWhen(() => cond, () => {…})` внутри схемы `defineValidation`; прогон — уровнем формы
+   (`bundle.validate()` / `bundle.submit`) либо раннером `validateModel`.
+3. **Скрытие из разметки** (узел вообще не рендерится) — в схеме под рендерером — оператор
+   `hideWhen(schema.node(selector), cond)`; при разметке в JSX — `useFormControlValue` + условный
+   рендер.
 
 > Условная **валидация** — оператор `validateWhen` из `@reformer/core/validation`; старого branch-узла
 > `{ when, children }` и хелпера `applyWhen` больше нет — см.
@@ -56,16 +59,30 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
 - **Все поля должны быть материализованы в модели** (`createModel`), даже те, что показываются
   только под условием. `enableWhen`/`compute`/`copyFrom` принимают сигналы `model.$.field`, а не
   строковые пути; сигнала для несуществующего поля нет.
-- Поведение подключается к форме через `createFormFromModel({ model, schema, behavior })` — форма владеет
-  жизненным циклом, DSL-операторы регистрируют свой cleanup сами (ручной массив cleanup'ов не нужен).
+- Поведение подключается к форме через `createForm({ …, behavior })` (или
+  `createFormFromModel({ model, schema, behavior })`) — форма владеет жизненным циклом,
+  DSL-операторы регистрируют свой cleanup сами (ручной массив cleanup'ов не нужен).
 - Таргетом может быть и **группа**: `enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false)`
   проходит по поддереву; без `resetOnDisable` значение группы сохраняется (удобно, когда оно копируется
   из другого источника).
 
-> **Групповой таргет работает только у DSL-`enableWhen` из `@reformer/core/behaviors`**, не у
-> одноимённого корневого `enableWhen` из `@reformer/core` (тот резолвит только leaf-сигналы через
-> реестр → на group-сигнале это тихий no-op). `get_symbol_docs("enableWhen")` возвращает именно
-> корневой, не group-capable вариант.
+> `enableWhen` / `disableWhen` существуют только как операторы поведения
+> (`@reformer/core/behaviors`): в корне `@reformer/core` и в `@reformer/core/model` их нет.
+
+Скрыть узел разметки, когда форму рисует рендерер, — оператор узла схемы в том же поведении:
+
+```typescript
+import { defineFormBehavior, enableWhen, hideWhen } from '@reformer/core/behaviors';
+
+export const mortgageBehavior = defineFormBehavior<CreditForm>(({ model, schema }) => {
+  const isMortgage = () => model.loanType === 'mortgage';
+  enableWhen([model.$.propertyValue, model.$.initialPayment], isMortgage, { resetOnDisable: true });
+  hideWhen(schema.node('mortgage'), () => !isMortgage()); // узел с selector: 'mortgage'
+});
+```
+
+`hideWhen` только записывает правило — исполняет его рендерер; при разметке в JSX он ничего не
+делает (см. раздел «Скрытие в JSX»).
 
 ## Условная валидация
 
@@ -73,8 +90,9 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
 `validateWhen(() => cond, () => {…})` внутри схемы `defineValidation<T>(({ model }) => …)`.
 Условие `cond` читает модель напрямую (`model.field` — снимок на момент прогона): при истинном условии
 раннер применяет вложенные `validate`/`cross`/…, при ложном — правила ветки **гасятся** (поля,
-затронутые ранее, получают `setIssues([])`). Прогон — внешним раннером
-`validateModel(model, schema): Promise<boolean>` (ошибки сами роутятся в ноды формы).
+затронутые ранее, получают `setIssues([])`). Прогон — уровнем формы (`createForm({ validation })`,
+затем `bundle.validate()` / `bundle.submit(handler)`) либо раннером
+`validateModel(model, schema): Promise<boolean>`; замечания сами доезжают до нод формы.
 
 ```typescript
 import {
@@ -112,9 +130,10 @@ const ok: boolean = await validateModel(model, schema);
 и делай ранний `return null`. Хук возвращает **только значение** (без деструктуризации `{ value }`).
 
 ```tsx
+import type { FormGroup } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core/react';
 
-function MortgageFields({ form }: { form: CreditForm }) {
+function MortgageFields({ form }: { form: FormGroup<CreditForm> }) {
   const loanType = useFormControlValue(form.loanType);
   if (loanType !== 'mortgage') return null;
 
@@ -173,7 +192,7 @@ function MortgageFields({ form }: { form: CreditForm }) {
     passwords.confirmPassword &&
     passwords.password &&
     passwords.confirmPassword !== passwords.password
-      ? { code: 'mismatch' }
+      ? { code: 'confirmPassword.mismatch' } // текст кода — в словаре формы
       : null;
 
   // cross — из аргумента схемы; check получает снимок модели области:
