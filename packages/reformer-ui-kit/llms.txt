@@ -8689,10 +8689,9 @@ Actions (Назад / Далее / Отправить) и Progress в едины
 одной {@link FormProxy} и декларативным списком {@link FormWizardStep}.
 
 Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
-полиморфного {@link FormWizardStepBody}. Валидация по шагам и submit-валидация
-задаются через `config` (`{ validateStep, validateAll }`, обычно обёртки над
-`validateModel` из `@reformer/core/validation`). Императивный доступ (submit/навигация снаружи дерева) —
-через `ref` типа `FormWizardHandle<T>`.
+полиморфного {@link FormWizardStepBody}. Шаги и их проверку держит поток `FormFlow` сборки
+(`createForm({ flow })`): проп `flow` либо сборка из контекста. Навигация снаружи дерева — через
+сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submit(handler)`.
 
 Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
 `.Progress` для кастомной раскладки.
@@ -8704,11 +8703,10 @@ const FormWizard
 
 **Examples:**
 
-Кредитная заявка с 3 шагами и внешним submit
+Кредитная заявка с 3 шагами: разметка в JSX, отправка через сборку
 ```tsx
-import { useMemo, useRef } from 'react';
+import { useFormBundle } from '@reformer/core/react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 const STEPS: FormWizardStep<CreditApplication>[] = [
 { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
@@ -8717,21 +8715,15 @@ const STEPS: FormWizardStep<CreditApplication>[] = [
 ];
 
 function CreditForm() {
-const navRef = useRef<FormWizardHandle<CreditApplication>>(null);
-const { form, model } = useMemo(() => createCreditForm(), []);
-const config = useMemo(() => makeValidationConfig(model), [model]);
+const credit = useFormBundle(() => createCreditForm()); // createForm({ …, flow })
 
-const onSubmit = () =>
-navRef.current?.submit((values) => api.submit(values));
+const onSubmit = async () => {
+const result = await credit.submit((values) => api.submit(values));
+if (result.status === 'invalid') showHint('Проверьте заполнение формы');
+};
 
 return (
-<FormWizard
-ref={navRef}
-form={form}
-config={config}
-steps={STEPS}
-onSubmit={onSubmit}
-/>
+<FormWizard form={credit.form} flow={credit.flow} steps={STEPS} onSubmit={onSubmit} />
 );
 }
 ```
@@ -8749,7 +8741,7 @@ selector: 'wizard',
 component: FormWizard,
 children: [
 {
-selector: 'loan', // ключ правил шага в validation.steps
+selector: 'loan', // идентификатор шага в потоке сборки
 component: Step,
 componentProps: { title: 'Кредит', icon: '💰' },
 children: [{ model: model.$.loanAmount, component: InputNumber }],
@@ -8767,7 +8759,7 @@ createForm<CreditApplication>({
 model: createCreditModel(),
 schema: creditSchema,
 behavior: creditBehavior,
-validation: { steps: { loan: loanRules, confirm: null } },
+flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
 })
 );
 return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
@@ -8779,8 +8771,8 @@ import { RenderNodeComponent } from '@reformer/renderer-react';
 
 // Без renderStepBody такое тело — ошибка с подсказкой: ui-kit не зависит от рендерера.
 <FormWizard
-form={form}
-config={bundle.validation}
+form={bundle.form}
+flow={bundle.flow}
 steps={[{ number: 1, title: 'Данные', body: stepNode }]}
 renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
 />
@@ -8938,9 +8930,9 @@ _Source: src/components/form-wizard/variants/base/form-wizard-progress.tsx_
 Два способа подключения:
 
 - **в схеме формы** — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`.
-  Рендерер передаёт узлы шагов и функцию их отрисовки, а форму и валидацию визард берёт из
-  контекста сборки `createForm`. Ни `form`, ни `config`, ни `steps` задавать не нужно;
-- **в JSX** — `form`, `config` и `steps` пропсами, как раньше.
+  Рендерер передаёт узлы шагов и функцию их отрисовки, а форму и поток шагов визард берёт из
+  контекста сборки `createForm`. Ни `form`, ни `flow`, ни `steps` задавать не нужно;
+- **в JSX** — `form`, `flow` (`bundle.flow`) и `steps` пропсами.
 
 **Signature:**
 ```typescript
@@ -8952,14 +8944,14 @@ export interface FormWizardProps<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends Record<string, any>,
   TBody = never,
-> extends Omit<FormWizardHeadlessProps<T>, 'form' | 'config' | 'children'> {
+> extends Omit<FormWizardHeadlessProps<T>, 'form' | 'flow' | 'children'> {
   /** Форма. Внутри рендерера необязательна — берётся из контекста сборки `createForm`. */
   form?: FormProxy<T>;
   /**
-   * Колбэки валидации шага и всей формы. Внутри рендерера необязателен — собирается из
-   * валидации сборки: шаг проверяется правилами `validation.steps[selector шага]`.
+   * Поток шагов (`bundle.flow`). Внутри рендерера необязателен — берётся из сборки; без потока
+   * визард строит позиционный поток без правил.
    */
-  config?: FormWizardConfig;
+  flow?: FormFlow;
   /** Внешний CSS-класс корневого контейнера. */
   className?: string;
   /**
@@ -8975,9 +8967,10 @@ export interface FormWizardProps<
   /** Отрисовка узла схемы. Передаёт рендерер вместе с `children`. */
   renderNode?: (node: FormWizardStepNode, key?: Key) => ReactNode;
   /**
-   * Колбэк отправки формы на последнем шаге; получает значения формы. Вызывается только после
-   * успешной валидации всей формы; при провале не вызывается, а поля помечаются `touched`,
-   * чтобы ошибки стали видны. Без правил валидации отправка не блокируется.
+   * Колбэк кнопки отправки на последнем шаге; получает значения формы. Внутри сборки
+   * (`createForm` в контексте) зовётся через `bundle.submit` — только после успешной проверки всей
+   * формы, а при замечаниях поля помечаются `touched`. Без сборки зовётся по нажатию: проверку
+   * делает приложение — `bundle.submit(handler)`.
    */
   onSubmit?: (values: T) => void | Promise<void>;
   /**
@@ -9002,7 +8995,7 @@ export interface FormWizardProps<
 **See also:**
 - {@link FormWizardStep} — форма элемента `steps`.
 - {@link FormWizardStepNode} — узел шага в схеме.
-- — императивный handle через `ref` (submit/навигация).
+- — поток шагов ядра: навигация снаружи визарда (`bundle.flow.goTo('loan')`).
 
 _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
 
@@ -9094,13 +9087,14 @@ _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
 `{ selector, component: Step, componentProps: { title, icon }, children: [...] }`, а после
 компиляции его пропсы лежат в `props`.
 
-`selector` связывает шаг с его правилами: это ключ в `validation.steps` сборки. `title` и
-`icon` уходят в индикатор шагов; сам узел рисует рендерер (проп {@link FormWizardProps.renderNode}).
+`selector` связывает узел с шагом потока сборки (`createForm({ flow: { steps: [{ id }] } })`):
+это идентификатор шага. `title` и `icon` уходят в индикатор шагов; сам узел рисует рендерер
+(проп {@link FormWizardProps.renderNode}).
 
 **Signature:**
 ```typescript
 export interface FormWizardStepNode {
-  /** Идентификатор шага — ключ его правил в `validation.steps`. */
+  /** Идентификатор шага — `id` шага в потоке сборки. */
   readonly selector?: string;
   /** Пропсы компонента шага (`componentProps` автора); `title` и `icon` читает индикатор. */
   readonly props?: {

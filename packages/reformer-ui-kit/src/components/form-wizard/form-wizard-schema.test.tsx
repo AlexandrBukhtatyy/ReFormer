@@ -13,7 +13,7 @@ import { FormBundleContext } from '@reformer/core/react';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormWizard, type FormWizardStepNode } from './index';
-import { stepRulesMismatch, wizardConfigFromValidation } from './variants/base/form-wizard';
+import { flowStepsMismatch } from './variants/base/form-wizard';
 
 interface Shape {
   amount: string;
@@ -35,7 +35,12 @@ const stepNodes: FormWizardStepNode[] = [
 const createBundle = () =>
   createForm<Shape>({
     initial: { amount: '', phone: '' },
-    validation: { steps: { loan: loanRules, contacts: contactsRules } },
+    flow: {
+      steps: [
+        { id: 'loan', rules: loanRules },
+        { id: 'contacts', rules: contactsRules },
+      ],
+    },
   });
 
 /** Отрисовка узла, как её делает рендерер: по узлу шага — его тело. */
@@ -60,7 +65,7 @@ describe('FormWizard в схеме формы', () => {
     expect(html).toContain('data-testid="btn-next"');
   });
 
-  it('форму берёт из контекста сборки — пропсы `form` и `config` не нужны', () => {
+  it('форму и поток берёт из контекста сборки — пропсы `form` и `flow` не нужны', () => {
     expect(() =>
       renderToStaticMarkup(
         <FormBundleContext.Provider value={createBundle()}>
@@ -112,68 +117,46 @@ describe('FormWizard в схеме формы', () => {
   });
 });
 
-describe('Шаг ↔ правила', () => {
-  it('шаг проверяется правилами своего `selector`, а не порядкового номера', async () => {
-    const bundle = createBundle();
-    // Порядок шагов в схеме обратный порядку ключей в validation.steps.
-    const config = wizardConfigFromValidation(bundle.validation, ['contacts', 'loan']);
+describe('Шаг схемы ↔ шаг потока', () => {
+  it('шаги рисуются в порядке потока: узел связан с шагом по `selector`', () => {
+    // Порядок узлов в схеме обратный порядку шагов в потоке.
+    const html = renderToStaticMarkup(
+      <FormBundleContext.Provider value={createBundle()}>
+        <FormWizard<Shape> renderNode={renderNode}>{[...stepNodes].reverse()}</FormWizard>
+      </FormBundleContext.Provider>
+    );
 
-    bundle.model.phone = '+7';
-    expect(await config.validateStep?.(1)).toBe(true); // шаг «contacts» — телефон заполнен
-    expect(await config.validateStep?.(2)).toBe(false); // шаг «loan» — сумма пуста
+    // Текущий — первый шаг потока, `loan`, хотя его узел в схеме второй.
+    expect(html).toContain('data-step-body="loan"');
+    expect(html.indexOf('Кредит')).toBeLessThan(html.indexOf('Контакты'));
   });
 
-  it('шаг без `selector` проверяется по номеру — как раньше', async () => {
+  it('«Далее» проверяет правила шага потока', async () => {
     const bundle = createBundle();
-    const config = wizardConfigFromValidation(bundle.validation, [undefined, undefined]);
 
+    expect(await bundle.flow!.next()).toMatchObject({ status: 'stayed', reason: 'invalid' });
     bundle.model.amount = '100';
-    expect(await config.validateStep?.(1)).toBe(true); // первый ключ — loan
-    expect(await config.validateStep?.(2)).toBe(false); // второй ключ — contacts
-  });
-
-  it('`validateAll` — полный набор правил сборки', async () => {
-    const bundle = createBundle();
-    const config = wizardConfigFromValidation(bundle.validation, ['loan', 'contacts']);
-
-    expect(await config.validateAll?.()).toBe(false);
-    bundle.model.amount = '100';
-    bundle.model.phone = '+7';
-    expect(await config.validateAll?.()).toBe(true);
-  });
-
-  it('без валидации в сборке колбэков нет — переходы не блокируются', () => {
-    expect(wizardConfigFromValidation(undefined, ['loan'])).toEqual({});
+    expect(await bundle.flow!.next()).toEqual({ status: 'moved', from: 'loan', to: 'contacts' });
   });
 });
 
-describe('Сверка шагов схемы с ключами validation.steps', () => {
-  it('совпадают — предупреждения нет', () => {
-    expect(stepRulesMismatch(['loan', 'contacts'], ['loan', 'contacts'])).toBeNull();
-    // Порядок не важен: связь — по селектору.
-    expect(stepRulesMismatch(['loan', 'contacts'], ['contacts', 'loan'])).toBeNull();
+describe('Сверка шагов схемы с шагами потока', () => {
+  it('совпадают — предупреждения нет; порядок не важен', () => {
+    expect(flowStepsMismatch(['loan', 'contacts'], ['loan', 'contacts'])).toBeNull();
+    expect(flowStepsMismatch(['loan', 'contacts'], ['contacts', 'loan'])).toBeNull();
   });
 
   it('опечатка в селекторе шага видна с обеих сторон', () => {
-    expect(stepRulesMismatch(['loan', 'contacts'], ['loan', 'contatcs'])).toEqual({
-      withoutStep: ['contacts'],
-      withoutRules: ['contatcs'],
+    expect(flowStepsMismatch(['loan', 'contacts'], ['loan', 'contatcs'])).toEqual({
+      withoutNode: ['contacts'],
+      withoutFlowStep: ['contatcs'],
     });
   });
 
-  it('шаг без правил, не объявленный в validation.steps, — расхождение', () => {
-    expect(stepRulesMismatch(['loan'], ['loan', 'confirm'])).toEqual({
-      withoutStep: [],
-      withoutRules: ['confirm'],
+  it('узлы без селектора к шагам потока не привязаны', () => {
+    expect(flowStepsMismatch(['loan', 'contacts'], [undefined, undefined])).toEqual({
+      withoutNode: ['loan', 'contacts'],
+      withoutFlowStep: [],
     });
-  });
-
-  it('шаг без селектора занимает ключ на своей позиции', () => {
-    expect(stepRulesMismatch(['loan', 'contacts'], [undefined, undefined])).toBeNull();
-    expect(stepRulesMismatch(['loan', 'contacts'], ['loan', undefined])).toBeNull();
-  });
-
-  it('правила не разбиты по шагам — сверять нечего', () => {
-    expect(stepRulesMismatch([], ['loan', 'contacts'])).toBeNull();
   });
 });

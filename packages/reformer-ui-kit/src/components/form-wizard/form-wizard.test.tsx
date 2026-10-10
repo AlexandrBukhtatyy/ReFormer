@@ -187,7 +187,6 @@ describe('FormWizard: тело шага', () => {
     renderToStaticMarkup(
       <FormWizard<Record<string, unknown>, unknown>
         form={form}
-        config={{}}
         onSubmit={() => {}}
         steps={[{ number: 1, title: 'Шаг', body: body as never }]}
         renderStepBody={renderStepBody}
@@ -230,7 +229,6 @@ describe('FormWizard: подпись кнопки отправки', () => {
     renderToStaticMarkup(
       <FormWizard
         form={form}
-        config={{}}
         onSubmit={() => {}}
         steps={[{ number: 1, title: 'Шаг', body: <i /> }]}
         submitLabel={submitLabel}

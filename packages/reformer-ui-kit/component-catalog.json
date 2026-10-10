@@ -12951,12 +12951,12 @@
               "kind": "readonly"
             }
           },
-          "config": {
+          "flow": {
             "type": "object",
-            "description": "Step configuration (validation callbacks)",
+            "description": "Поток шагов (`bundle.flow`). Внутри рендерера необязателен — берётся из сборки; без потока визард строит позиционный поток без правил.",
             "x-doc": {
               "group": "Behavior",
-              "type": "FormWizardConfig"
+              "type": "FormFlow"
             }
           },
           "form": {
