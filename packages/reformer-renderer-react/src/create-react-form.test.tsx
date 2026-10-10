@@ -12,7 +12,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import type { FC } from 'react';
 import { createModel, type FormModel, type FormProxy } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { createReactForm } from './create-react-form';
 import { FormRenderer } from './core/form-renderer';
@@ -85,8 +85,8 @@ describe('createReactForm — сборка', () => {
   });
 
   it('renderBehavior получает форму, модель и валидацию и применяется к схеме', () => {
-    const rules = defineValidationSchema<F>(({ model }) => {
-      validate(model.$.email, [required({ message: 'req' })]);
+    const rules = defineValidation<F>(({ model }) => {
+      validate(model.$.email, [required()]);
     });
     const seen: unknown[] = [];
     const bundle = createReactForm<F>({

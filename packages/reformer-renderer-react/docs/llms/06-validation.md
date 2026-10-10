@@ -8,20 +8,20 @@
 
 - `RenderNode<T>` — union из трёх узлов (см. [types.ts](../../src/core/types.ts)): `ModelFieldRenderNode` (`{ selector?, value, component, componentProps? }`), `ArrayRenderNode` (`{ array, item, initialValue?, componentProps? }`), `ContainerRenderNode` (`{ component, children?, componentProps? }`). Поля `validators` нет **ни в одном** из них. Впишете `validators: []` в лист — TypeScript отклонит: `TS2353: 'validators' does not exist in type 'RenderNode<T>'`.
 - Лист-поле несёт только `value` (сигнал модели, `model.$.<path>`), `component` (UI-компонент) и `componentProps`. State-нода (errors/disabled) резолвится по сигналу через реестр `getNodeForSignal`, который заполняет `createForm`. Рендерер подсветит ошибки, но **сам значения не валидирует** — он лишь отображает то, что кто-то проставил в ноды.
-- Значит, валидацию значений выражают **отдельной функцией-схемой над МОДЕЛЬЮ** (`ValidationSchema<T> = ({ model }) => void`), а не в RenderNode. Схему прогоняет внешний раннер `validateModel(model, schema)` — тем же контрактом, что и в TS-варианте формы. Одна валидация на все варианты рендера (React / JSON / рукописный JSX): layout и правила разъезжаются по разным каналам и не пересекаются.
+- Значит, валидацию значений выражают **отдельной функцией-схемой над МОДЕЛЬЮ** (`ValidationDefinition<T> = ({ model }) => void`), а не в RenderNode. Схему прогоняет внешний раннер `validateModel(model, schema)` — тем же контрактом, что и в TS-варианте формы. Одна валидация на все варианты рендера (React / JSON / рукописный JSX): layout и правила разъезжаются по разным каналам и не пересекаются.
 
 Дальше — три шага: (1) построить схему над моделью, (2) обернуть её в `{ validateStep, validateAll }`, (3) прокинуть конфиг в wizard-узел.
 
 ## Шаг 1 — построить схему валидации над моделью { #build-schema }
 
-Схема валидации — обычная функция над (под)моделью, обёрнутая `defineValidationSchema<T>(({ model, cross }) => { … })`. Внутри — голые **операторы** из `@reformer/core/validation`: `validate(sig, [rules])` (синхронные правила поля, **массив**), `validateAsync(sig, [asyncRules])` (async-правила), `validateWhen(() => cond, () => …)` (условные ветки), `applyEach(model.$.items, itemRules)` (правила строк массива), `apply(...schemas)` (композиция под-схем) — и `cross(sig, fn)` из аргумента схемы (cross-field по снапшоту `model.get()`; не импортируется). `sig` — сигнал модели (`model.$.path`), **не** RenderNode: схема валидации это отдельный TS-файл, она не пересекается с render-деревом. Встроенные фабрики правил импортируются из `@reformer/core/validators`.
+Схема валидации — обычная функция над (под)моделью, обёрнутая `defineValidation<T>(({ model, cross }) => { … })`. Внутри — голые **операторы** из `@reformer/core/validation`: `validate(sig, [rules])` (синхронные правила поля, **массив**), `validateAsync(sig, [asyncRules])` (async-правила), `validateWhen(() => cond, () => …)` (условные ветки), `applyEach(model.$.items, itemRules)` (правила строк массива), `apply(...schemas)` (композиция под-схем) — и `cross(sig, fn)` из аргумента схемы (cross-field по снапшоту `model.get()`; не импортируется). `sig` — сигнал модели (`model.$.path`), **не** RenderNode: схема валидации это отдельный TS-файл, она не пересекается с render-деревом. Встроенные фабрики правил импортируются из `@reformer/core/validators`.
 
 ```typescript
 import { type FormModel } from '@reformer/core';
 import {
   validate,
-  defineValidationSchema,
-  type ValidationSchema,
+  defineValidation,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import { required, min, max, minLength, email } from '@reformer/core/validators';
 import type { CreditForm } from './types';
@@ -29,41 +29,41 @@ import type { CreditForm } from './types';
 type Root = CreditForm;
 
 // Схема одного шага — обычная функция ({ model }) => void; правила поля — validate(sig, [rules]).
-const step1 = defineValidationSchema<Root>(({ model }) => {
-  validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
+const step1 = defineValidation<Root>(({ model }) => {
+  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
   validate(model.$.loanAmount, [
     required(),
-    min(50000, { message: 'Минимум 50 000 ₽' }),
+    min(50000, { code: 'field.min' }),
     max(10000000),
   ]);
 });
 
-const step2 = defineValidationSchema<Root>(({ model }) => {
+const step2 = defineValidation<Root>(({ model }) => {
   validate(model.$.personalData.firstName, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
 
 // Схемы model-независимы: model инъектируется раннером в момент прогона. Стабильные const.
-const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2];
+const STEP_SCHEMAS: readonly ValidationDefinition<Root>[] = [step1, step2];
 ```
 
 Условные ветки (`validateWhen(() => model.loanType === 'mortgage', () => { … })`), cross-field (`cross(sig, fn)` из аргумента схемы), async (`validateAsync(sig, [rule])`), секции массивов (`applyEach(model.$.items, itemRules)`) и композиция под-схем (`apply(...schemas)`) — тот же контракт, что в TS-форме. Полное описание операторов `@reformer/core/validation` и раннера `validateModel` — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
 ## Шаг 2 — исполнить: `{ validateStep, validateAll }` { #execute }
 
-`validateModel(model, schema)` прогоняет схему по текущим значениям модели, **сам роутит ошибки в ноды формы по сигналу** (`getNodeForSignal(sig).setErrors(...)` — рендерер подсветит проблемные поля) и гасит поля, ставшие валидными. Возвращает `Promise<boolean>` — `true`, если нет **блокирующих** ошибок (`severity:'warning'` показывается, но не блокирует; устаревшие прогоны той же `(model, schema)` отменяются). Оборачиваем в две функции — контракт `FormWizardConfig` из `@reformer/cdk/form-wizard` (`validateStep?(step): boolean | Promise<boolean>`, `validateAll?(): boolean | Promise<boolean>`).
+`validateModel(model, schema)` прогоняет схему по текущим значениям модели, **сам роутит ошибки в ноды формы по сигналу** (`getNodeForSignal(sig).setIssues(...)` — рендерер подсветит проблемные поля) и гасит поля, ставшие валидными. Возвращает `Promise<boolean>` — `true`, если нет **блокирующих** ошибок (`severity:'warning'` показывается, но не блокирует; устаревшие прогоны той же `(model, schema)` отменяются). Оборачиваем в две функции — контракт `FormWizardConfig` из `@reformer/cdk/form-wizard` (`validateStep?(step): boolean | Promise<boolean>`, `validateAll?(): boolean | Promise<boolean>`).
 
 ```typescript
 import {
   apply,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 
 // Полная схема = композиция шагов; пустая — для шага вне диапазона (гасит тронутые поля).
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
-const emptySchema: ValidationSchema<Root> = () => {};
+const fullSchema = defineValidation<Root>(() => apply(...STEP_SCHEMAS));
+const emptySchema: ValidationDefinition<Root> = () => {};
 
 export function makeValidationConfig(model: FormModel<Root>) {
   return {
@@ -135,18 +135,18 @@ const behavior = defineFormBehavior<Root>(({ model }) => {
 
 ## Полный рабочий пример { #full-example }
 
-Зеркалит рабочий пример (`complex-multy-step-form-renderer`): валидация — `ValidationSchema` над моделью, переиспользуемая всеми вариантами рендера, вкладывается инлайн в wizard-узел render-схемы. Submit и навигация между шагами приходят из render-behavior (`onComponentEvent('onSubmit')` / `renderEffect`), а не отсюда — см. [03-render-behavior.md](03-render-behavior.md).
+Зеркалит рабочий пример (`complex-multy-step-form-renderer`): валидация — `ValidationDefinition` над моделью, переиспользуемая всеми вариантами рендера, вкладывается инлайн в wizard-узел render-схемы. Submit и навигация между шагами приходят из render-behavior (`onComponentEvent('onSubmit')` / `renderEffect`), а не отсюда — см. [03-render-behavior.md](03-render-behavior.md).
 
 ```typescript
-// form.validation.ts — ValidationSchema над МОДЕЛЬЮ (переиспользуется React/JSON/handwritten вариантами)
+// form.validation.ts — ValidationDefinition над МОДЕЛЬЮ (переиспользуется React/JSON/handwritten вариантами)
 import { type FormModel } from '@reformer/core';
 import {
   validate,
   validateWhen,
   apply,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import { required, min, minLength, email } from '@reformer/core/validators';
 import type { CreditForm } from './types';
@@ -154,29 +154,29 @@ import type { CreditForm } from './types';
 type Root = CreditForm;
 type M = FormModel<CreditForm>;
 
-const step1 = defineValidationSchema<Root>(({ model, cross }) => {
-  validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
-  validate(model.$.loanAmount, [required(), min(50000, { message: 'Минимум 50 000 ₽' })]);
+const step1 = defineValidation<Root>(({ model, cross }) => {
+  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
+  validate(model.$.loanAmount, [required(), min(50000, { code: 'loanAmount.min' })]);
   // Условная ветка + cross-field: активна только для ипотеки, читает снапшот формы.
   validateWhen(
     () => model.loanType === 'mortgage',
     () =>
       cross(model.$.loanAmount, (f) =>
         f.loanAmount > f.propertyValue - f.initialPayment
-          ? { code: 'loanTooBig', message: 'Сумма превышает стоимость минус взнос' }
+          ? { code: 'loanTooBig' }
           : null
       )
   );
 });
 
-const step2 = defineValidationSchema<Root>(({ model }) => {
+const step2 = defineValidation<Root>(({ model }) => {
   validate(model.$.personalData.firstName, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
 
-const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2];
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
-const emptySchema: ValidationSchema<Root> = () => {};
+const STEP_SCHEMAS: readonly ValidationDefinition<Root>[] = [step1, step2];
+const fullSchema = defineValidation<Root>(() => apply(...STEP_SCHEMAS));
+const emptySchema: ValidationDefinition<Root> = () => {};
 
 /** Контракт FormWizardConfig: per-step + полная валидация через validateModel. */
 export function makeCreditValidationConfig(model: M) {
@@ -225,10 +225,10 @@ export function buildSchema(
 
 ## Anti-patterns
 
-- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
+- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationDefinition` над моделью (Шаг 1), а не в render-дереве.
 - **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает ошибки, уже проставленные в ноды. Значения проверяет `validateModel(model, schema)`; без её вызова (обычно из `validateStep`/`validateAll` wizard-а) поля не подсветятся.
 - **Читать текущее значение вместо сигнала в `validate`** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — СИГНАЛ (стабильная ссылка на форму модели), а не текущее значение поля. Значения читает раннер в момент прогона; cross-field берёт снапшот через `model.get()` внутри `cross(sig, fn)`. Не передавайте в `validate` результат `model.get()` / `.value`.
-- **Пересоздавать схему на каждый вызов конфига** (`validateModel(model, defineValidationSchema(...))` инлайн) — раннер отменяет **устаревший прогон той же `(model, schema)`** по ссылке на схему. Новый объект схемы на каждый вызов ломает отмену и гашение полей. Держите схемы стабильными module-level `const` (`STEP_SCHEMAS`, `fullSchema`).
+- **Пересоздавать схему на каждый вызов конфига** (`validateModel(model, defineValidation(...))` инлайн) — раннер отменяет **устаревший прогон той же `(model, schema)`** по ссылке на схему. Новый объект схемы на каждый вызов ломает отмену и гашение полей. Держите схемы стабильными module-level `const` (`STEP_SCHEMAS`, `fullSchema`).
 - **Забыть `selector: 'wizard'` при инъекции через render-behavior** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не прокинется. (При инлайн-инъекции в `componentProps` это не нужно.)
 - **`array` на array-узле + строгая типизация листа = `TS2741`.** Привязка массива это `array: model.<path>` (value-доступ, напр. `model.coBorrowers`), НЕ `model.$.coBorrowers`. Тип `ModelArray<U>` рантайм-совместим с требуемым `RenderModelArrayControl`, но в публичном типе у него **не объявлен** `__path`, поэтому под строгим контекстом узла TS ругается `Property '__path' is missing in type 'ModelArray<T>' but required in 'RenderModelArrayControl'`. Пример `complex-multy-step-form-renderer` обходит это кастом всего дерева `as unknown as RenderNode<T>` в конце билдера (файл схемы там назван по-старому `render-schema.ts` — канон имени `form.schema.ts`) — сам каст и есть канон для схемы с array-узлами; привязка при этом остаётся `array: model.<path>` (см. [02-render-schema.md](02-render-schema.md#array)). Per-item **валидация** таких массивов — оператор `each(model.<path>, im => { … })` в схеме, не в render-дереве.
 
@@ -237,5 +237,5 @@ export function buildSchema(
 - [02-render-schema.md](02-render-schema.md) — структура `RenderNode`: лист-поле несёт только layout, массивы (`array: model.<path>`).
 - [03-render-behavior.md](03-render-behavior.md) — `onInit`/`patchProps` для инъекции конфига в wizard-узел; `revalidateWhen`-мост к `validateModel`.
 - [01-overview.md](01-overview.md) — wizard-узел, `FormWizardConfig` (`{ validateStep?, validateAll? }`), передача `form` через `componentProps`.
-- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы `ValidationSchema` (`validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach` и `cross` области), раннер `validateModel`, `STEP_SCHEMAS`, конфиг wizard'а.
+- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы `ValidationDefinition` (`validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach` и `cross` области), раннер `validateModel`, `STEP_SCHEMAS`, конфиг wizard'а.
 - `@reformer/renderer-json` [06-validation.md](../../../reformer-renderer-json/docs/llms/06-validation.md) — родственный паттерн для JSON-схемы (та же model-валидация, инъекция через render-behavior).
