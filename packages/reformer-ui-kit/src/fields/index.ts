@@ -11,7 +11,7 @@
  * import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
  *
  * export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
- * // модель формы: { value: model.$.agree, component: MyCheckbox }
+ * // модель формы: { model: model.$.agree, component: MyCheckbox }
  * ```
  *
  * Императивный handle (`FieldHandle`) строит обёртка поля: из DOM-узла контрола либо берёт handle

@@ -381,7 +381,7 @@ export interface AsyncBoundaryProps<T = unknown> {
  *   selector: 'data-boundary',
  *   component: AsyncBoundary,
  *   componentProps: { status: 'loading' },
- *   children: [{ value: model.$.email, component: Input }],
+ *   children: [{ model: model.$.email, component: Input }],
  * }));
  * // позже, из behavior:
  * schema.node('data-boundary').patchProps({ status: 'ready' });

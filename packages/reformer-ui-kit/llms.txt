@@ -5071,8 +5071,8 @@ import { Box, Input, InputPassword } from '@reformer/ui-kit';
 component: Box,
 componentProps: { className: 'flex flex-col gap-4' },
 children: [
-{ value: model.$.email, component: Input },
-{ value: model.$.password, component: InputPassword },
+{ model: model.$.email, component: Input },
+{ model: model.$.password, component: InputPassword },
 ],
 }
 ```
@@ -5085,8 +5085,8 @@ import { Box, Input } from '@reformer/ui-kit';
 component: Box,
 componentProps: { className: 'grid grid-cols-2 gap-4' },
 children: [
-{ value: model.$.firstName, component: Input },
-{ value: model.$.lastName, component: Input },
+{ model: model.$.firstName, component: Input },
+{ model: model.$.lastName, component: Input },
 ],
 }
 ```
@@ -12157,8 +12157,8 @@ titleClassName: 'text-xl font-bold',
 className: 'grid grid-cols-2 gap-4',
 },
 children: [
-{ value: model.$.firstName, component: Input },
-{ value: model.$.lastName, component: Input },
+{ model: model.$.firstName, component: Input },
+{ model: model.$.lastName, component: Input },
 ],
 }
 ```
@@ -12171,8 +12171,8 @@ import { Section, Input } from '@reformer/ui-kit';
 component: Section,
 componentProps: { className: 'space-y-4 mt-4' },
 children: [
-{ value: model.$.address, component: Input },
-{ value: model.$.city, component: Input },
+{ model: model.$.address, component: Input },
+{ model: model.$.city, component: Input },
 ],
 }
 ```
