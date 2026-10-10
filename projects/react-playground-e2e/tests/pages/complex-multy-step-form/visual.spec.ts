@@ -608,16 +608,16 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-6.png`);
   });
 
-  test('VIS-008-D: прогресс — шаг 1 (17%)', async ({ page, creditForm }) => {
+  test('VIS-008-D: прогресс — шаг 1 (17%)', async ({ creditForm }) => {
     await creditForm.goto();
-    const progress = page.getByText(/Шаг 1 из 6/);
+    const progress = creditForm.stepProgress().getByText(/Шаг 1 из 6/);
     await expect(progress).toHaveScreenshot(`${creditForm.variant}-progress-step-1.png`);
   });
 
-  test('VIS-008-E: прогресс — шаг 6 (100%)', async ({ page, creditForm }) => {
+  test('VIS-008-E: прогресс — шаг 6 (100%)', async ({ creditForm }) => {
     await creditForm.goto();
     await creditForm.fillAndNavigateToStep6();
-    const progress = page.getByText(/Шаг 6 из 6/);
+    const progress = creditForm.stepProgress().getByText(/Шаг 6 из 6/);
     await expect(progress).toHaveScreenshot(`${creditForm.variant}-progress-step-6.png`);
   });
 });

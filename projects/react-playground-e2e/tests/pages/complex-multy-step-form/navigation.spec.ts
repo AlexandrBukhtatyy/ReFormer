@@ -208,12 +208,12 @@ test.describe('Навигация', { tag: ['@navigation', '@smoke'] }, () => {
       await creditForm.goto();
 
       // Проверяем отображение "Шаг 1 из 6"
-      await expect(creditForm.page.locator('text=/Шаг 1 из 6/i')).toBeVisible();
+      await expect(creditForm.stepProgress().locator('text=/Шаг 1 из 6/i')).toBeVisible();
 
       await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
 
-      await expect(creditForm.page.locator('text=/Шаг 2 из 6/i')).toBeVisible();
+      await expect(creditForm.stepProgress().locator('text=/Шаг 2 из 6/i')).toBeVisible();
     });
 
     test('NAV-004-B: Индикатор показывает все 6 шагов', async ({ creditForm }) => {

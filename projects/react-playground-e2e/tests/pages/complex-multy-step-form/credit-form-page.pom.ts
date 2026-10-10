@@ -227,8 +227,16 @@ export class CreditFormPage extends BasePage {
     });
   }
 
+  /**
+   * Видимый прогресс визарда («Шаг N из M • X% завершено»). Текст шага ищется в нём, а не по всей
+   * странице: live-регион визарда для скринридера говорит тем же текстом по локали.
+   */
+  stepProgress(): Locator {
+    return this.page.locator('[data-slot="form-wizard-progress"]');
+  }
+
   async getCurrentStep(): Promise<number> {
-    const stepText = await this.page.locator('text=/Шаг \\d+ из/').textContent();
+    const stepText = await this.stepProgress().locator('text=/Шаг \\d+ из/').textContent();
     const match = stepText?.match(/Шаг (\d+) из/);
     return match ? parseInt(match[1], 10) : 1;
   }
