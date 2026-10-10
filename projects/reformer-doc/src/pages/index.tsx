@@ -78,7 +78,7 @@ const PACKAGES: PackageCard[] = [
     icon: '🎨',
     to: '/docs/ui-kit/overview',
     descId: 'homepage.pkg.uikit',
-    descDefault: 'Стилизованные контролы (Tailwind + Radix), привязанные к FieldNode.',
+    descDefault: 'Стилизованные контролы (Tailwind + Radix), привязанные к FormControl.',
   },
   {
     name: '@reformer/renderer-react',

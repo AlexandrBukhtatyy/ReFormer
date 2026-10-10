@@ -12,7 +12,7 @@ import { uiKitFieldArrayDocConfig } from '@site/src/components/demo/examples/fie
 Готовая секция динамического массива форм поверх headless `@reformer/cdk/field-array`:
 заголовок, кнопка «Добавить», карточка с меткой на каждый элемент, удаление, перестановка ↑/↓
 и пустое состояние — из коробки. Элемент рендерит `itemComponent` с контрактом
-`ComponentType<{ control: FormProxy<T> }>` (тот же, что у шага FormWizard). Для полностью
+`ComponentType<{ control: FormGroup<T> }>` (тот же, что у шага FormWizard). Для полностью
 кастомной разметки используйте headless [FieldArray](/docs/cdk/field-array) напрямую.
 
 <ComponentDoc config={uiKitFieldArrayDocConfig} />

@@ -162,7 +162,7 @@ import { InfoHint } from '@reformer/ui-kit';
   props: [
     {
       name: 'FormField.Root',
-      type: 'control: FieldNode<T>',
+      type: 'control: FormControl<T>',
       description: 'Провайдер контекста; подписывается на useFormControl один раз.',
     },
     {

@@ -189,29 +189,29 @@ model.$.<field>` типизирована, поэтому опечатка в и
 ```typescript
 const form = createFormFromModel<MyForm>({ model, schema });
 
-form.name; // FieldNode<string> — TypeScript знает тип
-form.address.city; // FieldNode<string> — вложенный доступ
-form.items.at(0); // FormProxy<Item> — элемент массива
+form.name; // FormControl<string> — TypeScript знает тип
+form.address.city; // FormControl<string> — вложенный доступ
+form.items.at(0); // FormGroup<Item> — элемент массива
 
 form.name.setValue('John');
 form.name.value.value; // текущее значение (через сигнал)
 ```
 
 :::warning Proxy не проходит `instanceof`
-Не проверяйте тип ноды через `node instanceof FieldNode` — proxy это не пройдёт. Используйте
+Не проверяйте тип ноды через `node instanceof FormControl` — proxy это не пройдёт. Используйте
 type-guards.
 :::
 
 ```typescript
-import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
+import { isFormControl, isFormGroup, isFormArray } from '@reformer/core';
 
-if (isFieldNode(node)) {
+if (isFormControl(node)) {
   /* лист */
 }
-if (isGroupNode(node)) {
+if (isFormGroup(node)) {
   /* группа */
 }
-if (isArrayNode(node)) {
+if (isFormArray(node)) {
   /* массив */
 }
 ```

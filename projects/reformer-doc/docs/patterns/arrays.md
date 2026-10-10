@@ -124,14 +124,14 @@ const length = useArrayLength(form.items);
 
 ## Рендер элементов
 
-Каждый элемент массива — под-форма (`FormProxy<Item>`). Итерируйте через `form.items.map`;
+Каждый элемент массива — под-форма (`FormGroup<Item>`). Итерируйте через `form.items.map`;
 точечный доступ — `form.items.at(i)`. Мутации в обработчиках — на модели.
 
 ```tsx
 import { FormField, Button } from '@reformer/ui-kit';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 
-function ItemsList({ form, model }: { form: FormProxy<OrderForm>; model: FormModel<OrderForm> }) {
+function ItemsList({ form, model }: { form: FormGroup<OrderForm>; model: FormModel<OrderForm> }) {
   const length = useArrayLength(form.items);
 
   return (

@@ -33,7 +33,7 @@ export type CreateUserRequest = {
 ```
 
 :::tip Форма — это `type`
-Для `FormProxy<T>` нужен `type`-алиас со структурной индекс-сигнатурой, а не `interface`. Если
+Для `FormGroup<T>` нужен `type`-алиас со структурной индекс-сигнатурой, а не `interface`. Если
 генератор выдаёт `interface`, оберните его: `type CreateUserForm = CreateUserRequest;`.
 :::
 

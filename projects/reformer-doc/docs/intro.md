@@ -25,7 +25,7 @@ createModel     привязка       createForm     defineFormBehavior
    полем стоит реактивный сигнал. Значения принадлежат модели, а не UI.
 2. **Схема** — дерево узлов, где каждый узел привязывает поле модели к компоненту
    (`value: model.$.field`) и держит его конфигурацию (`component`, `componentProps`, `validators`).
-3. **Форма** (`createForm`) — строит ноды (`FieldNode` / `GroupNode` / `ArrayNode`) поверх сигналов
+3. **Форма** (`createForm`) — строит ноды (`FormControl` / `FormGroup` / `ArrayNode`) поверх сигналов
    модели и отдаёт типизированный proxy: `form.email`, `form.address.city`.
 4. **Behavior** (`defineFormBehavior`) — декларативная реактивная логика: вычисляемые поля, условная
    доступность, синхронизация, реакции на изменения.
@@ -62,7 +62,7 @@ createModel     привязка       createForm     defineFormBehavior
 | Слой             | Импорт                      | Назначение                                                                                                                                 |
 | ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Модель**       | `@reformer/core`            | `createModel` — источник истины значений; доступ к сигналам через `model.$.<field>`                                                        |
-| **Форма и ноды** | `@reformer/core`            | `createForm`, `FieldNode` / `GroupNode` / `ArrayNode`; доступ к полям через proxy `form.<field>`                                           |
+| **Форма и ноды** | `@reformer/core`            | `createForm`, `FormControl` / `FormGroup` / `ArrayNode`; доступ к полям через proxy `form.<field>`                                         |
 | **Валидация**    | `@reformer/core/validation` | ambient-схема `defineValidation` + операторы `validate`, `validateAsync`, `validateWhen`, `cross`, `each`, `apply`; раннер `validateModel` |
 | **Валидаторы**   | `@reformer/core/validators` | чистые фабрики `required`, `email`, `min`, `max`, `minLength`, `pattern`, `phone`, `url`, числовые и датовые                               |
 | **Behaviors**    | `@reformer/core/behaviors`  | декларативный DSL `defineFormBehavior` + операторы `compute`, `onChange`, `enableWhen`, `copyFrom`, …                                      |

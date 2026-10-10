@@ -26,9 +26,9 @@ ReFormer даёт три хука для чтения состояния нод 
 
 ```tsx
 import { useFormControl, useFormControlValue, useArrayLength } from '@reformer/core/react';
-import type { FieldNode } from '@reformer/core';
+import type { FormControl } from '@reformer/core';
 
-function TextField({ control, label }: { control: FieldNode<string>; label: string }) {
+function TextField({ control, label }: { control: FormControl<string>; label: string }) {
   const { value, disabled, errors, shouldShowError, pending } = useFormControl(control);
 
   return (
@@ -48,7 +48,7 @@ function TextField({ control, label }: { control: FieldNode<string>; label: stri
 }
 ```
 
-### Состояние для `FieldNode`
+### Состояние для `FormControl`
 
 | Свойство          | Тип                       | Описание                                           |
 | ----------------- | ------------------------- | -------------------------------------------------- |
@@ -105,9 +105,9 @@ const { value } = useFormControlValue(form.email); // ❌ значение — �
 Типичный сценарий — условный рендер по значению другого поля:
 
 ```tsx
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
-function ShippingSection({ form }: { form: FormProxy<CheckoutForm> }) {
+function ShippingSection({ form }: { form: FormGroup<CheckoutForm> }) {
   // Ре-рендер только когда меняется hasShipping
   const hasShipping = useFormControlValue(form.hasShipping);
 
@@ -144,9 +144,9 @@ function ShippingSection({ form }: { form: FormProxy<CheckoutForm> }) {
 
 ```tsx
 import { FormField } from '@reformer/ui-kit';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 
-function PhoneList({ form, model }: { form: FormProxy<OrderForm>; model: FormModel<OrderForm> }) {
+function PhoneList({ form, model }: { form: FormGroup<OrderForm>; model: FormModel<OrderForm> }) {
   const length = useArrayLength(form.phones);
 
   return (

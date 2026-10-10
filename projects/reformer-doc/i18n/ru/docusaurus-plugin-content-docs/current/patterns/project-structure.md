@@ -132,7 +132,7 @@ export const createCreditApplicationForm = () => {
 
 ## Тип формы — `type`, а не `interface`
 
-Всё, что попадает в `FormProxy<T>` (корневую форму, вложенные группы, тип элемента массива),
+Всё, что попадает в `FormGroup<T>` (корневую форму, вложенные группы, тип элемента массива),
 объявляйте через **`type`-алиас**. Интерпретатору схемы нужна индекс-сигнатура
 (`Record<string, …>`): у `type` она есть структурно, у `interface` — нет.
 
@@ -190,14 +190,14 @@ export function CreditApplicationView() {
 
 ## Передача формы в дочерние компоненты — через props
 
-Форму (и отдельные ноды) передавайте вниз **явными props** типа `FormProxy<T>` / `FieldNode<T>`, а
+Форму (и отдельные ноды) передавайте вниз **явными props** типа `FormGroup<T>` / `FormControl<T>`, а
 не через React Context. Явная передача делает компоненты предсказуемыми и тестируемыми: каждый
 видит ровно ту ноду, с которой работает.
 
 ```tsx
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
-function LoanStep({ form }: { form: FormProxy<CreditApplicationForm> }) {
+function LoanStep({ form }: { form: FormGroup<CreditApplicationForm> }) {
   return (
     <section>
       <FormField control={form.loanType} />
@@ -270,7 +270,7 @@ forms/credit-application/
 | Правило                              | Зачем                                                     |
 | ------------------------------------ | --------------------------------------------------------- |
 | Начинать с плоской раскладки         | один файл на concern; без преждевременных папок           |
-| Тип формы через `type`               | нужна структурная индекс-сигнатура для `FormProxy<T>`     |
+| Тип формы через `type`               | нужна структурная индекс-сигнатура для `FormGroup<T>`     |
 | Собирать форму в `useMemo(…, [])`    | стабильный инстанс, форма не теряет состояние             |
 | Пробрасывать форму пропсами          | предсказуемость и тестируемость вместо неявного контекста |
 | Вся валидация в `form.validation.ts` | одно место, куда смотреть                                 |

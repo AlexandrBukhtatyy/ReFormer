@@ -68,7 +68,7 @@ race-guard (флаг `cancelled`): пользователь мог сменит�
 
 ```tsx
 import { useEffect, useState } from 'react';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 
 interface LoadingState {
   isLoading: boolean;
@@ -77,7 +77,7 @@ interface LoadingState {
 
 export function useLoadProfile(
   model: FormModel<ProfileForm>,
-  form: FormProxy<ProfileForm>,
+  form: FormGroup<ProfileForm>,
   userId: string | null
 ): LoadingState {
   const [state, setState] = useState<LoadingState>({ isLoading: !!userId, error: null });

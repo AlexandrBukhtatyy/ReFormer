@@ -7,12 +7,12 @@ sidebar_position: 3
 **Ноды** — строительные блоки формы. Их не создают вручную через `new` — их строит `createForm`
 поверх сигналов модели, а доступ к ним даёт типизированный **proxy**.
 
-| Нода             | Назначение                           | Пример                  |
-| ---------------- | ------------------------------------ | ----------------------- |
-| `FieldNode`      | одно значение (строка, число, флаг)  | текстовое поле, чекбокс |
-| `GroupNode`      | объект с именованными полями         | секция формы, адрес     |
-| `ArrayNode`      | динамический список подформ          | телефоны, адреса        |
-| `ModelArrayNode` | массив, привязанный к массиву модели | список объектов модели  |
+| Нода          | Назначение                           | Пример                  |
+| ------------- | ------------------------------------ | ----------------------- |
+| `FormControl` | одно значение (строка, число, флаг)  | текстовое поле, чекбокс |
+| `FormGroup`   | объект с именованными полями         | секция формы, адрес     |
+| `ArrayNode`   | динамический список подформ          | телефоны, адреса        |
+| `FormArray`   | массив, привязанный к массиву модели | список объектов модели  |
 
 ## Доступ через proxy
 
@@ -35,13 +35,13 @@ const schema = {
 
 const form = createFormFromModel<Form>({ model, schema });
 
-form.firstName; // FieldNode<string>
-form.address; // GroupNode
-form.address.city; // FieldNode<string> — вложенный доступ
+form.firstName; // FormControl<string>
+form.address; // FormGroup
+form.address.city; // FormControl<string> — вложенный доступ
 ```
 
 :::warning Proxy не проходит `instanceof`
-Не проверяйте тип ноды через `node instanceof FieldNode` — proxy это не пройдёт. Используйте
+Не проверяйте тип ноды через `node instanceof FormControl` — proxy это не пройдёт. Используйте
 [type-guards](#type-guards).
 :::
 
@@ -86,7 +86,7 @@ await form.firstName.validate(); // проверить состояние нод
 нодах — теперь layout и валидация разведены по разным каналам).
 :::
 
-### FieldNode
+### FormControl
 
 Лист дерева. Дополнительно к общим методам:
 
@@ -96,7 +96,7 @@ form.email.componentProps;   // сигнал текущих componentProps
 form.email.shouldShowError;  // сигнал: показывать ли ошибку (touched + invalid)
 ```
 
-### GroupNode
+### FormGroup
 
 Группирует поля в объект.
 
@@ -115,7 +115,7 @@ form.address.getFieldByPath('city'); // доступ по строковому �
 model.phones.push({ type: 'mobile', number: '' }); // добавить элемент
 model.phones.removeAt(0);                           // удалить
 
-form.phones.at(0);                                  // FormProxy элемента
+form.phones.at(0);                                  // FormGroup элемента
 form.phones.map((item, i) => /* ... */);            // обход элементов
 ```
 
@@ -124,15 +124,15 @@ form.phones.map((item, i) => /* ... */);            // обход элемент
 Поскольку proxy не проходит `instanceof`, тип ноды определяют через guard-функции:
 
 ```typescript
-import { isFieldNode, isGroupNode, isArrayNode, getNodeType } from '@reformer/core';
+import { isFormControl, isFormGroup, isFormArray, getNodeType } from '@reformer/core';
 
-if (isFieldNode(node)) {
+if (isFormControl(node)) {
   /* лист */
 }
-if (isGroupNode(node)) {
+if (isFormGroup(node)) {
   /* группа */
 }
-if (isArrayNode(node)) {
+if (isFormArray(node)) {
   /* массив */
 }
 

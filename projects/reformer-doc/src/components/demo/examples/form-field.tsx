@@ -293,7 +293,7 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
     },
     {
       name: 'control',
-      type: 'FieldNode<T>',
+      type: 'FormControl<T>',
       description: 'Само поле формы — источник component, componentProps, value и ошибки.',
     },
     {

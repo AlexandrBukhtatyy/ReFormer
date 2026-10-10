@@ -202,7 +202,7 @@ export const fieldArrayDocConfig: ComponentDocConfig = {
       render: FieldArraySectionDemo,
       code: `import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
-const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
+const PhoneItem: FC<{ control: FormGroup<Phone> }> = ({ control }) => (
   <>
     <FormField control={control.kind} />
     <FormField control={control.number} />

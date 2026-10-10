@@ -123,7 +123,7 @@ export const uiKitFieldArrayDocConfig: ComponentDocConfig = {
   name: 'FieldArraySection',
   importFrom: '@reformer/ui-kit/field-array',
   description:
-    'Готовая UI-секция динамического массива форм — стилизованная обёртка поверх headless @reformer/cdk/field-array: заголовок, кнопка «Добавить», карточки с меткой, удаление/перестановка и пустое состояние из коробки. itemComponent — единственный контракт рендера элемента: ComponentType<{ control: FormProxy<T> }>.',
+    'Готовая UI-секция динамического массива форм — стилизованная обёртка поверх headless @reformer/cdk/field-array: заголовок, кнопка «Добавить», карточки с меткой, удаление/перестановка и пустое состояние из коробки. itemComponent — единственный контракт рендера элемента: ComponentType<{ control: FormGroup<T> }>.',
   variants: [
     {
       id: 'titled',
@@ -133,7 +133,7 @@ export const uiKitFieldArrayDocConfig: ComponentDocConfig = {
       render: SectionTitled,
       code: `import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
-const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
+const PhoneItem: FC<{ control: FormGroup<Phone> }> = ({ control }) => (
   <>
     <FormField control={control.kind} />
     <FormField control={control.number} />
@@ -205,12 +205,12 @@ const PhoneItem: FC<{ control: FormProxy<Phone> }> = ({ control }) => (
   props: [
     {
       name: 'control',
-      type: 'ModelArrayNode<T>',
+      type: 'FormArray<T>',
       description: 'Массив формы (form.<array>). Обязателен.',
     },
     {
       name: 'itemComponent',
-      type: 'ComponentType<{ control: FormProxy<T> }>',
+      type: 'ComponentType<{ control: FormGroup<T> }>',
       description: 'Рендер одного элемента — получает под-форму элемента.',
     },
     {

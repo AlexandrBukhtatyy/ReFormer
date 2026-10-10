@@ -45,9 +45,9 @@ sidebar_position: 3
 
 ```tsx
 import { useFormControl } from '@reformer/core/react';
-import type { FieldNode } from '@reformer/core';
+import type { FormControl } from '@reformer/core';
 
-type MyFormFieldProps<T> = { control: FieldNode<T> }; // ← один prop
+type MyFormFieldProps<T> = { control: FormControl<T> }; // ← один prop
 
 export function MyFormField<T>({ control }: MyFormFieldProps<T>) {
   const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
@@ -88,11 +88,11 @@ export function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 `componentProps.options`, а не из JSX-пропса.
 
 ```tsx
-import type { FieldNode } from '@reformer/core';
+import type { FormControl } from '@reformer/core';
 
 type Option = { value: string; label: string };
 
-export function MySelect({ control }: { control: FieldNode<string> }) {
+export function MySelect({ control }: { control: FormControl<string> }) {
   const { value, disabled, errors, shouldShowError, componentProps } = useFormControl(control);
   const cp = componentProps as { label?: string; options?: Option[] };
   const options = cp.options ?? [];

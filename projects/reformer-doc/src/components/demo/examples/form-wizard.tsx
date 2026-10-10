@@ -205,7 +205,7 @@ if (result.status === 'invalid') showHint('Проверьте поля форм�
   props: [
     {
       name: 'form / flow',
-      type: 'FormProxy<T> / FormFlow',
+      type: 'FormGroup<T> / FormFlow',
       description:
         'Форма и поток шагов сборки (bundle.form, bundle.flow). В схеме формы оба берутся из сборки.',
     },
