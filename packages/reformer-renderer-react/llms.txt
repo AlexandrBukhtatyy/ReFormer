@@ -1608,7 +1608,7 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
 
 **Parameters:**
 - `config` — - {@link CreateReactFormConfig}: (`initial` | `model`) + `schema` + опц.
-`behavior`, `validation`, `renderBehavior`, `seed`, `setup`.
+`behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
 
 **Returns:** 
 
@@ -1620,7 +1620,8 @@ const credit = useReactForm(() =>
     model: createCreditModel(),
     schema: buildCreditSchema,          // (model, form?) => RenderNode<CreditForm>
     behavior: creditBehavior,
-    validation: { steps: { loan: loanRules }, extras: crossRules },
+    validation: { extras: crossRules },
+    flow: { steps: [{ id: 'loan', rules: loanRules }] },
     renderBehavior: makeCreditRenderBehavior,
   })
 );
@@ -1643,11 +1644,11 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
    * с `form` — для рендера. Узлы, которым нужна форма (визард), берут её из второго аргумента.
    */
   schema: (model: FormModel<T>, form?: FormProxy<T>) => RenderNode<T>;
-  /** Фабрика render-behavior: получает уже собранные форму, модель и валидацию. */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidationBundle<T>
+    level: FormLevel<T>
   ) => RenderBehaviorFn<T>;
 }
 ```
@@ -1876,7 +1877,7 @@ _Source: src/core/types.ts_
 Объявить условие скрытия для ноды.
 
 Условие реактивно — пересчитывается при изменении любого Preact-сигнала,
-прочитанного внутри conditionFn (в т.ч. сигналов формы через ref).
+прочитанного внутри conditionFn (значения модели, сигналы нод формы).
 
 Тот же оператор, что `hideWhen` из `@reformer/core/behaviors`: в поведении формы он
 вызывается со схемой своей области — `hideWhen(schema.node('…'), () => model.x === …)`.
@@ -1889,10 +1890,7 @@ export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): v
 **Examples:**
 
 ```typescript
-const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
-hideWhen(schema.node('mortgage-section'), () =>
-  wizardRef.current?.form.loanType.value.value !== 'mortgage'
-);
+hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
 ```
 
 _Source: src/core/render-behavior.ts_
@@ -2013,8 +2011,8 @@ onComponentEvent(schema.node('region'), 'onChange', (value: string) => {
 ```
 
 Обработчик отправки визарда — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`:
-кнопка мастера зовёт его только после успешной проверки всей формы
-(см. `reformer://docs/cdk/multi-step-submit`).
+внутри сборки кнопка мастера зовёт его через `bundle.submit` — только после успешной проверки
+всей формы.
 
 _Source: src/core/render-behavior.ts_
 
@@ -2146,8 +2144,8 @@ _Source: src/create-react-form.ts_
 
 Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
 
-Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect).
-Форма читается через ref wizard-компонента: `schema.node('wizard').getRef().current?.form`.
+Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect). Модель и уровень
+формы (`flow`, `submit`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
 
 В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
 полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
@@ -2160,20 +2158,14 @@ export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
 **Examples:**
 
 ```typescript
-const behavior: RenderBehaviorFn<MyForm> = (schema) => {
-  const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
+const renderBehavior = (form: FormProxy<MyForm>, model: FormModel<MyForm>, level: FormLevel<MyForm>) =>
+  ((schema) => {
+    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
 
-  hideWhen(schema.node('mortgage-section'), () =>
-    wizardRef.current?.form.loanType.value.value !== 'mortgage'
-  );
-
-  renderEffect(schema, () => {
-    const form = wizardRef.current?.form;
-    if (form?.loanType.value.value === 'mortgage') {
-      wizardRef.current?.goToStep(1);
-    }
-  });
-};
+    renderEffect(schema, () => {
+      if (model.loanType === 'mortgage') level.flow?.goTo('loan');
+    });
+  }) satisfies RenderBehaviorFn<MyForm>;
 ```
 
 _Source: src/core/render-behavior.ts_
@@ -2271,12 +2263,8 @@ export function renderEffect<T>(
 **Examples:**
 
 ```typescript
-const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
 renderEffect(schema, () => {
-  const form = wizardRef.current?.form;
-  if (form?.loanType.value.value === 'mortgage') {
-    wizardRef.current?.goToStep(1);
-  }
+  if (model.loanType === 'mortgage') flow.goTo('loan');
 });
 ```
 

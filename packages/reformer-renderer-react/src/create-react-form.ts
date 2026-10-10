@@ -13,13 +13,13 @@
  * @module reformer/renderer-react/create-react-form
  */
 
-import { createFormFromModel, createModel, buildValidation } from '@reformer/core';
+import { createFormFromModel, createFormLevel, createModel } from '@reformer/core';
 import type {
   CoreForm,
   CreateFormConfigBase,
   FormModel,
+  FormLevel,
   FormProxy,
-  FormValidationBundle,
 } from '@reformer/core';
 import type { RenderNode } from './core/types';
 import type { RenderBehaviorFn } from './core/render-behavior';
@@ -38,11 +38,11 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
    * с `form` — для рендера. Узлы, которым нужна форма (визард), берут её из второго аргумента.
    */
   schema: (model: FormModel<T>, form?: FormProxy<T>) => RenderNode<T>;
-  /** Фабрика render-behavior: получает уже собранные форму, модель и валидацию. */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidationBundle<T>
+    level: FormLevel<T>
   ) => RenderBehaviorFn<T>;
 }
 
@@ -51,8 +51,8 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
  *
  * @typeParam T - Форма данных модели.
  * @param config - {@link CreateReactFormConfig}: (`initial` | `model`) + `schema` + опц.
- *   `behavior`, `validation`, `renderBehavior`, `seed`, `setup`.
- * @returns {@link ReactForm}` <T>` — `{ model, form, validation?, render }`.
+ *   `behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
+ * @returns {@link ReactForm}` <T>` — `{ model, form, render }` и уровень формы (`submit`, `flow`, …).
  *
  * @example
  * ```tsx
@@ -61,7 +61,8 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
  *     model: createCreditModel(),
  *     schema: buildCreditSchema,          // (model, form?) => RenderNode<CreditForm>
  *     behavior: creditBehavior,
- *     validation: { steps: { loan: loanRules }, extras: crossRules },
+ *     validation: { extras: crossRules },
+ *     flow: { steps: [{ id: 'loan', rules: loanRules }] },
  *     renderBehavior: makeCreditRenderBehavior,
  *   })
  * );
@@ -77,24 +78,20 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
 
   // Первый проход — БЕЗ формы: harvest в `createForm` обходит дерево рекурсией, а `FormProxy`
   // самоссылочен. Формы на этот момент всё равно ещё не существует.
+  // Уровень формы — до нод: поведение получает поток шагов.
+  const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });
   const form = createFormFromModel<T>({
     model,
     schema: config.schema(model) as never,
     ...(config.behavior ? { behavior: config.behavior } : {}),
+    ...(level.flow !== undefined ? { flow: level.flow } : {}),
   });
-
-  const validation = buildValidation(model, config.validation);
 
   // Второй проход — С формой, лениво: `FormRenderer` зовёт схему на каждый рендер.
   const render = createRenderSchema<T>(() => config.schema(model, form));
-  config.renderBehavior?.(form, model, validation)(render);
+  config.renderBehavior?.(form, model, level)(render);
 
-  const bundle: ReactForm<T> = {
-    model,
-    form,
-    render,
-    ...(validation ? { validation } : {}),
-  };
+  const bundle: ReactForm<T> = { ...level, model, form, render };
   config.setup?.(bundle);
   return bundle;
 }

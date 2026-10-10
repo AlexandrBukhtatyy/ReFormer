@@ -84,7 +84,7 @@ describe('createReactForm — сборка', () => {
     expect(bundle.form).toBeTruthy();
   });
 
-  it('renderBehavior получает форму, модель и валидацию и применяется к схеме', () => {
+  it('renderBehavior получает форму, модель и уровень формы и применяется к схеме', () => {
     const rules = defineValidation<F>(({ model }) => {
       validate(model.$.email, [required()]);
     });
@@ -93,8 +93,8 @@ describe('createReactForm — сборка', () => {
       initial: { ...INITIAL },
       schema: buildSchema,
       validation: rules,
-      renderBehavior: (form, model, validation) => {
-        seen.push(form, model, validation);
+      renderBehavior: (form, model, level) => {
+        seen.push(form, model, level);
         return (schema) => {
           onInit(schema.node('wizard'), () => {
             schema.node('wizard').patchProps({ marker: 'applied' });
@@ -105,7 +105,9 @@ describe('createReactForm — сборка', () => {
 
     expect(seen[0]).toBe(bundle.form);
     expect(seen[1]).toBe(bundle.model);
-    expect(seen[2]).toBe(bundle.validation);
+    // Уровень формы — в бандле: те же правила, отправка и поток.
+    expect((seen[2] as typeof bundle).validation).toBe(bundle.validation);
+    expect((seen[2] as typeof bundle).submit).toBe(bundle.submit);
     expect(bundle.render.__overrideMaps.propsOverrides.get('wizard')).toMatchObject({
       marker: 'applied',
     });

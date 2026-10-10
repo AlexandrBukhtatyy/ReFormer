@@ -31,28 +31,22 @@ import type { RenderNodeControl, RenderSchemaProxy } from './render-schema-proxy
 /**
  * Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
  *
- * Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect).
- * Форма читается через ref wizard-компонента: `schema.node('wizard').getRef().current?.form`.
+ * Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect). Модель и уровень
+ * формы (`flow`, `submit`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
  *
  * В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
  * полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
  *
  * @example
  * ```typescript
- * const behavior: RenderBehaviorFn<MyForm> = (schema) => {
- *   const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
+ * const renderBehavior = (form: FormProxy<MyForm>, model: FormModel<MyForm>, level: FormLevel<MyForm>) =>
+ *   ((schema) => {
+ *     hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
  *
- *   hideWhen(schema.node('mortgage-section'), () =>
- *     wizardRef.current?.form.loanType.value.value !== 'mortgage'
- *   );
- *
- *   renderEffect(schema, () => {
- *     const form = wizardRef.current?.form;
- *     if (form?.loanType.value.value === 'mortgage') {
- *       wizardRef.current?.goToStep(1);
- *     }
- *   });
- * };
+ *     renderEffect(schema, () => {
+ *       if (model.loanType === 'mortgage') level.flow?.goTo('loan');
+ *     });
+ *   }) satisfies RenderBehaviorFn<MyForm>;
  * ```
  */
 export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
@@ -65,17 +59,14 @@ export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
  * Объявить условие скрытия для ноды.
  *
  * Условие реактивно — пересчитывается при изменении любого Preact-сигнала,
- * прочитанного внутри conditionFn (в т.ч. сигналов формы через ref).
+ * прочитанного внутри conditionFn (значения модели, сигналы нод формы).
  *
  * Тот же оператор, что `hideWhen` из `@reformer/core/behaviors`: в поведении формы он
  * вызывается со схемой своей области — `hideWhen(schema.node('…'), () => model.x === …)`.
  *
  * @example
  * ```typescript
- * const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
- * hideWhen(schema.node('mortgage-section'), () =>
- *   wizardRef.current?.form.loanType.value.value !== 'mortgage'
- * );
+ * hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
  * ```
  */
 export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): void {
@@ -97,8 +88,8 @@ export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): v
  * ```
  *
  * Обработчик отправки визарда — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`:
- * кнопка мастера зовёт его только после успешной проверки всей формы
- * (см. `reformer://docs/cdk/multi-step-submit`).
+ * внутри сборки кнопка мастера зовёт его через `bundle.submit` — только после успешной проверки
+ * всей формы.
  */
 export function onComponentEvent(
   node: RenderNodeControl,
@@ -118,12 +109,8 @@ export function onComponentEvent(
  *
  * @example
  * ```typescript
- * const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
  * renderEffect(schema, () => {
- *   const form = wizardRef.current?.form;
- *   if (form?.loanType.value.value === 'mortgage') {
- *     wizardRef.current?.goToStep(1);
- *   }
+ *   if (model.loanType === 'mortgage') flow.goTo('loan');
  * });
  * ```
  */
@@ -255,8 +242,8 @@ export function useNodeLifecycle(hooks: NodeLifecycleHooks | undefined): void {
  * `schema.node(selector).getRef()` работает только когда компонент пробрасывает `ref` в DOM
  * или в дочерний компонент с императивным handle. Прикладные шимы (обёртки над ui-kit
  * `FormWizard` для `$component(Wizard)`) об этом требовании регулярно забывают, и тогда
- * `getRef().current` молча остаётся `null`: ломаются programmatic submit и навигация
- * `wizardRef.current?.goToStep(...)`. Ни TypeScript, ни валидаторы схемы этого не видят —
+ * `getRef().current` молча остаётся `null`: ломается императивный доступ к компоненту из
+ * поведения. Ни TypeScript, ни валидаторы схемы этого не видят —
  * поэтому проверка рантаймовая и только в dev.
  *
  * Проверка идёт после коммита: до него ref по определению не прикреплён.
