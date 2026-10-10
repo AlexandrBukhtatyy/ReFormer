@@ -256,9 +256,9 @@ describe('loadForm — формат документа', () => {
   });
 
   it('preflight проверяет уже переведённый документ', async () => {
-    // Ключ шага сверяется с селекторами: шаг переехал в `children`, селектор остался тем же.
+    // Шаг потока сверяется с селекторами: шаг переехал в `children`, селектор остался тем же.
     const loaded = await loadForm(
-      v1Entry({ validation: { kind: 'inline', value: { steps: { main: null } } } }),
+      v1Entry({ flow: { kind: 'inline', value: { steps: [{ id: 'main' }] } } }),
       withWizard
     );
     expect(loaded.preflight?.problems).toEqual([]);

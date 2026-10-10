@@ -1558,6 +1558,8 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   behavior?: CodeSource<FormBehavior<T> | FormBehaviorFactory<T>>;
   /** Правила валидации. См. {@link FormValidation} про стабильность ссылок. */
   validation?: CodeSource<FormValidation<T>>;
+  /** Поток шагов: идентификатор шага (`selector` узла шага) и его правила. */
+  flow?: CodeSource<FormFlowConfig<T>>;
   /**
    * Фабрика render-behavior — прежний контракт. Запись с этим полем монтируется прежним путём
    * (`createJsonForm` + `JsonFormRenderer`), и её документ схемы остаётся прежнего формата. В
@@ -1579,8 +1581,8 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
     (
       form: FormProxy<T>,
       model: FormModel<T>,
-      /** Уже СОБРАННАЯ валидация (`validateStep`/`validateAll`), а не сырые правила. */
-      validation?: FormValidationBundle<T>,
+      /** Уже СОБРАННЫЙ уровень формы (`validate`, `submit`, поток), а не сырые правила. */
+      level: FormLevel<T>,
       options?: Record<string, unknown>
     ) => RenderBehaviorFn<T>
   >;
@@ -1998,10 +2000,11 @@ export interface LoadedForm<T extends object = Record<string, unknown>> {
   /** Поведение формы либо его фабрика от настроек места монтирования. */
   behavior?: FormBehavior<T> | FormBehaviorFactory<T>;
   validation?: FormValidation<T>;
+  flow?: FormFlowConfig<T>;
   makeRenderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidationBundle<T>,
+    level: FormLevel<T>,
     /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */
     options?: Record<string, unknown>
   ) => RenderBehaviorFn<T>;
@@ -2231,7 +2234,7 @@ export interface PreflightInput<T extends object> {
   registry: ComponentRegistry;
   /** Начальные значения либо снимок модели. `undefined` — проверка путей пропускается. */
   initial?: unknown;
-  validation?: FormValidation<T>;
+  flow?: FormFlowConfig<T>;
 }
 ```
 

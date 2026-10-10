@@ -237,7 +237,7 @@ describe('MountedForm — единая сборка (документ форма
   /** Зонд контекста сборки: печатает, видна ли из дерева собранная валидация. */
   const BundleProbe: FC = () => {
     const bundle = useFormBundleContext<Shape>();
-    return <b>{`валидация:${bundle?.validation ? 'есть' : 'нет'}`}</b>;
+    return <b>{`поток:${bundle?.flow ? 'есть' : 'нет'}`}</b>;
   };
 
   const registry: ComponentRegistry = defineRegistry((r) => {
@@ -355,17 +355,17 @@ describe('MountedForm — единая сборка (документ форма
     expect(seen).toEqual([{ legacy: 1 }, {}]);
   });
 
-  it('собранная валидация доступна из дерева через контекст сборки', () => {
+  it('поток шагов записи доступен из дерева через контекст сборки', () => {
     const without = renderToString(<MountedForm<Shape> entry={v2Entry} loaded={loadedV2()} />);
-    expect(without).toContain('валидация:нет');
+    expect(without).toContain('поток:нет');
 
-    const withRules = renderToString(
+    const withFlow = renderToString(
       <MountedForm<Shape>
         entry={v2Entry}
-        loaded={loadedV2({ validation: { steps: { secret: null } } })}
+        loaded={loadedV2({ flow: { steps: [{ id: 'secret' }] } })}
       />
     );
-    expect(withRules).toContain('валидация:есть');
+    expect(withFlow).toContain('поток:есть');
   });
 
   it('документ прежнего формата у записи единого контракта переводится и монтируется', async () => {

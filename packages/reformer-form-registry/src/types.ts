@@ -15,7 +15,13 @@
  * @module reformer/form-registry/types
  */
 
-import type { FormModel, FormProxy, FormValidation, FormValidationBundle } from '@reformer/core';
+import type {
+  FormFlowConfig,
+  FormLevel,
+  FormModel,
+  FormProxy,
+  FormValidation,
+} from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
 import type { ComponentRegistry, JsonFormSchema, JsonFormSchemaV1 } from '@reformer/renderer-json';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
@@ -67,14 +73,13 @@ export type CodeSource<T> =
  * Валидация формы — общий тип семейства фабрик, живёт в `@reformer/core`.
  *
  * Реестр не описывает свой формат правил: те же данные принимают `createJsonForm`/`createForm`,
- * которые собирают из них `FormValidationBundle` (`validateStep`/`validateAll`/контроллер). Реестр
- * лишь доставляет правила и передаёт собранный бандл в фабрику `renderBehavior` — туда, где
- * связывание с визардом и происходит.
+ * которые собирают из них уровень формы (`validate`, `submit`, поток шагов). Реестр лишь
+ * доставляет правила и поток и передаёт собранный уровень формы в фабрику `renderBehavior`.
  *
- * Ключи `steps` — селекторы узлов `Step` в JSON-схеме; их совпадение с реальными селекторами
- * проверяется preflight'ом (этап 2), сегодня эта договорённость не проверяется нигде.
+ * Идентификаторы шагов потока (`flow.steps[].id`) — селекторы узлов `Step` в JSON-схеме; их
+ * совпадение с реальными селекторами проверяет preflight.
  */
-export type { FormValidation };
+export type { FormValidation, FormFlowConfig };
 
 /** Ключ формы: идентификатор плюс версия. */
 export interface FormKey {
@@ -150,6 +155,8 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   behavior?: CodeSource<FormBehavior<T> | FormBehaviorFactory<T>>;
   /** Правила валидации. См. {@link FormValidation} про стабильность ссылок. */
   validation?: CodeSource<FormValidation<T>>;
+  /** Поток шагов: идентификатор шага (`selector` узла шага) и его правила. */
+  flow?: CodeSource<FormFlowConfig<T>>;
   /**
    * Фабрика render-behavior — прежний контракт. Запись с этим полем монтируется прежним путём
    * (`createJsonForm` + `JsonFormRenderer`), и её документ схемы остаётся прежнего формата. В
@@ -171,8 +178,8 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
     (
       form: FormProxy<T>,
       model: FormModel<T>,
-      /** Уже СОБРАННАЯ валидация (`validateStep`/`validateAll`), а не сырые правила. */
-      validation?: FormValidationBundle<T>,
+      /** Уже СОБРАННЫЙ уровень формы (`validate`, `submit`, поток), а не сырые правила. */
+      level: FormLevel<T>,
       options?: Record<string, unknown>
     ) => RenderBehaviorFn<T>
   >;

@@ -8,7 +8,7 @@
  * @module reformer/form-registry/loader
  */
 
-import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core';
+import type { FormFlowConfig, FormLevel, FormModel, FormProxy } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
 import {
   composeRegistries,
@@ -44,10 +44,11 @@ export interface LoadedForm<T extends object = Record<string, unknown>> {
   /** Поведение формы либо его фабрика от настроек места монтирования. */
   behavior?: FormBehavior<T> | FormBehaviorFactory<T>;
   validation?: FormValidation<T>;
+  flow?: FormFlowConfig<T>;
   makeRenderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidationBundle<T>,
+    level: FormLevel<T>,
     /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */
     options?: Record<string, unknown>
   ) => RenderBehaviorFn<T>;
@@ -219,7 +220,7 @@ export async function loadForm<T extends object>(
 ): Promise<LoadedForm<T>> {
   const key = entryKeyOf(entry);
 
-  const [rawSchema, own, initial, makeModel, behavior, validation, makeRenderBehavior] =
+  const [rawSchema, own, initial, makeModel, behavior, validation, flow, makeRenderBehavior] =
     await Promise.all([
       loadData(entry.schema, entry, 'schema', opts),
       loadCode(entry.registry, key, 'registry'),
@@ -227,6 +228,7 @@ export async function loadForm<T extends object>(
       loadCode(entry.model, key, 'model'),
       loadCode(entry.behavior, key, 'behavior'),
       loadCode(entry.validation, key, 'validation'),
+      loadCode(entry.flow, key, 'flow'),
       loadCode(entry.renderBehavior, key, 'renderBehavior'),
     ]);
 
@@ -246,7 +248,7 @@ export async function loadForm<T extends object>(
   let checked: PreflightResult | undefined;
   const mode = opts.preflight ?? 'error';
   if (mode !== 'off') {
-    checked = preflight<T>({ entry, schema, registry, initial, validation });
+    checked = preflight<T>({ entry, schema, registry, initial, flow });
     for (const p of checked.problems) {
       opts.onDiagnostic?.({ code: p.code, message: p.message, entryKey: key, level: p.level });
     }
@@ -260,6 +262,7 @@ export async function loadForm<T extends object>(
     makeModel,
     behavior,
     validation,
+    flow,
     makeRenderBehavior,
     preflight: checked,
   };

@@ -106,6 +106,7 @@ function BundleMountedForm<T extends object>({
       ...modelSourceOf(loaded, model, initial),
       ...(behavior ? { behavior } : {}),
       ...(loaded.validation ? { validation: loaded.validation } : {}),
+      ...(loaded.flow ? { flow: loaded.flow } : {}),
     });
     if (!errorFallback) return built;
     // Своя отрисовка ошибки: границу, которую положил в бандл реестр, заменяет граница с
@@ -143,10 +144,9 @@ function LegacyMountedForm<T extends object>({
   errorFallback,
   onReady,
 }: MountPathProps<T>): ReactNode {
-  // Вся сборка — один вызов: модель, форма, валидация и render-behavior. Правила валидации уходят
-  // в фабрику, и фабрика поведения получает уже СОБРАННЫЙ бандл (`validateStep`/`validateAll`) —
-  // ровно то, что нужно визарду, вместо сырых правил. Ссылка на поведение стабильна по построению,
-  // отдельный `useMemo` больше не нужен.
+  // Вся сборка — один вызов: модель, форма, уровень формы и render-behavior. Правила и поток
+  // уходят в фабрику, и фабрика поведения получает уже СОБРАННЫЙ уровень формы (`submit`, поток) —
+  // вместо сырых правил. Ссылка на поведение стабильна по построению, отдельный `useMemo` не нужен.
   const jsonForm = useJsonForm(() =>
     createJsonForm<T>({
       schema: loaded.schema as JsonFormSchemaV1<T>,
@@ -154,10 +154,11 @@ function LegacyMountedForm<T extends object>({
       ...modelSourceOf(loaded, model, initial),
       behavior: behaviorOf(loaded, options),
       ...(loaded.validation ? { validation: loaded.validation } : {}),
+      ...(loaded.flow ? { flow: loaded.flow } : {}),
       ...(loaded.makeRenderBehavior
         ? {
-            renderBehavior: (form, formModel, validation) =>
-              loaded.makeRenderBehavior!(form, formModel, validation, options),
+            renderBehavior: (form, formModel, level) =>
+              loaded.makeRenderBehavior!(form, formModel, level, options),
           }
         : {}),
     })

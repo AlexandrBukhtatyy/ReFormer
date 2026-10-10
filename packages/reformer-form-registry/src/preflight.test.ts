@@ -148,7 +148,7 @@ describe('preflight — ключи пошаговой валидации', () =>
       schema,
       registry,
       initial,
-      validation: { steps: { шаг1: null } },
+      flow: { steps: [{ id: 'шаг1' }] },
     });
     expect(r.ok).toBe(false);
     const p = r.problems.find((x) => x.code === 'unknown-step-selectors')!;
@@ -156,14 +156,14 @@ describe('preflight — ключи пошаговой валидации', () =>
     expect(p.message).toContain('step1'); // подсказали, какие селекторы есть
   });
 
-  it('совпадающий ключ шага → без замечаний', () => {
+  it('совпадающий шаг потока → без замечаний', () => {
     expect(
       preflight({
         entry: entry(),
         schema,
         registry,
         initial,
-        validation: { steps: { step1: null } },
+        flow: { steps: [{ id: 'step1' }] },
       }).ok
     ).toBe(true);
   });
@@ -265,13 +265,13 @@ describe('preflight — документ формата 2', () => {
     ]);
   });
 
-  it('селекторы внутри частей известны — ключ шага на них не считается промахом', () => {
+  it('селекторы внутри частей известны — шаг потока на них не считается промахом', () => {
     const r = preflight({
       entry: v2Entry,
       schema: v2,
       registry,
       initial: v2Initial,
-      validation: { steps: { 'address-box': null, main: null } },
+      flow: { steps: [{ id: 'address-box' }, { id: 'main' }] },
     });
     expect(r.problems).toEqual([]);
   });

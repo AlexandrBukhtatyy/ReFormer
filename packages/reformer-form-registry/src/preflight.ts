@@ -15,7 +15,7 @@
  * | `id`/`version` записи ↔ схемы | CDN отдал ЧУЖУЮ схему — форма молча пишет не те поля |
  * | имена операторов ⊆ реестр | ссылка на незарегистрированный компонент/источник/функцию |
  * | имена `$part(...)` ⊆ `parts` документа | подформа или шаблон строки ссылается на необъявленную часть |
- * | ключи `validation.steps` ⊆ selector'ы | пошаговая валидация молча не срабатывает на переименованном шаге |
+ * | шаги `flow.steps` ⊆ selector'ы | пошаговая валидация молча не срабатывает на переименованном шаге |
  * | пути `$model(...)` ⊆ начальные значения | поля нет в модели → нет сигнала → **ошибки валидации тихо исчезают** |
  *
  * Последняя — самая коварная: `validateModel` роутит ошибки через `getNodeForSignal(sig)?.setIssues(...)`,
@@ -38,7 +38,7 @@ import {
   type JsonFormSchema,
   type JsonFormSchemaV1,
 } from '@reformer/renderer-json';
-import type { FormEntry, FormValidation } from './types';
+import type { FormEntry, FormFlowConfig } from './types';
 
 /** Документ схемы любого формата. */
 type AnyFormSchema<T = unknown> = JsonFormSchema<T> | JsonFormSchemaV1<T>;
@@ -232,11 +232,11 @@ export interface PreflightInput<T extends object> {
   registry: ComponentRegistry;
   /** Начальные значения либо снимок модели. `undefined` — проверка путей пропускается. */
   initial?: unknown;
-  validation?: FormValidation<T>;
+  flow?: FormFlowConfig<T>;
 }
 
 export function preflight<T extends object>(input: PreflightInput<T>): PreflightResult {
-  const { entry, schema, registry, initial, validation } = input;
+  const { entry, schema, registry, initial, flow } = input;
   const problems: PreflightProblem[] = [];
   const meta = schema as unknown as { id?: string; version?: string };
 
@@ -317,17 +317,17 @@ export function preflight<T extends object>(input: PreflightInput<T>): Preflight
     });
   }
 
-  // 4. Ключи пошаговой валидации против селекторов схемы.
-  if (validation?.steps) {
+  // 4. Шаги потока против селекторов схемы.
+  if (flow) {
     const known = collectSchemaSelectors(schema);
-    const unknown = Object.keys(validation.steps).filter((s) => !known.has(s));
+    const unknown = flow.steps.map((step) => step.id).filter((id) => !known.has(id));
     if (unknown.length) {
       problems.push({
         code: 'unknown-step-selectors',
         level: 'error',
         items: unknown,
         message:
-          `валидация ссылается на несуществующие шаги: ${unknown.join(', ')}. ` +
+          `поток ссылается на несуществующие шаги: ${unknown.join(', ')}. ` +
           `Известные селекторы: ${[...known].sort().join(', ') || '(нет)'}. ` +
           `Переименованный шаг иначе просто перестал бы валидироваться — молча.`,
       });
