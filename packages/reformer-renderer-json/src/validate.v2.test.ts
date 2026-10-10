@@ -78,6 +78,14 @@ describe('validateFormSchema: формат 2', () => {
     expect(valid).toBe(true);
   });
 
+  it('узел поля принимает `disabled` — только булево', () => {
+    const field = (disabled: unknown) =>
+      withRoot({ model: '$model(loanType)', component: '$component(Input)', disabled });
+
+    expect(validateFormSchema(field(true), opts).errors).toEqual([]);
+    expect(validateFormSchema(field('yes'), opts).valid).toBe(false);
+  });
+
   it('массив без `initialValue` — норма: шаблон нового элемента живёт в модели', () => {
     const schema = withRoot({
       model: '$model(coBorrowers)',

@@ -297,6 +297,27 @@ describe('единая сборка: createForm({ model, schema: докумен�
     expect(bundle.render.errorBoundary).toBe(SchemaErrorBoundary);
   });
 
+  it('`disabled: true` у узла поля создаёт поле отключённым — как в TS-схеме', () => {
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: {
+        format: 2,
+        root: {
+          component: '$component(Box)',
+          children: [
+            { model: '$model(loanType)', component: '$component(Input)', disabled: true },
+            { model: '$model(registration.city)', component: '$component(Input)' },
+          ],
+        },
+      },
+      registry,
+    });
+    const form = bundle.form as any;
+
+    expect(form.loanType.disabled.value).toBe(true);
+    expect(form.registration.city.disabled.value).toBe(false);
+  });
+
   it('«Добавить» берёт шаблон из модели: документу `initialValue` не нужен', () => {
     const bundle = createForm<Shape>({ model: createShape(), schema: document, registry });
 

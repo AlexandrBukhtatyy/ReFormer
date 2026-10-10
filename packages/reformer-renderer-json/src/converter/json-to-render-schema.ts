@@ -408,6 +408,8 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
       ...selector,
       // Сигнала нет — привязки нет: узел без `model`, а не с `model: undefined`.
       ...(signal ? { model: signal } : {}),
+      // Отключённое поле — тот же ключ, что у узла поля TS-схемы; ядро читает его при компиляции.
+      ...(n.disabled === true ? { disabled: true } : {}),
       component: resolveComponent(n.component as string | undefined, registry),
       componentProps: fieldWrapper ? { ...(componentProps ?? {}), fieldWrapper } : componentProps,
     } as unknown as RenderNode<T>;

@@ -12,7 +12,8 @@ import {
   type RenderBehaviorFn,
   type RenderSchemaProxy,
 } from '@reformer/renderer-react';
-import type { FormModel } from '@reformer/core';
+import type { FormBundle, FormModel } from '@reformer/core';
+import { FormBundleContext } from '@reformer/core/react';
 import type { JsonFormSchemaV1 } from '../types/json-schema-v1';
 import type { JsonForm } from '../create-json-form';
 import { useJsonRendererSettingsUnchecked } from '../context/json-renderer-context';
@@ -277,9 +278,18 @@ export function JsonFormRenderer<T>({
   }
   // §8: битая схема (неизвестный $component и т.п.) бросает на этапе рендера FormRenderer.
   // При выключенном validateSchema (prod) boundary рисует панель ошибок вместо белого экрана.
-  return (
+  const content = (
     <SchemaErrorBoundary resetKey={schemaProxy}>
       <FormRenderer render={schemaProxy} settings={settings} />
     </SchemaErrorBoundary>
+  );
+  // Бандл createJsonForm несёт уровень формы (поток, отправку) — он идёт в контекст сборки, как у
+  // createForm: визард в схеме берёт из него форму и поток и отправляет через проверку.
+  return form ? (
+    <FormBundleContext.Provider value={form as unknown as FormBundle<T>}>
+      {content}
+    </FormBundleContext.Provider>
+  ) : (
+    content
   );
 }

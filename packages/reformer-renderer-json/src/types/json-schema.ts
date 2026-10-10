@@ -61,6 +61,8 @@ export interface JsonFieldNode<T = unknown> {
   componentProps?: Record<string, unknown>;
   /** Обёртка поля (например, FormField). */
   wrapper?: JsonNode<T>;
+  /** Поле создаётся отключённым — как `disabled: true` у узла поля TS-схемы. */
+  disabled?: boolean;
 }
 
 /**

@@ -180,7 +180,7 @@ createForm<CreditForm>({
 
 ## Прежний формат документа { #v1 }
 
-Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — но этот путь рендерит функцию-схему, а не бандл: контекста сборки у визарда нет. Форму и поток ему доносит фабрика `renderBehavior(form, model, level)` — `onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, flow: level.flow }))`, а обработчик отправки сам проверяет форму — `level.submit(handler)`. Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
+Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — и `JsonFormRenderer` с этим бандлом (`form={bundle}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submit`). Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
 
 ## Anti-patterns
 
