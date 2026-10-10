@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, type ReactNode } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
-import { createFormFlow, type FormProxy } from '@reformer/core';
+import { createFormFlow, type FormGroup } from '@reformer/core';
 import type { ValidationResult } from '@reformer/core/validation';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { ReformerMultiStepFormForm } from './types';
@@ -20,7 +20,7 @@ interface StepNode {
 
 export interface WizardProps {
   /** Приходит от рендерера (см. `__selfManagedChildren`). */
-  form?: FormProxy<ReformerMultiStepFormForm>;
+  form?: FormGroup<ReformerMultiStepFormForm>;
   /** Узлы шагов из `componentProps.steps`. */
   steps?: StepNode[];
   className?: string;
@@ -69,7 +69,7 @@ export function Wizard({
 
   return (
     <FormWizard<ReformerMultiStepFormForm, RenderNode<ReformerMultiStepFormForm>>
-      form={form as FormProxy<ReformerMultiStepFormForm>}
+      form={form as FormGroup<ReformerMultiStepFormForm>}
       className={className}
       steps={wizardSteps}
       {...(flow ? { flow } : {})}

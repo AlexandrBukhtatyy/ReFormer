@@ -1,7 +1,7 @@
 /**
  * Рамка поля (`kit.infra.fieldFrame`) на визуальной базе HexaUI `Field` — без узла формы.
  *
- * `FormField` кита берёт подпись, обязательность и ошибку из `FieldNode` `@reformer/core`; рамке всё
+ * `FormField` кита берёт подпись, обязательность и ошибку из `FormControl` `@reformer/core`; рамке всё
  * приходит пропсами контракта SDK (`KitFieldFrameProps`). В неё кладут контрол, которым управляет не
  * ReFormer: тема RJSF строит на ней шаблон поля.
  *

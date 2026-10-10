@@ -6,12 +6,12 @@ import { <%= it.step.render.imports.join(', ') %>, type RenderSchemaProxy } from
 <% } else { -%>
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 <% } -%>
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import type { <%= it.names.TypeName %> } from '<%= it.step.imports.types %>';
 
 export function stepRender(
   schema: RenderSchemaProxy<<%= it.names.TypeName %>>,
-  ctx: { form: FormProxy<<%= it.names.TypeName %>>; model: FormModel<<%= it.names.TypeName %>> }
+  ctx: { form: FormGroup<<%= it.names.TypeName %>>; model: FormModel<<%= it.names.TypeName %>> }
 ): void {
   // form и model — под теми же именами, что в корневом form.render.ts: правила переносятся
   // между файлами без правки (условия hideWhen читают form.<поле>.value.value).

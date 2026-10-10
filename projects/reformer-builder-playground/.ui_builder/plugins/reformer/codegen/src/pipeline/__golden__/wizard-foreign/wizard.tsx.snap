@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, type ReactNode } from 'react';
 import { HexWizard, type FormWizardStep } from '@hexa/ui/wizard';
-import { createFormFlow, type FormProxy } from '@reformer/core';
+import { createFormFlow, type FormGroup } from '@reformer/core';
 import type { ValidationResult } from '@reformer/core/validation';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { ZayavkaNaKreditForm } from './types';
@@ -19,7 +19,7 @@ interface StepNode {
 
 export interface WizardProps {
   /** Приходит от рендерера (см. `__selfManagedChildren`). */
-  form?: FormProxy<ZayavkaNaKreditForm>;
+  form?: FormGroup<ZayavkaNaKreditForm>;
   /** Узлы шагов из `componentProps.steps`. */
   steps?: StepNode[];
   className?: string;
@@ -67,7 +67,7 @@ export function Wizard({
 
   return (
     <HexWizard<ZayavkaNaKreditForm, RenderNode<ZayavkaNaKreditForm>>
-      form={form as FormProxy<ZayavkaNaKreditForm>}
+      form={form as FormGroup<ZayavkaNaKreditForm>}
       className={className}
       steps={wizardSteps}
       {...(flow ? { flow } : {})}

@@ -9,7 +9,7 @@ import {
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import { formValidation, makeStepCheck } from './form.validation';
 import { stepRenders } from './steps';
 import { submitForm } from './api';
@@ -18,7 +18,7 @@ import type { ReformerMultiStepFormForm } from './types';
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
 export function createJsonRenderBehavior(
-  form: FormProxy<ReformerMultiStepFormForm>,
+  form: FormGroup<ReformerMultiStepFormForm>,
   model: FormModel<ReformerMultiStepFormForm>,
   options: RenderBehaviorOptions = {}
 ): RenderBehaviorFn<ReformerMultiStepFormForm> {

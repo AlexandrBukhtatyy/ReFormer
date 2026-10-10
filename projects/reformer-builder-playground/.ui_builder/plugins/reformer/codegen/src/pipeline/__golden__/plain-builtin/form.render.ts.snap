@@ -2,7 +2,7 @@
 
 import { hideWhen, onComponentEvent, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import { formValidation } from './form.validation';
 import { submitForm } from './api';
 import type { ZayavkaNaKreditForm } from './types';
@@ -10,7 +10,7 @@ import type { ZayavkaNaKreditForm } from './types';
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
 export function createJsonRenderBehavior(
-  form: FormProxy<ZayavkaNaKreditForm>,
+  form: FormGroup<ZayavkaNaKreditForm>,
   model: FormModel<ZayavkaNaKreditForm>,
   options: RenderBehaviorOptions = {}
 ): RenderBehaviorFn<ZayavkaNaKreditForm> {

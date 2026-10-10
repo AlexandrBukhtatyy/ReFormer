@@ -5,7 +5,7 @@
 
 import { <%= it.renderBehavior.imports.join(', ') %>, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 <% if (it.stepValidation !== null) { -%>
 import { formValidation, makeStepCheck } from '<%= it.layout.imports.validation %>';
 <% } else { -%>
@@ -20,7 +20,7 @@ import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
 export function createJsonRenderBehavior(
-  form: FormProxy<<%= it.names.TypeName %>>,
+  form: FormGroup<<%= it.names.TypeName %>>,
   model: FormModel<<%= it.names.TypeName %>>,
   options: RenderBehaviorOptions = {}
 ): RenderBehaviorFn<<%= it.names.TypeName %>> {

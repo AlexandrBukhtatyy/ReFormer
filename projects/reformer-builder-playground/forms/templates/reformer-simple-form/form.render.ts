@@ -3,7 +3,7 @@
 
 import { hideWhen, onComponentEvent, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import { formValidation } from './form.validation';
 import { submitForm } from './api';
 import type { ReformerSimpleFormForm } from './types';
@@ -11,7 +11,7 @@ import type { ReformerSimpleFormForm } from './types';
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
 export function createJsonRenderBehavior(
-  form: FormProxy<ReformerSimpleFormForm>,
+  form: FormGroup<ReformerSimpleFormForm>,
   model: FormModel<ReformerSimpleFormForm>,
   options: RenderBehaviorOptions = {}
 ): RenderBehaviorFn<ReformerSimpleFormForm> {

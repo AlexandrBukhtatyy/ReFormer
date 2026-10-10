@@ -4,7 +4,7 @@
  * ## Одна цепочка на чтение и на запись
  *
  * ```text
- * $model-путь → model.signalAt(path) → getNodeForSignal(sig) → FieldNode
+ * $model-путь → model.signalAt(path) → getNodeForSignal(sig) → FormNode
  * ```
  *
  * Оба звена — публичный API `@reformer/core`. Пишет панель ТЕМ ЖЕ вызовом, каким пишет контрол:
@@ -15,10 +15,9 @@
  *
  * ## Писать через УЗЛЫ, а не через `model.set`
  *
- * `ModelApi.set` в ядре — побайтовый алиас `patch` вопреки собственному JSDoc (открытый дефект
- * ReFormer-kci). Панель, писавшая бы через него, унаследовала бы этот разрыв между обещанием
- * и поведением; узел таких сюрпризов не содержит. Отсюда же массовая вставка: по узлам поштучно,
- * а не одним вызовом.
+ * Запись модели (`set`, `patch`) не поднимает `touched` и не проходит тем путём, которым пишет
+ * контрол. Панель пишет так же, как ввод человеком, — вызовами узла; отсюда и массовая вставка:
+ * по узлам поштучно, а не одним вызовом.
  *
  * ## Производные пути не редактируются
  *
@@ -29,7 +28,7 @@
  * @module plugins/reformer/core/form-inspect/index
  */
 
-import { getNodeForSignal, isDerived } from '@reformer/core';
+import { getNodeForSignal, isDerived, isFormNode, type FormNode } from '@reformer/core';
 
 /** Значения модели. Приходят из схемы, и сузить их нечем. */
 type Shape = Record<string, unknown>;
@@ -87,21 +86,6 @@ export interface NodeState {
   readonly derived: boolean;
 }
 
-/** Узел формы в объёме, которым пользуется панель. Структурная копия `FormNode`. */
-interface FieldNodeLike {
-  getValue?(): unknown;
-  setValue?(value: unknown): void;
-  markAsTouched?(): void;
-  reset?(): void;
-  disable?(): void;
-  enable?(): void;
-  setIssues?(issues: readonly { code: string }[]): void;
-  touched?: { readonly value: boolean };
-  dirty?: { readonly value: boolean };
-  disabled?: { readonly value: boolean };
-  issues?: { readonly value: readonly { code?: string }[] };
-}
-
 /** Модель в объёме, которым пользуется панель. */
 interface ModelLike {
   signalAt?(path: string): unknown;
@@ -115,10 +99,11 @@ function signalAt(model: unknown, path: string): unknown {
 }
 
 /** Узел пути либо `null`. `null` — путь есть в значениях, но формой не представлен. */
-export function nodeAt(model: unknown, path: string): unknown {
+export function nodeAt(model: unknown, path: string): FormNode<unknown> | null {
   const signal = signalAt(model, path);
   if (signal === undefined || signal === null) return null;
-  return getNodeForSignal(signal as never) ?? null;
+  const node: unknown = getNodeForSignal(signal as never);
+  return isFormNode(node) ? node : null;
 }
 
 /** Значение по пути прямо из сигнала: снимок модели может отставать от только что записанного. */
@@ -131,14 +116,14 @@ export function valueAt(model: unknown, path: string): unknown {
  * Состояние узла пути. `null` — узла нет (чистый контейнер, путь вне формы).
  */
 export function readNodeState(model: unknown, path: string): NodeState | null {
-  const node = nodeAt(model, path) as FieldNodeLike | null;
+  const node = nodeAt(model, path);
   if (node === null) return null;
   const signal = signalAt(model, path);
   return {
-    touched: node.touched?.value === true,
-    dirty: node.dirty?.value === true,
-    disabled: node.disabled?.value === true,
-    errors: (node.issues?.value ?? []).map((issue) => issue.code ?? 'ошибка'),
+    touched: node.touched.value,
+    dirty: node.dirty.value,
+    disabled: node.disabled.value,
+    errors: node.issues.value.map((issue) => issue.code),
     derived: signal === undefined ? false : isDerived(signal as never),
   };
 }
@@ -174,28 +159,28 @@ export function writeValue(
   // Отказ ДО записи: поведение всё равно вернёт своё значение, но человек узнает почему.
   if (state.derived) return 'derived';
 
-  const node = nodeAt(model, path) as FieldNodeLike | null;
-  if (typeof node?.setValue !== 'function') return 'read-only';
+  const node = nodeAt(model, path);
+  if (node === null) return 'read-only';
 
   node.setValue(value);
   // Как ввод человеком: контрол на blur зовёт ровно это.
-  if (options.raw !== true) node.markAsTouched?.();
+  if (options.raw !== true) node.markAsTouched();
   return null;
 }
 
 /** Операции над узлом сверх записи значения — по одному вызову каждая. */
 export function resetNode(model: unknown, path: string): boolean {
-  const node = nodeAt(model, path) as FieldNodeLike | null;
-  if (typeof node?.reset !== 'function') return false;
+  const node = nodeAt(model, path);
+  if (node === null) return false;
   node.reset();
   return true;
 }
 
 export function setNodeDisabled(model: unknown, path: string, disabled: boolean): boolean {
-  const node = nodeAt(model, path) as FieldNodeLike | null;
-  const method = disabled ? node?.disable : node?.enable;
-  if (typeof method !== 'function') return false;
-  method.call(node);
+  const node = nodeAt(model, path);
+  if (node === null) return false;
+  if (disabled) node.disable();
+  else node.enable();
   return true;
 }
 
@@ -204,8 +189,8 @@ export function setNodeDisabled(model: unknown, path: string, disabled: boolean)
  * сам текст: в словарях формы и локали такого кода нет, и резолвер показывает его как есть.
  */
 export function setNodeError(model: unknown, path: string, message: string): boolean {
-  const node = nodeAt(model, path) as FieldNodeLike | null;
-  if (typeof node?.setIssues !== 'function') return false;
+  const node = nodeAt(model, path);
+  if (node === null) return false;
   node.setIssues(message === '' ? [] : [{ code: message }]);
   return true;
 }
