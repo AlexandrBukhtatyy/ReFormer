@@ -19,8 +19,10 @@ const checkoutBehavior = (options: Record<string, unknown>) =>
   defineFormBehavior<CheckoutForm>(({ model, schema }) => {
     enableWhen(model.$.deliveryAddress, () => model.delivery === 'courier');
     hideWhen(schema.node('courier'), () => model.delivery !== 'courier');
-    onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
-      const result = await submitOrder(model.get());
+    // Кнопка отправки визарда зовёт обработчик через `bundle.submit` — только после успешной
+    // проверки всей формы; `values` — значения формы.
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CheckoutForm) => {
+      const result = await submitOrder(values);
       (options.onResult as ((result: unknown) => void) | undefined)?.(result);
     });
   });
@@ -36,18 +38,27 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   registry: { kind: 'inline', value: createCheckoutRegistry() },
   model: { kind: 'inline', value: createCheckoutModel },
   behavior: { kind: 'inline', value: checkoutBehavior },
-  validation: { kind: 'inline', value: { steps: { delivery: deliveryRules } } },
+  // Правила вне шагов — проверяются только при отправке.
+  validation: { kind: 'inline', value: { extras: checkoutCrossRules } },
+  // Поток шагов: id шага = selector узла шага в документе, rules — правила шага.
+  flow: {
+    kind: 'inline',
+    value: { steps: [{ id: 'cart' }, { id: 'delivery', rules: deliveryRules }, { id: 'confirm' }] },
+  },
 };
 ```
 
 Отличия от прежней записи:
 
-- `renderBehavior` нет. Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) пишутся в том же
-  `behavior`, через `schema.node(selector)`.
+- `renderBehavior` нет. Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) и навигация
+  (`flow.goTo(id)`) пишутся в том же `behavior`, через `schema.node(selector)` и `flow` области.
 - `behavior` — поведение либо фабрика `(options) => поведение`
   (`FormBehaviorFactory`). Фабрика получает настройки места монтирования.
-- Шаги визарда — дети узла визарда в документе; `selector` шага — ключ его правил в
-  `validation.steps`. Форму и валидацию визард берёт из сборки сам.
+- Шаги визарда — дети узла визарда в документе; правила шагов — поле `flow` записи
+  (`FormFlowConfig` из `@reformer/core`): `flow.steps[].id` равен `selector` узла шага. Форму, поток
+  шагов и отправку визард берёт из сборки сам.
+- `validation` — правила формы (`FormValidation`: `rules` | `extras`, `strategy`); без `rules` полный
+  набор сборка собирает из правил шагов потока и `extras`.
 
 ## Настройки места монтирования
 
@@ -107,15 +118,16 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 ```
 
 `onReady` получает собранный бандл (`MountedFormBundle`): у записи единого контракта —
-`FormBundle` из `createForm` (`{ model, form, validation?, render }`), у записи прежнего контракта —
-бандл `createJsonForm`. `model`, `form` и `validation` есть у обоих.
+`FormBundle` из `createForm` (`{ model, form, render, flow, validate, validateStep, submit, … }`),
+у записи прежнего контракта — бандл `createJsonForm`. Уровень формы — `model`, `form`, `flow`,
+`validate()`, `validateStep(id)`, `submit(handler)` — есть у обоих.
 
 ## Preflight и части документа
 
 Проверки идут по корневому дереву и по именованным частям (`parts`):
 
 - имена `$component` / `$dataSource` / `$fn` внутри частей сверяются с реестром;
-- селекторы внутри частей считаются известными для ключей `validation.steps`;
+- селекторы внутри частей считаются известными для шагов потока (`flow.steps[].id`);
 - `$part(name)` без объявления в `parts` — `missing-parts` (error), с перечнем объявленных;
 - путь `$model(...)` внутри части достраивается от группы, к которой часть подключена:
   `$model(city)` в части, подключённой к `registrationAddress`, проверяется как
@@ -140,4 +152,6 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 | шаги визарда после перевода остались в `componentProps.steps` | визард зарегистрирован под своим именем — добавьте его в `stepHosts` |
 | `missing-parts` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
 | `onResult` не вызывается | `behavior` записи — готовое поведение, а не фабрика: настройки места получает только фабрика |
+| `unknown-step-selectors` | `id` шага в `flow.steps` не совпадает ни с одним `selector` документа — шаг переименовали в одном месте |
+| визард: «шаги схемы и шаги потока расходятся» | набор `flow.steps` не совпадает с узлами шагов визарда в документе (порядок шагов визард берёт из потока сам) |
 | правило `hideWhen` узла внутри подформы не срабатывает | корневое поведение не видит узлы частей — подключите поведение подформы через `apply(model.$.group, behavior)` |

@@ -43,11 +43,13 @@ npm install @reformer/form-registry @reformer/core @reformer/renderer-json @refo
 
 ## Главная идея: форма — это не только схема
 
-Канонический пакет формы состоит из десяти файлов, и только один из них — данные:
+Канонический пакет формы состоит из девяти файлов, и только один из них — данные:
 
 - `form.schema.json` — **данные**, сериализуемо, может приехать по сети;
-- `form.validation.ts`, `form.behavior.ts`, `form.render.ts`, `api.ts`, `registry.ts`,
-  `data-sources.ts`, `model.ts`, `types.ts` — **код**.
+- `form.validation.ts`, `form.behavior.ts`, `api.ts`, `registry.ts`, `data-sources.ts`, `model.ts`,
+  `types.ts`, `index.tsx` — **код**; у визарда — ещё `form.flow.ts` (поток шагов), у формы со своими
+  текстами замечаний — `form.messages.ts` (словарь `defineIssueMessages`). Правила узлов живут в
+  `form.behavior.ts`: отдельного render-behavior в едином контракте нет.
 
 > Расширение `.json` у схемы здесь не случайно и не противоречит канону раскладки: дефолт для
 > renderer-json — `form.schema.ts` с `defineJsonSchema<T>` (типизирует пути `$model(...)` на
@@ -73,14 +75,16 @@ FormEntry (запись)
    │
    ├─ loadForm(entry, baseRegistry, opts)
    │     ├─ схема: inline / module / http (через кэш)
-   │     ├─ код: inline / module
+   │     ├─ код: inline / module (registry, model, behavior, validation, flow)
+   │     ├─ прежний формат документа → migrateJsonSchema → формат 2
    │     ├─ composeRegistries(base, own)   ← расширение записи перекрывает базу
-   │     └─ preflight — 5 проверок
+   │     └─ preflight — 6 проверок
    │
-   └─ MountedForm → createJsonForm → JsonFormRenderer
+   └─ MountedForm ─┬─ формат 2: createForm({ schema, registry, behavior, validation, flow }) → FormRenderer
+                   └─ запись прежнего контракта (renderBehavior): createJsonForm → JsonFormRenderer
 ```
 
-Разделение загрузки и монтирования обязательное, а не стилистическое: `useJsonForm` — ленивый
+Разделение загрузки и монтирования обязательное, а не стилистическое: `useFormBundle` — ленивый
 `useState`, его фабрика вызывается ровно один раз. Строить форму, пока не приехали схема, реестр и
 поведение, нельзя — первый вызов зафиксировал бы неполный набор навсегда.
 
@@ -89,6 +93,7 @@ FormEntry (запись)
 - `02-form-entry.md` — из чего состоит запись и почему именно так
 - `03-mounting.md` — `FormOutlet`, `FormSlot`, `FormRoute`, права и флаги
 - `04-cache-storage.md` — сеть, двухуровневый кэш, стратегии хранения
-- `05-preflight.md` — пять проверок до сборки формы
+- `05-preflight.md` — шесть проверок до сборки формы
 - `06-guard.md` — двойной рантайм в микрофронтах
 - `07-troubleshooting.md` — симптом → причина
+- `08-unified-contract.md` — запись единого контракта: документ формата 2, одно поведение, поток шагов

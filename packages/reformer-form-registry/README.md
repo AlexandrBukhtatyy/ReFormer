@@ -25,9 +25,9 @@ getFormRegistry().register(checkoutFormEntry);
 
 - **Register / resolve split** — a micro-frontend registers, the host resolves by id, slot, route or tag
 - **Permissions and flags are a filter, not a gate per entry point** — a right cannot be bypassed by addressing the form a different way
-- **Data / code boundary is enforced by the types** — a schema is `DataSource` (can arrive over the network); a registry, behavior, model factory and render-behavior are `CodeSource` and only ever come from the bundle
+- **Data / code boundary is enforced by the types** — a schema is `DataSource` (can arrive over the network); a registry, behavior, validation rules, step flow and model factory are `CodeSource` and only ever come from the bundle
 - **Persistent cache** with swappable strategies — OPFS, IndexedDB, in-memory; one contract, one test suite
-- **Preflight** — five checks before a form is built, four of which nothing else performs
+- **Preflight** — six checks before a form is built (schema version and identity, registry names, named parts, step-flow ids against step selectors, model paths against initial values)
 - **Runtime guard** — detects two copies of `@reformer/core` or `@preact/signals-core` in one realm, a failure that is otherwise completely silent
 - React-free core: the registry, storage and guard work in a vanilla micro-frontend; React is an optional peer
 
@@ -51,13 +51,20 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   version: '1.0.0',
   owner: 'mfe-orders', // which micro-frontend registered it — used to report id collisions
 
-  // Data: the only part that can be delivered over the network.
+  // Data: the only part that can be delivered over the network (a format 2 JSON document).
   schema: { kind: 'inline', value: checkoutSchema },
 
   // Code: bundle only. There is deliberately no `kind: 'http'` here.
   registry: { kind: 'inline', value: createCheckoutRegistry() },
   model: { kind: 'inline', value: createCheckoutModel },
+  // One behavior: model links and schema-node rules (hideWhen, onComponentEvent, …).
   behavior: { kind: 'inline', value: checkoutBehavior },
+  validation: { kind: 'inline', value: { extras: checkoutCrossRules } },
+  // Wizard steps: the step id equals the `selector` of the step node in the document.
+  flow: {
+    kind: 'inline',
+    value: { steps: [{ id: 'delivery', rules: deliveryRules }, { id: 'confirm' }] },
+  },
 
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'] },
   access: { permissions: ['orders.write'] },
@@ -89,6 +96,12 @@ import { FormRegistryProvider, FormOutlet, FormSlot } from '@reformer/form-regis
   <FormSlot name="sidebar" />
 </FormRegistryProvider>;
 ```
+
+The host builds nothing itself: `FormOutlet` loads the entry, runs preflight and assembles the form
+with `createForm` from `@reformer/core` (document + registry + behavior + validation + flow), rendering
+it with `FormRenderer`. Host callbacks such as `onResult` go through the `behaviorOptions` prop into a
+behavior factory `(options) => defineFormBehavior(…)`. An entry with the previous `renderBehavior`
+field is still mounted the previous way (`createJsonForm` + `JsonFormRenderer`).
 
 ## Subpath exports
 

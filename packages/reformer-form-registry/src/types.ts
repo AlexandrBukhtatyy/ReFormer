@@ -2,11 +2,11 @@
  * Модель данных реестра форм.
  *
  * Ключевое разделение, из которого следует всё остальное: **форма — это один файл данных
- * из десяти**. Канонический пакет формы состоит из `form.schema.json` (данные) и девяти
- * файлов кода — `form.validation.ts`, `form.behavior.ts`, `form.render.ts`, `api.ts`,
- * `registry.ts`, `data-sources.ts`, `model.ts`, `types.ts`, `index.tsx`. Секции валидации
- * в мета-схеме JSON-DSL нет вовсе: верхний уровень схемы — только `$schema`, `id`, `version`,
- * `meta`, `root`.
+ * из многих**. Канонический пакет формы состоит из документа схемы (данные) и файлов кода —
+ * `form.validation.ts`, `form.behavior.ts`, `api.ts`, `registry.ts`, `data-sources.ts`,
+ * `model.ts`, `types.ts`, `index.tsx` и необязательных `form.flow.ts`, `form.messages.ts`.
+ * Секции валидации в мета-схеме JSON-DSL нет вовсе: верхний уровень схемы — только `$schema`,
+ * `format`, `id`, `version`, `meta`, `parts`, `root`.
  *
  * Поэтому форму **нельзя доставить по сети целиком**. По сети едет схема, обращающаяся к коду
  * по имени (`$component`/`$dataSource`/`$fn`/`$locale`) и по `selector`. Запись реестра

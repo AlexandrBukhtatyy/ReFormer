@@ -18,9 +18,9 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   // ── код
   registry: { kind: 'inline', value: createCheckoutRegistry() },
   model: { kind: 'inline', value: createCheckoutModel },
-  behavior: { kind: 'inline', value: checkoutBehavior },
-  validation: { kind: 'inline', value: { steps: { delivery: deliveryRules } } },
-  renderBehavior: { kind: 'inline', value: createCheckoutRenderBehavior },
+  behavior: { kind: 'inline', value: checkoutBehavior }, // поведение либо фабрика (options) => поведение
+  validation: { kind: 'inline', value: { extras: checkoutCrossRules } },
+  flow: { kind: 'inline', value: { steps: [{ id: 'cart' }, { id: 'delivery', rules: deliveryRules }] } },
 
   // ── где и кому
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
@@ -62,9 +62,10 @@ type CodeSource<T> =
 | `initial` | `DataSource?` | начальные значения |
 | `model` | `CodeSource?` | фабрика модели — если нужна не пустая модель, а собранная |
 | `registry` | `CodeSource?` | расширение реестра компонентов поверх базового |
-| `behavior` | `CodeSource?` | поведение формы (`compute`/`enableWhen`/`onChange`) |
-| `validation` | `CodeSource?` | правила; ключи `steps` = селекторы шагов визарда |
-| `renderBehavior` | `CodeSource?` | фабрика render-behavior |
+| `behavior` | `CodeSource?` | поведение формы — и модель (`compute`/`enableWhen`/`onChange`), и узлы схемы (`hideWhen`/`onComponentEvent`/`onMount`); либо фабрика `(options) => поведение` |
+| `validation` | `CodeSource?` | правила формы — `FormValidation` (`rules` \| `extras`, `strategy`) |
+| `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
+| `renderBehavior` | `CodeSource?` | прежний контракт: фабрика render-behavior (см. ниже) |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
 | `degrade` | `'error' \| 'placeholder'` | что делать при отказе; дефолт строгий |
@@ -81,22 +82,43 @@ type CodeSource<T> =
 монтировании: проп `model` → `model` записи → проп `initial` → `initial` записи.
 
 Фабрика модели нужна там, где начальное состояние вычисляется, а не лежит константой. Всё, что
-раньше делалось «после сборки формы», должно переехать в фабрику: хука «после createJsonForm» в
-реестре нет намеренно — работа с моделью относится к модели и должна происходить до сборки.
+раньше делалось «после сборки формы», должно переехать в фабрику: хука «после сборки» в реестре нет
+намеренно — работа с моделью относится к модели и должна происходить до сборки.
 
-### `renderBehavior` и настройки места
+### `behavior` и настройки места
 
 ```ts
-(form, model, validation?, options?) => RenderBehaviorFn<T>
+type FormBehaviorFactory<T> = (options: Record<string, unknown>) => FormBehavior<T>;
 ```
 
-Четвёртый параметр — настройки **места монтирования**, а не формы. Колбэки вроде `onResult`
-принадлежат хосту: он решает, где и как показать результат. В записи им не место — она одна на все
-места, где форму покажут. Хост передаёт их пропом:
+`behavior` — готовое поведение либо фабрика от настроек **места монтирования**. Колбэки вроде
+`onResult` принадлежат хосту: он решает, где и как показать результат. В записи им не место — она
+одна на все места, где форму покажут. Хост передаёт их пропом, фабрика получает их аргументом:
 
 ```tsx
-<FormOutlet id="checkout" renderBehaviorOptions={{ onResult: showToast }} />
+<FormOutlet id="checkout" behaviorOptions={{ onResult: showToast }} />
 ```
+
+```ts
+const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
+  defineFormBehavior<CheckoutForm>(({ schema }) => {
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CheckoutForm) => {
+      (options.onResult as (r: unknown) => void)?.(await submitOrder(values));
+    });
+  });
+```
+
+### `renderBehavior` — прежний контракт
+
+```ts
+(form, model, level, options?) => RenderBehaviorFn<T>
+```
+
+Запись с `renderBehavior` монтируется прежним путём (`createJsonForm` + `JsonFormRenderer`), и её
+документ схемы остаётся прежнего формата. Третий параметр — собранный уровень формы (`FormLevel`:
+`submit`, `validate`, `flow`), четвёртый — настройки места (`behaviorOptions`; прежнее имя пропа
+`renderBehaviorOptions` работает как синоним). Новой записи это поле не нужно: правила узлов пишутся
+в `behavior` — см. [08-unified-contract.md](08-unified-contract.md).
 
 ## Конфликты `id`
 
