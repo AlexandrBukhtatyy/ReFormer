@@ -19,6 +19,7 @@ tests/
 ├── hooks/            # React-хуки (DOM)                → src/platforms/react/hooks/
 ├── i18n/             # локализация                     → src/i18n/, src/platforms/react/i18n/, src/locale/
 ├── integration/      # сквозные сценарии на синтетической сложной форме
+├── meta/             # мета-тесты: каждый it.fails закреплён за открытой задачей beads
 ├── model/            # сабпат @reformer/core/model против собранного dist
 ├── types/            # сквозные compile-time проверки (*.type-test.ts)
 └── test-utils/       # общие помощники — см. test-utils/README.md
