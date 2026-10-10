@@ -203,7 +203,7 @@ const ControlledRoot = forwardRef(ControlledRootInner) as <T, E>(
  *   load={(signal) => fetchApplication(id, signal)}
  *   loadKey={id}
  *   enabled={id !== null}
- *   onSuccess={(data) => form.patchValue(data)}
+ *   onSuccess={(data) => model.patch(data)}
  * >
  *   <AsyncBoundary.Loading>Загрузка…</AsyncBoundary.Loading>
  *   <AsyncBoundary.Error>

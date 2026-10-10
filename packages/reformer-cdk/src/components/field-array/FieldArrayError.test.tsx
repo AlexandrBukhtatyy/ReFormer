@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { ModelArrayNode, ValidationIssue } from '@reformer/core';
+import type { FormArray, ValidationIssue } from '@reformer/core';
 import { defineIssueMessages } from '@reformer/core/i18n';
 import { ValidationMessagesProvider } from '../../validation/error-resolver';
 import { FieldArrayContext } from './FieldArrayContext';
@@ -37,7 +37,7 @@ function ctx(issues: ValidationIssue[]): FieldArrayContextValue {
     issues,
     valid: issues.length === 0,
     invalid: issues.length > 0,
-    control: {} as unknown as ModelArrayNode<Record<string, unknown>>,
+    control: {} as unknown as FormArray<Record<string, unknown>>,
   };
 }
 

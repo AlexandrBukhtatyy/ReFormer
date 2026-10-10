@@ -111,7 +111,7 @@ export function ValidationMessagesProvider(props: ValidationMessagesProviderProp
  * import { useIssueMessageResolver } from '@reformer/cdk';
  * import { useFormControl } from '@reformer/core/react';
  *
- * function FieldIssues({ control }: { control: FieldNode<string> }) {
+ * function FieldIssues({ control }: { control: FormControl<string> }) {
  *   const resolve = useIssueMessageResolver();
  *   const { issues } = useFormControl(control);
  *   return <>{issues.map((issue) => <span key={issue.code}>{resolve(issue)}</span>)}</>;

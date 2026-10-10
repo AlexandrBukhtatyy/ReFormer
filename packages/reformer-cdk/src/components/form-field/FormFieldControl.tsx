@@ -96,7 +96,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
     if (children || asChild) {
       // asChild/children: подключаем поле к Slot так же, как в авто-рендере — в диалекте
       // дочернего контрола (его `reformerAdapter`, иначе value-based seam). Без этого кастомный
-      // input получает корректный ARIA, но остаётся отсоединённым от FieldNode.
+      // input получает корректный ARIA, но остаётся отсоединённым от FormControl.
       //
       // Привязки, которые у ребёнка УЖЕ есть, не добавляем: рендерер отдаёт обёртке поля готовый,
       // привязанный контрол, и Slot склеил бы два onChange — второй получил бы сырой эмит

@@ -1,5 +1,5 @@
 import type { HTMLAttributes, LabelHTMLAttributes, ReactNode } from 'react';
-import type { FieldNode, ValidationIssue } from '@reformer/core';
+import type { FormControl, ValidationIssue } from '@reformer/core';
 
 /**
  * Stable IDs for all accessible elements of a form field
@@ -38,7 +38,7 @@ export interface FormFieldContextValue<T = unknown> {
   /** Full componentProps bag */
   componentProps: Record<string, unknown>;
   // ─── The control itself ───────────────────────────────────────────────────
-  control: FieldNode<T>;
+  control: FormControl<T>;
   // ─── Accessible IDs ───────────────────────────────────────────────────────
   ids: FormFieldIds;
   /** Whether a FormField.Description is present (drives aria-describedby on Control) */
@@ -51,8 +51,8 @@ export interface FormFieldContextValue<T = unknown> {
  * Props for FormField.Root
  */
 export interface FormFieldRootProps<T = unknown> {
-  /** The FieldNode control from the form */
-  control: FieldNode<T>;
+  /** The FormControl control from the form */
+  control: FormControl<T>;
   children: ReactNode;
   /** Explicit id prefix; if omitted, useId() is used */
   id?: string;

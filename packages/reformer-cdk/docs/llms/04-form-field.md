@@ -1,12 +1,12 @@
 # FormField
 
-Headless compound component для построения доступной (a11y) анатомии поля формы. `FormField` берёт на себя ID-провязку (`htmlFor`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `aria-required`), подписку на состояние `FieldNode` и приклеивание `value`/`onChange`/`onBlur` к интерактивному контролу. UI вы строите сами.
+Headless compound component для построения доступной (a11y) анатомии поля формы. `FormField` берёт на себя ID-провязку (`htmlFor`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `aria-required`), подписку на состояние `FormControl` и приклеивание `value`/`onChange`/`onBlur` к интерактивному контролу. UI вы строите сами.
 
 ## Purpose
 
 - Дать минимальный «скелет» поля: label + control + description + error.
 - Не навязывать стилей — каждый sub-компонент рендерит обычные HTML-элементы (или `Slot` через `asChild`).
-- Подписаться на `FieldNode` ровно один раз в `Root` и раздать состояние детям через React Context.
+- Подписаться на `FormControl` ровно один раз в `Root` и раздать состояние детям через React Context.
 - Гарантировать корректные ARIA-атрибуты в нетривиальных сценариях (multi-error, отсутствие label, async pending).
 
 В отличие от `FormField` из `@reformer/ui-kit`, который рендерит готовый layout (label сверху, ошибка снизу), `FormField` из `@reformer/cdk` ничего не рендерит сверх минимально необходимого и нужен, когда требуется собственный layout.
@@ -15,7 +15,7 @@ Headless compound component для построения доступной (a11y
 
 | Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                                                                           |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
+| `FormField.Root`             | Context provider; принимает `control: FormControl<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
 | `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core/react`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
 | `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |

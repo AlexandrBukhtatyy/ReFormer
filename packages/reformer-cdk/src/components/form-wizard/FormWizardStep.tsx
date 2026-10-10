@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { useFormWizard } from './FormWizardContext';
 
 /**
@@ -12,10 +12,10 @@ import { useFormWizard } from './FormWizardContext';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormWizardStepProps<T extends Record<string, any>> {
   /** Component to render for this step (legacy API) */
-  component?: ComponentType<{ control: FormProxy<T> } & Record<string, unknown>>;
+  component?: ComponentType<{ control: FormGroup<T> } & Record<string, unknown>>;
 
   /** Form control to pass to the component (legacy API) */
-  control?: FormProxy<T>;
+  control?: FormGroup<T>;
 
   /** Children to render (new API - for use with selector-based wizard) */
   children?: ReactNode;

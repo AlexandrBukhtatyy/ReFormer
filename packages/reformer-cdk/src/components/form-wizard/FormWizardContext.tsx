@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { FormFlow, FormProxy, SubmitResult } from '@reformer/core';
+import type { FormFlow, FormGroup, SubmitResult } from '@reformer/core';
 
 /**
  * Контекст визарда: форма, поток шагов и производные для кнопок и индикатора (номер шага с
@@ -33,7 +33,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   isSubmitting: boolean;
 
   /** Form instance */
-  form: FormProxy<T>;
+  form: FormGroup<T>;
 
   /** Поток шагов: переходы и правила доступности шагов. */
   flow: FormFlow;
@@ -93,7 +93,7 @@ export const FormWizardContext = createContext<FormWizardContextValue<any> | nul
  *
  * Управление снаружи дерева визарда — через сам поток: `bundle.flow.goTo('loan')`.
  *
- * @typeParam T - Тип корневой формы (`FormProxy<T>`).
+ * @typeParam T - Тип корневой формы (`FormGroup<T>`).
  * @returns Текущий {@link FormWizardContextValue}.
  * @throws Error если используется вне `<FormWizard>`.
  *

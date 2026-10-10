@@ -154,7 +154,7 @@ import { FieldArray } from '@reformer/cdk/field-array';
 
 ```typescript
 interface FieldArrayItemRenderProps<T> {
-  control: FormProxy<T>; // Form control for item
+  control: FormGroup<T>; // Form control for item
   index: number; // Zero-based index
   id: string | number; // Unique key
   remove: () => void; // Remove this item
@@ -168,18 +168,18 @@ interface FieldArrayItemRenderProps<T> {
 Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
 `ArrayNode.move` reorders controls without recreating them.
 
-## 9. Typed item access (avoid `FormProxy<object>`)
+## 9. Typed item access (avoid `FormGroup<object>`)
 
 `FieldArray.List` gets its `control` from `FieldArrayContext`, which is typed
 `any` (it has to accept any element type). The generic `T` you write on the
 JSX tag is **not** inferred through React context, so a bare `<FieldArray.List>`
-defaults `T` to `object` and the render-prop `control` is `FormProxy<object>`.
+defaults `T` to `object` and the render-prop `control` is `FormGroup<object>`.
 Accessing item fields then fails to compile:
 
 ```tsx
 <FieldArray.List>
   {({ control: item }) => (
-    // ❌ TS2339: Property 'type' does not exist on type 'FormProxy<object>'
+    // ❌ TS2339: Property 'type' does not exist on type 'FormGroup<object>'
     <FormField control={item.type} />
   )}
 </FieldArray.List>
@@ -194,13 +194,13 @@ infer the element type, so you cannot forget the annotation.
 
 The typed, styled array UI lives in `@reformer/ui-kit/field-array`, not in the
 CDK compound. Its `itemComponent` FC receives a fully typed
-`control: FormProxy<T>` (T inferred from `control`), so item fields resolve:
+`control: FormGroup<T>` (T inferred from `control`), so item fields resolve:
 
 ```tsx
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
-const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+const PropertyForm: FC<{ control: FormGroup<Property> }> = ({ control }) => (
   <>
     <FormField control={control.type} /> {/* ✅ typed */}
     <FormField control={control.estimatedValue} />
@@ -208,7 +208,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 );
 
 <FieldArraySection
-  control={form.properties} // ModelArrayNode<Property>
+  control={form.properties} // FormArray<Property>
   itemComponent={PropertyForm}
   title="Properties"
 />;
@@ -224,10 +224,10 @@ Full prop list, RenderSchema and JSON variants: `find_recipe(topic="field-array-
 
 If you need the headless hook (custom layout, no ui-kit dependency),
 `useFieldArray(control)` infers `T` from the array control — every
-`item.control` is `FormProxy<T>`, no explicit type argument required:
+`item.control` is `FormGroup<T>`, no explicit type argument required:
 
 ```tsx
-function ExistingLoansList({ control }: { control: FormProxy<Application> }) {
+function ExistingLoansList({ control }: { control: FormGroup<Application> }) {
   const { items, add } = useFieldArray(control.existingLoans); // T = ExistingLoan inferred
 
   return (
@@ -256,7 +256,7 @@ The JSX tag accepts an explicit type argument, which restores the item type:
 ```
 
 You must repeat `<T>` on **every** `FieldArray.List` — miss one and it silently
-falls back to `FormProxy<object>`. When you access item fields directly, reach
+falls back to `FormGroup<object>`. When you access item fields directly, reach
 for `FieldArraySection` or `useFieldArray` instead.
 
 ## 10. External Control via Ref
@@ -290,7 +290,7 @@ interface FieldArrayHandle<T> {
   swap: (a: number, b: number) => void; // swap two items, state preserved
   length: number;
   isEmpty: boolean;
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
 }
 ```
 
@@ -691,11 +691,11 @@ function LoanStep() {
 
 **FormField**
 
-Headless compound component для построения доступной (a11y) анатомии поля формы. `FormField` берёт на себя ID-провязку (`htmlFor`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `aria-required`), подписку на состояние `FieldNode` и приклеивание `value`/`onChange`/`onBlur` к интерактивному контролу. UI вы строите сами.
+Headless compound component для построения доступной (a11y) анатомии поля формы. `FormField` берёт на себя ID-провязку (`htmlFor`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `aria-required`), подписку на состояние `FormControl` и приклеивание `value`/`onChange`/`onBlur` к интерактивному контролу. UI вы строите сами.
 
 - Дать минимальный «скелет» поля: label + control + description + error.
 - Не навязывать стилей — каждый sub-компонент рендерит обычные HTML-элементы (или `Slot` через `asChild`).
-- Подписаться на `FieldNode` ровно один раз в `Root` и раздать состояние детям через React Context.
+- Подписаться на `FormControl` ровно один раз в `Root` и раздать состояние детям через React Context.
 - Гарантировать корректные ARIA-атрибуты в нетривиальных сценариях (multi-error, отсутствие label, async pending).
 
 В отличие от `FormField` из `@reformer/ui-kit`, который рендерит готовый layout (label сверху, ошибка снизу), `FormField` из `@reformer/cdk` ничего не рендерит сверх минимально необходимого и нужен, когда требуется собственный layout.
@@ -704,7 +704,7 @@ Headless compound component для построения доступной (a11y
 
 | Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                                                                           |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
+| `FormField.Root`             | Context provider; принимает `control: FormControl<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
 | `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core/react`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
 | `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
@@ -1146,7 +1146,7 @@ function Panel({ status, error, reload, children }: Props) {
 - **Не** смешивать режимы: если передан `load`, не передавайте ещё и `status` — компонент его игнорирует, а читающий код будет думать, что состояние приходит снаружи.
 - **Не** забывать `AbortSignal` в `load`: без него отменённый запрос доедет до сервера и продолжит держать соединение, а гонку поймает только внутренний guard.
 - **Не** передавать в `loadKey` свежий объект (`{ id }`) — сравнение идёт по `Object.is`, и загрузка перезапустится на каждом рендере. Нужен примитив или мемоизированное значение.
-- **Не** переиспользовать слово `pending` для загрузки данных — в `@reformer/core` оно занято состоянием асинхронного валидатора (`FieldStatus === 'pending'`).
+- **Не** переиспользовать слово `pending` для загрузки данных — в `@reformer/core` оно занято состоянием асинхронной проверки (`control.pending`).
 - **Не** класть в CDK-слоты Tailwind-классы и вёрстку: стилизованные блоки живут в `@reformer/ui-kit` (`AsyncBoundary`, `AsyncBoundaryLoading`, `AsyncBoundaryError`, `AsyncBoundaryEmpty`).
 
 ## 36. Nested FieldArray
@@ -1157,7 +1157,7 @@ function Panel({ status, error, reload, children }: Props) {
 
 ### Problem
 
-В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Контролы вложенных массивов — это `ArrayNode<T>` внутри `FormProxy<Property>`, и стандартного `FieldArray.Root + List` достаточно, чтобы рендерить любую глубину.
+В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Контролы вложенных массивов — это `ArrayNode<T>` внутри `FormGroup<Property>`, и стандартного `FieldArray.Root + List` достаточно, чтобы рендерить любую глубину.
 
 ### Solution
 
@@ -1400,7 +1400,7 @@ function Page({ form, config }: Props) {
 **Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни элемента) и `id` для key.
 
 ```tsx
-const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
+const Item = React.memo(({ control }: { control: FormGroup<Property> }) => (
   <PropertyForm control={control} />
 ));
 
@@ -2311,7 +2311,7 @@ export interface AsyncBoundaryRootProps<T = unknown, E = unknown> {
    * @default true
    */
   enabled?: boolean;
-  /** Побочный эффект после успеха — например `form.patchValue(data)`. */
+  /** Побочный эффект после успеха — например `model.patch(data)`. */
   onSuccess?: (data: T) => void;
   /** Побочный эффект после ошибки — логирование, тост. */
   onError?: (error: E) => void;
@@ -3179,7 +3179,7 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   /** Поменять местами два элемента (реордер, состояние сохраняется) */
   swap: (a: number, b: number) => void;
   /** Получить контрол элемента по индексу */
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
   /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
   issues: ValidationIssue[];
   /** Валиден ли массив (и все его элементы) */
@@ -3187,7 +3187,7 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */
   invalid: boolean;
   /** Оригинальный узел массива. */
-  control: ModelArrayNode<T>;
+  control: FormArray<T>;
 }
 ```
 
@@ -3197,13 +3197,13 @@ _Source: src/components/field-array/FieldArrayContext.tsx_
 
 **Kind:** `type`
 
-Узел массива, принимаемый CDK-компонентами FieldArray, — {@link ModelArrayNode}: узел формы над
+Узел массива, принимаемый CDK-компонентами FieldArray, — {@link FormArray}: узел формы над
 массивом модели (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/
 `issues`/…).
 
 **Signature:**
 ```typescript
-export type FieldArrayControl<T extends object> = ModelArrayNode<T>;
+export type FieldArrayControl<T extends object> = FormArray<T>;
 ```
 
 _Source: src/components/field-array/types.ts_
@@ -3404,7 +3404,7 @@ export interface FieldArrayHandle<T extends object> {
   /** Whether the array is empty */
   isEmpty: boolean;
   /** Get item control at specific index */
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
 }
 ```
 
@@ -3467,11 +3467,11 @@ _Source: src/components/field-array/FieldArray.tsx_
 ```typescript
 export interface FieldArrayItem<T extends object> {
   /** Контрол для данного элемента */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Индекс элемента (0-based) */
   index: number;
   /** Уникальный идентификатор для React key */
-  id: string | number;
+  id: string;
   /** Удалить этот элемент из массива */
   remove: () => void;
   /** Переместить элемент на одну позицию вверх (no-op если он первый) */
@@ -3523,11 +3523,11 @@ _Source: src/components/field-array/FieldArrayContext.tsx_
 ```typescript
 export interface FieldArrayItemContextValue<T extends object = Record<string, unknown>> {
   /** Контрол для данного элемента */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Индекс элемента (0-based) */
   index: number;
   /** Уникальный идентификатор для React key */
-  id: string | number;
+  id: string;
   /** Удалить этот элемент из массива */
   remove: () => void;
   /** Переместить элемент на одну позицию вверх (no-op если он первый) */
@@ -3609,11 +3609,11 @@ Props passed to the render function in FieldArray.List
 ```typescript
 export interface FieldArrayItemRenderProps<T extends object> {
   /** The form control for this item */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Zero-based index of the item */
   index: number;
   /** Unique identifier for React key */
-  id: string | number;
+  id: string;
   /** Remove this item from the array */
   remove: () => void;
   /** Move this item one position up (no-op when first) */
@@ -4733,7 +4733,7 @@ Using useFormField hook for full customization
 ```tsx
 import { useFormField } from '@reformer/cdk/form-field';
 
-function EmailField({ control }: { control: FieldNode<string> }) {
+function EmailField({ control }: { control: FormControl<string> }) {
 const { labelProps, controlProps, errorProps, state, ids } = useFormField(control);
 
 return (
@@ -4809,7 +4809,7 @@ export interface FormFieldContextValue<T = unknown> {
   /** Full componentProps bag */
   componentProps: Record<string, unknown>;
   // ─── The control itself ───────────────────────────────────────────────────
-  control: FieldNode<T>;
+  control: FormControl<T>;
   // ─── Accessible IDs ───────────────────────────────────────────────────────
   ids: FormFieldIds;
   /** Whether a FormField.Description is present (drives aria-describedby on Control) */
@@ -5243,8 +5243,8 @@ Props for FormField.Root
 **Signature:**
 ```typescript
 export interface FormFieldRootProps<T = unknown> {
-  /** The FieldNode control from the form */
-  control: FieldNode<T>;
+  /** The FormControl control from the form */
+  control: FormControl<T>;
   children: ReactNode;
   /** Explicit id prefix; if omitted, useId() is used */
   id?: string;
@@ -5455,7 +5455,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   isSubmitting: boolean;
 
   /** Form instance */
-  form: FormProxy<T>;
+  form: FormGroup<T>;
 
   /** Поток шагов: переходы и правила доступности шагов. */
   flow: FormFlow;
@@ -5623,7 +5623,7 @@ export interface FormWizardIndicatorStep {
   component?:
     | ComponentType<
         {
-          control: FormProxy<unknown>;
+          control: FormGroup<unknown>;
         } & Record<string, unknown>
       >
     | ReactNode;
@@ -5888,7 +5888,7 @@ _Source: src/components/form-wizard/FormWizardProgress.tsx_
 ```typescript
 export interface FormWizardProps<T extends Record<string, any>> {
   /** Форма. Внутри сборки (`FormBundleContext`) необязательна — берётся из неё. */
-  form?: FormProxy<T>;
+  form?: FormGroup<T>;
 
   /** Поток шагов. По умолчанию — поток сборки из контекста, иначе позиционный без правил. */
   flow?: FormFlow;
@@ -5971,10 +5971,10 @@ Supports two usage patterns:
 ```typescript
 export interface FormWizardStepProps<T extends Record<string, any>> {
   /** Component to render for this step (legacy API) */
-  component?: ComponentType<{ control: FormProxy<T> } & Record<string, unknown>>;
+  component?: ComponentType<{ control: FormGroup<T> } & Record<string, unknown>>;
 
   /** Form control to pass to the component (legacy API) */
-  control?: FormProxy<T>;
+  control?: FormGroup<T>;
 
   /** Children to render (new API - for use with selector-based wizard) */
   children?: ReactNode;
@@ -6266,13 +6266,13 @@ _Source: src/components/list/ListContext.tsx_
 
 **Kind:** `type`
 
-Узел массива, принимаемый CDK-компонентом {@link List}, — тот же {@link ModelArrayNode}, что у
+Узел массива, принимаемый CDK-компонентом {@link List}, — тот же {@link FormArray}, что у
 {@link FieldArrayControl}. `List` использует лишь read-часть контракта
 (`map`/`at`/`length`/`value`): мутационные методы ему не нужны.
 
 **Signature:**
 ```typescript
-export type ListControl<T extends object> = ModelArrayNode<T>;
+export type ListControl<T extends object> = FormArray<T>;
 ```
 
 _Source: src/components/list/types.ts_
@@ -6304,11 +6304,11 @@ _Source: src/components/list/types.ts_
 ```typescript
 export interface ListItem<T extends object> {
   /** Контрол для данного элемента */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Индекс элемента (0-based) */
   index: number;
   /** Уникальный идентификатор для React key */
-  id: string | number;
+  id: string;
 }
 ```
 
@@ -6570,7 +6570,7 @@ _Source: src/components/file-upload/file-upload-core.ts_
 
 **Kind:** `function`
 
-Пересборка списка под внешнее значение формы (reset/patchValue снаружи).
+Пересборка списка под внешнее значение формы (reset или запись в модель снаружи).
 
 Внешняя запись авторитетна: элементы, не представленные в значении (включая
 незавершённые загрузки), выбывают — их abort-очистку делает хук. Существующие
@@ -7186,7 +7186,7 @@ if (dict.status !== 200) throw new Error('Ошибка загрузки спра
 return { app: app.data, dict: dict.data };
 },
 onSuccess: ({ app, dict }) => {
-form.patchValue(app);
+model.patch(app);
 queueMicrotask(() => applyDictionaries(form, dict));
 },
 });
@@ -7229,7 +7229,7 @@ export interface UseAsyncResourceOptions<T, E = string> {
    */
   enabled?: boolean;
   /**
-   * Побочный эффект после успеха — например `form.patchValue(data)`.
+   * Побочный эффект после успеха — например `model.patch(data)`.
    *
    * Вызывается уже вне реактивного контекста (из колбэка промиса). Если внутри вы
    * пишете и в значения формы, и в `updateComponentProps`, разнесите второе в
@@ -7598,7 +7598,7 @@ export interface UseFieldArrayReturn<T extends object> {
   /** Swap two items by index (reorder, state preserved) */
   swap: (a: number, b: number) => void;
   /** Get item control at a specific index */
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
   /** Array-level validation issues (e.g. `minItems`) */
   issues: ValidationIssue[];
   /** Whether the array (and all its items) is valid */
@@ -7882,14 +7882,14 @@ directly onto your own elements. No prescribed DOM structure.
 
 **Signature:**
 ```typescript
-export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFieldReturn<T>
+export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFieldReturn<T>
 ```
 
 **Examples:**
 
 Basic usage
 ```tsx
-function EmailField({ control }: { control: FieldNode<string> }) {
+function EmailField({ control }: { control: FormControl<string> }) {
 const { labelProps, controlProps, errorProps, state } = useFormField(control);
 
 return (
@@ -8109,7 +8109,7 @@ export interface UseFormFieldState<T = unknown> {
   shouldShowError: boolean;
   label: string | undefined;
   required: boolean;
-  /** Full componentProps bag from FieldNode config */
+  /** Full componentProps bag from FormControl config */
   componentProps: Record<string, unknown>;
 }
 ```
@@ -8203,7 +8203,7 @@ export function useIssueMessageResolver(): IssueMessageResolver
 import { useIssueMessageResolver } from '@reformer/cdk';
 import { useFormControl } from '@reformer/core/react';
 
-function FieldIssues({ control }: { control: FieldNode<string> }) {
+function FieldIssues({ control }: { control: FormControl<string> }) {
 const resolve = useIssueMessageResolver();
 const { issues } = useFormControl(control);
 return <>{issues.map((issue) => <span key={issue.code}>{resolve(issue)}</span>)}</>;
@@ -8221,7 +8221,7 @@ Headless-хук display-итерации массива модели — read-on
 Реактивно подписывается на длину/значение массива и раскладывает его на элементы
 `{ control, index, id }`. НЕ отдаёт `add`/`remove`/`move` — для display-списков (например,
 список алертов), где элементы не редактируются, а появляются/исчезают через мутацию массива в
-behavior. Ключ `id` берётся из идентичности per-item контрола (`itemControl.id ?? index`), поэтому
+behavior. Ключ `id` — стабильный ключ строки (`control.keyAt(index)`), поэтому
 reorder/фильтрация сохраняют состояние элементов.
 
 **Signature:**
@@ -8232,7 +8232,7 @@ export function useList<T extends object>(control: ListControl<T>): UseListRetur
 **Examples:**
 
 ```tsx
-function AlertsView({ form }: { form: FormProxy<MyForm> }) {
+function AlertsView({ form }: { form: FormGroup<MyForm> }) {
   const { items, isEmpty } = useList(form.alerts);
   if (isEmpty) return null;
   return (

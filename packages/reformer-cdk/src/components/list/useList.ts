@@ -20,12 +20,12 @@ export interface UseListReturn<T extends object> {
  * Реактивно подписывается на длину/значение массива и раскладывает его на элементы
  * `{ control, index, id }`. НЕ отдаёт `add`/`remove`/`move` — для display-списков (например,
  * список алертов), где элементы не редактируются, а появляются/исчезают через мутацию массива в
- * behavior. Ключ `id` берётся из идентичности per-item контрола (`itemControl.id ?? index`), поэтому
+ * behavior. Ключ `id` — стабильный ключ строки (`control.keyAt(index)`), поэтому
  * reorder/фильтрация сохраняют состояние элементов.
  *
  * @example
  * ```tsx
- * function AlertsView({ form }: { form: FormProxy<MyForm> }) {
+ * function AlertsView({ form }: { form: FormGroup<MyForm> }) {
  *   const { items, isEmpty } = useList(form.alerts);
  *   if (isEmpty) return null;
  *   return (
@@ -48,7 +48,7 @@ export function useList<T extends object>(control: ListControl<T>): UseListRetur
       control.map((itemControl, index) => ({
         control: itemControl,
         index,
-        id: itemControl.id ?? index,
+        id: control.keyAt(index),
       })),
     // `value` намеренно в deps: его ссылка меняется при любой структурной мутации массива.
     [control, length, value]

@@ -1,5 +1,5 @@
 import { useId, useMemo } from 'react';
-import { type FieldNode, type ValidationIssue } from '@reformer/core';
+import { type FormControl, type ValidationIssue } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 import type { FormFieldIds } from './types';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
@@ -20,7 +20,7 @@ export interface UseFormFieldState<T = unknown> {
   shouldShowError: boolean;
   label: string | undefined;
   required: boolean;
-  /** Full componentProps bag from FieldNode config */
+  /** Full componentProps bag from FormControl config */
   componentProps: Record<string, unknown>;
 }
 
@@ -94,7 +94,7 @@ export interface UseFormFieldReturn<T = unknown> {
  *
  * @example Basic usage
  * ```tsx
- * function EmailField({ control }: { control: FieldNode<string> }) {
+ * function EmailField({ control }: { control: FormControl<string> }) {
  *   const { labelProps, controlProps, errorProps, state } = useFormField(control);
  *
  *   return (
@@ -123,7 +123,7 @@ export interface UseFormFieldReturn<T = unknown> {
  * };
  * ```
  */
-export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFieldReturn<T> {
+export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFieldReturn<T> {
   const reactId = useId();
   const baseId = id ?? reactId;
   const resolveError = useIssueMessageResolver();

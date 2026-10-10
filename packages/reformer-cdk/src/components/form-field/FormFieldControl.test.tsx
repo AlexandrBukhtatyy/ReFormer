@@ -3,13 +3,13 @@
  *
  * Регрессия (defect #48): ветка asChild/children прокидывала в Slot только accessibleProps
  * (id + aria-*), но НЕ value/onChange/onBlur/disabled — кастомный input рендерился
- * подключённым к ARIA, но отсоединённым от FieldNode (ввод не обновлял поле, disabled
+ * подключённым к ARIA, но отсоединённым от FormControl (ввод не обновлял поле, disabled
  * игнорировался). Тест проверяет, что теперь все привязки поля мержатся в дочерний элемент.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { forwardRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FieldNode } from '@reformer/core';
+import type { FormControl } from '@reformer/core';
 import { FormFieldContext } from './FormFieldContext';
 import { FormFieldControl } from './FormFieldControl';
 import type { FormFieldContextValue } from './types';
@@ -26,7 +26,7 @@ function makeCtx(overrides: Partial<FormFieldContextValue> = {}): {
     markAsTouched,
     component: () => null,
     value: 'hello',
-  } as unknown as FieldNode<unknown>;
+  } as unknown as FormControl<unknown>;
 
   const ctx: FormFieldContextValue = {
     value: 'hello',
@@ -138,7 +138,7 @@ describe('FormField.Control — aria-describedby', () => {
       return null;
     };
     const { ctx } = makeCtx({ hasHint: true, hasDescription: true });
-    const control = { ...ctx.control, component: Auto } as unknown as FieldNode<unknown>;
+    const control = { ...ctx.control, component: Auto } as unknown as FormControl<unknown>;
     renderToStaticMarkup(
       <FormFieldContext.Provider value={{ ...ctx, control }}>
         <FormFieldControl />
@@ -161,7 +161,7 @@ describe('FormField.Control — адаптер контрола (статика 
     ctxOverrides: Partial<FormFieldContextValue> = {}
   ): { props: Record<string, unknown>; setValue: ReturnType<typeof vi.fn> } {
     const { ctx, setValue } = makeCtx(ctxOverrides);
-    const control = { ...ctx.control, component } as unknown as FieldNode<unknown>;
+    const control = { ...ctx.control, component } as unknown as FormControl<unknown>;
     renderToStaticMarkup(
       <FormFieldContext.Provider value={{ ...ctx, control }}>
         <FormFieldControl />

@@ -111,7 +111,7 @@ export interface AsyncBoundaryRootProps<T = unknown, E = unknown> {
    * @default true
    */
   enabled?: boolean;
-  /** Побочный эффект после успеха — например `form.patchValue(data)`. */
+  /** Побочный эффект после успеха — например `model.patch(data)`. */
   onSuccess?: (data: T) => void;
   /** Побочный эффект после ошибки — логирование, тост. */
   onError?: (error: E) => void;

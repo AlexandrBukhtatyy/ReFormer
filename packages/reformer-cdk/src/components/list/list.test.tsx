@@ -6,13 +6,13 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { List } from './List';
 import { ListContext, type ListContextValue } from './ListContext';
 import type { ListItem } from './types';
 
-function item(id: string | number, index: number): ListItem<Record<string, unknown>> {
-  return { control: { __id: id } as unknown as FormProxy<Record<string, unknown>>, index, id };
+function item(id: string, index: number): ListItem<Record<string, unknown>> {
+  return { control: { __id: id } as unknown as FormGroup<Record<string, unknown>>, index, id };
 }
 
 function ctx(items: ListItem<Record<string, unknown>>[]): ListContextValue {

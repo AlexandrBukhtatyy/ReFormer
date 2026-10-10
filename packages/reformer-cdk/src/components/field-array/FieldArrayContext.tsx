@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { ModelArrayNode, FormProxy, ValidationIssue } from '@reformer/core';
+import type { FormArray, FormGroup, ValidationIssue } from '@reformer/core';
 
 /**
  * Представляет элемент массива с контролом, индексом и действиями (включая хелперы reorder,
@@ -14,11 +14,11 @@ import type { ModelArrayNode, FormProxy, ValidationIssue } from '@reformer/core'
  */
 export interface FieldArrayItem<T extends object> {
   /** Контрол для данного элемента */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Индекс элемента (0-based) */
   index: number;
   /** Уникальный идентификатор для React key */
-  id: string | number;
+  id: string;
   /** Удалить этот элемент из массива */
   remove: () => void;
   /** Переместить элемент на одну позицию вверх (no-op если он первый) */
@@ -54,7 +54,7 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   /** Поменять местами два элемента (реордер, состояние сохраняется) */
   swap: (a: number, b: number) => void;
   /** Получить контрол элемента по индексу */
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
   /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
   issues: ValidationIssue[];
   /** Валиден ли массив (и все его элементы) */
@@ -62,7 +62,7 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */
   invalid: boolean;
   /** Оригинальный узел массива. */
-  control: ModelArrayNode<T>;
+  control: FormArray<T>;
 }
 
 /**
@@ -70,11 +70,11 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
  */
 export interface FieldArrayItemContextValue<T extends object = Record<string, unknown>> {
   /** Контрол для данного элемента */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Индекс элемента (0-based) */
   index: number;
   /** Уникальный идентификатор для React key */
-  id: string | number;
+  id: string;
   /** Удалить этот элемент из массива */
   remove: () => void;
   /** Переместить элемент на одну позицию вверх (no-op если он первый) */

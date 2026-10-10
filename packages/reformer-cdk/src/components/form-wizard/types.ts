@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { FormFlow, FormProxy } from '@reformer/core';
+import type { FormFlow, FormGroup } from '@reformer/core';
 
 /**
  * Пропсы {@link FormWizard}.
@@ -19,7 +19,7 @@ import type { FormFlow, FormProxy } from '@reformer/core';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormWizardProps<T extends Record<string, any>> {
   /** Форма. Внутри сборки (`FormBundleContext`) необязательна — берётся из неё. */
-  form?: FormProxy<T>;
+  form?: FormGroup<T>;
 
   /** Поток шагов. По умолчанию — поток сборки из контекста, иначе позиционный без правил. */
   flow?: FormFlow;

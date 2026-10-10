@@ -45,7 +45,7 @@ import { FieldArray } from '@reformer/cdk/field-array';
 
 ```typescript
 interface FieldArrayItemRenderProps<T> {
-  control: FormProxy<T>; // Form control for item
+  control: FormGroup<T>; // Form control for item
   index: number; // Zero-based index
   id: string | number; // Unique key
   remove: () => void; // Remove this item
@@ -59,18 +59,18 @@ interface FieldArrayItemRenderProps<T> {
 Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
 `ArrayNode.move` reorders controls without recreating them.
 
-## Typed item access (avoid `FormProxy<object>`)
+## Typed item access (avoid `FormGroup<object>`)
 
 `FieldArray.List` gets its `control` from `FieldArrayContext`, which is typed
 `any` (it has to accept any element type). The generic `T` you write on the
 JSX tag is **not** inferred through React context, so a bare `<FieldArray.List>`
-defaults `T` to `object` and the render-prop `control` is `FormProxy<object>`.
+defaults `T` to `object` and the render-prop `control` is `FormGroup<object>`.
 Accessing item fields then fails to compile:
 
 ```tsx
 <FieldArray.List>
   {({ control: item }) => (
-    // ❌ TS2339: Property 'type' does not exist on type 'FormProxy<object>'
+    // ❌ TS2339: Property 'type' does not exist on type 'FormGroup<object>'
     <FormField control={item.type} />
   )}
 </FieldArray.List>
@@ -85,13 +85,13 @@ infer the element type, so you cannot forget the annotation.
 
 The typed, styled array UI lives in `@reformer/ui-kit/field-array`, not in the
 CDK compound. Its `itemComponent` FC receives a fully typed
-`control: FormProxy<T>` (T inferred from `control`), so item fields resolve:
+`control: FormGroup<T>` (T inferred from `control`), so item fields resolve:
 
 ```tsx
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
-const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+const PropertyForm: FC<{ control: FormGroup<Property> }> = ({ control }) => (
   <>
     <FormField control={control.type} /> {/* ✅ typed */}
     <FormField control={control.estimatedValue} />
@@ -99,7 +99,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 );
 
 <FieldArraySection
-  control={form.properties} // ModelArrayNode<Property>
+  control={form.properties} // FormArray<Property>
   itemComponent={PropertyForm}
   title="Properties"
 />;
@@ -115,10 +115,10 @@ Full prop list, RenderSchema and JSON variants: `find_recipe(topic="field-array-
 
 If you need the headless hook (custom layout, no ui-kit dependency),
 `useFieldArray(control)` infers `T` from the array control — every
-`item.control` is `FormProxy<T>`, no explicit type argument required:
+`item.control` is `FormGroup<T>`, no explicit type argument required:
 
 ```tsx
-function ExistingLoansList({ control }: { control: FormProxy<Application> }) {
+function ExistingLoansList({ control }: { control: FormGroup<Application> }) {
   const { items, add } = useFieldArray(control.existingLoans); // T = ExistingLoan inferred
 
   return (
@@ -147,7 +147,7 @@ The JSX tag accepts an explicit type argument, which restores the item type:
 ```
 
 You must repeat `<T>` on **every** `FieldArray.List` — miss one and it silently
-falls back to `FormProxy<object>`. When you access item fields directly, reach
+falls back to `FormGroup<object>`. When you access item fields directly, reach
 for `FieldArraySection` or `useFieldArray` instead.
 
 ## External Control via Ref
@@ -181,7 +181,7 @@ interface FieldArrayHandle<T> {
   swap: (a: number, b: number) => void; // swap two items, state preserved
   length: number;
   isEmpty: boolean;
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
 }
 ```
 

@@ -88,7 +88,7 @@ type FormFieldComponent = typeof FormFieldRoot & {
  * ```tsx
  * import { useFormField } from '@reformer/cdk/form-field';
  *
- * function EmailField({ control }: { control: FieldNode<string> }) {
+ * function EmailField({ control }: { control: FormControl<string> }) {
  *   const { labelProps, controlProps, errorProps, state, ids } = useFormField(control);
  *
  *   return (

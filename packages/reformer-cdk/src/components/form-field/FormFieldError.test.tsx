@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FieldNode, ValidationIssue } from '@reformer/core';
+import type { FormControl, ValidationIssue } from '@reformer/core';
 import { defineIssueMessages } from '@reformer/core/i18n';
 import { ValidationMessagesProvider } from '../../validation/error-resolver';
 import { FormFieldContext } from './FormFieldContext';
@@ -36,7 +36,7 @@ function ctxWithErrors(issues: ValidationIssue[]): FormFieldContextValue {
     label: undefined,
     required: true,
     componentProps: {},
-    control: {} as unknown as FieldNode<unknown>,
+    control: {} as unknown as FormControl<unknown>,
     ids: {
       controlId: 'control-x',
       labelId: 'label-x',

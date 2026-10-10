@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { useFieldArray } from './useFieldArray';
 import { FieldArrayContext, type FieldArrayContextValue } from './FieldArrayContext';
 import { FieldArrayList } from './FieldArrayList';
@@ -85,7 +85,7 @@ export interface FieldArrayHandle<T extends object> {
   /** Whether the array is empty */
   isEmpty: boolean;
   /** Get item control at specific index */
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
 }
 
 /**
@@ -140,7 +140,7 @@ function FieldArrayRootInner<T extends object>(
     [arrayState, control]
   );
 
-  // FormProxy<T> не assignable к FormProxy<any> (у конкретного T нет index-signature): React-контекст
+  // FormGroup<T> не assignable к FormGroup<any> (у конкретного T нет index-signature): React-контекст
   // хранит generic-erased `<any>`, типобезопасность возвращает useFieldArrayContext<T>() на чтении.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const contextValue = { ...arrayState, control } as FieldArrayContextValue<any>;

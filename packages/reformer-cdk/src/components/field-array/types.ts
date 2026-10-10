@@ -1,12 +1,12 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ModelArrayNode, FormProxy, ValidationIssue } from '@reformer/core';
+import type { FormArray, FormGroup, ValidationIssue } from '@reformer/core';
 
 /**
- * Узел массива, принимаемый CDK-компонентами FieldArray, — {@link ModelArrayNode}: узел формы над
+ * Узел массива, принимаемый CDK-компонентами FieldArray, — {@link FormArray}: узел формы над
  * массивом модели (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/
  * `issues`/…).
  */
-export type FieldArrayControl<T extends object> = ModelArrayNode<T>;
+export type FieldArrayControl<T extends object> = FormArray<T>;
 
 /**
  * Props for FieldArray.Root component
@@ -35,11 +35,11 @@ export interface FieldArrayListProps<T extends object> {
  */
 export interface FieldArrayItemRenderProps<T extends object> {
   /** The form control for this item */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Zero-based index of the item */
   index: number;
   /** Unique identifier for React key */
-  id: string | number;
+  id: string;
   /** Remove this item from the array */
   remove: () => void;
   /** Move this item one position up (no-op when first) */

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { type FormProxy, type ValidationIssue } from '@reformer/core';
+import { type FormGroup, type ValidationIssue } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 // FieldArrayItem объявлен один раз в FieldArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FieldArrayItem } from './FieldArrayContext';
@@ -28,7 +28,7 @@ export interface UseFieldArrayReturn<T extends object> {
   /** Swap two items by index (reorder, state preserved) */
   swap: (a: number, b: number) => void;
   /** Get item control at a specific index */
-  at: (index: number) => FormProxy<T> | undefined;
+  at: (index: number) => FormGroup<T> | undefined;
   /** Array-level validation issues (e.g. `minItems`) */
   issues: ValidationIssue[];
   /** Whether the array (and all its items) is valid */
@@ -114,7 +114,7 @@ export function useFieldArray<T extends object>(
       control.map((itemControl, index) => ({
         control: itemControl,
         index,
-        id: itemControl.id ?? index,
+        id: control.keyAt(index),
         remove: () => control.removeAt(index),
         moveUp: () => control.move(index, index - 1),
         moveDown: () => control.move(index, index + 1),
@@ -129,9 +129,10 @@ export function useFieldArray<T extends object>(
     items,
     length,
     isEmpty: length === 0,
-    add: (value?: Partial<T>) => control.push(value),
+    // Модель берёт значение как есть: недостающие ключи частичного элемента она не достраивает.
+    add: (value?: Partial<T>) => control.push(value as T | undefined),
     clear: () => control.clear(),
-    insert: (index: number, value?: Partial<T>) => control.insert(index, value),
+    insert: (index: number, value?: Partial<T>) => control.insert(index, value as T | undefined),
     removeAt: (index: number) => control.removeAt(index),
     move: (from: number, to: number) => control.move(from, to),
     swap: (a: number, b: number) => control.swap(a, b),

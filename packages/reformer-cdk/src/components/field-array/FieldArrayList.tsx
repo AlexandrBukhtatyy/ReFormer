@@ -47,7 +47,7 @@ export function FieldArrayList<T extends object>({
       canMoveUp: item.index > 0,
       canMoveDown: item.index < total - 1,
     };
-    // Контекст хранит generic-erased `<any>` (FormProxy<T> ↛ FormProxy<any>); чтение — через useFieldArrayItemContext<T>().
+    // Контекст хранит generic-erased `<any>` (FormGroup<T> ↛ FormGroup<any>); чтение — через useFieldArrayItemContext<T>().
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const itemContextValue = enriched as FieldArrayItemContextValue<any>;
     return (

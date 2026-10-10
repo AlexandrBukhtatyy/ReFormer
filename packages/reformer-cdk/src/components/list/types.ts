@@ -1,12 +1,12 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ModelArrayNode, FormProxy } from '@reformer/core';
+import type { FormArray, FormGroup } from '@reformer/core';
 
 /**
- * Узел массива, принимаемый CDK-компонентом {@link List}, — тот же {@link ModelArrayNode}, что у
+ * Узел массива, принимаемый CDK-компонентом {@link List}, — тот же {@link FormArray}, что у
  * {@link FieldArrayControl}. `List` использует лишь read-часть контракта
  * (`map`/`at`/`length`/`value`): мутационные методы ему не нужны.
  */
-export type ListControl<T extends object> = ModelArrayNode<T>;
+export type ListControl<T extends object> = FormArray<T>;
 
 /**
  * Один элемент списка — контрол, индекс и стабильный ключ. В отличие от
@@ -14,11 +14,11 @@ export type ListControl<T extends object> = ModelArrayNode<T>;
  */
 export interface ListItem<T extends object> {
   /** Контрол для данного элемента */
-  control: FormProxy<T>;
+  control: FormGroup<T>;
   /** Индекс элемента (0-based) */
   index: number;
   /** Уникальный идентификатор для React key */
-  id: string | number;
+  id: string;
 }
 
 /**

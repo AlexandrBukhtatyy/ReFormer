@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import { useFormWizard } from './FormWizardContext';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
 /**
  * Step definition for the indicator
@@ -16,7 +16,7 @@ export interface FormWizardIndicatorStep {
   component?:
     | ComponentType<
         {
-          control: FormProxy<unknown>;
+          control: FormGroup<unknown>;
         } & Record<string, unknown>
       >
     | ReactNode;

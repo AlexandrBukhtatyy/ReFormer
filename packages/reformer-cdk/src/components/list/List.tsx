@@ -12,12 +12,12 @@ import type { ListRootProps, ListItemsProps, ListEmptyProps } from './types';
 /**
  * List.Root — контекст-провайдер display-списка.
  *
- * Принимает `control` (legacy `ArrayNode` или M1 `ModelArrayNode`) и раздаёт элементы дочерним
+ * Принимает `control` (legacy `ArrayNode` или M1 `FormArray`) и раздаёт элементы дочерним
  * `List.Items` / `List.Empty`. В отличие от `FieldArray.Root` не даёт add/remove/reorder.
  */
 function ListRoot<T extends object>({ control, children }: ListRootProps<T>) {
   const state = useList(control);
-  // FormProxy<T> ↛ FormProxy<any>; контекст generic-erased, типобезопасность возвращает useListContext<T>().
+  // FormGroup<T> ↛ FormGroup<any>; контекст generic-erased, типобезопасность возвращает useListContext<T>().
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const value = state as ListContextValue<any>;
   return <ListContext.Provider value={value}>{children}</ListContext.Provider>;

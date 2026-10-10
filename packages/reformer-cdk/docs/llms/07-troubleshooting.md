@@ -22,7 +22,7 @@
 **Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни элемента) и `id` для key.
 
 ```tsx
-const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
+const Item = React.memo(({ control }: { control: FormGroup<Property> }) => (
   <PropertyForm control={control} />
 ));
 

@@ -25,7 +25,7 @@ export interface UseAsyncResourceOptions<T, E = string> {
    */
   enabled?: boolean;
   /**
-   * Побочный эффект после успеха — например `form.patchValue(data)`.
+   * Побочный эффект после успеха — например `model.patch(data)`.
    *
    * Вызывается уже вне реактивного контекста (из колбэка промиса). Если внутри вы
    * пишете и в значения формы, и в `updateComponentProps`, разнесите второе в
@@ -79,7 +79,7 @@ export interface UseAsyncResourceReturn<T, E = string> extends AsyncResourceStat
  *     return { app: app.data, dict: dict.data };
  *   },
  *   onSuccess: ({ app, dict }) => {
- *     form.patchValue(app);
+ *     model.patch(app);
  *     queueMicrotask(() => applyDictionaries(form, dict));
  *   },
  * });
