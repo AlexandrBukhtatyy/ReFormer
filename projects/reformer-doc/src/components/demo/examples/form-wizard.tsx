@@ -224,7 +224,8 @@ if (result.status === 'invalid') showHint('Проверьте поля форм�
     {
       name: 'onStepChange / className',
       type: '(step: number) => void / string',
-      description: 'Колбэк смены шага и внешний класс контейнера.',
+      description:
+        'Колбэк смены шага и класс карточки шагов: сливается с классами по умолчанию (bg-white заменяет фон карточки).',
     },
     {
       name: 'bundle.flow / bundle.submit',

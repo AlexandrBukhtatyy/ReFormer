@@ -269,9 +269,9 @@ const { items, add, length } = useFieldArray(form.phones);
   props: [
     {
       name: 'FieldArray.Root',
-      type: 'control: FormArray<T>',
+      type: 'control: FormArray<T>; children: ReactNode | (array) => ReactNode',
       description:
-        'Провайдер контекста массива (form.<массив>). Оборачивает остальные части; ref даёт FieldArrayHandle для управления снаружи.',
+        'Провайдер контекста массива (form.<массив>). Оборачивает остальные части; ref даёт FieldArrayHandle для управления снаружи. Функция-ребёнок получает состояние массива (items, add, ownIssues, …) со строками FormGroup<T> — тип выводится из control.',
     },
     {
       name: 'FieldArray.List',
@@ -283,7 +283,7 @@ const { items, add, length } = useFieldArray(form.phones);
       name: 'FieldArray.AddButton',
       type: 'initialValue?: Partial<T>',
       description:
-        'Добавляет новый элемент в конец. initialValue — запасной шаблон: основной — arrayOf(blank) в модели.',
+        'Добавляет новый элемент в конец. Основной шаблон — arrayOf(blank) в модели; initialValue накладывается на него (частичное значение дополняется из шаблона).',
     },
     {
       name: 'FieldArray.RemoveButton',
@@ -303,7 +303,8 @@ const { items, add, length } = useFieldArray(form.phones);
     {
       name: 'FieldArray.Error',
       type: 'multi?, render?',
-      description: 'Замечания уровня массива (например minItems) из control.issues.',
+      description:
+        'Собственные замечания массива (например minLength) из control.ownIssues; замечания полей строк не показывает.',
     },
     {
       name: 'useFieldArray(control)',
