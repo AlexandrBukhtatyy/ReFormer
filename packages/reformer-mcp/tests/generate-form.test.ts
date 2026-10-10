@@ -23,11 +23,11 @@ import {
   buildValidationTs,
   buildValidationSchemaTs,
   buildBehaviorTs,
-  buildLayoutJson,
   collectUsedComponents,
   renderLayoutChecklist,
 } from '../src/core/generate/builders.js';
 import { crossCheckBundle } from '../src/core/generate/cross-check.js';
+import { buildFormSchemaJson } from '../src/core/generate/schema-emit.js';
 import { generateFormTool, planFormTool } from '../src/core/tools/generate-form';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
 
@@ -116,11 +116,15 @@ describe('builders', () => {
    * Замер показал три места, где генератор молча расходился с каноном и с самим intent'ом
    * (`.tmp/verdicts/b2-generate-form-antipattern-invalid-ts.md`). Все три не ловились ничем:
    * кросс-проверка сверяет файлы между собой, а они были согласованно неверны.
+   *
+   * Разметка — документ формата 2 из `buildFormSchemaJson`: его `generate_form` кладёт в
+   * `form.schema.ts` и его же передаёт кросс-проверке.
    */
   describe('layout соответствует канону renderer-json', () => {
-    const layout = (intent: FormIntent) => JSON.parse(buildLayoutJson(intent)).root;
+    const schemaDoc = (intent: FormIntent) => JSON.parse(buildFormSchemaJson(intent));
+    const layout = (intent: FormIntent) => schemaDoc(intent).root;
 
-    it('шаги живут в componentProps.steps, а не в children', () => {
+    it('шаги — дети узла FormWizard, а не componentProps.steps', () => {
       const intent = normalizeIntent({
         formName: 'Order',
         target: 'renderer-json',
@@ -132,12 +136,15 @@ describe('builders', () => {
         },
       });
       const root = layout(intent);
-      // Класть шаги в children — анти-паттерн, названный так в корпусе renderer-json.
-      expect(root.componentProps?.steps, 'шаги обязаны быть в componentProps.steps').toHaveLength(
-        1
-      );
-      expect(root.children ?? [], 'children у wizard-ноды быть не должно').toHaveLength(0);
-      expect(root.component).toBe('$component(Wizard)');
+      // Формат 2: библиотечный `FormWizard` строит шаги из узлов-детей. Шаги в
+      // `componentProps.steps` и прикладной шим `Wizard` — прежний формат 1.
+      expect(root.component).toBe('$component(FormWizard)');
+      expect(root.componentProps?.steps, 'шагов в componentProps быть не должно').toBeUndefined();
+      expect(root.children, 'шаги обязаны быть детьми визарда').toHaveLength(1);
+      const [step] = root.children;
+      expect(step.component).toBe('$component(Step)');
+      expect(step.componentProps).toEqual({ title: 'Шаг 1' });
+      expect(step.children.map((c: { model?: string }) => c.model)).toEqual(['$model(price)']);
     });
 
     it('selector массива из layoutRoot не подменяется именем массива', () => {
@@ -189,11 +196,12 @@ describe('builders', () => {
           ],
         },
       });
-      const root = layout(intent);
-      const ids = root.children.map(
-        (c: { item: { $template: { children: Array<{ componentProps: { testId: string } }> } } }) =>
-          c.item.$template.children[0].componentProps.testId
-      );
+      const doc = schemaDoc(intent);
+      // Строка массива — именованная часть документа: узел ссылается на неё `$part(имя)`.
+      const ids = doc.root.children.map((c: { item: string }) => {
+        const part = /^\$part\((.+)\)$/.exec(c.item)?.[1] ?? '';
+        return doc.parts[part]?.children[0].componentProps.testId;
+      });
       // Раньше оба давали `type`, селектор разрешался в два элемента и playwright падал.
       expect(ids).toEqual(['properties-type', 'existingLoans-type']);
     });
@@ -208,16 +216,17 @@ describe('builders', () => {
           ],
         }),
         {
+          format: 2,
           root: {
             component: '$component(Box)',
             children: [
               {
-                value: '$model(a)',
+                model: '$model(a)',
                 component: '$component(Input)',
                 componentProps: { testId: 'x' },
               },
               {
-                value: '$model(b)',
+                model: '$model(b)',
                 component: '$component(Input)',
                 componentProps: { testId: 'x' },
               },
@@ -249,10 +258,15 @@ describe('builders', () => {
           children: [{ kind: 'array', ref: 'properties' }],
         },
       });
-      expect(layout(intent).children[0].initialValue).toEqual({
-        type: 'apartment',
-        estimatedValue: 0,
-      });
+      // Формат 2: узел массива `initialValue` не несёт — шаблон нового элемента объявлен в
+      // модели (`arrayOf(blank…)`), и значения полей элемента обязаны дойти туда.
+      expect(layout(intent).children[0].initialValue).toBeUndefined();
+      const model = buildModelTs(intent);
+      expect(model).toContain('properties: arrayOf(blankPropertyItem),');
+      // `type` различает исход: пустышка по типу дала бы `''`.
+      expect(model).toMatch(
+        /const blankPropertyItem = \(\): PropertyItem => \(\{\s+type: "apartment",\s+estimatedValue: 0,\s+\}\);/
+      );
     });
   });
 
@@ -388,10 +402,12 @@ describe('builders', () => {
   });
 
   it('layout получает testId на каждом листе — этого ждёт e2e POM', () => {
-    const json = JSON.parse(buildLayoutJson(goodIntent()));
+    const json = JSON.parse(buildFormSchemaJson(goodIntent()));
     const leaf = json.root.children.find((c: { selector?: string }) => c.selector === 'price');
     expect(leaf.componentProps.testId).toBe('price');
-    expect(leaf.value).toBe('$model(price)');
+    // Формат 2: привязка одним ключом `model`; `value` — ключ прежнего формата.
+    expect(leaf.model).toBe('$model(price)');
+    expect(leaf).not.toHaveProperty('value');
   });
 
   it('контейнеры из layout попадают в набор используемых компонентов', () => {
@@ -441,7 +457,9 @@ describe('builders', () => {
 });
 
 describe('cross-check', () => {
-  const run = (intent: FormIntent) => crossCheckBundle(intent, JSON.parse(buildLayoutJson(intent)));
+  // Тот же документ, что `generate_form` передаёт кросс-проверке: формат 2, прочитанный из JSON.
+  const run = (intent: FormIntent) =>
+    crossCheckBundle(intent, JSON.parse(buildFormSchemaJson(intent)));
 
   it('согласованный бандл проходит', () => {
     const report = run(goodIntent());
@@ -547,11 +565,12 @@ describe('layout проходит НАСТОЯЩИЙ валидатор renderer
   // и отвергалась ajv-схемой уже у него: шаблон элемента лежал в `item` напрямую вместо
   // `item.$template`, а `initialValue` был списком строк вместо литерала пустого элемента.
   //
-  // Локальный `interface JsonNode` в builders.ts с типами пакета не связан, поэтому дрейф
-  // контракта компилятор не поймает — ловить его может только такой прогон.
+  // Теперь генератор печатает документ формата 2 (`schema-emit.ts`). Его локальный
+  // `SchemaDocNode` с типами пакета не связан, поэтому дрейф контракта компилятор не поймает —
+  // ловить его может только такой прогон.
   const validate = async (intent: FormIntent) => {
     const { validateFormSchema } = await import('@reformer/renderer-json/validate');
-    return validateFormSchema(JSON.parse(buildLayoutJson(intent)));
+    return validateFormSchema(JSON.parse(buildFormSchemaJson(intent)));
   };
 
   it('форма с массивом валидна', async () => {
@@ -585,10 +604,23 @@ describe('layout проходит НАСТОЯЩИЙ валидатор renderer
     const res = await validate(intent);
     expect(res.errors).toEqual([]);
 
-    const layout = JSON.parse(buildLayoutJson(intent));
-    const arrayNode = layout.root.children.find((c: { array?: string }) => c.array);
-    // Пустое значение по типу поля: строка — '', число — null, флаг — false.
-    expect(arrayNode.initialValue).toEqual({ sku: '', qty: null, gift: false });
+    // Формат 2: узел массива ссылается на часть-строку, собранную из itemFields, а `initialValue`
+    // не несёт — пустой элемент для «Добавить» объявлен в модели (`arrayOf(blank…)`).
+    const layout = JSON.parse(buildFormSchemaJson(intent));
+    const arrayNode = layout.root.children.find((c: { item?: string }) => c.item);
+    expect(arrayNode.item).toBe('$part(itemsRow)');
+    expect(arrayNode.initialValue).toBeUndefined();
+    expect(layout.parts.itemsRow.children.map((c: { model: string }) => c.model)).toEqual([
+      '$model(sku)',
+      '$model(qty)',
+      '$model(gift)',
+    ]);
+    const model = buildModelTs(intent);
+    expect(model).toContain('items: arrayOf(blankOrderItem),');
+    // Пустое значение по типу поля: строка — '', число — 0, флаг — false.
+    expect(model).toMatch(
+      /const blankOrderItem = \(\): OrderItem => \(\{\s+sku: '',\s+qty: 0,\s+gift: false,\s+\}\);/
+    );
   });
 
   it('форма без массивов валидна', async () => {
