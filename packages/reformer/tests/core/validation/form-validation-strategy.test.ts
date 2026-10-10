@@ -10,7 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { required, minLength } from '../../../src/form/validators';
-import { validate, defineValidationSchema } from '../../../src/form/validation';
+import { validate, defineValidation } from '../../../src/form/validation';
 import { createFormValidation } from '../../../src/form/validation/strategy';
 import { eachLeafSignal } from '../../../src/model/create-model';
 
@@ -40,8 +40,8 @@ function makeForm(over: Partial<F> = {}) {
 }
 
 /** Схема: name обязателен и ≥2 символов. Стабильная ссылка (важно для дедупа раннера). */
-const nameRequired = defineValidationSchema<F>(({ model }) => {
-  validate(model.$.name, [required({ message: 'req' }), minLength(2, { message: 'min2' })]);
+const nameRequired = defineValidation<F>(({ model }) => {
+  validate(model.$.name, [required(), minLength(2)]);
 });
 
 const flush = async () => {
@@ -57,12 +57,12 @@ describe('createFormValidation — стратегии запуска', () => {
 
     model.name = 'x'; // изменение НЕ должно прогонять при submit-стратегии
     await flush();
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
     expect(form.name.touched.value).toBe(false);
 
     const ok = await ctrl.validate();
     expect(ok).toBe(false); // 'x' короче 2
-    expect(form.name.errors.value.map((e) => e.code)).toContain('minLength');
+    expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
     expect(form.name.touched.value).toBe(true); // touch:true раскрыл ошибку
 
     dispose();
@@ -73,16 +73,16 @@ describe('createFormValidation — стратегии запуска', () => {
     const ctrl = createFormValidation(model, nameRequired, { strategy: 'change' });
     ctrl.start();
 
-    expect(form.name.errors.value).toEqual([]); // инициализирующий прогон пропущен
+    expect(form.name.issues.value).toEqual([]); // инициализирующий прогон пропущен
 
     model.name = 'x'; // невалидно (minLength)
     await flush();
-    expect(form.name.errors.value.map((e) => e.code)).toContain('minLength');
+    expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
     expect(form.name.touched.value).toBe(false); // change НЕ метит touched
 
     model.name = 'Иван'; // валидно
     await flush();
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
 
     ctrl.dispose();
   });
@@ -92,10 +92,10 @@ describe('createFormValidation — стратегии запуска', () => {
     const ctrl = createFormValidation(model, nameRequired, { strategy: 'blur' });
     ctrl.start();
 
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
     form.name.markAsTouched(); // blur
     await flush();
-    expect(form.name.errors.value.map((e) => e.code)).toContain('required');
+    expect(form.name.issues.value.map((e) => e.code)).toContain('required');
 
     ctrl.dispose();
   });
@@ -110,14 +110,14 @@ describe('createFormValidation — стратегии запуска', () => {
 
     model.name = 'x';
     await flush();
-    expect(form.name.errors.value).toEqual([]); // тихо до первого submit
+    expect(form.name.issues.value).toEqual([]); // тихо до первого submit
 
     await ctrl.validate();
-    expect(form.name.errors.value.map((e) => e.code)).toContain('minLength');
+    expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
 
     model.name = 'Иван'; // теперь live
     await flush();
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
 
     ctrl.dispose();
   });
@@ -131,12 +131,12 @@ describe('createFormValidation — стратегии запуска', () => {
 
       model.name = 'x';
       await Promise.resolve();
-      expect(form.name.errors.value).toEqual([]); // ещё не прогнали — таймер не сработал
+      expect(form.name.issues.value).toEqual([]); // ещё не прогнали — таймер не сработал
 
       vi.advanceTimersByTime(300);
       await Promise.resolve();
       await Promise.resolve();
-      expect(form.name.errors.value.map((e) => e.code)).toContain('minLength');
+      expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
 
       ctrl.dispose();
     } finally {
@@ -152,7 +152,7 @@ describe('createFormValidation — стратегии запуска', () => {
 
     model.name = 'x';
     await flush();
-    expect(form.name.errors.value).toEqual([]); // после dispose прогонов нет
+    expect(form.name.issues.value).toEqual([]); // после dispose прогонов нет
   });
 
   it('start после dispose армирует стратегию заново (StrictMode / remount)', async () => {
@@ -166,7 +166,7 @@ describe('createFormValidation — стратегии запуска', () => {
 
     model.name = 'x';
     await flush();
-    expect(form.name.errors.value.map((e) => e.code)).toContain('minLength');
+    expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
 
     ctrl.dispose();
   });
@@ -174,7 +174,7 @@ describe('createFormValidation — стратегии запуска', () => {
   it('повторный start без dispose не дублирует подписки', async () => {
     const { model } = makeForm();
     const schema = vi.fn(({ model: m }: { model: typeof model }) => {
-      validate(m.$.name, [required({ message: 'req' })]);
+      validate(m.$.name, [required()]);
     });
     const ctrl = createFormValidation(model, schema, { strategy: 'change' });
     ctrl.start();

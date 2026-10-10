@@ -24,7 +24,7 @@ import { getNodeForSignal } from '../../../src/form/signal-node-registry';
 import { isFieldNode } from '../../../src/form/type-guards';
 import {
   createFormValidation,
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateModel,
 } from '../../../src/form/validation/index';
@@ -239,10 +239,10 @@ describe('поле формы над массивом', () => {
 });
 
 describe('валидация массива как значения', () => {
-  const schema = defineValidationSchema<Form>(({ model }) => {
+  const schema = defineValidation<Form>(({ model }) => {
     // Без приведений типов и без signalAt: узел-массив — PathAwareSignal.
-    validate(model.$.tags, [required({ message: 'Выберите тег' }), maxLength(2)]);
-    validate(model.$.maybe, [required({ message: 'Выберите значение' })]);
+    validate(model.$.tags, [required(), maxLength(2)]);
+    validate(model.$.maybe, [required()]);
   });
   const build = (model: FormModel<Form>) =>
     createFormFromModel<Form>({
@@ -260,17 +260,17 @@ describe('валидация массива как значения', () => {
     const form = build(model);
 
     expect(await validateModel(model, schema)).toBe(false);
-    expect(form.tags.errors.value.map((error) => error.message)).toEqual(['Выберите тег']);
-    expect(form.maybe.errors.value).toHaveLength(1);
+    expect(form.tags.issues.value.map((issue) => issue.code)).toEqual(['required']);
+    expect(form.maybe.issues.value).toHaveLength(1);
 
     form.tags.setValue(['a']);
     form.maybe.setValue(['b']);
     expect(await validateModel(model, schema)).toBe(true);
-    expect(form.tags.errors.value).toEqual([]);
+    expect(form.tags.issues.value).toEqual([]);
 
     form.tags.setValue(['a', 'b', 'c']);
     expect(await validateModel(model, schema)).toBe(false);
-    expect(form.tags.errors.value).toHaveLength(1);
+    expect(form.tags.issues.value).toHaveLength(1);
   });
 
   it('стратегия blur видит ноду поля-массива: уход фокуса запускает проверку', async () => {
@@ -282,7 +282,7 @@ describe('валидация массива как значения', () => {
     form.tags.markAsTouched();
     await tick(10);
 
-    expect(form.tags.errors.value).toHaveLength(1);
+    expect(form.tags.issues.value).toHaveLength(1);
     stop();
   });
 });

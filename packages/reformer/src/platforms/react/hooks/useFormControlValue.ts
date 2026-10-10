@@ -8,7 +8,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *
  * Оптимизированная версия {@link useFormControl}, которая подписывается
  * только на сигнал `value`. Компонент не будет ре-рендериться при изменении
- * `errors`, `touched`, `valid` и других свойств состояния.
+ * `issues`, `touched`, `valid` и других свойств состояния.
  *
  * ## Когда использовать
  *
@@ -19,7 +19,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *
  * ## Когда НЕ использовать
  *
- * Если компоненту нужны `errors`, `touched`, `disabled` или другие свойства -
+ * Если компоненту нужны `issues`, `touched`, `disabled` или другие свойства -
  * используйте {@link useFormControl}. Множественные подписки на один контрол
  * через разные хуки менее эффективны, чем одна подписка через `useFormControl`.
  *
@@ -136,8 +136,8 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *
  * // Основной редактор использует useFormControl для полного состояния
  * function MarkdownEditor({ control }: MarkdownEditorProps) {
- *   const { value, shouldShowError, errors } = useFormControl(control);
- *   const message = useValidationMessage(); // из '@reformer/core/react'
+ *   const { value, shouldShowError, issues } = useFormControl(control);
+ *   const message = useIssueMessage(); // из '@reformer/core/react'
  *
  *   return (
  *     <div className="editor-container">
@@ -145,7 +145,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *         value={value}
  *         onChange={e => control.setValue(e.target.value)}
  *       />
- *       {shouldShowError && <span className="error">{message(errors[0])}</span>}
+ *       {shouldShowError && <span className="error">{message(issues[0])}</span>}
  *
  *       {/* Preview обновляется только при изменении value *}
  *       <MarkdownPreview control={control} />

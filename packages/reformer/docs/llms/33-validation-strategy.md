@@ -10,7 +10,7 @@
 `updateOn` и `debounce` не бывает — когда запускать проверку, решает только стратегия.
 
 Стратегия определяет только момент запуска и раскрытие ошибок — сами правила остаются в отдельной
-`defineValidationSchema<T>(({ model }) => …)`.
+`defineValidation<T>(({ model }) => …)`.
 
 ## API
 
@@ -22,7 +22,7 @@
 // React (@reformer/core)
 function useFormValidation<T>(args: {
   model: FormModel<T>;
-  schema: ValidationSchema<T>;         // СТАБИЛЬНАЯ ссылка (module-level const / useMemo)
+  schema: ValidationDefinition<T>;         // СТАБИЛЬНАЯ ссылка (module-level const / useMemo)
   strategy?: ValidationStrategyKind;   // default 'submit'
   debounce?: number;                   // мс, для live-фаз (change / live-часть afterFirstSubmit)
   liveAfterSubmit?: 'change' | 'blur'; // default 'change'
@@ -45,7 +45,7 @@ interface FormValidationController {
 }
 function createFormValidation<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>,
+  schema: ValidationDefinition<T>,
   options?: ValidationStrategyOptions,
 ): FormValidationController;
 ```
@@ -75,13 +75,13 @@ function createFormValidation<T>(
 ```tsx
 import { createModel, createFormFromModel } from '@reformer/core';
 import { useFormValidation } from '@reformer/core/react';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
 type RegistrationData = { username: string; email: string; password: string };
 
 // Схема — стабильный module-level const (иначе ломается дедуп раннера).
-const registrationValidation = defineValidationSchema<RegistrationData>(({ model }) => {
+const registrationValidation = defineValidation<RegistrationData>(({ model }) => {
   validate(model.$.username, [required(), minLength(3)]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
@@ -159,12 +159,12 @@ dispose();
 ```typescript
 // ❌ schema пересоздаётся каждый рендер → контроллер и дедуп раннера ломаются
 function MyForm() {
-  const schema = defineValidationSchema<Form>(({ model }) => { … }); // новая ссылка на каждый рендер
+  const schema = defineValidation<Form>(({ model }) => { … }); // новая ссылка на каждый рендер
   useFormValidation({ model, schema, strategy: 'change' });
 }
 
 // ✅ Стабильная ссылка: module-level const (или useMemo с пустыми deps)
-const formValidation = defineValidationSchema<Form>(({ model }) => { … });
+const formValidation = defineValidation<Form>(({ model }) => { … });
 function MyForm() {
   useFormValidation({ model, schema: formValidation, strategy: 'change' });
 }

@@ -9,7 +9,7 @@ import { createFormFromModel } from '../../../src/form/create-form';
 import { required } from '../../../src/form/validators';
 import {
   applyValidationResult,
-  defineValidationSchema,
+  defineValidation,
   runValidation,
   validate,
   validateAsync,
@@ -22,7 +22,7 @@ import enJson from '../../../src/i18n/en.json';
 import ruJson from '../../../src/i18n/ru.json';
 import { DEFAULT_LOCALE } from '../../../src/i18n/locale';
 import { createI18n } from '../../../src/i18n/translator';
-import { resolveValidationError } from '../../../src/i18n/validation-message';
+import { resolveIssueMessage } from '../../../src/i18n/validation-message';
 import { ru as ruLocale } from '../../../src/locale/ru';
 
 interface Account {
@@ -41,8 +41,8 @@ function deferred<V>() {
   return { promise, resolve, reject };
 }
 
-const nameRequired = defineValidationSchema<Account>(({ model }) => {
-  validate(model.$.name, [required({ message: 'Имя обязательно' })]);
+const nameRequired = defineValidation<Account>(({ model }) => {
+  validate(model.$.name, [required()]);
 });
 
 const build = (initial: Partial<Account> = {}) => {
@@ -51,7 +51,7 @@ const build = (initial: Partial<Account> = {}) => {
 };
 
 const codesOf = (result: ValidationResult, handle: unknown): string[] =>
-  (result.errors.get(handle as never) ?? []).map((error) => error.code);
+  (result.issues.get(handle as never) ?? []).map((error) => error.code);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -75,12 +75,12 @@ describe('runValidation — статус результата', () => {
 
     expect(result.status).toBe('invalid');
     expect(codesOf(result, model.$.name)).toEqual(['required']);
-    expect([...result.errors.keys()].map((handle) => handle.__path)).toEqual(['name']);
+    expect([...result.issues.keys()].map((handle) => handle.__path)).toEqual(['name']);
   });
 
   it('valid: предупреждение не блокирует', async () => {
     const { model } = build();
-    const warnOnly = defineValidationSchema<Account>(({ model: scope }) => {
+    const warnOnly = defineValidation<Account>(({ model: scope }) => {
       validate(scope.$.name, [() => ({ code: 'weak', message: 'Слабо', severity: 'warning' })]);
     });
 
@@ -93,7 +93,7 @@ describe('runValidation — статус результата', () => {
   it('error: async-правило отклонилось — сбой записан, на поле блокирующая ошибка', async () => {
     const { model } = build({ login: 'ivan' });
     const failure = new Error('network');
-    const loginFree = defineValidationSchema<Account>(({ model: scope }) => {
+    const loginFree = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [
         async () => {
           throw failure;
@@ -111,7 +111,7 @@ describe('runValidation — статус результата', () => {
   it('error: правило бросило синхронно — тоже сбой, а не исключение прогона', async () => {
     const { model } = build();
     const failure = new Error('sync');
-    const broken = defineValidationSchema<Account>(({ model: scope }) => {
+    const broken = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [
         () => {
           throw failure;
@@ -127,8 +127,8 @@ describe('runValidation — статус результата', () => {
 
   it('error важнее invalid: сбой одного правила при ошибке другого', async () => {
     const { model } = build();
-    const both = defineValidationSchema<Account>(({ model: scope }) => {
-      validate(scope.$.name, [required({ message: 'Имя обязательно' })]);
+    const both = defineValidation<Account>(({ model: scope }) => {
+      validate(scope.$.name, [required()]);
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
 
@@ -141,7 +141,7 @@ describe('runValidation — статус результата', () => {
 
   it('несколько сбоев одного поля дают одну ошибку `ruleFailed`', async () => {
     const { model } = build();
-    const twice = defineValidationSchema<Account>(({ model: scope }) => {
+    const twice = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [
         () => Promise.reject(new Error('first')),
         () => Promise.reject(new Error('second')),
@@ -158,7 +158,7 @@ describe('runValidation — статус результата', () => {
     const { model } = build({ login: 'ivan' });
     const answers = [deferred<null>(), deferred<null>()];
     let call = 0;
-    const slow = defineValidationSchema<Account>(({ model: scope }) => {
+    const slow = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => answers[call++].promise]);
     });
 
@@ -174,7 +174,7 @@ describe('runValidation — статус результата', () => {
     const { model } = build({ login: 'ivan' });
     const answers = [deferred<null>(), deferred<null>()];
     let call = 0;
-    const slow = defineValidationSchema<Account>(({ model: scope }) => {
+    const slow = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => answers[call++].promise]);
     });
 
@@ -197,7 +197,7 @@ describe('runValidation и applyValidationResult — сбор отдельно �
     const result = await runValidation(model, nameRequired);
 
     expect(result.status).toBe('invalid');
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
     expect(form.name.touched.value).toBe(false);
     expect(form.valid.value).toBe(true);
   });
@@ -217,7 +217,7 @@ describe('runValidation и applyValidationResult — сбор отдельно �
 
     applyValidationResult(result, { touch: true });
 
-    expect(form.name.errors.value.map((error) => error.code)).toEqual(['required']);
+    expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
     expect(form.name.touched.value).toBe(true);
     expect(form.login.touched.value).toBe(false); // схема поле не проверяла
   });
@@ -230,7 +230,7 @@ describe('runValidation и applyValidationResult — сбор отдельно �
     model.name = 'Иван';
     applyValidationResult(await runValidation(model, nameRequired));
 
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
     expect(form.name.valid.value).toBe(true);
   });
 
@@ -238,8 +238,8 @@ describe('runValidation и applyValidationResult — сбор отдельно �
     const { model, form } = build({ login: 'ivan' });
     const answers = [deferred<null>(), deferred<{ code: string; message: string } | null>()];
     let call = 0;
-    const slow = defineValidationSchema<Account>(({ model: scope }) => {
-      validate(scope.$.name, [required({ message: 'Имя обязательно' })]);
+    const slow = defineValidation<Account>(({ model: scope }) => {
+      validate(scope.$.name, [required()]);
       validateAsync(scope.$.login, [() => answers[call++].promise]);
     });
 
@@ -250,19 +250,19 @@ describe('runValidation и applyValidationResult — сбор отдельно �
 
     applyValidationResult(await first, { touch: true });
 
-    expect(form.name.errors.value).toEqual([]);
+    expect(form.name.issues.value).toEqual([]);
     expect(form.name.touched.value).toBe(false);
   });
 
   it('сбой правила виден на поле после разноса', async () => {
     const { model, form } = build({ login: 'ivan' });
-    const loginFree = defineValidationSchema<Account>(({ model: scope }) => {
+    const loginFree = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
 
     applyValidationResult(await runValidation(model, loginFree), { touch: true });
 
-    expect(form.login.errors.value.map((error) => error.code)).toEqual(['ruleFailed']);
+    expect(form.login.issues.value.map((error) => error.code)).toEqual(['ruleFailed']);
     expect(form.login.invalid.value).toBe(true);
     expect(form.login.shouldShowError.value).toBe(true);
   });
@@ -270,7 +270,7 @@ describe('runValidation и applyValidationResult — сбор отдельно �
 
 describe('validateModel — обёртка с boolean', () => {
   it('true только для статуса valid', async () => {
-    const failing = defineValidationSchema<Account>(({ model: scope }) => {
+    const failing = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
 
@@ -281,7 +281,7 @@ describe('validateModel — обёртка с boolean', () => {
 
   it('сбой правила блокирует отправку формы', async () => {
     const { model, form } = build({ name: 'Иван', login: 'ivan' });
-    const loginFree = defineValidationSchema<Account>(({ model: scope }) => {
+    const loginFree = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
     const onSubmit = vi.fn();
@@ -295,25 +295,25 @@ describe('validateModel — обёртка с boolean', () => {
   it('повторный прогон после восстановления сети снимает ошибку сбоя', async () => {
     const { model, form } = build({ login: 'ivan' });
     let online = false;
-    const loginFree = defineValidationSchema<Account>(({ model: scope }) => {
+    const loginFree = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [
         () => (online ? Promise.resolve(null) : Promise.reject(new Error('network'))),
       ]);
     });
 
     await validateModel(model, loginFree);
-    expect(form.login.errors.value.map((error) => error.code)).toEqual(['ruleFailed']);
+    expect(form.login.issues.value.map((error) => error.code)).toEqual(['ruleFailed']);
 
     online = true;
     await expect(validateModel(model, loginFree)).resolves.toBe(true);
-    expect(form.login.errors.value).toEqual([]);
+    expect(form.login.issues.value).toEqual([]);
   });
 });
 
 describe('pending поля на время async-правил', () => {
   const slowSchema = (answer: Promise<{ code: string; message: string } | null>) =>
-    defineValidationSchema<Account>(({ model }) => {
-      validate(model.$.name, [required({ message: 'Имя обязательно' })]);
+    defineValidation<Account>(({ model }) => {
+      validate(model.$.name, [required()]);
       validateAsync(model.$.login, [() => answer]);
     });
 
@@ -352,7 +352,7 @@ describe('pending поля на время async-правил', () => {
     const { model, form } = build({ name: 'Иван', login: 'ivan' });
     const answers = [deferred<null>(), deferred<null>()];
     let call = 0;
-    const slow = defineValidationSchema<Account>(({ model: scope }) => {
+    const slow = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => answers[call++].promise]);
     });
 
@@ -393,8 +393,8 @@ describe('pending поля на время async-правил', () => {
 });
 
 describe('сборка валидации формы — runAll, runStep, validating', () => {
-  const stepOne = defineValidationSchema<Account>(({ model }) => {
-    validate(model.$.name, [required({ message: 'Имя обязательно' })]);
+  const stepOne = defineValidation<Account>(({ model }) => {
+    validate(model.$.name, [required()]);
   });
 
   it('runAll и runStep возвращают результат и разносят ошибки', async () => {
@@ -403,7 +403,7 @@ describe('сборка валидации формы — runAll, runStep, valida
 
     const stepResult = await validation.runStep('profile');
     expect(stepResult.status).toBe('invalid');
-    expect(form.name.errors.value.map((error) => error.code)).toEqual(['required']);
+    expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
     expect(form.name.touched.value).toBe(true);
 
     expect((await validation.runStep(2)).status).toBe('valid'); // шаг без правил
@@ -423,7 +423,7 @@ describe('сборка валидации формы — runAll, runStep, valida
 
   it('сбой правила шага отличим от ошибки', async () => {
     const { model } = build({ login: 'ivan' });
-    const access = defineValidationSchema<Account>(({ model: scope }) => {
+    const access = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
     const validation = buildValidation(model, { steps: { access } })!;
@@ -439,7 +439,7 @@ describe('сборка валидации формы — runAll, runStep, valida
     const { model } = build({ login: 'ivan' });
     const answers = [deferred<null>(), deferred<null>()];
     let call = 0;
-    const access = defineValidationSchema<Account>(({ model: scope }) => {
+    const access = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => answers[call++].promise]);
     });
     const validation = buildValidation(model, { steps: { access } })!;
@@ -465,7 +465,7 @@ describe('живой прогон и исключение схемы', () => {
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
     const { model } = build();
-    const broken = defineValidationSchema<Account>(() => {
+    const broken = defineValidation<Account>(() => {
       throw new Error('schema bug');
     });
     const controller = createFormValidation(model, broken, { strategy: 'change' });
@@ -483,7 +483,7 @@ describe('живой прогон и исключение схемы', () => {
 
   it('явный прогон исключение схемы пробрасывает', async () => {
     const { model } = build();
-    const broken = defineValidationSchema<Account>(() => {
+    const broken = defineValidation<Account>(() => {
       throw new Error('schema bug');
     });
 
@@ -497,13 +497,13 @@ describe('текст ошибки сбоя правила', () => {
     ['ru', ruLocale, ruJson],
   ])('локаль %s даёт текст для кода ruleFailed', async (_code, locale, dictionary) => {
     const { model } = build({ login: 'ivan' });
-    const loginFree = defineValidationSchema<Account>(({ model: scope }) => {
+    const loginFree = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
     const result = await runValidation(model, loginFree);
-    const [error] = result.errors.get(model.$.login as never)!;
+    const [error] = result.issues.get(model.$.login as never)!;
 
-    const text = resolveValidationError(error, createI18n(locale));
+    const text = resolveIssueMessage(error, createI18n(locale));
 
     expect(text).toBe(dictionary['validation.ruleFailed']);
     expect(text.length).toBeGreaterThan(3);

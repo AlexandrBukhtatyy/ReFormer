@@ -12,13 +12,13 @@ import { createForm } from './form-bundle';
 import type { FormBehavior } from './behaviors';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormValidation, FormValidationBundle } from './validation/config';
-import type { ValidationSchema } from './validation';
+import type { ValidationDefinition } from './validation';
 
 interface Shape {
   email: string;
 }
 
-declare const rules: ValidationSchema<Shape>;
+declare const rules: ValidationDefinition<Shape>;
 declare const steps: FormValidation<Shape>;
 declare const behavior: FormBehavior<Shape>;
 declare const schema: (model: FormModel<Shape>) => FormSchemaNode;

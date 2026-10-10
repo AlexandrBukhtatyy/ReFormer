@@ -3,7 +3,7 @@
  *
  * Покрывает:
  * - Инициализация (конструктор, дефолтные значения)
- * - Signals (value, touched, dirty, status, valid, invalid, errors, pending)
+ * - Signals (value, touched, dirty, status, valid, invalid, issues, pending)
  * - Reset
  * - Enable/disable
  * - shouldShowError computed
@@ -17,11 +17,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../../src/form/nodes/field-node';
-import type { ValidationError } from '../../../src/form/types/index';
+import type { ValidationIssue } from '../../../src/form/types/index';
 import { fieldOf } from '../../test-utils/form-from-fields';
 
-const REQUIRED: ValidationError = { code: 'required', message: 'Field is required' };
-const WARNING: ValidationError = { code: 'weak', message: 'Weak value', severity: 'warning' };
+const REQUIRED: ValidationIssue = { code: 'required' };
+const WARNING: ValidationIssue = { code: 'weak', severity: 'warning' };
 
 describe('FieldNode', () => {
   // ==========================================================================
@@ -71,7 +71,7 @@ describe('FieldNode', () => {
       expect(field.touched.value).toBe(false);
       expect(field.dirty.value).toBe(false);
       expect(field.pending.value).toBe(false);
-      expect(field.errors.value).toEqual([]);
+      expect(field.issues.value).toEqual([]);
     });
 
     it('should initialize with disabled status when disabled = true', () => {
@@ -174,12 +174,12 @@ describe('FieldNode', () => {
       expect(field.touched.value).toBe(false);
     });
 
-    it('should keep errors set from outside when touched', () => {
-      field.setErrors([REQUIRED]);
+    it('should keep issues set from outside when touched', () => {
+      field.setIssues([REQUIRED]);
 
       field.markAsTouched();
 
-      expect(field.errors.value).toEqual([REQUIRED]);
+      expect(field.issues.value).toEqual([REQUIRED]);
     });
   });
 
@@ -216,21 +216,18 @@ describe('FieldNode', () => {
   });
 
   // ==========================================================================
-  // 4. Signals: status, errors
+  // 4. Signals: status, issues
   // ==========================================================================
 
-  describe('Signals - status and errors', () => {
-    it('should set errors via setErrors', () => {
+  describe('Signals - status and issues', () => {
+    it('should set issues via setIssues', () => {
       const field = fieldOf('');
 
-      field.setErrors([
-        { code: 'custom', message: 'Custom error' },
-        { code: 'another', message: 'Another error' },
-      ]);
+      field.setIssues([{ code: 'custom' }, { code: 'another' }]);
 
-      expect(field.errors.value).toHaveLength(2);
-      expect(field.errors.value[0].code).toBe('custom');
-      expect(field.errors.value[1].code).toBe('another');
+      expect(field.issues.value).toHaveLength(2);
+      expect(field.issues.value[0].code).toBe('custom');
+      expect(field.issues.value[1].code).toBe('another');
       expect(field.status.value).toBe('invalid');
       expect(field.valid.value).toBe(false);
       expect(field.invalid.value).toBe(true);
@@ -239,27 +236,27 @@ describe('FieldNode', () => {
     it('should stay valid when only warnings are set', () => {
       const field = fieldOf('');
 
-      field.setErrors([WARNING]);
+      field.setIssues([WARNING]);
 
-      expect(field.errors.value).toEqual([WARNING]);
+      expect(field.issues.value).toEqual([WARNING]);
       expect(field.status.value).toBe('valid');
     });
 
-    it('should clear errors via clearErrors', () => {
+    it('should clear issues via clearIssues', () => {
       const field = fieldOf('');
 
-      field.setErrors([REQUIRED]);
-      field.clearErrors();
+      field.setIssues([REQUIRED]);
+      field.clearIssues();
 
-      expect(field.errors.value).toEqual([]);
+      expect(field.issues.value).toEqual([]);
       expect(field.status.value).toBe('valid');
     });
 
-    it('should set status to valid when setErrors with empty array', () => {
+    it('should set status to valid when setIssues with empty array', () => {
       const field = fieldOf('');
 
-      field.setErrors([REQUIRED]);
-      field.setErrors([]);
+      field.setIssues([REQUIRED]);
+      field.setIssues([]);
 
       expect(field.status.value).toBe('valid');
     });
@@ -276,7 +273,7 @@ describe('FieldNode', () => {
   // ==========================================================================
 
   describe('validate()', () => {
-    it('should resolve true when the field has no errors', async () => {
+    it('should resolve true when the field has no issues', async () => {
       const field = fieldOf('');
 
       await expect(field.validate()).resolves.toBe(true);
@@ -284,25 +281,25 @@ describe('FieldNode', () => {
 
     it('should resolve false when a blocking error is set from outside', async () => {
       const field = fieldOf('');
-      field.setErrors([REQUIRED]);
+      field.setIssues([REQUIRED]);
 
       await expect(field.validate()).resolves.toBe(false);
     });
 
     it('should resolve true when only warnings are set', async () => {
       const field = fieldOf('');
-      field.setErrors([WARNING]);
+      field.setIssues([WARNING]);
 
       await expect(field.validate()).resolves.toBe(true);
     });
 
-    it('should not clear errors set from outside', async () => {
+    it('should not clear issues set from outside', async () => {
       const field = fieldOf('');
-      field.setErrors([REQUIRED]);
+      field.setIssues([REQUIRED]);
 
       await field.validate();
 
-      expect(field.errors.value).toEqual([REQUIRED]);
+      expect(field.issues.value).toEqual([REQUIRED]);
       expect(field.status.value).toBe('invalid');
     });
   });
@@ -323,7 +320,7 @@ describe('FieldNode', () => {
     it('should be false when invalid but not touched and not dirty', () => {
       const field = fieldOf('');
 
-      field.setErrors([REQUIRED]);
+      field.setIssues([REQUIRED]);
 
       expect(field.invalid.value).toBe(true);
       expect(field.shouldShowError.value).toBe(false);
@@ -331,7 +328,7 @@ describe('FieldNode', () => {
 
     it('should be true when invalid AND (touched OR dirty)', () => {
       const field = fieldOf('');
-      field.setErrors([REQUIRED]);
+      field.setIssues([REQUIRED]);
 
       field.markAsTouched();
       expect(field.shouldShowError.value).toBe(true);
@@ -368,16 +365,16 @@ describe('FieldNode', () => {
       expect(field.value.value).toBe('new initial');
     });
 
-    it('should clear errors, touched, dirty and status', () => {
+    it('should clear issues, touched, dirty and status', () => {
       const field = fieldOf('initial');
 
       field.setValue('changed');
       field.markAsTouched();
-      field.setErrors([REQUIRED]);
+      field.setIssues([REQUIRED]);
 
       field.reset();
 
-      expect(field.errors.value).toEqual([]);
+      expect(field.issues.value).toEqual([]);
       expect(field.touched.value).toBe(false);
       expect(field.dirty.value).toBe(false);
       expect(field.status.value).toBe('valid');
@@ -421,13 +418,13 @@ describe('FieldNode', () => {
       expect(field.disabled.value).toBe(false);
     });
 
-    it('should clear errors when disabled', () => {
+    it('should clear issues when disabled', () => {
       const field = fieldOf('');
-      field.setErrors([REQUIRED]);
+      field.setIssues([REQUIRED]);
 
       field.disable();
 
-      expect(field.errors.value).toEqual([]);
+      expect(field.issues.value).toEqual([]);
     });
 
     it('should handle multiple enable/disable cycles', () => {

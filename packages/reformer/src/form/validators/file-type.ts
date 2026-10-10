@@ -6,10 +6,10 @@
  * @module form/validators/file-type
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { matchesFileAccept, toFileArray } from './file-utils';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора типа файла.
@@ -24,22 +24,22 @@ import { validationError } from './validation-error';
  * пропускаются (используйте {@link required} для обязательности).
  *
  * @param accept - Accept-строка допустимых типов, например `'image/*,.pdf'`
- * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `accept` и `fileName` (первый нарушивший файл).
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Только изображения и PDF
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { fileType } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.documents, [fileType('image/*,.pdf', { message: 'Только изображения или PDF' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [fileType('image/*,.pdf', { code: 'documents.fileType' })]);
  * });
  * ```
  */
-export function fileType(accept: string, options?: ValidateOptions): Rule<unknown> {
+export function fileType(accept: string, options?: RuleOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -48,7 +48,7 @@ export function fileType(accept: string, options?: ValidateOptions): Rule<unknow
     if (files === null || files.length === 0) return null;
     for (const file of files) {
       if (!matchesFileAccept(file, accept)) {
-        return validationError('fileType', options, { accept, fileName: file.name });
+        return validationIssue('fileType', options, { accept, fileName: file.name });
       }
     }
     return null;

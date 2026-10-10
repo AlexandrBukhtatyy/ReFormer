@@ -10,13 +10,13 @@
 **Модель данных** — источник истины значений. Схема — дерево узлов, привязанных к ручкам модели
 (`model: model.$.field`). Сборка идёт ОДНИМ вызовом `createForm`: он создаёт модель, строит форму,
 запускает поведение и собирает валидацию. Правил в схеме нет — они живут в отдельной схеме
-`defineValidationSchema` из `@reformer/core/validation`, а запускает их раннер: `validation` сборки
+`defineValidation` из `@reformer/core/validation`, а запускает их раннер: `validation` сборки
 либо `validateModel(model, schema)`.
 
 ```typescript
 import { createForm, type FormModel, type FormProxy, type FormSchemaNode } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
@@ -44,9 +44,9 @@ const contactSchema = (model: FormModel<ContactForm>): FormSchemaNode => ({
 });
 
 // 3. Схема валидации — отдельный слой (@reformer/core/validation)
-const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
-  validate(model.$.name, [required({ message: 'Name is required' })]);
-  validate(model.$.email, [required({ message: 'Email is required' }), email({ message: 'Invalid email' })]);
+const contactValidation = defineValidation<ContactForm>(({ model }) => {
+  validate(model.$.name, [required({ code: 'name.required' })]);
+  validate(model.$.email, [required({ code: 'email.required' }), email({ code: 'email.email' })]);
 });
 
 // 4. Сборка ОДНИМ вызовом: модель из initial + ноды поверх её сигналов + валидация.

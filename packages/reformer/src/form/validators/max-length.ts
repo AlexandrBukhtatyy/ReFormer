@@ -6,9 +6,9 @@
  * @module form/validators/max-length
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора максимальной длины строки или массива.
@@ -18,23 +18,23 @@ import { validationError } from './validation-error';
  * (используйте {@link required} для обязательности).
  *
  * @param maxLen - Максимально допустимая длина (включительно)
- * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxLength` и `actualLength`.
  * @returns Правило {@link Rule} для строки или массива
  *
  * @example Максимальная длина строки
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { maxLength } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ * const validation = defineValidation<MyForm>(({ model }) => {
  *   validate(model.$.name, [maxLength(50)]);
- *   validate(model.$.bio, [maxLength(500, { message: 'Максимум 500 символов' })]);
+ *   validate(model.$.bio, [maxLength(500, { code: 'bio.maxLength' })]);
  * });
  * ```
  */
-export function maxLength(maxLen: number, options?: ValidateOptions): Rule<unknown> {
+export function maxLength(maxLen: number, options?: RuleOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -42,7 +42,7 @@ export function maxLength(maxLen: number, options?: ValidateOptions): Rule<unkno
     const len = (value as { length?: number }).length;
     if (typeof len !== 'number') return null;
     if (len > maxLen) {
-      return validationError('maxLength', options, { maxLength: maxLen, actualLength: len });
+      return validationIssue('maxLength', options, { maxLength: maxLen, actualLength: len });
     }
     return null;
   };

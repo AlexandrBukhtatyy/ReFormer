@@ -2,8 +2,8 @@
 
 ### Imports rule (#1 cause of cascading errors — read first)
 
-- Модель/форма/хуки/типы (`FormModel`, `FormSchemaNode`, `ValidationError`) — из `@reformer/core`.
-- Схема валидации (`defineValidationSchema` + операторы `validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach`) и раннер `validateModel` — из `@reformer/core/validation`. `cross` берётся из аргумента схемы.
+- Модель/форма/хуки/типы (`FormModel`, `FormSchemaNode`, `ValidationIssue`) — из `@reformer/core`.
+- Схема валидации (`defineValidation` + операторы `validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach`) и раннер `validateModel` — из `@reformer/core/validation`. `cross` берётся из аргумента схемы.
 - Чистые фабрики валидаторов (`required`/`min`/`email`/…) — из `@reformer/core/validators`.
 - Декларативный DSL поведения (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
 
@@ -15,12 +15,12 @@ import {
   type FormProxy,
   type FormSchemaNode,
   type FormModel,
-  type ValidationError,
+  type ValidationIssue,
 } from '@reformer/core';
 import { useFormControl, useFormControlValue } from '@reformer/core/react';
 // схема валидации + раннер — отдельный слой:
 import {
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateAsync,
   validateWhen,
@@ -29,7 +29,7 @@ import {
   validateModel,
   type Rule,
   type AsyncRule,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 // поведение формы — декларативный DSL:
@@ -86,7 +86,7 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 ### Валидаторы — оператор `validate`, а не узел схемы
 
 Валидация — **отдельный слой** (`@reformer/core/validation`), а не ключ узла. Схема формы
-(билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationSchema`, а запускает
+(билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationDefinition`, а запускает
 их раннер. ⚠️ `form.validate()`/`submit()` правил **НЕ запускают** — прогон только через
 `validation` сборки либо `validateModel(model, schema)`.
 
@@ -97,13 +97,13 @@ const schema = {
 };
 validate(path.email, required(), 'Email is required'); // старая сигнатура validate() — удалена
 
-// ✅ CORRECT - операторы validate/validateAsync внутри defineValidationSchema; фабрики с options
-const emailSchema = defineValidationSchema<MyForm>(({ model }) => {
-  validate(model.$.email, [required({ message: 'Email is required' }), email()]);
+// ✅ CORRECT - операторы validate/validateAsync внутри defineValidation; фабрики с options
+const emailSchema = defineValidation<MyForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
   validateAsync(model.$.email, [
     async (value, { signal }) => {
       const res = await fetch(`/api/free?email=${value}`, { signal });
-      return (await res.json()).free ? null : { code: 'taken', message: 'Email занят' };
+      return (await res.json()).free ? null : { code: 'taken' };
     },
   ]);
 });
@@ -126,12 +126,12 @@ watchField(path.amount, (amount, ctx) => {
 compute(model.$.total, () => (model.amount ?? 0) * (model.rate ?? 0));
 
 // cross-field правило — обычная функция над снимком модели; `cross` берётся из аргумента схемы:
-const amountVsMax = (form: MyForm): ValidationError | null =>
+const amountVsMax = (form: MyForm): ValidationIssue | null =>
   form.amount != null && form.maxAmount != null && form.amount > form.maxAmount
-    ? { code: 'tooBig', message: 'Превышает лимит' }
+    ? { code: 'tooBig' }
     : null;
 
-const amountSchema = defineValidationSchema<MyForm>(({ model, cross }) => {
+const amountSchema = defineValidation<MyForm>(({ model, cross }) => {
   cross(model.$.amount, amountVsMax); // check получает снимок модели, ошибка — на model.$.amount
 });
 ```

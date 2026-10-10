@@ -6,10 +6,10 @@
  * @module form/validators/min-files
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { toFileArray } from './file-utils';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора минимального количества файлов.
@@ -19,22 +19,22 @@ import { validationError } from './validation-error';
  * связкой `required()` + `minFiles(n)`, как и у {@link minLength}.
  *
  * @param min - Минимально допустимое количество файлов (включительно)
- * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minFiles` и `actualCount`.
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Не менее двух документов
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { required, minFiles } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.documents, [required(), minFiles(2, { message: 'Приложите минимум 2 документа' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [required(), minFiles(2, { code: 'documents.minFiles' })]);
  * });
  * ```
  */
-export function minFiles(min: number, options?: ValidateOptions): Rule<unknown> {
+export function minFiles(min: number, options?: RuleOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -42,7 +42,7 @@ export function minFiles(min: number, options?: ValidateOptions): Rule<unknown> 
     const files = toFileArray(value);
     if (files === null || files.length === 0) return null;
     if (files.length < min) {
-      return validationError('minFiles', options, { minFiles: min, actualCount: files.length });
+      return validationIssue('minFiles', options, { minFiles: min, actualCount: files.length });
     }
     return null;
   };

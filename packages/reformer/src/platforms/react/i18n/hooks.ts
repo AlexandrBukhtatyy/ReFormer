@@ -5,11 +5,11 @@
  */
 
 import { useContext, useMemo } from 'react';
-import type { ValidationError } from '../../../form/types/contracts';
+import type { ValidationIssue } from '../../../form/types/contracts';
 import type { Messages } from '../../../i18n/locale';
 import type { MessageValues } from '../../../i18n/message-format';
 import { createI18n, translateBuiltin } from '../../../i18n/translator';
-import { resolveValidationError } from '../../../i18n/validation-message';
+import { resolveIssueMessage, type IssueMessages } from '../../../i18n/validation-message';
 import { I18nContext, type I18nContextValue } from './context';
 
 /**
@@ -63,26 +63,31 @@ export function useMessages<D extends Messages>(
 }
 
 /**
- * Резолвер текста ошибки валидации по активной локали: `messageKey` автора → явное `message` →
- * словарь локали по коду → встроенный английский → код. Идентичность функции меняется вместе с
- * локалью, поэтому показанные ошибки переводятся при смене языка без повторной валидации.
+ * Резолвер текста замечания валидации: словарь формы → словарь активной локали по коду →
+ * встроенный английский → код. Идентичность функции меняется вместе с локалью и словарём,
+ * поэтому показанные замечания переводятся при смене языка без повторной валидации.
  *
- * `FormField` из `@reformer/cdk` использует его сам; вызывайте напрямую, если рисуете ошибки
+ * `FormField` из `@reformer/cdk` использует его сам; вызывайте напрямую, если рисуете замечания
  * своим компонентом.
+ *
+ * @param messages - Словарь формы (`defineIssueMessages`). Стабильная ссылка — константа
+ *   модуля, иначе резолвер будет пересоздаваться на каждый рендер.
  *
  * @example
  * ```tsx
- * function FieldErrors({ control }: { control: FieldNode<string> }) {
- *   const message = useValidationMessage();
- *   const { errors } = useFormControl(control);
- *   return <>{errors.map((error) => <span key={error.code}>{message(error)}</span>)}</>;
+ * const messages = defineIssueMessages({ 'phone.required': 'Укажите телефон' });
+ *
+ * function FieldIssues({ control }: { control: FieldNode<string> }) {
+ *   const message = useIssueMessage(messages);
+ *   const { issues } = useFormControl(control);
+ *   return <>{issues.map((issue) => <span key={issue.code}>{message(issue)}</span>)}</>;
  * }
  * ```
  */
-export function useValidationMessage(): (error: ValidationError) => string {
+export function useIssueMessage(messages?: IssueMessages): (issue: ValidationIssue) => string {
   const { locale } = useContext(I18nContext);
   return useMemo(() => {
     const i18n = createI18n(locale);
-    return (error: ValidationError) => resolveValidationError(error, i18n);
-  }, [locale]);
+    return (issue: ValidationIssue) => resolveIssueMessage(issue, i18n, messages);
+  }, [locale, messages]);
 }

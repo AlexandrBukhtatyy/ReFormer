@@ -14,8 +14,8 @@
 import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
 import type { FormModel } from '../../model/types';
 import { apply } from './operators';
-import { defineValidationSchema, runAndApply } from './run';
-import type { ValidationResult, ValidationSchema } from './types';
+import { defineValidation, runAndApply } from './run';
+import type { ValidationResult, ValidationDefinition } from './types';
 import {
   createFormValidation,
   type FormValidationController,
@@ -28,18 +28,18 @@ import {
  * ⚠️ `schema` и значения `steps` обязаны быть **стабильными ссылками**: отмена устаревших прогонов
  * ключуется по паре `(model, schema)` через `WeakMap`, поэтому инлайн-стрелка ломает дедупликацию —
  * валидация начнёт возвращать `false` от уже отменённых прогонов. Держите их
- * module-level-константами (`defineValidationSchema`).
+ * module-level-константами (`defineValidation`).
  */
 export interface FormValidation<T> {
   /** Полный набор правил — для submit и `validateAll`. Без него собирается из `steps` + `extras`. */
-  schema?: ValidationSchema<T>;
+  schema?: ValidationDefinition<T>;
   /**
    * Пошаговая валидация визарда: ключ = `selector` шага. `null` означает «шаг без правил» ЯВНО —
    * чтобы опечатка в ключе не выглядела как пустой шаг.
    */
-  steps?: Record<string, ValidationSchema<T> | null>;
+  steps?: Record<string, ValidationDefinition<T> | null>;
   /** Cross-field правила, которые проверяются только целиком (в `validateAll`), но не по шагам. */
-  extras?: ValidationSchema<T>;
+  extras?: ValidationDefinition<T>;
   /** Когда запускать живую валидацию. По умолчанию `'submit'` (реактивно молчит). */
   strategy?: ValidationStrategyKind;
   debounce?: number;
@@ -54,7 +54,7 @@ export interface FormValidation<T> {
  */
 export interface FormValidationBundle<T> {
   /** Полная схема (стабильная ссылка) — та, по которой идёт `validateAll`. */
-  readonly schema: ValidationSchema<T>;
+  readonly schema: ValidationDefinition<T>;
   /** Селекторы шагов в порядке объявления. Пусто, если `steps` не заданы. */
   readonly stepSelectors: readonly string[];
   /** Полный прогон с раскрытием ошибок. Синоним {@link FormValidationBundle.validateAll}. */
@@ -83,7 +83,7 @@ export interface FormValidationBundle<T> {
 }
 
 /** Схема-заглушка для шага без правил: прогон по ней всегда успешен. */
-const EMPTY: ValidationSchema<never> = () => {};
+const EMPTY: ValidationDefinition<never> = () => {};
 
 /**
  * Собрать {@link FormValidationBundle} из правил. Принимает либо готовую схему (сахар для простых
@@ -112,7 +112,7 @@ const EMPTY: ValidationSchema<never> = () => {};
  */
 export function buildValidation<T>(
   model: FormModel<T>,
-  validation?: FormValidation<T> | ValidationSchema<T>
+  validation?: FormValidation<T> | ValidationDefinition<T>
 ): FormValidationBundle<T> | undefined {
   if (!validation) return undefined;
   const config: FormValidation<T> =
@@ -121,17 +121,15 @@ export function buildValidation<T>(
   const stepSelectors = Object.keys(config.steps ?? {});
   const stepSchemas = stepSelectors
     .map((selector) => config.steps?.[selector])
-    .filter((schema): schema is ValidationSchema<T> => schema != null);
+    .filter((schema): schema is ValidationDefinition<T> => schema != null);
 
   // Стабильная ссылка на весь набор правил: собирается один раз и переиспользуется всеми прогонами.
   const fullSchema =
     config.schema ??
-    defineValidationSchema<T>(() =>
-      apply(...stepSchemas, ...(config.extras ? [config.extras] : []))
-    );
+    defineValidation<T>(() => apply(...stepSchemas, ...(config.extras ? [config.extras] : [])));
 
   /** Правила шага по номеру (1-based) или селектору; `null` — шага нет либо он объявлен без правил. */
-  const schemaAt = (step: number | string): ValidationSchema<T> | null => {
+  const schemaAt = (step: number | string): ValidationDefinition<T> | null => {
     const selector = typeof step === 'number' ? stepSelectors[step - 1] : step;
     return (selector != null ? config.steps?.[selector] : null) ?? null;
   };
@@ -148,7 +146,7 @@ export function buildValidation<T>(
   const runStep = async (step: number | string): Promise<ValidationResult> => {
     stepRuns.value++;
     try {
-      return await runAndApply(model, schemaAt(step) ?? (EMPTY as ValidationSchema<T>), {
+      return await runAndApply(model, schemaAt(step) ?? (EMPTY as ValidationDefinition<T>), {
         touch: true,
       });
     } finally {

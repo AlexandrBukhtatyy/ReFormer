@@ -4,7 +4,7 @@
 
 Канонический submit-флоу: «запустить полную валидацию данных (`validateModel`) →
 проверить `boolean`-результат → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
-Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidationSchema`), она
+Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidation`), она
 НЕ входит в схему формы, которую получает `createForm`. Раннер `validateModel(model, schema)` сам
 разносит ошибки по нодам формы, поэтому UI подсветит проблемные поля, а наружу вернёт `boolean`:
 `true` — блокирующих ошибок нет (`severity:'warning'` показывается, но отправку не блокирует);
@@ -27,7 +27,7 @@ interface ModelApi<T> {
 
 // Валидация данных — headless-раннер: находит ноды по сигналам модели, разносит по ним ошибки,
 // отменяет устаревшие прогоны той же (model, schema):
-validateModel<T>(model: FormModel<T>, schema: ValidationSchema<T>, options?: { touch?: boolean }): Promise<boolean>
+validateModel<T>(model: FormModel<T>, schema: ValidationDefinition<T>, options?: { touch?: boolean }): Promise<boolean>
 // true  = статус 'valid': блокирующих ошибок нет (severity:'warning' не блокирует, но показывается).
 // false = 'invalid' (ошибки уже в нодах → UI подсветит поля), 'error' (правило не удалось
 //         проверить — на поле ошибка ruleFailed) либо 'cancelled' (прогон вытеснен новым).
@@ -37,19 +37,19 @@ runValidation<T>(model, schema): Promise<ValidationResult>           // толь
 applyValidationResult(result, options?: { touch?: boolean }): void   // разнос по нодам
 
 // Схема валидации — отдельный слой над моделью (не смешивается со схемой формы):
-defineValidationSchema<T>(({ model, cross }) => {
+defineValidation<T>(({ model, cross }) => {
   validate(model.$.field, [rules]);          // синхронные правила поля
   // validateAsync / validateWhen / cross / apply / applyEach — см. 03-api-signatures.md
-}): ValidationSchema<T>
+}): ValidationDefinition<T>
 
 // form.validate() / form.submit(handler) правил НЕ запускают: validate() отвечает текущей
 // валидностью нод, submit() не зовёт обработчик, пока на нодах есть блокирующие ошибки.
 
 // Нода поля/формы (для точечной работы с UI-состоянием):
 form.markAsTouched();                         // тронуть все поля (показать ошибки)
-form.clearErrors();                           // снять ошибки со всех нод
-form.<field>.setErrors([{ code, message }]);  // серверная/бизнес-ошибка в конкретное поле
-form.<field>.clearErrors();
+form.clearIssues();                           // снять ошибки со всех нод
+form.<field>.setIssues([{ code, message }]);  // серверная/бизнес-ошибка в конкретное поле
+form.<field>.clearIssues();
 ```
 
 ## Examples
@@ -59,17 +59,17 @@ form.<field>.clearErrors();
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
 type RegistrationFormData = { username: string; email: string; password: string };
 
 // Валидация — отдельная схема над моделью. НЕ входит в схему формы, которую получает createForm.
 // Стабильная module-level `const`-ссылка — чтобы validateModel мог отменять устаревшие прогоны.
-const registrationSchema = defineValidationSchema<RegistrationFormData>(({ model }) => {
-  validate(model.$.username, [required({ message: 'Имя обязательно' }), minLength(3)]);
-  validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
-  validate(model.$.password, [required({ message: 'Пароль обязателен' }), minLength(8)]);
+const registrationSchema = defineValidation<RegistrationFormData>(({ model }) => {
+  validate(model.$.username, [required({ code: 'username.required' }), minLength(3)]);
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
+  validate(model.$.password, [required({ code: 'password.required' }), minLength(8)]);
 });
 
 function RegistrationForm() {
@@ -127,7 +127,7 @@ async function handleSubmit(e: React.FormEvent) {
       navigate('/welcome');
     } else {
       // Серверная бизнес-ошибка — НЕ сбрасываем форму, кладём ошибку в поле
-      form.username.setErrors([{ code: 'taken', message: response.message }]);
+      form.username.setIssues([{ code: 'taken' }]);
     }
   } catch (error) {
     // Сеть/неожиданная ошибка — оставляем значения
@@ -214,7 +214,7 @@ createFormFromModel({
 });
 
 // ✅ Валидация — отдельная схема, прогоняется раннером
-const schema = defineValidationSchema<T>(({ model }) => {
+const schema = defineValidation<T>(({ model }) => {
   validate(model.$.username, [required()]);
 });
 await validateModel(model, schema);
@@ -247,7 +247,7 @@ model.reset();
 **Q: После `reset()` в UI остались старые ошибки.**
 A: `model.reset()` меняет значения; ошибки в нодах чистит валидация. Перезапусти
 `validateModel(model, schema)` после reset (валидные поля погаснут сами), либо очисти напрямую —
-`form.clearErrors()` / `form.<field>.clearErrors()`.
+`form.clearIssues()` / `form.<field>.clearIssues()`.
 
 **Q: `validateModel` вернул `true`, но в поле висит ошибка.**
 A: Это правило с `severity: 'warning'` — оно показывается, но submit не блокирует, поэтому раннер

@@ -14,13 +14,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
 import { FieldNode } from '../../src/form/nodes/field-node';
-import type { ValidationError } from '../../src/form/types/index';
+import type { ValidationIssue } from '../../src/form/types/index';
 
 /** Сигналы ноды поля, которые читает `useFormControl`. */
 type FormControlState<T> = Pick<
   FieldNode<T>,
   | 'value'
-  | 'errors'
+  | 'issues'
   | 'pending'
   | 'disabled'
   | 'touched'
@@ -34,10 +34,10 @@ type FormControlState<T> = Pick<
 const MockComponent: React.ComponentType<any> = () => null;
 
 // ============================================================================
-// Ошибка поля: на ноду её ставит раннер схемы валидации (`setErrors`)
+// Ошибка поля: на ноду её ставит раннер схемы валидации (`setIssues`)
 // ============================================================================
 
-const REQUIRED_ERROR: ValidationError = { code: 'required', message: 'Field is required' };
+const REQUIRED_ERROR: ValidationIssue = { code: 'required' };
 
 // ============================================================================
 // Helper для тестирования хука без React рендера
@@ -52,7 +52,7 @@ const REQUIRED_ERROR: ValidationError = { code: 'required', message: 'Field is r
 function simulateUseFormControl<T>(control: FieldNode<T>): FormControlState<T> {
   return {
     value: control.value,
-    errors: control.errors,
+    issues: control.issues,
     pending: control.pending,
     disabled: control.disabled,
     touched: control.touched,
@@ -89,11 +89,11 @@ describe('useFormControl', () => {
       expect(state.value.value).toBe('initial');
     });
 
-    it('should return errors signal from control', () => {
+    it('should return issues signal from control', () => {
       const state = simulateUseFormControl(field);
 
-      expect(state.errors).toBe(field.errors);
-      expect(state.errors.value).toEqual([]);
+      expect(state.issues).toBe(field.issues);
+      expect(state.issues.value).toEqual([]);
     });
 
     it('should return pending signal from control', () => {
@@ -196,7 +196,7 @@ describe('useFormControl', () => {
       expect(state.dirty.value).toBe(true);
     });
 
-    it('should reflect errors changes from control', () => {
+    it('should reflect issues changes from control', () => {
       const field = new FieldNode({
         valueSignal: signal(''),
         component: MockComponent,
@@ -204,12 +204,12 @@ describe('useFormControl', () => {
 
       const state = simulateUseFormControl(field);
 
-      expect(state.errors.value).toEqual([]);
+      expect(state.issues.value).toEqual([]);
 
-      field.setErrors([{ code: 'custom', message: 'Custom error' }]);
+      field.setIssues([{ code: 'custom' }]);
 
-      expect(state.errors.value).toHaveLength(1);
-      expect(state.errors.value[0].code).toBe('custom');
+      expect(state.issues.value).toHaveLength(1);
+      expect(state.issues.value[0].code).toBe('custom');
     });
 
     it('should reflect valid/invalid changes from control', () => {
@@ -223,12 +223,12 @@ describe('useFormControl', () => {
       expect(state.valid.value).toBe(true);
       expect(state.invalid.value).toBe(false);
 
-      field.setErrors([REQUIRED_ERROR]);
+      field.setIssues([REQUIRED_ERROR]);
 
       expect(state.valid.value).toBe(false);
       expect(state.invalid.value).toBe(true);
 
-      field.clearErrors();
+      field.clearIssues();
 
       expect(state.valid.value).toBe(true);
       expect(state.invalid.value).toBe(false);
@@ -264,7 +264,7 @@ describe('useFormControl', () => {
       expect(state.shouldShowError.value).toBe(false);
 
       // Ошибка есть, но поле не тронуто — показывать рано
-      field.setErrors([REQUIRED_ERROR]);
+      field.setIssues([REQUIRED_ERROR]);
       expect(state.shouldShowError.value).toBe(false);
 
       field.markAsTouched();
@@ -365,17 +365,17 @@ describe('useFormControl', () => {
       expect(state.valid.value).toBe(false); // disabled !== valid
     });
 
-    it('should handle field with initial errors', () => {
+    it('should handle field with initial issues', () => {
       const field = new FieldNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
 
-      field.setErrors([{ code: 'initial', message: 'Initial error' }]);
+      field.setIssues([{ code: 'initial' }]);
 
       const state = simulateUseFormControl(field);
 
-      expect(state.errors.value).toHaveLength(1);
+      expect(state.issues.value).toHaveLength(1);
       expect(state.invalid.value).toBe(true);
     });
 
@@ -438,19 +438,19 @@ describe('useFormControl', () => {
 
       // User clears the field - the validation run routes the error to the node
       field.setValue('');
-      field.setErrors([REQUIRED_ERROR]);
+      field.setIssues([REQUIRED_ERROR]);
 
       expect(state.valid.value).toBe(false);
       expect(state.shouldShowError.value).toBe(true);
-      expect(state.errors.value[0].code).toBe('required');
+      expect(state.issues.value[0].code).toBe('required');
 
       // User fixes the error - the next run clears it
       field.setValue('valid value');
-      field.setErrors([]);
+      field.setIssues([]);
 
       expect(state.valid.value).toBe(true);
       expect(state.shouldShowError.value).toBe(false);
-      expect(state.errors.value).toEqual([]);
+      expect(state.issues.value).toEqual([]);
     });
 
     it('should handle reset correctly', () => {
@@ -463,7 +463,7 @@ describe('useFormControl', () => {
 
       // Make changes
       field.setValue('');
-      field.setErrors([REQUIRED_ERROR]);
+      field.setIssues([REQUIRED_ERROR]);
       field.markAsTouched();
 
       expect(state.dirty.value).toBe(true);
@@ -477,7 +477,7 @@ describe('useFormControl', () => {
       expect(state.dirty.value).toBe(false);
       expect(state.touched.value).toBe(false);
       expect(state.valid.value).toBe(true);
-      expect(state.errors.value).toEqual([]);
+      expect(state.issues.value).toEqual([]);
     });
 
     it('should handle disable/enable cycle', () => {
@@ -516,7 +516,7 @@ describe('useFormControl', () => {
 
       // Verify all expected properties exist
       expect(state).toHaveProperty('value');
-      expect(state).toHaveProperty('errors');
+      expect(state).toHaveProperty('issues');
       expect(state).toHaveProperty('pending');
       expect(state).toHaveProperty('disabled');
       expect(state).toHaveProperty('touched');
@@ -554,7 +554,7 @@ describe('useFormControl', () => {
 
       // Signals should be the same objects
       expect(state1.value).toBe(state2.value);
-      expect(state1.errors).toBe(state2.errors);
+      expect(state1.issues).toBe(state2.issues);
       expect(state1.pending).toBe(state2.pending);
       expect(state1.disabled).toBe(state2.disabled);
       expect(state1.touched).toBe(state2.touched);

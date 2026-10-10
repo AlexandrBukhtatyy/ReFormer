@@ -14,7 +14,7 @@
  */
 
 import type { FormModel, PathAwareSignal } from '../../model/types';
-import type { ValidationError } from '../types/contracts';
+import type { ValidationIssue } from '../types/contracts';
 import type { ValidationFailure } from './types';
 
 /** Сток одного прогона: модель scope, накопленные ошибки, незавершённые async-правила, гейты. */
@@ -25,7 +25,7 @@ export interface VContext {
    */
   model: FormModel<unknown>;
   /** Накопленные ошибки по сигналу (ключ — идентичность `PathAwareSignal`). */
-  errors: Map<PathAwareSignal<unknown>, ValidationError[]>;
+  issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>;
   /** Незавершённые async-правила (раннер их дожидается). */
   pending: Promise<void>[];
   /** Поля с async-правилами: на время ожидания раннер держит их ноды в `pending`. */
@@ -70,10 +70,10 @@ export function requireCtx(op: string): VContext {
   return current;
 }
 
-/** «Тронуть» сигнал: гарантирует его наличие в `errors` (даже пустым) → он попадёт в очистку. */
-export function touch(ctx: VContext, sig: PathAwareSignal<unknown>): ValidationError[] {
-  let bucket = ctx.errors.get(sig);
-  if (!bucket) ctx.errors.set(sig, (bucket = []));
+/** «Тронуть» сигнал: гарантирует его наличие в `issues` (даже пустым) → он попадёт в очистку. */
+export function touch(ctx: VContext, sig: PathAwareSignal<unknown>): ValidationIssue[] {
+  let bucket = ctx.issues.get(sig);
+  if (!bucket) ctx.issues.set(sig, (bucket = []));
   return bucket;
 }
 

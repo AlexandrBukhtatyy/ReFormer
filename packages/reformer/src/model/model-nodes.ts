@@ -2,7 +2,7 @@
  * Внутреннее дерево узлов модели: значения, начальный снимок, dirty/reset.
  *
  * `LeafNode`/`GroupNode`/`ArrayNode` держат ТОЛЬКО значение (сигнал `@preact/signals-core` плюс
- * снимок `initial`). Это НЕ узлы формы: тёзки из `form/nodes/` несут touched/dirty/status/errors
+ * снимок `initial`). Это НЕ узлы формы: тёзки из `form/nodes/` несут touched/dirty/status/issues
  * и строятся поверх этих сигналов. Наружу дерево не отдаётся — доступ идёт через прокси
  * (`model-value-proxy` — значения, `model-signals-proxy` — `$`-сигналы).
  *

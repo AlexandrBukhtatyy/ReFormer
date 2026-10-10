@@ -6,10 +6,10 @@
  * @module form/validators/is-date
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { parseDate } from './date-utils';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора, проверяющего что значение — валидная дата.
@@ -17,28 +17,28 @@ import { validationError } from './validation-error';
  * Принимает `Date` или строку, парсимую в дату. Пустые значения (`''`/`null`/`undefined`)
  * пропускаются (используйте {@link required} для обязательности).
  *
- * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
  * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Проверка валидности даты
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { required, isDate } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.eventDate, [required(), isDate({ message: 'Введите корректную дату' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.eventDate, [required(), isDate({ code: 'eventDate.isDate' })]);
  * });
  * ```
  */
-export function isDate(options?: ValidateOptions): Rule<string | Date | null | undefined> {
+export function isDate(options?: RuleOptions): Rule<string | Date | null | undefined> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
     }
     const parsed = parseDate(value);
     if (parsed === null) {
-      return validationError('date_invalid', options);
+      return validationIssue('date_invalid', options);
     }
     return null;
   };

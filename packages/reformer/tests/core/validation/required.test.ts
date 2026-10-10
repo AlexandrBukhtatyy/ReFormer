@@ -13,20 +13,17 @@ import { required } from '../../../src/form/validators/required';
 
 const v = required() as unknown as (value: unknown) => { code: string; message?: string } | null;
 
-describe('required — default message (regression #17)', () => {
-  it('без options.message текста у ошибки нет (fallback на code)', () => {
+describe('required — код замечания (regression #17)', () => {
+  it('текста у замечания нет: только код, по нему резолвер берёт строку', () => {
     const err = v(null);
-    expect(err).not.toBeNull();
-    expect(err?.code).toBe('required');
-    // Ключ фикса: `message` не задан → резолвер берёт текст по коду
-    expect(err?.message).toBeUndefined();
+    expect(err).toEqual({ code: 'required' });
   });
 
-  it('per-field message сохраняется', () => {
-    const withMsg = required({ message: 'Обязательно' }) as unknown as (
+  it('свой код поля заменяет встроенный', () => {
+    const withCode = required({ code: 'phone.required' }) as unknown as (
       value: unknown
-    ) => { message: string } | null;
-    expect(withMsg('')?.message).toBe('Обязательно');
+    ) => { code: string } | null;
+    expect(withCode('')).toEqual({ code: 'phone.required' });
   });
 });
 

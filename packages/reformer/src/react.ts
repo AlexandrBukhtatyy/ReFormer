@@ -25,6 +25,6 @@ export type {
   I18nStaticProviderProps,
   I18nLoadingProviderProps,
 } from './platforms/react/i18n/provider';
-export { useI18n, useMessages, useValidationMessage } from './platforms/react/i18n/hooks';
+export { useI18n, useMessages, useIssueMessage } from './platforms/react/i18n/hooks';
 export { I18N_CONTEXT_MARKER } from './platforms/react/i18n/context';
 export type { I18nContextValue } from './platforms/react/i18n/context';

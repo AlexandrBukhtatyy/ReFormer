@@ -1,35 +1,37 @@
 /**
  * Типы фабрик валидаторов (`@reformer/core/validators`).
  *
- * Контракт валидации — `@reformer/core/validation`: `defineValidationSchema` + операторы
+ * Контракт валидации — `@reformer/core/validation`: `defineValidation` + операторы
  * (`validate`/`validateAsync`/`validateWhen`/`cross`/`apply`/`applyEach`) и раннер
- * `validateModel(model, schema)`; правила там — `Rule<T> = (value) => error | null`.
+ * `validateModel(model, definition)`; правила там — `Rule<T> = (value) => issue | null`.
  */
 
 // ============================================================================
-// Опции валидации
+// Опции правила
 // ============================================================================
 
 /**
  * Опции валидатора-фабрики (`required()`/`pattern()`/…). Передаются вторым (или последним)
- * аргументом в фабрику и попадают в возвращаемую {@link ValidationError}.
+ * аргументом в фабрику и попадают в возвращаемое {@link ValidationIssue}.
+ *
+ * Текста среди опций нет: правило сообщает только код и параметры, а строку по коду даёт слой
+ * представления (`resolveIssueMessage` из `@reformer/core/i18n`). Нужен свой текст для
+ * конкретного поля — дайте правилу свой код и запись в словаре формы.
+ *
+ * @example
+ * ```ts
+ * // правило
+ * required({ code: 'loanAmount.required' });
+ * // словарь формы (`defineIssueMessages`)
+ * const messages = defineIssueMessages({ 'loanAmount.required': 'Укажите сумму кредита' });
+ * ```
  */
-export interface ValidateOptions {
-  /** Готовое сообщение об ошибке. Если не задано, у ошибки нет `message`, и отображаемый текст
-   * берётся из словаря локали по `code` (`validation.<code>`; см. `resolveValidationError` в
-   * `@reformer/core/i18n`). Явное сообщение важнее словаря, но не переключается вместе с языком —
-   * для локализуемого текста используйте {@link ValidateOptions.messageKey}. */
-  message?: string;
+export interface RuleOptions {
   /**
-   * Ключ сообщения в словаре приложения — локализуемый текст автора правила. Если ключ есть в
-   * активной локали, он важнее и `message`, и текста по `code`; если нет — в ход идёт `message`.
-   *
-   * @example
-   * ```ts
-   * required({ messageKey: 'profile.name.required', message: 'Name is required' });
-   * ```
+   * Свой код вместо встроенного. По нему текст ищется сначала в словаре формы, затем в локали
+   * (`validation.<code>`); принято именовать `<поле>.<правило>`.
    */
-  messageKey?: string;
-  /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
-  params?: Record<string, unknown>;
+  code?: string;
+  /** Дополнительные параметры замечания: подставляются в текст поверх параметров правила. */
+  params?: Readonly<Record<string, unknown>>;
 }

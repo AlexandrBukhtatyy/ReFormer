@@ -7,15 +7,15 @@
 | What                                                                                                   | Where                       |
 | ------------------------------------------------------------------------------------------------------ | --------------------------- |
 | `createModel`, `createForm`, `createFormFromModel`, `arrayOf`, `modelOf`                              | `@reformer/core`            |
-| `defineValidationSchema`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`          | `@reformer/core/validation` |
+| `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`          | `@reformer/core/validation` |
 | `validateModel`, `runValidation`, `applyValidationResult` (раннер)                                    | `@reformer/core/validation` |
-| `Rule`, `AsyncRule`, `ValidationSchema`, `ValidationScope`, `ValidationResult` (типы)                | `@reformer/core/validation` |
+| `Rule`, `AsyncRule`, `ValidationDefinition`, `ValidationScope`, `ValidationResult` (типы)                | `@reformer/core/validation` |
 | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`       | `@reformer/core/react`      |
 | `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля) | `@reformer/core/react`      |
-| `I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`                                      | `@reformer/core/react`      |
+| `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                      | `@reformer/core/react`      |
 | `FormModel`, `FormProxy`, `FormBundle`, `FieldNode`, `GroupNode`, `ModelArrayNode`                   | `@reformer/core`            |
 | `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                          | `@reformer/core`            |
-| `ValidationError`, `FormSchemaNode`, `FormValidation`, `ComponentRef`                                 | `@reformer/core`            |
+| `ValidationIssue`, `FormSchemaNode`, `FormValidation`, `ComponentRef`                                 | `@reformer/core`            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                | `@reformer/core/validators` |
 | `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators` |
@@ -32,9 +32,9 @@
 > операторы поведения. См. `20-compute-vs-watch.md`.
 
 > **Валидация — отдельный слой.** Схема формы правил НЕ несёт. Правила живут в
-> `defineValidationSchema<T>(({ model, cross }) => { validate(model.$.x, [required(), min(50000)]); ... })`
+> `defineValidation<T>(({ model, cross }) => { validate(model.$.x, [required(), min(50000)]); ... })`
 > из `@reformer/core/validation`; фабрики `required()`, `min(50000)`, `email()` возвращают
-> `Rule<T> = (value: T) => ValidationError | null` и передаются массивом в `validate(sig, [...])`.
+> `Rule<T> = (value: T) => ValidationIssue | null` и передаются массивом в `validate(sig, [...])`.
 > Запуск — раннером: `validation.validateAll()` сборки либо `await validateModel(model, schema)`
 > (`Promise<boolean>`, ошибки сам разносит по нодам). Полный результат со статусом
 > (`valid` / `invalid` / `error` / `cancelled`) — `runValidation`, `validation.runAll()`.

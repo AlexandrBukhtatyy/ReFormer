@@ -2,13 +2,13 @@
  * Утилита для создания агрегированных сигналов контейнерных узлов
  *
  * Устраняет дублирование кода между GroupNode и ModelArrayNode
- * для computed signals: valid, invalid, pending, touched, dirty, errors, status
+ * для computed signals: valid, invalid, pending, touched, dirty, issues, status
  *
  * @module form/aggregate-signals
  */
 
 import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
-import type { FieldStatus, ValidationError } from './types/index';
+import type { FieldStatus, ValidationIssue } from './types/index';
 import type { FormNode } from './nodes/form-node';
 
 /**
@@ -32,7 +32,7 @@ export interface AggregateSignals {
   /** Хотя бы один дочерний узел dirty */
   dirty: ReadonlySignal<boolean>;
   /** Собственные ошибки + ошибки всех дочерних узлов */
-  errors: ReadonlySignal<ValidationError[]>;
+  issues: ReadonlySignal<ValidationIssue[]>;
   /** Статус: disabled > pending > invalid > valid */
   status: ReadonlySignal<FieldStatus>;
 }
@@ -44,7 +44,7 @@ export interface AggregateSignalsOptions<T> {
   /** Функция получения дочерних узлов */
   getChildren: GetChildrenFn<T>;
   /** Signal с собственными ошибками контейнера (form-level или array-level) */
-  ownErrors: Signal<ValidationError[]>;
+  ownErrors: Signal<ValidationIssue[]>;
   /** Опциональный signal disabled состояния (для GroupNode) */
   disabled?: Signal<boolean>;
 }
@@ -62,7 +62,7 @@ export interface AggregateSignalsOptions<T> {
  * ```typescript
  * const signals = createAggregateSignals({
  *   getChildren: () => Array.from(this._fields.values()),
- *   ownErrors: this._formErrors,
+ *   ownErrors: this._formIssues,
  *   disabled: this._disabled,
  * });
  * this.valid = signals.valid;
@@ -74,7 +74,7 @@ export interface AggregateSignalsOptions<T> {
  * ```typescript
  * const signals = createAggregateSignals({
  *   getChildren: () => this.items.value,
- *   ownErrors: this._arrayErrors,
+ *   ownErrors: this._arrayIssues,
  * });
  * this.valid = signals.valid;
  * // ...
@@ -102,13 +102,13 @@ export function createAggregateSignals<T>(options: AggregateSignalsOptions<T>): 
   // dirty: хотя бы один дочерний dirty
   const dirty = computed(() => getChildren().some((child) => child.dirty.value));
 
-  // errors: собственные + все дочерние
-  const errors = computed(() => {
-    const allErrors: ValidationError[] = [...ownErrors.value];
+  // issues: собственные + все дочерние
+  const issues = computed(() => {
+    const allIssues: ValidationIssue[] = [...ownErrors.value];
     for (const child of getChildren()) {
-      allErrors.push(...child.errors.value);
+      allIssues.push(...child.issues.value);
     }
-    return allErrors;
+    return allIssues;
   });
 
   // status: приоритет disabled > pending > invalid > valid
@@ -125,7 +125,7 @@ export function createAggregateSignals<T>(options: AggregateSignalsOptions<T>): 
     pending,
     touched,
     dirty,
-    errors,
+    issues,
     status,
   };
 }

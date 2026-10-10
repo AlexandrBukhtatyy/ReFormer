@@ -113,12 +113,12 @@ const schema: FormSchemaNode = {
    своя область: её `cross` получает снимок строки. Запуск — `validateModel(model, schema)`.
 
    ```typescript
-   const propertyRules = defineValidationSchema<Property>(({ model }) => {
+   const propertyRules = defineValidation<Property>(({ model }) => {
      validate(model.$.description, [required()]);
      validate(model.$.estimatedValue, [required(), min(1)]);
    });
 
-   // внутри defineValidationSchema<MyForm>(({ model }) => { ... })
+   // внутри defineValidation<MyForm>(({ model }) => { ... })
    applyEach(model.$.properties, propertyRules);
    ```
 
@@ -207,11 +207,11 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 ```typescript
 type MyForm = { hasItems: boolean; items: Item[] };
 
-defineValidationSchema<MyForm>(({ model, cross }) => {
+defineValidation<MyForm>(({ model, cross }) => {
   cross(model.$.hasItems, (form) => {
     const names = form.items.map((item) => item.name);
     return names.length !== new Set(names).size
-      ? { code: 'duplicate', message: 'Item names must be unique' }
+      ? { code: 'duplicate' }
       : null;
   });
 });

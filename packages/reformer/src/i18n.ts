@@ -2,7 +2,7 @@
  * Подпуть `@reformer/core/i18n` — локализация форм без React: объект локали, загрузка словарей,
  * перевод и форматирование, тексты ошибок, описатели авторских подписей.
  *
- * Провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`) отдаёт вход
+ * Провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`) отдаёт вход
  * `@reformer/core/react`. Из главной бочки `@reformer/core` этот модуль не реэкспортируется:
  * канонический импорт один.
  *
@@ -44,8 +44,9 @@ export type {
 export { createI18n, translateBuiltin } from './i18n/translator';
 export type { I18nHandle } from './i18n/translator';
 
-// Тексты ошибок валидации.
-export { resolveValidationError } from './i18n/validation-message';
+// Тексты замечаний валидации: словарь формы и резолвер.
+export { resolveIssueMessage, defineIssueMessages } from './i18n/validation-message';
+export type { IssueMessage, IssueMessages } from './i18n/validation-message';
 
 // Авторские подписи.
 export { msg, defineMessages, isMessageDescriptor, MESSAGE_DESCRIPTOR } from './i18n/descriptor';

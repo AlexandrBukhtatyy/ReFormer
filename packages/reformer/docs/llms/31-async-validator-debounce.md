@@ -1,13 +1,13 @@
 ## 31. ASYNC VALIDATOR
 
 Для проверок типа «уникальность email», «валидация ИНН через API», «проверка адреса» —
-async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<ValidationError | null>`.
+async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<ValidationIssue | null>`.
 Оно регистрируется оператором `validateAsync(sig, [asyncRules])` внутри схемы валидации
 (`@reformer/core/validation`) и исполняется внешним раннером `validateModel` (async-правила
 прогоняются параллельно через `Promise.all`, раннер их дожидается).
 
 Слои разделены: схема формы (билдер `createForm` / JSON) правил НЕ несёт — они живут в
-отдельной функции-схеме `defineValidationSchema<T>(({ model }) => …)`.
+отдельной функции-схеме `defineValidation<T>(({ model }) => …)`.
 
 **Сбой async-правила блокирует.** Если правило отклонило промис (сеть, исключение), прогон получает
 статус `error`, а поле — ошибку `{ code: 'ruleFailed' }` («Не удалось проверить поле. Повторите
@@ -18,13 +18,13 @@ import { createModel } from '@reformer/core';
 import {
   validate,
   validateAsync,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
   type AsyncRule,
 } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 
-// async-правило: (value, { signal }) => Promise<ValidationError | null>.
+// async-правило: (value, { signal }) => Promise<ValidationIssue | null>.
 // `signal` — AbortSignal устаревшего прогона: прокинь его в fetch, чтобы отменить in-flight.
 const checkEmailUnique: AsyncRule<string> = async (value, { signal }) => {
   if (!value) return null; // пусто = валидно (sync `required` отдельно)
@@ -32,13 +32,13 @@ const checkEmailUnique: AsyncRule<string> = async (value, { signal }) => {
   // ошибка `ruleFailed` на поле), а отмену устаревшего прогона отличит сам по `signal`.
   const res = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, { signal });
   const { available } = (await res.json()) as { available: boolean };
-  return available ? null : { code: 'email-taken', message: 'Email уже зарегистрирован' };
+  return available ? null : { code: 'email-taken' };
 };
 
 const model = createModel<{ email: string }>({ email: '' });
 
 // Схема — обычная функция над моделью; sync и async — разными операторами на одном сигнале.
-const schema = defineValidationSchema<{ email: string }>(({ model }) => {
+const schema = defineValidation<{ email: string }>(({ model }) => {
   validate(model.$.email, [required(), email()]); // sync-фабрики
   validateAsync(model.$.email, [checkEmailUnique]); // async-правило
 });
@@ -91,7 +91,7 @@ if (result.status === 'error') {
 const softCheck: AsyncRule<string> = async (value, { signal }) => {
   try {
     const res = await fetch(`/api/check?value=${encodeURIComponent(value)}`, { signal });
-    return (await res.json()).ok ? null : { code: 'rejected', message: 'Значение отклонено' };
+    return (await res.json()).ok ? null : { code: 'rejected' };
   } catch {
     return null; // осознанно: недоступность сервиса проверку не проваливает
   }
@@ -130,7 +130,7 @@ return pending ? <Spinner /> : shouldShowError ? <Error errors={errors} /> : nul
   той же пары `(model, schema)` отменяет предыдущий in-flight прогон через `AbortController`;
   его `AbortSignal` прокинут в `validateAsync`-правила, поэтому `fetch(url, { signal })` рвётся
   сам. Ручной debounce для КОРРЕКТНОСТИ не нужен — держи схему стабильным `const`
-  (`defineValidationSchema`), иначе отмена не сматчит прогоны по идентичности.
+  (`defineValidation`), иначе отмена не сматчит прогоны по идентичности.
 - Валидация запускается on-demand (submit / шаг / через `revalidateWhen`), а не на каждый
   keystroke — отдельный `debounce` в правиле обычно не нужен.
 - Если нужно дебаунсить дорогой async-валидатор относительно частых изменений — триггерь прогон
@@ -155,7 +155,7 @@ return pending ? <Spinner /> : shouldShowError ? <Error errors={errors} /> : nul
     async (email, { signal }) => {
       const { username } = model.get(); // снапшот соседних полей до await
       const res = await fetch(`/api/check?email=${email}&user=${username}`, { signal });
-      return (await res.json()).ok ? null : { code: 'conflict', message: 'Пара занята' };
+      return (await res.json()).ok ? null : { code: 'conflict' };
     },
   ]);
   ```

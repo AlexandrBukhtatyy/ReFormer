@@ -65,22 +65,22 @@ Cross-field живёт в схеме валидации (`@reformer/core/validat
 получает снимок модели области.
 
 ```typescript
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { type ValidationError } from '@reformer/core';
+import { type ValidationIssue } from '@reformer/core';
 import { revalidateWhen } from '@reformer/core/model';
 
 // ❌ старое (УДАЛЕНО): дерево { value, validators }, ModelValidator (value, scope, root), validateFormModel
 const legacyRule: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
-  root.field1 > root.field2 ? { code: 'error', message: 'Invalid' } : null;
+  root.field1 > root.field2 ? { code: 'error' } : null;
 const legacySchema = { field1: { value: model.$.field1, component: Input, validators: [legacyRule] } };
 validateFormModel(model, legacySchema);
 
 // ✅ новое: cross-правило — обычная функция над снимком модели
-const field1LessThanField2 = (form: Form): ValidationError | null =>
-  form.field1 > form.field2 ? { code: 'error', message: 'Invalid' } : null;
+const field1LessThanField2 = (form: Form): ValidationIssue | null =>
+  form.field1 > form.field2 ? { code: 'error' } : null;
 
-const schema = defineValidationSchema<Form>(({ model, cross }) => {
+const schema = defineValidation<Form>(({ model, cross }) => {
   validate(model.$.field1, [required()]);
   cross(model.$.field1, field1LessThanField2); // правило на поле-носителе ошибки
 });

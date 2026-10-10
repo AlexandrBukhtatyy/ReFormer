@@ -23,18 +23,18 @@
 export type {
   Rule,
   AsyncRule,
-  ValidationSchema,
+  ValidationDefinition,
   ValidationScope,
   ValidationStatus,
   ValidationFailure,
   ValidationResult,
 } from './types';
 
-// Операторы схемы (вызываются внутри defineValidationSchema).
+// Операторы схемы (вызываются внутри defineValidation).
 export { validate, validateAsync, validateWhen, apply, applyEach } from './operators';
 
 // Определение схемы + раннер: сбор результата, разнос по нодам и оба шага одним вызовом.
-export { defineValidationSchema, runValidation, applyValidationResult, validateModel } from './run';
+export { defineValidation, runValidation, applyValidationResult, validateModel } from './run';
 
 // Единый декларативный выбор стратегии валидации (createFormValidation + типы) — тот же сабпат.
 export * from './strategy';

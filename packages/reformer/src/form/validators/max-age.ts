@@ -6,10 +6,10 @@
  * @module form/validators/max-age
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { parseDate, calculateAge } from './date-utils';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора максимального возраста (по дате рождения).
@@ -18,24 +18,24 @@ import { validationError } from './validation-error';
  * даты пропускаются (используйте {@link required} и {@link isDate}).
  *
  * @param maxAgeValue - Максимально допустимый возраст (в полных годах)
- * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxAge` и `currentAge`.
  * @returns Правило {@link Rule} для поля даты рождения (`string | Date`)
  *
  * @example Максимальный возраст
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { maxAge } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.birthDate, [maxAge(100, { message: 'Проверьте дату рождения' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [maxAge(100, { code: 'birthDate.maxAge' })]);
  * });
  * ```
  */
 export function maxAge(
   maxAgeValue: number,
-  options?: ValidateOptions
+  options?: RuleOptions
 ): Rule<string | Date | null | undefined> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
@@ -47,7 +47,7 @@ export function maxAge(
     }
     const age = calculateAge(parsed);
     if (age > maxAgeValue) {
-      return validationError('date_max_age', options, { maxAge: maxAgeValue, currentAge: age });
+      return validationIssue('date_max_age', options, { maxAge: maxAgeValue, currentAge: age });
     }
     return null;
   };

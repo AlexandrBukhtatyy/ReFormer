@@ -1,5 +1,5 @@
 /**
- * `defineValidationSchema` и раннер схемы валидации.
+ * `defineValidation` и раннер схемы валидации.
  *
  * Прогон делится на сбор и разнос. Сбор ({@link runValidation}) открывает ambient-окно на время
  * СИНХРОННОГО прогона схемы (`./context`), дожидается async-правил и возвращает
@@ -14,22 +14,22 @@
 import { batch } from '@preact/signals-core';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { getNodeForSignal } from '../signal-node-registry';
-import type { ValidationError } from '../types/contracts';
+import type { ValidationIssue } from '../types/contracts';
 import { runWithContext, type VContext } from './context';
 import { scopeOf } from './operators';
-import type { ValidationFailure, ValidationResult, ValidationSchema } from './types';
+import type { ValidationFailure, ValidationResult, ValidationDefinition } from './types';
 
 /**
  * Тонкая identity-обёртка для типизации/discoverability (как `defineFormBehavior`). Возвращает схему как есть.
  *
  * @example
  * ```ts
- * export const step1 = defineValidationSchema<LoanForm>(({ model }) => {
+ * export const step1 = defineValidation<LoanForm>(({ model }) => {
  *   validate(model.$.loanAmount, [required(), min(50000)]);
  * });
  * ```
  */
-export function defineValidationSchema<T>(schema: ValidationSchema<T>): ValidationSchema<T> {
+export function defineValidation<T>(schema: ValidationDefinition<T>): ValidationDefinition<T> {
   return schema;
 }
 
@@ -53,7 +53,7 @@ function runStateFor(model: object, schema: object): RunState {
   return state;
 }
 
-const hasBlocking = (errs: Map<unknown, ValidationError[]>): boolean => {
+const hasBlocking = (errs: Map<unknown, ValidationIssue[]>): boolean => {
   for (const list of errs.values()) for (const e of list) if (e.severity !== 'warning') return true;
   return false;
 };
@@ -80,7 +80,7 @@ interface PendingTarget {
  */
 async function collect<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>,
+  schema: ValidationDefinition<T>,
   markPending: boolean
 ): Promise<{ result: ValidationResult; release: () => void }> {
   const state = runStateFor(model as object, schema as object);
@@ -91,7 +91,7 @@ async function collect<T>(
   const failures: ValidationFailure[] = [];
   const ctx: VContext = {
     model: model as FormModel<unknown>,
-    errors: new Map(),
+    issues: new Map(),
     pending: [],
     asyncFields: new Set(),
     failures,
@@ -122,10 +122,10 @@ async function collect<T>(
       ? 'cancelled'
       : failures.length > 0
         ? 'error'
-        : hasBlocking(ctx.errors)
+        : hasBlocking(ctx.issues)
           ? 'invalid'
           : 'valid',
-    errors: ctx.errors,
+    issues: ctx.issues,
     failures,
   };
   stateOfResult.set(result, state);
@@ -151,7 +151,7 @@ async function collect<T>(
  *  - `valid` — блокирующих ошибок нет.
  *
  * ⚠️ `schema` должна быть СТАБИЛЬНОЙ ссылкой: отмена устаревших прогонов ключится по идентичности
- * `schema`. Держите схемы в `const` / `defineValidationSchema`.
+ * `schema`. Держите схемы в `const` / `defineValidation`.
  *
  * @param model - Модель данных формы.
  * @param schema - Схема валидации (стабильная ссылка).
@@ -165,7 +165,7 @@ async function collect<T>(
  */
 export async function runValidation<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>
+  schema: ValidationDefinition<T>
 ): Promise<ValidationResult> {
   return (await collect(model, schema, false)).result;
 }
@@ -190,15 +190,15 @@ export function applyValidationResult(
 ): void {
   if (result.status === 'cancelled') return;
   const state = stateOfResult.get(result);
-  const validated = new Set(result.errors.keys());
+  const validated = new Set(result.issues.keys());
   batch(() => {
     // Гашение диффом (без неограниченного накопления): поля, которых НЕ коснулись в этом прогоне,
     // гасятся один раз и отпускаются на GC.
     if (state) {
-      for (const sig of state.fields) if (!validated.has(sig)) getNodeForSignal(sig)?.setErrors([]);
+      for (const sig of state.fields) if (!validated.has(sig)) getNodeForSignal(sig)?.setIssues([]);
     }
-    for (const [sig, errors] of result.errors) {
-      getNodeForSignal(sig)?.setErrors(errors as ValidationError[]);
+    for (const [sig, issues] of result.issues) {
+      getNodeForSignal(sig)?.setIssues(issues as ValidationIssue[]);
     }
     if (options?.touch) for (const sig of validated) getNodeForSignal(sig)?.markAsTouched();
   });
@@ -213,7 +213,7 @@ export function applyValidationResult(
  */
 export async function runAndApply<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>,
+  schema: ValidationDefinition<T>,
   options?: { touch?: boolean }
 ): Promise<ValidationResult> {
   const { result, release } = await collect(model, schema, true);
@@ -236,7 +236,7 @@ export async function runAndApply<T>(
  *
  * ⚠️ `schema` должна быть СТАБИЛЬНОЙ ссылкой: отмена устаревших прогонов ключится по идентичности
  * `schema`. Инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз создаёт НОВЫЙ
- * прогон без дедупликации — держите схемы в `const` / `defineValidationSchema`.
+ * прогон без дедупликации — держите схемы в `const` / `defineValidation`.
  *
  * @param model - Модель данных формы.
  * @param schema - Схема валидации (стабильная ссылка).
@@ -251,7 +251,7 @@ export async function runAndApply<T>(
  */
 export async function validateModel<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>,
+  schema: ValidationDefinition<T>,
   options?: { touch?: boolean }
 ): Promise<boolean> {
   return (await runAndApply(model, schema, options)).status === 'valid';

@@ -114,12 +114,12 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
 import {
   apply,
   applyEach,
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateWhen,
 } from '@reformer/core/validation';
 
-const addressRules = defineValidationSchema<Address>(({ model, cross }) => {
+const addressRules = defineValidation<Address>(({ model, cross }) => {
   validate(model.$.city, [required()]);
   // cross — из аргумента схемы: снимок области (Address) выведен, приведения не нужны
   cross(model.$.street, (address) =>
@@ -127,11 +127,11 @@ const addressRules = defineValidationSchema<Address>(({ model, cross }) => {
   );
 });
 
-const coBorrowerRules = defineValidationSchema<CoBorrower>(({ model }) => {
+const coBorrowerRules = defineValidation<CoBorrower>(({ model }) => {
   validate(model.$.name, [required()]);
 });
 
-export const contactsRules = defineValidationSchema<CreditForm>(({ model }) => {
+export const contactsRules = defineValidation<CreditForm>(({ model }) => {
   apply(model.$.registrationAddress, addressRules);
   validateWhen(
     () => !model.sameAsRegistration,
@@ -146,10 +146,10 @@ export const contactsRules = defineValidationSchema<CreditForm>(({ model }) => {
 - Одна и та же схема подключается и к группе, и к элементам массива.
 - `apply(model.$.a, rules)` принимает и массив ручек: `apply([model.$.a, model.$.b], rules)`.
 - `apply(schemaA, schemaB)` — композиция схем над той же моделью — остаётся.
-- Правило значения — `Rule<T> = (value: T) => ValidationError | null`: один аргумент. Тип значения
+- Правило значения — `Rule<T> = (value: T) => ValidationIssue | null`: один аргумент. Тип значения
   сверяется с типом поля; набор правил объявляют типом поля (`Rule<LoanType>[]`,
   `Rule<number | null>[]`).
-- `ValidationError.message` необязателен: без него текст берётся из словаря локали по коду.
+- `ValidationIssue.message` необязателен: без него текст берётся из словаря локали по коду.
 - `cross` берётся только из аргумента схемы: свободного оператора с таким именем в
   `@reformer/core/validation` нет. Нет и `each` — правила строки подключает `applyEach`.
 

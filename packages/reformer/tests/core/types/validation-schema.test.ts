@@ -1,12 +1,12 @@
 /**
- * Unit tests for ValidationSchema
+ * Unit tests for ValidationDefinition
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 // TODO: Import the module to test
 // import { ... } from '../../../src/core/types/validation-schema';
 
-describe('ValidationSchema', () => {
+describe('ValidationDefinition', () => {
   beforeEach(() => {
     // TODO: Setup test environment
   });

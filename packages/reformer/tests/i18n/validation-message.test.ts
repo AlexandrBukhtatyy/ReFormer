@@ -1,10 +1,10 @@
 /**
- * Тексты ошибок валидации: умолчание `message` у правил, полнота словарей по кодам и порядок
- * источников в `resolveValidationError`.
+ * Тексты замечаний валидации: правила несут только код и параметры, словари полны по кодам,
+ * порядок источников в `resolveIssueMessage` — словарь формы, локаль, встроенный английский, код.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   email,
   fileType,
@@ -34,17 +34,17 @@ import {
   required,
   url,
 } from '../../src/form/validators';
-import type { ValidationError } from '../../src/form/types/contracts';
-import type { ValidateOptions } from '../../src/form/types/validation-schema';
+import type { ValidationIssue } from '../../src/form/types/contracts';
+import type { RuleOptions } from '../../src/form/types/validation-schema';
 import enJson from '../../src/i18n/en.json';
 import ruJson from '../../src/i18n/ru.json';
 import { DEFAULT_LOCALE, extendLocale } from '../../src/i18n/locale';
 import { createI18n } from '../../src/i18n/translator';
-import { resolveValidationError } from '../../src/i18n/validation-message';
+import { defineIssueMessages, resolveIssueMessage } from '../../src/i18n/validation-message';
 import { ru as ruLocale } from '../../src/locale/ru';
 
-type AnyRule = (value: unknown, scope: unknown, root: unknown) => ValidationError | null;
-const run = (rule: unknown, value: unknown): ValidationError | null =>
+type AnyRule = (value: unknown, scope: unknown, root: unknown) => ValidationIssue | null;
+const run = (rule: unknown, value: unknown): ValidationIssue | null =>
   (rule as AnyRule)(value, undefined, undefined);
 
 const file = (name: string, type: string, size: number) => ({ name, type, size });
@@ -56,7 +56,7 @@ const yearsAgo = (years: number): Date => {
 
 /** Код ошибки → вызов правила на значении, которое его нарушает. */
 const FAILING: ReadonlyArray<
-  readonly [code: string, fail: (options?: ValidateOptions) => ValidationError | null]
+  readonly [code: string, fail: (options?: RuleOptions) => ValidationIssue | null]
 > = [
   ['required', (o) => run(required(o), '')],
   ['pattern', (o) => run(pattern(/^\d+$/, o), 'abc')],
@@ -103,22 +103,22 @@ const RUNNER_CODES = ['ruleFailed'];
 const en = createI18n(DEFAULT_LOCALE);
 const ru = createI18n(ruLocale);
 
-describe('правила каталога: умолчание сообщения', () => {
-  it.each(FAILING)('%s — без options.message текста у ошибки нет', (code, fail) => {
-    const error = fail();
+describe('правила каталога: код и параметры', () => {
+  it.each(FAILING)('%s — замечание несёт код и параметры, текста у него нет', (code, fail) => {
+    const issue = fail();
 
-    expect(error, `правило «${code}» не сработало на нарушающем значении`).not.toBeNull();
-    expect(error!.code).toBe(code);
-    expect(error!).not.toHaveProperty('message');
-    expect(error!.messageKey).toBeUndefined();
+    expect(issue, `правило «${code}» не сработало на нарушающем значении`).not.toBeNull();
+    expect(issue!.code).toBe(code);
+    expect(Object.keys(issue!).sort()).toEqual(
+      issue!.params === undefined ? ['code'] : ['code', 'params']
+    );
   });
 
-  it.each(FAILING)('%s — переносит message, messageKey и params из опций', (_code, fail) => {
-    const error = fail({ message: 'Своё', messageKey: 'app.rule', params: { extra: 1 } })!;
+  it.each(FAILING)('%s — свой код и параметры из опций важнее встроенных', (_code, fail) => {
+    const issue = fail({ code: 'profile.field', params: { extra: 1 } })!;
 
-    expect(error.message).toBe('Своё');
-    expect(error.messageKey).toBe('app.rule');
-    expect(error.params).toMatchObject({ extra: 1 });
+    expect(issue.code).toBe('profile.field');
+    expect(issue.params).toMatchObject({ extra: 1 });
   });
 
   it('таблица покрывает каждый код, который есть в исходниках правил', () => {
@@ -127,16 +127,14 @@ describe('правила каталога: умолчание сообщения
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('.ts')) continue;
       const text = readFileSync(`${dir}/${name}`, 'utf8');
-      for (const match of text.matchAll(/validationError\(\s*'([^']+)'/g)) inSource.add(match[1]!);
+      for (const match of text.matchAll(/validationIssue\(\s*'([^']+)'/g)) inSource.add(match[1]!);
     }
 
     expect([...inSource].sort()).toEqual(FAILING.map(([code]) => code).sort());
-    // Прямых сборок ошибки в обход помощника не осталось.
+    // Прямых сборок замечания в обход помощника не осталось: текста в правилах нет.
     for (const name of readdirSync(dir)) {
-      if (name === 'validation-error.ts') continue;
-      expect(readFileSync(`${dir}/${name}`, 'utf8'), name).not.toMatch(
-        /message: options\?\.message/
-      );
+      if (name === 'validation-issue.ts' || name.endsWith('.type-test.ts')) continue;
+      expect(readFileSync(`${dir}/${name}`, 'utf8'), name).not.toMatch(/\bmessage(Key)?\s*:/);
     }
   });
 });
@@ -163,7 +161,7 @@ describe('словари ядра: текст есть у каждого код�
       const error = fail()!;
 
       for (const i18n of [en, ru]) {
-        const text = resolveValidationError(error, i18n);
+        const text = resolveIssueMessage(error, i18n);
         // Незакрытая подстановка выводится как {name}; сам код означал бы промах по словарю.
         expect(text, `${i18n.code}: ${text}`).not.toMatch(/[{}]/);
         expect(text).not.toBe(code);
@@ -173,24 +171,22 @@ describe('словари ядра: текст есть у каждого код�
   );
 });
 
-describe('resolveValidationError — тексты по языку', () => {
-  it('без провайдера — английская фраза вместо кода или «invalid»', () => {
-    expect(resolveValidationError({ code: 'required', message: '' }, en)).toBe(
-      'This field is required'
+describe('resolveIssueMessage — тексты по языку', () => {
+  it('без провайдера — английская фраза вместо кода', () => {
+    expect(resolveIssueMessage({ code: 'required' }, en)).toBe('This field is required');
+    expect(resolveIssueMessage({ code: 'minLength', params: { minLength: 8 } }, en)).toBe(
+      'Enter at least 8 characters'
     );
-    expect(
-      resolveValidationError({ code: 'minLength', message: '', params: { minLength: 8 } }, en)
-    ).toBe('Enter at least 8 characters');
-    expect(
-      resolveValidationError({ code: 'minLength', message: '', params: { minLength: 1 } }, en)
-    ).toBe('Enter at least 1 character');
+    expect(resolveIssueMessage({ code: 'minLength', params: { minLength: 1 } }, en)).toBe(
+      'Enter at least 1 character'
+    );
   });
 
   it('в русской локали — русский текст с множественным числом', () => {
     const text = (minLength: number) =>
-      resolveValidationError({ code: 'minLength', message: '', params: { minLength } }, ru);
+      resolveIssueMessage({ code: 'minLength', params: { minLength } }, ru);
 
-    expect(resolveValidationError({ code: 'required', message: '' }, ru)).toBe('Обязательное поле');
+    expect(resolveIssueMessage({ code: 'required' }, ru)).toBe('Обязательное поле');
     expect(text(1)).toBe('Не меньше 1 символа');
     expect(text(3)).toBe('Не меньше 3 символов');
     expect(text(8)).toBe('Не меньше 8 символов');
@@ -198,138 +194,129 @@ describe('resolveValidationError — тексты по языку', () => {
   });
 
   it('дата в параметрах форматируется по языку', () => {
-    const error: ValidationError = {
+    const error: ValidationIssue = {
       code: 'date_min',
-      message: '',
       params: { minDate: new Date(2030, 0, 15) as never },
     };
 
-    expect(resolveValidationError(error, en)).toBe(
-      'The date must not be earlier than Jan 15, 2030'
-    );
-    expect(resolveValidationError(error, ru)).toBe('Дата не раньше 15 янв. 2030 г.');
+    expect(resolveIssueMessage(error, en)).toBe('The date must not be earlier than Jan 15, 2030');
+    expect(resolveIssueMessage(error, ru)).toBe('Дата не раньше 15 янв. 2030 г.');
   });
 
   it('размер в байтах идёт строкой с единицей языка', () => {
-    const error: ValidationError = {
+    const error: ValidationIssue = {
       code: 'maxFileSize',
-      message: '',
       params: { maxFileSize: 1536 * 1024, fileName: 'big.png', actualSize: 5 * 1024 * 1024 },
     };
 
-    expect(resolveValidationError(error, en)).toBe('File big.png is larger than 1.5 MB');
-    expect(resolveValidationError(error, ru)).toBe('Файл big.png больше 1,5 МБ');
+    expect(resolveIssueMessage(error, en)).toBe('File big.png is larger than 1.5 MB');
+    expect(resolveIssueMessage(error, ru)).toBe('Файл big.png больше 1,5 МБ');
   });
 
   it('массив в параметрах идёт перечнем', () => {
-    const error: ValidationError = {
+    const error: ValidationIssue = {
       code: 'url_protocol',
-      message: '',
       params: { allowedProtocols: ['https', 'ftp'] as never },
     };
 
-    expect(resolveValidationError(error, en)).toBe(
+    expect(resolveIssueMessage(error, en)).toBe(
       'The URL must use one of these protocols: https, ftp'
     );
   });
 
   it('число остаётся числом — множественные формы работают', () => {
     const files = (maxFiles: number) =>
-      resolveValidationError({ code: 'maxFiles', message: '', params: { maxFiles } }, ru);
+      resolveIssueMessage({ code: 'maxFiles', params: { maxFiles } }, ru);
 
     expect(files(1)).toBe('Не больше 1 файла');
     expect(files(5)).toBe('Не больше 5 файлов');
   });
 });
 
-describe('resolveValidationError — порядок источников', () => {
+describe('resolveIssueMessage — порядок источников', () => {
   const appRu = createI18n(
     extendLocale(ruLocale, {
       messages: {
-        'profile.name.required': 'Как вас зовут?',
-        'profile.pin.short': 'В коде {minLength, plural, one{# цифра} few{# цифры} other{# цифр}}',
         'validation.username-taken': 'Имя «{name}» уже занято',
+        'validation.profile.name.required': 'Как вас зовут?',
       },
     })
   );
+  const formMessages = defineIssueMessages({
+    'phone.required': 'Укажите телефон',
+    'pin.minLength': 'В коде {minLength, plural, one{# цифра} few{# цифры} other{# цифр}}',
+    'loanAmount.min': (params, i18n) => `Минимум ${i18n.number(Number(params.min))} ₽`,
+    required: 'Заполните поле формы',
+    broken: 'Незакрытая {скобка',
+  });
 
-  it('явное сообщение автора важнее словаря', () => {
-    expect(resolveValidationError({ code: 'required', message: 'Укажите телефон' }, ru)).toBe(
+  it('словарь формы важнее словаря локали и встроенного текста', () => {
+    expect(resolveIssueMessage({ code: 'phone.required' }, ru, formMessages)).toBe(
       'Укажите телефон'
+    );
+    // Встроенный код тоже переопределяется записью словаря формы.
+    expect(resolveIssueMessage({ code: 'required' }, ru, formMessages)).toBe(
+      'Заполните поле формы'
+    );
+    expect(resolveIssueMessage({ code: 'required' }, appRu, formMessages)).toBe(
+      'Заполните поле формы'
     );
   });
 
-  it('messageKey из локали важнее и явного сообщения, и текста по коду', () => {
-    expect(
-      resolveValidationError(
-        { code: 'required', message: 'Name is required', messageKey: 'profile.name.required' },
-        appRu
-      )
-    ).toBe('Как вас зовут?');
+  it('шаблон словаря формы получает параметры замечания и множественное число языка', () => {
+    const text = (minLength: number) =>
+      resolveIssueMessage({ code: 'pin.minLength', params: { minLength } }, ru, formMessages);
+
+    expect(text(1)).toBe('В коде 1 цифра');
+    expect(text(4)).toBe('В коде 4 цифры');
+    expect(text(6)).toBe('В коде 6 цифр');
   });
 
-  it('messageKey получает параметры ошибки', () => {
-    expect(
-      resolveValidationError(
-        {
-          code: 'minLength',
-          message: '',
-          messageKey: 'profile.pin.short',
-          params: { minLength: 4 },
-        },
-        appRu
-      )
-    ).toBe('В коде 4 цифры');
+  it('функция словаря формы получает сырые параметры и ручку локали', () => {
+    const issue: ValidationIssue = { code: 'loanAmount.min', params: { min: 50000 } };
+
+    expect(resolveIssueMessage(issue, ru, formMessages)).toBe(`Минимум ${ru.number(50000)} ₽`);
+    expect(resolveIssueMessage(issue, en, formMessages)).toBe('Минимум 50,000 ₽');
   });
 
-  it('messageKey, которого нет в локали: в ход идёт message, а без него — текст по коду', () => {
-    expect(
-      resolveValidationError(
-        { code: 'required', message: 'Name is required', messageKey: 'profile.name.required' },
-        en
-      )
-    ).toBe('Name is required');
-    expect(
-      resolveValidationError({ code: 'required', message: '', messageKey: 'nope.key' }, ru)
-    ).toBe('Обязательное поле');
+  it('функция словаря формы работает и без параметров у замечания', () => {
+    const messages = defineIssueMessages({
+      custom: (params) => `ключей: ${Object.keys(params).length}`,
+    });
+
+    expect(resolveIssueMessage({ code: 'custom' }, ru, messages)).toBe('ключей: 0');
+  });
+
+  it('кода нет в словаре формы — текст даёт локаль', () => {
+    expect(resolveIssueMessage({ code: 'email' }, ru, formMessages)).toBe(
+      'Введите корректный email'
+    );
+    expect(resolveIssueMessage({ code: 'profile.name.required' }, appRu, formMessages)).toBe(
+      'Как вас зовут?'
+    );
+  });
+
+  it('битый шаблон словаря формы не прячет замечание: дальше идёт локаль и код', () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(resolveIssueMessage({ code: 'broken' }, ru, formMessages)).toBe('broken');
+    quiet.mockRestore();
+  });
+
+  it('ключи прототипа объекта записями словаря формы не считаются', () => {
+    expect(resolveIssueMessage({ code: 'toString' }, ru, formMessages)).toBe('toString');
+    expect(resolveIssueMessage({ code: 'constructor' }, ru, {})).toBe('constructor');
   });
 
   it('свой код локализуется ключом validation.<код> в словаре приложения', () => {
-    expect(
-      resolveValidationError(
-        { code: 'username-taken', message: '', params: { name: 'neo' } },
-        appRu
-      )
-    ).toBe('Имя «neo» уже занято');
-  });
-
-  it('свой код без словаря и без сообщения — сам код', () => {
-    expect(resolveValidationError({ code: 'username-taken', message: '' }, en)).toBe(
-      'username-taken'
+    expect(resolveIssueMessage({ code: 'username-taken', params: { name: 'neo' } }, appRu)).toBe(
+      'Имя «neo» уже занято'
     );
   });
 
-  it('свой код с готовым сообщением — сообщение', () => {
-    expect(resolveValidationError({ code: 'username-taken', message: 'Имя занято' }, en)).toBe(
-      'Имя занято'
-    );
-  });
-
-  it('прежнее умолчание «invalid» считается пустым сообщением', () => {
-    expect(resolveValidationError({ code: 'email', message: 'invalid' }, ru)).toBe(
-      'Введите корректный email'
-    );
-    // Для неизвестного кода откат — на код, а не на «invalid».
-    expect(resolveValidationError({ code: 'custom', message: 'invalid' }, ru)).toBe('custom');
-  });
-
-  it('ошибка без поля message (чужое правило на JS) не ломает резолвер', () => {
-    const bare = { code: 'required' } as unknown as ValidationError;
-
-    expect(resolveValidationError(bare, ru)).toBe('Обязательное поле');
-    expect(resolveValidationError({ code: 'custom' } as unknown as ValidationError, ru)).toBe(
-      'custom'
-    );
+  it('свой код без словарей — сам код', () => {
+    expect(resolveIssueMessage({ code: 'username-taken' }, en)).toBe('username-taken');
+    expect(resolveIssueMessage({ code: 'custom' }, ru, formMessages)).toBe('custom');
   });
 
   it('словарь приложения переопределяет встроенный текст ядра', () => {
@@ -337,16 +324,20 @@ describe('resolveValidationError — порядок источников', () =>
       extendLocale(ruLocale, { messages: { 'validation.required': 'Заполните поле' } })
     );
 
-    expect(resolveValidationError({ code: 'required', message: '' }, custom)).toBe(
-      'Заполните поле'
-    );
+    expect(resolveIssueMessage({ code: 'required' }, custom)).toBe('Заполните поле');
   });
 
-  it('язык без своего словаря ошибок — встроенный английский', () => {
+  it('язык без своего словаря — встроенный английский', () => {
     const de = createI18n({ code: 'de', messages: {} });
 
-    expect(resolveValidationError({ code: 'required', message: '' }, de)).toBe(
-      'This field is required'
-    );
+    expect(resolveIssueMessage({ code: 'required' }, de)).toBe('This field is required');
+  });
+});
+
+describe('defineIssueMessages', () => {
+  it('возвращает тот же объект: словарь остаётся стабильной ссылкой', () => {
+    const source = { 'a.required': 'Нужно' } as const;
+
+    expect(defineIssueMessages(source)).toBe(source);
   });
 });

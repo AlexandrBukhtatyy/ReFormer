@@ -1,7 +1,7 @@
 /**
  * Regression tests for defect #28.
  *
- * Поля модели, чьи имена совпадают с членами GroupNode (`value`/`status`/`id`/`errors`/…),
+ * Поля модели, чьи имена совпадают с членами GroupNode (`value`/`status`/`id`/`issues`/…),
  * затеняются через `form.<name>` (там приоритет у члена узла). Escape-hatch `form.$.<name>`
  * возвращает узел поля, обходя затенение.
  */

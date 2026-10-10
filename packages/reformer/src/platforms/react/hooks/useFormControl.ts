@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { FieldNode } from '../../../form/nodes/field-node';
 import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
-import type { ValidationError } from '../../../form/types/index';
+import type { ValidationIssue } from '../../../form/types/index';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
   useSignalSubscription,
@@ -14,7 +14,7 @@ function useFieldControl<T>(control: FieldNode<T>): FieldControlState<T> {
   const signals = {
     value: control.value,
     disabled: control.disabled,
-    errors: control.errors,
+    issues: control.issues,
     pending: control.pending,
     valid: control.valid,
     invalid: control.invalid,
@@ -27,7 +27,7 @@ function useFieldControl<T>(control: FieldNode<T>): FieldControlState<T> {
   const configs: SignalConfig<keyof typeof signals>[] = [
     { key: 'value' },
     { key: 'disabled' },
-    { key: 'errors', useShallowArrayEqual: true },
+    { key: 'issues', useShallowArrayEqual: true },
     { key: 'pending' },
     { key: 'valid' },
     { key: 'invalid' },
@@ -42,7 +42,7 @@ function useFieldControl<T>(control: FieldNode<T>): FieldControlState<T> {
       value: values.value as T,
       pending: values.pending as boolean,
       disabled: values.disabled as boolean,
-      errors: values.errors as ValidationError[],
+      issues: values.issues as ValidationIssue[],
       valid: values.valid as boolean,
       invalid: values.invalid as boolean,
       touched: values.touched as boolean,
@@ -61,7 +61,7 @@ function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayCon
   const signals = {
     value: control.value,
     length: control.length,
-    errors: control.errors,
+    issues: control.issues,
     pending: control.pending,
     valid: control.valid,
     invalid: control.invalid,
@@ -73,7 +73,7 @@ function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayCon
   const configs: SignalConfig<keyof typeof signals>[] = [
     { key: 'value' },
     { key: 'length' },
-    { key: 'errors', useShallowArrayEqual: true },
+    { key: 'issues', useShallowArrayEqual: true },
     { key: 'pending' },
     { key: 'valid' },
     { key: 'invalid' },
@@ -87,7 +87,7 @@ function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayCon
       value: values.value as T[],
       length: values.length as number,
       pending: values.pending as boolean,
-      errors: values.errors as ValidationError[],
+      issues: values.issues as ValidationIssue[],
       valid: values.valid as boolean,
       invalid: values.invalid as boolean,
       touched: values.touched as boolean,
@@ -111,7 +111,7 @@ function useEmptyControl(): ArrayControlState<object> {
       value: [],
       length: 0,
       pending: false,
-      errors: [],
+      issues: [],
       valid: true,
       invalid: false,
       touched: false,
@@ -164,7 +164,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * ## Когда использовать
  *
  * Используйте `useFormControl` когда компоненту нужен доступ к нескольким
- * свойствам состояния (value, errors, touched и т.д.).
+ * свойствам состояния (value, issues, touched и т.д.).
  *
  * Для подписки только на значение используйте {@link useFormControlValue} -
  * это предотвратит лишние ре-рендеры при изменении других свойств.
@@ -175,7 +175,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *
  * @example Текстовое поле с валидацией
  * ```tsx
- * import { useFormControl, useValidationMessage } from '@reformer/core/react';
+ * import { useFormControl, useIssueMessage } from '@reformer/core/react';
  * import type { FieldNode } from '@reformer/core';
  *
  * interface TextFieldProps {
@@ -188,11 +188,11 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *     value,
  *     disabled,
  *     shouldShowError,
- *     errors,
+ *     issues,
  *     pending
  *   } = useFormControl(control);
  *   // Текст ошибки даёт резолвер: у правил без своего сообщения `message` пуст.
- *   const message = useValidationMessage();
+ *   const message = useIssueMessage();
  *
  *   return (
  *     <div className="field">
@@ -210,9 +210,9 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *         {pending && <Spinner />}
  *       </div>
  *
- *       {shouldShowError && errors[0] && (
+ *       {shouldShowError && issues[0] && (
  *         <span className="error" role="alert">
- *           {message(errors[0])}
+ *           {message(issues[0])}
  *         </span>
  *       )}
  *     </div>
@@ -259,8 +259,8 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * }
  *
  * function Select({ control }: SelectProps) {
- *   const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
- *   const message = useValidationMessage(); // из '@reformer/core/react'
+ *   const { value, disabled, componentProps, shouldShowError, issues } = useFormControl(control);
+ *   const message = useIssueMessage(); // из '@reformer/core/react'
  *   const options = componentProps.options as Array<{ value: string; label: string }>;
  *
  *   return (
@@ -278,7 +278,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *           </option>
  *         ))}
  *       </select>
- *       {shouldShowError && <span className="error">{message(errors[0])}</span>}
+ *       {shouldShowError && <span className="error">{message(issues[0])}</span>}
  *     </div>
  *   );
  * }
@@ -296,7 +296,8 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * }
  *
  * function AddressList({ control }: AddressListProps) {
- *   const { length, valid, dirty, errors } = useFormControl(control);
+ *   const { length, valid, dirty, issues } = useFormControl(control);
+ *   const message = useIssueMessage(); // из '@reformer/core/react'
  *
  *   const handleAdd = () => {
  *     control.push({ street: '', city: '' });
@@ -313,9 +314,9 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *         {dirty && <span className="badge">Modified</span>}
  *       </div>
  *
- *       {errors.length > 0 && (
- *         <div className="array-errors">
- *           {errors.map((e, i) => <p key={i}>{e.message}</p>)}
+ *       {issues.length > 0 && (
+ *         <div className="array-issues">
+ *           {issues.map((issue) => <p key={issue.code}>{message(issue)}</p>)}
  *         </div>
  *       )}
  *
@@ -339,7 +340,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *       </button>
  *
  *       {!valid && (
- *         <p className="warning">Please fix errors before submitting</p>
+ *         <p className="warning">Please fix issues before submitting</p>
  *       )}
  *     </div>
  *   );

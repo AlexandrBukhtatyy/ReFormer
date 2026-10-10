@@ -8,8 +8,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createLocaleLoader } from '../../src/i18n/loader';
 import type { FormLocale } from '../../src/i18n/locale';
 import { I18N_CONTEXT_MARKER, I18nContext } from '../../src/platforms/react/i18n/context';
-import { useI18n, useMessages, useValidationMessage } from '../../src/platforms/react/i18n/hooks';
+import { useI18n, useMessages, useIssueMessage } from '../../src/platforms/react/i18n/hooks';
 import { I18nProvider } from '../../src/platforms/react/i18n/provider';
+import { defineIssueMessages } from '../../src/i18n/validation-message';
 import { ru as coreRu } from '../../src/locale/ru';
 
 /** Встроенная английская таблица условного пакета. */
@@ -135,22 +136,33 @@ describe('контекст', () => {
   });
 });
 
-describe('useValidationMessage', () => {
+describe('useIssueMessage', () => {
+  /** Словарь формы — константа модуля: стабильная ссылка для `useIssueMessage`. */
+  const FORM_MESSAGES = defineIssueMessages({ 'phone.required': 'Укажите телефон' });
+
   function ErrorText() {
-    const message = useValidationMessage();
+    const message = useIssueMessage(FORM_MESSAGES);
     return (
       <p>
-        {message({ code: 'required', message: '' })}|
-        {message({ code: 'minLength', message: '', params: { minLength: 3 } })}|
-        {message({ code: 'required', message: 'Укажите телефон' })}
+        {message({ code: 'required' })}|{message({ code: 'minLength', params: { minLength: 3 } })}|
+        {message({ code: 'phone.required' })}
       </p>
     );
   }
 
-  it('без провайдера — английский текст по коду, явное сообщение — как есть', () => {
+  it('без провайдера — английский текст по коду, запись словаря формы — как есть', () => {
     expect(renderToStaticMarkup(<ErrorText />)).toBe(
       '<p>This field is required|Enter at least 3 characters|Укажите телефон</p>'
     );
+  });
+
+  it('без словаря формы свой код уходит на экран как есть', () => {
+    function Bare() {
+      const message = useIssueMessage();
+      return <p>{message({ code: 'phone.required' })}</p>;
+    }
+
+    expect(renderToStaticMarkup(<Bare />)).toBe('<p>phone.required</p>');
   });
 
   it('под провайдером — текст на языке локали', () => {

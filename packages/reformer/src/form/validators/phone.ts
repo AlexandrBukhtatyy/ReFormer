@@ -6,9 +6,9 @@
  * @module form/validators/phone
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Формат проверки номера телефона для валидатора {@link phone}.
@@ -28,10 +28,10 @@ const PHONE_PATTERNS: Record<PhoneFormat, RegExp> = {
 };
 
 /**
- * Опции валидатора {@link phone}. Расширяют {@link ValidateOptions} (`message`, `params`)
+ * Опции валидатора {@link phone}. Расширяют {@link RuleOptions} (`code`, `params`)
  * выбором формата номера.
  */
-export interface PhoneValidatorOptions extends ValidateOptions {
+export interface PhoneValidatorOptions extends RuleOptions {
   /** Формат проверки {@link PhoneFormat}. По умолчанию `'any'`. */
   format?: PhoneFormat;
 }
@@ -48,11 +48,11 @@ export interface PhoneValidatorOptions extends ValidateOptions {
  *
  * @example Проверка номера телефона
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { required, phone } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ * const validation = defineValidation<MyForm>(({ model }) => {
  *   validate(model.$.phone, [required(), phone({ format: 'ru' })]);
  * });
  * ```
@@ -66,7 +66,7 @@ export function phone(options?: PhoneValidatorOptions): Rule<string | null | und
       return null;
     }
     if (!regex.test(value)) {
-      return validationError('phone', options, { format });
+      return validationIssue('phone', options, { format });
     }
     return null;
   };

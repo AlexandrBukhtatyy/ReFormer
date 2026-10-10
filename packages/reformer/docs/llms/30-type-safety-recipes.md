@@ -18,7 +18,7 @@ import {
   type FormSchemaNode,
 } from '@reformer/core';
 import {
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateModel,
   type Rule,
@@ -70,28 +70,28 @@ const creditSchema = (model: FormModel<CreditApplicationForm>): FormSchemaNode =
 // правила — отдельно; тип правила сверяется с типом поля
 const LOAN_AMOUNT_RULES: Rule<number | null>[] = [required(), min(50000)];
 
-const validation = defineValidationSchema<CreditApplicationForm>(({ model }) => {
+const validation = defineValidation<CreditApplicationForm>(({ model }) => {
   validate(model.$.loanAmount, LOAN_AMOUNT_RULES);
 });
 ```
 
 ### Recipe 4 — Cross-field валидаторы: `cross` над типизированным снимком
 
-Правило — обычная функция `(snapshot: T) => ValidationError | null`. Оператор `cross` берётся из
+Правило — обычная функция `(snapshot: T) => ValidationIssue | null`. Оператор `cross` берётся из
 аргумента схемы: тип снимка выведен из схемы, соседние поля читаются без `as`, ошибка вешается на
 поле-носитель:
 
 ```typescript
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 
-const initialPaymentVsProperty = (application: CreditApplicationForm): ValidationError | null =>
+const initialPaymentVsProperty = (application: CreditApplicationForm): ValidationIssue | null =>
   application.initialPayment &&
   application.propertyValue &&
   application.initialPayment > application.propertyValue
-    ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
+    ? { code: 'tooHigh' }
     : null;
 
-const loanRules = defineValidationSchema<CreditApplicationForm>(({ model, cross }) => {
+const loanRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
   cross(model.$.initialPayment, initialPaymentVsProperty);
 });
 ```
@@ -150,10 +150,10 @@ import type { Rule } from '@reformer/core/validation';
 const validateAdultAge: Rule<string | null> = (value) => {
   if (!value) return null;
   const age = new Date().getFullYear() - new Date(value).getFullYear();
-  return age < 18 ? { code: 'tooYoung', message: 'Минимум 18 лет' } : null;
+  return age < 18 ? { code: 'tooYoung' } : null;
 };
 
-// внутри defineValidationSchema<MyForm>(({ model }) => { ... }):
+// внутри defineValidation<MyForm>(({ model }) => { ... }):
 validate(model.$.birthDate, [validateAdultAge]);
 ```
 

@@ -124,17 +124,17 @@ aggregateInto(model.$.rows, (rows) => {
 `applyEach(model.$.<массив>, схема строки)`.
 
 ```typescript
-import { defineValidationSchema } from '@reformer/core/validation';
-import type { ValidationError } from '@reformer/core';
+import { defineValidation } from '@reformer/core/validation';
+import type { ValidationIssue } from '@reformer/core';
 
-const percentagesSumTo100 = (form: MyForm): ValidationError | null => {
+const percentagesSumTo100 = (form: MyForm): ValidationIssue | null => {
   const total = form.items.reduce((sum, item) => sum + (item.percentage || 0), 0);
   return Math.abs(total - 100) > 0.01
-    ? { code: 'invalid_total', message: 'Percentages must sum to 100%' }
+    ? { code: 'invalid_total' }
     : null;
 };
 
-const itemsRules = defineValidationSchema<MyForm>(({ model, cross }) => {
+const itemsRules = defineValidation<MyForm>(({ model, cross }) => {
   cross(model.$.totalPercent, percentagesSumTo100); // носитель — скалярное поле формы
 });
 ```

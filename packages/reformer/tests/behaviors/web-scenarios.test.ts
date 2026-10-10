@@ -22,7 +22,7 @@ import { convertBetween, onChangeThrottled } from './custom-operators';
 import type { FormProxy } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
-const fieldErrors = (n: unknown) => (n as { errors: { value: { code: string }[] } }).errors.value;
+const fieldErrors = (n: unknown) => (n as { issues: { value: { code: string }[] } }).issues.value;
 
 // ============================================================================
 // W1 — Cross-field equality (RHF: confirm password === password)
@@ -36,12 +36,10 @@ describe('W1 · cross-field equality (confirm password)', () => {
     const model = createModel<F>({ password: '', confirm: '' });
     const behavior = defineFormBehavior<F>(({ model: m, form }) => {
       // Крайний случай (F1, по дизайну): в общем случае cross-field валидация живёт в слое валидации.
-      // Здесь — пользовательский оператор-валидатор поверх effect + setErrors (контракт это позволяет).
+      // Здесь — пользовательский оператор-валидатор поверх effect + setIssues (контракт это позволяет).
       effect(() => {
         const ok = m.password === m.confirm;
-        defer(() =>
-          form.confirm.setErrors(ok ? [] : [{ code: 'mismatch', message: 'Не совпадает' }])
-        );
+        defer(() => form.confirm.setIssues(ok ? [] : [{ code: 'mismatch' }]));
       });
     });
     const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
@@ -70,9 +68,9 @@ describe('W2 · async uniqueness validation', () => {
       onChange(
         m.$.username,
         async (u) => {
-          if (!u) return form.username.setErrors([]);
+          if (!u) return form.username.setIssues([]);
           const taken = await isTaken(u);
-          form.username.setErrors(taken ? [{ code: 'taken', message: 'Занято' }] : []);
+          form.username.setIssues(taken ? [{ code: 'taken' }] : []);
         },
         { debounce: 20 }
       );
@@ -82,7 +80,7 @@ describe('W2 · async uniqueness validation', () => {
     model.username = 'ad';
     model.username = 'admin'; // быстрые смены → debounce оставит последнюю
     await tick(40);
-    expect(fieldErrors(form.username)).toEqual([{ code: 'taken', message: 'Занято' }]);
+    expect(fieldErrors(form.username)).toEqual([{ code: 'taken' }]);
     model.username = 'free';
     await tick(40);
     expect(fieldErrors(form.username)).toHaveLength(0);
@@ -99,7 +97,7 @@ describe('W2 · async uniqueness validation', () => {
       onChange(m.$.username, async (u, { signal }) => {
         const taken = await check(u);
         if (signal.aborted) return; // ← стейл-ответ отбрасываем
-        form.username.setErrors(taken ? [{ code: 'taken', message: 'x' }] : []);
+        form.username.setIssues(taken ? [{ code: 'taken' }] : []);
       });
     });
     const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
@@ -129,12 +127,10 @@ describe('W3 · conditional required', () => {
     const model = createModel<F>({ contactMethod: 'phone', email: '' });
     const behavior = defineFormBehavior<F>(({ model: m, form }) => {
       // Крайний случай (F1, по дизайну): «conditional required» в общем случае — в слое валидации.
-      // Здесь — пользовательский оператор поверх effect + setErrors как исключение.
+      // Здесь — пользовательский оператор поверх effect + setIssues как исключение.
       effect(() => {
         const need = m.contactMethod === 'email' && !m.email;
-        defer(() =>
-          form.email.setErrors(need ? [{ code: 'required', message: 'Нужен email' }] : [])
-        );
+        defer(() => form.email.setIssues(need ? [{ code: 'required' }] : []));
       });
     });
     const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
@@ -438,7 +434,7 @@ describe('W12 · throttle (custom operator)', () => {
 });
 
 // ============================================================================
-// W13 — Per-row валидация в динамическом массиве (applyEach + setErrors)
+// W13 — Per-row валидация в динамическом массиве (applyEach + setIssues)
 // ============================================================================
 describe('W13 · per-row validation', () => {
   it('каждая строка валидирует своё поле (qty > 0) через applyEach', () => {
@@ -474,10 +470,10 @@ describe('W13 · per-row validation', () => {
 /**
  * НАЙДЕННЫЕ ОГРАНИЧЕНИЯ (для развития концепции):
  * F1 — ПО ДИЗАЙНУ (не недостаток): схема поведения НЕ управляет валидацией — это отдельный слой
- *      (defineValidationSchema + validateModel из @reformer/core/validation), он владеет errors.
+ *      (defineValidation + validateModel из @reformer/core/validation), он владеет issues.
  *      Крайние случаи behavior-driven
  *      валидации (cross-field, async-uniqueness) пишутся пользовательским оператором поверх
- *      effect/onChange + node.setErrors (см. W1/W3) — контракт это позволяет, но это исключение.
+ *      effect/onChange + node.setIssues (см. W1/W3) — контракт это позволяет, но это исключение.
  * F2 — РЕШЕНО примитивом: onChange отдаёт AbortSignal (аннулируется при следующей смене значения).
  *      Колбэк передаёт signal в fetch или проверяет signal.aborted перед применением → гонки
  *      устаревших ответов устранены. Async-ВАЛИДАЦИЯ намеренно НЕ в behavior (это слой валидации,

@@ -78,7 +78,7 @@ const REACT_I18N = [
   'I18nProvider',
   'useI18n',
   'useMessages',
-  'useValidationMessage',
+  'useIssueMessage',
   'I18N_CONTEXT_MARKER',
 ];
 
@@ -99,7 +99,7 @@ describe('React-привязки ядра', () => {
   });
 
   it('@reformer/core/i18n без React по-прежнему отдаёт перевод и тексты ошибок', () => {
-    for (const name of ['createI18n', 'resolveValidationError', 'msg', 'resolveLocalized']) {
+    for (const name of ['createI18n', 'resolveIssueMessage', 'msg', 'resolveLocalized']) {
       expect(i18n, name).toHaveProperty(name);
     }
   });

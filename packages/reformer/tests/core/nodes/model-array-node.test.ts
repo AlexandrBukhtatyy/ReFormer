@@ -165,13 +165,13 @@ describe('ModelArrayNode', () => {
     const { arr } = build();
     arr.push({ name: 'A', qty: 1 });
 
-    arr.setErrors([{ code: 'minItems', message: 'минимум 2 элемента' }]);
+    arr.setIssues([{ code: 'minItems' }]);
     expect(arr.valid.value).toBe(false);
     await expect(arr.validate()).resolves.toBe(false);
     // validate() ничего не стирает
-    expect(arr.errors.value.map((error) => error.code)).toEqual(['minItems']);
+    expect(arr.issues.value.map((error) => error.code)).toEqual(['minItems']);
 
-    arr.clearErrors();
+    arr.clearIssues();
     expect(arr.valid.value).toBe(true);
     await expect(arr.validate()).resolves.toBe(true);
   });

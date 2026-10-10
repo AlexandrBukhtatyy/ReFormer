@@ -31,7 +31,7 @@ import {
   type FormValidation,
   type FormValidationBundle,
 } from './validation/config';
-import type { ValidationSchema } from './validation';
+import type { ValidationDefinition } from './validation';
 
 /**
  * Дерево, собранное реестром из документа схемы (JSON), и то, что реестр хочет донести до
@@ -112,7 +112,7 @@ export interface CreateFormConfig<T> {
   /** Поведение формы: значения, состояние нод и правила узлов схемы. */
   behavior?: FormBehavior<T>;
   /** Правила валидации: готовая схема либо {@link FormValidation} со стратегией и шагами. */
-  validation?: FormValidation<T> | ValidationSchema<T>;
+  validation?: FormValidation<T> | ValidationDefinition<T>;
   /**
    * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
    * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
@@ -238,7 +238,7 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
  * ```
  */
 export function createForm<T extends object>(
-  config: CreateFormConfig<T> & { validation: FormValidation<T> | ValidationSchema<T> }
+  config: CreateFormConfig<T> & { validation: FormValidation<T> | ValidationDefinition<T> }
 ): ValidatedFormBundle<T>;
 export function createForm<T extends object>(config: CreateFormConfig<T>): FormBundle<T>;
 export function createForm<T extends object>(config: CreateFormConfig<T>): FormBundle<T> {

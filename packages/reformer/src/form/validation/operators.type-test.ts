@@ -12,8 +12,8 @@
 import type { FormModel } from '../../model/types';
 import { email, min, minLength, required } from '../validators';
 import { apply, applyEach, validate } from './operators';
-import { defineValidationSchema } from './run';
-import type { Rule, ValidationSchema } from './types';
+import { defineValidation } from './run';
+import type { Rule, ValidationDefinition } from './types';
 
 interface Address {
   city: string;
@@ -29,9 +29,9 @@ interface Shape {
   tags: string[];
 }
 
-declare const addressRules: ValidationSchema<Address>;
-declare const phoneRules: ValidationSchema<Phone>;
-declare const shapeRules: ValidationSchema<Shape>;
+declare const addressRules: ValidationDefinition<Address>;
+declare const phoneRules: ValidationDefinition<Phone>;
+declare const shapeRules: ValidationDefinition<Shape>;
 
 export function validationOperatorTypeChecks(model: FormModel<Shape>): void {
   // Подформа: ручка группы + схема её типа; несколько групп — массивом.
@@ -96,7 +96,7 @@ export function ruleTypeChecks(): void {
   ];
 }
 
-export const loanRules = defineValidationSchema<Loan>(({ model, cross }) => {
+export const loanRules = defineValidation<Loan>(({ model, cross }) => {
   validate(model.$.loanType, [required()]);
   validate(model.$.amount, [required(), min(1)]);
   validate(model.$.term, [required(), min(6)]);
@@ -114,7 +114,7 @@ export const loanRules = defineValidationSchema<Loan>(({ model, cross }) => {
 });
 
 // Схема подформы получает свою область: снимок `cross` — под-модель, а не вся форма.
-export const addressScopeRules = defineValidationSchema<Address>(({ model, cross }) => {
+export const addressScopeRules = defineValidation<Address>(({ model, cross }) => {
   cross(model.$.city, (address) => {
     // @ts-expect-error — у адреса нет полей заявки
     void address.loanType;

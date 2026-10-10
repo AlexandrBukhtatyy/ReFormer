@@ -1,11 +1,11 @@
 /**
- * Unit tests for GroupNode form-level validation errors
+ * Unit tests for GroupNode form-level validation issues
  *
- * Tests setErrors(), clearErrors(), and computed errors/valid integration
+ * Tests setIssues(), clearIssues(), and computed issues/valid integration
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { FormProxy, ValidationError } from '../../../src/form/types/index';
+import type { FormProxy, ValidationIssue } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields } from '../../test-utils/form-from-fields';
 
@@ -26,192 +26,181 @@ describe('GroupNode - Form-level Errors', () => {
     });
   });
 
-  describe('setErrors()', () => {
-    it('should set form-level errors', () => {
-      const errors: ValidationError[] = [
-        { code: 'server_error', message: 'Server validation failed' },
-      ];
+  describe('setIssues()', () => {
+    it('should set form-level issues', () => {
+      const issues: ValidationIssue[] = [{ code: 'server_error' }];
 
-      form.setErrors(errors);
+      form.setIssues(issues);
 
-      expect(form.errors.value).toHaveLength(1);
-      expect(form.errors.value[0]).toEqual(errors[0]);
+      expect(form.issues.value).toHaveLength(1);
+      expect(form.issues.value[0]).toEqual(issues[0]);
     });
 
-    it('should set multiple form-level errors', () => {
-      const errors: ValidationError[] = [
-        { code: 'duplicate_email', message: 'Email already exists' },
-        { code: 'rate_limit', message: 'Too many requests' },
-      ];
+    it('should set multiple form-level issues', () => {
+      const issues: ValidationIssue[] = [{ code: 'duplicate_email' }, { code: 'rate_limit' }];
 
-      form.setErrors(errors);
+      form.setIssues(issues);
 
-      expect(form.errors.value).toHaveLength(2);
-      expect(form.errors.value).toEqual(errors);
+      expect(form.issues.value).toHaveLength(2);
+      expect(form.issues.value).toEqual(issues);
     });
 
-    it('should replace previous form-level errors', () => {
-      form.setErrors([{ code: 'error1', message: 'First error' }]);
+    it('should replace previous form-level issues', () => {
+      form.setIssues([{ code: 'error1' }]);
 
-      form.setErrors([{ code: 'error2', message: 'Second error' }]);
+      form.setIssues([{ code: 'error2' }]);
 
-      expect(form.errors.value).toHaveLength(1);
-      expect(form.errors.value[0].code).toBe('error2');
+      expect(form.issues.value).toHaveLength(1);
+      expect(form.issues.value[0].code).toBe('error2');
     });
 
-    it('should set empty array to clear form-level errors', () => {
-      form.setErrors([{ code: 'error', message: 'Some error' }]);
+    it('should set empty array to clear form-level issues', () => {
+      form.setIssues([{ code: 'error' }]);
 
-      form.setErrors([]);
+      form.setIssues([]);
 
-      expect(form.errors.value).toHaveLength(0);
+      expect(form.issues.value).toHaveLength(0);
     });
   });
 
-  describe('clearErrors()', () => {
-    it('should clear form-level errors', () => {
-      form.setErrors([{ code: 'server_error', message: 'Server error' }]);
+  describe('clearIssues()', () => {
+    it('should clear form-level issues', () => {
+      form.setIssues([{ code: 'server_error' }]);
 
-      form.clearErrors();
+      form.clearIssues();
 
-      expect(form.errors.value).toHaveLength(0);
+      expect(form.issues.value).toHaveLength(0);
     });
 
-    it('should clear both form-level and field-level errors', () => {
+    it('should clear both form-level and field-level issues', () => {
       // Set form-level error
-      form.setErrors([{ code: 'form_error', message: 'Form error' }]);
+      form.setIssues([{ code: 'form_error' }]);
 
       // Set field-level error
-      form.email.setErrors([{ code: 'field_error', message: 'Field error' }]);
+      form.email.setIssues([{ code: 'field_error' }]);
 
-      expect(form.errors.value).toHaveLength(2);
+      expect(form.issues.value).toHaveLength(2);
 
-      // Clear all errors
-      form.clearErrors();
+      // Clear all issues
+      form.clearIssues();
 
-      expect(form.errors.value).toHaveLength(0);
-      expect(form.email.errors.value).toHaveLength(0);
+      expect(form.issues.value).toHaveLength(0);
+      expect(form.email.issues.value).toHaveLength(0);
     });
 
-    it('should clear errors from all fields', () => {
-      form.email.setErrors([{ code: 'email_error', message: 'Email error' }]);
-      form.password.setErrors([{ code: 'password_error', message: 'Password error' }]);
-      form.setErrors([{ code: 'form_error', message: 'Form error' }]);
+    it('should clear issues from all fields', () => {
+      form.email.setIssues([{ code: 'email_error' }]);
+      form.password.setIssues([{ code: 'password_error' }]);
+      form.setIssues([{ code: 'form_error' }]);
 
-      form.clearErrors();
+      form.clearIssues();
 
-      expect(form.email.errors.value).toHaveLength(0);
-      expect(form.password.errors.value).toHaveLength(0);
-      expect(form.errors.value).toHaveLength(0);
+      expect(form.email.issues.value).toHaveLength(0);
+      expect(form.password.issues.value).toHaveLength(0);
+      expect(form.issues.value).toHaveLength(0);
     });
   });
 
-  describe('computed errors', () => {
-    it('should include form-level errors in computed errors', () => {
-      const formError: ValidationError = {
+  describe('computed issues', () => {
+    it('should include form-level issues in computed issues', () => {
+      const formError: ValidationIssue = {
         code: 'form_error',
-        message: 'Form-level error',
       };
 
-      form.setErrors([formError]);
+      form.setIssues([formError]);
 
-      expect(form.errors.value).toContainEqual(formError);
+      expect(form.issues.value).toContainEqual(formError);
     });
 
-    it('should include both form-level and field-level errors', () => {
-      const formError: ValidationError = {
+    it('should include both form-level and field-level issues', () => {
+      const formError: ValidationIssue = {
         code: 'form_error',
-        message: 'Form error',
       };
 
-      const fieldError: ValidationError = {
+      const fieldError: ValidationIssue = {
         code: 'field_error',
-        message: 'Field error',
       };
 
-      form.setErrors([formError]);
-      form.email.setErrors([fieldError]);
+      form.setIssues([formError]);
+      form.email.setIssues([fieldError]);
 
-      expect(form.errors.value).toHaveLength(2);
-      expect(form.errors.value).toContainEqual(formError);
-      expect(form.errors.value).toContainEqual(fieldError);
+      expect(form.issues.value).toHaveLength(2);
+      expect(form.issues.value).toContainEqual(formError);
+      expect(form.issues.value).toContainEqual(fieldError);
     });
 
-    it('should order form-level errors before field-level errors', () => {
-      const formError: ValidationError = {
+    it('should order form-level issues before field-level issues', () => {
+      const formError: ValidationIssue = {
         code: 'form_error',
-        message: 'Form error',
       };
 
-      const fieldError: ValidationError = {
+      const fieldError: ValidationIssue = {
         code: 'field_error',
-        message: 'Field error',
       };
 
-      form.setErrors([formError]);
-      form.email.setErrors([fieldError]);
+      form.setIssues([formError]);
+      form.email.setIssues([fieldError]);
 
-      // Form-level errors должны быть первыми
-      expect(form.errors.value[0]).toEqual(formError);
-      expect(form.errors.value[1]).toEqual(fieldError);
+      // Form-level issues должны быть первыми
+      expect(form.issues.value[0]).toEqual(formError);
+      expect(form.issues.value[1]).toEqual(fieldError);
     });
 
-    it('should collect errors from multiple fields', () => {
-      const formError: ValidationError = {
+    it('should collect issues from multiple fields', () => {
+      const formError: ValidationIssue = {
         code: 'form_error',
-        message: 'Form error',
       };
 
-      form.setErrors([formError]);
-      form.email.setErrors([{ code: 'email_error', message: 'Email error' }]);
-      form.password.setErrors([{ code: 'password_error', message: 'Password error' }]);
+      form.setIssues([formError]);
+      form.email.setIssues([{ code: 'email_error' }]);
+      form.password.setIssues([{ code: 'password_error' }]);
 
-      expect(form.errors.value).toHaveLength(3);
-      expect(form.errors.value[0].code).toBe('form_error');
+      expect(form.issues.value).toHaveLength(3);
+      expect(form.issues.value[0].code).toBe('form_error');
     });
   });
 
   describe('computed valid', () => {
-    it('should be invalid when form-level errors exist', () => {
+    it('should be invalid when form-level issues exist', () => {
       expect(form.valid.value).toBe(true);
 
-      form.setErrors([{ code: 'error', message: 'Error' }]);
+      form.setIssues([{ code: 'error' }]);
 
       expect(form.valid.value).toBe(false);
       expect(form.invalid.value).toBe(true);
     });
 
-    it('should be valid when no form-level errors', () => {
-      form.setErrors([{ code: 'error', message: 'Error' }]);
+    it('should be valid when no form-level issues', () => {
+      form.setIssues([{ code: 'error' }]);
 
       expect(form.valid.value).toBe(false);
 
-      form.setErrors([]);
+      form.setIssues([]);
 
       expect(form.valid.value).toBe(true);
     });
 
-    it('should be invalid when field errors exist (without form-level errors)', () => {
-      form.email.setErrors([{ code: 'field_error', message: 'Field error' }]);
+    it('should be invalid when field issues exist (without form-level issues)', () => {
+      form.email.setIssues([{ code: 'field_error' }]);
 
       expect(form.valid.value).toBe(false);
     });
 
-    it('should be invalid when both form-level and field-level errors exist', () => {
-      form.setErrors([{ code: 'form_error', message: 'Form error' }]);
-      form.email.setErrors([{ code: 'field_error', message: 'Field error' }]);
+    it('should be invalid when both form-level and field-level issues exist', () => {
+      form.setIssues([{ code: 'form_error' }]);
+      form.email.setIssues([{ code: 'field_error' }]);
 
       expect(form.valid.value).toBe(false);
       expect(form.invalid.value).toBe(true);
     });
 
-    it('should be valid when all errors cleared', () => {
-      form.setErrors([{ code: 'form_error', message: 'Form error' }]);
-      form.email.setErrors([{ code: 'field_error', message: 'Field error' }]);
+    it('should be valid when all issues cleared', () => {
+      form.setIssues([{ code: 'form_error' }]);
+      form.email.setIssues([{ code: 'field_error' }]);
 
       expect(form.valid.value).toBe(false);
 
-      form.clearErrors();
+      form.clearIssues();
 
       expect(form.valid.value).toBe(true);
       expect(form.invalid.value).toBe(false);
@@ -226,7 +215,7 @@ describe('GroupNode - Form-level Errors', () => {
       };
     }
 
-    it('should handle form-level errors in nested groups independently', () => {
+    it('should handle form-level issues in nested groups independently', () => {
       const nestedForm = formFromFields<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
@@ -235,28 +224,28 @@ describe('GroupNode - Form-level Errors', () => {
       });
 
       // Set error на root form
-      nestedForm.setErrors([{ code: 'root_error', message: 'Root error' }]);
+      nestedForm.setIssues([{ code: 'root_error' }]);
 
       // Set error на nested group
-      nestedForm.user.setErrors([{ code: 'user_error', message: 'User error' }]);
+      nestedForm.user.setIssues([{ code: 'user_error' }]);
 
-      // Root form должен включать свои errors
-      expect(nestedForm.errors.value.some((e: ValidationError) => e.code === 'root_error')).toBe(
+      // Root form должен включать свои issues
+      expect(nestedForm.issues.value.some((e: ValidationIssue) => e.code === 'root_error')).toBe(
         true
       );
 
-      // Nested group должен включать свои errors
+      // Nested group должен включать свои issues
       expect(
-        nestedForm.user.errors.value.some((e: ValidationError) => e.code === 'user_error')
+        nestedForm.user.issues.value.some((e: ValidationIssue) => e.code === 'user_error')
       ).toBe(true);
 
-      // Root form должен включать errors вложенных групп
-      expect(nestedForm.errors.value.some((e: ValidationError) => e.code === 'user_error')).toBe(
+      // Root form должен включать issues вложенных групп
+      expect(nestedForm.issues.value.some((e: ValidationIssue) => e.code === 'user_error')).toBe(
         true
       );
     });
 
-    it('should clear form-level errors recursively', () => {
+    it('should clear form-level issues recursively', () => {
       const nestedForm = formFromFields<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
@@ -264,18 +253,18 @@ describe('GroupNode - Form-level Errors', () => {
         },
       });
 
-      nestedForm.setErrors([{ code: 'root_error', message: 'Root error' }]);
-      nestedForm.user.setErrors([{ code: 'user_error', message: 'User error' }]);
+      nestedForm.setIssues([{ code: 'root_error' }]);
+      nestedForm.user.setIssues([{ code: 'user_error' }]);
 
-      nestedForm.clearErrors();
+      nestedForm.clearIssues();
 
-      // Root errors очищены
-      expect(nestedForm.errors.value.every((e: ValidationError) => e.code !== 'root_error')).toBe(
+      // Root issues очищены
+      expect(nestedForm.issues.value.every((e: ValidationIssue) => e.code !== 'root_error')).toBe(
         true
       );
 
-      // Nested errors очищены
-      expect(nestedForm.user.errors.value).toHaveLength(0);
+      // Nested issues очищены
+      expect(nestedForm.user.issues.value).toHaveLength(0);
     });
   });
 
@@ -286,83 +275,82 @@ describe('GroupNode - Form-level Errors', () => {
       form.password.setValue('password123');
 
       // Simulate server response with validation error
-      const serverError: ValidationError = {
+      const serverError: ValidationIssue = {
         code: 'duplicate_email',
-        message: 'This email is already registered',
       };
 
-      form.setErrors([serverError]);
+      form.setIssues([serverError]);
 
       expect(form.valid.value).toBe(false);
-      expect(form.errors.value).toContainEqual(serverError);
+      expect(form.issues.value).toContainEqual(serverError);
     });
 
-    it('should clear errors before retry submit', () => {
+    it('should clear issues before retry submit', () => {
       // First submit failed
-      form.setErrors([{ code: 'server_error', message: 'Server error' }]);
+      form.setIssues([{ code: 'server_error' }]);
 
       expect(form.valid.value).toBe(false);
 
       // User fixes and retries
-      form.clearErrors();
+      form.clearIssues();
       form.email.setValue('new@mail.com');
 
       expect(form.valid.value).toBe(true);
     });
 
-    it('should combine field validation with form-level errors', () => {
+    it('should combine field validation with form-level issues', () => {
       // Client-side field validation
-      form.email.setErrors([{ code: 'required', message: 'Email is required' }]);
+      form.email.setIssues([{ code: 'required' }]);
 
       // Server-side form-level validation
-      form.setErrors([{ code: 'captcha_failed', message: 'Captcha verification failed' }]);
+      form.setIssues([{ code: 'captcha_failed' }]);
 
-      expect(form.errors.value).toHaveLength(2);
+      expect(form.issues.value).toHaveLength(2);
       expect(form.valid.value).toBe(false);
     });
 
-    it('should handle cross-field validation errors', () => {
+    it('should handle cross-field validation issues', () => {
       // Passwords don't match - form-level error
       form.password.setValue('password123');
       form.confirmPassword.setValue('different');
 
-      form.setErrors([{ code: 'passwords_mismatch', message: 'Passwords do not match' }]);
+      form.setIssues([{ code: 'passwords_mismatch' }]);
 
       expect(form.valid.value).toBe(false);
-      expect(form.errors.value.some((e: ValidationError) => e.code === 'passwords_mismatch')).toBe(
+      expect(form.issues.value.some((e: ValidationIssue) => e.code === 'passwords_mismatch')).toBe(
         true
       );
     });
   });
 
   describe('Edge cases', () => {
-    it('should handle setErrors with undefined', () => {
+    it('should handle setIssues with undefined', () => {
       // Не должно упасть
-      expect(() => form.setErrors([])).not.toThrow();
+      expect(() => form.setIssues([])).not.toThrow();
     });
 
-    it('should handle clearErrors on fresh form', () => {
+    it('should handle clearIssues on fresh form', () => {
       // Не должно упасть
-      expect(() => form.clearErrors()).not.toThrow();
-      expect(form.errors.value).toHaveLength(0);
+      expect(() => form.clearIssues()).not.toThrow();
+      expect(form.issues.value).toHaveLength(0);
     });
 
-    it('should handle multiple setErrors calls', () => {
-      form.setErrors([{ code: 'error1', message: 'Error 1' }]);
-      form.setErrors([{ code: 'error2', message: 'Error 2' }]);
-      form.setErrors([{ code: 'error3', message: 'Error 3' }]);
+    it('should handle multiple setIssues calls', () => {
+      form.setIssues([{ code: 'error1' }]);
+      form.setIssues([{ code: 'error2' }]);
+      form.setIssues([{ code: 'error3' }]);
 
-      expect(form.errors.value).toHaveLength(1);
-      expect(form.errors.value[0].code).toBe('error3');
+      expect(form.issues.value).toHaveLength(1);
+      expect(form.issues.value[0].code).toBe('error3');
     });
 
-    it('should handle setErrors after clearErrors', () => {
-      form.setErrors([{ code: 'error1', message: 'Error 1' }]);
-      form.clearErrors();
-      form.setErrors([{ code: 'error2', message: 'Error 2' }]);
+    it('should handle setIssues after clearIssues', () => {
+      form.setIssues([{ code: 'error1' }]);
+      form.clearIssues();
+      form.setIssues([{ code: 'error2' }]);
 
-      expect(form.errors.value).toHaveLength(1);
-      expect(form.errors.value[0].code).toBe('error2');
+      expect(form.issues.value).toHaveLength(1);
+      expect(form.issues.value[0].code).toBe('error2');
     });
   });
 });

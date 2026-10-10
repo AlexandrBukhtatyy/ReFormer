@@ -322,7 +322,7 @@ function buildGroupNode(
  * const schema = {
  *   component: Section,
  *   children: [
- *     // Layout несёт только component/componentProps; правила — в отдельной ValidationSchema.
+ *     // Layout несёт только component/componentProps; правила — в отдельной ValidationDefinition.
  *     { model: model.$.email, component: Input },
  *     // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
  *     { model: model.$.profile.name, component: Input },

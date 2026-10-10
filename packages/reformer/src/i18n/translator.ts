@@ -89,6 +89,26 @@ function formatFrom(
 }
 
 /**
+ * Сообщение произвольного словаря по правилам языка `code`; `undefined`, если ключа нет, значение
+ * не строка либо шаблон не разобрался. Разбор кэшируется по объекту словаря, поэтому словарь
+ * должен быть стабильной ссылкой (константа модуля), а не литералом в теле компонента.
+ *
+ * @param messages - Словарь: ключ → шаблон сообщения. Нестроковые значения пропускаются.
+ * @param code - Код языка для `plural` и форматирования чисел.
+ * @param key - Ключ сообщения.
+ * @param values - Значения подстановок.
+ */
+export function formatMessage(
+  messages: Readonly<Record<string, unknown>>,
+  code: string,
+  key: string,
+  values?: MessageValues
+): string | undefined {
+  if (typeof messages[key] !== 'string') return undefined;
+  return formatFrom(messages as Messages, code, key, values);
+}
+
+/**
  * Перевод ключа пакета: словарь локали, затем встроенная английская таблица пакета, затем сам
  * ключ. Английская таблица форматируется по английским правилам — её множественные формы и
  * группировка чисел не зависят от активного языка.

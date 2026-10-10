@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
-import { defineValidationSchema, validate, validateModel } from '../../../src/form/validation';
+import { defineValidation, validate, validateModel } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 
 describe('FieldNode + FormModel binding (M1)', () => {
@@ -39,8 +39,8 @@ describe('FieldNode + FormModel binding (M1)', () => {
   it('ошибки схемы валидации приходят на ноду по сигналу модели', async () => {
     const model = createModel<{ email: string }>({ email: '' });
     const form = createFormFromModel({ model });
-    const rules = defineValidationSchema<{ email: string }>(({ model: scope }) => {
-      validate(scope.$.email, [required({ message: 'Обязательно' })]);
+    const rules = defineValidation<{ email: string }>(({ model: scope }) => {
+      validate(scope.$.email, [required()]);
     });
 
     await validateModel(model, rules);

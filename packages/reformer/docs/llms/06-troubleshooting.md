@@ -2,7 +2,7 @@
 
 | Error                                                  | Cause                                                    | Solution                                          |
 | ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------- |
-| `'string' is not assignable to '{ message?: string }'` | Валидатору передали строку вместо options                | Используй `required({ message: 'text' })`         |
+| `'string' is not assignable to '{ message?: string }'` | Валидатору передали строку вместо options                | Используй `required({ code: 'field.required' })`         |
 | `Module has no exported member`                        | Неверный источник импорта                                | `watchField`/примитивы — из `@reformer/core/model`; DSL — из `@reformer/core/behaviors`; фабрики — из `@reformer/core/validators` |
 | `undefined` из `useFormControlValue`                   | Деструктурировали хук                                    | `const v = useFormControlValue(...)` — без деструктуризации |
 | `enableWhen`/`disableWhen` не срабатывает              | Поле не материализовано в форме (элемент массива)        | Убедись, что поле есть в схеме `createForm`; для per-item — `applyEach` |

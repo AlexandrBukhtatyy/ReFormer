@@ -62,7 +62,7 @@ export function registerSignalNode(signal: object, node: FormNode<any>): void {
  * import { getNodeForSignal } from '@reformer/core';
  *
  * const sig = model.$.email;
- * getNodeForSignal(sig)?.setErrors([{ code: 'required', message: 'Обязательно' }]);
+ * getNodeForSignal(sig)?.setIssues([{ code: 'required' }]);
  * ```
  *
  * @example Нода группы и строки массива

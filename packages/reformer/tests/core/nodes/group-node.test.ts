@@ -13,14 +13,14 @@
  * - submit()
  *
  * Другие тесты в отдельных файлах:
- * - group-node-form-errors.test.ts - form-level errors
+ * - group-node-form-issues.test.ts - form-level issues
  * - group-node-reference-equality.test.ts - value caching
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
-import { defineValidationSchema, validate, validateModel } from '../../../src/form/validation';
+import { defineValidation, validate, validateModel } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 import type { FormProxy } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
@@ -60,10 +60,10 @@ const nestedSchema: TestFields<NestedForm> = {
 // Форма со схемой валидации
 // ============================================================================
 
-const REQUIRED = [required({ message: 'Field is required' })];
+const REQUIRED = [required()];
 
 /** Правила формы: обязательны `name` и `address.city`. */
-const nestedRules = defineValidationSchema<NestedForm>(({ model }) => {
+const nestedRules = defineValidation<NestedForm>(({ model }) => {
   validate(model.$.name, REQUIRED);
   validate(model.$.address.city, REQUIRED);
 });
@@ -156,10 +156,10 @@ describe('GroupNode', () => {
       expect(form.submitting.value).toBe(false);
     });
 
-    it('should initialize with empty errors', () => {
+    it('should initialize with empty issues', () => {
       const form = formFromFields(simpleSchema);
 
-      expect(form.errors.value).toEqual([]);
+      expect(form.issues.value).toEqual([]);
     });
   });
 
@@ -346,13 +346,13 @@ describe('GroupNode', () => {
       expect(form.dirty.value).toBe(false);
     });
 
-    it('should clear errors on reset()', () => {
-      form.email.setErrors([{ code: 'error', message: 'Error' }]);
-      expect(form.errors.value.length).toBeGreaterThan(0);
+    it('should clear issues on reset()', () => {
+      form.email.setIssues([{ code: 'error' }]);
+      expect(form.issues.value.length).toBeGreaterThan(0);
 
       form.reset();
 
-      expect(form.email.errors.value).toEqual([]);
+      expect(form.email.issues.value).toEqual([]);
     });
 
     it('should return to creation values by reset() after reset(values)', () => {
@@ -429,8 +429,8 @@ describe('GroupNode', () => {
         expect(form.invalid.value).toBe(false);
       });
 
-      it('should be invalid when any field has errors', () => {
-        form.email.setErrors([{ code: 'error', message: 'Error' }]);
+      it('should be invalid when any field has issues', () => {
+        form.email.setIssues([{ code: 'error' }]);
 
         expect(form.valid.value).toBe(false);
         expect(form.invalid.value).toBe(true);
@@ -531,12 +531,12 @@ describe('GroupNode', () => {
       expect(form.status.value).not.toBe('disabled');
     });
 
-    it('should clear errors on disable()', () => {
-      form.email.setErrors([{ code: 'error', message: 'Error' }]);
+    it('should clear issues on disable()', () => {
+      form.email.setIssues([{ code: 'error' }]);
 
       form.disable();
 
-      expect(form.email.errors.value).toEqual([]);
+      expect(form.email.issues.value).toEqual([]);
     });
 
     it('should cascade to nested groups', () => {
@@ -566,7 +566,7 @@ describe('GroupNode', () => {
 
     it('should return false when any field has an error', async () => {
       const form = formFromFields(simpleSchema);
-      form.email.setErrors([{ code: 'required', message: 'Field is required' }]);
+      form.email.setIssues([{ code: 'required' }]);
 
       const result = await form.validate();
 
@@ -579,19 +579,19 @@ describe('GroupNode', () => {
 
       // Правила исполняет `validateModel`; без прогона у нод нет ошибок.
       await expect(form.validate()).resolves.toBe(true);
-      expect(form.name.errors.value).toEqual([]);
+      expect(form.name.issues.value).toEqual([]);
     });
 
-    it('should keep errors routed by validateModel', async () => {
+    it('should keep issues routed by validateModel', async () => {
       const { model, form } = nestedFormWithModel();
 
       await expect(validateModel(model, nestedRules)).resolves.toBe(false);
       const result = await form.validate();
 
       expect(result).toBe(false);
-      expect(form.name.errors.value.map((error) => error.code)).toEqual(['required']);
-      expect(form.address.city.errors.value.map((error) => error.code)).toEqual(['required']);
-      expect(form.address.street.errors.value).toEqual([]);
+      expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
+      expect(form.address.city.issues.value.map((error) => error.code)).toEqual(['required']);
+      expect(form.address.street.issues.value).toEqual([]);
     });
 
     it('should reflect a repeated validateModel run', async () => {
@@ -603,20 +603,20 @@ describe('GroupNode', () => {
       await expect(validateModel(model, nestedRules)).resolves.toBe(true);
 
       await expect(form.validate()).resolves.toBe(true);
-      expect(form.errors.value).toEqual([]);
+      expect(form.issues.value).toEqual([]);
     });
 
     it('should ignore warnings', async () => {
       const form = formFromFields(simpleSchema);
-      form.email.setErrors([{ code: 'weak', message: 'Weak', severity: 'warning' }]);
+      form.email.setIssues([{ code: 'weak', severity: 'warning' }]);
 
       await expect(form.validate()).resolves.toBe(true);
-      expect(form.email.errors.value).toHaveLength(1);
+      expect(form.email.issues.value).toHaveLength(1);
     });
 
-    it('should ignore errors of disabled fields', async () => {
+    it('should ignore issues of disabled fields', async () => {
       const form = formFromFields(simpleSchema);
-      form.email.setErrors([{ code: 'required', message: 'Field is required' }]);
+      form.email.setIssues([{ code: 'required' }]);
       form.email.disable();
 
       await expect(form.validate()).resolves.toBe(true);
@@ -648,7 +648,7 @@ describe('GroupNode', () => {
       expect(onSubmit).not.toHaveBeenCalled();
       expect(result).toBeNull();
       // Отправка ошибок не стирает
-      expect(form.name.errors.value.map((error) => error.code)).toEqual(['required']);
+      expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
     });
 
     it('should markAsTouched() before validation', async () => {

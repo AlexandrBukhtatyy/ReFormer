@@ -29,14 +29,14 @@ import type {
   ModelArray,       // реактивный массив модели (push/removeAt/at/map/length)
   ModelSignals,     // дерево ручек ($)
   PathAwareSignal,  // ручка, знающая свой путь
-  ValidationError,
+  ValidationIssue,
   FormSchemaNode,   // узел схемы: поле | массив под-форм | подформа | контейнер
   FormValidation,   // правила формы как данные: { steps, extras, strategy }
 } from '@reformer/core';
 
 // Схема валидации: операторы + раннер — из /validation
 import {
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateAsync,
   validateWhen,
@@ -47,9 +47,9 @@ import {
   applyValidationResult, // разнос собранного результата по нодам
 } from '@reformer/core/validation';
 import type {
-  Rule,             // (value) => ValidationError | null
-  AsyncRule,        // (value, { signal }) => Promise<ValidationError | null>
-  ValidationSchema, // ({ model, cross }) => void — cross берётся из аргумента схемы
+  Rule,             // (value) => ValidationIssue | null
+  AsyncRule,        // (value, { signal }) => Promise<ValidationIssue | null>
+  ValidationDefinition, // ({ model, cross }) => void — cross берётся из аргумента схемы
   ValidationResult, // { status, errors, failures }
 } from '@reformer/core/validation';
 

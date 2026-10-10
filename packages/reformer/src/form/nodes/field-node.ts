@@ -1,7 +1,7 @@
 /**
  * FieldNode - узел поля формы
  *
- * Держит состояние одного поля: touched / dirty / status / errors / componentProps. Значением
+ * Держит состояние одного поля: touched / dirty / status / issues / componentProps. Значением
  * не владеет — ссылается на сигнал модели.
  *
  * @group Nodes
@@ -10,15 +10,15 @@
 import { signal, computed } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
-import type { FieldConfig, FieldStatus, ValidationError } from '../types/index';
+import type { FieldConfig, FieldStatus, ValidationIssue } from '../types/index';
 import { FormStatusMachine } from '../status-machine';
 
 /**
  * FieldNode - узел для отдельного поля формы
  *
  * Правил валидации нода не исполняет: они живут в схеме валидации
- * (`defineValidationSchema`, `@reformer/core/validation`), а раннер разносит ошибки по нодам
- * через {@link FieldNode.setErrors}.
+ * (`defineValidation`, `@reformer/core/validation`), а раннер разносит ошибки по нодам
+ * через {@link FieldNode.setIssues}.
  *
  * @group Nodes
  *
@@ -29,7 +29,7 @@ import { FormStatusMachine } from '../status-machine';
  *
  * field.setValue('test@mail.com');
  * model.email; // 'test@mail.com'
- * field.setErrors([{ code: 'taken', message: 'Занято' }]);
+ * field.setIssues([{ code: 'taken' }]);
  * field.valid.value; // false
  * ```
  */
@@ -39,7 +39,7 @@ export class FieldNode<T> extends FormNode<T> {
   // ============================================================================
 
   private _value: Signal<T>;
-  private _errors: Signal<ValidationError[]>;
+  private _issues: Signal<ValidationIssue[]>;
   // _touched, _dirty наследуются от FormNode (protected)
   // _status управляется через statusMachine
   private _componentProps: Signal<Record<string, unknown>>;
@@ -63,7 +63,7 @@ export class FieldNode<T> extends FormNode<T> {
   public override readonly status: ReadonlySignal<FieldStatus>;
   public override readonly disabled: ReadonlySignal<boolean>;
   // touched, dirty наследуются от FormNode
-  public readonly errors: ReadonlySignal<ValidationError[]>;
+  public readonly issues: ReadonlySignal<ValidationIssue[]>;
   public readonly componentProps: ReadonlySignal<Record<string, unknown>>;
 
   /**
@@ -100,7 +100,7 @@ export class FieldNode<T> extends FormNode<T> {
     this._value = config.valueSignal;
     // Снимок значения на момент построения — к нему возвращает reset() без аргумента.
     this.defaultValue = this._value.peek();
-    this._errors = signal<ValidationError[]>([]);
+    this._issues = signal<ValidationIssue[]>([]);
     // _touched, _dirty инициализируются в FormNode
     this._componentProps = signal(config.componentProps || {});
 
@@ -118,7 +118,7 @@ export class FieldNode<T> extends FormNode<T> {
     this.status = computed(() => this.statusMachine.status.value);
     this.disabled = computed(() => this.statusMachine.disabled.value);
     // touched, dirty создаются в FormNode
-    this.errors = computed(() => this._errors.value);
+    this.issues = computed(() => this._issues.value);
     this.componentProps = computed(() => this._componentProps.value);
     this.shouldShowError = computed(
       () => this.statusMachine.invalid.value && (this._touched.value || this._dirty.value)
@@ -163,7 +163,7 @@ export class FieldNode<T> extends FormNode<T> {
    */
   reset(value?: T): void {
     this._value.value = value !== undefined ? value : this.defaultValue;
-    this._errors.value = [];
+    this._issues.value = [];
     this._touched.value = false;
     this._dirty.value = false;
     this.syncStatus();
@@ -178,16 +178,16 @@ export class FieldNode<T> extends FormNode<T> {
    * @returns `true`, если у поля нет блокирующих ошибок (`severity: 'warning'` не блокирует)
    */
   validate(): Promise<boolean> {
-    return Promise.resolve(!this.hasBlockingErrors());
+    return Promise.resolve(!this.hasBlockingIssues());
   }
 
-  setErrors(errors: ValidationError[]): void {
-    this._errors.value = errors;
+  setIssues(issues: ValidationIssue[]): void {
+    this._issues.value = issues;
     this.syncStatus();
   }
 
-  clearErrors(): void {
-    this._errors.value = [];
+  clearIssues(): void {
+    this._issues.value = [];
     this.syncStatus();
   }
 
@@ -202,8 +202,8 @@ export class FieldNode<T> extends FormNode<T> {
   }
 
   /** Есть ли у поля блокирующие ошибки (`severity: 'warning'` не блокирует). */
-  private hasBlockingErrors(): boolean {
-    return this._errors.peek().some((error) => error.severity !== 'warning');
+  private hasBlockingIssues(): boolean {
+    return this._issues.peek().some((error) => error.severity !== 'warning');
   }
 
   /**
@@ -212,7 +212,7 @@ export class FieldNode<T> extends FormNode<T> {
    */
   private syncStatus(): void {
     if (this.pendingRuns > 0) this.statusMachine.startValidation();
-    else this.statusMachine.setErrors(this.hasBlockingErrors());
+    else this.statusMachine.setErrors(this.hasBlockingIssues());
   }
 
   // ============================================================================
@@ -226,7 +226,7 @@ export class FieldNode<T> extends FormNode<T> {
    */
   protected onDisable(): void {
     this.statusMachine.disable();
-    this._errors.value = [];
+    this._issues.value = [];
   }
 
   /**
@@ -235,7 +235,7 @@ export class FieldNode<T> extends FormNode<T> {
    * Для FieldNode: синхронизируем statusMachine — статус определяют текущие ошибки
    */
   protected onEnable(): void {
-    this.statusMachine.enable(this.hasBlockingErrors());
+    this.statusMachine.enable(this.hasBlockingIssues());
     this.syncStatus();
   }
 

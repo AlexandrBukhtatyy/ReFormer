@@ -51,18 +51,18 @@ describe('FormNode - reset()', () => {
       field.setValue('valid');
       field.markAsTouched();
       field.markAsDirty();
-      field.setErrors([{ code: 'required', message: 'Required' }]);
+      field.setIssues([{ code: 'required' }]);
 
       expect(field.touched.value).toBe(true);
       expect(field.dirty.value).toBe(true);
-      expect(field.errors.value).toHaveLength(1);
+      expect(field.issues.value).toHaveLength(1);
 
       field.reset();
 
       expect(field.value.value).toBe('');
       expect(field.touched.value).toBe(false);
       expect(field.dirty.value).toBe(false);
-      expect(field.errors.value).toHaveLength(0);
+      expect(field.issues.value).toHaveLength(0);
     });
   });
 
@@ -129,7 +129,7 @@ describe('FormNode - reset()', () => {
     it('should clear validation state for all fields', () => {
       form.email.markAsTouched();
       form.name.markAsDirty();
-      form.email.setErrors([{ code: 'required', message: 'Required' }]);
+      form.email.setIssues([{ code: 'required' }]);
 
       expect(form.email.touched.value).toBe(true);
       expect(form.name.dirty.value).toBe(true);
@@ -138,7 +138,7 @@ describe('FormNode - reset()', () => {
 
       expect(form.email.touched.value).toBe(false);
       expect(form.name.dirty.value).toBe(false);
-      expect(form.email.errors.value).toHaveLength(0);
+      expect(form.email.issues.value).toHaveLength(0);
     });
   });
 

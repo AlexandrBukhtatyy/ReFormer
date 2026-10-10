@@ -1,7 +1,7 @@
 ## 3. COMMON PATTERNS
 
 Значения живут в модели (`model.$.field`), поведение (`defineFormBehavior`) работает на живых
-сигналах, валидация — отдельная схема (`defineValidationSchema`, прогон по требованию через
+сигналах, валидация — отдельная схема (`defineValidation`, прогон по требованию через
 раннер). Слои раздельны: схема формы правил НЕ несёт.
 
 ### Conditional Fields with Auto-Reset
@@ -88,7 +88,7 @@ model.get();             // весь объект-снимок
 
 ### Submit + validation
 
-Валидация — отдельная `ValidationSchema<T>` (`defineValidationSchema`), а не часть layout. Раннер
+Валидация — отдельная `ValidationDefinition<T>` (`defineValidation`), а не часть layout. Раннер
 `validateModel(model, schema)` сам роутит ошибки в ноды формы и возвращает `Promise<boolean>`
 (`false` = есть блокирующая ошибка; `severity: 'warning'` не блокирует).
 
@@ -114,17 +114,17 @@ Cross-field правило — обычная функция над **снимк
 аргумента схемы и вешает правило на поле-носитель ошибки; тип снимка выведен из схемы:
 
 ```typescript
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 
 // снимок формы читается напрямую — без каста, соседние поля доступны как поля объекта
-const initialPaymentVsProperty = (form: MyForm): ValidationError | null =>
+const initialPaymentVsProperty = (form: MyForm): ValidationIssue | null =>
   form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue
-    ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
+    ? { code: 'tooHigh' }
     : null;
 
-const schema = defineValidationSchema<MyForm>(({ model, cross }) => {
+const schema = defineValidation<MyForm>(({ model, cross }) => {
   validate(model.$.initialPayment, [required(), min(0)]);
   cross(model.$.initialPayment, initialPaymentVsProperty); // ошибка сядет на initialPayment
 });
@@ -141,9 +141,9 @@ const schema = defineValidationSchema<MyForm>(({ model, cross }) => {
 включение/выключение самих проверок:
 
 ```typescript
-import { defineValidationSchema, validateWhen, validate } from '@reformer/core/validation';
+import { defineValidation, validateWhen, validate } from '@reformer/core/validation';
 
-const loanRules = defineValidationSchema<MyForm>(({ model, cross }) => {
+const loanRules = defineValidation<MyForm>(({ model, cross }) => {
   validateWhen(
     () => model.loanType === 'mortgage',
     () => {
@@ -171,11 +171,11 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 ### Extracting named rules
 
 Когда тело правила растёт — выноси в именованную функцию. Field-правило типизируй `Rule<T>`
-(`(value) => ValidationError | null`), cross-field — обычной `(f: Root) => ValidationError | null`.
+(`(value) => ValidationIssue | null`), cross-field — обычной `(f: Root) => ValidationIssue | null`.
 Схема остаётся плоской и читается как оглавление:
 
 ```typescript
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import type { Rule } from '@reformer/core/validation';
 
@@ -183,10 +183,10 @@ import type { Rule } from '@reformer/core/validation';
 const validateAdultAge: Rule<string> = (value) => {
   if (!value) return null;
   const age = new Date().getFullYear() - new Date(value).getFullYear();
-  return age < 18 ? { code: 'tooYoung', message: 'Минимум 18 лет' } : null;
+  return age < 18 ? { code: 'tooYoung' } : null;
 };
 
-const schema = defineValidationSchema<MyForm>(({ model }) => {
+const schema = defineValidation<MyForm>(({ model }) => {
   validate(model.$.birthDate, [required(), validateAdultAge]);
 });
 ```

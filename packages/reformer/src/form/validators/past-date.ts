@@ -6,10 +6,10 @@
  * @module form/validators/past-date
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { parseDate, getToday, normalizeDate } from './date-utils';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора, проверяющего что дата не в будущем.
@@ -17,21 +17,21 @@ import { validationError } from './validation-error';
  * Дата не должна быть позже сегодняшнего дня (сравнение по нормализованным датам).
  * Пустые и невалидные даты пропускаются (используйте {@link required} и {@link isDate}).
  *
- * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
  * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Дата не в будущем
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { required, pastDate } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.birthDate, [required(), pastDate({ message: 'Дата рождения не может быть в будущем' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [required(), pastDate({ code: 'birthDate.pastDate' })]);
  * });
  * ```
  */
-export function pastDate(options?: ValidateOptions): Rule<string | Date | null | undefined> {
+export function pastDate(options?: RuleOptions): Rule<string | Date | null | undefined> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -44,7 +44,7 @@ export function pastDate(options?: ValidateOptions): Rule<string | Date | null |
     const today = getToday();
 
     if (normalizedValue > today) {
-      return validationError('date_future', options);
+      return validationIssue('date_future', options);
     }
     return null;
   };

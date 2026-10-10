@@ -4,7 +4,7 @@
  * Узел НЕ владеет данными: массив принадлежит модели (`model.<path>`), а узел держит per-item
  * GroupNode-прокси, привязанные к сигналам под-моделей элементов, и синхронизирует их с длиной
  * массива модели. Реализует контракт, который ждут `FieldArraySection`/`useFormControl`
- * (length/value/valid/errors/at/push/…).
+ * (length/value/valid/issues/at/push/…).
  *
  * @group Nodes
  * @module form/nodes/model-array-node
@@ -13,7 +13,7 @@
 import { signal, computed, effect, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import { createAggregateSignals } from '../aggregate-signals';
-import type { FieldStatus, ValidationError } from '../types/index';
+import type { FieldStatus, ValidationIssue } from '../types/index';
 import type { FormModel } from '../../model/types';
 import type { FormProxy } from '../types/form-proxy';
 
@@ -38,7 +38,7 @@ export interface ModelArrayControl<TItem extends object> {
  * (`push`/`removeAt`/`move`/…) делегируются массиву модели; per-item формы кэшируются по
  * идентичности под-модели, поэтому при reorder/повторном рендере не пересоздаются (состояние и
  * ошибки сохраняются). Реализует контракт, который ждут секции массива и `useFormControl`
- * (`length`/`value`/`valid`/`errors`/`at`/`push`/…).
+ * (`length`/`value`/`valid`/`issues`/`at`/`push`/…).
  *
  * Обычно создаётся не напрямую, а `createFormFromModel({ model, schema })`: когда в схеме
  * встречается узел массива `{ model: model.$.<field>, item: (model) => узел }`, форма
@@ -80,7 +80,7 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   // реконсиляции в disposeSync. Выпавшие из массива элементы диспозятся и вытесняются из кэша.
   private mountedModels: FormModel<T>[] = [];
   private readonly initial: T[];
-  private readonly _arrayErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
+  private readonly _arrayIssues: Signal<ValidationIssue[]> = signal<ValidationIssue[]>([]);
   private readonly disposeSync: () => void;
 
   /**
@@ -97,7 +97,7 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   public readonly pending: ReadonlySignal<boolean>;
   public readonly touched: ReadonlySignal<boolean>;
   public readonly dirty: ReadonlySignal<boolean>;
-  public readonly errors: ReadonlySignal<ValidationError[]>;
+  public readonly issues: ReadonlySignal<ValidationIssue[]>;
   public readonly status: ReadonlySignal<FieldStatus>;
   public readonly length: ReadonlySignal<number>;
 
@@ -155,14 +155,14 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
 
     const agg = createAggregateSignals({
       getChildren: () => this.itemNodes.value as unknown as FormNode<unknown>[],
-      ownErrors: this._arrayErrors,
+      ownErrors: this._arrayIssues,
     });
     this.valid = agg.valid;
     this.invalid = agg.invalid;
     this.pending = agg.pending;
     this.touched = agg.touched;
     this.dirty = agg.dirty;
-    this.errors = agg.errors;
+    this.issues = agg.issues;
     this.status = agg.status;
   }
 
@@ -219,20 +219,20 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
     this.setValue(values as T[]);
   }
   reset(values?: T[]): void {
-    this._arrayErrors.value = [];
+    this._arrayIssues.value = [];
     this.setValue(values ?? this.initial);
   }
   /** Текущая валидность массива: нет ошибок самого массива и все строки валидны. */
   validate(): Promise<boolean> {
     return Promise.resolve(this.valid.value);
   }
-  setErrors(errors: ValidationError[]): void {
-    this._arrayErrors.value = errors;
+  setIssues(issues: ValidationIssue[]): void {
+    this._arrayIssues.value = issues;
   }
-  clearErrors(): void {
-    this._arrayErrors.value = [];
+  clearIssues(): void {
+    this._arrayIssues.value = [];
     this.itemNodes.value.forEach((n) =>
-      (n as unknown as { clearErrors?: () => void }).clearErrors?.()
+      (n as unknown as { clearIssues?: () => void }).clearIssues?.()
     );
   }
 

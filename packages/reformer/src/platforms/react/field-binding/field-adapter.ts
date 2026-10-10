@@ -42,7 +42,7 @@ export interface FieldAdapter {
   strip?: string[];
   /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
-   * errors/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
+   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
    * `useFormControl(control)`.
    */
   passControl?: boolean;

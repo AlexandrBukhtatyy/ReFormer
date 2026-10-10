@@ -5,7 +5,7 @@
 
 > ⚠️ Операторы валидации `validate`/`validateAsync`/`validateWhen`/`apply`/`applyEach`
 > **существуют** — но живут в сабпути `@reformer/core/validation` (схема
-> `defineValidationSchema(({ model, cross }) => …)`, раннер `validateModel`), а НЕ в корне и НЕ
+> `defineValidation(({ model, cross }) => …)`, раннер `validateModel`), а НЕ в корне и НЕ
 > в `@reformer/core/validators`. Ниже перечислено то, чего действительно нет.
 
 | Wrong                            | Correct                                          | Notes                                          |
@@ -14,13 +14,13 @@
 | `FormValue`                      | тип значения самого поля либо `unknown`          | Тип удалён: модель обобщённая (`createModel<T>`), параметры ошибки — `Record<string, unknown>` |
 | `value instanceof Signal`        | `isSignal(value)` из `@reformer/core/signals`    | Проверка по классу не узнаёт сигнал другой копии рантайма; ручку поля проверяет `isValueSignal` |
 | `import { useFormControl, useFormBundle, … } from '@reformer/core'` | те же имена из `@reformer/core/react` | Корень ядра без React: хуки (`useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`, `useFormBundle`), `FormBundleContext`, связка поля (`bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`) и типы снимков (`FieldControlState`, `ArrayControlState`) отдаёт только сабпат `/react` |
-| `import { I18nProvider, useI18n, … } from '@reformer/core/i18n'` | те же имена из `@reformer/core/react` | `/i18n` — локаль, перевод и тексты ошибок без React; провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useValidationMessage`) переехали в `/react` |
+| `import { I18nProvider, useI18n, … } from '@reformer/core/i18n'` | те же имена из `@reformer/core/react` | `/i18n` — локаль, перевод и тексты ошибок без React; провайдер и хуки (`I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`) переехали в `/react` |
 | `ElementType` / `ComponentType` в типе узла схемы | `ComponentRef` из `@reformer/core` | Типы схемы и ноды не импортируют типы React: `component` — непрозрачная ссылка (`string | object`), к типу своего UI-слоя её приводит рендерер |
 | `validateForm`, `validateFormModel` | `validateModel(model, schema)` из `@reformer/core/validation` | Legacy-движок дерева `{ value, validators }` удалён; внешний раннер — `validateModel` |
 | `validateModelSync`              | `await validateModel(model, schema)`             | Синхронного раннера нет — прогон асинхронный (`Promise<boolean>`) |
 | `applyWhen`                      | `validateWhen(() => cond, () => { … })`          | Условная валидация — оператором `validateWhen`, не узлом `{ when, children }` |
 | `validateItems`, `validateGroup`, `validateTree` | `applyEach(model.$.arr, rowRules)` / `apply(model.$.group, groupRules)` | Правила строк и подформы — отдельные схемы, подключённые привязкой |
-| `ValidationSchemaFn`, `BehaviorSchemaFn` | `ValidationSchema<T>` (`defineValidationSchema`) / `defineFormBehavior` | Типы path-схем удалены |
+| `ValidationSchemaFn`, `BehaviorSchemaFn` | `ValidationDefinition<T>` (`defineValidation`) / `defineFormBehavior` | Типы path-схем удалены |
 | `equalTo`, `custom`, `notEmpty` (validators) | inline `Rule<T>` `(value) => err \| null` в `validate(sig, [...])`; сравнение полей — `cross(sig, fn)` | Таких фабрик нет; кастомное правило — обычная функция значения, cross-field — `cross` |
 | `form.submit()` / `form.validate()` прогоняют схему | `await validateModel(model, schema)` перед submit/шагом | `validate()` и `submit()` правил не запускают: они отражают ошибки, которые разнёс раннер, и ничего не стирают |
 | `FieldPath`, `FieldPathNode`     | `model.$.field` (`PathAwareSignal`)              | Пути заменены сигналами                         |
@@ -41,7 +41,7 @@
 | `createLegacyForm(schema)`       | `createForm({ initial, schema })`                | Формы без модели нет                            |
 | `new GroupNode({ email: { value, component } })` | `createFormFromModel({ model, schema })` | `GroupNode` принимает готовые ноды детей, а не конфиг |
 | `new FieldNode({ value: '' })`   | `new FieldNode({ valueSignal: model.$.email })`  | Нода значением не владеет — только сигнал модели |
-| `FieldConfig.validators` / `asyncValidators` | `validate` / `validateAsync` в `defineValidationSchema` | Собственных валидаторов у ноды нет |
+| `FieldConfig.validators` / `asyncValidators` | `validate` / `validateAsync` в `defineValidation` | Собственных валидаторов у ноды нет |
 | `updateOn`, `debounce` узла поля; `field.setUpdateOn()` / `getUpdateOn()` | `validation: { strategy, debounce }` в `createForm` | Когда запускать проверку, решает стратегия валидации формы |
 | `field.setValue(value, { emitEvent: false })` | `field.setValue(value)`                | Опций у `setValue` нет                          |
 | `ArrayNode`                      | `ModelArrayNode`                                 | Узел массива один — над массивом модели         |
@@ -67,7 +67,7 @@
 | `form.submitWithResult(handler)`, `SubmitResult` | `await validateModel(model, schema)`, затем `form.submit(handler)` | Валидность проверяется до отправки |
 | `getNodeType(node)`              | `isFieldNode` / `isGroupNode` / `isArrayNode`    | Вид ноды — гардами типов                       |
 | `each(model.items, (item) => …)` | `applyEach(model.$.items, itemRules)`            | Правила строки — отдельная схема над элементом |
-| `import { cross } from '@reformer/core/validation'` | `defineValidationSchema(({ model, cross }) => …)` | `cross` — только из аргумента схемы |
+| `import { cross } from '@reformer/core/validation'` | `defineValidation(({ model, cross }) => …)` | `cross` — только из аргумента схемы |
 | `createCoreForm`, `CreateCoreFormConfig` | `createForm`, `CreateFormConfig`         | Сборка одна                                    |
 | `FormArrayProxy<T>`              | `ModelArrayNode<T>`                              | Псевдоним типа удалён                          |
 | `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | — | Внутренние детали, из пакета не экспортируются |
@@ -119,12 +119,12 @@ import type { FieldPath, ValidationSchemaFn } from '@reformer/core';            
 // CORRECT
 import { createModel, createForm } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
-import type { FormModel, FormSchemaNode, ValidationError } from '@reformer/core';
-// Операторы валидации + раннер + defineValidationSchema — отдельный сабпуть:
+import type { FormModel, FormSchemaNode, ValidationIssue } from '@reformer/core';
+// Операторы валидации + раннер + defineValidation — отдельный сабпуть:
 import {
   validate, validateAsync, validateWhen, apply, applyEach,
-  defineValidationSchema, validateModel, runValidation, applyValidationResult,
-  type Rule, type AsyncRule, type ValidationSchema, type ValidationResult,
+  defineValidation, validateModel, runValidation, applyValidationResult,
+  type Rule, type AsyncRule, type ValidationDefinition, type ValidationResult,
 } from '@reformer/core/validation';
 // Фабрики-валидаторы — правила значения `Rule<T>`, пустое значение пропускают:
 import { required, email, min, minLength, pattern } from '@reformer/core/validators';
@@ -135,7 +135,7 @@ import { defineFormBehavior, compute, onChange, revalidateWhen } from '@reformer
 ### Schema Common Mistakes
 
 Валидация и разметка — **разные** контракты. Узел схемы привязывает поле к ручке модели и
-правил не несёт; правила живут в отдельной `defineValidationSchema`.
+правил не несёт; правила живут в отдельной `defineValidation`.
 
 ```typescript
 // WRONG - запись «имя → узел», литерал вместо ручки и validators прямо в узле
@@ -153,8 +153,8 @@ const schema: FormSchemaNode = {
 };
 
 // ...а правила — отдельная схема (прогоняется раннером validateModel):
-const validation = defineValidationSchema<Form>(({ model }) => {
-  validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
+const validation = defineValidation<Form>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
 });
 ```
 

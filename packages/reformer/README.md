@@ -33,7 +33,7 @@ npm install @reformer/core@beta # Active development is underway, so you can try
 A reactive `FormModel` owns the values, a form schema — a tree of nodes — binds field config
 (component / props) to the model's handles (`model.$.<field>`), and
 `createFormFromModel({ model, schema })` wires them into a typed form. Validation is a **separate**
-contract — `defineValidationSchema`, run on demand by `validateModel(model, schema)` — so the form
+contract — `defineValidation`, run on demand by `validateModel(model, schema)` — so the form
 schema carries no validators.
 
 ```tsx
@@ -43,10 +43,10 @@ import {
   createFormFromModel,
   type FieldNode,
   type FormSchemaNode,
-  type ValidationError,
+  type ValidationIssue,
 } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
@@ -100,12 +100,12 @@ const schema: FormSchemaNode = {
 //    cross-field rules through `cross(sig, snapshot => error | null)` taken from the schema
 //    argument — the snapshot is the model value, its type is inferred. Rule factories
 //    (`required()`/…) come from `@reformer/core/validators`.
-const passwordsMatch = (form: RegistrationForm): ValidationError | null =>
+const passwordsMatch = (form: RegistrationForm): ValidationIssue | null =>
   form.confirmPassword && form.password && form.confirmPassword !== form.password
-    ? { code: 'mismatch', message: 'Passwords do not match' }
+    ? { code: 'mismatch' }
     : null;
 
-const validationSchema = defineValidationSchema<RegistrationForm>(({ model, cross }) => {
+const validationSchema = defineValidation<RegistrationForm>(({ model, cross }) => {
   validate(model.$.username, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
@@ -118,7 +118,7 @@ const validationSchema = defineValidationSchema<RegistrationForm>(({ model, cros
 //    is cleared the moment `password` changes — a behavior→validation bridge.
 const behavior = defineFormBehavior<RegistrationForm>(({ model, form }) => {
   onChange(model.$.password, () => {
-    form.confirmPassword.clearErrors();
+    form.confirmPassword.clearIssues();
   });
 });
 

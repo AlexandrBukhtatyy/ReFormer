@@ -1,7 +1,7 @@
 ## 12. MULTI-STEP FORM VALIDATION
 
-Каждый шаг — своя `ValidationSchema<Form>` (обычная функция `({ model, cross }) => void`, обёрнутая
-`defineValidationSchema`). Правила шагов передаются сборке формы данными — `validation: { steps, extras }`;
+Каждый шаг — своя `ValidationDefinition<Form>` (обычная функция `({ model, cross }) => void`, обёрнутая
+`defineValidation`). Правила шагов передаются сборке формы данными — `validation: { steps, extras }`;
 сборка отдаёт прогон шага и полный прогон. Раннер сам разносит ошибки по нодам формы, поэтому UI
 подсветит проблемные поля текущего шага автоматически. Валидация живёт ОТДЕЛЬНО от схемы формы: узел
 схемы (TS или JSON) правил не несёт.
@@ -46,26 +46,26 @@ import { type FormModel } from '@reformer/core';
 import {
   validate,
   apply,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
 // Под-схема шага — обычная функция ({ model }) => void. Значения проверяет оператор validate(sig, [rules]).
-const step1Schema = defineValidationSchema<Form>(({ model }) => {
+const step1Schema = defineValidation<Form>(({ model }) => {
   validate(model.$.loanType, [required()]);
   validate(model.$.loanAmount, [required(), min(50000)]);
 });
 
-const step2Schema = defineValidationSchema<Form>(({ model }) => {
+const step2Schema = defineValidation<Form>(({ model }) => {
   validate(model.$.personalData.firstName, [required()]);
   validate(model.$.personalData.lastName, [required()]);
 });
 
 // Карта шагов + полная схема (композиция под-схем через apply — заменяет пошаговую группировку деревом)
-const STEP_SCHEMAS: readonly ValidationSchema<Form>[] = [step1Schema, step2Schema];
-const fullSchema = defineValidationSchema<Form>(() => apply(...STEP_SCHEMAS));
+const STEP_SCHEMAS: readonly ValidationDefinition<Form>[] = [step1Schema, step2Schema];
+const fullSchema = defineValidation<Form>(() => apply(...STEP_SCHEMAS));
 ```
 
 ```typescript

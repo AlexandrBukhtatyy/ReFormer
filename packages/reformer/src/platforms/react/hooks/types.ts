@@ -1,4 +1,4 @@
-import type { ValidationError } from '../../../form/types/index';
+import type { ValidationIssue } from '../../../form/types/index';
 
 /**
  * Состояние поля формы, возвращаемое хуком {@link useFormControl} для {@link FieldNode}.
@@ -16,7 +16,7 @@ import type { ValidationError } from '../../../form/types/index';
  *
  * function TextField({ control }: Props) {
  *   const state = useFormControl(control);
- *   const message = useValidationMessage(); // из '@reformer/core/react'
+ *   const message = useIssueMessage(); // из '@reformer/core/react'
  *
  *   return (
  *     <div>
@@ -25,8 +25,8 @@ import type { ValidationError } from '../../../form/types/index';
  *         disabled={state.disabled}
  *         onChange={e => control.setValue(e.target.value)}
  *       />
- *       {state.shouldShowError && state.errors[0] && (
- *         <span className="error">{message(state.errors[0])}</span>
+ *       {state.shouldShowError && state.issues[0] && (
+ *         <span className="error">{message(state.issues[0])}</span>
  *       )}
  *     </div>
  *   );
@@ -93,23 +93,23 @@ export interface FieldControlState<T> {
    *
    * @example
    * ```tsx
-   * const { errors } = useFormControl(field);
-   * const message = useValidationMessage(); // из '@reformer/core/react'
+   * const { issues } = useFormControl(field);
+   * const message = useIssueMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <ul className="error-list">
-   *     {errors.map((error, i) => (
+   *     {issues.map((error, i) => (
    *       <li key={i}>{message(error)}</li>
    *     ))}
    *   </ul>
    * );
    * ```
    */
-  errors: ValidationError[];
+  issues: ValidationIssue[];
 
   /**
    * Флаг валидности поля.
-   * `true` когда поле прошло все валидации (errors.length === 0).
+   * `true` когда поле прошло все валидации (issues.length === 0).
    *
    * @example
    * ```tsx
@@ -124,7 +124,7 @@ export interface FieldControlState<T> {
 
   /**
    * Флаг невалидности поля.
-   * `true` когда есть ошибки валидации (errors.length > 0).
+   * `true` когда есть ошибки валидации (issues.length > 0).
    * Противоположность {@link valid}.
    *
    * @example
@@ -161,14 +161,14 @@ export interface FieldControlState<T> {
    *
    * @example
    * ```tsx
-   * const { shouldShowError, errors } = useFormControl(field);
-   * const message = useValidationMessage(); // из '@reformer/core/react'
+   * const { shouldShowError, issues } = useFormControl(field);
+   * const message = useIssueMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <div>
    *     <input {...props} />
    *     {shouldShowError && (
-   *       <span className="error">{message(errors[0])}</span>
+   *       <span className="error">{message(issues[0])}</span>
    *     )}
    *   </div>
    * );
@@ -258,7 +258,7 @@ export interface FieldControlState<T> {
  *         Add Phone
  *       </button>
  *
- *       {!valid && <p className="error">Please fix phone errors</p>}
+ *       {!valid && <p className="error">Please fix phone issues</p>}
  *     </div>
  *   );
  * }
@@ -312,18 +312,15 @@ export interface ArrayControlState<T> {
    *
    * @example
    * ```tsx
-   * // Валидатор массива
-   * validators.apply(phonesArray, {
-   *   validator: (phones) => phones.length >= 1,
-   *   message: 'At least one phone required'
-   * });
+   * // Правило массива — в схеме валидации
+   * validate(model.$.phones, [minLength(1, { code: 'phones.minLength' })]);
    *
    * // В компоненте
-   * const { errors } = useFormControl(phonesArray);
-   * // errors содержит ошибку "At least one phone required" если массив пуст
+   * const { issues } = useFormControl(phonesArray);
+   * // для пустого массива issues содержит замечание с кодом 'phones.minLength'
    * ```
    */
-  errors: ValidationError[];
+  issues: ValidationIssue[];
 
   /**
    * Флаг валидности массива и всех его элементов.

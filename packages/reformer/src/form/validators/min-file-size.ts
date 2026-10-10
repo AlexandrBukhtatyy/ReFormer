@@ -6,10 +6,10 @@
  * @module form/validators/min-file-size
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { toFileArray } from './file-utils';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора минимального размера файла.
@@ -21,22 +21,22 @@ import { validationError } from './validation-error';
  * пропускаются (используйте {@link required} для обязательности).
  *
  * @param minSize - Минимально допустимый размер файла в байтах (включительно)
- * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minFileSize`, `fileName` и `actualSize`.
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Отсев пустых файлов
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { minFileSize } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.documents, [minFileSize(1, { message: 'Файл пустой' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [minFileSize(1, { code: 'documents.minFileSize' })]);
  * });
  * ```
  */
-export function minFileSize(minSize: number, options?: ValidateOptions): Rule<unknown> {
+export function minFileSize(minSize: number, options?: RuleOptions): Rule<unknown> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -46,7 +46,7 @@ export function minFileSize(minSize: number, options?: ValidateOptions): Rule<un
     for (const file of files) {
       if (typeof file.size !== 'number') continue;
       if (file.size < minSize) {
-        return validationError('minFileSize', options, {
+        return validationIssue('minFileSize', options, {
           minFileSize: minSize,
           fileName: file.name,
           actualSize: file.size,

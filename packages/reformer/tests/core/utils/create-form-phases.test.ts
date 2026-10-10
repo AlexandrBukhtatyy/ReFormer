@@ -10,7 +10,7 @@ import { createForm } from '../../../src/form/form-bundle';
 import { buildValidation } from '../../../src/form/validation/config';
 import { createModel } from '../../../src/model/index';
 import { defineFormBehavior, computeFrom } from '../../../src/form/behaviors';
-import { validate, defineValidationSchema } from '../../../src/form/validation';
+import { validate, defineValidation } from '../../../src/form/validation';
 import { required, minLength } from '../../../src/form/validators';
 
 const InputStub = () => null;
@@ -100,11 +100,11 @@ describe('createForm — фазы seed/setup', () => {
 });
 
 describe('buildValidation', () => {
-  const emailRules = defineValidationSchema<F>(({ model }) => {
-    validate(model.$.email, [required({ message: 'req' })]);
+  const emailRules = defineValidation<F>(({ model }) => {
+    validate(model.$.email, [required()]);
   });
-  const passwordRules = defineValidationSchema<F>(({ model }) => {
-    validate(model.$.password, [minLength(8, { message: 'min8' })]);
+  const passwordRules = defineValidation<F>(({ model }) => {
+    validate(model.$.password, [minLength(8)]);
   });
 
   it('без правил возвращает undefined', () => {
@@ -135,8 +135,8 @@ describe('buildValidation', () => {
 
   it('validateAll собирает шаги вместе с extras', async () => {
     const model = createModel<F>({ ...INITIAL, email: 'a@b.c', password: '' });
-    const extras = defineValidationSchema<F>(({ model: m }) => {
-      validate(m.$.password, [required({ message: 'pwd-req' })]);
+    const extras = defineValidation<F>(({ model: m }) => {
+      validate(m.$.password, [required()]);
     });
     const v = buildValidation(model, { steps: { a: emailRules }, extras })!;
     expect(await v.validateStep('a')).toBe(true); // extras в шаг не входят
@@ -173,13 +173,13 @@ describe('buildValidation', () => {
       validation: { schema: emailRules, strategy: 'change' },
     });
     const v = bundle.validation!;
-    expect(bundle.form.email.errors.value).toEqual([]); // фабрика ничего не армировала
+    expect(bundle.form.email.issues.value).toEqual([]); // фабрика ничего не армировала
 
     const stop = v.controller.start();
     model.email = ''; // реальное изменение значения — иначе реактивный триггер не сработает
     await Promise.resolve();
     await Promise.resolve();
-    expect(bundle.form.email.errors.value.map((e) => e.code)).toContain('required');
+    expect(bundle.form.email.issues.value.map((e) => e.code)).toContain('required');
     stop();
   });
 

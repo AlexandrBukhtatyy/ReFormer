@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import type { FormModel } from '../../../model/types';
-import type { ValidationSchema } from '../../../form/validation';
+import type { ValidationDefinition } from '../../../form/validation';
 import {
   createFormValidation,
   type ValidationStrategyKind,
@@ -11,7 +11,7 @@ export interface UseFormValidationArgs<T> {
   /** Модель данных формы. */
   model: FormModel<T>;
   /** Схема валидации. **Стабильная ссылка** (module-level `const` / `useMemo`) — иначе ломается дедуп раннера. */
-  schema: ValidationSchema<T>;
+  schema: ValidationDefinition<T>;
   /** Стратегия запуска. Default `'submit'`. */
   strategy?: ValidationStrategyKind;
   /** Debounce (мс) для live-фаз (`change` / live-часть `afterFirstSubmit`). */
@@ -39,7 +39,7 @@ export interface UseFormValidationResult {
  *
  * @example
  * ```tsx
- * const validation = defineValidationSchema<Form>(({ model }) => { ... }); // module-level
+ * const validation = defineValidation<Form>(({ model }) => { ... }); // module-level
  *
  * function MyForm() {
  *   const { submit, isValidating } = useFormValidation({

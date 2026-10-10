@@ -3,7 +3,7 @@
 // Реэкспортируются здесь, чтобы form-код импортировал их привычно из `form/types`.
 // ============================================================================
 
-export type { ValidationError, ErrorFilterOptions, FieldStatus } from './contracts';
+export type { ValidationIssue, FieldStatus } from './contracts';
 
 // ============================================================================
 // Конфиг ноды поля
@@ -15,7 +15,7 @@ export type { FieldConfig } from './field-config';
 // Опции фабрик валидаторов
 // ============================================================================
 
-export type { ValidateOptions } from './validation-schema';
+export type { RuleOptions } from './validation-schema';
 
 // ============================================================================
 // Узел схемы формы: union четырёх видов и их ручки

@@ -15,7 +15,7 @@ import { eachValueSignal } from '../../model/create-model';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { getNodeForSignal } from '../signal-node-registry';
 import { runAndApply } from './run';
-import type { ValidationResult, ValidationSchema } from './types';
+import type { ValidationResult, ValidationDefinition } from './types';
 
 /**
  * Когда запускается schema-валидация:
@@ -85,7 +85,7 @@ export interface FormValidationController {
  */
 export function createFormValidation<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>,
+  schema: ValidationDefinition<T>,
   options: ValidationStrategyOptions = {}
 ): FormValidationController {
   const { strategy = 'submit', debounce = 0, liveAfterSubmit = 'change' } = options;

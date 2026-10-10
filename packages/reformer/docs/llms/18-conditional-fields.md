@@ -8,7 +8,7 @@
 1. **Видимость / доступность** (поле остаётся в модели, но выключается/включается и не валидируется)
    — behaviors: `enableWhen`, а для условной записи значения — `compute` / `copyFrom` с опцией `{ when }`.
 2. **Условная валидация** (правила применяются только в истинной ветке) — оператор
-   `validateWhen(() => cond, () => {…})` внутри схемы `defineValidationSchema`, прогоняется раннером `validateModel`.
+   `validateWhen(() => cond, () => {…})` внутри схемы `defineValidation`, прогоняется раннером `validateModel`.
 3. **Скрытие из разметки** (узел вообще не рендерится) — `useFormControlValue` + условный рендер в JSX.
 
 > Условная **валидация** — оператор `validateWhen` из `@reformer/core/validation`; старого branch-узла
@@ -70,22 +70,22 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
 ## Условная валидация
 
 Правила, действующие только при выполнении условия, оборачиваются оператором
-`validateWhen(() => cond, () => {…})` внутри схемы `defineValidationSchema<T>(({ model }) => …)`.
+`validateWhen(() => cond, () => {…})` внутри схемы `defineValidation<T>(({ model }) => …)`.
 Условие `cond` читает модель напрямую (`model.field` — снимок на момент прогона): при истинном условии
 раннер применяет вложенные `validate`/`cross`/…, при ложном — правила ветки **гасятся** (поля,
-затронутые ранее, получают `setErrors([])`). Прогон — внешним раннером
+затронутые ранее, получают `setIssues([])`). Прогон — внешним раннером
 `validateModel(model, schema): Promise<boolean>` (ошибки сами роутятся в ноды формы).
 
 ```typescript
 import {
   validate,
   validateWhen,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
 } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
-const schema = defineValidationSchema<CreditForm>(({ model }) => {
+const schema = defineValidation<CreditForm>(({ model }) => {
   validate(model.$.loanType, [required()]);
 
   // ветка применяется только для ипотеки
@@ -102,7 +102,7 @@ const ok: boolean = await validateModel(model, schema);
 ```
 
 Переключение `loanType` с `mortgage` на другой тип автоматически снимает ошибки `required` с
-`propertyValue`/`initialPayment` — при ложном условии ветка `validateWhen` гасит их (`setErrors([])`).
+`propertyValue`/`initialPayment` — при ложном условии ветка `validateWhen` гасит их (`setIssues([])`).
 `validateWhen` управляет только **валидацией**; чтобы поля ещё и выпадали из состояния (сброс
 значения), держи их под `enableWhen` из раздела выше — слои независимы.
 
@@ -154,8 +154,8 @@ function MortgageFields({ form }: { form: CreditForm }) {
 - **`applyWhen` не существует** — ни как экспорт, ни как локальный сахар: он эмитил branch-узел,
   которого больше нет. Оборачивай условные правила оператором `validateWhen`.
 
-- **`ValidationSchemaFn` удалён** (тип старой path-схемы). Тип схемы — `ValidationSchema<T>`
-  (`(scope: { model: FormModel<T>; cross }) => void`), фабрика-обёртка — `defineValidationSchema<T>(fn)`.
+- **`ValidationSchemaFn` удалён** (тип старой path-схемы). Тип схемы — `ValidationDefinition<T>`
+  (`(scope: { model: FormModel<T>; cross }) => void`), фабрика-обёртка — `defineValidation<T>(fn)`.
 
 - **Cross-field — обычная функция над снимком, а не `ModelValidator (value, scope, root)`.**
   Правило значения — `Rule<T> = (value: T) => error | null`, параметров `scope` / `root` у него нет.
@@ -163,21 +163,21 @@ function MortgageFields({ form }: { form: CreditForm }) {
   аргумента схемы. Каноничное использование — каталог `validation/` формы `complex-multy-step-form`.
 
   ```typescript
-  import { defineValidationSchema } from '@reformer/core/validation';
-  import type { ValidationError } from '@reformer/core';
+  import { defineValidation } from '@reformer/core/validation';
+  import type { ValidationIssue } from '@reformer/core';
 
   type Passwords = { password: string; confirmPassword: string };
 
   // (snapshot) => error — сравнение с соседним полем
-  const passwordsMatch = (passwords: Passwords): ValidationError | null =>
+  const passwordsMatch = (passwords: Passwords): ValidationIssue | null =>
     passwords.confirmPassword &&
     passwords.password &&
     passwords.confirmPassword !== passwords.password
-      ? { code: 'mismatch', message: 'Пароли не совпадают' }
+      ? { code: 'mismatch' }
       : null;
 
   // cross — из аргумента схемы; check получает снимок модели области:
-  const passwordRules = defineValidationSchema<Passwords>(({ model, cross }) => {
+  const passwordRules = defineValidation<Passwords>(({ model, cross }) => {
     cross(model.$.confirmPassword, passwordsMatch);
   });
   ```

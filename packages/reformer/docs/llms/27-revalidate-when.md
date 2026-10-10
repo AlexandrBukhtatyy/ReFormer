@@ -23,7 +23,7 @@ function revalidateWhen(deps: ReadonlySignal<unknown>[], revalidate: () => void)
 ```
 
 `deps` — массив сигналов-триггеров (`model.$.field`). `revalidate` — колбэк (обычно
-`() => void validateModel(model, schema)`, где `schema` — `defineValidationSchema<T>(({ model }) => …)`).
+`() => void validateModel(model, schema)`, где `schema` — `defineValidation<T>(({ model }) => …)`).
 Вызывается при изменении любой зависимости (НЕ на инициализации), вне effect-контекста.
 
 ## Examples
@@ -102,12 +102,12 @@ revalidateWhen([model.$.maxAmount], () => validateModel(model, schema));
 // а валидатор amount — статичный max(1000), не читает maxAmount
 
 // ✅ Сначала cross-field правило (получает снимок формы) в схеме валидации, потом revalidateWhen
-const amountVsMax = (form: Form): ValidationError | null =>
+const amountVsMax = (form: Form): ValidationIssue | null =>
   form.amount != null && form.maxAmount != null && form.amount > form.maxAmount
-    ? { code: 'tooBig', message: '...' }
+    ? { code: 'tooBig' }
     : null;
 
-const schema = defineValidationSchema<Form>(({ model, cross }) => {
+const schema = defineValidation<Form>(({ model, cross }) => {
   cross(model.$.amount, amountVsMax); // навешиваем правило на поле amount
 });
 revalidateWhen([model.$.maxAmount], () => void validateModel(model, schema));
@@ -123,7 +123,7 @@ A: Проверьте, что (1) правило реально читает з�
 **Q: Как перевалидировать только одно поле, а не всю схему?**
 A: Схема — обычная функция, поэтому опиши стабильную под-схему только для этого поля и прогони её:
 `validateModel(model, oneFieldSchema)`, где
-`const oneFieldSchema = defineValidationSchema<Form>(({ model, cross }) => cross(model.$.amount, amountVsMax))`.
+`const oneFieldSchema = defineValidation<Form>(({ model, cross }) => cross(model.$.amount, amountVsMax))`.
 Раннер выставит/погасит ошибки только затронутых полей (гашение накапливается на пару `(model, schema)`).
 
 ## See also

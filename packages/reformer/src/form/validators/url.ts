@@ -6,18 +6,18 @@
  * @module form/validators/url
  */
 
-import type { ValidateOptions } from '../types/validation-schema';
+import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
-import { validationError } from './validation-error';
+import { validationIssue } from './validation-issue';
 
 const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
 const URL_REQUIRE_PROTOCOL = /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
 
 /**
- * Опции валидатора {@link url}. Расширяют {@link ValidateOptions} (`message`, `params`)
+ * Опции валидатора {@link url}. Расширяют {@link RuleOptions} (`code`, `params`)
  * настройками проверки протокола.
  */
-export interface UrlValidatorOptions extends ValidateOptions {
+export interface UrlValidatorOptions extends RuleOptions {
   /** Требовать наличие протокола (`http://` или `https://`). По умолчанию `false`. */
   requireProtocol?: boolean;
   /**
@@ -39,12 +39,12 @@ export interface UrlValidatorOptions extends ValidateOptions {
  *
  * @example Проверка URL
  * ```typescript
- * import { defineValidationSchema, validate } from '@reformer/core/validation';
+ * import { defineValidation, validate } from '@reformer/core/validation';
  * import { required, url } from '@reformer/core/validators';
  *
  * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
- * const validation = defineValidationSchema<MyForm>(({ model }) => {
- *   validate(model.$.website, [required(), url({ message: 'Введите корректный URL' })]);
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.website, [required(), url({ code: 'website.url' })]);
  *   // Требовать протокол и ограничить схему только https:
  *   validate(model.$.homepage, [url({ requireProtocol: true, allowedProtocols: ['https'] })]);
  * });
@@ -60,7 +60,7 @@ export function url(options?: UrlValidatorOptions): Rule<string | null | undefin
     const regex = options?.requireProtocol ? URL_REQUIRE_PROTOCOL : URL_WITH_PROTOCOL;
 
     if (!regex.test(v)) {
-      return validationError('url', options);
+      return validationIssue('url', options);
     }
 
     if (options?.allowedProtocols && options.allowedProtocols.length > 0) {
@@ -69,7 +69,7 @@ export function url(options?: UrlValidatorOptions): Rule<string | null | undefin
       );
 
       if (!hasAllowedProtocol) {
-        return validationError('url_protocol', options, {
+        return validationIssue('url_protocol', options, {
           allowedProtocols: options.allowedProtocols,
         });
       }

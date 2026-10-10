@@ -14,7 +14,7 @@
 import { signal, computed, batch } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
-import type { ValidationError, FieldStatus } from '../types/index';
+import type { ValidationIssue, FieldStatus } from '../types/index';
 import type { FormProxy } from '../types/form-proxy';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
@@ -74,8 +74,8 @@ export class GroupNode<T> extends FormNode<T> {
   /** Флаг disabled состояния */
   private readonly _disabled: Signal<boolean> = signal(false);
 
-  /** Form-level validation errors */
-  private readonly _formErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
+  /** Form-level validation issues */
+  private readonly _formIssues: Signal<ValidationIssue[]> = signal<ValidationIssue[]>([]);
 
   /**
    * Связь листовой ноды-ребёнка → её сигнал модели (тот, что помечает `markDerived`).
@@ -95,7 +95,7 @@ export class GroupNode<T> extends FormNode<T> {
   public readonly touched: ReadonlySignal<boolean>;
   public readonly dirty: ReadonlySignal<boolean>;
   public readonly pending: ReadonlySignal<boolean>;
-  public readonly errors: ReadonlySignal<ValidationError[]>;
+  public readonly issues: ReadonlySignal<ValidationIssue[]>;
   public readonly status: ReadonlySignal<FieldStatus>;
   public readonly submitting: ReadonlySignal<boolean>;
 
@@ -137,7 +137,7 @@ export class GroupNode<T> extends FormNode<T> {
     // Агрегированные signals через общую утилиту
     const aggregateSignals = createAggregateSignals({
       getChildren: () => Array.from(this._fields.values()),
-      ownErrors: this._formErrors,
+      ownErrors: this._formIssues,
       disabled: this._disabled,
     });
 
@@ -146,7 +146,7 @@ export class GroupNode<T> extends FormNode<T> {
     this.pending = aggregateSignals.pending;
     this.touched = aggregateSignals.touched;
     this.dirty = aggregateSignals.dirty;
-    this.errors = aggregateSignals.errors;
+    this.issues = aggregateSignals.issues;
     this.status = aggregateSignals.status;
 
     // Делегирование submitting к FormSubmitter
@@ -229,9 +229,9 @@ export class GroupNode<T> extends FormNode<T> {
    * ```
    */
   reset(value?: T): void {
-    // Сбрасываем и form-level ошибки (setErrors) — иначе форма остаётся invalid после reset.
-    // Так же ModelArrayNode.reset() очищает свои _arrayErrors.
-    this._formErrors.value = [];
+    // Сбрасываем и form-level ошибки (setIssues) — иначе форма остаётся invalid после reset.
+    // Так же ModelArrayNode.reset() очищает свои _arrayIssues.
+    this._formIssues.value = [];
     this._fields.forEach((field, key) => {
       const resetValue = value?.[key];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,7 +244,7 @@ export class GroupNode<T> extends FormNode<T> {
    *
    * Правил группа не исполняет и ошибок не стирает. Schema-валидация живёт ВНЕ формы:
    * `validateModel(model, schema)` из `@reformer/core/validation` прогоняется приложением по
-   * требованию и сам разносит ошибки по нодам (`setErrors`); `validate()` и `submit()` отражают
+   * требованию и сам разносит ошибки по нодам (`setIssues`); `validate()` и `submit()` отражают
    * то, что он разнёс.
    */
   validate(): Promise<boolean> {
@@ -252,24 +252,24 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
-   * Установить form-level validation errors
+   * Установить form-level validation issues
    */
-  setErrors(errors: ValidationError[]): void {
-    this._formErrors.value = errors;
+  setIssues(issues: ValidationIssue[]): void {
+    this._formIssues.value = issues;
   }
 
   /**
-   * Очистить все errors (form-level + field-level)
+   * Очистить все issues (form-level + field-level)
    */
-  clearErrors(): void {
-    this._formErrors.value = [];
-    this._fields.forEach((field) => field.clearErrors());
+  clearIssues(): void {
+    this._formIssues.value = [];
+    this._fields.forEach((field) => field.clearIssues());
   }
 
   /**
    * Ноды детей по именам полей данных. По наличию этого свойства гарды типов отличают группу
    * от поля; для доступа к полю пользуйтесь прокси формы — `form.email`, а для поля, имя
-   * которого занято членом ноды (`value`, `errors`, `status`), — `form.$.value`.
+   * которого занято членом ноды (`value`, `issues`, `status`), — `form.$.value`.
    */
   get fields(): Map<keyof T, FormNode<unknown>> {
     return this._fields;

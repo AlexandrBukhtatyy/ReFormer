@@ -12,7 +12,7 @@ import type { FormModel } from '../model/types';
 import type { FormBehavior } from './behaviors';
 import type { FormProxy } from './types/index';
 import type { FormValidation, FormValidationBundle } from './validation/config';
-import type { ValidationSchema } from './validation';
+import type { ValidationDefinition } from './validation';
 
 /**
  * Общая часть конфига всех фабрик формы.
@@ -28,7 +28,7 @@ export interface CreateFormConfigBase<T, B> {
   /** Декларативное поведение модели (compute/copyFrom/enableWhen/onChange). */
   behavior?: FormBehavior<T>;
   /** Правила валидации: готовая схема либо {@link FormValidation} со стратегией и шагами. */
-  validation?: FormValidation<T> | ValidationSchema<T>;
+  validation?: FormValidation<T> | ValidationDefinition<T>;
   /**
    * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
    * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на

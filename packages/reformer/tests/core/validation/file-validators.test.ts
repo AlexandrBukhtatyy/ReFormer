@@ -146,14 +146,14 @@ describe('maxTotalFileSize', () => {
   });
 });
 
-describe('кастомные message и params', () => {
-  it('message и доп. params прокидываются в ошибку', () => {
-    const v = maxFileSize(100, { message: 'Слишком большой', params: { hint: 'x' } }) as Rule;
+describe('свой код и params', () => {
+  it('свой код заменяет встроенный, доп. params дополняют параметры правила', () => {
+    const v = maxFileSize(100, { code: 'passport.maxFileSize', params: { hint: 'x' } }) as Rule;
     const err = v([png]);
     expect(err).toMatchObject({
-      code: 'maxFileSize',
-      message: 'Слишком большой',
+      code: 'passport.maxFileSize',
       params: { maxFileSize: 100, hint: 'x' },
     });
+    expect(err).not.toHaveProperty('message');
   });
 });

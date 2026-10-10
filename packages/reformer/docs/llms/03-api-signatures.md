@@ -17,8 +17,8 @@ createForm<T>({ initial | model, schema: (model) => tree, behavior?, validation?
 // Низкоуровневая фабрика: форма из готовых модели и дерева
 createFormFromModel<T>({ model, schema, behavior? }): FormProxy<T>
 // form.<field>             → FieldNode / GroupNode / ModelArrayNode
-// form.<field>.setValue(v) / .value.value / .errors.value / .disabled.value / .pending.value
-// form.<field>.enable() / .disable() / .reset() / .markAsTouched() / .setErrors([...])
+// form.<field>.setValue(v) / .value.value / .issues.value / .disabled.value / .pending.value
+// form.<field>.enable() / .disable() / .reset() / .markAsTouched() / .setIssues([...])
 // form.<field>.updateComponentProps({ ... })
 
 // Валидация данных — ОТДЕЛЬНЫЙ контракт `@reformer/core/validation`: схема формы правил не несёт.
@@ -26,7 +26,7 @@ createFormFromModel<T>({ model, schema, behavior? }): FormProxy<T>
 validateModel<T>(model, schema, options?: { touch?: boolean }): Promise<boolean>
 runValidation<T>(model, schema): Promise<ValidationResult>          // только сбор, ноды не трогает
 applyValidationResult(result, options?: { touch?: boolean }): void  // разнос по нодам
-// schema = defineValidationSchema<T>(({ model, cross }) => { validate(...); ... })
+// schema = defineValidation<T>(({ model, cross }) => { validate(...); ... })
 // ⚠️ form.submit() / form.validate() правил НЕ запускают: они отражают ошибки, которые уже разнёс
 //    раннер. Перед отправкой — validation.validateAll() сборки либо validateModel(model, schema).
 ```
@@ -34,51 +34,52 @@ applyValidationResult(result, options?: { touch?: boolean }): void  // разн�
 ### Validators
 
 Валидаторы — **чистые фабрики** из `@reformer/core/validators`: возвращают правило `Rule<T>` =
-`(value: T) => ValidationError | null`. Передаются оператору `validate(sig, [required(), min(50000)])`
+`(value: T) => ValidationIssue | null`. Передаются оператору `validate(sig, [required(), min(50000)])`
 внутри схемы валидации, а **не** в схему формы.
 
 ```typescript
-required(options?: { message?: string })                       // Rule<unknown>
-min(value: number, options?: { message?: string })             // Rule<number | null | undefined>
-max(value: number, options?: { message?: string })
-minLength(length: number, options?: { message?: string })      // Rule<unknown>: строка либо массив
-maxLength(length: number, options?: { message?: string })
-email(options?: { message?: string })                          // Rule<string | null | undefined>
-pattern(regex: RegExp, options?: { message?: string })
-url(options?: { message?: string; requireProtocol?: boolean })
-phone(options?: { message?: string; format?: PhoneFormat })
+required(options?: RuleOptions)                       // Rule<unknown>
+min(value: number, options?: RuleOptions)             // Rule<number | null | undefined>
+max(value: number, options?: RuleOptions)
+minLength(length: number, options?: RuleOptions)      // Rule<unknown>: строка либо массив
+maxLength(length: number, options?: RuleOptions)
+email(options?: RuleOptions)                          // Rule<string | null | undefined>
+pattern(regex: RegExp, options?: RuleOptions)
+url(options?: RuleOptions & { requireProtocol?: boolean })
+phone(options?: RuleOptions & { format?: PhoneFormat })
 // Number validator factories — Rule<number | null | undefined>
-isNumber(options?: { message?: string })
-integer(options?: { message?: string })
-multipleOf(divisor: number, options?: { message?: string })
-nonNegative(options?: { message?: string })       // value >= 0
-nonZero(options?: { message?: string })            // value !== 0
+isNumber(options?: RuleOptions)
+integer(options?: RuleOptions)
+multipleOf(divisor: number, options?: RuleOptions)
+nonNegative(options?: RuleOptions)       // value >= 0
+nonZero(options?: RuleOptions)            // value !== 0
 // Date validator factories — Rule<string | Date | null | undefined>
-isDate(options?: { message?: string })
-minDate(date: Date | string, options?: { message?: string })
-maxDate(date: Date | string, options?: { message?: string })
-pastDate(options?: { message?: string })
-futureDate(options?: { message?: string })
-minAge(years: number, options?: { message?: string })
-maxAge(years: number, options?: { message?: string })
+isDate(options?: RuleOptions)
+minDate(date: Date | string, options?: RuleOptions)
+maxDate(date: Date | string, options?: RuleOptions)
+pastDate(options?: RuleOptions)
+futureDate(options?: RuleOptions)
+minAge(years: number, options?: RuleOptions)
+maxAge(years: number, options?: RuleOptions)
 ```
 
 Тип значения правила сверяется с типом поля: `validate(model.$.age, [email()])` для числового поля
 не компилируется. Набор правил для поля объявляют типом поля — `Rule<LoanType>[]`,
 `Rule<number | null>[]`: фабрики с более широким типом значения в него присваиваются.
 
-Кроме `message`, каждое правило принимает `messageKey` (ключ словаря приложения) и `params`.
-Без `message` правило текст в ошибку не кладёт (`ValidationError.message` необязателен), а при
-отображении он берётся из словаря локали по коду (`validation.<code>`): «Обязательное поле» под
-русской локалью, английская фраза без провайдера. Явное `message` важнее словаря, но языком не
-переключается; для локализуемого текста — `messageKey`. Подробно — [34-i18n.md](./34-i18n.md).
+`RuleOptions` — `{ code?: string; params?: Record<string, unknown> }`. Текста у правила нет:
+замечание несёт только код и параметры (`ValidationIssue = { code, params?, severity? }`), а строку
+по коду при отображении даёт словарь — словарь формы (`defineIssueMessages`), затем словарь локали
+(`validation.<code>`): «Обязательное поле» под русской локалью, английская фраза без провайдера.
+Текст конкретного поля — свой код (`required({ code: 'phone.required' })`) и запись в словаре
+формы. Подробно — [34-i18n.md](./34-i18n.md).
 
 Использование: схема формы привязывает поля к ручкам модели, правила живут отдельной
-`ValidationSchema` и запускаются раннером по требованию.
+`ValidationDefinition` и запускаются раннером по требованию.
 
 ```typescript
 import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 
 type Loan = { email: string; age: number | null; amount: number | null };
@@ -93,7 +94,7 @@ const loanSchema = (model: FormModel<Loan>): FormSchemaNode => ({
 });
 
 // правила — в ОТДЕЛЬНОЙ схеме валидации
-const loanValidation = defineValidationSchema<Loan>(({ model }) => {
+const loanValidation = defineValidation<Loan>(({ model }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.age, [required(), min(18)]);
   validate(model.$.amount, [min(0), max(1000)]);
@@ -110,20 +111,20 @@ const ok = await validation.validateAll(); // Promise<boolean>; ошибки с�
 
 ### Custom & cross-field validators
 
-Контракт валидации — `@reformer/core/validation`. Схема (`ValidationSchema<T>`) — обычная функция
+Контракт валидации — `@reformer/core/validation`. Схема (`ValidationDefinition<T>`) — обычная функция
 над (под)моделью; внутри вызываются операторы, которые сами пишут ошибки в сток текущего прогона —
 автор коллектора не видит.
 
 ```typescript
-type Rule<T>      = (value: T) => ValidationError | null;
-type AsyncRule<T> = (value: T, ctx: { signal: AbortSignal }) => Promise<ValidationError | null>;
+type Rule<T>      = (value: T) => ValidationIssue | null;
+type AsyncRule<T> = (value: T, ctx: { signal: AbortSignal }) => Promise<ValidationIssue | null>;
 
 interface ValidationScope<T> {
   readonly model: FormModel<T>;
   // правило над несколькими полями: check получает снимок модели области
-  cross(handle: PathAwareSignal<unknown>, check: (snapshot: T) => ValidationError | null): void;
+  cross(handle: PathAwareSignal<unknown>, check: (snapshot: T) => ValidationIssue | null): void;
 }
-type ValidationSchema<T> = (scope: ValidationScope<T>) => void;
+type ValidationDefinition<T> = (scope: ValidationScope<T>) => void;
 ```
 
 Операторы (валидны только внутри прогона схемы):
@@ -136,8 +137,8 @@ type ValidationSchema<T> = (scope: ValidationScope<T>) => void;
 | `cross(sig, check)` из аргумента схемы | правило над несколькими полями; `check` получает снимок модели области, тип снимка выведен |
 | `apply(model.$.group, schema)` | правила подформы: схема над типом группы подключается к ручке группы |
 | `applyEach(model.$.items, schema)` | правила строк массива: схема над типом строки |
-| `apply(...schemas: ValidationSchema<T>[])` | композиция схем над той же моделью |
-| `defineValidationSchema<T>(fn): ValidationSchema<T>` | тонкая identity-обёртка (типизация/discoverability) |
+| `apply(...schemas: ValidationDefinition<T>[])` | композиция схем над той же моделью |
+| `defineValidation<T>(fn): ValidationDefinition<T>` | тонкая identity-обёртка (типизация/discoverability) |
 
 Раннер:
 
@@ -153,7 +154,7 @@ type ValidationStatus = 'valid' | 'invalid' | 'cancelled' | 'error';
 interface ValidationResult {
   readonly status: ValidationStatus;
   /** Ошибки по ручке поля `model.$.…`; путь — `handle.__path`. */
-  readonly errors: ReadonlyMap<PathAwareSignal<unknown>, readonly ValidationError[]>;
+  readonly errors: ReadonlyMap<PathAwareSignal<unknown>, readonly ValidationIssue[]>;
   /** Правила, которые не вернули результат (сеть, исключение). */
   readonly failures: readonly { handle: PathAwareSignal<unknown>; error: unknown }[];
 }
@@ -179,9 +180,9 @@ if (result.status === 'error') showToast('Не удалось проверить
 Кастомные правила, cross-field и async — в схеме:
 
 ```typescript
-import { type ValidationError } from '@reformer/core';
+import { type ValidationIssue } from '@reformer/core';
 import {
-  defineValidationSchema, validate, validateAsync,
+  defineValidation, validate, validateAsync,
   type Rule, type AsyncRule,
 } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
@@ -190,12 +191,12 @@ type Signup = { password: string; confirm: string; email: string };
 
 // Правило значения (Rule<T>)
 const strongPassword: Rule<string> = (value) =>
-  value.length < 8 ? { code: 'too-short', message: 'Минимум 8 символов' } : null;
+  value.length < 8 ? { code: 'too-short' } : null;
 
 // Правило над несколькими полями: обычная функция над снимком модели
-const passwordsMatch = (signup: Signup): ValidationError | null =>
+const passwordsMatch = (signup: Signup): ValidationIssue | null =>
   signup.confirm && signup.password && signup.confirm !== signup.password
-    ? { code: 'mismatch', message: 'Пароли не совпадают' }
+    ? { code: 'mismatch' }
     : null;
 
 // Async (AsyncRule<T>): получает { signal }. Отклонённый промис — сбой правила: прогон получает
@@ -206,10 +207,10 @@ const emailUnique: AsyncRule<string> = async (value, { signal }) => {
   const response = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, { signal });
   return (await response.json()).available
     ? null
-    : { code: 'taken', message: 'Email уже зарегистрирован' };
+    : { code: 'taken' };
 };
 
-const signupValidation = defineValidationSchema<Signup>(({ model, cross }) => {
+const signupValidation = defineValidation<Signup>(({ model, cross }) => {
   validate(model.$.password, [required(), strongPassword]);
   validate(model.$.confirm, [required()]);
   cross(model.$.confirm, passwordsMatch); // ошибка вешается на confirm
@@ -234,12 +235,12 @@ const signupValidation = defineValidationSchema<Signup>(({ model, cross }) => {
 
 ```typescript
 import {
-  apply, applyEach, defineValidationSchema, validate, validateWhen,
+  apply, applyEach, defineValidation, validate, validateWhen,
 } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
 // Условная валидация — ипотечная ветка активна только при loanType === 'mortgage'
-const loanRules = defineValidationSchema<LoanForm>(({ model }) => {
+const loanRules = defineValidation<LoanForm>(({ model }) => {
   validate(model.$.loanType, [required()]);
   validateWhen(
     () => model.loanType === 'mortgage',
@@ -251,13 +252,13 @@ const loanRules = defineValidationSchema<LoanForm>(({ model }) => {
 });
 
 // Правила строки массива — отдельная схема над типом строки
-const coBorrowerRules = defineValidationSchema<CoBorrower>(({ model, cross }) => {
+const coBorrowerRules = defineValidation<CoBorrower>(({ model, cross }) => {
   validate(model.$.income, [required(), min(10_000)]);
   cross(model.$.income, (coBorrower) =>
-    coBorrower.income < coBorrower.loanShare ? { code: 'tooLow', message: 'Доход ниже доли' } : null);
+    coBorrower.income < coBorrower.loanShare ? { code: 'tooLow' } : null);
 });
 
-const additionalRules = defineValidationSchema<LoanForm>(({ model }) => {
+const additionalRules = defineValidation<LoanForm>(({ model }) => {
   applyEach(model.$.coBorrowers, coBorrowerRules);
 });
 ```

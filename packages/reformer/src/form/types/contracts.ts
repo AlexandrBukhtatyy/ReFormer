@@ -1,12 +1,12 @@
 /**
  * Общие контракт-типы значения и валидации.
  *
- * Базовый словарь «ошибка + статус», на который опираются узлы формы
- * (`FormNode.getErrors`, `FieldNode`, `FormStatusMachine`, `aggregate-signals`), слой валидации
- * и платформенные биндинги. Файл не импортирует ничего — это лист графа зависимостей.
+ * Базовый словарь «замечание + статус», на который опираются узлы формы (`FieldNode`,
+ * `FormStatusMachine`, `aggregate-signals`), слой валидации и платформенные биндинги. Файл не
+ * импортирует ничего — это лист графа зависимостей.
  *
- * Живёт в `form/types/`, а не в слое модели: `FieldStatus`/`ErrorFilterOptions` — понятия формы,
- * а модель этих типов не использует (и импортировать их оттуда запрещено границей model⇏form).
+ * Живёт в `form/types/`, а не в слое модели: `FieldStatus` — понятие формы, а модель этих типов
+ * не использует (и импортировать их оттуда запрещено границей model⇏form).
  * Наружу отдаётся через `form/types/index`.
  *
  * @group Types
@@ -14,41 +14,27 @@
  */
 
 /**
- * Ошибка валидации
+ * Замечание валидации: что нарушено (`code`) и с какими числами (`params`). Текста у замечания
+ * нет — отображаемую строку по коду даёт слой представления (`resolveIssueMessage` из
+ * `@reformer/core/i18n`): словарь формы → словарь локали → встроенный английский → сам код.
+ * Поэтому одно и то же замечание показывается на любом языке без повторной проверки.
+ *
+ * @example
+ * ```ts
+ * const tooShort: ValidationIssue = { code: 'minLength', params: { minLength: 8 } };
+ * const softLimit: ValidationIssue = { code: 'loanAmount.high', severity: 'warning' };
+ * ```
+ *
  * @group Types
  * @category Validation Types
  */
-export interface ValidationError {
-  code: string;
-  /**
-   * Готовый текст ошибки. Не задан — отображаемую строку даёт резолвер по `code` (словарь локали
-   * `validation.<code>`); пустая строка значит то же самое.
-   */
-  message?: string;
-  /** Ключ сообщения в словаре приложения; при наличии в активной локали важнее `message`. */
-  messageKey?: string;
-  params?: Record<string, unknown>;
-  /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
-  severity?: 'error' | 'warning';
-}
-
-/**
- * Опции для фильтрации ошибок в методе getErrors()
- * @group Types
- * @category Validation Types
- */
-export interface ErrorFilterOptions {
-  /** Фильтр по коду ошибки */
-  code?: string | string[];
-
-  /** Фильтр по сообщению (поддерживает частичное совпадение) */
-  message?: string;
-
-  /** Фильтр по параметрам ошибки */
-  params?: Record<string, unknown>;
-
-  /** Кастомный предикат для фильтрации */
-  predicate?: (error: ValidationError) => boolean;
+export interface ValidationIssue {
+  /** Код правила: встроенный (`required`, `minLength`) либо свой (`loanAmount.required`). */
+  readonly code: string;
+  /** Значения для подстановки в текст: порог правила, фактическое значение. */
+  readonly params?: Readonly<Record<string, unknown>>;
+  /** `'error'` (по умолчанию) блокирует отправку, `'warning'` показывается, но не блокирует. */
+  readonly severity?: 'error' | 'warning';
 }
 
 /**

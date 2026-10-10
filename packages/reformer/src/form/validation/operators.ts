@@ -1,5 +1,5 @@
 /**
- * Операторы схемы валидации — то, что автор вызывает внутри `defineValidationSchema`.
+ * Операторы схемы валидации — то, что автор вызывает внутри `defineValidation`.
  *
  * Каждый оператор берёт контекст текущего прогона (`./context`) и пишет в него ошибки; наружу
  * ничего не возвращает. Вне прогона любой из них бросает понятную ошибку — это дев-гард
@@ -10,10 +10,10 @@
  */
 
 import type { FormModel, ModelArray, PathAwareSignal } from '../../model/types';
-import type { ValidationError } from '../types/contracts';
+import type { ValidationIssue } from '../types/contracts';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
 import { requireCtx, runWithContext, touch, gated, type VContext } from './context';
-import type { AsyncRule, Rule, ValidationSchema, ValidationScope } from './types';
+import type { AsyncRule, Rule, ValidationDefinition, ValidationScope } from './types';
 
 /**
  * Синхронные правила поля.
@@ -23,7 +23,7 @@ import type { AsyncRule, Rule, ValidationSchema, ValidationScope } from './types
  *
  * @example
  * ```ts
- * validate(model.$.loanAmount, [required({ message: 'Сумма' }), min(50000)]);
+ * validate(model.$.loanAmount, [required({ code: 'loanAmount.required' }), min(50000)]);
  * validate(model.$.tags, [required(), maxLength(3)]); // tags: string[] — массив как значение
  * ```
  */
@@ -53,7 +53,7 @@ const RULE_FAILED = 'ruleFailed';
  * ```ts
  * validateAsync(model.$.username, [async (v, { signal }) => {
  *   const r = await fetch(`/api/free?u=${v}`, { signal });
- *   return (await r.json()).free ? null : { code: 'taken', message: 'Занято' };
+ *   return (await r.json()).free ? null : { code: 'taken' };
  * }]);
  * ```
  */
@@ -71,7 +71,7 @@ export function validateAsync<TField>(
   for (const rule of rules) {
     ctx.pending.push(
       // Вызов внутри исполнителя промиса: синхронное исключение правила — такой же сбой.
-      new Promise<ValidationError | null>((resolve) => resolve(rule(value, { signal }))).then(
+      new Promise<ValidationIssue | null>((resolve) => resolve(rule(value, { signal }))).then(
         (err) => {
           if (err && !signal.aborted) bucket.push(err);
         },
@@ -89,7 +89,7 @@ export function validateAsync<TField>(
 
 /**
  * Условная валидация: правила внутри `cb` активны, только пока `cond()` истинно; иначе их поля
- * ГАСЯТСЯ (пустой bucket → `setErrors([])`). Не трогает включение/сброс поля — это дело поведения (`enableWhen`).
+ * ГАСЯТСЯ (пустой bucket → `setIssues([])`). Не трогает включение/сброс поля — это дело поведения (`enableWhen`).
  */
 export function validateWhen(cond: () => boolean, cb: () => void): void {
   const ctx = requireCtx('validateWhen');
@@ -105,7 +105,7 @@ export function validateWhen(cond: () => boolean, cb: () => void): void {
 function crossOver(
   model: FormModel<unknown>,
   sig: PathAwareSignal<unknown>,
-  check: (snapshot: never) => ValidationError | null
+  check: (snapshot: never) => ValidationIssue | null
 ): void {
   const ctx = requireCtx('cross');
   const bucket = touch(ctx, sig);
@@ -137,10 +137,10 @@ interface ArrayBinding<U> {
 }
 
 /** Запустить схему в собственной области: общий сток ошибок, своя модель. */
-function runScoped(ctx: VContext, model: unknown, schema: ValidationSchema<never>): void {
+function runScoped(ctx: VContext, model: unknown, schema: ValidationDefinition<never>): void {
   const scoped = model as FormModel<unknown>;
   runWithContext({ ...ctx, model: scoped }, () =>
-    (schema as ValidationSchema<unknown>)(scopeOf(scoped))
+    (schema as ValidationDefinition<unknown>)(scopeOf(scoped))
   );
 }
 
@@ -159,14 +159,14 @@ function rowsOf(op: string, array: unknown): { length: number; at(index: number)
 
 /**
  * Применить схему к КАЖДОМУ элементу массива под-форм. Схема элемента — обычная
- * `ValidationSchema` над типом элемента: тот же набор правил подключается и к группе через
+ * `ValidationDefinition` над типом элемента: тот же набор правил подключается и к группе через
  * {@link apply}.
  *
  * У каждого элемента своя область: `cross` внутри схемы получает снапшот элемента.
  *
  * @example
  * ```ts
- * const propertyRules = defineValidationSchema<Property>(({ model, cross }) => {
+ * const propertyRules = defineValidation<Property>(({ model, cross }) => {
  *   validate(model.$.type, [required()]);
  *   cross(model.$.estimatedValue, (property) =>
  *     property.hasEncumbrance && property.estimatedValue < 100_000 ? tooCheap : null
@@ -178,7 +178,7 @@ function rowsOf(op: string, array: unknown): { length: number; at(index: number)
  */
 export function applyEach<U extends object>(
   array: ArrayBinding<U> | ModelArray<U>,
-  schema: ValidationSchema<U>
+  schema: ValidationDefinition<U>
 ): void {
   const ctx = requireCtx('applyEach');
   const rows = rowsOf('applyEach', array);
@@ -194,7 +194,7 @@ export function applyEach<U extends object>(
  *
  * @example
  * ```ts
- * const addressRules = defineValidationSchema<Address>(({ model }) => {
+ * const addressRules = defineValidation<Address>(({ model }) => {
  *   validate(model.$.city, [required()]);
  * });
  *
@@ -207,7 +207,7 @@ export function applyEach<U extends object>(
  */
 export function apply<V extends object | null | undefined>(
   group: GroupBinding<V> | GroupBinding<V>[],
-  schema: ValidationSchema<NonNullable<V>>
+  schema: ValidationDefinition<NonNullable<V>>
 ): void;
 
 /**
@@ -215,18 +215,18 @@ export function apply<V extends object | null | undefined>(
  *
  * @example
  * ```ts
- * const formRules = defineValidationSchema<Form>(() => apply(loanRules, contactsRules));
+ * const formRules = defineValidation<Form>(() => apply(loanRules, contactsRules));
  * ```
  */
-export function apply<T>(...schemas: ValidationSchema<T>[]): void;
+export function apply<T>(...schemas: ValidationDefinition<T>[]): void;
 
 export function apply(...args: unknown[]): void {
   const ctx = requireCtx('apply');
   if (typeof args[0] === 'function') {
-    for (const schema of args as ValidationSchema<unknown>[]) schema(scopeOf(ctx.model));
+    for (const schema of args as ValidationDefinition<unknown>[]) schema(scopeOf(ctx.model));
     return;
   }
-  const [groups, schema] = args as [unknown, ValidationSchema<never>];
+  const [groups, schema] = args as [unknown, ValidationDefinition<never>];
   for (const group of Array.isArray(groups) ? groups : [groups]) {
     const handle = groupHandleOf(group);
     if (!handle) {

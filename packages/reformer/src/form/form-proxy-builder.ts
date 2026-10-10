@@ -35,7 +35,7 @@ function hasGetProxy<T>(obj: unknown): obj is ProxyProvider<T> {
  * Имя escape-hatch пространства имён «controls».
  *
  * `form.<name>` намеренно отдаёт приоритет собственным членам GroupNode
- * (`value`/`status`/`id`/`errors`/…), поэтому поле, названное любым из этих имён,
+ * (`value`/`status`/`id`/`issues`/…), поэтому поле, названное любым из этих имён,
  * недостижимо через точечный доступ. `form.$.<name>` всегда возвращает узел поля
  * (или proxy вложенной группы), обходя это затенение.
  *
@@ -88,7 +88,7 @@ export function buildFormProxy<T>(
   return new Proxy(target, {
     get: (proxyTarget, prop: string | symbol) => {
       // Приоритет 0: escape-hatch пространство имён form.$ — доступ ко ВСЕМ полям,
-      // включая затенённые одноимёнными членами GroupNode (value/status/id/errors/…).
+      // включая затенённые одноимёнными членами GroupNode (value/status/id/issues/…).
       if (prop === CONTROLS_NAMESPACE) {
         return getControlsRecord();
       }

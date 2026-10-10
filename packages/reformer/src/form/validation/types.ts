@@ -2,7 +2,7 @@
  * Типы контракта схемы валидации.
  *
  * Правило (`Rule`/`AsyncRule`) проверяет ЗНАЧЕНИЕ поля и возвращает ошибку или `null`; схема
- * (`ValidationSchema`) — обычная функция над (под)моделью, внутри которой вызываются операторы.
+ * (`ValidationDefinition`) — обычная функция над (под)моделью, внутри которой вызываются операторы.
  * Ни правила, ни схема ничего не знают про ноды формы: роутинг ошибок — дело раннера
  * (`./run`), сбор — дело ambient-стока (`./context`).
  *
@@ -11,7 +11,7 @@
  */
 
 import type { FormModel, PathAwareSignal } from '../../model/types';
-import type { ValidationError } from '../types/contracts';
+import type { ValidationIssue } from '../types/contracts';
 
 /**
  * Синхронное правило поля типа `TField`: получает значение, возвращает ошибку или `null`.
@@ -27,10 +27,10 @@ import type { ValidationError } from '../types/contracts';
  * ```ts
  * const AMOUNT_RULES: Rule<number | null>[] = [required(), min(50000)];
  * const notReserved: Rule<string> = (value) =>
- *   value === 'admin' ? { code: 'reserved', message: 'Имя занято системой' } : null;
+ *   value === 'admin' ? { code: 'reserved' } : null;
  * ```
  */
-export type Rule<TField> = (value: TField) => ValidationError | null;
+export type Rule<TField> = (value: TField) => ValidationIssue | null;
 
 /**
  * Асинхронное правило поля. Получает `AbortSignal` для отмены устаревших ответов (быстрый повторный
@@ -43,7 +43,7 @@ export type Rule<TField> = (value: TField) => ValidationError | null;
 export type AsyncRule<TField> = (
   value: TField,
   ctx: { signal: AbortSignal }
-) => Promise<ValidationError | null>;
+) => Promise<ValidationIssue | null>;
 
 /**
  * Область схемы валидации — то, что схема получает аргументом.
@@ -61,18 +61,18 @@ export interface ValidationScope<T> {
    *
    * @example
    * ```ts
-   * defineValidationSchema<Loan>(({ model, cross }) => {
+   * defineValidation<Loan>(({ model, cross }) => {
    *   cross(model.$.initialPayment, (loan) =>
    *     loan.initialPayment > loan.propertyValue ? tooHigh : null
    *   );
    * });
    * ```
    */
-  cross(handle: PathAwareSignal<unknown>, check: (snapshot: T) => ValidationError | null): void;
+  cross(handle: PathAwareSignal<unknown>, check: (snapshot: T) => ValidationIssue | null): void;
 }
 
 /** Схема валидации — обычная функция над областью. First-class значение (можно `apply`/тестировать/переиспользовать). */
-export type ValidationSchema<T> = (scope: ValidationScope<T>) => void;
+export type ValidationDefinition<T> = (scope: ValidationScope<T>) => void;
 
 /**
  * Чем закончился прогон схемы:
@@ -97,7 +97,7 @@ export interface ValidationFailure {
 export interface ValidationResult {
   readonly status: ValidationStatus;
   /** Ошибки по ручке поля `model.$.…`; путь — метаданные ручки (`handle.__path`). */
-  readonly errors: ReadonlyMap<PathAwareSignal<unknown>, readonly ValidationError[]>;
+  readonly issues: ReadonlyMap<PathAwareSignal<unknown>, readonly ValidationIssue[]>;
   /** Правила, которые не вернули результат (сеть, исключение). */
   readonly failures: readonly ValidationFailure[];
 }

@@ -2,7 +2,7 @@
 
 Схема — **дерево узлов**. Узел привязан к части модели ключом `model` и держит UI-конфиг
 (`component` / `componentProps`). Значения принадлежат модели. Правил валидации в схеме НЕТ — они
-живут в отдельной схеме `defineValidationSchema` из `@reformer/core/validation`.
+живут в отдельной схеме `defineValidation` из `@reformer/core/validation`.
 
 ### Четыре вида узла
 
@@ -46,14 +46,14 @@
 
 ```typescript
 import { createModel, createFormFromModel, type FormSchemaNode } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Input, InputNumber, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 const model = createModel<MyForm>({ name: '', age: null, agree: false, status: 'active' });
 
 // Валидация — отдельным слоем (запуск: await validateModel(model, myValidation))
-const myValidation = defineValidationSchema<MyForm>(({ model }) => {
+const myValidation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.name, [required()]);
 });
 

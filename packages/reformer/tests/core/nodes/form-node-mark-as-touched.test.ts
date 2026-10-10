@@ -9,7 +9,7 @@ import { signal } from '@preact/signals-core';
 import type { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
 import { createModel, type FormModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
-import { defineValidationSchema, validate, validateModel } from '../../../src/form/validation';
+import { defineValidation, validate, validateModel } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 import type { FormProxy } from '../../../src';
@@ -301,9 +301,9 @@ describe('FormNode - markAsTouched()', () => {
       password: string;
     }
 
-    const loginRules = defineValidationSchema<LoginForm>(({ model }) => {
-      validate(model.$.email, [required({ message: 'Required' })]);
-      validate(model.$.password, [required({ message: 'Required' })]);
+    const loginRules = defineValidation<LoginForm>(({ model }) => {
+      validate(model.$.email, [required()]);
+      validate(model.$.password, [required()]);
     });
 
     let model: FormModel<LoginForm>;
@@ -314,12 +314,12 @@ describe('FormNode - markAsTouched()', () => {
       form = createFormFromModel<LoginForm>({ model });
     });
 
-    it('should show all errors when markAsTouched is called before validate', async () => {
-      // Before markAsTouched - errors not visible
+    it('should show all issues when markAsTouched is called before validate', async () => {
+      // Before markAsTouched - issues not visible
       expect(form.email.shouldShowError.value).toBe(false);
       expect(form.password.shouldShowError.value).toBe(false);
 
-      // Validate to trigger errors
+      // Validate to trigger issues
       await validateModel(model, loginRules);
 
       // Still not visible because not touched
@@ -329,7 +329,7 @@ describe('FormNode - markAsTouched()', () => {
       // Touch all fields
       form.markAsTouched();
 
-      // Now errors are visible
+      // Now issues are visible
       expect(form.email.shouldShowError.value).toBe(true);
       expect(form.password.shouldShowError.value).toBe(true);
     });
@@ -358,7 +358,7 @@ describe('FormNode - markAsTouched()', () => {
       form.markAsTouched();
       await validateModel(model, loginRules);
 
-      // All errors visible even without submit
+      // All issues visible even without submit
       expect(form.valid.value).toBe(false);
       expect(form.email.shouldShowError.value).toBe(true);
       expect(form.password.shouldShowError.value).toBe(true);

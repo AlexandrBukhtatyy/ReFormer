@@ -12,7 +12,7 @@ import type { ComponentRef } from './schema-node';
  *
  * В схеме формы поле записывают узлом `{ model: model.$.field, component, componentProps }`;
  * сборка `createFormFromModel` превращает узел в этот конфиг сама. Правил валидации в конфиге нет —
- * они живут в схеме валидации (`defineValidationSchema`, `@reformer/core/validation`).
+ * они живут в схеме валидации (`defineValidation`, `@reformer/core/validation`).
  *
  * @group Types
  * @category Configuration Types

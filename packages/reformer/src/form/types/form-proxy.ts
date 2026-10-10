@@ -120,7 +120,7 @@ type FormControlsProxy<T> = {
  *
  * @remarks
  * **Зарезервированные имена.** Прямой доступ `form.<name>` отдаёт приоритет собственным
- * членам {@link GroupNode} (`value`, `status`, `id`, `errors`, `disabled`, `reset`, `submit`, …).
+ * членам {@link GroupNode} (`value`, `status`, `id`, `issues`, `disabled`, `reset`, `submit`, …).
  * Поэтому поле модели, названное любым из этих имён, недостижимо как `form.<name>` — там будет
  * агрегированный сигнал/метод узла, а не {@link FieldNode}. Такие имена исключены из полевого
  * пространства имён на уровне типов (через `Omit<…, keyof GroupNode>`), чтобы затенение не
@@ -135,7 +135,7 @@ export type FormProxy<T> = GroupNode<T> &
     /**
      * Escape-hatch пространство имён «controls»: типобезопасный доступ ко ВСЕМ полям формы
      * по имени, включая поля, чьи имена совпадают с членами {@link GroupNode}
-     * (`value`/`status`/`id`/`errors`/…), недостижимые через `form.<name>`.
+     * (`value`/`status`/`id`/`issues`/…), недостижимые через `form.<name>`.
      *
      * @example
      * ```typescript

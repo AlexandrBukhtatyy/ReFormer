@@ -11,7 +11,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createForm } from '../../../src/form/form-bundle';
 import { arrayOf, createModel, type FormModel } from '../../../src/model/index';
 import { defineFormBehavior, hideWhen, applyEach } from '../../../src/form/behaviors';
-import { defineValidationSchema, validate } from '../../../src/form/validation';
+import { defineValidation, validate } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 import {
   FormBundleContext,
@@ -52,7 +52,7 @@ const shapeSchema = (model: FormModel<Shape>) => ({
   ],
 });
 
-const emailRules = defineValidationSchema<Shape>(({ model }) => {
+const emailRules = defineValidation<Shape>(({ model }) => {
   validate(model.$.email, [required()]);
 });
 
@@ -219,7 +219,7 @@ describe('createForm — проверки селекторов при сборк
       },
     ],
   });
-  const kindRules = defineValidationSchema<Shape>(({ model }) => {
+  const kindRules = defineValidation<Shape>(({ model }) => {
     validate(model.$.kind, [required()]);
   });
 
