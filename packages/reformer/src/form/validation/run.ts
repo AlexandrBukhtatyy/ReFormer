@@ -77,19 +77,58 @@ const isDisabledField = (sig: object): boolean =>
   true;
 
 /**
- * Выключенное поле в проверке формы не участвует: его замечания гасятся (пустой список — нода
- * очищается при разносе), сбои его async-правил отбрасываются. Так статус прогона совпадает с
- * агрегатом `valid` формы, который выключенные поля тоже не считает.
+ * Ручка всё ещё в модели: её путь ведёт к ней же. Строку массива могли удалить, пока прогон ждал
+ * async-правил, — тогда по её пути либо пусто, либо другая строка.
  */
-function dropDisabled(
+function isAttached(model: FormModel<unknown>, handle: PathAwareSignal<unknown>): boolean {
+  if (handle.__path === '') return true;
+  let current: unknown = model.$;
+  for (const segment of handle.__path.split('.')) {
+    if (current === null || typeof current !== 'object') return false;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current === handle;
+}
+
+/**
+ * Выключенное поле и поле удалённой строки в проверке формы не участвуют: их замечания гасятся
+ * (пустой список — нода очищается при разносе), сбои их async-правил отбрасываются. Так статус
+ * прогона совпадает с агрегатом `valid` формы, который такие поля тоже не считает.
+ */
+function dropInactive(
+  model: FormModel<unknown>,
   issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>,
   failures: ValidationFailure[]
 ): void {
-  for (const sig of issues.keys()) if (isDisabledField(sig)) issues.set(sig, []);
+  const inactive = (sig: PathAwareSignal<unknown>): boolean =>
+    isDisabledField(sig) || !isAttached(model, sig);
+  for (const sig of issues.keys()) if (inactive(sig)) issues.set(sig, []);
   for (let i = failures.length - 1; i >= 0; i--) {
-    if (isDisabledField(failures[i].handle)) failures.splice(i, 1);
+    if (inactive(failures[i].handle)) failures.splice(i, 1);
   }
 }
+
+/** Сколько разносов результата прямо сейчас метят поля `touched` от имени проверки. */
+let touchesByValidation = 0;
+
+/**
+ * Пометить поля `touched` от имени проверки, а не пользователя. Стратегия `blur` такую метку за
+ * уход из поля не принимает: иначе прогон с касанием будил бы лишний живой прогон, а тот отменял
+ * бы его самого. Эффекты отрабатывают в конце `batch` — ещё внутри окна.
+ *
+ * @internal
+ */
+export function touchByValidation(action: () => void): void {
+  touchesByValidation++;
+  try {
+    batch(action);
+  } finally {
+    touchesByValidation--;
+  }
+}
+
+/** Идёт ли сейчас касание полей от имени проверки ({@link touchByValidation}). @internal */
+export const isTouchByValidation = (): boolean => touchesByValidation > 0;
 
 /**
  * Сбор: прогон схемы и ожидание async-правил.
@@ -136,7 +175,11 @@ async function collect<T>(
   // Дожидаемся async-правил, но размыкаем ожидание по отмене (устаревший прогон не висит на
   // медленных промисах). Промисы правил не отклоняются: сбой правила записан в `failures`.
   if (ctx.pending.length) await Promise.race([Promise.all(ctx.pending), whenAborted(ac.signal)]);
-  if (skipDisabled) dropDisabled(ctx.issues, failures);
+  // Без async-правил проверка формы всё равно уступает микротаск: доступность полей `enableWhen`
+  // пишет отложенно, и отправка сразу после сборки или правки условия иначе засчитала бы правила
+  // поля, которое вот-вот выключится.
+  else if (skipDisabled) await Promise.resolve();
+  if (skipDisabled) dropInactive(model as FormModel<unknown>, ctx.issues, failures);
 
   // Приоритет статуса: отменённому прогону нельзя доверять вовсе (его async-часть оборвана);
   // сбой правила важнее обычной ошибки — результата проверки нет.
@@ -214,7 +257,7 @@ export function applyValidationResult(
   if (result.status === 'cancelled') return;
   const state = stateOfResult.get(result);
   const validated = new Set(result.issues.keys());
-  batch(() => {
+  const write = (): void => {
     // Гашение диффом (без неограниченного накопления): поля, которых НЕ коснулись в этом прогоне,
     // гасятся один раз и отпускаются на GC.
     if (state) {
@@ -224,7 +267,9 @@ export function applyValidationResult(
       getNodeForSignal(sig)?.setIssues(issues as ValidationIssue[]);
     }
     if (options?.touch) for (const sig of validated) getNodeForSignal(sig)?.markAsTouched();
-  });
+  };
+  if (options?.touch) touchByValidation(write);
+  else batch(write);
   if (state) state.fields = validated;
 }
 
@@ -241,10 +286,13 @@ export async function runAndApply<T>(
   options?: { touch?: boolean; skipDisabled?: boolean }
 ): Promise<ValidationResult> {
   const { result, release } = await collect(model, schema, true, options?.skipDisabled);
-  batch(() => {
+  const write = (): void => {
     applyValidationResult(result, options);
     release();
-  });
+  };
+  // Окно касания — вокруг внешнего batch: эффекты отрабатывают в его конце.
+  if (options?.touch) touchByValidation(write);
+  else batch(write);
   return result;
 }
 

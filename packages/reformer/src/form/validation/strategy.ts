@@ -10,11 +10,11 @@
  * @module form/validation/strategy
  */
 
-import { effect, signal, type ReadonlySignal } from '@preact/signals-core';
+import { effect, signal, untracked, type ReadonlySignal } from '@preact/signals-core';
 import { eachValueSignal } from '../../model/create-model';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { getNodeForSignal } from '../signal-node-registry';
-import { runAndApply } from './run';
+import { isTouchByValidation, runAndApply } from './run';
 import type { ValidationResult, ValidationDefinition } from './types';
 
 /**
@@ -146,7 +146,9 @@ export function createFormValidation<T>(
         return;
       }
       if (strategy === 'afterFirstSubmit' && !submitted) return;
-      fire();
+      // Синхронная часть прогона (вся схема) идёт вне отслеживания: иначе её чтения — условие
+      // `validateWhen`, сигнал вне модели — стали бы триггерами живой проверки.
+      untracked(fire);
     });
   };
 
@@ -165,7 +167,14 @@ export function createFormValidation<T>(
         disposeFx = arm((sig) => void sig.value, fireLiveDebounced);
       } else if (mode === 'blur') {
         // blur — уже дискретное событие; дебаунс не нужен, метка touched сама раскрывает поле.
-        disposeFx = arm((sig) => void getNodeForSignal(sig)?.touched.value, fireLive);
+        // Метку, которую ставит сама проверка (прогон с касанием, отказ отправки), за уход из поля
+        // не считаем: иначе прогон будил бы лишний живой, а тот отменял бы его самого.
+        disposeFx = arm(
+          (sig) => void getNodeForSignal(sig)?.touched.value,
+          () => {
+            if (!isTouchByValidation()) fireLive();
+          }
+        );
       }
       // 'submit' — реактивно ничего не арминг (работает только validate()).
       return () => controller.dispose();

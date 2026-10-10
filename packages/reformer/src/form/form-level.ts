@@ -14,7 +14,7 @@ import type { FormModel } from '../model/types';
 import { createFormFlow, type FormFlow } from './flow/flow';
 import { getNodeForSignal } from './signal-node-registry';
 import { apply } from './validation/operators';
-import { defineValidation, runAndApply } from './validation/run';
+import { defineValidation, runAndApply, touchByValidation } from './validation/run';
 import {
   createFormValidation,
   type FormValidationController,
@@ -222,8 +222,9 @@ export function createFormLevel<T>(
     async submit(handler) {
       const result = await validate();
       if (result.status !== 'valid') {
-        // Показать замечания всех полей, а не только проверенных правилами.
-        getNodeForSignal(model.$ as object)?.markAsTouched();
+        // Показать замечания всех полей, а не только проверенных правилами. Одним batch и от имени
+        // проверки: стратегия `blur` не запустит по живому прогону на каждое поле.
+        touchByValidation(() => getNodeForSignal(model.$ as object)?.markAsTouched());
         return { status: result.status, validation: result };
       }
       submits.value++;
