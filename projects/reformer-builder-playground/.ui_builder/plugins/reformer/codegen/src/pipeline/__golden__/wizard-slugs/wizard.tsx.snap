@@ -1,20 +1,15 @@
 // wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
-import type { FormProxy } from '@reformer/core';
+import { createFormFlow, type FormProxy } from '@reformer/core';
+import type { ValidationResult } from '@reformer/core/validation';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { ZayavkaNaKreditForm } from './types';
 
-/**
- * Пошаговая проверка визарда. Структурно, а не типом кита: контракт `config` один у любого
- * кита на cdk-визарде, а импорт типа привязал бы шим к конкретному пакету.
- */
-export interface WizardValidationConfig {
-  validateStep?: (step: number) => boolean | Promise<boolean>;
-  validateAll?: () => boolean | Promise<boolean>;
-}
+/** Проверка шага (номер с единицы): из неё шим строит поток шагов визарда. */
+export type WizardStepCheck = (step: number) => Promise<ValidationResult>;
 
 /** Узел шага после конвертации: `title`/`icon` лежат в его `componentProps`. */
 interface StepNode {
@@ -29,10 +24,10 @@ export interface WizardProps {
   steps?: StepNode[];
   className?: string;
   /**
-   * Проверка шагов — приходит от form.render.ts через `patchProps`. Без неё «Далее»
+   * Проверка шага — приходит от form.render.ts через `patchProps`. Без неё «Далее»
    * не проверяет шаг: визард пропустил бы пустые обязательные поля.
    */
-  config?: WizardValidationConfig;
+  validateStep?: WizardStepCheck;
   /** Вешается снаружи — form.render.ts через onComponentEvent(node, 'onSubmit'). */
   onSubmit?: (values: ZayavkaNaKreditForm) => void | Promise<void>;
 }
@@ -41,7 +36,26 @@ export interface WizardProps {
  * Визард: узлы шагов из схемы — в шаги кита. Отрисовку тела шага даём пропом
  * `renderStepBody`: кит намеренно не зависит от `@reformer/renderer-react`.
  */
-export function Wizard({ form, steps = [], className, config, onSubmit }: WizardProps): ReactNode {
+export function Wizard({
+  form,
+  steps = [],
+  className,
+  validateStep,
+  onSubmit,
+}: WizardProps): ReactNode {
+  // Поток шагов: по шагу на узел, «Далее» проверяет шаг через `validateStep`.
+  const count = steps.length;
+  const flow = useMemo(
+    () =>
+      count > 0
+        ? createFormFlow({
+            steps: Array.from({ length: count }, (_, i) => String(i + 1)),
+            ...(validateStep ? { validateStep: (id: string) => validateStep(Number(id)) } : {}),
+          })
+        : undefined,
+    [count, validateStep]
+  );
+
   const wizardSteps: FormWizardStep<ZayavkaNaKreditForm, RenderNode<ZayavkaNaKreditForm>>[] = steps.map(
     (node, i) => ({
       number: i + 1,
@@ -56,7 +70,7 @@ export function Wizard({ form, steps = [], className, config, onSubmit }: Wizard
       form={form as FormProxy<ZayavkaNaKreditForm>}
       className={className}
       steps={wizardSteps}
-      config={config ?? {}}
+      {...(flow ? { flow } : {})}
       renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
       onSubmit={onSubmit ? () => onSubmit(form?.getValue() as ZayavkaNaKreditForm) : undefined}
     />

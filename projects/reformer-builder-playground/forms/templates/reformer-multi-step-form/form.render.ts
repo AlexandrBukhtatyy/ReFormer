@@ -10,7 +10,7 @@ import {
 } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
-import { formValidation, makeValidationConfig } from './form.validation';
+import { formValidation, makeStepCheck } from './form.validation';
 import { stepRenders } from './steps';
 import { submitForm } from './api';
 import type { ReformerMultiStepFormForm } from './types';
@@ -28,9 +28,9 @@ export function createJsonRenderBehavior(
 
     const wizard = schema.node('wizard');
 
-    // Визард — self-managed компонент: форму и пошаговую проверку ему передаём явно.
-    // Без `config` «Далее» не проверяет шаг вовсе и пропускает пустые обязательные поля.
-    onInit(wizard, () => wizard.patchProps({ form, config: makeValidationConfig(model) }));
+    // Визард — self-managed компонент: форму и проверку шага ему передаём явно.
+    // Без `validateStep` «Далее» не проверяет шаг вовсе и пропускает пустые обязательные поля.
+    onInit(wizard, () => wizard.patchProps({ form, validateStep: makeStepCheck(model) }));
 
     onComponentEvent(wizard, 'onSubmit', async () => {
       // `touch: true` обязателен: киты показывают ошибку только у ТРОНУТОГО поля

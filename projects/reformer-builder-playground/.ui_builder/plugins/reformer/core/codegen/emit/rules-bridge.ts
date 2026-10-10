@@ -142,7 +142,7 @@ function withNamedImport(code: string, module: string, names: readonly string[])
  * правила разошлись по шагам (тогда корень печатает шаблон-агрегатор).
  *
  * Правила вне шагов становятся `restValidation` и проверяются только полной проверкой (отправка);
- * экспорты корня те же, что у простой формы и у агрегатора: `formValidation`, `makeValidationConfig`.
+ * экспорты корня те же, что у простой формы и у агрегатора: `formValidation`, `makeStepCheck`.
  */
 export function wizardValidationFromRules(
   rules: FormRules,
@@ -160,7 +160,13 @@ export function wizardValidationFromRules(
       'Валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts, здесь их\n' +
       'сборка и правила полей вне шагов (проверяются только при отправке).',
   });
-  code = withNamedImport(code, VALIDATION_MODULE, ['apply', 'defineValidation', 'validateModel']);
+  code = withNamedImport(code, VALIDATION_MODULE, [
+    'apply',
+    'applyValidationResult',
+    'defineValidation',
+    'runValidation',
+    'type ValidationResult',
+  ]);
   code = withNamedImport(code, '@reformer/core', ['type FormModel']);
   code = withNamedImport(code, importOf(MODULE_FILES.validation, 'steps/index.ts'), [
     'stepValidations',
@@ -172,19 +178,19 @@ export const formValidation = defineValidation<${names.TypeName}>(() => {
   apply(...stepValidations, restValidation);
 });
 
+/** Шаг без правил: проверка ничего не находит. */
+const noStepRules = defineValidation<${names.TypeName}>(() => {});
+
 /**
- * Пошаговый контракт визарда (\`FormWizard\` → \`config\`). \`touch: true\` обязателен: киты показывают
- * ошибку только у тронутого поля, и без него остановленный шаг выглядел бы как неработающая кнопка.
+ * Проверка шага визарда (номер с единицы) — из неё визард строит поток шагов. \`touch: true\`
+ * обязателен: киты показывают ошибку только у тронутого поля, и без него остановленный шаг
+ * выглядел бы как неработающая кнопка.
  */
-export function makeValidationConfig(model: FormModel<${names.TypeName}>) {
-  return {
-    validateStep: (step: number): Promise<boolean> => {
-      const schema = stepValidations[step - 1];
-      return schema === undefined
-        ? Promise.resolve(true)
-        : validateModel(model, schema, { touch: true });
-    },
-    validateAll: (): Promise<boolean> => validateModel(model, formValidation, { touch: true }),
+export function makeStepCheck(model: FormModel<${names.TypeName}>) {
+  return async (step: number): Promise<ValidationResult> => {
+    const result = await runValidation(model, stepValidations[step - 1] ?? noStepRules);
+    applyValidationResult(result, { touch: true });
+    return result;
   };
 }
 `;

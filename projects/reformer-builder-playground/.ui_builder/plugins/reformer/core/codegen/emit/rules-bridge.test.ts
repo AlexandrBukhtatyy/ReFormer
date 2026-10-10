@@ -45,7 +45,7 @@ describe('правила визарда по шагам', () => {
     expect(code).toContain('model.$.comment');
     expect(code).not.toContain('model.$.fullName');
     expect(code).toContain('apply(...stepValidations, restValidation)');
-    expect(code).toContain('export function makeValidationConfig');
+    expect(code).toContain('export function makeStepCheck');
     expect(code).toMatch(/import \{[^}]*\bapply\b[^}]*\} from '@reformer\/core\/validation'/);
     expect(code).toContain("import { stepValidations } from './steps';");
   });

@@ -2,7 +2,7 @@
  * Валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts, здесь их
  * сборка и правила полей вне шагов (проверяются только при отправке).
  */
-import { validate, defineValidation, apply, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, apply, applyValidationResult, runValidation, type ValidationResult } from '@reformer/core/validation';
 import { maxLength } from '@reformer/core/validators';
 import type { ZayavkaNaKreditForm } from './types';
 import { type FormModel } from '@reformer/core';
@@ -17,18 +17,18 @@ export const formValidation = defineValidation<ZayavkaNaKreditForm>(() => {
   apply(...stepValidations, restValidation);
 });
 
+/** Шаг без правил: проверка ничего не находит. */
+const noStepRules = defineValidation<ZayavkaNaKreditForm>(() => {});
+
 /**
- * Пошаговый контракт визарда (`FormWizard` → `config`). `touch: true` обязателен: киты показывают
- * ошибку только у тронутого поля, и без него остановленный шаг выглядел бы как неработающая кнопка.
+ * Проверка шага визарда (номер с единицы) — из неё визард строит поток шагов. `touch: true`
+ * обязателен: киты показывают ошибку только у тронутого поля, и без него остановленный шаг
+ * выглядел бы как неработающая кнопка.
  */
-export function makeValidationConfig(model: FormModel<ZayavkaNaKreditForm>) {
-  return {
-    validateStep: (step: number): Promise<boolean> => {
-      const schema = stepValidations[step - 1];
-      return schema === undefined
-        ? Promise.resolve(true)
-        : validateModel(model, schema, { touch: true });
-    },
-    validateAll: (): Promise<boolean> => validateModel(model, formValidation, { touch: true }),
+export function makeStepCheck(model: FormModel<ZayavkaNaKreditForm>) {
+  return async (step: number): Promise<ValidationResult> => {
+    const result = await runValidation(model, stepValidations[step - 1] ?? noStepRules);
+    applyValidationResult(result, { touch: true });
+    return result;
   };
 }

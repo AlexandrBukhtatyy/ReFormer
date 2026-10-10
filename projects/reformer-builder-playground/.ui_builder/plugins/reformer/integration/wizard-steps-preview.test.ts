@@ -58,7 +58,7 @@ function treeHost(tree: ReadonlyMap<string, string>): PreviewHost {
 }
 
 describe('визард с папками шагов в компилирующем превью', () => {
-  it('собирается, и пошаговая проверка из makeValidationConfig останавливает пустой шаг', async () => {
+  it('собирается, и проверка шага из makeStepCheck останавливает пустой шаг', async () => {
     // Обязательное поле шага — флагом в схеме: из него шаблон шага печатает `required`
     // в `steps/<шаг>/form.validation.ts` (правила сайдкара разносит по шагам другой слой).
     const schema = wizardSchema();
@@ -105,17 +105,17 @@ describe('визард с папками шагов в компилирующе�
     expect(contract.validation).toBeDefined();
 
     const validation = compiled.modules.get('form.validation.ts') as {
-      makeValidationConfig: (model: unknown) => { validateStep(step: number): Promise<boolean> };
+      makeStepCheck: (model: unknown) => (step: number) => Promise<{ status: string }>;
     };
     const model = compiled.modules.get('model.ts') as Record<string, unknown>;
     const create = Object.entries(model).find(
       ([name, value]) => /^create\w*FormModel$/.test(name) && typeof value === 'function'
     )?.[1] as (() => unknown) | undefined;
     expect(create).toBeDefined();
-    const config = validation.makeValidationConfig(create?.());
+    const checkStep = validation.makeStepCheck(create?.());
     // `required` поля шага доехал из `steps/<шаг>/form.validation.ts` через агрегатор:
     // пустой шаг не проходит. Без папок шагов в наборе энтри упал бы на `./steps`.
-    await expect(config.validateStep(1)).resolves.toBe(false);
+    await expect(checkStep(1)).resolves.toMatchObject({ status: 'invalid' });
 
     plugin.dispose();
   }, 60_000);

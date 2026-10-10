@@ -3,7 +3,13 @@
 // здесь их сборка и поля вне шагов. Пишется один раз и при регенерации не затирается.
 
 import { type FormModel } from '@reformer/core';
-import { apply, defineValidation, validateModel } from '@reformer/core/validation';
+import {
+  apply,
+  applyValidationResult,
+  defineValidation,
+  runValidation,
+  type ValidationResult,
+} from '@reformer/core/validation';
 import { stepValidations } from './steps';
 import type { ReformerMultiStepFormForm } from './types';
 
@@ -14,18 +20,18 @@ export const formValidation = defineValidation<Root>(() => {
   apply(...stepValidations);
 });
 
+/** Шаг без правил: проверка ничего не находит. */
+const noStepRules = defineValidation<Root>(() => {});
+
 /**
- * Пошаговый контракт визарда (`FormWizard` → `config`). `touch: true` обязателен: киты показывают
- * ошибку только у тронутого поля, и без него остановленный шаг выглядел бы как неработающая кнопка.
+ * Проверка шага визарда (номер с единицы) — из неё визард строит поток шагов. `touch: true`
+ * обязателен: киты показывают ошибку только у тронутого поля, и без него остановленный шаг
+ * выглядел бы как неработающая кнопка.
  */
-export function makeValidationConfig(model: FormModel<Root>) {
-  return {
-    validateStep: (step: number): Promise<boolean> => {
-      const schema = stepValidations[step - 1];
-      return schema === undefined
-        ? Promise.resolve(true)
-        : validateModel(model, schema, { touch: true });
-    },
-    validateAll: (): Promise<boolean> => validateModel(model, formValidation, { touch: true }),
+export function makeStepCheck(model: FormModel<Root>) {
+  return async (step: number): Promise<ValidationResult> => {
+    const result = await runValidation(model, stepValidations[step - 1] ?? noStepRules);
+    applyValidationResult(result, { touch: true });
+    return result;
   };
 }

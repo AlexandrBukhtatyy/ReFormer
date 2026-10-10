@@ -7,7 +7,7 @@ import { <%= it.renderBehavior.imports.join(', ') %>, type RenderBehaviorFn } fr
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
 <% if (it.stepValidation !== null) { -%>
-import { formValidation, makeValidationConfig } from '<%= it.layout.imports.validation %>';
+import { formValidation, makeStepCheck } from '<%= it.layout.imports.validation %>';
 <% } else { -%>
 import { formValidation } from '<%= it.layout.imports.validation %>';
 <% } -%>
@@ -35,10 +35,10 @@ export function createJsonRenderBehavior(
 <% if (it.renderBehavior.isWizard) { -%>
 
 <% if (it.stepValidation !== null) { -%>
-    // Визард — self-managed компонент: форму и пошаговую проверку ему передаём явно.
-    // Без `config` «Далее» не проверяет шаг вовсе и пропускает пустые обязательные поля.
+    // Визард — self-managed компонент: форму и проверку шага ему передаём явно.
+    // Без `validateStep` «Далее» не проверяет шаг вовсе и пропускает пустые обязательные поля.
     onInit(<%= it.renderBehavior.target %>, () =>
-      <%= it.renderBehavior.target %>.patchProps({ form, config: makeValidationConfig(model) })
+      <%= it.renderBehavior.target %>.patchProps({ form, validateStep: makeStepCheck(model) })
     );
 <% } else { -%>
     // Визард — self-managed компонент: форму ему передаём явно.

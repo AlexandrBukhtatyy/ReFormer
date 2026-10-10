@@ -7,10 +7,23 @@
 
 import { type FormModel } from '@reformer/core';
 <% if (sv.rest.length > 0) { -%>
-import { apply, validate, defineValidation, validateModel } from '@reformer/core/validation';
+import {
+  apply,
+  applyValidationResult,
+  validate,
+  defineValidation,
+  runValidation,
+  type ValidationResult,
+} from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 <% } else { -%>
-import { apply, defineValidation, validateModel } from '@reformer/core/validation';
+import {
+  apply,
+  applyValidationResult,
+  defineValidation,
+  runValidation,
+  type ValidationResult,
+} from '@reformer/core/validation';
 <% } -%>
 import { stepValidations } from '<%= it.layout.imports.steps %>';
 import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
@@ -31,19 +44,19 @@ export const formValidation = defineValidation<Root>(() => {
 });
 <% } -%>
 
+/** Шаг без правил: проверка ничего не находит. */
+const noStepRules = defineValidation<Root>(() => {});
+
 /**
- * Пошаговый контракт визарда (`FormWizard` → `config`). `touch: true` обязателен: киты показывают
- * ошибку только у тронутого поля, и без него остановленный шаг выглядел бы как неработающая кнопка.
+ * Проверка шага визарда (номер с единицы) — из неё визард строит поток шагов. `touch: true`
+ * обязателен: киты показывают ошибку только у тронутого поля, и без него остановленный шаг
+ * выглядел бы как неработающая кнопка.
  */
-export function makeValidationConfig(model: FormModel<Root>) {
-  return {
-    validateStep: (step: number): Promise<boolean> => {
-      const schema = stepValidations[step - 1];
-      return schema === undefined
-        ? Promise.resolve(true)
-        : validateModel(model, schema, { touch: true });
-    },
-    validateAll: (): Promise<boolean> => validateModel(model, formValidation, { touch: true }),
+export function makeStepCheck(model: FormModel<Root>) {
+  return async (step: number): Promise<ValidationResult> => {
+    const result = await runValidation(model, stepValidations[step - 1] ?? noStepRules);
+    applyValidationResult(result, { touch: true });
+    return result;
   };
 }
 <% } else { -%>
@@ -52,10 +65,21 @@ export function makeValidationConfig(model: FormModel<Root>) {
 
 import { type FormModel } from '@reformer/core';
 <% if (it.required.length > 0) { -%>
-import { validate, defineValidation, validateModel } from '@reformer/core/validation';
+import {
+  applyValidationResult,
+  validate,
+  defineValidation,
+  runValidation,
+  type ValidationResult,
+} from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 <% } else { -%>
-import { defineValidation, validateModel } from '@reformer/core/validation';
+import {
+  applyValidationResult,
+  defineValidation,
+  runValidation,
+  type ValidationResult,
+} from '@reformer/core/validation';
 <% } -%>
 import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
@@ -73,11 +97,12 @@ export const formValidation = defineValidation<Root>(() => {
   });
 <% } -%>
 
-/** Пошаговый контракт визарда. Полная проверка — validateModel(model, formValidation). */
-export function makeValidationConfig(model: FormModel<Root>) {
-  return {
-    validateStep: (_step: number): Promise<boolean> => validateModel(model, formValidation),
-    validateAll: (): Promise<boolean> => validateModel(model, formValidation),
+/** Проверка шага визарда: правила шагам не разложены — каждый шаг проверяет всю форму. */
+export function makeStepCheck(model: FormModel<Root>) {
+  return async (_step: number): Promise<ValidationResult> => {
+    const result = await runValidation(model, formValidation);
+    applyValidationResult(result);
+    return result;
   };
 }
 <% } -%>
