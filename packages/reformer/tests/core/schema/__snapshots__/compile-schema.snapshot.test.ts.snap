@@ -1,0 +1,620 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compileSchema — снапшоты характерных деревьев > визард: шаги — контейнеры с selector, поля вложенных групп привязаны напрямую 1`] = `
+{
+  "arrays": [],
+  "fields": [
+    "$.loan.amount",
+    "$.loan.term",
+    "$.contacts.email",
+    "$.contacts.phone",
+    "$.confirm",
+  ],
+  "model": "[model $]",
+  "nodes": [
+    "#/0/0",
+    "#/0/1",
+    "loan",
+    "email",
+    "#/1/1",
+    "contacts",
+    "#/2/1",
+    "confirm",
+    "wizard",
+  ],
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "component": "Input",
+            "disabled": false,
+            "handle": "$.loan.amount",
+            "id": "#/0/0",
+            "kind": "field",
+            "scope": "#",
+          },
+          {
+            "component": "Select",
+            "disabled": false,
+            "handle": "$.loan.term",
+            "id": "#/0/1",
+            "kind": "field",
+            "scope": "#",
+          },
+        ],
+        "component": "Step",
+        "id": "loan",
+        "kind": "container",
+        "path": "#/0",
+        "props": {
+          "title": "Кредит",
+        },
+        "scope": "#",
+        "selector": "loan",
+      },
+      {
+        "children": [
+          {
+            "component": "Input",
+            "disabled": false,
+            "handle": "$.contacts.email",
+            "id": "email",
+            "kind": "field",
+            "path": "#/1/0",
+            "scope": "#",
+            "selector": "email",
+          },
+          {
+            "component": "Input",
+            "disabled": false,
+            "handle": "$.contacts.phone",
+            "id": "#/1/1",
+            "kind": "field",
+            "scope": "#",
+          },
+        ],
+        "component": "Step",
+        "id": "contacts",
+        "kind": "container",
+        "path": "#/1",
+        "props": {
+          "title": "Контакты",
+        },
+        "scope": "#",
+        "selector": "contacts",
+      },
+      {
+        "children": [
+          {
+            "id": "#/2/0",
+            "kind": "text",
+            "parts": [
+              "Проверьте данные",
+            ],
+          },
+          {
+            "component": "Checkbox",
+            "disabled": false,
+            "handle": "$.confirm",
+            "id": "#/2/1",
+            "kind": "field",
+            "scope": "#",
+          },
+        ],
+        "component": "Step",
+        "id": "confirm",
+        "kind": "container",
+        "path": "#/2",
+        "scope": "#",
+        "selector": "confirm",
+      },
+    ],
+    "component": "Wizard",
+    "id": "wizard",
+    "kind": "container",
+    "path": "#",
+    "scope": "#",
+    "selector": "wizard",
+  },
+  "scope": "#",
+}
+`;
+
+exports[`compileSchema — снапшоты характерных деревьев > массив под-форм: строки со своей областью и подформой в строке 1`] = `
+{
+  "arrays": [
+    "$.phones",
+  ],
+  "fields": [
+    "$.owner",
+  ],
+  "model": "[model $]",
+  "nodes": [
+    "#/0",
+    "phones",
+    "#",
+  ],
+  "root": {
+    "children": [
+      {
+        "component": "Input",
+        "disabled": false,
+        "handle": "$.owner",
+        "id": "#/0",
+        "kind": "field",
+        "props": {
+          "label": "Владелец",
+        },
+        "scope": "#",
+      },
+      {
+        "component": "FieldArray",
+        "handle": "$.phones",
+        "id": "phones",
+        "initialValue": {
+          "address": {
+            "city": "",
+            "street": "",
+          },
+          "number": "",
+        },
+        "kind": "array",
+        "path": "#/1",
+        "props": {
+          "addLabel": "Добавить телефон",
+        },
+        "rows": [
+          {
+            "arrays": [],
+            "fields": [
+              "$.phones.0.number",
+              "$.phones.0.address.city",
+              "$.phones.0.address.street",
+            ],
+            "model": "[model $.phones.0]",
+            "nodes": [
+              "number",
+              "address",
+              "row",
+            ],
+            "root": {
+              "children": [
+                {
+                  "component": "Input",
+                  "disabled": false,
+                  "handle": "$.phones.0.number",
+                  "id": "number",
+                  "kind": "field",
+                  "path": "#/0",
+                  "scope": "#/phones[row#0]",
+                  "selector": "number",
+                },
+                {
+                  "content": {
+                    "arrays": [],
+                    "fields": [
+                      "$.phones.0.address.city",
+                      "$.phones.0.address.street",
+                    ],
+                    "model": "[model $.phones.0.address]",
+                    "nodes": [
+                      "city",
+                      "#/1",
+                      "address",
+                    ],
+                    "root": {
+                      "children": [
+                        {
+                          "component": "Input",
+                          "disabled": false,
+                          "handle": "$.phones.0.address.city",
+                          "id": "city",
+                          "kind": "field",
+                          "path": "#/0",
+                          "props": {
+                            "label": "Город",
+                          },
+                          "scope": "#/phones[row#0]/address",
+                          "selector": "city",
+                        },
+                        {
+                          "component": "Input",
+                          "disabled": false,
+                          "handle": "$.phones.0.address.street",
+                          "id": "#/1",
+                          "kind": "field",
+                          "props": {
+                            "label": "Улица",
+                          },
+                          "scope": "#/phones[row#0]/address",
+                        },
+                      ],
+                      "component": "Section",
+                      "id": "address",
+                      "kind": "container",
+                      "path": "#",
+                      "scope": "#/phones[row#0]/address",
+                      "selector": "address",
+                    },
+                    "scope": "#/phones[row#0]/address",
+                  },
+                  "handle": "$.phones.0.address",
+                  "id": "address",
+                  "kind": "part",
+                  "path": "#/1",
+                  "scope": "#/phones[row#0]",
+                  "selector": "address",
+                },
+              ],
+              "component": "Section",
+              "id": "row",
+              "kind": "container",
+              "path": "#",
+              "scope": "#/phones[row#0]",
+              "selector": "row",
+            },
+            "scope": "#/phones[row#0]",
+          },
+          {
+            "arrays": [],
+            "fields": [
+              "$.phones.1.number",
+              "$.phones.1.address.city",
+              "$.phones.1.address.street",
+            ],
+            "model": "[model $.phones.1]",
+            "nodes": [
+              "number",
+              "address",
+              "row",
+            ],
+            "root": {
+              "children": [
+                {
+                  "component": "Input",
+                  "disabled": false,
+                  "handle": "$.phones.1.number",
+                  "id": "number",
+                  "kind": "field",
+                  "path": "#/0",
+                  "scope": "#/phones[row#1]",
+                  "selector": "number",
+                },
+                {
+                  "content": {
+                    "arrays": [],
+                    "fields": [
+                      "$.phones.1.address.city",
+                      "$.phones.1.address.street",
+                    ],
+                    "model": "[model $.phones.1.address]",
+                    "nodes": [
+                      "city",
+                      "#/1",
+                      "address",
+                    ],
+                    "root": {
+                      "children": [
+                        {
+                          "component": "Input",
+                          "disabled": false,
+                          "handle": "$.phones.1.address.city",
+                          "id": "city",
+                          "kind": "field",
+                          "path": "#/0",
+                          "props": {
+                            "label": "Город",
+                          },
+                          "scope": "#/phones[row#1]/address",
+                          "selector": "city",
+                        },
+                        {
+                          "component": "Input",
+                          "disabled": false,
+                          "handle": "$.phones.1.address.street",
+                          "id": "#/1",
+                          "kind": "field",
+                          "props": {
+                            "label": "Улица",
+                          },
+                          "scope": "#/phones[row#1]/address",
+                        },
+                      ],
+                      "component": "Section",
+                      "id": "address",
+                      "kind": "container",
+                      "path": "#",
+                      "scope": "#/phones[row#1]/address",
+                      "selector": "address",
+                    },
+                    "scope": "#/phones[row#1]/address",
+                  },
+                  "handle": "$.phones.1.address",
+                  "id": "address",
+                  "kind": "part",
+                  "path": "#/1",
+                  "scope": "#/phones[row#1]",
+                  "selector": "address",
+                },
+              ],
+              "component": "Section",
+              "id": "row",
+              "kind": "container",
+              "path": "#",
+              "scope": "#/phones[row#1]",
+              "selector": "row",
+            },
+            "scope": "#/phones[row#1]",
+          },
+        ],
+        "scope": "#",
+        "selector": "phones",
+      },
+    ],
+    "id": "#",
+    "kind": "container",
+    "scope": "#",
+  },
+  "scope": "#",
+}
+`;
+
+exports[`compileSchema — снапшоты характерных деревьев > одна подформа на два адреса: две области, поля обеих — в индексе корня 1`] = `
+{
+  "arrays": [],
+  "fields": [
+    "$.name",
+    "$.registration.city",
+    "$.registration.street",
+    "$.residence.city",
+    "$.residence.street",
+  ],
+  "model": "[model $]",
+  "nodes": [
+    "#/0",
+    "registration",
+    "residence",
+    "#",
+  ],
+  "root": {
+    "children": [
+      {
+        "component": "Input",
+        "disabled": false,
+        "handle": "$.name",
+        "id": "#/0",
+        "kind": "field",
+        "scope": "#",
+      },
+      {
+        "content": {
+          "arrays": [],
+          "fields": [
+            "$.registration.city",
+            "$.registration.street",
+          ],
+          "model": "[model $.registration]",
+          "nodes": [
+            "city",
+            "#/1",
+            "address",
+          ],
+          "root": {
+            "children": [
+              {
+                "component": "Input",
+                "disabled": false,
+                "handle": "$.registration.city",
+                "id": "city",
+                "kind": "field",
+                "path": "#/0",
+                "props": {
+                  "label": "Город",
+                },
+                "scope": "#/registration",
+                "selector": "city",
+              },
+              {
+                "component": "Input",
+                "disabled": false,
+                "handle": "$.registration.street",
+                "id": "#/1",
+                "kind": "field",
+                "props": {
+                  "label": "Улица",
+                },
+                "scope": "#/registration",
+              },
+            ],
+            "component": "Section",
+            "id": "address",
+            "kind": "container",
+            "path": "#",
+            "scope": "#/registration",
+            "selector": "address",
+          },
+          "scope": "#/registration",
+        },
+        "handle": "$.registration",
+        "id": "registration",
+        "kind": "part",
+        "path": "#/1",
+        "scope": "#",
+        "selector": "registration",
+      },
+      {
+        "content": {
+          "arrays": [],
+          "fields": [
+            "$.residence.city",
+            "$.residence.street",
+          ],
+          "model": "[model $.residence]",
+          "nodes": [
+            "city",
+            "#/1",
+            "address",
+          ],
+          "root": {
+            "children": [
+              {
+                "component": "Input",
+                "disabled": false,
+                "handle": "$.residence.city",
+                "id": "city",
+                "kind": "field",
+                "path": "#/0",
+                "props": {
+                  "label": "Город",
+                },
+                "scope": "#/residence",
+                "selector": "city",
+              },
+              {
+                "component": "Input",
+                "disabled": false,
+                "handle": "$.residence.street",
+                "id": "#/1",
+                "kind": "field",
+                "props": {
+                  "label": "Улица",
+                },
+                "scope": "#/residence",
+              },
+            ],
+            "component": "Section",
+            "id": "address",
+            "kind": "container",
+            "path": "#",
+            "scope": "#/residence",
+            "selector": "address",
+          },
+          "scope": "#/residence",
+        },
+        "handle": "$.residence",
+        "id": "residence",
+        "kind": "part",
+        "path": "#/2",
+        "props": {
+          "title": "Фактический адрес",
+        },
+        "scope": "#",
+        "selector": "residence",
+      },
+    ],
+    "id": "#",
+    "kind": "container",
+    "scope": "#",
+  },
+  "scope": "#",
+}
+`;
+
+exports[`compileSchema — снапшоты характерных деревьев > плоская форма: поля, текст из строк, чисел и сигнала, HTML-тег, пропсы с функцией 1`] = `
+{
+  "arrays": [],
+  "fields": [
+    "$.name",
+    "$.age",
+    "$.agree",
+    "$.tags",
+  ],
+  "model": "[model $]",
+  "nodes": [
+    "name",
+    "#/5",
+    "#/6",
+    "#/7",
+    "#/8",
+    "form",
+  ],
+  "root": {
+    "children": [
+      {
+        "id": "#/0",
+        "kind": "text",
+        "parts": [
+          "Шаг ",
+          1,
+          " из ",
+          3,
+        ],
+      },
+      {
+        "component": "Input",
+        "disabled": false,
+        "handle": "$.name",
+        "id": "name",
+        "kind": "field",
+        "path": "#/4",
+        "props": {
+          "hint": "[signal]",
+        },
+        "scope": "#",
+        "selector": "name",
+      },
+      {
+        "component": "Input",
+        "disabled": false,
+        "handle": "$.age",
+        "id": "#/5",
+        "kind": "field",
+        "props": {
+          "label": "Возраст",
+          "min": 18,
+        },
+        "scope": "#",
+      },
+      {
+        "component": "Checkbox",
+        "disabled": true,
+        "handle": "$.agree",
+        "id": "#/6",
+        "kind": "field",
+        "scope": "#",
+      },
+      {
+        "component": "Select",
+        "disabled": false,
+        "handle": "$.tags",
+        "id": "#/7",
+        "kind": "field",
+        "props": {
+          "options": [
+            "a",
+            "b",
+          ],
+        },
+        "scope": "#",
+      },
+      {
+        "children": [],
+        "component": "hr",
+        "id": "#/8",
+        "kind": "container",
+        "scope": "#",
+      },
+      {
+        "id": "#/9",
+        "kind": "text",
+        "parts": [
+          "Город: ",
+          "$.city",
+        ],
+      },
+    ],
+    "component": "Section",
+    "id": "form",
+    "kind": "container",
+    "path": "#",
+    "props": {
+      "onSubmit": "[function]",
+      "title": "Анкета",
+    },
+    "scope": "#",
+    "selector": "form",
+  },
+  "scope": "#",
+}
+`;
