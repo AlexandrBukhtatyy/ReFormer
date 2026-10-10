@@ -82,7 +82,7 @@ function createShapeForm(over: Partial<Shape> = {}) {
 }
 
 const error = (code: string): ValidationIssue => ({ code });
-const codesOf = (node: { issues: { value: ValidationIssue[] } }) =>
+const codesOf = (node: { issues: { value: readonly ValidationIssue[] } }) =>
   node.issues.value.map((item) => item.code);
 
 const addressRules = defineValidation<Address>(({ model, cross }) => {
@@ -281,7 +281,7 @@ describe('applyEach(ручка массива, схема)', () => {
 
     expect(await validateModel(model, rules)).toBe(false);
     const rows = form.properties as unknown as {
-      at(index: number): Record<keyof Property, { issues: { value: ValidationIssue[] } }>;
+      at(index: number): Record<keyof Property, { issues: { value: readonly ValidationIssue[] } }>;
     };
     expect(codesOf(rows.at(0).type)).toEqual(['required']);
     expect(codesOf(rows.at(1).type)).toEqual([]);
@@ -296,7 +296,7 @@ describe('applyEach(ручка массива, схема)', () => {
     await validateModel(model, rules);
 
     const rows = form.properties as unknown as {
-      at(index: number): Record<keyof Property, { issues: { value: ValidationIssue[] } }>;
+      at(index: number): Record<keyof Property, { issues: { value: readonly ValidationIssue[] } }>;
     };
     expect(codesOf(rows.at(0).price)).toEqual([]);
     expect(codesOf(rows.at(1).price)).toEqual(['overLimit']);

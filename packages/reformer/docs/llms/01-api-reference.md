@@ -13,7 +13,7 @@
 | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`       | `@reformer/core/react`      |
 | `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля) | `@reformer/core/react`      |
 | `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                      | `@reformer/core/react`      |
-| `FormModel`, `FormProxy`, `FormBundle`, `FieldNode`, `GroupNode`, `ModelArrayNode`                   | `@reformer/core`            |
+| `FormModel`, `FormGroup`, `FormBundle`, `FormControl`, `FormGroup`, `FormArray`                   | `@reformer/core`            |
 | `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                          | `@reformer/core`            |
 | `ValidationIssue`, `FormSchemaNode`, `FormValidation`, `ComponentRef`                                 | `@reformer/core`            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |

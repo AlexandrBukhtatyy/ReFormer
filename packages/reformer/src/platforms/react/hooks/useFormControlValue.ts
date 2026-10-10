@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { effect } from '@preact/signals-core';
-import type { FieldNode } from '../../../form/nodes/field-node';
+import type { FormControl } from '../../../form/types/index';
 
 /**
  * React-хук для подписки только на значение поля.
@@ -24,7 +24,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  * через разные хуки менее эффективны, чем одна подписка через `useFormControl`.
  *
  * @typeParam T - Тип значения поля
- * @param control - FieldNode для подписки на значение
+ * @param control - FormControl для подписки на значение
  * @returns Текущее значение поля
  *
  * @example Условный рендеринг секции
@@ -32,8 +32,8 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  * import { useFormControlValue } from '@reformer/core/react';
  *
  * interface FormFields {
- *   hasShipping: FieldNode<boolean>;
- *   shippingAddress: GroupNode<AddressFields>;
+ *   hasShipping: FormControl<boolean>;
+ *   shippingAddress: FormGroup<AddressFields>;
  * }
  *
  * function ShippingSection({ form }: { form: FormFields }) {
@@ -56,8 +56,8 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  * @example Динамические опции на основе другого поля
  * ```tsx
  * interface FormFields {
- *   country: FieldNode<string>;
- *   city: FieldNode<string>;
+ *   country: FormControl<string>;
+ *   city: FormControl<string>;
  * }
  *
  * function CitySelect({ form }: { form: FormFields }) {
@@ -96,14 +96,14 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *
  * // Хук вызывается на уровне компонента-строки (не в цикле — Rules of Hooks).
  * // Доступ к полям элемента — через Proxy: item.quantity, item.price.
- * function OrderRow({ item }: { item: FormProxy<OrderItem> }) {
+ * function OrderRow({ item }: { item: FormGroup<OrderItem> }) {
  *   const quantity = useFormControlValue(item.quantity);
  *   const price = useFormControlValue(item.price);
  *
  *   return <span>Итого: ${(quantity * price).toFixed(2)}</span>;
  * }
  *
- * function OrderList({ items }: { items: ModelArrayNode<OrderItem> }) {
+ * function OrderList({ items }: { items: FormArray<OrderItem> }) {
  *   return (
  *     <div>
  *       {items.map((item, index) => (
@@ -117,7 +117,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  * @example Preview значения
  * ```tsx
  * interface MarkdownEditorProps {
- *   control: FieldNode<string>;
+ *   control: FormControl<string>;
  * }
  *
  * function MarkdownPreview({ control }: MarkdownEditorProps) {
@@ -156,7 +156,7 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  *
  * @example Счётчик символов
  * ```tsx
- * function CharacterCounter({ control, max }: { control: FieldNode<string>; max: number }) {
+ * function CharacterCounter({ control, max }: { control: FormControl<string>; max: number }) {
  *   const value = useFormControlValue(control);
  *   const remaining = max - value.length;
  *
@@ -169,11 +169,11 @@ import type { FieldNode } from '../../../form/nodes/field-node';
  * ```
  *
  * @see {@link useFormControl} - для полного состояния поля
- * @see {@link FieldNode} - тип контрола поля
+ * @see {@link FormControl} - тип контрола поля
  *
  * @group React Hooks
  */
-export function useFormControlValue<T>(control: FieldNode<T>): T {
+export function useFormControlValue<T>(control: FormControl<T>): T {
   const cacheRef = useRef<{ value: T }>({ value: control.value.value });
 
   const subscribe = useCallback(

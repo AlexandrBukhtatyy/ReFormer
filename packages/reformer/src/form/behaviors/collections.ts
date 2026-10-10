@@ -16,7 +16,7 @@
 import type { Signal } from '@preact/signals-core';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
 import type { FormModel } from '../../model/types';
-import type { FormProxy } from '../types/index';
+import type { FormGroup } from '../types/index';
 import { getNodeForSignal } from '../signal-node-registry';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
 import { getController, getFlow, onDispose, effect, defer, defineFormBehavior } from './context';
@@ -34,7 +34,8 @@ interface RowArray<TItem> {
 /** Нода массива под-форм: формы строк и реактивная длина. */
 interface RowArrayNode {
   at?: (index: number) => unknown;
-  length?: { value: number };
+  /** Число строк; чтение внутри effect подписывает на их состав. */
+  length?: number;
 }
 
 /** Путь ручки — только для сообщений об ошибках. */
@@ -47,7 +48,7 @@ const assertInsideSchema = (op: string): void => void getController(op);
  * Заглушка формы строки для НЕматериализованного массива: бросает понятную ошибку при доступе к ноде.
  * Value-операции (row.$.*) её не трогают; ошибка возникает только при попытке node-операции (form.x).
  */
-function unmaterializedRowForm<T>(path: string): FormProxy<T> {
+function unmaterializedRowForm<T>(path: string): FormGroup<T> {
   return new Proxy(
     {},
     {
@@ -62,7 +63,7 @@ function unmaterializedRowForm<T>(path: string): FormProxy<T> {
         );
       },
     }
-  ) as FormProxy<T>;
+  ) as FormGroup<T>;
 }
 
 /**
@@ -93,18 +94,17 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
   if (!handle) return;
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   const arrNode = getNodeForSignal(handle) as RowArrayNode | undefined;
-  // Длину берём из НОДЫ массива (её сигнал обновляется ПОСЛЕ построения форм строк) — так rowForm готов
+  // Длину берём из НОДЫ массива (её строки обновляются ПОСЛЕ построения форм строк) — так rowForm готов
   // к запуску row-поведения независимо от порядка effect'ов. Фолбэк — длина value-фасада модели
   // (нематериализованный массив: форм строк нет, node-операции недоступны). Поле над массивом
   // целиком (мультивыбор) форм строк тоже не имеет — у его ноды нет `at`.
   const rowForms = typeof arrNode?.at === 'function' ? arrNode : undefined;
-  const lengthSignal = rowForms?.length;
 
-  // key = под-модель строки (стабильна по идентичности GroupNode через facadeCache)
+  // key = под-модель строки (стабильна по идентичности узла модели через facadeCache)
   const activeByRow = new Map<unknown, BehaviorCleanup>();
 
   effect(() => {
-    const len = lengthSignal ? lengthSignal.value : rows.length;
+    const len = rowForms ? (rowForms.length ?? 0) : rows.length;
     const seen = new Set<unknown>();
     for (let i = 0; i < len; i++) {
       const rowModel = rows.at(i);
@@ -112,7 +112,7 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
       seen.add(rowModel);
       if (!activeByRow.has(rowModel)) {
         const rowForm =
-          (rowForms?.at?.(i) as FormProxy<TItem> | undefined) ??
+          (rowForms?.at?.(i) as FormGroup<TItem> | undefined) ??
           unmaterializedRowForm<TItem>(pathOf(handle));
         activeByRow.set(rowModel, itemSchema.__run(rowModel, rowForm, controller, flow));
       }
@@ -252,8 +252,8 @@ export function apply<TField>(targets: object | object[], subSchema: FormBehavio
     const subModel = modelOf(handle as { peek(): object }) as unknown as FormModel<TField>;
     // Форма может отсутствовать (модель без формы, под-схема работает только со значениями) —
     // тогда node-операции через `form.*` недоступны.
-    const node = getNodeForSignal(handle) as { getProxy?: () => unknown } | undefined;
-    const nestedForm = (node ? (node.getProxy?.() ?? node) : undefined) as FormProxy<TField>;
-    onDispose(subSchema.__run(subModel, nestedForm, controller, flow));
+    // У группы в реестре лежит её лицо — FormGroup с нодами полей.
+    const nestedForm = getNodeForSignal(handle) as FormGroup<TField> | undefined;
+    onDispose(subSchema.__run(subModel, nestedForm as FormGroup<TField>, controller, flow));
   }
 }

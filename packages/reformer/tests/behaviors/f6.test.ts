@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { createModel, type FormModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
 import { defineFormBehavior, enableWhen, onChange, applyEach } from '../../src/form/behaviors';
-import type { FormProxy } from '../../src/form/types/index';
+import type { FormGroup } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
@@ -37,7 +37,7 @@ interface RowNode {
   discount: { disabled: { value: boolean } };
   unit: { componentProps: { value: Record<string, unknown> } };
 }
-const row = (form: FormProxy<F>, i: number) =>
+const row = (form: FormGroup<F>, i: number) =>
   (form.items as unknown as { at(i: number): RowNode }).at(i);
 
 describe('F6 · per-row node operations (materialized array)', () => {
@@ -53,7 +53,7 @@ describe('F6 · per-row node operations (materialized array)', () => {
       model,
       schema: buildSchema(model),
       behavior,
-    }) as FormProxy<F>;
+    }) as FormGroup<F>;
 
     model.items.push({ qty: 5, discount: 0, unit: 'pcs' });
     await tick();
@@ -80,7 +80,7 @@ describe('F6 · per-row node operations (materialized array)', () => {
       model,
       schema: buildSchema(model),
       behavior,
-    }) as FormProxy<F>;
+    }) as FormGroup<F>;
 
     model.items.push({ qty: 1, discount: 0, unit: 'pcs' });
     await tick();

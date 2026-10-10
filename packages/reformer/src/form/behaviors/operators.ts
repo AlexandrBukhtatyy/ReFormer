@@ -48,7 +48,7 @@ export function compute<R>(
   read: () => R,
   options?: { when?: () => boolean }
 ): void {
-  markDerived(target); // bulk-load (set/patch/patchValue) не затирает вычисляемое поле
+  markDerived(target); // групповая запись (set/patch, setValue группы) не затирает вычисляемое поле
   onDispose(() => unmarkDerived(target)); // при снятии behavior снова разрешаем bulk-set (refcount)
   const guard = makeCycleGuard(target as Signal<unknown>); // детект расходящегося цикла
   effect(() => {

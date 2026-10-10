@@ -21,7 +21,8 @@ import {
 } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { getNodeForSignal } from '../../../src/form/signal-node-registry';
-import { isFieldNode } from '../../../src/form/type-guards';
+import { isFormControl } from '../../../src/form/type-guards';
+import { disposeForm } from '../../test-utils/dispose-form';
 import {
   createFormValidation,
   defineValidation,
@@ -160,7 +161,7 @@ describe('поле формы над массивом', () => {
     const model = createModel<Form>(initial());
     const form = build(model);
 
-    expect(isFieldNode(form.tags)).toBe(true);
+    expect(isFormControl(form.tags)).toBe(true);
     expect(form.tags.component).toBe(Select);
     expect(form.tags.componentProps.value).toEqual({ label: 'Теги' });
     expect(form.tags.value.value).toEqual([]);
@@ -201,8 +202,8 @@ describe('поле формы над массивом', () => {
     const form = build(model);
 
     // `backup` в схеме не упомянут, `rows` — набор под-форм без item-схемы.
-    expect(form.fields.has('backup')).toBe(false);
-    expect(form.fields.has('rows')).toBe(false);
+    expect(Object.keys(form.$)).not.toContain('backup');
+    expect(Object.keys(form.$)).not.toContain('rows');
   });
 
   it('массив с item-схемой остаётся набором под-форм, даже если к нему привязали компонент', () => {
@@ -220,8 +221,8 @@ describe('поле формы над массивом', () => {
       },
     });
 
-    expect(isFieldNode(form.rows)).toBe(false);
-    expect(form.rows.length.value).toBe(1);
+    expect(isFormControl(form.rows)).toBe(false);
+    expect(form.rows.length).toBe(1);
   });
 
   it('nullable-поле: лист с начальным null — то же поле, и patch до createForm его не убирает', () => {
@@ -231,7 +232,7 @@ describe('поле формы над массивом', () => {
     model.patch({ maybe: ['a'] });
     const form = build(model);
 
-    expect(isFieldNode(form.maybe)).toBe(true);
+    expect(isFormControl(form.maybe)).toBe(true);
     expect(form.maybe.value.value).toEqual(['a']);
     form.maybe.setValue(null);
     expect(model.get().maybe).toBeNull();
@@ -308,7 +309,7 @@ describe('поведение над массивом как значением',
 
     expect(model.get().backup).toEqual(['a', 'b']);
     expect(model.get().copy).toEqual({ city: 'Минск', langs: ['en'] });
-    form.dispose();
+    disposeForm(form);
   });
 
   it('enableWhen выключает и включает ноду поля-массива', async () => {
@@ -329,6 +330,6 @@ describe('поведение над массивом как значением',
     model.enabled = true;
     await tick(10);
     expect(form.tags.disabled.value).toBe(false);
-    form.dispose();
+    disposeForm(form);
   });
 });

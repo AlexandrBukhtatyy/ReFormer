@@ -326,7 +326,7 @@ describe('pending поля на время async-правил', () => {
     const run = validateModel(model, slowSchema(answer.promise));
 
     expect(form.login.pending.value).toBe(true);
-    expect(form.login.status.value).toBe('pending');
+    expect(form.login.pending.value).toBe(true);
     expect(form.name.pending.value).toBe(false); // у поля только синхронные правила
     expect(form.pending.value).toBe(true); // агрегат формы
 
@@ -334,7 +334,7 @@ describe('pending поля на время async-правил', () => {
     await expect(run).resolves.toBe(true);
 
     expect(form.login.pending.value).toBe(false);
-    expect(form.login.status.value).toBe('valid');
+    expect(form.login.valid.value).toBe(true);
     expect(form.pending.value).toBe(false);
   });
 
@@ -347,7 +347,7 @@ describe('pending поля на время async-правил', () => {
     await run;
 
     expect(form.login.pending.value).toBe(false);
-    expect(form.login.status.value).toBe('invalid');
+    expect(form.login.invalid.value).toBe(true);
   });
 
   it('отменённый прогон снимает свой pending, пока идёт следующий — поле остаётся pending', async () => {
@@ -386,11 +386,11 @@ describe('pending поля на время async-правил', () => {
     const answer = deferred<null>();
 
     const run = validateModel(model, slowSchema(answer.promise));
-    expect(form.login.status.value).toBe('disabled');
+    expect(form.login.disabled.value).toBe(true);
 
     answer.resolve(null);
     await run;
-    expect(form.login.status.value).toBe('disabled');
+    expect(form.login.disabled.value).toBe(true);
   });
 });
 

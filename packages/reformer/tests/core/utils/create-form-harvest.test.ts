@@ -124,8 +124,7 @@ describe('Узел-массив схемы', () => {
     byFacade.rows.push({ name: 'a' });
     byHandle.rows.push({ name: 'a' });
 
-    const lengthOf = (form: unknown) =>
-      (form as { rows: { length: { value: number } } }).rows.length.value;
+    const lengthOf = (form: unknown) => (form as { rows: { length: number } }).rows.length;
     expect(lengthOf(formByFacade)).toBe(1);
     expect(lengthOf(formByHandle)).toBe(1);
   });

@@ -36,7 +36,7 @@ const schema: FormSchemaNode = {
 };
 
 const form = createFormFromModel<MyForm>({ model, schema });
-form.items; // ModelArrayNode<Item> — форма каждой строки: form.items.at(i)
+form.items; // FormArray<Item> — форма каждой строки: form.items.at(i)
 ```
 
 > Привязка массива — **ручка** `model.$.items`, как у поля и подформы. `item` на привязке, которая
@@ -59,7 +59,7 @@ const schema: FormSchemaNode = {
 };
 const form = createFormFromModel<MyForm>({ model, schema });
 
-form.tags.setValue(['a', 'b']); // FieldNode<string[]>
+form.tags.setValue(['a', 'b']); // FormControl<string[]>
 model.$.tags.value = ['c']; // ручка значения: заменяет массив целиком
 validate(model.$.tags, [required(), maxLength(3)]); // правило получает массив
 ```
@@ -122,7 +122,7 @@ const schema: FormSchemaNode = {
    applyEach(model.$.properties, propertyRules);
    ```
 
-3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
+3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`FormArray`),
    а не со схемой: `<FieldArray.Root control={form.properties}>` (CDK) или `FieldArraySection` из
    `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
 
@@ -163,12 +163,12 @@ model.items.map((item, i) => item.name);             // item — FormModel<Item>
 
 ### Rendering Arrays
 
-Каждый элемент массива — под-форма (`FormProxy<Item>`). Итерируй через `form.items.map`:
+Каждый элемент массива — под-форма (`FormGroup<Item>`). Итерируй через `form.items.map`:
 
 ```tsx
 import { useArrayLength } from '@reformer/core/react';
 
-function ItemsList({ form }: { form: FormProxy<MyForm> }) {
+function ItemsList({ form }: { form: FormGroup<MyForm> }) {
   const length = useArrayLength(form.items);
 
   return (

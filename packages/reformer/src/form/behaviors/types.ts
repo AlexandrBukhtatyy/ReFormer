@@ -12,7 +12,7 @@
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
 import type { FormModel } from '../../model/types';
-import type { FormProxy } from '../types/index';
+import type { FormGroup } from '../types/index';
 import type { SchemaController, SchemaScope } from '../schema-controller';
 import type { FormFlow } from '../flow/flow';
 
@@ -25,7 +25,7 @@ import type { FormFlow } from '../flow/flow';
  */
 export type BehaviorScope<T> = {
   model: FormModel<T>;
-  form: FormProxy<T>;
+  form: FormGroup<T>;
   schema: SchemaScope;
   /**
    * Поток шагов сборки (`createForm({ flow })`); без потока — `undefined`. Один на сборку: его
@@ -43,7 +43,7 @@ export interface FormBehavior<T> {
    */
   __run(
     model: FormModel<T>,
-    form: FormProxy<T>,
+    form: FormGroup<T>,
     controller?: SchemaController,
     flow?: FormFlow
   ): BehaviorCleanup;

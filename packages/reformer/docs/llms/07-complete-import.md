@@ -21,11 +21,11 @@ import type { FieldControlState } from '@reformer/core/react';
 // Типы
 import type {
   FormModel,        // реактивная модель данных
-  FormProxy,        // тип формы для props компонентов
+  FormGroup,        // тип формы для props компонентов
   FormBundle,       // результат createForm: { model, form, validation, render }
-  FieldNode,        // нода одного поля
-  GroupNode,        // нода группы
-  ModelArrayNode,   // нода массива под-форм
+  FormControl,        // нода одного поля
+  FormGroup,        // нода группы
+  FormArray,   // нода массива под-форм
   ModelArray,       // реактивный массив модели (push/removeAt/at/map/length)
   ModelSignals,     // дерево ручек ($)
   PathAwareSignal,  // ручка, знающая свой путь
@@ -81,7 +81,7 @@ import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
 
 ### Form-shape тип должен быть `type`, а не `interface`
 
-Прокси `createForm<T>` и типы `ModelArrayNode<U>` / `GroupNode<U>` требуют, чтобы form-shape
+Прокси `createForm<T>` и типы `FormArray<U>` / `FormGroup<U>` требуют, чтобы form-shape
 структурно совпадал с `Record<string, unknown>`. У `interface` нет неявной index signature,
 поэтому объявляй form-shape (и типы элементов массива, и вложенные группы) через `type`-alias:
 

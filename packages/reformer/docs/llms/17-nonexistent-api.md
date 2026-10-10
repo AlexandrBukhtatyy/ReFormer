@@ -39,12 +39,12 @@
 | Wrong                            | Correct                                          | Notes                                          |
 | -------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
 | `createLegacyForm(schema)`       | `createForm({ initial, schema })`                | Формы без модели нет                            |
-| `new GroupNode({ email: { value, component } })` | `createFormFromModel({ model, schema })` | `GroupNode` принимает готовые ноды детей, а не конфиг |
-| `new FieldNode({ value: '' })`   | `new FieldNode({ valueSignal: model.$.email })`  | Нода значением не владеет — только сигнал модели |
+| `new FormGroup({ email: { value, component } })` | `createFormFromModel({ model, schema })` | `FormGroup` принимает готовые ноды детей, а не конфиг |
+| `new FormControl({ value: '' })`   | `new FormControl({ valueSignal: model.$.email })`  | Нода значением не владеет — только сигнал модели |
 | `FieldConfig.validators` / `asyncValidators` | `validate` / `validateAsync` в `defineValidation` | Собственных валидаторов у ноды нет |
 | `updateOn`, `debounce` узла поля; `field.setUpdateOn()` / `getUpdateOn()` | `validation: { strategy, debounce }` в `createForm` | Когда запускать проверку, решает стратегия валидации формы |
 | `field.setValue(value, { emitEvent: false })` | `field.setValue(value)`                | Опций у `setValue` нет                          |
-| `ArrayNode`                      | `ModelArrayNode`                                 | Узел массива один — над массивом модели         |
+| `ArrayNode`                      | `FormArray`                                 | Узел массива один — над массивом модели         |
 | `NodeFactory`                    | —                                                | Сборка по ключам конфига удалена                |
 | `FormErrorHandler`, `ErrorStrategy` | —                                           | Обслуживали валидаторы ноды                     |
 | `FormSchema<T>`, `GroupNodeConfig<T>` | `FormSchemaNode`                          | Схема — дерево узлов, а не запись по полям      |
@@ -65,11 +65,11 @@
 | `form.touchAll()`                | `form.markAsTouched()`                           | Отметка каскадная: уходит во все вложенные поля |
 | `form.resetToInitial()`, `field.resetToInitial()` | `form.reset()` — к значениям создания формы; `model.reset()` — к точке отсчёта модели | См. `28-submit-and-reset.md` |
 | `form.submitWithResult(handler)`, `SubmitResult` | `await validateModel(model, schema)`, затем `form.submit(handler)` | Валидность проверяется до отправки |
-| `getNodeType(node)`              | `isFieldNode` / `isGroupNode` / `isArrayNode`    | Вид ноды — гардами типов                       |
+| `getNodeType(node)`              | `isFormControl` / `isFormGroup` / `isFormArray`    | Вид ноды — гардами типов                       |
 | `each(model.items, (item) => …)` | `applyEach(model.$.items, itemRules)`            | Правила строки — отдельная схема над элементом |
 | `import { cross } from '@reformer/core/validation'` | `defineValidation(({ model, cross }) => …)` | `cross` — только из аргумента схемы |
 | `createCoreForm`, `CreateCoreFormConfig` | `createForm`, `CreateFormConfig`         | Сборка одна                                    |
-| `FormArrayProxy<T>`              | `ModelArrayNode<T>`                              | Псевдоним типа удалён                          |
+| `FormArrayProxy<T>`              | `FormArray<T>`                              | Псевдоним типа удалён                          |
 | `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | — | Внутренние детали, из пакета не экспортируются |
 
 ### Прежние ключи узла схемы

@@ -11,7 +11,13 @@
  */
 
 import { isSignal } from '../signals';
-import { type ModelNode, GroupNode, ArrayNode, blankFrom, isIndexKey } from './model-nodes';
+import {
+  type ModelNode,
+  ModelGroupNode,
+  ModelArrayNode,
+  blankFrom,
+  isIndexKey,
+} from './model-nodes';
 import {
   signalsProxy,
   resolveSignalAt,
@@ -44,12 +50,12 @@ function nodeValue(node: ModelNode | undefined): unknown {
 // Кэш фасадов массивов → стабильная идентичность (`model.items === model.items`). На неё опираются
 // узел массива формы (ключ эффекта синхронизации), рендерер (зависимость хуков) и привязка по
 // идентичности — без кэша каждое обращение к массиву отдавало бы новый прокси.
-const arrayFacadeCache = new WeakMap<ArrayNode, any>();
+const arrayFacadeCache = new WeakMap<ModelArrayNode, any>();
 
 // Обратный поиск: фасад массива → узел модели. По нему фасад находит свою ручку `$` (`signalsOf`).
-const arrayByFacade = new WeakMap<object, ArrayNode>();
+const arrayByFacade = new WeakMap<object, ModelArrayNode>();
 
-function arrayValueProxy(arr: ArrayNode): any {
+function arrayValueProxy(arr: ModelArrayNode): any {
   const cached = arrayFacadeCache.get(arr);
   if (cached) return cached;
   const api = {
@@ -104,14 +110,14 @@ const RESERVED = new Set([
   'signalAt',
 ]);
 
-// Кэш фасадов по GroupNode → стабильная идентичность под-модели (для per-item форм/ключей в рендере).
-const facadeCache = new WeakMap<GroupNode, any>();
+// Кэш фасадов по ModelGroupNode → стабильная идентичность под-модели (для per-item форм/ключей в рендере).
+const facadeCache = new WeakMap<ModelGroupNode, any>();
 
-// Обратный поиск: фасад FormModel → корневой GroupNode. Нужен для обхода листьев модели
+// Обратный поиск: фасад FormModel → корневой ModelGroupNode. Нужен для обхода листьев модели
 // (`eachLeafSignal`) без публичного доступа к внутреннему дереву.
-export const rootByFacade = new WeakMap<object, GroupNode>();
+export const rootByFacade = new WeakMap<object, ModelGroupNode>();
 
-export function makeFormModel(group: GroupNode): any {
+export function makeFormModel(group: ModelGroupNode): any {
   const cached = facadeCache.get(group);
   if (cached) return cached;
   const api: Record<string, unknown> = {

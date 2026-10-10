@@ -19,7 +19,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
-import type { FormProxy } from '../../../src/form/types/index';
+import type { FormGroup } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields, type TestFields } from '../../test-utils/form-from-fields';
 
@@ -108,7 +108,7 @@ describe('GroupNode', () => {
 
       expect(form.valid.value).toBe(true);
       expect(form.invalid.value).toBe(false);
-      expect(form.status.value).toBe('valid');
+      expect(form.valid.value).toBe(true);
     });
 
     it('should initialize with touched = false', () => {
@@ -141,7 +141,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('Proxy Field Access', () => {
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields(simpleSchema);
@@ -165,9 +165,9 @@ describe('GroupNode', () => {
       expect(form.email.value.value).toBe('test@mail.com');
     });
 
-    it('should keep the same node in the fields map', () => {
-      expect(form.fields.get('email')).toBe(form.email);
-      expect(form.fields.size).toBe(2);
+    it('should keep the same node in the $ namespace', () => {
+      expect(form.$.email).toBe(form.email);
+      expect(Object.keys(form.$)).toEqual(['email', 'password']);
     });
 
     it('should return same instance on multiple accesses', () => {
@@ -183,7 +183,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('getValue / setValue / patchValue', () => {
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields(simpleSchema);
@@ -209,23 +209,14 @@ describe('GroupNode', () => {
       expect(form.password.value.value).toBe('newpass');
     });
 
-    it('should update only specified values via patchValue()', () => {
+    it('setValue() of a group writes only the keys it gets', () => {
       form.email.setValue('initial@mail.com');
       form.password.setValue('initial');
 
-      form.patchValue({ email: 'patched@mail.com' });
+      form.setValue({ email: 'set@mail.com' } as SimpleForm);
 
-      expect(form.email.value.value).toBe('patched@mail.com');
+      expect(form.email.value.value).toBe('set@mail.com');
       expect(form.password.value.value).toBe('initial');
-    });
-
-    it('should ignore undefined in patchValue()', () => {
-      form.email.setValue('initial@mail.com');
-
-      form.patchValue({ email: undefined as unknown as string, password: 'patched' });
-
-      expect(form.email.value.value).toBe('initial@mail.com');
-      expect(form.password.value.value).toBe('patched');
     });
 
     it('should get nested values recursively', () => {
@@ -270,7 +261,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('reset', () => {
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields({
@@ -359,7 +350,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('Aggregated State', () => {
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields(simpleSchema);
@@ -422,7 +413,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('State Methods (cascading)', () => {
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields(simpleSchema);
@@ -447,18 +438,11 @@ describe('GroupNode', () => {
       expect(form.touched.value).toBe(false);
     });
 
-    it('should markAsDirty() all fields recursively', () => {
-      form.markAsDirty();
-
-      expect(form.email.dirty.value).toBe(true);
-      expect(form.password.dirty.value).toBe(true);
-    });
-
-    it('should markAsPristine() all fields recursively', () => {
+    it('dirty of a group follows its fields; reset() makes all fields pristine', () => {
       form.email.setValue('changed');
-      form.password.setValue('changed');
+      expect(form.dirty.value).toBe(true);
 
-      form.markAsPristine();
+      form.reset();
 
       expect(form.email.dirty.value).toBe(false);
       expect(form.password.dirty.value).toBe(false);
@@ -481,7 +465,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('enable / disable', () => {
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields(simpleSchema);
@@ -490,18 +474,18 @@ describe('GroupNode', () => {
     it('should disable() all fields', () => {
       form.disable();
 
-      expect(form.email.status.value).toBe('disabled');
-      expect(form.password.status.value).toBe('disabled');
-      expect(form.status.value).toBe('disabled');
+      expect(form.email.disabled.value).toBe(true);
+      expect(form.password.disabled.value).toBe(true);
+      expect(form.disabled.value).toBe(true);
     });
 
     it('should enable() all fields', () => {
       form.disable();
       form.enable();
 
-      expect(form.email.status.value).not.toBe('disabled');
-      expect(form.password.status.value).not.toBe('disabled');
-      expect(form.status.value).not.toBe('disabled');
+      expect(form.email.disabled.value).toBe(false);
+      expect(form.password.disabled.value).toBe(false);
+      expect(form.disabled.value).toBe(false);
     });
 
     it('should clear issues on disable()', () => {
@@ -517,9 +501,9 @@ describe('GroupNode', () => {
 
       nestedForm.disable();
 
-      expect(nestedForm.name.status.value).toBe('disabled');
-      expect(nestedForm.address.city.status.value).toBe('disabled');
-      expect(nestedForm.address.street.status.value).toBe('disabled');
+      expect(nestedForm.name.disabled.value).toBe(true);
+      expect(nestedForm.address.city.disabled.value).toBe(true);
+      expect(nestedForm.address.street.disabled.value).toBe(true);
     });
   });
 

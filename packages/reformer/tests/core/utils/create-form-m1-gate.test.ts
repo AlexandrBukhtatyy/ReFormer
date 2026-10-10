@@ -46,13 +46,13 @@ describe('createForm M1 — derived-guard в bulk-set (Defect 22)', () => {
     expect(model.total).toBe(0); // производное поле НЕ перезаписано payload'ом
   });
 
-  it('patchValue не затирает compute-производное поле', () => {
+  it('setValue с частью полей не затирает compute-производное поле', () => {
     const { model, form } = buildF();
     markDerived(model.$.total);
 
-    form.patchValue({ a: 7, total: 123 });
+    form.setValue({ total: 123 } as F);
 
-    expect(model.a).toBe(7);
+    expect(model.a).toBe(1);
     expect(model.total).toBe(0);
   });
 
@@ -109,8 +109,8 @@ describe('createForm M1 — поле данных named "form" (Defect 31)', () 
     };
     const built = createFormFromModel<WithForm>({ model, schema });
 
-    const formField = built.fields.get('form');
-    const emailField = built.fields.get('email');
+    const formField = built.$.form;
+    const emailField = built.$.email;
     expect(formField).toBeDefined();
     expect(emailField).toBeDefined();
     expect(formField!.value.value).toBe('hi');

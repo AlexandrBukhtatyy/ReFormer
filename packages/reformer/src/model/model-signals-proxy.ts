@@ -20,7 +20,7 @@
 import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
 import { isSignal } from '../signals';
 import type { PathAwareSignal } from './types';
-import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes';
+import { type ModelNode, ModelGroupNode, ModelArrayNode, isIndexKey } from './model-nodes';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -30,13 +30,13 @@ import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes'
 
 // Кэш узлов дерева `$` → стабильная идентичность контейнерного узла (`model.$.inner === model.$.inner`)
 // и, главное, ОДИН агрегирующий `computed` на узел (иначе каждое обращение плодило бы новый).
-const signalsCache = new WeakMap<GroupNode | ArrayNode, any>();
+const signalsCache = new WeakMap<ModelGroupNode | ModelArrayNode, any>();
 
 // Обратная карта: контейнерный узел дерева `$` → узел модели. По ней ручка (`model.$.<группа>`,
 // `model.$.<массив>`) находит свой value-фасад без обхода по пути — см. `modelOf`. Путь для этого
 // не годится: он абсолютный и меняется при перестановке строк массива, а области поведения и
 // формы строк вложенные.
-const nodeByContainer = new WeakMap<object, GroupNode | ArrayNode>();
+const nodeByContainer = new WeakMap<object, ModelGroupNode | ModelArrayNode>();
 
 /**
  * Делегат `ReadonlySignal` над агрегатом контейнерного узла. Обычный объект, а НЕ подкласс/Proxy
@@ -45,7 +45,7 @@ const nodeByContainer = new WeakMap<object, GroupNode | ArrayNode>();
  * set-трап). `ReadonlySignal` — структурный интерфейс, так что совместимость по типам сохраняется;
  * метку сигнала (`brand`) делегат несёт, поэтому `isSignal` его узнаёт.
  */
-function containerSignal(node: GroupNode | ArrayNode): ReadonlySignal<unknown> {
+function containerSignal(node: ModelGroupNode | ModelArrayNode): ReadonlySignal<unknown> {
   const agg = computed(() => node.read());
   return {
     get value() {
@@ -87,16 +87,16 @@ export function signalsProxy(node: ModelNode): any {
   const isGroup = node.kind === 'group';
   const childAt = (key: string): ModelNode | undefined =>
     isGroup
-      ? (node as GroupNode).children.get(key)
+      ? (node as ModelGroupNode).children.get(key)
       : isIndexKey(key)
-        ? (node as ArrayNode).items.value[Number(key)]
+        ? (node as ModelArrayNode).items.value[Number(key)]
         : undefined;
 
   const target = isGroup
     ? {}
     : {
         get length(): number {
-          return (node as ArrayNode).items.value.length;
+          return (node as ModelArrayNode).items.value.length;
         },
       };
 
@@ -113,7 +113,7 @@ export function signalsProxy(node: ModelNode): any {
     },
     set: (_t, key, value) => {
       if (!isGroup && key === 'value') {
-        (node as ArrayNode).set(value);
+        (node as ModelArrayNode).set(value);
         return true;
       }
       const at = node.path === '' ? 'model.$' : `model.$.${node.path}`;
@@ -128,7 +128,8 @@ export function signalsProxy(node: ModelNode): any {
     },
     has: (t, key) =>
       typeof key === 'string' && (childAt(key) !== undefined || (!isGroup && Reflect.has(t, key))),
-    ownKeys: () => (isGroup ? [...(node as GroupNode).children.keys()] : Reflect.ownKeys(target)),
+    ownKeys: () =>
+      isGroup ? [...(node as ModelGroupNode).children.keys()] : Reflect.ownKeys(target),
     getOwnPropertyDescriptor: (t, key) => {
       if (typeof key === 'string' && childAt(key)) return { enumerable: true, configurable: true };
       return isGroup ? undefined : Reflect.getOwnPropertyDescriptor(t, key);
@@ -146,7 +147,7 @@ export function signalsProxy(node: ModelNode): any {
  *
  * @internal
  */
-export function containerNodeOf(handle: unknown): GroupNode | ArrayNode | undefined {
+export function containerNodeOf(handle: unknown): ModelGroupNode | ModelArrayNode | undefined {
   if (handle == null || typeof handle !== 'object') return undefined;
   return nodeByContainer.get(handle);
 }
@@ -201,7 +202,7 @@ export function isValueSignal(value: unknown): value is Signal<unknown> {
 // ============================================================================
 
 export function resolveSignalAt(
-  root: GroupNode,
+  root: ModelGroupNode,
   path: string
 ): PathAwareSignal<unknown> | undefined {
   if (!path) return undefined;

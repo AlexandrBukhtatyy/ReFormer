@@ -6,16 +6,16 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
-import { FieldNode } from '../../../src/form/nodes/field-node';
-import type { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
+import { FormControlNode } from '../../../src/form/nodes/form-control-node';
+import type { FormArray } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
-import type { FormProxy } from '../../../src';
+import type { FormGroup } from '../../../src';
 import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
 describe('FormNode - reset()', () => {
   describe('FieldNode', () => {
     it('should reset to initialValue', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('initial'),
         component: null as ComponentInstance,
       });
@@ -28,7 +28,7 @@ describe('FormNode - reset()', () => {
     });
 
     it('should reset after reset() with new value', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('initial'),
         component: null as ComponentInstance,
       });
@@ -43,14 +43,13 @@ describe('FormNode - reset()', () => {
     });
 
     it('should clear validation state', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 
       field.setValue('valid');
       field.markAsTouched();
-      field.markAsDirty();
       field.setIssues([{ code: 'required' }]);
 
       expect(field.touched.value).toBe(true);
@@ -73,7 +72,7 @@ describe('FormNode - reset()', () => {
       age: number;
     }
 
-    let form: FormProxy<TestForm>;
+    let form: FormGroup<TestForm>;
 
     beforeEach(() => {
       form = formFromFields({
@@ -128,7 +127,7 @@ describe('FormNode - reset()', () => {
 
     it('should clear validation state for all fields', () => {
       form.email.markAsTouched();
-      form.name.markAsDirty();
+      form.name.setValue(form.name.getValue());
       form.email.setIssues([{ code: 'required' }]);
 
       expect(form.email.touched.value).toBe(true);
@@ -153,7 +152,7 @@ describe('FormNode - reset()', () => {
       };
     }
 
-    let form: FormProxy<NestedForm>;
+    let form: FormGroup<NestedForm>;
 
     beforeEach(() => {
       form = formFromFields<NestedForm>({
@@ -197,7 +196,7 @@ describe('FormNode - reset()', () => {
       price: number;
     }
 
-    let arrayNode: ModelArrayNode<ItemForm>;
+    let arrayNode: FormArray<ItemForm>;
 
     beforeEach(() => {
       arrayNode = arrayFromFields<ItemForm>(
@@ -215,11 +214,11 @@ describe('FormNode - reset()', () => {
     it('should reset to initialItems', () => {
       // Modify array
       arrayNode.push({ name: 'New Item', price: 300 });
-      expect(arrayNode.length.value).toBe(3);
+      expect(arrayNode.length).toBe(3);
 
       arrayNode.reset();
 
-      expect(arrayNode.length.value).toBe(2);
+      expect(arrayNode.length).toBe(2);
       expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
       expect(arrayNode.at(1)?.name.value.value).toBe('Initial 2');
     });
@@ -227,24 +226,24 @@ describe('FormNode - reset()', () => {
     it('should reset after reset() with new values', () => {
       arrayNode.reset([{ name: 'Temp 1', price: 999 }]);
 
-      expect(arrayNode.length.value).toBe(1);
+      expect(arrayNode.length).toBe(1);
       expect(arrayNode.at(0)?.name.value.value).toBe('Temp 1');
 
       // reset() should restore initialItems
       arrayNode.reset();
 
-      expect(arrayNode.length.value).toBe(2);
+      expect(arrayNode.length).toBe(2);
       expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
       expect(arrayNode.at(1)?.name.value.value).toBe('Initial 2');
     });
 
     it('should reset from empty array', () => {
       arrayNode.clear();
-      expect(arrayNode.length.value).toBe(0);
+      expect(arrayNode.length).toBe(0);
 
       arrayNode.reset();
 
-      expect(arrayNode.length.value).toBe(2);
+      expect(arrayNode.length).toBe(2);
       expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
     });
 
@@ -255,11 +254,11 @@ describe('FormNode - reset()', () => {
       });
 
       emptyArray.push({ name: 'Item', price: 100 });
-      expect(emptyArray.length.value).toBe(1);
+      expect(emptyArray.length).toBe(1);
 
       emptyArray.reset();
 
-      expect(emptyArray.length.value).toBe(0);
+      expect(emptyArray.length).toBe(0);
     });
   });
 
@@ -318,12 +317,12 @@ describe('FormNode - reset()', () => {
       form.reset();
 
       expect(form.title.value.value).toBe('My TODO List');
-      expect(form.items.length.value).toBe(1);
+      expect(form.items.length).toBe(1);
       expect(form.items.at(0)?.task.value.value).toBe('Initial task');
     });
 
     it('should handle reset with a value and reset without it', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('original'),
         component: null as ComponentInstance,
       });
@@ -344,7 +343,7 @@ describe('FormNode - reset()', () => {
 
   describe('Edge cases', () => {
     it('should work when initial value is null', () => {
-      const field = new FieldNode<string | null>({
+      const field = new FormControlNode<string | null>({
         valueSignal: signal(null),
         component: null as ComponentInstance,
       });
@@ -356,7 +355,7 @@ describe('FormNode - reset()', () => {
     });
 
     it('should work when initial value is empty string', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: null as ComponentInstance,
       });
@@ -368,7 +367,7 @@ describe('FormNode - reset()', () => {
     });
 
     it('should work when initial value is 0', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(0),
         component: null as ComponentInstance,
       });
@@ -380,7 +379,7 @@ describe('FormNode - reset()', () => {
     });
 
     it('should work multiple times', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('initial'),
         component: null as ComponentInstance,
       });

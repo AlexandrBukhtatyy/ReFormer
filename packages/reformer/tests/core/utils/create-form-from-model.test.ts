@@ -87,7 +87,7 @@ describe('createFormFromModel({ model, schema })', () => {
 describe('createFormFromModel({ model, schema }) — узел формы внутри схемы', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('FormProxy в componentProps сборке не мешает: пропсы обход не читает', () => {
+  it('FormGroup в componentProps сборке не мешает: пропсы обход не читает', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
     const form = createFormFromModel<Form>({

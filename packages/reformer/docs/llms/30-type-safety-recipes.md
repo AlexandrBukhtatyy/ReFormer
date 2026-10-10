@@ -14,7 +14,7 @@ import {
   createModel,
   createForm,
   type FormModel,
-  type FormProxy,
+  type FormGroup,
   type FormSchemaNode,
 } from '@reformer/core';
 import {
@@ -33,7 +33,7 @@ import { defineFormBehavior, compute, enableWhen, onChange } from '@reformer/cor
 ### Recipe 2 — Form-shape types as `type`, not `interface`
 
 `Record<string, unknown>` требует index signature. У `interface` её нет неявно; у `type` —
-структурно. Объявляй через `type`-alias всё, что попадает в `FormProxy<T>`/`ModelArrayNode<T>`:
+структурно. Объявляй через `type`-alias всё, что попадает в `FormGroup<T>`/`FormArray<T>`:
 корневую форму, вложенные группы, типы элементов массива.
 
 ```typescript
@@ -128,12 +128,12 @@ export type CreditForm = {
 
 ### Recipe 7 — Нода поля для кастомных компонентов
 
-`useFormControl(control)` типизируется по `FieldNode<T>`. В props компонента используй `FieldNode<T>`:
+`useFormControl(control)` типизируется по `FormControl<T>`. В props компонента используй `FormControl<T>`:
 
 ```typescript
-import type { FieldNode } from '@reformer/core';
+import type { FormControl } from '@reformer/core';
 
-type MyFieldProps<T> = { control: FieldNode<T> };
+type MyFieldProps<T> = { control: FormControl<T> };
 function MyField<T>({ control }: MyFieldProps<T>) {
   const { value, errors, disabled } = useFormControl(control);
   // ...

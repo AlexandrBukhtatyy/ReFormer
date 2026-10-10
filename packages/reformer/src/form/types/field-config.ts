@@ -8,7 +8,8 @@ import type { Signal } from '@preact/signals-core';
 import type { ComponentRef } from './schema-node';
 
 /**
- * Конфигурация {@link FieldNode}: сигнал значения из модели и то, что нода берёт из узла схемы.
+ * Конфигурация поля формы ({@link FormControl}): сигнал значения из модели и то, что нода берёт
+ * из узла схемы.
  *
  * В схеме формы поле записывают узлом `{ model: model.$.field, component, componentProps }`;
  * сборка `createFormFromModel` превращает узел в этот конфиг сама. Правил валидации в конфиге нет —

@@ -126,10 +126,10 @@ props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте р
 из `componentProps`, не из JSX-props.
 
 ```tsx
-import type { FieldNode } from '@reformer/core';
+import type { FormControl } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 
-type MyFormFieldProps<T> = { control: FieldNode<T> }; // ← ОДИН prop
+type MyFormFieldProps<T> = { control: FormControl<T> }; // ← ОДИН prop
 
 function MyFormField<T>({ control }: MyFormFieldProps<T>) {
   const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
@@ -199,7 +199,7 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-function ShadcnFormField({ control }: { control: FieldNode<string> }) {
+function ShadcnFormField({ control }: { control: FormControl<string> }) {
   const { value, errors, disabled, componentProps } = useFormControl(control);
   const cp = (componentProps ?? {}) as Record<string, unknown>;
 

@@ -1,7 +1,7 @@
 /**
  * Внутреннее дерево узлов модели: значения, начальный снимок, dirty/reset.
  *
- * `LeafNode`/`GroupNode`/`ArrayNode` держат ТОЛЬКО значение (сигнал `@preact/signals-core` плюс
+ * `ModelLeafNode`/`ModelGroupNode`/`ModelArrayNode` держат ТОЛЬКО значение (сигнал `@preact/signals-core` плюс
  * снимок `initial`). Это НЕ узлы формы: тёзки из `form/nodes/` несут touched/dirty/status/issues
  * и строятся поверх этих сигналов. Наружу дерево не отдаётся — доступ идёт через прокси
  * (`model-value-proxy` — значения, `model-signals-proxy` — `$`-сигналы).
@@ -126,9 +126,9 @@ export function arrayOf<U>(blank: () => U, items: readonly U[] = []): U[] {
 // Внутренние узлы модели
 // ============================================================================
 
-export type ModelNode = LeafNode | GroupNode | ArrayNode;
+export type ModelNode = ModelLeafNode | ModelGroupNode | ModelArrayNode;
 
-class LeafNode {
+class ModelLeafNode {
   readonly kind = 'leaf' as const;
   readonly signal: PathAwareSignal<unknown>;
   private initial: unknown;
@@ -170,13 +170,13 @@ class LeafNode {
   }
 }
 
-export class GroupNode {
+export class ModelGroupNode {
   readonly kind = 'group' as const;
   readonly children = new Map<string, ModelNode>();
 
   /**
    * @param shape Образец той же группы из шаблона родительского массива: из него вложенные
-   *   массивы берут шаблоны, если значение пришло обычными данными (см. {@link ArrayNode}).
+   *   массивы берут шаблоны, если значение пришло обычными данными (см. {@link ModelArrayNode}).
    */
   constructor(
     initial: Record<string, unknown>,
@@ -277,7 +277,7 @@ export class GroupNode {
   }
 }
 
-export class ArrayNode {
+export class ModelArrayNode {
   readonly kind = 'array' as const;
   readonly items: Signal<ModelNode[]>;
   private initial: unknown[];
@@ -290,7 +290,7 @@ export class ArrayNode {
   // обычных данных (`set` с сервера, `push(значение)`) метку `arrayOf` на своих массивах не несёт.
   private sample: { readonly value: unknown } | undefined;
 
-  /** @param shape Образец того же массива из шаблона родителя (см. {@link GroupNode}). */
+  /** @param shape Образец того же массива из шаблона родителя (см. {@link ModelGroupNode}). */
   constructor(
     initial: unknown[],
     public path: string,
@@ -410,9 +410,9 @@ export class ArrayNode {
 }
 
 function buildNode(value: unknown, path: string, shape?: Shape): ModelNode {
-  if (Array.isArray(value)) return new ArrayNode(value, path, shape);
-  if (isPlainObject(value)) return new GroupNode(value, path, shape);
-  return new LeafNode(value, path);
+  if (Array.isArray(value)) return new ModelArrayNode(value, path, shape);
+  if (isPlainObject(value)) return new ModelGroupNode(value, path, shape);
+  return new ModelLeafNode(value, path);
 }
 
 /** Значение `initialValue` узла-массива схемы как шаблон: фабрика — как есть, значение — копией. */

@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
-import type { FieldNode } from '../../../form/nodes/field-node';
-import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
-import type { ValidationIssue } from '../../../form/types/index';
+import type { FormArray, FormControl, ValidationIssue } from '../../../form/types/index';
+import { isFormArray } from '../../../form/type-guards';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
   useSignalSubscription,
@@ -10,7 +9,7 @@ import {
 } from './useSignalSubscription';
 
 /** @internal */
-function useFieldControl<T>(control: FieldNode<T>): FieldControlState<T> {
+function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
   const signals = {
     value: control.value,
     disabled: control.disabled,
@@ -57,10 +56,10 @@ function useFieldControl<T>(control: FieldNode<T>): FieldControlState<T> {
 }
 
 /** @internal */
-function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayControlState<T> {
+function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlState<T> {
+  // Длина — из значения: `value` — массив значений строк, он и так в подписке.
   const signals = {
     value: control.value,
-    length: control.length,
     issues: control.issues,
     pending: control.pending,
     valid: control.valid,
@@ -72,7 +71,6 @@ function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayCon
 
   const configs: SignalConfig<keyof typeof signals>[] = [
     { key: 'value' },
-    { key: 'length' },
     { key: 'issues', useShallowArrayEqual: true },
     { key: 'pending' },
     { key: 'valid' },
@@ -85,7 +83,7 @@ function useArrayControl<T extends object>(control: ModelArrayNode<T>): ArrayCon
   const buildSnapshot = useCallback(
     (values: ExtractSignalValues<typeof signals>): ArrayControlState<T> => ({
       value: values.value as T[],
-      length: values.length as number,
+      length: (values.value as T[]).length,
       pending: values.pending as boolean,
       issues: values.issues as ValidationIssue[],
       valid: values.valid as boolean,
@@ -124,31 +122,31 @@ function useEmptyControl(): ArrayControlState<object> {
 }
 
 /**
- * React-хук для подписки на состояние {@link ModelArrayNode}.
+ * React-хук для подписки на состояние {@link FormArray}.
  *
  * @typeParam T - Тип элемента массива
- * @param control - ModelArrayNode или undefined
+ * @param control - FormArray или undefined
  * @returns Состояние массива {@link ArrayControlState}
  *
  * @group React Hooks
  */
 export function useFormControl<T extends object>(
-  control: ModelArrayNode<T> | undefined
+  control: FormArray<T> | undefined
 ): ArrayControlState<T>;
 
 /**
- * React-хук для подписки на состояние {@link FieldNode}.
+ * React-хук для подписки на состояние {@link FormControl}.
  *
  * @typeParam T - Тип значения поля
- * @param control - FieldNode для подписки
+ * @param control - FormControl для подписки
  * @returns Состояние поля {@link FieldControlState}
  *
  * @group React Hooks
  */
-export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
+export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>;
 
 /**
- * React-хук для подписки на состояние формы (FieldNode или ModelArrayNode).
+ * React-хук для подписки на состояние формы (FormControl или FormArray).
  *
  * Обеспечивает реактивную связь между состоянием формы и React-компонентами.
  * Использует `useSyncExternalStore` для оптимальной интеграции с React 18+
@@ -169,17 +167,17 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * Для подписки только на значение используйте {@link useFormControlValue} -
  * это предотвратит лишние ре-рендеры при изменении других свойств.
  *
- * @typeParam T - Тип значения (для FieldNode) или элемента (для ModelArrayNode)
- * @param control - FieldNode, ModelArrayNode или undefined
+ * @typeParam T - Тип значения (для FormControl) или элемента (для FormArray)
+ * @param control - FormControl, FormArray или undefined
  * @returns Объект состояния {@link FieldControlState} или {@link ArrayControlState}
  *
  * @example Текстовое поле с валидацией
  * ```tsx
  * import { useFormControl, useIssueMessage } from '@reformer/core/react';
- * import type { FieldNode } from '@reformer/core';
+ * import type { FormControl } from '@reformer/core';
  *
  * interface TextFieldProps {
- *   control: FieldNode<string>;
+ *   control: FormControl<string>;
  *   label: string;
  * }
  *
@@ -223,7 +221,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * @example Checkbox с использованием componentProps
  * ```tsx
  * interface CheckboxProps {
- *   control: FieldNode<boolean>;
+ *   control: FormControl<boolean>;
  * }
  *
  * function Checkbox({ control }: CheckboxProps) {
@@ -255,7 +253,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * @example Select с динамическими опциями
  * ```tsx
  * interface SelectProps {
- *   control: FieldNode<string>;
+ *   control: FormControl<string>;
  * }
  *
  * function Select({ control }: SelectProps) {
@@ -292,7 +290,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * }
  *
  * interface AddressListProps {
- *   control: ModelArrayNode<Address>;
+ *   control: FormArray<Address>;
  * }
  *
  * function AddressList({ control }: AddressListProps) {
@@ -322,7 +320,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  *
  *       {control.map((item, index) => (
  *         <AddressItem
- *           key={item.id}
+ *           key={control.keyAt(index)}
  *           control={item}
  *           onRemove={() => handleRemove(index)}
  *         />
@@ -350,7 +348,7 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * @example Условный рендеринг с undefined
  * ```tsx
  * interface FormProps {
- *   optionalField?: ModelArrayNode<string>;
+ *   optionalField?: FormArray<string>;
  * }
  *
  * function Form({ optionalField }: FormProps) {
@@ -366,29 +364,27 @@ export function useFormControl<T>(control: FieldNode<T>): FieldControlState<T>;
  * ```
  *
  * @see {@link useFormControlValue} - для подписки только на значение
- * @see {@link FieldControlState} - тип состояния для FieldNode
- * @see {@link ArrayControlState} - тип состояния для ModelArrayNode
+ * @see {@link FieldControlState} - тип состояния для FormControl
+ * @see {@link ArrayControlState} - тип состояния для FormArray
  *
  * @group React Hooks
  */
 export function useFormControl(
-  control: FieldNode<unknown> | ModelArrayNode<object> | undefined
+  control: FormControl<unknown> | FormArray<object> | undefined
 ): FieldControlState<unknown> | ArrayControlState<object> {
-  const isArrayNode = control && 'length' in control && 'map' in control;
-
   // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков (useCallback +
-  // useSignalSubscription), поэтому переключение control между undefined / FieldNode / ModelArrayNode
+  // useSignalSubscription), поэтому переключение control между undefined / полем / массивом
   // НЕ меняет число/порядок хуков (иначе React крашит «Rendered more hooks than previous render»).
   if (!control) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useEmptyControl();
   }
 
-  if (isArrayNode) {
+  if (isFormArray(control)) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useArrayControl(control as ModelArrayNode<object>);
+    return useArrayControl(control);
   }
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useFieldControl(control as FieldNode<unknown>);
+  return useFieldControl(control);
 }

@@ -15,8 +15,8 @@ createForm<T>({ initial | model, schema: (model) => tree, behavior?, validation?
 // bundle = { model, form, validation, render }
 
 // Низкоуровневая фабрика: форма из готовых модели и дерева
-createFormFromModel<T>({ model, schema, behavior? }): FormProxy<T>
-// form.<field>             → FieldNode / GroupNode / ModelArrayNode
+createFormFromModel<T>({ model, schema, behavior? }): FormGroup<T>
+// form.<field>             → FormControl / FormGroup / FormArray
 // form.<field>.setValue(v) / .value.value / .issues.value / .disabled.value / .pending.value
 // form.<field>.enable() / .disable() / .reset() / .markAsTouched() / .setIssues([...])
 // form.<field>.updateComponentProps({ ... })

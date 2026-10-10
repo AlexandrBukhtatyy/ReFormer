@@ -100,14 +100,14 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     const form = createFormFromModel<Form>({ model, schema }) as any;
 
     expect(form.coBorrowers).toBeDefined();
-    expect(form.coBorrowers.length.value).toBe(0);
+    expect(form.coBorrowers.length).toBe(0);
 
     form.coBorrowers.push({
       personalData: { lastName: 'Иванов' },
       relationship: 'брат',
       monthlyIncome: 100,
     });
-    expect(form.coBorrowers.length.value).toBe(1);
+    expect(form.coBorrowers.length).toBe(1);
     expect(model.get().coBorrowers[0].personalData.lastName).toBe('Иванов');
 
     const item0 = form.coBorrowers.at(0);
@@ -116,7 +116,7 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     expect(model.get().coBorrowers[0].relationship).toBe('сестра');
 
     form.coBorrowers.removeAt(0);
-    expect(form.coBorrowers.length.value).toBe(0);
+    expect(form.coBorrowers.length).toBe(0);
   });
 
   it('после model.patch формы строк готовы сразу; загруженное — точка отсчёта формы', () => {
@@ -141,7 +141,7 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     });
     model.captureInitial();
 
-    expect(form.coBorrowers.length.value).toBe(2);
+    expect(form.coBorrowers.length).toBe(2);
     const names: string[] = [];
     form.coBorrowers.forEach((row) => {
       // У строки готовы ноды полей с конфигом из схемы строки — им можно раздать справочники.
@@ -158,6 +158,6 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     form.loanAmount.setValue(1);
     model.reset();
     expect(model.loanAmount).toBe(500000);
-    expect(form.coBorrowers.length.value).toBe(2);
+    expect(form.coBorrowers.length).toBe(2);
   });
 });

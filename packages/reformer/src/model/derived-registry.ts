@@ -2,7 +2,7 @@
  * Реестр производных (computed) сигналов.
  *
  * Операторы `compute`/`computeFrom` помечают сигнал-цель производным. Пути bulk-загрузки
- * (`model.set`/`model.patch`, `GroupNode.patchValue`/`setValue`) пропускают помеченные поля —
+ * (`model.set`/`model.patch`, `ModelGroupNode.patchValue`/`setValue`) пропускают помеченные поля —
  * чтобы значение из payload не затирало вычисляемое (compute владеет им). Прямое присваивание и
  * `reset` НЕ затрагиваются — их пишет либо явный код, либо сам compute.
  *

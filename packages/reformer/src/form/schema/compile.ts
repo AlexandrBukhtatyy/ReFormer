@@ -31,6 +31,7 @@ import {
   modelOf,
 } from '../../model/model-value-proxy';
 import { schemaSubtree } from '../schema-subtree';
+import { rowKeyOf } from './row-key';
 import type {
   FormSchemaNode,
   SchemaArrayControl,
@@ -78,19 +79,6 @@ const EMPTY_PROPS: Readonly<Record<string, unknown>> = Object.freeze({});
 
 /** Узлы, которые выдал компилятор, — их отличает {@link isCompiledNode}. */
 const compiledNodes = new WeakSet<object>();
-
-/** Стабильные ключи строк массивов: по идентичности под-модели строки. */
-const rowKeys = new WeakMap<object, number>();
-let rowKeyCounter = 0;
-
-function rowKeyOf(rowModel: object): number {
-  let key = rowKeys.get(rowModel);
-  if (key === undefined) {
-    key = rowKeyCounter++;
-    rowKeys.set(rowModel, key);
-  }
-  return key;
-}
 
 /**
  * Узел скомпилированной схемы, а не авторский узел?

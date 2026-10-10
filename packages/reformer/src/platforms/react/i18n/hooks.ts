@@ -77,7 +77,7 @@ export function useMessages<D extends Messages>(
  * ```tsx
  * const messages = defineIssueMessages({ 'phone.required': 'Укажите телефон' });
  *
- * function FieldIssues({ control }: { control: FieldNode<string> }) {
+ * function FieldIssues({ control }: { control: FormControl<string> }) {
  *   const message = useIssueMessage(messages);
  *   const { issues } = useFormControl(control);
  *   return <>{issues.map((issue) => <span key={issue.code}>{message(issue)}</span>)}</>;

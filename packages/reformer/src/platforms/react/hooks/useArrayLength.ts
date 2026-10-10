@@ -1,17 +1,17 @@
 import { useCallback, useRef } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { effect } from '@preact/signals-core';
-import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
+import type { FormArray } from '../../../form/types/index';
 
 /**
  * React-хук для подписки только на длину массива.
  *
- * Оптимизированная версия {@link useFormControl} для ModelArrayNode, которая
- * подписывается только на сигнал `length`. Компонент не будет ре-рендериться
+ * Оптимизированная версия {@link useFormControl} для FormArray, которая
+ * подписывается только на длину массива. Компонент не будет ре-рендериться
  * при изменении значений вложенных полей.
  *
  * @typeParam T - Тип элемента массива
- * @param control - ModelArrayNode для подписки
+ * @param control - FormArray для подписки
  * @returns Текущая длина массива
  *
  * @example
@@ -22,7 +22,7 @@ import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
  *   return (
  *     <div>
  *       {arrayNode.map((item, index) => (
- *         <ItemRenderer key={item.id} item={item} />
+ *         <ItemRenderer key={arrayNode.keyAt(index)} item={item} />
  *       ))}
  *     </div>
  *   );
@@ -31,15 +31,15 @@ import type { ModelArrayNode } from '../../../form/nodes/model-array-node';
  *
  * @group React Hooks
  */
-export function useArrayLength<T extends object>(control: ModelArrayNode<T>): number {
-  const cacheRef = useRef<{ length: number }>({ length: control.length.value });
+export function useArrayLength<T extends object>(control: FormArray<T>): number {
+  const cacheRef = useRef<{ length: number }>({ length: control.length });
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       let isFirstRun = true;
 
       const dispose = effect(() => {
-        void control.length.value;
+        void control.length;
 
         if (isFirstRun) {
           isFirstRun = false;
@@ -55,7 +55,7 @@ export function useArrayLength<T extends object>(control: ModelArrayNode<T>): nu
   );
 
   const getSnapshot = useCallback((): number => {
-    const currentLength = control.length.value;
+    const currentLength = control.length;
 
     if (cacheRef.current.length === currentLength) {
       return cacheRef.current.length;

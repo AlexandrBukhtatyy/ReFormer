@@ -1,7 +1,7 @@
 import type { ValidationIssue } from '../../../form/types/index';
 
 /**
- * Состояние поля формы, возвращаемое хуком {@link useFormControl} для {@link FieldNode}.
+ * Состояние поля формы, возвращаемое хуком {@link useFormControl} для {@link FormControl}.
  *
  * Содержит реактивные данные поля: значение, состояние валидации, флаги взаимодействия
  * и пользовательские props для компонентов.
@@ -11,7 +11,7 @@ import type { ValidationIssue } from '../../../form/types/index';
  * @example Базовое использование
  * ```tsx
  * interface Props {
- *   control: FieldNode<string>;
+ *   control: FormControl<string>;
  * }
  *
  * function TextField({ control }: Props) {
@@ -178,7 +178,7 @@ export interface FieldControlState<T> {
 
   /**
    * Пользовательские props для передачи в UI-компоненты.
-   * Устанавливаются через {@link FieldNode.updateComponentProps}.
+   * Устанавливаются через {@link FormControl.updateComponentProps}.
    *
    * @example
    * ```tsx
@@ -221,7 +221,7 @@ export interface FieldControlState<T> {
 }
 
 /**
- * Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link ModelArrayNode}.
+ * Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link FormArray}.
  *
  * Содержит реактивные данные массива: значения элементов, длину, состояние валидации
  * и флаги взаимодействия.
@@ -236,7 +236,7 @@ export interface FieldControlState<T> {
  * }
  *
  * interface Props {
- *   control: ModelArrayNode<Phone>;
+ *   control: FormArray<Phone>;
  * }
  *
  * function PhoneList({ control }: Props) {
@@ -246,7 +246,7 @@ export interface FieldControlState<T> {
  *     <div>
  *       {control.map((item, index) => (
  *         <PhoneItem
- *           key={item.id}
+ *           key={control.keyAt(index)}
  *           control={item}
  *           onRemove={() => control.removeAt(index)}
  *         />
@@ -360,7 +360,7 @@ export interface ArrayControlState<T> {
 
   /**
    * Флаг отключения массива.
-   * `true` когда массив отключён (`ModelArrayNode.disable()`), в том числе через
+   * `true` когда массив отключён (`FormArray.disable()`), в том числе через
    * распространение disable от родительской группы.
    *
    * Используйте для отключения UI-действий добавления/удаления, когда массив

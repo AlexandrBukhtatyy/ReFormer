@@ -175,11 +175,11 @@ model.items.push({ id: '1', name: 'Item' }); // операции над масс
 ```typescript
 const form = createFormFromModel<MyForm>({ model, schema });
 
-form.email;          // FieldNode<string> — TypeScript знает тип
-form.address.city;   // FieldNode<string> — вложенный доступ
-form.items.at(0);    // FormProxy<ItemType> — форма строки массива
+form.email;          // FormControl<string> — TypeScript знает тип
+form.address.city;   // FormControl<string> — вложенный доступ
+form.items.at(0);    // FormGroup<ItemType> — форма строки массива
 
 // IMPORTANT: Proxy не проходит instanceof! Используй type guards:
-import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
-if (isFieldNode(node)) { /* ... */ }
+import { isFormControl, isFormGroup, isFormArray } from '@reformer/core';
+if (isFormControl(node)) { /* ... */ }
 ```

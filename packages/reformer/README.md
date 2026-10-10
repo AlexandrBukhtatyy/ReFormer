@@ -41,7 +41,7 @@ import { useMemo } from 'react';
 import {
   createModel,
   createFormFromModel,
-  type FieldNode,
+  type FormControl,
   type FormSchemaNode,
   type ValidationIssue,
 } from '@reformer/core';
@@ -51,7 +51,7 @@ import { required, email, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
 // 0. Simple FormField component
-function FormField({ label, control }: { label: string; control: FieldNode<string> }) {
+function FormField({ label, control }: { label: string; control: FormControl<string> }) {
   const { value, errors, shouldShowError } = useFormControl(control);
 
   return (

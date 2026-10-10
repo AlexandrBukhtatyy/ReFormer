@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { FormProxy, ValidationIssue } from '../../../src/form/types/index';
+import type { FormGroup, ValidationIssue } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields } from '../../test-utils/form-from-fields';
 
@@ -16,7 +16,7 @@ interface TestForm {
   password: string;
 }
 
-const make = (): FormProxy<TestForm> =>
+const make = (): FormGroup<TestForm> =>
   formFromFields<TestForm>({
     email: { value: '', component: null as ComponentInstance },
     password: { value: '', component: null as ComponentInstance },

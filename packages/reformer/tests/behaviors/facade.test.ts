@@ -17,7 +17,7 @@ import {
   onDispose,
   transformValue,
 } from '../../src/form/behaviors';
-import type { FormProxy } from '../../src/form/types/index';
+import type { FormGroup } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
@@ -97,7 +97,7 @@ describe('enableWhen', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       enableWhen([m.$.carBrand, m.$.carModel], () => m.loanType === 'car');
     });
-    const form = createFormFromModel<TForm>({ model, behavior }) as FormProxy<TForm>;
+    const form = createFormFromModel<TForm>({ model, behavior }) as FormGroup<TForm>;
 
     await tick();
     expect(node(form.carModel).disabled.value).toBe(true); // consumer → disabled
@@ -153,7 +153,7 @@ describe('групповые операции', () => {
     const behavior = defineFormBehavior<TForm>(({ model: m }) => {
       enableWhen(m.$.addrB, () => !m.sameAddr);
     });
-    const form = createFormFromModel<TForm>({ model, behavior }) as FormProxy<TForm>;
+    const form = createFormFromModel<TForm>({ model, behavior }) as FormGroup<TForm>;
 
     await tick();
     expect(node(form.addrB).disabled.value).toBe(false); // sameAddr=false → enabled

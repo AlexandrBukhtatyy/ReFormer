@@ -1,279 +1,126 @@
 /**
- * Unit tests for FormNode type guards
+ * Unit tests: гарды нод формы — isFormNode, isFormControl, isFormGroup, isFormArray.
  *
- * Tests isFieldNode, isGroupNode, isArrayNode type guards
+ * Гарды различают ноды по метке вида, а не по набору членов: объект с теми же методами, но без
+ * метки, нодой не считается, а поле данных с именем члена ноды не путает гард группы.
  */
 
 import { describe, it, expect } from 'vitest';
 import { signal } from '@preact/signals-core';
-import { FieldNode } from '../../../src/form/nodes/field-node';
-import { GroupNode } from '../../../src/form/nodes/group-node';
-import type { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
-import { FormNode } from '../../../src/form/nodes/form-node';
-import { isArrayNode, isFieldNode, isGroupNode } from '../../../src/form/type-guards';
+import { FormControlNode } from '../../../src/form/nodes/form-control-node';
+import { NODE_KIND } from '../../../src/form/nodes/node-kind';
+import { isFormArray, isFormControl, isFormGroup, isFormNode } from '../../../src/form/type-guards';
 import { ComponentInstance } from '../../test-utils/types';
 import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
-describe('FormNode Type Guards', () => {
-  describe('isFieldNode()', () => {
-    it('should return true for FieldNode', () => {
-      const field = new FieldNode({
-        valueSignal: signal('test'),
-        component: null as ComponentInstance,
-      });
+const control = () =>
+  new FormControlNode({ valueSignal: signal('test'), component: null as ComponentInstance });
 
-      expect(isFieldNode(field as unknown)).toBe(true);
-    });
-
-    it('should return false for GroupNode', () => {
-      const group = formFromFields({
-        name: { value: '', component: null as ComponentInstance },
-      });
-
-      expect(isFieldNode(group as unknown)).toBe(false);
-    });
-
-    it('should return false for ArrayNode', () => {
-      const array = arrayFromFields({
-        name: { value: '', component: null as ComponentInstance },
-      });
-
-      expect(isFieldNode(array as unknown)).toBe(false);
-    });
-
-    it('should allow TypeScript type narrowing', () => {
-      const field = new FieldNode({
-        valueSignal: signal('test'),
-        component: null as ComponentInstance,
-      });
-
-      if (isFieldNode(field as unknown)) {
-        // TypeScript должен знать, что это FieldNode
-        field.markAsTouched();
-        field.markAsDirty();
-        expect(field.touched.value).toBe(true);
-      }
-    });
+const group = () =>
+  formFromFields({
+    name: { value: '', component: null as ComponentInstance },
+    email: { value: '', component: null as ComponentInstance },
   });
 
-  describe('isGroupNode()', () => {
-    it('should return true for GroupNode', () => {
-      const group = formFromFields({
-        name: { value: '', component: null as ComponentInstance },
-        email: { value: '', component: null as ComponentInstance },
-      });
+const array = () =>
+  arrayFromFields({ name: { value: '', component: null as ComponentInstance } }, [{ name: 'a' }]);
 
-      expect(isGroupNode(group)).toBe(true);
-    });
-
-    it('should return false for FieldNode', () => {
-      const field = new FieldNode({
-        valueSignal: signal('test'),
-        component: null as ComponentInstance,
-      });
-
-      expect(isGroupNode(field as unknown)).toBe(false);
-    });
-
-    it('should return false for ArrayNode', () => {
-      const array = arrayFromFields({
-        name: { value: '', component: null as ComponentInstance },
-      });
-
-      expect(isGroupNode(array as unknown)).toBe(false);
-    });
-
-    it('should allow TypeScript type narrowing', () => {
-      const group = formFromFields({
-        name: { value: 'John', component: null as ComponentInstance },
-      });
-
-      if (isGroupNode(group)) {
-        // TypeScript должен знать, что это GroupNode
-        const value = group.getValue();
-        expect(value.name).toBe('John');
-      }
-    });
+describe('гарды нод формы', () => {
+  it('isFormControl узнаёт только поле', () => {
+    expect(isFormControl(control())).toBe(true);
+    expect(isFormControl(group())).toBe(false);
+    expect(isFormControl(array())).toBe(false);
   });
 
-  describe('isArrayNode()', () => {
-    it('should return true for ArrayNode', () => {
-      const array = arrayFromFields({
-        name: { value: '', component: null as ComponentInstance },
-        age: { value: 0, component: null as ComponentInstance },
-      });
-
-      expect(isArrayNode(array)).toBe(true);
-    });
-
-    it('should return false for FieldNode', () => {
-      const field = new FieldNode({
-        valueSignal: signal('test'),
-        component: null as ComponentInstance,
-      });
-
-      expect(isArrayNode(field as unknown)).toBe(false);
-    });
-
-    it('should return false for GroupNode', () => {
-      const group = formFromFields({
-        name: { value: '', component: null as ComponentInstance },
-      });
-
-      expect(isArrayNode(group as unknown)).toBe(false);
-    });
-
-    it('should allow TypeScript type narrowing', () => {
-      const array = arrayFromFields({
-        name: { value: '', component: null as ComponentInstance },
-      });
-
-      if (isArrayNode(array)) {
-        // TypeScript должен знать, что это ArrayNode
-        array.push({ name: 'Item 1' });
-        expect(array.length.value).toBe(1);
-      }
-    });
+  it('isFormGroup узнаёт группу — её лицо с полями', () => {
+    expect(isFormGroup(group())).toBe(true);
+    expect(isFormGroup(control())).toBe(false);
+    expect(isFormGroup(array())).toBe(false);
   });
 
-  describe('Mixed usage', () => {
-    it('should correctly identify nested nodes', () => {
-      interface Form {
-        user: {
-          name: string;
-          email: string;
-        };
-        tags: Array<{ label: string }>;
-      }
-
-      const form = formFromFields<Form>({
-        user: {
-          name: { value: '', component: null as ComponentInstance },
-          email: { value: '', component: null as ComponentInstance },
-        },
-        tags: [
-          {
-            label: { value: '', component: null as ComponentInstance },
-          },
-        ],
-      });
-
-      // Root form - GroupNode
-      expect(isGroupNode(form)).toBe(true);
-      expect(isFieldNode(form)).toBe(false);
-      expect(isArrayNode(form)).toBe(false);
-
-      // Nested group - GroupNode
-      expect(isGroupNode(form.user)).toBe(true);
-      expect(isFieldNode(form.user)).toBe(false);
-      expect(isArrayNode(form.user)).toBe(false);
-
-      // Nested field - FieldNode
-      expect(isFieldNode(form.user.name)).toBe(true);
-      expect(isGroupNode(form.user.name)).toBe(false);
-      expect(isArrayNode(form.user.name)).toBe(false);
-
-      // Array - ArrayNode
-      expect(isArrayNode(form.tags)).toBe(true);
-      expect(isFieldNode(form.tags)).toBe(false);
-      expect(isGroupNode(form.tags)).toBe(false);
-    });
-
-    it('should handle type guards in conditional logic', () => {
-      const nodes: unknown[] = [
-        new FieldNode({ valueSignal: signal('test'), component: null as ComponentInstance }),
-        formFromFields({ name: { value: '', component: null as ComponentInstance } }),
-        arrayFromFields({ name: { value: '', component: null as ComponentInstance } }),
-      ];
-
-      let fieldCount = 0;
-      let groupCount = 0;
-      let arrayCount = 0;
-
-      nodes.forEach((node) => {
-        if (isFieldNode(node)) {
-          fieldCount++;
-        } else if (isGroupNode(node)) {
-          groupCount++;
-        } else if (isArrayNode(node)) {
-          arrayCount++;
-        }
-      });
-
-      expect(fieldCount).toBe(1);
-      expect(groupCount).toBe(1);
-      expect(arrayCount).toBe(1);
-    });
+  it('isFormArray узнаёт массив под-форм, строка массива — группа', () => {
+    const rows = array();
+    expect(isFormArray(rows)).toBe(true);
+    expect(isFormArray(group())).toBe(false);
+    expect(isFormArray(control())).toBe(false);
+    expect(isFormGroup(rows.at(0))).toBe(true);
   });
 
-  describe('Edge cases', () => {
-    it('should handle null', () => {
-      expect(isFieldNode(null as unknown)).toBe(false);
-      expect(isGroupNode(null as unknown)).toBe(false);
-      expect(isArrayNode(null as unknown)).toBe(false);
-    });
-
-    it('should handle undefined', () => {
-      expect(isFieldNode(undefined as unknown)).toBe(false);
-      expect(isGroupNode(undefined as unknown)).toBe(false);
-      expect(isArrayNode(undefined as unknown)).toBe(false);
-    });
-
-    it('should handle plain objects', () => {
-      const plainObject = { value: 'test' };
-
-      expect(isFieldNode(plainObject as unknown)).toBe(false);
-      expect(isGroupNode(plainObject as unknown)).toBe(false);
-      expect(isArrayNode(plainObject as unknown)).toBe(false);
-    });
-
-    it('should handle arrays', () => {
-      const plainArray = [1, 2, 3];
-
-      expect(isFieldNode(plainArray as unknown)).toBe(false);
-      expect(isGroupNode(plainArray as unknown)).toBe(false);
-      expect(isArrayNode(plainArray as unknown)).toBe(false);
-    });
+  it('isFormNode узнаёт ноду любого вида', () => {
+    expect(isFormNode(control())).toBe(true);
+    expect(isFormNode(group())).toBe(true);
+    expect(isFormNode(array())).toBe(true);
   });
 
-  describe('TypeScript type narrowing', () => {
-    it('should narrow union types correctly', () => {
-      type FormNodeUnion = FieldNode<string> | GroupNode<unknown> | ModelArrayNode<object>;
-
-      const node: FormNodeUnion = new FieldNode({
-        valueSignal: signal('test'),
-        component: null as ComponentInstance,
-      });
-
-      if (isFieldNode(node as unknown)) {
-        // TypeScript знает, что node - FieldNode<string>
-        const value: string = node.value.value;
-        expect(value).toBe('test');
-      }
+  it('вложенные ноды: группа, поле в ней, массив и строка', () => {
+    const form = formFromFields<{
+      profile: { name: string };
+      items: { title: string }[];
+    }>({
+      profile: { name: { value: '' } },
+      items: [{ title: { value: '' } }],
     });
 
-    it('should work with generic functions', () => {
-      function processNode<T>(node: FormNode<T>): string {
-        if (isFieldNode(node)) {
-          return 'field';
-        } else if (isGroupNode(node)) {
-          return 'group';
-        } else if (isArrayNode(node)) {
-          return 'array';
-        }
-        return 'unknown';
-      }
+    expect(isFormGroup(form.profile)).toBe(true);
+    expect(isFormControl(form.profile.name)).toBe(true);
+    expect(isFormArray(form.items)).toBe(true);
+    expect(isFormGroup(form.items.at(0))).toBe(true);
+    expect(isFormControl(form.items.at(0)?.title)).toBe(true);
+  });
 
-      const field = new FieldNode({
-        valueSignal: signal('test'),
-        component: null as ComponentInstance,
-      });
-      const group = formFromFields({ name: { value: '', component: null as ComponentInstance } });
-      const array = arrayFromFields({ name: { value: '', component: null as ComponentInstance } });
-
-      expect(processNode(field)).toBe('field');
-      expect(processNode(group)).toBe('group');
-      expect(processNode(array)).toBe('array');
+  it('поле данных с именем члена ноды не путает гард группы', () => {
+    const form = formFromFields<{ fields: string; items: string; push: string }>({
+      fields: { value: '' },
+      items: { value: '' },
+      push: { value: '' },
     });
+
+    expect(isFormGroup(form)).toBe(true);
+    expect(isFormArray(form)).toBe(false);
+    expect(isFormControl(form.fields)).toBe(true);
+  });
+
+  it('объект с членами ноды, но без метки, нодой не считается', () => {
+    const lookalike = {
+      value: signal(''),
+      setValue: () => {},
+      getValue: () => '',
+      setIssues: () => {},
+      componentProps: signal({}),
+      updateComponentProps: () => {},
+    };
+    expect(isFormNode(lookalike)).toBe(false);
+    expect(isFormControl(lookalike)).toBe(false);
+  });
+
+  it('метка общая для копий рантайма: Symbol.for', () => {
+    const foreign = { [Symbol.for('@reformer/core/form-node-kind')]: 'control' };
+    expect(NODE_KIND).toBe(Symbol.for('@reformer/core/form-node-kind'));
+    expect(isFormControl(foreign)).toBe(true);
+  });
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['plain object', { value: 1 }],
+    ['array', [1, 2]],
+    ['string', 'field'],
+    ['чужая метка', { [Symbol.for('@reformer/core/form-node-kind')]: 'other' }],
+  ])('%s — не нода', (_label, value) => {
+    expect(isFormNode(value)).toBe(false);
+    expect(isFormControl(value)).toBe(false);
+    expect(isFormGroup(value)).toBe(false);
+    expect(isFormArray(value)).toBe(false);
+  });
+
+  it('сужение типа: union узлов', () => {
+    const nodes: unknown[] = [control(), group(), array()];
+    const kinds = nodes.map((node) => {
+      if (isFormArray(node)) return `array:${node.length}`;
+      if (isFormGroup(node)) return 'group';
+      if (isFormControl(node)) return `control:${String(node.getValue())}`;
+      return 'none';
+    });
+    expect(kinds).toEqual(['control:test', 'group', 'array:1']);
   });
 });

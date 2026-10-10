@@ -1,150 +1,59 @@
 /**
- * Type Guards - централизованные функции проверки типов узлов
- *
- * Устраняет дублирование между form-node.ts, validation-applicator.ts и validation-context.ts
+ * Гарды нод формы: различают ноды по метке вида, а не по набору членов.
  *
  * @group Utilities
  * @category Type Guards
- *
- * @example
- * ```typescript
- * import { isFieldNode, isGroupNode } from '@/core/utils/type-guards';
- *
- * if (isFieldNode(node)) {
- *   // TypeScript знает, что node это FieldNode
- *   node.updateComponentProps({ placeholder: 'Email' });
- * }
- * ```
+ * @module form/type-guards
  */
 
-import type { FormNode } from './nodes/form-node';
-import type { FieldNode } from './nodes/field-node';
-import type { GroupNode } from './nodes/group-node';
-import type { ModelArrayNode } from './nodes/model-array-node';
+import type { FormArray, FormControl, FormGroup, FormNode } from './types/nodes';
+import { kindOf } from './nodes/node-kind';
 
 /**
- * Проверить, является ли значение любым FormNode
- *
- * Проверяет базовые свойства, общие для всех типов узлов
- *
- * @group Utilities
- * @category Type Guards
- *
- * @param value - Значение для проверки
- * @returns true если value является FormNode
+ * Нода формы любого вида — поле, группа или массив под-форм.
  *
  * @example
  * ```typescript
- * if (isFormNode(value)) {
- *   value.setValue(newValue);
- *   value.markAsTouched();
- * }
+ * const node = getNodeForSignal(model.$.email);
+ * if (isFormNode(node)) node.markAsTouched();
  * ```
  */
 export function isFormNode(value: unknown): value is FormNode<unknown> {
-  if (value === null || value === undefined) {
-    return false;
-  }
-
-  return (
-    typeof value === 'object' &&
-    'value' in value &&
-    'setValue' in value &&
-    'getValue' in value &&
-    'setIssues' in value
-  );
+  return kindOf(value) !== undefined;
 }
 
 /**
- * Проверить, является ли значение FieldNode (примитивное поле)
- *
- * FieldNode представляет поле формы над сигналом модели: несёт пропсы компонента
- * и не имеет вложенных полей или элементов массива
- *
- * @group Utilities
- * @category Type Guards
- *
- * @param value - Значение для проверки
- * @returns true если value является FieldNode
+ * Поле формы — нода над листом модели с пропсами компонента.
  *
  * @example
  * ```typescript
- * if (isFieldNode(node)) {
- *   node.componentProps.value; //  OK
- *   node.markAsTouched(); //  OK
- * }
+ * if (isFormControl(node)) node.updateComponentProps({ placeholder: 'Email' });
  * ```
  */
-export function isFieldNode(value: unknown): value is FieldNode<unknown> {
-  return (
-    isFormNode(value) &&
-    // Пропсы компонента есть только у поля
-    'componentProps' in value &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (value as any).updateComponentProps === 'function' &&
-    // У FieldNode нет fields или items
-    !('fields' in value) &&
-    !('items' in value)
-  );
+export function isFormControl(value: unknown): value is FormControl<unknown> {
+  return kindOf(value) === 'control';
 }
 
 /**
- * Проверить, является ли значение GroupNode (объект с вложенными полями)
- *
- * GroupNode представляет объект с вложенными полями формы: держит карту нод детей (`fields`)
- * и прокси доступа к ним (`getProxy`) и НЕ имеет array-методов (`items`/`push`/`removeAt`).
- *
- * @param value - Значение для проверки
- * @returns true если value является GroupNode
+ * Группа полей — её прокси с нодами полей по именам.
  *
  * @example
  * ```typescript
- * if (isGroupNode(node)) {
- *   node.fields.size; //  OK
- * }
+ * if (isFormGroup(node)) node.markAsTouched();
  * ```
  */
-export function isGroupNode(value: unknown): value is GroupNode<object> {
-  return (
-    isFormNode(value) &&
-    'getProxy' in value &&
-    'fields' in value &&
-    // GroupNode НЕ имеет items/push/removeAt (это ModelArrayNode)
-    !('items' in value) &&
-    !('push' in value) &&
-    !('removeAt' in value)
-  );
+export function isFormGroup(value: unknown): value is FormGroup<Record<string, unknown>> {
+  return kindOf(value) === 'group';
 }
 
 /**
- * Проверить, является ли значение узлом массива под-форм ({@link ModelArrayNode})
- *
- * Узел массива держит формы строк (GroupNode)
- * и имеет array-like методы (push, removeAt, at)
- *
- * @param value - Значение для проверки
- * @returns true если value является узлом массива под-форм
+ * Массив под-форм.
  *
  * @example
  * ```typescript
- * if (isArrayNode(node)) {
- *   node.push(); //  OK - добавить элемент
- *   node.removeAt(0); //  OK - удалить элемент
- *   const item = node.at(0); //  OK - получить элемент
- * }
+ * if (isFormArray(node)) node.push();
  * ```
  */
-export function isArrayNode(value: unknown): value is ModelArrayNode<object> {
-  return (
-    isFormNode(value) &&
-    'items' in value &&
-    'length' in value &&
-    'push' in value &&
-    'removeAt' in value &&
-    'at' in value &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (value as any).push === 'function' &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (value as any).removeAt === 'function'
-  );
+export function isFormArray(value: unknown): value is FormArray<object> {
+  return kindOf(value) === 'array';
 }

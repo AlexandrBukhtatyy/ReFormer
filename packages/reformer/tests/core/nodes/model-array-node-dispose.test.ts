@@ -1,5 +1,5 @@
 /**
- * Unit tests: ModelArrayNode lifecycle — детерминированный dispose форм элементов.
+ * Unit tests: FormArrayNode lifecycle — детерминированный dispose форм элементов.
  *
  * Регрессия для утечки: removeAt/clear/setValue/dispose должны диспозить форму отброшенного
  * элемента (эффекты/поведения/вложенные подписки), а reorder (move/swap) — НЕ должен, т.к.
@@ -8,10 +8,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { createModel } from '../../../src/model/index';
-import { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
+import { FormArrayNode } from '../../../src/form/nodes/form-array-node';
 import { createFormFromModel } from '../../../src/form/create-form';
 import type { FormModel } from '../../../src/model/index';
-import type { FormProxy } from '../../../src/form/types/form-proxy';
+import type { FormGroup } from '../../../src/form/types/index';
 
 interface Row {
   name: string;
@@ -26,17 +26,17 @@ const itemSchema = (item: FormModel<Row>) => ({
 });
 
 /**
- * Строит ModelArrayNode, чей buildItem инструментирует dispose каждой формы элемента,
+ * Строит FormArrayNode, чей buildItem инструментирует dispose каждой формы элемента,
  * записывая её имя в `disposed` при вызове. Реальный dispose всё равно выполняется.
  */
 const build = () => {
   const model = createModel<Form>({ rows: [] });
   const disposed: string[] = [];
-  const arr = new ModelArrayNode<Row>(model.rows as never, (m) => {
+  const arr = new FormArrayNode<Row>(model.rows as never, (m) => {
     const form = createFormFromModel<Row>({
       model: m as FormModel<Row>,
       schema: itemSchema(m as FormModel<Row>),
-    }) as FormProxy<Row>;
+    }) as FormGroup<Row>;
     const label = () => (form.name.value.value as string) || '<empty>';
     const orig = (form as unknown as { dispose: () => void }).dispose.bind(form);
     (form as unknown as { dispose: () => void }).dispose = () => {
@@ -48,7 +48,7 @@ const build = () => {
   return { model, arr, disposed };
 };
 
-describe('ModelArrayNode — dispose форм элементов (lifecycle)', () => {
+describe('FormArrayNode — dispose форм элементов (lifecycle)', () => {
   it('removeAt диспозит форму удалённого элемента и НЕ трогает остальные', () => {
     const { arr, disposed } = build();
     arr.push({ name: 'A', qty: 1 });
@@ -70,7 +70,7 @@ describe('ModelArrayNode — dispose форм элементов (lifecycle)', (
     arr.clear();
 
     expect(disposed.sort()).toEqual(['A', 'B', 'C']);
-    expect(arr.length.value).toBe(0);
+    expect(arr.length).toBe(0);
   });
 
   it('setValue диспозит старые формы перед заменой', () => {
@@ -115,9 +115,9 @@ describe('ModelArrayNode — dispose форм элементов (lifecycle)', (
 
     expect(disposed.sort()).toEqual(['A', 'B']);
     // Синхронизация остановлена: мутация массива модели больше не пересобирает itemNodes.
-    const before = arr.length.value;
+    const before = arr.length;
     model.get().rows.push({ name: 'C', qty: 3 });
-    expect(arr.length.value).toBe(before);
+    expect(arr.length).toBe(before);
   });
 
   it('удалённый элемент вытеснен из кэша: повторное добавление даёт свежую (не диспознутую) форму', () => {

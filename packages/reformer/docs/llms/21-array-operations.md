@@ -13,8 +13,8 @@ model.items.length;             // реактивная длина
 model.items.toArray();          // снимок значений
 
 // Через ноду формы (рендер / доступ к нодам полей)
-form.items.at(0);               // FormProxy<Item> | undefined
-form.items.map((item, i) => …); // item — FormProxy<Item>
+form.items.at(0);               // FormGroup<Item> | undefined
+form.items.map((item, i) => …); // item — FormGroup<Item>
 ```
 
 ### Array Methods (на модели)
@@ -37,7 +37,7 @@ model.items.clear();                             // очистить
 ```tsx
 import { useArrayLength } from '@reformer/core/react';
 
-function ItemsList({ form }: { form: FormProxy<MyForm> }) {
+function ItemsList({ form }: { form: FormGroup<MyForm> }) {
   const length = useArrayLength(form.items);
 
   return (

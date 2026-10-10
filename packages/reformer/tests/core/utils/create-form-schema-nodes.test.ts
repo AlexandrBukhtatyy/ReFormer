@@ -160,7 +160,7 @@ describe('Узел-подформа `{ model, part }`', () => {
     model.block.list.push({ name: 'a' });
 
     const list = form.block.list as unknown as { length: { value: number } };
-    expect(list.length.value).toBe(1);
+    expect(list.length).toBe(1);
   });
 });
 

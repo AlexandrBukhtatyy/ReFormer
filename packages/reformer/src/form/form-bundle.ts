@@ -27,7 +27,7 @@ import {
 import { compileSchema } from './schema/compile';
 import type { CompiledSchema, SchemaNodeId } from './schema/compiled';
 import type { FormSchemaNode } from './types/schema-node';
-import type { FormProxy } from './types/index';
+import type { FormGroup } from './types/index';
 import {
   createFormLevel,
   type FormFlowConfig,
@@ -88,7 +88,7 @@ export interface FormRender {
  */
 export interface FormBundle<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
-  readonly form: FormProxy<T>;
+  readonly form: FormGroup<T>;
   readonly render: FormRender;
 }
 

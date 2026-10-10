@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { FormProxy, ValidationIssue } from '../../../src/form/types/index';
+import type { FormGroup, ValidationIssue } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields } from '../../test-utils/form-from-fields';
 
@@ -16,7 +16,7 @@ describe('GroupNode - Form-level Errors', () => {
     confirmPassword: string;
   }
 
-  let form: FormProxy<TestForm>;
+  let form: FormGroup<TestForm>;
 
   beforeEach(() => {
     form = formFromFields<TestForm>({

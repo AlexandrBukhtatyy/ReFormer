@@ -15,7 +15,7 @@
  * @module form/signal-node-registry
  */
 
-import type { FormNode } from './nodes/form-node';
+import type { FormNode } from './types/nodes';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const registry = new WeakMap<object, FormNode<any>>();
@@ -24,18 +24,17 @@ const registry = new WeakMap<object, FormNode<any>>();
  * Связать ручку модели с её нодой формы.
  *
  * Вызывается движком при сборке формы (`createForm`/{@link createFormFromModel}) для каждого поля,
- * группы и массива под-форм. Прикладной код обычно этот реестр не заполняет напрямую.
+ * группы и массива под-форм; у группы в реестре лежит её лицо {@link FormGroup} с нодами полей.
+ * Прикладной код обычно этот реестр не заполняет напрямую.
  *
  * @param signal - Ручка из {@link FormModel}: сигнал листа, узел-массив или узел-группа дерева `model.$`
  * @param node - Нода формы, отвечающая за эту часть модели
  *
- * @example Привязка листовых полей при построении формы
+ * @example Ручка модели указывает на ноду другой сборки
  * ```typescript
  * import { registerSignalNode } from '@reformer/core';
  *
- * const sig = model.$.profile.email;
- * const node = new FieldNode({ valueSignal: sig });
- * registerSignalNode(sig, node);
+ * registerSignalNode(model.$.profile.email, profileForm.email);
  * ```
  *
  * @see {@link getNodeForSignal} - обратный поиск ноды по ручке

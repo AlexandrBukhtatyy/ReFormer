@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { FormProxy } from '../../../src';
+import type { FormGroup } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields } from '../../test-utils/form-from-fields';
 
@@ -16,7 +16,7 @@ describe('GroupNode - Reference Equality', () => {
     age: number;
   }
 
-  let form: FormProxy<TestForm>;
+  let form: FormGroup<TestForm>;
 
   beforeEach(() => {
     form = formFromFields<TestForm>({
@@ -60,11 +60,11 @@ describe('GroupNode - Reference Equality', () => {
       expect(value1).toBe(value2);
     });
 
-    it('should return same reference when marking as dirty (no value change)', () => {
+    it('should return same reference when marking as touched (no value change)', () => {
       const value1 = form.value.value;
 
-      // Mark as dirty (не меняет value)
-      form.email.markAsDirty();
+      // markAsTouched не меняет value
+      form.email.markAsTouched();
 
       const value2 = form.value.value;
 
@@ -274,11 +274,11 @@ describe('GroupNode - Reference Equality', () => {
       });
     });
 
-    it('should handle patchValue with no changes', () => {
+    it('should handle group setValue with no changes', () => {
       const value1 = form.value.value;
 
-      // Patch с теми же значениями
-      form.patchValue({ email: 'test@mail.com' });
+      // Те же значения
+      form.setValue({ ...form.getValue(), email: 'test@mail.com' });
 
       const value2 = form.value.value;
 
@@ -286,11 +286,11 @@ describe('GroupNode - Reference Equality', () => {
       expect(value1).toBe(value2);
     });
 
-    it('should handle patchValue with partial changes', () => {
+    it('should handle group setValue with partial changes', () => {
       const value1 = form.value.value;
 
-      // Patch только одного поля
-      form.patchValue({ email: 'patched@mail.com' });
+      // Меняется только одно поле
+      form.setValue({ ...form.getValue(), email: 'patched@mail.com' });
 
       const value2 = form.value.value;
 

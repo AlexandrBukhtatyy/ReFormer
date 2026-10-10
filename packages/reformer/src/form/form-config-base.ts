@@ -10,7 +10,7 @@
 
 import type { FormModel } from '../model/types';
 import type { FormBehavior } from './behaviors';
-import type { FormProxy } from './types/index';
+import type { FormGroup } from './types/index';
 import type { FormFlowConfig, FormLevel, FormValidation } from './form-level';
 import type { ValidationDefinition } from './validation';
 
@@ -47,5 +47,5 @@ export interface CreateFormConfigBase<T, B> {
  */
 export interface CoreForm<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
-  readonly form: FormProxy<T>;
+  readonly form: FormGroup<T>;
 }

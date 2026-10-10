@@ -9,7 +9,7 @@
  */
 
 import type { FormModel, PathAwareSignal } from './types';
-import { type ModelNode, GroupNode } from './model-nodes';
+import { type ModelNode, ModelGroupNode } from './model-nodes';
 import { makeFormModel, rootByFacade } from './model-value-proxy';
 import { signalsProxy } from './model-signals-proxy';
 
@@ -104,6 +104,6 @@ export function eachValueSignal<T>(
  * ```
  */
 export function createModel<T extends object>(initial: T): FormModel<T> {
-  const root = new GroupNode(initial as Record<string, unknown>, '');
+  const root = new ModelGroupNode(initial as Record<string, unknown>, '');
   return makeFormModel(root) as FormModel<T>;
 }

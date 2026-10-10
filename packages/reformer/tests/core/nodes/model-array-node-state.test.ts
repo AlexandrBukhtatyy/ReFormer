@@ -1,10 +1,9 @@
 /**
- * Regression: ModelArrayNode форвардит ВСЕ state-hook'и к элементам, а не только markAsTouched.
+ * Regression: массив под-форм форвардит операции состояния к строкам, а не только markAsTouched.
  *
- * Баг (до фикса): переопределён был только `onMarkAsTouched`; `markAsUntouched`/`markAsPristine`/
- * `markAsDirty`/`disable`/`enable` были no-op на элементах (базовые сигналы игнорируются, т.к.
- * агрегатное состояние выводится из детей). Тест строит ModelArrayNode через createFormFromModel (узел { array, item })
- * и проверяет, что операции доезжают до per-item форм.
+ * Баг (до фикса): переопределён был только `onMarkAsTouched`; `markAsUntouched`, `disable`,
+ * `enable` были no-op на строках (агрегатное состояние выводится из детей). Тест строит массив
+ * через createFormFromModel (узел { model, item }) и проверяет, что операции доезжают до строк.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -49,15 +48,15 @@ describe('ModelArrayNode — state hooks форвардятся к элемен�
     expect(form.rows.touched.value).toBe(false); // regression guard: раньше оставался true
   });
 
-  it('markAsDirty / markAsPristine доезжают до элементов', () => {
+  it('dirty массива — из строк; reset строки делает массив чистым', () => {
     const form = build();
     expect(form.rows.dirty.value).toBe(false);
 
-    form.rows.markAsDirty();
+    form.rows.at(0)?.name.setValue('changed');
     expect(form.rows.dirty.value).toBe(true);
 
-    form.rows.markAsPristine();
-    expect(form.rows.dirty.value).toBe(false); // regression guard
+    form.rows.at(0)?.reset();
+    expect(form.rows.dirty.value).toBe(false);
   });
 
   it('disable / enable доезжают до полей элементов (были no-op)', () => {

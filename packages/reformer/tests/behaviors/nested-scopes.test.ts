@@ -20,7 +20,7 @@ import {
   exclusiveFlag,
   onChange,
 } from '../../src/form/behaviors';
-import type { FormProxy } from '../../src/form/types/index';
+import type { FormGroup } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -97,8 +97,8 @@ interface ContactRow {
   address: { city: FieldLike; street: FieldLike };
   phones: ArrayLike<PhoneRow>;
 }
-const contactsOf = (form: FormProxy<Shape>) => form.contacts as unknown as ArrayLike<ContactRow>;
-const hotlinesOf = (form: FormProxy<Shape>) =>
+const contactsOf = (form: FormGroup<Shape>) => form.contacts as unknown as ArrayLike<ContactRow>;
+const hotlinesOf = (form: FormGroup<Shape>) =>
   (form.details as unknown as { hotlines: ArrayLike<PhoneRow> }).hotlines;
 
 describe('Вложенные массивы материализуются на любой глубине', () => {
@@ -108,7 +108,7 @@ describe('Вложенные массивы материализуются на 
 
     model.details.hotlines.push({ number: '', primary: false });
 
-    expect(hotlinesOf(form).length.value).toBe(1);
+    expect(hotlinesOf(form).length).toBe(1);
     hotlinesOf(form).at(0).number.setValue('8-800');
     expect(model.get().details.hotlines[0].number).toBe('8-800');
   });
@@ -120,13 +120,13 @@ describe('Вложенные массивы материализуются на 
     model.contacts.push(blankContact('Анна', [{ number: '', primary: false }]));
 
     const phones = contactsOf(form).at(0).phones;
-    expect(phones.length.value).toBe(1);
+    expect(phones.length).toBe(1);
     phones.at(0).number.setValue('+7');
     expect(model.get().contacts[0].phones[0].number).toBe('+7');
 
     // строка, добавленная позже, тоже получает форму
     model.contacts.at(0).phones.push({ number: '112', primary: false });
-    expect(phones.length.value).toBe(2);
+    expect(phones.length).toBe(2);
   });
 
   it('группа, массив и строка находятся в реестре по своей ручке', () => {

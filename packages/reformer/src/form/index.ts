@@ -1,8 +1,9 @@
 /**
  * Модуль `form` — доменный слой формы поверх реактивной модели (`model`).
  *
- * Ноды (value/touched/dirty/status/issues/componentProps), сборка формы из модели по идентичности
- * сигнала (`createForm`), submit/статус.
+ * Ноды (value/touched/dirty/disabled/issues/componentProps) — контракты FormNode, FormControl,
+ * FormGroup, FormArray; сборка формы из модели по идентичности сигнала (`createForm`), уровень формы
+ * (проверка, отправка, поток шагов). Классы нод — внутренние.
  * React-биндинги вынесены в `platforms/react` — этот слой от React не зависит.
  * Schema-валидация — внешний контракт `@reformer/core/validation` (`validateModel`),
  * роутит ошибки в ноды через реестр сигнал→нода. Зависит от `model` (form→model разрешено);
@@ -11,12 +12,6 @@
  * @group Form
  * @module form
  */
-
-// Ноды формы.
-export { FormNode } from './nodes/form-node';
-export { FieldNode } from './nodes/field-node';
-export { GroupNode } from './nodes/group-node';
-export { ModelArrayNode } from './nodes/model-array-node';
 
 // Сборка одним вызовом: модель, форма, валидация и дерево для рендера.
 export { createForm } from './form-bundle';
@@ -86,5 +81,5 @@ export type { FormFlow, FormFlowOptions, FlowTransition, FlowStayReason } from '
 // Шов сигнал→нода.
 export { registerSignalNode, getNodeForSignal } from './signal-node-registry';
 
-// Предикаты нод. Машина статуса — внутренняя деталь нод.
-export { isFormNode, isFieldNode, isGroupNode, isArrayNode } from './type-guards';
+// Предикаты нод: различают ноды по метке вида.
+export { isFormNode, isFormControl, isFormGroup, isFormArray } from './type-guards';

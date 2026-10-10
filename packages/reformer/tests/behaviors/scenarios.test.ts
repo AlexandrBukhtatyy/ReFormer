@@ -26,7 +26,7 @@ import {
   type ReadonlySignal,
   type Signal,
 } from '../../src/form/behaviors';
-import type { FormProxy } from '../../src/form/types/index';
+import type { FormGroup } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const node = (n: unknown) => n as { disabled: { value: boolean }; value: { value: unknown } };
@@ -126,7 +126,7 @@ describe('Тир 2 · условные поля', () => {
         resetOnDisable: true,
       });
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
     await tick();
     expect(node(form.cardNumber).disabled.value).toBe(false);
     expect(node(form.bankAccount).disabled.value).toBe(true);
@@ -149,7 +149,7 @@ describe('Тир 2 · условные поля', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       enableWhen(m.$.c, () => Boolean(m.a) && Boolean(m.b));
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
     await tick();
     expect(node(form.c).disabled.value).toBe(true);
     model.a = 'x';
@@ -339,7 +339,7 @@ describe('Тир 5 · массивы (агрегация)', () => {
       compute(m.$.hasOverLimit, () => m.items.map((i) => i.qty as number).some((q) => q > 10));
       enableWhen(m.$.discountCode, () => m.items.length > 0);
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
     await tick();
     expect(model.itemCount).toBe(0);
     expect(node(form.discountCode).disabled.value).toBe(true);
@@ -628,7 +628,7 @@ describe('Тир 10 · продвинутые кейсы', () => {
       compute(m.$.freeShipping, () => m.orderTotal >= 100);
       disableWhen(m.$.shippingCost, () => m.freeShipping); // бесплатная доставка → поле стоимости off
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
 
     model.items.push({ price: 40 });
     await tick();

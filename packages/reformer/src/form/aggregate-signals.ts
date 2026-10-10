@@ -1,131 +1,51 @@
 /**
- * Утилита для создания агрегированных сигналов контейнерных узлов
+ * Агрегированные сигналы контейнера (группа, массив под-форм): состояние из детей и своих
+ * замечаний.
  *
- * Устраняет дублирование кода между GroupNode и ModelArrayNode
- * для computed signals: valid, invalid, pending, touched, dirty, issues, status
- *
+ * @internal
  * @module form/aggregate-signals
  */
 
-import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
-import type { FieldStatus, ValidationIssue } from './types/index';
-import type { FormNode } from './nodes/form-node';
+import { computed, type ReadonlySignal } from '@preact/signals-core';
+import type { ValidationIssue } from './types/contracts';
+import type { FormNode } from './types/nodes';
 
-/**
- * Функция получения дочерних узлов
- * Возвращает массив FormNode для агрегации состояния
- */
-type GetChildrenFn<T> = () => FormNode<T>[];
-
-/**
- * Результат создания агрегированных сигналов
- */
 export interface AggregateSignals {
-  /** Все дочерние узлы валидны и нет собственных ошибок */
+  /** Своих замечаний нет, и каждый включённый ребёнок валиден. */
   valid: ReadonlySignal<boolean>;
-  /** Есть ошибки (инверсия valid) */
   invalid: ReadonlySignal<boolean>;
-  /** Хотя бы один дочерний узел в состоянии pending */
+  /** Хотя бы один ребёнок ждёт проверки. */
   pending: ReadonlySignal<boolean>;
-  /** Хотя бы один дочерний узел touched */
   touched: ReadonlySignal<boolean>;
-  /** Хотя бы один дочерний узел dirty */
   dirty: ReadonlySignal<boolean>;
-  /** Собственные ошибки + ошибки всех дочерних узлов */
-  issues: ReadonlySignal<ValidationIssue[]>;
-  /** Статус: disabled > pending > invalid > valid */
-  status: ReadonlySignal<FieldStatus>;
+  /** Свои замечания и замечания всех детей. */
+  issues: ReadonlySignal<readonly ValidationIssue[]>;
 }
 
-/**
- * Опции для создания агрегированных сигналов
- */
-export interface AggregateSignalsOptions<T> {
-  /** Функция получения дочерних узлов */
-  getChildren: GetChildrenFn<T>;
-  /** Signal с собственными ошибками контейнера (form-level или array-level) */
-  ownErrors: Signal<ValidationIssue[]>;
-  /** Опциональный signal disabled состояния (для GroupNode) */
-  disabled?: Signal<boolean>;
+export interface AggregateSignalsOptions {
+  /** Дети контейнера; чтение внутри `computed` подписывает на их состав. */
+  getChildren: () => readonly FormNode<unknown>[];
+  /** Замечания самого контейнера. */
+  ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 }
 
-/**
- * Создать агрегированные computed signals для контейнерного узла
- *
- * Используется в GroupNode и ModelArrayNode для унификации логики
- * вычисления состояния на основе дочерних узлов.
- *
- * @param options - Опции конфигурации
- * @returns Объект с computed signals
- *
- * @example GroupNode
- * ```typescript
- * const signals = createAggregateSignals({
- *   getChildren: () => Array.from(this._fields.values()),
- *   ownErrors: this._formIssues,
- *   disabled: this._disabled,
- * });
- * this.valid = signals.valid;
- * this.invalid = signals.invalid;
- * // ...
- * ```
- *
- * @example ModelArrayNode
- * ```typescript
- * const signals = createAggregateSignals({
- *   getChildren: () => this.items.value,
- *   ownErrors: this._arrayIssues,
- * });
- * this.valid = signals.valid;
- * // ...
- * ```
- */
-export function createAggregateSignals<T>(options: AggregateSignalsOptions<T>): AggregateSignals {
-  const { getChildren, ownErrors, disabled } = options;
-
-  // valid: нет собственных ошибок И все активные (не disabled) дочерние валидны
-  // disabled поля игнорируются при подсчёте валидности
-  const valid = computed(() => {
-    if (ownErrors.value.length > 0) return false;
-    return getChildren().every((child) => child.disabled.value || child.valid.value);
-  });
-
-  // invalid: инверсия valid
-  const invalid = computed(() => !valid.value);
-
-  // pending: хотя бы один дочерний в pending
-  const pending = computed(() => getChildren().some((child) => child.pending.value));
-
-  // touched: хотя бы один дочерний touched
-  const touched = computed(() => getChildren().some((child) => child.touched.value));
-
-  // dirty: хотя бы один дочерний dirty
-  const dirty = computed(() => getChildren().some((child) => child.dirty.value));
-
-  // issues: собственные + все дочерние
-  const issues = computed(() => {
-    const allIssues: ValidationIssue[] = [...ownErrors.value];
-    for (const child of getChildren()) {
-      allIssues.push(...child.issues.value);
-    }
-    return allIssues;
-  });
-
-  // status: приоритет disabled > pending > invalid > valid
-  const status = computed<FieldStatus>(() => {
-    if (disabled?.value) return 'disabled';
-    if (pending.value) return 'pending';
-    if (invalid.value) return 'invalid';
-    return 'valid';
-  });
-
+export function createAggregateSignals(options: AggregateSignalsOptions): AggregateSignals {
+  const { getChildren, ownIssues } = options;
+  // Отключённый ребёнок в валидность не входит.
+  const valid = computed(
+    () =>
+      ownIssues.value.length === 0 &&
+      getChildren().every((child) => child.disabled.value || child.valid.value)
+  );
   return {
     valid,
-    invalid,
-    pending,
-    touched,
-    dirty,
-    issues,
-    status,
+    invalid: computed(() => !valid.value),
+    pending: computed(() => getChildren().some((child) => child.pending.value)),
+    touched: computed(() => getChildren().some((child) => child.touched.value)),
+    dirty: computed(() => getChildren().some((child) => child.dirty.value)),
+    issues: computed(() => [
+      ...ownIssues.value,
+      ...getChildren().flatMap((child) => child.issues.value),
+    ]),
   };
 }

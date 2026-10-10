@@ -13,12 +13,12 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
-import { FieldNode } from '../../src/form/nodes/field-node';
+import { FormControlNode } from '../../src/form/nodes/form-control-node';
 import type { ValidationIssue } from '../../src/form/types/index';
 
 /** Сигналы ноды поля, которые читает `useFormControl`. */
 type FormControlState<T> = Pick<
-  FieldNode<T>,
+  FormControlNode<T>,
   | 'value'
   | 'issues'
   | 'pending'
@@ -49,7 +49,7 @@ const REQUIRED_ERROR: ValidationIssue = { code: 'required' };
  * Симулирует вызов useFormControl без React рендера
  * Возвращает объект с теми же полями, что и хук
  */
-function simulateUseFormControl<T>(control: FieldNode<T>): FormControlState<T> {
+function simulateUseFormControl<T>(control: FormControlNode<T>): FormControlState<T> {
   return {
     value: control.value,
     issues: control.issues,
@@ -73,10 +73,10 @@ describe('useFormControl', () => {
   // ==========================================================================
 
   describe('Returned signals', () => {
-    let field: FieldNode<string>;
+    let field: FormControlNode<string>;
 
     beforeEach(() => {
-      field = new FieldNode({
+      field = new FormControlNode({
         valueSignal: signal('initial'),
         component: MockComponent,
       });
@@ -152,7 +152,7 @@ describe('useFormControl', () => {
 
   describe('Signal reactivity', () => {
     it('should reflect value changes from control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('initial'),
         component: MockComponent,
       });
@@ -167,7 +167,7 @@ describe('useFormControl', () => {
     });
 
     it('should reflect touched changes from control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -182,7 +182,7 @@ describe('useFormControl', () => {
     });
 
     it('should reflect dirty changes from control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -197,7 +197,7 @@ describe('useFormControl', () => {
     });
 
     it('should reflect issues changes from control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -213,7 +213,7 @@ describe('useFormControl', () => {
     });
 
     it('should reflect valid/invalid changes from control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -235,7 +235,7 @@ describe('useFormControl', () => {
     });
 
     it('should reflect disabled changes from control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -254,7 +254,7 @@ describe('useFormControl', () => {
     });
 
     it('should reflect shouldShowError changes', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -279,7 +279,7 @@ describe('useFormControl', () => {
 
   describe('Different value types', () => {
     it('should work with string values', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('test'),
         component: MockComponent,
       });
@@ -290,7 +290,7 @@ describe('useFormControl', () => {
     });
 
     it('should work with number values', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(42),
         component: MockComponent,
       });
@@ -301,7 +301,7 @@ describe('useFormControl', () => {
     });
 
     it('should work with boolean values', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(true),
         component: MockComponent,
       });
@@ -312,7 +312,7 @@ describe('useFormControl', () => {
     });
 
     it('should work with null values', () => {
-      const field = new FieldNode<string | null>({
+      const field = new FormControlNode<string | null>({
         valueSignal: signal(null),
         component: MockComponent,
       });
@@ -324,7 +324,7 @@ describe('useFormControl', () => {
 
     it('should work with object values', () => {
       const objValue = { name: 'John', age: 30 };
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(objValue),
         component: MockComponent,
       });
@@ -336,7 +336,7 @@ describe('useFormControl', () => {
 
     it('should work with array values', () => {
       const arrayValue = [1, 2, 3];
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(arrayValue),
         component: MockComponent,
       });
@@ -353,7 +353,7 @@ describe('useFormControl', () => {
 
   describe('Initial states', () => {
     it('should handle initially disabled field', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
         disabled: true,
@@ -366,7 +366,7 @@ describe('useFormControl', () => {
     });
 
     it('should handle field with initial issues', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -380,7 +380,7 @@ describe('useFormControl', () => {
     });
 
     it('should handle pre-touched field', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -393,7 +393,7 @@ describe('useFormControl', () => {
     });
 
     it('should handle pre-dirtied field', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -412,7 +412,7 @@ describe('useFormControl', () => {
 
   describe('Integration scenarios', () => {
     it('should track full form field lifecycle', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: MockComponent,
       });
@@ -454,7 +454,7 @@ describe('useFormControl', () => {
     });
 
     it('should handle reset correctly', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('initial'),
         component: MockComponent,
       });
@@ -481,7 +481,7 @@ describe('useFormControl', () => {
     });
 
     it('should handle disable/enable cycle', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('test'),
         component: MockComponent,
       });
@@ -507,7 +507,7 @@ describe('useFormControl', () => {
 
   describe('FormControlState type', () => {
     it('should have correct structure', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('test'),
         component: MockComponent,
       });
@@ -527,7 +527,7 @@ describe('useFormControl', () => {
     });
 
     it('should return exactly 9 properties', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('test'),
         component: MockComponent,
       });
@@ -544,7 +544,7 @@ describe('useFormControl', () => {
 
   describe('Reference identity', () => {
     it('should return the same signal references as control', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal('test'),
         component: MockComponent,
       });

@@ -19,7 +19,7 @@ import {
   applyEach,
 } from '../../src/form/behaviors';
 import { convertBetween, onChangeThrottled } from './custom-operators';
-import type { FormProxy } from '../../src/form/types/index';
+import type { FormGroup } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const fieldErrors = (n: unknown) => (n as { issues: { value: { code: string }[] } }).issues.value;
@@ -42,7 +42,7 @@ describe('W1 · cross-field equality (confirm password)', () => {
         defer(() => form.confirm.setIssues(ok ? [] : [{ code: 'mismatch' }]));
       });
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
 
     model.password = 'secret';
     model.confirm = 'sicret';
@@ -75,7 +75,7 @@ describe('W2 · async uniqueness validation', () => {
         { debounce: 20 }
       );
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
 
     model.username = 'ad';
     model.username = 'admin'; // быстрые смены → debounce оставит последнюю
@@ -100,7 +100,7 @@ describe('W2 · async uniqueness validation', () => {
         form.username.setIssues(taken ? [{ code: 'taken' }] : []);
       });
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
 
     model.username = 'old'; // старый запрос (вернёт taken=true) — будет аннулирован
     await tick();
@@ -133,7 +133,7 @@ describe('W3 · conditional required', () => {
         defer(() => form.email.setIssues(need ? [{ code: 'required' }] : []));
       });
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
 
     await tick();
     expect(fieldErrors(form.email)).toHaveLength(0); // method=phone
@@ -223,7 +223,7 @@ describe('W5 · auto-distribute remainder', () => {
 // W6 — Insert/Edit mode (Angular insert/edit guide): load + captureInitial + dirty
 // ============================================================================
 describe('W6 · insert/edit mode', () => {
-  it('F9 РЕШЕНО: bulk-load с производным полем не затирает его (model.set и form.patchValue)', () => {
+  it('F9 РЕШЕНО: bulk-load с производным полем не затирает его (model.set и form.setValue)', () => {
     interface F {
       price: number;
       qty: number;
@@ -233,7 +233,7 @@ describe('W6 · insert/edit mode', () => {
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       compute(m.$.total, () => m.price * m.qty);
     });
-    const form = createFormFromModel<F>({ model, behavior }) as FormProxy<F>;
+    const form = createFormFromModel<F>({ model, behavior }) as FormGroup<F>;
 
     // payload с сервера СОДЕРЖИТ производное total:0 — оно игнорируется, total = price*qty
     model.set({ price: 10, qty: 3, total: 0 });
@@ -245,12 +245,8 @@ describe('W6 · insert/edit mode', () => {
     expect(model.total).toBe(50);
     expect(model.isDirty()).toBe(true);
 
-    // тот же эффект через node-путь загрузки (form.patchValue)
-    (form as unknown as { patchValue(v: Partial<F>): void }).patchValue({
-      price: 2,
-      qty: 4,
-      total: 999,
-    });
+    // тот же эффект через node-путь загрузки (setValue группы)
+    form.setValue({ price: 2, qty: 4, total: 999 });
     expect(model.total).toBe(8); // ✓ 2*4, а не 999 из payload
   });
 });
@@ -488,7 +484,7 @@ describe('W13 · per-row validation', () => {
  *      родителя; нет first-class оператора. Хрупки при инкрементальном построении массива (push):
  *      авто-распределение срабатывает на промежуточных состояниях. Надёжно при атомарном set.
  * F9 — РЕШЕНО: compute/computeFrom помечают цель производной (derived-registry); пути bulk-load
- *      (model.set/patch, GroupNode.patchValue/setValue) пропускают производные поля. Payload может
+ *      (model.set/patch, setValue группы формы) пропускают производные поля. Payload может
  *      содержать производные — они игнорируются и вычисляются из источников. compute пишет цель
  *      напрямую (raw signal), прямое присваивание/reset не затронуты.
  * Дополнительно: видимость (show/hide) намеренно вне behavior (render-слой) — повторяющееся трение.

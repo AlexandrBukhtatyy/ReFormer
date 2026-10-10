@@ -14,7 +14,7 @@
 либо `validateModel(model, schema)`.
 
 ```typescript
-import { createForm, type FormModel, type FormProxy, type FormSchemaNode } from '@reformer/core';
+import { createForm, type FormModel, type FormGroup, type FormSchemaNode } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
@@ -82,7 +82,7 @@ function ContactFormComponent() {
 
 // 6. Pass form to child components via props (NOT context!)
 type FormStepProps = {
-  form: FormProxy<ContactForm>;
+  form: FormGroup<ContactForm>;
 };
 
 function FormStep({ form }: FormStepProps) {

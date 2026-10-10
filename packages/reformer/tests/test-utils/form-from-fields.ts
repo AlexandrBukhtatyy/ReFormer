@@ -13,9 +13,8 @@
 import { signal } from '@preact/signals-core';
 import { arrayOf, createModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
-import { FieldNode } from '../../src/form/nodes/field-node';
-import type { ModelArrayNode } from '../../src/form/nodes/model-array-node';
-import type { FieldConfig, FormProxy } from '../../src/form/types/index';
+import { FormControlNode } from '../../src/form/nodes/form-control-node';
+import type { FieldConfig, FormArray, FormGroup } from '../../src/form/types/index';
 import type {
   FormSchemaNode,
   SchemaArrayHandle,
@@ -125,7 +124,7 @@ function nodesOf(fields: Fields, model: { $: Record<string, unknown> }): FormSch
  * form.email.setValue('user@mail.com');
  * ```
  */
-export function formFromFields<T>(fields: TestFields<T>): FormProxy<T> {
+export function formFromFields<T>(fields: TestFields<T>): FormGroup<T> {
   const model = createModel(valuesOf(fields as Fields) as T & object);
   const schema: FormSchemaNode = {
     children: nodesOf(fields as Fields, model as unknown as { $: Record<string, unknown> }),
@@ -145,7 +144,7 @@ export function formFromFields<T>(fields: TestFields<T>): FormProxy<T> {
 export function arrayFromFields<T extends object>(
   rowFields: TestFields<T>,
   rows: Partial<T>[] = []
-): ModelArrayNode<T> {
+): FormArray<T> {
   const blank = () => valuesOf(rowFields as Fields);
   const model = createModel({
     rows: arrayOf(
@@ -166,7 +165,7 @@ export function arrayFromFields<T extends object>(
       ],
     },
   });
-  return form.rows as unknown as ModelArrayNode<T>;
+  return form.rows as unknown as FormArray<T>;
 }
 
 /**
@@ -180,6 +179,6 @@ export function arrayFromFields<T extends object>(
 export function fieldOf<T>(
   value: T,
   config: Omit<FieldConfig<T>, 'valueSignal'> = {}
-): FieldNode<T> {
-  return new FieldNode<T>({ ...config, valueSignal: signal(value) });
+): FormControlNode<T> {
+  return new FormControlNode<T>({ ...config, valueSignal: signal(value) });
 }

@@ -67,13 +67,13 @@ const form = createFormFromModel({ model, schema });
 
 ```tsx
 import { useEffect, useState } from 'react';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 
 interface LoadingState { isLoading: boolean; error: string | null }
 
 export function useLoadCreditApplication(
   model: FormModel<CreditApplicationForm>,
-  form: FormProxy<CreditApplicationForm>,
+  form: FormGroup<CreditApplicationForm>,
   applicationId: string | null
 ): LoadingState {
   const [state, setState] = useState<LoadingState>({ isLoading: !!applicationId, error: null });

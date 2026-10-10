@@ -12,7 +12,7 @@
 import {
   createModel,
   createForm,
-  type FormProxy,
+  type FormGroup,
   type FormSchemaNode,
   type FormModel,
   type ValidationIssue,
@@ -139,7 +139,7 @@ const amountSchema = defineValidation<MyForm>(({ model, cross }) => {
 ### Form-shape types — `type` over `interface`
 
 ```typescript
-// ❌ interface лишён неявной index signature; конструкции ModelArrayNode<T> его отвергают
+// ❌ interface лишён неявной index signature; конструкции FormArray<T> его отвергают
 export interface PropertyItem {
   type: PropertyType;
   description: string;
@@ -160,9 +160,9 @@ export type PropertyItem = {
 
 ```typescript
 // ❌ instanceof на Proxy не работает
-if (node instanceof FieldNode) { ... }
+if (node instanceof FormControl) { ... }
 
 // ✅ type guards
-import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
-if (isFieldNode(node)) { ... }
+import { isFormControl, isFormGroup, isFormArray } from '@reformer/core';
+if (isFormControl(node)) { ... }
 ```

@@ -1,5 +1,5 @@
 /**
- * Unit tests: ModelArrayNode — узел массива, делегирующий массиву FormModel (M1).
+ * Unit tests: FormArrayNode — узел массива, делегирующий массиву FormModel (M1).
  * Проверяет привязку данных/структуры: length/value/at/map/push/removeAt/insert/clear,
  * двусторонняя связь item-полей с под-моделью, реактивность длины.
  */
@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { effect } from '@preact/signals-core';
 import { createModel } from '../../../src/model/index';
-import { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
+import { FormArrayNode } from '../../../src/form/nodes/form-array-node';
 import { createFormFromModel } from '../../../src/form/create-form';
 import type { FormModel } from '../../../src/model/index';
 
@@ -26,7 +26,7 @@ const itemSchema = (item: FormModel<Row>) => ({
 const build = () => {
   const model = createModel<Form>({ rows: [] });
   // control = реактивный массив модели (value-proxy)
-  const arr = new ModelArrayNode<Row>(model.rows as never, (m) =>
+  const arr = new FormArrayNode<Row>(model.rows as never, (m) =>
     createFormFromModel<Row>({
       model: m as FormModel<Row>,
       schema: itemSchema(m as FormModel<Row>),
@@ -35,12 +35,12 @@ const build = () => {
   return { model, arr };
 };
 
-describe('ModelArrayNode', () => {
+describe('FormArrayNode', () => {
   it('length и value отражают массив модели; push обновляет модель', () => {
     const { model, arr } = build();
-    expect(arr.length.value).toBe(0);
+    expect(arr.length).toBe(0);
     arr.push({ name: 'A', qty: 1 });
-    expect(arr.length.value).toBe(1);
+    expect(arr.length).toBe(1);
     expect(model.get().rows).toEqual([{ name: 'A', qty: 1 }]);
     expect(arr.value.value).toEqual([{ name: 'A', qty: 1 }]);
   });
@@ -59,7 +59,7 @@ describe('ModelArrayNode', () => {
     const { arr } = build();
     const seen: number[] = [];
     const dispose = effect(() => {
-      seen.push(arr.length.value);
+      seen.push(arr.length);
     });
     arr.push({ name: 'X', qty: 0 });
     arr.push({ name: 'Y', qty: 0 });
@@ -80,7 +80,7 @@ describe('ModelArrayNode', () => {
     arr.push({ name: 'A', qty: 1 });
     arr.push({ name: 'B', qty: 2 });
     arr.removeAt(0);
-    expect(arr.length.value).toBe(1);
+    expect(arr.length).toBe(1);
     const item0 = arr.at(0)!;
     expect(item0.name.value.value).toBe('B');
     item0.qty.setValue(99);
@@ -93,7 +93,7 @@ describe('ModelArrayNode', () => {
     arr.insert(0, { name: 'Z', qty: 0 });
     expect(arr.map((i) => i.name.value.value)).toEqual(['Z', 'A']);
     arr.clear();
-    expect(arr.length.value).toBe(0);
+    expect(arr.length).toBe(0);
     expect(model.get().rows).toEqual([]);
   });
 
@@ -103,10 +103,10 @@ describe('ModelArrayNode', () => {
       { name: 'A', qty: 1 },
       { name: 'B', qty: 2 },
     ]);
-    expect(arr.length.value).toBe(2);
+    expect(arr.length).toBe(2);
     expect(model.get().rows.length).toBe(2);
     arr.reset(); // к initial (пустой)
-    expect(arr.length.value).toBe(0);
+    expect(arr.length).toBe(0);
   });
 
   it('move переупорядочивает модель и формы элементов', () => {
@@ -118,7 +118,7 @@ describe('ModelArrayNode', () => {
     arr.move(0, 2); // A в конец
     expect(arr.map((i) => i.name.value.value)).toEqual(['B', 'C', 'A']);
     expect(model.get().rows.map((r) => r.name)).toEqual(['B', 'C', 'A']);
-    expect(arr.length.value).toBe(3);
+    expect(arr.length).toBe(3);
   });
 
   it('move сохраняет состояние под-формы (тот же инстанс едет на новую позицию)', () => {
@@ -161,19 +161,48 @@ describe('ModelArrayNode', () => {
     expect(arr.map((i) => i.name.value.value)).toEqual(['A', 'B']);
   });
 
-  it('validate() учитывает ошибки уровня массива и совпадает с valid', async () => {
+  it('замечания уровня массива делают его невалидным, clearIssues снимает их', () => {
     const { arr } = build();
     arr.push({ name: 'A', qty: 1 });
 
     arr.setIssues([{ code: 'minItems' }]);
     expect(arr.valid.value).toBe(false);
-    await expect(arr.validate()).resolves.toBe(false);
-    // validate() ничего не стирает
-    expect(arr.issues.value.map((error) => error.code)).toEqual(['minItems']);
+    expect(arr.issues.value.map((issue) => issue.code)).toEqual(['minItems']);
 
     arr.clearIssues();
     expect(arr.valid.value).toBe(true);
-    await expect(arr.validate()).resolves.toBe(true);
+  });
+
+  it('keyAt — стабильный ключ строки: не меняется при move и swap, у новой строки новый', () => {
+    const { arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+    arr.push({ name: 'B', qty: 2 });
+    const keyA = arr.keyAt(0);
+    const keyB = arr.keyAt(1);
+    expect(keyA).not.toBe(keyB);
+
+    arr.move(0, 1);
+    expect(arr.keyAt(0)).toBe(keyB);
+    expect(arr.keyAt(1)).toBe(keyA);
+
+    arr.swap(0, 1);
+    expect(arr.keyAt(0)).toBe(keyA);
+
+    arr.push({ name: 'C', qty: 3 });
+    expect([keyA, keyB]).not.toContain(arr.keyAt(2));
+    expect(() => arr.keyAt(5)).toThrow(RangeError);
+  });
+
+  it('length — число, чтение в effect подписывает на изменения', () => {
+    const { arr } = build();
+    const seen: number[] = [];
+    const stop = effect(() => {
+      seen.push(arr.length);
+    });
+    arr.push({ name: 'A', qty: 1 });
+    arr.removeAt(0);
+    stop();
+    expect(seen).toEqual([0, 1, 0]);
   });
 
   it('move реактивен (effect перезапускается при перестановке)', () => {

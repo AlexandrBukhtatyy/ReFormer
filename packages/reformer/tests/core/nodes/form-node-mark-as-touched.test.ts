@@ -6,21 +6,21 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
-import type { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
+import type { FormArray } from '../../../src/form/types/index';
 import { createModel, type FormModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { defineValidation, validate, validateModel } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 import { createFormLevel } from '../../../src/form/form-level';
-import { FieldNode } from '../../../src/form/nodes/field-node';
-import type { FormProxy } from '../../../src';
+import { FormControlNode } from '../../../src/form/nodes/form-control-node';
+import type { FormGroup } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
 
 describe('FormNode - markAsTouched()', () => {
   describe('FieldNode', () => {
     it('should mark field as touched', () => {
-      const field = new FieldNode({
+      const field = new FormControlNode({
         valueSignal: signal(''),
         component: null as ComponentInstance,
       });
@@ -33,12 +33,12 @@ describe('FormNode - markAsTouched()', () => {
     });
 
     it('should be equivalent to markAsTouched', () => {
-      const field1 = new FieldNode({
+      const field1 = new FormControlNode({
         valueSignal: signal(''),
         component: null as ComponentInstance,
       });
 
-      const field2 = new FieldNode({
+      const field2 = new FormControlNode({
         valueSignal: signal(''),
         component: null as ComponentInstance,
       });
@@ -58,7 +58,7 @@ describe('FormNode - markAsTouched()', () => {
       age: number;
     }
 
-    let form: FormProxy<SimpleForm>;
+    let form: FormGroup<SimpleForm>;
 
     beforeEach(() => {
       form = formFromFields({
@@ -111,7 +111,7 @@ describe('FormNode - markAsTouched()', () => {
       };
     }
 
-    let form: FormProxy<NestedForm>;
+    let form: FormGroup<NestedForm>;
 
     beforeEach(() => {
       form = formFromFields<NestedForm>({
@@ -162,7 +162,7 @@ describe('FormNode - markAsTouched()', () => {
       price: number;
     }
 
-    let arrayNode: ModelArrayNode<ItemForm>;
+    let arrayNode: FormArray<ItemForm>;
 
     beforeEach(() => {
       arrayNode = arrayFromFields<ItemForm>({
@@ -230,7 +230,7 @@ describe('FormNode - markAsTouched()', () => {
       };
     }
 
-    let form: FormProxy<ComplexForm>;
+    let form: FormGroup<ComplexForm>;
 
     beforeEach(() => {
       form = formFromFields<ComplexForm>({
@@ -308,7 +308,7 @@ describe('FormNode - markAsTouched()', () => {
     });
 
     let model: FormModel<LoginForm>;
-    let form: FormProxy<LoginForm>;
+    let form: FormGroup<LoginForm>;
 
     beforeEach(() => {
       model = createModel<LoginForm>({ email: '', password: '' });

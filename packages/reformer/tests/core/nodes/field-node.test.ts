@@ -1,14 +1,14 @@
 /**
- * Unit tests for FieldNode - основные тесты
+ * Unit tests for FormControlNode (нода поля) - основные тесты
  *
  * Покрывает:
  * - Инициализация (конструктор, дефолтные значения)
- * - Signals (value, touched, dirty, status, valid, invalid, issues, pending)
+ * - Signals (value, touched, dirty, disabled, valid, invalid, issues, pending)
  * - Reset
  * - Enable/disable
  * - shouldShowError computed
  * - componentProps
- * - validate() как отражение ошибок, пришедших извне
+ * - valid как отражение замечаний, пришедших извне
  *
  * Другие тесты в отдельных файлах:
  * - field-node-model-binding.test.ts - привязка к сигналу модели
@@ -16,14 +16,14 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
-import { FieldNode } from '../../../src/form/nodes/field-node';
+import { FormControlNode } from '../../../src/form/nodes/form-control-node';
 import type { ValidationIssue } from '../../../src/form/types/index';
 import { fieldOf } from '../../test-utils/form-from-fields';
 
 const REQUIRED: ValidationIssue = { code: 'required' };
 const WARNING: ValidationIssue = { code: 'weak', severity: 'warning' };
 
-describe('FieldNode', () => {
+describe('FormControlNode', () => {
   // ==========================================================================
   // 1. Инициализация
   // ==========================================================================
@@ -38,7 +38,7 @@ describe('FieldNode', () => {
 
     it('should not own the value: it reads and writes the given signal', () => {
       const valueSignal = signal('from model');
-      const field = new FieldNode({ valueSignal });
+      const field = new FormControlNode({ valueSignal });
 
       expect(field.value.value).toBe('from model');
 
@@ -65,7 +65,7 @@ describe('FieldNode', () => {
     it('should initialize with default state', () => {
       const field = fieldOf('');
 
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
       expect(field.valid.value).toBe(true);
       expect(field.invalid.value).toBe(false);
       expect(field.touched.value).toBe(false);
@@ -74,11 +74,12 @@ describe('FieldNode', () => {
       expect(field.issues.value).toEqual([]);
     });
 
-    it('should initialize with disabled status when disabled = true', () => {
+    it('should initialize disabled when disabled = true', () => {
       const field = fieldOf('', { disabled: true });
 
-      expect(field.status.value).toBe('disabled');
-      expect(field.valid.value).toBe(false); // valid только если status === 'valid'
+      expect(field.disabled.value).toBe(true);
+      expect(field.valid.value).toBe(false); // отключённое поле не валидно и не невалидно
+      expect(field.invalid.value).toBe(false);
     });
 
     it('should store component reference', () => {
@@ -111,7 +112,7 @@ describe('FieldNode', () => {
   // ==========================================================================
 
   describe('Signals - value', () => {
-    let field: FieldNode<string>;
+    let field: FormControlNode<string>;
 
     beforeEach(() => {
       field = fieldOf('initial');
@@ -129,12 +130,6 @@ describe('FieldNode', () => {
       field.setValue('new value');
 
       expect(field.dirty.value).toBe(true);
-    });
-
-    it('should update value via patchValue', () => {
-      field.patchValue('patched');
-
-      expect(field.value.value).toBe('patched');
     });
 
     it('should update value to empty string', () => {
@@ -155,7 +150,7 @@ describe('FieldNode', () => {
   // ==========================================================================
 
   describe('Signals - touched', () => {
-    let field: FieldNode<string>;
+    let field: FormControlNode<string>;
 
     beforeEach(() => {
       field = fieldOf('');
@@ -184,7 +179,7 @@ describe('FieldNode', () => {
   });
 
   describe('Signals - dirty', () => {
-    let field: FieldNode<string>;
+    let field: FormControlNode<string>;
 
     beforeEach(() => {
       field = fieldOf('initial');
@@ -201,25 +196,19 @@ describe('FieldNode', () => {
       expect(field.dirty.value).toBe(true);
     });
 
-    it('should set dirty = false via markAsPristine', () => {
+    it('should set dirty = false via reset', () => {
       field.setValue('changed');
-      field.markAsPristine();
+      field.reset();
 
       expect(field.dirty.value).toBe(false);
-    });
-
-    it('should set dirty = true via markAsDirty', () => {
-      field.markAsDirty();
-
-      expect(field.dirty.value).toBe(true);
     });
   });
 
   // ==========================================================================
-  // 4. Signals: status, issues
+  // 4. Signals: valid, invalid, disabled, issues
   // ==========================================================================
 
-  describe('Signals - status and issues', () => {
+  describe('Signals - validity and issues', () => {
     it('should set issues via setIssues', () => {
       const field = fieldOf('');
 
@@ -228,7 +217,7 @@ describe('FieldNode', () => {
       expect(field.issues.value).toHaveLength(2);
       expect(field.issues.value[0].code).toBe('custom');
       expect(field.issues.value[1].code).toBe('another');
-      expect(field.status.value).toBe('invalid');
+      expect(field.invalid.value).toBe(true);
       expect(field.valid.value).toBe(false);
       expect(field.invalid.value).toBe(true);
     });
@@ -239,7 +228,7 @@ describe('FieldNode', () => {
       field.setIssues([WARNING]);
 
       expect(field.issues.value).toEqual([WARNING]);
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
     });
 
     it('should clear issues via clearIssues', () => {
@@ -249,58 +238,64 @@ describe('FieldNode', () => {
       field.clearIssues();
 
       expect(field.issues.value).toEqual([]);
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
     });
 
-    it('should set status to valid when setIssues with empty array', () => {
+    it('should become valid when setIssues with empty array', () => {
       const field = fieldOf('');
 
       field.setIssues([REQUIRED]);
       field.setIssues([]);
 
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
     });
 
-    it('should have status "disabled" when field is disabled', () => {
+    it('should be disabled when field is disabled', () => {
       const field = fieldOf('', { disabled: true });
 
-      expect(field.status.value).toBe('disabled');
+      expect(field.disabled.value).toBe(true);
     });
   });
 
   // ==========================================================================
-  // 5. validate() — отражение текущих ошибок
+  // 5. valid — отражение замечаний, пришедших извне
   // ==========================================================================
 
-  describe('validate()', () => {
-    it('should resolve true when the field has no issues', async () => {
+  describe('valid from outside issues', () => {
+    it('is valid when the field has no issues', () => {
       const field = fieldOf('');
 
-      await expect(field.validate()).resolves.toBe(true);
+      expect(field.valid.value).toBe(true);
     });
 
-    it('should resolve false when a blocking error is set from outside', async () => {
+    it('is invalid when a blocking issue is set from outside', () => {
       const field = fieldOf('');
       field.setIssues([REQUIRED]);
 
-      await expect(field.validate()).resolves.toBe(false);
+      expect(field.valid.value).toBe(false);
+      expect(field.invalid.value).toBe(true);
     });
 
-    it('should resolve true when only warnings are set', async () => {
+    it('stays valid when only warnings are set', () => {
       const field = fieldOf('');
       field.setIssues([WARNING]);
 
-      await expect(field.validate()).resolves.toBe(true);
+      expect(field.valid.value).toBe(true);
+      expect(field.issues.value).toEqual([WARNING]);
     });
 
-    it('should not clear issues set from outside', async () => {
+    it('waits while a validation run is pending, then reflects issues', () => {
       const field = fieldOf('');
+      field.setPending(true);
       field.setIssues([REQUIRED]);
 
-      await field.validate();
+      expect(field.pending.value).toBe(true);
+      expect(field.valid.value).toBe(false);
+      expect(field.invalid.value).toBe(false);
 
-      expect(field.issues.value).toEqual([REQUIRED]);
-      expect(field.status.value).toBe('invalid');
+      field.setPending(false);
+      expect(field.pending.value).toBe(false);
+      expect(field.invalid.value).toBe(true);
     });
   });
 
@@ -377,7 +372,7 @@ describe('FieldNode', () => {
       expect(field.issues.value).toEqual([]);
       expect(field.touched.value).toBe(false);
       expect(field.dirty.value).toBe(false);
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
     });
   });
 
@@ -405,7 +400,7 @@ describe('FieldNode', () => {
 
       field.disable();
 
-      expect(field.status.value).toBe('disabled');
+      expect(field.disabled.value).toBe(true);
       expect(field.disabled.value).toBe(true);
     });
 
@@ -414,7 +409,7 @@ describe('FieldNode', () => {
 
       field.enable();
 
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
       expect(field.disabled.value).toBe(false);
     });
 
@@ -440,7 +435,7 @@ describe('FieldNode', () => {
       expect(field.disabled.value).toBe(true);
 
       field.enable();
-      expect(field.status.value).toBe('valid');
+      expect(field.valid.value).toBe(true);
     });
   });
 

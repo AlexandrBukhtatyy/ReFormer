@@ -28,16 +28,17 @@ describe('корневой экспорт @reformer/core', () => {
     expect(core).not.toHaveProperty(name);
   });
 
-  it('отдаёт сборку формы, модель и ноды', () => {
+  it('отдаёт сборку формы, модель и гарды нод', () => {
     for (const name of [
       'createForm',
       'createFormFromModel',
       'createModel',
       'arrayOf',
       'modelOf',
-      'FieldNode',
-      'GroupNode',
-      'ModelArrayNode',
+      'isFormNode',
+      'isFormControl',
+      'isFormGroup',
+      'isFormArray',
       'markDerived',
       'runOutsideEffect',
     ]) {
@@ -52,6 +53,14 @@ describe('корневой экспорт @reformer/core', () => {
       'ArrayNode',
       'FormErrorHandler',
       'ErrorStrategy',
+      // Классы нод — внутренние: наружу только контракты FormNode, FormControl, FormGroup, FormArray.
+      'FormNode',
+      'FieldNode',
+      'GroupNode',
+      'ModelArrayNode',
+      'isFieldNode',
+      'isGroupNode',
+      'isArrayNode',
     ]) {
       expect(core, name).not.toHaveProperty(name);
     }
