@@ -31,6 +31,7 @@
 import { spawn } from 'node:child_process';
 
 const args = process.argv.slice(2);
+const COVERAGE = args.some((arg) => arg === '--coverage' || arg.startsWith('--coverage.'));
 const IDLE_KILL_MS = Number(process.env.VITEST_IDLE_KILL_MS ?? 60000);
 const MIN_RUN_MS = Number(process.env.VITEST_MIN_RUN_MS ?? 5000);
 
@@ -74,13 +75,18 @@ const idleCheck = setInterval(() => {
     /\bTest Files[^\n]*\bfailed\b/.test(buf) ||
     /\bTests\s+\d+\s+failed\b/.test(buf) ||
     / FAIL\b/.test(buf) ||
-    /\bUnhandled\b/.test(buf);
+    /\bUnhandled\b/.test(buf) ||
+    // Порог покрытия не выполнен: vitest печатает это и выставил бы exit 1, но мог зависнуть.
+    /^ERROR: (Coverage for|Uncovered) /m.test(buf);
   // Sanity check: did anything actually run?
   const hasPassMarker = /✓|\bpassed\b/.test(buf);
+  // С покрытием тишина после тестов — это ещё и обработка покрытия: успех засчитывается, только
+  // когда отчёт покрытия уже напечатан, иначе долгий подсчёт закончился бы ложным exit 0.
+  const coverageDone = !COVERAGE || /Coverage report from v8/.test(buf);
   let code;
   if (hasFailMarker) code = 1;
-  else if (hasPassMarker) code = 0;
-  else code = 1; // nothing ran — treat as failure
+  else if (hasPassMarker && coverageDone) code = 0;
+  else code = 1; // nothing ran (or coverage never reported) — treat as failure
 
   process.stderr.write(
     `\n[run-vitest] No stdout for ${IDLE_KILL_MS} ms — vitest hung after run. ` +
