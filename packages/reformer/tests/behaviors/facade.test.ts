@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { tick } from '../test-utils/async';
 import { createModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
 import {
@@ -18,8 +19,6 @@ import {
   transformValue,
 } from '../../src/form/behaviors';
 import type { FormGroup } from '../../src/form/types/index';
-
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
 interface Addr {
   region: string;

@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { InputStub as C } from '../../test-utils/stubs';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { required, min, minLength, email, pattern } from '../../../src/form/validators';
@@ -20,8 +21,6 @@ import {
   validateModel,
   type ValidationDefinition,
 } from '../../../src/form/validation';
-
-const C = () => null;
 
 interface F {
   name: string;

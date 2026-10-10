@@ -1,20 +1,16 @@
 /**
- * Unit tests for useFormControl hook
+ * Сигналы ноды поля `FormControlNode`, которые читает хук `useFormControl`.
  *
- * Тестирует хук useFormControl, который предоставляет мемоизированный доступ
- * к сигналам FieldNode.
- *
- * Поскольку хук использует только useMemo для мемоизации объекта с сигналами,
- * тесты проверяют:
- * - Корректность возвращаемых сигналов
- * - Соответствие сигналов исходному FieldNode
- * - Реактивность изменений через сигналы
+ * Файл раньше назывался `tests/hooks/useFormControl.test.ts`, но хук не вызывает: проверяется
+ * сама нода — что её сигналы (`value`, `issues`, `pending`, `disabled`, `touched`, `dirty`,
+ * `valid`, `invalid`, `shouldShowError`) согласованы и реактивны. Сам хук в DOM —
+ * `tests/hooks/use-form-control.dom.test.tsx`.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@preact/signals-core';
-import { FormControlNode } from '../../src/form/nodes/form-control-node';
-import type { ValidationIssue } from '../../src/form/types/index';
+import { FormControlNode } from '../../../src/form/nodes/form-control-node';
+import type { ValidationIssue } from '../../../src/form/types/index';
 
 /** Сигналы ноды поля, которые читает `useFormControl`. */
 type FormControlState<T> = Pick<

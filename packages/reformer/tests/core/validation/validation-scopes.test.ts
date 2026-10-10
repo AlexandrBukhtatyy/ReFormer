@@ -7,6 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
+import { issueCodes } from '../../test-utils/issues';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { required } from '../../../src/form/validators';
@@ -21,8 +23,6 @@ import {
 } from '../../../src/form/validation';
 import type { FormModel } from '../../../src/model/types';
 import type { ValidationIssue } from '../../../src/form/types/index';
-
-const InputStub = () => null;
 
 interface Address {
   city: string;
@@ -82,8 +82,6 @@ function createShapeForm(over: Partial<Shape> = {}) {
 }
 
 const error = (code: string): ValidationIssue => ({ code });
-const codesOf = (node: { issues: { value: readonly ValidationIssue[] } }) =>
-  node.issues.value.map((item) => item.code);
 
 const addressRules = defineValidation<Address>(({ model, cross }) => {
   validate(model.$.city, [required()]);
@@ -105,8 +103,8 @@ describe('apply(ручка группы, схема)', () => {
     });
 
     expect(await validateModel(model, rules)).toBe(false);
-    expect(codesOf(form.registration.city)).toEqual(['required']);
-    expect(codesOf(form.residence.city)).toEqual([]);
+    expect(issueCodes(form.registration.city)).toEqual(['required']);
+    expect(issueCodes(form.residence.city)).toEqual([]);
   });
 
   it('`cross` внутри подформы получает снапшот под-модели, а не корня', async () => {
@@ -116,7 +114,7 @@ describe('apply(ручка группы, схема)', () => {
     });
 
     expect(await validateModel(model, rules)).toBe(false);
-    expect(codesOf(form.registration.street)).toEqual(['streetRequired']);
+    expect(issueCodes(form.registration.street)).toEqual(['streetRequired']);
   });
 
   it('одна схема подключается к нескольким группам — массивом ручек', async () => {
@@ -126,8 +124,8 @@ describe('apply(ручка группы, схема)', () => {
     });
 
     expect(await validateModel(model, rules)).toBe(false);
-    expect(codesOf(form.registration.city)).toEqual(['required']);
-    expect(codesOf(form.residence.city)).toEqual([]);
+    expect(issueCodes(form.registration.city)).toEqual(['required']);
+    expect(issueCodes(form.residence.city)).toEqual([]);
   });
 
   it('под `validateWhen` подформа гасится вместе с условием', async () => {
@@ -140,11 +138,11 @@ describe('apply(ручка группы, схема)', () => {
     });
 
     expect(await validateModel(model, rules)).toBe(false);
-    expect(codesOf(form.residence.city)).toEqual(['required']);
+    expect(issueCodes(form.residence.city)).toEqual(['required']);
 
     model.sameAddress = true;
     expect(await validateModel(model, rules)).toBe(true);
-    expect(codesOf(form.residence.city)).toEqual([]);
+    expect(issueCodes(form.residence.city)).toEqual([]);
   });
 
   it('правило получает только значение поля', async () => {
@@ -235,7 +233,7 @@ describe('apply(ручка группы, схема)', () => {
     });
 
     expect(await validateModel(model, rules)).toBe(false);
-    expect(codesOf(form.registration.city)).toEqual(['taken']);
+    expect(issueCodes(form.registration.city)).toEqual(['taken']);
   });
 
   it('композиция схем над той же моделью остаётся', async () => {
@@ -283,8 +281,8 @@ describe('applyEach(ручка массива, схема)', () => {
     const rows = form.properties as unknown as {
       at(index: number): Record<keyof Property, { issues: { value: readonly ValidationIssue[] } }>;
     };
-    expect(codesOf(rows.at(0).type)).toEqual(['required']);
-    expect(codesOf(rows.at(1).type)).toEqual([]);
+    expect(issueCodes(rows.at(0).type)).toEqual(['required']);
+    expect(issueCodes(rows.at(1).type)).toEqual([]);
   });
 
   it('`cross` в схеме элемента получает снапшот элемента', async () => {
@@ -298,8 +296,8 @@ describe('applyEach(ручка массива, схема)', () => {
     const rows = form.properties as unknown as {
       at(index: number): Record<keyof Property, { issues: { value: readonly ValidationIssue[] } }>;
     };
-    expect(codesOf(rows.at(0).price)).toEqual([]);
-    expect(codesOf(rows.at(1).price)).toEqual(['overLimit']);
+    expect(issueCodes(rows.at(0).price)).toEqual([]);
+    expect(issueCodes(rows.at(1).price)).toEqual(['overLimit']);
   });
 
   it('привязка фасадом массива принимается наравне с ручкой', async () => {

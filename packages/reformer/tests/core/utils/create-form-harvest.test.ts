@@ -6,10 +6,9 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel, type FormModel } from '../../../src/model/index';
-
-const InputStub = () => null;
 
 interface Row {
   name: string;

@@ -146,7 +146,8 @@
     "dev": "vite",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch",
-    "coverage": "vitest run --coverage"
+    "coverage": "node ../../scripts/run-vitest.mjs --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json"
   },
   "keywords": [
     "react",
@@ -202,10 +203,15 @@
     "use-sync-external-store": "^1.2.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.3.0",
     "@types/use-sync-external-store": "^0.0.6",
-    "@vitest/coverage-v8": "~4.0.15",
+    "@vitest/coverage-v8": "4.0.15",
+    "fast-check": "^4.10.2",
+    "happy-dom": "^20.14.6",
     "intl-messageformat": "^12.1.2",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

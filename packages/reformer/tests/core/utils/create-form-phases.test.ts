@@ -7,13 +7,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
 import { createForm } from '../../../src/form/form-bundle';
 import { createModel } from '../../../src/model/index';
 import { defineFormBehavior, computeFrom } from '../../../src/form/behaviors';
 import { validate, defineValidation } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
-
-const InputStub = () => null;
 
 interface F {
   email: string;

@@ -7,11 +7,11 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { schemaSubtree } from '../../../src/form/schema-subtree';
 import { createModel, type FormModel } from '../../../src/model/index';
 
-const InputStub = () => null;
 const SelectStub = () => null;
 
 interface Address {

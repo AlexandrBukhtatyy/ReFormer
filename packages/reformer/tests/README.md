@@ -1,100 +1,88 @@
-# ReFormer Tests
+# Тесты @reformer/core
 
-Все тесты пакета `@reformer/core`.
+Все тесты пакета ядра. План доработки покрытия — `docs/plans/core-tests-coverage.md`.
 
-> ⚠️ **Структура тестов НЕ зеркалит `src/`.** Каталог `tests/core/**` остался от раскладки
-> `src/core/**`, снесённой при разделении на слои (`src/model/` + `src/form/`, июль 2026).
-> Переструктурирование вынесено в отдельную задачу; ниже — фактическое соответствие.
+## Каталоги
 
-## Directory Structure
+Структура `tests/` не зеркалит `src/` целиком; соответствие слоёв:
 
 ```
 tests/
-├── behaviors/              # DSL поведения          → src/form/behaviors/
+├── behaviors/        # поведение формы                 → src/form/behaviors/
 ├── core/
-│   ├── model/              # модель данных          → src/model/
-│   ├── nodes/              # узлы формы             → src/form/nodes/
-│   ├── types/              # типы                   → src/form/types/
-│   ├── utils/              # СМЕШАННЫЙ каталог: derived-registry / safe-effect → src/model/,
-│   │                       #   create-* / type-guards / subscription-manager  → src/form/
-│   └── validation/         # раннер и правила       → src/form/validation/, src/form/validators/
-├── hooks/                  # React-хуки             → src/platforms/react/hooks/
-├── i18n/                   # локализация            → src/i18n/, src/platforms/react/i18n/, src/locale/
-├── model/                  # сабпат @reformer/core/model (гарантия единого рантайма)
-└── test-utils/             # общие типы и помощник сборки формы для тестов
+│   ├── flow/         # поток шагов                     → src/form/flow/
+│   ├── model/        # модель данных                   → src/model/
+│   ├── nodes/        # ноды формы и модули состояния   → src/form/nodes/
+│   ├── utils/        # смешанный: сборка, схема, derived-registry, safe-effect
+│   ├── validation/   # раннер, стратегии, области      → src/form/validation/
+│   └── validators/   # правила                         → src/form/validators/
+├── hooks/            # React-хуки (DOM)                → src/platforms/react/hooks/
+├── i18n/             # локализация                     → src/i18n/, src/platforms/react/i18n/, src/locale/
+├── integration/      # сквозные сценарии на синтетической сложной форме
+├── model/            # сабпат @reformer/core/model против собранного dist
+├── types/            # сквозные compile-time проверки (*.type-test.ts)
+└── test-utils/       # общие помощники — см. test-utils/README.md
 ```
 
-## Принципы
+Тесты рядом с исходником: `src/**/*.type-test.ts` (проверяет `tsc`) и
+`src/platforms/react/field-binding/field-binding.test.tsx`.
 
-1. **Один исходник — один тестовый файл.** Крупные модули дробятся по темам:
-   `field-node-cleanup.test.ts`, `field-node-model-binding.test.ts`, …
-2. **Импорт по относительному пути** к `src/`. ⚠️ `tsc` каталог `tests/` НЕ проверяет
-   (`tsconfig.json` → `include: ["src"]`), поэтому битый путь всплывёт только на прогоне тестов —
-   после любого переноса файлов в `src/` гоняйте `npm test`, а не только `npm run typecheck`.
-3. **Общие типы — в `test-utils/`**, импорт явным путём:
-   `import { ComponentInstance } from '../../test-utils/types'`
+## Окружения
 
-## Running Tests
+- **node** — по умолчанию.
+- **happy-dom** — React-хуки и провайдеры, которым нужны эффекты, монтаж и размонтирование.
+  Первая строка файла — `// @vitest-environment happy-dom`; в теле — `afterEach(cleanup)` из
+  `test-utils/react` (глобалов vitest в пакете нет, автоочистка testing-library сама не включится).
+  Помощники: `renderHookCounting` (счётчик рендеров), `StrictWrapper`.
+- Серверный рендер (`renderToStaticMarkup`) и мок React (`tests/hooks/useFormControl-*.test.ts`)
+  остаются для дешёвых проверок без DOM.
+
+## Имена и соглашения
+
+- Файл — kebab-case по исходнику: `<модуль>.test.ts`, темы — суффиксом: `form-array-node-keys.test.ts`.
+- Суффиксы видов: `.property.test.ts` (fast-check), `.snapshot.test.ts` (снапшоты),
+  `.dom.test.tsx` — DOM-вариант рядом с node-близнецом.
+- Шапка — русский JSDoc «что проверяется и почему»; `describe('<модуль> — <тема>')`.
+- Импорт из `vitest` явный; исходники — относительным путём `../../src/...`; помощники — явным путём
+  `test-utils/<модуль>` без barrel.
+- Каждый тест собирает свою форму: ключи строк массивов (`rowKey`) и кэши раннера — модульные,
+  общие сборки между тестами дают зависимость от порядка.
+- Отложенные записи поведения (`defer`, `runOutsideEffect`) — `await tick()` / `settle()`
+  из `test-utils/async`; `debounce` — `useFakeClock()` + `advance(ms)`; async-правило под контролем
+  теста — `deferred()`. С фейковыми часами `waitFor` testing-library не использовать.
+
+## Виды тестов
+
+- **Property-based** (fast-check): параметры — `propertyParams()` из `test-utils/property`.
+  Воспроизведение упавшего случая: `FC_SEED=<seed> FC_NUM_RUNS=1000 npx vitest run <файл>`.
+- **Снапшоты**: обновление — `npx vitest run -u <файл>` из каталога пакета; в CI новые снапшоты не
+  пишутся, расхождение — падение.
+- **Type-тесты**: `*.type-test.ts` с `expectTypeOf` / `@ts-expect-error — причина`. Их исполняет
+  `tsc` — `npm run typecheck` пакета (`tsconfig.json` + `tsconfig.tests.json`, второй проверяет и
+  `tests/`), в CI — корневой `npm run typecheck`. Vitest их не запускает.
+- **Утечки**: `test-utils/effect-tracker` считает живые effect'ы (`vi.mock('@preact/signals-core')`,
+  см. шапку модуля); после dispose / размонтирования число возвращается к исходному.
+
+## Найденные дефекты
+
+Тест вскрыл дефект — заводится задача bd, её id — в названии теста. Маленький дефект чинится
+в том же этапе отдельным коммитом. Крупный или спорный — `it.fails('… [ReFormer-xxxx]', …)` с
+одним точным утверждением: тест покраснеет, когда дефект починят, и станет обычным `it`.
+
+## Запуск
+
+Из `packages/reformer`:
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm test -- --watch
-
-# Run specific test file
-npm test -- field-node.test.ts
-
-# Run tests with coverage
-npm test -- --coverage
+npm test                          # все тесты (обёртка scripts/run-vitest.mjs — vitest#8766)
+npm test -- form-level            # файлы по подстроке имени
+npm run test:watch
+npm run coverage                  # покрытие + пороги (через ту же обёртку)
+npm run typecheck                 # tsc по src и tests
 ```
 
-## Test Statistics
+## Покрытие
 
-- **Total Test Files**: 67
-- **Total Tests**: 1055
-
-## Writing New Tests
-
-When adding a new source file:
-
-1. Положите тест в каталог, соответствующий слою исходника — см. таблицу соответствия выше
-   (относительный путь НЕ совпадает с `src/`, пока переструктурирование не выполнено)
-2. Use the test types from `test-utils/` where applicable
-3. Follow the existing test patterns and structure
-4. Ensure all tests pass before committing
-
-## Test File Template
-
-```typescript
-/**
- * Unit tests for [ModuleName]
- */
-
-import { describe, it, expect, beforeEach } from 'vitest';
-import { [Module] } from '../../../src/[path]/[module]';
-
-describe('[ModuleName]', () => {
-  beforeEach(() => {
-    // Setup test environment
-  });
-
-  describe('Feature name', () => {
-    it('should do something', () => {
-      // Test implementation
-      expect(true).toBe(true);
-    });
-  });
-});
-```
-
-## CI/CD
-
-Tests are automatically run on:
-
-- Pull requests
-- Commits to main branch
-- Pre-commit hooks (if configured)
-
-All tests must pass before merging.
+Пороги — в `vitest.config.ts`: агрегат поднимается храповиком после каждого этапа плана;
+минимум на файл (строки ≥ 80, ветви ≥ 70) проверяется отдельно, исключения — только с причиной и
+задачей bd.

@@ -4,6 +4,8 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { deferred } from '../../test-utils/async';
+import { resultCodes } from '../../test-utils/issues';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { required } from '../../../src/form/validators';
@@ -14,7 +16,6 @@ import {
   validate,
   validateAsync,
   validateModel,
-  type ValidationResult,
 } from '../../../src/form/validation';
 import { createFormLevel } from '../../../src/form/form-level';
 import { createFormValidation } from '../../../src/form/validation/strategy';
@@ -30,17 +31,6 @@ interface Account {
   login: string;
 }
 
-/** Отложенный ответ async-правила: тест сам решает, когда и чем оно завершится. */
-function deferred<V>() {
-  let resolve!: (value: V) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<V>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
-
 const nameRequired = defineValidation<Account>(({ model }) => {
   validate(model.$.name, [required()]);
 });
@@ -49,9 +39,6 @@ const build = (initial: Partial<Account> = {}) => {
   const model = createModel<Account>({ name: '', login: '', ...initial });
   return { model, form: createFormFromModel<Account>({ model }) };
 };
-
-const codesOf = (result: ValidationResult, handle: unknown): string[] =>
-  (result.issues.get(handle as never) ?? []).map((error) => error.code);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -65,7 +52,7 @@ describe('runValidation — статус результата', () => {
 
     expect(result.status).toBe('valid');
     expect(result.failures).toEqual([]);
-    expect(codesOf(result, model.$.name)).toEqual([]);
+    expect(resultCodes(result, model.$.name)).toEqual([]);
   });
 
   it('invalid: есть блокирующая ошибка, ключ — ручка поля', async () => {
@@ -74,7 +61,7 @@ describe('runValidation — статус результата', () => {
     const result = await runValidation(model, nameRequired);
 
     expect(result.status).toBe('invalid');
-    expect(codesOf(result, model.$.name)).toEqual(['required']);
+    expect(resultCodes(result, model.$.name)).toEqual(['required']);
     expect([...result.issues.keys()].map((handle) => handle.__path)).toEqual(['name']);
   });
 
@@ -87,7 +74,7 @@ describe('runValidation — статус результата', () => {
     const result = await runValidation(model, warnOnly);
 
     expect(result.status).toBe('valid');
-    expect(codesOf(result, model.$.name)).toEqual(['weak']);
+    expect(resultCodes(result, model.$.name)).toEqual(['weak']);
   });
 
   it('error: async-правило отклонилось — сбой записан, на поле блокирующая ошибка', async () => {
@@ -105,7 +92,7 @@ describe('runValidation — статус результата', () => {
 
     expect(result.status).toBe('error');
     expect(result.failures).toEqual([{ handle: model.$.login, error: failure }]);
-    expect(codesOf(result, model.$.login)).toEqual(['ruleFailed']);
+    expect(resultCodes(result, model.$.login)).toEqual(['ruleFailed']);
   });
 
   it('error: правило бросило синхронно — тоже сбой, а не исключение прогона', async () => {
@@ -135,8 +122,8 @@ describe('runValidation — статус результата', () => {
     const result = await runValidation(model, both);
 
     expect(result.status).toBe('error');
-    expect(codesOf(result, model.$.name)).toEqual(['required']);
-    expect(codesOf(result, model.$.login)).toEqual(['ruleFailed']);
+    expect(resultCodes(result, model.$.name)).toEqual(['required']);
+    expect(resultCodes(result, model.$.login)).toEqual(['ruleFailed']);
   });
 
   it('несколько сбоев одного поля дают одну ошибку `ruleFailed`', async () => {
@@ -151,7 +138,7 @@ describe('runValidation — статус результата', () => {
     const result = await runValidation(model, twice);
 
     expect(result.failures).toHaveLength(2);
-    expect(codesOf(result, model.$.login)).toEqual(['ruleFailed']);
+    expect(resultCodes(result, model.$.login)).toEqual(['ruleFailed']);
   });
 
   it('cancelled: прогон устарел — следующий запуск той же пары отменил его', async () => {

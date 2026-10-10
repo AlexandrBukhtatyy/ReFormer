@@ -8,11 +8,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import type { FormModel } from '../../../src/model/index';
 
-const InputStub = () => null;
 const BoxStub = () => null;
 
 interface CoBorrower {

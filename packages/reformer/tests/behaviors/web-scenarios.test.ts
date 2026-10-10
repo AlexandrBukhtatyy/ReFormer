@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { tick } from '../test-utils/async';
 import { createModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
 import {
@@ -21,7 +22,6 @@ import {
 import { convertBetween, onChangeThrottled } from './custom-operators';
 import type { FormGroup } from '../../src/form/types/index';
 
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const fieldErrors = (n: unknown) => (n as { issues: { value: { code: string }[] } }).issues.value;
 
 // ============================================================================

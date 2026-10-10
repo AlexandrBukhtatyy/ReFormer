@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { tick } from '../../test-utils/async';
 import {
   runOutsideEffect,
   safeCallback,
@@ -20,7 +21,6 @@ import {
 } from '../../../src/model/safe-effect';
 
 // setTimeout(0) — макрозадача, гарантированно после всех микрозадач текущего тика (после flush).
-const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -33,7 +33,7 @@ describe('runOutsideEffect', () => {
       ran = true;
     });
     expect(ran).toBe(false);
-    await flush();
+    await tick();
     expect(ran).toBe(true);
   });
 
@@ -43,7 +43,7 @@ describe('runOutsideEffect', () => {
     runOutsideEffect(() => void order.push(2));
     runOutsideEffect(() => void order.push(3));
     expect(order).toEqual([]); // отложено
-    await flush();
+    await tick();
     expect(order).toEqual([1, 2, 3]);
   });
 
@@ -56,7 +56,7 @@ describe('runOutsideEffect', () => {
     runOutsideEffect(() => {
       ranAfter = true;
     });
-    await flush();
+    await tick();
 
     expect(ranAfter).toBe(true); // изоляция: вторая запись выполнилась
     expect(errSpy).toHaveBeenCalled();
@@ -68,8 +68,8 @@ describe('runOutsideEffect', () => {
     runOutsideEffect(async () => {
       throw new Error('async boom');
     });
-    await flush();
-    await flush(); // дать rejection-микрозадаче и маршрутизации отработать
+    await tick();
+    await tick(); // дать rejection-микрозадаче и маршрутизации отработать
 
     expect(errSpy).toHaveBeenCalled();
     expect(errSpy.mock.calls.some((c) => String(c[0]).includes('[runOutsideEffect]'))).toBe(true);
@@ -81,7 +81,7 @@ describe('runOutsideEffect', () => {
       ran = true;
     });
     cancel();
-    await flush();
+    await tick();
     expect(ran).toBe(false);
   });
 
@@ -91,7 +91,7 @@ describe('runOutsideEffect', () => {
     const cancel = runOutsideEffect(() => void order.push('b'));
     runOutsideEffect(() => void order.push('c'));
     cancel();
-    await flush();
+    await tick();
     expect(order).toEqual(['a', 'c']);
   });
 });
@@ -104,7 +104,7 @@ describe('safeCallback', () => {
     });
     wrapped(1, 'x');
     expect(calls).toHaveLength(0); // отложено
-    await flush();
+    await tick();
     expect(calls).toEqual([[1, 'x']]);
   });
 });

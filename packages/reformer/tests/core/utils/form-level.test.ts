@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { tick } from '../../test-utils/async';
 import { createForm } from '../../../src/form/form-bundle';
 import { defineFormBehavior, enableWhen } from '../../../src/form/behaviors';
 import {
@@ -202,8 +203,7 @@ describe('createForm — submit', () => {
 });
 
 describe('createForm — выключенные поля в проверке формы', () => {
-  /** `enableWhen` переключает доступность вне эффекта — на следующем микротаске. */
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  // `enableWhen` переключает доступность вне эффекта — на следующем микротаске: тесты ждут `tick()`.
 
   /** Телефон обязателен, но выключен поведением, пока сумма пуста. */
   const createWithDisabledPhone = (initial: Shape = { amount: '', phone: '' }) =>

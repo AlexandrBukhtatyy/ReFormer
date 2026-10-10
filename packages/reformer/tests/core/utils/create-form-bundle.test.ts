@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { InputStub, SectionStub } from '../../test-utils/stubs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createForm } from '../../../src/form/form-bundle';
@@ -17,9 +18,6 @@ import {
   FormBundleContext,
   useFormBundleContext,
 } from '../../../src/platforms/react/form-bundle-context';
-
-const InputStub = () => null;
-const SectionStub = () => null;
 
 interface Row {
   name: string;

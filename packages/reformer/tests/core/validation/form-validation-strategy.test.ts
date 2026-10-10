@@ -7,14 +7,14 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { InputStub as C } from '../../test-utils/stubs';
+import { flushMicrotasks } from '../../test-utils/async';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { required, minLength } from '../../../src/form/validators';
 import { validate, defineValidation } from '../../../src/form/validation';
 import { createFormValidation } from '../../../src/form/validation/strategy';
 import { eachLeafSignal } from '../../../src/model/create-model';
-
-const C = () => null;
 
 interface F {
   name: string;
@@ -44,11 +44,6 @@ const nameRequired = defineValidation<F>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
 });
 
-const flush = async () => {
-  await Promise.resolve();
-  await Promise.resolve();
-};
-
 describe('createFormValidation — стратегии запуска', () => {
   it('submit: реактивно молчит; validate() прогоняет и метит touched', async () => {
     const { model, form } = makeForm();
@@ -56,7 +51,7 @@ describe('createFormValidation — стратегии запуска', () => {
     const dispose = ctrl.start();
 
     model.name = 'x'; // изменение НЕ должно прогонять при submit-стратегии
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value).toEqual([]);
     expect(form.name.touched.value).toBe(false);
 
@@ -76,12 +71,12 @@ describe('createFormValidation — стратегии запуска', () => {
     expect(form.name.issues.value).toEqual([]); // инициализирующий прогон пропущен
 
     model.name = 'x'; // невалидно (minLength)
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
     expect(form.name.touched.value).toBe(false); // change НЕ метит touched
 
     model.name = 'Иван'; // валидно
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value).toEqual([]);
 
     ctrl.dispose();
@@ -94,7 +89,7 @@ describe('createFormValidation — стратегии запуска', () => {
 
     expect(form.name.issues.value).toEqual([]);
     form.name.markAsTouched(); // blur
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value.map((e) => e.code)).toContain('required');
 
     ctrl.dispose();
@@ -109,14 +104,14 @@ describe('createFormValidation — стратегии запуска', () => {
     ctrl.start();
 
     model.name = 'x';
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value).toEqual([]); // тихо до первого submit
 
     await ctrl.validate();
     expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
 
     model.name = 'Иван'; // теперь live
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value).toEqual([]);
 
     ctrl.dispose();
@@ -151,7 +146,7 @@ describe('createFormValidation — стратегии запуска', () => {
     ctrl.dispose();
 
     model.name = 'x';
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value).toEqual([]); // после dispose прогонов нет
   });
 
@@ -165,7 +160,7 @@ describe('createFormValidation — стратегии запуска', () => {
     ctrl.start();
 
     model.name = 'x';
-    await flush();
+    await flushMicrotasks(2);
     expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
 
     ctrl.dispose();
@@ -182,7 +177,7 @@ describe('createFormValidation — стратегии запуска', () => {
 
     schema.mockClear();
     model.name = 'ab';
-    await flush();
+    await flushMicrotasks(2);
     expect(schema).toHaveBeenCalledTimes(1); // один прогон, а не два
 
     ctrl.dispose();

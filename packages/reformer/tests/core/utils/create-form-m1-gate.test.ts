@@ -9,11 +9,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import { markDerived } from '../../../src/model/derived-registry';
-
-const InputStub = () => null;
 
 // Gate submit()/validate() со schema-валидаторами УДАЛЁН (валидация вынесена во внешний
 // validateModel из @reformer/core/validation). Тесты этого gate удалены; остальные проверки

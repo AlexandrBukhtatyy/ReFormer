@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { InputStub, SectionStub } from '../../test-utils/stubs';
 import { compileSchema, isCompiledNode } from '../../../src/form/schema/compile';
 import type {
   CompiledArrayNode,
@@ -16,9 +17,6 @@ import type {
 } from '../../../src/form/schema/compiled';
 import { createModel, type FormModel } from '../../../src/model/index';
 import type { FormSchemaNode } from '../../../src/form/types/schema-node';
-
-const InputStub = () => null;
-const SectionStub = () => null;
 
 interface Address {
   city: string;

@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { tick } from '../../test-utils/async';
 import {
   createModel,
   computeFrom,
@@ -16,7 +17,6 @@ import {
 } from '../../../src/model/index';
 
 // микротаск-флаш (transformValue/resetWhen/syncFields/revalidateWhen пишут через runOutsideEffect)
-const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe('computeFrom (signals)', () => {
   it('вычисляет target из источников и реагирует на изменения', () => {

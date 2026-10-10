@@ -1,31 +1,31 @@
-# Test Utilities
+# Помощники тестов
 
-Общие типы и хелперы для тестов пакета `@reformer/core`.
+Общие помощники пакета `@reformer/core`. Импорт — явным путём к модулю (`test-utils/async`),
+без barrel-файла: barrel обрастает никем не используемыми экспортами.
 
-## Contents
-
-- `types.ts` — `ComponentInstance`: тип-заглушка для поля `component` в тестовых схемах
-  (в core компонент не интерпретируется, поэтому конкретный React-тип не нужен).
-- `form-from-fields.ts` — сборка формы из компактного описания «значение и компонент рядом»:
-  `formFromFields` (форма), `arrayFromFields` (массив под-форм), `fieldOf` (одна нода поля).
-  Внутри — обычные `createModel` и `createFormFromModel`. Описание читается по форме записи: поле,
-  чьё значение само объект вида `{ value }`, помощник примет за группу — такую форму собирайте
-  напрямую из модели.
-
-## Usage
+| Модуль                | Что даёт                                                                                                                                                                                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`            | `ComponentInstance` — тип-заглушка для поля `component` в тестовых схемах                                                                                                                                                                                        |
+| `form-from-fields.ts` | `formFromFields` (форма), `arrayFromFields` (массив под-форм), `fieldOf` (нода поля) из компактного описания «значение и компонент рядом». Поле, чьё значение само объект вида `{ value }`, помощник примет за группу — такую форму собирайте напрямую из модели |
+| `dispose-form.ts`     | `disposeForm(form)` — снять подписки формы (`dispose` не входит в контракт `FormGroup`)                                                                                                                                                                          |
+| `async.ts`            | `tick(ms)`, `flushMicrotasks(n)`, `settle()`, `deferred()`, `useFakeClock(now?)`, `advance(ms)`                                                                                                                                                                  |
+| `issues.ts`           | `issueCodes(node)`, `resultCodes(result, handle)` — коды замечаний для утверждений                                                                                                                                                                               |
+| `stubs.ts`            | `stub(name)` и готовые `InputStub`, `SelectStub`, `SectionStub`, … с `displayName`                                                                                                                                                                               |
+| `rule-table.ts`       | `checkRule` / `describeRule` — табличные кейсы правил валидации                                                                                                                                                                                                  |
+| `property.ts`         | `propertyParams(runs)` — параметры fast-check с `FC_SEED` / `FC_NUM_RUNS`                                                                                                                                                                                        |
+| `effect-tracker.ts`   | `trackEffects` + `liveEffects()` — счёт живых effect'ов для тестов утечек                                                                                                                                                                                        |
+| `react.tsx`           | реэкспорт testing-library, `renderHookCounting`, `StrictWrapper` (DOM-тесты)                                                                                                                                                                                     |
 
 ```typescript
-import { ComponentInstance } from '../../test-utils/types';
+import { tick } from '../../test-utils/async';
+import { InputStub } from '../../test-utils/stubs';
 import { formFromFields } from '../../test-utils/form-from-fields';
 
 const form = formFromFields<{ email: string; address: { city: string } }>({
-  email: { value: '', component: null as ComponentInstance },
+  email: { value: '', component: InputStub as never },
   address: { city: { value: '' } },
 });
 ```
 
-## Adding New Utilities
-
-Если один и тот же код повторяется в нескольких тестовых файлах — выносите его сюда
-отдельным модулем и импортируйте по явному пути (`test-utils/<module>`), без barrel-файла:
-barrel быстро обрастает никем не используемыми экспортами.
+Если один и тот же код повторяется в нескольких тестовых файлах — выносите его сюда отдельным
+модулем.

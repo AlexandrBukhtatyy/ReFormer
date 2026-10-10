@@ -4,11 +4,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { tick } from '../test-utils/async';
 import { createModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
 import { defineFormBehavior, exclusiveFlag, aggregateInto } from '../../src/form/behaviors';
-
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
 describe('F8 · exclusiveFlag (single-selection)', () => {
   it('единственный primary среди строк', async () => {

@@ -11,12 +11,11 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { InputStub, SectionStub } from '../../test-utils/stubs';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 
 // Заглушки UI-компонентов (просто маркеры идентичности).
-const InputStub = () => null;
-const SectionStub = () => null;
 
 interface Form {
   email: string;

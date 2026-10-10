@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { tick } from '../test-utils/async';
 import { createModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
 import {
@@ -28,7 +29,6 @@ import {
 } from '../../src/form/behaviors';
 import type { FormGroup } from '../../src/form/types/index';
 
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const node = (n: unknown) => n as { disabled: { value: boolean }; value: { value: unknown } };
 
 // ============================================================================

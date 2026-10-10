@@ -4,13 +4,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { InputStub } from '../../test-utils/stubs';
+import { tick } from '../../test-utils/async';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { createModel } from '../../../src/model/index';
 import { enableWhen, disableWhen } from '../../../src/form/behaviors/node';
 
-const InputStub = () => null;
 // микротаск-флаш (enableWhen пишет состояние через runOutsideEffect = queueMicrotask)
-const tick = () => new Promise((r) => setTimeout(r, 0));
 
 interface LoanForm {
   loanType: 'consumer' | 'mortgage';

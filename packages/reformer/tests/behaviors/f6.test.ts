@@ -4,12 +4,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { tick } from '../test-utils/async';
 import { createModel, type FormModel } from '../../src/model/index';
 import { createFormFromModel } from '../../src/form/create-form';
 import { defineFormBehavior, enableWhen, onChange, applyEach } from '../../src/form/behaviors';
 import type { FormGroup } from '../../src/form/types/index';
-
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
 interface Item {
   qty: number;

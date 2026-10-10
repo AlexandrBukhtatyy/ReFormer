@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { tick } from '../../test-utils/async';
 import {
   createModel,
   eachLeafSignal,
@@ -36,7 +37,6 @@ import type { FormModel } from '../../../src/model/index';
 
 const Select = () => null;
 const Box = () => null;
-const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface Row {
   label: string;
