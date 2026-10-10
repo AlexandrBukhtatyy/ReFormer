@@ -496,6 +496,18 @@ describe('validate_form kind=code — прежний контракт', () => {
     expect(removed[2].message).toContain('@reformer/cdk');
   });
 
+  it('прежний разбор узла рендерером — RF010-ошибка с компилятором схемы в замене', async () => {
+    const code =
+      "import { isModelFieldRenderNode, fieldBindingOf } from '@reformer/renderer-react';";
+    const { diagnostics } = await validateCode(k, code);
+    const removed = diagnostics.filter((d) => d.code === 'RF010' && d.severity === 'error');
+
+    expect(diagnostics.map((d) => d.code)).not.toContain('RF002');
+    expect(removed).toHaveLength(2);
+    expect(removed[0].message).toContain('@reformer/renderer-react');
+    expect(removed.map((d) => d.suggestion).join('\n')).toMatch(/compileSchema[\s\S]*node\.handle/);
+  });
+
   it('текст в правиле и в замечании, прежние методы нод — RF010', async () => {
     expect(
       await codes("validate(model.$.phone, [required({ message: 'Укажите телефон' })]);")

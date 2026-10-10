@@ -131,6 +131,28 @@ const REMOVED_FROM_CDK: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Имена, удалённые из `@reformer/renderer-react`: вид узла и его привязку теперь разбирает
+ * компилятор ядра, а не рендерер.
+ */
+const COMPILED_KIND = '`compileSchema(tree, model)` из `@reformer/core` и вид узла `node.kind`';
+const REMOVED_FROM_RENDERER_REACT: Readonly<Record<string, string>> = {
+  isModelFieldRenderNode: `${COMPILED_KIND} === 'field'`,
+  isArrayRenderNode: `${COMPILED_KIND} === 'array'`,
+  isPartRenderNode: `${COMPILED_KIND} === 'part'`,
+  isContainerRenderNode: `${COMPILED_KIND} === 'container'`,
+  fieldBindingOf: "ручка поля в скомпилированном узле — `node.handle` (`kind: 'field'`)",
+  arrayControlOf: "массив модели в скомпилированном узле — `node.control` (`kind: 'array'`)",
+  partModelOf: "под-модель в скомпилированном узле — `node.model` (`kind: 'part'`)",
+};
+
+/** Удалённые имена по пакету: имя → чем заменить. */
+const REMOVED_BY_PACKAGE: ReadonlyArray<readonly [string, Readonly<Record<string, string>>]> = [
+  ['@reformer/core', REMOVED_FROM_CORE],
+  ['@reformer/cdk', REMOVED_FROM_CDK],
+  ['@reformer/renderer-react', REMOVED_FROM_RENDERER_REACT],
+];
+
+/**
  * Прежний контракт сборки: имя → чем заменить. Символы ещё экспортируются (помечены
  * `@deprecated`), поэтому это предупреждение, а не ошибка.
  */
@@ -240,18 +262,12 @@ export async function validateCode(
         });
         continue;
       }
-      const removedFrom =
-        matches.length === 0 && imp.from.startsWith('@reformer/core')
-          ? '@reformer/core'
-          : matches.length === 0 && imp.from.startsWith('@reformer/cdk')
-            ? '@reformer/cdk'
-            : undefined;
-      const removedFromCore =
-        removedFrom === '@reformer/core'
-          ? REMOVED_FROM_CORE[imported]
-          : removedFrom === '@reformer/cdk'
-            ? REMOVED_FROM_CDK[imported]
-            : undefined;
+      const removedEntry =
+        matches.length === 0
+          ? REMOVED_BY_PACKAGE.find(([pkg]) => imp.from.startsWith(pkg))
+          : undefined;
+      const removedFrom = removedEntry?.[0];
+      const removedFromCore = removedEntry?.[1][imported];
       if (removedFromCore) {
         diagnostics.push({
           code: 'RF010',
