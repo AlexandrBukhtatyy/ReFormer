@@ -6,7 +6,7 @@ import {
   type FileUploadHandle,
   type FileUploadItemData,
 } from '@reformer/cdk/file-upload';
-import { useValidationErrorResolver } from '@reformer/cdk';
+import { useIssueMessageResolver } from '@reformer/cdk';
 
 import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
@@ -63,7 +63,7 @@ function InputClearButton() {
 /** Отклонения последнего отбора — компактный текст под полем. */
 function InputRejections() {
   const { rejections } = useFileUploadContext();
-  const resolveError = useValidationErrorResolver();
+  const resolveError = useIssueMessageResolver();
   if (rejections.length === 0) return null;
   return (
     <ul

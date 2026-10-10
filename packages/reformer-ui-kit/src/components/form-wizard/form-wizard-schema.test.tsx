@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createForm } from '@reformer/core';
 import { FormBundleContext } from '@reformer/core/react';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormWizard, type FormWizardStepNode } from './index';
 import { stepRulesMismatch, wizardConfigFromValidation } from './variants/base/form-wizard';
@@ -20,10 +20,10 @@ interface Shape {
   phone: string;
 }
 
-const loanRules = defineValidationSchema<Shape>(({ model }) => {
+const loanRules = defineValidation<Shape>(({ model }) => {
   validate(model.$.amount, [required()]);
 });
-const contactsRules = defineValidationSchema<Shape>(({ model }) => {
+const contactsRules = defineValidation<Shape>(({ model }) => {
   validate(model.$.phone, [required()]);
 });
 

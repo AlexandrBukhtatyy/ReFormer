@@ -4,7 +4,7 @@ import {
   useFileUploadContext,
   type FileUploadItemData,
 } from '@reformer/cdk/file-upload';
-import { useValidationErrorResolver } from '@reformer/cdk';
+import { useIssueMessageResolver } from '@reformer/cdk';
 
 import { cn } from '@/lib/utils';
 import {
@@ -47,7 +47,7 @@ function MimeIcon({ mime }: { mime: string }) {
  */
 export function FileUploadItemList({ className }: { className?: string }) {
   const { rejections } = useFileUploadContext();
-  const resolveError = useValidationErrorResolver();
+  const resolveError = useIssueMessageResolver();
 
   return (
     <>

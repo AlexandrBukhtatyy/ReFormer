@@ -225,14 +225,14 @@ function LoanTypePicker({ value, onChange }: { value: string; onChange: (v: stri
 Архитектура M1: сначала модель (`createModel`) — источник истины значений, затем форма
 (`createFormFromModel({ model, schema })`), где поле привязано к сигналу модели и несёт `component`
 (сам компонент кита) + `componentProps`. Layout **не несёт валидаторов** — правила живут в отдельной
-`ValidationSchema` и прогоняются внешним раннером `validateModel(model, schema)` из
+`ValidationDefinition` и прогоняются внешним раннером `validateModel(model, schema)` из
 [`@reformer/core/validation`](https://www.npmjs.com/package/@reformer/core) (см. пример ниже).
 В JSX — один `<FormField control={form.x} />`.
 
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createFormFromModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Button, FormField, SelectAsync, InputNumber } from '@reformer/ui-kit';
 
@@ -263,9 +263,9 @@ function LoanFormExample() {
     };
     // Валидация — отдельный ambient-контракт (@reformer/core/validation): голые операторы
     // validate/validateAsync/cross над сигналами модели. Правила required()/… — из /validators.
-    const validation = defineValidationSchema<LoanForm>(({ model }) => {
-      validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
-      validate(model.$.amount, [required({ message: 'Укажите сумму' })]);
+    const validation = defineValidation<LoanForm>(({ model }) => {
+      validate(model.$.loanType, [required({ code: 'loanType.required' })]);
+      validate(model.$.amount, [required({ code: 'amount.required' })]);
     });
     const form = createFormFromModel<LoanForm>({ model, schema });
     return { model, form, validation };

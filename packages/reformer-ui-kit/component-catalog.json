@@ -11939,7 +11939,7 @@
             "description": "Загрузка файла упала (uploader-режим).",
             "x-doc": {
               "group": "Behavior",
-              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationError; progress?: number | undefined; }) => void)",
+              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationIssue; progress?: number | undefined; }) => void)",
               "kind": "readonly"
             }
           },
@@ -12000,7 +12000,7 @@
             "description": "Кастомная валидация файла при отборе. `null` — файл принят.",
             "x-doc": {
               "group": "Behavior",
-              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
+              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationIssue[] | null)",
               "kind": "readonly"
             }
           }
@@ -12188,7 +12188,7 @@
             "description": "Вызывается, когда загрузка изображения упала (uploader-режим).",
             "x-doc": {
               "group": "Behavior",
-              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationError; progress?: number | undefined; }) => void)",
+              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationIssue; progress?: number | undefined; }) => void)",
               "kind": "readonly"
             }
           },
@@ -12249,7 +12249,7 @@
             "description": "Кастомная проверка изображения при отборе: возвращает список ошибок либо `null`, если файл принят.",
             "x-doc": {
               "group": "Behavior",
-              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
+              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationIssue[] | null)",
               "kind": "readonly"
             }
           }
@@ -12471,7 +12471,7 @@
             "description": "Вызывается, когда загрузка файла упала (uploader-режим).",
             "x-doc": {
               "group": "Behavior",
-              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationError; progress?: number | undefined; }) => void)",
+              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationIssue; progress?: number | undefined; }) => void)",
               "kind": "readonly"
             }
           },
@@ -12532,7 +12532,7 @@
             "description": "Кастомная проверка файла при отборе: возвращает список ошибок либо `null`, если файл принят.",
             "x-doc": {
               "group": "Behavior",
-              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
+              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationIssue[] | null)",
               "kind": "readonly"
             }
           }
@@ -12754,7 +12754,7 @@
             "description": "Вызывается, когда загрузка файла упала (uploader-режим).",
             "x-doc": {
               "group": "Behavior",
-              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationError; progress?: number | undefined; }) => void)",
+              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationIssue; progress?: number | undefined; }) => void)",
               "kind": "readonly"
             }
           },
@@ -12815,7 +12815,7 @@
             "description": "Кастомная проверка файла при отборе: возвращает список ошибок либо `null`, если файл принят.",
             "x-doc": {
               "group": "Behavior",
-              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
+              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationIssue[] | null)",
               "kind": "readonly"
             }
           }

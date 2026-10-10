@@ -495,7 +495,7 @@ const model = createModel({ tags: null as string[] | null });
 ```typescript
 import { ToggleGroupMulti } from '@reformer/ui-kit';
 import { ComboboxMulti } from '@reformer/ui-kit/combobox'; // combobox — только subpath
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 const schema = {
@@ -515,7 +515,7 @@ const schema = {
 };
 
 // Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
-const validation = defineValidationSchema<Form>(({ model }) => {
+const validation = defineValidation<Form>(({ model }) => {
   validate(model.$.tags, [required(), maxLength(3)]);
 });
 ```
@@ -671,7 +671,7 @@ validation-схеме:
 
 ```typescript
 import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 type Form = { attachments: string[] };
@@ -691,7 +691,7 @@ const schema = {
   },
 };
 
-const validation = defineValidationSchema<Form>(({ model }) => {
+const validation = defineValidation<Form>(({ model }) => {
   validate(model.$.attachments, [required(), maxLength(5)]);
 });
 ```

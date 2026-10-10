@@ -5,7 +5,7 @@ import {
   useFileUploadContext,
   type FileUploadHandle,
 } from '@reformer/cdk/file-upload';
-import { useValidationErrorResolver } from '@reformer/cdk';
+import { useIssueMessageResolver } from '@reformer/cdk';
 
 import { useKitMessages } from '@/i18n/messages';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,7 @@ export interface FileUploadAvatarProps extends Omit<
 /** Внутренность зоны: превью/плейсхолдер + статусы. Читает контекст CDK Root. */
 function AvatarSurface() {
   const { items, getPreviewUrl } = useFileUploadContext();
-  const resolveError = useValidationErrorResolver();
+  const resolveError = useIssueMessageResolver();
   const t = useKitMessages();
   const item = items[0];
   const url = item ? getPreviewUrl(item.key) : null;

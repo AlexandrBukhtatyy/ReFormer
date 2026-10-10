@@ -13,12 +13,12 @@
 
 Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
 componentProps }` → `createFormFromModel({ model, schema })`; правила — отдельной
-`defineValidationSchema`. Объяви InputMask как `component` листа; передай `mask`
+`defineValidation`. Объяви InputMask как `component` листа; передай `mask`
 в `componentProps`:
 
 ```ts
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 import { InputMask } from '@reformer/ui-kit';
 
@@ -58,13 +58,13 @@ const schema = {
 };
 
 // Правила — отдельной validation-схемой (@reformer/core/validation)
-const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.phone, [
-    required({ message: 'Телефон обязателен' }),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Неверный формат телефона' }),
+    required({ code: 'field.required' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
   ]);
   validate(model.$.passport, [required()]);
-  validate(model.$.inn, [required(), pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' })]);
+  validate(model.$.inn, [required(), pattern(/^\d{12}$/, { code: 'inn.pattern' })]);
   validate(model.$.snils, [required()]);
 });
 
@@ -102,7 +102,7 @@ import { FormField } from '@reformer/ui-kit';
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
-внутри `defineValidationSchema` (см. схему выше), а не в layout-схему. Прогоняются
+внутри `defineValidation` (см. схему выше), а не в layout-схему. Прогоняются
 раннером `validateModel(model, schema)`:
 
 - `required({ message })` — на пустоту;

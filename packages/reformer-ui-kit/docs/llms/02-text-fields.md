@@ -84,11 +84,11 @@ interface InputProps extends React.ComponentProps<'input'> {
 
 Email-поле формы (M1: `createModel` → layout-схема с листом
 `{ value: model.$.email, component }` → `createFormFromModel({ model, schema })`; правила — в
-отдельной `defineValidationSchema`, запуск `validateModel`):
+отдельной `defineValidation`, запуск `validateModel`):
 
 ```tsx
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { Input, FormField } from '@reformer/ui-kit';
 
@@ -102,7 +102,7 @@ const schema = {
     },
   ],
 };
-const validation = defineValidationSchema<{ email: string }>(({ model }) => {
+const validation = defineValidation<{ email: string }>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
 const form = createFormFromModel<{ email: string }>({ model, schema });

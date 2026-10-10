@@ -118,13 +118,13 @@ import { Button } from '@reformer/ui-kit/button';
 
 Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
 `createModel` → layout-схема → `createFormFromModel({ model, schema })`; валидация — отдельная
-`defineValidationSchema`, запускаемая `validateModel`). `FormField` самостоятельно
+`defineValidation`, запускаемая `validateModel`). `FormField` самостоятельно
 подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
 
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
@@ -134,9 +134,9 @@ type RegistrationForm = {
 };
 
 // Валидация — отдельный слой (@reformer/core/validation), НЕ в layout-схеме.
-const registrationValidation = defineValidationSchema<RegistrationForm>(({ model }) => {
-  validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
-  validate(model.$.password, [required({ message: 'Пароль обязателен' }), minLength(8)]);
+const registrationValidation = defineValidation<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
+  validate(model.$.password, [required({ code: 'password.required' }), minLength(8)]);
 });
 
 function RegistrationPage() {

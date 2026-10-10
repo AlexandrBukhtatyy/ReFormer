@@ -138,13 +138,13 @@ import { Button } from '@reformer/ui-kit/button';
 
 Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
 `createModel` → layout-схема → `createFormFromModel({ model, schema })`; валидация — отдельная
-`defineValidationSchema`, запускаемая `validateModel`). `FormField` самостоятельно
+`defineValidation`, запускаемая `validateModel`). `FormField` самостоятельно
 подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
 
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
@@ -154,9 +154,9 @@ type RegistrationForm = {
 };
 
 // Валидация — отдельный слой (@reformer/core/validation), НЕ в layout-схеме.
-const registrationValidation = defineValidationSchema<RegistrationForm>(({ model }) => {
-  validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
-  validate(model.$.password, [required({ message: 'Пароль обязателен' }), minLength(8)]);
+const registrationValidation = defineValidation<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
+  validate(model.$.password, [required({ code: 'password.required' }), minLength(8)]);
 });
 
 function RegistrationPage() {
@@ -438,11 +438,11 @@ interface InputProps extends React.ComponentProps<'input'> {
 
 Email-поле формы (M1: `createModel` → layout-схема с листом
 `{ value: model.$.email, component }` → `createFormFromModel({ model, schema })`; правила — в
-отдельной `defineValidationSchema`, запуск `validateModel`):
+отдельной `defineValidation`, запуск `validateModel`):
 
 ```tsx
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { Input, FormField } from '@reformer/ui-kit';
 
@@ -456,7 +456,7 @@ const schema = {
     },
   ],
 };
-const validation = defineValidationSchema<{ email: string }>(({ model }) => {
+const validation = defineValidation<{ email: string }>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
 const form = createFormFromModel<{ email: string }>({ model, schema });
@@ -1220,7 +1220,7 @@ const model = createModel({ tags: null as string[] | null });
 ```typescript
 import { ToggleGroupMulti } from '@reformer/ui-kit';
 import { ComboboxMulti } from '@reformer/ui-kit/combobox'; // combobox — только subpath
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 const schema = {
@@ -1240,7 +1240,7 @@ const schema = {
 };
 
 // Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
-const validation = defineValidationSchema<Form>(({ model }) => {
+const validation = defineValidation<Form>(({ model }) => {
   validate(model.$.tags, [required(), maxLength(3)]);
 });
 ```
@@ -1396,7 +1396,7 @@ validation-схеме:
 
 ```typescript
 import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 type Form = { attachments: string[] };
@@ -1416,7 +1416,7 @@ const schema = {
   },
 };
 
-const validation = defineValidationSchema<Form>(({ model }) => {
+const validation = defineValidation<Form>(({ model }) => {
   validate(model.$.attachments, [required(), maxLength(5)]);
 });
 ```
@@ -2638,7 +2638,7 @@ const hasValue = Boolean(value);
 **Причина.** У массива в форме нет ноды поля. Массив становится полем, только когда схема
 привязывает к нему компонент узлом `{ value: model.$.<путь>, component }`; без такой привязки
 `createForm` его пропускает, и реестр сигнал→нода пуст. Дальше `validateModel` возвращает `false`
-и блокирует submit, но маршрутизация ошибок делает `getNodeForSignal(sig)?.setErrors(...)` —
+и блокирует submit, но маршрутизация ошибок делает `getNodeForSignal(sig)?.setIssues(...)` —
 optional chaining без `else`, поэтому показать ошибку некому.
 
 Привязки не оказывается в трёх случаях:
@@ -2803,11 +2803,11 @@ import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
 import { createModel, createFormFromModel, type FormProxy, type FormModel } from '@reformer/core';
 import {
-  defineValidationSchema,
+  defineValidation,
   validateModel,
   validate,
   apply,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -2823,7 +2823,7 @@ type MyForm = {
 const model = createModel<MyForm>({ email: '', password: '', confirmation: false });
 
 // Layout-схема НЕ несёт валидаторов — только привязка полей к сигналам модели + UI.
-// Валидация живёт отдельным слоём (см. ниже `defineValidationSchema`).
+// Валидация живёт отдельным слоём (см. ниже `defineValidation`).
 const schema = {
   email: {
     value: model.$.email,
@@ -2844,23 +2844,23 @@ const schema = {
 const form = createFormFromModel<MyForm>({ model, schema });
 
 // Валидация — ОТДЕЛЬНЫЙ ambient-контракт `@reformer/core/validation`, а не поле layout-схемы.
-// Один шаг = одна `ValidationSchema<MyForm>` (`({ model }) => void`), правила поля —
+// Один шаг = одна `ValidationDefinition<MyForm>` (`({ model }) => void`), правила поля —
 // `validate(sig, [rules])`; полная схема — их композиция через `apply(...)`.
-const step1Validation = defineValidationSchema<MyForm>(({ model }) => {
+const step1Validation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
-const step2Validation = defineValidationSchema<MyForm>(({ model }) => {
+const step2Validation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.password, [required(), minLength(8)]);
 });
-const step3Validation = defineValidationSchema<MyForm>(({ model }) => {
+const step3Validation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.confirmation, [required()]);
 });
-const STEP_SCHEMAS: readonly ValidationSchema<MyForm>[] = [
+const STEP_SCHEMAS: readonly ValidationDefinition<MyForm>[] = [
   step1Validation,
   step2Validation,
   step3Validation,
 ];
-const fullValidation = defineValidationSchema<MyForm>(() => apply(...STEP_SCHEMAS));
+const fullValidation = defineValidation<MyForm>(() => apply(...STEP_SCHEMAS));
 
 const Step1: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
   <FormField control={control.email} />
@@ -2880,7 +2880,7 @@ const steps: FormWizardStep<MyForm>[] = [
 // (`validateStep`, `validateAll`), НЕ схемы/массивы валидаторов. Каждый колбэк
 // возвращает `boolean | Promise<boolean>`: `true` = валидно, идём дальше.
 // Если колбэк не задан — соответствующий шаг/submit считается валидным (no-op).
-// Канон — прогонять per-step/полную `ValidationSchema` через внешний раннер
+// Канон — прогонять per-step/полную `ValidationDefinition` через внешний раннер
 // `validateModel(model, schema)`: он сам разносит ошибки по нодам формы (UI подсветит),
 // warnings не блокируют submit, устаревшие прогоны отменяются.
 function makeValidationConfig(m: FormModel<MyForm>): FormWizardConfig {
@@ -2916,7 +2916,7 @@ const handleSubmit = async () => {
 > **`config` не привязан к типу формы.** `FormWizardConfig` — это `{ validateStep?, validateAll? }`,
 > оба колбэка возвращают `boolean | Promise<boolean>`. Канон — прогонять
 > `validateModel(model, schema)` из `@reformer/core/validation` (валидация — отдельный
-> слой; в layout-схеме валидаторов нет). `form.validate()` по нодам `ValidationSchema`
+> слой; в layout-схеме валидаторов нет). `form.validate()` по нодам `ValidationDefinition`
 > НЕ запустит — правила исполняет только `validateModel`.
 
 ### Альтернатива — imperative submit с values
@@ -3304,12 +3304,12 @@ FieldConfig попадает в значение поля → Textarea ренд�
 
 Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
 componentProps }` → `createFormFromModel({ model, schema })`; правила — отдельной
-`defineValidationSchema`. Объяви InputMask как `component` листа; передай `mask`
+`defineValidation`. Объяви InputMask как `component` листа; передай `mask`
 в `componentProps`:
 
 ```ts
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 import { InputMask } from '@reformer/ui-kit';
 
@@ -3349,13 +3349,13 @@ const schema = {
 };
 
 // Правила — отдельной validation-схемой (@reformer/core/validation)
-const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.phone, [
-    required({ message: 'Телефон обязателен' }),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Неверный формат телефона' }),
+    required({ code: 'field.required' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
   ]);
   validate(model.$.passport, [required()]);
-  validate(model.$.inn, [required(), pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' })]);
+  validate(model.$.inn, [required(), pattern(/^\d{12}$/, { code: 'inn.pattern' })]);
   validate(model.$.snils, [required()]);
 });
 
@@ -3393,7 +3393,7 @@ import { FormField } from '@reformer/ui-kit';
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
-внутри `defineValidationSchema` (см. схему выше), а не в layout-схему. Прогоняются
+внутри `defineValidation` (см. схему выше), а не в layout-схему. Прогоняются
 раннером `validateModel(model, schema)`:
 
 - `required({ message })` — на пустоту;
@@ -3567,7 +3567,7 @@ async function handleSubmit() {
 
   const firstInvalid = ORDER.find((path) => {
     const sig = model.signalAt(path); // пути статические — сигнал существует
-    return sig ? (getNodeForSignal(sig)?.errors.value.length ?? 0) > 0 : false;
+    return sig ? (getNodeForSignal(sig)?.issues.value.length ?? 0) > 0 : false;
   });
   if (!firstInvalid) return;
 
@@ -7720,7 +7720,7 @@ export interface FieldAdapter {
   strip?: string[];
   /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
-   * errors/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
+   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
    * `useFormControl(control)`.
    */
   passControl?: boolean;

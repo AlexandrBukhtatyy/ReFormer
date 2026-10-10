@@ -125,7 +125,7 @@ async function handleSubmit() {
 
   const firstInvalid = ORDER.find((path) => {
     const sig = model.signalAt(path); // пути статические — сигнал существует
-    return sig ? (getNodeForSignal(sig)?.errors.value.length ?? 0) > 0 : false;
+    return sig ? (getNodeForSignal(sig)?.issues.value.length ?? 0) > 0 : false;
   });
   if (!firstInvalid) return;
 

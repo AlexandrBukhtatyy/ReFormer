@@ -73,11 +73,11 @@ import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
 import { createModel, createFormFromModel, type FormProxy, type FormModel } from '@reformer/core';
 import {
-  defineValidationSchema,
+  defineValidation,
   validateModel,
   validate,
   apply,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
@@ -93,7 +93,7 @@ type MyForm = {
 const model = createModel<MyForm>({ email: '', password: '', confirmation: false });
 
 // Layout-схема НЕ несёт валидаторов — только привязка полей к сигналам модели + UI.
-// Валидация живёт отдельным слоём (см. ниже `defineValidationSchema`).
+// Валидация живёт отдельным слоём (см. ниже `defineValidation`).
 const schema = {
   email: {
     value: model.$.email,
@@ -114,23 +114,23 @@ const schema = {
 const form = createFormFromModel<MyForm>({ model, schema });
 
 // Валидация — ОТДЕЛЬНЫЙ ambient-контракт `@reformer/core/validation`, а не поле layout-схемы.
-// Один шаг = одна `ValidationSchema<MyForm>` (`({ model }) => void`), правила поля —
+// Один шаг = одна `ValidationDefinition<MyForm>` (`({ model }) => void`), правила поля —
 // `validate(sig, [rules])`; полная схема — их композиция через `apply(...)`.
-const step1Validation = defineValidationSchema<MyForm>(({ model }) => {
+const step1Validation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
-const step2Validation = defineValidationSchema<MyForm>(({ model }) => {
+const step2Validation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.password, [required(), minLength(8)]);
 });
-const step3Validation = defineValidationSchema<MyForm>(({ model }) => {
+const step3Validation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.confirmation, [required()]);
 });
-const STEP_SCHEMAS: readonly ValidationSchema<MyForm>[] = [
+const STEP_SCHEMAS: readonly ValidationDefinition<MyForm>[] = [
   step1Validation,
   step2Validation,
   step3Validation,
 ];
-const fullValidation = defineValidationSchema<MyForm>(() => apply(...STEP_SCHEMAS));
+const fullValidation = defineValidation<MyForm>(() => apply(...STEP_SCHEMAS));
 
 const Step1: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
   <FormField control={control.email} />
@@ -150,7 +150,7 @@ const steps: FormWizardStep<MyForm>[] = [
 // (`validateStep`, `validateAll`), НЕ схемы/массивы валидаторов. Каждый колбэк
 // возвращает `boolean | Promise<boolean>`: `true` = валидно, идём дальше.
 // Если колбэк не задан — соответствующий шаг/submit считается валидным (no-op).
-// Канон — прогонять per-step/полную `ValidationSchema` через внешний раннер
+// Канон — прогонять per-step/полную `ValidationDefinition` через внешний раннер
 // `validateModel(model, schema)`: он сам разносит ошибки по нодам формы (UI подсветит),
 // warnings не блокируют submit, устаревшие прогоны отменяются.
 function makeValidationConfig(m: FormModel<MyForm>): FormWizardConfig {
@@ -186,7 +186,7 @@ const handleSubmit = async () => {
 > **`config` не привязан к типу формы.** `FormWizardConfig` — это `{ validateStep?, validateAll? }`,
 > оба колбэка возвращают `boolean | Promise<boolean>`. Канон — прогонять
 > `validateModel(model, schema)` из `@reformer/core/validation` (валидация — отдельный
-> слой; в layout-схеме валидаторов нет). `form.validate()` по нодам `ValidationSchema`
+> слой; в layout-схеме валидаторов нет). `form.validate()` по нодам `ValidationDefinition`
 > НЕ запустит — правила исполняет только `validateModel`.
 
 ### Альтернатива — imperative submit с values
