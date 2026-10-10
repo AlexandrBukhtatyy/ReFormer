@@ -111,18 +111,24 @@ export interface FormWizardStep<T, TBody = never> {
 }
 
 /**
- * Узел шага в схеме формы — то, что рендерер передаёт визарду в `children`:
- * `{ selector, component: Step, componentProps: { title, icon }, children: [...] }`.
+ * Узел шага, который рендерер передаёт визарду в `children`, — узел скомпилированной схемы
+ * (`CompiledNode` из `@reformer/core`). В схеме формы шаг пишется так:
+ * `{ selector, component: Step, componentProps: { title, icon }, children: [...] }`, а после
+ * компиляции его пропсы лежат в `props`.
  *
  * `selector` связывает шаг с его правилами: это ключ в `validation.steps` сборки. `title` и
  * `icon` уходят в индикатор шагов; сам узел рисует рендерер (проп {@link FormWizardProps.renderNode}).
  */
 export interface FormWizardStepNode {
   /** Идентификатор шага — ключ его правил в `validation.steps`. */
-  selector?: string;
-  /** Пропсы компонента шага; `title` и `icon` читает индикатор. */
-  componentProps?: { title?: string; icon?: string; [key: string]: unknown };
-  [key: string]: unknown;
+  readonly selector?: string;
+  /** Пропсы компонента шага (`componentProps` автора); `title` и `icon` читает индикатор. */
+  readonly props?: {
+    readonly title?: string;
+    readonly icon?: string;
+    readonly [key: string]: unknown;
+  };
+  readonly [key: string]: unknown;
 }
 
 /**
@@ -349,8 +355,8 @@ function FormWizardInner<T extends Record<string, any>, TBody = never>(
       props.steps ??
       (stepNodes ?? []).map((node, index) => ({
         number: index + 1,
-        title: node.componentProps?.title ?? '',
-        icon: node.componentProps?.icon,
+        title: node.props?.title ?? '',
+        icon: node.props?.icon,
         body: node as unknown as TBody,
       })),
     [props.steps, stepNodes]

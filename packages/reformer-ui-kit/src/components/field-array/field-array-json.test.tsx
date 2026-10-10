@@ -7,28 +7,22 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { createModel } from '@reformer/core';
 import { FormRenderer } from '@reformer/renderer-react';
 import { FieldArray } from './variants/base/field-array';
 import { FieldArraySection } from './variants/base/field-array-section';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-function fakeArray(items: any[]): any {
-  return {
-    __path: 'items',
-    length: items.length,
-    at: (i: number) => items[i],
-    map: (fn: any) => items.map(fn),
-    push: () => {},
-    removeAt: () => {},
-    move: () => {},
-  };
+/** Массив под-форм привязывается к настоящему массиву модели — ручкой `model.$.<массив>`. */
+function modelArray(items: any[]): any {
+  return createModel<{ items: any[] }>({ items }).$.items;
 }
 
 const render = (node: any): string => renderToStaticMarkup(<FormRenderer render={() => node} />);
 
 const faNode = (items: any[], componentProps?: any) => ({
-  model: fakeArray(items),
+  model: modelArray(items),
   item: (im: any) => ({ component: 'span', children: [im.name] }),
   component: FieldArray,
   initialValue: () => ({}),

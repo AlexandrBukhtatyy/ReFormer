@@ -28,8 +28,8 @@ const contactsRules = defineValidation<Shape>(({ model }) => {
 });
 
 const stepNodes: FormWizardStepNode[] = [
-  { selector: 'loan', componentProps: { title: 'Кредит', icon: '💰' } },
-  { selector: 'contacts', componentProps: { title: 'Контакты' } },
+  { selector: 'loan', props: { title: 'Кредит', icon: '💰' } },
+  { selector: 'contacts', props: { title: 'Контакты' } },
 ];
 
 const createBundle = () =>
@@ -40,7 +40,7 @@ const createBundle = () =>
 
 /** Отрисовка узла, как её делает рендерер: по узлу шага — его тело. */
 const renderNode = (node: FormWizardStepNode): ReactNode => (
-  <i data-step-body={node.selector}>{node.componentProps?.title}</i>
+  <i data-step-body={node.selector}>{node.props?.title}</i>
 );
 
 describe('FormWizard в схеме формы', () => {
