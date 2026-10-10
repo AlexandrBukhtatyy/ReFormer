@@ -15,7 +15,7 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 - String operators bind schema leaves to a reactive `FormModel` and to registered components
 - Component registry (`defineRegistry`) maps operator names to your React components
 - **Raw third-party controls** can be registered by name — the renderer translates the value seam (`value` + `onChange(value)`) to each control's dialect via `settings.resolveFieldAdapter`, so no per-control wrapper is needed (see [Raw controls](#raw-controls-field-adapters))
-- JSON carries **layout only** — field validators live in a separate `ValidationSchema` over the model, run by `validateModel` (see [Validation](#validation))
+- JSON carries **layout only** — field validators live in a separate `ValidationDefinition` over the model, run by `validateModel` (see [Validation](#validation))
 - Optional **structural** schema validation against a meta-schema (ajv, loaded dynamically — dev only)
 - TypeScript support, tree-shakable exports
 
@@ -134,23 +134,20 @@ The adapter is resolved per field `component`. See the `@reformer/renderer-react
 
 The JSON schema describes **layout only** — a `JsonFieldNode` is `{ value, component?, componentProps?, ... }`
 with no `validators` field, and there is no `$validator(...)` operator. Field validation is expressed once
-as a plain `ValidationSchema` over the `FormModel` (the same `@reformer/core/validation` contract that
+as a plain `ValidationDefinition` over the `FormModel` (the same `@reformer/core/validation` contract that
 hand-written forms use), so layout and rules stay independent: either can be swapped or fetched from a
 server without touching the other.
 
 ```tsx
 import { type FormModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 
 type MyForm = { email: string };
 
 // Rules over the model — `model.$.path` is the field signal, not a '$model(...)' operator.
-const schema = defineValidationSchema<MyForm>(({ model }) => {
-  validate(model.$.email, [
-    required({ message: 'Email is required' }),
-    email({ message: 'Invalid email' }),
-  ]);
+const schema = defineValidation<MyForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'field.required' }), email({ code: 'field.email' })]);
 });
 
 // External runner: routes errors into the form nodes and returns Promise<boolean>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import { createJsonForm } from './create-json-form';
@@ -56,8 +56,8 @@ describe('createJsonForm', () => {
 });
 
 describe('createJsonForm — валидация, поведение и фазы', () => {
-  const emailRules = defineValidationSchema<F>(({ model }) => {
-    validate(model.$.email, [required({ message: 'req' })]);
+  const emailRules = defineValidation<F>(({ model }) => {
+    validate(model.$.email, [required()]);
   });
 
   it('собирает валидацию из правил и кладёт бандл в результат', async () => {

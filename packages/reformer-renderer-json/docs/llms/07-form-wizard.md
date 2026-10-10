@@ -171,7 +171,7 @@ import { defineSteps } from '@reformer/cdk/form-wizard';
 import type { FormModel } from '@reformer/core';
 import type { CreditForm } from './types';
 // step1/step2 — под-схемы шагов, crossFieldRules — cross-field/warnings всей формы.
-// Все три — ValidationSchema<CreditForm> (см. 06-validation.md#build-schema).
+// Все три — ValidationDefinition<CreditForm> (см. 06-validation.md#build-schema).
 import { step1, step2, crossFieldRules } from './form.validation';
 
 export function makeWizardConfig(model: FormModel<CreditForm>) {

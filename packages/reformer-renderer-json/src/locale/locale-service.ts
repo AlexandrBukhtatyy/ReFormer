@@ -14,8 +14,9 @@
  *   на этапе рендера (live-переключение языка) и model-параметры из сигналов (live-обновление),
  *   рендерит `render?()` (markdown/JSX) либо `resolve()` (строка).
  *
- * Fallback-to-key (нет сервиса / нет ключа → сам ключ) — зеркало `defaultErrorResolver` из
- * `@reformer/cdk`: пропущенная локализация деградирует до ключа, а не роняет форму.
+ * Fallback-to-key (нет сервиса / нет ключа → сам ключ) — как у резолвера замечаний ядра, который
+ * для неизвестного кода показывает сам код: пропущенная локализация деградирует до ключа, а не роняет
+ * форму.
  *
  * @module reformer/renderer-json/locale
  */
@@ -50,7 +51,7 @@ export const defaultLocaleResolver: LocaleResolver = (key) => key;
 
 /**
  * Строит {@link LocaleService} из каталога `ключ → строка`. Промах ключа → сам ключ (fallback-to-key,
- * зеркало `createMessageResolver` из `@reformer/cdk`). `keys` каталога включает validate-time проверку
+ * как у резолвера замечаний ядра). `keys` каталога включает validate-time проверку
  * опечаток. Смена языка — пересобрать сервис на другом каталоге и передать новый ref в `reg.locale`.
  *
  * @param catalog - Таблица `ключ → локализованная строка`.
@@ -77,7 +78,7 @@ export function createLocaleResolver(catalog: Record<string, string>): LocaleSer
 
 /**
  * Строит {@link LocaleService} из таблицы `ключ → (params) => строка` — 0-dependency вариант для
- * параметров и склонения без ICU (стиль `createMessageResolver` из `@reformer/cdk`). Промах ключа →
+ * параметров и склонения без ICU. Промах ключа →
  * сам ключ. `keys` таблицы включает validate-time проверку опечаток.
  *
  * Для ICU-склонения по CLDR-правилам подключи `intl-messageformat` в СВОЁМ сервисе:
