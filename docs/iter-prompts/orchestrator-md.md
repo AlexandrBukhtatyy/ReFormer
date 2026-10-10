@@ -38,7 +38,7 @@ git rev-parse HEAD >> .tmp/iter-artifacts/${RUN_ID}/.start
 
 **Нет** проверки dev-сервера, **нет** проверки существующего кода-каталога — paper mode ничего не монтирует и не пишет в `projects/`.
 
-**Опционально (рекомендуется): shared reference.** Прогони MCP-prompt `plan-form(specPath=${SPEC}, target=core)` ОДИН раз, сохрани вывод в `.tmp/iter-artifacts/${RUN_ID}/_reference/plan.md`. Это общий инвентарь полей/computed/arrays, переиспользуемый всеми 3 target'ами → sampling-недетерминизм разыгрывается один раз, а не трижды. Из него C1 берёт эталонный список полей; если prompt недоступен — fallback на захардкоженные якоря выше.
+**Опционально (рекомендуется): shared reference.** Прогони MCP-tool `plan_form(specPath=${SPEC}, target=core)` (или одноимённый MCP-prompt `plan-form`) ОДИН раз, сохрани вывод в `.tmp/iter-artifacts/${RUN_ID}/_reference/plan.md`. Это общий инвентарь полей/computed/arrays, переиспользуемый всеми 3 target'ами → sampling-недетерминизм разыгрывается один раз, а не трижды. Из него C1 берёт эталонный список полей; если ни tool, ни prompt недоступны — fallback на захардкоженные якоря выше.
 
 ---
 
@@ -93,23 +93,23 @@ grep -E '"name":"Bash"' <transcript> | grep -E 'git (commit|push|tag)'
 
 Для каждого **не-tainted** target'а прогони объективные проверки по тексту `.tmp/iter-artifacts/${RUN_ID}/${target}/form-listing.md`. **Не доверяй** self-report из §3.3 — считай сам.
 
-| #   | проверка                | метод                                                                                                                                            | verdict            |
-| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
-| C1  | покрытие полей          | посчитать leaf-записи / `testId:` в §2 vs эталон (`_reference/plan.md` + ~80)                                                                    | coverage %         |
-| C2  | наличие testId          | каждый leaf несёт `testId`; `leaves == with_testid`                                                                                              | violations         |
-| C3  | конвенция testId        | nested-group leaves с дефис-префиксом (`personalData-…`); array-leaves без префикса                                                              | violations (soft)  |
-| C4  | renderer-json compile   | извлечь ```json из §2.1 → `validate_json_schema(schema, componentNames, dataSourceNames)`                                                        | pass/fail + errors |
-| C5  | computed/behavior граф  | извлечь dep-map из §3.1 → `check_behaviors(dependencies)`; сверить, что 8 computed присутствуют                                                  | cycles + missing   |
-| C6  | структурное присутствие | grep 6 step-заголовков; 3 имени массивов; 8 имён computed; 8 conditional-маркеров                                                                | present N/N        |
-| C7  | import-origin lint      | импорты резолвятся в `@reformer/core`, `/core/validators`, `@reformer/ui-kit`, `@reformer/renderer-*`; ни одного из `packages/` или helper-путей | violations         |
-| C8  | no-escape-hatch lint    | grep `as any` / `as never` / `@ts-ignore` / `@ts-expect-error` в §2                                                                              | count              |
-| C9  | symbol traceability     | каждый нетривиальный API из §2 присутствует в `discovery.md`                                                                                     | untraced-API count |
+| #   | проверка                | метод                                                                                                                                                                                                                   | verdict            |
+| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| C1  | покрытие полей          | посчитать leaf-записи / `testId:` в §2 vs эталон (`_reference/plan.md` + ~80)                                                                                                                                           | coverage %         |
+| C2  | наличие testId          | каждый leaf несёт `testId`; `leaves == with_testid`                                                                                                                                                                     | violations         |
+| C3  | конвенция testId        | nested-group leaves с дефис-префиксом (`personalData-…`); array-leaves без префикса                                                                                                                                     | violations (soft)  |
+| C4  | renderer-json compile   | извлечь документ формата 2 из §2.1 (`form.schema.ts`) → `validate_form(kind="json-schema", schema, componentNames, dataSourceNames)`                                                                                    | pass/fail + errors |
+| C5  | computed/behavior граф  | извлечь dep-map из §3.1 → `validate_form(kind="behaviors", dependencies)`; сверить, что 8 computed присутствуют                                                                                                         | cycles + missing   |
+| C6  | структурное присутствие | grep 6 step-заголовков; 3 имени массивов; 8 имён computed; 8 conditional-маркеров                                                                                                                                       | present N/N        |
+| C7  | import-origin lint      | импорты резолвятся в `@reformer/core` (+ сабпаты `/react`, `/validation`, `/validators`, `/behaviors`, `/i18n`), `@reformer/cdk`, `@reformer/ui-kit`, `@reformer/renderer-*`; ни одного из `packages/` или helper-путей | violations         |
+| C8  | no-escape-hatch lint    | grep `as any` / `as never` / `@ts-ignore` / `@ts-expect-error` в §2                                                                                                                                                     | count              |
+| C9  | symbol traceability     | каждый нетривиальный API из §2 присутствует в `discovery.md`                                                                                                                                                            | untraced-API count |
 
 - **C4/C5** — единственные, приближающие компилятор. Прогоняй их как настоящие MCP-tool вызовы (ты, orchestrator, тоже в MCP-доступе).
 - **C1–C3, C6** — полнота спеки. **C7–C9** — lint + детекция галлюцинаций.
 - Композитный per-target score = `coverage% · (1 − violation_rate) · paper_compile_pass`. Репортить компоненты, не только скаляр.
 
-Извлечение ```json для C4 и dep-map для C5: если блоки в листинге битые/неполные — отметь C4/C5 как `n/a — listing incomplete` и понизь coverage.
+Извлечение документа для C4 и dep-map для C5: если блоки в листинге битые/неполные — отметь C4/C5 как `n/a — listing incomplete` и понизь coverage.
 
 ---
 
@@ -130,7 +130,7 @@ Read §3.2 из каждого не-tainted `form-listing.md`. Дедуплиц�
 
 > Dry-run: sub-agent'ы произвели ЛИСТИНГИ кода (без app-кода, без tsc/build/Playwright).
 > Сигнал = корректность дизайна через детерминированные текст-проверки + MCP static checkers
-> (`validate_json_schema`, `check_behaviors`). Ограничение: type/overload/prop-flow ошибки НЕ ловятся.
+> (`validate_form` kind=json-schema / kind=behaviors). Ограничение: type/overload/prop-flow ошибки НЕ ловятся.
 
 ## Run metrics
 
@@ -144,7 +144,7 @@ Read §3.2 из каждого не-tainted `form-listing.md`. Дедуплиц�
 
 - **core**: C1 …, C2 …, C3 …, C6 …, C7 …, C8 …, C9 …
 - **renderer-react**: …
-- **renderer-json**: … (+ C4 validate_json_schema результат)
+- **renderer-json**: … (+ C4 validate_form kind=json-schema результат)
 
 ## MCP gaps (aggregated, deduped)
 
@@ -183,7 +183,7 @@ Read §3.2 из каждого не-tainted `form-listing.md`. Дедуплиц�
 
 1. **Summary path**: `docs/iter-summaries/${RUN_ID}.md`
 2. **Coverage**: core N/80, renderer-react N/80, renderer-json N/80
-3. **Paper-compile**: renderer-json validate_json_schema ✅/❌; behaviors cycles: none/N
+3. **Paper-compile**: renderer-json validate_form kind=json-schema ✅/❌; behaviors cycles: none/N
 4. **Aggregated gaps**: high=N med=N low=N
 5. **Type-risk spots** (не доказуемо на бумаге): N
 6. **Sandbox**: N/N clean
@@ -196,11 +196,11 @@ Read §3.2 из каждого не-tainted `form-listing.md`. Дедуплиц�
 
 ## Failure modes
 
-| failure                            | действие                                                                         |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| Sub-agent timeout (>30 мин)        | mark `status=blocked`, продолжить с остальными                                   |
-| Листинг с элизией (`// ...`)       | C1 обнуляет coverage для target'а; отметить в отчёте, gap-list всё равно собрать |
-| `validate_json_schema` unavailable | `@reformer/renderer-json` не установлен → C4 `n/a — tool unavailable`, отметить  |
-| Spec изменён во время run          | abort, восстановить (`git checkout -- ${SPEC}`), retry                           |
-| Все 3 sub-agent tainted            | abort прогона — «sandbox compliance broken», отчёт не пишем                      |
-| Транскрипт не найден для аудита    | пометить audit `unknown`, довериться self-attestation §3.2, флаг в отчёте        |
+| failure                                   | действие                                                                         |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| Sub-agent timeout (>30 мин)               | mark `status=blocked`, продолжить с остальными                                   |
+| Листинг с элизией (`// ...`)              | C1 обнуляет coverage для target'а; отметить в отчёте, gap-list всё равно собрать |
+| `validate_form` (json-schema) unavailable | `@reformer/renderer-json` не установлен → C4 `n/a — tool unavailable`, отметить  |
+| Spec изменён во время run                 | abort, восстановить (`git checkout -- ${SPEC}`), retry                           |
+| Все 3 sub-agent tainted                   | abort прогона — «sandbox compliance broken», отчёт не пишем                      |
+| Транскрипт не найден для аудита           | пометить audit `unknown`, довериться self-attestation §3.2, флаг в отчёте        |

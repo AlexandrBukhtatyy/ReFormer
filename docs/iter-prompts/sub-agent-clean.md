@@ -15,13 +15,15 @@
 
 Каталог: `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/`
 
-Файлы per target:
+Файлы per target — раскладка одна на все targets:
 
-| target           | files                       |
-| ---------------- | --------------------------- |
-| `core`           | `schema.ts` + `index.tsx`   |
-| `renderer-react` | `schema.ts` + `index.tsx`   |
-| `renderer-json`  | `schema.json` + `index.tsx` |
+| target           | files                                                                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `core`           | `index.tsx` `types.ts` `model.ts` `form.schema.ts` `form.behavior.ts` `form.validation.ts` `data-sources.ts` `api.ts` |
+| `renderer-react` | те же файлы, что у `core`                                                                                             |
+| `renderer-json`  | те же + `registry.ts`; `form.schema.ts` — документ формата 2 в `defineJsonSchema<T>`                                  |
+
+По необходимости — `form.flow.ts` (шаги визарда) и `form.messages.ts` (словарь текстов ошибок).
 
 ```bash
 mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean
@@ -45,22 +47,30 @@ mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGE
 
 - **Top-level**: `testId === fieldName`. Пример: `loanAmount` → `testId: 'loanAmount'`.
 - **Nested groups**: `parentField-childField` через дефис. Пример: `personalData.lastName` → `testId: 'personalData-lastName'`, `passportData.series` → `testId: 'passportData-series'`.
-- **Array items** (внутри FieldArraySection / item-template): `testId` per item-leaf БЕЗ префикса массива (POM-консумеры ставят индекс сами).
+- **Array items** (внутри строки массива — `item` узла `{ model, component: FieldArray, item }`): `testId` per item-leaf БЕЗ префикса массива (POM-консумеры ставят индекс сами).
 
-Пример (схема):
+Пример (схема — узлы привязаны ручками модели `model.$.…`):
 
 ```ts
-loanAmount: { value: null, component: Input, componentProps: { label: 'Сумма', testId: 'loanAmount' } },
+{ model: model.$.loanAmount, component: InputNumber, componentProps: { label: 'Сумма', testId: 'loanAmount' } },
 
-personalData: {
-  lastName:  { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'personalData-lastName' } },
-  firstName: { value: '', component: Input, componentProps: { label: 'Имя',     testId: 'personalData-firstName' } },
-},
+// вложенная группа — подформа { model, part }
+const personalDataPart = (pd: FormModel<PersonalData>): FormSchemaNode => ({
+  children: [
+    { model: pd.$.lastName,  component: Input, componentProps: { label: 'Фамилия', testId: 'personalData-lastName' } },
+    { model: pd.$.firstName, component: Input, componentProps: { label: 'Имя',     testId: 'personalData-firstName' } },
+  ],
+});
+{ model: model.$.personalData, part: personalDataPart },
 
-properties: [{
-  type:           { value: 'apartment', component: SelectAsync,   componentProps: { label: 'Тип',       testId: 'type' } },
-  estimatedValue: { value: 0,           component: InputNumber,    componentProps: { label: 'Стоимость', testId: 'estimatedValue' } },
-}],
+// массив под-форм — { model, component: FieldArray, item }
+const propertyRow = (property: FormModel<PropertyItem>): FormSchemaNode => ({
+  children: [
+    { model: property.$.type,           component: SelectAsync, componentProps: { label: 'Тип',       testId: 'type' } },
+    { model: property.$.estimatedValue, component: InputNumber, componentProps: { label: 'Стоимость', testId: 'estimatedValue' } },
+  ],
+});
+{ model: model.$.properties, component: FieldArray, item: propertyRow },
 ```
 
 Зачем: единая convention для consumer'ов (POM, abstract tests). Даже без запуска тестов в этом эксперименте — convention остаётся ожидаемой нормой.
@@ -100,8 +110,8 @@ ok | partial | blocked
 
 ## Files written
 
-- projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/schema.ts (LOC: N)
 - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/index.tsx (LOC: N)
+- projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/form.schema.ts (LOC: N)
 - ...
 
 ## MCP calls
@@ -137,8 +147,9 @@ ok | partial | blocked
 status: ok | partial | blocked
 target: { TARGET }
 files_written:
-  - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/schema.ts
   - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/index.tsx
+  - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/form.schema.ts
+  - ... # остальные файлы раскладки
 mcp_calls: N
 gaps:
   high: N

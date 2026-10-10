@@ -9,12 +9,12 @@
 
 ## Inputs
 
-| variable     | default                                | описание                              |
-| ------------ | -------------------------------------- | ------------------------------------- |
-| `ITER`       | (required)                             | номер итерации, integer ≥ 11          |
-| `MAX_ITER`   | `5`                                    | максимум вложенных циклов до escalate |
-| `SPEC`       | `docs/specs/credit-application-mcp.md` | спека формы (read-only — CLAUDE.md)   |
-| `DEV_SERVER` | `http://localhost:5173`                | URL dev-сервера для e2e               |
+| variable     | default                                 | описание                              |
+| ------------ | --------------------------------------- | ------------------------------------- |
+| `ITER`       | (required)                              | номер итерации, integer ≥ 11          |
+| `MAX_ITER`   | `5`                                     | максимум вложенных циклов до escalate |
+| `SPEC`       | `docs/specs/credit-application-form.md` | спека формы (read-only — CLAUDE.md)   |
+| `DEV_SERVER` | `http://localhost:5173`                 | URL dev-сервера для e2e               |
 
 ---
 
@@ -80,7 +80,7 @@ Read `projects/react-playground/src/App.tsx`. Для каждого target из 
    import MccaCoreV${ITER} from './pages/debug/mcp-credit-application-core-v${ITER}';
    ```
    (имя компонента: `Mcca{Pascal(target)}V${ITER}`).
-2. Расширить `examples` массив:
+2. Добавить пункт в `exampleGroups` — в группу раздела `section: 'debug'` (если подходящей нет — новая группа `{ section: 'debug', title: 'MCP credit', items: [...] }`; плоский `examples` выводится из `exampleGroups` через `flatMap`), а его `id` — в тип-объединение `ExamplePage`:
    ```ts
    {
      id: 'mcca-core-v${ITER}',
@@ -89,7 +89,7 @@ Read `projects/react-playground/src/App.tsx`. Для каждого target из 
      description: 'iter-${ITER} core target',
    }
    ```
-3. Добавить `<Route path="/mcp-credit-application-${target}-v${ITER}" element={<Mcca${Pascal(target)}V${ITER} />} />`.
+3. Добавить `<Route path="/mcp-credit-application-${target}-v${ITER}" element={<Mcca${Pascal(target)}V${ITER} />} />` перед `<Route path="/" ...>`. Путь — без префикса `/debug`: его ждёт `basePath` проектов `iter-*` в `projects/react-playground-e2e/playwright.config.ts`.
 
 Idempotent — если строка уже есть (по id `mcca-${target}-v${ITER}`), skip.
 
@@ -97,7 +97,7 @@ Idempotent — если строка уже есть (по id `mcca-${target}-v$
 
 ## Step 3.5 — abstract test runs (NEW)
 
-После того как 3 страницы залиты в App.tsx и tsc/build проходят — запусти shared abstract test suite (POM `CreditFormPage` + 9 spec файлов) против каждого target. Это **главный сигнал качества формы**, заменяющий per-target walkthrough'и из старого Step 5 sub-agent'а.
+После того как 3 страницы залиты в App.tsx и tsc/build проходят — запусти shared abstract test suite (POM `CreditFormPage` + 12 spec файлов) против каждого target. Это **главный сигнал качества формы**, заменяющий per-target walkthrough'и из старого Step 5 sub-agent'а.
 
 ```bash
 cd projects/react-playground-e2e
@@ -113,7 +113,7 @@ for target in core renderer-react renderer-json; do
 done
 ```
 
-`MCP_ITER_VERSION` активирует 3 dynamic projects в `playwright.config.ts` (basePath `/mcp-credit-application-{target}-v${ITER}`). `iter-${target}` reuse'ит testDir `tests/pages/complex-multy-step-form/` — все existing abstract specs (happy-path/arrays/computed-fields/conditional-fields/dependencies/accessibility/loading-error) запускаются автоматически.
+`MCP_ITER_VERSION` активирует 3 dynamic projects в `playwright.config.ts` (basePath `/mcp-credit-application-{target}-v${ITER}`). `iter-${target}` reuse'ит testDir `tests/pages/complex-multy-step-form/` — все existing abstract specs (happy-path/arrays/computed-fields/conditional-fields/dependencies/accessibility/loading-error/navigation/performance/reorder/validation/visual) запускаются автоматически.
 
 Парсинг результатов — выдрать из `${target}.json` per spec pass/fail:
 
@@ -234,7 +234,7 @@ decision = f"continue → /iter {ITER+1}"
 
 1. **Summary path**: `docs/iter-summaries/iter-${ITER}.md`
 2. **Patches path**: `.tmp/iter-artifacts/iter-${ITER}/proposed-patches/`
-3. **Files changed**: `git status --short -- 'projects/react-playground/src/pages/debug/mcp-credit-application-*-v${ITER}/*' projects/react-playground/src/App.tsx 'projects/react-playground-e2e/tests/iter/mcp-credit-*-v${ITER}.spec.ts' docs/iter-summaries/iter-${ITER}.md`
+3. **Files changed**: `git status --short -- 'projects/react-playground/src/pages/debug/mcp-credit-application-*-v${ITER}/*' projects/react-playground/src/App.tsx docs/iter-summaries/iter-${ITER}.md` (smoke spec'и sub-agent'ов лежат в `$TMPDIR`, вне репозитория)
 4. **Counts**: `screenshots: $(find projects/react-playground-e2e/screenshots/mcp-credit-v${ITER} -name '*.png' | wc -l), videos: $(find projects/react-playground-e2e/videos/mcp-credit-v${ITER} -name '*.webm' | wc -l)`
 5. **Decision** + **Next steps**:
    - GREEN → «Cycle закрыт. Можно мерджить feature → main, или начать новый цикл с другой спекой.»

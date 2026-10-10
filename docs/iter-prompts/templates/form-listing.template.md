@@ -30,8 +30,17 @@
 
 ```
 projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-{RUN_ID}/
-├── schema.ts            # (или schema.json + registry.ts для renderer-json)
-└── index.tsx
+├── index.tsx
+├── types.ts
+├── model.ts
+├── form.schema.ts       # renderer-json: документ формата 2 в defineJsonSchema<T>
+├── form.behavior.ts
+├── form.validation.ts
+├── form.flow.ts         # по необходимости: шаги визарда
+├── form.messages.ts     # по необходимости: словарь текстов ошибок
+├── data-sources.ts
+├── api.ts
+└── registry.ts          # только renderer-json
 ```
 
 **Coverage (self-reported):** steps N/6 · computed N/8 · arrays N/3 · fields ~N/~80 · conditional-groups N/8
@@ -44,10 +53,10 @@ projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-{RUN_I
 > без `// ...`, без плейсхолдеров. Каждое поле спеки выписано явно.
 > Orchestrator считает leaf-поля / `testId:` по этому тексту (C1/C2) — элизия обнуляет coverage.
 
-### 2.1 `.../mcp-credit-application-{TARGET}-{RUN_ID}/schema.ts` (или `schema.json`)
+### 2.1 `.../mcp-credit-application-{TARGET}-{RUN_ID}/form.schema.ts`
 
 ```ts
-<полный исходник — без сокращений>
+<полный исходник — без сокращений; renderer-json: документ формата 2 в defineJsonSchema<T>>
 ```
 
 ### 2.2 `.../mcp-credit-application-{TARGET}-{RUN_ID}/index.tsx`
@@ -62,19 +71,30 @@ projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-{RUN_I
 <полный исходник — без сокращений; для core / renderer-react: удалить эту подсекцию>
 ```
 
+### 2.4 Остальные файлы раскладки
+
+> По подсекции на файл из §1: `types.ts`, `model.ts`, `form.behavior.ts`, `form.validation.ts`,
+> `data-sources.ts`, `api.ts` (+ `form.flow.ts` / `form.messages.ts`, если есть). То же правило полноты.
+
+#### 2.4.N `.../mcp-credit-application-{TARGET}-{RUN_ID}/<файл>`
+
+```ts
+<полный исходник — без сокращений>
+```
+
 ---
 
 ## 3. Ошибки с которыми столкнулся
 
 ### 3.1 Paper-compile self-check
 
-> Единственный «компилятор» на бумаге — MCP-tools `validate_json_schema` и `check_behaviors`.
-> Прогони их на СВОЁМ листинге. Оба — MCP-tools, значит sandbox-legal.
+> Единственный «компилятор» на бумаге — MCP-tool `validate_form` (`kind="json-schema"` и `kind="behaviors"`).
+> Прогони его на СВОЁМ листинге. Это MCP-tool, значит sandbox-legal.
 
-- **validate_json_schema** (только renderer-json): `valid: true|false`; `errors: [...]`
+- **validate_form kind=json-schema** (только renderer-json): `valid: true|false`; `errors: [...]`
   - для core / renderer-react: `n/a — target не JSON-DSL`
-- **check_behaviors** (все target'ы): `cycles: none | [a→b→a]`; `self-refs: none | [...]`
-  - Дерево зависимостей computed / copyFrom, которое передал в `check_behaviors`:
+- **validate_form kind=behaviors** (все target'ы): `cycles: none | [a→b→a]`; `self-refs: none | [...]`
+  - Дерево зависимостей computed / copyFrom, которое передал в `validate_form(kind="behaviors")`:
 
   | target field         | reads (зависимости)                                |
   | -------------------- | -------------------------------------------------- |

@@ -71,7 +71,7 @@ src/components/<cmp>/
 - **H. doc-config** `reformer-doc/demo/examples/<cmp>.tsx` → `<cmp>DocConfig: ComponentDocConfig`:
   `variants[]` (готовые пресеты; F → `makeFieldVariant`), `examples[]` (рецепты), `api`/`props`.
   Для F с api: `controls: controlsFromPropsSchema(mergeFieldPropsSchema(<schema>), { omit })` — **ручной controls[] ЗАПРЕЩЁН**.
-- **I. mdx** `reformer-doc/docs/ui-kit/<cmp>.mdx` (по образцу button.mdx): frontmatter + import ComponentDoc + config + `<ComponentDoc config={...}/>`.
+- **I. mdx** `reformer-doc/docs/ui-kit/<cmp>.mdx` (по образцу button.mdx): frontmatter + import ComponentDoc + config + `<ComponentDoc>` с пропом `config` = `<cmp>DocConfig`.
 - **J. self-check**: `npx tsc --noEmit` (свой каталог; страж падает тут при дрейфе); `npx vitest run src/components/<cmp>`;
   grep-самоаудит тронутых путей.
 - **K. dev-report**: созданные файлы; варианты + обоснование не-base; adapter; новые deps; отклонения; что нужно от оркестратора.

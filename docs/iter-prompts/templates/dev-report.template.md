@@ -19,9 +19,9 @@
 | tsc errors (final)        | N                                | 0 для status=ok                                              |
 | lint errors (final)       | N                                |                                                              |
 | build errors (final)      | N                                |                                                              |
-| runtime errors (e2e)      | N                                | Playwright failures + console errors                         |
-| screenshots written       | N                                | должно быть ≥7 (6 шагов + final)                             |
-| video recorded            | yes/no                           |                                                              |
+| runtime errors (smoke)    | N                                | smoke-spec failures + console errors                         |
+| screenshots written       | N                                | должно быть ≥1 (`smoke-final.png`)                           |
+| video recorded            | n/a                              | видео пишет orchestrator при abstract test run               |
 | **status**                | ok / partial / blocked / tainted |                                                              |
 
 ## Sandbox compliance (self-attestation)
@@ -62,29 +62,26 @@
 
 ## Symbols queried (final list)
 
-| symbol           | used for                  |
-| ---------------- | ------------------------- |
-| `createForm`     | form bootstrap            |
-| `ModelValidator` | typed validation callback |
-| ...              | ...                       |
+| symbol             | used for                  |
+| ------------------ | ------------------------- |
+| `createForm`       | form bootstrap            |
+| `defineValidation` | validation over the model |
+| ...                | ...                       |
 
 ## Files written
 
-- `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/schema.ts` (LOC: N)
 - `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/index.tsx` (LOC: N)
-- `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts` (LOC: N)
+- `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/form.schema.ts` (LOC: N)
+- ... — остальные файлы раскладки (`types.ts`, `model.ts`, `form.behavior.ts`, `form.validation.ts`, `data-sources.ts`, `api.ts`; `registry.ts` у renderer-json) (LOC: N)
+- `$TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts` (LOC: N, вне репозитория)
 
 ## Screenshots index
 
-- `screenshots/mcp-credit-v{ITER}/{TARGET}/page1-filled.png`
-- `screenshots/mcp-credit-v{ITER}/{TARGET}/page2-filled.png`
-- ...
-- `screenshots/mcp-credit-v{ITER}/{TARGET}/page6-filled.png`
-- `screenshots/mcp-credit-v{ITER}/{TARGET}/page-final.png`
+- `screenshots/mcp-credit-v{ITER}/{TARGET}/smoke-final.png`
 
 ## Video
 
-- `videos/mcp-credit-v{ITER}/{TARGET}/walkthrough.webm`
+- n/a — видео пишет orchestrator при abstract test run (`ITER_MODE=on`) в `videos/mcp-credit-v{ITER}/{TARGET}/`
 
 ## Errors / blockers (если status != ok)
 

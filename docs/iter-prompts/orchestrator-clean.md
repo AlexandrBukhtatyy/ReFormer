@@ -62,10 +62,10 @@ date -u +%FT%TZ > .tmp/iter-artifacts/${RUN_ID}/.end
 
 **Token sourcing** (per-agent):
 
-JSONL session логи лежат в `~/.claude/projects/-Users-aleksandrbuhtatyj-Work-My-ReFormer/<uuid>.jsonl`. Найди файлы созданные/изменённые в окне `[.start; .end]`:
+JSONL session логи лежат в `~/.claude/projects/<slug>/<uuid>.jsonl`, где `<slug>` — путь к репозиторию с разделителями, заменёнными на `-` (адаптируй под окружение). Найди файлы созданные/изменённые в окне `[.start; .end]`:
 
 ```bash
-find ~/.claude/projects/-Users-aleksandrbuhtatyj-Work-My-ReFormer -name '*.jsonl' \
+find ~/.claude/projects/<slug> -name '*.jsonl' \
   -newer .tmp/iter-artifacts/${RUN_ID}/.start \
   ! -newer .tmp/iter-artifacts/${RUN_ID}/.end
 ```
@@ -82,7 +82,7 @@ jq -s '
 ' < /path/to/session.jsonl
 ```
 
-(jq-выражение на 1 строку, можно адаптировать под фактический shape jsonl — см. [orchestrator.md:144](./orchestrator.md#L144) для существующего паттерна.)
+(jq-выражение на 1 строку, можно адаптировать под фактический shape jsonl — см. «Token-метрика» в [orchestrator.md, Step 4](./orchestrator.md#step-4--aggregate-dev-reports) для существующего паттерна.)
 
 **MCP calls counter** per agent:
 
@@ -140,7 +140,7 @@ Read `projects/react-playground/src/App.tsx`. Для каждого target гд�
    import MccaRendererJsonClean from './pages/debug/mcp-credit-application-renderer-json-clean';
    ```
 
-2. **Расширь `examples` массив** записями:
+2. **Добавь пункты в `exampleGroups`** — в группу раздела `section: 'debug'` (если подходящей нет — новая группа `{ section: 'debug', title: 'MCP credit', items: [...] }`; плоский `examples` выводится из `exampleGroups` через `flatMap`), а их `id` — в тип-объединение `ExamplePage`:
 
    ```ts
    {

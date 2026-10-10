@@ -6,27 +6,29 @@
 
 ## Spec
 
-- Path: `docs/specs/credit-application-mcp.md`
+- Path: `docs/specs/credit-application-form.md`
 - Spec git SHA at iter start: `<SHA>`
 
 ## Run metrics
 
 | target         | input tokens | output tokens | time (min)        | tsc final | lint final | runtime err | screenshots | video | status  |
 | -------------- | ------------ | ------------- | ----------------- | --------- | ---------- | ----------- | ----------- | ----- | ------- |
-| core           | N            | N             | N                 | 0         | 0          | 0           | 7           | yes   | ok      |
-| renderer-react | N            | N             | N                 | 2         | 0          | 0           | 7           | yes   | partial |
-| renderer-json  | N            | N             | N                 | 0         | 0          | 1           | 6           | yes   | ok      |
-| **total**      | N            | N             | (max — параллель) | 2         | 0          | 1           | 20          | 3     | mixed   |
+| core           | N            | N             | N                 | 0         | 0          | 0           | 1           | yes   | ok      |
+| renderer-react | N            | N             | N                 | 2         | 0          | 0           | 1           | yes   | partial |
+| renderer-json  | N            | N             | N                 | 0         | 0          | 1           | 1           | yes   | ok      |
+| **total**      | N            | N             | (max — параллель) | 2         | 0          | 1           | 3           | 3     | mixed   |
+
+(`screenshots` — smoke-скриншоты sub-agent'ов (`smoke-final.png`); `video` — записи orchestrator'а при abstract test run.)
 
 ## Abstract test results (orchestrator-run)
 
-Запущены через `MCP_ITER_VERSION={ITER} npx playwright test --project=iter-{target}` (см. orchestrator.md Step 3.5). POM + abstract specs reuse'ятся из `tests/pages/complex-multy-step-form/`.
+Запущены через `MCP_ITER_VERSION={ITER} npx playwright test --project=iter-{target}` (см. orchestrator.md Step 3.5). POM + 12 abstract specs reuse'ятся из `tests/pages/complex-multy-step-form/`.
 
-| target         | happy-path | arrays | computed-fields | conditional-fields | dependencies | accessibility | loading-error | total pass |
-| -------------- | ---------- | ------ | --------------- | ------------------ | ------------ | ------------- | ------------- | ---------- |
-| core           | ✅ N/N     | ✅ N/N | ✅ N/N          | ✅ N/N             | ✅ N/N       | ⚠️ N/N        | ✅ N/N        | N/total    |
-| renderer-react | ✅ N/N     | ✅ N/N | ✅ N/N          | ⚠️ N/N             | ✅ N/N       | ✅ N/N        | ✅ N/N        | N/total    |
-| renderer-json  | ✅ N/N     | ❌ N/N | ✅ N/N          | ✅ N/N             | ✅ N/N       | ✅ N/N        | ✅ N/N        | N/total    |
+| target         | happy-path | arrays | computed-fields | conditional-fields | dependencies | accessibility | loading-error | navigation | performance | reorder | validation | visual | total pass |
+| -------------- | ---------- | ------ | --------------- | ------------------ | ------------ | ------------- | ------------- | ---------- | ----------- | ------- | ---------- | ------ | ---------- |
+| core           | ✅ N/N     | ✅ N/N | ✅ N/N          | ✅ N/N             | ✅ N/N       | ⚠️ N/N        | ✅ N/N        | ✅ N/N     | ✅ N/N      | ✅ N/N  | ✅ N/N     | ✅ N/N | N/total    |
+| renderer-react | ✅ N/N     | ✅ N/N | ✅ N/N          | ⚠️ N/N             | ✅ N/N       | ✅ N/N        | ✅ N/N        | ✅ N/N     | ✅ N/N      | ✅ N/N  | ✅ N/N     | ✅ N/N | N/total    |
+| renderer-json  | ✅ N/N     | ❌ N/N | ✅ N/N          | ✅ N/N             | ✅ N/N       | ✅ N/N        | ✅ N/N        | ✅ N/N     | ✅ N/N      | ✅ N/N  | ✅ N/N     | ✅ N/N | N/total    |
 
 **Failed specs detail** (если есть):
 
@@ -122,6 +124,7 @@
 
 - `.tmp/iter-artifacts/iter-{ITER}/` — workspace, dev-plan/dev-report per target, proposed-patches, audit
 - `projects/react-playground/src/pages/debug/mcp-credit-application-{core,renderer-react,renderer-json}-v{ITER}/` — сгенерированный код
-- `projects/react-playground-e2e/tests/iter/mcp-credit-{core,renderer-react,renderer-json}-v{ITER}.spec.ts` — e2e спеки
+- `$TMPDIR/iter-{ITER}-{core,renderer-react,renderer-json}/smoke.spec.ts` — smoke spec'и sub-agent'ов (вне репозитория)
+- `$TMPDIR/iter-{ITER}-results/{core,renderer-react,renderer-json}.json` — JSON-отчёты abstract test run
 - `projects/react-playground-e2e/screenshots/mcp-credit-v{ITER}/{core,renderer-react,renderer-json}/` — full-page скриншоты
-- `projects/react-playground-e2e/videos/mcp-credit-v{ITER}/{core,renderer-react,renderer-json}/walkthrough.webm` — видео
+- `projects/react-playground-e2e/videos/mcp-credit-v{ITER}/{core,renderer-react,renderer-json}/` — видео abstract test run (`ITER_OUTPUT_DIR`)
