@@ -6,11 +6,20 @@
 
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { effect, type Signal } from '@reformer/core/signals';
-import type { FieldNode, FormProxy } from '@reformer/core';
+import type {
+  CompiledArrayNode,
+  CompiledChild,
+  CompiledFieldNode,
+  CompiledNode,
+  CompiledSchema,
+  FieldNode,
+  FormProxy,
+} from '@reformer/core';
 import {
+  compileSchema,
   getNodeForSignal,
+  isCompiledNode,
   isValueSignal,
-  schemaSubtree,
   unknownSchemaSelectors,
 } from '@reformer/core';
 import { bindFieldProps, getFieldAdapter, useFieldHandleRef } from '@reformer/core/react';
@@ -18,23 +27,13 @@ import type {
   RenderNode,
   FieldWrapperProps,
   FieldAdapter,
-  ModelFieldRenderNode,
   ArrayRenderNode,
   ArrayItemSlot,
   RenderModelArrayControl,
-  RenderChild,
   RenderNodeFn,
   RenderTextPart,
 } from './types';
-import {
-  arrayControlOf,
-  fieldBindingOf,
-  isContainerRenderNode,
-  isModelFieldRenderNode,
-  isArrayRenderNode,
-  partModelOf,
-  VOID_HTML_TAGS,
-} from './utils';
+import { VOID_HTML_TAGS } from './utils';
 import { useRenderContext } from './render-context';
 import { useContext, useEffect } from 'react';
 import {
@@ -54,8 +53,11 @@ import {
  * Props для RenderNodeComponent
  */
 interface RenderNodeComponentProps<T> {
-  /** Узел для рендеринга */
-  node: RenderNode<T>;
+  /**
+   * Узел для рендеринга: узел скомпилированной схемы (`bundle.render.tree.root`, дети, которых
+   * рендерер передал компоненту) либо авторский узел — его рендерер компилирует сам, один раз.
+   */
+  node: CompiledNode | RenderNode<T>;
   /** Proxy формы (опционально — предоставляется wizard-компонентом через props или контекст) */
   form?: FormProxy<T>;
   /**
@@ -148,7 +150,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   nodeRef,
   resolveFieldAdapter,
 }: {
-  node: ModelFieldRenderNode;
+  node: CompiledFieldNode;
   fieldNode: FieldNode<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
   /**
@@ -174,7 +176,8 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   // Императивный handle поля для `schema.node(sel).getRef()`: собственный handle контрола либо
   // базовый FieldHandle из его DOM-узла. Хук — до early-return.
   const handleRef = useFieldHandleRef(nodeRef as React.Ref<unknown> | undefined);
-  const Component = node.component;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Component = node.component as React.ComponentType<any> | undefined;
   if (!Component) {
     if (typeof console !== 'undefined') {
       console.warn('[RenderSchema] Model field has no component — nothing to render.');
@@ -191,10 +194,15 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     fieldWrapper: perFieldWrapper,
     testId: explicitTestId,
     ...inputComponentProps
-  } = { ...node.componentProps, ...nodeComponentProps };
+  } = { ...node.props, ...nodeComponentProps } as Record<string, unknown> & {
+    className?: string;
+    wrapper?: React.ElementType;
+    fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+    testId?: unknown;
+  };
 
   // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
-  const path = (fieldBindingOf(node) as { __path?: string } | undefined)?.__path;
+  const path = node.handle.__path;
   const testId =
     typeof explicitTestId === 'string'
       ? explicitTestId
@@ -308,33 +316,29 @@ const checkedScopes = new WeakSet<object>();
  * по `createRenderSchema` область одна на всё дерево — граница прозрачна.
  */
 function ScopeBoundary({
-  model,
-  tree,
+  schema,
   children,
 }: {
-  /** Под-модель строки или группы — ключ области. */
-  model: unknown;
-  /** Поддерево области — по нему в dev сверяются селекторы правил. */
-  tree: unknown;
+  /** Скомпилированная схема области: её модель — ключ области, индекс — для сверки селекторов. */
+  schema: CompiledSchema;
   children: ReactNode;
 }): ReactNode {
   const context = useContext(SchemaControllerContext);
+  const model = schema.model;
   const maps =
-    context && model != null && typeof model === 'object'
-      ? context.controller.scopeOf(model).__overrideMaps
-      : null;
+    context && model !== undefined ? context.controller.scopeOf(model).__overrideMaps : null;
 
   useEffect(() => {
     if (!maps || process.env.NODE_ENV === 'production' || checkedScopes.has(maps)) return;
     checkedScopes.add(maps);
-    const unknown = unknownSchemaSelectors(maps, tree);
+    const unknown = unknownSchemaSelectors(maps, schema);
     if (unknown.length > 0 && typeof console !== 'undefined') {
       console.warn(
         '[RenderSchema] поведение области обращается к узлам, которых нет в её поддереве: ' +
           `${unknown.map((selector) => `"${selector}"`).join(', ')}. Правило ничего не сделает.`
       );
     }
-  }, [maps, tree]);
+  }, [maps, schema]);
 
   if (!maps) return children;
   return (
@@ -343,6 +347,23 @@ function ScopeBoundary({
       {children}
     </RenderSchemaOverrideContext.Provider>
   );
+}
+
+/** Скомпилированный узел для авторского: компиляция одна на объект узла. */
+const detachedNodes = new WeakMap<object, CompiledNode>();
+
+/**
+ * Узел скомпилированной схемы как есть; авторский узел (ручная композиция, тело шага визарда в
+ * JSX) компилируется один раз и дальше берётся из памяти.
+ */
+function compiledNodeOf(node: CompiledNode | RenderNode<unknown>): CompiledNode {
+  if (isCompiledNode(node)) return node;
+  let compiled = detachedNodes.get(node);
+  if (!compiled) {
+    compiled = compileSchema(node as never).root;
+    detachedNodes.set(node, compiled);
+  }
+  return compiled;
 }
 
 /**
@@ -356,46 +377,43 @@ export interface ModelArrayItem {
   index: number;
   /** Под-модель элемента (`control.at(index)`) — для `itemLabel(model, index)` и т.п. */
   model: unknown;
-  /** Готовое поддерево элемента: `<RenderNodeComponent node={item(model)} …/>`. */
+  /** Готовое поддерево элемента. */
   element: ReactNode;
 }
 
 /**
  * Итерация модель-массива для компонента-рендерера: подписка на структурные изменения массива
- * (add/remove/**reorder**) + кэш поддеревьев по идентичности элемента + обёртка в
- * {@link RenderNodeComponent}. Возвращает на элемент `{ key, index, model, element }`. Единственная
- * копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FieldArray` (add/remove/reorder):
- * хром — их, данные (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный
- * снапшот {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
+ * (add/remove/**reorder**) + скомпилированная схема строки + обёртка в {@link RenderNodeComponent}.
+ * Возвращает на элемент `{ key, index, model, element }`. Единственная копия итерации — на ней
+ * строятся ui-kit `List` (chrome-less) и `FieldArray` (add/remove/reorder): хром — их, данные
+ * (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный снапшот
+ * {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
  */
 export function useModelArrayItems(
-  control: RenderModelArrayControl,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: (itemModel: any) => RenderNode<unknown>,
+  node: CompiledArrayNode,
   fieldWrapper?: React.ComponentType<FieldWrapperProps>
 ): ReadonlyArray<ModelArrayItem> {
+  const control = node.control as RenderModelArrayControl;
   useModelArrayRevision(control); // ре-рендер при структурных изменениях (включая reorder)
   const length = control.length;
-
-  // Поддерево строки — одно на пару «билдер + под-модель»: то же самое, по которому сборка
-  // построила форму строки. Билдер `item` вызывается один раз на строку.
-  const getSubtree = (im: unknown): RenderNode<unknown> =>
-    im == null || typeof im !== 'object' ? item(im) : schemaSubtree(item, im);
 
   return Array.from({ length }, (_, index) => {
     const model = control.at(index);
     const key = stableKey(model);
-    const subtree = getSubtree(model);
-    return {
-      key,
-      index,
-      model,
-      element: (
-        <ScopeBoundary key={key} model={model} tree={subtree}>
-          <RenderNodeComponent node={subtree} fieldWrapper={fieldWrapper} />
+    // Схема строки — одна на под-модель: та же, по которой сборка построила форму строки.
+    const element =
+      model != null && typeof model === 'object' ? (
+        <ScopeBoundary key={key} schema={node.row(model)}>
+          <RenderNodeComponent node={node.row(model).root} fieldWrapper={fieldWrapper} />
         </ScopeBoundary>
-      ),
-    };
+      ) : (
+        <RenderNodeComponent
+          key={key}
+          node={(node.source as ArrayRenderNode<unknown>).item(model)}
+          fieldWrapper={fieldWrapper}
+        />
+      );
+    return { key, index, model, element };
   });
 }
 
@@ -422,35 +440,34 @@ const ModelArrayFallback = memo(function ModelArrayFallback({
   node,
   fieldWrapper,
 }: {
-  node: ArrayRenderNode<unknown>;
+  node: CompiledArrayNode;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
-  const control = arrayControlOf(node) as RenderModelArrayControl;
-  const items = useModelArrayItems(control, node.item, fieldWrapper);
-  warnArrayWithoutComponent(control);
+  const items = useModelArrayItems(node, fieldWrapper);
+  warnArrayWithoutComponent(node.control as RenderModelArrayControl);
   return <>{items.map((it) => it.element)}</>;
 });
 
 /**
- * Массив, рендеримый ЗАРЕГИСТРИРОВАННЫМ компонентом (M1): узел `{ array, item, component }`.
+ * Массив, рендеримый ЗАРЕГИСТРИРОВАННЫМ компонентом (M1): узел `{ model, item, component }`.
  *
- * Итерацию — подписку на структуру, кэш поддеревьев, стабильные ключи — делает рендерер
+ * Итерацию — подписку на структуру, схемы строк, стабильные ключи — делает рендерер
  * ({@link useModelArrayItems}), а компонент получает результат обычными props:
  * {@link ArrayComponentProps} (`items` + `onAdd`/`onRemove`/`onMove`) плюс `componentProps` узла.
- * Компонент не знает ни про сигналы, ни про {@link RenderNode}, ни про хуки рендерера — поэтому
+ * Компонент не знает ни про сигналы, ни про узлы схемы, ни про хуки рендерера — поэтому
  * реализовать его может любая UI-библиотека, а протестировать можно на фейковых `items` без формы.
  */
 const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   node,
   fieldWrapper,
 }: {
-  node: ArrayRenderNode<unknown>;
+  node: CompiledArrayNode;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp = node.component as React.ComponentType<any>;
-  const control = arrayControlOf(node) as RenderModelArrayControl;
-  const items = useModelArrayItems(control, node.item, fieldWrapper);
+  const control = node.control as RenderModelArrayControl;
+  const items = useModelArrayItems(node, fieldWrapper);
 
   // Колбэки стабильны по `control` — иначе memo-компоненты потребителя ломались бы на каждый
   // рендер секции. Новый элемент берётся из шаблона массива: `arrayOf(blank)` в модели либо
@@ -466,15 +483,7 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
     children: element,
   }));
 
-  return (
-    <Comp
-      items={slots}
-      onAdd={onAdd}
-      onRemove={onRemove}
-      onMove={onMove}
-      {...(node.componentProps ?? {})}
-    />
-  );
+  return <Comp items={slots} onAdd={onAdd} onRemove={onRemove} onMove={onMove} {...node.props} />;
 });
 
 // ============================================================================
@@ -482,52 +491,15 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
 // ============================================================================
 
 /**
- * Ребёнок-текст (литерал, число, сигнал), а не вложенный узел.
- *
- * Сигнал — любая ручка значения модели, включая массив целиком (`model.$.<массив>`): его узел не
- * `instanceof Signal`, и без общей проверки он ушёл бы в ветку «вложенный узел».
+ * Только узлы — для компонентов с `__selfManagedChildren` (визард, табы): они обходят детей сами и
+ * ждут узлы скомпилированной схемы. Текст в таком слоте — ошибка автора схемы, поэтому в dev о нём
+ * предупреждаем, а не роняем рендер.
  */
-function isTextPart(child: unknown): child is RenderTextPart {
-  return typeof child === 'string' || typeof child === 'number' || isValueSignal(child);
-}
-
-/**
- * Группирует детей в чанки: подряд идущие текстовые части — в один текстовый чанк (склеиваются без
- * разделителя и подписываются одним {@link RenderTextContent}, как раньше делал массив `text`),
- * узлы — каждый своим чанком. `key` — индекс первого элемента чанка в исходном массиве.
- */
-function groupChildren<T>(
-  children: readonly RenderChild<T>[]
-): Array<{ key: number; parts: RenderTextPart[] } | { key: number; node: RenderNode<T> }> {
-  const out: Array<
-    { key: number; parts: RenderTextPart[] } | { key: number; node: RenderNode<T> }
-  > = [];
-  let text: { key: number; parts: RenderTextPart[] } | null = null;
-  children.forEach((child, i) => {
-    if (isTextPart(child)) {
-      if (!text) {
-        text = { key: i, parts: [] };
-        out.push(text);
-      }
-      text.parts.push(child);
-      return;
-    }
-    text = null;
-    out.push({ key: i, node: child });
-  });
-  return out;
-}
-
-/**
- * Только узлы — для компонентов с `__selfManagedChildren` (wizard, секция массива): они обходят
- * детей сами и ждут {@link RenderNode}. Текст в таком слоте — ошибка автора схемы, поэтому в dev
- * о нём предупреждаем, а не роняем рендер.
- */
-function nodesOnly<T>(children: readonly RenderChild<T>[]): RenderNode<T>[] {
-  const out: RenderNode<T>[] = [];
+function nodesOnly(children: readonly CompiledChild[]): CompiledNode[] {
+  const out: CompiledNode[] = [];
   let dropped = 0;
   for (const child of children) {
-    if (isTextPart(child)) dropped += 1;
+    if (child.kind === 'text') dropped += 1;
     else out.push(child);
   }
   if (dropped > 0 && process.env.NODE_ENV !== 'production' && typeof console !== 'undefined') {
@@ -664,14 +636,27 @@ const RenderTextContent = memo(function RenderTextContent({
  */
 const renderSchemaNode: RenderNodeFn = (node, key) => <RenderNodeComponent key={key} node={node} />;
 
+/** Дети контейнера: текст подписывается точечно, узлы рисуются рекурсивно. */
+function renderChildren<T>(
+  children: readonly CompiledChild[],
+  form: FormProxy<T> | undefined
+): ReactNode[] {
+  return children.map((child) =>
+    child.kind === 'text' ? (
+      <RenderTextContent key={child.id} parts={child.parts} />
+    ) : (
+      <RenderNodeComponent key={child.id} node={child} form={form} />
+    )
+  );
+}
+
 /**
- * Рекурсивный рендеринг узла {@link RenderNode}. Определяет тип узла и рендерит
- * соответственно: {@link ModelFieldRenderNode} → компонент поля с wrapper (значение
- * из сигнала модели, state — по сигналу через реестр), {@link ArrayRenderNode} → секция
- * массива модели, {@link ContainerRenderNode} → контейнер с дочерними узлами. Учитывает
- * `hideWhen`/`setHidden`, `patchProps`, `onComponentEvent`, lifecycle-хуки и ref из
- * {@link RenderSchemaProxy}. Обычно вызывается {@link FormRenderer}; явный вызов нужен
- * при ручной композиции.
+ * Рекурсивный рендеринг узла схемы. Ветку выбирает вид узла скомпилированной схемы (`kind`):
+ * поле → компонент поля с обёрткой (значение из сигнала модели, состояние — по сигналу через
+ * реестр), массив под-форм → строки в своих областях, подформа → содержимое части в её области,
+ * контейнер → компонент с детьми (без компонента — одни дети). Учитывает `hideWhen`/`setHidden`,
+ * `patchProps`, `onComponentEvent`, lifecycle-хуки и ref. Обычно вызывается {@link FormRenderer};
+ * явный вызов нужен при ручной композиции — авторский узел рендерер скомпилирует сам.
  *
  * @typeParam T - Тип значения формы
  * @param props - `node` (узел), опц. `form` и `fieldWrapper`
@@ -682,20 +667,20 @@ const renderSchemaNode: RenderNodeFn = (node, key) => <RenderNodeComponent key={
  * import { RenderNodeComponent } from '@reformer/renderer-react';
  *
  * <RenderContextProvider value={{ settings: { fieldWrapper: FormField } }}>
- *   <RenderNodeComponent node={rootNode} />
+ *   <RenderNodeComponent node={bundle.render.tree!.root} />
  * </RenderContextProvider>
  * ```
  */
 export function RenderNodeComponent<T>({
-  node,
+  node: givenNode,
   form,
   fieldWrapper: fieldWrapperProp,
 }: RenderNodeComponentProps<T>): ReactNode {
+  const node = compiledNodeOf(givenNode as CompiledNode | RenderNode<unknown>);
   const { settings } = useRenderContext();
   // prop имеет приоритет над глобальным settings (для user-space компонентов с вложенными формами)
   const fieldWrapper = fieldWrapperProp ?? settings?.fieldWrapper;
 
-  // selector теперь доступен на обоих типах нод (FieldRenderNode и ContainerRenderNode)
   const { selector } = node;
   // Программное переопределение (createRenderSchema) — наивысший приоритет
   const hiddenOverride = useHiddenOverride(selector);
@@ -725,164 +710,140 @@ export function RenderNodeComponent<T>({
 
   // Разворачиваем signal-значения в componentProps (из `$model(...)`, напр. в шаблоне элемента
   // списка) — безусловно, до early-return. Использует контейнерная ветка (у листа свой seam).
-  const unwrappedComponentProps = useSignalProps(
-    node.componentProps as Record<string, unknown> | undefined
-  );
+  const unwrappedComponentProps = useSignalProps(node.props as Record<string, unknown>);
 
   if (isHidden) {
     return null;
   }
 
-  // Порядок веток: массив под-форм → подформа → поле → контейнер. Ручка массива — тоже ручка
-  // значения, поэтому `{ model, item }` узнаётся раньше поля.
+  switch (node.kind) {
+    case 'array':
+      // Задан `component` ($component(FieldArray)/$component(List)/своя секция) — рендерит он.
+      // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
+      return node.component ? (
+        <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
+      ) : (
+        <ModelArrayFallback node={node} fieldWrapper={fieldWrapper} />
+      );
 
-  // ========================================
-  // M1: ArrayRenderNode — массив под-форм { model, item }
-  // ========================================
-  if (isArrayRenderNode(node)) {
-    // Задан `component` ($component(FieldArray)/$component(List)/своя секция) — рендерит он.
-    // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
-    return node.component ? (
-      <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
-    ) : (
-      <ModelArrayFallback node={node} fieldWrapper={fieldWrapper} />
-    );
-  }
-
-  // ========================================
-  // PartRenderNode — подформа { model, part }
-  // ========================================
-  const partModel = partModelOf(node);
-  if (partModel !== undefined) {
-    // Поддерево части — то же, по которому сборка привязала конфиг полей группы.
-    const subtree = schemaSubtree(
-      (node as { part: (model: unknown) => RenderNode<T> }).part,
-      partModel
-    );
-    return (
-      <ScopeBoundary model={partModel} tree={subtree}>
-        <RenderNodeComponent node={subtree} form={form} fieldWrapper={fieldWrapperProp} />
-      </ScopeBoundary>
-    );
-  }
-
-  // ========================================
-  // M1: ModelFieldRenderNode — лист на сигнале модели
-  // ========================================
-  if (isModelFieldRenderNode(node)) {
-    const binding = fieldBindingOf(node) as Signal<unknown> & { __path?: string };
-    const fieldNode = getNodeForSignal(binding) as FieldNode<unknown> | undefined;
-    if (!fieldNode) {
-      if (typeof console !== 'undefined') {
-        const p = binding.__path;
-        console.warn(
-          `[RenderSchema] No form node for signal${p ? ` "${p}"` : ''} — render value-leaf after createForm.`
-        );
-      }
-      return null;
-    }
-    // Адресация ref листа: явный `selector` в приоритете, иначе — индексный путь модели
-    // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FieldArray
-    // (`schema.node('phones.0.number').getRef()`) без перечисления индексов автором схемы.
-    // Селектор ищется в своей области, а путь абсолютный — он ищется от корня сборки.
-    const leafRef = selector
-      ? overrideMaps?.refRegistry.get(selector)
-      : binding.__path
-        ? (controllerContext?.rootMaps ?? overrideMaps)?.refRegistry.get(binding.__path)
-        : undefined;
-    return (
-      <ModelFieldRenderer
-        node={node}
-        fieldNode={fieldNode}
-        fieldWrapper={fieldWrapper}
-        nodeRef={leafRef}
-        resolveFieldAdapter={settings?.resolveFieldAdapter}
-      />
-    );
-  }
-
-  // ========================================
-  // ContainerRenderNode - контейнер
-  // ========================================
-  if (isContainerRenderNode(node)) {
-    const { selector, component: Component, children } = node;
-    const baseProps = unwrappedComponentProps || {};
-    // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
-    const propsPatched = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
-    // Колбэки из callbackRegistry (onComponentEvent) — наивысший приоритет среди prop-overrides
-    const callbackMap = selector ? overrideMaps?.callbackRegistry.get(selector) : undefined;
-    const callbackOverrides = callbackMap ? Object.fromEntries(callbackMap) : {};
-    const effectiveProps = callbackMap ? { ...propsPatched, ...callbackOverrides } : propsPatched;
-
-    // Нативный HTML-тег (`component: 'div'`) — не компонент: `componentProps` тут DOM-атрибуты,
-    // а `selector` адресует УЗЕЛ схемы, поэтому в разметку не пробрасывается (иначе утёк бы
-    // неизвестным атрибутом). Для компонентов поведение прежнее.
-    const isHtmlTag = typeof Component === 'string';
-    const selectorProp = !isHtmlTag && selector !== undefined ? { selector } : {};
-    // JSX по широкому `ElementType` разворачивается в union всех intrinsic-элементов и валит
-    // компиляцию (TS2590). Рантайм-семантика от сужения не меняется: React сам различает
-    // строку-тег и компонент.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Comp = Component as React.ComponentType<any>;
-
-    // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
-    // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
-    // form пробрасывается в self-managed компоненты как prop, чтобы они могли
-    // вызывать `<RenderNodeComponent form={form} ...>` для своих дочерних узлов
-    // (используется в RendererFieldArraySection, RendererFormWizard и т.п.).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (!isHtmlTag && (Component as any).__selfManagedChildren === true) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const SelfManagedComponent = Component as React.ComponentType<any>;
-      // Не перетираем form, если уже задан в componentProps (orchestrator-инжект).
-      const formProp =
-        (effectiveProps as Record<string, unknown>).form === undefined && form !== undefined
-          ? { form }
-          : {};
-      // children: предпочитаем node.children (если есть). Иначе fallback на
-      // componentProps.children (некоторые компоненты, напр. FormRoot из page 2 v4,
-      // передают raw RenderNode[] через componentProps).
-      // Такой компонент рендерит детей сам и ждёт УЗЛЫ — текстовые части ему не отдаём
-      // (он бы попытался прочитать у строки `component`/`children`).
-      const childrenProp = children !== undefined ? { children: nodesOnly(children) } : {};
-      // `renderNode` — способ отрисовать полученные узлы, не импортируя рендерер: компонент из
-      // UI-библиотеки (визард) зовёт его для тела шага.
+    case 'part':
+      // Содержимое части — та же компиляция, по которой сборка привязала конфиг полей группы.
       return (
-        <SelfManagedComponent
-          {...(selector !== undefined ? { selector } : {})}
-          {...effectiveProps}
-          {...formProp}
-          {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-          {...childrenProp}
-          renderNode={renderSchemaNode}
+        <ScopeBoundary schema={node.content}>
+          <RenderNodeComponent
+            node={node.content.root}
+            form={form}
+            fieldWrapper={fieldWrapperProp}
+          />
+        </ScopeBoundary>
+      );
+
+    case 'field': {
+      const binding = node.handle;
+      const fieldNode = getNodeForSignal(binding) as FieldNode<unknown> | undefined;
+      if (!fieldNode) {
+        if (typeof console !== 'undefined') {
+          const p = binding.__path;
+          console.warn(
+            `[RenderSchema] No form node for signal${p ? ` "${p}"` : ''} — render value-leaf after createForm.`
+          );
+        }
+        return null;
+      }
+      // Адресация ref листа: явный `selector` в приоритете, иначе — индексный путь модели
+      // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FieldArray
+      // (`schema.node('phones.0.number').getRef()`) без перечисления индексов автором схемы.
+      // Селектор ищется в своей области, а путь абсолютный — он ищется от корня сборки.
+      const leafRef = selector
+        ? overrideMaps?.refRegistry.get(selector)
+        : binding.__path
+          ? (controllerContext?.rootMaps ?? overrideMaps)?.refRegistry.get(binding.__path)
+          : undefined;
+      return (
+        <ModelFieldRenderer
+          node={node}
+          fieldNode={fieldNode}
+          fieldWrapper={fieldWrapper}
+          nodeRef={leafRef}
+          resolveFieldAdapter={settings?.resolveFieldAdapter}
         />
       );
     }
 
-    // Void-теги (<hr>, <br>, <img>) содержимого не имеют — React бросает на любых непустых
-    // children, поэтому такому узлу не передаём ни `text`, ни `children` вовсе.
-    if (isHtmlTag && VOID_HTML_TAGS.has(Component as string)) {
-      return <Comp {...effectiveProps} {...(nodeRef !== undefined ? { ref: nodeRef } : {})} />;
-    }
+    case 'container':
+      break;
+  }
 
+  const { component: Component, children } = node;
+  // Контейнер без компонента — группировка в схеме: рисуются только его дети.
+  if (Component === undefined || Component === null || Component === '') {
+    return <>{renderChildren(children, form)}</>;
+  }
+
+  const baseProps = unwrappedComponentProps || {};
+  // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
+  const propsPatched = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
+  // Колбэки из callbackRegistry (onComponentEvent) — наивысший приоритет среди prop-overrides
+  const callbackMap = selector ? overrideMaps?.callbackRegistry.get(selector) : undefined;
+  const callbackOverrides = callbackMap ? Object.fromEntries(callbackMap) : {};
+  const effectiveProps = callbackMap ? { ...propsPatched, ...callbackOverrides } : propsPatched;
+
+  // Нативный HTML-тег (`component: 'div'`) — не компонент: `componentProps` тут DOM-атрибуты,
+  // а `selector` адресует УЗЕЛ схемы, поэтому в разметку не пробрасывается (иначе утёк бы
+  // неизвестным атрибутом). Для компонентов поведение прежнее.
+  const isHtmlTag = typeof Component === 'string';
+  const selectorProp = !isHtmlTag && selector !== undefined ? { selector } : {};
+  // JSX по широкому `ElementType` разворачивается в union всех intrinsic-элементов и валит
+  // компиляцию (TS2590). Рантайм-семантика от сужения не меняется: React сам различает
+  // строку-тег и компонент.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Comp = Component as React.ComponentType<any>;
+
+  // Компонент, который управляет детьми сам (визард, табы), получает узлы-дети данными и способ
+  // их отрисовать. `form` пробрасывается пропом, чтобы он мог звать
+  // `<RenderNodeComponent form={form} …>` для своих дочерних узлов.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!isHtmlTag && (Component as any).__selfManagedChildren === true) {
+    // Не перетираем form, если уже задан в componentProps (orchestrator-инжект).
+    const formProp =
+      (effectiveProps as Record<string, unknown>).form === undefined && form !== undefined
+        ? { form }
+        : {};
+    // Детей передаём, только если автор их задал: иначе узлы могут прийти через componentProps
+    // (`componentProps.children` / `steps`), и пустой список их бы перетёр. Текстовые части такому
+    // компоненту не отдаём — он ждёт узлы.
+    const childrenProp =
+      (node.source as { children?: unknown }).children !== undefined
+        ? { children: nodesOnly(children) }
+        : {};
+    // `renderNode` — способ отрисовать полученные узлы, не импортируя рендерер: компонент из
+    // UI-библиотеки (визард) зовёт его для тела шага.
     return (
       <Comp
-        {...selectorProp}
+        {...(selector !== undefined ? { selector } : {})}
         {...effectiveProps}
+        {...formProp}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-      >
-        {/* Текст — такой же ребёнок, как узел: порядок соблюдается, соседние части склеиваются */}
-        {children &&
-          groupChildren(children).map((chunk) =>
-            'parts' in chunk ? (
-              <RenderTextContent key={chunk.key} parts={chunk.parts} />
-            ) : (
-              <RenderNodeComponent key={chunk.key} node={chunk.node} form={form} />
-            )
-          )}
-      </Comp>
+        {...childrenProp}
+        renderNode={renderSchemaNode}
+      />
     );
   }
 
-  return null;
+  // Void-теги (<hr>, <br>, <img>) содержимого не имеют — React бросает на любых непустых
+  // children, поэтому такому узлу не передаём ни `text`, ни `children` вовсе.
+  if (isHtmlTag && VOID_HTML_TAGS.has(Component as string)) {
+    return <Comp {...effectiveProps} {...(nodeRef !== undefined ? { ref: nodeRef } : {})} />;
+  }
+
+  return (
+    <Comp
+      {...selectorProp}
+      {...effectiveProps}
+      {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+    >
+      {/* Текст — такой же ребёнок, как узел: порядок соблюдается, соседние части склеены */}
+      {children.length > 0 ? renderChildren(children, form) : undefined}
+    </Comp>
+  );
 }

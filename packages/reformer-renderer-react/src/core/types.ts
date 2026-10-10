@@ -10,6 +10,7 @@
 import type { ComponentType, ElementType } from 'react';
 import type { Signal } from '@reformer/core/signals';
 import type {
+  CompiledNode,
   FormRender,
   SchemaArrayControl,
   SchemaArrayNode,
@@ -402,20 +403,24 @@ export interface FormRendererProps<T> {
 
 /**
  * Функция отрисовки узла схемы — проп `renderNode`, который рендерер передаёт компонентам со
- * статикой `__selfManagedChildren = true` (визард, табы). Компонент получает узлы-детей как
- * данные и рисует нужные сам, не импортируя рендерер.
+ * статикой `__selfManagedChildren = true` (визард, табы). Компонент получает узлы-детей данными —
+ * узлы скомпилированной схемы ({@link CompiledNode}: `selector`, `props`, `children`) — и рисует
+ * нужные сам, не импортируя рендерер.
  *
  * @example
  * ```tsx
- * function Tabs({ children, renderNode }: { children: RenderNode<unknown>[]; renderNode: RenderNodeFn }) {
+ * function Tabs({ children, renderNode }: { children: CompiledNode[]; renderNode: RenderNodeFn }) {
  *   const [active] = useState(0);
  *   return <div>{renderNode(children[active])}</div>;
  * }
  * Tabs.__selfManagedChildren = true;
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type RenderNodeFn = (node: RenderNode<any>, key?: React.Key) => React.ReactNode;
+export type RenderNodeFn = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  node: CompiledNode | RenderNode<any>,
+  key?: React.Key
+) => React.ReactNode;
 
 // ============================================================================
 // CONTAINER COMPONENT PROPS

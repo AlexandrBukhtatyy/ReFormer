@@ -126,7 +126,7 @@ Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма
 | `RenderModelNode`, `RenderModelArray`                                            | Низкоуровневый рендер узла/массива M1-схемы.               |
 | `RenderContextProvider`, `useRenderContext`                                      | Контекст рендеринга: `form`, `settings`.                   |
 | `createRenderSchema`, `isRenderSchemaProxy`                                      | Программное управление схемой.                             |
-| `isModelFieldRenderNode`, `isArrayRenderNode`, `isContainerRenderNode`           | Type guards для `RenderNode`.                              |
+| `isHtmlTagRenderNode`, `VOID_HTML_TAGS`                                          | HTML-тег в `component`; вид узла — `kind` из `compileSchema`. |
 | `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Декларативные behavior-хелперы.                            |
 
 ## See also

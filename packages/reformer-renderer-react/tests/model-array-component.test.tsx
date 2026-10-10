@@ -10,28 +10,31 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { signal } from '@reformer/core/signals';
+import { arrayOf, createModel, type FormModel } from '@reformer/core';
 import { FormRenderer } from '../src/core/form-renderer';
-import type { RenderNode, RenderModelArrayControl, ArrayComponentProps } from '../src/core/types';
+import type { RenderNode, ArrayComponentProps } from '../src/core/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const render = (node: RenderNode<any>): string =>
   renderToStaticMarkup(<FormRenderer render={() => node} />);
 
-/** Минимальный контрол массива для рендера (read-часть: length/at/map). */
-function fakeArray(items: any[], mutations?: Partial<RenderModelArrayControl>) {
-  return {
-    __path: 'alerts',
-    length: items.length,
-    at: (i: number) => items[i],
-    map: (fn: any) => items.map(fn),
-    push: () => {},
-    removeAt: () => {},
-    move: () => {},
-    ...mutations,
-  } as any as RenderModelArrayControl;
+interface AlertRow {
+  m: string;
+  t: string;
 }
+interface Alerts {
+  alerts: AlertRow[];
+}
+
+/** Модель со списком уведомлений: массив под-форм бывает только массивом модели. */
+const alertsModel = (alerts: AlertRow[]) => createModel<Alerts>({ alerts });
+
+/** Строка списка: пропсы уведомления — сигналы строки, рендерер развернёт их в значения. */
+const alertRow = (row: FormModel<AlertRow>) => ({
+  component: Alert,
+  componentProps: { message: row.$.m, type: row.$.t },
+});
 
 // Компонент-обёртка списка (аналог ui-kit List): получает готовые items — ни хуков рендерера,
 // ни сигналов, ни RenderNode. Ровно то, ради чего инвертирована инъекция.
@@ -48,14 +51,15 @@ const Alert = ({ message, type }: any) => <span className={`alert-${type}`}>{mes
 
 describe('array node с $component', () => {
   it('рендерит элементы компонентом-обёрткой, без встроенного add-хрома', () => {
-    const el0 = { m: signal('Alpha'), t: signal('info') };
-    const el1 = { m: signal('Beta'), t: signal('error') };
+    const model = alertsModel([
+      { m: 'Alpha', t: 'info' },
+      { m: 'Beta', t: 'error' },
+    ]);
     const node: any = {
-      model: fakeArray([el0, el1]),
+      model: model.$.alerts,
       component: ListWrap,
       componentProps: { className: 'space-y-2' },
-      initialValue: () => ({}),
-      item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
+      item: alertRow,
     };
     const html = render(node);
     expect(html).toContain('<ul class="space-y-2">');
@@ -70,55 +74,48 @@ describe('array node с $component', () => {
 
   it('useSignalProps: $model в componentProps элемента разворачивается в значение', () => {
     // message — сигнал; без unwrap Alert получил бы объект Signal вместо строки.
-    const el = { m: signal('Warning!'), t: signal('warning') };
-    const node: any = {
-      model: fakeArray([el]),
-      component: ListWrap,
-      initialValue: () => ({}),
-      item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
-    };
+    const model = alertsModel([{ m: 'Warning!', t: 'warning' }]);
+    const node: any = { model: model.$.alerts, component: ListWrap, item: alertRow };
     expect(render(node)).toContain('Warning!');
   });
 
-  it('onAdd/onRemove/onMove приходят пропами и дёргают контрол массива', () => {
-    const push = vi.fn();
-    const removeAt = vi.fn();
-    const move = vi.fn();
+  it('onAdd/onRemove/onMove приходят пропами и меняют массив модели', () => {
+    const model = createModel<Alerts>({
+      alerts: arrayOf<AlertRow>(
+        () => ({ m: 'новое', t: 'info' }),
+        [
+          { m: 'x', t: 'info' },
+          { m: 'y', t: 'error' },
+        ]
+      ),
+    });
     const captured: ArrayComponentProps[] = [];
     const Capture = (props: ArrayComponentProps) => {
       captured.push(props);
       return null;
     };
-    const node: any = {
-      model: fakeArray([{ m: signal('x'), t: signal('info') }], { push, removeAt, move }),
-      component: Capture,
-      initialValue: () => ({ fresh: true }),
-      item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
-    };
-    render(node);
+    render({ model: model.$.alerts, component: Capture, item: alertRow } as any);
 
     const props = captured[0];
-    expect(props.items).toHaveLength(1);
-    props.onAdd();
-    props.onRemove(0);
-    props.onMove(0, 1);
+    expect(props.items).toHaveLength(2);
     // Шаблон нового элемента — дело массива модели (`arrayOf(blank)`; `initialValue` узла сборка
     // регистрирует запасным): рендерер зовёт push() без значения.
-    expect(push).toHaveBeenCalledWith();
-    expect(removeAt).toHaveBeenCalledWith(0);
-    expect(move).toHaveBeenCalledWith(0, 1);
+    props.onAdd();
+    expect(model.alerts.map((row) => row.m)).toEqual(['x', 'y', 'новое']);
+    props.onRemove(0);
+    expect(model.alerts.map((row) => row.m)).toEqual(['y', 'новое']);
+    props.onMove(0, 1);
+    expect(model.alerts.map((row) => row.m)).toEqual(['новое', 'y']);
   });
 
   it('без component — безхромный fallback: элементы есть, UI управления нет', () => {
-    const node: any = {
-      model: fakeArray([{ m: signal('x'), t: signal('info') }]),
-      initialValue: () => ({}),
-      item: (im: any) => ({ component: Alert, componentProps: { message: im.m, type: im.t } }),
-    };
-    const html = render(node);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const model = alertsModel([{ m: 'x', t: 'info' }]);
+    const html = render({ model: model.$.alerts, item: alertRow } as any);
     expect(html).toContain('alert-info');
     expect(html).toContain('x');
     expect(html).not.toContain('array-add');
     expect(html).not.toContain('<section');
+    vi.restoreAllMocks();
   });
 });

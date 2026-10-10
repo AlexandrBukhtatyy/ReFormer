@@ -143,7 +143,7 @@ Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма
 | `RenderModelNode`, `RenderModelArray`                                            | Низкоуровневый рендер узла/массива M1-схемы.               |
 | `RenderContextProvider`, `useRenderContext`                                      | Контекст рендеринга: `form`, `settings`.                   |
 | `createRenderSchema`, `isRenderSchemaProxy`                                      | Программное управление схемой.                             |
-| `isModelFieldRenderNode`, `isArrayRenderNode`, `isContainerRenderNode`           | Type guards для `RenderNode`.                              |
+| `isHtmlTagRenderNode`, `VOID_HTML_TAGS`                                          | HTML-тег в `component`; вид узла — `kind` из `compileSchema`. |
 | `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Декларативные behavior-хелперы.                            |
 
 ## 6. See also
@@ -164,27 +164,21 @@ Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
 - **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), содержимое задаётся в **top-level** `children` (НЕ в `componentProps`): вложенные узлы и текстовые части (`RenderChild`) вперемешку.
 
-Type guards:
+Вид узла определяет компилятор ядра `compileSchema` — его итог читают и сборка формы, и рендерер:
 
 ```typescript
-import {
-  isModelFieldRenderNode,
-  isArrayRenderNode,
-  isContainerRenderNode,
-  isHtmlTagRenderNode,
-} from '@reformer/renderer-react';
+import { compileSchema } from '@reformer/core';
+import { isHtmlTagRenderNode } from '@reformer/renderer-react';
 
-if (isModelFieldRenderNode(node)) {
-  /* node.value — Signal; node.component — UI-компонент */
+const { root } = compileSchema(tree, model);
+switch (root.kind) {
+  case 'field': /* root.handle — ручка модели; root.component, root.props */ break;
+  case 'array': /* root.control — массив модели; root.row(rowModel) — схема строки */ break;
+  case 'part': /* root.content — скомпилированная схема части */ break;
+  case 'container': /* root.children — узлы и текст ({ kind: 'text', parts }) */ break;
 }
-if (isArrayRenderNode(node)) {
-  /* node.array — реактивный массив; node.item(im) — поддерево элемента */
-}
-if (isContainerRenderNode(node)) {
-  /* node.children — RenderNode[] (top-level, не в componentProps) */
-}
-if (isHtmlTagRenderNode(node)) {
-  /* node.component — строка-тег ('div'), а не компонент */
+if (isHtmlTagRenderNode(tree)) {
+  /* tree.component — строка-тег ('div'), а не компонент */
 }
 ```
 
@@ -1268,7 +1262,8 @@ function MyFormPage() {
 ```
 
 - Билдер схемы — `(model) => узел`: вызывается один раз, второго прохода с формой нет.
-- Дерево лежит в `bundle.render.tree`; `FormRenderer` его не перестраивает.
+- Скомпилированная схема лежит в `bundle.render.tree` (`CompiledSchema`: `root`, `nodes`,
+  `fields`, `arrays`); `FormRenderer` её не перестраивает.
 - Обёртка поля: `settings.fieldWrapper`, иначе та, что положил в бандл реестр (JSON-вариант).
 
 ## 50. Узлы схемы
@@ -1297,9 +1292,11 @@ const address = (model: FormModel<Address>): RenderNode<MyForm> => ({
 { model: model.$.coBorrowers, component: FieldArray, item: coBorrower }
 ```
 
-Порядок распознавания: `item` → `part` → поле → контейнер. Прежние ключи `value` (поле) и `array`
-(массив) пока принимаются. Привязку узла читают `fieldBindingOf(node)`, `arrayControlOf(node)` и
-`partModelOf(node)`; гарды — `isModelFieldRenderNode`, `isArrayRenderNode`, `isPartRenderNode`.
+Порядок распознавания: `item` → `part` → поле → контейнер. Распознаёт компилятор ядра
+`compileSchema`: у узла скомпилированной схемы есть `kind` (`field`, `array`, `part`,
+`container`), нормализованная привязка (`handle`, у массива — `control`) и идентификатор в области.
+Повтор `selector` в одной области — исключение при сборке. Контейнер без `component` рисует только
+своих детей.
 
 ## 51. Области схемы
 
@@ -1336,15 +1333,17 @@ createModel<MyForm>({ coBorrowers: arrayOf(blankCoBorrower) });
 
 ## 53. Компонент, который сам управляет детьми
 
-Компонент со статикой `__selfManagedChildren = true` (визард, табы) получает узлы-детей и проп
-`renderNode` — функцию, которая рисует узел. Импортировать рендерер компоненту не нужно.
+Компонент со статикой `__selfManagedChildren = true` (визард, табы) получает узлы-детей —
+узлы скомпилированной схемы (`CompiledNode`: `selector`, `props` — бывшие `componentProps`,
+`children`) — и проп `renderNode` — функцию, которая рисует узел. Импортировать рендерер
+компоненту не нужно.
 
 ```tsx
 function Tabs({
   children,
   renderNode,
 }: {
-  children: RenderNode<unknown>[];
+  children: CompiledNode[];
   renderNode: RenderNodeFn;
 }) {
   const [active, setActive] = useState(0);
@@ -1405,28 +1404,6 @@ return <ul>{items.map((it) => <li key={it.key}>{it.children}</li>)}</ul>;
 ```
 
 _Source: src/core/types.ts_
-
-### arrayControlOf
-
-**Kind:** `function`
-
-Фасад массива модели по узлу-массиву: привязка ручкой (`model: model.$.items`) либо самим
-фасадом (`model: model.items`). Для узла, который массивом под-форм не является, —
-`undefined`.
-
-**Signature:**
-```typescript
-export function arrayControlOf(node: unknown): RenderModelArrayControl | undefined
-```
-
-**Examples:**
-
-```typescript
-const control = arrayControlOf({ model: model.$.items, item });
-control?.push(); // новый элемент по шаблону модели
-```
-
-_Source: src/core/utils.ts_
 
 ### ArrayItemSlot
 
@@ -1772,27 +1749,6 @@ toValue: (v) => v ?? false,
 
 _Source: ../reformer/src/platforms/react/field-binding/field-adapter.ts_
 
-### fieldBindingOf
-
-**Kind:** `function`
-
-Ручка значения поля: ключ `model` либо прежний `value`. Для узла, который полем не является, —
-`undefined`.
-
-**Signature:**
-```typescript
-export function fieldBindingOf(node: unknown): Signal<any> | undefined
-```
-
-**Examples:**
-
-```typescript
-fieldBindingOf({ model: model.$.email, component: Input }); // model.$.email
-fieldBindingOf({ component: Section, children: [] }); // undefined
-```
-
-_Source: src/core/utils.ts_
-
 ### FieldWrapperProps
 
 **Kind:** `interface`
@@ -1941,66 +1897,6 @@ hideWhen(schema.node('mortgage-section'), () =>
 
 _Source: src/core/render-behavior.ts_
 
-### isArrayRenderNode
-
-**Kind:** `function`
-
-Type guard для {@link ArrayRenderNode} (M1): массив под-форм `{ model, item }`.
-Проверяется до поля и контейнера: ручка массива — тоже ручка значения, а `component` у узла
-необязателен.
-
-**Signature:**
-```typescript
-export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T>
-```
-
-**Parameters:**
-- `node` — - Узел {@link RenderNode}
-
-**Returns:** `true`, если узел — секция массива (есть привязка к массиву и `item`-фабрика)
-
-**Examples:**
-
-Сужение к массиву
-```typescript
-if (isArrayRenderNode(node)) {
-arrayControlOf(node); // реактивный массив модели
-node.item; // (model) => RenderNode поддерева элемента
-}
-```
-
-_Source: src/core/utils.ts_
-
-### isContainerRenderNode
-
-**Kind:** `function`
-
-Type guard для ContainerRenderNode
-
-Проверяет, что узел является контейнером (Box, Section, `'div'` и т.д.).
-
-Принимает любой валидный React element type:
-- plain function component (`function Foo() {...}`),
-- `React.memo(...)` / `React.forwardRef(...)` обёртки (объекты с `$$typeof`),
-- lazy / context provider'ы / прочие React-внутренности,
-- строку нативного HTML-тега (`'div'`, `'p'`) — см. {@link isHtmlTagRenderNode}.
-
-**Signature:**
-```typescript
-export function isContainerRenderNode<T>(node: RenderNode<T>): node is ContainerRenderNode<T>
-```
-
-**Examples:**
-
-```typescript
-if (isContainerRenderNode(node)) {
-  // node.component - React component или строка-тег
-  // node.children - дочерние узлы
-}
-```
-
-_Source: src/core/utils.ts_
-
 ### isHtmlTagRenderNode
 
 **Kind:** `function`
@@ -2024,67 +1920,6 @@ export function isHtmlTagRenderNode<T>(node: RenderNode<T>): node is ContainerRe
 ```typescript
 isHtmlTagRenderNode({ component: 'div' }); // true
 isHtmlTagRenderNode({ component: Section }); // false
-```
-
-_Source: src/core/utils.ts_
-
-### isModelFieldRenderNode
-
-**Kind:** `function`
-
-Type guard для {@link ModelFieldRenderNode} (M1): поле, привязанное к ручке значения модели —
-листу либо массиву целиком (`model.$.<массив>`: мультивыбор, теги, список файлов).
-
-Массив под-форм (`{ model, item }`) тоже привязан к ручке значения, но полем не является —
-он узнаётся раньше, по `item`.
-
-**Signature:**
-```typescript
-export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFieldRenderNode
-```
-
-**Parameters:**
-- `node` — - Узел {@link RenderNode}
-
-**Returns:** `true`, если узел — поле (привязка — ручка значения, см. `isValueSignal` ядра)
-
-**Examples:**
-
-Сужение к полю
-```typescript
-if (isModelFieldRenderNode(node)) {
-fieldBindingOf(node); // Signal модели
-node.component; // UI-компонент поля
-}
-```
-
-_Source: src/core/utils.ts_
-
-### isPartRenderNode
-
-**Kind:** `function`
-
-Type guard для {@link PartRenderNode}: подформа `{ model, part }` — часть схемы, подключённая
-к группе модели.
-
-**Signature:**
-```typescript
-export function isPartRenderNode<T>(node: RenderNode<T>): node is PartRenderNode<T>
-```
-
-**Parameters:**
-- `node` — - Узел {@link RenderNode}
-
-**Returns:** `true`, если узел — подформа (привязка — группа модели, есть `part`-фабрика)
-
-**Examples:**
-
-Сужение к подформе
-```typescript
-if (isPartRenderNode(node)) {
-partModelOf(node); // под-модель группы
-node.part; // (model) => RenderNode поддерева части
-}
 ```
 
 _Source: src/core/utils.ts_
@@ -2255,26 +2090,6 @@ onUnmount(schema.node('wizard'), () => {
 ```
 
 _Source: src/core/render-behavior.ts_
-
-### partModelOf
-
-**Kind:** `function`
-
-Под-модель группы по узлу-подформе: привязка ручкой (`model: model.$.address`) либо самой
-под-моделью (`model: model.address`). Для узла, который подформой не является, — `undefined`.
-
-**Signature:**
-```typescript
-export function partModelOf(node: unknown): object | undefined
-```
-
-**Examples:**
-
-```typescript
-partModelOf({ model: model.$.address, part: address }) === model.address; // true
-```
-
-_Source: src/core/utils.ts_
 
 ### PartRenderNode
 
@@ -2540,18 +2355,17 @@ _Source: src/core/types.ts_
 
 **Kind:** `function`
 
-Рекурсивный рендеринг узла {@link RenderNode}. Определяет тип узла и рендерит
-соответственно: {@link ModelFieldRenderNode} → компонент поля с wrapper (значение
-из сигнала модели, state — по сигналу через реестр), {@link ArrayRenderNode} → секция
-массива модели, {@link ContainerRenderNode} → контейнер с дочерними узлами. Учитывает
-`hideWhen`/`setHidden`, `patchProps`, `onComponentEvent`, lifecycle-хуки и ref из
-{@link RenderSchemaProxy}. Обычно вызывается {@link FormRenderer}; явный вызов нужен
-при ручной композиции.
+Рекурсивный рендеринг узла схемы. Ветку выбирает вид узла скомпилированной схемы (`kind`):
+поле → компонент поля с обёрткой (значение из сигнала модели, состояние — по сигналу через
+реестр), массив под-форм → строки в своих областях, подформа → содержимое части в её области,
+контейнер → компонент с детьми (без компонента — одни дети). Учитывает `hideWhen`/`setHidden`,
+`patchProps`, `onComponentEvent`, lifecycle-хуки и ref. Обычно вызывается {@link FormRenderer};
+явный вызов нужен при ручной композиции — авторский узел рендерер скомпилирует сам.
 
 **Signature:**
 ```typescript
 export function RenderNodeComponent<T>({
-  node,
+  node: givenNode,
   form,
   fieldWrapper: fieldWrapperProp,
 }: RenderNodeComponentProps<T>): ReactNode
@@ -2568,7 +2382,7 @@ export function RenderNodeComponent<T>({
 import { RenderNodeComponent } from '@reformer/renderer-react';
 
 <RenderContextProvider value={{ settings: { fieldWrapper: FormField } }}>
-  <RenderNodeComponent node={rootNode} />
+  <RenderNodeComponent node={bundle.render.tree!.root} />
 </RenderContextProvider>
 ```
 
@@ -2593,18 +2407,23 @@ _Source: src/core/render-schema-proxy.ts_
 **Kind:** `type`
 
 Функция отрисовки узла схемы — проп `renderNode`, который рендерер передаёт компонентам со
-статикой `__selfManagedChildren = true` (визард, табы). Компонент получает узлы-детей как
-данные и рисует нужные сам, не импортируя рендерер.
+статикой `__selfManagedChildren = true` (визард, табы). Компонент получает узлы-детей данными —
+узлы скомпилированной схемы ({@link CompiledNode}: `selector`, `props`, `children`) — и рисует
+нужные сам, не импортируя рендерер.
 
 **Signature:**
 ```typescript
-export type RenderNodeFn = (node: RenderNode<any>, key?: React.Key) => React.ReactNode;
+export type RenderNodeFn = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  node: CompiledNode | RenderNode<any>,
+  key?: React.Key
+) => React.ReactNode;
 ```
 
 **Examples:**
 
 ```tsx
-function Tabs({ children, renderNode }: { children: RenderNode<unknown>[]; renderNode: RenderNodeFn }) {
+function Tabs({ children, renderNode }: { children: CompiledNode[]; renderNode: RenderNodeFn }) {
   const [active] = useState(0);
   return <div>{renderNode(children[active])}</div>;
 }

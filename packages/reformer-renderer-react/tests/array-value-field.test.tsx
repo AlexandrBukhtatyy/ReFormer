@@ -8,13 +8,12 @@
  *
  * Рендер проверяется через `renderToStaticMarkup` — как в соседних тестах пакета.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FC } from 'react';
-import { createModel } from '@reformer/core';
+import { compileSchema, createModel } from '@reformer/core';
 import { createReactForm } from '../src/create-react-form';
 import { FormRenderer } from '../src/core/form-renderer';
-import { isContainerRenderNode, isModelFieldRenderNode } from '../src/core/utils';
 import type { RenderNode } from '../src/core/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -42,12 +41,14 @@ const Chips: FC<{ items?: string[] }> = ({ items }) => <b>{(items ?? []).join('+
 describe('узел схемы с массивом в value', () => {
   it('распознаётся как поле, а не как контейнер', () => {
     const model = createModel<F>({ ...INITIAL });
+    const kindOf = (node: unknown): string => compileSchema(node as any, model).root.kind;
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(isModelFieldRenderNode({ model: model.$.tags, component: Multi } as any)).toBe(true);
-    expect(isModelFieldRenderNode({ model: model.$.name, component: Multi } as any)).toBe(true);
-    // Группа полем не бывает: её узел — контейнер.
-    expect(isModelFieldRenderNode({ model: model.$.profile, component: Multi } as any)).toBe(false);
-    expect(isContainerRenderNode({ model: model.$.profile, component: Multi } as any)).toBe(true);
+    expect(kindOf({ model: model.$.tags, component: Multi })).toBe('field');
+    expect(kindOf({ model: model.$.name, component: Multi })).toBe('field');
+    // Группа полем не бывает: её узел без `part` — контейнер.
+    expect(kindOf({ model: model.$.profile, component: Multi })).toBe('container');
+    vi.restoreAllMocks();
   });
 
   it('компонент получает значение массива и onChange — в корне и во вложенной группе', () => {

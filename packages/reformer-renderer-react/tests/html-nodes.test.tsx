@@ -9,8 +9,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { signal } from '@reformer/core/signals';
+import { compileSchema } from '@reformer/core';
 import { FormRenderer } from '../src/core/form-renderer';
-import { isContainerRenderNode, isHtmlTagRenderNode, VOID_HTML_TAGS } from '../src/core/utils';
+import { isHtmlTagRenderNode, VOID_HTML_TAGS } from '../src/core/utils';
 import type { RenderNode } from '../src/core/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -20,18 +21,18 @@ const render = (node: RenderNode<any>): string =>
 
 describe('HTML-узлы — type guards', () => {
   it('строка-тег распознаётся как контейнер', () => {
-    expect(isContainerRenderNode({ component: 'div' } as any)).toBe(true);
+    expect(compileSchema({ component: 'div' }).root.kind).toBe('container');
     expect(isHtmlTagRenderNode({ component: 'div' } as any)).toBe(true);
   });
 
   it('React-компонент — контейнер, но не html-тег', () => {
     const Comp = (): null => null;
-    expect(isContainerRenderNode({ component: Comp } as any)).toBe(true);
+    expect(compileSchema({ component: Comp }).root.kind).toBe('container');
     expect(isHtmlTagRenderNode({ component: Comp } as any)).toBe(false);
   });
 
-  it('пустая строка компонентом не считается', () => {
-    expect(isContainerRenderNode({ component: '' } as any)).toBe(false);
+  it('пустая строка компонентом не считается: рисуются только дети', () => {
+    expect(render({ component: '', children: ['текст'] } as any)).toBe('текст');
   });
 
   it('void-теги перечислены', () => {

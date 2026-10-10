@@ -324,6 +324,53 @@ describe('FormRenderer — бандл createForm', () => {
     expect(html).toContain('data-step="second"');
   });
 
+  it('узлы-дети такого компонента — скомпилированные: вид, пропсы в `props`, текст отброшен', () => {
+    const received: unknown[] = [];
+    const Steps = ({ children }: { children: unknown[] }) => {
+      received.push(...children);
+      return null;
+    };
+    Steps.__selfManagedChildren = true;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: () => ({
+        component: Steps,
+        children: [
+          'текст',
+          { selector: 'first', component: Section, componentProps: { title: 'Шаг' } },
+        ],
+      }),
+    });
+
+    renderToStaticMarkup(<FormRenderer form={bundle} />);
+
+    expect(received).toEqual([
+      expect.objectContaining({ kind: 'container', selector: 'first', props: { title: 'Шаг' } }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('текстовых частей он не рендерит'));
+  });
+
+  it('контейнер без компонента рисует своих детей', () => {
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: (model) => ({
+        children: [
+          'Вид: ',
+          model.$.kind,
+          {
+            children: [{ model: model.$.kind, component: Input, componentProps: { label: 'Вид' } }],
+          },
+        ],
+      }),
+    });
+
+    // Поле без обёртки рисуется в `div`; сам контейнер разметки не добавляет.
+    expect(renderToStaticMarkup(<FormRenderer form={bundle} />)).toBe(
+      'Вид: a<div><input data-label="Вид" value="a"/></div>'
+    );
+  });
+
   it('бандл без схемы — понятная ошибка', () => {
     const bundle = createForm<Shape>({ model: createShape() });
     vi.spyOn(console, 'error').mockImplementation(() => {});

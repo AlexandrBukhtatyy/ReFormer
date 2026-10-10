@@ -9,27 +9,21 @@
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
 - **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), содержимое задаётся в **top-level** `children` (НЕ в `componentProps`): вложенные узлы и текстовые части (`RenderChild`) вперемешку.
 
-Type guards:
+Вид узла определяет компилятор ядра `compileSchema` — его итог читают и сборка формы, и рендерер:
 
 ```typescript
-import {
-  isModelFieldRenderNode,
-  isArrayRenderNode,
-  isContainerRenderNode,
-  isHtmlTagRenderNode,
-} from '@reformer/renderer-react';
+import { compileSchema } from '@reformer/core';
+import { isHtmlTagRenderNode } from '@reformer/renderer-react';
 
-if (isModelFieldRenderNode(node)) {
-  /* node.value — Signal; node.component — UI-компонент */
+const { root } = compileSchema(tree, model);
+switch (root.kind) {
+  case 'field': /* root.handle — ручка модели; root.component, root.props */ break;
+  case 'array': /* root.control — массив модели; root.row(rowModel) — схема строки */ break;
+  case 'part': /* root.content — скомпилированная схема части */ break;
+  case 'container': /* root.children — узлы и текст ({ kind: 'text', parts }) */ break;
 }
-if (isArrayRenderNode(node)) {
-  /* node.array — реактивный массив; node.item(im) — поддерево элемента */
-}
-if (isContainerRenderNode(node)) {
-  /* node.children — RenderNode[] (top-level, не в componentProps) */
-}
-if (isHtmlTagRenderNode(node)) {
-  /* node.component — строка-тег ('div'), а не компонент */
+if (isHtmlTagRenderNode(tree)) {
+  /* tree.component — строка-тег ('div'), а не компонент */
 }
 ```
 

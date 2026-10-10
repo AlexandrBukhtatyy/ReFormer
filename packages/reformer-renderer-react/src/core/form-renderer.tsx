@@ -4,10 +4,20 @@
  * @module reformer/renderer-react/form-renderer
  */
 
-import { type ComponentType, type ReactNode } from 'react';
-import { type FormBundle, type FormRender } from '@reformer/core';
+import { useMemo, type ComponentType, type ReactNode } from 'react';
+import {
+  compileSchema,
+  type FormBundle,
+  type FormRender,
+  type FormSchemaNode,
+} from '@reformer/core';
 import { FormBundleContext } from '@reformer/core/react';
-import type { FieldWrapperProps, FormRendererProps, RenderNode, RendererSettings } from './types';
+import type {
+  FieldWrapperProps,
+  FormRendererProps,
+  RenderSchemaFn,
+  RendererSettings,
+} from './types';
 import { RenderNodeComponent } from './render-node';
 import { RenderContextProvider } from './render-context';
 import {
@@ -55,7 +65,7 @@ function BundleRenderer<T>({
         <SchemaControllerContext.Provider value={{ controller, rootMaps }}>
           <RenderSchemaOverrideContext.Provider value={rootMaps}>
             <RenderBehaviorEffects effectRegistry={rootMaps.effectRegistry} />
-            <RenderNodeComponent node={tree as RenderNode<T>} />
+            <RenderNodeComponent node={tree.root} />
           </RenderSchemaOverrideContext.Provider>
         </SchemaControllerContext.Provider>
       </RenderContextProvider>
@@ -116,14 +126,28 @@ export function FormRenderer<T>({ render, form, settings }: FormRendererProps<T>
       'FormRenderer: provide either `form` (a createForm bundle) or `render` (a RenderSchemaFn).'
     );
   }
-  const rootNode = schemaFn();
+  return <SchemaFnRenderer schemaFn={schemaFn} settings={settings} />;
+}
+
+/**
+ * Рендер по функции-схеме: дерево строится и компилируется при первом рендере и дальше берётся из
+ * памяти — до смены самой функции.
+ */
+function SchemaFnRenderer<T>({
+  schemaFn,
+  settings,
+}: {
+  schemaFn: RenderSchemaFn<T>;
+  settings: RendererSettings | undefined;
+}): ReactNode {
+  const compiled = useMemo(() => compileSchema(schemaFn() as FormSchemaNode), [schemaFn]);
 
   const inner: ReactNode = (
     <RenderContextProvider value={{ settings }}>
       {isRenderSchemaProxy(schemaFn) && schemaFn.__overrideMaps.effectRegistry.length > 0 && (
         <RenderBehaviorEffects effectRegistry={schemaFn.__overrideMaps.effectRegistry} />
       )}
-      <RenderNodeComponent node={rootNode} />
+      <RenderNodeComponent node={compiled.root} />
     </RenderContextProvider>
   );
 

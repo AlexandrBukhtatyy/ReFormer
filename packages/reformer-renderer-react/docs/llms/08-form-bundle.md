@@ -44,7 +44,8 @@ function MyFormPage() {
 ```
 
 - Билдер схемы — `(model) => узел`: вызывается один раз, второго прохода с формой нет.
-- Дерево лежит в `bundle.render.tree`; `FormRenderer` его не перестраивает.
+- Скомпилированная схема лежит в `bundle.render.tree` (`CompiledSchema`: `root`, `nodes`,
+  `fields`, `arrays`); `FormRenderer` её не перестраивает.
 - Обёртка поля: `settings.fieldWrapper`, иначе та, что положил в бандл реестр (JSON-вариант).
 
 ## Узлы схемы
@@ -73,9 +74,11 @@ const address = (model: FormModel<Address>): RenderNode<MyForm> => ({
 { model: model.$.coBorrowers, component: FieldArray, item: coBorrower }
 ```
 
-Порядок распознавания: `item` → `part` → поле → контейнер. Прежние ключи `value` (поле) и `array`
-(массив) пока принимаются. Привязку узла читают `fieldBindingOf(node)`, `arrayControlOf(node)` и
-`partModelOf(node)`; гарды — `isModelFieldRenderNode`, `isArrayRenderNode`, `isPartRenderNode`.
+Порядок распознавания: `item` → `part` → поле → контейнер. Распознаёт компилятор ядра
+`compileSchema`: у узла скомпилированной схемы есть `kind` (`field`, `array`, `part`,
+`container`), нормализованная привязка (`handle`, у массива — `control`) и идентификатор в области.
+Повтор `selector` в одной области — исключение при сборке. Контейнер без `component` рисует только
+своих детей.
 
 ## Области схемы
 
@@ -112,15 +115,17 @@ createModel<MyForm>({ coBorrowers: arrayOf(blankCoBorrower) });
 
 ## Компонент, который сам управляет детьми
 
-Компонент со статикой `__selfManagedChildren = true` (визард, табы) получает узлы-детей и проп
-`renderNode` — функцию, которая рисует узел. Импортировать рендерер компоненту не нужно.
+Компонент со статикой `__selfManagedChildren = true` (визард, табы) получает узлы-детей —
+узлы скомпилированной схемы (`CompiledNode`: `selector`, `props` — бывшие `componentProps`,
+`children`) — и проп `renderNode` — функцию, которая рисует узел. Импортировать рендерер
+компоненту не нужно.
 
 ```tsx
 function Tabs({
   children,
   renderNode,
 }: {
-  children: RenderNode<unknown>[];
+  children: CompiledNode[];
   renderNode: RenderNodeFn;
 }) {
   const [active, setActive] = useState(0);

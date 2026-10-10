@@ -64,19 +64,9 @@ export {
   type RenderContextValue,
 } from './core/render-context';
 
-// Utils
-export {
-  isModelFieldRenderNode,
-  isArrayRenderNode,
-  isPartRenderNode,
-  isContainerRenderNode,
-  isHtmlTagRenderNode,
-  // Привязка узла к модели: ручка поля, фасад массива, под-модель подформы.
-  fieldBindingOf,
-  arrayControlOf,
-  partModelOf,
-  VOID_HTML_TAGS,
-} from './core/utils';
+// Utils. Вид узла и привязку к модели разбирает компилятор ядра (`compileSchema`): у узла
+// скомпилированной схемы есть `kind`, `handle`, `control`, `content`.
+export { isHtmlTagRenderNode, VOID_HTML_TAGS } from './core/utils';
 
 // Programmatic render schema control
 export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-proxy';
