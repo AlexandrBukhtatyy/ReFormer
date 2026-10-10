@@ -146,22 +146,22 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 
 1. **Model** — declare the array with its template: `<path>: arrayOf(blankItem)`; `blankItem` returns the FULL element with plain values.
 2. **Schema** — add the node `{ model: model.$.<path>, component: FieldArray, item: itemRow }`; the row is a part `(model: FormModel<Item>) => node`. For JSON — a named part and `"item": "$part(itemRow)"`.
-3. **Validation** — a separate `defineValidationSchema`, never on schema nodes. Row rules are their own schema over the element, attached with `applyEach`:
+3. **Validation** — a separate `defineValidation`, never on schema nodes. Row rules are their own schema over the element, attached with `applyEach`:
 
    ```typescript
-   const propertyRules = defineValidationSchema<Property>(({ model, cross }) => {
-     validate(model.$.type, [required({ message: 'Укажите тип' })]);
+   const propertyRules = defineValidation<Property>(({ model, cross }) => {
+     validate(model.$.type, [required({ code: 'type.required' })]);
      // `cross` inside row rules receives the snapshot of the ROW, not of the whole form
      cross(model.$.estimatedValue, (row) =>
-       row.type === 'apartment' && row.estimatedValue < 10000 ? { code: 'min', message: '…' } : null
+       row.type === 'apartment' && row.estimatedValue < 10000 ? { code: 'min' } : null
      );
    });
 
-   export const formValidation = defineValidationSchema<MyForm>(({ model, cross }) => {
+   export const formValidation = defineValidation<MyForm>(({ model, cross }) => {
      applyEach(model.$.properties, propertyRules);
      // array-level «must not be empty» — a cross on the flag that reads the array off the snapshot
      cross(model.$.hasProperty, (form) =>
-       form.hasProperty && form.properties.length === 0 ? { code: 'arrayEmpty', message: '…' } : null
+       form.hasProperty && form.properties.length === 0 ? { code: 'arrayEmpty' } : null
      );
    });
    ```
@@ -179,7 +179,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 - [ ] Model declares the array as `arrayOf(blankItem)`; the template returns PLAIN leaf values (no `component`/`componentProps`)
 - [ ] Schema node `{ model: model.$.<path>, component, item }` — NOT `array:`, NOT a tuple `[itemSchema]`, NOT an `array(...)` factory; no `initialValue` duplicating the model's template
 - [ ] Conditional visibility via `hideWhen` / JSX, NOT `enableWhen + resetOnDisable`
-- [ ] Validation in a separate `defineValidationSchema`: row rules attached with `applyEach(model.$.<arr>, rowRules)` (NOT `each`); row cross-field via `cross` on the row snapshot; array-empty via `cross` on the flag
+- [ ] Validation in a separate `defineValidation`: row rules attached with `applyEach(model.$.<arr>, rowRules)` (NOT `each`); row cross-field via `cross` on the row snapshot; array-empty via `cross` on the flag
 - [ ] Per-row behavior attached with `applyEach`; nodes of a row addressed from the row's own `schema`
 - [ ] Cleanup wired (`model.<arr>.clear()` guarded by length) if applicable
 - [ ] (renderer) Checkbox without `CdkFormField.Label` wrapper

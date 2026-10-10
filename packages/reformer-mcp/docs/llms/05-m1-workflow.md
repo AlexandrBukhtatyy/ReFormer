@@ -128,7 +128,7 @@ Traps:
   mutate (`model.items.push()`) or pass a sub-model on.
 - The keys `value:` / `array:`, the array facade `model.items` in a binding position, a second
   «render schema» describing the same fields — the former contract.
-- No `validators:` key on a node — rules live in their own `defineValidationSchema` (step 4).
+- No `validators:` key on a node — rules live in their own `defineValidation` (step 4).
 - Containers are optional: whoever writes the markup in JSX keeps only field nodes in the schema.
 - `selector` is a node id for rules of the behavior (step 5), not a model path.
 
@@ -162,21 +162,21 @@ are the former contract — three factories for three ways of drawing. Low-level
 `createFormFromModel({ model, schema })` remains public for special cases; the overloads
 `createLegacyForm({ form: {...} })` and `createLegacyForm(flatSchema)` are legacy.
 
-## 4. Validation — `defineValidationSchema`
+## 4. Validation — `defineValidation`
 
 Validation is its **own ambient schema** — a plain function over the model, imported from
 `@reformer/core/validation`, separate from the form schema (step 2) and from the behavior (step 5).
 It runs **on demand** (submit / step), not reactively. Never a `validators:` array on a node.
 
-- **Schema**: `defineValidationSchema<T>(({ model, cross }) => { … })`. The body calls bare **operators**
+- **Schema**: `defineValidation<T>(({ model, cross }) => { … })`. The body calls bare **operators**
   imported from `@reformer/core/validation` and `cross` taken from the schema argument:
   - `validate(model.$.x, rules[])` — sync value rules.
-  - `validateAsync(model.$.x, asyncRules[])` — async rules `(value, { signal }) => Promise<ValidationError | null>`;
+  - `validateAsync(model.$.x, asyncRules[])` — async rules `(value, { signal }) => Promise<ValidationIssue | null>`;
     the runner awaits them and passes an `AbortSignal` so a superseded request is cancelled. Network failure → return `null`.
   - `validateWhen(() => cond, () => { … })` — conditional branch: rules inside are active when `cond` is true, else their fields are cleared.
   - `cross(model.$.x, (f) => err | null)` — cross-field; a member of the schema argument, not an
     import. `f` is a **snapshot** of the current scope, not `(value, scope, root)`.
-  - `apply(model.$.group, groupRules)` — a sub-form: `groupRules` is a `defineValidationSchema<Group>` that receives the sub-model; one set of rules serves several groups.
+  - `apply(model.$.group, groupRules)` — a sub-form: `groupRules` is a `defineValidation<Group>` that receives the sub-model; one set of rules serves several groups.
   - `applyEach(model.$.items, itemRules)` — the same for every element of an array.
   - `apply(...schemas)` — compose schemas over the same model.
 
@@ -184,7 +184,7 @@ It runs **on demand** (submit / step), not reactively. Never a `validators:` arr
   snapshot of the group / the row. `each(model.items, …)` and a direct call
   `groupRules({ model: model.group })` are the former contract.
 - **Rules** are factories from `@reformer/core/validators` (`required()`, `email()`, `min(50000)`),
-  reused as-is, or inline `(value) => ValidationError | null`.
+  reused as-is, or inline `(value) => ValidationIssue | null`.
 - **To the assembly**: `validation: schema`, or — for a wizard — data
   `{ steps: { <step selector>: schema | null }, extras? }`. The assembly builds
   `bundle.validation` = `{ validateStep, validateAll, … }` from it.
@@ -194,25 +194,25 @@ It runs **on demand** (submit / step), not reactively. Never a `validators:` arr
   Keep the schema a **stable `const`** (identity keys the stale-run cancellation).
 
 ```ts
-import { apply, applyEach, defineValidationSchema, validate, validateAsync } from '@reformer/core/validation';
+import { apply, applyEach, defineValidation, validate, validateAsync } from '@reformer/core/validation';
 import { email, minLength, required } from '@reformer/core/validators';
 
-const phoneRules = defineValidationSchema<Phone>(({ model }) => {
+const phoneRules = defineValidation<Phone>(({ model }) => {
   validate(model.$.number, [required()]);
 });
 
-export const formValidation = defineValidationSchema<RegForm>(({ model, cross }) => {
+export const formValidation = defineValidation<RegForm>(({ model, cross }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
   // cross-field reads a snapshot of the scope — no scope/root params
   cross(model.$.confirmPassword, (f) =>
-    f.confirmPassword !== f.password ? { code: 'mismatch', message: 'Passwords differ' } : null
+    f.confirmPassword !== f.password ? { code: 'mismatch' } : null
   );
   // async — receives { signal }; network failure returns null (never blocks submit)
   validateAsync(model.$.email, [
     async (value, { signal }) => {
       const res = await fetch(`/api/check-email?e=${value}`, { signal });
-      return (await res.json()).available ? null : { code: 'email-taken', message: 'Email taken' };
+      return (await res.json()).available ? null : { code: 'email-taken' };
     },
   ]);
   apply(model.$.registrationAddress, addressRules); // sub-form
@@ -311,7 +311,7 @@ The bundle from step 3 goes to whoever draws.
 
 The form schema (a TS tree or a JSON document) describes **binding and layout** and carries no
 validators — there is no `$validator(...)` JSON operator by design. Validation is its own
-`defineValidationSchema<T>(({ model }) => …)` bound to the same model. So a form keeps **three**
+`defineValidation<T>(({ model }) => …)` bound to the same model. So a form keeps **three**
 artifacts over one model, the same for every way of drawing: the **schema** (`form.schema.ts`), the
 **validation** (`form.validation.ts`) and the **behavior** (`form.behavior.ts`). Schema and rules
 stay independent: a layout pushed from the server changes display without touching the rules, and
@@ -321,7 +321,7 @@ vice versa.
 
 1. The model initialises every field; arrays of sub-forms are `arrayOf(blank)`. 2. Nodes are
 `{ model: model.$.x, component, ... }` — the key is `model`, no `validators:` on a node. 3. One
-assembly: `createForm` in `useFormBundle`. 4. Validation is a separate `defineValidationSchema`
+assembly: `createForm` in `useFormBundle`. 4. Validation is a separate `defineValidation`
 (sub-forms via `apply`, arrays via `applyEach`), passed as `validation`. 5. One behavior
 `({ model, form, schema })`, acyclic (`validate_form kind="behaviors"`). 6. Arrays keyed by `id`.
 7. A JSON document has `"format": 2` and passed `validate_form kind="json-schema"`. 8. The code

@@ -128,7 +128,7 @@ Rules:
   a separate file per sub-form.
 - Nodes carry the **model handle** (`model: model.$.x`), never `form.X`; the key is `model`, not
   `value` / `array`.
-- Schema nodes carry **no `validators`** — value validation is a separate `defineValidationSchema`
+- Schema nodes carry **no `validators`** — value validation is a separate `defineValidation`
   over the model in `form.validation.ts`, passed to the assembly as `validation`.
 - Derived fields and node visibility → `form.behavior.ts`; domain constants/enums → `types.ts`;
   the two data concerns are split: field options + async loaders → `data-sources.ts`,

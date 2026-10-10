@@ -3,7 +3,7 @@
  *
  * Что здесь проверяется по существу: сервер ловит класс ошибок, который НЕ ловит `tsc`.
  * Компилятор не знает архитектуры библиотеки — он пропустит `validate(...)` вне
- * `defineValidationSchema` (правило не зарегистрируется, поле молча не валидируется) и импорт
+ * `defineValidation` (правило не зарегистрируется, поле молча не валидируется) и импорт
  * символа из подпути, из которого он не экспортируется (соберётся в монорепо, упадёт у
  * потребителя). Именно на этом классе ошибок стоит `scripts/check-mcp-prompts.mjs`: снятый
  * `validateFormModel` компилировался, форма рисовалась и молча отправляла пустые поля.
@@ -85,7 +85,7 @@ describe('validate_form kind=code', () => {
       k,
       [
         "import { computeFrom, copyFrom } from '@reformer/core/behaviors';",
-        "import { defineValidationSchema, validate } from '@reformer/core/validation';",
+        "import { defineValidation, validate } from '@reformer/core/validation';",
         "import { required } from '@reformer/core/validators';",
         "import { createForm } from '@reformer/core';",
       ].join('\n')
@@ -98,12 +98,12 @@ describe('validate_form kind=code', () => {
 
   it.runIf(hasSymbols)('RF004 — оператор валидации вне своей схемы', async () => {
     const code = [
-      "import { validate, defineValidationSchema } from '@reformer/core/validation';",
+      "import { validate, defineValidation } from '@reformer/core/validation';",
       "import { required } from '@reformer/core/validators';",
       '',
       'validate(model.$.email, [required()]);',
       '',
-      'export const s = defineValidationSchema(({ model }) => {',
+      'export const s = defineValidation(({ model }) => {',
       '  validate(model.$.name, [required()]);',
       '});',
     ].join('\n');

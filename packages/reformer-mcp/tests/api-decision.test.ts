@@ -176,7 +176,7 @@ describe('tool choose_api', () => {
     expect(text).toContain('## Usage');
     // Операторы валидации — из `/validation`, сами валидаторы — из `/validators`.
     expect(text).toContain(
-      "import { applyEach, defineValidationSchema, validate } from '@reformer/core/validation';"
+      "import { applyEach, defineValidation, validate } from '@reformer/core/validation';"
     );
     expect(text).toContain('applyEach(model.$.items, itemRules)');
     expect(text, 'сигнатура поведения сюда не попадает').not.toContain('FormBehavior<');
@@ -192,7 +192,7 @@ describe('tool choose_api', () => {
     const text = content[0].text;
     expect(text).toContain('# choose_api: `cross`');
     expect(text).toContain('## Usage');
-    expect(text).toContain('defineValidationSchema<Signup>(({ model, cross }) => {');
+    expect(text).toContain('defineValidation<Signup>(({ model, cross }) => {');
     expect(text).not.toMatch(/import \{[^}]*\bcross\b[^}]*\}/);
     expect(text).not.toContain('не найден в индексе');
   });

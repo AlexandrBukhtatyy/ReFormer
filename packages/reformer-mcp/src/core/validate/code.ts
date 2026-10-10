@@ -2,7 +2,7 @@
  * Семантическая проверка сгенерированного кода ReFormer.
  *
  * Что она ловит и почему это не делает `tsc`. Компилятор проверяет типы, но не знает
- * архитектуры библиотеки: он спокойно пропустит `validate(...)` вне `defineValidationSchema`
+ * архитектуры библиотеки: он спокойно пропустит `validate(...)` вне `defineValidation`
  * (правило просто не зарегистрируется и поле молча не будет валидироваться) или импорт
  * `computeFrom` из `@reformer/core` вместо `@reformer/core/behaviors`. Ровно на этом классе
  * ошибок стоит `scripts/check-mcp-prompts.mjs`: снятый `validateFormModel` компилировался,
@@ -104,7 +104,30 @@ const REMOVED_FROM_CORE: Readonly<Record<string, string>> = {
     '`createForm({ model, schema, behavior, validation })` из `@reformer/core` — одна сборка на все способы',
   each: '`applyEach(model.$.items, itemRules)` — правила строки отдельной схемой над элементом',
   cross:
-    '`cross` из аргумента схемы — `defineValidationSchema<T>(({ model, cross }) => …)`; импортировать его не нужно',
+    '`cross` из аргумента схемы — `defineValidation<T>(({ model, cross }) => …)`; импортировать его не нужно',
+  defineValidationSchema: '`defineValidation` из `@reformer/core/validation`',
+  ValidationSchema: '`ValidationDefinition` из `@reformer/core/validation`',
+  ValidationError:
+    '`ValidationIssue` из `@reformer/core` — `{ code, params?, severity? }`, без текста',
+  ValidateOptions: '`RuleOptions` из `@reformer/core` — `{ code?, params? }`, без текста',
+  ErrorFilterOptions: 'фильтр по месту: `issues.value.filter((issue) => issue.code === …)`',
+  resolveValidationError:
+    '`resolveIssueMessage(issue, i18n, messages?)` из `@reformer/core/i18n` — словарь формы → локаль → код',
+  useValidationMessage: '`useIssueMessage(messages?)` из `@reformer/core/react`',
+};
+
+/**
+ * Имена, удалённые из `@reformer/cdk`: имя → чем заменить. Текст замечания теперь даёт словарь
+ * формы, а не таблица-резолвер.
+ */
+const REMOVED_FROM_CDK: Readonly<Record<string, string>> = {
+  createMessageResolver:
+    '`defineIssueMessages({ код: текст })` из `@reformer/core/i18n` и `<ValidationMessagesProvider messages={…}>`',
+  defaultErrorResolver:
+    'ничего — без провайдера текст даёт локаль; полный резолвер — `<ValidationMessagesProvider resolver={…}>`',
+  ValidationMessageTable: '`IssueMessages` из `@reformer/core/i18n`',
+  ValidationErrorResolver: '`IssueMessageResolver` из `@reformer/cdk`',
+  useValidationErrorResolver: '`useIssueMessageResolver` из `@reformer/cdk`',
 };
 
 /**
@@ -217,15 +240,23 @@ export async function validateCode(
         });
         continue;
       }
-      const removedFromCore =
+      const removedFrom =
         matches.length === 0 && imp.from.startsWith('@reformer/core')
+          ? '@reformer/core'
+          : matches.length === 0 && imp.from.startsWith('@reformer/cdk')
+            ? '@reformer/cdk'
+            : undefined;
+      const removedFromCore =
+        removedFrom === '@reformer/core'
           ? REMOVED_FROM_CORE[imported]
-          : undefined;
+          : removedFrom === '@reformer/cdk'
+            ? REMOVED_FROM_CDK[imported]
+            : undefined;
       if (removedFromCore) {
         diagnostics.push({
           code: 'RF010',
           severity: 'error',
-          message: `\`${imported}\` удалён из @reformer/core.`,
+          message: `\`${imported}\` удалён из ${removedFrom}.`,
           line: imp.line,
           suggestion: `Замена: ${removedFromCore}.`,
           fix: { tool: 'find_recipe', arguments: { topic: 'unified-contract' } },
@@ -308,7 +339,7 @@ export async function validateCode(
   }
 
   // --- RF004 / RF005: оператор вне своей схемы --------------------------------
-  const validationRanges = rangesInside(source, 'defineValidationSchema');
+  const validationRanges = rangesInside(source, 'defineValidation');
   const behaviorRanges = rangesInside(source, 'defineFormBehavior');
   const importedLocals = new Set(reformerImports.flatMap((i) => i.names.map((n) => n.local)));
   // Имя → модуль импорта: им разводятся одноимённые операторы двух слоёв (`apply`, `applyEach`).
@@ -330,9 +361,9 @@ export async function validateCode(
       diagnostics.push({
         code: 'RF004',
         severity: 'warning',
-        message: `\`${op}(...)\` вызывается вне \`defineValidationSchema\` — правило не зарегистрируется, и поле молча не будет валидироваться.`,
+        message: `\`${op}(...)\` вызывается вне \`defineValidation\` — правило не зарегистрируется, и поле молча не будет валидироваться.`,
         line: lineNo,
-        suggestion: 'Перенесите вызов внутрь callback `defineValidationSchema`.',
+        suggestion: 'Перенесите вызов внутрь callback `defineValidation`.',
         fix: { tool: 'choose_api', arguments: { requirement: 'объявить схему валидации' } },
       });
     }
@@ -442,6 +473,23 @@ const LEGACY_KEYS: ReadonlyArray<{ re: RegExp; message: string; suggestion: stri
     message: 'Ключ `"array"` у узла JSON-схемы — прежний формат документа.',
     suggestion:
       'В формате 2 массив — `"model": "$model(path)"` + `"item"`; документ целиком переводит `migrateJsonSchema`.',
+  },
+  {
+    re: /\b(?:required|email|url|phone|pattern|minLength|maxLength|min|max|isNumber|integer|multipleOf|nonNegative|nonZero|isDate|minDate|maxDate|pastDate|futureDate|minAge|maxAge|fileType|maxFileSize|minFileSize|maxFiles|minFiles|maxTotalFileSize)\([^)]*\{[^}]*\bmessage(?:Key)?\s*:/,
+    message: 'Текст в опциях правила: у `RuleOptions` нет `message` и `messageKey`.',
+    suggestion:
+      "Правило несёт код: `required({ code: 'phone.required' })`; текст — в словаре формы `defineIssueMessages` (`@reformer/core/i18n`), подключённом через `<ValidationMessagesProvider messages>`.",
+  },
+  {
+    re: /\{\s*code:\s*['"][^'"]*['"]\s*,\s*message:/,
+    message: 'Текст в замечании: у `ValidationIssue` нет `message`.',
+    suggestion:
+      'Замечание — `{ code, params? }`; текст по коду — в словаре формы `defineIssueMessages`, динамику передавайте в `params`.',
+  },
+  {
+    re: /\b(?:setErrors|clearErrors|getErrors)\(/,
+    message: 'Методы `setErrors`/`clearErrors`/`getErrors` у ноды переименованы.',
+    suggestion: 'Пишите `setIssues([...])` и `clearIssues()`; сигнал замечаний — `node.issues`.',
   },
   {
     re: /\brenderBehavior\s*:/,

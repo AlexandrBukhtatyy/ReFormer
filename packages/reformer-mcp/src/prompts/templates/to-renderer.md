@@ -16,7 +16,7 @@ The contract of the form is the same for both ways of drawing: `model.ts`, `form
 
 ## Critical inline rules
 
-- **Do NOT touch the data layer** — the model factory, the validation schema and the model links of the behavior stay as-is. The schema carries **no** validators: there is no leaf `validators: [...]` array (the old shape), validation stays a standalone `defineValidationSchema<T>(({ model }) => …)`.
+- **Do NOT touch the data layer** — the model factory, the validation schema and the model links of the behavior stay as-is. The schema carries **no** validators: there is no leaf `validators: [...]` array (the old shape), validation stays a standalone `defineValidation<T>(({ model }) => …)`.
 - **One schema, not two.** There is no separate «render schema» next to a «form schema»: the tree you already have (`(model) => node`) is the tree the renderer draws. Add containers to it; do not write a second file that describes the same fields again.
 - Field node: `{ model: model.$.<field>, component: Input, componentProps: { ... } }` — the binding key is `model`, the value is the handle `model.$.<field>`, `component` is the UI component by reference. The keys `value:` / `array:` are the former contract — ❌ do not emit.
 - Container node: `{ component: Box, componentProps: { className: '...' }, children: [ ...nodes ] }` — `children` is a **top-level** property, NOT inside `componentProps`. Containers from `@reformer/ui-kit`: `Box`, `Section`, `Collapsible`, `AsyncBoundary`; an HTML tag is allowed as `component: 'div'`.

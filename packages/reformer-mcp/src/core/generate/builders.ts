@@ -346,7 +346,7 @@ function collectValidators(rules: ValidationRuleIntent[]): string[] {
 
 /** Параметры `buildValidationSchemaTs`: всё, что модуль берёт не из правил. */
 export interface ValidationSchemaTsOptions {
-  /** Тип модели — параметр `defineValidationSchema<…>`. */
+  /** Тип модели — параметр `defineValidation<…>`. */
   interfaceName: string;
   /** Имя экспортируемой константы схемы (`formValidation`, `stepValidation`, …). */
   exportName: string;
@@ -374,7 +374,7 @@ function validationImports(rules: readonly ValidationRuleIntent[]): {
   ops: string[];
   validators: string[];
 } {
-  const ops = ['validate', 'defineValidationSchema'];
+  const ops = ['validate', 'defineValidation'];
   if (rules.some((r) => r.async)) ops.push('validateAsync');
   if (rules.some((r) => r.when)) ops.push('validateWhen');
   if (rules.some((r) => r.each)) ops.push('applyEach');
@@ -412,7 +412,7 @@ function validationRuleBlock(rule: ValidationRuleIntent): string {
  * экспорта, свой путь до типа модели. Второй эмиттер правил в билдере разошёлся бы с этим на
  * первой же правке — поэтому печать тела живёт здесь одна, а `buildValidationTs` — обёртка над ней.
  *
- * Печатает `import …` + `export const <exportName> = defineValidationSchema<…>(…)` и ничего
+ * Печатает `import …` + `export const <exportName> = defineValidation<…>(…)` и ничего
  * сверх: сборка корня (`apply(...)`, `makeValidationConfig`) — дело потребителя.
  *
  * @example
@@ -441,7 +441,7 @@ export function buildValidationSchemaTs(
   lines.push(`import type { ${opts.interfaceName} } from '${opts.typeImport}';`);
   lines.push('');
   lines.push(
-    `export const ${opts.exportName} = defineValidationSchema<${opts.interfaceName}>(({ model }) => {`
+    `export const ${opts.exportName} = defineValidation<${opts.interfaceName}>(({ model }) => {`
   );
 
   if (rules.length === 0) {
@@ -612,7 +612,7 @@ export function buildFormValidationTs(intent: FormIntent): string {
   );
 
   const schema = (name: string, type: string, body: string[], exported = false): string[] => [
-    `${exported ? 'export ' : ''}const ${name} = defineValidationSchema<${type}>(({ model }) => {`,
+    `${exported ? 'export ' : ''}const ${name} = defineValidation<${type}>(({ model }) => {`,
     ...(body.length > 0 ? body : ['  // Правил в intent не было — добавьте их здесь.']),
     '});',
     '',

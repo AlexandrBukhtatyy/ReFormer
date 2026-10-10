@@ -273,7 +273,7 @@ describe('form.validation.ts', () => {
   const ts = buildFormValidationTs(loanIntent('renderer-react'));
 
   it('массив валидируется через applyEach с под-схемой строки', () => {
-    expect(ts).toContain('const propertiesRowRules = defineValidationSchema<PropertyItem>');
+    expect(ts).toContain('const propertiesRowRules = defineValidation<PropertyItem>');
     expect(ts).toContain('applyEach(model.$.properties, propertiesRowRules);');
     expect(ts, '`each` — прежнее имя оператора').not.toMatch(/\beach\(/);
   });
@@ -478,6 +478,37 @@ describe('validate_form kind=code — прежний контракт', () => {
     }
   });
 
+  it('прежние имена контракта валидации — RF010-ошибка с названной заменой', async () => {
+    const code = [
+      "import { defineValidationSchema, validate } from '@reformer/core/validation';",
+      "import type { ValidationError } from '@reformer/core';",
+      "import { createMessageResolver, ValidationMessagesProvider } from '@reformer/cdk';",
+    ].join('\n');
+    const { diagnostics } = await validateCode(k, code);
+    const removed = diagnostics.filter((d) => d.code === 'RF010' && d.severity === 'error');
+
+    expect(diagnostics.map((d) => d.code)).not.toContain('RF002');
+    expect(removed.map((d) => d.line)).toEqual([1, 2, 3]);
+    const suggestions = removed.map((d) => d.suggestion).join('\n');
+    expect(suggestions).toMatch(/defineValidation`/);
+    expect(suggestions).toMatch(/ValidationIssue/);
+    expect(suggestions).toMatch(/defineIssueMessages/);
+    expect(removed[2].message).toContain('@reformer/cdk');
+  });
+
+  it('текст в правиле и в замечании, прежние методы нод — RF010', async () => {
+    expect(
+      await codes("validate(model.$.phone, [required({ message: 'Укажите телефон' })]);")
+    ).toContain('RF010:warning');
+    expect(await codes("min(5, { messageKey: 'app.min' })")).toContain('RF010:warning');
+    expect(await codes("return { code: 'taken', message: 'Занято' };")).toContain('RF010:warning');
+    expect(await codes('form.email.setErrors([]);')).toContain('RF010:warning');
+    // Код вместо текста — без замечаний.
+    expect(
+      await codes("validate(model.$.phone, [required({ code: 'phone.required' })]);")
+    ).not.toContain('RF010:warning');
+  });
+
   it('прежние ключи узла — RF010', async () => {
     expect(await codes('{ value: model.$.loanType, component: Select },')).toContain(
       'RF010:warning'
@@ -490,8 +521,8 @@ describe('validate_form kind=code — прежний контракт', () => {
 
   it('apply и applyEach — операторы и валидации, и поведения', async () => {
     const validation = [
-      "import { apply, applyEach, defineValidationSchema } from '@reformer/core/validation';",
-      'export const rules = defineValidationSchema<Form>(({ model }) => {',
+      "import { apply, applyEach, defineValidation } from '@reformer/core/validation';",
+      'export const rules = defineValidation<Form>(({ model }) => {',
       '  apply(model.$.address, addressRules);',
       '  applyEach(model.$.items, itemRules);',
       '});',

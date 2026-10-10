@@ -89,7 +89,7 @@ function shortName(pkg: string): string {
  * Токенизация: слова латиницы/кириллицы и идентификаторы, плюс разбор camelCase.
  *
  * camelCase обязателен. Прежний скоринг искал подстроку, поэтому запрос «currency» находил
- * `formatCurrency`, а «validation» — `defineValidationSchema`. Переход на честные термы это
+ * `formatCurrency`, а «validation» — `defineValidation`. Переход на честные термы это
  * ломает (в документации по коду половина знания живёт внутри идентификаторов), поэтому
  * `formatCurrency` индексируется сразу тремя термами: `formatcurrency`, `format`, `currency`.
  * Так сохраняется полнота подстрочного поиска без его главного порока — ложных совпадений

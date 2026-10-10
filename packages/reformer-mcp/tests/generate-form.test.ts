@@ -289,11 +289,11 @@ describe('builders', () => {
           ' * Валидация формы «Mix» — правила над МОДЕЛЬЮ, не в layout-схеме.',
           ' * Запуск: validateModel(model, formValidation).',
           ' */',
-          "import { validate, defineValidationSchema, validateAsync, validateWhen, applyEach } from '@reformer/core/validation';",
+          "import { validate, defineValidation, validateAsync, validateWhen, applyEach } from '@reformer/core/validation';",
           "import { email, min, minLength, required } from '@reformer/core/validators';",
           "import type { MixForm } from './model';",
           '',
-          'export const formValidation = defineValidationSchema<MixForm>(({ model }) => {',
+          'export const formValidation = defineValidation<MixForm>(({ model }) => {',
           '  validate(model.$.name, [required(), minLength(2)]);',
           '  validate(model.$.email, [required(), email()]);',
           '  validateAsync(model.$.email, [checkEmail]);',
@@ -317,10 +317,10 @@ describe('builders', () => {
           ' * Валидация формы «Empty» — правила над МОДЕЛЬЮ, не в layout-схеме.',
           ' * Запуск: validateModel(model, formValidation).',
           ' */',
-          "import { validate, defineValidationSchema } from '@reformer/core/validation';",
+          "import { validate, defineValidation } from '@reformer/core/validation';",
           "import type { EmptyForm } from './model';",
           '',
-          'export const formValidation = defineValidationSchema<EmptyForm>(({ model }) => {',
+          'export const formValidation = defineValidation<EmptyForm>(({ model }) => {',
           '  // Правил в intent не было — добавьте их здесь.',
           '});',
           '',
@@ -353,11 +353,11 @@ describe('builders', () => {
       });
       expect(ts).toBe(
         [
-          "import { validate, defineValidationSchema } from '@reformer/core/validation';",
+          "import { validate, defineValidation } from '@reformer/core/validation';",
           "import { minLength, required } from '@reformer/core/validators';",
           "import type { MixForm } from '../../types';",
           '',
-          'export const stepValidation = defineValidationSchema<MixForm>(({ model }) => {',
+          'export const stepValidation = defineValidation<MixForm>(({ model }) => {',
           '  validate(model.$.name, [required(), minLength(2)]);',
           '});',
           '',
@@ -370,7 +370,7 @@ describe('builders', () => {
     it('операторы берутся по подмножеству: applyEach/validateWhen только когда нужны', () => {
       const opts = { interfaceName: 'T', exportName: 'v', typeImport: './types' };
       const eachOnly = buildValidationSchemaTs([MIX[3]], opts);
-      expect(eachOnly).toContain('import { validate, defineValidationSchema, applyEach } from');
+      expect(eachOnly).toContain('import { validate, defineValidation, applyEach } from');
       expect(eachOnly).not.toContain('validateWhen');
       expect(eachOnly).not.toContain('validateAsync');
       const header = buildValidationSchemaTs([], {

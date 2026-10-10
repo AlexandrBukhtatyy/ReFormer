@@ -19,7 +19,7 @@ You convert a single-page form into a multi-step wizard. Two questions to answer
 
 - **A step is linked to its rules by `selector`**: `validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossStepRules }` — the key is the `selector` of the step node in the schema, so reordering steps does not desynchronise rules. A step without a `selector` — and every step declared in JSX, where steps have only a `number` — falls back to its ordinal: step N uses the N-th key of `validation.steps`, so keep the keys in step order. A step with no rules is declared explicitly (`confirm: null`) — otherwise the following steps shift by one.
 - **Rules travel as DATA** in the `validation` field of `createForm`. The assembly turns them into `bundle.validation` = `{ validateStep, validateAll, createStepController, stepSelectors }` (`Promise<boolean>` where applicable). Nobody hand-rolls a `makeValidationConfig(model)` wrapper — that is the former contract.
-- **Per-step schemas** are ordinary `defineValidationSchema<Root>(({ model }) => { validate(model.$.x, [rules]); … })` functions (async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`, sub-forms via `apply`, arrays via `applyEach`). «Next» validates only the current step; submit runs every step plus `extras`. No duplicates between a step and `extras`.
+- **Per-step schemas** are ordinary `defineValidation<Root>(({ model }) => { validate(model.$.x, [rules]); … })` functions (async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`, sub-forms via `apply`, arrays via `applyEach`). «Next» validates only the current step; submit runs every step plus `extras`. No duplicates between a step and `extras`.
 - **Don't rename fields** when grouping by step — only visual grouping.
 
 ---
@@ -209,7 +209,7 @@ What is NOT needed any more — all of it is the former contract, ❌ do not emi
 2. **Pick B** by who draws the markup.
 3. State both choices in your output ("A=A1 (ui-kit FormWizard), B=B2 (schema node)").
 4. Split existing fields into steps per requirements; give every step a `selector`.
-5. Build per-step `defineValidationSchema` functions and declare them as data: `export const formValidation: FormValidation<MyForm> = { steps: { loan: …, contacts: … }, extras: crossStepRules }` → the `validation` field of `createForm`.
+5. Build per-step `defineValidation` functions and declare them as data: `export const formValidation: FormValidation<MyForm> = { steps: { loan: …, contacts: … }, extras: crossStepRules }` → the `validation` field of `createForm`.
 6. Implement following A's API + B's integration.
 7. Add the full visual baseline (or rely on A1/A2 if they ship it).
 
@@ -217,7 +217,7 @@ What is NOT needed any more — all of it is the former contract, ❌ do not emi
 
 - [ ] Stated chosen (A, B) pair AND why each was picked
 - [ ] Read the Prerequisites for both A and B
-- [ ] Per-step `defineValidationSchema` functions cover all step fields; declared as `validation: { steps, extras }`, keys = step selectors
+- [ ] Per-step `defineValidation` functions cover all step fields; declared as `validation: { steps, extras }`, keys = step selectors
 - [ ] Cross-step rules live in `extras`; no duplicate validation between a step and `extras`
 - [ ] Navigation gated on the assembled `bundle.validation` (`validateStep` / `validateAll`, plain `Promise<boolean>`); warnings stay non-blocking via the runner (no hand-rolled `.errors` gate)
 - [ ] (B2) the wizard is a schema node `{ selector: 'wizard', component: FormWizard, children: [steps] }`; no shim, no `componentProps.steps`, no `patchProps({ form, config })`

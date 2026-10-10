@@ -285,11 +285,11 @@ describe.runIf(hasCore)('сгенерированная форма работа�
     fill(model);
     model.loanAmount = 100;
     expect(await check(model)).toBe(false);
-    expect(node(form.loanAmount).errors.value.some((e) => e.code === 'min')).toBe(true);
+    expect(node(form.loanAmount).issues.value.some((e) => e.code === 'min')).toBe(true);
 
     model.loanAmount = 100000;
     expect(await check(model)).toBe(true);
-    expect(node(form.loanAmount).errors.value).toEqual([]);
+    expect(node(form.loanAmount).issues.value).toEqual([]);
   });
 
   it('условное ПРАВИЛО активно только при своём типе кредита', async () => {

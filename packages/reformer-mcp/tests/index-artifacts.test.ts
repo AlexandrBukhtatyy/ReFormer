@@ -180,7 +180,7 @@ describe('llms-index.json — артефакт билда', () => {
       'apply',
       // `cross` — член области схемы: в индексе живёт её тип
       'ValidationScope',
-      'defineValidationSchema',
+      'defineValidation',
       'validateModel',
       // сборка
       'createForm',

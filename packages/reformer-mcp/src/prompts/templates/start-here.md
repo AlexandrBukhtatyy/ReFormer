@@ -26,11 +26,11 @@ one assembly.
    typed input. `createCoreForm` / `createReactForm` / `createJsonForm` and the hooks
    `useReactForm` / `useJsonForm` are the former contract — do not use them in new code.
 4. **Validation** — a **standalone schema, not node metadata**: rules live in
-   `defineValidationSchema<T>(({ model }) => { … })` and are wired with ambient operators from
+   `defineValidation<T>(({ model }) => { … })` and are wired with ambient operators from
    `@reformer/core/validation`: `validate(model.$.field, [rules])` for a field,
    `apply(model.$.group, groupRules)` for a sub-form, `applyEach(model.$.items, itemRules)` for an
    array. A rule is a built-in factory from `@reformer/core/validators` (`required()`, `email()`,
-   `minLength()`) or a `Rule<T>` — an inline `(value) => ValidationError | null`. Pass the rules to
+   `minLength()`) or a `Rule<T>` — an inline `(value) => ValidationIssue | null`. Pass the rules to
    the assembly (`validation: schema` or `{ steps: { <step selector>: schema }, extras }`) and use
    `bundle.validation`; the external runner is `await validateModel(model, schema)`
    (`Promise<boolean>`, routes errors into the form nodes). The leaf `validators: [...]` array, the

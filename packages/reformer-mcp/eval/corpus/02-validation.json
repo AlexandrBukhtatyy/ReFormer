@@ -7,14 +7,14 @@
       "task": "сделать поле обязательным",
       "target": "core",
       "queries": ["required field validation", "make field required", "required validator"],
-      "expectAny": ["required(", "validate(", "defineValidationSchema"]
+      "expectAny": ["required(", "validate(", "defineValidation"]
     },
     {
       "id": "validation/schema-entry",
       "task": "объявить схему валидации формы",
       "target": "core",
-      "queries": ["declare validation schema", "validation entry point", "defineValidationSchema"],
-      "expectAny": ["defineValidationSchema"]
+      "queries": ["declare validation schema", "validation entry point", "defineValidation"],
+      "expectAny": ["defineValidation"]
     },
     {
       "id": "validation/run",
