@@ -14,7 +14,7 @@
  *    благодаря которой ошибки из нод (по `__path`: `getNodeForSignal(model.signalAt(path))`)
  *    адресуют поле по тому же ключу ref.
  *
- * Валидация — контракт `@reformer/core/validation`: правила живут в отдельной `ValidationSchema`,
+ * Валидация — контракт `@reformer/core/validation`: правила живут в отдельной `ValidationDefinition`,
  * `validateModel` разносит ошибки по нодам; «первое невалидное» находим чтением нод (не картой путей).
  */
 
@@ -26,7 +26,7 @@ import {
   type FormSchemaNode,
 } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormRenderer } from '@reformer/renderer-react';
 import {
@@ -40,6 +40,8 @@ import {
   type SelectAsyncHandle,
   InputNumber,
 } from '@reformer/ui-kit';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { imperativeHandlesMessages } from './messages';
 
 interface ImperativeDemoForm {
   email: string;
@@ -112,9 +114,9 @@ function buildSchema(model: FormModel<ImperativeDemoForm>): FormSchemaNode {
  * Слой валидации (отдельно от схемы формы): email и nickname обязательны. Стабильный module-level
  * `const` — прогоняется по требованию через `validateModel`, ошибки сами доезжают до нод.
  */
-const imperativeValidation = defineValidationSchema<ImperativeDemoForm>(({ model }) => {
-  validate(model.$.email, [required({ message: 'Укажите email' })]);
-  validate(model.$.nickname, [required({ message: 'Укажите никнейм' })]);
+const imperativeValidation = defineValidation<ImperativeDemoForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' })]);
+  validate(model.$.nickname, [required({ code: 'nickname.required' })]);
 });
 
 /** Порядок полей для сценария «сфокусировать первое невалидное» (ключи = __path/selector). */
@@ -146,7 +148,7 @@ function ControlPanel({
     // Ошибки после validateModel лежат в НОДАХ; путь → сигнал (signalAt) → нода (getNodeForSignal).
     const first = FIELD_ORDER.find(({ path }) => {
       const sig = model.signalAt(path);
-      return sig ? (getNodeForSignal(sig)?.errors.value.length ?? 0) > 0 : false;
+      return sig ? (getNodeForSignal(sig)?.issues.value.length ?? 0) > 0 : false;
     });
     if (!first) return;
     const ref = schema.node(first.refKey).getRef<FieldHandle>();
@@ -227,10 +229,12 @@ function ImperativeHandles() {
   const { model, render: schema } = demoForm;
 
   return (
-    <div className="w-full">
-      <ControlPanel schema={schema} model={model} />
-      <FormRenderer form={demoForm} settings={{ fieldWrapper: FormField }} />
-    </div>
+    <ValidationMessagesProvider messages={imperativeHandlesMessages}>
+      <div className="w-full">
+        <ControlPanel schema={schema} model={model} />
+        <FormRenderer form={demoForm} settings={{ fieldWrapper: FormField }} />
+      </div>
+    </ValidationMessagesProvider>
   );
 }
 

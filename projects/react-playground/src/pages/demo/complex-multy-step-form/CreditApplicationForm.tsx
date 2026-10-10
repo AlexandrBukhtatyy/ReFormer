@@ -23,7 +23,7 @@ import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm'
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import { fileUploadMessages } from './constants/file-upload-messages';
+import { creditApplicationMessages } from './validation/messages';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
 
 type Step = FormWizardStep<CreditApplicationFormType>;
@@ -66,8 +66,8 @@ function CreditApplicationForm() {
 
   // Загрузкой управляет AsyncBoundary: состояние, отмена устаревшего запроса, «Повторить».
   return (
-    // Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5).
-    <ValidationMessagesProvider resolver={fileUploadMessages}>
+    // Тексты замечаний формы: правила несут коды, строки по кодам — в словаре формы.
+    <ValidationMessagesProvider messages={creditApplicationMessages}>
       <AsyncBoundary<CreditApplicationData>
         load={(signal) => loadCreditApplication(applicationId!, signal)}
         loadKey={applicationId}

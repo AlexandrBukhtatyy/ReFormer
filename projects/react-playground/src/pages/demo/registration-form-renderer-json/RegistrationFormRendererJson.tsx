@@ -25,6 +25,8 @@ import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
 import { createRegistrationSetup } from './form-setup';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { registrationMessages } from './messages';
 
 export default function RegistrationFormRendererJson() {
   // Сборка одним вызовом `createForm`. useFormBundle зовёт фабрику ровно один раз — повторная
@@ -32,8 +34,11 @@ export default function RegistrationFormRendererJson() {
   // стартовала бы заново.
   const registration = useFormBundle(createRegistrationSetup);
 
+  // Обёртку поля рендерер берёт из бандла: её положил туда реестр (FIELD_WRAPPER). Тексты
+  // замечаний — словарь страницы: правила документа несут коды.
   return (
-    // Обёртку поля рендерер берёт из бандла: её положил туда реестр (FIELD_WRAPPER).
-    <FormRenderer<RegistrationFormData> form={registration} />
+    <ValidationMessagesProvider messages={registrationMessages}>
+      <FormRenderer<RegistrationFormData> form={registration} />
+    </ValidationMessagesProvider>
   );
 }

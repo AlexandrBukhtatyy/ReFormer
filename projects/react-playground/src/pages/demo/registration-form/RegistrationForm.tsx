@@ -4,25 +4,27 @@
  * Демонстрирует РАЗДЕЛЕНИЕ схемы формы и валидации:
  * - схема (`buildSchema`) — только поля: `{ model, component, componentProps }`, без правил.
  * - VALIDATION-схема (`registrationValidation`) — стабильный module-level `const`
- *   `defineValidationSchema(({ model }) => …)` с операторами `validate` / `validateAsync` / `cross`.
+ *   `defineValidation(({ model }) => …)` с операторами `validate` / `validateAsync` / `cross`.
  * - сборка `createForm({ initial, schema })` → бандл `{ model, form }` (ноды привязаны к модели).
  * - Стратегия валидации выбрана декларативно через `useFormValidation({ strategy: 'afterFirstSubmit' })`:
  *   тихо до первой отправки, затем живая проверка при вводе. `submit()` сам метит touched.
  * - Рендер через существующий <FormField control={form.x} /> (нода = сигнал модели).
  */
 
-import { createForm, type FormModel, type ValidationError } from '@reformer/core';
+import { createForm, type FormModel, type ValidationIssue } from '@reformer/core';
 import { useFormBundle, useFormValidation } from '@reformer/core/react';
 import {
   validate,
   validateAsync,
-  defineValidationSchema,
+  defineValidation,
   type Rule,
   type AsyncRule,
 } from '@reformer/core/validation';
 import { required, email, minLength, pattern } from '@reformer/core/validators';
 import { Input, InputPassword, InputMask, CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 import { FormStateDisplay } from './FormSateDisplay';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { registrationMessages } from './messages';
 
 export interface RegistrationFormData {
   username: string;
@@ -50,21 +52,18 @@ const INITIAL: RegistrationFormData = {
 const passwordStrength: Rule<string> = (value) => {
   if (!value) return null;
   const ok = /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
-  return ok ? null : { code: 'weak-password', message: 'Нужны заглавные, строчные буквы и цифры' };
+  return ok ? null : { code: 'weak-password' };
 };
 
 const captchaCode: Rule<string> = (value) =>
-  value !== 'ABC123'
-    ? { code: 'invalid-captcha', message: 'Неверная captcha. Попробуйте ABC123' }
-    : null;
+  value !== 'ABC123' ? { code: 'invalid-captcha' } : null;
 
-const termsAccepted: Rule<boolean> = (value) =>
-  value ? null : { code: 'terms-required', message: 'Необходимо принять условия' };
+const termsAccepted: Rule<boolean> = (value) => (value ? null : { code: 'terms-required' });
 
 // ── Cross-field правило (читает другое поле → через cross) ───────────────────
-const passwordsMatch = (f: RegistrationFormData): ValidationError | null =>
+const passwordsMatch = (f: RegistrationFormData): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'passwords-mismatch', message: 'Пароли не совпадают' }
+    ? { code: 'passwords-mismatch' }
     : null;
 
 // ── Async-правила (AsyncRule<T> под validateAsync) ───────────────────────────
@@ -76,7 +75,7 @@ const usernameAvailable: AsyncRule<string> = async (value) => {
     const json = await res.json();
     return json.available
       ? null
-      : { code: 'username-taken', message: json.message || 'Имя занято' };
+      : { code: 'username-taken', params: { serverMessage: json.message } };
   } catch {
     return null; // сетевой сбой не блокирует валидацию
   }
@@ -88,47 +87,44 @@ const emailAvailable: AsyncRule<string> = async (value) => {
     await new Promise((r) => setTimeout(r, 300));
     const res = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(value)}`);
     const json = await res.json();
-    return json.available ? null : { code: 'email-taken', message: json.message || 'Email занят' };
+    return json.available ? null : { code: 'email-taken', params: { serverMessage: json.message } };
   } catch {
     return null;
   }
 };
 
 // ── Схема валидации (стабильный module-level const) ──────────────────────────
-const registrationValidation = defineValidationSchema<RegistrationFormData>(({ model, cross }) => {
+const registrationValidation = defineValidation<RegistrationFormData>(({ model, cross }) => {
   validate(model.$.username, [
-    required({ message: 'Имя пользователя обязательно' }),
-    minLength(3, { message: 'Минимум 3 символа' }),
-    pattern(/^[a-zA-Z0-9_]{3,20}$/, { message: 'Латиница, цифры, _ (3-20)' }),
+    required({ code: 'username.required' }),
+    minLength(3, { code: 'username.minLength' }),
+    pattern(/^[a-zA-Z0-9_]{3,20}$/, { code: 'username.pattern' }),
   ]);
   validateAsync(model.$.username, [usernameAvailable]);
 
-  validate(model.$.email, [
-    required({ message: 'Email обязателен' }),
-    email({ message: 'Некорректный email' }),
-  ]);
+  validate(model.$.email, [required({ code: 'email.required' }), email({ code: 'email.email' })]);
   validateAsync(model.$.email, [emailAvailable]);
 
   validate(model.$.password, [
-    required({ message: 'Пароль обязателен' }),
-    minLength(8, { message: 'Минимум 8 символов' }),
+    required({ code: 'password.required' }),
+    minLength(8, { code: 'password.minLength' }),
     passwordStrength,
   ]);
 
-  validate(model.$.confirmPassword, [required({ message: 'Подтвердите пароль' })]);
+  validate(model.$.confirmPassword, [required({ code: 'confirmPassword.required' })]);
   cross(model.$.confirmPassword, passwordsMatch);
 
   validate(model.$.fullName, [
-    required({ message: 'Полное имя обязательно' }),
-    minLength(2, { message: 'Минимум 2 символа' }),
+    required({ code: 'fullName.required' }),
+    minLength(2, { code: 'fullName.minLength' }),
   ]);
 
   validate(model.$.phone, [
-    required({ message: 'Телефон обязателен' }),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' }),
+    required({ code: 'phone.required' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
   ]);
 
-  validate(model.$.captcha, [required({ message: 'Введите captcha' }), captchaCode]);
+  validate(model.$.captcha, [required({ code: 'captcha.required' }), captchaCode]);
 
   validate(model.$.acceptTerms, [termsAccepted]);
 });
@@ -247,66 +243,68 @@ export default function RegistrationForm() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 mx-auto">
-      <div className="flex-1 p-6 bg-white rounded-lg shadow">
-        <h2 className="text-xl font-bold mb-4">Регистрация</h2>
-        <p className="text-sm text-gray-600 mb-6">
-          Заполните форму для создания нового аккаунта. Все поля обязательны.
-        </p>
+    <ValidationMessagesProvider messages={registrationMessages}>
+      <div className="flex flex-col md:flex-row gap-6 mx-auto">
+        <div className="flex-1 p-6 bg-white rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Регистрация</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Заполните форму для создания нового аккаунта. Все поля обязательны.
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.username} className="mb-4" />
-            <FormField control={form.email} className="mb-4" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.password} className="mb-4" />
-            <FormField control={form.confirmPassword} className="mb-4" />
-          </div>
-          <FormField control={form.fullName} className="mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.phone} className="mb-4" />
-            <FormField control={form.captcha} className="mb-4" />
-          </div>
-          <FormField control={form.acceptTerms} className="mb-6" />
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.username} className="mb-4" />
+              <FormField control={form.email} className="mb-4" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.password} className="mb-4" />
+              <FormField control={form.confirmPassword} className="mb-4" />
+            </div>
+            <FormField control={form.fullName} className="mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.phone} className="mb-4" />
+              <FormField control={form.captcha} className="mb-4" />
+            </div>
+            <FormField control={form.acceptTerms} className="mb-6" />
 
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={isValidating}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isValidating ? 'Проверка...' : 'Зарегистрироваться'}
-            </button>
-            <button
-              type="button"
-              onClick={() => form.reset()}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-            >
-              Очистить
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={isValidating}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isValidating ? 'Проверка...' : 'Зарегистрироваться'}
+              </button>
+              <button
+                type="button"
+                onClick={() => form.reset()}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Очистить
+              </button>
+            </div>
+          </form>
+        </div>
 
-      <div className="flex-1 p-6 bg-white rounded-lg shadow">
-        <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
-        <FormStateDisplay form={form} />
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
-          <h3 className="font-semibold mb-2">💡 Подсказки для тестирования:</h3>
-          <ul className="text-sm text-gray-700 space-y-1">
-            <li>
-              • Занятые username: <code>johndoe</code>, <code>janedoe</code>, <code>admin</code>
-            </li>
-            <li>
-              • Занятые email: <code>john@example.com</code>, <code>admin@example.com</code>
-            </li>
-            <li>
-              • Правильная captcha: <code>ABC123</code>
-            </li>
-          </ul>
+        <div className="flex-1 p-6 bg-white rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
+          <FormStateDisplay form={form} />
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
+            <h3 className="font-semibold mb-2">💡 Подсказки для тестирования:</h3>
+            <ul className="text-sm text-gray-700 space-y-1">
+              <li>
+                • Занятые username: <code>johndoe</code>, <code>janedoe</code>, <code>admin</code>
+              </li>
+              <li>
+                • Занятые email: <code>john@example.com</code>, <code>admin@example.com</code>
+              </li>
+              <li>
+                • Правильная captcha: <code>ABC123</code>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
-    </div>
+    </ValidationMessagesProvider>
   );
 }

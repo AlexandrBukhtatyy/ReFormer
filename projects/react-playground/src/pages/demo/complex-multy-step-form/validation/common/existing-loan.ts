@@ -1,52 +1,50 @@
-import type { ValidationError } from '@reformer/core';
-import { defineValidationSchema, validate, type Rule } from '@reformer/core/validation';
+import type { ValidationIssue } from '@reformer/core';
+import { defineValidation, validate, type Rule } from '@reformer/core/validation';
 import { max, maxLength, min, minLength, required } from '@reformer/core/validators';
 import type { ExistingLoan } from '../../components/nested-forms/ExistingLoan/types';
 import { NON_NEGATIVE_RULES } from './rules';
 
 const BANK_RULES: Rule<string>[] = [
-  required({ message: 'Укажите название банка' }),
-  minLength(3, { message: 'Минимум 3 символа' }),
-  maxLength(100, { message: 'Максимум 100 символов' }),
+  required({ code: 'existingLoan.bank.required' }),
+  minLength(3, { code: 'existingLoan.bank.minLength' }),
+  maxLength(100, { code: 'existingLoan.bank.maxLength' }),
 ];
 
-const TYPE_RULES: Rule<string>[] = [required({ message: 'Укажите тип кредита' })];
+const TYPE_RULES: Rule<string>[] = [required({ code: 'existingLoan.type.required' })];
 
 const AMOUNT_RULES: Rule<number>[] = [
-  required({ message: 'Укажите сумму кредита' }),
-  min(1000, { message: 'Минимум 1 000 ₽' }),
-  max(100000000, { message: 'Максимум 100 000 000 ₽' }),
+  required({ code: 'existingLoan.amount.required' }),
+  min(1000, { code: 'existingLoan.amount.min' }),
+  max(100000000, { code: 'existingLoan.amount.max' }),
 ];
 
 const REMAINING_AMOUNT_RULES: Rule<number>[] = [
-  required({ message: 'Укажите остаток долга' }),
+  required({ code: 'existingLoan.remainingAmount.required' }),
   ...NON_NEGATIVE_RULES,
 ];
 
 const MONTHLY_PAYMENT_RULES: Rule<number>[] = [
-  required({ message: 'Укажите ежемесячный платеж' }),
-  min(100, { message: 'Минимум 100 ₽' }),
+  required({ code: 'existingLoan.monthlyPayment.required' }),
+  min(100, { code: 'existingLoan.monthlyPayment.min' }),
 ];
 
-const MATURITY_DATE_RULES: Rule<string>[] = [required({ message: 'Укажите дату погашения' })];
+const MATURITY_DATE_RULES: Rule<string>[] = [
+  required({ code: 'existingLoan.maturityDate.required' }),
+];
 
 // Правила над несколькими полями строки: получают снимок строки
-const remainingWithinAmount = (existingLoan: ExistingLoan): ValidationError | null =>
-  existingLoan.remainingAmount > existingLoan.amount
-    ? { code: 'remainingExceedsAmount', message: 'Остаток долга не может превышать сумму кредита' }
-    : null;
+const remainingWithinAmount = (existingLoan: ExistingLoan): ValidationIssue | null =>
+  existingLoan.remainingAmount > existingLoan.amount ? { code: 'remainingExceedsAmount' } : null;
 
-const maturityInFuture = (existingLoan: ExistingLoan): ValidationError | null => {
+const maturityInFuture = (existingLoan: ExistingLoan): ValidationIssue | null => {
   if (!existingLoan.maturityDate) return null;
   const maturityDate = new Date(existingLoan.maturityDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return maturityDate < today
-    ? { code: 'maturityDateInPast', message: 'Дата погашения должна быть в будущем' }
-    : null;
+  return maturityDate < today ? { code: 'maturityDateInPast' } : null;
 };
 
-export const existingLoanRules = defineValidationSchema<ExistingLoan>(({ model, cross }) => {
+export const existingLoanRules = defineValidation<ExistingLoan>(({ model, cross }) => {
   validate(model.$.bank, BANK_RULES);
   validate(model.$.type, TYPE_RULES);
   validate(model.$.amount, AMOUNT_RULES);

@@ -1,10 +1,5 @@
-import type { ValidationError } from '@reformer/core';
-import {
-  defineValidationSchema,
-  validate,
-  validateWhen,
-  type Rule,
-} from '@reformer/core/validation';
+import type { ValidationIssue } from '@reformer/core';
+import { defineValidation, validate, validateWhen, type Rule } from '@reformer/core/validation';
 import { max, maxLength, min, minLength, required } from '@reformer/core/validators';
 import { isCarLoan, isMortgage } from '../model/predicates';
 import type { CreditApplicationForm, LoanType } from '../types/credit-application';
@@ -12,93 +7,88 @@ import { MAX_10M_RUB_RULES, NON_NEGATIVE_RULES } from './common/rules';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-const LOAN_TYPE_RULES: Rule<LoanType>[] = [required({ message: 'Выберите тип кредита' })];
+const LOAN_TYPE_RULES: Rule<LoanType>[] = [required({ code: 'loanType.required' })];
 
 const LOAN_AMOUNT_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите сумму кредита' }),
-  min(50000, { message: 'Минимум 50 000 ₽' }),
+  required({ code: 'loanAmount.required' }),
+  min(50000, { code: 'loanAmount.min' }),
   ...MAX_10M_RUB_RULES,
 ];
 
 const LOAN_TERM_RULES: Rule<number>[] = [
-  required({ message: 'Укажите срок кредита' }),
-  min(6, { message: 'Минимум 6 месяцев' }),
-  max(240, { message: 'Максимум 240 месяцев' }),
+  required({ code: 'loanTerm.required' }),
+  min(6, { code: 'loanTerm.min' }),
+  max(240, { code: 'loanTerm.max' }),
 ];
 
 const LOAN_PURPOSE_RULES: Rule<string>[] = [
-  required({ message: 'Укажите цель кредита' }),
-  minLength(10, { message: 'Минимум 10 символов' }),
-  maxLength(500, { message: 'Не более 500 символов' }),
+  required({ code: 'loanPurpose.required' }),
+  minLength(10, { code: 'loanPurpose.minLength' }),
+  maxLength(500, { code: 'loanPurpose.maxLength' }),
 ];
 
 const PROPERTY_VALUE_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите стоимость недвижимости' }),
-  min(1000000, { message: 'Минимум 1 000 000 ₽' }),
+  required({ code: 'propertyValue.required' }),
+  min(1000000, { code: 'propertyValue.min' }),
 ];
 
 const INITIAL_PAYMENT_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите первоначальный взнос' }),
+  required({ code: 'initialPayment.required' }),
   ...NON_NEGATIVE_RULES,
 ];
 
 const CAR_BRAND_RULES: Rule<string>[] = [
-  required({ message: 'Укажите марку автомобиля' }),
-  minLength(2, { message: 'Минимум 2 символа' }),
-  maxLength(50, { message: 'Максимум 50 символов' }),
+  required({ code: 'carBrand.required' }),
+  minLength(2, { code: 'carBrand.minLength' }),
+  maxLength(50, { code: 'carBrand.maxLength' }),
 ];
 
 const CAR_MODEL_RULES: Rule<string>[] = [
-  required({ message: 'Укажите модель автомобиля' }),
-  minLength(1, { message: 'Минимум 1 символ' }),
-  maxLength(50, { message: 'Максимум 50 символов' }),
+  required({ code: 'carModel.required' }),
+  minLength(1, { code: 'carModel.minLength' }),
+  maxLength(50, { code: 'carModel.maxLength' }),
 ];
 
 const CAR_YEAR_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите год выпуска' }),
-  min(2000, { message: 'Не ранее 2000' }),
-  max(CURRENT_YEAR + 1, { message: `Не позднее ${CURRENT_YEAR + 1}` }),
+  required({ code: 'carYear.required' }),
+  min(2000, { code: 'carYear.min' }),
+  max(CURRENT_YEAR + 1, { code: 'carYear.max' }),
 ];
 
 const CAR_PRICE_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите стоимость автомобиля' }),
-  min(300000, { message: 'Минимум 300 000 ₽' }),
+  required({ code: 'carPrice.required' }),
+  min(300000, { code: 'carPrice.min' }),
   ...MAX_10M_RUB_RULES,
 ];
 
 const initialPaymentWithinPropertyValue = (
   application: CreditApplicationForm
-): ValidationError | null => {
+): ValidationIssue | null => {
   const { initialPayment, propertyValue } = application;
   if (!initialPayment || !propertyValue) return null;
   if (initialPayment > propertyValue)
     return {
       code: 'initialPaymentTooHigh',
-      message: 'Первоначальный взнос не может превышать стоимость недвижимости',
     };
   if (initialPayment < propertyValue * 0.2)
     return {
       code: 'initialPaymentTooLow',
-      message: 'Первоначальный взнос не может быть меньше 20% от стоимости недвижимости',
     };
   return null;
 };
 
 const loanAmountWithinPropertyValue = (
   application: CreditApplicationForm
-): ValidationError | null => {
+): ValidationIssue | null => {
   const { loanAmount, propertyValue, initialPayment } = application;
   if (!loanAmount || !propertyValue || !initialPayment) return null;
   const maximumLoan = propertyValue - initialPayment;
   return loanAmount > maximumLoan
-    ? {
-        code: 'loanAmountExceedsMax',
-        message: `Сумма кредита не может превышать ${maximumLoan.toLocaleString('ru-RU')} ₽ (стоимость минус взнос)`,
-      }
+    ? { code: 'loanAmountExceedsMax', params: { maximumLoan } }
     : null;
 };
 
-export const loanRules = defineValidationSchema<CreditApplicationForm>(({ model, cross }) => {
+export const loanRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
   validate(model.$.loanType, LOAN_TYPE_RULES);
   validate(model.$.loanAmount, LOAN_AMOUNT_RULES);
   validate(model.$.loanTerm, LOAN_TERM_RULES);

@@ -88,7 +88,7 @@ export function createRegistrationBehavior(ui: FormUiState): FormBehavior<Regist
       // Значения принадлежат модели, форма держит UI-состояние — чистим их порознь. `form.reset()`
       // здесь неверен: он вернул бы НОДЫ к пустому initial и затёр восстановленный моделью префилл.
       model.reset();
-      form.clearErrors();
+      form.clearIssues();
       form.markAsUntouched();
       ui.status.value = null;
     };
@@ -120,7 +120,7 @@ export function createRegistrationBehavior(ui: FormUiState): FormBehavior<Regist
     // один сценарий — снятие устаревшей ошибки «Пароли не совпадают»: `passwordsMatch` роутит её в
     // ноду `confirmPassword` на submit, а правка первого пароля делает вердикт неактуальным.
     onChange(model.$.password, () => {
-      form.confirmPassword.clearErrors();
+      form.confirmPassword.clearIssues();
     });
 
     // --- Правила узлов схемы -------------------------------------------------------------------

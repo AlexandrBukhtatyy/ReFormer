@@ -23,7 +23,7 @@ import { ValidationMessagesProvider } from '@reformer/cdk';
 import { SchemaErrorPanel, type JsonFormSchema } from '@reformer/renderer-json';
 import { createCreditApplication } from '../complex-multy-step-form/application/create';
 import { rendererSetup } from '../complex-multy-step-form/application/renderer';
-import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
+import { creditApplicationMessages } from '../complex-multy-step-form/validation/messages';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import rawJsonSchema from './form.schema.json';
 import { createCreditApplicationRegistry } from './registry';
@@ -86,8 +86,8 @@ export default function CreditApplicationFormRendererJson() {
 
   return (
     <div className="w-full">
-      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5) — настройка хоста. */}
-      <ValidationMessagesProvider resolver={fileUploadMessages}>
+      {/* Тексты замечаний формы: правила несут коды, строки по кодам — в словаре формы. */}
+      <ValidationMessagesProvider messages={creditApplicationMessages}>
         <CreditApplicationJsonForm />
       </ValidationMessagesProvider>
     </div>

@@ -8,20 +8,20 @@
  * (запись реестра), регистрация — в `src/forms/registry.ts`. Ровно это и нужно микрофронтам:
  * форму отдаёт одно приложение, а решает, где её показать, другое.
  *
- * `ValidationMessagesProvider` остаётся на странице намеренно: это настройка ХОСТА (тексты кодов
- * отбора файлов), а не часть формы. Реестр компонентов уходит в сборку формы явно, а не через
- * React-контекст: контекст не пересекает границу бандла.
+ * `ValidationMessagesProvider` со словарём формы стоит на странице: тексты замечаний — слой
+ * представления, их подключает тот, кто показывает форму. Реестр компонентов уходит в сборку
+ * формы явно, а не через React-контекст: контекст не пересекает границу бандла.
  */
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormOutlet } from '@reformer/form-registry/react';
-import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
+import { creditApplicationMessages } from '../complex-multy-step-form/validation/messages';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
 export default function CreditApplicationFormRegistry() {
   return (
     <div className="w-full">
-      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
-      <ValidationMessagesProvider resolver={fileUploadMessages}>
+      {/* Тексты замечаний формы: правила несут коды, строки по кодам — в словаре формы. */}
+      <ValidationMessagesProvider messages={creditApplicationMessages}>
         <FormOutlet<CreditApplicationForm> id="credit-application" />
       </ValidationMessagesProvider>
     </div>

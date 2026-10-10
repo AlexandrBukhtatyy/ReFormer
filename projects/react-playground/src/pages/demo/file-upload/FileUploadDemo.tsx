@@ -13,9 +13,9 @@
 import { useState } from 'react';
 import { createForm, type FormModel } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
-import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import type { FileUploadUploader, FileUploadValue, RemoteFileRef } from '@reformer/cdk/file-upload';
 import {
   FileUploadBase,
@@ -26,6 +26,7 @@ import {
   ExampleCard,
   Button,
 } from '@reformer/ui-kit';
+import { fileUploadDemoMessages } from './messages';
 
 interface FileUploadDemoForm {
   // FileUploadValue (union массивов) — форма мапит поле в FieldNode (лист),
@@ -87,20 +88,6 @@ const mockUploader: FileUploadUploader = (file, { onProgress, signal }) =>
       reject(new DOMException('Aborted', 'AbortError'));
     });
   });
-
-// Таблица сообщений для кодов file-валидаторов и отборов CDK (точка i18n).
-const fileMessages = createMessageResolver({
-  required: () => 'Приложите хотя бы один файл',
-  maxFiles: (p) => `Максимум ${p?.maxFiles} файла(ов)`,
-  minFiles: (p) => `Минимум ${p?.minFiles} файла(ов)`,
-  fileType: (p) => `Недопустимый тип файла (разрешено: ${p?.accept})`,
-  maxFileSize: () => 'Файл больше 5 МБ',
-  minFileSize: () => 'Файл пустой',
-  maxTotalFileSize: () => 'Суммарный размер превышен',
-  fileExists: (p) => `Файл ${p?.fileName} уже добавлен`,
-  uploadFailed: (p) => `Не удалось загрузить: ${p?.reason ?? 'ошибка сети'}`,
-  uploadAborted: () => 'Загрузка прервана',
-});
 
 function buildSchema(model: FormModel<FileUploadDemoForm>) {
   return {
@@ -178,9 +165,9 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
 // Слой валидации — отдельная схема над моделью (контракт @reformer/core/validation).
 // `model.signalAt(path)` вместо `model.$.documents`: у массивоподобных значений `$`-тип
 // разворачивается в индексное дерево, а валидатору нужен leaf-сигнал целиком.
-const demoValidation = defineValidationSchema<FileUploadDemoForm>(({ model }) => {
+const demoValidation = defineValidation<FileUploadDemoForm>(({ model }) => {
   validate(model.signalAt('documents')!, [
-    required({ message: 'Приложите хотя бы один файл' }),
+    required({ code: 'demoValidation.required' }),
     maxFiles(3),
     maxFileSize(5 * 1024 * 1024),
     fileType('image/*,.pdf'),
@@ -222,7 +209,7 @@ export default function FileUploadDemo() {
   };
 
   return (
-    <ValidationMessagesProvider resolver={fileMessages}>
+    <ValidationMessagesProvider messages={fileUploadDemoMessages}>
       <div className="mx-auto p-6">
         <h2 className="text-2xl font-bold mb-2">FileUpload</h2>
         <p className="text-gray-600 mb-6">

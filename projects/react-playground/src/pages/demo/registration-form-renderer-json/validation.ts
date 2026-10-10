@@ -2,23 +2,23 @@
  * Валидация формы регистрации — контракт `@reformer/core/validation`.
  *
  * В JSON-DSL валидаторов нет by design: оператора `$validator(...)` не существует, а `JsonFieldNode`
- * несёт только layout. Правила живут здесь как обычная `ValidationSchema<Root>` (функция `({ model }) => void`):
+ * несёт только layout. Правила живут здесь как обычная `ValidationDefinition<Root>` (функция `({ model }) => void`):
  * значения проверяются оператором `validate(sig, [rules])`, async — `validateAsync(sig, [asyncRules])`,
  * cross-field — `cross(sig, fn)` (fn читает снапшот `model.get()`). Внешний раннер `validateModel`
- * разносит ошибки по нодам формы (`getNodeForSignal(sig).setErrors(...)`) и гасит поля, ставшие
+ * разносит ошибки по нодам формы (`getNodeForSignal(sig).setIssues(...)`) и гасит поля, ставшие
  * валидными. Схему можно менять/получать с сервера, не трогая правила, и наоборот
  * (см. `@reformer/renderer-json` docs/llms/06-validation.md).
  *
  * Встроенные фабрики (`required`/`minLength`/…) переиспользуются как есть (value-only). Cross-field —
- * обычные функции `(f: Root) => ValidationError | null`. Публичная сигнатура не менялась:
+ * обычные функции `(f: Root) => ValidationIssue | null`. Публичная сигнатура не менялась:
  * `makeRegistrationValidator(model)` → `() => Promise<boolean>`.
  */
 
-import { type FormModel, type ValidationError } from '@reformer/core';
+import { type FormModel, type ValidationIssue } from '@reformer/core';
 import {
   validate,
   validateAsync,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
   type Rule,
   type AsyncRule,
@@ -34,16 +34,13 @@ type M = FormModel<RegistrationFormData>;
 const passwordStrength: Rule<string> = (value) => {
   if (!value) return null;
   const ok = /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
-  return ok ? null : { code: 'weak-password', message: 'Нужны заглавные, строчные буквы и цифры' };
+  return ok ? null : { code: 'weak-password' };
 };
 
 const captchaCode: Rule<string> = (value) =>
-  value !== 'ABC123'
-    ? { code: 'invalid-captcha', message: 'Неверная captcha. Попробуйте ABC123' }
-    : null;
+  value !== 'ABC123' ? { code: 'invalid-captcha' } : null;
 
-const termsAccepted: Rule<boolean> = (value) =>
-  value ? null : { code: 'terms-required', message: 'Необходимо принять условия' };
+const termsAccepted: Rule<boolean> = (value) => (value ? null : { code: 'terms-required' });
 
 /** Async-правило: сетевой сбой НЕ блокирует отправку — возвращаем null, а не ошибку. */
 const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
@@ -55,7 +52,7 @@ const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
     const json = await res.json();
     return json.available
       ? null
-      : { code: 'username-taken', message: json.message || 'Имя занято' };
+      : { code: 'username-taken', params: { serverMessage: json.message } };
   } catch {
     return null;
   }
@@ -77,41 +74,38 @@ const emailAvailable: AsyncRule<string> = async (value, { signal }) => {
 // ── Cross-field правило ──────────────────────────────────────────────────────
 
 /** Подтверждение пароля читает снапшот формы — сравнивает с `password` без каста. */
-const passwordsMatch = (f: Root): ValidationError | null =>
+const passwordsMatch = (f: Root): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'passwords-mismatch', message: 'Пароли не совпадают' }
+    ? { code: 'passwords-mismatch' }
     : null;
 
 // ── Схема валидации ──────────────────────────────────────────────────────────
 
-const registrationSchema = defineValidationSchema<Root>(({ model, cross }) => {
+const registrationSchema = defineValidation<Root>(({ model, cross }) => {
   validate(model.$.username, [
-    required({ message: 'Имя пользователя обязательно' }),
-    minLength(3, { message: 'Минимум 3 символа' }),
-    pattern(/^[a-zA-Z0-9_]{3,20}$/, { message: 'Латиница, цифры, _ (3-20)' }),
+    required({ code: 'username.required' }),
+    minLength(3, { code: 'username.minLength' }),
+    pattern(/^[a-zA-Z0-9_]{3,20}$/, { code: 'username.pattern' }),
   ]);
   validateAsync(model.$.username, [usernameAvailable]);
-  validate(model.$.email, [
-    required({ message: 'Email обязателен' }),
-    email({ message: 'Некорректный email' }),
-  ]);
+  validate(model.$.email, [required({ code: 'email.required' }), email({ code: 'email.email' })]);
   validateAsync(model.$.email, [emailAvailable]);
   validate(model.$.password, [
-    required({ message: 'Пароль обязателен' }),
-    minLength(8, { message: 'Минимум 8 символов' }),
+    required({ code: 'password.required' }),
+    minLength(8, { code: 'password.minLength' }),
     passwordStrength,
   ]);
-  validate(model.$.confirmPassword, [required({ message: 'Подтвердите пароль' })]);
+  validate(model.$.confirmPassword, [required({ code: 'confirmPassword.required' })]);
   cross(model.$.confirmPassword, passwordsMatch);
   validate(model.$.fullName, [
-    required({ message: 'Полное имя обязательно' }),
-    minLength(2, { message: 'Минимум 2 символа' }),
+    required({ code: 'fullName.required' }),
+    minLength(2, { code: 'fullName.minLength' }),
   ]);
   validate(model.$.phone, [
-    required({ message: 'Телефон обязателен' }),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' }),
+    required({ code: 'phone.required' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
   ]);
-  validate(model.$.captcha, [required({ message: 'Введите captcha' }), captchaCode]);
+  validate(model.$.captcha, [required({ code: 'captcha.required' }), captchaCode]);
   validate(model.$.acceptTerms, [termsAccepted]);
 });
 

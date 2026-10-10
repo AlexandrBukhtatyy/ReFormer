@@ -20,7 +20,7 @@ import { FormField } from '@reformer/ui-kit';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { createCreditApplication } from '../complex-multy-step-form/application/create';
 import { rendererSetup } from '../complex-multy-step-form/application/renderer';
-import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
+import { creditApplicationMessages } from '../complex-multy-step-form/validation/messages';
 
 // Демо-панель для демонстрации программного управления схемой
 function SchemaControlPanel({ schema }: { schema: FormRender }) {
@@ -123,8 +123,8 @@ function CreditApplicationFormRenderer() {
   return (
     <div className="w-full">
       <SchemaControlPanel schema={creditForm.render} />
-      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
-      <ValidationMessagesProvider resolver={fileUploadMessages}>
+      {/* Тексты замечаний формы: правила несут коды, строки по кодам — в словаре формы. */}
+      <ValidationMessagesProvider messages={creditApplicationMessages}>
         <FormRenderer form={creditForm} settings={{ fieldWrapper: FormField }} />
       </ValidationMessagesProvider>
     </div>

@@ -3,7 +3,7 @@
  * Поведения работают на ручках модели (`model.$.x`); ноды (form.x) отражают изменения.
  */
 
-import { createForm, type FieldNode, type FormModel, type ValidationError } from '@reformer/core';
+import { createForm, type FieldNode, type FormModel, type ValidationIssue } from '@reformer/core';
 import { useFormBundle, useFormControl, useFormControlValue } from '@reformer/core/react';
 import {
   computeFrom,
@@ -17,7 +17,7 @@ import {
   syncFields,
   transformValue,
 } from '@reformer/core/behaviors';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import { ExampleCard } from '@reformer/ui-kit';
 
@@ -69,8 +69,8 @@ const INITIAL: BehaviorsDemoForm = {
 
 // amount не больше maxAmount — cross-field правило (читает снапшот формы),
 // поэтому в поведении навешан revalidateWhen на maxAmount.
-const amountWithinMax = (f: BehaviorsDemoForm): ValidationError | null =>
-  f.amount > f.maxAmount ? { code: 'max', message: 'Превышен лимит' } : null;
+const amountWithinMax = (f: BehaviorsDemoForm): ValidationIssue | null =>
+  f.amount > f.maxAmount ? { code: 'amount.max' } : null;
 
 // Схема формы: только поля ({ model }), без валидаторов — правила живут в amountValidation.
 function buildSchema(model: FormModel<BehaviorsDemoForm>) {
@@ -103,14 +103,11 @@ function buildSchema(model: FormModel<BehaviorsDemoForm>) {
 
 // VALIDATION-схема (стабильный module-level const — важно для отмены устаревших прогонов).
 // Прогоняется через validateModel; правила те же, что раньше жили в схеме.
-const amountValidation = defineValidationSchema<BehaviorsDemoForm>(({ model, cross }) => {
-  validate(model.$.price, [
-    required({ message: 'Укажите цену' }),
-    min(0, { message: 'Не отрицательное' }),
-  ]);
+const amountValidation = defineValidation<BehaviorsDemoForm>(({ model, cross }) => {
+  validate(model.$.price, [required({ code: 'price.required' }), min(0, { code: 'price.min' })]);
   validate(model.$.quantity, [
-    required({ message: 'Укажите количество' }),
-    min(1, { message: 'Минимум 1' }),
+    required({ code: 'quantity.required' }),
+    min(1, { code: 'quantity.min' }),
   ]);
   cross(model.$.amount, amountWithinMax);
 });

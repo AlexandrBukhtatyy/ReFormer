@@ -98,12 +98,12 @@ export const formBehavior = defineFormBehavior(({ model }) => {
   {
     name: 'validation.ts',
     hint: 'правила: имя обязательно, количество не меньше единицы',
-    source: `import { defineValidationSchema, validate } from '@reformer/core/validation';
+    source: `import { defineValidation, validate } from '@reformer/core/validation';
 import { min, required } from '@reformer/core/validators';
 
 // Колбэк РЕГИСТРИРУЕТ правила вызовами validate, а не возвращает объект: правило
 // адресует сигнал модели, а не строковый путь.
-export const formValidation = defineValidationSchema(({ model }) => {
+export const formValidation = defineValidation(({ model }) => {
   validate(model.$.customer.name, [required({ message: 'Без имени не отправим' })]);
   validate(model.$.quantity, [min(1, { message: 'Минимум одна штука' })]);
 });

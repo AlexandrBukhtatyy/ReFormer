@@ -1,7 +1,7 @@
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 import {
   apply,
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateWhen,
   type Rule,
@@ -13,25 +13,23 @@ import { addressRules } from './common/address';
 import { EMAIL_FORMAT_RULES, EMAIL_REQUIRED_RULES, PHONE_FORMAT_RULES } from './common/rules';
 
 const PHONE_MAIN_RULES: Rule<string>[] = [
-  required({ message: 'Телефон обязателен' }),
+  required({ code: 'phoneMain.required' }),
   ...PHONE_FORMAT_RULES,
 ];
 
-const additionalPhoneDiffers = (application: CreditApplicationForm): ValidationError | null => {
+const additionalPhoneDiffers = (application: CreditApplicationForm): ValidationIssue | null => {
   if (!application.phoneAdditional) return null;
-  return application.phoneMain === application.phoneAdditional
-    ? { code: 'phoneDuplicate', message: 'Дополнительный телефон должен отличаться от основного' }
-    : null;
+  return application.phoneMain === application.phoneAdditional ? { code: 'phoneDuplicate' } : null;
 };
 
-const additionalEmailDiffers = (application: CreditApplicationForm): ValidationError | null => {
+const additionalEmailDiffers = (application: CreditApplicationForm): ValidationIssue | null => {
   if (!application.emailAdditional) return null;
   return application.email.toLowerCase() === application.emailAdditional.toLowerCase()
-    ? { code: 'emailDuplicate', message: 'Дополнительный email должен отличаться от основного' }
+    ? { code: 'emailDuplicate' }
     : null;
 };
 
-export const contactsRules = defineValidationSchema<CreditApplicationForm>(({ model, cross }) => {
+export const contactsRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
   validate(model.$.phoneMain, PHONE_MAIN_RULES);
   validate(model.$.phoneAdditional, PHONE_FORMAT_RULES);
   cross(model.$.phoneAdditional, additionalPhoneDiffers);

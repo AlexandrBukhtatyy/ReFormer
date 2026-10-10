@@ -7,7 +7,7 @@
  */
 
 import type { FormModel, FormSchemaNode } from '@reformer/core';
-import type { ValidationSchema } from '@reformer/core/validation';
+import type { ValidationDefinition } from '@reformer/core/validation';
 import type { CreditApplicationForm } from '../types/credit-application';
 import { loanStep } from '../schema/steps/loan';
 import { applicantStep } from '../schema/steps/applicant';
@@ -30,7 +30,7 @@ interface FlowStep {
   /** Разметка шага — содержимое узла шага. */
   content: (model: FormModel<CreditApplicationForm>) => FormSchemaNode[];
   /** Правила шага; `null` — шаг без правил. */
-  rules: ValidationSchema<CreditApplicationForm> | null;
+  rules: ValidationDefinition<CreditApplicationForm> | null;
 }
 
 export const creditApplicationFlow = [

@@ -12,9 +12,9 @@
 import { useState } from 'react';
 import { createForm, type FormModel } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
-import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import {
   SelectMulti,
   NativeSelectMulti,
@@ -25,6 +25,7 @@ import {
 } from '@reformer/ui-kit';
 // Combobox — тяжёлый компонент (cmdk), живёт только в сабпате, вне главного barrel.
 import { ComboboxMulti } from '@reformer/ui-kit/combobox';
+import { defineIssueMessages } from '@reformer/core/i18n';
 
 interface MultiSelectDemoForm {
   /**
@@ -89,9 +90,9 @@ const INITIAL: MultiSelectDemoForm = {
   skills: [...PRESELECTED_SKILLS],
 };
 
-const messages = createMessageResolver({
-  required: () => 'Выберите хотя бы один вариант',
-  maxLength: (p) => `Не больше ${String(p?.maxLength)} вариантов`,
+const messages = defineIssueMessages({
+  required: 'Выберите хотя бы один вариант',
+  maxLength: 'Не больше {maxLength} вариантов',
 });
 
 function buildSchema(model: FormModel<MultiSelectDemoForm>) {
@@ -163,7 +164,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
 // Слой валидации — отдельная схема над моделью. Обязательность — `required()`: он отклоняет
 // и `[]`, и `null`. `minLength(1)` годится только для поля-массива: на `null` он выходит раньше
 // проверки.
-const demoValidation = defineValidationSchema<MultiSelectDemoForm>(({ model }) => {
+const demoValidation = defineValidation<MultiSelectDemoForm>(({ model }) => {
   validate(model.$.tags, [required()]);
   validate(model.$.frameworks, [required(), maxLength(3)]);
   validate(model.$.countries, [required()]);
@@ -189,7 +190,7 @@ export default function MultiSelectDemo() {
   const handleSnapshot = () => setSnapshot(JSON.stringify(model.get(), null, 2));
 
   return (
-    <ValidationMessagesProvider resolver={messages}>
+    <ValidationMessagesProvider messages={messages}>
       <div className="mx-auto p-6">
         <h2 className="mb-2 text-2xl font-bold">Множественный выбор</h2>
         <p className="mb-6 text-gray-600">

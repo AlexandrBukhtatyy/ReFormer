@@ -1,79 +1,74 @@
-import type { ValidationError } from '@reformer/core';
-import {
-  defineValidationSchema,
-  validate,
-  validateWhen,
-  type Rule,
-} from '@reformer/core/validation';
+import type { ValidationIssue } from '@reformer/core';
+import { defineValidation, validate, validateWhen, type Rule } from '@reformer/core/validation';
 import { max, maxLength, min, minLength, pattern, required } from '@reformer/core/validators';
 import { isEmployed, isSelfEmployed } from '../model/predicates';
 import type { CreditApplicationForm, EmploymentStatus } from '../types/credit-application';
 import { MAX_10M_RUB_RULES, NON_NEGATIVE_RULES, PHONE_FORMAT_RULES } from './common/rules';
 
 const EMPLOYMENT_STATUS_RULES: Rule<EmploymentStatus>[] = [
-  required({ message: 'Укажите статус занятости' }),
+  required({ code: 'employmentStatus.required' }),
 ];
 
 const COMPANY_NAME_RULES: Rule<string>[] = [
-  required({ message: 'Укажите название компании' }),
-  minLength(3, { message: 'Минимум 3 символа' }),
-  maxLength(200, { message: 'Максимум 200 символов' }),
+  required({ code: 'companyName.required' }),
+  minLength(3, { code: 'companyName.minLength' }),
+  maxLength(200, { code: 'companyName.maxLength' }),
 ];
 
 const COMPANY_INN_RULES: Rule<string>[] = [
-  required({ message: 'ИНН компании обязателен' }),
-  pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' }),
+  required({ code: 'companyInn.required' }),
+  pattern(/^\d{10}$/, { code: 'companyInn.pattern' }),
 ];
 
 const COMPANY_PHONE_RULES: Rule<string>[] = [
-  required({ message: 'Телефон компании обязателен' }),
+  required({ code: 'companyPhone.required' }),
   ...PHONE_FORMAT_RULES,
 ];
 
 const COMPANY_ADDRESS_RULES: Rule<string>[] = [
-  required({ message: 'Адрес компании обязателен' }),
-  minLength(10, { message: 'Минимум 10 символов' }),
-  maxLength(300, { message: 'Максимум 300 символов' }),
+  required({ code: 'companyAddress.required' }),
+  minLength(10, { code: 'companyAddress.minLength' }),
+  maxLength(300, { code: 'companyAddress.maxLength' }),
 ];
 
 const POSITION_RULES: Rule<string>[] = [
-  required({ message: 'Укажите должность' }),
-  minLength(3, { message: 'Минимум 3 символа' }),
-  maxLength(100, { message: 'Максимум 100 символов' }),
+  required({ code: 'position.required' }),
+  minLength(3, { code: 'position.minLength' }),
+  maxLength(100, { code: 'position.maxLength' }),
 ];
 
 /** Границы стажа в годах — общий и на текущем месте. */
 const EXPERIENCE_YEARS_RULES: Rule<number | null>[] = [
   ...NON_NEGATIVE_RULES,
-  max(60, { message: 'Максимум 60 лет' }),
+  max(60, { code: 'experienceYears.max' }),
 ];
 
 const WORK_EXPERIENCE_TOTAL_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите общий стаж' }),
+  required({ code: 'workExperienceTotal.required' }),
   ...EXPERIENCE_YEARS_RULES,
 ];
 
 const WORK_EXPERIENCE_CURRENT_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите стаж на текущем месте' }),
+  required({ code: 'workExperienceCurrent.required' }),
   ...EXPERIENCE_YEARS_RULES,
 ];
 
-const BUSINESS_TYPE_RULES: Rule<string>[] = [required({ message: 'Укажите тип бизнеса' })];
+const BUSINESS_TYPE_RULES: Rule<string>[] = [required({ code: 'businessType.required' })];
 
 const BUSINESS_INN_RULES: Rule<string>[] = [
-  required({ message: 'ИНН ИП обязателен' }),
-  pattern(/^\d{12}$/, { message: 'ИНН ИП — 12 цифр' }),
+  required({ code: 'businessInn.required' }),
+  pattern(/^\d{12}$/, { code: 'businessInn.pattern' }),
 ];
 
 const BUSINESS_ACTIVITY_RULES: Rule<string>[] = [
-  required({ message: 'Укажите вид деятельности' }),
-  minLength(10, { message: 'Минимум 10 символов' }),
-  maxLength(300, { message: 'Максимум 300 символов' }),
+  required({ code: 'businessActivity.required' }),
+  minLength(10, { code: 'businessActivity.minLength' }),
+  maxLength(300, { code: 'businessActivity.maxLength' }),
 ];
 
 const MONTHLY_INCOME_RULES: Rule<number | null>[] = [
-  required({ message: 'Укажите ежемесячный доход' }),
-  min(10000, { message: 'Минимум 10 000 ₽' }),
+  required({ code: 'monthlyIncome.required' }),
+  min(10000, { code: 'monthlyIncome.min' }),
   ...MAX_10M_RUB_RULES,
 ];
 
@@ -84,26 +79,25 @@ const ADDITIONAL_INCOME_RULES: Rule<number | null>[] = [
 
 const currentExperienceWithinTotal = (
   application: CreditApplicationForm
-): ValidationError | null => {
+): ValidationIssue | null => {
   const { workExperienceCurrent, workExperienceTotal } = application;
   return workExperienceCurrent && workExperienceTotal && workExperienceCurrent > workExperienceTotal
     ? {
         code: 'currentExperienceExceedsTotal',
-        message: 'Стаж на текущем месте не может превышать общий стаж',
       }
     : null;
 };
 
 const additionalIncomeSourceRequired = (
   application: CreditApplicationForm
-): ValidationError | null =>
+): ValidationIssue | null =>
   application.additionalIncome &&
   application.additionalIncome > 0 &&
   !application.additionalIncomeSource
-    ? { code: 'additionalIncomeSourceRequired', message: 'Укажите источник дополнительного дохода' }
+    ? { code: 'additionalIncomeSourceRequired' }
     : null;
 
-export const employmentRules = defineValidationSchema<CreditApplicationForm>(({ model, cross }) => {
+export const employmentRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
   validate(model.$.employmentStatus, EMPLOYMENT_STATUS_RULES);
 
   validateWhen(

@@ -1,5 +1,5 @@
-import type { ValidationError } from '@reformer/core';
-import { defineValidationSchema, validate, type Rule } from '@reformer/core/validation';
+import type { ValidationIssue } from '@reformer/core';
+import { defineValidation, validate, type Rule } from '@reformer/core/validation';
 import {
   maxAge,
   maxLength,
@@ -14,56 +14,56 @@ import type { CreditApplicationForm } from '../types/credit-application';
 import { ruName } from './common/rules';
 
 const BIRTH_DATE_RULES: Rule<string>[] = [
-  required({ message: 'Дата рождения обязательна' }),
-  minAge(18, { message: 'Заемщику должно быть не менее 18 лет' }),
-  maxAge(70, { message: 'Максимальный возраст заемщика: 70 лет' }),
+  required({ code: 'birthDate.required' }),
+  minAge(18, { code: 'birthDate.minAge' }),
+  maxAge(70, { code: 'birthDate.maxAge' }),
 ];
 
-const GENDER_RULES: Rule<PersonalData['gender']>[] = [required({ message: 'Выберите пол' })];
+const GENDER_RULES: Rule<PersonalData['gender']>[] = [required({ code: 'gender.required' })];
 
 const BIRTH_PLACE_RULES: Rule<string>[] = [
-  required({ message: 'Место рождения обязательно' }),
-  minLength(5, { message: 'Минимум 5 символов' }),
-  maxLength(100, { message: 'Максимум 100 символов' }),
+  required({ code: 'birthPlace.required' }),
+  minLength(5, { code: 'birthPlace.minLength' }),
+  maxLength(100, { code: 'birthPlace.maxLength' }),
 ];
 
 const PASSPORT_SERIES_RULES: Rule<string>[] = [
-  required({ message: 'Серия паспорта обязательна' }),
-  pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' }),
+  required({ code: 'passportSeries.required' }),
+  pattern(/^\d{2}\s\d{2}$/, { code: 'passportSeries.pattern' }),
 ];
 
 const PASSPORT_NUMBER_RULES: Rule<string>[] = [
-  required({ message: 'Номер паспорта обязателен' }),
-  pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' }),
+  required({ code: 'passportNumber.required' }),
+  pattern(/^\d{6}$/, { code: 'passportNumber.pattern' }),
 ];
 
 const PASSPORT_ISSUE_DATE_RULES: Rule<string>[] = [
-  required({ message: 'Дата выдачи обязательна' }),
-  pastDate({ message: 'Дата выдачи не может быть в будущем' }),
+  required({ code: 'passportIssueDate.required' }),
+  pastDate({ code: 'passportIssueDate.pastDate' }),
 ];
 
 const PASSPORT_ISSUED_BY_RULES: Rule<string>[] = [
-  required({ message: 'Кем выдан обязательно' }),
-  minLength(10, { message: 'Минимум 10 символов' }),
-  maxLength(200, { message: 'Максимум 200 символов' }),
+  required({ code: 'passportIssuedBy.required' }),
+  minLength(10, { code: 'passportIssuedBy.minLength' }),
+  maxLength(200, { code: 'passportIssuedBy.maxLength' }),
 ];
 
 const PASSPORT_DEPARTMENT_CODE_RULES: Rule<string>[] = [
-  required({ message: 'Код подразделения обязателен' }),
-  pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' }),
+  required({ code: 'passportDepartmentCode.required' }),
+  pattern(/^\d{3}-\d{3}$/, { code: 'passportDepartmentCode.pattern' }),
 ];
 
 const INN_RULES: Rule<string>[] = [
-  required({ message: 'ИНН обязателен' }),
-  pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }),
+  required({ code: 'inn.required' }),
+  pattern(/^\d{12}$/, { code: 'inn.pattern' }),
 ];
 
 const SNILS_RULES: Rule<string>[] = [
-  required({ message: 'СНИЛС обязателен' }),
-  pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат: 000-000-000 00' }),
+  required({ code: 'snils.required' }),
+  pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { code: 'snils.pattern' }),
 ];
 
-const passportIssuedAfterAge14 = (application: CreditApplicationForm): ValidationError | null => {
+const passportIssuedAfterAge14 = (application: CreditApplicationForm): ValidationIssue | null => {
   const { birthDate } = application.personalData;
   const { issueDate } = application.passportData;
   if (!birthDate || !issueDate) return null;
@@ -72,15 +72,14 @@ const passportIssuedAfterAge14 = (application: CreditApplicationForm): Validatio
   return new Date(issueDate) < earliestIssueDate
     ? {
         code: 'passportIssuedBeforeMinAge',
-        message: 'Паспорт не может быть выдан ранее достижения 14 лет',
       }
     : null;
 };
 
-export const applicantRules = defineValidationSchema<CreditApplicationForm>(({ model, cross }) => {
-  validate(model.$.personalData.lastName, ruName('Фамилия'));
-  validate(model.$.personalData.firstName, ruName('Имя'));
-  validate(model.$.personalData.middleName, ruName('Отчество'));
+export const applicantRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.personalData.lastName, ruName('lastName'));
+  validate(model.$.personalData.firstName, ruName('firstName'));
+  validate(model.$.personalData.middleName, ruName('middleName'));
   validate(model.$.personalData.birthDate, BIRTH_DATE_RULES);
   validate(model.$.personalData.gender, GENDER_RULES);
   validate(model.$.personalData.birthPlace, BIRTH_PLACE_RULES);

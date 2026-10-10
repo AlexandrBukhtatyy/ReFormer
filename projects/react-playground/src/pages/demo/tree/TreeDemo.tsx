@@ -24,13 +24,14 @@
 import { useState } from 'react';
 import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { Tree, type TreeNode, FormField, ExampleCard, Button } from '@reformer/ui-kit';
 // Combobox — тяжёлый компонент (Popover + Command у соседних вариантов), живёт только
 // в сабпате, вне главного barrel. Tree, наоборот, экспортируется из корня.
 import { ComboboxTree, ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
+import { defineIssueMessages } from '@reformer/core/i18n';
 
 interface TreeDemoForm {
   /** Адрес одного узла. Пустой выбор — `null`. */
@@ -158,9 +159,7 @@ async function loadLazyChildren(node: TreeNode | null): Promise<readonly TreeNod
   return LAZY_LEVELS[key] ?? [];
 }
 
-const messages = createMessageResolver({
-  required: () => 'Выберите файл',
-});
+const messages = defineIssueMessages({ required: 'Выберите файл' });
 
 function buildSchema(model: FormModel<TreeDemoForm>): FormSchemaNode {
   return {
@@ -209,7 +208,7 @@ function buildSchema(model: FormModel<TreeDemoForm>): FormSchemaNode {
 
 // Слой валидации — отдельная схема над моделью. `minLength(1)` для набора БЕСПОЛЕЗЕН: пустой
 // выбор приходит как `null`, а на `null` он делает ранний return. Обязательность — `required()`.
-const treeValidation = defineValidationSchema<TreeDemoForm>(({ model }) => {
+const treeValidation = defineValidation<TreeDemoForm>(({ model }) => {
   validate(model.signalAt('configFile')!, [required()]);
   validate(model.signalAt('assetFiles')!, [required()]);
 });
@@ -248,7 +247,7 @@ export default function TreeDemo() {
   };
 
   return (
-    <ValidationMessagesProvider resolver={messages}>
+    <ValidationMessagesProvider messages={messages}>
       <div className="mx-auto p-6">
         <h2 className="mb-2 text-2xl font-bold">Дерево и выбор файла</h2>
         <p className="mb-6 text-gray-600">

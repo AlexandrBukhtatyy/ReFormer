@@ -1,5 +1,5 @@
 import {
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateAsync,
   type AsyncRule,
@@ -9,26 +9,22 @@ import { maxLength, minLength, pattern, required } from '@reformer/core/validato
 import type { CreditApplicationForm } from '../types/credit-application';
 
 const AGREE_PERSONAL_DATA_RULES: Rule<boolean>[] = [
-  required({ message: 'Согласие на обработку ПД обязательно' }),
+  required({ code: 'agreePersonalData.required' }),
 ];
 
 const AGREE_CREDIT_HISTORY_RULES: Rule<boolean>[] = [
-  required({ message: 'Согласие на проверку кредитной истории обязательно' }),
+  required({ code: 'agreeCreditHistory.required' }),
 ];
 
-const AGREE_TERMS_RULES: Rule<boolean>[] = [
-  required({ message: 'Согласие с условиями обязательно' }),
-];
+const AGREE_TERMS_RULES: Rule<boolean>[] = [required({ code: 'agreeTerms.required' })];
 
-const CONFIRM_ACCURACY_RULES: Rule<boolean>[] = [
-  required({ message: 'Подтверждение точности обязательно' }),
-];
+const CONFIRM_ACCURACY_RULES: Rule<boolean>[] = [required({ code: 'confirmAccuracy.required' })];
 
 const ELECTRONIC_SIGNATURE_RULES: Rule<string>[] = [
-  required({ message: 'Введите код из СМС' }),
-  minLength(6, { message: 'Код — 6 символов' }),
-  maxLength(6, { message: 'Код — 6 символов' }),
-  pattern(/^\d{6}$/, { message: 'Только цифры' }),
+  required({ code: 'electronicSignature.required' }),
+  minLength(6, { code: 'electronicSignature.minLength' }),
+  maxLength(6, { code: 'electronicSignature.maxLength' }),
+  pattern(/^\d{6}$/, { code: 'electronicSignature.pattern' }),
 ];
 
 /** Код из СМС (демо: 123456). */
@@ -38,12 +34,11 @@ const smsCode: AsyncRule<string> = async (value) => {
   return value !== '123456'
     ? {
         code: 'invalidSmsCode',
-        message: 'Неверный код подтверждения. Для демо используйте: 123456',
       }
     : null;
 };
 
-export const confirmationRules = defineValidationSchema<CreditApplicationForm>(({ model }) => {
+export const confirmationRules = defineValidation<CreditApplicationForm>(({ model }) => {
   validate(model.$.agreePersonalData, AGREE_PERSONAL_DATA_RULES);
   validate(model.$.agreeCreditHistory, AGREE_CREDIT_HISTORY_RULES);
   validate(model.$.agreeTerms, AGREE_TERMS_RULES);

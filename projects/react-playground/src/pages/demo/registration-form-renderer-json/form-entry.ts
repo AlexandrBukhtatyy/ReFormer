@@ -65,7 +65,7 @@ export function makeRegistrationEntry(
     // замкнутое на модульный `ui`. Настройки места монтирования этой форме не нужны.
     behavior: { kind: 'inline', value: () => createRegistrationBehavior(ui) },
     // Валидация записи НЕ задаётся: `FormEntry.validation` ждёт форму `{ steps, extras }`
-    // (пошаговая), а здесь валидация — `ValidationSchema`, которую прогоняет `validateModel` на
+    // (пошаговая), а здесь валидация — `ValidationDefinition`, которую прогоняет `validateModel` на
     // submit. Она строится внутри поведения, где есть модель.
 
     meta: {
