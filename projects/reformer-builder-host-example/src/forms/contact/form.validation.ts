@@ -2,7 +2,13 @@
 // Пишется один раз и при регенерации не затирается.
 
 import { type FormModel } from '@reformer/core';
-import { validate, defineValidation, validateModel } from '@reformer/core/validation';
+import {
+  applyValidationResult,
+  validate,
+  defineValidation,
+  runValidation,
+  type ValidationResult,
+} from '@reformer/core/validation';
 import { email, required } from '@reformer/core/validators';
 import type { ContactForm } from './types';
 
@@ -14,10 +20,11 @@ export const formValidation = defineValidation<Root>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
 
-/** Пошаговый контракт визарда. Полная проверка — validateModel(model, formValidation). */
-export function makeValidationConfig(model: FormModel<Root>) {
-  return {
-    validateStep: (_step: number): Promise<boolean> => validateModel(model, formValidation),
-    validateAll: (): Promise<boolean> => validateModel(model, formValidation),
+/** Проверка шага визарда: правила шагам не разложены — каждый шаг проверяет всю форму. */
+export function makeStepCheck(model: FormModel<Root>) {
+  return async (_step: number): Promise<ValidationResult> => {
+    const result = await runValidation(model, formValidation);
+    applyValidationResult(result);
+    return result;
   };
 }
