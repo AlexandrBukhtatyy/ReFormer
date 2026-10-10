@@ -32,6 +32,31 @@ const isFormRender = (render: unknown): render is FormRender =>
   render != null && typeof render === 'object' && 'controller' in render;
 
 /**
+ * Сборка уровня формы прежнего пути (`createReactForm`, `createJsonForm`): форма, модель и
+ * методы уровня формы — то, что визард читает из контекста (`form`, `flow`, `submit`).
+ */
+const isFormLevel = (value: unknown): boolean =>
+  value != null &&
+  typeof value === 'object' &&
+  'form' in value &&
+  'model' in value &&
+  typeof (value as { submit?: unknown }).submit === 'function';
+
+// Функция-схема прежнего бандла → сам бандл: `<FormRenderer render={bundle.render} />` тоже
+// ставит контекст сборки, хотя бандл пропом не передан.
+const levelOfRender = new WeakMap<object, object>();
+
+/**
+ * Связать функцию-схему прежнего бандла с ним самим — чтобы `FormRenderer` с одним `render`
+ * поставил контекст сборки (визард берёт из него форму, поток и отправку).
+ *
+ * @internal
+ */
+export function attachFormLevel(render: object, level: object): void {
+  levelOfRender.set(render, level);
+}
+
+/**
  * Рендер бандла `createForm`: дерево уже построено сборкой, поведение записало правила узлов в
  * схему-контроллер. Рендерер ставит контекст сборки (его читает визард), корневую область схемы и
  * исполняет правила.
@@ -126,7 +151,17 @@ export function FormRenderer<T>({ render, form, settings }: FormRendererProps<T>
       'FormRenderer: provide either `form` (a createForm bundle) or `render` (a RenderSchemaFn).'
     );
   }
-  return <SchemaFnRenderer schemaFn={schemaFn} settings={settings} />;
+  const content = <SchemaFnRenderer schemaFn={schemaFn} settings={settings} />;
+  // Прежний бандл несёт уровень формы — он идёт в контекст, как у бандла `createForm`: без него
+  // визард в схеме не видит потока и отправляет без проверки.
+  const level = isFormLevel(form) ? form : levelOfRender.get(schemaFn);
+  return level ? (
+    <FormBundleContext.Provider value={level as unknown as FormBundle<T>}>
+      {content}
+    </FormBundleContext.Provider>
+  ) : (
+    content
+  );
 }
 
 /**

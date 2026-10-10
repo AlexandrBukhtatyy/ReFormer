@@ -128,10 +128,9 @@ const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
 
 ## Прежний путь сборки: `createReactForm`
 
-`createReactForm` рендерит функцию-схему, а не бандл: контекста сборки у визарда в этом пути нет.
-Форму и поток ему передают пропсами узла — из фабрики `renderBehavior(form, model, level)`:
-`onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, flow: level.flow }))`.
-Отправка без контекста не проверяет форму — обработчик делает это сам: `level.submit(handler)`.
+`createReactForm` рендерит функцию-схему, а не бандл, но уровень формы в нём тот же: `FormRenderer`
+с этим бандлом (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки. Визард берёт из
+него форму и поток, а отправка идёт через `bundle.submit` — с проверкой, как у `createForm`.
 Новому коду этот путь не нужен.
 
 ## См. также

@@ -24,6 +24,7 @@ import type {
 import type { RenderNode } from './core/types';
 import type { RenderBehaviorFn } from './core/render-behavior';
 import { createRenderSchema, type RenderSchemaProxy } from './core/render-schema-proxy';
+import { attachFormLevel } from './core/form-renderer';
 
 /** Результат {@link createReactForm}: модель, форма, валидация + готовая к рендеру схема. */
 export interface ReactForm<T> extends CoreForm<T> {
@@ -92,6 +93,7 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
   config.renderBehavior?.(form, model, level)(render);
 
   const bundle: ReactForm<T> = { ...level, model, form, render };
+  attachFormLevel(render, bundle);
   config.setup?.(bundle);
   return bundle;
 }

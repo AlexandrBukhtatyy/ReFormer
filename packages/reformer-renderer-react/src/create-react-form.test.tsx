@@ -14,6 +14,7 @@ import type { FC } from 'react';
 import { createModel, type FormModel, type FormGroup } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
+import { useFormBundleContext } from '@reformer/core/react';
 import { createReactForm } from './create-react-form';
 import { FormRenderer } from './core/form-renderer';
 import { createRenderSchema } from './core/render-schema-proxy';
@@ -156,5 +157,30 @@ describe('FormRenderer — источник схемы', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => renderToString(<FormRenderer<F> />)).toThrow(/render.*form|form.*render/i);
     err.mockRestore();
+  });
+});
+
+describe('FormRenderer — контекст сборки на прежнем пути', () => {
+  /** Узел, который читает контекст сборки — как визард в схеме. */
+  const ContextProbe: FC = () => {
+    const bundle = useFormBundleContext<F>();
+    return <s>{bundle && typeof bundle.submit === 'function' ? 'context-level' : 'no-context'}</s>;
+  };
+  const probeSchema = (): RenderNode<F> =>
+    ({ component: ContextProbe, children: [] }) as unknown as RenderNode<F>;
+
+  it('бандл createReactForm пропом form — в контексте сборки', () => {
+    const bundle = createReactForm<F>({ initial: { ...INITIAL }, schema: probeSchema });
+    expect(renderToString(<FormRenderer<F> form={bundle} />)).toContain('context-level');
+  });
+
+  it('функция-схема бандла пропом render — контекст тот же', () => {
+    const bundle = createReactForm<F>({ initial: { ...INITIAL }, schema: probeSchema });
+    expect(renderToString(<FormRenderer<F> render={bundle.render} />)).toContain('context-level');
+  });
+
+  it('голая функция-схема без бандла — контекста нет', () => {
+    const render = createRenderSchema<F>(probeSchema);
+    expect(renderToString(<FormRenderer<F> render={render} />)).toContain('no-context');
   });
 });
