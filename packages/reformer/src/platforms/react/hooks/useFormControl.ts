@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import type { FormArray, FormControl, ValidationIssue } from '../../../form/types/index';
 import { isFormArray } from '../../../form/type-guards';
 import type { FieldControlState, ArrayControlState } from './types';
@@ -36,21 +35,18 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     { key: 'componentProps' },
   ];
 
-  const buildSnapshot = useCallback(
-    (values: ExtractSignalValues<typeof signals>): FieldControlState<T> => ({
-      value: values.value as T,
-      pending: values.pending as boolean,
-      disabled: values.disabled as boolean,
-      issues: values.issues as ValidationIssue[],
-      valid: values.valid as boolean,
-      invalid: values.invalid as boolean,
-      touched: values.touched as boolean,
-      dirty: values.dirty as boolean,
-      shouldShowError: values.shouldShowError as boolean,
-      componentProps: values.componentProps as Record<string, unknown>,
-    }),
-    []
-  );
+  const buildSnapshot = (values: ExtractSignalValues<typeof signals>): FieldControlState<T> => ({
+    value: values.value as T,
+    pending: values.pending as boolean,
+    disabled: values.disabled as boolean,
+    issues: values.issues as ValidationIssue[],
+    valid: values.valid as boolean,
+    invalid: values.invalid as boolean,
+    touched: values.touched as boolean,
+    dirty: values.dirty as boolean,
+    shouldShowError: values.shouldShowError as boolean,
+    componentProps: values.componentProps as Record<string, unknown>,
+  });
 
   return useSignalSubscription(signals, configs, buildSnapshot, control);
 }
@@ -82,46 +78,44 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
     { key: 'disabled' },
   ];
 
-  const buildSnapshot = useCallback(
-    (values: ExtractSignalValues<typeof signals>): ArrayControlState<T> => ({
-      value: values.value as T[],
-      length: (values.value as T[]).length,
-      pending: values.pending as boolean,
-      issues: values.issues as ValidationIssue[],
-      ownIssues: values.ownIssues as ValidationIssue[],
-      valid: values.valid as boolean,
-      invalid: values.invalid as boolean,
-      touched: values.touched as boolean,
-      dirty: values.dirty as boolean,
-      disabled: values.disabled as boolean,
-    }),
-    []
-  );
+  const buildSnapshot = (values: ExtractSignalValues<typeof signals>): ArrayControlState<T> => ({
+    value: values.value as T[],
+    length: (values.value as T[]).length,
+    pending: values.pending as boolean,
+    issues: values.issues as ValidationIssue[],
+    ownIssues: values.ownIssues as ValidationIssue[],
+    valid: values.valid as boolean,
+    invalid: values.invalid as boolean,
+    touched: values.touched as boolean,
+    dirty: values.dirty as boolean,
+    disabled: values.disabled as boolean,
+  });
 
   return useSignalSubscription(signals, configs, buildSnapshot, control);
 }
 
 /**
  * @internal Ветка `control === undefined`: вызывает тот же набор хуков, что
- * `useFieldControl`/`useArrayControl` (useCallback + useSignalSubscription с пустым набором сигналов),
- * чтобы число/порядок хуков не менялись при переходе control `undefined ↔ node` (Rules of Hooks).
+ * `useFieldControl`/`useArrayControl` (useSignalSubscription с пустым набором сигналов), чтобы
+ * число/порядок хуков не менялись при переходе control `undefined ↔ node` (Rules of Hooks).
+ *
+ * Построители снапшота — обычные функции, без `useCallback`: у трёх веток одна позиция хука, и
+ * мемоизированный построитель прежней ветки достался бы новой (поле → массив дало бы снапшот
+ * без `length`). Идентичность построителя не важна — `useSignalSubscription` держит его в ref.
  */
 function useEmptyControl(): ArrayControlState<object> {
-  const buildSnapshot = useCallback(
-    (): ArrayControlState<object> => ({
-      value: [],
-      length: 0,
-      pending: false,
-      issues: [],
-      ownIssues: [],
-      valid: true,
-      invalid: false,
-      touched: false,
-      dirty: false,
-      disabled: false,
-    }),
-    []
-  );
+  const buildSnapshot = (): ArrayControlState<object> => ({
+    value: [],
+    length: 0,
+    pending: false,
+    issues: [],
+    ownIssues: [],
+    valid: true,
+    invalid: false,
+    touched: false,
+    dirty: false,
+    disabled: false,
+  });
   return useSignalSubscription({}, [], buildSnapshot);
 }
 
@@ -376,8 +370,8 @@ export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>
 export function useFormControl(
   control: FormControl<unknown> | FormArray<object> | undefined
 ): FieldControlState<unknown> | ArrayControlState<object> {
-  // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков (useCallback +
-  // useSignalSubscription), поэтому переключение control между undefined / полем / массивом
+  // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков
+  // (useSignalSubscription), поэтому переключение control между undefined / полем / массивом
   // НЕ меняет число/порядок хуков (иначе React крашит «Rendered more hooks than previous render»).
   if (!control) {
     // eslint-disable-next-line react-hooks/rules-of-hooks

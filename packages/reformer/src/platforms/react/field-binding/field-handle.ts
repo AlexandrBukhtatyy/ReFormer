@@ -62,21 +62,29 @@ export function useFieldHandleRef<H = FieldHandle>(
   outerRef: Ref<H> | undefined
 ): RefObject<unknown> {
   const innerRef = useRef<unknown>(null);
+  // Базовый handle — один на всю жизнь поля (узел он читает лениво): новый объект на каждом
+  // коммите зацикливал колбэк-ref с setState у родителя.
+  const elementHandle = useRef<FieldHandle | null>(null);
   // Без deps: пересчёт каждый рендер дешёвый, а контрол может смениться (другой component).
-  useImperativeHandle(outerRef, () => resolveFieldHandle(innerRef) as H);
+  useImperativeHandle(outerRef, () => resolveFieldHandle(innerRef, elementHandle) as H);
   return innerRef;
 }
 
 /**
  * Что публиковать потребителю по ref контрола: handle композита как есть, иначе (DOM-узел или
- * ещё пусто) — базовый {@link FieldHandle}, читающий узел лениво из `inner`.
+ * ещё пусто) — базовый {@link FieldHandle}, читающий узел лениво из `inner`. С `cache` базовый
+ * handle создаётся один раз и дальше переиспользуется.
  *
  * @internal Экспортируется для юнит-тестов.
  */
-export function resolveFieldHandle(inner: RefObject<unknown>): unknown {
+export function resolveFieldHandle(
+  inner: RefObject<unknown>,
+  cache?: { current: FieldHandle | null }
+): unknown {
   const current = inner.current;
-  if (current == null || isElementNode(current)) {
-    return makeElementFieldHandle(inner as RefObject<HTMLElement | null>);
-  }
-  return current;
+  if (current != null && !isElementNode(current)) return current;
+  const element = inner as RefObject<HTMLElement | null>;
+  if (!cache) return makeElementFieldHandle(element);
+  cache.current ??= makeElementFieldHandle(element);
+  return cache.current;
 }

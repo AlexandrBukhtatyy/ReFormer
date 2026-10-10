@@ -48,7 +48,12 @@ export function useSignalSubscription<
    */
   subscriptionKey?: unknown
 ): TSnapshot {
-  type CacheType = ExtractSignalValues<TSignals> & { __snapshot: TSnapshot | null };
+  // `__key` — ключ подписки, для которого собран снапшот: при пустом `configs` сравнение значений
+  // смену ключа не заметит, и наружу ушёл бы снапшот прежнего контрола.
+  type CacheType = ExtractSignalValues<TSignals> & {
+    __snapshot: TSnapshot | null;
+    __key?: unknown;
+  };
 
   const cacheRef = useRef<CacheType | null>(null);
 
@@ -134,7 +139,7 @@ export function useSignalSubscription<
       }
     }
 
-    if (!hasChanged && cache.__snapshot) {
+    if (!hasChanged && cache.__snapshot && cache.__key === subscriptionKey) {
       return cache.__snapshot;
     }
 
@@ -143,9 +148,9 @@ export function useSignalSubscription<
       (cache as Record<string, unknown>)[key] = (currentValues as Record<string, unknown>)[key];
     }
 
+    cache.__key = subscriptionKey;
     cache.__snapshot = buildSnapshotRef.current(currentValues);
     return cache.__snapshot;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscriptionKey]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
