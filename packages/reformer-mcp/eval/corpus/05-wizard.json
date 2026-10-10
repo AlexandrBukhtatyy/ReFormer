@@ -1,13 +1,13 @@
 {
   "category": "wizard",
-  "description": "Многошаговые формы: визард узлом схемы, связь шага с правилами, навигация, валидация шага, условный шаг.",
+  "description": "Многошаговые формы: визард узлом схемы, поток шагов сборки, навигация, проверка шага и отправка, условный шаг.",
   "tasks": [
     {
       "id": "wizard/config",
       "task": "настроить многошаговую форму",
       "target": "core",
-      "queries": ["multi step form setup", "wizard config", "form wizard"],
-      "expectAny": ["FormWizard", "validateStep", "validateAll"]
+      "queries": ["multi step form setup", "wizard flow steps", "form wizard"],
+      "expectAny": ["FormWizard", "FormFlow", "flow.steps"]
     },
     {
       "id": "wizard/step-guard",
@@ -18,21 +18,21 @@
         "step guard wizard",
         "validate step before next"
       ],
-      "expectAny": ["validateStep"]
+      "expectAny": ["validateStep", "flow.next", "next()"]
     },
     {
       "id": "wizard/final-validation",
       "task": "проверить все шаги перед отправкой",
       "target": "core",
-      "queries": ["validate all steps before submit", "final validation wizard", "validateAll"],
-      "expectAny": ["validateAll"]
+      "queries": ["validate all steps before submit", "final validation wizard", "bundle.submit"],
+      "expectAny": ["bundle.submit", "SubmitResult"]
     },
     {
       "id": "wizard/navigation",
       "task": "переключать шаги вперёд и назад",
       "target": "core",
-      "queries": ["wizard navigation next back", "step navigation", "form navigation"],
-      "expectAny": ["FormWizard", "currentStep", "goToStep", "navigation"]
+      "queries": ["wizard navigation next back", "step navigation", "flow goTo step"],
+      "expectAny": ["FormWizard", "goTo", "flow.next", "useFormFlow"]
     },
     {
       "id": "wizard/conditional-step",
@@ -55,12 +55,8 @@
       "id": "wizard/step-rules-key",
       "task": "связать шаг визарда с его правилами валидации",
       "target": "renderer-react",
-      "queries": [
-        "wizard step validation rules key",
-        "validation steps by selector",
-        "form-wizard"
-      ],
-      "expectAny": ["steps: {"]
+      "queries": ["wizard step validation rules", "flow steps by selector", "form-wizard"],
+      "expectAny": ["flow.steps", "{ id:"]
     }
   ]
 }

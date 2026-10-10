@@ -377,6 +377,81 @@ describe('validate_form kind=layout', () => {
     });
   }
 
+  it('поток шагов и словарь текстов — необязательные файлы канона', async () => {
+    const text = await layout([...CANON.core, 'form.flow.ts', 'form.messages.ts'], 'core');
+    expect(text).toMatch(/✅ ошибок нет/);
+    expect(text).not.toMatch(/предупреждений \d/);
+    expect(text).toContain('`form.flow.ts` — ОПЦИОНАЛЬНО');
+    expect(text).toContain('`form.messages.ts` — ОПЦИОНАЛЬНО');
+  });
+
+  it('flow.ts и messages.ts — роли потока и словаря: подсказка «переименуйте»', async () => {
+    const text = await layout([...CANON.core, 'flow.ts', 'messages.ts'], 'core');
+    const warnings = section(text, 'Warnings');
+    expect(warnings).toContain('`flow.ts` → `form.flow.ts`');
+    expect(warnings).toContain('`messages.ts` → `form.messages.ts`');
+  });
+
+  describe('раскладка folders — каталоги ролей, как у эталона', () => {
+    /** Раскладка эталона кредитной заявки (projects/react-playground, complex-multy-step-form). */
+    const ETALON = [
+      'CreditApplicationForm.tsx',
+      'api/index.ts',
+      'api/submit-credit-application.ts',
+      'application/create.ts',
+      'application/payload.ts',
+      'application/submit.ts',
+      'behavior/index.ts',
+      'behavior/derived.ts',
+      'components/steps/BasicInfo/BasicInfoForm.tsx',
+      'constants/credit-application.ts',
+      'flow/credit-application-flow.ts',
+      'hooks/useAddressCopy.ts',
+      'model/model.ts',
+      'model/factories/address.ts',
+      'schema/form.ts',
+      'schema/steps/loan.ts',
+      'schema/sections/address.ts',
+      'types/credit-application.ts',
+      'utils/compute/compute-age.ts',
+      'validation/form.ts',
+      'validation/loan.ts',
+      'validation/messages.ts',
+    ];
+
+    it('раскладка эталона проходит без претензий и печатает каталоги ролей', async () => {
+      const text = await layout(ETALON, 'core');
+      expect(text).toMatch(/✅ ошибок нет/);
+      expect(text).not.toMatch(/предупреждений \d/);
+      expect(text).toContain('## Раскладка folders');
+      expect(text).toContain('`flow/`');
+    });
+
+    it('без target — таргет угадан по каталогам и проговорён', async () => {
+      const text = await layout(ETALON);
+      expect(text).toMatch(/НАУГАД/);
+      expect(text).toMatch(/✅ ошибок нет/);
+    });
+
+    it('файл плоского канона в корне — подсказка, в какой каталог переехать', async () => {
+      const text = await layout([...ETALON, 'form.validation.ts', 'notes.ts'], 'core');
+      const warnings = section(text, 'Warnings');
+      expect(warnings).toContain('`validation/`');
+      expect(warnings).toContain('notes.ts');
+    });
+
+    it('каталог вне раскладки — предупреждение; без model/ и точки входа — ошибки', async () => {
+      const text = await layout(
+        ['schema/form.ts', 'validation/form.ts', 'widgets/panel.tsx'],
+        'core'
+      );
+      expect(section(text, 'Warnings')).toContain('`widgets/`');
+      const errors = section(text, 'Errors');
+      expect(errors).toContain('`model/`');
+      expect(errors).toContain('точки входа');
+    });
+  });
+
   it('отчёт всегда печатает сам канон и границы проверки', async () => {
     const text = await layout(CANON['renderer-json'], 'renderer-json');
     expect(text).toMatch(/## Канон раскладки — target=`renderer-json`/);

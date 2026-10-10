@@ -304,12 +304,12 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push("      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },");
     lines.push('      children: [');
     lines.push(
-      "        { value: model.$.step1.loanAmount, component: InputNumber, componentProps: { testId: 'step1.loanAmount' } },"
+      "        { model: model.$.step1.loanAmount, component: InputNumber, componentProps: { testId: 'loanAmount' } },"
     );
-    lines.push('        { value: model.$.step1.loanTerm, component: InputNumber },');
+    lines.push('        { model: model.$.step1.loanTerm, component: InputNumber },');
     lines.push('      ],');
     lines.push('    },');
-    lines.push('    { value: model.$.step1.loanPurpose, component: Textarea },  // full-width');
+    lines.push('    { model: model.$.step1.loanPurpose, component: Textarea },  // full-width');
     lines.push('  ],');
     lines.push('}');
     lines.push('```');

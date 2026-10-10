@@ -88,10 +88,12 @@ function normalizeLayout(raw: string | undefined): LayoutMode {
 function layoutGuidanceFor(mode: LayoutMode, target: ReformerTarget): string {
   if (mode === 'folders') {
     return (
-      '**Default layout = `folders`** (set via `REFORMER_FORM_LAYOUT`). Use the folder module: ' +
-      '`lib/` (domain) + `schema/` (model / schema / behavior / validation) + ' +
-      '`components/steps/` (one component per step) + `nested-forms/` + entry + `index.ts`. ' +
-      'See `find_recipe directory-layout` for the full per-target tree.'
+      '**Default layout = `folders`** (set via `REFORMER_FORM_LAYOUT`). Use role folders, as in ' +
+      'the reference form: `model/` + `schema/` (root node, `steps/`, `sections/`) + ' +
+      '`validation/` (per-step rules, cross-step `{ extras }`, `messages.ts`) + `behavior/` + ' +
+      '`flow/` (steps of the wizard) + `application/` (`create.ts` → `createForm`, load, submit, ' +
+      'payload) + `api/` + `components/` + entry `<Name>Form.tsx`. ' +
+      'See `find_recipe directory-layout` (§3) for the full tree.'
     );
   }
 
@@ -110,7 +112,7 @@ function layoutGuidanceFor(mode: LayoutMode, target: ReformerTarget): string {
 
   return (
     '**Default layout = `minimalist`** (flat, one file per concern). Flat form module — no ' +
-    '`lib/` / `schema/` / `components/steps/` nesting. Wizard steps live in the root schema ' +
+    'role folders (those are the large-form `folders` layout). Wizard steps live in the root schema ' +
     'OR one folder per step `steps/<slug>/` (kebab slug of the step title, no number) holding ' +
     `${stepFiles}, with the aggregator \`steps/index.ts\`. ` +
     `Canonical set for \`${target}\`: ${names(false)}` +

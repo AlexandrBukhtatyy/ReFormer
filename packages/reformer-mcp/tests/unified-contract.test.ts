@@ -20,6 +20,7 @@ import {
   buildAssemblyTsx,
   buildBundle,
   buildFormBehaviorTs,
+  buildFormFlowTs,
   buildFormValidationTs,
   buildModelTs,
 } from '../src/core/generate/builders.js';
@@ -278,14 +279,32 @@ describe('form.validation.ts', () => {
     expect(ts, '`each` — прежнее имя оператора').not.toMatch(/\beach\(/);
   });
 
-  it('шаг потока — селектор шага из схемы; шаг без правил объявлен без rules', () => {
-    expect(ts).toContain('export const formFlow: FormFlowConfig<LoanRequest> = {');
-    expect(ts).toMatch(
-      /steps: \[\s+\{ id: 'loan', rules: loanRules \},\s+\{ id: 'step2', rules: step2Rules \},\s+\{ id: 'confirm' \},\s+\]/
-    );
+  it('правила шагов экспортируются для потока; правила вне шагов — formValidation', () => {
+    expect(ts).toContain('export const loanRules = defineValidation<LoanRequest>');
+    expect(ts).toContain('export const step2Rules = defineValidation<LoanRequest>');
     expect(ts).toContain('export const formValidation: FormValidation<LoanRequest> = {');
+    expect(ts, 'потока в файле валидации нет').not.toContain('export const formFlow');
     expect(ts, 'правила шагов — у потока, не в validation').not.toMatch(/steps: \{/);
     expect(ts).not.toContain('makeValidationConfig');
+  });
+
+  it('form.flow.ts: шаг потока — селектор шага из схемы; шаг без правил объявлен без rules', () => {
+    const flow = buildFormFlowTs(loanIntent('renderer-react')) ?? '';
+    expect(flow).toContain("import type { FormFlowConfig } from '@reformer/core';");
+    expect(flow).toContain("import { loanRules, step2Rules } from './form.validation';");
+    expect(flow).toContain('export const formFlow: FormFlowConfig<LoanRequest> = {');
+    expect(flow).toMatch(
+      /steps: \[\s+\{ id: 'loan', rules: loanRules \},\s+\{ id: 'step2', rules: step2Rules \},\s+\{ id: 'confirm' \},\s+\]/
+    );
+  });
+
+  it('у формы без шагов файла потока нет', () => {
+    const { intent } = readIntent({
+      formName: 'Simple',
+      fields: [{ name: 'email', type: 'string', component: 'Input' }],
+    });
+    expect(buildFormFlowTs(intent)).toBeNull();
+    expect(buildBundle(intent).files.map((file) => file.path)).not.toContain('form.flow.ts');
   });
 
   it('условное правило остаётся в своём шаге', () => {
@@ -335,7 +354,8 @@ describe('сборка — index.tsx', () => {
       expect(tsx).toContain('model: createFormModel(),');
       expect(tsx).toContain('behavior: formBehavior,');
       // Форма с шагами: правила шагов уходят в сборку потоком.
-      expect(tsx).toContain("import { formFlow, formValidation } from './form.validation';");
+      expect(tsx).toContain("import { formFlow } from './form.flow';");
+      expect(tsx).toContain("import { formValidation } from './form.validation';");
       expect(tsx).toContain('flow: formFlow,');
       for (const legacy of [
         'createCoreForm',

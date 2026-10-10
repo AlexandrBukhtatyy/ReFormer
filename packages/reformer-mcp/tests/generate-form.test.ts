@@ -99,13 +99,12 @@ describe('form-intent', () => {
 describe('builders', () => {
   it('model.ts объявляет тип формы, элементы массива и начальные значения', () => {
     const ts = buildModelTs(goodIntent());
-    // Именно `type`, а не `interface`: у interface нет неявной индексной сигнатуры, поэтому
-    // он не присваивается `Record<string, unknown>` — на это опираются FormGroup<T>,
-    // ArrayNode<T> и constraint FormWizard<T>. Правило корпуса: core «TYPE-SAFETY RECIPES»
-    // Recipe 2, reformer://guide §27; сервер обязан ему следовать, а не только требовать.
+    // Генератор печатает `type`: единый стиль сгенерированных типов, чтобы снимки и примеры
+    // не расходились. Ядро принимает и `interface` (ограничения `Record<string, unknown>` на
+    // FormGroup<T> / FormArray<T> нет) — это правило стиля генератора, а не требование типов.
     expect(ts).toContain('export type OrderItem = {');
     expect(ts).toContain('export type OrderShape = {');
-    expect(ts, 'interface нарушает собственное правило корпуса').not.toMatch(
+    expect(ts, 'генератор печатает type, а не interface').not.toMatch(
       /export interface (OrderItem|OrderShape)/
     );
     expect(ts).toContain('price: number;');

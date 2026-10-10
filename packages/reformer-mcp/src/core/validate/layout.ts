@@ -34,13 +34,16 @@ export type LayoutTarget = ReformerTargetStack;
 export interface LayoutCheckResult {
   diagnostics: Diagnostic[];
   limitations: string[];
+  /** Какой раскладкой прочитан набор: плоский канон (§1) или каталоги ролей `folders` (§3). */
+  layout: 'flat' | 'folders';
 }
 
 /** Что проверка заведомо не видит — печатается всегда, в том числе при чистом отчёте. */
 export const LAYOUT_LIMITATIONS = [
   'Сверяются только имена и состав файлов — содержимое не читается: файл с каноничным именем может оказаться пустым или держать чужой концерн.',
   'Тесты, stories и стили (`*.test.*`, `*.spec.*`, `*.stories.*`, `*.css`/`*.scss`) в набор не входят и не учитываются.',
-  'Проверяется плоский minimalist-канон (§1) вместе с раскладкой шагов `steps/<slug>/`. Раскладка `folders` для крупных форм (§3) этой проверкой не покрыта; что папки шагов совпадают со списком в `steps/index.ts`, не сверяется.',
+  'Плоский minimalist-канон (§1) проверяется вместе с раскладкой шагов `steps/<slug>/`; что папки шагов совпадают со списком в `steps/index.ts`, не сверяется.',
+  'Раскладка `folders` (§3, каталоги ролей `model/`, `schema/`, `validation/`, …) распознаётся по каталогам: сверяются каталоги верхнего уровня и точка входа, имена файлов внутри каталогов — нет.',
   'App-level инфраструктура renderer-json (`src/renderer-json/`: базовый registry + мета-схема DSL) живёт вне модуля формы и в `files` не ожидается.',
 ];
 
@@ -112,6 +115,8 @@ function concernOf(canonPath: string): string {
   if (stem === 'form.schema' || stem === 'renderer.schema') return 'schema';
   if (stem === 'form.behavior') return 'form-behavior';
   if (stem === 'form.validation' || stem === 'validation') return 'validation';
+  if (stem === 'form.flow') return 'flow';
+  if (stem === 'form.messages') return 'messages';
   return stem;
 }
 
@@ -128,6 +133,8 @@ const CONCERN_TITLE: Record<string, string> = {
   registry: 'реестр компонентов',
   wizard: 'шим wizard-а',
   'steps-index': 'агрегатор шагов',
+  flow: 'поток шагов визарда',
+  messages: 'словарь текстов замечаний',
 };
 
 /**
@@ -218,6 +225,17 @@ const ALIASES: Record<string, string> = {
   validations: 'validation',
   validationschema: 'validation',
   rules: 'validation',
+  // поток шагов визарда
+  flow: 'flow',
+  formflow: 'flow',
+  wizardflow: 'flow',
+  stepsflow: 'flow',
+  flowsteps: 'flow',
+  // словарь текстов замечаний
+  messages: 'messages',
+  issuemessages: 'messages',
+  validationmessages: 'messages',
+  errormessages: 'messages',
   // справочники
   datasource: 'data-sources',
   datasources: 'data-sources',
@@ -268,12 +286,12 @@ function foldHint(concern: string, target: LayoutTarget, at = ''): string {
       return 'Реестр `$component(...)` нужен только `renderer-json`; здесь компоненты подставляются в схему напрямую.';
     case 'wizard':
       if (target === 'core') {
-        return 'Шим визарда не нужен: в `core` библиотечный `FormWizard` стоит прямо в JSX `index.tsx` (`form`, `config`, `steps` — пропсами).';
+        return 'Шим визарда не нужен: в `core` библиотечный `FormWizard` стоит прямо в JSX `index.tsx` (`form`, `flow`, `steps` — пропсами).';
       }
       return (
         'Шим визарда больше не нужен: визард — библиотечный `FormWizard` из `@reformer/ui-kit`, ' +
         "узел схемы `{ selector: 'wizard', component: FormWizard, children: [шаги] }`; форму и " +
-        'валидацию он берёт из сборки сам. Удалите файл' +
+        'поток шагов он берёт из сборки сам. Удалите файл' +
         (target === 'renderer-json' ? ' и зарегистрируйте `FormWizard` в `registry.ts`.' : '.')
       );
     default:
@@ -365,7 +383,19 @@ export interface LayoutTargetGuess {
  * формы.
  */
 export function inferLayoutTarget(files: readonly string[]): LayoutTargetGuess | null {
-  const rootFiles = normalizePaths(files).filter((p) => !p.includes('/'));
+  const paths = normalizePaths(files);
+  if (isFoldersLayout(paths)) {
+    // В каталогах ролей таргет различает только реестр renderer-json.
+    const registry = paths.find((p) => norm(stemOf(baseOf(p))) === 'registry');
+    return registry
+      ? { target: 'renderer-json', basis: `есть \`${registry}\``, certain: true }
+      : {
+          target: 'core',
+          basis: 'раскладка folders без реестра — у `core` и `renderer-react` каталоги одни',
+          certain: false,
+        };
+  }
+  const rootFiles = paths.filter((p) => !p.includes('/'));
   const bases = rootFiles.map((p) => baseOf(p));
   const keyed = bases.map((b) => ({ base: b, key: norm(stemOf(b)), ext: extOf(b) }));
   const find = (pred: (f: (typeof keyed)[number]) => boolean) => keyed.find(pred)?.base;
@@ -460,6 +490,11 @@ function indexCanon(specs: readonly LayoutFileSpec[]): CanonIndex {
  * `steps/index.ts` и `steps/<slug>/<файл шага>`; любая другая — ошибка.
  */
 export function validateLayout(files: readonly string[], target: LayoutTarget): LayoutCheckResult {
+  const relevant = normalizePaths(files).filter(
+    (rel) => !IGNORED_DIR_RE.test(rel) && !IGNORED_FILE_RE.test(baseOf(rel))
+  );
+  if (isFoldersLayout(relevant)) return validateFoldersLayout(relevant, target);
+
   const canon = FORM_LAYOUT_CANON[target];
   const stepCanon = STEP_LAYOUT_CANON[target];
   const diagnostics: Diagnostic[] = [];
@@ -609,8 +644,8 @@ export function validateLayout(files: readonly string[], target: LayoutTarget): 
         underSteps || key.startsWith('step')
           ? STEPS_HINT
           : spec
-            ? `Раскладка плоская — без \`lib/\` / \`schema/\` / \`components/\`. Перенесите в \`${renamedTo(spec, ext)}\` в корне модуля формы.`
-            : `Раскладка плоская — без \`lib/\` / \`schema/\` / \`components/\`. ${extraHint(base)}`
+            ? `Раскладка плоская — каталогов ролей в ней нет. Перенесите в \`${renamedTo(spec, ext)}\` в корне модуля формы (либо разложите весь модуль по каталогам ролей — раскладка \`folders\`).`
+            : `Раскладка плоская — каталогов ролей в ней нет. ${extraHint(base)}`
       );
       continue;
     }
@@ -759,7 +794,150 @@ export function validateLayout(files: readonly string[], target: LayoutTarget): 
     first.fix = { tool: 'find_recipe', arguments: { topic: 'directory-layout' } };
   }
 
-  return { diagnostics, limitations: LAYOUT_LIMITATIONS };
+  return { diagnostics, limitations: LAYOUT_LIMITATIONS, layout: 'flat' };
+}
+
+// ---------------------------------------------------------------------------
+// Раскладка folders (§3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Каталоги раскладки `folders` — по эталону кредитной заявки. Роль каталога печатается в
+ * отчёте, поэтому формулировки короткие и про содержимое, а не про имя.
+ */
+const FOLDER_ROLES: Readonly<Record<string, string>> = {
+  model: 'модель: тип формы, начальные значения, фабрики элементов массивов',
+  schema: 'схема формы: корневой узел, шаги (`steps/`), части (`sections/`)',
+  validation: 'правила валидации по шагам и межшаговые, словарь текстов `messages.ts`',
+  behavior: 'поведение формы: вычисления, условия, синхронизация',
+  flow: 'поток шагов визарда (`FormFlowConfig`)',
+  application: 'сборка (`create.ts`), загрузка, отправка, тело запроса',
+  api: 'запросы к серверу',
+  components: 'разметка руками: шаги, вложенные формы, служебные блоки',
+  types: 'типы значений формы (ввод и расчёт)',
+  constants: 'константы и справочники',
+  utils: 'чистые функции расчёта',
+  hooks: 'локальные React-хуки формы',
+  lib: 'доменный материал (прежнее имя: типы, константы, расчёты)',
+};
+
+/** Каталоги ролей, по которым набор узнаётся как `folders`, и обязательные из них. */
+const ROLE_DIRS = ['model', 'schema', 'validation', 'behavior', 'flow', 'application'];
+const REQUIRED_DIRS = ['model', 'schema'];
+
+/** Куда в `folders` переезжает файл плоского канона — по роли. */
+const FOLDER_OF_CONCERN: Readonly<Record<string, string>> = {
+  model: 'model/',
+  schema: 'schema/',
+  'form-behavior': 'behavior/',
+  validation: 'validation/',
+  flow: 'flow/',
+  messages: 'validation/messages.ts',
+  api: 'api/',
+  'data-sources': 'constants/',
+  types: 'types/',
+};
+
+/** Набор разложен по каталогам ролей: в нём хотя бы два каталога из `ROLE_DIRS`. */
+function isFoldersLayout(paths: readonly string[]): boolean {
+  const dirs = new Set(paths.filter((p) => p.includes('/')).map((p) => p.slice(0, p.indexOf('/'))));
+  return ROLE_DIRS.filter((dir) => dirs.has(dir)).length >= 2;
+}
+
+/** Точка входа раскладки folders: `<Имя>Form.tsx` либо `index.tsx`. */
+const ENTRY_RE = /^(?:[A-Z][A-Za-z0-9]*Form|index)\.tsx$/;
+
+function validateFoldersLayout(paths: readonly string[], target: LayoutTarget): LayoutCheckResult {
+  const diagnostics: Diagnostic[] = [];
+  const root = indexCanon(FORM_LAYOUT_CANON[target]);
+  const dirs = new Set<string>();
+  let entry = false;
+
+  for (const rel of paths) {
+    const base = baseOf(rel);
+    if (!rel.includes('/')) {
+      if (ENTRY_RE.test(base)) {
+        entry = true;
+        continue;
+      }
+      if (base === 'index.ts') continue; // реэкспорт модуля
+      const key = norm(stemOf(base));
+      const spec = root.byStem.get(key);
+      const concern = spec ? concernOf(spec.path) : (LEGACY_STEMS[key] ?? ALIASES[key]);
+      const home = concern ? FOLDER_OF_CONCERN[concern] : undefined;
+      diagnostics.push({
+        code: home ? 'RF011' : 'RF013',
+        severity: 'warning',
+        message: home
+          ? `в раскладке folders роль «${CONCERN_TITLE[concern!] ?? concern}» живёт в \`${home}\`, а не в корне модуля.`
+          : 'в корне раскладки folders — только точка входа (`<Имя>Form.tsx`) и `index.ts` с реэкспортом.',
+        path: rel,
+        suggestion: home
+          ? `Перенесите \`${base}\` в \`${home}\`.`
+          : `Перенесите \`${base}\` в каталог своей роли: ${Object.keys(FOLDER_ROLES)
+              .map((dir) => `\`${dir}/\``)
+              .join(', ')}.`,
+      });
+      continue;
+    }
+    const dir = rel.slice(0, rel.indexOf('/'));
+    if (dirs.has(dir)) continue;
+    dirs.add(dir);
+    if (!FOLDER_ROLES[dir]) {
+      diagnostics.push({
+        code: 'RF013',
+        severity: 'warning',
+        message: `каталог \`${dir}/\` вне раскладки folders.`,
+        path: `${dir}/`,
+        suggestion:
+          'Каталоги раскладки: ' +
+          Object.entries(FOLDER_ROLES)
+            .map(([name, role]) => `\`${name}/\` — ${role}`)
+            .join('; ') +
+          '. Разложите содержимое по ним.',
+      });
+    }
+  }
+
+  for (const dir of REQUIRED_DIRS) {
+    if (dirs.has(dir)) continue;
+    diagnostics.push({
+      code: 'RF012',
+      severity: 'error',
+      message: `Нет каталога \`${dir}/\` — ${FOLDER_ROLES[dir]}.`,
+      suggestion: `Создайте \`${dir}/\` в корне модуля формы.`,
+    });
+  }
+  if (!entry) {
+    diagnostics.push({
+      code: 'RF012',
+      severity: 'error',
+      message: 'Нет точки входа: `<Имя>Form.tsx` (или `index.tsx`) в корне модуля.',
+      suggestion:
+        'Создайте точку входа в корне: сборка `createForm` и разметка либо `FormRenderer`.',
+    });
+  }
+
+  const first = diagnostics.find((d) => d.severity === 'error') ?? diagnostics[0];
+  if (first && !first.fix) {
+    first.fix = { tool: 'find_recipe', arguments: { topic: 'directory-layout' } };
+  }
+  return { diagnostics, limitations: LAYOUT_LIMITATIONS, layout: 'folders' };
+}
+
+/** Раскладка folders списком — печатается в отчёте вместо плоского канона. */
+export function renderFoldersCanon(): string {
+  const lines = ['## Раскладка folders — каталоги ролей', ''];
+  lines.push('- `<Имя>Form.tsx` (или `index.tsx`) в корне — точка входа; `index.ts` — реэкспорт');
+  for (const [dir, role] of Object.entries(FOLDER_ROLES)) {
+    lines.push(`- \`${dir}/\`${REQUIRED_DIRS.includes(dir) ? ' —' : ' — ОПЦИОНАЛЬНО:'} ${role}`);
+  }
+  lines.push('');
+  lines.push(
+    'Имена файлов внутри каталогов свободные, роль задаёт каталог. Полное правило — ' +
+      '`find_recipe directory-layout`.'
+  );
+  return lines.join('\n');
 }
 
 /** Канон таргета списком — печатается в отчёте, чтобы правило доезжало вместе с претензией. */
@@ -774,13 +952,15 @@ export function renderLayoutCanon(target: LayoutTarget): string {
   lines.push(renderStepLayoutNote(target));
   lines.push('');
   lines.push(
-    'Модуль плоский: без `lib/` / `schema/` / `components/`; единственная вложенность — шаги ' +
+    'Модуль плоский: каталогов ролей нет; единственная вложенность — шаги ' +
       '`steps/<slug>/`. Правило имён: `form.<роль>` — артефакт формы, суффикс называет роль ' +
       '(`schema` — схема формы, `behavior` — поведение формы: модель и узлы схемы, ' +
       '`validation` — валидация); остальные файлы без префикса. Прежние `renderer.schema.*` / ' +
       '`validation.ts` принимаются с предупреждением «переименуйте»; `form.render.ts` / ' +
       '`renderer.behavior.ts` и `wizard.tsx` / `renderer.wizard.tsx` прежнего контракта — ' +
-      'с предупреждением, куда перенести содержимое. Полное правило — `find_recipe directory-layout`.'
+      'с предупреждением, куда перенести содержимое. Крупную форму раскладывают по каталогам ' +
+      'ролей (`folders`: `model/`, `schema/`, `validation/`, `behavior/`, `flow/`, `application/`) — ' +
+      'такой набор проверяется отдельно. Полное правило — `find_recipe directory-layout`.'
   );
   return lines.join('\n');
 }

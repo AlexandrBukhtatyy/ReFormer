@@ -13,6 +13,7 @@
 import { validateCode } from '../validate/code.js';
 import {
   inferLayoutTarget,
+  renderFoldersCanon,
   renderLayoutCanon,
   resolveLayoutTarget,
   validateLayout,
@@ -253,7 +254,7 @@ export async function validateFormTool(
         );
       }
 
-      const { diagnostics, limitations } = validateLayout(files, target);
+      const { diagnostics, limitations, layout } = validateLayout(files, target);
       const parts = [report('layout', diagnostics, limitations)];
       if (guess) {
         // Догадку проговариваем вслух: молчаливо выбранный таргет превращает отчёт
@@ -269,7 +270,7 @@ export async function validateFormTool(
                 '`target` (`core` | `renderer-react` | `renderer-json`).'
         );
       }
-      parts.push(renderLayoutCanon(target));
+      parts.push(layout === 'folders' ? renderFoldersCanon() : renderLayoutCanon(target));
       return text(parts.join('\n\n'));
     }
 

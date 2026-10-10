@@ -31,13 +31,14 @@ Use `[form-name]` / `[FormName]` as placeholders.
 ## 1. Minimalist (default) — flat, one file per concern
 
 What files should a form have? Exactly the set below — the same files for every target.
-Everything lives in the form module root (no `lib/` / `schema/` / `components/` nesting). A single
+Everything lives in the form module root (no role folders — those are the large-form layout of §3). A single
 `index.tsx` holds the assembly; one `form.validation.ts` holds all validation; every other
 concern is one file. The only allowed nesting is the optional per-step folder `steps/<slug>/` (below).
 
 **Naming rule:** `form.<role>` = an artifact of the form, the suffix names its role —
 `form.schema` (the one schema tree), `form.behavior` (the one behavior: links over the model and
-rules for schema nodes), `form.validation` (validation rules). Every other file is **plain-named**.
+rules for schema nodes), `form.validation` (validation rules); optional `form.flow`, `form.messages`.
+Every other file is **plain-named**.
 The separator is a **dot**, never a dash and never a collapsed word: `form.behavior.ts`, not
 `form-behavior.ts` / `behavior.ts` / `formBehavior.ts`.
 
@@ -50,17 +51,23 @@ The separator is a **dot**, never a dash and never a collapsed word: `form.behav
 ├── model.ts            # createModel factory + initial values + new-row templates (arrayOf)
 ├── form.schema.ts      # the schema: ONE tree of nodes — the form is built from it and drawn by it
 ├── form.behavior.ts    # the ONLY behavior: links over the model + rules for schema nodes
-├── form.validation.ts  # ALL validation over the model; wizard: { steps: { <selector>: rules }, extras }
+├── form.validation.ts  # ALL validation over the model; wizard: per-step rules exported + { extras }
+├── form.flow.ts        # optional, wizard: steps of the flow — [{ id: <step selector>, rules }]
+├── form.messages.ts    # optional: issue texts by code — defineIssueMessages({ 'email.required': '…' })
 ├── data-sources.ts     # options + async loaders (dataSources)
 └── api.ts              # submit + prefill / load
 ```
 
+**Optional files.** `form.flow.ts` — `formFlow: FormFlowConfig<T>`, steps `[{ id: <step selector>, rules }]`
+(rules imported from `form.validation.ts`) → `createForm({ flow })`. `form.messages.ts` — issue texts by
+code, `defineIssueMessages({ 'loanAmount.required': '…' })` → `<ValidationMessagesProvider messages>`.
+
 **`form.schema.*` — one tree, two notations:**
 
-| target         | file             | content                                                                                        |
-| -------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
-| core           | `form.schema.ts` | builder `(model) => node`: `{ model: model.$.x, component, componentProps }`; the markup is JSX |
-| renderer-react | `form.schema.ts` | the same builder, with containers — `FormRenderer` draws the tree                               |
+| target         | file             | content                                                                                              |
+| -------------- | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| core           | `form.schema.ts` | builder `(model) => node`: `{ model: model.$.x, component, componentProps }`; the markup is JSX      |
+| renderer-react | `form.schema.ts` | the same builder, with containers — `FormRenderer` draws the tree                                    |
 | renderer-json  | `form.schema.ts` | the same tree as a document of format 2 (`$model` / `$component` / `$part`) in `defineJsonSchema<T>` |
 
 - **`.tsx` instead of `.ts` is fine** when the schema itself contains JSX (an inline cell
@@ -83,7 +90,7 @@ target. There is no separate file for the render layer.
 
 **Wizard** is the library `FormWizard` standing in the schema as a node with the steps in
 `children` — it needs no file of its own. A step node carries a `selector`; the same word is the
-key of the step's rules in `form.validation.ts`.
+`id` of the step in `form.flow.ts`.
 
 **Wizard steps, optional — `steps/<slug>/`:** keep the steps in the root schema, **or** give each
 step a folder named by the kebab slug of its title **without a number** (`Контакты` → `kontakty`;
@@ -168,37 +175,45 @@ workaround.
 
 ## 3. Scale up: folders (large forms)
 
-When a form grows large (many steps, heavy reuse across steps), promote the flat module to folders.
-This is the only case where you split beyond the flat set (the `steps/<slug>/` folders of §1 are
-still the flat layout — they only move per-step pieces out of the root files):
+When a form grows large (many steps, sub-forms reused across steps, several ways of drawing), the
+flat module becomes **role folders** — the layout of the reference credit application
+(`projects/react-playground/src/pages/demo/complex-multy-step-form`). A folder names the role; the
+names of the files inside are free:
 
 ```
 [form-name]/
-├── [FormName]Form.tsx        # entry
-├── index.ts                  # public re-exports
-├── lib/                      # domain raw material (target-agnostic): types, constants, calc, custom-validators, api
-├── schema/                   # form definition: model.ts, form.schema.ts (.tsx / .json), form.behavior.ts, form.validation.ts, data-sources.ts
-└── components/
-    ├── steps/                # one component per wizard step (markup written by hand)
-    ├── nested-forms/         # reusable sub-forms (Address, PersonalData, …)
-    └── ui/                   # helper blocks (summary, warnings, sections)
+├── [FormName]Form.tsx   # entry: the markup written by hand (or FormRenderer); index.ts — re-exports
+├── model/               # the form type's model: createModel factory, initial values, row factories (arrayOf)
+├── schema/              # the schema: root node (form.ts), steps/ (one step node per file), sections/ (parts)
+├── validation/          # rules per step + cross-step rules (form.ts → { extras }) + messages.ts (issue texts)
+├── behavior/            # the behavior: derived values, conditions, synchronisation, dynamic options
+├── flow/                # the steps of the wizard: FormFlowConfig — [{ id: <step selector>, rules }]
+├── application/         # assembly (create.ts → createForm), load, submit, payload (input only, no derived)
+├── api/                 # requests to the server
+├── components/          # markup by hand: steps/, nested-forms/, ui/
+├── types/               # value types: the input (sent) and the derived values (computed by the behavior)
+└── constants/  utils/  hooks/
 ```
 
-**Centralized vs co-located** (folders only): keep one `form.schema.ts` / `form.validation.ts` /
-`form.behavior.ts` in `schema/` (easiest reuse between ways of drawing), **or** co-locate each
-step's `form.schema.ts` / `form.validation.ts` / `form.behavior.ts` inside its `steps/[Step]/`
-folder while keeping the shared `model` + cross-step rules in `schema/`. Filenames keep their §1
-stems inside folders too — folders change where a file lives, never what it is called. The model,
-the schema, the behavior and the validation are written ONCE and shared by every way of drawing;
-only the entry differs. The app-level registry + meta-schema (§2) are unchanged.
+- `model/` and `schema/` are required, and so is the entry; the other folders appear when the
+  form needs them. Every way of drawing (by hand, `FormRenderer`, JSON) shares `model/`, `schema/`,
+  `validation/`, `behavior/`, `flow/`; only the entry differs.
+- `application/create.ts` is the one assembly: `createForm({ model, schema, behavior, validation,
+flow })`. `validation/form.ts` keeps only the rules outside steps (`{ extras }`); the step rules
+  go to the flow.
+- Types are split into the **input** (what the user fills in and the server receives) and the
+  **derived** values (written by `compute`); the form type is their intersection, and the payload
+  drops the derived keys before the request.
+- `validate_form kind="layout"` recognises this layout by its role folders: it checks the top-level
+  folders and the entry, not the file names inside them.
 
 ## 4. Scaling
 
-| Complexity               | Structure                                                                                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Tiny                     | single file: `index.tsx` (model + schema + component)                                                                                    |
+| Complexity               | Structure                                                                                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tiny                     | single file: `index.tsx` (model + schema + component)                                                                                                                     |
 | **Default (minimalist)** | flat files (§1) — plain-named base + `form.schema` / `form.behavior` / `form.validation`; wizard steps in the root schema or in `steps/<slug>/`; identical across targets |
-| Large                    | folders (§3): `lib/` + `schema/` + `components/` (+ app-level registry/meta-schema for renderer-json)                                    |
+| Large                    | folders (§3): role folders `model/` `schema/` `validation/` `behavior/` `flow/` `application/` (+ app-level registry/meta-schema for renderer-json)                       |
 
 ## 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
 
@@ -208,7 +223,9 @@ same mechanism as `REFORMER_DEBUG`:
 
 ```jsonc
 // .mcp.json
-{ "mcpServers": { "reformer": { "command": "…", "env": { "REFORMER_FORM_LAYOUT": "minimalist" } } } }
+{
+  "mcpServers": { "reformer": { "command": "…", "env": { "REFORMER_FORM_LAYOUT": "minimalist" } } },
+}
 ```
 
 Values: `minimalist` (default when unset/unrecognized) | `folders`. This guide documents both
@@ -218,21 +235,23 @@ layouts regardless; the env var only changes which one `create-form` steers towa
 
 The contract of a form is the same for every way of drawing, so almost every file is written once.
 
-| File                                | Role                                                    |       core        |  renderer-react   |   renderer-json   |
-| ----------------------------------- | ------------------------------------------------------- | :---------------: | :---------------: | :---------------: |
-| `types.ts`                          | form type + enums + option type + constants             |        ✅         |       reuse       |       reuse       |
-| `model.ts`                          | reactive model (source of truth) + new-row templates    |        ✅         |       reuse       |       reuse       |
-| `form.validation.ts`                | rules; wizard: `{ steps, extras }`                      |        ✅         |       reuse       |       reuse       |
-| `form.behavior.ts`                  | the one behavior: model links + node rules              |        ✅         |       reuse       |       reuse       |
-| `data-sources.ts`                   | options + async loaders (dataSources)                   |        ✅         |       reuse       |       reuse       |
-| `api.ts`                            | submit + prefill/load                                   |        ✅         |       reuse       |       reuse       |
-| `form.schema.ts`                    | the one schema tree: TS builder / JSON document         |        ✅         |       reuse       | the same tree as a document |
-| `form.schema.tsx`                   | same file when the schema contains JSX                  |      variant      |      variant      |      variant      |
-| `form.schema.json`                  | same DSL as raw data — no `$model` typing               |         —         |         —         |      variant      |
-| `registry.ts`                       | binds components + data-sources to DSL names            |         —         |         —         |        ✅         |
-| `steps/index.ts` + `steps/<slug>/…` | per-step schema / validation / behavior                 | optional (wizard) | optional (wizard) | optional (wizard) |
-| **app** `registry.ts` (base)        | ui-kit + system components                              |         —         |         —         | app-level (§2, aspirational) |
-| **app** `form-schema.schema.json`   | generated DSL meta-schema                               |         —         |         —         | app-level (§2, aspirational) |
+| File                                | Role                                                 |       core        |  renderer-react   |        renderer-json         |
+| ----------------------------------- | ---------------------------------------------------- | :---------------: | :---------------: | :--------------------------: |
+| `types.ts`                          | form type + enums + option type + constants          |        ✅         |       reuse       |            reuse             |
+| `model.ts`                          | reactive model (source of truth) + new-row templates |        ✅         |       reuse       |            reuse             |
+| `form.validation.ts`                | rules; wizard: step rules exported + `{ extras }`   |        ✅         |       reuse       |            reuse             |
+| `form.flow.ts`                      | wizard: steps of the flow `[{ id, rules }]`          | optional (wizard) | optional (wizard) |      optional (wizard)       |
+| `form.messages.ts`                  | issue texts by code (`defineIssueMessages`)          |     optional      |     optional      |           optional           |
+| `form.behavior.ts`                  | the one behavior: model links + node rules           |        ✅         |       reuse       |            reuse             |
+| `data-sources.ts`                   | options + async loaders (dataSources)                |        ✅         |       reuse       |            reuse             |
+| `api.ts`                            | submit + prefill/load                                |        ✅         |       reuse       |            reuse             |
+| `form.schema.ts`                    | the one schema tree: TS builder / JSON document      |        ✅         |       reuse       | the same tree as a document  |
+| `form.schema.tsx`                   | same file when the schema contains JSX               |      variant      |      variant      |           variant            |
+| `form.schema.json`                  | same DSL as raw data — no `$model` typing            |         —         |         —         |           variant            |
+| `registry.ts`                       | binds components + data-sources to DSL names         |         —         |         —         |              ✅              |
+| `steps/index.ts` + `steps/<slug>/…` | per-step schema / validation / behavior              | optional (wizard) | optional (wizard) |      optional (wizard)       |
+| **app** `registry.ts` (base)        | ui-kit + system components                           |         —         |         —         | app-level (§2, aspirational) |
+| **app** `form-schema.schema.json`   | generated DSL meta-schema                            |         —         |         —         | app-level (§2, aspirational) |
 
 Rule nodes of the behavior (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer.
 When the markup is written by hand (core) they do nothing: visibility, submit and data loading stay
@@ -249,12 +268,12 @@ the `form.` prefix. Then the unified contract removed two roles altogether: the 
 the render layer and the app shim of the wizard. Modules written the old way keep working —
 `validate_form kind="layout"` reports these names as **warnings**, never as errors:
 
-| former name                               | now                                                                                      | diagnostic |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
-| `renderer.schema.ts`                      | `form.schema.ts` (`.tsx` / `.json` alike) — rename                                       | RF011      |
-| `validation.ts`                           | `form.validation.ts` (in `steps/<slug>/` too) — rename                                   | RF011      |
-| `form.render.ts`, `renderer.behavior.ts`  | no such file: move the node rules into `form.behavior.ts` (in `steps/<slug>/` — into the step's own `form.behavior.ts`) | RF013      |
-| `wizard.tsx`, `renderer.wizard.tsx`       | no such file: the wizard is the library `FormWizard` node; delete the shim               | RF013      |
+| former name                              | now                                                                                                                     | diagnostic |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `renderer.schema.ts`                     | `form.schema.ts` (`.tsx` / `.json` alike) — rename                                                                      | RF011      |
+| `validation.ts`                          | `form.validation.ts` (in `steps/<slug>/` too) — rename                                                                  | RF011      |
+| `form.render.ts`, `renderer.behavior.ts` | no such file: move the node rules into `form.behavior.ts` (in `steps/<slug>/` — into the step's own `form.behavior.ts`) | RF013      |
+| `wizard.tsx`, `renderer.wizard.tsx`      | no such file: the wizard is the library `FormWizard` node; delete the shim                                              | RF013      |
 
 Fix it when you next touch the module; new code uses the canonical names only. `core` and
 `renderer-react` share one file set, so the files alone no longer tell these targets apart — pass

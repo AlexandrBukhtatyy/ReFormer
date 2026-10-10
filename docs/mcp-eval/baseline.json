@@ -1,13 +1,13 @@
 {
   "strategy": "v6-choose",
   "serverVersion": "6.0.0",
-  "startupMs": 359,
+  "startupMs": 230,
   "tasks": 61,
   "static": {
     "tools/list": 2559,
-    "resources/list": 550,
+    "resources/list": 559,
     "prompts/list": 1077,
-    "total": 4186
+    "total": 4195
   },
   "toolset": {
     "tools": [
@@ -19,58 +19,58 @@
     "tokens": 728
   },
   "hitRate": 1,
-  "firstPassRate": 0.951,
+  "firstPassRate": 0.967,
   "tokensPerTask": {
-    "median": 386,
-    "p95": 2762,
-    "total": 53429
+    "median": 369,
+    "p95": 2860,
+    "total": 47306
   },
   "callsPerTask": {
     "median": 1,
-    "p95": 4
+    "p95": 3
   },
   "byCategory": {
     "basic": {
       "total": 8,
       "hit": 8,
       "firstPass": 8,
-      "tokens": 5851
+      "tokens": 5924
     },
     "validation": {
       "total": 11,
       "hit": 11,
       "firstPass": 11,
-      "tokens": 4591
+      "tokens": 4361
     },
     "behaviors": {
       "total": 11,
       "hit": 11,
       "firstPass": 11,
-      "tokens": 2585
+      "tokens": 2574
     },
     "arrays": {
       "total": 7,
       "hit": 7,
       "firstPass": 6,
-      "tokens": 4448
+      "tokens": 5458
     },
     "wizard": {
       "total": 7,
       "hit": 7,
       "firstPass": 7,
-      "tokens": 6613
+      "tokens": 7964
     },
     "renderers": {
       "total": 12,
       "hit": 12,
-      "firstPass": 10,
-      "tokens": 14237
+      "firstPass": 11,
+      "tokens": 10111
     },
     "layout": {
       "total": 5,
       "hit": 5,
       "firstPass": 5,
-      "tokens": 15104
+      "tokens": 10914
     }
   },
   "misses": []

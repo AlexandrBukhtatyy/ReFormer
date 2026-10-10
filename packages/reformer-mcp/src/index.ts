@@ -271,7 +271,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
     uri: 'reformer://guide',
     name: 'ReFormer MCP — start-here guide',
     description:
-      'Entry point: the canonical M1 form-building workflow, the mandatory flat form file layout (`form.` = model, `renderer.` = render), and a map of which MCP tool/resource to use at each step; the layout rule is in the opening lines.',
+      'Entry point: the canonical form-building workflow, the mandatory flat form file layout (`form.<role>` files: schema, behavior, validation, optional flow and messages), and a map of which MCP tool/resource to use at each step; the layout rule is in the opening lines.',
     mimeType: 'text/markdown',
   });
 
@@ -344,7 +344,7 @@ function buildCatalog(): string {
 const FORM_LAYOUT_ENTRY = [
   '> **Form file layout — read this even if you read nothing else here.**',
   '>',
-  '> A form module is FLAT: no `lib/` / `schema/` / `components/steps/` nesting. Wizard steps live',
+  '> A form module is FLAT: no role folders (a large form uses the `folders` layout). Wizard steps live',
   '> in the root schema OR one folder per step `steps/<slug>/` (kebab slug of the step title, no',
   '> number) with the aggregator `steps/index.ts`; inside a step folder the names are the same.',
   '> Naming rule and file set, identical for every target: `form.<role>` is a form artifact whose',

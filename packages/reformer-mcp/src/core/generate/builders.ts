@@ -98,11 +98,9 @@ export function buildModelTs(intent: FormIntent): string {
 
   // Типы элементов массивов объявляются до основного — иначе ссылка вперёд.
   //
-  // `type`, а не `interface`: правило корпуса (core «TYPE-SAFETY RECIPES» Recipe 2,
-  // reformer://guide §27). У interface нет неявной индексной сигнатуры, поэтому он не
-  // присваивается `Record<string, unknown>` — а на это ограничение опираются `FormGroup<T>`,
-  // `ArrayNode<T>` и generic-constraint `FormWizard<T>`. Сервер, печатающий interface, нарушал
-  // собственное правило и отдавал консументу тип, который тот потом менял руками.
+  // `type`, а не `interface`: единый стиль сгенерированных типов. Ограничения
+  // `Record<string, unknown>` на `FormGroup<T>` / `FormArray<T>` больше нет, interface тоже
+  // допустим — но генератор печатает одно и то же, чтобы снимки и примеры не расходились.
   for (const arr of intent.arrays) {
     lines.push(`export type ${arr.itemInterfaceName} = {`);
     for (const f of arr.itemFields) {
@@ -180,11 +178,8 @@ export function buildAssemblyTsx(intent: FormIntent): string {
     lines.push("import { FormField } from '@reformer/ui-kit';");
   lines.push("import { formBehavior } from './form.behavior';");
   lines.push("import { formSchema } from './form.schema';");
-  lines.push(
-    withSteps
-      ? "import { formFlow, formValidation } from './form.validation';"
-      : "import { formValidation } from './form.validation';"
-  );
+  if (withSteps) lines.push("import { formFlow } from './form.flow';");
+  lines.push("import { formValidation } from './form.validation';");
   lines.push(`import { createFormModel, type ${type} } from './model';`);
   if (json) lines.push("import { createRegistry } from './registry';");
   lines.push('');
@@ -567,10 +562,9 @@ function applyRowSchema(row: RowSchema): string {
  * - правила строк массива — отдельная схема над ЭЛЕМЕНТОМ, подключённая привязкой
  *   `applyEach(model.$.items, itemRules)`; у неё своя область, и `cross` внутри получает снимок
  *   строки;
- * - у формы с шагами правила разложены по шагам и уходят потоком `formFlow` (`FormFlowConfig`):
- *   идентификатор шага — `selector` узла шага в схеме, `next()` потока проверяет правила шага.
- *   Шаг без правил объявлен без `rules`; правила вне шагов — в `extras` объекта `formValidation`
- *   (проверяются целиком, при отправке).
+ * - у формы с шагами правила разложены по шагам и экспортируются: поток шагов `formFlow`
+ *   (`form.flow.ts`, {@link buildFormFlowTs}) берёт их по шагу; правила вне шагов — в `extras`
+ *   объекта `formValidation` (проверяются целиком, при отправке).
  */
 export function buildFormValidationTs(intent: FormIntent): string {
   const taken = new Set<string>(['formValidation']);
@@ -630,14 +624,15 @@ export function buildFormValidationTs(intent: FormIntent): string {
   lines.push('/**');
   lines.push(` * Валидация формы «${intent.formName}» — правила над МОДЕЛЬЮ, не в схеме разметки.`);
   if (withSteps) {
-    lines.push(' * Шаги — поток `formFlow`: идентификатор шага — `selector` узла шага в схеме.');
+    lines.push(
+      ' * Правила шагов уходят в поток `formFlow` (form.flow.ts), правила вне шагов — сюда.'
+    );
     lines.push(' * Подключение: createForm({ …, validation: formValidation, flow: formFlow }).');
   } else {
     lines.push(' * Подключение: createForm({ …, validation: formValidation }).');
   }
   lines.push(' */');
-  if (withSteps)
-    lines.push("import type { FormFlowConfig, FormValidation } from '@reformer/core';");
+  if (withSteps) lines.push("import type { FormValidation } from '@reformer/core';");
   lines.push(`import { ${operators.sort().join(', ')} } from '@reformer/core/validation';`);
   if (validators.length > 0) {
     lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
@@ -664,11 +659,14 @@ export function buildFormValidationTs(intent: FormIntent): string {
 
   for (const step of stepSchemas) {
     if (step.rules.length === 0 && step.rows.length === 0) continue;
+    lines.push(`/** Правила шага \`${step.key}\` — их проверяет \`next()\` потока. */`);
     lines.push(
-      ...schema(step.name, intent.interfaceName, [
-        ...ruleLines(step.rules),
-        ...applyRows(step.rows),
-      ])
+      ...schema(
+        step.name,
+        intent.interfaceName,
+        [...ruleLines(step.rules), ...applyRows(step.rows)],
+        true
+      )
     );
   }
   const hasExtras = restRules.length > 0 || restRows.length > 0;
@@ -685,22 +683,74 @@ export function buildFormValidationTs(intent: FormIntent): string {
     lines.push('/** Правил вне шагов нет: все правила — у шагов потока. */');
     lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {};`);
   }
-  lines.push('');
-  lines.push('/** Шаги визарда: `next()` потока проверяет правила текущего шага. */');
-  lines.push(`export const formFlow: FormFlowConfig<${intent.interfaceName}> = {`);
-  lines.push('  steps: [');
-  for (const step of stepSchemas) lines.push(`    ${stepEntry(step)},`);
-  lines.push('  ],');
-  lines.push('};');
   return lines.join('\n') + '\n';
 }
 
-/** Шаг потока: идентификатор и схема правил; шаг без правил — без `rules`. */
-function stepEntry(step: { key: string; name: string; rules: unknown[]; rows: unknown[] }): string {
-  const id = `'${step.key.replace(/['\\]/g, (char) => `\\${char}`)}'`;
-  return step.rules.length === 0 && step.rows.length === 0
-    ? `{ id: ${id} }`
-    : `{ id: ${id}, rules: ${step.name} }`;
+/** Шаги визарда по разметке и имена их схем правил — общие для валидации и потока. */
+function stepPlan(intent: FormIntent): Array<{ key: string; name: string | null }> {
+  const taken = new Set<string>(['formValidation']);
+  const rowRules = intent.validation.filter((rule) => rule.each);
+  const formRules = intent.validation.filter((rule) => !rule.each);
+  // Имена схем строк занимают идентификаторы раньше шагов — порядок как в buildFormValidationTs.
+  const rowNames = new Map<string, string>();
+  for (const rule of rowRules) {
+    const each = rule.each as string;
+    const id = `${each}::${rule.when ?? ''}`;
+    if (!rowNames.has(id)) {
+      rowNames.set(id, identifierFrom(each.split('.').pop() ?? each, 'RowRules', taken));
+    }
+  }
+  const steps = collectSteps(intent.layoutRoot);
+  const owner = stepOfPath(intent, steps);
+  return steps.map((step, index) => {
+    const key = stepKeyOf(step, index);
+    const name = identifierFrom(key, 'Rules', taken);
+    const hasRules =
+      formRules.some((rule) => owner.get(rule.target) === index) ||
+      rowRules.some((rule) => {
+        const each = rule.each as string;
+        const array = intent.arrays.find(
+          (a) => a.name === each || (a.modelPath ?? a.name) === each
+        );
+        const path = array?.modelPath ?? array?.name ?? each;
+        return (owner.get(path) ?? owner.get(each)) === index;
+      });
+    return { key, name: hasRules ? name : null };
+  });
+}
+
+/**
+ * `form.flow.ts` формы с шагами: поток шагов `formFlow` (`FormFlowConfig`). Идентификатор шага —
+ * `selector` узла шага в схеме, правила — схема шага из `form.validation.ts`; шаг без правил
+ * объявлен без `rules`. У формы без шагов файла нет — `null`.
+ */
+export function buildFormFlowTs(intent: FormIntent): string | null {
+  const steps = stepPlan(intent);
+  if (steps.length === 0) return null;
+  const ruleNames = steps.flatMap((step) => (step.name ? [step.name] : []));
+  const lines: string[] = [];
+  lines.push('/**');
+  lines.push(
+    ` * Поток шагов формы «${intent.formName}»: идентификатор шага — \`selector\` узла шага в схеме,`
+  );
+  lines.push(' * `next()` потока проверяет правила текущего шага.');
+  lines.push(' * Подключение: createForm({ …, flow: formFlow }).');
+  lines.push(' */');
+  lines.push("import type { FormFlowConfig } from '@reformer/core';");
+  if (ruleNames.length > 0) {
+    lines.push(`import { ${ruleNames.join(', ')} } from './form.validation';`);
+  }
+  lines.push(`import type { ${intent.interfaceName} } from './model';`);
+  lines.push('');
+  lines.push(`export const formFlow: FormFlowConfig<${intent.interfaceName}> = {`);
+  lines.push('  steps: [');
+  for (const step of steps) {
+    const id = `'${step.key.replace(/['\\]/g, (char) => `\\${char}`)}'`;
+    lines.push(step.name ? `    { id: ${id}, rules: ${step.name} },` : `    { id: ${id} },`);
+  }
+  lines.push('  ],');
+  lines.push('};');
+  return lines.join('\n') + '\n';
 }
 
 // ---------------------------------------------------------------------------
@@ -1213,6 +1263,16 @@ const BEHAVIOR_ROLE =
  * слой рендера `renderer.*`, `validation.ts` без префикса, а также `form.render.ts` и `wizard.tsx`
  * прежнего контракта — правила узлов переехали в `form.behavior.ts`, визард стал библиотечным.
  */
+/** Роль файла потока шагов — одна строка на все таргеты. */
+const FLOW_ROLE =
+  'поток шагов визарда: `FormFlowConfig` — шаги (`id` = `selector` узла шага) и их правила; ' +
+  'подключается `createForm({ flow })`';
+
+/** Роль файла словаря текстов замечаний — одна строка на все таргеты. */
+const MESSAGES_ROLE =
+  'словарь текстов замечаний (`defineIssueMessages`): код правила → текст; подключается ' +
+  '`<ValidationMessagesProvider messages={…}>`';
+
 export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
   core: [
     { path: 'index.tsx', role: 'точка входа: сборка `createForm` и разметка в JSX' },
@@ -1225,6 +1285,8 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     },
     { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
+    { path: 'form.flow.ts', role: FLOW_ROLE, optional: true },
+    { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
   ],
@@ -1239,6 +1301,8 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     },
     { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
+    { path: 'form.flow.ts', role: FLOW_ROLE, optional: true },
+    { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
   ],
@@ -1253,6 +1317,8 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     },
     { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
+    { path: 'form.flow.ts', role: FLOW_ROLE, optional: true },
+    { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
     { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },
@@ -1388,7 +1454,7 @@ export function renderLayoutChecklist(
   lines.push('## Раскладка модуля — канонические имена');
   lines.push('');
   lines.push(
-    'Модуль формы плоский: без `lib/` / `schema/` / `components/steps/`; шаги wizard-а — ' +
+    'Модуль формы плоский, без каталогов ролей (их раскладка `folders` — для крупной формы); шаги wizard-а — ' +
       'в корневой схеме или по папке на шаг `steps/<slug>/` (имена внутри те же). ' +
       'Префикс `form.` — у артефактов формы, суффикс называет роль (`schema` — схема формы, ' +
       '`behavior` — поведение формы: модель и узлы схемы, `validation` — валидация); ' +
@@ -1468,6 +1534,8 @@ export function buildBundle(intent: FormIntent): {
     { path: 'form.validation.ts', content: buildFormValidationTs(intent) },
     { path: 'form.behavior.ts', content: behavior.content },
   ];
+  const flow = buildFormFlowTs(intent);
+  if (flow !== null) files.push({ path: 'form.flow.ts', content: flow });
 
   if (intent.target === 'renderer-json') {
     // Отдаём канонический `.ts` (`defineJsonSchema<T>`), а не чистый `.json`: только он держит

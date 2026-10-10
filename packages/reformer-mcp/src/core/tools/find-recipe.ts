@@ -71,6 +71,21 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   'form-wizard': ['multi-step', 'form-navigation'],
   wizard: ['multi-step', 'form-navigation'],
   'multi-step': ['form-navigation'],
+  // Уровень формы: поток шагов, проверка и отправка (core 38-form-flow.md).
+  flow: ['form-flow'],
+  'step-flow': ['form-flow'],
+  'steps-flow': ['form-flow'],
+  'submit-result': ['form-flow'],
+  'validate-step': ['form-flow'],
+  // Тексты замечаний по коду (core 36-issue-messages.md); общий i18n — запасной.
+  messages: ['issue-messages', 'i18n'],
+  'error-messages': ['issue-messages', 'i18n'],
+  'validation-messages': ['issue-messages', 'i18n'],
+  'message-dictionary': ['issue-messages', 'i18n'],
+  // Скомпилированная схема: виды узлов, идентификаторы, области (core 37-compiled-schema.md).
+  'compile-schema': ['compiled-schema'],
+  'schema-compiler': ['compiled-schema'],
+  'node-id': ['compiled-schema'],
   // async
   'async-validator': ['async-validator-debounce', 'async-watchfield', 'async-preload'],
   async: ['async-watchfield', 'async-preload'],

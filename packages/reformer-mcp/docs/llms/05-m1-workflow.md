@@ -160,8 +160,8 @@ once, while `useMemo` may drop its cache and rebuild the form, losing typed inpu
 
 `createCoreForm`, `createReactForm`, `createJsonForm` and the hooks `useReactForm` / `useJsonForm`
 are the former contract — three factories for three ways of drawing. Low-level
-`createFormFromModel({ model, schema })` remains public for special cases; the overloads
-`createLegacyForm({ form: {...} })` and `createLegacyForm(flatSchema)` are legacy.
+`createFormFromModel({ model, schema })` remains public for special cases; `createLegacyForm`
+(both overloads) has been removed.
 
 ## 4. Validation — `defineValidation`
 
