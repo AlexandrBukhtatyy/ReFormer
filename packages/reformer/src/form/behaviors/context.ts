@@ -21,12 +21,39 @@ import type { FormFlow } from '../flow/flow';
 
 interface RunContext {
   cleanups: BehaviorCleanup[];
+  /** Отменители ещё не выполненных отложенных записей ({@link defer}) этой схемы. */
+  deferred: Set<() => void>;
   model: unknown;
   form: unknown;
   controller: SchemaController;
   flow: FormFlow | undefined;
 }
 let current: RunContext | null = null;
+
+/**
+ * Отложенные записи схемы, в которой сейчас идёт прогон effect'а или отложенного задания. Effect
+ * перезапускается и вне окна `setup` (`current` уже снят), а его `defer` всё равно должен попасть
+ * в отменяемые записи своей схемы.
+ */
+let deferSink: Set<() => void> | null = null;
+
+/** Выполнить `fn`, направив её `defer` в отложенные записи `sink`. */
+function withDeferSink<R>(sink: Set<() => void>, fn: () => R): R {
+  const previous = deferSink;
+  deferSink = sink;
+  try {
+    return fn();
+  } finally {
+    deferSink = previous;
+  }
+}
+
+/** Снять схему: её отписки и ещё не выполненные отложенные записи. */
+function disposeRun(ctx: RunContext): void {
+  for (const cleanup of ctx.cleanups) cleanup();
+  for (const cancel of ctx.deferred) cancel();
+  ctx.deferred.clear();
+}
 
 function requireCtx(op: string): RunContext {
   if (!current) {
@@ -41,6 +68,16 @@ function requireCtx(op: string): RunContext {
 /** Зарегистрировать произвольную отписку в активной схеме. */
 export function onDispose(cleanup: BehaviorCleanup): void {
   requireCtx('onDispose').cleanups.push(cleanup);
+}
+
+/**
+ * Оператор вызван внутри схемы поведения? Иначе — понятная ошибка с именем оператора ДО любых
+ * побочных эффектов: effect, созданный до проверки, остался бы жить, а признак derived — висеть.
+ *
+ * @internal
+ */
+export function assertInsideSchema(op: string): void {
+  requireCtx(op);
 }
 
 /**
@@ -102,17 +139,26 @@ const scopeOf = (ctx: RunContext): BehaviorScope<unknown> =>
 export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void): FormBehavior<T> {
   return {
     __run(model, form, controller = createSchemaController(), flow) {
-      const ctx: RunContext = { cleanups: [], model, form, controller, flow };
+      const ctx: RunContext = {
+        cleanups: [],
+        deferred: new Set(),
+        model,
+        form,
+        controller,
+        flow,
+      };
       const prev = current;
       current = ctx;
       try {
-        setup(scopeOf(ctx) as BehaviorScope<T>);
+        withDeferSink(ctx.deferred, () => setup(scopeOf(ctx) as BehaviorScope<T>));
+      } catch (error) {
+        // Сборка упала — снять то, что setup успел создать: снять это потом некому.
+        disposeRun(ctx);
+        throw error;
       } finally {
         current = prev;
       }
-      return () => {
-        for (const c of ctx.cleanups) c();
-      };
+      return () => disposeRun(ctx);
     },
   };
 }
@@ -123,10 +169,24 @@ export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void):
 
 /** Реактивный эффект (авто-dispose). Колбэк может вернуть собственный cleanup. */
 export function effect(fn: () => void | (() => void)): void {
-  onDispose(preactEffect(fn));
+  const ctx = requireCtx('effect');
+  const sink = ctx.deferred;
+  ctx.cleanups.push(preactEffect(() => withDeferSink(sink, fn)));
 }
 
-/** Отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected». */
+/**
+ * Отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected». Внутри схемы
+ * поведения (в `setup`, в её effect'ах и отложенных заданиях) запись отменяется снятием схемы.
+ */
 export function defer(fn: () => void): void {
-  runOutsideEffect(fn);
+  const sink = deferSink ?? current?.deferred;
+  if (!sink) {
+    runOutsideEffect(fn);
+    return;
+  }
+  const cancel = runOutsideEffect(() => {
+    sink.delete(cancel);
+    withDeferSink(sink, fn);
+  });
+  sink.add(cancel);
 }

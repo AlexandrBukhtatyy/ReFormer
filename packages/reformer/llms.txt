@@ -8465,7 +8465,8 @@ _Source: src/i18n/locale.ts_
 
 **Kind:** `function`
 
-Отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected».
+Отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected». Внутри схемы
+поведения (в `setup`, в её effect'ах и отложенных заданиях) запись отменяется снятием схемы.
 
 **Signature:**
 ```typescript

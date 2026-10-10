@@ -13,7 +13,7 @@
  */
 
 import { effect, type Signal, type ReadonlySignal } from '@preact/signals-core';
-import { runOutsideEffect } from './safe-effect';
+import { deferredWrites } from './safe-effect';
 
 /** Функция отписки от behavior-эффекта. */
 export type BehaviorCleanup = () => void;
@@ -98,27 +98,6 @@ export function watchField<T>(
     }
     cb(value);
   });
-}
-
-/**
- * Отложенные записи одной операции: задание выполняется на микротаске (`runOutsideEffect`), а при
- * снятии операции все ещё не выполненные отменяются — запись после cleanup не случится.
- */
-function deferredWrites(): { schedule(job: () => void): void; cancelAll(): void } {
-  const pending = new Set<() => void>();
-  return {
-    schedule(job) {
-      const cancel = runOutsideEffect(() => {
-        pending.delete(cancel);
-        job();
-      });
-      pending.add(cancel);
-    },
-    cancelAll() {
-      pending.forEach((cancel) => cancel());
-      pending.clear();
-    },
-  };
 }
 
 /**

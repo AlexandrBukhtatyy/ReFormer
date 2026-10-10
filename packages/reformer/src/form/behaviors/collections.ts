@@ -19,7 +19,15 @@ import type { FormModel } from '../../model/types';
 import type { FormGroup } from '../types/index';
 import { getNodeForSignal } from '../signal-node-registry';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
-import { getController, getFlow, onDispose, effect, defer, defineFormBehavior } from './context';
+import {
+  assertInsideSchema,
+  getController,
+  getFlow,
+  onDispose,
+  effect,
+  defer,
+  defineFormBehavior,
+} from './context';
 import { asArray } from './internals';
 import { onChange } from './operators';
 import type { FormBehavior } from './types';
@@ -40,9 +48,6 @@ interface RowArrayNode {
 
 /** Путь ручки — только для сообщений об ошибках. */
 const pathOf = (handle: object): string => (handle as { __path?: string }).__path ?? '?';
-
-/** Оператор вызван внутри схемы поведения? Иначе — понятная ошибка до любых побочных эффектов. */
-const assertInsideSchema = (op: string): void => void getController(op);
 
 /**
  * Заглушка формы строки для НЕматериализованного массива: бросает понятную ошибку при доступе к ноде.
@@ -165,7 +170,9 @@ export function exclusiveFlag<TItem>(
     handle,
     defineFormBehavior<TItem>(({ model: row }) => {
       onChange(getFlag(row), (on) => {
-        if (!on) return;
+        // Флаг — текущий, а не на момент изменения: строку выбрали и тут же сняли — прежний выбор
+        // другой строки не сбрасывается; две строки выбраны в одном тике — остаётся первая.
+        if (!on || !getFlag(row).peek()) return;
         for (let i = 0; i < rows.length; i++) {
           const other = rows.at(i);
           if (other && other !== row) {
@@ -202,12 +209,16 @@ export function aggregateInto<TItem>(
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   let scheduled = false;
   let runs = 0;
+  // Расходящаяся derive останавливает оператор насовсем: ошибку отложенного прохода глотает
+  // dev-логгер, и без флага следующий проход, уже запланированный записью, крутил бы цикл без конца.
+  let stopped = false;
   effect(() => {
     touchValue(rows); // подписка на длину + все поля строк
-    if (scheduled) return;
+    if (scheduled || stopped) return;
     scheduled = true;
     defer(() => {
       scheduled = false;
+      if (stopped) return;
       const writes = derive(rows.toArray()); // derive по ФИНАЛЬНОМУ состоянию
       let changed = false;
       for (const { index, patch } of writes) {
@@ -222,7 +233,7 @@ export function aggregateInto<TItem>(
       }
       runs = changed ? runs + 1 : 0;
       if (runs > 50) {
-        runs = 0;
+        stopped = true;
         throw new Error(
           `[@reformer/core/behaviors] aggregateInto("${pathOf(handle)}"): запись не сходится (>50 проходов) — ` +
             `derive должна быть идемпотентной на фикспоинте.`

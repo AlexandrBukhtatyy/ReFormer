@@ -10,17 +10,57 @@
  * @module form/behaviors/node
  */
 
-import { effect, type Signal, type ReadonlySignal } from '@preact/signals-core';
+import { effect, untracked, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import { getNodeForSignal } from '../signal-node-registry';
-import { runOutsideEffect } from '../../model/safe-effect';
+import { deferredWrites } from '../../model/safe-effect';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
+
+/** Нода, чьей доступностью управляет оператор: поле, группа или массив под-форм. */
+export interface AvailabilityTarget {
+  enable(): void;
+  disable(): void;
+  reset(): void;
+}
+
+/**
+ * Отложенное применение доступности ноды по условию.
+ *
+ * Решение принимается в момент записи, а новое задание отменяет ожидающее (побеждает последнее):
+ * иначе задание «выключить и стереть» первого прогона выполнилось бы после загрузки данных в том же
+ * тике и стёрло их, хотя поле к этому моменту уже снова доступно. Снятие отменяет ожидающее
+ * задание — запись после dispose не случится.
+ *
+ * @internal
+ */
+export function availabilityWrites(
+  condition: () => boolean,
+  options?: { resetOnDisable?: boolean }
+): { schedule(node: AvailabilityTarget): void; cancel(): void } {
+  const writes = deferredWrites();
+  return {
+    schedule(node) {
+      writes.cancelAll();
+      writes.schedule(() => {
+        if (untracked(condition)) {
+          node.enable();
+        } else {
+          node.disable();
+          if (options?.resetOnDisable) node.reset();
+        }
+      });
+    },
+    cancel: () => writes.cancelAll(),
+  };
+}
 
 /**
  * Условное включение поля (state-операция). Резолвит ноду по сигналу-цели через реестр
  * сигнал→нода (заполняется `createForm`) и вызывает `enable()`/`disable()` (+`reset()` при
  * `resetOnDisable`). `condition` реактивен (читает свои сигналы модели).
  *
- * Запись состояния отложена через `runOutsideEffect` (микротаск) для защиты от «Cycle detected».
+ * Запись состояния отложена на микротаск для защиты от «Cycle detected». Условие читается в момент
+ * записи, и побеждает последнее решение: загрузка данных в том же тике, что и сборка, не стирается
+ * заданием первого прогона. Снятие отменяет ещё не выполненную запись.
  * ⚠️ Поле должно быть материализовано в форме (`createForm`) — иначе ноды в реестре нет (например,
  * элемент массива, который строится per-item).
  *
@@ -50,19 +90,16 @@ export function enableWhen(
   condition: () => boolean,
   options?: { resetOnDisable?: boolean }
 ): BehaviorCleanup {
-  return effect(() => {
-    const enabled = condition(); // подписка на сигналы условия
+  const writes = availabilityWrites(condition, options);
+  const stop = effect(() => {
+    condition(); // подписка на сигналы условия
     const node = getNodeForSignal(target as Signal<unknown>);
-    if (!node) return;
-    runOutsideEffect(() => {
-      if (enabled) {
-        node.enable();
-      } else {
-        node.disable();
-        if (options?.resetOnDisable) node.reset();
-      }
-    });
+    if (node) writes.schedule(node);
   });
+  return () => {
+    stop();
+    writes.cancel();
+  };
 }
 
 /**

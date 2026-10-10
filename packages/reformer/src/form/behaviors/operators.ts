@@ -9,7 +9,7 @@
  * @module form/behaviors/operators
  */
 
-import type { Signal, ReadonlySignal } from '@preact/signals-core';
+import { untracked, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import {
   copyFrom as coreCopyFrom,
   watchField as coreWatchField,
@@ -19,10 +19,10 @@ import {
   revalidateWhen as coreRevalidateWhen,
 } from '../../model/behaviors-value';
 import { markDerived, unmarkDerived } from '../../model/derived-registry';
-import { runOutsideEffect } from '../../model/safe-effect';
-import { enableWhen as coreEnableWhen } from './node';
+import { deferredWrites } from '../../model/safe-effect';
+import { availabilityWrites, enableWhen as coreEnableWhen, type AvailabilityTarget } from './node';
 import { getNodeForSignal } from '../signal-node-registry';
-import { onDispose, effect, defer } from './context';
+import { assertInsideSchema, onDispose, effect } from './context';
 import {
   type GroupSignals,
   isLeafSignal,
@@ -36,18 +36,13 @@ import type { ChangeContext } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-interface NodeOps {
-  enable(): void;
-  disable(): void;
-  reset(): void;
-}
-
 /** Вычисляемое поле с auto-tracking: `target = read()` при изменении прочитанных сигналов. */
 export function compute<R>(
   target: Signal<R>,
   read: () => R,
   options?: { when?: () => boolean }
 ): void {
+  assertInsideSchema('compute');
   markDerived(target); // групповая запись (set/patch, setValue группы) не затирает вычисляемое поле
   onDispose(() => unmarkDerived(target)); // при снятии behavior снова разрешаем bulk-set (refcount)
   const guard = makeCycleGuard(target as Signal<unknown>); // детект расходящегося цикла
@@ -68,6 +63,7 @@ export function computeFrom<R>(
   fn: (...values: any[]) => R,
   options?: { when?: (...values: any[]) => boolean }
 ): void {
+  assertInsideSchema('computeFrom');
   markDerived(target); // см. compute
   onDispose(() => unmarkDerived(target)); // refcount: см. compute
   const guard = makeCycleGuard(target as Signal<unknown>); // F7
@@ -88,6 +84,7 @@ export function copyFrom<T>(
   target: Signal<T> | object,
   options?: { when?: () => boolean; transform?: (value: T) => T }
 ): void {
+  assertInsideSchema('copyFrom');
   // Скаляр — лист или массив целиком: массив копируется значением, а не обходом по ключам.
   if (isValueHandle(source) && isValueHandle(target)) {
     onDispose(coreCopyFrom(source as ReadonlySignal<T>, target as Signal<T>, options));
@@ -95,11 +92,23 @@ export function copyFrom<T>(
   }
   const src = source as GroupSignals;
   const dst = target as GroupSignals;
+  const when = options?.when;
+  const transform = options?.transform;
+  // Снимок и условие — в момент записи, и побеждает последняя запись: снимок, снятый при прогоне
+  // effect'а, иначе затёр бы данные, загруженные в том же тике, хотя копирование уже выключено.
+  const writes = deferredWrites();
   effect(() => {
-    const snapshot = readGroup(src); // подписка на все листья источника
-    if (options?.when && !options.when()) return;
-    defer(() => writeGroup(dst, snapshot));
+    readGroup(src); // подписка на все листья источника
+    writes.cancelAll();
+    if (when && !when()) return;
+    writes.schedule(() => {
+      if (when && !untracked(when)) return;
+      const snapshot = untracked(() => readGroup(src)) as unknown as T;
+      const value = transform ? transform(snapshot) : snapshot;
+      writeGroup(dst, value as unknown as Record<string, unknown>);
+    });
   });
+  onDispose(() => writes.cancelAll());
 }
 
 /**
@@ -117,12 +126,16 @@ export function onChange<T>(
   cb: (value: T, ctx: ChangeContext) => void,
   options?: { immediate?: boolean; debounce?: number }
 ): void {
+  assertInsideSchema('onChange');
   let controller: AbortController | undefined;
+  // Колбэк каждого значения выполняется (предыдущие не отменяются), но снятие отменяет ещё не
+  // выполненные — колбэк после dispose не вызывается.
+  const calls = deferredWrites();
   const fire = (v: T): void => {
     controller?.abort(); // аннулируем предыдущий in-flight вызов
     controller = new AbortController();
     const { signal } = controller;
-    runOutsideEffect(() => cb(v, { signal }));
+    calls.schedule(() => cb(v, { signal }));
   };
 
   if (!options?.debounce) {
@@ -142,13 +155,35 @@ export function onChange<T>(
       stop();
     });
   }
-  onDispose(() => controller?.abort());
+  onDispose(() => {
+    calls.cancelAll();
+    controller?.abort();
+  });
 }
 
 type EnableTarget = ReadonlySignal<unknown> | object;
 
 /** Условное включение поля(ей) — скаляр, массив целей или группа. `resetOnDisable=false` по умолчанию. */
 export function enableWhen(
+  target: EnableTarget | EnableTarget[],
+  condition: () => boolean,
+  options?: { resetOnDisable?: boolean }
+): void {
+  assertInsideSchema('enableWhen');
+  applyAvailability(target, condition, options);
+}
+
+/** Условное выключение поля(ей) (инверсия {@link enableWhen}). */
+export function disableWhen(
+  target: EnableTarget | EnableTarget[],
+  condition: () => boolean,
+  options?: { resetOnDisable?: boolean }
+): void {
+  assertInsideSchema('disableWhen');
+  applyAvailability(target, () => !condition(), options);
+}
+
+function applyAvailability(
   target: EnableTarget | EnableTarget[],
   condition: () => boolean,
   options?: { resetOnDisable?: boolean }
@@ -162,15 +197,6 @@ export function enableWhen(
   }
 }
 
-/** Условное выключение поля(ей) (инверсия {@link enableWhen}). */
-export function disableWhen(
-  target: EnableTarget | EnableTarget[],
-  condition: () => boolean,
-  options?: { resetOnDisable?: boolean }
-): void {
-  enableWhen(target, () => !condition(), options);
-}
-
 function enableGroup(
   g: GroupSignals,
   condition: () => boolean,
@@ -178,22 +204,19 @@ function enableGroup(
 ): void {
   // Нода — по идентичности ручки, а не по пути: путь ручки абсолютный (`items.0.address`), а
   // форма строки массива — отдельный корень. Поиск по пути в схеме строки ничего не находил.
-  const node = getNodeForSignal(g) as NodeOps | undefined;
+  const node = getNodeForSignal(g) as AvailabilityTarget | undefined;
   if (!node) return;
+  const writes = availabilityWrites(condition, options);
   effect(() => {
-    const enabled = condition();
-    defer(() => {
-      if (enabled) node.enable();
-      else {
-        node.disable();
-        if (options?.resetOnDisable) node.reset();
-      }
-    });
+    condition(); // подписка на сигналы условия
+    writes.schedule(node);
   });
+  onDispose(writes.cancel);
 }
 
 /** Трансформация значения поля (идемпотентная). */
 export function transformValue<T>(target: Signal<T>, transformer: (value: T) => T): void {
+  assertInsideSchema('transformValue');
   onDispose(coreTransformValue(target, transformer));
 }
 
@@ -203,6 +226,7 @@ export function resetWhen<T>(
   condition: () => boolean,
   options?: { resetValue?: T }
 ): void {
+  assertInsideSchema('resetWhen');
   onDispose(coreResetWhen(target, condition, options));
 }
 
@@ -212,11 +236,13 @@ export function syncFields<T>(
   b: Signal<T>,
   options?: { transform?: (value: T) => T }
 ): void {
+  assertInsideSchema('syncFields');
   onDispose(coreSyncFields(a, b, options));
 }
 
 /** Ревалидация при изменении зависимостей. */
 export function revalidateWhen(deps: ReadonlySignal<unknown>[], revalidate: () => void): void {
+  assertInsideSchema('revalidateWhen');
   onDispose(coreRevalidateWhen(deps, revalidate));
 }
 

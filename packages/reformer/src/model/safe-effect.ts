@@ -124,6 +124,30 @@ export function runOutsideEffect(fn: () => void | Promise<void>): () => void {
 }
 
 /**
+ * Отложенные записи одной операции: задание выполняется на микротаске ({@link runOutsideEffect}),
+ * а `cancelAll` отменяет все ещё не выполненные — при снятии операции (запись после cleanup не
+ * случится) или когда новое задание делает ожидающие устаревшими (побеждает последнее).
+ *
+ * @internal
+ */
+export function deferredWrites(): { schedule(job: () => void): void; cancelAll(): void } {
+  const pending = new Set<() => void>();
+  return {
+    schedule(job) {
+      const cancel = runOutsideEffect(() => {
+        pending.delete(cancel);
+        job();
+      });
+      pending.add(cancel);
+    },
+    cancelAll() {
+      pending.forEach((cancel) => cancel());
+      pending.clear();
+    },
+  };
+}
+
+/**
  * Создает версию callback с поддержкой debounce, безопасную для effect
  *
  * `withDebounce` уже откладывает вызов (таймер) — этого достаточно для выхода из effect-контекста,
