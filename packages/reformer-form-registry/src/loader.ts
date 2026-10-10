@@ -8,7 +8,7 @@
  * @module reformer/form-registry/loader
  */
 
-import type { FormFlowConfig, FormLevel, FormModel, FormProxy } from '@reformer/core';
+import type { FormFlowConfig, FormLevel, FormModel, FormGroup } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
 import {
   composeRegistries,
@@ -46,7 +46,7 @@ export interface LoadedForm<T extends object = Record<string, unknown>> {
   validation?: FormValidation<T>;
   flow?: FormFlowConfig<T>;
   makeRenderBehavior?: (
-    form: FormProxy<T>,
+    form: FormGroup<T>,
     model: FormModel<T>,
     level: FormLevel<T>,
     /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */

@@ -19,7 +19,7 @@ import type {
   FormFlowConfig,
   FormLevel,
   FormModel,
-  FormProxy,
+  FormGroup,
   FormValidation,
 } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
@@ -176,7 +176,7 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
    */
   renderBehavior?: CodeSource<
     (
-      form: FormProxy<T>,
+      form: FormGroup<T>,
       model: FormModel<T>,
       /** Уже СОБРАННЫЙ уровень формы (`validate`, `submit`, поток), а не сырые правила. */
       level: FormLevel<T>,

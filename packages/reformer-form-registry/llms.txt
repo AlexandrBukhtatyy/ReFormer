@@ -1579,7 +1579,7 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
    */
   renderBehavior?: CodeSource<
     (
-      form: FormProxy<T>,
+      form: FormGroup<T>,
       model: FormModel<T>,
       /** Уже СОБРАННЫЙ уровень формы (`validate`, `submit`, поток), а не сырые правила. */
       level: FormLevel<T>,
@@ -2002,7 +2002,7 @@ export interface LoadedForm<T extends object = Record<string, unknown>> {
   validation?: FormValidation<T>;
   flow?: FormFlowConfig<T>;
   makeRenderBehavior?: (
-    form: FormProxy<T>,
+    form: FormGroup<T>,
     model: FormModel<T>,
     level: FormLevel<T>,
     /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */
