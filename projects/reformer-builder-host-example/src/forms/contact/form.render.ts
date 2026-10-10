@@ -2,7 +2,7 @@
 
 import { onComponentEvent, onMount, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import { notify } from '../../notifications/notifications';
 import { loadCityOptions } from '../../services/cities';
 import { formValidation } from './form.validation';
@@ -12,7 +12,7 @@ import type { ContactForm } from './types';
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
 export function createJsonRenderBehavior(
-  form: FormProxy<ContactForm>,
+  form: FormGroup<ContactForm>,
   model: FormModel<ContactForm>,
   options: RenderBehaviorOptions = {}
 ): RenderBehaviorFn<ContactForm> {
