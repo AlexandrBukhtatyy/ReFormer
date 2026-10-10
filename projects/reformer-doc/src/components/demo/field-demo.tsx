@@ -4,7 +4,7 @@ import { FormField } from '@reformer/ui-kit';
 import { useDemoField, type DemoFieldConfig } from './harness';
 
 /**
- * Собирает готовый React-компонент, который поднимает M1-поле и рендерит его
+ * Собирает готовый React-компонент, который поднимает поле формы и рендерит его
  * через `<FormField>`. Используется для variant-карточек и example-демо
  * field-bound компонентов ui-kit (schema-driven путь).
  */

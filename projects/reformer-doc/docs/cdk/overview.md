@@ -27,9 +27,10 @@ Peer-зависимости: `@reformer/core`, `react`, `react-dom` — npm 7+ �
 - [**FieldArray**](./field-array) — динамические add/remove/reorder массивы. Части: `FieldArray`,
   `FieldArrayList`, `FieldArrayAddButton`, `FieldArrayRemoveButton`, `FieldArrayEmpty`,
   `FieldArrayCount`, `FieldArrayItemIndex`; хук `useFieldArray`.
-- [**FormWizard**](./form-wizard) — многошаговый визард с пошаговой валидацией. Части:
-  `FormWizard`, `FormWizardStep`, `FormWizardIndicator`, `FormWizardActions`,
-  `FormWizardProgress`; хук `useFormWizard`.
+- [**FormWizard**](./form-wizard) — многошаговый визард поверх потока шагов сборки
+  (`createForm({ flow })`): «Далее» проверяет правила текущего шага. Части: `FormWizard.Step`,
+  `FormWizard.Indicator`, `FormWizard.Actions` (`Prev` / `Next` / `Submit`), `FormWizard.Progress`;
+  хук `useFormWizard`.
 - [**FormField**](./form-field) — доступная анатомия поля (label/control/error/description с
   проброшенными `id` и `aria`). Части: `FormField.Root`, `FormField.Label`, `FormField.Control`,
   `FormField.Error`, `FormField.Description`; хук `useFormField`.
@@ -56,18 +57,25 @@ import { FileUpload } from '@reformer/cdk/file-upload';
 
 ## Быстрый пример
 
-Форма и модель создаются через M1 API `@reformer/core`, а cdk отвечает только за поведение и
+Форма собирается в `@reformer/core` (`createForm`), а cdk отвечает только за поведение и
 анатомию:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { arrayOf, createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FieldArray } from '@reformer/cdk/field-array';
 
-const model = createModel({
-  items: [{ name: '' }],
-});
+type Item = { name: string };
 
-const form = createFormFromModel({ model, schema });
+const { form } = useFormBundle(() =>
+  createForm<{ items: Item[] }>({
+    initial: { items: arrayOf(() => ({ name: '' }), [{ name: '' }]) },
+    // массив объектов становится FormArray по узлу с `item`
+    schema: (model) => ({
+      children: [{ model: model.$.items, item: (row) => ({ model: row.$.name }) }],
+    }),
+  })
+);
 
 <FieldArray.Root control={form.items}>
   <FieldArray.Empty>

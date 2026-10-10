@@ -82,23 +82,24 @@ const behavior = defineFormBehavior<LoanForm>(({ model }) => {
 
 ## Подключение к форме
 
-Behavior подключается к форме через `createFormFromModel({ model, schema, behavior })`, дальше значения
-пересчитываются сами:
+Поведение подключается к сборке полем `behavior` — дальше значения пересчитываются сами:
 
 ```typescript
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { defineFormBehavior, compute } from '@reformer/core/behaviors';
 
 type PriceForm = { price: number; quantity: number; total: number };
-
-const model = createModel<PriceForm>({ price: 100, quantity: 2, total: 0 });
 
 const behavior = defineFormBehavior<PriceForm>(({ model }) => {
   compute(model.$.total, () => model.price * model.quantity);
 });
 
-// schema привязывает поля к компонентам (см. «Быстрый старт»)
-const form = createFormFromModel<PriceForm>({ model, schema, behavior });
+// schema — дерево разметки (см. «Быстрый старт»)
+const { model } = createForm<PriceForm>({
+  initial: { price: 100, quantity: 2, total: 0 },
+  schema,
+  behavior,
+});
 
 model.price = 150;
 model.total; // 300 — пересчиталось автоматически
@@ -130,7 +131,7 @@ compute(model.$.coBorrowersIncome, () =>
 
 ```typescript
 // зависит только от КОЛИЧЕСТВА элементов, не от их полей
-compute(model.$.interestRate, () => computeRate(model.properties.map(() => null).length));
+compute(model.$.interestRate, () => computeRate(model.properties.length));
 ```
 
 ## Цепочки вычислений

@@ -55,8 +55,8 @@ const PRELOADED: RemoteFileRef[] = [
 
 /**
  * Preloaded-демо на nullable-поле: initial в модели — null, дескрипторы кладутся в сигнал поля
- * после createForm. Поле-массив с дескрипторами прямо в initial работает так же — узел схемы с
- * `component` делает массив одним значением поля.
+ * после сборки формы. Поле-массив с дескрипторами прямо в initial работает так же — узел поля
+ * `{ model: model.$.<массив>, component }` делает массив одним значением поля.
  */
 function PreloadedDemo() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,15 +65,13 @@ function PreloadedDemo() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const model = createModel<any>({ field: null });
     const schema = {
-      field: {
-        value: model.$.field,
-        component: FileUploadBase,
-        componentProps: {
-          label: 'Ранее загруженные',
-          placeholder: 'Добавить документ',
-          multiple: true,
-          uploader: mockUploader,
-        },
+      model: model.$.field,
+      component: FileUploadBase,
+      componentProps: {
+        label: 'Ранее загруженные',
+        placeholder: 'Добавить документ',
+        multiple: true,
+        uploader: mockUploader,
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
@@ -113,7 +111,7 @@ export const fileUploadDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.documents,
+  model: model.$.documents,
   component: FileUploadBase,
   componentProps: {
     label: 'Документы',
@@ -142,7 +140,7 @@ export const fileUploadDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.attachments,
+  model: model.$.attachments,
   component: FileUploadInput,
   componentProps: {
     label: 'Вложения',
@@ -170,7 +168,7 @@ export const fileUploadDocConfig: ComponentDocConfig = {
         fullWidth: true, // дроп-зона занимает всю ширину превью
       }),
       code: `{
-  value: model.$.documents,
+  model: model.$.documents,
   component: FileUploadDropzone,
   componentProps: {
     label: 'Документы',
@@ -211,7 +209,7 @@ validate(model.$.documents, [required({ code: 'documents.required' })]);
         componentProps: { label: 'Аватар' },
       }),
       code: `{
-  value: model.$.avatar,
+  model: model.$.avatar,
   component: FileUploadAvatar, // значение: File | RemoteFileRef | null
   componentProps: { shape: 'circle', maxFileSize: 2 * 1024 * 1024 },
 }`,
@@ -237,7 +235,7 @@ validate(model.$.documents, [required({ code: 'documents.required' })]);
         fullWidth: true,
       }),
       code: `{
-  value: model.$.documents,
+  model: model.$.documents,
   component: FileUploadDropzone,
   componentProps: {
 
@@ -327,7 +325,7 @@ validate(model.$.documents, [
     }),
     code: (v) =>
       `{
-  value: model.$.documents,
+  model: model.$.documents,
   component: FileUploadBase,
   componentProps: {
     label: 'Документы',${v.placeholder ? `\n    placeholder: '${v.placeholder}',` : ''}${v.hint ? `\n    hint: '${v.hint}',` : ''}${v.accept ? `\n    accept: '${v.accept}',` : ''}${v.multiple ? '\n    multiple: true,' : ''}

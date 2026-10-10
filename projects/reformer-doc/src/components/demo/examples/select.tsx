@@ -268,7 +268,7 @@ export const selectDocConfig: ComponentDocConfig = {
         'Плоский список inline-опций через проп options. Значение — строка (value: string | null). В галерее список показан раскрытым — видно все опции сразу.',
       render: () => <SelectOpenPreview label="Тип кредита" options={LOAN} initial="mortgage" />,
       code: `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: SelectAsync,
   componentProps: {
     label: 'Тип кредита',
@@ -332,7 +332,7 @@ export const selectDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.cities,
+  model: model.$.cities,
   component: SelectMulti,
   componentProps: { options: GROUPED, clearable: true, summaryThreshold: 2 },
 }
@@ -439,7 +439,7 @@ componentProps: { label: 'Страна', resource: countries }`,
         touched: true,
       }),
       code: `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: SelectAsync,
   componentProps: { label: 'Тип кредита', options: LOAN },
 }
@@ -466,7 +466,7 @@ validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: SelectAsync,
   componentProps: {
     label: 'Тип кредита',
@@ -476,6 +476,6 @@ validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.loanType, [required()]);`,
   },
 };

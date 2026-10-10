@@ -21,7 +21,7 @@ export const toggleDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Форматирование', children: 'Полужирный' },
       }),
       code: `{
-  value: model.$.bold,
+  model: model.$.bold,
   component: Toggle,
   componentProps: { label: 'Форматирование', children: 'Полужирный' },
 }`,
@@ -37,7 +37,7 @@ export const toggleDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Курсив', children: 'Курсив', variant: 'outline' },
       }),
       code: `{
-  value: model.$.italic, // initial: true
+  model: model.$.italic, // initial: true
   component: Toggle,
   componentProps: { label: 'Курсив', children: 'Курсив', variant: 'outline' },
 }`,
@@ -54,7 +54,7 @@ export const toggleDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Подчёркнутый', children: 'U', size: 'lg' },
       }),
       code: `{
-  value: model.$.underline,
+  model: model.$.underline,
   component: Toggle,
   componentProps: { label: 'Подчёркнутый', children: 'U', size: 'lg' },
 }`,
@@ -73,7 +73,7 @@ export const toggleDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.confirmed,
+  model: model.$.confirmed,
   component: Toggle,
   componentProps: { label: 'Подтверждение', children: 'Готово' },
 }
@@ -98,7 +98,7 @@ validate(model.$.confirmed, [required({ code: 'confirmed.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.bold,
+  model: model.$.bold,
   component: Toggle,
   componentProps: {
     label: 'Форматирование',

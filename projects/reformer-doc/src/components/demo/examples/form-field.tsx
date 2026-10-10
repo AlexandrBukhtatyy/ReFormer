@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { CSSProperties, ReactNode } from 'react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 import { FormField, Input } from '@reformer/ui-kit';
+import { defineIssueMessages } from '@reformer/core/i18n';
 import { required, email } from '@reformer/core/validators';
 import { useDemoField } from '../harness';
 import type { ComponentDocConfig } from '../types';
@@ -13,6 +15,9 @@ const ZONE = {
   hint: '#64748b',
   validation: '#ef4444',
 } as const;
+
+/** Тексты замечаний демо: правило несёт код, строку по коду даёт словарь формы. */
+const EMAIL_MESSAGES = defineIssueMessages({ 'field.required': 'Введите email' });
 
 /**
  * Обводит одну зону поля тонким пунктиром через `outline` (не влияет на layout —
@@ -57,7 +62,7 @@ function AnatomyField() {
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ code: 'field.required' }), email()],
-    messages: { 'field.required': 'Введите email' },
+    messages: EMAIL_MESSAGES,
     touched: true,
   });
 
@@ -66,32 +71,34 @@ function AnatomyField() {
   return (
     // Ширина как у поля в форме; справа — запас под боковые подписи зон.
     <div style={{ width: 300, paddingRight: 96 }}>
-      <FieldRoot.Root control={control as any} hasDescription>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <Zone name="label" color={ZONE.label}>
-            <FieldRoot.Label className="block text-sm font-medium" />
-          </Zone>
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FieldRoot.Root control={control as any} hasDescription>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Zone name="label" color={ZONE.label}>
+              <FieldRoot.Label className="block text-sm font-medium" />
+            </Zone>
 
-          <Zone name="input" color={ZONE.input}>
-            <FieldRoot.Control />
-          </Zone>
+            <Zone name="input" color={ZONE.input}>
+              <FieldRoot.Control />
+            </Zone>
 
-          <Zone name="hint" color={ZONE.hint}>
-            <FieldRoot.Description>
-              <span
-                style={{ display: 'flex', justifyContent: 'space-between', gap: 12, ...hintText }}
-              >
-                <span>Подсказка к полю</span>
-                <span>слева / справа</span>
-              </span>
-            </FieldRoot.Description>
-          </Zone>
+            <Zone name="hint" color={ZONE.hint}>
+              <FieldRoot.Description>
+                <span
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 12, ...hintText }}
+                >
+                  <span>Подсказка к полю</span>
+                  <span>слева / справа</span>
+                </span>
+              </FieldRoot.Description>
+            </Zone>
 
-          <Zone name="validation" color={ZONE.validation}>
-            <FieldRoot.Error className="text-destructive text-sm block" />
-          </Zone>
-        </div>
-      </FieldRoot.Root>
+            <Zone name="validation" color={ZONE.validation}>
+              <FieldRoot.Error className="text-destructive text-sm block" />
+            </Zone>
+          </div>
+        </FieldRoot.Root>
+      </ValidationMessagesProvider>
     </div>
   );
 }
@@ -108,12 +115,14 @@ function PlainUsage() {
       description: 'Не передаём email третьим сторонам.',
     },
     validators: [required({ code: 'field.required' }), email()],
-    messages: { 'field.required': 'Введите email' },
+    messages: EMAIL_MESSAGES,
     touched: true,
   });
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
-      <FormField control={control as any} />
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FormField control={control as any} />
+      </ValidationMessagesProvider>
     </div>
   );
 }
@@ -152,7 +161,7 @@ function RowUsage() {
       description: 'Не передаём email третьим сторонам.',
     },
     validators: [required({ code: 'field.required' }), email()],
-    messages: { 'field.required': 'Введите email' },
+    messages: EMAIL_MESSAGES,
     touched: true,
   });
   const { control: innControl } = useDemoField({
@@ -169,8 +178,10 @@ function RowUsage() {
     <div
       style={{ maxWidth: 460, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}
     >
-      <FormField control={emailControl as any} direction="row" className={labelColumn} />
-      <FormField control={innControl as any} direction="row" className={labelColumn} />
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FormField control={emailControl as any} direction="row" className={labelColumn} />
+        <FormField control={innControl as any} direction="row" className={labelColumn} />
+      </ValidationMessagesProvider>
     </div>
   );
 }
@@ -189,9 +200,9 @@ export const uiKitFormFieldDocConfig: ComponentDocConfig = {
       render: AnatomyField,
       code: `import { FormField, Input } from '@reformer/ui-kit';
 
-// Зоны задаются через componentProps поля:
-email: {
-  value: model.$.email,
+// Зоны задаются через componentProps узла поля в схеме:
+{
+  model: model.$.email,
   component: Input,
   componentProps: {
     label: 'Email',                        // → зона label
@@ -222,8 +233,8 @@ email: {
       description:
         'Два независимых пропа componentProps: labelTooltip — иконка после подписи (рисует FormField, снаружи <label>), tooltip — иконка в самом контроле. Тултип открывается по наведению, фокусу и клику/тапу; текст попадает в aria-describedby поля.',
       render: TooltipUsage,
-      code: `inn: {
-  value: model.$.inn,
+      code: `{
+  model: model.$.inn,
   component: Input,
   componentProps: {
     label: 'ИНН',
@@ -252,7 +263,7 @@ const labelColumn = '[&>[data-slot^=field-label]]:w-40';
 
 // В FormRenderer — своей обёрткой (объявляется на уровне модуля):
 const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="row" />;
-<FormRenderer form={form} settings={{ fieldWrapper: RowField }} />`,
+<FormRenderer form={bundle} settings={{ fieldWrapper: RowField }} />`,
     },
   ],
   props: [

@@ -38,7 +38,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
       }),
       code: `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: NativeSelectWithOptions,
   componentProps: {
     label: 'Тип кредита',
@@ -82,7 +82,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.purposes,
+  model: model.$.purposes,
   component: NativeSelectMulti,
   componentProps: { options: LOAN, rows: 5 },
 }`,
@@ -103,7 +103,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: NativeSelectWithOptions,
   componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
 }
@@ -130,7 +130,7 @@ validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: NativeSelectWithOptions,
   componentProps: {
     label: 'Тип кредита',
@@ -140,6 +140,6 @@ validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.loanType, [required()]);`,
   },
 };

@@ -4,143 +4,148 @@ sidebar_position: 2
 
 # Массивы и динамические формы
 
-Массивы объектов **принадлежат модели**. Данные лежат в модели, а форма строит поверх них
-под-формы и подхватывает изменения реактивно. Поэтому все мутации — `push` / `removeAt` /
-`move` / … — выполняются на модели, а не на нодах формы.
+Массивы объектов **принадлежат модели**. Данные лежат в модели, а форма строит поверх массива ноду
+`FormArray` — по форме-строке (`FormGroup<Item>`) на каждый элемент — и подхватывает изменения
+реактивно. Мутировать массив можно и через модель (`model.items.push(…)`), и через ноду массива
+(`form.items.push(…)`): нода тоже пишет в модель, а строки формы перестраиваются сами.
 
 ## Узел схемы массива
 
-Массив описывается узлом `{ array: model.<path>, item: (itemModel) => subSchema }`. Функция `item`
-строит под-схему **одного элемента** из его под-модели (`FormModel<Item>`); поля привязываются
-через сигнал под-модели `item.$.field`.
+Массив под-форм описывается узлом `{ model: model.$.items, component: FieldArray, item: (row) => узел }`.
+Функция `item` строит разметку **одной строки** из её под-модели (`FormModel<Item>`); поля строки
+привязываются через сигнал под-модели `row.$.field`.
 
 ```typescript
-import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
-import { Input, InputNumber } from '@reformer/ui-kit';
+import {
+  arrayOf,
+  createForm,
+  createModel,
+  type FormModel,
+  type FormSchemaNode,
+} from '@reformer/core';
+import { FieldArray, Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { title: string; amount: number | null };
 type OrderForm = { items: Item[] };
 
-const model = createModel<OrderForm>({ items: [] });
+// Шаблон новой строки — в модели: его получает push() без аргумента и кнопка «Добавить».
+const blankItem = (): Item => ({ title: '', amount: null });
 
-// под-схема одного элемента — item.$.field это сигнал под-модели
-const itemSchema = (item: FormModel<Item>) => ({
-  title: { value: item.$.title, component: Input, componentProps: { label: 'Позиция' } },
-  amount: {
-    value: item.$.amount,
-    component: InputNumber,
-    componentProps: { label: 'Сумма' },
-  },
+// Разметка одной строки — row.$.field это сигнал под-модели строки
+const itemRow = (row: FormModel<Item>): FormSchemaNode => ({
+  children: [
+    { model: row.$.title, component: Input, componentProps: { label: 'Позиция' } },
+    { model: row.$.amount, component: InputNumber, componentProps: { label: 'Сумма' } },
+  ],
 });
 
-const schema = {
-  items: { array: model.items, item: itemSchema },
-};
+const orderSchema = (model: FormModel<OrderForm>): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.items,
+      component: FieldArray,
+      componentProps: { title: 'Позиции', addButtonLabel: 'Добавить позицию' },
+      item: itemRow,
+    },
+  ],
+});
 
-const form = createFormFromModel<OrderForm>({ model, schema });
+const order = createForm<OrderForm>({
+  model: createModel<OrderForm>({ items: arrayOf(blankItem) }),
+  schema: orderSchema,
+});
+
+order.form.items; // FormArray<Item>
 ```
 
-:::warning Тип элемента — через `type`, не `interface`
-Тип `Item` объявляйте `type`-алиасом. Интерпретатору схемы нужна структурная индекс-сигнатура
-(`Record<string, …>`): у `type` она есть, у `interface` — нет, поэтому `interface` в под-схему
-элемента не подставится.
+:::info Чем станет массив, решает схема
+Массив объектов становится нодой `FormArray`, только если в схеме есть его узел с `item`. Массив,
+к которому схема привязала компонент без `item`, — одно значение поля (мультивыбор, теги, файлы):
+`{ model: model.$.tags, component: SelectMulti }`. Массив без узла в схеме форма пропускает.
 :::
 
-:::info Массив привязывается через value-proxy
-В узле схемы массив связывается через `model.items` (value-proxy, несёт путь `__path`), а **не**
-через сигнальный `model.$.items`. Отдельные поля элемента — наоборот, через сигнал `item.$.field`.
-:::
-
-:::info Валидация элементов — отдельный слой, оператор `each`
-Узел `{ array, item }` описывает массив только для **построения и рендера** формы — валидаторов он
-**не несёт**. Layout и валидация разведены на два независимых слоя: правила элементов живут в схеме
-валидации (`defineValidation`) и навешиваются оператором `each(<array>, (im) => …)`. Он
-обходит элементы модели и отдаёт под-модель каждого (`FormModel<Item>`), а поля проверяются через
-её сигнал `im.$.field`:
+:::info Правила строк — отдельный слой, оператор `applyEach`
+Узел массива описывает только разметку — валидаторов он **не несёт**. Правила строки — обычная
+схема валидации над типом элемента; к каждой строке её подключает `applyEach`:
 
 ```typescript
-import { defineValidation, validate, each } from '@reformer/core/validation';
-import { required, min } from '@reformer/core/validators';
+import { applyEach, defineValidation, validate } from '@reformer/core/validation';
+import { required, min, minLength } from '@reformer/core/validators';
 
-const orderValidation = defineValidation<OrderForm>(({ model }) => {
-  each(model.items, (im) => {
-    validate(im.$.title, [required({ code: 'field.required' })]);
-    validate(im.$.amount, [required({ code: 'field.required' }), min(1, { code: 'field.min' })]);
-  });
+const itemRules = defineValidation<Item>(({ model }) => {
+  validate(model.$.title, [required({ code: 'item.title.required' })]);
+  validate(model.$.amount, [required(), min(1)]);
+});
+
+const orderRules = defineValidation<OrderForm>(({ model }) => {
+  validate(model.$.items, [minLength(1, { code: 'items.minLength' })]); // массив целиком
+  applyEach(model.$.items, itemRules); // правила каждой строки
 });
 ```
 
-`each` принимает **value-proxy** массива (`model.items` — тот же, что и в узле схемы), а не сигнал
-`model.$.items`. Прогон — внешним раннером `validateModel(model, orderValidation)`; ошибки сами
-доедут до нод соответствующих элементов. Для сравнений между полями одного элемента — внутри `each`
-через `cross(im.$.field, () => fn(im.get()))` (снапшот элемента захватывается в замыкание); проверку
-«добавьте хотя бы один элемент» вешают на флаг-носитель формы: `cross(model.$.hasItems, …)`.
-Подробнее — в [Схеме валидации](../core-concepts/schemas/validation-schema) и
-[Стратегиях валидации](../validation/validation-strategies).
+Внутри схемы строки `cross` получает снимок **строки** — так пишутся сравнения полей одного
+элемента. Подробнее — в [Схеме валидации](../core-concepts/schemas/validation-schema).
 :::
 
-## Операции модели
+## Операции
 
-Мутации выполняются на `ModelArray` (`model.items`). Форма отражает их реактивно.
+Одни и те же операции есть у массива модели (`model.items`) и у ноды массива (`form.items`). Форма
+отражает любую из них реактивно.
 
-| Операция                         | Назначение                               |
-| -------------------------------- | ---------------------------------------- |
-| `model.items.push(value)`        | добавить элемент в конец                 |
-| `model.items.insertAt(i, value)` | вставить по индексу                      |
-| `model.items.removeAt(i)`        | удалить по индексу                       |
-| `model.items.move(from, to)`     | переместить элемент                      |
-| `model.items.swap(a, b)`         | поменять местами                         |
-| `model.items.clear()`            | очистить массив                          |
-| `model.items.at(i)`              | под-модель элемента (`FormModel<Item>`)  |
-| `model.items.length`             | реактивная длина                         |
-| `model.items.map((it, i) => …)`  | обход элементов как значений (реактивно) |
+| Модель (`ModelArray`)             | Нода (`FormArray`)              | Назначение                                     |
+| --------------------------------- | ------------------------------- | ---------------------------------------------- |
+| `model.items.push(value?)`        | `form.items.push(value?)`       | добавить в конец; без значения — по шаблону    |
+| `model.items.insertAt(i, value?)` | `form.items.insert(i, value?)`  | вставить по индексу                            |
+| `model.items.removeAt(i)`         | `form.items.removeAt(i)`        | удалить по индексу                             |
+| `model.items.move(from, to)`      | `form.items.move(from, to)`     | переместить элемент                            |
+| `model.items.swap(a, b)`          | `form.items.swap(a, b)`         | поменять местами                               |
+| `model.items.clear()`             | `form.items.clear()`            | очистить массив                                |
+| `model.items.at(i)`               | `form.items.at(i)`              | под-модель строки / форма строки (`FormGroup`) |
+| `model.items.length`              | `form.items.length`             | число элементов (реактивно в эффекте)          |
+| `model.items.map((it, i) => …)`   | `form.items.map((row, i) => …)` | обход: значения строк / формы строк            |
+| —                                 | `form.items.keyAt(i)`           | стабильный ключ строки для React               |
 
 ```typescript
 model.items.push({ title: 'Book', amount: 100 }); // добавить в конец
+model.items.push(); // строка по шаблону arrayOf(blankItem)
 model.items.insertAt(0, { title: 'Pen', amount: 5 }); // вставить
-model.items.removeAt(1); // удалить по индексу
-model.items.move(0, 2); // переместить
-model.items.swap(0, 1); // поменять местами
+order.form.items.removeAt(1); // то же через ноду
+order.form.items.move(0, 2); // переместить — формы строк не пересоздаются
 model.items.clear(); // очистить всё
 ```
 
 :::warning `push` принимает плоские значения
-В `push` / `insertAt` передавайте payload из **плоских значений** (`{ title, amount }`), а не
-шаблон поля (`{ value, component }`). Компонент и его пропсы берутся из фабрики `item` схемы
-автоматически. Передача FieldConfig-объектов сломает рендер (`[object Object]` в инпутах).
+В `push` / `insert` передавайте **значения** элемента (`{ title, amount }`), а не узел схемы
+(`{ model, component }`). Компонент и его пропсы берутся из `item` схемы автоматически.
 :::
 
-## Реактивная длина в React
+## Рендер в React
 
-Длину массива в компоненте читайте через `useArrayLength(form.<array>)` — хук пере-рендерит только
-на добавление/удаление элементов.
+Готовые компоненты снимают с вас подписки, ключи и кнопки:
+
+- в схеме формы — узел `{ model, component: FieldArray, item }` (ui-kit `FieldArray` рисует
+  заголовок, «Добавить», карточки строк, удаление и перестановку);
+- в разметке руками — `FieldArraySection` из `@reformer/ui-kit` (`control={form.items}`,
+  `itemComponent`) или headless [`FieldArray`](../cdk/field-array) из `@reformer/cdk`.
+
+Своя разметка — через ноду массива. Ключ строки — `keyAt(index)`: он держится за элемент модели и
+не меняется при `move` / `swap`, поэтому состояние строки не «переезжает» к соседу.
 
 ```tsx
 import { useArrayLength } from '@reformer/core/react';
-
-const length = useArrayLength(form.items);
-// length: number — реактивно обновляется на push / removeAt / reorder
-```
-
-## Рендер элементов
-
-Каждый элемент массива — под-форма (`FormGroup<Item>`). Итерируйте через `form.items.map`;
-точечный доступ — `form.items.at(i)`. Мутации в обработчиках — на модели.
-
-```tsx
 import { FormField, Button } from '@reformer/ui-kit';
-import type { FormGroup, FormModel } from '@reformer/core';
+import type { FormArray } from '@reformer/core';
 
-function ItemsList({ form, model }: { form: FormGroup<OrderForm>; model: FormModel<OrderForm> }) {
-  const length = useArrayLength(form.items);
+function ItemsList({ items }: { items: FormArray<Item> }) {
+  const length = useArrayLength(items); // перерисовка на добавление и удаление строк
 
   return (
     <div>
-      {form.items.map((item, index) => (
-        <div key={index}>
-          <FormField control={item.title} />
-          <FormField control={item.amount} />
-          <Button type="button" onClick={() => model.items.removeAt(index)}>
+      {items.map((row, index) => (
+        <div key={items.keyAt(index)}>
+          <FormField control={row.title} />
+          <FormField control={row.amount} />
+          <Button type="button" onClick={() => items.removeAt(index)}>
             Удалить
           </Button>
         </div>
@@ -148,7 +153,7 @@ function ItemsList({ form, model }: { form: FormGroup<OrderForm>; model: FormMod
 
       {length === 0 && <p>Пока нет ни одной позиции</p>}
 
-      <Button type="button" onClick={() => model.items.push({ title: '', amount: null })}>
+      <Button type="button" onClick={() => items.push()}>
         Добавить позицию
       </Button>
     </div>
@@ -156,15 +161,13 @@ function ItemsList({ form, model }: { form: FormGroup<OrderForm>; model: FormMod
 }
 ```
 
-:::tip Готовый компонент массива
-В `@reformer/ui-kit` есть `FieldArraySection` (`control={form.items}`, `itemComponent`,
-`initialValue`, add / remove / reorder из коробки) — используйте его, если не нужна своя разметка.
-:::
+`useArrayLength` подписан только на длину. Если строки переставляются (`move` / `swap`), берите
+`useFormControl(items)` — он перерисует список и при смене порядка.
 
 ## Реактивные агрегаты
 
-Сумма (или любой агрегат) по массиву считается **реактивно** через `compute` в behavior. Читайте
-элементы через value-proxy массива `model.items.map(...)` — так трекается и длина массива, и правки
+Сумма (или любой агрегат) по массиву считается **реактивно** через `compute` в поведении. Читайте
+элементы через массив модели `model.items.map(...)` — так отслеживается и длина массива, и правки
 внутри элементов.
 
 ```typescript
@@ -172,33 +175,32 @@ import { defineFormBehavior, compute } from '@reformer/core/behaviors';
 
 type OrderForm = { items: { title: string; amount: number | null }[]; total: number };
 
-const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+const orderBehavior = defineFormBehavior<OrderForm>(({ model }) => {
   compute(model.$.total, () =>
     model.items.map((it) => it.amount ?? 0).reduce((sum, v) => sum + v, 0)
   );
 });
 
-const form = createFormFromModel<OrderForm>({ model, schema, behavior });
+createForm<OrderForm>({ model, schema: orderSchema, behavior: orderBehavior });
 ```
 
 Почему это реактивно: `.map` читает сигнал самого массива (реагирует на `push` / `removeAt` /
-reorder) и внутри колбэка читает `it.amount` каждого элемента (реагирует на правки полей) —
+перестановку) и внутри колбэка читает `it.amount` каждого элемента (реагирует на правки полей) —
 пересчёт срабатывает на оба вида изменений.
 
 :::warning Не агрегируйте через `model.get()`
 Внутри `compute` не читайте `model.get()` или `model.items.toArray()` — это нереактивные снимки,
-зависимость не отследится и сумма не пересчитается. Агрегируйте только через value-proxy
-`model.items.map(...)`.
+зависимость не отследится и сумма не пересчитается. Агрегируйте через `model.items.map(...)`.
 :::
 
 Если нужен только счётчик (пересчёт лишь на изменение длины, без чтения полей элементов) — читайте
-`model.items.map(() => null).length`: длина трекается, значения — нет.
+`model.items.length`.
 
-## Очистка и cleanup
+## Очистка
 
 Очистить коллекцию — `model.items.clear()`. Типичный случай — сбросить массив при выключении флага.
-Делается через `onChange` на сигнале флага: колбэк выполняется **вне** effect-контекста, поэтому
-мутировать модель безопасно.
+Делается через `onChange` на сигнале флага: колбэк выполняется **вне** эффекта, поэтому мутировать
+модель безопасно.
 
 ```typescript
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
@@ -213,16 +215,15 @@ const behavior = defineFormBehavior<Form>(({ model }) => {
 });
 ```
 
-:::info Cleanup управляется формой
-Behavior, переданный в `createFormFromModel({ model, schema, behavior })`, сам следит за жизненным циклом:
-подписки `compute` / `onChange` и per-item логика снимаются, когда форма уничтожается. Отдельно
-чистить подписки массива не нужно — при `removeAt` / `clear` ноды удалённых элементов утилизируются
-автоматически.
+:::info Подписки снимает форма
+Поведение, переданное в `createForm({ behavior })`, живёт столько же, сколько форма: подписки
+`compute` / `onChange` и поведение строк (`applyEach`) снимаются вместе с ней. При `removeAt` /
+`clear` формы удалённых строк утилизируются автоматически.
 :::
 
 ## Дальше
 
 - [Модель данных](../core-concepts/model) — массивы модели и её API.
-- [Ноды и proxy](../core-concepts/nodes) — `ArrayNode` и доступ к элементам.
+- [Ноды формы](../core-concepts/nodes) — `FormArray` и доступ к строкам.
 - [Вычисляемые поля](../behaviors/computed) — `compute` и агрегаты подробнее.
-- [Отправка и сброс](./submit-and-reset) — внешний прогон `validateModel` и submit формы с массивами.
+- [Отправка и сброс](./submit-and-reset) — `bundle.submit` и сброс формы с массивами.

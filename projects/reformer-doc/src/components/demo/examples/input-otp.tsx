@@ -52,7 +52,7 @@ export const inputOtpDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Код подтверждения', maxLength: 6 },
       }),
       code: `{
-  value: model.$.otp,
+  model: model.$.otp,
   component: InputOTPDefault,
   componentProps: { label: 'Код подтверждения', maxLength: 6 },
 }`,
@@ -109,7 +109,7 @@ export const inputOtpDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.otp,
+  model: model.$.otp,
   component: InputOTPDefault,
   componentProps: { label: 'Код подтверждения', maxLength: 6 },
 }
@@ -135,7 +135,7 @@ validate(model.$.otp, [required(), minLength(6)]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.otp,
+  model: model.$.otp,
   component: InputOTPDefault,
   componentProps: {
     label: 'Код подтверждения',
@@ -144,6 +144,6 @@ validate(model.$.otp, [required(), minLength(6)]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.otp, [required()]);`,
   },
 };

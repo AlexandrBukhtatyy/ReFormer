@@ -126,41 +126,42 @@ function PackagesSection(): ReactNode {
   );
 }
 
-const QUICK_START = `import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidation, validate, validateModel } from '@reformer/core/validation';
+const QUICK_START = `import { createForm, type FormModel } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
-// 1. Модель — источник истины значений
-const model = createModel<{ email: string }>({ email: '' });
+type Contact = { email: string };
 
-// 2. Layout-схема — привязка поля к сигналу + компонент (без валидаторов)
-const schema = {
-  email: {
-    value: model.$.email,
-    component: Input,
-    componentProps: { label: 'Email', type: 'email' },
-  },
-};
+// 1. Схема — привязка поля к сигналу модели + компонент (без валидаторов)
+const schema = (model: FormModel<Contact>) => ({
+  children: [
+    { model: model.$.email, component: Input, componentProps: { label: 'Email', type: 'email' } },
+  ],
+});
 
-// 3. Валидация — отдельный слой
-const validation = defineValidation<{ email: string }>(({ model }) => {
+// 2. Валидация — отдельный слой
+const validation = defineValidation<Contact>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
 
-// 4. Форма — узлы поверх сигналов модели
-const form = createFormFromModel({ model, schema });
-
-// 5. Тонкий JSX — FormField делает всю работу
 function ContactForm() {
-  const onSubmit = async (e) => {
+  // 3. Сборка один раз: модель из initial, узлы формы поверх её сигналов, правила
+  const bundle = useFormBundle(() =>
+    createForm<Contact>({ initial: { email: '' }, schema, validation })
+  );
+
+  // 4. Отправка — один прогон правил; при замечаниях обработчик не вызывается, поля подсвечены
+  const onSubmit = (e) => {
     e.preventDefault();
-    const ok = await validateModel(model, validation); // ошибки сами лягут в поля
-    if (ok) console.log(model.get());
+    void bundle.submit((values) => console.log(values));
   };
+
+  // 5. Тонкий JSX — FormField делает всю работу
   return (
     <form onSubmit={onSubmit}>
-      <FormField control={form.email} />
+      <FormField control={bundle.form.email} />
       <Button type="submit">Отправить</Button>
     </form>
   );

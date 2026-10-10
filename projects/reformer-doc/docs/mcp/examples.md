@@ -33,22 +33,22 @@ interface RegistrationForm {
 }
 ```
 
-2. Схему формы с компонентами
+2. Схему формы — дерево узлов `{ model: model.$.email, component, componentProps }`
 
-3. Валидацию — отдельный слой (`@reformer/core/validation`), не часть layout-схемы:
+3. Правила валидации — отдельный слой (`@reformer/core/validation`), не часть схемы разметки:
 
 ```typescript
-import { validate, cross, defineValidation } from '@reformer/core/validation';
+import { validate, defineValidation } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import type { ValidationIssue } from '@reformer/core';
 
-// Совпадение паролей читает второе поле → это cross-field (снапшот модели), а не value-only правило.
+// Совпадение паролей читает второе поле → это правило над несколькими полями (снимок модели).
 const passwordsMatch = (f: RegistrationForm): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
     ? { code: 'passwords-mismatch' }
     : null;
 
-const validationSchema = defineValidation<RegistrationForm>(({ model }) => {
+export const registrationRules = defineValidation<RegistrationForm>(({ model, cross }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
   validate(model.$.confirmPassword, [required()]);
@@ -58,11 +58,21 @@ const validationSchema = defineValidation<RegistrationForm>(({ model }) => {
 });
 ```
 
-Схема — обычная функция над моделью; правила не живут в layout. Приложение прогоняет её по требованию
-(например, на submit) внешним раннером — `await validateModel(model, validationSchema)`. Он возвращает
-`boolean` и сам разносит ошибки по нодам формы, поэтому UI подсветит поля.
+Правила несут только коды замечаний; тексты по кодам — в словаре формы:
 
-4. React-компонент с хуками
+```typescript
+import { defineIssueMessages } from '@reformer/core/i18n';
+
+export const registrationMessages = defineIssueMessages({
+  'passwords-mismatch': 'Пароли не совпадают',
+  'terms-required': 'Нужно принять условия',
+});
+```
+
+4. React-компонент: одна сборка `createForm({ initial, schema, validation: registrationRules })` в
+   `useFormBundle`, поля — `<FormField control={form.email} />` под
+   `<ValidationMessagesProvider messages={registrationMessages}>`, отправка —
+   `bundle.submit(handler)`: при замечаниях обработчик не вызывается, а поля подсвечиваются.
 
 ---
 
@@ -92,7 +102,7 @@ const notBeforeTomorrow = (value: string): ValidationIssue | null => {
   return new Date(value) >= tomorrow ? null : { code: 'deliveryTooSoon' };
 };
 
-const validationSchema = defineValidation<OrderForm>(({ model }) => {
+const orderRules = defineValidation<OrderForm>(({ model }) => {
   validate(model.$.phone, [
     required(),
     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
@@ -123,22 +133,21 @@ const validationSchema = defineValidation<OrderForm>(({ model }) => {
 **Что получите:**
 
 ```typescript
-import { computeFrom } from '@reformer/core/behaviors';
+import { applyEach, compute, defineFormBehavior } from '@reformer/core/behaviors';
 
-const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
-  items: b.array({
-    subtotal: b.field(
-      computeFrom(['quantity', 'price'], (quantity, price) => (quantity ?? 0) * (price ?? 0))
-    ),
-  }),
-  total: b.field(
-    computeFrom(
-      ['items'],
-      (items) => items?.reduce((sum, item) => sum + (item.subtotal ?? 0), 0) ?? 0
-    )
-  ),
-  discount: b.field(computeFrom(['total'], (total) => (total > 10000 ? total * 0.1 : 0))),
-  finalTotal: b.field(computeFrom(['total', 'discount'], (total, discount) => total - discount)),
+type OrderItem = { quantity: number | null; price: number | null; subtotal: number };
+type OrderForm = { items: OrderItem[]; total: number; discount: number; finalTotal: number };
+
+// Поведение строки: сумма по позиции
+const itemBehavior = defineFormBehavior<OrderItem>(({ model: row }) => {
+  compute(row.$.subtotal, () => (row.quantity ?? 0) * (row.price ?? 0));
+});
+
+export const orderBehavior = defineFormBehavior<OrderForm>(({ model }) => {
+  applyEach(model.$.items, itemBehavior); // к каждой строке, включая добавленные позже
+  compute(model.$.total, () => model.items.map((item) => item.subtotal).reduce((a, b) => a + b, 0));
+  compute(model.$.discount, () => (model.total > 10000 ? model.total * 0.1 : 0));
+  compute(model.$.finalTotal, () => model.total - model.discount);
 });
 ```
 
@@ -152,12 +161,11 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
 Моя форма не показывает ошибки валидации. Что не так?
 
 const MyForm = () => {
-  const model = createModel<UserForm>({ email: '', password: '' });
-  const form = createFormFromModel<UserForm>({ model, schema: buildSchema(model) });
+  const { form } = createForm<UserForm>({ initial: { email: '', password: '' }, schema: buildSchema });
 
   const email = useFormControl(form.email);
 
-  // validationSchema объявлена, но её никто не запускает
+  // userRules объявлены, но в сборку не переданы и нигде не проверяются
   return (
     <input
       value={email.value}
@@ -171,34 +179,37 @@ const MyForm = () => {
 
 AI найдёт проблемы:
 
-- Модель и форма пересоздаются на каждый рендер — нет `useMemo` (ноды и их состояние теряются)
-- Схема-валидация нигде не запускается: по новому контракту её прогоняет приложение через
-  `validateModel(model, schema)`; `createForm`/`form.submit()` правила больше не хранят и не вызывают
+- Сборка пересоздаётся на каждый рендер — нет `useFormBundle` (ноды и их состояние теряются)
+- Правила не переданы в сборку (`validation`), а отправки через `bundle.submit` нет — проверять
+  нечего и некому
 - Нет вызова `markAsTouched` при blur — поле «не тронуто», поэтому ошибка скрыта (`shouldShowError` = false)
-- Ошибки нигде не отображаются (`errors` — массив `ValidationIssue`, показываем `errors[0].message`)
+- Замечания нигде не отображаются: `issues` — массив `{ code, params? }`, текст по коду даёт
+  `useIssueMessage()` (или `FormField` с `ValidationMessagesProvider`)
 
 И предложит исправление:
 
 ```typescript
-import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
-import { useFormControl } from '@reformer/core/react';
-import { validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle, useFormControl, useIssueMessage } from '@reformer/core/react';
 
 const MyForm = () => {
-  // ✅ модель и форма создаются один раз
-  const { model, form } = useMemo(() => {
-    const m = createModel<UserForm>({ email: '', password: '' });
-    return { model: m, form: createFormFromModel<UserForm>({ model: m, schema: buildSchema(m) }) };
-  }, []);
+  // ✅ сборка создаётся один раз, правила переданы в неё
+  const bundle = useFormBundle(() =>
+    createForm<UserForm>({
+      initial: { email: '', password: '' },
+      schema: buildSchema,
+      validation: userRules,
+    })
+  );
+  const { form } = bundle;
 
   const email = useFormControl(form.email);
+  const message = useIssueMessage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched();
-    // ✅ раннер сам разнесёт ошибки по нодам — UI подсветит поля
-    await validateModel(model, validationSchema);
+    // ✅ один прогон правил; при замечаниях обработчик не вызывается, поля помечаются тронутыми
+    await bundle.submit((values) => api.save(values));
   };
 
   return (
@@ -209,8 +220,8 @@ const MyForm = () => {
         onBlur={() => form.email.markAsTouched()}
         aria-invalid={email.shouldShowError}
       />
-      {email.shouldShowError && email.errors[0] && (
-        <span className="error">{email.errors[0].message}</span>
+      {email.shouldShowError && email.issues[0] && (
+        <span className="error">{message(email.issues[0])}</span>
       )}
       <button type="submit">Отправить</button>
     </form>

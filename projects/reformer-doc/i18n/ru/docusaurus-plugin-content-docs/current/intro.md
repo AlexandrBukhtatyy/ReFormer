@@ -8,7 +8,7 @@ slug: /
 **ReFormer** — библиотека для построения сложных форм на React, основанная на
 [сигналах](https://github.com/preactjs/signals). Она даёт декларативный способ описывать формы с
 валидацией, вычисляемыми полями и условной логикой — без ручной синхронизации состояния и лишних
-перерисовок.
+перерисовок. Ядро от React не зависит: привязка к React — отдельный вход `@reformer/core/react`.
 
 ## Философия: архитектура M1
 
@@ -18,28 +18,33 @@ slug: /
 ```
 Модель  ─────►  Схема  ─────►  Форма  ─────►  Behavior
 createModel     привязка       createForm     defineFormBehavior
-значения        поле↔сигнал    ноды/proxy     реактивная логика
+значения        поле↔сигнал    ноды формы     реактивная логика
 ```
 
 1. **Модель** (`createModel`) — источник истины для значений. Обычный на вид объект, где под каждым
    полем стоит реактивный сигнал. Значения принадлежат модели, а не UI.
-2. **Схема** — дерево узлов, где каждый узел привязывает поле модели к компоненту
-   (`value: model.$.field`) и держит его конфигурацию (`component`, `componentProps`, `validators`).
-3. **Форма** (`createForm`) — строит ноды (`FormControl` / `FormGroup` / `ArrayNode`) поверх сигналов
-   модели и отдаёт типизированный proxy: `form.email`, `form.address.city`.
+2. **Схема** — дерево узлов: узел поля привязывает поле модели к компоненту
+   (`{ model: model.$.field, component, componentProps }`), контейнер собирает узлы в `children`.
+   Правил валидации в схеме нет — они живут отдельной схемой `defineValidation`.
+3. **Форма** (`createForm`) — собирает всё одним вызовом: строит ноды (`FormControl` / `FormGroup` /
+   `FormArray`) поверх сигналов модели, подключает правила валидации, поток шагов и поведение. К
+   полям обращаются через типизированную группу: `form.email`, `form.address.city`.
 4. **Behavior** (`defineFormBehavior`) — декларативная реактивная логика: вычисляемые поля, условная
    доступность, синхронизация, реакции на изменения.
 
 Такое разделение — ключевая идея: **«какие данные собираем»** (модель + схема) отделено от
-**«как данные реагируют»** (behavior) и от **«правильны ли данные»** (валидаторы).
+**«как данные реагируют»** (behavior) и от **«правильны ли данные»** (схема валидации).
 
 ## Ключевые возможности
 
 - **Реактивность на сигналах** — точечные обновления без лишних ре-рендеров.
-- **Типобезопасность** — полный вывод типов из формы; доступ к полям через типизированный proxy.
-- **Декларативная валидация** — набор встроенных валидаторов-фабрик + произвольная кастомная логика.
+- **Типобезопасность** — полный вывод типов из формы; доступ к полям через типизированную группу
+  `FormGroup`.
+- **Декларативная валидация** — набор встроенных валидаторов-фабрик + произвольная кастомная логика;
+  правило возвращает код замечания, а текст даёт словарь сообщений.
 - **Декларативные behaviors** — вычисляемые поля, условная доступность, синхронизация полей.
 - **Вложенность и массивы** — сложные структуры и динамические списки, принадлежащие модели.
+- **Пошаговые формы** — поток шагов с правилами каждого шага прямо в сборке формы.
 - **AI-friendly** — предсказуемый API с чёткими паттернами, удобный для генерации ассистентами.
 
 ## Экосистема
@@ -51,25 +56,28 @@ createModel     привязка       createForm     defineFormBehavior
 | `@reformer/core`                                            | ядро: модель, схема, форма, behaviors, валидаторы, хуки |
 | [`@reformer/cdk`](/docs/cdk/overview)                       | headless-компоненты (FieldArray, FormWizard, FormField) |
 | [`@reformer/ui-kit`](/docs/ui-kit/overview)                 | готовые стилизованные поля (Input, Select, Checkbox, …) |
-| [`@reformer/renderer-react`](/docs/packages/renderer-react) | рендеринг формы из render-схемы                         |
+| [`@reformer/renderer-react`](/docs/packages/renderer-react) | рендеринг формы по дереву схемы                         |
 | [`@reformer/renderer-json`](/docs/packages/renderer-json)   | форма из JSON-описания                                  |
 | [`@reformer/mcp`](/docs/mcp/overview)                       | MCP-сервер для AI-ассистентов                           |
 
 ## Что внутри @reformer/core
 
-Пакет разбит на пять слоёв (плюс подпуть для сигнального рантайма):
+Пакет разбит на слои, у каждого свой вход:
 
-| Слой             | Импорт                      | Назначение                                                                                                                                 |
-| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Модель**       | `@reformer/core`            | `createModel` — источник истины значений; доступ к сигналам через `model.$.<field>`                                                        |
-| **Форма и ноды** | `@reformer/core`            | `createForm`, `FormControl` / `FormGroup` / `ArrayNode`; доступ к полям через proxy `form.<field>`                                         |
-| **Валидация**    | `@reformer/core/validation` | ambient-схема `defineValidation` + операторы `validate`, `validateAsync`, `validateWhen`, `cross`, `each`, `apply`; раннер `validateModel` |
-| **Валидаторы**   | `@reformer/core/validators` | чистые фабрики `required`, `email`, `min`, `max`, `minLength`, `pattern`, `phone`, `url`, числовые и датовые                               |
-| **Behaviors**    | `@reformer/core/behaviors`  | декларативный DSL `defineFormBehavior` + операторы `compute`, `onChange`, `enableWhen`, `copyFrom`, …                                      |
-| **Signals**      | `@reformer/core/signals`    | единый реактивный рантайм (`signal`, `computed`, `effect`, `batch`) для интеграций                                                         |
+| Слой             | Импорт                      | Назначение                                                                                                                     |
+| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Модель**       | `@reformer/core`            | `createModel`, `arrayOf` — источник истины значений; доступ к сигналам через `model.$.<field>`                                 |
+| **Форма и ноды** | `@reformer/core`            | `createForm` — сборка одним вызовом; ноды `FormControl` / `FormGroup` / `FormArray`; доступ к полям через `form.<field>`       |
+| **Валидация**    | `@reformer/core/validation` | схема `defineValidation` + операторы `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`; раннер `validateModel` |
+| **Валидаторы**   | `@reformer/core/validators` | чистые фабрики `required`, `email`, `min`, `max`, `minLength`, `pattern`, `phone`, `url`, числовые, датовые и файловые         |
+| **Сообщения**    | `@reformer/core/i18n`       | словарь текстов замечаний `defineIssueMessages`, резолвер `resolveIssueMessage`, локали                                        |
+| **Behaviors**    | `@reformer/core/behaviors`  | декларативный DSL `defineFormBehavior` + операторы `compute`, `onChange`, `enableWhen`, `copyFrom`, …                          |
+| **Signals**      | `@reformer/core/signals`    | единый реактивный рантайм (`signal`, `computed`, `effect`, `batch`) для интеграций                                             |
 
-**React-хуки** (`@reformer/core/react`): `useFormControl` (полное состояние поля), `useFormControlValue`
-(значение `T` напрямую), `useArrayLength` (реактивная длина массива).
+**React-часть** (`@reformer/core/react`): `useFormBundle` (стабильная сборка формы), `useFormControl`
+(полное состояние поля), `useFormControlValue` (значение `T` напрямую), `useArrayLength` (реактивная
+длина массива), `useFormFlow` (состояние потока шагов), `I18nProvider` и `useIssueMessage` (язык и
+тексты замечаний).
 
 ## Дальше
 

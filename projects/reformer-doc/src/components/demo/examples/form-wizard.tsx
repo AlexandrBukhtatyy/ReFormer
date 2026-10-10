@@ -213,7 +213,7 @@ if (result.status === 'invalid') showHint('Проверьте поля форм�
       name: 'steps',
       type: 'FormWizardStep<T>[]',
       description:
-        '{ number (1-based), title, icon?, body }. body полиморфно: FC<{control}> | ReactNode | RenderNode<T>.',
+        '{ number (1-based), title, icon?, body }. body полиморфно: FC<{control}> | ReactNode | узел схемы (его рисует renderStepBody).',
     },
     {
       name: 'onSubmit',

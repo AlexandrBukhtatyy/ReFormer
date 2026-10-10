@@ -9,12 +9,27 @@ import { uiKitFormWizardDocConfig } from '@site/src/components/demo/examples/for
 
 # FormWizard
 
-Стилизованный многошаговый визард поверх headless `@reformer/cdk/form-wizard`. Шаги задаются
-декларативным массивом `steps` (`{ number, title, icon?, body }`), индикатор шагов и кнопки
-Назад/Далее/Отправить рендерятся автоматически. Пошаговая валидация — `config`
-(`{ validateStep, validateAll }`, обёртки над `validateModel` из `@reformer/core/validation`):
-«Далее» блокируется, пока текущий шаг невалиден. body шага полиморфно — компонент,
-ReactNode или RenderNode. Для кастомной раскладки — headless-слоты
-[FormWizard из CDK](/docs/cdk/form-wizard).
+Стилизованный многошаговый визард поверх headless `@reformer/cdk/form-wizard`. Индикатор шагов,
+тело шага, кнопки Назад/Далее/Отправить и прогресс рендерятся автоматически. Шаги и их правила —
+**поток шагов** сборки `createForm({ flow: { steps: [{ id, rules }] } })`: «Далее» проверяет
+правила текущего шага и не пускает дальше, пока у шага есть замечания. Отправка идёт через
+`bundle.submit(handler)` — один прогон всех правил.
+
+Два способа подключения:
+
+- **в JSX** — `form={bundle.form}`, `flow={bundle.flow}` и декларативный массив `steps`
+  (`{ number, title, icon?, body }`). Тело шага полиморфно: компонент `({ control }) => …`,
+  ReactNode или узел схемы (с `renderStepBody`). `onSubmit` зовётся по нажатию — проверку делает
+  приложение: `onSubmit={() => void bundle.submit(api.send)}`;
+- **в схеме формы** — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`, шаг —
+  `{ selector: 'loan', component: Step, componentProps: { title, icon }, children: [...] }`.
+  Форму и поток визард берёт из сборки, которую рисует `FormRenderer`; `selector` шага — `id` шага
+  потока. Обработчик кнопки отправки получает значения только после успешной проверки всей формы
+  (`onComponentEvent(schema.node('wizard'), 'onSubmit', …)` в поведении формы).
+
+Управлять визардом снаружи — через сам поток: `bundle.flow.next()`, `bundle.flow.goTo('loan')`,
+состояние для рендера — `useFormFlow(bundle.flow)` из `@reformer/core/react`. Для кастомной
+раскладки — headless-слоты [FormWizard из CDK](/docs/cdk/form-wizard), там же подробно о потоке,
+отправке и живой проверке.
 
 <ComponentDoc config={uiKitFormWizardDocConfig} />

@@ -4,60 +4,67 @@ sidebar_position: 5
 
 # Стратегии валидации
 
-Как и **когда** запускать проверки. В актуальном контракте валидация — **отдельный слой**: правила
-живут в `defineValidation`, а прогоняет их раннер `validateModel` **по требованию**. «Момент
-прогона» больше не разводят руками — его выбирают **декларативно, одним пропом**: хук
-`useFormValidation({ strategy })` для простой формы и опция `strategy` в `defineSteps` +
-`useWizardStepValidation` для мастера. Стратегия — это тонкий слой ПОВЕРХ `validateModel`: она лишь
-решает, когда дёрнуть раннер и с каким `touch`, а сам движок остаётся один.
+Как и **когда** запускать проверки. Валидация — **отдельный слой**: правила живут в
+`defineValidation` и подключаются к сборке `createForm({ validation })`. Проверку на отправке и на
+шаге потока сборка запускает сама (`bundle.submit`, `flow.next()`), а **живую** проверку во время
+ввода выбирают **декларативно, одной опцией** — `strategy` в конфиге валидации. Стратегия — тонкий
+слой поверх того же движка прогона: она лишь решает, когда запустить проверку и раскрывать ли
+замечания.
 
-## Выбор стратегии одним пропом — `useFormValidation`
+## Выбор стратегии одной опцией
 
-Хук `useFormValidation` из `@reformer/core/react` берёт модель, схему и стратегию — и сам армит нужные
-подписки. Возвращает `submit()` (полный прогон, метит touched, раскрывает все ошибки), `validate()`
-(тот же полный прогон) и флаг `isValidating`.
+Конфиг валидации сборки — либо голая схема правил (`validation: rules`), либо объект
+`FormValidation`:
+
+```typescript
+interface FormValidation<T> {
+  rules?: ValidationDefinition<T>; // полный набор правил
+  extras?: ValidationDefinition<T>; // правила, которые проверяются только целиком (отправка)
+  strategy?: 'submit' | 'blur' | 'change' | 'afterFirstSubmit'; // по умолчанию 'submit'
+  debounce?: number; // мс, для живых прогонов
+  liveAfterSubmit?: 'change' | 'blur'; // живая фаза afterFirstSubmit, по умолчанию 'change'
+}
+```
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
-import { useFormValidation } from '@reformer/core/react';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { validate, defineValidation } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
+import { FormField, Button } from '@reformer/ui-kit';
 
 type LoginForm = { email: string; password: string };
 
-// schema — СТАБИЛЬНАЯ ссылка (module-level const), иначе ломается дедуп раннера.
+// Правила — СТАБИЛЬНАЯ ссылка (константа модуля), иначе ломается отмена устаревших прогонов.
 const loginValidation = defineValidation<LoginForm>(({ model }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
 });
 
-function LoginForm() {
-  const { model, form } = useMemo(() => {
-    const m = createModel<LoginForm>({ email: '', password: '' });
-    return { model: m, form: createFormFromModel({ model: m, schema: layout }) };
-  }, []);
-
-  // Одна строка выбирает поведение валидации целиком.
-  const { submit, isValidating } = useFormValidation({
-    model,
-    schema: loginValidation,
-    strategy: 'afterFirstSubmit', // тихо до 1-й отправки, дальше — живая проверка
-    debounce: 400,
-  });
+function LoginFormView() {
+  // useFormBundle собирает форму один раз и армирует живую стратегию на клиенте.
+  const login = useFormBundle(() =>
+    createForm<LoginForm>({
+      initial: { email: '', password: '' },
+      schema: loginSchema,
+      validation: {
+        rules: loginValidation,
+        strategy: 'afterFirstSubmit', // тихо до 1-й отправки, дальше — живая проверка
+        debounce: 400,
+      },
+    })
+  );
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = await submit(); // сам метит touched → раскрывает все ошибки, ручной markAsTouched не нужен
-    if (ok) await api.login(model.get());
+    await login.submit((values) => api.login(values)); // сам раскрывает все замечания
   };
 
   return (
     <form onSubmit={onSubmit}>
-      {/* …FormField control={form.email} / control={form.password}… */}
-      <button type="submit" disabled={isValidating}>
-        {isValidating ? 'Проверка…' : 'Войти'}
-      </button>
+      <FormField control={login.form.email} />
+      <FormField control={login.form.password} />
+      <Button type="submit">Войти</Button>
     </form>
   );
 }
@@ -67,120 +74,123 @@ function LoginForm() {
 
 | `strategy`           | Когда прогон                         | `touch`                               | Что раскрывается                    |
 | -------------------- | ------------------------------------ | ------------------------------------- | ----------------------------------- |
-| `submit` (по умолч.) | только `validate()` / `submit()`     | `true`                                | всё — на submit                     |
+| `submit` (по умолч.) | только `validate()` / `submit()`     | `true`                                | всё — на отправке                   |
 | `blur`               | смена `touched` поля (потеря фокуса) | `false`                               | только сблюренные (по `touched`)    |
 | `change`             | на каждый ввод (+ `debounce`)        | `false`                               | только редактированные (по `dirty`) |
-| `afterFirstSubmit`   | тихо до 1-го submit, затем live¹     | `true` один раз на 1-м, далее `false` | тихо → всё на submit → далее live   |
+| `afterFirstSubmit`   | тихо до 1-й проверки, затем live¹    | `true` один раз на 1-й, далее `false` | тихо → всё на отправке → далее live |
 
-¹ `afterFirstSubmit` переходит в живую фазу после первой отправки; чем именно (`liveAfterSubmit:
-'change' | 'blur'`, по умолчанию `'change'`) — задаёт проп. `debounce` (мс) применим к живому прогону
-(`change` и живой фазе `afterFirstSubmit`).
+¹ `afterFirstSubmit` переходит в живую фазу после первой полной проверки (`validate()` /
+`submit()`); чем именно — задаёт `liveAfterSubmit: 'change' | 'blur'` (по умолчанию `'change'`).
+`debounce` (мс) применим к живому прогону (`change` и живой фазе `afterFirstSubmit`).
 
-:::warning `schema` — стабильная ссылка
-Передавайте **одну и ту же** `ValidationDefinition<T>`: module-level `const` или `useMemo`. Раннер дедуплицирует и отменяет
-устаревшие прогоны по идентичности пары `(model, schema)`; новая инлайн-стрелка на каждый рендер ломает
-этот дедуп. `submit()` сам метит `touched` — отдельный `form.markAsTouched()` перед отправкой не нужен.
+Живой прогон не метит поля тронутыми: замечание видно, только когда поле уже `touched` или `dirty`
+(`shouldShowError`). Стратегия армируется только на клиенте — в React это делает `useFormBundle` в
+эффекте, поэтому сборка безопасна при SSR.
+
+:::warning Правила — стабильная ссылка
+Передавайте **одну и ту же** `ValidationDefinition<T>` — константу модуля. Прогоны дедуплицируются
+и отменяются по идентичности пары «модель + правила»; новая инлайн-стрелка на каждый рендер ломает
+этот дедуп.
 :::
 
 ## Стратегия `submit` — проверка на отправке
 
-Дефолт: пока не позвали `submit()`/`validate()`, поля не проверяются; на отправке идёт полный прогон
-схемы с `{ touch: true }`, ошибки разносятся по нодам, форма подсвечивает поля сама.
+Дефолт: пока не позвали `validate()` / `submit()`, поля не проверяются; на отправке идёт полный
+прогон с раскрытием замечаний, они разносятся по нодам, форма подсвечивает поля сама.
 
 ```tsx
-const { submit } = useFormValidation({
-  model,
-  schema: fullValidation,
-  strategy: 'submit', // прогон ТОЛЬКО на submit()/validate()
-});
-
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  if (await submit()) await api.save(model.get());
+  const outcome = await bundle.submit((values) => api.save(values));
+  if (outcome.status !== 'submitted') return; // замечания уже на полях
 };
 ```
 
-Тот же submit-time доступен и низкоуровнево — прямым вызовом раннера (например, вне React: server
-action, юнит-тест):
-
-```tsx
-import { validateModel } from '@reformer/core/validation';
-
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  form.markAsTouched(); // руками раскрыть ошибки в UI
-  if (await validateModel(model, fullSchema)) await api.save(model.get());
-};
-```
-
-:::info Читать сами ошибки — из нод
-`validateModel` (и `submit()`) возвращают только `boolean`; конкретные ошибки полей читаются реактивно
-через `useFormControl(form.<field>).errors` или из нод формы (см.
-[Обработку ошибок](/docs/validation/error-handling)). Прогон вне React работает так же — ошибки роутятся
-в ноды, если они есть; для чисто «данных» соберите форму на модели и прочитайте валидность из результата.
+:::info Читать сами замечания — из нод
+`bundle.validate()` возвращает `ValidationResult` (статус и замечания по ручкам полей); конкретные
+замечания полей читаются реактивно через `useFormControl(form.<field>).issues` или из нод формы (см.
+[Обработку ошибок](/docs/validation/error-handling)).
 :::
 
-## Пошаговые формы — живая валидация внутри шага
+## Форма без сборки — `useFormValidation`
 
-У мастера два независимых момента прогона, которые стратегия **не меняет**: гейт шага (`validateStep`
-на «Далее») и полная проверка (`validateAll` на submit). Оба уже инкапсулированы в `defineSteps`
-(см. [FormWizard](/docs/cdk/form-wizard)) и идут с `{ touch: true }`. Новое — **живой слой ПОВЕРХ
-них**: опция `strategy` в `defineSteps` включает выбранную стратегию **внутри активного шага**, а хук
-`useWizardStepValidation` армит её под текущий шаг и снимает при переходе/размонтировании.
+Если форма собрана без `createForm` (например, `createFormFromModel` для формы элемента или своей
+сборки), ту же стратегию даёт хук `useFormValidation` из `@reformer/core/react`. Он берёт модель,
+правила и стратегию, армирует подписки и возвращает `submit()` (полный прогон с раскрытием
+замечаний, ответ — `boolean`), `validate()` (то же) и флаг `isValidating`:
 
 ```tsx
-import { FormWizard, defineSteps, useWizardStepValidation } from '@reformer/cdk/form-wizard';
+import { useFormValidation } from '@reformer/core/react';
 
-// step1 / step2 / crossFieldRules — ValidationDefinition<Root>
-const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
-  steps: {
-    loan: step1,
-    applicant: step2,
-    confirm: null, // без правил — объявлено ЯВНО
-  },
-  extras: crossFieldRules, // cross-field/warnings уровня формы — только на submit (validateAll)
-  strategy: 'blur', // ЖИВАЯ проверка внутри активного шага
-  liveAfterSubmit: 'change',
+const { submit, isValidating } = useFormValidation({
+  model,
+  schema: loginValidation,
+  strategy: 'blur',
 });
 
-// Хук читает currentStep из FormWizardContext → живёт ВНУТРИ <FormWizard>.
-function StepLiveValidation() {
-  useWizardStepValidation(config); // no-op, если strategy не задана / 'submit' / у шага нет правил
-  return null;
-}
+const onSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (await submit()) await api.login(model.get());
+};
+```
 
-<FormWizard form={form} config={config}>
-  <StepLiveValidation />
+Вне React тот же прогон — прямой вызов раннера: `await validateModel(model, rules, { touch: true })`
+(server action, юнит-тест).
+
+## Пошаговые формы
+
+У пошаговой формы два независимых момента прогона, которые стратегия **не меняет**: гейт шага (правила
+текущего шага на «Далее») и полная проверка (все шаги + `extras` на отправке). Оба описаны в потоке
+сборки:
+
+```tsx
+const credit = useFormBundle(() =>
+  createForm<Credit>({
+    initial,
+    schema: creditSchema, // узлы шагов: selector 'loan', 'applicant', 'confirm'
+    validation: {
+      extras: crossFieldRules, // cross-field/warnings уровня формы — только на отправке
+      strategy: 'blur', // ЖИВАЯ проверка поверх шагов
+    },
+    flow: {
+      steps: [
+        { id: 'loan', rules: loanRules },
+        { id: 'applicant', rules: applicantRules },
+        { id: 'confirm' }, // без правил
+      ],
+    },
+  })
+);
+
+// Визард — адаптер потока: берёт его из сборки в контексте или из пропа flow.
+<FormWizard form={credit.form} flow={credit.flow}>
   {/* …Step / Actions… */}
 </FormWizard>;
 ```
 
-Здесь `blur`-стратегия подсвечивает ошибки шага по мере потери фокуса, но кнопка «Далее» по-прежнему
-гоняет `validateStep` целиком, а submit — `validateAll`. Стратегия только добавляет ранний фидбек, гейт
-и финальную проверку не подменяет.
-
-:::info Низкоуровневая альтернатива — `STEP_SCHEMAS[step - 1]`
-Раньше гейт разводили руками: массив под-схем и `validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1])`.
-Такая индексация **хрупкая** (перестановка шага молча рассинхронизирует правила) и не даёт живого слоя.
-`defineSteps` адресует правила по `selector` шага и принимает `strategy` — предпочитайте его; ручной
-массив оставляйте только когда визард собран без `defineSteps`.
-:::
+Здесь `blur`-стратегия подсвечивает замечания по мере потери фокуса, но «Далее» по-прежнему
+проверяет правила текущего шага целиком (`flow.next()` → `{ status: 'stayed', reason: 'invalid' }`,
+если не прошли), а отправка — все правила одним прогоном (`bundle.submit`). Стратегия только
+добавляет ранний фидбек, гейт и финальную проверку не подменяет. Правила шага адресуются по `id`
+шага — он же `selector` узла шага в схеме, поэтому перестановка шагов не рассинхронизирует правила.
+См. [FormWizard](/docs/cdk/form-wizard).
 
 :::info Не тащите async в каждый шаг
-`validateModel` дожидается async-правил (`validateAsync`). Дорогую серверную проверку (код из СМС,
-уникальность) держите в схеме того шага, где она уместна, или в `extras` (только submit) — тогда гейт
-остальных шагов и живой слой остаются быстрыми.
+Проверка шага дожидается async-правил (`validateAsync`). Дорогую серверную проверку (код из СМС,
+уникальность) держите в правилах того шага, где она уместна, или в `extras` (только отправка) —
+тогда гейт остальных шагов и живой слой остаются быстрыми.
 :::
 
 ## Под капотом
 
-Стратегия — не второй движок. Она решает ровно две вещи: **когда** позвать `validateModel` и с каким
-`touch`. Всю маршрутизацию ошибок, гашение валидных полей, отмену устаревших прогонов и дедуп по
-`(model, schema)` по-прежнему делает единственный раннер `validateModel`.
+Стратегия — не второй движок. Она решает ровно две вещи: **когда** запустить прогон и с каким
+`touch`. Разнос замечаний, гашение валидных полей, отмену устаревших прогонов и дедуп по паре
+«модель + правила» делает один и тот же раннер (`validateModel` и его половины `runValidation` /
+`applyValidationResult`).
 
-- **`createFormValidation(model, schema, options)`** из `@reformer/core/validation` — headless-фабрика
-  контроллера. Она **чиста до `start()`**: подписки армятся только на клиенте, поэтому фабрика SSR-safe.
-  `start()` возвращает `dispose`, снимающий подписки.
+- **`createFormValidation(model, rules, options)`** из `@reformer/core/validation` — headless-фабрика
+  контроллера. Она **чиста до `start()`**: подписки армируются только на клиенте, поэтому фабрика
+  SSR-safe. `start()` возвращает `dispose`, снимающий подписки.
 
   ```ts
   type ValidationStrategyKind = 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
@@ -193,42 +203,43 @@ function StepLiveValidation() {
 
   interface FormValidationController {
     validate(): Promise<boolean>; // полный прогон, touch:true; переводит afterFirstSubmit в live-фазу
-    start(): () => void; // армит подписки (только на клиенте) → dispose
+    run(): Promise<ValidationResult>; // то же, с полным результатом
+    start(): () => void; // армирует подписки (только на клиенте) → dispose
     dispose(): void;
     readonly isValidating: boolean;
     readonly validating: ReadonlySignal<boolean>;
   }
   ```
 
-- **`useFormValidation`** — React-обёртка над фабрикой: мемоизирует контроллер, армит его в `useEffect`
-  (SSR-safe), а `submit()` — это `controller.validate()`.
-- **В мастере** тот же контроллер отдаёт `defineSteps(model, …).createStepController(step)` (или `null`,
-  если у шага нет правил / нет стратегии), а `useWizardStepValidation` армит его под текущий шаг.
-- **`revalidateWhen([deps], () => void validateModel(model, schema))`** остаётся низкоуровневым мостом
+- **Сборка** создаёт такой контроллер из `validation` и держит его в служебном поле
+  `bundle.validation` (`{ rules, controller }`); `useFormBundle` армирует его в `useEffect`, а
+  `bundle.validate()` — это `controller.run()`.
+- **`useFormValidation`** — React-обёртка над фабрикой для формы без сборки: мемоизирует контроллер,
+  армирует его в `useEffect`, а `submit()` — это `controller.validate()`.
+- **`revalidateWhen([deps], () => void validateModel(model, rules))`** остаётся низкоуровневым мостом
   от реактивного слоя поведения к раннеру — для точечных случаев, когда декларативной стратегии мало
-  (например, перепроверка зависимого поля при изменении соседа, см. ниже). Он не заменяет стратегию, а
-  дополняет её.
+  (например, перепроверка зависимого поля при изменении соседа, см. ниже).
 
-:::note `{ touch: true }` раскрывает только провалидированное
-`validate()`/`submit()` идут с `{ touch: true }`, но помечают `touched` **только те поля, которые
-правило реально проверило**, — это не сплошной `form.markAsTouched()`. Поля без правил остаются
-нетронутыми. Ошибки с `severity: 'warning'` показываются пользователю, но **не блокируют** submit —
-`validate()` вернёт `true` даже при одних предупреждениях (см. [Обработку ошибок](/docs/validation/error-handling)).
+:::note `touch: true` раскрывает только проверенное
+`validate()` / `submit()` идут с `touch: true`, но помечают `touched` **только те поля, которые
+правило реально проверило**, — это не сплошной `form.markAsTouched()` (его `submit` делает лишь при
+непрошедшей отправке). Замечания с `severity: 'warning'` показываются пользователю, но **не блокируют**
+отправку — прогон получит статус `valid` (см. [Обработку ошибок](/docs/validation/error-handling)).
 :::
 
 ## Условная валидация
 
 Правила, действующие только в части формы, оборачиваются оператором `validateWhen(cond, cb)`. Пока
 `cond()` ложно, правила внутри не срабатывают, а их поля **гасятся** (`setIssues([])`) — не нужно
-«прятать» лишние ошибки в UI.
+«прятать» лишние замечания в UI.
 
 ```typescript
-import { validate, validateWhen, defineValidation, validateModel } from '@reformer/core/validation';
+import { validate, validateWhen, defineValidation } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 
 type AccountForm = { accountType: string; businessName: string; ein: string };
 
-const schema = defineValidation<AccountForm>(({ model }) => {
+const accountValidation = defineValidation<AccountForm>(({ model }) => {
   validate(model.$.accountType, [required()]);
   // Поля бизнес-аккаунта проверяются, только когда выбран business
   validateWhen(
@@ -239,116 +250,108 @@ const schema = defineValidation<AccountForm>(({ model }) => {
     }
   );
 });
-
-const valid = await validateModel(model, schema);
 ```
 
-Условие читает значение поля через прокси модели (`model.accountType`), а сигнал для `validate` — через
+Условие читает значение поля через прокси модели (`model.accountType`), а ручку для `validate` — через
 `model.$.accountType`. `validateWhen` можно вкладывать: правило внутри активно, только когда истинны
 **все** охватывающие условия.
 
 ## Зависимые поля
 
-Кросс-полевое правило вешается оператором `cross(sig, fn)` на поле, которое должно нести ошибку; `fn`
-получает **снапшот** модели текущего scope (`model.get()`) и читает соседей из него. Чтобы правило
-**перепроверялось** при изменении зависимости, свяжите поля через `revalidateWhen` в behavior — это
-единственный мост от реактивного слоя поведения к прогону валидации по требованию (см. «Под капотом»).
+Кросс-полевое правило вешается оператором `cross(handle, check)` на поле, которое должно нести
+замечание; `check` получает **снимок** модели области (`model.get()`) и читает соседей из него.
+Чтобы правило **перепроверялось** при изменении зависимости, есть два пути: живая стратегия
+(`change` / `blur` перепроверяют всю форму) или точечный мост `revalidateWhen` в behavior.
 
 ```typescript
-import { createModel, createFormFromModel, type ValidationIssue } from '@reformer/core';
-import { validate, cross, defineValidation, validateModel } from '@reformer/core/validation';
+import { createForm, type ValidationIssue } from '@reformer/core';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 
 type PasswordForm = { password: string; confirmPassword: string };
 
-const model = createModel<PasswordForm>({ password: '', confirmPassword: '' });
-
-// Кросс-полевое правило — обычная функция над снапшотом формы (без scope/root-аргументов).
+// Кросс-полевое правило — обычная функция над снимком формы.
 const passwordsMatch = (f: PasswordForm): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
     ? { code: 'passwordMismatch' }
     : null;
 
-const schema = defineValidation<PasswordForm>(({ model }) => {
+const passwordValidation = defineValidation<PasswordForm>(({ model, cross }) => {
   validate(model.$.password, [required(), minLength(8)]);
   validate(model.$.confirmPassword, [required()]);
-  cross(model.$.confirmPassword, passwordsMatch); // ошибка садится на confirmPassword
+  cross(model.$.confirmPassword, passwordsMatch); // замечание садится на confirmPassword
 });
 
 // confirmPassword перепроверяется, когда меняется password
-const behavior = defineFormBehavior<PasswordForm>(({ model }) => {
-  revalidateWhen([model.$.password], () => void validateModel(model, schema));
+const passwordBehavior = defineFormBehavior<PasswordForm>(({ model }) => {
+  revalidateWhen([model.$.password], () => void validateModel(model, passwordValidation));
 });
 
-// поведение подключается к форме; layout-схема (RenderNode) — отдельный аргумент:
-const form = createFormFromModel({ model, schema: layout, behavior });
+const passwordForm = createForm<PasswordForm>({
+  initial: { password: '', confirmPassword: '' },
+  validation: passwordValidation,
+  behavior: passwordBehavior,
+});
 ```
 
-:::note `cross` берёт снапшот, а не живой сигнал
-`fn` внутри `cross` видит `model.get()` на момент прогона — это чистое чтение, без подписок. Живость
-даёт `revalidateWhen`: он перезапускает `validateModel` при изменении зависимости, и правило считается
-заново по свежему снапшоту.
+:::note `cross` берёт снимок, а не живой сигнал
+`check` внутри `cross` видит `model.get()` на момент прогона — это чистое чтение, без подписок.
+Живость даёт стратегия или `revalidateWhen`: они перезапускают прогон при изменении зависимости, и
+правило считается заново по свежему снимку.
 :::
 
 ## Валидация массива
 
-Элементы массива проверяются оператором `each(arr, itemFn)` — `itemFn` получает под-модель элемента и
-описывает его поля обычным `validate`. Правило на **весь массив** (длина, уникальность) пишется как
-функция над снапшотом и вешается через `cross` на **скалярное поле-носитель** (реальный leaf-сигнал),
-а не на сам массив: `model.$.<array>` — дерево сигналов, а не leaf, и ошибка на нём не сядет в ноду.
+Строки массива под-форм проверяет оператор `applyEach(model.$.<массив>, rowRules)` — `rowRules`
+описывает поля строки обычным `validate` в области строки. Правило на **весь массив** (длина,
+уникальность) вешается на ручку самого массива: замечание сядет на ноду `FormArray`.
 
 ```typescript
-import { createModel, type FormModel, type ValidationIssue } from '@reformer/core';
-import { validate, cross, each, defineValidation, validateModel } from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
+import type { ValidationIssue } from '@reformer/core';
+import { applyEach, defineValidation, validate } from '@reformer/core/validation';
+import { minLength, required } from '@reformer/core/validators';
 
-type TagForm = { listTitle: string; tags: { label: string }[] };
+type Tag = { label: string };
+type TagForm = { listTitle: string; tags: Tag[] };
 
-const model = createModel<TagForm>({ listTitle: '', tags: [{ label: '' }] });
-
-// Под-схема одного элемента массива — функция над под-моделью элемента.
-const tagItem = (im: FormModel<{ label: string }>): void => {
-  validate(im.$.label, [required()]);
-};
-
-// Правило уровня массива — читает снапшот, садится на скалярное поле-носитель.
-const uniqueTags = (f: TagForm): ValidationIssue | null => {
-  const labels = f.tags.map((t) => t.label);
-  return labels.length !== new Set(labels).size ? { code: 'notUnique' } : null;
-};
-
-const schema = defineValidation<TagForm>(({ model }) => {
-  validate(model.$.listTitle, [required()]);
-  cross(model.$.listTitle, uniqueTags); // правило уровня массива на скалярном носителе
-  each(model.tags, tagItem); // per-item валидация элементов
+// Правила одной строки.
+const tagRules = defineValidation<Tag>(({ model }) => {
+  validate(model.$.label, [required()]);
 });
 
-const valid = await validateModel(model, schema);
+// Правило уровня массива — по снимку формы.
+const uniqueTags = (f: TagForm): ValidationIssue | null => {
+  const labels = f.tags.map((t) => t.label);
+  return labels.length !== new Set(labels).size ? { code: 'tags.notUnique' } : null;
+};
+
+const tagValidation = defineValidation<TagForm>(({ model, cross }) => {
+  validate(model.$.listTitle, [required()]);
+  validate(model.$.tags, [minLength(1, { code: 'tags.minLength' })]); // хотя бы одна строка
+  cross(model.$.tags, uniqueTags); // замечание — на ноде массива
+  applyEach(model.$.tags, tagRules); // правила каждой строки
+});
 ```
 
-Под-схему элемента (адрес, созаёмщик и т.п.) удобно переиспользовать **прямым вызовом** над под-моделью:
-`addressSchema({ model: model.registrationAddress })` — схема это просто функция.
+Схему группы (адрес, созаёмщик) подключают к группе оператором `apply(model.$.<группа>, rules)`.
 
 ## Хорошие практики
 
-- **Стратегию выбирайте пропом, а не руками.** `useFormValidation({ strategy })` (форма) и
-  `defineSteps({ strategy }) + useWizardStepValidation` (мастер) закрывают почти все случаи; ручной
-  `revalidateWhen` берите только для точечной перепроверки зависимого поля.
-- **`schema` — стабильная ссылка.** `validateModel` отменяет устаревший прогон по идентичности
-  `(model, schema)` — держите схемы в `const` / `useMemo`, не создавайте инлайн-стрелку на каждый рендер:
-  иначе рвётся дедуп раннера и стратегии.
-- **Несколько узких правил вместо одного «общего».** `validate(sig, [required(), minLength(8), strongPassword])`
-  даёт конкретные ошибки, которые проще показать и локализовать.
-- **Композиция шагов через `defineSteps` / `apply`.** Полную схему собирайте из под-схем шагов
-  (`extras` для cross-field/warnings), а не дублируйте правила — так гейт шага и submit проверяют
-  ровно одно и то же.
-- **`validateWhen` вместо «спрятать ошибку».** Выключенная ветка не проверяется и гасит свои поля — это
-  дешевле и честнее, чем валидировать всё и прятать лишнее в UI.
-- **Не смешивайте слои на одном поле.** Node-level `updateOn` (реактивные триггеры) и активная
-  schema-стратегия оба пишут ошибки в ноду — на **одних и тех же** полях это даёт мерцание. Выберите
-  один слой на поле.
-- **Дорогую живую проверку дебаунсите.** У стратегий `change`/`afterFirstSubmit` есть проп `debounce`;
+- **Стратегию выбирайте опцией, а не руками.** `validation: { rules, strategy }` сборки (или
+  `useFormValidation` для формы без сборки) закрывает почти все случаи; ручной `revalidateWhen`
+  берите только для точечной перепроверки зависимого поля.
+- **Правила — стабильная ссылка.** Прогоны отменяются по идентичности пары «модель + правила» —
+  держите схемы в константах модуля, не создавайте инлайн-стрелку на каждый рендер.
+- **Несколько узких правил вместо одного «общего».** Массив
+  `[required(), minLength(8), strongPassword]` даёт конкретные замечания, которые проще показать и
+  перевести.
+- **Шаги — через поток сборки.** Правила шагов задавайте в `flow.steps`, правила уровня формы — в
+  `extras`: полный набор для отправки сборка соберёт сама, и гейт шага с отправкой проверят ровно одно
+  и то же.
+- **`validateWhen` вместо «спрятать замечание».** Выключенная ветка не проверяется и гасит свои
+  поля — это дешевле и честнее, чем проверять всё и прятать лишнее в UI.
+- **Дорогую живую проверку дебаунсите.** У стратегий `change` / `afterFirstSubmit` есть `debounce`;
   для ручного `revalidateWhen` оберните колбэк собственным дебаунсом, а отменой устаревших ответов
   займётся `AbortSignal` из `validateAsync`.
 
@@ -356,5 +359,5 @@ const valid = await validateModel(model, schema);
 
 - [Асинхронная валидация](/docs/validation/async) — серверные проверки, отмена устаревших запросов.
 - [Кастомные валидаторы](/docs/validation/custom) — свои правила и кросс-полевые проверки.
-- [Обработка ошибок](/docs/validation/error-handling) — чтение, фильтрация и отображение ошибок.
-- [FormWizard](/docs/cdk/form-wizard) — `defineSteps`, гейт шага и `validateAll`.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение, фильтрация и отображение замечаний.
+- [FormWizard](/docs/cdk/form-wizard) — визард поверх потока шагов сборки.

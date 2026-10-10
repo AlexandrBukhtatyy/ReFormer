@@ -37,7 +37,7 @@ export const calendarDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Дата' },
       }),
       code: `{
-  value: model.$.date,
+  model: model.$.date,
   component: CalendarSingle,
   componentProps: { label: 'Дата' },
 }`,
@@ -99,7 +99,7 @@ const [date, setDate] = useState<Date>();
         touched: true,
       }),
       code: `{
-  value: model.$.date,
+  model: model.$.date,
   component: CalendarSingle,
   componentProps: { label: 'Дата' },
 }
@@ -125,7 +125,7 @@ validate(model.$.date, [required({ code: 'date.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.date,
+  model: model.$.date,
   component: CalendarSingle,
   componentProps: {
     label: 'Дата',
@@ -134,6 +134,6 @@ validate(model.$.date, [required({ code: 'date.required' })]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.date, [required()]);`,
   },
 };

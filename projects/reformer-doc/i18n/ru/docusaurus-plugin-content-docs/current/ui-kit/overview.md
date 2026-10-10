@@ -18,8 +18,9 @@ sidebar_position: 1
 npm install @reformer/ui-kit @reformer/core
 ```
 
-Peer-зависимости: `@reformer/core`, `@reformer/cdk`, `@reformer/renderer-react`, `react`,
-`react-dom` — npm 7+ установит их автоматически.
+Peer-зависимости: `@reformer/core`, `@reformer/cdk`, `react`, `react-dom` — npm 7+ установит их
+автоматически. Рендерер по схеме (`@reformer/renderer-react`) киту не нужен: компоненты кладутся и в
+разметку руками, и в схему формы.
 
 Тяжёлые компоненты (`chart`, `table`, `calendar`, `combobox`, `command`, `date-picker`, `drawer`,
 `carousel`, `input-otp`, `message-scroller`, `resizable`, `sonner`) держат **optional**
@@ -85,6 +86,8 @@ ui-kit добавляет к ней разметку и стили:
 | [`FormWizard`](./form-navigation)    | `@reformer/cdk/form-wizard`    | Многошаговый мастер с индикатором и навигацией  |
 | [`AsyncBoundary`](./async-boundary)  | `@reformer/cdk/async-boundary` | Состояния `loading` / `error` / `ready`         |
 
+В схеме формы массив под-форм рисует `FieldArray` кита — узел
+`{ model: model.$.items, component: FieldArray, item: (row) => узел }`: строки ему отдаёт рендерер.
 Если готовая разметка не подходит — берите headless-версию из cdk напрямую и стройте свой UI.
 
 ### 3. Form-интеграция: компонент + `reformerAdapter`
@@ -104,23 +107,29 @@ ui-kit добавляет к ней разметку и стили:
 (не `Input` с `type: 'number'`).
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
 import { FormField, Input } from '@reformer/ui-kit';
 
-const model = createModel<{ email: string }>({ email: '' });
-const form = createFormFromModel({
-  model,
-  schema: {
-    email: {
-      value: model.$.email,
-      component: Input, // ← сам компонент: диалект — в его статике reformerAdapter
-      componentProps: { label: 'Email', type: 'email' },
-    },
-  },
-});
+function EmailForm() {
+  const { form } = useFormBundle(() =>
+    createForm<{ email: string }>({
+      initial: { email: '' },
+      schema: (model) => ({
+        children: [
+          {
+            model: model.$.email,
+            component: Input, // ← сам компонент: диалект — в его статике reformerAdapter
+            componentProps: { label: 'Email', type: 'email' },
+          },
+        ],
+      }),
+    })
+  );
 
-// В JSX — один универсальный FormField:
-<FormField control={form.email} />;
+  // В JSX — один универсальный FormField:
+  return <FormField control={form.email} />;
+}
 ```
 
 Свой контрол подключается так же:
@@ -129,7 +138,7 @@ const form = createFormFromModel({
 import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
 
 export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
-// схема: { value: model.$.agree, component: MyCheckbox }
+// узел схемы: { model: model.$.agree, component: MyCheckbox }
 ```
 
 Компоненту чужой библиотеки, на который статику не повесить, диалект задаёт

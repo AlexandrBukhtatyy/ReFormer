@@ -4,180 +4,42 @@ sidebar_position: 3
 
 # Tools
 
-The MCP server provides a set of tools that AI calls automatically when performing tasks.
+The MCP server provides tools the AI can call to perform tasks. It is convenient to group them by
+the steps of working on a form.
 
-## Code Generation
+| Step                    | Tools                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| Figure out which API    | `choose_api` (requirement in your own words → operator), `get_context` (context for a build step) |
+| Find reference material | `get_symbol_docs`, `list_symbols`, `find_recipe`, `search_docs`                                   |
+| Build the form          | `plan_form` (spec → `FormIntent`), `generate_form` (`FormIntent` → form files)                    |
+| Check                   | `validate_form`: `kind` = `code`, `json-schema`, `behaviors`, `bundle`, `layout`                  |
+| Report a problem        | `report_issue`                                                                                    |
 
-### generate_schema
+The role of each tool is described in the [Overview](./overview#tools). Below are the details of
+`validate_form` and `report_issue`.
 
-Get template and rules for creating FormSchema.
+## validate_form
 
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `formType` | string | Form type: "registration", "checkout", "settings", etc. |
+Checks a form before it runs. Returns `RF0xx` diagnostics with the line, a "what to do" hint and the
+next call to make.
 
-**Returns:**
+| `kind`        | What it checks                                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `code`        | The form's TypeScript: unknown or wrongly imported `@reformer` symbols, operators outside their schema, removed API    |
+| `json-schema` | a renderer-json schema document                                                                                        |
+| `behaviors`   | compute cycles — from a list of `{ target, reads[] }`                                                                  |
+| `bundle`      | the `FormIntent` and the schema as a whole, cross-checked against each other                                           |
+| `layout`      | the form module's file names against the canonical set (`form.schema.ts`, `form.behavior.ts`, `form.validation.ts`, …) |
 
-- Type to component mapping (string → Input, boolean → Checkbox, etc.)
-- Document masks for Russian documents (phone, INN, SNILS, passport)
-- Schema structure rules
-- Real project examples
+## report_issue
 
----
-
-### generate_types
-
-Get template and rules for TypeScript form types.
-
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `formType` | string | Form type for context |
-
-**Returns:**
-
-- Interface naming rules
-- Typing rules (undefined instead of null, no index signatures)
-- Type examples
-
----
-
-### generate_validation
-
-Get template and rules for ValidationDefinition.
-
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `formType` | string | Form type for context |
-
-**Returns:**
-
-- List of all built-in validators
-- Usage syntax
-- Import rules (`@reformer/core/validators`)
-- Validation examples
-
----
-
-### generate_behavior
-
-Get template and rules for BehaviorSchema.
-
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `formType` | string | Form type for context |
-
-**Returns:**
-
-- List of all behaviors (computeFrom, enableWhen, etc.)
-- Usage syntax
-- Import rules (`@reformer/core/behaviors`)
-- Behavior examples
-
----
-
-## Quality Checking
-
-### check_code
-
-Analyze form code for errors and quality issues.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `code` | string | Yes | TypeScript code to analyze |
-
-**Returns:**
-
-- Quality score (0-100 points)
-- List of errors with explanations
-- Warnings
-- Fix recommendations
-
-**Checked rules:**
-
-- Correct validator and behavior imports
-- Presence of `value` in every field
-- Use of `useMemo` for `createForm`
-- Call to `markAsTouched` on blur
-- Type checking before submission
-
----
-
-## Development Assistance
-
-### explain_error
-
-Explain a ReFormer error with fix examples.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `error` | string | Yes | Error text or problem description |
-
-**Recognized issues:**
-
-- Field not updating on input
-- Validation not triggering
-- TypeScript type errors
-- Form recreated on every render
-- Cannot read property / undefined
-- Array index out of bounds
-
----
-
-### get_pattern
-
-Get usage pattern example.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `pattern` | string | Yes | Pattern name |
-
-**Available patterns:**
-
-- `conditional-fields` — conditional field display
-- `computed-fields` — computed fields
-- `cross-field-validation` — cross-field validation
-- `async-validation` — async validation
-- `array-fields` — working with arrays
-- `multi-step-form` — multi-step forms
-- `form-submission` — form submission
-
----
-
-### get_recommended_structure
-
-Get recommended project file structure.
-
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `complexity` | string | Complexity: "simple", "medium", "complex" |
-
-**Returns:**
-
-- Folder structure
-- File separation (types, schema, validation, behavior)
-- Naming conventions
-
----
-
-## Feedback Collection
-
-### report_issue
-
-Report an error and its solution for feedback collection.
+Submits a report about an error and its solution for feedback collection.
 
 **Parameters:**
 
 | Parameter  | Type     | Required | Description                           |
 | ---------- | -------- | -------- | ------------------------------------- |
-| `error`    | string   | Yes      | Error message or problem description  |
+| `error`    | string   | Yes      | Description of the error or problem   |
 | `solution` | string   | Yes      | Solution or fix                       |
 | `tags`     | string[] | No       | Tags for categorization and analytics |
 | `context`  | object   | No       | Additional context (see below)        |
@@ -198,36 +60,36 @@ Report an error and its solution for feedback collection.
 | ------------------ | ------------------------------------------ | ----------------------------------------------------------- |
 | `category:<type>`  | `category:behavior`, `category:validation` | Category: schema, validation, behavior, react, types, other |
 | `agent:<name>`     | `agent:claude`, `agent:cursor`             | AI agent name                                               |
-| `severity:<level>` | `severity:critical`, `severity:minor`      | Issue severity                                              |
+| `severity:<level>` | `severity:critical`, `severity:minor`      | Problem severity                                            |
 
 **Returns:**
 
-Confirmation of successful report submission.
+Confirmation that the report was written successfully.
 
 **How it works:**
 
-1. AI encounters an error while working with ReFormer
-2. AI solves the problem
-3. AI calls `report_issue` with error description and solution
-4. The report is saved locally as its own file — `<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`
+1. The AI encounters an error while working with ReFormer
+2. The AI solves the problem
+3. The AI calls `report_issue` with a description of the error and the solution
+4. The report is saved locally as a separate file — `<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`
 
-The directory is configurable via the `REFORMER_ISSUE_REPORTS_DIR` env var (relative values
-resolve against the server's working directory). Project root is the nearest `package.json`
-with dependencies above cwd; when there is none, reports land in cwd itself. The exact path
-comes back in the tool's response.
+The directory can be overridden with the `REFORMER_ISSUE_REPORTS_DIR` environment variable (a
+relative path is resolved against the server's working directory). The project root is the nearest
+`package.json` with dependencies found upward from cwd; if there is none, reports are placed directly
+in cwd. The server returns the exact path in its response.
 
-**Example usage:**
+**Example of AI usage:**
 
 ```
-AI found error: "Cycle detected in computeFrom"
-AI identified cause: effect depends on target field
+AI found an error: "Cycle detected in computeFrom"
+AI identified the cause: effect depends on the target field
 AI calls report_issue:
   - error: "Infinite loop in computeFrom when effect depends on target"
   - solution: "Use peek() instead of .value to read target without dependency"
   - tags: ["category:behavior", "agent:claude", "severity:critical"]
   - context:
       examples:
-        - description: "Wrong - creates dependency"
+        - description: "Wrong - creates a dependency"
           code: "const current = targetNode.value.value;"
         - description: "Correct - no dependency"
           code: "const current = targetNode.value.peek();"
@@ -236,7 +98,7 @@ AI calls report_issue:
 
 **Storage format (JSON):**
 
-One report per file, pretty-printed:
+One report per file, pretty-printed with indentation:
 
 ```json
 {
@@ -248,16 +110,17 @@ One report per file, pretty-printed:
 }
 ```
 
-The file name combines the timestamp with a short slug of the error. Two reports filed in the
-same millisecond get a `-2`, `-3`, … suffix — an existing file is never overwritten.
+The file name is made of the timestamp and a short slug of the error. If two reports land in the
+same millisecond, a `-2`, `-3`, … suffix is added to the name — an existing file is never
+overwritten.
 
 ## Why collect feedback?
 
-Issue reports help:
+Error reports help to:
 
 - Identify common user problems
-- Improve documentation
-- Find library bugs
+- Improve the documentation
+- Find bugs in the library
 - Understand which patterns cause difficulties
 
 All data is stored **locally** on your computer.

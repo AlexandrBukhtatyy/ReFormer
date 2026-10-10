@@ -1,9 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 import { InfoHint, Input } from '@reformer/ui-kit';
+import { defineIssueMessages } from '@reformer/core/i18n';
 import { required, email } from '@reformer/core/validators';
 import { useDemoField } from '../harness';
 import type { ComponentDocConfig } from '../types';
+
+/** Тексты замечаний демо: правило несёт код, строку по коду даёт словарь формы. */
+const EMAIL_MESSAGES = defineIssueMessages({ 'field.required': 'Введите email' });
 
 function AutoRender() {
   const { control } = useDemoField({
@@ -11,15 +16,17 @@ function AutoRender() {
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ code: 'field.required' }), email()],
-    messages: { 'field.required': 'Введите email' },
+    messages: EMAIL_MESSAGES,
   });
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
-      <FieldRoot.Root control={control as any}>
-        <FieldRoot.Label className="block mb-1 text-sm font-medium" />
-        <FieldRoot.Control />
-        <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
-      </FieldRoot.Root>
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FieldRoot.Root control={control as any}>
+          <FieldRoot.Label className="block mb-1 text-sm font-medium" />
+          <FieldRoot.Control />
+          <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+        </FieldRoot.Root>
+      </ValidationMessagesProvider>
     </div>
   );
 }
@@ -30,31 +37,33 @@ function CustomLayout() {
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ code: 'field.required' }), email()],
-    messages: { 'field.required': 'Введите email' },
+    messages: EMAIL_MESSAGES,
   });
   return (
     <div style={{ maxWidth: 460, width: '100%' }}>
-      <FieldRoot.Root control={control as any} hasDescription>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '110px 1fr',
-            gap: 12,
-            alignItems: 'start',
-          }}
-        >
-          <FieldRoot.Label className="text-sm font-medium" style={{ paddingTop: 8 }} />
-          <div>
-            <FieldRoot.Control />
-            <FieldRoot.Description
-              style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginTop: 4 }}
-            >
-              Мы не передаём email третьим сторонам.
-            </FieldRoot.Description>
-            <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FieldRoot.Root control={control as any} hasDescription>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '110px 1fr',
+              gap: 12,
+              alignItems: 'start',
+            }}
+          >
+            <FieldRoot.Label className="text-sm font-medium" style={{ paddingTop: 8 }} />
+            <div>
+              <FieldRoot.Control />
+              <FieldRoot.Description
+                style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginTop: 4 }}
+              >
+                Мы не передаём email третьим сторонам.
+              </FieldRoot.Description>
+              <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+            </div>
           </div>
-        </div>
-      </FieldRoot.Root>
+        </FieldRoot.Root>
+      </ValidationMessagesProvider>
     </div>
   );
 }
@@ -68,20 +77,22 @@ function HintLayout() {
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ code: 'field.required' }), email()],
-    messages: { 'field.required': 'Введите email' },
+    messages: EMAIL_MESSAGES,
   });
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
-      <FieldRoot.Root control={control as any} hasHint>
-        {/* Триггер — РЯДОМ с Label, не внутри: клик внутри <label htmlFor> активировал бы контрол. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <FieldRoot.Label className="text-sm font-medium" />
-          <InfoHint content={HINT_TEXT} aria-label="Подсказка: Email" />
-        </div>
-        <FieldRoot.Hint hidden>{HINT_TEXT}</FieldRoot.Hint>
-        <FieldRoot.Control />
-        <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
-      </FieldRoot.Root>
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FieldRoot.Root control={control as any} hasHint>
+          {/* Триггер — РЯДОМ с Label, не внутри: клик внутри <label htmlFor> активировал бы контрол. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <FieldRoot.Label className="text-sm font-medium" />
+            <InfoHint content={HINT_TEXT} aria-label="Подсказка: Email" />
+          </div>
+          <FieldRoot.Hint hidden>{HINT_TEXT}</FieldRoot.Hint>
+          <FieldRoot.Control />
+          <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+        </FieldRoot.Root>
+      </ValidationMessagesProvider>
     </div>
   );
 }
@@ -194,7 +205,7 @@ import { InfoHint } from '@reformer/ui-kit';
     },
     {
       name: 'useFormFieldContext()',
-      type: '→ { control, value, errors, ids, componentProps, pending }',
+      type: '→ { control, value, issues, error, shouldShowError, ids, componentProps, pending }',
       description: 'Доступ к состоянию из произвольных детей.',
     },
   ],

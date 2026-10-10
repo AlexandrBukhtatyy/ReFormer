@@ -21,7 +21,7 @@ export const inputDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
       }),
       code: `{
-  value: model.$.email,
+  model: model.$.email,
   component: Input,
   componentProps: { label: 'Email', type: 'email' },
 }`,
@@ -41,7 +41,7 @@ export const inputDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.age,
+  model: model.$.age,
   component: InputNumber,
   componentProps: { label: 'Возраст', min: 0 },
 }`,
@@ -57,7 +57,7 @@ export const inputDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
       }),
       code: `{
-  value: model.$.city,
+  model: model.$.city,
   component: InputSuggest,
   componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
 }`,
@@ -78,7 +78,7 @@ export const inputDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.age,
+  model: model.$.age,
   component: InputNumber,
   componentProps: { label: 'Возраст', min: 18 },
 }
@@ -102,7 +102,7 @@ validate(model.$.age, [required(), min(18)]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.value,
+  model: model.$.email,
   component: Input,
   componentProps: {
     label: 'Email',
@@ -112,6 +112,6 @@ validate(model.$.age, [required(), min(18)]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.email, [required()]);`,
   },
 };

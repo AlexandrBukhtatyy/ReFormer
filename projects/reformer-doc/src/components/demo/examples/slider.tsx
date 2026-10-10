@@ -21,7 +21,7 @@ export const sliderDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Громкость', min: 0, max: 100, step: 1 },
       }),
       code: `{
-  value: model.$.volume, // initial: 50
+  model: model.$.volume, // initial: 50
   component: Slider,
   componentProps: { label: 'Громкость', min: 0, max: 100, step: 1 },
 }`,
@@ -36,7 +36,7 @@ export const sliderDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
       }),
       code: `{
-  value: model.$.rating, // initial: 6
+  model: model.$.rating, // initial: 6
   component: Slider,
   componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
 }`,
@@ -54,7 +54,7 @@ export const sliderDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
       }),
       code: `{
-  value: model.$.amount,
+  model: model.$.amount,
   component: Slider,
   componentProps: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
 }`,
@@ -78,7 +78,7 @@ export const sliderDocConfig: ComponentDocConfig = {
     }),
     code: (v) =>
       `{
-  value: model.$.volume,
+  model: model.$.volume,
   component: Slider,
   componentProps: {
     label: 'Громкость',

@@ -9,9 +9,10 @@ sidebar_position: 2
 `validate(model.$.email, [required(), email()])`.
 
 Схема валидации — отдельная функция `defineValidation(({ model }) => …)` из
-`@reformer/core/validation`; layout-схема (узлы, JSON, `RenderNode`) валидаторов **не несёт**. Правила
-живут в этой функции, а прогон идёт **по требованию** через раннер `validateModel(model, schema)` —
-форма сама схему не запускает (подробнее — [Обзор валидации](/docs/validation/overview)).
+`@reformer/core/validation`; схема формы (узлы, JSON-документ) правил **не несёт**. Правила живут в
+этой функции, подключаются к сборке `createForm({ validation })` и прогоняются **по требованию** —
+`bundle.validate()`, `bundle.submit(handler)`, шаг потока (подробнее —
+[Обзор валидации](/docs/validation/overview)).
 
 ```typescript
 import { defineValidation, validate } from '@reformer/core/validation';
@@ -32,8 +33,11 @@ const contactValidation = defineValidation<ContactForm>(({ model }) => {
 
 - **Пустые значения пропускаются.** `''`, `null`, `undefined` (а для длины/чисел/дат — и невалидные
   значения) считаются валидными. Обязательность проверяет отдельная фабрика `required()`.
-- **Опция `{ message }`.** Любой фабрике можно передать свой текст: `min(18, { code: 'field.min' })`.
-  Без него `message` резолвится из `code` в слое отображения.
+- **Опции `{ code, params }` (`RuleOptions`).** Текста у правила нет. Свой `code` заменяет встроенный
+  (`min(18, { code: 'age.min' })` даст замечание `{ code: 'age.min', params: { min: 18, actual } }`),
+  а `params` добавляют значения для текста. Текст находится по коду: словарь формы
+  `defineIssueMessages` → словарь локали → встроенный английский (см.
+  [Тексты замечаний](/docs/validation/overview#тексты-замечаний)).
 - **Omnibus `number()` удалён.** Числовые проверки собираются из отдельных фабрик
   (`isNumber()`, `integer()`, `min()`, …).
 
@@ -48,8 +52,9 @@ const contactValidation = defineValidation<ContactForm>(({ model }) => {
 import { required } from '@reformer/core/validators';
 
 validate(model.$.email, [required()]);
-validate(model.$.agreeToTerms, [required({ code: 'agreeToTerms.required' })]);
 // Замечание: { code: 'required' }
+validate(model.$.agreeToTerms, [required({ code: 'agreeToTerms.required' })]);
+// Замечание: { code: 'agreeToTerms.required' } — свой код поля
 ```
 
 ### `pattern(regex, options?)`
@@ -59,7 +64,7 @@ validate(model.$.agreeToTerms, [required({ code: 'agreeToTerms.required' })]);
 ```typescript
 import { pattern } from '@reformer/core/validators';
 
-validate(model.$.code, [pattern(/^[A-Z]+$/, { code: 'code.pattern' })]);
+validate(model.$.code, [pattern(/^[A-Z]+$/)]);
 // Ошибка: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
 ```
 
@@ -251,10 +256,64 @@ validate(model.$.birthDate, [required(), minAge(18), maxAge(100)]);
 // maxAge → { code: 'date_max_age', params: { maxAge: 100, currentAge } }
 ```
 
+## Файлы
+
+Работают с одиночным файлом или массивом (`File` либо файлоподобный дескриптор с `name` / `size` /
+`type`). Пустые значения пропускаются — обязательность проверяет `required()`. Размеры — в байтах;
+в тексте замечания они выводятся строкой с единицей («5 МБ»).
+
+### `maxFileSize(bytes, options?)` · `minFileSize(bytes, options?)`
+
+Размер **каждого** файла; в замечание попадает первый нарушивший.
+
+```typescript
+import { maxFileSize } from '@reformer/core/validators';
+
+validate(model.$.documents, [maxFileSize(5 * 1024 * 1024)]);
+// Ошибка: { code: 'maxFileSize', params: { maxFileSize, fileName, actualSize } }
+```
+
+### `maxTotalFileSize(bytes, options?)`
+
+Суммарный размер всех файлов.
+
+```typescript
+import { maxTotalFileSize } from '@reformer/core/validators';
+
+validate(model.$.documents, [maxTotalFileSize(20 * 1024 * 1024)]);
+// Ошибка: { code: 'maxTotalFileSize', params: { maxTotalFileSize, actualTotal } }
+```
+
+### `fileType(accept, options?)`
+
+Тип файла по строке в синтаксисе атрибута `<input type="file" accept>`: расширения (`.pdf`), MIME
+(`image/png`), категории (`image/*`), список через запятую. Нативный `accept` — только подсказка
+диалогу выбора, на drag-and-drop он не действует; правило проверяет всё.
+
+```typescript
+import { fileType } from '@reformer/core/validators';
+
+validate(model.$.documents, [fileType('image/*,.pdf')]);
+// Ошибка: { code: 'fileType', params: { accept, fileName } }
+```
+
+### `minFiles(n, options?)` · `maxFiles(n, options?)`
+
+Количество файлов.
+
+```typescript
+import { required, minFiles, maxFiles } from '@reformer/core/validators';
+
+validate(model.$.documents, [required(), minFiles(1), maxFiles(5)]);
+// minFiles → { code: 'minFiles', params: { minFiles: 1, actualCount } }
+// maxFiles → { code: 'maxFiles', params: { maxFiles: 5, actualCount } }
+```
+
 ## Комбинирование
 
 К одному полю можно применить несколько правил в одном массиве `validate(...)` — выполняются все,
-ошибки собираются в массив:
+замечания собираются в массив. Если два правила одного вида проверяют разное, дайте им свои коды —
+тогда и тексты будут разными:
 
 ```typescript
 import { required, minLength, pattern } from '@reformer/core/validators';
@@ -262,41 +321,45 @@ import { required, minLength, pattern } from '@reformer/core/validators';
 validate(model.$.password, [
   required(),
   minLength(8),
-  pattern(/[A-Z]/, { code: 'field.pattern' }),
-  pattern(/[0-9]/, { code: 'field.pattern' }),
+  pattern(/[A-Z]/, { code: 'password.uppercase' }),
+  pattern(/[0-9]/, { code: 'password.digit' }),
 ]);
 ```
 
 ## Справочник
 
-| Категория | Фабрика          | Код ошибки             | `params`                      |
-| --------- | ---------------- | ---------------------- | ----------------------------- |
-| Общие     | `required()`     | `required`             | —                             |
-| Общие     | `pattern(regex)` | `pattern`              | `{ pattern }`                 |
-| Общие     | `email()`        | `email`                | —                             |
-| Общие     | `url()`          | `url` / `url_protocol` | `{ allowedProtocols }`        |
-| Общие     | `phone()`        | `phone`                | `{ format }`                  |
-| Длина     | `minLength(n)`   | `minLength`            | `{ minLength, actualLength }` |
-| Длина     | `maxLength(n)`   | `maxLength`            | `{ maxLength, actualLength }` |
-| Числа     | `min(n)`         | `min`                  | `{ min, actual }`             |
-| Числа     | `max(n)`         | `max`                  | `{ max, actual }`             |
-| Числа     | `isNumber()`     | `isNumber`             | —                             |
-| Числа     | `integer()`      | `integer`              | —                             |
-| Числа     | `multipleOf(n)`  | `multipleOf`           | `{ multipleOf }`              |
-| Числа     | `nonNegative()`  | `nonNegative`          | —                             |
-| Числа     | `nonZero()`      | `nonZero`              | —                             |
-| Даты      | `isDate()`       | `date_invalid`         | —                             |
-| Даты      | `minDate(d)`     | `date_min`             | `{ minDate }`                 |
-| Даты      | `maxDate(d)`     | `date_max`             | `{ maxDate }`                 |
-| Даты      | `pastDate()`     | `date_future`          | —                             |
-| Даты      | `futureDate()`   | `date_past`            | —                             |
-| Даты      | `minAge(n)`      | `date_min_age`         | `{ minAge, currentAge }`      |
-| Даты      | `maxAge(n)`      | `date_max_age`         | `{ maxAge, currentAge }`      |
+| Категория | Фабрика               | Код ошибки             | `params`                                |
+| --------- | --------------------- | ---------------------- | --------------------------------------- |
+| Общие     | `required()`          | `required`             | —                                       |
+| Общие     | `pattern(regex)`      | `pattern`              | `{ pattern }`                           |
+| Общие     | `email()`             | `email`                | —                                       |
+| Общие     | `url()`               | `url` / `url_protocol` | `{ allowedProtocols }`                  |
+| Общие     | `phone()`             | `phone`                | `{ format }`                            |
+| Длина     | `minLength(n)`        | `minLength`            | `{ minLength, actualLength }`           |
+| Длина     | `maxLength(n)`        | `maxLength`            | `{ maxLength, actualLength }`           |
+| Числа     | `min(n)`              | `min`                  | `{ min, actual }`                       |
+| Числа     | `max(n)`              | `max`                  | `{ max, actual }`                       |
+| Числа     | `isNumber()`          | `isNumber`             | —                                       |
+| Числа     | `integer()`           | `integer`              | —                                       |
+| Числа     | `multipleOf(n)`       | `multipleOf`           | `{ multipleOf }`                        |
+| Числа     | `nonNegative()`       | `nonNegative`          | —                                       |
+| Числа     | `nonZero()`           | `nonZero`              | —                                       |
+| Даты      | `isDate()`            | `date_invalid`         | —                                       |
+| Даты      | `minDate(d)`          | `date_min`             | `{ minDate }`                           |
+| Даты      | `maxDate(d)`          | `date_max`             | `{ maxDate }`                           |
+| Даты      | `pastDate()`          | `date_future`          | —                                       |
+| Даты      | `futureDate()`        | `date_past`            | —                                       |
+| Даты      | `minAge(n)`           | `date_min_age`         | `{ minAge, currentAge }`                |
+| Даты      | `maxAge(n)`           | `date_max_age`         | `{ maxAge, currentAge }`                |
+| Файлы     | `maxFileSize(b)`      | `maxFileSize`          | `{ maxFileSize, fileName, actualSize }` |
+| Файлы     | `minFileSize(b)`      | `minFileSize`          | `{ minFileSize, fileName, actualSize }` |
+| Файлы     | `maxTotalFileSize(b)` | `maxTotalFileSize`     | `{ maxTotalFileSize, actualTotal }`     |
+| Файлы     | `fileType(accept)`    | `fileType`             | `{ accept, fileName }`                  |
+| Файлы     | `minFiles(n)`         | `minFiles`             | `{ minFiles, actualCount }`             |
+| Файлы     | `maxFiles(n)`         | `maxFiles`             | `{ maxFiles, actualCount }`             |
 
 ## Дальше
 
 - [Кастомные валидаторы](/docs/validation/custom) — свои правила и кросс-полевые проверки.
 - [Асинхронная валидация](/docs/validation/async) — проверки через сервер.
-- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение ошибок.
-  </content>
-  </invoke>
+- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение замечаний.

@@ -4,48 +4,49 @@ sidebar_position: 1
 
 # Структура проекта
 
-Одна форма — один модуль-папка. **Раскладка по умолчанию — плоская:** каждый concern живёт в
-отдельном файле в корне модуля, а вся форма (сборка + все шаги инлайн) — в одном `index.tsx`. Папки
-(`lib/` / `schema/` / `components/`) заводят только когда форма разрастётся.
+Одна форма — один модуль-папка. Раскладок две: **плоская** — по умолчанию, файл на каждую
+обязанность в корне модуля; **по папкам** — для больших форм, по папке на слой. Эталон второй
+раскладки — многошаговая кредитная заявка из `react-playground`.
 
 ## Плоская раскладка
 
 ```
 forms/
-└── credit-application/          # Модуль формы — один файл на concern
-    ├── index.tsx                # сборка формы + разметка (все шаги инлайн)
+└── credit-application/          # Модуль формы — один файл на обязанность
+    ├── index.tsx                # сборка createForm + разметка (все шаги инлайн)
     ├── types.ts                 # тип формы + enum'ы + тип опции { value, label }
-    ├── model.ts                 # createModel + начальные значения + фабрики элементов массива
-    ├── form.schema.ts           # схема: { value: model.$.x, component, componentProps }
-    ├── form.behavior.ts         # defineFormBehavior: compute / enableWhen / onChange
-    ├── form.validation.ts       # ВСЯ валидация формы
+    ├── model.ts                 # createModel + начальные значения + шаблоны строк массивов
+    ├── form.schema.ts           # дерево схемы: { model: model.$.x, component, componentProps }
+    ├── form.behavior.ts         # defineFormBehavior: compute / enableWhen / onChange / правила узлов
+    ├── form.validation.ts       # ВСЕ правила валидации формы
     ├── data-sources.ts          # опции + асинхронные загрузчики
-    └── api.ts                   # submit + prefill
+    └── api.ts                   # загрузка и отправка
 ```
 
-| Файл                 | За что отвечает                                                          |
-| -------------------- | ------------------------------------------------------------------------ |
-| `types.ts`           | тип формы (`type`-алиас), enum'ы полей, тип `{ value, label }` для опций |
-| `model.ts`           | `createModel<T>(initial)` — источник истины для значений                 |
-| `form.schema.ts`     | привязка полей к сигналам модели, `component` и `componentProps`         |
-| `form.behavior.ts`   | реактивные правила: вычисляемые поля, условная доступность, реакции      |
-| `form.validation.ts` | `defineValidation` (все правила) + запуск `validateModel`                |
-| `data-sources.ts`    | словари опций и загрузчики (держим их вне схемы)                         |
-| `api.ts`             | отправка и предзаполнение                                                |
-| `index.tsx`          | сборка `createXxxForm()` + разметка                                      |
+| Файл                 | За что отвечает                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `types.ts`           | тип формы, enum'ы полей, тип `{ value, label }` для опций                           |
+| `model.ts`           | `createModel<T>(initial)` — источник истины для значений; шаблоны строк — `arrayOf` |
+| `form.schema.ts`     | дерево разметки: привязка полей к модели, `component`, `componentProps`, `selector` |
+| `form.behavior.ts`   | реакции: вычисляемые поля, доступность, правила узлов схемы (`hideWhen`, события)   |
+| `form.validation.ts` | `defineValidation` — правила формы; у визарда — правила шагов для потока `flow`     |
+| `data-sources.ts`    | словари опций и загрузчики (держим их вне схемы)                                    |
+| `api.ts`             | загрузка и отправка — обработчик для `bundle.submit`                                |
+| `index.tsx`          | фабрика `createXxxForm()` (один `createForm`) + разметка                            |
 
 :::note Одно правило имён — `form.<роль>`
 Всё, что описывает саму форму, называется `form.<роль>`: `form.schema.ts` (разметка),
-`form.behavior.ts` (поведение модели), `form.validation.ts` (валидация) и у renderer-пакетов
-`form.render.ts` (поведение разметки). Общие файлы модуля — без префикса: `types.ts`, `model.ts`,
-`data-sources.ts`, `api.ts`. Прежние имена `renderer.schema.*`, `renderer.behavior.ts`,
-`renderer.wizard.tsx` и `validation.ts` работают, но `validate_form kind="layout"` в MCP предлагает
-их переименовать.
+`form.behavior.ts` (поведение), `form.validation.ts` (правила). Общие файлы модуля — без префикса:
+`types.ts`, `model.ts`, `data-sources.ts`, `api.ts`. Прежние имена `renderer.schema.*`,
+`renderer.behavior.ts`, `validation.ts`, а также `form.render.ts` и `wizard.tsx` прежнего
+контракта работают, но `validate_form kind="layout"` в MCP предупреждает о них: правила узлов
+схемы теперь живут в `form.behavior.ts`, визард — библиотечный.
 :::
 
 ## Сборка формы
 
-Файлы соединяются в одну фабрику `createXxxForm()`: модель → схема → behavior → `createFormFromModel`.
+Файлы соединяются одним вызовом `createForm`: модель, дерево схемы, поведение и правила — одна
+сборка. Её же отдают рендереру, если форма рисуется по схеме.
 
 ```typescript title="forms/credit-application/model.ts"
 import { createModel, type FormModel } from '@reformer/core';
@@ -62,24 +63,29 @@ export const createCreditApplicationModel = (): FormModel<CreditApplicationForm>
 ```
 
 ```typescript title="forms/credit-application/form.schema.ts"
-import type { FormModel } from '@reformer/core';
-import { Input, InputNumber, SelectAsync } from '@reformer/ui-kit';
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import { InputNumber, SelectAsync } from '@reformer/ui-kit';
 import { LOAN_TYPES } from './data-sources';
 import type { CreditApplicationForm } from './types';
 
-// Layout-схема: только component/componentProps — без валидаторов
-export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
-  loanType: {
-    value: model.$.loanType,
-    component: SelectAsync,
-    componentProps: { label: 'Тип кредита', options: LOAN_TYPES },
-  },
-  loanAmount: {
-    value: model.$.loanAmount,
-    component: InputNumber,
-    componentProps: { label: 'Сумма' },
-  },
-  monthlyPayment: { value: model.$.monthlyPayment, component: Input, disabled: true },
+// Дерево разметки: привязка полей и компоненты — без валидаторов. Дети — только в `children`.
+export const creditApplicationSchema = (
+  model: FormModel<CreditApplicationForm>
+): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.loanType,
+      component: SelectAsync,
+      componentProps: { label: 'Тип кредита', options: LOAN_TYPES },
+    },
+    { model: model.$.loanAmount, component: InputNumber, componentProps: { label: 'Сумма' } },
+    {
+      model: model.$.propertyValue,
+      component: InputNumber,
+      componentProps: { label: 'Стоимость недвижимости' },
+    },
+    { model: model.$.monthlyPayment, component: InputNumber, disabled: true },
+  ],
 });
 ```
 
@@ -88,9 +94,9 @@ import { defineValidation, validate } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import type { CreditApplicationForm } from './types';
 
-// Отдельная схема валидации; запуск: await validateModel(model, creditApplicationValidation)
-export const creditApplicationValidation = defineValidation<CreditApplicationForm>(({ model }) => {
-  validate(model.$.loanType, [required()]);
+// Правила несут код замечания; текст по коду — в словаре формы (defineIssueMessages).
+export const creditApplicationRules = defineValidation<CreditApplicationForm>(({ model }) => {
+  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
   validate(model.$.loanAmount, [required(), min(50000)]);
 });
 ```
@@ -100,184 +106,301 @@ import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behavior
 import type { CreditApplicationForm } from './types';
 
 export const creditApplicationBehavior = defineFormBehavior<CreditApplicationForm>(({ model }) => {
-  enableWhen([model.$.propertyValue], () => model.loanType === 'mortgage', {
+  enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {
     resetOnDisable: true,
   });
-  // упрощённый расчёт; реальную формулу вынесите в helper из lib
+  // упрощённый расчёт; реальную формулу вынесите в чистую функцию
   compute(model.$.monthlyPayment, () => (model.loanAmount ?? 0) / 12);
 });
 ```
 
-```typescript title="forms/credit-application/index.tsx"
-import { useMemo } from 'react';
-import { createFormFromModel } from '@reformer/core';
+```tsx title="forms/credit-application/index.tsx"
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormField } from '@reformer/ui-kit';
 import { createCreditApplicationModel } from './model';
 import { creditApplicationSchema } from './form.schema';
 import { creditApplicationBehavior } from './form.behavior';
+import { creditApplicationRules } from './form.validation';
 import type { CreditApplicationForm } from './types';
 
-// Одна фабрика собирает форму: model → schema → behavior → createFormFromModel
-export const createCreditApplicationForm = () => {
-  const model = createCreditApplicationModel();
-  return {
-    model,
-    form: createFormFromModel<CreditApplicationForm>({
-      model,
-      schema: creditApplicationSchema(model),
-      behavior: creditApplicationBehavior,
-    }),
+// Одна фабрика — один createForm: модель, схема, поведение, правила.
+export const createCreditApplicationForm = () =>
+  createForm<CreditApplicationForm>({
+    model: createCreditApplicationModel(),
+    schema: creditApplicationSchema, // билдер (model) => дерево
+    behavior: creditApplicationBehavior,
+    validation: creditApplicationRules,
+  });
+
+export function CreditApplicationPage() {
+  // Фабрика вызывается ровно один раз — сборка стабильна между рендерами.
+  const bundle = useFormBundle(createCreditApplicationForm);
+  const { form } = bundle;
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    void bundle.submit(submitApplication); // обработчик из api.ts; при замечаниях не вызывается
   };
-};
-```
 
-## Тип формы — `type`, а не `interface`
-
-Всё, что попадает в `FormGroup<T>` (корневую форму, вложенные группы, тип элемента массива),
-объявляйте через **`type`-алиас**. Интерпретатору схемы нужна индекс-сигнатура
-(`Record<string, …>`): у `type` она есть структурно, у `interface` — нет.
-
-```typescript title="forms/credit-application/types.ts"
-export type LoanType = 'consumer' | 'mortgage' | 'car';
-
-export type PropertyItem = {
-  type: 'apartment' | 'house' | 'car';
-  estimatedValue: number;
-};
-
-// ✅ type-алиас — структурная индекс-сигнатура
-export type CreditApplicationForm = {
-  loanType: LoanType;
-  loanAmount: number | null;
-  propertyValue: number | null;
-  monthlyPayment: number | null;
-  properties: PropertyItem[];
-};
-```
-
-```typescript
-// ❌ interface — не подойдёт как форма/элемент массива
-interface CreditApplicationForm {
-  /* … */
+  return (
+    <form onSubmit={handleSubmit}>
+      <FormField control={form.loanType} />
+      <FormField control={form.loanAmount} />
+      <FormField control={form.propertyValue} />
+      <FormField control={form.monthlyPayment} />
+    </form>
+  );
 }
 ```
+
+У многошаговой формы правила раскладываются по шагам потока:
+`createForm({ validation: { extras: crossStepRules }, flow: { steps: [{ id: 'loan', rules: loanRules }, …] } })`
+— см. [FormWizard](../cdk/form-wizard).
+
+## Тип формы: ввод и расчёт
+
+Тип формы объявляйте `interface` или `type` — сборке подходит любой объектный тип. Если в форме
+есть вычисляемые поля (цели `compute`), удобно развести типы: **ввод** — то, что заполняет
+пользователь и что уходит на сервер, и **расчёт** — то, что пишет поведение. Форма — их
+пересечение.
+
+```typescript title="types/credit-application.ts"
+/** Ввод заявки — то, что заполняет пользователь и что уходит на сервер. */
+export interface CreditApplication {
+  loanType: LoanType;
+  loanAmount: number | null; // пустое числовое поле — null
+  loanTerm: number;
+  // …
+}
+
+/** Вычисляемые поля — их пишет поведение формы, сервер считает их сам. */
+export interface CreditApplicationDerived {
+  interestRate: number;
+  monthlyPayment: number;
+}
+
+export type CreditApplicationForm = CreditApplication & CreditApplicationDerived;
+```
+
+Перед отправкой вычисляемые поля отрезаются: обработчик `bundle.submit` получает значения формы
+и отдаёт на сервер только ввод (`toApplicationPayload(values)`). Список ключей сверяется с типом
+`CreditApplicationDerived`, поэтому новое вычисляемое поле не уедет на сервер незамеченным.
 
 :::tip Опциональные числа — `number | null`
 Числа, которые пользователь может очистить, объявляйте как `number | null` (конвенция «поле
 пустое»). Встроенные валидаторы (`min`, `max`, `minLength`, …) пропускают пустые значения.
 :::
 
-## Стабильность инстанса — `useMemo`
+## Стабильность сборки — `useFormBundle`
 
-В React модель и форму создают **один раз** через `useMemo(() => …, [])`. Без этого на каждый
-рендер пересоздавались бы модель, схема и ноды — форма теряла бы состояние.
+В React сборку создают **один раз** хуком `useFormBundle(factory)` из `@reformer/core/react`. Он
+зовёт фабрику ленивым инициализатором `useState` и армирует живую проверку
+(`validation.strategy`). `useMemo` для этого не годится: React вправе сбросить его кэш и пересобрать
+форму, потеряв введённое.
 
 ```tsx
-import { useMemo } from 'react';
+import { useFormBundle } from '@reformer/core/react';
 import { createCreditApplicationForm } from './index';
 
 export function CreditApplicationView() {
-  // Пустой массив зависимостей → форма собирается ровно один раз
-  const { form, model } = useMemo(() => createCreditApplicationForm(), []);
-
-  // …разметка со всеми шагами инлайн
+  const bundle = useFormBundle(createCreditApplicationForm); // ровно одна сборка
+  // …разметка
 }
 ```
 
 :::warning Не собирайте форму в теле компонента
-`createModel` / `createForm` прямо в рендере (без `useMemo`) — источник «мигающих» форм и
-потерянного ввода. Всегда оборачивайте сборку в `useMemo(..., [])`.
+`createModel` / `createForm` прямо в рендере — источник «мигающих» форм и потерянного ввода.
+Всегда оборачивайте сборку в `useFormBundle(() => …)`.
 :::
 
 ## Передача формы в дочерние компоненты — через props
 
-Форму (и отдельные ноды) передавайте вниз **явными props** типа `FormGroup<T>` / `FormControl<T>`, а
-не через React Context. Явная передача делает компоненты предсказуемыми и тестируемыми: каждый
-видит ровно ту ноду, с которой работает.
+Форму (и отдельные ноды) передавайте вниз **явными props** типа `FormGroup<T>` / `FormControl<T>` /
+`FormArray<T>`. Явная передача делает компоненты предсказуемыми и тестируемыми: каждый видит ровно ту
+ноду, с которой работает.
 
 ```tsx
 import type { FormGroup } from '@reformer/core';
 
-function LoanStep({ form }: { form: FormGroup<CreditApplicationForm> }) {
+function LoanStep({ control }: { control: FormGroup<CreditApplicationForm> }) {
   return (
     <section>
-      <FormField control={form.loanType} />
-      <FormField control={form.loanAmount} />
+      <FormField control={control.loanType} />
+      <FormField control={control.loanAmount} />
     </section>
   );
 }
-
-export function CreditApplicationView() {
-  const { form } = useMemo(() => createCreditApplicationForm(), []);
-  return <LoanStep form={form} />;
-}
 ```
 
-Дочерний компонент, который **мутирует массив**, дополнительно принимает `model` (мутации идут по
-модели: `model.items.push` / `removeAt`) — тоже явным пропом `FormModel<T>`.
+Строки массива меняются через саму ноду массива (`form.properties.push()`,
+`form.properties.removeAt(i)`) или через модель (`model.properties.push(…)`) — компоненту строки
+достаточно пропа с нодой.
 
-:::info Почему не context
-Форма уже реактивна на уровне нод: подписки идут через хуки (`useFormControl` и т.п.), а не через
-контекст. Проброс `form` пропсом ничего не «перерисовывает лишнего» и оставляет граф зависимостей
-явным. Context пришлось бы заводить лишь для очень глубоких деревьев — по умолчанию он не нужен.
+:::info Почему не свой context
+Форма реактивна на уровне нод: подписки идут через хуки (`useFormControl` и т.п.), а не через
+контекст. Проброс пропсом ничего не перерисовывает лишнего и оставляет граф зависимостей явным.
+Контекст сборки (`FormBundleContext`) ставит рендерер — из него форму и поток берёт визард в схеме;
+в разметке руками он не обязателен.
 :::
 
-## Масштабирование
+## Масштабирование: папки
 
-| Сложность                                  | Раскладка                                                                            |
-| ------------------------------------------ | ------------------------------------------------------------------------------------ |
-| Простая форма                              | один файл `index.tsx` (модель + схема + behavior + компонент)                        |
-| **Плоский модуль**                         | **по умолчанию.** Один файл на concern + `index.tsx` со всеми шагами инлайн          |
-| Визард: папка на шаг `steps/<шаг>/`        | шаги со своей валидацией и render-правилами; общее — в корне модуля                  |
-| Папки (`lib/` + `schema/` + `components/`) | большие формы: concern'ы по папкам, по компоненту на шаг, переиспользуемые под-формы |
+Когда плоский модуль становится неудобным — визард из многих шагов, подформы на нескольких шагах,
+правила, которые не помещаются в один файл, — модуль делят по **слоям**, по папке на слой. Так
+устроена эталонная кредитная заявка (`projects/react-playground/src/pages/demo/complex-multy-step-form`).
 
-Когда плоский модуль становится неудобным (много шагов, отдельные владельцы, переиспользуемые
-под-формы) — вынесите в три папки: `lib/` (доменные помощники), `schema/` (описание формы),
-`components/` (React-раскладка), оставив в корне только entry-компонент и `index.ts`.
-`model` / `form.behavior` / `form.validation` / `data-sources` при этом **переиспользуются как есть** —
-никогда не дублируйте их между таргетами.
+| Папка          | На какой вопрос отвечает                               |
+| -------------- | ------------------------------------------------------ |
+| `model/`       | какие данные держит форма и с чего она начинается      |
+| `schema/`      | как форма разложена на экране                          |
+| `validation/`  | что считается верным значением и как о нём сказать     |
+| `behavior/`    | как значения и состояние полей реагируют друг на друга |
+| `flow/`        | какие шаги проходит пользователь и в каком порядке     |
+| `application/` | как форма собирается, загружается и отправляется       |
+| `api/`         | HTTP-запросы                                           |
+| `components/`  | React-разметка: шаги, подформы, общие куски UI         |
+
+```
+credit-application/
+├── CreditApplicationForm.tsx      # точка входа «React руками»: сборка + FormWizard
+├── model/
+│   ├── model.ts                   # createCreditApplicationModel — реактивная модель
+│   ├── initial-value.ts           # начальные значения; шаблоны строк — arrayOf(blank)
+│   ├── predicates.ts              # условия, общие для поведения, правил и JSX
+│   └── factories/                 # пустые значения подформ и строк массивов
+├── schema/
+│   ├── form.ts                    # дерево: загрузка → визард → шаги из потока
+│   ├── steps/                     # содержимое каждого шага (массив узлов)
+│   └── sections/                  # секции, подформы (part) и строки массивов (item)
+├── validation/
+│   ├── form.ts                    # FormValidation сборки: { extras: crossStepRules }
+│   ├── messages.ts                # словарь текстов замечаний — defineIssueMessages
+│   ├── common/                    # общие наборы правил, правила подформ и строк
+│   ├── loan.ts                    # правила одного шага — файл на шаг
+│   ├── contacts.ts
+│   └── cross-step.ts              # правила формы целиком (проверяются при отправке)
+├── behavior/
+│   ├── index.ts                   # поведение формы, собранное из частей ниже
+│   ├── derived.ts                 # вычисляемые поля
+│   ├── conditions.ts              # доступность полей и видимость секций
+│   ├── synchronization.ts         # копирование, очистка списков
+│   ├── dynamic-options.ts         # опции и ограничения, зависящие от значений
+│   └── operators.ts               # свои операторы поверх встроенных
+├── flow/
+│   └── credit-application-flow.ts # шаги: selector, заголовок, значок, разметка, правила
+├── application/
+│   ├── create.ts                  # ОДИН createForm на все способы рендера
+│   ├── load.ts                    # сеть: заявка и справочники
+│   ├── mapping.ts                 # ответ сервера → модель (model.patch + captureInitial)
+│   ├── payload.ts                 # toApplicationPayload — тело запроса без вычисляемых полей
+│   ├── submit.ts                  # обработчик bundle.submit и сообщение о результате
+│   └── renderer.ts                # правила узлов для рендерера: загрузка, отправка, навигация
+├── api/                           # HTTP-запросы
+├── components/                    # steps/, nested-forms/, ui/
+└── types/  constants/  utils/     # тип формы, словари опций, чистые расчёты
+```
+
+Шаг объявлен **один раз** — в потоке: идентификатор (он же `selector` узла шага), заголовок, значок,
+разметка и правила. Из этого списка строятся узлы шагов схемы и шаги потока сборки, поэтому связать
+разметку одного шага с правилами другого негде:
+
+```typescript title="flow/credit-application-flow.ts"
+import type { FormFlowConfig } from '@reformer/core';
+
+export const creditApplicationFlow = [
+  { selector: 'loan', title: 'Кредит', icon: '💰', content: loanStep, rules: loanRules },
+  {
+    selector: 'contacts',
+    title: 'Контакты',
+    icon: '📞',
+    content: contactsStep,
+    rules: contactsRules,
+  },
+  {
+    selector: 'confirmation',
+    title: 'Подтверждение',
+    icon: '✓',
+    content: confirmationStep,
+    rules: null,
+  },
+] as const;
+
+// Поле `flow` сборки: id шага — его selector, правила — правила шага.
+export const creditApplicationFlowSteps: FormFlowConfig<CreditApplicationForm> = {
+  steps: creditApplicationFlow.map((step) => ({ id: step.selector, rules: step.rules })),
+};
+```
+
+```typescript title="application/create.ts"
+import { createForm, type CreateFormConfig } from '@reformer/core';
+
+type Overrides = Pick<CreateFormConfig<CreditApplicationForm>, 'schema' | 'registry' | 'setup'>;
+
+// Одна сборка на все способы реализации: JSON-вариант передаёт документ схемы и реестр,
+// renderer-варианты — `setup` со связкой узлов.
+export const createCreditApplication = (overrides: Overrides = {}) =>
+  createForm<CreditApplicationForm>({
+    model: createCreditApplicationModel(),
+    schema: creditApplicationSchema,
+    behavior: creditApplicationBehavior,
+    validation: creditApplicationValidation, // { extras: crossStepRules }
+    flow: creditApplicationFlowSteps,
+    ...overrides,
+  });
+```
+
+Зависимости направлены в одну сторону: `application → flow → schema/steps, validation/<шаг>`;
+`application → behavior → model`. Ниже `application/` никто не знает ни идентификатора заявки, ни
+сети, ни рендерера. `model` / `behavior` / `validation` при этом **общие** для всех способов
+реализации — React руками, рендерер по TS-схеме, рендерер по JSON; меняется только то, что
+передаётся в `create.ts` сверху.
 
 ## Визард: папка на шаг
 
-У многошаговой формы код шага можно держать рядом с шагом. Папка названа по заголовку шага
-(`Контакты` → `kontakty`), без номера: порядок задаёт агрегатор `steps/index.ts`, поэтому
-перестановка шагов папки не трогает. Имена внутри папки — те же, что в корне.
+Промежуточный вариант между плоской раскладкой и папками по слоям: код шага держится рядом с шагом.
+Папка названа по заголовку шага (`Контакты` → `kontakty`), без номера: порядок задаёт агрегатор
+`steps/index.ts`, поэтому перестановка шагов папки не трогает. Имена внутри папки — те же, что в
+корне.
 
 ```
 forms/credit-application/
-├── form.validation.ts          # сборка валидации шагов + правила вне шагов
-├── form.render.ts              # submit, навигация визарда, вызов render-слоя шагов
+├── form.validation.ts          # правила вне шагов (extras)
+├── form.behavior.ts            # поведение формы, межшаговое
 └── steps/
-    ├── index.ts                # шаги по порядку: stepValidations, stepRenders (и stepSchemas)
+    ├── index.ts                # шаги по порядку: id, правила, схемы
     ├── kredit/
-    │   ├── form.validation.ts  # правила полей шага → stepValidation
-    │   ├── form.render.ts      # render-правила узлов шага
+    │   ├── form.validation.ts  # правила полей шага → rules шага потока
+    │   ├── form.behavior.ts    # поведение в пределах шага
     │   └── form.schema.json    # разметка шага (renderer-json, опционально)
     └── kontakty/…
 ```
 
-Межшаговые правила и поведение модели остаются в корневых файлах. «Далее» проверяет только
-валидацию текущего шага.
+Межшаговые правила и поведение остаются в корневых файлах. «Далее» проверяет только правила
+текущего шага потока.
 
-У renderer-json схему-данные тоже можно разрезать по шагам: корневой `form.schema.json` держит в
-`componentProps.steps` ссылки `{ "$ref": "./steps/<шаг>/form.schema.json" }`, файл шага —
-`{ "$schema", "node": … }`, а `index.tsx` собирает форму `composeJsonFormSchema(rawSchema, stepSchemas)`
-до `createJsonForm`. Билдер открывает такую форму как одну и сам раскладывает правки по файлам
-шагов; команды «Разбить визард по файлам шагов» и «Собрать форму в один файл» переключают
-раскладку.
+У renderer-json документ схемы тоже можно разрезать по шагам: в `children` визарда корневого
+`form.schema.json` стоят ссылки `{ "$ref": "./steps/<шаг>/form.schema.json" }`, файл шага —
+`{ "$schema", "node": … }`, а `index.tsx` собирает документ
+`composeJsonFormSchema(document, stepSchemas)` до `createForm`. Билдер открывает такую форму как
+одну и сам раскладывает правки по файлам шагов; команды «Разбить визард по файлам шагов» и «Собрать
+форму в один файл» переключают раскладку.
 
 ## Правила
 
-| Правило                              | Зачем                                                     |
-| ------------------------------------ | --------------------------------------------------------- |
-| Начинать с плоской раскладки         | один файл на concern; без преждевременных папок           |
-| Тип формы через `type`               | нужна структурная индекс-сигнатура для `FormGroup<T>`     |
-| Собирать форму в `useMemo(…, [])`    | стабильный инстанс, форма не теряет состояние             |
-| Пробрасывать форму пропсами          | предсказуемость и тестируемость вместо неявного контекста |
-| Вся валидация в `form.validation.ts` | одно место, куда смотреть                                 |
-| Data sources — отдельный файл        | схема читаемее, renderer-json ссылается по имени          |
+| Правило                          | Зачем                                                       |
+| -------------------------------- | ----------------------------------------------------------- |
+| Начинать с плоской раскладки     | один файл на обязанность; без преждевременных папок         |
+| Один `createForm` на форму       | модель, схема, поведение, правила и поток — одна сборка     |
+| Собирать форму в `useFormBundle` | стабильная сборка, форма не теряет состояние                |
+| Пробрасывать форму пропсами      | предсказуемость и тестируемость вместо неявного контекста   |
+| Правила — в `form.validation.ts` | одно место, куда смотреть; тексты — в словаре `messages.ts` |
+| Шаг объявлен один раз — в потоке | разметка и правила шага не расходятся                       |
+| Data sources — отдельный файл    | схема читаемее, renderer-json ссылается по имени            |
 
 ## Дальше
 
-- [Композиция схем](../core-concepts/schemas/composition) — переиспользуемые схемы и валидаторы.
+- [Композиция схем](../core-concepts/schemas/composition) — переиспользуемые части схемы и правила.
+- [FormWizard](../cdk/form-wizard) — поток шагов и отправка визарда.
 - [React-хуки](../react/hooks) — чтение состояния нод в компонентах.
 - [Behaviors](../behaviors/overview) — вычисляемые поля и условная логика.

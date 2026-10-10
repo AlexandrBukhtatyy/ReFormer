@@ -9,109 +9,181 @@ import { formWizardDocConfig } from '@site/src/components/demo/examples/cdk-form
 
 # FormWizard
 
-Headless многошаговый визард из `@reformer/cdk`. `config` — это пара колбэков
-`validateStep` / `validateAll` (не схемы): каждый возвращает `boolean | Promise<boolean>`.
-Кнопка «Далее» запускает валидацию текущего шага и блокируется, пока шаг невалиден.
+Headless многошаговый визард из `@reformer/cdk`. Шаги и их правила визард не хранит: это
+**поток шагов** сборки — `createForm({ flow: { steps: [{ id, rules }] } })`. Визард рисует поток
+(текущий шаг, пройденные, доступность) и зовёт его переходы. Кнопка «Далее» — это `flow.next()`:
+поток проверяет правила текущего шага и переходит дальше, только если замечаний нет; при
+замечаниях визард помечает поля тронутыми, и ошибки шага становятся видны.
 
 <ComponentDoc config={formWizardDocConfig} />
 
-## defineSteps — конфиг по селектору шага
+## Поток шагов в сборке
 
-Обычный `config` привязывает правила к шагу по индексу массива:
-`validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1])`. Индекс
-хрупкий: добавление или перестановка шага молча рассинхронизируют правила с
-позицией, а шаг без правил по умолчанию считается «валидным» — тихая дыра.
-
-`defineSteps` адресует правила по `selector` шага (тот же id, что у ноды шага в
-схеме), а не по `[step - 1]`. Порядок ключей = порядок шагов; шаг без правил
-объявляется **явно** через `null`. На выходе — обычный `FormWizardConfig`, визард
-потребляет его как раньше.
+Правила шага привязаны к его идентификатору, а не к позиции: перестановка шагов не рассинхронизирует
+правила, а шаг без правил виден в конфиге явно (`{ id: 'confirm' }`). Если визард рисует рендерер
+по схеме, `id` шага — это `selector` узла шага.
 
 ```tsx
-import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
-// step1 / step2 / crossFieldRules — ValidationDefinition<Root>
-const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
-  steps: {
-    loan: step1,
-    applicant: step2,
-    confirm: null, // без правил — объявлено ЯВНО, а не по умолчанию
-  },
-  extras: crossFieldRules, // cross-field/warnings уровня формы — только на submit
-});
+// loanRules / contactsRules / crossStepRules — ValidationDefinition<CreditForm> (defineValidation)
+function CreditWizard() {
+  const bundle = useFormBundle(() =>
+    createForm<CreditForm>({
+      model: createCreditModel(),
+      validation: { extras: crossStepRules }, // правила вне шагов — только при отправке
+      flow: {
+        steps: [
+          { id: 'loan', rules: loanRules },
+          { id: 'contacts', rules: contactsRules },
+          { id: 'confirm' }, // шаг без правил
+        ],
+      },
+    })
+  );
 
-<FormWizard form={form} config={config}>
-  {/* …Step / Actions… */}
-</FormWizard>;
-```
+  return (
+    <FormWizard form={bundle.form} flow={bundle.flow}>
+      <FormWizard.Step component={LoanStep} control={bundle.form} />
+      <FormWizard.Step component={ContactsStep} control={bundle.form} />
+      <FormWizard.Step component={ConfirmStep} control={bundle.form} />
 
-Результат — `{ validateStep, validateAll, stepSelectors, createStepController }`.
-`validateStep(n)` резолвит `n → selector → правила` внутри (хрупкая индексация
-инкапсулирована здесь, приложение её больше не пишет); `validateAll` собирает все
-непустые шаги плюс `extras`; `stepSelectors` — селекторы по порядку
-(индекс = `step - 1`). Обе проверки идут с `{ touch: true }` — метятся только
-провалидированные поля, без сплошного `form.markAsTouched()`.
-`createStepController` относится к живому слою и разобран
-[ниже](#live-step-validation).
-
-**Выигрыш против `STEP_SCHEMAS[step - 1]`:** перестановка шагов остаётся корректной
-(правила следуют за селектором, а не за индексом); шаг без правил виден в конфиге
-как `null`, а не как неявный пробел; вся арифметика смещений живёт в одном месте.
-
-## Живая валидация внутри шага — strategy {#live-step-validation}
-
-По умолчанию правила шага проверяются только на «Далее» (`validateStep`) и на
-финальном submit (`validateAll`). `defineSteps` дополнительно принимает `strategy`
-(плюс `debounce` и `liveAfterSubmit`) — **live-стратегию внутри активного шага**:
-тот же Слой A, что и у `createFormValidation`/`useFormValidation`, но привязанный к
-текущему шагу визарда.
-
-```tsx
-const config = defineSteps<'loan' | 'confirm', Root>(model, {
-  steps: {
-    loan: step1,
-    confirm: null,
-  },
-  strategy: 'blur', // подсвечивать ошибки шага по потере фокуса
-});
-```
-
-Значения `strategy` — `'submit' | 'blur' | 'change' | 'afterFirstSubmit'` (та же
-семантика, что у schema-стратегий Слоя A):
-
-- `submit` (default) — прогон только по `validateStep`/`validateAll`, живого слоя нет.
-- `blur` — перепрогон при потере фокуса поля; раскрываются только сблюренные поля (по `touched`).
-- `change` — перепрогон на каждый ввод (учитывает `debounce`); раскрываются только редактированные поля (по `dirty`).
-- `afterFirstSubmit` — тихо до первого submit, дальше live по `liveAfterSubmit`
-  (`'change'` по умолчанию или `'blur'`).
-
-`defineSteps` также возвращает
-`createStepController(step): FormValidationController | null` — контроллер
-live-стратегии для конкретного шага (или `null`, если у шага нет правил либо
-`strategy` не задана). Руками его обычно не дёргают: подписки поднимает хук ниже.
-
-## useWizardStepValidation — армит стратегию под текущий шаг
-
-`useWizardStepValidation(config)` вызывается **в теле компонента шага**. Он берёт
-`currentStep` из `FormWizardContext`, поднимает контроллер live-стратегии под этот
-шаг и снимает подписки при смене шага или размонтировании — так живой слой всегда
-следует за активным шагом.
-
-```tsx
-import { useWizardStepValidation } from '@reformer/cdk/form-wizard';
-
-function LoanStep() {
-  useWizardStepValidation(config); // config из defineSteps(..., { strategy: 'blur' })
-  return <>{/* поля шага */}</>;
+      <FormWizard.Actions onSubmit={() => void bundle.submit(sendApplication)}>
+        <FormWizard.Prev>Назад</FormWizard.Prev>
+        <FormWizard.Next>Далее</FormWizard.Next>
+        <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
+      </FormWizard.Actions>
+    </FormWizard>
+  );
 }
 ```
 
-Хук — **no-op**, если `strategy` не задана, равна `'submit'`, или у текущего шага
-нет правил (объявлен `null`). Поэтому вызывать его безопасно в любом шаге.
+Полный набор правил сборка собирает сама: правила всех шагов плюс `extras`. Его проверяет
+`bundle.validate()` и отправка `bundle.submit(handler)`; один шаг — `bundle.validateStep('loan')`
+(неизвестный шаг — исключение). Правила — стабильные ссылки уровня модуля (`defineValidation`).
 
-:::info Живой слой поверх, а не вместо
-Per-step gate («Далее» → `validateStep`) и submit (`validateAll`) **не меняются** —
-`strategy` добавляет живой слой подсветки _поверх_ них. Кнопка «Далее» по-прежнему
-блокируется через `validateStep`, а финальный прогон идёт через `validateAll` с
-`{ touch: true }`.
+Порядок `FormWizard.Step` совпадает с порядком шагов потока. Шаги считаются и в обёртках
+(`<div>` вокруг шагов), render-props-функции визард не трогает.
+
+### Откуда визард берёт поток
+
+1. Проп `flow` — обычно `bundle.flow`.
+2. Сборка в контексте `FormBundleContext` (`@reformer/core/react`) — её ставит `FormRenderer`, а в
+   разметке руками можно поставить самому: `<FormBundleContext.Provider value={bundle}>`. Тогда
+   `form` и `flow` пропами не нужны.
+3. Ни того, ни другого — **позиционный поток без правил** по числу `FormWizard.Step`: переходы
+   работают, но шаги не проверяются.
+
+## Отправка
+
+Отправка формы — `bundle.submit(handler)`: один прогон всех правил, при успехе — обработчик со
+значениями модели. Результат — `SubmitResult`:
+
+```ts
+const outcome = await bundle.submit(sendApplication);
+// { status: 'submitted', result }                             — обработчик отработал
+// { status: 'invalid' | 'error' | 'cancelled', validation }   — проверка не пропустила
+// { status: 'failed', error }                                 — обработчик бросил исключение
+```
+
+Как до неё доходит кнопка визарда:
+
+- **сборка в контексте** (рендерер или `FormBundleContext.Provider`) — `FormWizard.Submit` и кнопка
+  `submit` из render-props зовут `onSubmit` через `bundle.submit`: только после успешной проверки
+  всей формы, а при замечаниях поля помечаются тронутыми;
+- **без контекста** (поток пропом `flow`) — `onSubmit` зовётся по нажатию, проверку делает
+  приложение: `onSubmit={() => void bundle.submit(sendApplication)}`, как в примере выше.
+
+Из любого потомка визарда отправку можно вызвать и вручную — `submit` из `useFormWizard()` ведёт себя
+так же и возвращает `SubmitResult`.
+
+## Управление снаружи визарда
+
+Ref визарда не нужен: поток — обычный объект сборки, им управляют напрямую. Переходы возвращают
+`FlowTransition` — `{ status: 'moved', from, to }` либо `{ status: 'stayed', step, reason }`, где
+`reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`.
+
+```tsx
+import type { FormBundle } from '@reformer/core';
+import { useFormFlow } from '@reformer/core/react';
+
+function WizardToolbar({ bundle }: { bundle: FormBundle<CreditForm> }) {
+  const flow = bundle.flow!;
+  const { current, index, isLast, validating } = useFormFlow(flow); // перерисовка при смене шага
+
+  return (
+    <div>
+      <span>
+        Шаг {index + 1} из {flow.steps.length}: {current}
+      </span>
+      <button onClick={() => flow.goTo('loan')}>К условиям кредита</button>
+      <button disabled={isLast || validating} onClick={() => void flow.next()}>
+        Далее
+      </button>
+    </div>
+  );
+}
+```
+
+| Член потока          | Назначение                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `steps`              | идентификаторы шагов по порядку                                                           |
+| `current` / `index`  | сигналы текущего шага и его номера с нуля                                                 |
+| `completed`          | сигнал пройденных шагов (`ReadonlySet<string>`)                                           |
+| `isFirst` / `isLast` | сигналы крайних шагов                                                                     |
+| `validating`         | идёт ли проверка шага в `next()`                                                          |
+| `next()`             | проверить текущий шаг и перейти дальше — `Promise<FlowTransition>`                        |
+| `previous()`         | шаг назад; пройденными остаются только шаги до него                                       |
+| `goTo(id)`           | перейти на шаг; на непройденный — `stayed` с `reason: 'locked'`, неизвестный — исключение |
+| `canGoTo(id)`        | доступен ли шаг: первый — всегда, остальные — после прохождения предыдущего               |
+| `reset()`            | вернуться на первый шаг и забыть пройденные                                               |
+
+В поведении формы поток приходит в область: `defineFormBehavior(({ model, flow }) => …)` —
+например, вернуть пользователя на шаг при смене условия:
+
+```ts
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model, flow }) => {
+  onChange(model.$.loanType, () => {
+    flow?.goTo('loan');
+  });
+});
+```
+
+## Состояние внутри визарда — `useFormWizard`
+
+Потомки визарда читают контекст хуком `useFormWizard()`: `form`, `flow`, `currentStep` (с единицы),
+`totalSteps`, `completedSteps` (номера с единицы), `isFirstStep`, `isLastStep`, `isValidating`,
+`isSubmitting`, переходы `goToNextStep()`, `goToPreviousStep()`, `goToStep(n)` и `submit(handler)`.
+`goToStep(n)` принимает номер шага с единицы и возвращает `false`, если шаг ещё недоступен.
+
+Колбэк `onStepChange(step)` визарда получает номер нового шага с единицы; `scrollToTop` (по
+умолчанию `true`) прокручивает страницу к началу при смене шага.
+
+## Живая проверка
+
+По умолчанию правила шага проверяются только на «Далее», а вся форма — при отправке. Живую
+проверку включает стратегия сборки — `validation.strategy`:
+
+```ts
+createForm<CreditForm>({
+  model: createCreditModel(),
+  validation: { extras: crossStepRules, strategy: 'blur' },
+  flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+});
+```
+
+Значения — `'submit'` (по умолчанию, живой проверки нет), `'blur'`, `'change'` (с `debounce`) и
+`'afterFirstSubmit'` (тихо до первой отправки, затем по `liveAfterSubmit`). Стратегию армирует
+`useFormBundle`. Ошибки видны только у полей, которые трогали или меняли, поэтому поля следующих
+шагов не подсвечиваются раньше времени. Переход «Далее» и отправка от стратегии не зависят.
+
+:::info Прежний контракт
+`config={…}` с `validateStep` / `validateAll`, `defineSteps`, `useWizardStepValidation`,
+`FormWizardConfig`, `FormWizardHandle` и `ref` визарда удалены. Шаги и правила — `createForm({ flow })`,
+отправка — `bundle.submit(handler)`, управление снаружи — `bundle.flow`, живая проверка —
+`validation.strategy` сборки.
 :::

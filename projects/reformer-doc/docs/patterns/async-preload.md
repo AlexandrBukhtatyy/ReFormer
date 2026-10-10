@@ -4,163 +4,165 @@ sidebar_position: 4
 
 # Асинхронная предзагрузка
 
-Формы часто нужно наполнить данными с сервера: initial-значения редактируемой сущности и справочники
-для селектов. Под M1 есть три инструмента: **initial-значения** в `createModel(...)`, загрузка через
-**`model.patch(...)`** после fetch и динамические опции через
-**`form.field.updateComponentProps({ options })`**.
+Формы часто нужно наполнить данными с сервера: значения редактируемой сущности и справочники для
+селектов. Инструменты: **начальные значения** модели, загрузка через **`model.patch(...)`** после
+запроса и динамические опции через **`form.field.updateComponentProps({ options })`**.
 
-## Initial-значения в модели
+## Начальные значения в модели
 
-Начальные значения задаются в `createModel(initial)`. К ним же возвращает `model.reset()`.
+Начальные значения задаются при создании модели — `createModel(initial)` или `initial` сборки. К ним
+же возвращает `model.reset()`.
 
 ```typescript
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { Input, SelectAsync } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en' };
 
-const model = createModel<ProfileForm>({ username: '', language: 'ru' });
-
-const schema = {
-  username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
-  language: {
-    value: model.$.language,
-    component: SelectAsync,
-    componentProps: {
-      label: 'Язык',
-      options: [
-        { value: 'ru', label: 'Русский' },
-        { value: 'en', label: 'English' },
-      ],
+const profileSchema = (model: FormModel<ProfileForm>): FormSchemaNode => ({
+  children: [
+    { model: model.$.username, component: Input, componentProps: { label: 'Username' } },
+    {
+      model: model.$.language,
+      component: SelectAsync,
+      componentProps: {
+        label: 'Язык',
+        options: [
+          { value: 'ru', label: 'Русский' },
+          { value: 'en', label: 'English' },
+        ],
+      },
     },
-  },
-};
+  ],
+});
 
-const form = createFormFromModel<ProfileForm>({ model, schema });
+export const createProfileForm = () =>
+  createForm<ProfileForm>({ initial: { username: '', language: 'ru' }, schema: profileSchema });
 ```
 
-## Стабильность инстанса
+## Стабильность сборки
 
-Модель, схему и форму создавайте **один раз** через `useMemo(() => {...}, [])`. Иначе они
-пересоздадутся на каждый рендер, а вместе с ними перезапустится и preload.
+Сборку создавайте **один раз** хуком `useFormBundle(factory)` из `@reformer/core/react`. Иначе
+модель и форма пересоздадутся на каждый рендер, а вместе с ними перезапустится и загрузка.
 
 ```tsx
-// ❌ пересоздаётся на каждый рендер → preload запускается каждый раз
+import { useFormBundle } from '@reformer/core/react';
+
+// ❌ пересоздаётся на каждый рендер → загрузка запускается каждый раз
 function BadForm() {
-  const model = createModel<ProfileForm>(initial);
-  const form = createFormFromModel({ model, schema });
+  const bundle = createProfileForm();
 }
 
-// ✅ стабильные ссылки
+// ✅ одна сборка на всё время жизни компонента
 function GoodForm() {
-  const { model, form } = useMemo(() => {
-    const model = createModel<ProfileForm>(initial);
-    return { model, form: createFormFromModel({ model, schema: buildSchema(model) }) };
-  }, []);
+  const bundle = useFormBundle(createProfileForm);
 }
 ```
 
-## Async preload — наполнение модели
+## Загрузка значений — `AsyncBoundary`
 
-Значения с сервера грузите во внешнем хуке и вливайте в модель через `model.patch(...)`. Обязателен
-race-guard (флаг `cancelled`): пользователь мог сменить id сущности или размонтировать форму, пока
-идёт запрос.
+Загрузку удобно отдать `AsyncBoundary` (`@reformer/ui-kit` или headless-версия из `@reformer/cdk`):
+он ведёт статус (`loading` / `error` / `ready`), отменяет устаревший запрос при смене `loadKey` и
+размонтировании и даёт «Повторить» из коробки. Форме остаётся одно — записать ответ в модель.
+
+```tsx
+import { useFormBundle } from '@reformer/core/react';
+import { AsyncBoundary, FormField } from '@reformer/ui-kit';
+import type { FormBundle } from '@reformer/core';
+
+interface ProfileData {
+  profile: Partial<ProfileForm>;
+  languages: { value: string; label: string }[];
+}
+
+async function loadProfile(userId: string, signal: AbortSignal): Promise<ProfileData> {
+  const [profile, dictionaries] = await Promise.all([
+    fetchProfile(userId, { signal }),
+    fetchDictionaries({ signal }),
+  ]);
+  return { profile, languages: dictionaries.languages };
+}
+
+/** Ответ сервера → модель и поля формы. */
+function applyProfile({ model, form }: FormBundle<ProfileForm>, data: ProfileData) {
+  model.patch(data.profile); // только пришедшие ключи
+  model.captureInitial(); // загруженное — новая точка отсчёта для model.reset()
+  // справочники — следующим тактом, после реактивных эффектов от patch
+  queueMicrotask(() => form.language.updateComponentProps({ options: data.languages }));
+}
+
+export function ProfileScreen({ userId }: { userId: string | null }) {
+  const bundle = useFormBundle(createProfileForm);
+
+  return (
+    <AsyncBoundary<ProfileData>
+      load={(signal) => loadProfile(userId!, signal)}
+      loadKey={userId}
+      enabled={userId !== null} // нет id — форма создания, грузить нечего
+      onSuccess={(data) => applyProfile(bundle, data)}
+    >
+      <FormField control={bundle.form.username} />
+      <FormField control={bundle.form.language} />
+    </AsyncBoundary>
+  );
+}
+```
+
+`model.patch(partial)` обновляет только переданные ключи: вложенные группы сливаются, массивы
+заменяются целиком. Полная запись — `model.set(value)`: ей нужны все ключи (в dev недостающие
+выводятся предупреждением, их значения не трогаются).
+
+:::info Почему `queueMicrotask` для опций
+`updateComponentProps` после `patch` оборачивайте в `queueMicrotask`: реактивные эффекты от `patch`
+(например, перестроение строк массива) успевают отработать, и опции попадают в уже готовые поля.
+:::
+
+:::tip `captureInitial` после загрузки
+`model.reset()` возвращает к снимку модели. Чтобы «сброс» возвращал к данным с сервера, вызовите
+`model.captureInitial()` сразу после `model.patch(...)`. Подробнее — в
+[Отправке и сбросе](./submit-and-reset#сброс-формы).
+:::
+
+Если форму рисует рендерер по схеме, загрузка записывается правилом узла в поведении формы:
+`onMount(schema.node('data-boundary'), …)` загружает данные, а `schema.node(…).patchProps({ status })`
+передаёт статус узлу `AsyncBoundary` в controlled-режиме.
+
+## Своя загрузка без `AsyncBoundary`
+
+Если нужен свой хук, обязателен race-guard: пользователь мог сменить id сущности или размонтировать
+форму, пока идёт запрос. Его даёт `AbortController` эффекта.
 
 ```tsx
 import { useEffect, useState } from 'react';
-import type { FormModel, FormGroup } from '@reformer/core';
 
-interface LoadingState {
-  isLoading: boolean;
-  error: string | null;
-}
-
-export function useLoadProfile(
-  model: FormModel<ProfileForm>,
-  form: FormGroup<ProfileForm>,
-  userId: string | null
-): LoadingState {
-  const [state, setState] = useState<LoadingState>({ isLoading: !!userId, error: null });
+export function useLoadProfile(bundle: FormBundle<ProfileForm>, userId: string | null) {
+  const [state, setState] = useState({ isLoading: userId !== null, error: null as string | null });
 
   useEffect(() => {
-    if (!userId) {
-      setState({ isLoading: false, error: null });
-      return;
-    }
-    let cancelled = false;
+    if (userId === null) return;
+    const controller = new AbortController();
+    setState({ isLoading: true, error: null });
 
-    (async () => {
-      setState({ isLoading: true, error: null });
-      try {
-        const [profile, dicts] = await Promise.all([fetchProfile(userId), fetchDictionaries()]);
-        if (cancelled) return; // сменили userId / unmount
-
-        // наполняем модель значениями
-        model.patch(profile);
-        // загруженные данные — новая «точка отсчёта» для reset()
-        model.captureInitial();
-
-        // динамические опции — после реактивных эффектов от patch
-        queueMicrotask(() => {
-          if (cancelled) return;
-          form.language.updateComponentProps({ options: dicts.languages });
-        });
-
+    loadProfile(userId, controller.signal)
+      .then((data) => {
+        applyProfile(bundle, data);
         setState({ isLoading: false, error: null });
-      } catch (err) {
-        if (cancelled) return;
-        setState({ isLoading: false, error: err instanceof Error ? err.message : 'Ошибка' });
-      }
-    })();
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return; // сменили userId / размонтировали
+        setState({ isLoading: false, error: error instanceof Error ? error.message : 'Ошибка' });
+      });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]); // model / form стабильны (созданы через useMemo)
+    return () => controller.abort();
+  }, [bundle, userId]); // bundle стабилен — собран через useFormBundle
 
   return state;
 }
 ```
 
-:::info Почему `queueMicrotask` для опций
-`updateComponentProps` после `patch` оборачивайте в `queueMicrotask`, чтобы реактивные эффекты от
-`patch` успели отработать и не пересеклись с обновлением пропсов. Без этого опции в `Select` могут
-не появиться.
-:::
-
-:::tip `captureInitial` после загрузки
-`reset()` возвращает к значениям на момент `createModel`. Чтобы «сброс» возвращал к данным с
-сервера — вызовите `model.captureInitial()` сразу после `model.patch(...)`.
-:::
-
-## Индикация загрузки
-
-Хук отдаёт `{ isLoading, error }` — используйте их в разметке.
-
-```tsx
-function ProfileScreen({ userId }: { userId: string }) {
-  const { model, form } = useMemo(() => {
-    const model = createModel<ProfileForm>({ username: '', language: 'ru' });
-    return { model, form: createFormFromModel({ model, schema: buildSchema(model) }) };
-  }, []);
-
-  const { isLoading, error } = useLoadProfile(model, form, userId);
-
-  if (isLoading) return <Spinner />;
-  if (error) return <ErrorBanner message={error} />;
-
-  return (
-    <form>
-      <FormField control={form.username} />
-      <FormField control={form.language} />
-    </form>
-  );
-}
-```
-
 ## Зависимые опции селекта
 
-Опции, зависящие от другого поля (страна → город, бренд → модель), грузите в behavior через
+Опции, зависящие от другого поля (страна → город, бренд → модель), грузите в поведении через
 `onChange` + `updateComponentProps`. `onChange` даёт **debounce** и **AbortSignal** из коробки:
 устаревший запрос отменяется при следующей смене значения.
 
@@ -180,7 +182,7 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
   onChange(
     model.$.country,
     async (country, { signal }) => {
-      // сбросить зависимое поле при смене source
+      // сбросить зависимое поле при смене источника
       model.city = '';
 
       if (!country) {
@@ -188,7 +190,7 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
         return;
       }
 
-      // loading-состояние (если компонент поддерживает)
+      // состояние загрузки (если компонент его поддерживает)
       form.city.updateComponentProps({ loading: true, options: [] });
 
       try {
@@ -203,7 +205,7 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
   );
 });
 
-const form = createFormFromModel<AddressForm>({ model, schema, behavior: addressBehavior });
+createForm<AddressForm>({ initial, schema: addressSchema, behavior: addressBehavior });
 ```
 
 Жизненный цикл:
@@ -215,13 +217,13 @@ const form = createFormFromModel<AddressForm>({ model, schema, behavior: address
    `componentProps`.
 
 :::warning Сбрасывайте зависимое поле
-При смене source-поля очищайте зависимое значение (`model.city = ''`), иначе останется город,
+При смене поля-источника очищайте зависимое значение (`model.city = ''`), иначе останется город,
 которого нет в новом списке. `onChange` не срабатывает на инициализации (по умолчанию
 `immediate: false`) — для запуска сразу передайте `{ immediate: true }`.
 :::
 
 ## Дальше
 
-- [Модель данных](../core-concepts/model) — `patch` / `reset` / `captureInitial`.
+- [Модель данных](../core-concepts/model) — `patch` / `set` / `reset` / `captureInitial`.
 - [Реакции на изменения](../behaviors/watch) — `onChange`, debounce и AbortSignal.
 - [Отправка и сброс](./submit-and-reset) — обратная сторона жизненного цикла.

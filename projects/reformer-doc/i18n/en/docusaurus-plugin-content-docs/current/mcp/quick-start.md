@@ -13,7 +13,7 @@ Setting up @reformer/mcp takes less than 2 minutes.
 
 ## Installation
 
-### Option 1: Global Installation
+### Option 1: Global installation
 
 ```bash
 npm install -g @reformer/mcp
@@ -23,7 +23,7 @@ npm install -g @reformer/mcp
 
 You can use it directly via npx — no installation required.
 
-## IDE Configuration
+## IDE setup
 
 ### Claude Code
 
@@ -39,7 +39,7 @@ claude mcp list
 
 ### Cursor
 
-Create `.cursor/mcp.json` in your project root:
+Create a `.cursor/mcp.json` file in the project root:
 
 ```json
 {
@@ -56,7 +56,7 @@ Restart Cursor.
 
 ### Windsurf
 
-Add to settings (`Ctrl+,` → MCP):
+Add to the settings (`Ctrl+,` → MCP):
 
 ```json
 {
@@ -71,7 +71,7 @@ Add to settings (`Ctrl+,` → MCP):
 
 ### Cline (VS Code)
 
-Add to Cline extension settings:
+Add to the Cline extension settings:
 
 ```json
 {
@@ -84,28 +84,25 @@ Add to Cline extension settings:
 }
 ```
 
-## First Request
+## First request
 
-After setup, try asking the AI to create a form:
+After setup, try asking the AI to help with ReFormer:
 
 ```
-Create a registration form with email, password, and confirm password fields
+Create a registration form with email, password and confirm password fields
 ```
 
-AI will automatically use @reformer/mcp tools to generate:
+The AI will automatically get the ReFormer documentation through the MCP server and help with:
 
-- TypeScript type for the form
-- Form schema with components
+- The form's TypeScript types
+- The form schema with components
 - Validation rules
-- React component
+- A React component
 
-## Verify It Works
+## Verifying it works
 
-If the MCP server is configured correctly, AI will be able to:
-
-1. **Answer questions about ReFormer** — AI gets up-to-date documentation
-2. **Generate forms** — using the `create-form` prompt
-3. **Check code** — using the `check_code` tool
+If the MCP server is configured correctly, the AI will be able to answer questions about ReFormer
+using up-to-date documentation.
 
 Try asking:
 
@@ -113,8 +110,15 @@ Try asking:
 How do I add email validation in ReFormer?
 ```
 
-## Next Steps
+```
+What behaviors does ReFormer have?
+```
 
-- [Tools](./tools) — all available tools
-- [Prompts](./prompts) — templates for common tasks
-- [Examples](./examples) — step-by-step scenarios
+```
+How do I show fields conditionally?
+```
+
+## Next steps
+
+- [Tools](./tools) — available tools
+- [Examples](./examples) — usage scenarios

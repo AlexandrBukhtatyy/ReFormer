@@ -97,7 +97,7 @@ export const comboboxDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.framework,
+  model: model.$.framework,
   component: Combobox,
   componentProps: {
     label: 'Фреймворк',
@@ -166,7 +166,7 @@ const [value, setValue] = useState<string | null>(null);
         },
       }),
       code: `{
-  value: model.$.frameworks,
+  model: model.$.frameworks,
   component: ComboboxMulti,
   componentProps: { options: FRAMEWORKS, clearable: true },
 }`,
@@ -187,7 +187,7 @@ const [value, setValue] = useState<string | null>(null);
         },
       }),
       code: `{
-  value: model.$.file,
+  model: model.$.file,
   component: ComboboxTree,
   componentProps: {
     label: 'Файл',
@@ -213,7 +213,7 @@ const [value, setValue] = useState<string | null>(null);
         },
       }),
       code: `{
-  value: model.$.files,
+  model: model.$.files,
   component: ComboboxTreeMulti,
   componentProps: {
     label: 'Файлы',
@@ -288,7 +288,7 @@ validate(model.$.files, [required()]);`,
         touched: true,
       }),
       code: `{
-  value: model.$.framework,
+  model: model.$.framework,
   component: Combobox,
   componentProps: { label: 'Фреймворк', options: FRAMEWORKS },
 }
@@ -315,7 +315,7 @@ validate(model.$.framework, [required({ code: 'framework.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.framework,
+  model: model.$.framework,
   component: Combobox,
   componentProps: {
     label: 'Фреймворк',
@@ -326,6 +326,6 @@ validate(model.$.framework, [required({ code: 'framework.required' })]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.framework, [required()]);`,
   },
 };

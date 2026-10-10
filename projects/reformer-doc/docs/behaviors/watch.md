@@ -63,12 +63,12 @@ onChange(model.$.livePreview, (enabled, { signal }) => {
 
 ## watchField
 
-`watchField(source, cb, { immediate? })` из `@reformer/core` — базовая подписка на изменение сигнала
+`watchField(source, cb, { immediate? })` из `@reformer/core/model` — базовая подписка на изменение сигнала
 (без debounce и AbortSignal), поверх которой построен `onChange`. Это **примитив**: возвращает
 cleanup и вызывается императивно. Для простых синхронных реакций:
 
 ```typescript
-import { watchField } from '@reformer/core';
+import { watchField } from '@reformer/core/model';
 
 // вызывается при каждом изменении (по умолчанию НЕ на инициализации)
 const stop = watchField(model.$.country, () => {
@@ -84,36 +84,39 @@ const stop = watchField(model.$.country, () => {
 
 ## revalidateWhen
 
-Валидация — по требованию (`validateModel(model, schema)`): снапшот модели прогоняется через схему на
-submit/шаге, а не реактивно. Поэтому если правило одного поля зависит от **другого** поля, изменение
-этого другого поля само по себе проверку не перезапустит. `revalidateWhen(deps, revalidate)` — мост
-поведение→валидация: вызывает колбэк ревалидации при изменении любой из зависимостей (не на
-инициализации). Само поведение валидацией не владеет — оно лишь инициирует внешний прогон `validateModel`.
+Правила формы проверяются по требованию — на «Далее» визарда, при `bundle.submit()` /
+`bundle.validate()` — либо живой стратегией сборки (`validation: { strategy: 'change' }`), которая
+перепроверяет форму на каждое изменение. Без живой стратегии правило одного поля, зависящее от
+**другого** поля, само не перепроверится: ошибка «Пароли не совпадают» останется на экране, даже
+когда пароль уже исправили. `revalidateWhen(deps, revalidate)` — мост поведение→валидация: вызывает
+колбэк при изменении любой из зависимостей (не на инициализации). Само поведение валидацией не
+владеет — колбэк запускает прогон тех же правил раннером `validateModel` из
+`@reformer/core/validation`.
 
 ```typescript
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 import { validateModel } from '@reformer/core/validation';
-import { schema } from './validation'; // defineValidation<RegistrationForm>(({ model }) => …)
+import { registrationRules } from './form.validation'; // те же правила, что в createForm({ validation })
 
 type RegistrationForm = { password: string; confirmPassword: string };
 
 const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
   // при смене password перегоняем схему — cross-field правило confirmPassword перепроверится
   revalidateWhen([model.$.password], () => {
-    void validateModel(model, schema); // ошибки сами доедут до нод, устаревший прогон отменится
+    void validateModel(model, registrationRules); // замечания доедут до нод, устаревший прогон отменится
   });
 });
 ```
 
 :::warning Триггеры — ДРУГИЕ поля
-В `deps` передавай поля, от которых зависит правило, а не само проверяемое поле (оно и так
-валидируется при собственном изменении). И убедись, что правило реально читает триггер — это
-cross-field правило `cross(sig, fn)`, где `fn` читает снапшот всей модели (`model.get()`) и
-сравнивает поля между собой (см. [Валидацию](../validation/overview)).
+В `deps` передавай поля, от которых зависит правило, а не само проверяемое поле: мост нужен ровно
+для случая «изменилось другое поле». И убедись, что правило реально читает триггер — это правило над
+несколькими полями `cross(sig, check)` области схемы, где `check` получает снимок модели и сравнивает
+поля между собой (см. [Валидацию](../validation/overview)).
 :::
 
 ## Дальше
 
 - [Вычисляемые поля](./computed) — `compute` для производных значений (а не ручной `onChange` + запись).
 - [Синхронизация полей](./sync) — `copyFrom`, `syncFields`.
-- [Валидация](../validation/overview) — `validateModel` и cross-field правила (`cross`).
+- [Валидация](../validation/overview) — правила, стратегии и правила над несколькими полями (`cross`).

@@ -12,12 +12,13 @@ sidebar_position: 6
 
 Оба слоя работают на одних и тех же сигналах модели, но управляют жизненным циклом по-разному.
 
-|                | Примитивы (`@reformer/core`) | DSL (`@reformer/core/behaviors`)           |
-| -------------- | ---------------------------- | ------------------------------------------ |
-| Возвращают     | cleanup-функцию              | ничего (авто-регистрация отписки)          |
-| Жизненный цикл | вызываешь cleanup сам        | владеет форма (`createForm({ behavior })`) |
-| Где вызывать   | императивно (`useEffect`)    | внутри `defineFormBehavior`                |
-| Аргументы      | сигналы `model.$.x`          | сигналы `model.$.x`                        |
+|                | Примитивы (`@reformer/core/model`) | DSL (`@reformer/core/behaviors`)           |
+| -------------- | ---------------------------------- | ------------------------------------------ |
+| Возвращают     | cleanup-функцию                    | ничего (авто-регистрация отписки)          |
+| Жизненный цикл | вызываешь cleanup сам              | владеет форма (`createForm({ behavior })`) |
+| Где вызывать   | императивно (`useEffect`)          | внутри `defineFormBehavior`                |
+| Аргументы      | сигналы `model.$.x`                | сигналы `model.$.x`, узлы `schema.node()`  |
+| Состав         | только операции над значениями     | значения, ноды формы, узлы схемы           |
 
 Встроенные DSL-операторы — тонкие обёртки над примитивами слоя данных. Собственные операторы пишутся
 так же и неотличимы от встроенных.
@@ -27,12 +28,12 @@ sidebar_position: 6
 Внутри `defineFormBehavior` доступны примитивы построения собственных операторов из
 `@reformer/core/behaviors`:
 
-| Функция              | Назначение                                                                      |
-| -------------------- | ------------------------------------------------------------------------------- |
-| `effect(fn)`         | реактивный эффект с авто-dispose; `fn` может вернуть свой cleanup               |
-| `defer(fn)`          | отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected» |
-| `onDispose(cleanup)` | зарегистрировать произвольную отписку в активной схеме                          |
-| `getScope<T>()`      | текущий scope `{ model, form }` (escape-hatch для кросс-операторов)             |
+| Функция              | Назначение                                                                          |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `effect(fn)`         | реактивный эффект с авто-dispose; `fn` может вернуть свой cleanup                   |
+| `defer(fn)`          | отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected»     |
+| `onDispose(cleanup)` | зарегистрировать произвольную отписку в активной схеме                              |
+| `getScope<T>()`      | текущая область `{ model, form, schema, flow }` (escape-hatch для своих операторов) |
 
 Собственный оператор строится из `effect` (реактивное чтение) и `defer` (cycle-safe запись) — ровно
 так же, как встроенный `copyFrom`:
@@ -70,15 +71,16 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 
 ## Операторы динамических массивов
 
-Массивы объектов принадлежат модели: мутации — `model.<array>.push/insertAt/removeAt/...`, реактивная
-длина в React — [`useArrayLength`](../react/hooks). Массивные операторы поведения работают поверх этих
-сигналов и реагируют на добавление/удаление строк.
+Массивы объектов принадлежат модели: мутации — `model.<array>.push/insertAt/removeAt/...` или те же
+операции ноды `form.<array>`, длина в React — [`useArrayLength`](../react/hooks). Операторы массивов
+работают поверх сигналов модели и реагируют на добавление/удаление строк.
 
 ### applyEach
 
-`applyEach(array, itemSchema)` применяет под-схему к **каждому** элементу массива, реагируя на
-add/remove: новым строкам поведение применяется, удалённым — отписывается. Под-схема получает scope
-строки — `model` (под-модель строки, `row.$.field`) и `form` (нода строки).
+`applyEach(array, itemBehavior)` применяет поведение к **каждой** строке массива, реагируя на
+add/remove: новым строкам поведение применяется, у удалённых — отписывается. Поведение строки получает
+область строки — `model` (под-модель строки, `row.$.field`), `form` (форма строки) и `schema` (узлы
+разметки строки из `item`).
 
 ```typescript
 import { defineFormBehavior, applyEach, compute } from '@reformer/core/behaviors';
@@ -98,15 +100,15 @@ const behavior = defineFormBehavior<Invoice>(({ model }) => {
 
 :::info Value-операции vs node-операции в строке
 Value-операции (`compute` / `copyFrom` / `transformValue` на `row.$.*`) работают всегда.
-Node-операции (`enableWhen` / `updateComponentProps` / `reset` через `form.*`) требуют, чтобы массив
-был **материализован** в схеме формы (узел `{ array, item }`) — иначе доступ к `form.*` строки бросит
-понятную ошибку.
+Операции над нодами (`enableWhen` / `updateComponentProps` / `reset` через `form.*`) требуют, чтобы
+массив был **нодой формы** — узел `{ model: model.$.items, item }` в схеме; иначе доступ к `form.*`
+строки бросит понятную ошибку.
 :::
 
 ### apply
 
-`apply(targets, subSchema)` применяет переиспользуемую под-схему к одному или нескольким
-полям-группам:
+`apply(targets, behavior)` применяет переиспользуемое поведение подформы к одной или нескольким
+группам модели:
 
 ```typescript
 import { defineFormBehavior, apply, copyFrom } from '@reformer/core/behaviors';
@@ -114,7 +116,7 @@ import { defineFormBehavior, apply, copyFrom } from '@reformer/core/behaviors';
 type Address = { country: string; countryCode: string };
 type ProfileForm = { registrationAddress: Address; residenceAddress: Address };
 
-// Переиспользуемая под-схема для группы-адреса
+// Переиспользуемое поведение группы-адреса
 const addressBehavior = defineFormBehavior<Address>(({ model: addr }) => {
   copyFrom(addr.$.country, addr.$.countryCode, {
     transform: (c) => (c ?? '').slice(0, 2).toUpperCase(),
@@ -169,4 +171,4 @@ const behavior = defineFormBehavior<SplitForm>(({ model }) => {
 
 - [Реакции на изменения](./watch) — `onChange`, `watchField`.
 - [Вычисляемые поля](./computed) — `compute` по массиву через `model.<array>.map`.
-- [Массивы и динамические формы](../patterns/arrays) — рендер и мутации массивов.
+- [Массивы и динамические формы](../patterns/arrays) — узел массива, рендер и мутации.

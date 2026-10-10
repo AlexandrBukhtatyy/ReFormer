@@ -11,8 +11,10 @@ import { fieldArrayDocConfig } from '@site/src/components/demo/examples/cdk-fiel
 
 Headless compound-компонент для динамических массивов из `@reformer/cdk`. Массив
 принадлежит модели (`model.<field>`), в схеме объявляется узлом
-`{ array, item }`, а `FieldArray.*` раздаёт состояние и обработчики через
-render-props — разметку и стили вы пишете сами. Для готового вида используйте
-`FieldArraySection` из [`@reformer/ui-kit`](../ui-kit/overview).
+`{ model: model.$.items, item: (row) => узел }`, а `FieldArray.*` получает ноду массива
+(`control={form.items}`, `FormArray<T>`) и раздаёт состояние и обработчики через render-props —
+разметку и стили вы пишете сами. Ключ строки (`id` в render-props) — `keyAt(index)` ноды: он
+держится за элемент и не меняется при перестановке. Для готового вида используйте
+`FieldArraySection` из [`@reformer/ui-kit`](../ui-kit/field-array).
 
 <ComponentDoc config={fieldArrayDocConfig} />

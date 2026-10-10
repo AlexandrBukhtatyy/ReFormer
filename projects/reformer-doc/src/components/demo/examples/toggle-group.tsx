@@ -33,7 +33,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Пол', options: GENDER },
       }),
       code: `{
-  value: model.$.gender,
+  model: model.$.gender,
   component: ToggleGroupOptions,
   componentProps: {
     label: 'Пол',
@@ -79,7 +79,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.interests,
+  model: model.$.interests,
   component: ToggleGroupMulti,
   componentProps: { options: GENDER, maxItems: 2 },
 }
@@ -101,7 +101,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.gender,
+  model: model.$.gender,
   component: ToggleGroupOptions,
   componentProps: { label: 'Пол', options: GENDER },
 }
@@ -142,7 +142,7 @@ control.disable(); // блокирует всю группу`,
     }),
     code: (v) =>
       `{
-  value: model.$.gender,
+  model: model.$.gender,
   component: ToggleGroupOptions,
   componentProps: {
     label: 'Пол',
@@ -151,6 +151,6 @@ control.disable(); // блокирует всю группу`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.gender, [required()]);`,
   },
 };

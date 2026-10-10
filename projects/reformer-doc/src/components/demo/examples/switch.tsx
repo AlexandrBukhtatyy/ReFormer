@@ -21,7 +21,7 @@ export const switchDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Push-уведомления' },
       }),
       code: `{
-  value: model.$.notifications,
+  model: model.$.notifications,
   component: SwitchWithLabel,
   componentProps: { label: 'Push-уведомления' },
 }`,
@@ -36,7 +36,7 @@ export const switchDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Автосохранение' },
       }),
       code: `{
-  value: model.$.autosave, // initial: true
+  model: model.$.autosave, // initial: true
   component: SwitchWithLabel,
   componentProps: { label: 'Автосохранение' },
 }`,
@@ -69,7 +69,7 @@ export const switchDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.agree,
+  model: model.$.agree,
   component: SwitchWithLabel,
   componentProps: { label: 'Согласен с условиями' },
 }
@@ -93,7 +93,7 @@ validate(model.$.agree, [required({ code: 'agree.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.notifications,
+  model: model.$.notifications,
   component: SwitchWithLabel,
   componentProps: {
     label: 'Push-уведомления',${v.required ? '\n    required: true,' : ''}

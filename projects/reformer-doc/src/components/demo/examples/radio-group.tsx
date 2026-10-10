@@ -34,7 +34,7 @@ export const radioGroupDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Тип кредита', options: LOAN },
       }),
       code: `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: RadioGroupOptions,
   componentProps: {
     label: 'Тип кредита',
@@ -86,7 +86,7 @@ export const radioGroupDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: RadioGroupOptions,
   componentProps: { label: 'Тип кредита', options: LOAN },
 }
@@ -127,7 +127,7 @@ control.disable(); // блокирует всю группу`,
     }),
     code: (v) =>
       `{
-  value: model.$.loanType,
+  model: model.$.loanType,
   component: RadioGroupOptions,
   componentProps: {
     label: 'Тип кредита',
@@ -136,6 +136,6 @@ control.disable(); // блокирует всю группу`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.loanType, [required()]);`,
   },
 };

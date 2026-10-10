@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo } from 'react';
-import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
+import { useState } from 'react';
+import {
+  createModel,
+  createFormFromModel,
+  type FormModel,
+  type FormSchemaNode,
+} from '@reformer/core';
 import { FieldArray, useFieldArray } from '@reformer/cdk/field-array';
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
@@ -15,27 +20,33 @@ const CARD: React.CSSProperties = {
   marginBottom: 10,
 };
 
-/** Поднимает M1-форму с массивом телефонов (schema-нода `{ array, item }`). */
+/**
+ * Поднимает форму с массивом телефонов: узел массива `{ model: model.$.phones, item }`, разметку
+ * строки строит `item` из под-модели строки. Массив здесь рисует сам FieldArray, поэтому
+ * `component` у узла не нужен — схема только связывает поля строки с компонентами.
+ */
 function usePhoneForm(initial: Phone[] = [{ kind: 'Мобильный', number: '' }]) {
-  return useMemo(() => {
+  const [state] = useState(() => {
     const model = createModel<{ phones: Phone[] }>({ phones: initial });
-    const phoneItem = (item: FormModel<Phone>) => ({
-      kind: {
-        value: item.$.kind,
-        component: Input,
-        componentProps: { label: 'Тип', placeholder: 'Мобильный / Рабочий' },
-      },
-      number: {
-        value: item.$.number,
-        component: InputMask,
-        componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' },
-      },
+    const phoneItem = (row: FormModel<Phone>): FormSchemaNode => ({
+      children: [
+        {
+          model: row.$.kind,
+          component: Input,
+          componentProps: { label: 'Тип', placeholder: 'Мобильный / Рабочий' },
+        },
+        {
+          model: row.$.number,
+          component: InputMask,
+          componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' },
+        },
+      ],
     });
-    const schema = { phones: { array: model.phones, item: phoneItem } } as any;
+    const schema: FormSchemaNode = { model: model.$.phones, item: phoneItem };
     const form = createFormFromModel<{ phones: Phone[] }>({ model, schema });
     return { model, form: form as any };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  return state;
 }
 
 function FieldArrayBasic() {
@@ -258,19 +269,21 @@ const { items, add, length } = useFieldArray(form.phones);
   props: [
     {
       name: 'FieldArray.Root',
-      type: 'control: ArrayNode<T>',
-      description: 'Провайдер контекста массива. Оборачивает остальные части.',
+      type: 'control: FormArray<T>',
+      description:
+        'Провайдер контекста массива (form.<массив>). Оборачивает остальные части; ref даёт FieldArrayHandle для управления снаружи.',
     },
     {
       name: 'FieldArray.List',
       type: 'children: (item) => ReactNode',
       description:
-        'Итерация по элементам (render-props: control, index, remove, moveUp/moveDown, canMoveUp/canMoveDown).',
+        'Итерация по элементам (render-props: control, index, id, remove, moveUp/moveDown, canMoveUp/canMoveDown). id — ключ строки (keyAt(index)).',
     },
     {
       name: 'FieldArray.AddButton',
       type: 'initialValue?: Partial<T>',
-      description: 'Добавляет новый элемент в конец.',
+      description:
+        'Добавляет новый элемент в конец. initialValue — запасной шаблон: основной — arrayOf(blank) в модели.',
     },
     {
       name: 'FieldArray.RemoveButton',
@@ -288,8 +301,13 @@ const { items, add, length } = useFieldArray(form.phones);
       description: 'Отображает число элементов.',
     },
     {
+      name: 'FieldArray.Error',
+      type: 'multi?, render?',
+      description: 'Замечания уровня массива (например minItems) из control.issues.',
+    },
+    {
       name: 'useFieldArray(control)',
-      type: '→ { items, add, clear, insert, move, swap, length, isEmpty }',
+      type: '→ { items, add, insert, removeAt, move, swap, clear, at, length, isEmpty, issues, valid, invalid }',
       description: 'Хук для полностью кастомной раскладки; T выводится из control.',
     },
   ],

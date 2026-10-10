@@ -22,7 +22,7 @@ export const checkboxDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Согласен с условиями обработки данных' },
       }),
       code: `{
-  value: model.$.agree,
+  model: model.$.agree,
   component: CheckboxWithLabel,
   componentProps: { label: 'Согласен с условиями обработки данных' },
 }`,
@@ -37,7 +37,7 @@ export const checkboxDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Получать уведомления' },
       }),
       code: `{
-  value: model.$.subscribe, // initial: true
+  model: model.$.subscribe, // initial: true
   component: CheckboxWithLabel,
   componentProps: { label: 'Получать уведомления' },
 }`,
@@ -58,7 +58,7 @@ export const checkboxDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.acceptTerms,
+  model: model.$.acceptTerms,
   component: CheckboxWithLabel,
   componentProps: { label: 'Принимаю оферту' },
 }
@@ -84,7 +84,7 @@ validate(model.$.acceptTerms, [required({ code: 'acceptTerms.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.agree,
+  model: model.$.agree,
   component: CheckboxWithLabel,
   componentProps: {
     label: 'Согласен с условиями',${v.required ? '\n    required: true,' : ''}
@@ -92,6 +92,6 @@ validate(model.$.acceptTerms, [required({ code: 'acceptTerms.required' })]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.agree, [required()]);`,
   },
 };

@@ -6,17 +6,17 @@ sidebar_label: 'renderer-react'
 
 # @reformer/renderer-react
 
-> Рендерер: декларативная схема + реактивная модель → React-дерево формы.
+> Рендерер: сборка `createForm` с деревом схемы → React-дерево формы.
 
-`@reformer/renderer-react` берёт декларативную render-схему (единое дерево `RenderNode`) и
-реактивную модель из `@reformer/core` и разворачивает их в React-дерево формы. Каждый лист
-привязывается к сигналу модели (`model.$.<field>`) и к своему компоненту, а состояние
-валидации автоматически маршрутизируется в UI — без ручного проброса `value`/`onChange`.
+`@reformer/renderer-react` рисует форму по её **схеме** — тому же дереву узлов, по которому
+`createForm` строит ноды. Каждый узел-поле привязан к сигналу модели (`model.$.<field>`) и к своему
+компоненту, а состояние поля (значение, замечания, доступность) доходит до компонента без ручного
+проброса `value` / `onChange`.
 
-В отличие от ручного JSX с `FormField`, где разметку и привязку каждого поля пишут руками,
-здесь форма описывается **как данные**: одно дерево узлов задаёт и layout, и конфиг полей.
-По этому же дереву `createReactForm` строит модель, форму и render-схему за один проход, а
-`FormRenderer` — рендерит полученный бандл.
+В отличие от разметки руками с `<FormField control={form.x} />`, где каждое поле пишут в JSX, здесь
+форма описывается **как данные**: одно дерево задаёт и вёрстку, и конфиг полей. Сборка общая для
+всех способов реализации — `createForm` из `@reformer/core`; рендерер получает готовый бандл и
+исполняет записанные поведением правила узлов (`hideWhen`, `onComponentEvent`, …).
 
 ## Установка
 
@@ -27,56 +27,67 @@ npm install @reformer/renderer-react @reformer/core
 ## Быстрый пример
 
 ```tsx
-import type { FormModel } from '@reformer/core';
-import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
 import { FormField, Input } from '@reformer/ui-kit';
 
 interface MyForm {
   email: string;
 }
 
-// Одно M1-дерево: листья привязаны к сигналам модели (`model.$.<field>`).
-function buildSchema(model: FormModel<MyForm>) {
-  return {
-    children: [{ value: model.$.email, component: Input, componentProps: { label: 'Email' } }],
-  };
-}
+// Дерево схемы: узлы-поля привязаны к сигналам модели (`model.$.<field>`).
+const buildSchema = (model: FormModel<MyForm>): FormSchemaNode => ({
+  children: [{ model: model.$.email, component: Input, componentProps: { label: 'Email' } }],
+});
 
 export function MyFormPage() {
-  // Модель + форма + render-схема одним вызовом. useReactForm (ленивый useState) зовёт фабрику
-  // ровно один раз — useMemo не годится: React вправе сбросить кэш и потерять введённое.
-  const myForm = useReactForm(() =>
-    createReactForm<MyForm>({ initial: { email: '' }, schema: buildSchema })
+  // Модель, форма и дерево — одной сборкой. useFormBundle зовёт фабрику ровно один раз.
+  const myForm = useFormBundle(() =>
+    createForm<MyForm>({ initial: { email: '' }, schema: buildSchema })
   );
 
   return <FormRenderer form={myForm} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-> Билдер схемы фабрика вызывает дважды: без формы — по этому дереву строятся ноды (обход не должен
-> встретить `FormGroup`), и с формой — это дерево рендерится, из него wizard-узел берёт
-> `componentProps.form`. Лист-узел резолвит state-ноду по сигналу через реестр, который заполняет
-> сборка; без неё реестр пуст — поля рендерятся как `null` с предупреждением.
+Билдер схемы `(model) => узел` сборка вызывает один раз и компилирует дерево (`bundle.render.tree`);
+ноды формы и рендерер читают одно и то же скомпилированное дерево. Форма рендереру в схеме не нужна:
+визард и другие компоненты, которым нужна сборка, берут её из контекста `FormBundleContext`, который
+ставит `FormRenderer`.
 
 ## Что внутри
 
-- **createReactForm / useReactForm** — сборка формы одним вызовом: `{ initial | model, schema,
-behavior?, validation?, renderBehavior?, seed?, setup? }` → бандл `{ model, form, render,
-validation? }`. `useReactForm` (тот же `useFormBundle` из core) держит бандл стабильным и армит
-  живую валидацию.
-- **FormRenderer** — главный React-компонент. Принимает бандл пропом `form` (или низкоуровневый
-  `render`) плюс `settings`, обходит дерево `RenderNode` и отрисовывает форму, связывая каждый лист
-  с реактивным состоянием модели.
-- **createRenderSchema / RenderSchemaFn** — `RenderSchemaFn<T>` это `() => RenderNode<T>`,
-  возвращающая корневой узел; привязка к данным идёт через сигналы модели в листьях (аргумента-пути
-  нет). `createRenderSchema(fn)` оборачивает её в `RenderSchemaProxy` для программного управления
-  узлами (`setHidden`, `patchProps`, `getRef`) и подключения декларативных behaviors.
-- **Render behaviors** — standalone-хелперы, применяемые к `RenderSchemaProxy`: `hideWhen`
-  (условное скрытие узла), `renderEffect` (реактивный сайд-эффект на рендер), `onComponentEvent`
-  (реакция на событие компонента), `onInit`, `onMount`, `onUnmount` (lifecycle-хуки узла).
-- **settings.fieldWrapper** — подключаемая обёртка вокруг каждого поля (label + control + error).
-  Задаётся глобально через `settings` и может быть перекрыта для конкретного поля через
-  `componentProps.fieldWrapper`.
+- **FormRenderer** — главный компонент. Принимает бандл `createForm` пропом `form` плюс `settings`,
+  обходит скомпилированное дерево и рисует форму, связывая каждое поле с его нодой.
+- **settings.fieldWrapper** — обёртка вокруг каждого поля (label + control + ошибка), обычно
+  `FormField` из `@reformer/ui-kit`. У JSON-варианта обёртку кладёт в бандл реестр.
+- **settings.resolveFieldAdapter** — диалект «чужого» контрола (`checked` вместо `value`, событие
+  вместо значения), на который нельзя повесить статику `reformerAdapter`.
+- **Правила узлов** — пишутся в поведении формы (`defineFormBehavior` из `@reformer/core/behaviors`)
+  над узлами своей области `schema.node(selector)`: `hideWhen` (условное скрытие), `renderEffect`
+  (реактивный эффект, пока форма отрисована), `onComponentEvent` (событие компонента узла),
+  `onInit` / `onMount` / `onUnmount` (жизненный цикл узла). Исполняет их рендерер.
+- **Управление снаружи** — `bundle.render.node(selector)`: `setHidden` / `resetHidden`,
+  `patchProps` / `resetProps`, `getRef` для узлов корневой области.
+- **RenderNodeComponent** — отрисовка отдельного узла; его получают компоненты с
+  `__selfManagedChildren` (визард, табы) вместе с узлами-детьми.
+
+```typescript
+import { defineFormBehavior, hideWhen, onComponentEvent } from '@reformer/core/behaviors';
+
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema }) => {
+  hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');
+  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => api.send(values));
+});
+```
+
+:::info Прежний путь сборки
+`createReactForm` / `useReactForm` и проп `render` с функцией-схемой (`createRenderSchema`,
+`RenderSchemaFn`) остались для форм, написанных по прежнему контракту, — `FormRenderer` принимает и
+такой бандл. Новые формы собираются `createForm` + `useFormBundle`, а правила узлов пишутся в
+`behavior` сборки вместо отдельного `renderBehavior`.
+:::
 
 ## Дальше
 

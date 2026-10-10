@@ -40,7 +40,7 @@ count.value = 5; // логирует: count = 5 double = 10
 
 - **Значения** живут в модели. `model.$.field` — сигнал значения поля (см.
   [Модель данных](./model)).
-- **Состояние ноды** (`value`, `valid`, `invalid`, `errors`, `touched`, `dirty`, `disabled`,
+- **Состояние ноды** (`value`, `valid`, `invalid`, `issues`, `touched`, `dirty`, `disabled`,
   `pending`) — тоже сигналы, вычисляемые формой поверх сигналов модели (см. [Ноды](./nodes)).
 
 ```typescript
@@ -68,7 +68,7 @@ import { useFormControl, useFormControlValue } from '@reformer/core/react';
 
 // Полное состояние поля — ре-рендер при изменении любого его сигнала
 function NameField({ control }) {
-  const { value, errors, shouldShowError } = useFormControl(control);
+  const { value, issues, shouldShowError } = useFormControl(control);
   // ...
 }
 
@@ -85,5 +85,5 @@ function Greeting({ control }) {
 ## Дальше
 
 - [Модель данных](./model) — где живут значения и как их читать/писать.
-- [Ноды и proxy](./nodes) — из чего состоит форма.
+- [Ноды формы](./nodes) — из чего состоит форма.
 - [React-хуки](../react/hooks) — `useFormControl`, `useFormControlValue`, `useArrayLength`.

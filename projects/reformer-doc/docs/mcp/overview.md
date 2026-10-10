@@ -9,9 +9,10 @@ AI-ассистентов (Claude Code, Cursor, другие MCP-клиенты)
 публичных символов и эталонными примерами форм — прямо в контексте диалога.
 
 Идея в том, что ассистенту достаточно самого сервера, чтобы собрать форму на ReFormer: не нужно
-читать исходники библиотеки. Сервер отдаёт документацию как **ресурсы**, справочные
-**инструменты** для поиска символов и валидации, и workflow-**промпты** — по одному на каждый шаг
-сборки формы (model → schema → validation → behaviors → arrays → wizard → render).
+читать исходники библиотеки. Сервер отдаёт документацию как **ресурсы**, справочные и генерирующие
+**инструменты** (подбор API, план и сборка формы, проверка кода) и workflow-**промпты** по
+единому контракту формы: модель → одна схема → одна сборка `createForm` → правила → поведение →
+визард (поток шагов) → отрисовка.
 
 ## Что такое MCP?
 
@@ -48,51 +49,53 @@ claude mcp add --transport stdio reformer -- npx @reformer/mcp
 
 ## Инструменты (tools)
 
-| Tool                   | Роль                                                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `get_symbol_docs`      | Полный JSDoc публичного символа любого `@reformer/*` (signature, params, returns, все `@example`, source).     |
-| `find_recipe`          | Найти рецепт по `topic`: имя файла `docs/llms/` → `## `-секция → имя символа (fallback в `@example`).          |
-| `list_symbols`         | API surface по kind/package, когда имя символа неизвестно.                                                     |
-| `validate_json_schema` | Проверить JSON-схему `renderer-json` перед рендерингом.                                                        |
-| `check_behaviors`      | Объявить зависимости `computeFrom`/`copyFrom` и получить обнаружение циклов.                                   |
-| `report_issue`         | Сохранить найденную проблему и её решение отдельным JSON-отчётом в `<корень проекта>/.reformer/issue_reports`. |
-| `debug`                | Только при `REFORMER_DEBUG=true` — внутренний tool для разработки самого сервера.                              |
+| Tool              | Роль                                                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_context`     | Собранный контекст для одного шага сборки формы: оператор, сигнатура, пример, правила и анти-паттерны в бюджете токенов.                |
+| `choose_api`      | Выбрать оператор под требование своими словами («поле B доступно, только когда заполнено A») — с примером и частыми путаницами.         |
+| `get_symbol_docs` | Полный JSDoc публичного символа любого `@reformer/*`: сигнатура, параметры, все `@example`, исходник.                                   |
+| `find_recipe`     | Рецепт по ключевому слову сценария (`wizard`, `form-array`, `json-schema`) или `@example` символа.                                      |
+| `search_docs`     | Полнотекстовый поиск по документации всех пакетов, когда задачу можно описать, но не назвать.                                           |
+| `list_symbols`    | Публичные символы по виду, пакету или части имени.                                                                                      |
+| `plan_form`       | Спека формы (markdown) или описание → `FormIntent`: поля, массивы, правила, поведение, раскладка.                                       |
+| `generate_form`   | `FormIntent` → набор файлов формы (`model.ts`, `form.schema.ts`, `form.validation.ts`, `form.behavior.ts`, …) с перекрёстной проверкой. |
+| `validate_form`   | Проверка до запуска: код (`kind: "code"`), JSON-схема, циклы поведения, весь набор и имена файлов модуля (`kind: "layout"`).            |
+| `report_issue`    | Сохранить найденную проблему и её решение отдельным JSON-отчётом в `<корень проекта>/.reformer/issue_reports`.                          |
+| `debug`           | Только при `REFORMER_DEBUG=true` — внутренний tool для разработки самого сервера.                                                       |
 
 ## Промпты (prompts)
 
-Промпты делятся на **assist** (создают/меняют код) и **analyze** (проверяют существующий). Каждый
-подгружает только релевантные секции документации, чтобы не тянуть её целиком.
+- `start-here` — точка входа: канонический workflow единого контракта и карта, каким промптом,
+  инструментом или ресурсом пользоваться на каждом шаге.
+- `discover-context` — определить целевой стек проекта (`core` / `renderer-react` /
+  `renderer-json`) по описанию формы и каталогу проекта.
+- `plan-form` — прочитать спеку формы (markdown) и вернуть план разработки.
+- `create-form` — создать форму по описанию (`description`, `target`).
+- `add-feature` — добавить в готовую форму одну возможность: `feature` = `validation` |
+  `behavior` | `array` | `wizard`.
+- `to-renderer` — сменить способ отрисовки: `FormRenderer` по той же TS-схеме (`renderer-react`)
+  или схема документом JSON формата 2 + реестр (`renderer-json`); модель, правила, поведение и
+  вызов `createForm` остаются.
+- `review` — кросс-пакетный чек-лист код-ревью.
+- `debug` — только при `REFORMER_DEBUG=true`.
 
-Assist:
-
-- `create-form` — спроектировать и сгенерировать форму по описанию (`description`, `target`: `core` / `renderer-react` / `renderer-json`).
-- `add-validation` — подобрать built-in / кастомные / async / cross-field валидаторы под требования.
-- `add-behavior` — встроить behavior (`computeFrom`, `enableWhen`, `watchField`, `copyFrom`, `syncFields`, `resetWhen`, `transformValue`, `revalidateWhen`).
-- `add-form-array` — превратить поле в массив через `array(...)` + `FieldArray` UI.
-- `add-wizard` — превратить single-form в multi-step `FormWizard`.
-- `to-renderer` — миграция `@reformer/core` + ручной JSX → TS RenderSchema (`renderer-react`).
-- `to-renderer-json` — миграция TS RenderSchema → JsonFormSchema + Registry.
-
-Analyze:
-
-- `review` — кросс-пакетный чек-лист код-ревью (state setup, React integration, CDK/UI-kit/renderers, ошибки).
-- `debug` — только при `REFORMER_DEBUG=true`, анализ кода формы по troubleshooting из `@reformer/core`.
-
-Стартовые промпты для ориентации: `start-here` (M1-workflow и карта сервера), `plan-form`
-(проектирование по спеке), `discover-context` (определение целевого стека).
+Промпты доходят не до каждого клиента: у некоторых агентов `prompts/list` недоступен. Поэтому то же
+содержание есть в инструментах (`get_context`, `plan_form`, `generate_form`) и в ресурсе
+`reformer://guide`.
 
 ## Ресурсы (resources)
 
-URI-шаблон: `reformer://docs[/<short-package>][/<section-slug>]` плюс `reformer://guide`.
-`<short-package>` — без префикса `@reformer/`: `core`, `cdk`, `ui-kit`, `renderer-react`,
-`renderer-json`, `mcp`. Без пакета возвращается агрегированная документация по всем.
+- `reformer://guide` — самодокументация сервера: workflow, раскладка файлов формы, какой
+  инструмент и ресурс брать на каждом шаге.
+- `reformer://catalog` — JSON-карта пакетов и их разделов (slug + заголовок) — откуда брать URI
+  разделов.
+- `reformer://docs/<pkg>` — документация одного пакета целиком, например `reformer://docs/cdk`.
+  `<pkg>` — имя без префикса `@reformer/`: `core`, `cdk`, `ui-kit`, `renderer-react`,
+  `renderer-json`, …
+- `reformer://docs/<pkg>/<section>` — отдельный раздел по slug'у (список — в `reformer://catalog`).
 
-- `reformer://guide` — полная самодокументация сервера (workflow + tools + prompts + resources; mirror `reformer://docs/mcp`).
-- `reformer://docs` — документация всех `@reformer/*` пакетов, склеенная.
-- `reformer://docs/<pkg>` — например `reformer://docs/cdk`, `reformer://docs/renderer-json`.
-- `reformer://docs/<pkg>/<section>` — отдельная H2-секция по slug'у (точные URI — через ListResources).
-
-> Списка символов и сигнатур в ресурсах нет — используй `list_symbols` / `get_symbol_docs`; для рецептов по сценарию — `find_recipe`.
+> Списка символов и сигнатур в ресурсах нет — используй `list_symbols` / `get_symbol_docs`; для
+> рецептов по сценарию — `find_recipe`, для поиска по словам — `search_docs`.
 
 ## Дальше
 

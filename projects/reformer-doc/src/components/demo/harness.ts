@@ -6,8 +6,8 @@ import type { IssueMessages } from '@reformer/core/i18n';
 
 /**
  * Конфиг одного поля для живого демо: значение, компонент, его пропсы и валидаторы.
- * Layout-нода M1 — `{ value, component, componentProps }`; правила валидации в неё
- * НЕ кладутся — из `validators` собирается отдельная validation-схема
+ * Узел поля схемы — `{ model: model.$.field, component, componentProps }`; правила валидации
+ * в него НЕ кладутся — из `validators` собирается отдельная validation-схема
  * (`@reformer/core/validation`), запускаемая раннером `validateModel`.
  */
 export interface DemoFieldConfig {
@@ -45,7 +45,7 @@ export interface DemoFieldConfig {
 }
 
 /**
- * Поднимает минимальную M1-форму c одним полем `field` и возвращает
+ * Поднимает минимальную форму c одним полем `field` и возвращает
  * `{ model, form, control, validation }`. Стабилен на весь жизненный цикл демо
  * (`useRef`), поэтому вызывать ТОЛЬКО из компонента, который живёт под
  * `<BrowserOnly>`.
@@ -70,12 +70,11 @@ export function useDemoField(config: DemoFieldConfig) {
   if (ref.current === null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const model = createModel<any>({ field: config.initial });
+    // Корень схемы — сам узел поля: ручка модели + компонент и его пропсы.
     const schema = {
-      field: {
-        value: model.$.field,
-        component: config.component,
-        componentProps: config.componentProps,
-      },
+      model: model.$.field,
+      component: config.component,
+      componentProps: config.componentProps,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

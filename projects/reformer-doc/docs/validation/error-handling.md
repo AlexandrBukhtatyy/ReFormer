@@ -4,194 +4,173 @@ sidebar_position: 6
 
 # Обработка ошибок
 
-Как устроен объект ошибки, чем `warning` отличается от `error`, как читать и фильтровать ошибки поля
-и как централизованно обрабатывать исключения валидаторов.
+Как устроено замечание валидации, чем `warning` отличается от `error`, как читать и фильтровать
+замечания поля, как показывать серверные ошибки и что делать со сбоем асинхронного правила.
 
 ## `ValidationIssue`
 
-Любая ошибка валидации — это объект `ValidationIssue`:
+Любое замечание валидации — это объект `ValidationIssue`:
 
 ```typescript
 interface ValidationIssue {
-  code: string; // машинный код: 'required', 'email', 'passwordMismatch', …
-  message: string; // текст для пользователя
-  params?: Record<string, unknown>; // данные ошибки: { minLength: 8, actualLength: 3 }
-  severity?: 'error' | 'warning'; // 'error' (по умолчанию) блокирует submit; 'warning' — нет
+  code: string; // встроенный код ('required', 'email') или свой ('password.mismatch')
+  params?: Record<string, unknown>; // значения для текста: { minLength: 8, actualLength: 3 }
+  severity?: 'error' | 'warning'; // 'error' (по умолчанию) блокирует отправку; 'warning' — нет
 }
 ```
 
-`code` — стабильный идентификатор для фильтрации и локализации; `message` — готовый текст (может быть
-пустым, тогда его резолвят из `code`); `params` — контекст для подстановки в шаблон сообщения.
+`code` — стабильный идентификатор для фильтрации и поиска текста; `params` — значения для подстановки
+в шаблон текста. Самого текста в замечании нет: его находит резолвер при показе — словарь формы
+`defineIssueMessages` → словарь локали → встроенный английский → сам `code` (см.
+[Тексты замечаний](/docs/validation/overview#тексты-замечаний)).
 
 ## `severity`: error и warning
 
-- `severity: 'error'` (значение по умолчанию) — **блокирует** submit: делает поле `invalid`, а
-  результат валидации — `valid: false`.
-- `severity: 'warning'` — показывается пользователю, но **не блокирует** submit: `valid` остаётся
-  `true`.
+- `severity: 'error'` (значение по умолчанию) — **блокирует** отправку: делает поле `invalid`, а
+  прогон — `status: 'invalid'`.
+- `severity: 'warning'` — показывается пользователю, но **не блокирует** отправку: поле остаётся
+  `valid`, прогон — `status: 'valid'`.
 
 ```typescript
+import type { Rule } from '@reformer/core/validation';
+
 // Мягкая подсказка — не мешает отправке
-const weakPassword = (value: string) =>
-  value && value.length < 12 ? { code: 'weakPassword', severity: 'warning' as const } : null;
+const weakPassword: Rule<string> = (value) =>
+  value && value.length < 12 ? { code: 'weakPassword', severity: 'warning' } : null;
 ```
 
 :::info Как считается `valid`
-И раннер `validateModel`, и статус поля выводят `valid` из наличия **блокирующих** ошибок. Ошибки с
+И статус прогона, и флаги поля выводятся из наличия **блокирующих** замечаний. Замечания с
 `severity: 'warning'` в этот расчёт не входят — поэтому поле с одними предупреждениями остаётся
-валидным (`validateModel` возвращает `true`, а предупреждение всё равно показывается пользователю).
+валидным, `bundle.submit` вызывает обработчик, а предупреждение всё равно показывается.
 :::
 
-## Чтение ошибок
+## Чтение замечаний
 
 ### В компоненте — `useFormControl`
 
-Реактивный массив `errors` (плюс флаг `shouldShowError`):
+Реактивный массив `issues` (плюс флаг `shouldShowError`); текст — через `useIssueMessage`:
 
 ```tsx
-import { useFormControl } from '@reformer/core/react';
+import { useFormControl, useIssueMessage } from '@reformer/core/react';
 
-function Field() {
-  const { errors, shouldShowError } = useFormControl(form.email);
+function EmailIssue() {
+  const { issues, shouldShowError } = useFormControl(form.email);
+  const message = useIssueMessage();
 
-  // Показывать ошибку только после взаимодействия
-  return shouldShowError && errors[0] ? (
+  // Показывать замечание только после взаимодействия
+  return shouldShowError && issues[0] ? (
     <span className="error" role="alert">
-      {errors[0].message}
+      {message(issues[0])}
     </span>
   ) : null;
 }
 ```
 
-### После прогона `validateModel`
+Внутри `ValidationMessagesProvider` (`@reformer/cdk`) текст с учётом словаря формы даёт
+`useIssueMessageResolver()` — им пользуется `FormField`.
 
-Раннер `validateModel(model, schema)` возвращает `Promise<boolean>` (нет блокирующих ошибок), а сами
-ошибки **разносит по нодам формы** — из результата их доставать не нужно, они уже лежат на полях:
+### После прогона
+
+`bundle.validate()` возвращает `ValidationResult`, а сами замечания **разносит по нодам формы** —
+они уже лежат на полях:
 
 ```typescript
-import { validateModel } from '@reformer/core/validation';
+const result = await bundle.validate(); // ValidationResult
 
-const valid = await validateModel(model, schema); // Promise<boolean>
-
-// Ошибки уже на нодах — читаем их с конкретного поля:
-form.email.getErrors(); // ValidationIssue[] этого поля
-form.email.issues.value; // тот же массив, реактивно
+result.status; // 'valid' | 'invalid' | 'error' | 'cancelled'
+result.issues.get(model.$.email); // замечания поля по его ручке
+form.email.issues.value; // те же замечания на ноде, реактивно
+form.issues.value; // замечания всей формы: свои и всех полей
 ```
 
-Если ноды формы под рукой нет, а есть только сигнал модели, ту же ноду достаёт `getNodeForSignal`:
+Если ноды под рукой нет, а есть только ручка модели, ту же ноду достаёт `getNodeForSignal`:
 
 ```typescript
 import { getNodeForSignal } from '@reformer/core';
 
-getNodeForSignal(model.$.email)?.getErrors(); // ValidationIssue[] | undefined
+getNodeForSignal(model.$.email)?.issues.value; // readonly ValidationIssue[] | undefined
 ```
 
-### Фильтрация — `getErrors(options?)`
+### Фильтрация
 
-У любой ноды (`form.<field>`, группа, массив) есть метод `getErrors` с фильтром `ErrorFilterOptions`:
+Отдельного метода-фильтра у ноды нет: `issues` — обычный массив, фильтруйте его как массив.
 
 ```typescript
-interface ErrorFilterOptions {
-  code?: string | string[]; // по коду (одному или нескольким)
-  message?: string; // частичное совпадение по тексту (регистронезависимо)
-  params?: Record<string, unknown>; // по значениям params
-  predicate?: (error: ValidationIssue) => boolean; // произвольный предикат
-}
-```
+const issues = form.password.issues.value;
 
-```typescript
-form.password.getErrors(); // все ошибки поля
-form.password.getErrors({ code: 'required' }); // только required
-form.password.getErrors({ code: ['required', 'minLength'] }); // несколько кодов
-form.password.getErrors({ params: { minLength: 8 } }); // по params
-form.password.getErrors({ predicate: (e) => e.severity === 'warning' }); // только предупреждения
+issues.filter((issue) => issue.code === 'required'); // только required
+issues.filter((issue) => ['required', 'minLength'].includes(issue.code)); // несколько кодов
+issues.filter((issue) => issue.params?.minLength === 8); // по params
+issues.filter((issue) => issue.severity === 'warning'); // только предупреждения
 ```
-
-Без аргументов `getErrors()` возвращает все ошибки — эквивалент `form.password.issues.value`.
 
 ## Серверные ошибки
 
-Бизнес-ошибки, пришедшие с сервера, кладут в поле напрямую через `setIssues` — форму при этом **не**
-сбрасывают:
+Бизнес-ошибки, пришедшие с сервера, кладут в поле напрямую через `setIssues` — форму при этом
+**не** сбрасывают. Удобнее всего — в обработчике `bundle.submit`:
 
 ```tsx
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  form.touchAll();
 
-  const valid = await validateModel(model, schema);
-  if (!valid) return;
-
-  try {
-    const res = await api.register(model.get());
-    if (res.success) {
-      model.reset();
-    } else {
+  const outcome = await bundle.submit(async (values) => {
+    const res = await api.register(values);
+    if (!res.success) {
       // Серверная ошибка — показываем в конкретном поле
       form.email.setIssues([{ code: 'emailTaken' }]);
+      form.email.markAsTouched();
     }
-  } catch (err) {
-    showToast(`Ошибка сети: ${(err as Error).message}`);
-  }
+    return res;
+  });
+
+  if (outcome.status === 'submitted' && outcome.result.success) model.reset();
+  if (outcome.status === 'failed') showToast('Ошибка сети, попробуйте ещё раз');
 };
 ```
 
-`setIssues([])` очищает ошибки поля вручную (например, при повторной отправке).
+Если обработчик бросил исключение, `submit` не пробрасывает его, а возвращает
+`{ status: 'failed', error }`. `form.email.clearIssues()` (или `setIssues([])`) очищает замечания
+поля вручную; следующий прогон правил тоже перезапишет их.
 
-## Централизованная обработка исключений
+## Сбой асинхронного правила
 
-Если валидатор (обычно асинхронный) **бросает** исключение, его можно провести через
-`FormErrorHandler.handle(error, context, strategy)` — единая точка логирования и выбора стратегии.
-Стратегии заданы enum `ErrorStrategy`:
+Если async-правило **бросает** исключение или его промис отклоняется (сеть, 500), прогон не
+считает это «замечаний нет»:
 
-| Стратегия               | Поведение                                                        |
-| ----------------------- | ---------------------------------------------------------------- |
-| `ErrorStrategy.THROW`   | залогировать и пробросить дальше (критичная ошибка)              |
-| `ErrorStrategy.LOG`     | залогировать и продолжить (некритичная)                          |
-| `ErrorStrategy.CONVERT` | залогировать и вернуть `ValidationIssue` (для async-валидаторов) |
+- статус прогона — `error`, сбой — в `result.failures` (`{ handle, error }`);
+- поле получает блокирующее замечание `ruleFailed` — у него есть текст в словаре локали;
+- `bundle.submit` обработчик не вызывает и возвращает `{ status: 'error', validation }`.
 
 ```typescript
-import { FormErrorHandler, ErrorStrategy } from '@reformer/core';
-import type { AsyncRule } from '@reformer/core/validation';
-
-// Регистрируется в схеме через validateAsync(model.$.value, [checkUnique])
-const checkUnique: AsyncRule<string> = async (value, { signal }) => {
-  try {
-    const res = await fetch(`/api/check?value=${value}`, { signal });
-    const { available } = (await res.json()) as { available: boolean };
-    return available ? null : { code: 'taken' };
-  } catch (error) {
-    // Превращаем неожиданное исключение в отображаемую ошибку валидации
-    return FormErrorHandler.handle(error, 'checkUnique', ErrorStrategy.CONVERT);
+const result = await bundle.validate();
+if (result.status === 'error') {
+  for (const { handle, error } of result.failures) {
+    console.warn(`Правило поля ${handle.__path} не отработало`, error);
   }
-};
+  showToast('Не удалось проверить форму, повторите попытку');
+}
 ```
 
-:::info Сбой async-правила не блокирует submit
-Раннер `validateModel` дожидается async-правил и **проглатывает** отклонённый промис — брошенное
-исключение или сетевой сбой не роняют форму и `validateModel` не возвращает из-за них `false`. Поэтому
-решение принимаете внутри самого правила: поймайте исключение и верните `null`, если сбой не должен
-мешать отправке, — либо `FormErrorHandler.handle(error, 'checkUnique', ErrorStrategy.CONVERT)`, если ошибку нужно
-показать пользователю как `ValidationIssue` (`code: 'validator_error'`). Отмену устаревшего прогона
-(`AbortError`) раннер делает сам через `AbortSignal` и ошибкой не считает.
+Если сбой сервиса не должен мешать отправке, поймайте ошибку внутри правила и верните `null`; если
+нужен свой текст — верните своё замечание (`{ code: 'checkUnavailable' }`). Отмену устаревшего
+прогона (`AbortError`) прогон делает сам через `AbortSignal` и сбоем не считает.
+
+:::note Прежний контракт
+Удалены: `getErrors()` / `ErrorFilterOptions` (→ фильтр массива `issues`), `FormErrorHandler` /
+`ErrorStrategy` (→ статус прогона `error`, `result.failures` и замечание `ruleFailed`), поле `message`
+в замечании (→ словарь `defineIssueMessages`), `errors` / `setErrors` / `clearErrors` ноды
+(→ `issues` / `setIssues` / `clearIssues`).
 :::
-
-Вспомогательные методы `FormErrorHandler`:
-
-```typescript
-FormErrorHandler.createValidationError('required', 'Обязательное поле', 'email');
-// { code: 'required', params: { field: 'email' } }
-
-FormErrorHandler.isValidationError(value); // type guard: value is ValidationIssue
-```
 
 ## Доступность
 
-Связывайте сообщение с полем через ARIA — так ошибку озвучат скринридеры:
+Связывайте текст замечания с полем через ARIA — так его озвучат скринридеры:
 
 ```tsx
-function Field() {
-  const { value, errors, shouldShowError } = useFormControl(form.email);
+function EmailField() {
+  const { value, issues, shouldShowError } = useFormControl(form.email);
+  const message = useIssueMessage();
   const errorId = 'email-error';
 
   return (
@@ -204,9 +183,9 @@ function Field() {
         aria-invalid={shouldShowError}
         aria-describedby={shouldShowError ? errorId : undefined}
       />
-      {shouldShowError && errors[0] && (
+      {shouldShowError && issues[0] && (
         <span id={errorId} role="alert" className="error">
-          {errors[0].message}
+          {message(issues[0])}
         </span>
       )}
     </div>
@@ -217,5 +196,5 @@ function Field() {
 ## Дальше
 
 - [Стратегии валидации](/docs/validation/validation-strategies) — когда и как запускать проверки.
-- [Кастомные валидаторы](/docs/validation/custom) — коды ошибок, `params`, `severity`.
+- [Кастомные валидаторы](/docs/validation/custom) — коды замечаний, `params`, `severity`.
 - [Асинхронная валидация](/docs/validation/async) — серверные проверки и отмена запросов.

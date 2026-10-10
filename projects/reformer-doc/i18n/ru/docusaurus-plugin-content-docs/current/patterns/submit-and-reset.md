@@ -4,60 +4,58 @@ sidebar_position: 3
 
 # Отправка и сброс
 
-Канонический жизненный цикл отправки под M1: **пометить поля тронутыми → прогнать схему валидации →
-взять снимок модели → отправить → сбросить**. Валидация — **отдельный слой**
-(`@reformer/core/validation`): схема описывается функцией `defineValidation`, не входит в layout
-формы и прогоняется по требованию раннером `validateModel(model, schema)`. Раннер сам роутит ошибки в
-ноды формы, поэтому UI подсветит проблемные поля.
+Отправка — часть **уровня формы** сборки `createForm`: `bundle.submit(handler)` один раз прогоняет
+все правила формы и зовёт обработчик со значениями модели, только если блокирующих замечаний нет.
+Правила живут отдельно от разметки — в `validation` и в шагах `flow` сборки; при замечаниях
+`submit` сам помечает поля тронутыми, и UI подсвечивает ошибки. Сброс — `form.reset()` либо
+`model.reset()`, в зависимости от того, к чему нужно вернуться.
 
 ## Жизненный цикл submit
 
-Три обязательных шага:
+`bundle.submit(handler)`:
 
-1. `form.touchAll()` — пометить все поля тронутыми, чтобы ошибки стали видимыми.
-2. `const ok = await validateModel(model, schema)` — прогнать схему валидации (включая async-правила);
-   ошибки автоматически проставятся в ноды. Схема — отдельный слой, не layout формы.
-3. При `ok` — взять снимок `model.get()` и отправить.
+1. прогоняет полный набор правил — `validation` сборки плюс правила шагов `flow` (включая
+   async-правила);
+2. при замечаниях помечает поля тронутыми и возвращает результат проверки — `handler` не
+   вызывается;
+3. при успехе зовёт `handler(model.get())` и возвращает его результат.
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidation, validate, validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
 type SignupForm = { name: string; email: string };
 
-// Валидация — отдельная схема над моделью, вне layout-дерева формы. Стабильная module-level
-// ссылка: она нужна раннеру, чтобы отменять устаревшие прогоны той же (model, schema).
-const signupValidation = defineValidation<SignupForm>(({ model }) => {
+// Правила — отдельная схема над моделью. Стабильная ссылка уровня модуля: по ней сборка
+// отменяет устаревшие прогоны.
+const signupRules = defineValidation<SignupForm>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
 
 export function SignupForm() {
-  const { form, model } = useMemo(() => {
-    const model = createModel<SignupForm>({ name: '', email: '' });
-    // schema здесь — только layout: привязка сигналов к компонентам, без валидаторов.
-    const schema = {
-      name: { value: model.$.name, component: Input, componentProps: { label: 'Имя' } },
-      email: { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
-    };
-    const form = createFormFromModel<SignupForm>({ model, schema });
-    return { form, model };
-  }, []);
+  // useFormBundle зовёт фабрику ровно один раз и держит сборку стабильной между рендерами.
+  const bundle = useFormBundle(() =>
+    createForm<SignupForm>({
+      initial: { name: '', email: '' },
+      schema: (model) => ({
+        children: [
+          { model: model.$.name, component: Input, componentProps: { label: 'Имя' } },
+          { model: model.$.email, component: Input, componentProps: { label: 'Email' } },
+        ],
+      }),
+      validation: signupRules,
+    })
+  );
+  const { form } = bundle;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    form.touchAll();
-    const ok = await validateModel(model, signupValidation);
-    if (!ok) return;
-
-    // ok — берём чистый снимок и отправляем
-    const payload = model.get();
-    await api.signup(payload);
-    model.reset(); // чистый старт после успеха
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const outcome = await bundle.submit((values) => api.signup(values));
+    if (outcome.status === 'submitted') form.reset(); // чистый старт после успеха
   };
 
   return (
@@ -71,185 +69,148 @@ export function SignupForm() {
 ```
 
 :::warning Всегда `await` перед проверкой результата
-`validateModel` асинхронна — она дожидается async-правил. Если прочитать результат без `await`,
-submit уйдёт с невалидными данными. Дождитесь `Promise<boolean>` и проверьте его: `if (!ok) return;`.
-Результат — сам `boolean`, а не объект `{ valid }`.
+`submit` асинхронен — он дожидается async-правил и самого обработчика. Читайте результат только
+после `await`.
 :::
 
-:::info Схема валидации ≠ layout
-`schema`, который получает `createForm`, — это **layout-дерево** (привязка сигналов к компонентам),
-и валидаторов оно не несёт. Правила живут в отдельной `defineValidation` и запускаются только
-через `validateModel`. Подробнее — [Обзор валидации](../validation/overview).
+:::info Правила ≠ разметка
+`schema` сборки — дерево разметки: привязка полей к компонентам, без валидаторов. Правила —
+`defineValidation` в поле `validation` (или в шагах `flow`). Подробнее —
+[Обзор валидации](../validation/overview).
 :::
+
+## SubmitResult
+
+`submit` не бросает: и замечания, и исключение обработчика приходят вариантом результата.
+
+```typescript
+type SubmitResult<R> =
+  | { status: 'submitted'; result: R } // обработчик отработал
+  | { status: 'invalid' | 'error' | 'cancelled'; validation: ValidationResult } // обработчик не вызывался
+  | { status: 'failed'; error: unknown }; // обработчик бросил исключение
+```
+
+| `status`    | Что произошло                                                            |
+| ----------- | ------------------------------------------------------------------------ |
+| `submitted` | правила прошли, обработчик вернул `result`                               |
+| `invalid`   | есть блокирующие замечания (`severity: 'warning'` отправку не блокирует) |
+| `error`     | правило не вернуло результат (например, упал async-запрос проверки)      |
+| `cancelled` | прогон отменён более новым                                               |
+| `failed`    | правила прошли, но обработчик бросил исключение — оно в `error`          |
+
+`validation` — полный `ValidationResult` прогона: по нему можно, например, перевести визард на шаг
+с первой ошибкой.
 
 ## Серверные ошибки и сбои
 
-`model.reset()` вызывайте **только после успеха**. При бизнес-ошибке сервера — кладите её в поле
-через `form.<field>.setIssues([...])` и не сбрасывайте значения; при сетевой ошибке — тоже
-оставляйте данные.
+Обработчик `submit` — обычная async-функция: в нём удобно разобрать ответ сервера. Бизнес-ошибку
+кладите в поле через `setIssues` — код замечания получает текст из словаря формы
+(`defineIssueMessages` + `ValidationMessagesProvider messages`). Значения при ошибке не
+сбрасывайте.
 
 ```tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+import { defineIssueMessages } from '@reformer/core/i18n';
 
-  form.touchAll();
-  const ok = await validateModel(model, signupValidation);
-  if (!ok) return;
+export const signupMessages = defineIssueMessages({
+  'email.taken': 'Этот email уже зарегистрирован',
+});
 
-  try {
-    const res = await api.signup(model.get());
-    if (res.success) {
-      model.reset();
-    } else {
-      // бизнес-ошибка сервера — НЕ сбрасываем, показываем на поле
-      form.email.setIssues([{ code: 'taken' }]);
-    }
-  } catch (err) {
-    // сеть/неожиданная ошибка — оставляем значения
-    showToast(`Ошибка сети: ${(err as Error).message}`);
-  }
+const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
+  const outcome = await bundle.submit(async (values) => {
+    const response = await api.signup(values);
+    // бизнес-ошибка сервера — показываем на поле, значения не трогаем
+    if (response.code === 'EMAIL_TAKEN') form.email.setIssues([{ code: 'email.taken' }]);
+    return response;
+  });
+
+  if (outcome.status === 'submitted' && outcome.result.success) form.reset();
+  if (outcome.status === 'failed') showToast('Сервер недоступен — попробуйте ещё раз');
 };
 ```
 
-## FormSubmitter — управление отправкой
+## Индикация отправки
 
-`FormSubmitter<T>` инкапсулирует шаги `touchAll → onSubmit` и добавляет реактивное состояние
-отправки. Он уже **встроен в форму**: `createForm` отдаёт `form.submit`, `form.submitWithResult` и
-сигнал `form.submitting` из коробки — отдельно инстанцировать класс не нужно.
-
-:::warning `submit()` больше не прогоняет схему валидации
-Встроенный шаг валидации внутри `submit()` — это `form.validate()`, а он под M1 отражает лишь
-состояние нод, но **не запускает схему** (правила вынесены из формы). Поэтому схему прогоняйте сами
-через `validateModel` **до** `submit`, а сам `submit` вызывайте с `skipValidation: true` — иначе
-встроенный `form.validate()` сначала очистит ошибки, разнесённые `validateModel`, и подтвердит submit
-по пустому состоянию.
-:::
+Сборка держит сигналы `bundle.submitting` (идёт ли обработчик) и `bundle.validating` (идёт ли
+проверка). В React их читают через `useSyncExternalStore`:
 
 ```tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+import { useSyncExternalStore } from 'react';
+import type { FormBundle } from '@reformer/core';
+import type { ReadonlySignal } from '@reformer/core/signals';
 
-  // Схему прогоняем сами — form.validate()/submit() её не знают.
-  const ok = await validateModel(model, signupValidation);
-  if (!ok) return;
-
-  // submitWithResult даёт submitting-состояние и SubmitResult; skipValidation — чтобы встроенный
-  // form.validate() не затирал уже разнесённые ошибки и не подменял вердикт схемы.
-  const result = await form.submitWithResult(
-    async (values) => api.signup(values), // values — form.getValue(); без отключённых полей
-    { skipValidation: true }
+function useSignalValue<T>(source: ReadonlySignal<T>): T {
+  return useSyncExternalStore(
+    (onChange) => source.subscribe(() => onChange()),
+    () => source.peek()
   );
-
-  if (result.success) {
-    model.reset();
-  } else if (result.error) {
-    showToast(`Ошибка: ${result.error.message}`);
-  }
-  // result.success === false без error → onSubmit вернул неуспех / был прерван
-};
-```
-
-### API
-
-| Член                                | Назначение                                                                                                                                        |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `submit(onSubmit, opts?)`           | `touchAll` + `form.validate()` (состояние нод, **не** схема); вызывает `onSubmit(values)`. Возвращает результат `onSubmit` или `null` при провале |
-| `submitWithResult(onSubmit, opts?)` | то же, но возвращает `SubmitResult` с явным флагом `success`                                                                                      |
-| `isSubmitting()`                    | нереактивный снимок — метод самого `FormSubmitter`; на форме используйте `form.submitting.value`                                                  |
-| `submitting`                        | `ReadonlySignal<boolean>` — реактивное состояние отправки                                                                                         |
-
-`SubmitResult<R>` и `SubmitOptions`:
-
-```typescript
-interface SubmitResult<R> {
-  success: boolean; // прошла ли отправка целиком
-  data: R | null; // результат onSubmit (null при неуспехе)
-  error?: Error; // ошибка, если onSubmit бросил
 }
 
-interface SubmitOptions {
-  skipValidation?: boolean; // пропустить встроенный form.validate() (схему всё равно гоняете сами)
-  skipTouch?: boolean; // пропустить пометку полей тронутыми
-}
-```
-
-:::info `submit` vs `submitWithResult`
-`submit` возвращает `null` и при провале встроенного `form.validate()`, и когда `onSubmit` легитимно
-вернул `null` — эти случаи не различить. Когда нужен явный статус — берите `submitWithResult` с полем
-`success`.
-:::
-
-### Индикация отправки
-
-Пока идёт запрос, блокируйте кнопку. Простейший способ в React — локальный флаг вокруг
-async-обработчика; вне React — сигнал `form.submitting`.
-
-```tsx
-import { useState } from 'react';
-
-function SubmitButton({ onSubmit }: { onSubmit: () => Promise<void> }) {
-  const [busy, setBusy] = useState(false);
-
-  const handleClick = async () => {
-    setBusy(true);
-    try {
-      await onSubmit();
-    } finally {
-      setBusy(false);
-    }
-  };
-
+function SubmitButton({ bundle }: { bundle: FormBundle<SignupForm> }) {
+  const submitting = useSignalValue(bundle.submitting);
+  const validating = useSignalValue(bundle.validating);
+  const busy = submitting || validating;
   return (
-    <Button type="button" onClick={handleClick} disabled={busy}>
+    <Button type="submit" disabled={busy}>
       {busy ? 'Отправка…' : 'Отправить'}
     </Button>
   );
 }
 ```
 
+Визард (`FormWizard`) делает это сам: кнопки блокируются на время проверки и отправки.
+
 ## Сброс формы
 
-| Метод модели             | Назначение                                       |
-| ------------------------ | ------------------------------------------------ |
-| `model.reset()`          | вернуть значения к initial-снимку                |
-| `model.captureInitial()` | зафиксировать текущие значения как новый initial |
-| `model.isDirty()`        | отличаются ли значения от initial-снимка         |
+Значениями владеет модель, состоянием полей (замечания, `touched`, `dirty`) — ноды формы. Поэтому
+сброса два:
 
-`model.reset()` возвращает к снимку, зафиксированному при `createModel`. Если данные пришли с
-сервера (через `model.patch(...)`) и должны стать новой «точкой отсчёта» — вызовите
-`model.captureInitial()` после загрузки; тогда `reset()` вернёт именно к ним.
+| Вызов                    | Что делает                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `form.reset()`           | значения — к тем, с которыми форма создана; замечания, `touched` и `dirty` сброшены                   |
+| `form.reset(values)`     | то же, но к переданным значениям                                                                      |
+| `model.reset()`          | значения — к снимку модели (`createModel` или последний `captureInitial()`); состояние нод не трогает |
+| `model.captureInitial()` | зафиксировать текущие значения как новый снимок модели                                                |
+| `model.isDirty()`        | отличаются ли значения от снимка модели                                                               |
+
+Чистый старт после успешной отправки — `form.reset()`. Если данные пришли с сервера
+(`model.patch(...)` + `model.captureInitial()`), «вернуть как было загружено» — это `model.reset()`
+плюс очистка состояния полей:
 
 ```tsx
-function ActionButtons({ model }: { model: FormModel<SignupForm> }) {
+import type { FormBundle } from '@reformer/core';
+
+function ResetButton({ bundle }: { bundle: FormBundle<SignupForm> }) {
   const handleReset = () => {
-    if (!model.isDirty()) return; // нечего сбрасывать
-    if (confirm('Очистить форму? Несохранённые изменения будут потеряны.')) {
-      model.reset();
-    }
+    if (!bundle.model.isDirty()) return; // нечего сбрасывать
+    if (!confirm('Отменить изменения?')) return;
+    bundle.model.reset(); // значения — к загруженному снимку
+    bundle.form.clearIssues(); // замечания — прочь
+    bundle.form.markAsUntouched(); // ошибки не показываются, пока поле снова не тронут
   };
 
   return (
     <Button type="button" onClick={handleReset}>
-      Очистить
+      Отменить изменения
     </Button>
   );
 }
 ```
 
-:::tip После `reset()` в UI остались старые ошибки
-`model.reset()` меняет только значения; ошибки живут в нодах и чистятся валидацией. Перезапустите
-`validateModel(model, schema)` после reset (валидные поля погаснут сами) либо очистите точечно
-`form.field.clearIssues()`.
+:::warning `form.reset()` после загрузки данных
+`form.reset()` возвращает ноды к значениям, с которыми форма **создана**, — загруженные позже данные
+он затрёт. Чтобы вернуть загруженное, зовите `model.reset()` (после `captureInitial()`) и чистите
+состояние полей, как выше.
 :::
 
-:::warning `reset` после успешной загрузки данных
-`reset()` возвращает к значениям на момент `createModel`, а не к последнему `patch`. Чтобы
-загруженные с сервера данные стали новым initial — вызовите `model.captureInitial()` после
-`model.patch(...)`.
+:::info Прежний контракт
+`form.submit()`, `form.submitWithResult()`, сигнал `form.submitting`, `form.touchAll()`, `form.validate()`
+и `SubmitOptions` (`skipValidation`, `skipTouch`) удалены. Отправка — `bundle.submit(handler)` с
+`SubmitResult`, отметка полей — `form.markAsTouched()`, проверка без отправки — `bundle.validate()`.
 :::
 
 ## Дальше
 
 - [Модель данных](../core-concepts/model) — `get` / `patch` / `reset` / `captureInitial`.
-- [Валидация](../validation/overview) — `validateModel` и встроенные валидаторы.
-- [Асинхронная предзагрузка](./async-preload) — загрузка initial-значений с сервера.
+- [Валидация](../validation/overview) — правила, коды замечаний и тексты.
+- [Асинхронная предзагрузка](./async-preload) — загрузка значений с сервера.

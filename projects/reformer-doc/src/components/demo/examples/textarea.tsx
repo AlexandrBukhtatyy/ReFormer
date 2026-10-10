@@ -9,7 +9,7 @@ export const textareaDocConfig: ComponentDocConfig = {
   name: 'Textarea',
   importFrom: '@reformer/ui-kit',
   description:
-    'Многострочное текстовое поле на pure shadcn Textarea. Значение — string | null (пустой ввод → null). Textarea биндится к M1-полю через nativeInputAdapter.',
+    'Многострочное текстовое поле на pure shadcn Textarea. Значение — string | null (пустой ввод → null). Textarea привязывается к полю формы через nativeInputAdapter.',
   variants: [
     {
       id: 'base',
@@ -21,7 +21,7 @@ export const textareaDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Комментарий', placeholder: 'Введите комментарий', rows: 4 },
       }),
       code: `{
-  value: model.$.comment,
+  model: model.$.comment,
   component: Textarea,
   componentProps: { label: 'Комментарий', placeholder: 'Введите комментарий', rows: 4 },
 }`,
@@ -42,7 +42,7 @@ export const textareaDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.comment,
+  model: model.$.comment,
   component: Textarea,
   componentProps: { label: 'Комментарий', rows: 4 },
 }
@@ -66,7 +66,7 @@ validate(model.$.comment, [required()]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.value,
+  model: model.$.comment,
   component: Textarea,
   componentProps: {
     label: 'Комментарий',
@@ -75,6 +75,6 @@ validate(model.$.comment, [required()]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.comment, [required()]);`,
   },
 };

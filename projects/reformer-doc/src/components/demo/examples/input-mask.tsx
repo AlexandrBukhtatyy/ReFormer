@@ -22,7 +22,7 @@ export const inputMaskDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
       }),
       code: `{
-  value: model.$.phone,
+  model: model.$.phone,
   component: InputMask,
   componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
 }`,
@@ -37,7 +37,7 @@ export const inputMaskDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Дата рождения', mask: '99.99.9999', placeholder: 'ДД.ММ.ГГГГ' },
       }),
       code: `{
-  value: model.$.birthDate,
+  model: model.$.birthDate,
   component: InputMask,
   componentProps: { label: 'Дата рождения', mask: '99.99.9999', placeholder: 'ДД.ММ.ГГГГ' },
 }`,
@@ -58,7 +58,7 @@ export const inputMaskDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.phone,
+  model: model.$.phone,
   component: InputMask,
   componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
 }
@@ -82,7 +82,7 @@ validate(model.$.phone, [required()]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.value,
+  model: model.$.phone,
   component: InputMask,
   componentProps: {
     label: 'Телефон',
@@ -91,6 +91,6 @@ validate(model.$.phone, [required()]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.phone, [required()]);`,
   },
 };

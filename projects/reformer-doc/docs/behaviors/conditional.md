@@ -4,23 +4,32 @@ sidebar_position: 3
 
 # Условная логика
 
-Условная **доступность** и **сброс** полей в зависимости от других полей. Три оператора:
-`enableWhen`, `disableWhen`, `resetWhen`.
+Условная **доступность** и **сброс** полей в зависимости от других полей — операторы `enableWhen`,
+`disableWhen`, `resetWhen` — и условное **скрытие** узлов схемы — `hideWhen`.
 
 :::info Доступность ≠ валидация ≠ скрытие
 Здесь речь о доступности и значениях. Смежные механизмы:
 
-- **условная валидация** — нативный branch-узел схемы `{ when, children }`, исполняется
-  `validateFormModel` (см. [Валидацию](../validation/overview));
-- **скрытие из разметки** — условный рендер в JSX через `useFormControlValue` (см.
-  [React-хуки](../react/hooks)).
+- **условная валидация** — оператор `validateWhen(cond, () => …)` в схеме валидации (см.
+  [Валидацию](../validation/overview));
+- **скрытие из разметки** — `hideWhen` над узлом схемы, если форму рисует рендерер (см.
+  [ниже](#скрытие-узлов-схемы)); в разметке руками — условный рендер через `useFormControlValue`
+  (см. [React-хуки](../react/hooks)).
   :::
 
 ## enableWhen
 
 `enableWhen(target, condition, { resetOnDisable? })` включает/выключает поле реактивно. Пока условие
-ложно, поле **disabled** и не участвует в валидации. С `resetOnDisable: true` значение поля
-сбрасывается при выключении; по умолчанию `false` — значение сохраняется.
+ложно, поле **disabled**: его замечания сняты, а `valid` / `invalid` формы его не учитывают. С
+`resetOnDisable: true` значение поля сбрасывается при выключении; по умолчанию `false` — значение
+сохраняется.
+
+:::warning Правила доступность не читают
+Схема валидации проверяет модель и о доступности нод не знает: правило выключенного поля
+по-прежнему участвует в прогоне `bundle.submit` / `bundle.validate`. Условие для правила задаётся
+в самой схеме валидации — `validateWhen(() => model.loanType === 'mortgage', () => …)`. Удобно
+держать условие одной функцией-предикатом и звать её и в `enableWhen`, и в `validateWhen`.
+:::
 
 ```typescript
 import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
@@ -57,9 +66,10 @@ const behavior = defineFormBehavior<CreditForm>(({ model }) => {
 });
 ```
 
-:::warning Групповой таргет — только DSL
-Групповую цель поддерживает `enableWhen` из `@reformer/core/behaviors`. Одноимённый примитив из
-`@reformer/core` резолвит только leaf-сигналы — на сигнале группы это тихий no-op.
+:::warning Только DSL
+`enableWhen` / `disableWhen` меняют состояние нод формы, поэтому живут только в DSL
+`@reformer/core/behaviors` — императивного примитива у них нет. Поле-цель должно быть в форме: у
+строк массива подключайте поведение через `applyEach`.
 :::
 
 ## disableWhen
@@ -98,7 +108,8 @@ const behavior = defineFormBehavior<CheckoutForm>(({ model }) => {
 
 :::tip enableWhen vs resetWhen
 
-- Поле должно **исчезнуть** из валидации/состояния → `enableWhen(..., { resetOnDisable: true })`.
+- Поле должно стать **недоступным** (и не показывать замечаний) → `enableWhen(..., { resetOnDisable: true })`;
+  правило поля при этом оборачивается в `validateWhen` с тем же условием.
 - Поле остаётся доступным, нужно лишь **очистить значение** → `resetWhen(..., { resetValue })`.
   :::
 
@@ -114,6 +125,29 @@ resetWhen(model.$.cardNumber, () => model.cardNumber !== '');
 // ✅ условие зависит только от независимого поля
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
+
+## Скрытие узлов схемы
+
+`hideWhen(node, condition)` скрывает узел схемы, пока условие истинно: секцию, шаг, отдельное поле.
+Узел берётся из схемы области поведения по `selector` — `schema.node('mortgage')`. Оператор
+записывает правило, а исполняет его рендерер (`FormRenderer`); в разметке руками правило не
+действует — там скрывают условным рендером.
+
+```typescript
+import { defineFormBehavior, enableWhen, hideWhen } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<CreditForm>(({ model, schema }) => {
+  // узел схемы: { selector: 'mortgage', component: Section, children: [...] }
+  hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');
+  // скрытое поле не должно уходить в проверку — выключаем его тем же условием
+  enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', { resetOnDisable: true });
+});
+```
+
+Скрытие не меняет ни значение, ни доступность поля: правила проверяют и скрытые поля. Если поле
+не должно проверяться, выключайте его `enableWhen` с тем же условием, а правило оборачивайте в
+`validateWhen`. Принудительное `schema.node(selector).setHidden(...)` (например, из
+`bundle.render.node(selector)` снаружи формы) главнее условия.
 
 ## Дальше
 

@@ -12,7 +12,12 @@ import { uiKitFieldArrayDocConfig } from '@site/src/components/demo/examples/fie
 Готовая секция динамического массива форм поверх headless `@reformer/cdk/field-array`:
 заголовок, кнопка «Добавить», карточка с меткой на каждый элемент, удаление, перестановка ↑/↓
 и пустое состояние — из коробки. Элемент рендерит `itemComponent` с контрактом
-`ComponentType<{ control: FormGroup<T> }>` (тот же, что у шага FormWizard). Для полностью
-кастомной разметки используйте headless [FieldArray](/docs/cdk/field-array) напрямую.
+`ComponentType<{ control: FormGroup<T> }>` (тот же, что у шага FormWizard) и получает форму строки
+`FormGroup<T>`; ключи строк секция берёт из `keyAt(index)` ноды массива.
+
+`FieldArraySection` — для разметки руками (`control={form.items}`). В схеме формы тот же вид даёт
+`FieldArray` кита: узел `{ model: model.$.items, component: FieldArray, item: (row) => узел }`,
+строки по схеме `item` ему отдаёт рендерер. Для полностью кастомной разметки используйте headless
+[FieldArray](/docs/cdk/field-array) из `@reformer/cdk` напрямую.
 
 <ComponentDoc config={uiKitFieldArrayDocConfig} />

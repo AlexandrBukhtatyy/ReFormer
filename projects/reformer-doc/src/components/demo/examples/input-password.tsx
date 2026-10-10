@@ -26,7 +26,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Пароль', placeholder: 'Введите пароль' },
       }),
       code: `{
-  value: model.$.password,
+  model: model.$.password,
   component: InputPassword,
   componentProps: { label: 'Пароль', placeholder: 'Введите пароль' },
 }`,
@@ -45,7 +45,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
         },
       }),
       code: `{
-  value: model.$.confirmPassword,
+  model: model.$.confirmPassword,
   component: InputPassword,
   componentProps: { label: 'Повторите пароль', showToggle: false },
 }`,
@@ -69,7 +69,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
         touched: true,
       }),
       code: `{
-  value: model.$.password,
+  model: model.$.password,
   component: InputPassword,
   componentProps: { label: 'Пароль' },
 }
@@ -93,7 +93,7 @@ validate(model.$.password, [required(), minLength(8)]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.password,
+  model: model.$.password,
   component: InputPassword,
   componentProps: {
     label: 'Пароль',
@@ -103,6 +103,6 @@ validate(model.$.password, [required(), minLength(8)]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.password, [required()]);`,
   },
 };

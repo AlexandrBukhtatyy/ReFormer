@@ -69,13 +69,13 @@ export const boxDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'render-schema',
-      title: 'Группировка полей в RenderSchema (M1: лист = value + component)',
+      title: 'Группировка полей в схеме (поле = model + component)',
       description:
         'В схеме рендера Box — контейнерная нода: componentProps.className задаёт layout, а поля перечисляются в children[].',
       render: () => (
         <Box className="flex flex-col gap-4">
-          <Slot>value: model.$.email → Input</Slot>
-          <Slot>value: model.$.password → InputPassword</Slot>
+          <Slot>model: model.$.email → Input</Slot>
+          <Slot>model: model.$.password → InputPassword</Slot>
         </Box>
       ),
       code: `import { Box, Input, InputPassword } from '@reformer/ui-kit';
@@ -84,8 +84,8 @@ export const boxDocConfig: ComponentDocConfig = {
   component: Box,
   componentProps: { className: 'flex flex-col gap-4' },
   children: [
-    { value: model.$.email, component: Input },
-    { value: model.$.password, component: InputPassword },
+    { model: model.$.email, component: Input },
+    { model: model.$.password, component: InputPassword },
   ],
 }`,
     },
@@ -113,16 +113,16 @@ export const boxDocConfig: ComponentDocConfig = {
       component: Box,
       componentProps: { className: 'flex flex-col gap-2' },
       children: [
-        { value: model.$.firstName, component: Input },
-        { value: model.$.lastName, component: Input },
+        { model: model.$.firstName, component: Input },
+        { model: model.$.lastName, component: Input },
       ],
     },
     {
       component: Box,
       componentProps: { className: 'flex flex-col gap-2' },
       children: [
-        { value: model.$.city, component: Input },
-        { value: model.$.zip, component: Input },
+        { model: model.$.city, component: Input },
+        { model: model.$.zip, component: Input },
       ],
     },
   ],

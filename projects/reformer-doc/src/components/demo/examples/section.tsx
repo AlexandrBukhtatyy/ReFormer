@@ -85,8 +85,8 @@ export const sectionDocConfig: ComponentDocConfig = {
     className: 'grid grid-cols-2 gap-4',
   },
   children: [
-    { value: model.$.phone, component: Input },
-    { value: model.$.email, component: Input },
+    { model: model.$.phone, component: Input },
+    { model: model.$.email, component: Input },
   ],
 }`,
     },

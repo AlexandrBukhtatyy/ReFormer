@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo } from 'react';
-import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
+import { useState } from 'react';
+import {
+  createModel,
+  createFormFromModel,
+  type FormModel,
+  type FormSchemaNode,
+} from '@reformer/core';
 import { useFormControlValue } from '@reformer/core/react';
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
 import { FormField, Input, InputMask, CheckboxWithLabel } from '@reformer/ui-kit';
@@ -8,37 +13,45 @@ import type { ComponentDocConfig } from '../types';
 
 type Phone = { kind: string; number: string };
 
-/** M1-форма с массивом телефонов + флаг «есть телефоны» (schema-нода `{ array, item }`). */
+/**
+ * Форма с массивом телефонов + флаг «есть телефоны». Узел массива — `{ model: model.$.phones,
+ * item }`: разметку строки строит `item` из под-модели строки. Массив здесь рисует сам
+ * FieldArraySection, поэтому `component` у узла не нужен.
+ */
 function usePhonesForm(initial: Phone[] = [{ kind: 'Мобильный', number: '' }]) {
-  return useMemo(() => {
+  const [state] = useState(() => {
     const model = createModel<{ hasPhones: boolean; phones: Phone[] }>({
       hasPhones: true,
       phones: initial,
     });
-    const phoneItem = (item: FormModel<Phone>) => ({
-      kind: {
-        value: item.$.kind,
-        component: Input,
-        componentProps: { label: 'Тип', placeholder: 'Мобильный / Рабочий' },
-      },
-      number: {
-        value: item.$.number,
-        component: InputMask,
-        componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' },
-      },
+    const phoneItem = (row: FormModel<Phone>): FormSchemaNode => ({
+      children: [
+        {
+          model: row.$.kind,
+          component: Input,
+          componentProps: { label: 'Тип', placeholder: 'Мобильный / Рабочий' },
+        },
+        {
+          model: row.$.number,
+          component: InputMask,
+          componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' },
+        },
+      ],
     });
-    const schema = {
-      hasPhones: {
-        value: model.$.hasPhones,
-        component: CheckboxWithLabel,
-        componentProps: { label: 'У меня есть телефоны' },
-      },
-      phones: { array: model.phones, item: phoneItem },
-    } as any;
+    const schema: FormSchemaNode = {
+      children: [
+        {
+          model: model.$.hasPhones,
+          component: CheckboxWithLabel,
+          componentProps: { label: 'У меня есть телефоны' },
+        },
+        { model: model.$.phones, item: phoneItem },
+      ],
+    };
     const form = createFormFromModel<{ hasPhones: boolean; phones: Phone[] }>({ model, schema });
     return { model, form: form as any };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  return state;
 }
 
 const PhoneItem = ({ control }: { control: any }) => (
@@ -237,7 +250,8 @@ const PhoneItem: FC<{ control: FormGroup<Phone> }> = ({ control }) => (
     {
       name: 'initialValue',
       type: 'Partial<T>',
-      description: 'Plain-значения нового элемента (НЕ FieldConfig).',
+      description:
+        'Запасной шаблон нового элемента — plain-значения (НЕ FieldConfig). Основной путь — шаблон массива в модели, arrayOf(blank): тогда проп не нужен.',
     },
     {
       name: 'reorderable / maxItems / showRemoveOnSingle',

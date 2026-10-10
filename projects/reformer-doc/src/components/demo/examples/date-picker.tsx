@@ -38,7 +38,7 @@ export const datePickerDocConfig: ComponentDocConfig = {
         componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
       }),
       code: `{
-  value: model.$.date,
+  model: model.$.date,
   component: DatePicker,
   componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
 }`,
@@ -71,7 +71,7 @@ const [date, setDate] = useState<Date | undefined>();
         touched: true,
       }),
       code: `{
-  value: model.$.date,
+  model: model.$.date,
   component: DatePicker,
   componentProps: { label: 'Дата' },
 }
@@ -97,7 +97,7 @@ validate(model.$.date, [required({ code: 'date.required' })]);`,
     }),
     code: (v) =>
       `{
-  value: model.$.date,
+  model: model.$.date,
   component: DatePicker,
   componentProps: {
     label: 'Дата',
@@ -107,6 +107,6 @@ validate(model.$.date, [required({ code: 'date.required' })]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.value, [required()]);`,
+validate(model.$.date, [required()]);`,
   },
 };

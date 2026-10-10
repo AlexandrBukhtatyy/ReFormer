@@ -4,26 +4,25 @@ sidebar_position: 5
 
 # Usage Examples
 
-Step-by-step scenarios for working with @reformer/mcp.
+Scenarios of working with the AI when @reformer/mcp is connected.
 
-## Scenario 1: Create a Form from Scratch
+## Scenario 1: Creating a form
 
-**Task:** Create a user registration form.
-
-**Request to AI:**
+**Request to the AI:**
 
 ```
 Create a registration form with fields:
 - Email
 - Password (minimum 8 characters)
-- Confirm password
+- Password confirmation
 - Terms agreement checkbox
 ```
 
-**What happens:**
+**What you get:**
 
-1. AI calls `get_recommended_structure` to determine the structure
-2. Generates TypeScript interface:
+The AI uses the ReFormer documentation and creates:
+
+1. A TypeScript interface:
 
 ```typescript
 interface RegistrationForm {
@@ -34,63 +33,69 @@ interface RegistrationForm {
 }
 ```
 
-3. Creates form schema with components
-4. Adds validation:
+2. The form schema — a tree of `{ model: model.$.email, component, componentProps }` nodes
+
+3. Validation rules — a separate layer (`@reformer/core/validation`), not part of the layout schema:
 
 ```typescript
-import { validate, cross, defineValidation } from '@reformer/core/validation';
+import { validate, defineValidation } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import type { ValidationIssue } from '@reformer/core';
 
-// Password match reads a sibling field → a cross-field rule over the model snapshot.
+// Password matching reads the second field → it is a rule over several fields (a model snapshot).
 const passwordsMatch = (f: RegistrationForm): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
     ? { code: 'passwords-mismatch' }
     : null;
 
-const validationSchema = defineValidation<RegistrationForm>(({ model }) => {
+export const registrationRules = defineValidation<RegistrationForm>(({ model, cross }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
   validate(model.$.confirmPassword, [required()]);
   cross(model.$.confirmPassword, passwordsMatch);
-  // Inline rule — a plain (value) => ValidationIssue | null function.
+  // An inline rule is a plain (value) => ValidationIssue | null function.
   validate(model.$.agreeToTerms, [(value) => (value ? null : { code: 'terms-required' })]);
 });
 ```
 
-The schema lives outside the layout tree. The app runs it on demand (e.g. on submit) with the
-external runner — `await validateModel(model, validationSchema)`. It returns a `boolean` and
-routes errors onto the form nodes itself, so the UI highlights the fields.
+Rules carry only issue codes; the texts for the codes live in the form's dictionary:
 
-5. Checks code via `check_code`
+```typescript
+import { defineIssueMessages } from '@reformer/core/i18n';
+
+export const registrationMessages = defineIssueMessages({
+  'passwords-mismatch': 'Passwords do not match',
+  'terms-required': 'You must accept the terms',
+});
+```
+
+4. A React component: one `createForm({ initial, schema, validation: registrationRules })` bundle in
+   `useFormBundle`, fields — `<FormField control={form.email} />` under
+   `<ValidationMessagesProvider messages={registrationMessages}>`, submission —
+   `bundle.submit(handler)`: if there are issues, the handler is not called and the fields are
+   highlighted.
 
 ---
 
-## Scenario 2: Add Validation
+## Scenario 2: Adding validation
 
-**Task:** Add validation to an existing form.
-
-**Request to AI:**
+**Request to the AI:**
 
 ```
 Add validation to the order form:
-- Phone field: required, format +7 (XXX) XXX-XX-XX
-- Delivery date: not earlier than tomorrow
-- If deliveryType === "express", then deliveryTime is required
+- phone field: required, format +7 (XXX) XXX-XX-XX
+- deliveryDate field: not earlier than tomorrow
+- If deliveryType === "express", the deliveryTime field is required
 ```
 
-**What happens:**
-
-1. AI analyzes current code
-2. Uses `generate_validation` to get rules
-3. Generates validation:
+**What you get:**
 
 ```typescript
 import { validate, validateWhen, defineValidation } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 import type { ValidationIssue } from '@reformer/core';
 
-// Inline rule: delivery date not earlier than tomorrow.
+// Inline rule: delivery date not earlier than tomorrow. Returns ValidationIssue | null.
 const notBeforeTomorrow = (value: string): ValidationIssue | null => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -98,14 +103,14 @@ const notBeforeTomorrow = (value: string): ValidationIssue | null => {
   return new Date(value) >= tomorrow ? null : { code: 'deliveryTooSoon' };
 };
 
-const validationSchema = defineValidation<OrderForm>(({ model }) => {
+const orderRules = defineValidation<OrderForm>(({ model }) => {
   validate(model.$.phone, [
     required(),
     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
   ]);
   validate(model.$.deliveryDate, [required(), notBeforeTomorrow]);
   // Conditional branch: the deliveryTime rule is active only for express delivery,
-  // otherwise it is silenced (its error clears automatically).
+  // otherwise it is silenced (the error is cleared automatically).
   validateWhen(
     () => model.deliveryType === 'express',
     () => validate(model.$.deliveryTime, [required({ code: 'deliveryTime.required' })])
@@ -115,186 +120,143 @@ const validationSchema = defineValidation<OrderForm>(({ model }) => {
 
 ---
 
-## Scenario 3: Set Up Computed Fields
+## Scenario 3: Computed fields
 
-**Task:** Add automatic calculation to an order form.
-
-**Request to AI:**
+**Request to the AI:**
 
 ```
 In the order form add:
 - Automatic subtotal calculation (quantity * price) for each item
-- Total sum across all items
-- 10% discount if total is over 10000
+- A grand total across all items
+- A 10% discount if the grand total is over 10000
 ```
 
-**What happens:**
-
-1. AI uses `generate_behavior` to get patterns
-2. Generates behaviors:
+**What you get:**
 
 ```typescript
-import { computeFrom } from '@reformer/core/behaviors';
+import { applyEach, compute, defineFormBehavior } from '@reformer/core/behaviors';
 
-const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
-  items: b.array({
-    // Subtotal for each item
-    subtotal: b.field(
-      computeFrom(['quantity', 'price'], (quantity, price) => (quantity ?? 0) * (price ?? 0))
-    ),
-  }),
-  // Total sum
-  total: b.field(
-    computeFrom(
-      ['items'],
-      (items) => items?.reduce((sum, item) => sum + (item.subtotal ?? 0), 0) ?? 0
-    )
-  ),
-  // Discount
-  discount: b.field(computeFrom(['total'], (total) => (total > 10000 ? total * 0.1 : 0))),
-  // Final total with discount
-  finalTotal: b.field(computeFrom(['total', 'discount'], (total, discount) => total - discount)),
+type OrderItem = { quantity: number | null; price: number | null; subtotal: number };
+type OrderForm = { items: OrderItem[]; total: number; discount: number; finalTotal: number };
+
+// Row behavior: the subtotal for an item
+const itemBehavior = defineFormBehavior<OrderItem>(({ model: row }) => {
+  compute(row.$.subtotal, () => (row.quantity ?? 0) * (row.price ?? 0));
+});
+
+export const orderBehavior = defineFormBehavior<OrderForm>(({ model }) => {
+  applyEach(model.$.items, itemBehavior); // to every row, including ones added later
+  compute(model.$.total, () => model.items.map((item) => item.subtotal).reduce((a, b) => a + b, 0));
+  compute(model.$.discount, () => (model.total > 10000 ? model.total * 0.1 : 0));
+  compute(model.$.finalTotal, () => model.total - model.discount);
 });
 ```
 
 ---
 
-## Scenario 4: Debug an Issue
+## Scenario 4: Debugging a problem
 
-**Task:** Understand why validation isn't working.
-
-**Request to AI:**
+**Request to the AI:**
 
 ```
 My form doesn't show validation errors. What's wrong?
 
 const MyForm = () => {
-  const form = createLegacyForm<UserForm>({
-    form: formSchema,
-    validation: validationSchema,
-  });
+  const { form } = createForm<UserForm>({ initial: { email: '', password: '' }, schema: buildSchema });
 
   const email = useFormControl(form.email);
 
+  // userRules are declared, but never passed to the bundle and never checked anywhere
   return (
     <input
       value={email.value}
-      onChange={(e) => email.setValue(e.target.value)}
+      onChange={(e) => form.email.setValue(e.target.value)}
     />
   );
 };
 ```
 
-**What happens:**
+**What you get:**
 
-1. AI uses `check_code` for analysis
-2. Finds issues:
-   - No `useMemo` for `createForm`
-   - No call to `markAsTouched` on blur
-   - No error display
+The AI will find the problems:
 
-3. Suggests fix:
+- The bundle is recreated on every render — there is no `useFormBundle` (the nodes and their state
+  are lost)
+- The rules are not passed to the bundle (`validation`), and there is no submission via
+  `bundle.submit` — there is nothing to check and nothing to check it
+- There is no `markAsTouched` call on blur — the field stays "untouched", so the error is hidden
+  (`shouldShowError` = false)
+- Issues are not displayed anywhere: `issues` is an array of `{ code, params? }`, and the text for a
+  code comes from `useIssueMessage()` (or `FormField` with `ValidationMessagesProvider`)
+
+And it will suggest a fix:
 
 ```typescript
+import { createForm } from '@reformer/core';
+import { useFormBundle, useFormControl, useIssueMessage } from '@reformer/core/react';
+
 const MyForm = () => {
-  const form = useMemo(() => createLegacyForm<UserForm>({
-    form: formSchema,
-    validation: validationSchema,
-  }), []);
+  // ✅ the bundle is created once, and the rules are passed to it
+  const bundle = useFormBundle(() =>
+    createForm<UserForm>({
+      initial: { email: '', password: '' },
+      schema: buildSchema,
+      validation: userRules,
+    })
+  );
+  const { form } = bundle;
 
   const email = useFormControl(form.email);
+  const message = useIssueMessage();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // ✅ a single run of the rules; if there are issues, the handler is not called and the fields are marked touched
+    await bundle.submit((values) => api.save(values));
+  };
 
   return (
-    <div>
+    <form onSubmit={handleSubmit}>
       <input
         value={email.value}
-        onChange={(e) => email.setValue(e.target.value)}
-        onBlur={() => email.markAsTouched()}
+        onChange={(e) => form.email.setValue(e.target.value)}
+        onBlur={() => form.email.markAsTouched()}
+        aria-invalid={email.shouldShowError}
       />
-      {email.touched && email.errors.length > 0 && (
-        <span className="error">{email.errors[0]}</span>
+      {email.shouldShowError && email.issues[0] && (
+        <span className="error">{message(email.issues[0])}</span>
       )}
-    </div>
+      <button type="submit">Submit</button>
+    </form>
   );
 };
 ```
 
 ---
 
-## Scenario 5: Create Form from Specification
+## Scenario 5: API questions
 
-**Task:** Create a complex multi-step form based on a requirements document.
-
-**Request to AI:**
+**Requests to the AI:**
 
 ```
-Create a form based on the specification spec/insurance-application-form.md
-
-Use the reformer MCP server for:
-1. Getting project structure (get_recommended_structure)
-2. Generating types (generate_types)
-3. Generating schema (generate_schema)
-4. Generating validation (generate_validation)
-5. Generating behaviors (generate_behavior)
-6. Checking code (check_code)
-7. Verifying code compilation (npm run build)
-
-The form should:
-- Be multi-step (6 steps)
-- Have separate validation files for each step
-- Use useStepForm for navigation
-- Support computed fields (endDate, age, experience)
-- Have conditional field visibility
-- Compile without errors
+Which validators does ReFormer provide out of the box?
 ```
 
-**What happens:**
-
-1. AI reads the specification and analyzes requirements
-2. Calls `get_recommended_structure` to determine file structure (MCP provides several schemes, selection depends on form complexity):
-
 ```
-forms/
-└── insurance-application/
-    ├── types.ts
-    ├── schema.ts
-    ├── validation/
-    │   ├── index.ts
-    │   ├── step1-personal.ts
-    │   ├── step2-contact.ts
-    │   ├── step3-vehicle.ts
-    │   ├── step4-insurance.ts
-    │   ├── step5-payment.ts
-    │   └── step6-documents.ts
-    ├── behaviors.ts
-    └── InsuranceApplicationForm.tsx
+How does the watchField behavior work?
 ```
 
-3. Generates types via `generate_types`:
+```
+How do I do async validation?
+```
 
-4. Creates form schema via `generate_schema`:
-
-5. Generates validation schema for each step via `generate_validation`:
-
-6. Generates behavior schema (computed fields, conditions) via `generate_behavior`:
-
-7. Checks code via `check_code` and fixes errors
-
-8. Runs `npm run build` to verify compilation
-
-**Result:**
-
-- Fully typed multi-step form
-- Separate validation per step
-- Automatic calculations (age, end date)
-- Conditional field visibility
-- Step navigation with validation
+The AI will answer based on up-to-date ReFormer documentation.
 
 ---
 
-## Tips for Working with AI
+## Tips for working with the AI
 
-### Be Specific
+### Be specific
 
 ❌ Bad:
 
@@ -305,11 +267,11 @@ Make a form
 ✅ Good:
 
 ```
-Create an order form with fields: Full name, phone, email, delivery address.
-Phone in +7 format. Email required. Address minimum 10 characters.
+Create an order form with fields: full name, phone, email, delivery address.
+Phone in +7 format. Email is required. Address at least 10 characters.
 ```
 
-### Provide Context
+### Provide context
 
 When debugging, always include the code:
 
@@ -319,11 +281,11 @@ Error "Cannot read property 'value' of undefined" on line 15.
 [your code]
 ```
 
-### Use Iterations
+### Use iterations
 
 Start with a basic form, then add functionality:
 
 1. "Create a basic registration form"
 2. "Add email validation"
-3. "Add password matching check"
-4. "Add conditional company field"
+3. "Add a password match check"
+4. "Add a conditional field for the company"

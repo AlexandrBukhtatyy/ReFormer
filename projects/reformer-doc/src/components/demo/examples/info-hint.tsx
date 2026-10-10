@@ -84,7 +84,7 @@ export const infoHintDocConfig: ComponentDocConfig = {
         <code style={{ fontSize: 13 }}>componentProps: {'{ labelTooltip, tooltip }'}</code>
       ),
       code: `{
-  value: model.$.email,
+  model: model.$.email,
   component: Input,
   componentProps: {
     label: 'Email',
