@@ -260,8 +260,8 @@ export function useRefAttachmentWarning(
 
     console.warn(
       `[RenderSchema] ref для узла "${selector}" не прикрепился: компонент под этим селектором ` +
-        'не принимает проп `ref`. `getRef().current` останется null — programmatic submit и ' +
-        'навигация по шагам работать не будут. Пробросьте `ref` в целевой компонент ' +
+        'не принимает проп `ref`. `getRef().current` останется null — императивные вызовы ' +
+        'через ref работать не будут. Пробросьте `ref` в целевой компонент ' +
         '(React 19 — проп `ref`, ранее — `forwardRef`).'
     );
   });

@@ -2,12 +2,16 @@
 
 ## Key Concepts
 
-Единая схема (M1): одно дерево `RenderNode` описывает и layout, и привязку полей к модели. Привязка идёт через **сигналы модели** (`model.$.<field>`), а не через отдельный `path`-прокси.
+Единая схема: одно дерево узлов описывает и layout, и привязку полей к модели. Привязка идёт через **ручки модели** (`model.$.<field>`) в ключе `model` узла.
 
-- **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
-- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)). Компонент листа получает **value-based seam** (`control`, `value`, `disabled`, `onChange(value)`, `onBlur`) — value-based контролам настройка не нужна. Сырой контрол сторонней UI-kit с другим диалектом (`checked`+событие у Checkbox, `(value, option)` у Select) подключается через `FieldAdapter`: рендерер сам переложит seam на его контракт, не оборачивая контрол (`settings.resolveFieldAdapter`; см. [05-cookbook.md](05-cookbook.md)).
-- **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
-- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), содержимое задаётся в **top-level** `children` (НЕ в `componentProps`): вложенные узлы и текстовые части (`RenderChild`) вперемешку.
+- **Билдер схемы** — `(model: FormModel<T>) => RenderNode<T>`. Его получает `createForm({ schema })`, вызывает один раз и компилирует дерево. Тип `FormSchemaNode` из `@reformer/core` описывает то же дерево без React-типов; `RenderNode<T>` из рендерера уточняет `component` до React-компонента.
+- **`ModelFieldRenderNode`** — узел-поле. Несёт `model` (ручку значения: лист `model.$.email` или массив целиком `model.$.tags` — мультивыбор, теги, файлы), `component` (UI-компонент), `componentProps` (пропсы поля), опц. `disabled` (поле создаётся отключённым). Нода поля (`FormControl`: замечания, `disabled`, `touched`) находится по ручке через реестр `getNodeForSignal`, который заполняет сборка. Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной `ValidationDefinition` над моделью (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)). Компонент листа получает **value-based seam** (`value`, `disabled`, `onChange(value)`, `onBlur`) — value-based контролам настройка не нужна. Сырой контрол сторонней UI-kit с другим диалектом (`checked`+событие у Checkbox, `(value, option)` у Select) подключается через `FieldAdapter`: рендерер сам переложит seam на его контракт, не оборачивая контрол (`settings.resolveFieldAdapter`; см. [05-cookbook.md](05-cookbook.md)).
+- **`ArrayRenderNode<T>`** — массив под-форм. `model` — ручка массива (`model.$.coBorrowers`), `item(row)` строит поддерево строки по под-модели элемента, `component` — компонент-рендерер секции. Шаблон нового элемента — в модели (`arrayOf(blank)`); `initialValue` узла — запасной.
+- **`PartRenderNode<T>`** — подформа: `model` — ручка группы (`model.$.address`), `part(subModel)` — часть схемы, объявленная один раз и подключаемая к любой группе той же формы данных.
+- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), содержимое задаётся в **top-level** `children` (НЕ в `componentProps`): вложенные узлы и текстовые части (`RenderChild`) вперемешку. Контейнер без `component` — группировка в схеме: рендерер рисует только его детей (такой узел описывает тип `FormSchemaNode`; `ContainerRenderNode` требует `component`).
+- **`selector`** — идентификатор узла: по нему узел адресуют поведение (`schema.node('…')`) и поток шагов визарда. В одной области схемы `selector` уникален — повтор бросает исключение при сборке.
+
+Ключей `value:` и `array:` у узла нет — это прежний контракт. Компилятор их не читает и в dev пишет предупреждение с подсказкой (`value` → `model: model.$.<поле>`, `array` → `model: model.$.<массив>`).
 
 Вид узла определяет компилятор ядра `compileSchema` — его итог читают и сборка формы, и рендерер:
 
@@ -49,47 +53,55 @@ if (isHtmlTagRenderNode(tree)) {
 - `selector` в DOM **не** пробрасывается (он адресует узел схемы, а не элемент), но `hideWhen`/`patchProps` по нему работают как обычно.
 - Void-теги (`hr`, `br`, `img`) содержимого не получают — `children` для них игнорируются.
 - Текст работает и на узле-компоненте: `{ component: Button, children: ['Отправить'] }` — он приходит компоненту обычным React-`children`.
-- Компоненты, которые рендерят детей сами (`__selfManagedChildren`: `FormWizard`, секция массива), ждут узлы — текстовые части им не передаются (в dev об этом предупреждает console.warn).
+- Компоненты, которые рисуют детей сами (`__selfManagedChildren`: `FormWizard`, табы), получают узлы-дети данными — текстовые части им не передаются (в dev об этом предупреждает console.warn).
 
 ## Examples
 
-Двухколоночная форма с секцией. Листья несут `value: model.$.x` (сигнал) + `component` + `componentProps`. `children` — top-level свойство контейнера:
+Двухколоночная форма с секцией. Листья несут `model: model.$.x` + `component` + `componentProps`. `children` — top-level свойство контейнера:
 
 ```tsx
 import type { FormModel } from '@reformer/core';
-import type { RenderSchemaFn } from '@reformer/renderer-react';
+import type { RenderNode } from '@reformer/renderer-react';
 import { Box, Section, Input } from '@reformer/ui-kit';
 
-const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
-  return () => ({
-    component: Box,
-    componentProps: { className: 'grid grid-cols-2 gap-4' },
-    children: [
-      {
-        component: Section,
-        componentProps: { title: 'Личные данные', className: 'space-y-4' },
-        children: [
-          { value: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
-          { value: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
-        ],
-      },
-    ],
-  });
-};
+export const mySchema = (model: FormModel<MyForm>): RenderNode<MyForm> => ({
+  component: Box,
+  componentProps: { className: 'grid grid-cols-2 gap-4' },
+  children: [
+    {
+      component: Section,
+      componentProps: { title: 'Личные данные', className: 'space-y-4' },
+      children: [
+        { model: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
+        { model: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
+      ],
+    },
+  ],
+});
 ```
 
 ### Массив модели { #array }
 
-Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить», `component` — компонент-рендерер секции. Оформление (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
+Узел-массив: `model` — ручка массива модели, `item(row)` строит поддерево по под-модели строки, `component` — компонент-рендерер секции. Оформление (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
 
 ```tsx
+import type { FormModel } from '@reformer/core';
 import { Box, FieldArray, Input, SelectAsync } from '@reformer/ui-kit';
 
-const coBorrowersNode = {
+// Строка массива — функция от под-модели элемента: пути — от строки.
+const coBorrowerRow = (row: FormModel<CoBorrower>): RenderNode<CreditForm> => ({
+  component: Box,
+  componentProps: { className: 'space-y-3' },
+  children: [
+    { model: row.$.phone, component: Input, componentProps: { label: 'Телефон' } },
+    { model: row.$.relationship, component: SelectAsync, componentProps: { label: 'Отношение' } },
+  ],
+});
+
+const coBorrowersNode: RenderNode<CreditForm> = {
   selector: 'co-borrowers-array',
-  array: model.coBorrowers,
-  component: FieldArray,          // ОБЯЗАТЕЛЕН для UI управления (add/remove/reorder)
-  initialValue: createBlankCoBorrower,
+  model: model.$.coBorrowers,
+  component: FieldArray, // ОБЯЗАТЕЛЕН для UI управления (add/remove/reorder)
   componentProps: {
     title: 'Созаемщики',
     itemLabel: 'Созаемщик',
@@ -97,43 +109,44 @@ const coBorrowersNode = {
     emptyMessage: 'Нажмите «Добавить созаемщика»',
     reorderable: true,
   },
-  item: (im: any) => ({
-    component: Box,
-    componentProps: { className: 'space-y-3' },
-    children: [
-      { value: im.$.phone, component: Input, componentProps: { label: 'Телефон' } },
-      { value: im.$.relationship, component: SelectAsync, componentProps: { label: 'Отношение' } },
-    ],
-  }),
+  item: coBorrowerRow,
 };
 ```
 
-Внутри `item` листья привязываются к сигналам **под-модели** элемента (`im.$.<field>`). Per-item форму создаёт `FormArray`, материализованный `createForm` — рендерер итерирует элементы и рисует поддерево для каждого.
+Шаблон новой строки для кнопки «Добавить» объявляется в модели — рядом с остальными начальными значениями:
 
-**Top-level свойства узла** (не в `componentProps`): `array` (реактивный массив модели), `item(itemModel)` (схема элемента), `component` (компонент-рендерер секции), `initialValue` (значение/фабрика нового элемента), `selector` (для behavior/override).
+```typescript
+import { arrayOf, createModel } from '@reformer/core';
+
+createModel<CreditForm>({ /* … */ coBorrowers: arrayOf(blankCoBorrower) });
+```
+
+Внутри `item` листья привязываются к ручкам **под-модели** строки (`row.$.<field>`). Форму строки (`FormGroup` в `FormArray`) строит сборка; рендерер итерирует строки и рисует поддерево каждой в её собственной области схемы (`selector` внутри строки адресуется из поведения строки — `applyEach`, см. [08-form-bundle.md](08-form-bundle.md)).
+
+**Top-level свойства узла** (не в `componentProps`): `model` (ручка массива), `item(row)` (схема строки), `component` (компонент-рендерер секции), `initialValue` (запасной шаблон нового элемента), `selector` (для поведения).
 
 **`component` обязателен, если нужен UI управления.** Рендерер сам разметку не шипает: он итерирует массив и отдаёт компоненту готовые элементы. Узел **без** `component` рендерится безхромным fallback'ом — элементы есть, кнопок «Добавить»/«Удалить»/↑↓ нет, в консоль идёт предупреждение. Бери `FieldArray` (редактируемая секция) или `List` (display-список без add/remove) из `@reformer/ui-kit` либо свой компонент.
 
-**Привязка `array` — это `model.<path>` (value-доступ), НЕ `model.$.<path>`** (напр. `array: model.coBorrowers`). Один нюанс типов: рантайм-массив совместим с требуемым `RenderModelArrayControl`, но в публичном типе `ModelArray<U>` не объявлен `__path`, поэтому под строгим контекстом узла TS даёт `TS2741: Property '__path' is missing in type 'ModelArray<T>'`. Канон (пример `complex-multy-step-form-renderer`; файл схемы там назван по-старому `render-schema.ts` — канон имени `form.schema.ts`) — билдер строит дерево и в конце кастует его `as unknown as RenderNode<T>`; привязка при этом остаётся `array: model.<path>`. Каст также снимает лишние проверки для листьев-полей.
+**`initialValue` — запасной путь.** Нужен форме, чья модель создаётся из данных без кода; шаблон модели (`arrayOf(blank)`) главнее. Значение или фабрика `() => value`.
 
 **Полный контракт `componentProps`** для `component: FieldArray` (`@reformer/ui-kit`) — других полей нет:
 
 | prop | default |
 |---|---|
 | `title?: string` | — |
-| `addButtonLabel?: string` | `'+ Добавить'` |
-| `removeButtonLabel?: string` | `'Удалить'` |
+| `addButtonLabel?: string` | словарь локали (`kit.fieldArray.add`) |
+| `removeButtonLabel?: string` | словарь локали (`kit.fieldArray.remove`) |
 | `emptyMessage?: string` | — (показ при `length === 0`) |
 | `emptyMessageHint?: string` | — (подсказка под empty-состоянием) |
-| `itemLabel?: string \| ((im, i) => string)` | — (string → `` `${itemLabel} #${i + 1}` ``) |
+| `itemLabel?: string \| ((row, i) => string)` | — (string → `` `${itemLabel} #${i + 1}` ``) |
 | `reorderable?: boolean` | `false` (кнопки ↑/↓, `disabled` на концах) |
 | `showRemoveOnSingle?: boolean` | `false` (кнопка «Удалить» скрыта при единственном элементе) |
 | `className?: string` | `'space-y-3 mt-2'` |
 | `cardClassName?: string` | `'mb-4 p-4 bg-card text-card-foreground rounded border'` |
 
-**`maxItems` НЕ существует.** Это выдуманный проп — компонент его игнорирует. Чтобы ограничить количество элементов, используй behavior (`hideWhen` на add-аффордансе или guard в `initialValue`), а не проп.
+**`maxItems` НЕ существует.** Это выдуманный проп — компонент его игнорирует. Чтобы ограничить количество элементов, используй поведение (`hideWhen` на add-аффордансе), а не проп.
 
-**Контракт компонента-рендерера массива.** Итерацию (подписку на структуру, кэш поддеревьев, стабильные ключи) делает рендерер, а компонент получает `ArrayComponentProps` — готовые `items: ArrayItemSlot[]` (`{ key, index, model, children }`) и колбэки `onAdd`/`onRemove`/`onMove` — плюс `componentProps` узла. Компонент не подписывается на модель и не вызывает хуков рендерера, поэтому свою секцию можно написать на любой UI-библиотеке и протестировать на фейковых `items` без формы:
+**Контракт компонента-рендерера массива.** Итерацию (подписку на структуру, кэш поддеревьев, стабильные ключи) делает рендерер, а компонент получает `ArrayComponentProps` — готовые `items: ArrayItemSlot[]` (`{ key, index, model, children }`) и колбэки `onAdd`/`onRemove`/`onMove` — плюс `componentProps` узла. `onAdd()` зовёт `push()` без значения: новая строка берётся из шаблона массива. Компонент не подписывается на модель и не вызывает хуков рендерера, поэтому свою секцию можно написать на любой UI-библиотеке и протестировать на фейковых `items` без формы:
 
 ```tsx
 import type { ArrayComponentProps } from '@reformer/renderer-react';
@@ -153,45 +166,57 @@ function MyArraySection({ items, onAdd, onRemove }: ArrayComponentProps) {
 }
 ```
 
-`ArrayRenderNode` (`{ array, item, component }`) — канон для render-schema пути (одинаково для renderer-react и renderer-json; пример — `complex-multy-step-form-renderer`, его `render-schema.ts` — историческое имя файла схемы, канон `form.schema.ts`); `FieldArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-field-array-section.md) и `FieldArray` из [cdk](../../../reformer-cdk/docs/llms/02-field-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: array-нода описывает массив декларативно в дереве, compound-компоненты собирают его руками.
+Узел массива `{ model, item, component }` — канон для схемы (одинаково для renderer-react и renderer-json; эталон — `complex-multy-step-form`, файлы `schema/steps/*.ts` и `schema/sections/*.ts`); `FieldArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-field-array-section.md) и `FieldArray` из [cdk](../../../reformer-cdk/docs/llms/02-field-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: узел массива описывает массив декларативно в дереве, compound-компоненты собирают его руками.
 
 Testid-конвенции секции (для e2e): `array-add`, `array-item-{i}`, `array-item-{i}-remove`, `array-item-{i}-move-up`, `array-item-{i}-move-down`.
 
-## Programmatic API
+### Подформа { #part }
 
-`createRenderSchema(fn)` оборачивает `RenderSchemaFn` в `RenderSchemaProxy`, который позволяет адресовать узлы по `selector` и навешивать поведение/lifecycle. Селектор задаётся на самом узле (`node.selector`):
+Часть схемы объявляется один раз как функция от под-модели и ставится в схему сколько угодно раз — к разным группам той же формы данных:
 
-```tsx
-import { createRenderSchema, hideWhen } from '@reformer/renderer-react';
+```typescript
+const address = (sub: FormModel<Address>): RenderNode<CreditForm> => ({
+  component: Box,
+  children: [{ model: sub.$.city, component: Input, componentProps: { label: 'Город' } }],
+});
 
-const schema = createRenderSchema<MyForm>(buildSchema(model));
-
-// Императивное управление узлом по selector:
-schema.node('extra-section').setHidden(true);
-schema.node('extra-section').patchProps({ title: 'Новый заголовок' });
-schema.node('extra-section').resetHidden();
-
-// Декларативное реактивное скрытие (standalone-хелпер, читает сигналы формы):
-hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
-
-<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+{ model: model.$.registrationAddress, part: address }
+{ model: model.$.residenceAddress, part: address }
 ```
 
-`FormRenderer` не принимает проп `form` — форма для wizard-узла передаётся через `componentProps` этого узла. См. [01-overview.md](01-overview.md).
+У части своя область схемы: её `selector` адресуется из поведения, подключённого к той же группе (`apply(model.$.registrationAddress, addressBehavior)`).
+
+## Programmatic API
+
+У бандла `createForm` есть управление узлами корневой области — `bundle.render.node(selector)`:
+
+```tsx
+// Императивное управление узлом по selector (например, из демо-панели или useEffect):
+bundle.render.node('extra-section').setHidden(true);
+bundle.render.node('extra-section').patchProps({ title: 'Новый заголовок' });
+bundle.render.node('extra-section').resetHidden();
+```
+
+Декларативные правила (`hideWhen`, `onComponentEvent`, lifecycle) пишутся в поведении формы — `defineFormBehavior(({ model, schema }) => hideWhen(schema.node('extra-section'), () => !model.hasExtras))`, см. [03-render-behavior.md](03-render-behavior.md).
+
+Низкоуровневый путь без бандла — `createRenderSchema(fn)`: оборачивает `RenderSchemaFn` (`() => RenderNode<T>`) в `RenderSchemaProxy` с тем же `.node(selector)` и рендерится через `<FormRenderer render={proxy} />`. Форму из того же дерева тогда собирают отдельно — `createFormFromModel({ model, schema })`; области строк и подформ у такой схемы нет (она одна на всё дерево).
 
 ## Anti-patterns
 
-- **Возвращать React-element вместо `RenderNode`** — `RenderSchemaFn` должна возвращать описание (`{ component, componentProps, children }` или `{ value, component }`), а не JSX. Сам JSX строит `FormRenderer`.
-- **Класть `children` в `componentProps`** — `children` это TOP-LEVEL свойство контейнера. Рендерер деструктурирует `const { children } = node`. В `componentProps.children` узлы не отрисуются.
-- **Хранить `RenderSchemaProxy` внутри компонента без `useMemo`** — на каждом ре-рендере создаётся новый proxy, что ломает override-карты и lifecycle-хуки.
-- **Забыть `createForm` перед рендером** — лист-узел резолвит state-ноду по сигналу через реестр. Без `createFormFromModel({ model, schema })` реестр пуст, поле логирует warning и рендерится как `null`.
+- **Возвращать React-element вместо узла** — билдер схемы возвращает описание (`{ component, componentProps, children }` или `{ model, component }`), а не JSX. Сам JSX строит `FormRenderer`.
+- **Ключи `value:` / `array:` у узла** — прежний контракт. Поле — `{ model: model.$.x, component }`, массив — `{ model: model.$.items, component: FieldArray, item: (row) => узел }`.
+- **`model: model.items` (value-фасад) вместо `model: model.$.items`** — привязка узла — ручка из дерева `model.$`. Фасад компилятор не распознаёт как поле и пишет предупреждение.
+- **Класть `children` в `componentProps`** — `children` это TOP-LEVEL свойство контейнера. В `componentProps.children` узлы не отрисуются.
+- **Повторять `selector` в одной области** — сборка бросает исключение с путями обоих узлов. В строках массива и подформах селекторы живут в своих областях и с корнем не пересекаются.
+- **Рендерить дерево без сборки** — лист находит ноду поля по ручке через реестр, который заполняет `createForm` (на низкоуровневом пути — `createFormFromModel({ model, schema })`). Без сборки поле логирует warning и рендерится как `null`.
 - **Заводить компонент ради статичного блока текста** — `{ component: 'div', children: [{ component: 'p', children: ['…'] }] }` описывает то же самое схемой; отдельный компонент нужен, когда есть своя логика или состояние.
 - **Ожидать реактивности от интерполяции строкой** — `children: [\`Платёж: ${model.$.x.value} ₽\`]` читает значение ОДИН раз при построении схемы. Реактивен только сам сигнал: `children: ['Платёж: ', model.$.x, ' ₽']`.
 
 ## See also
 
-- [01-overview.md](01-overview.md) — mount-путь и `FormRenderer`.
+- [01-overview.md](01-overview.md) — сборка `createForm` и `FormRenderer`.
 - [03-render-behavior.md](03-render-behavior.md) — `hideWhen`, `renderEffect`, lifecycle.
-- [06-validation.md](06-validation.md) — валидация значений отдельной model-схемой (у RenderNode нет `validators`).
+- [06-validation.md](06-validation.md) — валидация значений отдельной схемой над моделью (у узла нет `validators`).
+- [08-form-bundle.md](08-form-bundle.md) — области схемы строк и подформ.
 - [04-troubleshooting.md](04-troubleshooting.md).
 - [05-cookbook.md](05-cookbook.md) — `resolveFieldAdapter`/`FieldAdapter`: подключение сырых контролов сторонней UI-kit без per-контрол обёрток.

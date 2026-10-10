@@ -24,18 +24,18 @@ import type {
 // ============================================================================
 
 /**
- * Функция создания RenderSchema (M1).
+ * Функция создания RenderSchema.
  *
- * Возвращает дерево узлов рендеринга. Привязка к данным — через сигналы модели в листьях
- * (`value: model.$.x`), поэтому аргумент-путь больше не нужен (legacy FieldPath удалён).
+ * Возвращает дерево узлов рендеринга. Привязка к данным — ручкой модели в узле
+ * (`model: model.$.x`), поэтому аргумент-путь не нужен.
  *
  * @example
  * ```typescript
  * const renderSchema: RenderSchemaFn<MyForm> = () => ({
  *   component: Box,
  *   children: [
- *     { value: model.$.email, component: Input },
- *     { value: model.$.password, component: InputPassword },
+ *     { model: model.$.email, component: Input },
+ *     { model: model.$.password, component: InputPassword },
  *   ],
  * });
  * ```
@@ -274,8 +274,8 @@ export interface ContainerRenderNodeProps {
  *     className: 'grid grid-cols-2 gap-4',
  *   },
  *   children: [
- *     { value: model.$.firstName, component: Input },
- *     { value: model.$.lastName, component: Input },
+ *     { model: model.$.firstName, component: Input },
+ *     { model: model.$.lastName, component: Input },
  *   ],
  * }
  * ```

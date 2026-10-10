@@ -1,109 +1,142 @@
 # FormWizard — многошаговая форма в renderer-react
 
-Wizard-узел RenderSchema: `FormWizard` из `@reformer/ui-kit/form-wizard` (канонический
-shipped-компонент, своего визарда рендерер не поставляет). Форма передаётся через
-`componentProps.form`, шаги — через `componentProps.steps`, а тело шага рисуется стратегией
-`renderStepBody`.
+Визард в схеме — обычный узел: `FormWizard` из `@reformer/ui-kit` (канонический компонент, своего
+визарда рендерер не поставляет). Шаги — дети узла визарда, правила шагов — поток сборки
+`createForm({ flow })`. Форму, поток шагов и отправку визард берёт из сборки сам: `FormRenderer`
+ставит контекст сборки, а визард объявляет `__selfManagedChildren` и получает узлы шагов данными
+вместе с функцией их отрисовки (`renderNode`).
 
-Полный справочник по самому компоненту (полиморфный `step.body`, `FormWizardConfig`,
-`FormWizardHandle`, mounting под `RenderContextProvider`) — `@reformer/ui-kit`
-`docs/llms/07-form-wizard.md`. Здесь — только то, что специфично для render-схемы.
+Полный справочник по самому компоненту (полиморфный `step.body` для JSX-разметки, слоты
+`FormWizard.Indicator` / `.Actions` / `.Progress`) — `@reformer/ui-kit` `docs/llms/07-form-wizard.md`.
+Здесь — только то, что специфично для схемы.
 
-## Форма wizard-узла
-
-`steps` — массив `{ number, title, icon, body }`, где `body` — это `RenderNode`, поддерево
-M1-схемы шага. `body` самостоятелен: оборачивать его в `component: Step` + `children` НЕ нужно.
+## Узел визарда и шаги
 
 ```tsx
-import { FormWizard } from '@reformer/ui-kit/form-wizard';
-import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { Box, InputNumber } from '@reformer/ui-kit';
+import type { FormModel } from '@reformer/core';
+import type { RenderNode } from '@reformer/renderer-react';
+import { Step } from '@reformer/cdk/form-wizard';
+import { Box, FormWizard, InputNumber } from '@reformer/ui-kit';
 
-// form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
-function buildSchema(model: FormModel<MyForm>, form?: FormGroup<MyForm>): RenderNode<MyForm> {
-  return {
-    selector: 'wizard',
-    component: FormWizard,
-    componentProps: {
-      ...(form ? { form } : {}),
-      config, // FormWizardConfig: { validateStep?, validateAll? }
-      // ОБЯЗАТЕЛЬНО для RenderNode-тела: см. раздел ниже.
-      renderStepBody: (body: RenderNode<MyForm>, wizardForm: FormGroup<MyForm>) => (
-        <RenderNodeComponent node={body} form={wizardForm} />
-      ),
-      steps: [
+export const creditSchema = (model: FormModel<CreditForm>): RenderNode<CreditForm> => ({
+  selector: 'wizard',
+  component: FormWizard,
+  componentProps: { submitLabel: 'Отправить заявку' },
+  children: [
+    {
+      selector: 'loan', // идентификатор шага в потоке сборки
+      component: Step,
+      componentProps: { title: 'Кредит', icon: '💰' }, // заголовок и значок — в индикатор шагов
+      children: [
         {
-          number: 1,
-          title: 'Кредит',
-          icon: '💰',
-          body: {
-            component: Box,
-            componentProps: { className: 'space-y-4' },
-            children: [
-              { value: model.$.loanAmount, component: InputNumber, componentProps: { label: 'Сумма' } },
-              { value: model.$.loanTerm, component: InputNumber, componentProps: { label: 'Срок' } },
-            ],
-          },
+          component: Box,
+          componentProps: { className: 'space-y-4' },
+          children: [
+            { model: model.$.loanAmount, component: InputNumber, componentProps: { label: 'Сумма' } },
+            { model: model.$.loanTerm, component: InputNumber, componentProps: { label: 'Срок' } },
+          ],
         },
-        // ...остальные шаги
       ],
     },
-  };
+    { selector: 'confirm', component: Step, componentProps: { title: 'Подтверждение', icon: '✓' } },
+  ],
+});
+```
+
+- `selector` узла визарда — чтобы адресовать его из поведения (`schema.node('wizard')`).
+- `selector` узла шага — идентификатор шага в потоке. Визард рисует шаги **в порядке потока** и
+  связывает их с узлами по `selector`.
+- `Step` из `@reformer/cdk/form-wizard` — маркер шага: рисует детей, а `title`/`icon` из его
+  `componentProps` читает индикатор.
+- Ни `form`, ни `flow`, ни `steps` в `componentProps` визарда передавать не нужно.
+
+## Поток шагов
+
+```tsx
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
+import { FormField } from '@reformer/ui-kit';
+
+function CreditFormPage() {
+  const bundle = useFormBundle(() =>
+    createForm<CreditForm>({
+      model: createCreditModel(),
+      schema: creditSchema,
+      behavior: creditBehavior,
+      validation: { extras: crossStepRules }, // проверяются только при отправке
+      flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+    })
+  );
+  return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-## `renderStepBody` обязателен
+- Кнопка «Далее» зовёт `flow.next()`: правила текущего шага; при замечаниях поток остаётся на шаге,
+  а поля помечаются `touched`. Шаг без `rules` проходится без проверки.
+- Переход на шаг по индикатору — `flow.goTo(id)`: первый шаг доступен всегда, остальные — после
+  прохождения предыдущего. «Назад» — `flow.previous()`.
+- Расхождение шагов потока и узлов шагов — предупреждение в dev от сборки («в `flow.steps` есть шаги,
+  для которых в дереве схемы нет узла с таким `selector`») и от визарда («шаги схемы и шаги потока
+  расходятся»).
+- Без потока в сборке визард строит позиционный поток по числу шагов — без правил.
 
-ui-kit намеренно не зависит от `@reformer/renderer-react` — дизайн-система не тянет рендерер.
-Поэтому `FormWizard` умеет только два вида `body`: `ReactNode` и `ComponentType`. Третий вид —
-`RenderNode` — он отдаёт стратегии из пропа
-`renderStepBody: (body: TBody, form: FormGroup<T>) => ReactNode`.
+Правила шагов — [06-validation.md](06-validation.md).
 
-**Без стратегии шаг не отрисуется, а упадёт.** Плоский объект узла уходит React'у как
-child, и React бросает `Objects are not valid as a React child (found: object with keys
-{component, componentProps, children})`, размонтируя корень: error boundary ни в рендерере, ни
-в ui-kit нет. Ни `tsc`, ни `validate_form kind="code"` этого не ловят — тип тела в
-`componentProps` не проверяется (`ContainerRenderNodeProps` — индексная сигнатура).
-
-Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`.
-
-Из-за JSX в стратегии файл схемы обычно получает расширение `.tsx` — канон раскладки это
-допускает (`form.schema.tsx`).
-
-## Листья внутри `steps[].body` тоже harvest'ятся
-
-Сборка обходит дерево key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от
-вложенности — включая листья внутри `componentProps.steps[].body`. Отсюда двойной проход, и
-делает его фабрика:
+## Отправка и навигация из поведения
 
 ```tsx
-const myForm = useReactForm(() =>
-  createReactForm<MyForm>({ model: createMyModel(), schema: buildSchema })
-);
-// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormGroup самоссылочен, обход по
-// нему упал бы с переполнением стека), затем buildSchema(model, form) — дерево для рендера, из
-// которого wizard-узел берёт форму. Писать эту пару руками больше не нужно.
+import { defineFormBehavior, onComponentEvent, renderEffect } from '@reformer/core/behaviors';
+
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, flow }) => {
+  // Кнопка отправки на последнем шаге зовёт обработчик через `bundle.submit`: только после
+  // успешной проверки всей формы; при замечаниях поля помечаются touched.
+  onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
+    reportOutcome(await sendCreditApplication(values));
+  });
+
+  // Навигация — через поток шагов: ипотека возвращает к шагу кредита.
+  renderEffect(schema, () => {
+    if (model.loanType === 'mortgage') flow?.goTo('loan');
+  });
+});
 ```
 
-## Валидация и submit
+Снаружи визарда — тот же поток и та же отправка бандла:
 
-`config` — это `FormWizardConfig`, то есть `{ validateStep?, validateAll? }`; оба колбэка
-возвращают `boolean | Promise<boolean>`. Канон — прогонять `validateModel(model, schema)` из
-`@reformer/core/validation`: валидация живёт отдельным слоем, в layout-схеме валидаторов нет.
+```tsx
+import { useFormFlow } from '@reformer/core/react';
 
-Кнопка отправки гейтит вызов через `config.validateAll`: при провале `onSubmit` не вызывается,
-а поля помечаются `touched`. Поэтому валидировать руками в обработчике не нужно.
-`FormWizardProps.onSubmit` — это `() => void | Promise<void>`, **аргументов у него нет**:
-снимок значений берётся из модели (`model.get()`). Типизировать его как
-`(values: MyForm) => …` — ошибка компиляции.
+const { current, index, isLast } = useFormFlow(bundle.flow!); // снимок для рендера
+bundle.flow?.goTo('loan'); // FlowTransition: moved | stayed (reason: 'locked', …)
+const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
+```
 
-Императивный доступ — через `schema.node('wizard').getRef<FormWizardHandle<T>>()`:
-`handle.submit(cb)` принимает `(values) => …`, проходит тот же гейт и возвращает `null`, если
-валидация не прошла. Компонент под селектором обязан пробрасывать `ref`, иначе handle пуст.
+## Прежний контракт — удалён
+
+| Было (удалено) | Стало |
+|---|---|
+| шаги в `componentProps.steps` (`{ number, title, icon, body }`) + `renderStepBody` | шаги — дети узла визарда (`component: Step`) |
+| `componentProps.form` визарда | форма из контекста сборки (`FormRenderer form={bundle}`) |
+| `config: { validateStep, validateAll }`, `defineSteps` | `createForm({ flow: { steps: [{ id, rules }] } })` |
+| `schema.node('wizard').getRef<FormWizardHandle>()`, `goToStep(n)` | `flow.goTo(id)`, `flow.next()`, `flow.previous()` |
+| `onSubmit` без аргументов, снимок `model.get()` | `onSubmit(values)` через `bundle.submit` |
+
+Проп `steps` с `body` и `renderStepBody` остаётся у `FormWizard` для разметки в JSX (не в схеме): тело
+шага — компонент, ReactNode или узел схемы, который рисует стратегия
+`renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}`.
+
+## Прежний путь сборки: `createReactForm`
+
+`createReactForm` рендерит функцию-схему, а не бандл: контекста сборки у визарда в этом пути нет.
+Форму и поток ему передают пропсами узла — из фабрики `renderBehavior(form, model, level)`:
+`onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, flow: level.flow }))`.
+Отправка без контекста не проверяет форму — обработчик делает это сам: `level.submit(handler)`.
+Новому коду этот путь не нужен.
 
 ## См. также
 
 - `@reformer/ui-kit` `docs/llms/07-form-wizard.md` — сам компонент целиком.
 - `@reformer/cdk` `docs/llms/03-form-navigation.md` — headless-навигация и `FormWizard.Actions`.
 - [03-render-behavior.md](03-render-behavior.md) — `onComponentEvent`, `renderEffect`, `hideWhen`.
-- [06-validation.md](06-validation.md) — per-step схемы и `defineSteps`.
+- [06-validation.md](06-validation.md) — правила шагов, тексты замечаний.

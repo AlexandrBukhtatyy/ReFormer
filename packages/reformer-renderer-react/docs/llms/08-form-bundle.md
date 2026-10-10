@@ -45,8 +45,11 @@ function MyFormPage() {
 
 - Билдер схемы — `(model) => узел`: вызывается один раз, второго прохода с формой нет.
 - Скомпилированная схема лежит в `bundle.render.tree` (`CompiledSchema`: `root`, `nodes`,
-  `fields`, `arrays`); `FormRenderer` её не перестраивает.
+  `fields`, `arrays`); `FormRenderer` её не перестраивает. Рендер идёт по `kind` узла:
+  `field`, `array`, `part`, `container`, `text`.
 - Обёртка поля: `settings.fieldWrapper`, иначе та, что положил в бандл реестр (JSON-вариант).
+- Уровень формы — в том же бандле: `bundle.validate()`, `bundle.validateStep(id)`,
+  `bundle.submit(handler)`, поток шагов `bundle.flow` (если в конфиге есть `flow`).
 
 ## Узлы схемы
 
@@ -90,6 +93,7 @@ const addressBehavior = defineFormBehavior<Address>(({ model, schema }) => {
   hideWhen(schema.node('street'), () => model.city === ''); // узел внутри части
 });
 
+// apply / applyEach — из '@reformer/core/behaviors'
 const myBehavior = defineFormBehavior<MyForm>(({ model }) => {
   apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
   applyEach(model.$.coBorrowers, coBorrowerBehavior); // правила узлов строки — в её поведении
@@ -134,15 +138,17 @@ function Tabs({
 Tabs.__selfManagedChildren = true;
 ```
 
-Форму и валидацию такой компонент берёт из контекста сборки — `useFormBundleContext()` из
-`@reformer/core`; контекст ставит `FormRenderer`.
+Форму, поток шагов и отправку такой компонент берёт из контекста сборки — `useFormBundleContext()`
+из `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.submit`); контекст ставит
+`FormRenderer`. Так устроен `FormWizard` из `@reformer/ui-kit` — см. [07-form-wizard.md](07-form-wizard.md).
 
 ## Частые ошибки
 
-| Ошибка                                           | Как правильно                                      |
-| ------------------------------------------------ | -------------------------------------------------- |
-| `schema: (model, form) => …` ради визарда        | `(model) => узел`; визард берёт форму из контекста |
-| `renderBehavior` рядом с `behavior`              | одно поведение: `({ model, form, schema }) => …`   |
-| `form.loanType.value.value` в условии `hideWhen` | `model.loanType`                                   |
-| `<FormRenderer form={bundle} />` без `schema`    | у сборки без схемы дерева нет — рисуйте поля сами  |
-| `initialValue` в каждом узле массива             | `arrayOf(blank)` в модели                          |
+| Ошибка                                           | Как правильно                                            |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| `schema: (model, form) => …` ради визарда        | `(model) => узел`; визард берёт форму из контекста       |
+| `renderBehavior` рядом с `behavior`              | одно поведение: `({ model, form, schema, flow }) => …`   |
+| `form.loanType.value.value` в условии `hideWhen` | `model.loanType`                                         |
+| `<FormRenderer form={bundle} />` без `schema`    | у сборки без схемы дерева нет — рисуйте поля сами        |
+| `initialValue` в каждом узле массива             | `arrayOf(blank)` в модели                                |
+| ref визарда и `goToStep(n)` для навигации        | `flow.goTo(id)` в поведении, `bundle.flow` снаружи       |

@@ -7,22 +7,22 @@
 ```tsx
 import { FormField } from '@reformer/ui-kit';
 
-<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;
 ```
 
-Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper`.
+Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper`. В JSON-варианте обёртку кладёт в бандл реестр (запись `FIELD_WRAPPER`), и `settings.fieldWrapper` её перекрывает.
 
 ## Field renders as null (console warning `[RenderSchema] No form node for signal ...`)
 
-State-нода поля резолвится по сигналу через реестр `getNodeForSignal`, а реестр заполняет `createForm`. Если поле рисуется как `null` и в консоли `[RenderSchema] No form node for signal "<path>" — render value-leaf after createForm`:
+Нода поля находится по ручке модели через реестр `getNodeForSignal`, а реестр заполняет сборка. Если поле рисуется как `null` и в консоли `[RenderSchema] No form node for signal "<path>" — render value-leaf after createForm`:
 
-- Форма не построена из этой же схемы. Собери её из этой же схемы до рендера: канон — `createReactForm({ model | initial, schema })` (в React — внутри `useReactForm`), низкоуровневый путь — `createFormFromModel({ model, schema })`. Реестр `сигнал→нода` заполняется именно там.
-- Лист привязан к сигналу другой модели (не той, что передана в `createForm`). Убедись, что `value: model.$.<field>` берётся из того же `model`.
-- Внутри массива — под-модель элемента (`im.$.<field>`) должна проходить через `createForm`/`FormArray` (материализуется автоматически при обработке `ArrayRenderNode`).
+- Форма не собрана из этой же схемы. Канон — `createForm({ model | initial, schema })` (в React — внутри `useFormBundle`) и `<FormRenderer form={bundle} />`; низкоуровневый путь — `createFormFromModel({ model, schema })` до рендера `createRenderSchema`.
+- Лист привязан к ручке другой модели (не той, что передана в сборку). Убедись, что `model: model.$.<field>` берётся из того же `model`, который получил билдер схемы.
+- Узел не стал полем: ключ `value:` вместо `model:` либо `model: model.<path>` (value-фасад) вместо `model: model.$.<path>`. Компилятор схемы пишет об этом предупреждение в dev.
 
 ## Container children не рендерятся
 
-`children` контейнера — это TOP-LEVEL свойство узла, а не часть `componentProps`. Рендерер деструктурирует `const { children } = node`. Если положить их в `componentProps.children`, `node.children` будет undefined и поддерево не отрисуется.
+`children` контейнера — это TOP-LEVEL свойство узла, а не часть `componentProps`. Если положить их в `componentProps.children`, поддерево не отрисуется.
 
 ```typescript
 // CORRECT
@@ -33,36 +33,34 @@ State-нода поля резолвится по сигналу через ре
 
 ## FormRenderer: render или form — что передавать
 
-Источников схемы два, и оба законны:
+Источников схемы два:
 
-- `<FormRenderer render={schema} settings={…} />` — низкоуровневый путь: `schema` это результат
-  `createRenderSchema`;
-- `<FormRenderer form={bundle} settings={…} />` — бандл из `createReactForm`; рендерер берёт
-  схему из `bundle.render`.
+- `<FormRenderer form={bundle} settings={…} />` — бандл сборки `createForm`: рендерер берёт готовую скомпилированную схему из `bundle.render`, ставит контекст сборки (его читает визард) и исполняет правила узлов из поведения формы. Это основной путь. Прежний бандл `createReactForm` принимается тем же пропом;
+- `<FormRenderer render={schema} settings={…} />` — низкоуровневый путь: `schema` — функция-схема либо результат `createRenderSchema`.
 
-При одновременной передаче побеждает явный `render`.
+При одновременной передаче побеждает явный `render`, а бандл игнорируется целиком — вместе с правилами узлов и контекстом сборки. Не передавай оба пропа.
 
-Чего делать нельзя: подставлять в `form` не бандл, а `FormGroup` (результат `createForm`) —
-проп ожидает `{ render: RenderSchemaFn<T> }`, и компилятор это ловит (TS2322). Не передавай
-и оба пропа сразу: явный `render` молча выигрывает, и бандл игнорируется целиком — вместе с
-render-behavior, наложенным на `bundle.render`. Форму для
-wizard-узла по-прежнему передают через `componentProps.form` в самой схеме — это отдельная
-вещь, не заменяющая ни один из двух путей выше.
+Чего делать нельзя: подставлять в `form` не бандл, а `FormGroup` (`bundle.form`) — проп ожидает `{ render }`, и компилятор это ловит (TS2322).
 
-> Раздел до 2026-08 утверждал, что пропа `form` нет вовсе. Это было верно, пока его
-> действительно не было; проп добавлен, врезка в [01-overview.md](01-overview.md) обновлена
-> тогда же, а этот раздел — нет.
+## `FormRenderer: в бандле нет дерева`
 
-## Unknown component in renderSchema
+У сборки `createForm` не задана `schema`. Без схемы рисовать нечего — поля рисуют сами: `<FormField control={bundle.form.email} />`.
 
-В `component` листа/контейнера должен лежать React-компонент (`Input`, `Section`, ...), а не строка. Лист поля дополнительно требует `value: model.$.<field>` (сигнал). Если хочешь адресовать компоненты по строковым именам — переходи на `@reformer/renderer-json`.
+## Unknown component in schema
 
-## RenderSchemaProxy nodes don't react to behavior
+В `component` листа должен лежать React-компонент (`Input`, `SelectAsync`, ...); у контейнера — компонент либо HTML-тег строкой (`'div'`, `'h3'`). Лист поля дополнительно требует `model: model.$.<field>`. Если хочешь адресовать компоненты по строковым именам — переходи на `@reformer/renderer-json` (реестр + `$component(Name)`).
 
-`hideWhen`/`patchProps` работают только при адресации узла через `schema.node(selector)`. Убедись, что:
+## Правило узла ничего не делает
 
-- У узла есть `selector` (top-level свойство узла). Без него `schema.node('x')` вернёт контроллер с пустыми переопределениями — без ошибок, но и без эффекта.
-- `RenderSchemaFn` обёрнута через `createRenderSchema`, а результат передан в `<FormRenderer>`. Если передать «сырую» `RenderSchemaFn`, override-карты/behavior не подключатся.
+`hideWhen`/`patchProps`/`onComponentEvent` работают только при адресации узла через `schema.node(selector)`. Убедись, что:
+
+- У узла есть `selector` (top-level свойство узла). Без него `schema.node('x')` вернёт контроллер с пустыми переопределениями — без ошибок, но и без эффекта. В dev сборка предупреждает: «поведение обращается к узлам схемы, которых нет в корневом дереве».
+- Узел лежит в той же области, что и поведение. Узлы строки массива и подформы адресуются из их поведения — `applyEach(model.$.items, rowBehavior)` / `apply(model.$.group, groupBehavior)`, а не из корневого.
+- Поведение подключено к сборке полем `behavior`. На низкоуровневом пути функция-схема обёрнута `createRenderSchema`, и в `<FormRenderer render={…} />` передан именно прокси.
+
+## `[@reformer/core] compileSchema: в области «#» селектор «…» повторяется`
+
+Два узла одной области несут один `selector`. По `selector` узел адресуют поведение и шаги потока, поэтому в области он уникален. Дай узлам разные селекторы; в строках массива и подформах селекторы живут в своих областях и с корнем не пересекаются.
 
 ## Hidden node still mounts
 
@@ -70,18 +68,18 @@ wizard-узла по-прежнему передают через `componentProp
 
 ## `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
 
-Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: Input, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidation<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
+Валидаторы вписаны прямо в лист схемы (`{ model: model.$.x, component: Input, validators: [...] }`). У узла нет поля `validators` — дерево несёт только layout. Правила валидации значений живут в **отдельной схеме над моделью** (`defineValidation<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`) и уходят в сборку полями `validation` и `flow.steps[].rules`. Полный поток — [06-validation.md](06-validation.md).
 
-## `TS2741: Property '__path' is missing in type 'ModelArray<T>' ... required in 'RenderModelArrayControl'`
+## Визард: «шаги схемы и шаги потока расходятся»
 
-Привязка array-узла верная (`array: model.<path>`, напр. `model.coBorrowers`), но публичный тип `ModelArray<U>` не объявляет `__path`, которого требует `RenderModelArrayControl`. Канон (файл схемы формы — `form.schema.ts`, с JSX — `.tsx`) — билдер строит дерево и кастует его в конце `as unknown as RenderNode<T>`; привязка остаётся `array: model.<path>`, менять на `model.$.<path>` НЕ нужно. См. [02-render-schema.md](02-render-schema.md#array).
+`FormWizard` связывает узел шага с шагом потока по `selector`: `id` шага в `createForm({ flow: { steps: [{ id }] } })` обязан совпадать с `selector` узла шага. Предупреждение перечисляет шаги потока без узла и узлы без шага потока. То же расхождение сборка ловит в dev: «в `flow.steps` есть шаги, для которых в дереве схемы нет узла с таким `selector`». См. [07-form-wizard.md](07-form-wizard.md).
 
 ## Form changes don't trigger re-render
 
-Скорее всего чтение значения идёт без `.value`, или подписка не доходит до React. Проверь:
+Скорее всего чтение значения идёт вне реактивного контекста или подписка не доходит до React. Проверь:
 
-- Внутри `hideWhen`/`renderEffect` сигнал читается целиком: `form.x.value.value` (первый `.value` — доступ к сигналу поля, второй — к его значению).
-- В пользовательском компоненте используется `useFormControl` (он подписывается на state-ноду).
+- Внутри `hideWhen`/`renderEffect` значение читается в самом колбэке: `model.x` (или сигнал ноды `form.x.value.value`), а не из переменной, захваченной заранее.
+- В пользовательском компоненте используется `useFormControl` из `@reformer/core/react` (он подписывается на ноду).
 
 ## Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
 
@@ -91,7 +89,7 @@ wizard-узла по-прежнему передают через `componentProp
 
 ```tsx
 <FormRenderer
-  render={schema}
+  form={bundle}
   settings={{
     fieldWrapper: FormField,
     resolveFieldAdapter: (component) =>
@@ -111,3 +109,4 @@ wizard-узла по-прежнему передают через `componentProp
 - [03-render-behavior.md](03-render-behavior.md)
 - [05-cookbook.md](05-cookbook.md)
 - [06-validation.md](06-validation.md)
+- [07-form-wizard.md](07-form-wizard.md)
