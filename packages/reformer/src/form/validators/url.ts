@@ -10,8 +10,12 @@ import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
 import { validationIssue } from './validation-issue';
 
-const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
-const URL_REQUIRE_PROTOCOL = /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+// Путь — один класс символов без вложенного квантификатора: `([/\w .-]*)*` перебирал разбиения
+// экспоненциально, и невалидный ввод «вешал» поле (ReDoS). Query и fragment — необязательные хвосты.
+const URL_WITH_PROTOCOL =
+  /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})[/\w .-]*(\?[^\s#]*)?(#\S*)?$/i;
+const URL_REQUIRE_PROTOCOL =
+  /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})[/\w .-]*(\?[^\s#]*)?(#\S*)?$/i;
 
 /**
  * Опции валидатора {@link url}. Расширяют {@link RuleOptions} (`code`, `params`)

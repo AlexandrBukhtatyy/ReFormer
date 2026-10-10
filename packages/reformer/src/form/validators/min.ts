@@ -13,7 +13,8 @@ import { validationIssue } from './validation-issue';
 /**
  * Фабрика валидатора минимального числового значения.
  *
- * Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
+ * Пустые значения и не-числа (`''`, строка из цифр, `NaN`) пропускаются — используйте
+ * {@link required} и {@link isNumber}.
  *
  * @param minValue - Минимально допустимое значение (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
@@ -34,7 +35,8 @@ import { validationIssue } from './validation-issue';
  */
 export function min(minValue: number, options?: RuleOptions): Rule<number | null | undefined> {
   return (value) => {
-    if (value === null || value === undefined) {
+    // Сравнение с приведением типов дало бы замечание для '' и '3' и зависело бы от знака порога.
+    if (typeof value !== 'number' || Number.isNaN(value)) {
       return null;
     }
     if (value < minValue) {

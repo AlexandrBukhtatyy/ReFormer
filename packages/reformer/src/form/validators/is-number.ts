@@ -11,9 +11,10 @@ import type { Rule } from '../validation/types';
 import { validationIssue } from './validation-issue';
 
 /**
- * Фабрика валидатора, проверяющего что значение — конечное число (не NaN, не строка).
+ * Фабрика валидатора, проверяющего что значение — конечное число (не `NaN`, не `±Infinity`,
+ * не строка).
  *
- * Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для
+ * Пустые значения (`''`/`null`/`undefined`) пропускаются (используйте {@link required} для
  * обязательности). В отличие от других number-валидаторов, **не** пропускает не-числа
  * и `NaN` — это его задача.
  *
@@ -33,8 +34,9 @@ import { validationIssue } from './validation-issue';
  */
 export function isNumber(options?: RuleOptions): Rule<number | null | undefined> {
   return (value) => {
-    if (value === null || value === undefined) return null;
-    if (typeof value !== 'number' || isNaN(value)) {
+    // Пустая строка — пустое значение, как у остальных правил каталога, а не «не число».
+    if (value === null || value === undefined || (value as unknown) === '') return null;
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
       return validationIssue('isNumber', options);
     }
     return null;

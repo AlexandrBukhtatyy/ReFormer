@@ -35,14 +35,16 @@ export function multipleOf(
   divisor: number,
   options?: RuleOptions
 ): Rule<number | null | undefined> {
-  // `%` точен только для двоично-представимых чисел: 0.3 % 0.1 === 0.0999…, поэтому сравниваем
-  // остаток с допуском (иначе десятичный шаг вроде multipleOf(0.5) даёт ложные ошибки).
-  const EPSILON = 1e-9;
+  // `%` точен только для двоично-представимых чисел: 0.3 % 0.1 === 0.0999…, поэтому частное
+  // сравнивается с ближайшим целым с допуском. Допуск относительный: ошибка округления растёт с
+  // величиной, и абсолютный 1e-9 давал ложные ошибки на суммах около десяти миллионов с шагом 0.01.
   return (value) => {
     if (value === null || value === undefined) return null;
     if (typeof value !== 'number' || isNaN(value)) return null;
-    const remainder = Math.abs(value % divisor);
-    const isMultiple = remainder <= EPSILON || Math.abs(remainder - Math.abs(divisor)) <= EPSILON;
+    const quotient = value / divisor;
+    const isMultiple =
+      Math.abs(quotient - Math.round(quotient)) <=
+      8 * Number.EPSILON * Math.max(1, Math.abs(quotient));
     if (!isMultiple) {
       return validationIssue('multipleOf', options, { multipleOf: divisor });
     }
