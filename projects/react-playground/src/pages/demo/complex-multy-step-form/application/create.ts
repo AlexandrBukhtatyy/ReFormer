@@ -11,6 +11,7 @@ import { createCreditApplicationModel } from '../model/model';
 import { creditApplicationSchema } from '../schema/form';
 import type { CreditApplicationForm } from '../types/credit-application';
 import { creditApplicationValidation } from '../validation/form';
+import { creditApplicationFlowSteps } from '../flow/credit-application-flow';
 
 type Overrides = Pick<CreateFormConfig<CreditApplicationForm>, 'schema' | 'registry' | 'setup'>;
 
@@ -20,5 +21,6 @@ export const createCreditApplication = (overrides: Overrides = {}) =>
     schema: creditApplicationSchema,
     behavior: creditApplicationBehavior,
     validation: creditApplicationValidation,
+    flow: creditApplicationFlowSteps,
     ...overrides,
   });

@@ -7,10 +7,8 @@
  * renderer-вариантами (`application/`).
  */
 
-import { useRef } from 'react';
 import { useFormBundle } from '@reformer/core/react';
 import { AsyncBoundary, FormWizard, type FormWizardStep } from '@reformer/ui-kit';
-import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { createCreditApplication } from './application/create';
 import { loadCreditApplication, type CreditApplicationData } from './application/load';
@@ -47,20 +45,18 @@ const STEPS: Step[] = creditApplicationFlow.map((step, index) => ({
 }));
 
 function CreditApplicationForm() {
-  const wizardRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
-
   // Модель, форма и валидация — одной сборкой. useFormBundle зовёт фабрику ровно один раз и
   // держит бандл стабильным.
   const bundle = useFormBundle(() => createCreditApplication());
-  const { form, validation } = bundle;
+  const { form } = bundle;
 
   // ID заявки: '1' / '2' — редактирование, null — пустая форма (создание).
   const applicationId: string | null = '1';
 
   const submitApplication = async () => {
-    // Визард зовёт обработчик только после успешной валидации; иначе возвращает null.
-    const outcome = await wizardRef.current?.submit(sendCreditApplication);
-    if (outcome) reportSubmitOutcome(outcome);
+    // Один прогон всех правил: при замечаниях обработчик не вызывается, поля помечены тронутыми.
+    const outcome = await bundle.submit(sendCreditApplication);
+    if (outcome.status === 'submitted') reportSubmitOutcome(outcome.result);
     else alert('Пожалуйста, исправьте ошибки в форме');
   };
 
@@ -75,9 +71,8 @@ function CreditApplicationForm() {
         onSuccess={(data) => applyCreditApplication(bundle, data)}
       >
         <FormWizard
-          ref={wizardRef}
           form={form}
-          config={validation}
+          flow={bundle.flow}
           steps={STEPS}
           onSubmit={submitApplication}
           submitLabel="Отправить заявку"

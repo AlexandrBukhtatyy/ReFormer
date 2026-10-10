@@ -15,7 +15,6 @@ import {
   renderEffect,
   type BehaviorScope,
 } from '@reformer/core/behaviors';
-import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { creditApplicationRules } from '../behavior';
 import { isMortgage } from '../model/predicates';
 import type { CreditApplicationForm } from '../types/credit-application';
@@ -39,7 +38,7 @@ export function wireRenderer(
   scope: BehaviorScope<CreditApplicationForm>,
   { applicationId }: RendererOptions
 ): void {
-  const { model, schema } = scope;
+  const { model, schema, flow } = scope;
   const boundary = schema.node('data-boundary');
   const wizard = schema.node('wizard');
 
@@ -67,10 +66,9 @@ export function wireRenderer(
     reportSubmitOutcome(await sendCreditApplication(values));
   });
 
-  // Навигация через ref визарда: эффект запускается после монтирования
-  const wizardRef = wizard.getRef<FormWizardHandle<CreditApplicationForm>>();
+  // Навигация — через поток шагов сборки: ипотека возвращает к шагу кредита
   renderEffect(schema, () => {
-    if (isMortgage(model.loanType)) wizardRef.current?.goToStep(1);
+    if (isMortgage(model.loanType)) flow?.goTo('loan');
   });
 
   // Хуки жизненного цикла узла (демонстрация)
@@ -99,6 +97,7 @@ export const rendererSetup =
         model: bundle.model,
         form: bundle.form,
         schema: bundle.render.controller.scopeOf(bundle.model),
+        flow: bundle.flow,
       },
       options
     );

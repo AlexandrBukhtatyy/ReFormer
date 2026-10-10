@@ -20,6 +20,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { creditApplicationRegistryBehavior } from '../complex-multy-step-form/application/renderer';
 import { createCreditApplicationModel } from '../complex-multy-step-form/model/model';
 import { creditApplicationValidation } from '../complex-multy-step-form/validation/form';
+import { creditApplicationFlowSteps } from '../complex-multy-step-form/flow/credit-application-flow';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import rawJsonSchema from '../complex-multy-step-form-renderer-json/form.schema.json';
 import { createCreditApplicationRegistry } from '../complex-multy-step-form-renderer-json/registry';
@@ -38,11 +39,12 @@ export const creditApplicationFormEntry: FormEntry<CreditApplicationForm> = {
   schema: { kind: 'inline', value: creditApplicationJsonSchema },
 
   // Код. Поведение записи — правила заявки и связка узлов схемы (загрузка, отправка, навигация).
-  // Форму и валидацию визард берёт из сборки сам — доносить их до узла отдельным слоем не нужно.
+  // Форму и поток шагов визард берёт из сборки сам — доносить их до узла отдельным слоем не нужно.
   registry: { kind: 'inline', value: createCreditApplicationRegistry() },
   model: { kind: 'inline', value: createCreditApplicationModel },
   behavior: { kind: 'inline', value: creditApplicationRegistryBehavior({ applicationId: '1' }) },
   validation: { kind: 'inline', value: creditApplicationValidation },
+  flow: { kind: 'inline', value: creditApplicationFlowSteps },
 
   meta: {
     name: 'Кредитная заявка (реестр форм)',

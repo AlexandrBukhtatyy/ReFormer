@@ -6,7 +6,7 @@
  * визарда в варианте «React руками». Связать разметку одного шага с правилами другого негде.
  */
 
-import type { FormModel, FormSchemaNode } from '@reformer/core';
+import type { FormFlowConfig, FormModel, FormSchemaNode } from '@reformer/core';
 import type { ValidationDefinition } from '@reformer/core/validation';
 import type { CreditApplicationForm } from '../types/credit-application';
 import { loanStep } from '../schema/steps/loan';
@@ -74,3 +74,11 @@ export const creditApplicationFlow = [
 
 /** Идентификатор шага заявки. */
 export type StepSelector = (typeof creditApplicationFlow)[number]['selector'];
+
+/**
+ * Поток шагов заявки для сборки — поле `flow` в `createForm`: идентификатор шага — его
+ * `selector`, правила — правила шага. `next()` потока проверяет правила текущего шага.
+ */
+export const creditApplicationFlowSteps: FormFlowConfig<CreditApplicationForm> = {
+  steps: creditApplicationFlow.map((step) => ({ id: step.selector, rules: step.rules })),
+};
