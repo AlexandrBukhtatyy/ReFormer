@@ -434,7 +434,8 @@ componentProps: { label: 'Страна', resource: countries }`,
         initial: null,
         component: SelectAsync,
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-        validators: [required({ message: 'Выберите тип кредита' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Выберите тип кредита' },
         touched: true,
       }),
       code: `{
@@ -444,14 +445,15 @@ componentProps: { label: 'Страна', resource: countries }`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);`,
+validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
     },
   ],
   api: {
     component: SelectAsync,
     initialValue: null,
     baseComponentProps: { label: 'Тип кредита', options: LOAN },
-    validators: [required({ message: 'Выберите тип' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Выберите тип' },
     valuePresets: [
       { label: 'Потребительский', value: 'consumer' },
       { label: 'Ипотека', value: 'mortgage' },

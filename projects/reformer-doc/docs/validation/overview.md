@@ -12,14 +12,14 @@ Layout-схема (дерево `RenderNode` / JSON / привязка комп�
 
 ## Как это устроено
 
-Схема валидации — обычная функция `({ model }) => void`, обёрнутая в `defineValidationSchema<T>`.
+Схема валидации — обычная функция `({ model }) => void`, обёрнутая в `defineValidation<T>`.
 Внутри вызываются свободные операторы из `@reformer/core/validation`; значение поля проверяет
 `validate(sig, [rules])`. Правила — это чистые **фабрики** (`required()`, `email()`, `min(18)`, …)
-из `@reformer/core/validators`, возвращающие функцию `(value) => ValidationError | null`.
+из `@reformer/core/validators`, возвращающие функцию `(value) => ValidationIssue | null`.
 
 ```typescript
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
 
@@ -35,8 +35,8 @@ const schema = {
 
 const form = createFormFromModel<ContactForm>({ model, schema });
 
-// Валидация — отдельная схема: обычная функция над моделью, обёрнутая в defineValidationSchema.
-const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+// Валидация — отдельная схема: обычная функция над моделью, обёрнутая в defineValidation.
+const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
@@ -61,7 +61,7 @@ const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
 
 Валидация выполняется **по требованию** — обычно на submit или при переходе на следующий шаг — через
 внешний раннер `validateModel(model, schema)`. Он обходит модель по схеме, дожидается async-правил,
-**роутит ошибки в ноды формы** (`getNodeForSignal(sig).setErrors(...)`), поэтому поля с ошибками
+**роутит ошибки в ноды формы** (`getNodeForSignal(sig).setIssues(...)`), поэтому поля с ошибками
 подсветятся в UI, и возвращает `Promise<boolean>`.
 
 ```typescript
@@ -113,7 +113,7 @@ import { useFormControl } from '@reformer/core/react';
 
 function NameField() {
   const { value, errors, valid, shouldShowError } = useFormControl(form.name);
-  // errors: ValidationError[] — пустой [] когда поле валидно
+  // errors: ValidationIssue[] — пустой [] когда поле валидно
   // valid: boolean
   // shouldShowError: invalid && (touched || dirty) — показывать ошибку только после взаимодействия
 
@@ -129,7 +129,7 @@ function NameField() {
 | Поле состояния      | Тип                 | Назначение                                              |
 | ------------------- | ------------------- | ------------------------------------------------------- | --- | ----------------------------- |
 | `value`             | `T`                 | текущее значение поля                                   |
-| `errors`            | `ValidationError[]` | ошибки поля; `[]` когда валидно                         |
+| `errors`            | `ValidationIssue[]` | ошибки поля; `[]` когда валидно                         |
 | `valid` / `invalid` | `boolean`           | прошло ли поле проверку                                 |
 | `touched` / `dirty` | `boolean`           | взаимодействовал ли пользователь / менялось ли значение |
 | `shouldShowError`   | `boolean`           | `invalid && (touched                                    |     | dirty)` — удобный флаг для UI |
@@ -142,10 +142,10 @@ function NameField() {
 
 ## Объект ошибки
 
-Каждая ошибка — это `ValidationError`:
+Каждая ошибка — это `ValidationIssue`:
 
 ```typescript
-interface ValidationError {
+interface ValidationIssue {
   code: string; // машинный код: 'required', 'email', 'minLength', …
   message: string; // текст для пользователя
   params?: Record<string, unknown>; // данные ошибки: { minLength: 2, actualLength: 1 }
@@ -156,14 +156,14 @@ interface ValidationError {
 ```typescript
 // Пример содержимого form.name.errors (валидаторам передан свой { message }):
 []; // — когда валидно
-[{ code: 'required', message: 'Укажите имя' }]; // — required не пройден
-[{ code: 'minLength', message: 'Минимум 2 символа', params: { minLength: 2, actualLength: 1 } }];
+[{ code: 'required' }]; // — required не пройден
+[{ code: 'minLength', params: { minLength: 2, actualLength: 1 } }];
 ```
 
 :::tip Пустое сообщение = резолв по коду
 Если валидатору не передать `{ message }`, в `message` попадёт пустая строка (или `'invalid'`), а
 человекочитаемый текст резолвится из `code` в слое отображения (`@reformer/ui-kit`). Свой текст
-задаётся опцией: `required({ message: 'Укажите имя' })`.
+задаётся опцией: `required({ code: 'field.required' })`.
 :::
 
 ## Условная валидация
@@ -173,7 +173,7 @@ interface ValidationError {
 **гасятся** — их ошибки очищаются.
 
 ```typescript
-const orderValidation = defineValidationSchema<OrderForm>(({ model }) => {
+const orderValidation = defineValidation<OrderForm>(({ model }) => {
   validate(model.$.contactMethod, [required()]);
   // Телефон обязателен, только если выбран контакт по телефону:
   validateWhen(

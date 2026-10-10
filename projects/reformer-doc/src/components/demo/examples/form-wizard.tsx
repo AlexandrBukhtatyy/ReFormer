@@ -1,24 +1,32 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useRef, useState } from 'react';
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, apply, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { defineIssueMessages } from '@reformer/core/i18n';
 import type { ComponentDocConfig } from '../types';
 
 type WForm = { name: string; email: string; phone: string };
 
 // Правила — отдельные validation-схемы (@reformer/core/validation), по одной на шаг.
-const step1Validation = defineValidationSchema<WForm>(({ model }) => {
-  validate(model.$.name, [required({ message: 'Введите имя' })]);
+const step1Validation = defineValidation<WForm>(({ model }) => {
+  validate(model.$.name, [required({ code: 'name.required' })]);
   validate(model.$.email, [required(), email()]);
 });
-const step2Validation = defineValidationSchema<WForm>(({ model }) => {
-  validate(model.$.phone, [required({ message: 'Введите телефон' })]);
+const step2Validation = defineValidation<WForm>(({ model }) => {
+  validate(model.$.phone, [required({ code: 'phone.required' })]);
 });
-const fullValidation = defineValidationSchema<WForm>(() => apply(step1Validation, step2Validation));
+const fullValidation = defineValidation<WForm>(() => apply(step1Validation, step2Validation));
+
+/** Тексты замечаний демо: правила несут код, строку по коду даёт словарь формы. */
+const WIZARD_MESSAGES = defineIssueMessages({
+  'name.required': 'Введите имя',
+  'phone.required': 'Введите телефон',
+});
 
 /** M1-форма визарда: layout без валидаторов + config поверх validateModel. */
 function useWizardForm() {
@@ -66,15 +74,17 @@ function WizardSteps() {
     []
   );
   return (
-    <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormWizard
-        form={form}
-        config={config}
-        steps={steps as any}
-        onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
-      />
-      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
-    </div>
+    <ValidationMessagesProvider messages={WIZARD_MESSAGES}>
+      <div style={{ maxWidth: 480, width: '100%' }}>
+        <FormWizard
+          form={form}
+          config={config}
+          steps={steps as any}
+          onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
+        />
+        {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+      </div>
+    </ValidationMessagesProvider>
   );
 }
 
@@ -101,27 +111,31 @@ function WizardRefHandle() {
     []
   );
   return (
-    <div style={{ maxWidth: 480, width: '100%' }}>
-      <FormWizard
-        ref={navRef}
-        form={form}
-        config={config}
-        steps={steps as any}
-        onSubmit={() => setStatus('✅ Отправлено: ' + JSON.stringify(model.get()))}
-      />
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
-        <Button variant="outline" size="sm" onClick={() => navRef.current?.goToNextStep()}>
-          Далее (извне)
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => void navRef.current?.submit(async () => setStatus('✅ Отправлено извне'))}
-        >
-          Отправить (извне)
-        </Button>
-        {status && <span style={{ fontSize: 13 }}>{status}</span>}
+    <ValidationMessagesProvider messages={WIZARD_MESSAGES}>
+      <div style={{ maxWidth: 480, width: '100%' }}>
+        <FormWizard
+          ref={navRef}
+          form={form}
+          config={config}
+          steps={steps as any}
+          onSubmit={() => setStatus('✅ Отправлено: ' + JSON.stringify(model.get()))}
+        />
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
+          <Button variant="outline" size="sm" onClick={() => navRef.current?.goToNextStep()}>
+            Далее (извне)
+          </Button>
+          <Button
+            size="sm"
+            onClick={() =>
+              void navRef.current?.submit(async () => setStatus('✅ Отправлено извне'))
+            }
+          >
+            Отправить (извне)
+          </Button>
+          {status && <span style={{ fontSize: 13 }}>{status}</span>}
+        </div>
       </div>
-    </div>
+    </ValidationMessagesProvider>
   );
 }
 
@@ -138,13 +152,13 @@ export const uiKitFormWizardDocConfig: ComponentDocConfig = {
         'Массив steps ({ number, title, icon?, body }) + config. «Далее» блокируется, пока текущий шаг невалиден; индикатор и кнопки рендерятся автоматически.',
       render: WizardSteps,
       code: `import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, apply, validateModel } from '@reformer/core/validation';
 
-const step1Validation = defineValidationSchema<WForm>(({ model }) => {
+const step1Validation = defineValidation<WForm>(({ model }) => {
   validate(model.$.name, [required()]);
   validate(model.$.email, [required(), email()]);
 });
-const fullValidation = defineValidationSchema<WForm>(() => apply(step1Validation, step2Validation));
+const fullValidation = defineValidation<WForm>(() => apply(step1Validation, step2Validation));
 
 const STEPS: FormWizardStep<WForm>[] = [
   { number: 1, title: 'Контакт', icon: '👤', body: ContactStep },

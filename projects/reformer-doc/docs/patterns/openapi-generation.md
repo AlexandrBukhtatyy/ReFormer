@@ -82,15 +82,15 @@ const form = createFormFromModel<CreateUserRequest>({ model, schema });
 ```
 
 Ограничения из OpenAPI (`required`, `minLength`, `format: email`, `minimum`) переносятся вручную в
-**схему валидации** `defineValidationSchema<T>(({ model }) => …)`. Каждое поле проверяется оператором
+**схему валидации** `defineValidation<T>(({ model }) => …)`. Каждое поле проверяется оператором
 `validate(sig, [rules])` над той же моделью:
 
 ```typescript title="form.validation.ts"
-import { validate, defineValidationSchema } from '@reformer/core/validation';
+import { validate, defineValidation } from '@reformer/core/validation';
 import { required, email, minLength, min } from '@reformer/core/validators';
 import type { CreateUserRequest } from './types';
 
-export const userValidation = defineValidationSchema<CreateUserRequest>(({ model }) => {
+export const userValidation = defineValidation<CreateUserRequest>(({ model }) => {
   validate(model.$.firstName, [required(), minLength(2)]); // required + minLength
   validate(model.$.lastName, [required()]);
   validate(model.$.email, [required(), email()]); // format: email
@@ -123,13 +123,13 @@ export const userValidation = defineValidationSchema<CreateUserRequest>(({ model
 уже совпадает по форме с request body — его можно отправлять как есть:
 
 ```typescript title="api.ts"
-import { validateModel, type ValidationSchema } from '@reformer/core/validation';
+import { validateModel, type ValidationDefinition } from '@reformer/core/validation';
 import type { FormModel } from '@reformer/core';
 import type { CreateUserRequest } from './types';
 
 export async function submitUser(
   model: FormModel<CreateUserRequest>,
-  schema: ValidationSchema<CreateUserRequest>
+  schema: ValidationDefinition<CreateUserRequest>
 ) {
   const valid = await validateModel(model, schema); // ошибки сами доедут до нод формы
   if (!valid) return;

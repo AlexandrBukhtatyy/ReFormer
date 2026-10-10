@@ -5,7 +5,7 @@ sidebar_position: 5
 # Стратегии валидации
 
 Как и **когда** запускать проверки. В актуальном контракте валидация — **отдельный слой**: правила
-живут в `defineValidationSchema`, а не в layout-узлах, и прогоняются **по требованию** раннером
+живут в `defineValidation`, а не в layout-узлах, и прогоняются **по требованию** раннером
 `validateModel`. Отсюда три момента запуска: живая обратная связь на уровне поля (мост
 `revalidateWhen`), гейт перехода между шагами (`validateModel` по под-схеме шага) и полная проверка на
 submit.
@@ -13,7 +13,7 @@ submit.
 ## Прогон по требованию — `validateModel`
 
 Layout-узел (`RenderNode` / JSON / схема формы) больше **не несёт валидаторы** — он описывает только
-разметку. Правила собраны в отдельную `ValidationSchema<T>` (функция `({ model }) => void`), а её
+разметку. Правила собраны в отдельную `ValidationDefinition<T>` (функция `({ model }) => void`), а её
 прогоняет внешний раннер `validateModel(model, schema)`. Раннер синхронно регистрирует правила,
 дожидается async-проверок, **сам разносит ошибки по нодам формы** и гасит поля, ставшие валидными.
 Возвращает `boolean` (`severity: 'warning'` не блокирует).
@@ -21,7 +21,7 @@ Layout-узел (`RenderNode` / JSON / схема формы) больше **н�
 ```typescript
 import { validateModel } from '@reformer/core/validation';
 
-// schema — ValidationSchema<T>, отдельная от layout-схемы формы.
+// schema — ValidationDefinition<T>, отдельная от layout-схемы формы.
 const valid = await validateModel(model, schema); // Promise<boolean>
 // ошибки уже доехали до нод — UI подсветит поля; отдельного { errors } возвращать не нужно
 ```
@@ -43,15 +43,15 @@ schema-валидацию** — он лишь читает текущее сос
 
 ## Пошаговые формы — гейт шага
 
-Каждый шаг мастера описывается своей `ValidationSchema<T>`; переход «вперёд» — это прогон под-схемы
+Каждый шаг мастера описывается своей `ValidationDefinition<T>`; переход «вперёд» — это прогон под-схемы
 текущего шага через `validateModel`. Он дожидается и sync-, и async-правил, поэтому всегда `await`.
 
 ```typescript
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
-const step1Schema = defineValidationSchema<LoanForm>(({ model }) => {
-  validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
+const step1Schema = defineValidation<LoanForm>(({ model }) => {
+  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
   validate(model.$.loanAmount, [required(), min(50000)]);
 });
 
@@ -68,16 +68,16 @@ const goNext = async () => {
 ```typescript
 import {
   apply,
-  defineValidationSchema,
+  defineValidation,
   validateModel,
-  type ValidationSchema,
+  type ValidationDefinition,
 } from '@reformer/core/validation';
 import type { FormModel } from '@reformer/core';
 
-const STEP_SCHEMAS: readonly ValidationSchema<LoanForm>[] = [step1Schema, step2Schema /* … */];
+const STEP_SCHEMAS: readonly ValidationDefinition<LoanForm>[] = [step1Schema, step2Schema /* … */];
 
 /** Полная схема формы: все шаги подряд над той же моделью. */
-const fullSchema = defineValidationSchema<LoanForm>(() => apply(...STEP_SCHEMAS));
+const fullSchema = defineValidation<LoanForm>(() => apply(...STEP_SCHEMAS));
 
 /** Колбэки валидации для FormWizard: гейт шага + полная проверка на submit. */
 export function makeValidationConfig(model: FormModel<LoanForm>) {
@@ -128,31 +128,23 @@ const handleSubmit = async (e: React.FormEvent) => {
 ## Условная валидация
 
 Правила, действующие только в части формы, оборачиваются оператором `validateWhen(cond, cb)`. Пока
-`cond()` ложно, правила внутри не срабатывают, а их поля **гасятся** (`setErrors([])`) — не нужно
+`cond()` ложно, правила внутри не срабатывают, а их поля **гасятся** (`setIssues([])`) — не нужно
 «прятать» лишние ошибки в UI.
 
 ```typescript
-import {
-  validate,
-  validateWhen,
-  defineValidationSchema,
-  validateModel,
-} from '@reformer/core/validation';
+import { validate, validateWhen, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 
 type AccountForm = { accountType: string; businessName: string; ein: string };
 
-const schema = defineValidationSchema<AccountForm>(({ model }) => {
+const schema = defineValidation<AccountForm>(({ model }) => {
   validate(model.$.accountType, [required()]);
   // Поля бизнес-аккаунта проверяются, только когда выбран business
   validateWhen(
     () => model.accountType === 'business',
     () => {
       validate(model.$.businessName, [required()]);
-      validate(model.$.ein, [
-        required(),
-        pattern(/^\d{2}-\d{7}$/, { message: 'Некорректный EIN' }),
-      ]);
+      validate(model.$.ein, [required(), pattern(/^\d{2}-\d{7}$/, { code: 'ein.pattern' })]);
     }
   );
 });
@@ -172,8 +164,8 @@ const valid = await validateModel(model, schema);
 единственный мост от реактивного слоя поведения к прогону валидации по требованию.
 
 ```typescript
-import { createModel, createFormFromModel, type ValidationError } from '@reformer/core';
-import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { createModel, createFormFromModel, type ValidationIssue } from '@reformer/core';
+import { validate, cross, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, minLength } from '@reformer/core/validators';
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 
@@ -182,12 +174,12 @@ type PasswordForm = { password: string; confirmPassword: string };
 const model = createModel<PasswordForm>({ password: '', confirmPassword: '' });
 
 // Кросс-полевое правило — обычная функция над снапшотом формы (без scope/root-аргументов).
-const passwordsMatch = (f: PasswordForm): ValidationError | null =>
+const passwordsMatch = (f: PasswordForm): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'passwordMismatch', message: 'Пароли не совпадают' }
+    ? { code: 'passwordMismatch' }
     : null;
 
-const schema = defineValidationSchema<PasswordForm>(({ model }) => {
+const schema = defineValidation<PasswordForm>(({ model }) => {
   validate(model.$.password, [required(), minLength(8)]);
   validate(model.$.confirmPassword, [required()]);
   cross(model.$.confirmPassword, passwordsMatch); // ошибка садится на confirmPassword
@@ -216,14 +208,8 @@ const form = createFormFromModel({ model, schema: layout, behavior });
 а не на сам массив: `model.$.<array>` — дерево сигналов, а не leaf, и ошибка на нём не сядет в ноду.
 
 ```typescript
-import { createModel, type FormModel, type ValidationError } from '@reformer/core';
-import {
-  validate,
-  cross,
-  each,
-  defineValidationSchema,
-  validateModel,
-} from '@reformer/core/validation';
+import { createModel, type FormModel, type ValidationIssue } from '@reformer/core';
+import { validate, cross, each, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
 type TagForm = { listTitle: string; tags: { label: string }[] };
@@ -236,14 +222,12 @@ const tagItem = (im: FormModel<{ label: string }>): void => {
 };
 
 // Правило уровня массива — читает снапшот, садится на скалярное поле-носитель.
-const uniqueTags = (f: TagForm): ValidationError | null => {
+const uniqueTags = (f: TagForm): ValidationIssue | null => {
   const labels = f.tags.map((t) => t.label);
-  return labels.length !== new Set(labels).size
-    ? { code: 'notUnique', message: 'Метки должны быть уникальны' }
-    : null;
+  return labels.length !== new Set(labels).size ? { code: 'notUnique' } : null;
 };
 
-const schema = defineValidationSchema<TagForm>(({ model }) => {
+const schema = defineValidation<TagForm>(({ model }) => {
   validate(model.$.listTitle, [required()]);
   cross(model.$.listTitle, uniqueTags); // правило уровня массива на скалярном носителе
   each(model.tags, tagItem); // per-item валидация элементов
@@ -265,11 +249,11 @@ const valid = await validateModel(model, schema);
 - **`validateWhen` вместо «спрятать ошибку».** Выключенная ветка не проверяется и гасит свои поля — это
   дешевле и честнее, чем валидировать всё и прятать лишнее в UI.
 - **Стабильные `const`-ссылки на схемы.** `validateModel` отменяет устаревший прогон по идентичности
-  `(model, schema)` — держите схемы в `const` / `defineValidationSchema`, не создавайте инлайн-стрелку
+  `(model, schema)` — держите схемы в `const` / `defineValidation`, не создавайте инлайн-стрелку
   на каждый вызов.
 - **Именуйте вынесенные правила по смыслу.** Разросшийся кросс-полевой валидатор или под-схему выносите в
   именованную константу (`initialPaymentVsProperty`, `addressSchema`), типизируя её
-  `(f: Root) => ValidationError | null` / `ValidationSchema<T>` — схема остаётся плоской и читается как
+  `(f: Root) => ValidationIssue | null` / `ValidationDefinition<T>` — схема остаётся плоской и читается как
   оглавление.
 - **Дорогую живую проверку дебаунсите сами.** `revalidateWhen` перезапускает валидацию сразу; для async
   вне ввода оберните колбэк собственным дебаунсом, а отменой устаревших ответов займётся `AbortSignal`

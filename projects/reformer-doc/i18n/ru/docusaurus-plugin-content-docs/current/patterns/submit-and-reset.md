@@ -6,7 +6,7 @@ sidebar_position: 3
 
 Канонический жизненный цикл отправки под M1: **пометить поля тронутыми → прогнать схему валидации →
 взять снимок модели → отправить → сбросить**. Валидация — **отдельный слой**
-(`@reformer/core/validation`): схема описывается функцией `defineValidationSchema`, не входит в layout
+(`@reformer/core/validation`): схема описывается функцией `defineValidation`, не входит в layout
 формы и прогоняется по требованию раннером `validateModel(model, schema)`. Раннер сам роутит ошибки в
 ноды формы, поэтому UI подсветит проблемные поля.
 
@@ -22,7 +22,7 @@ sidebar_position: 3
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
@@ -30,7 +30,7 @@ type SignupForm = { name: string; email: string };
 
 // Валидация — отдельная схема над моделью, вне layout-дерева формы. Стабильная module-level
 // ссылка: она нужна раннеру, чтобы отменять устаревшие прогоны той же (model, schema).
-const signupValidation = defineValidationSchema<SignupForm>(({ model }) => {
+const signupValidation = defineValidation<SignupForm>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
@@ -78,14 +78,14 @@ submit уйдёт с невалидными данными. Дождитесь `
 
 :::info Схема валидации ≠ layout
 `schema`, который получает `createForm`, — это **layout-дерево** (привязка сигналов к компонентам),
-и валидаторов оно не несёт. Правила живут в отдельной `defineValidationSchema` и запускаются только
+и валидаторов оно не несёт. Правила живут в отдельной `defineValidation` и запускаются только
 через `validateModel`. Подробнее — [Обзор валидации](../validation/overview).
 :::
 
 ## Серверные ошибки и сбои
 
 `model.reset()` вызывайте **только после успеха**. При бизнес-ошибке сервера — кладите её в поле
-через `form.<field>.setErrors([...])` и не сбрасывайте значения; при сетевой ошибке — тоже
+через `form.<field>.setIssues([...])` и не сбрасывайте значения; при сетевой ошибке — тоже
 оставляйте данные.
 
 ```tsx
@@ -102,7 +102,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       model.reset();
     } else {
       // бизнес-ошибка сервера — НЕ сбрасываем, показываем на поле
-      form.email.setErrors([{ code: 'taken', message: res.message }]);
+      form.email.setIssues([{ code: 'taken' }]);
     }
   } catch (err) {
     // сеть/неожиданная ошибка — оставляем значения
@@ -239,7 +239,7 @@ function ActionButtons({ model }: { model: FormModel<SignupForm> }) {
 :::tip После `reset()` в UI остались старые ошибки
 `model.reset()` меняет только значения; ошибки живут в нодах и чистятся валидацией. Перезапустите
 `validateModel(model, schema)` после reset (валидные поля погаснут сами) либо очистите точечно
-`form.field.clearErrors()`.
+`form.field.clearIssues()`.
 :::
 
 :::warning `reset` после успешной загрузки данных

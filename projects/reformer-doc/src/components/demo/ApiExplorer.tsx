@@ -4,6 +4,7 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import { getFieldAdapter, useFormControlValue } from '@reformer/core/react';
 import { validateModel } from '@reformer/core/validation';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormField } from '@reformer/ui-kit';
 import { nativeInputAdapter, sliderAdapter } from '@reformer/ui-kit/fields';
 import { ChevronDown } from 'lucide-react';
@@ -140,10 +141,12 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
       <ApiPreview codeFlavors={codeFlavors} footer={footer}>
         {/* description и labelTooltip FormField читает один раз при монтировании (peek) — чтобы их
             ручки были живыми, перемонтируем обёртку при смене именно этих значений. */}
-        <FormField
-          key={`${String(values.description ?? '')}|${String(values.labelTooltip ?? '')}`}
-          control={control}
-        />
+        <ValidationMessagesProvider messages={api.messages}>
+          <FormField
+            key={`${String(values.description ?? '')}|${String(values.labelTooltip ?? '')}`}
+            control={control}
+          />
+        </ValidationMessagesProvider>
       </ApiPreview>
 
       {/* Grouped prop controls */}

@@ -96,7 +96,8 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         initial: null,
         component: ToggleGroupOptions,
         componentProps: { label: 'Пол', options: GENDER },
-        validators: [required({ message: 'Выберите пол' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Выберите пол' },
         touched: true,
       }),
       code: `{
@@ -106,7 +107,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.gender, [required({ message: 'Выберите пол' })]);`,
+validate(model.$.gender, [required({ code: 'gender.required' })]);`,
     },
     {
       id: 'disabled',
@@ -127,7 +128,8 @@ control.disable(); // блокирует всю группу`,
     component: ToggleGroupOptions,
     initialValue: null,
     baseComponentProps: { label: 'Пол', options: GENDER },
-    validators: [required({ message: 'Выберите вариант' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Выберите вариант' },
     valuePresets: [
       { label: 'Мужской', value: 'male' },
       { label: 'Женский', value: 'female' },

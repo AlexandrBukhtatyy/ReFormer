@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Схема валидации
 
-Валидация — **отдельная** схема-функция `ValidationSchema`, а не часть layout-схемы. Layout
+Валидация — **отдельная** схема-функция `ValidationDefinition`, а не часть layout-схемы. Layout
 (schema формы, JSON-DSL, `RenderNode`) описывает только структуру и UI и **не несёт** валидаторов;
 правила объявляются рядом, операторами из `@reformer/core/validation`, и прогоняются **по требованию**
 внешним раннером `validateModel(model, schema)`. Два слоя разведены: данные и вёрстка живут в форме,
@@ -13,14 +13,14 @@ sidebar_position: 3
 
 ## Отдельная схема валидации
 
-Схема валидации — обычная функция над моделью: `defineValidationSchema<T>(({ model }) => { … })`.
+Схема валидации — обычная функция над моделью: `defineValidation<T>(({ model }) => { … })`.
 Внутри вызываются свободные операторы, которые сами разносят ошибки в нужные ноды формы. Поле
 проверяется оператором `validate(sig, [rules])`, где `sig` — сигнал модели (`model.$.<field>`), а
 `rules` — массив правил-фабрик из `@reformer/core/validators`:
 
 ```typescript
 import { createModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
 type User = { name: string; email: string };
@@ -28,7 +28,7 @@ type User = { name: string; email: string };
 const model = createModel<User>({ name: '', email: '' });
 
 // Схема валидации живёт отдельно от layout-схемы формы.
-const userValidation = defineValidationSchema<User>(({ model }) => {
+const userValidation = defineValidation<User>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
@@ -37,7 +37,7 @@ const userValidation = defineValidationSchema<User>(({ model }) => {
 const ok = await validateModel(model, userValidation);
 ```
 
-`defineValidationSchema` — тонкая identity-обёртка (как `defineFormBehavior` у behavior): она лишь
+`defineValidation` — тонкая identity-обёртка (как `defineFormBehavior` у behavior): она лишь
 задаёт типы и делает схему легко переиспользуемой. Схема — **first-class значение**: её можно
 хранить в `const`, передавать в `apply`, вызывать над под-моделью и юнит-тестировать без UI.
 
@@ -52,7 +52,7 @@ const ok = await validateModel(model, userValidation);
 
 Единственный внешний раннер — `validateModel(model, schema): Promise<boolean>`. Он открывает
 окно прогона, синхронно регистрирует правила, дожидается async-проверок и **сам разносит ошибки по
-нодам формы** (`getNodeForSignal(sig).setErrors(...)`), гася поля, ставшие валидными. Возвращает
+нодам формы** (`getNodeForSignal(sig).setIssues(...)`), гася поля, ставшие валидными. Возвращает
 `true`, если нет блокирующих ошибок:
 
 ```typescript
@@ -78,12 +78,12 @@ async function submit() {
 - **Устаревшие прогоны отменяются.** Быстрый повторный вызов той же пары `(model, schema)` отменяет
   предыдущий через `AbortSignal` (в т.ч. отменяет in-flight `fetch` async-правил).
 - **Гашение.** Поле, ставшее валидным (или попавшее в выключенную `validateWhen`-ветку), получает
-  `setErrors([])` автоматически.
+  `setIssues([])` автоматически.
 
 :::warning `form.validate()` / `submit()` больше не валидируют схему
 Прогон валидации инициирует **приложение** вызовом `validateModel`, а не форма. Методы формы
-(`markAsTouched`, `clearErrors`, `markAsUntouched`) управляют только UI-состоянием нод. Поэтому
-`validateModel` должна получать **стабильную** ссылку на схему (`const` / `defineValidationSchema`):
+(`markAsTouched`, `clearIssues`, `markAsUntouched`) управляют только UI-состоянием нод. Поэтому
+`validateModel` должна получать **стабильную** ссылку на схему (`const` / `defineValidation`):
 отмена устаревших прогонов ключится по идентичности схемы, а инлайн-стрелка каждый раз создаёт новый
 прогон без дедупликации.
 :::
@@ -96,15 +96,15 @@ async function submit() {
 | Шаг wizard'а / вся форма          | конфиг `{ validateStep, validateAll }` (см. ниже)                 |
 | Реактивный перезапуск из behavior | `revalidateWhen([deps], () => void validateModel(model, schema))` |
 
-Для многошаговой формы схема каждого шага — отдельный `ValidationSchema`, а полная валидация собирается
+Для многошаговой формы схема каждого шага — отдельный `ValidationDefinition`, а полная валидация собирается
 через `apply(...шаги)`. Конфиг для `FormWizard` строится один раз по модели:
 
 ```typescript
 import type { FormModel } from '@reformer/core';
-import { apply, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { apply, defineValidation, validateModel } from '@reformer/core/validation';
 
 const STEP_SCHEMAS = [step1, step2, step3] as const;
-const fullValidation = defineValidationSchema<Wizard>(() => apply(...STEP_SCHEMAS));
+const fullValidation = defineValidation<Wizard>(() => apply(...STEP_SCHEMAS));
 
 export function makeValidationConfig(model: FormModel<Wizard>) {
   return {
@@ -142,7 +142,7 @@ const behavior = defineFormBehavior<Form>(({ model }) => {
 | `integer()`    | Целое число                |
 
 Фабрики импортируются из `@reformer/core/validators` и принимают опциональный `{ message }`
-(`required({ message: 'Обязательно' })`). Они кладутся прямо в массив `rules` оператора `validate` и
+(`required({ code: 'field.required' })`). Они кладутся прямо в массив `rules` оператора `validate` и
 работают в том числе с nullable-полями. Полный список (числовые, датовые и др.) — в
 [Встроенных валидаторах](../../validation/built-in).
 
@@ -152,7 +152,7 @@ const behavior = defineFormBehavior<Form>(({ model }) => {
 возвращает ошибку либо `null`:
 
 ```typescript
-type Rule<TField> = (value: TField, scope: never, root: never) => ValidationError | null;
+type Rule<TField> = (value: TField, scope: never, root: never) => ValidationIssue | null;
 ```
 
 Позиционные `scope`/`root` помечены `never` намеренно — так и value-only фабрики (`required()`,
@@ -166,7 +166,7 @@ Cross-field — это **не** дополнительные аргументы,
 type AsyncRule<TField> = (
   value: TField,
   ctx: { signal: AbortSignal }
-) => Promise<ValidationError | null>;
+) => Promise<ValidationIssue | null>;
 ```
 
 ## Кастомные и cross-field правила
@@ -176,24 +176,22 @@ type AsyncRule<TField> = (
 (`model.get()`), а ошибка садится на поле-носитель `sig`:
 
 ```typescript
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 import type { Rule } from '@reformer/core/validation';
-import { validate, cross, defineValidationSchema } from '@reformer/core/validation';
+import { validate, cross, defineValidation } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
 type Signup = { password: string; confirmPassword: string };
 
 // Value-only правило.
 const strongPassword: Rule<string> = (value) =>
-  !value || value.length < 8 ? { code: 'too-short', message: 'Минимум 8 символов' } : null;
+  !value || value.length < 8 ? { code: 'too-short' } : null;
 
 // Cross-field: сравниваем поля по снапшоту формы.
-const passwordsMatch = (f: Signup): ValidationError | null =>
-  f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'mismatch', message: 'Пароли не совпадают' }
-    : null;
+const passwordsMatch = (f: Signup): ValidationIssue | null =>
+  f.confirmPassword && f.password && f.confirmPassword !== f.password ? { code: 'mismatch' } : null;
 
-const signupValidation = defineValidationSchema<Signup>(({ model }) => {
+const signupValidation = defineValidation<Signup>(({ model }) => {
   validate(model.$.password, [required(), strongPassword]);
   validate(model.$.confirmPassword, [required()]);
   cross(model.$.confirmPassword, passwordsMatch); // ошибка сядет на confirmPassword
@@ -207,14 +205,14 @@ const signupValidation = defineValidationSchema<Signup>(({ model }) => {
 value-proxy (`model.<field>`):
 
 ```typescript
-import { validate, validateWhen, defineValidationSchema } from '@reformer/core/validation';
+import { validate, validateWhen, defineValidation } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
-const schema = defineValidationSchema<Form>(({ model }) => {
+const schema = defineValidation<Form>(({ model }) => {
   // Телефон обязателен только если пользователь хочет SMS.
   validateWhen(
     () => model.wantsSms,
-    () => validate(model.$.phone, [required({ message: 'Укажите телефон для SMS' })])
+    () => validate(model.$.phone, [required({ code: 'phone.required' })])
   );
 });
 ```
@@ -233,10 +231,10 @@ const schema = defineValidationSchema<Form>(({ model }) => {
 возвращайте `null`:
 
 ```typescript
-import { validate, validateAsync, defineValidationSchema } from '@reformer/core/validation';
+import { validate, validateAsync, defineValidation } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
-const schema = defineValidationSchema<Form>(({ model }) => {
+const schema = defineValidation<Form>(({ model }) => {
   validate(model.$.username, [required()]);
   validateAsync(model.$.username, [
     async (value, { signal }) => {
@@ -244,7 +242,7 @@ const schema = defineValidationSchema<Form>(({ model }) => {
       try {
         const res = await fetch(`/api/check?u=${encodeURIComponent(value)}`, { signal });
         const { available } = await res.json();
-        return available ? null : { code: 'taken', message: 'Имя уже занято' };
+        return available ? null : { code: 'taken' };
       } catch {
         return null; // сбой сети не блокирует отправку
       }
@@ -263,26 +261,24 @@ const schema = defineValidationSchema<Form>(({ model }) => {
 как cross-field и вешается на поле-носитель ошибки через `cross`:
 
 ```typescript
-import { validate, cross, each, defineValidationSchema } from '@reformer/core/validation';
+import { validate, cross, each, defineValidation } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import type { FormModel, ValidationError } from '@reformer/core';
+import type { FormModel, ValidationIssue } from '@reformer/core';
 
 type Order = { orderName: string; items: { name: string }[] };
 
 // Правила одного элемента.
 const orderItem = (im: FormModel<{ name: string }>): void => {
-  validate(im.$.name, [required({ message: 'Имя элемента обязательно' })]);
+  validate(im.$.name, [required({ code: 'field.required' })]);
 };
 
 // Правило уровня массива — читает снапшот формы.
-const uniqueItemNames = (f: Order): ValidationError | null => {
+const uniqueItemNames = (f: Order): ValidationIssue | null => {
   const names = f.items.map((i) => i.name);
-  return names.length !== new Set(names).size
-    ? { code: 'duplicate', message: 'Имена элементов должны быть уникальны' }
-    : null;
+  return names.length !== new Set(names).size ? { code: 'duplicate' } : null;
 };
 
-const orderValidation = defineValidationSchema<Order>(({ model }) => {
+const orderValidation = defineValidation<Order>(({ model }) => {
   each(model.items, orderItem); // правила каждого элемента
   cross(model.$.orderName, uniqueItemNames); // правило массива — на поле-носитель
 });
@@ -301,7 +297,7 @@ import { required, email, minLength } from '@reformer/core/validators';
 const nameRules: Rule<string>[] = [required(), minLength(2)];
 const emailRules: Rule<string>[] = [required(), email()];
 
-const schema = defineValidationSchema<Profile>(({ model }) => {
+const schema = defineValidation<Profile>(({ model }) => {
   validate(model.$.firstName, nameRules);
   validate(model.$.lastName, nameRules);
   validate(model.$.email, emailRules);
@@ -312,23 +308,23 @@ const schema = defineValidationSchema<Profile>(({ model }) => {
 функция. А несколько схем над одной моделью собираются оператором `apply`:
 
 ```typescript
-import { validate, apply, defineValidationSchema } from '@reformer/core/validation';
+import { validate, apply, defineValidation } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
-import type { ValidationSchema } from '@reformer/core/validation';
+import type { ValidationDefinition } from '@reformer/core/validation';
 
 // Под-схема адреса над FormModel<Address>.
-const addressValidation: ValidationSchema<Address> = ({ model }) => {
+const addressValidation: ValidationDefinition<Address> = ({ model }) => {
   validate(model.$.city, [required()]);
   validate(model.$.postalCode, [required(), pattern(/^\d{6}$/)]);
 };
 
-const orderValidation = defineValidationSchema<Order>(({ model }) => {
+const orderValidation = defineValidation<Order>(({ model }) => {
   addressValidation({ model: model.billing }); // прямой вызов над под-моделью
   addressValidation({ model: model.shipping });
 });
 
 // Композиция нескольких схем над одной моделью.
-const fullValidation = defineValidationSchema<Order>(() => apply(step1, step2, orderValidation));
+const fullValidation = defineValidation<Order>(() => apply(step1, step2, orderValidation));
 ```
 
 ## Дальше

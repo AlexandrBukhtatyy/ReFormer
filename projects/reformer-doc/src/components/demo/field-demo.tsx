@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormField } from '@reformer/ui-kit';
 import { useDemoField, type DemoFieldConfig } from './harness';
 
@@ -12,7 +13,9 @@ export function makeFieldVariant(config: DemoFieldConfig): ComponentType {
     const { control } = useDemoField(config);
     return (
       <div style={{ maxWidth: config.fullWidth ? undefined : 380, width: '100%' }}>
-        <FormField control={control} />
+        <ValidationMessagesProvider messages={config.messages}>
+          <FormField control={control} />
+        </ValidationMessagesProvider>
       </div>
     );
   };

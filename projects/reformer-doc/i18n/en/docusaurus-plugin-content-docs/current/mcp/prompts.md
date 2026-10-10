@@ -25,7 +25,7 @@ Create a registration form with email, password, and confirm password
 
 1. TypeScript interface for the form
 2. Form schema (FormSchema) with components
-3. Validation rules (ValidationSchema)
+3. Validation rules (ValidationDefinition)
 4. React component with hooks
 
 **Workflow:**

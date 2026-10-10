@@ -35,7 +35,7 @@ sidebar_position: 2
 
 :::info Узел не несёт валидаторов
 Правила корректности не хранятся на узле layout-схемы (нет ни `validators`, ни `asyncValidators`). Они
-объявляются **отдельной** функцией `defineValidationSchema<T>(({ model }) => …)` операторами из
+объявляются **отдельной** функцией `defineValidation<T>(({ model }) => …)` операторами из
 `@reformer/core/validation` и прогоняются по требованию раннером `validateModel(model, schema)` — на
 submit, на шаге wizard'а или по реакции behavior. Layout-схему и схему валидации можно менять
 независимо: вёрстка приходит хоть с сервера, а правила пишутся один раз. См.

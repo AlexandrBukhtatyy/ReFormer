@@ -12,15 +12,15 @@ ReFormer делит форму на три независимые заботы �
 
 ## Структура, валидация и behavior
 
-| Забота        | Что описывает                    | Где живёт                                             |
-| ------------- | -------------------------------- | ----------------------------------------------------- |
-| **Структура** | Данные и конфигурация полей      | `model` + узлы layout-`schema`                        |
-| **Валидация** | Правила корректности данных      | отдельная `ValidationSchema` → раннер `validateModel` |
-| **Behavior**  | Реактивная логика и side-эффекты | `defineFormBehavior`                                  |
+| Забота        | Что описывает                    | Где живёт                                                 |
+| ------------- | -------------------------------- | --------------------------------------------------------- |
+| **Структура** | Данные и конфигурация полей      | `model` + узлы layout-`schema`                            |
+| **Валидация** | Правила корректности данных      | отдельная `ValidationDefinition` → раннер `validateModel` |
+| **Behavior**  | Реактивная логика и side-эффекты | `defineFormBehavior`                                      |
 
 ```typescript
 import { createModel, createFormFromModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 import { Input } from '@reformer/ui-kit';
@@ -38,7 +38,7 @@ const schema = {
 };
 
 // 2. Валидация — отдельная схема-функция над моделью. Прогоняется по требованию (не формой).
-const personValidation = defineValidationSchema<Person>(({ model }) => {
+const personValidation = defineValidation<Person>(({ model }) => {
   validate(model.$.firstName, [required()]);
   validate(model.$.lastName, [required()]);
   validate(model.$.email, [required(), email()]);
@@ -63,7 +63,7 @@ async function submit() {
 
 :::info Форма больше не валидирует схему сама
 `createForm` собирает структуру и behavior, но **не** прогоняет правила валидации: вердикт даёт
-приложение вызовом `validateModel(model, validation)`. Методы формы (`markAsTouched`, `clearErrors`)
+приложение вызовом `validateModel(model, validation)`. Методы формы (`markAsTouched`, `clearIssues`)
 управляют только UI-состоянием нод. Поэтому валидация — отдельное значение, которое хранят в `const`
 и кормят раннеру по разным каналам. Подробнее — в [Схеме валидации](./validation-schema).
 :::
@@ -96,7 +96,7 @@ const schema = {
 У каждой заботы одна зона ответственности:
 
 - **Структура** (`model` + layout-`schema`): «какие данные собираем и как их показать?»
-- **Валидация** (`defineValidationSchema` + `validateModel`): «корректны ли данные?»
+- **Валидация** (`defineValidation` + `validateModel`): «корректны ли данные?»
 - **Behavior** (`defineFormBehavior`): «как данные реагируют на изменения?»
 
 ### Переиспользование и декомпозиция
@@ -106,7 +106,7 @@ const schema = {
 
 ```typescript
 import { createModel, createFormFromModel, type FormModel } from '@reformer/core';
-import { validate, defineValidationSchema, type ValidationSchema } from '@reformer/core/validation';
+import { validate, defineValidation, type ValidationDefinition } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 import { Input } from '@reformer/ui-kit';
@@ -122,7 +122,7 @@ const addressNodes = (m: FormModel<Address>) => ({
 });
 
 // 2. Под-схема валидации адреса — обычная функция над FormModel<Address>, reuse прямым вызовом.
-const addressValidation: ValidationSchema<Address> = ({ model }) => {
+const addressValidation: ValidationDefinition<Address> = ({ model }) => {
   validate(model.$.street, [required()]);
   validate(model.$.city, [required()]);
   validate(model.$.zip, [required()]);
@@ -145,7 +145,7 @@ const schema = {
 };
 
 // Валидация — одна под-схема, прямой вызов над каждой под-моделью.
-const orderValidation = defineValidationSchema<OrderForm>(({ model }) => {
+const orderValidation = defineValidation<OrderForm>(({ model }) => {
   addressValidation({ model: model.billingAddress });
   addressValidation({ model: model.shippingAddress });
 });
@@ -167,7 +167,7 @@ import { required, minLength } from '@reformer/core/validators';
 
 // Один список правил — много полей (в схеме валидации).
 const textRules: Rule<string>[] = [required(), minLength(2)];
-const addressTextValidation = defineValidationSchema<Address>(({ model }) => {
+const addressTextValidation = defineValidation<Address>(({ model }) => {
   validate(model.$.street, textRules); // тот же список — на любое строковое поле
   validate(model.$.city, textRules);
 });
@@ -179,7 +179,7 @@ const schema = {
 };
 
 // Одна под-схема валидации — над многими под-моделями (прямой вызов).
-const orderValidation = defineValidationSchema<OrderForm>(({ model }) => {
+const orderValidation = defineValidation<OrderForm>(({ model }) => {
   addressValidation({ model: model.billingAddress });
   addressValidation({ model: model.shippingAddress });
 });
@@ -214,11 +214,11 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
 
 ```typescript
 import { createModel, createFormFromModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
 
-const personValidation = defineValidationSchema<Person>(({ model }) => {
+const personValidation = defineValidation<Person>(({ model }) => {
   validate(model.$.firstName, [required()]);
 });
 
@@ -235,7 +235,7 @@ describe('валидация person', () => {
     const valid = await validateModel(model, personValidation);
 
     expect(valid).toBe(false);
-    expect(form.firstName.errors.value[0]?.code).toBe('required');
+    expect(form.firstName.issues.value[0]?.code).toBe('required');
   });
 });
 ```
@@ -257,7 +257,7 @@ const schema = {
   // middleName: { value: model.$.middleName },              // ❌ Ошибка: поля 'middleName' нет в модели
 };
 
-const personValidation = defineValidationSchema<Person>(({ model }) => {
+const personValidation = defineValidation<Person>(({ model }) => {
   validate(model.$.email, [required(), email()]); // ✅ email() ждёт string — тип поля проверяется
   // validate(model.$.email, [min(3)]);           // ❌ Ошибка: min() ждёт number, а email: string
 });
@@ -271,7 +271,7 @@ createFormFromModel({ model, schema, behavior })
 ├── schema                     → layout-узлы: { value: signal, component?, componentProps? }
 └── behavior: FormBehavior<T>  → defineFormBehavior(...) — реактивная логика
 
-validateModel(model, validation) → отдельный канал: правила из defineValidationSchema, по требованию
+validateModel(model, validation) → отдельный канал: правила из defineValidation, по требованию
 ```
 
 ## Дальше

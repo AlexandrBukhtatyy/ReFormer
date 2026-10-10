@@ -10,7 +10,7 @@ sidebar_position: 3
 
 ## Контракт
 
-Асинхронное правило — функция `(value, { signal }) => Promise<ValidationError | null>`. Второй
+Асинхронное правило — функция `(value, { signal }) => Promise<ValidationIssue | null>`. Второй
 аргумент — контекст с `signal: AbortSignal` для отмены устаревших запросов. Тип — `AsyncRule<T>`
 из `@reformer/core/validation`:
 
@@ -25,7 +25,7 @@ const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
       signal, // отмена сетевого запроса при следующем прогоне
     });
     const { available } = (await res.json()) as { available: boolean };
-    return available ? null : { code: 'usernameTaken', message: 'Имя уже занято' };
+    return available ? null : { code: 'usernameTaken' };
   } catch {
     return null; // сбой сети НЕ должен блокировать отправку — возвращаем null, а не ошибку
   }
@@ -42,13 +42,13 @@ const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
 ## Подключение в схему
 
 Валидаторы больше **не живут** в layout-схеме формы: `createFormFromModel({ model, schema })` несёт только
-разметку и поведение. Правила — отдельная `ValidationSchema`, где синхронный `validate` даёт быстрый
+разметку и поведение. Правила — отдельная `ValidationDefinition`, где синхронный `validate` даёт быстрый
 отсев, а `validateAsync` — серверную проверку:
 
 ```typescript
 import { createModel } from '@reformer/core';
 import {
-  defineValidationSchema,
+  defineValidation,
   validate,
   validateAsync,
   validateModel,
@@ -61,10 +61,10 @@ interface SignupForm {
 
 const model = createModel<SignupForm>({ username: '' });
 
-const signupValidation = defineValidationSchema<SignupForm>(({ model }) => {
+const signupValidation = defineValidation<SignupForm>(({ model }) => {
   validate(model.$.username, [
-    required({ message: 'Имя пользователя обязательно' }),
-    minLength(3, { message: 'Минимум 3 символа' }),
+    required({ code: 'field.required' }),
+    minLength(3, { code: 'field.minLength' }),
   ]);
   validateAsync(model.$.username, [usernameAvailable]); // серверная проверка
 });
@@ -119,7 +119,7 @@ const hasResults: AsyncRule<string> = async (value, { signal }) => {
   try {
     const res = await fetch(`/api/search?q=${encodeURIComponent(value)}`, { signal });
     const results = (await res.json()) as unknown[];
-    return results.length > 0 ? null : { code: 'noResults', message: 'Ничего не найдено' };
+    return results.length > 0 ? null : { code: 'noResults' };
   } catch {
     return null; // сбой ИЛИ отмена (AbortError) — молча выходим, результат всё равно устарел
   }
@@ -158,7 +158,7 @@ const submit = async (): Promise<void> => {
 :::note Пер-полевой `pending` из `useFormControl`
 Сигнал `pending` на узле поля — остаток «живого» async-пути старого движка (`asyncValidators` в узле
 схемы). Новый раннер `validateModel` его **не поднимает**: он только разносит ошибки
-(`setErrors`). Ведите прогресс на уровне формы/приложения, как выше.
+(`setIssues`). Ведите прогресс на уровне формы/приложения, как выше.
 :::
 
 ## Проверка на submit
@@ -190,7 +190,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 Async-правило получает только `value` и `{ signal }` — модели среди аргументов нет. Соседние поля
 читаются из модели, **захваченной замыканием схемы**: пишите правило прямо внутри
-`defineValidationSchema` (или фабрикой, замыкающей `model`) и берите снапшот через `model.get()`:
+`defineValidation` (или фабрикой, замыкающей `model`) и берите снапшот через `model.get()`:
 
 ```typescript
 interface AccountForm {
@@ -198,7 +198,7 @@ interface AccountForm {
   userId: string;
 }
 
-const emailValidation = defineValidationSchema<AccountForm>(({ model }) => {
+const emailValidation = defineValidation<AccountForm>(({ model }) => {
   validateAsync(model.$.email, [
     async (value, { signal }) => {
       if (!value) return null;
@@ -210,7 +210,7 @@ const emailValidation = defineValidationSchema<AccountForm>(({ model }) => {
           signal,
         });
         const { valid } = (await res.json()) as { valid: boolean };
-        return valid ? null : { code: 'emailInUse', message: 'Email уже занят' };
+        return valid ? null : { code: 'emailInUse' };
       } catch {
         return null;
       }

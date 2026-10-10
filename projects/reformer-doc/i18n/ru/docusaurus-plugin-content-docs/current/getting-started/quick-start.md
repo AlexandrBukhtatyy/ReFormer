@@ -68,14 +68,14 @@ const schema = {
 ## Шаг 4. Валидация — отдельная схема
 
 Правила — это отдельный слой, а не часть layout. Схема валидации — обычная функция над моделью,
-обёрнутая в `defineValidationSchema`. Внутри работают ambient-операторы из `@reformer/core/validation`:
+обёрнутая в `defineValidation`. Внутри работают ambient-операторы из `@reformer/core/validation`:
 `validate(sig, [rules])` навешивает правила поля. Правила — чистые фабрики из `@reformer/core/validators`.
 
 ```typescript
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
-const validation = defineValidationSchema<ContactForm>(({ model }) => {
+const validation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.message, [required(), minLength(10)]);
@@ -115,7 +115,7 @@ const form = contact.form;
 ```tsx
 import { createCoreForm, type FormModel } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, Textarea, Button } from '@reformer/ui-kit';
 
@@ -123,7 +123,7 @@ type ContactForm = { name: string; email: string; message: string };
 
 // Правила — стабильная module-level константа: по паре (model, schema) раннер отменяет устаревшие
 // прогоны, поэтому пересоздавать схему на каждый рендер нельзя.
-const validation = defineValidationSchema<ContactForm>(({ model }) => {
+const validation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
   validate(model.$.message, [required(), minLength(10)]);

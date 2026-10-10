@@ -29,8 +29,8 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 drag-and-drop не действует, `maxFiles`, `maxFileSize`, дубликаты, кастомный
 `validate`) выполняет сам компонент: отклонённые файлы в значение поля не
 попадают, а уходят в `onReject` и показываются под списком; тексты кодов ошибок
-(`fileType`, `maxFileSize`, …) резолвятся через `ValidationMessagesProvider`
-(`createMessageResolver`) из `@reformer/cdk`.
+(`fileType`, `maxFileSize`, …) берутся из словаря формы: `ValidationMessagesProvider messages`
+из `@reformer/cdk` со словарём `defineIssueMessages` из `@reformer/core/i18n`.
 
 Представления — один контракт значения, но **отдельные компоненты** (пропа `variant` нет):
 `FileUploadBase` (кнопка, registry `FileUpload`), `FileUploadDropzone` (зона перетаскивания,

@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from 'react';
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, apply, validateModel } from '@reformer/core/validation';
 import { FormWizard } from '@reformer/cdk/form-wizard';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { defineIssueMessages } from '@reformer/core/i18n';
 import type { ComponentDocConfig } from '../types';
 
 type WForm = { name: string; email: string; phone: string };
@@ -15,14 +17,20 @@ const STEPS = [
 ];
 
 // Правила — отдельные validation-схемы (@reformer/core/validation), по одной на шаг.
-const step1Validation = defineValidationSchema<WForm>(({ model }) => {
-  validate(model.$.name, [required({ message: 'Введите имя' })]);
+const step1Validation = defineValidation<WForm>(({ model }) => {
+  validate(model.$.name, [required({ code: 'name.required' })]);
   validate(model.$.email, [required(), email()]);
 });
-const step2Validation = defineValidationSchema<WForm>(({ model }) => {
-  validate(model.$.phone, [required({ message: 'Введите телефон' })]);
+const step2Validation = defineValidation<WForm>(({ model }) => {
+  validate(model.$.phone, [required({ code: 'phone.required' })]);
 });
-const fullValidation = defineValidationSchema<WForm>(() => apply(step1Validation, step2Validation));
+const fullValidation = defineValidation<WForm>(() => apply(step1Validation, step2Validation));
+
+/** Тексты замечаний демо: правила несут код, строку по коду даёт словарь формы. */
+const WIZARD_MESSAGES = defineIssueMessages({
+  'name.required': 'Введите имя',
+  'phone.required': 'Введите телефон',
+});
 
 function useWizard() {
   return useMemo(() => {
@@ -65,64 +73,70 @@ function WizardRenderProps() {
   const { model, form, config } = useWizard();
   const [done, setDone] = useState<string | null>(null);
   return (
-    <div style={{ maxWidth: 460, width: '100%' }}>
-      <FormWizard form={form} config={config}>
-        <FormWizard.Progress>
-          {({ current, total, percent }: any) => (
-            <div style={{ marginBottom: 12 }}>
-              <div
-                style={{ fontSize: 13, color: 'var(--ifm-color-emphasis-700)', marginBottom: 4 }}
-              >
-                Шаг {current} из {total}
-              </div>
-              <div
-                style={{ height: 4, borderRadius: 2, background: 'var(--ifm-color-emphasis-200)' }}
-              >
+    <ValidationMessagesProvider messages={WIZARD_MESSAGES}>
+      <div style={{ maxWidth: 460, width: '100%' }}>
+        <FormWizard form={form} config={config}>
+          <FormWizard.Progress>
+            {({ current, total, percent }: any) => (
+              <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{ fontSize: 13, color: 'var(--ifm-color-emphasis-700)', marginBottom: 4 }}
+                >
+                  Шаг {current} из {total}
+                </div>
                 <div
                   style={{
                     height: 4,
                     borderRadius: 2,
-                    width: `${percent}%`,
-                    background: 'var(--ifm-color-primary)',
-                    transition: 'width .2s',
+                    background: 'var(--ifm-color-emphasis-200)',
                   }}
-                />
+                >
+                  <div
+                    style={{
+                      height: 4,
+                      borderRadius: 2,
+                      width: `${percent}%`,
+                      background: 'var(--ifm-color-primary)',
+                      transition: 'width .2s',
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </FormWizard.Progress>
+            )}
+          </FormWizard.Progress>
 
-        <FormWizard.Step component={Step1} control={form} />
-        <FormWizard.Step component={Step2} control={form} />
+          <FormWizard.Step component={Step1} control={form} />
+          <FormWizard.Step component={Step2} control={form} />
 
-        <FormWizard.Actions
-          onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
-        >
-          {({ prev, next, submit, isFirstStep, isLastStep }: any) => (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={prev.onClick}
-                disabled={prev.disabled || isFirstStep}
-              >
-                Назад
-              </Button>
-              {!isLastStep ? (
-                <Button size="sm" onClick={next.onClick} disabled={next.disabled}>
-                  Далее
+          <FormWizard.Actions
+            onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
+          >
+            {({ prev, next, submit, isFirstStep, isLastStep }: any) => (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prev.onClick}
+                  disabled={prev.disabled || isFirstStep}
+                >
+                  Назад
                 </Button>
-              ) : (
-                <Button size="sm" onClick={submit.onClick} disabled={submit.disabled}>
-                  Отправить
-                </Button>
-              )}
-            </div>
-          )}
-        </FormWizard.Actions>
-      </FormWizard>
-      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
-    </div>
+                {!isLastStep ? (
+                  <Button size="sm" onClick={next.onClick} disabled={next.disabled}>
+                    Далее
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={submit.onClick} disabled={submit.disabled}>
+                    Отправить
+                  </Button>
+                )}
+              </div>
+            )}
+          </FormWizard.Actions>
+        </FormWizard>
+        {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+      </div>
+    </ValidationMessagesProvider>
   );
 }
 
@@ -182,13 +196,13 @@ export const formWizardDocConfig: ComponentDocConfig = {
       description:
         'Прогресс сверху, навигация — через render-props. Далее блокируется, пока шаг невалиден.',
       render: WizardRenderProps,
-      code: `import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
+      code: `import { defineValidation, validate, apply, validateModel } from '@reformer/core/validation';
 
-const step1Validation = defineValidationSchema<WForm>(({ model }) => {
+const step1Validation = defineValidation<WForm>(({ model }) => {
   validate(model.$.name, [required()]);
   validate(model.$.email, [required(), email()]);
 });
-const fullValidation = defineValidationSchema<WForm>(() => apply(step1Validation, step2Validation));
+const fullValidation = defineValidation<WForm>(() => apply(step1Validation, step2Validation));
 
 const config: FormWizardConfig = {
   validateStep: (step) => validateModel(model, step === 1 ? step1Validation : step2Validation),

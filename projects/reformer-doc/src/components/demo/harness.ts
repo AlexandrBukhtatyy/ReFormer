@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
-import type { ValidationSchema } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
+import type { ValidationDefinition } from '@reformer/core/validation';
+import type { IssueMessages } from '@reformer/core/i18n';
 
 /**
  * Конфиг одного поля для живого демо: значение, компонент, его пропсы и валидаторы.
@@ -16,6 +17,11 @@ export interface DemoFieldConfig {
   componentProps?: Record<string, unknown>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validators?: any[];
+  /**
+   * Тексты замечаний валидаторов: код правила → текст. Правила несут только код
+   * (`required({ code: 'field.required' })`), строку по коду даёт этот словарь.
+   */
+  messages?: IssueMessages;
   /**
    * Отключить поле. `disabled` в `componentProps` не сработает: контрол
    * жёстко прокидывает `disabled` из состояния узла (см. FormFieldControl),
@@ -46,7 +52,7 @@ export interface DemoFieldConfig {
  *
  * Паттерн привязки — как в реальном использовании: layout без валидаторов
  * (`<FormField control={control} />`), правила — в `validation`
- * (готовая `ValidationSchema`, запуск: `await validateModel(model, validation)`).
+ * (готовая `ValidationDefinition`, запуск: `await validateModel(model, validation)`).
  */
 export function useDemoField(config: DemoFieldConfig) {
   // Собираем форму один раз (на первом рендере) и фиксируем — конфиг после
@@ -59,7 +65,7 @@ export function useDemoField(config: DemoFieldConfig) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     control: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    validation: ValidationSchema<any>;
+    validation: ValidationDefinition<any>;
   } | null>(null);
   if (ref.current === null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +85,7 @@ export function useDemoField(config: DemoFieldConfig) {
     // Правила — отдельным слоем (schema стабильна на жизнь демо, abort-дедуп работает).
     const rules = config.validators ?? [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const validation = defineValidationSchema<any>(({ model: m }) => {
+    const validation = defineValidation<any>(({ model: m }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (rules.length) validate((m as any).$.field, rules);
     });

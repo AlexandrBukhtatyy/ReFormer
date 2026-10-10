@@ -1,3 +1,4 @@
+import type { IssueMessages } from '@reformer/core/i18n';
 import type { ComponentType, ReactNode } from 'react';
 
 /** Описание одного knob (переключателя props) в табе API. */
@@ -131,6 +132,8 @@ export interface ApiConfig {
   /** Валидаторы (для Submit). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validators?: any[];
+  /** Тексты замечаний валидаторов: код правила → текст (словарь формы). */
+  messages?: IssueMessages;
   /** Контролы пропсов (interactive + readonly), группируются по `group`. */
   controls: ApiControl[];
   /** Пресеты для «change ▾» (задать значение формы напрямую). */

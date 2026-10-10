@@ -6,13 +6,13 @@ sidebar_position: 4
 
 Когда встроенных фабрик недостаточно, правило описывается обычной функцией. Кастомное правило
 кладётся в тот же массив, что и встроенные фабрики — вторым аргументом оператора `validate(sig, [rules])`
-внутри схемы `defineValidationSchema`. Схема валидации живёт **отдельно** от layout (`RenderNode` / JSON):
+внутри схемы `defineValidation`. Схема валидации живёт **отдельно** от layout (`RenderNode` / JSON):
 она не несёт компонентов, а прогоняется по требованию раннером `validateModel(model, schema)`.
 
 ## Контракт
 
 Синхронное правило — функция типа `Rule<TField>`. Ментальная модель автора — `(value) => error`:
-правило видит **только значение поля** и возвращает `ValidationError` (`{ code, message, params?, severity? }`)
+правило видит **только значение поля** и возвращает `ValidationIssue` (`{ code, message, params?, severity? }`)
 либо `null`, если значение валидно.
 
 Тип `Rule<TField>` объявляет позиционные `scope`/`root` как `never` — это техническая деталь, благодаря
@@ -28,16 +28,15 @@ sidebar_position: 4
 
 ```typescript
 import { createModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 
 type AgeForm = { age: number | null };
 
 const model = createModel<AgeForm>({ age: null });
 
-const schema = defineValidationSchema<AgeForm>(({ model }) => {
+const schema = defineValidation<AgeForm>(({ model }) => {
   validate(model.$.age, [
-    (value) =>
-      value != null && value < 18 ? { code: 'mustBeAdult', message: 'Только 18+' } : null,
+    (value) => (value != null && value < 18 ? { code: 'mustBeAdult' } : null),
   ]);
 });
 
@@ -55,14 +54,14 @@ const ok = await validateModel(model, schema);
 import type { Rule } from '@reformer/core/validation';
 
 export const hasUppercase = (): Rule<string> => (value) =>
-  !value || /[A-Z]/.test(value) ? null : { code: 'noUppercase', message: 'Нужна заглавная буква' };
+  !value || /[A-Z]/.test(value) ? null : { code: 'noUppercase' };
 
 export const hasNumber = (): Rule<string> => (value) =>
-  !value || /[0-9]/.test(value) ? null : { code: 'noNumber', message: 'Нужна цифра' };
+  !value || /[0-9]/.test(value) ? null : { code: 'noNumber' };
 ```
 
 ```typescript
-// Применение в схеме — внутри defineValidationSchema(({ model }) => { … }):
+// Применение в схеме — внутри defineValidation(({ model }) => { … }):
 import { validate } from '@reformer/core/validation';
 import { required, minLength } from '@reformer/core/validators';
 import { hasUppercase, hasNumber } from './validators/password';
@@ -94,7 +93,7 @@ export function range(min: number, max: number): Rule<number | null> {
 ```
 
 ```typescript
-// Внутри defineValidationSchema(({ model }) => { … }):
+// Внутри defineValidation(({ model }) => { … }):
 import { validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { range } from './validators/range';
@@ -109,8 +108,8 @@ validate(model.$.quantity, [required(), range(1, 100)]);
 вешает на переданный сигнал `sig` — то поле, которое должно её нести:
 
 ```typescript
-import { createModel, type ValidationError } from '@reformer/core';
-import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { createModel, type ValidationIssue } from '@reformer/core';
+import { validate, cross, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
 type PasswordForm = { password: string; confirmPassword: string };
@@ -118,12 +117,12 @@ type PasswordForm = { password: string; confirmPassword: string };
 const model = createModel<PasswordForm>({ password: '', confirmPassword: '' });
 
 // confirmPassword должен совпадать с password — правило читает снапшот всей формы
-const passwordsMatch = (f: PasswordForm): ValidationError | null =>
+const passwordsMatch = (f: PasswordForm): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'passwordMismatch', message: 'Пароли не совпадают' }
+    ? { code: 'passwordMismatch' }
     : null;
 
-const schema = defineValidationSchema<PasswordForm>(({ model }) => {
+const schema = defineValidation<PasswordForm>(({ model }) => {
   validate(model.$.password, [required()]);
   validate(model.$.confirmPassword, [required()]);
   // ошибку несёт confirmPassword — на его сигнал и вешаем cross
@@ -143,26 +142,20 @@ const ok = await validateModel(model, schema);
 
 Правила, действующие только в части формы, оборачиваются оператором `validateWhen(cond, cb)`. Пока
 `cond()` истинно, вложенные правила активны; когда ложно — они **не выполняются**, а ошибки их полей
-гасятся (поле получает `setErrors([])`), так что «прятать» лишние ошибки в UI не нужно:
+гасятся (поле получает `setIssues([])`), так что «прятать» лишние ошибки в UI не нужно:
 
 ```typescript
 import { createModel } from '@reformer/core';
-import {
-  validate,
-  validateWhen,
-  defineValidationSchema,
-  validateModel,
-} from '@reformer/core/validation';
+import { validate, validateWhen, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
 type TaxForm = { country: string; taxId: string };
 
 const model = createModel<TaxForm>({ country: '', taxId: '' });
 
-const isNineDigits = (value: string) =>
-  /^\d{9}$/.test(value) ? null : { code: 'invalidTaxId', message: 'ИНН — 9 цифр' };
+const isNineDigits = (value: string) => (/^\d{9}$/.test(value) ? null : { code: 'invalidTaxId' });
 
-const schema = defineValidationSchema<TaxForm>(({ model }) => {
+const schema = defineValidation<TaxForm>(({ model }) => {
   validate(model.$.country, [required()]);
   // ИНН обязателен только для страны US; иначе правила ветки гасятся
   validateWhen(
@@ -185,7 +178,7 @@ const ok = await validateModel(model, schema);
 
 ```typescript
 import { createModel, type FormModel } from '@reformer/core';
-import { validate, each, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, each, defineValidation, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 
 type ContactForm = { emails: { address: string }[] };
@@ -197,7 +190,7 @@ const emailItem = (im: FormModel<{ address: string }>): void => {
   validate(im.$.address, [required(), email()]);
 };
 
-const schema = defineValidationSchema<ContactForm>(({ model }) => {
+const schema = defineValidation<ContactForm>(({ model }) => {
   each(model.emails, emailItem);
 });
 
@@ -216,9 +209,7 @@ const ok = await validateModel(model, schema);
 import type { Rule } from '@reformer/core/validation';
 
 const weakButAllowed: Rule<string> = (value) =>
-  value && value.length < 12
-    ? { code: 'shortPassword', message: 'Рекомендуем 12+ символов', severity: 'warning' }
-    : null;
+  value && value.length < 12 ? { code: 'shortPassword', severity: 'warning' } : null;
 ```
 
 ```typescript
@@ -243,4 +234,4 @@ validate(model.$.password, [required(), minLength(8), weakButAllowed]);
 
 - [Асинхронная валидация](/docs/validation/async) — проверки уникальности через сервер.
 - [Стратегии валидации](/docs/validation/validation-strategies) — пошаговые формы, зависимые поля, момент запуска.
-- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение `ValidationError`.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение `ValidationIssue`.

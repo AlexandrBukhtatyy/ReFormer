@@ -53,7 +53,7 @@ function TextField({ control, label }: { control: FieldNode<string>; label: stri
 | Свойство          | Тип                       | Описание                                           |
 | ----------------- | ------------------------- | -------------------------------------------------- |
 | `value`           | `T`                       | текущее значение                                   |
-| `errors`          | `ValidationError[]`       | ошибки валидации (`[]` когда валидно)              |
+| `errors`          | `ValidationIssue[]`       | ошибки валидации (`[]` когда валидно)              |
 | `valid`           | `boolean`                 | поле проходит валидацию                            |
 | `invalid`         | `boolean`                 | есть ошибки                                        |
 | `touched`         | `boolean`                 | пользователь взаимодействовал (был `blur`)         |
@@ -71,7 +71,7 @@ function TextField({ control, label }: { control: FieldNode<string>; label: stri
 | ------------------- | ------------------- | ---------------------------------------- |
 | `value`             | `T[]`               | значения всех элементов                  |
 | `length`            | `number`            | количество элементов (реактивно)         |
-| `errors`            | `ValidationError[]` | ошибки уровня массива                    |
+| `errors`            | `ValidationIssue[]` | ошибки уровня массива                    |
 | `valid` / `invalid` | `boolean`           | валиден ли массив и все элементы         |
 | `touched`           | `boolean`           | было взаимодействие с любым элементом    |
 | `dirty`             | `boolean`           | массив изменился относительно начального |
@@ -183,7 +183,7 @@ function PhoneList({ form, model }: { form: FormProxy<OrderForm>; model: FormMod
 Валидация — **отдельный слой** от layout. Layout-схема (та, что уходит в `createForm`) описывает
 только привязку полей и компоненты и **не несёт валидаторов**. Правила живут в
 [схеме валидации](../core-concepts/schemas/validation-schema) — функции
-`defineValidationSchema(({ model }) => …)` из `@reformer/core/validation`, а прогоняет их по
+`defineValidation(({ model }) => …)` из `@reformer/core/validation`, а прогоняет их по
 требованию внешний раннер `validateModel`.
 
 Сабмит — это три шага, без опоры на агрегированные флаги формы:
@@ -197,7 +197,7 @@ function PhoneList({ form, model }: { form: FormProxy<OrderForm>; model: FormMod
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
@@ -222,7 +222,7 @@ export function ContactFormView() {
     };
 
     // Схема валидации: отдельный слой, прогоняется раннером validateModel по требованию.
-    const validation = defineValidationSchema<ContactForm>(({ model }) => {
+    const validation = defineValidation<ContactForm>(({ model }) => {
       validate(model.$.name, [required()]);
       validate(model.$.email, [required(), email()]);
     });

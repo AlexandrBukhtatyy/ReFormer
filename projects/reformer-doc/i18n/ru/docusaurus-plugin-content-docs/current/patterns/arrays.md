@@ -54,21 +54,18 @@ const form = createFormFromModel<OrderForm>({ model, schema });
 :::info Валидация элементов — отдельный слой, оператор `each`
 Узел `{ array, item }` описывает массив только для **построения и рендера** формы — валидаторов он
 **не несёт**. Layout и валидация разведены на два независимых слоя: правила элементов живут в схеме
-валидации (`defineValidationSchema`) и навешиваются оператором `each(<array>, (im) => …)`. Он
+валидации (`defineValidation`) и навешиваются оператором `each(<array>, (im) => …)`. Он
 обходит элементы модели и отдаёт под-модель каждого (`FormModel<Item>`), а поля проверяются через
 её сигнал `im.$.field`:
 
 ```typescript
-import { defineValidationSchema, validate, each } from '@reformer/core/validation';
+import { defineValidation, validate, each } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
-const orderValidation = defineValidationSchema<OrderForm>(({ model }) => {
+const orderValidation = defineValidation<OrderForm>(({ model }) => {
   each(model.items, (im) => {
-    validate(im.$.title, [required({ message: 'Укажите позицию' })]);
-    validate(im.$.amount, [
-      required({ message: 'Укажите сумму' }),
-      min(1, { message: 'Минимум 1 ₽' }),
-    ]);
+    validate(im.$.title, [required({ code: 'field.required' })]);
+    validate(im.$.amount, [required({ code: 'field.required' }), min(1, { code: 'field.min' })]);
   });
 });
 ```

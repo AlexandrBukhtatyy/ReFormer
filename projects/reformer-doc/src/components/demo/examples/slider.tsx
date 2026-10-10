@@ -64,7 +64,8 @@ export const sliderDocConfig: ComponentDocConfig = {
     component: Slider,
     initialValue: 50,
     baseComponentProps: { label: 'Громкость' },
-    validators: [required({ message: 'Укажите значение' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Укажите значение' },
     valuePresets: [
       { label: 'Минимум (0)', value: 0 },
       { label: 'Середина (50)', value: 50 },

@@ -283,7 +283,8 @@ validate(model.$.files, [required()]);`,
           placeholder: 'Выберите фреймворк',
           options: FRAMEWORKS,
         },
-        validators: [required({ message: 'Выберите фреймворк' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Выберите фреймворк' },
         touched: true,
       }),
       code: `{
@@ -293,14 +294,15 @@ validate(model.$.files, [required()]);`,
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.framework, [required({ message: 'Выберите фреймворк' })]);`,
+validate(model.$.framework, [required({ code: 'framework.required' })]);`,
     },
   ],
   api: {
     component: Combobox,
     initialValue: null,
     baseComponentProps: { label: 'Фреймворк', options: FRAMEWORKS },
-    validators: [required({ message: 'Выберите фреймворк' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Выберите фреймворк' },
     valuePresets: [
       { label: 'Next.js', value: 'next' },
       { label: 'Remix', value: 'remix' },

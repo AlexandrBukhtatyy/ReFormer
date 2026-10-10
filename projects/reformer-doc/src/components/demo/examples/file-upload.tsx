@@ -189,12 +189,13 @@ export const fileUploadDocConfig: ComponentDocConfig = {
         initial: null,
         component: FileUploadDropzone,
         componentProps: { label: 'Документы', multiple: true },
-        validators: [required({ message: 'Приложите хотя бы один файл' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Приложите хотя бы один файл' },
         touched: true,
         fullWidth: true,
       }),
       code: `// в форме — рамку подсвечивает aria-invalid от FormField:
-validate(model.$.documents, [required({ message: 'Приложите хотя бы один файл' })]);
+validate(model.$.documents, [required({ code: 'documents.required' })]);
 
 // вне формы — явный проп:
 <FileUploadDropzone invalid />`,
@@ -276,18 +277,19 @@ model.$.documents.value = [
           maxFiles: 2,
         },
         validators: [
-          required({ message: 'Приложите хотя бы один файл' }),
+          required({ code: 'field.required' }),
           maxFiles(2),
           maxFileSize(5 * 1024 * 1024),
           fileType('image/*,.pdf'),
         ],
+        messages: { 'field.required': 'Приложите хотя бы один файл' },
         touched: true,
       }),
       code: `import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
 
 // правила — в validation-схеме (@reformer/core/validation):
 validate(model.$.documents, [
-  required({ message: 'Приложите хотя бы один файл' }),
+  required({ code: 'field.required' }),
   maxFiles(2),
   maxFileSize(5 * 1024 * 1024),
   fileType('image/*,.pdf'),
@@ -307,7 +309,8 @@ validate(model.$.documents, [
       maxFileSize: 5 * 1024 * 1024,
       uploader: mockUploader,
     },
-    validators: [required({ message: 'Приложите хотя бы один файл' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Приложите хотя бы один файл' },
     valuePresets: [
       { label: 'Пусто (null)', value: null },
       {
@@ -337,6 +340,6 @@ validate(model.$.documents, [
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.documents, [required({ message: 'Приложите хотя бы один файл' })]);`,
+validate(model.$.documents, [required({ code: 'documents.required' })]);`,
   },
 };

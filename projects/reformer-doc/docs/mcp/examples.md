@@ -38,25 +38,23 @@ interface RegistrationForm {
 3. Валидацию — отдельный слой (`@reformer/core/validation`), не часть layout-схемы:
 
 ```typescript
-import { validate, cross, defineValidationSchema } from '@reformer/core/validation';
+import { validate, cross, defineValidation } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 
 // Совпадение паролей читает второе поле → это cross-field (снапшот модели), а не value-only правило.
-const passwordsMatch = (f: RegistrationForm): ValidationError | null =>
+const passwordsMatch = (f: RegistrationForm): ValidationIssue | null =>
   f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'passwords-mismatch', message: 'Пароли не совпадают' }
+    ? { code: 'passwords-mismatch' }
     : null;
 
-const validationSchema = defineValidationSchema<RegistrationForm>(({ model }) => {
+const validationSchema = defineValidation<RegistrationForm>(({ model }) => {
   validate(model.$.email, [required(), email()]);
   validate(model.$.password, [required(), minLength(8)]);
   validate(model.$.confirmPassword, [required()]);
   cross(model.$.confirmPassword, passwordsMatch);
-  // Inline-правило — обычная функция (value) => ValidationError | null.
-  validate(model.$.agreeToTerms, [
-    (value) => (value ? null : { code: 'terms-required', message: 'Необходимо согласие' }),
-  ]);
+  // Inline-правило — обычная функция (value) => ValidationIssue | null.
+  validate(model.$.agreeToTerms, [(value) => (value ? null : { code: 'terms-required' })]);
 });
 ```
 
@@ -82,32 +80,29 @@ const validationSchema = defineValidationSchema<RegistrationForm>(({ model }) =>
 **Что получите:**
 
 ```typescript
-import { validate, validateWhen, defineValidationSchema } from '@reformer/core/validation';
+import { validate, validateWhen, defineValidation } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 
-// Inline-правило: дата доставки не раньше завтра. Возвращает ValidationError | null.
-const notBeforeTomorrow = (value: string): ValidationError | null => {
+// Inline-правило: дата доставки не раньше завтра. Возвращает ValidationIssue | null.
+const notBeforeTomorrow = (value: string): ValidationIssue | null => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
-  return new Date(value) >= tomorrow
-    ? null
-    : { code: 'deliveryTooSoon', message: 'Выберите дату не раньше завтра' };
+  return new Date(value) >= tomorrow ? null : { code: 'deliveryTooSoon' };
 };
 
-const validationSchema = defineValidationSchema<OrderForm>(({ model }) => {
+const validationSchema = defineValidation<OrderForm>(({ model }) => {
   validate(model.$.phone, [
     required(),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат: +7 (XXX) XXX-XX-XX' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
   ]);
   validate(model.$.deliveryDate, [required(), notBeforeTomorrow]);
   // Условная ветка: правило для deliveryTime активно только для экспресс-доставки,
   // иначе гасится (ошибка снимается автоматически).
   validateWhen(
     () => model.deliveryType === 'express',
-    () =>
-      validate(model.$.deliveryTime, [required({ message: 'Укажите время для экспресс-доставки' })])
+    () => validate(model.$.deliveryTime, [required({ code: 'deliveryTime.required' })])
   );
 });
 ```
@@ -180,7 +175,7 @@ AI найдёт проблемы:
 - Схема-валидация нигде не запускается: по новому контракту её прогоняет приложение через
   `validateModel(model, schema)`; `createForm`/`form.submit()` правила больше не хранят и не вызывают
 - Нет вызова `markAsTouched` при blur — поле «не тронуто», поэтому ошибка скрыта (`shouldShowError` = false)
-- Ошибки нигде не отображаются (`errors` — массив `ValidationError`, показываем `errors[0].message`)
+- Ошибки нигде не отображаются (`errors` — массив `ValidationIssue`, показываем `errors[0].message`)
 
 И предложит исправление:
 

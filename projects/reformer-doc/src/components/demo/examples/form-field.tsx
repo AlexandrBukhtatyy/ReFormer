@@ -56,7 +56,8 @@ function AnatomyField() {
     initial: '',
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ message: 'Введите email' }), email()],
+    validators: [required({ code: 'field.required' }), email()],
+    messages: { 'field.required': 'Введите email' },
     touched: true,
   });
 
@@ -106,7 +107,8 @@ function PlainUsage() {
       placeholder: 'you@example.com',
       description: 'Не передаём email третьим сторонам.',
     },
-    validators: [required({ message: 'Введите email' }), email()],
+    validators: [required({ code: 'field.required' }), email()],
+    messages: { 'field.required': 'Введите email' },
     touched: true,
   });
   return (
@@ -149,7 +151,8 @@ function RowUsage() {
       placeholder: 'you@example.com',
       description: 'Не передаём email третьим сторонам.',
     },
-    validators: [required({ message: 'Введите email' }), email()],
+    validators: [required({ code: 'field.required' }), email()],
+    messages: { 'field.required': 'Введите email' },
     touched: true,
   });
   const { control: innControl } = useDemoField({

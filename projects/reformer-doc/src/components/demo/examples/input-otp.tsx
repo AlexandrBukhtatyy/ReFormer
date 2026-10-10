@@ -102,9 +102,10 @@ export const inputOtpDocConfig: ComponentDocConfig = {
         component: InputOTPDefault,
         componentProps: { label: 'Код подтверждения', maxLength: 6 },
         validators: [
-          required({ message: 'Введите код' }),
-          minLength(6, { message: 'Код состоит из 6 цифр' }),
+          required({ code: 'field.required' }),
+          minLength(6, { code: 'field.minLength' }),
         ],
+        messages: { 'field.required': 'Введите код', 'field.minLength': 'Код состоит из 6 цифр' },
         touched: true,
       }),
       code: `{
@@ -121,7 +122,8 @@ validate(model.$.otp, [required(), minLength(6)]);`,
     component: InputOTPDefault,
     initialValue: '',
     baseComponentProps: { label: 'Код подтверждения' },
-    validators: [required({ message: 'Введите код' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Введите код' },
     valuePresets: [
       { label: '123456', value: '123456' },
       { label: 'Очистить', value: '' },

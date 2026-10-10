@@ -29,7 +29,7 @@ forms/
 | `model.ts`           | `createModel<T>(initial)` — источник истины для значений                 |
 | `form.schema.ts`     | привязка полей к сигналам модели, `component` и `componentProps`         |
 | `form.behavior.ts`   | реактивные правила: вычисляемые поля, условная доступность, реакции      |
-| `form.validation.ts` | `defineValidationSchema` (все правила) + запуск `validateModel`          |
+| `form.validation.ts` | `defineValidation` (все правила) + запуск `validateModel`                |
 | `data-sources.ts`    | словари опций и загрузчики (держим их вне схемы)                         |
 | `api.ts`             | отправка и предзаполнение                                                |
 | `index.tsx`          | сборка `createXxxForm()` + разметка                                      |
@@ -84,17 +84,15 @@ export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>)
 ```
 
 ```typescript title="forms/credit-application/form.validation.ts"
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import type { CreditApplicationForm } from './types';
 
 // Отдельная схема валидации; запуск: await validateModel(model, creditApplicationValidation)
-export const creditApplicationValidation = defineValidationSchema<CreditApplicationForm>(
-  ({ model }) => {
-    validate(model.$.loanType, [required()]);
-    validate(model.$.loanAmount, [required(), min(50000)]);
-  }
-);
+export const creditApplicationValidation = defineValidation<CreditApplicationForm>(({ model }) => {
+  validate(model.$.loanType, [required()]);
+  validate(model.$.loanAmount, [required(), min(50000)]);
+});
 ```
 
 ```typescript title="forms/credit-application/form.behavior.ts"

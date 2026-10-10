@@ -94,7 +94,8 @@ const [date, setDate] = useState<Date>();
         initial: null,
         component: CalendarSingle,
         componentProps: { label: 'Дата' },
-        validators: [required({ message: 'Выберите дату' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Выберите дату' },
         touched: true,
       }),
       code: `{
@@ -104,14 +105,15 @@ const [date, setDate] = useState<Date>();
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
+validate(model.$.date, [required({ code: 'date.required' })]);`,
     },
   ],
   api: {
     component: CalendarSingle,
     initialValue: null,
     baseComponentProps: { label: 'Дата' },
-    validators: [required({ message: 'Выберите дату' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Выберите дату' },
     valuePresets: [
       { label: 'Сегодня', value: new Date() },
       { label: 'Очистить (null)', value: null },

@@ -81,7 +81,8 @@ export const radioGroupDocConfig: ComponentDocConfig = {
         initial: null,
         component: RadioGroupOptions,
         componentProps: { label: 'Тип кредита', options: LOAN },
-        validators: [required({ message: 'Выберите тип кредита' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Выберите тип кредита' },
         touched: true,
       }),
       code: `{
@@ -91,7 +92,7 @@ export const radioGroupDocConfig: ComponentDocConfig = {
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);`,
+validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
     },
     {
       id: 'disabled',
@@ -112,7 +113,8 @@ control.disable(); // блокирует всю группу`,
     component: RadioGroupOptions,
     initialValue: null,
     baseComponentProps: { label: 'Тип кредита', options: LOAN },
-    validators: [required({ message: 'Выберите тип' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Выберите тип' },
     valuePresets: [
       { label: 'Потребительский', value: 'consumer' },
       { label: 'Ипотека', value: 'mortgage' },

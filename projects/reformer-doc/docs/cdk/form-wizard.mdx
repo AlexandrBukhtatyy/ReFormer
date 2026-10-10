@@ -30,7 +30,7 @@ Headless многошаговый визард из `@reformer/cdk`. `config` �
 ```tsx
 import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
 
-// step1 / step2 / crossFieldRules — ValidationSchema<Root>
+// step1 / step2 / crossFieldRules — ValidationDefinition<Root>
 const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
   steps: {
     loan: step1,

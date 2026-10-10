@@ -66,7 +66,8 @@ const [date, setDate] = useState<Date | undefined>();
         initial: null,
         component: DatePicker,
         componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
-        validators: [required({ message: 'Выберите дату' })],
+        validators: [required({ code: 'field.required' })],
+        messages: { 'field.required': 'Выберите дату' },
         touched: true,
       }),
       code: `{
@@ -76,14 +77,15 @@ const [date, setDate] = useState<Date | undefined>();
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
+validate(model.$.date, [required({ code: 'date.required' })]);`,
     },
   ],
   api: {
     component: DatePicker,
     initialValue: null,
     baseComponentProps: { label: 'Дата' },
-    validators: [required({ message: 'Выберите дату' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Выберите дату' },
     valuePresets: [
       { label: 'Сегодня', value: new Date() },
       { label: 'Очистить (null)', value: null },

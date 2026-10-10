@@ -10,7 +10,8 @@ function AutoRender() {
     initial: '',
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ message: 'Введите email' }), email()],
+    validators: [required({ code: 'field.required' }), email()],
+    messages: { 'field.required': 'Введите email' },
   });
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
@@ -28,7 +29,8 @@ function CustomLayout() {
     initial: '',
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ message: 'Введите email' }), email()],
+    validators: [required({ code: 'field.required' }), email()],
+    messages: { 'field.required': 'Введите email' },
   });
   return (
     <div style={{ maxWidth: 460, width: '100%' }}>
@@ -65,7 +67,8 @@ function HintLayout() {
     initial: '',
     component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ message: 'Введите email' }), email()],
+    validators: [required({ code: 'field.required' }), email()],
+    messages: { 'field.required': 'Введите email' },
   });
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>

@@ -37,8 +37,8 @@ Peer-зависимости: `@reformer/core`, `react`, `react-dom` — npm 7+ �
   `ready`) для async-UI вокруг формы.
 - **FileUpload** — выбор и загрузка файлов. Части: `FileUpload.Root`, `FileUpload.Trigger`,
   `FileUpload.Dropzone`, `FileUpload.Item*` (preview, name, size, progress, delete).
-- **Валидация/i18n** — `ValidationMessagesProvider`, `createMessageResolver`,
-  `defaultErrorResolver`.
+- **Валидация/i18n** — `ValidationMessagesProvider` (словарь формы `messages` поверх локали
+  либо полный `resolver`), `useIssueMessageResolver`.
 
 ### Импорт
 

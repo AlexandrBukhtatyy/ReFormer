@@ -8,31 +8,31 @@ sidebar_position: 2
 правило поля (`Rule<TField>`) и передаётся в массив оператора `validate(sig, [...])` схемы валидации:
 `validate(model.$.email, [required(), email()])`.
 
-Схема валидации — отдельная функция `defineValidationSchema(({ model }) => …)` из
+Схема валидации — отдельная функция `defineValidation(({ model }) => …)` из
 `@reformer/core/validation`; layout-схема (узлы, JSON, `RenderNode`) валидаторов **не несёт**. Правила
 живут в этой функции, а прогон идёт **по требованию** через раннер `validateModel(model, schema)` —
 форма сама схему не запускает (подробнее — [Обзор валидации](/docs/validation/overview)).
 
 ```typescript
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 
 type ContactForm = { name: string; email: string };
 
-const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.name, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
 ```
 
 Снипеты ниже показывают отдельные фабрики — каждый вызов `validate(...)` подразумевается внутри такой
-`defineValidationSchema`, где оператор `validate` уже в области видимости.
+`defineValidation`, где оператор `validate` уже в области видимости.
 
 Общие правила:
 
 - **Пустые значения пропускаются.** `''`, `null`, `undefined` (а для длины/чисел/дат — и невалидные
   значения) считаются валидными. Обязательность проверяет отдельная фабрика `required()`.
-- **Опция `{ message }`.** Любой фабрике можно передать свой текст: `min(18, { message: 'Только 18+' })`.
+- **Опция `{ message }`.** Любой фабрике можно передать свой текст: `min(18, { code: 'field.min' })`.
   Без него `message` резолвится из `code` в слое отображения.
 - **Omnibus `number()` удалён.** Числовые проверки собираются из отдельных фабрик
   (`isNumber()`, `integer()`, `min()`, …).
@@ -48,8 +48,8 @@ const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
 import { required } from '@reformer/core/validators';
 
 validate(model.$.email, [required()]);
-validate(model.$.agreeToTerms, [required({ message: 'Необходимо принять условия' })]);
-// Ошибка: { code: 'required', message }
+validate(model.$.agreeToTerms, [required({ code: 'agreeToTerms.required' })]);
+// Замечание: { code: 'required' }
 ```
 
 ### `pattern(regex, options?)`
@@ -59,7 +59,7 @@ validate(model.$.agreeToTerms, [required({ message: 'Необходимо при
 ```typescript
 import { pattern } from '@reformer/core/validators';
 
-validate(model.$.code, [pattern(/^[A-Z]+$/, { message: 'Только заглавные латинские буквы' })]);
+validate(model.$.code, [pattern(/^[A-Z]+$/, { code: 'code.pattern' })]);
 // Ошибка: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
 ```
 
@@ -119,7 +119,7 @@ validate(model.$.bio, [maxLength(500)]);
 
 :::tip Непустой массив
 Требование «хотя бы один элемент» — это `minLength(1)` на поле-массиве:
-`validate(model.$.tags, [minLength(1, { message: 'Добавьте хотя бы один элемент' })])`.
+`validate(model.$.tags, [minLength(1, { code: 'tags.minLength' })])`.
 :::
 
 ## Числа
@@ -262,8 +262,8 @@ import { required, minLength, pattern } from '@reformer/core/validators';
 validate(model.$.password, [
   required(),
   minLength(8),
-  pattern(/[A-Z]/, { message: 'Нужна заглавная буква' }),
-  pattern(/[0-9]/, { message: 'Нужна цифра' }),
+  pattern(/[A-Z]/, { code: 'field.pattern' }),
+  pattern(/[0-9]/, { code: 'field.pattern' }),
 ]);
 ```
 

@@ -18,7 +18,7 @@ sidebar_position: 5
 
 - **layout** — builder-функции возвращают фрагменты узлов (`value` / `component` / `componentProps`),
   собираются в объект схемы формы;
-- **валидация** — фрагменты `ValidationSchema<T>` собираются оператором `apply(...schemas)` или прямым
+- **валидация** — фрагменты `ValidationDefinition<T>` собираются оператором `apply(...schemas)` или прямым
   вызовом над под-моделью;
 - **behavior** — фрагменты `defineFormBehavior` собираются операторами `apply` / `applyEach`.
 
@@ -101,7 +101,7 @@ export const emailRules: Rule<string>[] = [required(), email()];
 
 ```typescript
 import { createModel, createFormFromModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 
 type ProfileForm = {
   email: string;
@@ -129,7 +129,7 @@ const schema = {
 const form = createFormFromModel<ProfileForm>({ model, schema });
 
 // Валидация — отдельная схема, переиспользует те же списки правил.
-const profileValidation = defineValidationSchema<ProfileForm>(({ model }) => {
+const profileValidation = defineValidation<ProfileForm>(({ model }) => {
   validate(model.$.email, emailRules);
 });
 
@@ -205,7 +205,7 @@ const form = createFormFromModel<UserForm>({ model, schema });
 
 Правила живут в **отдельной** схеме валидации, а не в layout-узлах (узел не несёт `validators`; см.
 [Схему валидации](./validation-schema)). Переиспользуемых единиц две: список правил `Rule[]` и целая
-под-схема `ValidationSchema<T>`.
+под-схема `ValidationDefinition<T>`.
 
 ### Списки правил
 
@@ -219,7 +219,7 @@ import { required, pattern } from '@reformer/core/validators';
 // Готовый список правил для индекса.
 export const zipRules: Rule<string>[] = [
   required(),
-  pattern(/^\d{5}(-\d{4})?$/, { message: 'Некорректный индекс' }),
+  pattern(/^\d{5}(-\d{4})?$/, { code: 'field.pattern' }),
 ];
 ```
 
@@ -229,25 +229,25 @@ import { required, minLength, maxLength } from '@reformer/core/validators';
 
 // Фабрика: параметризуем сообщение, переиспользуем в разных полях.
 export const nameRules = (label: string): Rule<string>[] => [
-  required({ message: `${label} обязательно` }),
-  minLength(2, { message: 'Минимум 2 символа' }),
-  maxLength(50, { message: 'Максимум 50 символов' }),
+  required({ code: 'field.required' }),
+  minLength(2, { code: 'field.minLength' }),
+  maxLength(50, { code: 'field.maxLength' }),
 ];
 ```
 
 ### Под-схемы групп — прямой вызов
 
-Под-схема группы (адрес, персона) — обычная `ValidationSchema<Group>`. Схема — это функция, поэтому её
+Под-схема группы (адрес, персона) — обычная `ValidationDefinition<Group>`. Схема — это функция, поэтому её
 переиспользуют **прямым вызовом** над под-моделью нужной группы (`{ model: model.<group> }`), а не через
 layout:
 
 ```typescript title="validation/address-validation.ts"
-import { validate, type ValidationSchema } from '@reformer/core/validation';
+import { validate, type ValidationDefinition } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { zipRules } from './address-rules';
 import type { Address } from '../schemas/address-schema';
 
-export const addressValidation: ValidationSchema<Address> = ({ model }) => {
+export const addressValidation: ValidationDefinition<Address> = ({ model }) => {
   validate(model.$.street, [required()]);
   validate(model.$.city, [required()]);
   validate(model.$.state, [required()]);
@@ -256,12 +256,12 @@ export const addressValidation: ValidationSchema<Address> = ({ model }) => {
 ```
 
 ```typescript title="validation/person-validation.ts"
-import { validate, type ValidationSchema } from '@reformer/core/validation';
+import { validate, type ValidationDefinition } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { nameRules } from './person-rules';
 import type { Person } from '../schemas/person-schema';
 
-export const personValidation: ValidationSchema<Person> = ({ model }) => {
+export const personValidation: ValidationDefinition<Person> = ({ model }) => {
   validate(model.$.firstName, nameRules('Имя'));
   validate(model.$.lastName, nameRules('Фамилия'));
   validate(model.$.email, [required(), email()]);
@@ -271,12 +271,12 @@ export const personValidation: ValidationSchema<Person> = ({ model }) => {
 **Использование** — одну и ту же под-схему адреса применяем и к billing, и к shipping:
 
 ```typescript
-import { defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { defineValidation, validateModel } from '@reformer/core/validation';
 import { addressValidation } from './validation/address-validation';
 import { personValidation } from './validation/person-validation';
 
 // Каждый прямой вызов сужает scope на свою под-модель.
-const userValidation = defineValidationSchema<UserForm>(({ model }) => {
+const userValidation = defineValidation<UserForm>(({ model }) => {
   personValidation({ model: model.person });
   addressValidation({ model: model.billingAddress });
   addressValidation({ model: model.shippingAddress });
@@ -289,23 +289,23 @@ const ok = await validateModel(model, userValidation);
 
 Когда несколько под-схем работают над **одной и той же** моделью scope (например, форма разбита на
 логические блоки одного типа), их собирают оператором `apply(...schemas)` из `@reformer/core/validation`.
-Все переданные схемы должны быть `ValidationSchema<T>` одного типа `T` — это тот же scope, а не под-модель:
+Все переданные схемы должны быть `ValidationDefinition<T>` одного типа `T` — это тот же scope, а не под-модель:
 
 ```typescript
-import { validate, apply, defineValidationSchema } from '@reformer/core/validation';
+import { validate, apply, defineValidation } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
-import type { ValidationSchema } from '@reformer/core/validation';
+import type { ValidationDefinition } from '@reformer/core/validation';
 
 // Два блока над одной моделью UserForm.
-const contactValidation: ValidationSchema<UserForm> = ({ model }) => {
+const contactValidation: ValidationDefinition<UserForm> = ({ model }) => {
   validate(model.$.person.email, [required(), email()]);
 };
-const consentValidation: ValidationSchema<UserForm> = ({ model }) => {
+const consentValidation: ValidationDefinition<UserForm> = ({ model }) => {
   validate(model.$.person.firstName, [required()]);
 };
 
 // apply склеивает схемы одного scope в одну.
-const fullValidation = defineValidationSchema<UserForm>(() =>
+const fullValidation = defineValidation<UserForm>(() =>
   apply(contactValidation, consentValidation)
 );
 ```
@@ -426,7 +426,7 @@ Value-операции (`compute` / `copyFrom` / `transformValue` на `row.$.*`
 modules/
 └── contact-info/
     ├── schema.ts       # Тип + builder layout-схемы (без validators)
-    ├── validation.ts   # Под-схема ValidationSchema
+    ├── validation.ts   # Под-схема ValidationDefinition
     ├── behaviors.ts    # Реактивная логика
     └── index.ts        # Публичные экспорты
 ```
@@ -459,14 +459,14 @@ export const contactInfoNodes = (m: FormModel<ContactInfo>) => ({
 ```
 
 ```typescript title="modules/contact-info/validation.ts"
-import { validate, type ValidationSchema } from '@reformer/core/validation';
+import { validate, type ValidationDefinition } from '@reformer/core/validation';
 import { required, email, pattern } from '@reformer/core/validators';
 import type { ContactInfo } from './schema';
 
 // Под-схема валидации группы — переиспользуется прямым вызовом над под-моделью.
-export const contactInfoValidation: ValidationSchema<ContactInfo> = ({ model }) => {
+export const contactInfoValidation: ValidationDefinition<ContactInfo> = ({ model }) => {
   validate(model.$.email, [required(), email()]);
-  validate(model.$.phone, [required(), pattern(/^\d{10}$/, { message: 'Нужно 10 цифр' })]);
+  validate(model.$.phone, [required(), pattern(/^\d{10}$/, { code: 'phone.pattern' })]);
 };
 ```
 
@@ -497,7 +497,7 @@ export { contactInfoBehaviors } from './behaviors';
 ```typescript
 import { createModel, createFormFromModel } from '@reformer/core';
 import { defineFormBehavior } from '@reformer/core/behaviors';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { Input } from '@reformer/ui-kit';
 import { required } from '@reformer/core/validators';
 import {
@@ -531,7 +531,7 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 const form = createFormFromModel<MyForm>({ model, schema, behavior });
 
 // Валидация: под-схему модуля вызываем прямым вызовом над под-моделью, прогон — по требованию.
-const myFormValidation = defineValidationSchema<MyForm>(({ model }) => {
+const myFormValidation = defineValidation<MyForm>(({ model }) => {
   validate(model.$.name, [required()]);
   contactInfoValidation({ model: model.contactInfo });
 });
@@ -582,13 +582,13 @@ export function createPersonNodes(m: FormModel<Person>, options: PersonSchemaOpt
 ```
 
 ```typescript title="validation/configurable-person.ts"
-import { validate, type ValidationSchema } from '@reformer/core/validation';
+import { validate, type ValidationDefinition } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 
 // Те же опции гейтят и правила: телефон проверяем, только если поле выставлено.
 export function createPersonValidation(
   options: PersonSchemaOptions = {}
-): ValidationSchema<Person> {
+): ValidationDefinition<Person> {
   return ({ model }) => {
     validate(model.$.firstName, [required()]);
     validate(model.$.lastName, [required()]);

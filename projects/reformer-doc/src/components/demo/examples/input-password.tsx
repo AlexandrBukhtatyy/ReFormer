@@ -62,9 +62,10 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
         component: InputPassword,
         componentProps: { label: 'Пароль' },
         validators: [
-          required({ message: 'Укажите пароль' }),
-          minLength(8, { message: 'Минимум 8 символов' }),
+          required({ code: 'field.required' }),
+          minLength(8, { code: 'field.minLength' }),
         ],
+        messages: { 'field.required': 'Укажите пароль', 'field.minLength': 'Минимум 8 символов' },
         touched: true,
       }),
       code: `{
@@ -81,7 +82,8 @@ validate(model.$.password, [required(), minLength(8)]);`,
     component: InputPassword,
     initialValue: '',
     baseComponentProps: { label: 'Пароль' },
-    validators: [required({ message: 'Обязательно' })],
+    validators: [required({ code: 'field.required' })],
+    messages: { 'field.required': 'Обязательно' },
     valuePresets: [
       { label: 'secret42', value: 'secret42' },
       { label: 'Очистить', value: '' },

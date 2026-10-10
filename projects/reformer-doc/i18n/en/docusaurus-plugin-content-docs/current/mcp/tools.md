@@ -45,7 +45,7 @@ Get template and rules for TypeScript form types.
 
 ### generate_validation
 
-Get template and rules for ValidationSchema.
+Get template and rules for ValidationDefinition.
 
 **Parameters:**
 | Parameter | Type | Description |

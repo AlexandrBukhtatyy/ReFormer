@@ -59,14 +59,14 @@ createModel     привязка       createForm     defineFormBehavior
 
 Пакет разбит на пять слоёв (плюс подпуть для сигнального рантайма):
 
-| Слой             | Импорт                      | Назначение                                                                                                                                       |
-| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Модель**       | `@reformer/core`            | `createModel` — источник истины значений; доступ к сигналам через `model.$.<field>`                                                              |
-| **Форма и ноды** | `@reformer/core`            | `createForm`, `FieldNode` / `GroupNode` / `ArrayNode`; доступ к полям через proxy `form.<field>`                                                 |
-| **Валидация**    | `@reformer/core/validation` | ambient-схема `defineValidationSchema` + операторы `validate`, `validateAsync`, `validateWhen`, `cross`, `each`, `apply`; раннер `validateModel` |
-| **Валидаторы**   | `@reformer/core/validators` | чистые фабрики `required`, `email`, `min`, `max`, `minLength`, `pattern`, `phone`, `url`, числовые и датовые                                     |
-| **Behaviors**    | `@reformer/core/behaviors`  | декларативный DSL `defineFormBehavior` + операторы `compute`, `onChange`, `enableWhen`, `copyFrom`, …                                            |
-| **Signals**      | `@reformer/core/signals`    | единый реактивный рантайм (`signal`, `computed`, `effect`, `batch`) для интеграций                                                               |
+| Слой             | Импорт                      | Назначение                                                                                                                                 |
+| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Модель**       | `@reformer/core`            | `createModel` — источник истины значений; доступ к сигналам через `model.$.<field>`                                                        |
+| **Форма и ноды** | `@reformer/core`            | `createForm`, `FieldNode` / `GroupNode` / `ArrayNode`; доступ к полям через proxy `form.<field>`                                           |
+| **Валидация**    | `@reformer/core/validation` | ambient-схема `defineValidation` + операторы `validate`, `validateAsync`, `validateWhen`, `cross`, `each`, `apply`; раннер `validateModel` |
+| **Валидаторы**   | `@reformer/core/validators` | чистые фабрики `required`, `email`, `min`, `max`, `minLength`, `pattern`, `phone`, `url`, числовые и датовые                               |
+| **Behaviors**    | `@reformer/core/behaviors`  | декларативный DSL `defineFormBehavior` + операторы `compute`, `onChange`, `enableWhen`, `copyFrom`, …                                      |
+| **Signals**      | `@reformer/core/signals`    | единый реактивный рантайм (`signal`, `computed`, `effect`, `batch`) для интеграций                                                         |
 
 **React-хуки** (`@reformer/core/react`): `useFormControl` (полное состояние поля), `useFormControlValue`
 (значение `T` напрямую), `useArrayLength` (реактивная длина массива).

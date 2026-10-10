@@ -127,7 +127,7 @@ function PackagesSection(): ReactNode {
 }
 
 const QUICK_START = `import { createModel, createFormFromModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
@@ -144,7 +144,7 @@ const schema = {
 };
 
 // 3. Валидация — отдельный слой
-const validation = defineValidationSchema<{ email: string }>(({ model }) => {
+const validation = defineValidation<{ email: string }>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
 

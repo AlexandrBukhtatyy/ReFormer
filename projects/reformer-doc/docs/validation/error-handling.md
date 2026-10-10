@@ -7,12 +7,12 @@ sidebar_position: 6
 Как устроен объект ошибки, чем `warning` отличается от `error`, как читать и фильтровать ошибки поля
 и как централизованно обрабатывать исключения валидаторов.
 
-## `ValidationError`
+## `ValidationIssue`
 
-Любая ошибка валидации — это объект `ValidationError`:
+Любая ошибка валидации — это объект `ValidationIssue`:
 
 ```typescript
-interface ValidationError {
+interface ValidationIssue {
   code: string; // машинный код: 'required', 'email', 'passwordMismatch', …
   message: string; // текст для пользователя
   params?: Record<string, unknown>; // данные ошибки: { minLength: 8, actualLength: 3 }
@@ -33,9 +33,7 @@ interface ValidationError {
 ```typescript
 // Мягкая подсказка — не мешает отправке
 const weakPassword = (value: string) =>
-  value && value.length < 12
-    ? { code: 'weakPassword', message: 'Рекомендуем 12+ символов', severity: 'warning' as const }
-    : null;
+  value && value.length < 12 ? { code: 'weakPassword', severity: 'warning' as const } : null;
 ```
 
 :::info Как считается `valid`
@@ -76,8 +74,8 @@ import { validateModel } from '@reformer/core/validation';
 const valid = await validateModel(model, schema); // Promise<boolean>
 
 // Ошибки уже на нодах — читаем их с конкретного поля:
-form.email.getErrors(); // ValidationError[] этого поля
-form.email.errors.value; // тот же массив, реактивно
+form.email.getErrors(); // ValidationIssue[] этого поля
+form.email.issues.value; // тот же массив, реактивно
 ```
 
 Если ноды формы под рукой нет, а есть только сигнал модели, ту же ноду достаёт `getNodeForSignal`:
@@ -85,7 +83,7 @@ form.email.errors.value; // тот же массив, реактивно
 ```typescript
 import { getNodeForSignal } from '@reformer/core';
 
-getNodeForSignal(model.$.email)?.getErrors(); // ValidationError[] | undefined
+getNodeForSignal(model.$.email)?.getErrors(); // ValidationIssue[] | undefined
 ```
 
 ### Фильтрация — `getErrors(options?)`
@@ -97,7 +95,7 @@ interface ErrorFilterOptions {
   code?: string | string[]; // по коду (одному или нескольким)
   message?: string; // частичное совпадение по тексту (регистронезависимо)
   params?: Record<string, unknown>; // по значениям params
-  predicate?: (error: ValidationError) => boolean; // произвольный предикат
+  predicate?: (error: ValidationIssue) => boolean; // произвольный предикат
 }
 ```
 
@@ -109,11 +107,11 @@ form.password.getErrors({ params: { minLength: 8 } }); // по params
 form.password.getErrors({ predicate: (e) => e.severity === 'warning' }); // только предупреждения
 ```
 
-Без аргументов `getErrors()` возвращает все ошибки — эквивалент `form.password.errors.value`.
+Без аргументов `getErrors()` возвращает все ошибки — эквивалент `form.password.issues.value`.
 
 ## Серверные ошибки
 
-Бизнес-ошибки, пришедшие с сервера, кладут в поле напрямую через `setErrors` — форму при этом **не**
+Бизнес-ошибки, пришедшие с сервера, кладут в поле напрямую через `setIssues` — форму при этом **не**
 сбрасывают:
 
 ```tsx
@@ -130,7 +128,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       model.reset();
     } else {
       // Серверная ошибка — показываем в конкретном поле
-      form.email.setErrors([{ code: 'emailTaken', message: res.message }]);
+      form.email.setIssues([{ code: 'emailTaken' }]);
     }
   } catch (err) {
     showToast(`Ошибка сети: ${(err as Error).message}`);
@@ -138,7 +136,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 };
 ```
 
-`setErrors([])` очищает ошибки поля вручную (например, при повторной отправке).
+`setIssues([])` очищает ошибки поля вручную (например, при повторной отправке).
 
 ## Централизованная обработка исключений
 
@@ -150,7 +148,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 | ----------------------- | ---------------------------------------------------------------- |
 | `ErrorStrategy.THROW`   | залогировать и пробросить дальше (критичная ошибка)              |
 | `ErrorStrategy.LOG`     | залогировать и продолжить (некритичная)                          |
-| `ErrorStrategy.CONVERT` | залогировать и вернуть `ValidationError` (для async-валидаторов) |
+| `ErrorStrategy.CONVERT` | залогировать и вернуть `ValidationIssue` (для async-валидаторов) |
 
 ```typescript
 import { FormErrorHandler, ErrorStrategy } from '@reformer/core';
@@ -161,7 +159,7 @@ const checkUnique: AsyncRule<string> = async (value, { signal }) => {
   try {
     const res = await fetch(`/api/check?value=${value}`, { signal });
     const { available } = (await res.json()) as { available: boolean };
-    return available ? null : { code: 'taken', message: 'Значение уже занято' };
+    return available ? null : { code: 'taken' };
   } catch (error) {
     // Превращаем неожиданное исключение в отображаемую ошибку валидации
     return FormErrorHandler.handle(error, 'checkUnique', ErrorStrategy.CONVERT);
@@ -174,7 +172,7 @@ const checkUnique: AsyncRule<string> = async (value, { signal }) => {
 исключение или сетевой сбой не роняют форму и `validateModel` не возвращает из-за них `false`. Поэтому
 решение принимаете внутри самого правила: поймайте исключение и верните `null`, если сбой не должен
 мешать отправке, — либо `FormErrorHandler.handle(error, 'checkUnique', ErrorStrategy.CONVERT)`, если ошибку нужно
-показать пользователю как `ValidationError` (`code: 'validator_error'`). Отмену устаревшего прогона
+показать пользователю как `ValidationIssue` (`code: 'validator_error'`). Отмену устаревшего прогона
 (`AbortError`) раннер делает сам через `AbortSignal` и ошибкой не считает.
 :::
 
@@ -182,9 +180,9 @@ const checkUnique: AsyncRule<string> = async (value, { signal }) => {
 
 ```typescript
 FormErrorHandler.createValidationError('required', 'Обязательное поле', 'email');
-// { code: 'required', message: 'Обязательное поле', params: { field: 'email' } }
+// { code: 'required', params: { field: 'email' } }
 
-FormErrorHandler.isValidationError(value); // type guard: value is ValidationError
+FormErrorHandler.isValidationError(value); // type guard: value is ValidationIssue
 ```
 
 ## Доступность

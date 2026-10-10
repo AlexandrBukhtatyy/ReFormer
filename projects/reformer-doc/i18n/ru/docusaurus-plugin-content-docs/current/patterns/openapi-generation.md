@@ -7,7 +7,7 @@ sidebar_position: 2
 Если бэкенд описан спецификацией OpenAPI (Swagger), её удобно использовать как источник **типов**
 формы. Форма в M1 строится вокруг `type`-алиаса ([структура проекта](./project-structure)), поэтому
 готовый тип запроса из OpenAPI-спеки подставляется прямо в `createModel` / `createForm`, а
-ограничения (`required`, `minLength`, `format`) переносятся в **схему валидации** `ValidationSchema<T>`
+ограничения (`required`, `minLength`, `format`) переносятся в **схему валидации** `ValidationDefinition<T>`
 (отдельный слой, не layout-схема).
 
 :::caution Своего генератора в ReFormer нет
@@ -78,16 +78,16 @@ const form = createFormFromModel<CreateUserRequest>({ model, schema });
 ```
 
 Ограничения из OpenAPI (`required`, `minLength`, `format: email`, `minimum`) переносятся в **отдельную
-схему валидации** — обычную функцию `defineValidationSchema(({ model }) => …)` из
+схему валидации** — обычную функцию `defineValidation(({ model }) => …)` из
 `@reformer/core/validation`. Правила поля собираются оператором `validate(sig, [rules])` из фабрик
 `@reformer/core/validators`:
 
 ```typescript title="form.validation.ts"
-import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength, min } from '@reformer/core/validators';
 import type { CreateUserRequest } from './types';
 
-export const userValidation = defineValidationSchema<CreateUserRequest>(({ model }) => {
+export const userValidation = defineValidation<CreateUserRequest>(({ model }) => {
   validate(model.$.firstName, [required(), minLength(2)]); // required + minLength из OpenAPI
   validate(model.$.email, [required(), email()]); // format: email
   validate(model.$.age, [min(18)]); // minimum
@@ -103,7 +103,7 @@ export const userValidation = defineValidationSchema<CreateUserRequest>(({ model
 | `pattern`                 | `pattern(regexp)`               |
 
 Фабрики принимают nullable-значения, поэтому `min(18)` корректно работает и на `age: number | null`.
-Ошибки прогон разносит по нодам формы сам (`getNodeForSignal(sig).setErrors(...)`) — UI подсветит поля.
+Ошибки прогон разносит по нодам формы сам (`getNodeForSignal(sig).setIssues(...)`) — UI подсветит поля.
 
 ## Шаг 3. Отправка
 
@@ -113,13 +113,13 @@ export const userValidation = defineValidationSchema<CreateUserRequest>(({ model
 как есть:
 
 ```typescript title="api.ts"
-import { validateModel, type ValidationSchema } from '@reformer/core/validation';
+import { validateModel, type ValidationDefinition } from '@reformer/core/validation';
 import type { FormModel } from '@reformer/core';
 import type { CreateUserRequest } from './types';
 
 export async function submitUser(
   model: FormModel<CreateUserRequest>,
-  validation: ValidationSchema<CreateUserRequest>
+  validation: ValidationDefinition<CreateUserRequest>
 ) {
   const valid = await validateModel(model, validation);
   if (!valid) return;

@@ -93,7 +93,7 @@ submit/шаге, а не реактивно. Поэтому если прави�
 ```typescript
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 import { validateModel } from '@reformer/core/validation';
-import { schema } from './validation'; // defineValidationSchema<RegistrationForm>(({ model }) => …)
+import { schema } from './validation'; // defineValidation<RegistrationForm>(({ model }) => …)
 
 type RegistrationForm = { password: string; confirmPassword: string };
 
