@@ -2,10 +2,13 @@
  * Поток шагов `FormFlow`: переходы, правила доступности шагов и проверка шага.
  *
  * Правила доступности перенесены из визарда cdk (`goToStep`, `pruneCompletedStepsOnBack`): теперь
- * их держит ядро, визард лишь рисует поток.
+ * их держит ядро, визард лишь рисует поток. Здесь же — `goTo` вперёд на непройденный шаг и на
+ * текущий, `reset` и `previous` во время проверки шага, `completed` после возврата с края,
+ * `next` при ошибке шага и при исключении проверки.
  */
 
 import { describe, it, expect } from 'vitest';
+import { deferred } from '../../test-utils/async';
 import { createFormFlow } from '../../../src/form/flow/flow';
 import type { ValidationResult, ValidationStatus } from '../../../src/form/validation/types';
 
@@ -186,5 +189,173 @@ describe('createFormFlow — доступность шагов (перенос �
 
     expect(flow.current.value).toBe('loan');
     expect([...flow.completed.value]).toEqual([]);
+  });
+});
+
+describe('createFormFlow — goTo вперёд и на текущий шаг', () => {
+  it('goTo вперёд на непройденный шаг — locked, поток и пройденные на месте', async () => {
+    const flow = flowOf(['a', 'b', 'c', 'd']);
+    await flow.next();
+
+    expect(flow.goTo('c')).toEqual({ status: 'stayed', step: 'b', reason: 'locked' });
+    expect(flow.goTo('d')).toEqual({ status: 'stayed', step: 'b', reason: 'locked' });
+    expect(flow.current.value).toBe('b');
+    expect([...flow.completed.value]).toEqual(['a']);
+  });
+
+  it('после возврата ранее пройденный шаг впереди снова закрыт', async () => {
+    const flow = flowOf(['a', 'b', 'c']);
+    await flow.next();
+    await flow.next();
+    flow.goTo('a');
+
+    expect(flow.goTo('b')).toEqual({ status: 'stayed', step: 'a', reason: 'locked' });
+    expect(flow.goTo('c')).toEqual({ status: 'stayed', step: 'a', reason: 'locked' });
+  });
+
+  it('поведение под вопросом [ReFormer-jefl]: goTo на текущий шаг — moved с from === to', () => {
+    // По доку `moved` — «поток перешёл на другой шаг», но причины `stayed` для «уже здесь» нет.
+    const flow = flowOf();
+
+    expect(flow.goTo('loan')).toEqual({ status: 'moved', from: 'loan', to: 'loan' });
+    expect(flow.current.value).toBe('loan');
+  });
+
+  it('goTo на текущий последний шаг после края пройденные не обрезает', async () => {
+    const flow = flowOf(['a', 'b']);
+    await flow.next();
+    await flow.next(); // край: пройдены оба шага
+
+    expect(flow.goTo('b')).toEqual({ status: 'moved', from: 'b', to: 'b' });
+    expect([...flow.completed.value]).toEqual(['a', 'b']);
+  });
+
+  it('поведение под вопросом [ReFormer-jefl]: goTo на текущий шаг во время next() отменяет переход', async () => {
+    // goTo «на себя» ничего не меняет, но считается переходом — ждущий next() отменяется.
+    const check = deferred<ValidationResult>();
+    const flow = createFormFlow({ steps: ['a', 'b'], validateStep: () => check.promise });
+
+    const next = flow.next();
+    flow.goTo('a');
+    check.resolve(resultOf('valid'));
+
+    expect(await next).toMatchObject({ status: 'stayed', step: 'a', reason: 'cancelled' });
+    expect([...flow.completed.value]).toEqual([]);
+  });
+
+  it('неизвестный шаг: исключение со списком шагов, состояние потока не меняется', async () => {
+    const flow = flowOf();
+    await flow.next();
+
+    expect(() => flow.goTo('missing')).toThrow(
+      'шага «missing» нет. Шаги потока: loan, applicant, contacts.'
+    );
+    expect(flow.current.value).toBe('applicant');
+    expect([...flow.completed.value]).toEqual(['loan']);
+  });
+});
+
+describe('createFormFlow — reset, previous и completed', () => {
+  it('reset после прохождения: первый шаг, пройденных нет, вперёд снова закрыто', async () => {
+    const flow = flowOf();
+    await flow.next();
+    await flow.next();
+
+    flow.reset();
+
+    expect(flow.index.value).toBe(0);
+    expect(flow.isFirst.value).toBe(true);
+    expect([...flow.completed.value]).toEqual([]);
+    expect(flow.canGoTo('applicant')).toBe(false);
+  });
+
+  it('completed после previous с последнего шага после края — только шаги до цели', async () => {
+    const flow = flowOf(['a', 'b', 'c']);
+    await flow.next();
+    await flow.next();
+    await flow.next(); // край: пройдены все три
+
+    expect(flow.previous()).toEqual({ status: 'moved', from: 'c', to: 'b' });
+    expect([...flow.completed.value]).toEqual(['a']);
+    expect(flow.isLast.value).toBe(false);
+    expect(flow.canGoTo('c')).toBe(false);
+  });
+
+  it('previous во время проверки шага: next() отменён, шаг пройденным не становится', async () => {
+    const check = deferred<ValidationResult>();
+    const flow = createFormFlow({
+      steps: ['a', 'b', 'c'],
+      validateStep: async (step) => (step === 'a' ? resultOf('valid') : check.promise),
+    });
+    await flow.next();
+
+    const next = flow.next(); // проверяется b
+    flow.previous();
+    check.resolve(resultOf('valid'));
+
+    expect(await next).toMatchObject({ status: 'stayed', step: 'a', reason: 'cancelled' });
+    expect(flow.current.value).toBe('a');
+    expect([...flow.completed.value]).toEqual([]);
+  });
+});
+
+describe('createFormFlow — next при ошибке шага', () => {
+  it.each(['invalid', 'error', 'cancelled'] as const)(
+    '%s: stayed с причиной и результатом проверки, шаг не пройден',
+    async (status) => {
+      const validation = resultOf(status);
+      const flow = createFormFlow({ steps: ['a', 'b'], validateStep: async () => validation });
+
+      const transition = await flow.next();
+
+      expect(transition).toEqual({ status: 'stayed', step: 'a', reason: status, validation });
+      if (transition.status === 'stayed') expect(transition.validation).toBe(validation);
+      expect([...flow.completed.value]).toEqual([]);
+      expect(flow.current.value).toBe('a');
+    }
+  );
+
+  it('две next() подряд: первая переходит, вторая — cancelled на новом шаге', async () => {
+    const flow = createFormFlow({
+      steps: ['a', 'b', 'c'],
+      validateStep: async () => resultOf('valid'),
+    });
+
+    const [first, second] = await Promise.all([flow.next(), flow.next()]);
+
+    expect(first).toEqual({ status: 'moved', from: 'a', to: 'b' });
+    expect(second).toMatchObject({ status: 'stayed', step: 'b', reason: 'cancelled' });
+    expect([...flow.completed.value]).toEqual(['a']);
+  });
+
+  it('поведение под вопросом [ReFormer-jefl]: invalid после того, как поток перевели, — stayed с прежним шагом', async () => {
+    // Сверка «поток перевели, пока шла проверка» стоит только на успешной ветке: неуспешная
+    // возвращает stayed с проверенным шагом, хотя поток уже на другом.
+    const check = deferred<ValidationResult>();
+    const flow = createFormFlow({
+      steps: ['a', 'b', 'c'],
+      validateStep: async (step) => (step === 'a' ? resultOf('valid') : check.promise),
+    });
+    await flow.next();
+
+    const next = flow.next(); // проверяется b
+    flow.previous();
+    check.resolve(resultOf('invalid'));
+
+    expect(await next).toMatchObject({ status: 'stayed', step: 'b', reason: 'invalid' });
+    expect(flow.current.value).toBe('a');
+  });
+
+  it('исключение проверки шага пробрасывается из next(), validating снимается', async () => {
+    const flow = createFormFlow({
+      steps: ['a', 'b'],
+      validateStep: async () => {
+        throw new Error('схема упала');
+      },
+    });
+
+    await expect(flow.next()).rejects.toThrow('схема упала');
+    expect(flow.validating.value).toBe(false);
+    expect(flow.current.value).toBe('a');
   });
 });
