@@ -5,12 +5,13 @@ import { useIssueMessageResolver } from '../../validation/error-resolver';
 import type { FieldArrayErrorProps } from './types';
 
 /**
- * FieldArray.Error — рендерит ошибки уровня массива (`control.issues`).
+ * FieldArray.Error — рендерит ошибки уровня массива (`control.ownIssues`).
  *
- * Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
- * / «At least one phone required», которые правила массива выставляют через `FormArray.setIssues` и агрегирует
- * в сигнале `issues`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
- * консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
+ * Паритет с `FormField.Error`, но для узла массива: показывает только собственные замечания
+ * массива — правила на его ручке вроде `minLength` / «At least one phone required». Замечания
+ * полей строк сюда не попадают: их показывают поля строк. Ничего не рендерит, когда ошибок нет.
+ * Читает контекст `FieldArray.Root`, поэтому консументу не нужно обходить CDK через
+ * `useFormControl(control)` ради валидации массива.
  *
  * @example Единственная ошибка (по умолчанию)
  * ```tsx
@@ -34,7 +35,7 @@ import type { FieldArrayErrorProps } from './types';
  */
 export const FieldArrayError = forwardRef<HTMLParagraphElement, FieldArrayErrorProps>(
   ({ asChild = false, multi = false, render, children, ...props }, ref) => {
-    const { issues } = useFieldArrayContext();
+    const { ownIssues: issues } = useFieldArrayContext();
     // i18n: отображаем результат резолвера (ValidationMessagesProvider), а не сырой error.message.
     const resolve = useIssueMessageResolver();
 

@@ -76,6 +76,7 @@ cdk — headless: видимый текст пишет приложение. Н�
 | Статусы `FileUpload` для скринридера (aria-live): файл добавлен, отклонён, удалён, загружен, загрузка прервана или не удалась, список очищен | `cdk.fileUpload.added`, `rejected`, `removed`, `uploaded`, `uploadAborted`, `uploadFailed`, `cleared` |
 | `aria-label` кнопок удаления и повтора у файла                                                                                               | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload`                                             |
 | Текст ошибки `AsyncBoundary` / `useAsyncResource`, когда отказ не несёт своего текста                                                        | `cdk.asyncBoundary.unknownError`                                                                      |
+| Статус `FormWizard` для скринридера (aria-live) при смене шага: «Шаг N из M»                                                                 | `cdk.formWizard.stepStatus` (`{current}`, `{total}`)                                                  |
 | Размер файла в `FileUpload.ItemSize`                                                                                                         | `format.fileSize.*` (словарь ядра)                                                                    |
 | Тексты замечаний валидации в `FormField` и `FieldArray.Error`                                                                                | `validation.<code>` (словарь ядра); поверх — словарь формы `ValidationMessagesProvider messages`      |
 
@@ -151,14 +152,14 @@ import { FieldArray } from '@reformer/cdk/field-array';
 
 | Component                 | Props                            | Purpose                                                                 |
 | ------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
-| `FieldArray.Root`         | `control: FormArray<T>`          | Context provider                                                        |
+| `FieldArray.Root`         | `control: FormArray<T>`, `children` (nodes or a render function) | Context provider; a render function gets the typed array state |
 | `FieldArray.List`         | `children: (item) => ReactNode`  | Iterates items (render props)                                           |
 | `FieldArray.AddButton`    | `initialValue?: Partial<T>`      | Adds new item (from model template)                                     |
 | `FieldArray.RemoveButton` | -                                | Removes current item (inside List)                                      |
 | `FieldArray.Empty`        | `children: ReactNode`            | Shows when array is empty                                               |
 | `FieldArray.Count`        | `render?: (count) => ReactNode`  | Displays item count                                                     |
 | `FieldArray.ItemIndex`    | `render?: (index) => ReactNode`  | Displays current index                                                  |
-| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues (e.g. `minLength`) as text from the message resolver |
+| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues only (`ownIssues`, e.g. `minLength`), row issues excluded |
 
 ## 8. List Render Props
 
@@ -255,6 +256,27 @@ function ExistingLoansList({ control }: { control: FormGroup<Application> }) {
 }
 ```
 
+### Staying on the compound: render-prop on `FieldArray.Root`
+
+`FieldArray.Root` also takes a render function as its child. It receives the same state as
+`useFieldArray` — `items`, `add`, `ownIssues`, … — and the element type comes from `control`,
+so rows are typed without annotations, while sub-components (`AddButton`, `Error`, `Empty`) still
+read the Root context:
+
+```tsx
+<FieldArray.Root control={form.properties}>
+  {({ items }) => (
+    <>
+      {items.map(({ control: item, id }) => (
+        <FormField key={id} control={item.type} /> /* ✅ typed: FormGroup<Property> */
+      ))}
+      <FieldArray.AddButton>+ Add</FieldArray.AddButton>
+      <FieldArray.Error />
+    </>
+  )}
+</FieldArray.Root>
+```
+
 ### Staying on the compound: pin `FieldArray.List<T>`
 
 The JSX tag accepts an explicit type argument, which restores the item type:
@@ -349,7 +371,8 @@ interface UseFieldArrayReturn<T> {
   move: (from: number, to: number) => void; // reorder, state preserved
   swap: (a: number, b: number) => void; // swap two items, state preserved
   at: (index: number) => FormGroup<T> | undefined;
-  issues: ValidationIssue[]; // array-level issues (e.g. minLength)
+  issues: ValidationIssue[]; // issues of the array and of all its rows (aggregate)
+  ownIssues: ValidationIssue[]; // array-level issues only (e.g. minLength) — what FieldArray.Error shows
   valid: boolean;
   invalid: boolean;
 }
@@ -360,10 +383,11 @@ on `move` / `swap` and on any edit inside a row (the array value is derived from
 the row values). The row `control` and `id` stay the same, so key rows by `id`
 and wrap heavy rows in `React.memo` on `control`.
 
-`add(value)` passes the value to `FormArray.push` as is — the model does not
-complete a partial item with template defaults. Call `add()` without a value to
-take the item from the model's array template (`arrayOf(blank)`), or pass a
-complete item (`add({ ...blankItem, name: 'New' })`).
+`add()` without a value takes the item from the model's array template
+(`arrayOf(blank)`). `add(value)` lays a partial value over the template: the
+missing keys come from the template, nested groups merge, arrays and leaves of the
+value replace the template ones — `add({ type: 'house' })` gives a complete item.
+Without a template the value goes in as is — pass the whole item then.
 
 ## 13. Where the flow comes from
 
@@ -472,9 +496,9 @@ announces "Step N of M" to screen readers; focus management stays with the consu
 ## 15. Validation and Submit
 
 - **Next** (`next.onClick`, `FormWizard.Next`, `goToNextStep()`) calls `flow.next()`: it runs the
-  current step's `rules` and marks the fields it checked as touched. On blocking issues (or when a
-  rule failed / the run was cancelled) the wizard also calls `form.markAsTouched()` and stays on
-  the step. A step without `rules` (or with `rules: null`) passes without a check.
+  current step's `rules` and marks the fields it checked as touched — only those: fields of the
+  next steps stay untouched. On blocking issues (or when a rule failed / the run was cancelled) the
+  wizard stays on the step. A step without `rules` (or with `rules: null`) passes without a check.
 - **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
   - inside the bundle context it goes through `bundle.submit`: one run of the **full** rule set; on
     success the handler (`Actions` `onSubmit`) is called, on issues every field is marked touched
@@ -750,8 +774,8 @@ const bundle = useFormBundle(() =>
   визарда нет.
 - Живой прогон идёт по полному набору правил формы и `touched` не ставит: замечание видно, когда
   поле тронуто или изменено (`shouldShowError`).
-- Учтите: шаг, не прошедший «Далее», визард помечает тронутой всю форму (`form.markAsTouched()`).
-  При живой стратегии замечания полей следующих шагов тогда видны сразу при их открытии.
+- Шаг, не прошедший «Далее», помечает тронутыми только проверенные поля шага: замечания полей
+  следующих шагов не всплывают раньше, чем пользователь до них дойдёт.
 
 ## 24. Purpose
 
@@ -1288,9 +1312,8 @@ import { FormField } from '@reformer/ui-kit';
 import { useFieldArrayContext } from '@reformer/cdk/field-array';
 import { Menu } from '@/ui';
 
-// Полный элемент: модель берёт переданное значение как есть и недостающие ключи не достраивает.
-const blankProperty: Property = { type: 'apartment', address: '', estimatedValue: 0 };
-
+// Шаблон элемента — в модели: createModel({ properties: arrayOf(blankProperty) }).
+// Частичное значение add({ type }) дополняется из шаблона.
 function AddPropertyMenu() {
   const { add } = useFieldArrayContext<Property>();
 
@@ -1299,8 +1322,8 @@ function AddPropertyMenu() {
       <Menu.Trigger className="btn-primary">+ Добавить имущество ▾</Menu.Trigger>
       <Menu.Content>
         <Menu.Item onSelect={() => add()}>Квартира</Menu.Item>
-        <Menu.Item onSelect={() => add({ ...blankProperty, type: 'house' })}>Дом</Menu.Item>
-        <Menu.Item onSelect={() => add({ ...blankProperty, type: 'commercial' })}>
+        <Menu.Item onSelect={() => add({ type: 'house' })}>Дом</Menu.Item>
+        <Menu.Item onSelect={() => add({ type: 'commercial' })}>
           Коммерческое
         </Menu.Item>
       </Menu.Content>
@@ -1317,7 +1340,7 @@ function AddPropertyMenu() {
 ### Notes
 
 - Хук работает только внутри `FieldArray.Root` — снаружи бросает `Error: FieldArray.* components must be used within FieldArray.Root or RenderSchema FieldArray`.
-- `add()` без аргумента берёт элемент из шаблона массива модели — `createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` из `@reformer/core`); шаблона нет — ошибка. `add(value)` уходит в `control.push(value)` как есть: передавайте элемент целиком (`{ ...blankProperty, type: 'house' }`), частичный объект не дополняется значениями шаблона.
+- `add()` без аргумента берёт элемент из шаблона массива модели — `createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` из `@reformer/core`); шаблона нет — ошибка. `add(value)` накладывает частичное значение на шаблон: недостающие ключи — из шаблона, вложенные группы сливаются, массивы и листья значения заменяют шаблонные. Без шаблона значение кладётся как есть — тогда передавайте элемент целиком.
 - Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FieldArrayHandle<T>>` + `arrayRef.current?.add(...)` — или сам узел массива: `form.properties.push(...)`.
 - Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push меняет длину массива и перерисовывает `List`.
 
@@ -3236,8 +3259,9 @@ export interface FieldArrayAddButtonProps<T extends object = Record<string, unkn
   'onClick'
 > {
   /**
-   * Значение нового элемента (передаётся в `add()` → `FormArray.push`). Запасной путь: без него
-   * элемент берётся из шаблона массива модели — `arrayOf(blank)` из `@reformer/core`.
+   * Значение нового элемента (передаётся в `add()` → `FormArray.push`); частичное значение
+   * дополняется из шаблона массива модели. Без него элемент берётся из шаблона целиком —
+   * `arrayOf(blank)` из `@reformer/core`.
    */
   initialValue?: Partial<T>;
   /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
@@ -3301,8 +3325,10 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   swap: (a: number, b: number) => void;
   /** Получить контрол элемента по индексу */
   at: (index: number) => FormGroup<T> | undefined;
-  /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
+  /** Замечания массива и всех его строк (агрегат) */
   issues: ValidationIssue[];
+  /** Замечания уровня массива — без строк (например `minLength` / «At least one phone required») */
+  ownIssues: ValidationIssue[];
   /** Валиден ли массив (и все его элементы) */
   valid: boolean;
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */
@@ -3424,12 +3450,13 @@ _Source: src/components/field-array/types.ts_
 
 **Kind:** `const`
 
-FieldArray.Error — рендерит ошибки уровня массива (`control.issues`).
+FieldArray.Error — рендерит ошибки уровня массива (`control.ownIssues`).
 
-Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
-/ «At least one phone required», которые правила массива выставляют через `FormArray.setIssues` и агрегирует
-в сигнале `issues`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
-консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
+Паритет с `FormField.Error`, но для узла массива: показывает только собственные замечания
+массива — правила на его ручке вроде `minLength` / «At least one phone required». Замечания
+полей строк сюда не попадают: их показывают поля строк. Ничего не рендерит, когда ошибок нет.
+Читает контекст `FieldArray.Root`, поэтому консументу не нужно обходить CDK через
+`useFormControl(control)` ради валидации массива.
 
 **Signature:**
 ```typescript
@@ -3875,8 +3902,12 @@ Props for FieldArray.Root component
 export interface FieldArrayRootProps<T extends object> {
   /** The array control from the form */
   control: FieldArrayControl<T>;
-  /** Child components */
-  children: ReactNode;
+  /**
+   * Child components — or a render function that receives the array state with typed rows.
+   * The row type comes from `control`, so `items[i].control` is `FormGroup<T>` without an
+   * explicit generic (`FieldArray.List` cannot infer it: it has no `control` of its own).
+   */
+  children: ReactNode | ((array: UseFieldArrayReturn<T>) => ReactNode);
 }
 ```
 
@@ -7706,7 +7737,10 @@ export interface UseFieldArrayReturn<T extends object> {
   length: number;
   /** Whether the array is empty */
   isEmpty: boolean;
-  /** Add a new item to the end of the array */
+  /**
+   * Add a new item to the end of the array. No value — the model array template (`arrayOf`);
+   * a partial value is completed from the template.
+   */
   add: (value?: Partial<T>) => void;
   /** Remove all items from the array */
   clear: () => void;
@@ -7720,8 +7754,10 @@ export interface UseFieldArrayReturn<T extends object> {
   swap: (a: number, b: number) => void;
   /** Get item control at a specific index */
   at: (index: number) => FormGroup<T> | undefined;
-  /** Array-level validation issues (e.g. `minItems`) */
+  /** Issues of the array and of all its rows (aggregate) */
   issues: ValidationIssue[];
+  /** Array-level validation issues only (e.g. `minLength` on the array), without row issues */
+  ownIssues: ValidationIssue[];
   /** Whether the array (and all its items) is valid */
   valid: boolean;
   /** Whether the array (or any item) is invalid */

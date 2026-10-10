@@ -15,7 +15,10 @@ export interface UseFieldArrayReturn<T extends object> {
   length: number;
   /** Whether the array is empty */
   isEmpty: boolean;
-  /** Add a new item to the end of the array */
+  /**
+   * Add a new item to the end of the array. No value — the model array template (`arrayOf`);
+   * a partial value is completed from the template.
+   */
   add: (value?: Partial<T>) => void;
   /** Remove all items from the array */
   clear: () => void;
@@ -29,8 +32,10 @@ export interface UseFieldArrayReturn<T extends object> {
   swap: (a: number, b: number) => void;
   /** Get item control at a specific index */
   at: (index: number) => FormGroup<T> | undefined;
-  /** Array-level validation issues (e.g. `minItems`) */
+  /** Issues of the array and of all its rows (aggregate) */
   issues: ValidationIssue[];
+  /** Array-level validation issues only (e.g. `minLength` on the array), without row issues */
+  ownIssues: ValidationIssue[];
   /** Whether the array (and all its items) is valid */
   valid: boolean;
   /** Whether the array (or any item) is invalid */
@@ -105,7 +110,7 @@ export function useFieldArray<T extends object>(
 ): UseFieldArrayReturn<T> {
   // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
   // the same length — without it the memo below would not recompute and the UI would not reorder.
-  const { length, value, issues, valid, invalid } = useFormControl(control);
+  const { length, value, issues, ownIssues, valid, invalid } = useFormControl(control);
 
   // Memoize items array - recalculates when the array value changes: on add/remove/reorder and on
   // any edit inside a row (the array value is derived from its rows). Хелперы reorder выводятся на
@@ -139,6 +144,7 @@ export function useFieldArray<T extends object>(
     swap: (a: number, b: number) => control.swap(a, b),
     at: (index: number) => control.at(index),
     issues,
+    ownIssues,
     valid,
     invalid,
   };

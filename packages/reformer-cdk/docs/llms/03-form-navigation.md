@@ -105,9 +105,9 @@ announces "Step N of M" to screen readers; focus management stays with the consu
 ## Validation and Submit
 
 - **Next** (`next.onClick`, `FormWizard.Next`, `goToNextStep()`) calls `flow.next()`: it runs the
-  current step's `rules` and marks the fields it checked as touched. On blocking issues (or when a
-  rule failed / the run was cancelled) the wizard also calls `form.markAsTouched()` and stays on
-  the step. A step without `rules` (or with `rules: null`) passes without a check.
+  current step's `rules` and marks the fields it checked as touched — only those: fields of the
+  next steps stay untouched. On blocking issues (or when a rule failed / the run was cancelled) the
+  wizard stays on the step. A step without `rules` (or with `rules: null`) passes without a check.
 - **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
   - inside the bundle context it goes through `bundle.submit`: one run of the **full** rule set; on
     success the handler (`Actions` `onSubmit`) is called, on issues every field is marked touched
@@ -383,5 +383,5 @@ const bundle = useFormBundle(() =>
   визарда нет.
 - Живой прогон идёт по полному набору правил формы и `touched` не ставит: замечание видно, когда
   поле тронуто или изменено (`shouldShowError`).
-- Учтите: шаг, не прошедший «Далее», визард помечает тронутой всю форму (`form.markAsTouched()`).
-  При живой стратегии замечания полей следующих шагов тогда видны сразу при их открытии.
+- Шаг, не прошедший «Далее», помечает тронутыми только проверенные поля шага: замечания полей
+  следующих шагов не всплывают раньше, чем пользователь до них дойдёт.

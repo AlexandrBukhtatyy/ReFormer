@@ -22,6 +22,7 @@ import { FormWizardPrev } from './FormWizardPrev';
 import { FormWizardNext } from './FormWizardNext';
 import { FormWizardSubmit } from './FormWizardSubmit';
 import type { FormWizardProps } from './types';
+import { useCdkMessages } from '../../i18n/messages';
 
 /**
  * Инлайновые sr-only стили для live-региона объявления смены шага: элемент есть в DOM
@@ -174,13 +175,13 @@ function FormWizardBase<T extends Record<string, any>>({
   const goToNextStep = useCallback(async (): Promise<boolean> => {
     const transition = await flow.next();
     if (transition.status === 'stayed' && transition.reason !== 'edge') {
-      // Шаг не прошёл проверку: показать замечания.
-      form.markAsTouched();
+      // Шаг не прошёл проверку. Замечания уже видны: проверка шага трогает именно проверенные
+      // поля (`validateStep` → `touch`), а поля следующих шагов остаются нетронутыми.
       return false;
     }
     settle(transition);
     return true;
-  }, [flow, form, settle]);
+  }, [flow, settle]);
 
   const goToPreviousStep = useCallback(() => {
     settle(flow.previous());
@@ -207,6 +208,7 @@ function FormWizardBase<T extends Record<string, any>>({
   );
 
   const currentStep = state.index + 1;
+  const t = useCdkMessages();
   const completedSteps = useMemo(
     () => flow.steps.flatMap((step, index) => (state.completed.has(step) ? [index + 1] : [])),
     [flow, state.completed]
@@ -248,11 +250,12 @@ function FormWizardBase<T extends Record<string, any>>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <FormWizardContext.Provider value={contextValue as FormWizardContextValue<any>}>
       {/*
-       * Polite live-region: озвучивает смену шага скринридерам («Step N of M»). Управление
+       * Polite live-region: озвучивает смену шага скринридерам («Step N of M» — текст из словаря
+       * cdk, ключ `cdk.formWizard.stepStatus`, по локали `I18nProvider`). Управление
        * фокусом остаётся за потребителем через onStepChange.
        */}
       <div role="status" aria-live="polite" aria-atomic="true" style={srOnlyStyle}>
-        {`Step ${currentStep} of ${flow.steps.length}`}
+        {t('cdk.formWizard.stepStatus', { current: currentStep, total: flow.steps.length })}
       </div>
       {numberSteps(children)}
     </FormWizardContext.Provider>

@@ -71,9 +71,8 @@ import { FormField } from '@reformer/ui-kit';
 import { useFieldArrayContext } from '@reformer/cdk/field-array';
 import { Menu } from '@/ui';
 
-// Полный элемент: модель берёт переданное значение как есть и недостающие ключи не достраивает.
-const blankProperty: Property = { type: 'apartment', address: '', estimatedValue: 0 };
-
+// Шаблон элемента — в модели: createModel({ properties: arrayOf(blankProperty) }).
+// Частичное значение add({ type }) дополняется из шаблона.
 function AddPropertyMenu() {
   const { add } = useFieldArrayContext<Property>();
 
@@ -82,8 +81,8 @@ function AddPropertyMenu() {
       <Menu.Trigger className="btn-primary">+ Добавить имущество ▾</Menu.Trigger>
       <Menu.Content>
         <Menu.Item onSelect={() => add()}>Квартира</Menu.Item>
-        <Menu.Item onSelect={() => add({ ...blankProperty, type: 'house' })}>Дом</Menu.Item>
-        <Menu.Item onSelect={() => add({ ...blankProperty, type: 'commercial' })}>
+        <Menu.Item onSelect={() => add({ type: 'house' })}>Дом</Menu.Item>
+        <Menu.Item onSelect={() => add({ type: 'commercial' })}>
           Коммерческое
         </Menu.Item>
       </Menu.Content>
@@ -100,7 +99,7 @@ function AddPropertyMenu() {
 ### Notes
 
 - Хук работает только внутри `FieldArray.Root` — снаружи бросает `Error: FieldArray.* components must be used within FieldArray.Root or RenderSchema FieldArray`.
-- `add()` без аргумента берёт элемент из шаблона массива модели — `createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` из `@reformer/core`); шаблона нет — ошибка. `add(value)` уходит в `control.push(value)` как есть: передавайте элемент целиком (`{ ...blankProperty, type: 'house' }`), частичный объект не дополняется значениями шаблона.
+- `add()` без аргумента берёт элемент из шаблона массива модели — `createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` из `@reformer/core`); шаблона нет — ошибка. `add(value)` накладывает частичное значение на шаблон: недостающие ключи — из шаблона, вложенные группы сливаются, массивы и листья значения заменяют шаблонные. Без шаблона значение кладётся как есть — тогда передавайте элемент целиком.
 - Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FieldArrayHandle<T>>` + `arrayRef.current?.add(...)` — или сам узел массива: `form.properties.push(...)`.
 - Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push меняет длину массива и перерисовывает `List`.
 

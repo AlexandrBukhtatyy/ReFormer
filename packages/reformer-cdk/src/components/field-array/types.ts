@@ -1,5 +1,6 @@
 import type { ReactNode, ElementType } from 'react';
 import type { FormArray, FormGroup, ValidationIssue } from '@reformer/core';
+import type { UseFieldArrayReturn } from './useFieldArray';
 
 /**
  * Узел массива, принимаемый CDK-компонентами FieldArray, — {@link FormArray}: узел формы над
@@ -14,8 +15,12 @@ export type FieldArrayControl<T extends object> = FormArray<T>;
 export interface FieldArrayRootProps<T extends object> {
   /** The array control from the form */
   control: FieldArrayControl<T>;
-  /** Child components */
-  children: ReactNode;
+  /**
+   * Child components — or a render function that receives the array state with typed rows.
+   * The row type comes from `control`, so `items[i].control` is `FormGroup<T>` without an
+   * explicit generic (`FieldArray.List` cannot infer it: it has no `control` of its own).
+   */
+  children: ReactNode | ((array: UseFieldArrayReturn<T>) => ReactNode);
 }
 
 /**
@@ -65,8 +70,9 @@ export interface FieldArrayAddButtonProps<T extends object = Record<string, unkn
   'onClick'
 > {
   /**
-   * Значение нового элемента (передаётся в `add()` → `FormArray.push`). Запасной путь: без него
-   * элемент берётся из шаблона массива модели — `arrayOf(blank)` из `@reformer/core`.
+   * Значение нового элемента (передаётся в `add()` → `FormArray.push`); частичное значение
+   * дополняется из шаблона массива модели. Без него элемент берётся из шаблона целиком —
+   * `arrayOf(blank)` из `@reformer/core`.
    */
   initialValue?: Partial<T>;
   /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */

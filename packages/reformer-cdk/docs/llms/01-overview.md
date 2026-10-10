@@ -59,6 +59,7 @@ cdk — headless: видимый текст пишет приложение. Н�
 | Статусы `FileUpload` для скринридера (aria-live): файл добавлен, отклонён, удалён, загружен, загрузка прервана или не удалась, список очищен | `cdk.fileUpload.added`, `rejected`, `removed`, `uploaded`, `uploadAborted`, `uploadFailed`, `cleared` |
 | `aria-label` кнопок удаления и повтора у файла                                                                                               | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload`                                             |
 | Текст ошибки `AsyncBoundary` / `useAsyncResource`, когда отказ не несёт своего текста                                                        | `cdk.asyncBoundary.unknownError`                                                                      |
+| Статус `FormWizard` для скринридера (aria-live) при смене шага: «Шаг N из M»                                                                 | `cdk.formWizard.stepStatus` (`{current}`, `{total}`)                                                  |
 | Размер файла в `FileUpload.ItemSize`                                                                                                         | `format.fileSize.*` (словарь ядра)                                                                    |
 | Тексты замечаний валидации в `FormField` и `FieldArray.Error`                                                                                | `validation.<code>` (словарь ядра); поверх — словарь формы `ValidationMessagesProvider messages`      |
 

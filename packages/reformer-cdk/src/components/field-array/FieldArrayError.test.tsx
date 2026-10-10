@@ -22,7 +22,12 @@ const MESSAGES = defineIssueMessages({
   maxItems: 'Too many items',
 });
 
-function ctx(issues: ValidationIssue[]): FieldArrayContextValue {
+/** Контекст массива: `ownIssues` — правила массива, `issues` — они же плюс замечания строк. */
+function ctx(
+  ownIssues: ValidationIssue[],
+  rowIssues: ValidationIssue[] = []
+): FieldArrayContextValue {
+  const issues = [...ownIssues, ...rowIssues];
   return {
     items: [],
     length: 0,
@@ -35,22 +40,35 @@ function ctx(issues: ValidationIssue[]): FieldArrayContextValue {
     swap: () => {},
     at: () => undefined,
     issues,
+    ownIssues,
     valid: issues.length === 0,
     invalid: issues.length > 0,
     control: {} as unknown as FormArray<Record<string, unknown>>,
   };
 }
 
-const render = (issues: ValidationIssue[], node: React.ReactElement) =>
+const render = (
+  issues: ValidationIssue[],
+  node: React.ReactElement,
+  rowIssues: ValidationIssue[] = []
+) =>
   renderToStaticMarkup(
     <ValidationMessagesProvider messages={MESSAGES}>
-      <FieldArrayContext.Provider value={ctx(issues)}>{node}</FieldArrayContext.Provider>
+      <FieldArrayContext.Provider value={ctx(issues, rowIssues)}>{node}</FieldArrayContext.Provider>
     </ValidationMessagesProvider>
   );
 
 describe('FieldArray.Error', () => {
   it('ничего не рендерит когда ошибок нет', () => {
     expect(render([], <FieldArrayError />)).toBe('');
+  });
+
+  it('замечания полей строк не показывает — только правила массива', () => {
+    expect(render([], <FieldArrayError multi />, [{ code: 'required' }])).toBe('');
+
+    const html = render([{ code: 'minItems' }], <FieldArrayError multi />, [{ code: 'required' }]);
+    expect(html).toContain('At least one phone required');
+    expect(html.match(/role="alert"/g)).toHaveLength(1);
   });
 
   it('по умолчанию рендерит первую ошибку массива', () => {

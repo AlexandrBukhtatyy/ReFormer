@@ -11,7 +11,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createForm, createFormFlow, type FormBundle } from '@reformer/core';
-import { FormBundleContext } from '@reformer/core/react';
+import { FormBundleContext, I18nProvider } from '@reformer/core/react';
+import { ru } from '../../locale/ru';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormWizard } from './FormWizard';
@@ -100,6 +101,21 @@ describe('FormWizard — поток шагов', () => {
     expect(indicator?.steps.map((step) => step.isCompleted)).toEqual([true, false, false]);
   });
 
+  it('live-регион говорит на языке локали I18nProvider', () => {
+    const { form } = createBundle();
+
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FormWizard form={form}>
+          <FormWizard.Step component={Empty} control={form} />
+          <FormWizard.Step component={Empty} control={form} />
+        </FormWizard>
+      </I18nProvider>
+    );
+
+    expect(html).toContain('Шаг 1 из 2');
+  });
+
   it('поток сборки из контекста: «Далее» проверяет правила шага', async () => {
     const bundle = createBundle();
     const { actions } = capture(({ actions: render }) => (
@@ -117,6 +133,8 @@ describe('FormWizard — поток шагов', () => {
 
     expect(bundle.flow!.current.value).toBe('loan');
     expect(bundle.form.amount.shouldShowError.value).toBe(true);
+    // Поле следующего шага не трогается — его замечания не всплывут раньше времени.
+    expect(bundle.form.phone.touched.value).toBe(false);
 
     bundle.model.amount = '100';
     actions!.next.onClick();

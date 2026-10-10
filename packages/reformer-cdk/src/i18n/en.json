@@ -1,6 +1,8 @@
 {
   "cdk.asyncBoundary.unknownError": "Unknown error",
 
+  "cdk.formWizard.stepStatus": "Step {current} of {total}",
+
   "cdk.fileUpload.added": "{count, plural, =1{File {name} added} other{# files added}}",
   "cdk.fileUpload.rejected": "{count, plural, =1{File {name} rejected} other{# files rejected}}",
   "cdk.fileUpload.removed": "File {name} removed",

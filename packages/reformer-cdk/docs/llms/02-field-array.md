@@ -35,14 +35,14 @@ import { FieldArray } from '@reformer/cdk/field-array';
 
 | Component                 | Props                            | Purpose                                                                 |
 | ------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
-| `FieldArray.Root`         | `control: FormArray<T>`          | Context provider                                                        |
+| `FieldArray.Root`         | `control: FormArray<T>`, `children` (nodes or a render function) | Context provider; a render function gets the typed array state |
 | `FieldArray.List`         | `children: (item) => ReactNode`  | Iterates items (render props)                                           |
 | `FieldArray.AddButton`    | `initialValue?: Partial<T>`      | Adds new item (from model template)                                     |
 | `FieldArray.RemoveButton` | -                                | Removes current item (inside List)                                      |
 | `FieldArray.Empty`        | `children: ReactNode`            | Shows when array is empty                                               |
 | `FieldArray.Count`        | `render?: (count) => ReactNode`  | Displays item count                                                     |
 | `FieldArray.ItemIndex`    | `render?: (index) => ReactNode`  | Displays current index                                                  |
-| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues (e.g. `minLength`) as text from the message resolver |
+| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues only (`ownIssues`, e.g. `minLength`), row issues excluded |
 
 ## List Render Props
 
@@ -139,6 +139,27 @@ function ExistingLoansList({ control }: { control: FormGroup<Application> }) {
 }
 ```
 
+### Staying on the compound: render-prop on `FieldArray.Root`
+
+`FieldArray.Root` also takes a render function as its child. It receives the same state as
+`useFieldArray` — `items`, `add`, `ownIssues`, … — and the element type comes from `control`,
+so rows are typed without annotations, while sub-components (`AddButton`, `Error`, `Empty`) still
+read the Root context:
+
+```tsx
+<FieldArray.Root control={form.properties}>
+  {({ items }) => (
+    <>
+      {items.map(({ control: item, id }) => (
+        <FormField key={id} control={item.type} /> /* ✅ typed: FormGroup<Property> */
+      ))}
+      <FieldArray.AddButton>+ Add</FieldArray.AddButton>
+      <FieldArray.Error />
+    </>
+  )}
+</FieldArray.Root>
+```
+
 ### Staying on the compound: pin `FieldArray.List<T>`
 
 The JSX tag accepts an explicit type argument, which restores the item type:
@@ -233,7 +254,8 @@ interface UseFieldArrayReturn<T> {
   move: (from: number, to: number) => void; // reorder, state preserved
   swap: (a: number, b: number) => void; // swap two items, state preserved
   at: (index: number) => FormGroup<T> | undefined;
-  issues: ValidationIssue[]; // array-level issues (e.g. minLength)
+  issues: ValidationIssue[]; // issues of the array and of all its rows (aggregate)
+  ownIssues: ValidationIssue[]; // array-level issues only (e.g. minLength) — what FieldArray.Error shows
   valid: boolean;
   invalid: boolean;
 }
@@ -244,7 +266,8 @@ on `move` / `swap` and on any edit inside a row (the array value is derived from
 the row values). The row `control` and `id` stay the same, so key rows by `id`
 and wrap heavy rows in `React.memo` on `control`.
 
-`add(value)` passes the value to `FormArray.push` as is — the model does not
-complete a partial item with template defaults. Call `add()` without a value to
-take the item from the model's array template (`arrayOf(blank)`), or pass a
-complete item (`add({ ...blankItem, name: 'New' })`).
+`add()` without a value takes the item from the model's array template
+(`arrayOf(blank)`). `add(value)` lays a partial value over the template: the
+missing keys come from the template, nested groups merge, arrays and leaves of the
+value replace the template ones — `add({ type: 'house' })` gives a complete item.
+Without a template the value goes in as is — pass the whole item then.

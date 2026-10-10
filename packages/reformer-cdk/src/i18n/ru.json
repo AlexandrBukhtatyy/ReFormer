@@ -1,6 +1,8 @@
 {
   "cdk.asyncBoundary.unknownError": "Неизвестная ошибка",
 
+  "cdk.formWizard.stepStatus": "Шаг {current} из {total}",
+
   "cdk.fileUpload.added": "{count, plural, =1{Файл {name} добавлен} other{Добавлено файлов: #}}",
   "cdk.fileUpload.rejected": "{count, plural, =1{Файл {name} отклонён} other{Отклонено файлов: #}}",
   "cdk.fileUpload.removed": "Файл {name} удалён",

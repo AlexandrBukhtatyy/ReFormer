@@ -55,8 +55,10 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   swap: (a: number, b: number) => void;
   /** Получить контрол элемента по индексу */
   at: (index: number) => FormGroup<T> | undefined;
-  /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
+  /** Замечания массива и всех его строк (агрегат) */
   issues: ValidationIssue[];
+  /** Замечания уровня массива — без строк (например `minLength` / «At least one phone required») */
+  ownIssues: ValidationIssue[];
   /** Валиден ли массив (и все его элементы) */
   valid: boolean;
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */

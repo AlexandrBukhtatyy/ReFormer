@@ -144,7 +144,11 @@ function FieldArrayRootInner<T extends object>(
   // хранит generic-erased `<any>`, типобезопасность возвращает useFieldArrayContext<T>() на чтении.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const contextValue = { ...arrayState, control } as FieldArrayContextValue<any>;
-  return <FieldArrayContext.Provider value={contextValue}>{children}</FieldArrayContext.Provider>;
+  return (
+    <FieldArrayContext.Provider value={contextValue}>
+      {typeof children === 'function' ? children(arrayState) : children}
+    </FieldArrayContext.Provider>
+  );
 }
 
 // Typed forwardRef for generic component

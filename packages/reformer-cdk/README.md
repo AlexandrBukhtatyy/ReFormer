@@ -114,8 +114,8 @@ function CreditWizard() {
 #### Steps and validation
 
 - **Next** runs `flow.next()`: the current step's `rules` are checked; on blocking issues the
-  wizard stays on the step and marks the form touched. A step without `rules` passes without a
-  check.
+  wizard stays on the step, and the checked fields of the step are marked touched. A step without
+  `rules` passes without a check.
 - **Submit** — `bundle.submit(handler)`: one run of the full rule set (every step's `rules` plus
   `validation.extras`, or `validation.rules` when given), then the handler with the model values.
   It resolves to a `SubmitResult`: `{ status: 'submitted', result }`,
