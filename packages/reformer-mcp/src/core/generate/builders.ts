@@ -168,6 +168,7 @@ function formComponentName(intent: FormIntent): string {
 export function buildAssemblyTsx(intent: FormIntent): string {
   const type = intent.interfaceName;
   const name = formComponentName(intent);
+  const withSteps = collectSteps(intent.layoutRoot).length > 0;
   const json = intent.target === 'renderer-json';
   const lines: string[] = [];
 
@@ -179,7 +180,11 @@ export function buildAssemblyTsx(intent: FormIntent): string {
     lines.push("import { FormField } from '@reformer/ui-kit';");
   lines.push("import { formBehavior } from './form.behavior';");
   lines.push("import { formSchema } from './form.schema';");
-  lines.push("import { formValidation } from './form.validation';");
+  lines.push(
+    withSteps
+      ? "import { formFlow, formValidation } from './form.validation';"
+      : "import { formValidation } from './form.validation';"
+  );
   lines.push(`import { createFormModel, type ${type} } from './model';`);
   if (json) lines.push("import { createRegistry } from './registry';");
   lines.push('');
@@ -199,6 +204,7 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   if (json) lines.push('      registry,');
   lines.push('      behavior: formBehavior,');
   lines.push('      validation: formValidation,');
+  if (withSteps) lines.push('      flow: formFlow,');
   lines.push('    })');
   lines.push('  );');
   lines.push('');
@@ -413,7 +419,7 @@ function validationRuleBlock(rule: ValidationRuleIntent): string {
  * первой же правке — поэтому печать тела живёт здесь одна, а `buildValidationTs` — обёртка над ней.
  *
  * Печатает `import …` + `export const <exportName> = defineValidation<…>(…)` и ничего
- * сверх: сборка корня (`apply(...)`, `makeValidationConfig`) — дело потребителя.
+ * сверх: сборка корня (`apply(...)`, `makeStepCheck`) — дело потребителя.
  *
  * @example
  * buildValidationSchemaTs([{ target: 'email', rules: ['required', 'email()'] }], {
@@ -561,9 +567,10 @@ function applyRowSchema(row: RowSchema): string {
  * - правила строк массива — отдельная схема над ЭЛЕМЕНТОМ, подключённая привязкой
  *   `applyEach(model.$.items, itemRules)`; у неё своя область, и `cross` внутри получает снимок
  *   строки;
- * - у формы с шагами правила разложены по шагам и уходят объектом `FormValidation`: ключ шага —
- *   `selector` узла шага в схеме, по нему визард находит правила шага. Шаг без правил объявлен
- *   явно (`null`), правила вне шагов — в `extras` (проверяются целиком, при отправке).
+ * - у формы с шагами правила разложены по шагам и уходят потоком `formFlow` (`FormFlowConfig`):
+ *   идентификатор шага — `selector` узла шага в схеме, `next()` потока проверяет правила шага.
+ *   Шаг без правил объявлен без `rules`; правила вне шагов — в `extras` объекта `formValidation`
+ *   (проверяются целиком, при отправке).
  */
 export function buildFormValidationTs(intent: FormIntent): string {
   const taken = new Set<string>(['formValidation']);
@@ -623,11 +630,14 @@ export function buildFormValidationTs(intent: FormIntent): string {
   lines.push('/**');
   lines.push(` * Валидация формы «${intent.formName}» — правила над МОДЕЛЬЮ, не в схеме разметки.`);
   if (withSteps) {
-    lines.push(' * Ключ шага — `selector` узла шага в схеме: по нему визард находит правила шага.');
+    lines.push(' * Шаги — поток `formFlow`: идентификатор шага — `selector` узла шага в схеме.');
+    lines.push(' * Подключение: createForm({ …, validation: formValidation, flow: formFlow }).');
+  } else {
+    lines.push(' * Подключение: createForm({ …, validation: formValidation }).');
   }
-  lines.push(' * Подключение: createForm({ …, validation: formValidation }).');
   lines.push(' */');
-  if (withSteps) lines.push("import type { FormValidation } from '@reformer/core';");
+  if (withSteps)
+    lines.push("import type { FormFlowConfig, FormValidation } from '@reformer/core';");
   lines.push(`import { ${operators.sort().join(', ')} } from '@reformer/core/validation';`);
   if (validators.length > 0) {
     lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
@@ -669,25 +679,28 @@ export function buildFormValidationTs(intent: FormIntent): string {
       ...schema(extrasName, intent.interfaceName, [...ruleLines(restRules), ...applyRows(restRows)])
     );
     lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {`);
-    lines.push('  steps: {');
-    for (const step of stepSchemas) lines.push(`    ${stepEntry(step)},`);
-    lines.push('  },');
     lines.push(`  extras: ${extrasName},`);
     lines.push('};');
-    return lines.join('\n') + '\n';
+  } else {
+    lines.push('/** Правил вне шагов нет: все правила — у шагов потока. */');
+    lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {};`);
   }
-  lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {`);
-  lines.push('  steps: {');
+  lines.push('');
+  lines.push('/** Шаги визарда: `next()` потока проверяет правила текущего шага. */');
+  lines.push(`export const formFlow: FormFlowConfig<${intent.interfaceName}> = {`);
+  lines.push('  steps: [');
   for (const step of stepSchemas) lines.push(`    ${stepEntry(step)},`);
-  lines.push('  },');
+  lines.push('  ],');
   lines.push('};');
   return lines.join('\n') + '\n';
 }
 
-/** Запись шага в `steps`: схема правил либо явное «правил нет». */
+/** Шаг потока: идентификатор и схема правил; шаг без правил — без `rules`. */
 function stepEntry(step: { key: string; name: string; rules: unknown[]; rows: unknown[] }): string {
-  const value = step.rules.length === 0 && step.rows.length === 0 ? 'null' : step.name;
-  return `${objectKey(step.key)}: ${value}`;
+  const id = `'${step.key.replace(/['\\]/g, (char) => `\\${char}`)}'`;
+  return step.rules.length === 0 && step.rows.length === 0
+    ? `{ id: ${id} }`
+    : `{ id: ${id}, rules: ${step.name} }`;
 }
 
 // ---------------------------------------------------------------------------

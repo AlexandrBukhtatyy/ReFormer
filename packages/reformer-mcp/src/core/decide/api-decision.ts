@@ -560,7 +560,7 @@ export const DECISION_RULES: DecisionRule[] = [
     ],
     recommend: 'FormWizard',
     because:
-      'визард — библиотечный компонент, стоящий узлом схемы; шаги — его обычные дети. Форму и валидацию он берёт из сборки сам, а шаг связан со своими правилами по `selector`',
+      'визард — библиотечный компонент, стоящий узлом схемы; шаги — его обычные дети. Форму и поток шагов он берёт из сборки сам, а шаг потока связан с узлом шага по `selector`',
     usage: [
       "import { Step } from '@reformer/cdk/form-wizard';",
       "import { FormWizard } from '@reformer/ui-kit';",
@@ -570,7 +570,7 @@ export const DECISION_RULES: DecisionRule[] = [
       '  component: FormWizard,',
       '  children: [',
       '    {',
-      "      selector: 'loan', // ключ в validation.steps",
+      "      selector: 'loan', // идентификатор шага в flow.steps",
       '      component: Step,',
       "      componentProps: { title: 'Кредит' },",
       '      children: [{ model: model.$.loanType, component: SelectAsync }],',
@@ -578,8 +578,13 @@ export const DECISION_RULES: DecisionRule[] = [
       '  ],',
       '}',
       '',
-      '// form.validation.ts',
-      'export const formValidation = { steps: { loan: loanRules }, extras: crossStepRules };',
+      '// сборка: правила шагов — у потока, правила вне шагов — в validation',
+      'createForm({',
+      '  model,',
+      '  schema,',
+      '  validation: { extras: crossStepRules },',
+      "  flow: { steps: [{ id: 'loan', rules: loanRules }] },",
+      '});',
     ].join('\n'),
   },
   {

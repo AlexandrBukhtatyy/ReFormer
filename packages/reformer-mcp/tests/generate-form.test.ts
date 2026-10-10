@@ -363,8 +363,8 @@ describe('builders', () => {
           '',
         ].join('\n')
       );
-      // Сборка корня — дело потребителя: ни apply, ни makeValidationConfig здесь нет.
-      expect(ts).not.toMatch(/makeValidationConfig|apply/);
+      // Сборка корня — дело потребителя: ни apply, ни makeStepCheck здесь нет.
+      expect(ts).not.toMatch(/makeStepCheck|makeValidationConfig|apply/);
     });
 
     it('операторы берутся по подмножеству: applyEach/validateWhen только когда нужны', () => {

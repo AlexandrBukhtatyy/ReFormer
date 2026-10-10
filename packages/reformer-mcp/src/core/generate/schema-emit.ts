@@ -60,7 +60,7 @@ export interface SchemaLayout {
 const lastSegment = (path: string): string => path.split('.').pop() ?? path;
 
 /**
- * Ключ шага — `selector` узла шага и ключ его правил в `validation.steps`.
+ * Ключ шага — `selector` узла шага и идентификатор шага в потоке (`flow.steps[].id`).
  *
  * Берётся заданный в intent `selector`; у шага без него — `step<N>`. Ключ обязан быть одним и
  * тем же в разметке и в правилах, поэтому считается здесь, в одном месте, для обоих эмиттеров.

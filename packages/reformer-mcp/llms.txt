@@ -415,7 +415,7 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
   component: FormWizard,
   children: [
     {
-      selector: 'loan', // the key in validation.steps
+      selector: 'loan', // the id of the step in flow.steps
       component: Step,
       componentProps: { title: 'Кредит' },
       children: [
@@ -539,10 +539,11 @@ const bundle = useFormBundle(() =>
     schema: formSchema, // BUILDER (model) => node; JSON: the document + registry
     behavior: formBehavior, // optional, step 5
     validation: formValidation, // optional, step 4
+    flow: formFlow, // optional: the steps of a wizard
   })
 );
-// bundle = { model, form, validation?, render }
-// bundle.form.email is a node bound to model.$.email; bundle.validation carries validateStep/validateAll
+// bundle = { model, form, render, flow?, validate(), validateStep(id), submit(handler) }
+// bundle.form.email is a node bound to model.$.email; bundle.submit(handler) checks, then sends
 ```
 
 In React always wrap the factory in `useFormBundle`: it is a lazy `useState` and runs the factory
@@ -576,9 +577,11 @@ It runs **on demand** (submit / step), not reactively. Never a `validators:` arr
   `groupRules({ model: model.group })` are the former contract.
 - **Rules** are factories from `@reformer/core/validators` (`required()`, `email()`, `min(50000)`),
   reused as-is, or inline `(value) => ValidationIssue | null`.
-- **To the assembly**: `validation: schema`, or — for a wizard — data
-  `{ steps: { <step selector>: schema | null }, extras? }`. The assembly builds
-  `bundle.validation` = `{ validateStep, validateAll, … }` from it.
+- **To the assembly**: `validation: schema`, or — for a wizard — the steps as data
+  `flow: { steps: [{ id: <step selector>, rules? }] }` and the rules outside steps as
+  `validation: { extras }`. The bundle checks with `bundle.validate()` and
+  `bundle.validateStep(id)` (`ValidationResult` with `status`) and sends with
+  `bundle.submit(handler)` (`SubmitResult`: the handler runs only when nothing blocks).
 - **Runner**: `validateModel(model, schema): Promise<boolean>` — routes each error into its own node,
   clears fields that became valid, cancels a superseded run (returns `false` — fail-closed), and
   returns `true` even when a `severity: 'warning'` error is showing (warnings don't block submit).
@@ -672,19 +675,19 @@ Bridge to validation (the only overlap between the layers): a behavior can _trig
 - **Wizard**: the library `FormWizard` (`@reformer/ui-kit`) as a schema node, steps are its
   `children`: `{ selector: 'loan', component: Step, componentProps: { title, icon }, children }`
   (`Step` from `@reformer/cdk/form-wizard`). A step is linked to its rules by `selector` —
-  `validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossStepRules }`; a
-  step without a `selector` falls back to its ordinal number. The wizard takes the form and the
-  validation from the assembly itself: no app shim, no `componentProps.steps`, no
-  `makeValidationConfig(model)`, no `onInit` + `patchProps({ form, config })` — all of it is the
-  former contract. In JSX `FormWizard` still takes `form`, `config={bundle.validation}` and `steps`
-  as props. `find_recipe wizard`.
+  `flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] }`,
+  rules outside steps — `validation: { extras: crossStepRules }`. The wizard takes the form and the
+  flow of steps from the assembly itself: no app shim, no `componentProps.steps`, no
+  `makeValidationConfig(model)`, no `onInit` + `patchProps({ form, config })`, no wizard ref — all
+  of it is the former contract; the behavior navigates with `flow.goTo(id)`. In JSX `FormWizard`
+  takes `form`, `flow={bundle.flow}` and `steps` as props. `find_recipe wizard`.
 
 ## 33. 7. Draw
 
 The bundle from step 3 goes to whoever draws.
 
 - **core**: `<FormField control={bundle.form.email} />` per field; a wizard takes `form={bundle.form}`
-  and `config={bundle.validation}`.
+  and `flow={bundle.flow}`.
 - **renderer-react**: `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`
   (`FormRenderer` from `@reformer/renderer-react`). `find_recipe render-schema`.
 - **renderer-json**: the tree as a document of format 2 — `{ "format": 2, "parts": { … }, "root": { … } }`

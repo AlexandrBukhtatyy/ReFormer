@@ -114,6 +114,12 @@ const REMOVED_FROM_CORE: Readonly<Record<string, string>> = {
   resolveValidationError:
     '`resolveIssueMessage(issue, i18n, messages?)` из `@reformer/core/i18n` — словарь формы → локаль → код',
   useValidationMessage: '`useIssueMessage(messages?)` из `@reformer/core/react`',
+  buildValidation:
+    'ничего — проверку строит сборка: `createForm({ …, validation, flow })`, затем `bundle.validate()` и `bundle.validateStep(id)`',
+  FormValidationBundle:
+    'методы сборки: `bundle.validate()`, `bundle.validateStep(id)`, `bundle.submit(handler)` — результат объектом со статусом',
+  SubmitOptions:
+    '`bundle.submit(handler)` — один прогон правил и `SubmitResult` со статусом (`submitted`, `invalid`, `error`, `cancelled`, `failed`)',
 };
 
 /**
@@ -128,6 +134,14 @@ const REMOVED_FROM_CDK: Readonly<Record<string, string>> = {
   ValidationMessageTable: '`IssueMessages` из `@reformer/core/i18n`',
   ValidationErrorResolver: '`IssueMessageResolver` из `@reformer/cdk`',
   useValidationErrorResolver: '`useIssueMessageResolver` из `@reformer/cdk`',
+  defineSteps:
+    'шаги объявляет сборка: `createForm({ …, flow: { steps: [{ id: <selector шага>, rules }] } })`',
+  FormWizardConfig:
+    'поток шагов `FormFlow` из `@reformer/core` — визард берёт `bundle.flow` (проп `flow` или сборка в контексте)',
+  FormWizardHandle:
+    'поток шагов сборки: `bundle.flow.next()`, `goTo(id)`, `previous()`; в поведении — `flow` из области',
+  useWizardStepValidation:
+    '`bundle.validateStep(id)` или `flow.next()` — переход проверяет правила текущего шага',
 };
 
 /**
@@ -167,7 +181,7 @@ const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
   JsonRendererProvider:
     'не нужен: реестр уходит в сборку — `createForm({ …, registry })`; несколько реестров объединяет `composeRegistries`',
   makeValidationConfig:
-    'конфиг визарда собирает сборка: `createForm({ …, validation: { steps, extras } })`',
+    'шаги и их правила объявляет сборка: `createForm({ …, validation: { extras }, flow: { steps } })`',
   convertJsonToM1Tree:
     '`convertJsonSchema` для документа формата 2; обычно его зовёт сам реестр через `createForm({ registry })`',
 };

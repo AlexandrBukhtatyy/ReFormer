@@ -193,7 +193,7 @@ describe('form.schema.ts — TS-таргеты', () => {
     expect(ts).toMatch(
       /selector: 'loan',\s+component: Step,\s+componentProps: \{ title: 'Кредит' \}/
     );
-    // Шаг без селектора получает ключ по номеру — тот же, что в `validation.steps`.
+    // Шаг без селектора получает ключ по номеру — тот же, что у шага потока (`flow.steps[].id`).
     expect(ts).toContain("selector: 'step2',");
     expect(ts, 'шаги не лежат в componentProps').not.toContain('steps:');
   });
@@ -278,9 +278,13 @@ describe('form.validation.ts', () => {
     expect(ts, '`each` — прежнее имя оператора').not.toMatch(/\beach\(/);
   });
 
-  it('ключ шага — селектор шага из схемы; шаг без правил объявлен явно', () => {
+  it('шаг потока — селектор шага из схемы; шаг без правил объявлен без rules', () => {
+    expect(ts).toContain('export const formFlow: FormFlowConfig<LoanRequest> = {');
+    expect(ts).toMatch(
+      /steps: \[\s+\{ id: 'loan', rules: loanRules \},\s+\{ id: 'step2', rules: step2Rules \},\s+\{ id: 'confirm' \},\s+\]/
+    );
     expect(ts).toContain('export const formValidation: FormValidation<LoanRequest> = {');
-    expect(ts).toMatch(/steps: \{\s+loan: loanRules,\s+step2: step2Rules,\s+confirm: null,\s+\}/);
+    expect(ts, 'правила шагов — у потока, не в validation').not.toMatch(/steps: \{/);
     expect(ts).not.toContain('makeValidationConfig');
   });
 
@@ -330,6 +334,9 @@ describe('сборка — index.tsx', () => {
       expect(tsx).toContain('createForm<LoanRequest>({');
       expect(tsx).toContain('model: createFormModel(),');
       expect(tsx).toContain('behavior: formBehavior,');
+      // Форма с шагами: правила шагов уходят в сборку потоком.
+      expect(tsx).toContain("import { formFlow, formValidation } from './form.validation';");
+      expect(tsx).toContain('flow: formFlow,');
       for (const legacy of [
         'createCoreForm',
         'createReactForm',

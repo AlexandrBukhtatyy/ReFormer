@@ -31,8 +31,9 @@ one assembly.
    `apply(model.$.group, groupRules)` for a sub-form, `applyEach(model.$.items, itemRules)` for an
    array. A rule is a built-in factory from `@reformer/core/validators` (`required()`, `email()`,
    `minLength()`) or a `Rule<T>` — an inline `(value) => ValidationIssue | null`. Pass the rules to
-   the assembly (`validation: schema` or `{ steps: { <step selector>: schema }, extras }`) and use
-   `bundle.validation`; the external runner is `await validateModel(model, schema)`
+   the assembly (`validation: schema`; a wizard — `flow: { steps: [{ id: <step selector>, rules }] }`
+   and `validation: { extras }`) and check through the bundle — `bundle.validate()`,
+   `bundle.submit(handler)`; the external runner is `await validateModel(model, schema)`
    (`Promise<boolean>`, routes errors into the form nodes). The leaf `validators: [...]` array, the
    `ModelValidator (value, scope, root)` shape and the whole-model runner
    `validateFormModel(model, schema)` have all been **removed** — never emit them.
@@ -43,7 +44,7 @@ one assembly.
    A computed field reads OTHER fields and writes its own — avoid cycles.
 6. **Wizard** (if needed) — the library `FormWizard` as a schema node, steps are its `children`
    (`{ selector, component: Step, componentProps: { title } , children }`); the step `selector` is
-   the key of its rules in `validation.steps`. No app shim, no `componentProps.steps`.
+   the `id` of the step in `flow.steps`. No app shim, no `componentProps.steps`.
 7. **Draw** — the bundle goes to whoever draws: renderer —
    `<FormRenderer form={bundle} settings=\{{ fieldWrapper: FormField }} />`; JSON —
    `<FormRenderer form={bundle} />` (the field wrapper comes from the registry); by hand —

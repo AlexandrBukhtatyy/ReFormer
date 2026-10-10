@@ -39,7 +39,7 @@
       "task": "обработать submit и сбросить форму после успешной отправки",
       "target": "core",
       "queries": ["submit and reset form", "handle submit", "reset after submit"],
-      "expectAny": ["onSubmit", "handleSubmit", "submitter", "form.submit"]
+      "expectAny": ["onSubmit", "handleSubmit", "SubmitResult", "form.submit"]
     },
     {
       "id": "basic/disabled-submit",
