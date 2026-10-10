@@ -39,7 +39,7 @@ import type { RenderNodeControl, RenderSchemaProxy } from './render-schema-proxy
  *
  * @example
  * ```typescript
- * const renderBehavior = (form: FormProxy<MyForm>, model: FormModel<MyForm>, level: FormLevel<MyForm>) =>
+ * const renderBehavior = (form: FormGroup<MyForm>, model: FormModel<MyForm>, level: FormLevel<MyForm>) =>
  *   ((schema) => {
  *     hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
  *

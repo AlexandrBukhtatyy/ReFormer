@@ -19,7 +19,7 @@ import type {
   CreateFormConfigBase,
   FormModel,
   FormLevel,
-  FormProxy,
+  FormGroup,
 } from '@reformer/core';
 import type { RenderNode } from './core/types';
 import type { RenderBehaviorFn } from './core/render-behavior';
@@ -37,10 +37,10 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
    * Билдер дерева. Вызывается ДВАЖДЫ: сперва без `form` (это дерево уходит в `createForm`), затем
    * с `form` — для рендера. Узлы, которым нужна форма (визард), берут её из второго аргумента.
    */
-  schema: (model: FormModel<T>, form?: FormProxy<T>) => RenderNode<T>;
+  schema: (model: FormModel<T>, form?: FormGroup<T>) => RenderNode<T>;
   /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
-    form: FormProxy<T>,
+    form: FormGroup<T>,
     model: FormModel<T>,
     level: FormLevel<T>
   ) => RenderBehaviorFn<T>;
@@ -76,7 +76,7 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
 
-  // Первый проход — БЕЗ формы: harvest в `createForm` обходит дерево рекурсией, а `FormProxy`
+  // Первый проход — БЕЗ формы: harvest в `createForm` обходит дерево рекурсией, а `FormGroup`
   // самоссылочен. Формы на этот момент всё равно ещё не существует.
   // Уровень формы — до нод: поведение получает поток шагов.
   const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });

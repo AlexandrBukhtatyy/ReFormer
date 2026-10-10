@@ -20,7 +20,7 @@ import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { Box, InputNumber } from '@reformer/ui-kit';
 
 // form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
-function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
+function buildSchema(model: FormModel<MyForm>, form?: FormGroup<MyForm>): RenderNode<MyForm> {
   return {
     selector: 'wizard',
     component: FormWizard,
@@ -28,7 +28,7 @@ function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): Render
       ...(form ? { form } : {}),
       config, // FormWizardConfig: { validateStep?, validateAll? }
       // ОБЯЗАТЕЛЬНО для RenderNode-тела: см. раздел ниже.
-      renderStepBody: (body: RenderNode<MyForm>, wizardForm: FormProxy<MyForm>) => (
+      renderStepBody: (body: RenderNode<MyForm>, wizardForm: FormGroup<MyForm>) => (
         <RenderNodeComponent node={body} form={wizardForm} />
       ),
       steps: [
@@ -57,7 +57,7 @@ function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): Render
 ui-kit намеренно не зависит от `@reformer/renderer-react` — дизайн-система не тянет рендерер.
 Поэтому `FormWizard` умеет только два вида `body`: `ReactNode` и `ComponentType`. Третий вид —
 `RenderNode` — он отдаёт стратегии из пропа
-`renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`.
+`renderStepBody: (body: TBody, form: FormGroup<T>) => ReactNode`.
 
 **Без стратегии шаг не отрисуется, а упадёт.** Плоский объект узла уходит React'у как
 child, и React бросает `Objects are not valid as a React child (found: object with keys
@@ -80,7 +80,7 @@ child, и React бросает `Objects are not valid as a React child (found: o
 const myForm = useReactForm(() =>
   createReactForm<MyForm>({ model: createMyModel(), schema: buildSchema })
 );
-// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormProxy самоссылочен, обход по
+// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormGroup самоссылочен, обход по
 // нему упал бы с переполнением стека), затем buildSchema(model, form) — дерево для рендера, из
 // которого wizard-узел берёт форму. Писать эту пару руками больше не нужно.
 ```

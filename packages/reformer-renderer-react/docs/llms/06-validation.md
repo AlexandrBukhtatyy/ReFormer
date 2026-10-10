@@ -85,7 +85,7 @@ import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/v
 
 export function buildCreditApplicationSchema(
   model: FormModel<CreditForm>,
-  form?: FormProxy<CreditForm> // form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form
+  form?: FormGroup<CreditForm> // form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form
 ): RenderNode<CreditForm> {
   return {
     selector: 'wizard',
@@ -190,7 +190,7 @@ export function makeCreditValidationConfig(model: M) {
 
 ```tsx
 // form.schema.ts — layout БЕЗ validators; конфиг валидации инлайн в wizard-узле
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import type { RenderNode } from '@reformer/renderer-react';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import { Input } from '@reformer/ui-kit';
@@ -199,7 +199,7 @@ import type { CreditForm } from './types';
 
 export function buildSchema(
   model: FormModel<CreditForm>,
-  form?: FormProxy<CreditForm>
+  form?: FormGroup<CreditForm>
 ): RenderNode<CreditForm> {
   return {
     selector: 'wizard',

@@ -6,17 +6,17 @@
 
 **Problem.** Нужна собственная обёртка вокруг каждого поля (label, error, hint, аналитика, нестандартный layout) вместо стандартного `FormField` из `@reformer/ui-kit`.
 
-**Solution.** `RenderSchema` использует `fieldWrapper` через `settings`. Кастомный wrapper получает `control` (FieldNode), `children` (отрендеренный input), `className`, `testId` — и сам строит обвязку с помощью compound-API из `@reformer/cdk/form-field`.
+**Solution.** `RenderSchema` использует `fieldWrapper` через `settings`. Кастомный wrapper получает `control` (FormControl), `children` (отрендеренный input), `className`, `testId` — и сам строит обвязку с помощью compound-API из `@reformer/cdk/form-field`.
 
 ```tsx
 import { FormField as CdkFormField } from '@reformer/cdk/form-field';
-import { type FieldNode } from '@reformer/core';
+import { type FormControl } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 import { FormRenderer, type FieldWrapperProps } from '@reformer/renderer-react';
 
 function MyFieldWrapper({ control, className, children, testId }: FieldWrapperProps) {
   // Hint можно тащить из componentProps через useFormFieldContext.
-  const { error } = useFormControl(control as FieldNode<unknown>);
+  const { error } = useFormControl(control as FormControl<unknown>);
   return (
     <CdkFormField.Root control={control}>
       <div className={className} data-testid={`field-${testId ?? 'unknown'}`}>

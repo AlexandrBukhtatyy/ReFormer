@@ -8,7 +8,7 @@
  */
 
 import { createContext, useContext, type ReactNode } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import type { RendererSettings } from './types';
 
 /**
@@ -16,7 +16,7 @@ import type { RendererSettings } from './types';
  */
 export interface RenderContextValue<T = unknown> {
   /** Proxy формы (опционально — может быть предоставлена wizard-компонентом через props) */
-  form?: FormProxy<T>;
+  form?: FormGroup<T>;
   /** Настройки рендерера */
   settings?: RendererSettings;
 }

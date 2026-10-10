@@ -12,8 +12,8 @@ import type {
   CompiledFieldNode,
   CompiledNode,
   CompiledSchema,
-  FieldNode,
-  FormProxy,
+  FormControl,
+  FormGroup,
 } from '@reformer/core';
 import {
   compileSchema,
@@ -59,7 +59,7 @@ interface RenderNodeComponentProps<T> {
    */
   node: CompiledNode | RenderNode<T>;
   /** Proxy формы (опционально — предоставляется wizard-компонентом через props или контекст) */
-  form?: FormProxy<T>;
+  form?: FormGroup<T>;
   /**
    * Компонент-обёртка для полей (опционально).
    * Переопределяет глобальный fieldWrapper из settings.
@@ -87,7 +87,7 @@ interface RenderNodeComponentProps<T> {
  * (value, disabled, componentProps): иначе useSyncExternalStore получал бы свежий объект каждый
  * getSnapshot и зациклился бы. SSR-safe.
  */
-function useFieldRenderState(fieldNode: FieldNode<unknown>): {
+function useFieldRenderState(fieldNode: FormControl<unknown>): {
   value: unknown;
   disabled: boolean;
   componentProps: Record<string, unknown>;
@@ -151,7 +151,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   resolveFieldAdapter,
 }: {
   node: CompiledFieldNode;
-  fieldNode: FieldNode<unknown>;
+  fieldNode: FormControl<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
   /**
    * Ref из refRegistry (schema.node(selector).getRef()) — вешается на живой field-компонент,
@@ -639,7 +639,7 @@ const renderSchemaNode: RenderNodeFn = (node, key) => <RenderNodeComponent key={
 /** Дети контейнера: текст подписывается точечно, узлы рисуются рекурсивно. */
 function renderChildren<T>(
   children: readonly CompiledChild[],
-  form: FormProxy<T> | undefined
+  form: FormGroup<T> | undefined
 ): ReactNode[] {
   return children.map((child) =>
     child.kind === 'text' ? (
@@ -740,7 +740,7 @@ export function RenderNodeComponent<T>({
 
     case 'field': {
       const binding = node.handle;
-      const fieldNode = getNodeForSignal(binding) as FieldNode<unknown> | undefined;
+      const fieldNode = getNodeForSignal(binding) as FormControl<unknown> | undefined;
       if (!fieldNode) {
         if (typeof console !== 'undefined') {
           const p = binding.__path;

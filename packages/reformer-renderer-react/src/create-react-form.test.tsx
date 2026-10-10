@@ -11,7 +11,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import type { FC } from 'react';
-import { createModel, type FormModel, type FormProxy } from '@reformer/core';
+import { createModel, type FormModel, type FormGroup } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { createReactForm } from './create-react-form';
@@ -33,7 +33,7 @@ const Wizard: FC<{ children?: React.ReactNode; form?: unknown }> = ({ form }) =>
 );
 
 /** Билдер того же вида, что в приложениях: узлу визарда нужна форма, полям — сигналы модели. */
-const buildSchema = (model: FormModel<F>, form?: FormProxy<F>): RenderNode<F> =>
+const buildSchema = (model: FormModel<F>, form?: FormGroup<F>): RenderNode<F> =>
   ({
     selector: 'wizard',
     component: Wizard,
@@ -54,7 +54,7 @@ describe('createReactForm — сборка', () => {
   });
 
   it('билдер вызывается дважды: сперва без формы, затем с ней', () => {
-    const calls: Array<FormProxy<F> | undefined> = [];
+    const calls: Array<FormGroup<F> | undefined> = [];
     const bundle = createReactForm<F>({
       initial: { ...INITIAL },
       schema: (model, form) => {
@@ -65,7 +65,7 @@ describe('createReactForm — сборка', () => {
     bundle.render(); // второй проход ленивый — материализуем его
 
     expect(calls).toHaveLength(2);
-    expect(calls[0]).toBeUndefined(); // harvest не должен видеть FormProxy
+    expect(calls[0]).toBeUndefined(); // harvest не должен видеть FormGroup
     expect(calls[1]).toBe(bundle.form);
   });
 
@@ -73,7 +73,7 @@ describe('createReactForm — сборка', () => {
     const model = createModel<F>({ ...INITIAL });
     // Билдер игнорирует аргумент и всегда подставляет форму «извне» — раньше такой сценарий
     // на втором проходе давал RangeError в harvest.
-    let built: FormProxy<F> | undefined;
+    let built: FormGroup<F> | undefined;
     const bundle = createReactForm<F>({
       model,
       schema: (m) => buildSchema(m, built),
