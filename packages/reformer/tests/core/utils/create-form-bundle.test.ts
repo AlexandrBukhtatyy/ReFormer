@@ -70,18 +70,18 @@ describe('createForm — сборка', () => {
 
     expect(bundle.model.get()).toEqual(INITIAL);
     expect(bundle.form.email.component).toBe(InputStub);
-    expect(bundle.render.tree).toMatchObject({ selector: 'root' });
+    expect(bundle.render.tree?.root).toMatchObject({ kind: 'container', selector: 'root' });
     expect(await bundle.validation.validateAll()).toBe(false);
   });
 
-  it('билдер схемы вызывается один раз; дерево в бандле — то же, по которому собрана форма', () => {
+  it('билдер схемы вызывается один раз; в бандле — компиляция этого дерева', () => {
     const builder = vi.fn(shapeSchema);
 
     const bundle = createForm<Shape>({ initial: { ...INITIAL }, schema: builder });
 
     expect(builder).toHaveBeenCalledTimes(1);
     expect(builder).toHaveBeenCalledWith(bundle.model);
-    expect(bundle.render.tree).toBe(builder.mock.results[0].value);
+    expect(bundle.render.tree?.root.source).toBe(builder.mock.results[0].value);
   });
 
   it('готовая модель приоритетнее `initial`', () => {
@@ -223,24 +223,20 @@ describe('createForm — проверки селекторов при сборк
     validate(model.$.kind, [required()]);
   });
 
-  it('повтор `selector` в корневом дереве — предупреждение', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('повтор `selector` в корневом дереве — исключение с путями обоих узлов', () => {
+    const build = (): unknown =>
+      createForm<Shape>({
+        initial: { ...INITIAL },
+        schema: (model) => ({
+          children: [
+            { selector: 'section', component: SectionStub },
+            { selector: 'other', component: SectionStub, children: [{ selector: 'section' }] },
+            { model: model.$.email, component: InputStub },
+          ],
+        }),
+      });
 
-    createForm<Shape>({
-      initial: { ...INITIAL },
-      schema: (model) => ({
-        children: [
-          { selector: 'section', component: SectionStub },
-          { selector: 'section', component: SectionStub },
-          { selector: 'other', component: SectionStub, children: [{ selector: 'other' }] },
-          { model: model.$.email, component: InputStub },
-        ],
-      }),
-    });
-
-    const [message] =
-      warn.mock.calls.find(([text]) => String(text).includes('повторяются селекторы')) ?? [];
-    expect(message).toContain('"section", "other"');
+    expect(build).toThrow('селектор «section» повторяется — узлы #/0 и #/1/0');
   });
 
   it('селектор строки массива корневому дереву не принадлежит — повтором не считается', () => {

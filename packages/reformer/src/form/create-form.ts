@@ -14,19 +14,10 @@ import type { FormNode } from './nodes/form-node';
 import { GroupNode } from './nodes/group-node';
 import { ModelArrayNode } from './nodes/model-array-node';
 import { registerSignalNode } from './signal-node-registry';
-import {
-  isModelArraySignal,
-  isModelContainerSignal,
-  isValueSignal,
-} from '../model/model-signals-proxy';
-import {
-  arrayHandleOf,
-  groupHandleOf,
-  isModelFacade,
-  modelOf,
-  provideArrayBlank,
-} from '../model/model-value-proxy';
-import { schemaSubtree } from './schema-subtree';
+import { isModelArraySignal, isModelContainerSignal } from '../model/model-signals-proxy';
+import { modelOf, provideArrayBlank } from '../model/model-value-proxy';
+import { compileSchema } from './schema/compile';
+import type { CompiledArrayNode, CompiledFieldNode, CompiledSchema } from './schema/compiled';
 import type { FormProxy, FieldConfig } from './types/index';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormModel } from '../model/types';
@@ -60,166 +51,20 @@ export interface CreateFormFromModelArgs<T> {
   schemaController?: SchemaController;
 }
 
-/**
- * Конфиг поля по его «ручке значения»: сигналу листа либо узлу-массиву дерева `model.$`
- * (см. {@link isValueSignal}). Ключ — идентичность ручки, поэтому тип ключа — `object`.
- * Сигнал значения в конфиг добавляет сборка нод — он и есть ручка.
- */
-type HarvestedConfig = Map<object, Omit<FieldConfig<unknown>, 'valueSignal'>>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ItemSchemaBuilder = (item: any) => FormSchemaNode;
-/**
- * Item-схемы массивов под-форм. Ключ — ручка массива (`model.$.<массив>`), а не путь: путь
- * абсолютный (`items.0.phones`), а форма строки обходит модель строки от её корня (`phones`).
- */
-type ArrayItemBuilders = Map<object, ItemSchemaBuilder>;
-
-/** Ключи узла схемы, которые читает ядро или рендерер. */
-const NODE_KEYS = new Set([
-  'model',
-  'item',
-  'part',
-  'children',
-  'component',
-  'componentProps',
-  'selector',
-  'disabled',
-  'initialValue',
-]);
-
-/** Чем заменить ключ узла, который раньше что-то значил. */
-const KEY_HINTS: Record<string, string> = {
-  value: 'привязка поля — `model: model.$.<поле>`',
-  array: 'привязка массива под-форм — `model: model.$.<массив>`',
-};
-
-/** Что обход собрал помимо конфига полей — для dev-проверок сборки. */
-interface HarvestReport {
-  /** Ключи узлов, которые обход не читает: опечатка либо узлы под произвольными ключами. */
-  readonly unknownKeys: Set<string>;
-}
-
-/**
- * Обход схемы: собирает конфиг поля по ручке значения и схемы строк массивов по ручке массива.
- *
- * Узел — один из четырёх видов (см. {@link FormSchemaNode}):
- *  - поле — `{ model: model.$.<лист | массив>, component }`;
- *  - массив под-форм — `{ model: model.$.<массив>, item: (model) => узел }`;
- *  - подформа — `{ model: model.$.<группа>, part: (model) => узел }`;
- *  - контейнер — `{ children: [...] }`.
- *
- * Вложенные узлы читаются только из `children` и из поддерева `part`: в `componentProps` и под
- * произвольными ключами обход не заглядывает. Ключи, которые он не читает, копятся в `report`.
- */
-function harvestFieldConfig(
-  schema: unknown,
-  map: HarvestedConfig,
-  arrayItems: ArrayItemBuilders,
-  visited: WeakSet<object>,
-  report: HarvestReport
-): void {
-  if (schema == null || typeof schema !== 'object') return;
-  // Текстовая часть `children` — сигнал модели: это содержимое, а не узел.
-  if (isValueSignal(schema) || isModelContainerSignal(schema) || isModelFacade(schema)) return;
-  // Одно и то же поддерево может стоять в дереве дважды — каждый узел обходим один раз.
-  if (visited.has(schema)) return;
-  visited.add(schema);
-  const node = schema as Record<string, unknown>;
-
-  if (process.env.NODE_ENV !== 'production') {
-    for (const key of Object.keys(node)) if (!NODE_KEYS.has(key)) report.unknownKeys.add(key);
-  }
-
-  // Вид узла определяют ключи и ЗНАЧЕНИЕ привязки. Порядок проверок важен: ручка массива — тоже
-  // ручка значения, поэтому массив под-форм узнаётся раньше поля.
-
-  // Массив под-форм: { model: model.$.<массив>, item: (model) => узел }.
-  if (typeof node.item === 'function') {
-    const handle = arrayHandleOf(node.model);
-    if (handle) {
-      arrayItems.set(handle, node.item as ItemSchemaBuilder);
-      // Шаблон нового элемента из схемы — запасной: шаблон модели (`arrayOf`) главнее.
-      if (node.initialValue !== undefined) provideArrayBlank(handle, node.initialValue);
-    } else if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[reformer] createForm({ schema }): у узла с `item` привязка — не массив модели, узел ' +
-          'пропущен. Ожидается `model: model.$.<массив>`; начальное значение поля должно быть ' +
-          'массивом, а не `null`.'
-      );
-    }
-    return; // внутрь item-фабрики не идём (вызовется для каждой строки при её построении)
-  }
-
-  // Подформа: { model: model.$.<группа>, part: (model) => узел }. Отдельной формы у части нет —
-  // поля группы принадлежат этой же форме, поэтому её поддерево обходится тут же.
-  if (typeof node.part === 'function') {
-    const handle = groupHandleOf(node.model);
-    if (handle) {
-      const subModel = modelOf(handle as { peek(): object });
-      const subtree = schemaSubtree(node.part as ItemSchemaBuilder, subModel as object);
-      harvestFieldConfig(subtree, map, arrayItems, visited, report);
-    } else if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[reformer] createForm({ schema }): у узла с `part` привязка — не группа модели, узел ' +
-          'пропущен. Ожидается `model: model.$.<группа>`.'
-      );
-    }
-    return;
-  }
-
-  // Поле — узел с ручкой значения: лист ИЛИ массив целиком (мультивыбор, теги, список файлов).
-  if (isValueSignal(node.model)) {
-    map.set(node.model, {
-      component: node.component as FieldConfig<unknown>['component'],
-      componentProps: node.componentProps,
-      disabled: node.disabled as boolean | undefined,
-    });
-    return;
-  }
-  if (node.model != null && process.env.NODE_ENV !== 'production') {
-    // Узел с привязкой, которая не ручка значения. Частые причины: `model: model.<path>`
-    // (value-фасад) вместо `model: model.$.<path>` либо группа без `part`.
-    console.warn(
-      '[reformer] createForm({ schema }): привязка узла не распознана — узел не стал полем. ' +
-        'Ожидается `model: model.$.<path>` (лист или массив); проверьте, что не передан ' +
-        '`model: model.<path>` (value-фасад) или группа без `part`.'
-    );
-  }
-
-  // Контейнер: дети — узлы и текстовые части.
-  if (Array.isArray(node.children)) {
-    for (const child of node.children) harvestFieldConfig(child, map, arrayItems, visited, report);
-  }
-}
-
-/** Dev-предупреждение о ключах узлов, которые обход схемы не читает. */
-function warnUnknownNodeKeys(report: HarvestReport): void {
-  if (report.unknownKeys.size === 0) return;
-  const keys = [...report.unknownKeys];
-  const hints = keys
-    .filter((key) => key in KEY_HINTS)
-    .map((key) => `\`${key}\`: ${KEY_HINTS[key]}`);
-  console.warn(
-    '[reformer] createForm({ schema }): у узлов схемы есть ключи, которые сборка не читает: ' +
-      `${keys.map((key) => `\`${key}\``).join(', ')}. Узел описывают \`model\`, \`item\`, ` +
-      '`part`, `children`, `component`, `componentProps`, `selector`, `disabled` и ' +
-      '`initialValue`; вложенные узлы читаются только из `children`.' +
-      (hints.length > 0 ? ` ${hints.join('; ')}.` : '')
-  );
-}
-
-/** Что обход схемы нашёл для сборки нод. */
+/** Что компиляция схемы дала для сборки нод: поля и массивы под-форм по ручке модели. */
 interface BuildContext {
-  readonly bySignal: HarvestedConfig;
-  readonly arrayItems: ArrayItemBuilders;
+  readonly fields: ReadonlyMap<object, CompiledFieldNode>;
+  readonly arrays: ReadonlyMap<object, CompiledArrayNode>;
 }
 
-/** Строитель формы строки массива под-форм: своя форма над под-моделью строки. */
+const EMPTY_CONTEXT: BuildContext = { fields: new Map(), arrays: new Map() };
+
+/** Строитель формы строки массива под-форм: своя форма над скомпилированной схемой строки. */
 const rowFormBuilder =
-  (item: ItemSchemaBuilder) =>
+  (array: CompiledArrayNode) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (rowModel: any): FormProxy<any> =>
-    createFormFromModel({ model: rowModel, schema: schemaSubtree(item, rowModel) });
+    createFormFromCompiled({ model: rowModel, compiled: array.row(rowModel) });
 
 /**
  * Строит ноды группы по дереву сигналов модели (`model.$`) и сразу заполняет реестр ручка→нода.
@@ -245,12 +90,17 @@ function buildGroupNode(
   const leaves: Array<[FieldNode<unknown>, Signal<unknown>]> = [];
 
   const addField = (key: string, signal: Signal<unknown>): void => {
-    // Schema-валидация живёт вне layout-дерева (`validateModel` из @reformer/core/validation),
-    // нода правил не исполняет: из схемы она берёт только UI-конфиг узла.
-    const node = new FieldNode<unknown>({
-      ...(context.bySignal.get(signal) ?? {}),
-      valueSignal: signal,
-    });
+    // Правила валидации живут вне дерева схемы (`@reformer/core/validation`), нода их не
+    // исполняет: из узла схемы она берёт только UI-конфиг.
+    const field = context.fields.get(signal);
+    const config: Omit<FieldConfig<unknown>, 'valueSignal'> = field
+      ? {
+          component: field.component,
+          componentProps: field.source.componentProps,
+          disabled: field.disabled,
+        }
+      : {};
+    const node = new FieldNode<unknown>({ ...config, valueSignal: signal });
     fields.set(key, node);
     registerSignalNode(signal, node);
     leaves.push([node, signal]);
@@ -260,13 +110,13 @@ function buildGroupNode(
     const handle = signals[key];
 
     if (isModelArraySignal(handle)) {
-      const item = context.arrayItems.get(handle as object);
-      if (item) {
+      const array = context.arrays.get(handle as object);
+      if (array) {
         const control = modelOf(handle as { peek(): unknown[] });
-        const node = new ModelArrayNode(control as never, rowFormBuilder(item));
+        const node = new ModelArrayNode(control as never, rowFormBuilder(array));
         fields.set(key, node as unknown as FormNode<unknown>);
         registerSignalNode(handle as object, node);
-      } else if (context.bySignal.has(handle as object)) {
+      } else if (context.fields.has(handle as object)) {
         addField(key, handle as Signal<unknown>);
       }
       continue;
@@ -340,30 +190,48 @@ function buildGroupNode(
  * @group Utilities
  */
 export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormProxy<T> {
-  const { model, schema, behavior } = args;
-  const bySignal: HarvestedConfig = new Map();
-  const arrayItems: ArrayItemBuilders = new Map();
-  if (schema !== undefined) {
-    const report: HarvestReport = { unknownKeys: new Set() };
-    harvestFieldConfig(schema, bySignal, arrayItems, new WeakSet(), report);
-    if (process.env.NODE_ENV !== 'production') warnUnknownNodeKeys(report);
+  const { schema, ...rest } = args;
+  return createFormFromCompiled({
+    ...rest,
+    ...(schema !== undefined ? { compiled: compileSchema(schema, args.model as object) } : {}),
+  });
+}
+
+/**
+ * Аргументы {@link createFormFromCompiled}: вместо авторского дерева — его компиляция.
+ *
+ * @internal
+ */
+export interface CreateFormFromCompiledArgs<T> extends Omit<CreateFormFromModelArgs<T>, 'schema'> {
+  /** Скомпилированная схема области модели; без неё у полей нет конфига из схемы. */
+  compiled?: CompiledSchema;
+}
+
+/**
+ * Форма из модели и скомпилированной схемы. Её зовут {@link createFormFromModel}, сборка одним
+ * вызовом (`createForm`) и форма строки массива — каждая со своей компиляцией.
+ *
+ * @internal
+ */
+export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): FormProxy<T> {
+  const { model, compiled, behavior } = args;
+  const context: BuildContext = compiled ?? EMPTY_CONTEXT;
+  // Шаблон нового элемента из схемы — запасной: шаблон модели (`arrayOf`) главнее.
+  for (const [handle, array] of context.arrays) {
+    if (array.initialValue !== undefined) provideArrayBlank(handle, array.initialValue);
   }
   // Ноды строятся одним проходом по дереву `model.$`; реестр ручка→нода заполняется по ходу:
   // он нужен state-операциям поведения (enableWhen), подключению под-схем (apply, applyEach) и
-  // разносу ошибок валидации. Ключ — идентичность ручки модели: сигнал листа, узел-массив (поле
+  // разносу замечаний валидации. Ключ — идентичность ручки модели: сигнал листа, узел-массив (поле
   // над массивом целиком либо массив под-форм) или узел-группа.
-  const groupNode = buildGroupNode(model.$ as unknown as Record<string, unknown>, {
-    bySignal,
-    arrayItems,
-  }) as GroupNode<T>;
+  const groupNode = buildGroupNode(
+    model.$ as unknown as Record<string, unknown>,
+    context
+  ) as GroupNode<T>;
   // Корень тоже регистрируется: у формы строки массива он — ручка этой строки.
   registerSignalNode(model.$ as object, groupNode);
 
   const proxy = groupNode.getProxy();
-
-  // Schema-валидация вынесена ВНЕ формы (контракт `@reformer/core/validation`): приложение
-  // прогоняет `validateModel(model, schema)`, который сам роутит ошибки в ноды. `createForm` больше
-  // не привязывает валидацию к `form.validate()`/`submit()` — те отражают текущее состояние нод.
 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
   // cleanup отдаём форме — отпишется в groupNode.dispose().

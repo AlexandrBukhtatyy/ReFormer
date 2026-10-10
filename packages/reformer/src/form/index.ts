@@ -34,6 +34,23 @@ export type { CreateFormFromModelArgs } from './create-form';
 // Поддерево строки массива или подформы — одно на пару «билдер + под-модель».
 export { schemaSubtree } from './schema-subtree';
 
+// Компилятор схемы: вид узла, привязки и идентификаторы — один разбор для сборки и рендереров.
+export { compileSchema, isCompiledNode } from './schema/compile';
+export type { CompileSchemaOptions } from './schema/compile';
+export type {
+  CompiledSchema,
+  CompiledNode,
+  CompiledChild,
+  CompiledFieldNode,
+  CompiledArrayNode,
+  CompiledPartNode,
+  CompiledContainerNode,
+  CompiledTextNode,
+  SchemaNodeId,
+  SchemaScopeId,
+  SchemaTextPart,
+} from './schema/compiled';
+
 // Схема-контроллер: правила узлов схемы по областям (корень, строка массива, подформа).
 export {
   createSchemaController,

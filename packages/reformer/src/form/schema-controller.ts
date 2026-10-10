@@ -18,8 +18,7 @@
  */
 
 import { signal, type Signal } from '@preact/signals-core';
-import { isModelContainerSignal, isValueSignal } from '../model/model-signals-proxy';
-import { isModelFacade } from '../model/model-value-proxy';
+import type { CompiledSchema, SchemaNodeId } from './schema/compiled';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,7 +36,8 @@ export interface NodeLifecycleHooks {
 }
 
 /**
- * Хранилище переопределений одной области схемы. Ключ каждой карты — `selector` узла.
+ * Хранилище переопределений одной области схемы. Ключ каждой карты — `selector` узла: он же
+ * идентификатор узла в скомпилированной схеме области ({@link SchemaNodeId}).
  *
  * @group Schema
  */
@@ -224,47 +224,30 @@ export function createSchemaController(): SchemaController {
 }
 
 /**
- * Селекторы узлов дерева области: узел и его `children`. Внутрь `item` и `part` обход не
- * заходит — это функции, их поддеревья принадлежат другим областям.
- *
- * @param node - Узел дерева области.
- * @param onSelector - Вызывается для каждого встреченного `selector` (в том числе повторного).
- */
-export function eachSchemaSelector(node: unknown, onSelector: (selector: string) => void): void {
-  const visit = (current: unknown, visited: WeakSet<object>): void => {
-    if (current == null || typeof current !== 'object') return;
-    if (isValueSignal(current) || isModelContainerSignal(current) || isModelFacade(current)) return;
-    if (visited.has(current)) return;
-    visited.add(current);
-    const { selector, children } = current as { selector?: unknown; children?: unknown };
-    if (typeof selector === 'string') onSelector(selector);
-    if (Array.isArray(children)) for (const child of children) visit(child, visited);
-  };
-  visit(node, new WeakSet());
-}
-
-/**
- * Селекторы, на которые в области записаны правила, но которых нет в её дереве. Такое правило
- * ничего не делает — сборка и рендерер в dev предупреждают о нём.
+ * Селекторы, на которые в области записаны правила, но которых нет в её скомпилированной схеме.
+ * Такое правило ничего не делает — сборка и рендерер в dev предупреждают о нём.
  *
  * Ref в проверку не входит: его разрешено брать по абсолютному пути модели
  * (`phones.0.number`), а такой строки при сборке может ещё не быть.
  *
  * @param maps - Хранилище области.
- * @param tree - Дерево (поддерево) области.
- * @returns Селекторы с правилами, не найденные в дереве.
+ * @param compiled - Скомпилированная схема области ({@link CompiledSchema}).
+ * @returns Селекторы с правилами, не найденные в схеме области.
  *
  * @example
  * ```typescript
  * const scope = controller.scopeOf(model);
- * unknownSchemaSelectors(scope.__overrideMaps, tree); // ['mortgage'] — узла с таким selector нет
+ * unknownSchemaSelectors(scope.__overrideMaps, bundle.render.tree!); // ['mortgage'] — узла нет
  * ```
  *
  * @group Schema
  */
-export function unknownSchemaSelectors(maps: SchemaOverrideMaps, tree: unknown): string[] {
-  const known = new Set<string>();
-  eachSchemaSelector(tree, (selector) => known.add(selector));
+export function unknownSchemaSelectors(
+  maps: SchemaOverrideMaps,
+  compiled: CompiledSchema
+): string[] {
+  const known = (selector: string): boolean =>
+    compiled.nodes.get(selector as SchemaNodeId)?.selector === selector;
   const used = new Set<string>([
     ...maps.hiddenOverrides.keys(),
     ...maps.propsOverrides.keys(),
@@ -272,7 +255,7 @@ export function unknownSchemaSelectors(maps: SchemaOverrideMaps, tree: unknown):
     ...maps.callbackRegistry.keys(),
     ...maps.lifecycleRegistry.keys(),
   ]);
-  return [...used].filter((selector) => !known.has(selector));
+  return [...used].filter((selector) => !known(selector));
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

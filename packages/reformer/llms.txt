@@ -1332,9 +1332,10 @@ form.address.city.value.value; // текущее значение (через с
 model.items.push({ id: '1', name: 'Item' }); // операции над массивом — на модели
 ```
 
-При сборке (`createForm`, dev-режим) проверяются селекторы корневого дерева: повтор `selector`,
-правило поведения на узел, которого нет в дереве, и ключ `validation.steps`, для которого нет шага
-с таким `selector`, дают предупреждение в консоли.
+Сборка компилирует дерево (`compileSchema`): повтор `selector` в одной области (корень, строка
+массива, подформа) — исключение с путями обоих узлов. В dev правило поведения на узел, которого нет
+в дереве, и ключ `validation.steps`, для которого нет шага с таким `selector`, дают предупреждение
+в консоли.
 
 ### createForm Returns a Proxy
 
@@ -5336,8 +5337,8 @@ export const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
 - Вид ноды формы определяет узел модели, а не имя: поле данных может называться `value`, `schema`,
   `form`, `model` или `children`.
 - Поля подформы принадлежат той же форме: `form.registrationAddress.city`.
-- Билдер `item` / `part` вызывается один раз на под-модель; сборка и рендерер получают одно и то
-  же поддерево (`schemaSubtree(builder, subModel)`).
+- Билдер `item` / `part` вызывается один раз на под-модель; сборка и рендерер получают одну и ту
+  же компиляцию поддерева: `content` подформы и `row(rowModel)` массива.
 - `initialValue` узла-массива — запасной шаблон нового элемента для форм, чья модель создаётся из
   данных без кода. Шаблон модели (`arrayOf`) главнее.
 
@@ -5471,13 +5472,14 @@ const credit = useFormBundle(() =>
 <FormField control={credit.form.loanType} />; // разметка в JSX — та же сборка
 ```
 
-- Порядок: модель → `seed` → дерево схемы → ноды формы → поведение → валидация → `setup`. Дерево
-  строится один раз. Ноды строятся по виду узла модели: лист и массив-значение — `FieldNode`,
-  группа — `GroupNode`, массив под-форм — `ModelArrayNode`.
-- В dev сборка проверяет селекторы корневого дерева: повтор `selector`, правило поведения на узел,
+- Порядок: модель → `seed` → дерево схемы → компиляция → ноды формы → поведение → валидация →
+  `setup`. Дерево строится и компилируется один раз. Ноды строятся по виду узла модели: лист и
+  массив-значение — `FieldNode`, группа — `GroupNode`, массив под-форм — `ModelArrayNode`.
+- Повтор `selector` в одной области — исключение при сборке. В dev правило поведения на узел,
   которого нет, и ключ `validation.steps` без шага с таким `selector` дают предупреждение.
 - `validation` в бандле типизирована по конфигу: правила переданы — поле есть всегда.
-- `render` — `{ tree, controller, node(selector) }`: готовое дерево и схема-контроллер сборки.
+- `render` — `{ tree, controller, node(selector) }`: скомпилированная схема (`CompiledSchema`) и
+  схема-контроллер сборки.
 - JSON: `createForm({ model, schema: document, registry })` — дерево собирает
   `registry.resolveSchema`. Ядро документ не разбирает.
 - Внутри рендерера бандл доступен компонентам через `useFormBundleContext()` — так визард берёт
@@ -5995,6 +5997,229 @@ export interface ChangeContext {
 ```
 
 _Source: src/form/behaviors/types.ts_
+
+### CompiledArrayNode
+
+**Kind:** `interface`
+
+Массив под-форм: у каждой строки своя форма и своя область схемы.
+
+**Signature:**
+```typescript
+export interface CompiledArrayNode extends CompiledNodeBase {
+  readonly kind: 'array';
+  /** Ручка массива `model.$.<массив>` — привязка фасадом нормализуется к ней. */
+  readonly handle: SchemaArrayHandle;
+  /** Фасад массива модели: длина, строки и мутации. */
+  readonly control: SchemaArrayControl;
+  /** Запасной шаблон нового элемента из узла; шаблон модели (`arrayOf`) главнее. */
+  readonly initialValue: unknown;
+  /**
+   * Скомпилированная схема строки — одна на под-модель строки: сборка формы строки и рендерер
+   * получают один и тот же объект.
+   */
+  row(rowModel: object): CompiledSchema;
+}
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledChild
+
+**Kind:** `type`
+
+Ребёнок контейнера: узел либо текст.
+
+**Signature:**
+```typescript
+export type CompiledChild = CompiledNode | CompiledTextNode;
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledContainerNode
+
+**Kind:** `interface`
+
+Контейнер: узел с детьми либо без привязки — секция, шаг визарда, html-тег. Без `component`
+рендерер рисует только детей.
+
+**Signature:**
+```typescript
+export interface CompiledContainerNode extends CompiledNodeBase {
+  readonly kind: 'container';
+  /** Дети в порядке следования: узлы и текст. */
+  readonly children: readonly CompiledChild[];
+}
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledFieldNode
+
+**Kind:** `interface`
+
+Поле: узел, привязанный к ручке значения — листу или массиву целиком.
+
+**Signature:**
+```typescript
+export interface CompiledFieldNode extends CompiledNodeBase {
+  readonly kind: 'field';
+  /** Ручка значения `model.$.<лист | массив>`. */
+  readonly handle: SchemaValueHandle;
+  /** Поле создаётся отключённым. */
+  readonly disabled: boolean;
+}
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledNode
+
+**Kind:** `type`
+
+Узел скомпилированной схемы: поле, массив под-форм, подформа или контейнер.
+
+**Signature:**
+```typescript
+export type CompiledNode =
+  | CompiledFieldNode
+  | CompiledArrayNode
+  | CompiledPartNode
+  | CompiledContainerNode;
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledPartNode
+
+**Kind:** `interface`
+
+Подформа: часть схемы, подключённая к группе модели. Содержимое компилируется сразу, в своей
+области.
+
+**Signature:**
+```typescript
+export interface CompiledPartNode extends CompiledNodeBase {
+  readonly kind: 'part';
+  /** Ручка группы `model.$.<группа>`. */
+  readonly handle: SchemaGroupHandle;
+  /** Под-модель группы — ключ области подформы. */
+  readonly model: object;
+  /** Скомпилированное содержимое части. */
+  readonly content: CompiledSchema;
+}
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledSchema
+
+**Kind:** `interface`
+
+Скомпилированная схема одной области: корня сборки, строки массива или подформы.
+
+**Signature:**
+```typescript
+export interface CompiledSchema {
+  /** Идентификатор области. */
+  readonly scope: SchemaScopeId;
+  /** Модель области: корень сборки, под-модель строки или группы; без модели — `undefined`. */
+  readonly model: object | undefined;
+  /** Корневой узел области. */
+  readonly root: CompiledNode;
+  /** Узлы этой области по идентификатору; узлы строк и подформ лежат в их схемах. */
+  readonly nodes: ReadonlyMap<SchemaNodeId, CompiledNode>;
+  /** Поля по ручке модели — этой области и её подформ (строки массивов — в их схемах). */
+  readonly fields: ReadonlyMap<object, CompiledFieldNode>;
+  /** Массивы под-форм по ручке модели — этой области и её подформ. */
+  readonly arrays: ReadonlyMap<object, CompiledArrayNode>;
+}
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### CompiledTextNode
+
+**Kind:** `interface`
+
+Текст контейнера: подряд идущие текстовые дети автора, склеенные в один узел.
+
+**Signature:**
+```typescript
+export interface CompiledTextNode {
+  readonly kind: 'text';
+  /** Позиционный путь первой части. */
+  readonly id: SchemaNodeId;
+  readonly parts: readonly SchemaTextPart[];
+}
+```
+
+_Source: src/form/schema/compiled.ts_
+
+### compileSchema
+
+**Kind:** `function`
+
+Скомпилировать дерево схемы: вид каждого узла, нормализованные привязки, идентификаторы и
+индексы области.
+
+Повтор `selector` в одной области — исключение с путями обоих узлов. Неизвестный ключ узла и
+нераспознанная привязка — предупреждения в dev; такой узел становится контейнером.
+
+**Signature:**
+```typescript
+export function compileSchema(
+  tree: FormSchemaNode,
+  model?: object,
+  options?: CompileSchemaOptions
+): CompiledSchema
+```
+
+**Parameters:**
+- `tree` — - Корень авторского дерева ({@link FormSchemaNode}).
+- `model` — - Модель области (корень сборки, под-модель строки либо группы); без неё пути
+вложенных областей строятся по позиции узла.
+- `options` — - {@link CompileSchemaOptions}.
+
+**Returns:** 
+
+**Examples:**
+
+```typescript
+const model = createModel({ email: '', phones: [{ number: '' }] });
+const compiled = compileSchema(
+  {
+    children: [
+      { selector: 'email', model: model.$.email, component: Input },
+      { model: model.$.phones, item: (row) => ({ model: row.$.number, component: Input }) },
+    ],
+  },
+  model
+);
+
+compiled.nodes.get('email' as SchemaNodeId)?.kind; // 'field'
+compiled.fields.get(model.$.email)?.component; // Input
+compiled.arrays.get(model.$.phones)?.row(model.phones.at(0)!).scope; // '#/phones[0]'
+```
+
+_Source: src/form/schema/compile.ts_
+
+### CompileSchemaOptions
+
+**Kind:** `interface`
+
+Опции {@link compileSchema}.
+
+**Signature:**
+```typescript
+export interface CompileSchemaOptions {
+  /** Идентификатор области дерева; по умолчанию корень `#`. */
+  readonly scope?: SchemaScopeId;
+}
+```
+
+_Source: src/form/schema/compile.ts_
 
 ### ComponentRef
 
@@ -7692,13 +7917,13 @@ _Source: src/form/types/form-proxy.ts_
 
 **Kind:** `interface`
 
-Часть бандла для рендерера: готовое дерево и схема-контроллер сборки.
+Часть бандла для рендерера: скомпилированная схема и схема-контроллер сборки.
 
 **Signature:**
 ```typescript
 export interface FormRender {
-  /** Корневой узел дерева схемы; `undefined`, если схема не задана. */
-  readonly tree: FormSchemaNode | undefined;
+  /** Скомпилированная схема корневой области; `undefined`, если схема не задана. */
+  readonly tree: CompiledSchema | undefined;
   /** Схема-контроллер сборки: области корня, строк массивов и подформ. */
   readonly controller: SchemaController;
   /** Управление узлом КОРНЕВОЙ области по его `selector`. */
@@ -8227,6 +8452,31 @@ if (isArrayNode(node)) {
 ```
 
 _Source: src/form/type-guards.ts_
+
+### isCompiledNode
+
+**Kind:** `function`
+
+Узел скомпилированной схемы, а не авторский узел?
+
+**Signature:**
+```typescript
+export function isCompiledNode(value: unknown): value is CompiledNode
+```
+
+**Parameters:**
+- `value` — - Что угодно.
+
+**Returns:** `true` для узла, выданного {@link compileSchema}.
+
+**Examples:**
+
+```typescript
+isCompiledNode(compileSchema(tree, model).root); // true
+isCompiledNode(tree); // false
+```
+
+_Source: src/form/schema/compile.ts_
 
 ### isDate
 
@@ -10876,11 +11126,26 @@ export interface SchemaNodeControl {
 
 _Source: src/form/schema-controller.ts_
 
+### SchemaNodeId
+
+**Kind:** `type`
+
+Идентификатор узла: `selector` автора, а у узла без него — позиционный путь от корня области
+(`#/0/2`). Уникален в пределах области.
+
+**Signature:**
+```typescript
+export type SchemaNodeId = string & { readonly __nodeId: true };
+```
+
+_Source: src/form/schema/compiled.ts_
+
 ### SchemaOverrideMaps
 
 **Kind:** `interface`
 
-Хранилище переопределений одной области схемы. Ключ каждой карты — `selector` узла.
+Хранилище переопределений одной области схемы. Ключ каждой карты — `selector` узла: он же
+идентификатор узла в скомпилированной схеме области ({@link SchemaNodeId}).
 
 **Signature:**
 ```typescript
@@ -10969,6 +11234,20 @@ export interface SchemaScope {
 
 _Source: src/form/schema-controller.ts_
 
+### SchemaScopeId
+
+**Kind:** `type`
+
+Идентификатор области схемы: `#` — корень, `#/address` — подформа, `#/phones[3]` — строка
+массива (в скобках — стабильный ключ строки, который не меняется при перестановке).
+
+**Signature:**
+```typescript
+export type SchemaScopeId = string & { readonly __scopeId: true };
+```
+
+_Source: src/form/schema/compiled.ts_
+
 ### schemaSubtree
 
 **Kind:** `function`
@@ -10994,6 +11273,19 @@ schemaSubtree(itemSchema, row) === schemaSubtree(itemSchema, row); // true
 ```
 
 _Source: src/form/schema-subtree.ts_
+
+### SchemaTextPart
+
+**Kind:** `type`
+
+Часть текста: литерал, число или сигнал (его значение выводится и обновляется на месте).
+
+**Signature:**
+```typescript
+export type SchemaTextPart = string | number | Signal<any>;
+```
+
+_Source: src/form/schema/compiled.ts_
 
 ### SchemaValueHandle
 
@@ -11125,28 +11417,31 @@ _Source: src/i18n/translator.ts_
 
 **Kind:** `function`
 
-Селекторы, на которые в области записаны правила, но которых нет в её дереве. Такое правило
-ничего не делает — сборка и рендерер в dev предупреждают о нём.
+Селекторы, на которые в области записаны правила, но которых нет в её скомпилированной схеме.
+Такое правило ничего не делает — сборка и рендерер в dev предупреждают о нём.
 
 Ref в проверку не входит: его разрешено брать по абсолютному пути модели
 (`phones.0.number`), а такой строки при сборке может ещё не быть.
 
 **Signature:**
 ```typescript
-export function unknownSchemaSelectors(maps: SchemaOverrideMaps, tree: unknown): string[]
+export function unknownSchemaSelectors(
+  maps: SchemaOverrideMaps,
+  compiled: CompiledSchema
+): string[]
 ```
 
 **Parameters:**
 - `maps` — - Хранилище области.
-- `tree` — - Дерево (поддерево) области.
+- `compiled` — - Скомпилированная схема области ({@link CompiledSchema}).
 
-**Returns:** Селекторы с правилами, не найденные в дереве.
+**Returns:** Селекторы с правилами, не найденные в схеме области.
 
 **Examples:**
 
 ```typescript
 const scope = controller.scopeOf(model);
-unknownSchemaSelectors(scope.__overrideMaps, tree); // ['mortgage'] — узла с таким selector нет
+unknownSchemaSelectors(scope.__overrideMaps, bundle.render.tree!); // ['mortgage'] — узла нет
 ```
 
 _Source: src/form/schema-controller.ts_
