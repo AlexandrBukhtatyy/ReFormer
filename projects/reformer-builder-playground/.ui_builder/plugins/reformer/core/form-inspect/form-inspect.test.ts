@@ -89,13 +89,14 @@ describe('чтение состояния узла', () => {
     expect(readNodeState(model, 'price')?.derived).toBe(false);
   });
 
-  it('отдаёт touched, dirty и ошибки', () => {
+  it('отдаёт touched, dirty, pending и ошибки', () => {
     const model = makeForm();
 
     expect(readNodeState(model, 'price')).toMatchObject({
       touched: false,
       dirty: false,
       disabled: false,
+      pending: false,
       errors: [],
     });
   });

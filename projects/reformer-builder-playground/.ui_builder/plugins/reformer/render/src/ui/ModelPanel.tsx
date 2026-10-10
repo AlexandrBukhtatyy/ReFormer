@@ -166,6 +166,7 @@ function StateBadges({ state }: { state: NodeState | null }): ReactNode {
     <>
       {state.derived ? <Badge variant="outline">compute</Badge> : null}
       {state.disabled ? <Badge variant="outline">disabled</Badge> : null}
+      {state.pending ? <Badge variant="outline">pending</Badge> : null}
       {state.touched ? <Badge variant="outline">touched</Badge> : null}
       {state.errors.map((error) => (
         <Badge key={error} variant="destructive">

@@ -81,6 +81,8 @@ export interface NodeState {
   readonly touched: boolean;
   readonly dirty: boolean;
   readonly disabled: boolean;
+  /** Идёт асинхронная проверка: раннер валидации отмечает поле на время async-правил. */
+  readonly pending: boolean;
   readonly errors: readonly string[];
   /** Цель `compute`: запись игнорируется поведением, и панель обязана сказать это заранее. */
   readonly derived: boolean;
@@ -123,6 +125,7 @@ export function readNodeState(model: unknown, path: string): NodeState | null {
     touched: node.touched.value,
     dirty: node.dirty.value,
     disabled: node.disabled.value,
+    pending: node.pending.value,
     errors: node.issues.value.map((issue) => issue.code),
     derived: signal === undefined ? false : isDerived(signal as never),
   };
