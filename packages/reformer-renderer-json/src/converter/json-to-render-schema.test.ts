@@ -3,8 +3,7 @@ import { convertJsonToM1Tree } from './json-to-render-schema';
 import { defineRegistry } from '../registry/component-registry';
 import { createLocaleResolver, createLocaleService } from '../locale/locale-service';
 import type { JsonFormSchemaV1 as JsonFormSchema } from '../types/json-schema-v1';
-import { createModel, type FormModel } from '@reformer/core';
-import { isModelFieldRenderNode } from '@reformer/renderer-react';
+import { compileSchema, createModel, type FormModel } from '@reformer/core';
 
 /**
  * Заглушка модели: конвертер трогает только `signalAt` (лист) и dot-обход (массив),
@@ -87,18 +86,35 @@ describe('convertJsonToM1Tree', () => {
       },
     };
 
+    // Массив под-форм привязывается только к настоящему массиву модели: ручка, а не фасад.
+    const alertsModel = () => createModel({ alerts: [{ message: 'первое' }] });
+    const convertWith = (model: FormModel<{ alerts: { message: string }[] }>) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      convertJsonToM1Tree({ root: listSchema } as JsonFormSchema, registry, model) as any;
+
     it('attaches the resolved component + item factory', () => {
-      const node = convert(listSchema);
+      const model = alertsModel();
+      const node = convertWith(model);
       expect(node.component).toBe(ListStub);
+      expect(node.model).toBe(model.$.alerts);
       expect(typeof node.item).toBe('function');
     });
 
     it('re-scopes $model inside the item $template to the element sub-model', () => {
-      const node = convert(listSchema);
+      const model = alertsModel();
+      const node = convertWith(model);
       // item(im) прогоняет transformProps со scope=im → $model(message) резолвится через im.signalAt
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sub = node.item({ signalAt: (p: string) => ({ __path: `item.${p}` }) } as any);
-      expect(sub.componentProps.message).toEqual({ __path: 'item.message' });
+      const sub = node.item(model.alerts.at(0));
+      expect(sub.componentProps.message).toBe(model.alerts.at(0)!.$.message);
+    });
+
+    it('без массива в модели — узел без строк и предупреждение', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const node = convert(listSchema);
+      expect(node.model).toBeUndefined();
+      expect(node.item).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('is not an array of the model'));
+      warn.mockRestore();
     });
 
     it('leaves component undefined for a plain array node (built-in path)', () => {
@@ -368,7 +384,7 @@ describe('массив как значение поля (`$model(<массив>)
     const node = convertReal({ value: '$model(tags)', component: '$component(Input)' });
 
     expect(node.model).toBe(model.$.tags);
-    expect(isModelFieldRenderNode(node as never)).toBe(true);
+    expect(compileSchema(node as never, model).root.kind).toBe('field');
     // Вложенный путь — тем же способом.
     const nested = convertReal({ value: '$model(profile.langs)', component: '$component(Input)' });
     expect(nested.model).toBe(model.$.profile.langs);

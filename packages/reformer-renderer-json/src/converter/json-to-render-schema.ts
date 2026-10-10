@@ -339,17 +339,21 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
     const component = n.component ? resolveComponent(n.component as string, registry) : undefined;
     const item = (im: FormModel<unknown>) => convertNode(template, im, ctx);
     const componentProps = transformProps(n.componentProps, scope, ctx);
+    const handle = (scope as FormModel<unknown>).signalAt(path);
     if (!v2) {
+      // Формат v1 прощал массив, которого нет в модели: узел рисовался без строк. Так и остаётся —
+      // но привязкой узла становится ручка, а не фасад, и без ручки привязки нет вовсе.
+      if (!isModelContainerSignal(handle) && typeof console !== 'undefined') {
+        console.warn(`[JsonRenderer] "$model(${path})" is not an array of the model.`);
+      }
       return {
         ...selector,
-        model: resolveModelPath(scope, path),
+        ...(isModelContainerSignal(handle) ? { model: handle, item } : {}),
         ...(component ? { component } : {}),
         initialValue: () => (initial ? cloneLiteral(initial) : {}),
-        item,
         componentProps,
       } as unknown as RenderNode<T>;
     }
-    const handle = (scope as FormModel<unknown>).signalAt(path);
     if (!isModelContainerSignal(handle)) {
       throw new Error(
         `"$model(${path})" is not an array of the model — an array node needs an array field ` +
@@ -402,7 +406,8 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
       : undefined;
     return {
       ...selector,
-      model: signal,
+      // Сигнала нет — привязки нет: узел без `model`, а не с `model: undefined`.
+      ...(signal ? { model: signal } : {}),
       component: resolveComponent(n.component as string | undefined, registry),
       componentProps: fieldWrapper ? { ...(componentProps ?? {}), fieldWrapper } : componentProps,
     } as unknown as RenderNode<T>;

@@ -1,0 +1,436 @@
+<div data-c="AsyncBoundary" data-selector="data-boundary" data-status="loading">
+<div data-c="RendererFormWizard" data-selector="wizard" data-classname="bg-white p-8 rounded-lg shadow-md" data-submitlabel="Отправить заявку">
+<article data-prop="steps">
+<div data-c="Step" data-title="Кредит" data-icon="💰">
+<div data-c="Box" data-classname="space-y-6">
+<div data-c="Section" data-title="Основная информация о кредите" data-titleas="h2" data-titleclassname="text-xl font-bold" data-classname="space-y-6">
+<div>
+<div data-c="Select" data-label="Тип кредита" data-placeholder="Выберите тип кредита" data-value="loanType-значение" data-data-testid="input-loanType" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputNumber" data-label="Сумма кредита (₽)" data-placeholder="Введите сумму" data-min="50000" data-max="10000000" data-step="10000" data-value="loanAmount-значение" data-data-testid="input-loanAmount" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputNumber" data-label="Срок кредита (месяцев)" data-placeholder="Введите срок" data-min="6" data-max="240" data-value="loanTerm-значение" data-data-testid="input-loanTerm" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Textarea" data-label="Цель кредита" data-placeholder="Опишите, на что планируете потратить средства" data-rows="4" data-maxlength="500" data-value="loanPurpose-значение" data-data-testid="input-loanPurpose" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-selector="mortgage-section" data-title="Информация о недвижимости" data-titleclassname="text-lg font-semibold mt-4" data-classname="space-y-4">
+<div>
+<div data-c="InputNumber" data-label="Стоимость недвижимости (₽)" data-placeholder="Введите стоимость" data-min="1000000" data-step="100000" data-value="propertyValue-значение" data-data-testid="input-propertyValue" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputNumber" data-label="Первоначальный взнос (₽)" data-placeholder="Введите сумму" data-min="0" data-step="10000" data-value="initialPayment-значение" data-data-testid="input-initialPayment" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-selector="car-section" data-title="Информация об автомобиле" data-titleclassname="text-lg font-semibold mt-4" data-classname="space-y-4">
+<div>
+<div data-c="Input" data-label="Марка автомобиля" data-placeholder="Например: Toyota" data-value="carBrand-значение" data-data-testid="input-carBrand" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Select" data-label="Модель автомобиля" data-placeholder="Например: Camry" data-value="carModel-значение" data-data-testid="input-carModel" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputNumber" data-label="Год выпуска" data-placeholder="2020" data-min="2000" data-value="carYear-значение" data-data-testid="input-carYear" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputNumber" data-label="Стоимость автомобиля (₽)" data-placeholder="Введите стоимость" data-min="300000" data-step="10000" data-value="carPrice-значение" data-data-testid="input-carPrice" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article data-prop="steps">
+<div data-c="Step" data-title="Данные" data-icon="👤">
+<div data-c="Section" data-title="Персональные данные" data-titleas="h2" data-titleclassname="text-xl font-bold" data-classname="space-y-6">
+<div data-c="Section" data-title="Личные данные" data-titleclassname="text-lg font-semibold" data-classname="space-y-4">
+<div data-c="Box" data-classname="grid grid-cols-3 gap-4">
+<div>
+<div data-c="Input" data-label="Фамилия" data-placeholder="Введите фамилию" data-value="personalData.lastName-значение" data-data-testid="input-personalData-lastName" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Имя" data-placeholder="Введите имя" data-value="personalData.firstName-значение" data-data-testid="input-personalData-firstName" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Отчество" data-placeholder="Введите отчество" data-value="personalData.middleName-значение" data-data-testid="input-personalData-middleName" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="Input" data-label="Дата рождения" data-type="date" data-value="personalData.birthDate-значение" data-data-testid="input-personalData-birthDate" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="RadioGroup" data-label="Пол" data-value="personalData.gender-значение" data-data-testid="input-personalData-gender" data-disabled="false">
+</div>
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Место рождения" data-placeholder="Введите место рождения" data-value="personalData.birthPlace-значение" data-data-testid="input-personalData-birthPlace" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-title="Паспортные данные" data-titleclassname="text-lg font-semibold" data-classname="space-y-4">
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputMask" data-label="Серия паспорта" data-placeholder="00 00" data-mask="99 99" data-value="passportData.series-значение" data-data-testid="input-passportData-series" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="Номер паспорта" data-placeholder="000000" data-mask="999999" data-value="passportData.number-значение" data-data-testid="input-passportData-number" data-disabled="false">
+</div>
+</div>
+</div>
+<div>
+<div data-c="Textarea" data-label="Кем выдан" data-placeholder="Введите наименование органа" data-rows="3" data-value="passportData.issuedBy-значение" data-data-testid="input-passportData-issuedBy" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="Input" data-label="Дата выдачи" data-type="date" data-value="passportData.issueDate-значение" data-data-testid="input-passportData-issueDate" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="Код подразделения" data-placeholder="000-000" data-mask="999-999" data-value="passportData.departmentCode-значение" data-data-testid="input-passportData-departmentCode" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+<div data-c="Section" data-title="Дополнительные документы" data-titleclassname="text-lg font-semibold" data-classname="space-y-4">
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputMask" data-label="ИНН" data-placeholder="123456789012" data-mask="999999999999" data-value="inn-значение" data-data-testid="input-inn" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="СНИЛС" data-placeholder="123-456-789 00" data-mask="999-999-999 99" data-value="snils-значение" data-data-testid="input-snils" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article data-prop="steps">
+<div data-c="Step" data-title="Контакты" data-icon="📞">
+<div data-c="Section" data-title="Контактная информация" data-titleas="h2" data-titleclassname="text-xl font-bold" data-classname="space-y-6">
+<div data-c="Section" data-title="Контакты" data-titleclassname="text-lg font-semibold" data-classname="space-y-4">
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputMask" data-label="Основной телефон" data-placeholder="+7 (___) ___-__-__" data-mask="+7 (999) 999-99-99" data-value="phoneMain-значение" data-data-testid="input-phoneMain" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="Дополнительный телефон" data-placeholder="+7 (___) ___-__-__" data-mask="+7 (999) 999-99-99" data-value="phoneAdditional-значение" data-data-testid="input-phoneAdditional" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="Input" data-label="Email" data-placeholder="example@mail.com" data-type="email" data-value="email-значение" data-data-testid="input-email" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Дополнительный email" data-placeholder="example@mail.com" data-type="email" data-value="emailAdditional-значение" data-data-testid="input-emailAdditional" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+<div data-c="Section" data-title="Адрес регистрации" data-titleclassname="text-lg font-semibold" data-classname="space-y-4">
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="Input" data-label="Регион" data-placeholder="Введите регион" data-value="registrationAddress.region-значение" data-data-testid="input-registrationAddress-region" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Город" data-placeholder="Введите город" data-value="registrationAddress.city-значение" data-data-testid="input-registrationAddress-city" data-disabled="false">
+</div>
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Улица" data-placeholder="Введите улицу" data-value="registrationAddress.street-значение" data-data-testid="input-registrationAddress-street" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-3 gap-4">
+<div>
+<div data-c="Input" data-label="Дом" data-placeholder="№" data-value="registrationAddress.house-значение" data-data-testid="input-registrationAddress-house" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Квартира" data-placeholder="№" data-value="registrationAddress.apartment-значение" data-data-testid="input-registrationAddress-apartment" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="Индекс" data-placeholder="000000" data-mask="999999" data-value="registrationAddress.postalCode-значение" data-data-testid="input-registrationAddress-postalCode" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+<div>
+<div data-c="Checkbox" data-label="Адрес проживания совпадает с адресом регистрации" data-value="sameAsRegistration-значение" data-data-testid="input-sameAsRegistration" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-selector="residence-address-section">
+<div data-c="ResidenceAddressSection">
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="Input" data-label="Регион" data-placeholder="Введите регион" data-value="residenceAddress.region-значение" data-data-testid="input-residenceAddress-region" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Город" data-placeholder="Введите город" data-value="residenceAddress.city-значение" data-data-testid="input-residenceAddress-city" data-disabled="false">
+</div>
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Улица" data-placeholder="Введите улицу" data-value="residenceAddress.street-значение" data-data-testid="input-residenceAddress-street" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-3 gap-4">
+<div>
+<div data-c="Input" data-label="Дом" data-placeholder="№" data-value="residenceAddress.house-значение" data-data-testid="input-residenceAddress-house" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Квартира" data-placeholder="№" data-value="residenceAddress.apartment-значение" data-data-testid="input-residenceAddress-apartment" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="Индекс" data-placeholder="000000" data-mask="999999" data-value="residenceAddress.postalCode-значение" data-data-testid="input-residenceAddress-postalCode" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article data-prop="steps">
+<div data-c="Step" data-title="Работа" data-icon="💼">
+<div data-c="Section" data-title="Информация о занятости" data-titleas="h2" data-titleclassname="text-xl font-bold" data-classname="space-y-6">
+<div data-c="Box" data-classname="space-y-4">
+<div>
+<div data-c="RadioGroup" data-label="Статус занятости" data-value="employmentStatus-значение" data-data-testid="input-employmentStatus" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-selector="employer-section" data-title="Информация о работодателе" data-titleclassname="text-lg font-semibold mt-6" data-classname="space-y-4">
+<div>
+<div data-c="Input" data-label="Название компании" data-placeholder="Введите название" data-value="companyName-значение" data-data-testid="input-companyName" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputMask" data-label="ИНН компании" data-placeholder="1234567890" data-mask="9999999999" data-value="companyInn-значение" data-data-testid="input-companyInn" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="Телефон компании" data-placeholder="+7 (___) ___-__-__" data-mask="+7 (999) 999-99-99" data-value="companyPhone-значение" data-data-testid="input-companyPhone" data-disabled="false">
+</div>
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Адрес компании" data-placeholder="Полный адрес" data-value="companyAddress-значение" data-data-testid="input-companyAddress" data-disabled="false">
+</div>
+</div>
+<div data-c="Section" data-title="Должность и стаж" data-titleclassname="text-lg font-semibold mt-6" data-classname="space-y-4">
+<div>
+<div data-c="Input" data-label="Должность" data-placeholder="Ваша должность" data-value="position-значение" data-data-testid="input-position" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputNumber" data-label="Общий стаж работы (месяцев)" data-placeholder="0" data-min="0" data-value="workExperienceTotal-значение" data-data-testid="input-workExperienceTotal" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputNumber" data-label="Стаж на текущем месте (месяцев)" data-placeholder="0" data-min="0" data-value="workExperienceCurrent-значение" data-data-testid="input-workExperienceCurrent" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+</div>
+<div data-c="Section" data-selector="business-section" data-title="Информация о бизнесе" data-titleclassname="text-lg font-semibold mt-6" data-classname="space-y-4">
+<div>
+<div data-c="Input" data-label="Тип бизнеса" data-placeholder="ИП, ООО и т.д." data-value="businessType-значение" data-data-testid="input-businessType" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="InputMask" data-label="ИНН ИП" data-placeholder="123456789012" data-mask="999999999999" data-value="businessInn-значение" data-data-testid="input-businessInn" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Textarea" data-label="Вид деятельности" data-placeholder="Опишите вид деятельности" data-rows="3" data-value="businessActivity-значение" data-data-testid="input-businessActivity" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-selector="income-section" data-title="Доход" data-titleclassname="text-lg font-semibold mt-6" data-classname="space-y-4">
+<div>
+<div data-c="InputNumber" data-label="Ежемесячный доход (₽)" data-placeholder="0" data-min="10000" data-step="1000" data-value="monthlyIncome-значение" data-data-testid="input-monthlyIncome" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputNumber" data-label="Дополнительный доход (₽)" data-placeholder="0" data-min="0" data-step="1000" data-value="additionalIncome-значение" data-data-testid="input-additionalIncome" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Input" data-label="Источник дополнительного дохода" data-placeholder="Опишите источник" data-value="additionalIncomeSource-значение" data-data-testid="input-additionalIncomeSource" data-disabled="false">
+</div>
+</div>
+</div>
+</div>
+<div data-c="UnemployedWarning" data-selector="unemployed-warning" data-classname="mt-6">
+</div>
+</div>
+</div>
+</article>
+<article data-prop="steps">
+<div data-c="Step" data-title="Доп. инфо" data-icon="📋">
+<div data-c="Section" data-title="Дополнительная информация" data-titleas="h2" data-titleclassname="text-xl font-bold" data-classname="space-y-6">
+<div data-c="Section" data-title="Общая информация" data-titleclassname="text-lg font-semibold" data-classname="space-y-4">
+<div>
+<div data-c="RadioGroup" data-label="Семейное положение" data-value="maritalStatus-значение" data-data-testid="input-maritalStatus" data-disabled="false">
+</div>
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+<div>
+<div data-c="InputNumber" data-label="Количество иждивенцев" data-placeholder="0" data-min="0" data-max="10" data-value="dependents-значение" data-data-testid="input-dependents" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Select" data-label="Образование" data-placeholder="Выберите уровень образования" data-value="education-значение" data-data-testid="input-education" data-disabled="false">
+</div>
+</div>
+</div>
+<div>
+<div data-c="FileUploadDropzone" data-label="Документы" data-placeholder="Перетащите файлы или нажмите для выбора" data-hint="Паспорт, справка о доходах — изображения или PDF, до 10 МБ, максимум 5 файлов" data-accept="image/*,.pdf" data-multiple="true" data-maxfiles="5" data-maxfilesize="10485760" data-value="documents-значение" data-data-testid="input-documents" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-classname="space-y-4">
+<div>
+<div data-c="Checkbox" data-label="У меня есть имущество" data-value="hasProperty-значение" data-data-testid="input-hasProperty" data-disabled="false">
+</div>
+</div>
+<div data-c="FormArray" data-title="Имущество" data-reorderable="true" data-addbuttonlabel="+ Добавить имущество" data-emptymessage="Нажмите &quot;Добавить имущество&quot; для добавления информации">
+<article data-prop="items">
+</article>
+<section>
+<div data-c="Box" data-classname="space-y-3">
+</div>
+</section>
+</div>
+</div>
+<div data-c="Section" data-classname="space-y-4">
+<div>
+<div data-c="Checkbox" data-label="У меня есть другие кредиты" data-value="hasExistingLoans-значение" data-data-testid="input-hasExistingLoans" data-disabled="false">
+</div>
+</div>
+<div data-c="FormArray" data-title="Существующие кредиты" data-reorderable="true" data-addbuttonlabel="+ Добавить кредит" data-emptymessage="Нажмите &quot;Добавить кредит&quot; для добавления информации">
+<article data-prop="items">
+</article>
+<section>
+<div data-c="Box" data-classname="space-y-3">
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+</div>
+</div>
+</section>
+</div>
+</div>
+<div data-c="Section" data-classname="space-y-4">
+<div>
+<div data-c="Checkbox" data-label="Добавить созаемщика" data-value="hasCoBorrower-значение" data-data-testid="input-hasCoBorrower" data-disabled="false">
+</div>
+</div>
+<div data-c="FormArray" data-title="Созаемщики" data-reorderable="true" data-addbuttonlabel="+ Добавить созаемщика" data-emptymessage="Нажмите &quot;Добавить созаемщика&quot; для добавления информации" data-emptymessagehint="CoBorrowerForm поддерживает вложенную группу personalData">
+<article data-prop="items">
+</article>
+<section>
+<div data-c="Box" data-classname="space-y-3">
+<div data-c="Box" data-classname="grid grid-cols-3 gap-4">
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+</div>
+<div data-c="Box" data-classname="grid grid-cols-2 gap-4">
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article data-prop="steps">
+<div data-c="Step" data-title="Подтверждение" data-icon="✓">
+<div data-c="Section" data-title="Подтверждение и согласия" data-titleas="h2" data-titleclassname="text-xl font-bold" data-classname="space-y-6">
+<div data-c="Box" data-classname="space-y-4">
+<div data-c="ConfirmationInfoBlock">
+</div>
+<div data-c="HighPaymentWarning">
+</div>
+</div>
+<div data-c="LoanSummarySection">
+</div>
+<div data-c="ApplicantSummarySection">
+</div>
+<div data-c="Section" data-title="Обязательные согласия" data-titleclassname="text-lg font-semibold" data-classname="space-y-3">
+<div>
+<div data-c="Checkbox" data-label="Согласие на обработку персональных данных" data-value="agreePersonalData-значение" data-data-testid="input-agreePersonalData" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Checkbox" data-label="Согласие на проверку кредитной истории" data-value="agreeCreditHistory-значение" data-data-testid="input-agreeCreditHistory" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Checkbox" data-label="Согласие с условиями кредитования" data-value="agreeTerms-значение" data-data-testid="input-agreeTerms" data-disabled="false">
+</div>
+</div>
+<div>
+<div data-c="Checkbox" data-label="Подтверждаю точность введенных данных" data-value="confirmAccuracy-значение" data-data-testid="input-confirmAccuracy" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-title="Опциональные согласия" data-titleclassname="text-lg font-semibold mt-6">
+<div>
+<div data-c="Checkbox" data-label="Согласие на получение маркетинговых материалов" data-value="agreeMarketing-значение" data-data-testid="input-agreeMarketing" data-disabled="false">
+</div>
+</div>
+</div>
+<div data-c="Section" data-title="Электронная подпись" data-titleclassname="text-lg font-semibold mt-6" data-classname="space-y-4">
+<div>
+<div data-c="InputMask" data-label="Код подтверждения из СМС" data-placeholder="123456" data-mask="999999" data-value="electronicSignature-значение" data-data-testid="input-electronicSignature" data-disabled="false">
+</div>
+</div>
+<div data-c="ElectronicSignatureHint">
+</div>
+</div>
+<div data-c="SubmitWarning">
+</div>
+<div data-c="NextStepsInfo">
+</div>
+</div>
+</div>
+</article>
+</div>
+</div>
