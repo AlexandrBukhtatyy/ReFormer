@@ -191,9 +191,37 @@ function baseOf(
 
 /** Зарегистрировать узел: в индекс области и в набор скомпилированных. */
 function register<N extends CompiledNode>(node: N, context: ScopeContext): N {
+  const taken = context.nodes.get(node.id);
+  if (taken !== undefined) {
+    // Повтор селектора ловит `baseOf`; сюда доходит селектор, совпавший с позиционным путём
+    // соседа (`#/1`), — иначе один узел вытеснил бы другой из индекса области.
+    throw new Error(
+      `${AT}: в области «${context.scope}» идентификатор «${node.id}» занят — узлы ` +
+        `${taken.path} и ${node.path}. Селектор не может совпадать с позиционным путём узла ` +
+        '(`#/…`): дайте узлу другой селектор.'
+    );
+  }
   compiledNodes.add(node);
   context.nodes.set(node.id, node);
   return node;
+}
+
+/** Привязать поле к ручке; повторная привязка той же ручки в области — dev-предупреждение. */
+function bindField(
+  fields: Map<object, CompiledFieldNode>,
+  handle: object,
+  field: CompiledFieldNode
+): void {
+  const previous = fields.get(handle);
+  if (previous !== undefined) {
+    warn(
+      `${AT}: ручка «${field.handle.__path}» привязана к двум полям — узлы ${previous.path} и ` +
+        `${field.path}. Нода формы у ручки одна и возьмёт конфиг последнего узла (component, ` +
+        'componentProps, disabled). Значение второй раз показывают текстом — сигналом ручки ' +
+        'в `children`.'
+    );
+  }
+  fields.set(handle, field);
 }
 
 /** Узел-контейнер: дети — узлы и текст. */
@@ -287,7 +315,7 @@ function compileKnown(
       { ...baseOf(node, path, context), kind: 'field', handle, disabled: node.disabled === true },
       context
     );
-    context.fields.set(handle, field);
+    bindField(context.fields, handle, field);
     return field;
   }
 
@@ -348,24 +376,30 @@ function compilePart(
   const base = baseOf(node, path, context);
   const subModel = modelOf(handle as unknown as { peek(): object }) as object;
   const scope = `${context.scope}/${relativePath(handle, context, path)}` as SchemaScopeId;
-  // Отдельной формы у части нет: её поля и массивы принадлежат этой же сборке.
+  // Отдельной формы у части нет: её поля и массивы принадлежат этой же сборке. Предки — общие:
+  // часть, подключившая саму себя или узел-предка, — тот же цикл, что и внутри одной области.
   const content = compileScopeWith(
     schemaSubtree(node.part as (subModel: any) => FormSchemaNode, subModel),
     subModel,
     scope,
-    context.unknownKeys
+    context.unknownKeys,
+    context.ancestors
   );
-  for (const [key, field] of content.fields) context.fields.set(key, field);
+  for (const [key, field] of content.fields) bindField(context.fields, key, field);
   for (const [key, array] of content.arrays) context.arrays.set(key, array);
   return register({ ...base, kind: 'part', handle, model: subModel, content }, context);
 }
 
-/** Компиляция области; ключи без смысла копятся в `unknownKeys` родителя. */
+/**
+ * Компиляция области; ключи без смысла копятся в `unknownKeys` родителя. `ancestors` — узлы на
+ * пути от корня сборки (у части — общие с родительской областью).
+ */
 function compileScopeWith(
   tree: unknown,
   model: object | undefined,
   scope: SchemaScopeId,
-  unknownKeys: Set<string>
+  unknownKeys: Set<string>,
+  ancestors: Set<object> = new Set()
 ): CompiledSchema {
   if (tree === null || typeof tree !== 'object') {
     throw new Error(`${AT}: корень области «${scope}» — не узел схемы: ${String(tree)}.`);
@@ -378,7 +412,7 @@ function compileScopeWith(
     fields: new Map(),
     arrays: new Map(),
     selectorPaths: new Map(),
-    ancestors: new Set(),
+    ancestors,
     unknownKeys,
   };
   const root = compileNode(tree, '#', context);
@@ -424,14 +458,16 @@ function warnUnknownNodeKeys(unknownKeys: ReadonlySet<string>): void {
  * индексы области.
  *
  * Повтор `selector` в одной области — исключение с путями обоих узлов. Неизвестный ключ узла и
- * нераспознанная привязка — предупреждения в dev; такой узел становится контейнером.
+ * нераспознанная привязка — предупреждения в dev; такой узел становится контейнером. Вторая
+ * привязка той же ручки — тоже предупреждение: нода формы у ручки одна.
  *
  * @param tree - Корень авторского дерева ({@link FormSchemaNode}).
- * @param model - Модель области (корень сборки, под-модель строки либо группы); без неё пути
- *   вложенных областей строятся по позиции узла.
+ * @param model - Модель области (корень сборки, под-модель строки либо группы): пути вложенных
+ *   областей считаются от неё; без неё — абсолютные пути ручек (`#/phones.1.address`).
  * @param options - {@link CompileSchemaOptions}.
  * @returns {@link CompiledSchema} области.
- * @throws Error при повторе `selector` в области и при зацикленном дереве.
+ * @throws Error при повторе `selector` в области, при селекторе, совпавшем с позиционным путём
+ *   узла (`#/1`), и при зацикленном дереве (в том числе через подформу).
  *
  * @example
  * ```typescript
