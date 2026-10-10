@@ -16,7 +16,7 @@ import type { FormModel } from '../../model/types';
 import { createAggregateSignals } from '../aggregate-signals';
 import { rowKeyOf } from '../schema/row-key';
 import { NODE_KIND, rawNode, type InternalFormNode } from './node-kind';
-import { createAvailability, createIssues } from './state';
+import { createAvailability, createIssues, createPending } from './state';
 
 /** Реактивный массив модели в объёме, которым пользуется нода. */
 export interface ModelArrayControl<TItem extends object> {
@@ -52,6 +52,8 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   private readonly initial: T[];
   private readonly own = createIssues();
   private readonly availability = createAvailability();
+  /** Ожидание async-правила на ручке самого массива. */
+  private readonly ownPending = createPending();
   private readonly stopSync: () => void;
 
   /**
@@ -74,6 +76,8 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
         let row = this.cache.get(rowModel);
         if (!row) {
           row = buildRow(rowModel);
+          // Строка, добавленная в выключенный массив, рождается выключенной — как остальные строки.
+          if (this.availability.disabled.peek()) row.disable();
           this.cache.set(rowModel, row);
         }
         nextModels.push(rowModel);
@@ -94,9 +98,11 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     });
 
     this.value = computed(() => this.rows.value.map((row) => row.value.value));
+    const { disabled } = this.availability;
     const aggregate = createAggregateSignals({
       getChildren: () => this.rows.value,
       ownIssues: this.own.list,
+      ownPending: computed(() => !disabled.value && this.ownPending.active.value),
     });
     this.valid = aggregate.valid;
     this.invalid = aggregate.invalid;
@@ -180,6 +186,8 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
 
   disable(): void {
     this.availability.setDisabled(true);
+    // Как у поля: выключенная нода замечаний не держит.
+    this.own.clear();
     this.rows.value.forEach((row) => row.disable());
   }
 
@@ -197,8 +205,10 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.rows.value.forEach((row) => row.clearIssues());
   }
 
-  /** Ожидание массива выводится из строк. @internal */
-  setPending(): void {}
+  /** Своё ожидание async-правила на ручке массива; ожидание строк агрегат добавит сам. @internal */
+  setPending(pending: boolean): void {
+    this.ownPending.mark(pending);
+  }
 
   /** Остановить синхронизацию и диспозить формы всех строк. @internal */
   dispose(): void {

@@ -13,7 +13,7 @@ import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
 import { isDerived } from '../../model/derived-registry';
 import { NODE_KIND, type InternalFormNode } from './node-kind';
-import { createAvailability, createIssues } from './state';
+import { createAvailability, createIssues, createPending } from './state';
 
 export class FormGroupNode<T> implements InternalFormNode<T> {
   readonly [NODE_KIND] = 'group' as const;
@@ -33,6 +33,8 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   /** Замечания самой группы (ответ сервера на форму целиком). */
   private readonly own = createIssues();
   private readonly availability = createAvailability();
+  /** Ожидание async-правила на ручке самой группы. */
+  private readonly ownPending = createPending();
   /**
    * Лист → его записываемый сигнал модели: по нему `setValue` узнаёт цели `compute` (их
    * помечает `markDerived`), а не по computed-обёртке `value` ноды.
@@ -56,9 +58,11 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
       });
       return result as T;
     });
+    const { disabled } = this.availability;
     const aggregate = createAggregateSignals({
       getChildren: () => nodes,
       ownIssues: this.own.list,
+      ownPending: computed(() => !disabled.value && this.ownPending.active.value),
     });
     this.valid = aggregate.valid;
     this.invalid = aggregate.invalid;
@@ -86,6 +90,9 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
 
   /** Записать значения полей; цели `compute` пропускаются — ими владеет поведение. */
   setValue(value: T): void {
+    // Не объект (`null` на месте вложенной группы `{…} | null`) — группа остаётся прежней, как
+    // при `model.patch`: обход ключей не начинается, частичной записи нет.
+    if (value === null || typeof value !== 'object') return;
     for (const [key, fieldValue] of Object.entries(value as Record<string, unknown>)) {
       const child = this.children.get(key);
       if (!child) continue;
@@ -116,6 +123,8 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
 
   disable(): void {
     this.availability.setDisabled(true);
+    // Как у поля: выключенная нода замечаний не держит.
+    this.own.clear();
     this.children.forEach((child) => child.disable());
   }
 
@@ -133,8 +142,10 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     this.children.forEach((child) => child.clearIssues());
   }
 
-  /** Ожидание группы выводится из детей. @internal */
-  setPending(): void {}
+  /** Своё ожидание async-правила на ручке группы; ожидание детей агрегат добавит сам. @internal */
+  setPending(pending: boolean): void {
+    this.ownPending.mark(pending);
+  }
 
   /** Прикрепить cleanup поведения формы (`createForm({ behavior })`). @internal */
   attachBehaviorCleanup(cleanup: () => void): void {
