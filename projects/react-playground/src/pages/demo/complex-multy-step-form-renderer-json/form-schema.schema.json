@@ -264,6 +264,10 @@
         },
         "wrapper": {
           "$ref": "#/definitions/node"
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "The field is created disabled — like disabled: true on a TS schema field node."
         }
       }
     },
