@@ -2539,7 +2539,7 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
 
 **Parameters:**
 - `config` — - {@link CreateJsonFormConfig}: `schema` + `registry` + (`initial` | `model`) + опц.
-`behavior`, `validation`, `renderBehavior`, `seed`, `setup`.
+`behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
 
 **Returns:** 
 
@@ -2552,7 +2552,8 @@ const jsonForm = useJsonForm(() =>
     registry,
     model: createCreditModel(),
     behavior: formBehavior,
-    validation: { steps: { loan: loanRules }, extras: crossRules },
+    validation: { extras: crossRules },
+    flow: { steps: [{ id: 'loan', rules: loanRules }] },
     renderBehavior: makeCreditRenderBehavior,
   })
 );
@@ -2578,11 +2579,11 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
   schema: JsonFormSchemaV1<T>;
   /** Реестр компонентов/source. */
   registry: ComponentRegistry;
-  /** Фабрика render-behavior: получает уже собранные форму, модель и валидацию. */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidationBundle<T>
+    level: FormLevel<T>
   ) => RenderBehaviorFn<T>;
 }
 ```

@@ -4,8 +4,8 @@
  * Раньше приложение передавало схему дважды: в `convertJsonToM1Tree` (для `createForm`) и пропом
  * `schema` в `JsonFormRenderer` (для рендера) — две несвязанные передачи одного артефакта, а
  * требование «собрать ровно один раз» держалось на комментарии в прикладном коде. Фабрика
- * инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry, validation?,
- * renderBehavior? }`, который целиком отдаётся рендереру пропом `form`.
+ * инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry, renderBehavior? }` с
+ * уровнем формы (`submit`, `flow`, …), который целиком отдаётся рендереру пропом `form`.
  *
  * Конфиг общий с `createForm` (`@reformer/core`) и `createReactForm`
  * (`@reformer/renderer-react`); отличие — JSON-схема как данные и реестр компонентов.
@@ -13,14 +13,14 @@
  * @module reformer/renderer-json/create-json-form
  */
 
-import { createModel, createFormFromModel, buildValidation } from '@reformer/core';
+import { createModel, createFormFromModel, createFormLevel } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
 import type {
   CoreForm,
   CreateFormConfigBase,
   FormModel,
+  FormLevel,
   FormProxy,
-  FormValidationBundle,
 } from '@reformer/core';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import type { ComponentRegistry } from './registry/types';
@@ -48,11 +48,11 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
   schema: JsonFormSchemaV1<T>;
   /** Реестр компонентов/source. */
   registry: ComponentRegistry;
-  /** Фабрика render-behavior: получает уже собранные форму, модель и валидацию. */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidationBundle<T>
+    level: FormLevel<T>
   ) => RenderBehaviorFn<T>;
 }
 
@@ -63,8 +63,8 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
  *
  * @typeParam T - Форма данных модели.
  * @param config - {@link CreateJsonFormConfig}: `schema` + `registry` + (`initial` | `model`) + опц.
- *   `behavior`, `validation`, `renderBehavior`, `seed`, `setup`.
- * @returns {@link JsonForm}` <T>` — `{ model, form, schema, registry, validation?, renderBehavior? }`.
+ *   `behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
+ * @returns {@link JsonForm}` <T>` — `{ model, form, schema, registry, renderBehavior? }` и уровень формы.
  *
  * @example
  * ```tsx
@@ -74,7 +74,8 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
  *     registry,
  *     model: createCreditModel(),
  *     behavior: formBehavior,
- *     validation: { steps: { loan: loanRules }, extras: crossRules },
+ *     validation: { extras: crossRules },
+ *     flow: { steps: [{ id: 'loan', rules: loanRules }] },
  *     renderBehavior: makeCreditRenderBehavior,
  *   })
  * );
@@ -100,21 +101,23 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
 
+  // Уровень формы — до нод: поведение получает поток шагов.
+  const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });
   const form = createFormFromModel<T>({
     model,
     schema: convertJsonToM1Tree(schema, registry, model),
     behavior,
+    ...(level.flow !== undefined ? { flow: level.flow } : {}),
   });
 
-  const validation = buildValidation(model, config.validation);
-  const renderBehavior = config.renderBehavior?.(form, model, validation);
+  const renderBehavior = config.renderBehavior?.(form, model, level);
 
   const bundle: JsonForm<T> = {
+    ...level,
     model,
     form,
     schema,
     registry,
-    ...(validation ? { validation } : {}),
     ...(renderBehavior ? { renderBehavior } : {}),
   };
   config.setup?.(bundle);

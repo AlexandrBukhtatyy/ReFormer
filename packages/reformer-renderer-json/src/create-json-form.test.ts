@@ -60,20 +60,21 @@ describe('createJsonForm — валидация, поведение и фазы'
     validate(model.$.email, [required()]);
   });
 
-  it('собирает валидацию из правил и кладёт бандл в результат', async () => {
+  it('собирает уровень формы: поток шагов, проверка шага и всей формы', async () => {
     const jf = createJsonForm<F>({
       schema,
       registry,
       initial: { email: '', agree: false },
-      validation: { steps: { account: emailRules }, strategy: 'change' },
+      validation: { strategy: 'change' },
+      flow: { steps: [{ id: 'account', rules: emailRules }] },
     });
-    expect(jf.validation?.stepSelectors).toEqual(['account']);
-    expect(await jf.validation!.validateStep('account')).toBe(false); // email пустой
+    expect(jf.flow?.steps).toEqual(['account']);
+    expect((await jf.validateStep('account')).status).toBe('invalid'); // email пустой
     jf.model.email = 'a@b.c';
-    expect(await jf.validation!.validateAll()).toBe(true);
+    expect((await jf.validate()).status).toBe('valid');
   });
 
-  it('renderBehavior: фабрика зовётся один раз с формой, моделью и валидацией; результат в бандле', () => {
+  it('renderBehavior: фабрика зовётся один раз с формой, моделью и уровнем формы; результат в бандле', () => {
     const applied: RenderBehaviorFn<F> = () => {};
     const factory = vi.fn(() => applied);
     const jf = createJsonForm<F>({
@@ -84,7 +85,11 @@ describe('createJsonForm — валидация, поведение и фазы'
       renderBehavior: factory,
     });
     expect(factory).toHaveBeenCalledTimes(1);
-    expect(factory).toHaveBeenCalledWith(jf.form, jf.model, jf.validation);
+    expect(factory).toHaveBeenCalledWith(
+      jf.form,
+      jf.model,
+      expect.objectContaining({ validation: jf.validation, submit: jf.submit })
+    );
     expect(jf.renderBehavior).toBe(applied);
   });
 
