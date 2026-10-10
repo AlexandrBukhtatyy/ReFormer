@@ -2,9 +2,9 @@
 // правила, отправка — все шаги сразу. МОК: required выведены из схемы, допишите правила.
 // Пишется один раз и при регенерации не затирается.
 
-import { defineValidationSchema } from '@reformer/core/validation';
+import { defineValidation } from '@reformer/core/validation';
 import type { ZayavkaNaKreditForm } from '../../types';
 
-export const stepValidation = defineValidationSchema<ZayavkaNaKreditForm>(() => {
+export const stepValidation = defineValidation<ZayavkaNaKreditForm>(() => {
   // TODO: правила шага
 });

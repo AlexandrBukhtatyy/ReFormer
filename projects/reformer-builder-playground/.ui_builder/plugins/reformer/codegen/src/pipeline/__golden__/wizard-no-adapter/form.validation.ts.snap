@@ -2,14 +2,14 @@
 // здесь их сборка и поля вне шагов. Пишется один раз и при регенерации не затирается.
 
 import { type FormModel } from '@reformer/core';
-import { apply, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { apply, defineValidation, validateModel } from '@reformer/core/validation';
 import { stepValidations } from './steps';
 import type { ZayavkaNaKreditForm } from './types';
 
 type Root = ZayavkaNaKreditForm;
 
 /** Полная проверка (отправка): правила всех шагов. */
-export const formValidation = defineValidationSchema<Root>(() => {
+export const formValidation = defineValidation<Root>(() => {
   apply(...stepValidations);
 });
 

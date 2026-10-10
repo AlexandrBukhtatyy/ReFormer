@@ -7,10 +7,10 @@
 
 import { type FormModel } from '@reformer/core';
 <% if (sv.rest.length > 0) { -%>
-import { apply, validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { apply, validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 <% } else { -%>
-import { apply, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { apply, defineValidation, validateModel } from '@reformer/core/validation';
 <% } -%>
 import { stepValidations } from '<%= it.layout.imports.steps %>';
 import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
@@ -19,14 +19,14 @@ type Root = <%= it.names.TypeName %>;
 
 /** Полная проверка (отправка): правила всех шагов<%= sv.rest.length > 0 ? ' и поля вне шагов' : '' %>. */
 <% if (sv.rest.length > 0) { -%>
-export const formValidation = defineValidationSchema<Root>(({ model }) => {
+export const formValidation = defineValidation<Root>(({ model }) => {
   apply(...stepValidations);
 <% for (const path of sv.rest) { -%>
-  validate(model.$.<%= path %>, [required({ message: 'Обязательное поле' })]);
+  validate(model.$.<%= path %>, [required()]);
 <% } -%>
 });
 <% } else { -%>
-export const formValidation = defineValidationSchema<Root>(() => {
+export const formValidation = defineValidation<Root>(() => {
   apply(...stepValidations);
 });
 <% } -%>
@@ -52,23 +52,23 @@ export function makeValidationConfig(model: FormModel<Root>) {
 
 import { type FormModel } from '@reformer/core';
 <% if (it.required.length > 0) { -%>
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 <% } else { -%>
-import { defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { defineValidation, validateModel } from '@reformer/core/validation';
 <% } -%>
 import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 type Root = <%= it.names.TypeName %>;
 
 <% if (it.required.length > 0) { -%>
-export const formValidation = defineValidationSchema<Root>(({ model }) => {
+export const formValidation = defineValidation<Root>(({ model }) => {
 <% for (const path of it.required) { -%>
-    validate(model.$.<%= path %>, [required({ message: 'Обязательное поле' })]);
+    validate(model.$.<%= path %>, [required()]);
 <% } -%>
   });
 <% } else { -%>
-export const formValidation = defineValidationSchema<Root>(() => {
+export const formValidation = defineValidation<Root>(() => {
     // TODO: правила валидации
   });
 <% } -%>

@@ -2,18 +2,18 @@
  * Валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts, здесь их
  * сборка и правила полей вне шагов (проверяются только при отправке).
  */
-import { validate, defineValidationSchema, apply, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, apply, validateModel } from '@reformer/core/validation';
 import { maxLength } from '@reformer/core/validators';
 import type { ZayavkaNaKreditForm } from './types';
 import { type FormModel } from '@reformer/core';
 import { stepValidations } from './steps';
 
-export const restValidation = defineValidationSchema<ZayavkaNaKreditForm>(({ model }) => {
+export const restValidation = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
   validate(model.$.comment, [maxLength(500)]);
 });
 
 /** Полная проверка (отправка): правила всех шагов и поля вне шагов. */
-export const formValidation = defineValidationSchema<ZayavkaNaKreditForm>(() => {
+export const formValidation = defineValidation<ZayavkaNaKreditForm>(() => {
   apply(...stepValidations, restValidation);
 });
 

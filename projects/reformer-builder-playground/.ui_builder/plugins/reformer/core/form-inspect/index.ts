@@ -95,11 +95,11 @@ interface FieldNodeLike {
   reset?(): void;
   disable?(): void;
   enable?(): void;
-  setErrors?(errors: readonly { code?: string; message?: string }[]): void;
+  setIssues?(issues: readonly { code: string }[]): void;
   touched?: { readonly value: boolean };
   dirty?: { readonly value: boolean };
   disabled?: { readonly value: boolean };
-  errors?: { readonly value: readonly { message?: string; code?: string }[] };
+  issues?: { readonly value: readonly { code?: string }[] };
 }
 
 /** Модель в объёме, которым пользуется панель. */
@@ -138,7 +138,7 @@ export function readNodeState(model: unknown, path: string): NodeState | null {
     touched: node.touched?.value === true,
     dirty: node.dirty?.value === true,
     disabled: node.disabled?.value === true,
-    errors: (node.errors?.value ?? []).map((error) => error.message ?? error.code ?? 'ошибка'),
+    errors: (node.issues?.value ?? []).map((issue) => issue.code ?? 'ошибка'),
     derived: signal === undefined ? false : isDerived(signal as never),
   };
 }
@@ -199,11 +199,14 @@ export function setNodeDisabled(model: unknown, path: string, disabled: boolean)
   return true;
 }
 
-/** Подставляет ошибку, как будто её вернул сервер. */
+/**
+ * Подставляет ошибку, как будто её вернул сервер. Текста у замечания нет, поэтому кодом служит
+ * сам текст: в словарях формы и локали такого кода нет, и резолвер показывает его как есть.
+ */
 export function setNodeError(model: unknown, path: string, message: string): boolean {
   const node = nodeAt(model, path) as FieldNodeLike | null;
-  if (typeof node?.setErrors !== 'function') return false;
-  node.setErrors(message === '' ? [] : [{ code: 'fixture', message }]);
+  if (typeof node?.setIssues !== 'function') return false;
+  node.setIssues(message === '' ? [] : [{ code: message }]);
   return true;
 }
 

@@ -2,14 +2,14 @@
 // Пишется один раз и при регенерации не затирается.
 
 import { type FormModel } from '@reformer/core';
-import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import type { ZayavkaNaKreditForm } from './types';
 
 type Root = ZayavkaNaKreditForm;
 
-export const formValidation = defineValidationSchema<Root>(({ model }) => {
-    validate(model.$.fullName, [required({ message: 'Обязательное поле' })]);
+export const formValidation = defineValidation<Root>(({ model }) => {
+    validate(model.$.fullName, [required()]);
   });
 
 /** Пошаговый контракт визарда. Полная проверка — validateModel(model, formValidation). */

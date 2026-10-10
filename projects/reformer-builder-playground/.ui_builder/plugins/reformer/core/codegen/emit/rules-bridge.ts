@@ -160,11 +160,7 @@ export function wizardValidationFromRules(
       'Валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts, здесь их\n' +
       'сборка и правила полей вне шагов (проверяются только при отправке).',
   });
-  code = withNamedImport(code, VALIDATION_MODULE, [
-    'apply',
-    'defineValidationSchema',
-    'validateModel',
-  ]);
+  code = withNamedImport(code, VALIDATION_MODULE, ['apply', 'defineValidation', 'validateModel']);
   code = withNamedImport(code, '@reformer/core', ['type FormModel']);
   code = withNamedImport(code, importOf(MODULE_FILES.validation, 'steps/index.ts'), [
     'stepValidations',
@@ -172,7 +168,7 @@ export function wizardValidationFromRules(
   return `${code.trimEnd()}
 
 /** Полная проверка (отправка): правила всех шагов и поля вне шагов. */
-export const formValidation = defineValidationSchema<${names.TypeName}>(() => {
+export const formValidation = defineValidation<${names.TypeName}>(() => {
   apply(...stepValidations, restValidation);
 });
 

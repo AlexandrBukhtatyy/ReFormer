@@ -6,21 +6,21 @@
 // Пишется один раз и при регенерации не затирается.
 
 <% if (it.step.required.length > 0) { -%>
-import { validate, defineValidationSchema } from '@reformer/core/validation';
+import { validate, defineValidation } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 <% } else { -%>
-import { defineValidationSchema } from '@reformer/core/validation';
+import { defineValidation } from '@reformer/core/validation';
 <% } -%>
 import type { <%= it.names.TypeName %> } from '<%= it.step.imports.types %>';
 
 <% if (it.step.required.length > 0) { -%>
-export const stepValidation = defineValidationSchema<<%= it.names.TypeName %>>(({ model }) => {
+export const stepValidation = defineValidation<<%= it.names.TypeName %>>(({ model }) => {
 <% for (const path of it.step.required) { -%>
-  validate(model.$.<%= path %>, [required({ message: 'Обязательное поле' })]);
+  validate(model.$.<%= path %>, [required()]);
 <% } -%>
 });
 <% } else { -%>
-export const stepValidation = defineValidationSchema<<%= it.names.TypeName %>>(() => {
+export const stepValidation = defineValidation<<%= it.names.TypeName %>>(() => {
   // TODO: правила шага
 });
 <% } -%>
