@@ -26,11 +26,12 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   readonly touched: ReadonlySignal<boolean>;
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 
   /** Сырые ноды детей по именам полей данных. */
   private readonly children: ReadonlyMap<string, InternalFormNode>;
   /** Замечания самой группы (ответ сервера на форму целиком). */
-  private readonly ownIssues = createIssues();
+  private readonly own = createIssues();
   private readonly availability = createAvailability();
   /**
    * Лист → его записываемый сигнал модели: по нему `setValue` узнаёт цели `compute` (их
@@ -57,7 +58,7 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     });
     const aggregate = createAggregateSignals({
       getChildren: () => nodes,
-      ownIssues: this.ownIssues.list,
+      ownIssues: this.own.list,
     });
     this.valid = aggregate.valid;
     this.invalid = aggregate.invalid;
@@ -65,6 +66,7 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     this.touched = aggregate.touched;
     this.dirty = aggregate.dirty;
     this.issues = aggregate.issues;
+    this.ownIssues = this.own.list;
     this.disabled = this.availability.disabled;
   }
 
@@ -98,7 +100,7 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
    * к значениям, с которыми форма создана (точку отсчёта модели возвращает `model.reset()`).
    */
   reset(value?: T): void {
-    this.ownIssues.clear();
+    this.own.clear();
     this.children.forEach((child, key) => {
       child.reset((value as Record<string, unknown> | undefined)?.[key]);
     });
@@ -123,11 +125,11 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   }
 
   setIssues(issues: readonly ValidationIssue[]): void {
-    this.ownIssues.set(issues);
+    this.own.set(issues);
   }
 
   clearIssues(): void {
-    this.ownIssues.clear();
+    this.own.clear();
     this.children.forEach((child) => child.clearIssues());
   }
 

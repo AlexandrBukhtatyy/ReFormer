@@ -7,8 +7,13 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createForm } from '../../../src/form/form-bundle';
-import { defineFormBehavior } from '../../../src/form/behaviors';
-import { defineValidation, validate, validateAsync } from '../../../src/form/validation';
+import { defineFormBehavior, enableWhen } from '../../../src/form/behaviors';
+import {
+  defineValidation,
+  validate,
+  validateAsync,
+  validateModel,
+} from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 
 interface Shape {
@@ -193,5 +198,102 @@ describe('createForm — submit', () => {
 
     expect(during).toBe(true);
     expect(bundle.submitting.value).toBe(false);
+  });
+});
+
+describe('createForm — выключенные поля в проверке формы', () => {
+  /** `enableWhen` переключает доступность вне эффекта — на следующем микротаске. */
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  /** Телефон обязателен, но выключен поведением, пока сумма пуста. */
+  const createWithDisabledPhone = (initial: Shape = { amount: '', phone: '' }) =>
+    createForm<Shape>({
+      initial,
+      behavior: defineFormBehavior<Shape>(({ model }) => {
+        enableWhen(model.$.phone, () => model.amount !== '');
+      }),
+      validation: contactsRules,
+    });
+
+  it('submit: правило выключенного поля не делает форму invalid', async () => {
+    const bundle = createWithDisabledPhone();
+    const handler = vi.fn(() => 'ok');
+    await tick();
+
+    expect(bundle.form.phone.disabled.value).toBe(true);
+    expect(await bundle.submit(handler)).toEqual({ status: 'submitted', result: 'ok' });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(bundle.form.phone.issues.value).toEqual([]);
+  });
+
+  it('статус прогона совпадает с агрегатом valid формы', async () => {
+    const bundle = createWithDisabledPhone();
+    await tick();
+
+    const result = await bundle.validate();
+
+    expect(result.status).toBe('valid');
+    expect(bundle.form.valid.value).toBe(true);
+  });
+
+  it('включённое снова поле проверяется', async () => {
+    const bundle = createWithDisabledPhone();
+    await tick();
+    await bundle.validate();
+
+    bundle.model.amount = '100';
+    await tick();
+    expect(bundle.form.phone.disabled.value).toBe(false);
+
+    expect((await bundle.validate()).status).toBe('invalid');
+    expect(bundle.form.phone.issues.value).toEqual([{ code: 'required' }]);
+  });
+
+  it('замечание, выставленное до выключения, гасится следующим прогоном', async () => {
+    const bundle = createWithDisabledPhone({ amount: '100', phone: '' });
+    await tick();
+    expect((await bundle.validate()).status).toBe('invalid');
+
+    bundle.model.amount = '';
+    await tick();
+    expect((await bundle.validate()).status).toBe('valid');
+    expect(bundle.form.phone.issues.value).toEqual([]);
+  });
+
+  it('validateStep: выключенное поле шага не держит переход', async () => {
+    const bundle = createForm<Shape>({
+      initial: { amount: '', phone: '' },
+      behavior: defineFormBehavior<Shape>(({ model }) => {
+        enableWhen(model.$.phone, () => model.amount !== '');
+      }),
+      flow: { steps: [{ id: 'contacts', rules: contactsRules }, { id: 'confirm' }] },
+    });
+    await tick();
+
+    expect((await bundle.validateStep('contacts')).status).toBe('valid');
+    expect(await bundle.flow!.next()).toEqual({ status: 'moved', from: 'contacts', to: 'confirm' });
+  });
+
+  it('сбой async-правила выключенного поля не даёт error', async () => {
+    const failing = defineValidation<Shape>(({ model }) => {
+      validateAsync(model.$.phone, [() => Promise.reject(new Error('сеть'))]);
+    });
+    const bundle = createForm<Shape>({
+      initial: { amount: '', phone: '1' },
+      behavior: defineFormBehavior<Shape>(({ model }) => {
+        enableWhen(model.$.phone, () => model.amount !== '');
+      }),
+      validation: failing,
+    });
+    await tick();
+
+    expect((await bundle.validate()).status).toBe('valid');
+  });
+
+  it('независимый раннер validateModel доступность не учитывает', async () => {
+    const bundle = createWithDisabledPhone();
+    await tick();
+
+    expect(await validateModel(bundle.model, contactsRules)).toBe(false);
   });
 });

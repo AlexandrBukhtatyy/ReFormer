@@ -81,10 +81,25 @@ const fieldOf = (shape: unknown, key: string): unknown =>
   isPlainObject(shape) ? shape[key] : undefined;
 
 /**
+ * Частичное значение элемента поверх шаблона: ключи значения главнее, недостающие (и `undefined`)
+ * берутся из шаблона, вложенные группы сливаются так же, массивы и листья значения заменяют
+ * шаблонные целиком — как `patch` модели. Не объект — значение как есть.
+ */
+function fillFromBlank(base: unknown, value: unknown): unknown {
+  if (!isPlainObject(base) || !isPlainObject(value)) return value;
+  const merged: Record<string, unknown> = { ...base };
+  for (const [key, part] of Object.entries(value)) {
+    merged[key] = part === undefined ? base[key] : fillFromBlank(base[key], part);
+  }
+  return merged;
+}
+
+/**
  * Массив модели с шаблоном нового элемента.
  *
  * Шаблон — фабрика значения, которое получает `push()` / `insertAt(i)` без аргумента: кнопка
- * «Добавить» секции массива, `model.items.push()` в поведении. Объявляется там же, где остальные
+ * «Добавить» секции массива, `model.items.push()` в поведении. Частичное значение
+ * (`push({ type: 'house' })`) дополняется из шаблона. Объявляется там же, где остальные
  * начальные значения, — в модели; схеме и JSX знать его не нужно.
  *
  * Возвращает обычный массив: тип поля остаётся `U[]`. Шаблон переживает `set` / `patch` / `reset`
@@ -111,7 +126,7 @@ const fieldOf = (shape: unknown, key: string): unknown =>
  *
  * model.coBorrowers.push(); // { name: '', phones: [] }
  * model.coBorrowers.at(0).phones.push(); // { number: '' }
- * model.coBorrowers.push({ name: 'Анна', phones: [] }); // значение целиком — как раньше
+ * model.coBorrowers.push({ name: 'Анна' }); // { name: 'Анна', phones: [] } — остальное из шаблона
  * ```
  *
  * @group Model
@@ -322,10 +337,13 @@ export class ModelArrayNode {
     return buildNode(value, joinPath(this.path, index), this.itemShape);
   }
 
-  /** Значение нового элемента: переданное либо из шаблона. */
+  /**
+   * Значение нового элемента: из шаблона; переданный объект накладывается поверх шаблона —
+   * недостающие ключи берутся из шаблона, поэтому `push({ type: 'house' })` даёт полный элемент.
+   */
   private fresh(value: unknown): unknown {
-    if (value !== undefined) return value;
     const blank = this.template();
+    if (value !== undefined) return blank ? fillFromBlank(blank(), value) : value;
     if (!blank) {
       throw new Error(
         `[@reformer/core] ${this.path || 'массив'}: добавление элемента без значения, а шаблона ` +

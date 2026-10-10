@@ -367,6 +367,7 @@ interface FormNode<T> {
   readonly touched: ReadonlySignal<boolean>;
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>; // у группы и массива — свои и детей
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>; // только свои: правила на ручке группы/массива
   getValue(): T;
   setValue(value: T): void;                 // пишет в модель
   reset(value?: T): void;                   // значение и состояние — к начальным
@@ -3051,6 +3052,12 @@ const ok: boolean = await validateModel(model, schema);
 `validateWhen` управляет только **валидацией**; чтобы поля ещё и выпадали из состояния (сброс
 значения), держи их под `enableWhen` из раздела выше — слои независимы.
 
+Выключенное поле (`enableWhen`, `disable()`) в проверке **уровня формы** не участвует:
+`bundle.validate`, `validateStep`, `submit`, `flow.next()` и живая проверка гасят его замечания, и
+статус прогона совпадает с `valid` формы. `validateWhen` нужен, когда поле остаётся доступным, но
+правило по условию не действует, — и в независимом раннере `validateModel(model, rules)`, который
+о нодах не знает.
+
 ## 22. Скрытие в JSX
 
 Чтобы условный блок вообще не рендерился, читай значение-триггер хуком `useFormControlValue(form.field)`
@@ -3437,7 +3444,8 @@ form.items.clear();
 со своими `touched` и замечаниями.
 
 > **push принимает ПЛОСКИЕ значения** (`{ name, price }`), а НЕ FieldConfig-шаблон
-> (`{ value, component }`). Component/componentProps берутся из `item`-фабрики схемы.
+> (`{ value, component }`). У массива с шаблоном `arrayOf` переданный объект накладывается на
+> шаблон: недостающие ключи берутся из него (так `add({ type })` из cdk даёт полный элемент). Component/componentProps берутся из `item`-фабрики схемы.
 > Передача FieldConfig-объектов сломает рендер (`[object Object]` в инпутах).
 
 ### Rendering Arrays
@@ -7229,6 +7237,12 @@ export interface ArrayControlState<T> {
   issues: ValidationIssue[];
 
   /**
+   * Собственные замечания массива — только правила на его ручке (`minLength` и т.п.), без
+   * замечаний строк. Их показывает ошибка уровня массива (`FieldArray.Error`).
+   */
+  ownIssues: ValidationIssue[];
+
+  /**
    * Флаг валидности массива и всех его элементов.
    * `true` только когда массив и все вложенные элементы валидны.
    */
@@ -7334,7 +7348,8 @@ _Source: src/platforms/react/hooks/types.ts_
 Массив модели с шаблоном нового элемента.
 
 Шаблон — фабрика значения, которое получает `push()` / `insertAt(i)` без аргумента: кнопка
-«Добавить» секции массива, `model.items.push()` в поведении. Объявляется там же, где остальные
+«Добавить» секции массива, `model.items.push()` в поведении. Частичное значение
+(`push({ type: 'house' })`) дополняется из шаблона. Объявляется там же, где остальные
 начальные значения, — в модели; схеме и JSX знать его не нужно.
 
 Возвращает обычный массив: тип поля остаётся `U[]`. Шаблон переживает `set` / `patch` / `reset`
@@ -7368,7 +7383,7 @@ const model = createModel({ coBorrowers: arrayOf(blankCoBorrower) });
 
 model.coBorrowers.push(); // { name: '', phones: [] }
 model.coBorrowers.at(0).phones.push(); // { number: '' }
-model.coBorrowers.push({ name: 'Анна', phones: [] }); // значение целиком — как раньше
+model.coBorrowers.push({ name: 'Анна' }); // { name: 'Анна', phones: [] } — остальное из шаблона
 ```
 
 _Source: src/model/model-nodes.ts_
@@ -9589,9 +9604,12 @@ export interface FormLevel<T> {
   readonly submitting: ReadonlySignal<boolean>;
   /** Правила и контроллер живой проверки; без правил — `undefined`. */
   readonly validation: FormValidationState<T> | undefined;
-  /** Проверить всю форму и показать замечания. */
+  /**
+   * Проверить всю форму и показать замечания. Поля выключенных нод (`enableWhen`, `disable()`)
+   * не учитываются — статус совпадает с `valid` формы.
+   */
   validate(): Promise<ValidationResult>;
-  /** Проверить шаг потока; неизвестный шаг — исключение. */
+  /** Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение. */
   validateStep(stepId: string): Promise<ValidationResult>;
   /**
    * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
@@ -9684,6 +9702,11 @@ export interface FormNode<T> {
   readonly dirty: ReadonlySignal<boolean>;
   /** Замечания ноды; у группы и массива — свои и всех детей. */
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
+  /**
+   * Собственные замечания ноды — без замечаний детей: у группы и массива это правила на их ручке
+   * (`minLength` массива, `cross` группы), у поля — то же, что `issues`.
+   */
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 
   /** Значение без подписки. */
   getValue(): T;

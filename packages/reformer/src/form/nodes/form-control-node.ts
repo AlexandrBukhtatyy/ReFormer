@@ -33,6 +33,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly touched: ReadonlySignal<boolean>;
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
   readonly component: ComponentRef | undefined;
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
   readonly shouldShowError: ReadonlySignal<boolean>;
@@ -63,6 +64,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
     this.touched = this.interaction.touched;
     this.dirty = this.interaction.dirty;
     this.issues = this.issueState.list;
+    this.ownIssues = this.issueState.list;
     this.componentProps = this.componentState.props;
     this.shouldShowError = computed(
       () => this.invalid.value && (this.touched.value || this.dirty.value)

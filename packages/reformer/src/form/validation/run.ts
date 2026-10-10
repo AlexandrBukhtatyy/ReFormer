@@ -71,17 +71,39 @@ interface PendingTarget {
   setPending(pending: boolean): void;
 }
 
+/** Нода поля выключена (`enableWhen` / `disable()`, в том числе каскадом от группы). */
+const isDisabledField = (sig: object): boolean =>
+  (getNodeForSignal(sig) as { disabled?: { peek(): boolean } } | undefined)?.disabled?.peek() ===
+  true;
+
+/**
+ * Выключенное поле в проверке формы не участвует: его замечания гасятся (пустой список — нода
+ * очищается при разносе), сбои его async-правил отбрасываются. Так статус прогона совпадает с
+ * агрегатом `valid` формы, который выключенные поля тоже не считает.
+ */
+function dropDisabled(
+  issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>,
+  failures: ValidationFailure[]
+): void {
+  for (const sig of issues.keys()) if (isDisabledField(sig)) issues.set(sig, []);
+  for (let i = failures.length - 1; i >= 0; i--) {
+    if (isDisabledField(failures[i].handle)) failures.splice(i, 1);
+  }
+}
+
 /**
  * Сбор: прогон схемы и ожидание async-правил.
  *
  * @param markPending - держать ноды полей с async-правилами в `pending` до вызова `release`.
+ * @param skipDisabled - не учитывать поля выключенных нод (проверка уровня формы).
  * @returns Результат и `release` — снять `pending` (вызывается после разноса, чтобы поле не
  *   мигнуло прежним статусом между концом ожидания и новыми ошибками).
  */
 async function collect<T>(
   model: FormModel<T>,
   schema: ValidationDefinition<T>,
-  markPending: boolean
+  markPending: boolean,
+  skipDisabled = false
 ): Promise<{ result: ValidationResult; release: () => void }> {
   const state = runStateFor(model as object, schema as object);
   state.ac?.abort(); // отменяем предыдущий in-flight прогон этой (model, schema)
@@ -114,6 +136,7 @@ async function collect<T>(
   // Дожидаемся async-правил, но размыкаем ожидание по отмене (устаревший прогон не висит на
   // медленных промисах). Промисы правил не отклоняются: сбой правила записан в `failures`.
   if (ctx.pending.length) await Promise.race([Promise.all(ctx.pending), whenAborted(ac.signal)]);
+  if (skipDisabled) dropDisabled(ctx.issues, failures);
 
   // Приоритет статуса: отменённому прогону нельзя доверять вовсе (его async-часть оборвана);
   // сбой правила важнее обычной ошибки — результата проверки нет.
@@ -208,15 +231,16 @@ export function applyValidationResult(
 /**
  * Прогон с разносом и полным результатом — общий движок {@link validateModel}, контроллера
  * стратегии и прогонов шага. На время async-правил держит ноды их полей в `pending`.
+ * `skipDisabled` — проверка уровня формы: поля выключенных нод не учитываются.
  *
  * @internal
  */
 export async function runAndApply<T>(
   model: FormModel<T>,
   schema: ValidationDefinition<T>,
-  options?: { touch?: boolean }
+  options?: { touch?: boolean; skipDisabled?: boolean }
 ): Promise<ValidationResult> {
-  const { result, release } = await collect(model, schema, true);
+  const { result, release } = await collect(model, schema, true, options?.skipDisabled);
   batch(() => {
     applyValidationResult(result, options);
     release();

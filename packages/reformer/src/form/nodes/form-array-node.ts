@@ -42,6 +42,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   readonly touched: ReadonlySignal<boolean>;
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 
   private readonly rows = signal<FormGroup<T>[]>([]);
   /** Форма строки по фасаду под-модели элемента. */
@@ -49,7 +50,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   /** Под-модели строк, для которых сейчас есть формы, — «прежний» набор для сверки. */
   private mounted: FormModel<T>[] = [];
   private readonly initial: T[];
-  private readonly ownIssues = createIssues();
+  private readonly own = createIssues();
   private readonly availability = createAvailability();
   private readonly stopSync: () => void;
 
@@ -95,7 +96,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.value = computed(() => this.rows.value.map((row) => row.value.value));
     const aggregate = createAggregateSignals({
       getChildren: () => this.rows.value,
-      ownIssues: this.ownIssues.list,
+      ownIssues: this.own.list,
     });
     this.valid = aggregate.valid;
     this.invalid = aggregate.invalid;
@@ -103,6 +104,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.touched = aggregate.touched;
     this.dirty = aggregate.dirty;
     this.issues = aggregate.issues;
+    this.ownIssues = this.own.list;
     this.disabled = this.availability.disabled;
   }
 
@@ -164,7 +166,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   }
 
   reset(values?: T[]): void {
-    this.ownIssues.clear();
+    this.own.clear();
     this.setValue(values ?? this.initial);
   }
 
@@ -187,11 +189,11 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   }
 
   setIssues(issues: readonly ValidationIssue[]): void {
-    this.ownIssues.set(issues);
+    this.own.set(issues);
   }
 
   clearIssues(): void {
-    this.ownIssues.clear();
+    this.own.clear();
     this.rows.value.forEach((row) => row.clearIssues());
   }
 

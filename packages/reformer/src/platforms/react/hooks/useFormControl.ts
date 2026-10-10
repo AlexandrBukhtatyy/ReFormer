@@ -61,6 +61,7 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
   const signals = {
     value: control.value,
     issues: control.issues,
+    ownIssues: control.ownIssues,
     pending: control.pending,
     valid: control.valid,
     invalid: control.invalid,
@@ -72,6 +73,7 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
   const configs: SignalConfig<keyof typeof signals>[] = [
     { key: 'value' },
     { key: 'issues', useShallowArrayEqual: true },
+    { key: 'ownIssues', useShallowArrayEqual: true },
     { key: 'pending' },
     { key: 'valid' },
     { key: 'invalid' },
@@ -86,6 +88,7 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
       length: (values.value as T[]).length,
       pending: values.pending as boolean,
       issues: values.issues as ValidationIssue[],
+      ownIssues: values.ownIssues as ValidationIssue[],
       valid: values.valid as boolean,
       invalid: values.invalid as boolean,
       touched: values.touched as boolean,
@@ -110,6 +113,7 @@ function useEmptyControl(): ArrayControlState<object> {
       length: 0,
       pending: false,
       issues: [],
+      ownIssues: [],
       valid: true,
       invalid: false,
       touched: false,

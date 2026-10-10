@@ -46,6 +46,7 @@ interface FormNode<T> {
   readonly touched: ReadonlySignal<boolean>;
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>; // у группы и массива — свои и детей
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>; // только свои: правила на ручке группы/массива
   getValue(): T;
   setValue(value: T): void;                 // пишет в модель
   reset(value?: T): void;                   // значение и состояние — к начальным

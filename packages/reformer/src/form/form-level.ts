@@ -98,9 +98,12 @@ export interface FormLevel<T> {
   readonly submitting: ReadonlySignal<boolean>;
   /** Правила и контроллер живой проверки; без правил — `undefined`. */
   readonly validation: FormValidationState<T> | undefined;
-  /** Проверить всю форму и показать замечания. */
+  /**
+   * Проверить всю форму и показать замечания. Поля выключенных нод (`enableWhen`, `disable()`)
+   * не учитываются — статус совпадает с `valid` формы.
+   */
   validate(): Promise<ValidationResult>;
-  /** Проверить шаг потока; неизвестный шаг — исключение. */
+  /** Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение. */
   validateStep(stepId: string): Promise<ValidationResult>;
   /**
    * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
@@ -198,7 +201,7 @@ export function createFormLevel<T>(
     if (!step) return VALID;
     stepRuns.value++;
     try {
-      return await runAndApply(model, step, { touch: true });
+      return await runAndApply(model, step, { touch: true, skipDisabled: true });
     } finally {
       stepRuns.value--;
     }

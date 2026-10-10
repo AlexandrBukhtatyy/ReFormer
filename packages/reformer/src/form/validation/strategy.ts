@@ -102,7 +102,8 @@ export function createFormValidation<T>(
     inFlight++;
     _validating.value = true;
     try {
-      return await runAndApply(model, schema, { touch });
+      // Проверка формы: выключенные поля не участвуют — как и в агрегате `valid`.
+      return await runAndApply(model, schema, { touch, skipDisabled: true });
     } finally {
       if (--inFlight === 0) _validating.value = false;
     }

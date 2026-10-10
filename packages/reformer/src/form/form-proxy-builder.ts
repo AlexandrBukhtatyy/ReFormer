@@ -22,6 +22,7 @@ const NODE_MEMBERS = [
   'touched',
   'dirty',
   'issues',
+  'ownIssues',
   'getValue',
   'setValue',
   'reset',

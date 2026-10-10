@@ -45,7 +45,8 @@ form.items.clear();
 со своими `touched` и замечаниями.
 
 > **push принимает ПЛОСКИЕ значения** (`{ name, price }`), а НЕ FieldConfig-шаблон
-> (`{ value, component }`). Component/componentProps берутся из `item`-фабрики схемы.
+> (`{ value, component }`). У массива с шаблоном `arrayOf` переданный объект накладывается на
+> шаблон: недостающие ключи берутся из него (так `add({ type })` из cdk даёт полный элемент). Component/componentProps берутся из `item`-фабрики схемы.
 > Передача FieldConfig-объектов сломает рендер (`[object Object]` в инпутах).
 
 ### Rendering Arrays

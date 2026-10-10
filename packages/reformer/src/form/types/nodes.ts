@@ -47,6 +47,11 @@ export interface FormNode<T> {
   readonly dirty: ReadonlySignal<boolean>;
   /** Замечания ноды; у группы и массива — свои и всех детей. */
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
+  /**
+   * Собственные замечания ноды — без замечаний детей: у группы и массива это правила на их ручке
+   * (`minLength` массива, `cross` группы), у поля — то же, что `issues`.
+   */
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 
   /** Значение без подписки. */
   getValue(): T;

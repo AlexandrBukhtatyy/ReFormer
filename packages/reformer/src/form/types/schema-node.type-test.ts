@@ -67,6 +67,14 @@ export function schemaNodeTypeChecks(model: FormModel<Shape>): FormSchemaNode[] 
   const legacyValue: FormSchemaNode = { value: model.$.title, component: Input };
   // @ts-expect-error — прежний ключ привязки массива
   const legacyArray: FormSchemaNode = { array: model.phones, item: phone };
+  const legacyInChildren: FormSchemaNode = {
+    // @ts-expect-error — прежний ключ привязки поля и внутри `children`, рядом с реактивным текстом
+    children: [{ value: model.$.title, component: Input }],
+  };
+  const legacyArrayInChildren: FormSchemaNode = {
+    // @ts-expect-error — прежний ключ привязки массива внутри `children`
+    children: [{ array: model.phones, item: phone }],
+  };
   // @ts-expect-error — узлы под произвольными ключами: дети пишутся в `children`
   const record: FormSchemaNode = { title: { model: model.$.title, component: Input } };
   // @ts-expect-error — группа без `part` полем не бывает
@@ -98,6 +106,8 @@ export function schemaNodeTypeChecks(model: FormModel<Shape>): FormSchemaNode[] 
     typo,
     legacyValue,
     legacyArray,
+    legacyInChildren,
+    legacyArrayInChildren,
     record,
     groupWithoutPart,
     itemOnLeaf,

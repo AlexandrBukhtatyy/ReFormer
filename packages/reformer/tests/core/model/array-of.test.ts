@@ -72,6 +72,55 @@ describe('arrayOf — добавление элемента', () => {
     expect(model.get().coBorrowers).toEqual([{ name: 'Анна', phones: [{ number: '1' }] }]);
   });
 
+  it('push(частичное значение) дополняется из шаблона — с шаблоном вложенного массива', () => {
+    const model = createShape();
+
+    model.coBorrowers.push({ name: 'Анна' } as CoBorrower);
+    model.coBorrowers.at(0).phones.push();
+
+    expect(model.get().coBorrowers).toEqual([{ name: 'Анна', phones: [{ number: '' }] }]);
+  });
+
+  it('insertAt(i, частичное значение) дополняется из шаблона', () => {
+    const model = createShape();
+    model.coBorrowers.push();
+
+    model.coBorrowers.insertAt(0, { name: 'Борис' } as CoBorrower);
+
+    expect(model.get().coBorrowers).toEqual([
+      { name: 'Борис', phones: [] },
+      { name: '', phones: [] },
+    ]);
+  });
+
+  it('вложенная группа частичного значения сливается с шаблоном, массив — заменяет', () => {
+    interface Property {
+      kind: string;
+      address: { city: string; street: string };
+      owners: string[];
+    }
+    const blankProperty = (): Property => ({
+      kind: 'flat',
+      address: { city: '', street: '' },
+      owners: ['заявитель'],
+    });
+    const model = createModel<{ properties: Property[] }>({ properties: arrayOf(blankProperty) });
+
+    model.properties.push({ address: { city: 'Москва' }, owners: [] } as unknown as Property);
+
+    expect(model.get().properties).toEqual([
+      { kind: 'flat', address: { city: 'Москва', street: '' }, owners: [] },
+    ]);
+  });
+
+  it('массив без шаблона: значение кладётся как есть', () => {
+    const model = createModel<{ phones: Phone[] }>({ phones: [] });
+
+    model.phones.push({ number: '1' });
+
+    expect(model.get().phones).toEqual([{ number: '1' }]);
+  });
+
   it('insertAt(i) без значения вставляет элемент по шаблону', () => {
     const model = createShape();
     model.coBorrowers.push({ name: 'Анна', phones: [] });
