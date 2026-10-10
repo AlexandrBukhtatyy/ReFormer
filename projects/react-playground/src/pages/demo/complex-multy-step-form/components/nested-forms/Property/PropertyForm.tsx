@@ -1,13 +1,13 @@
 import { FormField } from '@reformer/ui-kit';
 import { memo } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import type { Property } from './types';
 
 export type { Property, PropertyType } from './types';
 
 interface PropertyFormProps {
   // GroupProxy для элемента массива properties
-  control: FormProxy<Property>;
+  control: FormGroup<Property>;
 }
 
 const PropertyFormComponent = ({ control }: PropertyFormProps) => {

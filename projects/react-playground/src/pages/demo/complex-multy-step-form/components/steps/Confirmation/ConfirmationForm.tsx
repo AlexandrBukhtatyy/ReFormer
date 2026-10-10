@@ -1,4 +1,4 @@
-import { type FormProxy } from '@reformer/core';
+import { type FormGroup } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from '../../../types/credit-application';
@@ -13,7 +13,7 @@ import {
 } from '../../ui/ConfirmationComponents';
 
 interface ConfirmationFormProps {
-  control: FormProxy<CreditApplicationForm>;
+  control: FormGroup<CreditApplicationForm>;
 }
 
 export function ConfirmationForm({ control }: ConfirmationFormProps) {

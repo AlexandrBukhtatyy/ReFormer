@@ -29,8 +29,8 @@ import {
 import { fileUploadDemoMessages } from './messages';
 
 interface FileUploadDemoForm {
-  // FileUploadValue (union массивов) — форма мапит поле в FieldNode (лист),
-  // а не в ModelArrayNode: массив файлов — атомарное значение, не форма-массив.
+  // FileUploadValue (union массивов) — форма мапит поле в FormControl (лист),
+  // а не в FormArray: массив файлов — атомарное значение, не форма-массив.
   documents: FileUploadValue;
   dropzoneFiles: FileUploadValue;
   attachments: FileUploadValue;

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import type { CoBorrower } from './types';
 
@@ -7,7 +7,7 @@ export type { CoBorrower } from './types';
 
 interface CoBorrowerFormProps {
   // GroupProxy для элемента массива coBorrowers
-  control: FormProxy<CoBorrower>;
+  control: FormGroup<CoBorrower>;
 }
 
 const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {

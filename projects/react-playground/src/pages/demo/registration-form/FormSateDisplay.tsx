@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { GroupNode } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
 // Компонент отображения состояния формы (реактивный)
 // Подписывается на изменения внутри, чтобы не вызывать ре-рендер родителя
-export function FormStateDisplay<T>({ form }: { form: GroupNode<T> }) {
+export function FormStateDisplay<T>({ form }: { form: FormGroup<T> }) {
   const [state, setState] = useState(() => form.value.value);
 
   useEffect(() => {

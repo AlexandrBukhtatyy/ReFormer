@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import type { PersonalData } from './types';
 
@@ -7,7 +7,7 @@ export type { PersonalData } from './types';
 
 interface PersonalDataFormProps {
   // GroupProxy для вложенной формы personalData (используем any для обхода ограничений TypeScript)
-  control: FormProxy<PersonalData>;
+  control: FormGroup<PersonalData>;
 }
 
 const PersonalDataFormComponent = ({ control }: PersonalDataFormProps) => {

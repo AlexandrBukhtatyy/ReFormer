@@ -12,7 +12,7 @@
  * Запись `FIELD_WRAPPER` — обёртка поля: сборка кладёт её в бандл, рендерер берёт оттуда.
  */
 
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
   Input,
@@ -103,15 +103,15 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     // dataSource-функции: itemLabel
     reg.dataSource(
       'PROPERTY_ITEM_LABEL_SOURCE_FN',
-      (_: FormProxy<Property>, index: number) => `Имущество #${index + 1}`
+      (_: FormGroup<Property>, index: number) => `Имущество #${index + 1}`
     );
     reg.dataSource(
       'EXISTING_LOAN_ITEM_LABEL_SOURCE_FN',
-      (_: FormProxy<ExistingLoan>, index: number) => `Кредит #${index + 1}`
+      (_: FormGroup<ExistingLoan>, index: number) => `Кредит #${index + 1}`
     );
     reg.dataSource(
       'CO_BORROWER_ITEM_LABEL_SOURCE_FN',
-      (_: FormProxy<CoBorrower>, index: number) => `Созаемщик #${index + 1}`
+      (_: FormGroup<CoBorrower>, index: number) => `Созаемщик #${index + 1}`
     );
 
     // Константы options

@@ -125,7 +125,7 @@ export function createRegistrationBehavior(ui: FormUiState): FormBehavior<Regist
 
     // --- Правила узлов схемы -------------------------------------------------------------------
     // JSON выразить рантайм-сущности и обработчики не может, поэтому:
-    // - `onInit` + `patchProps` доносит `FormProxy` до панели состояния (до первого рендера; узел
+    // - `onInit` + `patchProps` доносит `FormGroup` до панели состояния (до первого рендера; узел
     //   `form-state` — контейнер с `selector`, без привязки к модели);
     // - `onComponentEvent` вешает обработчики на события компонентов по `selector` — вместо `$fn` в
     //   componentProps. `load`/`onSuccess` долетают до AsyncBoundary с первого рендера (правила узлов

@@ -1,4 +1,4 @@
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
 import { isEmployed, isSelfEmployed, isUnemployed } from '../../../model/predicates';
@@ -6,7 +6,7 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 import { UnemployedWarning } from '../../ui/UnemployedWarning';
 
 interface EmploymentFormProps {
-  control: FormProxy<CreditApplicationForm>;
+  control: FormGroup<CreditApplicationForm>;
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {

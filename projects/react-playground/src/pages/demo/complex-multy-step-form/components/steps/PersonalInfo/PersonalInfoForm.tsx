@@ -6,14 +6,14 @@
  * - PassportDataForm (паспортные данные)
  */
 
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { PersonalDataForm } from '../../nested-forms/PersonalData/PersonalDataForm';
 import { PassportDataForm } from '../../nested-forms/PassportData/PassportDataForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import { FormField } from '@reformer/ui-kit';
 
 interface PersonalInfoFormProps {
-  control: FormProxy<CreditApplicationForm>;
+  control: FormGroup<CreditApplicationForm>;
 }
 
 export function PersonalInfoForm({ control }: PersonalInfoFormProps) {

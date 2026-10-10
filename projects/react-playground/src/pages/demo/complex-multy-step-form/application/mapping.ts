@@ -2,7 +2,7 @@
  * Ответ сервера → модель и поля формы.
  */
 
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormGroup } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
 import type { CreditApplicationData } from './load';
 
@@ -13,7 +13,7 @@ import type { CreditApplicationData } from './load';
  * `model.reset()` возвращает к ним.
  */
 export function applyCreditApplication(
-  target: { model: FormModel<CreditApplicationForm>; form: FormProxy<CreditApplicationForm> },
+  target: { model: FormModel<CreditApplicationForm>; form: FormGroup<CreditApplicationForm> },
   { application, dictionaries }: CreditApplicationData
 ): void {
   const { model, form } = target;

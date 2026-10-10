@@ -1,13 +1,13 @@
 import { FormField } from '@reformer/ui-kit';
 import { memo } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import type { PassportData } from './types';
 
 export type { PassportData } from './types';
 
 interface PassportDataFormProps {
   // GroupProxy для вложенной формы passportData (используем any для обхода ограничений TypeScript)
-  control: FormProxy<PassportData>;
+  control: FormGroup<PassportData>;
 }
 
 const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {

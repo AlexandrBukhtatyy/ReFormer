@@ -10,7 +10,7 @@
  * `initialValue` им не нужен.
  */
 
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core/react';
 import { FormField, FieldArraySection } from '@reformer/ui-kit';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
@@ -19,7 +19,7 @@ import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface AdditionalInfoFormProps {
-  control: FormProxy<CreditApplicationForm>;
+  control: FormGroup<CreditApplicationForm>;
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {

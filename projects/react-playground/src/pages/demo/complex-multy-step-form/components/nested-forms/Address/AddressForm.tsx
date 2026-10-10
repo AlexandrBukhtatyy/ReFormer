@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import type { Address } from './types';
 
@@ -7,7 +7,7 @@ export type { Address } from './types';
 
 interface AddressFormProps {
   // GroupProxy для вложенной формы address (используем any для обхода ограничений TypeScript)
-  control: FormProxy<Address>;
+  control: FormGroup<Address>;
   /** Префикс для testId (например: 'registrationAddress' или 'residenceAddress') */
   testIdPrefix: string;
 }

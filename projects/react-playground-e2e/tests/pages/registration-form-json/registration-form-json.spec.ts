@@ -38,7 +38,7 @@ test.describe('Регистрация из JSON-схемы', () => {
     for (const [field, value] of Object.entries(PREFILL)) {
       await expect(page.getByTestId(`input-${field}`)).toHaveValue(value);
     }
-    // Панель состояния получает FormProxy через render-behavior (patchProps) — JSON его не выражает
+    // Панель состояния получает FormGroup через render-behavior (patchProps) — JSON его не выражает
     await expect(page.locator('pre')).toContainText('"username": "newuser"');
   });
 

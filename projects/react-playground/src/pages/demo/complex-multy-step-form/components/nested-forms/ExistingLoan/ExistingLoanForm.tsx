@@ -1,12 +1,12 @@
 import { memo } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import type { ExistingLoan } from './types';
 
 export type { ExistingLoan } from './types';
 
 interface ExistingLoanFormProps {
-  control: FormProxy<ExistingLoan>;
+  control: FormGroup<ExistingLoan>;
 }
 
 const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {

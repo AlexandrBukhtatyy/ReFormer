@@ -3,7 +3,7 @@
  * Поведения работают на ручках модели (`model.$.x`); ноды (form.x) отражают изменения.
  */
 
-import { createForm, type FieldNode, type FormModel, type ValidationIssue } from '@reformer/core';
+import { createForm, type FormControl, type FormModel, type ValidationIssue } from '@reformer/core';
 import { useFormBundle, useFormControl, useFormControlValue } from '@reformer/core/react';
 import {
   computeFrom,
@@ -119,7 +119,7 @@ function NumberField({
   readOnly = false,
   testId,
 }: {
-  control: FieldNode<number>;
+  control: FormControl<number>;
   label: string;
   readOnly?: boolean;
   testId?: string;
@@ -151,7 +151,7 @@ function TextField({
   placeholder = '',
   testId,
 }: {
-  control: FieldNode<string>;
+  control: FormControl<string>;
   label: string;
   placeholder?: string;
   testId?: string;
@@ -183,7 +183,7 @@ function CheckboxField({
   label,
   testId,
 }: {
-  control: FieldNode<boolean>;
+  control: FormControl<boolean>;
   label: string;
   testId?: string;
 }) {
@@ -214,7 +214,7 @@ function SelectField({
   options,
   testId,
 }: {
-  control: FieldNode<string>;
+  control: FormControl<string>;
   label: string;
   options: { value: string; label: string }[];
   testId?: string;
