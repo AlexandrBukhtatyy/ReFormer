@@ -4,7 +4,7 @@
  */
 
 import axios, { type AxiosResponse } from 'axios';
-import type { CreditApplicationForm } from '../types/credit-application';
+import type { CreditApplication } from '../types/credit-application';
 
 export interface SubmitResponse {
   success: boolean;
@@ -14,11 +14,11 @@ export interface SubmitResponse {
 
 /**
  * Отправка кредитной заявки
- * @param data - данные заявки
+ * @param data - ввод заявки, без вычисляемых полей (их считает сервер)
  * @returns Promise с результатом отправки
  */
 export async function submitCreditApplication(
-  data: Partial<CreditApplicationForm>
+  data: CreditApplication
 ): Promise<AxiosResponse<SubmitResponse>> {
   return axios.post('/api/v1/credit-applications', data);
 }

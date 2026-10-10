@@ -10,8 +10,12 @@ export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'ret
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
 
-/** Числовое поле ввода бывает пустым — тогда его значение `null`. */
-export interface CreditApplicationForm {
+/**
+ * Ввод заявки — то, что заполняет пользователь и что уходит на сервер.
+ *
+ * Числовое поле ввода бывает пустым — тогда его значение `null`.
+ */
+export interface CreditApplication {
   // Шаг 1: Основная информация
   loanType: LoanType;
   loanAmount: number | null;
@@ -82,8 +86,13 @@ export interface CreditApplicationForm {
   agreeTerms: boolean;
   confirmAccuracy: boolean;
   electronicSignature: string;
+}
 
-  // Вычисляемые поля: значения пишет поведение (`compute`)
+/**
+ * Вычисляемые поля заявки: значения пишет поведение (`compute`), пользователь их не вводит,
+ * на сервер они не уходят (см. `application/payload.ts`).
+ */
+export interface CreditApplicationDerived {
   interestRate: number;
   monthlyPayment: number;
   fullName: string;
@@ -92,3 +101,6 @@ export interface CreditApplicationForm {
   paymentToIncomeRatio: number;
   coBorrowersIncome: number;
 }
+
+/** Значения формы заявки: ввод и вычисляемые поля — то, что держит модель. */
+export type CreditApplicationForm = CreditApplication & CreditApplicationDerived;
