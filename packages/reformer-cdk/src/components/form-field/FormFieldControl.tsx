@@ -57,7 +57,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       value,
       disabled,
       shouldShowError,
-      errors,
+      issues,
       required,
       ids,
       hasDescription,
@@ -73,7 +73,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       [
         hasHint ? ids.hintId : null,
         hasDescription ? ids.descriptionId : null,
-        shouldShowError && errors.length > 0 ? ids.errorId : null,
+        shouldShowError && issues.length > 0 ? ids.errorId : null,
       ]
         .filter(Boolean)
         .join(' ') || undefined;
@@ -83,7 +83,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       'aria-labelledby': ids.labelId,
       'aria-invalid': shouldShowError ? (true as const) : undefined,
       'aria-describedby': ariaDescribedBy,
-      'aria-errormessage': shouldShowError && errors.length > 0 ? ids.errorId : undefined,
+      'aria-errormessage': shouldShowError && issues.length > 0 ? ids.errorId : undefined,
       'aria-required': required ? (true as const) : undefined,
     };
 

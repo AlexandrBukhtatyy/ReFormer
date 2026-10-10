@@ -1,137 +1,130 @@
 /**
- * Резолвер сообщений валидации.
+ * Тексты замечаний валидации в поддереве формы.
  *
- * `useFormField` отображает не `error.message` напрямую, а результат резолвера. Откуда он берётся:
+ * `useFormField` показывает не замечание, а строку резолвера. Откуда она берётся:
  *
- * - **по умолчанию — из локали.** Без своего провайдера текст даёт `useValidationMessage` из
- *   `@reformer/core/i18n`: `messageKey` автора правила → явное `message` → словарь активной
- *   локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
- *   `I18nProvider`; без него тексты английские;
- * - **{@link ValidationMessagesProvider} — полное переопределение.** Смонтированный провайдер
- *   заменяет резолвер целиком: локаль для ошибок в его поддереве больше не участвует. Таблица из
- *   {@link createMessageResolver} при этом по-прежнему важнее `error.message`.
+ * - **по умолчанию — из локали.** Без своего провайдера текст даёт `useIssueMessage` из
+ *   `@reformer/core/react`: словарь активной локали по коду (`validation.<code>`) → встроенный
+ *   английский → сам код. Язык задаёт `I18nProvider`; без него тексты английские;
+ * - **{@link ValidationMessagesProvider} с `messages`** — словарь формы (`defineIssueMessages` из
+ *   `@reformer/core/i18n`). Его записи накладываются поверх словарей внешних провайдеров и
+ *   локали: код, которого в словаре нет, по-прежнему получает текст оттуда;
+ * - **{@link ValidationMessagesProvider} с `resolver`** — полное переопределение: для замечаний
+ *   поддерева внешние провайдеры и локаль больше не участвуют (кроме `messages` этого же
+ *   провайдера и вложенных в него).
  *
  * @module reformer-cdk/validation/error-resolver
  */
 
-import { createContext, useContext, type ReactNode } from 'react';
-import type { ValidationError } from '@reformer/core';
-import { useValidationMessage } from '@reformer/core/react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import type { ValidationIssue } from '@reformer/core';
+import type { IssueMessages } from '@reformer/core/i18n';
+import { useIssueMessage } from '@reformer/core/react';
 
-/** Преобразует ошибку валидации в отображаемую строку. */
-export type ValidationErrorResolver = (error: ValidationError) => string;
+/** Преобразует замечание валидации в отображаемую строку. */
+export type IssueMessageResolver = (issue: ValidationIssue) => string;
 
-/** Таблица `code → (params) => message`. */
-export type ValidationMessageTable = Record<string, (params?: Record<string, unknown>) => string>;
-
-/**
- * Простейший резолвер без локали: отдаёт `error.message`, а если оно пустое — `error.code`.
- * Резолвером по умолчанию больше не является (им стал резолвер по локали, см. шапку модуля);
- * оставлен как готовая функция для {@link ValidationMessagesProvider}, если локализация ошибок
- * не нужна вовсе.
- *
- * @example Прямое применение к ошибке
- * ```ts
- * import { defaultErrorResolver } from '@reformer/cdk';
- *
- * defaultErrorResolver({ code: 'required', message: 'Обязательно' }); // → 'Обязательно'
- * defaultErrorResolver({ code: 'required', message: '' });            // → 'required'
- * ```
- */
-export const defaultErrorResolver: ValidationErrorResolver = (error) => error.message || error.code;
-
-/**
- * Создаёт резолвер из таблицы кодов сообщений (точка i18n). Текст берётся по `error.code`
- * с подстановкой `error.params`; если кода нет в таблице — fallback на `error.message`, затем
- * на сам `error.code`. Позволяет валидаторам нести только `code`+`params`, а тексты (RU/EN/…)
- * держать в таблице и менять без правки схемы валидации.
- *
- * @param table - Таблица `code → (params) => message`.
- * @returns Резолвер {@link ValidationErrorResolver} для {@link ValidationMessagesProvider}.
- *
- * @example Таблица сообщений с подстановкой параметров
- * ```ts
- * import { createMessageResolver } from '@reformer/cdk';
- *
- * const resolve = createMessageResolver({
- *   required: () => 'Обязательное поле',
- *   minLength: (p) => `Минимум ${p?.minLength} символов`,
- * });
- *
- * resolve({ code: 'required', message: 'старое' });                        // → 'Обязательное поле'
- * resolve({ code: 'minLength', message: '', params: { minLength: 3 } });   // → 'Минимум 3 символов'
- * resolve({ code: 'pattern', message: 'Неверный формат' });               // → 'Неверный формат' (fallback)
- * ```
- *
- * @see {@link ValidationMessagesProvider} — как подключить резолвер к поддереву формы.
- */
-export function createMessageResolver(table: ValidationMessageTable): ValidationErrorResolver {
-  return (error) => table[error.code]?.(error.params) ?? (error.message || error.code);
+/** Что провайдеры выше по дереву передали вниз. */
+interface MessagesLayer {
+  /** Словарь формы — записи всех провайдеров до ближайшего `resolver`, ближний важнее. */
+  readonly messages: IssueMessages | undefined;
+  /** Ближайший полный резолвер; `null` — его нет, текст даёт локаль. */
+  readonly resolver: IssueMessageResolver | null;
 }
 
-/** `null` — провайдера нет: текст ошибки даёт резолвер по активной локали. */
-const ResolverContext = createContext<ValidationErrorResolver | null>(null);
+const ROOT_LAYER: MessagesLayer = { messages: undefined, resolver: null };
+
+const MessagesContext = createContext<MessagesLayer>(ROOT_LAYER);
+
+const hasOwn = (target: object, key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(target, key);
+
+/** Свойства {@link ValidationMessagesProvider}. */
+export interface ValidationMessagesProviderProps {
+  /**
+   * Словарь формы: код замечания → шаблон либо функция. Накладывается поверх словарей внешних
+   * провайдеров. Стабильная ссылка — константа модуля, иначе тексты пересчитываются на каждый
+   * рендер.
+   */
+  messages?: IssueMessages;
+  /**
+   * Полный резолвер: тексты замечаний поддерева берутся только из него (и из `messages` этого
+   * провайдера, если они заданы). Локаль и внешние провайдеры не участвуют.
+   */
+  resolver?: IssueMessageResolver;
+  children: ReactNode;
+}
 
 /**
- * Провайдер резолвера сообщений валидации для поддерева формы — полное переопределение. Все
- * `useFormField` внутри отображают результат переданного `resolver`, а резолвер по локали
- * (`I18nProvider`) для ошибок в этом поддереве отключается. Нужен, когда тексты ошибок берутся из
- * своего источника; для обычной локализации достаточно `I18nProvider` и словаря
- * `validation.<code>`.
+ * Тексты замечаний для поддерева формы: словарь формы поверх локали либо полный резолвер.
  *
- * @param props.resolver - Резолвер {@link ValidationErrorResolver} (например, из `createMessageResolver`).
- * @param props.children - Поддерево формы, к которому применяется резолвер.
- *
- * @example Локализация всей формы через таблицу сообщений
+ * @example Словарь формы — тексты полей поверх локали
  * ```tsx
- * import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
+ * import { defineIssueMessages } from '@reformer/core/i18n';
+ * import { ValidationMessagesProvider } from '@reformer/cdk';
  *
- * const ru = createMessageResolver({
- *   required: () => 'Обязательное поле',
- *   email: () => 'Введите корректный email',
- *   minLength: (p) => `Минимум ${p?.minLength} символов`,
+ * const messages = defineIssueMessages({
+ *   'phone.required': 'Укажите телефон',
+ *   'password.minLength': 'Не меньше {minLength} символов',
  * });
  *
- * <ValidationMessagesProvider resolver={ru}>
+ * <ValidationMessagesProvider messages={messages}>
  *   <MyForm />
  * </ValidationMessagesProvider>
  * ```
  *
- * @see {@link createMessageResolver} — построение резолвера из таблицы кодов.
- * @see {@link useValidationErrorResolver} — чтение текущего резолвера из контекста.
+ * @example Полное переопределение — свой источник текстов
+ * ```tsx
+ * <ValidationMessagesProvider resolver={(issue) => translate(`errors.${issue.code}`, issue.params)}>
+ *   <MyForm />
+ * </ValidationMessagesProvider>
+ * ```
+ *
+ * @see {@link useIssueMessageResolver} — чтение итогового резолвера.
  */
-export function ValidationMessagesProvider(props: {
-  resolver: ValidationErrorResolver;
-  children: ReactNode;
-}): ReactNode {
-  return (
-    <ResolverContext.Provider value={props.resolver}>{props.children}</ResolverContext.Provider>
-  );
+export function ValidationMessagesProvider(props: ValidationMessagesProviderProps): ReactNode {
+  const parent = useContext(MessagesContext);
+  const { messages, resolver } = props;
+  const layer = useMemo<MessagesLayer>(() => {
+    // Полный резолвер отсекает всё, что выше: под ним действуют только свои записи.
+    if (resolver !== undefined) return { messages, resolver };
+    if (messages === undefined) return parent;
+    return {
+      messages: parent.messages === undefined ? messages : { ...parent.messages, ...messages },
+      resolver: parent.resolver,
+    };
+  }, [parent, messages, resolver]);
+
+  return <MessagesContext.Provider value={layer}>{props.children}</MessagesContext.Provider>;
 }
 
 /**
- * Возвращает текущий резолвер сообщений. Если форма обёрнута в {@link ValidationMessagesProvider}
- * — его резолвер; иначе резолвер по активной локали (`useValidationMessage` из
- * `@reformer/core/i18n`), идентичность которого меняется вместе с языком. Используется внутри
- * `useFormField` для преобразования {@link ValidationError} в отображаемую строку; вызывайте
- * напрямую, если строите собственный рендер ошибок.
+ * Итоговый резолвер текстов замечаний: словарь формы от {@link ValidationMessagesProvider}, затем
+ * ближайший полный `resolver`, а без него — локаль (`useIssueMessage` из `@reformer/core/react`).
+ * Идентичность функции меняется вместе с языком и словарём. Используется внутри `useFormField`;
+ * вызывайте напрямую, если рисуете замечания своим компонентом.
  *
- * @returns Активный {@link ValidationErrorResolver}.
+ * @returns Активный {@link IssueMessageResolver}.
  *
- * @example Кастомный рендер ошибок с активным резолвером
+ * @example Свой рендер замечаний поля
  * ```tsx
- * import { useValidationErrorResolver } from '@reformer/cdk';
+ * import { useIssueMessageResolver } from '@reformer/cdk';
  * import { useFormControl } from '@reformer/core/react';
  *
- * function FieldErrors({ control }: { control: FieldNode<string> }) {
- *   const resolve = useValidationErrorResolver();
- *   const { errors } = useFormControl(control);
- *   return <>{errors.map((e) => <span key={e.code}>{resolve(e)}</span>)}</>;
+ * function FieldIssues({ control }: { control: FieldNode<string> }) {
+ *   const resolve = useIssueMessageResolver();
+ *   const { issues } = useFormControl(control);
+ *   return <>{issues.map((issue) => <span key={issue.code}>{resolve(issue)}</span>)}</>;
  * }
  * ```
  */
-export function useValidationErrorResolver(): ValidationErrorResolver {
-  const explicit = useContext(ResolverContext);
-  const byLocale = useValidationMessage();
-  return explicit ?? byLocale;
+export function useIssueMessageResolver(): IssueMessageResolver {
+  const { messages, resolver } = useContext(MessagesContext);
+  const byLocale = useIssueMessage(messages);
+  return useMemo<IssueMessageResolver>(() => {
+    if (resolver === null) return byLocale;
+    // Запись словаря формы важнее полного резолвера; шаблон форматирует локаль.
+    return (issue) =>
+      messages !== undefined && hasOwn(messages, issue.code) ? byLocale(issue) : resolver(issue);
+  }, [messages, resolver, byLocale]);
 }

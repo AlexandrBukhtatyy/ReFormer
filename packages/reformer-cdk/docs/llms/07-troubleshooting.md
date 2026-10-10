@@ -53,7 +53,7 @@ interface FormWizardConfig {
 ```
 
 **Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную
-`ValidationSchema` (per-step схемы — `defineValidationSchema`, полная — `apply(...steps)`;
+`ValidationDefinition` (per-step схемы — `defineValidation`, полная — `apply(...steps)`;
 всё из `@reformer/core/validation`). Для чисто информационного шага (например,
 «Подтверждение») верните `true`.
 

@@ -1,39 +1,42 @@
 /**
- * Резолвер ошибок по умолчанию — по активной локали.
+ * Тексты замечаний в cdk: локаль по умолчанию, словарь формы поверх неё и полный резолвер.
  *
- * Проверяется шов cdk с `@reformer/core/i18n`: без `ValidationMessagesProvider` текст ошибки даёт
- * локаль, смонтированный провайдер заменяет её целиком. Сам порядок источников текста
- * (`messageKey` → `message` → словарь → код) покрыт в ядре — `tests/i18n/validation-message.test.ts`.
+ * Проверяется шов cdk с `@reformer/core`: без `ValidationMessagesProvider` текст даёт локаль,
+ * `messages` накладываются поверх внешних провайдеров и локали, `resolver` заменяет их целиком.
+ * Сам порядок источников текста (словарь формы → локаль → встроенный английский → код) покрыт
+ * в ядре — `tests/i18n/validation-message.test.ts`.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { ValidationError } from '@reformer/core';
-import { extendLocale } from '@reformer/core/i18n';
+import type { ValidationIssue } from '@reformer/core';
+import { defineIssueMessages, extendLocale } from '@reformer/core/i18n';
 import { I18nProvider } from '@reformer/core/react';
 import { en } from '@reformer/core/locale/en';
 import { ru } from '@reformer/core/locale/ru';
 import { makeFileError } from '../components/file-upload/file-upload-core';
-import {
-  createMessageResolver,
-  defaultErrorResolver,
-  useValidationErrorResolver,
-  ValidationMessagesProvider,
-} from './error-resolver';
+import { useIssueMessageResolver, ValidationMessagesProvider } from './error-resolver';
 
-function Probe({ error }: { error: ValidationError }) {
-  const resolve = useValidationErrorResolver();
-  return <p>{resolve(error)}</p>;
+function Probe({ issue }: { issue: ValidationIssue }) {
+  const resolve = useIssueMessageResolver();
+  return <p>{resolve(issue)}</p>;
 }
 
-const REQUIRED: ValidationError = { code: 'required', message: '' };
-const TOO_SHORT: ValidationError = { code: 'minLength', message: '', params: { minLength: 8 } };
+const REQUIRED: ValidationIssue = { code: 'required' };
+const TOO_SHORT: ValidationIssue = { code: 'minLength', params: { minLength: 8 } };
+const PHONE: ValidationIssue = { code: 'phone.required' };
 
-describe('useValidationErrorResolver без ValidationMessagesProvider', () => {
-  it('без I18nProvider — английская фраза, а не код и не «invalid»', () => {
-    expect(renderToStaticMarkup(<Probe error={REQUIRED} />)).toBe('<p>This field is required</p>');
-    expect(renderToStaticMarkup(<Probe error={TOO_SHORT} />)).toBe(
+const FORM = defineIssueMessages({
+  'phone.required': 'Укажите номер телефона',
+  minLength: 'Пароль — от {minLength} символов',
+});
+const INNER = defineIssueMessages({ 'phone.required': 'Нужен телефон для связи' });
+
+describe('useIssueMessageResolver без ValidationMessagesProvider', () => {
+  it('без I18nProvider — английская фраза, а не код', () => {
+    expect(renderToStaticMarkup(<Probe issue={REQUIRED} />)).toBe('<p>This field is required</p>');
+    expect(renderToStaticMarkup(<Probe issue={TOO_SHORT} />)).toBe(
       '<p>Enter at least 8 characters</p>'
     );
   });
@@ -41,30 +44,22 @@ describe('useValidationErrorResolver без ValidationMessagesProvider', () => {
   it('под I18nProvider — текст на языке локали', () => {
     const html = renderToStaticMarkup(
       <I18nProvider locale={ru}>
-        <Probe error={REQUIRED} />
-        <Probe error={TOO_SHORT} />
+        <Probe issue={REQUIRED} />
+        <Probe issue={TOO_SHORT} />
       </I18nProvider>
     );
 
     expect(html).toBe('<p>Обязательное поле</p><p>Не меньше 8 символов</p>');
   });
 
-  it('явное сообщение автора правила важнее словаря локали', () => {
-    const html = renderToStaticMarkup(
-      <I18nProvider locale={ru}>
-        <Probe error={{ code: 'required', message: 'Укажите номер телефона' }} />
-      </I18nProvider>
-    );
-
-    expect(html).toBe('<p>Укажите номер телефона</p>');
-  });
-
-  it('messageKey автора берётся из словаря приложения', () => {
-    const locale = extendLocale(ru, { messages: { 'profile.name.required': 'Как вас зовут?' } });
+  it('свой код находится в словаре приложения по ключу validation.<код>', () => {
+    const locale = extendLocale(ru, {
+      messages: { 'validation.profile.name.required': 'Как вас зовут?' },
+    });
 
     const html = renderToStaticMarkup(
       <I18nProvider locale={locale}>
-        <Probe error={{ code: 'required', message: '', messageKey: 'profile.name.required' }} />
+        <Probe issue={{ code: 'profile.name.required' }} />
       </I18nProvider>
     );
 
@@ -72,42 +67,87 @@ describe('useValidationErrorResolver без ValidationMessagesProvider', () => {
   });
 });
 
-describe('ValidationMessagesProvider — полное переопределение', () => {
-  it('таблица заменяет резолвер по локали, в том числе для кодов вне таблицы', () => {
-    const table = createMessageResolver({ required: () => 'Заполните поле' });
-
+describe('ValidationMessagesProvider messages — словарь формы поверх локали', () => {
+  it('записи словаря важнее локали, остальные коды идут в локаль', () => {
     const html = renderToStaticMarkup(
       <I18nProvider locale={ru}>
-        <ValidationMessagesProvider resolver={table}>
-          <Probe error={REQUIRED} />
-          <Probe error={TOO_SHORT} />
+        <ValidationMessagesProvider messages={FORM}>
+          <Probe issue={PHONE} />
+          <Probe issue={TOO_SHORT} />
+          <Probe issue={REQUIRED} />
         </ValidationMessagesProvider>
       </I18nProvider>
     );
 
-    // minLength в таблице нет: откат идёт на код, а не на словарь локали.
-    expect(html).toBe('<p>Заполните поле</p><p>minLength</p>');
+    expect(html).toBe(
+      '<p>Укажите номер телефона</p><p>Пароль — от 8 символов</p><p>Обязательное поле</p>'
+    );
   });
 
-  it('defaultErrorResolver остаётся готовым резолвером «сообщение или код»', () => {
+  it('вложенный провайдер накладывает свои записи поверх внешнего', () => {
     const html = renderToStaticMarkup(
       <I18nProvider locale={ru}>
-        <ValidationMessagesProvider resolver={defaultErrorResolver}>
-          <Probe error={REQUIRED} />
+        <ValidationMessagesProvider messages={FORM}>
+          <ValidationMessagesProvider messages={INNER}>
+            <Probe issue={PHONE} />
+            <Probe issue={TOO_SHORT} />
+          </ValidationMessagesProvider>
+          <Probe issue={PHONE} />
         </ValidationMessagesProvider>
       </I18nProvider>
     );
 
-    expect(html).toBe('<p>required</p>');
+    expect(html).toBe(
+      '<p>Нужен телефон для связи</p><p>Пароль — от 8 символов</p><p>Укажите номер телефона</p>'
+    );
+  });
+});
+
+describe('ValidationMessagesProvider resolver — полное переопределение', () => {
+  const resolver = (issue: ValidationIssue): string => `[${issue.code}]`;
+
+  it('резолвер заменяет локаль и внешние словари, в том числе для кодов вне них', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <ValidationMessagesProvider messages={FORM}>
+          <ValidationMessagesProvider resolver={resolver}>
+            <Probe issue={REQUIRED} />
+            <Probe issue={PHONE} />
+          </ValidationMessagesProvider>
+        </ValidationMessagesProvider>
+      </I18nProvider>
+    );
+
+    expect(html).toBe('<p>[required]</p><p>[phone.required]</p>');
+  });
+
+  it('словарь того же или вложенного провайдера важнее резолвера', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <ValidationMessagesProvider resolver={resolver} messages={FORM}>
+          <Probe issue={PHONE} />
+          <Probe issue={REQUIRED} />
+          <ValidationMessagesProvider messages={INNER}>
+            <Probe issue={PHONE} />
+            <Probe issue={REQUIRED} />
+          </ValidationMessagesProvider>
+        </ValidationMessagesProvider>
+      </I18nProvider>
+    );
+
+    expect(html).toBe(
+      '<p>Укажите номер телефона</p><p>[required]</p><p>Нужен телефон для связи</p><p>[required]</p>'
+    );
   });
 });
 
 describe('ошибки отбора файлов', () => {
-  it('makeFileError кладёт пустое сообщение — текст даёт резолвер', () => {
+  it('makeFileError даёт только код и параметры — текст даёт резолвер', () => {
     const error = makeFileError('fileExists', { fileName: 'a.png' });
 
-    expect(error).toEqual({ code: 'fileExists', message: '', params: { fileName: 'a.png' } });
-    expect(renderToStaticMarkup(<Probe error={error} />)).toBe(
+    expect(error).toEqual({ code: 'fileExists', params: { fileName: 'a.png' } });
+    expect(makeFileError('uploadAborted')).toEqual({ code: 'uploadAborted' });
+    expect(renderToStaticMarkup(<Probe issue={error} />)).toBe(
       '<p>File a.png has already been added</p>'
     );
   });
@@ -142,7 +182,7 @@ describe('ошибки отбора файлов', () => {
     for (const error of errors) {
       const html = renderToStaticMarkup(
         <I18nProvider locale={ru}>
-          <Probe error={error} />
+          <Probe issue={error} />
         </I18nProvider>
       );
       expect(html, error.code).not.toMatch(/[{}]/);

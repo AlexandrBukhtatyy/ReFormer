@@ -265,16 +265,14 @@ export type {
 } from './components/autocomplete';
 
 // ============================================================================
-// Validation messages - i18n resolver for field error display (code → message)
+// Validation messages - issue text for field display (code → text): form dictionary over locale
 // ============================================================================
-export {
-  ValidationMessagesProvider,
-  useValidationErrorResolver,
-  createMessageResolver,
-  defaultErrorResolver,
-} from './validation/error-resolver';
+export { ValidationMessagesProvider, useIssueMessageResolver } from './validation/error-resolver';
 
-export type { ValidationErrorResolver, ValidationMessageTable } from './validation/error-resolver';
+export type {
+  IssueMessageResolver,
+  ValidationMessagesProviderProps,
+} from './validation/error-resolver';
 
 // ============================================================================
 // FormWizard - Headless compound component for multi-step form wizards

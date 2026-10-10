@@ -1,15 +1,15 @@
 import { useId, useMemo } from 'react';
-import { type FieldNode, type ValidationError } from '@reformer/core';
+import { type FieldNode, type ValidationIssue } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 import type { FormFieldIds } from './types';
-import { useValidationErrorResolver } from '../../validation/error-resolver';
+import { useIssueMessageResolver } from '../../validation/error-resolver';
 
 /**
  * Field state returned by useFormField
  */
 export interface UseFormFieldState<T = unknown> {
   value: T;
-  errors: ValidationError[];
+  issues: ValidationIssue[];
   /** First error message, only set when shouldShowError is true */
   error: string | undefined;
   isPending: boolean;
@@ -126,7 +126,7 @@ export interface UseFormFieldReturn<T = unknown> {
 export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFieldReturn<T> {
   const reactId = useId();
   const baseId = id ?? reactId;
-  const resolveError = useValidationErrorResolver();
+  const resolveError = useIssueMessageResolver();
 
   const ids = useMemo<FormFieldIds>(
     () => ({
@@ -144,7 +144,7 @@ export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFiel
   return useMemo<UseFormFieldReturn<T>>(() => {
     const {
       value,
-      errors,
+      issues,
       pending,
       disabled,
       valid,
@@ -167,7 +167,7 @@ export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFiel
         disabled,
         'aria-labelledby': ids.labelId,
         'aria-invalid': shouldShowError ? true : undefined,
-        'aria-errormessage': shouldShowError && errors.length > 0 ? ids.errorId : undefined,
+        'aria-errormessage': shouldShowError && issues.length > 0 ? ids.errorId : undefined,
         'aria-required': required ? true : undefined,
         onChange: (v: unknown) => control.setValue(v as T),
         onBlur: () => control.markAsTouched(),
@@ -184,8 +184,8 @@ export function useFormField<T>(control: FieldNode<T>, id?: string): UseFormFiel
       },
       state: {
         value: value as T,
-        errors,
-        error: shouldShowError && errors[0] ? resolveError(errors[0]) : undefined,
+        issues,
+        error: shouldShowError && issues[0] ? resolveError(issues[0]) : undefined,
         isPending: pending,
         isDisabled: disabled,
         isValid: valid,

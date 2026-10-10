@@ -10,27 +10,29 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FieldNode, ValidationError } from '@reformer/core';
+import type { FieldNode, ValidationIssue } from '@reformer/core';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { ValidationMessagesProvider } from '../../validation/error-resolver';
 import { FormFieldContext } from './FormFieldContext';
 import { FormFieldError } from './FormFieldError';
 import type { FormFieldContextValue } from './types';
 
-const ERRORS: ValidationError[] = [
-  { code: 'required', message: 'Required' },
-  { code: 'minLength', message: 'Too short' },
-];
+const ERRORS: ValidationIssue[] = [{ code: 'required' }, { code: 'minLength' }];
 
-function ctxWithErrors(errors: ValidationError[]): FormFieldContextValue {
+/** Тексты замечаний — словарь формы: у самих замечаний текста нет. */
+const MESSAGES = defineIssueMessages({ required: 'Required', minLength: 'Too short' });
+
+function ctxWithErrors(issues: ValidationIssue[]): FormFieldContextValue {
   return {
     value: '',
-    errors,
+    issues,
     pending: false,
     disabled: false,
     valid: false,
     invalid: true,
     touched: true,
     shouldShowError: true,
-    error: errors[0]?.message,
+    error: issues[0] ? MESSAGES[issues[0].code as 'required'] : undefined,
     label: undefined,
     required: true,
     componentProps: {},
@@ -47,9 +49,11 @@ function ctxWithErrors(errors: ValidationError[]): FormFieldContextValue {
   };
 }
 
-function render(node: React.ReactNode, errors: ValidationError[] = ERRORS): string {
+function render(node: React.ReactNode, issues: ValidationIssue[] = ERRORS): string {
   return renderToStaticMarkup(
-    <FormFieldContext.Provider value={ctxWithErrors(errors)}>{node}</FormFieldContext.Provider>
+    <ValidationMessagesProvider messages={MESSAGES}>
+      <FormFieldContext.Provider value={ctxWithErrors(issues)}>{node}</FormFieldContext.Provider>
+    </ValidationMessagesProvider>
   );
 }
 

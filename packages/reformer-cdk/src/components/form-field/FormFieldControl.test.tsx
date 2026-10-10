@@ -30,7 +30,7 @@ function makeCtx(overrides: Partial<FormFieldContextValue> = {}): {
 
   const ctx: FormFieldContextValue = {
     value: 'hello',
-    errors: [],
+    issues: [],
     pending: false,
     disabled: true,
     valid: true,
@@ -126,7 +126,7 @@ describe('FormField.Control — aria-describedby', () => {
       hasHint: true,
       hasDescription: true,
       shouldShowError: true,
-      errors: [error],
+      issues: [error],
     });
     expect(renderCapturingChild(ctx)['aria-describedby']).toBe('hint-x desc-x error-x');
   });

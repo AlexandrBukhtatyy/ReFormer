@@ -118,7 +118,7 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
   const needsVerification = amount > 1_000_000;
 
   // config — пара колбэков validateStep / validateAll (не схемы, не generic).
-  // step (1-based) роутится в нужную ValidationSchema (@reformer/core/validation);
+  // step (1-based) роутится в нужную ValidationDefinition (@reformer/core/validation);
   // при выключенной верификации нумерация сдвигается — учитываем это в самом колбэке.
   // validateModel(model, schema) => Promise<boolean>, ошибки сам роутит в ноды.
   const config = useMemo<FormWizardConfig>(

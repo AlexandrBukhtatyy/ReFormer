@@ -180,11 +180,11 @@ export interface SelectFilesResult {
 }
 
 /**
- * Ошибка отбора. `message` пуст — как у правил ядра: готового текста у отбора нет, его даёт
- * резолвер сообщений по коду (`validation.<code>` в словаре локали).
+ * Замечание отбора: только код и параметры, как у правил ядра. Текста у отбора нет — его даёт
+ * резолвер сообщений по коду (словарь формы, затем `validation.<code>` в словаре локали).
  */
 export function makeFileError(code: string, params?: FileError['params']): FileError {
-  return { code, message: '', params };
+  return params === undefined ? { code } : { code, params };
 }
 
 /**

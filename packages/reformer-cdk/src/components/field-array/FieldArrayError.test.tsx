@@ -2,22 +2,27 @@
  * Unit-тесты FieldArray.Error — вывод валидации уровня массива в CDK (defect #42).
  *
  * Проверяет, что array-level ошибки (`minItems` / «At least one phone required») выводятся через
- * подкомпонент `FieldArray.Error`, читающий `errors` из контекста FieldArray — без обхода CDK через
+ * подкомпонент `FieldArray.Error`, читающий `issues` из контекста FieldArray — без обхода CDK через
  * `useFormControl(control)`. Паритет с FormField.Error: default / multi / render, и «ничего при 0».
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { ModelArrayNode, ValidationError } from '@reformer/core';
+import type { ModelArrayNode, ValidationIssue } from '@reformer/core';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { ValidationMessagesProvider } from '../../validation/error-resolver';
 import { FieldArrayContext } from './FieldArrayContext';
 import { FieldArrayError } from './FieldArrayError';
 import type { FieldArrayContextValue } from './FieldArrayContext';
 
-const ERRORS: ValidationError[] = [
-  { code: 'minItems', message: 'At least one phone required' },
-  { code: 'maxItems', message: 'Too many items' },
-];
+const ERRORS: ValidationIssue[] = [{ code: 'minItems' }, { code: 'maxItems' }];
 
-function ctx(errors: ValidationError[]): FieldArrayContextValue {
+/** Тексты замечаний — словарь формы: у самих замечаний текста нет. */
+const MESSAGES = defineIssueMessages({
+  minItems: 'At least one phone required',
+  maxItems: 'Too many items',
+});
+
+function ctx(issues: ValidationIssue[]): FieldArrayContextValue {
   return {
     items: [],
     length: 0,
@@ -29,16 +34,18 @@ function ctx(errors: ValidationError[]): FieldArrayContextValue {
     move: () => {},
     swap: () => {},
     at: () => undefined,
-    errors,
-    valid: errors.length === 0,
-    invalid: errors.length > 0,
+    issues,
+    valid: issues.length === 0,
+    invalid: issues.length > 0,
     control: {} as unknown as ModelArrayNode<Record<string, unknown>>,
   };
 }
 
-const render = (errors: ValidationError[], node: React.ReactElement) =>
+const render = (issues: ValidationIssue[], node: React.ReactElement) =>
   renderToStaticMarkup(
-    <FieldArrayContext.Provider value={ctx(errors)}>{node}</FieldArrayContext.Provider>
+    <ValidationMessagesProvider messages={MESSAGES}>
+      <FieldArrayContext.Provider value={ctx(issues)}>{node}</FieldArrayContext.Provider>
+    </ValidationMessagesProvider>
   );
 
 describe('FieldArray.Error', () => {

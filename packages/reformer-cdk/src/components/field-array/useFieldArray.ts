@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { type FormProxy, type ValidationError } from '@reformer/core';
+import { type FormProxy, type ValidationIssue } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 // FieldArrayItem объявлен один раз в FieldArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FieldArrayItem } from './FieldArrayContext';
@@ -29,8 +29,8 @@ export interface UseFieldArrayReturn<T extends object> {
   swap: (a: number, b: number) => void;
   /** Get item control at a specific index */
   at: (index: number) => FormProxy<T> | undefined;
-  /** Array-level validation errors (e.g. `minItems`) */
-  errors: ValidationError[];
+  /** Array-level validation issues (e.g. `minItems`) */
+  issues: ValidationIssue[];
   /** Whether the array (and all its items) is valid */
   valid: boolean;
   /** Whether the array (or any item) is invalid */
@@ -105,7 +105,7 @@ export function useFieldArray<T extends object>(
 ): UseFieldArrayReturn<T> {
   // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
   // the same length — without it the memo below would not recompute and the UI would not reorder.
-  const { length, value, errors, valid, invalid } = useFormControl(control);
+  const { length, value, issues, valid, invalid } = useFormControl(control);
 
   // Memoize items array - recalculates when length OR order changes. Хелперы reorder выводятся на
   // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FieldArray.List.
@@ -136,7 +136,7 @@ export function useFieldArray<T extends object>(
     move: (from: number, to: number) => control.move(from, to),
     swap: (a: number, b: number) => control.swap(a, b),
     at: (index: number) => control.at(index),
-    errors,
+    issues,
     valid,
     invalid,
   };

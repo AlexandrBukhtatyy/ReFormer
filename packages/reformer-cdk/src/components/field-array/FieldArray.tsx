@@ -184,7 +184,7 @@ type FieldArrayComponent = typeof FieldArrayRoot & {
  * - `FieldArray.Empty` - content for empty state
  * - `FieldArray.Count` - display item count
  * - `FieldArray.ItemIndex` - display item index (inside List)
- * - `FieldArray.Error` - display array-level validation errors (e.g. minItems)
+ * - `FieldArray.Error` - display array-level validation issues (e.g. minItems)
  *
  * ## FieldArrayHandle API (ref)
  * - `add(value?)` - add item to the end

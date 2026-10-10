@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
+import type { ModelArrayNode, FormProxy, ValidationIssue } from '@reformer/core';
 
 /**
  * Представляет элемент массива с контролом, индексом и действиями (включая хелперы reorder,
@@ -56,7 +56,7 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   /** Получить контрол элемента по индексу */
   at: (index: number) => FormProxy<T> | undefined;
   /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
-  errors: ValidationError[];
+  issues: ValidationIssue[];
   /** Валиден ли массив (и все его элементы) */
   valid: boolean;
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */

@@ -96,7 +96,7 @@ describe('строки компонентов', () => {
     key: 'k1',
     status: 'error',
     file: new File([new Uint8Array(10)], 'broken.txt', { type: 'text/plain' }),
-    error: { code: 'uploadFailed', message: '' },
+    error: { code: 'uploadFailed' },
   };
 
   function Labels() {

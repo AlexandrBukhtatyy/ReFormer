@@ -1,13 +1,13 @@
 import { forwardRef } from 'react';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
-import { useValidationErrorResolver } from '../../validation/error-resolver';
+import { useIssueMessageResolver } from '../../validation/error-resolver';
 import type { FormFieldErrorProps } from './types';
 
 /**
  * FormField.Error - Displays validation error message(s).
  *
- * Renders nothing when `shouldShowError` is false (field not touched or no errors).
+ * Renders nothing when `shouldShowError` is false (field not touched or no issues).
  * The first error paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
  *
  * @example Single error (default)
@@ -15,17 +15,19 @@ import type { FormFieldErrorProps } from './types';
  * <FormField.Error className="text-xs text-red-600" />
  * ```
  *
- * @example All errors
+ * @example All issues
  * ```tsx
  * <FormField.Error multi className="text-xs text-red-600" />
  * ```
  *
  * @example Custom render per error
  * ```tsx
+ * const resolve = useIssueMessageResolver(); // текст замечания по коду
+ *
  * <FormField.Error
- *   render={(err) => (
- *     <span className={err.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
- *       {err.message}
+ *   render={(issue) => (
+ *     <span className={issue.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
+ *       {resolve(issue)}
  *     </span>
  *   )}
  * />
@@ -40,18 +42,18 @@ import type { FormFieldErrorProps } from './types';
  */
 export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorProps>(
   ({ asChild = false, multi = false, render, children, ...props }, ref) => {
-    const { shouldShowError, errors, ids } = useFormFieldContext();
+    const { shouldShowError, issues, ids } = useFormFieldContext();
     // i18n: отображаем результат резолвера (ValidationMessagesProvider), а не сырой error.message.
-    const resolve = useValidationErrorResolver();
+    const resolve = useIssueMessageResolver();
 
-    if (!shouldShowError || errors.length === 0) return null;
+    if (!shouldShowError || issues.length === 0) return null;
 
     const Comp = asChild ? Slot : 'p';
 
     if (render) {
       return (
         <>
-          {errors.map((err, i) => (
+          {issues.map((err, i) => (
             <Comp
               key={err.code ?? i}
               // forwardRef ref прикрепляем к первому отрисованному элементу, иначе он
@@ -71,7 +73,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
     if (multi) {
       return (
         <>
-          {errors.map((err, i) => {
+          {issues.map((err, i) => {
             // asChild + multi: у Slot нет пользовательского дочернего элемента (каждая
             // ошибка — строка резолвера), а Slot требует валидный ReactElement и иначе
             // рендерит null → раньше `<FormField.Error asChild multi/>` не показывал
@@ -95,7 +97,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
 
     return (
       <Comp ref={ref} id={ids.errorId} role="alert" {...props}>
-        {children ?? resolve(errors[0])}
+        {children ?? resolve(issues[0])}
       </Comp>
     );
   }

@@ -176,16 +176,18 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 ### Текст ошибки
 
-`FormField.Error` и `useFormField` показывают не сырое `error.message`, а результат резолвера.
+`FormField.Error` и `useFormField` показывают текст замечания от резолвера: у самого замечания
+(`ValidationIssue = { code, params?, severity? }`) текста нет.
 
-- **По умолчанию текст даёт локаль.** Порядок: `messageKey` автора правила → явное `message` →
-  словарь активной локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
-  `I18nProvider` из `@reformer/core/react`; без него тексты английские. Смена языка переводит уже
-  показанные ошибки без повторной валидации.
-- **`ValidationMessagesProvider` — полное переопределение.** Смонтированный провайдер заменяет
-  резолвер целиком: локаль для ошибок в его поддереве не участвует, а таблица из
-  `createMessageResolver` по-прежнему важнее `error.message`. Нужен, только если тексты ошибок
-  берутся из своего источника.
+- **По умолчанию текст даёт локаль.** Порядок: словарь активной локали по коду
+  (`validation.<code>`) → встроенный английский → код. Язык задаёт `I18nProvider` из
+  `@reformer/core/react`; без него тексты английские. Смена языка переводит уже показанные
+  замечания без повторной валидации.
+- **`ValidationMessagesProvider messages` — словарь формы.** Записи `defineIssueMessages` из
+  `@reformer/core/i18n` (код → шаблон либо функция) накладываются поверх локали и поверх словарей
+  внешних провайдеров; код, которого в словаре нет, по-прежнему получает текст из локали.
+- **`ValidationMessagesProvider resolver` — полное переопределение.** Локаль и внешние словари
+  для замечаний поддерева не участвуют; `messages` этого же провайдера важнее резолвера.
 
 ```tsx
 import { I18nProvider } from '@reformer/core/react';
@@ -200,7 +202,7 @@ import { I18nProvider } from '@reformer/core/react';
 </I18nProvider>
 ```
 
-Свой рендер ошибок берёт тот же резолвер хуком `useValidationErrorResolver()`.
+Свой рендер ошибок берёт тот же резолвер хуком `useIssueMessageResolver()`.
 
 ## Anti-patterns
 

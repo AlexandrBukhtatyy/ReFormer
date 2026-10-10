@@ -14,10 +14,10 @@
 import type { FormModel } from '@reformer/core';
 import {
   validateModel,
-  defineValidationSchema,
+  defineValidation,
   apply,
   createFormValidation,
-  type ValidationSchema,
+  type ValidationDefinition,
   type ValidationStrategyKind,
   type FormValidationController,
 } from '@reformer/core/validation';
@@ -29,9 +29,9 @@ export interface DefineStepsConfig<Sel extends string, T> {
    * Правила шагов. Ключ = `selector` шага (совпадает с id ноды шага в схеме); порядок ключей =
    * порядок шагов в визарде. `null` — шаг без правил (объявляется ЯВНО, а не молча по умолчанию).
    */
-  steps: Record<Sel, ValidationSchema<T> | null>;
+  steps: Record<Sel, ValidationDefinition<T> | null>;
   /** Cross-field/warnings уровня всей формы — применяются только в `validateAll` (submit). */
-  extras?: ValidationSchema<T>;
+  extras?: ValidationDefinition<T>;
   /**
    * Live-стратегия ВНУТРИ активного шага (`blur`/`change`/`afterFirstSubmit`) — для
    * {@link useWizardStepValidation}. Не задана / `'submit'` → живой валидации внутри шага нет
@@ -86,13 +86,13 @@ export function defineSteps<Sel extends string, T extends object>(
   config: DefineStepsConfig<Sel, T>
 ): WizardStepsConfig<Sel> {
   const stepSelectors = Object.keys(config.steps) as Sel[];
-  const empty: ValidationSchema<T> = () => {};
+  const empty: ValidationDefinition<T> = () => {};
   const stepSchemas = stepSelectors
     .map((s) => config.steps[s])
-    .filter((s): s is ValidationSchema<T> => s != null);
+    .filter((s): s is ValidationDefinition<T> => s != null);
   // Полная схема (submit): все непустые шаги + extras. Стабильная ссылка (важно для дедупликации
   // устаревших прогонов в validateModel).
-  const fullSchema = defineValidationSchema<T>(() =>
+  const fullSchema = defineValidation<T>(() =>
     apply(...stepSchemas, ...(config.extras ? [config.extras] : []))
   );
   const { strategy, debounce, liveAfterSubmit } = config;

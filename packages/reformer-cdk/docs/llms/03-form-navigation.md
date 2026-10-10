@@ -228,15 +228,15 @@ its result (no `errors` object to inspect):
 ```typescript
 import { validateModel } from '@reformer/core/validation';
 
-// STEP_SCHEMAS[i] and fullSchema are ValidationSchema<Root> built with
-// defineValidationSchema / apply (see @reformer/core validation docs).
+// STEP_SCHEMAS[i] and fullSchema are ValidationDefinition<Root> built with
+// defineValidation / apply (see @reformer/core validation docs).
 const config: FormWizardConfig = {
   validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
   validateAll: () => validateModel(model, fullSchema),
 };
 ```
 
-The schemas themselves are plain `defineValidationSchema<Root>(({ model }) => …)`
+The schemas themselves are plain `defineValidation<Root>(({ model }) => …)`
 functions; `fullSchema` composes the per-step schemas with `apply(...STEP_SCHEMAS)`.
 The wizard config never sees validators directly — layout and validation stay in
 separate layers.
@@ -263,8 +263,8 @@ without rules is declared **explicitly** as `null`. It returns a plain
 ```tsx
 import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
 
-// step1 / step2 / crossFieldRules are ValidationSchema<Root>
-// (defineValidationSchema / apply — see @reformer/core validation docs).
+// step1 / step2 / crossFieldRules are ValidationDefinition<Root>
+// (defineValidation / apply — see @reformer/core validation docs).
 const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
   steps: {
     loan: step1,

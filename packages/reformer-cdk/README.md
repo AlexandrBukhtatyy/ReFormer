@@ -86,27 +86,27 @@ import { FormWizard } from '@reformer/cdk/form-wizard';
 
 `config` is a plain `FormWizardConfig` of callbacks — `{ validateStep?, validateAll? }` — so the
 wizard stays decoupled from any particular validation engine. Wire those callbacks to the
-`@reformer/core/validation` contract: describe the rules once as a `defineValidationSchema`, then run
+`@reformer/core/validation` contract: describe the rules once as a `defineValidation`, then run
 them on demand with `validateModel(model, schema)`. The runner returns `Promise<boolean>`, routes
 errors onto the form nodes itself, and treats `severity: 'warning'` as non-blocking (stale runs of the
 same schema are cancelled automatically).
 
 ```tsx
 import { type FormModel } from '@reformer/core';
-import { defineValidationSchema, validate, validateModel, apply } from '@reformer/core/validation';
+import { defineValidation, validate, validateModel, apply } from '@reformer/core/validation';
 import { required, min, email } from '@reformer/core/validators';
 
 type Root = { loanAmount: number; email: string };
 
-const step1 = defineValidationSchema<Root>(({ model }) => {
+const step1 = defineValidation<Root>(({ model }) => {
   validate(model.$.loanAmount, [required(), min(50000)]);
 });
-const step2 = defineValidationSchema<Root>(({ model }) => {
+const step2 = defineValidation<Root>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
 
 const STEP_SCHEMAS = [step1, step2] as const;
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
+const fullSchema = defineValidation<Root>(() => apply(...STEP_SCHEMAS));
 
 // Returns exactly the { validateStep, validateAll } shape FormWizardConfig expects.
 function makeValidationConfig(model: FormModel<Root>) {

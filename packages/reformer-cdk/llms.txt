@@ -571,15 +571,15 @@ its result (no `errors` object to inspect):
 ```typescript
 import { validateModel } from '@reformer/core/validation';
 
-// STEP_SCHEMAS[i] and fullSchema are ValidationSchema<Root> built with
-// defineValidationSchema / apply (see @reformer/core validation docs).
+// STEP_SCHEMAS[i] and fullSchema are ValidationDefinition<Root> built with
+// defineValidation / apply (see @reformer/core validation docs).
 const config: FormWizardConfig = {
   validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
   validateAll: () => validateModel(model, fullSchema),
 };
 ```
 
-The schemas themselves are plain `defineValidationSchema<Root>(({ model }) => …)`
+The schemas themselves are plain `defineValidation<Root>(({ model }) => …)`
 functions; `fullSchema` composes the per-step schemas with `apply(...STEP_SCHEMAS)`.
 The wizard config never sees validators directly — layout and validation stay in
 separate layers.
@@ -606,8 +606,8 @@ without rules is declared **explicitly** as `null`. It returns a plain
 ```tsx
 import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
 
-// step1 / step2 / crossFieldRules are ValidationSchema<Root>
-// (defineValidationSchema / apply — see @reformer/core validation docs).
+// step1 / step2 / crossFieldRules are ValidationDefinition<Root>
+// (defineValidation / apply — see @reformer/core validation docs).
 const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
   steps: {
     loan: step1,
@@ -865,16 +865,18 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 ### Текст ошибки
 
-`FormField.Error` и `useFormField` показывают не сырое `error.message`, а результат резолвера.
+`FormField.Error` и `useFormField` показывают текст замечания от резолвера: у самого замечания
+(`ValidationIssue = { code, params?, severity? }`) текста нет.
 
-- **По умолчанию текст даёт локаль.** Порядок: `messageKey` автора правила → явное `message` →
-  словарь активной локали по коду (`validation.<code>`) → встроенный английский → код. Язык задаёт
-  `I18nProvider` из `@reformer/core/react`; без него тексты английские. Смена языка переводит уже
-  показанные ошибки без повторной валидации.
-- **`ValidationMessagesProvider` — полное переопределение.** Смонтированный провайдер заменяет
-  резолвер целиком: локаль для ошибок в его поддереве не участвует, а таблица из
-  `createMessageResolver` по-прежнему важнее `error.message`. Нужен, только если тексты ошибок
-  берутся из своего источника.
+- **По умолчанию текст даёт локаль.** Порядок: словарь активной локали по коду
+  (`validation.<code>`) → встроенный английский → код. Язык задаёт `I18nProvider` из
+  `@reformer/core/react`; без него тексты английские. Смена языка переводит уже показанные
+  замечания без повторной валидации.
+- **`ValidationMessagesProvider messages` — словарь формы.** Записи `defineIssueMessages` из
+  `@reformer/core/i18n` (код → шаблон либо функция) накладываются поверх локали и поверх словарей
+  внешних провайдеров; код, которого в словаре нет, по-прежнему получает текст из локали.
+- **`ValidationMessagesProvider resolver` — полное переопределение.** Локаль и внешние словари
+  для замечаний поддерева не участвуют; `messages` этого же провайдера важнее резолвера.
 
 ```tsx
 import { I18nProvider } from '@reformer/core/react';
@@ -889,7 +891,7 @@ import { I18nProvider } from '@reformer/core/react';
 </I18nProvider>
 ```
 
-Свой рендер ошибок берёт тот же резолвер хуком `useValidationErrorResolver()`.
+Свой рендер ошибок берёт тот же резолвер хуком `useIssueMessageResolver()`.
 
 ## 25. Anti-patterns
 
@@ -1267,7 +1269,7 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
   const needsVerification = amount > 1_000_000;
 
   // config — пара колбэков validateStep / validateAll (не схемы, не generic).
-  // step (1-based) роутится в нужную ValidationSchema (@reformer/core/validation);
+  // step (1-based) роутится в нужную ValidationDefinition (@reformer/core/validation);
   // при выключенной верификации нумерация сдвигается — учитываем это в самом колбэке.
   // validateModel(model, schema) => Promise<boolean>, ошибки сам роутит в ноды.
   const config = useMemo<FormWizardConfig>(
@@ -1429,7 +1431,7 @@ interface FormWizardConfig {
 ```
 
 **Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную
-`ValidationSchema` (per-step схемы — `defineValidationSchema`, полная — `apply(...steps)`;
+`ValidationDefinition` (per-step схемы — `defineValidation`, полная — `apply(...steps)`;
 всё из `@reformer/core/validation`). Для чисто информационного шага (например,
 «Подтверждение») верните `true`.
 
@@ -2858,72 +2860,6 @@ export const CDK_LOCALES: readonly string[]
 
 _Source: src/locale/index.ts_
 
-### createMessageResolver
-
-**Kind:** `function`
-
-Создаёт резолвер из таблицы кодов сообщений (точка i18n). Текст берётся по `error.code`
-с подстановкой `error.params`; если кода нет в таблице — fallback на `error.message`, затем
-на сам `error.code`. Позволяет валидаторам нести только `code`+`params`, а тексты (RU/EN/…)
-держать в таблице и менять без правки схемы валидации.
-
-**Signature:**
-```typescript
-export function createMessageResolver(table: ValidationMessageTable): ValidationErrorResolver
-```
-
-**Parameters:**
-- `table` — - Таблица `code → (params) => message`.
-
-**Returns:** Резолвер {@link ValidationErrorResolver} для {@link ValidationMessagesProvider}.
-
-**Examples:**
-
-Таблица сообщений с подстановкой параметров
-```ts
-import { createMessageResolver } from '@reformer/cdk';
-
-const resolve = createMessageResolver({
-required: () => 'Обязательное поле',
-minLength: (p) => `Минимум ${p?.minLength} символов`,
-});
-
-resolve({ code: 'required', message: 'старое' });                        // → 'Обязательное поле'
-resolve({ code: 'minLength', message: '', params: { minLength: 3 } });   // → 'Минимум 3 символов'
-resolve({ code: 'pattern', message: 'Неверный формат' });               // → 'Неверный формат' (fallback)
-```
-
-**See also:**
-- {@link ValidationMessagesProvider} — как подключить резолвер к поддереву формы.
-
-_Source: src/validation/error-resolver.tsx_
-
-### defaultErrorResolver
-
-**Kind:** `const`
-
-Простейший резолвер без локали: отдаёт `error.message`, а если оно пустое — `error.code`.
-Резолвером по умолчанию больше не является (им стал резолвер по локали, см. шапку модуля);
-оставлен как готовая функция для {@link ValidationMessagesProvider}, если локализация ошибок
-не нужна вовсе.
-
-**Signature:**
-```typescript
-export const defaultErrorResolver: ValidationErrorResolver
-```
-
-**Examples:**
-
-Прямое применение к ошибке
-```ts
-import { defaultErrorResolver } from '@reformer/cdk';
-
-defaultErrorResolver({ code: 'required', message: 'Обязательно' }); // → 'Обязательно'
-defaultErrorResolver({ code: 'required', message: '' });            // → 'required'
-```
-
-_Source: src/validation/error-resolver.tsx_
-
 ### defaultToError
 
 **Kind:** `function`
@@ -3001,9 +2937,9 @@ export interface DefineStepsConfig<Sel extends string, T> {
    * Правила шагов. Ключ = `selector` шага (совпадает с id ноды шага в схеме); порядок ключей =
    * порядок шагов в визарде. `null` — шаг без правил (объявляется ЯВНО, а не молча по умолчанию).
    */
-  steps: Record<Sel, ValidationSchema<T> | null>;
+  steps: Record<Sel, ValidationDefinition<T> | null>;
   /** Cross-field/warnings уровня всей формы — применяются только в `validateAll` (submit). */
-  extras?: ValidationSchema<T>;
+  extras?: ValidationDefinition<T>;
   /**
    * Live-стратегия ВНУТРИ активного шага (`blur`/`change`/`afterFirstSubmit`) — для
    * {@link useWizardStepValidation}. Не задана / `'submit'` → живой валидации внутри шага нет
@@ -3042,7 +2978,7 @@ all the form array state and actions internally.
 - `FieldArray.Empty` - content for empty state
 - `FieldArray.Count` - display item count
 - `FieldArray.ItemIndex` - display item index (inside List)
-- `FieldArray.Error` - display array-level validation errors (e.g. minItems)
+- `FieldArray.Error` - display array-level validation issues (e.g. minItems)
 
 #### FieldArrayHandle API (ref)
 - `add(value?)` - add item to the end
@@ -3311,7 +3247,7 @@ export interface FieldArrayContextValue<T extends object = Record<string, unknow
   /** Получить контрол элемента по индексу */
   at: (index: number) => FormProxy<T> | undefined;
   /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
-  errors: ValidationError[];
+  issues: ValidationIssue[];
   /** Валиден ли массив (и все его элементы) */
   valid: boolean;
   /** Невалиден ли массив (есть ошибки массива или любого элемента) */
@@ -3329,7 +3265,7 @@ _Source: src/components/field-array/FieldArrayContext.tsx_
 
 Узел массива, принимаемый CDK-компонентами FieldArray, — {@link ModelArrayNode}: узел формы над
 массивом модели (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/
-`errors`/…).
+`issues`/…).
 
 **Signature:**
 ```typescript
@@ -3433,11 +3369,11 @@ _Source: src/components/field-array/types.ts_
 
 **Kind:** `const`
 
-FieldArray.Error — рендерит ошибки уровня массива (`control.errors`).
+FieldArray.Error — рендерит ошибки уровня массива (`control.issues`).
 
 Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
 / «At least one phone required», которые ядро выставляет через `ArrayNode.setErrors` и агрегирует
-в сигнале `errors`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
+в сигнале `issues`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
 консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
 
 **Signature:**
@@ -3462,7 +3398,9 @@ export const FieldArrayError
 
 Кастомный рендер на ошибку
 ```tsx
-<FieldArray.Error render={(err) => <span>{err.message}</span>} />
+const resolve = useIssueMessageResolver(); // текст замечания по коду
+
+<FieldArray.Error render={(issue) => <span>{resolve(issue)}</span>} />
 ```
 
 _Source: src/components/field-array/FieldArrayError.tsx_
@@ -3472,7 +3410,7 @@ _Source: src/components/field-array/FieldArrayError.tsx_
 **Kind:** `interface`
 
 Props for FieldArray.Error component — рендерит ошибки уровня массива
-(например `minItems` / «At least one phone required») из `control.errors`.
+(например `minItems` / «At least one phone required») из `control.issues`.
 
 Паритет с `FormField.Error`: `multi` рендерит все ошибки, `render` — кастомный рендер на ошибку,
 `children` переопределяет содержимое. Ничего не рендерит, когда ошибок нет.
@@ -3491,8 +3429,8 @@ export interface FieldArrayErrorProps extends Omit<
    */
   multi?: boolean;
   /** Кастомный рендер на каждую ошибку. Когда задан — `multi` подразумевается. */
-  render?: (error: ValidationError, index: number) => ReactNode;
-  /** Переопределить содержимое (по умолчанию `errors[0].message` через резолвер). */
+  render?: (error: ValidationIssue, index: number) => ReactNode;
+  /** Переопределить содержимое (по умолчанию — текст `issues[0]` от резолвера сообщений). */
   children?: ReactNode;
 }
 ```
@@ -3894,17 +3832,17 @@ _Source: src/components/field-array/types.ts_
 **Kind:** `type`
 
 Ошибка отбора/загрузки файла. `code` разрешается в текст резолвером сообщений
-(`useValidationErrorResolver`/`createMessageResolver`), поэтому тип — ровно
-{@link ValidationError} из core: один резолвер обслуживает и валидацию, и отбор.
+(`useIssueMessageResolver`, словарь `ValidationMessagesProvider messages`), поэтому тип — ровно
+{@link ValidationIssue} из core: один резолвер обслуживает и валидацию, и отбор.
 
 Коды отбора: `'fileType' | 'maxFileSize' | 'minFileSize' | 'maxFiles' |
 'maxTotalFileSize' | 'fileExists' | 'uploadFailed' | 'uploadAborted'`
-или произвольный из кастомного `validate`. `message` по умолчанию — `''`
-(как у core-валидаторов), в `params` — лимит/имя файла/фактическое значение.
+или произвольный из кастомного `validate`. Текста у ошибки нет (как у правил ядра), в `params` —
+лимит/имя файла/фактическое значение.
 
 **Signature:**
 ```typescript
-export type FileError = ValidationError;
+export type FileError = ValidationIssue;
 ```
 
 _Source: src/components/file-upload/types.ts_
@@ -4839,16 +4777,18 @@ We'll never share your email.
 </FormField.Root>
 ```
 
-Multiple errors with custom rendering
+Multiple issues with custom rendering
 ```tsx
+const resolve = useIssueMessageResolver(); // текст замечания по коду
+
 <FormField.Root control={control.password}>
 <FormField.Label />
 <FormField.Control />
 <FormField.Error
 multi
-render={(err) => (
-<span className={err.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
-{err.message}
+render={(issue) => (
+<span className={issue.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
+{resolve(issue)}
 </span>
 )}
 />
@@ -4920,7 +4860,7 @@ Context value provided by FormField.Root
 export interface FormFieldContextValue<T = unknown> {
   // ─── Field state ──────────────────────────────────────────────────────────
   value: T;
-  errors: ValidationError[];
+  issues: ValidationIssue[];
   pending: boolean;
   disabled: boolean;
   valid: boolean;
@@ -5089,7 +5029,7 @@ _Source: src/components/form-field/types.ts_
 
 FormField.Error - Displays validation error message(s).
 
-Renders nothing when `shouldShowError` is false (field not touched or no errors).
+Renders nothing when `shouldShowError` is false (field not touched or no issues).
 The first error paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
 
 **Signature:**
@@ -5104,17 +5044,19 @@ Single error (default)
 <FormField.Error className="text-xs text-red-600" />
 ```
 
-All errors
+All issues
 ```tsx
 <FormField.Error multi className="text-xs text-red-600" />
 ```
 
 Custom render per error
 ```tsx
+const resolve = useIssueMessageResolver(); // текст замечания по коду
+
 <FormField.Error
-render={(err) => (
-<span className={err.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
-{err.message}
+render={(issue) => (
+<span className={issue.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
+{resolve(issue)}
 </span>
 )}
 />
@@ -5143,16 +5085,16 @@ export interface FormFieldErrorProps extends Omit<
 > {
   asChild?: boolean;
   /**
-   * When true, renders all errors instead of only the first.
+   * When true, renders all issues instead of only the first.
    * @default false
    */
   multi?: boolean;
   /**
    * Custom render function per error. When provided, multi is implied true.
    */
-  render?: (error: ValidationError, index: number) => ReactNode;
+  render?: (error: ValidationIssue, index: number) => ReactNode;
   /**
-   * Override error content. Defaults to errors[0].message.
+   * Override error content. Defaults to the resolver text of issues[0].
    */
   children?: ReactNode;
 }
@@ -6466,6 +6408,19 @@ export function isNearBottom(
 
 _Source: src/components/option-source/option-source.ts_
 
+### IssueMessageResolver
+
+**Kind:** `type`
+
+Преобразует замечание валидации в отображаемую строку.
+
+**Signature:**
+```typescript
+export type IssueMessageResolver = (issue: ValidationIssue) => string;
+```
+
+_Source: src/validation/error-resolver.tsx_
+
 ### isSuggestionResource
 
 **Kind:** `function`
@@ -6697,8 +6652,8 @@ _Source: src/locale/index.ts_
 
 **Kind:** `function`
 
-Ошибка отбора. `message` пуст — как у правил ядра: готового текста у отбора нет, его даёт
-резолвер сообщений по коду (`validation.<code>` в словаре локали).
+Замечание отбора: только код и параметры, как у правил ядра. Текста у отбора нет — его даёт
+резолвер сообщений по коду (словарь формы, затем `validation.<code>` в словаре локали).
 
 **Signature:**
 ```typescript
@@ -7906,8 +7861,8 @@ export interface UseFieldArrayReturn<T extends object> {
   swap: (a: number, b: number) => void;
   /** Get item control at a specific index */
   at: (index: number) => FormProxy<T> | undefined;
-  /** Array-level validation errors (e.g. `minItems`) */
-  errors: ValidationError[];
+  /** Array-level validation issues (e.g. `minItems`) */
+  issues: ValidationIssue[];
   /** Whether the array (and all its items) is valid */
   valid: boolean;
   /** Whether the array (or any item) is invalid */
@@ -8405,7 +8360,7 @@ Field state returned by useFormField
 ```typescript
 export interface UseFormFieldState<T = unknown> {
   value: T;
-  errors: ValidationError[];
+  issues: ValidationIssue[];
   /** First error message, only set when shouldShowError is true */
   error: string | undefined;
   isPending: boolean;
@@ -8487,6 +8442,38 @@ export function useFormWizardActions(): FormWizardActionsContextValue
 ```
 
 _Source: src/components/form-wizard/FormWizardActions.tsx_
+
+### useIssueMessageResolver
+
+**Kind:** `function`
+
+Итоговый резолвер текстов замечаний: словарь формы от {@link ValidationMessagesProvider}, затем
+ближайший полный `resolver`, а без него — локаль (`useIssueMessage` из `@reformer/core/react`).
+Идентичность функции меняется вместе с языком и словарём. Используется внутри `useFormField`;
+вызывайте напрямую, если рисуете замечания своим компонентом.
+
+**Signature:**
+```typescript
+export function useIssueMessageResolver(): IssueMessageResolver
+```
+
+**Returns:** Активный {@link IssueMessageResolver}.
+
+**Examples:**
+
+Свой рендер замечаний поля
+```tsx
+import { useIssueMessageResolver } from '@reformer/cdk';
+import { useFormControl } from '@reformer/core/react';
+
+function FieldIssues({ control }: { control: FieldNode<string> }) {
+const resolve = useIssueMessageResolver();
+const { issues } = useFormControl(control);
+return <>{issues.map((issue) => <span key={issue.code}>{resolve(issue)}</span>)}</>;
+}
+```
+
+_Source: src/validation/error-resolver.tsx_
 
 ### useList
 
@@ -8607,39 +8594,6 @@ export interface UseResourceOptionsResult {
 
 _Source: src/components/option-source/useResourceOptions.ts_
 
-### useValidationErrorResolver
-
-**Kind:** `function`
-
-Возвращает текущий резолвер сообщений. Если форма обёрнута в {@link ValidationMessagesProvider}
-— его резолвер; иначе резолвер по активной локали (`useValidationMessage` из
-`@reformer/core/i18n`), идентичность которого меняется вместе с языком. Используется внутри
-`useFormField` для преобразования {@link ValidationError} в отображаемую строку; вызывайте
-напрямую, если строите собственный рендер ошибок.
-
-**Signature:**
-```typescript
-export function useValidationErrorResolver(): ValidationErrorResolver
-```
-
-**Returns:** Активный {@link ValidationErrorResolver}.
-
-**Examples:**
-
-Кастомный рендер ошибок с активным резолвером
-```tsx
-import { useValidationErrorResolver } from '@reformer/cdk';
-import { useFormControl } from '@reformer/core/react';
-
-function FieldErrors({ control }: { control: FieldNode<string> }) {
-const resolve = useValidationErrorResolver();
-const { errors } = useFormControl(control);
-return <>{errors.map((e) => <span key={e.code}>{resolve(e)}</span>)}</>;
-}
-```
-
-_Source: src/validation/error-resolver.tsx_
-
 ### useWizardStepValidation
 
 **Kind:** `function`
@@ -8672,69 +8626,68 @@ function LoanStepBody() {
 
 _Source: src/components/form-wizard/use-wizard-step-validation.ts_
 
-### ValidationErrorResolver
-
-**Kind:** `type`
-
-Преобразует ошибку валидации в отображаемую строку.
-
-**Signature:**
-```typescript
-export type ValidationErrorResolver = (error: ValidationError) => string;
-```
-
-_Source: src/validation/error-resolver.tsx_
-
 ### ValidationMessagesProvider
 
 **Kind:** `function`
 
-Провайдер резолвера сообщений валидации для поддерева формы — полное переопределение. Все
-`useFormField` внутри отображают результат переданного `resolver`, а резолвер по локали
-(`I18nProvider`) для ошибок в этом поддереве отключается. Нужен, когда тексты ошибок берутся из
-своего источника; для обычной локализации достаточно `I18nProvider` и словаря
-`validation.<code>`.
+Тексты замечаний для поддерева формы: словарь формы поверх локали либо полный резолвер.
 
 **Signature:**
 ```typescript
-export function ValidationMessagesProvider(props: {
-  resolver: ValidationErrorResolver;
-  children: ReactNode;
-}): ReactNode
+export function ValidationMessagesProvider(props: ValidationMessagesProviderProps): ReactNode
 ```
 
 **Examples:**
 
-Локализация всей формы через таблицу сообщений
+Словарь формы — тексты полей поверх локали
 ```tsx
-import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 
-const ru = createMessageResolver({
-required: () => 'Обязательное поле',
-email: () => 'Введите корректный email',
-minLength: (p) => `Минимум ${p?.minLength} символов`,
+const messages = defineIssueMessages({
+'phone.required': 'Укажите телефон',
+'password.minLength': 'Не меньше {minLength} символов',
 });
 
-<ValidationMessagesProvider resolver={ru}>
+<ValidationMessagesProvider messages={messages}>
+<MyForm />
+</ValidationMessagesProvider>
+```
+
+Полное переопределение — свой источник текстов
+```tsx
+<ValidationMessagesProvider resolver={(issue) => translate(`errors.${issue.code}`, issue.params)}>
 <MyForm />
 </ValidationMessagesProvider>
 ```
 
 **See also:**
-- {@link createMessageResolver} — построение резолвера из таблицы кодов.
-- {@link useValidationErrorResolver} — чтение текущего резолвера из контекста.
+- {@link useIssueMessageResolver} — чтение итогового резолвера.
 
 _Source: src/validation/error-resolver.tsx_
 
-### ValidationMessageTable
+### ValidationMessagesProviderProps
 
-**Kind:** `type`
+**Kind:** `interface`
 
-Таблица `code → (params) => message`.
+Свойства {@link ValidationMessagesProvider}.
 
 **Signature:**
 ```typescript
-export type ValidationMessageTable = Record<string, (params?: Record<string, unknown>) => string>;
+export interface ValidationMessagesProviderProps {
+  /**
+   * Словарь формы: код замечания → шаблон либо функция. Накладывается поверх словарей внешних
+   * провайдеров. Стабильная ссылка — константа модуля, иначе тексты пересчитываются на каждый
+   * рендер.
+   */
+  messages?: IssueMessages;
+  /**
+   * Полный резолвер: тексты замечаний поддерева берутся только из него (и из `messages` этого
+   * провайдера, если они заданы). Локаль и внешние провайдеры не участвуют.
+   */
+  resolver?: IssueMessageResolver;
+  children: ReactNode;
+}
 ```
 
 _Source: src/validation/error-resolver.tsx_

@@ -1,10 +1,10 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
+import type { ModelArrayNode, FormProxy, ValidationIssue } from '@reformer/core';
 
 /**
  * Узел массива, принимаемый CDK-компонентами FieldArray, — {@link ModelArrayNode}: узел формы над
  * массивом модели (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/
- * `errors`/…).
+ * `issues`/…).
  */
 export type FieldArrayControl<T extends object> = ModelArrayNode<T>;
 
@@ -110,7 +110,7 @@ export interface FieldArrayItemIndexProps {
 
 /**
  * Props for FieldArray.Error component — рендерит ошибки уровня массива
- * (например `minItems` / «At least one phone required») из `control.errors`.
+ * (например `minItems` / «At least one phone required») из `control.issues`.
  *
  * Паритет с `FormField.Error`: `multi` рендерит все ошибки, `render` — кастомный рендер на ошибку,
  * `children` переопределяет содержимое. Ничего не рендерит, когда ошибок нет.
@@ -127,7 +127,7 @@ export interface FieldArrayErrorProps extends Omit<
    */
   multi?: boolean;
   /** Кастомный рендер на каждую ошибку. Когда задан — `multi` подразумевается. */
-  render?: (error: ValidationError, index: number) => ReactNode;
-  /** Переопределить содержимое (по умолчанию `errors[0].message` через резолвер). */
+  render?: (error: ValidationIssue, index: number) => ReactNode;
+  /** Переопределить содержимое (по умолчанию — текст `issues[0]` от резолвера сообщений). */
   children?: ReactNode;
 }

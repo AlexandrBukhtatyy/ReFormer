@@ -4,7 +4,7 @@
  * @module reformer/cdk/file-upload/types
  */
 
-import type { ValidationError } from '@reformer/core';
+import type { ValidationIssue } from '@reformer/core';
 
 /**
  * Сериализуемый дескриптор загруженного файла (uploader-режим).
@@ -30,15 +30,15 @@ export interface RemoteFileRef {
 
 /**
  * Ошибка отбора/загрузки файла. `code` разрешается в текст резолвером сообщений
- * (`useValidationErrorResolver`/`createMessageResolver`), поэтому тип — ровно
- * {@link ValidationError} из core: один резолвер обслуживает и валидацию, и отбор.
+ * (`useIssueMessageResolver`, словарь `ValidationMessagesProvider messages`), поэтому тип — ровно
+ * {@link ValidationIssue} из core: один резолвер обслуживает и валидацию, и отбор.
  *
  * Коды отбора: `'fileType' | 'maxFileSize' | 'minFileSize' | 'maxFiles' |
  * 'maxTotalFileSize' | 'fileExists' | 'uploadFailed' | 'uploadAborted'`
- * или произвольный из кастомного `validate`. `message` по умолчанию — `''`
- * (как у core-валидаторов), в `params` — лимит/имя файла/фактическое значение.
+ * или произвольный из кастомного `validate`. Текста у ошибки нет (как у правил ядра), в `params` —
+ * лимит/имя файла/фактическое значение.
  */
-export type FileError = ValidationError;
+export type FileError = ValidationIssue;
 
 /** Файл, отклонённый при отборе. В значение поля не попадает — уходит в `onReject`. */
 export interface FileRejection {

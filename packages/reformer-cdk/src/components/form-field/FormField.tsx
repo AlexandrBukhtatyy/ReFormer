@@ -66,16 +66,18 @@ type FormFieldComponent = typeof FormFieldRoot & {
  * </FormField.Root>
  * ```
  *
- * @example Multiple errors with custom rendering
+ * @example Multiple issues with custom rendering
  * ```tsx
+ * const resolve = useIssueMessageResolver(); // текст замечания по коду
+ *
  * <FormField.Root control={control.password}>
  *   <FormField.Label />
  *   <FormField.Control />
  *   <FormField.Error
  *     multi
- *     render={(err) => (
- *       <span className={err.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
- *         {err.message}
+ *     render={(issue) => (
+ *       <span className={issue.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
+ *         {resolve(issue)}
  *       </span>
  *     )}
  *   />

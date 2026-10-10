@@ -1,15 +1,15 @@
 import { forwardRef } from 'react';
 import { Slot } from '../form-wizard/Slot';
 import { useFieldArrayContext } from './FieldArrayContext';
-import { useValidationErrorResolver } from '../../validation/error-resolver';
+import { useIssueMessageResolver } from '../../validation/error-resolver';
 import type { FieldArrayErrorProps } from './types';
 
 /**
- * FieldArray.Error — рендерит ошибки уровня массива (`control.errors`).
+ * FieldArray.Error — рендерит ошибки уровня массива (`control.issues`).
  *
  * Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
  * / «At least one phone required», которые ядро выставляет через `ArrayNode.setErrors` и агрегирует
- * в сигнале `errors`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
+ * в сигнале `issues`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
  * консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
  *
  * @example Единственная ошибка (по умолчанию)
@@ -27,23 +27,25 @@ import type { FieldArrayErrorProps } from './types';
  *
  * @example Кастомный рендер на ошибку
  * ```tsx
- * <FieldArray.Error render={(err) => <span>{err.message}</span>} />
+ * const resolve = useIssueMessageResolver(); // текст замечания по коду
+ *
+ * <FieldArray.Error render={(issue) => <span>{resolve(issue)}</span>} />
  * ```
  */
 export const FieldArrayError = forwardRef<HTMLParagraphElement, FieldArrayErrorProps>(
   ({ asChild = false, multi = false, render, children, ...props }, ref) => {
-    const { errors } = useFieldArrayContext();
+    const { issues } = useFieldArrayContext();
     // i18n: отображаем результат резолвера (ValidationMessagesProvider), а не сырой error.message.
-    const resolve = useValidationErrorResolver();
+    const resolve = useIssueMessageResolver();
 
-    if (errors.length === 0) return null;
+    if (issues.length === 0) return null;
 
     const Comp = asChild ? Slot : 'p';
 
     if (render) {
       return (
         <>
-          {errors.map((err, i) => (
+          {issues.map((err, i) => (
             <Comp key={err.code ?? i} role="alert" {...props}>
               {render(err, i)}
             </Comp>
@@ -55,7 +57,7 @@ export const FieldArrayError = forwardRef<HTMLParagraphElement, FieldArrayErrorP
     if (multi) {
       return (
         <>
-          {errors.map((err, i) => (
+          {issues.map((err, i) => (
             <Comp key={err.code ?? i} role="alert" {...props}>
               {resolve(err)}
             </Comp>
@@ -66,7 +68,7 @@ export const FieldArrayError = forwardRef<HTMLParagraphElement, FieldArrayErrorP
 
     return (
       <Comp ref={ref} role="alert" {...props}>
-        {children ?? resolve(errors[0])}
+        {children ?? resolve(issues[0])}
       </Comp>
     );
   }

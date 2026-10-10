@@ -1,5 +1,5 @@
 import type { HTMLAttributes, LabelHTMLAttributes, ReactNode } from 'react';
-import type { FieldNode, ValidationError } from '@reformer/core';
+import type { FieldNode, ValidationIssue } from '@reformer/core';
 
 /**
  * Stable IDs for all accessible elements of a form field
@@ -23,7 +23,7 @@ export interface FormFieldIds {
 export interface FormFieldContextValue<T = unknown> {
   // ─── Field state ──────────────────────────────────────────────────────────
   value: T;
-  errors: ValidationError[];
+  issues: ValidationIssue[];
   pending: boolean;
   disabled: boolean;
   valid: boolean;
@@ -122,16 +122,16 @@ export interface FormFieldErrorProps extends Omit<
 > {
   asChild?: boolean;
   /**
-   * When true, renders all errors instead of only the first.
+   * When true, renders all issues instead of only the first.
    * @default false
    */
   multi?: boolean;
   /**
    * Custom render function per error. When provided, multi is implied true.
    */
-  render?: (error: ValidationError, index: number) => ReactNode;
+  render?: (error: ValidationIssue, index: number) => ReactNode;
   /**
-   * Override error content. Defaults to errors[0].message.
+   * Override error content. Defaults to the resolver text of issues[0].
    */
   children?: ReactNode;
 }

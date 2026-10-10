@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createModel } from '@reformer/core';
-import { validate, defineValidationSchema, type ValidationSchema } from '@reformer/core/validation';
+import { validate, defineValidation, type ValidationDefinition } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { defineSteps } from './define-steps';
 
@@ -12,8 +12,8 @@ interface F {
 
 const makeModel = (v: Partial<F> = {}) => createModel<F>({ a: '', b: '', c: '', ...v });
 
-const stepA: ValidationSchema<F> = ({ model }) => validate(model.$.a, [required({ message: 'a' })]);
-const stepB: ValidationSchema<F> = ({ model }) => validate(model.$.b, [required({ message: 'b' })]);
+const stepA: ValidationDefinition<F> = ({ model }) => validate(model.$.a, [required()]);
+const stepB: ValidationDefinition<F> = ({ model }) => validate(model.$.b, [required()]);
 
 describe('defineSteps', () => {
   it('stepSelectors — в порядке ключей', () => {
@@ -40,9 +40,7 @@ describe('defineSteps', () => {
   });
 
   it('validateAll прогоняет все шаги + extras', async () => {
-    const extras = defineValidationSchema<F>(({ model }) =>
-      validate(model.$.c, [required({ message: 'c' })])
-    );
+    const extras = defineValidation<F>(({ model }) => validate(model.$.c, [required()]));
     const bad = defineSteps<'first' | 'second', F>(makeModel({ a: 'x', b: 'y', c: '' }), {
       steps: { first: stepA, second: stepB },
       extras,
