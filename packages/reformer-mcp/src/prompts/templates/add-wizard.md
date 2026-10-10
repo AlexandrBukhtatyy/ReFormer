@@ -78,7 +78,7 @@ import { useFormBundle } from '@reformer/core/react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 
 const steps: FormWizardStep<MyForm>[] = [
-  // React FC: receives { control: FormProxy<T> } as a prop
+  // React FC: receives { control: FormGroup<T> } as a prop
   { number: 1, title: 'Кредит', icon: '💰', body: LoanStep },
   // static JSX: rendered as is
   { number: 2, title: 'Подтверждение', icon: '✓', body: <ConfirmationStep /> },

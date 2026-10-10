@@ -53,11 +53,11 @@ A form is described ONE way, whoever draws it: markup by hand in JSX (`core`), `
 - **User-facing strings**: from spec or in the user's native language. No default English `"Select an option..."` placeholders.
 - **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`. (Applies in the separate validation layer — validator factories `required()/min()/…` come from `@reformer/core/validators` and live inside the `defineValidation`, never on schema nodes.)
 - **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`).
-- **A field node carries the MODEL HANDLE (`model: model.$.x`), NEVER the resolved `form.X` FieldNode.** The tree binds to the model; the state node (errors/disabled) is resolved by the handle. Putting `form.X` into a node is wrong — it is neither a handle nor a component, so the node is **silently ignored**: the form looks empty, no console error. A step body / array row / sub-form receives the **model** (or its sub-model), never a `path` and never the `form` instance.
+- **A field node carries the MODEL HANDLE (`model: model.$.x`), NEVER the resolved `form.X` FormControl.** The tree binds to the model; the state node (errors/disabled) is resolved by the handle. Putting `form.X` into a node is wrong — it is neither a handle nor a component, so the node is **silently ignored**: the form looks empty, no console error. A step body / array row / sub-form receives the **model** (or its sub-model), never a `path` and never the `form` instance.
 
   ```typescript
   // ❌ silent fail — FieldNodes, not handles; the renderer ignores these nodes
-  const step = (form: FormProxy<MyForm>) => ({
+  const step = (form: FormGroup<MyForm>) => ({
     component: Box,
     children: [{ component: form.email }, { component: form.password }],
   });

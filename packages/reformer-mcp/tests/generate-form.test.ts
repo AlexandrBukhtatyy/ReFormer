@@ -100,7 +100,7 @@ describe('builders', () => {
   it('model.ts объявляет тип формы, элементы массива и начальные значения', () => {
     const ts = buildModelTs(goodIntent());
     // Именно `type`, а не `interface`: у interface нет неявной индексной сигнатуры, поэтому
-    // он не присваивается `Record<string, unknown>` — на это опираются FormProxy<T>,
+    // он не присваивается `Record<string, unknown>` — на это опираются FormGroup<T>,
     // ArrayNode<T> и constraint FormWizard<T>. Правило корпуса: core «TYPE-SAFETY RECIPES»
     // Recipe 2, reformer://guide §27; сервер обязан ему следовать, а не только требовать.
     expect(ts).toContain('export type OrderItem = {');

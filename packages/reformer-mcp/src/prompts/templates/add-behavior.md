@@ -117,23 +117,23 @@ compute(model.$.fullName, () =>
     {loanType === 'mortgage' && <MortgageSection/>}
     ```
 
-12. **`useFormControl(node)` принимает ТОЛЬКО FieldNode (leaf control), не FormProxy/GroupNode/ArrayNode.** Hook читает `node.componentProps.value` (signal-snapshot) для рендера label/error/disabled/etc. — у GroupNode/ArrayNode/корневой FormProxy НЕТ `componentProps` Signal'а, и hook падает с `TypeError: Cannot read properties of undefined (reading 'value')` либо тихо возвращает stub-объект, который потом упадёт на потребителе.
+12. **`useFormControl(node)` принимает поле `FormControl` (leaf control) или массив `FormArray`, но не группу `FormGroup`.** Для поля хук читает `node.componentProps.value` (signal-snapshot) для рендера label/error/disabled/etc. — у группы (`FormGroup`, в том числе корня формы) `componentProps` нет, и хук падает с `TypeError: Cannot read properties of undefined (reading 'value')` либо тихо возвращает stub-объект, который потом упадёт на потребителе.
 
     **Не делай так** — даже «чтобы подписаться на root формы для re-render»: FormWizard/FormRenderer сами владеют lifecycle'ом, ручная подписка на root не нужна и сломает рендер.
 
     ```typescript
-    // ❌ FormProxy root — hook падает или возвращает мусор
+    // ❌ корень формы (FormGroup) — hook падает или возвращает мусор
     useFormControl(form);
-    useFormControl(form.personalData); // GroupNode — то же самое
+    useFormControl(form.personalData); // вложенная FormGroup — то же самое
 
-    // ✅ FieldNode (leaf)
+    // ✅ FormControl (leaf)
     useFormControl(form.loanAmount);
     const v = useFormControlValue(form.loanType); // value-only сахар поверх useFormControl
     ```
 
-    Аналогичные API на FormProxy: `useFormControlValue(field)` — value-only; `form.markAsTouched()` / `form.setValue(partial)` — императивные методы (НЕ хуки). Для отслеживания изменений на нескольких полях — несколько отдельных `useFormControlValue` вызовов, по одному на поле.
+    Рядом: `useFormControlValue(field)` — value-only; `form.markAsTouched()` / `form.setValue(value)` — императивные методы группы (НЕ хуки); частичную запись делает модель — `model.patch(partial)`. Для отслеживания изменений на нескольких полях — несколько отдельных `useFormControlValue` вызовов, по одному на поле.
 
-13. **Не комбинируй `enableWhen + resetOnDisable: true` с `copyFrom` на одной и той же GroupNode (или включающей её).** Они конкурируют: `copyFrom` пишет значения в группу, `enableWhen` с `resetOnDisable` стирает их при срабатывании условия — порядок и тайминг непредсказуемы, а в worst-case race-condition выглядит как «иногда копируется, иногда пусто». Также: правило #8 уже запрещает `enableWhen + resetOnDisable` на whole ArrayNode (cycle на mount), но для GroupNode оно не падает технически, лишь портит данные.
+13. **Не комбинируй `enableWhen + resetOnDisable: true` с `copyFrom` на одной и той же группе (или включающей её).** Они конкурируют: `copyFrom` пишет значения в группу, `enableWhen` с `resetOnDisable` стирает их при срабатывании условия — порядок и тайминг непредсказуемы, а в worst-case race-condition выглядит как «иногда копируется, иногда пусто». Также: правило #8 уже запрещает `enableWhen + resetOnDisable` на массив целиком (cycle на mount), но для группы оно не падает технически, лишь портит данные.
 
     **Как делать правильно**: оставь `copyFrom` для синхронизации значений; для скрытия секции используй правило узла `hideWhen(schema.node('selector'), () => …)` (в разметке руками — JSX-conditional `{condition && <Section/>}`). **Не блокируй disable'ом ту же группу, в которую пишет copyFrom**.
 
@@ -291,7 +291,7 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); видимость узлов объявлена правилами `hideWhen`
 - [ ] Условия читают модель (`model.<field>`), а не ноду формы (rule #11) — `form.<field>.value` сравнивается с Signal-объектом и тихо ломает условие
 - [ ] Узлы внутри строки массива и подформы адресуются из под-поведения (`applyEach` / `apply`), а не из корневого
-- [ ] `useFormControl` / `useFormControlValue` вызываются ТОЛЬКО на FieldNode (leaf). Никогда на FormProxy root, GroupNode, ArrayNode (rule #12) — иначе TypeError на componentProps.value
+- [ ] `useFormControl` вызывается на поле `FormControl` или массиве `FormArray`, `useFormControlValue` — только на поле. Никогда на группе `FormGroup`, в том числе корне формы (rule #12) — иначе TypeError на componentProps.value
 - [ ] Никаких `enableWhen + resetOnDisable: true` на той же Group, в которую пишет `copyFrom` (rule #13) — race ломает данные. Скрытие — правило узла `hideWhen` (в разметке руками — JSX-conditional)
 - [ ] **Model generic зафиксирован**: `createModel<MyForm>` / `defineFormBehavior<MyForm>` (НЕ `<any>`, НЕ опущен) — silent fail на опечатках имён полей (rule #14, часть A)
 - [ ] **Содержательные callback'и (>5 lines, computeFrom, async watchField) extracted module-level** как типизированные функции `(form: MyForm) => Result`; inline OK только для коротких predicates / single setter (rule #14, часть B)

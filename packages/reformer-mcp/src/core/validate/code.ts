@@ -120,6 +120,16 @@ const REMOVED_FROM_CORE: Readonly<Record<string, string>> = {
     'методы сборки: `bundle.validate()`, `bundle.validateStep(id)`, `bundle.submit(handler)` — результат объектом со статусом',
   SubmitOptions:
     '`bundle.submit(handler)` — один прогон правил и `SubmitResult` со статусом (`submitted`, `invalid`, `error`, `cancelled`, `failed`)',
+  FormProxy:
+    '`FormGroup<T>` из `@reformer/core` — члены ноды и ноды полей по именам; затенённое поле — через `form.$`',
+  FieldNode: 'тип `FormControl<T>` из `@reformer/core`; ноды строит сборка `createForm`',
+  GroupNode: 'тип `FormGroup<T>` из `@reformer/core`; ноды строит сборка `createForm`',
+  ModelArrayNode:
+    'тип `FormArray<T>` из `@reformer/core`: `length` — число, ключ строки — `keyAt(index)`',
+  isFieldNode: '`isFormControl` из `@reformer/core`',
+  isGroupNode: '`isFormGroup` из `@reformer/core`',
+  isArrayNode: '`isFormArray` из `@reformer/core`',
+  FieldStatus: 'сигналы ноды `valid`, `invalid`, `pending`, `disabled`',
 };
 
 /**

@@ -91,7 +91,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 
    `"item": { "$template": { …node… } }` is the inline form of the same thing.
 
-4. **Element access**: on the model — `model.<arr>.at(i)`, `.length`, `.map(...)` (reading subscribes to length/items — useful inside `compute`); mutations `push`, `insertAt`, `removeAt`, `move`, `swap`, `clear`. On the form node — `form.<arr>.at(i)` (NOT brackets), `.length.value`. Mutate through the model; never touch the items list directly.
+4. **Element access**: on the model — `model.<arr>.at(i)`, `.length`, `.map(...)` (reading subscribes to length/items — useful inside `compute`); mutations `push`, `insertAt`, `removeAt`, `move`, `swap`, `clear`. On the form node (`FormArray`) — `form.<arr>.at(i)` (NOT brackets), `.length` (a number; reading it in an effect subscribes), `.keyAt(i)` — a stable row key for React `key`. Mutate through the model; never touch the items list directly.
 
 5. **A checkbox in a row drawn by the renderer**: don't wrap it in `CdkFormField.Label` — `CheckboxWithLabel` draws its own label, double-rendered otherwise. Pass the label via `componentProps.label`.
 
@@ -100,7 +100,7 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 7. **Markup by hand in JSX** — `FieldArraySection` from `@reformer/ui-kit` with an `itemComponent`:
 
    ```tsx
-   const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+   const PropertyForm: FC<{ control: FormGroup<Property> }> = ({ control }) => (
      <Section>
        <FormField control={control.type} />
        <FormField control={control.estimatedValue} />
