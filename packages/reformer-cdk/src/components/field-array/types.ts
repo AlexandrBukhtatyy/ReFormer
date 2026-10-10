@@ -65,7 +65,7 @@ export interface FieldArrayAddButtonProps<T extends object = Record<string, unkn
   'onClick'
 > {
   /**
-   * Значение нового элемента (передаётся в `add()` → `ArrayNode.push`). Запасной путь: без него
+   * Значение нового элемента (передаётся в `add()` → `FormArray.push`). Запасной путь: без него
    * элемент берётся из шаблона массива модели — `arrayOf(blank)` из `@reformer/core`.
    */
   initialValue?: Partial<T>;

@@ -8,7 +8,7 @@ import type { FieldArrayErrorProps } from './types';
  * FieldArray.Error — рендерит ошибки уровня массива (`control.issues`).
  *
  * Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
- * / «At least one phone required», которые ядро выставляет через `ArrayNode.setErrors` и агрегирует
+ * / «At least one phone required», которые правила массива выставляют через `FormArray.setIssues` и агрегирует
  * в сигнале `issues`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
  * консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
  *

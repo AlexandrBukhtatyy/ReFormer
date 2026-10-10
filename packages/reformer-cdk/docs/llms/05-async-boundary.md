@@ -69,13 +69,13 @@ const boundaryRef = useRef<AsyncBoundaryHandle<Application[]>>(null);
 ```tsx
 import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 
-function ApplicationPage({ applicationId, form }: Props) {
+function ApplicationPage({ applicationId, bundle }: Props) {
   return (
     <AsyncBoundary.Root
       load={(signal) => loadApplication(applicationId, signal)}
       loadKey={applicationId}
       enabled={applicationId !== null}
-      onSuccess={(data) => form.patchValue(data)}
+      onSuccess={(data) => bundle.model.patch(data)} // частичное слияние значений в модель
       delayMs={200}
     >
       <AsyncBoundary.Idle>
@@ -98,7 +98,7 @@ function ApplicationPage({ applicationId, form }: Props) {
       </AsyncBoundary.Error>
 
       <AsyncBoundary.Content>
-        <CreditForm form={form} />
+        <CreditForm form={bundle.form} />
       </AsyncBoundary.Content>
     </AsyncBoundary.Root>
   );

@@ -3,7 +3,9 @@
 Headless compound component for managing form arrays.
 
 > Renamed from `FormArray`: the component family is `FieldArray*`, the hook is `useFieldArray`,
-> the subpath is `@reformer/cdk/field-array`. The old names are not exported.
+> the subpath is `@reformer/cdk/field-array`. The old names are not exported by cdk;
+> `FormArray<T>` is now the array node type of `@reformer/core` — the `control` these
+> components take (`form.items`).
 
 ## Basic Usage
 
@@ -16,8 +18,8 @@ import { FieldArray } from '@reformer/cdk/field-array';
   </FieldArray.Empty>
 
   <FieldArray.List>
-    {({ control, index, remove }) => (
-      <div key={control.id}>
+    {({ control, id, index, remove }) => (
+      <div key={id}>
         <h4>Item #{index + 1}</h4>
         <ItemForm control={control} />
         <button onClick={remove}>Remove</button>
@@ -31,15 +33,16 @@ import { FieldArray } from '@reformer/cdk/field-array';
 
 ## Sub-components
 
-| Component                | Props                           | Purpose                            |
-| ------------------------ | ------------------------------- | ---------------------------------- |
-| `FieldArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
-| `FieldArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
-| `FieldArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item (from model template) |
-| `FieldArray.RemoveButton` | -                               | Removes current item (inside List) |
-| `FieldArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
-| `FieldArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
-| `FieldArray.ItemIndex`    | `render?: (index) => ReactNode` | Displays current index             |
+| Component                 | Props                            | Purpose                                                                 |
+| ------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
+| `FieldArray.Root`         | `control: FormArray<T>`          | Context provider                                                        |
+| `FieldArray.List`         | `children: (item) => ReactNode`  | Iterates items (render props)                                           |
+| `FieldArray.AddButton`    | `initialValue?: Partial<T>`      | Adds new item (from model template)                                     |
+| `FieldArray.RemoveButton` | -                                | Removes current item (inside List)                                      |
+| `FieldArray.Empty`        | `children: ReactNode`            | Shows when array is empty                                               |
+| `FieldArray.Count`        | `render?: (count) => ReactNode`  | Displays item count                                                     |
+| `FieldArray.ItemIndex`    | `render?: (index) => ReactNode`  | Displays current index                                                  |
+| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues (e.g. `minLength`) as text from the message resolver |
 
 ## List Render Props
 
@@ -47,7 +50,7 @@ import { FieldArray } from '@reformer/cdk/field-array';
 interface FieldArrayItemRenderProps<T> {
   control: FormGroup<T>; // Form control for item
   index: number; // Zero-based index
-  id: string | number; // Unique key
+  id: string; // Stable row key — keyAt(index) of the array node; survives move/swap
   remove: () => void; // Remove this item
   moveUp: () => void; // Move one position up (no-op when first)
   moveDown: () => void; // Move one position down (no-op when last)
@@ -57,7 +60,7 @@ interface FieldArrayItemRenderProps<T> {
 ```
 
 Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
-`ArrayNode.move` reorders controls without recreating them.
+`FormArray.move` reorders rows without recreating their controls.
 
 ## Typed item access (avoid `FormGroup<object>`)
 
@@ -186,7 +189,9 @@ interface FieldArrayHandle<T> {
 ```
 
 > `length` / `isEmpty` are a snapshot at render time. For a reactive length
-> outside the array, subscribe via `useFormControl(form.items).length`.
+> outside the array, subscribe via `useArrayLength(form.items)` or
+> `useFormControl(form.items).length` (`@reformer/core/react`). The node itself
+> also reads the current length as a number: `form.items.length`.
 
 ## useFieldArray Hook
 
@@ -218,16 +223,28 @@ function CustomList() {
 
 ```typescript
 interface UseFieldArrayReturn<T> {
-  items: FieldArrayItem<T>[]; // { control, index, id, remove }
+  items: FieldArrayItem<T>[]; // { control, index, id, remove, moveUp, moveDown, canMoveUp, canMoveDown }
   length: number;
   isEmpty: boolean;
-  add: (value?: Partial<T>) => void; // push to end
+  add: (value?: Partial<T>) => void; // push to end; no value — the model array template
   clear: () => void; // remove all
   insert: (index: number, value?: Partial<T>) => void;
+  removeAt: (index: number) => void;
   move: (from: number, to: number) => void; // reorder, state preserved
   swap: (a: number, b: number) => void; // swap two items, state preserved
+  at: (index: number) => FormGroup<T> | undefined;
+  issues: ValidationIssue[]; // array-level issues (e.g. minLength)
+  valid: boolean;
+  invalid: boolean;
 }
 ```
 
-Note: `items[]` is memoized by array length AND order — changing a value inside
-an item does not recreate the `items` array, but `move` / `swap` do (order ref changes).
+Note: `items[]` is recomputed whenever the array value changes — on add/remove,
+on `move` / `swap` and on any edit inside a row (the array value is derived from
+the row values). The row `control` and `id` stay the same, so key rows by `id`
+and wrap heavy rows in `React.memo` on `control`.
+
+`add(value)` passes the value to `FormArray.push` as is — the model does not
+complete a partial item with template defaults. Call `add()` without a value to
+take the item from the model's array template (`arrayOf(blank)`), or pass a
+complete item (`add({ ...blankItem, name: 'New' })`).

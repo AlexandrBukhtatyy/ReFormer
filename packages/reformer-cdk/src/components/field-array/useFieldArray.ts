@@ -107,7 +107,8 @@ export function useFieldArray<T extends object>(
   // the same length — without it the memo below would not recompute and the UI would not reorder.
   const { length, value, issues, valid, invalid } = useFormControl(control);
 
-  // Memoize items array - recalculates when length OR order changes. Хелперы reorder выводятся на
+  // Memoize items array - recalculates when the array value changes: on add/remove/reorder and on
+  // any edit inside a row (the array value is derived from its rows). Хелперы reorder выводятся на
   // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FieldArray.List.
   const items = useMemo(
     () =>
@@ -121,7 +122,7 @@ export function useFieldArray<T extends object>(
         canMoveUp: index > 0,
         canMoveDown: index < length - 1,
       })),
-    // `value` is intentionally in deps: its reference changes on add/remove/reorder.
+    // `value` is intentionally in deps: its reference changes on add/remove/reorder and row edits.
     [control, length, value]
   );
 

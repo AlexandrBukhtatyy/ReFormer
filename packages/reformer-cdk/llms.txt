@@ -28,13 +28,19 @@
 
 ## 2. Components
 
-| Component       | Purpose                                                   |
-| --------------- | --------------------------------------------------------- |
-| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)   |
-| `Autocomplete`  | Free-text input with suggestions (static or async source) |
-| `FieldArray`     | Manage dynamic form arrays                                |
-| `FormField`     | Accessible field anatomy (label/control/…)                |
-| `FormWizard`    | Multi-step form wizard                                    |
+| Component       | Purpose                                                     |
+| --------------- | ----------------------------------------------------------- |
+| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)     |
+| `Autocomplete`  | Free-text input with suggestions (static or async source)   |
+| `FieldArray`    | Manage dynamic form arrays                                  |
+| `FileUpload`    | File selection, drag-and-drop and upload                    |
+| `FormField`     | Accessible field anatomy (label/control/…)                  |
+| `FormWizard`    | Multi-step form wizard over the core step flow (`FormFlow`) |
+| `List`          | Display-only iteration over a model array (no add/remove)   |
+
+Validation texts for the whole subtree — `ValidationMessagesProvider` (`messages` — a form
+dictionary from `defineIssueMessages`, `resolver` — a full override) and
+`useIssueMessageResolver()` for custom rendering; both from `@reformer/cdk`.
 
 ## 3. Installation
 
@@ -56,6 +62,7 @@ import { FieldArray, useFieldArray } from '@reformer/cdk/field-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 import { FileUpload, useFileUpload } from '@reformer/cdk/file-upload';
+import { List, useList } from '@reformer/cdk/list';
 import { loadCdkLocale } from '@reformer/cdk/locale';
 ```
 
@@ -70,7 +77,7 @@ cdk — headless: видимый текст пишет приложение. Н�
 | `aria-label` кнопок удаления и повтора у файла                                                                                               | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload`                                             |
 | Текст ошибки `AsyncBoundary` / `useAsyncResource`, когда отказ не несёт своего текста                                                        | `cdk.asyncBoundary.unknownError`                                                                      |
 | Размер файла в `FileUpload.ItemSize`                                                                                                         | `format.fileSize.*` (словарь ядра)                                                                    |
-| Тексты ошибок валидации в `FormField`                                                                                                        | `validation.<code>` (словарь ядра)                                                                    |
+| Тексты замечаний валидации в `FormField` и `FieldArray.Error`                                                                                | `validation.<code>` (словарь ядра); поверх — словарь формы `ValidationMessagesProvider messages`      |
 
 - **Без провайдера cdk говорит по-английски** («Remove file a.png», «1.5 KB»). Русский и любой
   другой язык включает `I18nProvider`.
@@ -114,7 +121,9 @@ const loadLocale = createLocaleLoader([loadCdkLocale]);
 Headless compound component for managing form arrays.
 
 > Renamed from `FormArray`: the component family is `FieldArray*`, the hook is `useFieldArray`,
-> the subpath is `@reformer/cdk/field-array`. The old names are not exported.
+> the subpath is `@reformer/cdk/field-array`. The old names are not exported by cdk;
+> `FormArray<T>` is now the array node type of `@reformer/core` — the `control` these
+> components take (`form.items`).
 
 ```tsx
 import { FieldArray } from '@reformer/cdk/field-array';
@@ -125,8 +134,8 @@ import { FieldArray } from '@reformer/cdk/field-array';
   </FieldArray.Empty>
 
   <FieldArray.List>
-    {({ control, index, remove }) => (
-      <div key={control.id}>
+    {({ control, id, index, remove }) => (
+      <div key={id}>
         <h4>Item #{index + 1}</h4>
         <ItemForm control={control} />
         <button onClick={remove}>Remove</button>
@@ -140,15 +149,16 @@ import { FieldArray } from '@reformer/cdk/field-array';
 
 ## 7. Sub-components
 
-| Component                | Props                           | Purpose                            |
-| ------------------------ | ------------------------------- | ---------------------------------- |
-| `FieldArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
-| `FieldArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
-| `FieldArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item (from model template) |
-| `FieldArray.RemoveButton` | -                               | Removes current item (inside List) |
-| `FieldArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
-| `FieldArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
-| `FieldArray.ItemIndex`    | `render?: (index) => ReactNode` | Displays current index             |
+| Component                 | Props                            | Purpose                                                                 |
+| ------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
+| `FieldArray.Root`         | `control: FormArray<T>`          | Context provider                                                        |
+| `FieldArray.List`         | `children: (item) => ReactNode`  | Iterates items (render props)                                           |
+| `FieldArray.AddButton`    | `initialValue?: Partial<T>`      | Adds new item (from model template)                                     |
+| `FieldArray.RemoveButton` | -                                | Removes current item (inside List)                                      |
+| `FieldArray.Empty`        | `children: ReactNode`            | Shows when array is empty                                               |
+| `FieldArray.Count`        | `render?: (count) => ReactNode`  | Displays item count                                                     |
+| `FieldArray.ItemIndex`    | `render?: (index) => ReactNode`  | Displays current index                                                  |
+| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues (e.g. `minLength`) as text from the message resolver |
 
 ## 8. List Render Props
 
@@ -156,7 +166,7 @@ import { FieldArray } from '@reformer/cdk/field-array';
 interface FieldArrayItemRenderProps<T> {
   control: FormGroup<T>; // Form control for item
   index: number; // Zero-based index
-  id: string | number; // Unique key
+  id: string; // Stable row key — keyAt(index) of the array node; survives move/swap
   remove: () => void; // Remove this item
   moveUp: () => void; // Move one position up (no-op when first)
   moveDown: () => void; // Move one position down (no-op when last)
@@ -166,7 +176,7 @@ interface FieldArrayItemRenderProps<T> {
 ```
 
 Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
-`ArrayNode.move` reorders controls without recreating them.
+`FormArray.move` reorders rows without recreating their controls.
 
 ## 9. Typed item access (avoid `FormGroup<object>`)
 
@@ -295,7 +305,9 @@ interface FieldArrayHandle<T> {
 ```
 
 > `length` / `isEmpty` are a snapshot at render time. For a reactive length
-> outside the array, subscribe via `useFormControl(form.items).length`.
+> outside the array, subscribe via `useArrayLength(form.items)` or
+> `useFormControl(form.items).length` (`@reformer/core/react`). The node itself
+> also reads the current length as a number: `form.items.length`.
 
 ## 12. useFieldArray Hook
 
@@ -327,64 +339,170 @@ function CustomList() {
 
 ```typescript
 interface UseFieldArrayReturn<T> {
-  items: FieldArrayItem<T>[]; // { control, index, id, remove }
+  items: FieldArrayItem<T>[]; // { control, index, id, remove, moveUp, moveDown, canMoveUp, canMoveDown }
   length: number;
   isEmpty: boolean;
-  add: (value?: Partial<T>) => void; // push to end
+  add: (value?: Partial<T>) => void; // push to end; no value — the model array template
   clear: () => void; // remove all
   insert: (index: number, value?: Partial<T>) => void;
+  removeAt: (index: number) => void;
   move: (from: number, to: number) => void; // reorder, state preserved
   swap: (a: number, b: number) => void; // swap two items, state preserved
+  at: (index: number) => FormGroup<T> | undefined;
+  issues: ValidationIssue[]; // array-level issues (e.g. minLength)
+  valid: boolean;
+  invalid: boolean;
 }
 ```
 
-Note: `items[]` is memoized by array length AND order — changing a value inside
-an item does not recreate the `items` array, but `move` / `swap` do (order ref changes).
+Note: `items[]` is recomputed whenever the array value changes — on add/remove,
+on `move` / `swap` and on any edit inside a row (the array value is derived from
+the row values). The row `control` and `id` stay the same, so key rows by `id`
+and wrap heavy rows in `React.memo` on `control`.
 
-## 13. Basic Usage
+`add(value)` passes the value to `FormArray.push` as is — the model does not
+complete a partial item with template defaults. Call `add()` without a value to
+take the item from the model's array template (`arrayOf(blank)`), or pass a
+complete item (`add({ ...blankItem, name: 'New' })`).
+
+## 13. Where the flow comes from
 
 **FormWizard**
 
 Headless compound component for multi-step form wizards.
 
+The wizard is an adapter over the core step flow `FormFlow` (`@reformer/core`). The flow owns the
+current step, the completed steps, the step rules and the "may I go to this step" rule; the wizard
+renders that state and calls the flow's transitions from its buttons.
+
+| Source                | When                                                                                                                                            | Step rules                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `flow` prop           | markup written by hand: `<FormWizard form={bundle.form} flow={bundle.flow}>`                                                                    | `createForm({ flow: { steps: [{ id, rules }] } })` |
+| bundle in the context | inside `FormRenderer` (it puts the bundle into `FormBundleContext`) or your own `<FormBundleContext.Provider value={bundle}>` — no props needed | the same                                           |
+| neither               | positional flow `'1'`, `'2'`, … built from the number of `FormWizard.Step` children                                                             | **none** — every step passes without a check       |
+
+The prop wins over the context. `form` is optional inside the bundle context; with neither a `form`
+prop nor a bundle in the context the wizard throws `[@reformer/cdk] FormWizard: no form…`.
+
+## 14. Basic Usage
+
 ```tsx
-import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
-import { validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, min, email } from '@reformer/core/validators';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
-// Config is a pair of validation callbacks — NOT schemas.
-// Each returns boolean | Promise<boolean> (true = valid).
-// validateModel(model, schema) returns Promise<boolean> and routes errors
-// into the form nodes itself — the callback just forwards its result.
-const config: FormWizardConfig = {
-  validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
-  validateAll: () => validateModel(model, fullSchema),
-};
+type Root = { loanAmount: number; email: string };
 
-<FormWizard form={form} config={config}>
-  <FormWizard.Step component={Step1Form} control={form} />
-  <FormWizard.Step component={Step2Form} control={form} />
+// Step rules — stable module-level references.
+const loanRules = defineValidation<Root>(({ model }) => {
+  validate(model.$.loanAmount, [required(), min(50000)]);
+});
+const contactsRules = defineValidation<Root>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+});
 
-  <FormWizard.Actions onSubmit={handleSubmit}>
-    {({ prev, next, submit, isFirstStep, isLastStep }) => (
-      <div>
-        {!isFirstStep && <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>}
-        {!isLastStep ? (
-          <button onClick={next.onClick} disabled={next.disabled}>Next</button>
-        ) : (
-          <button onClick={submit.onClick} disabled={submit.disabled}>Submit</button>
+function CreditWizard() {
+  const bundle = useFormBundle(() =>
+    createForm<Root>({
+      initial: { loanAmount: 0, email: '' },
+      flow: {
+        steps: [
+          { id: 'loan', rules: loanRules },
+          { id: 'contacts', rules: contactsRules },
+          { id: 'confirm' }, // no rules — the step passes without a check
+        ],
+      },
+    })
+  );
+
+  // Outside the bundle context the wizard calls onSubmit on click — the check is bundle.submit.
+  const send = async () => {
+    const outcome = await bundle.submit(api.send);
+    if (outcome.status === 'invalid') toast('Check the form');
+  };
+
+  return (
+    <FormWizard form={bundle.form} flow={bundle.flow}>
+      <FormWizard.Step component={LoanStep} control={bundle.form} />
+      <FormWizard.Step component={ContactsStep} control={bundle.form} />
+      <FormWizard.Step component={ConfirmStep} control={bundle.form} />
+
+      <FormWizard.Actions onSubmit={send}>
+        {({ prev, next, submit, isFirstStep, isLastStep }) => (
+          <div>
+            {!isFirstStep && (
+              <button onClick={prev.onClick} disabled={prev.disabled}>
+                Back
+              </button>
+            )}
+            {!isLastStep ? (
+              <button onClick={next.onClick} disabled={next.disabled}>
+                Next
+              </button>
+            ) : (
+              <button onClick={submit.onClick} disabled={submit.disabled}>
+                Submit
+              </button>
+            )}
+          </div>
         )}
-      </div>
-    )}
-  </FormWizard.Actions>
-</FormWizard>;
+      </FormWizard.Actions>
+    </FormWizard>
+  );
+}
 ```
+
+Steps are matched **by position**: the N-th `FormWizard.Step` renders while the flow is on its N-th
+step (`flow.steps[N - 1]`). Keep the `FormWizard.Step` children in the order of `flow.steps` and as
+many of them; `totalSteps` is `flow.steps.length`. `FormWizard.Step` takes either
+`component` + `control` (the component receives `control` and any extra props) or `children`.
 
 > Note: `prev`/`next`/`submit` are `{ onClick, disabled }` objects (submit also has
 > `isSubmitting`). They are not DOM-attribute bags — do not `{...prev}`-spread them
-> onto `<button>` (that would set an invalid `disabled`/`onClick` mix). Read the
+> onto `<button>` (`isSubmitting` would leak into the DOM). Read the
 > members explicitly as shown, or use the compound `FormWizard.Prev/Next/Submit`.
 
-## 14. Sub-components
+Other props: `onStepChange(step)` — called after the wizard's own transitions with the 1-based step
+number; `scrollToTop` (default `true`) — scroll to the top after them. A polite live region
+announces "Step N of M" to screen readers; focus management stays with the consumer
+(`onStepChange`).
+
+## 15. Validation and Submit
+
+- **Next** (`next.onClick`, `FormWizard.Next`, `goToNextStep()`) calls `flow.next()`: it runs the
+  current step's `rules` and marks the fields it checked as touched. On blocking issues (or when a
+  rule failed / the run was cancelled) the wizard also calls `form.markAsTouched()` and stays on
+  the step. A step without `rules` (or with `rules: null`) passes without a check.
+- **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
+  - inside the bundle context it goes through `bundle.submit`: one run of the **full** rule set; on
+    success the handler (`Actions` `onSubmit`) is called, on issues every field is marked touched
+    and the handler is not called;
+  - with `form`/`flow` props outside the context the wizard calls the handler on click **without**
+    a check — run it in the handler: `bundle.submit(handler)`.
+- The full rule set is `validation.rules` if given, otherwise every step's `rules` plus
+  `validation.extras` (rules checked only as a whole, on submit):
+
+```typescript
+createForm<Root>({
+  initial,
+  validation: { extras: crossStepRules }, // or a bare rule set: validation: allRules
+  flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+});
+```
+
+`bundle.submit(handler)` resolves to a `SubmitResult`:
+`{ status: 'submitted', result }` | `{ status: 'invalid' | 'error' | 'cancelled', validation }` |
+`{ status: 'failed', error }` (the handler threw). `bundle.validateStep('loan')` checks one step
+(an unknown id throws), `bundle.validate()` — the full set.
+
+When the steps are described in the schema, the step id is the `selector` of the step node; in dev
+`createForm` warns about `flow.steps` ids that have no node with that `selector`. A wizard described
+in the schema is the `FormWizard` of `@reformer/ui-kit` (it renders inside `FormRenderer` and takes
+form and flow from the context).
+
+## 16. Sub-components
 
 | Component              | Purpose                                                |
 | ---------------------- | ------------------------------------------------------ |
@@ -411,7 +529,7 @@ top-level exports; access them as members: `FormWizard.Prev`, etc.
 </FormWizard.Actions>
 ```
 
-## 15. FormWizard.Indicator
+## 17. FormWizard.Indicator
 
 ```tsx
 <FormWizard.Indicator steps={STEPS}>
@@ -431,6 +549,9 @@ top-level exports; access them as members: `FormWizard.Prev`, etc.
   )}
 </FormWizard.Indicator>
 ```
+
+`canNavigate` follows the flow rule (`flow.canGoTo`): the first step always, any other step once
+the previous one is completed.
 
 ### Step Definition
 
@@ -463,7 +584,7 @@ interface FormWizardIndicatorStepWithState {
 }
 ```
 
-## 16. FormWizard.Actions
+## 18. FormWizard.Actions
 
 ```tsx
 <FormWizard.Actions onSubmit={handleSubmit}>
@@ -488,6 +609,10 @@ interface FormWizardIndicatorStepWithState {
 </FormWizard.Actions>
 ```
 
+`onSubmit` takes no arguments: inside the bundle context it is called after `bundle.submit` passed,
+so read the values from the bundle (`bundle.model.get()`) or submit from your own button with
+`useFormWizard().submit(handler)` — that one gets the values and returns the `SubmitResult`.
+
 ### Render Props
 
 ```typescript
@@ -502,7 +627,7 @@ interface FormWizardActionsRenderProps {
 }
 ```
 
-## 17. FormWizard.Progress
+## 19. FormWizard.Progress
 
 ```tsx
 <FormWizard.Progress>
@@ -528,166 +653,107 @@ interface FormWizardProgressRenderProps {
 }
 ```
 
-## 18. External Control via Ref
+## 20. useFormWizard()
 
-```tsx
-const navRef = useRef<FormWizardHandle<FormType>>(null);
-
-// Programmatic navigation
-navRef.current?.goToStep(2);
-navRef.current?.goToNextStep();
-navRef.current?.goToPreviousStep();
-
-// Submit with validation
-const result = await navRef.current?.submit(async (values) => {
-  return api.submit(values);
-});
-
-<FormWizard ref={navRef} form={form} config={config}>
-  ...
-</FormWizard>;
-```
-
-## 19. Configuration
-
-`FormWizardConfig` is a pair of optional validation callbacks (not generic, not
-schema-based). Each returns `boolean | Promise<boolean>` — `true` means valid.
+Context of the wizard for any component inside it (throws outside `<FormWizard>`):
 
 ```typescript
-interface FormWizardConfig {
-  /** Validate step N (1-based). Missing → step treated as valid (warns in console). */
-  validateStep?: (step: number) => boolean | Promise<boolean>;
-  /** Validate the whole form before submit. Missing → submit not blocked. */
-  validateAll?: () => boolean | Promise<boolean>;
+interface FormWizardContextValue<T> {
+  form: FormGroup<T>;
+  flow: FormFlow; // the flow being rendered: prop, bundle or positional
+  currentStep: number; // 1-based: flow.index + 1
+  totalSteps: number; // flow.steps.length
+  completedSteps: number[]; // 1-based numbers of completed steps
+  isFirstStep: boolean;
+  isLastStep: boolean;
+  isValidating: boolean; // a step check is running (flow.validating)
+  isSubmitting: boolean; // bundle.submitting inside the bundle context, otherwise always false
+  goToNextStep: () => Promise<boolean>; // false — the step did not pass its check
+  goToPreviousStep: () => void;
+  goToStep: (step: number) => boolean; // 1-based; false — unknown or locked step
+  submit: <R>(handler: (values: T) => Promise<R> | R) => Promise<SubmitResult<R>>;
 }
 ```
 
-Typically both wrap `validateModel(model, schema)` from `@reformer/core/validation`
-and close over the current step's schema. `validateModel` already returns
-`Promise<boolean>` — it routes each error into the matching form node itself and
-does not count `severity: 'warning'` as blocking — so the callbacks just forward
-its result (no `errors` object to inspect):
+Outside the bundle context `isSubmitting` stays `false` — show the submit progress from
+`bundle.submitting` yourself.
+
+## 21. External Control via the Flow
+
+The wizard has no `ref`. It renders `bundle.flow`, so code outside the wizard tree drives that same
+flow:
+
+```tsx
+const flow = bundle.flow!; // declared in createForm({ flow })
+
+await flow.next(); // check the current step and move on → FlowTransition
+flow.previous();
+flow.goTo('contacts'); // only a reachable step: the first, or one whose previous step is completed
+flow.canGoTo('confirm'); // boolean
+flow.reset(); // back to the first step, completion forgotten
+
+const outcome = await bundle.submit(api.send); // submit with the full check → SubmitResult
+```
 
 ```typescript
-import { validateModel } from '@reformer/core/validation';
-
-// STEP_SCHEMAS[i] and fullSchema are ValidationDefinition<Root> built with
-// defineValidation / apply (see @reformer/core validation docs).
-const config: FormWizardConfig = {
-  validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
-  validateAll: () => validateModel(model, fullSchema),
-};
+type FlowTransition =
+  | { status: 'moved'; from: string; to: string }
+  | {
+      status: 'stayed';
+      step: string;
+      reason: 'invalid' | 'error' | 'cancelled' | 'edge' | 'locked';
+      validation?: ValidationResult; // when the step was checked
+    };
 ```
 
-The schemas themselves are plain `defineValidation<Root>(({ model }) => …)`
-functions; `fullSchema` composes the per-step schemas with `apply(...STEP_SCHEMAS)`.
-The wizard config never sees validators directly — layout and validation stay in
-separate layers.
+- `goTo` of an id that is not in the flow throws; a step that is not reachable yet returns
+  `{ status: 'stayed', reason: 'locked' }`.
+- Going back (`previous()`, `goTo` an earlier step) forgets the completion of the target step and
+  every later one — moving forward checks them again.
+- Transitions made outside the wizard do not call `onStepChange` and do not scroll — the wizard does
+  that only for its own buttons. Subscribe to the flow instead: `useFormFlow(flow)` from
+  `@reformer/core/react` returns `{ current, index, completed, isFirst, isLast, validating }`.
+- Behaviors get the same flow: `defineFormBehavior<Root>(({ flow }) => …)` — e.g. `flow?.goTo('loan')`
+  from a reaction.
 
-Validation happens automatically:
+Inside the wizard tree `useFormWizard()` gives the same operations with 1-based numbers
+(`goToStep(n)`, `goToNextStep()`) and `submit(handler)`.
 
-- On `next.onClick` / `FormWizard.Next`: runs `validateStep(currentStep)`; on failure calls `form.markAsTouched()` and stays on the step.
-- On `submit` (ref `submit()` or `FormWizard.Actions` `onSubmit`): runs `validateAll()`; on success delegates to `form.submit(onSubmit, { skipValidation: true })`.
+## 22. Removed API (previous contract)
 
-> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`.
+| Removed                                                                         | Replacement                                                                                                                                  |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config` prop, `FormWizardConfig` (`validateStep` / `validateAll` callbacks)    | step rules in `createForm({ flow: { steps: [{ id, rules }] } })`; full check — `bundle.submit(handler)` / `bundle.validate()`                |
+| `defineSteps(model, { steps, extras })`                                         | `flow.steps` + `validation.extras` of `createForm`                                                                                           |
+| `ref` prop, `FormWizardHandle` (`goToStep`, `submit`, `validateCurrentStep`, …) | `bundle.flow` (`next()`, `previous()`, `goTo(id)`), `bundle.submit(handler)`, `bundle.validateStep(id)`; inside the tree — `useFormWizard()` |
+| `useWizardStepValidation(config)` + `strategy` in `defineSteps`                 | `createForm({ validation: { strategy } })`, armed by `useFormBundle`                                                                         |
+| ref `submit()` resolving to `R \| null`                                         | `bundle.submit(handler)` resolving to `SubmitResult`                                                                                         |
 
-## 20. Building config from step selectors: `defineSteps`
+## 23. Живая валидация: `validation.strategy`
 
-The raw `FormWizardConfig` above wires steps to rules by array position —
-`validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1])`. That
-index is fragile: adding or reordering a step silently desyncs the rules from the
-position, and a step with no rules defaults to "valid" (a silent hole).
-
-`defineSteps` addresses the rules by the step's **selector** — the same id as the
-step node in the schema — instead of `[step - 1]`. Key order = step order; a step
-without rules is declared **explicitly** as `null`. It returns a plain
-`FormWizardConfig`, so the wizard consumes it unchanged.
+По умолчанию проверка идёт на границах: правила шага — на «Далее», полный набор — на отправке.
+Живая проверка задаётся сборке формы, а не визарду:
 
 ```tsx
-import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
-
-// step1 / step2 / crossFieldRules are ValidationDefinition<Root>
-// (defineValidation / apply — see @reformer/core validation docs).
-const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
-  steps: {
-    loan: step1,
-    applicant: step2,
-    confirm: null, // no per-step rules — declared explicitly, not implied
-  },
-  extras: crossFieldRules, // form-level cross-field/warnings, applied on submit only
-});
-
-<FormWizard form={form} config={config}>
-  <FormWizard.Step component={LoanStep} control={form} />
-  <FormWizard.Step component={ApplicantStep} control={form} />
-  <FormWizard.Step component={ConfirmStep} control={form} />
-  {/* …Actions… */}
-</FormWizard>;
+const bundle = useFormBundle(() =>
+  createForm<Root>({
+    initial,
+    validation: { extras: crossStepRules, strategy: 'blur' },
+    flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+  })
+);
 ```
 
-`defineSteps(model, config)` returns `{ validateStep, validateAll, stepSelectors }`:
+- `strategy`: `'submit'` (по умолчанию — живой проверки нет) | `'blur'` | `'change'` (+ `debounce`,
+  мс) | `'afterFirstSubmit'` (+ `liveAfterSubmit: 'change' | 'blur'`, по умолчанию `'change'`).
+- Стратегию армирует `useFormBundle` (в эффекте; при SSR не армируется) — отдельного хука у
+  визарда нет.
+- Живой прогон идёт по полному набору правил формы и `touched` не ставит: замечание видно, когда
+  поле тронуто или изменено (`shouldShowError`).
+- Учтите: шаг, не прошедший «Далее», визард помечает тронутой всю форму (`form.markAsTouched()`).
+  При живой стратегии замечания полей следующих шагов тогда видны сразу при их открытии.
 
-- `validateStep(n)` resolves `n → selector → rules` internally (the `[step - 1]`
-  indexing is encapsulated here — the app never writes it).
-- `validateAll()` composes every non-null step schema plus `extras`.
-- `stepSelectors` is the ordered list of selectors (index = `step - 1`), handy for
-  selector-based navigation or debugging.
-- `createStepController(step)` builds a `FormValidationController` for that step's
-  live `strategy` (or `null` if `strategy` is unset / `'submit'` / the step has no
-  rules) — consumed by `useWizardStepValidation`, not called directly.
-
-Both callbacks validate with `{ touch: true }`, so only the fields they actually
-validated get marked touched and their errors become visible — no blanket
-`form.markAsTouched()`, and the next step is not shown pre-touched.
-
-**Why over `STEP_SCHEMAS[step - 1]`:** reordering steps stays correct (rules follow
-the selector, not the index); a rule-less step is visible in the config as `null`
-instead of being an implicit gap; and the brittle offset math lives in one place.
-
-> Imported from `@reformer/cdk` (or `@reformer/cdk/form-wizard`).
-
-## 21. Живая валидация шага: `strategy` + `useWizardStepValidation`
-
-По умолчанию wizard валидирует только на границах: `validateStep` на «Далее» и
-`validateAll` на submit. Чтобы включить **живую** валидацию внутри активного шага
-(по blur / по вводу / после первого submit), передай `strategy` в `defineSteps` и
-заармь её хуком `useWizardStepValidation` в теле шага.
-
-`strategy` (+ опциональные `debounce` и `liveAfterSubmit`) описывает live-слой
-**внутри активного шага**. Значения — те же, что у schema-стратегий:
-`'submit' | 'blur' | 'change' | 'afterFirstSubmit'`; `debounce` (мс) актуален для
-`'change'`, `liveAfterSubmit` (`'change' | 'blur'`, default `'change'`) — для
-`'afterFirstSubmit'`.
-
-```tsx
-import { FormWizard, defineSteps, useWizardStepValidation } from '@reformer/cdk/form-wizard';
-
-const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
-  steps: { loan: step1, applicant: step2, confirm: null },
-  extras: crossFieldRules,
-  strategy: 'blur', // живой слой внутри активного шага
-});
-
-function LoanStep() {
-  // армит strategy под текущий шаг; снимает при смене шага / unmount
-  useWizardStepValidation(config);
-  return /* поля шага */;
-}
-```
-
-- `useWizardStepValidation(config)` берёт `currentStep` из `FormWizardContext`,
-  поднимает контроллер (`config.createStepController(currentStep)`) с заданной
-  `strategy` и dispose'ит его при смене шага или unmount.
-- **No-op**, если `strategy` не задана / равна `'submit'` / у текущего шага нет
-  правил (`null`) — хук можно ставить безусловно.
-- Per-step gate (`validateStep` на «Далее») и `validateAll` (submit) **не
-  меняются** — `strategy` добавляет живой слой **поверх** них, а не заменяет их.
-
-> Не навешивай node-level `updateOn` (реактивные триггеры на ноде поля) на те же
-> поля, что покрыты активной schema-`strategy` — оба пишут ошибку в одну ноду,
-> будет мерцание.
-
-## 22. Purpose
+## 24. Purpose
 
 **FormField**
 
@@ -700,20 +766,20 @@ Headless compound component для построения доступной (a11y
 
 В отличие от `FormField` из `@reformer/ui-kit`, который рендерит готовый layout (label сверху, ошибка снизу), `FormField` из `@reformer/cdk` ничего не рендерит сверх минимально необходимого и нужен, когда требуется собственный layout.
 
-## 23. Components
+## 25. Components
 
 | Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                                                                           |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormField.Root`             | Context provider; принимает `control: FormControl<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
 | `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core/react`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
-| `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
+| `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не тронуто и не изменено / нет замечаний).                                                                                                 |
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
-| `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                                                                              |
+| `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `issues`, `error` (текст первого замечания), `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                                                                              |
 | `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `hintProps`, `state`, `actions`, `ids`.                  | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                                                                              |
 
-## 24. Examples
+## 26. Examples
 
 ### Базовый сценарий — auto-render всех частей
 
@@ -827,7 +893,7 @@ function PendingDot() {
 </FormField.Root>;
 ```
 
-`multi` рендерит все ошибки из `errors[]` (например, async-валидатор может вернуть и «слишком короткое имя», и «уже занято»). Первая ошибка получит `id={errorId}` для `aria-errormessage`.
+`multi` рендерит все замечания из `issues[]` (например, async-валидатор может вернуть и «слишком короткое имя», и «уже занято»). Первая ошибка получит `id={errorId}` для `aria-errormessage`.
 
 ### Интеграция с готовым `FormField` из `@reformer/ui-kit`
 
@@ -893,17 +959,17 @@ import { I18nProvider } from '@reformer/core/react';
 
 Свой рендер ошибок берёт тот же резолвер хуком `useIssueMessageResolver()`.
 
-## 25. Anti-patterns
+## 27. Anti-patterns
 
 - **Использовать `FormField.Label` / `Error` / `Control` без `FormField.Root`.** Каждый дочерний компонент вызывает `useFormFieldContext()` и бросает: `FormField.* components must be used within <FormField.Root>`.
 - **Подписываться на `useFormControl(control)` рядом с `FormField.Root`.** `Root` уже подписан — лишняя подписка приведёт к двойному ререндеру. Используйте `useFormFieldContext()` для доступа к состоянию.
 - **Передавать `id` руками в `Control` / `Label`.** ID назначаются автоматически из `useId()`. Если нужен предсказуемый ID для тестов, передайте `id="my-field"` в `Root` — все потомки получат `control-my-field`, `label-my-field`, …
 - **Забывать `hasDescription` при наличии `FormField.Description`.** Без флага `Control` не пропишет `aria-describedby={descriptionId}`, и screen reader не зачитает helper-текст.
 - **Передавать `hasHint` без `FormField.Hint` в дереве (и наоборот).** С флагом, но без элемента `aria-describedby` получит висячий id; с элементом, но без флага текст подсказки не дойдёт до screen reader.
-- **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `errors`/`shouldShowError`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
+- **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `issues`/`shouldShowError`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
 - **Применять `asChild` к компоненту, который не пробрасывает `ref`/`...props`.** `Slot` объединяет пропсы и ref в дочерний элемент; если потомок их не принимает, `aria-*`-атрибуты потеряются.
 
-## 26. Troubleshooting
+## 28. Troubleshooting
 
 - **`Error: FormField.* components must be used within <FormField.Root>`.** Проверьте, что вызов `FormField.Label` / `Control` / `Error` обёрнут в `FormField.Root` и компонент не рендерится в портале выше провайдера.
 - **`Label` ничего не показывает.** В схеме поля нет `componentProps.label`. Вариант: задайте `label` в схеме, или передайте `children` в `FormField.Label`, или поставьте `forceRender`.
@@ -911,11 +977,11 @@ import { I18nProvider } from '@reformer/core/react';
 - **Сырой контрол с event-диалектом (Checkbox/Radio) пишет в модель `event` вместо значения.** И auto-mode, и `asChild` вешают value-based seam (`value` + `onChange(value)` + `onBlur`). Контрол с диалектом `checked` + `onChange(event)` получит `value`, но в `setValue` уйдёт DOM-`event`. (`Select` с `onChange(value, option)` привязывается корректно сам — значение идёт первым аргументом, а лишний `option` обработчик отбрасывает; адаптер ему нужен, только если значение надо вывести ИЗ `option`/props, либо чтобы снять утечку пропа `control` в DOM.) Решение на уровне CDK: `asChild` с value-based обёрткой (переложите `event.target.checked` в `onChange(value)` руками) либо регистрация value-based обёртки как `component:` в схеме. Когда поле рисует не CDK-compound, а рендерер (`@reformer/renderer-react` / `@reformer/renderer-json`) из схемы — сырые контролы подключаются без обёрток через `RendererSettings.resolveFieldAdapter` (`FieldAdapter`: `valueProp`/`fromEmit`/`toValue`).
 - **`aria-describedby` пустой при наличии `Description`.** Не передан `hasDescription` в `Root`. Это не «магический» флаг — без него `Control` не знает, что description есть в дереве.
 - **Screen reader не зачитывает текст тултипа при фокусе на поле.** Контент тултипа рендерится в портале только в открытом состоянии. Продублируйте текст в `<FormField.Hint hidden>` и передайте `hasHint` в `Root`.
-- **`FormField.Error` не появляется при наличии ошибки.** Поле не помечено как touched. Используйте `form.markAsTouched()` или `control.markAsTouched()` перед сабмитом, либо настройте `revalidateWhen` чтобы помечать touched по `change`.
+- **`FormField.Error` не появляется при наличии ошибки.** Поле не тронуто и не изменено (`shouldShowError = invalid && (touched || dirty)`). Отправляйте через `bundle.submit(handler)` — при замечаниях он помечает тронутыми все поля; для живой проверки задайте сборке `validation: { rules, strategy: 'change' }` (или `'blur'`); вручную — `control.markAsTouched()`.
 - **При async-валидации индикатор моргает.** `pending` переключается на каждый `setValue`. Дебаунсьте источник или добавьте задержку перед показом спиннера (например, `useDeferredValue`).
 - **Дубликаты `id` в DOM.** Несколько `FormField.Root` с одинаковым явным `id`. Опустите `id` (тогда работает `useId()`) или дайте уникальные значения.
 
-## 27. See also
+## 29. See also
 
 - [01-overview.md](01-overview.md) — общее введение в `@reformer/cdk`.
 - [02-field-array.md](02-field-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
@@ -923,7 +989,7 @@ import { I18nProvider } from '@reformer/core/react';
 - [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки FormField/FieldArray/FormWizard.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
-## 28. Два режима
+## 30. Два режима
 
 **AsyncBoundary**
 
@@ -938,7 +1004,7 @@ Headless compound component для состояний асинхронной з�
 
 В self-managed режиме props `status` / `error` / `refreshing` / `onRetry` игнорируются: два источника истины о состоянии — источник багов. Режим выбирается один раз при монтировании, менять его на лету нельзя.
 
-## 29. Purpose
+## 31. Purpose
 
 - Забрать загрузку внутрь компонента: снаружи остаются только «как загрузить» (`load`) и «что сделать с ответом» (`onSuccess`), а гонки, отмена и повтор — внутри.
 - Развести четыре взаимоисключающих состояния экрана без цепочки тернарников.
@@ -947,7 +1013,7 @@ Headless compound component для состояний асинхронной з�
 - Погасить вспышку спиннера при быстром ответе (`delayMs`) и сохранить контент при фоновом обновлении (`refreshing`).
 - Выдать корректные `aria-busy` / `role="status"` / `role="alert"` без участия консумента.
 
-## 30. Components
+## 32. Components
 
 | Component                    | Purpose                                                                                                | Notes                                                                                            |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -963,7 +1029,7 @@ Headless compound component для состояний асинхронной з�
 | `useAsyncResource(options)`  | Хук загрузки с отменой и повтором: `load` / `loadKey` / `enabled` → `{ status, data, error, refreshing, reload, abort }`. | То, что `Root` использует внутри в self-managed режиме.                          |
 | `asyncResourceReducer`       | Чистая (React-free) машина состояний загрузки.                                                          | Экспортирована для своих обёрток и юнит-тестов без DOM.                                   |
 
-## 31. Imperative handle
+## 33. Imperative handle
 
 `AsyncBoundary.Root` принимает `ref` типа `AsyncBoundaryHandle<T, E>` — для триггеров вне дерева границы (кнопка «Обновить» в шапке, пункт меню, событие сокета):
 
@@ -987,20 +1053,20 @@ const boundaryRef = useRef<AsyncBoundaryHandle<Application[]>>(null);
 | `abort()`                                      | Прервать запрос; прерывание не считается ошибкой. В controlled-режиме — no-op. |
 | `status` / `data` / `error` / `isLoading` / `refreshing` | Снимок на момент рендера — для реактивного UI читайте контекст, а не handle. |
 
-## 32. Examples
+## 34. Examples
 
 ### Self-managed — загрузка внутри компонента
 
 ```tsx
 import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 
-function ApplicationPage({ applicationId, form }: Props) {
+function ApplicationPage({ applicationId, bundle }: Props) {
   return (
     <AsyncBoundary.Root
       load={(signal) => loadApplication(applicationId, signal)}
       loadKey={applicationId}
       enabled={applicationId !== null}
-      onSuccess={(data) => form.patchValue(data)}
+      onSuccess={(data) => bundle.model.patch(data)} // частичное слияние значений в модель
       delayMs={200}
     >
       <AsyncBoundary.Idle>
@@ -1023,7 +1089,7 @@ function ApplicationPage({ applicationId, form }: Props) {
       </AsyncBoundary.Error>
 
       <AsyncBoundary.Content>
-        <CreditForm form={form} />
+        <CreditForm form={bundle.form} />
       </AsyncBoundary.Content>
     </AsyncBoundary.Root>
   );
@@ -1119,7 +1185,7 @@ function Panel({ status, error, reload, children }: Props) {
 }
 ```
 
-## 33. Accessibility
+## 35. Accessibility
 
 Расставляется компонентом, дублировать вручную не нужно:
 
@@ -1131,14 +1197,14 @@ function Panel({ status, error, reload, children }: Props) {
 
 Булевы `aria-*` / `data-*` выставляются как `true | undefined`, никогда `false`: `false` отрендерился бы строкой `"false"` и сломал селекторы вида `[data-refreshing]`.
 
-## 34. Common Patterns
+## 36. Common Patterns
 
 - **Отложенный спиннер.** `delayMs={200}` — статус остаётся честным (`'loading'`), откладывается только показ слота. Ответ за 120 мс проходит `loading → ready`, а пользователь не видит вспышки.
 - **Stale-while-revalidate.** При обновлении держите `status: 'ready'` и поднимайте `refreshing` — контент остаётся на экране, регион помечается занятым.
 - **Множественная загрузка как одна единица.** Заявка + справочники грузятся `Promise.all`; падение любого — общий `error`. Разные сообщения различают причину.
 - **Текст ошибки по умолчанию.** Без `toError` в `error` попадает текст отказа: `message` у `Error` или сама строка. Отказ без текста (`reject({ status: 500 })`) даёт фразу «Unknown error» на языке активной локали — ключ `cdk.asyncBoundary.unknownError`, язык задаёт `I18nProvider` из `@reformer/core/react`. Фраза берётся в момент отказа: смена языка уже показанную ошибку не переводит.
 
-## 35. Anti-patterns
+## 37. Anti-patterns
 
 - **Не** заводить пятый статус `'empty'`: пустоту знает только консумент, а статус пришлось бы пересчитывать на каждое изменение данных. Используйте `AsyncBoundary.Empty` с `when`.
 - **Не** схлопывать «нечего грузить» в `ready` — для этого есть `idle`.
@@ -1149,15 +1215,15 @@ function Panel({ status, error, reload, children }: Props) {
 - **Не** переиспользовать слово `pending` для загрузки данных — в `@reformer/core` оно занято состоянием асинхронной проверки (`control.pending`).
 - **Не** класть в CDK-слоты Tailwind-классы и вёрстку: стилизованные блоки живут в `@reformer/ui-kit` (`AsyncBoundary`, `AsyncBoundaryLoading`, `AsyncBoundaryError`, `AsyncBoundaryEmpty`).
 
-## 36. Nested FieldArray
+## 38. Nested FieldArray
 
 **Advanced Recipes**
 
-Готовые рецепты для нетривиальных задач: вложенные массивы, кастомный AddButton, динамическое количество шагов в wizard, externally-controlled wizard. Каждый рецепт — Problem → Solution → Notes.
+Готовые рецепты для нетривиальных задач: вложенные массивы, кастомный AddButton, условный шаг в wizard, управление wizard снаружи. Каждый рецепт — Problem → Solution → Notes.
 
 ### Problem
 
-В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Контролы вложенных массивов — это `ArrayNode<T>` внутри `FormGroup<Property>`, и стандартного `FieldArray.Root + List` достаточно, чтобы рендерить любую глубину.
+В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Вложенный массив — это `FormArray<T>` внутри `FormGroup<Property>` строки, и стандартного `FieldArray.Root + List` достаточно, чтобы рендерить любую глубину.
 
 ### Solution
 
@@ -1206,11 +1272,11 @@ import { FormField } from '@reformer/ui-kit';
 ### Notes
 
 - Каждый `FieldArray.Root` создаёт собственный `FieldArrayContext`. Внутренний `useFieldArrayContext()` (например, в `AddButton`) видит ближайший провайдер — в примере выше `coOwners`, не `properties`.
-- `FieldArray.List` мемоизирует элементы по `length` массива (см. `useFieldArray`); смена порядка/количества внутреннего массива не дёргает внешний `List`.
+- Значение массива производно от значений строк, поэтому `FieldArray.Root` перерисовывается при любой правке внутри строки — в том числе во вложенном `coOwners`. Стабильны `control` строки и её `id` (ключ строки, `keyAt(index)`): они не меняются ни от правок, ни от `move`/`swap`.
 - `useFieldArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
-- Рендер-проп `FieldArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
+- Тяжёлую строку выносите в отдельный компонент под `React.memo` с пропом `control` — тогда перерисовка массива не перерисовывает неизменённые строки.
 
-## 37. Custom AddButton
+## 39. Custom AddButton
 
 ### Problem
 
@@ -1222,6 +1288,9 @@ import { FormField } from '@reformer/ui-kit';
 import { useFieldArrayContext } from '@reformer/cdk/field-array';
 import { Menu } from '@/ui';
 
+// Полный элемент: модель берёт переданное значение как есть и недостающие ключи не достраивает.
+const blankProperty: Property = { type: 'apartment', address: '', estimatedValue: 0 };
+
 function AddPropertyMenu() {
   const { add } = useFieldArrayContext<Property>();
 
@@ -1229,9 +1298,11 @@ function AddPropertyMenu() {
     <Menu>
       <Menu.Trigger className="btn-primary">+ Добавить имущество ▾</Menu.Trigger>
       <Menu.Content>
-        <Menu.Item onSelect={() => add({ type: 'apartment' })}>Квартира</Menu.Item>
-        <Menu.Item onSelect={() => add({ type: 'house', estimatedValue: 0 })}>Дом</Menu.Item>
-        <Menu.Item onSelect={() => add({ type: 'commercial' })}>Коммерческое</Menu.Item>
+        <Menu.Item onSelect={() => add()}>Квартира</Menu.Item>
+        <Menu.Item onSelect={() => add({ ...blankProperty, type: 'house' })}>Дом</Menu.Item>
+        <Menu.Item onSelect={() => add({ ...blankProperty, type: 'commercial' })}>
+          Коммерческое
+        </Menu.Item>
       </Menu.Content>
     </Menu>
   );
@@ -1245,66 +1316,103 @@ function AddPropertyMenu() {
 
 ### Notes
 
-- Хук работает только внутри `FieldArray.Root` — снаружи бросает `Error: FieldArray.* components must be used within FieldArray.Root`.
-- `add(value?: Partial<T>)` пропускает значение в `control.push(value)` — не задавать поля можно, ReFormer возьмёт значения по умолчанию из схемы.
-- Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FieldArrayHandle<T>>` + `arrayRef.current?.add(...)`.
-- Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFieldArray`).
+- Хук работает только внутри `FieldArray.Root` — снаружи бросает `Error: FieldArray.* components must be used within FieldArray.Root or RenderSchema FieldArray`.
+- `add()` без аргумента берёт элемент из шаблона массива модели — `createModel({ properties: arrayOf(blankProperty) })` (`arrayOf` из `@reformer/core`); шаблона нет — ошибка. `add(value)` уходит в `control.push(value)` как есть: передавайте элемент целиком (`{ ...blankProperty, type: 'house' }`), частичный объект не дополняется значениями шаблона.
+- Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FieldArrayHandle<T>>` + `arrayRef.current?.add(...)` — или сам узел массива: `form.properties.push(...)`.
+- Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push меняет длину массива и перерисовывает `List`.
 
-## 38. Conditional / dynamic step count in FormWizard
+## 40. Conditional step in FormWizard
 
 ### Problem
 
-`FormWizard` считает количество шагов через `Children.forEach` по `FormWizard.Step` детям (см. `FormWizard.tsx`). Если шаг условный (например, «верификация документов» нужна только для суммы > 1 000 000), достаточно условного рендера: `{showVerification && <FormWizard.Step ... />}`. `totalSteps` пересчитается, индикатор сожмётся.
+Шаг «верификация документов» нужен только для суммы > 1 000 000. Набор шагов потока задаётся в `createForm({ flow })` один раз и потом не меняется, а `FormWizard.Step` сопоставляются шагам потока по позиции. Поэтому условный рендер `{needsVerification && <FormWizard.Step … />}` при потоке сборки ломает соответствие: шаг в потоке остался, а разметки для него нет.
 
 ### Solution
 
+Шаг остаётся в потоке, условными становятся его правила и содержимое. Правила шага (и всё, что шаг проверяет при отправке) заворачиваются в `validateWhen`: пока шаг не нужен, его правила не действуют, и «Далее» проходит его без замечаний.
+
 ```tsx
-import { useMemo } from 'react';
-import { useFormControl } from '@reformer/core/react';
-import { validateModel } from '@reformer/core/validation';
-import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
+import { createForm, type FormGroup } from '@reformer/core';
+import { useFormBundle, useFormControlValue } from '@reformer/core/react';
+import { defineValidation, validate, validateWhen } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import { FormWizard } from '@reformer/cdk/form-wizard';
+import { FormField } from '@reformer/ui-kit';
 
-function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
-  const { value: amount } = useFormControl(form.amount);
-  const needsVerification = amount > 1_000_000;
+const needsVerification = (amount: number): boolean => amount > 1_000_000;
 
-  // config — пара колбэков validateStep / validateAll (не схемы, не generic).
-  // step (1-based) роутится в нужную ValidationDefinition (@reformer/core/validation);
-  // при выключенной верификации нумерация сдвигается — учитываем это в самом колбэке.
-  // validateModel(model, schema) => Promise<boolean>, ошибки сам роутит в ноды.
-  const config = useMemo<FormWizardConfig>(
-    () => ({
-      validateStep: (step) => {
-        const schema = needsVerification
-          ? stepSchemas.withVerification[step - 1]
-          : stepSchemas.withoutVerification[step - 1];
-        return schema ? validateModel(form.model, schema) : true; // нет схемы — шаг валиден
+const verificationRules = defineValidation<CreditForm>(({ model }) => {
+  validateWhen(
+    () => needsVerification(model.loanAmount),
+    () => {
+      validate(model.$.passportScan, [required({ code: 'passportScan.required' })]);
+    }
+  );
+});
+
+function VerificationStep({ control }: { control: FormGroup<CreditForm> }) {
+  const amount = useFormControlValue(control.loanAmount);
+  if (!needsVerification(amount))
+    return <p>Для этой суммы верификация не нужна — нажмите «Далее».</p>;
+  return <FormField control={control.passportScan} />;
+}
+
+function CreditWizard() {
+  const bundle = useFormBundle(() =>
+    createForm<CreditForm>({
+      initial,
+      flow: {
+        steps: [
+          { id: 'loan', rules: loanRules },
+          { id: 'contacts', rules: contactsRules },
+          { id: 'verification', rules: verificationRules },
+          { id: 'confirm' },
+        ],
       },
-      validateAll: () => validateModel(form.model, fullSchema),
-    }),
-    [needsVerification, stepSchemas, fullSchema, form]
+    })
   );
 
   return (
-    <FormWizard form={form} config={config}>
-      <FormWizard.Step component={AmountForm} control={form} />
-      <FormWizard.Step component={PersonalForm} control={form} />
-      <FormWizard.Step component={ContactForm} control={form} />
-      {needsVerification && <FormWizard.Step component={VerificationForm} control={form} />}
-      <FormWizard.Step component={ConfirmationForm} control={form} />
+    <FormWizard form={bundle.form} flow={bundle.flow}>
+      <FormWizard.Step component={LoanStep} control={bundle.form} />
+      <FormWizard.Step component={ContactsStep} control={bundle.form} />
+      <FormWizard.Step component={VerificationStep} control={bundle.form} />
+      <FormWizard.Step component={ConfirmStep} control={bundle.form} />
+      {/* …Actions… */}
+    </FormWizard>
+  );
+}
+```
 
-      <FormWizard.Actions onSubmit={handleSubmit}>
-        {({ prev, next, submit, isLastStep }) => (
-          <div>
-            <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>
-            {isLastStep ? (
-              <button onClick={submit.onClick} disabled={submit.disabled}>Подтвердить</button>
-            ) : (
-              <button onClick={next.onClick} disabled={next.disabled}>Далее</button>
-            )}
-          </div>
-        )}
-      </FormWizard.Actions>
+Если шаг должен именно исчезнуть из нумерации и индикатора — соберите свой поток на нужный набор шагов и передайте его пропом `flow`. Правила шагов при этом берутся из сборки по идентификатору (`bundle.validateStep(id)`), поэтому поток сборки по-прежнему объявляет **все** шаги:
+
+```tsx
+import { useMemo } from 'react';
+import { createFormFlow, type FormBundle } from '@reformer/core';
+
+const STEP_IDS = ['loan', 'contacts', 'verification', 'confirm'] as const;
+
+function CreditWizard({ bundle }: { bundle: FormBundle<CreditForm> }) {
+  const amount = useFormControlValue(bundle.form.loanAmount);
+  const withVerification = needsVerification(amount);
+
+  // Новый поток начинает с первого шага, пройденных шагов у него нет.
+  const flow = useMemo(
+    () =>
+      createFormFlow({
+        steps: STEP_IDS.filter((id) => id !== 'verification' || withVerification),
+        validateStep: bundle.validateStep,
+      }),
+    [bundle, withVerification]
+  );
+
+  return (
+    <FormWizard form={bundle.form} flow={flow}>
+      <FormWizard.Step component={LoanStep} control={bundle.form} />
+      <FormWizard.Step component={ContactsStep} control={bundle.form} />
+      {withVerification && <FormWizard.Step component={VerificationStep} control={bundle.form} />}
+      <FormWizard.Step component={ConfirmStep} control={bundle.form} />
+      {/* …Actions… */}
     </FormWizard>
   );
 }
@@ -1312,50 +1420,60 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
 
 ### Notes
 
-- **Номера шагов сдвигаются** при включении/выключении: `validateStep(4)` должен разрешаться либо в схему верификации, либо в схему подтверждения — в зависимости от `needsVerification`. Держите колбэк `validateStep`/`validateAll` в `useMemo` от того же флага, иначе он замкнётся на устаревшую нумерацию.
-- `currentStep` в state `FormWizard` хранится как число. Если флаг изменился пока пользователь стоит на шаге 4 (где раньше была верификация, а теперь подтверждение), он останется на том же номере — но рендер увидит уже другой `Step`. В критичных кейсах вызывайте `navRef.current?.goToStep(1)` после переключения.
-- `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
-- Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
+- **Первый вариант — основной.** Номера шагов, пройденные шаги и правила не сдвигаются: шаг всегда на своём месте, меняется только то, что он проверяет и показывает.
+- **`validateWhen` нужен в обоих вариантах.** Полный набор правил отправки (`bundle.submit`) — правила всех шагов потока сборки плюс `extras`; без условия ненужный шаг заблокировал бы отправку.
+- **Смена своего потока сбрасывает позицию.** Новый поток стоит на первом шаге без пройденных: условие, от которого зависит набор шагов, держите на первом шаге (пользователь меняет сумму там же, куда поток и вернётся). Колбэк `onStepChange` при смене потока не вызывается. Поведение формы (`defineFormBehavior(({ flow }) => …)`) и `bundle.flow` по-прежнему указывают на поток сборки, а не на свой — переходы оттуда визард этого варианта не увидит.
+- **Шаги сопоставляются по позиции**: число и порядок `FormWizard.Step` совпадают с `flow.steps`. Индикатору передавайте массив шагов, построенный из того же списка (`number` — позиция с единицы).
+- Позиционный поток (визард без `flow` и без сборки в контексте) тоже пересобирается при смене числа `FormWizard.Step` — с тем же сбросом, — но правил шагов у него нет вовсе.
+- Неактивные `FormWizard.Step` возвращают `null`; значения их полей живут в модели независимо от рендера.
 
-## 39. Externally-controlled wizard via `useRef<FormWizardHandle>`
+## 41. Externally-controlled wizard via `bundle.flow`
 
 ### Problem
 
-Кнопка «Сохранить и выйти» лежит вне `FormWizard` (в шапке страницы), нужен программный submit. Аналогично — переход на шаг по клику в стороннем breadcrumb или после ответа из API.
+Кнопка «Сохранить и выйти» лежит вне `FormWizard` (в шапке страницы), нужна программная отправка. Аналогично — переход на шаг по клику в стороннем breadcrumb или после ответа из API.
 
 ### Solution
 
-```tsx
-import { useRef } from 'react';
-import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
+У визарда нет `ref`: он рисует поток сборки, и код снаружи управляет тем же потоком.
 
-function Page({ form, config }: Props) {
-  const navRef = useRef<FormWizardHandle<CreditApplication>>(null);
+```tsx
+import { useFormBundle, useFormFlow } from '@reformer/core/react';
+import { FormWizard } from '@reformer/cdk/form-wizard';
+
+function Page() {
+  // createCreditApplication — createForm({ …, flow: { steps: [{ id: 'loan', … }, …] } })
+  const bundle = useFormBundle(() => createCreditApplication());
+  const flow = bundle.flow!; // поток объявлен в createForm
+  const { current, validating } = useFormFlow(flow);
 
   const handleSaveAndExit = async () => {
-    // submit с полной валидацией; null если форма невалидна
-    const result = await navRef.current?.submit(async (values) => {
-      return api.saveDraft(values);
-    });
-    if (result) router.push('/dashboard');
+    // Полная проверка, при успехе — обработчик со значениями модели.
+    const outcome = await bundle.submit(api.saveDraft);
+    if (outcome.status === 'submitted') router.push('/dashboard');
+    else if (outcome.status === 'failed') toast('Сервер не принял заявку');
+    // 'invalid' — замечания уже видны: поля помечены touched
   };
 
   const jumpToContacts = () => {
-    const ok = navRef.current?.goToStep(3);
-    if (!ok) toast('Сначала заполните предыдущие шаги');
+    const transition = flow.goTo('contacts');
+    if (transition.status === 'stayed') toast('Сначала заполните предыдущие шаги'); // reason: 'locked'
   };
 
   return (
     <>
       <header className="flex justify-between p-4 border-b">
-        <button onClick={jumpToContacts}>Перейти к контактам</button>
-        <button onClick={handleSaveAndExit}>Сохранить и выйти</button>
+        <span>Шаг: {current}</span>
+        <button onClick={jumpToContacts} disabled={validating}>
+          Перейти к контактам
+        </button>
+        <button onClick={() => void handleSaveAndExit()}>Сохранить и выйти</button>
       </header>
 
-      <FormWizard ref={navRef} form={form} config={config}>
-        <FormWizard.Step component={Step1} control={form} />
-        <FormWizard.Step component={Step2} control={form} />
-        <FormWizard.Step component={Step3} control={form} />
+      <FormWizard form={bundle.form} flow={flow}>
+        <FormWizard.Step component={LoanStep} control={bundle.form} />
+        <FormWizard.Step component={ApplicantStep} control={bundle.form} />
+        <FormWizard.Step component={ContactsStep} control={bundle.form} />
       </FormWizard>
     </>
   );
@@ -1364,19 +1482,21 @@ function Page({ form, config }: Props) {
 
 ### Notes
 
-- `FormWizardHandle` exposes: `currentStep`, `completedSteps`, `goToNextStep` (с валидацией), `goToPreviousStep`, `goToStep` (boolean — true если переход разрешён), `submit`, `validateCurrentStep`, `isFirstStep`, `isLastStep`, `isValidating`, `form`.
-- `submit(onSubmit)` сначала прогоняет `config.validateAll?.()` (если колбэк задан), затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
-- `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
-- Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
+- Операции потока: `next()` (проверка текущего шага и переход, `Promise<FlowTransition>`), `previous()`, `goTo(id)`, `canGoTo(id)`, `reset()`. Итог перехода — `{ status: 'moved', from, to }` либо `{ status: 'stayed', step, reason, validation? }`, где `reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`.
+- `goTo(id)` пускает на первый шаг и на шаг, предыдущий которого пройден; иначе — `stayed` с `reason: 'locked'`. Неизвестный идентификатор — исключение. Чтобы пройти вперёд с проверкой — `await flow.next()`.
+- `bundle.submit(handler)` возвращает `SubmitResult`: `submitted` (с `result`), `invalid` / `error` / `cancelled` (с `validation`, обработчик не вызывался) или `failed` (обработчик бросил `error`).
+- Переходы снаружи не вызывают `onStepChange` и `scrollToTop` визарда — на смену шага реагируйте через `useFormFlow(flow).current`.
+- Из поведения формы — тот же поток: `defineFormBehavior<CreditForm>(({ flow }) => { … flow?.goTo('loan'); })`.
+- Внутри дерева визарда то же доступно через `useFormWizard()`: `goToStep(n)` (номер с единицы), `goToNextStep()`, `submit(handler)`.
 
-## 40. See also
+## 42. See also
 
 - [02-field-array.md](02-field-array.md) — основы FieldArray (compound API, ref-handle).
-- [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
+- [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (поток шагов, Indicator, Actions, Progress).
 - [04-form-field.md](04-form-field.md) — компоновка одного поля.
 - [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки и пути их обхода.
 
-## 41. `FieldArray.AddButton` не появляется на странице
+## 43. `FieldArray.AddButton` не появляется на странице
 
 **Troubleshooting / FAQ**
 
@@ -1393,11 +1513,11 @@ function Page({ form, config }: Props) {
 </FieldArray.Root>
 ```
 
-## 42. `FieldArray.List` ререндерит весь массив при изменении одного элемента
+## 44. `FieldArray.List` ререндерит весь массив при изменении одного элемента
 
-**Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FieldArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
+**Причина.** Значение массива производно от значений строк: правка поля в строке меняет `value` массива, `FieldArray.Root` (через `useFormControl(arrayNode)`) перерисовывается, `items` пересобираются, а inline-JSX render-функции создаётся заново для каждой строки.
 
-**Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни элемента) и `id` для key.
+**Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни строки, в том числе при `move`/`swap`) и `id` для key.
 
 ```tsx
 const Item = React.memo(({ control }: { control: FormGroup<Property> }) => (
@@ -1407,50 +1527,50 @@ const Item = React.memo(({ control }: { control: FormGroup<Property> }) => (
 <FieldArray.List>{({ control, id }) => <Item key={id} control={control} />}</FieldArray.List>;
 ```
 
-`useFieldArray` мемоизирует `items` по длине массива (см. `useFieldArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
+Пересоздаются только объекты `items` (`{ control, index, id, remove, … }`); сами `control` и `id` строк остаются прежними, поэтому `React.memo` по `control` отсекает перерисовку неизменённых строк.
 
-## 43. `FormWizardHandle.goToStep` возвращает `false`
+## 45. `goTo` / `goToStep` не переводит на шаг
 
-**Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
+**Причина.** Поток пускает только на первый шаг и на шаг, предыдущий которого пройден (`flow.canGoTo`). `bundle.flow.goTo(id)` в этом случае возвращает `{ status: 'stayed', reason: 'locked' }`, `goToStep(n)` из `useFormWizard()` и индикатора — `false`. Это защита от пропуска проверки шага. `goToStep(n)` вне диапазона `[1; totalSteps]` тоже даёт `false`, а `goTo` с идентификатором, которого нет в потоке, бросает исключение.
 
 **Решение.**
 
-- Для последовательного перехода вперёд используйте `await navRef.current?.goToNextStep()` — он сам валидирует и помечает шаг completed.
-- Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
-- Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
+- Для перехода вперёд с проверкой используйте `await bundle.flow.next()` (или `goToNextStep()` внутри визарда) — он проверит шаг и отметит его пройденным.
+- Помните, что возврат назад (`previous()`, `goTo` на более ранний шаг) снимает отметку «пройден» с целевого шага и всех следующих: вперёд их снова придётся пройти через `next()`.
+- Номер шага — позиция в `flow.steps` с единицы; `totalSteps === flow.steps.length`.
 
-## 44. Шаг без валидации пропускается без проверки
+## 46. Шаг проходится без проверки
 
-**Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
+**Причина.** Одно из трёх:
 
-```typescript
-interface FormWizardConfig {
-  validateStep?: (step: number) => boolean | Promise<boolean>;
-  validateAll?: () => boolean | Promise<boolean>;
-}
+1. У шага в `flow.steps` нет `rules` (или `rules: null`) — такой шаг проходит «Далее» без проверки.
+2. Визард работает на **позиционном** потоке: ему не передан `flow`, и он отрисован вне сборки (`FormBundleContext`). Позиционный поток строится по числу `FormWizard.Step` и правил не имеет вовсе.
+3. Правила шага обёрнуты в `validateWhen`, и условие сейчас ложно.
+
+**Решение.** Объявите шаги и их правила в сборке и передайте поток визарду:
+
+```tsx
+const bundle = useFormBundle(() =>
+  createForm<CreditForm>({
+    initial,
+    flow: {
+      steps: [
+        { id: 'loan', rules: loanRules },
+        { id: 'personal', rules: personalRules },
+        { id: 'confirm' }, // информационный шаг — без правил, явно
+      ],
+    },
+  })
+);
+
+<FormWizard form={bundle.form} flow={bundle.flow}>
+  …
+</FormWizard>;
 ```
 
-**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную
-`ValidationDefinition` (per-step схемы — `defineValidation`, полная — `apply(...steps)`;
-всё из `@reformer/core/validation`). Для чисто информационного шага (например,
-«Подтверждение») верните `true`.
+Правила шага — `defineValidation` из `@reformer/core/validation`, стабильные ссылки уровня модуля.
 
-```typescript
-import { validateModel } from '@reformer/core/validation';
-
-const stepSchemas = [amountValidation, personalValidation, confirmationValidation];
-
-const config: FormWizardConfig = {
-  validateStep: (step) => {
-    const schema = stepSchemas[step - 1];
-    if (!schema) return true; // нет схемы для шага — считаем валидным
-    return validateModel(model, schema); // Promise<boolean>, ошибки роутятся в ноды
-  },
-  validateAll: () => validateModel(model, fullValidation),
-};
-```
-
-## 45. `useFieldArrayContext` бросает исключение
+## 47. `useFieldArrayContext` бросает исключение
 
 **Сообщение.** `Error: FieldArray.* components must be used within FieldArray.Root or RenderSchema FieldArray`.
 
@@ -1458,7 +1578,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Поместите потребителя внутрь `FieldArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FieldArrayHandle` снаружи.
 
-## 46. `useFormFieldContext` бросает исключение
+## 48. `useFormFieldContext` бросает исключение
 
 **Сообщение.** `Error: FormField.* components must be used within <FormField.Root>`.
 
@@ -1466,26 +1586,26 @@ const config: FormWizardConfig = {
 
 **Решение.** Перепроверьте дерево; если поле условное — выносите всю секцию в `if (!visible) return null;` снаружи `FormField.Root`.
 
-## 47. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
+## 49. `FormField.Error` не показывает ошибку, хотя `issues.length > 0`
 
-**Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
+**Причина.** `shouldShowError === false`: поле невалидно, но его не трогали и не меняли. Ошибка видна, когда поле `touched` или `dirty`.
 
 **Решение.**
 
-- На сабмите формы вызовите `form.markAsTouched()` перед `await form.validate()`.
-- Для немедленной валидации поля используйте `revalidateWhen({ when: 'change' })` behavior, либо вручную `control.markAsTouched()` в `onChange`.
+- Отправляйте через `bundle.submit(handler)`: при замечаниях он помечает тронутыми все поля формы и обработчик не вызывает.
+- `bundle.validate()` проверяет всю форму и помечает тронутыми проверенные поля.
+- Для живой проверки задайте стратегию сборке: `createForm({ …, validation: { rules, strategy: 'change' } })` (или `'blur'`, `'afterFirstSubmit'`); армирует её `useFormBundle`.
 
 ```tsx
 const handleSubmit = async () => {
-  form.markAsTouched();
-  await form.validate();
-  if (form.valid.value) {
-    /* submit */
+  const outcome = await bundle.submit(api.send);
+  if (outcome.status === 'invalid') {
+    /* замечания уже видны — поля помечены touched */
   }
 };
 ```
 
-## 48. `FormField.Description` есть в DOM, но `aria-describedby` пустой
+## 50. `FormField.Description` есть в DOM, но `aria-describedby` пустой
 
 **Причина.** В `FormField.Root` не передан проп `hasDescription`. Без него `Control` не вписывает `descriptionId` в `aria-describedby` (это сделано осознанно — чтобы избежать двойного рендера от динамической регистрации).
 
@@ -1499,58 +1619,59 @@ const handleSubmit = async () => {
 </FormField.Root>
 ```
 
-## 49. Multi-step submit срабатывает раньше валидации последнего шага
+## 51. Кнопка отправки визарда вызывает обработчик без проверки
 
-**Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
+**Причина.** Визард отрисован с пропсами `form`/`flow` вне сборки (`FormBundleContext`). В этом режиме `submit.onClick` / `FormWizard.Submit` зовут `onSubmit` из `FormWizard.Actions` сразу по нажатию: проверку делает приложение. Внутри сборки (`FormRenderer`) отправка идёт через `bundle.submit`, и `onSubmit` вызывается только после успешной проверки всей формы.
 
-**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Кнопка `submit` в render-props отключается (`submit.disabled === true`) только на время `isValidating`/`isSubmitting`, поэтому явная проверка шага полезна.
+**Решение.** В режиме пропсов отправляйте через сборку:
 
 ```tsx
-const handleSubmit = async () => {
-  const stepOk = await navRef.current?.validateCurrentStep();
-  if (!stepOk) return;
-  await navRef.current?.submit(api.submit);
-};
+<FormWizard.Actions onSubmit={() => void bundle.submit(api.send)}>…</FormWizard.Actions>
 ```
 
-## 50. `FieldArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
+`bundle.submit` проверяет полный набор правил — правила всех шагов плюс `validation.extras` (или `validation.rules`, если он задан), — поэтому отдельно проверять последний шаг не нужно. Флаг `isSubmitting` визарда вне сборки всегда `false`: прогресс отправки берите из `bundle.submitting`.
+
+## 52. `FieldArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 
 **Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
 
-**Решение.** Используйте `id` из item-render-props, который ReFormer присваивает каждому элементу при `push`/`insert`:
+**Решение.** Используйте `id` из item-render-props — стабильный строковый ключ строки (`keyAt(index)` узла массива): он держится за элемент модели и не меняется при `removeAt`, `move` и `swap`.
 
 ```tsx
 <FieldArray.List>
-  {({ control, id, remove }) => (
+  {({ control, id }) => (
     <div key={id}>
-      {' '}
-      {/* ✓ стабильный id */}
+      {/* ✓ стабильный ключ строки */}
       <ItemForm control={control} />
     </div>
   )}
 </FieldArray.List>
 ```
 
-Сам `FieldArray.List` уже использует `item.id` для ключа `<FieldArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
+Сам `FieldArray.List` уже использует `item.id` для ключа `<FieldArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`. Без компонента массива ключ строки берётся у узла: `form.items.map((row, i) => <Row key={form.items.keyAt(i)} control={row} />)`.
 
-## 51. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
+## 53. Ошибки и предупреждения потока шагов
 
-**Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
+| Сообщение                                                                                                             | Причина и решение                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `[@reformer/cdk] FormWizard: no form…`                                                                                | Визард вне сборки и без пропа `form`. Передайте `form={bundle.form}` или отрисуйте визард внутри `FormRenderer`.                                                             |
+| `[@reformer/core] createForm:` в `flow.steps` есть шаги, для которых в дереве схемы нет узла с таким `selector` (dev) | Часть идентификаторов шагов не совпала с `selector` узлов шагов в схеме — опечатка в одном из них. Если не совпал ни один, сборка считает, что шаги собраны в JSX, и молчит. |
+| `[@reformer/core] createForm: шаг потока «X» повторяется.`                                                            | Два шага с одним `id` в `flow.steps`.                                                                                                                                        |
+| `[@reformer/core] createForm: шага «X» нет в потоке.`                                                                 | `bundle.validateStep('X')` с идентификатором, которого нет в `flow.steps`.                                                                                                   |
+| `[@reformer/core] FormFlow: шага «X» нет.`                                                                            | `flow.goTo('X')` с неизвестным идентификатором.                                                                                                                              |
 
-**Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
-
-## 52. Ref `FieldArrayHandle.length` / `isEmpty` не обновляется
+## 54. Ref `FieldArrayHandle.length` / `isEmpty` не обновляется
 
 **Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
 
-**Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useFormControl(form.items).length` — это даст подписку.
+**Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useArrayLength(form.items)` или `useFormControl(form.items).length` из `@reformer/core/react` — это даст подписку. Сам узел отдаёт текущую длину числом: `form.items.length`.
 
-## 53. See also
+## 55. See also
 
 - [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [06-recipes.md](06-recipes.md).
 - [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.
 
-## 54. Источник подсказок — `suggestions`
+## 56. Источник подсказок — `suggestions`
 
 **Autocomplete**
 
@@ -1575,7 +1696,7 @@ import { Autocomplete, useAutocomplete } from '@reformer/cdk/autocomplete';
 `ResourceConfig` — тот же контракт, что у Select из ui-kit; живёт в `@reformer/cdk/option-source`
 вместе с `useResourceOptions`.
 
-## 55. useAutocomplete
+## 57. useAutocomplete
 
 ```typescript
 interface UseAutocompleteOptions {
@@ -1628,7 +1749,7 @@ function CityInput({ value, onChange }: { value: string; onChange: (v: string) =
 }
 ```
 
-## 56. Compound API
+## 58. Compound API
 
 | Слот                   | Назначение                                                             |
 | ---------------------- | ---------------------------------------------------------------------- |
@@ -1647,19 +1768,19 @@ function CityInput({ value, onChange }: { value: string; onChange: (v: string) =
 </Autocomplete.Root>
 ```
 
-## 57. Pure core
+## 59. Pure core
 
 `autocompleteReducer`, `normalizeSuggestions`, `matchSuggestions`, `isSuggestionResource` —
 React-free, пригодны для своих обёрток и тестов без DOM.
 
-## 58. Anti-patterns
+## 60. Anti-patterns
 
 - Использовать для выбора кода/id (`{ value: 'spb', label: 'Санкт-Петербург' }` покажет в поле
   `spb`). Значение здесь — текст для пользователя; для кодов — Select/Combobox.
 - Передавать новый массив `suggestions` на каждый рендер — нормализация пересчитывается по ссылке;
   выносите статический список в константу или `useMemo`.
 
-## 59. API Reference
+## 61. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -3041,7 +3162,7 @@ _Source: src/components/field-array/FieldArray.tsx_
 
 Рендерит `<button type="button">` (или произвольный элемент через `asChild`),
 по клику вызывает `add(initialValue)` из контекста {@link FieldArrayContext},
-то есть `ArrayNode.push`. Должна находиться внутри `FieldArray.Root` (или
+то есть `FormArray.push`. Должна находиться внутри `FieldArray.Root` (или
 эквивалентного провайдера), иначе `useFieldArrayContext` бросит исключение.
 
 Без `initialValue` новый элемент берётся из шаблона массива модели —
@@ -3115,7 +3236,7 @@ export interface FieldArrayAddButtonProps<T extends object = Record<string, unkn
   'onClick'
 > {
   /**
-   * Значение нового элемента (передаётся в `add()` → `ArrayNode.push`). Запасной путь: без него
+   * Значение нового элемента (передаётся в `add()` → `FormArray.push`). Запасной путь: без него
    * элемент берётся из шаблона массива модели — `arrayOf(blank)` из `@reformer/core`.
    */
   initialValue?: Partial<T>;
@@ -3131,7 +3252,7 @@ _Source: src/components/field-array/types.ts_
 **Kind:** `const`
 
 React context, который снабжает дочерние компоненты `FieldArray` (List, AddButton, …)
-текущим `ArrayNode` и хелперами. Создаётся `FieldArray.Root`. Читать через {@link useFieldArrayContext}.
+текущим `FormArray` и хелперами. Создаётся `FieldArray.Root`. Читать через {@link useFieldArrayContext}.
 
 **Signature:**
 ```typescript
@@ -3306,7 +3427,7 @@ _Source: src/components/field-array/types.ts_
 FieldArray.Error — рендерит ошибки уровня массива (`control.issues`).
 
 Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
-/ «At least one phone required», которые ядро выставляет через `ArrayNode.setErrors` и агрегирует
+/ «At least one phone required», которые правила массива выставляют через `FormArray.setIssues` и агрегирует
 в сигнале `issues`. Ничего не рендерит, когда ошибок нет. Читает контекст `FieldArray.Root`, поэтому
 консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
 
@@ -6934,7 +7055,7 @@ _Source: src/components/form-wizard/Slot.tsx_
 Step - маркер-компонент для wizard-схемы
 
 Компонент просто рендерит children. Метаданные (title, icon) извлекаются
-wizard-компонентом из componentProps через useFormWizardSelectors.
+wizard-компонентом из componentProps узла шага.
 
 **Signature:**
 ```typescript

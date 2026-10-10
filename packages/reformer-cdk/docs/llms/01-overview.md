@@ -11,13 +11,19 @@
 
 ## Components
 
-| Component       | Purpose                                                   |
-| --------------- | --------------------------------------------------------- |
-| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)   |
-| `Autocomplete`  | Free-text input with suggestions (static or async source) |
-| `FieldArray`     | Manage dynamic form arrays                                |
-| `FormField`     | Accessible field anatomy (label/control/…)                |
-| `FormWizard`    | Multi-step form wizard                                    |
+| Component       | Purpose                                                     |
+| --------------- | ----------------------------------------------------------- |
+| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)     |
+| `Autocomplete`  | Free-text input with suggestions (static or async source)   |
+| `FieldArray`    | Manage dynamic form arrays                                  |
+| `FileUpload`    | File selection, drag-and-drop and upload                    |
+| `FormField`     | Accessible field anatomy (label/control/…)                  |
+| `FormWizard`    | Multi-step form wizard over the core step flow (`FormFlow`) |
+| `List`          | Display-only iteration over a model array (no add/remove)   |
+
+Validation texts for the whole subtree — `ValidationMessagesProvider` (`messages` — a form
+dictionary from `defineIssueMessages`, `resolver` — a full override) and
+`useIssueMessageResolver()` for custom rendering; both from `@reformer/cdk`.
 
 ## Installation
 
@@ -39,6 +45,7 @@ import { FieldArray, useFieldArray } from '@reformer/cdk/field-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 import { FileUpload, useFileUpload } from '@reformer/cdk/file-upload';
+import { List, useList } from '@reformer/cdk/list';
 import { loadCdkLocale } from '@reformer/cdk/locale';
 ```
 
@@ -53,7 +60,7 @@ cdk — headless: видимый текст пишет приложение. Н�
 | `aria-label` кнопок удаления и повтора у файла                                                                                               | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload`                                             |
 | Текст ошибки `AsyncBoundary` / `useAsyncResource`, когда отказ не несёт своего текста                                                        | `cdk.asyncBoundary.unknownError`                                                                      |
 | Размер файла в `FileUpload.ItemSize`                                                                                                         | `format.fileSize.*` (словарь ядра)                                                                    |
-| Тексты ошибок валидации в `FormField`                                                                                                        | `validation.<code>` (словарь ядра)                                                                    |
+| Тексты замечаний валидации в `FormField` и `FieldArray.Error`                                                                                | `validation.<code>` (словарь ядра); поверх — словарь формы `ValidationMessagesProvider messages`      |
 
 - **Без провайдера cdk говорит по-английски** («Remove file a.png», «1.5 KB»). Русский и любой
   другой язык включает `I18nProvider`.

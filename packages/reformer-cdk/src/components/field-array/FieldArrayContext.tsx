@@ -89,7 +89,7 @@ export interface FieldArrayItemContextValue<T extends object = Record<string, un
 
 /**
  * React context, который снабжает дочерние компоненты `FieldArray` (List, AddButton, …)
- * текущим `ArrayNode` и хелперами. Создаётся `FieldArray.Root`. Читать через {@link useFieldArrayContext}.
+ * текущим `FormArray` и хелперами. Создаётся `FieldArray.Root`. Читать через {@link useFieldArrayContext}.
  *
  * @example
  * ```tsx

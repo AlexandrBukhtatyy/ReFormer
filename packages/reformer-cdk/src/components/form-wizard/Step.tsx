@@ -1,7 +1,7 @@
 /**
  * Step - маркер-компонент для определения шага в wizard-схеме
  *
- * Используется в RenderSchema для определения метаданных шага (title, icon).
+ * Используется в схеме формы для определения метаданных шага (title, icon).
  * Фактический рендеринг выполняется wizard-компонентом, который извлекает
  * метаданные из componentProps.
  *
@@ -15,8 +15,8 @@
  *   component: Step,
  *   componentProps: { title: 'Личные данные', icon: '👤' },
  *   children: [
- *     { value: model.$.firstName, component: Input },
- *     { value: model.$.lastName, component: Input },
+ *     { model: model.$.firstName, component: Input },
+ *     { model: model.$.lastName, component: Input },
  *   ],
  * }
  * ```
@@ -42,7 +42,7 @@ export interface StepProps {
  * Step - маркер-компонент для wizard-схемы
  *
  * Компонент просто рендерит children. Метаданные (title, icon) извлекаются
- * wizard-компонентом из componentProps через useFormWizardSelectors.
+ * wizard-компонентом из componentProps узла шага.
  *
  * @internal Используется внутри пакета через `FormWizard.Step`; намеренно не
  * выведен в главный `index.ts` как самостоятельный публичный компонент.

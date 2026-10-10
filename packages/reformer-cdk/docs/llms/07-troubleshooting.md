@@ -17,9 +17,9 @@
 
 ## `FieldArray.List` ререндерит весь массив при изменении одного элемента
 
-**Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FieldArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
+**Причина.** Значение массива производно от значений строк: правка поля в строке меняет `value` массива, `FieldArray.Root` (через `useFormControl(arrayNode)`) перерисовывается, `items` пересобираются, а inline-JSX render-функции создаётся заново для каждой строки.
 
-**Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни элемента) и `id` для key.
+**Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни строки, в том числе при `move`/`swap`) и `id` для key.
 
 ```tsx
 const Item = React.memo(({ control }: { control: FormGroup<Property> }) => (
@@ -29,48 +29,48 @@ const Item = React.memo(({ control }: { control: FormGroup<Property> }) => (
 <FieldArray.List>{({ control, id }) => <Item key={id} control={control} />}</FieldArray.List>;
 ```
 
-`useFieldArray` мемоизирует `items` по длине массива (см. `useFieldArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
+Пересоздаются только объекты `items` (`{ control, index, id, remove, … }`); сами `control` и `id` строк остаются прежними, поэтому `React.memo` по `control` отсекает перерисовку неизменённых строк.
 
-## `FormWizardHandle.goToStep` возвращает `false`
+## `goTo` / `goToStep` не переводит на шаг
 
-**Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
+**Причина.** Поток пускает только на первый шаг и на шаг, предыдущий которого пройден (`flow.canGoTo`). `bundle.flow.goTo(id)` в этом случае возвращает `{ status: 'stayed', reason: 'locked' }`, `goToStep(n)` из `useFormWizard()` и индикатора — `false`. Это защита от пропуска проверки шага. `goToStep(n)` вне диапазона `[1; totalSteps]` тоже даёт `false`, а `goTo` с идентификатором, которого нет в потоке, бросает исключение.
 
 **Решение.**
 
-- Для последовательного перехода вперёд используйте `await navRef.current?.goToNextStep()` — он сам валидирует и помечает шаг completed.
-- Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
-- Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
+- Для перехода вперёд с проверкой используйте `await bundle.flow.next()` (или `goToNextStep()` внутри визарда) — он проверит шаг и отметит его пройденным.
+- Помните, что возврат назад (`previous()`, `goTo` на более ранний шаг) снимает отметку «пройден» с целевого шага и всех следующих: вперёд их снова придётся пройти через `next()`.
+- Номер шага — позиция в `flow.steps` с единицы; `totalSteps === flow.steps.length`.
 
-## Шаг без валидации пропускается без проверки
+## Шаг проходится без проверки
 
-**Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
+**Причина.** Одно из трёх:
 
-```typescript
-interface FormWizardConfig {
-  validateStep?: (step: number) => boolean | Promise<boolean>;
-  validateAll?: () => boolean | Promise<boolean>;
-}
+1. У шага в `flow.steps` нет `rules` (или `rules: null`) — такой шаг проходит «Далее» без проверки.
+2. Визард работает на **позиционном** потоке: ему не передан `flow`, и он отрисован вне сборки (`FormBundleContext`). Позиционный поток строится по числу `FormWizard.Step` и правил не имеет вовсе.
+3. Правила шага обёрнуты в `validateWhen`, и условие сейчас ложно.
+
+**Решение.** Объявите шаги и их правила в сборке и передайте поток визарду:
+
+```tsx
+const bundle = useFormBundle(() =>
+  createForm<CreditForm>({
+    initial,
+    flow: {
+      steps: [
+        { id: 'loan', rules: loanRules },
+        { id: 'personal', rules: personalRules },
+        { id: 'confirm' }, // информационный шаг — без правил, явно
+      ],
+    },
+  })
+);
+
+<FormWizard form={bundle.form} flow={bundle.flow}>
+  …
+</FormWizard>;
 ```
 
-**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную
-`ValidationDefinition` (per-step схемы — `defineValidation`, полная — `apply(...steps)`;
-всё из `@reformer/core/validation`). Для чисто информационного шага (например,
-«Подтверждение») верните `true`.
-
-```typescript
-import { validateModel } from '@reformer/core/validation';
-
-const stepSchemas = [amountValidation, personalValidation, confirmationValidation];
-
-const config: FormWizardConfig = {
-  validateStep: (step) => {
-    const schema = stepSchemas[step - 1];
-    if (!schema) return true; // нет схемы для шага — считаем валидным
-    return validateModel(model, schema); // Promise<boolean>, ошибки роутятся в ноды
-  },
-  validateAll: () => validateModel(model, fullValidation),
-};
-```
+Правила шага — `defineValidation` из `@reformer/core/validation`, стабильные ссылки уровня модуля.
 
 ## `useFieldArrayContext` бросает исключение
 
@@ -88,21 +88,21 @@ const config: FormWizardConfig = {
 
 **Решение.** Перепроверьте дерево; если поле условное — выносите всю секцию в `if (!visible) return null;` снаружи `FormField.Root`.
 
-## `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
+## `FormField.Error` не показывает ошибку, хотя `issues.length > 0`
 
-**Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
+**Причина.** `shouldShowError === false`: поле невалидно, но его не трогали и не меняли. Ошибка видна, когда поле `touched` или `dirty`.
 
 **Решение.**
 
-- На сабмите формы вызовите `form.markAsTouched()` перед `await form.validate()`.
-- Для немедленной валидации поля используйте `revalidateWhen({ when: 'change' })` behavior, либо вручную `control.markAsTouched()` в `onChange`.
+- Отправляйте через `bundle.submit(handler)`: при замечаниях он помечает тронутыми все поля формы и обработчик не вызывает.
+- `bundle.validate()` проверяет всю форму и помечает тронутыми проверенные поля.
+- Для живой проверки задайте стратегию сборке: `createForm({ …, validation: { rules, strategy: 'change' } })` (или `'blur'`, `'afterFirstSubmit'`); армирует её `useFormBundle`.
 
 ```tsx
 const handleSubmit = async () => {
-  form.markAsTouched();
-  await form.validate();
-  if (form.valid.value) {
-    /* submit */
+  const outcome = await bundle.submit(api.send);
+  if (outcome.status === 'invalid') {
+    /* замечания уже видны — поля помечены touched */
   }
 };
 ```
@@ -121,51 +121,52 @@ const handleSubmit = async () => {
 </FormField.Root>
 ```
 
-## Multi-step submit срабатывает раньше валидации последнего шага
+## Кнопка отправки визарда вызывает обработчик без проверки
 
-**Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
+**Причина.** Визард отрисован с пропсами `form`/`flow` вне сборки (`FormBundleContext`). В этом режиме `submit.onClick` / `FormWizard.Submit` зовут `onSubmit` из `FormWizard.Actions` сразу по нажатию: проверку делает приложение. Внутри сборки (`FormRenderer`) отправка идёт через `bundle.submit`, и `onSubmit` вызывается только после успешной проверки всей формы.
 
-**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Кнопка `submit` в render-props отключается (`submit.disabled === true`) только на время `isValidating`/`isSubmitting`, поэтому явная проверка шага полезна.
+**Решение.** В режиме пропсов отправляйте через сборку:
 
 ```tsx
-const handleSubmit = async () => {
-  const stepOk = await navRef.current?.validateCurrentStep();
-  if (!stepOk) return;
-  await navRef.current?.submit(api.submit);
-};
+<FormWizard.Actions onSubmit={() => void bundle.submit(api.send)}>…</FormWizard.Actions>
 ```
+
+`bundle.submit` проверяет полный набор правил — правила всех шагов плюс `validation.extras` (или `validation.rules`, если он задан), — поэтому отдельно проверять последний шаг не нужно. Флаг `isSubmitting` визарда вне сборки всегда `false`: прогресс отправки берите из `bundle.submitting`.
 
 ## `FieldArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 
 **Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
 
-**Решение.** Используйте `id` из item-render-props, который ReFormer присваивает каждому элементу при `push`/`insert`:
+**Решение.** Используйте `id` из item-render-props — стабильный строковый ключ строки (`keyAt(index)` узла массива): он держится за элемент модели и не меняется при `removeAt`, `move` и `swap`.
 
 ```tsx
 <FieldArray.List>
-  {({ control, id, remove }) => (
+  {({ control, id }) => (
     <div key={id}>
-      {' '}
-      {/* ✓ стабильный id */}
+      {/* ✓ стабильный ключ строки */}
       <ItemForm control={control} />
     </div>
   )}
 </FieldArray.List>
 ```
 
-Сам `FieldArray.List` уже использует `item.id` для ключа `<FieldArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
+Сам `FieldArray.List` уже использует `item.id` для ключа `<FieldArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`. Без компонента массива ключ строки берётся у узла: `form.items.map((row, i) => <Row key={form.items.keyAt(i)} control={row} />)`.
 
-## `FormWizard` показывает «No validateStep callback configured for step N» в консоли
+## Ошибки и предупреждения потока шагов
 
-**Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
-
-**Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
+| Сообщение                                                                                                             | Причина и решение                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `[@reformer/cdk] FormWizard: no form…`                                                                                | Визард вне сборки и без пропа `form`. Передайте `form={bundle.form}` или отрисуйте визард внутри `FormRenderer`.                                                             |
+| `[@reformer/core] createForm:` в `flow.steps` есть шаги, для которых в дереве схемы нет узла с таким `selector` (dev) | Часть идентификаторов шагов не совпала с `selector` узлов шагов в схеме — опечатка в одном из них. Если не совпал ни один, сборка считает, что шаги собраны в JSX, и молчит. |
+| `[@reformer/core] createForm: шаг потока «X» повторяется.`                                                            | Два шага с одним `id` в `flow.steps`.                                                                                                                                        |
+| `[@reformer/core] createForm: шага «X» нет в потоке.`                                                                 | `bundle.validateStep('X')` с идентификатором, которого нет в `flow.steps`.                                                                                                   |
+| `[@reformer/core] FormFlow: шага «X» нет.`                                                                            | `flow.goTo('X')` с неизвестным идентификатором.                                                                                                                              |
 
 ## Ref `FieldArrayHandle.length` / `isEmpty` не обновляется
 
 **Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
 
-**Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useFormControl(form.items).length` — это даст подписку.
+**Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useArrayLength(form.items)` или `useFormControl(form.items).length` из `@reformer/core/react` — это даст подписку. Сам узел отдаёт текущую длину числом: `form.items.length`.
 
 ## See also
 

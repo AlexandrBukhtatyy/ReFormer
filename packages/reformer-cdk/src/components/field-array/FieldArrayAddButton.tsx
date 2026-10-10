@@ -9,7 +9,7 @@ function FieldArrayAddButtonInner<T extends object>(
   ref: ForwardedRef<HTMLButtonElement>
 ) {
   const { add, control } = useFieldArrayContext<T>();
-  // Отражаем disabled-состояние массива: после ArrayNode.disable() (в т.ч. каскадом от группы)
+  // Отражаем disabled-состояние массива: после disable() ноды массива (в т.ч. каскадом от группы)
   // массив структурно неизменяем, поэтому кнопка добавления должна быть отключена.
   const { disabled: arrayDisabled } = useFormControl(control);
   const isDisabled = disabled || arrayDisabled;
@@ -45,7 +45,7 @@ const FieldArrayAddButtonForwarded = forwardRef(FieldArrayAddButtonInner) as <
  *
  * Рендерит `<button type="button">` (или произвольный элемент через `asChild`),
  * по клику вызывает `add(initialValue)` из контекста {@link FieldArrayContext},
- * то есть `ArrayNode.push`. Должна находиться внутри `FieldArray.Root` (или
+ * то есть `FormArray.push`. Должна находиться внутри `FieldArray.Root` (или
  * эквивалентного провайдера), иначе `useFieldArrayContext` бросит исключение.
  *
  * Без `initialValue` новый элемент берётся из шаблона массива модели —

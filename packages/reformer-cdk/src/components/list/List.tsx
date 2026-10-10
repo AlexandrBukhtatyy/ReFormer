@@ -12,7 +12,7 @@ import type { ListRootProps, ListItemsProps, ListEmptyProps } from './types';
 /**
  * List.Root — контекст-провайдер display-списка.
  *
- * Принимает `control` (legacy `ArrayNode` или M1 `FormArray`) и раздаёт элементы дочерним
+ * Принимает `control` (нода массива `FormArray`) и раздаёт элементы дочерним
  * `List.Items` / `List.Empty`. В отличие от `FieldArray.Root` не даёт add/remove/reorder.
  */
 function ListRoot<T extends object>({ control, children }: ListRootProps<T>) {
