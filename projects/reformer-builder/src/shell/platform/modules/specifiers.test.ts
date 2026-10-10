@@ -10,7 +10,7 @@ describe('чтение импортов набора файлов', () => {
     const found = collectBareSpecifiers(
       files(
         `import { FormWizard } from '@reformer/ui-kit';\n` +
-          `import type { FormProxy } from '@reformer/core';\n` +
+          `import type { FormGroup } from '@reformer/core';\n` +
           `export { List } from '@reformer/ui-kit/list';\n` +
           `import '@reformer/ui-kit/styles';\n` +
           `const cdk = require('@reformer/cdk/field-array');\n` +
