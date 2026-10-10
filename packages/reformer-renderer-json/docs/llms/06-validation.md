@@ -1,222 +1,202 @@
 # Validation
 
-Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`, M1). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная валидация — [validate.ts](../../src/validate.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation` (рабочий пример — [registration-form-renderer-json/validation.ts](../../../../projects/react-playground/src/pages/demo/registration-form-renderer-json/validation.ts)).
+Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная проверка документа — [validate.ts](../../src/validate.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submit`, поток шагов). Эталон — `complex-multy-step-form-renderer-json` (документ + реестр) поверх общей сборки `complex-multy-step-form/application/create.ts`.
 
 ## Mental model — почему валидаторов нет в JSON { #mental-model }
 
 Одна ключевая мысль: **JSON-DSL несёт только layout, а не правила валидации.**
 
-- `JsonFieldNode` — это `{ selector?, value, component?, componentProps?, wrapper? }` и **ничего больше**. Поля `validators` в нём нет (см. [json-schema.ts](../../src/types/json-schema.ts) — интерфейс `JsonFieldNode`).
-- Операторы DSL — только `$model(...)`, `$component(...)`, `$dataSource(...)` (см. [operators.ts](../../src/operators.ts)). Оператора `$validator(...)` **не существует**.
-- `JsonFormRenderer` с пропом `validateSchema` (и функция `validateFormSchema`) проверяют **структуру** схемы через ajv: корректность узлов + синтаксис операторов + известность имён `$component`/`$dataSource` + допустимость тегов `$html(...)`. Это НЕ валидация введённых пользователем значений (см. [validate.ts](../../src/validate.ts)).
-- Теги `$html(...)` проверяются **всегда**, даже без реестра: whitelist статичен, поэтому `$html(script)` отклоняется независимо от того, переданы ли `componentNames`. Тот же whitelist применяет конвертер — битый тег не «просочится» в рантайм при отключённой валидации.
-- Значит, валидацию значений выражают **отдельной TS-схемой над МОДЕЛЬЮ** (`FormModel`), а не в JSON. Схема — обычная функция `ValidationDefinition<T> = (ctx: { model }) => void` (обёрнута `defineValidation`); её исполняет внешний раннер `validateModel(model, schema)` — тот же контракт `@reformer/core/validation`, что и в TS-варианте формы. Одна валидация на все варианты рендера.
+- `JsonFieldNode` — это `{ selector?, model, component?, componentProps?, wrapper? }` и **ничего больше**. Поля `validators` в нём нет (см. [json-schema.ts](../../src/types/json-schema.ts) — интерфейс `JsonFieldNode`).
+- Операторы DSL — `$model(...)`, `$component(...)`, `$html(...)`, `$dataSource(...)`, `$fn(...)`, `$locale(...)`, `$part(...)` (см. [operators.ts](../../src/operators.ts)). Оператора `$validator(...)` **не существует**.
+- `validateFormSchema` (точка входа `@reformer/renderer-json/validate`) проверяет **структуру** документа через ajv: корректность узлов + синтаксис операторов + известность имён `$component`/`$dataSource`/`$fn` + допустимость тегов `$html(...)` + имена частей `$part(...)`. Это НЕ валидация введённых пользователем значений.
+- Теги `$html(...)` проверяются **всегда**, даже без реестра: whitelist статичен, поэтому `$html(script)` отклоняется независимо от того, переданы ли имена компонентов. Тот же whitelist применяет конвертер — битый тег не «просочится» в рантайм при отключённой проверке.
+- Значит, валидацию значений выражают **отдельной TS-схемой над МОДЕЛЬЮ** (`FormModel`), а не в JSON. Схема — `ValidationDefinition<T>` (обёрнута `defineValidation`); правила уходят в сборку `createForm` полями `validation` и `flow.steps[].rules` — тем же контрактом `@reformer/core/validation`, что и в TS-варианте формы. Одна валидация на все варианты рендера.
+- Правило несёт **код** замечания, а не текст. Строку по коду даёт словарь формы (`defineIssueMessages`) через `ValidationMessagesProvider messages`.
 
-Ключевой тезис для рендереров: **layout (JSON) и валидация — два раздельных артефакта**. JSON можно менять/получать с сервера, не трогая правила, и наоборот. Валидация инъектируется в рантайме (render-behavior), а не «зашита» в схему.
+Ключевой тезис для рендереров: **layout (JSON) и валидация — два раздельных артефакта**. JSON можно менять/получать с сервера, не трогая правила, и наоборот. Связь между ними — `selector` шага в документе и `id` шага в потоке сборки.
 
-Дальше — три шага: (1) построить схему над моделью, (2) обернуть её в `{ validateStep, validateAll }`, (3) инъектировать в wizard через render-behavior.
+Дальше — три шага: (1) правила над моделью, (2) подключить их к сборке, (3) тексты замечаний.
 
-## Шаг 1 — построить схему валидации над моделью { #build-schema }
+## Шаг 1 — правила над моделью { #build-schema }
 
-Схема валидации — обычная функция `({ model }) => void`, обёрнутая `defineValidation<T>(...)`. Внутри вызываются свободные (ambient) операторы из `@reformer/core/validation`: `validate(sig, [rules])` для синхронных правил (массив правил на поле). `sig` — сигнал модели (`model.$.path`), НЕ строка-оператор `$model(...)` (операторы — только для layout-JSON; схема валидации это обычный TS-код). Фабрики правил импортируются из `@reformer/core/validators`.
+Схема валидации — обычная функция `({ model, cross }) => void`, обёрнутая `defineValidation<T>(...)`. Внутри вызываются операторы из `@reformer/core/validation`: `validate(handle, [rules])` для синхронных правил (массив правил на поле). `handle` — ручка модели (`model.$.path`), НЕ строка-оператор `$model(...)` (операторы — только для layout-JSON; схема валидации это обычный TS-код). Фабрики правил импортируются из `@reformer/core/validators`; опции правила — `{ code?, params? }`.
 
 ```typescript
-import { type FormModel } from '@reformer/core';
-import { validate, defineValidation } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, min, max, minLength, email } from '@reformer/core/validators';
 
-type M = FormModel<CreditForm>;
-
-// Под-схема одного шага — функция ({ model }) => void; поля адресуются сигналами model.$.*.
-const step1 = defineValidation<CreditForm>(({ model }) => {
+// Правила шага — стабильные константы модуля; поля адресуются ручками model.$.*.
+export const loanRules = defineValidation<CreditForm>(({ model }) => {
   validate(model.$.loanType, [required({ code: 'loanType.required' })]);
   validate(model.$.loanAmount, [
-    required(),
-    min(50000, { code: 'field.min' }),
+    required({ code: 'loanAmount.required' }),
+    min(50000, { code: 'loanAmount.min' }),
     max(10000000),
   ]);
 });
 
-const step2 = defineValidation<CreditForm>(({ model }) => {
+export const applicantRules = defineValidation<CreditForm>(({ model }) => {
   validate(model.$.personalData.firstName, [required(), minLength(2)]);
   validate(model.$.email, [required(), email()]);
 });
-
-// Карта шагов (композиция для submit — в шаге 2).
-const STEP_SCHEMAS = [step1, step2];
 ```
 
-Остальные операторы из `@reformer/core/validation` (тот же контракт, что в TS-форме): `validateAsync(sig, [asyncRules])` — асинхронные правила `(value, { signal }) => Promise<...>` (раннер их дожидается и прокидывает `AbortSignal`); `validateWhen(() => cond, () => {...})` — условная валидация (правила внутри активны/гасятся по `cond`); `cross(sig, (f) => err | null)` — cross-field по снапшоту `model.get()`; `each(arr, (im) => {...})` — per-item по элементам массива; `apply(...schemas)` — композиция под-схем над той же моделью. Полное описание операторов схемы и раннера `validateModel` — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
+Остальные операторы (тот же контракт, что в TS-форме): `validateAsync(handle, [asyncRules])` — асинхронные правила `(value, { signal }) => Promise<...>`; `validateWhen(() => cond, () => {...})` — условная валидация; `cross(handle, (snapshot) => issue | null)` из аргумента схемы — правило над несколькими полями по снимку модели; `applyEach(model.$.items, rowRules)` — правила строк массива; `apply(...schemas)` — композиция. Полное описание — `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
-## Шаг 2 — исполнить: `{ validateStep, validateAll }` { #execute }
+## Шаг 2 — подключить к сборке { #execute }
 
-`validateModel(model, schema)` прогоняет схему по текущим значениям модели и **сам роутит ошибки в ноды формы** (UI подсветит проблемные поля через `getNodeForSignal(sig).setIssues(...)`). Возвращает `Promise<boolean>` — `true`, если нет блокирующих ошибок (`severity:'warning'` не блокирует, но показывается); поля, ставшие валидными, гасятся; устаревшие прогоны той же `(model, schema)` отменяются. Оборачиваем в две функции — контракт `FormWizardConfig` из `@reformer/cdk` (см. [form-wizard/types.ts](../../../reformer-cdk/src/components/form-wizard/types.ts): `validateStep?(step): boolean | Promise<boolean>`, `validateAll?(): boolean | Promise<boolean>`).
+Документ формата 2 собирает та же сборка, что и TS-схему: `createForm({ model, schema, registry })`. Правила шагов уходят в поток, правила вне шагов — в `validation`:
+
+```tsx
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
+
+const bundle = useFormBundle(() =>
+  createForm<CreditForm>({
+    model: createCreditModel(),
+    schema: creditJsonSchema, // документ формата 2
+    registry,
+    behavior: creditBehavior,
+    validation: { extras: crossStepRules }, // только при отправке
+    // id шага = selector узла `$component(Step)` в документе
+    flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'applicant', rules: applicantRules }] },
+  })
+);
+return <FormRenderer form={bundle} />;
+```
+
+Дальше всё делает уровень формы — инъектировать ничего в узлы не нужно:
+
+| Вызов | Что делает |
+|---|---|
+| `bundle.flow?.next()` (кнопка «Далее» визарда) | правила текущего шага; при замечаниях поток остаётся, поля помечаются `touched` |
+| `bundle.submit(handler)` (кнопка «Отправить» визарда) | один прогон всех правил; при успехе — `handler(значения)`; иначе поля помечаются `touched` |
+| `bundle.validate()` | прогон всех правил → `ValidationResult` (`status`, `issues`, `failures`) |
+| `bundle.validateStep('loan')` | правила шага, проверенные поля помечаются `touched`; неизвестный шаг — исключение |
+
+Ошибка поля рисуется только когда `shouldShowError = invalid && (touched || dirty)`. Пометку `touched` проверенных полей делают `validateStep`, `flow.next()` и `submit` сами — ручной `form.markAsTouched()` на всё поддерево шага не нужен, а следующий шаг не показывается «тронутым», пока пользователь до него не дойдёт.
+
+> **Мост «поведение инициирует валидацию».** Если правка одного поля должна перепрогнать правила другого (без отправки), это делает поведение — `revalidateWhen([model.$.dep], () => void validateModel(model, rules))` в `defineFormBehavior` (контракт `@reformer/core/behaviors`). Валидация остаётся отдельным слоем; поведение лишь дёргает раннер.
+
+## Шаг 3 — тексты замечаний { #messages }
 
 ```typescript
-import {
-  apply,
-  validateModel,
-  defineValidation,
-  type ValidationDefinition,
-} from '@reformer/core/validation';
+import { defineIssueMessages } from '@reformer/core/i18n';
 
-// Полная схема для submit — композиция всех шагов через apply(...).
-const fullSchema = defineValidation<CreditForm>(() => apply(...STEP_SCHEMAS));
-// Пустая схема для шага вне диапазона: гасит ранее тронутые поля, возвращает valid.
-const emptySchema: ValidationDefinition<CreditForm> = () => {};
-
-export function makeValidationConfig(model: M) {
-  return {
-    // { touch: true } — пометить провалидированные поля touched, чтобы ошибки шага стали видны (см. ниже).
-    validateStep: (step: number): Promise<boolean> =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema, { touch: true }),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema, { touch: true }),
-  };
-}
+export const creditMessages = defineIssueMessages({
+  'loanType.required': 'Выберите тип кредита',
+  'loanAmount.min': 'Минимум {min} ₽',
+});
 ```
 
-Схемы — стабильные module-level `const` (важно: `validateModel` отменяет устаревший прогон по идентичности схемы). Строятся один раз: они зависят только от ФОРМЫ модели, значения читаются раннером в момент прогона.
+```tsx
+import { ValidationMessagesProvider } from '@reformer/cdk';
 
-> **Собрать этот конфиг за тебя — `defineSteps` из `@reformer/cdk`.** Вместо ручного `STEP_SCHEMAS[step - 1]` (хрупкая индексация: перестановка/добавление шага молча рассинхронизирует правила с позицией) правила адресуются по `selector` шага: `defineSteps(model, { steps: { loan: step1, applicant: step2, confirm: null }, extras })` → готовый `FormWizardConfig` c `validateStep`/`validateAll`. Внутри уже `{ touch: true }`, а шаг без правил объявляется ЯВНО (`null`), а не «валиден по умолчанию». Подробно — [07-form-wizard.md](07-form-wizard.md).
-
-## Показать ошибки провалидированных полей: `{ touch: true }` { #touch }
-
-Ошибка поля рисуется только когда `shouldShowError = invalid && (touched || dirty)` — то есть валидное правило может «не сработать на экране», если поле ещё не тронуто (типичный случай: пользователь жмёт «Далее», ничего не введя). Раньше это лечили ручным `form.markAsTouched()` на всё поддерево шага — грубо (метит и то, чего схема не проверяла) и легко забыть.
-
-Третий аргумент `validateModel(model, schema, { touch: true })` (из `@reformer/core/validation`) метит `touched` **ровно те поля, которых коснулась схема** — по завершении прогона, поверх обычного роутинга ошибок. Поэтому:
-
-- ошибки провалидированного шага становятся видны **без** ручного `form.markAsTouched()` на всё поддерево;
-- scope точный — метятся только проверенные поля, а не сиблинги; при пошаговой валидации **следующий** шаг не показывается «тронутым», пока пользователь до него не дойдёт;
-- валидные проверенные поля тоже метятся `touched` — это безвредно (ошибки у них нет, показывать нечего).
-
-`{ touch: true }` — то, что нужно на кнопке «Далее»/submit; без него ошибки шага останутся невидимыми до правки полей. Именно с этой опцией собраны примеры `validateStep`/`validateAll` выше (и её же по умолчанию включает `defineSteps`).
-
-## Шаг 3 — инъекция в wizard через render-behavior { #inject }
-
-JSON-схема статична и не знает про `FormGroup`/validation-конфиг — это рантайм-сущности. Инжектируем их в wizard-ноду через `renderBehavior` + `onInit` + `patchProps` до первого рендера (общий приём — см. [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime)). Wizard-узел JSON-схемы должен нести `selector: 'wizard'`, чтобы адресоваться через `schema.node('wizard')`.
-
-```typescript
-import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormGroup, FormModel } from '@reformer/core';
-
-export function createJsonRenderBehavior(
-  form: FormGroup<CreditForm>,
-  model: FormModel<CreditForm>
-): RenderBehaviorFn<CreditForm> {
-  return (schema) => {
-    // JSON не выражает FormGroup/валидацию — инъектим их в wizard до первого рендера.
-    onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
-    });
-    // Остальное поведение (visibility/navigation) — из shared render-behavior.
-    createSharedRenderBehavior(form)(schema);
-  };
-}
-
-// <JsonFormRenderer schema={jsonSchema} renderBehavior={createJsonRenderBehavior(form, model)} />
+<ValidationMessagesProvider messages={creditMessages}>
+  <FormRenderer form={bundle} />
+</ValidationMessagesProvider>;
 ```
 
-`patchProps({ form, validateStep, validateAll })` кладёт `form` + оба колбэка в `componentProps` wizard-ноды. Wizard-компонент читает их как `FormWizardConfig` и запускает `validateStep` на «Далее», `validateAll` на submit.
+Порядок поиска текста: словарь формы → словарь локали → встроенный английский → сам `code`. Словарь — код, а не данные: в JSON-документ он не попадает и остаётся в бандле вместе с правилами.
 
 ## Полный рабочий пример { #full-example }
 
-Зеркалит рабочий пример `complex-multy-step-form-renderer-json` (имена файлов там исторические — канон см. `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1): валидация — TS-схема над моделью (`@reformer/core/validation`), переиспользуемая всеми вариантами рендера, инъектируется в JSON-wizard. Submit и навигация между шагами приходят **не** отсюда, а из shared render-behavior — JSON-вариант лишь до-инъектит `form`/валидацию и делегирует остальное (см. [07-form-wizard.md](07-form-wizard.md)).
+Зеркалит эталон `complex-multy-step-form-renderer-json`: правила — TS-схемы над моделью (`@reformer/core/validation`), общие для всех вариантов рендера; документ отличается от TS-варианта только тем, что он JSON.
 
-```typescript
-// form.validation.ts — TS-схема над МОДЕЛЬЮ (не JSON), контракт @reformer/core/validation
-import { type FormModel } from '@reformer/core';
-import {
-  validate,
-  apply,
-  defineValidation,
-  validateModel,
-  type ValidationDefinition,
-} from '@reformer/core/validation';
-import { required, min, minLength, email } from '@reformer/core/validators';
-import type { CreditForm } from './types';
-
-type M = FormModel<CreditForm>;
-
-const step1 = defineValidation<CreditForm>(({ model }) => {
-  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
-  validate(model.$.loanAmount, [required(), min(50000, { code: 'loanAmount.min' })]);
-});
-const step2 = defineValidation<CreditForm>(({ model }) => {
-  validate(model.$.personalData.firstName, [required(), minLength(2)]);
-  validate(model.$.email, [required(), email()]);
-});
-
-const STEP_SCHEMAS: readonly ValidationDefinition<CreditForm>[] = [step1, step2];
-const fullSchema = defineValidation<CreditForm>(() => apply(...STEP_SCHEMAS));
-const emptySchema: ValidationDefinition<CreditForm> = () => {};
-
-/** Контракт FormWizardConfig: per-step + полная валидация через validateModel.
- *  { touch: true } делает ошибки провалидированного шага видимыми (§ #touch). */
-export function makeValidationConfig(model: M) {
-  return {
-    validateStep: (step: number) =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema, { touch: true }),
-    validateAll: () => validateModel(model, fullSchema, { touch: true }),
-  };
-}
-// Короче и надёжнее — defineSteps из @reformer/cdk (адресация по selector, { touch: true } внутри):
-//   export const config = defineSteps<'loan' | 'applicant', CreditForm>(model, {
-//     steps: { loan: step1, applicant: step2 }, extras: crossFieldRules,
-//   });
-// см. 07-form-wizard.md.
-```
-
-```typescript
-// form.render.ts — инъекция form + валидации в JSON-wizard
-import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormGroup, FormModel } from '@reformer/core';
-import type { CreditForm } from './types';
-import { makeValidationConfig } from './form.validation';
-// Единый behavior (submit/навигация/visibility) — общий для TS- и JSON-варианта. См. 07-form-wizard.md.
-import { createSharedRenderBehavior } from './form.render.shared';
-
-export function createJsonRenderBehavior(
-  form: FormGroup<CreditForm>,
-  model: FormModel<CreditForm>
-): RenderBehaviorFn<CreditForm> {
-  return (schema) => {
-    // (1) Инъекция рантайм-сущностей: form + validation-конфиг в wizard-ноду.
-    onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
-    });
-    // (2) Submit + навигация между шагами + visibility — из shared render-behavior.
-    //     БЕЗ этого вызова форма валидирует, но НЕ сабмитит и не навигирует (пример
-    //     `complex-multy-step-form-renderer-json` делегирует так же — его файл назван
-    //     по-старому `render-behavior.ts`, канон имени — `form.render.ts`).
-    createSharedRenderBehavior(form)(schema);
-  };
+```json
+{
+  "format": 2,
+  "root": {
+    "selector": "wizard",
+    "component": "$component(FormWizard)",
+    "children": [
+      {
+        "selector": "loan",
+        "component": "$component(Step)",
+        "componentProps": { "title": "Кредит", "icon": "💰" },
+        "children": [
+          { "model": "$model(loanAmount)", "component": "$component(InputNumber)",
+            "componentProps": { "label": "Сумма кредита (₽)" } }
+        ]
+      },
+      {
+        "selector": "applicant",
+        "component": "$component(Step)",
+        "componentProps": { "title": "Заявитель", "icon": "👤" },
+        "children": [
+          { "model": "$model(personalData.firstName)", "component": "$component(Input)",
+            "componentProps": { "label": "Имя" } }
+        ]
+      }
+    ]
+  }
 }
 ```
 
-> **Мост «поведение инициирует валидацию».** Если правка одного поля должна пере-прогнать валидацию другого (без submit), это делает НЕ схема, а поведение — через `revalidateWhen` в `defineFormBehavior` (контракт `@reformer/core/behaviors`): `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`. Валидация остаётся отдельным слоем; behavior лишь дёргает раннер.
+```tsx
+// index.tsx — сборка: документ + реестр + правила + поток
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import rawSchema from './form.schema.json';
+import { registry } from './registry';
+import { loanRules, applicantRules, creditMessages } from './form.validation';
+
+const schema = rawSchema as unknown as JsonFormSchema<CreditForm>;
+
+export function CreditFormPage() {
+  const bundle = useFormBundle(() =>
+    createForm<CreditForm>({
+      model: createCreditModel(),
+      schema,
+      registry,
+      behavior: creditBehavior, // отправка и навигация — см. 07-form-wizard.md
+      flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'applicant', rules: applicantRules }] },
+    })
+  );
+  return (
+    <ValidationMessagesProvider messages={creditMessages}>
+      <FormRenderer form={bundle} />
+    </ValidationMessagesProvider>
+  );
+}
+```
 
 ## Когда прогонять — декларативная стратегия { #strategy }
 
-До сих пор момент прогона разводился руками: `validateModel` на «Далее»/submit (§ #execute) или дёрганье раннера поведением через `revalidateWhen` (§ #inject). **Когда** запускать валидацию, можно выбрать декларативно — тем же контрактом, что и для typed-формы. Схема — тот же TS-артефакт над моделью, JSON тут ни при чём (он несёт только layout); API живёт в `@reformer/core`/`@reformer/cdk` и работает одинаково для typed- и JSON-схем.
+По умолчанию правила запускаются только явно: «Далее», отправка, `bundle.validate()`. Живую проверку выбирает поле `strategy` в `validation` сборки — тем же контрактом, что и для TS-схемы (JSON тут ни при чём — он несёт только layout):
 
-- **Простая форма** — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core/react` (рядом с `useFormControl`): мемоизирует контроллер, армит подписки в `useEffect` (SSR-safe), отдаёт `{ submit, validate, isValidating }`. `submit()` = полный прогон с `{ touch: true }` (раскрывает все ошибки). `schema` — ОБЯЗАТЕЛЬНО стабильная ссылка (module-level `const` / `useMemo`), иначе ломается дедуп раннера (та же причина, что и в § #execute).
-- **Wizard** — опция `strategy` в `defineSteps(model, { steps, strategy, debounce?, liveAfterSubmit? })` задаёт ЖИВУЮ стратегию ВНУТРИ активного шага, а хук `useWizardStepValidation(config)` из `@reformer/cdk` армит её под текущий шаг (снимает при смене шага/unmount; no-op, если `strategy` не задана / `'submit'` / у шага нет правил). Per-step gate на «Далее» и `validateAll` на submit (§ #execute) НЕ меняются — стратегия добавляется ЖИВЫМ слоем ПОВЕРХ них.
+```typescript
+createForm<CreditForm>({
+  model, schema, registry, flow,
+  validation: { extras: crossStepRules, strategy: 'afterFirstSubmit', debounce: 300 },
+});
+```
 
-Значения `strategy` (таблица одинакова для JSON- и typed-схем): `submit` (default — прогон только на submit/`validate()`), `blur` (по потере фокуса, раскрывает сблюренные поля), `change` (на каждый ввод + `debounce`, раскрывает редактированные), `afterFirstSubmit` (тихо до 1-го submit → раскрыть всё на submit → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`). Всё аддитивно, ломающих изменений нет; полная семантика операторов и раннера — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md), сборка wizard-конфига — в [07-form-wizard.md](07-form-wizard.md).
+Значения `strategy`: `submit` (default — прогон только явным вызовом), `blur` (по потере фокуса), `change` (на каждый ввод + `debounce`), `afterFirstSubmit` (тихо до первой отправки → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`). Подписки армирует `useFormBundle` в эффекте (SSR-safe). Для простой формы без сборки — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core/react`.
 
-> **Не смешивай слои на одном поле.** Node-level `updateOn`/`debounce` на ноде поля (legacy-реактивные триггеры) и активная schema-стратегия оба пишут ошибки в ту же ноду → мерцание. Один слой на поле.
+## Прежний формат документа { #v1 }
+
+Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — но этот путь рендерит функцию-схему, а не бандл: контекста сборки у визарда нет. Форму и поток ему доносит фабрика `renderBehavior(form, model, level)` — `onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, flow: level.flow }))`, а обработчик отправки сам проверяет форму — `level.submit(handler)`. Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
 
 ## Anti-patterns
 
-- **Ждать, что `validateSchema={true}` (или `validateFormSchema`) валидирует значения** — этот проп проверяет только СТРУКТУРУ схемы через ajv (узлы + синтаксис операторов + имена компонентов). Введённые пользователем значения он не трогает. Валидацию значений исполняет раннер `validateModel` над моделью.
-- **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`value`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует. TypeScript отклонит лишнее поле; даже если протащить через `as`, конвертер его проигнорирует.
-- **Инлайнить схему в `validateModel` или пересобирать её на каждый прогон** — схема это обычная функция над формой модели (`validate(model.$.path, [...])` адресует поле сигналом — стабильной ссылкой; значения читаются раннером в момент прогона). Держите схемы стабильными `const` через `defineValidation`: `validateModel` отменяет устаревший прогон по идентичности схемы, а инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз даёт новый прогон без дедупликации.
-- **Забыть `selector: 'wizard'` у wizard-ноды** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не инъектируется (submit пройдёт без блокировки).
+- **Ждать, что `validateFormSchema` (или проп `validateSchema` у `JsonFormRenderer`) валидирует значения** — они проверяют только СТРУКТУРУ документа через ajv. Введённые пользователем значения они не трогают.
+- **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`model`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует.
+- **Текст в правиле** — `required({ message: '…' })` больше нет: опции правила — `{ code?, params? }`. Текст — словарь `defineIssueMessages` + `ValidationMessagesProvider messages`.
+- **Инъекция `validateStep`/`validateAll` в узел визарда через `patchProps`, `defineSteps`, `validation.steps`** — прежний контракт, удалён. Правила шагов — `flow: { steps: [{ id, rules }] }` в сборке; визард берёт поток и отправку из сборки сам.
+- **Правила шагов по позиции** (`STEP_SCHEMAS[step - 1]`) — перестановка шагов молча рассинхронизирует правила. Шаг потока адресуется `id`, равным `selector` узла шага.
+- **Инлайнить схему в `validateModel` или пересобирать её на каждый прогон** — отмена устаревших прогонов ключится по паре «модель + правила». Держите схемы стабильными `const` через `defineValidation`.
+- **`selector` шага не совпадает с `id` шага потока** — визард не свяжет шаг с разметкой; в dev предупреждают сборка и визард, реестр форм ловит это preflight-проверкой `unknown-step-selectors`.
 
 ## See also
 
-- [07-form-wizard.md](07-form-wizard.md) — end-to-end wizard в JSON: submit (`onComponentEvent`), навигация (`renderEffect`), инъекция этой валидации, а также `defineSteps` из `@reformer/cdk` (сборка `validateStep`/`validateAll` по `selector`, `{ touch: true }` внутри).
+- [07-form-wizard.md](07-form-wizard.md) — визард в JSON: шаги-дети, поток шагов, отправка (`onComponentEvent`), навигация (`flow.goTo`).
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` (field-node несёт только layout).
-- [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime) — общий приём инъекции runtime-сущностей через `onInit`/`patchProps`.
-- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы схемы валидации (`validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`), раннер `validateModel`, STEP_SCHEMAS.
-- [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [validate.ts](../../src/validate.ts) — структурная валидация схемы.
+- [10-format-2.md](10-format-2.md) — документ формата 2 и сборка `createForm`.
+- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы схемы валидации и поток шагов.
+- `@reformer/core` [34-i18n.md](../../../reformer/docs/llms/34-i18n.md) — словарь замечаний и локали.
+- [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [validate.ts](../../src/validate.ts) — структурная проверка документа.

@@ -139,7 +139,7 @@ export interface JsonContainerNode<T = unknown> {
    * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
    */
   $nodeId?: string;
-  /** Id узла для поведения формы. У шага визарда — ещё и ключ его правил в `validation.steps`. */
+  /** Id узла для поведения формы. У шага визарда — ещё и `id` шага в потоке (`flow.steps`). */
   selector?: string;
   /**
    * Компонент-контейнер из реестра (`'$component(Section)'`) либо нативный HTML-тег

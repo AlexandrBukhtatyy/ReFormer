@@ -4,7 +4,7 @@
 
 ## Key Concepts
 
-- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `value: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`value` vs `children`), а не тем, как компонент зарегистрирован. Лист получает seam рендерера (`value` + `onChange(value)` + `onBlur`) в диалекте контрола: компонент объявляет его статикой `reformerAdapter` (у компонентов `@reformer/ui-kit` она уже есть — регистрируйте их как есть, отдельных «field-версий» нет), без статики seam проходит как есть. Сырой контрол чужой библиотеки с другим диалектом (Checkbox — `checked` + `onChange(event)`, Select — `value` + `onChange(value, option)`, Radio — `value` + `onChange(event)`) регистрируется тем же `reg.component`, а диалект ему задаёт либо статика (`defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`), либо `resolveFieldAdapter` в настройках `JsonRendererProvider` (приоритетнее статики) — см. `FieldAdapter` / `RendererSettings.resolveFieldAdapter` в renderer-react. Обычным value-based контролам адаптер не нужен.
+- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `model: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`model` vs `children`), а не тем, как компонент зарегистрирован. Лист получает seam рендерера (`value` + `onChange(value)` + `onBlur`) в диалекте контрола: компонент объявляет его статикой `reformerAdapter` (у компонентов `@reformer/ui-kit` она уже есть — регистрируйте их как есть, отдельных «field-версий» нет), без статики seam проходит как есть. Сырой контрол чужой библиотеки с другим диалектом (Checkbox — `checked` + `onChange(event)`, Select — `value` + `onChange(value, option)`, Radio — `value` + `onChange(event)`) регистрируется тем же `reg.component`, а диалект ему задаёт либо статика (`defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`), либо `resolveFieldAdapter` в настройках рендерера — `<FormRenderer settings>`, на прежнем пути `JsonRendererProvider settings` (приоритетнее статики) — см. `FieldAdapter` / `RendererSettings.resolveFieldAdapter` в renderer-react. Обычным value-based контролам адаптер не нужен.
 - **`control` — только по запросу (§3.1, BREAKING)** — leaf-контрол по умолчанию больше **НЕ** получает проп `control` (ноду формы). Для двустороннего обмена значением ему хватает value-based seam (`value` + `onChange`); реактивные рантайм-пропы (догруженные `options`, `loading`, …) мёржит сам рендерер; label/error/touched обслуживает `FieldWrapper` (`FIELD_WRAPPER` / `FormField`) — а он `control` получает как раньше. Раньше `control` попадал в контрол по умолчанию, и адаптер нередко заводили лишь чтобы его вырезать (иначе нода текла бы в DOM) — теперь этого делать не нужно, `control` просто не передаётся. Если же контрол сам потребляет ноду (напр. вызывает `useFormControl(control)` ради её сигналов), включи передачу **явно**: статикой `Component.reformerNeedsControl = true` на самом компоненте либо `passControl: true` в его `FieldAdapter`. Оба флага независимы от seam-адаптации — контролу можно отдать `control`, не заводя адаптер, и наоборот (адаптер, переложивший диалект, `control` по-прежнему не передаёт, пока не выставлен `passControl`).
 - **dataSource value** — именованная константа, функция или React-компонент, на которые ссылаются строкой `'$dataSource(NAME)'` из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
 - **fn** — функция (форматтер/компаратор/itemLabel/обработчик), на которую ссылаются строкой `'$fn(name)'` из `componentProps`. Регистрируется через `reg.fn(name, fn)`. Отдельный от `dataSource` вид: `reg.fn` бросает при регистрации не-функции, а `validateFormSchema` ловит перепутанные `$fn`/`$dataSource`. Рантайм передаёт функцию в проп по ссылке (как `$dataSource`-функцию), новизна — в статической проверке.
@@ -51,7 +51,7 @@ const registry = defineRegistry((reg) => {
 
 // В JSON-схеме (лист + операторы):
 {
-  value: '$model(loanType)',
+  model: '$model(loanType)',
   component: '$component(Select)',
   componentProps: { options: '$dataSource(LOAN_TYPES)' },
 }
@@ -78,7 +78,7 @@ const registry = defineRegistry((reg) => {
 
 // В JSON-схеме:
 {
-  value: '$model(email)',
+  model: '$model(email)',
   component: '$component(Input)',
   componentProps: {
     label: '$locale(fields.email.label)',   // → строка
@@ -91,7 +91,7 @@ const registry = defineRegistry((reg) => {
 
 ```jsonc
 {
-  array: '$model(properties)',
+  model: '$model(properties)',
   component: '$component(FieldArray)',
   componentProps: {
     itemLabel: '$fn(propertyItemLabel)',    // → функция по ссылке
@@ -109,11 +109,13 @@ const registry = defineRegistry((reg) => {
 Контрол, который сам потребляет ноду формы (§3.1) — включи передачу `control` явно:
 
 ```typescript
+import type { FormControl } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
+import type { RendererSettings } from '@reformer/renderer-react';
 
-// Контрол читает ноду напрямую (свои сигналы valid/errors/…):
+// Контрол читает ноду напрямую (свои сигналы valid/issues/…):
 function StepDots({ control }: { control: FormControl<number> }) {
-  const { value, errors } = useFormControl(control);
+  const { value, issues } = useFormControl(control);
   // …
 }
 StepDots.reformerNeedsControl = true; // статика на компоненте — без адаптера
@@ -123,10 +125,11 @@ const registry = defineRegistry((reg) => {
 });
 
 // Альтернатива без статики — тем же адаптером (control + seam-диалект независимы):
-const settings: JsonRendererSettings = {
+const settings: RendererSettings = {
   resolveFieldAdapter: (Component) =>
     Component === StepDots ? { passControl: true } : undefined,
 };
+// <FormRenderer form={bundle} settings={settings} />
 ```
 
 Обычным value-based контролам (Input/Select/…) ничего из этого не нужно — `control` им не передаётся, и это норма.
@@ -151,15 +154,15 @@ const settings: JsonRendererSettings = {
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
 - **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
-- **Путать приоритет вложенных `JsonRendererProvider`** — реестры сливаются через `withParent`, и при дублях выигрывает **внутренний** (последний), как у `Object.assign`. Внешний провайдер задаёт базу, внутренний её перекрывает. Для программной композиции без React есть `composeRegistries(base, ...overrides)` с тем же правилом.
+- **Путать приоритет при композиции реестров** — `composeRegistries(base, ...overrides)` сливает реестры слева направо, и при дублях выигрывает **последний**, как у `Object.assign`. Результат уходит в сборку `createForm({ registry })`. На прежнем пути то же правило у вложенных `JsonRendererProvider`: внешний провайдер задаёт базу, внутренний её перекрывает.
 - **Использовать `$dataSource(NAME)` без регистрации** — без `validateSchema` строка просто прокинется в проп как есть (молчаливый баг); с `validateSchema` даст ошибку `unknown dataSource "NAME"`.
 - **Ссылаться на dataSource как на компонент** — `component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
 - **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)` и отклонится на `validateSchema`.
 - **Регистрировать несколько сервисов локализации** — сервис один (кладётся под `LOCALE_SERVICE`); повторный `reg.locale(...)` перезапишет предыдущий. Разные языки — это разные каталоги, передаваемые в `reg.locale` по одному за раз.
-- **Регистрировать сырой контрол без адаптера** — `reg.component('Checkbox', RawCheckbox)`, где контрол читает значение из `checked` и эмитит DOM-событие (`onChange(event)`), при value-based seam запишет в модель сам объект события вместо булева. Такому контролу нужен адаптер: статика `reformerAdapter` (`defineFieldControl(RawCheckbox, { adapter })` из `@reformer/ui-kit/fields`) либо `resolveFieldAdapter` в настройках `JsonRendererProvider` (`JsonRendererSettings` наследует `RendererSettings`, поэтому адаптер прокидывается тем же `settings`), который переложит seam на его диалект; компонентам `@reformer/ui-kit` и уже-value-based контролам ничего не требуется.
+- **Регистрировать сырой контрол без адаптера** — `reg.component('Checkbox', RawCheckbox)`, где контрол читает значение из `checked` и эмитит DOM-событие (`onChange(event)`), при value-based seam запишет в модель сам объект события вместо булева. Такому контролу нужен адаптер: статика `reformerAdapter` (`defineFieldControl(RawCheckbox, { adapter })` из `@reformer/ui-kit/fields`) либо `resolveFieldAdapter` в настройках рендерера (`<FormRenderer settings>`; на прежнем пути — `JsonRendererProvider settings`, `JsonRendererSettings` наследует `RendererSettings`), который переложит seam на его диалект; компонентам `@reformer/ui-kit` и уже-value-based контролам ничего не требуется.
 - **Полагаться на проп `control` в leaf-контроле по умолчанию** (§3.1, BREAKING) — теперь он **НЕ** передаётся. Контрол, который вызывает `useFormControl(control)` (или иначе читает ноду), без opt-in получит `control === undefined` и упадёт/тихо не подпишется. Включи передачу явно: `Component.reformerNeedsControl = true` на компоненте либо `passControl: true` в его `FieldAdapter`. `FieldWrapper` (`FIELD_WRAPPER` / `FormField`) это не касается — обёртка `control` получает как прежде. И наоборот — **заводить адаптер лишь чтобы `strip`-нуть `control`** больше не нужно: по умолчанию его в пропах контрола нет.
 
 ## See also
 
-- [01-overview.md](01-overview.md) — как реестр прокидывается через `JsonRendererProvider`.
+- [01-overview.md](01-overview.md) — как реестр уходит в сборку `createForm({ registry })`.
 - [02-json-schema.md](02-json-schema.md) — где имена появляются в схеме (операторы `$component`/`$dataSource`/`$fn`/`$locale`).

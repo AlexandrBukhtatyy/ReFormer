@@ -1,9 +1,13 @@
 # @reformer/renderer-json
 
-Render [`@reformer/core`](https://www.npmjs.com/package/@reformer/core) forms from a **JSON schema**.
+Describe [`@reformer/core`](https://www.npmjs.com/package/@reformer/core) forms as a **JSON document**.
 Field bindings, components and data sources are expressed as string operators
-(`$model(...)`, `$component(...)`, `$dataSource(...)`), so an entire form can be described as data and
-rendered through a component registry — no per-field React code.
+(`$model(...)`, `$component(...)`, `$dataSource(...)`, `$part(...)`), so an entire form layout can be
+described as data and rendered through a component registry — no per-field React code.
+
+A format 2 document is built by the same `createForm` as a TypeScript schema and rendered by the same
+`FormRenderer` from `@reformer/renderer-react`; this package provides the registry that turns the
+document into a tree, the document types, structural validation and migration of the previous format.
 
 ## Documentation
 
@@ -11,12 +15,13 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 
 ## Features
 
-- Describe forms declaratively as JSON (`JsonFormSchema`)
-- String operators bind schema leaves to a reactive `FormModel` and to registered components
-- Component registry (`defineRegistry`) maps operator names to your React components
+- Describe forms declaratively as JSON (`JsonFormSchema`, `format: 2`) — fields, arrays of sub-forms, named parts (sub-forms reused across groups), containers, HTML tags and text
+- String operators bind document nodes to a reactive `FormModel` (`model: '$model(path)'`) and to registered components
+- Component registry (`defineRegistry`, `composeRegistries`) maps operator names to your React components; old names of renamed components (`FormArray`, `FormArraySection`) resolve as aliases with a dev warning
 - **Raw third-party controls** can be registered by name — the renderer translates the value seam (`value` + `onChange(value)`) to each control's dialect via `settings.resolveFieldAdapter`, so no per-control wrapper is needed (see [Raw controls](#raw-controls-field-adapters))
-- JSON carries **layout only** — field validators live in a separate `ValidationDefinition` over the model, run by `validateModel` (see [Validation](#validation))
-- Optional **structural** schema validation against a meta-schema (ajv, loaded dynamically — dev only)
+- JSON carries **layout only** — field rules live in a separate `ValidationDefinition` over the model (see [Validation](#validation))
+- Optional **structural** document validation against a meta-schema (`@reformer/renderer-json/validate`, ajv — load it dynamically, dev only)
+- `migrateJsonSchema` converts a previous-format document (`value` / `array` keys, wizard steps in `componentProps.steps`) to format 2
 - TypeScript support, tree-shakable exports
 
 ## Installation
@@ -30,59 +35,51 @@ npm install @reformer/renderer-json @reformer/core @reformer/renderer-react
 ## Quick Start
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
 import { Input, Box, FormField } from '@reformer/ui-kit';
-import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  defineRegistry,
-  FIELD_WRAPPER,
-  type JsonFormSchema,
-} from '@reformer/renderer-json';
+import { defineRegistry, defineJsonSchema, FIELD_WRAPPER } from '@reformer/renderer-json';
+
+type MyForm = { email: string };
 
 // Bindings are string operators: '$model(...)', '$component(...)', '$dataSource(...)'.
-const schema: JsonFormSchema = {
-  version: '1.0',
+// defineJsonSchema<T> narrows `$model(...)` paths to the model shape.
+const schema = defineJsonSchema<MyForm>({
+  format: 2,
   root: {
     component: '$component(Box)',
     children: [
       {
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         componentProps: { label: 'Email' },
       },
     ],
   },
-};
+});
 
-type MyForm = { email: string };
+const registry = defineRegistry((reg) => {
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField); // system field wrapper
+});
 
 export function MyFormPage() {
-  // M1: the model is the source of truth; schema leaves bind to its signals.
-  const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
-  const registry = useMemo(
-    () =>
-      defineRegistry((reg) => {
-        reg.component('Input', Input);
-        reg.component('Box', Box);
-        reg.component(FIELD_WRAPPER, FormField); // system field wrapper
-      }),
-    []
+  // One call: the registry builds the tree from the document; the field wrapper and the schema
+  // error boundary travel in the bundle. useFormBundle keeps the bundle stable between renders.
+  const bundle = useFormBundle(() =>
+    createForm<MyForm>({ schema, registry, initial: { email: '' } })
   );
 
-  // The model is provided through the provider (settings.model), not as a renderer prop.
-  return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={schema} validateSchema={import.meta.env.DEV} />
-    </JsonRendererProvider>
-  );
+  return <FormRenderer form={bundle} />;
 }
 ```
 
-`JsonFormRenderer` accepts only `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`. The
-`FormModel` is supplied via `JsonRendererProvider` settings (`model`); schema leaves are bound to its
-signals by the built-in converter.
+The registry goes into `createForm` explicitly, not through React context, so a host provider and a
+remote renderer may live in different bundles. A previous-format document (no `format: 2`) is still
+built by `createJsonForm` + `useJsonForm` and rendered by `JsonFormRenderer` inside
+`JsonRendererProvider` (types with the `V1` suffix); `migrateJsonSchema(document)` moves it to format 2.
 
 ## Raw controls (field adapters)
 
@@ -92,26 +89,22 @@ The renderer drives each field through a value-based seam — `value` + `onChang
 (`defineFieldControl(C, { adapter })` from `@reformer/ui-kit/fields`); `@reformer/ui-kit`
 components already do, so they are registered as-is. Components without the static get the
 seam unchanged — already value-based components work as-is. A **raw** third-party control that speaks a different
-dialect (a `Checkbox` reading `checked` and emitting a DOM event, a `Select` emitting
-`(value, option)`, a `Radio` emitting `event`) would otherwise write the raw event object
-straight into the model.
+dialect (a `Checkbox` reading `checked` and emitting a DOM event, a `Radio` emitting `event`) would
+otherwise write the raw event object straight into the model.
 
-Register such controls by name and translate the seam with `resolveFieldAdapter` — inherited
-from `@reformer/renderer-react`'s `RendererSettings` and passed through the same
-`JsonRendererProvider` settings (zero extra API on this package). The resolver takes precedence over
-the static; returning `undefined` falls back to the component's `reformerAdapter`, then to the
-plain seam.
+Register such controls by name and translate the seam with `resolveFieldAdapter` — a field of
+`@reformer/renderer-react`'s `RendererSettings`. The resolver takes precedence over the static;
+returning `undefined` falls back to the component's `reformerAdapter`, then to the plain seam.
 
 ```tsx
 import { Checkbox } from 'some-ui-kit'; // raw control: `checked` + `onChange(event)`
 
 // In the registry the control is mapped by name, exactly like any other component:
-reg.component('Checkbox', Checkbox); // schema leaf: { value: '$model(agree)', component: '$component(Checkbox)' }
+reg.component('Checkbox', Checkbox); // document leaf: { model: '$model(agree)', component: '$component(Checkbox)' }
 
-<JsonRendererProvider
+<FormRenderer
+  form={bundle}
   settings={{
-    registry,
-    model,
     resolveFieldAdapter: (component) =>
       component === Checkbox
         ? {
@@ -121,51 +114,55 @@ reg.component('Checkbox', Checkbox); // schema leaf: { value: '$model(agree)', c
           }
         : undefined, // undefined → the component's reformerAdapter static, else the plain seam
   }}
->
-  <JsonFormRenderer<MyForm> schema={schema} />
-</JsonRendererProvider>;
+/>;
 ```
 
-The adapter is resolved per field `component`. See the `@reformer/renderer-react`
-`FieldAdapter` reference for the full field list (`valueProp` / `changeProp` / `fromEmit` /
-`toValue` / `bindBlur` / `strip`).
+On the previous path the same resolver is passed through `JsonRendererProvider` settings. See the
+`@reformer/renderer-react` `FieldAdapter` reference for the full field list (`valueProp` /
+`changeProp` / `fromEmit` / `toValue` / `bindBlur` / `strip`).
 
 ## Validation
 
-The JSON schema describes **layout only** — a `JsonFieldNode` is `{ value, component?, componentProps?, ... }`
+The JSON document describes **layout only** — a `JsonFieldNode` is `{ model, component?, componentProps?, ... }`
 with no `validators` field, and there is no `$validator(...)` operator. Field validation is expressed once
 as a plain `ValidationDefinition` over the `FormModel` (the same `@reformer/core/validation` contract that
 hand-written forms use), so layout and rules stay independent: either can be swapped or fetched from a
 server without touching the other.
 
 ```tsx
-import { type FormModel } from '@reformer/core';
-import { validate, defineValidation, validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 
-type MyForm = { email: string };
-
-// Rules over the model — `model.$.path` is the field signal, not a '$model(...)' operator.
-const schema = defineValidation<MyForm>(({ model }) => {
-  validate(model.$.email, [required({ code: 'field.required' }), email({ code: 'field.email' })]);
+// Rules over the model — `model.$.path` is the field handle, not a '$model(...)' operator.
+// A rule carries a code; the text comes from the form dictionary.
+const rules = defineValidation<MyForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
 });
+const messages = defineIssueMessages({ 'email.required': 'Enter your email' });
 
-// External runner: routes errors into the form nodes and returns Promise<boolean>
-// (`severity: 'warning'` does not block; stale runs of the same (model, schema) are aborted).
-export const validateMyForm = (model: FormModel<MyForm>) => () => validateModel(model, schema);
+function MyFormPage() {
+  const bundle = useFormBundle(() =>
+    createForm<MyForm>({ schema, registry, initial: { email: '' }, validation: rules })
+  );
+  // bundle.validate(), bundle.submit(handler) — one run of the rules, issues land on the nodes.
+  return (
+    <ValidationMessagesProvider messages={messages}>
+      <FormRenderer form={bundle} />
+    </ValidationMessagesProvider>
+  );
+}
 ```
 
-Operators come from `@reformer/core/validation`: `validate` / `validateAsync`
-(`(value, { signal }) => Promise<…>`), `validateWhen(() => cond, () => { … })`,
-`cross(sig, (f) => err | null)` (snapshot via `model.get()`), `each(arr, (im) => { … })`, and
-`apply(...schemas)` for composition. Field-rule factories (`required()`, `min()`, `email()`, …) come
-from `@reformer/core/validators` and accept nullable values.
-
-Validation is **run externally** by `validateModel(model, schema)` — the form's own `submit()` /
-`validate()` no longer run schema validation. Wire the runner into a submit handler, or, for a wizard,
-inject the `{ validateStep, validateAll }` callbacks into the wizard node at runtime via `renderBehavior`
-(`onInit` + `patchProps`). See the [validation guide](./docs/llms/06-validation.md) for the full wizard
-wiring. This is distinct from the `validateSchema` prop above, which only checks the JSON schema's **structure**.
+For a wizard, step rules go into the step flow — `createForm({ flow: { steps: [{ id: 'loan', rules:
+loanRules }] } })`, where the step `id` equals the `selector` of the `$component(Step)` node in the
+document. The wizard takes the form, the flow and submission from the bundle — nothing has to be
+injected into the document. See the [validation guide](./docs/llms/06-validation.md) and the
+[wizard guide](./docs/llms/07-form-wizard.md). This is distinct from `validateFormSchema`, which only
+checks the document's **structure**.
 
 ## License
 

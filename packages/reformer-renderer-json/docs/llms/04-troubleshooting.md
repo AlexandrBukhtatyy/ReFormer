@@ -6,8 +6,8 @@
 
 - `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
-- `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
-- Если используются вложенные провайдеры — реестры сливаются через `withParent`, и при дублях имени выигрывает **внутренний** провайдер (последний в цепочке).
+- В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний. На прежнем пути (`JsonFormRenderer`) реестр приходит пропом `registry`, бандлом `form` либо из `JsonRendererProvider`; при вложенных провайдерах выигрывает **внутренний**.
+- Прежние имена `FormArray` / `FormArraySection` реестр понимает сам — как псевдонимы `FieldArray` / `FieldArraySection` (в dev — предупреждение `Компонент "FormArray" переименован в "FieldArray"`). Ошибка «not found» для них значит, что в реестре нет и записи под новым именем.
 
 ## Field renders without label/error
 
@@ -20,22 +20,24 @@ import { FormField } from '@reformer/ui-kit';
 reg.component(FIELD_WRAPPER, FormField);
 ```
 
-## No model signal for "..." / `model` prop is required
+Сборка кладёт обёртку из реестра в бандл, `FormRenderer` берёт её оттуда (проп `settings.fieldWrapper` её перекрывает).
+
+## No model signal / `createForm: нужна модель`
 
 Два разных симптома одной причины — модель.
 
-- `JsonFormRenderer: `model` prop is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её пропом: `<JsonFormRenderer schema={schema} model={model} />`.
-- `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `value: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в `createModel(...)` initial-значениях.
+- `[@reformer/core] createForm: нужна модель — model либо initial` — сборке не передана модель. Передай `model: createMyModel()` либо `initial: { … }`.
+- `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `model: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в начальных значениях модели. Внутри шаблона строки и части путь считается от строки/группы.
+- `"$model(x)" is not an array of the model` / `is not a group of the model` — узел с `item` привязан не к массиву (или начальное значение массива — `null`), узел с `part` — не к объекту.
 
 ## Сырой контрол UI-kit пишет в модель событие вместо значения
 
-Контрол зарегистрирован по имени и рендерится, но в модель уезжает не то: у `Checkbox` — DOM-событие вместо `boolean`, у `Radio` — событие вместо строки. Причина: рендерер отдаёт полю value-based seam (`value` + `onChange(value)`), а сырой контрол ждёт свой диалект (`checked` + `onChange(event)` и т.п.). (У `Select` значение приходит **первым** аргументом `onChange(value, option)` и пишется верно — лишний `option` обработчик отбрасывает сам; адаптер ему нужен лишь чтобы не протёк проп `control` в DOM.) Не оборачивай каждый контрол — зарегистрируй `FieldAdapter` через `resolveFieldAdapter`, и рендерер сам переложит seam на диалект контрола:
+Контрол зарегистрирован по имени и рендерится, но в модель уезжает не то: у `Checkbox` — DOM-событие вместо `boolean`, у `Radio` — событие вместо строки. Причина: рендерер отдаёт полю value-based seam (`value` + `onChange(value)`), а сырой контрол ждёт свой диалект (`checked` + `onChange(event)` и т.п.). (У `Select` значение приходит **первым** аргументом `onChange(value, option)` и пишется верно — лишний `option` обработчик отбрасывает сам.) Не оборачивай каждый контрол — задай `FieldAdapter` через `resolveFieldAdapter`, и рендерер сам переложит seam на диалект контрола:
 
 ```tsx
-<JsonRendererProvider
+<FormRenderer
+  form={bundle}
   settings={{
-    registry,
-    model,
     resolveFieldAdapter: (component) => {
       if (component === Checkbox)
         return { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false };
@@ -43,87 +45,74 @@ reg.component(FIELD_WRAPPER, FormField);
       return undefined; // текстовые / уже value-based контролы — seam как есть
     },
   }}
->
-  <JsonFormRenderer<MyForm> schema={schema} />
-</JsonRendererProvider>
+/>
 ```
 
-`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`); renderer-json наследует его без изменений кода и прокидывает через `JsonRendererProvider settings` в рендерер. Вернул `undefined` → контрол получает seam как есть (обратная совместимость, прежнее поведение). Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
+`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). На прежнем пути его передают в `JsonRendererProvider settings` — `JsonRendererSettings` наследует его без изменений. Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
 
 ## componentProps string passes through as plain string
 
 Строка `'$dataSource(NAME)'` в `componentProps` ссылается на source, который не зарегистрирован — конвертер оставляет её как есть. Используй `reg.dataSource('NAME', value)` либо передавай значение литералом напрямую. Голые строки (без `$dataSource(...)`) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
 
+## The document is in the previous JSON schema format
+
+У документа нет `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`), а собирает его `createForm`. Переведи его `migrateJsonSchema(document)` — функция чистая, документ формата 2 возвращает как есть. Обратная ошибка — `createJsonForm: документ схемы — формата 2`: документ формата 2 собирает `createForm({ model, schema, registry })`, а не `createJsonForm`.
+
 ## useJsonRendererSettings throws outside provider
 
-`useJsonRendererSettings` в dev-режиме бросает, если вызван вне `JsonRendererProvider` **или** если в провайдере не передан `registry`. Оберни вызывающий компонент в провайдер с реестром.
+Только прежний путь. `useJsonRendererSettings` в dev-режиме бросает, если вызван вне `JsonRendererProvider` **или** если в провайдере не передан `registry`. Оберни вызывающий компонент в провайдер с реестром. Сборке `createForm` провайдер не нужен — реестр уходит в неё явно.
 
-## "version" missing / invalid schema (при validate)
+## Invalid schema (при проверке документа)
 
-`validateSchema={true}` прогоняет схему через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под field/array/container (нет ни `value`, ни `array`+`item`, ни `component`), голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя. Ошибки рисуются в `SchemaErrorPanel` вместо формы. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
+`validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` прогоняет документ через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под поле/массив/подформу/контейнер, голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя, необъявленная часть `$part(...)`, неполный `initialValue`, несобранная ссылка на шаг. Ошибки рисует `SchemaErrorPanel`. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны. На прежнем пути то же делает проп `validateSchema` у `JsonFormRenderer`.
 
 ## Behavior selector matches nothing
 
-`hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит behavior. `selector` — plain-строка, НЕ оператор.
+`hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит поведение. `selector` — plain-строка, НЕ оператор. Узлы внутри шаблона строки и именованной части лежат в своих областях: их адресует поведение строки (`applyEach(model.$.items, rowBehavior)`) или подформы (`apply(model.$.group, groupBehavior)`), а не корневое.
 
-## $template inside array doesn't render rows
+## Шаблон строки массива не рендерит строки
 
-Массив — это array-node, а не container с `itemComponent`. Проверь:
+Проверь:
 
-- Узел использует `array: '$model(path)'` **и** `item: { $template: <JsonNode> }` (оба обязательны — иначе `isArrayNode` вернёт false).
-- Внутри `$template` пути `$model(...)` заданы **относительно элемента** (`value: '$model(type)'`, а не `'$model(properties[0].type)'`).
-- Есть `initialValue` (plain-литерал по форме элемента) — иначе кнопка «Добавить» создаст пустой элемент без сигналов для полей шаблона.
+- Узел несёт `model: '$model(path)'` **и** `item` (`{ $template: <JsonNode> }` либо `'$part(name)'`) — иначе `isArrayNode` вернёт false, и узел станет полем.
+- Внутри шаблона пути `$model(...)` заданы **относительно строки** (`model: '$model(type)'`, а не `'$model(properties.0.type)'`).
+- Шаблон новой строки объявлен в модели — `arrayOf(blank)` — либо узел несёт `initialValue`. Без обоих «Добавить» бросает ошибку про шаблон.
 
-## Массив рендерится без строк / пустой при добавлении
+## Массив рендерится без полей / пустой при добавлении
 
-`initialValue` должен быть **полным** plain-объектом по форме элемента (все поля, что есть в `$template`). Если передать частичный объект (`{ type: 'apartment' }` без `estimatedValue`/`description`), под-модель нового элемента не получит сигналов для недостающих полей и они не отрендерятся. `initialValue` клонируется через `JSON.parse(JSON.stringify(...))` — только сериализуемые значения, никакого FieldConfig.
+`initialValue` должен быть **полным** plain-объектом по форме элемента (все поля, что есть в шаблоне) — это проверяет `validateFormSchema`. Если передать частичный объект (`{ type: 'apartment' }` без `estimatedValue`/`description`), под-модель нового элемента не получит сигналов для недостающих полей и они не отрендерятся. Надёжнее шаблон в модели — `arrayOf(blankProperty)`.
 
 ## Toggle-видимость секции массива
 
-Условный показ секции (напр. массив `properties` виден только когда `hasProperty === true`) делается **не** кастомным блоком, а через `renderBehavior`:
+Условный показ секции (напр. массив `properties` виден только когда `hasProperty === true`) делается **не** кастомным блоком, а правилом узла в поведении формы:
 
 ```typescript
-import { hideWhen } from '@reformer/renderer-react';
+import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
 
-const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
-  hideWhen(schema.node('properties-array'), () => model.signalAt('hasProperty').value !== true);
-};
+export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
+  hideWhen(schema.node('properties-array'), () => model.hasProperty !== true);
+});
 ```
 
-`renderBehavior` передаётся пропом в `JsonFormRenderer`; узел адресуется по своему `selector`.
+Поведение уходит в сборку полем `behavior`; узел адресуется по своему `selector`.
 
-## console.warn: `schema.node(...)` адресует неизвестный selector
+## console.warn: поведение обращается к узлам, которых нет в дереве
 
-`schema.node('typo')` не нашёл узла с таким `selector` — рендерер пишет в консоль `console.warn` и перечисляет все известные селекторы схемы. Обычно это промах/опечатка в `selector` внутри `renderBehavior`: имя в `schema.node(...)` не совпадает с тем, что реально задано узлу в схеме (`selector: 'properties-array'`). Как чинить:
+`createForm` в dev сверяет адресованные через `schema.node(...)` селекторы с деревом и пишет «поведение обращается к узлам схемы, которых нет в корневом дереве: "…"». Обычно это опечатка в `selector` внутри поведения либо узел строки/части, адресованный из корневого поведения. Как чинить:
 
 - Сверь строку в `schema.node('...')` с `selector` целевого узла — регистр и дефисы должны совпадать буква в букву.
 - Убедись, что узлу вообще задан `selector` (без него узел не адресуется — см. «Behavior selector matches nothing»).
-- Возьми правильное имя из списка известных селекторов, который печатает сам warn.
+- Узел строки или подформы адресуй из их поведения (`applyEach` / `apply`).
 
-Промах не роняет форму, но behavior (`hideWhen`/`patchProps`) молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум.
+Промах не роняет форму, но правило молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум. На прежнем пути `JsonFormRenderer` пишет похожее: «`schema.node(...)` адресует неизвестный selector» с перечнем известных селекторов.
 
 ## dev-warn: нестабильный `renderBehavior`
 
-Если ссылка на `renderBehavior` меняется между рендерами (новая функция на каждый рендер родителя), рендерер в dev-режиме предупреждает о нестабильном `renderBehavior`. Причина — behavior пересобирается на каждый проход и перевешивает реактивные связи впустую. Держи ссылку стабильной:
+Только прежний путь (`JsonFormRenderer`). Если ссылка на `renderBehavior` меняется между рендерами (новая функция на каждый рендер родителя), рендерер в dev-режиме предупреждает: дерево пересобирается на каждый проход. Держи ссылку стабильной — задавай фабрику полем `renderBehavior` конфига `createJsonForm` (бандл собран один раз, ссылка стабильна по построению) либо объявляй функцию `const` на уровне модуля. В сборке `createForm` отдельного `renderBehavior` нет — правила узлов в поведении формы.
 
-- объяви функцию `const` на уровне модуля (как в примере «Toggle-видимость секции массива» выше), если она не замыкает пропсы/стейт;
-- либо оберни в `useMemo` / `useCallback` с корректными зависимостями, если behavior обязан замыкать что-то из компонента.
+## Битая схема → `SchemaErrorPanel`, а не белый экран
 
-```tsx
-// стабильно: не пересоздаётся на каждый рендер
-const renderBehavior = useCallback<RenderBehaviorFn<MyForm>>(
-  (schema) => {
-    hideWhen(schema.node('properties-array'), () => model.signalAt('hasProperty').value !== true);
-  },
-  [model],
-);
-
-<JsonFormRenderer<MyForm> form={jsonForm} renderBehavior={renderBehavior} />;
-```
-
-## Битая схема при выключенном `validateSchema` → `SchemaErrorPanel`, а не белый экран
-
-Раньше при `validateSchema={false}` (или когда валидатор отключён) ошибка в структуре схемы во время конвертации/рендера роняла поддерево — пользователь видел белый экран без диагностики. Теперь такой сбой перехватывает `SchemaErrorBoundary` и рисует `SchemaErrorPanel` с описанием проблемы — как и при `validateSchema={true}`. То есть панель ошибки схемы показывается в обоих режимах; `validateSchema={true}` лишь ловит проблему раньше и подробнее (мета-схема ajv + обход имён операторов, см. «"version" missing / invalid schema»), а выключенный флаг больше не превращает битую схему в пустую страницу.
+Ошибку рендера дерева из документа перехватывает `SchemaErrorBoundary` и рисует `SchemaErrorPanel` с описанием проблемы. В сборке `createForm` граница приходит в бандле от реестра (`bundle.render.errorBoundary`), и `FormRenderer` оборачивает ею дерево. Ошибку **сборки** (неизвестный `$component` бросает конвертер при `createForm`) граница рендера не ловит — проверяй документ до сборки `validateFormSchema` (см. «Invalid schema») и показывай `SchemaErrorPanel` вместо формы, как эталон `complex-multy-step-form-renderer-json`.
 
 ## See also
 
@@ -131,3 +120,4 @@ const renderBehavior = useCallback<RenderBehaviorFn<MyForm>>(
 - [02-json-schema.md](02-json-schema.md)
 - [03-registry.md](03-registry.md)
 - [05-cookbook.md](05-cookbook.md)
+- [10-format-2.md](10-format-2.md)

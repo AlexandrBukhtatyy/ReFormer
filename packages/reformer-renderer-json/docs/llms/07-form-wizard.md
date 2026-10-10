@@ -1,69 +1,72 @@
 # FormWizard
 
-End-to-end многошаговая форма (wizard) в `@reformer/renderer-json` (M1): **layout шагов** живёт в JSON-схеме, а **submit + навигация + условная видимость + инъекция валидации** — в `renderBehavior` (TS-функция `RenderBehaviorFn<T>`). JSON статичен и не выражает рантайм (`FormGroup`, колбэки, эффекты), поэтому wizard собирается из двух половин. Всё сверено с рабочим примером `complex-multy-step-form-renderer-json` и его shared-поведением из `complex-multy-step-form-renderer`.
+End-to-end многошаговая форма (wizard) в `@reformer/renderer-json`: **layout шагов** живёт в JSON-документе формата 2, **правила шагов** — в потоке сборки `createForm({ flow })`, а **отправка, навигация и условная видимость** — в поведении формы (`defineFormBehavior`). Форму, поток шагов и отправку визард берёт из сборки сам: документ остаётся чистыми данными, инъектировать в узел ничего не нужно. Всё сверено с эталоном `complex-multy-step-form-renderer-json` (документ `form.schema.json`, реестр `registry.ts`) и общей связкой узлов `complex-multy-step-form/application/renderer.ts`.
 
-> **Имена файлов.** В этом документе они каноничные: `form.schema.ts` (схема; `.tsx` — если в ней есть JSX, `.json` — вариант «схема как данные»), `form.render.ts` (render-поведение), `registry.ts`, опциональный `wizard.tsx` (шим wizard-компонента). Шаги wizard-а — инлайном в `index.tsx` или по папке на шаг `steps/<slug>/` (`form.validation.ts`, `form.render.ts`, `form.schema.*` — имена те же, что в корне) с агрегатором `steps/index.ts`; прежние имена `renderer.schema.*` / `renderer.behavior.ts` / `renderer.wizard.tsx` / `validation.ts` работают, но `validate_form kind="layout"` предупреждает о них. Полный набор — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`. Каталоги `complex-multy-step-form-*` — **исторические**: файлы там называются `json-schema.json` и `render-behavior.ts`, это устаревшие имена, и сверялось по ним только содержимое, а не нейминг. В новом коде так не называй.
+> **Имена файлов.** Канон раскладки — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`: схема — `form.schema.ts` (`.tsx` — если в ней есть JSX, `.json` — вариант «схема как данные»), `registry.ts`, `form.behavior.ts`, `form.validation.ts`. Шаги визарда — инлайном или по папке на шаг `steps/<slug>/` с агрегатором `steps/index.ts`. Каталоги `complex-multy-step-form-*` — эталон содержимого, а не нейминга.
 
 ## Половина 1 — layout шагов в JSON { #json-shape }
 
-Wizard — обычная container-нода со `selector: 'wizard'` (чтобы адресоваться через `schema.node('wizard')`). Шаги лежат в **`componentProps.steps`** — массив container-нод, а **не** в top-level `children`. Каждый шаг — нода `$component(Step)` с `componentProps: { title, icon }` и собственным `children` (поддерево layout шага).
+Визард — обычный узел-контейнер со `selector: 'wizard'` (чтобы адресоваться через `schema.node('wizard')`). Шаги — его **`children`**: каждый шаг — узел `$component(Step)` со `selector` (идентификатор шага в потоке), `componentProps: { title, icon }` и собственными `children`.
 
 ```json
 {
   "selector": "wizard",
-  "component": "$component(Wizard)",
+  "component": "$component(FormWizard)",
   "componentProps": {
     "className": "bg-white p-8 rounded-lg shadow-md",
-    "steps": [
-      {
-        "component": "$component(Step)",
-        "componentProps": { "title": "Кредит", "icon": "💰" },
-        "children": [
-          {
-            "selector": "mortgage-section",
-            "component": "$component(Section)",
-            "componentProps": { "title": "Ипотека" },
-            "children": [
-              { "value": "$model(loanAmount)", "component": "$component(InputNumber)",
-                "componentProps": { "label": "Сумма кредита (₽)" } }
-            ]
-          }
-        ]
-      },
-      {
-        "component": "$component(Step)",
-        "componentProps": { "title": "Заявитель", "icon": "🧑" },
-        "children": [
-          { "value": "$model(personalData.firstName)", "component": "$component(Input)",
-            "componentProps": { "label": "Имя" } }
-        ]
-      }
-    ]
-  }
+    "submitLabel": "Отправить заявку"
+  },
+  "children": [
+    {
+      "selector": "loan",
+      "component": "$component(Step)",
+      "componentProps": { "title": "Кредит", "icon": "💰" },
+      "children": [
+        {
+          "selector": "mortgage-section",
+          "component": "$component(Section)",
+          "componentProps": { "title": "Ипотека" },
+          "children": [
+            { "model": "$model(loanAmount)", "component": "$component(InputNumber)",
+              "componentProps": { "label": "Сумма кредита (₽)" } }
+          ]
+        }
+      ]
+    },
+    {
+      "selector": "applicant",
+      "component": "$component(Step)",
+      "componentProps": { "title": "Заявитель", "icon": "🧑" },
+      "children": [
+        { "model": "$model(personalData.firstName)", "component": "$component(Input)",
+          "componentProps": { "label": "Имя" } }
+      ]
+    }
+  ]
 }
 ```
 
-Сверено с `complex-multy-step-form-renderer-json` (файл схемы там назван по-старому — `json-schema.json`; канон имени — `form.schema.ts`): wizard-нода — `selector: 'wizard'`, `steps` внутри `componentProps`, каждый шаг — `$component(Step)` + `componentProps.title/icon` + `children`.
-
-> Отличие от `@reformer/renderer-react`: там шаг — объект `{ number, title, icon, body }`, где `body` — самостоятельный `RenderNode` (см. renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms)). В JSON-DSL нельзя вписать `RenderNode` как значение пропа, поэтому шаг выражается **container-нодой** `Step` + `children`, а wizard-компонент адаптирует эту форму под `step.body`.
+Визард рисует шаги **в порядке потока** и связывает их с узлами по `selector`. Тот же визард рисует и TS-схему `@reformer/renderer-react` — шаг там тоже узел `Step` с детьми (см. renderer-react [07-form-wizard.md](../../../reformer-renderer-react/docs/llms/07-form-wizard.md)).
 
 ### Шаги в отдельных файлах: `$ref` + `composeJsonFormSchema` { #split-steps }
 
-Схему-данные (`form.schema.json`) большого wizard-а можно разрезать по шагам. Корень держит в `componentProps.steps` **ссылки**, каждый шаг — свой файл `steps/<slug>/form.schema.json` с ключом **`node`** (не `root`: файл шага — не самостоятельная форма). Мета-схема файла шага — `buildFormStepMetaSchema(opts)` (или `toFormStepMetaSchema(buildFormSchemaMetaSchema(opts))`).
+Документ большого визарда можно разрезать по шагам. Корень держит в `children` визарда **ссылки**, каждый шаг — свой файл `steps/<slug>/form.schema.json` с ключом **`node`** (не `root`: файл шага — не самостоятельная форма). Мета-схема файла шага — `buildFormStepMetaSchema(opts)` (или `toFormStepMetaSchema(buildFormSchemaMetaSchema(opts))`).
 
 ```json
 // form.schema.json
-{ "root": { "selector": "wizard", "component": "$component(Wizard)",
-  "componentProps": { "steps": [
-    { "$ref": "./steps/kredit/form.schema.json" },
-    { "$ref": "./steps/zayavitel/form.schema.json" } ] } } }
+{ "format": 2,
+  "root": { "selector": "wizard", "component": "$component(FormWizard)",
+    "children": [
+      { "$ref": "./steps/kredit/form.schema.json" },
+      { "$ref": "./steps/zayavitel/form.schema.json" } ] } }
 
 // steps/kredit/form.schema.json
 { "$schema": "../../form-step.schema.json",
-  "node": { "component": "$component(Step)", "componentProps": { "title": "Кредит" }, "children": [] } }
+  "node": { "selector": "loan", "component": "$component(Step)",
+            "componentProps": { "title": "Кредит" }, "children": [] } }
 ```
 
-Конвертер ссылок **не понимает** — собери схему до `createJsonForm`. Агрегатор `steps/index.ts` экспортирует файлы шагов по той же ссылке, что в корне:
+Конвертер ссылок **не понимает** — собери документ до `createForm`. Агрегатор `steps/index.ts` экспортирует файлы шагов по той же ссылке, что в корне:
 
 ```ts
 import { composeJsonFormSchema, type JsonFormSchema, type JsonFormStep } from '@reformer/renderer-json';
@@ -78,157 +81,108 @@ const schema = composeJsonFormSchema(rawSchema as unknown as JsonFormSchema, ste
 
 - Ссылка — объект ровно с одним ключом `$ref` (`isJsonStepRef`); `./` в начале не различает ключи (`normalizeStepRef`). Инлайн-шаги рядом со ссылками допустимы.
 - Нет файла для ссылки — `composeJsonFormSchema` бросает ошибку с путём ссылки.
-- Несобранная схема не рендерится: `validateFormSchema` сообщает `step reference "…" is not resolved`.
+- Несобранная схема не собирается: конвертер бросает `Step reference "…" is not resolved`, `validateFormSchema` сообщает `step reference "…" is not resolved`.
 - Билдер открывает такую форму как одну и сам раскладывает правки по файлам шагов.
 
-## Регистрируй свой wizard-компонент в реестре { #register }
+## Реестр: визард и шаг { #register }
 
-`$component(Wizard)` — это **запись в реестре**, а не библиотечный экспорт: имя резолвится через registry (`reg.component('Wizard', <твой компонент>)`). Имя произвольное — важно лишь совпадение строки в JSON и ключа в реестре.
-
-Канонический shipped-компонент — `FormWizard` из `@reformer/ui-kit/form-wizard` (см. renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms)). Он принимает `componentProps.form`, `componentProps.steps` и `FormWizardConfig` (`validateStep`/`validateAll`), а `step.body` полиморфен (`FC | ReactNode | RenderNode<T>`). Твой зарегистрированный компонент должен быть совместим с этим контрактом.
+`$component(FormWizard)` и `$component(Step)` — **записи в реестре**: имя резолвится через registry. Обёртка над библиотечным визардом не нужна — регистрируй его как есть:
 
 ```typescript
-import { defineRegistry } from '@reformer/renderer-json';
+import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { Step } from '@reformer/cdk/form-wizard';
-import { MyWizard } from './MyWizard'; // тонкая обёртка над ui-kit FormWizard
+import { FormField, FormWizard, Input, InputNumber, Section } from '@reformer/ui-kit';
 
-const registry = defineRegistry((reg) => {
-  reg.component('Wizard', MyWizard); // ← имя из JSON `$component(Wizard)`
-  reg.component('Step', Step);       // container-нода шага
-  // ...остальные компоненты (Input, Select, Section, ...)
+export const registry = defineRegistry((reg) => {
+  reg.component('FormWizard', FormWizard); // ← имя из JSON `$component(FormWizard)`
+  reg.component('Step', Step); // узел шага: рисует детей, title/icon читает индикатор
+  reg.component('Section', Section);
+  reg.component('Input', Input);
+  reg.component('InputNumber', InputNumber);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
-> В примере под `$component(Wizard)` зарегистрирован app-shim `RendererFormWizard`: он снимает `title`/`icon` c `componentProps` Step-ноды, а сам Step-узел кладёт в `step.body` ui-kit `FormWizard`. Shim — деталь приложения, **не** экспорт библиотеки: `RendererFormWizard` из `@reformer/*` не импортируется, его пишет само приложение. Именно поэтому в раскладке под него предусмотрен отдельный **опциональный** файл `wizard.tsx` — либо шим живёт инлайном в `registry.ts`; оба варианта каноничны (см. `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1). Регистрируй под именем `Wizard` любой совместимый с `FormWizard` компонент.
+Имя записи произвольное — важно лишь совпадение строки в JSON и ключа в реестре. `FormWizard` объявляет `__selfManagedChildren`: рендерер передаёт ему узлы шагов данными и функцию их отрисовки.
 
-## Половина 2 — поведение в одном render-behavior { #render-behavior }
+## Половина 2 — правила шагов и поведение { #render-behavior }
 
-Один `RenderBehaviorFn<T>` навешивает всё рантайм-поведение на wizard-ноду. Порядок: (a) инъекция `form` + валидации через `onInit`; (b) submit через `onComponentEvent`; (c) навигация через `renderEffect` + `wizardRef`; (d) условные секции через `hideWhen`. Семантику хелперов см. renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md).
+Правила шагов — поток сборки; отправка, навигация и видимость — одно поведение формы. Семантику операторов см. renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md).
 
 ```typescript
-// form.render.ts
-import {
-  onInit,
-  onComponentEvent,
-  renderEffect,
-  hideWhen,
-  type RenderBehaviorFn,
-} from '@reformer/renderer-react';
-import type { FormGroup, FormModel } from '@reformer/core';
-import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
+// form.behavior.ts
+import { defineFormBehavior, hideWhen, onComponentEvent, renderEffect } from '@reformer/core/behaviors';
 import type { CreditForm } from './types';
-import { makeValidationConfig } from './form.validation'; // см. 06-validation.md
 import { submitCreditApplication } from './api';
 
-export function createWizardRenderBehavior(
-  form: FormGroup<CreditForm>,
-  model: FormModel<CreditForm>
-): RenderBehaviorFn<CreditForm> {
-  return (schema) => {
-    const wizard = schema.node('wizard');
-    const wizardRef = wizard.getRef<FormWizardHandle<CreditForm>>();
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, flow }) => {
+  const wizard = schema.node('wizard');
 
-    // (a) Инъекция рантайма: form + validateStep/validateAll в wizard-ноду до первого рендера.
-    //     Валидация — TS-схема над МОДЕЛЬЮ (не JSON). Детали — 06-validation.md.
-    onInit(wizard, () => {
-      wizard.patchProps({ form, ...makeValidationConfig(model) });
-    });
-
-    // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit,
-    //     а ui-kit FormWizard вызывает onSubmit БЕЗ аргументов (`() => void | Promise<void>`).
-    //     Значения берём снимком из модели — фабрика render-behavior получает её вторым аргументом.
-    //     Валидировать здесь руками не надо: кнопка отправки гейтит вызов через
-    //     `config.validateAll` и при провале сюда не доходит (reformer://docs/cdk/multi-step-submit).
-    onComponentEvent(wizard, 'onSubmit', async () => {
-      await submitCreditApplication(model.get());
-    });
-
-    // (c) Навигация: реактивный эффект принимает СХЕМУ (не ноду); wizardRef доступен после mount.
-    renderEffect(schema, () => {
-      if (form.loanType.value.value === 'mortgage') {
-        wizardRef.current?.goToStep(1);
-      }
-    });
-
-    // (d) Условные секции: реактивно по сигналам формы (читай сигнал целиком: `.value.value`).
-    hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
-  };
-}
-
-// <JsonFormRenderer schema={jsonSchema} renderBehavior={createWizardRenderBehavior(form, model)} />
-```
-
-Сверено с `complex-multy-step-form-renderer` (render-поведение там лежит в файле со старым именем `render-behavior.ts`; канон — `form.render.ts`): `onComponentEvent(schema.node('wizard'), 'onSubmit', ...)`, `renderEffect(schema, () => wizardRef.current?.goToStep(1))`, `hideWhen(...)`; инъекция `form`+валидации — одноимённый файл в `complex-multy-step-form-renderer-json`.
-
-## Конфиг валидации через `defineSteps` (адресация по selector) { #define-steps }
-
-`makeValidationConfig(model)` в примерах выше (см. [06-validation.md#execute](06-validation.md#execute)) собирает `FormWizardConfig` вручную — массивом `STEP_SCHEMAS[step - 1]`. Массив привязывает правила к **позиции**: вставил шаг в середину или переставил два — индексы поехали, и `validateStep(2)` молча валидирует уже чужой шаг; шаг без правил приходится просто «не класть» в массив, и он по умолчанию считается валидным — тихая дыра.
-
-**Рекомендуемый способ — `defineSteps`** (из `@reformer/cdk/form-wizard`): правила адресуются по **`selector` шага** — той же строке, что стоит у ноды `$component(Step)` в JSON. Порядок ключей `steps` = порядок шагов; шаг без правил объявляется ЯВНО через `null`; хрупкую индексацию `[step - 1]` инкапсулирует сам хелпер. Внутри `validateStep`/`validateAll` уже стоит `{ touch: true }` (§6) — провалидированные поля метятся `touched`, ошибки видны без ручного `form.markAsTouched()` на поддерево, а следующий шаг не показывается тронутым.
-
-```typescript
-import { defineSteps } from '@reformer/cdk/form-wizard';
-import type { FormModel } from '@reformer/core';
-import type { CreditForm } from './types';
-// step1/step2 — под-схемы шагов, crossFieldRules — cross-field/warnings всей формы.
-// Все три — ValidationDefinition<CreditForm> (см. 06-validation.md#build-schema).
-import { step1, step2, crossFieldRules } from './form.validation';
-
-export function makeWizardConfig(model: FormModel<CreditForm>) {
-  return defineSteps<'loan' | 'applicant' | 'confirm', CreditForm>(model, {
-    steps: {
-      loan: step1, // валидирует шаг с `selector: 'loan'`
-      applicant: step2, // → шаг `selector: 'applicant'`
-      confirm: null, // шаг без правил — ОБЪЯВЛЕН явно, а не забыт
-    },
-    extras: crossFieldRules, // cross-field/warnings всей формы — только в validateAll (submit)
+  // (a) Отправка: кнопка «Отправить» визарда зовёт обработчик через `bundle.submit` — только
+  //     после успешной проверки всей формы; при замечаниях поля помечаются touched.
+  onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
+    await submitCreditApplication(values);
   });
-}
-```
 
-Результат — обычный `FormWizardConfig`, визард потребляет его как раньше. В TS-форме отдаётся пропом `config`:
+  // (b) Навигация — методами потока шагов: id шага = selector узла `$component(Step)`.
+  renderEffect(schema, () => {
+    if (model.loanType === 'mortgage') flow?.goTo('loan');
+  });
 
-```tsx
-import { FormWizard } from '@reformer/cdk/form-wizard';
-
-<FormWizard form={form} config={makeWizardConfig(model)}>…</FormWizard>;
-```
-
-В **JSON-варианте** тот же конфиг инъектится в wizard-ноду через `patchProps` (§ [#render-behavior](#render-behavior)) — на месте ручного `makeValidationConfig`:
-
-```typescript
-onInit(wizard, () => {
-  wizard.patchProps({ form, ...makeWizardConfig(model) }); // form + validateStep/validateAll
+  // (c) Условные секции — реактивно по значениям модели.
+  hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
 });
 ```
 
-Помимо `validateStep`/`validateAll`, `defineSteps` возвращает **`stepSelectors`** — упорядоченный список селекторов (`['loan','applicant','confirm']`, индекс = `step - 1`). Он и есть маппинг `n → selector`, по которому `validateStep(n)` находит правила; полезен для отладки и селекторной навигации.
+```tsx
+// index.tsx
+const bundle = useFormBundle(() =>
+  createForm<CreditForm>({
+    model: createCreditModel(),
+    schema, // документ формата 2
+    registry,
+    behavior: creditBehavior,
+    validation: { extras: crossStepRules }, // проверяются только при отправке
+    flow: {
+      steps: [
+        { id: 'loan', rules: loanRules },
+        { id: 'applicant', rules: applicantRules },
+        { id: 'confirm' }, // шаг без правил — объявлен явно
+      ],
+    },
+  })
+);
+return <FormRenderer form={bundle} />;
+```
 
-Выигрыш против массива `STEP_SCHEMAS[step - 1]`:
+Сверено с эталоном: `application/renderer.ts` — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`, `renderEffect(schema, () => { if (isMortgage(model.loanType)) flow?.goTo('loan'); })`; `flow/credit-application-flow.ts` — поток `{ steps: flow.map((step) => ({ id: step.selector, rules: step.rules })) }`.
 
-- **Перестановка/добавление шага не рассинхронизирует правила молча** — правила привязаны к `selector`, а не к позиции; переставил шаги — правила едут вместе с ними.
-- **Шаг без правил объявляется ЯВНО** (`confirm: null`), а не «забывается» в массиве и не становится валидным по умолчанию.
-- **Порядок ключей `steps` = порядок шагов** — один источник правды и для маппинга `validateStep(n)`, и для `stepSelectors`.
-- **`{ touch: true }` уже внутри** — пошаговая валидация метит только провалидированные поля; ручной `markAsTouched` не нужен, следующий шаг не показывается тронутым.
+## Поток шагов { #flow }
 
-Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts` (маппинг `step → selector → правила`, стабильная `fullSchema` для submit, `{ touch: true }` в обоих колбэках) и его тест `define-steps.test.ts`.
+- Кнопка «Далее» — `flow.next()`: правила текущего шага; при замечаниях поток остаётся на шаге (`{ status: 'stayed', reason: 'invalid' }`), а поля помечаются `touched`.
+- Переход по индикатору — `flow.goTo(id)`: первый шаг доступен всегда, остальные — после прохождения предыдущего (`reason: 'locked'`). «Назад» — `flow.previous()`.
+- Порядок шагов потока = порядок шагов визарда. Шаг без `rules` проходится без проверки — объявляй его явно (`{ id: 'confirm' }`), а не «забывай».
+- Расхождение `flow.steps[].id` и селекторов узлов шагов — dev-предупреждения сборки и визарда; реестр форм ловит его preflight-проверкой `unknown-step-selectors`.
+- Снаружи дерева: `useFormFlow(bundle.flow!)` из `@reformer/core/react` — снимок (`current`, `index`, `isLast`, `validating`); `bundle.flow?.goTo('loan')`; `bundle.submit(handler)`.
+
+## Прежний формат документа { #v1 }
+
+В прежнем формате шаги лежали в `componentProps.steps` визарда, а визард подключался через прикладной шим. `migrateJsonSchema(document)` переносит шаги в `children` (визард узнаётся по имени — `DEFAULT_STEP_HOSTS`: `Wizard`, `RendererFormWizard`, `FormWizard`; свои имена — `{ stepHosts }`) и ставит `format: 2`. Имя компонента функция не меняет: на что оно указывает, решает реестр — зарегистрируй под ним `FormWizard` из `@reformer/ui-kit`.
 
 ## Anti-patterns
 
-- **Класть шаги в top-level `children` wizard-ноды** — шаги живут в `componentProps.steps`. Top-level `children` wizard-компонент не читает как шаги.
-- **Ждать шаг как `{ number, title, icon, body }` в JSON** — это форма renderer-react. В JSON шаг — container-нода `$component(Step)` + `componentProps.title/icon` + `children`.
-- **Считать `RendererFormWizard` библиотечным экспортом** — его нет в `@reformer/*`, это app-shim примера. Wizard-компонент подключается через реестр под любым именем; канон — ui-kit `FormWizard`, а сам шим кладётся в `wizard.tsx` или инлайном в `registry.ts`.
-- **Называть файлы формы `json-schema.json` / `render-behavior.ts` / `schema.ts` / `behavior.ts`** — так называются исторические каталоги `complex-multy-step-form-*`, это НЕ канон и не «эталон нейминга». Канон для renderer-json: `index.tsx`, `types.ts`, `model.ts`, `form.schema.ts` (вариант — `.tsx` с JSX или `.json` как данные), `form.behavior.ts`, `form.render.ts`, `form.validation.ts`, `data-sources.ts`, `api.ts`, `registry.ts` (+ опциональный `wizard.tsx`). Полный набор — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1 либо `find_recipe directory-layout`.
-- **Забыть `createWizardRenderBehavior` (только `onInit` с валидацией)** — форма будет валидировать, но `onSubmit`/навигация не подключатся: submit-less форма. Submit и навигация приходят из этого же behavior.
-- **Ждать значения формы аргументом `onSubmit`** — `FormWizardProps.onSubmit` у ui-kit это `() => void | Promise<void>`, аргументов у него нет. Хендлер `onComponentEvent(wizard, 'onSubmit', …)` тоже вызывается пустым; снимок берётся из модели (`model.get()`). Типизировать его как `(values: CreditForm) => …` — ошибка компиляции TS2322.
-- **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это схема, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
-- **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, инъекция/submit/навигация не навесятся.
-- **Адресовать правила шагов массивом `STEP_SCHEMAS[step - 1]`** — привязка к позиции: вставка/перестановка шага молча разъезжается с индексами, а «забытый» шаг становится валидным по умолчанию. Собирай `FormWizardConfig` через `defineSteps` (адресация по `selector`, шаг без правил — явный `null`, `{ touch: true }` уже внутри) — см. [#define-steps](#define-steps).
+- **Класть шаги в `componentProps.steps`** — прежний формат. В формате 2 шаги — `children` визарда; `migrateJsonSchema` переносит их сам.
+- **Инъекция `form` / `validateStep` / `validateAll` в узел визарда через `onInit` + `patchProps`, `defineSteps`** — прежний контракт, удалён. Визард берёт форму, поток и отправку из сборки; правила шагов — `flow.steps[].rules`.
+- **Навигация через ref визарда** (`getRef<FormWizardHandle>()`, `goToStep(n)`) — удалено. Переход — `flow.goTo(id)` из поведения либо `bundle.flow?.goTo(id)` снаружи.
+- **Писать прикладной шим над визардом** — не нужен: `reg.component('FormWizard', FormWizard)` из `@reformer/ui-kit` напрямую.
+- **`selector` шага не совпадает с `id` шага потока** — визард не свяжет шаг с разметкой (dev-предупреждения сборки и визарда).
+- **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это область схемы, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
+- **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, обработчик отправки не навесится (сборка в dev предупредит о неизвестном селекторе).
+- **Проверять форму руками в обработчике отправки** — не нужно: обработчик вызывается через `bundle.submit` только после успешной проверки, `values` — значения формы.
 
 ## See also
 
-- [06-validation.md](06-validation.md) — `makeValidationConfig` (TS-схема над моделью), инъекция `validateStep`/`validateAll` в wizard.
-- [#define-steps](#define-steps) — `defineSteps` из `@reformer/cdk/form-wizard`: сборка `FormWizardConfig` из правил, адресованных по `selector` шага (рекомендуемая альтернатива массиву `STEP_SCHEMAS[step - 1]`).
-- [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime) — общий приём инъекции runtime-сущностей (`form`) через `onInit`/`patchProps`.
+- [06-validation.md](06-validation.md) — правила над моделью, поток шагов, тексты замечаний.
+- [10-format-2.md](10-format-2.md) — документ формата 2, сборка `createForm`, перевод прежнего формата.
 - renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
-- renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms) — канонический `FormWizard`, форма шага `{ number, title, icon, body }`.
+- renderer-react [07-form-wizard.md](../../../reformer-renderer-react/docs/llms/07-form-wizard.md) — тот же визард в TS-схеме.

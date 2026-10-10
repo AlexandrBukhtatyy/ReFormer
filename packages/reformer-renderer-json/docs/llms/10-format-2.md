@@ -115,7 +115,10 @@ export const createMyModel = () =>
 
 ## Шаги визарда
 
-Шаги — обычные дети узла визарда. `selector` шага — ключ его правил в `validation.steps`.
+Шаги — обычные дети узла визарда. `selector` шага — идентификатор шага в потоке сборки:
+`createForm({ flow: { steps: [{ id: 'loan', rules: loanRules }] } })`. Визард
+(`$component(FormWizard)` → `FormWizard` из `@reformer/ui-kit`) рисует шаги в порядке потока и
+берёт форму, поток и отправку из сборки.
 
 ```json
 {
@@ -154,7 +157,8 @@ function MyFormPage() {
       schema,
       registry,
       behavior: myBehavior,
-      validation: myValidation,
+      validation: { extras: crossStepRules },
+      flow: { steps: [{ id: 'loan', rules: loanRules }] }, // id = selector узла шага
     })
   );
   return <FormRenderer form={bundle} />;
@@ -167,8 +171,11 @@ function MyFormPage() {
   оттуда. Проп `settings.fieldWrapper` её перекрывает.
 - Граница ошибок схемы (`SchemaErrorBoundary`) тоже приходит из бандла.
 - Несколько реестров объединяет `composeRegistries` — вложенные провайдеры не нужны.
-- Поведение — одно: `defineFormBehavior(({ model, form, schema }) => …)`. Правила узлов
-  (`hideWhen`, `onComponentEvent`, `onMount`) пишутся в нём, отдельного `renderBehavior` нет.
+- Поведение — одно: `defineFormBehavior(({ model, form, schema, flow }) => …)`. Правила узлов
+  (`hideWhen`, `onComponentEvent`, `onMount`) и навигация (`flow.goTo(id)`) пишутся в нём,
+  отдельного `renderBehavior` нет.
+- Тексты замечаний — словарь формы `defineIssueMessages` и `ValidationMessagesProvider messages`
+  из `@reformer/cdk` вокруг `FormRenderer`; правила несут только коды.
 
 Проверка документа в dev — явный вызов:
 
@@ -237,3 +244,5 @@ const bundle = createForm({ model, schema, registry });
 | `Step reference … is not resolved` | в `children` осталась ссылка `$ref` — собери документ `composeJsonFormSchema` |
 | `unknown property "value"` | ключ прежнего формата в документе формата 2 — должно быть `model` |
 | «Добавить» бросает ошибку про шаблон | у массива нет ни `arrayOf(blank)` в модели, ни `initialValue` в узле |
+| `[ComponentRegistry] Компонент "FormArray" переименован в "FieldArray"` | документ называет компонент прежним именем; псевдоним работает, но документ стоит обновить на `$component(FieldArray)` |
+| визард: «шаги схемы и шаги потока расходятся» | `selector` узла шага не совпадает с `id` шага в `flow.steps` |
