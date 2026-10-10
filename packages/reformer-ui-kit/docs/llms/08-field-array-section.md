@@ -21,7 +21,7 @@
 
 ```tsx
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
 // ВАЖНО: используйте `type`, не `interface` — иначе тип элемента не
 // удовлетворяет constraint `extends FormFields` (FormFields требует
@@ -32,7 +32,7 @@ type Property = {
   estimatedValue: number;
 };
 
-const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+const PropertyForm: FC<{ control: FormGroup<Property> }> = ({ control }) => (
   <Section className="space-y-3">
     <FormField control={control.type} />
     <FormField control={control.description} />
@@ -42,7 +42,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 
 // Generic выводится из control:
 <FieldArraySection
-  control={form.properties}                  // ModelArrayNode<Property>
+  control={form.properties}                  // FormArray<Property>
   itemComponent={PropertyForm}
   title="Имущество"
   addButtonLabel="+ Добавить имущество"
@@ -113,7 +113,7 @@ defineRegistry((reg) => {
 ```
 
 Массив в JSON — это **array-нода**, а не контейнер с `itemComponent`. Обязательны `array` и
-`item.$template` (без них `isArrayNode` вернёт false), а `initialValue` нужен кнопке «Добавить»:
+`item.$template` (без них `isFormArray` вернёт false), а `initialValue` нужен кнопке «Добавить»:
 
 ```jsonc
 {
@@ -165,10 +165,10 @@ defineRegistry((reg) => {
 
 | Prop                 | Type                                                         | Default                              | Описание                                                           |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
-| `control`            | `ModelArrayNode<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
-| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                             | FC для рендера каждого item                                        |
+| `control`            | `FormArray<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
+| `itemComponent`      | `ComponentType<{ control: FormGroup<T> }>`                   | required                             | FC для рендера каждого item                                        |
 | `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
-| `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
+| `itemLabel`          | `string \| (control: FormGroup<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
 | `addButtonLabel`     | `string`                                                     | `'+ Add'` (локаль)                   | Текст кнопки добавления                                            |
 | `removeButtonLabel`  | `string`                                                     | `'Remove'` (локаль)                  | Текст кнопки удаления                                              |
 | `emptyMessage`       | `string`                                                     | —                                    | Сообщение при пустом массиве                                       |
@@ -180,7 +180,7 @@ defineRegistry((reg) => {
 | `maxItems`           | `number`                                                     | —                                    | Максимум items (AddButton скрывается при достижении)               |
 | `className`          | `string`                                                     | `'space-y-3 mt-2'`                   | Класс `<section>`-обёртки                                          |
 | `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                                    |
-| `form`               | `FormProxy<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
+| `form`               | `FormGroup<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
 | `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                           | авто-инъекция                        | Field wrapper для дочерних полей (по умолчанию — от родителя)      |
 
 ## Critical: `initialValue` — PLAIN LEAVES ONLY

@@ -6,7 +6,7 @@
 
 Там, где [`@reformer/cdk`](https://www.npmjs.com/package/@reformer/cdk) даёт headless-примитивы,
 `@reformer/ui-kit` даёт стилизованные, доступные (a11y) контролы, которые кладутся в схему формы
-как есть и привязываются к ReFormer-ноде (`FieldNode`) через один универсальный `<FormField>`
+как есть и привязываются к ReFormer-ноде (`FormControl`) через один универсальный `<FormField>`
 или рендерер.
 
 ## Что нового в v7

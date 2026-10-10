@@ -11271,7 +11271,7 @@
             "description": "Уже-резолвленный ArrayNode/ModelArrayNode/FieldArrayProxy.",
             "x-doc": {
               "group": "Behavior",
-              "type": "ModelArrayNode<T>",
+              "type": "FormArray<T>",
               "kind": "readonly"
             }
           },
@@ -11303,7 +11303,7 @@
             "description": "FormProxy. Авто-инъектится `RenderNodeComponent` через `__selfManagedChildren` маркер. Передавать вручную — только при использовании вне стандартного render-tree.",
             "x-doc": {
               "group": "Behavior",
-              "type": "FormProxy<unknown>",
+              "type": "FormGroup<unknown>",
               "kind": "readonly"
             }
           },
@@ -11327,7 +11327,7 @@
             "description": "React FC получает `control: FormProxy<T>` для каждого элемента.",
             "x-doc": {
               "group": "Behavior",
-              "type": "ComponentType<{ control: FormProxy<T>; }>",
+              "type": "ComponentType<{ control: FormGroup<T>; }>",
               "kind": "readonly"
             }
           },
@@ -11335,7 +11335,7 @@
             "description": "Метка для каждого item — строка-префикс или функция.",
             "x-doc": {
               "group": "Behavior",
-              "type": "string | ((control: FormProxy<T>, index: number) => string)",
+              "type": "string | ((control: FormGroup<T>, index: number) => string)",
               "kind": "readonly"
             }
           },
@@ -12906,7 +12906,7 @@
             "description": "Поле формы. Из него берутся `component` (тип контрола), `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`. Контрол инстанцируется автоматически через `CdkFormField.Control`.",
             "x-doc": {
               "group": "Behavior",
-              "type": "FieldNode<any>"
+              "type": "FormControl<any>"
             }
           },
           "direction": {
@@ -12963,7 +12963,7 @@
             "description": "Form instance",
             "x-doc": {
               "group": "Behavior",
-              "type": "FormProxy<T>",
+              "type": "FormGroup<T>",
               "kind": "readonly"
             }
           },
@@ -12987,7 +12987,7 @@
             "description": "Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и ComponentType; всё остальное (например узел RenderSchema) отдаётся сюда — так компонент не импортирует рендерер, а получает его как зависимость.",
             "x-doc": {
               "group": "Behavior",
-              "type": "((body: TBody, form: FormProxy<T>) => ReactNode)",
+              "type": "((body: TBody, form: FormGroup<T>) => ReactNode)",
               "kind": "readonly"
             }
           },

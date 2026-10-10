@@ -3,7 +3,7 @@
 `@reformer/ui-kit` — это набор готовых стилизованных React-компонентов для форм на
 [`@reformer/core`](../../../reformer/) и [`@reformer/cdk`](../../../reformer-cdk/).
 Под капотом — Tailwind CSS и Radix UI; каждый form-контрол объявляет, как свести к
-своим пропам контракт `value` / `onChange` / `onBlur` `FieldNode<T>` (статика
+своим пропам контракт `value` / `onChange` / `onBlur` `FormControl<T>` (статика
 `reformerAdapter`), поэтому подключение к форме сводится к
 `<FormField control={form.email} />` или к регистрации компонента в `RenderSchema`
 рендерера — сам компонент, без обёрток.
@@ -158,7 +158,7 @@ function RegistrationPage() {
         },
       ],
     };
-    // 3) createForm привязывает ноды к сигналам модели → FormProxy.
+    // 3) createForm привязывает ноды к сигналам модели → FormGroup.
     const form = createFormFromModel<RegistrationForm>({ model, schema });
     return { model, form };
   }, []);

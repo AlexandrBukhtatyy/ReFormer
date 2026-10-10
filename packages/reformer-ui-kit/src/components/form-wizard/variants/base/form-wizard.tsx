@@ -4,7 +4,7 @@
  * TS-flow, renderer-react flow и renderer-json flow за счёт полиморфного
  * `step.body`:
  *
- * - `ComponentType<{ control: FormProxy<T> }>` — FC получает `control={form}`.
+ * - `ComponentType<{ control: FormGroup<T> }>` — FC получает `control={form}`.
  * - `ReactNode` — готовый JSX (статический контент шага).
  * - `TBody` — что угодно ещё (например узел RenderSchema); отрисовывается
  *   стратегией из пропа `renderStepBody`.
@@ -33,7 +33,7 @@ import {
   FormWizard as FormWizardHeadless,
   type FormWizardProps as FormWizardHeadlessProps,
 } from '@reformer/cdk/form-wizard';
-import { type FormFlow, type FormProxy } from '@reformer/core';
+import { type FormFlow, type FormGroup } from '@reformer/core';
 import { useFormBundleContext } from '@reformer/core/react';
 import { FormWizardActions } from './form-wizard-actions';
 import { FormWizardProgress } from './form-wizard-progress';
@@ -44,19 +44,19 @@ import { StepIndicator } from './step-indicator';
  * покрывает TS-flow, renderer-react и renderer-json за счёт трёх допустимых форм
  * `body`, дискриминация которых выполняется в рантайме по типу значения:
  *
- * - `ComponentType<{ control: FormProxy<T> }>` — React-компонент; получает
- *   `control={form}` (корневой {@link FormProxy}) и сам обращается к нужным полям.
+ * - `ComponentType<{ control: FormGroup<T> }>` — React-компонент; получает
+ *   `control={form}` (корневой {@link FormGroup}) и сам обращается к нужным полям.
  * - `ReactNode` — готовый JSX или статический контент шага (текст, число и т.п.).
  * - `TBody` — расширение под внешний рендерер (например `RenderNode<T>` из
  *   `@reformer/renderer-react`); отрисовывается стратегией {@link FormWizardProps.renderStepBody}.
  *
- * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ * @typeParam T - Тип значения корневой формы (`FormGroup<T>`).
  * @typeParam TBody - Дополнительная форма тела шага. По умолчанию `never` —
  *   ui-kit «из коробки» знает только про ReactNode и ComponentType.
  *
  * @example Компонент шага получает control
  * ```tsx
- * function BasicInfoForm({ control }: { control: FormProxy<CreditApplication> }) {
+ * function BasicInfoForm({ control }: { control: FormGroup<CreditApplication> }) {
  *   return <FormField control={control.loanAmount} testId="loanAmount" />;
  * }
  * const body: FormWizardStepBody<CreditApplication> = BasicInfoForm;
@@ -71,7 +71,7 @@ import { StepIndicator } from './step-indicator';
  * ```
  */
 export type FormWizardStepBody<T, TBody = never> =
-  | ComponentType<{ control: FormProxy<T> }>
+  | ComponentType<{ control: FormGroup<T> }>
   | ReactNode
   | TBody;
 
@@ -82,7 +82,7 @@ export type FormWizardStepBody<T, TBody = never> =
  * Массив `FormWizardStep<T>[]` передаётся в проп `steps`. Порядок и `number`
  * задают последовательность навигации; `number` должен быть 1-based и уникальным.
  *
- * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ * @typeParam T - Тип значения корневой формы (`FormGroup<T>`).
  *
  * @example Массив шагов кредитной заявки
  * ```tsx
@@ -155,7 +155,7 @@ export interface FormWizardProps<
   TBody = never,
 > extends Omit<FormWizardHeadlessProps<T>, 'form' | 'flow' | 'children'> {
   /** Форма. Внутри рендерера необязательна — берётся из контекста сборки `createForm`. */
-  form?: FormProxy<T>;
+  form?: FormGroup<T>;
   /**
    * Поток шагов (`bundle.flow`). Внутри рендерера необязателен — берётся из сборки; без потока
    * визард строит позиционный поток без правил.
@@ -197,7 +197,7 @@ export interface FormWizardProps<
    * renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
    * ```
    */
-  renderStepBody?: (body: TBody, form: FormProxy<T>) => ReactNode;
+  renderStepBody?: (body: TBody, form: FormGroup<T>) => ReactNode;
 }
 
 /**
@@ -206,7 +206,7 @@ export interface FormWizardProps<
  * `{ $$typeof, type, compare? }` — `typeof === 'object'`, не 'function'.
  * Этот check покрывает оба случая.
  */
-function isComponentType<T>(value: unknown): value is ComponentType<{ control: FormProxy<T> }> {
+function isComponentType<T>(value: unknown): value is ComponentType<{ control: FormGroup<T> }> {
   if (typeof value === 'function') return true;
   if (value !== null && typeof value === 'object' && '$$typeof' in (value as object)) {
     // Это либо memo/forwardRef-обёртка, либо React element. Различаем через isValidElement —
@@ -227,14 +227,14 @@ function isComponentType<T>(value: unknown): value is ComponentType<{ control: F
  */
 function resolveStepBody<T, TBody>(
   body: FormWizardStepBody<T, TBody>,
-  form: FormProxy<T>,
-  custom?: (body: TBody, form: FormProxy<T>) => ReactNode
+  form: FormGroup<T>,
+  custom?: (body: TBody, form: FormGroup<T>) => ReactNode
 ): ReactNode {
   // React element (уже-отрендеренный JSX) — отдаём как ReactNode.
   if (isValidElement(body as ReactElement)) return body as ReactNode;
   // Component reference (FC | memo'd FC | forwardRef'd FC) — рендерим с control={form}.
   if (isComponentType<T>(body)) {
-    const Comp = body as ComponentType<{ control: FormProxy<T> }>;
+    const Comp = body as ComponentType<{ control: FormGroup<T> }>;
     return <Comp control={form} />;
   }
   // Всё остальное «чужое» — во внешнюю стратегию (например RenderNode → RenderNodeComponent).
@@ -297,7 +297,7 @@ function FormWizardBase<T extends Record<string, any>, TBody = never>(
 ) {
   // Сборка `createForm`, внутри которой визард отрисован рендерером; в JSX её нет.
   const bundle = useFormBundleContext<T>();
-  const form = props.form ?? (bundle?.form as FormProxy<T> | undefined);
+  const form = props.form ?? (bundle?.form as FormGroup<T> | undefined);
   if (!form) {
     throw new Error(
       '[ui-kit] FormWizard: нет формы. В JSX передайте `form` (и `flow`, `steps`); в схеме ' +
@@ -425,7 +425,7 @@ type FormWizardCompound = typeof FormWizardBase & {
  * Готовая многошаговая форма (multi-step wizard) — стилизованная обёртка поверх
  * headless-compound `@reformer/cdk/form-wizard`. Собирает Indicator, тело шагов,
  * Actions (Назад / Далее / Отправить) и Progress в единый layout, работает с
- * одной {@link FormProxy} и декларативным списком {@link FormWizardStep}.
+ * одной {@link FormGroup} и декларативным списком {@link FormWizardStep}.
  *
  * Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
  * полиморфного {@link FormWizardStepBody}. Шаги и их проверку держит поток `FormFlow` сборки
@@ -435,7 +435,7 @@ type FormWizardCompound = typeof FormWizardBase & {
  * Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
  * `.Progress` для кастомной раскладки.
  *
- * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ * @typeParam T - Тип значения корневой формы (`FormGroup<T>`).
  *
  * @example Кредитная заявка с 3 шагами: разметка в JSX, отправка через сборку
  * ```tsx

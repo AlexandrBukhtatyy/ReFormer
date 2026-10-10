@@ -25,7 +25,7 @@
 `@reformer/ui-kit` — это набор готовых стилизованных React-компонентов для форм на
 [`@reformer/core`](../../../reformer/) и [`@reformer/cdk`](../../../reformer-cdk/).
 Под капотом — Tailwind CSS и Radix UI; каждый form-контрол объявляет, как свести к
-своим пропам контракт `value` / `onChange` / `onBlur` `FieldNode<T>` (статика
+своим пропам контракт `value` / `onChange` / `onBlur` `FormControl<T>` (статика
 `reformerAdapter`), поэтому подключение к форме сводится к
 `<FormField control={form.email} />` или к регистрации компонента в `RenderSchema`
 рендерера — сам компонент, без обёрток.
@@ -178,7 +178,7 @@ function RegistrationPage() {
         },
       ],
     };
-    // 3) createForm привязывает ноды к сигналам модели → FormProxy.
+    // 3) createForm привязывает ноды к сигналам модели → FormGroup.
     const form = createFormFromModel<RegistrationForm>({ model, schema });
     return { model, form };
   }, []);
@@ -1265,7 +1265,7 @@ const validation = defineValidation<Form>(({ model }) => {
   `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
   пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
   поискового запроса или перезагрузки источника.
-- **Ошибка вспыхивает посреди выбора** — ожидаемо: `FieldNode.setValue` взводит `dirty`
+- **Ошибка вспыхивает посреди выбора** — ожидаемо: `FormControl.setValue` взводит `dirty`
   безусловно, без сравнения, а `shouldShowError = invalid && (touched || dirty)`. Оставляйте
   `updateOn: 'blur'` (значение по умолчанию) и не стройте логику на `dirty`.
 
@@ -1452,7 +1452,7 @@ const validation = defineValidation<Form>(({ model }) => {
 
 **Layout and buttons**
 
-Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`, `Tree`,
+Компоненты, не привязанные к `FormControl`: `Button`, `AsyncBoundary`, `Tree`,
 `ExampleCard`, утилита `cn`. Используются как для основных действий формы
 (submit, prev/next в wizard), для показа данных рядом с ней и для
 playground-демонстраций.
@@ -1993,7 +1993,7 @@ headless-компонента `FormField` из [`@reformer/cdk`](../../../reform
 ```
 
 `Control` сам инстанцирует `control.component` (`Input`, `SelectAsync`,
-`CheckboxWithLabel`...) и связывает его с `FieldNode`: значение, `onChange`, `onBlur`,
+`CheckboxWithLabel`...) и связывает его с `FormControl`: значение, `onChange`, `onBlur`,
 `disabled` и `aria-*` — в диалекте контрола. Диалект берётся из статики компонента
 `reformerAdapter` (`defineFieldControl` из `@reformer/ui-kit/fields`): `Input` получает
 `value` + `onChange(event)`, `CheckboxWithLabel` — `checked` + `onCheckedChange`, value-based
@@ -2003,7 +2003,7 @@ headless-компонента `FormField` из [`@reformer/cdk`](../../../reform
 
 ```typescript
 interface FormFieldProps {
-  control: FieldNode<any>;
+  control: FormControl<any>;
   className?: string;
   testId?: string;
   /** Подпись над контролом ('col', по умолчанию) или слева от него ('row') */
@@ -2015,7 +2015,7 @@ interface FormFieldProps {
 
 | Prop        | Тип              | Описание                                                                                                                                                     |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`   | `FieldNode<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
+| `control`   | `FormControl<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
 | `className` | `string`         | Класс корневой `<div>`-обёртки.                                                                                                                              |
 | `testId`    | `string`         | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
 | `direction` | `'col' \| 'row'` | Раскладка подписи и контрола: `'col'` (по умолчанию) — подпись над контролом, `'row'` — слева от него. См. сценарий 5.                                       |
@@ -2023,7 +2023,7 @@ interface FormFieldProps {
 
 `FormField` обёрнут в `React.memo` со сравнением по ссылочному равенству
 `control` — это критично для производительности больших форм (при ререндере
-родителя поле не пересчитывается, пока не сменился сам `FieldNode`).
+родителя поле не пересчитывается, пока не сменился сам `FormControl`).
 
 `direction` — проп самого `FormField`, а не `componentProps`: из схемы поля он не читается.
 
@@ -2137,7 +2137,7 @@ function RegistrationPage() {
 
 В `@reformer/renderer-react` каждый field-узел `RenderSchema` оборачивается в
 указанный `fieldWrapper`. `FormField` из ui-kit идеально подходит для этой
-роли — он использует тот же контракт `FieldNode`, что и сам рендерер.
+роли — он использует тот же контракт `FormControl`, что и сам рендерер.
 
 ```tsx
 import { useMemo } from 'react';
@@ -2314,8 +2314,8 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
 
 ## 34. Anti-patterns
 
-- Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
-  именно `FieldNode<T>`. Для массивов используй `FieldArray.Root` из CDK; для
+- Передавать `control` другого типа (`FormGroup`, `ArrayNode`) — ожидается
+  именно `FormControl<T>`. Для массивов используй `FieldArray.Root` из CDK; для
   groups — отдельные `FormField` на каждое лиственное поле.
 - Динамически менять `control` (`<FormField control={isAdvanced ? form.x : form.y} />`)
   — `React.memo` не пересоздаст внутренний `Root`, но сам `Root` сменит контекст,
@@ -2801,7 +2801,7 @@ import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
-import { createModel, createFormFromModel, type FormProxy, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormGroup, type FormModel } from '@reformer/core';
 import {
   defineValidation,
   validateModel,
@@ -2862,11 +2862,11 @@ const STEP_SCHEMAS: readonly ValidationDefinition<MyForm>[] = [
 ];
 const fullValidation = defineValidation<MyForm>(() => apply(...STEP_SCHEMAS));
 
-const Step1: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
+const Step1: FC<{ control: FormGroup<MyForm> }> = ({ control }) => (
   <FormField control={control.email} />
 );
 
-const Step2: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
+const Step2: FC<{ control: FormGroup<MyForm> }> = ({ control }) => (
   <FormField control={control.password} />
 );
 
@@ -2944,13 +2944,13 @@ const handleSaveAndExit = async () => {
 
 | Форма                                      | Когда использовать                                                   |
 | ------------------------------------------ | -------------------------------------------------------------------- |
-| `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
+| `ComponentType<{ control: FormGroup<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
 | `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control                   |
 | `TBody` (напр. `RenderNode<T>`)            | renderer-react / renderer-json flows — **нужен проп `renderStepBody`** |
 
 Все три варианта работают в одном wizard'е — можно комбинировать.
 
-**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
+**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormGroup<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
 ## 55. RenderNode body (renderer-react / renderer-json)
 
@@ -3115,7 +3115,7 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 
 ```tsx
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
-import type { FormProxy } from '@reformer/core';
+import type { FormGroup } from '@reformer/core';
 
 // ВАЖНО: используйте `type`, не `interface` — иначе тип элемента не
 // удовлетворяет constraint `extends FormFields` (FormFields требует
@@ -3126,7 +3126,7 @@ type Property = {
   estimatedValue: number;
 };
 
-const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+const PropertyForm: FC<{ control: FormGroup<Property> }> = ({ control }) => (
   <Section className="space-y-3">
     <FormField control={control.type} />
     <FormField control={control.description} />
@@ -3136,7 +3136,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 
 // Generic выводится из control:
 <FieldArraySection
-  control={form.properties}                  // ModelArrayNode<Property>
+  control={form.properties}                  // FormArray<Property>
   itemComponent={PropertyForm}
   title="Имущество"
   addButtonLabel="+ Добавить имущество"
@@ -3207,7 +3207,7 @@ defineRegistry((reg) => {
 ```
 
 Массив в JSON — это **array-нода**, а не контейнер с `itemComponent`. Обязательны `array` и
-`item.$template` (без них `isArrayNode` вернёт false), а `initialValue` нужен кнопке «Добавить»:
+`item.$template` (без них `isFormArray` вернёт false), а `initialValue` нужен кнопке «Добавить»:
 
 ```jsonc
 {
@@ -3259,10 +3259,10 @@ defineRegistry((reg) => {
 
 | Prop                 | Type                                                         | Default                              | Описание                                                           |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
-| `control`            | `ModelArrayNode<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
-| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`                   | required                             | FC для рендера каждого item                                        |
+| `control`            | `FormArray<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
+| `itemComponent`      | `ComponentType<{ control: FormGroup<T> }>`                   | required                             | FC для рендера каждого item                                        |
 | `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
-| `itemLabel`          | `string \| (control: FormProxy<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
+| `itemLabel`          | `string \| (control: FormGroup<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
 | `addButtonLabel`     | `string`                                                     | `'+ Add'` (локаль)                   | Текст кнопки добавления                                            |
 | `removeButtonLabel`  | `string`                                                     | `'Remove'` (локаль)                  | Текст кнопки удаления                                              |
 | `emptyMessage`       | `string`                                                     | —                                    | Сообщение при пустом массиве                                       |
@@ -3274,7 +3274,7 @@ defineRegistry((reg) => {
 | `maxItems`           | `number`                                                     | —                                    | Максимум items (AddButton скрывается при достижении)               |
 | `className`          | `string`                                                     | `'space-y-3 mt-2'`                   | Класс `<section>`-обёртки                                          |
 | `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                                    |
-| `form`               | `FormProxy<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
+| `form`               | `FormGroup<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
 | `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                           | авто-инъекция                        | Field wrapper для дочерних полей (по умолчанию — от родителя)      |
 
 ## 63. Critical: `initialValue` — PLAIN LEAVES ONLY
@@ -4520,7 +4520,7 @@ export interface AsyncBoundaryProps<T = unknown> {
   loadKey?: unknown;
   /** `false` → загрузка не стартует, состояние `idle`. Режим создания записи. @default true */
   enabled?: boolean;
-  /** Побочный эффект после успеха — например `form.patchValue(data)`. */
+  /** Побочный эффект после успеха — например `model.patch(data)`. */
   onSuccess?: (data: T) => void;
   /** Побочный эффект после ошибки — логирование, тост. */
   onError?: (error: React.ReactNode) => void;
@@ -7823,9 +7823,9 @@ headless-compound `@reformer/cdk/field-array`. Рендерит заголово
 «Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
 удаления и перестановки ↑/↓) и сообщение пустого состояния.
 
-`control` принимает ноду массива под-форм — `ModelArrayNode<T>`
+`control` принимает ноду массива под-форм — `FormArray<T>`
 (`form.<массив>`). `itemComponent` — единственная форма
-рендера элемента: `ComponentType<{ control: FormProxy<T> }>` (тот же контракт,
+рендера элемента: `ComponentType<{ control: FormGroup<T> }>` (тот же контракт,
 что у шага {@link FormWizardStep}). Внутри `RenderNodeComponent` проп `form`
 инъектится автоматически (маркер `__selfManagedChildren`).
 
@@ -7865,7 +7865,7 @@ export function FieldArraySection<T extends object>({
 ```tsx
 import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
-function AdditionalInfo({ control }: { control: FormProxy<CreditApplication> }) {
+function AdditionalInfo({ control }: { control: FormGroup<CreditApplication> }) {
 const hasProperty = useFormControlValue(control.hasProperty) as boolean;
 return (
 <FieldArraySection
@@ -7894,16 +7894,16 @@ _Source: src/components/field-array/variants/base/field-array-section.tsx_
 ```typescript
 export interface FieldArraySectionProps<T extends object> {
   /** Узел массива формы (`form.<массив>`). */
-  control: ModelArrayNode<T> | undefined;
+  control: FormArray<T> | undefined;
 
-  /** React FC получает `control: FormProxy<T>` для каждого элемента. */
-  itemComponent: ComponentType<{ control: FormProxy<T> }>;
+  /** React FC получает `control: FormGroup<T>` для каждого элемента. */
+  itemComponent: ComponentType<{ control: FormGroup<T> }>;
 
   /** Заголовок секции (рендерится h3). */
   title?: string;
 
   /** Метка для каждого item — строка-префикс или функция. */
-  itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
+  itemLabel?: string | ((control: FormGroup<T>, index: number) => string);
 
   /**
    * Текст кнопки добавления. По умолчанию — из словаря локали.
@@ -7960,11 +7960,11 @@ export interface FieldArraySectionProps<T extends object> {
   cardClassName?: string;
 
   /**
-   * FormProxy. Авто-инъектится `RenderNodeComponent` через
+   * FormGroup. Авто-инъектится `RenderNodeComponent` через
    * `__selfManagedChildren` маркер. Передавать вручную — только при
    * использовании вне стандартного render-tree.
    */
-  form?: FormProxy<unknown>;
+  form?: FormGroup<unknown>;
 
   /**
    * Field wrapper для дочерних полей. Авто-инъектится `RenderNodeComponent`;
@@ -8053,7 +8053,7 @@ _Source: src/components/field/variants/base/field-base.tsx_
 **Kind:** `function`
 
 Рамка поля: подпись, контрол, описание и ошибки — та же разметка, что у {@link FormField},
-но без узла формы. `FormField` берёт всё это из `FieldNode` `@reformer/core`; рамке всё
+но без узла формы. `FormField` берёт всё это из `FormControl` `@reformer/core`; рамке всё
 приходит пропсами, поэтому в неё можно положить контрол, которым управляет не ReFormer
 (тема RJSF строит на ней шаблон поля).
 
@@ -8653,7 +8653,7 @@ export interface FormFieldProps {
    * `pending`, `setValue`, `blur`. Контрол инстанцируется автоматически через `CdkFormField.Control`.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  control: FieldNode<any>;
+  control: FormControl<any>;
   /** Дополнительный CSS-класс корневого `Field`. */
   className?: string;
   /**
@@ -8686,7 +8686,7 @@ _Source: src/components/form-field/form-field.tsx_
 Готовая многошаговая форма (multi-step wizard) — стилизованная обёртка поверх
 headless-compound `@reformer/cdk/form-wizard`. Собирает Indicator, тело шагов,
 Actions (Назад / Далее / Отправить) и Progress в единый layout, работает с
-одной {@link FormProxy} и декларативным списком {@link FormWizardStep}.
+одной {@link FormGroup} и декларативным списком {@link FormWizardStep}.
 
 Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
 полиморфного {@link FormWizardStepBody}. Шаги и их проверку держит поток `FormFlow` сборки
@@ -8946,7 +8946,7 @@ export interface FormWizardProps<
   TBody = never,
 > extends Omit<FormWizardHeadlessProps<T>, 'form' | 'flow' | 'children'> {
   /** Форма. Внутри рендерера необязательна — берётся из контекста сборки `createForm`. */
-  form?: FormProxy<T>;
+  form?: FormGroup<T>;
   /**
    * Поток шагов (`bundle.flow`). Внутри рендерера необязателен — берётся из сборки; без потока
    * визард строит позиционный поток без правил.
@@ -8988,7 +8988,7 @@ export interface FormWizardProps<
    * renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
    * ```
    */
-  renderStepBody?: (body: TBody, form: FormProxy<T>) => ReactNode;
+  renderStepBody?: (body: TBody, form: FormGroup<T>) => ReactNode;
 }
 ```
 
@@ -9044,8 +9044,8 @@ _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
 покрывает TS-flow, renderer-react и renderer-json за счёт трёх допустимых форм
 `body`, дискриминация которых выполняется в рантайме по типу значения:
 
-- `ComponentType<{ control: FormProxy<T> }>` — React-компонент; получает
-  `control={form}` (корневой {@link FormProxy}) и сам обращается к нужным полям.
+- `ComponentType<{ control: FormGroup<T> }>` — React-компонент; получает
+  `control={form}` (корневой {@link FormGroup}) и сам обращается к нужным полям.
 - `ReactNode` — готовый JSX или статический контент шага (текст, число и т.п.).
 - `TBody` — расширение под внешний рендерер (например `RenderNode<T>` из
   `@reformer/renderer-react`); отрисовывается стратегией {@link FormWizardProps.renderStepBody}.
@@ -9053,7 +9053,7 @@ _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
 **Signature:**
 ```typescript
 export type FormWizardStepBody<T, TBody = never> =
-  | ComponentType<{ control: FormProxy<T> }>
+  | ComponentType<{ control: FormGroup<T> }>
   | ReactNode
   | TBody;
 ```
@@ -9062,7 +9062,7 @@ export type FormWizardStepBody<T, TBody = never> =
 
 Компонент шага получает control
 ```tsx
-function BasicInfoForm({ control }: { control: FormProxy<CreditApplication> }) {
+function BasicInfoForm({ control }: { control: FormGroup<CreditApplication> }) {
 return <FormField control={control.loanAmount} testId="loanAmount" />;
 }
 const body: FormWizardStepBody<CreditApplication> = BasicInfoForm;

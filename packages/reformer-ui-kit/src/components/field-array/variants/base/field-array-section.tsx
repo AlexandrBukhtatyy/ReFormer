@@ -1,8 +1,8 @@
 /**
  * FieldArraySection — переиспользуемый wrapper для FieldArray управления.
  *
- * `control` принимает ноду массива под-форм — `ModelArrayNode<T>` (`form.<массив>`).
- * `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
+ * `control` принимает ноду массива под-форм — `FormArray<T>` (`form.<массив>`).
+ * `itemComponent` — единственный shape: `ComponentType<{ control: FormGroup<T> }>`.
  *
  * Маркер `__selfManagedChildren = true` гарантирует автоинъекцию `form` +
  * `fieldWrapper` от родителя-renderer'а.
@@ -10,7 +10,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ComponentType, type ReactNode } from 'react';
-import { type ModelArrayNode, type FormProxy } from '@reformer/core';
+import { type FormArray, type FormGroup } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 import { FieldArray } from '@reformer/cdk/field-array';
 import { useKitMessages } from '@/i18n/messages';
@@ -38,16 +38,16 @@ export interface FieldWrapperProps {
  */
 export interface FieldArraySectionProps<T extends object> {
   /** Узел массива формы (`form.<массив>`). */
-  control: ModelArrayNode<T> | undefined;
+  control: FormArray<T> | undefined;
 
-  /** React FC получает `control: FormProxy<T>` для каждого элемента. */
-  itemComponent: ComponentType<{ control: FormProxy<T> }>;
+  /** React FC получает `control: FormGroup<T>` для каждого элемента. */
+  itemComponent: ComponentType<{ control: FormGroup<T> }>;
 
   /** Заголовок секции (рендерится h3). */
   title?: string;
 
   /** Метка для каждого item — строка-префикс или функция. */
-  itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
+  itemLabel?: string | ((control: FormGroup<T>, index: number) => string);
 
   /**
    * Текст кнопки добавления. По умолчанию — из словаря локали.
@@ -104,11 +104,11 @@ export interface FieldArraySectionProps<T extends object> {
   cardClassName?: string;
 
   /**
-   * FormProxy. Авто-инъектится `RenderNodeComponent` через
+   * FormGroup. Авто-инъектится `RenderNodeComponent` через
    * `__selfManagedChildren` маркер. Передавать вручную — только при
    * использовании вне стандартного render-tree.
    */
-  form?: FormProxy<unknown>;
+  form?: FormGroup<unknown>;
 
   /**
    * Field wrapper для дочерних полей. Авто-инъектится `RenderNodeComponent`;
@@ -120,7 +120,7 @@ export interface FieldArraySectionProps<T extends object> {
 function resolveArrayNode<T extends object>(
   control: FieldArraySectionProps<T>['control'],
   hasRendererSeam = false
-): ModelArrayNode<T> | null {
+): FormArray<T> | null {
   if (!control) {
     // Молчать здесь дорого: без `control` секция возвращает null, и в JSON-схеме это выглядит
     // как «массив просто не отрисовался» — ни ошибки, ни предупреждения. Самая частая причина
@@ -146,7 +146,7 @@ function resolveArrayNode<T extends object>(
     return control;
   }
   if (typeof console !== 'undefined') {
-    console.warn('[FieldArraySection] control is not a ModelArrayNode.');
+    console.warn('[FieldArraySection] control is not a FormArray.');
   }
   return null;
 }
@@ -157,9 +157,9 @@ function resolveArrayNode<T extends object>(
  * «Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
  * удаления и перестановки ↑/↓) и сообщение пустого состояния.
  *
- * `control` принимает ноду массива под-форм — `ModelArrayNode<T>`
+ * `control` принимает ноду массива под-форм — `FormArray<T>`
  * (`form.<массив>`). `itemComponent` — единственная форма
- * рендера элемента: `ComponentType<{ control: FormProxy<T> }>` (тот же контракт,
+ * рендера элемента: `ComponentType<{ control: FormGroup<T> }>` (тот же контракт,
  * что у шага {@link FormWizardStep}). Внутри `RenderNodeComponent` проп `form`
  * инъектится автоматически (маркер `__selfManagedChildren`).
  *
@@ -177,7 +177,7 @@ function resolveArrayNode<T extends object>(
  * ```tsx
  * import { FieldArraySection } from '@reformer/ui-kit/field-array';
  *
- * function AdditionalInfo({ control }: { control: FormProxy<CreditApplication> }) {
+ * function AdditionalInfo({ control }: { control: FormGroup<CreditApplication> }) {
  *   const hasProperty = useFormControlValue(control.hasProperty) as boolean;
  *   return (
  *     <FieldArraySection
@@ -231,7 +231,7 @@ export function FieldArraySection<T extends object>({
   const length = (lengthCtrl as unknown as { length?: number } | undefined)?.length ?? 0;
   const atMaxItems = maxItems != null && length >= maxItems;
 
-  const getItemLabel = (control: FormProxy<T>, index: number): string =>
+  const getItemLabel = (control: FormGroup<T>, index: number): string =>
     typeof itemLabel === 'function'
       ? itemLabel(control, index)
       : `${itemLabel ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
@@ -262,7 +262,7 @@ export function FieldArraySection<T extends object>({
                 {title || itemLabel ? (
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="font-medium">
-                      {getItemLabel(itemForm as unknown as FormProxy<T>, index)}
+                      {getItemLabel(itemForm as unknown as FormGroup<T>, index)}
                     </h4>
                     <div className="flex items-center gap-2">
                       {reorderable ? (
@@ -302,7 +302,7 @@ export function FieldArraySection<T extends object>({
                     </div>
                   </div>
                 ) : null}
-                <ItemComponent control={itemForm as unknown as FormProxy<T>} />
+                <ItemComponent control={itemForm as unknown as FormGroup<T>} />
               </div>
             );
           }}

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type FieldNode } from '@reformer/core';
+import { type FormControl } from '@reformer/core';
 import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/form-field';
 
 import { Field, FieldContent } from '@/components/field';
@@ -17,7 +17,7 @@ export interface FormFieldProps {
    * `pending`, `setValue`, `blur`. Контрол инстанцируется автоматически через `CdkFormField.Control`.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  control: FieldNode<any>;
+  control: FormControl<any>;
   /** Дополнительный CSS-класс корневого `Field`. */
   className?: string;
   /**

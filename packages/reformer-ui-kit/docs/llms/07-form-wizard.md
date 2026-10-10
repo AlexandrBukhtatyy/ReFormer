@@ -71,7 +71,7 @@ import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
-import { createModel, createFormFromModel, type FormProxy, type FormModel } from '@reformer/core';
+import { createModel, createFormFromModel, type FormGroup, type FormModel } from '@reformer/core';
 import {
   defineValidation,
   validateModel,
@@ -132,11 +132,11 @@ const STEP_SCHEMAS: readonly ValidationDefinition<MyForm>[] = [
 ];
 const fullValidation = defineValidation<MyForm>(() => apply(...STEP_SCHEMAS));
 
-const Step1: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
+const Step1: FC<{ control: FormGroup<MyForm> }> = ({ control }) => (
   <FormField control={control.email} />
 );
 
-const Step2: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
+const Step2: FC<{ control: FormGroup<MyForm> }> = ({ control }) => (
   <FormField control={control.password} />
 );
 
@@ -214,13 +214,13 @@ const handleSaveAndExit = async () => {
 
 | Форма                                      | Когда использовать                                                   |
 | ------------------------------------------ | -------------------------------------------------------------------- |
-| `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
+| `ComponentType<{ control: FormGroup<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
 | `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control                   |
 | `TBody` (напр. `RenderNode<T>`)            | renderer-react / renderer-json flows — **нужен проп `renderStepBody`** |
 
 Все три варианта работают в одном wizard'е — можно комбинировать.
 
-**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
+**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormGroup<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
 ## RenderNode body (renderer-react / renderer-json)
 

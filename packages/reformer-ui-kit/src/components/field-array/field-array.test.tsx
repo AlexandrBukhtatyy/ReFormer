@@ -9,7 +9,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createModel, createFormFromModel, type FormModel, type FormProxy } from '@reformer/core';
+import { createModel, createFormFromModel, type FormModel, type FormGroup } from '@reformer/core';
 import { FieldArraySection } from './index';
 
 type Item = { name: string };
@@ -26,7 +26,7 @@ function buildArray(initial: Item[]): any {
 }
 
 /** Тонкий item-компонент: маркер, чтобы отследить рендер каждого элемента. */
-const ItemMarker = (_: { control: FormProxy<Item> }) => (
+const ItemMarker = (_: { control: FormGroup<Item> }) => (
   <div data-slot="item-body">тело-элемента</div>
 );
 
@@ -163,13 +163,13 @@ describe('FieldArraySection (base carry)', () => {
     expect(html).toBe('');
   });
 
-  it('невалидный control (не ModelArrayNode) → предупреждение и пустая строка', () => {
+  it('невалидный control (не FormArray) → предупреждение и пустая строка', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const html = renderToStaticMarkup(
       <FieldArraySection<Item> control={{} as any} itemComponent={ItemMarker} title="X" />
     );
     expect(html).toBe('');
-    expect(warn).toHaveBeenCalledWith('[FieldArraySection] control is not a ModelArrayNode.');
+    expect(warn).toHaveBeenCalledWith('[FieldArraySection] control is not a FormArray.');
     warn.mockRestore();
   });
 });

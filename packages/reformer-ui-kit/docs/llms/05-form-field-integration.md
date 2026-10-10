@@ -26,7 +26,7 @@ headless-компонента `FormField` из [`@reformer/cdk`](../../../reform
 ```
 
 `Control` сам инстанцирует `control.component` (`Input`, `SelectAsync`,
-`CheckboxWithLabel`...) и связывает его с `FieldNode`: значение, `onChange`, `onBlur`,
+`CheckboxWithLabel`...) и связывает его с `FormControl`: значение, `onChange`, `onBlur`,
 `disabled` и `aria-*` — в диалекте контрола. Диалект берётся из статики компонента
 `reformerAdapter` (`defineFieldControl` из `@reformer/ui-kit/fields`): `Input` получает
 `value` + `onChange(event)`, `CheckboxWithLabel` — `checked` + `onCheckedChange`, value-based
@@ -38,7 +38,7 @@ headless-компонента `FormField` из [`@reformer/cdk`](../../../reform
 
 ```typescript
 interface FormFieldProps {
-  control: FieldNode<any>;
+  control: FormControl<any>;
   className?: string;
   testId?: string;
   /** Подпись над контролом ('col', по умолчанию) или слева от него ('row') */
@@ -50,7 +50,7 @@ interface FormFieldProps {
 
 | Prop        | Тип              | Описание                                                                                                                                                     |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`   | `FieldNode<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
+| `control`   | `FormControl<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
 | `className` | `string`         | Класс корневой `<div>`-обёртки.                                                                                                                              |
 | `testId`    | `string`         | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
 | `direction` | `'col' \| 'row'` | Раскладка подписи и контрола: `'col'` (по умолчанию) — подпись над контролом, `'row'` — слева от него. См. сценарий 5.                                       |
@@ -58,7 +58,7 @@ interface FormFieldProps {
 
 `FormField` обёрнут в `React.memo` со сравнением по ссылочному равенству
 `control` — это критично для производительности больших форм (при ререндере
-родителя поле не пересчитывается, пока не сменился сам `FieldNode`).
+родителя поле не пересчитывается, пока не сменился сам `FormControl`).
 
 `direction` — проп самого `FormField`, а не `componentProps`: из схемы поля он не читается.
 
@@ -172,7 +172,7 @@ function RegistrationPage() {
 
 В `@reformer/renderer-react` каждый field-узел `RenderSchema` оборачивается в
 указанный `fieldWrapper`. `FormField` из ui-kit идеально подходит для этой
-роли — он использует тот же контракт `FieldNode`, что и сам рендерер.
+роли — он использует тот же контракт `FormControl`, что и сам рендерер.
 
 ```tsx
 import { useMemo } from 'react';
@@ -349,8 +349,8 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
 
 ## Anti-patterns
 
-- Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
-  именно `FieldNode<T>`. Для массивов используй `FieldArray.Root` из CDK; для
+- Передавать `control` другого типа (`FormGroup`, `ArrayNode`) — ожидается
+  именно `FormControl<T>`. Для массивов используй `FieldArray.Root` из CDK; для
   groups — отдельные `FormField` на каждое лиственное поле.
 - Динамически менять `control` (`<FormField control={isAdvanced ? form.x : form.y} />`)
   — `React.memo` не пересоздаст внутренний `Root`, но сам `Root` сменит контекст,

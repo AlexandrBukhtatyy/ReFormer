@@ -1,6 +1,6 @@
 # Layout and buttons
 
-Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`, `Tree`,
+Компоненты, не привязанные к `FormControl`: `Button`, `AsyncBoundary`, `Tree`,
 `ExampleCard`, утилита `cn`. Используются как для основных действий формы
 (submit, prev/next в wizard), для показа данных рядом с ней и для
 playground-демонстраций.

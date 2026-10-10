@@ -17,7 +17,7 @@ export type BoundProps = {
 /**
  * Тестовая связка контрола с формой — ровно так, как это делает обёртка поля
  * (`FormField.Control` / рендерер): адаптер из статики `reformerAdapter` + value-based seam.
- * Позволяет проверять компонент «в форме» без FieldNode.
+ * Позволяет проверять компонент «в форме» без FormControl.
  */
 export function Bound({ component: Component, value, onChange, onBlur, ref, ...rest }: BoundProps) {
   const props = bindFieldProps(

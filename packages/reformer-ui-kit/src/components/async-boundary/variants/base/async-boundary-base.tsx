@@ -277,7 +277,7 @@ export interface AsyncBoundaryProps<T = unknown> {
   loadKey?: unknown;
   /** `false` → загрузка не стартует, состояние `idle`. Режим создания записи. @default true */
   enabled?: boolean;
-  /** Побочный эффект после успеха — например `form.patchValue(data)`. */
+  /** Побочный эффект после успеха — например `model.patch(data)`. */
   onSuccess?: (data: T) => void;
   /** Побочный эффект после ошибки — логирование, тост. */
   onError?: (error: React.ReactNode) => void;
@@ -337,7 +337,7 @@ export interface AsyncBoundaryProps<T = unknown> {
  *       load={(signal) => loadApplication(applicationId, signal)}
  *       loadKey={applicationId}
  *       enabled={applicationId !== null}
- *       onSuccess={(data) => form.patchValue(data)}
+ *       onSuccess={(data) => model.patch(data)}
  *       delayMs={200}
  *     >
  *       <CreditForm form={form} />
