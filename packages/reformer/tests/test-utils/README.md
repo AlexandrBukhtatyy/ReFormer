@@ -16,6 +16,7 @@
 | `effect-tracker.ts`    | `trackEffects` + `liveEffects()` — счёт живых effect'ов для тестов утечек                                                                                                                                                                                        |
 | `react.tsx`            | реэкспорт testing-library, `renderHookCounting`, `StrictWrapper` (DOM-тесты)                                                                                                                                                                                     |
 | `compiled-snapshot.ts` | `describeCompiled(compiled, { rows? })` — детерминированное описание `CompiledSchema` для снапшотов и сравнения компиляций: ключи строк нормализованы в `row#0`, `row#1`…, функции, ручки и сигналы — метками                                                    |
+| `schema-harness.ts`    | `mountScope(scope, nodes)` → `isHidden` / `propsOf` / `fire` / `unmount` — правила узлов схемы глазами рендерера, без React: эффекты `renderEffect`, затем `onMount`; `setHidden` главнее `hideWhen`                                                             |
 
 ```typescript
 import { tick } from '../../test-utils/async';
