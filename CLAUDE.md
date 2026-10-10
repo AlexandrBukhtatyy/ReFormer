@@ -213,7 +213,7 @@ Sub-agent имитирует консумента MCP. Это **тест MCP**, 
 
 ### Запуск iter-N abstract tests (orchestrator)
 
-POM `CreditFormPage` + 9 spec файлов в `tests/pages/complex-multy-step-form/` переиспользуются для проверки iter-форм через 3 dynamic playwright projects:
+POM `CreditFormPage` + 12 spec файлов в `tests/pages/complex-multy-step-form/` переиспользуются для проверки iter-форм через 3 dynamic playwright projects:
 
 ```bash
 cd projects/react-playground-e2e
@@ -225,7 +225,12 @@ for target in core renderer-react renderer-json; do
 done
 ```
 
-Convention: sub-agent ОБЯЗАН задавать `componentProps.testId = fieldName` (camelCase, без префикса группы) — POM ожидает `data-testid="input-{testId}"`.
+Convention: sub-agent ОБЯЗАН задавать `componentProps.testId` по пути поля через дефис — POM
+ожидает `data-testid="input-{testId}"`:
+
+- поле верхнего уровня — имя поля: `loanAmount`;
+- поле вложенной группы — с префиксом группы: `personalData.lastName` → `personalData-lastName`;
+- поле строки массива — имя поля без префикса (индекс строки POM подставляет сам).
 
 ## Build & Test
 
