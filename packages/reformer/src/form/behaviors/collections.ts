@@ -19,7 +19,7 @@ import type { FormModel } from '../../model/types';
 import type { FormProxy } from '../types/index';
 import { getNodeForSignal } from '../signal-node-registry';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
-import { getController, onDispose, effect, defer, defineFormBehavior } from './context';
+import { getController, getFlow, onDispose, effect, defer, defineFormBehavior } from './context';
 import { asArray } from './internals';
 import { onChange } from './operators';
 import type { FormBehavior } from './types';
@@ -88,6 +88,7 @@ function unmaterializedRowForm<T>(path: string): FormProxy<T> {
  */
 export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void {
   const controller = getController('applyEach'); // вне схемы поведения — понятная ошибка
+  const flow = getFlow('applyEach');
   const handle = arrayHandleOf(array);
   if (!handle) return;
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
@@ -113,7 +114,7 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
         const rowForm =
           (rowForms?.at?.(i) as FormProxy<TItem> | undefined) ??
           unmaterializedRowForm<TItem>(pathOf(handle));
-        activeByRow.set(rowModel, itemSchema.__run(rowModel, rowForm, controller));
+        activeByRow.set(rowModel, itemSchema.__run(rowModel, rowForm, controller, flow));
       }
     }
     // отписать исчезнувшие строки
@@ -243,6 +244,7 @@ export function aggregateInto<TItem>(
  */
 export function apply<TField>(targets: object | object[], subSchema: FormBehavior<TField>): void {
   const controller = getController('apply'); // вне схемы поведения — понятная ошибка
+  const flow = getFlow('apply');
   for (const target of asArray(targets)) {
     // Цель — группа. Массив и лист под-модели не имеют: массив подключают через `applyEach`.
     const handle = groupHandleOf(target);
@@ -252,6 +254,6 @@ export function apply<TField>(targets: object | object[], subSchema: FormBehavio
     // тогда node-операции через `form.*` недоступны.
     const node = getNodeForSignal(handle) as { getProxy?: () => unknown } | undefined;
     const nestedForm = (node ? (node.getProxy?.() ?? node) : undefined) as FormProxy<TField>;
-    onDispose(subSchema.__run(subModel, nestedForm, controller));
+    onDispose(subSchema.__run(subModel, nestedForm, controller, flow));
   }
 }

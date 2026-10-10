@@ -18,7 +18,6 @@ import type { ValidationIssue, FieldStatus } from '../types/index';
 import type { FormProxy } from '../types/form-proxy';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
-import { FormSubmitter, type SubmitOptions } from '../form-submitter';
 import { isDerived } from '../../model/derived-registry';
 
 /**
@@ -67,10 +66,6 @@ export class GroupNode<T> extends FormNode<T> {
   // Приватные сигналы состояния
   // ============================================================================
 
-  /** Управление отправкой формы */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly formSubmitter: FormSubmitter<any>;
-
   /** Флаг disabled состояния */
   private readonly _disabled: Signal<boolean> = signal(false);
 
@@ -97,7 +92,6 @@ export class GroupNode<T> extends FormNode<T> {
   public readonly pending: ReadonlySignal<boolean>;
   public readonly issues: ReadonlySignal<ValidationIssue[]>;
   public readonly status: ReadonlySignal<FieldStatus>;
-  public readonly submitting: ReadonlySignal<boolean>;
 
   // ============================================================================
   // Конструктор
@@ -111,10 +105,6 @@ export class GroupNode<T> extends FormNode<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(fields: Iterable<readonly [string, FormNode<any>]>) {
     super();
-
-    // Инициализация FormSubmitter (должна быть первой, т.к. submitting сигнал используется ниже)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.formSubmitter = new FormSubmitter(this as any);
 
     for (const [key, node] of fields) {
       this._fields.set(key as keyof T, node);
@@ -148,9 +138,6 @@ export class GroupNode<T> extends FormNode<T> {
     this.dirty = aggregateSignals.dirty;
     this.issues = aggregateSignals.issues;
     this.status = aggregateSignals.status;
-
-    // Делегирование submitting к FormSubmitter
-    this.submitting = this.formSubmitter.submitting;
 
     // Proxy создаётся лениво при первом вызове getProxy().
     // Для Proxy-доступа к полям используйте фабрику формы или getProxy().
@@ -240,18 +227,6 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
-   * Текущая валидность группы: нет form-level ошибок и все включённые дети валидны.
-   *
-   * Правил группа не исполняет и ошибок не стирает. Schema-валидация живёт ВНЕ формы:
-   * `validateModel(model, schema)` из `@reformer/core/validation` прогоняется приложением по
-   * требованию и сам разносит ошибки по нодам (`setIssues`); `validate()` и `submit()` отражают
-   * то, что он разнёс.
-   */
-  validate(): Promise<boolean> {
-    return Promise.resolve(this.valid.value);
-  }
-
-  /**
    * Установить form-level validation issues
    */
   setIssues(issues: ValidationIssue[]): void {
@@ -317,29 +292,6 @@ export class GroupNode<T> extends FormNode<T> {
 
   protected onMarkAsPristine(): void {
     this._fields.forEach((field) => field.markAsPristine());
-  }
-
-  // ============================================================================
-  // Отправка формы
-  // ============================================================================
-
-  /**
-   * Отправить форму
-   *
-   * @param onSubmit - Callback для отправки данных
-   * @param options - Опции submit (skipValidation, skipTouch)
-   * @returns Результат от onSubmit или `null` если валидация не пройдена
-   *
-   * @remarks
-   * `null` перегружен: он означает и «на полях есть блокирующие ошибки», и легитимный
-   * `null`-результат `onSubmit` (или void-обработчик). Чтобы различать эти случаи, проверяйте
-   * валидность до отправки — `validation.validateAll()` сборки либо `validateModel`.
-   */
-  async submit<R>(
-    onSubmit: (values: T) => Promise<R> | R,
-    options?: SubmitOptions
-  ): Promise<R | null> {
-    return this.formSubmitter.submit(onSubmit, options);
   }
 
   /**

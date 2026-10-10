@@ -17,12 +17,14 @@ import type { BehaviorCleanup } from '../../model/behaviors-value';
 import { runOutsideEffect } from '../../model/safe-effect';
 import { createSchemaController, type SchemaController } from '../schema-controller';
 import type { BehaviorScope, FormBehavior } from './types';
+import type { FormFlow } from '../flow/flow';
 
 interface RunContext {
   cleanups: BehaviorCleanup[];
   model: unknown;
   form: unknown;
   controller: SchemaController;
+  flow: FormFlow | undefined;
 }
 let current: RunContext | null = null;
 
@@ -67,11 +69,21 @@ export function getController(op = 'getController'): SchemaController {
   return requireCtx(op).controller;
 }
 
+/**
+ * Поток шагов текущего прогона схемы — его получают поведения подформ и строк массива.
+ *
+ * @internal
+ */
+export function getFlow(op = 'getFlow'): FormFlow | undefined {
+  return requireCtx(op).flow;
+}
+
 const scopeOf = (ctx: RunContext): BehaviorScope<unknown> =>
   ({
     model: ctx.model,
     form: ctx.form,
     schema: ctx.controller.scopeOf(ctx.model as object),
+    flow: ctx.flow,
   }) as BehaviorScope<unknown>;
 
 /**
@@ -89,8 +101,8 @@ const scopeOf = (ctx: RunContext): BehaviorScope<unknown> =>
  */
 export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void): FormBehavior<T> {
   return {
-    __run(model, form, controller = createSchemaController()) {
-      const ctx: RunContext = { cleanups: [], model, form, controller };
+    __run(model, form, controller = createSchemaController(), flow) {
+      const ctx: RunContext = { cleanups: [], model, form, controller, flow };
       const prev = current;
       current = ctx;
       try {

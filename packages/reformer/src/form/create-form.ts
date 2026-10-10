@@ -23,6 +23,7 @@ import type { FormSchemaNode } from './types/schema-node';
 import type { FormModel } from '../model/types';
 import type { FormBehavior } from './behaviors';
 import type { SchemaController } from './schema-controller';
+import type { FormFlow } from './flow/flow';
 
 /**
  * Аргументы сборки формы из модели: данные приходят из {@link FormModel},
@@ -49,6 +50,8 @@ export interface CreateFormFromModelArgs<T> {
    * Без него поведение пишет правила в собственный контроллер, который никто не читает.
    */
   schemaController?: SchemaController;
+  /** Поток шагов сборки: его получает поведение (`defineFormBehavior(({ flow }) => …)`). */
+  flow?: FormFlow;
 }
 
 /** Что компиляция схемы дала для сборки нод: поля и массивы под-форм по ручке модели. */
@@ -236,7 +239,7 @@ export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
   // cleanup отдаём форме — отпишется в groupNode.dispose().
   if (behavior) {
-    groupNode.attachBehaviorCleanup(behavior.__run(model, proxy, args.schemaController));
+    groupNode.attachBehaviorCleanup(behavior.__run(model, proxy, args.schemaController, args.flow));
   }
 
   return proxy;

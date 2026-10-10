@@ -14,6 +14,7 @@ import type { BehaviorCleanup } from '../../model/behaviors-value';
 import type { FormModel } from '../../model/types';
 import type { FormProxy } from '../types/index';
 import type { SchemaController, SchemaScope } from '../schema-controller';
+import type { FormFlow } from '../flow/flow';
 
 /**
  * Область схемы поведения: модель (значения и сигналы), форма (ноды) и схема (узлы разметки).
@@ -26,6 +27,11 @@ export type BehaviorScope<T> = {
   model: FormModel<T>;
   form: FormProxy<T>;
   schema: SchemaScope;
+  /**
+   * Поток шагов сборки (`createForm({ flow })`); без потока — `undefined`. Один на сборку: его
+   * же получают поведения подформ и строк массива.
+   */
+  flow: FormFlow | undefined;
 };
 
 /** Результат {@link defineFormBehavior}; передаётся в `createForm({ behavior })`. */
@@ -33,9 +39,14 @@ export interface FormBehavior<T> {
   /**
    * @internal Запускается сборкой формы после построения нод и заполнения реестра сигнал→нода.
    * `controller` — схема-контроллер сборки; без него поведение получает собственный, который
-   * никто не читает (модель без рендерера).
+   * никто не читает (модель без рендерера). `flow` — поток шагов сборки.
    */
-  __run(model: FormModel<T>, form: FormProxy<T>, controller?: SchemaController): BehaviorCleanup;
+  __run(
+    model: FormModel<T>,
+    form: FormProxy<T>,
+    controller?: SchemaController,
+    flow?: FormFlow
+  ): BehaviorCleanup;
 }
 
 export type { Signal, ReadonlySignal, BehaviorCleanup };

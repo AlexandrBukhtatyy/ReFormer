@@ -68,14 +68,23 @@ export type {
 // Общий конфиг родственных фабрик — `createReactForm` (@reformer/renderer-react) и
 // `createJsonForm` (@reformer/renderer-json).
 export type { CoreForm, CreateFormConfigBase } from './form-config-base';
-export { buildValidation } from './validation/config';
-export type { FormValidation, FormValidationBundle } from './validation/config';
+// Уровень формы: проверка, отправка с результатом-объектом и поток шагов.
+export { createFormLevel } from './form-level';
+export type {
+  FormLevel,
+  FormValidation,
+  FormValidationState,
+  FormFlowConfig,
+  FlowStep,
+  SubmitResult,
+} from './form-level';
+export { createFormFlow } from './flow/flow';
+export type { FormFlow, FormFlowOptions, FlowTransition, FlowStayReason } from './flow/flow';
 
 // Валидация: контракт `@reformer/core/validation` (validateModel + операторы) — отдельный сабпат,
 // в root не реэкспортируется.
 // Шов сигнал→нода.
 export { registerSignalNode, getNodeForSignal } from './signal-node-registry';
 
-// Опции отправки формы и предикаты нод. FormSubmitter и машина статуса — внутренние детали нод.
-export type { SubmitOptions } from './form-submitter';
+// Предикаты нод. Машина статуса — внутренняя деталь нод.
 export { isFormNode, isFieldNode, isGroupNode, isArrayNode } from './type-guards';

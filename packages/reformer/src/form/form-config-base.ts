@@ -11,7 +11,7 @@
 import type { FormModel } from '../model/types';
 import type { FormBehavior } from './behaviors';
 import type { FormProxy } from './types/index';
-import type { FormValidation, FormValidationBundle } from './validation/config';
+import type { FormFlowConfig, FormLevel, FormValidation } from './form-level';
 import type { ValidationDefinition } from './validation';
 
 /**
@@ -27,8 +27,10 @@ export interface CreateFormConfigBase<T, B> {
   model?: FormModel<T>;
   /** Декларативное поведение модели (compute/copyFrom/enableWhen/onChange). */
   behavior?: FormBehavior<T>;
-  /** Правила валидации: готовая схема либо {@link FormValidation} со стратегией и шагами. */
+  /** Правила валидации: готовый набор либо {@link FormValidation} с `extras` и стратегией. */
   validation?: FormValidation<T> | ValidationDefinition<T>;
+  /** Поток шагов: идентификатор шага и его правила — {@link FormFlowConfig}. */
+  flow?: FormFlowConfig<T>;
   /**
    * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
    * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
@@ -39,9 +41,11 @@ export interface CreateFormConfigBase<T, B> {
   setup?: (bundle: B) => void;
 }
 
-/** Общая часть результата фабрик: модель, форма и (если заданы правила) собранная валидация. */
-export interface CoreForm<T> {
-  model: FormModel<T>;
-  form: FormProxy<T>;
-  validation?: FormValidationBundle<T>;
+/**
+ * Общая часть результата фабрик: модель, форма и уровень формы ({@link FormLevel}) — проверка,
+ * отправка и поток шагов.
+ */
+export interface CoreForm<T> extends FormLevel<T> {
+  readonly model: FormModel<T>;
+  readonly form: FormProxy<T>;
 }

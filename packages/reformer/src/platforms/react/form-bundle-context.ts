@@ -26,7 +26,7 @@ export const FormBundleContext = createContext<FormBundle<any> | null>(null);
 
 /**
  * Бандл сборки, внутри которой отрисован компонент; `null` — компонент стоит вне рендерера
- * (например, визард в разметке React-руками получает форму и валидацию пропсами).
+ * (например, визард в разметке React-руками получает форму и поток шагов пропсами).
  *
  * @typeParam T - Форма данных модели.
  *
@@ -34,7 +34,7 @@ export const FormBundleContext = createContext<FormBundle<any> | null>(null);
  * ```tsx
  * function StepFooter() {
  *   const bundle = useFormBundleContext<CreditForm>();
- *   return <button onClick={() => bundle?.validation?.validateAll()}>Проверить</button>;
+ *   return <button onClick={() => void bundle?.validate()}>Проверить</button>;
  * }
  * ```
  */

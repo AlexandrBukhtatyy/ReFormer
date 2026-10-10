@@ -77,9 +77,9 @@ export function onComponentEvent(
  *
  * @example
  * ```typescript
- * const wizard = schema.node('wizard').getRef<FormWizardHandle>();
+ * const panel = schema.node('summary').getRef<HTMLElement>();
  * renderEffect(schema, () => {
- *   if (model.loanType === 'mortgage') wizard.current?.goToStep(1);
+ *   if (model.loanType === 'mortgage') panel.current?.scrollIntoView();
  * });
  * ```
  */

@@ -16,7 +16,7 @@ import {
   validateModel,
   type ValidationResult,
 } from '../../../src/form/validation';
-import { buildValidation } from '../../../src/form/validation/config';
+import { createFormLevel } from '../../../src/form/form-level';
 import { createFormValidation } from '../../../src/form/validation/strategy';
 import enJson from '../../../src/i18n/en.json';
 import ruJson from '../../../src/i18n/ru.json';
@@ -287,9 +287,11 @@ describe('validateModel — обёртка с boolean', () => {
     const onSubmit = vi.fn();
 
     await expect(validateModel(model, loginFree)).resolves.toBe(false);
-    await expect(form.submit(onSubmit)).resolves.toBeNull();
+    const level = createFormLevel(model, { validation: loginFree });
+    await expect(level.submit(onSubmit)).resolves.toMatchObject({ status: 'error' });
 
     expect(onSubmit).not.toHaveBeenCalled();
+    expect(form.login.touched.value).toBe(true);
   });
 
   it('повторный прогон после восстановления сети снимает ошибку сбоя', async () => {
@@ -392,33 +394,30 @@ describe('pending поля на время async-правил', () => {
   });
 });
 
-describe('сборка валидации формы — runAll, runStep, validating', () => {
+describe('уровень формы — validate, validateStep, validating', () => {
   const stepOne = defineValidation<Account>(({ model }) => {
     validate(model.$.name, [required()]);
   });
 
-  it('runAll и runStep возвращают результат и разносят ошибки', async () => {
-    const { model, form } = build();
-    const validation = buildValidation(model, { steps: { profile: stepOne, access: null } })!;
+  /** Поток из шагов: идентификатор и правила шага. */
+  const flowOf = (steps: { id: string; rules?: typeof stepOne | null }[]) => ({ steps });
 
-    const stepResult = await validation.runStep('profile');
+  it('validate и validateStep возвращают результат и разносят ошибки', async () => {
+    const { model, form } = build();
+    const level = createFormLevel(model, {
+      flow: flowOf([{ id: 'profile', rules: stepOne }, { id: 'access' }]),
+    });
+
+    const stepResult = await level.validateStep('profile');
     expect(stepResult.status).toBe('invalid');
     expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
     expect(form.name.touched.value).toBe(true);
 
-    expect((await validation.runStep(2)).status).toBe('valid'); // шаг без правил
-    expect((await validation.runAll()).status).toBe('invalid');
-  });
-
-  it('validate, validateAll и validateStep отвечают boolean', async () => {
-    const { model } = build();
-    const validation = buildValidation(model, { steps: { profile: stepOne } })!;
-
-    await expect(validation.validateStep(1)).resolves.toBe(false);
-    await expect(validation.validateAll()).resolves.toBe(false);
+    expect((await level.validateStep('access')).status).toBe('valid'); // шаг без правил
+    expect((await level.validate()).status).toBe('invalid');
     model.name = 'Иван';
-    await expect(validation.validateStep('profile')).resolves.toBe(true);
-    await expect(validation.validate()).resolves.toBe(true);
+    expect((await level.validateStep('profile')).status).toBe('valid');
+    expect((await level.validate()).status).toBe('valid');
   });
 
   it('сбой правила шага отличим от ошибки', async () => {
@@ -426,13 +425,12 @@ describe('сборка валидации формы — runAll, runStep, valida
     const access = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => Promise.reject(new Error('network'))]);
     });
-    const validation = buildValidation(model, { steps: { access } })!;
+    const level = createFormLevel(model, { flow: flowOf([{ id: 'access', rules: access }]) });
 
-    const result = await validation.runStep('access');
+    const result = await level.validateStep('access');
 
     expect(result.status).toBe('error');
     expect(result.failures).toHaveLength(1);
-    await expect(validation.validateStep('access')).resolves.toBe(false);
   });
 
   it('validating учитывает прогон шага и полный прогон', async () => {
@@ -442,20 +440,20 @@ describe('сборка валидации формы — runAll, runStep, valida
     const access = defineValidation<Account>(({ model: scope }) => {
       validateAsync(scope.$.login, [() => answers[call++].promise]);
     });
-    const validation = buildValidation(model, { steps: { access } })!;
-    expect(validation.validating.value).toBe(false);
+    const level = createFormLevel(model, { flow: flowOf([{ id: 'access', rules: access }]) });
+    expect(level.validating.value).toBe(false);
 
-    const stepRun = validation.runStep('access');
-    expect(validation.validating.value).toBe(true);
+    const stepRun = level.validateStep('access');
+    expect(level.validating.value).toBe(true);
     answers[0].resolve(null);
     await stepRun;
-    expect(validation.validating.value).toBe(false);
+    expect(level.validating.value).toBe(false);
 
-    const fullRun = validation.runAll();
-    expect(validation.validating.value).toBe(true);
+    const fullRun = level.validate();
+    expect(level.validating.value).toBe(true);
     answers[1].resolve(null);
     await fullRun;
-    expect(validation.validating.value).toBe(false);
+    expect(level.validating.value).toBe(false);
   });
 });
 

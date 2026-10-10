@@ -2,16 +2,16 @@
  * Unit tests: `createForm` — сборка модели, формы и валидации ОДНИМ вызовом.
  *
  * Проверяет: обе ветки модели (`initial` | `model`), проброс схемы и behavior, фазы `seed`/`setup`
- * (и то, ради чего они разведены), сборку валидации из шагов, стабильность ссылки на полную схему.
+ * (и то, ради чего они разведены), армирование живой проверки снаружи сборки. Проверка, отправка и
+ * поток шагов — в `form-level.test.ts`.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createForm } from '../../../src/form/form-bundle';
-import { buildValidation } from '../../../src/form/validation/config';
 import { createModel } from '../../../src/model/index';
 import { defineFormBehavior, computeFrom } from '../../../src/form/behaviors';
 import { validate, defineValidation } from '../../../src/form/validation';
-import { required, minLength } from '../../../src/form/validators';
+import { required } from '../../../src/form/validators';
 
 const InputStub = () => null;
 
@@ -99,70 +99,9 @@ describe('createForm — фазы seed/setup', () => {
   });
 });
 
-describe('buildValidation', () => {
+describe('живая проверка сборки', () => {
   const emailRules = defineValidation<F>(({ model }) => {
     validate(model.$.email, [required()]);
-  });
-  const passwordRules = defineValidation<F>(({ model }) => {
-    validate(model.$.password, [minLength(8)]);
-  });
-
-  it('без правил возвращает undefined', () => {
-    expect(buildValidation(createModel<F>({ ...INITIAL }), undefined)).toBeUndefined();
-  });
-
-  it('принимает голую схему (сахар для простых форм)', async () => {
-    const model = createModel<F>({ ...INITIAL });
-    const v = buildValidation(model, emailRules)!;
-    expect(v.schema).toBe(emailRules); // ссылка сохранена — от неё зависит дедупликация прогонов
-    expect(await v.validateAll()).toBe(false);
-    model.email = 'a@b.c';
-    expect(await v.validateAll()).toBe(true);
-  });
-
-  it('validateStep проверяет правила своего шага — по номеру и по селектору', async () => {
-    // `123` короче 8 — правило шага `security` сработает; пустую строку minLength пропускает
-    // (за пустоту отвечает required), поэтому берём заведомо короткое непустое значение.
-    const model = createModel<F>({ ...INITIAL, email: 'a@b.c', password: '123' });
-    const v = buildValidation(model, {
-      steps: { account: emailRules, security: passwordRules, confirm: null },
-    })!;
-    expect(v.stepSelectors).toEqual(['account', 'security', 'confirm']);
-    expect(await v.validateStep(1)).toBe(true); // email заполнен
-    expect(await v.validateStep('security')).toBe(false); // пароль короткий
-    expect(await v.validateStep('confirm')).toBe(true); // шаг без правил объявлен явно
-  });
-
-  it('validateAll собирает шаги вместе с extras', async () => {
-    const model = createModel<F>({ ...INITIAL, email: 'a@b.c', password: '' });
-    const extras = defineValidation<F>(({ model: m }) => {
-      validate(m.$.password, [required()]);
-    });
-    const v = buildValidation(model, { steps: { a: emailRules }, extras })!;
-    expect(await v.validateStep('a')).toBe(true); // extras в шаг не входят
-    expect(await v.validateAll()).toBe(false); // а в полный прогон — входят
-  });
-
-  it('полная схема собирается один раз (стабильная ссылка)', async () => {
-    const model = createModel<F>({ ...INITIAL });
-    const v = buildValidation(model, { steps: { a: emailRules } })!;
-    const first = v.schema;
-    await v.validateAll();
-    await v.validateAll();
-    expect(v.schema).toBe(first);
-  });
-
-  it('createStepController: null при стратегии submit и для шага без правил', () => {
-    const model = createModel<F>({ ...INITIAL });
-    const submitOnly = buildValidation(model, { steps: { a: emailRules } })!;
-    expect(submitOnly.createStepController(1)).toBeNull();
-
-    const live = buildValidation(model, {
-      steps: { a: emailRules, b: null },
-      strategy: 'change',
-    })!;
-    expect(live.createStepController('a')).not.toBeNull();
-    expect(live.createStepController('b')).toBeNull();
   });
 
   it('контроллер формы армится снаружи и гоняет живую валидацию', async () => {
@@ -170,7 +109,7 @@ describe('buildValidation', () => {
     const bundle = createForm<F>({
       model,
       schema: (m) => schemaOf(m) as never,
-      validation: { schema: emailRules, strategy: 'change' },
+      validation: { rules: emailRules, strategy: 'change' },
     });
     const v = bundle.validation!;
     expect(bundle.form.email.issues.value).toEqual([]); // фабрика ничего не армировала
@@ -181,14 +120,5 @@ describe('buildValidation', () => {
     await Promise.resolve();
     expect(bundle.form.email.issues.value.map((e) => e.code)).toContain('required');
     stop();
-  });
-
-  it('validate — синоним validateAll', () => {
-    const model = createModel<F>({ ...INITIAL });
-    const v = buildValidation(model, emailRules)!;
-    const spy = vi.spyOn(v.controller, 'validate');
-    void v.validate();
-    void v.validateAll();
-    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

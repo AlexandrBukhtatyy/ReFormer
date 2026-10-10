@@ -37,7 +37,7 @@ import type { ModelArrayNode } from './nodes/model-array-node';
  * ```typescript
  * if (isFormNode(value)) {
  *   value.setValue(newValue);
- *   value.validate();
+ *   value.markAsTouched();
  * }
  * ```
  */
@@ -51,7 +51,7 @@ export function isFormNode(value: unknown): value is FormNode<unknown> {
     'value' in value &&
     'setValue' in value &&
     'getValue' in value &&
-    'validate' in value
+    'setIssues' in value
   );
 }
 

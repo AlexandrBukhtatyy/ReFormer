@@ -21,6 +21,9 @@ export { useFormValidation } from './hooks/use-form-validation';
 export type { UseFormValidationArgs, UseFormValidationResult } from './hooks/use-form-validation';
 export { useFormBundle } from './hooks/use-form-bundle';
 export type { FormBundleLike } from './hooks/use-form-bundle';
+// Поток шагов: снимок сигналов `FormFlow` для рендера.
+export { useFormFlow } from './hooks/use-form-flow';
+export type { FormFlowSnapshot } from './hooks/use-form-flow';
 // Контекст сборки: бандл `createForm` для компонентов внутри рендерера (визард).
 export { FormBundleContext, useFormBundleContext } from './form-bundle-context';
 export type { FieldControlState, ArrayControlState } from './hooks/types';

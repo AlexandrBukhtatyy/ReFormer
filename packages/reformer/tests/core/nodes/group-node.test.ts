@@ -10,18 +10,15 @@
  * - markAsTouched/markAsUntouched/markAsDirty/markAsPristine (каскадные)
  * - enable/disable (каскадные)
  * - validate()
- * - submit()
  *
  * Другие тесты в отдельных файлах:
  * - group-node-form-issues.test.ts - form-level issues
  * - group-node-reference-equality.test.ts - value caching
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
-import { defineValidation, validate, validateModel } from '../../../src/form/validation';
-import { required } from '../../../src/form/validators';
 import type { FormProxy } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import { formFromFields, type TestFields } from '../../test-utils/form-from-fields';
@@ -59,24 +56,6 @@ const nestedSchema: TestFields<NestedForm> = {
 // ============================================================================
 // Форма со схемой валидации
 // ============================================================================
-
-const REQUIRED = [required()];
-
-/** Правила формы: обязательны `name` и `address.city`. */
-const nestedRules = defineValidation<NestedForm>(({ model }) => {
-  validate(model.$.name, REQUIRED);
-  validate(model.$.address.city, REQUIRED);
-});
-
-/** Модель и форма без схемы разметки: ноды строятся по виду узлов модели. */
-function nestedFormWithModel(initial: Partial<NestedForm> = {}) {
-  const model = createModel<NestedForm>({
-    name: '',
-    address: { city: '', street: 'has value' },
-    ...initial,
-  });
-  return { model, form: createFormFromModel<NestedForm>({ model }) };
-}
 
 // ============================================================================
 // Тесты
@@ -148,12 +127,6 @@ describe('GroupNode', () => {
       const form = formFromFields(simpleSchema);
 
       expect(form.pending.value).toBe(false);
-    });
-
-    it('should initialize with submitting = false', () => {
-      const form = formFromFields(simpleSchema);
-
-      expect(form.submitting.value).toBe(false);
     });
 
     it('should initialize with empty issues', () => {
@@ -547,151 +520,6 @@ describe('GroupNode', () => {
       expect(nestedForm.name.status.value).toBe('disabled');
       expect(nestedForm.address.city.status.value).toBe('disabled');
       expect(nestedForm.address.street.status.value).toBe('disabled');
-    });
-  });
-
-  // ==========================================================================
-  // 8. validate()
-  // ==========================================================================
-
-  describe('validate()', () => {
-    it('should return true when all fields valid', async () => {
-      const form = formFromFields(simpleSchema);
-
-      const result = await form.validate();
-
-      expect(result).toBe(true);
-      expect(form.valid.value).toBe(true);
-    });
-
-    it('should return false when any field has an error', async () => {
-      const form = formFromFields(simpleSchema);
-      form.email.setIssues([{ code: 'required' }]);
-
-      const result = await form.validate();
-
-      expect(result).toBe(false);
-      expect(form.valid.value).toBe(false);
-    });
-
-    it('should not run rules by itself', async () => {
-      const { form } = nestedFormWithModel();
-
-      // Правила исполняет `validateModel`; без прогона у нод нет ошибок.
-      await expect(form.validate()).resolves.toBe(true);
-      expect(form.name.issues.value).toEqual([]);
-    });
-
-    it('should keep issues routed by validateModel', async () => {
-      const { model, form } = nestedFormWithModel();
-
-      await expect(validateModel(model, nestedRules)).resolves.toBe(false);
-      const result = await form.validate();
-
-      expect(result).toBe(false);
-      expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
-      expect(form.address.city.issues.value.map((error) => error.code)).toEqual(['required']);
-      expect(form.address.street.issues.value).toEqual([]);
-    });
-
-    it('should reflect a repeated validateModel run', async () => {
-      const { model, form } = nestedFormWithModel();
-      await validateModel(model, nestedRules);
-
-      model.name = 'John';
-      model.address.city = 'Moscow';
-      await expect(validateModel(model, nestedRules)).resolves.toBe(true);
-
-      await expect(form.validate()).resolves.toBe(true);
-      expect(form.issues.value).toEqual([]);
-    });
-
-    it('should ignore warnings', async () => {
-      const form = formFromFields(simpleSchema);
-      form.email.setIssues([{ code: 'weak', severity: 'warning' }]);
-
-      await expect(form.validate()).resolves.toBe(true);
-      expect(form.email.issues.value).toHaveLength(1);
-    });
-
-    it('should ignore issues of disabled fields', async () => {
-      const form = formFromFields(simpleSchema);
-      form.email.setIssues([{ code: 'required' }]);
-      form.email.disable();
-
-      await expect(form.validate()).resolves.toBe(true);
-    });
-  });
-
-  // ==========================================================================
-  // 9. submit()
-  // ==========================================================================
-
-  describe('submit()', () => {
-    it('should call onSubmit when form is valid', async () => {
-      const form = formFromFields(simpleSchema);
-      const onSubmit = vi.fn().mockResolvedValue('success');
-
-      const result = await form.submit(onSubmit);
-
-      expect(onSubmit).toHaveBeenCalledWith({ email: '', password: '' });
-      expect(result).toBe('success');
-    });
-
-    it('should not call onSubmit when form is invalid', async () => {
-      const { model, form } = nestedFormWithModel();
-      await validateModel(model, nestedRules);
-      const onSubmit = vi.fn();
-
-      const result = await form.submit(onSubmit);
-
-      expect(onSubmit).not.toHaveBeenCalled();
-      expect(result).toBeNull();
-      // Отправка ошибок не стирает
-      expect(form.name.issues.value.map((error) => error.code)).toEqual(['required']);
-    });
-
-    it('should markAsTouched() before validation', async () => {
-      const form = formFromFields(simpleSchema);
-      const onSubmit = vi.fn().mockResolvedValue('success');
-
-      await form.submit(onSubmit);
-
-      expect(form.email.touched.value).toBe(true);
-      expect(form.password.touched.value).toBe(true);
-    });
-
-    it('should set submitting = true during execution', async () => {
-      const form = formFromFields(simpleSchema);
-      let submittingDuringCall = false;
-
-      const onSubmit = vi.fn().mockImplementation(() => {
-        submittingDuringCall = form.submitting.value;
-        return Promise.resolve('done');
-      });
-
-      await form.submit(onSubmit);
-
-      expect(submittingDuringCall).toBe(true);
-      expect(form.submitting.value).toBe(false);
-    });
-
-    it('should set submitting = false after error', async () => {
-      const form = formFromFields(simpleSchema);
-      const onSubmit = vi.fn().mockRejectedValue(new Error('Submit failed'));
-
-      await expect(form.submit(onSubmit)).rejects.toThrow('Submit failed');
-
-      expect(form.submitting.value).toBe(false);
-    });
-
-    it('should return result from onSubmit', async () => {
-      const form = formFromFields(simpleSchema);
-      const onSubmit = vi.fn().mockResolvedValue({ id: 123, status: 'created' });
-
-      const result = await form.submit(onSubmit);
-
-      expect(result).toEqual({ id: 123, status: 'created' });
     });
   });
 

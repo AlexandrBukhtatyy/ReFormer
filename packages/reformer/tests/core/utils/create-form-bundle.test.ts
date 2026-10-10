@@ -71,7 +71,7 @@ describe('createForm — сборка', () => {
     expect(bundle.model.get()).toEqual(INITIAL);
     expect(bundle.form.email.component).toBe(InputStub);
     expect(bundle.render.tree?.root).toMatchObject({ kind: 'container', selector: 'root' });
-    expect(await bundle.validation.validateAll()).toBe(false);
+    expect((await bundle.validate()).status).toBe('invalid');
   });
 
   it('билдер схемы вызывается один раз; в бандле — компиляция этого дерева', () => {
@@ -255,43 +255,53 @@ describe('createForm — проверки селекторов при сборк
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('ключ `validation.steps` без шага в дереве — предупреждение', () => {
+  it('шаг потока без узла в дереве — предупреждение', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     createForm<Shape>({
       initial: { ...INITIAL },
       schema: stepsSchema,
-      validation: { steps: { contacts: emailRules, detials: kindRules } },
+      flow: {
+        steps: [
+          { id: 'contacts', rules: emailRules },
+          { id: 'detials', rules: kindRules },
+        ],
+      },
     });
 
-    const [message] = warn.mock.calls.find(([text]) => String(text).includes('нет шага')) ?? [];
+    const [message] = warn.mock.calls.find(([text]) => String(text).includes('нет узла')) ?? [];
     expect(message).toContain('"detials"');
     expect(message).not.toContain('"contacts"');
   });
 
-  it('все ключи `validation.steps` совпали с шагами — предупреждений нет', () => {
+  it('все шаги потока совпали с узлами — предупреждений нет', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     createForm<Shape>({
       initial: { ...INITIAL },
       schema: stepsSchema,
-      validation: { steps: { contacts: emailRules, details: null } },
+      flow: { steps: [{ id: 'contacts', rules: emailRules }, { id: 'details' }] },
     });
 
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('дерево шагов не описывает (визард собран в JSX) — ключи шагов не сверяются', () => {
+  it('дерево шагов не описывает (визард собран в JSX) — шаги потока не сверяются', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     createForm<Shape>({
       initial: { ...INITIAL },
       schema: (model) => ({ children: [{ model: model.$.email, component: InputStub }] }),
-      validation: { steps: { contacts: emailRules, details: kindRules } },
+      flow: {
+        steps: [
+          { id: 'contacts', rules: emailRules },
+          { id: 'details', rules: kindRules },
+        ],
+      },
     });
     createForm<Shape>({
       initial: { ...INITIAL },
-      validation: { steps: { contacts: emailRules } },
+      flow: { steps: [{ id: 'contacts', rules: emailRules }] },
     });
 
     expect(warn).not.toHaveBeenCalled();

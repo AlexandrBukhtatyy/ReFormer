@@ -11,6 +11,7 @@ import { createModel, type FormModel } from '../../../src/model/index';
 import { createFormFromModel } from '../../../src/form/create-form';
 import { defineValidation, validate, validateModel } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
+import { createFormLevel } from '../../../src/form/form-level';
 import { FieldNode } from '../../../src/form/nodes/field-node';
 import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
@@ -336,13 +337,12 @@ describe('FormNode - markAsTouched()', () => {
 
     it('should work with submit flow', async () => {
       const onSubmit = async (values: LoginForm) => values;
-      await validateModel(model, loginRules);
 
-      // Submit marks all fields as touched internally
-      const result = await form.submit(onSubmit);
+      // Отправка уровня формы: один прогон правил, при замечаниях — все поля тронуты.
+      const result = await createFormLevel(model, { validation: loginRules }).submit(onSubmit);
 
       // Form invalid
-      expect(result).toBeNull();
+      expect(result.status).toBe('invalid');
 
       // All fields touched
       expect(form.email.touched.value).toBe(true);

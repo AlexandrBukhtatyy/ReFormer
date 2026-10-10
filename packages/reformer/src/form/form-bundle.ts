@@ -5,9 +5,9 @@
  * одну и ту же сборку и отличаются только видом схемы (билдер или документ) и тем, кто рисует
  * результат. Стабильность между рендерами даёт {@link useFormBundle}.
  *
- * Порядок сборки: модель → `seed` → дерево схемы → компиляция → ноды формы → поведение →
- * валидация → `setup`. Дерево строится и компилируется один раз: ноды формы и рендерер читают
- * одну и ту же {@link CompiledSchema}.
+ * Порядок сборки: модель → `seed` → дерево схемы → компиляция → уровень формы (правила, поток) →
+ * ноды формы → поведение → `setup`. Дерево строится и компилируется один раз: ноды формы и
+ * рендерер читают одну и ту же {@link CompiledSchema}.
  *
  * @group Utilities
  * @module form/form-bundle
@@ -29,10 +29,11 @@ import type { CompiledSchema, SchemaNodeId } from './schema/compiled';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormProxy } from './types/index';
 import {
-  buildValidation,
+  createFormLevel,
+  type FormFlowConfig,
+  type FormLevel,
   type FormValidation,
-  type FormValidationBundle,
-} from './validation/config';
+} from './form-level';
 import type { ValidationDefinition } from './validation';
 
 /**
@@ -79,17 +80,16 @@ export interface FormRender {
 }
 
 /**
- * Результат {@link createForm}.
+ * Результат {@link createForm}: модель, форма, часть для рендерера и уровень формы
+ * ({@link FormLevel}) — `validate()`, `validateStep(id)`, `submit(handler)` и поток шагов.
  *
  * @typeParam T - Форма данных модели.
  * @group Utilities
  */
-export interface FormBundle<T> {
-  model: FormModel<T>;
-  form: FormProxy<T>;
-  /** Собранная валидация; есть, если в конфиге заданы правила. */
-  validation?: FormValidationBundle<T>;
-  render: FormRender;
+export interface FormBundle<T> extends FormLevel<T> {
+  readonly model: FormModel<T>;
+  readonly form: FormProxy<T>;
+  readonly render: FormRender;
 }
 
 /**
@@ -113,8 +113,17 @@ export interface CreateFormConfig<T> {
   registry?: SchemaResolver;
   /** Поведение формы: значения, состояние нод и правила узлов схемы. */
   behavior?: FormBehavior<T>;
-  /** Правила валидации: готовая схема либо {@link FormValidation} со стратегией и шагами. */
+  /**
+   * Правила валидации: готовый набор либо {@link FormValidation} — полный набор `rules`, правила
+   * вне шагов `extras` и стратегия живой проверки. Без `rules` полный набор собирается из правил
+   * шагов потока и `extras`.
+   */
   validation?: FormValidation<T> | ValidationDefinition<T>;
+  /**
+   * Поток шагов: `{ steps: [{ id, rules }] }`. Идентификатор шага — `selector` узла шага в схеме;
+   * `next()` потока проверяет правила текущего шага.
+   */
+  flow?: FormFlowConfig<T>;
   /**
    * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
    * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
@@ -125,22 +134,19 @@ export interface CreateFormConfig<T> {
   setup?: (bundle: FormBundle<T>) => void;
 }
 
-/** Бандл формы, у которой заданы правила: `validation` в нём есть всегда. */
-type ValidatedFormBundle<T> = FormBundle<T> & { validation: FormValidationBundle<T> };
-
 const AT = '[@reformer/core] createForm';
 
 /** Имена в кавычках через запятую — для текста предупреждения. */
 const quoted = (names: readonly string[]): string => names.map((name) => `"${name}"`).join(', ');
 
 /**
- * Dev-проверки селекторов корневой области: правила поведения без узла и ключи `validation.steps`
- * без шага. Повтор `selector` здесь не проверяется — на нём падает компиляция.
+ * Dev-проверки селекторов корневой области: правила поведения без узла и шаги потока без узла
+ * шага. Повтор `selector` здесь не проверяется — на нём падает компиляция.
  */
 function checkSelectors<T>(
   compiled: CompiledSchema | undefined,
   maps: SchemaOverrideMaps,
-  validation: CreateFormConfig<T>['validation']
+  flow: CreateFormConfig<T>['flow']
 ): void {
   if (compiled === undefined) return;
   const unknown = unknownSchemaSelectors(maps, compiled);
@@ -152,17 +158,15 @@ function checkSelectors<T>(
     );
   }
 
-  const steps = typeof validation === 'object' ? validation.steps : undefined;
-  if (steps) {
-    const keys = Object.keys(steps);
+  if (flow) {
+    const keys = flow.steps.map((step) => step.id);
     const missing = keys.filter((key) => compiled.nodes.get(key as SchemaNodeId)?.selector !== key);
     // Если ни один ключ не совпал с узлом, шаги дерево не описывает вовсе (визард собран в JSX) —
     // сверять не с чем. Частичное совпадение — опечатка в ключе либо в `selector` шага.
     if (missing.length > 0 && missing.length < keys.length) {
       console.warn(
-        `${AT}: в \`validation.steps\` есть ключи, для которых в дереве схемы нет шага с таким ` +
-          `\`selector\`: ${quoted(missing)}. Правила этих ключей при переходе между шагами не ` +
-          'запустятся.'
+        `${AT}: в \`flow.steps\` есть шаги, для которых в дереве схемы нет узла с таким ` +
+          `\`selector\`: ${quoted(missing)}. Визард не свяжет их с разметкой шага.`
       );
     }
   }
@@ -192,12 +196,13 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
 }
 
 /**
- * Собрать модель, форму, валидацию и дерево для рендера за один проход.
+ * Собрать модель, форму, уровень формы (проверка, отправка, поток шагов) и дерево для рендера за
+ * один проход.
  *
  * @typeParam T - Форма данных модели.
  * @param config - {@link CreateFormConfig}: (`initial` | `model`) + опц. `schema`, `registry`,
- *   `behavior`, `validation`, `seed`, `setup`.
- * @returns {@link FormBundle} — `{ model, form, validation?, render }`.
+ *   `behavior`, `validation`, `flow`, `seed`, `setup`.
+ * @returns {@link FormBundle} — `{ model, form, render, flow, validate, validateStep, submit, … }`.
  *
  * @example Рендерер по TS-схеме
  * ```tsx
@@ -206,7 +211,8 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
  *     model: createCreditModel(),
  *     schema: creditSchema, // (model) => узел
  *     behavior: creditBehavior,
- *     validation: { steps: { loan: loanRules }, extras: crossRules },
+ *     validation: { extras: crossRules },
+ *     flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
  *   })
  * );
  * return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
@@ -215,6 +221,10 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
  * @example React-руками — та же сборка, разметка в JSX
  * ```tsx
  * const credit = useFormBundle(() => createForm<CreditForm>({ initial, schema: creditSchema }));
+ * const send = async () => {
+ *   const result = await credit.submit(api.send);
+ *   if (result.status === 'invalid') showHint('Проверьте форму');
+ * };
  * return <FormField control={credit.form.loanType} />;
  * ```
  *
@@ -226,10 +236,6 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
  * return <FormRenderer form={credit} />;
  * ```
  */
-export function createForm<T extends object>(
-  config: CreateFormConfig<T> & { validation: FormValidation<T> | ValidationDefinition<T> }
-): ValidatedFormBundle<T>;
-export function createForm<T extends object>(config: CreateFormConfig<T>): FormBundle<T>;
 export function createForm<T extends object>(config: CreateFormConfig<T>): FormBundle<T> {
   const given = config?.model as { signalAt?: unknown } | undefined;
   if (typeof given?.signalAt !== 'function' && config?.initial === undefined) {
@@ -246,21 +252,23 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
   const controller = createSchemaController();
   const root = controller.scopeOf(model);
 
+  // Уровень формы — до нод: поведение получает поток шагов.
+  const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });
   const form = createFormFromCompiled<T>({
     model,
     ...(compiled !== undefined ? { compiled } : {}),
     ...(config.behavior ? { behavior: config.behavior, schemaController: controller } : {}),
+    ...(level.flow !== undefined ? { flow: level.flow } : {}),
   });
 
   if (process.env.NODE_ENV !== 'production') {
-    checkSelectors(compiled, root.__overrideMaps, config.validation);
+    checkSelectors(compiled, root.__overrideMaps, config.flow);
   }
 
-  const validation = buildValidation(model, config.validation);
   const bundle: FormBundle<T> = {
+    ...level,
     model,
     form,
-    ...(validation ? { validation } : {}),
     render: {
       tree: compiled,
       controller,
