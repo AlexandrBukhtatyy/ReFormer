@@ -1,8 +1,10 @@
 # Императивные handle полей — управление компонентом по селектору
 
 Каждое поле ui-kit отдаёт типизированный императивный handle через `ref` (строит его обёртка
-поля — см. «Своё поле с handle»). Из render-схемы он достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
-тот же, что уже использовался для `FormWizard`/`FieldArray`, но теперь работает и для листовых полей.
+поля — см. «Своё поле с handle»). Из схемы формы он достаётся по селектору:
+`schema.node(sel).getRef<H>()` в поведении формы (`defineFormBehavior`) либо
+`bundle.render.node(sel).getRef<H>()` снаружи — это одна и та же корневая область схемы. Это мост
+«узел схемы → живой компонент» для листовых полей и для контейнеров, которые принимают `ref`.
 
 ## Когда императив, а когда реактив
 
@@ -14,8 +16,9 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 | value / compute / copy / sync              | реактивный      | `computeFrom` / `copyFrom` / `field.setValue`     |
 | enable / disable                           | реактивный      | `enableWhen` / `disableWhen`                      |
 | видимость                                  | реактивный      | `hideWhen` / `setHidden`                          |
-| options / props                            | реактивный      | `updateComponentProps` / `patchProps`             |
+| options / props                            | реактивный      | `updateComponentProps` (поле) / `patchProps` (контейнер) |
 | валидация                                  | реактивный      | `validate` / `revalidateWhen`                     |
+| навигация по шагам визарда                 | реактивный      | `flow.goTo(id)` / `flow.next()` (поток сборки)    |
 | **focus / blur / scrollIntoView**          | **императивный** | `getRef<FieldHandle>().current?.focus()`          |
 | **открыть/закрыть дропдаун, поповер**      | **императивный** | `getRef<SelectAsyncHandle>().current?.open()`     |
 | **reload / loadMore async-источника**      | **императивный** | `…current?.reload()`                              |
@@ -24,58 +27,73 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 ## Базовое использование
 
 ```tsx
-import { createRenderSchema, renderEffect } from '@reformer/renderer-react';
-import { Input, type FieldHandle } from '@reformer/ui-kit';
+import { createForm } from '@reformer/core';
+import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
+import { Box, Button, Input, type FieldHandle } from '@reformer/ui-kit';
 
-const schema = createRenderSchema<MyForm>(() => ({
-  component: Box,
-  children: [{ value: model.$.email, component: Input, componentProps: { label: 'Email' } }],
-}));
+const signInBehavior = defineFormBehavior<SignIn>(({ schema }) => {
+  // ref запрашивается ЗДЕСЬ — поведение исполняется при сборке, до первого рендера (см. ниже).
+  const emailRef = schema.node('email').getRef<FieldHandle>();
 
-// Поведение схемы: ref запрашивается ЗДЕСЬ (до первого рендера — см. ниже).
-const emailRef = schema.node('email').getRef<FieldHandle>();
+  // Позже, из обработчика/эффекта:
+  onComponentEvent(schema.node('focus-email'), 'onClick', () => {
+    emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    emailRef.current?.focus();
+  });
+});
 
-// Позже, из обработчика/эффекта:
-emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-emailRef.current?.focus();
+const signIn = createForm<SignIn>({
+  initial: { email: '' },
+  schema: (model) => ({
+    component: Box,
+    children: [
+      { model: model.$.email, component: Input, componentProps: { label: 'Email' } },
+      { selector: 'focus-email', component: Button, children: ['К email'] },
+    ],
+  }),
+  behavior: signInBehavior,
+});
 ```
 
 ## ⚠️ `getRef()` вызывать ДО первого рендера
 
-`getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер и
-менял семантику wizard-а). Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный
-впервые уже после монтирования, **никогда не прикрепится и останется `null`**.
+`getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер).
+Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный впервые уже после монтирования,
+**никогда не прикрепится и останется `null`**.
 
 ```tsx
-// ✅ правильно — на этапе применения поведения, до рендера
-const behavior: RenderBehaviorFn<MyForm> = (schema) => {
+// ✅ правильно — в поведении формы: оно исполняется при сборке, до рендера
+defineFormBehavior<MyForm>(({ schema }) => {
   const emailRef = schema.node('email').getRef<FieldHandle>();
   onComponentEvent(schema.node('submit'), 'onClick', () => emailRef.current?.focus());
-};
+});
 
 // ❌ неправильно — первый getRef внутри обработчика клика: ref останется null
-<button onClick={() => schema.node('email').getRef<FieldHandle>().current?.focus()} />;
+<button onClick={() => bundle.render.node('email').getRef<FieldHandle>().current?.focus()} />;
 ```
 
 Повторные `getRef()` для того же селектора идемпотентны и возвращают тот же `RefObject` — поэтому
-достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно.
+достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно
+(в том числе через `bundle.render.node(sel)` — это та же корневая область).
 
-## Адресация: `selector` или `__path`
+## Адресация: `selector` или путь модели
 
-Ключ ref листа — `node.selector ?? __path` сигнала модели (явный селектор в приоритете):
+Ключ ref листа — `selector` узла, иначе путь ручки модели (`__path`, явный селектор в приоритете):
 
 ```tsx
-// без selector → адресуется индексным путём модели
-{ value: model.$.email, component: Input }          // → schema.node('email')
-{ value: model.$.phones[0].number, component: Input } // → schema.node('phones.0.number')
+// без selector → адресуется путём модели
+{ model: model.$.email, component: Input }            // → schema.node('email')
+{ model: row.$.number, component: Input }             // строка phones[0] → schema.node('phones.0.number')
 
 // с явным selector → адресуется им
-{ selector: 'pwd', value: model.$.password, component: InputPassword } // → schema.node('pwd')
+{ selector: 'pwd', model: model.$.password, component: InputPassword } // → schema.node('pwd')
 ```
 
-Благодаря `__path` путь модели — **одновременно ключ ref и адрес сигнала** (`model.signalAt(path)`),
-поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
-`FieldArray` индексы не нужно перечислять в схеме.
+Путь абсолютный и ищется от корня сборки — поэтому поле строки `FieldArray` адресуется из
+корневого поведения (`phones.0.number`) без перечисления индексов в схеме. Селектор же живёт в
+своей области: селекторы узлов строки массива и подформы адресуются из их поведения
+(`applyEach` / `apply`), а не из корня. Путь модели — **одновременно ключ ref и адрес ручки**
+(`model.signalAt(path)`), поэтому замечания поля читаются по тому же пути — см. рецепт ниже.
 
 ## Контракты handle
 
@@ -98,38 +116,43 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
 открытие прочитает уровень заново.
 
-`Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он живёт
-контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
-объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
-способом, что у `FormWizard` и `FieldArray`.
+`Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он
+живёт контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если
+узел объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` —
+рендерер вешает ref на компонент контейнерного узла.
+
+У `FormWizard` и узла-массива `FieldArray` handle нет: визардом управляет поток шагов сборки
+(`bundle.flow.goTo(id)`, `flow` в поведении), массивом — модель и нода формы
+(`model.phones.push()`, `form.phones.removeAt(i)`).
 
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
-вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
+вызывающий.
 
 ## Рецепт: focus первого невалидного поля после submit
 
-Классика UX, реактивно невыразимая. `validateModel` роутит ошибки в ноды; нода поля
-резолвится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь —
-готовый ключ ref:
+Классика UX, реактивно невыразимая. `bundle.submit` разносит замечания по нодам; нода поля
+находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
 
 ```tsx
 import { getNodeForSignal } from '@reformer/core';
-import { validateModel } from '@reformer/core/validation';
 import type { FieldHandle } from '@reformer/ui-kit';
 
 const ORDER = ['email', 'password', 'city', 'nickname']; // порядок обхода = порядок полей
 
+// В поведении формы — прогреть ref'ы до первого рендера:
+//   defineFormBehavior(({ schema }) => { for (const path of ORDER) schema.node(path).getRef(); });
+
 async function handleSubmit() {
-  const ok = await validateModel(model, validationSchema); // ошибки уже в нодах
-  if (ok) return submit();
+  const outcome = await bundle.submit(sendForm); // при замечаниях обработчик не вызывается
+  if (outcome.status !== 'invalid') return;
 
   const firstInvalid = ORDER.find((path) => {
-    const sig = model.signalAt(path); // пути статические — сигнал существует
-    return sig ? (getNodeForSignal(sig)?.issues.value.length ?? 0) > 0 : false;
+    const handle = bundle.model.signalAt(path); // пути статические — ручка существует
+    return handle ? getNodeForSignal(handle)?.invalid.value === true : false;
   });
   if (!firstInvalid) return;
 
-  const ref = schema.node(firstInvalid).getRef<FieldHandle>();
+  const ref = bundle.render.node(firstInvalid).getRef<FieldHandle>();
   ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   ref.current?.focus();
 }
@@ -137,38 +160,44 @@ async function handleSubmit() {
 
 ## Рецепт: зависимый async-Select
 
-Реактивная часть (параметры источника) — через `patchProps`; императивная (сброс, перезагрузка,
-открытие) — через handle:
+Реактивная часть (источник опций) — через `updateComponentProps` ноды поля; императивная (сброс,
+перезагрузка, открытие) — через handle:
 
 ```tsx
-import { renderEffect } from '@reformer/renderer-react';
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 import type { SelectAsyncHandle } from '@reformer/ui-kit';
 
-renderEffect(schema, () => {
-  const country = form.address.country.value.value; // зависимость-сигнал
-  const city = schema.node('city');
+// узел: { selector: 'city', model: model.$.address.city, component: SelectAsync }
+const addressBehavior = defineFormBehavior<MyForm>(({ model, form, schema }) => {
+  const cityRef = schema.node('city').getRef<SelectAsyncHandle>(); // до первого рендера
 
-  city.patchProps({ dataSourceParams: { country } }); // реактивно
-
-  const ref = city.getRef<SelectAsyncHandle>(); // императивно
-  ref.current?.clear();
-  ref.current?.reload();
+  // onChange срабатывает на смену значения (не на старте) и вне effect-контекста.
+  onChange(model.$.address.country, (country) => {
+    form.address.city.updateComponentProps({ resource: citiesResource(country) }); // реактивно
+    cityRef.current?.clear(); // императивно
+    cityRef.current?.reload();
+  });
 });
 ```
+
+`patchProps` из `schema.node(sel)` действует на контейнерные узлы; пропсы поля меняет
+`updateComponentProps` его ноды.
 
 ## Рецепт: фокус в поле только что добавленной строки FieldArray
 
 ```tsx
-import type { FieldArrayHandle } from '@reformer/cdk';
+import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
 import type { FieldHandle } from '@reformer/ui-kit';
 
-const phones = schema.node('phones').getRef<FieldArrayHandle<Phone>>();
-phones.current?.add({ number: '' });
-
-// строка ещё не смонтирована — ждём коммита React
-queueMicrotask(() => {
-  const idx = (phones.current?.length ?? 1) - 1;
-  schema.node(`phones.${idx}.number`).getRef<FieldHandle>().current?.focus();
+defineFormBehavior<MyForm>(({ form, schema }) => {
+  onComponentEvent(schema.node('add-phone'), 'onClick', () => {
+    const index = form.phones.length; // индекс будущей строки (length — число)
+    // ref поля новой строки — до её первого рендера, иначе он не прикрепится
+    const numberRef = schema.node(`phones.${index}.number`).getRef<FieldHandle>();
+    form.phones.push({ number: '' });
+    // строка ещё не смонтирована — ждём коммита React
+    queueMicrotask(() => numberRef.current?.focus());
+  });
 });
 ```
 

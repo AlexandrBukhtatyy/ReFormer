@@ -5,8 +5,8 @@
 Под капотом — Tailwind CSS и Radix UI; каждый form-контрол объявляет, как свести к
 своим пропам контракт `value` / `onChange` / `onBlur` `FormControl<T>` (статика
 `reformerAdapter`), поэтому подключение к форме сводится к
-`<FormField control={form.email} />` или к регистрации компонента в `RenderSchema`
-рендерера — сам компонент, без обёрток.
+`<FormField control={form.email} />` или к узлу схемы `{ model: model.$.email, component: Input }`,
+который рисует рендерер, — сам компонент, без обёрток.
 
 В отличие от headless-уровня `@reformer/cdk` (компоненты `FieldArray`,
 `FormWizard`, `FormField` без стилей), `ui-kit` уже имеет:
@@ -30,13 +30,15 @@ Peer-зависимости (должны быть в проекте):
 
 ```json
 {
-  "@reformer/cdk": ">=1.0.0",
-  "@reformer/core": ">=1.1.0",
-  "@reformer/renderer-react": ">=1.0.0",
+  "@reformer/cdk": "*",
+  "@reformer/core": "*",
   "react": "^18.0.0 || ^19.0.0",
   "react-dom": "^18.0.0 || ^19.0.0"
 }
 ```
+
+`@reformer/renderer-react` киту не нужен: компоненты от рендерера не зависят (визард получает
+отрисовку узла пропом). Ставьте рендерер, только если рисуете форму по схеме (`FormRenderer`).
 
 `radix-ui`, `lucide-react`, `clsx`, `tailwind-merge` и `class-variance-authority` —
 обычные зависимости пакета, ставить их отдельно не нужно.
@@ -116,16 +118,19 @@ import { Button } from '@reformer/ui-kit/button';
 
 ## Quick Start
 
-Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
-`createModel` → layout-схема → `createFormFromModel({ model, schema })`; валидация — отдельная
-`defineValidation`, запускаемая `validateModel`). `FormField` самостоятельно
-подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
+Минимальная форма из двух полей с валидацией и отправкой. Сборка — один вызов `createForm`:
+модель из `initial`, схема `(model) => узел`, где узел поля — `{ model: model.$.x, component,
+componentProps }`, и правила `defineValidation` отдельным слоем. Проверку и отправку делает
+`bundle.submit(handler)`. `FormField` сам подцепляет значение, замечания (`issues`) и `pending`
+через `@reformer/cdk`:
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createForm, createFormFromModel } from '@reformer/core';
-import { defineValidation, validate, validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -133,60 +138,65 @@ type RegistrationForm = {
   password: string;
 };
 
-// Валидация — отдельный слой (@reformer/core/validation), НЕ в layout-схеме.
-const registrationValidation = defineValidation<RegistrationForm>(({ model }) => {
+// Правила — отдельный слой (@reformer/core/validation), НЕ в схеме. Правило несёт код, не текст.
+const registrationRules = defineValidation<RegistrationForm>(({ model }) => {
   validate(model.$.email, [required({ code: 'email.required' }), email()]);
   validate(model.$.password, [required({ code: 'password.required' }), minLength(8)]);
 });
 
-function RegistrationPage() {
-  const { model, form } = useMemo(() => {
-    // 1) Модель — источник истины значений.
-    const model = createModel<RegistrationForm>({ email: '', password: '' });
-    // 2) Layout-схема: лист = { value: сигнал модели, component, componentProps? } — без validators.
-    const schema = {
+// Тексты замечаний — словарь формы по кодам (стабильная константа модуля).
+const registrationMessages = defineIssueMessages({
+  'email.required': 'Укажите email',
+  'password.required': 'Придумайте пароль',
+  minLength: 'Не меньше {minLength} символов',
+});
+
+const createRegistrationForm = () =>
+  createForm<RegistrationForm>({
+    initial: { email: '', password: '' },
+    schema: (model) => ({
       children: [
         {
-          value: model.$.email,
+          model: model.$.email,
           component: Input,
           componentProps: { label: 'Email', type: 'email', testId: 'email' },
         },
         {
-          value: model.$.password,
+          model: model.$.password,
           component: InputPassword,
           componentProps: { label: 'Пароль', testId: 'password' },
         },
       ],
-    };
-    // 3) createForm привязывает ноды к сигналам модели → FormGroup.
-    const form = createFormFromModel<RegistrationForm>({ model, schema });
-    return { model, form };
-  }, []);
+    }),
+    validation: registrationRules,
+  });
 
-  const onSubmit = async () => {
-    form.markAsTouched();
-    // 4) Валидация модели внешним раннером (ошибки сам роутит в ноды).
-    //    form.submit()/validate() schema-валидацию НЕ гоняют.
-    const ok = await validateModel(model, registrationValidation);
-    if (!ok) return;
-    console.log('values', model.get());
+function RegistrationPage() {
+  // useFormBundle зовёт фабрику ровно один раз и держит сборку стабильной между рендерами.
+  const registration = useFormBundle(createRegistrationForm);
+  const { form } = registration;
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
+    const outcome = await registration.submit((values) => api.register(values));
+    if (outcome.status === 'submitted') console.log('ok', outcome.result);
   };
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit();
-      }}
-      className="space-y-4 max-w-md"
-    >
-      <FormField control={form.email} />
-      <FormField control={form.password} />
-      <Button type="submit">Зарегистрироваться</Button>
-    </form>
+    <ValidationMessagesProvider messages={registrationMessages}>
+      <form onSubmit={onSubmit} className="space-y-4 max-w-md">
+        <FormField control={form.email} />
+        <FormField control={form.password} />
+        <Button type="submit">Зарегистрироваться</Button>
+      </form>
+    </ValidationMessagesProvider>
   );
 }
 ```
+
+Порядок текста замечания: словарь формы (`ValidationMessagesProvider messages`) → словарь локали
+→ встроенный английский → сам `code`.
 
 ## Контрол в форме: сам компонент
 
@@ -231,7 +241,7 @@ function RegistrationPage() {
 import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
 
 export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
-// схема: { value: model.$.agree, component: MyCheckbox }
+// схема: { model: model.$.agree, component: MyCheckbox }
 ```
 
 Компонент, на который статику не повесить (чужая библиотека целиком), — через
@@ -244,7 +254,7 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 | Name                                               | Purpose                                                                     | Where documented                                              |
 | -------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `Input` / `InputNumber` / `InputSuggest`           | Текстовое поле (`text`/`email`/`tel`/`url`), число, строка с подсказками.   | [02-text-fields.md](02-text-fields.md)                        |
-| `InputMask`                                        | Поле ввода со строковой маской (телефон, дата, ИНН).                        | [02-text-fields.md](02-text-fields.md)                        |
+| `InputMask`                                        | Поле ввода со строковой маской (телефон, дата, ИНН).                        | [09-input-mask.md](09-input-mask.md)                          |
 | `InputPassword`                                    | Поле пароля с переключателем видимости.                                     | [02-text-fields.md](02-text-fields.md)                        |
 | `Textarea`                                         | Многострочное поле.                                                         | [02-text-fields.md](02-text-fields.md)                        |
 | `Checkbox` / `CheckboxWithLabel`                   | Чекбокс; `WithLabel` — с label рядом с контролом.                           | [03-choice-fields.md](03-choice-fields.md)                    |
@@ -257,6 +267,8 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 | `ExampleCard`                                      | Карточка-обёртка для демо в playground.                                     | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `cn`                                               | Утилита для конкатенации Tailwind-классов.                                  | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `FormField`                                        | Wrapper «label + control + error + pending» поверх CDK.                     | [05-form-field-integration.md](05-form-field-integration.md)  |
+| `FormWizard`                                       | Многошаговая форма — адаптер потока шагов сборки `createForm({ flow })`.   | [07-form-wizard.md](07-form-wizard.md)                        |
+| `FieldArray` / `FieldArraySection`                | Массив под-форм: узел схемы / секция в JSX.                                 | [08-field-array-section.md](08-field-array-section.md)        |
 | `Box`, `Section`                                   | Контейнеры раскладки: ритм, сетка полей, группы.                            | [11-form-layout.md](11-form-layout.md)                        |
 | `Card`, `Alert`, `Separator`                       | Карточка, плашка, разделитель — вид без ручных классов.                     | [11-form-layout.md](11-form-layout.md)                        |
 | `Collapsible`                                      | Сворачиваемый контейнер для `RenderSchema`.                                 | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
@@ -330,4 +342,8 @@ function App() {
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `Tree`, `ExampleCard`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные проблемы и решения.
+- [07-form-wizard.md](07-form-wizard.md) — `FormWizard` и поток шагов.
+- [08-field-array-section.md](08-field-array-section.md) — `FieldArray` и `FieldArraySection`.
+- [09-input-mask.md](09-input-mask.md) — `InputMask`.
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle полей по селектору.
 - [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.

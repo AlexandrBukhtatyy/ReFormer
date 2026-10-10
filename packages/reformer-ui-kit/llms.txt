@@ -27,8 +27,8 @@
 Под капотом — Tailwind CSS и Radix UI; каждый form-контрол объявляет, как свести к
 своим пропам контракт `value` / `onChange` / `onBlur` `FormControl<T>` (статика
 `reformerAdapter`), поэтому подключение к форме сводится к
-`<FormField control={form.email} />` или к регистрации компонента в `RenderSchema`
-рендерера — сам компонент, без обёрток.
+`<FormField control={form.email} />` или к узлу схемы `{ model: model.$.email, component: Input }`,
+который рисует рендерер, — сам компонент, без обёрток.
 
 В отличие от headless-уровня `@reformer/cdk` (компоненты `FieldArray`,
 `FormWizard`, `FormField` без стилей), `ui-kit` уже имеет:
@@ -50,13 +50,15 @@ Peer-зависимости (должны быть в проекте):
 
 ```json
 {
-  "@reformer/cdk": ">=1.0.0",
-  "@reformer/core": ">=1.1.0",
-  "@reformer/renderer-react": ">=1.0.0",
+  "@reformer/cdk": "*",
+  "@reformer/core": "*",
   "react": "^18.0.0 || ^19.0.0",
   "react-dom": "^18.0.0 || ^19.0.0"
 }
 ```
+
+`@reformer/renderer-react` киту не нужен: компоненты от рендерера не зависят (визард получает
+отрисовку узла пропом). Ставьте рендерер, только если рисуете форму по схеме (`FormRenderer`).
 
 `radix-ui`, `lucide-react`, `clsx`, `tailwind-merge` и `class-variance-authority` —
 обычные зависимости пакета, ставить их отдельно не нужно.
@@ -136,16 +138,19 @@ import { Button } from '@reformer/ui-kit/button';
 
 ## 3. Quick Start
 
-Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
-`createModel` → layout-схема → `createFormFromModel({ model, schema })`; валидация — отдельная
-`defineValidation`, запускаемая `validateModel`). `FormField` самостоятельно
-подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
+Минимальная форма из двух полей с валидацией и отправкой. Сборка — один вызов `createForm`:
+модель из `initial`, схема `(model) => узел`, где узел поля — `{ model: model.$.x, component,
+componentProps }`, и правила `defineValidation` отдельным слоем. Проверку и отправку делает
+`bundle.submit(handler)`. `FormField` сам подцепляет значение, замечания (`issues`) и `pending`
+через `@reformer/cdk`:
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createForm, createFormFromModel } from '@reformer/core';
-import { defineValidation, validate, validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -153,60 +158,65 @@ type RegistrationForm = {
   password: string;
 };
 
-// Валидация — отдельный слой (@reformer/core/validation), НЕ в layout-схеме.
-const registrationValidation = defineValidation<RegistrationForm>(({ model }) => {
+// Правила — отдельный слой (@reformer/core/validation), НЕ в схеме. Правило несёт код, не текст.
+const registrationRules = defineValidation<RegistrationForm>(({ model }) => {
   validate(model.$.email, [required({ code: 'email.required' }), email()]);
   validate(model.$.password, [required({ code: 'password.required' }), minLength(8)]);
 });
 
-function RegistrationPage() {
-  const { model, form } = useMemo(() => {
-    // 1) Модель — источник истины значений.
-    const model = createModel<RegistrationForm>({ email: '', password: '' });
-    // 2) Layout-схема: лист = { value: сигнал модели, component, componentProps? } — без validators.
-    const schema = {
+// Тексты замечаний — словарь формы по кодам (стабильная константа модуля).
+const registrationMessages = defineIssueMessages({
+  'email.required': 'Укажите email',
+  'password.required': 'Придумайте пароль',
+  minLength: 'Не меньше {minLength} символов',
+});
+
+const createRegistrationForm = () =>
+  createForm<RegistrationForm>({
+    initial: { email: '', password: '' },
+    schema: (model) => ({
       children: [
         {
-          value: model.$.email,
+          model: model.$.email,
           component: Input,
           componentProps: { label: 'Email', type: 'email', testId: 'email' },
         },
         {
-          value: model.$.password,
+          model: model.$.password,
           component: InputPassword,
           componentProps: { label: 'Пароль', testId: 'password' },
         },
       ],
-    };
-    // 3) createForm привязывает ноды к сигналам модели → FormGroup.
-    const form = createFormFromModel<RegistrationForm>({ model, schema });
-    return { model, form };
-  }, []);
+    }),
+    validation: registrationRules,
+  });
 
-  const onSubmit = async () => {
-    form.markAsTouched();
-    // 4) Валидация модели внешним раннером (ошибки сам роутит в ноды).
-    //    form.submit()/validate() schema-валидацию НЕ гоняют.
-    const ok = await validateModel(model, registrationValidation);
-    if (!ok) return;
-    console.log('values', model.get());
+function RegistrationPage() {
+  // useFormBundle зовёт фабрику ровно один раз и держит сборку стабильной между рендерами.
+  const registration = useFormBundle(createRegistrationForm);
+  const { form } = registration;
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
+    const outcome = await registration.submit((values) => api.register(values));
+    if (outcome.status === 'submitted') console.log('ok', outcome.result);
   };
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit();
-      }}
-      className="space-y-4 max-w-md"
-    >
-      <FormField control={form.email} />
-      <FormField control={form.password} />
-      <Button type="submit">Зарегистрироваться</Button>
-    </form>
+    <ValidationMessagesProvider messages={registrationMessages}>
+      <form onSubmit={onSubmit} className="space-y-4 max-w-md">
+        <FormField control={form.email} />
+        <FormField control={form.password} />
+        <Button type="submit">Зарегистрироваться</Button>
+      </form>
+    </ValidationMessagesProvider>
   );
 }
 ```
+
+Порядок текста замечания: словарь формы (`ValidationMessagesProvider messages`) → словарь локали
+→ встроенный английский → сам `code`.
 
 ## 4. Контрол в форме: сам компонент
 
@@ -251,7 +261,7 @@ function RegistrationPage() {
 import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
 
 export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
-// схема: { value: model.$.agree, component: MyCheckbox }
+// схема: { model: model.$.agree, component: MyCheckbox }
 ```
 
 Компонент, на который статику не повесить (чужая библиотека целиком), — через
@@ -264,7 +274,7 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 | Name                                               | Purpose                                                                     | Where documented                                              |
 | -------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `Input` / `InputNumber` / `InputSuggest`           | Текстовое поле (`text`/`email`/`tel`/`url`), число, строка с подсказками.   | [02-text-fields.md](02-text-fields.md)                        |
-| `InputMask`                                        | Поле ввода со строковой маской (телефон, дата, ИНН).                        | [02-text-fields.md](02-text-fields.md)                        |
+| `InputMask`                                        | Поле ввода со строковой маской (телефон, дата, ИНН).                        | [09-input-mask.md](09-input-mask.md)                          |
 | `InputPassword`                                    | Поле пароля с переключателем видимости.                                     | [02-text-fields.md](02-text-fields.md)                        |
 | `Textarea`                                         | Многострочное поле.                                                         | [02-text-fields.md](02-text-fields.md)                        |
 | `Checkbox` / `CheckboxWithLabel`                   | Чекбокс; `WithLabel` — с label рядом с контролом.                           | [03-choice-fields.md](03-choice-fields.md)                    |
@@ -277,6 +287,8 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 | `ExampleCard`                                      | Карточка-обёртка для демо в playground.                                     | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `cn`                                               | Утилита для конкатенации Tailwind-классов.                                  | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `FormField`                                        | Wrapper «label + control + error + pending» поверх CDK.                     | [05-form-field-integration.md](05-form-field-integration.md)  |
+| `FormWizard`                                       | Многошаговая форма — адаптер потока шагов сборки `createForm({ flow })`.   | [07-form-wizard.md](07-form-wizard.md)                        |
+| `FieldArray` / `FieldArraySection`                | Массив под-форм: узел схемы / секция в JSX.                                 | [08-field-array-section.md](08-field-array-section.md)        |
 | `Box`, `Section`                                   | Контейнеры раскладки: ритм, сетка полей, группы.                            | [11-form-layout.md](11-form-layout.md)                        |
 | `Card`, `Alert`, `Separator`                       | Карточка, плашка, разделитель — вид без ручных классов.                     | [11-form-layout.md](11-form-layout.md)                        |
 | `Collapsible`                                      | Сворачиваемый контейнер для `RenderSchema`.                                 | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
@@ -350,6 +362,10 @@ function App() {
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `Tree`, `ExampleCard`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные проблемы и решения.
+- [07-form-wizard.md](07-form-wizard.md) — `FormWizard` и поток шагов.
+- [08-field-array-section.md](08-field-array-section.md) — `FieldArray` и `FieldArraySection`.
+- [09-input-mask.md](09-input-mask.md) — `InputMask`.
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle полей по селектору.
 - [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.
 
 ## 8. Components
@@ -400,7 +416,7 @@ function App() {
 
 ```tsx
 {
-  value: model.$.inn,
+  model: model.$.inn,
   component: Input,
   componentProps: { label: 'ИНН', tooltip: '10 цифр для юрлица, 12 — для ИП' },
 }
@@ -436,30 +452,36 @@ interface InputProps extends React.ComponentProps<'input'> {
 
 ### Common Patterns
 
-Email-поле формы (M1: `createModel` → layout-схема с листом
-`{ value: model.$.email, component }` → `createFormFromModel({ model, schema })`; правила — в
-отдельной `defineValidation`, запуск `validateModel`):
+Email-поле формы: сборка `createForm`, узел поля `{ model: model.$.email, component }`; правила —
+в отдельной `defineValidation` (поле `validation` сборки), запуск — `bundle.submit(handler)` или
+`bundle.validate()`:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { Input, FormField } from '@reformer/ui-kit';
 
-const model = createModel<{ email: string }>({ email: '' });
-const schema = {
-  children: [
-    {
-      value: model.$.email,
-      component: Input,
-      componentProps: { type: 'email', label: 'Email', testId: 'email' },
-    },
-  ],
-};
-const validation = defineValidation<{ email: string }>(({ model }) => {
+type Subscribe = { email: string };
+
+const subscribeRules = defineValidation<Subscribe>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
-const form = createFormFromModel<{ email: string }>({ model, schema });
+
+// В React сборку держит useFormBundle(() => createForm(…)); вне React — константа модуля.
+const { form } = createForm<Subscribe>({
+  initial: { email: '' },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.email,
+        component: Input,
+        componentProps: { type: 'email', label: 'Email', testId: 'email' },
+      },
+    ],
+  }),
+  validation: subscribeRules,
+});
 
 // Через FormField значение/ошибки подцепляются автоматически:
 <FormField control={form.email} testId="email" />;
@@ -487,7 +509,7 @@ const form = createFormFromModel<{ email: string }>({ model, schema });
 
 ```tsx
 {
-  value: model.$.age,
+  model: model.$.age,
   component: InputNumber,
   componentProps: { label: 'Возраст', min: 0, testId: 'age' },
 }
@@ -520,14 +542,14 @@ Anti-patterns:
 ```tsx
 // Статика: строки или { value, label? }
 {
-  value: model.$.city,
+  model: model.$.city,
   component: InputSuggest,
   componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
 }
 
 // Серверный поиск — тот же ResourceConfig, что у Select (static / preload / partial)
 {
-  value: model.$.company,
+  model: model.$.company,
   component: InputSuggest,
   componentProps: {
     suggestions: { type: 'partial', pageSize: 20, load: ({ search, page }) => api.companies(search, page) },
@@ -536,7 +558,7 @@ Anti-patterns:
 }
 ```
 
-В JSON-DSL: `"$component": "InputSuggest"` и `"suggestions": ["Москва", "Казань"]` или
+В JSON-DSL: `"component": "$component(InputSuggest)"` и `"suggestions": ["Москва", "Казань"]` или
 `"suggestions": "$dataSource(CITIES)"` — через `$dataSource` можно отдать и `ResourceConfig` с
 функцией `load`.
 
@@ -614,7 +636,7 @@ import { InputMask } from '@reformer/ui-kit';
   значение к формату сами: `/^\d{10}$/` пройдёт, а `/^\+7 \(\d{3}\)…/` — нет.
 - Использовать `mask` для сложных правил (валидация диапазонов, контрольные
   суммы) — `InputMask` только направляет ввод, не валидирует. Валидацию вешать
-  через `validate(model.$.x, [...])` в validation-схеме (запуск `validateModel`).
+  через `validate(model.$.x, [...])` в validation-схеме (поле `validation` сборки `createForm`).
 
 ## 14. InputPassword
 
@@ -653,16 +675,26 @@ import { InputPassword } from '@reformer/ui-kit';
 <InputPassword value={password} onChange={setPassword} showToggle={false} />
 ```
 
-Подтверждение пароля (через `compute-from` / `revalidate-when` на уровне формы):
+Подтверждение пароля — два поля схемы и правило над двумя полями (`cross`) в validation-схеме:
 
 ```tsx
-<InputPassword value={form.password.value} onChange={form.password.setValue} />
-<InputPassword
-  value={form.passwordConfirm.value}
-  onChange={form.passwordConfirm.setValue}
-  placeholder="Повторите пароль"
-/>
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, minLength } from '@reformer/core/validators';
+
+// узлы схемы
+{ model: model.$.password, component: InputPassword, componentProps: { label: 'Пароль' } },
+{ model: model.$.passwordConfirm, component: InputPassword, componentProps: { label: 'Повторите пароль' } },
+
+// правила — поле `validation` сборки
+const passwordRules = defineValidation<SignUp>(({ model, cross }) => {
+  validate(model.$.password, [required(), minLength(8)]);
+  cross(model.$.passwordConfirm, (form) =>
+    form.passwordConfirm === form.password ? null : { code: 'passwordConfirm.mismatch' }
+  );
+});
 ```
+
+Текст `passwordConfirm.mismatch` — в словаре формы (`defineIssueMessages`).
 
 ### Anti-patterns
 
@@ -681,10 +713,10 @@ interface TextareaProps extends React.ComponentProps<'textarea'> {
 }
 ```
 
-| Prop        | Тип      | Default | Описание                                                             |
-| ----------- | -------- | ------- | -------------------------------------------------------------------- |
-| `rows`      | `number` | `3`     | Видимая высота в строках. Resize по вертикали оставлен (`resize-y`). |
-| `maxLength` | `number` | —       | Жёсткое ограничение длины (нативное HTML-поведение).                 |
+| Prop        | Тип      | Default | Описание                                                                                  |
+| ----------- | -------- | ------- | ----------------------------------------------------------------------------------------- |
+| `rows`      | `number` | —       | Нативный атрибут. Высота поля растёт по содержимому (`field-sizing-content`, от `min-h-16`). |
+| `maxLength` | `number` | —       | Жёсткое ограничение длины (нативное HTML-поведение).                                      |
 
 Как и `Input`, standalone `Textarea` эмитит нативное событие; в форме обёртка поля переводит его
 в значение (`e.target.value || null`).
@@ -697,7 +729,7 @@ interface TextareaProps extends React.ComponentProps<'textarea'> {
 import { Textarea } from '@reformer/ui-kit';
 
 {
-  value: model.$.comment,
+  model: model.$.comment,
   component: Textarea,
   componentProps: { label: 'Комментарий', rows: 5, maxLength: 500, placeholder: 'Опишите проблему' },
 }
@@ -711,11 +743,11 @@ import { Textarea } from '@reformer/ui-kit';
 
 ### Anti-patterns
 
-- Передавать `rows={1}` — для одной строки используйте `Input`. Textarea не
-  имеет логики авто-роста.
+- Передавать `rows={1}` ради однострочного поля — для одной строки используйте `Input`.
 - Полагаться на `maxLength` как валидатор: это soft-лимит на ввод; для бизнес-
-  правил (например, `длина <= 500 на русском, <= 1000 на английском`) ставить
-  `validators` в лист схемы (`{ value: model.$.field, component, validators }`).
+  правил (например, `длина <= 500 на русском, <= 1000 на английском`) нужно правило в
+  validation-схеме: `validate(model.$.comment, [maxLength(500)])`. Ключа `validators` у узла
+  схемы нет — узел несёт только компонент и его пропсы.
 
 ## 16. See also
 
@@ -839,16 +871,17 @@ interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
 label сверху):
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
-const model = createModel<{ accept: boolean }>({ accept: false });
-const schema = {
-  children: [
-    { value: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
-  ],
-};
-const form = createFormFromModel<{ accept: boolean }>({ model, schema });
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false },
+  schema: (model) => ({
+    children: [
+      { model: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
+    ],
+  }),
+});
 
 <FormField control={form.accept} testId="accept" />;
 ```
@@ -946,19 +979,20 @@ const LOAN_TYPES = [
 В составе формы:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 
-const model = createModel<{ loanType: string }>({ loanType: 'consumer' });
-const schema = {
-  children: [
-    {
-      value: model.$.loanType,
-      component: RadioGroupOptions,
-      componentProps: { options: LOAN_TYPES },
-    },
-  ],
-};
-const form = createFormFromModel<{ loanType: string }>({ model, schema });
+const { form } = createForm<{ loanType: string }>({
+  initial: { loanType: 'consumer' },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.loanType,
+        component: RadioGroupOptions,
+        componentProps: { options: LOAN_TYPES },
+      },
+    ],
+  }),
+});
 
 <FormField control={form.loanType} testId="loan-type" />;
 ```
@@ -1138,25 +1172,26 @@ Grouped options:
 В составе формы:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 
-const model = createModel<{ city: string }>({ city: '' });
-const schema = {
-  children: [
-    {
-      value: model.$.city,
-      component: SelectAsync,
-      componentProps: {
-        placeholder: 'Город',
-        options: [
-          { value: 'msk', label: 'Москва' },
-          { value: 'spb', label: 'Санкт-Петербург' },
-        ],
+const { form } = createForm<{ city: string | null }>({
+  initial: { city: null },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.city,
+        component: SelectAsync,
+        componentProps: {
+          placeholder: 'Город',
+          options: [
+            { value: 'msk', label: 'Москва' },
+            { value: 'spb', label: 'Санкт-Петербург' },
+          ],
+        },
       },
-    },
-  ],
-};
-const form = createFormFromModel<{ city: string }>({ model, schema });
+    ],
+  }),
+});
 
 <FormField control={form.city} testId="city" />;
 ```
@@ -1207,9 +1242,9 @@ const model = createModel({ tags: null as string[] | null });
 ```
 
 Массив в модели бывает двух видов, и решает это **схема**, а не данные: узел
-`{ value: model.$.tags, component }` делает его ОДНИМ значением поля (мультивыбор, теги, файлы),
-узел `{ array: model.items, item }` — набором под-форм. Массив, к которому в схеме ничего не
-привязано, в форму не попадает.
+`{ model: model.$.tags, component }` делает его ОДНИМ значением поля (мультивыбор, теги, файлы),
+узел `{ model: model.$.items, component: FieldArray, item }` — набором под-форм. Массив, к которому
+в схеме ничего не привязано, в форму не попадает.
 
 Что хранит модель на пустом выборе, зависит от начального значения: поле с `[]` хранит `[]`
 (контрол отдаёт `null`, узел-массив приводит его к `[]`), поле с `null` — `null`. Выбирайте
@@ -1218,30 +1253,41 @@ const model = createModel({ tags: null as string[] | null });
 ### Использование в схеме
 
 ```typescript
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { ToggleGroupMulti } from '@reformer/ui-kit';
 import { ComboboxMulti } from '@reformer/ui-kit/combobox'; // combobox — только subpath
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
-const schema = {
-  tags: {
-    // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
-    value: model.$.tags,
-    component: ToggleGroupMulti,
-    componentProps: {
-      label: 'Теги',
-      options: [
-        { value: 'ru', label: 'Россия' },
-        { value: 'by', label: 'Беларусь' },
-      ],
-      maxItems: 3,
-    },
-  },
-};
+type Form = { tags: string[] };
 
-// Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
-const validation = defineValidation<Form>(({ model }) => {
+const tagsSchema = (model: FormModel<Form>): FormSchemaNode => ({
+  children: [
+    {
+      // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
+      model: model.$.tags,
+      component: ToggleGroupMulti,
+      componentProps: {
+        label: 'Теги',
+        options: [
+          { value: 'ru', label: 'Россия' },
+          { value: 'by', label: 'Беларусь' },
+        ],
+        maxItems: 3,
+      },
+    },
+  ],
+});
+
+// Правила — отдельной схемой над моделью: у узла схемы ключа `validators` нет.
+const tagsRules = defineValidation<Form>(({ model }) => {
   validate(model.$.tags, [required(), maxLength(3)]);
+});
+
+const { form } = createForm<Form>({
+  initial: { tags: [] },
+  schema: tagsSchema,
+  validation: tagsRules,
 });
 ```
 
@@ -1265,14 +1311,18 @@ const validation = defineValidation<Form>(({ model }) => {
   `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
   пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
   поискового запроса или перезагрузки источника.
-- **Ошибка вспыхивает посреди выбора** — ожидаемо: `FormControl.setValue` взводит `dirty`
-  безусловно, без сравнения, а `shouldShowError = invalid && (touched || dirty)`. Оставляйте
-  `updateOn: 'blur'` (значение по умолчанию) и не стройте логику на `dirty`.
+- **Ошибка вспыхивает посреди выбора** — так бывает при живой проверке по изменению
+  (`validation: { rules, strategy: 'change' }` либо `afterFirstSubmit` с `liveAfterSubmit:
+  'change'`): каждый пункт — новое значение, `FormControl.setValue` взводит `dirty` безусловно, а
+  `shouldShowError = invalid && (touched || dirty)`. Для мультивыбора берите `strategy: 'blur'`
+  (`liveAfterSubmit: 'blur'`) — `onBlur` списков приходит на закрытии поповера — и не стройте
+  логику на `dirty`. По умолчанию (`strategy: 'submit'`) живой проверки нет вовсе.
 
 ### Anti-patterns
 
-- `value: model.tags` вместо `value: model.$.tags` — value-фасад массива не ручка значения, узел
-  не распознаётся как поле (в dev-режиме `createForm` об этом предупреждает).
+- `model: model.tags` вместо `model: model.$.tags` — value-фасад массива не ручка значения, узел
+  не распознаётся как поле (в dev-режиме `createForm` об этом предупреждает). Ключа `value:` у
+  узла схемы нет — привязка только `model:`.
 - Привязка через `model.signalAt('tags')!` — рабочая, но лишняя: `model.$.tags` типизирован и не
   требует `!`.
 - Мутация массива на месте: `arr.push(x); onChange(arr)` — preact-сигнал бэйлится по `!==`, UI не
@@ -1354,7 +1404,7 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 Выбор одного файла из объявленного дерева:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import { ComboboxTree } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
@@ -1372,21 +1422,24 @@ const FILES: TreeNode[] = [
   { id: 'package.json', label: 'package.json' },
 ];
 
-const model = createModel<{ entry: string | null }>({ entry: null });
-const schema = {
-  entry: {
-    value: model.$.entry,
-    component: ComboboxTree,
-    componentProps: {
-      label: 'Точка входа',
-      nodes: FILES,
-      defaultExpandedIds: ['src'],
-      clearable: true,
-      testId: 'entry',
-    },
-  },
-};
-const form = createFormFromModel<{ entry: string | null }>({ model, schema });
+const { form } = createForm<{ entry: string | null }>({
+  initial: { entry: null },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.entry,
+        component: ComboboxTree,
+        componentProps: {
+          label: 'Точка входа',
+          nodes: FILES,
+          defaultExpandedIds: ['src'],
+          clearable: true,
+          testId: 'entry',
+        },
+      },
+    ],
+  }),
+});
 
 <FormField control={form.entry} testId="entry" />;
 ```
@@ -1395,36 +1448,43 @@ const form = createFormFromModel<{ entry: string | null }>({ model, schema });
 validation-схеме:
 
 ```typescript
+import { createForm } from '@reformer/core';
+import type { TreeNode } from '@reformer/ui-kit';
 import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 type Form = { attachments: string[] };
 
-const model = createModel<Form>({ attachments: [] });
-const schema = {
-  attachments: {
-    value: model.$.attachments,
-    component: ComboboxTreeMulti,
-    componentProps: {
-      label: 'Файлы заявки',
-      // Уровень читается при первом раскрытии ветки; null — верхний уровень.
-      loadChildren: (node) => fs.list(node?.id ?? '/'),
-      maxItems: 5,
-      testId: 'attachments',
-    },
-  },
-};
-
-const validation = defineValidation<Form>(({ model }) => {
+const attachmentsRules = defineValidation<Form>(({ model }) => {
   validate(model.$.attachments, [required(), maxLength(5)]);
+});
+
+const { form } = createForm<Form>({
+  initial: { attachments: [] },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.attachments,
+        component: ComboboxTreeMulti,
+        componentProps: {
+          label: 'Файлы заявки',
+          // Уровень читается при первом раскрытии ветки; null — верхний уровень.
+          loadChildren: (node: TreeNode | null) => fs.list(node?.id ?? '/'),
+          maxItems: 5,
+          testId: 'attachments',
+        },
+      },
+    ],
+  }),
+  validation: attachmentsRules,
 });
 ```
 
 ### Anti-patterns
 
-- Массив мульти без привязки компонента в схеме (или `value: model.attachments` вместо
-  `model.$.attachments`) — поля в форме нет; симптомы разобраны в
+- Массив мульти без привязки компонента в схеме (или `model: model.attachments` вместо
+  `model: model.$.attachments`) — поля в форме нет; симптомы разобраны в
   [06-troubleshooting.md](06-troubleshooting.md), пункт 12.
 - `minLength(1)` вместо `required()` для обязательности nullable-поля — на `null` правило выходит
   раньше проверки.
@@ -1620,7 +1680,7 @@ interface AsyncBoundaryProps<T = unknown> {
 | `load`        | `(signal) => Promise<T>` | Загрузчик. Включает self-managed режим. Прокиньте `signal` в `fetch` — иначе отменённый запрос висит. |
 | `loadKey`     | `unknown`               | Ключ перезапуска (обычно id записи). Сравнение по `Object.is` — передавайте примитив.            |
 | `enabled`     | `boolean`               | `false` → `idle`, загрузка не стартует. Режим создания записи.                                   |
-| `onSuccess`   | `(data: T) => void`     | Побочный эффект после успеха — например `form.patchValue(data)`.                                 |
+| `onSuccess`   | `(data: T) => void`     | Побочный эффект после успеха — например `model.patch(data)`.                                     |
 | `status`      | `AsyncStatus`           | Состояние в controlled-режиме. `idle` — загрузка не запускалась, показываются children.          |
 | `error`       | `ReactNode \| null`     | Текст ошибки. Идёт во встроенный блок и в render-функцию `errorSlot`.                           |
 | `onRetry`     | `() => void`            | Повтор загрузки. Без него кнопка «Повторить» не рендерится.                                     |
@@ -1638,25 +1698,29 @@ interface AsyncBoundaryProps<T = unknown> {
 Self-managed — состояние ведёт сам компонент (рекомендуемый способ):
 
 ```tsx
+import { useFormBundle } from '@reformer/core/react';
 import { AsyncBoundary } from '@reformer/ui-kit';
 
-function ApplicationPage({ applicationId, form }: Props) {
+function ApplicationPage({ applicationId }: Props) {
+  const credit = useFormBundle(createCreditForm);
   return (
     <AsyncBoundary
       load={(signal) => loadApplication(applicationId, signal)}
       loadKey={applicationId}
       enabled={applicationId !== null}
-      onSuccess={(data) => form.patchValue(data)}
+      // Частичное обновление модели: вложенные группы сливаются, массивы заменяются целиком.
+      onSuccess={(data) => credit.model.patch(data)}
       delayMs={200}
     >
-      <CreditForm form={form} />
+      <CreditForm form={credit.form} />
     </AsyncBoundary>
   );
 }
 ```
 
 Ни `useState`, ни `useEffect` не нужны: статус, отмена запроса при смене
-`applicationId`, кнопка «Повторить» и `idle` для режима создания — внутри компонента.
+`applicationId`, кнопка «Повторить» и `idle` для режима создания — внутри компонента. Значения
+пишутся в модель (`model.patch` / `model.set`), а не в ноды формы.
 
 Перезагрузка снаружи — через `ref`:
 
@@ -1705,11 +1769,6 @@ Controlled — когда загрузкой владеет кто-то друг
   фокус и читается скринридером. Компонент скрывает её сам, когда `onRetry` не задан.
 - Нужен полный контроль над составом состояний — берите headless-версию из
   `@reformer/cdk/async-boundary`, а не копируйте стилизованную.
-
-### Anti-patterns
-
-- Передавать в `LoadingComponent` готовый `<div>` (ReactNode) вместо
-  компонента — будет ошибка типов; нужно `() => <div>...</div>`.
 - Использовать `AsyncBoundary` вместо `Suspense` для React-Suspense-данных —
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
@@ -2015,7 +2074,7 @@ interface FormFieldProps {
 
 | Prop        | Тип              | Описание                                                                                                                                                     |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`   | `FormControl<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
+| `control`   | `FormControl<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `issues` / `shouldShowError`, `pending`, `disabled`.                                     |
 | `className` | `string`         | Класс корневой `<div>`-обёртки.                                                                                                                              |
 | `testId`    | `string`         | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
 | `direction` | `'col' \| 'row'` | Раскладка подписи и контрола: `'col'` (по умолчанию) — подпись над контролом, `'row'` — слева от него. См. сценарий 5.                                       |
@@ -2043,7 +2102,7 @@ interface FormFieldProps {
 
 ```tsx
 {
-  value: model.$.email,
+  model: model.$.email,
   component: Input,
   componentProps: {
     label: 'Email',
@@ -2084,27 +2143,34 @@ NativeSelectMulti, аватар) иконка встаёт справа от к�
 Самый частый сценарий: ручная форма с `FormField`-ами для каждого поля.
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, email } from '@reformer/core/validators';
 import { Button, FormField, Input, SelectAsync } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
-  country: string;
+  country: string | null;
 };
 
-function RegistrationPage() {
-  const form = useMemo(() => {
-    const model = createModel<RegistrationForm>({ email: '', country: '' });
-    const schema = {
+const registrationRules = defineValidation<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+  validate(model.$.country, [required()]);
+});
+
+const createRegistrationForm = () =>
+  createForm<RegistrationForm>({
+    initial: { email: '', country: null },
+    schema: (model) => ({
       children: [
         {
-          value: model.$.email,
+          model: model.$.email,
           component: Input,
           componentProps: { label: 'Email', placeholder: 'you@example.com', testId: 'email' },
         },
         {
-          value: model.$.country,
+          model: model.$.country,
           component: SelectAsync,
           componentProps: {
             label: 'Страна',
@@ -2116,12 +2182,21 @@ function RegistrationPage() {
           },
         },
       ],
-    };
-    return createFormFromModel<RegistrationForm>({ model, schema });
-  }, []);
+    }),
+    validation: registrationRules,
+  });
+
+function RegistrationPage() {
+  const registration = useFormBundle(createRegistrationForm);
+  const { form } = registration;
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await registration.submit((values) => api.register(values));
+  };
 
   return (
-    <form className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       <FormField control={form.email} testId="email" />
       <FormField control={form.country} testId="country" />
       <Button type="submit">Регистрация</Button>
@@ -2130,8 +2205,12 @@ function RegistrationPage() {
 }
 ```
 
-`Label` берётся из `componentProps.label` через `CdkFormField.Label`. `error`
-автоматически появляется под полем после `validate()` или `blur()`.
+`Label` берётся из `componentProps.label` через `CdkFormField.Label`. Ошибка появляется под полем,
+когда у ноды есть блокирующие замечания и поле `touched` или `dirty` (`shouldShowError`): после
+`bundle.submit()` / `bundle.validate()` (они помечают поля `touched`) либо при живой проверке —
+`validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`. Текст замечания — по
+коду из словаря формы (`ValidationMessagesProvider messages` из `@reformer/cdk`), локали или
+встроенного английского.
 
 ### 2. Как `fieldWrapper` в `FormRenderer`
 
@@ -2140,38 +2219,41 @@ function RegistrationPage() {
 роли — он использует тот же контракт `FormControl`, что и сам рендерер.
 
 ```tsx
-import { useMemo } from 'react';
-import { createFormFromModel } from '@reformer/core';
-import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
 import { FormField, Input, InputNumber, Section } from '@reformer/ui-kit';
-import { createCreditApplicationModel } from './schemas/model';
+import { createCreditApplicationModel } from './model/model';
+
+const applicationSchema = (model: FormModel<CreditApplication>): FormSchemaNode => ({
+  component: Section,
+  componentProps: { title: 'Заявка', className: 'space-y-4' },
+  children: [
+    { model: model.$.email, component: Input, componentProps: { testId: 'email' } },
+    { model: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
+    { model: model.$.amount, component: InputNumber, componentProps: { testId: 'amount' } },
+  ],
+});
 
 function CreditApplicationPage() {
-  const { form, schema } = useMemo(() => {
-    // M1: модель — источник истины; листья схемы ссылаются на её сигналы.
-    const model = createCreditApplicationModel();
-    const schema = createRenderSchema<CreditApplication>(() => ({
-      component: Section,
-      componentProps: { title: 'Заявка', className: 'space-y-4' },
-      children: [
-        { value: model.$.email, component: Input, componentProps: { testId: 'email' } },
-        { value: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
-        { value: model.$.amount, component: InputNumber, componentProps: { testId: 'amount' } },
-      ],
-    }));
-    const form = createFormFromModel<CreditApplication>({ model, schema });
-    return { form, schema };
-  }, []);
+  const application = useFormBundle(() =>
+    createForm<CreditApplication>({
+      model: createCreditApplicationModel(),
+      schema: applicationSchema,
+    })
+  );
 
   // settings.fieldWrapper применяется к каждому field-узлу автоматически.
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+  return <FormRenderer form={application} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-`testId` рендерер берёт из `componentProps.testId` листа schema:
+`testId` рендерер выводит из пути модели (`model.$.<path>`, точки → дефисы), а
+`componentProps.testId` узла его переопределяет:
 
 ```tsx
-{ value: itemModel.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
+// узел в разметке строки массива: item: (row) => ({ children: [...] })
+{ model: row.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
 // → <FormField control={...} testId="existingLoan-bank" />
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
@@ -2232,20 +2314,21 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 > `@reformer/ui-kit/fields`, — иначе подпись задвоится молча.
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
-const model = createModel<{ accept: boolean }>({ accept: false });
-const schema = {
-  children: [
-    {
-      value: model.$.accept,
-      component: CheckboxWithLabel,
-      componentProps: { label: 'Принимаю условия' },
-    },
-  ],
-};
-const form = createFormFromModel<{ accept: boolean }>({ model, schema });
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.accept,
+        component: CheckboxWithLabel,
+        componentProps: { label: 'Принимаю условия' },
+      },
+    ],
+  }),
+});
 
 <FormField control={form.accept} testId="accept" />;
 // рендерится только чекбокс с label справа + error снизу.
@@ -2305,18 +2388,18 @@ import { FormField } from '@reformer/ui-kit';
 // Объявляется на уровне модуля: новая ссылка на каждый рендер перемонтировала бы все поля.
 const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="row" />;
 
-// Вся форма в ряд:
-<FormRenderer form={form} settings={{ fieldWrapper: RowField }} />;
+// Вся форма в ряд (`bundle` — сборка createForm):
+<FormRenderer form={bundle} settings={{ fieldWrapper: RowField }} />;
 
 // Либо одно поле — через componentProps.fieldWrapper листа схемы:
-{ value: model.$.email, component: Input, componentProps: { label: 'Email', fieldWrapper: RowField } }
+{ model: model.$.email, component: Input, componentProps: { label: 'Email', fieldWrapper: RowField } }
 ```
 
 ## 34. Anti-patterns
 
-- Передавать `control` другого типа (`FormGroup`, `ArrayNode`) — ожидается
-  именно `FormControl<T>`. Для массивов используй `FieldArray.Root` из CDK; для
-  groups — отдельные `FormField` на каждое лиственное поле.
+- Передавать `control` другого типа (`FormGroup`, `FormArray`) — ожидается
+  именно `FormControl<T>`. Для массивов — `FieldArraySection` кита или `FieldArray.Root` из CDK; для
+  групп — отдельные `FormField` на каждое лиственное поле.
 - Динамически менять `control` (`<FormField control={isAdvanced ? form.x : form.y} />`)
   — `React.memo` не пересоздаст внутренний `Root`, но сам `Root` сменит контекст,
   что может привести к лишнему re-mount контрола. Предпочтительно условно
@@ -2352,7 +2435,7 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
 **Решение.** Числовое поле — отдельный компонент `InputNumber` (registry `InputNumber`):
 
 ```tsx
-{ value: model.$.age, component: InputNumber, componentProps: { label: 'Возраст', min: 0 } }
+{ model: model.$.age, component: InputNumber, componentProps: { label: 'Возраст', min: 0 } }
 // в модель приходит number | null. Пустой ввод → null. Частичный ввод («-», «.») не эмитится.
 ```
 
@@ -2366,14 +2449,15 @@ interface Form {
 
 ## 37. 2. `SelectAsync` не показывает options (пустой дропдаун)
 
-**Симптом.** Триггер открывается, но в нём `'No options available'`.
+**Симптом.** Триггер открывается, но в нём `No options found.` (или «Failed to load options.» с
+кнопкой «Retry»).
 
 **Причины и решения:**
 
-- **Передан `resource`, но не передан `options`** — `resource.load({})`
-  упал с ошибкой и поймался `.catch(() => setResourceOptions([]))`. Открой
-  DevTools Network и посмотри статус. Скорее всего бек вернул не тот формат
-  (`items: [...]` обязательно, `id` обязательно у каждого item).
+- **Передан `resource`, но не передан `options`** — `resource.load()` упал или вернул пусто:
+  при ошибке список показывает «Failed to load options.» и повтор. Открой DevTools Network и
+  посмотри статус. Скорее всего бек вернул не тот формат (`items: [...]` обязательно, `id`
+  обязательно у каждого item).
 
 - **Передан `options`, но `value` не строка** — внутри `SelectAsync` все `value`
   приводятся к строке (`String(opt.value)`). Если ты передаёшь
@@ -2461,16 +2545,17 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
   модели.
 
 ```typescript
-const model = createModel<{ accept: boolean }>({ accept: false }); // false, не undefined!
-const schema = {
-  children: [{ value: model.$.accept, component: CheckboxWithLabel }],
-};
-const form = createFormFromModel<{ accept: boolean }>({ model, schema });
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false }, // false, не undefined!
+  schema: (model) => ({
+    children: [{ model: model.$.accept, component: CheckboxWithLabel }],
+  }),
+});
 ```
 
 ## 41. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
 
-**Симптом.** Поле невалидно, `form.email.error` есть, но в DOM ошибка не
+**Симптом.** Поле невалидно, в `form.email.issues.value` замечание есть, но в DOM ошибка не
 рендерится.
 
 **Причины.**
@@ -2478,25 +2563,25 @@ const form = createFormFromModel<{ accept: boolean }>({ model, schema });
 - Используется headless-`FormField` из `@reformer/cdk` без подключения
   `<FormField.Error>`. ui-kit-`FormField` всегда вставляет `Error`, поэтому
   чаще всего проблема — путаница импортов.
-- Поле не помечено как `touched`. По умолчанию `error` вычисляется только
-  после `blur` или `markAsTouched`. Если submit-кнопка не вызывает
-  `form.markAsTouched()` — пользователь вообще не увидит ошибку.
+- Поле не тронуто. Ошибка видна, только когда `shouldShowError = invalid && (touched || dirty)`.
+  Правила, запущенные в обход сборки (свой `runValidation` без `applyValidationResult(…, { touch: true })`),
+  ставят замечания, но не помечают поля `touched` — пользователь их не увидит.
+- Правила вообще не запускались. По умолчанию (`strategy: 'submit'`) живой проверки нет: замечания
+  появляются после `bundle.submit()` / `bundle.validate()`.
 
-**Решение.** На submit обязательно помечаем touched и валидируем модель по
-validation-схеме (M1: `validateModel(model, validationSchema)` из
-`@reformer/core/validation` — именно он прогоняет правила и роутит ошибки в ноды;
-`form.submit()`/`validate()` schema-валидацию НЕ гоняют):
+**Решение.** Правила — в сборке (`createForm({ validation })` или правила шагов `flow`), а отправка —
+через `bundle.submit(handler)`: один прогон всех правил, замечания разнесены по нодам, при провале
+поля помечены `touched`, обработчик не вызывается:
 
 ```tsx
-import { validateModel } from '@reformer/core/validation';
-
 const onSubmit = async () => {
-  form.markAsTouched();
-  const ok = await validateModel(model, validationSchema); // Promise<boolean>
-  if (!ok) return;
-  // ... отправка (значения — из model.get())
+  const outcome = await bundle.submit((values) => api.send(values));
+  if (outcome.status === 'invalid') return; // ошибки уже на экране
 };
 ```
+
+Нужна живая проверка — стратегия сборки: `validation: { rules, strategy: 'blur' }`. Методов
+`form.submit()` / `form.validate()` у нод нет — проверку и отправку держит сборка.
 
 И импорт:
 
@@ -2524,8 +2609,10 @@ import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 (ведь выбор — это явное взаимодействие):
 
 ```tsx
+const city = useFormControlValue(form.city); // @reformer/core/react: значение для рендера
+
 <SelectAsync
-  value={form.city.value}
+  value={city}
   onChange={(v) => {
     form.city.setValue(v);
     form.city.markAsTouched(); // принудительно помечаем touched
@@ -2619,14 +2706,21 @@ const hasValue = Boolean(value);
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
 
-**Причина.** `SelectAsync` (registry `Select`) ждёт `options: Array<{value, label, group?}>`, а из
-реестра приходит уже обработанная строкой ссылка `'$LOAN_TYPES'`. Нужен
-правильный синтаксис dataSource-ссылки в реестре.
+**Причина.** `SelectAsync` (registry `Select`) ждёт `options: Array<{value, label, group?}>`, а
+`'$LOAN_TYPES'` — не оператор, а обычная строка: голые строки-ссылки в документе не резолвятся.
 
-**Решение.** Проверь convention для dataSource-ссылок в
-[`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
-Внутри `SelectAsync` дальнейших магий нет — он просто читает `directOptions`
-один в один.
+**Решение.** Справочник адресуется только оператором `$dataSource(...)`:
+
+```jsonc
+{
+  "model": "$model(loanType)",
+  "component": "$component(Select)",
+  "componentProps": { "options": "$dataSource(LOAN_TYPES)" },
+}
+```
+
+Подробнее — [`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
+Внутри `SelectAsync` дальнейших магий нет — он читает `options` один в один.
 
 ## 47. 12. Мультивыбор не рендерится, а submit молча не проходит
 
@@ -2636,14 +2730,15 @@ const hasValue = Boolean(value);
 срабатывает, и **ни одной** ошибки на экране нет.
 
 **Причина.** У массива в форме нет ноды поля. Массив становится полем, только когда схема
-привязывает к нему компонент узлом `{ value: model.$.<путь>, component }`; без такой привязки
-`createForm` его пропускает, и реестр сигнал→нода пуст. Дальше `validateModel` возвращает `false`
-и блокирует submit, но маршрутизация ошибок делает `getNodeForSignal(sig)?.setIssues(...)` —
-optional chaining без `else`, поэтому показать ошибку некому.
+привязывает к нему компонент узлом `{ model: model.$.<путь>, component }`; без такой привязки
+`createForm` его пропускает, и реестр сигнал→нода пуст. Дальше проверка находит замечание и
+`bundle.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
+`getNodeForSignal(sig)?.setIssues(...)` — optional chaining без `else`, поэтому показать ошибку
+некому.
 
 Привязки не оказывается в трёх случаях:
 
-- в `value` стоит value-фасад массива `model.tags`, а не ручка значения `model.$.tags` (в
+- в `model` узла стоит value-фасад массива `model.tags`, а не ручка значения `model.$.tags` (в
   dev-режиме `createForm` пишет об этом предупреждение);
 - узел поля не попал в схему, с которой собрана форма (собран другой билдер, поле под условием);
 - `@reformer/core` старше версии, где массив стал значением поля, — там начальное `[]` убирало
@@ -2652,12 +2747,13 @@ optional chaining без `else`, поэтому показать ошибку н
 **Лечение.**
 
 ```typescript
-const model = createModel({ tags: [] as string[] });
-
-const schema = {
-  tags: { value: model.$.tags, component: SelectMulti }, // ручка значения, не model.tags
-};
-validate(model.$.tags, [required()]);
+createForm<{ tags: string[] }>({
+  initial: { tags: [] },
+  schema: (model) => ({
+    children: [{ model: model.$.tags, component: SelectMulti }], // ручка значения, не model.tags
+  }),
+  validation: tagsRules, // validate(model.$.tags, [required()])
+});
 ```
 
 Смежное: префилл выбранных значений допустим и до, и после `createForm`; если он пришёл после,
@@ -2728,34 +2824,71 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту; `Tree` в 04, его варианты комбобокса в 03.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 
-## 52. В схеме формы
+## 52. Поток шагов
 
 **FormWizard — multi-step форма**
 
 `@reformer/ui-kit/form-wizard` — стилизованный wrapper поверх headless
 `@reformer/cdk/form-wizard`. Один компонент покрывает все три флоу:
-TS-схема, renderer-react RenderSchema, renderer-json.
+TS-схема (renderer-react), JSON (renderer-json) и разметка в JSX («React руками»).
 
-Визард — обычный узел схемы. Шаги лежат в его `children`, форму и валидацию он берёт из сборки
-`createForm` сам. Прикладная обёртка, которая подставляла `form`, `config` и `steps`, не нужна.
+Шаги, их порядок и проверку держит не визард, а **поток шагов** сборки `createForm({ flow })`
+(`FormFlow` из `@reformer/core`). Визард — адаптер потока: рисует индикатор, тело текущего шага и
+кнопки, а «Далее», «Назад» и переход по индикатору зовут переходы потока. Поток визард берёт из
+пропа `flow`, иначе из сборки в контексте (её ставит `FormRenderer`); без того и другого он строит
+позиционный поток **без правил** — «Далее» тогда ничего не проверяет.
+
+```ts
+import { createForm } from '@reformer/core';
+
+createForm<CreditForm>({
+  model: createCreditModel(),
+  schema: creditSchema,
+  validation: { extras: crossStepRules }, // правила вне шагов — проверяются только целиком
+  flow: {
+    steps: [
+      { id: 'loan', rules: loanRules }, // id = selector узла шага в схеме
+      { id: 'contacts', rules: contactsRules },
+      { id: 'confirm' }, // шаг без правил: без `rules` (или `rules: null`)
+    ],
+  },
+});
+```
+
+- **`id` шага** — его идентификатор и одновременно `selector` узла шага в схеме. Повтор `id` —
+  исключение при сборке.
+- **«Далее»** проверяет правила текущего шага (`flow.next()`): при замечаниях поток остаётся на
+  шаге, поля шага помечаются `touched` и показывают ошибки.
+- **Отправка** проверяет всё: полный набор собирается из правил шагов и `validation.extras`
+  (либо задаётся целиком `validation.rules`).
+- **Переход по индикатору** — `flow.goTo(id)`: первый шаг доступен всегда, остальные — после
+  прохождения предыдущего (иначе переход остаётся с причиной `locked`).
+- Правила — `defineValidation` без текстов: правило несёт `code`, текст — словарь
+  `defineIssueMessages` в `ValidationMessagesProvider messages` (`@reformer/cdk`).
+
+## 53. В схеме формы (renderer-react)
+
+Визард — обычный узел схемы. Шаги лежат в его `children`, форму и поток он берёт из сборки
+`createForm` сам. Прикладная обёртка, которая подставляла бы `form`, `flow` или `steps`, не нужна.
 
 ```tsx
-import { createForm, type FormModel } from '@reformer/core';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
 import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
 import { FormRenderer } from '@reformer/renderer-react';
 import { Step } from '@reformer/cdk/form-wizard';
-import { FormField, FormWizard, Input } from '@reformer/ui-kit';
+import { FormField, FormWizard, Input, InputNumber } from '@reformer/ui-kit';
 
-const creditSchema = (model: FormModel<CreditForm>) => ({
+const creditSchema = (model: FormModel<CreditForm>): FormSchemaNode => ({
   selector: 'wizard',
   component: FormWizard,
+  componentProps: { submitLabel: 'Отправить заявку' },
   children: [
     {
-      selector: 'loan', // ключ правил шага в validation.steps
+      selector: 'loan', // id шага в потоке сборки
       component: Step,
       componentProps: { title: 'Кредит', icon: '💰' },
-      children: [{ model: model.$.loanAmount, component: Input }],
+      children: [{ model: model.$.loanAmount, component: InputNumber }],
     },
     {
       selector: 'contacts',
@@ -2766,360 +2899,341 @@ const creditSchema = (model: FormModel<CreditForm>) => ({
   ],
 });
 
-const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema }) => {
+const creditBehavior = defineFormBehavior<CreditForm>(({ schema }) => {
   // Обработчик получает значения формы; зовётся только после успешной проверки всей формы.
   onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => api.submit(values));
 });
 
+function CreditPage() {
+  const credit = useFormBundle(() =>
+    createForm<CreditForm>({
+      model: createCreditModel(),
+      schema: creditSchema,
+      behavior: creditBehavior,
+      validation: { extras: crossStepRules },
+      flow: {
+        steps: [
+          { id: 'loan', rules: loanRules },
+          { id: 'contacts', rules: contactsRules },
+        ],
+      },
+    })
+  );
+
+  return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
+}
+```
+
+- **Шаг схемы ↔ шаг потока — по `selector`.** Визард рисует шаги в порядке потока
+  (`flow.steps`), а не в порядке узлов: перестановка узлов в схеме ничего не сбивает.
+- **Расхождение видно в dev.** Шаг потока без узла и узел шага, `selector` которого нет в потоке,
+  дают предупреждение (`[ui-kit] FormWizard: шаги схемы и шаги потока расходятся`), а `createForm`
+  предупреждает о шагах потока без узла в дереве (когда с деревом совпала только часть шагов).
+  Иначе опечатка в селекторе молча оставила бы шаг без разметки.
+- Заголовок и иконка шага — `componentProps.title` и `componentProps.icon` узла шага; подпись
+  кнопки отправки — `componentProps.submitLabel` визарда.
+- **Отправка** — `onComponentEvent(schema.node('wizard'), 'onSubmit', handler)` в поведении формы.
+  Внутри сборки кнопка идёт через `bundle.submit`: обработчик получает значения и зовётся только
+  после успешной проверки, при замечаниях поля помечаются `touched`.
+- **Навигация из поведения** — поток из области поведения:
+
+  ```ts
+  import { defineFormBehavior, renderEffect } from '@reformer/core/behaviors';
+
+  defineFormBehavior<CreditForm>(({ model, schema, flow }) => {
+    renderEffect(schema, () => {
+      if (model.loanType === 'mortgage') flow?.goTo('loan');
+    });
+  });
+  ```
+
+## 54. JSON (renderer-json)
+
+Тот же узел — в документе формата 2: шаги — дети визарда, `selector` шага совпадает с `id` в
+потоке. Поток и поведение остаются в коде сборки, в JSON их нет.
+
+```jsonc
+{
+  "selector": "wizard",
+  "component": "$component(FormWizard)",
+  "componentProps": { "submitLabel": "Отправить заявку" },
+  "children": [
+    {
+      "selector": "loan",
+      "component": "$component(Step)",
+      "componentProps": { "title": "Кредит", "icon": "💰" },
+      "children": [
+        { "model": "$model(loanAmount)", "component": "$component(InputNumber)" },
+        { "model": "$model(loanTerm)", "component": "$component(InputNumber)" },
+      ],
+    },
+    {
+      "selector": "contacts",
+      "component": "$component(Step)",
+      "componentProps": { "title": "Контакты", "icon": "📞" },
+      "children": [{ "model": "$model(phone)", "component": "$component(Input)" }],
+    },
+  ],
+}
+```
+
+```ts
+// registry.ts
+import { defineRegistry } from '@reformer/renderer-json';
+import { Step } from '@reformer/cdk/form-wizard';
+import { FormWizard } from '@reformer/ui-kit';
+
+export const registry = defineRegistry((reg) => {
+  reg.component('FormWizard', FormWizard); // библиотечный визард, без обёртки
+  reg.component('Step', Step);
+});
+
+// сборка: документ + реестр, поток — как в TS-схеме
 const credit = useFormBundle(() =>
   createForm<CreditForm>({
     model: createCreditModel(),
-    schema: creditSchema,
+    schema: creditJson,
+    registry,
     behavior: creditBehavior,
-    validation: { steps: { loan: loanRules, contacts: contactsRules }, extras: crossRules },
+    flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] },
   })
 );
-
-<FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
+return <FormRenderer form={credit} />;
 ```
 
-- **Шаг ↔ правила — по `selector`.** Переход «Далее» с шага проверяет `validation.steps[selector]`.
-  Перестановка шагов правила не сбивает. У шага без `selector` правила берутся по порядковому
-  номеру.
-- **Шаг без правил объявляется явно**: `confirm: null`. Шаг, которого нет в `validation.steps`,
-  и ключ, которому не нашлось шага, в dev дают предупреждение — иначе опечатка в селекторе молча
-  пропускала бы незаполненные обязательные поля.
-- Заголовок и иконка шага — `componentProps.title` и `componentProps.icon` узла шага.
-- Императивный доступ — `schema.node('wizard').getRef<FormWizardHandle<CreditForm>>()` в
-  поведении формы.
-- В JSON то же самое: `{ "component": "$component(FormWizard)", "children": [ шаги ] }`.
+Прикладной шим визарда не нужен: файлы `wizard.tsx` / `renderer.wizard.tsx` — прежние имена
+раскладки, удаляйте их (`@reformer/mcp`
+[06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §7,
+диагностика RF013). Документ прежнего формата (ключи `value` / `array`, шаги в
+`componentProps.steps`) переводит `migrateJsonSchema` из `@reformer/renderer-json`.
 
-## 53. Базовое использование (разметка в JSX)
+## 55. Разметка в JSX («React руками»)
+
+Без рендерера визарду передают пропсами форму, поток и список шагов:
 
 ```tsx
-import { useMemo, useRef, type FC } from 'react';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
-import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
-import { createModel, createFormFromModel, type FormGroup, type FormModel } from '@reformer/core';
-import {
-  defineValidation,
-  validateModel,
-  validate,
-  apply,
-  type ValidationDefinition,
-} from '@reformer/core/validation';
+import { createForm, type FormGroup } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
+import { CheckboxWithLabel, FormField, Input, InputPassword } from '@reformer/ui-kit';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 
-// Используйте `type`, не `interface`, для structural-совместимости с
-// constraint `T extends Record<string, any>` внутри FormWizard generic'а.
-type MyForm = {
+type SignUp = {
   email: string;
   password: string;
   confirmation: boolean;
 };
 
-// M1: модель — источник истины значений; листья схемы ссылаются на её сигналы.
-const model = createModel<MyForm>({ email: '', password: '', confirmation: false });
-
-// Layout-схема НЕ несёт валидаторов — только привязка полей к сигналам модели + UI.
-// Валидация живёт отдельным слоём (см. ниже `defineValidation`).
-const schema = {
-  email: {
-    value: model.$.email,
-    component: Input,
-    componentProps: { label: 'Email', testId: 'email' },
-  },
-  password: {
-    value: model.$.password,
-    component: Input,
-    componentProps: { label: 'Пароль', testId: 'password' },
-  },
-  confirmation: {
-    value: model.$.confirmation,
-    component: CheckboxWithLabel,
-    componentProps: { label: 'Подтверждаю' },
-  },
-};
-const form = createFormFromModel<MyForm>({ model, schema });
-
-// Валидация — ОТДЕЛЬНЫЙ ambient-контракт `@reformer/core/validation`, а не поле layout-схемы.
-// Один шаг = одна `ValidationDefinition<MyForm>` (`({ model }) => void`), правила поля —
-// `validate(sig, [rules])`; полная схема — их композиция через `apply(...)`.
-const step1Validation = defineValidation<MyForm>(({ model }) => {
+const emailRules = defineValidation<SignUp>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
-const step2Validation = defineValidation<MyForm>(({ model }) => {
+const passwordRules = defineValidation<SignUp>(({ model }) => {
   validate(model.$.password, [required(), minLength(8)]);
 });
-const step3Validation = defineValidation<MyForm>(({ model }) => {
-  validate(model.$.confirmation, [required()]);
+const confirmRules = defineValidation<SignUp>(({ model }) => {
+  validate(model.$.confirmation, [required()]); // для boolean обязательно `true`
 });
-const STEP_SCHEMAS: readonly ValidationDefinition<MyForm>[] = [
-  step1Validation,
-  step2Validation,
-  step3Validation,
-];
-const fullValidation = defineValidation<MyForm>(() => apply(...STEP_SCHEMAS));
 
-const Step1: FC<{ control: FormGroup<MyForm> }> = ({ control }) => (
+const createSignUpForm = () =>
+  createForm<SignUp>({
+    initial: { email: '', password: '', confirmation: false },
+    // Схема несёт только компоненты полей; правил в ней нет.
+    schema: (model) => ({
+      children: [
+        { model: model.$.email, component: Input, componentProps: { label: 'Email', testId: 'email' } },
+        {
+          model: model.$.password,
+          component: InputPassword,
+          componentProps: { label: 'Пароль', testId: 'password' },
+        },
+        {
+          model: model.$.confirmation,
+          component: CheckboxWithLabel,
+          componentProps: { label: 'Подтверждаю', testId: 'confirmation' },
+        },
+      ],
+    }),
+    flow: {
+      steps: [
+        { id: 'email', rules: emailRules },
+        { id: 'password', rules: passwordRules },
+        { id: 'confirm', rules: confirmRules },
+      ],
+    },
+  });
+
+const EmailStep = ({ control }: { control: FormGroup<SignUp> }) => (
   <FormField control={control.email} />
 );
-
-const Step2: FC<{ control: FormGroup<MyForm> }> = ({ control }) => (
+const PasswordStep = ({ control }: { control: FormGroup<SignUp> }) => (
   <FormField control={control.password} />
 );
+const ConfirmStep = ({ control }: { control: FormGroup<SignUp> }) => (
+  <FormField control={control.confirmation} />
+);
 
-const steps: FormWizardStep<MyForm>[] = [
-  { number: 1, title: 'Email', icon: '📧', body: Step1 },
-  { number: 2, title: 'Пароль', icon: '🔒', body: Step2 },
-  { number: 3, title: 'Готово', icon: '✓', body: <ConfirmationView /> },
+// Порядок = порядок шагов потока: STEPS[i] — шаг flow.steps[i].
+const STEPS: FormWizardStep<SignUp>[] = [
+  { number: 1, title: 'Email', icon: '📧', body: EmailStep },
+  { number: 2, title: 'Пароль', icon: '🔒', body: PasswordStep },
+  { number: 3, title: 'Готово', icon: '✓', body: ConfirmStep },
 ];
 
-// ⚠️ КРИТИЧНО: `config` это **FormWizardConfig** — объект с ДВУМЯ колбэками
-// (`validateStep`, `validateAll`), НЕ схемы/массивы валидаторов. Каждый колбэк
-// возвращает `boolean | Promise<boolean>`: `true` = валидно, идём дальше.
-// Если колбэк не задан — соответствующий шаг/submit считается валидным (no-op).
-// Канон — прогонять per-step/полную `ValidationDefinition` через внешний раннер
-// `validateModel(model, schema)`: он сам разносит ошибки по нодам формы (UI подсветит),
-// warnings не блокируют submit, устаревшие прогоны отменяются.
-function makeValidationConfig(m: FormModel<MyForm>): FormWizardConfig {
-  return {
-    // step 1-based: берём схему нужного шага и прогоняем `validateModel` → Promise<boolean>.
-    validateStep: (step) => validateModel(m, STEP_SCHEMAS[step - 1]),
-    validateAll: () => validateModel(m, fullValidation),
+function SignUpWizard() {
+  const signUp = useFormBundle(createSignUpForm);
+
+  const submit = async () => {
+    // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
+    const outcome = await signUp.submit((values) => api.signUp(values));
+    if (outcome.status === 'invalid') showHint('Проверьте заполнение формы');
+    if (outcome.status === 'failed') showError(outcome.error);
   };
+
+  return (
+    <FormWizard
+      form={signUp.form}
+      flow={signUp.flow}
+      steps={STEPS}
+      onSubmit={submit}
+      submitLabel="Зарегистрироваться"
+    />
+  );
 }
-const config = makeValidationConfig(model);
-
-// ref типизируется явно типом формы; constraint `T extends Record<string, any>`
-// позволяет nullable-поля (`number | null`) внутри MyForm без TS-ошибок.
-const navRef = useRef<FormWizardHandle<MyForm>>(null);
-
-// ВАЖНО: prop-level `onSubmit` имеет signature `() => void | Promise<void>` —
-// БЕЗ аргумента values. Это by-design (см. FormWizardActionsProps в @reformer/cdk).
-// Чтобы получить values — читай их из модели внутри handler:
-const handleSubmit = async () => {
-  const values = model.get();
-  await api.submit(values);
-};
-
-<FormWizard
-  ref={navRef}
-  form={form}
-  config={config}
-  steps={steps}
-  onSubmit={handleSubmit}
-/>;
 ```
 
-> **`config` не привязан к типу формы.** `FormWizardConfig` — это `{ validateStep?, validateAll? }`,
-> оба колбэка возвращают `boolean | Promise<boolean>`. Канон — прогонять
-> `validateModel(model, schema)` из `@reformer/core/validation` (валидация — отдельный
-> слой; в layout-схеме валидаторов нет). `form.validate()` по нодам `ValidationDefinition`
-> НЕ запустит — правила исполняет только `validateModel`.
+- **`flow={bundle.flow}` обязателен для проверки шагов.** Без него визард строит позиционный
+  поток по числу шагов — «Далее» переходит, ничего не проверяя.
+- **`steps` сопоставляются с потоком по позиции**: `steps[i]` — шаг `flow.steps[i]`, записей
+  столько же, сколько шагов потока; `number` — с единицы. Селекторы здесь не участвуют.
+- **`onSubmit` в JSX проверку не делает.** Вне `FormRenderer` сборки в контексте нет, и визард зовёт
+  колбэк по нажатию. Проверку и отправку делает `bundle.submit(handler)` внутри колбэка, как выше.
+  Если обернуть визард в `FormBundleContext.Provider value={bundle}` (`@reformer/core/react`),
+  визард возьмёт форму и поток из контекста и сам пустит `onSubmit(values)` через `bundle.submit`.
+- Результат отправки — `SubmitResult`: `{ status: 'submitted', result }`,
+  `{ status: 'invalid' | 'error' | 'cancelled', validation }` либо `{ status: 'failed', error }`.
 
-### Альтернатива — imperative submit с values
+## 56. Навигация снаружи визарда
 
-`navRef.current?.submit(callback)` — отдельный API, ПРИНИМАЕТ `(values: T) =>` callback.
-Удобно для save-and-exit flow:
+Поток — объект сборки, поэтому навигация не требует ни `ref`, ни доступа к визарду:
 
 ```tsx
-// FormWizardHandle.submit<R>(cb: (values: T) => Promise<R> | R): Promise<R | null>
-const handleSaveAndExit = async () => {
-  const result = await navRef.current?.submit((values) => api.saveDraft(values));
-  if (result) router.push('/dashboard');
-};
+import { useFormFlow } from '@reformer/core/react';
+
+await bundle.flow?.next(); // FlowTransition: { status: 'moved', from, to } | { status: 'stayed', step, reason }
+bundle.flow?.previous();
+bundle.flow?.goTo('loan'); // 'stayed' с reason 'locked', если предыдущий шаг не пройден
+bundle.flow?.canGoTo('confirm'); // boolean
+await bundle.validateStep('loan'); // ValidationResult; неизвестный шаг — исключение
+
+// Состояние потока в рендере (подписка на сигналы потока):
+const { current, index, isFirst, isLast, validating, completed } = useFormFlow(bundle.flow!);
 ```
 
-Различие только в аргументе, не в гарантиях: оба пути проходят через один и тот же гейт —
-`config.validateAll`, и при провале колбэк не вызывается, а поля помечаются `touched`.
-`<FormWizard onSubmit={...}>` вызывается кнопкой и аргументов не получает;
-`navRef.current?.submit(values => ...)` вызывается из кода, отдаёт `values` и возвращает
-результат колбэка либо `null`, если валидация не прошла.
+Визард перерисуется сам — он подписан на тот же поток. `onStepChange` и прокрутка вверх
+(`scrollToTop`) срабатывают только на переходы кнопками и индикатором визарда.
 
-## 54. Полиморфный `step.body`
+## 57. Полиморфный `step.body`
 
-`body` принимает три формы (runtime-discriminated):
+В JSX-режиме `body` принимает три формы (runtime-discriminated):
 
 | Форма                                      | Когда использовать                                                   |
 | ------------------------------------------ | -------------------------------------------------------------------- |
-| `ComponentType<{ control: FormGroup<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
+| `ComponentType<{ control: FormGroup<T> }>` | Компонент шага; получает `control={form}`                            |
 | `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control                   |
-| `TBody` (напр. `RenderNode<T>`)            | renderer-react / renderer-json flows — **нужен проп `renderStepBody`** |
+| `TBody` (напр. узел схемы)                 | Тело — узел схемы, который рисует рендерер; **нужен проп `renderStepBody`** |
 
-Все три варианта работают в одном wizard'е — можно комбинировать.
+Все три варианта работают в одном визарде — можно комбинировать.
 
-**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormGroup<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
+**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система
+не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а
+всё остальное отдаёт стратегии из пропа
+`renderStepBody: (body: TBody, form: FormGroup<T>) => ReactNode`. Тип тела расширяется вторым
+generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело — адресная ошибка с
+подсказкой, а не «Objects are not valid as a React child».
 
-## 55. RenderNode body (renderer-react / renderer-json)
+В схеме формы стратегия не нужна: рендерер передаёт визарду узлы шагов и функцию их отрисовки
+(`children` + `renderNode`, маркер `__selfManagedChildren`).
 
-M1: схема без аргумента `path` — листья ссылаются на сигналы модели
-(`value: model.$.x`), а не на `path.x`:
-
-```tsx
-import { createRenderSchema, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { Box, InputNumber } from '@reformer/ui-kit';
-
-const renderSchema = createRenderSchema<CreditApplication>(() => ({
-  selector: 'wizard',
-  component: FormWizard,
-  componentProps: {
-    form,
-    config,
-    onSubmit: handleSubmit,
-    // Стратегия отрисовки узла RenderSchema — ui-kit сам про рендерер не знает.
-    renderStepBody: (body: RenderNode<CreditApplication>, wizardForm) => (
-      <RenderNodeComponent node={body} form={wizardForm} />
-    ),
-    steps: [
-      {
-        number: 1,
-        title: 'Кредит',
-        icon: '💰',
-        body: {
-          component: Box,
-          componentProps: { className: 'space-y-4' },
-          children: [
-            { value: model.$.loanAmount, component: InputNumber },
-            { value: model.$.loanTerm, component: InputNumber },
-          ],
-        },
-      },
-    ],
-  },
-}));
-```
-
-FormWizard видит, что `body` — не React-element и не component reference, и отдаёт его в `renderStepBody`; там приложение оборачивает узел в `RenderNodeComponent` с `form={form}`.
-
-### ⚠️ RenderNode body требует RenderContextProvider
-
-Когда `step.body` это `RenderNode<T>` (renderer-react / renderer-json flow), **FormWizard ДОЛЖЕН быть обёрнут в `<RenderContextProvider>`** или находиться внутри `<FormRenderer>`. Иначе runtime-ошибка:
-
-```
-useRenderContext must be used within RenderContextProvider (FormRenderer)
-```
-
-`RenderNodeComponent` (которым FormWizard рендерит body) использует context — без провайдера контекст не найден.
-
-**Монтирование под renderer-react** (низкоуровневый путь; канон — бандл `createReactForm`, см. `@reformer/renderer-react` · 01-overview.md):
+### Узел схемы как тело шага в JSX
 
 ```tsx
-import { FormRenderer } from '@reformer/renderer-react';
-import { FormField } from '@reformer/ui-kit';
+import { RenderContextProvider, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 
-// FormWizard как root render-node — FormRenderer уже даёт RenderContextProvider:
-<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+<RenderContextProvider value={{ settings: { fieldWrapper: FormField } }}>
+  <FormWizard<CreditForm, RenderNode<CreditForm>>
+    form={bundle.form}
+    flow={bundle.flow}
+    steps={[{ number: 1, title: 'Кредит', icon: '💰', body: loanStepNode }]}
+    renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+    onSubmit={submit}
+  />
+</RenderContextProvider>;
 ```
 
-**Если FormWizard рендерится напрямую** (не как root render-node, а внутри обычного React-tree, но с RenderNode bodies) — оберни вручную:
+`RenderNodeComponent` читает контекст рендеринга — вне `FormRenderer` его ставит
+`RenderContextProvider` (`value={{ settings }}`). Без провайдера — ошибка
+`useRenderContext must be used within RenderContextProvider (FormRenderer)`. Тело-компонент
+(`ComponentType`) провайдера не требует: его визард рисует сам.
+
+## 58. Compound API
+
+`FormWizard.Indicator/Step/Actions/Progress` — реэкспорт headless-слотов из CDK. Они читают
+контекст визарда (`useFormWizard()`), поэтому работают внутри headless `FormWizard` из
+`@reformer/cdk/form-wizard` — для полностью своей раскладки (например, индикатор в собственной
+шапке):
 
 ```tsx
-import { RenderContextProvider } from '@reformer/renderer-react';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
-<RenderContextProvider settings={{ fieldWrapper: FormField }}>
-  <FormWizard form={form} steps={steps} ... />
-</RenderContextProvider>
+<FormWizard form={bundle.form} flow={bundle.flow}>
+  <FormWizard.Indicator steps={indicatorSteps}>
+    {(props) => <CustomIndicator {...props} />}
+  </FormWizard.Indicator>
+  …
+</FormWizard>;
 ```
 
-**TS-flow body (FC компоненты) — провайдер НЕ нужен**: ui-kit FormWizard рендерит FC напрямую без render-pipeline.
+Готовые презентационные слоты кита — `StepIndicator`, `FormWizardActions`, `FormWizardProgress`
+из `@reformer/ui-kit/form-wizard`.
 
-## 56. JSON
+## 59. Прежний контракт → текущий
 
-```jsonc
-{
-  "component": "FormWizard",
-  "componentProps": {
-    "config": "WIZARD_CONFIG",
-    "onSubmit": "handleSubmit",
-    "steps": [
-      {
-        "number": 1,
-        "title": "Кредит",
-        "icon": "💰",
-        "body": {
-          "component": "Box",
-          "children": [{ "model": "loanAmount" }, { "model": "loanTerm" }],
-        },
-      },
-    ],
-  },
-}
-```
+| Прежде (удалено)                                                            | Сейчас                                                                                  |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| ❌ `config={{ validateStep, validateAll }}`, тип `FormWizardConfig`          | поток сборки: правила шагов — `flow.steps[].rules`, полная проверка — `bundle.submit`   |
+| ❌ `createForm({ validation: { steps: { loan: rules } } })`                 | `createForm({ flow: { steps: [{ id: 'loan', rules }] } })`, вне шагов — `validation.extras` |
+| ❌ `ref` визарда и `FormWizardHandle` (`goToStep`, `goToNextStep`, `submit`) | `bundle.flow.goTo(id)` / `next()` / `previous()`, отправка — `bundle.submit(handler)`   |
+| ❌ `schema.node('wizard').getRef<FormWizardHandle>()` в поведении            | `flow` из области поведения: `defineFormBehavior(({ flow }) => …)`                      |
+| ❌ шим `wizard.tsx` / `renderer.wizard.tsx`, `steps`/`config` в `componentProps` | узел `FormWizard` с шагами-детьми `Step`                                              |
 
-`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → шим `$component(Wizard)` отдаёт его в `FormWizard` вместе с `renderStepBody`. Шим (и стратегия в нём) — код приложения, а не экспорт библиотеки: `RendererFormWizard` из `@reformer/*` не импортируется, его пишет само приложение.
-
-Канон раскладки держит шим **внутри модуля формы**, и мест под него ровно два — оба каноничны, выбирается одно:
-
-- `wizard.tsx` — отдельный файл модуля (единственный файл сверх набора, который канон разрешает, и только для renderer-json + wizard; прежнее имя `renderer.wizard.tsx` работает с предупреждением);
-- инлайном в `registry.ts` — рядом со строкой `reg.component('Wizard', …)`, которая его и регистрирует.
-
-Полное правило — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`.
-
-Общий компонент уровня приложения (`projects/react-playground/src/components/RendererFormWizard.tsx`) — исторический вариант, а не эталон нейминга: выносить шим за пределы модуля имеет смысл, только когда его переиспользуют несколько форм.
-
-## 57. Compound API
-
-`FormWizard.Indicator/Step/Actions/Progress` — re-export headless слотов из CDK для consumer-ов, которым нужен полностью кастомный layout (например, indicator поверх кастомного header'а).
-
-```tsx
-<FormWizard.Indicator steps={...}>
-  {(props) => <CustomIndicator {...props} />}
-</FormWizard.Indicator>
-```
-
-## 58. Ref / handle
-
-```tsx
-const wizardRef = useRef<FormWizardHandle<MyForm>>(null);
-
-<FormWizard ref={wizardRef} ... />
-
-// Программная навигация и submit (см. FormWizardHandle<T> в @reformer/cdk):
-wizardRef.current?.goToStep(2); // boolean: false, если предыдущий шаг не завершён
-await wizardRef.current?.goToNextStep(); // валидирует текущий шаг, затем переходит
-wizardRef.current?.goToPreviousStep();
-await wizardRef.current?.validateCurrentStep(); // Promise<boolean>
-
-// submit принимает callback (values: T) => R | Promise<R>; возвращает R | null
-// (null — не прошла validateAll):
-const result = await wizardRef.current?.submit((values) => api.submit(values));
-```
-
-Доступные поля/методы `FormWizardHandle<T>`: `form`, `currentStep`,
-`completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`,
-`validateCurrentStep()`, `goToNextStep()`, `goToPreviousStep()`,
-`goToStep(step)`, `submit(cb)`.
-
-## 59. Базовое использование (TS-flow)
+## 60. FieldArraySection — разметка в JSX
 
 **FieldArraySection — UI для FieldArray**
 
-`@reformer/ui-kit/field-array` — стилизованный wrapper поверх headless
+`@reformer/ui-kit/field-array` — стилизованные компоненты массива под-форм поверх headless
 `@reformer/cdk/field-array`.
 
 > Прежние имена — `FormArraySection`, `FormArray`, сабпат `@reformer/ui-kit/form-array`, ключи
 > локали `kit.formArray.*` — больше не экспортируются: теперь `FieldArraySection`, `FieldArray`,
 > `@reformer/ui-kit/field-array`, `kit.fieldArray.*`. В JSON-документе `$component(FormArray)`
-> продолжает работать: реестр renderer-json разрешает прежнее имя в запись `FieldArray`.
+> продолжает работать: реестр renderer-json разрешает прежнее имя в запись `FieldArray`
+> (с предупреждением в dev).
 
 В пакете **два** компонента массива, и путать их нельзя:
 
-| Компонент          | Для чего                                   | Контракт                                                |
-| ------------------ | ------------------------------------------ | ------------------------------------------------------- |
-| `FieldArraySection` | TS-flow и renderer-react RenderSchema      | `control` + `itemComponent` (FC на элемент)             |
-| `FieldArray`        | **renderer-json**, `$component(FieldArray)` | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
-
-Этот документ — про `FieldArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
+| Компонент           | Для чего                                                  | Контракт                                                |
+| ------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
+| `FieldArraySection` | разметка в JSX («React руками»)                           | `control` (`FormArray<T>`) + `itemComponent` (FC на строку) |
+| `FieldArray`        | узел-массив схемы: TS-схема и JSON (`$component(FieldArray)`) | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
 
 ```tsx
-import { FieldArraySection } from '@reformer/ui-kit/field-array';
+import type { FC } from 'react';
 import type { FormGroup } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
+import { FormField, Section } from '@reformer/ui-kit';
+import { FieldArraySection } from '@reformer/ui-kit/field-array';
 
-// ВАЖНО: используйте `type`, не `interface` — иначе тип элемента не
-// удовлетворяет constraint `extends FormFields` (FormFields требует
-// implicit index signature, который interface не даёт).
 type Property = {
   type: 'apartment' | 'house' | 'land';
   description: string;
@@ -3134,19 +3248,30 @@ const PropertyForm: FC<{ control: FormGroup<Property> }> = ({ control }) => (
   </Section>
 );
 
-// Generic выводится из control:
-<FieldArraySection
-  control={form.properties}                  // FormArray<Property>
-  itemComponent={PropertyForm}
-  title="Имущество"
-  addButtonLabel="+ Добавить имущество"
-  emptyMessage="Нажмите «Добавить имущество» для добавления записи"
-  hasItems={hasProperty}
-/>
+function PropertiesStep({ control }: { control: FormGroup<CreditApplication> }) {
+  const hasProperty = useFormControlValue(control.hasProperty);
+  return (
+    // Generic выводится из control (`FormArray<Property>`):
+    <FieldArraySection
+      control={control.properties}
+      itemComponent={PropertyForm}
+      title="Имущество"
+      addButtonLabel="+ Добавить имущество"
+      emptyMessage="Нажмите «Добавить имущество» для добавления записи"
+      hasItems={hasProperty}
+    />
+  );
+}
 
 // Если TS не выводит generic из union-типа control — укажите явно:
-<FieldArraySection<Property> control={form.properties} itemComponent={PropertyForm} />
+<FieldArraySection<Property> control={form.properties} itemComponent={PropertyForm} />;
 ```
+
+`control` — нода массива под-форм `FormArray<T>` (`form.<массив>`): у неё `length` — число,
+строка — `at(i)` (`FormGroup<T>`), стабильный ключ строки — `keyAt(i)`. Value-фасад модели
+(`model.properties`) — не нода формы: секции нужен именно `form.properties`. Чтобы строки
+`FormArray` вообще появились, массив подключается в схеме сборки узлом
+`{ model: model.$.properties, item: (row) => … }` — иначе формы строк не строятся.
 
 Новый элемент кнопка «Добавить» берёт из шаблона массива — он объявляется в модели, рядом с
 остальными начальными значениями:
@@ -3160,45 +3285,58 @@ const model = createModel<CreditApplication>({ properties: arrayOf(blankProperty
 ```
 
 Проп `initialValue` (`Partial<T>`) остаётся запасным путём — для массива, у модели которого
-шаблона нет. Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
+шаблона нет. Передавайте plain-objects по форме элемента, **не** конфиг поля.
 
-## 60. Renderer-react RenderSchema
+## 61. FieldArray — узел-массив схемы
 
-M1: схема без аргумента `path` (`createRenderSchema<T>(() => ...)`). `control`
-ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FieldArraySection`
-резолвит его в `ArrayNode` внутри.
+В схеме формы массив — узел `{ model: model.$.<массив>, component: FieldArray, item }`. Строка
+описывается в той же схеме функцией `item`: она получает под-модель строки и строит её разметку.
+Рендерер сам перебирает строки, держит ключи и отдаёт компоненту готовые `items` и колбэки
+`onAdd`/`onRemove`/`onMove`, поэтому `FieldArray` ничего не знает ни про модель, ни про рендерер.
 
 ```tsx
-import { createRenderSchema } from '@reformer/renderer-react';
-import { FieldArraySection } from '@reformer/ui-kit/field-array';
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import { Box, FieldArray, InputNumber, SelectAsync, Textarea } from '@reformer/ui-kit';
 
-const renderSchema = createRenderSchema<CreditApplication>(() => ({
-  selector: 'properties-section',
-  component: FieldArraySection,
+const propertyRow = (row: FormModel<Property>): FormSchemaNode => ({
+  component: Box,
+  componentProps: { className: 'space-y-3' },
+  children: [
+    { model: row.$.type, component: SelectAsync, componentProps: { label: 'Тип', options: PROPERTY_TYPES } },
+    { model: row.$.description, component: Textarea, componentProps: { label: 'Описание' } },
+    { model: row.$.estimatedValue, component: InputNumber, componentProps: { label: 'Стоимость' } },
+  ],
+});
+
+// в схеме сборки createForm:
+{
+  selector: 'properties-array',
+  model: model.$.properties,
+  component: FieldArray,
   componentProps: {
-    control: model.properties, // ModelArray → резолвится в ArrayNode
-    itemComponent: PropertyForm, // FC напрямую
     title: 'Имущество',
+    itemLabel: 'Имущество',
     addButtonLabel: '+ Добавить имущество',
+    emptyMessage: 'Нажмите «Добавить имущество»',
+    reorderable: true,
   },
-}));
+  item: propertyRow,
+}
 ```
 
-ui-kit FieldArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
+Операции над массивом из кода — на модели (`model.properties.push()`, `removeAt(i)`) либо на ноде
+формы (`form.properties.push()`, `move(a, b)`, `clear()`); интерфейс подхватит их сам.
 
-> Основной способ в схеме — узел-массив с компонентом `FieldArray`:
-> `{ model: model.$.properties, component: FieldArray, item: (model) => ({ children: [{ model: model.$.type, component }] }) }`.
-> Строка описывается в той же схеме, а не отдельным React-компонентом.
-
-## 61. JSON (renderer-json)
+### JSON (renderer-json)
 
 **В renderer-json нужен `FieldArray`, а не `FieldArraySection`.** Это разные компоненты с разными
 контрактами, и подмена стоит дорого: `FieldArraySection` требует пропы `control` + `itemComponent`,
-которых JSON-конвертер не передаёт (он инъектит `items`/`onAdd`/`onRemove`/`onMove`), поэтому
-секция уходит в `return null` — **пустой экран без единой ошибки и предупреждения**.
+которых рендерер не передаёт (он инъектит `items`/`onAdd`/`onRemove`/`onMove`), поэтому
+секция уходит в `return null` — в dev с предупреждением в консоли, но **без единой ошибки на экране**.
 
 ```ts
 // registry.ts
+import { defineRegistry } from '@reformer/renderer-json';
 import { FieldArray } from '@reformer/ui-kit/field-array';
 
 defineRegistry((reg) => {
@@ -3206,13 +3344,14 @@ defineRegistry((reg) => {
 });
 ```
 
-Массив в JSON — это **array-нода**, а не контейнер с `itemComponent`. Обязательны `array` и
-`item.$template` (без них `isFormArray` вернёт false), а `initialValue` нужен кнопке «Добавить»:
+Массив в JSON — это **узел-массив**: `model` указывает на массив модели, а `item` — шаблон строки
+(`{ "$template": узел }`) либо именованная часть документа (`"$part(property)"`). `initialValue`
+нужен кнопке «Добавить», только если у массива модели нет шаблона `arrayOf(blank)`:
 
 ```jsonc
 {
   "selector": "properties-array",
-  "array": "$model(properties)",
+  "model": "$model(properties)",
   "component": "$component(FieldArray)",
   "initialValue": { "type": "apartment", "description": "", "estimatedValue": 0 },
   "componentProps": {
@@ -3227,39 +3366,38 @@ defineRegistry((reg) => {
       "componentProps": { "className": "space-y-3" },
       "children": [
         {
-          "value": "$model(type)",
+          "model": "$model(type)",
           "component": "$component(Select)",
           "componentProps": { "label": "Тип", "options": "$dataSource(PROPERTY_TYPES)" },
         },
-        { "value": "$model(description)", "component": "$component(Textarea)" },
-        { "value": "$model(estimatedValue)", "component": "$component(InputNumber)" },
+        { "model": "$model(description)", "component": "$component(Textarea)" },
+        { "model": "$model(estimatedValue)", "component": "$component(InputNumber)" },
       ],
     },
   },
 }
 ```
 
-Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** (`$model(type)`, а не
-`$model(properties[0].type)`). Конвертер конвертирует шаблон в `RenderNode` один раз и оборачивает
-в FC, который и рендерит каждую строку.
+Внутри `$template` (и внутри части `$part`) пути `$model(...)` резолвятся **относительно строки**
+(`$model(type)`, а не `$model(properties[0].type)`).
 
-Чего в этом контракте НЕТ (и не было под M1): пропа `control`, пропа `itemComponent`, листьев
-`"model": "type"` и голых строк-ссылок `"options": "PROPERTY_TYPES"` — справочник адресуется
-только оператором `$dataSource(...)`.
+Чего в этом контракте НЕТ: пропа `control`, пропа `itemComponent`, ключей узла `value` / `array`
+(прежний формат документа — его переводит `migrateJsonSchema`) и голых строк-ссылок
+`"options": "PROPERTY_TYPES"` — справочник адресуется только оператором `$dataSource(...)`.
 
 ```jsonc
-// ❌ так секция молча не отрисуется: контракт TS-flow в JSON-схеме
-{ "component": "FieldArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
+// ❌ так секция молча не отрисуется: контракт JSX-секции в JSON-схеме
+{ "component": "$component(FieldArraySection)", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
 
-// ✅ array-нода + FieldArray в реестре
-{ "array": "$model(properties)", "component": "$component(FieldArray)", "item": { "$template": { } } }
+// ✅ узел-массив + FieldArray в реестре
+{ "model": "$model(properties)", "component": "$component(FieldArray)", "item": { "$template": { } } }
 ```
 
-## 62. Props (полный список)
+## 62. Props `FieldArraySection` (полный список)
 
 | Prop                 | Type                                                         | Default                              | Описание                                                           |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
-| `control`            | `FormArray<T> \| undefined`             | required                             | Массив для управления (в RenderSchema — `FieldPathNode`)           |
+| `control`            | `FormArray<T> \| undefined`                                  | required                             | Нода массива формы (`form.<массив>`)                               |
 | `itemComponent`      | `ComponentType<{ control: FormGroup<T> }>`                   | required                             | FC для рендера каждого item                                        |
 | `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
 | `itemLabel`          | `string \| (control: FormGroup<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
@@ -3271,23 +3409,29 @@ defineRegistry((reg) => {
 | `initialValue`       | `Partial<T>`                                                 | —                                    | Запасной шаблон нового item; основной — `arrayOf(blank)` в модели  |
 | `showRemoveOnSingle` | `boolean`                                                    | `false`                              | Показывать «Удалить» при одном item                                |
 | `reorderable`        | `boolean`                                                    | `false`                              | Показывать кнопки ↑/↓ для перестановки элементов                   |
-| `maxItems`           | `number`                                                     | —                                    | Максимум items (AddButton скрывается при достижении)               |
+| `maxItems`           | `number`                                                     | —                                    | Максимум items (кнопка «Добавить» отключается при достижении)      |
 | `className`          | `string`                                                     | `'space-y-3 mt-2'`                   | Класс `<section>`-обёртки                                          |
-| `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-white rounded border'` | Класс card-обёртки каждого item                                    |
+| `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-card text-card-foreground rounded border'` | Класс card-обёртки каждого item                                    |
 | `form`               | `FormGroup<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
 | `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                           | авто-инъекция                        | Field wrapper для дочерних полей (по умолчанию — от родителя)      |
+
+Пропы `FieldArray` (узел схемы) — те же `title`, `itemLabel` (строка либо
+`(rowModel, index) => string`), `addButtonLabel`, `removeButtonLabel`, `emptyMessage`,
+`emptyMessageHint`, `reorderable`, `showRemoveOnSingle`, `className`, `cardClassName`; `items` и
+колбэки передаёт рендерер.
 
 ## 63. Critical: `initialValue` — PLAIN LEAVES ONLY
 
 ```tsx
-// ❌ silent corruption (FieldConfig as value)
-initialValue={{ type: { value: 'apartment', component: SelectAsync }, ... }}
+// ❌ silent corruption (конфиг поля как значение)
+initialValue={{ type: { model: model.$.type, component: SelectAsync }, ... }}
 
 // ✅ plain primitives matching item shape
 initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 ```
 
-FieldConfig попадает в значение поля → Textarea рендерит `[object Object]`, Checkbox флипается в `true`. Compiler/тесты не ловят.
+Конфиг поля попадает в значение поля → Textarea рендерит `[object Object]`, Checkbox флипается в
+`true`. Compiler/тесты не ловят.
 
 ## 64. Schema-driven (canonical pattern)
 
@@ -3302,13 +3446,12 @@ FieldConfig попадает в значение поля → Textarea ренд�
 > Для строгой маски с формат-вставкой используй `react-input-mask` или `imask`
 > через `<FormField><CustomMask /></FormField>` pattern (см. секцию ниже).
 
-Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
-componentProps }` → `createFormFromModel({ model, schema })`; правила — отдельной
-`defineValidation`. Объяви InputMask как `component` листа; передай `mask`
-в `componentProps`:
+Сборка `createForm`: узел поля — `{ model: model.$.field, component, componentProps }`, правила —
+отдельной `defineValidation` в поле `validation`. Объяви InputMask как `component` узла; передай
+`mask` в `componentProps`:
 
 ```ts
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 import { InputMask } from '@reformer/ui-kit';
@@ -3320,36 +3463,34 @@ type ContactForm = {
   snils: string;
 };
 
-const model = createModel<ContactForm>({ phone: '', passport: '', inn: '', snils: '' });
-
-// Layout-схема — только component/componentProps, без validators
-const schema = {
+// Схема — только component/componentProps, без правил
+const contactSchema = (model: FormModel<ContactForm>): FormSchemaNode => ({
   children: [
     {
-      value: model.$.phone,
+      model: model.$.phone,
       component: InputMask,
       componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99', testId: 'phone' },
     },
     {
-      value: model.$.passport,
+      model: model.$.passport,
       component: InputMask,
       componentProps: { label: 'Серия и номер паспорта', mask: '9999 999999', testId: 'passport' },
     },
     {
-      value: model.$.inn,
+      model: model.$.inn,
       component: InputMask,
       componentProps: { label: 'ИНН', mask: '999999999999', testId: 'inn' },
     },
     {
-      value: model.$.snils,
+      model: model.$.snils,
       component: InputMask,
       componentProps: { label: 'СНИЛС', mask: '999-999-999 99', testId: 'snils' },
     },
   ],
-};
+});
 
-// Правила — отдельной validation-схемой (@reformer/core/validation)
-const contactValidation = defineValidation<ContactForm>(({ model }) => {
+// Правила — отдельной validation-схемой (@reformer/core/validation); тексты — по кодам в словаре
+const contactRules = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.phone, [
     required({ code: 'field.required' }),
     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
@@ -3359,13 +3500,23 @@ const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.snils, [required()]);
 });
 
-const form = createFormFromModel<ContactForm>({ model, schema });
+// В React: useFormBundle(createContactForm)
+export const createContactForm = () =>
+  createForm<ContactForm>({
+    initial: { phone: '', passport: '', inn: '', snils: '' },
+    schema: contactSchema,
+    validation: contactRules,
+  });
 ```
 
 Render как обычно через `FormField`:
 
 ```tsx
+import { useFormBundle } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
+
+const contact = useFormBundle(createContactForm);
+const { form } = contact;
 
 <FormField control={form.phone} testId="phone" />
 <FormField control={form.passport} testId="passport" />
@@ -3393,28 +3544,35 @@ import { FormField } from '@reformer/ui-kit';
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
-внутри `defineValidation` (см. схему выше), а не в layout-схему. Прогоняются
-раннером `validateModel(model, schema)`:
+внутри `defineValidation` (см. схему выше), а не в схему формы. Опции правила — только
+`{ code?, params? }`; текст замечания берётся по коду из словаря `defineIssueMessages`
+(`ValidationMessagesProvider messages` из `@reformer/cdk`):
 
-- `required({ message })` — на пустоту;
+- `required({ code: 'phone.required' })` — на пустоту;
 - `minLength(18)` — для проверки длины с literal-символами (телефон ровно 18 символов);
-- `pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message })` — точный формат.
+- `pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' })` — точный формат.
 
 ```ts
-import { validateModel } from '@reformer/core/validation';
+import { defineIssueMessages } from '@reformer/core/i18n';
 
-// contactValidation — из блока Schema-driven выше.
+export const contactMessages = defineIssueMessages({
+  'field.required': 'Обязательное поле',
+  'phone.pattern': 'Телефон в формате +7 (999) 999-99-99',
+  'inn.pattern': 'ИНН — 12 цифр',
+});
+
+// contact — сборка createContactForm() из блока выше.
 const onSubmit = async () => {
-  form.markAsTouched();
-  const ok = await validateModel(model, contactValidation); // Promise<boolean>, ошибки роутятся в ноды
-  if (!ok) return;
-  await api.submit(model.get());
+  // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
+  const outcome = await contact.submit((values) => api.submit(values));
+  if (outcome.status !== 'submitted') return;
 };
 ```
 
 Cross-field правила (например, «доп. телефон отличается от основного») — это
-`cross(model.$.phoneAdditional, (f) => ...)` в той же validation-схеме: функция получает
-снапшот `model.get()` и читает соседние поля напрямую.
+`cross(model.$.phoneAdditional, (f) => ...)` из области той же validation-схемы
+(`defineValidation(({ model, cross }) => …)`): функция получает снапшот модели и читает соседние
+поля напрямую.
 
 ## 67. Advanced — strict mask через FormField + children slot
 
@@ -3445,8 +3603,10 @@ import InputMask from 'react-input-mask';
 **Императивные handle полей — управление компонентом по селектору**
 
 Каждое поле ui-kit отдаёт типизированный императивный handle через `ref` (строит его обёртка
-поля — см. «Своё поле с handle»). Из render-схемы он достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
-тот же, что уже использовался для `FormWizard`/`FieldArray`, но теперь работает и для листовых полей.
+поля — см. «Своё поле с handle»). Из схемы формы он достаётся по селектору:
+`schema.node(sel).getRef<H>()` в поведении формы (`defineFormBehavior`) либо
+`bundle.render.node(sel).getRef<H>()` снаружи — это одна и та же корневая область схемы. Это мост
+«узел схемы → живой компонент» для листовых полей и для контейнеров, которые принимают `ref`.
 
 Handle покрывает ТОЛЬКО то, что не выражается реактивно. Всё остальное остаётся в behaviors —
 дублировать его через handle нельзя, иначе появятся два способа делать одно и то же.
@@ -3456,8 +3616,9 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 | value / compute / copy / sync              | реактивный      | `computeFrom` / `copyFrom` / `field.setValue`     |
 | enable / disable                           | реактивный      | `enableWhen` / `disableWhen`                      |
 | видимость                                  | реактивный      | `hideWhen` / `setHidden`                          |
-| options / props                            | реактивный      | `updateComponentProps` / `patchProps`             |
+| options / props                            | реактивный      | `updateComponentProps` (поле) / `patchProps` (контейнер) |
 | валидация                                  | реактивный      | `validate` / `revalidateWhen`                     |
+| навигация по шагам визарда                 | реактивный      | `flow.goTo(id)` / `flow.next()` (поток сборки)    |
 | **focus / blur / scrollIntoView**          | **императивный** | `getRef<FieldHandle>().current?.focus()`          |
 | **открыть/закрыть дропдаун, поповер**      | **императивный** | `getRef<SelectAsyncHandle>().current?.open()`     |
 | **reload / loadMore async-источника**      | **императивный** | `…current?.reload()`                              |
@@ -3466,58 +3627,73 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 ## 70. Базовое использование
 
 ```tsx
-import { createRenderSchema, renderEffect } from '@reformer/renderer-react';
-import { Input, type FieldHandle } from '@reformer/ui-kit';
+import { createForm } from '@reformer/core';
+import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
+import { Box, Button, Input, type FieldHandle } from '@reformer/ui-kit';
 
-const schema = createRenderSchema<MyForm>(() => ({
-  component: Box,
-  children: [{ value: model.$.email, component: Input, componentProps: { label: 'Email' } }],
-}));
+const signInBehavior = defineFormBehavior<SignIn>(({ schema }) => {
+  // ref запрашивается ЗДЕСЬ — поведение исполняется при сборке, до первого рендера (см. ниже).
+  const emailRef = schema.node('email').getRef<FieldHandle>();
 
-// Поведение схемы: ref запрашивается ЗДЕСЬ (до первого рендера — см. ниже).
-const emailRef = schema.node('email').getRef<FieldHandle>();
+  // Позже, из обработчика/эффекта:
+  onComponentEvent(schema.node('focus-email'), 'onClick', () => {
+    emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    emailRef.current?.focus();
+  });
+});
 
-// Позже, из обработчика/эффекта:
-emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-emailRef.current?.focus();
+const signIn = createForm<SignIn>({
+  initial: { email: '' },
+  schema: (model) => ({
+    component: Box,
+    children: [
+      { model: model.$.email, component: Input, componentProps: { label: 'Email' } },
+      { selector: 'focus-email', component: Button, children: ['К email'] },
+    ],
+  }),
+  behavior: signInBehavior,
+});
 ```
 
 ## 71. ⚠️ `getRef()` вызывать ДО первого рендера
 
-`getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер и
-менял семантику wizard-а). Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный
-впервые уже после монтирования, **никогда не прикрепится и останется `null`**.
+`getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер).
+Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный впервые уже после монтирования,
+**никогда не прикрепится и останется `null`**.
 
 ```tsx
-// ✅ правильно — на этапе применения поведения, до рендера
-const behavior: RenderBehaviorFn<MyForm> = (schema) => {
+// ✅ правильно — в поведении формы: оно исполняется при сборке, до рендера
+defineFormBehavior<MyForm>(({ schema }) => {
   const emailRef = schema.node('email').getRef<FieldHandle>();
   onComponentEvent(schema.node('submit'), 'onClick', () => emailRef.current?.focus());
-};
+});
 
 // ❌ неправильно — первый getRef внутри обработчика клика: ref останется null
-<button onClick={() => schema.node('email').getRef<FieldHandle>().current?.focus()} />;
+<button onClick={() => bundle.render.node('email').getRef<FieldHandle>().current?.focus()} />;
 ```
 
 Повторные `getRef()` для того же селектора идемпотентны и возвращают тот же `RefObject` — поэтому
-достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно.
+достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно
+(в том числе через `bundle.render.node(sel)` — это та же корневая область).
 
-## 72. Адресация: `selector` или `__path`
+## 72. Адресация: `selector` или путь модели
 
-Ключ ref листа — `node.selector ?? __path` сигнала модели (явный селектор в приоритете):
+Ключ ref листа — `selector` узла, иначе путь ручки модели (`__path`, явный селектор в приоритете):
 
 ```tsx
-// без selector → адресуется индексным путём модели
-{ value: model.$.email, component: Input }          // → schema.node('email')
-{ value: model.$.phones[0].number, component: Input } // → schema.node('phones.0.number')
+// без selector → адресуется путём модели
+{ model: model.$.email, component: Input }            // → schema.node('email')
+{ model: row.$.number, component: Input }             // строка phones[0] → schema.node('phones.0.number')
 
 // с явным selector → адресуется им
-{ selector: 'pwd', value: model.$.password, component: InputPassword } // → schema.node('pwd')
+{ selector: 'pwd', model: model.$.password, component: InputPassword } // → schema.node('pwd')
 ```
 
-Благодаря `__path` путь модели — **одновременно ключ ref и адрес сигнала** (`model.signalAt(path)`),
-поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
-`FieldArray` индексы не нужно перечислять в схеме.
+Путь абсолютный и ищется от корня сборки — поэтому поле строки `FieldArray` адресуется из
+корневого поведения (`phones.0.number`) без перечисления индексов в схеме. Селектор же живёт в
+своей области: селекторы узлов строки массива и подформы адресуются из их поведения
+(`applyEach` / `apply`), а не из корня. Путь модели — **одновременно ключ ref и адрес ручки**
+(`model.signalAt(path)`), поэтому замечания поля читаются по тому же пути — см. рецепт ниже.
 
 ## 73. Контракты handle
 
@@ -3540,38 +3716,43 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
 открытие прочитает уровень заново.
 
-`Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он живёт
-контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
-объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
-способом, что у `FormWizard` и `FieldArray`.
+`Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он
+живёт контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если
+узел объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` —
+рендерер вешает ref на компонент контейнерного узла.
+
+У `FormWizard` и узла-массива `FieldArray` handle нет: визардом управляет поток шагов сборки
+(`bundle.flow.goTo(id)`, `flow` в поведении), массивом — модель и нода формы
+(`model.phones.push()`, `form.phones.removeAt(i)`).
 
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
-вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
+вызывающий.
 
 ## 74. Рецепт: focus первого невалидного поля после submit
 
-Классика UX, реактивно невыразимая. `validateModel` роутит ошибки в ноды; нода поля
-резолвится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь —
-готовый ключ ref:
+Классика UX, реактивно невыразимая. `bundle.submit` разносит замечания по нодам; нода поля
+находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
 
 ```tsx
 import { getNodeForSignal } from '@reformer/core';
-import { validateModel } from '@reformer/core/validation';
 import type { FieldHandle } from '@reformer/ui-kit';
 
 const ORDER = ['email', 'password', 'city', 'nickname']; // порядок обхода = порядок полей
 
+// В поведении формы — прогреть ref'ы до первого рендера:
+//   defineFormBehavior(({ schema }) => { for (const path of ORDER) schema.node(path).getRef(); });
+
 async function handleSubmit() {
-  const ok = await validateModel(model, validationSchema); // ошибки уже в нодах
-  if (ok) return submit();
+  const outcome = await bundle.submit(sendForm); // при замечаниях обработчик не вызывается
+  if (outcome.status !== 'invalid') return;
 
   const firstInvalid = ORDER.find((path) => {
-    const sig = model.signalAt(path); // пути статические — сигнал существует
-    return sig ? (getNodeForSignal(sig)?.issues.value.length ?? 0) > 0 : false;
+    const handle = bundle.model.signalAt(path); // пути статические — ручка существует
+    return handle ? getNodeForSignal(handle)?.invalid.value === true : false;
   });
   if (!firstInvalid) return;
 
-  const ref = schema.node(firstInvalid).getRef<FieldHandle>();
+  const ref = bundle.render.node(firstInvalid).getRef<FieldHandle>();
   ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   ref.current?.focus();
 }
@@ -3579,38 +3760,44 @@ async function handleSubmit() {
 
 ## 75. Рецепт: зависимый async-Select
 
-Реактивная часть (параметры источника) — через `patchProps`; императивная (сброс, перезагрузка,
-открытие) — через handle:
+Реактивная часть (источник опций) — через `updateComponentProps` ноды поля; императивная (сброс,
+перезагрузка, открытие) — через handle:
 
 ```tsx
-import { renderEffect } from '@reformer/renderer-react';
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 import type { SelectAsyncHandle } from '@reformer/ui-kit';
 
-renderEffect(schema, () => {
-  const country = form.address.country.value.value; // зависимость-сигнал
-  const city = schema.node('city');
+// узел: { selector: 'city', model: model.$.address.city, component: SelectAsync }
+const addressBehavior = defineFormBehavior<MyForm>(({ model, form, schema }) => {
+  const cityRef = schema.node('city').getRef<SelectAsyncHandle>(); // до первого рендера
 
-  city.patchProps({ dataSourceParams: { country } }); // реактивно
-
-  const ref = city.getRef<SelectAsyncHandle>(); // императивно
-  ref.current?.clear();
-  ref.current?.reload();
+  // onChange срабатывает на смену значения (не на старте) и вне effect-контекста.
+  onChange(model.$.address.country, (country) => {
+    form.address.city.updateComponentProps({ resource: citiesResource(country) }); // реактивно
+    cityRef.current?.clear(); // императивно
+    cityRef.current?.reload();
+  });
 });
 ```
+
+`patchProps` из `schema.node(sel)` действует на контейнерные узлы; пропсы поля меняет
+`updateComponentProps` его ноды.
 
 ## 76. Рецепт: фокус в поле только что добавленной строки FieldArray
 
 ```tsx
-import type { FieldArrayHandle } from '@reformer/cdk';
+import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
 import type { FieldHandle } from '@reformer/ui-kit';
 
-const phones = schema.node('phones').getRef<FieldArrayHandle<Phone>>();
-phones.current?.add({ number: '' });
-
-// строка ещё не смонтирована — ждём коммита React
-queueMicrotask(() => {
-  const idx = (phones.current?.length ?? 1) - 1;
-  schema.node(`phones.${idx}.number`).getRef<FieldHandle>().current?.focus();
+defineFormBehavior<MyForm>(({ form, schema }) => {
+  onComponentEvent(schema.node('add-phone'), 'onClick', () => {
+    const index = form.phones.length; // индекс будущей строки (length — число)
+    // ref поля новой строки — до её первого рендера, иначе он не прикрепится
+    const numberRef = schema.node(`phones.${index}.number`).getRef<FieldHandle>();
+    form.phones.push({ number: '' });
+    // строка ещё не смонтирована — ждём коммита React
+    queueMicrotask(() => numberRef.current?.focus());
+  });
 });
 ```
 
@@ -8649,8 +8836,9 @@ Props компонента {@link FormField}.
 ```typescript
 export interface FormFieldProps {
   /**
-   * Поле формы. Из него берутся `component` (тип контрола), `componentProps`, `value`, `error`,
-   * `pending`, `setValue`, `blur`. Контрол инстанцируется автоматически через `CdkFormField.Control`.
+   * Поле формы. Из него берутся `component` (тип контрола), `componentProps`, `value`, `issues`,
+   * `shouldShowError`, `pending`; ввод идёт в `setValue`, уход фокуса — в `markAsTouched`.
+   * Контрол инстанцируется автоматически через `CdkFormField.Control`.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: FormControl<any>;

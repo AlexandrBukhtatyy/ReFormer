@@ -11,13 +11,12 @@
 
 ## Schema-driven (canonical pattern)
 
-Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
-componentProps }` → `createFormFromModel({ model, schema })`; правила — отдельной
-`defineValidation`. Объяви InputMask как `component` листа; передай `mask`
-в `componentProps`:
+Сборка `createForm`: узел поля — `{ model: model.$.field, component, componentProps }`, правила —
+отдельной `defineValidation` в поле `validation`. Объяви InputMask как `component` узла; передай
+`mask` в `componentProps`:
 
 ```ts
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
 import { InputMask } from '@reformer/ui-kit';
@@ -29,36 +28,34 @@ type ContactForm = {
   snils: string;
 };
 
-const model = createModel<ContactForm>({ phone: '', passport: '', inn: '', snils: '' });
-
-// Layout-схема — только component/componentProps, без validators
-const schema = {
+// Схема — только component/componentProps, без правил
+const contactSchema = (model: FormModel<ContactForm>): FormSchemaNode => ({
   children: [
     {
-      value: model.$.phone,
+      model: model.$.phone,
       component: InputMask,
       componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99', testId: 'phone' },
     },
     {
-      value: model.$.passport,
+      model: model.$.passport,
       component: InputMask,
       componentProps: { label: 'Серия и номер паспорта', mask: '9999 999999', testId: 'passport' },
     },
     {
-      value: model.$.inn,
+      model: model.$.inn,
       component: InputMask,
       componentProps: { label: 'ИНН', mask: '999999999999', testId: 'inn' },
     },
     {
-      value: model.$.snils,
+      model: model.$.snils,
       component: InputMask,
       componentProps: { label: 'СНИЛС', mask: '999-999-999 99', testId: 'snils' },
     },
   ],
-};
+});
 
-// Правила — отдельной validation-схемой (@reformer/core/validation)
-const contactValidation = defineValidation<ContactForm>(({ model }) => {
+// Правила — отдельной validation-схемой (@reformer/core/validation); тексты — по кодам в словаре
+const contactRules = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.phone, [
     required({ code: 'field.required' }),
     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
@@ -68,13 +65,23 @@ const contactValidation = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.snils, [required()]);
 });
 
-const form = createFormFromModel<ContactForm>({ model, schema });
+// В React: useFormBundle(createContactForm)
+export const createContactForm = () =>
+  createForm<ContactForm>({
+    initial: { phone: '', passport: '', inn: '', snils: '' },
+    schema: contactSchema,
+    validation: contactRules,
+  });
 ```
 
 Render как обычно через `FormField`:
 
 ```tsx
+import { useFormBundle } from '@reformer/core/react';
 import { FormField } from '@reformer/ui-kit';
+
+const contact = useFormBundle(createContactForm);
+const { form } = contact;
 
 <FormField control={form.phone} testId="phone" />
 <FormField control={form.passport} testId="passport" />
@@ -102,28 +109,35 @@ import { FormField } from '@reformer/ui-kit';
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
-внутри `defineValidation` (см. схему выше), а не в layout-схему. Прогоняются
-раннером `validateModel(model, schema)`:
+внутри `defineValidation` (см. схему выше), а не в схему формы. Опции правила — только
+`{ code?, params? }`; текст замечания берётся по коду из словаря `defineIssueMessages`
+(`ValidationMessagesProvider messages` из `@reformer/cdk`):
 
-- `required({ message })` — на пустоту;
+- `required({ code: 'phone.required' })` — на пустоту;
 - `minLength(18)` — для проверки длины с literal-символами (телефон ровно 18 символов);
-- `pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message })` — точный формат.
+- `pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' })` — точный формат.
 
 ```ts
-import { validateModel } from '@reformer/core/validation';
+import { defineIssueMessages } from '@reformer/core/i18n';
 
-// contactValidation — из блока Schema-driven выше.
+export const contactMessages = defineIssueMessages({
+  'field.required': 'Обязательное поле',
+  'phone.pattern': 'Телефон в формате +7 (999) 999-99-99',
+  'inn.pattern': 'ИНН — 12 цифр',
+});
+
+// contact — сборка createContactForm() из блока выше.
 const onSubmit = async () => {
-  form.markAsTouched();
-  const ok = await validateModel(model, contactValidation); // Promise<boolean>, ошибки роутятся в ноды
-  if (!ok) return;
-  await api.submit(model.get());
+  // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
+  const outcome = await contact.submit((values) => api.submit(values));
+  if (outcome.status !== 'submitted') return;
 };
 ```
 
 Cross-field правила (например, «доп. телефон отличается от основного») — это
-`cross(model.$.phoneAdditional, (f) => ...)` в той же validation-схеме: функция получает
-снапшот `model.get()` и читает соседние поля напрямую.
+`cross(model.$.phoneAdditional, (f) => ...)` из области той же validation-схемы
+(`defineValidation(({ model, cross }) => …)`): функция получает снапшот модели и читает соседние
+поля напрямую.
 
 ## Advanced — strict mask через FormField + children slot
 

@@ -15,7 +15,7 @@
 **Решение.** Числовое поле — отдельный компонент `InputNumber` (registry `InputNumber`):
 
 ```tsx
-{ value: model.$.age, component: InputNumber, componentProps: { label: 'Возраст', min: 0 } }
+{ model: model.$.age, component: InputNumber, componentProps: { label: 'Возраст', min: 0 } }
 // в модель приходит number | null. Пустой ввод → null. Частичный ввод («-», «.») не эмитится.
 ```
 
@@ -29,14 +29,15 @@ interface Form {
 
 ## 2. `SelectAsync` не показывает options (пустой дропдаун)
 
-**Симптом.** Триггер открывается, но в нём `'No options available'`.
+**Симптом.** Триггер открывается, но в нём `No options found.` (или «Failed to load options.» с
+кнопкой «Retry»).
 
 **Причины и решения:**
 
-- **Передан `resource`, но не передан `options`** — `resource.load({})`
-  упал с ошибкой и поймался `.catch(() => setResourceOptions([]))`. Открой
-  DevTools Network и посмотри статус. Скорее всего бек вернул не тот формат
-  (`items: [...]` обязательно, `id` обязательно у каждого item).
+- **Передан `resource`, но не передан `options`** — `resource.load()` упал или вернул пусто:
+  при ошибке список показывает «Failed to load options.» и повтор. Открой DevTools Network и
+  посмотри статус. Скорее всего бек вернул не тот формат (`items: [...]` обязательно, `id`
+  обязательно у каждого item).
 
 - **Передан `options`, но `value` не строка** — внутри `SelectAsync` все `value`
   приводятся к строке (`String(opt.value)`). Если ты передаёшь
@@ -124,16 +125,17 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
   модели.
 
 ```typescript
-const model = createModel<{ accept: boolean }>({ accept: false }); // false, не undefined!
-const schema = {
-  children: [{ value: model.$.accept, component: CheckboxWithLabel }],
-};
-const form = createFormFromModel<{ accept: boolean }>({ model, schema });
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false }, // false, не undefined!
+  schema: (model) => ({
+    children: [{ model: model.$.accept, component: CheckboxWithLabel }],
+  }),
+});
 ```
 
 ## 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
 
-**Симптом.** Поле невалидно, `form.email.error` есть, но в DOM ошибка не
+**Симптом.** Поле невалидно, в `form.email.issues.value` замечание есть, но в DOM ошибка не
 рендерится.
 
 **Причины.**
@@ -141,25 +143,25 @@ const form = createFormFromModel<{ accept: boolean }>({ model, schema });
 - Используется headless-`FormField` из `@reformer/cdk` без подключения
   `<FormField.Error>`. ui-kit-`FormField` всегда вставляет `Error`, поэтому
   чаще всего проблема — путаница импортов.
-- Поле не помечено как `touched`. По умолчанию `error` вычисляется только
-  после `blur` или `markAsTouched`. Если submit-кнопка не вызывает
-  `form.markAsTouched()` — пользователь вообще не увидит ошибку.
+- Поле не тронуто. Ошибка видна, только когда `shouldShowError = invalid && (touched || dirty)`.
+  Правила, запущенные в обход сборки (свой `runValidation` без `applyValidationResult(…, { touch: true })`),
+  ставят замечания, но не помечают поля `touched` — пользователь их не увидит.
+- Правила вообще не запускались. По умолчанию (`strategy: 'submit'`) живой проверки нет: замечания
+  появляются после `bundle.submit()` / `bundle.validate()`.
 
-**Решение.** На submit обязательно помечаем touched и валидируем модель по
-validation-схеме (M1: `validateModel(model, validationSchema)` из
-`@reformer/core/validation` — именно он прогоняет правила и роутит ошибки в ноды;
-`form.submit()`/`validate()` schema-валидацию НЕ гоняют):
+**Решение.** Правила — в сборке (`createForm({ validation })` или правила шагов `flow`), а отправка —
+через `bundle.submit(handler)`: один прогон всех правил, замечания разнесены по нодам, при провале
+поля помечены `touched`, обработчик не вызывается:
 
 ```tsx
-import { validateModel } from '@reformer/core/validation';
-
 const onSubmit = async () => {
-  form.markAsTouched();
-  const ok = await validateModel(model, validationSchema); // Promise<boolean>
-  if (!ok) return;
-  // ... отправка (значения — из model.get())
+  const outcome = await bundle.submit((values) => api.send(values));
+  if (outcome.status === 'invalid') return; // ошибки уже на экране
 };
 ```
+
+Нужна живая проверка — стратегия сборки: `validation: { rules, strategy: 'blur' }`. Методов
+`form.submit()` / `form.validate()` у нод нет — проверку и отправку держит сборка.
 
 И импорт:
 
@@ -187,8 +189,10 @@ import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 (ведь выбор — это явное взаимодействие):
 
 ```tsx
+const city = useFormControlValue(form.city); // @reformer/core/react: значение для рендера
+
 <SelectAsync
-  value={form.city.value}
+  value={city}
   onChange={(v) => {
     form.city.setValue(v);
     form.city.markAsTouched(); // принудительно помечаем touched
@@ -282,14 +286,21 @@ const hasValue = Boolean(value);
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
 
-**Причина.** `SelectAsync` (registry `Select`) ждёт `options: Array<{value, label, group?}>`, а из
-реестра приходит уже обработанная строкой ссылка `'$LOAN_TYPES'`. Нужен
-правильный синтаксис dataSource-ссылки в реестре.
+**Причина.** `SelectAsync` (registry `Select`) ждёт `options: Array<{value, label, group?}>`, а
+`'$LOAN_TYPES'` — не оператор, а обычная строка: голые строки-ссылки в документе не резолвятся.
 
-**Решение.** Проверь convention для dataSource-ссылок в
-[`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
-Внутри `SelectAsync` дальнейших магий нет — он просто читает `directOptions`
-один в один.
+**Решение.** Справочник адресуется только оператором `$dataSource(...)`:
+
+```jsonc
+{
+  "model": "$model(loanType)",
+  "component": "$component(Select)",
+  "componentProps": { "options": "$dataSource(LOAN_TYPES)" },
+}
+```
+
+Подробнее — [`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
+Внутри `SelectAsync` дальнейших магий нет — он читает `options` один в один.
 
 ## 12. Мультивыбор не рендерится, а submit молча не проходит
 
@@ -299,14 +310,15 @@ const hasValue = Boolean(value);
 срабатывает, и **ни одной** ошибки на экране нет.
 
 **Причина.** У массива в форме нет ноды поля. Массив становится полем, только когда схема
-привязывает к нему компонент узлом `{ value: model.$.<путь>, component }`; без такой привязки
-`createForm` его пропускает, и реестр сигнал→нода пуст. Дальше `validateModel` возвращает `false`
-и блокирует submit, но маршрутизация ошибок делает `getNodeForSignal(sig)?.setIssues(...)` —
-optional chaining без `else`, поэтому показать ошибку некому.
+привязывает к нему компонент узлом `{ model: model.$.<путь>, component }`; без такой привязки
+`createForm` его пропускает, и реестр сигнал→нода пуст. Дальше проверка находит замечание и
+`bundle.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
+`getNodeForSignal(sig)?.setIssues(...)` — optional chaining без `else`, поэтому показать ошибку
+некому.
 
 Привязки не оказывается в трёх случаях:
 
-- в `value` стоит value-фасад массива `model.tags`, а не ручка значения `model.$.tags` (в
+- в `model` узла стоит value-фасад массива `model.tags`, а не ручка значения `model.$.tags` (в
   dev-режиме `createForm` пишет об этом предупреждение);
 - узел поля не попал в схему, с которой собрана форма (собран другой билдер, поле под условием);
 - `@reformer/core` старше версии, где массив стал значением поля, — там начальное `[]` убирало
@@ -315,12 +327,13 @@ optional chaining без `else`, поэтому показать ошибку н
 **Лечение.**
 
 ```typescript
-const model = createModel({ tags: [] as string[] });
-
-const schema = {
-  tags: { value: model.$.tags, component: SelectMulti }, // ручка значения, не model.tags
-};
-validate(model.$.tags, [required()]);
+createForm<{ tags: string[] }>({
+  initial: { tags: [] },
+  schema: (model) => ({
+    children: [{ model: model.$.tags, component: SelectMulti }], // ручка значения, не model.tags
+  }),
+  validation: tagsRules, // validate(model.$.tags, [required()])
+});
 ```
 
 Смежное: префилл выбранных значений допустим и до, и после `createForm`; если он пришёл после,

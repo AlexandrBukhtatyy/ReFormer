@@ -13,8 +13,9 @@ export type FormFieldDirection = 'col' | 'row';
 /** Props компонента {@link FormField}. */
 export interface FormFieldProps {
   /**
-   * Поле формы. Из него берутся `component` (тип контрола), `componentProps`, `value`, `error`,
-   * `pending`, `setValue`, `blur`. Контрол инстанцируется автоматически через `CdkFormField.Control`.
+   * Поле формы. Из него берутся `component` (тип контрола), `componentProps`, `value`, `issues`,
+   * `shouldShowError`, `pending`; ввод идёт в `setValue`, уход фокуса — в `markAsTouched`.
+   * Контрол инстанцируется автоматически через `CdkFormField.Control`.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: FormControl<any>;

@@ -46,7 +46,7 @@
 
 ```tsx
 {
-  value: model.$.inn,
+  model: model.$.inn,
   component: Input,
   componentProps: { label: 'ИНН', tooltip: '10 цифр для юрлица, 12 — для ИП' },
 }
@@ -82,30 +82,36 @@ interface InputProps extends React.ComponentProps<'input'> {
 
 ### Common Patterns
 
-Email-поле формы (M1: `createModel` → layout-схема с листом
-`{ value: model.$.email, component }` → `createFormFromModel({ model, schema })`; правила — в
-отдельной `defineValidation`, запуск `validateModel`):
+Email-поле формы: сборка `createForm`, узел поля `{ model: model.$.email, component }`; правила —
+в отдельной `defineValidation` (поле `validation` сборки), запуск — `bundle.submit(handler)` или
+`bundle.validate()`:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { Input, FormField } from '@reformer/ui-kit';
 
-const model = createModel<{ email: string }>({ email: '' });
-const schema = {
-  children: [
-    {
-      value: model.$.email,
-      component: Input,
-      componentProps: { type: 'email', label: 'Email', testId: 'email' },
-    },
-  ],
-};
-const validation = defineValidation<{ email: string }>(({ model }) => {
+type Subscribe = { email: string };
+
+const subscribeRules = defineValidation<Subscribe>(({ model }) => {
   validate(model.$.email, [required(), email()]);
 });
-const form = createFormFromModel<{ email: string }>({ model, schema });
+
+// В React сборку держит useFormBundle(() => createForm(…)); вне React — константа модуля.
+const { form } = createForm<Subscribe>({
+  initial: { email: '' },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.email,
+        component: Input,
+        componentProps: { type: 'email', label: 'Email', testId: 'email' },
+      },
+    ],
+  }),
+  validation: subscribeRules,
+});
 
 // Через FormField значение/ошибки подцепляются автоматически:
 <FormField control={form.email} testId="email" />;
@@ -133,7 +139,7 @@ const form = createFormFromModel<{ email: string }>({ model, schema });
 
 ```tsx
 {
-  value: model.$.age,
+  model: model.$.age,
   component: InputNumber,
   componentProps: { label: 'Возраст', min: 0, testId: 'age' },
 }
@@ -166,14 +172,14 @@ Anti-patterns:
 ```tsx
 // Статика: строки или { value, label? }
 {
-  value: model.$.city,
+  model: model.$.city,
   component: InputSuggest,
   componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
 }
 
 // Серверный поиск — тот же ResourceConfig, что у Select (static / preload / partial)
 {
-  value: model.$.company,
+  model: model.$.company,
   component: InputSuggest,
   componentProps: {
     suggestions: { type: 'partial', pageSize: 20, load: ({ search, page }) => api.companies(search, page) },
@@ -182,7 +188,7 @@ Anti-patterns:
 }
 ```
 
-В JSON-DSL: `"$component": "InputSuggest"` и `"suggestions": ["Москва", "Казань"]` или
+В JSON-DSL: `"component": "$component(InputSuggest)"` и `"suggestions": ["Москва", "Казань"]` или
 `"suggestions": "$dataSource(CITIES)"` — через `$dataSource` можно отдать и `ResourceConfig` с
 функцией `load`.
 
@@ -260,7 +266,7 @@ import { InputMask } from '@reformer/ui-kit';
   значение к формату сами: `/^\d{10}$/` пройдёт, а `/^\+7 \(\d{3}\)…/` — нет.
 - Использовать `mask` для сложных правил (валидация диапазонов, контрольные
   суммы) — `InputMask` только направляет ввод, не валидирует. Валидацию вешать
-  через `validate(model.$.x, [...])` в validation-схеме (запуск `validateModel`).
+  через `validate(model.$.x, [...])` в validation-схеме (поле `validation` сборки `createForm`).
 
 ## InputPassword
 
@@ -299,16 +305,26 @@ import { InputPassword } from '@reformer/ui-kit';
 <InputPassword value={password} onChange={setPassword} showToggle={false} />
 ```
 
-Подтверждение пароля (через `compute-from` / `revalidate-when` на уровне формы):
+Подтверждение пароля — два поля схемы и правило над двумя полями (`cross`) в validation-схеме:
 
 ```tsx
-<InputPassword value={form.password.value} onChange={form.password.setValue} />
-<InputPassword
-  value={form.passwordConfirm.value}
-  onChange={form.passwordConfirm.setValue}
-  placeholder="Повторите пароль"
-/>
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, minLength } from '@reformer/core/validators';
+
+// узлы схемы
+{ model: model.$.password, component: InputPassword, componentProps: { label: 'Пароль' } },
+{ model: model.$.passwordConfirm, component: InputPassword, componentProps: { label: 'Повторите пароль' } },
+
+// правила — поле `validation` сборки
+const passwordRules = defineValidation<SignUp>(({ model, cross }) => {
+  validate(model.$.password, [required(), minLength(8)]);
+  cross(model.$.passwordConfirm, (form) =>
+    form.passwordConfirm === form.password ? null : { code: 'passwordConfirm.mismatch' }
+  );
+});
 ```
+
+Текст `passwordConfirm.mismatch` — в словаре формы (`defineIssueMessages`).
 
 ### Anti-patterns
 
@@ -327,10 +343,10 @@ interface TextareaProps extends React.ComponentProps<'textarea'> {
 }
 ```
 
-| Prop        | Тип      | Default | Описание                                                             |
-| ----------- | -------- | ------- | -------------------------------------------------------------------- |
-| `rows`      | `number` | `3`     | Видимая высота в строках. Resize по вертикали оставлен (`resize-y`). |
-| `maxLength` | `number` | —       | Жёсткое ограничение длины (нативное HTML-поведение).                 |
+| Prop        | Тип      | Default | Описание                                                                                  |
+| ----------- | -------- | ------- | ----------------------------------------------------------------------------------------- |
+| `rows`      | `number` | —       | Нативный атрибут. Высота поля растёт по содержимому (`field-sizing-content`, от `min-h-16`). |
+| `maxLength` | `number` | —       | Жёсткое ограничение длины (нативное HTML-поведение).                                      |
 
 Как и `Input`, standalone `Textarea` эмитит нативное событие; в форме обёртка поля переводит его
 в значение (`e.target.value || null`).
@@ -343,7 +359,7 @@ interface TextareaProps extends React.ComponentProps<'textarea'> {
 import { Textarea } from '@reformer/ui-kit';
 
 {
-  value: model.$.comment,
+  model: model.$.comment,
   component: Textarea,
   componentProps: { label: 'Комментарий', rows: 5, maxLength: 500, placeholder: 'Опишите проблему' },
 }
@@ -357,11 +373,11 @@ import { Textarea } from '@reformer/ui-kit';
 
 ### Anti-patterns
 
-- Передавать `rows={1}` — для одной строки используйте `Input`. Textarea не
-  имеет логики авто-роста.
+- Передавать `rows={1}` ради однострочного поля — для одной строки используйте `Input`.
 - Полагаться на `maxLength` как валидатор: это soft-лимит на ввод; для бизнес-
-  правил (например, `длина <= 500 на русском, <= 1000 на английском`) ставить
-  `validators` в лист схемы (`{ value: model.$.field, component, validators }`).
+  правил (например, `длина <= 500 на русском, <= 1000 на английском`) нужно правило в
+  validation-схеме: `validate(model.$.comment, [maxLength(500)])`. Ключа `validators` у узла
+  схемы нет — узел несёт только компонент и его пропсы.
 
 ## See also
 

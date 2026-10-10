@@ -114,16 +114,17 @@ interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
 label сверху):
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
-const model = createModel<{ accept: boolean }>({ accept: false });
-const schema = {
-  children: [
-    { value: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
-  ],
-};
-const form = createFormFromModel<{ accept: boolean }>({ model, schema });
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false },
+  schema: (model) => ({
+    children: [
+      { model: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
+    ],
+  }),
+});
 
 <FormField control={form.accept} testId="accept" />;
 ```
@@ -221,19 +222,20 @@ const LOAN_TYPES = [
 В составе формы:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 
-const model = createModel<{ loanType: string }>({ loanType: 'consumer' });
-const schema = {
-  children: [
-    {
-      value: model.$.loanType,
-      component: RadioGroupOptions,
-      componentProps: { options: LOAN_TYPES },
-    },
-  ],
-};
-const form = createFormFromModel<{ loanType: string }>({ model, schema });
+const { form } = createForm<{ loanType: string }>({
+  initial: { loanType: 'consumer' },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.loanType,
+        component: RadioGroupOptions,
+        componentProps: { options: LOAN_TYPES },
+      },
+    ],
+  }),
+});
 
 <FormField control={form.loanType} testId="loan-type" />;
 ```
@@ -413,25 +415,26 @@ Grouped options:
 В составе формы:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 
-const model = createModel<{ city: string }>({ city: '' });
-const schema = {
-  children: [
-    {
-      value: model.$.city,
-      component: SelectAsync,
-      componentProps: {
-        placeholder: 'Город',
-        options: [
-          { value: 'msk', label: 'Москва' },
-          { value: 'spb', label: 'Санкт-Петербург' },
-        ],
+const { form } = createForm<{ city: string | null }>({
+  initial: { city: null },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.city,
+        component: SelectAsync,
+        componentProps: {
+          placeholder: 'Город',
+          options: [
+            { value: 'msk', label: 'Москва' },
+            { value: 'spb', label: 'Санкт-Петербург' },
+          ],
+        },
       },
-    },
-  ],
-};
-const form = createFormFromModel<{ city: string }>({ model, schema });
+    ],
+  }),
+});
 
 <FormField control={form.city} testId="city" />;
 ```
@@ -482,9 +485,9 @@ const model = createModel({ tags: null as string[] | null });
 ```
 
 Массив в модели бывает двух видов, и решает это **схема**, а не данные: узел
-`{ value: model.$.tags, component }` делает его ОДНИМ значением поля (мультивыбор, теги, файлы),
-узел `{ array: model.items, item }` — набором под-форм. Массив, к которому в схеме ничего не
-привязано, в форму не попадает.
+`{ model: model.$.tags, component }` делает его ОДНИМ значением поля (мультивыбор, теги, файлы),
+узел `{ model: model.$.items, component: FieldArray, item }` — набором под-форм. Массив, к которому
+в схеме ничего не привязано, в форму не попадает.
 
 Что хранит модель на пустом выборе, зависит от начального значения: поле с `[]` хранит `[]`
 (контрол отдаёт `null`, узел-массив приводит его к `[]`), поле с `null` — `null`. Выбирайте
@@ -493,30 +496,41 @@ const model = createModel({ tags: null as string[] | null });
 ### Использование в схеме
 
 ```typescript
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
 import { ToggleGroupMulti } from '@reformer/ui-kit';
 import { ComboboxMulti } from '@reformer/ui-kit/combobox'; // combobox — только subpath
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
-const schema = {
-  tags: {
-    // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
-    value: model.$.tags,
-    component: ToggleGroupMulti,
-    componentProps: {
-      label: 'Теги',
-      options: [
-        { value: 'ru', label: 'Россия' },
-        { value: 'by', label: 'Беларусь' },
-      ],
-      maxItems: 3,
-    },
-  },
-};
+type Form = { tags: string[] };
 
-// Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
-const validation = defineValidation<Form>(({ model }) => {
+const tagsSchema = (model: FormModel<Form>): FormSchemaNode => ({
+  children: [
+    {
+      // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
+      model: model.$.tags,
+      component: ToggleGroupMulti,
+      componentProps: {
+        label: 'Теги',
+        options: [
+          { value: 'ru', label: 'Россия' },
+          { value: 'by', label: 'Беларусь' },
+        ],
+        maxItems: 3,
+      },
+    },
+  ],
+});
+
+// Правила — отдельной схемой над моделью: у узла схемы ключа `validators` нет.
+const tagsRules = defineValidation<Form>(({ model }) => {
   validate(model.$.tags, [required(), maxLength(3)]);
+});
+
+const { form } = createForm<Form>({
+  initial: { tags: [] },
+  schema: tagsSchema,
+  validation: tagsRules,
 });
 ```
 
@@ -540,14 +554,18 @@ const validation = defineValidation<Form>(({ model }) => {
   `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
   пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
   поискового запроса или перезагрузки источника.
-- **Ошибка вспыхивает посреди выбора** — ожидаемо: `FormControl.setValue` взводит `dirty`
-  безусловно, без сравнения, а `shouldShowError = invalid && (touched || dirty)`. Оставляйте
-  `updateOn: 'blur'` (значение по умолчанию) и не стройте логику на `dirty`.
+- **Ошибка вспыхивает посреди выбора** — так бывает при живой проверке по изменению
+  (`validation: { rules, strategy: 'change' }` либо `afterFirstSubmit` с `liveAfterSubmit:
+  'change'`): каждый пункт — новое значение, `FormControl.setValue` взводит `dirty` безусловно, а
+  `shouldShowError = invalid && (touched || dirty)`. Для мультивыбора берите `strategy: 'blur'`
+  (`liveAfterSubmit: 'blur'`) — `onBlur` списков приходит на закрытии поповера — и не стройте
+  логику на `dirty`. По умолчанию (`strategy: 'submit'`) живой проверки нет вовсе.
 
 ### Anti-patterns
 
-- `value: model.tags` вместо `value: model.$.tags` — value-фасад массива не ручка значения, узел
-  не распознаётся как поле (в dev-режиме `createForm` об этом предупреждает).
+- `model: model.tags` вместо `model: model.$.tags` — value-фасад массива не ручка значения, узел
+  не распознаётся как поле (в dev-режиме `createForm` об этом предупреждает). Ключа `value:` у
+  узла схемы нет — привязка только `model:`.
 - Привязка через `model.signalAt('tags')!` — рабочая, но лишняя: `model.$.tags` типизирован и не
   требует `!`.
 - Мутация массива на месте: `arr.push(x); onChange(arr)` — preact-сигнал бэйлится по `!==`, UI не
@@ -629,7 +647,7 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 Выбор одного файла из объявленного дерева:
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import { ComboboxTree } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
@@ -647,21 +665,24 @@ const FILES: TreeNode[] = [
   { id: 'package.json', label: 'package.json' },
 ];
 
-const model = createModel<{ entry: string | null }>({ entry: null });
-const schema = {
-  entry: {
-    value: model.$.entry,
-    component: ComboboxTree,
-    componentProps: {
-      label: 'Точка входа',
-      nodes: FILES,
-      defaultExpandedIds: ['src'],
-      clearable: true,
-      testId: 'entry',
-    },
-  },
-};
-const form = createFormFromModel<{ entry: string | null }>({ model, schema });
+const { form } = createForm<{ entry: string | null }>({
+  initial: { entry: null },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.entry,
+        component: ComboboxTree,
+        componentProps: {
+          label: 'Точка входа',
+          nodes: FILES,
+          defaultExpandedIds: ['src'],
+          clearable: true,
+          testId: 'entry',
+        },
+      },
+    ],
+  }),
+});
 
 <FormField control={form.entry} testId="entry" />;
 ```
@@ -670,36 +691,43 @@ const form = createFormFromModel<{ entry: string | null }>({ model, schema });
 validation-схеме:
 
 ```typescript
+import { createForm } from '@reformer/core';
+import type { TreeNode } from '@reformer/ui-kit';
 import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 type Form = { attachments: string[] };
 
-const model = createModel<Form>({ attachments: [] });
-const schema = {
-  attachments: {
-    value: model.$.attachments,
-    component: ComboboxTreeMulti,
-    componentProps: {
-      label: 'Файлы заявки',
-      // Уровень читается при первом раскрытии ветки; null — верхний уровень.
-      loadChildren: (node) => fs.list(node?.id ?? '/'),
-      maxItems: 5,
-      testId: 'attachments',
-    },
-  },
-};
-
-const validation = defineValidation<Form>(({ model }) => {
+const attachmentsRules = defineValidation<Form>(({ model }) => {
   validate(model.$.attachments, [required(), maxLength(5)]);
+});
+
+const { form } = createForm<Form>({
+  initial: { attachments: [] },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.attachments,
+        component: ComboboxTreeMulti,
+        componentProps: {
+          label: 'Файлы заявки',
+          // Уровень читается при первом раскрытии ветки; null — верхний уровень.
+          loadChildren: (node: TreeNode | null) => fs.list(node?.id ?? '/'),
+          maxItems: 5,
+          testId: 'attachments',
+        },
+      },
+    ],
+  }),
+  validation: attachmentsRules,
 });
 ```
 
 ### Anti-patterns
 
-- Массив мульти без привязки компонента в схеме (или `value: model.attachments` вместо
-  `model.$.attachments`) — поля в форме нет; симптомы разобраны в
+- Массив мульти без привязки компонента в схеме (или `model: model.attachments` вместо
+  `model: model.$.attachments`) — поля в форме нет; симптомы разобраны в
   [06-troubleshooting.md](06-troubleshooting.md), пункт 12.
 - `minLength(1)` вместо `required()` для обязательности nullable-поля — на `null` правило выходит
   раньше проверки.

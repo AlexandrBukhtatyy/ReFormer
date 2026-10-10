@@ -48,10 +48,12 @@ react-resizable-panels, `@shadcn/react`) — ставьте их только е
 ## Установка
 
 ```bash
-npm install @reformer/ui-kit @reformer/core
+npm install @reformer/ui-kit @reformer/core @reformer/cdk
 ```
 
-Peer-зависимости: `@reformer/core`, `@reformer/cdk`, `@reformer/renderer-react`, `react`, `react-dom`.
+Peer-зависимости: `@reformer/core`, `@reformer/cdk`, `react`, `react-dom`. От
+`@reformer/renderer-react` кит не зависит — рендерер ставится, только если форма рисуется по
+схеме (`FormRenderer`).
 Пакет рендерится с **Tailwind CSS v4** — Tailwind должен быть настроен в приложении (см. «Тема» ниже).
 
 ## Концепт вариантов
@@ -169,7 +171,7 @@ export const CheckboxWithLabel = defineFieldControl(CheckboxWithLabelBase, {
 import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
 
 export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
-// схема: { value: model.$.agree, component: MyCheckbox }
+// схема: { model: model.$.agree, component: MyCheckbox }
 ```
 
 > **Чужие компоненты без статики.** С `@reformer/renderer-react` (и через наследование
@@ -222,72 +224,87 @@ function LoanTypePicker({ value, onChange }: { value: string; onChange: (v: stri
 
 ### 2. Form-поле (`SelectAsync` внутри `FormField`)
 
-Архитектура M1: сначала модель (`createModel`) — источник истины значений, затем форма
-(`createFormFromModel({ model, schema })`), где поле привязано к сигналу модели и несёт `component`
-(сам компонент кита) + `componentProps`. Layout **не несёт валидаторов** — правила живут в отдельной
-`ValidationDefinition` и прогоняются внешним раннером `validateModel(model, schema)` из
-[`@reformer/core/validation`](https://www.npmjs.com/package/@reformer/core) (см. пример ниже).
-В JSX — один `<FormField control={form.x} />`.
+Сборка — один вызов `createForm` из `@reformer/core`: модель из `initial`, схема `(model) => узел`,
+где узел поля привязан к ручке модели (`model: model.$.x`) и несёт `component` (сам компонент кита)
+и `componentProps`. Схема **не несёт правил** — они живут в отдельной `defineValidation`
+([`@reformer/core/validation`](https://www.npmjs.com/package/@reformer/core)) и подключаются полем
+`validation`; проверку и отправку делает `bundle.submit(handler)`. В JSX — один
+`<FormField control={form.x} />`.
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
-import { validate, defineValidation, validateModel } from '@reformer/core/validation';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineIssueMessages } from '@reformer/core/i18n';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { Button, FormField, SelectAsync, InputNumber } from '@reformer/ui-kit';
 
-type LoanForm = { loanType: string; amount: number | null };
+type LoanForm = { loanType: string | null; amount: number | null };
+
+// Правила — отдельный слой: голые операторы validate/validateAsync/cross над ручками модели.
+// Правило несёт код, а не текст.
+const loanRules = defineValidation<LoanForm>(({ model }) => {
+  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
+  validate(model.$.amount, [required({ code: 'amount.required' })]);
+});
+
+// Тексты замечаний — словарь формы по кодам.
+const loanMessages = defineIssueMessages({
+  'loanType.required': 'Выберите тип кредита',
+  'amount.required': 'Укажите сумму',
+});
+
+const createLoanForm = () =>
+  createForm<LoanForm>({
+    initial: { loanType: null, amount: null },
+    // Схема формы: component + componentProps, БЕЗ правил.
+    schema: (model) => ({
+      children: [
+        {
+          model: model.$.loanType,
+          component: SelectAsync, // ← сам компонент: связывает его FormField
+          componentProps: {
+            label: 'Тип кредита',
+            placeholder: 'Выберите вариант',
+            options: [
+              { value: 'consumer', label: 'Потребительский' },
+              { value: 'mortgage', label: 'Ипотека' },
+            ],
+          },
+        },
+        {
+          model: model.$.amount,
+          component: InputNumber,
+          componentProps: { label: 'Сумма', min: 0 },
+        },
+      ],
+    }),
+    validation: loanRules,
+  });
 
 function LoanFormExample() {
-  const { model, form, validation } = useMemo(() => {
-    const model = createModel<LoanForm>({ loanType: '', amount: null });
-    // Layout-схема формы: component + componentProps, БЕЗ валидаторов.
-    const schema = {
-      loanType: {
-        value: model.$.loanType,
-        component: SelectAsync, // ← сам компонент: связывает его FormField
-        componentProps: {
-          label: 'Тип кредита',
-          placeholder: 'Выберите вариант',
-          options: [
-            { value: 'consumer', label: 'Потребительский' },
-            { value: 'mortgage', label: 'Ипотека' },
-          ],
-        },
-      },
-      amount: {
-        value: model.$.amount,
-        component: InputNumber,
-        componentProps: { label: 'Сумма', min: 0 },
-      },
-    };
-    // Валидация — отдельный ambient-контракт (@reformer/core/validation): голые операторы
-    // validate/validateAsync/cross над сигналами модели. Правила required()/… — из /validators.
-    const validation = defineValidation<LoanForm>(({ model }) => {
-      validate(model.$.loanType, [required({ code: 'loanType.required' })]);
-      validate(model.$.amount, [required({ code: 'amount.required' })]);
-    });
-    const form = createFormFromModel<LoanForm>({ model, schema });
-    return { model, form, validation };
-  }, []);
+  // useFormBundle зовёт фабрику ровно один раз и держит сборку стабильной между рендерами.
+  const loan = useFormBundle(createLoanForm);
+  const { form } = loan;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched();
-    // form.submit()/validate() больше НЕ прогоняют schema-валидацию — только внешний validateModel.
-    // Раннер разносит ошибки по нодам формы (UI подсветит поля) и возвращает Promise<boolean>.
-    const ok = await validateModel(model, validation);
-    if (!ok) return;
-    console.log('Данные:', model.get());
+    // Один прогон всех правил: замечания разнесены по нодам (UI подсветит поля), при провале
+    // обработчик не вызывается.
+    const outcome = await loan.submit((values) => console.log('Данные:', values));
+    if (outcome.status === 'invalid') console.warn('Проверьте форму');
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* FormField рендерит Label → Control → Error и подключает value/onChange/onBlur ноды */}
-      <FormField control={form.loanType} testId="loanType" />
-      <FormField control={form.amount} testId="amount" />
-      <Button type="submit">Отправить</Button>
-    </form>
+    <ValidationMessagesProvider messages={loanMessages}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* FormField рендерит Label → Control → Error и подключает value/onChange/onBlur ноды */}
+        <FormField control={form.loanType} testId="loanType" />
+        <FormField control={form.amount} testId="amount" />
+        <Button type="submit">Отправить</Button>
+      </form>
+    </ValidationMessagesProvider>
   );
 }
 ```
@@ -299,10 +316,14 @@ function LoanFormExample() {
 ### 3. Динамические массивы и мастер
 
 ```tsx
-// Стилизованная секция массива (типизированный itemComponent)
-import { FieldArraySection } from '@reformer/ui-kit/field-array';
-// Многошаговый мастер
+// Массив под-форм: узел схемы { model: model.$.items, component: FieldArray, item: (row) => узел }
+// либо секция в JSX с типизированным itemComponent
+import { FieldArray, FieldArraySection } from '@reformer/ui-kit/field-array';
+// Многошаговый мастер — адаптер потока шагов сборки createForm({ flow: { steps: [{ id, rules }] } })
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+
+// В JSX: форма и поток — из сборки, отправка — через bundle.submit
+<FormWizard form={bundle.form} flow={bundle.flow} steps={STEPS} onSubmit={submit} />;
 ```
 
 Полные примеры `FieldArraySection` и `FormWizard` — в корневом

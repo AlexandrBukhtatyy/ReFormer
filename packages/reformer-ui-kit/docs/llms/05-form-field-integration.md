@@ -50,7 +50,7 @@ interface FormFieldProps {
 
 | Prop        | Тип              | Описание                                                                                                                                                     |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`   | `FormControl<T>`   | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
+| `control`   | `FormControl<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `issues` / `shouldShowError`, `pending`, `disabled`.                                     |
 | `className` | `string`         | Класс корневой `<div>`-обёртки.                                                                                                                              |
 | `testId`    | `string`         | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
 | `direction` | `'col' \| 'row'` | Раскладка подписи и контрола: `'col'` (по умолчанию) — подпись над контролом, `'row'` — слева от него. См. сценарий 5.                                       |
@@ -78,7 +78,7 @@ interface FormFieldProps {
 
 ```tsx
 {
-  value: model.$.email,
+  model: model.$.email,
   component: Input,
   componentProps: {
     label: 'Email',
@@ -119,27 +119,34 @@ NativeSelectMulti, аватар) иконка встаёт справа от к�
 Самый частый сценарий: ручная форма с `FormField`-ами для каждого поля.
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, email } from '@reformer/core/validators';
 import { Button, FormField, Input, SelectAsync } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
-  country: string;
+  country: string | null;
 };
 
-function RegistrationPage() {
-  const form = useMemo(() => {
-    const model = createModel<RegistrationForm>({ email: '', country: '' });
-    const schema = {
+const registrationRules = defineValidation<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+  validate(model.$.country, [required()]);
+});
+
+const createRegistrationForm = () =>
+  createForm<RegistrationForm>({
+    initial: { email: '', country: null },
+    schema: (model) => ({
       children: [
         {
-          value: model.$.email,
+          model: model.$.email,
           component: Input,
           componentProps: { label: 'Email', placeholder: 'you@example.com', testId: 'email' },
         },
         {
-          value: model.$.country,
+          model: model.$.country,
           component: SelectAsync,
           componentProps: {
             label: 'Страна',
@@ -151,12 +158,21 @@ function RegistrationPage() {
           },
         },
       ],
-    };
-    return createFormFromModel<RegistrationForm>({ model, schema });
-  }, []);
+    }),
+    validation: registrationRules,
+  });
+
+function RegistrationPage() {
+  const registration = useFormBundle(createRegistrationForm);
+  const { form } = registration;
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await registration.submit((values) => api.register(values));
+  };
 
   return (
-    <form className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       <FormField control={form.email} testId="email" />
       <FormField control={form.country} testId="country" />
       <Button type="submit">Регистрация</Button>
@@ -165,8 +181,12 @@ function RegistrationPage() {
 }
 ```
 
-`Label` берётся из `componentProps.label` через `CdkFormField.Label`. `error`
-автоматически появляется под полем после `validate()` или `blur()`.
+`Label` берётся из `componentProps.label` через `CdkFormField.Label`. Ошибка появляется под полем,
+когда у ноды есть блокирующие замечания и поле `touched` или `dirty` (`shouldShowError`): после
+`bundle.submit()` / `bundle.validate()` (они помечают поля `touched`) либо при живой проверке —
+`validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`. Текст замечания — по
+коду из словаря формы (`ValidationMessagesProvider messages` из `@reformer/cdk`), локали или
+встроенного английского.
 
 ### 2. Как `fieldWrapper` в `FormRenderer`
 
@@ -175,38 +195,41 @@ function RegistrationPage() {
 роли — он использует тот же контракт `FormControl`, что и сам рендерер.
 
 ```tsx
-import { useMemo } from 'react';
-import { createFormFromModel } from '@reformer/core';
-import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
 import { FormField, Input, InputNumber, Section } from '@reformer/ui-kit';
-import { createCreditApplicationModel } from './schemas/model';
+import { createCreditApplicationModel } from './model/model';
+
+const applicationSchema = (model: FormModel<CreditApplication>): FormSchemaNode => ({
+  component: Section,
+  componentProps: { title: 'Заявка', className: 'space-y-4' },
+  children: [
+    { model: model.$.email, component: Input, componentProps: { testId: 'email' } },
+    { model: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
+    { model: model.$.amount, component: InputNumber, componentProps: { testId: 'amount' } },
+  ],
+});
 
 function CreditApplicationPage() {
-  const { form, schema } = useMemo(() => {
-    // M1: модель — источник истины; листья схемы ссылаются на её сигналы.
-    const model = createCreditApplicationModel();
-    const schema = createRenderSchema<CreditApplication>(() => ({
-      component: Section,
-      componentProps: { title: 'Заявка', className: 'space-y-4' },
-      children: [
-        { value: model.$.email, component: Input, componentProps: { testId: 'email' } },
-        { value: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
-        { value: model.$.amount, component: InputNumber, componentProps: { testId: 'amount' } },
-      ],
-    }));
-    const form = createFormFromModel<CreditApplication>({ model, schema });
-    return { form, schema };
-  }, []);
+  const application = useFormBundle(() =>
+    createForm<CreditApplication>({
+      model: createCreditApplicationModel(),
+      schema: applicationSchema,
+    })
+  );
 
   // settings.fieldWrapper применяется к каждому field-узлу автоматически.
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+  return <FormRenderer form={application} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-`testId` рендерер берёт из `componentProps.testId` листа schema:
+`testId` рендерер выводит из пути модели (`model.$.<path>`, точки → дефисы), а
+`componentProps.testId` узла его переопределяет:
 
 ```tsx
-{ value: itemModel.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
+// узел в разметке строки массива: item: (row) => ({ children: [...] })
+{ model: row.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
 // → <FormField control={...} testId="existingLoan-bank" />
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
@@ -267,20 +290,21 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 > `@reformer/ui-kit/fields`, — иначе подпись задвоится молча.
 
 ```tsx
-import { createModel, createFormFromModel } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
-const model = createModel<{ accept: boolean }>({ accept: false });
-const schema = {
-  children: [
-    {
-      value: model.$.accept,
-      component: CheckboxWithLabel,
-      componentProps: { label: 'Принимаю условия' },
-    },
-  ],
-};
-const form = createFormFromModel<{ accept: boolean }>({ model, schema });
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.accept,
+        component: CheckboxWithLabel,
+        componentProps: { label: 'Принимаю условия' },
+      },
+    ],
+  }),
+});
 
 <FormField control={form.accept} testId="accept" />;
 // рендерится только чекбокс с label справа + error снизу.
@@ -340,18 +364,18 @@ import { FormField } from '@reformer/ui-kit';
 // Объявляется на уровне модуля: новая ссылка на каждый рендер перемонтировала бы все поля.
 const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="row" />;
 
-// Вся форма в ряд:
-<FormRenderer form={form} settings={{ fieldWrapper: RowField }} />;
+// Вся форма в ряд (`bundle` — сборка createForm):
+<FormRenderer form={bundle} settings={{ fieldWrapper: RowField }} />;
 
 // Либо одно поле — через componentProps.fieldWrapper листа схемы:
-{ value: model.$.email, component: Input, componentProps: { label: 'Email', fieldWrapper: RowField } }
+{ model: model.$.email, component: Input, componentProps: { label: 'Email', fieldWrapper: RowField } }
 ```
 
 ## Anti-patterns
 
-- Передавать `control` другого типа (`FormGroup`, `ArrayNode`) — ожидается
-  именно `FormControl<T>`. Для массивов используй `FieldArray.Root` из CDK; для
-  groups — отдельные `FormField` на каждое лиственное поле.
+- Передавать `control` другого типа (`FormGroup`, `FormArray`) — ожидается
+  именно `FormControl<T>`. Для массивов — `FieldArraySection` кита или `FieldArray.Root` из CDK; для
+  групп — отдельные `FormField` на каждое лиственное поле.
 - Динамически менять `control` (`<FormField control={isAdvanced ? form.x : form.y} />`)
   — `React.memo` не пересоздаст внутренний `Root`, но сам `Root` сменит контекст,
   что может привести к лишнему re-mount контрола. Предпочтительно условно

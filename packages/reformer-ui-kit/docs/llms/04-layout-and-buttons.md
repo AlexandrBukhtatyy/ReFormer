@@ -170,7 +170,7 @@ interface AsyncBoundaryProps<T = unknown> {
 | `load`        | `(signal) => Promise<T>` | Загрузчик. Включает self-managed режим. Прокиньте `signal` в `fetch` — иначе отменённый запрос висит. |
 | `loadKey`     | `unknown`               | Ключ перезапуска (обычно id записи). Сравнение по `Object.is` — передавайте примитив.            |
 | `enabled`     | `boolean`               | `false` → `idle`, загрузка не стартует. Режим создания записи.                                   |
-| `onSuccess`   | `(data: T) => void`     | Побочный эффект после успеха — например `form.patchValue(data)`.                                 |
+| `onSuccess`   | `(data: T) => void`     | Побочный эффект после успеха — например `model.patch(data)`.                                     |
 | `status`      | `AsyncStatus`           | Состояние в controlled-режиме. `idle` — загрузка не запускалась, показываются children.          |
 | `error`       | `ReactNode \| null`     | Текст ошибки. Идёт во встроенный блок и в render-функцию `errorSlot`.                           |
 | `onRetry`     | `() => void`            | Повтор загрузки. Без него кнопка «Повторить» не рендерится.                                     |
@@ -188,25 +188,29 @@ interface AsyncBoundaryProps<T = unknown> {
 Self-managed — состояние ведёт сам компонент (рекомендуемый способ):
 
 ```tsx
+import { useFormBundle } from '@reformer/core/react';
 import { AsyncBoundary } from '@reformer/ui-kit';
 
-function ApplicationPage({ applicationId, form }: Props) {
+function ApplicationPage({ applicationId }: Props) {
+  const credit = useFormBundle(createCreditForm);
   return (
     <AsyncBoundary
       load={(signal) => loadApplication(applicationId, signal)}
       loadKey={applicationId}
       enabled={applicationId !== null}
-      onSuccess={(data) => form.patchValue(data)}
+      // Частичное обновление модели: вложенные группы сливаются, массивы заменяются целиком.
+      onSuccess={(data) => credit.model.patch(data)}
       delayMs={200}
     >
-      <CreditForm form={form} />
+      <CreditForm form={credit.form} />
     </AsyncBoundary>
   );
 }
 ```
 
 Ни `useState`, ни `useEffect` не нужны: статус, отмена запроса при смене
-`applicationId`, кнопка «Повторить» и `idle` для режима создания — внутри компонента.
+`applicationId`, кнопка «Повторить» и `idle` для режима создания — внутри компонента. Значения
+пишутся в модель (`model.patch` / `model.set`), а не в ноды формы.
 
 Перезагрузка снаружи — через `ref`:
 
@@ -255,11 +259,6 @@ Controlled — когда загрузкой владеет кто-то друг
   фокус и читается скринридером. Компонент скрывает её сам, когда `onRetry` не задан.
 - Нужен полный контроль над составом состояний — берите headless-версию из
   `@reformer/cdk/async-boundary`, а не копируйте стилизованную.
-
-### Anti-patterns
-
-- Передавать в `LoadingComponent` готовый `<div>` (ReactNode) вместо
-  компонента — будет ошибка типов; нужно `() => <div>...</div>`.
 - Использовать `AsyncBoundary` вместо `Suspense` для React-Suspense-данных —
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
