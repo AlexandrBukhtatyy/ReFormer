@@ -9,10 +9,18 @@
  * - эталон работает в режиме `ignoreTag`: у нас `<b>` — обычный текст, а не разметка;
  * - значения — строки и числа, и все они заданы: на пропущенном аргументе эталон бросает
  *   исключение, а наш модуль подставляет маркер (это отличие намеренное и покрыто соседним тестом).
+ *
+ * В конце файла — бывшие расхождения: сообщения, которые наш модуль понимал иначе, чем эталон,
+ * или принимал, хотя эталон их отвергает. Каждое исправлено и закреплено тестом с меткой задачи;
+ * генераторы `message-format.property.test.ts` их больше не обходят.
  */
 import { describe, expect, it } from 'vitest';
 import { IntlMessageFormat } from 'intl-messageformat';
-import { createMessageFormatter, type MessageValues } from '../../src/i18n/message-format';
+import {
+  createMessageFormatter,
+  parseMessage,
+  type MessageValues,
+} from '../../src/i18n/message-format';
 
 const LOCALES = ['en', 'ru', 'pl', 'ar', 'ja'] as const;
 
@@ -100,6 +108,11 @@ const CORPUS: ReadonlyArray<readonly [string, ReadonlyArray<MessageValues>]> = [
   ["{count, plural, other{'{'#'}'}}", [{ count: 3 }]],
   ["'{'{a}'}'", [{ a: 'x' }]],
   ["конец с апострофом'", [{}]],
+  ["a '<b>' c и '>' d", [{}]], // [ReFormer-l53m]
+
+  // ── бывшие расхождения: «#» во вложенном select, «=N» со знаком
+  ['{n, plural, other{{g, select, other{# шт.}}}}', [{ n: 3, g: 'x' }]], // [ReFormer-6bit]
+  ['{n, plural, =-1{минус один} =+1{не выберется} other{#}}', [{ n: -1 }, { n: 1 }]],
 ];
 
 describe('message-format ≡ intl-messageformat на общем наборе', () => {
@@ -128,5 +141,99 @@ describe('message-format ≡ intl-messageformat на общем наборе', (
     expect(all).toMatch(/plural/);
     expect(all).toMatch(/select/);
     expect(all).toMatch(/'\{'/);
+  });
+});
+
+/** Разбирает ли сообщение наш модуль. */
+const parses = (message: string): boolean => {
+  try {
+    parseMessage(message);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Разбирает ли сообщение эталон. */
+const referenceParses = (message: string): boolean => {
+  try {
+    new IntlMessageFormat(message, 'en', undefined, { ignoreTag: true });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Ключи веток, которые эталон отвергает, а наш модуль раньше принимал. */
+const KEYS_REJECTED_BY_REFERENCE = [
+  '{n, plural, one{А} one{Б} other{В}}', // дубль ключа — у нас побеждал последний
+  '{g, select, a{А} a{Б} other{В}}',
+  '{n, plural, =abc{А} other{Б}}', // после «=» не целое число — у нас была ветка, которая не выберется
+  '{n, plural, =1.5{А} other{Б}}',
+  '{n, plural, =99999999999999999999{А} other{Б}}', // не безопасное целое
+  '{g, select, =1{А} other{Б}}', // «=N» бывает только у plural
+];
+
+/** Имена и пробелы, которые эталон отвергает, а наш модуль раньше принимал. */
+const NAMES_REJECTED_BY_REFERENCE = [
+  '{user.name}', // символы синтаксиса ICU (Pattern_Syntax) в имени аргумента
+  '{first-name}',
+  "{a'b}",
+  '{g, select, a.b{А} other{Б}}', // …и в ключе ветки
+  '{\u00A0name}', // неразрывный пробел — пробел для JS (\s), но не для ICU (Pattern_White_Space)
+  '{n, plural, other{x}\u00A0}',
+];
+
+describe('message-format ≡ intl-messageformat — бывшие расхождения', () => {
+  const ru = createMessageFormatter('ru');
+
+  it('апостроф перед «<» и «>» открывает литерал, как в эталоне [ReFormer-l53m]', () => {
+    // Эталон: `'<` и `'>` экранируют угловые скобки и в режиме ignoreTag.
+    expect(ru("a '<b>' c")).toBe('a <b> c');
+  });
+
+  it('«#» внутри select, вложенного в plural, — литерал, как в эталоне и ICU [ReFormer-6bit]', () => {
+    // Эталон и ICU подставляют число только на верхнем уровне ветки plural.
+    expect(ru('{n, plural, other{{g, select, other{# шт.}}}}', { n: 3, g: 'x' })).toBe('# шт.');
+  });
+
+  it('эталон эти ключи, имена и пробелы отвергает', () => {
+    expect(
+      [...KEYS_REJECTED_BY_REFERENCE, ...NAMES_REJECTED_BY_REFERENCE].filter(referenceParses)
+    ).toEqual([]);
+  });
+
+  it('ключи веток, которые эталон отвергает, — отказ разбора [ReFormer-d8i3]', () => {
+    expect(KEYS_REJECTED_BY_REFERENCE.filter(parses)).toEqual([]);
+  });
+
+  it('имена с символами синтаксиса ICU и пробелы не из ICU — отказ разбора [ReFormer-eh7o]', () => {
+    expect(NAMES_REJECTED_BY_REFERENCE.filter(parses)).toEqual([]);
+  });
+
+  it('имена, ключи и пробелы, которые эталон принимает, принимаем и мы', () => {
+    const accepted = [
+      '{имя}',
+      '{first_name}',
+      '{n, plural, =0{А} =-1{Б} =+2{В} other{Г}}',
+      '{g, select, a_b{А} other{Б}}',
+      '{ n , plural , one {А} other {Б} }',
+      '{n,plural,other{x}}',
+      '{n, plural,\r\n\tother{x} }',
+    ];
+    expect([accepted.filter(referenceParses), accepted.filter(parses)]).toEqual([
+      accepted,
+      accepted,
+    ]);
+  });
+
+  it('предел вложенности: 100 уровней разбираются, 101 — отказ разбора [ReFormer-9jow]', () => {
+    const nested = (depth: number): string =>
+      '{a, select, other{'.repeat(depth - 1) + '{a}' + '}}'.repeat(depth - 1);
+    expect([parses(nested(100)), parses(nested(101)), referenceParses(nested(101))]).toEqual([
+      true,
+      false,
+      true,
+    ]);
   });
 });

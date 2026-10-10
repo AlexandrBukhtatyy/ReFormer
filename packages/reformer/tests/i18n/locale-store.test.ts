@@ -1,3 +1,9 @@
+/**
+ * Хранилище активной локали (`src/i18n/locale-store.ts`) — логика провайдера, который грузит язык
+ * сам: прежний язык на экране до прихода нового, применяется только последний запрос, ошибка язык
+ * не меняет, локаль из кэша загрузчика применяется синхронно. Ответы загрузчика тест отпускает
+ * вручную — так проверяется любой порядок их прихода.
+ */
 import { describe, expect, it, vi } from 'vitest';
 import type { FormLocale } from '../../src/i18n/locale';
 import { createLocaleStore, type LocaleLoad } from '../../src/i18n/locale-store';
@@ -225,5 +231,79 @@ describe('createLocaleStore', () => {
     await settle('ru', 'resolve');
 
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe('locale-store — кэш загрузчика и устаревшие ответы', () => {
+  it('язык из кэша применяется в том же вызове и отменяет идущий запрос другого языка', async () => {
+    const { load, settle } = controlledLoad();
+    const de = locale('de');
+    const store = createLocaleStore(
+      Object.assign(load, { peek: (code: string) => (code === 'de' ? de : undefined) }),
+      'ru'
+    );
+    store.setLang('ru');
+
+    store.setLang('de');
+
+    expect(store.getState()).toEqual({ lang: 'de', locale: de, pending: false, error: undefined });
+    expect(load).toHaveBeenCalledExactlyOnceWith('ru');
+
+    // Ответ за брошенный язык приходит позже и уже ничего не меняет.
+    await settle('ru', 'resolve');
+    expect(store.getState()).toEqual({ lang: 'de', locale: de, pending: false, error: undefined });
+  });
+
+  it('отказ устаревшего запроса после удачной смены языка не трогает состояние и не будит подписчиков', async () => {
+    const { load, settle } = controlledLoad();
+    const onError = vi.fn();
+    const store = createLocaleStore(load, 'ru', { onError });
+    store.setLang('ru');
+    await settle('ru', 'resolve');
+    store.setLang('de');
+    store.setLang('en');
+    await settle('en', 'resolve');
+    const settled = store.getState();
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    await settle('de', 'reject', new Error('404'));
+
+    expect(store.getState()).toBe(settled);
+    expect(settled).toMatchObject({ lang: 'en', pending: false, error: undefined });
+    expect(listener).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('повторный запрос показанного языка без ожидания и ошибки — без уведомления', async () => {
+    const { load, settle } = controlledLoad();
+    const store = createLocaleStore(load, 'ru');
+    store.setLang('ru');
+    await settle('ru', 'resolve');
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.setLang('ru');
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('подписчик, добавленный во время рассылки, получает только следующие уведомления', async () => {
+    const { load, settle } = controlledLoad();
+    const store = createLocaleStore(load, 'ru');
+    const late = vi.fn();
+    let subscribed = false;
+    store.subscribe(() => {
+      if (subscribed) return;
+      subscribed = true;
+      store.subscribe(late);
+    });
+
+    store.setLang('ru');
+    expect(late).not.toHaveBeenCalled();
+
+    await settle('ru', 'resolve');
+    expect(late).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,12 @@
+/**
+ * Переводчик (`src/i18n/translator.ts`): две политики промаха — ключ пакета откатывается на
+ * встроенную английскую таблицу, ключ приложения — на `defaultMessage` и сам ключ; битое
+ * сообщение и значение-не-строка из сетевого словаря не роняют рендер. Диагностика в консоль —
+ * только вне production: в production результат тот же, но молча.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_LOCALE, type FormLocale } from '../../src/i18n/locale';
-import { createI18n, translateBuiltin } from '../../src/i18n/translator';
+import { createI18n, formatMessage, translateBuiltin } from '../../src/i18n/translator';
 import { ru as coreRu } from '../../src/locale/ru';
 
 afterEach(() => {
@@ -155,6 +161,37 @@ describe('createI18n — ручка локали', () => {
         'app.x'
       );
     });
+
+    it('разбор defaultMessage кэшируется по тексту шаблона', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const i18n = createI18n({ code: 'ru', messages: {} });
+
+      expect(i18n.t('app.hi', { name: 'Аня' }, 'Hi, {name}')).toBe('Hi, Аня');
+      expect(i18n.t('app.hi', { name: 'Боря' }, 'Hi, {name}')).toBe('Hi, Боря');
+      // Битый шаблон запоминается тоже: диагностика о нём — одна на оба ключа.
+      expect(i18n.t('app.a', undefined, '{битый в кэше')).toBe('app.a');
+      expect(i18n.t('app.b', undefined, '{битый в кэше')).toBe('app.b');
+      expect(error).toHaveBeenCalledTimes(1);
+    });
+
+    it('битое сообщение локали уступает defaultMessage', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const i18n = createI18n({ code: 'ru', messages: { 'app.greeting': 'Привет, {name' } });
+
+      expect(i18n.t('app.greeting', { name: 'Аня' }, 'Hello, {name}')).toBe('Hello, Аня');
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(String(error.mock.calls[0]![0])).toContain('app.greeting');
+    });
+
+    it('ключа нет ни в локали, ни в defaultMessage, но он есть во встроенной таблице ядра', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      expect(createI18n({ code: 'ru', messages: {} }).t('validation.required')).toBe(
+        'This field is required'
+      );
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 
   describe('number и date', () => {
@@ -212,5 +249,100 @@ describe('createI18n — ручка локали', () => {
     it('единицы локали без своих ключей берутся из встроенной таблицы ядра', () => {
       expect(createI18n({ code: 'de', messages: {} }).fileSize(1536)).toBe('1,5 KB');
     });
+  });
+});
+
+describe('translator — production: тот же текст, без диагностики', () => {
+  // Кэш разбора `defaultMessage` — общий на модуль и помнит и битые шаблоны, поэтому тексты здесь
+  // свои: иначе тест прошёл бы на кэше, ни разу не дойдя до проверки окружения.
+  const silence = () => ({
+    error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+    warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+  });
+
+  it('битое сообщение локали откатывается на встроенное молча', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { error } = silence();
+    const locale: FormLocale = {
+      code: 'ru',
+      messages: { 'kit.select.selected': 'Выбрано: {count' },
+    };
+
+    expect(translateBuiltin(locale, BUILTIN, 'kit.select.selected', { count: 2 })).toBe(
+      'Selected: 2'
+    );
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('значение-не-строка в словаре откатывается молча', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { error } = silence();
+    const locale = { code: 'ru', messages: { 'kit.select.clear': 42 } } as unknown as FormLocale;
+
+    expect(translateBuiltin(locale, BUILTIN, 'kit.select.clear')).toBe('Clear selection');
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('ключ без перевода и без defaultMessage показывается как есть, без предупреждения', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { warn } = silence();
+
+    expect(createI18n({ code: 'ru', messages: {} }).t('app.production.unknown')).toBe(
+      'app.production.unknown'
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('битый defaultMessage — тоже молча', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { error, warn } = silence();
+
+    expect(
+      createI18n({ code: 'ru', messages: {} }).t('app.y', undefined, '{сломано в production')
+    ).toBe('app.y');
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('вне production те же случаи дают диагностику', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const { error, warn } = silence();
+    const i18n = createI18n({ code: 'ru', messages: { 'app.broken': '{сломано' } });
+
+    expect(i18n.t('app.broken', undefined, '{сломано вне production')).toBe('app.broken');
+    expect(error).toHaveBeenCalledTimes(2); // сообщение локали и defaultMessage
+    expect(warn).toHaveBeenCalledTimes(1); // ключ ушёл на экран как есть
+  });
+});
+
+describe('translator — formatMessage', () => {
+  it('сообщение словаря форматируется по правилам языка code', () => {
+    const messages = { files: '{n, plural, one{# файл} few{# файла} other{# файлов}}' };
+
+    expect(formatMessage(messages, 'ru', 'files', { n: 3 })).toBe('3 файла');
+    expect(formatMessage(messages, 'en', 'files', { n: 3 })).toBe('3 файлов');
+  });
+
+  it('значение-не-строка — undefined без разбора и без диагностики', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    for (const value of [42, null, undefined, { text: 'А' }, ['А'], () => 'А']) {
+      expect(formatMessage({ key: value }, 'ru', 'key'), String(value)).toBeUndefined();
+    }
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('ключа нет или он из прототипа объекта — undefined', () => {
+    expect(formatMessage({}, 'ru', 'missing')).toBeUndefined();
+    expect(formatMessage({}, 'ru', 'toString')).toBeUndefined();
+  });
+
+  it('битое сообщение — undefined и одна диагностика на словарь', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const messages = { broken: 'Не закрыто {' };
+
+    expect(formatMessage(messages, 'ru', 'broken')).toBeUndefined();
+    expect(formatMessage(messages, 'ru', 'broken')).toBeUndefined();
+    expect(error).toHaveBeenCalledTimes(1);
   });
 });

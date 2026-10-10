@@ -1,3 +1,8 @@
+/**
+ * Загрузка локалей (`src/i18n/loader.ts`): сборка локали из источников, кэш и повтор после
+ * отказа, сетевой источник `fetchMessages`, встроенные чанки `bundledLocaleSource`.
+ * Источник ядра `loadCoreLocale` и его цепочка с сетью — в `core-locale-loader.test.ts`.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   bundledLocaleSource,
@@ -6,7 +11,6 @@ import {
   type LocaleSource,
 } from '../../src/i18n/loader';
 import type { FormLocale } from '../../src/i18n/locale';
-import { CORE_LOCALES, loadCoreLocale } from '../../src/locale/index';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -167,23 +171,5 @@ describe('bundledLocaleSource', () => {
   it('имена из прототипа объекта языками не считаются', () => {
     expect(source('constructor')).toBeNull();
     expect(source('toString')).toBeNull();
-  });
-});
-
-describe('loadCoreLocale — встроенные локали ядра', () => {
-  it('отдаёт локаль каждого поставляемого языка', async () => {
-    expect(CORE_LOCALES).toEqual(['en', 'ru']);
-    for (const code of CORE_LOCALES) {
-      const locale = (await loadCoreLocale(code)) as FormLocale;
-      expect(locale.code).toBe(code);
-      expect(locale.messages['format.fileSize.kb']).toBeDefined();
-    }
-  });
-
-  it('в загрузчике: русские единицы размера, для неизвестного языка — пустой словарь', async () => {
-    const load = createLocaleLoader([loadCoreLocale]);
-
-    expect((await load('ru')).messages['format.fileSize.kb']).toBe('{value} КБ');
-    expect(await load('de')).toEqual({ code: 'de', messages: {} });
   });
 });

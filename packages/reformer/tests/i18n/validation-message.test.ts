@@ -40,7 +40,11 @@ import enJson from '../../src/i18n/en.json';
 import ruJson from '../../src/i18n/ru.json';
 import { DEFAULT_LOCALE, extendLocale } from '../../src/i18n/locale';
 import { createI18n } from '../../src/i18n/translator';
-import { defineIssueMessages, resolveIssueMessage } from '../../src/i18n/validation-message';
+import {
+  defineIssueMessages,
+  resolveIssueMessage,
+  type IssueMessages,
+} from '../../src/i18n/validation-message';
 import { ru as ruLocale } from '../../src/locale/ru';
 
 type AnyRule = (value: unknown, scope: unknown, root: unknown) => ValidationIssue | null;
@@ -339,5 +343,63 @@ describe('defineIssueMessages', () => {
     const source = { 'a.required': 'Нужно' } as const;
 
     expect(defineIssueMessages(source)).toBe(source);
+  });
+});
+
+describe('validation-message — перечень без Intl.ListFormat', () => {
+  const protocols: ValidationIssue = {
+    code: 'url_protocol',
+    params: { allowedProtocols: ['https', 'ftp', 'sftp'] as never },
+  };
+  const EXPECTED = 'The URL must use one of these protocols: https, ftp, sftp';
+
+  it('Intl.ListFormat не понимает код языка — перечень соединяется запятыми', () => {
+    // Код не BCP 47: `new Intl.ListFormat` бросает RangeError. Текст сообщения — встроенный
+    // английский: он форматируется по `en` и с кодом локали не сталкивается.
+    const broken = createI18n({ code: 'not a locale', messages: {} });
+
+    expect(() => new Intl.ListFormat('not a locale')).toThrow(RangeError);
+    expect(resolveIssueMessage(protocols, broken)).toBe(EXPECTED);
+    // Отказ запомнен для кода — второй вызов идёт тем же путём.
+    expect(resolveIssueMessage(protocols, broken)).toBe(EXPECTED);
+  });
+
+  it('с тем же кодом дата в параметрах бросает RangeError', () => {
+    // поведение под вопросом [ReFormer-drum]: от некорректного кода защищён только перечень, а дата, размер
+    // файла, `plural`, `number` и `date` ручки по такому коду бросают. Код может прийти извне —
+    // загрузчик оставляет локали запрошенный код (`setLang` из адресной строки).
+    const broken = createI18n({ code: 'not a locale', messages: {} });
+    const issue: ValidationIssue = {
+      code: 'date_min',
+      params: { minDate: new Date(2030, 0, 1) as never },
+    };
+
+    expect(() => resolveIssueMessage(issue, broken)).toThrow(RangeError);
+  });
+
+  it('в рантайме без Intl.ListFormat — то же соединение запятыми', () => {
+    const intl = Intl as { ListFormat?: unknown };
+    const original = intl.ListFormat;
+    intl.ListFormat = undefined;
+    try {
+      // Свой код языка: удачно созданный форматтер кэшируется по коду на весь модуль.
+      expect(resolveIssueMessage(protocols, createI18n({ code: 'kk', messages: {} }))).toBe(
+        EXPECTED
+      );
+    } finally {
+      intl.ListFormat = original;
+    }
+  });
+});
+
+describe('validation-message — запись словаря формы не строка и не функция', () => {
+  it('замечание не теряется: текст даёт локаль, без диагностики', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Словарь формы пришёл JSON-ом с числом вместо шаблона.
+    const fromJson = JSON.parse('{ "required": 42 }') as IssueMessages;
+
+    expect(resolveIssueMessage({ code: 'required' }, ru, fromJson)).toBe('Обязательное поле');
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });

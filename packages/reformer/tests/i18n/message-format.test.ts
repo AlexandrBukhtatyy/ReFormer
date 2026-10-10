@@ -1,3 +1,10 @@
+/**
+ * Формат сообщений ядра (`src/i18n/message-format.ts`) — подмножество ICU без зависимостей:
+ * множественные формы по `Intl.PluralRules` языка, подстановка без повторного разбора, `select`,
+ * экранирование апострофом, маркер пропущенного аргумента и отказ разбора на синтаксической ошибке.
+ * Сверка с `intl-messageformat` — в `message-format.differential.test.ts` и
+ * `message-format.property.test.ts`.
+ */
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
 
@@ -6,6 +13,7 @@ import {
   formatPattern,
   MessageSyntaxError,
   parseMessage,
+  type MessagePattern,
   type MessageValues,
 } from '../../src/i18n/message-format';
 
@@ -112,7 +120,8 @@ describe('вложенность', () => {
     assert.equal(ru(message, { count: 7, dir: 'src' }), '7 файлов в src');
   });
 
-  it('select внутри plural, и # внутри select относится к внешнему plural', () => {
+  // «#» здесь — в ветке plural после select, а не внутри него.
+  it('select внутри plural, и # в ветке plural после него — число этого plural', () => {
     const message =
       '{count, plural, one{{gender, select, female{удалила} other{удалил}} # файл} other{{gender, select, female{удалила} other{удалил}} # файлов}}';
     assert.equal(ru(message, { count: 1, gender: 'female' }), 'удалила 1 файл');
@@ -122,6 +131,11 @@ describe('вложенность', () => {
   it('plural внутри plural перепривязывает #', () => {
     const message = '{a, plural, other{#: {b, plural, other{#}}}}';
     assert.equal(ru(message, { a: 2, b: 9 }), '2: 9');
+  });
+
+  it('# внутри select, вложенного в plural, — литерал, как в ICU [ReFormer-6bit]', () => {
+    const message = '{n, plural, other{# из {g, select, other{# шт.}}}}';
+    assert.equal(ru(message, { n: 3, g: 'x' }), '3 из # шт.');
   });
 });
 
@@ -261,5 +275,117 @@ describe('кэш разбора', () => {
     const values: MessageValues = { count: 2 };
     assert.equal(formatPattern(pattern, values, 'ru'), '2 файла');
     assert.equal(formatPattern(pattern, { count: 2 }, 'en'), '2 файла');
+  });
+});
+
+describe('message-format — апостроф внутри литерала', () => {
+  it("'' внутри литерала в кавычках даёт апостроф и литерал не закрывает", () => {
+    assert.equal(en("'{a''b}' и далее"), "{a'b} и далее");
+  });
+
+  it('три апострофа подряд: пара — апостроф, третий перед обычным текстом — тоже апостроф', () => {
+    assert.equal(en("it'''s"), "it''s");
+  });
+
+  it('незакрытая кавычка тянется до конца сообщения', () => {
+    assert.equal(ru("Ключ '{name"), 'Ключ {name');
+    assert.equal(ru("'{'' — апостроф"), "{' — апостроф");
+  });
+
+  it('незакрытая кавычка в ветке съедает закрывающие скобки — ошибка разбора', () => {
+    assert.throws(
+      () => parseMessage("{n, plural, other{'{x}}"),
+      (error: unknown) => {
+        assert.ok(error instanceof MessageSyntaxError);
+        assert.match(error.message, /ветка «other» не закрыта/);
+        return true;
+      }
+    );
+  });
+});
+
+describe('message-format — синтаксические ошибки разбора', () => {
+  const rejects = (source: string, reason: RegExp): void => {
+    assert.throws(
+      () => parseMessage(source),
+      (error: unknown) => {
+        assert.ok(error instanceof MessageSyntaxError, String(error));
+        assert.equal(error.name, 'MessageSyntaxError');
+        assert.match(error.message, reason);
+        return true;
+      }
+    );
+  };
+
+  it('после ключа ветки нет «{»', () => {
+    rejects('{n, plural, one # файл other{# файлов}}', /ожидалась «\{» после ветки «one»/);
+    rejects('{g, select, male}', /ожидалась «\{» после ветки «male»/);
+  });
+
+  it('plural не закрыт «}» после последней ветки', () => {
+    rejects('{n, plural, other{x}', /«n, plural» не закрыт «\}»/);
+    rejects('{g, select, other{x} ', /«g, select» не закрыт «\}»/);
+  });
+
+  it('после типа нет запятой', () => {
+    rejects('{n, plural other{x}}', /ожидалась «,» после «plural»/);
+    rejects('{n, select', /ожидалась «,» после «select»/);
+  });
+
+  it('незакрытая вложенность любой глубины — MessageSyntaxError, а не RangeError [ReFormer-9jow]', () => {
+    // Разбор рекурсивный: на глубине в несколько тысяч уровней стек кончался раньше, чем
+    // разбор доходил до конца строки и замечал, что ничего не закрыто.
+    rejects('{a, select, other{'.repeat(20_000), /вложенность аргументов глубже 100 уровней/);
+  });
+
+  it('повтор ключа ветки — отказ разбора [ReFormer-d8i3]', () => {
+    rejects('{n, plural, one{А} one{Б} other{В}}', /ветка «one» в «n, plural» повторяется/);
+    rejects('{g, select, other{А} other{Б}}', /ветка «other» в «g, select» повторяется/);
+  });
+
+  it('после «=» у plural — только целое число [ReFormer-d8i3]', () => {
+    rejects('{n, plural, =abc{А} other{Б}}', /после «=» ожидалось целое число/);
+    rejects('{n, plural, ={А} other{Б}}', /после «=» ожидалось целое число/);
+    rejects('{n, plural, =1.5{А} other{Б}}', /ожидалась «\{» после ветки «=1»/);
+  });
+
+  it('символ синтаксиса ICU в имени — отказ разбора [ReFormer-eh7o]', () => {
+    rejects('{user.name}', /ожидались «,» или «\}» после аргумента «user»/);
+    rejects('{g, select, =1{А} other{Б}}', /ожидалось имя/);
+  });
+});
+
+describe('message-format — апостроф перед угловыми скобками', () => {
+  it("'<' и '>' открывают литерал, как в intl-messageformat [ReFormer-l53m]", () => {
+    assert.equal(ru("a '<b>' c"), 'a <b> c');
+    assert.equal(ru("'<'{name}'>'", { name: 'x' }), '<x>');
+  });
+
+  it('угловые скобки без апострофа — обычный текст', () => {
+    assert.equal(ru('a <b>{name}</b>', { name: 'x' }), 'a <b>x</b>');
+  });
+});
+
+describe('message-format — «#» без числа', () => {
+  // `#` разбирается только внутри plural, а ветку plural без числа не выбрать — значит,
+  // на разобранном сообщении до узла числа без числа не дойти. Дерево — публичный тип:
+  // вызывающий собирает его и сам.
+  const pound: MessagePattern = [
+    { kind: 'text', value: 'всего: ' },
+    { kind: 'number', name: 'n' },
+  ];
+
+  it('значение не число — маркер пропущенного аргумента', () => {
+    assert.equal(formatPattern(pound, { n: 'пять' }, 'ru'), 'всего: ⟦n⟧');
+    assert.equal(formatPattern(pound, { n: Number.POSITIVE_INFINITY }, 'ru'), 'всего: ⟦n⟧');
+    assert.equal(formatPattern(pound, {}, 'ru'), 'всего: ⟦n⟧');
+  });
+
+  it('маркер берётся из onMissingArgument, а число форматируется по языку', () => {
+    assert.equal(
+      formatPattern(pound, { n: 'пять' }, 'ru', { onMissingArgument: (name) => `?${name}` }),
+      'всего: ?n'
+    );
+    assert.equal(formatPattern(pound, { n: 1234.5 }, 'en'), 'всего: 1,234.5');
   });
 });

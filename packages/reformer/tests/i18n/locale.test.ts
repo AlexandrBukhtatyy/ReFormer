@@ -1,3 +1,9 @@
+/**
+ * Локаль как данные (`src/i18n/locale.ts`): слияние локалей, имена подстановок сообщения и проверка
+ * словаря `validateLocale` — разбор каждого сообщения и сверка ключей и подстановок с образцом.
+ * Проверка нужна словарям, которые пришли по сети или написаны вне репозитория, поэтому здесь же —
+ * что она видит в нестроковых значениях и в битом образце.
+ */
 import { describe, expect, it } from 'vitest';
 import enJson from '../../src/i18n/en.json';
 import ruJson from '../../src/i18n/ru.json';
@@ -7,8 +13,9 @@ import {
   messageArguments,
   validateLocale,
   type FormLocale,
+  type Messages,
 } from '../../src/i18n/locale';
-import { parseMessage } from '../../src/i18n/message-format';
+import { MessageSyntaxError, parseMessage } from '../../src/i18n/message-format';
 import { en } from '../../src/locale/en';
 import { ru } from '../../src/locale/ru';
 
@@ -89,6 +96,37 @@ describe('validateLocale', () => {
     const issues = validateLocale({ a: '{count' }, { a: 'Selected: {count}' });
 
     expect(issues.map((issue) => issue.kind)).toEqual(['syntax']);
+  });
+});
+
+describe('locale — validateLocale на данных не из репозитория', () => {
+  it('подстановки сравниваются как множества имён: порядок и повторы не важны', () => {
+    expect(
+      validateLocale(
+        { a: '{count, plural, one{# из {total}} other{# из {total}}}' },
+        { a: '{total}: {count, plural, other{#}}' }
+      )
+    ).toEqual([]);
+  });
+
+  it('значение-не-строка — замечание syntax, как его видит переводчик [ReFormer-4ysq]', () => {
+    // Переводчик такое значение отвергает («сообщение не является строкой») и откатывается на
+    // встроенный английский, а проверка словаря его пропускала: `parseMessage(42)` — пустое дерево.
+    const fromNetwork = JSON.parse('{ "a": 42, "b": null, "c": ["C"] }') as Messages;
+
+    expect(validateLocale(fromNetwork, { a: 'A', b: 'B', c: 'C' })).toEqual(
+      ['a', 'b', 'c'].map((key) => ({
+        key,
+        kind: 'syntax',
+        message: 'сообщение не является строкой',
+      }))
+    );
+  });
+
+  it('битое сообщение образца роняет проверку исключением, а не замечанием', () => {
+    // поведение под вопросом [ReFormer-drum]: образец считается доверенным (его проверяют отдельно —
+    // `validateLocale(enJson)`), но одна битая строка в нём обрывает проверку всего словаря.
+    expect(() => validateLocale({ a: 'A' }, { a: 'Selected: {count' })).toThrow(MessageSyntaxError);
   });
 });
 
