@@ -30,6 +30,32 @@ const REMOVED_API = [
   { name: 'validateFormModel', re: /validateFormModel/ },
   { name: 'ModelValidator', re: /ModelValidator/ },
   { name: 'leaf `validators: [...]`', re: /validators:\s*\[/ },
+  // Замечание без текста: текст даёт словарь формы по коду правила.
+  { name: 'ValidationError вместо ValidationIssue', re: /\bValidationError\b/ },
+  {
+    name: 'текст в опциях правила (`message`) вместо кода и словаря',
+    re: /\b(required|email|url|pattern|minLength|maxLength|min|max)\([^)]*\{[^}]*\bmessage\s*:/,
+  },
+  // Уровень формы и поток шагов: шаги — в flow сборки, проверка и отправка — методы бандла.
+  { name: '`validation.steps` вместо `flow.steps`', re: /validation\.steps\b/ },
+  {
+    name: '`bundle.validation.validateAll()` и др. вместо `bundle.validate()` / `submit()`',
+    re: /bundle\.validation\??\.(?:validateAll|validateStep|runAll|runStep|stepSelectors)\b/,
+  },
+  {
+    name: 'конфиг и ref визарда (FormWizardConfig / FormWizardHandle / defineSteps / useWizardStepValidation)',
+    re: /\b(FormWizardConfig|FormWizardHandle|defineSteps|useWizardStepValidation)\b/,
+  },
+  // Ноды формы: контракты FormControl / FormGroup / FormArray.
+  { name: 'FormProxy вместо FormGroup', re: /\bFormProxy\b/ },
+  {
+    name: 'классы нод FieldNode / GroupNode вместо FormControl / FormGroup',
+    re: /\b(FieldNode|GroupNode)\b/,
+  },
+  {
+    name: 'удалённые методы нод (patchValue / markAsDirty / markAsPristine)',
+    re: /\.(patchValue|markAsDirty|markAsPristine)\(/,
+  },
 ];
 
 /**
@@ -177,6 +203,8 @@ const NEGATIVE_MARKERS = [
   'удал', // удалён / удалено / удалены / удалённого
   'снят', // снятый / снято / снята
   'больше нельзя',
+  'больше нет',
+  'вместо',
   'не существует',
   'устарел',
   'wrong',
