@@ -31,7 +31,7 @@ console.log(reg.diagnostics); // конфликты id
 ## Валидация «не работает» на конкретном поле
 
 Поля нет в начальных значениях → у него нет сигнала → ни поведение, ни ошибки к нему не привяжутся.
-`validateModel` роутит через `getNodeForSignal(sig)?.setErrors(...)`, и опциональная цепочка молча
+`validateModel` роутит через `getNodeForSignal(sig)?.setIssues(...)`, и опциональная цепочка молча
 глотает ошибку.
 
 Preflight ловит это как `unmaterialized-model-paths` (уровень `warn`). Проверьте
