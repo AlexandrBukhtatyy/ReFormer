@@ -93,18 +93,18 @@ export function makeValidationConfig(model: M) {
 
 ## Шаг 3 — инъекция в wizard через render-behavior { #inject }
 
-JSON-схема статична и не знает про `FormProxy`/validation-конфиг — это рантайм-сущности. Инжектируем их в wizard-ноду через `renderBehavior` + `onInit` + `patchProps` до первого рендера (общий приём — см. [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime)). Wizard-узел JSON-схемы должен нести `selector: 'wizard'`, чтобы адресоваться через `schema.node('wizard')`.
+JSON-схема статична и не знает про `FormGroup`/validation-конфиг — это рантайм-сущности. Инжектируем их в wizard-ноду через `renderBehavior` + `onInit` + `patchProps` до первого рендера (общий приём — см. [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime)). Wizard-узел JSON-схемы должен нести `selector: 'wizard'`, чтобы адресоваться через `schema.node('wizard')`.
 
 ```typescript
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 
 export function createJsonRenderBehavior(
-  form: FormProxy<CreditForm>,
+  form: FormGroup<CreditForm>,
   model: FormModel<CreditForm>
 ): RenderBehaviorFn<CreditForm> {
   return (schema) => {
-    // JSON не выражает FormProxy/валидацию — инъектим их в wizard до первого рендера.
+    // JSON не выражает FormGroup/валидацию — инъектим их в wizard до первого рендера.
     onInit(schema.node('wizard'), () => {
       schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
     });
@@ -169,14 +169,14 @@ export function makeValidationConfig(model: M) {
 ```typescript
 // form.render.ts — инъекция form + валидации в JSON-wizard
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 import type { CreditForm } from './types';
 import { makeValidationConfig } from './form.validation';
 // Единый behavior (submit/навигация/visibility) — общий для TS- и JSON-варианта. См. 07-form-wizard.md.
 import { createSharedRenderBehavior } from './form.render.shared';
 
 export function createJsonRenderBehavior(
-  form: FormProxy<CreditForm>,
+  form: FormGroup<CreditForm>,
   model: FormModel<CreditForm>
 ): RenderBehaviorFn<CreditForm> {
   return (schema) => {

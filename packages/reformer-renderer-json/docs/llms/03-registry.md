@@ -112,7 +112,7 @@ const registry = defineRegistry((reg) => {
 import { useFormControl } from '@reformer/core/react';
 
 // Контрол читает ноду напрямую (свои сигналы valid/errors/…):
-function StepDots({ control }: { control: FieldNode<number> }) {
+function StepDots({ control }: { control: FormControl<number> }) {
   const { value, errors } = useFormControl(control);
   // …
 }

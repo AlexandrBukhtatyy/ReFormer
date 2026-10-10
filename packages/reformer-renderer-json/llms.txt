@@ -464,7 +464,7 @@ const registry = defineRegistry((reg) => {
 import { useFormControl } from '@reformer/core/react';
 
 // Контрол читает ноду напрямую (свои сигналы valid/errors/…):
-function StepDots({ control }: { control: FieldNode<number> }) {
+function StepDots({ control }: { control: FormControl<number> }) {
   const { value, errors } = useFormControl(control);
   // …
 }
@@ -966,7 +966,7 @@ const adapters = new Map<unknown, FieldAdapter>([
 
 ## 39. Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
-**Problem.** Компоненту (напр. wizard) нужен `FormProxy` или validation-конфиг — рантайм-сущности, которые нельзя выразить в статичном JSON.
+**Problem.** Компоненту (напр. wizard) нужен `FormGroup` или validation-конфиг — рантайм-сущности, которые нельзя выразить в статичном JSON.
 
 **Solution.** Инжектируй их через `renderBehavior` + `onInit`/`patchProps` до первого рендера. Узел адресуется по `selector`.
 
@@ -974,12 +974,12 @@ const adapters = new Map<unknown, FieldAdapter>([
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
 function createMyRenderBehavior(
-  form: FormProxy<MyForm>,
+  form: FormGroup<MyForm>,
   model: FormModel<MyForm>,
   validation?: FormValidationBundle<MyForm>
 ): RenderBehaviorFn<MyForm> {
   return (schema) => {
-    // JSON-схема не знает про FormProxy/валидацию — инъектим их в wizard до первого рендера.
+    // JSON-схема не знает про FormGroup/валидацию — инъектим их в wizard до первого рендера.
     onInit(schema.node('wizard'), () => {
       schema.node('wizard').patchProps({ form, ...(validation ?? makeValidationConfig(model)) });
     });
@@ -1001,7 +1001,7 @@ function createMyRenderBehavior(
 
 **Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
 
-**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт `fieldWrapper` **и** `resolveFieldAdapter` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`) — флага `readonly`/`mode` среди них нет. Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
+**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт `fieldWrapper` **и** `resolveFieldAdapter` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`) — флага `readonly`/`mode` среди них нет. Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `FormGroup.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
 
 ```typescript
 // Вариант A — сразу после сборки формы (самый прямой):
@@ -1014,10 +1014,10 @@ form.disable(); // каскад disabled по всему дереву → вся
 // Вариант B — из render-behavior (например, включить view-mode по условию/после загрузки данных):
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
-function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyForm> {
+function createReadonlyBehavior(form: FormGroup<MyForm>): RenderBehaviorFn<MyForm> {
   return (schema) => {
     onInit(schema.node('wizard'), () => {
-      form.disable(); // корневой FormProxy отдаёт disable() (делегирует в GroupNode)
+      form.disable(); // корневой FormGroup отдаёт disable() (делегирует в FormGroup)
     });
   };
 }
@@ -1263,18 +1263,18 @@ export function makeValidationConfig(model: M) {
 
 ## 48. Шаг 3 — инъекция в wizard через render-behavior { #inject }
 
-JSON-схема статична и не знает про `FormProxy`/validation-конфиг — это рантайм-сущности. Инжектируем их в wizard-ноду через `renderBehavior` + `onInit` + `patchProps` до первого рендера (общий приём — см. [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime)). Wizard-узел JSON-схемы должен нести `selector: 'wizard'`, чтобы адресоваться через `schema.node('wizard')`.
+JSON-схема статична и не знает про `FormGroup`/validation-конфиг — это рантайм-сущности. Инжектируем их в wizard-ноду через `renderBehavior` + `onInit` + `patchProps` до первого рендера (общий приём — см. [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime)). Wizard-узел JSON-схемы должен нести `selector: 'wizard'`, чтобы адресоваться через `schema.node('wizard')`.
 
 ```typescript
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 
 export function createJsonRenderBehavior(
-  form: FormProxy<CreditForm>,
+  form: FormGroup<CreditForm>,
   model: FormModel<CreditForm>
 ): RenderBehaviorFn<CreditForm> {
   return (schema) => {
-    // JSON не выражает FormProxy/валидацию — инъектим их в wizard до первого рендера.
+    // JSON не выражает FormGroup/валидацию — инъектим их в wizard до первого рендера.
     onInit(schema.node('wizard'), () => {
       schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
     });
@@ -1339,14 +1339,14 @@ export function makeValidationConfig(model: M) {
 ```typescript
 // form.render.ts — инъекция form + валидации в JSON-wizard
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 import type { CreditForm } from './types';
 import { makeValidationConfig } from './form.validation';
 // Единый behavior (submit/навигация/visibility) — общий для TS- и JSON-варианта. См. 07-form-wizard.md.
 import { createSharedRenderBehavior } from './form.render.shared';
 
 export function createJsonRenderBehavior(
-  form: FormProxy<CreditForm>,
+  form: FormGroup<CreditForm>,
   model: FormModel<CreditForm>
 ): RenderBehaviorFn<CreditForm> {
   return (schema) => {
@@ -1395,7 +1395,7 @@ export function createJsonRenderBehavior(
 
 **FormWizard**
 
-End-to-end многошаговая форма (wizard) в `@reformer/renderer-json` (M1): **layout шагов** живёт в JSON-схеме, а **submit + навигация + условная видимость + инъекция валидации** — в `renderBehavior` (TS-функция `RenderBehaviorFn<T>`). JSON статичен и не выражает рантайм (`FormProxy`, колбэки, эффекты), поэтому wizard собирается из двух половин. Всё сверено с рабочим примером `complex-multy-step-form-renderer-json` и его shared-поведением из `complex-multy-step-form-renderer`.
+End-to-end многошаговая форма (wizard) в `@reformer/renderer-json` (M1): **layout шагов** живёт в JSON-схеме, а **submit + навигация + условная видимость + инъекция валидации** — в `renderBehavior` (TS-функция `RenderBehaviorFn<T>`). JSON статичен и не выражает рантайм (`FormGroup`, колбэки, эффекты), поэтому wizard собирается из двух половин. Всё сверено с рабочим примером `complex-multy-step-form-renderer-json` и его shared-поведением из `complex-multy-step-form-renderer`.
 
 > **Имена файлов.** В этом документе они каноничные: `form.schema.ts` (схема; `.tsx` — если в ней есть JSX, `.json` — вариант «схема как данные»), `form.render.ts` (render-поведение), `registry.ts`, опциональный `wizard.tsx` (шим wizard-компонента). Шаги wizard-а — инлайном в `index.tsx` или по папке на шаг `steps/<slug>/` (`form.validation.ts`, `form.render.ts`, `form.schema.*` — имена те же, что в корне) с агрегатором `steps/index.ts`; прежние имена `renderer.schema.*` / `renderer.behavior.ts` / `renderer.wizard.tsx` / `validation.ts` работают, но `validate_form kind="layout"` предупреждает о них. Полный набор — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`. Каталоги `complex-multy-step-form-*` — **исторические**: файлы там называются `json-schema.json` и `render-behavior.ts`, это устаревшие имена, и сверялось по ним только содержимое, а не нейминг. В новом коде так не называй.
 
@@ -1507,14 +1507,14 @@ import {
   hideWhen,
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import type { CreditForm } from './types';
 import { makeValidationConfig } from './form.validation'; // см. 06-validation.md
 import { submitCreditApplication } from './api';
 
 export function createWizardRenderBehavior(
-  form: FormProxy<CreditForm>,
+  form: FormGroup<CreditForm>,
   model: FormModel<CreditForm>
 ): RenderBehaviorFn<CreditForm> {
   return (schema) => {
@@ -2581,7 +2581,7 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
   registry: ComponentRegistry;
   /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
-    form: FormProxy<T>,
+    form: FormGroup<T>,
     model: FormModel<T>,
     level: FormLevel<T>
   ) => RenderBehaviorFn<T>;

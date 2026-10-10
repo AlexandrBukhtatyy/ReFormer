@@ -20,7 +20,7 @@ import type {
   CreateFormConfigBase,
   FormModel,
   FormLevel,
-  FormProxy,
+  FormGroup,
 } from '@reformer/core';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import type { ComponentRegistry } from './registry/types';
@@ -50,7 +50,7 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
   registry: ComponentRegistry;
   /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
   renderBehavior?: (
-    form: FormProxy<T>,
+    form: FormGroup<T>,
     model: FormModel<T>,
     level: FormLevel<T>
   ) => RenderBehaviorFn<T>;

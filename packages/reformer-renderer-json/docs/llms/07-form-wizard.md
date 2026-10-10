@@ -1,6 +1,6 @@
 # FormWizard
 
-End-to-end многошаговая форма (wizard) в `@reformer/renderer-json` (M1): **layout шагов** живёт в JSON-схеме, а **submit + навигация + условная видимость + инъекция валидации** — в `renderBehavior` (TS-функция `RenderBehaviorFn<T>`). JSON статичен и не выражает рантайм (`FormProxy`, колбэки, эффекты), поэтому wizard собирается из двух половин. Всё сверено с рабочим примером `complex-multy-step-form-renderer-json` и его shared-поведением из `complex-multy-step-form-renderer`.
+End-to-end многошаговая форма (wizard) в `@reformer/renderer-json` (M1): **layout шагов** живёт в JSON-схеме, а **submit + навигация + условная видимость + инъекция валидации** — в `renderBehavior` (TS-функция `RenderBehaviorFn<T>`). JSON статичен и не выражает рантайм (`FormGroup`, колбэки, эффекты), поэтому wizard собирается из двух половин. Всё сверено с рабочим примером `complex-multy-step-form-renderer-json` и его shared-поведением из `complex-multy-step-form-renderer`.
 
 > **Имена файлов.** В этом документе они каноничные: `form.schema.ts` (схема; `.tsx` — если в ней есть JSX, `.json` — вариант «схема как данные»), `form.render.ts` (render-поведение), `registry.ts`, опциональный `wizard.tsx` (шим wizard-компонента). Шаги wizard-а — инлайном в `index.tsx` или по папке на шаг `steps/<slug>/` (`form.validation.ts`, `form.render.ts`, `form.schema.*` — имена те же, что в корне) с агрегатором `steps/index.ts`; прежние имена `renderer.schema.*` / `renderer.behavior.ts` / `renderer.wizard.tsx` / `validation.ts` работают, но `validate_form kind="layout"` предупреждает о них. Полный набор — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`. Каталоги `complex-multy-step-form-*` — **исторические**: файлы там называются `json-schema.json` и `render-behavior.ts`, это устаревшие имена, и сверялось по ним только содержимое, а не нейминг. В новом коде так не называй.
 
@@ -114,14 +114,14 @@ import {
   hideWhen,
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
-import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormGroup, FormModel } from '@reformer/core';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import type { CreditForm } from './types';
 import { makeValidationConfig } from './form.validation'; // см. 06-validation.md
 import { submitCreditApplication } from './api';
 
 export function createWizardRenderBehavior(
-  form: FormProxy<CreditForm>,
+  form: FormGroup<CreditForm>,
   model: FormModel<CreditForm>
 ): RenderBehaviorFn<CreditForm> {
   return (schema) => {

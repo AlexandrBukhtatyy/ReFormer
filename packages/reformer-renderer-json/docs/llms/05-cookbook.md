@@ -314,7 +314,7 @@ const adapters = new Map<unknown, FieldAdapter>([
 
 ## Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
-**Problem.** Компоненту (напр. wizard) нужен `FormProxy` или validation-конфиг — рантайм-сущности, которые нельзя выразить в статичном JSON.
+**Problem.** Компоненту (напр. wizard) нужен `FormGroup` или validation-конфиг — рантайм-сущности, которые нельзя выразить в статичном JSON.
 
 **Solution.** Инжектируй их через `renderBehavior` + `onInit`/`patchProps` до первого рендера. Узел адресуется по `selector`.
 
@@ -322,12 +322,12 @@ const adapters = new Map<unknown, FieldAdapter>([
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
 function createMyRenderBehavior(
-  form: FormProxy<MyForm>,
+  form: FormGroup<MyForm>,
   model: FormModel<MyForm>,
   validation?: FormValidationBundle<MyForm>
 ): RenderBehaviorFn<MyForm> {
   return (schema) => {
-    // JSON-схема не знает про FormProxy/валидацию — инъектим их в wizard до первого рендера.
+    // JSON-схема не знает про FormGroup/валидацию — инъектим их в wizard до первого рендера.
     onInit(schema.node('wizard'), () => {
       schema.node('wizard').patchProps({ form, ...(validation ?? makeValidationConfig(model)) });
     });
@@ -349,7 +349,7 @@ function createMyRenderBehavior(
 
 **Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
 
-**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт `fieldWrapper` **и** `resolveFieldAdapter` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`) — флага `readonly`/`mode` среди них нет. Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
+**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт `fieldWrapper` **и** `resolveFieldAdapter` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`) — флага `readonly`/`mode` среди них нет. Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `FormGroup.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
 
 ```typescript
 // Вариант A — сразу после сборки формы (самый прямой):
@@ -362,10 +362,10 @@ form.disable(); // каскад disabled по всему дереву → вся
 // Вариант B — из render-behavior (например, включить view-mode по условию/после загрузки данных):
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
-function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyForm> {
+function createReadonlyBehavior(form: FormGroup<MyForm>): RenderBehaviorFn<MyForm> {
   return (schema) => {
     onInit(schema.node('wizard'), () => {
-      form.disable(); // корневой FormProxy отдаёт disable() (делегирует в GroupNode)
+      form.disable(); // корневой FormGroup отдаёт disable() (делегирует в FormGroup)
     });
   };
 }
