@@ -2889,72 +2889,6 @@ defaultToError({});                                  // 'Unknown error'
 
 _Source: src/components/async-boundary/async-resource.ts_
 
-### defineSteps
-
-**Kind:** `function`
-
-Строит {@link FormWizardConfig} из правил, адресованных по `selector` шага. `validateStep(n)`
-резолвит `n → selector → правила`; `validateAll` — все шаги + `extras`. Обе помечают `touched`
-только провалидированные поля (`{ touch: true }`, §6). Результат — обычный конфиг, визард
-потребляет его без изменений.
-
-**Signature:**
-```typescript
-export function defineSteps<Sel extends string, T extends object>(
-  model: FormModel<T>,
-  config: DefineStepsConfig<Sel, T>
-): WizardStepsConfig<Sel>
-```
-
-**Parameters:**
-- `model` — - Модель формы.
-- `config` — - {@link DefineStepsConfig}: `steps` (по `selector`) + опц. `extras`.
-
-**Returns:** 
-
-**Examples:**
-
-```ts
-const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
-  steps: { loan: step1, applicant: step2, confirm: null }, // confirm — без правил, ЯВНО
-  extras: crossFieldRules,
-});
-<FormWizard form={form} config={config}>…</FormWizard>
-```
-
-_Source: src/components/form-wizard/define-steps.ts_
-
-### DefineStepsConfig
-
-**Kind:** `interface`
-
-Конфиг {@link defineSteps}: правила шагов по `selector` + form-level extras + live-стратегия шага.
-
-**Signature:**
-```typescript
-export interface DefineStepsConfig<Sel extends string, T> {
-  /**
-   * Правила шагов. Ключ = `selector` шага (совпадает с id ноды шага в схеме); порядок ключей =
-   * порядок шагов в визарде. `null` — шаг без правил (объявляется ЯВНО, а не молча по умолчанию).
-   */
-  steps: Record<Sel, ValidationDefinition<T> | null>;
-  /** Cross-field/warnings уровня всей формы — применяются только в `validateAll` (submit). */
-  extras?: ValidationDefinition<T>;
-  /**
-   * Live-стратегия ВНУТРИ активного шага (`blur`/`change`/`afterFirstSubmit`) — для
-   * {@link useWizardStepValidation}. Не задана / `'submit'` → живой валидации внутри шага нет
-   * (остаётся только per-step gate на «Далее» + submit). Аддитивно: per-step gate/submit не меняются.
-   */
-  strategy?: ValidationStrategyKind;
-  /** Debounce (мс) для live-фаз внутришаговой стратегии (`change` / live-часть `afterFirstSubmit`). */
-  debounce?: number;
-  /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
-  liveAfterSubmit?: 'change' | 'blur';
-}
-```
-
-_Source: src/components/form-wizard/define-steps.ts_
-
 ### FieldArray
 
 **Kind:** `const`
@@ -5337,75 +5271,10 @@ _Source: src/components/form-field/types.ts_
 
 **Kind:** `const`
 
-Headless-мастер многошаговой формы. Compound-компонент: сам `FormWizard` держит состояние
-шага/навигации/валидации, а под-компоненты подключаются к нему через контекст:
-`FormWizard.Step` (рендер текущего шага), `FormWizard.Actions` (кнопки навигации),
-`FormWizard.Indicator` и `FormWizard.Progress` (headless render-props), а также готовые
-кнопки `FormWizard.Prev` / `FormWizard.Next` / `FormWizard.Submit`.
-
-Число шагов (`totalSteps`) выводится автоматически из количества `<FormWizard.Step>` в детях
-(в т.ч. вложенных в обёрточные `div`). Валидация шага и всей формы — через колбэки в
-{@link FormWizardConfig} (`validateStep` / `validateAll`), поэтому компонент не привязан к
-конкретному движку валидации. Для внешнего управления (submit/переход из шапки страницы)
-пробросьте `ref` типа {@link FormWizardHandle}.
-
 **Signature:**
 ```typescript
 export const FormWizard
 ```
-
-**Examples:**
-
-Полный мастер с индикатором, действиями и прогрессом
-```tsx
-import { useMemo, useRef } from 'react';
-import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
-
-const STEPS = [
-{ number: 1, title: 'Личные данные' },
-{ number: 2, title: 'Проверка' },
-];
-
-function Page({ form, model }: Props) {
-const navRef = useRef<FormWizardHandle<Profile>>(null);
-// config: { validateStep, validateAll } — например, из makeValidationConfig(model)
-const config = useMemo(() => makeValidationConfig(model), [model]);
-
-return (
-<FormWizard ref={navRef} form={form} config={config}>
-<FormWizard.Indicator steps={STEPS}>
-{({ steps, goToStep }) => (
- <nav>
-   {steps.map((s) => (
-     <button key={s.number} onClick={() => goToStep(s.number)} disabled={!s.canNavigate}>
-       {s.title}
-     </button>
-   ))}
- </nav>
-)}
-</FormWizard.Indicator>
-
-<FormWizard.Step component={PersonalStep} control={form} />
-<FormWizard.Step component={ReviewStep} control={form} />
-
-<FormWizard.Actions onSubmit={() => navRef.current?.submit(api.save)}>
-<FormWizard.Prev>Назад</FormWizard.Prev>
-<FormWizard.Next>Далее</FormWizard.Next>
-<FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
-</FormWizard.Actions>
-
-<FormWizard.Progress>
-{({ current, total, percent }) => <span>Шаг {current}/{total} ({percent}%)</span>}
-</FormWizard.Progress>
-</FormWizard>
-);
-}
-```
-
-**See also:**
-- {@link FormWizardHandle} — методы для внешнего управления через `ref`.
-- {@link FormWizardConfig} — колбэки валидации `validateStep` / `validateAll`.
-- [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
 
 _Source: src/components/form-wizard/FormWizard.tsx_
 
@@ -5524,33 +5393,6 @@ export interface FormWizardButtonProps {
 
 _Source: src/components/form-wizard/FormWizardActions.tsx_
 
-### FormWizardConfig
-
-**Kind:** `interface`
-
-Configuration for multi-step form navigation.
-Note: totalSteps is inferred from children count. Валидация под M1 — через колбэки,
-не зависит от типа формы, поэтому конфиг не дженерик.
-
-**Signature:**
-```typescript
-export interface FormWizardConfig {
-  /**
-   * M1: валидация шага (1-based) через колбэк (обычно — обёртка над
-   * `validateModel(model, stepSchema)` из `@reformer/core/validation`).
-   * Возвращает `true`, если шаг валиден. Нет колбэка → шаг считается валидным.
-   */
-  validateStep?: (step: number) => boolean | Promise<boolean>;
-
-  /**
-   * M1: валидация всей формы перед submit. Нет колбэка → submit без блокировки.
-   */
-  validateAll?: () => boolean | Promise<boolean>;
-}
-```
-
-_Source: src/components/form-wizard/types.ts_
-
 ### FormWizardContext
 
 **Kind:** `const`
@@ -5581,8 +5423,8 @@ _Source: src/components/form-wizard/FormWizardContext.tsx_
 
 **Kind:** `interface`
 
-Context value for FormWizard
-Shares navigation state and methods with child components
+Контекст визарда: форма, поток шагов и производные для кнопок и индикатора (номер шага с
+единицы — `flow.index + 1`).
 
 **Signature:**
 ```typescript
@@ -5615,6 +5457,9 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   /** Form instance */
   form: FormProxy<T>;
 
+  /** Поток шагов: переходы и правила доступности шагов. */
+  flow: FormFlow;
+
   // ============================================================================
   // Navigation Methods
   // ============================================================================
@@ -5633,121 +5478,15 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   // ============================================================================
 
   /**
-   * Отправить форму с полной валидацией. Прогоняет `config.validateAll` и только при
-   * успехе зовёт `onSubmit` через `form.submit(..., { skipValidation: true })`.
-   *
-   * Возвращает `null`, если форма не прошла `validateAll` (поля при этом помечаются
-   * `touched`, чтобы ошибки стали видны); иначе — результат `onSubmit`.
-   *
-   * Тот же метод, что и {@link FormWizardHandle.submit}: он положен в контекст, чтобы
-   * кнопка отправки (`FormWizard.Actions` / `FormWizard.Submit`) гейтила submit так же,
-   * как `goToNextStep` гейтит переход на следующий шаг.
+   * Отправить форму. Внутри сборки (`FormBundleContext`) — через `bundle.submit`: обработчик
+   * зовётся только после успешной проверки всей формы. Без сборки обработчик зовётся сразу, а
+   * проверку делает приложение.
    */
-  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
+  submit: <R>(handler: (values: T) => Promise<R> | R) => Promise<SubmitResult<R>>;
 }
 ```
 
 _Source: src/components/form-wizard/FormWizardContext.tsx_
-
-### FormWizardHandle
-
-**Kind:** `interface`
-
-Handle для внешнего управления {@link FormWizard} через `useRef`.
-
-Используется, когда submit/навигация инициируется снаружи дерева Wizard:
-шапка страницы, breadcrumbs, side-effect от API. Получают через
-`useRef<FormWizardHandle<T>>(null)` и передают в `<FormWizard ref={...}>`.
-
-- `goToNextStep()` / `submit()` запускают валидацию текущего шага / всей
-  формы соответственно.
-- `goToStep(n)` возвращает `false`, если предыдущий шаг не в `completedSteps`
-  (защита от пропуска валидации) либо `n` вне диапазона `[1; totalSteps]`.
-- `submit()` возвращает `R | null`. `null` — форма не прошла `validateAll`.
-
-**Signature:**
-```typescript
-export interface FormWizardHandle<T extends Record<string, any>> {
-  /** Form instance — используется в RenderBehaviorFn для доступа к форме через ref */
-  form: FormProxy<T>;
-
-  /** Current step (1-based) */
-  currentStep: number;
-
-  /** Completed steps */
-  completedSteps: number[];
-
-  /** Validate current step */
-  validateCurrentStep: () => Promise<boolean>;
-
-  /** Go to next step (with validation) */
-  goToNextStep: () => Promise<boolean>;
-
-  /** Go to previous step */
-  goToPreviousStep: () => void;
-
-  /** Go to specific step */
-  goToStep: (step: number) => boolean;
-
-  /** Submit form (with full validation) */
-  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
-
-  /** Is this the first step */
-  isFirstStep: boolean;
-
-  /** Is this the last step */
-  isLastStep: boolean;
-
-  /** Is validation in progress */
-  isValidating: boolean;
-}
-```
-
-**Examples:**
-
-«Сохранить и выйти» поверх wizard
-```tsx
-import { useRef } from 'react';
-import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
-
-function Page({ form, config }: Props) {
-const navRef = useRef<FormWizardHandle<CreditApplication>>(null);
-
-const handleSaveAndExit = async () => {
-const saved = await navRef.current?.submit((values) => api.saveDraft(values));
-if (saved) router.push('/dashboard');
-};
-
-return (
-<>
-<header>
-<button onClick={handleSaveAndExit}>Сохранить и выйти</button>
-</header>
-<FormWizard ref={navRef} form={form} config={config}>
-<FormWizard.Step component={Step1} control={form} />
-<FormWizard.Step component={Step2} control={form} />
-</FormWizard>
-</>
-);
-}
-```
-
-Программный переход на шаг с проверкой доступности
-```tsx
-const handleClickContacts = () => {
-const ok = navRef.current?.goToStep(3);
-if (!ok) toast('Сначала заполните предыдущие шаги');
-};
-
-// Или с явной валидацией текущего шага:
-const moveOn = async () => {
-const valid = await navRef.current?.validateCurrentStep();
-if (!valid) return;
-await navRef.current?.goToNextStep();
-};
-```
-
-_Source: src/components/form-wizard/types.ts_
 
 ### FormWizardIndicator
 
@@ -6139,26 +5878,40 @@ _Source: src/components/form-wizard/FormWizardProgress.tsx_
 
 **Kind:** `interface`
 
-Props for FormWizard component
+Пропсы {@link FormWizard}.
+
+Состояние шагов — поток `FormFlow` ядра: проп `flow`, иначе поток сборки `createForm({ flow })`
+из контекста (`FormBundleContext`), иначе позиционный поток без правил по числу
+`FormWizard.Step`. Переходы и правила доступности шагов держит поток, визард их рисует.
 
 **Signature:**
 ```typescript
 export interface FormWizardProps<T extends Record<string, any>> {
-  /** Form instance */
-  form: FormProxy<T>;
+  /** Форма. Внутри сборки (`FormBundleContext`) необязательна — берётся из неё. */
+  form?: FormProxy<T>;
 
-  /** Step configuration (validation callbacks) */
-  config: FormWizardConfig;
+  /** Поток шагов. По умолчанию — поток сборки из контекста, иначе позиционный без правил. */
+  flow?: FormFlow;
 
   /** Children (Step components, Indicator, Actions, Progress, or any ReactNode) */
   children?: ReactNode;
 
-  /** Callback when step changes */
+  /** Колбэк смены шага: номер шага с единицы. */
   onStepChange?: (step: number) => void;
 
   /** Scroll to top on step change */
   scrollToTop?: boolean;
 }
+```
+
+**Examples:**
+
+Форма и поток сборки
+```tsx
+<FormWizard form={bundle.form} flow={bundle.flow}>
+<FormWizard.Step component={LoanStep} control={bundle.form} />
+<FormWizard.Step component={ConfirmStep} control={bundle.form} />
+</FormWizard>
 ```
 
 _Source: src/components/form-wizard/types.ts_
@@ -6184,7 +5937,7 @@ export function FormWizardStep<T extends Record<string, any>>({
 
 Component-based (legacy)
 ```tsx
-<FormWizard ref={navRef} form={form} config={config}>
+<FormWizard form={form} flow={flow}>
 <FormWizard.Step component={Step1} control={form} />
 <FormWizard.Step component={Step2} control={form} extraProp="value" />
 </FormWizard>
@@ -6192,7 +5945,7 @@ Component-based (legacy)
 
 Children-based (new)
 ```tsx
-<FormWizard form={form} config={config}>
+<FormWizard form={form} flow={flow}>
 <FormWizard.Step>
 <RenderNodeComponent node={step1Content} ... />
 </FormWizard.Step>
@@ -7211,21 +6964,6 @@ export interface StepProps {
 ```
 
 _Source: src/components/form-wizard/Step.tsx_
-
-### StepValidationConfig
-
-**Kind:** `interface`
-
-Минимум от {@link WizardStepsConfig}, нужный хуку: фабрика контроллера live-стратегии шага.
-
-**Signature:**
-```typescript
-export interface StepValidationConfig {
-  createStepController: (step: number) => FormValidationController | null;
-}
-```
-
-_Source: src/components/form-wizard/use-wizard-step-validation.ts_
 
 ### StrategyFlags
 
@@ -8384,14 +8122,13 @@ _Source: src/components/form-field/useFormField.ts_
 
 Хук для доступа к контексту {@link FormWizard} из любого потомка.
 
-Возвращает текущее состояние мастера (`currentStep`, `totalSteps`,
-`completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`,
-`form`), методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`) и
-`submit` — отправку с прогоном `config.validateAll` (`null`, если форма не прошла).
-Бросает исключение, если вызван вне `<FormWizard>`.
+Возвращает форму и поток шагов (`form`, `flow`), производное состояние мастера
+(`currentStep` с единицы, `totalSteps`, `completedSteps`, `isFirstStep`, `isLastStep`,
+`isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
+`goToStep`) и `submit` — отправку: внутри сборки через `bundle.submit`, результат — объект
+со статусом. Бросает исключение, если вызван вне `<FormWizard>`.
 
-Для внешнего управления (вне дерева Wizard) используйте
-{@link FormWizardHandle} через `useRef`.
+Управление снаружи дерева визарда — через сам поток: `bundle.flow.goTo('loan')`.
 
 **Signature:**
 ```typescript
@@ -8594,38 +8331,6 @@ export interface UseResourceOptionsResult {
 
 _Source: src/components/option-source/useResourceOptions.ts_
 
-### useWizardStepValidation
-
-**Kind:** `function`
-
-Армирует live-стратегию валидации (`strategy` из {@link defineSteps}) для ТЕКУЩЕГО шага мастера.
-Читает `currentStep` из контекста {@link FormWizard}, собирает контроллер под под-схему шага и
-снимает его при смене шага / размонтировании. Per-step gate («Далее») и submit (`validateAll`) не
-затрагиваются — это отдельный, живой слой поверх них.
-
-No-op, если в `defineSteps` не задана `strategy` (или `'submit'`) либо у шага нет правил.
-
-**Signature:**
-```typescript
-export function useWizardStepValidation(config: StepValidationConfig): void
-```
-
-**Examples:**
-
-```tsx
-const config = defineSteps<'loan' | 'confirm', Root>(model, {
-  steps: { loan: step1, confirm: null },
-  strategy: 'blur',
-});
-
-function LoanStepBody() {
-  useWizardStepValidation(config); // живая валидация полей шага при blur
-  return <>{/* поля шага *\/}</>;
-}
-```
-
-_Source: src/components/form-wizard/use-wizard-step-validation.ts_
-
 ### ValidationMessagesProvider
 
 **Kind:** `function`
@@ -8691,29 +8396,3 @@ export interface ValidationMessagesProviderProps {
 ```
 
 _Source: src/validation/error-resolver.tsx_
-
-### WizardStepsConfig
-
-**Kind:** `interface`
-
-Результат {@link defineSteps}: {@link FormWizardConfig} + упорядоченный список селекторов шагов.
-
-**Signature:**
-```typescript
-export interface WizardStepsConfig<Sel extends string> extends FormWizardConfig {
-  /** Валидация шага по номеру (1-based) — defineSteps всегда её возвращает (в базе она опциональна). */
-  validateStep: (step: number) => Promise<boolean>;
-  /** Полная валидация (submit) — всегда возвращается. */
-  validateAll: () => Promise<boolean>;
-  /** Селекторы шагов по порядку (индекс = `step - 1`). Для селекторной адресации/отладки. */
-  stepSelectors: Sel[];
-  /**
-   * Контроллер live-стратегии для под-схемы шага (1-based) — для {@link useWizardStepValidation}.
-   * Возвращает `null`, если live-стратегия не задана (`strategy` отсутствует / `'submit'`) или у
-   * шага нет правил. Тип {@link FormValidationController} не зависит от `T`.
-   */
-  createStepController: (step: number) => FormValidationController | null;
-}
-```
-
-_Source: src/components/form-wizard/define-steps.ts_

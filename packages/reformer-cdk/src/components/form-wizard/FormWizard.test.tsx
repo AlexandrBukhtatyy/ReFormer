@@ -1,156 +1,181 @@
 /**
- * Unit-тесты FormWizard.
+ * FormWizard — адаптер потока шагов ядра (`FormFlow`).
  *
- * defect #51: completedSteps не инвалидировался при возврате назад — устаревший список
- *   позволял прыгнуть вперёд через теперь-невалидный шаг. Проверяем чистую функцию
- *   pruneCompletedStepsOnBack, на которой построена инвалидация в goToPreviousStep/goToStep.
- * defect #49: у мастера не было объявления смены шага для скринридеров (только scrollTo).
- *   Проверяем, что FormWizard рендерит polite live-region со «Step N of M».
+ * Правила доступности шагов и проверку шага держит поток (их тесты — в ядре,
+ * `tests/core/flow/form-flow.test.ts`); здесь — что визард берёт поток из пропа или сборки,
+ * без них строит позиционный, рисует номер шага и отправляет через сборку.
+ *
+ * DOM-окружения в пакете нет (только `react-dom/server`), поэтому клик не имитируется:
+ * render-props отдают обработчики функциями — их и вызываем.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { FormProxy } from '@reformer/core';
-import { FormWizard, pruneCompletedStepsOnBack } from './FormWizard';
+import { createForm, createFormFlow, type FormBundle } from '@reformer/core';
+import { FormBundleContext } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import { FormWizard } from './FormWizard';
 import type { FormWizardActionsRenderProps } from './FormWizardActions';
+import type { FormWizardIndicatorRenderProps } from './FormWizardIndicator';
 
-describe('pruneCompletedStepsOnBack (#51)', () => {
-  it('оставляет только шаги строго меньше того, к которому вернулись', () => {
-    // 1→2→3 даёт completedSteps=[1,2]; возврат на шаг 2 инвалидирует 2 и далее.
-    expect(pruneCompletedStepsOnBack([1, 2], 2)).toEqual([1]);
-  });
+interface Shape {
+  amount: string;
+  phone: string;
+}
 
-  it('возврат на первый шаг очищает завершённость полностью', () => {
-    expect(pruneCompletedStepsOnBack([1, 2, 3], 1)).toEqual([]);
-  });
-
-  it('идемпотентен и не трогает уже валидный префикс', () => {
-    expect(pruneCompletedStepsOnBack([1, 2, 3, 4], 3)).toEqual([1, 2]);
-  });
-
-  it('пустой вход остаётся пустым', () => {
-    expect(pruneCompletedStepsOnBack([], 2)).toEqual([]);
-  });
+const amountRules = defineValidation<Shape>(({ model }) => {
+  validate(model.$.amount, [required()]);
 });
 
-describe('FormWizard — live-region объявления шага (#49)', () => {
-  // Минимальный мок формы: FormWizard читает form.submitting.value при рендере.
-  const mockForm = { submitting: { value: false } } as unknown as FormProxy<
-    Record<string, unknown>
-  >;
+const createBundle = (initial: Shape = { amount: '', phone: '' }): FormBundle<Shape> =>
+  createForm<Shape>({
+    initial,
+    flow: { steps: [{ id: 'loan', rules: amountRules }, { id: 'confirm' }] },
+  });
 
-  it('рендерит polite live-region с «Step 1 of 2»', () => {
+const Empty = () => null;
+
+/** Нарисовать визард и вернуть render-props кнопок и индикатора. */
+function capture(
+  element: (slots: {
+    actions: (props: FormWizardActionsRenderProps) => null;
+    indicator: (props: FormWizardIndicatorRenderProps) => null;
+  }) => React.ReactElement
+) {
+  const captured: {
+    actions?: FormWizardActionsRenderProps;
+    indicator?: FormWizardIndicatorRenderProps;
+  } = {};
+  const html = renderToStaticMarkup(
+    element({
+      actions: (props) => {
+        captured.actions = props;
+        return null;
+      },
+      indicator: (props) => {
+        captured.indicator = props;
+        return null;
+      },
+    })
+  );
+  return { html, ...captured };
+}
+
+const flush = async (): Promise<void> => {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+};
+
+describe('FormWizard — поток шагов', () => {
+  it('без потока — позиционный: live-region «Step 1 of 2»', () => {
+    const { form } = createBundle();
     const html = renderToStaticMarkup(
-      <FormWizard form={mockForm} config={{}}>
-        <FormWizard.Step component={() => null} control={mockForm} />
-        <FormWizard.Step component={() => null} control={mockForm} />
+      <FormWizard form={form}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
       </FormWizard>
     );
+
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('Step 1 of 2');
   });
+
+  it('поток из пропа: номер и пройденные шаги — из потока', async () => {
+    const { form } = createBundle();
+    const flow = createFormFlow({ steps: ['a', 'b', 'c'] });
+    await flow.next();
+
+    const { html, indicator } = capture(({ indicator: render }) => (
+      <FormWizard form={form} flow={flow}>
+        <FormWizard.Indicator steps={[1, 2, 3].map((number) => ({ number, title: `${number}` }))}>
+          {render}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+      </FormWizard>
+    ));
+
+    expect(html).toContain('Step 2 of 3');
+    expect(indicator?.steps.map((step) => step.isCompleted)).toEqual([true, false, false]);
+  });
+
+  it('поток сборки из контекста: «Далее» проверяет правила шага', async () => {
+    const bundle = createBundle();
+    const { actions } = capture(({ actions: render }) => (
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard>
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Actions>{render}</FormWizard.Actions>
+        </FormWizard>
+      </FormBundleContext.Provider>
+    ));
+
+    actions!.next.onClick();
+    await flush();
+
+    expect(bundle.flow!.current.value).toBe('loan');
+    expect(bundle.form.amount.shouldShowError.value).toBe(true);
+
+    bundle.model.amount = '100';
+    actions!.next.onClick();
+    await flush();
+    expect(bundle.flow!.current.value).toBe('confirm');
+  });
 });
 
-describe('FormWizard — кнопка отправки гейтит через validateAll', () => {
-  /**
-   * Дефект: `submit.onClick` звал проп `onSubmit` напрямую, тогда как соседний `next.onClick`
-   * гейтил переход через `validateCurrentStep`. В результате форма отправляла невалидные
-   * данные — воспроизведено в браузере на форме с пустыми обязательными полями.
-   *
-   * Гейт (`config.validateAll` → `markAsTouched` → `null`) в FormWizard был, но `submit` не
-   * лежал в контексте, поэтому кнопки до него не дотягивались.
-   *
-   * DOM-окружения в пакете нет (только `react-dom/server`), поэтому клик не имитируется:
-   * render-props отдают `submit.onClick` функцией — её и вызываем. Compound-ветка
-   * (`FormWizard.Submit`) берёт тот же `submit` из того же контекста.
-   */
-  function makeForm(submitSpy: ReturnType<typeof vi.fn>, touchedSpy: ReturnType<typeof vi.fn>) {
-    return {
-      submitting: { value: false },
-      markAsTouched: touchedSpy,
-      // Реальный GroupNode.submit зовёт колбэк с текущими значениями.
-      submit: (cb: (values: Record<string, unknown>) => unknown) => cb({ field: 'value' }),
-      ...{ __submitSpy: submitSpy },
-    } as unknown as FormProxy<Record<string, unknown>>;
-  }
-
-  /** Рендерит мастер и возвращает render-props кнопок последнего шага. */
-  function captureActions(
-    validateAll: () => Promise<boolean>,
-    onSubmit: () => void,
-    form: FormProxy<Record<string, unknown>>
-  ): FormWizardActionsRenderProps {
-    let captured: FormWizardActionsRenderProps | null = null;
-
-    renderToStaticMarkup(
-      <FormWizard form={form} config={{ validateAll }}>
-        <FormWizard.Step component={() => null} control={form} />
-        <FormWizard.Actions onSubmit={onSubmit}>
-          {(props) => {
-            captured = props;
-            return null;
-          }}
-        </FormWizard.Actions>
-      </FormWizard>
-    );
-
-    if (!captured) throw new Error('Actions render-props не были вызваны');
-    return captured;
-  }
-
-  it('при провале validateAll не зовёт onSubmit и помечает поля touched', async () => {
+describe('FormWizard — отправка', () => {
+  it('в сборке: замечания — обработчик не вызывается', async () => {
+    const bundle = createBundle();
     const onSubmit = vi.fn();
-    const touched = vi.fn();
-    const validateAll = vi.fn(async () => false);
+    const { actions } = capture(({ actions: render }) => (
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard>
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Actions onSubmit={onSubmit}>{render}</FormWizard.Actions>
+        </FormWizard>
+      </FormBundleContext.Provider>
+    ));
 
-    const actions = captureActions(validateAll, onSubmit, makeForm(vi.fn(), touched));
-    actions.submit.onClick();
-    await Promise.resolve();
-    await Promise.resolve();
+    actions!.submit.onClick();
+    await flush();
 
-    expect(validateAll).toHaveBeenCalledTimes(1);
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(touched).toHaveBeenCalledTimes(1);
+    expect(bundle.form.amount.touched.value).toBe(true);
   });
 
-  it('при успешной validateAll зовёт onSubmit ровно один раз', async () => {
+  it('в сборке: форма прошла проверку — обработчик ровно один раз', async () => {
+    const bundle = createBundle({ amount: '100', phone: '' });
     const onSubmit = vi.fn();
-    const touched = vi.fn();
-    const validateAll = vi.fn(async () => true);
+    const { actions } = capture(({ actions: render }) => (
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard>
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Actions onSubmit={onSubmit}>{render}</FormWizard.Actions>
+        </FormWizard>
+      </FormBundleContext.Provider>
+    ));
 
-    const actions = captureActions(validateAll, onSubmit, makeForm(vi.fn(), touched));
-    actions.submit.onClick();
-    await Promise.resolve();
-    await Promise.resolve();
+    actions!.submit.onClick();
+    await flush();
 
-    expect(validateAll).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(touched).not.toHaveBeenCalled();
   });
 
-  it('без config.validateAll отправляет без блокировки (обратная совместимость)', async () => {
+  it('без сборки обработчик зовётся по нажатию: проверку делает приложение', async () => {
+    const { form } = createBundle();
     const onSubmit = vi.fn();
-    const touched = vi.fn();
-    let captured: FormWizardActionsRenderProps | null = null;
-    const form = makeForm(vi.fn(), touched);
-
-    renderToStaticMarkup(
-      <FormWizard form={form} config={{}}>
-        <FormWizard.Step component={() => null} control={form} />
-        <FormWizard.Actions onSubmit={onSubmit}>
-          {(props) => {
-            captured = props;
-            return null;
-          }}
-        </FormWizard.Actions>
+    const { actions } = capture(({ actions: render }) => (
+      <FormWizard form={form}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions onSubmit={onSubmit}>{render}</FormWizard.Actions>
       </FormWizard>
-    );
+    ));
 
-    captured!.submit.onClick();
-    await Promise.resolve();
-    await Promise.resolve();
+    actions!.submit.onClick();
+    await flush();
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(touched).not.toHaveBeenCalled();
   });
 });

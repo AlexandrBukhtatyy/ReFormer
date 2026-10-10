@@ -83,9 +83,8 @@ export const FormWizardSubmit = forwardRef<HTMLButtonElement, FormWizardSubmitPr
       <Comp
         ref={ref}
         type={asChild ? undefined : 'submit'}
-        // Через `submit` из контекста: он прогоняет `config.validateAll` и зовёт
-        // `onSubmit` только при успехе. Compound-ветка чинится отдельно от
-        // render-props ветки в FormWizardActions — гейт нужен в обеих.
+        // Через `submit` из контекста: внутри сборки он зовёт `onSubmit` только после
+        // успешной проверки всей формы. Гейт общий с render-props веткой FormWizardActions.
         onClick={() => {
           void submit(() => onSubmit?.());
         }}

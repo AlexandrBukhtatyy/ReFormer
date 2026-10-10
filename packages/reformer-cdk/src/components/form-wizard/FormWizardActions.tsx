@@ -158,8 +158,8 @@ export function FormWizardActions({
         disabled: isDisabled,
       },
       submit: {
-        // Через `submit` из контекста, а не напрямую в проп: он прогоняет
-        // `config.validateAll` и зовёт `onSubmit` только при успехе — так кнопка
+        // Через `submit` из контекста, а не напрямую в проп: внутри сборки он идёт через
+        // `bundle.submit` и зовёт `onSubmit` только после успешной проверки — так кнопка
         // отправки гейтит ввод так же, как `next` гейтит переход на следующий шаг.
         onClick: () => {
           void submit(() => onSubmit?.());

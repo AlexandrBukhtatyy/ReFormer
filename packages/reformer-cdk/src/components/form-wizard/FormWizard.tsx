@@ -1,13 +1,18 @@
 import {
-  forwardRef,
-  useImperativeHandle,
-  useState,
   useCallback,
   useMemo,
+  useSyncExternalStore,
   Children,
   isValidElement,
   cloneElement,
 } from 'react';
+import {
+  createFormFlow,
+  type FlowTransition,
+  type FormFlow,
+  type SubmitResult,
+} from '@reformer/core';
+import { useFormBundleContext, useFormFlow } from '@reformer/core/react';
 import { FormWizardContext, type FormWizardContextValue } from './FormWizardContext';
 import { FormWizardStep } from './FormWizardStep';
 import { FormWizardIndicator } from './FormWizardIndicator';
@@ -16,24 +21,7 @@ import { FormWizardProgress } from './FormWizardProgress';
 import { FormWizardPrev } from './FormWizardPrev';
 import { FormWizardNext } from './FormWizardNext';
 import { FormWizardSubmit } from './FormWizardSubmit';
-import type { FormWizardHandle, FormWizardProps } from './types';
-
-/**
- * Обрезает `completedSteps` при возврате к более раннему шагу `toStep`.
- *
- * Возврат назад = повторное редактирование шага `toStep`, поэтому его «завершённость»
- * и завершённость всех последующих шагов устаревают (шаг может стать невалидным).
- * Оставляем только шаги строго меньше `toStep` — тогда прыжок вперёд (guard в
- * `goToStep`/`canNavigate` у Indicator доверяет `completedSteps`) снова потребует
- * валидации, а не пропустит теперь-невалидный шаг.
- *
- * Экспортируется для модульных тестов навигации; в публичный API (`index.ts`) НЕ выведено.
- *
- * @internal
- */
-export function pruneCompletedStepsOnBack(completedSteps: number[], toStep: number): number[] {
-  return completedSteps.filter((step) => step < toStep);
-}
+import type { FormWizardProps } from './types';
 
 /**
  * Инлайновые sr-only стили для live-региона объявления смены шага: элемент есть в DOM
@@ -52,284 +40,203 @@ const srOnlyStyle: React.CSSProperties = {
   border: 0,
 };
 
+/** Число шагов `FormWizard.Step` в детях — в том числе внутри обёрток. */
+function countSteps(node: React.ReactNode): number {
+  let count = 0;
+  Children.forEach(node, (child) => {
+    if (!isValidElement(child)) return;
+    if (child.type === FormWizardStep) {
+      count += 1;
+      return;
+    }
+    const childProps = child.props as { children?: React.ReactNode };
+    if (childProps.children) count += countSteps(childProps.children);
+  });
+  return count;
+}
+
 /**
- * FormWizard - Headless compound component for multi-step form navigation
+ * Пронумеровать `FormWizard.Step` с единицы — в том числе внутри обёрток: по номеру шаг понимает,
+ * текущий ли он. Render-props (функция в `children`) не трогаются.
+ */
+function numberSteps(children: React.ReactNode): React.ReactNode {
+  let counter = 0;
+  const visit = (node: React.ReactNode): React.ReactNode =>
+    Children.map(node, (child) => {
+      if (!isValidElement(child)) return child;
+      const childProps = child.props as { children?: React.ReactNode };
+      if (child.type === FormWizardStep) {
+        counter += 1;
+        return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+          ...childProps,
+          _stepIndex: counter,
+        });
+      }
+      if (typeof childProps.children === 'function') return child;
+      if (childProps.children) {
+        return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+          ...childProps,
+          children: visit(childProps.children),
+        });
+      }
+      return child;
+    });
+  return visit(children);
+}
+
+/** Шаги позиционного потока: `'1'`, `'2'`, … */
+const positionalSteps = (total: number): string[] =>
+  Array.from({ length: Math.max(total, 1) }, (_, index) => String(index + 1));
+
+/** Сигнал отправки сборки; без сборки отправка не идёт. */
+const NOT_SUBMITTING = { subscribe: () => () => {}, peek: () => false };
+
+/**
+ * FormWizard — headless compound для многошаговой формы.
  *
- * Uses Ref Handle Pattern to expose navigation methods via ref.
- * Encapsulates all validation and step transition logic.
- * All sub-components (Indicator, Actions, Progress) are headless with render props.
+ * Состояние шагов — поток `FormFlow` ядра: проп `flow`, иначе поток сборки `createForm({ flow })`
+ * из контекста, иначе позиционный поток без правил по числу `FormWizard.Step`. Визард рисует
+ * поток и зовёт его переходы; правила доступности шагов и проверку шага держит поток.
  *
- * @example Basic usage
+ * Отправка: внутри сборки (контекст `FormBundleContext`) обработчик зовётся через
+ * `bundle.submit` — только после успешной проверки всей формы. Без сборки визард зовёт его по
+ * нажатию, а проверку делает приложение (`bundle.submit(handler)`).
+ *
+ * @example Поток сборки
  * ```tsx
- * const navRef = useRef<FormWizardHandle<MyForm>>(null);
+ * const bundle = useFormBundle(() =>
+ *   createForm<MyForm>({
+ *     model,
+ *     flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+ *   })
+ * );
  *
- * <FormWizard ref={navRef} form={form} config={config}>
- *   <FormWizard.Step component={Step1} control={form} />
- *   <FormWizard.Step component={Step2} control={form} />
- * </FormWizard>
- * ```
- *
- * @example Full example with headless components
- * ```tsx
- * <FormWizard ref={navRef} form={form} config={config}>
- *   <FormWizard.Indicator steps={STEPS}>
- *     {({ steps, goToStep }) => (
- *       <nav className="stepper">
- *         {steps.map(step => (
- *           <button key={step.number} onClick={() => goToStep(step.number)}>
- *             {step.title}
- *           </button>
- *         ))}
- *       </nav>
- *     )}
- *   </FormWizard.Indicator>
- *
- *   <FormWizard.Step component={Step1} control={form} />
- *   <FormWizard.Step component={Step2} control={form} />
- *
- *   <FormWizard.Actions onSubmit={handleSubmit}>
+ * <FormWizard form={bundle.form} flow={bundle.flow}>
+ *   <FormWizard.Step component={LoanStep} control={bundle.form} />
+ *   <FormWizard.Step component={ConfirmStep} control={bundle.form} />
+ *   <FormWizard.Actions onSubmit={() => void bundle.submit(api.save)}>
  *     {({ prev, next, submit, isFirstStep, isLastStep }) => (
  *       <div className="actions">
- *         {!isFirstStep && <Button {...prev}>Back</Button>}
- *         {!isLastStep ? <Button {...next}>Next</Button> : <Button {...submit}>Submit</Button>}
+ *         {!isFirstStep && <Button {...prev}>Назад</Button>}
+ *         {!isLastStep ? <Button {...next}>Далее</Button> : <Button {...submit}>Отправить</Button>}
  *       </div>
  *     )}
  *   </FormWizard.Actions>
- *
- *   <FormWizard.Progress>
- *     {({ current, total, percent }) => (
- *       <span>Step {current}/{total} ({percent}%)</span>
- *     )}
- *   </FormWizard.Progress>
  * </FormWizard>
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function FormWizardInner<T extends Record<string, any>>(
-  { form, config, children, onStepChange, scrollToTop = true }: FormWizardProps<T>,
-  ref: React.ForwardedRef<FormWizardHandle<T>>
-) {
-  // Recursively count Step children for totalSteps (supports Steps inside wrapper divs)
-  const countSteps = (node: React.ReactNode): number => {
-    let count = 0;
-    Children.forEach(node, (child) => {
-      if (isValidElement(child)) {
-        if (child.type === FormWizardStep) {
-          count += 1;
-        } else {
-          const childProps = child.props as { children?: React.ReactNode };
-          if (childProps.children) {
-            count += countSteps(childProps.children);
-          }
-        }
-      }
-    });
-    return count;
-  };
+function FormWizardBase<T extends Record<string, any>>({
+  form: formProp,
+  flow: flowProp,
+  children,
+  onStepChange,
+  scrollToTop = true,
+}: FormWizardProps<T>) {
+  const bundle = useFormBundleContext<T>();
+  const form = formProp ?? bundle?.form;
+  if (!form) {
+    throw new Error(
+      '[@reformer/cdk] FormWizard: no form. Pass `form` or render the wizard inside a ' +
+        '`createForm` bundle (FormRenderer puts it into context).'
+    );
+  }
+
   const totalSteps = countSteps(children);
+  const givenFlow = flowProp ?? bundle?.flow;
+  const positional = useMemo(
+    () => (givenFlow ? undefined : createFormFlow({ steps: positionalSteps(totalSteps) })),
+    [givenFlow, totalSteps]
+  );
+  const flow = (givenFlow ?? positional) as FormFlow;
+  const state = useFormFlow(flow);
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [isValidating, setIsValidating] = useState(false);
+  const submittingSignal = bundle?.submitting ?? NOT_SUBMITTING;
+  const isSubmitting = useSyncExternalStore(
+    useCallback((onChange) => submittingSignal.subscribe(() => onChange()), [submittingSignal]),
+    () => submittingSignal.peek(),
+    () => false
+  );
 
-  // Track submitting state from form
-  const isSubmitting = form.submitting.value;
-
-  // ============================================================================
-  // Validation
-  // ============================================================================
-
-  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
-    // M1: валидация шага через колбэк (обычно обёртка над validateModel из @reformer/core/validation).
-    if (!config.validateStep) {
-      console.warn(`No validateStep callback configured for step ${currentStep}`);
+  /** После перехода: колбэк смены шага и прокрутка к началу. */
+  const settle = useCallback(
+    (transition: FlowTransition): boolean => {
+      if (transition.status !== 'moved') return false;
+      onStepChange?.(flow.steps.indexOf(transition.to) + 1);
+      if (scrollToTop && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       return true;
-    }
-    setIsValidating(true);
-    try {
-      return await config.validateStep(currentStep);
-    } finally {
-      setIsValidating(false);
-    }
-  }, [currentStep, config]);
-
-  // ============================================================================
-  // Navigation
-  // ============================================================================
+    },
+    [flow, onStepChange, scrollToTop]
+  );
 
   const goToNextStep = useCallback(async (): Promise<boolean> => {
-    const isValid = await validateCurrentStep();
-
-    if (!isValid) {
+    const transition = await flow.next();
+    if (transition.status === 'stayed' && transition.reason !== 'edge') {
+      // Шаг не прошёл проверку: показать замечания.
       form.markAsTouched();
       return false;
     }
-
-    // Add to completed steps
-    if (!completedSteps.includes(currentStep)) {
-      setCompletedSteps((prev) => [...prev, currentStep]);
-    }
-
-    // Move to next step
-    if (currentStep < totalSteps) {
-      const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
-      onStepChange?.(nextStep);
-
-      if (scrollToTop) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
-
+    settle(transition);
     return true;
-  }, [
-    validateCurrentStep,
-    currentStep,
-    completedSteps,
-    totalSteps,
-    form,
-    onStepChange,
-    scrollToTop,
-  ]);
+  }, [flow, form, settle]);
 
   const goToPreviousStep = useCallback(() => {
-    if (currentStep > 1) {
-      const prevStep = currentStep - 1;
-      setCurrentStep(prevStep);
-      // Возврат назад инвалидирует завершённость редактируемого шага и всех последующих:
-      // иначе устаревший completedSteps позволяет прыгнуть вперёд через теперь-невалидный шаг.
-      setCompletedSteps((prev) => pruneCompletedStepsOnBack(prev, prevStep));
-      onStepChange?.(prevStep);
-
-      if (scrollToTop) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
-  }, [currentStep, onStepChange, scrollToTop]);
+    settle(flow.previous());
+  }, [flow, settle]);
 
   const goToStep = useCallback(
     (step: number): boolean => {
-      // Can go to step 1 or to a step if the previous step is completed
-      const canGoTo = step === 1 || completedSteps.includes(step - 1);
-
-      if (canGoTo && step >= 1 && step <= totalSteps) {
-        // Прыжок назад к более раннему шагу = его повторное редактирование: инвалидируем
-        // завершённость этого и последующих шагов (симметрично goToPreviousStep).
-        if (step < currentStep) {
-          setCompletedSteps((prev) => pruneCompletedStepsOnBack(prev, step));
-        }
-        setCurrentStep(step);
-        onStepChange?.(step);
-
-        if (scrollToTop) {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        return true;
-      }
-
-      return false;
+      const stepId = flow.steps[step - 1];
+      return stepId !== undefined && settle(flow.goTo(stepId));
     },
-    [completedSteps, totalSteps, currentStep, onStepChange, scrollToTop]
+    [flow, settle]
   );
-
-  // ============================================================================
-  // Submit
-  // ============================================================================
 
   const submit = useCallback(
-    async <R,>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> => {
-      setIsValidating(true);
+    async <R,>(handler: (values: T) => Promise<R> | R): Promise<SubmitResult<R>> => {
+      if (bundle) return bundle.submit(handler);
       try {
-        // Validate entire form: M1 колбэк (обёртка над validateModel). Нет колбэка → submit без блока.
-        const isValid = config.validateAll ? await config.validateAll() : true;
-
-        if (!isValid) {
-          form.markAsTouched();
-          return null;
-        }
-
-        // Use built-in submit of GroupNode
-        return form.submit(onSubmit, { skipValidation: true });
-      } finally {
-        setIsValidating(false);
+        return { status: 'submitted', result: await handler(form.getValue() as T) };
+      } catch (error) {
+        return { status: 'failed', error };
       }
     },
-    [form, config]
+    [bundle, form]
   );
 
-  // ============================================================================
-  // Computed Properties
-  // ============================================================================
+  const currentStep = state.index + 1;
+  const completedSteps = useMemo(
+    () => flow.steps.flatMap((step, index) => (state.completed.has(step) ? [index + 1] : [])),
+    [flow, state.completed]
+  );
 
-  const isFirstStep = currentStep === 1;
-  const isLastStep = currentStep === totalSteps;
-
-  // ============================================================================
-  // Expose via ref
-  // ============================================================================
-
-  useImperativeHandle(
-    ref,
+  const contextValue = useMemo<FormWizardContextValue<T>>(
     () => ({
       form,
+      flow,
       currentStep,
+      totalSteps: flow.steps.length,
       completedSteps,
-      validateCurrentStep,
+      isFirstStep: state.isFirst,
+      isLastStep: state.isLast,
+      isValidating: state.validating,
+      isSubmitting,
       goToNextStep,
       goToPreviousStep,
       goToStep,
       submit,
-      isFirstStep,
-      isLastStep,
-      isValidating,
     }),
     [
       form,
+      flow,
       currentStep,
       completedSteps,
-      validateCurrentStep,
-      goToNextStep,
-      goToPreviousStep,
-      goToStep,
-      submit,
-      isFirstStep,
-      isLastStep,
-      isValidating,
-    ]
-  );
-
-  // ============================================================================
-  // Context Value (includes navigation + submit methods for child components)
-  // ============================================================================
-
-  const contextValue = useMemo(
-    () => ({
-      // State
-      currentStep,
-      totalSteps,
-      completedSteps,
-      isFirstStep,
-      isLastStep,
-      isValidating,
+      state.isFirst,
+      state.isLast,
+      state.validating,
       isSubmitting,
-      form,
-      // Navigation methods
-      goToNextStep,
-      goToPreviousStep,
-      goToStep,
-      // Submit: тот же гейт, что и у ref-handle. Без него кнопка отправки
-      // (Actions/Submit) звала бы проп onSubmit напрямую, в обход validateAll.
-      submit,
-    }),
-    [
-      currentStep,
-      totalSteps,
-      completedSteps,
-      isFirstStep,
-      isLastStep,
-      isValidating,
-      isSubmitting,
-      form,
       goToNextStep,
       goToPreviousStep,
       goToStep,
@@ -337,158 +244,36 @@ function FormWizardInner<T extends Record<string, any>>(
     ]
   );
 
-  // ============================================================================
-  // Render children with step indices (recursively for nested Steps)
-  // ============================================================================
-
-  let stepIndexCounter = 0;
-
-  const processChildren = (node: React.ReactNode): React.ReactNode => {
-    return Children.map(node, (child) => {
-      if (!isValidElement(child)) {
-        return child;
-      }
-
-      const childProps = child.props as { children?: React.ReactNode };
-
-      if (child.type === FormWizardStep) {
-        stepIndexCounter += 1;
-        return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
-          ...childProps,
-          _stepIndex: stepIndexCounter, // 1-based indexing
-        });
-      }
-
-      // Skip processing for headless components with render props (children as function)
-      // This preserves the render function for Indicator, Actions, Progress
-      if (typeof childProps.children === 'function') {
-        return child;
-      }
-
-      // Recursively process children of wrapper elements (like divs)
-      if (childProps.children) {
-        return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
-          ...childProps,
-          children: processChildren(childProps.children),
-        });
-      }
-
-      return child;
-    });
-  };
-
-  const childrenWithIndices = processChildren(children);
-
-  // Контекст хранит generic-erased `<any>` (FormProxy<T> ↛ FormProxy<any>); чтение — через useFormWizardContext<T>().
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const wizardContextValue = contextValue as FormWizardContextValue<any>;
   return (
-    <FormWizardContext.Provider value={wizardContextValue}>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    <FormWizardContext.Provider value={contextValue as FormWizardContextValue<any>}>
       {/*
-       * Polite live-region: озвучивает смену шага скринридерам («Step N of M»). Раньше
-       * единственным эффектом навигации был window.scrollTo — пользователи скринридеров
-       * не получали объявления о переходе. sr-only, вне потока, без влияния на раскладку.
-       * Управление фокусом (перевод фокуса на новый шаг/первое невалидное поле) остаётся
-       * за потребителем через onStepChange + ref-handle: контейнер шага рендерит
-       * FormWizard.Step, а не сам FormWizard.
+       * Polite live-region: озвучивает смену шага скринридерам («Step N of M»). Управление
+       * фокусом остаётся за потребителем через onStepChange.
        */}
       <div role="status" aria-live="polite" aria-atomic="true" style={srOnlyStyle}>
-        {`Step ${currentStep} of ${totalSteps}`}
+        {`Step ${currentStep} of ${flow.steps.length}`}
       </div>
-      {childrenWithIndices}
+      {numberSteps(children)}
     </FormWizardContext.Provider>
   );
 }
 
-// Typed forwardRef for generic component
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FormWizardBase = forwardRef(FormWizardInner) as <T extends Record<string, any>>(
-  props: FormWizardProps<T> & { ref?: React.ForwardedRef<FormWizardHandle<T>> }
-) => React.ReactElement;
-
-// Create compound component with all sub-components attached
 type FormWizardComponent = typeof FormWizardBase & {
   Step: typeof FormWizardStep;
   Indicator: typeof FormWizardIndicator;
   Actions: typeof FormWizardActions;
   Progress: typeof FormWizardProgress;
-  // Action button components
   Prev: typeof FormWizardPrev;
   Next: typeof FormWizardNext;
   Submit: typeof FormWizardSubmit;
 };
 
-/**
- * Headless-мастер многошаговой формы. Compound-компонент: сам `FormWizard` держит состояние
- * шага/навигации/валидации, а под-компоненты подключаются к нему через контекст:
- * `FormWizard.Step` (рендер текущего шага), `FormWizard.Actions` (кнопки навигации),
- * `FormWizard.Indicator` и `FormWizard.Progress` (headless render-props), а также готовые
- * кнопки `FormWizard.Prev` / `FormWizard.Next` / `FormWizard.Submit`.
- *
- * Число шагов (`totalSteps`) выводится автоматически из количества `<FormWizard.Step>` в детях
- * (в т.ч. вложенных в обёрточные `div`). Валидация шага и всей формы — через колбэки в
- * {@link FormWizardConfig} (`validateStep` / `validateAll`), поэтому компонент не привязан к
- * конкретному движку валидации. Для внешнего управления (submit/переход из шапки страницы)
- * пробросьте `ref` типа {@link FormWizardHandle}.
- *
- * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
- *
- * @example Полный мастер с индикатором, действиями и прогрессом
- * ```tsx
- * import { useMemo, useRef } from 'react';
- * import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
- *
- * const STEPS = [
- *   { number: 1, title: 'Личные данные' },
- *   { number: 2, title: 'Проверка' },
- * ];
- *
- * function Page({ form, model }: Props) {
- *   const navRef = useRef<FormWizardHandle<Profile>>(null);
- *   // config: { validateStep, validateAll } — например, из makeValidationConfig(model)
- *   const config = useMemo(() => makeValidationConfig(model), [model]);
- *
- *   return (
- *     <FormWizard ref={navRef} form={form} config={config}>
- *       <FormWizard.Indicator steps={STEPS}>
- *         {({ steps, goToStep }) => (
- *           <nav>
- *             {steps.map((s) => (
- *               <button key={s.number} onClick={() => goToStep(s.number)} disabled={!s.canNavigate}>
- *                 {s.title}
- *               </button>
- *             ))}
- *           </nav>
- *         )}
- *       </FormWizard.Indicator>
- *
- *       <FormWizard.Step component={PersonalStep} control={form} />
- *       <FormWizard.Step component={ReviewStep} control={form} />
- *
- *       <FormWizard.Actions onSubmit={() => navRef.current?.submit(api.save)}>
- *         <FormWizard.Prev>Назад</FormWizard.Prev>
- *         <FormWizard.Next>Далее</FormWizard.Next>
- *         <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
- *       </FormWizard.Actions>
- *
- *       <FormWizard.Progress>
- *         {({ current, total, percent }) => <span>Шаг {current}/{total} ({percent}%)</span>}
- *       </FormWizard.Progress>
- *     </FormWizard>
- *   );
- * }
- * ```
- *
- * @see {@link FormWizardHandle} — методы для внешнего управления через `ref`.
- * @see {@link FormWizardConfig} — колбэки валидации `validateStep` / `validateAll`.
- * @see [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
- */
 export const FormWizard = FormWizardBase as FormWizardComponent;
 FormWizard.Step = FormWizardStep;
 FormWizard.Indicator = FormWizardIndicator;
 FormWizard.Actions = FormWizardActions;
 FormWizard.Progress = FormWizardProgress;
-// Action button components
 FormWizard.Prev = FormWizardPrev;
 FormWizard.Next = FormWizardNext;
 FormWizard.Submit = FormWizardSubmit;

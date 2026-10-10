@@ -45,8 +45,8 @@ export default defineConfig({
         // @reformer/core И ВСЕ его subpath (/validation, /state, /validators, /behaviors, /signals, …)
         // должны быть внешними: иначе в dist попадает вторая копия модуля, и ambient-контекст
         // (единый модульный `current` у validateModel/validate/apply) разъезжается между копиями —
-        // напр. defineSteps.validateStep (cdk) ставит `current` в своей копии, а `validate()` схемы
-        // приложения видит `null` → «validate вызван вне схемы валидации».
+        // напр. прогон правил из cdk ставил бы `current` в своей копии, а `validate()` схемы
+        // приложения видел бы `null` → «validate вызван вне схемы валидации».
         /^@reformer\/core(\/.*)?$/,
       ],
       output: {

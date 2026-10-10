@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormFlow, FormProxy, SubmitResult } from '@reformer/core';
 
 /**
- * Context value for FormWizard
- * Shares navigation state and methods with child components
+ * Контекст визарда: форма, поток шагов и производные для кнопок и индикатора (номер шага с
+ * единицы — `flow.index + 1`).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormWizardContextValue<T extends Record<string, any>> {
@@ -35,6 +35,9 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   /** Form instance */
   form: FormProxy<T>;
 
+  /** Поток шагов: переходы и правила доступности шагов. */
+  flow: FormFlow;
+
   // ============================================================================
   // Navigation Methods
   // ============================================================================
@@ -53,17 +56,11 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   // ============================================================================
 
   /**
-   * Отправить форму с полной валидацией. Прогоняет `config.validateAll` и только при
-   * успехе зовёт `onSubmit` через `form.submit(..., { skipValidation: true })`.
-   *
-   * Возвращает `null`, если форма не прошла `validateAll` (поля при этом помечаются
-   * `touched`, чтобы ошибки стали видны); иначе — результат `onSubmit`.
-   *
-   * Тот же метод, что и {@link FormWizardHandle.submit}: он положен в контекст, чтобы
-   * кнопка отправки (`FormWizard.Actions` / `FormWizard.Submit`) гейтила submit так же,
-   * как `goToNextStep` гейтит переход на следующий шаг.
+   * Отправить форму. Внутри сборки (`FormBundleContext`) — через `bundle.submit`: обработчик
+   * зовётся только после успешной проверки всей формы. Без сборки обработчик зовётся сразу, а
+   * проверку делает приложение.
    */
-  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
+  submit: <R>(handler: (values: T) => Promise<R> | R) => Promise<SubmitResult<R>>;
 }
 
 /**
@@ -88,14 +85,13 @@ export const FormWizardContext = createContext<FormWizardContextValue<any> | nul
 /**
  * Хук для доступа к контексту {@link FormWizard} из любого потомка.
  *
- * Возвращает текущее состояние мастера (`currentStep`, `totalSteps`,
- * `completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`,
- * `form`), методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`) и
- * `submit` — отправку с прогоном `config.validateAll` (`null`, если форма не прошла).
- * Бросает исключение, если вызван вне `<FormWizard>`.
+ * Возвращает форму и поток шагов (`form`, `flow`), производное состояние мастера
+ * (`currentStep` с единицы, `totalSteps`, `completedSteps`, `isFirstStep`, `isLastStep`,
+ * `isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
+ * `goToStep`) и `submit` — отправку: внутри сборки через `bundle.submit`, результат — объект
+ * со статусом. Бросает исключение, если вызван вне `<FormWizard>`.
  *
- * Для внешнего управления (вне дерева Wizard) используйте
- * {@link FormWizardHandle} через `useRef`.
+ * Управление снаружи дерева визарда — через сам поток: `bundle.flow.goTo('loan')`.
  *
  * @typeParam T - Тип корневой формы (`FormProxy<T>`).
  * @returns Текущий {@link FormWizardContextValue}.

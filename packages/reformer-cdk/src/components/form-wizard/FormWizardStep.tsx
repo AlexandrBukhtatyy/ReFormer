@@ -41,7 +41,7 @@ export interface FormWizardStepInternalProps<
  *
  * @example Component-based (legacy)
  * ```tsx
- * <FormWizard ref={navRef} form={form} config={config}>
+ * <FormWizard form={form} flow={flow}>
  *   <FormWizard.Step component={Step1} control={form} />
  *   <FormWizard.Step component={Step2} control={form} extraProp="value" />
  * </FormWizard>
@@ -49,7 +49,7 @@ export interface FormWizardStepInternalProps<
  *
  * @example Children-based (new)
  * ```tsx
- * <FormWizard form={form} config={config}>
+ * <FormWizard form={form} flow={flow}>
  *   <FormWizard.Step>
  *     <RenderNodeComponent node={step1Content} ... />
  *   </FormWizard.Step>
