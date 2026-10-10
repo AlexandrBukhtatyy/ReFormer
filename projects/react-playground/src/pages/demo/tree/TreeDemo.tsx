@@ -8,13 +8,14 @@
  *  - `ComboboxTree`/`ComboboxTreeMulti` — уже поля: тот же `Tree` спрятан в поповер, и наружу
  *    выходит адрес узла (`string | null`) либо их набор (`string[] | null`).
  *
- * Три места, где выбор файла ломается молча, если делать «как обычно»:
- *  - у мультиварианта начальное значение `[]` вместо `null` — массив в `initial` даёт ArrayNode,
- *    `createForm` такой путь пропускает, и поля не появляется вовсе;
- *  - `model.$.assetFiles` вместо `model.signalAt('assetFiles')!` — у типа `T[]` `$` разворачивается
- *    в дерево сигналов, и запись в контейнер-прокси выглядит успешной, ничего не меняя;
+ * Два места, где выбор файла ломается молча, если делать «как обычно»:
+ *  - у мультиварианта начальное значение `[]` вместо `null` — пустой выбор компонент отдаёт
+ *    как `null`, и с `[]` начальное и очищенное состояния поля расходятся;
  *  - `minLength(1)` как признак обязательности — он делает ранний return на `null`, а пустой
  *    выбор приходит именно как `null`. Обязательность — только `required()`.
+ *
+ * Набор привязывается той же ручкой, что и скаляр: `model: model.$.assetFiles` — узел поля
+ * принимает массив как одно значение (мультивыбор, теги, файлы), строк массива у него нет.
  *
  * Ленивое дерево здесь детерминированное: уровень читается ~600 мс, а ветка `packages/private`
  * отказывает всегда — видно и спиннер, и тревожную подпись отказавшего уровня, и то, что
@@ -37,8 +38,8 @@ interface TreeDemoForm {
   /** Адрес одного узла. Пустой выбор — `null`. */
   configFile: string | null;
   /**
-   * Адреса набора узлов. Тип обязан быть `string[] | null`, а начальное значение — `null`:
-   * `[]` в `initial` превратилось бы в ArrayNode, и поле не построилось бы.
+   * Адреса набора узлов. Тип — `string[] | null`, начальное значение — `null`: пустой выбор
+   * компонент отдаёт как `null`, и начальное состояние поля с ним совпадает.
    */
   assetFiles: string[] | null;
 }
@@ -165,7 +166,7 @@ function buildSchema(model: FormModel<TreeDemoForm>): FormSchemaNode {
   return {
     children: [
       {
-        // Скалярное поле — `model.$.configFile` уже сигнал, `signalAt` тут не нужен.
+        // Скалярное поле — ручка значения из `model.$`.
         model: model.$.configFile,
         component: ComboboxTree,
         componentProps: {
@@ -184,9 +185,8 @@ function buildSchema(model: FormModel<TreeDemoForm>): FormSchemaNode {
         },
       },
       {
-        // `model.signalAt(path)!`, а НЕ `model.$.assetFiles`: у поля типа `T[]` `$`-тип
-        // разворачивается в ModelArraySignals, и `$.assetFiles` — контейнер-прокси, а не сигнал.
-        model: model.signalAt('assetFiles')!,
+        // Поле-набор — та же ручка `model.$`: массив целиком служит одним значением поля.
+        model: model.$.assetFiles,
         component: ComboboxTreeMulti,
         componentProps: {
           label: 'Ресурсы сборки',
@@ -209,13 +209,13 @@ function buildSchema(model: FormModel<TreeDemoForm>): FormSchemaNode {
 // Слой валидации — отдельная схема над моделью. `minLength(1)` для набора БЕСПОЛЕЗЕН: пустой
 // выбор приходит как `null`, а на `null` он делает ранний return. Обязательность — `required()`.
 const treeValidation = defineValidation<TreeDemoForm>(({ model }) => {
-  validate(model.signalAt('configFile')!, [required()]);
-  validate(model.signalAt('assetFiles')!, [required()]);
+  validate(model.$.configFile, [required()]);
+  validate(model.$.assetFiles, [required()]);
 });
 
 const INITIAL: TreeDemoForm = {
   configFile: null,
-  // ВАЖНО: null, а не [] — массив в initial модель превратила бы в ArrayNode.
+  // null, а не []: пустой выбор компонент отдаёт как null.
   assetFiles: null,
 };
 
@@ -322,11 +322,11 @@ export default function TreeDemo() {
             description="Один узел; триггер показывает подпись выбранного, а у лениво прочитанного — сам адрес"
             bgColor="bg-white"
             code={`{
-  model: model.$.configFile,          // скаляр — сигнал напрямую
+  model: model.$.configFile,
   component: ComboboxTree,
   componentProps: { nodes: FILE_TREE, clearable: true, maxRows: 10 },
 }
-validate(model.signalAt('configFile')!, [required()]);
+validate(model.$.configFile, [required()]);
 // Поиск в поповере — свой, не cmdk: тот при фильтрации размонтирует каталог
 // вместе с детьми и переставляет узлы мимо React — иерархия этого не переживает.`}
           >
@@ -338,11 +338,11 @@ validate(model.signalAt('configFile')!, [required()]);
             description="Набор узлов: чипы до трёх, дальше сводка; потолок maxItems гасит невыбранные строки"
             bgColor="bg-white"
             code={`{
-  model: model.signalAt('assetFiles')!, // МАССИВ — только signalAt, не model.$
+  model: model.$.assetFiles,          // массив целиком — одно значение поля
   component: ComboboxTreeMulti,
   componentProps: { nodes: FILE_TREE, maxItems: 4, summaryThreshold: 3 },
 }
-validate(model.signalAt('assetFiles')!, [required()]); // не minLength(1)!
+validate(model.$.assetFiles, [required()]); // не minLength(1)!
 // Значение в модели: string[] | null. Пустой выбор — null, НИКОГДА [].`}
           >
             <FormField control={form.assetFiles} />
