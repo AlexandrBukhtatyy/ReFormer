@@ -101,6 +101,27 @@ export function watchField<T>(
 }
 
 /**
+ * Отложенные записи одной операции: задание выполняется на микротаске (`runOutsideEffect`), а при
+ * снятии операции все ещё не выполненные отменяются — запись после cleanup не случится.
+ */
+function deferredWrites(): { schedule(job: () => void): void; cancelAll(): void } {
+  const pending = new Set<() => void>();
+  return {
+    schedule(job) {
+      const cancel = runOutsideEffect(() => {
+        pending.delete(cancel);
+        job();
+      });
+      pending.add(cancel);
+    },
+    cancelAll() {
+      pending.forEach((cancel) => cancel());
+      pending.clear();
+    },
+  };
+}
+
+/**
  * Трансформация значения поля (идемпотентная): при изменении пишет `transformer(value)` обратно.
  * Запись отложена (`runOutsideEffect`) во избежание «Cycle detected» (эффект читает и пишет один сигнал).
  *
@@ -115,11 +136,14 @@ export function transformValue<T>(
   transformer: (value: T) => T
 ): BehaviorCleanup {
   let applying = false;
-  return effect(() => {
-    const value = target.value;
+  const writes = deferredWrites();
+  const stop = effect(() => {
+    void target.value; // подписка
     if (applying) return; // игнорируем собственную запись (не зацикливаемся)
-    runOutsideEffect(() => {
-      const next = transformer(value);
+    writes.schedule(() => {
+      // Текущее значение, а не замкнутое при прогоне: иначе подписчик увидел бы откат к
+      // преобразованию старого значения ('abc' → 'AB' → 'ABC').
+      const next = transformer(target.peek());
       if (target.peek() === next) return;
       applying = true;
       try {
@@ -129,6 +153,10 @@ export function transformValue<T>(
       }
     });
   });
+  return () => {
+    stop();
+    writes.cancelAll();
+  };
 }
 
 /**
@@ -146,17 +174,26 @@ export function resetWhen<T>(
   options?: { resetValue?: T }
 ): BehaviorCleanup {
   const resetValue = (options?.resetValue ?? null) as T;
-  return effect(() => {
-    const should = condition();
-    runOutsideEffect(() => {
-      if (should && target.peek() !== resetValue) target.value = resetValue;
+  const writes = deferredWrites();
+  const stop = effect(() => {
+    condition(); // подписка на сигналы условия
+    writes.schedule(() => {
+      // Условие — в момент записи: если к нему оно снова ложно (сброс и загрузка данных в одном
+      // обработчике), поле не стирается.
+      if (condition() && target.peek() !== resetValue) target.value = resetValue;
     });
   });
+  return () => {
+    stop();
+    writes.cancelAll();
+  };
 }
 
 /**
  * Двусторонняя синхронизация двух полей (опционально с трансформом `a → b`).
- * Сходимость обеспечивается peek-guard'ом; флаг предотвращает лишние круги.
+ * Сходимость обеспечивается peek-guard'ом; флаг предотвращает лишние круги. При создании источник —
+ * `a`: `b` получает его значение (через `transform`), обратной записи при создании нет. Записи в
+ * оба поля в одном тике — побеждает последняя.
  *
  * @group Model
  * @example
@@ -171,13 +208,21 @@ export function syncFields<T>(
 ): BehaviorCleanup {
   const transform = options?.transform;
   let updating = false;
+  let initialB = true;
+  const writes = deferredWrites();
+  // Задания пишут текущее значение источника, а не замкнутое при прогоне: иначе две начальные
+  // записи меняли поля местами и теряли данные. Побеждает последняя запись: новое задание
+  // отменяет ожидающее — иначе начальное копирование a → b затёрло бы запись в b, сделанную в том
+  // же тике сразу после создания связи.
   const d1 = effect(() => {
-    const v = a.value;
+    void a.value;
     if (updating) return;
-    runOutsideEffect(() => {
+    writes.cancelAll();
+    writes.schedule(() => {
       updating = true;
       try {
-        const next = transform ? transform(v) : v;
+        const current = a.peek();
+        const next = transform ? transform(current) : current;
         if (b.peek() !== next) b.value = next;
       } finally {
         updating = false;
@@ -185,12 +230,19 @@ export function syncFields<T>(
     });
   });
   const d2 = effect(() => {
-    const v = b.value;
+    void b.value;
+    // Первый прогон — только подписка: при создании направление одно, a → b.
+    if (initialB) {
+      initialB = false;
+      return;
+    }
     if (updating) return;
-    runOutsideEffect(() => {
+    writes.cancelAll();
+    writes.schedule(() => {
       updating = true;
       try {
-        if (a.peek() !== v) a.value = v;
+        const current = b.peek();
+        if (a.peek() !== current) a.value = current;
       } finally {
         updating = false;
       }
@@ -199,6 +251,7 @@ export function syncFields<T>(
   return () => {
     d1();
     d2();
+    writes.cancelAll();
   };
 }
 
@@ -217,14 +270,19 @@ export function revalidateWhen(
   revalidate: () => void
 ): BehaviorCleanup {
   let initial = true;
-  return effect(() => {
+  const writes = deferredWrites();
+  const stop = effect(() => {
     deps.forEach((d) => d.value); // подписка на зависимости
     if (initial) {
       initial = false;
       return;
     }
-    runOutsideEffect(() => revalidate());
+    writes.schedule(() => revalidate());
   });
+  return () => {
+    stop();
+    writes.cancelAll();
+  };
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

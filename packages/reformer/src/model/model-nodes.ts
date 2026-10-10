@@ -33,6 +33,8 @@ const joinPath = (base: string, key: string | number): string =>
 export const isIndexKey = (key: string): boolean => /^\d+$/.test(key);
 
 const clone = <T>(v: T): T => {
+  // Дата — изменяемый объект: снимок с общей ссылкой портился бы правкой на месте (`setFullYear`).
+  if (v instanceof Date) return new Date(v.getTime()) as unknown as T;
   if (Array.isArray(v)) return v.map(clone) as unknown as T;
   if (isPlainObject(v)) {
     const o: Record<string, unknown> = {};
@@ -44,6 +46,7 @@ const clone = <T>(v: T): T => {
 
 const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
+  if (a instanceof Date && b instanceof Date) return Object.is(a.getTime(), b.getTime());
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
     return a.every((x, i) => deepEqual(x, b[i]));
@@ -373,6 +376,7 @@ export class ModelArrayNode {
     this.items.value = [...arr, this.build(this.fresh(value), arr.length)];
   }
   insertAt(index: number, value?: unknown): void {
+    if (!Number.isInteger(index) || index < 0) return;
     const arr = [...this.items.peek()];
     arr.splice(index, 0, this.build(this.fresh(value), index));
     this.items.value = arr;
@@ -380,12 +384,16 @@ export class ModelArrayNode {
   }
   removeAt(index: number): void {
     const arr = [...this.items.peek()];
+    // `removeAt(list.findIndex(…))` без находки не должен удалять последний элемент.
+    if (!Number.isInteger(index) || index < 0 || index >= arr.length) return;
     arr.splice(index, 1);
     this.items.value = arr;
     this.reindex();
   }
   move(from: number, to: number): void {
     const arr = [...this.items.peek()];
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0) return;
+    if (from >= arr.length || from === to) return;
     const [moved] = arr.splice(from, 1);
     if (moved) arr.splice(to, 0, moved);
     this.items.value = arr;

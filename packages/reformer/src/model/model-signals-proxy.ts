@@ -108,7 +108,8 @@ export function signalsProxy(node: ModelNode): any {
       const child = childAt(key);
       if (child) return signalsProxy(child);
       // `length` массива — реактивный геттер на target; у группы такого ключа нет.
-      if (!isGroup && Reflect.has(t, key)) return Reflect.get(t, key, recv);
+      if (!isGroup && Object.prototype.hasOwnProperty.call(t, key))
+        return Reflect.get(t, key, recv);
       return Reflect.get(api, key, api);
     },
     set: (_t, key, value) => {
@@ -127,7 +128,8 @@ export function signalsProxy(node: ModelNode): any {
       );
     },
     has: (t, key) =>
-      typeof key === 'string' && (childAt(key) !== undefined || (!isGroup && Reflect.has(t, key))),
+      typeof key === 'string' &&
+      (childAt(key) !== undefined || (!isGroup && Object.prototype.hasOwnProperty.call(t, key))),
     ownKeys: () =>
       isGroup ? [...(node as ModelGroupNode).children.keys()] : Reflect.ownKeys(target),
     getOwnPropertyDescriptor: (t, key) => {

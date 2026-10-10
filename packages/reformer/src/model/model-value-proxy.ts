@@ -74,6 +74,7 @@ function arrayValueProxy(arr: ModelArrayNode): any {
     forEach: (fn: (item: unknown, i: number) => void) =>
       arr.items.value.forEach((n, i) => fn(nodeValue(n), i)),
     toArray: () => arr.peek(),
+    toJSON: () => arr.peek(),
     [Symbol.iterator]: function* () {
       const list = arr.items.value;
       for (let i = 0; i < list.length; i++) yield nodeValue(list[i]);
@@ -89,6 +90,23 @@ function arrayValueProxy(arr: ModelArrayNode): any {
     has: (target, key) => {
       if (typeof key === 'string' && isIndexKey(key)) return Number(key) < arr.items.value.length;
       return Reflect.has(target, key);
+    },
+    set: (_target, key, value) => {
+      const at = arr.path === '' ? 'model' : `model.${arr.path}`;
+      if (typeof key === 'string' && isIndexKey(key)) {
+        const item = arr.items.peek()[Number(key)];
+        if (item) {
+          item.set(value);
+          return true;
+        }
+        throw new TypeError(
+          `[@reformer/core] ${at}[${key}]: элемента нет — добавляйте через push(…) / insertAt(…).`
+        );
+      }
+      throw new TypeError(
+        `[@reformer/core] ${at}: запись в «${String(key)}» невозможна — элементы пишутся по ` +
+          'индексу или через push / insertAt / removeAt / move / swap / clear.'
+      );
     },
   });
   arrayFacadeCache.set(arr, proxy);
