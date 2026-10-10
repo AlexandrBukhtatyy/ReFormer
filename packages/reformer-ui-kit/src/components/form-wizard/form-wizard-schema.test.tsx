@@ -48,6 +48,23 @@ const renderNode = (node: FormWizardStepNode): ReactNode => (
   <i data-step-body={node.selector}>{node.props?.title}</i>
 );
 
+describe('FormWizard — className', () => {
+  it('сливается с классами карточки шагов: свой фон заменяет фон по умолчанию', () => {
+    const html = renderToStaticMarkup(
+      <FormBundleContext.Provider value={createBundle()}>
+        <FormWizard<Shape> renderNode={renderNode} className="bg-white p-6">
+          {stepNodes}
+        </FormWizard>
+      </FormBundleContext.Provider>
+    );
+
+    const body = /data-slot="form-wizard-body" class="([^"]*)"/.exec(html)?.[1].split(' ');
+    expect(body).toEqual(expect.arrayContaining(['bg-white', 'p-6', 'rounded-lg', 'border']));
+    expect(body).not.toContain('bg-card');
+    expect(body).not.toContain('p-8');
+  });
+});
+
 describe('FormWizard в схеме формы', () => {
   it('строит шаги из узлов-детей: заголовки — в индикаторе, тело шага рисует renderNode', () => {
     const html = renderToStaticMarkup(

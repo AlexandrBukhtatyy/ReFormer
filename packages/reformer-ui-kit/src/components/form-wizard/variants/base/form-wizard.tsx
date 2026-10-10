@@ -38,6 +38,7 @@ import { useFormBundleContext } from '@reformer/core/react';
 import { FormWizardActions } from './form-wizard-actions';
 import { FormWizardProgress } from './form-wizard-progress';
 import { StepIndicator } from './step-indicator';
+import { cn } from '@/lib/utils';
 
 /**
  * Полиморфное тело шага {@link FormWizardStep}. Один и тот же {@link FormWizard}
@@ -161,7 +162,10 @@ export interface FormWizardProps<
    * визард строит позиционный поток без правил.
    */
   flow?: FormFlow;
-  /** Внешний CSS-класс корневого контейнера. */
+  /**
+   * CSS-класс карточки шагов (тела визарда): сливается с классами по умолчанию через `cn`, поэтому
+   * `bg-white` или `p-6` заменяют фон и отступы карточки, а не добавляются к ним.
+   */
   className?: string;
   /**
    * Декларативный список шагов (см. {@link FormWizardStep}) — для разметки в JSX. Порядок =
@@ -390,7 +394,10 @@ function FormWizardBase<T extends Record<string, any>, TBody = never>(
 
       <div
         data-slot="form-wizard-body"
-        className="bg-card text-card-foreground p-8 rounded-lg shadow-md border"
+        className={cn(
+          'bg-card text-card-foreground p-8 rounded-lg shadow-md border',
+          props.className
+        )}
       >
         {steps.map((step) => (
           <FormWizardHeadless.Step key={step.number}>
