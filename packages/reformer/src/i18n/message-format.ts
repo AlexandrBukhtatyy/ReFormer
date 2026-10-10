@@ -8,7 +8,8 @@
  *   категории берутся из {@link Intl.PluralRules} активной локали, `#` подставляет само число через
  *   {@link Intl.NumberFormat};
  * - **выбор по значению** — `{gender, select, male{он} female{она} other{оно}}`;
- * - **экранирование** — апострофом, как в ICU: `'{'` → `{`, `'}'` → `}`, `''` → `'`.
+ * - **экранирование** — апострофом, как в ICU: `'{'` → `{`, `'}'` → `}`, `''` → `'`; как в
+ *   `intl-messageformat`, литерал открывает и апостроф перед `<` и `>`.
  *
  * Три свойства, ради которых формат устроен именно так:
  *
@@ -17,9 +18,12 @@
  *    `{count, plural, ...}` выведет эти символы, а не выполнит их. Замена регулярным выражением
  *    такой гарантии не даёт.
  * 2. **Синтаксис — честное подмножество ICU.** Любое сообщение, которое понимает этот модуль,
- *    `intl-messageformat` (в режиме `ignoreTag`, со строковыми и числовыми значениями) понимает так
- *    же и выводит посимвольно то же самое; это проверено дифференциальным тестом на общем наборе
- *    сообщений (`tests/i18n/message-format.differential.test.ts`). Отсюда страховка из контракта:
+ *    `intl-messageformat` (в режиме `ignoreTag`, со строковыми значениями и конечными числами;
+ *    значение `plural` — число) понимает так же и выводит посимвольно то же самое; это проверено
+ *    дифференциальным и property-тестами (`tests/i18n/message-format.differential.test.ts`,
+ *    `message-format.property.test.ts`). Чего не понимает эталон — повтор ключа ветки, `=N` с не
+ *    целым числом или в `select`, символы синтаксиса ICU в имени, — не понимает и этот модуль.
+ *    Отсюда страховка из контракта:
  *    если подмножества перестанет хватать, библиотека подставляется под тот же вызов, и словари
  *    переписывать не придётся.
  * 3. **Ошибка синтаксиса и отсутствие ветки `other` — отказ на разборе**, а не молчаливая
@@ -30,6 +34,8 @@
  *   отвергаются на разборе. Сообщение с ними не пройдёт в словарь, а не отформатируется молча
  *   неправильно. Заметь: голое `{n}` форматируется как `String(n)` и здесь, и в `intl-messageformat`
  *   (`{year}` → `2026`, а не `2 026`); по локали форматируется только `#` внутри `plural`.
+ *   Вложенность аргументов — не глубже 100 уровней: глубже рекурсивный разбор исчерпал бы стек
+ *   (`RangeError`) вместо внятного отказа.
  * - **Пропущенный аргумент не бросает исключение**, а подставляет заметный маркер `⟦name⟧`: строка
  *   интерфейса не должна ронять панель. Поведение настраивается через `onMissingArgument`.
  *
@@ -71,6 +77,15 @@ export class MessageSyntaxError extends Error {
 /** Маркер пропущенного аргумента по умолчанию — математические скобки, в тексте интерфейса не встречаются. */
 const DEFAULT_MISSING = (name: string): string => `⟦${name}⟧`;
 
+/** Предел вложенности аргументов — см. «Грамматика уже» в описании модуля. */
+const MAX_NESTING = 100;
+
+/** Пробел в синтаксисе — набор ICU (Pattern_White_Space), а не JS-овский `\s` (тот шире: U+00A0…). */
+const SPACE = /\p{Pattern_White_Space}/u;
+
+/** Конец имени аргумента или ключа ветки — как в `intl-messageformat`: пробел или символ синтаксиса. */
+const NAME_END = /[\p{White_Space}\p{Pattern_Syntax}]/u;
+
 const pluralRulesCache = new Map<string, Intl.PluralRules>();
 const numberFormatCache = new Map<string, Intl.NumberFormat>();
 
@@ -88,6 +103,8 @@ const numberFormatCache = new Map<string, Intl.NumberFormat>();
  */
 export function parseMessage(source: string): MessagePattern {
   let pos = 0;
+  /** Сколько аргументов открыто вокруг текущей позиции. */
+  let depth = 0;
 
   // Аннотация типа обязательна: без неё TypeScript не считает вызов `fail(...)` завершающим поток
   // и не сужает тип после проверок ниже.
@@ -95,19 +112,34 @@ export function parseMessage(source: string): MessagePattern {
     throw new MessageSyntaxError(`${what} (позиция ${pos}) в сообщении: ${source}`);
   };
 
-  /** Символ, который апострофу есть смысл экранировать. `#` — только внутри `plural`, как в ICU. */
+  /**
+   * Символ, который апострофу есть смысл экранировать. `#` — только в ветке `plural`, как в ICU;
+   * `<` и `>` — как в `intl-messageformat`.
+   */
   const isSyntax = (ch: string | undefined, inPlural: boolean): boolean =>
-    ch === '{' || ch === '}' || (inPlural && ch === '#');
+    ch === '{' || ch === '}' || ch === '<' || ch === '>' || (inPlural && ch === '#');
 
   const skipSpace = (): void => {
-    while (pos < source.length && /\s/.test(source[pos]!)) pos++;
+    while (pos < source.length && SPACE.test(source[pos]!)) pos++;
   };
 
-  /** Имя аргумента или ключ ветки — всё до пробела и служебного символа. */
+  /** Имя аргумента или ключ ветки — всё до пробела и символа синтаксиса ICU. */
   const readName = (): string => {
     const start = pos;
-    while (pos < source.length && !/[\s,{}#]/.test(source[pos]!)) pos++;
+    while (pos < source.length && !NAME_END.test(source[pos]!)) pos++;
     if (pos === start) fail('ожидалось имя');
+    return source.slice(start, pos);
+  };
+
+  /** Ключ ветки: имя, а у `plural` ещё и точное значение `=N` — целое число, как в ICU. */
+  const readKey = (type: string): string => {
+    if (type !== 'plural' || source[pos] !== '=') return readName();
+    const start = pos++;
+    if (source[pos] === '+' || source[pos] === '-') pos++;
+    const digits = pos;
+    while (pos < source.length && source[pos]! >= '0' && source[pos]! <= '9') pos++;
+    if (pos === digits || !Number.isSafeInteger(Number(source.slice(digits, pos))))
+      fail('после «=» ожидалось целое число');
     return source.slice(start, pos);
   };
 
@@ -135,7 +167,7 @@ export function parseMessage(source: string): MessagePattern {
 
   /**
    * Читает текст до `}` (внутри ветки) или до конца строки.
-   * `pluralArg` — имя аргумента ближайшего `plural`, к которому относится `#`; `null` вне `plural`.
+   * `pluralArg` — имя `plural`, чью ветку читаем: к нему относится `#`; `null` вне ветки `plural`.
    */
   const parsePattern = (nested: boolean, pluralArg: string | null): MessagePattern => {
     const nodes: MessageNode[] = [];
@@ -159,7 +191,7 @@ export function parseMessage(source: string): MessagePattern {
         nodes.push({ kind: 'number', name: pluralArg });
       } else if (ch === '{') {
         flush();
-        nodes.push(parseArgument(pluralArg));
+        nodes.push(parseArgument());
       } else {
         text += ch;
         pos++;
@@ -178,7 +210,9 @@ export function parseMessage(source: string): MessagePattern {
     const branches = new Map<string, MessagePattern>();
     skipSpace();
     while (pos < source.length && source[pos] !== '}') {
-      const key = readName();
+      const key = readKey(type);
+      // Повтор ключа эталон отвергает; молча оставить последнюю ветку — потерять перевод.
+      if (branches.has(key)) fail(`ветка «${key}» в «${owner}, ${type}» повторяется`);
       skipSpace();
       if (source[pos] !== '{') fail(`ожидалась «{» после ветки «${key}»`);
       pos++;
@@ -193,30 +227,39 @@ export function parseMessage(source: string): MessagePattern {
     return branches;
   };
 
-  /** Читает `{name}`, `{name, plural, …}` или `{name, select, …}`; внутрь `select` `#` наследуется. */
-  const parseArgument = (pluralArg: string | null): MessageNode => {
+  /**
+   * Читает `{name}`, `{name, plural, …}` или `{name, select, …}`. `#` действует только в ветках
+   * самого `plural`: во вложенном аргументе, даже в `select`, это литерал — как в ICU и в эталоне.
+   */
+  const parseArgument = (): MessageNode => {
+    if (depth === MAX_NESTING) fail(`вложенность аргументов глубже ${MAX_NESTING} уровней`);
+    depth++;
     pos++;
     skipSpace();
     const name = readName();
     skipSpace();
+    let node: MessageNode;
     if (source[pos] === '}') {
       pos++;
-      return { kind: 'arg', name };
+      node = { kind: 'arg', name };
+    } else {
+      if (source[pos] !== ',') fail(`ожидались «,» или «}» после аргумента «${name}»`);
+      pos++;
+      skipSpace();
+      const type = readName();
+      if (type !== 'plural' && type !== 'select')
+        fail(`неизвестный тип «${type}» у «${name}» — поддерживаются plural и select`);
+      skipSpace();
+      if (source[pos] !== ',') fail(`ожидалась «,» после «${type}»`);
+      pos++;
+      node = {
+        kind: type,
+        name,
+        branches: parseBranches(name, type, type === 'plural' ? name : null),
+      };
     }
-    if (source[pos] !== ',') fail(`ожидались «,» или «}» после аргумента «${name}»`);
-    pos++;
-    skipSpace();
-    const type = readName();
-    if (type !== 'plural' && type !== 'select')
-      fail(`неизвестный тип «${type}» у «${name}» — поддерживаются plural и select`);
-    skipSpace();
-    if (source[pos] !== ',') fail(`ожидалась «,» после «${type}»`);
-    pos++;
-    return {
-      kind: type,
-      name,
-      branches: parseBranches(name, type, type === 'plural' ? name : pluralArg),
-    };
+    depth--;
+    return node;
   };
 
   return parsePattern(false, null);

@@ -135,6 +135,11 @@ export function validateLocale(messages: Messages, reference?: Messages): Locale
   const parsed = new Map<string, MessagePattern>();
 
   for (const [key, source] of Object.entries(messages)) {
+    // Словарь мог прийти по сети: значение-не-строку переводчик отвергает — значит, и проверка.
+    if (typeof source !== 'string') {
+      issues.push({ key, kind: 'syntax', message: 'сообщение не является строкой' });
+      continue;
+    }
     try {
       parsed.set(key, parseMessage(source));
     } catch (error) {
