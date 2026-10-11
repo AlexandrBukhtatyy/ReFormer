@@ -10,12 +10,7 @@
  * @module plugins/reformer/core/form-model/node-ref
  */
 
-import {
-  isArrayNodeV1 as isArrayNode,
-  isFieldNodeV1 as isFieldNode,
-  parseOperator,
-  type JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import { isArrayNode, parseOperator, type JsonNode } from '@reformer/renderer-json';
 
 /** Синтетическое каталожное имя array-узла без явного `component`. */
 export const ARRAY_COMPONENT_NAME = 'FieldArray';
@@ -34,10 +29,14 @@ export function componentOf(node: JsonNode): string | undefined {
   return undefined;
 }
 
-/** Путь модели узла без обёртки `$model(...)`; у контейнеров — `undefined`. */
+/**
+ * Путь модели узла без обёртки `$model(...)`; у контейнеров — `undefined`.
+ *
+ * Привязка у поля, массива и подформы лежит в одном ключе — `model`; у контейнера ключа нет.
+ */
 export function modelOf(node: JsonNode): string | undefined {
-  const raw = isArrayNode(node) ? node.array : isFieldNode(node) ? node.value : undefined;
-  return parseOperator(raw)?.arg;
+  const parsed = parseOperator((node as { model?: unknown }).model);
+  return parsed?.op === 'model' ? parsed.arg : undefined;
 }
 
 /**

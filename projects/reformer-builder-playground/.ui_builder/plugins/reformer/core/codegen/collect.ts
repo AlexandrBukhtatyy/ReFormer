@@ -10,15 +10,15 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
   parseOperator,
-  type JsonFieldNodeV1 as JsonFieldNode,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  type JsonFieldNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
-import { isNodeLike } from '../form-model/node-kind';
+import { isNodeLike, isStepsHost } from '../form-model/node-kind';
 import { collectOperatorNames } from '../form-model/query';
 import {
   classifyDataSources,
@@ -141,9 +141,10 @@ function buildTree(
   const root: TsObject = { t: 'obj', fields: {} };
   const visit = (n: JsonNode): void => {
     if (isArrayNode(n)) {
-      const parsed = parseOperator(n.array);
+      const parsed = parseOperator(n.model);
       if (parsed?.op === 'model') {
-        const template = n.item?.$template;
+        // У `item: "$part(...)"` шаблона в узле нет — тип элемента остаётся пустым объектом.
+        const template = typeof n.item === 'object' ? n.item.$template : undefined;
         const elem: TsNode = isNodeLike(template)
           ? buildTree(template, mock, false, requiredOut, arraysOut)
           : { t: 'obj', fields: {} };
@@ -153,7 +154,7 @@ function buildTree(
       return;
     }
     if (isFieldNode(n)) {
-      const parsed = parseOperator(n.value);
+      const parsed = parseOperator(n.model);
       if (parsed?.op === 'model') {
         insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, mock) });
         if (topLevel && n.componentProps?.required === true) requiredOut.push(parsed.arg);
@@ -161,26 +162,20 @@ function buildTree(
       return;
     }
     if (isContainerNode(n)) {
+      // Шаги визарда — те же `children`.
       n.children?.forEach((child) => {
         if (isNodeLike(child)) visit(child);
       });
-      const steps = n.componentProps?.steps;
-      if (Array.isArray(steps)) {
-        steps.forEach((step) => {
-          if (isNodeLike(step)) visit(step);
-        });
-      }
     }
   };
   visit(node);
   return root;
 }
 
-/** Узлы шагов первого визарда схемы (контейнера с `componentProps.steps`), в порядке шагов. */
+/** Узлы шагов первого визарда схемы (`children` узла-визарда), в порядке шагов. */
 export function wizardStepsOf(node: JsonNode): readonly JsonNode[] {
   if (!isContainerNode(node)) return [];
-  const steps = node.componentProps?.steps;
-  if (Array.isArray(steps)) return steps.filter(isNodeLike);
+  if (isStepsHost(node)) return (node.children ?? []).filter(isNodeLike);
   for (const child of node.children ?? []) {
     if (!isNodeLike(child)) continue;
     const found = wizardStepsOf(child);

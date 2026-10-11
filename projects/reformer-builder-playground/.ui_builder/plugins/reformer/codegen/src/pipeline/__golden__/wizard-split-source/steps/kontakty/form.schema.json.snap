@@ -8,7 +8,7 @@
     "$nodeId": "kontakt0",
     "children": [
       {
-        "value": "$model(email)",
+        "model": "$model(email)",
         "component": "$component(Input)",
         "componentProps": {
           "label": "Контакты",

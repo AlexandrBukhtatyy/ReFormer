@@ -22,7 +22,7 @@ import type {
   PreviewContext,
   PreviewValues,
 } from '@reformer/builder-plugin-api';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
 import { createKitsService } from '../../forms/kits/src';
 import { projectCatalog } from '../core/catalog';
@@ -54,6 +54,7 @@ function Probe({ className, children }: { className?: string; children?: ReactNo
 }
 
 const schema = {
+  format: 2,
   version: '1.0',
   root: { component: '$component(Probe)', componentProps: {} },
 } as unknown as JsonFormSchema;

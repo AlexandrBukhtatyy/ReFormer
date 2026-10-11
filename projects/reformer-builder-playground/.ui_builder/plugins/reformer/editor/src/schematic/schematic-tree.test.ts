@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
@@ -28,6 +28,7 @@ function wizard(): JsonFormSchema {
 function pairInRow(): JsonFormSchema {
   return ensureNodeIds(
     {
+      format: 2,
       version: '1.0',
       root: {
         component: '$html(div)',
@@ -37,11 +38,11 @@ function pairInRow(): JsonFormSchema {
             component: '$html(div)',
             componentProps: { className: DEFAULT_ROW_CLASS },
             children: [
-              { value: '$model(city)', component: '$component(Input)' },
-              { value: '$model(zip)', component: '$component(Input)' },
+              { model: '$model(city)', component: '$component(Input)' },
+              { model: '$model(zip)', component: '$component(Input)' },
             ],
           },
-          { value: '$model(comment)', component: '$component(Input)' },
+          { model: '$model(comment)', component: '$component(Input)' },
         ],
       },
     } as unknown as JsonFormSchema,
@@ -129,6 +130,7 @@ describe('buildSchematic — пустые слоты', () => {
   it('пустой массив-слот приглашает бросок, одиночный — нет', () => {
     const schema = ensureNodeIds(
       {
+        format: 2,
         version: '1.0',
         root: { component: '$html(div)', componentProps: { className: 'flex' }, children: [] },
       } as unknown as JsonFormSchema,
@@ -140,6 +142,63 @@ describe('buildSchematic — пустые слоты', () => {
     const second = boxAt(slotOf(wiz, 'steps').items, 1);
     const array = boxAt(slotOf(second, 'children').items, 0);
     expect(slotOf(array, 'template').empty).toBe(false);
+  });
+});
+
+describe('buildSchematic — визард без шагов, подформа и массив с частью', () => {
+  it('визард без ключа `children` держит пустой слот шагов и приглашает бросок', () => {
+    const schema = ensureNodeIds(
+      {
+        format: 2,
+        version: '1.0',
+        root: { component: '$component(Wizard)' },
+      } as unknown as JsonFormSchema,
+      sequentialIds('e')
+    );
+    const box = root(schema);
+    expect(box.acceptsInside).toBe(true);
+    expect(box.slots.map((slot) => slot.kind)).toEqual(['steps']);
+    expect(slotOf(box, 'steps').empty).toBe(true);
+  });
+
+  it('подформа и массив с `item: "$part(...)"` — коробки без слотов, внутрь не принимают', () => {
+    const schema = ensureNodeIds(
+      {
+        format: 2,
+        version: '1.0',
+        parts: { address: { component: '$component(Box)', children: [] } },
+        root: {
+          component: '$html(div)',
+          componentProps: { className: DEFAULT_COL_CLASS },
+          children: [
+            { model: '$model(home)', part: '$part(address)' },
+            { model: '$model(offices)', item: '$part(address)' },
+          ],
+        },
+      } as unknown as JsonFormSchema,
+      sequentialIds('f')
+    );
+    const items = slotOf(root(schema), 'children').items;
+    const part = boxAt(items, 0);
+    expect(part).toMatchObject({
+      kind: 'part',
+      title: 'address',
+      component: null,
+      binding: 'home',
+      acceptsInside: false,
+      flippable: false,
+      slots: [],
+    });
+    // Среди соседей подформа стоит как любое поле: поставить рядом с ней можно.
+    expect(part.canWrap).toBe(true);
+
+    expect(boxAt(items, 1)).toMatchObject({
+      kind: 'array',
+      binding: 'offices',
+      acceptsInside: false,
+      slots: [],
+    });
+    expect(schematicOrder(root(schema))).toEqual(['f0000001', 'f0000002', 'f0000003']);
   });
 });
 
@@ -167,6 +226,7 @@ describe('buildSchematic — скрытые обёртки', () => {
   it('пустая обёртка остаётся коробкой: иначе её нельзя было бы ни увидеть, ни удалить', () => {
     const schema = ensureNodeIds(
       {
+        format: 2,
         version: '1.0',
         root: {
           component: '$html(div)',

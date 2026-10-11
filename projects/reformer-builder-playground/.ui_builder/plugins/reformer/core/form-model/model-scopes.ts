@@ -6,7 +6,7 @@
  * `$model(path)` в схеме бывает в двух ролях, и сегодня их никто не различал:
  *
  * ```text
- * ОБЪЯВЛЕНИЕ   value поля, array массива            → из них синтезируется модель
+ * ОБЪЯВЛЕНИЕ   ключ model поля, массива, подформы   → из них синтезируется модель
  * ЧТЕНИЕ       текстовая часть children,             → читает сигнал, которого может не быть
  *              значение componentProps
  * ```
@@ -19,12 +19,12 @@
  * ## Область — это шаблон элемента массива
  *
  * Внутри `item.$template` пути ОТНОСИТЕЛЬНЫ элементу: конвертер рендерера строит шаблон над
- * подмоделью элемента. Поэтому каждый шаблон — своя область, а сам `array` массива объявлен
- * во внешней. Шаги мастера (`componentProps.steps`) и обёртка поля области не открывают.
+ * подмоделью элемента. Поэтому каждый шаблон — своя область, а сама привязка массива объявлена
+ * во внешней. Шаги мастера и обёртка поля области не открывают.
  *
  * ## Почему не `collectModelPaths`
  *
- * Тот смешивает обе роли (берёт и `value`, и `$model` текстовой части), не видит шаблонов и
+ * Тот смешивает обе роли (берёт и привязку узла, и `$model` текстовой части), не видит шаблонов и
  * пропсов — и на нём стоит целостность правил ({@link './rules-integrity'}). Менять его смысл
  * ради подсказок значило бы молча поменять, какие правила считаются осиротевшими.
  *
@@ -32,13 +32,13 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
   parseOperator,
-  type JsonContainerNodeV1 as JsonContainerNode,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  type JsonContainerNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
 import { pathEquals, type JsonPath } from './paths';
@@ -51,7 +51,7 @@ const TEMPLATE_TAIL: JsonPath = ['item', '$template'];
 export interface ModelScope {
   /** Путь узла-массива, чей `item.$template` образует область; `[]` — корень формы. */
   readonly at: JsonPath;
-  /** Пути, ОБЪЯВЛЕННЫЕ в области (`value` полей, `array` массивов), без повторов, по обходу. */
+  /** Пути, ОБЪЯВЛЕННЫЕ в области (привязки полей, массивов и подформ), без повторов, по обходу. */
   readonly bound: readonly string[];
 }
 
@@ -116,11 +116,8 @@ export function collectModelScopes(schema: JsonFormSchema): readonly ModelScope[
     // пустого шаблона нужен пустой ответ, а не ответ корня.
     if (isArrayNode(node)) scopeFor(path);
 
-    const arg = isArrayNode(node)
-      ? modelArg(node.array)
-      : isFieldNode(node)
-        ? modelArg(node.value)
-        : undefined;
+    // Привязка поля, массива и подформы лежит в одном ключе; у контейнера его нет.
+    const arg = modelArg((node as { model?: unknown }).model);
     if (arg === undefined) return;
     const scope = scopeFor(scopeOfPath(path));
     if (!scope.seen.has(arg)) {
@@ -141,8 +138,8 @@ export function boundPathsIn(scopes: readonly ModelScope[], at: JsonPath): reado
  * Все чтения `$model(...)`: текстовые части `children` и значения `componentProps` на любой
  * глубине.
  *
- * Шаги мастера (`componentProps.steps`) пропускаются — это узлы, и их обходит {@link walkNodes}
- * своим порядком; второй заход в них отдал бы каждое чтение шага дважды.
+ * Шаги мастера — узлы в `children`, их обходит {@link walkNodes}; в `componentProps` узлов нет,
+ * поэтому пропсы сканируются целиком.
  */
 export function collectModelReads(schema: JsonFormSchema): readonly ModelRead[] {
   const out: ModelRead[] = [];
@@ -172,10 +169,7 @@ export function collectModelReads(schema: JsonFormSchema): readonly ModelRead[] 
 
     const props = (node as { componentProps?: Record<string, unknown> }).componentProps;
     if (props !== undefined && props !== null && typeof props === 'object') {
-      for (const [key, value] of Object.entries(props)) {
-        if (key === 'steps' && Array.isArray(value) && value.some(isNodeLike)) continue;
-        scan(value, ['componentProps', key]);
-      }
+      for (const [key, value] of Object.entries(props)) scan(value, ['componentProps', key]);
     }
 
     if (isContainerNode(node) && !isArrayNode(node) && !isFieldNode(node)) {

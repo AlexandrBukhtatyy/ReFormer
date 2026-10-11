@@ -5,10 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, newNodeId, nodeIdOf } from '../../../core/form-model';
 import { walkNodes } from '../../../core/form-model';
@@ -61,6 +58,7 @@ describe('annotateSchema', () => {
 
   it('пустой контейнер помечается служебным классом, иначе он схлопнется в ноль пикселей', () => {
     const schema: JsonFormSchema = {
+      format: 2,
       version: '1.0',
       root: { component: '$component(Box)', children: [] },
     } as JsonFormSchema;
@@ -69,9 +67,10 @@ describe('annotateSchema', () => {
 
   it('array-узлу без своего компонента подставляется дефолт отступов рендерера', () => {
     const schema: JsonFormSchema = {
+      format: 2,
       version: '1.0',
       root: {
-        array: '$model(items)',
+        model: '$model(items)',
         item: { $template: { component: '$component(Box)', children: [] } },
       },
     } as unknown as JsonFormSchema;

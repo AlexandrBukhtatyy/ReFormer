@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PluginContext, WhenContext } from '@reformer/builder-plugin-api';
+import type { ModulePrinterService } from './workspace';
 import {
   codegenPanel,
   CODEGEN_PANEL_ID,
@@ -41,6 +42,7 @@ function fakeContext() {
   const contributed: { point: string; id?: string; order?: number }[] = [];
   const commands: string[] = [];
   const locales: string[] = [];
+  const services: unknown[] = [];
   const ctx = {
     id: CODEGEN_PLUGIN_ID,
     subscriptions: [],
@@ -76,10 +78,13 @@ function fakeContext() {
     // печатника плагин занимает сам — его вклад наружу.
     services: {
       get: () => undefined,
-      register: () => ({ dispose: () => {} }),
+      register: (_token: unknown, service: unknown) => {
+        services.push(service);
+        return { dispose: () => {} };
+      },
     },
   } as unknown as PluginContext;
-  return { ctx, contributed, commands, locales };
+  return { ctx, contributed, commands, locales, services };
 }
 
 describe('activate', () => {
@@ -151,6 +156,51 @@ describe('activate', () => {
     const { ctx, locales } = fakeContext();
     createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
     expect(locales.sort()).toEqual(['en', 'ru']);
+  });
+});
+
+describe('возможность «напечатать модуль формы»', () => {
+  /** Печатник, который плагин отдал наружу: его единственная служба. */
+  function printer(): ModulePrinterService {
+    const { ctx, services } = fakeContext();
+    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+    expect(services).toHaveLength(1);
+    return services[0] as ModulePrinterService;
+  }
+
+  /** Форма в формате 2. */
+  const FORM = {
+    format: 2,
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      children: [{ model: '$model(fullName)', component: '$component(Input)' }],
+    },
+  };
+
+  /**
+   * Она же в ПРЕЖНЕМ формате: без `format`, привязка поля — в `value`. Литерал прежнего формата
+   * здесь намеренно: это вход проверки перевода, а не недосмотр переноса.
+   */
+  const LEGACY_FORM = {
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      children: [{ value: '$model(fullName)', component: '$component(Input)' }],
+    },
+  };
+
+  it('схему прежнего формата печатает так же, как её запись в формате 2', async () => {
+    // Посылка: разметка прежнего формата — не та, с которой работает генерация.
+    expect(LEGACY_FORM.root).not.toEqual(FORM.root);
+    const service = printer();
+
+    const modern = await service.print(FORM, 'Анкета');
+    const legacy = await service.print(LEGACY_FORM, 'Анкета');
+
+    expect(legacy).toEqual(modern);
+    // И это модуль формы с полем, а не пустой: без перевода поле не было бы найдено.
+    expect(legacy.find((file) => file.path === 'types.ts')?.content).toContain('fullName: string;');
   });
 });
 

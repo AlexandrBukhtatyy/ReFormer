@@ -39,8 +39,7 @@
  */
 
 import { formNameOfSchemaPath, MODULE_FILES, SCHEMA_FILE_NAMES } from '../../../core/codegen';
-import { isFormSchema } from '../../../core/form-model';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   argsOfResource,
   asResourceTarget,
@@ -58,7 +57,13 @@ import { deliverInto, SourceReadOnlyError, type DeliveryResult } from '../pipeli
 import { generateModule, type ModuleFile } from '../pipeline/generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import { schemaOf } from '../pipeline/run';
-import { formSourceOf, loadFormSource, StepPartsError, type FormSource } from '../pipeline/source';
+import {
+  asFormSchema,
+  formSourceOf,
+  loadFormSource,
+  StepPartsError,
+  type FormSource,
+} from '../pipeline/source';
 import { pluginMessageKey } from '@reformer/builder-plugin-api';
 import { CODEGEN_PLUGIN_ID } from '../contract';
 
@@ -118,6 +123,7 @@ export function schemaCandidates(entries: readonly ResourceRef[]): readonly Reso
 /** Схема, найденная в каталоге: адрес нужен для имени формы и для отчёта. */
 export interface FoundSchema {
   readonly ref: ResourceRef;
+  /** Всегда формата 2: файл прежнего формата переводится при чтении. */
   readonly schema: JsonFormSchema;
   /** Открытый документ, из которого взята схема; нет — прочитана с диска. */
   readonly document?: CodegenDocument;
@@ -130,6 +136,10 @@ export interface FoundSchema {
  * прямо сейчас, а у файла — тот, что успели сохранить. Сгенерировать по сохранённой копии
  * форму, которой в редакторе уже нет, — молчаливо неверный результат, и он выглядел бы как
  * работающий.
+ *
+ * Файл на диске может быть прежнего формата (`value` / `array`, шаги в `componentProps.steps`):
+ * проба формы его узнаёт, а работать с ним генерация не умеет. Поэтому найденное переводится
+ * в формат 2 здесь же ({@link asFormSchema}), до того как станет схемой.
  */
 export async function findSchemaIn(
   host: CodegenHost,
@@ -149,8 +159,8 @@ export async function findSchemaIn(
     const text = await host.readText(ref.id).catch(() => null);
     if (text === null) continue;
     try {
-      const parsed: unknown = JSON.parse(text);
-      if (isFormSchema(parsed)) return { ref, schema: parsed };
+      const fromFile = asFormSchema(JSON.parse(text));
+      if (fromFile !== null) return { ref, schema: fromFile };
     } catch {
       // Неразбираемый json — не наш файл, а не авария: в каталоге формы может лежать что
       // угодно, и следующий кандидат ещё не проверен.

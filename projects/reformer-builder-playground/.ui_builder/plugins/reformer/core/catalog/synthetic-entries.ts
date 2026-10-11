@@ -51,7 +51,7 @@ const arrayPropsSchema: PropsSchema = {
 };
 
 /**
- * Props визарда — минимум: класс контейнера. Шаги живут в `componentProps.steps` и правятся
+ * Props визарда — минимум: класс контейнера. Шаги — его `children` (слот шагов) и правятся
  * структурно на canvas, а не через инспектор.
  */
 const wizardPropsSchema: PropsSchema = {
@@ -106,7 +106,7 @@ export function syntheticRecords(cfg?: SyntheticOptions): CatalogRecord[] {
     category: 'Массив',
     propsSchema: arrayPropsSchema,
   };
-  // Wizard держит шаги в `componentProps.steps` (не в `children`); Step — контейнер тела шага.
+  // Wizard держит шаги в `children` — для `childSlots` это слот шагов; Step — контейнер тела шага.
   // Оба роли `container`: kindOf → container, что нужно для makeNode/childSlots.
   const wizard: CatalogRecord = {
     name: 'Wizard',

@@ -9,12 +9,15 @@
  */
 
 import {
+  ensureSchema,
   isFormSchema,
+  isFormStepSchema,
   joinFormSchema,
+  migrateNodeFormat,
   stepRefsOf,
   type StepOrigins,
 } from '../../../core/form-model';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { SCHEMA_FILE_NAMES, type KitView } from '../../../core/codegen';
 import { materialize, tokenize } from '../render/placeholders';
@@ -169,6 +172,9 @@ export function resolvePicked(
  * С движком функция может БРОСИТЬ — чего у токенной подстановки не могло быть никогда.
  * Это новый класс отказа, и он обязан быть назван вызывающему, а не проглочен: шаблон,
  * молча отдавший половину файлов, хуже шаблона, который честно не применился.
+ *
+ * Схема и файлы шагов выходят отсюда формата 2, каким бы ни был шаблон
+ * ({@link upgradeSchemaFiles}), — по той же причине в одном месте: применений два, а дверь одна.
  */
 export function materializeFiles(
   template: FormTemplate,
@@ -180,15 +186,61 @@ export function materializeFiles(
   const files = template.files.filter((f) => keep.has(f.path));
 
   if (template.engine !== 'eta') {
-    return files.map((f) => ({
-      ...f,
-      path: materialize(f.path, formName),
-      content: materialize(f.content, formName),
-    }));
+    return upgradeSchemaFiles(
+      files.map((f) => ({
+        ...f,
+        path: materialize(f.path, formName),
+        content: materialize(f.content, formName),
+      }))
+    );
   }
 
   const view = buildTemplateView(template, formName, { kit: options.kit ?? null });
-  return files.map((f) => renderTemplateFile(template, f, view));
+  return upgradeSchemaFiles(files.map((f) => renderTemplateFile(template, f, view)));
+}
+
+/**
+ * Файлы схемы прежнего формата — в формат 2; остальные файлы возвращаются теми же объектами.
+ *
+ * Шаблон из каталога проекта — снимок файлов, и схема в нём могла быть написана до формата 2:
+ * привязка в `value` / `array`, шаги визарда в `componentProps.steps`. Форма же, созданная по
+ * шаблону, — новый документ билдера, а на диск документ уходит форматом 2 (`normalize` ядра).
+ * Запиши мы схему как есть, свежесозданная форма оказалась бы прежнего формата рядом с модулем,
+ * вид которого собран уже по переведённой схеме ({@link formSchemaFileOf}).
+ *
+ * Переводятся и корневая схема, и файлы шагов — каждый сам по себе: у файла шага нет ни `root`,
+ * ни `format`, и перевод документа до него не дотягивается.
+ *
+ * Текст файла формата 2 НЕ трогается вовсе: перевод отдаёт такой документ той же ссылкой, и
+ * перепечатывать его незачем — пропали бы отступы и порядок, которыми файл написал человек.
+ * Переведённый файл печатается так же, как схему печатает кодоген (два пробела, перевод строки).
+ *
+ * Работает по ГОТОВЫМ файлам, после подстановки: у шаблона на движке схема до отрисовки может
+ * вовсе не быть JSON.
+ */
+function upgradeSchemaFiles(files: readonly TemplateFile[]): TemplateFile[] {
+  return files.map((file) => {
+    if (!file.path.endsWith('.json')) return file;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(file.content);
+    } catch {
+      // Не JSON — не схема: файл уходит как есть.
+      return file;
+    }
+    const next = upgraded(parsed);
+    return next === parsed ? file : { ...file, content: `${JSON.stringify(next, null, 2)}\n` };
+  });
+}
+
+/** Значение формата 2; не схема и не шаг либо уже формат 2 — та же ссылка. */
+function upgraded(parsed: unknown): unknown {
+  if (isFormSchema(parsed)) return ensureSchema(parsed);
+  if (isFormStepSchema(parsed)) {
+    const node = migrateNodeFormat(parsed.node);
+    return node === parsed.node ? parsed : { ...parsed, node };
+  }
+  return parsed;
 }
 
 /**
@@ -223,7 +275,12 @@ export function formSchemaFileOf(files: readonly TemplateFile[]): {
     if (!file.path.endsWith('.json')) continue;
     try {
       const parsed: unknown = JSON.parse(file.content);
-      if (isFormSchema(parsed)) return { file, ...composed(files, file.path, parsed) };
+      // Проба узнаёт документ ЛЮБОГО формата, а дальше значение уходит схемой — в вид шаблона
+      // и в раскладку модуля. Поэтому сначала перевод: без него у прежнего документа не
+      // нашлись бы ни привязки полей (`model`), ни ссылки на файлы шагов (`children` визарда).
+      if (isFormSchema(parsed)) {
+        return { file, ...composed(files, file.path, ensureSchema(parsed)) };
+      }
     } catch {
       /* не JSON — не схема */
     }
@@ -249,6 +306,10 @@ function resolveInside(from: string, ref: string): string | null {
 /**
  * Схема визарда, разбитого по шагам, — собранной: вид шаблона и раскладка модуля видят шаги
  * узлами, а не ссылками. Файла шага нет среди файлов шаблона — схема остаётся как есть.
+ *
+ * Схема приходит уже формата 2: ссылки на файлы шагов ищутся в `children` визарда, и у
+ * непереведённого документа их бы не нашлось. Файлы шагов прежнего формата переводит сама
+ * сборка (`joinFormSchema`).
  */
 function composed(
   files: readonly TemplateFile[],

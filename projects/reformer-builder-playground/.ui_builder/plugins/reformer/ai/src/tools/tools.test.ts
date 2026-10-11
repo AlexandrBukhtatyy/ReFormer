@@ -2,7 +2,7 @@ import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { describe, expect, it } from 'vitest';
 import { emptyRules } from '../../../core/form-model';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { getAt } from '../../../core/form-model';
 import { P, sampleSchema } from '../../../core/testing';
 import { createEditorToolRegistry } from '../index';
@@ -23,13 +23,13 @@ describe('get_form_outline', () => {
   it('отдаёт карту с адресами узлов', async () => {
     const res = await reg.invoke('get_form_outline', {}, ctx());
     expect(res.ok).toBe(true);
-    expect(res.text).toContain('/root/componentProps/steps/0');
+    expect(res.text).toContain('/root/children/0');
   });
 });
 
 describe('get_form_node', () => {
   it('отдаёт узел без дочерних поддеревьев, но сообщает об их наличии', async () => {
-    const res = await reg.invoke('get_form_node', { ref: '/root/componentProps/steps/0' }, ctx());
+    const res = await reg.invoke('get_form_node', { ref: '/root/children/0' }, ctx());
     expect(res.ok).toBe(true);
     expect(res.text).toContain('"$component(Step)"');
     // Дети опущены — иначе точечный запрос выгружал бы всю форму.
@@ -37,12 +37,51 @@ describe('get_form_node', () => {
     expect(res.text).toContain('children: 2');
   });
 
-  it('componentProps.steps не утекают в ответ по корню', async () => {
+  it('шаги визарда не утекают в ответ по корню', async () => {
+    // Шаги — `children` визарда, то есть самое тяжёлое поддерево формы; в ответе от них остаётся
+    // счётчик слота, и слот назван шагами, а не детьми.
     const res = await reg.invoke('get_form_node', { ref: '/root' }, ctx());
     expect(res.text).not.toContain('$component(Step)');
     expect(res.text).toContain('steps: 2');
-    // Остальные componentProps сохраняются.
+    expect(res.text).not.toContain('children: ');
+    // componentProps сохраняются целиком.
     expect(res.text).toContain('bg-white');
+  });
+
+  it('шаблон массива опущен, а ссылка на часть документа остаётся', async () => {
+    const schema = {
+      format: 2,
+      parts: {
+        address: {
+          component: '$component(Box)',
+          children: [{ model: '$model(city)', component: '$component(Input)' }],
+        },
+      },
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(registrationAddress)', part: '$part(address)' },
+          { model: '$model(previousAddresses)', item: '$part(address)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+
+    // Вписанный шаблон — поддерево, и его адреса есть в карте формы.
+    const inline = await reg.invoke('get_form_node', { ref: '/root/children/1/children/0' }, ctx());
+    expect(inline.text).toContain('"$model(properties)"');
+    expect(inline.text).not.toContain('$template');
+    expect(inline.text).toContain('template: 1');
+
+    // Ссылка на часть — одна строка, и без неё по узлу не видно, откуда массив берёт шаблон.
+    const array = await reg.invoke('get_form_node', { ref: '/root/children/1' }, ctx(schema));
+    expect(array.ok).toBe(true);
+    expect(array.text).toContain('"item":"$part(address)"');
+    expect(array.text).not.toContain('Child nodes');
+
+    const part = await reg.invoke('get_form_node', { ref: '/root/children/0' }, ctx(schema));
+    expect(part.ok).toBe(true);
+    expect(part.text).toContain('"part":"$part(address)"');
+    expect(part.text).not.toContain('Child nodes');
   });
 
   it('битый адрес → STALE_POINTER', async () => {
@@ -98,7 +137,7 @@ describe('expect в write-инструментах', () => {
     const res = await reg.invoke(
       'remove_node',
       {
-        refs: ['/root/componentProps/steps/0/children/0'],
+        refs: ['/root/children/0/children/0'],
         expect: { component: 'Select', model: null },
       },
       ctx()
@@ -114,7 +153,7 @@ describe('validate_form', () => {
     const base = sampleSchema();
     const draft = sampleSchema();
     const children = getAt(draft, P.step0children) as unknown[];
-    children.push({ value: '$model(email)', component: '$component(EmailField)' });
+    children.push({ model: '$model(email)', component: '$component(EmailField)' });
 
     const res = await reg.invoke(
       'validate_form',
@@ -143,8 +182,8 @@ describe('validate_form', () => {
       {},
       { base, draft, rules: emptyRules(), catalog, validateForm: validateFormSchema }
     );
-    expect(res.text).toContain('/root/componentProps/steps/0/children/1');
-    expect(res.text).not.toContain('root.componentProps');
+    expect(res.text).toContain('/root/children/0/children/1');
+    expect(res.text).not.toContain('root.children[');
     // Рядом с адресом — компонент: он же нужен для expect в следующей правке.
     expect(res.text).toContain('(InputNumber)');
   });

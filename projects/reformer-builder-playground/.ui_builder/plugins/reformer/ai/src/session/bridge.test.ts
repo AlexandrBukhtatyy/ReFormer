@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { listComponents } from '../model/catalog-digest';
@@ -36,6 +36,7 @@ const catalog = builtinEntries();
 const FIELD = listComponents(catalog, { role: 'field' })[0].name;
 
 const EMPTY_FORM: JsonFormSchema = {
+  format: 2,
   version: '1.0',
   root: { component: '$component(Box)', children: [] },
 } as unknown as JsonFormSchema;
@@ -167,6 +168,95 @@ describe('ход доходит до рабочей области', () => {
     const tools = session.get().entries.at(-1)?.tools ?? [];
     expect(tools).toHaveLength(1);
     expect(tools[0].summary).toContain('+1');
+  });
+});
+
+describe('файл прежнего формата', () => {
+  /** Визард, записанный до формата 2: шаги в `componentProps.steps`, привязка поля в `value`. */
+  const LEGACY_TEXT = JSON.stringify(
+    {
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        componentProps: {
+          steps: [
+            {
+              component: '$component(Step)',
+              componentProps: { title: 'Контакты' },
+              children: [
+                {
+                  value: '$model(email)',
+                  component: `$component(${FIELD})`,
+                  componentProps: { label: 'Почта' },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    null,
+    2
+  );
+
+  /** Шаг сценария: поле в первый шаг — адресом формата 2, каким его называет карта формы. */
+  const insertIntoStep: FakeStep = {
+    tool: 'insert_node',
+    args: {
+      parent: '/root/children/0',
+      nodes: [{ component: FIELD, model: 'phone', props: { label: 'Телефон' } }],
+    },
+  };
+
+  it('ход адресует шаги как children, а запись переводит файл в формат 2', async () => {
+    const { host, session, bridge } = harness([insertIntoStep, { text: 'Готово.' }]);
+    host.openDocument(RESOURCE, LEGACY_TEXT);
+    await bridge.send('добавь телефон в первый шаг');
+
+    expect(session.get().error).toBeNull();
+    expect(host.writes).toHaveLength(1);
+
+    const written = JSON.parse(host.writes[0].text) as {
+      format: number;
+      root: { componentProps?: { steps?: unknown }; children: { children: unknown[] }[] };
+    };
+    expect(written.format).toBe(2);
+    expect(written.root.componentProps?.steps).toBeUndefined();
+    // Прежнее поле переведено, новое встало рядом — оба с привязкой в `model`.
+    expect(written.root.children[0].children).toEqual([
+      {
+        model: '$model(email)',
+        component: `$component(${FIELD})`,
+        componentProps: { label: 'Почта' },
+      },
+      expect.objectContaining({ model: '$model(phone)' }),
+    ]);
+    expect(host.writes[0].text).not.toMatch(/"(value|array)": "\$model\(/);
+  });
+
+  it('ход без правок файл не переписывает — перевод не правка', async () => {
+    // Модель хода собрана форматом 2, но в буфер уходит только набор изменений: открыть прежний
+    // файл и ничего не поменять не должно давать diff на весь документ.
+    const { host, session, bridge } = harness([
+      { tool: 'get_form_outline', args: {} },
+      { text: 'Один шаг.' },
+    ]);
+    host.openDocument(RESOURCE, LEGACY_TEXT);
+    await bridge.send('что в форме?');
+
+    expect(session.get().error).toBeNull();
+    expect(host.writes).toEqual([]);
+    expect(host.documentOf(RESOURCE)?.getText()).toBe(LEGACY_TEXT);
+  });
+
+  it('отмена хода возвращает файл в прежнем виде, байт в байт', async () => {
+    const { host, bridge } = harness([insertIntoStep]);
+    host.openDocument(RESOURCE, LEGACY_TEXT);
+    await bridge.send('добавь телефон в первый шаг');
+    expect(host.writes).toHaveLength(1);
+
+    await expect(bridge.undoLastTurn()).resolves.toBe('undone');
+    expect(host.documentOf(RESOURCE)?.getText()).toBe(LEGACY_TEXT);
   });
 });
 

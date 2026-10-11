@@ -112,7 +112,7 @@ describe('describeComponent', () => {
     // Адрес — суффикс к адресу нового узла, а не путь в текущей форме.
     expect(tabs?.skeleton).not.toContain('/root');
 
-    expect(describeComponent(catalog, 'Wizard')?.skeleton).toContain('/componentProps/steps/0');
+    expect(describeComponent(catalog, 'Wizard')?.skeleton).toContain('/children/0');
     expect(describeComponent(catalog, 'Wizard')?.skeleton).toContain('Step');
   });
 
@@ -125,7 +125,10 @@ describe('describeComponent', () => {
   it('текст описания несёт структуру, а не только свойства', () => {
     const text = renderComponentDetail(describeComponent(catalog, 'Wizard')!, 1500);
     expect(text).toContain('Step');
-    expect(text).toContain('componentProps/steps');
+    // Посеянный шаг — ребёнок визарда: его адрес — суффикс `/children/0` к адресу нового узла.
+    expect(text).toContain('/children/0 · Step');
+    // Прежнего места шагов в описании быть не должно: по нему модель адресовала бы пустоту.
+    expect(text).not.toContain('componentProps');
   });
 });
 

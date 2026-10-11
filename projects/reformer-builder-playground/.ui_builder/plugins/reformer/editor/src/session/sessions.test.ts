@@ -20,7 +20,7 @@ import { createFakeSchemaHost, createFakeSelectionChannel } from '../testing';
 
 const TEXT = JSON.stringify(sampleSchema());
 const DOCUMENT = 'fake:form.json';
-const FIELD_PATH = ['root', 'componentProps', 'steps', 0, 'children', 1];
+const FIELD_PATH = ['root', 'children', 0, 'children', 1];
 
 function registry() {
   const host = createFakeSchemaHost({ text: TEXT });
@@ -140,9 +140,7 @@ describe('сеанс как вид на ручку', () => {
     session.apply(removeOp(target));
 
     // Узел исчез — выделение переехало на его родителя, а не осталось на исчезнувшем.
-    expect(session.get().selection).toEqual([
-      idAt(session, ['root', 'componentProps', 'steps', 0]),
-    ]);
+    expect(session.get().selection).toEqual([idAt(session, ['root', 'children', 0])]);
   });
 
   it('чистит выделение от адресов, которых в модели больше нет', () => {
@@ -323,7 +321,7 @@ describe('createSessionRegistry — канал выделения', () => {
     const subscription = sessions.connectSelection(channel);
     const session = sessions.open(DOCUMENT);
     const field = idAt(session!, FIELD_PATH);
-    const other = idAt(session!, ['root', 'componentProps', 'steps', 0, 'children', 0]);
+    const other = idAt(session!, ['root', 'children', 0, 'children', 0]);
     subscription.dispose();
 
     session?.setSelection([field]);

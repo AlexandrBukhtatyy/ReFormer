@@ -124,7 +124,7 @@ describe('parentNodePath', () => {
   it('поле → шаг', () => {
     expect(parentNodePath(P.step0field0)).toEqual([...P.step0]);
   });
-  it('шаг (в componentProps.steps) → корень', () => {
+  it('шаг (в children визарда) → корень', () => {
     expect(parentNodePath(P.step0)).toEqual([...P.root]);
   });
   it('шаблон массива → узел-массив', () => {
@@ -193,7 +193,7 @@ describe('indexNodePaths', () => {
     const s = sampleSchema();
     const root = s.root as unknown as Record<string, unknown>;
     root.$nodeId = 'dupe0000';
-    const steps = (root.componentProps as { steps: Record<string, unknown>[] }).steps;
+    const steps = root.children as Record<string, unknown>[];
     steps[0].$nodeId = 'dupe0000';
     expect(indexNodePaths(s).get('dupe0000')).toEqual(['root']);
   });

@@ -40,10 +40,7 @@
  * @module plugins/reformer/validator/locate
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { findByPath } from '../../core/form-model';
 import { nodeIdOf } from '../../core/form-model';
 import type { JsonPath } from '../../core/form-model';
@@ -141,10 +138,11 @@ export function splitLocation(raw: string): { path: JsonPath; message: string } 
  * `ensureNodeIds` при открытии, и файл, открытый мимо этого, честно адресуется ресурсом.
  *
  * Подъём идёт до НОСИТЕЛЯ ИДЕНТИФИКАТОРА, а не до первого, что похоже на узел, и это не
- * придирка: узлом считается любой объект с ключом `value`/`array`/`component`, а у
- * `TabsTrigger`, `TabsContent` и `RadioGroupItem` ровно такой `componentProps` —
- * `{ value: 'one' }`. Остановка «на похожем» отдавала бы сами пропсы: ни идентификатора,
- * ни компонента, то есть цель уезжала бы в ресурс, а быстрое исправление исчезало.
+ * придирка: узлом считается любой объект с ключом `model` или `component`, и привязка, по
+ * ошибке записанная в пропсы (`componentProps: { model: '$model(x)' }`), даёт ровно такой
+ * объект. Остановка «на похожем» отдавала бы сами пропсы: ни идентификатора, ни компонента,
+ * то есть цель уезжала бы в ресурс, а быстрое исправление исчезало. Туда же уезжает находка
+ * внутри части документа (`parts`): её узлам идентификаторы не выдаются.
  *
  * Сам узел возвращается вместе с адресом, потому что его же спрашивают «какой это компонент»
  * и «какие у него пропсы»: без ответа на них исправление предложить нечего, а второй проход

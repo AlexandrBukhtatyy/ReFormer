@@ -24,16 +24,13 @@
  * @module plugins/reformer/templates/stores/builtin
  */
 
-import { fieldNode, stepNode } from '../../../core/catalog';
+import { fieldNode, stepNode, wizardNode } from '../../../core/catalog';
 import { emitFixture, FIXTURE_FILE } from '../../../core/form-fixture';
 import { synthMock } from '../../../core/form-mock';
 import { type FormMock } from '../../../core/codegen';
 import type { FormRules } from '../../../core/form-model';
 import { emptySchema } from '../../../core/form-model';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
 import { tokenize } from '../render/placeholders';
 
@@ -83,6 +80,12 @@ export interface SeedExtras {
   readonly splitSteps?: boolean;
 }
 
+/**
+ * Поле затравки: узел фабрики со своей привязкой и подписью.
+ *
+ * Привязка ПЕРЕПИСЫВАЕТСЯ в том же ключе `model`, куда её кладёт фабрика: второй ключ рядом
+ * оставил бы узел привязанным к `newField`, и все поля затравки делили бы один путь модели.
+ */
 function withField(
   name: string,
   model: string,
@@ -90,12 +93,12 @@ function withField(
   extra: Record<string, unknown> = {}
 ): JsonNode {
   const node = fieldNode(name) as JsonNode & {
-    value: string;
+    model: string;
     componentProps: Record<string, unknown>;
   };
   return {
     ...node,
-    value: `$model(${model})`,
+    model: `$model(${model})`,
     componentProps: { ...node.componentProps, label, ...extra },
   };
 }
@@ -164,7 +167,12 @@ export function simpleRules(): FormRules {
   };
 }
 
-/** Затравка пошаговой формы: визард с двумя шагами. Состав — по тому же доводу, что у простой. */
+/**
+ * Затравка пошаговой формы: визард с двумя шагами. Состав — по тому же доводу, что у простой.
+ *
+ * Шаги — `children` узла-визарда. Узел берётся у фабрики, а её единственный пустой шаг
+ * заменяется двумя своими: что такое визард, знает домен, а затравка знает только свои шаги.
+ */
 export function wizardSeed(): JsonFormSchema {
   const schema = emptySchema();
   const root = schema.root as JsonNode & { children: unknown[] };
@@ -172,22 +180,21 @@ export function wizardSeed(): JsonFormSchema {
     const node = stepNode(title) as JsonNode & { children: unknown[] };
     return { ...node, children: [...fields] };
   };
+  const wizard = wizardNode() as JsonNode & { children: unknown[] };
   root.children = [
     {
-      component: '$component(Wizard)',
-      componentProps: {
-        steps: [
-          step('Данные', [
-            withField('Input', 'lastName', 'Фамилия', { required: true }),
-            withField('Input', 'firstName', 'Имя', { required: true }),
-            withField('Input', 'fullName', 'Полное имя', { readOnly: true }),
-          ]),
-          step('Контакты', [
-            withField('Select', 'city', 'Город', { options: `$dataSource(${CITY_SOURCE})` }),
-            withField('Input', 'email', 'Электронная почта', { required: true }),
-          ]),
-        ],
-      },
+      ...wizard,
+      children: [
+        step('Данные', [
+          withField('Input', 'lastName', 'Фамилия', { required: true }),
+          withField('Input', 'firstName', 'Имя', { required: true }),
+          withField('Input', 'fullName', 'Полное имя', { readOnly: true }),
+        ]),
+        step('Контакты', [
+          withField('Select', 'city', 'Город', { options: `$dataSource(${CITY_SOURCE})` }),
+          withField('Input', 'email', 'Электронная почта', { required: true }),
+        ]),
+      ],
     } satisfies JsonNode,
   ];
   return schema;

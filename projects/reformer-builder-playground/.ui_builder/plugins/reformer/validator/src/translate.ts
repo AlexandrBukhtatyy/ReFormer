@@ -16,7 +16,13 @@
  * Источников сообщений два, и оба перебраны: мета-схема form-DSL и схемы пропсов каталога кита
  * (209 записей, как их видит валидатор — после слияния враппера с вариантом). Кроме `type`
  * и `required` там встречаются ровно `enum` (110 мест), `minimum` (23), `maximum` (1) и
- * `pattern` (4 регулярки мета-схемы: `$model(...)`, `$component(...)`, `$html(...)`, `$nodeId`).
+ * `pattern` (5 регулярок мета-схемы: `$model(...)`, `$component(...)`, `$part(...)`,
+ * `$html(...)`, `$nodeId`).
+ *
+ * Мета-схема — формата 2, и только она: документ прежнего формата до проверки переводится
+ * (`check.checkForm`), поэтому фраз, которые рождает одна лишь прежняя мета-схема, здесь нет.
+ * Так ушёл образец `array node is missing "initialValue"`: формат 2 `initialValue` не требует
+ * (шаблон нового элемента живёт в модели) и спрашивает только полноту заданного.
  *
  * Ловушка, на которую легко попасться при подсчёте грепом: `maxItems`, `maxLength`, `minItems`
  * в каталоге ЕСТЬ — но как ИМЕНА ПРОПОВ (`ComboboxMulti.maxItems`, `InputOTP.maxLength`),
@@ -46,7 +52,7 @@ export interface TranslatedMessage {
  *
  * Сырая регулярка в интерфейсе — это ответ на вопрос «что не так» языком, которым вопрос не
  * задавали: `^\$model\(.+\)$` не подсказывает написать `$model(price)`. Всех регулярок в
- * мета-схеме четыре, и каждая требует одной узнаваемой формы.
+ * мета-схеме пять, и каждая требует одной узнаваемой формы.
  *
  * Узнаётся ПОДСТРОКА, а не полное совпадение с литералом: правка регулярки в чужом пакете
  * (скажем, ужесточение того, что допустимо внутри скобок) не должна молча ронять образец
@@ -55,6 +61,7 @@ export interface TranslatedMessage {
 function shapeOf(pattern: string): string {
   if (pattern.includes('$model')) return '$model(...)';
   if (pattern.includes('$component')) return '$component(...)';
+  if (pattern.includes('$part')) return '$part(...)';
   if (pattern.includes('$html')) return '$html(...)';
   if (pattern.includes('[0-9a-z]{8}')) return '$nodeId';
   return pattern;
@@ -93,16 +100,20 @@ const PATTERNS: readonly {
     code: CODES.UNKNOWN_LOCALE_KEY,
     params: (m) => ({ key: m[1] }),
   },
-  // validate.ts, walkArrayInitialValue — молчаливо ломающиеся массивы.
+  // У этой фразы есть хвост-пояснение (`… — declare it in the document "parts" map`), и в нём
+  // свои кавычки: жадное `(.+)"` дотянулось бы до последней из них и вернуло бы именем половину
+  // пояснения. Поэтому имя — всё до ПЕРВОЙ кавычки, а хвост образцом не закреплён вовсе: его
+  // переформулировка не должна ронять находку в общий код.
+  {
+    test: /^unknown part "([^"]+)"/,
+    code: CODES.UNKNOWN_PART,
+    params: (m) => ({ name: m[1] }),
+  },
+  // validate.ts, walkArrayInitialValueV2 — молчаливо ломающиеся массивы.
   {
     test: /^array node "initialValue" is missing element keys \[(.*)\]/,
     code: CODES.ARRAY_INITIAL_VALUE_INCOMPLETE,
     params: (m) => ({ keys: m[1] }),
-  },
-  {
-    test: /^array node is missing "initialValue"/,
-    code: CODES.ARRAY_INITIAL_VALUE_MISSING,
-    params: () => ({}),
   },
   // validate.ts, formatAjvErrors — структура узлов и componentProps.
   {

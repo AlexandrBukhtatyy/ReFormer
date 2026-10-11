@@ -1,5 +1,6 @@
 {
   "$schema": "./form-schema.schema.json",
+  "format": 2,
   "version": "1.0",
   "root": {
     "component": "$component(Box)",
@@ -9,7 +10,7 @@
     },
     "children": [
       {
-        "value": "$model(fullName)",
+        "model": "$model(fullName)",
         "component": "$component(Input)",
         "componentProps": {
           "label": "Имя",
@@ -17,7 +18,7 @@
         }
       },
       {
-        "value": "$model(agreed)",
+        "model": "$model(agreed)",
         "component": "$component(Checkbox)",
         "componentProps": {
           "label": "Согласен"

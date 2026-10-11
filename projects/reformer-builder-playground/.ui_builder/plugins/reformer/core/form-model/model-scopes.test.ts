@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   boundPathsIn,
   collectModelReads,
@@ -38,17 +38,21 @@ describe('collectModelScopes', () => {
   });
 
   it('корень есть и у формы без привязок', () => {
-    const scopes = collectModelScopes({ root: { component: '$html(div)' } } as JsonFormSchema);
+    const scopes = collectModelScopes({
+      format: 2,
+      root: { component: '$html(div)' },
+    } as JsonFormSchema);
     expect(scopes).toEqual([{ at: [], bound: [] }]);
   });
 
   it('повтор пути — одно объявление', () => {
     const schema = {
+      format: 2,
       root: {
         component: '$html(div)',
         children: [
-          { value: '$model(a)', component: '$component(Input)' },
-          { value: '$model(a)', component: '$component(Input)' },
+          { model: '$model(a)', component: '$component(Input)' },
+          { model: '$model(a)', component: '$component(Input)' },
         ],
       },
     } as JsonFormSchema;
@@ -57,6 +61,7 @@ describe('collectModelScopes', () => {
 
   it('текстовое $model — не объявление', () => {
     const schema = {
+      format: 2,
       root: { component: '$html(p)', children: ['Итого: ', '$model(total)'] },
     } as JsonFormSchema;
     expect(boundPathsIn(collectModelScopes(schema), [])).toEqual([]);
@@ -66,13 +71,14 @@ describe('collectModelScopes', () => {
 describe('collectModelReads', () => {
   it('текстовая часть и значение пропа, с областью', () => {
     const schema = {
+      format: 2,
       root: {
         component: '$html(div)',
         children: [
           'Сумма: ',
           '$model(amount)',
           {
-            array: '$model(items)',
+            model: '$model(items)',
             item: {
               $template: {
                 component: '$component(Box)',

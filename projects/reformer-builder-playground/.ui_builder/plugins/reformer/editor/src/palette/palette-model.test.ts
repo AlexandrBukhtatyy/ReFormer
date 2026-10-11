@@ -18,7 +18,7 @@ function entry(name: string, category: string, extra: Partial<CatalogEntry> = {}
     role: 'field',
     category,
     propsSchema: { type: 'object', properties: {} },
-    makeNode: () => ({ value: '$model(x)', component: `$component(${name})` }),
+    makeNode: () => ({ model: '$model(x)', component: `$component(${name})` }),
     ...extra,
   };
 }
@@ -90,6 +90,6 @@ describe('paletteSections', () => {
 describe('paletteNode', () => {
   it('берёт узел у записи каталога, а не строит свой', () => {
     const item = paletteSections(CATALOG)[1].items[0];
-    expect(paletteNode(item)).toEqual({ value: '$model(x)', component: '$component(Input)' });
+    expect(paletteNode(item)).toEqual({ model: '$model(x)', component: '$component(Input)' });
   });
 });

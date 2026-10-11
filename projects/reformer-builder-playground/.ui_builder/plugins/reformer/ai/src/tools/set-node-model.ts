@@ -7,11 +7,7 @@
  * @module plugins/reformer/ai/tools/set-node-model
  */
 
-import {
-  isArrayNodeV1 as isArrayNode,
-  isFieldNodeV1 as isFieldNode,
-} from '@reformer/renderer-json';
-import { setNodeKey } from '../../../core/form-model';
+import { kindOf, setNodeKey } from '../../../core/form-model';
 import { commitMutation } from '../loop/gate';
 import { componentOf, isResolved, labelOf, resolveRef } from '../model/node-ref';
 import { fail, type AgentTool } from '../model/types';
@@ -42,15 +38,16 @@ export const setNodeModelTool: AgentTool<Params> = {
     const found = resolveRef(ctx.draft, params.ref, params.expect);
     if (!isResolved(found)) return found;
 
-    const key = isArrayNode(found.node) ? 'array' : isFieldNode(found.node) ? 'value' : null;
-    if (!key) {
+    // Привязка у поля, массива и подформы лежит в одном ключе — `model`; у контейнера её нет, и
+    // дописать её значило бы превратить контейнер в поле.
+    if (kindOf(found.node) === 'container') {
       return fail(
         'INVALID_PARENT',
         `Node ${params.ref} is a container and has no data binding. Only fields and arrays do.`
       );
     }
 
-    const result = setNodeKey(ctx.draft, found.path, key, `$model(${params.model})`);
+    const result = setNodeKey(ctx.draft, found.path, 'model', `$model(${params.model})`);
     const name = labelOf(found.node) ?? componentOf(found.node) ?? params.ref;
     return commitMutation(ctx, result, () => ({
       kind: 'update',

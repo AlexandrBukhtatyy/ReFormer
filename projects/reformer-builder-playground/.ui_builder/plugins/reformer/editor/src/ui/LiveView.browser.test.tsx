@@ -19,7 +19,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { useMemo, type ReactElement } from 'react';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { sampleSchema } from '../../../core/testing';
 import { NODE_CLASS_PREFIX } from '../../../core/form-model';
@@ -167,7 +167,7 @@ describe('живой вид', () => {
       const before = boxes();
 
       // Поверхность рисует узел на каждый адрес: удаление узла обязано убрать и его коробку.
-      const step = fixture.idAt(['root', 'componentProps', 'steps', 1]);
+      const step = fixture.idAt(['root', 'children', 1]);
       fixture.registry.get(DOCUMENT)?.apply({ type: 'remove', target: step });
 
       await vi.waitFor(() => {
@@ -268,7 +268,7 @@ describe('живой вид', () => {
   it('находки валидатора видны в форме контуром на узле', async () => {
     const fixture = mount({
       problemsOf: (model) => {
-        const id = indexNodes(model).idAt(['root', 'componentProps', 'steps', 0]);
+        const id = indexNodes(model).idAt(['root', 'children', 0]);
         if (id === undefined) return [];
         return [
           {
@@ -285,7 +285,7 @@ describe('живой вид', () => {
       await vi.waitFor(() => {
         expect(fixture.live.mounts()).toBe(1);
       });
-      const target = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const target = fixture.idAt(['root', 'children', 0]);
 
       // Контур — правилом по классу-токену узла, цветом ошибки: DOM формы не тронут.
       // Списком находки здесь не повторяются: их целиком показывает панель проблем.
@@ -315,7 +315,7 @@ describe('живой вид', () => {
       await vi.waitFor(() => {
         expect(fixture.live.mounts()).toBe(1);
       });
-      const target = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const target = fixture.idAt(['root', 'children', 0]);
 
       boxOf(target).dispatchEvent(click(true));
 
@@ -367,8 +367,8 @@ describe('живой вид', () => {
       await vi.waitFor(() => {
         expect(fixture.live.mounts()).toBe(1);
       });
-      const first = fixture.idAt(['root', 'componentProps', 'steps', 0]);
-      const second = fixture.idAt(['root', 'componentProps', 'steps', 1]);
+      const first = fixture.idAt(['root', 'children', 0]);
+      const second = fixture.idAt(['root', 'children', 1]);
 
       boxOf(first).dispatchEvent(click(true));
 
@@ -449,7 +449,7 @@ describe('перетаскивание в живой форме', () => {
     return [...overlay.children].some((child) => child instanceof HTMLElement && !child.hidden);
   }
 
-  const NEW_NODE = { value: '$model(новое)', component: '$component(Input)' } as const;
+  const NEW_NODE = { model: '$model(новое)', component: '$component(Input)' } as const;
 
   it('бросок с палитры добавляет узел в модель', async () => {
     const fixture = mount();
@@ -458,7 +458,7 @@ describe('перетаскивание в живой форме', () => {
         expect(fixture.live.mounts()).toBe(1);
       });
       const before = JSON.stringify(fixture.registry.get(DOCUMENT)?.get().model).length;
-      const step = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const step = fixture.idAt(['root', 'children', 0]);
       fixture.drag.begin({ kind: 'new', node: NEW_NODE });
 
       const element = boxOf(step);
@@ -481,7 +481,7 @@ describe('перетаскивание в живой форме', () => {
       });
       const model = () => JSON.stringify(fixture.registry.get(DOCUMENT)?.get().model);
       const before = model();
-      const step = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const step = fixture.idAt(['root', 'children', 0]);
       fixture.drag.begin({ kind: 'new', node: NEW_NODE });
 
       const element = boxOf(step);
@@ -505,7 +505,7 @@ describe('перетаскивание в живой форме', () => {
       await vi.waitFor(() => {
         expect(fixture.live.mounts()).toBe(1);
       });
-      const step = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const step = fixture.idAt(['root', 'children', 0]);
       fixture.drag.begin({ kind: 'new', node: NEW_NODE });
 
       const element = boxOf(step);
@@ -529,7 +529,7 @@ describe('перетаскивание в живой форме', () => {
         expect(fixture.live.mounts()).toBe(1);
       });
       const before = JSON.stringify(fixture.registry.get(DOCUMENT)?.get().model);
-      const step = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const step = fixture.idAt(['root', 'children', 0]);
 
       const element = boxOf(step);
       element.dispatchEvent(dragEvent('dragover', element, 'middle'));
@@ -548,7 +548,7 @@ describe('перетаскивание в живой форме', () => {
       await vi.waitFor(() => {
         expect(fixture.live.mounts()).toBe(1);
       });
-      const target = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+      const target = fixture.idAt(['root', 'children', 0]);
       fixture.registry.get(DOCUMENT)?.setSelection([target]);
 
       const grip = await vi.waitFor(() => {

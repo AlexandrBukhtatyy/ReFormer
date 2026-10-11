@@ -28,10 +28,7 @@
  * @module plugins/reformer/ai/model/node-ref
  */
 
-import type {
-  JsonNodeV1 as JsonNode,
-  JsonFormSchemaV1 as JsonFormSchema,
-} from '@reformer/renderer-json';
+import type { JsonNode, JsonFormSchema } from '@reformer/renderer-json';
 import { componentOf, modelOf } from '../../../core/form-model';
 import { isNodeLike } from '../../../core/form-model';
 import { fromPointer, getAt, toPointer, type JsonPath } from '../../../core/form-model';
@@ -65,8 +62,13 @@ export interface ResolvedNode {
   path: JsonPath;
 }
 
-/** Хвосты адреса, которыми заканчивается СЛОТ, а не узел (см. `@/plugins/reformer/core/form-model`). */
-const SLOT_TAILS = ['/children', '/componentProps/steps', '/item/$template'];
+/**
+ * Хвосты адреса, которыми заканчивается СЛОТ, а не узел (см. `@/plugins/reformer/core/form-model`).
+ *
+ * Шаги визарда лежат в том же `children`, что и дети любого контейнера, поэтому отдельного хвоста
+ * у них нет.
+ */
+const SLOT_TAILS = ['/children', '/item/$template'];
 
 /**
  * Если адрес указывает на слот — адрес узла-держателя, иначе `undefined`.
@@ -115,7 +117,7 @@ export function resolveRef(
   const node = getAt(schema, path);
   if (!isNodeLike(node)) {
     // Две разные беды приводили к одному совету «перезапроси карту», и один из них был ложным.
-    // Адрес, указывающий на СЛОТ (`/root/children`, `…/componentProps/steps`), — не устаревший:
+    // Адрес, указывающий на СЛОТ (`/root/children`, `…/item/$template`), — не устаревший:
     // форму никто не менял, и повторный get_form_outline вернёт ровно то же. Наблюдалось вживую:
     // модель перечитывала карту пять раз подряд и упиралась в предел шагов, так и не вставив узел.
     const holder = slotHolderRef(ref);

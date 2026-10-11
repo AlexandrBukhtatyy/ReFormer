@@ -18,7 +18,7 @@ function entry(name: string, category: string, role: CatalogEntry['role'] = 'fie
     role,
     category,
     propsSchema: { type: 'object', properties: {} },
-    makeNode: () => ({ value: '$model(x)', component: `$component(${name})` }),
+    makeNode: () => ({ model: '$model(x)', component: `$component(${name})` }),
   } as CatalogEntry;
 }
 

@@ -16,7 +16,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useCallback, useMemo, useSyncExternalStore, type ReactElement } from 'react';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS } from '../core/form-model';
 import { getAt } from '../core/form-model';
 import type { CatalogEntry } from '../core/catalog';
@@ -40,14 +40,15 @@ const DOCUMENT = 'fake:form.json';
 /** Столбец из трёх полей — на нём видно и группировку, и перестановку. */
 function schema(): JsonFormSchema {
   return {
+    format: 2,
     version: '1.0',
     root: {
       component: '$html(div)',
       componentProps: { className: DEFAULT_COL_CLASS },
       children: [
-        { value: '$model(first)', component: '$component(Input)' },
-        { value: '$model(second)', component: '$component(Input)' },
-        { value: '$model(third)', component: '$component(Input)' },
+        { model: '$model(first)', component: '$component(Input)' },
+        { model: '$model(second)', component: '$component(Input)' },
+        { model: '$model(third)', component: '$component(Input)' },
       ],
     },
   } as unknown as JsonFormSchema;
@@ -62,7 +63,7 @@ const QUICK_ADD_CATALOG = [
     role: 'field',
     category: 'Поля ввода',
     propsSchema: { type: 'object', properties: {} },
-    makeNode: () => ({ value: '$model(new)', component: '$component(Input)' }),
+    makeNode: () => ({ model: '$model(new)', component: '$component(Input)' }),
   },
 ] as unknown as CatalogEntry[];
 
@@ -164,8 +165,8 @@ async function mount(options: { quickAdd?: boolean } = {}) {
 function bindings(model: JsonFormSchema, path: readonly (string | number)[]): unknown[] {
   const list = getAt(model, path);
   if (!Array.isArray(list)) throw new Error('по этому пути не массив');
-  return (list as { value?: string; component?: string }[]).map(
-    (node) => node.value ?? node.component
+  return (list as { model?: string; component?: string }[]).map(
+    (node) => node.model ?? node.component
   );
 }
 

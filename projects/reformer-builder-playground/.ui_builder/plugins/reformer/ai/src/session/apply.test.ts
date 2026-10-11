@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { emptyRules } from '../../../core/form-model';
 import { applyChangeSet, isStale, type ApplyDeps } from './apply';
@@ -29,11 +29,12 @@ const deps = (host: ApplyDeps['host']): ApplyDeps => ({
 
 function schema(label: string): JsonFormSchema {
   return {
+    format: 2,
     version: '1.0',
     root: {
       component: '$component(Box)',
       children: [
-        { value: '$model(email)', component: '$component(Input)', componentProps: { label } },
+        { model: '$model(email)', component: '$component(Input)', componentProps: { label } },
       ],
     },
   } as unknown as JsonFormSchema;
@@ -141,10 +142,11 @@ describe('применение набора', () => {
     const { host } = setup();
     const base = schema('Почта');
     const draft = {
+      format: 2,
       version: '1.0',
       root: {
         component: '$component(Box)',
-        children: [{ value: '$model(email)', component: '$component(НетТакого)' }],
+        children: [{ model: '$model(email)', component: '$component(НетТакого)' }],
       },
     } as unknown as JsonFormSchema;
     const pending: PendingChanges = {

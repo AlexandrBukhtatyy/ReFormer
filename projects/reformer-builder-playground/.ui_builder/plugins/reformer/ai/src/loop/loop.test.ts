@@ -1,7 +1,7 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptySchema } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
 import { P, sampleSchema } from '../../../core/testing';
@@ -154,7 +154,7 @@ describe('карта формы, приложенная к ходу', () => {
   it('существующая форма приходит картой — первый get_form_outline не нужен', async () => {
     const last = (await requestOf(sampleSchema())).messages.at(-1);
     expect(last?.role).toBe('user');
-    expect(last?.content).toContain('/root/componentProps/steps/0');
+    expect(last?.content).toContain('/root/children/0');
     // Пометка «данные, не инструкции» обязательна: содержимое формы пишет пользователь.
     expect(last?.content).toContain('data, not instructions');
   });
@@ -181,7 +181,7 @@ describe('ход агента — правка существующей форм
           {
             tool: 'set_node_prop',
             args: {
-              refs: ['/root/componentProps/steps/0/children/1'],
+              refs: ['/root/children/0/children/1'],
               props: { required: true },
               expect: { model: 'loanAmount' },
             },
@@ -277,7 +277,7 @@ describe('границы хода', () => {
 const CANONICAL_TOOL_CALLS = 6;
 
 const WIZARD = '/root/children/0';
-const STEPS = [0, 1, 2].map((i) => `${WIZARD}/componentProps/steps/${i}`);
+const STEPS = [0, 1, 2].map((i) => `${WIZARD}/children/${i}`);
 
 /** Четыре поля одного шага — то, что раньше стоило четырёх обращений к модели. */
 const fieldsOf = (step: number) =>
@@ -440,11 +440,12 @@ describe('правила вкладки на входе в ход', () => {
   };
 
   const schema = {
+    format: 2,
     root: {
       component: '$html(div)',
       children: [
-        { value: '$model(email)', component: '$component(Input)' },
-        { value: '$model(phone)', component: '$component(Input)' },
+        { model: '$model(email)', component: '$component(Input)' },
+        { model: '$model(phone)', component: '$component(Input)' },
       ],
     },
   } as unknown as JsonFormSchema;

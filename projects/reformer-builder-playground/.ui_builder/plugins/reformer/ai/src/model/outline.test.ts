@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptySchema } from '../../../core/form-model';
 import { sampleSchema } from '../../../core/testing';
 import { buildOutline, renderOutline } from './outline';
@@ -10,13 +10,13 @@ describe('buildOutline', () => {
     const entries = buildOutline(sampleSchema());
     expect(entries.map((e) => [e.ref, e.component, e.slot])).toEqual([
       ['/root', 'RendererFormWizard', undefined],
-      ['/root/componentProps/steps/0', 'Step', 'steps'],
-      ['/root/componentProps/steps/0/children/0', 'Select', 'children'],
-      ['/root/componentProps/steps/0/children/1', 'InputNumber', 'children'],
-      ['/root/componentProps/steps/1', 'Step', 'steps'],
-      ['/root/componentProps/steps/1/children/0', 'FieldArray', 'children'],
-      ['/root/componentProps/steps/1/children/0/item/$template', 'Box', 'template'],
-      ['/root/componentProps/steps/1/children/0/item/$template/children/0', 'Select', 'children'],
+      ['/root/children/0', 'Step', 'steps'],
+      ['/root/children/0/children/0', 'Select', 'children'],
+      ['/root/children/0/children/1', 'InputNumber', 'children'],
+      ['/root/children/1', 'Step', 'steps'],
+      ['/root/children/1/children/0', 'FieldArray', 'children'],
+      ['/root/children/1/children/0/item/$template', 'Box', 'template'],
+      ['/root/children/1/children/0/item/$template/children/0', 'Select', 'children'],
     ]);
   });
 
@@ -31,7 +31,7 @@ describe('buildOutline', () => {
 
   it('модель, подпись и глубина попадают в строку', () => {
     const entries = buildOutline(sampleSchema());
-    const select = entries.find((e) => e.ref.endsWith('/steps/0/children/0'));
+    const select = entries.find((e) => e.ref === '/root/children/0/children/0');
     expect(select).toMatchObject({
       kind: 'field',
       model: 'loanType',
@@ -42,12 +42,13 @@ describe('buildOutline', () => {
 
   it('required отмечается', () => {
     const schema = {
+      format: 2,
       version: '1.0',
       root: {
         component: '$component(Box)',
         children: [
           {
-            value: '$model(email)',
+            model: '$model(email)',
             component: '$component(Input)',
             componentProps: { label: 'Email', required: true },
           },
@@ -61,14 +62,61 @@ describe('buildOutline', () => {
     expect(buildOutline(emptySchema())).toHaveLength(1);
     expect(buildOutline({} as JsonFormSchema)).toEqual([]);
   });
+
+  it('шаги визарда — слот steps, хотя лежат в children, как дети секции', () => {
+    // По адресу слот шагов от слота детей не отличить: оба кончаются на `children`. Вид слота —
+    // единственное, по чему инструменты знают, что в визард кладут шаги, а не поля.
+    const entries = buildOutline(sampleSchema());
+    const step = entries.find((e) => e.ref === '/root/children/0');
+    const field = entries.find((e) => e.ref === '/root/children/0/children/0');
+    expect(step?.slot).toBe('steps');
+    expect(field?.slot).toBe('children');
+  });
+
+  it('визард без children карту не роняет', () => {
+    const schema = {
+      format: 2,
+      root: { component: '$component(Wizard)' },
+    } as unknown as JsonFormSchema;
+    expect(buildOutline(schema).map((e) => [e.ref, e.component])).toEqual([['/root', 'Wizard']]);
+  });
+
+  it('подформа и массив с шаблоном-частью — листья: разметка частей лежит вне дерева корня', () => {
+    const entries = buildOutline(withParts());
+    expect(entries.map((e) => [e.ref, e.kind, e.component, e.model])).toEqual([
+      ['/root', 'container', 'Box', undefined],
+      ['/root/children/0', 'part', undefined, 'registrationAddress'],
+      ['/root/children/1', 'array', 'FieldArray', 'previousAddresses'],
+    ]);
+    // Узлы из `parts` в карту не попадают: адреса в дереве корня у них нет.
+    expect(entries.some((e) => e.model === 'city')).toBe(false);
+  });
 });
+
+/** Форма с подформой и с массивом, чей шаблон строки — именованная часть документа. */
+function withParts(): JsonFormSchema {
+  return {
+    format: 2,
+    parts: {
+      address: {
+        component: '$component(Box)',
+        children: [{ model: '$model(city)', component: '$component(Input)' }],
+      },
+    },
+    root: {
+      component: '$component(Box)',
+      children: [
+        { model: '$model(registrationAddress)', part: '$part(address)' },
+        { model: '$model(previousAddresses)', item: '$part(address)' },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+}
 
 describe('renderOutline', () => {
   it('строка узла несёт адрес, компонент, модель и подпись', () => {
     const text = renderOutline(buildOutline(sampleSchema()), 4000);
-    expect(text).toContain(
-      '/root/componentProps/steps/0/children/0 · Select · model=loanType · «Тип кредита»'
-    );
+    expect(text).toContain('/root/children/0/children/0 · Select · model=loanType · «Тип кредита»');
   });
 
   it('при нехватке бюджета обрезает ОСОЗНАННО, сообщая о пропущенных узлах', () => {
@@ -81,12 +129,33 @@ describe('renderOutline', () => {
     expect(renderOutline([], 100)).toContain('The form is empty');
   });
 
+  it('подформа печатается своим видом и привязкой, а под нажимом бюджета не сворачивается в поля', () => {
+    expect(renderOutline(buildOutline(withParts()), 4000)).toContain(
+      '/root/children/0 · (part) · model=registrationAddress'
+    );
+
+    // Тесный бюджет сворачивает поля в счётчик. Подформа — не поле: за её строкой стоит группа
+    // модели, и счётчик «N полей» о ней бы соврал.
+    const schema = withParts();
+    const children = (schema.root as { children: unknown[] }).children;
+    children.unshift(
+      ...Array.from({ length: 10 }, (_, i) => ({
+        model: `$model(field${i})`,
+        component: '$component(Input)',
+        componentProps: { label: `Поле ${i}` },
+      }))
+    );
+    const tight = renderOutline(buildOutline(schema), 250);
+    expect(tight).toContain('10 field(s) here');
+    expect(tight).toContain('/root/children/10 · (part) · model=registrationAddress');
+  });
+
   it('при нехватке бюджета жертвует полями, а не структурой', () => {
     // Ровно тот случай, на котором ход сгорел вживую: мастер с полным первым шагом, а модель
     // просят дописать поля во второй и третий. Обрезка «по порядку» оставляла поля первого шага и
     // отбрасывала сами шаги — модель не находила их адресов, не могла подтвердить, что они есть,
     // и весь ход сомневалась вместо работы.
-    const steps = [0, 1, 2].map((s) => `/root/componentProps/steps/${s}`);
+    const steps = [0, 1, 2].map((s) => `/root/children/${s}`);
     const entries = [
       { ref: '/root', depth: 0, kind: 'container' as const, component: 'Wizard' },
       ...steps.flatMap((step, s) => [

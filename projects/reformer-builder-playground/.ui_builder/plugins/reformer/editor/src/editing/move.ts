@@ -29,16 +29,13 @@
  * @module plugins/reformer/editor/editing/move
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { canAcceptChildren, childSlots, isNodeLike } from '../../../core/form-model';
 import { getAt, type JsonPath } from '../../../core/form-model';
 import { navIntentAt, type NavDir } from '../../../core/form-model';
 import { indexNodes, type NodeIndex } from '../model/node-index';
-import { blockOf, slotSegments, type Block } from '../model/block';
-import { moveOp, slotPositionOf } from '../model/ops';
+import { blockOf, blockSlotPath, type Block } from '../model/block';
+import { arraySlotOf, moveOp, slotPositionOf } from '../model/ops';
 import type { EditOp, NodeId } from '../host';
 
 /**
@@ -53,10 +50,10 @@ export function planMove(
   dir: NavDir
 ): EditOp | null {
   const index = indexNodes(schema);
-  const block = blockOf(index, selection);
+  const block = blockOf(schema, index, selection);
   if (block === null) return null;
 
-  const firstPath: JsonPath = [...block.parentPath, ...slotSegments(block.slot), block.start];
+  const firstPath: JsonPath = [...blockSlotPath(block), block.start];
   const intent = navIntentAt(schema, firstPath, dir);
 
   if (intent === 'prev' || intent === 'next') {
@@ -66,7 +63,9 @@ export function planMove(
   if (block.count !== 1) return null;
   const target = index.idAt(firstPath);
   if (target === undefined) return null;
-  return intent === 'out' ? moveOut(index, block, target) : moveIn(schema, index, block, target);
+  return intent === 'out'
+    ? moveOut(schema, index, block, target)
+    : moveIn(schema, index, block, target);
 }
 
 /**
@@ -85,12 +84,13 @@ function reorder(
   const neighbourIndex = intent === 'prev' ? block.start - 1 : block.start + block.count;
   if (neighbourIndex < 0) return null;
 
-  const slotPath: JsonPath = [...block.parentPath, ...slotSegments(block.slot)];
+  const slotPath = blockSlotPath(block);
   const list = getAt(schema, slotPath);
   if (!Array.isArray(list) || neighbourIndex >= list.length) return null;
 
   const neighbour = index.idAt([...slotPath, neighbourIndex]);
-  // Не узел, а текстовая часть `children`: адреса у неё нет, и переставить её нечем.
+  // Не узел, а текстовая часть `children` либо ссылка на файл шага: адреса у них нет, и
+  // переставить их нечем.
   if (neighbour === undefined) return null;
 
   const at = intent === 'prev' ? block.start + block.count : block.start;
@@ -98,8 +98,13 @@ function reorder(
 }
 
 /** Вынести узел из родителя: он встаёт сразу после него, среди его соседей. */
-function moveOut(index: NodeIndex, block: Block, target: NodeId): EditOp | null {
-  const parentPlace = slotPositionOf(block.parentPath);
+function moveOut(
+  schema: JsonFormSchema,
+  index: NodeIndex,
+  block: Block,
+  target: NodeId
+): EditOp | null {
+  const parentPlace = slotPositionOf(schema, block.parentPath);
   // Родитель в одиночном слоте (шаблон элемента) или корень — выносить некуда.
   if (parentPlace === null) return null;
   const grandParent = index.idAt(parentPlace.parentPath);
@@ -119,19 +124,17 @@ function moveIn(
   target: NodeId
 ): EditOp | null {
   if (block.start === 0) return null;
-  const prevPath: JsonPath = [...block.parentPath, ...slotSegments(block.slot), block.start - 1];
+  const prevPath: JsonPath = [...blockSlotPath(block), block.start - 1];
   const prev = getAt(schema, prevPath);
   if (!isNodeLike(prev) || !canAcceptChildren(prev as JsonNode)) return null;
 
   const host = index.idAt(prevPath);
   if (host === undefined) return null;
-  // Первый массив-слот в порядке домена: у визарда это `steps`, и узел обязан попасть
-  // в шаги, а не в `children`, которых рантайм не рисует. То же правило, что у броска.
+  // Массив-слот соседа в том виде, каким его отдаёт домен: у визарда это слот шагов (он есть
+  // и без ключа `children`), у контейнера — дети. Массив без массив-слота (у него только шаблон
+  // элемента) и контейнер без `children` вложение стрелкой не принимают.
   const slot = childSlots(prev as JsonNode, prevPath).find((entry) => !entry.single);
   if (slot === undefined) return null;
-  return moveOp(target, {
-    parent: host,
-    slot: slot.kind === 'steps' ? 'steps' : 'children',
-    index: slot.length,
-  });
+  // Вид слота называет сам сосед — то же правило, что у броска и у щелчка по палитре.
+  return moveOp(target, { parent: host, slot: arraySlotOf(prev), index: slot.length });
 }

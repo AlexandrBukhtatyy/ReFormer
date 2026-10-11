@@ -12,10 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
@@ -39,6 +36,7 @@ function wizard(): JsonFormSchema {
 /** Ряд из двух полей внутри корневого столбца — модель для случая «две колонки обёртки». */
 function pairInRow(): JsonFormSchema {
   const schema = {
+    format: 2,
     version: '1.0',
     root: {
       component: '$html(div)',
@@ -48,20 +46,20 @@ function pairInRow(): JsonFormSchema {
           component: '$html(div)',
           componentProps: { className: DEFAULT_ROW_CLASS },
           children: [
-            { value: '$model(city)', component: '$component(Input)' },
-            { value: '$model(zip)', component: '$component(Input)' },
+            { model: '$model(city)', component: '$component(Input)' },
+            { model: '$model(zip)', component: '$component(Input)' },
           ],
         },
-        { value: '$model(comment)', component: '$component(Input)' },
+        { model: '$model(comment)', component: '$component(Input)' },
       ],
     },
   } as unknown as JsonFormSchema;
   return ensureNodeIds(schema, sequentialIds('b'));
 }
 
-const STEP_0_CHILD_0: JsonPath = ['root', 'componentProps', 'steps', 0, 'children', 0];
-const STEP_0_CHILD_1: JsonPath = ['root', 'componentProps', 'steps', 0, 'children', 1];
-const STEP_0: JsonPath = ['root', 'componentProps', 'steps', 0];
+const STEP_0_CHILD_0: JsonPath = ['root', 'children', 0, 'children', 0];
+const STEP_0_CHILD_1: JsonPath = ['root', 'children', 0, 'children', 1];
+const STEP_0: JsonPath = ['root', 'children', 0];
 const ROW: JsonPath = ['root', 'children', 0];
 const ROW_CHILD_0: JsonPath = ['root', 'children', 0, 'children', 0];
 const ROW_CHILD_1: JsonPath = ['root', 'children', 0, 'children', 1];
@@ -74,7 +72,7 @@ function idAt(model: JsonFormSchema, path: JsonPath): NodeId {
 }
 
 function newField(): JsonNode {
-  return { value: '$model(phone)', component: '$component(Input)' } as JsonNode;
+  return { model: '$model(phone)', component: '$component(Input)' } as JsonNode;
 }
 
 /** Применить операцию с детерминированными адресами. */
@@ -144,8 +142,8 @@ describe('planSchematicDrop — обёрточные зоны с грузом п
     // На месте цели теперь ряд, а в нём цель и новое поле — именно в этом порядке.
     expect(classNameAt(next, STEP_0_CHILD_1)).toBe(DEFAULT_ROW_CLASS);
     expect(childCount(next, STEP_0_CHILD_1)).toBe(2);
-    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 0]).value).toBe('$model(loanAmount)');
-    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 1]).value).toBe('$model(phone)');
+    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 0]).model).toBe('$model(loanAmount)');
+    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 1]).model).toBe('$model(phone)');
     // Соседей у шага не прибавилось: новое поле уехало внутрь ряда, а не встало рядом с ним.
     expect(childCount(next, STEP_0)).toBe(2);
   });
@@ -163,8 +161,8 @@ describe('planSchematicDrop — обёрточные зоны с грузом п
     );
 
     const { model: next } = apply(model, op);
-    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 0]).value).toBe('$model(phone)');
-    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 1]).value).toBe('$model(loanAmount)');
+    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 0]).model).toBe('$model(phone)');
+    expect(nodeAt(next, [...STEP_0_CHILD_1, 'children', 1]).model).toBe('$model(loanAmount)');
   });
 
   it('stack-* даёт столбец, а не ряд', () => {
@@ -213,8 +211,8 @@ describe('planSchematicDrop — обёрточные зоны с узлом ка
     // Оба поля теперь внутри одного ряда, и он единственный ребёнок шага.
     expect(childCount(next, STEP_0)).toBe(1);
     expect(classNameAt(next, STEP_0_CHILD_0)).toBe(DEFAULT_ROW_CLASS);
-    expect(nodeAt(next, [...STEP_0_CHILD_0, 'children', 0]).value).toBe('$model(loanType)');
-    expect(nodeAt(next, [...STEP_0_CHILD_0, 'children', 1]).value).toBe('$model(loanAmount)');
+    expect(nodeAt(next, [...STEP_0_CHILD_0, 'children', 0]).model).toBe('$model(loanType)');
+    expect(nodeAt(next, [...STEP_0_CHILD_0, 'children', 1]).model).toBe('$model(loanAmount)');
   });
 
   it('перемещение соседа тоже отменяется одним шагом', () => {
@@ -243,7 +241,7 @@ describe('planSchematicDrop — обёрточные зоны с узлом ка
     const next = applied.model;
     // Корень остался с двумя детьми: бывший ряд свернулся до поля, а рядом встал новый ряд.
     expect(childCount(next, ['root'])).toBe(2);
-    expect(nodeAt(next, ['root', 'children', 0]).value).toBe('$model(zip)');
+    expect(nodeAt(next, ['root', 'children', 0]).model).toBe('$model(zip)');
     expect(classNameAt(next, ['root', 'children', 1])).toBe(DEFAULT_ROW_CLASS);
     expect(apply(next, applied.inverse).model).toEqual(model);
   });
@@ -262,8 +260,8 @@ describe('planSchematicDrop — две колонки одной обёртки 
     // Ряд стал столбцом, вложенности не прибавилось, порядок колонок прежний.
     expect(classNameAt(next, ROW)).toBe(DEFAULT_COL_CLASS);
     expect(childCount(next, ROW)).toBe(2);
-    expect(nodeAt(next, ROW_CHILD_0).value).toBe('$model(city)');
-    expect(nodeAt(next, ROW_CHILD_1).value).toBe('$model(zip)');
+    expect(nodeAt(next, ROW_CHILD_0).model).toBe('$model(city)');
+    expect(nodeAt(next, ROW_CHILD_1).model).toBe('$model(zip)');
   });
 
   it('переворот со сменой порядка переставляет колонки', () => {
@@ -275,8 +273,8 @@ describe('planSchematicDrop — две колонки одной обёртки 
     );
 
     const applied = apply(model, op);
-    expect(nodeAt(applied.model, ROW_CHILD_0).value).toBe('$model(zip)');
-    expect(nodeAt(applied.model, ROW_CHILD_1).value).toBe('$model(city)');
+    expect(nodeAt(applied.model, ROW_CHILD_0).model).toBe('$model(zip)');
+    expect(nodeAt(applied.model, ROW_CHILD_1).model).toBe('$model(city)');
     expect(apply(applied.model, applied.inverse).model).toEqual(model);
   });
 });

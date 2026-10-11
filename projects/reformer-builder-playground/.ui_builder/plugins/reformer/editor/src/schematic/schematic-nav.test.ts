@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
 import type { JsonPath } from '../../../core/form-model';
@@ -27,21 +27,22 @@ function sequentialIds(prefix = 'b'): NodeIdFactory {
 function schema(): JsonFormSchema {
   return ensureNodeIds(
     {
+      format: 2,
       version: '1.0',
       root: {
         component: '$html(div)',
         componentProps: { className: DEFAULT_COL_CLASS },
         children: [
-          { value: '$model(first)', component: '$component(Input)' },
+          { model: '$model(first)', component: '$component(Input)' },
           {
             component: '$html(div)',
             componentProps: { className: DEFAULT_ROW_CLASS },
             children: [
-              { value: '$model(city)', component: '$component(Input)' },
-              { value: '$model(zip)', component: '$component(Input)' },
+              { model: '$model(city)', component: '$component(Input)' },
+              { model: '$model(zip)', component: '$component(Input)' },
             ],
           },
-          { value: '$model(last)', component: '$component(Input)' },
+          { model: '$model(last)', component: '$component(Input)' },
         ],
       },
     } as unknown as JsonFormSchema,

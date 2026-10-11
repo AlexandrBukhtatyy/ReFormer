@@ -102,6 +102,20 @@ export function classifyEntry(
 }
 
 /**
+ * Визард кита — компонент, которым рисуются узлы-хозяева шагов (`Wizard`, `FormWizard`, …).
+ *
+ * Хозяева шагов — синтетика каталога: под этими именами кит ничего не экспортирует, а под каким
+ * символом он поставляет визард, говорит `descriptor.adapters.wizard`. Кит без визарда (адаптер
+ * `null` или не объявлен) отдаёт `undefined` — хозяин шагов остаётся подписанным стабом.
+ */
+export function resolveWizard(descriptor: KitDescriptor, namespace: KitNamespace): unknown {
+  const adapter = descriptor.adapters.wizard;
+  if (adapter === null || adapter === undefined) return undefined;
+  const exported = namespace[adapter.symbol];
+  return isComponentLike(exported) ? exported : undefined;
+}
+
+/**
  * Инфраструктурные имена реестра → значения кита.
  *
  * `FormField`/`AsyncBoundary`/`List` — это КЛЮЧИ РЕЕСТРА, которыми адресуют схемы, а не имена

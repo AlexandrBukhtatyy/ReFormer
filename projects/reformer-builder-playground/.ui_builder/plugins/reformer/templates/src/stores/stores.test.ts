@@ -19,13 +19,17 @@ import {
   modelTemplate,
   prepare,
 } from '../../../core/codegen';
+import { childSlots, labelOf, modelOf } from '../../../core/form-model';
 import { renderTemplate } from '@reformer/builder-toolkit';
+import type { JsonNode } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateStore } from '../contract';
 import { canRemove, canSave, canUpdate } from '../contract';
 import { materializeFiles } from '../content/files';
 import {
   BUILTIN_BASE_NAME,
   createBuiltinStore,
+  simpleSeed,
+  wizardSeed,
   type ModulePrinter,
   type SeedExtras,
 } from './builtin';
@@ -63,6 +67,35 @@ const realPrinter: ModulePrinter = async (schema, formName) => {
     { path: 'index.tsx', content: renderTemplate('test.builtin.index', indexTemplate, view) },
   ];
 };
+
+describe('затравки встроенных шаблонов', () => {
+  const childrenOf = (node: JsonNode): JsonNode[] => (node as { children: JsonNode[] }).children;
+
+  it('документ формата 2, привязка поля — в `model` и только в нём', () => {
+    const schema = simpleSeed();
+    const fields = childrenOf(schema.root);
+
+    expect(schema.format).toBe(2);
+    expect(fields.map(modelOf)).toEqual(['lastName', 'firstName', 'fullName', 'city', 'email']);
+    // Привязку ставит фабрика узла (`newField`), затравка её переписывает. Второй ключ рядом
+    // с `model` оставил бы все пять полей привязанными к одному пути.
+    for (const field of fields) expect(field).not.toHaveProperty('value');
+  });
+
+  it('шаги пошаговой формы — дети визарда, а не его пропс', () => {
+    const [wizard] = childrenOf(wizardSeed().root);
+    const slots = childSlots(wizard, ['root', 'children', 0]);
+
+    expect(slots.map((slot) => slot.kind)).toEqual(['steps']);
+    expect(wizard).not.toHaveProperty('componentProps.steps');
+    const steps = slots[0].entries.map((entry) => entry.node);
+    expect(steps.map(labelOf)).toEqual(['Данные', 'Контакты']);
+    expect(steps.map((step) => childrenOf(step).map(modelOf))).toEqual([
+      ['lastName', 'firstName', 'fullName'],
+      ['city', 'email'],
+    ]);
+  });
+});
 
 describe('встроенные шаблоны', () => {
   it('печатаются кодогеном, а не лежат «рыбами»', async () => {

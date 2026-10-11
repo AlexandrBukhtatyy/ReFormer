@@ -17,12 +17,12 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
   parseOperator,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from '../form-model/node-kind';
 import { firstWizardStepRefs, stepDirOfRef, type SplitFormSchema } from '../form-model/composite';
@@ -83,26 +83,16 @@ function scan(step: JsonNode): { fields: string[]; selectors: string[] } {
   const visit = (node: JsonNode): void => {
     const selector = (node as { selector?: unknown }).selector;
     if (typeof selector === 'string' && selector !== '') selectors.push(selector);
-    if (isArrayNode(node)) {
-      const parsed = parseOperator(node.array);
-      if (parsed?.op === 'model') fields.push(parsed.arg);
-      return;
-    }
-    if (isFieldNode(node)) {
-      const parsed = parseOperator(node.value);
+    if (isArrayNode(node) || isFieldNode(node)) {
+      const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') fields.push(parsed.arg);
       return;
     }
     if (isContainerNode(node)) {
+      // Вложенный визард держит шаги в тех же `children`.
       node.children?.forEach((child) => {
         if (isNodeLike(child)) visit(child);
       });
-      const steps = node.componentProps?.steps;
-      if (Array.isArray(steps)) {
-        steps.forEach((nested) => {
-          if (isNodeLike(nested)) visit(nested);
-        });
-      }
     }
   };
   visit(step);

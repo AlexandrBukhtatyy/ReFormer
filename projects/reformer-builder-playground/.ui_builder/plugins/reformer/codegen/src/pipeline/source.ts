@@ -9,13 +9,39 @@
  *
  * Часть читается из открытого документа, если он есть: там текст, который человек видит сейчас.
  *
+ * ## Формат документа
+ *
+ * Генерация работает только с форматом 2, а на диске может лежать и прежний: привязки в `value` /
+ * `array`, шаги визарда в `componentProps.steps`. Перевод делается на входе — {@link asFormSchema}
+ * для всего, что пришло текстом или чужой моделью, — и здесь, перед поиском ссылок на шаги.
+ *
  * @module plugins/reformer/codegen/pipeline/source
  */
 
-import { joinFormSchema, stepRefsOf, type StepOrigins } from '../../../core/form-model';
-import { normalizeStepRef, type JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import {
+  ensureSchema,
+  isFormSchema,
+  joinFormSchema,
+  stepRefsOf,
+  type StepOrigins,
+} from '../../../core/form-model';
+import { normalizeStepRef, type JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost } from '../host';
+
+/**
+ * Схема формы из сырого значения — разобранного текста файла или модели документа.
+ *
+ * `isFormSchema` — проба «файл формы или нет»: она узнаёт документ ЛЮБОГО формата, поэтому
+ * прошедшее её значение ещё не схема, с которой можно работать. У документа прежнего формата
+ * обход не нашёл бы ни одного поля и ни одного шага — и модуль напечатался бы пустым, без единой
+ * ошибки. Переводит `ensureSchema`; документ формата 2 он возвращает той же ссылкой.
+ *
+ * @returns Схема формата 2 либо `null`, если значение — не схема формы.
+ */
+export function asFormSchema(raw: unknown): JsonFormSchema | null {
+  return isFormSchema(raw) ? ensureSchema(raw) : null;
+}
 
 /** Форма для генерации. */
 export interface FormSource {
@@ -33,17 +59,23 @@ export class StepPartsError extends Error {
 }
 
 /**
- * Собрать форму из корня `schema` (файл `schemaId`) и файлов шагов рядом с ним.
+ * Собрать форму из корневой схемы `rootSchema` (файл `schemaId`) и файлов шагов рядом с ним.
  *
- * Схема без ссылок возвращается как есть — простая форма и визард одним файлом.
+ * Схема без ссылок возвращается как есть — простая форма и визард одним файлом. «Как есть» — для
+ * формата 2: корневая схема прежнего формата возвращается переведённой.
  *
  * @throws {@link StepPartsError} если часть не читается или не собирается.
  */
 export async function loadFormSource(
   host: Pick<CodegenHost, 'documentOf' | 'readText' | 'parentOf' | 'resolve'>,
   schemaId: ResourceId,
-  schema: JsonFormSchema
+  rootSchema: JsonFormSchema
 ): Promise<FormSource> {
+  // Перевод — ДО поиска ссылок. В корне прежнего формата они лежат в `componentProps.steps`, а
+  // `stepRefsOf` смотрит в `children` визарда: без перевода разбитая форма сошла бы за форму без
+  // ссылок. Файлы шагов не были бы прочитаны, модуль напечатался бы как у простой формы, а корень
+  // получил бы шапку `format: 2` поверх прежней разметки.
+  const schema = ensureSchema(rootSchema);
   const refs = stepRefsOf(schema);
   if (refs.length === 0) return { schema };
 

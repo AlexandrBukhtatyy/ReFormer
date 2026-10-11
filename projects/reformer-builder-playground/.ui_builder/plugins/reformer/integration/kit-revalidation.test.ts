@@ -60,12 +60,13 @@ let seq = 0;
 /** Форма с опечаткой в имени компонента: её видит только проверка по каталогу кита. */
 const FORM_TEXT = JSON.stringify(
   {
+    format: 2,
     version: '1.0',
     root: {
       component: '$component(Box)',
       children: [
         {
-          value: '$model(name)',
+          model: '$model(name)',
           component: '$component(Inpt)',
           componentProps: { label: 'Имя' },
         },

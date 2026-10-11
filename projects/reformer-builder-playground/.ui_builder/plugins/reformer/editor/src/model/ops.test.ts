@@ -9,10 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, nodeIdOf, type NodeIdFactory } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
@@ -50,8 +47,8 @@ function schema(): JsonFormSchema {
   return ensureNodeIds(sampleSchema(), sequentialIds('a'));
 }
 
-const STEP_0 = ['root', 'componentProps', 'steps', 0] as const;
-const STEP_1 = ['root', 'componentProps', 'steps', 1] as const;
+const STEP_0 = ['root', 'children', 0] as const;
+const STEP_1 = ['root', 'children', 1] as const;
 
 function idAt(model: JsonFormSchema, path: readonly (string | number)[]): string {
   const id = indexNodes(model).idAt(path);
@@ -60,23 +57,115 @@ function idAt(model: JsonFormSchema, path: readonly (string | number)[]): string
 }
 
 function newField(): JsonNode {
-  return { value: '$model(comment)', component: '$component(Input)' } as JsonNode;
+  return { model: '$model(comment)', component: '$component(Input)' } as JsonNode;
 }
 
 describe('slotPositionOf', () => {
   it('различает три вида вложенности', () => {
-    expect(slotPositionOf(['root', 'children', 2])).toEqual({
-      parentPath: ['root'],
+    const model = schema();
+    // Ребёнок шага и сам шаг лежат в `children` — хвост пути у них одинаков, а слот разный:
+    // вид слота решает родитель (шаг — контейнер, корень — визард).
+    expect(slotPositionOf(model, [...STEP_0, 'children', 1])).toEqual({
+      parentPath: STEP_0,
       slot: 'children',
-      index: 2,
+      index: 1,
     });
-    expect(slotPositionOf(['root', 'componentProps', 'steps', 1])).toEqual({
+    expect(slotPositionOf(model, STEP_1)).toEqual({
       parentPath: ['root'],
       slot: 'steps',
       index: 1,
     });
     // Шаблон элемента массива — одиночный слот: соседей у него нет, вставки он не принимает.
-    expect(slotPositionOf(['root', 'children', 0, 'item', '$template'])).toBeNull();
+    expect(slotPositionOf(model, [...STEP_1, 'children', 0, 'item', '$template'])).toBeNull();
+    // Корень не вложен никуда.
+    expect(slotPositionOf(model, ['root'])).toBeNull();
+  });
+
+  it('тот же хвост пути у контейнера-не-визарда — слот детей', () => {
+    const model = {
+      format: 2,
+      version: '1.0',
+      root: {
+        $nodeId: 'rrrrrrrr',
+        component: '$component(Box)',
+        children: [{ $nodeId: 'ffffffff', model: '$model(a)', component: '$component(Input)' }],
+      },
+    } as unknown as JsonFormSchema;
+    expect(slotPositionOf(model, ['root', 'children', 0])).toEqual({
+      parentPath: ['root'],
+      slot: 'children',
+      index: 0,
+    });
+  });
+});
+
+describe('слот шагов визарда', () => {
+  function stepNode(title: string): JsonNode {
+    return { component: '$component(Step)', componentProps: { title }, children: [] } as JsonNode;
+  }
+
+  it('вставка без названного слота кладёт в шаги — в `children` визарда', () => {
+    const model = schema();
+    const result = applyEditOp(model, insertOp(stepNode('Итог')), { newId: sequentialIds('s') });
+    const steps = getAt(result.model, ['root', 'children']) as JsonNode[];
+    expect(steps).toHaveLength(3);
+    expect(nodeIdOf(steps[2])).toBe('s0000001');
+    // Пропсы визарда не тронуты: шаги в `componentProps` больше не живут.
+    expect(getAt(result.model, ['root', 'componentProps'])).toEqual({ className: 'bg-white' });
+    expect(applyEditOp(result.model, result.inverse).model).toEqual(model);
+  });
+
+  it('первый шаг визарда без ключа `children` создаёт массив', () => {
+    const model = {
+      format: 2,
+      version: '1.0',
+      root: { $nodeId: 'wwwwwwww', component: '$component(Wizard)' },
+    } as unknown as JsonFormSchema;
+    const result = applyEditOp(
+      model,
+      insertOp(stepNode('Шаг 1'), { parent: 'wwwwwwww', slot: 'steps' }),
+      { newId: sequentialIds('s') }
+    );
+    const steps = getAt(result.model, ['root', 'children']) as JsonNode[];
+    expect(steps).toHaveLength(1);
+    expect(nodeIdOf(steps[0])).toBe('s0000001');
+    expect(getAt(result.model, ['root', 'componentProps'])).toBeUndefined();
+  });
+
+  it('удаление шага возвращается в слот шагов на прежнее место', () => {
+    const model = schema();
+    const step = idAt(model, STEP_0);
+    const removed = applyEditOp(model, removeOp(step));
+    expect(removed.inverse).toMatchObject({
+      type: 'insert',
+      target: idAt(model, ['root']),
+      params: { slot: 'steps', index: 0, keepIds: true },
+    });
+    expect(applyEditOp(removed.model, removed.inverse).model).toEqual(model);
+  });
+
+  it('перестановка шагов — перемещение внутри слота шагов, и оно обратимо', () => {
+    const model = schema();
+    const root = idAt(model, ['root']);
+    const first = idAt(model, STEP_0);
+    const moved = applyEditOp(model, moveOp(first, { parent: root, slot: 'steps', index: 2 }));
+    expect(nodeIdOf(getAt(moved.model, STEP_1) as JsonNode)).toBe(first);
+    expect(moved.inverse).toMatchObject({ type: 'move', params: { slot: 'steps', index: 0 } });
+    expect(applyEditOp(moved.model, moved.inverse).model).toEqual(model);
+  });
+
+  it('названный вид слота сверяется с родителем: у места один адрес', () => {
+    const model = schema();
+    const root = idAt(model, ['root']);
+    const step = idAt(model, STEP_0);
+    // У визарда `children` — шаги, слота детей у него нет.
+    expect(() =>
+      applyEditOp(model, insertOp(stepNode('Лишний'), { parent: root, slot: 'children' }))
+    ).toThrow(SchemaOpError);
+    // У шага — обычные дети, слота шагов нет.
+    expect(() => applyEditOp(model, insertOp(newField(), { parent: step, slot: 'steps' }))).toThrow(
+      SchemaOpError
+    );
   });
 });
 
@@ -324,6 +413,7 @@ describe('unwrap', () => {
 
   it('отказывается, когда единственный ребёнок — текст: у него нет адреса для обратной', () => {
     const model = {
+      format: 2,
       version: '1.0',
       root: {
         $nodeId: 'rrrrrrrr',
@@ -430,6 +520,7 @@ describe('batch', () => {
 describe('set-text', () => {
   function withText(children: unknown[]): JsonFormSchema {
     return {
+      format: 2,
       version: '1.0',
       root: {
         $nodeId: 'rrrrrrrr',
@@ -518,7 +609,7 @@ describe('set-binding', () => {
     const target = idAt(model, [...STEP_0, 'children', 1]);
     const result = applyEditOp(model, setBindingOp(target, 'amount'));
 
-    expect((getAt(result.model, [...STEP_0, 'children', 1]) as { value?: string }).value).toBe(
+    expect((getAt(result.model, [...STEP_0, 'children', 1]) as { model?: string }).model).toBe(
       '$model(amount)'
     );
     expect(result.inverse).toEqual({
@@ -529,19 +620,87 @@ describe('set-binding', () => {
     expect(applyEditOp(result.model, result.inverse).model).toEqual(model);
   });
 
-  it('пишет массиву в `array`, а не в `value`', () => {
+  it('пишет массиву в тот же ключ `model`, что и полю, — прежних `array` и `value` нет', () => {
     const model = schema();
     const target = idAt(model, [...STEP_1, 'children', 0]);
     const result = applyEditOp(model, setBindingOp(target, 'estates'));
     const node = getAt(result.model, [...STEP_1, 'children', 0]) as Record<string, unknown>;
-    expect(node.array).toBe('$model(estates)');
+    expect(node.model).toBe('$model(estates)');
+    expect(node.array).toBeUndefined();
     expect(node.value).toBeUndefined();
+    // Узел остался массивом: шаблон элемента на месте, и обратная возвращает прежний путь.
+    expect(node.item).toBe((getAt(model, [...STEP_1, 'children', 0]) as { item: unknown }).item);
+    expect(result.inverse).toEqual({
+      type: 'set-binding',
+      target,
+      params: { model: 'properties' },
+    });
+    expect(applyEditOp(result.model, result.inverse).model).toEqual(model);
+  });
+
+  it('подформе привязка пишется в `model`, ссылка на часть не трогается', () => {
+    const model = {
+      format: 2,
+      version: '1.0',
+      parts: { address: { component: '$component(Box)', children: [] } },
+      root: {
+        $nodeId: 'rrrrrrrr',
+        component: '$component(Box)',
+        children: [{ $nodeId: 'pppppppp', model: '$model(home)', part: '$part(address)' }],
+      },
+    } as unknown as JsonFormSchema;
+    const result = applyEditOp(model, setBindingOp('pppppppp', 'work'));
+    expect(getAt(result.model, ['root', 'children', 0])).toEqual({
+      $nodeId: 'pppppppp',
+      model: '$model(work)',
+      part: '$part(address)',
+    });
+    expect(applyEditOp(result.model, result.inverse).model).toEqual(model);
   });
 
   it('отказывает контейнеру: он к модели не привязывается', () => {
     const model = schema();
     const step = idAt(model, STEP_0);
     expect(() => applyEditOp(model, setBindingOp(step, 'anything'))).toThrow(SchemaOpError);
+  });
+});
+
+describe('replace-schema', () => {
+  it('схема прежнего формата становится моделью формата 2, а обратная возвращает прежнюю', () => {
+    const model = schema();
+    // Так схему может прислать ассистент, читавший файл до перевода: без `format`, привязка
+    // в `value`, шаги визарда в `componentProps.steps`.
+    const legacy = {
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        componentProps: {
+          steps: [
+            {
+              component: '$component(Step)',
+              componentProps: { title: 'Один' },
+              children: [{ value: '$model(name)', component: '$component(Input)' }],
+            },
+          ],
+        },
+      },
+    };
+    const result = applyEditOp(
+      model,
+      { type: 'replace-schema', params: { schema: legacy } },
+      { newId: sequentialIds('r') }
+    );
+
+    expect(result.model.format).toBe(2);
+    expect(getAt(result.model, ['root', 'componentProps'])).toBeUndefined();
+    expect(getAt(result.model, ['root', 'children', 0, 'children', 0])).toEqual({
+      $nodeId: 'r0000003',
+      model: '$model(name)',
+      component: '$component(Input)',
+    });
+    // Присланное не тронуто: перевод не правит аргумент на месте.
+    expect(legacy.root.componentProps.steps).toHaveLength(1);
+    expect(applyEditOp(result.model, result.inverse).model).toEqual(model);
   });
 });
 
@@ -684,7 +843,7 @@ describe('set-model-read', () => {
   it('отказ вне позиций чтения: привязку правит set-binding', () => {
     const model = schema();
     const field = idAt(model, [...STEP_0, 'children', 1]);
-    const op = setModelReadOp(field, ['value'], 'loanAmount', 'x');
+    const op = setModelReadOp(field, ['model'], 'loanAmount', 'x');
     expect(() => applyEditOp(model, op)).toThrow(SchemaOpError);
   });
 });

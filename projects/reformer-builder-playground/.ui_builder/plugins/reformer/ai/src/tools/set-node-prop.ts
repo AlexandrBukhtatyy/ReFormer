@@ -11,14 +11,11 @@
  * @module plugins/reformer/ai/tools/set-node-prop
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { toInspectorProps } from '../../../core/catalog';
 import { setComponentProp, setTextChild, textChildIndex } from '../../../core/form-model';
 import { catalogEntry, type Catalog } from '../model/catalog-digest';
-import { isLeafComponent, kindOf } from '../../../core/form-model';
+import { isLeafComponent, isStepsHost, kindOf } from '../../../core/form-model';
 import { type JsonPath } from '../../../core/form-model';
 import { commitBatch, type BatchEntry, type OpDescription } from '../loop/gate';
 import type { NodeExpectation } from '../model/node-ref';
@@ -185,6 +182,17 @@ function setText(
         'INVALID_PARENT',
         `${componentOf(found.node) ?? ref} is captioned by its "${caption}" property, not by ` +
           `content: set "${caption}" instead of "text" on ${ref}.`
+      ),
+    };
+  }
+  // У визарда `children` — слот шагов: текстовая часть встала бы в него наравне с шагами. Пока
+  // шаги лежали отдельно от детей, такая запись была мусорным ключом; теперь она портит сам список
+  // шагов, поэтому отказ явный.
+  if (isStepsHost(found.node)) {
+    return {
+      error: fail(
+        'INVALID_PARENT',
+        `Node ${ref} is a wizard: it holds steps only and has no content of its own.`
       ),
     };
   }

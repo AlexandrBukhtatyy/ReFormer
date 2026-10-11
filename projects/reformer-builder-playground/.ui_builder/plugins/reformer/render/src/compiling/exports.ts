@@ -14,32 +14,37 @@
  *
  * ## Типы берутся ИЗ конфигурации фабрики, а не объявляются заново
  *
- * `validation`, `behavior` и `renderBehavior` типизированы через `CreateJsonFormConfig`. Это
+ * `validation` и `behavior` типизированы через `CreateFormConfig` единой сборки. Это
  * не экономия строк: собственное объявление разошлось бы с фабрикой на первом же изменении
  * её конфигурации, и разъезд обнаружился бы не компилятором, а превью, которое «почему-то
- * не применяет поведение».
+ * не применяет поведение». У `renderBehavior` своей записи в конфигурации сборки нет: это слой
+ * прежнего контракта, и его тип объявлен рядом со сборкой превью (`LegacyRenderBehavior`).
  *
  * @module plugins/reformer/render/compiling/exports
  */
 
 import { LEGACY_FILES, MODULE_FILES } from '../../../core/codegen';
-import type { ComponentRegistry, CreateJsonFormConfig } from '@reformer/renderer-json';
+import type { CreateFormConfig } from '@reformer/core';
+import type { ComponentRegistry } from '@reformer/renderer-json';
+import type { LegacyRenderBehavior, Shape } from '../runtime/build';
 
-/** Форма данных модели превью: она приходит из исполненного кода, и сузить её нечем. */
-export type Shape = Record<string, unknown>;
+export type { Shape };
 
-type JsonFormConfig = CreateJsonFormConfig<Shape>;
+type FormConfig = CreateFormConfig<Shape>;
 
 /** Что нашлось в каталоге формы. Любое поле может отсутствовать — превью деградирует частями. */
 export interface FormContract {
   /** Начальные значения из `model.ts`. */
   readonly initial?: Shape;
-  /** Правила валидации: готовая конфигурация либо схема со стратегией из `validationOptions`. */
-  readonly validation?: JsonFormConfig['validation'];
-  /** Поведение модели (`defineFormBehavior`). */
-  readonly behavior?: JsonFormConfig['behavior'];
-  /** Фабрика поведения UI. Готовая функция заворачивается в фабрику здесь же. */
-  readonly renderBehavior?: JsonFormConfig['renderBehavior'];
+  /** Правила валидации: готовая конфигурация либо правила со стратегией из `validationOptions`. */
+  readonly validation?: FormConfig['validation'];
+  /** Поведение формы (`defineFormBehavior`). */
+  readonly behavior?: FormConfig['behavior'];
+  /**
+   * Правила узлов из `form.render.ts` модуля прежнего контракта — фабрика. Готовая функция
+   * заворачивается в фабрику здесь же.
+   */
+  readonly renderBehavior?: LegacyRenderBehavior;
   /** Реестр компонентов формы. */
   readonly createRegistry?: () => ComponentRegistry;
 }
@@ -100,7 +105,16 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
  * Без этой проверки схема правил и конфигурация были бы неразличимы: обе — объекты. Ошибиться
  * здесь дорого: конфигурация, принятая за схему, дала бы форму, которая молча не валидируется.
  */
-const VALIDATION_CONFIG_KEYS: readonly string[] = ['schema', 'steps', 'extras', 'strategy'];
+const VALIDATION_CONFIG_KEYS: readonly string[] = [
+  'rules',
+  'extras',
+  'strategy',
+  'debounce',
+  'liveAfterSubmit',
+  // Ключи прежней конфигурации: по ним она узнаётся, а переводит её {@link modernValidation}.
+  'schema',
+  'steps',
+];
 
 /** Похоже ли значение на `FormValidation`, а не на голую схему правил. */
 export function isValidationConfig(value: unknown): boolean {
@@ -117,26 +131,42 @@ export function isValidationConfig(value: unknown): boolean {
 export function composeValidation(
   formValidation: unknown,
   validationOptions: unknown
-): JsonFormConfig['validation'] {
+): FormConfig['validation'] {
   if (formValidation === undefined) return undefined;
   if (isValidationConfig(formValidation)) {
-    // Готовую конфигурацию не трогаем: её автор уже сказал всё, что хотел, и дописать
+    // Готовую конфигурацию не дополняем: её автор уже сказал всё, что хотел, и дописать
     // стратегию поверх значило бы переспорить его молча.
-    return formValidation as JsonFormConfig['validation'];
+    return modernValidation(formValidation as Record<string, unknown>);
   }
   if (isObject(validationOptions)) {
-    return { schema: formValidation, ...validationOptions } as JsonFormConfig['validation'];
+    return { rules: formValidation, ...validationOptions } as FormConfig['validation'];
   }
-  return formValidation as JsonFormConfig['validation'];
+  return formValidation as FormConfig['validation'];
+}
+
+/**
+ * Конфигурация валидации в ключах единой сборки.
+ *
+ * Прежняя конфигурация держала полный набор правил в `schema`, а правила шагов — в `steps`.
+ * Сборка читает `rules`, и конфигурация со `schema` для неё пуста: форма собралась бы и молча не
+ * проверялась. Правила шагов теперь принадлежат потоку шагов — здесь им места нет.
+ */
+function modernValidation(config: Record<string, unknown>): FormConfig['validation'] {
+  if (!('schema' in config) && !('steps' in config)) return config as FormConfig['validation'];
+  const { schema, steps: _steps, ...rest } = config;
+  return {
+    ...(schema === undefined ? {} : { rules: schema }),
+    ...rest,
+  } as FormConfig['validation'];
 }
 
 /** Разобрать исполненные модули каталога в контракт формы. */
 export function extractContract(modules: ReadonlyMap<string, unknown>): FormContract {
   const contract: {
     initial?: Shape;
-    validation?: JsonFormConfig['validation'];
-    behavior?: JsonFormConfig['behavior'];
-    renderBehavior?: JsonFormConfig['renderBehavior'];
+    validation?: FormConfig['validation'];
+    behavior?: FormConfig['behavior'];
+    renderBehavior?: LegacyRenderBehavior;
     createRegistry?: () => ComponentRegistry;
   } = {};
 
@@ -150,7 +180,7 @@ export function extractContract(modules: ReadonlyMap<string, unknown>): FormCont
   if (validation !== undefined) contract.validation = validation;
 
   const behavior = pick(modules, BEHAVIOR_FILES, 'formBehavior');
-  if (behavior !== undefined) contract.behavior = behavior as JsonFormConfig['behavior'];
+  if (behavior !== undefined) contract.behavior = behavior as FormConfig['behavior'];
 
   const ready = pick(modules, RENDER_BEHAVIOR_FILES, 'formRenderBehavior');
   // `createJsonRenderBehavior` — имя, которое печатает кодоген билдера; переименовать его нельзя,
@@ -159,11 +189,11 @@ export function extractContract(modules: ReadonlyMap<string, unknown>): FormCont
     pick(modules, RENDER_BEHAVIOR_FILES, 'createRenderBehavior') ??
     pick(modules, RENDER_BEHAVIOR_FILES, 'createJsonRenderBehavior');
   if (isFn(factory)) {
-    contract.renderBehavior = factory as JsonFormConfig['renderBehavior'];
+    contract.renderBehavior = factory as LegacyRenderBehavior;
   } else if (isFn(ready)) {
     // Готовая функция — это фабрика, которой нечего спрашивать. Заворачиваем здесь, чтобы
     // у сборки был один вид входа, а не два.
-    const behaviorFn = ready as ReturnType<NonNullable<JsonFormConfig['renderBehavior']>>;
+    const behaviorFn = ready as ReturnType<LegacyRenderBehavior>;
     contract.renderBehavior = () => behaviorFn;
   }
 

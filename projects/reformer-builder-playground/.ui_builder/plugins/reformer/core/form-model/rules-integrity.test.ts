@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { checkRules, dropOrphanRules, ruleWarnings } from './rules-integrity';
 import { emptyRules, type FormRules } from './rules';
 
 const schema = (): JsonFormSchema =>
   ({
+    format: 2,
     version: '1.0',
     root: {
       component: '$html(div)',
@@ -15,14 +16,14 @@ const schema = (): JsonFormSchema =>
           componentProps: { title: 'Доставка' },
           children: [],
         },
-        { value: '$model(amount)', component: '$component(Input)' },
+        { model: '$model(amount)', component: '$component(Input)' },
         {
-          array: '$model(items)',
+          model: '$model(items)',
           initialValue: { price: 0 },
           item: {
             $template: {
               component: '$html(div)',
-              children: [{ value: '$model(price)', component: '$component(Input)' }],
+              children: [{ model: '$model(price)', component: '$component(Input)' }],
             },
           },
         },

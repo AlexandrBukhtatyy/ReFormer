@@ -2,9 +2,12 @@
  * Развёртка модели в строки канваса: то, что канвас рисует, и всё, что он про дерево знает.
  *
  * Компонент канваса получает готовый список строк и не обходит модель сам. Ради этого модуль
- * и существует: обход неоднородной вложенности (`children`, `componentProps.steps`,
- * `item.$template`, `wrapper`) — предметное правило, у него есть углы, и проверять их
+ * и существует: обход неоднородной вложенности (`children` — дети контейнера либо шаги
+ * визарда, `item.$template`, `wrapper`) — предметное правило, у него есть углы, и проверять их
  * надо в окружении `node`, а не сквозь отрисовку.
+ *
+ * Подформа (`{ model, part }`) и массив с `item: "$part(...)"` — строки без детей: их разметка
+ * лежит в `parts` документа, а не в узле, и в дереве они стоят привязанным листом.
  *
  * ## Свёрнутое поддерево не обходится
  *
@@ -22,10 +25,7 @@
  * @module plugins/reformer/editor/canvas/canvas-tree
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import { parseOperator, type JsonFormSchema, type JsonNode } from '@reformer/renderer-json';
 import { htmlTag } from '../../../core/catalog';
 import { nodeIdOf } from '../../../core/form-model';
 import { childSlots, kindOf, type ChildSlotKind, type NodeKind } from '../../../core/form-model';
@@ -68,11 +68,20 @@ export interface FlattenOptions {
  * Порядок источников — от самого говорящего к самому служебному: подпись поля, затем имя,
  * которым узел адресуют правила, затем компонент. `$html(div)` показывается тегом: обёртка
  * оператора в списке из сорока строк — шум, а не информация.
+ *
+ * У подформы (`{ model, part: "$part(имя)" }`) нет ни компонента, ни подписи — её называет
+ * имя части: иначе все подформы документа стояли бы в дереве одинаковым словом «узел».
  */
 export function nodeTitle(node: JsonNode): string {
   const component = componentOf(node);
   const display = component === undefined ? null : (htmlTag(component) ?? component);
-  return labelOf(node) ?? selectorOf(node) ?? display ?? 'узел';
+  return labelOf(node) ?? selectorOf(node) ?? display ?? partNameOf(node) ?? 'узел';
+}
+
+/** Имя именованной части у узла-подформы; у остальных узлов — `undefined`. */
+function partNameOf(node: JsonNode): string | undefined {
+  const parsed = parseOperator((node as { part?: unknown }).part);
+  return parsed?.op === 'part' ? parsed.arg : undefined;
 }
 
 /**

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
 import { canvasOrder, findRow, flattenCanvas, nodeTitle } from './canvas-tree';
@@ -19,21 +19,19 @@ function sequentialIds(): NodeIdFactory {
 const SCHEMA = ensureNodeIds(sampleSchema(), sequentialIds());
 
 describe('flattenCanvas', () => {
-  it('обходит шаги мастера и шаблон элемента массива, а не только `children`', () => {
+  it('обходит шаги мастера (его `children`) и шаблон элемента массива', () => {
     const rows = flattenCanvas(SCHEMA);
     const paths = rows.map((row) => row.path.join('/'));
-    expect(paths).toContain('root/componentProps/steps/0');
-    expect(paths).toContain('root/componentProps/steps/1/children/0');
-    expect(paths).toContain('root/componentProps/steps/1/children/0/item/$template');
+    expect(paths).toContain('root/children/0');
+    expect(paths).toContain('root/children/1/children/0');
+    expect(paths).toContain('root/children/1/children/0/item/$template');
   });
 
   it('считает глубину от корня', () => {
     const rows = flattenCanvas(SCHEMA);
     expect(rows[0].depth).toBe(0);
-    expect(rows.find((row) => row.path.join('/') === 'root/componentProps/steps/0')?.depth).toBe(1);
-    expect(
-      rows.find((row) => row.path.join('/') === 'root/componentProps/steps/0/children/0')?.depth
-    ).toBe(2);
+    expect(rows.find((row) => row.path.join('/') === 'root/children/0')?.depth).toBe(1);
+    expect(rows.find((row) => row.path.join('/') === 'root/children/0/children/0')?.depth).toBe(2);
   });
 
   it('называет слот, в котором лежит узел', () => {
@@ -74,6 +72,7 @@ describe('flattenCanvas', () => {
 
   it('узел без адреса не попадает в развёртку вместе с поддеревом', () => {
     const rows = flattenCanvas({
+      format: 2,
       version: '1.0',
       root: { component: '$component(Box)', children: [] },
     });
@@ -83,7 +82,7 @@ describe('flattenCanvas', () => {
 
 describe('nodeTitle', () => {
   it('предпочитает подпись поля', () => {
-    expect(nodeTitle({ value: '$model(a)', componentProps: { label: 'Сумма' } } as JsonNode)).toBe(
+    expect(nodeTitle({ model: '$model(a)', componentProps: { label: 'Сумма' } } as JsonNode)).toBe(
       'Сумма'
     );
   });
@@ -98,5 +97,63 @@ describe('nodeTitle', () => {
 
   it('узел без всего этого остаётся названным', () => {
     expect(nodeTitle({ children: [] } as unknown as JsonNode)).toBe('узел');
+  });
+
+  it('подформу называет именем её части', () => {
+    expect(nodeTitle({ model: '$model(home)', part: '$part(address)' } as JsonNode)).toBe(
+      'address'
+    );
+  });
+});
+
+describe('подформа и массив с именованной частью', () => {
+  /**
+   * Документ с `parts`: подформа (`{ model, part }`) и массив, чей шаблон строки — часть
+   * (`item: "$part(...)"`). Править части редактор пока не умеет, но открывать обязан.
+   */
+  const WITH_PARTS = ensureNodeIds(
+    {
+      format: 2,
+      version: '1.0',
+      parts: {
+        address: {
+          component: '$component(Box)',
+          children: [{ model: '$model(city)', component: '$component(Input)' }],
+        },
+      },
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(home)', part: '$part(address)' },
+          { model: '$model(offices)', item: '$part(address)' },
+          { model: '$model(name)', component: '$component(Input)' },
+        ],
+      },
+    } as JsonFormSchema,
+    sequentialIds()
+  );
+
+  it('стоят в дереве привязанными листьями без детей', () => {
+    const rows = flattenCanvas(WITH_PARTS);
+    expect(rows.map((row) => [row.kind, row.binding, row.depth])).toEqual([
+      ['container', null, 0],
+      ['part', 'home', 1],
+      ['array', 'offices', 1],
+      ['field', 'name', 1],
+    ]);
+
+    const [, part, array] = rows;
+    expect(part.title).toBe('address');
+    expect(part.component).toBeNull();
+    expect(part.expandable).toBe(false);
+    // Шаблон строки лежит в `parts`, а не в узле: разворачивать у массива нечего.
+    expect(array.component).toBe('FieldArray');
+    expect(array.expandable).toBe(false);
+  });
+
+  it('разметка частей в дерево не попадает: она не под корнем', () => {
+    const rows = flattenCanvas(WITH_PARTS);
+    expect(rows.some((row) => row.binding === 'city')).toBe(false);
+    expect(indexNodes(WITH_PARTS).entries()).toHaveLength(rows.length);
   });
 });

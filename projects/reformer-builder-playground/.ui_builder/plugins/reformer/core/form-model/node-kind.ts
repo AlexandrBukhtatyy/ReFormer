@@ -3,10 +3,11 @@
  * `JsonFormSchema`:
  *
  * - контейнер держит детей в `children[]`;
- * - wizard-подобный контейнер — в `componentProps.steps[]` (каждый шаг сам является узлом);
- *   слот шагов существует и когда шагов ещё нет — по имени компонента ({@link STEPS_HOST_NAMES});
- * - массив — единственного ребёнка в `item.$template`;
- * - поле — опциональную обёртку в `wrapper`.
+ * - визард держит шаги там же, в `children[]`, но это слот ШАГОВ: в нём лежат только узлы-шаги,
+ *   и существует он по имени компонента ({@link STEPS_HOST_NAMES}), даже когда шагов ещё нет;
+ * - массив — единственного ребёнка в `item.$template` (у `item: "$part(...)"` детей в узле нет);
+ * - поле — опциональную обёртку в `wrapper`;
+ * - подформа (`{ model, part }`) детей не держит: её разметка лежит в `parts` документа.
  *
  * Canvas, drag-drop и обходчики дерева ходят через {@link childSlots}, поэтому нигде больше
  * не хардкодится `children` и правила размещения ReFormer сосредоточены здесь.
@@ -21,20 +22,20 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
+  isPartNode,
   parseOperator,
-  type JsonArrayNodeV1 as JsonArrayNode,
-  type JsonContainerNodeV1 as JsonContainerNode,
-  type JsonNodeV1 as JsonNode,
+  type JsonContainerNode,
+  type JsonNode,
 } from '@reformer/renderer-json';
 import type { JsonPath } from './paths';
 import { LEAF_COMPONENT_NAMES } from '../kits/defaults';
 import { baseUtility, gridColumnsOf, isAxisToken, variantsOf } from './tw-tokens';
 
-/** Вид узла: лист / массив / контейнер. */
-export type NodeKind = 'field' | 'array' | 'container';
+/** Вид узла: поле / массив / подформа / контейнер. */
+export type NodeKind = 'field' | 'array' | 'part' | 'container';
 
 /** Имя дочернего слота. */
 export type ChildSlotKind = 'children' | 'steps' | 'template' | 'wrapper';
@@ -42,7 +43,7 @@ export type ChildSlotKind = 'children' | 'steps' | 'template' | 'wrapper';
 /**
  * Узел слота вместе с его позицией в ИСХОДНОМ массиве. Индекс хранится явно, потому что слот
  * отдаёт только узлы, а в массиве рядом с ними лежат не-узлы: текстовые части `children`
- * (`JsonChild`) и произвольные значения в `componentProps.steps`. Считать позицию по индексу
+ * (`JsonChild`) и ссылки на файлы шагов (`{ "$ref" }`). Считать позицию по индексу
  * отфильтрованного списка нельзя — путь указал бы на соседа.
  */
 export interface ChildEntry {
@@ -55,7 +56,11 @@ export interface ChildEntry {
 export interface ChildSlot {
   /** Тип слота. */
   kind: ChildSlotKind;
-  /** Абсолютный путь (от корня документа) к массиву-слоту (`children`/`steps`) либо к держателю одиночного узла (`template`/`wrapper`). */
+  /**
+   * Абсолютный путь (от корня документа) к массиву-слоту либо к держателю одиночного узла
+   * (`template`/`wrapper`). У слотов `children` и `steps` путь кончается одинаково — `children`:
+   * вид слота говорит, ЧТО в нём лежит, а не где.
+   */
   path: JsonPath;
   /** `true` для одиночных слотов (`template`/`wrapper`), где не массив, а один узел. */
   single: boolean;
@@ -66,20 +71,32 @@ export interface ChildSlot {
 }
 
 /**
- * Вид узла. Порядок проверок важен: массив несёт `$model`, поэтому проверяется ПЕРВЫМ
- * (как и требуют guard-ы `@reformer/renderer-json`).
+ * Вид узла. Порядок проверок важен: массив и подформа несут `model`, как и поле, поэтому
+ * проверяются ПЕРВЫМИ (как и требуют guard-ы `@reformer/renderer-json`).
  */
 export function kindOf(node: JsonNode): NodeKind {
   if (isArrayNode(node)) return 'array';
+  if (isPartNode(node)) return 'part';
   if (isFieldNode(node)) return 'field';
   return 'container';
 }
 
-/** Похоже ли значение на узел схемы (лист/массив/контейнер) — без строгой валидации операторов. */
+/** Похоже ли значение на узел схемы (поле/массив/подформа/контейнер) — без строгой валидации операторов. */
 export function isNodeLike(v: unknown): v is JsonNode {
   if (v == null || typeof v !== 'object' || Array.isArray(v)) return false;
   const o = v as Record<string, unknown>;
-  return 'value' in o || 'array' in o || 'component' in o;
+  return 'model' in o || 'component' in o;
+}
+
+/**
+ * То же для СЫРОГО значения, ещё не приведённого к формату 2: узел прежнего формата несёт привязку
+ * в `value` или `array`. Нужен ровно на входе — распознать файл формы и перевести его
+ * (`normalize`); после перевода по дереву ходит {@link isNodeLike}.
+ */
+export function isRawNodeLike(v: unknown): boolean {
+  if (v == null || typeof v !== 'object' || Array.isArray(v)) return false;
+  const o = v as Record<string, unknown>;
+  return 'model' in o || 'component' in o || 'value' in o || 'array' in o;
 }
 
 /** HTML void-элементы (по спецификации содержимого не имеют). */
@@ -101,15 +118,11 @@ const VOID_HTML_TAGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Компоненты, у которых `componentProps.steps` — это слот шагов, а не обычный проп.
+ * Компоненты, у которых `children` — это слот шагов, а не обычные дети.
  *
- * Список нужен ровно потому, что слот определяется ЗНАЧЕНИЕМ: пустой `steps: []` или ещё не
- * созданный ключ неотличимы от «пропа steps, который сюда не относится». Без имени визард,
- * оставшийся без шагов, терял слот навсегда — следующая вставка уходила в `children`, которых
- * рантайм не рендерит, и починить его через UI или агента было уже нечем.
- *
- * По имени, а не по наличию массива: в ките есть записи со `steps` из плоских объектов
- * (`StepIndicator`), и слот шагов у них означал бы drop-зону, кладущую узлы в чужие данные.
+ * По имени, а не по содержимому: шаги лежат в том же `children`, что и дети любого контейнера, и
+ * отличить визард без шагов от пустого контейнера больше нечем. Тот же список получает
+ * `migrateJsonSchema` — он переносит `componentProps.steps` в `children` только у этих имён.
  */
 export const STEPS_HOST_NAMES: ReadonlySet<string> = new Set([
   'Wizard',
@@ -129,8 +142,14 @@ export function isStepsHostName(name: string): boolean {
   return STEPS_HOST_NAMES.has(name);
 }
 
-/** Компонент узла — держатель шагов (см. {@link STEPS_HOST_NAMES}). */
-function isStepsHost(node: JsonNode): boolean {
+/**
+ * Компонент узла — держатель шагов (см. {@link STEPS_HOST_NAMES}).
+ *
+ * Принимает любое значение: обходчики (`composite`) спрашивают об узлах, которые ещё не сужены
+ * до `JsonNode`.
+ */
+export function isStepsHost(node: unknown): boolean {
+  if (node == null || typeof node !== 'object' || Array.isArray(node)) return false;
   const op = parseOperator((node as { component?: unknown }).component);
   return op?.op === 'component' && STEPS_HOST_NAMES.has(op.arg);
 }
@@ -162,9 +181,9 @@ export function isLeafComponent(node: JsonNode, leafComponents?: ReadonlySet<str
 }
 
 /**
- * Дочерние слоты узла в порядке отображения. Для контейнера возвращает и `children`,
- * и `steps` (если оба присутствуют); для массива — `template`; для поля — `wrapper` (если есть).
- * Лист без обёртки и контейнер без детей дают пустой список.
+ * Дочерние слоты узла в порядке отображения. Для контейнера возвращает `children`, для визарда —
+ * `steps` (тот же массив `children`, но слот шагов); для массива — `template`; для поля —
+ * `wrapper` (если есть). Лист без обёртки, подформа и контейнер без детей дают пустой список.
  *
  * @param node - Узел.
  * @param nodePath - Абсолютный путь узла (нужен, чтобы построить пути слотов).
@@ -181,16 +200,21 @@ export function childSlots(
   if (isLeafComponent(node, leafComponents)) return slots;
 
   if (isArrayNode(node)) {
-    const arr = node as JsonArrayNode;
-    slots.push({
-      kind: 'template',
-      path: [...nodePath, 'item', '$template'],
-      single: true,
-      entries: [{ node: arr.item.$template, index: 0 }],
-      length: 1,
-    });
+    // `item: "$part(...)"` — шаблон элемента лежит в `parts` документа, а не в узле.
+    const template = typeof node.item === 'object' ? node.item.$template : undefined;
+    if (isNodeLike(template)) {
+      slots.push({
+        kind: 'template',
+        path: [...nodePath, 'item', '$template'],
+        single: true,
+        entries: [{ node: template, index: 0 }],
+        length: 1,
+      });
+    }
     return slots;
   }
+
+  if (isPartNode(node)) return slots;
 
   if (isFieldNode(node)) {
     if (node.wrapper) {
@@ -207,19 +231,17 @@ export function childSlots(
 
   if (isContainerNode(node)) {
     const c = node as JsonContainerNode;
-    const steps = c.componentProps?.steps;
-    // Слот шагов есть, если шаги уже лежат ЛИБО узел по имени — визард (тогда слот пустой, но
-    // существует: иначе визард без шагов становится необратимо сломанным, см. STEPS_HOST_NAMES).
-    const hasStepNodes = Array.isArray(steps) && steps.some(isNodeLike);
-    if (hasStepNodes || isStepsHost(node)) {
-      const items = Array.isArray(steps) ? steps : [];
+    if (isStepsHost(node)) {
+      // Слот шагов существует и без `children`: визард без шагов иначе нечем было бы наполнить.
+      const items: readonly unknown[] = Array.isArray(c.children) ? c.children : [];
       slots.push({
         kind: 'steps',
-        path: [...nodePath, 'componentProps', 'steps'],
+        path: [...nodePath, 'children'],
         single: false,
         entries: nodeEntries(items),
         length: items.length,
       });
+      return slots;
     }
     if (Array.isArray(c.children)) {
       slots.push({
@@ -252,7 +274,8 @@ function nodeEntries(items: readonly unknown[]): ChildEntry[] {
  */
 export function canAcceptChildren(node: JsonNode, leafComponents?: ReadonlySet<string>): boolean {
   if (isLeafComponent(node, leafComponents)) return false;
-  if (isArrayNode(node)) return true;
+  // Массив принимает детей в шаблон элемента; у `item: "$part(...)"` шаблона в узле нет.
+  if (isArrayNode(node)) return typeof node.item === 'object';
   if (isContainerNode(node)) return true;
   return false;
 }

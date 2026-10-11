@@ -33,6 +33,18 @@
  * Сообщить о ней — дело валидатора: он получает исходный ТЕКСТ (`ValidateContext.text()`),
  * то есть единственное место, где двойник ещё видно; модель после разбора уже исправна.
  *
+ * ## Прежний формат переводится на входе
+ *
+ * Файл на диске может быть прежнего формата: привязка в `value` / `array`, шаги визарда в
+ * `componentProps.steps`, поля `format` нет. Разбор переводит его в формат 2 (`ensureSchema`
+ * домена) — ключ привязки `model`, шаги в `children` визарда, `format: 2` в шапке, — и дальше
+ * ни канвас, ни операции, ни печать прежних ключей не знают. Проба {@link looksLikeFormSchema}
+ * узнаёт оба формата: вопрос «схема ли это» задаётся файлу до перевода.
+ *
+ * Цена та же, что у выдачи идентификаторов: **перевод молчалив до первой правки**. Буфер
+ * открытого файла остаётся каким был, а первая же операция печатает модель — уже формата 2.
+ * Открыть, поправить и сохранить документ значит перевести его; открыть и закрыть — не тронуть.
+ *
  * ## Печать детерминированна и хранит идентификаторы
  *
  * Два пробела отступа, порядок ключей — тот, что в модели (домен его не переставляет).
@@ -43,7 +55,7 @@
  * @module plugins/reformer/editor/model/provider
  */
 
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { ensureNodeIds, newNodeId, type NodeIdFactory } from '../../../core/form-model';
 import {
   ensureSchema,
@@ -66,7 +78,10 @@ export { SCHEMA_MODEL_PROVIDER_ID };
 /** Отступ печати. Два пробела — то, чем набраны схемы в репозитории. */
 const INDENT = 2;
 
-/** Разбирает текст в схему формы с выданными идентификаторами. @throws если текст не схема. */
+/**
+ * Разбирает текст в схему формы формата 2 с выданными идентификаторами; документ прежнего
+ * формата переводится здесь же. @throws если текст не схема.
+ */
 export function parseFormSchema(text: string, newId: NodeIdFactory = newNodeId): JsonFormSchema {
   const parsed: unknown = JSON.parse(text);
   return ensureNodeIds(ensureSchema(parsed), newId);
@@ -83,6 +98,9 @@ export function printFormSchema(model: JsonFormSchema): string {
  * Дешёвая проверка на `JSON.parse` + структурный дискриминатор домена. Ошибка разбора здесь
  * не диагностика, а ответ «не моё»: сообщать о синтаксисе будет валидатор того, кто за файл
  * взялся.
+ *
+ * Отвечает «да» документу ЛЮБОГО формата и значения наружу не отдаёт: работать со схемой
+ * можно только после {@link parseFormSchema}, который её переводит.
  */
 export function looksLikeFormSchema(text: string): boolean {
   try {

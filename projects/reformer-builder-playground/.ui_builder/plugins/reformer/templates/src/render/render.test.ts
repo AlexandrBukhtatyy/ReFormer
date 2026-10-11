@@ -68,6 +68,43 @@ describe('вид шаблона формы', () => {
     });
     expect(view.form?.wizard?.symbol).toBe('FormWizard');
   });
+
+  it('схема прежнего формата рассказывает о форме то же: и визард, и поля', () => {
+    // Шаблон проекта мог быть снят до формата 2: привязка в `value`, шаги в
+    // `componentProps.steps`. Вид собирается по переведённой схеме — непереведённая отдала бы
+    // форму без визарда и без единого поля, и шаблон молча напечатал бы пустой модуль.
+    const legacy = {
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          {
+            component: '$component(Wizard)',
+            componentProps: {
+              steps: [
+                {
+                  component: '$component(Step)',
+                  componentProps: { title: 'Шаг 1' },
+                  children: [
+                    {
+                      value: '$model(email)',
+                      component: '$component(Input)',
+                      componentProps: { label: 'Почта', required: true },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    const view = buildTemplateView(template([schemaFile(legacy)]), 'Анкета', { kit: kit() });
+
+    expect(view.form?.wizard?.symbol).toBe('FormWizard');
+    expect(view.form?.required).toEqual(['email']);
+  });
 });
 
 describe('подстановка выбирается шаблоном, а не вызывающим', () => {

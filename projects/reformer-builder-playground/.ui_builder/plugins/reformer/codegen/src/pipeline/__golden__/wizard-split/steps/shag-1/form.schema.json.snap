@@ -7,7 +7,7 @@
     },
     "children": [
       {
-        "value": "$model(email)",
+        "model": "$model(email)",
         "component": "$component(Input)",
         "componentProps": {
           "label": "Почта"

@@ -16,14 +16,14 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
   parseOperator,
-  type JsonContainerNodeV1 as JsonContainerNode,
-  type JsonFieldNodeV1 as JsonFieldNode,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  type JsonContainerNode,
+  type JsonFieldNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from '../form-model/node-kind';
 import { collectOperatorNames, walkNodes } from '../form-model/query';
@@ -128,26 +128,20 @@ export function collectFieldDefaults(schema: JsonFormSchema): readonly FieldDefa
   const out: FieldDefault[] = [];
   const visit = (node: JsonNode): void => {
     if (isArrayNode(node)) {
-      const parsed = parseOperator(node.array);
+      const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') out.push({ path: parsed.arg, value: [] });
       return;
     }
     if (isFieldNode(node)) {
-      const parsed = parseOperator(node.value);
+      const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') out.push({ path: parsed.arg, value: defaultForField(node) });
       return;
     }
     if (isContainerNode(node)) {
-      const container = node as JsonContainerNode;
-      container.children?.forEach((child) => {
-        if (isNodeLike(child)) visit(child as JsonNode);
+      // Шаги визарда — те же `children`.
+      (node as JsonContainerNode).children?.forEach((child) => {
+        if (isNodeLike(child)) visit(child);
       });
-      const steps = container.componentProps?.steps;
-      if (Array.isArray(steps)) {
-        steps.forEach((step) => {
-          if (isNodeLike(step)) visit(step as JsonNode);
-        });
-      }
     }
   };
   if (isNodeLike(schema.root)) visit(schema.root);

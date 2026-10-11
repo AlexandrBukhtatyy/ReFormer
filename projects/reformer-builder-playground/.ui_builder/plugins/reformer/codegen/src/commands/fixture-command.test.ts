@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { createFixture } from './fixture-command';
@@ -15,11 +15,24 @@ const DOCUMENT = 'src/forms/credit/schema.json' as unknown as ResourceId;
 const FIXTURE_PATH = 'src/forms/credit/fixture.ts';
 
 const SCHEMA = {
+  format: 2,
+  root: {
+    component: '$component(Form)',
+    children: [{ model: '$model(amount)', component: '$component(Input)' }],
+  },
+} as unknown as JsonFormSchema;
+
+/**
+ * Та же форма в ПРЕЖНЕМ формате: без `format`, привязка поля — в `value`.
+ *
+ * Литерал прежнего формата здесь намеренно: это вход проверки перевода, а не недосмотр переноса.
+ */
+const LEGACY_SCHEMA = {
   root: {
     component: '$component(Form)',
     children: [{ value: '$model(amount)', component: '$component(Input)' }],
   },
-} as unknown as JsonFormSchema;
+};
 
 interface Harness {
   readonly host: CodegenHost;
@@ -117,6 +130,27 @@ describe('создание фикстуры', () => {
     const { host } = harness({ model: undefined });
 
     expect((await createFixture(host, DOCUMENT)).kind).toBe('no-schema');
+  });
+
+  it('модель, в которой `root` — не узел, схемой не считается', async () => {
+    const { host, written } = harness({ model: { root: 'не узел' } });
+
+    expect((await createFixture(host, DOCUMENT)).kind).toBe('no-schema');
+    expect(written.size).toBe(0);
+  });
+
+  it('по модели прежнего формата печатает ту же фикстуру, что и по формату 2', async () => {
+    // Посылка: разметка прежнего формата — не та, с которой работает генерация.
+    expect(LEGACY_SCHEMA.root).not.toEqual(SCHEMA.root);
+    const modern = harness();
+    const legacy = harness({ model: LEGACY_SCHEMA });
+
+    await createFixture(modern.host, DOCUMENT);
+    await createFixture(legacy.host, DOCUMENT);
+
+    expect(legacy.written.get(FIXTURE_PATH)).toBe(modern.written.get(FIXTURE_PATH));
+    // Не пустой скелет: поле найдено — без перевода `value` в `model` его бы не было.
+    expect(legacy.written.get(FIXTURE_PATH)).toContain('amount');
   });
 
   it('без порта адресации команда отказывается, а не пишет рядом со схемой', async () => {

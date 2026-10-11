@@ -3,7 +3,7 @@ import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
 import { plainSchema } from './__fixtures__/kit';
 import { collect } from './collect';
 import { synthMock } from '../form-mock';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 
 function collectOf(schema = plainSchema()) {
   return collect(schema, synthMock(schema));
@@ -23,7 +23,7 @@ describe('collect', () => {
   it('вложенные пути становятся вложенными объектами', () => {
     const schema = plainSchema();
     (schema.root as { children: unknown[] }).children.push({
-      value: '$model(contacts.phone)',
+      model: '$model(contacts.phone)',
       component: '$component(Input)',
       componentProps: { label: 'Телефон' },
     });
@@ -62,11 +62,12 @@ describe('collect', () => {
 
 describe('обязательные поля по шагам визарда', () => {
   const field = (path: string, required: boolean) => ({
-    value: `$model(${path})`,
+    model: `$model(${path})`,
     component: '$component(Input)',
     componentProps: { label: path, ...(required ? { required: true } : {}) },
   });
   const schema = {
+    format: 2,
     version: '1.0',
     root: {
       component: '$component(Box)',
@@ -74,25 +75,23 @@ describe('обязательные поля по шагам визарда', () 
         field('agree', true),
         {
           component: '$component(Wizard)',
-          componentProps: {
-            steps: [
-              {
-                selector: 'one-section',
-                component: '$component(Step)',
-                children: [
-                  {
-                    component: '$html(div)',
-                    children: [field('lastName', true), field('nick', false)],
-                  },
-                ],
-              },
-              {
-                selector: 'two-section',
-                component: '$component(Step)',
-                children: [field('email', true)],
-              },
-            ],
-          },
+          children: [
+            {
+              selector: 'one-section',
+              component: '$component(Step)',
+              children: [
+                {
+                  component: '$html(div)',
+                  children: [field('lastName', true), field('nick', false)],
+                },
+              ],
+            },
+            {
+              selector: 'two-section',
+              component: '$component(Step)',
+              children: [field('email', true)],
+            },
+          ],
         },
       ],
     },
@@ -109,7 +108,11 @@ describe('обязательные поля по шагам визарда', () 
   });
 
   it('без визарда шагов нет', () => {
-    const plain = { version: '1.0', root: field('x', true) } as unknown as JsonFormSchema;
+    const plain = {
+      format: 2,
+      version: '1.0',
+      root: field('x', true),
+    } as unknown as JsonFormSchema;
     expect(collect(plain, synthMock(plain)).steps).toEqual([]);
   });
 });

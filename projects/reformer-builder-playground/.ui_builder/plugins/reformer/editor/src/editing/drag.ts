@@ -31,15 +31,20 @@
  * @module plugins/reformer/editor/editing/drag
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { isDegenerateWrapper } from '../../../core/form-model';
-import { canAcceptChildren, childSlots, isNodeLike } from '../../../core/form-model';
+import { canAcceptChildren, isNodeLike } from '../../../core/form-model';
 import { getAt, type JsonPath } from '../../../core/form-model';
 import { indexNodes, type NodeIndex } from '../model/node-index';
-import { batchOp, insertOp, moveOp, slotPositionOf, unwrapOp, type ArraySlot } from '../model/ops';
+import {
+  arraySlotOf,
+  batchOp,
+  insertOp,
+  moveOp,
+  slotPositionOf,
+  unwrapOp,
+  type ArraySlot,
+} from '../model/ops';
 import type { EditOp, NodeId } from '../host';
 
 /**
@@ -134,8 +139,8 @@ export function planDrop(
   const parentPath: JsonPath = parentEntry?.path ?? ['root'];
   if (isSelfOrInside(source.path, parentPath)) return null;
 
-  const at = destination.index ?? slotLengthOf(schema, parentPath, destination.slot);
-  if (isNoop(source.path, parentPath, destination.slot, at)) return null;
+  const at = destination.index ?? slotLengthOf(schema, parentPath);
+  if (isNoop(schema, source.path, parentPath, destination.slot, at)) return null;
 
   const parent = destination.parent ?? index.idAt(['root']);
   if (parent === undefined) return null;
@@ -162,10 +167,12 @@ function destinationOf(
   if (position === 'inside') {
     if (!canAcceptChildren(node)) return null;
     const id = index.idAt(path);
-    return id === undefined ? null : { parent: id, slot: slotKindOf(node, path) };
+    // Слот решает сам узел: у визарда внутрь кладут шаги. То же правило, что у щелчка
+    // по палитре (`placement`) и у самой операции.
+    return id === undefined ? null : { parent: id, slot: arraySlotOf(node) };
   }
 
-  const place = slotPositionOf(path);
+  const place = slotPositionOf(schema, path);
   // Корень и одиночные слоты соседей не имеют: «перед» и «после» там не про что.
   if (place === null) return null;
   const parent = index.idAt(place.parentPath);
@@ -179,29 +186,28 @@ function destinationOf(
   };
 }
 
-/** Слот контейнера, принимающий вставку. То же правило, что у щелчка ({@link './placement'}). */
-function slotKindOf(node: JsonNode, path: JsonPath): ArraySlot {
-  return childSlots(node, path).some((slot) => slot.kind === 'steps') ? 'steps' : 'children';
-}
-
 /**
- * Сколько сейчас в слоте — «в конец» без этого не выразить числом.
+ * Сколько сейчас в массив-слоте родителя — «в конец» без этого не выразить числом.
  *
- * Берётся `length` слота, а не число его узлов: рядом с узлами в `children` лежат текстовые
- * части, и позиция, посчитанная по отфильтрованному списку, воткнула бы узел в середину.
+ * И дети, и шаги лежат в `children`, поэтому вид слота здесь не нужен. Берётся длина самого
+ * массива, а не число его узлов: рядом с узлами лежат текстовые части и ссылки на файлы
+ * шагов, и позиция, посчитанная по отфильтрованному списку, воткнула бы узел в середину.
+ * Ключа может не быть вовсе (визард без шагов, контейнер без детей) — тогда слот пуст.
  */
-function slotLengthOf(schema: JsonFormSchema, parentPath: JsonPath, slot: ArraySlot): number {
-  const parentNode = getAt(schema, parentPath);
-  if (!isNodeLike(parentNode)) return 0;
-  const found = childSlots(parentNode, parentPath).find((s) => s.kind === slot);
-  if (found !== undefined) return found.length;
+function slotLengthOf(schema: JsonFormSchema, parentPath: JsonPath): number {
   const arr = getAt(schema, [...parentPath, 'children']);
   return Array.isArray(arr) ? arr.length : 0;
 }
 
 /** Совпадает ли назначение с тем местом, где узел и так лежит. */
-function isNoop(sourcePath: JsonPath, parentPath: JsonPath, slot: ArraySlot, at: number): boolean {
-  const from = slotPositionOf(sourcePath);
+function isNoop(
+  schema: JsonFormSchema,
+  sourcePath: JsonPath,
+  parentPath: JsonPath,
+  slot: ArraySlot,
+  at: number
+): boolean {
+  const from = slotPositionOf(schema, sourcePath);
   if (from === null) return false;
   if (!pathsEqual(from.parentPath, parentPath) || from.slot !== slot) return false;
   // «Перед собой» и «после себя» — одно и то же место: после выреза индекс схлопывается.
@@ -230,7 +236,8 @@ export function wrapperLeftBehind(
   sourcePath: JsonPath,
   parentPath: JsonPath
 ): NodeId | null {
-  const from = slotPositionOf(sourcePath);
+  const from = slotPositionOf(schema, sourcePath);
+  // Визард обёрткой не бывает: его `children` — слот шагов, и сворачивать его нечем.
   if (from === null || from.slot !== 'children') return null;
   if (pathsEqual(from.parentPath, parentPath)) return null;
   // Обёртка не должна оказаться предком назначения: свернуть её значило бы сдвинуть адрес,

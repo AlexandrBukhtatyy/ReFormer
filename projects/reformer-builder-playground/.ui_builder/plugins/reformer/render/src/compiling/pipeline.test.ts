@@ -67,7 +67,7 @@ describe('путь компилирующей поверхности', () => {
 
     const contract = extractContract(compiled.modules);
     expect(appliedArtifacts(contract)).toEqual(['model', 'validation']);
-    expect(contract.validation).toEqual({ schema: { loanType: [] }, strategy: 'change' });
+    expect(contract.validation).toEqual({ rules: { loanType: [] }, strategy: 'change' });
 
     const bundle = buildRuntimeBundle({
       schema: sampleSchema(),

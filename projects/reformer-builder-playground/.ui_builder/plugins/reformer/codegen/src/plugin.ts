@@ -44,6 +44,7 @@ import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from '
 import { ejectTemplate, type EjectOutcome } from './commands/eject';
 import { createFixture, type FixtureOutcome } from './commands/fixture-command';
 import type { CodegenInput } from '../../core/codegen';
+import { ensureSchema } from '../../core/form-model';
 import { generateModule, type CodegenProblem } from './pipeline/generate';
 import type { CodegenHost } from './host';
 import { codegenWorkspace, ModulePrinterCapability, type CodegenGaps } from './workspace';
@@ -393,11 +394,13 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
           print: async (schema, formName, seed) => {
             const kit = host.kit();
             if (kit === null) return [];
-            // Приведение на границе возможности: снаружи она описана `unknown`, потому что
-            // ни схема формы, ни правила не выразимы в SDK — их типы принадлежат рендереру.
-            // Проверять их здесь нечем и не нужно: печатает тот же конвейер, что и панель.
+            // Граница возможности: снаружи она описана `unknown`, потому что ни схема формы,
+            // ни правила не выразимы в SDK — их типы принадлежат рендереру. Схему приводит
+            // `ensureSchema`: конвейер печатает только формат 2, а прислать сюда вправе и документ
+            // прежнего формата — он напечатался бы пустым модулем без единой ошибки. Правила и
+            // мок проверять нечем и не нужно: печатает тот же конвейер, что и панель.
             const built = await generateModule(BUILTIN_TARGETS, {
-              schema: schema as CodegenInput['schema'],
+              schema: ensureSchema(schema),
               formName,
               rules: seed?.rules as CodegenInput['rules'],
               mock: seed?.mock as CodegenInput['mock'],

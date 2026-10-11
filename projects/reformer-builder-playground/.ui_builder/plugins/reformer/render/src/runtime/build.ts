@@ -1,11 +1,17 @@
 /**
  * Сборка бандла рантайм-поверхности: схема → форма, готовая к отрисовке.
  *
+ * ## Сборка — та же, что у приложения
+ *
+ * Форму собирает единая сборка ядра (`createForm`): модель → дерево узлов из документа (его строит
+ * реестр, `resolveSchema`) → ноды формы → поведение → валидация. Рисует её `FormRenderer`. Своей
+ * сборки у превью нет: вторая разошлась бы с настоящей, и «в превью работает» перестало бы значить
+ * «в приложении работает».
+ *
  * ## Порядок здесь не декоративный
  *
- * `createJsonForm` обязан отработать ДО монтирования рендерера: именно он создаёт form-node'ы,
- * привязанные к сигналам модели. Без него рендерер пишет «No form node for signal …» и рисует
- * пустоту вместо полей. Поэтому сборка синхронна и завершается целиком.
+ * Сборка обязана отработать ДО монтирования рендерера: именно она создаёт form-node'ы,
+ * привязанные к сигналам модели. Поэтому она синхронна и завершается целиком.
  *
  * ## Сборка не бросает
  *
@@ -16,12 +22,11 @@
  * @module plugins/reformer/render/runtime/build
  */
 
+import { createForm, type CreateFormConfig, type FormBundle } from '@reformer/core';
 import {
   composeRegistries,
-  createJsonForm,
   type ComponentRegistry,
-  type JsonForm,
-  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
@@ -33,7 +38,26 @@ import { synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
 
 /** Форма данных модели превью: она приходит из схемы, и сузить её нечем. */
-type Shape = Record<string, unknown>;
+export type Shape = Record<string, unknown>;
+
+/** Собранная форма превью — бандл единой сборки. */
+export type PreviewForm = FormBundle<Shape>;
+
+type FormConfig = CreateFormConfig<Shape>;
+
+/**
+ * Правила узлов прежнего контракта: фабрика из `form.render.ts`, которая по форме и модели отдаёт
+ * функцию над областью схемы (`schema.node(...)`, `hideWhen`, `onComponentEvent`).
+ *
+ * В единой сборке отдельного слоя для них нет — правила узлов живут в поведении формы. Модули,
+ * собранные раньше, всё ещё несут такой файл, и превью применяет его в `setup` сборки: операторы
+ * узлов только записывают правило в контроллер схемы, а он у сборки один.
+ */
+export type LegacyRenderBehavior = (
+  form: PreviewForm['form'],
+  model: PreviewForm['model'],
+  level: PreviewForm
+) => ((schema: never) => void) | undefined;
 
 export interface RuntimeBundleInput {
   readonly schema: JsonFormSchema;
@@ -63,16 +87,18 @@ export interface RuntimeBundleInput {
    * Без этого правка схемы стирает введённое, а в конструкторе схему правят непрерывно.
    */
   readonly carry?: Shape;
-  /** Поведение модели и правила валидации из сайдкаров. */
-  readonly behavior?: Parameters<typeof createJsonForm<Shape>>[0]['behavior'];
-  readonly validation?: Parameters<typeof createJsonForm<Shape>>[0]['validation'];
-  readonly renderBehavior?: Parameters<typeof createJsonForm<Shape>>[0]['renderBehavior'];
+  /** Поведение формы, правила валидации и поток шагов из сайдкаров. */
+  readonly behavior?: FormConfig['behavior'];
+  readonly validation?: FormConfig['validation'];
+  readonly flow?: FormConfig['flow'];
+  /** Правила узлов из `form.render.ts` модуля прежнего контракта. */
+  readonly renderBehavior?: LegacyRenderBehavior;
 }
 
 export interface RuntimeBundle {
   /** Аннотированная копия схемы — та, что уйдёт в рендерер. Исходная не тронута. */
   readonly schema: JsonFormSchema | null;
-  readonly form: JsonForm<Shape> | null;
+  readonly form: PreviewForm | null;
   readonly registry: ComponentRegistry | null;
   readonly problems: readonly PreviewProblem[];
 }
@@ -138,14 +164,35 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
     }
   }
 
+  const legacy = input.renderBehavior;
   try {
-    const form = createJsonForm<Shape>({
+    const form = createForm<Shape>({
+      initial,
       schema: annotated,
       registry,
-      initial,
       behavior: input.behavior,
       validation: input.validation,
-      renderBehavior: input.renderBehavior,
+      flow: input.flow,
+      ...(legacy === undefined
+        ? {}
+        : {
+            setup: (bundle: PreviewForm) => {
+              // Отказ прежнего слоя форму не роняет: бросок из `setup` сборка считает своим и
+              // снимает форму целиком, а здесь это всего лишь не применившиеся правила узлов.
+              try {
+                // Область корня — та же, что получает поведение формы: правила прежнего слоя
+                // адресуют узлы тем же `schema.node(selector)`.
+                const scope = bundle.render.controller.scopeOf(bundle.model);
+                legacy(bundle.form, bundle.model, bundle)?.(scope as never);
+              } catch (error) {
+                problems.push({
+                  file: 'form.render.ts',
+                  phase: 'evaluate',
+                  message: describe(error),
+                });
+              }
+            },
+          }),
     });
     return { schema: annotated, form, registry, problems };
   } catch (error) {

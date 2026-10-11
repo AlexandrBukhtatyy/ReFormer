@@ -13,18 +13,19 @@ import { describe, expect, it } from 'vitest';
 import { createToolRegistry } from './registry';
 import { setFormRulesTool } from './set-form-rules';
 import { emptyRules, type FormRules } from '../../../core/form-model';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ToolContext } from '../model/types';
 
 /** Форма с тремя связанными полями — минимум, на котором видно и цикл, и двойную запись. */
 function schema(): JsonFormSchema {
   return {
+    format: 2,
     root: {
       component: '$html(div)',
       children: [
-        { value: '$model(price)', component: '$component(Input)' },
-        { value: '$model(quantity)', component: '$component(Input)' },
-        { value: '$model(total)', component: '$component(Input)' },
+        { model: '$model(price)', component: '$component(Input)' },
+        { model: '$model(quantity)', component: '$component(Input)' },
+        { model: '$model(total)', component: '$component(Input)' },
       ],
     },
   } as unknown as JsonFormSchema;

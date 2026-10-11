@@ -9,6 +9,9 @@
  * активного кита и досказывают то, чего она не видит (см. {@link buildHintSchema}). Проверкой
  * эта схема не служит: находки публикует валидатор.
  *
+ * Схема — формата 2 (`format: 2`, привязка в ключе `model`, шаги визарда в его `children`):
+ * в билдере документ другого формата не живёт — прежний переводится при открытии.
+ *
  * ## Пути модели — не из JSON Schema
  *
  * Пути свои у каждой формы и зависят от места: внутри `item.$template` они относительны элементу.
@@ -19,18 +22,17 @@
  */
 
 import {
-  buildFormSchemaMetaSchemaV1 as buildFormSchemaMetaSchema,
+  buildFormSchemaMetaSchema,
   parseOperator,
   toComponentPropsValidatorSchema,
   toFormStepMetaSchema,
-  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import {
   boundPathsIn,
   collectModelScopes,
   scopeOfPath,
-  STEPS_HOST_NAMES,
   type ModelScope,
 } from '../../../core/form-model';
 import type { JsonSchemaHint, TextCompletion, TextStringSite } from '@reformer/builder-plugin-api';
@@ -38,8 +40,11 @@ import type { JsonSchemaHint, TextCompletion, TextStringSite } from '@reformer/b
 /** Префикс оператора привязки вместе со скобкой. */
 const MODEL_OPEN = '$model(';
 
-/** Ключи, в значении которых стоит ОБЪЯВЛЕНИЕ привязки: там подсказывается оператор целиком. */
-const BINDING_KEYS: ReadonlySet<string> = new Set(['value', 'array']);
+/**
+ * Ключ, в значении которого стоит ОБЪЯВЛЕНИЕ привязки: там подсказывается оператор целиком.
+ * У поля, массива и подформы он один.
+ */
+const BINDING_KEY = 'model';
 
 /**
  * Схема по каталогу — запоминается по ССЫЛКЕ на каталог.
@@ -64,15 +69,8 @@ export function formJsonSchema(catalog: readonly CatalogEntry[]): JsonSchemaHint
   return hint;
 }
 
-/** Ссылка на файл шага в `componentProps.steps`. */
-const STEP_REF_SCHEMA = {
-  type: 'object',
-  required: ['$ref'],
-  additionalProperties: false,
-  properties: {
-    $ref: { type: 'string', description: 'Файл шага: ./steps/<шаг>/form.schema.json' },
-  },
-};
+/** Подсказка при наведении на `$ref` шага, вынесенного в свой файл. */
+const STEP_REF_HINT = 'Файл шага: ./steps/<шаг>/form.schema.json';
 
 const stepSchemaCache = new WeakMap<readonly CatalogEntry[], JsonSchemaHint>();
 
@@ -95,7 +93,10 @@ export function formStepJsonSchema(catalog: readonly CatalogEntry[]): JsonSchema
 
 /** Мета-схема в той части, которую дополняет {@link buildHintSchema}. */
 interface MetaSchema {
-  definitions: Record<string, { allOf?: unknown[] }>;
+  definitions: Record<
+    string,
+    { allOf?: unknown[]; properties?: Record<string, Record<string, unknown>> }
+  >;
 }
 
 /** Ветка «если `component` равен этому — то `componentProps` такие». */
@@ -111,14 +112,16 @@ function whenComponent(component: string, componentProps: unknown): unknown {
 /**
  * Мета-схема рендерера, досказанная тем, что знает каталог билдера.
  *
- * Две вещи мета-схема сама не видит, и обе на настоящих формах — не редкость, а норма:
+ * Одну вещь мета-схема сама не видит, и на настоящих формах это не редкость, а норма:
+ * **синтетические записи каталога** `$html(tag)`. Имя записи — уже оператор, и в enum
+ * `$component(...)` она попала бы бессмыслицей `$component($html(div))`. Такие записи идут
+ * не в имена, а в ветки `component: "$html(div)"` — с их пропсами (`className` и т. п.).
  *
- * - **синтетические записи каталога** `$html(tag)`. Имя записи — уже оператор, и в enum
- *   `$component(...)` она попала бы бессмыслицей `$component($html(div))`. Такие записи идут
- *   не в имена, а в ветки `component: "$html(div)"` — с их пропсами (`className` и т. п.);
- * - **шаги мастера** лежат в `componentProps.steps`, а `componentProps` мета-схема держит
- *   непрозрачным объектом. Без ветки «элементы `steps` — узлы» внутри шага не было бы подсказок
- *   вовсе — ни компонентов, ни пропсов, — а в мастере лежит почти вся форма.
+ * **Шаги мастера досказывать не нужно.** Они лежат в `children` узла-визарда, а элемент
+ * `children` мета-схема разбирает сама: узел, текстовая часть либо ссылка на файл шага
+ * (`definitions.stepRef`). Поэтому внутри шага подсказки те же, что и в любом контейнере, без
+ * отдельной ветки по имени визарда. Ссылке добавляется только пояснение при наведении — на
+ * языке билдера и с каноническим путём файла.
  */
 function buildHintSchema(catalog: readonly CatalogEntry[]): unknown {
   const components = catalog.filter((entry) => parseOperator(entry.name) === null);
@@ -135,18 +138,11 @@ function buildHintSchema(catalog: readonly CatalogEntry[]): unknown {
     ...html.map((entry) =>
       whenComponent(entry.name, toComponentPropsValidatorSchema(entry.propsSchema))
     ),
-    ...[...STEPS_HOST_NAMES].map((name) =>
-      whenComponent(`$component(${name})`, {
-        properties: {
-          steps: {
-            type: 'array',
-            // Шаг — узел либо ссылка на файл шага (визард, разбитый по шагам).
-            items: { anyOf: [{ $ref: '#/definitions/node' }, STEP_REF_SCHEMA] },
-          },
-        },
-      })
-    ),
   ];
+
+  // `buildFormSchemaMetaSchema` отдаёт глубокую копию, поэтому правка базовую схему не трогает.
+  const stepRef = schema.definitions.stepRef?.properties?.$ref;
+  if (stepRef !== undefined) stepRef.description = STEP_REF_HINT;
   return schema;
 }
 
@@ -169,7 +165,7 @@ function scopesOf(model: JsonFormSchema): readonly ModelScope[] {
  *
  * - курсор внутри скобок `$model(…)` — где угодно: в привязке, в текстовой части, в пропе.
  *   Заменяется аргумент целиком, кавычки и скобки остаются на месте;
- * - в значении `value`/`array` набрано начало оператора (`""`, `"$"`, `"$mo"`) — подсказывается
+ * - в значении ключа `model` набрано начало оператора (`""`, `"$"`, `"$mo"`) — подсказывается
  *   `$model(путь)` целиком, чтобы привязку не приходилось набирать по буквам.
  *
  * Пути — объявленные в той области, где стоит курсор: внутри шаблона элемента массива это пути
@@ -189,7 +185,7 @@ export function completeModelPath(model: JsonFormSchema, site: TextStringSite): 
   }
 
   const key = site.path[site.path.length - 1];
-  if (typeof key !== 'string' || !BINDING_KEYS.has(key)) return [];
+  if (key !== BINDING_KEY) return [];
   const typed = value.slice(0, offset);
   if (!MODEL_OPEN.startsWith(typed)) return [];
   const replace = { start: 0, end: value.length };

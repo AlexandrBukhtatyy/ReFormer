@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 
 import {
   createAmbient,
@@ -202,9 +202,9 @@ describe('печать скелета', () => {
     root: {
       component: '$component(Form)',
       children: [
-        { value: '$model(applicant.name)', component: '$component(Input)' },
+        { model: '$model(applicant.name)', component: '$component(Input)' },
         {
-          value: '$model(city)',
+          model: '$model(city)',
           component: '$component(Select)',
           componentProps: { options: '$dataSource(CITY_LIST)' },
         },

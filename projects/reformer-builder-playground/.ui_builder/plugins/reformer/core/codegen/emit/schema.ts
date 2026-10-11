@@ -17,7 +17,7 @@
  * @module plugins/reformer/core/codegen/emit/schema
  */
 
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { EmitContext } from '../context';
 
 /** Маркер мета-схемы: app-level файл рядом с базовым реестром renderer-json. */
@@ -29,12 +29,18 @@ function printJson(value: unknown): string {
 
 export function emitSchema(ctx: EmitContext): string {
   const source = ctx.composition?.skeleton ?? ctx.schema;
-  const { $schema, version, ...rest } = source as JsonFormSchema & {
+  // `format` из исходника не берём: документ билдера — всегда формата 2 (`normalize`).
+  const {
+    $schema,
+    format: _format,
+    version,
+    ...rest
+  } = source as JsonFormSchema & {
     $schema?: string;
     version?: string;
   };
-  // Порядок ключей осознанный: `$schema` и `version` — шапка файла, дальше тело схемы.
-  const out = { $schema: $schema ?? SCHEMA_MARKER, version: version ?? '1.0', ...rest };
+  // Порядок ключей осознанный: `$schema`, `format` и `version` — шапка файла, дальше тело схемы.
+  const out = { $schema: $schema ?? SCHEMA_MARKER, format: 2, version: version ?? '1.0', ...rest };
   return printJson(out);
 }
 

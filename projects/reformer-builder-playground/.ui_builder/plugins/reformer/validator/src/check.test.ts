@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../core/testing';
-import { ensureNodeIds, type NodeIdFactory } from '../../core/form-model';
+import { ensureNodeIds, ensureSchema, type NodeIdFactory } from '../../core/form-model';
 import { emptyRules, type FormRules } from '../../core/form-model';
 import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { checkForm, dedupe } from './check';
@@ -23,8 +20,12 @@ function ids(): NodeIdFactory {
   };
 }
 
-function schemaOf(root: JsonNode): JsonFormSchema {
-  return ensureNodeIds({ version: '1.0', root }, ids());
+/** Документ формата 2; `parts` — именованные части (разметка подформ и шаблонов строк). */
+function schemaOf(root: JsonNode, parts?: Record<string, JsonNode>): JsonFormSchema {
+  return ensureNodeIds(
+    { format: 2, version: '1.0', ...(parts === undefined ? {} : { parts }), root },
+    ids()
+  );
 }
 
 /**
@@ -44,7 +45,7 @@ function check(schema: JsonFormSchema, rules?: FormRules): Diagnostic[] {
 const codes = (found: readonly Diagnostic[]): string[] => found.map((item) => item.code);
 
 const field = (component: string, props: Record<string, unknown> = {}): JsonNode =>
-  ({ value: '$model(loanAmount)', component, componentProps: props }) as unknown as JsonNode;
+  ({ model: '$model(loanAmount)', component, componentProps: props }) as unknown as JsonNode;
 
 const box = (children: JsonNode[]): JsonNode =>
   ({ component: '$component(Box)', children }) as unknown as JsonNode;
@@ -134,7 +135,7 @@ describe('дубли находок', () => {
     // `component` объявлен как `anyOf` из `$component(...)` и `$html(...)`; на `5` жалуются обе,
     // и до дедупликации это давало два одинаковых маркера на одном и том же диапазоне.
     const found = check(
-      schemaOf(box([{ value: '$model(a)', component: 5 } as unknown as JsonNode]))
+      schemaOf(box([{ model: '$model(a)', component: 5 } as unknown as JsonNode]))
     );
 
     expect(found.filter((item) => item.code === CODES.WRONG_TYPE)).toHaveLength(1);
@@ -238,28 +239,36 @@ describe('структурные ошибки', () => {
     });
   });
 
-  it('пропсы, похожие на узел, не перехватывают адрес: у TabsTrigger это буквально { value }', () => {
-    // Узлом считается любой объект с ключом `value`, и подъём «до похожего на узел»
-    // останавливался на самих пропсах: цель уезжала в ресурс (маркер на первой строке файла),
-    // а подсказка и быстрое исправление исчезали — при том что у соседнего Input всё работало.
-    const tab = {
-      component: '$component(TabsTrigger)',
-      componentProps: { value: 'one', valu: 'опечатка' },
-      children: ['Первая'],
+  it('пропсы, похожие на узел, не перехватывают адрес: привязка, записанная в пропсы', () => {
+    // Узлом считается любой объект с ключом `model` или `component`, и привязка, по ошибке
+    // записанная в пропсы, даёт ровно такой объект. Подъём «до похожего на узел» остановился бы
+    // на самих пропсах: цель уехала бы в ресурс (маркер на первой строке файла), а подсказка и
+    // быстрое исправление исчезли бы — при том что у соседнего Input без этой ошибки всё работает.
+    const input = {
+      model: '$model(loanAmount)',
+      component: '$component(Input)',
+      componentProps: { lable: 'Сумма', model: '$model(loanAmount)' },
     } as unknown as JsonNode;
 
-    const found = check(schemaOf(box([tab])));
+    const found = check(schemaOf(box([input])));
 
-    const problem = found.find((item) => item.code === CODES.UNKNOWN_PROPERTY);
-    expect(problem?.target).toEqual({
+    const [typo, misplaced] = found.filter((item) => item.code === CODES.UNKNOWN_PROPERTY);
+    expect(typo?.target).toEqual({
       kind: 'node',
       nodeId: 'node0002',
-      within: ['componentProps', 'valu'],
+      within: ['componentProps', 'lable'],
     });
     // Подсказка и исправление считаются от ТОГО ЖЕ узла: остановись подъём на пропсах —
     // компонента у них нет, словарь пропсов пуст, и предлагать было бы нечего.
-    expect(problem?.params?.suggestion).toBe('value');
-    expect(problem?.fixes?.[0].commandId).toBe(COMMANDS.RENAME_PROP);
+    expect(typo?.params?.suggestion).toBe('label');
+    expect(typo?.fixes?.[0].commandId).toBe(COMMANDS.RENAME_PROP);
+    // Находка о самой привязке — той, что и делает пропсы «узлом», — адресуется так же.
+    expect(misplaced?.params?.property).toBe('model');
+    expect(misplaced?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['componentProps', 'model'],
+    });
   });
 
   it('находка на месте, у которого своего идентификатора нет, поднимается к ближайшему узлу', () => {
@@ -345,6 +354,167 @@ describe('структурный линт: связи, которых схема
     const problem = found.find((item) => item.code === CODES.TABS_DEFAULT_VALUE_UNKNOWN);
     expect(problem?.params?.value).toBe('two');
   });
+
+  it('панель, вынесенная в часть документа, находится: потомки — то, что построит рендерер', () => {
+    // У подформы дочерних слотов нет — её разметка лежит в `parts`. Не зайди обход туда,
+    // вкладке «one» достался бы ложный упрёк «панели нет».
+    const subform = { model: '$model(home)', part: '$part(homePanel)' } as unknown as JsonNode;
+
+    const found = check(schemaOf(tabs([trigger('one'), subform]), { homePanel: panel('one') }));
+
+    expect(codes(found)).toEqual([]);
+  });
+
+  it('то же для строки массива из части; а без части в `parts` вкладка остаётся без панели', () => {
+    const rows = { model: '$model(rows)', item: '$part(rowPanel)' } as unknown as JsonNode;
+
+    const declared = check(schemaOf(tabs([trigger('one'), rows]), { rowPanel: panel('one') }));
+    const missing = check(schemaOf(tabs([trigger('one'), rows])));
+
+    expect(codes(declared)).toEqual([]);
+    expect(codes(missing).sort()).toEqual([CODES.UNKNOWN_PART, CODES.TAB_WITHOUT_PANEL].sort());
+  });
+
+  it('часть, ссылающаяся на себя, обход не зацикливает', () => {
+    const self = { model: '$model(next)', part: '$part(thread)' } as unknown as JsonNode;
+    const thread = box([panel('one'), self]);
+
+    const found = check(schemaOf(tabs([trigger('one'), self]), { thread }));
+
+    expect(codes(found)).not.toContain(CODES.TAB_WITHOUT_PANEL);
+    expect(codes(found)).not.toContain(CODES.PANEL_WITHOUT_TAB);
+  });
+});
+
+describe('структурный линт: шаги мастера', () => {
+  const wizard = (steps: JsonNode[]): JsonNode =>
+    ({ component: '$component(Wizard)', children: steps }) as unknown as JsonNode;
+  const step = (children: JsonNode[]): JsonNode =>
+    ({
+      component: '$component(Step)',
+      componentProps: { title: 'Шаг' },
+      children,
+    }) as unknown as JsonNode;
+
+  it('шагом стоит поле — предупреждение на значении component: там имя не-контейнера', () => {
+    // Шаги — `children` визарда: второй ребёнок здесь не контейнер, и полям в нём лечь некуда.
+    const found = check(schemaOf(wizard([step([]), field('$component(Input)')])));
+
+    const problem = found.find((item) => item.code === CODES.STEP_NOT_CONTAINER);
+    expect(problem?.severity).toBe('warning');
+    expect(problem?.params).toEqual({ name: 'Input' });
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0003',
+      within: ['component'],
+      at: 'value',
+    });
+  });
+
+  it('контейнер-шаг замечания не получает, даже пустой', () => {
+    const found = check(schemaOf(wizard([step([]), step([field('$component(Input)')])])));
+
+    expect(codes(found)).toEqual([]);
+  });
+
+  it('дети обычного контейнера шагами не считаются: слот шагов есть только у визарда', () => {
+    // Физически это тот же `children`; шагами его делает имя компонента, а не место в узле.
+    const found = check(schemaOf(box([field('$component(Input)')])));
+
+    expect(codes(found)).not.toContain(CODES.STEP_NOT_CONTAINER);
+  });
+
+  it('подформа и массив шагом — не находка: место полям у них есть, хотя и не в узле', () => {
+    // У подформы и у массива с `item: "$part(...)"` дочерних слотов нет вовсе: разметка лежит
+    // в `parts` документа. По одним слотам оба сошли бы за «не-контейнер» — причём подформа
+    // с пустым именем в фразе, а массив со вписанным шаблоном рядом замечания бы не получил.
+    const row = box([{ model: '$model(name)', component: '$component(Input)' } as JsonNode]);
+    const found = check(
+      schemaOf(
+        wizard([
+          { model: '$model(address)', part: '$part(address)' } as unknown as JsonNode,
+          { model: '$model(guests)', item: '$part(row)' } as unknown as JsonNode,
+          { model: '$model(owners)', item: { $template: row } } as unknown as JsonNode,
+        ]),
+        { address: row, row }
+      )
+    );
+
+    expect(codes(found)).toEqual([]);
+  });
+});
+
+describe('части документа и массивы формата 2', () => {
+  it('неизвестная часть у подформы: код, имя параметром, цель — значение `part`', () => {
+    const subform = { model: '$model(address)', part: '$part(adress)' } as unknown as JsonNode;
+
+    const found = check(schemaOf(box([subform]), { address: box([]) }));
+
+    expect(codes(found)).toEqual([CODES.UNKNOWN_PART]);
+    expect(found[0].severity).toBe('error');
+    expect(found[0].params).toEqual({ name: 'adress' });
+    expect(found[0].target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['part'],
+      at: 'value',
+    });
+  });
+
+  it('неизвестная часть в шаблоне строки массива — цель на значении `item`', () => {
+    const rows = { model: '$model(guests)', item: '$part(row)' } as unknown as JsonNode;
+
+    const found = check(schemaOf(box([rows])));
+
+    expect(codes(found)).toEqual([CODES.UNKNOWN_PART]);
+    expect(found[0].params).toEqual({ name: 'row' });
+    expect(found[0].target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['item'],
+      at: 'value',
+    });
+  });
+
+  it('массив без initialValue — не находка: шаблон нового элемента живёт в модели', () => {
+    // Прежний формат на таком узле ругался («Добавить» создаст пустой элемент); в формате 2
+    // `initialValue` — запасной шаблон, и спрашивается только его полнота.
+    const template = box([{ model: '$model(name)', component: '$component(Input)' } as JsonNode]);
+    const rows = { model: '$model(guests)', item: { $template: template } } as unknown as JsonNode;
+
+    expect(codes(check(schemaOf(box([rows]))))).toEqual([]);
+  });
+
+  it('заданный initialValue обязан нести ключи строки — и когда шаблон строки лежит в части', () => {
+    const template = (): JsonNode =>
+      box([
+        { model: '$model(name)', component: '$component(Input)' } as JsonNode,
+        { model: '$model(phone)', component: '$component(Input)' } as JsonNode,
+      ]);
+    const inline = {
+      model: '$model(guests)',
+      initialValue: { name: '' },
+      item: { $template: template() },
+    } as unknown as JsonNode;
+    const fromPart = {
+      model: '$model(owners)',
+      initialValue: { phone: '' },
+      item: '$part(row)',
+    } as unknown as JsonNode;
+
+    const found = check(schemaOf(box([inline, fromPart]), { row: template() }));
+
+    expect(codes(found)).toEqual([
+      CODES.ARRAY_INITIAL_VALUE_INCOMPLETE,
+      CODES.ARRAY_INITIAL_VALUE_INCOMPLETE,
+    ]);
+    expect(found.map((item) => item.params)).toEqual([{ keys: 'phone' }, { keys: 'name' }]);
+    // Адрес — сам массив: ключа, которого не хватает, в тексте нет.
+    expect(found.map((item) => item.target)).toEqual([
+      { kind: 'node', nodeId: 'node0002' },
+      { kind: 'node', nodeId: 'node0006' },
+    ]);
+  });
 });
 
 describe('целостность правил', () => {
@@ -411,12 +581,13 @@ describe('целостность правил', () => {
 describe('двойники $nodeId в исходном тексте', () => {
   const withIds = (a: string, b: string): string =>
     JSON.stringify({
+      format: 2,
       root: {
         $nodeId: 'aaaaaaaa',
         component: '$component(Stack)',
         children: [
-          { $nodeId: a, component: '$component(Input)', value: '$model(x)' },
-          { $nodeId: b, component: '$component(Input)', value: '$model(y)' },
+          { $nodeId: a, component: '$component(Input)', model: '$model(x)' },
+          { $nodeId: b, component: '$component(Input)', model: '$model(y)' },
         ],
       },
     });
@@ -448,13 +619,14 @@ describe('двойники $nodeId в исходном тексте', () => {
     // `"$nodeId"` встречается и как значение — в подписи поля, например. Ключом это не делает.
     const text = JSON.stringify(
       {
+        format: 2,
         version: '1.0',
         root: {
           $nodeId: 'aaaaaaaa',
           component: '$component(Stack)',
           children: [
-            { $nodeId: 'bbbbbbbb', component: '$component(Input)', value: '$model(x)' },
-            { $nodeId: 'bbbbbbbb', component: '$component(Input)', value: '$model(y)' },
+            { $nodeId: 'bbbbbbbb', component: '$component(Input)', model: '$model(x)' },
+            { $nodeId: 'bbbbbbbb', component: '$component(Input)', model: '$model(y)' },
           ],
           componentProps: { title: 'ключ "$nodeId": "bbbbbbbb" внутри строки' },
         },
@@ -481,6 +653,123 @@ describe('двойники $nodeId в исходном тексте', () => {
   it('неразбираемый текст молчит: о двойниках говорить нечего, пока нет разбора', () => {
     const found = checkForm({ resource: 'mem:form.json', text: '{ сломано' }, { catalog: [] });
     expect(found.filter((d) => d.code === 'schema.duplicate-node-id')).toEqual([]);
+  });
+
+  it('текст прежнего формата: двойники видны и в шагах визарда, и у узлов без component', () => {
+    // Перевод в формат 2 меняет модель, а не буфер: файл остаётся прежним до первого сохранения.
+    // Обход ядра прежних ключей не знает — без перевода текста он не дошёл бы ни до шагов в
+    // `componentProps.steps`, ни до поля, которое узнаётся только по `value`.
+    const text = JSON.stringify({
+      version: '1.0',
+      root: {
+        $nodeId: 'aaaaaaaa',
+        component: '$component(RendererFormWizard)',
+        componentProps: {
+          steps: [
+            {
+              $nodeId: 'bbbbbbbb',
+              component: '$component(Step)',
+              children: [
+                { $nodeId: 'cccccccc', value: '$model(x)' },
+                { $nodeId: 'cccccccc', value: '$model(y)' },
+              ],
+            },
+            { $nodeId: 'bbbbbbbb', component: '$component(Step)', children: [] },
+          ],
+        },
+      },
+    });
+    const duplicated = (found: readonly Diagnostic[]): unknown[] =>
+      found.filter((d) => d.code === CODES.DUPLICATE_NODE_ID).map((d) => d.params?.node);
+    const expected = ['bbbbbbbb', 'cccccccc', 'cccccccc', 'bbbbbbbb'];
+
+    // Валидатор разбирает текст сам…
+    expect(duplicated(checkForm({ resource: 'mem:form.json', text }, { catalog: [] }))).toEqual(
+      expected
+    );
+    // …и получает модель от разбора документа: та уже формата 2 и без двойников, текст — прежний.
+    const model = ensureNodeIds(ensureSchema(JSON.parse(text)), ids());
+    expect(
+      duplicated(checkForm({ resource: 'mem:form.json', text, model }, { catalog: [] }))
+    ).toEqual(expected);
+  });
+
+  it('текст — не форма: о двойниках молчит, а не падает на отсутствующем корне', () => {
+    const model = schemaOf(box([]));
+
+    const found = checkForm(
+      { resource: 'mem:form.json', text: '{"name":"пакет"}', model },
+      { catalog: [] }
+    );
+
+    expect(found).toEqual([]);
+  });
+});
+
+describe('документ прежнего формата проверяется как формат 2', () => {
+  // Файл на диске бывает прежнего формата: привязка в `value` / `array`, шаги визарда в
+  // `componentProps.steps`. Проба «форма ли это» его узнаёт, а проверки знают только формат 2.
+  const legacy = (root: unknown): string => JSON.stringify({ version: '1.0', root });
+  const run = (text: string): Diagnostic[] =>
+    checkForm(
+      { resource, text },
+      { catalog: builtinEntries(), validateSchema: validateFormSchema }
+    );
+
+  it('`value` и `array` — объявления: чтение объявленного пути не находка', () => {
+    // Без перевода обход не увидел бы ни одного объявления, и оба чтения оказались бы
+    // «необъявленными» — ложная находка на каждом `$model(...)` в тексте.
+    const text = legacy({
+      component: '$component(Box)',
+      children: [
+        { value: '$model(loanAmount)', component: '$component(Input)' },
+        { component: '$html(p)', children: ['$model(loanAmount)'] },
+        {
+          array: '$model(items)',
+          initialValue: { price: 0 },
+          item: {
+            $template: {
+              component: '$component(Box)',
+              children: [
+                { value: '$model(price)', component: '$component(Input)' },
+                { component: '$html(p)', children: ['$model(price)'] },
+              ],
+            },
+          },
+        },
+      ],
+    });
+
+    expect(codes(run(text))).toEqual([]);
+  });
+
+  it('шаги из `componentProps.steps` видны линту: поле шагом — замечание', () => {
+    const text = legacy({
+      component: '$component(Wizard)',
+      componentProps: {
+        steps: [
+          { component: '$component(Step)', componentProps: { title: 'Шаг' }, children: [] },
+          { value: '$model(loanAmount)', component: '$component(Input)' },
+        ],
+      },
+    });
+
+    const found = run(text);
+
+    expect(codes(found)).toEqual([CODES.STEP_NOT_CONTAINER]);
+    expect(found[0].params).toEqual({ name: 'Input' });
+  });
+
+  it('документ, объявивший формат 2, не переводится: прежний ключ в нём — ошибка схемы', () => {
+    const text = JSON.stringify({
+      format: 2,
+      root: { value: '$model(loanAmount)', component: '$component(Input)' },
+    });
+
+    const found = run(text);
+
+    expect(codes(found)).toEqual([CODES.UNKNOWN_PROPERTY]);
+    expect(found[0].params).toMatchObject({ property: 'value' });
   });
 });
 
@@ -522,11 +811,11 @@ describe('$model читает необъявленный путь', () => {
 
   it('внутри шаблона массива виден путь элемента, а не формы', () => {
     const array = {
-      array: '$model(items)',
+      model: '$model(items)',
       initialValue: { price: 0 },
       item: {
         $template: box([
-          { value: '$model(price)', component: '$component(Input)' } as unknown as JsonNode,
+          { model: '$model(price)', component: '$component(Input)' } as unknown as JsonNode,
           text('$model(price)', '$model(loanAmount)'),
         ]),
       },

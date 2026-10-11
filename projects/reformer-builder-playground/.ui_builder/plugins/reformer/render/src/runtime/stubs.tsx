@@ -46,6 +46,17 @@ export const CONTRACT_STATICS: readonly string[] = [
   'reformerAdapter',
 ];
 
+/**
+ * Шаг визарда в превью — тело шага как есть.
+ *
+ * Шаг — маркер: заголовок и значок визард снимает с УЗЛА шага, а компоненту остаётся только
+ * нарисовать детей. Обёртка с `className` нужна ради класс-токена узла: без элемента в DOM шаг
+ * нельзя было бы выбрать кликом по превью.
+ */
+export function PreviewStep({ children, className }: PlaceholderProps): ReactNode {
+  return <div className={className}>{children}</div>;
+}
+
 /** Тревожный плейсхолдер для имени, которого нет в каталоге. */
 export function makeUnknownComponent(name: string): ComponentType<PlaceholderProps> {
   function UnknownComponent({ children, className }: PlaceholderProps): ReactNode {

@@ -5,8 +5,8 @@ import { sampleSchema, P } from './__fixtures__/sample-schema';
 describe('getAt', () => {
   it('возвращает узел по пути', () => {
     const s = sampleSchema();
-    const field = getAt(s, P.step0field0) as { value?: string };
-    expect(field.value).toBe('$model(loanType)');
+    const field = getAt(s, P.step0field0) as { model?: string };
+    expect(field.model).toBe('$model(loanType)');
   });
 
   it('undefined для пути «в никуда»', () => {
@@ -46,9 +46,9 @@ describe('removeAt', () => {
   it('вырезает элемент массива (сдвиг индексов)', () => {
     const s = sampleSchema();
     const next = removeAt(s, P.step0field0);
-    const children = getAt(next, P.step0children) as Array<{ value?: string }>;
+    const children = getAt(next, P.step0children) as Array<{ model?: string }>;
     expect(children).toHaveLength(1);
-    expect(children[0].value).toBe('$model(loanAmount)');
+    expect(children[0].model).toBe('$model(loanAmount)');
     // оригинал цел
     expect(getAt(s, P.step0children) as unknown[]).toHaveLength(2);
   });
@@ -57,7 +57,7 @@ describe('removeAt', () => {
     const s = sampleSchema();
     const next = removeAt(s, [...P.array, 'selector']);
     expect(getAt(next, [...P.array, 'selector'])).toBeUndefined();
-    expect(getAt(next, [...P.array, 'array'])).toBe('$model(properties)');
+    expect(getAt(next, [...P.array, 'model'])).toBe('$model(properties)');
   });
 
   it('бросает на пустом пути', () => {
@@ -67,8 +67,8 @@ describe('removeAt', () => {
 
 describe('JSON Pointer', () => {
   it('toPointer/fromPointer round-trip', () => {
-    const path = ['root', 'componentProps', 'steps', 0, 'children', 1];
-    expect(toPointer(path)).toBe('/root/componentProps/steps/0/children/1');
+    const path = ['root', 'children', 0, 'children', 1];
+    expect(toPointer(path)).toBe('/root/children/0/children/1');
     expect(fromPointer(toPointer(path)).map(String)).toEqual(path.map(String));
   });
 

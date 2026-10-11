@@ -43,7 +43,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
-import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
+import { FormRenderer } from '@reformer/renderer-react';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { MODULE_FILES } from '../../../core/codegen';
 import { toDescriptor } from '@reformer/builder-plugin-api';
@@ -55,7 +55,14 @@ import { buildRuntimeBundle, type RuntimeBundle } from '../runtime/build';
 import { Highlight } from '../ui/Highlight';
 import { KitFrame } from '../ui/KitFrame';
 import { Notice } from '../ui/Notice';
-import { useFilesVersion, useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
+import {
+  formKeyOf,
+  useFilesVersion,
+  useKitVersion,
+  useLiveValidation,
+  usePreviewSchema,
+  usePreviewSelection,
+} from '../ui/hooks';
 import type { ComponentRegistry } from '@reformer/renderer-json';
 import { createAmbient, type FormFixture } from '../../../core/form-fixture';
 import { compileForm } from './compile';
@@ -247,6 +254,8 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     });
   }, [schema, kit, mock, sources, ctx]);
 
+  useLiveValidation(bundle?.form ?? null);
+
   useEffect(() => {
     live.current = bundle?.form ?? null;
     // Панель модели читает и правит ЭТУ форму. Публикуем после сборки и снимаем на
@@ -319,9 +328,8 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
         <div className="p-4">
           <Highlight selection={selection} />
           <KitFrame frame={host.kitFrame()}>
-            <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
-              <JsonFormRenderer form={bundle.form} />
-            </JsonRendererProvider>
+            {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла из него. */}
+            <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
           </KitFrame>
         </div>
       </ScrollArea>

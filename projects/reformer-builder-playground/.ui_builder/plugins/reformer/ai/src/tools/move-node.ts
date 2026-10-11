@@ -56,7 +56,8 @@ export const moveNodeTool: AgentTool<Params> = {
       return fail('INVALID_PARENT', `Node ${params.parent} does not accept children.`);
     }
 
-    // Тот же запрет, что у insert_node: в слоте мастера живут шаги-контейнеры, а не поля.
+    // Тот же запрет, что у insert_node: в слоте мастера живут шаги-контейнеры, а не поля. Слот
+    // шагов узнаётся по его виду (`childSlots`), а не по пути: шаги лежат в `children` визарда.
     if (slot.kind === 'steps' && kindOf(found.node) !== 'container') {
       return fail(
         'INVALID_PARENT',

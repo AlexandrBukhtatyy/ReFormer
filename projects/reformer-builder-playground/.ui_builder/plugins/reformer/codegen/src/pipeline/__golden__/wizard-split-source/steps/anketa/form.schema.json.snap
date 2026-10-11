@@ -8,7 +8,7 @@
     "$nodeId": "anketa00",
     "children": [
       {
-        "value": "$model(name)",
+        "model": "$model(name)",
         "component": "$component(Input)",
         "componentProps": {
           "label": "Данные",

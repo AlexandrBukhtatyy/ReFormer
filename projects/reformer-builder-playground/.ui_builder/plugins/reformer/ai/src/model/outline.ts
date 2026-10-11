@@ -2,21 +2,21 @@
  * Дайджест схемы — то, как агент «видит» форму.
  *
  * Полный `JsonFormSchema` модели не отдаётся: реальные формы занимают тысячи строк, `componentProps`
- * почти целиком шум для структурных решений, а вложенные деревья в `componentProps.steps` ломают
- * наивную оценку размера. Дайджест даёт по строке на узел — адрес, компонент, модель, подпись —
- * а полный узел запрашивается точечно (`get_form_node`).
+ * почти целиком шум для структурных решений, а вложенные деревья (шаги визарда, шаблоны массивов)
+ * ломают наивную оценку размера. Дайджест даёт по строке на узел — адрес, компонент, модель,
+ * подпись — а полный узел запрашивается точечно (`get_form_node`).
  *
  * Обход идёт через `childSlots` (`@/plugins/reformer/core/form-model`) — единственное место, знающее про неоднородную
- * вложенность (`children` / `componentProps.steps` / `item.$template` / `wrapper`), поэтому
+ * вложенность (`children` — у визарда это слот шагов, — `item.$template`, `wrapper`), поэтому
  * дайджест не хардкодит правила размещения повторно.
+ *
+ * Подформа (`{ model, part }`) и массив с `item: "$part(имя)"` в дайджесте — листья: их разметка
+ * лежит в `parts` документа, вне дерева корня, и адреса у её узлов нет.
  *
  * @module plugins/reformer/ai/model/outline
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   childSlots,
   isNodeLike,
@@ -129,7 +129,8 @@ export function renderOutline(entries: readonly OutlineEntry[], budget: number):
  *
  * Поля сворачиваются группами по родителю — ровно так они и лежат в дайджесте, друг за другом
  * после своего контейнера. Массивы (`kind: 'array'`) остаются: у них внутри шаблон, то есть они
- * такая же структура, как контейнер.
+ * такая же структура, как контейнер. Подформы (`kind: 'part'`) остаются тоже: за одной такой
+ * строкой стоит целая группа полей, и счётчик «N полей» о ней бы соврал.
  */
 function collapseFields(entries: readonly OutlineEntry[]): string[] {
   const out: string[] = [];

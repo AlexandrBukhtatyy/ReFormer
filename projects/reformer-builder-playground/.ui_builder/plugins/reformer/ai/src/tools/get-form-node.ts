@@ -8,26 +8,25 @@
  * @module plugins/reformer/ai/tools/get-form-node
  */
 
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonNode } from '@reformer/renderer-json';
 import { childSlots } from '../../../core/form-model';
 import { type JsonPath } from '../../../core/form-model';
 import { isResolved, resolveRef } from '../model/node-ref';
 import { ok, type AgentTool } from '../model/types';
 import { REF_PROP } from './params';
 
-/** Копия узла без дочерних поддеревьев (`children` / `steps` / `item` / `wrapper`). */
+/**
+ * Копия узла без дочерних поддеревьев: `children` (у визарда это его шаги), `item.$template`
+ * и `wrapper`.
+ *
+ * `item`, записанный ссылкой на часть документа (`"$part(имя)"`), остаётся: это не поддерево, а
+ * одна строка, и без неё по узлу не видно, откуда массив берёт шаблон строки.
+ */
 function withoutChildren(node: JsonNode): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
-    if (key === 'children' || key === 'wrapper' || key === 'item') continue;
-    if (key === 'componentProps' && value !== null && typeof value === 'object') {
-      const props: Record<string, unknown> = {};
-      for (const [pk, pv] of Object.entries(value as Record<string, unknown>)) {
-        if (pk !== 'steps') props[pk] = pv;
-      }
-      out[key] = props;
-      continue;
-    }
+    if (key === 'children' || key === 'wrapper') continue;
+    if (key === 'item' && typeof value !== 'string') continue;
     out[key] = value;
   }
   return out;

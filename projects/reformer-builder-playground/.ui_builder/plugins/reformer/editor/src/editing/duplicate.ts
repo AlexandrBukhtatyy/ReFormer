@@ -20,14 +20,11 @@
  * @module plugins/reformer/editor/editing/duplicate
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { newNodeId, reissueNodeIds, type NodeIdFactory } from '../../../core/form-model';
-import { getAt, type JsonPath } from '../../../core/form-model';
+import { getAt } from '../../../core/form-model';
 import { navIntentAt, type NavDir } from '../../../core/form-model';
-import { blockOf, slotSegments } from '../model/block';
+import { blockOf, blockSlotPath } from '../model/block';
 import { indexNodes } from '../model/node-index';
 import { batchOp, insertOp } from '../model/ops';
 import type { EditOp, NodeId } from '../host';
@@ -50,10 +47,10 @@ export function planDuplicate(
   options: DuplicateOptions = {}
 ): EditOp | null {
   const index = indexNodes(schema);
-  const block = blockOf(index, selection);
+  const block = blockOf(schema, index, selection);
   if (block === null) return null;
 
-  const slotPath: JsonPath = [...block.parentPath, ...slotSegments(block.slot)];
+  const slotPath = blockSlotPath(block);
   const intent = navIntentAt(schema, [...slotPath, block.start], dir);
   if (intent !== 'prev' && intent !== 'next') return null;
 

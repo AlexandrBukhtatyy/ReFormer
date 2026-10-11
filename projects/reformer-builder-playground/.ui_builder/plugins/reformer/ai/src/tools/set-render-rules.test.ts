@@ -12,7 +12,7 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { createToolRegistry } from './registry';
 import { setRenderRulesTool } from './set-render-rules';
 import { emptyRules, type FormRules } from '../../../core/form-model';
@@ -22,6 +22,7 @@ import type { ToolContext } from '../model/types';
 
 function schema(): JsonFormSchema {
   return {
+    format: 2,
     root: {
       component: '$html(div)',
       children: [
@@ -32,7 +33,7 @@ function schema(): JsonFormSchema {
           children: [],
         },
         {
-          value: '$model(pickup)',
+          model: '$model(pickup)',
           component: '$component(Checkbox)',
           componentProps: { label: 'Самовывоз' },
         },

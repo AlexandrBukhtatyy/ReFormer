@@ -1,5 +1,6 @@
 {
   "$schema": "./form-schema.schema.json",
+  "format": 2,
   "version": "1.0",
   "root": {
     "$nodeId": "demoroot",
@@ -18,7 +19,7 @@
           {
             "$nodeId": "demoname",
             "selector": "name",
-            "value": "$model(name)",
+            "model": "$model(name)",
             "component": "$component(Input)",
             "componentProps": {
               "label": "Имя",
@@ -28,7 +29,7 @@
           {
             "$nodeId": "demomail",
             "selector": "email",
-            "value": "$model(email)",
+            "model": "$model(email)",
             "component": "$component(Input)",
             "componentProps": {
               "label": "Email"
@@ -38,7 +39,7 @@
       },
       {
         "$nodeId": "ggjp5tr9",
-        "value": "$model(newField)",
+        "model": "$model(newField)",
         "component": "$component(Checkbox)",
         "componentProps": {
           "label": "Checkbox"
@@ -47,7 +48,7 @@
       {
         "$nodeId": "demochan",
         "selector": "channel",
-        "value": "$model(channel)",
+        "model": "$model(channel)",
         "component": "$component(Select)",
         "componentProps": {
           "label": "Как связаться",
@@ -66,7 +67,7 @@
       {
         "$nodeId": "demoagre",
         "selector": "agree",
-        "value": "$model(agree)",
+        "model": "$model(agree)",
         "component": "$component(Checkbox)",
         "componentProps": {
           "label": "Согласен на обработку данных"
@@ -74,7 +75,7 @@
       },
       {
         "$nodeId": "um6zmmom",
-        "value": "$model(newField)",
+        "model": "$model(newField)",
         "component": "$component(Select)",
         "componentProps": {
           "label": "Select"
@@ -82,7 +83,7 @@
       },
       {
         "$nodeId": "lse4h9pg",
-        "value": "$model(newField)",
+        "model": "$model(newField)",
         "component": "$component(Slider)",
         "componentProps": {
           "label": "Slider"

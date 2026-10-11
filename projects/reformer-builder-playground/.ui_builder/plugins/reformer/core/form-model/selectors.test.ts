@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   ensureSelector,
   selectorOf,
@@ -11,6 +11,7 @@ import { findByPath } from './query';
 
 const schema = (): JsonFormSchema =>
   ({
+    format: 2,
     version: '1.0',
     root: {
       component: '$html(div)',
@@ -22,11 +23,11 @@ const schema = (): JsonFormSchema =>
           children: [],
         },
         {
-          value: '$model(applicant.email)',
+          model: '$model(applicant.email)',
           component: '$component(Input)',
           componentProps: { label: 'Электронная почта' },
         },
-        { value: '$model(amount)', component: '$component(Input)' },
+        { model: '$model(amount)', component: '$component(Input)' },
       ],
     },
   }) as unknown as JsonFormSchema;

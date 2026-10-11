@@ -4,7 +4,8 @@
  * Операция приходит с {@link NodeId} (он переживает правку соседей), а все правки домена
  * адресуются `JsonPath` (он позиционный и дешёвый). Перевод между ними — обход схемы, и он
  * обязан быть ОДНИМ: два обхода по разным правилам разошлись бы на первом же неоднородном
- * слоте (`componentProps.steps`, `item.$template`, `wrapper`).
+ * слоте (`item.$template`, `wrapper`, `children` визарда со ссылками на файлы шагов) и на узлах
+ * без детей в самом узле — подформе и массиве с `item: "$part(...)"`.
  *
  * Обход идёт через `walkNodes` домена, то есть по тем же слотам, что видит канвас. Узел,
  * не попавший в обход, для редактора не существует — и это правильнее, чем найти его вторым
@@ -17,10 +18,7 @@
  * @module plugins/reformer/editor/model/node-index
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { nodeIdOf } from '../../../core/form-model';
 import { toPointer, type JsonPath } from '../../../core/form-model';
 import { walkNodes } from '../../../core/form-model';

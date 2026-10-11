@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from 'react';
-import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
+import { FormRenderer } from '@reformer/renderer-react';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
@@ -42,7 +42,13 @@ import { nodeAt } from '../schema/node-token';
 import { Highlight } from '../ui/Highlight';
 import { KitFrame } from '../ui/KitFrame';
 import { Notice } from '../ui/Notice';
-import { useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
+import {
+  formKeyOf,
+  useKitVersion,
+  useLiveValidation,
+  usePreviewSchema,
+  usePreviewSelection,
+} from '../ui/hooks';
 import { buildRuntimeBundle } from './build';
 
 /** Идентификатор поверхности. Он же имя источника находок в состоянии превью. */
@@ -92,6 +98,8 @@ export function RuntimeView({ ctx, host }: RuntimeViewProps): ReactNode {
       carry,
     });
   }, [schema, host, ctx, kitVersion]);
+
+  useLiveValidation(bundle?.form ?? null);
 
   useEffect(() => {
     live.current = bundle?.form ?? null;
@@ -150,9 +158,8 @@ export function RuntimeView({ ctx, host }: RuntimeViewProps): ReactNode {
       <div className="p-4">
         <Highlight selection={selection} />
         <KitFrame frame={host.kitFrame()}>
-          <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
-            <JsonFormRenderer form={bundle.form} />
-          </JsonRendererProvider>
+          {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла из него. */}
+          <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
         </KitFrame>
       </div>
     </ScrollArea>

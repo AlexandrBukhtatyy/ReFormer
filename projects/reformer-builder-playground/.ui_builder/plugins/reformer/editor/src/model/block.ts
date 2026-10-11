@@ -10,6 +10,7 @@
  * @module plugins/reformer/editor/model/block
  */
 
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { JsonPath } from '../../../core/form-model';
 import type { NodeIndex } from './node-index';
 import { slotPositionOf, type ArraySlot } from './ops';
@@ -25,13 +26,14 @@ export interface Block {
 }
 
 /**
- * Путь до массив-слота от пути родителя.
+ * Путь до массив-слота, в котором лежит блок.
  *
- * `steps` лежит в `componentProps`, `children` — прямо на узле. Различие предметное, поэтому
- * и живёт рядом с блоком, а не в каждом планировщике заново.
+ * И дети контейнера, и шаги визарда лежат в `children` родителя: вид слота ({@link Block.slot})
+ * говорит, что в нём, а не где он. Знание о ключе живёт рядом с блоком, а не в каждом
+ * планировщике заново.
  */
-export function slotSegments(slot: ArraySlot): readonly (string | number)[] {
-  return slot === 'steps' ? ['componentProps', 'steps'] : ['children'];
+export function blockSlotPath(block: Pick<Block, 'parentPath'>): JsonPath {
+  return [...block.parentPath, 'children'];
 }
 
 /**
@@ -40,13 +42,19 @@ export function slotSegments(slot: ArraySlot): readonly (string | number)[] {
  * `null` во всех случаях, когда «сдвинуть на позицию» не определено: пустое выделение, узлы
  * из разных слотов, разрыв между ними, узел вне массив-слота. Одна стрелка означала бы тогда
  * несколько разных правок сразу, а какую человек имел в виду — неизвестно.
+ *
+ * Модель нужна рядом с указателем: вид слота решает родитель узла, а не хвост его пути.
  */
-export function blockOf(index: NodeIndex, selection: readonly NodeId[]): Block | null {
+export function blockOf(
+  schema: JsonFormSchema,
+  index: NodeIndex,
+  selection: readonly NodeId[]
+): Block | null {
   if (selection.length === 0) return null;
 
   const places = selection.map((id) => {
     const entry = index.find(id);
-    return entry === undefined ? null : slotPositionOf(entry.path);
+    return entry === undefined ? null : slotPositionOf(schema, entry.path);
   });
   const first = places[0];
   if (first === null || first === undefined) return null;

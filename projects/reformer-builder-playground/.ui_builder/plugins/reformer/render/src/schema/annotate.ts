@@ -22,14 +22,14 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
-  type JsonArrayNodeV1 as JsonArrayNode,
-  type JsonContainerNodeV1 as JsonContainerNode,
-  type JsonFieldNodeV1 as JsonFieldNode,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
+  type JsonArrayNode,
+  type JsonContainerNode,
+  type JsonFieldNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
 import { nodeIdOf } from '../../../core/form-model';
 import { isNodeLike } from '../../../core/form-model';
@@ -75,7 +75,11 @@ function annotateNode(node: JsonNode): JsonNode {
       componentProps: propsWithToken(array.componentProps, node, {
         arrayDefault: array.component === undefined,
       }),
-      item: { $template: annotateNode(array.item.$template) },
+      // `item: "$part(...)"` — шаблон элемента лежит в `parts` документа: в узле аннотировать нечего.
+      item:
+        typeof array.item === 'object'
+          ? { ...array.item, $template: annotateNode(array.item.$template) }
+          : array.item,
     } as JsonNode;
   }
 
@@ -91,34 +95,25 @@ function annotateNode(node: JsonNode): JsonNode {
 
   if (isContainerNode(node)) {
     const container = node as JsonContainerNode;
-    const steps = container.componentProps?.steps;
-    const hasSteps = Array.isArray(steps) && steps.some(isNodeLike);
-    // «Пустой» — значит нечего рисовать: ни детей (узлов или текста), ни шагов. Такой узел
-    // схлопывается в ноль пикселей и становится недостижим курсором.
-    const childCount =
-      (Array.isArray(container.children) ? container.children.length : 0) + (hasSteps ? 1 : 0);
+    // «Пустой» — значит нечего рисовать: детей нет — ни узлов, ни текста, ни шагов (шаги
+    // визарда — те же `children`). Такой узел схлопывается в ноль пикселей и становится
+    // недостижим курсором.
+    const childCount = Array.isArray(container.children) ? container.children.length : 0;
     const next = {
       ...container,
       componentProps: propsWithToken(container.componentProps, node, { empty: childCount === 0 }),
     } as JsonContainerNode;
 
-    if (hasSteps) {
-      next.componentProps = {
-        ...next.componentProps,
-        steps: (steps as unknown[]).map((step) =>
-          isNodeLike(step) ? annotateNode(step as JsonNode) : step
-        ),
-      };
-    }
     if (Array.isArray(container.children)) {
       // Текстовые части аннотировать нечем: у них нет `componentProps` под токен.
       next.children = container.children.map((child) =>
-        isNodeLike(child) ? annotateNode(child as JsonNode) : child
+        isNodeLike(child) ? annotateNode(child) : child
       );
     }
     return next as JsonNode;
   }
 
+  // Подформа (`{ model, part }`) пропсов не несёт — токен дописать некуда.
   return node;
 }
 

@@ -36,10 +36,7 @@
  * @module plugins/reformer/editor/schematic/schematic-drop
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { newNodeId, nodeIdOf, reissueNodeIds, type NodeIdFactory } from '../../../core/form-model';
 import { isFlexWrapper, isNodeLike } from '../../../core/form-model';
@@ -128,10 +125,11 @@ function planWrap(
   const target = index.find(spot.target);
   if (target === undefined) return null;
 
-  // Обернуть можно только узел, лежащий среди соседей: у единственного шага визарда, шаблона
-  // элемента и корня соседей нет, и «поставить рядом» там не значит ничего. Слот `steps`
-  // исключён отдельно: шаг визарда, завёрнутый в div, перестал бы быть шагом.
-  const place = slotPositionOf(target.path);
+  // Обернуть можно только узел, лежащий среди соседей: у шаблона элемента и корня соседей нет,
+  // и «поставить рядом» там не значит ничего. Слот `steps` исключён отдельно: шаг визарда,
+  // завёрнутый в div, перестал бы быть шагом. Шаг узнаётся по родителю-визарду — лежит он
+  // в том же `children`, что и обычные дети.
+  const place = slotPositionOf(schema, target.path);
   if (place === null || place.slot !== 'children') return null;
   const parentId = index.idAt(place.parentPath);
   if (parentId === undefined) return null;
@@ -186,7 +184,7 @@ function planFlipPair(
   dragged: NodeId,
   side: Side
 ): EditOp | undefined {
-  const from = slotPositionOf(sourcePath);
+  const from = slotPositionOf(schema, sourcePath);
   if (from === null || !pathEquals(from.parentPath, parentPath)) return undefined;
 
   const parent = getAt(schema, parentPath);

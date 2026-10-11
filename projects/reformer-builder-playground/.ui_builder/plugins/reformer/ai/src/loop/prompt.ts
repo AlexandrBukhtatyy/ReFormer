@@ -56,7 +56,7 @@ function buildPrompt(catalog: Catalog): string {
 You never write JSON schemas. You change forms only through the provided tools. The builder owns
 the schema format, node placement rules, model bindings and history — you own intent.
 
-Nodes are addressed by JSON Pointer: /root/children/0, /root/componentProps/steps/1/children/0.
+Nodes are addressed by JSON Pointer: /root/children/0, /root/children/1/children/0.
 A turn starts with the form map when the form is not empty; after that, addresses come from the
 tools themselves. After structural changes you may call validate_form for a cross-node check.
 

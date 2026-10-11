@@ -23,10 +23,7 @@
  * @module plugins/reformer/editor/palette/inspector-model
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { inspectorGroups } from '../../../core/catalog';
 import type {
   CatalogEntry,
@@ -111,11 +108,15 @@ export interface InspectorModel {
    *
    * `false` означает «компонент не из активного кита» — секций не будет, и это состояние
    * надо показать словами: пустой инспектор у выделенного узла читается как поломка.
+   *
+   * У подформы (`{ model, part }`) компонента нет вовсе — её разметка лежит в `parts`
+   * документа. Искать в каталоге нечего, поэтому для неё ответ `true`: сообщение «компонента
+   * нет в ките» было бы неправдой.
    */
   readonly known: boolean;
   /** Привязка к модели формы без обёртки `$model(...)`; `null` — не задана. */
   readonly binding: string | null;
-  /** Привязывается ли узел к модели вообще (поле и массив — да, контейнер — нет). */
+  /** Привязывается ли узел к модели вообще (поле, массив и подформа — да, контейнер — нет). */
   readonly bindable: boolean;
   /**
    * Пути, уже объявленные в той области модели, где лежит узел, — варианты списка привязки.
@@ -259,7 +260,7 @@ export function inspectorModelOf(
     title: nodeTitle(node),
     kind,
     component,
-    known: record !== undefined,
+    known: record !== undefined || kind === 'part',
     binding: modelOf(node) ?? null,
     bindable: kind !== 'container',
     bindingOptions: kind === 'container' ? [] : bound,

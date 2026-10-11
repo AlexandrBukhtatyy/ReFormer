@@ -15,7 +15,7 @@
  * @module plugins/reformer/ai/model/catalog-digest
  */
 
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { isCompoundPart, partNamesOf } from '../../../core/catalog';
 import { makeNodeFor } from '../../../core/catalog';
 import type { CatalogEntry, CatalogRole } from '../../../core/catalog';
@@ -157,7 +157,7 @@ function skeletonOf(
   compoundParent?: string
 ): { skeleton: string } | undefined {
   const node = makeNodeFor(name, role, compoundParent);
-  const inside = buildOutline({ version: '1.0', root: node } as JsonFormSchema).slice(1);
+  const inside = buildOutline({ format: 2, version: '1.0', root: node } as JsonFormSchema).slice(1);
   if (!inside.length) return undefined;
   return {
     skeleton: renderOutline(

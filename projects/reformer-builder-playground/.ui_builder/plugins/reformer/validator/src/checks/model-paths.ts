@@ -2,9 +2,12 @@
  * `$model(...)` читает путь, которого никто не объявил.
  *
  * Класс поломки — молчаливый no-op, худший в этом проекте. Модель формы строится из ОБЪЯВЛЕНИЙ
- * (`value` полей, `array` массивов); текстовая часть или проп с `$model(fulName)` в рантайме
- * даёт `No model signal` в консоли и пустоту на экране — ни ошибки, ни эффекта. Какие позиции
- * объявляют, а какие читают, — `form-model/model-scopes`; здесь только сверка и находка.
+ * (ключ `model` поля, массива и подформы); текстовая часть или проп с `$model(fulName)`
+ * в рантайме даёт `No model signal` в консоли и пустоту на экране — ни ошибки, ни эффекта. Какие
+ * позиции объявляют, а какие читают, — `form-model/model-scopes`; здесь только сверка и находка.
+ *
+ * Сверяется дерево корня. Разметку частей документа (`parts`) обход ядра не посещает: пути в ней
+ * относительны группе или строке, к которой часть подключена, и своей области у части нет.
  *
  * ## Строгость — предупреждение, и это названная уступка
  *
@@ -22,10 +25,7 @@
  * @module plugins/reformer/validator/checks/model-paths
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   boundPathsIn,
   collectModelReads,

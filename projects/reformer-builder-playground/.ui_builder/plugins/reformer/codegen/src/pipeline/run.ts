@@ -15,15 +15,14 @@
  */
 
 import { appSnippet, formNameOfSchemaPath } from '../../../core/codegen';
-import { isFormSchema } from '../../../core/form-model';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import { deliverModule, SourceReadOnlyError } from './deliver';
 import { generateModule, type CodegenProblem } from './generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import type { CodegenStore } from './state';
-import { formSourceOf, StepPartsError, type FormSource } from './source';
+import { asFormSchema, formSourceOf, StepPartsError, type FormSource } from './source';
 
 /**
  * Имя формы по умолчанию — из пути файла схемы ({@link formNameOfSchemaPath}).
@@ -44,13 +43,15 @@ export function defaultFormName(document: CodegenDocument): string {
  * Модель предпочтительнее, потому что она СОГЛАСОВАНА с буфером по контракту, а разбор текста
  * даст схему даже тогда, когда редактор считает буфер незаконченным. `null` — документ схемой
  * не является; это законное состояние (в схему открыт не тот файл), а не поломка.
+ *
+ * Отдаётся всегда формат 2 ({@link asFormSchema}): в буфере может лежать текст прежнего формата,
+ * а модель приходит из чужого документа. Схема формата 2 возвращается той же ссылкой.
  */
 export function schemaOf(document: CodegenDocument): JsonFormSchema | null {
-  const model = document.model();
-  if (isFormSchema(model)) return model;
+  const model = asFormSchema(document.model());
+  if (model !== null) return model;
   try {
-    const parsed: unknown = JSON.parse(document.getText());
-    return isFormSchema(parsed) ? parsed : null;
+    return asFormSchema(JSON.parse(document.getText()));
   } catch {
     return null;
   }

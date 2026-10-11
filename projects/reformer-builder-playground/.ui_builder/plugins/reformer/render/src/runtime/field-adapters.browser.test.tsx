@@ -18,7 +18,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import * as uiKit from '@reformer/ui-kit';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { builtinCatalog } from '../../../core/testing';
 import type { KitNamespace } from '@reformer/builder-plugin-api';
 import type {
@@ -39,19 +39,20 @@ const NO_SELECTION: readonly NodeId[] = Object.freeze([]);
 
 /** Форма из контейнера и двух полей с разными диалектами контрола. */
 const SCHEMA: JsonFormSchema = {
+  format: 2,
   root: {
     $nodeId: 'boxnode1',
     component: '$component(Box)',
     children: [
       {
         $nodeId: 'namenod1',
-        value: '$model(name)',
+        model: '$model(name)',
         component: '$component(Input)',
         componentProps: { label: 'Имя', testId: 'name' },
       },
       {
         $nodeId: 'agreeno1',
-        value: '$model(agree)',
+        model: '$model(agree)',
         component: '$component(Checkbox)',
         componentProps: { label: 'Согласен', testId: 'agree' },
       },

@@ -13,18 +13,36 @@
  */
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewContext } from '@reformer/builder-plugin-api';
-import { isFormSchema } from '../../../core/form-model';
+import { ensureSchema, isFormSchema } from '../../../core/form-model';
 import type { PreviewHost } from '../host';
+
+/** Перевод документа прежнего формата — по одному на объект: снимок обязан быть стабильным. */
+const migrated = new WeakMap<object, JsonFormSchema>();
+
+/**
+ * Документ в формате 2.
+ *
+ * Модель документа редактора уже переведена, и для неё это та же ссылка. Но контекст превью
+ * отдаёт модель любого источника, и документ прежнего формата единая сборка не собирает вовсе.
+ */
+function format2(schema: JsonFormSchema): JsonFormSchema {
+  const known = migrated.get(schema);
+  if (known !== undefined) return known;
+  const next = ensureSchema(schema);
+  migrated.set(schema, next);
+  return next;
+}
 
 /**
  * Схема документа с перерисовкой на каждую правку буфера.
  *
  * Контекст отдаёт модель `unknown`: превью общее для стеков, а сужает модель поверхность —
  * своей проверкой. Проверка идёт в снимке, и ссылка при этом остаётся стабильной: сужение
- * либо отдаёт тот же объект, либо `null`.
+ * отдаёт либо тот же объект, либо его перевод в формат 2 (один на объект, см. {@link format2}),
+ * либо `null`.
  */
 export function usePreviewSchema(ctx: PreviewContext): JsonFormSchema | null {
   const subscribe = useCallback(
@@ -38,7 +56,7 @@ export function usePreviewSchema(ctx: PreviewContext): JsonFormSchema | null {
   );
   const snapshot = useCallback(() => {
     const schema = ctx.schema();
-    return isFormSchema(schema) ? schema : null;
+    return isFormSchema(schema) ? format2(schema) : null;
   }, [ctx]);
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
@@ -97,4 +115,40 @@ export function useFilesVersion(host: Pick<PreviewHost, 'onDidChangeFiles'>): nu
     };
   }, [host]);
   return version;
+}
+
+/** Собранная форма в той части, что нужна поверхности: контроллер живой проверки. */
+interface LiveForm {
+  readonly validation?: { readonly controller: { start(): (() => void) | void } };
+}
+
+/**
+ * Живая проверка формы — то же, что делает `useFormBundle` у приложения.
+ *
+ * Сборка только создаёт контроллер стратегии, запускает его React-эффект. Превью собирает форму
+ * в `useMemo` (схему правят непрерывно, и форма пересобирается), поэтому запуск повторён здесь:
+ * без него стратегии `onChange` и `onBlur` в превью молчали бы, и форма «не валидировалась».
+ */
+export function useLiveValidation(form: LiveForm | null): void {
+  const controller = form?.validation?.controller;
+  useEffect(() => controller?.start(), [controller]);
+}
+
+const formKeys = new WeakMap<object, number>();
+let lastFormKey = 0;
+
+/**
+ * Ключ React для рендерера формы — свой у каждой сборки.
+ *
+ * Граница ошибок схемы внутри `FormRenderer` сбрасывается только перемонтированием: без ключа
+ * ошибка прошлой сборки осталась бы на экране после того, как схему уже починили.
+ */
+export function formKeyOf(form: object): number {
+  let key = formKeys.get(form);
+  if (key === undefined) {
+    lastFormKey += 1;
+    key = lastFormKey;
+    formKeys.set(form, key);
+  }
+  return key;
 }

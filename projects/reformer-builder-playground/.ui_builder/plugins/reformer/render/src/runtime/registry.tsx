@@ -5,13 +5,15 @@
  * свои пункты. Это не удобство, а условие непротиворечивости: разойдись они, и превью ругалось бы
  * на компонент, который человек только что поставил из палитры.
  *
- * Три источника имён, и все три обязательны:
+ * Четыре источника имён, и все обязательны:
  *
  * 1. **Каталог** — то, что предлагает палитра. Живой компонент или подписанный стаб, решает
  *    политика ({@link '../runtime/policy'}).
  * 2. **Инфраструктура** (`FormField`, `AsyncBoundary`, `List`) — имена ВНЕ палитры, но нужные
  *    рендереру. `FIELD_WRAPPER` реестра — это тот же `FormField`.
- * 3. **Неизвестные имена схемы** — `$component(...)`, которых каталог не знает. Без них рендерер
+ * 3. **Визард** — хозяева шагов (`Wizard`, `FormWizard`, …) и `Step`: синтетика каталога, которую
+ *    рисует визард кита (`adapters.wizard`); шаг — тело как есть.
+ * 4. **Неизвестные имена схемы** — `$component(...)`, которых каталог не знает. Без них рендерер
  *    молча нарисовал бы пустоту там, где человек ждёт компонент.
  *
  * @module plugins/reformer/render/runtime/registry
@@ -22,16 +24,16 @@ import {
   defineRegistry,
   FIELD_WRAPPER,
   type ComponentRegistry,
-  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonFormSchema,
   type RegistryBuilder,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import { INFRA_NAMES } from '../../../core/kits';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
-import { collectOperatorNames } from '../../../core/form-model';
-import { classifyEntry, isRegistrable, resolveInfra } from './policy';
+import { STEPS_HOST_NAMES, collectOperatorNames } from '../../../core/form-model';
+import { classifyEntry, isRegistrable, resolveInfra, resolveWizard } from './policy';
 import { classifyDataSources, mockOptions } from './mock';
-import { isolateComponent, makeLimitedComponent, makeUnknownComponent } from './stubs';
+import { PreviewStep, isolateComponent, makeLimitedComponent, makeUnknownComponent } from './stubs';
 
 export interface PreviewRegistryInput {
   readonly schema: JsonFormSchema;
@@ -70,9 +72,12 @@ export function buildComponents(
     ) as ComponentType<Record<string, unknown>>;
   }
 
+  /** Имена, которые кит нарисовал сам: адаптер визарда их не перекрывает. */
+  const live = new Set<string>();
   for (const entry of catalog) {
     if (!isRegistrable(entry)) continue;
     const decision = classifyEntry(entry, namespace, descriptor);
+    if (decision.policy === 'live') live.add(entry.name);
     map[entry.name] = isolateComponent(
       decision.policy === 'live'
         ? decision.component
@@ -81,8 +86,27 @@ export function buildComponents(
     ) as ComponentType<Record<string, unknown>>;
   }
 
+  // Визард. Шаги в схеме — дети узла-хозяина, а рисует их визард кита: он получает узлы шагов и
+  // функцию отрисовки от рендерера, форму и поток шагов — из сборки. Хозяева называются одним
+  // списком с моделью документа: по нему же `childSlots` решает, что `children` — слот шагов.
+  const wizard = resolveWizard(descriptor, namespace);
+  if (wizard !== undefined) {
+    for (const name of STEPS_HOST_NAMES) {
+      if (live.has(name)) continue;
+      map[name] = isolateComponent(wizard, name) as ComponentType<Record<string, unknown>>;
+    }
+  }
+  if (!live.has(STEP_NAME)) {
+    map[STEP_NAME] = isolateComponent(PreviewStep, STEP_NAME) as ComponentType<
+      Record<string, unknown>
+    >;
+  }
+
   return map;
 }
+
+/** Каталожное имя шага визарда. */
+const STEP_NAME = 'Step';
 
 /**
  * Имена `$component(...)` схемы, которых нет ни в каталоге, ни в инфраструктуре.

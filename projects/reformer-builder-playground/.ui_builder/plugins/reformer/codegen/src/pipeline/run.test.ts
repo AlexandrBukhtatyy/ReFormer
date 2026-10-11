@@ -8,6 +8,29 @@ import { createFakeDocument, createFakeHost } from '../testing';
 
 const DOC = 'src/forms/credit.schema.json' as ResourceId;
 
+/**
+ * Форма в ПРЕЖНЕМ формате: без `format`, привязка поля — в `value`.
+ *
+ * Литерал прежнего формата здесь намеренно: это вход проверки перевода, а не недосмотр переноса.
+ */
+const LEGACY_FORM = {
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    children: [{ value: '$model(fullName)', component: '$component(Input)' }],
+  },
+};
+
+/** Она же в формате 2. */
+const FORM = {
+  format: 2,
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    children: [{ model: '$model(fullName)', component: '$component(Input)' }],
+  },
+};
+
 function setup(options: Parameters<typeof createFakeHost>[0] = {}) {
   const document = createFakeDocument(DOC, JSON.stringify(plainSchema()), 'credit.schema.json');
   const host = createFakeHost({ document, ...options });
@@ -78,5 +101,32 @@ describe('прогон генерации', () => {
       model: () => schema,
     };
     expect(schemaOf(document)).toBe(schema);
+  });
+
+  it('текст и модель прежнего формата отдаются переведёнными в формат 2', () => {
+    // Посылка: разметка прежнего формата — не та, с которой работает генерация.
+    expect(LEGACY_FORM.root).not.toEqual(FORM.root);
+
+    const fromText = createFakeDocument(DOC, JSON.stringify(LEGACY_FORM));
+    expect(schemaOf(fromText)).toEqual(FORM);
+
+    const fromModel = { ...createFakeDocument(DOC, 'сломанный текст'), model: () => LEGACY_FORM };
+    expect(schemaOf(fromModel)).toEqual(FORM);
+  });
+
+  it('по документу прежнего формата печатает модуль с его полями, а не пустой', async () => {
+    const document = createFakeDocument(DOC, JSON.stringify(LEGACY_FORM), 'credit.schema.json');
+    const { host, store } = setup({ document });
+    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
+
+    expect(store.get().errorKey).toBeNull();
+    expect(host.written.get('src/forms/credit/types.ts')).toContain('fullName: string;');
+    // Схема модуля — уже формата 2: привязка в `model`, пометка `format` на месте.
+    const schema = JSON.parse(host.written.get('src/forms/credit/form.schema.json') ?? '') as {
+      format?: unknown;
+      root: { children: unknown[] };
+    };
+    expect(schema.format).toBe(2);
+    expect(schema.root.children[0]).toMatchObject({ model: '$model(fullName)' });
   });
 });

@@ -43,8 +43,8 @@ import { Canvas } from './Canvas';
 import { useActiveSession, useSessionState } from './useSession';
 
 const DOCUMENT = 'fake:form.json';
-const FIELD_0 = ['root', 'componentProps', 'steps', 0, 'children', 0] as const;
-const FIELD_1 = ['root', 'componentProps', 'steps', 0, 'children', 1] as const;
+const FIELD_0 = ['root', 'children', 0, 'children', 0] as const;
+const FIELD_1 = ['root', 'children', 0, 'children', 1] as const;
 
 const NO_COMMANDS: CommandAccess = { has: () => false, run: () => undefined };
 

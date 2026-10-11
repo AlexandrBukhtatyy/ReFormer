@@ -6,14 +6,14 @@
  * @module plugins/reformer/core/catalog/make-node
  */
 
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
 import { LEAF_COMPONENT_NAMES } from '../kits/defaults';
 
 export function fieldNode(name: string): JsonNode {
   return {
-    value: '$model(newField)',
+    model: '$model(newField)',
     component: `$component(${name})`,
     componentProps: { label: name },
   };
@@ -267,7 +267,7 @@ export function hasCompoundTemplate(name: string): boolean {
 
 export function arrayNode(): JsonNode {
   return {
-    array: '$model(items)',
+    model: '$model(items)',
     item: {
       $template: {
         component: '$component(Box)',
@@ -289,14 +289,13 @@ export function stepNode(title = 'Шаг'): JsonNode {
 }
 
 /**
- * Визард: шаги живут в `componentProps.steps` (НЕ в `children` — иначе drop/insert уходили бы в
- * `children`, а не в слот `steps`). Сеем один шаг, чтобы слот `steps` сразу был активен
- * (`childSlots` показывает его только при непустом `steps`, см. `node-kind`).
+ * Визард: шаги — его `children`, и для `childSlots` это слот шагов (см. `node-kind`). Сеем один
+ * шаг: визард без шагов рисовать нечем, и первым делом человек всё равно его добавит.
  */
 export function wizardNode(): JsonNode {
   return {
     component: '$component(Wizard)',
-    componentProps: { steps: [stepNode('Шаг 1')] },
+    children: [stepNode('Шаг 1')],
   };
 }
 

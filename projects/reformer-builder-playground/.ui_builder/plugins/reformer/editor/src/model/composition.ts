@@ -1,16 +1,21 @@
 /**
  * Схема визарда из нескольких файлов — способность `composition` провайдера модели схемы.
  *
- * Корень держит в `componentProps.steps` ссылки `{ "$ref": "./steps/<шаг>/form.schema.json" }`,
+ * Корень держит в `children` узла-визарда ссылки `{ "$ref": "./steps/<шаг>/form.schema.json" }`,
  * шаги лежат в своих файлах. Оболочка читает файлы и ведёт документ, а что считать частью и куда
  * положить узел, отвечает здесь стек (`joinFormSchema` / `splitFormSchema`). Раскладка — карта
  * `$nodeId` шага → его файл: по ней переименованный шаг остаётся в своей папке, а новый шаг
  * разбитой формы сразу получает свой файл.
  *
+ * Форма, разбитая ещё в прежнем формате (ссылки в `componentProps.steps`, привязки `value` /
+ * `array` в файлах шагов), открывается так же: корень переводит разбор провайдера, файлы шагов —
+ * сборка (`joinFormSchema`), потому что у файла шага нет ни `root`, ни `format`. Обратно на диск
+ * уходит формат 2 — и корень, и каждый шаг.
+ *
  * @module plugins/reformer/editor/model/composition
  */
 
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   joinFormSchema,
   splitFormSchema,

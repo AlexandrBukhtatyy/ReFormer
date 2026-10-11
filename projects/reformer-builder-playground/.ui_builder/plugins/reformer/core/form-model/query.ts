@@ -7,17 +7,18 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
+  isPartNode,
   parseOperator,
-  type JsonContainerNodeV1 as JsonContainerNode,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  type JsonContainerNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
 import { getAt, isPrefix, pathEquals, type JsonPath } from './paths';
 import { nodeIdOf, type NodeId } from './node-id';
-import { childSlots, isNodeLike, orientationOf, type Orientation } from './node-kind';
+import { childSlots, isNodeLike, isStepsHost, orientationOf, type Orientation } from './node-kind';
 
 /** Узел по пути (или `undefined`, если по пути не узел). */
 export function findByPath(schema: JsonFormSchema, path: JsonPath): JsonNode | undefined {
@@ -31,8 +32,7 @@ export function findByPath(schema: JsonFormSchema, path: JsonPath): JsonNode | u
  * распознан как слот.
  *
  * Распознаваемые хвосты:
- * - `['children', i]`                      → контейнер-родитель
- * - `['componentProps', 'steps', i]`       → wizard-родитель
+ * - `['children', i]`                      → контейнер-родитель либо визард (шаги — его `children`)
  * - `['item', '$template']`                → массив-родитель
  * - `['wrapper']`                          → поле-родитель
  */
@@ -41,10 +41,8 @@ export function parentNodePath(path: JsonPath): JsonPath | null {
   if (n === 0) return null;
   const last = path[n - 1];
   const prev = path[n - 2];
-  const prev2 = path[n - 3];
 
   if (prev === 'children' && isIndex(last)) return path.slice(0, n - 2);
-  if (prev2 === 'componentProps' && prev === 'steps' && isIndex(last)) return path.slice(0, n - 3);
   if (prev === 'item' && last === '$template') return path.slice(0, n - 2);
   if (last === 'wrapper') return path.slice(0, n - 1);
   return null;
@@ -90,9 +88,9 @@ export function indexNodePaths(schema: JsonFormSchema): ReadonlyMap<NodeId, Json
 }
 
 /**
- * Верхнеуровневые `$model(path)` формы: для поля — из `value`, для массива — из `array`.
- * В `item.$template` НЕ спускаемся: пути внутри шаблона относительны элементу и не входят
- * в модель верхнего уровня. Результат дедуплицирован, порядок — по обходу.
+ * Верхнеуровневые `$model(path)` формы — привязки полей, массивов и подформ (ключ `model`).
+ * В `item.$template` и в разметку подформы НЕ спускаемся: пути там относительны элементу или
+ * группе и не входят в модель верхнего уровня. Результат дедуплицирован, порядок — по обходу.
  */
 export function collectModelPaths(schema: JsonFormSchema): string[] {
   const out: string[] = [];
@@ -104,29 +102,24 @@ export function collectModelPaths(schema: JsonFormSchema): string[] {
     }
   };
   const rec = (node: JsonNode) => {
-    if (isArrayNode(node)) {
-      const p = parseOperator(node.array);
-      if (p?.op === 'model') push(p.arg);
-      return; // шаблон элемента — относительные пути, пропускаем
-    }
-    if (isFieldNode(node)) {
-      const p = parseOperator(node.value);
+    // Массив, подформа и поле: привязка одна, вглубь не идём — у массива и подформы там пути
+    // относительные, у поля детей с привязками нет.
+    if (isArrayNode(node) || isPartNode(node) || isFieldNode(node)) {
+      const p = parseOperator(node.model);
       if (p?.op === 'model') push(p.arg);
       return;
     }
     if (isContainerNode(node)) {
-      const c = node as JsonContainerNode;
-      c.children?.forEach((child) => {
+      // Шаги визарда — те же `children`: отдельного обхода им не нужно.
+      (node as JsonContainerNode).children?.forEach((child) => {
         // Текстовая часть тоже может нести `$model(...)` — реактивный текст узла.
         if (!isNodeLike(child)) {
           const p = parseOperator(child);
           if (p?.op === 'model') push(p.arg);
           return;
         }
-        rec(child as JsonNode);
+        rec(child);
       });
-      const steps = c.componentProps?.steps;
-      if (Array.isArray(steps)) steps.forEach((s) => isNodeLike(s) && rec(s as JsonNode));
     }
   };
   if (isNodeLike(schema.root)) rec(schema.root);
@@ -142,9 +135,10 @@ export interface OperatorNames {
 }
 
 /**
- * Сбор имён `$component/$dataSource/$fn/$locale` из ВСЕГО дерева (рекурсивный скан значений,
- * включая componentProps и `item.$template`). `$model` игнорируется. Нужен для регистрации
- * заглушек источников и детекта незарегистрированных компонентов в runtime-preview.
+ * Сбор имён `$component/$dataSource/$fn/$locale` из ВСЕГО документа (рекурсивный скан значений,
+ * включая componentProps, `item.$template` и именованные части `parts`). `$model` игнорируется.
+ * Нужен для регистрации заглушек источников и детекта незарегистрированных компонентов в
+ * runtime-preview.
  */
 export function collectOperatorNames(schema: JsonFormSchema): OperatorNames {
   const components = new Set<string>();
@@ -173,6 +167,8 @@ export function collectOperatorNames(schema: JsonFormSchema): OperatorNames {
   };
 
   scan(schema.root);
+  // Разметка подформ лежит вне дерева корня, но рендерер строит её теми же компонентами.
+  scan(schema.parts);
   return {
     components: [...components],
     dataSources: [...dataSources],
@@ -242,14 +238,16 @@ export type NavIntent = 'prev' | 'next' | 'out' | 'in';
 /**
  * Ось, вдоль которой лежат соседи узла — это ось раскладки его родителя ({@link orientationOf}).
  * Горизонтальна только для слота `children` контейнера-ряда: `steps`/`template`/`wrapper` canvas
- * всегда рисует столбцом, независимо от классов родителя.
+ * всегда рисует столбцом, независимо от классов родителя. Шаги лежат в том же `children`, что и
+ * обычные дети, поэтому слот шагов узнаётся по родителю-визарду, а не по хвосту пути.
  */
 export function siblingAxis(schema: JsonFormSchema, path: JsonPath): Orientation {
   if (path[path.length - 2] !== 'children') return 'vertical';
   const parentP = parentNodePath(path);
   if (!parentP) return 'vertical';
   const parentNode = getAt(schema, parentP);
-  return isNodeLike(parentNode) ? orientationOf(parentNode as JsonNode) : 'vertical';
+  if (!isNodeLike(parentNode) || isStepsHost(parentNode)) return 'vertical';
+  return orientationOf(parentNode);
 }
 
 /**

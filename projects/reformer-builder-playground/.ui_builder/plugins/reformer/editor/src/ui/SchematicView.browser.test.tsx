@@ -20,7 +20,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useMemo, type ReactElement } from 'react';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
 import type { CatalogEntry } from '../../../core/catalog';
@@ -44,13 +44,14 @@ const CATALOG: readonly CatalogEntry[] = [
     role: 'field',
     category: 'Поля ввода',
     propsSchema: { type: 'object', properties: {} },
-    makeNode: () => ({ value: '$model(новое)', component: '$component(Input)' }),
+    makeNode: () => ({ model: '$model(новое)', component: '$component(Input)' }),
   },
 ];
 
 /** Корневой столбец: ряд из двух полей и поле под ним. */
 function layoutSchema(): JsonFormSchema {
   return {
+    format: 2,
     version: '1.0',
     root: {
       component: '$html(div)',
@@ -60,11 +61,11 @@ function layoutSchema(): JsonFormSchema {
           component: '$html(div)',
           componentProps: { className: DEFAULT_ROW_CLASS },
           children: [
-            { value: '$model(city)', component: '$component(Input)' },
-            { value: '$model(zip)', component: '$component(Input)' },
+            { model: '$model(city)', component: '$component(Input)' },
+            { model: '$model(zip)', component: '$component(Input)' },
           ],
         },
-        { value: '$model(comment)', component: '$component(Input)' },
+        { model: '$model(comment)', component: '$component(Input)' },
       ],
     },
   } as unknown as JsonFormSchema;
@@ -288,7 +289,7 @@ describe('перетаскивание в схематичном виде', () =
     const data = transfer();
     fixture.drag.begin({
       kind: 'new',
-      node: { value: '$model(x)', component: '$component(Input)' },
+      node: { model: '$model(x)', component: '$component(Input)' },
     });
 
     dispatchDrag(target, 'dragover', { x: 0.05, y: 0.5 }, data);
@@ -312,8 +313,8 @@ describe('перетаскивание в схематичном виде', () =
       })
       .toBe(DEFAULT_ROW_CLASS);
     // Новое поле встало ПЕРЕД целью: бросок был на левый край.
-    const first = getAt(fixture.model(), [...COMMENT, 'children', 0]) as { value?: string };
-    expect(first.value).toBe('$model(новое)');
+    const first = getAt(fixture.model(), [...COMMENT, 'children', 0]) as { model?: string };
+    expect(first.model).toBe('$model(новое)');
     fixture.unmount();
   });
 

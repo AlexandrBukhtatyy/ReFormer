@@ -6,10 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   NODE_ID_PATTERN,
   assignNodeIds,
@@ -162,6 +159,7 @@ describe('ensureNodeIds', () => {
 
   it('значение НЕ той формы считается чужим и переписывается на своём месте', () => {
     const schema = {
+      format: 2,
       version: '1.0',
       root: { $nodeId: 'ЧУЖОЕ', component: '$html(div)', children: [] },
     } as unknown as JsonFormSchema;
@@ -172,6 +170,7 @@ describe('ensureNodeIds', () => {
 
   it('текстовые части children идентификаторов не получают и с места не съезжают', () => {
     const schema = {
+      format: 2,
       version: '1.0',
       root: {
         component: '$html(p)',
@@ -187,9 +186,10 @@ describe('ensureNodeIds', () => {
 
   it('размечает обёртку поля (`wrapper`) — слот одиночный, но узел настоящий', () => {
     const schema = {
+      format: 2,
       version: '1.0',
       root: {
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         wrapper: { component: '$component(FormField)', children: [] },
       },
@@ -203,13 +203,14 @@ describe('уникальность адресов', () => {
   /** Схема с двумя узлами под одним адресом — след копипасты или склейки двух файлов. */
   function twins(id = 'aaaaaaaa'): JsonFormSchema {
     return {
+      format: 2,
       version: '1.0',
       root: {
         $nodeId: 'rrrrrrrr',
         component: '$html(div)',
         children: [
-          { $nodeId: id, value: '$model(a)', component: '$component(Input)' },
-          { $nodeId: id, value: '$model(b)', component: '$component(Input)' },
+          { $nodeId: id, model: '$model(a)', component: '$component(Input)' },
+          { $nodeId: id, model: '$model(b)', component: '$component(Input)' },
         ],
       },
     } as unknown as JsonFormSchema;
@@ -224,7 +225,7 @@ describe('уникальность адресов', () => {
   it('перевыданный адрес встаёт первым ключом, остальные ключи на местах', () => {
     const fixed = ensureNodeIds(twins(), () => 'zzzzzzzz');
     const second = getAt(fixed, ['root', 'children', 1]) as Record<string, unknown>;
-    expect(Object.keys(second)).toEqual(['$nodeId', 'value', 'component']);
+    expect(Object.keys(second)).toEqual(['$nodeId', 'model', 'component']);
   });
 
   it('assignNodeIds называет починенный адрес, а не молчит о нём', () => {
@@ -241,21 +242,20 @@ describe('уникальность адресов', () => {
 
   it('двойник ловится и в неоднородных слотах: шаги мастера и шаблон элемента', () => {
     const schema = {
+      format: 2,
       version: '1.0',
       root: {
         $nodeId: 'rrrrrrrr',
         component: '$component(FormWizard)',
-        componentProps: {
-          steps: [
-            { $nodeId: 'ssssssss', component: '$html(div)', children: [] },
-            {
-              $nodeId: 'ssssssss',
-              array: '$model(items)',
-              component: '$component(FieldArray)',
-              item: { $template: { $nodeId: 'ssssssss', component: '$html(div)', children: [] } },
-            },
-          ],
-        },
+        children: [
+          { $nodeId: 'ssssssss', component: '$html(div)', children: [] },
+          {
+            $nodeId: 'ssssssss',
+            model: '$model(items)',
+            component: '$component(FieldArray)',
+            item: { $template: { $nodeId: 'ssssssss', component: '$html(div)', children: [] } },
+          },
+        ],
       },
     } as unknown as JsonFormSchema;
 
@@ -277,6 +277,7 @@ describe('уникальность адресов', () => {
 
   it('findDuplicateNodeIds не считает находкой безадресный узел', () => {
     const schema = {
+      format: 2,
       version: '1.0',
       root: { component: '$html(div)', children: [{ component: '$html(span)', children: [] }] },
     } as unknown as JsonFormSchema;
@@ -329,7 +330,7 @@ describe('reissueNodeIds', () => {
   it('размечает и узел БЕЗ идентификатора — результат размечен целиком', () => {
     const node = {
       component: '$html(div)',
-      children: [{ value: '$model(a)', component: '$component(Input)' }],
+      children: [{ model: '$model(a)', component: '$component(Input)' }],
     } as unknown as JsonNode;
     const copy = reissueNodeIds(node, countingIds());
     const ids = new Set<string>();

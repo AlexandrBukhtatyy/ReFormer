@@ -28,13 +28,29 @@ import { pluginMessageKey } from '@reformer/builder-plugin-api';
 import { CODEGEN_PLUGIN_ID } from '../contract';
 
 /** Минимальная схема, которую `isFormSchema` признаёт формой. */
-const SCHEMA = JSON.stringify({
+const FORM = {
+  format: 2,
+  version: '1.0',
+  root: {
+    component: '$html(div)',
+    children: [{ selector: 'name', model: '$model(name)', component: '$component(Input)' }],
+  },
+};
+const SCHEMA = JSON.stringify(FORM);
+
+/**
+ * Та же форма в ПРЕЖНЕМ формате: без `format`, привязка поля — в `value`.
+ *
+ * Литерал прежнего формата здесь намеренно: это вход проверки перевода, а не недосмотр переноса.
+ */
+const LEGACY_FORM = {
   version: '1.0',
   root: {
     component: '$html(div)',
     children: [{ selector: 'name', value: '$model(name)', component: '$component(Input)' }],
   },
-});
+};
+const LEGACY_SCHEMA = JSON.stringify(LEGACY_FORM);
 
 const DIR = 'fake:forms/credit' as ResourceId;
 
@@ -89,6 +105,7 @@ describe('поиск схемы в каталоге', () => {
 
   it('открытый документ важнее файла на диске: в нём текст, который человек видит', async () => {
     const edited = JSON.stringify({
+      format: 2,
       version: '1.0',
       root: { component: '$html(section)', children: [] },
     });
@@ -97,7 +114,9 @@ describe('поиск схемы в каталоге', () => {
       document: createFakeDocument(`${DIR}/form.schema.json`, edited),
     });
 
-    expect((await findSchemaIn(host, DIR))?.schema.root.component).toBe('$html(section)');
+    expect((await findSchemaIn(host, DIR))?.schema.root).toMatchObject({
+      component: '$html(section)',
+    });
   });
 
   it('форма под прежним именем схемы тоже находится', async () => {
@@ -110,6 +129,25 @@ describe('поиск схемы в каталоге', () => {
     delete host.list;
 
     expect(await findSchemaIn(host, DIR)).toBeNull();
+  });
+
+  it('файл прежнего формата находится и отдаётся переведённым в формат 2', async () => {
+    // Посылка: разметка на диске — не та, с которой работает генерация.
+    expect(LEGACY_FORM.root).not.toEqual(FORM.root);
+    const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: LEGACY_SCHEMA } });
+
+    expect((await findSchemaIn(host, DIR))?.schema).toEqual(FORM);
+  });
+
+  it('открытый документ с текстом прежнего формата тоже отдаётся в формате 2', async () => {
+    const host = createFakeHost({
+      files: { [`${DIR}/form.schema.json`]: SCHEMA },
+      document: createFakeDocument(`${DIR}/form.schema.json`, LEGACY_SCHEMA),
+    });
+
+    const found = await findSchemaIn(host, DIR);
+    expect(found?.document).toBeDefined();
+    expect(found?.schema).toEqual(FORM);
   });
 });
 
@@ -190,6 +228,19 @@ describe('генерация в каталог', () => {
     });
     expect(outcome.delivery.orphans).toEqual(['steps/pereimenovannyi']);
     expect(host.written.get(`${DIR}/steps/pereimenovannyi/validation.ts`)).toBe('моё\n');
+  });
+
+  it('по файлу прежнего формата печатает тот же модуль, что и по записи формата 2', async () => {
+    const modern = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
+    const legacy = createFakeHost({ files: { [`${DIR}/form.schema.json`]: LEGACY_SCHEMA } });
+
+    await generateInto({ host: modern, targets }, { dir: DIR });
+    await generateInto({ host: legacy, targets }, { dir: DIR });
+
+    // Байт в байт, включая саму схему: она производная и переписана в формат 2.
+    expect(Object.fromEntries(legacy.written)).toEqual(Object.fromEntries(modern.written));
+    // И это модуль формы с полем, а не пустой: без перевода поле `name` не было бы найдено.
+    expect(legacy.written.get(`${DIR}/types.ts`)).toContain('name: string;');
   });
 
   it('цель, не применившаяся к форме, названа, а не пропущена молча', async () => {

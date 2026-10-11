@@ -9,10 +9,10 @@ import {
   LIST_PROP_KEYS,
   synthMock,
 } from './index';
-import type { JsonFieldNodeV1 as JsonFieldNode } from '@reformer/renderer-json';
+import type { JsonFieldNode } from '@reformer/renderer-json';
 
 const field = (component: string, props: Record<string, unknown> = {}): JsonFieldNode =>
-  ({ value: '$model(x)', component, componentProps: props }) as unknown as JsonFieldNode;
+  ({ model: '$model(x)', component, componentProps: props }) as unknown as JsonFieldNode;
 
 describe('синтез мока', () => {
   it('значения ПУСТЫЕ: заполненная форма скрыла бы работу required', () => {

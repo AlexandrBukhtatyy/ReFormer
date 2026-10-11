@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from './__fixtures__/builtin-catalog';
 import { COMPOUND_TEMPLATES } from './make-node';
@@ -82,6 +82,7 @@ describe('compound-части каталога', () => {
     const propSchemas = Object.fromEntries(catalog.map((e) => [e.name, e.propsSchema]));
     for (const [name, make] of Object.entries(COMPOUND_TEMPLATES)) {
       const schema = {
+        format: 2,
         version: '1.0',
         root: { component: '$component(Box)', children: [make()] },
       } as unknown as JsonFormSchema;

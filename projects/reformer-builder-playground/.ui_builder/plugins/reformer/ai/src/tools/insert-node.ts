@@ -8,7 +8,7 @@
  * @module plugins/reformer/ai/tools/insert-node
  */
 
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonNode } from '@reformer/renderer-json';
 import { makeNodeFor } from '../../../core/catalog';
 import { insertNode } from '../../../core/form-model';
 import { catalogEntry, componentNames, type Catalog } from '../model/catalog-digest';
@@ -131,7 +131,8 @@ function prepareNode(
     };
   }
 
-  // Мастер держит в своём слоте ШАГИ, и каждый шаг — контейнер. Поле, положенное сюда напрямую,
+  // Мастер держит в своём слоте ШАГИ, и каждый шаг — контейнер. Слот этот — те же `children`, что
+  // у секции, поэтому узнаётся по виду (`slotKind`), а не по пути. Поле, положенное сюда напрямую,
   // становилось шагом: рантайм пытался нарисовать его вместо страницы мастера. Отказ приходит до
   // правки, поэтому черновик остаётся чистым, а модель узнаёт правило в тот момент, когда оно ей
   // нужно. Проверка по ВИДУ узла, а не по имени `Step`: контейнер шагом быть вправе. Но каноничный
@@ -154,10 +155,9 @@ function prepareNode(
     string,
     unknown
   >;
-  if (spec.model) {
-    // Поле держит привязку в `value`, массив — в `array`; контейнеру привязка не нужна.
-    if (entry.role === 'field') node.value = `$model(${spec.model})`;
-    else if (entry.role === 'array') node.array = `$model(${spec.model})`;
+  // Поле и массив держат привязку в одном ключе — `model`; контейнеру привязка не нужна.
+  if (spec.model && (entry.role === 'field' || entry.role === 'array')) {
+    node.model = `$model(${spec.model})`;
   }
   if (spec.props) {
     node.componentProps = { ...(node.componentProps as object), ...spec.props };

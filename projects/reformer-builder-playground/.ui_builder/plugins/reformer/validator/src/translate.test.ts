@@ -34,14 +34,21 @@ describe('адрес отделяется от сообщения во всех 
   });
 
   it('вложенные индексы подряд', () => {
-    expect(splitLocation('root.componentProps.steps[2][0].value: unknown fn "calc"').path).toEqual([
-      'root',
-      'componentProps',
-      'steps',
-      2,
-      0,
-      'value',
-    ]);
+    // Шаг визарда — `children[2]`; индексы подряд даёт массив массивов в пропсах узла.
+    expect(
+      splitLocation('root.children[2].componentProps.rows[1][0].value: unknown fn "calc"').path
+    ).toEqual(['root', 'children', 2, 'componentProps', 'rows', 1, 0, 'value']);
+  });
+
+  it('фраза с хвостом-пояснением: адресом остаётся только первая лексема', () => {
+    expect(
+      splitLocation(
+        'root.children[0].part: unknown part "adress" — declare it in the document "parts" map'
+      )
+    ).toEqual({
+      path: ['root', 'children', 0, 'part'],
+      message: 'unknown part "adress" — declare it in the document "parts" map',
+    });
   });
 });
 
@@ -56,6 +63,15 @@ describe('сообщение становится кодом и параметр
     ['unknown dataSource "LOAN_TYPES"', CODES.UNKNOWN_DATA_SOURCE, { name: 'LOAN_TYPES' }],
     ['unknown fn "calcTotal"', CODES.UNKNOWN_FN, { name: 'calcTotal' }],
     ['unknown locale key "fields.sum"', CODES.UNKNOWN_LOCALE_KEY, { key: 'fields.sum' }],
+    // Имя — до ПЕРВОЙ кавычки: в хвосте-пояснении свои кавычки, и жадный образец вернул бы
+    // именем `adress" — declare it in the document "parts`.
+    [
+      'unknown part "adress" — declare it in the document "parts" map',
+      CODES.UNKNOWN_PART,
+      { name: 'adress' },
+    ],
+    // Хвост образцом не закреплён: без пояснения фраза узнаётся так же.
+    ['unknown part "row"', CODES.UNKNOWN_PART, { name: 'row' }],
     ['has unknown property "lable"', CODES.UNKNOWN_PROPERTY, { property: 'lable' }],
     ["must have required property 'component'", CODES.MISSING_PROPERTY, { property: 'component' }],
     ['must be boolean', CODES.WRONG_TYPE, { expected: 'boolean' }],
@@ -79,14 +95,10 @@ describe('сообщение становится кодом и параметр
       CODES.PATTERN_MISMATCH,
       { expected: '$html(...)' },
     ],
+    ['must match pattern "^\\$part\\(.+\\)$"', CODES.PATTERN_MISMATCH, { expected: '$part(...)' }],
     ['must match pattern "^[0-9a-z]{8}$"', CODES.PATTERN_MISMATCH, { expected: '$nodeId' }],
     // Неузнанная регулярка отдаётся как есть: она хотя бы точна.
     ['must match pattern "^\\d+$"', CODES.PATTERN_MISMATCH, { expected: '^\\d+$' }],
-    [
-      'array node is missing "initialValue" — the "Add" button would create an empty element',
-      CODES.ARRAY_INITIAL_VALUE_MISSING,
-      {},
-    ],
     [
       'array node "initialValue" is missing element keys [type, price] required by the item template',
       CODES.ARRAY_INITIAL_VALUE_INCOMPLETE,
@@ -99,6 +111,17 @@ describe('сообщение становится кодом и параметр
       expect(translateMessage(message)).toEqual({ code, params });
     });
   }
+
+  it('«у массива нет initialValue» своего кода больше не имеет: формат 2 этой фразы не рождает', () => {
+    // Шаблон нового элемента в формате 2 живёт в модели, и о пропущенном `initialValue` проверка
+    // молчит; документ прежнего формата до неё не доходит — он переводится раньше. Образец и код
+    // убраны вместе с фразой, а дойди она всё же (чужой пакет вправе её вернуть) — находка
+    // не теряется, как и любая неузнанная.
+    const message =
+      'array node is missing "initialValue" — the "Add" button would create an empty element';
+
+    expect(translateMessage(message)).toEqual({ code: CODES.INVALID, params: { message } });
+  });
 
   it('счётные проверки остаются общим кодом: единица счёта у ajv внутри фразы', () => {
     // Осознанная граница, а не промах образца: `… more than 2 items` без склонения перевести

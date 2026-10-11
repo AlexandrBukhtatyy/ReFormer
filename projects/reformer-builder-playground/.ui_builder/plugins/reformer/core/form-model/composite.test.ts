@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   STEP_SCHEMA_MARKER,
   isFormStepSchema,
@@ -17,7 +14,7 @@ function step(id: string, title: string, field: string): JsonNode {
     component: '$component(Step)',
     componentProps: { title },
     children: [
-      { value: `$model(${field})`, component: '$component(Input)', $nodeId: `${id.slice(0, 6)}0f` },
+      { model: `$model(${field})`, component: '$component(Input)', $nodeId: `${id.slice(0, 6)}0f` },
     ],
     $nodeId: id,
   } as JsonNode;
@@ -26,6 +23,7 @@ function step(id: string, title: string, field: string): JsonNode {
 function form(steps: unknown[]): JsonFormSchema {
   return {
     $schema: './form-schema.schema.json',
+    format: 2,
     version: '1.0',
     root: {
       component: '$component(Box)',
@@ -34,7 +32,7 @@ function form(steps: unknown[]): JsonFormSchema {
         {
           component: '$component(Wizard)',
           $nodeId: 'wizard00',
-          componentProps: { steps },
+          children: steps,
         } as unknown as JsonNode,
       ],
     },
@@ -42,8 +40,8 @@ function form(steps: unknown[]): JsonFormSchema {
 }
 
 function stepsOf(schema: JsonFormSchema): unknown[] {
-  const root = schema.root as unknown as { children: { componentProps: { steps: unknown[] } }[] };
-  return root.children[0].componentProps.steps;
+  const root = schema.root as unknown as { children: { children: unknown[] }[] };
+  return root.children[0].children;
 }
 
 const dannye = step('dannye00', 'Данные', 'name');
@@ -83,6 +81,43 @@ describe('joinFormSchema', () => {
     expect(first.$nodeId).toBe('dannye00');
     expect(second.$nodeId).not.toBe('dannye00');
     expect(origins.get(second.$nodeId)?.ref).toBe(REF_B);
+  });
+
+  it('скелет и файл шага прежнего формата переводятся при сборке', () => {
+    // Так форма лежит на диске до первого сохранения: ссылки в `componentProps.steps`, привязка
+    // в `value`. У файла шага нет ни `root`, ни `format` — перевод документа его не узнал бы.
+    const legacySkeleton = {
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        $nodeId: 'wizard00',
+        componentProps: { steps: [{ $ref: REF_A }] },
+      },
+    } as unknown as JsonFormSchema;
+    const legacyStep = {
+      component: '$component(Step)',
+      $nodeId: 'dannye00',
+      children: [{ value: '$model(name)', component: '$component(Input)', $nodeId: 'dannye0f' }],
+    };
+    const { schema, origins } = joinFormSchema(
+      legacySkeleton,
+      new Map<string, unknown>([[REF_A, { node: legacyStep }]])
+    );
+    expect(schema.format).toBe(2);
+    expect(schema.root).toEqual({
+      component: '$component(Wizard)',
+      $nodeId: 'wizard00',
+      children: [
+        {
+          component: '$component(Step)',
+          $nodeId: 'dannye00',
+          children: [
+            { model: '$model(name)', component: '$component(Input)', $nodeId: 'dannye0f' },
+          ],
+        },
+      ],
+    });
+    expect(origins.get('dannye00')).toEqual({ ref: REF_A });
   });
 
   it('нет файла или файл не шаг — ошибка', () => {

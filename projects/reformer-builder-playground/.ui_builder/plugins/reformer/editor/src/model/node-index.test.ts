@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
 import { indexNodes } from './node-index';
@@ -23,15 +23,15 @@ describe('indexNodes', () => {
       .entries()
       .map((entry) => entry.path.join('/'));
     expect(paths[0]).toBe('root');
-    expect(paths).toContain('root/componentProps/steps/1');
-    expect(paths).toContain('root/componentProps/steps/1/children/0/item/$template');
+    expect(paths).toContain('root/children/1');
+    expect(paths).toContain('root/children/1/children/0/item/$template');
   });
 
   it('переводит адрес в путь и обратно', () => {
     const index = indexNodes(SCHEMA);
-    const id = index.idAt(['root', 'componentProps', 'steps', 0, 'children', 1]);
+    const id = index.idAt(['root', 'children', 0, 'children', 1]);
     expect(id).toBeDefined();
-    expect(index.find(id!)?.path).toEqual(['root', 'componentProps', 'steps', 0, 'children', 1]);
+    expect(index.find(id!)?.path).toEqual(['root', 'children', 0, 'children', 1]);
   });
 
   it('не знает того, чего в модели нет', () => {
@@ -42,6 +42,7 @@ describe('indexNodes', () => {
 
   it('узел без адреса в указатель не попадает', () => {
     const index = indexNodes({
+      format: 2,
       version: '1.0',
       root: { component: '$component(Box)', children: [] },
     });
@@ -51,6 +52,7 @@ describe('indexNodes', () => {
   it('при совпадении адресов выигрывает первый по обходу', () => {
     const twin = { $nodeId: 'aaaaaaaa', component: '$component(Box)', children: [] };
     const index = indexNodes({
+      format: 2,
       version: '1.0',
       root: { $nodeId: 'bbbbbbbb', component: '$component(Box)', children: [twin, { ...twin }] },
     } as unknown as JsonFormSchema);

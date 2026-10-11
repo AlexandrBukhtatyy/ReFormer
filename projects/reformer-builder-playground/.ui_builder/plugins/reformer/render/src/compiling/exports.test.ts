@@ -102,16 +102,25 @@ describe('extractContract', () => {
 });
 
 describe('composeValidation', () => {
-  it('стратегия из validationOptions приклеивается к схеме правил', () => {
+  it('стратегия из validationOptions приклеивается к правилам — в ключах единой сборки', () => {
+    // Сборка читает `rules`: конфигурация с правилами под `schema` для неё пуста.
     expect(composeValidation(rules, { strategy: 'change' })).toEqual({
-      schema: rules,
+      rules,
       strategy: 'change',
     });
   });
 
   it('готовую конфигурацию не переспоривают', () => {
-    const config = { steps: {}, strategy: 'submit' };
+    const config = { rules, strategy: 'submit' };
     expect(composeValidation(config, { strategy: 'change' })).toBe(config);
+  });
+
+  it('прежняя конфигурация переводится: schema становится rules, правила шагов уходят', () => {
+    // Иначе форма собралась бы и молча не проверялась. Правила шагов принадлежат потоку шагов.
+    expect(composeValidation({ schema: rules, steps: {}, strategy: 'submit' }, undefined)).toEqual({
+      rules,
+      strategy: 'submit',
+    });
   });
 
   it('без правил ничего не собирается', () => {

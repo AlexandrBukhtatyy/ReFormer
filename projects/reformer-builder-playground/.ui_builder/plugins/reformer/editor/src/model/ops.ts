@@ -50,14 +50,8 @@
  * @module plugins/reformer/editor/model/ops
  */
 
-import {
-  isArrayNodeV1 as isArrayNode,
-  isFieldNodeV1 as isFieldNode,
-  parseOperator,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
-import { canAcceptChildren, childSlots, isNodeLike } from '../../../core/form-model';
+import { parseOperator, type JsonFormSchema, type JsonNode } from '@reformer/renderer-json';
+import { canAcceptChildren, isNodeLike, isStepsHost, kindOf } from '../../../core/form-model';
 import { newNodeId, nodeIdOf, reissueNodeIds, type NodeIdFactory } from '../../../core/form-model';
 import { getAt, removeAt, updateAt, type JsonPath } from '../../../core/form-model';
 import {
@@ -76,7 +70,13 @@ import { indexNodes, type NodeIndex } from './node-index';
 import { ensureNodeIds, ensureSchema } from '../../../core/form-model';
 import type { ApplyResult, EditOp, NodeId } from '../host';
 
-/** Массив-слот, в который кладут узлы. Одиночные (`template`/`wrapper`) вставку не принимают. */
+/**
+ * Массив-слот, в который кладут узлы. Одиночные (`template`/`wrapper`) вставку не принимают.
+ *
+ * Оба вида лежат в одном ключе узла — `children`: вид говорит, ЧТО в слоте, а не где он. У
+ * визарда `children` — шаги, у любого другого контейнера — дети. Поэтому вид слота решает
+ * РОДИТЕЛЬ ({@link arraySlotOf}), а по хвосту пути его не узнать.
+ */
 export type ArraySlot = 'children' | 'steps';
 
 /** Типы операций словаря. Проверяется на применении: чужой тип — отказ, а не тишина. */
@@ -114,7 +114,10 @@ export class SchemaOpError extends Error {
 // палитре и команде. Форма операции — часть контракта с журналом, и опечатка в имени
 // параметра проявилась бы только при воспроизведении записи.
 
-/** Вставить узел в слот родителя. Без `parent` — в `children` корня. */
+/**
+ * Вставить узел в массив-слот родителя. Без `parent` — в слот корня; без `slot` — в тот слот,
+ * который у родителя есть (у визарда это шаги).
+ */
 export function insertOp(
   node: JsonNode,
   options: { parent?: NodeId; slot?: ArraySlot; index?: number; keepIds?: boolean } = {}
@@ -263,7 +266,7 @@ export function renamePropOp(target: NodeId, from: string, to: string): EditOp {
  * Заменить путь в `$model(...)` там, где модель ЧИТАЕТСЯ: текстовая часть `children` или
  * значение `componentProps` на любой глубине (`within` — путь от узла).
  *
- * `set-binding` сюда не годится: он правит `value`/`array`, позицию ОБЪЯВЛЕНИЯ. Чтение же —
+ * `set-binding` сюда не годится: он правит ключ `model`, позицию ОБЪЯВЛЕНИЯ. Чтение же —
  * строка внутри текста или пропа, и адресуется она местом, а не ключом узла. Прежний путь
  * (`from`) сверяется: исправление, выданное по старому тексту, не должно затереть то, что
  * человек успел поправить сам. Обратная — та же замена назад, место не меняется.
@@ -391,40 +394,58 @@ function isIndexSegment(segment: unknown): boolean {
 }
 
 /**
- * Куда именно вложен узел с таким путём.
+ * Вид массив-слота узла: у визарда его `children` — шаги, у остальных — дети.
  *
- * Читается с хвоста, потому что вложенность неоднородна: дети лежат в `children`, шаги —
- * в `componentProps.steps`, шаблон элемента — в `item.$template`. Первые два адресуются
- * позицией и принимают вставку, последний — нет, и для него ответ `null`.
+ * Одно правило на всех, кто называет слот: операции, щелчок по палитре, бросок и клавиши.
+ * Визард узнаётся по имени компонента (`isStepsHost` домена) — больше нечем: шаги лежат в том
+ * же `children`, что и дети любого контейнера.
  */
-export function slotPositionOf(path: JsonPath): SlotPosition | null {
-  const n = path.length;
-  const last = path[n - 1];
-  if (n >= 2 && path[n - 2] === 'children' && isIndexSegment(last)) {
-    return { parentPath: path.slice(0, n - 2), slot: 'children', index: Number(last) };
-  }
-  if (
-    n >= 3 &&
-    path[n - 3] === 'componentProps' &&
-    path[n - 2] === 'steps' &&
-    isIndexSegment(last)
-  ) {
-    return { parentPath: path.slice(0, n - 3), slot: 'steps', index: Number(last) };
-  }
-  return null;
+export function arraySlotOf(node: unknown): ArraySlot {
+  return isStepsHost(node) ? 'steps' : 'children';
 }
 
-/** Путь массива-слота у родителя. Слот `children` создаётся вставкой, если его ещё нет. */
-function slotPathOf(model: JsonFormSchema, parentPath: JsonPath, slot: ArraySlot): JsonPath {
+/**
+ * Куда именно вложен узел с таким путём.
+ *
+ * Место читается с хвоста пути: дети и шаги лежат в `children` и адресуются позицией, шаблон
+ * элемента (`item.$template`) и обёртка поля (`wrapper`) — одиночные, и для них ответ `null`.
+ * ВИД слота хвост не называет — у шага визарда и у ребёнка контейнера он одинаков, — поэтому
+ * нужна модель: вид решает родитель ({@link arraySlotOf}).
+ */
+export function slotPositionOf(model: JsonFormSchema, path: JsonPath): SlotPosition | null {
+  const n = path.length;
+  const last = path[n - 1];
+  if (n < 2 || path[n - 2] !== 'children' || !isIndexSegment(last)) return null;
+  const parentPath = path.slice(0, n - 2);
+  return { parentPath, slot: arraySlotOf(getAt(model, parentPath)), index: Number(last) };
+}
+
+/**
+ * Путь массива-слота у родителя. Массива может ещё не быть — его создаёт вставка: так
+ * появляется и первый ребёнок контейнера, и первый шаг визарда, у которого нет ключа `children`.
+ *
+ * Слот у родителя один, и вид его задан самим родителем, поэтому названный вид с ним
+ * СВЕРЯЕТСЯ: `steps` у обычного контейнера и `children` у визарда — отказ. Принять оба имени
+ * значило бы завести одному месту два адреса, а по виду слота сравнивают «тот же ли это слот»
+ * и планировщики, и обратные операции. Вид не назван — берётся тот, что есть.
+ */
+function slotPathOf(
+  model: JsonFormSchema,
+  parentPath: JsonPath,
+  slot: ArraySlot | undefined
+): JsonPath {
   const parent = getAt(model, parentPath);
   if (!isNodeLike(parent)) throw new SchemaOpError('родитель вставки — не узел');
   if (!canAcceptChildren(parent)) {
     throw new SchemaOpError('узел не принимает вложенные компоненты');
   }
-  if (slot === 'steps') {
-    const steps = childSlots(parent, parentPath).find((s) => s.kind === 'steps');
-    if (!steps) throw new SchemaOpError('у узла нет слота шагов');
-    return steps.path;
+  const own = arraySlotOf(parent);
+  if (slot !== undefined && slot !== own) {
+    throw new SchemaOpError(
+      own === 'steps'
+        ? 'у визарда нет слота детей: его дети — шаги (слот «steps»)'
+        : 'у узла нет слота шагов'
+    );
   }
   return [...parentPath, 'children'];
 }
@@ -476,7 +497,7 @@ function applyRemove(
   index: NodeIndex
 ): ApplyResult<JsonFormSchema> {
   const { path, node } = requireTarget(index, op);
-  const position = slotPositionOf(path);
+  const position = slotPositionOf(model, path);
   if (!position) throw new SchemaOpError('узел лежит в одиночном слоте: удалять нечего');
   const parentId = requireId(index, position.parentPath);
   return {
@@ -498,7 +519,7 @@ function applyMove(
   index: NodeIndex
 ): ApplyResult<JsonFormSchema> {
   const { path, id, node } = requireTarget(index, op);
-  const from = slotPositionOf(path);
+  const from = slotPositionOf(model, path);
   if (!from) throw new SchemaOpError('узел лежит в одиночном слоте: перемещать нечего');
   const parent = op.params?.parent;
   if (typeof parent !== 'string') throw new SchemaOpError('move: не указан родитель');
@@ -543,7 +564,7 @@ function applyDuplicate(
   newId: NodeIdFactory
 ): ApplyResult<JsonFormSchema> {
   const { path, node } = requireTarget(index, op);
-  const position = slotPositionOf(path);
+  const position = slotPositionOf(model, path);
   if (!position) throw new SchemaOpError('узел лежит в одиночном слоте: дублировать некуда');
   // Копия — новый узел, поэтому идентификаторы выдаются заново всему поддереву.
   const copy = reissueNodeIds(structuredClone(node), newId);
@@ -561,7 +582,7 @@ function applyGroup(
 ): ApplyResult<JsonFormSchema> {
   const ids = op.params?.nodes;
   if (!Array.isArray(ids) || ids.length === 0) throw new SchemaOpError('group: пустой блок');
-  const block = resolveBlock(index, ids as readonly NodeId[]);
+  const block = resolveBlock(model, index, ids as readonly NodeId[]);
   const template = op.params?.template;
   const restored = isNodeLike(template)
     ? (template as unknown as Record<string, unknown>)
@@ -883,15 +904,16 @@ function applySetText(
 // ── мелочи ──────────────────────────────────────────────────────────────────────
 
 /**
- * Ключ привязки: у поля это `value`, у массива — `array`.
+ * Ключ привязки: у поля, массива и подформы он один — `model`.
  *
- * Контейнер к модели не привязывается вовсе, и придумать ему ключ значило бы записать
- * в схему поле, которого рендерер у контейнера не читает.
+ * Контейнер к модели не привязывается вовсе, и записать ему ключ значило бы превратить его
+ * в поле: вид узла рендерер читает как раз по наличию `model`.
  */
-function bindingKeyOf(node: JsonNode): 'value' | 'array' {
-  if (isArrayNode(node)) return 'array';
-  if (isFieldNode(node)) return 'value';
-  throw new SchemaOpError('контейнер не привязывается к модели формы');
+function bindingKeyOf(node: JsonNode): 'model' {
+  if (kindOf(node) === 'container') {
+    throw new SchemaOpError('контейнер не привязывается к модели формы');
+  }
+  return 'model';
 }
 
 /** Параметры обратной привязки: прежнее значение оператора без обёртки `$model(...)`. */
@@ -901,9 +923,10 @@ function bindingParams(previous: unknown): Record<string, unknown> {
   return match ? { model: match[1] } : {};
 }
 
-function readSlot(value: unknown): ArraySlot {
-  if (value === undefined || value === 'children') return 'children';
-  if (value === 'steps') return 'steps';
+/** Названный в параметрах вид слота; `undefined` — не назван, решит родитель. */
+function readSlot(value: unknown): ArraySlot | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'children' || value === 'steps') return value;
   throw new SchemaOpError(`вставка в слот «${String(value)}» не поддерживается`);
 }
 
@@ -930,11 +953,11 @@ interface Block {
   readonly count: number;
 }
 
-function resolveBlock(index: NodeIndex, ids: readonly NodeId[]): Block {
+function resolveBlock(model: JsonFormSchema, index: NodeIndex, ids: readonly NodeId[]): Block {
   const positions = ids.map((id) => {
     const entry = index.find(id);
     if (!entry) throw new SchemaOpError(`узел не найден: ${id}`);
-    const position = slotPositionOf(entry.path);
+    const position = slotPositionOf(model, entry.path);
     if (!position) throw new SchemaOpError('узел лежит в одиночном слоте: группировать нечего');
     return { position, slotPath: entry.path.slice(0, -1) };
   });

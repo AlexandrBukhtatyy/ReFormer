@@ -9,6 +9,7 @@ import { siblingInfo } from '../../../core/form-model';
 import { commitMutation } from '../loop/gate';
 import { isResolved, refToPath, resolveRef } from '../model/node-ref';
 import { layoutClassName, type LayoutParams } from '../model/layout';
+import { slotKindAt } from '../model/slots';
 import { fail, type AgentTool } from '../model/types';
 import { LAYOUT_PROPS } from './params';
 
@@ -59,8 +60,9 @@ export const groupNodesTool: AgentTool<Params> = {
 
     // Шаги мастера обёртка схлопывает: `groupBlock` ставит на их место один `$html(div)`, и вместо
     // нескольких страниц остаётся одна безымянная. Внутри шага группировка полей по-прежнему
-    // законна — запрет ровно на сам слот шагов.
-    if (infos[0].info.slotPath.at(-1) === 'steps') {
+    // законна — запрет ровно на сам слот шагов. Узнаётся он по узлу-держателю, а не по хвосту
+    // пути: шаги лежат в том же `children`, что и поля секции.
+    if (slotKindAt(ctx.draft, infos[0].info.slotPath) === 'steps') {
       return fail(
         'INVALID_PARENT',
         'Wizard steps cannot be grouped — the wrapper would collapse them into a single step. ' +

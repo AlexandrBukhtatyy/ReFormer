@@ -34,7 +34,7 @@ function template(patch: Partial<FormTemplate> = {}): FormTemplate {
     files: [
       {
         path: 'form.schema.json',
-        content: '{"version":"1.0","root":{"component":"$html(div)"}}',
+        content: '{"format":2,"version":"1.0","root":{"component":"$html(div)"}}',
       },
       { path: 'model.ts', content: 'export const model = {};\n' },
     ],

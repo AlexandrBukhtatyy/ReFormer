@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { BUILTIN_CATALOG, builtinEntries } from '../../core/testing';
 import type { CatalogEntry } from '../../core/catalog';
@@ -49,11 +49,12 @@ function docRef(
 
 const schema: JsonFormSchema = ensureNodeIds(
   {
+    format: 2,
     version: '1.0',
     root: {
       component: '$component(Box)',
       children: [
-        { value: '$model(loanAmount)', component: '$component(Inpt)', componentProps: {} },
+        { model: '$model(loanAmount)', component: '$component(Inpt)', componentProps: {} },
       ],
     },
   } as unknown as JsonFormSchema,
@@ -484,6 +485,7 @@ describe('проверка по мета-схеме грузится по тре
 
   /** Форма со структурной ошибкой, которую видит ТОЛЬКО мета-схема. */
   const brokenSchema = {
+    format: 2,
     version: '1.0',
     root: { component: '$component(Box)', children: [{ componentProps: {} }] },
   } as unknown as JsonFormSchema;
@@ -508,8 +510,9 @@ describe('проверка по мета-схеме грузится по тре
     // Разбор и имена компонентов работают и без мета-схемы — иначе цена была бы не в двух фазах.
     const unknown = validator.validate!(
       ctxFor({
+        format: 2,
         version: '1.0',
-        root: { component: '$component(Инпут)', value: '$model(a)' },
+        root: { component: '$component(Инпут)', model: '$model(a)' },
       } as unknown as JsonFormSchema)
     );
     expect(unknown.map((item) => item.code)).toContain(publishedCode(CODES.UNKNOWN_COMPONENT));

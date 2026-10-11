@@ -8,10 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, newNodeId } from '../../../core/form-model';
 import type { NodeId } from '@reformer/builder-plugin-api';
@@ -21,11 +18,11 @@ import { indexNodes } from '../model/node-index';
 import { buildSchematic } from '../schematic/schematic-tree';
 import type { Rect } from '../schematic/schematic-zone';
 
-const NEW_NODE: JsonNode = { value: '$model(новое)', component: '$component(Input)' };
+const NEW_NODE: JsonNode = { model: '$model(новое)', component: '$component(Input)' };
 const NEW: DragPayload = { kind: 'new', node: NEW_NODE };
 
-const FIELD_0 = ['root', 'componentProps', 'steps', 0, 'children', 0] as const;
-const FIELD_1 = ['root', 'componentProps', 'steps', 0, 'children', 1] as const;
+const FIELD_0 = ['root', 'children', 0, 'children', 0] as const;
+const FIELD_1 = ['root', 'children', 0, 'children', 1] as const;
 
 function fixture() {
   const model: JsonFormSchema = ensureNodeIds(sampleSchema(), newNodeId);
@@ -86,7 +83,7 @@ describe('targetAt', () => {
 
   it('середина контейнера означает «внутрь»', () => {
     const { model, tree, idAt } = fixture();
-    const step = idAt(['root', 'componentProps', 'steps', 0]);
+    const step = idAt(['root', 'children', 0]);
     const rect: Rect = { left: 0, top: 0, width: 400, height: 300 };
     const result = targetAt(
       { model, tree, rectOf: () => null },

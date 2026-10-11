@@ -15,10 +15,10 @@
 
 import {
   collectSchemaSelectors,
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
+  isArrayNode,
+  isContainerNode,
   parseOperator,
-  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { kebab } from '@reformer/builder-toolkit';
 import { isNodeLike, isStepsHostName } from '../form-model/node-kind';
@@ -30,7 +30,7 @@ interface AnyNode {
   selector?: string;
   componentProps?: Record<string, unknown>;
   children?: unknown[];
-  array?: string;
+  model?: string;
 }
 
 export interface SelectorInfo {
@@ -94,7 +94,7 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
     }
 
     if (isArrayNode(node)) {
-      const parsed = parseOperator(raw.array);
+      const parsed = parseOperator(raw.model);
       const path = parsed?.op === 'model' ? parsed.arg : 'items';
       if (raw.selector === undefined || raw.selector === '') raw.selector = uniq(kebab(path));
       arrays.push({ selector: raw.selector, path });

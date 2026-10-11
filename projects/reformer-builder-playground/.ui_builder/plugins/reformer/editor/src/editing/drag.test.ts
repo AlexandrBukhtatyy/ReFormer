@@ -13,10 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, nodeIdOf, type NodeIdFactory } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
@@ -33,8 +30,8 @@ function schema(): JsonFormSchema {
   return ensureNodeIds(sampleSchema(), sequentialIds('a'));
 }
 
-const STEP_0 = ['root', 'componentProps', 'steps', 0] as const;
-const STEP_1 = ['root', 'componentProps', 'steps', 1] as const;
+const STEP_0 = ['root', 'children', 0] as const;
+const STEP_1 = ['root', 'children', 1] as const;
 
 function idAt(model: JsonFormSchema, path: readonly (string | number)[]): string {
   const id = indexNodes(model).idAt(path);
@@ -43,7 +40,7 @@ function idAt(model: JsonFormSchema, path: readonly (string | number)[]): string
 }
 
 function newField(): JsonNode {
-  return { value: '$model(comment)', component: '$component(Input)' } as JsonNode;
+  return { model: '$model(comment)', component: '$component(Input)' } as JsonNode;
 }
 
 describe('dropPositionAt', () => {
@@ -121,7 +118,7 @@ describe('бросок с палитры', () => {
     expect(nodeIdOf(getAt(applied.model, [...STEP_0, 'children', 1]) as JsonNode)).toBe('b0000001');
   });
 
-  it('«внутрь» визарда попадает в СЛОТ ШАГОВ, а не в children', () => {
+  it('«внутрь» визарда попадает в СЛОТ ШАГОВ — последним в его `children`', () => {
     const model = schema();
     const root = idAt(model, ['root']);
     const op = planDrop(
@@ -130,6 +127,26 @@ describe('бросок с палитры', () => {
       { target: root, position: 'inside' }
     );
     expect((op as { params?: { slot?: string } }).params?.slot).toBe('steps');
+
+    const applied = applyEditOp(model, op!, { newId: sequentialIds('b') });
+    expect(nodeIdOf(getAt(applied.model, ['root', 'children', 2]) as JsonNode)).toBe('b0000001');
+    // Шаги не уехали в пропсы: у визарда они те же, что были.
+    expect(getAt(applied.model, ['root', 'componentProps'])).toEqual({ className: 'bg-white' });
+  });
+
+  it('«перед» шагом — вставка в слот шагов визарда на его позицию', () => {
+    const model = schema();
+    const second = idAt(model, STEP_1);
+    const op = planDrop(
+      model,
+      { kind: 'new', node: newField() },
+      { target: second, position: 'before' }
+    );
+    expect(op).toMatchObject({
+      type: 'insert',
+      target: idAt(model, ['root']),
+      params: { slot: 'steps', index: 1 },
+    });
   });
 
   it('«внутрь» поля запрещено: подсветки не будет, и бросок ничего не сделает', () => {
@@ -203,6 +220,23 @@ describe('бросок узла с канваса', () => {
     ).toBeNull();
     expect(
       planDrop(model, { kind: 'node', id: array }, { target: template, position: 'inside' })
+    ).toBeNull();
+  });
+
+  it('шаги переставляются броском внутри слота шагов, а бросок шага на его же место — отказ', () => {
+    const model = schema();
+    const first = idAt(model, STEP_0);
+    const second = idAt(model, STEP_1);
+
+    const op = planDrop(model, { kind: 'node', id: first }, { target: second, position: 'after' });
+    expect(op).toMatchObject({ type: 'move', params: { slot: 'steps', index: 2 } });
+    const applied = applyEditOp(model, op!);
+    expect(nodeIdOf(getAt(applied.model, STEP_1) as JsonNode)).toBe(first);
+    expect(applyEditOp(applied.model, applied.inverse).model).toEqual(model);
+
+    // «Перед вторым» для первого шага — то же место: слот источника и назначения один.
+    expect(
+      planDrop(model, { kind: 'node', id: first }, { target: second, position: 'before' })
     ).toBeNull();
   });
 
@@ -302,6 +336,7 @@ describe('сворачивание вырожденной обёртки', () =>
 
   it('обёртка, чей остаток текстовый, не сворачивается: обратной операции не из чего собраться', () => {
     const model = {
+      format: 2,
       version: '1.0',
       root: {
         $nodeId: 'rrrrrrrr',

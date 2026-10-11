@@ -9,10 +9,7 @@
  * @module plugins/reformer/core/codegen/__fixtures__/kit
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { builtinCatalog } from '../../catalog/__fixtures__/builtin-catalog';
 import { containerNode, fieldNode } from '../../catalog/make-node';
 import type { CatalogEntry } from '../../catalog/types';
@@ -76,18 +73,18 @@ export function plainSchema(): JsonFormSchema {
     componentProps: { className: 'space-y-4', title: 'Личные данные' },
     children: [
       {
-        value: '$model(fullName)',
+        model: '$model(fullName)',
         component: '$component(Input)',
         componentProps: { label: 'Имя', required: true },
       },
       {
-        value: '$model(agreed)',
+        model: '$model(agreed)',
         component: '$component(Checkbox)',
         componentProps: { label: 'Согласен' },
       },
     ],
   };
-  return { version: '1.0', root };
+  return { format: 2, version: '1.0', root };
 }
 
 /** Схема с визардом: один шаг, одно поле. */
@@ -97,25 +94,23 @@ export function wizardSchema(): JsonFormSchema {
     children: [
       {
         component: '$component(Wizard)',
-        componentProps: {
-          steps: [
-            {
-              component: '$component(Step)',
-              componentProps: { title: 'Шаг 1' },
-              children: [
-                {
-                  value: '$model(email)',
-                  component: '$component(Input)',
-                  componentProps: { label: 'Почта' },
-                },
-              ],
-            },
-          ],
-        },
+        children: [
+          {
+            component: '$component(Step)',
+            componentProps: { title: 'Шаг 1' },
+            children: [
+              {
+                model: '$model(email)',
+                component: '$component(Input)',
+                componentProps: { label: 'Почта' },
+              },
+            ],
+          },
+        ],
       },
     ],
   };
-  return { version: '1.0', root };
+  return { format: 2, version: '1.0', root };
 }
 
 /**
@@ -205,13 +200,12 @@ export function seededRules(): FormRules {
  */
 export function richSchema(): JsonFormSchema {
   const schema = sampleSchema();
-  const root = schema.root as unknown as { componentProps: { steps: JsonNode[] } };
-  const steps = root.componentProps.steps;
-  const first = steps[0] as JsonNode & { children: JsonNode[] };
+  const root = schema.root as unknown as { children: JsonNode[] };
+  const first = root.children[0] as JsonNode & { children: JsonNode[] };
   first.children = [
     ...first.children,
     {
-      value: '$model(comment)',
+      model: '$model(comment)',
       component: '$component(Input)',
       componentProps: { label: 'Комментарий', placeholder: '$dataSource(HINT_TEXT)' },
     },
@@ -228,7 +222,7 @@ export function richSchema(): JsonFormSchema {
  */
 export function wizardRulesSchema(): JsonFormSchema {
   const field = (path: string, label: string): JsonNode => ({
-    value: `$model(${path})`,
+    model: `$model(${path})`,
     component: '$component(Input)',
     componentProps: { label },
   });
@@ -237,20 +231,18 @@ export function wizardRulesSchema(): JsonFormSchema {
     children: [
       {
         component: '$component(Wizard)',
-        componentProps: {
-          steps: [
-            {
-              component: '$component(Step)',
-              componentProps: { title: 'Данные' },
-              children: [field('fullName', 'ФИО')],
-            },
-            {
-              component: '$component(Step)',
-              componentProps: { title: 'Контакты' },
-              children: [field('contacts.email', 'Почта'), field('contacts.phone', 'Телефон')],
-            },
-          ],
-        },
+        children: [
+          {
+            component: '$component(Step)',
+            componentProps: { title: 'Данные' },
+            children: [field('fullName', 'ФИО')],
+          },
+          {
+            component: '$component(Step)',
+            componentProps: { title: 'Контакты' },
+            children: [field('contacts.email', 'Почта'), field('contacts.phone', 'Телефон')],
+          },
+        ],
       },
       {
         component: '$component(Section)',
@@ -259,7 +251,7 @@ export function wizardRulesSchema(): JsonFormSchema {
       },
     ],
   };
-  return { version: '1.0', root };
+  return { format: 2, version: '1.0', root };
 }
 
 /** Правила к {@link wizardRulesSchema}: по одному в каждый шаг, одно вне шагов, render — шаг и корень. */
@@ -293,7 +285,7 @@ export function wizardSlugsSchema(): JsonFormSchema {
     componentProps: title === undefined ? {} : { title },
     children: [
       {
-        value: `$model(${path})`,
+        model: `$model(${path})`,
         component: '$component(Input)',
         componentProps: { label: path, required: true },
       },
@@ -304,13 +296,11 @@ export function wizardSlugsSchema(): JsonFormSchema {
     children: [
       {
         component: '$component(Wizard)',
-        componentProps: {
-          steps: [step('Контакты', 'phone'), step('Контакты', 'email'), step(undefined, 'note')],
-        },
+        children: [step('Контакты', 'phone'), step('Контакты', 'email'), step(undefined, 'note')],
       },
     ],
   };
-  return { version: '1.0', root };
+  return { format: 2, version: '1.0', root };
 }
 
 /**
@@ -329,7 +319,7 @@ export function wizardSplitSource(): { schema: JsonFormSchema; origins: StepOrig
       $nodeId: id,
       children: [
         {
-          value: `$model(${path})`,
+          model: `$model(${path})`,
           component: '$component(Input)',
           componentProps: { label: title, required: true },
           $nodeId: `${id.slice(0, 6)}0f`,
@@ -337,6 +327,7 @@ export function wizardSplitSource(): { schema: JsonFormSchema; origins: StepOrig
       ],
     }) as JsonNode;
   const skeleton: JsonFormSchema = {
+    format: 2,
     version: '1.0',
     root: {
       component: '$component(Box)',
@@ -345,12 +336,10 @@ export function wizardSplitSource(): { schema: JsonFormSchema; origins: StepOrig
         {
           component: '$component(Wizard)',
           $nodeId: 'wizard00',
-          componentProps: {
-            steps: [
-              { $ref: './steps/anketa/form.schema.json' },
-              step('kontakt0', 'Контакты', 'email'),
-            ],
-          },
+          children: [
+            { $ref: './steps/anketa/form.schema.json' },
+            step('kontakt0', 'Контакты', 'email'),
+          ],
         } as unknown as JsonNode,
       ],
     } as JsonNode,

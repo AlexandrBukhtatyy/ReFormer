@@ -28,9 +28,11 @@ import {
 const FORM = 'fs:forms/credit/form.json';
 
 /** Схема в объёме подписи печатника: её содержимое здесь ни на что не влияет. */
-const SCHEMA = { version: '1.0', root: { component: '$html(div)' } } as unknown as Parameters<
-  ReturnType<typeof templatesPrinter>
->[0];
+const SCHEMA = {
+  format: 2,
+  version: '1.0',
+  root: { component: '$html(div)' },
+} as unknown as Parameters<ReturnType<typeof templatesPrinter>>[0];
 const DIR = 'fs:forms/credit';
 
 /** Службы в объёме раскладки: каждая помнит, о чём её спросили. */

@@ -18,11 +18,11 @@
  * @module plugins/reformer/codegen/commands/fixture-command
  */
 
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
 import { emitFixture, fixturePathOf } from '../../../core/form-fixture';
 import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenHost } from '../host';
+import { asFormSchema } from '../pipeline/source';
 
 /** Чем кончилась попытка создать фикстуру. Различаются, потому что человеку говорят разное. */
 export type FixtureOutcome =
@@ -35,13 +35,6 @@ export type FixtureOutcome =
   /** Писать некуда: источник только на чтение либо адрес не строится. */
   | { readonly kind: 'no-target' };
 
-/** Похоже ли значение на схему формы. Проверка по факту: модель приходит из чужого документа. */
-function asSchema(model: unknown): JsonFormSchema | null {
-  return typeof model === 'object' && model !== null && 'root' in model
-    ? (model as JsonFormSchema)
-    : null;
-}
-
 /**
  * Создаёт или обновляет фикстуру документа схемы.
  *
@@ -53,7 +46,9 @@ export async function createFixture(
   documentId: ResourceId
 ): Promise<FixtureOutcome> {
   const document = host.documentOf(documentId);
-  const schema = asSchema(document?.model());
+  // Проверка по факту, а не приведение: модель приходит из чужого документа. И перевод в формат 2
+  // там же — по схеме прежнего формата скелет напечатался бы пустым: ни значений, ни источников.
+  const schema = asFormSchema(document?.model());
   if (document === null || schema === null) return { kind: 'no-schema' };
 
   const path = fixturePathOf(document.ref.path);

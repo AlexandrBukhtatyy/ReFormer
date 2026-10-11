@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonNode } from '@reformer/renderer-json';
 import {
   kindOf,
   childSlots,
@@ -19,10 +19,33 @@ describe('kindOf', () => {
     expect(kindOf(getAt(s, P.step0) as JsonNode)).toBe('container');
     expect(kindOf(s.root)).toBe('container');
   });
+
+  it('подформа — отдельный вид: привязка есть, детей в узле нет', () => {
+    const part = { model: '$model(address)', part: '$part(address)' } as JsonNode;
+    expect(kindOf(part)).toBe('part');
+    expect(childSlots(part, ['root'])).toEqual([]);
+    expect(canAcceptChildren(part)).toBe(false);
+  });
+});
+
+describe('isNodeLike', () => {
+  it('узел узнаётся по ключу model или component; прежние ключи узлом не считаются', () => {
+    expect(isNodeLike({ model: '$model(a)' })).toBe(true);
+    expect(isNodeLike({ component: '$html(div)' })).toBe(true);
+    expect(isNodeLike({ value: '$model(a)' })).toBe(false);
+    expect(isNodeLike({ $ref: './steps/a/form.schema.json' })).toBe(false);
+  });
 });
 
 describe('childSlots', () => {
-  it('контейнер с componentProps.steps → слот steps', () => {
+  it('массив с item-частью: шаблона в узле нет, слотов нет, детей не принимает', () => {
+    const array = { model: '$model(items)', item: '$part(row)' } as JsonNode;
+    expect(kindOf(array)).toBe('array');
+    expect(childSlots(array, ['root'])).toEqual([]);
+    expect(canAcceptChildren(array)).toBe(false);
+  });
+
+  it('визард → слот steps, и лежит он в children', () => {
     const s = sampleSchema();
     const slots = childSlots(s.root, P.root);
     const steps = slots.find((x) => x.kind === 'steps');
@@ -70,7 +93,7 @@ describe('childSlots', () => {
     const s = sampleSchema();
     expect(childSlots(getAt(s, P.step0field0) as JsonNode, P.step0field0)).toHaveLength(0);
     const withWrapper: JsonNode = {
-      value: '$model(x)',
+      model: '$model(x)',
       wrapper: { component: '$component(Box)', children: [] },
     };
     const slots = childSlots(withWrapper, ['root']);
@@ -81,7 +104,7 @@ describe('childSlots', () => {
 
 describe('isNodeLike / canAcceptChildren', () => {
   it('isNodeLike', () => {
-    expect(isNodeLike({ value: '$model(x)' })).toBe(true);
+    expect(isNodeLike({ model: '$model(x)' })).toBe(true);
     expect(isNodeLike({ component: '$component(Box)' })).toBe(true);
     expect(isNodeLike({ label: 'x' })).toBe(false);
     expect(isNodeLike([])).toBe(false);

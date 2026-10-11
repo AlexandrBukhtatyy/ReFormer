@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { plainSchema } from './__fixtures__/kit';
 import { prepare } from './context';
 import { stepDirName } from '../form-model/step-dir';
@@ -8,24 +8,23 @@ import { builtinKit } from './__fixtures__/kit';
 /** Визард из шагов с заданными заголовками; в каждом шаге — одно обязательное поле. */
 function wizardOf(titles: readonly unknown[]): JsonFormSchema {
   return {
+    format: 2,
     root: {
       component: '$component(Box)',
       children: [
         {
           component: '$component(Wizard)',
-          componentProps: {
-            steps: titles.map((title, i) => ({
-              component: '$component(Step)',
-              componentProps: title === undefined ? {} : { title },
-              children: [
-                {
-                  value: `$model(field${i + 1})`,
-                  component: '$component(Input)',
-                  componentProps: { label: `Поле ${i + 1}`, required: true },
-                },
-              ],
-            })),
-          },
+          children: titles.map((title, i) => ({
+            component: '$component(Step)',
+            componentProps: title === undefined ? {} : { title },
+            children: [
+              {
+                model: `$model(field${i + 1})`,
+                component: '$component(Input)',
+                componentProps: { label: `Поле ${i + 1}`, required: true },
+              },
+            ],
+          })),
         },
       ],
     },

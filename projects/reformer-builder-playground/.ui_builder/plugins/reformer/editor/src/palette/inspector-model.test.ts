@@ -5,10 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogEntry } from '../../../core/catalog';
 import { sampleSchema } from '../../../core/testing';
@@ -56,12 +53,12 @@ const CATALOG: readonly CatalogEntry[] = [
     name: 'Select',
     role: 'field',
     propsSchema: PROPS_SCHEMA,
-    makeNode: () => ({ value: '$model(x)', component: '$component(Select)' }),
+    makeNode: () => ({ model: '$model(x)', component: '$component(Select)' }),
   },
 ];
 
 const SCHEMA: JsonFormSchema = ensureNodeIds(sampleSchema(), sequentialIds());
-const SELECT_PATH = ['root', 'componentProps', 'steps', 0, 'children', 0];
+const SELECT_PATH = ['root', 'children', 0, 'children', 0];
 
 function selectId(): string {
   const id = indexNodes(SCHEMA).idAt(SELECT_PATH);
@@ -144,7 +141,7 @@ describe('inspectorModelFor', () => {
 
 describe('inspectorModelOf', () => {
   it('признаётся, что компонента нет в каталоге, вместо пустых секций без объяснения', () => {
-    const node = { value: '$model(x)', component: '$component(Неизвестный)' } as JsonNode;
+    const node = { model: '$model(x)', component: '$component(Неизвестный)' } as JsonNode;
     const model = inspectorModelOf(node, 'a0000001', CATALOG);
     expect(model.known).toBe(false);
     expect(model.sections).toEqual([]);
@@ -154,6 +151,29 @@ describe('inspectorModelOf', () => {
   it('контейнер к модели формы не привязывается', () => {
     const node = { component: '$component(Box)', children: [] } as JsonNode;
     expect(inspectorModelOf(node, 'a0000001', CATALOG).bindable).toBe(false);
+  });
+
+  it('подформа — привязанный узел без компонента, без текста и без упрёка про каталог', () => {
+    const node = { model: '$model(home)', part: '$part(address)' } as JsonNode;
+    const model = inspectorModelOf(node, 'a0000001', CATALOG, ['home', 'name']);
+    expect(model).toMatchObject({
+      kind: 'part',
+      title: 'address',
+      component: null,
+      binding: 'home',
+      bindable: true,
+      bindingOptions: ['home', 'name'],
+      text: null,
+      sections: [],
+    });
+    // Компонента у подформы нет вовсе: «нет в каталоге кита» было бы неправдой.
+    expect(model.known).toBe(true);
+  });
+
+  it('массив с шаблоном-частью привязывается, а текста и детей в узле не держит', () => {
+    const node = { model: '$model(offices)', item: '$part(address)' } as JsonNode;
+    const model = inspectorModelOf(node, 'a0000001', CATALOG);
+    expect(model).toMatchObject({ kind: 'array', binding: 'offices', bindable: true, text: null });
   });
 });
 
@@ -180,7 +200,7 @@ describe('текстовое содержимое', () => {
   });
 
   it('узел, не принимающий детей, поля не получает вовсе', () => {
-    const field = { value: '$model(a)', component: '$component(Input)' } as unknown as JsonNode;
+    const field = { model: '$model(a)', component: '$component(Input)' } as unknown as JsonNode;
     expect(inspectorModelOf(field, 'abcd1234', []).text).toBeNull();
   });
 });
@@ -188,19 +208,20 @@ describe('текстовое содержимое', () => {
 describe('варианты привязки', () => {
   const schema = ensureNodeIds(
     {
+      format: 2,
       root: {
         component: '$html(div)',
         children: [
-          { value: '$model(fullName)', component: '$component(Input)' },
-          { value: '$model(email)', component: '$component(Input)' },
+          { model: '$model(fullName)', component: '$component(Input)' },
+          { model: '$model(email)', component: '$component(Input)' },
           {
-            array: '$model(items)',
+            model: '$model(items)',
             item: {
               $template: {
                 component: '$component(Box)',
                 children: [
-                  { value: '$model(price)', component: '$component(Input)' },
-                  { value: '$model(qty)', component: '$component(Input)' },
+                  { model: '$model(price)', component: '$component(Input)' },
+                  { model: '$model(qty)', component: '$component(Input)' },
                 ],
               },
             },

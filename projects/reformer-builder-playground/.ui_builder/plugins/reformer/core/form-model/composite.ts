@@ -3,10 +3,12 @@
  *
  * ```text
  * form.schema.json                       steps/kontakty/form.schema.json
- * { "root": { … "componentProps": {       { "$schema": "../../form-step.schema.json",
- *     "steps": [                            "node": { "component": "$component(Step)", … } }
- *       { "$ref": "./steps/kontakty/form.schema.json" } ] } } }
+ * { "format": 2, "root": { …              { "$schema": "../../form-step.schema.json",
+ *     "children": [                         "node": { "component": "$component(Step)", … } }
+ *       { "$ref": "./steps/kontakty/form.schema.json" } ] } }
  * ```
+ *
+ * Шаги — это `children` узла-визарда (`isStepsHost`): ссылки разрешаются и ставятся только там.
  *
  * Редактор, превью, кодоген и ассистент работают с СОБРАННОЙ схемой — обычной
  * `JsonFormSchema`, где шаги лежат узлами. Какие шаги пришли из файлов, помнит карта
@@ -24,12 +26,13 @@
 import {
   isJsonStepRef,
   normalizeStepRef,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonFormStepV1 as JsonFormStep,
-  type JsonNodeV1 as JsonNode,
+  type JsonFormSchema,
+  type JsonFormStep,
+  type JsonNode,
 } from '@reformer/renderer-json';
-import { isNodeLike } from './node-kind';
+import { isNodeLike, isRawNodeLike, isStepsHost } from './node-kind';
 import { ensureNodeIds, type NodeIdFactory } from './node-id';
+import { migrateNodeFormat, migrateSchemaFormat } from './normalize';
 import { stepDirName, uniqueStepDir } from './step-dir';
 
 /** Папка файлов шагов от корня формы. */
@@ -73,12 +76,13 @@ type Path = readonly (string | number)[];
 /**
  * Похоже ли значение на файл шага: объект с узлом в `node` и БЕЗ `root`.
  *
- * `root` отсекается явно: файл с обоими ключами — форма, а не шаг.
+ * `root` отсекается явно: файл с обоими ключами — форма, а не шаг. Узел принимается любого
+ * формата: вопрос задаётся файлу с диска, а переводит его {@link joinFormSchema}.
  */
 export function isFormStepSchema(value: unknown): value is JsonFormStep {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return !('root' in record) && isNodeLike(record.node);
+  return !('root' in record) && isRawNodeLike(record.node);
 }
 
 /** Спецификатор файла шага для папки: `./steps/<dir>/form.schema.json`. */
@@ -127,16 +131,21 @@ export function stepRefsOf(schema: JsonFormSchema): readonly string[] {
  * Идентификаторы узлов выдаются по СОБРАННОЙ схеме: двойники между файлами разводятся так же,
  * как внутри одного.
  *
- * @param skeleton - Корневая схема со ссылками.
+ * Скелет и файлы шагов прежнего формата переводятся здесь же: у файла шага нет ни `root`, ни
+ * `format`, поэтому перевод документа до него не дотягивается, а собранная схема обязана быть
+ * формата 2 целиком.
+ *
+ * @param source - Корневая схема со ссылками.
  * @param parts - Разобранные файлы шагов по спецификатору (с `./` или без).
  * @param next - Генератор идентификаторов (тесты).
  * @throws Error если файла для ссылки нет или он не похож на шаг.
  */
 export function joinFormSchema(
-  skeleton: JsonFormSchema,
+  source: JsonFormSchema,
   parts: ReadonlyMap<string, unknown>,
   next?: NodeIdFactory
 ): JoinedFormSchema {
+  const skeleton = migrateSchemaFormat(source);
   const byRef = new Map<string, unknown>();
   for (const [ref, part] of parts) byRef.set(normalizeStepRef(ref), part);
 
@@ -156,7 +165,7 @@ export function joinFormSchema(
         path: [...path, index],
         origin: $schema === undefined ? { ref: step.$ref } : { ref: step.$ref, $schema },
       });
-      return part.node;
+      return migrateNodeFormat(part.node);
     })
   );
 
@@ -254,8 +263,9 @@ function valueAt(value: unknown, path: Path): unknown {
 }
 
 /**
- * Обход всех `componentProps.steps` дерева с заменой: `map` получает массив шагов и путь до него
- * (`[..., 'componentProps', 'steps']`). Неизменённые поддеревья возвращаются по ссылке.
+ * Обход шагов всех визардов дерева с заменой: `map` получает массив шагов — `children`
+ * узла-визарда — и путь до него (`[..., 'children']`). Неизменённые поддеревья возвращаются
+ * по ссылке.
  *
  * В шаги спускается по результату `map`: шаг, пришедший из файла, сам может держать визард.
  */
@@ -269,29 +279,21 @@ function mapStepsArrays(
   let changed = false;
   const patch: Record<string, unknown> = {};
 
-  const props = record.componentProps as Record<string, unknown> | undefined;
-  const steps: unknown = props?.steps;
-  if (props !== undefined && props !== null && Array.isArray(steps)) {
-    const stepsPath = [...path, 'componentProps', 'steps'];
-    const mapped = map(steps, stepsPath);
-    const walked = mapped.map((step, i) => mapStepsArrays(step, [...stepsPath, i], map));
-    const same = walked.length === steps.length && walked.every((step, i) => step === steps[i]);
-    if (!same) {
-      patch.componentProps = { ...props, steps: walked };
-      changed = true;
-    }
-  }
-
   const children = record.children;
   if (Array.isArray(children)) {
-    const walked = children.map((child, i) => mapStepsArrays(child, [...path, 'children', i], map));
-    if (walked.some((child, i) => child !== children[i])) {
+    const childrenPath = [...path, 'children'];
+    // У визарда `children` — шаги: их сначала отдаём `map`, у прочих узлов просто идём вглубь.
+    const mapped = isStepsHost(record) ? map(children, childrenPath) : children;
+    const walked = mapped.map((child, i) => mapStepsArrays(child, [...childrenPath, i], map));
+    const same =
+      walked.length === children.length && walked.every((child, i) => child === children[i]);
+    if (!same) {
       patch.children = walked;
       changed = true;
     }
   }
 
-  const item = record.item as { $template?: unknown } | undefined;
+  const item = record.item as { $template?: unknown } | string | undefined;
   if (item !== undefined && item !== null && typeof item === 'object') {
     const template = mapStepsArrays(item.$template, [...path, 'item', '$template'], map);
     if (template !== item.$template) {
@@ -318,9 +320,9 @@ function forEachStepsArray(
 /** Путь до шагов первого визарда — того же, что находит кодоген (`wizardStepsOf`). */
 function firstStepsPath(node: unknown, path: Path): Path | null {
   if (node === null || typeof node !== 'object' || Array.isArray(node)) return null;
-  const record = node as { componentProps?: { steps?: unknown }; children?: unknown };
-  if (Array.isArray(record.componentProps?.steps)) return [...path, 'componentProps', 'steps'];
+  const record = node as { children?: unknown };
   if (!Array.isArray(record.children)) return null;
+  if (isStepsHost(record)) return [...path, 'children'];
   for (let i = 0; i < record.children.length; i += 1) {
     const child: unknown = record.children[i];
     if (!isNodeLike(child)) continue;

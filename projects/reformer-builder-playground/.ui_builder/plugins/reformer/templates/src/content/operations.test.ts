@@ -22,7 +22,7 @@ const template: FormTemplate = {
   name: 'Кредит',
   source: 'builtin',
   files: [
-    { path: 'form.schema.json', content: '{"root":{"component":"$html(div)"}}' },
+    { path: 'form.schema.json', content: '{"format":2,"root":{"component":"$html(div)"}}' },
     { path: 'model.ts', content: 'export const __formName__Model = 1;' },
     { path: 'README.md', content: '# __FormName__' },
   ],
@@ -180,6 +180,99 @@ describe('создание формы по шаблону', () => {
     expect((await generateFormFromTemplate(host, PARENT, 'Профиль', template, [])).messageKey).toBe(
       'error.nothing-picked'
     );
+  });
+});
+
+describe('шаблон проекта со схемой прежнего формата', () => {
+  // Шаблон лежит в каталоге проекта файлами, и схема в нём могла быть написана до формата 2:
+  // привязка в `value`, шаги визарда в `componentProps.steps`. Форма по такому шаблону —
+  // новый документ билдера, и на диск он обязан лечь форматом 2.
+  const TEMPLATE = `project/${TEMPLATES_DIR}/anketa`;
+  const FORM = 'src/forms/Профиль';
+
+  const legacyStep = (title: string, model: string) => ({
+    component: '$component(Step)',
+    componentProps: { title },
+    children: [{ value: `$model(${model})`, component: '$component(Input)' }],
+  });
+  const step = (title: string, model: string) => ({
+    component: '$component(Step)',
+    componentProps: { title },
+    children: [{ model: `$model(${model})`, component: '$component(Input)' }],
+  });
+
+  /** Применить единственный шаблон проекта целиком и отдать записанное. */
+  async function apply(files: Record<string, unknown>) {
+    const stored = Object.fromEntries(
+      Object.entries(files).map(([path, json]) => [`${TEMPLATE}/${path}`, JSON.stringify(json)])
+    );
+    const host = createFakeTemplatesHost({ files: stored });
+    const [found] = await createProjectStore(host).list();
+    const result = await generateFormFromTemplate(
+      host,
+      PARENT,
+      'Профиль',
+      found,
+      found.files.map((f) => f.path)
+    );
+    const written = (path: string): unknown => JSON.parse(host.files.get(`${FORM}/${path}`) ?? '');
+    return { host, stored, result, written };
+  }
+
+  it('применяется, а записанная схема — формата 2', async () => {
+    const { host, stored, result, written } = await apply({
+      'form.schema.json': {
+        version: '1.0',
+        root: {
+          component: '$component(Wizard)',
+          componentProps: { steps: [legacyStep('Данные', 'lastName')] },
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true, openId: `${FORM}/form.schema.json` });
+    expect(written('form.schema.json')).toEqual({
+      format: 2,
+      version: '1.0',
+      root: { component: '$component(Wizard)', children: [step('Данные', 'lastName')] },
+    });
+    // Сам шаблон остаётся как лежал: переводится созданная форма, а не чужой файл проекта.
+    for (const [path, text] of Object.entries(stored)) expect(host.files.get(path)).toBe(text);
+  });
+
+  it('разбитая по шагам — тоже: и корень со ссылками, и файлы шагов', async () => {
+    const { result, written } = await apply({
+      'form.schema.json': {
+        version: '1.0',
+        root: {
+          component: '$component(Wizard)',
+          componentProps: {
+            steps: [
+              { $ref: './steps/dannye/form.schema.json' },
+              { $ref: './steps/kontakty/form.schema.json' },
+            ],
+          },
+        },
+      },
+      'steps/dannye/form.schema.json': { node: legacyStep('Данные', 'lastName') },
+      'steps/kontakty/form.schema.json': { node: legacyStep('Контакты', 'email') },
+    });
+
+    // Открывается корневая схема, а не первый попавшийся файл шага.
+    expect(result).toMatchObject({ ok: true, openId: `${FORM}/form.schema.json` });
+    expect(written('form.schema.json')).toEqual({
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        children: [
+          { $ref: './steps/dannye/form.schema.json' },
+          { $ref: './steps/kontakty/form.schema.json' },
+        ],
+      },
+    });
+    expect(written('steps/dannye/form.schema.json')).toEqual({ node: step('Данные', 'lastName') });
+    expect(written('steps/kontakty/form.schema.json')).toEqual({ node: step('Контакты', 'email') });
   });
 });
 

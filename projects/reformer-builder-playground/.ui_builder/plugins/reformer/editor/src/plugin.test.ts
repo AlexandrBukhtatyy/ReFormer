@@ -36,7 +36,7 @@ import { createDragSession } from './session/drag-session';
 import type { ExtensionPointRef, SchemaModelProviderSpec } from './host';
 import { getAt } from '../../core/form-model';
 import { nodeIdOf } from '../../core/form-model';
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonNode } from '@reformer/renderer-json';
 import { indexNodes } from './model/node-index';
 import {
   createSchemaEditorPlugin,
@@ -320,7 +320,7 @@ describe('команды', () => {
 
   it('перемещают узел и оставляют курсор на нём', () => {
     const { host, registry, session, idAt } = harness();
-    const first = idAt(['root', 'componentProps', 'steps', 0, 'children', 0]);
+    const first = idAt(['root', 'children', 0, 'children', 0]);
     session.setSelection([first]);
 
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
@@ -328,14 +328,7 @@ describe('команды', () => {
     expect(down?.enabled?.(whenContext())).toBe(true);
     expect(down?.run()).toBe(true);
 
-    const moved = getAt(session.get().model, [
-      'root',
-      'componentProps',
-      'steps',
-      0,
-      'children',
-      1,
-    ]) as JsonNode;
+    const moved = getAt(session.get().model, ['root', 'children', 0, 'children', 1]) as JsonNode;
     expect(nodeIdOf(moved)).toBe(first);
     // Курсор остался на том, что двигали: реордер выражен переносом соседа, и без явного
     // возврата выделение уехало бы на него.
@@ -344,7 +337,7 @@ describe('команды', () => {
 
   it('перемещение у края слота отвечает отказом, а не пустой правкой', () => {
     const { host, registry, session, idAt } = harness();
-    session.setSelection([idAt(['root', 'componentProps', 'steps', 0, 'children', 0])]);
+    session.setSelection([idAt(['root', 'children', 0, 'children', 0])]);
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
     const before = session.get().model;
 
@@ -368,8 +361,8 @@ describe('команды', () => {
 
   it('удаляют выделенное и переносят выделение на родителя', () => {
     const { host, registry, session, idAt } = harness();
-    const field = idAt(['root', 'componentProps', 'steps', 0, 'children', 0]);
-    const step = idAt(['root', 'componentProps', 'steps', 0]);
+    const field = idAt(['root', 'children', 0, 'children', 0]);
+    const step = idAt(['root', 'children', 0]);
     session.setSelection([field]);
 
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
@@ -380,7 +373,7 @@ describe('команды', () => {
 
   it('дублируют и умеют отменить сделанное', () => {
     const { host, registry, session, idAt } = harness();
-    const field = idAt(['root', 'componentProps', 'steps', 0, 'children', 0]);
+    const field = idAt(['root', 'children', 0, 'children', 0]);
     session.setSelection([field]);
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
 
@@ -392,8 +385,8 @@ describe('команды', () => {
 
   it('разгруппировка требует ровно одного узла', () => {
     const { host, registry, session, idAt } = harness();
-    const first = idAt(['root', 'componentProps', 'steps', 0, 'children', 0]);
-    const second = idAt(['root', 'componentProps', 'steps', 0, 'children', 1]);
+    const first = idAt(['root', 'children', 0, 'children', 0]);
+    const second = idAt(['root', 'children', 0, 'children', 1]);
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
 
     session.setSelection([first, second]);
@@ -404,7 +397,7 @@ describe('команды', () => {
 
   it('молчат в расхождении: правка затёрла бы незаконченный текст', () => {
     const { host, registry, session, idAt } = harness();
-    session.setSelection([idAt(['root', 'componentProps', 'steps', 0, 'children', 0])]);
+    session.setSelection([idAt(['root', 'children', 0, 'children', 0])]);
     host.setText('{ сломано');
 
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
@@ -469,7 +462,7 @@ describe('быстрые исправления', () => {
     // Сеанса нет вовсе: файл могли открыть текстовым редактором, а находку чинят из панели
     // проблем. Ручка документа при этом есть — и её достаточно.
     const { host, registry, idAt } = harness();
-    const field = idAt(['root', 'componentProps', 'steps', 0, 'children', 1]);
+    const field = idAt(['root', 'children', 0, 'children', 1]);
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
 
     const done = commands.get(SET_COMPONENT_COMMAND_ID)?.run({
@@ -484,7 +477,7 @@ describe('быстрые исправления', () => {
 
   it('переименовывает свойство узла', () => {
     const { host, registry, idAt } = harness();
-    const field = idAt(['root', 'componentProps', 'steps', 0, 'children', 1]);
+    const field = idAt(['root', 'children', 0, 'children', 1]);
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
 
     const done = commands.get(RENAME_PROP_COMMAND_ID)?.run({
@@ -500,7 +493,7 @@ describe('быстрые исправления', () => {
 
   it('чужие аргументы — отказ, а не правка наугад', () => {
     const { host, registry, idAt } = harness();
-    const field = idAt(['root', 'componentProps', 'steps', 0, 'children', 1]);
+    const field = idAt(['root', 'children', 0, 'children', 1]);
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
     const setComponent = commands.get(SET_COMPONENT_COMMAND_ID);
 

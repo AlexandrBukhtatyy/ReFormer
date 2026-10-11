@@ -42,13 +42,9 @@
  */
 
 import type { validateFormSchema } from '@reformer/renderer-json/validate';
-import {
-  parseOperator,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import { parseOperator, type JsonFormSchema, type JsonNode } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../core/catalog';
-import { isFormSchema } from '../../core/form-model';
+import { ensureSchema, isFormSchema } from '../../core/form-model';
 import { findDuplicateNodeIds, nodeIdOf } from '../../core/form-model';
 import { componentOf } from '../../core/form-model';
 import { walkNodes } from '../../core/form-model';
@@ -75,7 +71,11 @@ export interface FormInput {
   /** Ресурс — он попадает в аргументы быстрых исправлений: команда правит конкретный файл. */
   readonly resource: ResourceId;
   readonly text: string;
-  /** Разобранная модель, согласованная с текстом. `undefined` — разбирать придётся самим. */
+  /**
+   * Разобранная модель, согласованная с текстом. `undefined` — разбирать придётся самим.
+   *
+   * Формат документа любой: прежний переводится в формат 2 перед проверкой ({@link checkForm}).
+   */
   readonly model?: unknown;
 }
 
@@ -167,6 +167,8 @@ const VALUE_CODES: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   CODES.OUT_OF_RANGE,
   CODES.PATTERN_MISMATCH,
   CODES.UNKNOWN_COMPONENT,
+  // Имя части стоит в ЗНАЧЕНИИ `part` подформы или `item` массива (`"$part(adress)"`).
+  CODES.UNKNOWN_PART,
   CODES.HTML_TAG_NOT_ALLOWED,
   CODES.UNKNOWN_DATA_SOURCE,
   CODES.UNKNOWN_FN,
@@ -276,11 +278,12 @@ function fromSchemaValidator(
     // словарь пропсов, и промах обычно отличается от попадания одной буквой.
     //
     // Узел ищется по НОСИТЕЛЮ ИДЕНТИФИКАТОРА, а не по «первому, что похоже на узел». Разница
-    // не косметическая: узлом считается любой объект с ключом `value`/`array`/`component`,
-    // а у `TabsTrigger`, `TabsContent`, `RadioGroupItem` ровно такой `componentProps`
-    // (`{ value: 'one' }`). Подъём «до похожего» останавливался на самих пропсах — а у них
-    // ни идентификатора (цель уезжала в `resource`, то есть на первую строку файла), ни
-    // компонента (словарь пропсов пуст → ни подсказки, ни быстрого исправления).
+    // не косметическая: узлом считается любой объект с ключом `model` или `component`, и
+    // привязка, по ошибке записанная в пропсы (`componentProps: { model: '$model(x)' }`), даёт
+    // ровно такой объект — а находка «нет такого свойства» приходит как раз о ней. Подъём
+    // «до похожего» остановился бы на самих пропсах — а у них ни идентификатора (цель уехала
+    // бы в `resource`, то есть на первую строку файла), ни компонента (словарь пропсов пуст →
+    // ни подсказки, ни быстрого исправления).
     const site = nodeSiteAt(schema, path);
     const node = site?.node;
     const property = String(params.property ?? '');
@@ -345,7 +348,7 @@ function unknownComponents(
   walkNodes(schema, (node) => {
     const op = parseOperator((node as { component?: unknown }).component);
     // Только `$component(...)`: `$html(tag)` проверяется по whitelist самим рендерером,
-    // а array-узел без `component` каталожного имени в схеме не несёт.
+    // а массив без `component` и подформа (`{ model, part }`) каталожного имени в схеме не несут.
     if (op?.op !== 'component' || registry.has(op.arg)) return;
 
     const suggestion = nearestName(known, op.arg);
@@ -449,15 +452,28 @@ function orphanRules(
  * этот, невиновный: перевыдачу получают ВТОРОЙ и следующие носители, первый свой адрес сохраняет.
  *
  * Отмечаются ВСЕ вхождения, а не «все, кроме первого». Порядок обхода модели и порядок в тексте
- * — разные вещи (`componentProps.steps` в тексте может стоять раньше `children`), и «первый»
+ * — разные вещи (`$nodeId` узла может быть записан после его `children`, а в файле прежнего
+ * формата шаги визарда лежали в `componentProps.steps` — раньше или позже детей), и «первый»
  * в одном не обязан быть первым в другом; выбирать по такому совпадению значило бы иногда
  * помечать невиновного и молчать о виновном. Пара подчёркиваний называет обоих двойников —
  * то, что человеку и нужно, чтобы развести их. Так же поступает VS Code с повторным ключом JSON.
+ *
+ * ## Текст бывает прежнего формата, а обход знает только формат 2
+ *
+ * Перевод документа в формат 2 меняет МОДЕЛЬ, а не буфер: файл, открытый в прежнем формате,
+ * остаётся в нём до первого сохранения, и сюда приходит как есть. Обход
+ * ({@link findDuplicateNodeIds}) прежних ключей не знает: в сыром документе он не увидел бы ни
+ * шагов визарда (`componentProps.steps`), ни полей и массивов без `component` (такой узел
+ * узнавался по `value` / `array`) — и промолчал бы о двойниках в большей части формы. Поэтому
+ * разобранный текст сначала переводится — тем же {@link ensureSchema}, которым его переводит
+ * разбор документа: идентификаторов перевод не трогает, и обход видит ровно те узлы, которым
+ * разбор перевыдавал адреса.
  */
 function duplicateNodeIds(input: FormInput): Diagnostic[] {
   const parsed = parseJson(input.text);
-  if (!parsed.ok) return [];
-  const duplicates = new Set(findDuplicateNodeIds(parsed.value as JsonFormSchema));
+  // Не форма — узлов нет, и двойникам взяться неоткуда (а обходу не с чего начать: `root` нет).
+  if (!parsed.ok || !isFormSchema(parsed.value)) return [];
+  const duplicates = new Set(findDuplicateNodeIds(ensureSchema(parsed.value)));
   if (duplicates.size === 0) return [];
 
   const out: Diagnostic[] = [];
@@ -589,6 +605,23 @@ export function checkSchema(
  * сказать не о чем. Диапазоном она адресуется не одна — так же адресуется двойник `$nodeId`
  * ({@link duplicateNodeIds}), и по той же причине: у обеих нет годного узлового адреса, только
  * там его ещё нет, а тут он называет сразу два места.
+ *
+ * ## Проверяется документ формата 2 — каким бы он ни пришёл
+ *
+ * Проба {@link isFormSchema} узнаёт документ ЛЮБОГО формата: вопрос «форма ли это» задаётся
+ * файлу с диска. Проверки же ниже — обходы ядра, чтение привязок, мета-схема — знают только
+ * формат 2. Сырой документ прежнего формата, пущенный в них как есть, дал бы не пропуски, а
+ * ЛОЖНЫЕ находки: обход не увидел бы ни одного объявления (`value` / `array` для него не
+ * привязка), и каждое чтение `$model(...)` оказалось бы «необъявленным», а шаги визарда в
+ * `componentProps.steps` — невидимыми. Поэтому значение сначала переводится ({@link ensureSchema}),
+ * как его переводит разбор документа: проверяется то, с чем билдер будет работать.
+ *
+ * Переводится и переданная модель, а не только разобранный здесь текст: она приходит `unknown`,
+ * и поручиться за её формат некому. Документ формата 2 перевод возвращает той же ссылкой.
+ *
+ * Цена названа: у переведённого здесь текста место находки внутри узла (`within`) записано в
+ * ключах формата 2 (`model`, `children`), которых в буфере прежнего формата нет. Сам узел при
+ * этом адресуется верно — идентификатор перевод не трогает.
  */
 export function checkForm(input: FormInput, options: SchemaCheckOptions): Diagnostic[] {
   let value = input.model;
@@ -610,5 +643,5 @@ export function checkForm(input: FormInput, options: SchemaCheckOptions): Diagno
   if (!isFormSchema(value)) {
     return [make(CODES.NOT_A_FORM, 'error', { kind: 'resource' })];
   }
-  return checkSchema(value, input, options);
+  return checkSchema(ensureSchema(value), input, options);
 }

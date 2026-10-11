@@ -618,8 +618,8 @@ export function schemaEditorCommands(
         const entry = index.find(current);
         if (entry === undefined) return false;
         const parentPath = entry.path.slice(0, -1);
-        // Путь родителя — это ещё и путь слота: у `children` и `steps` над узлом лежит
-        // массив, а над ним уже сам родитель.
+        // Путь родителя — это ещё и путь слота: у `children` (дети контейнера и шаги визарда)
+        // над узлом лежит массив, у шаблона элемента — `item`, а над ними уже сам родитель.
         const parent = index.idAt(parentPath) ?? index.idAt(parentPath.slice(0, -1));
         if (parent === undefined || parent === current) return false;
         session.setSelection([parent]);

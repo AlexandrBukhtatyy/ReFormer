@@ -43,10 +43,7 @@
  * @module plugins/reformer/core/form-model/node-id
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
 
 /** Идентификатор узла: ровно 8 символов base36 (`[0-9a-z]`). */
@@ -271,19 +268,10 @@ function walkNode(node: JsonNode, ctx: WalkContext): JsonNode {
     }
   }
 
-  // Шаги мастера лежат в пропсах, но это узлы (см. шапку `node-kind`), и адрес им нужен так же.
-  const props = (node as { componentProps?: Record<string, unknown> }).componentProps;
-  const steps = props?.steps;
-  if (Array.isArray(steps)) {
-    const nextSteps = walkSlot(steps, ctx);
-    if (nextSteps !== steps) {
-      patch.componentProps = { ...props, steps: nextSteps };
-      changed = true;
-    }
-  }
-
-  const item = (node as { item?: { $template?: unknown } }).item;
-  if (item && isNodeLike(item.$template)) {
+  // Шаги мастера — те же `children` (см. шапку `node-kind`): отдельного обхода им не нужно.
+  // `item` бывает и строкой (`$part(...)`): шаблон тогда лежит в `parts`, и здесь его нет.
+  const item = (node as { item?: unknown }).item as { $template?: unknown } | string | undefined;
+  if (item && typeof item === 'object' && isNodeLike(item.$template)) {
     const nextTemplate = walkNode(item.$template, ctx);
     if (nextTemplate !== item.$template) {
       patch.item = { ...item, $template: nextTemplate };
@@ -339,8 +327,8 @@ function nextIdFor(node: JsonNode, ctx: WalkContext): NodeId | undefined {
 }
 
 /**
- * Массив-слот (`children`/`componentProps.steps`): узлы обходятся, всё остальное (текстовые части,
- * чужие значения) остаётся на своих местах — индексы не должны съезжать.
+ * Массив-слот `children` (дети контейнера, шаги визарда): узлы обходятся, всё остальное (текстовые
+ * части, ссылки на файлы шагов) остаётся на своих местах — индексы не должны съезжать.
  */
 function walkSlot(items: readonly unknown[], ctx: WalkContext): unknown[] {
   let changed = false;

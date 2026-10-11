@@ -37,7 +37,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { useMemo, type ReactElement } from 'react';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import type { CatalogEntry } from '../../../core/catalog';
 import { renderReact } from '../../../../.shared/render';
@@ -57,8 +57,8 @@ const DOCUMENT = 'fake:form.json';
 /** Реестр команд, которого перетаскиванию не нужно: кнопок исправлений в этих тестах нет. */
 const NO_COMMANDS: CommandAccess = { has: () => false, run: () => undefined };
 
-const STEP_0 = ['root', 'componentProps', 'steps', 0] as const;
-const STEP_1 = ['root', 'componentProps', 'steps', 1] as const;
+const STEP_0 = ['root', 'children', 0] as const;
+const STEP_1 = ['root', 'children', 1] as const;
 
 const CATALOG: readonly CatalogEntry[] = [
   {
@@ -66,7 +66,7 @@ const CATALOG: readonly CatalogEntry[] = [
     role: 'field',
     category: 'Поля ввода',
     propsSchema: { type: 'object', properties: {} },
-    makeNode: () => ({ value: '$model(новое)', component: '$component(Input)' }),
+    makeNode: () => ({ model: '$model(новое)', component: '$component(Input)' }),
   },
 ];
 
@@ -332,18 +332,15 @@ describe('перетаскивание с палитры', () => {
     await userEvent.dragAndDrop(item.element(), row(step1));
 
     await expect
-      .poll(
-        () =>
-          (fixture.model() as unknown as StepsShape).root.componentProps.steps[1].children.length
-      )
+      .poll(() => (fixture.model() as unknown as StepsShape).root.children[1].children.length)
       .toBe(2);
     fixture.unmount();
   });
 });
 
-/** Форма фикстуры, к которой обращаются проверки «сколько детей у шага». */
+/** Форма фикстуры, к которой обращаются проверки «сколько детей у шага»: шаги — `children` визарда. */
 interface StepsShape {
-  root: { componentProps: { steps: { children: unknown[] }[] } };
+  root: { children: { children: unknown[] }[] };
 }
 
 describe('сворачивание вырожденной обёртки', () => {
@@ -414,5 +411,71 @@ describe('состояние вида', () => {
     // Ветка осталась свёрнутой: снимок вида пережил размонтирование, а не собрался заново.
     expect(shownRows()).not.toContain(field);
     again.unmount();
+  });
+});
+
+describe('подформа и массив с именованной частью', () => {
+  /** Формат 2 с `parts`: править части редактор пока не умеет, но показать документ обязан. */
+  const PARTS_TEXT = JSON.stringify({
+    format: 2,
+    version: '1.0',
+    parts: {
+      address: {
+        component: '$component(Box)',
+        children: [{ model: '$model(city)', component: '$component(Input)' }],
+      },
+    },
+    root: {
+      component: '$component(Box)',
+      children: [
+        { model: '$model(home)', part: '$part(address)' },
+        { model: '$model(offices)', item: '$part(address)' },
+        { model: '$model(name)', component: '$component(Input)' },
+      ],
+    },
+  });
+
+  it('документ открывается, оба узла стоят в дереве строками-листьями', async () => {
+    const fixture = await mount({ text: PARTS_TEXT });
+    const part = fixture.idAt(['root', 'children', 0]);
+    const array = fixture.idAt(['root', 'children', 1]);
+
+    expect(shownRows()).toEqual([
+      fixture.idAt(['root']),
+      part,
+      array,
+      fixture.idAt(['root', 'children', 2]),
+    ]);
+    // Подформу называет имя части, привязка показана у обоих.
+    expect(row(part).textContent).toContain('address');
+    expect(row(part).textContent).toContain('home');
+    expect(row(array).textContent).toContain('offices');
+    // Разворачивать нечего: разметка части лежит в `parts`, а не под узлом.
+    expect(row(part).querySelector('button')).toBeNull();
+    expect(row(array).querySelector('button')).toBeNull();
+    fixture.unmount();
+  });
+
+  it('бросок «внутрь» них запрещён и документ не трогает', async () => {
+    const fixture = await mount({ text: PARTS_TEXT });
+    const before = fixture.model();
+    const field = fixture.idAt(['root', 'children', 2]);
+
+    for (const path of [
+      ['root', 'children', 0],
+      ['root', 'children', 1],
+    ]) {
+      const target = row(fixture.idAt(path));
+      const data = transfer();
+      row(field).dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: data }));
+      dispatchDrag(target, 'dragover', 0.5, data);
+      await flush();
+      // У строки, не принимающей вложение, середины нет: бросок встаёт рядом, а не внутрь.
+      expect(target.getAttribute('data-drop')).not.toBe('inside');
+      row(field).dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: data }));
+      await flush();
+    }
+    expect(fixture.model()).toBe(before);
+    fixture.unmount();
   });
 });

@@ -184,7 +184,7 @@ describe('порт Monaco: пути узлов для разметки', () => {
     expect(paths).not.toBeNull();
     expect(paths?.size).toBe(8);
     expect([...(paths?.values() ?? [])]).toContainEqual(['root']);
-    expect([...(paths?.values() ?? [])]).toContainEqual(['root', 'componentProps', 'steps', 0]);
+    expect([...(paths?.values() ?? [])]).toContainEqual(['root', 'children', 0]);
     h.dispose();
   });
 

@@ -1,21 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import { completeModelPath, formJsonSchema } from './hints';
 
 const schema = {
+  format: 2,
   root: {
     component: '$html(div)',
     children: [
-      { value: '$model(fullName)', component: '$component(Input)' },
-      { value: '$model(email)', component: '$component(Input)' },
+      { model: '$model(fullName)', component: '$component(Input)' },
+      { model: '$model(email)', component: '$component(Input)' },
       'Итого: ',
       {
-        array: '$model(items)',
+        model: '$model(items)',
         item: {
           $template: {
             component: '$component(Box)',
-            children: [{ value: '$model(price)', component: '$component(Input)' }],
+            children: [{ model: '$model(price)', component: '$component(Input)' }],
           },
         },
       },
@@ -43,7 +44,7 @@ describe('completeModelPath', () => {
 
   it('внутри шаблона массива — пути элемента', () => {
     const items = completeModelPath(schema, {
-      path: [...TEMPLATE, 'children', 0, 'value'],
+      path: [...TEMPLATE, 'children', 0, 'model'],
       value: '$model()',
       offset: 7,
     });
@@ -52,7 +53,7 @@ describe('completeModelPath', () => {
 
   it('в начале значения привязки — оператор целиком', () => {
     const items = completeModelPath(schema, {
-      path: ['root', 'children', 0, 'value'],
+      path: ['root', 'children', 0, 'model'],
       value: '$m',
       offset: 2,
     });
@@ -63,11 +64,27 @@ describe('completeModelPath', () => {
     });
   });
 
-  it('оператор целиком — только в value/array и только на начале оператора', () => {
+  it('оператор целиком — только в ключе model и только на начале оператора', () => {
     const at = (path: (string | number)[], value: string) =>
       completeModelPath(schema, { path, value, offset: value.length });
     expect(at(['root', 'component'], '$')).toEqual([]);
-    expect(at(['root', 'children', 0, 'value'], 'abc')).toEqual([]);
+    expect(at(['root', 'children', 0, 'model'], 'abc')).toEqual([]);
+    // Ключи прежнего формата привязкой больше не служат: `value` в формате 2 — обычный проп.
+    expect(at(['root', 'children', 0, 'value'], '$m')).toEqual([]);
+    expect(at(['root', 'children', 3, 'array'], '$m')).toEqual([]);
+  });
+
+  it('привязка массива — тот же ключ model, что у поля', () => {
+    const items = completeModelPath(schema, {
+      path: ['root', 'children', 3, 'model'],
+      value: '',
+      offset: 0,
+    });
+    expect(items.map((item) => item.insert)).toEqual([
+      '$model(fullName)',
+      '$model(email)',
+      '$model(items)',
+    ]);
   });
 
   it('курсор за закрывающей скобкой — ничего', () => {
@@ -83,7 +100,7 @@ describe('formJsonSchema', () => {
       name: 'Input',
       role: 'field',
       propsSchema: { type: 'object', properties: { placeholder: { type: 'string' } } },
-      makeNode: () => ({ value: '$model(x)' }) as never,
+      makeNode: () => ({ model: '$model(x)' }) as never,
     },
   ]);
 
@@ -94,7 +111,7 @@ describe('formJsonSchema', () => {
     expect(meta.definitions.componentOp.enum).toEqual(['$component(Input)']);
   });
 
-  it('синтетика $html — не имя компонента, а ветка своего тега; шаги мастера — узлы', () => {
+  it('синтетика $html — не имя компонента, а ветка своего тега', () => {
     const withHtml: readonly CatalogEntry[] = Object.freeze([
       ...catalog,
       {
@@ -117,7 +134,39 @@ describe('formJsonSchema', () => {
       (branch) => branch.if.properties.component.const
     );
     expect(branches).toContain('$html(div)');
-    expect(branches).toContain('$component(Wizard)');
+    // Ветки по имени визарда больше нет: шаги — его `children`, их схема разбирает сама.
+    expect(branches).not.toContain('$component(Wizard)');
+  });
+
+  it('схема — формата 2: привязка в model, шаги мастера — узлы и ссылки в children', () => {
+    const { schema: meta } = formJsonSchema(catalog) as {
+      schema: {
+        required: string[];
+        properties: { format: { const: number } };
+        definitions: {
+          fieldNode: { required: string[]; properties: Record<string, unknown> };
+          arrayNode: { required: string[] };
+          containerNode: {
+            properties: {
+              children: { items: { then: { then: { $ref: string }; else: { $ref: string } } } };
+            };
+          };
+          stepRef: { properties: { $ref: { description?: string } } };
+        };
+      };
+    };
+    expect(meta.required).toContain('format');
+    expect(meta.properties.format.const).toBe(2);
+    expect(meta.definitions.fieldNode.required).toEqual(['model']);
+    expect(meta.definitions.fieldNode.properties).not.toHaveProperty('value');
+    expect(meta.definitions.arrayNode.required).toEqual(['model', 'item']);
+
+    // Ребёнок-объект любого контейнера, включая визард, — узел либо ссылка на файл шага:
+    // поэтому внутри шага подсказки те же, что везде, и отдельной ветки для шагов не нужно.
+    const child = meta.definitions.containerNode.properties.children.items.then;
+    expect(child.then.$ref).toBe('#/definitions/stepRef');
+    expect(child.else.$ref).toBe('#/definitions/node');
+    expect(meta.definitions.stepRef.properties.$ref.description).toContain('./steps/');
   });
 
   it('тот же каталог — тот же ответ, другой — другой адрес', () => {

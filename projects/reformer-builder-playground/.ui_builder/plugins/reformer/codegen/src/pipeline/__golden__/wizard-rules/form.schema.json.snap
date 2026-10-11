@@ -1,54 +1,53 @@
 {
   "$schema": "./form-schema.schema.json",
+  "format": 2,
   "version": "1.0",
   "root": {
     "component": "$component(Box)",
     "children": [
       {
         "component": "$component(Wizard)",
-        "componentProps": {
-          "steps": [
-            {
-              "component": "$component(Step)",
-              "componentProps": {
-                "title": "Данные"
-              },
-              "children": [
-                {
-                  "value": "$model(fullName)",
-                  "component": "$component(Input)",
-                  "componentProps": {
-                    "label": "ФИО"
-                  }
-                }
-              ],
-              "selector": "dannye-section"
+        "children": [
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Данные"
             },
-            {
-              "component": "$component(Step)",
-              "componentProps": {
-                "title": "Контакты"
-              },
-              "children": [
-                {
-                  "value": "$model(contacts.email)",
-                  "component": "$component(Input)",
-                  "componentProps": {
-                    "label": "Почта"
-                  }
-                },
-                {
-                  "value": "$model(contacts.phone)",
-                  "component": "$component(Input)",
-                  "componentProps": {
-                    "label": "Телефон"
-                  }
+            "children": [
+              {
+                "model": "$model(fullName)",
+                "component": "$component(Input)",
+                "componentProps": {
+                  "label": "ФИО"
                 }
-              ],
-              "selector": "kontakty-section"
-            }
-          ]
-        },
+              }
+            ],
+            "selector": "dannye-section"
+          },
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Контакты"
+            },
+            "children": [
+              {
+                "model": "$model(contacts.email)",
+                "component": "$component(Input)",
+                "componentProps": {
+                  "label": "Почта"
+                }
+              },
+              {
+                "model": "$model(contacts.phone)",
+                "component": "$component(Input)",
+                "componentProps": {
+                  "label": "Телефон"
+                }
+              }
+            ],
+            "selector": "kontakty-section"
+          }
+        ],
         "selector": "wizard"
       },
       {
@@ -58,7 +57,7 @@
         },
         "children": [
           {
-            "value": "$model(comment)",
+            "model": "$model(comment)",
             "component": "$component(Input)",
             "componentProps": {
               "label": "Комментарий"

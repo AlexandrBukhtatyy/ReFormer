@@ -31,7 +31,7 @@ import { Canvas } from './Canvas';
 import { useActiveSession, useSessionState } from './useSession';
 
 const DOCUMENT = 'fake:form.json';
-const FIELD = ['root', 'componentProps', 'steps', 0, 'children', 1] as const;
+const FIELD = ['root', 'children', 0, 'children', 1] as const;
 
 const FIX = {
   titleKey: 'quickfix.replace-component',

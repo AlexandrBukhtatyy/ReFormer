@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
 import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '../../../core/form-model';
 import { ensureNodeIds, type NodeIdFactory } from '../../../core/form-model';
@@ -35,21 +35,22 @@ function wizard(): JsonFormSchema {
 function column(): JsonFormSchema {
   return ensureNodeIds(
     {
+      format: 2,
       version: '1.0',
       root: {
         component: '$html(div)',
         componentProps: { className: DEFAULT_COL_CLASS },
         children: [
-          { value: '$model(first)', component: '$component(Input)' },
+          { model: '$model(first)', component: '$component(Input)' },
           {
             component: '$html(div)',
             componentProps: { className: DEFAULT_ROW_CLASS },
             children: [
-              { value: '$model(city)', component: '$component(Input)' },
-              { value: '$model(zip)', component: '$component(Input)' },
+              { model: '$model(city)', component: '$component(Input)' },
+              { model: '$model(zip)', component: '$component(Input)' },
             ],
           },
-          { value: '$model(last)', component: '$component(Input)' },
+          { model: '$model(last)', component: '$component(Input)' },
         ],
       },
     } as unknown as JsonFormSchema,
@@ -62,8 +63,8 @@ const ROW: JsonPath = ['root', 'children', 1];
 const CITY: JsonPath = ['root', 'children', 1, 'children', 0];
 const ZIP: JsonPath = ['root', 'children', 1, 'children', 1];
 const LAST: JsonPath = ['root', 'children', 2];
-const STEP_0_CHILD_0: JsonPath = ['root', 'componentProps', 'steps', 0, 'children', 0];
-const STEP_0_CHILD_1: JsonPath = ['root', 'componentProps', 'steps', 0, 'children', 1];
+const STEP_0_CHILD_0: JsonPath = ['root', 'children', 0, 'children', 0];
+const STEP_0_CHILD_1: JsonPath = ['root', 'children', 0, 'children', 1];
 
 function idAt(model: JsonFormSchema, path: JsonPath): NodeId {
   const id = indexNodes(model).idAt(path);
@@ -74,8 +75,8 @@ function idAt(model: JsonFormSchema, path: JsonPath): NodeId {
 function bindings(model: JsonFormSchema, slotPath: JsonPath): (string | undefined)[] {
   const list = getAt(model, slotPath);
   if (!Array.isArray(list)) throw new Error(`по пути ${slotPath.join('/')} не массив`);
-  return (list as { value?: string; component?: string }[]).map(
-    (node) => node.value ?? node.component
+  return (list as { model?: string; component?: string }[]).map(
+    (node) => node.model ?? node.component
   );
 }
 
@@ -194,7 +195,7 @@ describe('planMove — шаги визарда', () => {
     const op = requireOp(planMove(model, [idAt(model, STEP_0_CHILD_0)], 'down'));
     const { model: next } = apply(model, op);
 
-    expect(bindings(next, ['root', 'componentProps', 'steps', 0, 'children'])).toEqual([
+    expect(bindings(next, ['root', 'children', 0, 'children'])).toEqual([
       '$model(loanAmount)',
       '$model(loanType)',
     ]);
@@ -207,10 +208,48 @@ describe('planMove — шаги визарда', () => {
     // «Влево» — вынести: поле встаёт среди шагов, сразу после своего.
     const op = requireOp(planMove(model, [idAt(model, STEP_0_CHILD_1)], 'left'));
     const { model: next } = apply(model, op);
-    expect(bindings(next, ['root', 'componentProps', 'steps'])).toEqual([
+    expect(bindings(next, ['root', 'children'])).toEqual([
       '$component(Step)',
       '$model(loanAmount)',
       '$component(Step)',
     ]);
+  });
+
+  it('шаги переставляются между собой в слоте шагов — `children` визарда', () => {
+    const model = wizard();
+    const first = idAt(model, ['root', 'children', 0]);
+    const op = requireOp(planMove(model, [first], 'down'));
+    // Соседа переносят через выделенный шаг; слот назван шагами, хотя лежит в `children`.
+    expect(op).toMatchObject({ type: 'move', params: { slot: 'steps', index: 0 } });
+
+    const applied = apply(model, op);
+    expect(idAt(applied.model, ['root', 'children', 1])).toBe(first);
+    expect(getAt(applied.model, ['root', 'componentProps'])).toEqual({ className: 'bg-white' });
+    expect(apply(applied.model, applied.inverse).model).toEqual(model);
+  });
+
+  it('узел вкладывается в предыдущего соседа-визард шагом, даже если шагов у него ещё нет', () => {
+    const model = ensureNodeIds(
+      {
+        format: 2,
+        version: '1.0',
+        root: {
+          component: '$html(div)',
+          componentProps: { className: DEFAULT_COL_CLASS },
+          children: [
+            { component: '$component(Wizard)' },
+            { component: '$component(Step)', componentProps: { title: 'Шаг' }, children: [] },
+          ],
+        },
+      } as unknown as JsonFormSchema,
+      sequentialIds('w')
+    );
+    const step = idAt(model, ['root', 'children', 1]);
+    const op = requireOp(planMove(model, [step], 'right'));
+    expect(op).toMatchObject({ type: 'move', params: { slot: 'steps', index: 0 } });
+
+    const { model: next } = apply(model, op);
+    expect(idAt(next, ['root', 'children', 0, 'children', 0])).toBe(step);
+    expect(bindings(next, ['root', 'children'])).toEqual(['$component(Wizard)']);
   });
 });

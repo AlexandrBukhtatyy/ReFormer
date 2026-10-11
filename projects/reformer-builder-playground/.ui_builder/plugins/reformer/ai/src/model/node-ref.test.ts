@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonNodeV1 as JsonNode } from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { appendNode } from '../../../core/form-model';
 import { emptySchema } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
@@ -20,7 +20,7 @@ describe('адрес узла (Pointer ⇄ путь)', () => {
   it('round-trip через строку сохраняет доступ к узлу', () => {
     const schema = sampleSchema();
     const ref = nodeRef(P.arrayTemplate);
-    expect(ref).toBe('/root/componentProps/steps/1/children/0/item/$template');
+    expect(ref).toBe('/root/children/1/children/0/item/$template');
     expect(getAt(schema, refToPath(ref))).toBe(at(schema, P.arrayTemplate));
   });
 });
@@ -66,11 +66,11 @@ describe('resolveRef', () => {
     // Живой прогон: модель позвала insert_node с parent="/root/children", получила «форму
     // изменили — перезапроси get_form_outline» и перечитала карту пять раз подряд, упершись в
     // предел шагов. Форму никто не менял: адрес указывал на слот, и совет был ложным.
-    const found = resolveRef(sampleSchema(), '/root/children');
+    const found = resolveRef(sampleSchema(), '/root/children/0/children');
     expect(isResolved(found)).toBe(false);
     if (!isResolved(found)) {
       expect(found.text).toContain('is a slot');
-      expect(found.text).toContain('/root');
+      expect(found.text).toContain('as the parent: /root/children/0.');
       expect(found.text).not.toContain('get_form_outline');
     }
   });
@@ -78,7 +78,7 @@ describe('resolveRef', () => {
   it('индекс за пределами слота называет, сколько детей есть', () => {
     // «Перезапроси карту» здесь бесполезно: карта уже прочитана, и в контейнере просто нет
     // столько детей. В прогонах модель на этом сообщении зависала.
-    const found = resolveRef(sampleSchema(), '/root/componentProps/steps/0/children/9');
+    const found = resolveRef(sampleSchema(), '/root/children/0/children/9');
     expect(isResolved(found)).toBe(false);
     if (!isResolved(found)) {
       expect(found.text).toContain('has 2 child(ren)');
@@ -96,9 +96,46 @@ describe('resolveRef', () => {
   });
 
   it('слот шагов тоже подсказывает держателя', () => {
-    const found = resolveRef(sampleSchema(), '/root/componentProps/steps');
+    // Шаги визарда лежат в его `children` — адрес слота шагов кончается так же, как у секции.
+    const found = resolveRef(sampleSchema(), '/root/children');
     expect(isResolved(found)).toBe(false);
-    if (!isResolved(found)) expect(found.text).toContain('/root');
+    if (!isResolved(found)) {
+      expect(found.text).toContain('is a slot');
+      expect(found.text).toContain('as the parent: /root.');
+    }
+  });
+
+  it('прежнего адреса шагов больше нет — честный отказ, а не узел', () => {
+    const found = resolveRef(sampleSchema(), '/root/componentProps/steps/0');
+    expect(isResolved(found)).toBe(false);
+    if (!isResolved(found)) expect(found.error?.code).toBe('STALE_POINTER');
+  });
+
+  it('подформа и массив с шаблоном-частью адресуются как обычные узлы', () => {
+    const schema = {
+      format: 2,
+      parts: { address: { component: '$component(Box)', children: [] } },
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(registrationAddress)', part: '$part(address)' },
+          { model: '$model(previousAddresses)', item: '$part(address)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+
+    const part = resolveRef(schema, '/root/children/0', { model: 'registrationAddress' });
+    expect(isResolved(part)).toBe(true);
+    // Каталожного имени у подформы нет: компонент ей не задаётся.
+    if (isResolved(part)) expect(componentOf(part.node)).toBeUndefined();
+
+    const array = resolveRef(schema, '/root/children/1', { component: 'FieldArray' });
+    expect(isResolved(array)).toBe(true);
+    if (isResolved(array)) expect(modelOf(array.node)).toBe('previousAddresses');
+
+    // Шаблона в узле нет — он лежит в `parts`; адрес шаблона не узел и не падение.
+    const template = resolveRef(schema, '/root/children/1/item/$template');
+    expect(isResolved(template)).toBe(false);
   });
 
   it('ожидание компонента не совпало → STALE_POINTER', () => {
@@ -119,7 +156,7 @@ describe('resolveRef', () => {
     expect(modelOf(at(before, refToPath(ref)))).toBe('loanAmount');
 
     // Пользователь тем временем вставил поле в начало того же слота — индексы сдвинулись.
-    const inserted = { value: '$model(inn)', component: '$component(Input)' } as JsonNode;
+    const inserted = { model: '$model(inn)', component: '$component(Input)' } as JsonNode;
     const { schema } = appendNode(before, [...P.step0children], inserted);
     const moved = { ...schema } as typeof schema;
     const children = getAt(moved, [...P.step0children]) as JsonNode[];

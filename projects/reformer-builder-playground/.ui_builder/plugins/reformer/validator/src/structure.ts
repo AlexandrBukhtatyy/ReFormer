@@ -19,11 +19,14 @@
  * @module plugins/reformer/validator/structure
  */
 
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
+import {
+  isArrayNode,
+  isPartNode,
+  parseOperator,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
-import { childSlots } from '../../core/form-model';
+import { childSlots, isNodeLike, kindOf } from '../../core/form-model';
 import { componentOf } from '../../core/form-model';
 import { walkNodes } from '../../core/form-model';
 import type { JsonPath } from '../../core/form-model';
@@ -63,9 +66,31 @@ function valueOf(node: JsonNode): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** Все потомки узла (без него самого). Путь нужен только обходу слотов, наружу не отдаётся. */
-function descendants(node: JsonNode, path: JsonPath): JsonNode[] {
+/** Именованные части документа (`parts`): разметка подформ и шаблонов строк вне дерева корня. */
+type Parts = Readonly<Record<string, unknown>>;
+
+/**
+ * Имя части, из которой узел берёт разметку: подформа (`part`) либо массив с шаблоном строки
+ * `item: "$part(имя)"`. У остальных узлов разметка лежит в них самих.
+ */
+function partNameOf(node: JsonNode): string | undefined {
+  const ref = isPartNode(node) ? node.part : isArrayNode(node) ? node.item : undefined;
+  const op = parseOperator(ref);
+  return op?.op === 'part' ? op.arg : undefined;
+}
+
+/**
+ * Все потомки узла (без него самого). Путь нужен только обходу слотов, наружу не отдаётся.
+ *
+ * Потомки — то, что рендерер построит ВНУТРИ узла, а не только то, что в нём записано: у подформы
+ * и у массива с `item: "$part(имя)"` дочерних слотов нет, их разметка лежит в `parts` документа.
+ * Не зайди обход туда, вкладке, чья панель вынесена в часть, достался бы ложный упрёк «панели
+ * нет». Каждая часть обходится один раз на вызов: повторная ссылка новых потомков не даёт, а на
+ * части, ссылающейся на саму себя, обход без этого не кончился бы.
+ */
+function descendants(node: JsonNode, path: JsonPath, parts: Parts): JsonNode[] {
   const out: JsonNode[] = [];
+  const entered = new Set<string>();
   const rec = (current: JsonNode, currentPath: JsonPath): void => {
     for (const slot of childSlots(current, currentPath)) {
       for (const entry of slot.entries) {
@@ -74,15 +99,23 @@ function descendants(node: JsonNode, path: JsonPath): JsonNode[] {
         rec(entry.node, childPath);
       }
     }
+    const name = partNameOf(current);
+    if (name === undefined || entered.has(name)) return;
+    entered.add(name);
+    // Части с таким именем может не быть — об этом скажет проверка схемы (`unknown-part`).
+    const part = Object.hasOwn(parts, name) ? parts[name] : undefined;
+    if (!isNodeLike(part)) return;
+    out.push(part);
+    rec(part, ['parts', name]);
   };
   rec(node, path);
   return out;
 }
 
 /** Замечания по одному узлу `Tabs`: кнопки без панелей, панели без кнопок, чужой `defaultValue`. */
-function lintTabs(node: JsonNode, path: JsonPath): Finding[] {
+function lintTabs(node: JsonNode, path: JsonPath, parts: Parts): Finding[] {
   const out: Finding[] = [];
-  const inside = descendants(node, path);
+  const inside = descendants(node, path, parts);
   const triggers = inside.filter((child) => componentOf(child) === TABS.trigger);
   const panels = inside.filter((child) => componentOf(child) === TABS.panel);
   if (triggers.length === 0 && panels.length === 0) return out;
@@ -147,12 +180,22 @@ function lintTabs(node: JsonNode, path: JsonPath): Finding[] {
   return out;
 }
 
-/** Шагом мастера может быть только контейнер: полю в не-контейнере некуда лечь. */
+/**
+ * Шагом мастера может быть только контейнер: полю в не-контейнере некуда лечь.
+ *
+ * Шаги — это `children` визарда: слот шагов ({@link childSlots}, вид `steps`) есть только у него,
+ * и лежит он там же, где дети любого контейнера. Есть ли в шаге место полям, говорят его
+ * дочерние слоты — с одной оговоркой. Подформа и массив держат разметку не обязательно в узле:
+ * у подформы она целиком в `parts` документа, у массива шаблон строки бывает ссылкой
+ * `item: "$part(имя)"`. Слотов у такого узла нет, а место полям есть — замечания он не получает.
+ */
 function lintSteps(node: JsonNode, path: JsonPath): Finding[] {
   const out: Finding[] = [];
   for (const slot of childSlots(node, path)) {
     if (slot.kind !== 'steps') continue;
     for (const entry of slot.entries) {
+      const kind = kindOf(entry.node);
+      if (kind === 'part' || kind === 'array') continue;
       if (childSlots(entry.node, [...slot.path, entry.index]).length > 0) continue;
       out.push({
         code: CODES.STEP_NOT_CONTAINER,
@@ -170,8 +213,9 @@ function lintSteps(node: JsonNode, path: JsonPath): Finding[] {
 /** Структурные замечания к форме. Пустой массив — связи в порядке. */
 export function structureFindings(schema: JsonFormSchema): Finding[] {
   const out: Finding[] = [];
+  const parts: Parts = schema.parts ?? {};
   walkNodes(schema, (node, path) => {
-    if (componentOf(node) === TABS.root) out.push(...lintTabs(node, path));
+    if (componentOf(node) === TABS.root) out.push(...lintTabs(node, path, parts));
     out.push(...lintSteps(node, path));
   });
   return out;

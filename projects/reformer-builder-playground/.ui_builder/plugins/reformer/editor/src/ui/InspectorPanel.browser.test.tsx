@@ -33,7 +33,7 @@ import { InspectorPanel } from './InspectorPanel';
 const DOCUMENT = 'fake:form.json';
 
 /** Поле «Тип кредита» образца — компонент `Select`. */
-const SELECT_PATH = ['root', 'componentProps', 'steps', 0, 'children', 0] as const;
+const SELECT_PATH = ['root', 'children', 0, 'children', 0] as const;
 
 /**
  * По свойству на каждый вид контрола панели; `className` — без описания. Булевых три, в одной
@@ -83,7 +83,7 @@ const CATALOG: readonly CatalogEntry[] = [
     name: 'Select',
     role: 'field',
     propsSchema: PROPS_SCHEMA,
-    makeNode: () => ({ value: '$model(x)', component: '$component(Select)' }),
+    makeNode: () => ({ model: '$model(x)', component: '$component(Select)' }),
   },
 ];
 
@@ -415,7 +415,7 @@ describe('привязка к модели — список кита с ввод
   function bindingOf(session: SchemaSession): unknown {
     let node: unknown = session.get().model;
     for (const step of SELECT_PATH) node = (node as Record<string | number, unknown>)[step];
-    return (node as { value?: unknown }).value;
+    return (node as { model?: unknown }).model;
   }
 
   /** Открывает список привязки и отдаёт поиск по его пунктам: пункт находится по тексту. */

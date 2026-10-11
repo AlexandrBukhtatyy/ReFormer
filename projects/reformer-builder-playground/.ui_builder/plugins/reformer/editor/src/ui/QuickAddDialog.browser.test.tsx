@@ -17,7 +17,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useMemo, type ReactElement } from 'react';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { DEFAULT_COL_CLASS } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
 import type { CatalogEntry } from '../../../core/catalog';
@@ -35,7 +35,7 @@ function entry(name: string, category: string): CatalogEntry {
     role: 'field',
     category,
     propsSchema: { type: 'object', properties: {} },
-    makeNode: () => ({ value: `$model(${name.toLowerCase()})`, component: `$component(${name})` }),
+    makeNode: () => ({ model: `$model(${name.toLowerCase()})`, component: `$component(${name})` }),
   } as CatalogEntry;
 }
 
@@ -55,11 +55,12 @@ const CATALOG: readonly CatalogEntry[] = [
 
 function schema(): JsonFormSchema {
   return {
+    format: 2,
     version: '1.0',
     root: {
       component: '$html(div)',
       componentProps: { className: DEFAULT_COL_CLASS },
-      children: [{ value: '$model(first)', component: '$component(Input)' }],
+      children: [{ model: '$model(first)', component: '$component(Input)' }],
     },
   } as unknown as JsonFormSchema;
 }

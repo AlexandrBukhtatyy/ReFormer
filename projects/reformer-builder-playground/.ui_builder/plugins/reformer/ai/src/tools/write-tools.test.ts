@@ -2,7 +2,7 @@ import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { describe, expect, it } from 'vitest';
 import { emptyRules, type FormRules } from '../../../core/form-model';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptySchema } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
 import { P, sampleSchema } from '../../../core/testing';
@@ -94,7 +94,7 @@ describe('insert_node', () => {
     ).toEqual(['Нулевое', 'Первое', 'Второе']);
   });
 
-  it('в мастер вставка идёт в шаги, а не в children — правило размещения знает редактор', async () => {
+  it('в мастер вставка идёт в слот шагов — правило размещения знает редактор', async () => {
     const base = sampleSchema();
     const schema = expectOk(
       await reg.invoke(
@@ -103,13 +103,19 @@ describe('insert_node', () => {
         ctxOf(base)
       )
     );
-    expect(buildOutline(schema).map((e) => e.ref)).toContain('/root/componentProps/steps/2');
+    // Шаги — `children` визарда: новый встаёт третьим и числится шагом, а не обычным ребёнком.
+    expect(buildOutline(schema).find((e) => e.ref === '/root/children/2')).toMatchObject({
+      component: 'Step',
+      slot: 'steps',
+    });
+    // Прежнего места шагов в документе не появляется.
+    expect(getAt(schema, ['root', 'componentProps', 'steps'])).toBeUndefined();
   });
 
   it('поле детей не принимает', async () => {
     const res = await reg.invoke(
       'insert_node',
-      { parent: '/root/componentProps/steps/0/children/0', nodes: [{ component: FIELD }] },
+      { parent: '/root/children/0/children/0', nodes: [{ component: FIELD }] },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -117,7 +123,7 @@ describe('insert_node', () => {
 
   it('поле в мастер напрямую — отказ, а не молчаливое превращение в шаг', async () => {
     // Наблюдалось вживую: insert_node(Input, parent=<Wizard>) отвечал «Готово», а поле вставало
-    // в componentProps.steps и рантайм пытался нарисовать его вместо страницы мастера.
+    // среди шагов и рантайм пытался нарисовать его вместо страницы мастера.
     const base = sampleSchema();
     const res = await reg.invoke(
       'insert_node',
@@ -149,7 +155,7 @@ describe('insert_node', () => {
       { parent: '/root', nodes: [{ component: 'Wizard' }] },
       ctxOf(emptySchema())
     );
-    expect(res.text).toContain('/root/children/0/componentProps/steps/0');
+    expect(res.text).toContain('/root/children/0/children/0');
     expect(res.text).toContain('Step');
   });
 
@@ -162,19 +168,26 @@ describe('insert_node', () => {
     expect(res.text).not.toContain('\n');
   });
 
-  it('визард без шагов не теряет слот: следующий Step встаёт в steps, а не в children', async () => {
-    // Самоуничтожение визарда: remove_node последнего шага оставлял steps: [], слот исчезал, и
-    // всё, что вставляли дальше, уходило в children — в слот, которого рантайм не рендерит.
+  it('визард без шагов не теряет слот: следующий Step встаёт шагом, а поле не принимается', async () => {
+    // Самоуничтожение визарда: remove_node последнего шага оставлял пустой список шагов, слот
+    // исчезал, и всё, что вставляли дальше, уходило обычными детьми — мимо правила «в визарде
+    // только шаги». Слот шагов держится на имени компонента, а не на том, есть ли в нём шаги.
     let schema = expectOk(
-      await reg.invoke(
-        'remove_node',
-        { refs: ['/root/componentProps/steps/1'] },
-        ctxOf(sampleSchema())
-      )
+      await reg.invoke('remove_node', { refs: ['/root/children/1'] }, ctxOf(sampleSchema()))
     );
     schema = expectOk(
-      await reg.invoke('remove_node', { refs: ['/root/componentProps/steps/0'] }, ctxOf(schema))
+      await reg.invoke('remove_node', { refs: ['/root/children/0'] }, ctxOf(schema))
     );
+    expect(getAt(schema, [...P.steps])).toEqual([]);
+
+    // Пустой визард — всё ещё визард: поле напрямую он не принимает.
+    const refused = await reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: FIELD }] },
+      ctxOf(schema)
+    );
+    expect(refused.error?.code).toBe('INVALID_PARENT');
+
     schema = expectOk(
       await reg.invoke(
         'insert_node',
@@ -182,10 +195,159 @@ describe('insert_node', () => {
         ctxOf(schema)
       )
     );
+    expect(buildOutline(schema).find((e) => e.ref === '/root/children/0')).toMatchObject({
+      component: 'Step',
+      slot: 'steps',
+    });
+  });
 
-    const refs = buildOutline(schema).map((e) => e.ref);
-    expect(refs).toContain('/root/componentProps/steps/0');
-    expect(refs).not.toContain('/root/children/0');
+  it('визард без ключа children принимает шаг и по-прежнему отказывает полю', async () => {
+    // Слот шагов существует и когда `children` у визарда ещё нет: иначе первый шаг было бы
+    // некуда положить, а поле прошло бы как «первый ребёнок контейнера».
+    const bare = {
+      format: 2,
+      root: { component: '$component(Wizard)' },
+    } as unknown as JsonFormSchema;
+
+    const refused = await reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: FIELD }] },
+      ctxOf(bare)
+    );
+    expect(refused.error?.code).toBe('INVALID_PARENT');
+
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: 'Step' }] },
+        ctxOf(bare)
+      )
+    );
+    expect(buildOutline(schema).find((e) => e.ref === '/root/children/0')?.slot).toBe('steps');
+  });
+
+  it('привязка поля и массива пишется ключом model — прежних value и array в узле нет', async () => {
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        {
+          parent: '/root',
+          nodes: [
+            { component: FIELD, model: 'applicant.email' },
+            { component: 'FieldArray', model: 'phones' },
+          ],
+        },
+        ctxOf(emptySchema())
+      )
+    );
+    const [field, array] = getAt(schema, ['root', 'children']) as Record<string, unknown>[];
+    expect(field.model).toBe('$model(applicant.email)');
+    expect(array.model).toBe('$model(phones)');
+    for (const node of [field, array]) {
+      expect(node).not.toHaveProperty('value');
+      expect(node).not.toHaveProperty('array');
+    }
+    // Результат — документ формата 2, и гейт проверял его мета-схемой формата 2.
+    expect(schema.format).toBe(2);
+  });
+
+  it('подформа и массив с шаблоном-частью детей не принимают', async () => {
+    const draft = withParts();
+    for (const parent of ['/root/children/0', '/root/children/1']) {
+      const res = await reg.invoke(
+        'insert_node',
+        { parent, nodes: [{ component: FIELD }] },
+        ctxOf(draft)
+      );
+      expect(res.error?.code, parent).toBe('INVALID_PARENT');
+      expect(res.schema).toBeUndefined();
+    }
+  });
+});
+
+/** Форма с подформой и с массивом, чей шаблон строки — именованная часть документа. */
+function withParts(): JsonFormSchema {
+  return {
+    format: 2,
+    parts: {
+      address: {
+        component: '$component(Box)',
+        children: [{ model: '$model(city)', component: '$component(Input)' }],
+      },
+    },
+    root: {
+      component: '$component(Box)',
+      children: [
+        { model: '$model(registrationAddress)', part: '$part(address)' },
+        { model: '$model(previousAddresses)', item: '$part(address)' },
+        { model: '$model(email)', component: '$component(Input)' },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+}
+
+describe('подформа и массив с шаблоном-частью', () => {
+  const PART = '/root/children/0';
+  const ARRAY = '/root/children/1';
+
+  it('переносятся, копируются и удаляются как обычные узлы', async () => {
+    // Собирать такие узлы ассистент не обязан, но встретить в чужой форме может: правки вокруг
+    // них не должны ни падать, ни ломать сам узел.
+    const base = withParts();
+    let schema = expectOk(
+      await reg.invoke('move_node', { ref: PART, parent: '/root', index: 3 }, ctxOf(base))
+    );
+    expect(buildOutline(schema).map((e) => e.kind)).toEqual([
+      'container',
+      'array',
+      'field',
+      'part',
+    ]);
+
+    schema = expectOk(
+      await reg.invoke('duplicate_node', { ref: '/root/children/0' }, ctxOf(schema))
+    );
+    expect(getAt(schema, ['root', 'children', 1])).toEqual({
+      model: '$model(previousAddresses)',
+      item: '$part(address)',
+    });
+
+    schema = expectOk(
+      await reg.invoke(
+        'remove_node',
+        { refs: ['/root/children/1', '/root/children/3'] },
+        ctxOf(schema)
+      )
+    );
+    expect(buildOutline(schema).map((e) => e.kind)).toEqual(['container', 'array', 'field']);
+    // Часть документа правки узлов не трогают.
+    expect(schema.parts).toBe(base.parts);
+  });
+
+  it('раскладки и содержимого у них нет — отказ, а не падение', async () => {
+    for (const ref of [PART, ARRAY]) {
+      const layout = await reg.invoke('set_layout', { ref, direction: 'row' }, ctxOf(withParts()));
+      expect(layout.error?.code, ref).toBe('INVALID_PARENT');
+
+      const text = await reg.invoke(
+        'set_node_prop',
+        { refs: [ref], props: { text: 'Адрес' } },
+        ctxOf(withParts())
+      );
+      expect(text.error?.code, ref).toBe('INVALID_PARENT');
+    }
+  });
+
+  it('свойств компонента у подформы нет — гейт не пускает их в узел', async () => {
+    // Узел-подформа закрыт: `{ model, part }` и больше ничего. Попытка дописать ему пропсы
+    // отвергается мета-схемой формата 2, а не оседает в документе мусорным ключом.
+    const res = await reg.invoke(
+      'set_node_prop',
+      { refs: [PART], props: { label: 'Адрес регистрации' } },
+      ctxOf(withParts())
+    );
+    expect(res.error?.code).toBe('SCHEMA_INVALID');
+    expect(res.schema).toBeUndefined();
   });
 });
 
@@ -268,7 +430,7 @@ describe('insert_node пакетом', () => {
 });
 
 describe('set_node_prop пакетом', () => {
-  const step0 = '/root/componentProps/steps/0';
+  const step0 = '/root/children/0';
 
   it('одни и те же свойства уходят на все адреса за один вызов', async () => {
     const refs = [`${step0}/children/0`, `${step0}/children/1`];
@@ -377,7 +539,7 @@ describe('remove_node пакетом', () => {
 });
 
 describe('set_node_prop', () => {
-  const ref = '/root/componentProps/steps/0/children/0';
+  const ref = '/root/children/0/children/0';
 
   it('задаёт свойство', async () => {
     const schema = expectOk(
@@ -433,7 +595,7 @@ describe('set_node_prop', () => {
     // абзацем НАД полями шага, а заголовок оставался прежним. У Step children — тело, не подпись.
     const res = await reg.invoke(
       'set_node_prop',
-      { refs: ['/root/componentProps/steps/0'], props: { text: 'Шаг 2' } },
+      { refs: ['/root/children/0'], props: { text: 'Шаг 2' } },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -441,9 +603,22 @@ describe('set_node_prop', () => {
     expect(res.schema).toBeUndefined();
   });
 
+  it('у мастера содержимого нет: текст не встаёт среди шагов', async () => {
+    // Шаги — `children` визарда, и текстовая часть узла пишется туда же. Без отказа строка
+    // оказалась бы в списке шагов наравне с ними.
+    const res = await reg.invoke(
+      'set_node_prop',
+      { refs: ['/root'], props: { text: 'Заявка на кредит' } },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.text).toContain('holds steps only');
+    expect(res.schema).toBeUndefined();
+  });
+
   it('содержимое из нескольких частей строкой не затирается', async () => {
     const draft = sampleSchema();
-    const ref = '/root/componentProps/steps/0';
+    const ref = '/root/children/0';
     const step = getAt(draft, [...P.step0]) as { children: unknown[] };
     step.children = ['Платёж: ', '$model(loanAmount)', ' ₽'];
 
@@ -562,7 +737,7 @@ describe('set_node_prop', () => {
 
 describe('set_node_model', () => {
   it('перепривязывает поле', async () => {
-    const ref = '/root/componentProps/steps/0/children/0';
+    const ref = '/root/children/0/children/0';
     const schema = expectOk(
       await reg.invoke('set_node_model', { ref, model: 'loan.kind' }, ctxOf(sampleSchema()))
     );
@@ -572,10 +747,37 @@ describe('set_node_model', () => {
   it('у контейнера привязки нет', async () => {
     const res = await reg.invoke(
       'set_node_model',
-      { ref: '/root/componentProps/steps/0', model: 'x' },
+      { ref: '/root/children/0', model: 'x' },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
+  });
+
+  it('массив перепривязывается тем же ключом model, что и поле', async () => {
+    const ref = '/root/children/1/children/0';
+    const schema = expectOk(
+      await reg.invoke('set_node_model', { ref, model: 'assets' }, ctxOf(sampleSchema()))
+    );
+    const node = getAt(schema, [...P.array]) as Record<string, unknown>;
+    expect(node.model).toBe('$model(assets)');
+    expect(node).not.toHaveProperty('array');
+    expect(node).not.toHaveProperty('value');
+    // Узел остался массивом: шаблон строки на месте.
+    expect(buildOutline(schema).find((e) => e.ref === ref)).toMatchObject({
+      kind: 'array',
+      model: 'assets',
+    });
+  });
+
+  it('подформа перепривязывается к другой группе модели и остаётся подформой', async () => {
+    const ref = '/root/children/0';
+    const schema = expectOk(
+      await reg.invoke('set_node_model', { ref, model: 'actualAddress' }, ctxOf(withParts()))
+    );
+    expect(getAt(schema, ['root', 'children', 0])).toEqual({
+      model: '$model(actualAddress)',
+      part: '$part(address)',
+    });
   });
 });
 
@@ -583,12 +785,12 @@ describe('remove_node', () => {
   it('удаляет узел и сообщает о вложенных', async () => {
     const res = await reg.invoke(
       'remove_node',
-      { refs: ['/root/componentProps/steps/0'] },
+      { refs: ['/root/children/0'] },
       ctxOf(sampleSchema())
     );
     const schema = expectOk(res);
     expect(res.ops?.[0]?.summary).toContain('вложенные узлы');
-    expect(buildOutline(schema).map((e) => e.ref)).not.toContain('/root/componentProps/steps/1');
+    expect(buildOutline(schema).map((e) => e.ref)).not.toContain('/root/children/1');
   });
 });
 
@@ -597,12 +799,12 @@ describe('move_node', () => {
     const schema = expectOk(
       await reg.invoke(
         'move_node',
-        { ref: '/root/componentProps/steps/0/children/0', parent: '/root/componentProps/steps/1' },
+        { ref: '/root/children/0/children/0', parent: '/root/children/1' },
         ctxOf(sampleSchema())
       )
     );
     const models = buildOutline(schema)
-      .filter((e) => e.ref.startsWith('/root/componentProps/steps/1/children'))
+      .filter((e) => e.ref.startsWith('/root/children/1/children'))
       .map((e) => e.model);
     expect(models).toContain('loanType');
   });
@@ -610,10 +812,37 @@ describe('move_node', () => {
   it('внутрь самого себя нельзя', async () => {
     const res = await reg.invoke(
       'move_node',
-      { ref: '/root/componentProps/steps/0', parent: '/root/componentProps/steps/0' },
+      { ref: '/root/children/0', parent: '/root/children/0' },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
+  });
+
+  it('поле в мастер не переносится — в его children только шаги', async () => {
+    // Адрес слота шагов кончается на `children`, как у любой секции: отличает его только вид слота.
+    const res = await reg.invoke(
+      'move_node',
+      { ref: '/root/children/0/children/0', parent: '/root' },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.text).toContain('A wizard holds steps only');
+    expect(res.schema).toBeUndefined();
+  });
+
+  it('шаги переставляются внутри мастера тем же вызовом', async () => {
+    const schema = expectOk(
+      await reg.invoke(
+        'move_node',
+        { ref: '/root/children/1', parent: '/root', index: 0 },
+        ctxOf(sampleSchema())
+      )
+    );
+    expect(
+      buildOutline(schema)
+        .filter((e) => e.slot === 'steps')
+        .map((e) => e.label)
+    ).toEqual(['Имущество', 'Кредит']);
   });
 });
 
@@ -622,13 +851,13 @@ describe('duplicate_node', () => {
     const schema = expectOk(
       await reg.invoke(
         'duplicate_node',
-        { ref: '/root/componentProps/steps/0/children/0' },
+        { ref: '/root/children/0/children/0' },
         ctxOf(sampleSchema())
       )
     );
     expect(
       buildOutline(schema)
-        .filter((e) => e.ref.startsWith('/root/componentProps/steps/0/children'))
+        .filter((e) => e.ref.startsWith('/root/children/0/children'))
         .map((e) => e.model)
     ).toEqual(['loanType', 'loanType', 'loanAmount']);
   });
@@ -636,7 +865,7 @@ describe('duplicate_node', () => {
   it('шаблон массива дублировать нельзя', async () => {
     const res = await reg.invoke(
       'duplicate_node',
-      { ref: '/root/componentProps/steps/1/children/0/item/$template' },
+      { ref: '/root/children/1/children/0/item/$template' },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -644,8 +873,8 @@ describe('duplicate_node', () => {
 });
 
 describe('group_nodes', () => {
-  const a = '/root/componentProps/steps/0/children/0';
-  const b = '/root/componentProps/steps/0/children/1';
+  const a = '/root/children/0/children/0';
+  const b = '/root/children/0/children/1';
 
   it('оборачивает соседей в контейнер с заданной раскладкой', async () => {
     const schema = expectOk(
@@ -654,7 +883,7 @@ describe('group_nodes', () => {
     const group = buildOutline(schema).find((e) => e.ref === a);
     expect(group?.component).toBe('$html(div)');
     const cls = (
-      getAt(schema, ['root', 'componentProps', 'steps', 0, 'children', 0, 'componentProps']) as {
+      getAt(schema, ['root', 'children', 0, 'children', 0, 'componentProps']) as {
         className: string;
       }
     ).className;
@@ -665,7 +894,7 @@ describe('group_nodes', () => {
   it('несоседние узлы группировать нельзя', async () => {
     const res = await reg.invoke(
       'group_nodes',
-      { refs: [a, '/root/componentProps/steps/1/children/0'] },
+      { refs: [a, '/root/children/1/children/0'] },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -677,7 +906,7 @@ describe('group_nodes', () => {
     const draft = sampleSchema();
     const res = await reg.invoke(
       'group_nodes',
-      { refs: ['/root/componentProps/steps/0', '/root/componentProps/steps/1'] },
+      { refs: ['/root/children/0', '/root/children/1'] },
       ctxOf(draft)
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -705,7 +934,7 @@ describe('set_layout', () => {
   it('у поля раскладки нет', async () => {
     const res = await reg.invoke(
       'set_layout',
-      { ref: '/root/componentProps/steps/0/children/0', direction: 'row' },
+      { ref: '/root/children/0/children/0', direction: 'row' },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -720,7 +949,7 @@ describe('замечания к успешной правке — вдогонк
   });
 
   /** Адрес того самого поля в схеме-фикстуре. */
-  const LOAN_AMOUNT = '/root/componentProps/steps/0/children/1';
+  const LOAN_AMOUNT = '/root/children/0/children/1';
 
   it('правка, осиротившая правило, сообщает об этом сразу — без отдельного validate_form', async () => {
     // Правило на удалённое поле в рантайме не делает НИЧЕГО и молча: на валидность схемы это не
@@ -757,7 +986,7 @@ describe('замечания к успешной правке — вдогонк
     const res = await reg.invoke(
       'insert_node',
       {
-        parent: '/root/componentProps/steps/0',
+        parent: '/root/children/0',
         nodes: [{ component: FIELD, props: { label: 'Имя' } }],
       },
       { draft: broken, base: broken, rules: withRule(), catalog, validateForm: validateFormSchema }

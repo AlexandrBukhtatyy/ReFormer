@@ -1,18 +1,17 @@
 {
   "$schema": "./form-schema.schema.json",
+  "format": 2,
   "version": "1.0",
   "root": {
     "component": "$component(Box)",
     "children": [
       {
         "component": "$component(Wizard)",
-        "componentProps": {
-          "steps": [
-            {
-              "$ref": "./steps/shag-1/form.schema.json"
-            }
-          ]
-        },
+        "children": [
+          {
+            "$ref": "./steps/shag-1/form.schema.json"
+          }
+        ],
         "selector": "wizard"
       }
     ]
