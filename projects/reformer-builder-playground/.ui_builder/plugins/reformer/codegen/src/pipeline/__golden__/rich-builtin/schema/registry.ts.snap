@@ -1,0 +1,23 @@
+// schema/registry.ts — реестр компонентов и источников данных схемы. Регенерируется.
+
+import { Box, FormField, FormWizard, Input, InputNumber, SelectAsync } from '@reformer/ui-kit';
+import { Step } from '@reformer/cdk/form-wizard';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+import { LOAN_TYPES, HINT_TEXT, PROP_LABEL } from '../constants/zayavka-na-kredit';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, FormField);
+    // Визард — библиотечный: шаги берёт из узлов-детей, форму и поток — из сборки.
+    reg.component('RendererFormWizard', FormWizard);
+    reg.component('Step', Step);
+    reg.component('Select', SelectAsync);
+    reg.component('InputNumber', InputNumber);
+    reg.component('Input', Input);
+    reg.component('Box', Box);
+
+    reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+    reg.dataSource('HINT_TEXT', HINT_TEXT);
+    reg.dataSource('PROP_LABEL', PROP_LABEL);
+  });
+}

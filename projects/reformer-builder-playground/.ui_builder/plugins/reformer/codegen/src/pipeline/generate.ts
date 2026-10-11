@@ -17,6 +17,14 @@
  * - **путь наружу каталога** (`../`, абсолютный) — цель отбрасывается: она печатает файл
  *   МОДУЛЯ, и запись куда-то ещё была бы обходом границы прав.
  *
+ * ## Путь цели — шаблон
+ *
+ * Модуль разложен по папкам ролей, и часть имён зависит от формы, поэтому путь цели — шаблон с
+ * токенами ({@link PATH_TOKENS}): `{Type}.tsx`, `types/{dir}.ts`, `validation/{step}.ts`,
+ * `{schemaDir}steps/{stepDir}/form.schema.json`. Токен стоит в ЛЮБОМ месте пути, не обязательно
+ * целым сегментом. Те же токены действуют в заголовке пользовательского шаблона и в прежних
+ * именах цели (`legacyPaths`).
+ *
  * @module plugins/reformer/codegen/pipeline/generate
  */
 
@@ -29,6 +37,7 @@ import {
   withViewFiles,
   withStepView,
   stepView,
+  schemaDirOf,
   type StepInfo,
   type CodegenInput,
   type CodegenView,
@@ -50,12 +59,12 @@ export interface ModuleFile {
   readonly targetId: string;
   /** Номер шага визарда (с единицы) у файлов, размноженных по шагам. */
   readonly step?: number;
-  /** Прежние имена этого файла — для переноса правленного под старым именем. */
+  /** Прежние имена этого файла (токены уже подставлены) — для переноса под новое имя. */
   readonly legacyPaths?: readonly string[];
   /**
    * Откуда цель приехала.
    *
-   * Панели это нужно, чтобы сказать: `registry.ts` печатает ФАЙЛ ЧЕЛОВЕКА, а не наш.
+   * Панели это нужно, чтобы сказать: `schema/registry.ts` печатает ФАЙЛ ЧЕЛОВЕКА, а не наш.
    * Без пометки замена встроенной цели выглядела бы как её отсутствие.
    */
   readonly origin: 'builtin' | 'user' | 'plugin';
@@ -71,14 +80,18 @@ export interface CodegenProblem {
     | 'escaping-path'
     | 'no-body'
     | 'both-bodies'
-    /** Шаблон пути у цели `each` без сегмента `{step}` либо `{step}` у цели без `each`. */
+    /**
+     * Шаблон пути не сходится с целью: у цели `each` нет токена шага, токен шага стоит у цели
+     * без `each` либо токен неизвестен.
+     */
     | 'bad-pattern'
     /** Файл цели из проекта не разбирается: битый заголовок либо `applies`. */
     | 'template-invalid'
     /**
-     * Цель заменяет встроенную, но печатает под ДРУГИМ путём (обычно — прежним,
-     * `renderer.behavior.ts`). Предупреждение, а не отказ: файл печатается, но модуль
-     * импортирует уже новое имя. Ставит `overrideDrift` из `./user-targets`.
+     * Цель заменяет встроенную, но печатает под ДРУГИМ путём (обычно — путём прежней плоской
+     * раскладки, `registry.ts` вместо `schema/registry.ts`) либо заменяет цель, которой больше
+     * нет. Предупреждение, а не отказ прогона: модуль печатается, но правки из шаблона не
+     * действуют. Ставит `overrideDrift` из `./user-targets`.
      */
     | 'override-path-drift';
   readonly message: string;
@@ -113,8 +126,64 @@ function isInsideModule(path: string): boolean {
   return !path.split('/').some((segment) => segment === '..' || segment === '.' || segment === '');
 }
 
-/** Сегмент пути, на место которого встаёт имя папки шага. */
-const STEP_SEGMENT = '{step}';
+/**
+ * Токены шаблона пути цели и что на их место встаёт.
+ *
+ * | токен         | значение                                                              |
+ * | ------------- | --------------------------------------------------------------------- |
+ * | `{Type}`      | тип формы — `LoanApplicationForm`                                     |
+ * | `{dir}`       | kebab-имя формы — `loan-application`                                  |
+ * | `{schema}`    | путь корневого документа в модуле — `schema/form.schema.json`         |
+ * | `{schemaDir}` | его каталог с завершающим `/` либо пусто (документ в корне модуля)    |
+ * | `{step}`      | имя шага в путях кода — `kontakty` (только у цели `each: 'step'`)     |
+ * | `{stepDir}`   | папка схемы шага — почти всегда то же, что `{step}` (только у `each`) |
+ *
+ * `{step}` и `{stepDir}` расходятся в одном случае: шаг вынесен в папку с занятым именем
+ * (`steps/form/`), и его код получает разведённое имя (`validation/form-2.ts`) — см. раскладку
+ * шагов в `core/codegen/steps`.
+ */
+export const PATH_TOKENS: readonly string[] = Object.freeze([
+  'Type',
+  'dir',
+  'schema',
+  'schemaDir',
+  'step',
+  'stepDir',
+]);
+
+/** Токены, у которых есть значение только для шага. */
+const STEP_TOKENS: ReadonlySet<string> = new Set(['step', 'stepDir']);
+
+/** Токен в шаблоне пути: `{имя}`. */
+const TOKEN = /\{([^{}/]*)\}/g;
+
+/** Имена токенов шаблона пути, в порядке появления. */
+function tokensOf(pattern: string): readonly string[] {
+  return [...pattern.matchAll(TOKEN)].map((match) => match[1] ?? '');
+}
+
+/** Подставить токены в шаблон пути. Неизвестный токен остаётся как есть — его называет отбор. */
+function expandPath(pattern: string, ctx: EmitContext, step?: StepInfo): string {
+  const schema = ctx.paths.schema;
+  return pattern.replace(TOKEN, (whole: string, name: string) => {
+    switch (name) {
+      case 'Type':
+        return ctx.names.TypeName;
+      case 'dir':
+        return ctx.names.dir;
+      case 'schema':
+        return schema;
+      case 'schemaDir':
+        return schemaDirOf(schema);
+      case 'step':
+        return step?.slug ?? whole;
+      case 'stepDir':
+        return step?.dir ?? whole;
+      default:
+        return whole;
+    }
+  });
+}
 
 /** Экземпляр цели: сама цель, фактический путь и шаг, если цель размножена. */
 interface TargetInstance {
@@ -123,24 +192,33 @@ interface TargetInstance {
   readonly step?: StepInfo;
 }
 
-/** Шаблон пути корректен: у `each`-цели ровно один сегмент `{step}`, у прочих — ни одного. */
+/**
+ * Шаблон пути корректен: токены известны, у `each`-цели есть токен шага (иначе все её
+ * экземпляры легли бы в один файл), у прочих — ни одного.
+ */
 function patternProblem(target: CodegenTarget): string | null {
-  const segments = target.path.split('/').filter((segment) => segment === STEP_SEGMENT).length;
-  const inline = target.path.split(STEP_SEGMENT).length - 1;
-  if (target.each === 'step') {
-    return segments === 1 && inline === 1
-      ? null
-      : 'шаблон пути обязан содержать ровно один сегмент {step}';
+  const tokens = [target.path, ...(target.legacyPaths ?? [])].flatMap(tokensOf);
+  const unknown = tokens.find((name) => !PATH_TOKENS.includes(name));
+  if (unknown !== undefined) {
+    const known = PATH_TOKENS.map((name) => `{${name}}`).join(', ');
+    return `неизвестный токен {${unknown}} в пути; известные: ${known}`;
   }
-  return inline > 0 ? 'сегмент {step} допустим только у цели с each: step' : null;
+  if (target.each === 'step') {
+    return tokensOf(target.path).some((name) => STEP_TOKENS.has(name))
+      ? null
+      : 'шаблон пути обязан содержать токен шага: {step} либо {stepDir}';
+  }
+  return tokens.some((name) => STEP_TOKENS.has(name))
+    ? 'токены {step} и {stepDir} допустимы только у цели с each: step'
+    : null;
 }
 
 /** Раскрыть цель в экземпляры: одна цель — один путь, `each`-цель — путь на шаг. */
 function instancesOf(target: CodegenTarget, ctx: EmitContext): readonly TargetInstance[] {
-  if (target.each !== 'step') return [{ target, path: target.path }];
+  if (target.each !== 'step') return [{ target, path: expandPath(target.path, ctx) }];
   return ctx.layout.steps.map((step) => ({
     target,
-    path: target.path.split(STEP_SEGMENT).join(step.dir),
+    path: expandPath(target.path, ctx, step),
     step,
   }));
 }
@@ -288,7 +366,7 @@ export async function generateModule(
         regenerable: target.regenerable === true,
         targetId: target.id,
         ...(instance.step === undefined ? {} : { step: instance.step.index }),
-        legacyPaths: target.legacyPaths ?? [],
+        legacyPaths: (target.legacyPaths ?? []).map((path) => expandPath(path, ctx, instance.step)),
         origin: target.origin ?? 'builtin',
       });
     } catch (error) {
@@ -304,12 +382,12 @@ export async function generateModule(
   const formatted = format === undefined ? null : await format(printed);
   const files = printed.map((file, index) => {
     const content = formatted?.[index] ?? file.content;
-    // Маркер получают производные файлы и те авторские, что выводятся из правил. `api.ts`
-    // и `data-sources.ts` его не получают: перевыводить их не из чего, и маркер обещал бы
-    // перезапись, которой не будет.
+    // Маркер получают производные файлы и те авторские, что выводятся из правил. Отправка,
+    // запросы и константы источников его не получают: перевыводить их не из чего, и маркер
+    // обещал бы перезапись, которой не будет.
     //
     // И только там, где строка `//` — комментарий: в `form.schema.json` она делала файл
-    // неразбираемым, а читают его и редактор схемы билдера, и сгенерированный `index.tsx`.
+    // неразбираемым, а читают его и редактор схемы билдера, и сборка формы.
     const wanted = file.cls === 'derived' || file.regenerable;
     const marked = wanted && acceptsMarker(file.path) ? withMarker(content) : content;
     return { ...file, content: marked };

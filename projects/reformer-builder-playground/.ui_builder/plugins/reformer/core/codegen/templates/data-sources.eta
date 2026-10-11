@@ -1,8 +1,13 @@
-// data-sources.ts — значения $dataSource. МОК: опции из синтеза, замените реальными.
-// Пишется один раз и при регенерации не затирается.
+// <%= it.layout.files.constants %> — опции и константы источников данных ($dataSource).
+// МОК: значения синтезированы, замените реальными. Ваш файл: пишется один раз и при
+// регенерации не затирается.
 
+<% if (it.dataSources.isEmpty) { -%>
+// Источников данных в схеме нет. Появятся — их значения объявляются здесь.
+export {};
+<% } else { -%>
 <% if (it.dataSources.options.length > 0) { -%>
-import type { SelectOption } from '<%= it.layout.imports.types %>';
+import type { SelectOption } from '<%= it.rel('constants', 'types') %>';
 
 <% } -%>
 <%~ it.blocks([
@@ -14,3 +19,4 @@ import type { SelectOption } from '<%= it.layout.imports.types %>';
     .map((name) => `export const ${name} = (_item: unknown, index: number): string =>\n  '#' + (index + 1); // TODO: подпись элемента`)
     .join('\n'),
 ]) %>
+<% } -%>

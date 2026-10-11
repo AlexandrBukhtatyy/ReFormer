@@ -50,6 +50,52 @@ describe('assignSelectors', () => {
     expect(json).toContain('"properties-array"');
   });
 
+  it('шаг без заголовка тоже получает селектор — им шаг называется в потоке', () => {
+    // Отказ, который это удерживает: селектор получал только шаг с заголовком, и поток шагов
+    // (`flow.steps[].id` — селектор узла шага) не находил разметку безымянного шага.
+    const schema = wizardSchema();
+    const wizard = (schema.root as unknown as { children: { children: unknown[] }[] }).children[0]!;
+    wizard.children.push({
+      component: '$component(Step)',
+      children: [{ model: '$model(note)', component: '$component(Input)' }],
+    });
+
+    const { schema: out, info } = assignSelectors(schema);
+    const steps = (out.root as unknown as { children: { children: { selector?: string }[] }[] })
+      .children[0]!.children;
+    // Шаг с заголовком называется по-прежнему — существующие имена не меняются.
+    expect(steps.map((step) => step.selector)).toEqual(['shag-1-section', 'step-2']);
+    // Секцией безымянный шаг не становится: заготовка `hideWhen` ему не печатается.
+    expect(info.sections.map((s) => s.selector)).toEqual(['shag-1-section']);
+  });
+
+  it('селектор шага, заданный в схеме, сохраняется', () => {
+    const schema = wizardSchema();
+    const wizard = (schema.root as unknown as { children: { children: { selector?: string }[] }[] })
+      .children[0]!;
+    wizard.children[0]!.selector = 'my-step';
+
+    const { schema: out } = assignSelectors(schema);
+    const steps = (out.root as unknown as { children: { children: { selector?: string }[] }[] })
+      .children[0]!.children;
+    expect(steps[0]?.selector).toBe('my-step');
+  });
+
+  it('форму с шагами отправляет визард, даже если кнопка стоит в схеме раньше', () => {
+    // Последний шаг визарда рисует свою кнопку отправки; обработчик на чужой кнопке оставил бы
+    // её без действия. И раскладка валидации на это опирается: у визарда нет набора «все правила
+    // формы», которым кнопка проверяла бы форму сама.
+    const schema = wizardSchema();
+    (schema.root as unknown as { children: unknown[] }).children.unshift({
+      component: '$component(Button)',
+      children: ['Справка'],
+    });
+
+    const { info } = assignSelectors(schema);
+    expect(info.submitEvent).toBe('onSubmit');
+    expect(info.submitSelector).toBe('wizard');
+  });
+
   it('второй узел с тем же именем получает суффикс', () => {
     const schema = plainSchema();
     (schema.root as { children: unknown[] }).children.push({

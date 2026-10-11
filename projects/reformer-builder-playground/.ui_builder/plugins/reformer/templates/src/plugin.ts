@@ -140,9 +140,13 @@ export function createTemplatesPlugin(options: TemplatesPluginOptions = {}): Plu
 
       // Печатник спрашивается у возможности на каждый вызов, а «есть ли он» — отдельным
       // вопросом: оба плагина ленивые, и генерация кода вправе подняться позже шаблонов.
+      // Кит — тоже на каждую печать: затравка кладёт только то, что есть в его каталоге, а кит
+      // переключают.
       const builtin = createBuiltinStore({
         print: options.print ?? templatesPrinter(ctx),
         ...(options.print === undefined ? { ready: () => hasPrinter(ctx) } : {}),
+        catalog: () => host.catalog(),
+        kit: () => host.kit(),
       });
       const project = createProjectStore(host);
       const local = createLocalStore(host.local);

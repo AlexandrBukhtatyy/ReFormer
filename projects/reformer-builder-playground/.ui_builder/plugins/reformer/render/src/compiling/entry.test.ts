@@ -1,5 +1,5 @@
 /**
- * Синтетическая точка входа: один граф на все сайдкары, изоляция сбоя внутри.
+ * Синтетическая точка входа: один граф на все затребованные файлы, изоляция сбоя внутри.
  *
  * @module plugins/reformer/render/compiling/entry.test
  */
@@ -31,10 +31,19 @@ describe('buildEntrySource', () => {
     expect(exported?.errors).toEqual([]);
   });
 
-  it('требует только корневые файлы: шаги подтянет линковщик по импортам', () => {
-    const source = buildEntrySource(['steps/index.ts', 'steps/a/validation.ts', 'validation.ts']);
-    expect(source).toContain('require("./validation.ts")');
-    expect(source).not.toContain('steps/');
+  it('требует ровно переданные файлы — путём от корня модуля, он же ключ результата', () => {
+    // Что требовать, решает план модуля (`./module`): точка входа список не прореживает.
+    const exported = readEntryExports(
+      run(['validation/form.ts', 'schema/registry.ts'], {
+        'validation/form.ts': { formValidation: {} },
+        'schema/registry.ts': { createRegistry: 1 },
+      })
+    );
+    expect(exported?.modules).toEqual({
+      'validation/form.ts': { formValidation: {} },
+      'schema/registry.ts': { createRegistry: 1 },
+    });
+    expect(exported?.errors).toEqual([]);
   });
 
   it('сбой одного файла не лишает превью остальных', () => {

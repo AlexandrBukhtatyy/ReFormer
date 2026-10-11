@@ -1,5 +1,6 @@
 /**
- * Политика рендера: запрет проверяется до резолва, причина берётся у кита.
+ * Политика рендера: запрет проверяется до резолва, живой компонент — по факту наличия символа
+ * в пространстве имён кита; подпуть записи заглушкой её не делает.
  *
  * @module plugins/reformer/render/runtime/policy.test
  */
@@ -7,7 +8,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
-import { classifyEntry, isComponentLike, isRegistrable, resolveInfra } from './policy';
+import {
+  classifyEntry,
+  isComponentLike,
+  isRegistrable,
+  resolveInfra,
+  unresolvedReason,
+} from './policy';
 
 function entry(patch: Partial<CatalogEntry> = {}): CatalogEntry {
   return {
@@ -22,7 +29,9 @@ function entry(patch: Partial<CatalogEntry> = {}): CatalogEntry {
 function descriptor(patch: Partial<KitDescriptor> = {}): KitDescriptor {
   return {
     package: '@kit/test',
+    codegen: { importSpecifier: '@kit/test', needsShim: new Set<string>() },
     previewPolicy: new Map(),
+    subpaths: new Map(),
     unresolvedReason: new Map(),
     infra: { fieldWrapper: 'FormField', asyncBoundary: 'AsyncBoundary', list: 'List' },
     ...patch,
@@ -100,16 +109,71 @@ describe('classifyEntry', () => {
     expect(decision).toEqual({ policy: 'live', component: Component });
   });
 
-  it('не нашлось — причина кита, иначе общая с именем пакета', () => {
-    const kit = descriptor({ unresolvedReason: new Map([['Table', 'лежит за subpath']]) });
+  it('не нашлось — причина называет незагруженный подпуть, иначе общая с именем пакета', () => {
+    const kit = descriptor({ subpaths: new Map([['Table', 'table']]) });
     expect(classifyEntry(entry({ name: 'Table' }), {}, kit)).toEqual({
       policy: 'limited',
-      reason: 'лежит за subpath',
+      reason: 'лежит в @kit/test/table — этот подпуть в превью не загружен',
     });
     expect(classifyEntry(entry(), {}, kit)).toEqual({
       policy: 'limited',
       reason: 'не резолвится в @kit/test',
     });
+  });
+
+  it('подпуть заглушкой не делает: символ есть в namespace — компонент рисуется вживую', () => {
+    // Отказ, который это удерживает: подпуть читался как «не резолвится», и объяви каталог его
+    // комбобоксу, поле ушло бы в заглушку — хотя пространство имён встроенного кита собрано из
+    // главного входа И полей с подпутей. Решает факт: символ в namespace есть.
+    const kit = descriptor({
+      subpaths: new Map([
+        ['Combobox', 'combobox'],
+        ['DatePicker', 'date-picker'],
+      ]),
+    });
+    const namespace = { Combobox: Component, Input: Component };
+    expect(classifyEntry(entry({ name: 'Combobox' }), namespace, kit)).toEqual({
+      policy: 'live',
+      component: Component,
+    });
+    // Тот же кит, тот же каталог, но этого подпутя в namespace не оказалось — заглушка с адресом.
+    expect(classifyEntry(entry({ name: 'DatePicker' }), namespace, kit)).toEqual({
+      policy: 'limited',
+      reason: 'лежит в @kit/test/date-picker — этот подпуть в превью не загружен',
+    });
+  });
+
+  it('запрет сильнее подпутя: оверлей за подпутём не рисуется, даже если символ загружен', () => {
+    const kit = descriptor({
+      subpaths: new Map([['Drawer', 'drawer']]),
+      previewPolicy: new Map([['Drawer', { mode: 'limited' as const, reason: 'оверлей' }]]),
+    });
+    expect(classifyEntry(entry({ name: 'Drawer' }), { Drawer: Component }, kit)).toEqual({
+      policy: 'limited',
+      reason: 'оверлей',
+    });
+  });
+
+  it('часть compound без своего подпутя объясняется подпутём корня', () => {
+    const kit = descriptor({ subpaths: new Map([['Chart', 'chart']]) });
+    expect(classifyEntry(entry({ name: 'ChartLegend', compoundParent: 'Chart' }), {}, kit)).toEqual(
+      {
+        policy: 'limited',
+        reason: 'лежит в @kit/test/chart — этот подпуть в превью не загружен',
+      }
+    );
+  });
+
+  it('причину составляет спецификатор импорта кита, а не имя пакета', () => {
+    // Кит вправе импортироваться не из корня пакета — адрес подпутя считается от спецификатора,
+    // тем же правилом, каким кодоген печатает импорт.
+    const kit = descriptor({
+      codegen: { importSpecifier: '@kit/test/react', needsShim: new Set<string>() },
+      subpaths: new Map([['Chart', 'chart']]),
+    });
+    expect(unresolvedReason(entry({ name: 'Chart' }), kit)).toBe(
+      'лежит в @kit/test/react/chart — этот подпуть в превью не загружен'
+    );
   });
 });
 

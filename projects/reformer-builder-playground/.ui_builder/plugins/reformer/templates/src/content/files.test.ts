@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { isGenerated, originOf, withMarker } from '@reformer/builder-toolkit';
 import type { FormTemplate } from '../contract';
 import {
   buildTemplateFiles,
   commonDirPrefix,
   formSchemaFileOf,
   isTextFile,
+  keepOrigin,
   materializeFiles,
   resolvePicked,
   suggestBaseName,
@@ -122,6 +124,116 @@ describe('подготовка файлов формы', () => {
     // Без канона — прежнее имя, затем прочие корневые; вложенные — последними.
     expect(formSchemaFileOf(files.slice(0, 3))?.file.path).toBe('renderer.schema.json');
     expect(formSchemaFileOf([files[0], files[2]])?.file.path).toBe('loan.schema.json');
+  });
+
+  it('документ модуля в папке ролей важнее схемы в корне и под-схем шагов', () => {
+    const schema = '{"format":2,"root":{"component":"$html(div)"}}';
+    const files = [
+      { path: 'schema/steps/dannye/form.schema.json', content: schema },
+      { path: 'loan.schema.json', content: schema },
+      { path: 'form.schema.json', content: schema },
+      { path: 'schema/renderer.schema.json', content: schema },
+      { path: 'schema/form.schema.json', content: schema },
+    ];
+    // Канон раскладки «папки по ролям» — `schema/form.schema.json`: его и открывают.
+    expect(formSchemaFileOf(files)?.file.path).toBe('schema/form.schema.json');
+    expect(formSchemaFileOf(files.slice(0, 4))?.file.path).toBe('schema/renderer.schema.json');
+    // Шаблон, снятый с формы прежней плоской раскладки, держит схему в корне — и она находится.
+    expect(formSchemaFileOf(files.slice(0, 3))?.file.path).toBe('form.schema.json');
+  });
+
+  it('схема в `schema/`, разбитая по шагам, собирается: ссылки считаются от её файла', () => {
+    const step = (model: string) => ({
+      node: {
+        component: '$component(Step)',
+        children: [{ model: `$model(${model})`, component: '$component(Input)' }],
+      },
+    });
+    const files = [
+      {
+        path: 'schema/form.schema.json',
+        content: JSON.stringify({
+          format: 2,
+          root: {
+            component: '$component(Wizard)',
+            children: [
+              { $ref: './steps/dannye/form.schema.json' },
+              { $ref: './steps/kontakty/form.schema.json' },
+            ],
+          },
+        }),
+      },
+      { path: 'schema/steps/dannye/form.schema.json', content: JSON.stringify(step('lastName')) },
+      { path: 'schema/steps/kontakty/form.schema.json', content: JSON.stringify(step('email')) },
+    ];
+
+    const found = formSchemaFileOf(files);
+
+    // Файлы шагов лежат рядом с корневым документом — в `schema/steps/`, а не в корне шаблона.
+    expect(found?.file.path).toBe('schema/form.schema.json');
+    expect(found?.schema).toMatchObject({
+      root: { children: [step('lastName').node, step('email').node] },
+    });
+    expect([...(found?.origins?.values() ?? [])].map((origin) => origin.ref)).toEqual([
+      './steps/dannye/form.schema.json',
+      './steps/kontakty/form.schema.json',
+    ]);
+  });
+});
+
+describe('происхождение файла переживает подстановку', () => {
+  // Маркер `// @reformer-generated <хэш>` считается от тела файла, а подстановка имени тело
+  // меняет. Без перевыставления файл, только что напечатанный кодогеном, выглядел бы «правленным
+  // руками», и билдер отказался бы перегенерировать его из правил формы.
+  const tokenTemplate = (files: FormTemplate['files']): FormTemplate => ({
+    id: 't',
+    name: 'T',
+    source: 'builtin',
+    files,
+  });
+
+  it('нетронутый сгенерированный файл остаётся сгенерированным', () => {
+    const [file] = materializeFiles(
+      tokenTemplate([
+        { path: 'types/__form-dir__.ts', content: withMarker('export type __FormType__ = {};\n') },
+      ]),
+      ['types/__form-dir__.ts'],
+      'loan request'
+    );
+
+    expect(file.path).toBe('types/loan-request.ts');
+    // Ровно то, что кодоген напечатал бы для этой формы сам: тело и маркер от него.
+    expect(file.content).toBe(withMarker('export type LoanRequestForm = {};\n'));
+    expect(isGenerated(file.content)).toBe(true);
+  });
+
+  it('правленный руками файл остаётся правленным: хэш у него и не должен сходиться', () => {
+    const stamped = withMarker('export type __FormType__ = {};\n');
+    const edited = `${stamped}// правка человека\n`;
+
+    const [file] = materializeFiles(
+      tokenTemplate([{ path: 'types.ts', content: edited }]),
+      ['types.ts'],
+      'loan request'
+    );
+
+    expect(originOf(file.content)).toBe('edited');
+    // Строка маркера не тронута: подстановка не вправе объявить чужую правку своим выводом.
+    expect(file.content.split('\n')[0]).toBe(stamped.split('\n')[0]);
+  });
+
+  it('файл без маркера маркера не получает', () => {
+    expect(keepOrigin('export const a = 1;', 'export const b = 1;')).toBe('export const b = 1;');
+  });
+
+  it('снимок каталога: сгенерированный файл формы остаётся сгенерированным и в шаблоне', () => {
+    const [file] = buildTemplateFiles(
+      [{ path: 'credit-form/types.ts', content: withMarker('export type CreditForm = {};\n') }],
+      'credit-form'
+    );
+
+    expect(file.content).toContain('__FormName__');
+    expect(isGenerated(file.content)).toBe(true);
   });
 });
 

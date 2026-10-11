@@ -9,6 +9,7 @@ import {
   removeTemplate,
   renameTemplate,
   storeOf,
+  suggestedFolderOf,
 } from './operations';
 import { createBuiltinStore } from '../stores/builtin';
 import { createLocalStore } from '../stores/local';
@@ -180,6 +181,122 @@ describe('создание формы по шаблону', () => {
     expect((await generateFormFromTemplate(host, PARENT, 'Профиль', template, [])).messageKey).toBe(
       'error.nothing-picked'
     );
+  });
+});
+
+describe('форма по шаблону в раскладке «папки по ролям»', () => {
+  // Так выглядит встроенный шаблон: документ формы в `schema/`, шаги рядом с ним, страница и
+  // файлы ролей названы именами модуля, фикстура идёт сверх модуля.
+  const moduleTemplate: FormTemplate = {
+    id: 'module',
+    name: 'Модуль',
+    source: 'builtin',
+    files: [
+      {
+        path: 'schema/form.schema.json',
+        content: JSON.stringify({
+          format: 2,
+          root: {
+            component: '$component(Wizard)',
+            children: [{ $ref: './steps/dannye/form.schema.json' }],
+          },
+        }),
+      },
+      {
+        path: 'schema/steps/dannye/form.schema.json',
+        content: '{"node":{"component":"$component(Step)","children":[]}}',
+      },
+      { path: '__FormType__.tsx', content: 'export default function __FormType__() {}' },
+      { path: 'types/__form-dir__.ts', content: 'export type __FormType__ = {};' },
+      { path: 'fixture.ts', content: 'export const fixture = {};', scope: 'fixture' },
+    ],
+  };
+  const all = moduleTemplate.files.map((file) => file.path);
+
+  it('каталог формы — каталог модуля; открывается документ из `schema/`', async () => {
+    const host = createFakeTemplatesHost();
+
+    const result = await generateFormFromTemplate(
+      host,
+      PARENT,
+      'loan request',
+      moduleTemplate,
+      all
+    );
+
+    expect(result.ok).toBe(true);
+    // Открывается корневой документ формы, а не первый попавшийся файл шага.
+    expect(result.openId).toBe('src/forms/loan request/schema/form.schema.json');
+    expect([...host.files.keys()].sort()).toEqual(
+      [
+        'src/forms/loan request/schema/form.schema.json',
+        'src/forms/loan request/schema/steps/dannye/form.schema.json',
+        // Имена файлов — те, что кодоген напечатал бы для этой формы: тип и kebab-каталог.
+        'src/forms/loan request/LoanRequestForm.tsx',
+        'src/forms/loan request/types/loan-request.ts',
+        'src/forms/loan request/fixture.ts',
+      ].sort()
+    );
+  });
+
+  it('фикстура ложится в корень модуля, а не рядом со схемой в `schema/`', async () => {
+    const host = createFakeTemplatesHost();
+
+    await generateFormFromTemplate(host, PARENT, 'loan', moduleTemplate, all);
+
+    // Там её и ищет превью: корень модуля — родитель папки `schema/`.
+    expect(host.files.has('src/forms/loan/fixture.ts')).toBe(true);
+    expect(host.files.has('src/forms/loan/schema/fixture.ts')).toBe(false);
+  });
+
+  it('имя подставляется по каталогу формы: занятое имя не разводит каталог и файлы', async () => {
+    // Билдер называет форму именем каталога её модуля. Каталог `loan-2` с файлами под имя
+    // `loan` дал бы после первой же генерации из билдера второй набор файлов рядом с первым.
+    const host = createFakeTemplatesHost({ files: { 'src/forms/loan/чужое.ts': 'чужое' } });
+
+    const result = await generateFormFromTemplate(host, PARENT, 'loan', moduleTemplate, all);
+
+    expect(result.params?.folder).toBe('loan-2');
+    expect(host.files.get('src/forms/loan-2/Loan2Form.tsx')).toBe(
+      'export default function Loan2Form() {}'
+    );
+    expect(host.files.has('src/forms/loan-2/types/loan-2.ts')).toBe(true);
+    expect(host.files.has('src/forms/loan-2/LoanForm.tsx')).toBe(false);
+  });
+});
+
+describe('куда предложить новую форму', () => {
+  const host = createFakeTemplatesHost({
+    files: {
+      'project/forms/old.json': '{}',
+      'project/forms/loan/schema/form.schema.json': '{}',
+      'project/forms/contact/form.schema.json': '{}',
+      'project/schema/form.schema.json': '{}',
+      'project/form.schema.json': '{}',
+    },
+  });
+  const at = (path: string): ResourceId => suggestedFolderOf(host, path as ResourceId);
+
+  it('свободно названный документ — его каталог: он лежит среди форм', () => {
+    expect(at('project/forms/old.json')).toBe('project/forms');
+  });
+
+  it('документ модуля в `schema/` — каталог рядом с МОДУЛЕМ, а не внутри `schema/`', () => {
+    // Форма, созданная в `loan/schema/`, стала бы частью чужого модуля.
+    expect(at('project/forms/loan/schema/form.schema.json')).toBe('project/forms');
+  });
+
+  it('документ модуля прежней раскладки — тоже рядом с модулем', () => {
+    expect(at('project/forms/contact/form.schema.json')).toBe('project/forms');
+  });
+
+  it('модуль в корне проекта — сам корень: подниматься выше некуда', () => {
+    expect(at('project/schema/form.schema.json')).toBe('project');
+    expect(at('project/form.schema.json')).toBe('project');
+  });
+
+  it('документ, пути которого порт не знает, — его каталог', () => {
+    expect(at('project/forms/loan/schema/unknown.json')).toBe('project/forms/loan/schema');
   });
 });
 

@@ -6,7 +6,7 @@
   "action.openTab": "Open the application in a separate tab",
   "frame.form": "The form as the application renders it",
   "frame.page": "Application",
-  "empty.noModule": "The folder of the open file has no form module {name}. Generate the form module — the application will render it here.",
+  "empty.noModule": "The form of the open file has no entry point ({name}): it is looked up next to the file, or one level up for a file inside a schema folder. Generate the form module — the application will render it here.",
   "address.invalid": "The address must lead to this same application.",
   "unsaved.notice": "There are unsaved changes. The application renders what is written to disk — save, and the form will update.",
   "unsaved.save": "Save"

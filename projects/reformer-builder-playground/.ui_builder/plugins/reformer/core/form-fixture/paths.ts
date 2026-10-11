@@ -1,5 +1,9 @@
 /**
- * Где лежит фикстура формы: `fixture.ts` в каталоге самой формы.
+ * Где лежит фикстура формы: `fixture.ts` в КОРНЕ модуля формы.
+ *
+ * Корень модуля — каталог документа схемы, а если документ лежит в папке `schema/` (раскладка
+ * «папки по ролям») — её родитель: `forms/credit/schema/form.schema.json` → `forms/credit/fixture.ts`.
+ * Правило одно на кодоген, превью и шаблоны — {@link moduleDirOfSchemaPath}.
  *
  * ## Почему рядом, а не в отдельном дереве
  *
@@ -11,7 +15,7 @@
  *
  * ## Что при этом обязано соблюдаться
  *
- * Фикстура НЕ сайдкар: она подставляет модули формы (`./api`), и попади она в один граф
+ * Фикстура НЕ сайдкар: она подставляет модули формы (`../api`), и попади она в один граф
  * с сайдкарами — `api.ts` исполнился бы дважды, а форма получила бы два разных объекта под
  * одним именем (см. `plugins/forms/preview/compiling/fixture`). Разделение графов держится на имени
  * файла: отбор сайдкаров исключает {@link FIXTURE_FILE} явно ({@link isFixturePath}).
@@ -19,7 +23,9 @@
  * @module plugins/reformer/core/form-fixture/paths
  */
 
-/** Имя файла фикстуры внутри каталога формы. */
+import { moduleDirOfSchemaPath } from '../codegen/layout';
+
+/** Имя файла фикстуры внутри каталога модуля формы. */
 export const FIXTURE_FILE = 'fixture.ts';
 
 /**
@@ -53,19 +59,19 @@ function dirOf(path: string): string {
 }
 
 /**
- * Каталог фикстуры для документа схемы — он же каталог формы.
+ * Каталог фикстуры для документа схемы — он же корень модуля формы.
  *
- * Принимает путь САМОГО документа (`src/forms/credit/schema.json`), а не его каталога: вызывающий
- * знает адрес документа, а арифметику пути пусть делает тот, кто знает раскладку. Форма в корне
- * проекта даёт пустую строку — это адрес корня, а не промах, поэтому склейку с именем файла
- * делает {@link joinFixtureDir}, а не конкатенация на стороне вызывающего.
+ * Принимает путь САМОГО документа (`src/forms/credit/schema/form.schema.json`), а не его каталога:
+ * вызывающий знает адрес документа, а арифметику пути пусть делает тот, кто знает раскладку. Форма
+ * в корне проекта даёт пустую строку — это адрес корня, а не промах, поэтому склейку с именем
+ * файла делает {@link joinFixtureDir}, а не конкатенация на стороне вызывающего.
  *
  * @returns `null`, если путь не нормализуется.
  */
 export function fixtureDirOf(schemaPath: string): string | null {
   const normalized = normalizeResourcePath(schemaPath);
   if (normalized === null || normalized === '') return null;
-  return dirOf(normalized);
+  return moduleDirOfSchemaPath(normalized);
 }
 
 /**
@@ -81,7 +87,9 @@ export function joinFixtureDir(dir: string, fileName: string): string {
 /**
  * Путь файла фикстуры для документа схемы.
  *
- * `src/forms/credit/schema.json` → `src/forms/credit/fixture.ts`.
+ * `src/forms/credit/schema/form.schema.json` → `src/forms/credit/fixture.ts`; у формы прежней
+ * плоской раскладки — рядом с документом: `src/forms/credit/form.schema.json` →
+ * `src/forms/credit/fixture.ts`.
  */
 export function fixturePathOf(schemaPath: string): string | null {
   const dir = fixtureDirOf(schemaPath);

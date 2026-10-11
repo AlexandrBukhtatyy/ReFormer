@@ -1,0 +1,16 @@
+// validation/form.ts — валидация формы: поле `validation` сборки (application/create.ts).
+// Правила шагов — в validation/<шаг>.ts (их проверяет «Далее»); здесь — только правила вне шагов.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import type { FormValidation } from '@reformer/core';
+import { validate, defineValidation } from '@reformer/core/validation';
+import { maxLength } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Правила вне шагов: проверяются целиком, при отправке. */
+export const crossStepRules = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
+  validate(model.$.comment, [maxLength(500)]);
+});
+
+/** Валидация формы — поле `validation` сборки. Сюда же — стратегия живой проверки (`strategy`). */
+export const formValidation: FormValidation<ZayavkaNaKreditForm> = { extras: crossStepRules };

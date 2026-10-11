@@ -1,0 +1,9 @@
+// types/zayavka-na-kredit.ts — тип формы (выведен из схемы и начальных значений). Регенерируется.
+
+export type SelectOption = { value: string; label: string };
+
+export type ZayavkaNaKreditForm = {
+  phone: string;
+  email: string;
+  note: string;
+};

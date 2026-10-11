@@ -19,6 +19,8 @@
  *
  * Билдер устройства приложения не знает: реестр, API и провайдеры формы есть только у него.
  * Поверхность ничего не рисует сама — она открывает в рамке стенд формы на адресе приложения.
+ * Какой модуль показать, решает место документа: точка входа модуля лежит рядом с ним либо
+ * уровнем выше, если документ лежит в папке `schema` (`./model`).
  * У формы там настоящие стили и настоящая область просмотра, а стили билдера в рамку не
  * попадают вовсе: это отдельный документ. Отсюда и объявленные возможности: форму можно
  * трогать, но выбрать узел щелчком нельзя — чужой документ билдеру не виден.
@@ -60,14 +62,14 @@ import {
   type WorkspaceFilesService,
   type WorkspaceSaveService,
 } from '@reformer/builder-plugin-api';
-import { FORM_MODULE_NAME, formModulePath, RELOAD_DELAY_MS } from './model';
+import { FORM_MODULE_NAMES, formModulePath, moduleDirectoryOf, RELOAD_DELAY_MS } from './model';
 
 /** Идентификатор поверхности. Он же — адрес вклада и имя источника её находок. */
 export const APP_FORM_SURFACE_ID = 'app-preview.form';
 
 export interface FormSurfaceDeps {
   readonly preview: Pick<AppPreviewService, 'formUrl' | 'onDidWriteSource'>;
-  readonly files: Pick<WorkspaceFilesService, 'parentOf' | 'list' | 'onDidChange'>;
+  readonly files: Pick<WorkspaceFilesService, 'parentOf' | 'resolve' | 'list' | 'onDidChange'>;
   /**
    * Служба сохранения: есть ли несохранённые правки и как их сохранить. Функция — служба
    * привилегированная и спрашивается в момент вопроса; `undefined` — права сохранять нет,
@@ -154,9 +156,9 @@ export function createFormSurface(deps: FormSurfaceDeps): PreviewSurface {
   return {
     id: APP_FORM_SURFACE_ID,
 
-    // За любой документ: какую форму показать, решает каталог документа, а не его формат —
-    // стенд приложения рисует модуль формы, из чего бы тот ни был собран. Есть ли модуль,
-    // выясняется при монтировании: здесь ответ обязан быть мгновенным.
+    // За любой документ: какую форму показать, решает каталог модуля, которому документ
+    // принадлежит, а не его формат — стенд приложения рисует модуль формы, из чего бы тот ни был
+    // собран. Есть ли модуль, выясняется при монтировании: здесь ответ обязан быть мгновенным.
     applies: () => true,
 
     capabilities: {
@@ -219,7 +221,9 @@ export function createFormSurface(deps: FormSurfaceDeps): PreviewSurface {
       };
       syncUnsaved();
 
-      const directory = deps.files.parentOf(ctx.doc.id);
+      // Точка входа модуля — рядом с документом, а для документа из папки `schema` — в её
+      // родителе (`./model`).
+      const directory = moduleDirectoryOf(deps.files, ctx.doc.id);
       let disposed = false;
       /** Номер последнего чтения каталога: ответ опоздавшего чтения не показывается. */
       let turn = 0;
@@ -240,7 +244,7 @@ export function createFormSurface(deps: FormSurfaceDeps): PreviewSurface {
         empty.dataset.appPreview = 'empty';
         empty.setAttribute('role', 'status');
         empty.style.cssText = EMPTY_STYLE;
-        empty.textContent = deps.t('empty.noModule', { name: FORM_MODULE_NAME });
+        empty.textContent = deps.t('empty.noModule', { name: FORM_MODULE_NAMES.join(' / ') });
         return empty;
       };
 

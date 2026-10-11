@@ -9,25 +9,29 @@
  * ## Зачем второй вход, если экспорт уже есть
  *
  * Панель экспорта идёт ОТ ДОКУМЕНТА: она печатает то, что открыто во вкладке, и кладёт модуль
- * рядом со схемой, в подпапку по имени формы. Это верно, когда форму сочиняют. Но чаще нужно
- * другое — «вот у меня каталог формы, перепечатай в нём вот этот файл», и от документа этот
- * вопрос не выражается вовсе: каталог называет человек щелчком, а схема лежит внутри него.
+ * туда, куда указывает место документа (см. `moduleRootOf` в `../pipeline/run`). Это верно, когда
+ * форму сочиняют. Но чаще нужно другое — «вот у меня каталог формы, перепечатай в нём вот этот
+ * файл», и от документа этот вопрос не выражается вовсе: каталог называет человек щелчком, а
+ * схема лежит внутри него.
  *
  * Отсюда три отличия от {@link runCodegen}, и все три вынуждены целью, а не вкусом:
  *
  * - **схема ищется в каталоге**, а не берётся у активной вкладки — открывать файл, чтобы
- *   сгенерировать по нему, значило бы требовать лишний шаг ради того, что уже названо;
+ *   сгенерировать по нему, значило бы требовать лишний шаг ради того, что уже названо. Сначала в
+ *   его папке `schema/` (раскладка «папки по ролям»), затем в нём самом (форма прежней плоской
+ *   раскладки);
  * - **файлы ложатся В САМ каталог** ({@link deliverInto}), а не в подпапку под ним — иначе
- *   щелчок по `credit-application/` дал бы `credit-application/credit-application/`;
+ *   щелчок по `credit-application/` дал бы `credit-application/credit-application/`. Щелчок по
+ *   самой папке `schema/` значит то же, что по её родителю: корень модуля — он;
  * - **цель можно выбрать одну** — это и есть подменю v1, где «Типы», «Модель», «Валидация»
  *   были отдельными пунктами.
  *
  * ## Одна цель печатается в контексте ВСЕГО модуля
  *
  * Печатается всегда весь модуль, а доставляется отобранное. Так «Типы» дают ровно тот же
- * `types.ts`, что и «Весь модуль», а `README.md` и `registry.ts` перечисляют настоящий состав,
- * а не себя одного: и тот и другой читают `ctx.files`, то есть ответ на вопрос «из чего
- * состоит модуль» — а он не зависит от того, сколько файлов человек попросил записать.
+ * `types/<форма>.ts`, что и «Весь модуль», а `README.md` перечисляет настоящий состав, а не себя
+ * одного: он читает `ctx.files`, то есть ответ на вопрос «из чего состоит модуль» — а он не
+ * зависит от того, сколько файлов человек попросил записать.
  *
  * ## Чего здесь нет
  *
@@ -38,7 +42,14 @@
  * @module plugins/reformer/codegen/commands/context-menu
  */
 
-import { formNameOfSchemaPath, MODULE_FILES, SCHEMA_FILE_NAMES } from '../../../core/codegen';
+import {
+  formNameOfSchemaPath,
+  isCanonicalSchemaName,
+  schemaPathInModule,
+  LEGACY_SCHEMA_FILE,
+  SCHEMA_DIR,
+  SCHEMA_FILE,
+} from '../../../core/codegen';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   argsOfResource,
@@ -53,7 +64,12 @@ import {
   type ResourceRef,
 } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
-import { deliverInto, SourceReadOnlyError, type DeliveryResult } from '../pipeline/deliver';
+import {
+  deliverInto,
+  isSchemaDocumentPath,
+  SourceReadOnlyError,
+  type DeliveryResult,
+} from '../pipeline/deliver';
 import { generateModule, type ModuleFile } from '../pipeline/generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import { schemaOf } from '../pipeline/run';
@@ -85,23 +101,20 @@ export const CODEGEN_CONTEXT_SUBMENU = `${RESOURCE_GENERATE_MENU}/reformer`;
  *
  * Список, а не «любой .json»: перебрать все json-файлы каталога значит прочитать их все,
  * и цена такого поиска зависела бы от того, что ещё лежит рядом. Канон раскладки называет
- * файл схемы однозначно ({@link SCHEMA_FILE_NAMES}: `form.schema.json`, затем прежнее
- * `renderer.schema.json`), два остальных шаблона — то, чем схему называют, когда форм
- * в каталоге несколько.
+ * файл схемы однозначно (`form.schema.json`, затем прежнее `renderer.schema.json`), два
+ * остальных шаблона — то, чем схему называют, когда форм в каталоге несколько.
  */
 const SCHEMA_SUFFIXES: readonly string[] = ['.schema.json', '.form.json'];
 
 /** Похоже ли имя на файл схемы формы. Порядок ответа задаёт {@link schemaCandidates}. */
 function looksLikeSchema(name: string): boolean {
-  return (
-    SCHEMA_FILE_NAMES.includes(name) || SCHEMA_SUFFIXES.some((suffix) => name.endsWith(suffix))
-  );
+  return isCanonicalSchemaName(name) || SCHEMA_SUFFIXES.some((suffix) => name.endsWith(suffix));
 }
 
 /** Ранг имени: канон — 0, прежнее имя — 1, прочие — после них. */
 function schemaRank(name: string): number {
-  const rank = SCHEMA_FILE_NAMES.indexOf(name);
-  return rank === -1 ? SCHEMA_FILE_NAMES.length : rank;
+  if (name === SCHEMA_FILE) return 0;
+  return name === LEGACY_SCHEMA_FILE ? 1 : 2;
 }
 
 /**
@@ -120,8 +133,8 @@ export function schemaCandidates(entries: readonly ResourceRef[]): readonly Reso
   });
 }
 
-/** Схема, найденная в каталоге: адрес нужен для имени формы и для отчёта. */
-export interface FoundSchema {
+/** Документ формы, найденный в одном каталоге. */
+interface FoundDocument {
   readonly ref: ResourceRef;
   /** Всегда формата 2: файл прежнего формата переводится при чтении. */
   readonly schema: JsonFormSchema;
@@ -129,8 +142,23 @@ export interface FoundSchema {
   readonly document?: CodegenDocument;
 }
 
+/** Схема, найденная в каталоге формы: адрес нужен для имени формы и для отчёта. */
+export interface FoundSchema extends FoundDocument {
+  /**
+   * Корень модуля формы — куда ложатся файлы. Выбранный каталог, а если выбрана сама папка
+   * `schema/` — её родитель.
+   */
+  readonly root: ResourceId;
+  /** Путь документа внутри модуля: `schema/<имя файла>` либо просто имя файла. */
+  readonly schemaPath: string;
+}
+
 /**
- * Найти схему формы в каталоге.
+ * Найти схему формы в каталоге формы.
+ *
+ * Ищет в папке `schema/` каталога (раскладка «папки по ролям»), затем в нём самом (форма прежней
+ * плоской раскладки: документ в корне модуля). Выбрана сама папка `schema/` — документ в ней, а
+ * корень модуля — её родитель.
  *
  * Открытый документ ПРЕДПОЧТИТЕЛЬНЕЕ файла на диске: у него текст, который человек видит
  * прямо сейчас, а у файла — тот, что успели сохранить. Сгенерировать по сохранённой копии
@@ -145,6 +173,24 @@ export async function findSchemaIn(
   host: CodegenHost,
   dir: ResourceId
 ): Promise<FoundSchema | null> {
+  if (host.list === undefined) return null;
+
+  const nested = await findDocumentIn(host, host.resolve(dir, SCHEMA_DIR));
+  if (nested !== null) {
+    return { ...nested, root: dir, schemaPath: schemaPathInModule(nested.ref.path) };
+  }
+
+  const own = await findDocumentIn(host, dir);
+  if (own === null) return null;
+  const schemaPath = schemaPathInModule(own.ref.path);
+  // Документ нашёлся прямо в выбранном каталоге, а путь его в модуле — `schema/…`: значит,
+  // щёлкнули по самой папке `schema/`. Файлы модуля ложатся рядом с ней, а не внутрь.
+  const inSchemaDir = schemaPath.startsWith(`${SCHEMA_DIR}/`);
+  return { ...own, root: inSchemaDir ? host.parentOf(dir) : dir, schemaPath };
+}
+
+/** Документ формы среди файлов ОДНОГО каталога; `null` — каталога нет либо схемы в нём нет. */
+async function findDocumentIn(host: CodegenHost, dir: ResourceId): Promise<FoundDocument | null> {
   if (host.list === undefined) return null;
   const entries = await host.list(dir).catch(() => null);
   if (entries === null) return null;
@@ -261,6 +307,8 @@ export async function generateInto(
       schema: source.schema,
       origins: source.origins,
       formName,
+      // Документ остаётся там, где лежит: импорты и место файлов шагов считаются от него.
+      schemaPath: found.schemaPath,
       kit: { kit, catalog: host.catalog() },
       rules: host.rulesOf?.(found.ref.id) ?? undefined,
     },
@@ -272,15 +320,18 @@ export async function generateInto(
       ? module.files
       : module.files.filter((file) => file.targetId === args.targetId);
   // Пустой отбор при названной цели — не «нечего делать», а «эта цель к этой форме
-  // не применилась» (шим визарда у формы без визарда). Молчание здесь читалось бы как отказ.
+  // не применилась» (поток шагов у формы без визарда). Молчание здесь читалось бы как отказ.
   if (files.length === 0 && args.targetId !== undefined) {
     return { kind: 'not-applicable', targetId: args.targetId };
   }
 
   try {
     // Весь модуль — для поиска сирот: при записи одной цели файлов шагов среди доставляемых
-    // нет, и без полного состава каждая папка шага выглядела бы брошенной.
-    const delivery = await deliverInto(host, dir, files, { module: module.files });
+    // нет, и без полного состава каждый файл шага выглядел бы брошенным.
+    const delivery = await deliverInto(host, found.root, files, {
+      module: module.files,
+      schemaPath: found.schemaPath,
+    });
     return { kind: 'delivered', delivery, formName };
   } catch (error) {
     if (error instanceof SourceReadOnlyError) return { kind: 'read-only' };
@@ -355,11 +406,12 @@ export function notifyOutcome(
 }
 
 /**
- * Сказать про раскладку: прежние имена рядом с новыми и брошенные папки шагов.
+ * Сказать про раскладку: прежнее имя документа рядом с новым, брошенные файлы шагов и файлы
+ * прежней плоской раскладки.
  *
- * Отдельными уведомлениями, а не хвостом основного: «записано 12 файлов» — исход, а эти два —
- * просьба к человеку что-то сделать руками (удалить старый файл, разобраться с папкой),
- * и склеенные в одну строку они терялись бы за числами.
+ * Отдельными уведомлениями, а не хвостом основного: «записано 12 файлов» — исход, а эти три —
+ * просьба к человеку что-то сделать руками (удалить старый файл, разобраться с папкой, перенести
+ * правки), и склеенные в одну строку они терялись бы за числами.
  */
 export function notifyLayout(
   notifications: NotificationsService,
@@ -368,7 +420,7 @@ export function notifyLayout(
 ): void {
   if (delivery.legacy.length > 0) {
     const carried = delivery.legacy.filter((entry) => entry.carried).length;
-    const schema = delivery.legacy.find((entry) => entry.replacedBy === MODULE_FILES.schema);
+    const schema = delivery.legacy.find((entry) => isSchemaDocumentPath(entry.replacedBy));
     const open = host?.openResource;
     // Схема — особый случай: редактор держит открытым СТАРЫЙ файл, и дальнейшие правки ушли бы
     // в него, а генерация уже читает новый. Отсюда действие, а не только текст.
@@ -393,6 +445,13 @@ export function notifyLayout(
   if (delivery.orphans.length > 0) {
     notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.orphans'), {
       params: { count: delivery.orphans.length, dirs: delivery.orphans.join(', ') },
+    });
+  }
+  // Файлы прежнего контракта: модуль их не импортирует, но в них могут лежать правки человека —
+  // и узнать о них он должен сейчас, а не когда заметит, что правка «перестала действовать».
+  if (delivery.flat.length > 0) {
+    notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.flat'), {
+      params: { count: delivery.flat.length, files: delivery.flat.join(', ') },
     });
   }
 }
@@ -439,9 +498,14 @@ const overDirectory = whenResource(
   (target) => target.ref === null || target.ref.kind === 'directory'
 );
 
-/** Имя каталога как имя формы: щёлкнули по `credit-application/` — форма так и называется. */
+/**
+ * Имя каталога как имя формы: щёлкнули по `credit-application/` — форма так и называется.
+ *
+ * Кроме самой папки `schema/`: она — часть модуля, а не его корень, и форму назвали бы `schema`.
+ * Без ответа имя берётся из пути найденного документа — то есть из каталога модуля.
+ */
 function formNameOfTarget(ref: ResourceRef | null): string | undefined {
-  return ref !== null && ref.kind === 'directory' ? ref.name : undefined;
+  return ref !== null && ref.kind === 'directory' && ref.name !== SCHEMA_DIR ? ref.name : undefined;
 }
 
 /**

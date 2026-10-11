@@ -1,5 +1,6 @@
 /**
- * Отпечаток генерации: побайтовый снимок модуля формы на шести комбинациях схемы, кита и правил.
+ * Отпечаток генерации: побайтовый снимок модуля формы на двенадцати комбинациях схемы, кита и
+ * правил. Модуль — единого контракта сборки, в раскладке «папки по ролям».
  *
  * ## Зачем, если рядом уже лежит `emit.test.ts`
  *
@@ -15,10 +16,15 @@
  * ## Почему `.snap`, а не настоящие имена файлов
  *
  * `tsconfig.app.json` включает весь `src`, а ESLint матчит `**\/*.{ts,tsx}`. Golden с именем
- * `index.tsx` был бы проверен компилятором и линтером КАК ИСХОДНИК проекта — а это
- * сгенерированный модуль формы, импортирующий `./types` и `@reformer/form-registry`, то есть
- * `tsc -b` упал бы сразу. Суффикс `.snap` не claim-ит ни tsc, ни ESLint, ни `include`
+ * `application/create.ts` был бы проверен компилятором и линтером КАК ИСХОДНИК проекта — а это
+ * сгенерированный модуль формы, импортирующий `../types/<форма>` и `@reformer/form-registry`,
+ * то есть `tsc -b` упал бы сразу. Суффикс `.snap` не claim-ит ни tsc, ни ESLint, ни `include`
  * node-прогона, поэтому править конфигурацию не нужно, а настоящее имя видно в диффе.
+ *
+ * ## Снимок не доказывает, что модуль собирается
+ *
+ * Он держит только то, что вывод не изменился. Компилируемость напечатанного проверяется
+ * отдельно — `tsc --noEmit` над выгруженными модулями с настоящими пакетами `@reformer/*`.
  *
  * ## Почему маркер срезается
  *
@@ -39,6 +45,7 @@ import {
   plainSchema,
   richSchema,
   seededRules,
+  subpathSchema,
   wizardSchema,
   wizardRulesSchema,
   wizardRules,
@@ -73,8 +80,14 @@ const COMBOS: readonly Combo[] = [
     input: { schema: plainSchema(), formName: FORM_NAME, kit: foreignKit() },
   },
   {
+    dir: 'plain-subpath',
+    holds:
+      'компоненты за подпутём кита: импорт по входам пакета вместо заглушки, типы комбобокса и даты',
+    input: { schema: subpathSchema(), formName: FORM_NAME, kit: builtinKit() },
+  },
+  {
     dir: 'wizard-builtin',
-    holds: 'шим визарда и обвязка submit через onInit(wizard)',
+    holds: 'визард — библиотечный компонент кита: поток шагов, правила шага, отправка по onSubmit',
     input: { schema: wizardSchema(), formName: FORM_NAME, kit: builtinKit() },
   },
   {
@@ -84,7 +97,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     dir: 'plain-rules',
-    holds: 'единственный путь через билдеры @reformer/mcp и через все три вида render-правил',
+    holds: 'единственный путь через билдеры @reformer/mcp и через все три вида правил узлов',
     input: {
       schema: plainSchema(),
       formName: FORM_NAME,
@@ -99,13 +112,14 @@ const COMBOS: readonly Combo[] = [
   },
   {
     dir: 'wizard-no-adapter',
-    holds: 'визард в схеме есть, шима напечатать нечем — цель не применяется, а не бросает',
+    holds:
+      'визард в схеме есть, адаптера у кита нет — визард и шаг уходят в заглушки, поток и правила шагов печатаются',
     input: { schema: wizardSchema(), formName: FORM_NAME, kit: noWizardKit() },
   },
   {
     dir: 'wizard-rules',
     holds:
-      'правила визарда по шагам: правило шага — в его папку, вне шагов — restValidation в корне; render-правило шага — в steps/',
+      'правила визарда по шагам: правило шага — в его файл, вне шагов — crossStepRules (extras); правило узла шага — в группе шага единого поведения',
     input: {
       schema: wizardRulesSchema(),
       formName: FORM_NAME,
@@ -116,13 +130,13 @@ const COMBOS: readonly Combo[] = [
   {
     dir: 'wizard-slugs',
     holds:
-      'имена папок шагов: транслит, суффикс у одинаковых заголовков, запасное имя без заголовка',
+      'имена шагов: транслит, суффикс у одинаковых заголовков, запасное имя и селектор шага без заголовка',
     input: { schema: wizardSlugsSchema(), formName: FORM_NAME, kit: builtinKit() },
   },
   {
     dir: 'wizard-split',
     holds:
-      'шаблон «Пошаговая форма»: все шаги в своих файлах, корень со ссылками, index.tsx собирает схему',
+      'шаблон «Пошаговая форма»: все шаги в своих файлах рядом с документом, корень со ссылками, сборка собирает схему',
     input: { schema: wizardSchema(), formName: FORM_NAME, kit: builtinKit(), splitSteps: true },
   },
   {
@@ -151,7 +165,7 @@ function manifestOf(files: readonly { path: string; cls: string; regenerable: bo
 }
 
 // Верхнеуровневый await: состав модуля нужен НА СБОРЕ тестов, чтобы у каждого файла был свой
-// `it` и своё падение. Функции чистые, шесть прогонов стоят миллисекунды.
+// `it` и своё падение. Функции чистые, двенадцать прогонов стоят миллисекунды.
 const modules = await Promise.all(
   COMBOS.map((combo) => generateModule(BUILTIN_TARGETS, combo.input))
 );

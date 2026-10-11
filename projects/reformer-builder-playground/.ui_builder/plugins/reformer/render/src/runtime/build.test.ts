@@ -9,13 +9,16 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { onComponentEvent, hideWhen } from '@reformer/core/behaviors';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, newNodeId } from '../../../core/form-model';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { NODE_CLASS_PREFIX } from '../schema/node-token';
 import { deepMerge } from '../../../core/form-fixture';
-import { buildRuntimeBundle } from './build';
+import { buildRuntimeBundle, type BehaviorRules, type Shape, type WireSubmit } from './build';
 
 const DESCRIPTOR = toDescriptor({ version: '1.0', components: [] });
 
@@ -46,18 +49,31 @@ describe('buildRuntimeBundle', () => {
     expect(JSON.stringify(schema)).toBe(before);
   });
 
-  it('значения model.ts перекрывают синтезированный мок', () => {
+  it('начальные значения модуля перекрывают синтезированный мок', () => {
     const bundle = bundleOf(sampleSchema(), { initialOverride: { loanType: 'ипотека' } });
     expect(bundle.form?.model.get()).toMatchObject({ loanType: 'ипотека' });
   });
 
-  it('введённые значения переносятся поверх мока и model.ts', () => {
+  it('введённые значения переносятся поверх мока и начальных значений модуля', () => {
     const bundle = bundleOf(sampleSchema(), {
       initialOverride: { loanType: 'ипотека' },
       carry: { loanType: 'автокредит' },
     });
     // Введённое человеком старше и мока, и объявленных начальных значений.
     expect(bundle.form?.model.get()).toMatchObject({ loanType: 'автокредит' });
+  });
+
+  it('значения модуля от прежней схемы форму не роняют и лишних путей не заводят', () => {
+    // Код печатали, когда `loanType` был группой, а в форме было поле `legacy`; схему с тех пор
+    // поправили, код — нет. Форма данных — у живой схемы.
+    const bundle = bundleOf(sampleSchema(), {
+      initialOverride: { loanType: { code: 'ипотека' }, loanAmount: 500000, legacy: 'x' },
+    });
+    expect(bundle.problems).toEqual([]);
+    const model = bundle.form?.model.get() as Record<string, unknown>;
+    // Группа на месте листа не легла, число на месте числа — легло.
+    expect(model).toMatchObject({ loanType: '', loanAmount: 500000 });
+    expect(Object.hasOwn(model, 'legacy')).toBe(false);
   });
 
   it('перенос не создаёт путей, которых в схеме нет', () => {
@@ -120,6 +136,226 @@ describe('buildRuntimeBundle', () => {
     const bundle = bundleOf({ version: '1.0' } as unknown as JsonFormSchema);
     expect(bundle.form).toBeNull();
     expect(bundle.problems).toHaveLength(1);
+  });
+
+  it('находка прежнего слоя называется файлом, из которого он взят', () => {
+    const bundle = bundleOf(sampleSchema(), {
+      renderBehavior: () => {
+        throw new Error('старый слой сломан');
+      },
+      files: { renderBehavior: 'renderer.behavior.ts' },
+    });
+    expect(bundle.problems).toEqual([
+      { file: 'renderer.behavior.ts', phase: 'evaluate', message: 'старый слой сломан' },
+    ]);
+  });
+
+  it('реестр формы, который не сложился с билдерским, — находка с именем файла реестра', () => {
+    const broken = bundleOf(sampleSchema(), { extraRegistry: null });
+    expect(broken.form).not.toBeNull();
+    // Файл не назван — берётся имя раскладки «папки по ролям», а не прежнее `registry.ts`.
+    expect(broken.problems).toEqual([
+      expect.objectContaining({ file: 'schema/registry.ts', phase: 'evaluate' }),
+    ]);
+
+    const named = bundleOf(sampleSchema(), {
+      extraRegistry: null,
+      files: { registry: 'registry.ts' },
+    });
+    expect(named.problems[0]?.file).toBe('registry.ts');
+  });
+});
+
+/** Простая форма с узлом отправки — селектор тот же, что проставляет кодоген. */
+function submitSchema(): JsonFormSchema {
+  return {
+    format: 2,
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      selector: 'form-root',
+      children: [
+        { model: '$model(name)', component: '$component(Input)' },
+        { component: '$component(Button)', selector: 'submit' },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+}
+
+describe('buildRuntimeBundle — поведение модуля двумя половинами', () => {
+  it('сначала правила, затем отправка — в одном поведении, над одной областью', () => {
+    const order: string[] = [];
+    const scopes: unknown[] = [];
+    const rules: BehaviorRules = (scope) => {
+      order.push('rules');
+      scopes.push(scope.model);
+      hideWhen(scope.schema.node('form-root'), () => false);
+    };
+    const wireSubmit: WireSubmit = (scope) => {
+      order.push('submit');
+      scopes.push(scope.model);
+      onComponentEvent(scope.schema.node('submit'), 'onClick', () => undefined);
+    };
+
+    const bundle = bundleOf(submitSchema(), { moduleBehavior: { rules, wireSubmit } });
+
+    expect(bundle.problems).toEqual([]);
+    expect(order).toEqual(['rules', 'submit']);
+    expect(scopes[0]).toBe(bundle.form?.model);
+    expect(scopes[1]).toBe(bundle.form?.model);
+  });
+
+  it('итог отправки приходит туда, куда его велели сообщить', () => {
+    const seen: [string, boolean][] = [];
+    let report: ((message: string, ok: boolean) => void) | undefined;
+    const wireSubmit: WireSubmit = (scope, { onResult }) => {
+      // Так делает `application/submit.ts`: обработчик узла отправки зовёт `onResult`.
+      report = onResult;
+      onComponentEvent(scope.schema.node('submit'), 'onClick', () => {
+        onResult?.('Форма отправлена', true);
+      });
+    };
+
+    const bundle = bundleOf(submitSchema(), {
+      moduleBehavior: {
+        rules: () => undefined,
+        wireSubmit,
+        onResult: (message: string, ok: boolean) => {
+          seen.push([message, ok]);
+        },
+      },
+    });
+    report?.('Проверьте заполнение формы', false);
+
+    expect(bundle.problems).toEqual([]);
+    expect(seen).toEqual([['Проверьте заполнение формы', false]]);
+  });
+
+  it('половины модуля старше готового поведения: иначе правила применились бы дважды', () => {
+    let ready = 0;
+    let halves = 0;
+    const bundle = bundleOf(submitSchema(), {
+      behavior: {
+        __run: () => {
+          ready += 1;
+          return () => undefined;
+        },
+      },
+      moduleBehavior: {
+        rules: () => {
+          halves += 1;
+        },
+        wireSubmit: () => undefined,
+      },
+    });
+    expect(bundle.form).not.toBeNull();
+    expect([ready, halves]).toEqual([0, 1]);
+  });
+
+  it('отказ отправки форму не роняет — находка с именем её файла, правила при этом работают', () => {
+    let applied = false;
+    const bundle = bundleOf(submitSchema(), {
+      moduleBehavior: {
+        rules: () => {
+          applied = true;
+        },
+        wireSubmit: () => {
+          throw new Error('submitForm is not defined');
+        },
+      },
+      files: { submit: 'application/submit.ts' },
+    });
+
+    expect(bundle.form).not.toBeNull();
+    expect(applied).toBe(true);
+    expect(bundle.problems).toEqual([
+      { file: 'application/submit.ts', phase: 'evaluate', message: 'submitForm is not defined' },
+    ]);
+  });
+
+  it('узла отправки нет в живой схеме — форма собирается, а находка называет узел и файл', () => {
+    // Обращение к несуществующему узлу ничего не бросает: правило записывается и молчит. Кнопка
+    // есть, нажатие ничего не делает — и узнать об этом больше неоткуда.
+    const wireSubmit: WireSubmit = (scope) => {
+      onComponentEvent(scope.schema.node('wizard'), 'onSubmit', () => undefined);
+    };
+    const bundle = bundleOf(submitSchema(), {
+      moduleBehavior: { rules: () => undefined, wireSubmit },
+    });
+
+    expect(bundle.form).not.toBeNull();
+    expect(bundle.problems).toEqual([
+      {
+        file: 'application/submit.ts',
+        phase: 'render',
+        message: expect.stringContaining('«wizard»') as string,
+      },
+    ]);
+  });
+
+  it('находка — только про узлы ОТПРАВКИ: правило поведения по чужому селектору её не даёт', () => {
+    const rules: BehaviorRules = (scope) => {
+      hideWhen(scope.schema.node('net-takogo-uzla'), () => false);
+    };
+    const wireSubmit: WireSubmit = (scope) => {
+      onComponentEvent(scope.schema.node('submit'), 'onClick', () => undefined);
+    };
+    expect(bundleOf(submitSchema(), { moduleBehavior: { rules, wireSubmit } }).problems).toEqual(
+      []
+    );
+  });
+});
+
+describe('buildRuntimeBundle — поток шагов', () => {
+  /** Визард из двух шагов; селекторы шагов — идентификаторы шагов потока. */
+  function wizardSchema(): JsonFormSchema {
+    return {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        selector: 'wizard',
+        children: [
+          {
+            component: '$component(Step)',
+            selector: 'dannye-section',
+            children: [{ model: '$model(name)', component: '$component(Input)' }],
+          },
+          {
+            component: '$component(Step)',
+            selector: 'kontakty-section',
+            children: [{ model: '$model(email)', component: '$component(Input)' }],
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+  }
+
+  const stepRules = defineValidation<Shape>(({ model }) => {
+    validate(model.$.name as never, [required()]);
+  });
+  const flow = { steps: [{ id: 'dannye-section', rules: stepRules }, { id: 'kontakty-section' }] };
+
+  it('поток доходит до сборки: «Далее» проверяет правила текущего шага', async () => {
+    const bundle = bundleOf(wizardSchema(), { flow, validation: {} });
+    const steps = bundle.form?.flow;
+    if (steps === undefined) throw new Error('поток шагов не дошёл до сборки');
+
+    // Пустой обязательный шаг не проходит — и поле помечено тронутым, иначе кит не покажет ошибку.
+    await expect(steps.next()).resolves.toMatchObject({ status: 'stayed', reason: 'invalid' });
+    expect(steps.current.value).toBe('dannye-section');
+
+    bundle.form?.form.name.setValue('Аня');
+    await expect(steps.next()).resolves.toMatchObject({ status: 'moved', to: 'kontakty-section' });
+  });
+
+  it('без потока шагов сборка его и не заводит: визард строит позиционный сам', () => {
+    expect(bundleOf(wizardSchema()).form?.flow).toBeUndefined();
+  });
+
+  it('полный набор правил отправки собирается из правил шагов потока', async () => {
+    const bundle = bundleOf(wizardSchema(), { flow, validation: {} });
+    await expect(bundle.form?.validate()).resolves.toMatchObject({ status: 'invalid' });
   });
 });
 

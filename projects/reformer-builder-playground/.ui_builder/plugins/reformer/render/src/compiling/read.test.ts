@@ -1,5 +1,5 @@
 /**
- * Чтение сайдкаров: имена для компилятора, адреса для свода диагностик.
+ * Чтение файлов модуля: пути для компилятора, адреса для свода диагностик.
  *
  * @module plugins/reformer/render/compiling/read.test
  */
@@ -111,6 +111,98 @@ describe('readSidecars — обход папок шагов', () => {
     expect(sources.problems).toEqual([
       expect.objectContaining({ file: 'steps/', phase: 'resolve', resource: 'fake:form/steps' }),
     ]);
+  });
+});
+
+describe('readSidecars — модуль с папками ролей', () => {
+  /** Модуль, как его печатает кодоген для разбитого визарда; документ лежит в `schema/`. */
+  const MODULE = {
+    'forms/zayavka/ZayavkaForm.tsx': 'x',
+    'forms/zayavka/index.ts': 'x',
+    'forms/zayavka/README.md': 'x',
+    'forms/zayavka/fixture.ts': 'x',
+    'forms/zayavka/application/create.ts': 'x',
+    'forms/zayavka/application/submit.ts': 'x',
+    'forms/zayavka/api/index.ts': 'x',
+    'forms/zayavka/behavior/index.ts': 'x',
+    'forms/zayavka/flow/zayavka-flow.ts': 'x',
+    'forms/zayavka/model/initial-value.ts': 'x',
+    'forms/zayavka/schema/form.schema.json': '{}',
+    'forms/zayavka/schema/registry.ts': 'x',
+    'forms/zayavka/schema/steps/shag-1/form.schema.json': '{}',
+    'forms/zayavka/validation/form.ts': 'x',
+    'forms/zayavka/validation/form.test.ts': 'x',
+    'forms/zayavka/validation/shag-1.ts': 'x',
+    // Соседняя форма того же каталога: читать её незачем.
+    'forms/sosed/validation/form.ts': 'x',
+  };
+  const DOCUMENT = 'fake:forms/zayavka/schema/form.schema.json';
+
+  it('читает от корня модуля — родителя schema/: ключи — пути от него', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: MODULE }), DOCUMENT);
+
+    expect(sources.problems).toEqual([]);
+    expect([...sources.files.keys()]).toEqual([
+      'api/index.ts',
+      'application/create.ts',
+      'application/submit.ts',
+      'behavior/index.ts',
+      'flow/zayavka-flow.ts',
+      'model/initial-value.ts',
+      'schema/registry.ts',
+      'schema/steps/shag-1/form.schema.json',
+      'validation/form.ts',
+      'validation/shag-1.ts',
+      'ZayavkaForm.tsx',
+    ]);
+    expect(sources.resources.get('schema/registry.ts')).toBe(
+      'fake:forms/zayavka/schema/registry.ts'
+    );
+  });
+
+  it('глубина обхода покрывает файл шага: schema/steps/<шаг>/form.schema.json', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: MODULE }), DOCUMENT);
+    expect(sources.files.get('schema/steps/shag-1/form.schema.json')).toBe('{}');
+  });
+
+  it('сам документ в набор не идёт: его превью берёт из модели редактора', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: MODULE }), DOCUMENT);
+    expect(sources.files.has('schema/form.schema.json')).toBe(false);
+    expect(sources.resources.has('schema/form.schema.json')).toBe(false);
+  });
+
+  it('путь документа можно назвать явно: открытый документ спрашивать не обязательно', async () => {
+    const host = { ...createFakeHost({ tree: MODULE }), documentOf: () => null };
+    const sources = await readSidecars(host, DOCUMENT, 'forms/zayavka/schema/form.schema.json');
+    expect(sources.files.has('validation/form.ts')).toBe(true);
+  });
+
+  it('документ прежней плоской раскладки читается от своего каталога, как раньше', async () => {
+    const flat = {
+      'forms/contact/form.schema.json': '{}',
+      'forms/contact/index.tsx': 'x',
+      'forms/contact/model.ts': 'x',
+      'forms/contact/steps/index.ts': 'x',
+      'forms/contact/steps/kontakty/form.schema.json': '{}',
+      'forms/zayavka/validation/form.ts': 'x',
+    };
+    const sources = await readSidecars(
+      createFakeHost({ tree: flat }),
+      'fake:forms/contact/form.schema.json'
+    );
+    expect([...sources.files.keys()]).toEqual([
+      'model.ts',
+      'steps/index.ts',
+      'steps/kontakty/form.schema.json',
+    ]);
+  });
+
+  it('без листинга порт отдаёт только соседей документа — папки ролей ему не видны', async () => {
+    const host = createFakeHost({ tree: MODULE });
+    const { list: _list, ...flatHost } = host;
+    const sources = await readSidecars(flatHost, DOCUMENT);
+    // Один уровень каталога документа: это честная деградация, а не выдуманный модуль.
+    expect([...sources.files.keys()]).toEqual(['registry.ts']);
   });
 });
 

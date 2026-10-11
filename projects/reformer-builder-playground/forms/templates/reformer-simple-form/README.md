@@ -1,54 +1,89 @@
-# ReformerSimpleForm
+# Reformer simple form
 
-Сгенерированная форма (renderer-json). Рендерится и работает сразу на синтетических данных —
-«доведение» сводится к реализации методов в ваших файлах.
+Сгенерированная форма (renderer-json, единая сборка `createForm`). Рендерится и работает сразу на
+синтетических данных — «доведение» сводится к реализации методов в ваших файлах.
 
 ## Встраивание
 
-Скопируйте папку в `src/pages/demo/reformerSimpleForm/` и зарегистрируйте форму:
+Скопируйте папку в `src/pages/demo/reformer-simple-form/` и зарегистрируйте форму:
 
 ```tsx
 // ── Способ 1 (рекомендуемый): через реестр форм — одна строка на регистрацию.
-// Всё остальное (схема, реестр компонентов, модель, поведение) описано записью реестра
-// в index.tsx (reformerSimpleFormFormEntry) — билдер перегенерирует её при изменениях.
+// Всё остальное (схема, реестр компонентов, модель, поведение, валидация) описано записью
+// реестра (reformerSimpleFormEntry, application/entry.ts модуля) — билдер перегенерирует
+// её при изменениях.
 import { getFormRegistry } from '@reformer/form-registry';
-import { reformerSimpleFormFormEntry } from './pages/demo/reformerSimpleForm';
+import { reformerSimpleFormEntry } from './pages/demo/reformer-simple-form';
 
-getFormRegistry().register(reformerSimpleFormFormEntry);
+getFormRegistry().register(reformerSimpleFormEntry);
 
 // Дальше форму можно смонтировать где угодно, зная только её id:
-//   <FormOutlet id="reformerSimpleForm" />
+//   <FormOutlet id="reformer-simple-form" />
 
 // ── Способ 2: как обычную страницу, если реестр не используется.
-import ReformerSimpleFormPage from './pages/demo/reformerSimpleForm';
+// Страница — default-экспорт модуля (index.ts).
+import ReformerSimpleForm from './pages/demo/reformer-simple-form';
 
 // пункт в списке примеров:
-{ id: 'reformerSimpleForm', path: '/examples/reformerSimpleForm', title: 'ReformerSimpleForm', description: '' },
+{ id: 'reformer-simple-form', path: '/examples/reformer-simple-form', title: 'Reformer simple form', description: '' },
 
 // маршрут внутри <Routes>:
-<Route path="/examples/reformerSimpleForm" element={<ReformerSimpleFormPage />} />
+<Route path="/examples/reformer-simple-form" element={<ReformerSimpleForm />} />
 ```
 
 ## Файлы
 
-Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1),
-плоский: без `lib/` и `components/`, запись реестра форм — в `index.tsx`.
+Раскладка — папки по ролям (канон `@reformer/mcp` docs/llms/06-form-directory-layout.md §3):
+сборка формы одна (`application/create.ts`), ею пользуются и страница, и запись реестра форм.
 
-- **Регенерируемые** (перезаписываются при повторной генерации): `form.schema.json`, `types.ts`, `model.ts`, `registry.ts`, `index.tsx`, `README.md`.
-- **Ваши** (пишутся один раз, не затираются): `data-sources.ts`, `form.render.ts`, `form.behavior.ts`, `form.validation.ts`, `api.ts`.
+```
+reformer-simple-form/
+├── ReformerSimpleForm.tsx   страница: сборка формы → FormRenderer
+├── index.ts   реэкспорты: страница, сборка, запись реестра форм, тип формы
+├── README.md
+├── application/
+│   ├── create.ts   единственная сборка формы: createForm({ … })
+│   ├── submit.ts   отправка: запрос → исход → текст для человека
+│   └── entry.ts   запись реестра форм
+├── api/
+│   └── index.ts   запросы к серверу
+├── model/
+│   ├── initial-value.ts   начальные значения
+│   └── model.ts   фабрика модели
+├── schema/
+│   ├── form.schema.json   документ формы (его открывает билдер)
+│   └── registry.ts   реестр компонентов и источников данных
+├── validation/
+│   └── form.ts   валидация формы: правила и стратегия проверки
+├── behavior/
+│   └── index.ts   единственное поведение: связи над моделью и правила узлов схемы
+├── types/
+│   └── reformer-simple-form.ts   тип формы
+└── constants/
+    └── reformer-simple-form.ts   опции и константы источников данных
+```
 
-Схема лежит в `form.schema.json` — допустимый вариант канона («схема как данные»), выбранный
+- **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `types/reformer-simple-form.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ReformerSimpleForm.tsx`, `index.ts`, `README.md`.
+- **Ваши** (пишутся один раз, не затираются): `constants/reformer-simple-form.ts`, `behavior/index.ts`, `validation/form.ts`, `application/submit.ts`, `api/index.ts`.
+
+Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
+поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
+
+Схема лежит в `schema/form.schema.json` — допустимый вариант канона («схема как данные»), выбранный
 ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на
 компиляции: опечатка внутри них останется до рантайма, и никто её не поймает. Нужна проверка —
-переложите схему в `form.schema.ts` литералом `defineJsonSchemaV1<ReformerSimpleFormForm>({ ... })`;
-править её в билдере после этого будет нельзя.
+переложите схему в `.ts` литералом `defineJsonSchema<ReformerSimpleForm>({ ... })`; править её в
+билдере после этого будет нельзя.
 
 Компоненты импортируются из `@reformer/ui-kit` — того кита, который был
 активен при генерации (`ReFormer UI Kit`).
 
 ## Методы для реализации
 
-- `api.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
-- `data-sources.ts` → замените синтетические опции реальными словарями или загрузчиками.
-- `form.validation.ts` → допишите правила (сейчас — только `required`).
-- `form.behavior.ts` → вычисляемые поля и условное включение (по желанию).
+- `api/index.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
+- `application/submit.ts` → тексты исхода и то, что делать после отправки (сейчас — два сообщения через `onResult`).
+- `behavior/index.ts` → раскомментируйте `hideWhen` для секций: `personal-section`, `contacts-section`, `extra-section`.
+- `constants/reformer-simple-form.ts` → подписи элементов массивов: `REFERENCE_LABEL`.
+- `constants/reformer-simple-form.ts` → замените синтетические опции реальными словарями или загрузчиками.
+- `validation/form.ts` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `behavior/index.ts` → вычисляемые поля и условное включение (по желанию).

@@ -1,0 +1,13 @@
+// flow/zayavka-na-kredit-flow.ts — поток шагов визарда: порядок шагов и их правила.
+// Регенерируется билдером (шаги берутся из схемы); правки будут перезаписаны.
+
+import type { FormFlowConfig } from '@reformer/core';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+import { stepRules as shag1Rules } from '../validation/shag-1';
+
+/** Поток шагов: `id` — `selector` узла шага в схеме; `next()` проверяет правила текущего шага. */
+export const formFlow: FormFlowConfig<ZayavkaNaKreditForm> = {
+  steps: [
+    { id: 'shag-1-section', rules: shag1Rules },
+  ],
+};

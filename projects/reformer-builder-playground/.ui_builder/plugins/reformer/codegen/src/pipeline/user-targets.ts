@@ -5,7 +5,7 @@
  *
  * Изменить то, что кодоген печатает в проект, до сих пор можно было единственным способом —
  * написать плагин. Плагин — это манифест, точка входа, включение в каталоге и код, который
- * исполняется в realm приложения. Для «хочу, чтобы `registry.ts` импортировал из нашего
+ * исполняется в realm приложения. Для «хочу, чтобы `schema/registry.ts` импортировал из нашего
  * пакета» это несоразмерная цена, и платить её никто не станет.
  *
  * Здесь цена другая: положить файл рядом с проектом. Файл — это заголовок и шаблон, тот же
@@ -30,11 +30,17 @@
  * @module plugins/reformer/codegen/pipeline/user-targets
  */
 
-import { buildView, parseTargetFile, type EmitContext } from '../../../core/codegen';
+import {
+  buildView,
+  isFlatLayoutPath,
+  parseTargetFile,
+  type EmitContext,
+} from '../../../core/codegen';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import type { CodegenProblem } from './generate';
 import type { CodegenHost } from '../host';
+import { RETIRED_TARGETS } from './targets';
 
 /** Каталог целей внутри проекта. Рядом с `templates/` и `plugins/`, не внутри них. */
 export const USER_TARGETS_DIR = ['.ui_builder', 'codegen'] as const;
@@ -160,25 +166,57 @@ export async function discoverUserTargets(host: CodegenHost): Promise<UserTarget
 }
 
 /**
+ * Почему замена устарела: написана под ПРЕЖНИЙ контракт кода — либо `null`.
+ *
+ * Шаблон, выгруженный до перехода на единый контракт и папки ролей, узнаётся по заголовку:
+ *
+ * - `retired` — заменяет цель, которой больше нет (шим визарда, агрегатор шагов, слой рендера);
+ * - `flat` — заменяет живую цель, но печатает по пути плоской раскладки (`registry.ts` вместо
+ *   `schema/registry.ts`).
+ *
+ * В обоих случаях его тело писалось под прежний вид (`it.wizard`, `it.layout.imports`,
+ * `it.renderBehavior`) и под прежний контракт сборки: отрисовать его нечем, а напечатанный им
+ * файл модуль не импортирует. Применить такую замену значило бы ещё и снять встроенную цель — то
+ * есть оставить модуль без файла, который он импортирует.
+ */
+function staleReason(
+  target: CodegenTarget,
+  byId: ReadonlyMap<string, CodegenTarget>
+): 'retired' | 'flat' | null {
+  if (target.overrides === undefined) return null;
+  if (Object.hasOwn(RETIRED_TARGETS, target.overrides)) return 'retired';
+  const replaced = byId.get(target.overrides);
+  if (replaced === undefined || replaced.path === target.path) return null;
+  return isFlatLayoutPath(target.path) ? 'flat' : null;
+}
+
+/**
  * Снять цели, которые кто-то переопределил.
  *
  * Победитель — тот, кто объявил `overrides`. Забыть его нельзя незаметно: тогда обе цели
  * претендуют на один `path`, и отбор назовёт это `duplicate-path` с именем победителя.
+ *
+ * Замена, написанная под прежний контракт ({@link staleReason}), не побеждает и не печатается:
+ * модуль печатается встроенными целями целиком, а о шаблоне говорит {@link overrideDrift}.
  */
 export function applyOverrides(targets: readonly CodegenTarget[]): readonly CodegenTarget[] {
+  if (targets.every((target) => target.overrides === undefined)) return targets;
+  const byId = new Map(targets.map((target) => [target.id, target]));
+  const live = targets.filter((target) => staleReason(target, byId) === null);
   const overridden = new Set(
-    targets.flatMap((target) => (target.overrides === undefined ? [] : [target.overrides]))
+    live.flatMap((target) => (target.overrides === undefined ? [] : [target.overrides]))
   );
-  return overridden.size === 0 ? targets : targets.filter((target) => !overridden.has(target.id));
+  return live.filter((target) => !overridden.has(target.id));
 }
 
 /**
- * Замены, которые печатают НЕ туда, куда печатала заменённая цель.
+ * Замены, которые печатают НЕ то и НЕ туда, что печатала заменённая цель.
  *
- * Типичный случай — шаблон, выгруженный до переименования файлов: встроенная
- * `codegen.render-behavior` теперь печатает `form.render.ts`, а выгруженная копия так и осталась
- * с `"path": "renderer.behavior.ts"`. Печать при этом не падает — файл появляется, — но
- * `index.tsx` импортирует уже новое имя, и правки из шаблона молча перестают действовать.
+ * Типичный случай — шаблон, выгруженный до перехода на папки ролей: встроенная
+ * `codegen.registry` теперь печатает `schema/registry.ts`, а выгруженная копия так и осталась с
+ * `"path": "registry.ts"` и телом под прежний контракт. Генерация от этого не падает: модуль
+ * печатается встроенными целями, а шаблон не применяется — но человек обязан узнать, что его
+ * правки перестали действовать, и что с этим делать.
  *
  * Отдельной функцией рядом с {@link applyOverrides}, а не внутри неё: та отвечает на вопрос
  * «кто печатает», и её результат — список целей; предупреждение — другой канал, и его
@@ -188,30 +226,50 @@ export function applyOverrides(targets: readonly CodegenTarget[]): readonly Code
 export function overrideDrift(targets: readonly CodegenTarget[]): readonly CodegenProblem[] {
   const byId = new Map(targets.map((target) => [target.id, target]));
   const problems: CodegenProblem[] = [];
-  for (const target of targets) {
-    if (target.overrides === undefined) continue;
-    const replaced = byId.get(target.overrides);
-    if (replaced === undefined) continue;
-    const samePath = replaced.path === target.path;
-    const sameEach = (replaced.each ?? null) === (target.each ?? null);
-    if (samePath && sameEach) continue;
-    const legacy = replaced.legacyPaths?.includes(target.path) === true;
-    const message = !samePath
-      ? legacy
-        ? `«${target.id}» заменяет «${replaced.id}», но печатает прежнее имя «${target.path}» — ` +
-          `модуль импортирует «${replaced.path}». Поправьте «path» в заголовке шаблона.`
-        : `«${target.id}» заменяет «${replaced.id}», но печатает «${target.path}» вместо ` +
-          `«${replaced.path}».`
-      : `«${target.id}» заменяет «${replaced.id}», но ` +
-        (replaced.each === 'step'
-          ? 'печатается один раз, а заменённая — по файлу на шаг: добавьте «"each": "step"».'
-          : 'печатается по шагам, а заменённая — один раз.');
+  const report = (target: CodegenTarget, message: string): void => {
     problems.push({
       targetId: target.id,
       path: target.path,
       reason: 'override-path-drift',
       message,
     });
+  };
+
+  for (const target of targets) {
+    if (target.overrides === undefined) continue;
+    const stale = staleReason(target, byId);
+    if (stale === 'retired') {
+      report(
+        target,
+        `«${target.id}» заменяет цель «${target.overrides}», которой больше нет: ` +
+          `${RETIRED_TARGETS[target.overrides]}. Шаблон не применён — перенесите правки и удалите его.`
+      );
+      continue;
+    }
+    const replaced = byId.get(target.overrides);
+    if (replaced === undefined) continue;
+    if (stale === 'flat') {
+      report(
+        target,
+        `«${target.id}» заменяет «${replaced.id}», но написан под прежнюю плоскую раскладку: ` +
+          `печатает «${target.path}», а модуль теперь импортирует «${replaced.path}». Шаблон не ` +
+          'применён — модуль напечатан встроенным. Выгрузите шаблон заново и перенесите в него правки.'
+      );
+      continue;
+    }
+    const samePath = replaced.path === target.path;
+    const sameEach = (replaced.each ?? null) === (target.each ?? null);
+    if (samePath && sameEach) continue;
+    report(
+      target,
+      !samePath
+        ? `«${target.id}» заменяет «${replaced.id}», но печатает «${target.path}» вместо ` +
+            `«${replaced.path}» — модуль импортирует второе. Поправьте «path» в заголовке шаблона.`
+        : `«${target.id}» заменяет «${replaced.id}», но ` +
+            (replaced.each === 'step'
+              ? 'печатается один раз, а заменённая — по файлу на шаг: добавьте «"each": "step"».'
+              : 'печатается по шагам, а заменённая — один раз.')
+    );
   }
   return problems;
 }

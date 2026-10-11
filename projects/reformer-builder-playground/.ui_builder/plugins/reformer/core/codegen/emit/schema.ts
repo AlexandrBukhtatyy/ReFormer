@@ -1,6 +1,6 @@
 /**
- * Эмиттеры `form.schema.json` — форма как JSON-DSL, каноничное имя слоя рендера
- * (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1), — и файлов схемы шагов.
+ * Эмиттеры документа формы (`schema/form.schema.json`) — форма как JSON-DSL, каноничное имя
+ * слоя рендера (`@reformer/mcp` docs/llms/06-form-directory-layout.md), — и файлов схемы шагов.
  *
  * Расширение выбрано осознанно, и канон требует именно осознанного выбора. Дефолт канона —
  * `form.schema.ts` с `defineJsonSchema<T>`: этот хелпер типизирует литерал против модели,
@@ -13,6 +13,8 @@
  *
  * Визард, разбитый по шагам, печатается разбитым: корень — скелет со ссылками
  * `{ "$ref": "./steps/<шаг>/form.schema.json" }`, шаги — каждый в свой файл (`ctx.composition`).
+ * Ссылка относительна корневого документа, поэтому файлы шагов лежат рядом с ним:
+ * `schema/steps/<шаг>/form.schema.json`.
  *
  * @module plugins/reformer/core/codegen/emit/schema
  */
@@ -45,7 +47,7 @@ export function emitSchema(ctx: EmitContext): string {
 }
 
 /**
- * Файл схемы шага (`steps/<шаг>/form.schema.json`) — цель, размноженная по шагам.
+ * Файл схемы шага (`schema/steps/<шаг>/form.schema.json`) — цель, размноженная по шагам.
  *
  * @throws Error если шаг не вынесен: такой цели здесь быть не должно (её `applies` это отсекает).
  */

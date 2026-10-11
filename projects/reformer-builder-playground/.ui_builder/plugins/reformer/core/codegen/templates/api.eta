@@ -1,6 +1,7 @@
-// api.ts — заготовка бэкенда (submit). Реализуйте реальные запросы. Пишется один раз.
+// <%= it.layout.files.api %> — запросы к серверу: отправка формы. Заготовка: реализуйте реальные
+// запросы. Ваш файл: пишется один раз и при регенерации не затирается.
 
-import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
+import type { <%= it.names.TypeName %> } from '<%= it.rel('api', 'types') %>';
 
 export type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
 

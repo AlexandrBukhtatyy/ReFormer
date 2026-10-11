@@ -1,27 +1,16 @@
-<% if (it.step.validationCode !== null) { -%>
-<%~ it.step.validationCode -%>
-<% } else { -%>
-// steps/<%= it.step.dir %>/form.validation.ts — валидация шага «<%= it.step.title %>». «Далее» проверяет только эти
-// правила, отправка — все шаги сразу. МОК: required выведены из схемы, допишите правила.
-// Пишется один раз и при регенерации не затирается.
+<% const T = it.names.TypeName; -%>
+<% const rules = it.step.validation; -%>
+// <%= it.step.files.validation %> — правила шага «<%= it.step.title %>»: их проверяет «Далее», отправка — все шаги сразу.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
 
-<% if (it.step.required.length > 0) { -%>
-import { validate, defineValidation } from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
-<% } else { -%>
-import { defineValidation } from '@reformer/core/validation';
-<% } -%>
-import type { <%= it.names.TypeName %> } from '<%= it.step.imports.types %>';
+<%~ rules.imports.join('\n') %>
+import type { <%= T %> } from '<%= it.step.imports.types %>';
 
-<% if (it.step.required.length > 0) { -%>
-export const stepValidation = defineValidation<<%= it.names.TypeName %>>(({ model }) => {
-<% for (const path of it.step.required) { -%>
-  validate(model.$.<%= path %>, [required()]);
-<% } -%>
-});
+/** Правила шага «<%= it.step.title %>»: их проверяет «Далее». */
+export const stepRules = defineValidation<<%= T %>>((<%= rules.usesModel ? '{ model }' : '' %>) => {
+<% if (rules.body.length > 0) { -%>
+<%~ it.indent(rules.body, 2) %>
 <% } else { -%>
-export const stepValidation = defineValidation<<%= it.names.TypeName %>>(() => {
   // TODO: правила шага
+<% } -%>
 });
-<% } -%>
-<% } -%>

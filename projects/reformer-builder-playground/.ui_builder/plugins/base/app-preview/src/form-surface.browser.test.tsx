@@ -45,6 +45,18 @@ const directoryOf = (path: string): string => path.slice(0, Math.max(0, path.las
 const SCHEMA = file('src/forms/contact/form.schema.json');
 const CONTACT = [SCHEMA, file('src/forms/contact/index.tsx')];
 
+/**
+ * Модуль с папками по ролям: документ — в `schema/`, точка входа — уровнем выше, и это
+ * `index.ts`, реэкспортирующий страницу.
+ */
+const NESTED_SCHEMA = file('src/forms/loan/schema/form.schema.json');
+const LOAN = [
+  NESTED_SCHEMA,
+  file('src/forms/loan/schema/registry.ts'),
+  file('src/forms/loan/index.ts'),
+  file('src/forms/loan/LoanForm.tsx'),
+];
+
 /** Контекст поверхности в объёме, которым она пользуется: адрес документа. */
 const contextOf = (document: ResourceRef): PreviewContext =>
   ({ doc: { id: document.id, ref: document, kind: 'model' } }) as unknown as PreviewContext;
@@ -82,6 +94,8 @@ interface Stand {
 
 interface MountOptions {
   readonly entries: readonly ResourceRef[];
+  /** Открытый документ; по умолчанию — схема формы прежней плоской раскладки. */
+  readonly document?: ResourceRef;
   readonly host?: HTMLElement;
   /** Несохранённые файлы на момент открытия вида. */
   readonly dirty?: readonly string[];
@@ -109,6 +123,7 @@ function mount(options: MountOptions): Stand {
     files: {
       // Каталог файла — его идентификатор без имени: `fs:src/forms/contact`.
       parentOf: (id) => directoryOf(id),
+      resolve: (dir, ...segments) => [dir, ...segments].join('/'),
       list: listed,
       onDidChange: (cb) => {
         changeListeners.add(cb);
@@ -123,7 +138,7 @@ function mount(options: MountOptions): Stand {
   const host = options.host ?? hostOf('height: 400px;');
   // Блок с заданной высотой — так тело вкладки отдаёт редактор схемы ReFormer.
   if (options.host === undefined) host.style.height = '100%';
-  const disposable = surface.mount(host, contextOf(SCHEMA));
+  const disposable = surface.mount(host, contextOf(options.document ?? SCHEMA));
   mounted.push(disposable);
   return {
     host,
@@ -163,6 +178,7 @@ describe('что поверхность объявляет о себе', () => {
     preview: { formUrl: standOf, onDidWriteSource: () => ({ dispose: () => {} }) },
     files: {
       parentOf: (id) => id,
+      resolve: (dir, ...segments) => [dir, ...segments].join('/'),
       list: () => Promise.resolve([]),
       onDidChange: () => ({ dispose: () => {} }),
     },
@@ -215,6 +231,56 @@ describe('рамка формы', () => {
       expect(noticeIn(host)?.textContent).toContain('index.tsx');
     });
     expect(frameIn(host)).toBeNull();
+  });
+
+  it('документ в папке schema — точка входа ищется уровнем выше, в корне модуля', async () => {
+    const stand = mount({ entries: LOAN, document: NESTED_SCHEMA });
+
+    await vi.waitFor(() => {
+      expect(frameIn(stand.host)?.getAttribute('src')).toBe(standOf('src/forms/loan/index.ts'));
+    });
+    // Читается каталог модуля, а не папка документа: в `schema/` точки входа нет и быть не должно.
+    expect(stand.listed).toHaveBeenCalledWith('fs:src/forms/loan');
+    expect(stand.listed).not.toHaveBeenCalledWith('fs:src/forms/loan/schema');
+  });
+
+  it('у документа в schema точки входа уровнем выше нет — называет, чего не хватает', async () => {
+    const { host } = mount({
+      entries: [NESTED_SCHEMA, file('src/forms/loan/schema/registry.ts')],
+      document: NESTED_SCHEMA,
+    });
+
+    await vi.waitFor(() => {
+      expect(noticeIn(host)?.textContent).toContain('index.ts');
+    });
+    expect(frameIn(host)).toBeNull();
+  });
+
+  it('точка входа, лежащая в самой папке schema, модулем не считается', async () => {
+    // Иначе стенд открыл бы случайный `index.ts` папки данных вместо формы.
+    const { host } = mount({
+      entries: [NESTED_SCHEMA, file('src/forms/loan/schema/index.ts')],
+      document: NESTED_SCHEMA,
+    });
+
+    await vi.waitFor(() => {
+      expect(noticeIn(host)).not.toBeNull();
+    });
+    expect(frameIn(host)).toBeNull();
+  });
+
+  it('модуль, напечатанный после записи, подхватывается и для документа из schema', async () => {
+    const stand = mount({ entries: [NESTED_SCHEMA], document: NESTED_SCHEMA });
+    await vi.waitFor(() => {
+      expect(noticeIn(stand.host)).not.toBeNull();
+    });
+
+    stand.setEntries(LOAN);
+    stand.writeSource();
+
+    await vi.waitFor(() => {
+      expect(frameIn(stand.host)?.getAttribute('src')).toBe(standOf('src/forms/loan/index.ts'));
+    });
   });
 
   it('каталог не прочитался — то же «модуля нет», а не необработанный отказ', async () => {

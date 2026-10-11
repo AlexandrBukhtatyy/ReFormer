@@ -1,0 +1,238 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-6"
+    },
+    "children": [
+      {
+        "selector": "personal-section",
+        "component": "$component(Section)",
+        "componentProps": {
+          "title": "Личные данные",
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "model": "$model(lastName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Фамилия",
+              "placeholder": "Иванов",
+              "required": true
+            }
+          },
+          {
+            "model": "$model(firstName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "placeholder": "Иван",
+              "required": true
+            }
+          },
+          {
+            "model": "$model(fullName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Полное имя",
+              "description": "Собирается из фамилии и имени",
+              "readOnly": true
+            }
+          },
+          {
+            "model": "$model(birthDate)",
+            "component": "$component(DatePicker)",
+            "componentProps": {
+              "label": "Дата рождения",
+              "placeholder": "ДД.ММ.ГГГГ",
+              "dateFormat": "dd.MM.yyyy"
+            }
+          },
+          {
+            "model": "$model(gender)",
+            "component": "$component(RadioGroup)",
+            "componentProps": {
+              "label": "Пол",
+              "options": "$dataSource(GENDERS)"
+            }
+          }
+        ]
+      },
+      {
+        "selector": "contacts-section",
+        "component": "$component(Section)",
+        "componentProps": {
+          "title": "Контакты",
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "model": "$model(phone)",
+            "component": "$component(InputMask)",
+            "componentProps": {
+              "label": "Телефон",
+              "mask": "+7 (999) 999-99-99"
+            }
+          },
+          {
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Электронная почта",
+              "type": "email",
+              "placeholder": "name@example.com",
+              "required": true
+            }
+          },
+          {
+            "model": "$model(city)",
+            "component": "$component(Select)",
+            "componentProps": {
+              "label": "Город",
+              "placeholder": "Выберите город",
+              "clearable": true,
+              "options": "$dataSource(CITY_LIST)"
+            }
+          },
+          {
+            "model": "$model(position)",
+            "component": "$component(Combobox)",
+            "componentProps": {
+              "label": "Должность",
+              "placeholder": "Выберите должность",
+              "searchPlaceholder": "Найти должность",
+              "emptyText": "Ничего не найдено",
+              "clearable": true,
+              "options": "$dataSource(POSITIONS)"
+            }
+          },
+          {
+            "model": "$model(skills)",
+            "component": "$component(ComboboxMulti)",
+            "componentProps": {
+              "label": "Навыки",
+              "placeholder": "Выберите до трёх навыков",
+              "searchPlaceholder": "Найти навык",
+              "emptyText": "Ничего не найдено",
+              "maxItems": 3,
+              "clearable": true,
+              "options": "$dataSource(SKILLS)"
+            }
+          }
+        ]
+      },
+      {
+        "selector": "extra-section",
+        "component": "$component(Section)",
+        "componentProps": {
+          "title": "Дополнительно",
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "model": "$model(experience)",
+            "component": "$component(InputNumber)",
+            "componentProps": {
+              "label": "Опыт работы, лет",
+              "min": 0,
+              "max": 50,
+              "step": 1
+            }
+          },
+          {
+            "model": "$model(about)",
+            "component": "$component(Textarea)",
+            "componentProps": {
+              "label": "О себе",
+              "placeholder": "Пара предложений о себе",
+              "rows": 4,
+              "maxLength": 500
+            }
+          },
+          {
+            "model": "$model(documents)",
+            "component": "$component(FileUploadDropzone)",
+            "componentProps": {
+              "label": "Документы",
+              "placeholder": "Перетащите файлы сюда или нажмите, чтобы выбрать",
+              "hint": "PDF или изображения, до 5 МБ, не больше 3 файлов",
+              "accept": "image/*,.pdf",
+              "multiple": true,
+              "maxFiles": 3,
+              "maxFileSize": 5242880
+            }
+          },
+          {
+            "model": "$model(hasReferences)",
+            "component": "$component(Checkbox)",
+            "componentProps": {
+              "label": "Есть рекомендатели"
+            }
+          },
+          {
+            "selector": "references",
+            "model": "$model(references)",
+            "component": "$component(FieldArray)",
+            "componentProps": {
+              "title": "Рекомендатели",
+              "addButtonLabel": "+ Добавить рекомендателя",
+              "emptyMessage": "Рекомендателей пока нет",
+              "itemLabel": "$dataSource(REFERENCE_LABEL)"
+            },
+            "initialValue": {
+              "name": "",
+              "phone": ""
+            },
+            "item": {
+              "$template": {
+                "component": "$component(Box)",
+                "componentProps": {
+                  "className": "grid grid-cols-2 gap-4"
+                },
+                "children": [
+                  {
+                    "model": "$model(name)",
+                    "component": "$component(Input)",
+                    "componentProps": {
+                      "label": "Имя",
+                      "placeholder": "Пётр Петров",
+                      "required": true
+                    }
+                  },
+                  {
+                    "model": "$model(phone)",
+                    "component": "$component(InputMask)",
+                    "componentProps": {
+                      "label": "Телефон",
+                      "mask": "+7 (999) 999-99-99"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "model": "$model(agree)",
+            "component": "$component(Checkbox)",
+            "componentProps": {
+              "label": "Согласен на обработку персональных данных",
+              "required": true
+            }
+          }
+        ]
+      },
+      {
+        "selector": "submit",
+        "component": "$component(Button)",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": ["Отправить"]
+      }
+    ]
+  }
+}

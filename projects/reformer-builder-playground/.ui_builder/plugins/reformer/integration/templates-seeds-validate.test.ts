@@ -7,9 +7,13 @@
  * и вышло с `readOnly` у вычисляемого «Полного имени»: поведение `computeFrom` требует поля,
  * которое не заполняют руками, а схемы полей ui-kit такого пропа не объявляли.
  *
- * Проверяются именно диагностики про свойства компонентов. Полного нуля диагностик на СЫРОЙ
- * затравке не бывает: селекторы render-правил проставляет кодоген из пути поля (builtin.ts:150),
- * поэтому до печати модуля правило указывает на ещё не существующий селектор.
+ * Находок на затравке не должно быть ВОВСЕ — ни про пропсы, ни про правила. Раньше полного нуля
+ * не выходило: правило узла адресовало селектор, который проставлял только кодоген при печати,
+ * и до неё указывало в никуда. Теперь селектор проставляет сама затравка, и сырая затравка
+ * проходит ту же проверку, что и открытая в редакторе форма.
+ *
+ * То же — под китом, у которого половины компонентов нет: затравка подгоняется под его каталог
+ * и обязана пройти проверку ПРОТИВ НЕГО, а не против встроенного.
  *
  * ## Почему тест лежит в композиции, а не рядом с затравками
  *
@@ -25,24 +29,85 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '../core/testing';
+import hexaCatalog from '../../kit-hexa-ui/catalog.json';
+import { projectCatalog } from '../core/catalog';
+import { collectOperatorNames } from '../core/form-model';
+import { builtinCatalog } from '../core/testing';
 import { checkForm } from '../validator/src/check';
-import { CODES } from '../validator/src/codes';
-import { simpleSeed, simpleRules, wizardSeed, wizardRules } from '../templates/src/stores/builtin';
+import {
+  hasWizard,
+  seedKitOf,
+  simpleRules,
+  simpleSeed,
+  wizardRules,
+  wizardSeed,
+} from '../templates/src';
 
-const PROPERTY_CODES: string[] = [CODES.UNKNOWN_PROPERTY, CODES.UNKNOWN_COMPONENT];
+const BUILTIN = builtinCatalog();
+/** НАСТОЯЩИЙ кит HexaUI проекта-образца: шесть полей, визарда нет. */
+const HEXA = projectCatalog(hexaCatalog as never);
 
-const SEEDS = [
-  { name: 'простая форма', schema: simpleSeed(), rules: simpleRules() },
-  { name: 'пошаговая форма', schema: wizardSeed(), rules: wizardRules() },
+const BUILTIN_KIT = seedKitOf(BUILTIN.entries, BUILTIN.descriptor);
+const HEXA_KIT = seedKitOf(HEXA.entries, HEXA.descriptor);
+
+const CASES = [
+  {
+    name: 'простая форма, встроенный кит',
+    catalog: BUILTIN.entries,
+    schema: simpleSeed(BUILTIN_KIT),
+    rules: simpleRules(BUILTIN_KIT),
+  },
+  {
+    name: 'пошаговая форма, встроенный кит',
+    catalog: BUILTIN.entries,
+    schema: wizardSeed(BUILTIN_KIT),
+    rules: wizardRules(BUILTIN_KIT),
+  },
+  {
+    name: 'простая форма, HexaUI',
+    catalog: HEXA.entries,
+    schema: simpleSeed(HEXA_KIT),
+    rules: simpleRules(HEXA_KIT),
+  },
 ];
 
 describe('затравки встроенных шаблонов', () => {
-  it.each(SEEDS)('$name: каталог знает каждый заданный проп', ({ schema, rules }) => {
+  it.each(CASES)('$name: проверка редактора схемы не находит ничего', (seed) => {
     const diagnostics = checkForm(
-      { resource: 'fs:forms/seed.json', text: JSON.stringify(schema, null, 2), model: schema },
-      { catalog: builtinEntries(), rules, validateSchema: validateFormSchema }
+      {
+        resource: 'fs:forms/seed.json',
+        text: JSON.stringify(seed.schema, null, 2),
+        model: seed.schema,
+      },
+      { catalog: seed.catalog, rules: seed.rules, validateSchema: validateFormSchema }
     );
-    expect(diagnostics.filter((d) => PROPERTY_CODES.includes(d.code))).toEqual([]);
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('под встроенным китом затравка — анкета целиком', () => {
+    // Подгонка под кит не должна ничего отнять у кита, в котором есть всё.
+    expect(simpleSeed(BUILTIN_KIT)).toEqual(simpleSeed());
+    expect(wizardSeed(BUILTIN_KIT)).toEqual(wizardSeed());
+    expect(hasWizard(BUILTIN_KIT)).toBe(true);
+  });
+
+  it('под HexaUI в затравке только то, что кит поставляет', () => {
+    const known = new Set(HEXA.entries.map((entry) => entry.name));
+    const used = collectOperatorNames(simpleSeed(HEXA_KIT)).components;
+
+    for (const component of used) expect(known.has(component), component).toBe(true);
+    // Масок, радиогрупп, выбора даты, комбобоксов и загрузки файлов у кита нет — нет и полей.
+    for (const absent of [
+      'InputMask',
+      'RadioGroup',
+      'DatePicker',
+      'Combobox',
+      'ComboboxMulti',
+      'FileUploadDropzone',
+    ]) {
+      expect(used, absent).not.toContain(absent);
+    }
+    // Визарда у кита тоже нет: пошаговую форму ему собрать нечем.
+    expect(hasWizard(HEXA_KIT)).toBe(false);
   });
 });

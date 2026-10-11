@@ -27,7 +27,13 @@
  * @module plugins/reformer/templates/render/render
  */
 
-import { buildView, prepare, type CodegenView, type KitView } from '../../../core/codegen';
+import {
+  buildView,
+  modulePlacementOf,
+  prepare,
+  type CodegenView,
+  type KitView,
+} from '../../../core/codegen';
 import { renderTemplate } from '@reformer/builder-toolkit';
 import { nameVariants } from './placeholders';
 import type { FormTemplate, TemplateFile } from '../contract';
@@ -78,7 +84,17 @@ export function buildTemplateView(
     form:
       found === null || kit === null
         ? null
-        : buildView(prepare({ schema: found.schema, origins: found.origins, formName, kit })),
+        : buildView(
+            prepare({
+              schema: found.schema,
+              origins: found.origins,
+              formName,
+              kit,
+              // Пути вида считаются от места документа В ШАБЛОНЕ: схема в `schema/` — папки ролей,
+              // схема в корне — шаблон, снятый с формы прежней раскладки.
+              schemaPath: modulePlacementOf(found.file.path).schemaPath,
+            })
+          ),
   };
 }
 

@@ -14,11 +14,16 @@
  * @module plugins/reformer/codegen/pipeline/run
  */
 
-import { appSnippet, formNameOfSchemaPath } from '../../../core/codegen';
+import {
+  appSnippet,
+  formNameOfSchemaPath,
+  modulePlacementOf,
+  type ModulePlacement,
+} from '../../../core/codegen';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
-import { deliverModule, SourceReadOnlyError } from './deliver';
+import { deliverInto, SourceReadOnlyError } from './deliver';
 import { generateModule, type CodegenProblem } from './generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import type { CodegenStore } from './state';
@@ -27,14 +32,45 @@ import { asFormSchema, formSourceOf, StepPartsError, type FormSource } from './s
 /**
  * Имя формы по умолчанию — из пути файла схемы ({@link formNameOfSchemaPath}).
  *
- * Для канонического имени (`form.schema.json`, прежнее `renderer.schema.json`) это имя ПАПКИ:
- * срез по точке дал бы `form` (или `renderer`) для любой формы проекта. Для прочих — имя
- * файла до ПЕРВОЙ точки: каноничное имя схемы двусоставное (`credit.schema.json`), и отрезание
- * одного расширения оставило бы `credit.schema` — из чего `kebab` делает `creditschema`,
- * то есть каталог `creditschema/` и тип `CreditschemaForm`.
+ * Для канонического имени (`form.schema.json`, прежнее `renderer.schema.json`) это имя каталога
+ * МОДУЛЯ: срез по точке дал бы `form` (или `renderer`) для любой формы проекта, а имя каталога
+ * документа — `schema`. Для прочих — имя файла до ПЕРВОЙ точки: каноничное имя схемы двусоставное
+ * (`credit.schema.json`), и отрезание одного расширения оставило бы `credit.schema` — из чего
+ * `kebab` делает `creditschema`, то есть каталог `creditschema/` и тип `CreditschemaForm`.
  */
 export function defaultFormName(document: CodegenDocument): string {
   return formNameOfSchemaPath(document.ref.path);
+}
+
+/**
+ * Каталог модуля формы, открытой как документ.
+ *
+ * Три случая — по тому, где документ лежит ({@link modulePlacementOf}):
+ *
+ * - `<модуль>/schema/form.schema.json` — модуль печатается НА МЕСТЕ, в родителе папки `schema`;
+ * - `<каталог>/form.schema.json` — форма прежней плоской раскладки: модуль печатается в её
+ *   каталог, документ остаётся, где лежал;
+ * - документ со свободным именем (`forms/credit.schema.json`) — своего каталога у формы нет:
+ *   модуль заводится подкаталогом `moduleDir` рядом с документом, а документ кладётся в его
+ *   `schema/form.schema.json`.
+ *
+ * @param moduleDir - Имя каталога нового модуля (kebab-имя формы) — для третьего случая.
+ */
+export function moduleRootOf(
+  host: Pick<CodegenHost, 'parentOf' | 'resolve'>,
+  documentId: ResourceId,
+  placement: ModulePlacement,
+  moduleDir: string
+): ResourceId {
+  const parent = host.parentOf(documentId);
+  switch (placement.kind) {
+    case 'nested':
+      return host.parentOf(parent);
+    case 'flat':
+      return parent;
+    case 'detached':
+      return host.resolve(parent, moduleDir);
+  }
 }
 
 /**
@@ -112,12 +148,16 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   const formName = (options.formName ?? '').trim() || defaultFormName(document);
   store.patch({ phase: 'running', errorKey: null, errorDetail: undefined, delivery: null });
 
+  // Где лежит документ, там и модуль: путь документа внутри модуля решается ДО печати — от него
+  // считаются импорты и место файлов шагов.
+  const placement = modulePlacementOf(document.ref.path);
   const module = await generateModule(
     targets,
     {
       schema: source.schema,
       origins: source.origins,
       formName,
+      schemaPath: placement.schemaPath,
       kit: { kit, catalog: host.catalog() },
       rules: host.rulesOf?.(documentId) ?? undefined,
     },
@@ -136,7 +176,10 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   const snippet = appSnippet(module.context.names);
 
   try {
-    const delivery = await deliverModule(host, host.parentOf(documentId), module.dir, module.files);
+    const root = moduleRootOf(host, documentId, placement, module.dir);
+    const delivery = await deliverInto(host, root, module.files, {
+      schemaPath: placement.schemaPath,
+    });
     store.patch({
       phase: 'idle',
       formName,

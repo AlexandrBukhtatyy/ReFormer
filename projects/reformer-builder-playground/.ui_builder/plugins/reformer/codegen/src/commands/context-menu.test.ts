@@ -22,6 +22,7 @@ import {
   type GenerateIntoOutcome,
 } from './context-menu';
 import { wizardSchema } from '../../../core/testing';
+import { withMarker } from '@reformer/builder-toolkit';
 import { BUILTIN_TARGETS } from '../pipeline/targets';
 import { createFakeDocument, createFakeHost } from '../testing';
 import { pluginMessageKey } from '@reformer/builder-plugin-api';
@@ -139,6 +140,52 @@ describe('поиск схемы в каталоге', () => {
     expect((await findSchemaIn(host, DIR))?.schema).toEqual(FORM);
   });
 
+  it('ищет документ в папке schema/ каталога, а корнем модуля называет сам каталог', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/schema/form.schema.json`]: SCHEMA } });
+
+    const found = await findSchemaIn(host, DIR);
+    expect(found?.ref.id).toBe(`${DIR}/schema/form.schema.json`);
+    expect(found?.root).toBe(DIR);
+    expect(found?.schemaPath).toBe('schema/form.schema.json');
+  });
+
+  it('документ в schema/ важнее документа в самом каталоге', async () => {
+    // Форма переехала на папки ролей, а прежний документ в корне остался: открывается новый.
+    const moved = JSON.stringify({ ...FORM, version: '2.0' });
+    const host = createFakeHost({
+      files: {
+        [`${DIR}/form.schema.json`]: SCHEMA,
+        [`${DIR}/schema/form.schema.json`]: moved,
+      },
+    });
+
+    const found = await findSchemaIn(host, DIR);
+    expect(found?.schemaPath).toBe('schema/form.schema.json');
+    expect(found?.schema.version).toBe('2.0');
+  });
+
+  it('документ в самом каталоге — форма прежней плоской раскладки: схема остаётся в корне', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
+
+    const found = await findSchemaIn(host, DIR);
+    expect(found?.root).toBe(DIR);
+    expect(found?.schemaPath).toBe('form.schema.json');
+  });
+
+  it('выбран сам каталог schema — корень модуля его родитель', async () => {
+    const schemaDir = `${DIR}/schema` as ResourceId;
+    const host = createFakeHost({ files: { [`${schemaDir}/form.schema.json`]: SCHEMA } });
+
+    const found = await findSchemaIn(host, schemaDir);
+    expect(found?.root).toBe(DIR);
+    expect(found?.schemaPath).toBe('schema/form.schema.json');
+  });
+
+  it('документ под прежним именем называет в модуле уже новое имя', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: SCHEMA } });
+    expect((await findSchemaIn(host, DIR))?.schemaPath).toBe('form.schema.json');
+  });
+
   it('открытый документ с текстом прежнего формата тоже отдаётся в формате 2', async () => {
     const host = createFakeHost({
       files: { [`${DIR}/form.schema.json`]: SCHEMA },
@@ -158,8 +205,36 @@ describe('генерация в каталог', () => {
     const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.types' });
 
     expect(outcome.kind).toBe('delivered');
-    expect(host.written.has(`${DIR}/types.ts`)).toBe(true);
-    expect([...host.written.keys()].some((id) => id.includes('/credit/credit'))).toBe(false);
+    expect(host.written.has(`${DIR}/types/credit.ts`)).toBe(true);
+    expect([...host.written.keys()].some((id) => id.includes('/credit/credit/'))).toBe(false);
+  });
+
+  it('документ в schema/: файлы модуля ложатся в выбранный каталог, а не в schema/', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/schema/form.schema.json`]: SCHEMA } });
+
+    const outcome = await generateInto({ host, targets }, { dir: DIR });
+
+    expect(outcome).toMatchObject({ kind: 'delivered', formName: 'credit' });
+    expect(host.written.has(`${DIR}/CreditForm.tsx`)).toBe(true);
+    expect(host.written.has(`${DIR}/application/create.ts`)).toBe(true);
+    expect(host.written.has(`${DIR}/schema/registry.ts`)).toBe(true);
+    // Документ переписан на месте — второго в корне каталога не появилось.
+    expect(host.written.has(`${DIR}/form.schema.json`)).toBe(false);
+    expect([...host.written.keys()].some((id) => id.includes('/schema/schema/'))).toBe(false);
+  });
+
+  it('щелчок по самой папке schema печатает модуль в её родителе, имя формы — каталог модуля', async () => {
+    const schemaDir = `${DIR}/schema` as ResourceId;
+    const host = createFakeHost({ files: { [`${schemaDir}/form.schema.json`]: SCHEMA } });
+
+    // Имя формы меню для папки `schema` не передаёт — см. `codegenContextMenuItems`.
+    const outcome = await generateInto({ host, targets }, { dir: schemaDir });
+
+    expect(outcome).toMatchObject({ kind: 'delivered', formName: 'credit' });
+    if (outcome.kind !== 'delivered') return;
+    expect(outcome.delivery.dir).toBe(DIR);
+    expect(host.written.has(`${DIR}/types/credit.ts`)).toBe(true);
+    expect(host.written.has(`${schemaDir}/types/credit.ts`)).toBe(false);
   });
 
   it('одна цель печатается так же, как в составе всего модуля', async () => {
@@ -169,10 +244,13 @@ describe('генерация в каталог', () => {
     await generateInto({ host: one, targets }, { dir: DIR, targetId: 'codegen.registry' });
     await generateInto({ host: all, targets }, { dir: DIR });
 
-    expect(one.written.get(`${DIR}/registry.ts`)).toBe(all.written.get(`${DIR}/registry.ts`));
+    expect(one.written.get(`${DIR}/schema/registry.ts`)).toBe(
+      all.written.get(`${DIR}/schema/registry.ts`)
+    );
+    expect(one.written.has(`${DIR}/schema/registry.ts`)).toBe(true);
     // И записан ровно один файл: остальные цели печатались только ради контекста.
     expect([...one.written.keys()].filter((id) => !id.endsWith('.schema.json'))).toEqual([
-      `${DIR}/registry.ts`,
+      `${DIR}/schema/registry.ts`,
     ]);
   });
 
@@ -182,18 +260,33 @@ describe('генерация в каталог', () => {
       { host: named, targets },
       { dir: DIR, targetId: 'codegen.types', formName: 'credit-application' }
     );
-    expect(named.written.get(`${DIR}/types.ts`)).toContain('CreditApplicationForm');
+    expect(named.written.get(`${DIR}/types/credit-application.ts`)).toContain(
+      'CreditApplicationForm'
+    );
 
     const fallback = createFakeHost({ files: { [`${DIR}/credit.schema.json`]: SCHEMA } });
     await generateInto({ host: fallback, targets }, { dir: DIR, targetId: 'codegen.types' });
-    expect(fallback.written.get(`${DIR}/types.ts`)).toContain('CreditForm');
+    expect(fallback.written.get(`${DIR}/types/credit.ts`)).toContain('CreditForm');
+  });
+
+  it('документ со свободным именем остаётся на месте и под своим именем', async () => {
+    // Каталог назвал человек — он и есть модуль; заводить рядом копию документа под
+    // каноническим именем значило бы получить две схемы одной формы.
+    const host = createFakeHost({ files: { [`${DIR}/credit.schema.json`]: SCHEMA } });
+    await generateInto({ host, targets }, { dir: DIR });
+
+    expect(host.written.has(`${DIR}/form.schema.json`)).toBe(false);
+    expect(host.written.has(`${DIR}/schema/form.schema.json`)).toBe(false);
+    expect(host.written.get(`${DIR}/application/create.ts`)).toContain(
+      "import rawSchema from '../credit.schema.json';"
+    );
   });
 
   it('для канонического имени схемы имя формы — имя каталога, а не «form»', async () => {
     const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
     const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.types' });
     expect(outcome).toMatchObject({ kind: 'delivered', formName: 'credit' });
-    expect(host.written.get(`${DIR}/types.ts`)).toContain('CreditForm');
+    expect(host.written.get(`${DIR}/types/credit.ts`)).toContain('CreditForm');
   });
 
   it('цель по шагам пишет ВСЕ свои экземпляры — по файлу на шаг', async () => {
@@ -207,27 +300,34 @@ describe('генерация в каталог', () => {
     expect(outcome.kind).toBe('delivered');
     if (outcome.kind !== 'delivered') return;
     expect(outcome.delivery.written.length).toBeGreaterThan(0);
-    expect(
-      outcome.delivery.written.every((p) => /^steps\/[^/]+\/form\.validation\.ts$/.test(p))
-    ).toBe(true);
+    expect(outcome.delivery.written).toEqual(['validation/shag-1.ts']);
   });
 
-  it('прежние имена и брошенные папки шагов доезжают до исхода', async () => {
+  it('прежнее имя документа, брошенные файлы шагов и файлы прежней раскладки доезжают до исхода', async () => {
+    const renamed = `${withMarker('правила шага\n')}// моё\n`;
     const host = createFakeHost({
       files: {
         [`${DIR}/renderer.schema.json`]: JSON.stringify(wizardSchema()),
-        [`${DIR}/steps/pereimenovannyi/validation.ts`]: 'моё\n',
+        // Шаг переименовали: файл его правил остался, и в нём правки человека.
+        [`${DIR}/validation/pereimenovannyi.ts`]: renamed,
+        // Код прежнего контракта — в корне каталога и в папке шага.
+        [`${DIR}/form.render.ts`]: 'мои правила рендера\n',
+        [`${DIR}/steps/shag-1/form.validation.ts`]: 'мои правила шага\n',
       },
     });
     const outcome = await generateInto({ host, targets }, { dir: DIR });
     if (outcome.kind !== 'delivered') throw new Error(outcome.kind);
-    expect(outcome.delivery.legacy).toContainEqual({
-      path: 'renderer.schema.json',
-      replacedBy: 'form.schema.json',
-      carried: false,
-    });
-    expect(outcome.delivery.orphans).toEqual(['steps/pereimenovannyi']);
-    expect(host.written.get(`${DIR}/steps/pereimenovannyi/validation.ts`)).toBe('моё\n');
+    // Перенос прежнего имени остался только у документа формы.
+    expect(outcome.delivery.legacy).toEqual([
+      { path: 'renderer.schema.json', replacedBy: 'form.schema.json', carried: false },
+    ]);
+    expect(outcome.delivery.orphans).toEqual(['validation/pereimenovannyi.ts']);
+    expect(host.written.get(`${DIR}/validation/pereimenovannyi.ts`)).toBe(renamed);
+    // Файлы прежней раскладки названы, не тронуты и под новые имена не перенесены.
+    expect(outcome.delivery.flat).toEqual(['form.render.ts', 'steps/shag-1/form.validation.ts']);
+    expect(host.written.get(`${DIR}/form.render.ts`)).toBe('мои правила рендера\n');
+    expect(host.written.get(`${DIR}/behavior/index.ts`)).not.toContain('мои правила рендера');
+    expect(host.written.get(`${DIR}/validation/shag-1.ts`)).not.toContain('мои правила шага');
   });
 
   it('по файлу прежнего формата печатает тот же модуль, что и по записи формата 2', async () => {
@@ -240,16 +340,16 @@ describe('генерация в каталог', () => {
     // Байт в байт, включая саму схему: она производная и переписана в формат 2.
     expect(Object.fromEntries(legacy.written)).toEqual(Object.fromEntries(modern.written));
     // И это модуль формы с полем, а не пустой: без перевода поле `name` не было бы найдено.
-    expect(legacy.written.get(`${DIR}/types.ts`)).toContain('name: string;');
+    expect(legacy.written.get(`${DIR}/types/credit.ts`)).toContain('name: string;');
   });
 
   it('цель, не применившаяся к форме, названа, а не пропущена молча', async () => {
     const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
 
-    // Шим визарда печатается только у формы с узлом-визардом; здесь его нет.
-    const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.wizard' });
+    // Поток шагов печатается только у формы с узлом-визардом; здесь его нет.
+    const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.flow' });
 
-    expect(outcome).toEqual({ kind: 'not-applicable', targetId: 'codegen.wizard' });
+    expect(outcome).toEqual({ kind: 'not-applicable', targetId: 'codegen.flow' });
   });
 
   it('отказы названы: нет каталога, нет схемы, нет кита, источник только для чтения', async () => {
@@ -314,7 +414,7 @@ describe('исход говорится словами', () => {
     const cases: readonly [GenerateIntoOutcome, string][] = [
       [{ kind: 'no-schema' }, 'warning'],
       [{ kind: 'no-kit' }, 'error'],
-      [{ kind: 'not-applicable', targetId: 'codegen.wizard' }, 'info'],
+      [{ kind: 'not-applicable', targetId: 'codegen.flow' }, 'info'],
       [
         {
           kind: 'delivered',
@@ -327,6 +427,7 @@ describe('исход говорится словами', () => {
             saved: null,
             orphans: [],
             legacy: [],
+            flat: [],
           },
         },
         'info',
@@ -343,6 +444,7 @@ describe('исход говорится словами', () => {
             saved: true,
             orphans: [],
             legacy: [],
+            flat: [],
           },
         },
         'success',
@@ -358,7 +460,7 @@ describe('исход говорится словами', () => {
     }
   });
 
-  it('прежние имена и сироты — отдельные предупреждения; у схемы — действие «открыть»', () => {
+  it('прежнее имя, сироты и файлы прежней раскладки — отдельные предупреждения; у схемы — действие «открыть»', () => {
     const shown: { key: string; action?: { titleKey: string; run(): void } }[] = [];
     const record = (key: string, options?: { action?: { titleKey: string; run(): void } }) =>
       shown.push({ key, action: options?.action }) as never;
@@ -376,14 +478,19 @@ describe('исход говорится словами', () => {
         formName: 'credit',
         delivery: {
           dir: DIR,
-          written: ['form.schema.json'],
+          written: ['schema/form.schema.json'],
           skipped: [],
           failed: [],
           saved: null,
-          orphans: ['steps/old'],
+          orphans: ['validation/old.ts'],
           legacy: [
-            { path: 'renderer.schema.json', replacedBy: 'form.schema.json', carried: false },
+            {
+              path: 'schema/renderer.schema.json',
+              replacedBy: 'schema/form.schema.json',
+              carried: false,
+            },
           ],
+          flat: ['index.tsx', 'form.render.ts'],
         },
       },
       {
@@ -395,10 +502,14 @@ describe('исход говорится словами', () => {
     expect(shown.map((n) => n.key)).toEqual([
       key('notify.legacy'),
       key('notify.orphans'),
+      key('notify.flat'),
       key('notify.written'),
     ]);
+    // Действие — только у прежнего имени документа, и открывает оно документ там, где он лежит.
     shown[0]?.action?.run();
-    expect(opened).toEqual([`${DIR}/form.schema.json`]);
+    expect(opened).toEqual([`${DIR}/schema/form.schema.json`]);
+    expect(shown[1]?.action).toBeUndefined();
+    expect(shown[2]?.action).toBeUndefined();
   });
 
   it('без сервиса уведомлений молчит, а не падает', () => {
@@ -463,6 +574,22 @@ describe('вклады подменю', () => {
     expect(foreign.items({} as never, { ref: null, dir: DIR, selection: [], rootId: DIR })).toEqual(
       [expect.objectContaining({ title: 'foreign.ts', titleKey: undefined })]
     );
+  });
+
+  it('папка schema формой не называется: имя формы возьмётся из каталога модуля', () => {
+    const dynamic = items[2].value;
+    if (dynamic.kind !== 'dynamic') throw new Error('цели обязаны быть динамической группой');
+    const schemaDir = `${DIR}/schema` as ResourceId;
+
+    const built = dynamic.items({} as never, {
+      ref: { id: schemaDir, name: 'schema', kind: 'directory' },
+      dir: schemaDir,
+      selection: [],
+      rootId: DIR,
+    });
+
+    // Каталог передан как есть (корень модуля найдёт команда), а имя формы — нет.
+    expect(built[0]).toMatchObject({ args: { dir: schemaDir, formName: undefined } });
   });
 
   it('пункты вносятся в подменю, а не в корень контекстного меню', () => {

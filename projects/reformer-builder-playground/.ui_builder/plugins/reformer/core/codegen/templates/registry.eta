@@ -1,15 +1,15 @@
-// registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
+// <%= it.layout.files.registry %> — реестр компонентов и источников данных схемы. Регенерируется.
 
 <% if (it.registry.hasPlaceholder) { -%>
 import type { ReactNode } from 'react';
 <% } -%>
 import { <%= it.registry.kitSymbols.join(', ') %> } from '<%= it.kit.importSpecifier %>';
-import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-<% if (it.wizard !== null) { -%>
-import { <% if (it.wizard.hasStep) { %><%= it.wizard.stepName %>, <% } %>Wizard } from '<%= it.layout.imports.wizard %>';
+<% for (const extra of it.registry.extraImports) { -%>
+import { <%= extra.symbols.join(', ') %> } from '<%= extra.from %>';
 <% } -%>
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 <% if (it.registry.dataSourceNames.length > 0) { -%>
-import { <%= it.registry.dataSourceNames.join(', ') %> } from '<%= it.layout.imports.dataSources %>';
+import { <%= it.registry.dataSourceNames.join(', ') %> } from '<%= it.rel('registry', 'constants') %>';
 <% } -%>
 <% if (it.registry.hasPlaceholder) { -%>
 
@@ -17,16 +17,16 @@ import { <%= it.registry.dataSourceNames.join(', ') %> } from '<%= it.layout.imp
 const Placeholder = ({ children }: { children?: ReactNode }): ReactNode => children ?? null;
 <% } -%>
 
-export function createRegistry() {
+export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
     reg.component(FIELD_WRAPPER, <%= it.registry.fieldWrapper %>);
-<% if (it.wizard !== null) { -%>
-    // Визард и тело шага — из шима <%= it.layout.files.wizard %>.
-<% for (const name of it.wizard.hostNames) { -%>
-    reg.component('<%= name %>', Wizard);
+<% if (it.registry.wizard !== null) { -%>
+    // Визард — библиотечный: шаги берёт из узлов-детей, форму и поток — из сборки.
+<% for (const name of it.registry.wizard.hostNames) { -%>
+    reg.component('<%= name %>', <%= it.registry.wizard.symbol %>);
 <% } -%>
-<% if (it.wizard.hasStep) { -%>
-    reg.component('<%= it.wizard.stepName %>', <%= it.wizard.stepName %>);
+<% if (it.registry.wizard.stepName !== null) { -%>
+    reg.component('<%= it.registry.wizard.stepName %>', <%= it.registry.wizard.stepName %>);
 <% } -%>
 <% } -%>
 <% for (const c of it.registry.components) { -%>

@@ -1,5 +1,5 @@
 /**
- * Жизненный цикл состояний превью: не дольше открытых файлов каталога формы.
+ * Жизненный цикл состояний превью: не дольше открытых файлов модуля формы.
  *
  * Проверяется шов между рабочей областью и реестром состояний — тот же, что раньше жил
  * в порту композиции (`shell/boot/ports/preview`) и проверялся там же. Двойник теперь
@@ -13,6 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   attachPreviewLifecycle,
+  moduleDirectoryOf,
   type PreviewLifecycleDocuments,
   type PreviewLifecycleFiles,
 } from './lifecycle';
@@ -41,6 +42,7 @@ function fakeDocuments() {
       const at = id.lastIndexOf('/');
       return at === -1 ? id : id.slice(0, at);
     },
+    resolve: (dir, ...segments) => [dir, ...segments].join('/'),
   };
 
   return {
@@ -86,6 +88,72 @@ describe('attachPreviewLifecycle', () => {
     expect(sessions.ids()).toEqual([]);
   });
 
+  it('состояние формы из schema/ живёт, пока открыт файл из любой папки её модуля', () => {
+    // Модуль разложен по ролям: документ — в `schema/`, правила — в `validation/`. Человек
+    // пошёл чинить правила — вкладка формы заместилась, а каталог у файла уже другой.
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/credit/schema/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    w.setOpen(['src:forms/credit/validation/form.ts']);
+    expect(sessions.ids()).toEqual([form]);
+
+    // Файл в корне модуля — тоже его файл.
+    w.setOpen(['src:forms/credit/index.ts']);
+    expect(sessions.ids()).toEqual([form]);
+
+    // Самый глубокий файл раскладки: часть документа в папке шага.
+    w.setOpen(['src:forms/credit/schema/steps/kontakty/form.schema.json']);
+    expect(sessions.ids()).toEqual([form]);
+
+    // Соседний файл той же папки `schema/`.
+    w.setOpen(['src:forms/credit/schema/registry.ts']);
+    expect(sessions.ids()).toEqual([form]);
+  });
+
+  it('файл соседней формы состояние не держит', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/credit/schema/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    // У соседней формы своя папка `schema/`: общего у них только родитель модулей.
+    w.setOpen(['src:forms/loan/schema/form.schema.json', 'src:forms/readme.md']);
+
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('файл глубже папок модуля состояние не держит: иначе форма в корне жила бы вечно', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/credit/schema/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    w.setOpen(['src:forms/credit/a/b/c/d/deep.ts']);
+
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('у формы прежней плоской раскладки файлы папок шагов тоже держат состояние', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/contact/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    w.setOpen(['src:forms/contact/steps/kontakty/form.validation.ts']);
+
+    expect(sessions.ids()).toEqual([form]);
+  });
+
   it('без открытых документов забывается всё: проект закрыли', () => {
     const sessions = createPreviewSessions();
     const w = fakeDocuments();
@@ -108,6 +176,21 @@ describe('attachPreviewLifecycle', () => {
     attachPreviewLifecycle(w.documents, w.files, sessions);
 
     expect(sessions.ids()).toEqual([]);
+  });
+
+  it('каталог модуля: каталог документа, а из папки schema — её родитель', () => {
+    const { files } = fakeDocuments();
+    expect(moduleDirectoryOf(files, 'src:forms/credit/schema/form.schema.json')).toBe(
+      'src:forms/credit'
+    );
+    expect(moduleDirectoryOf(files, 'src:forms/credit/form.schema.json')).toBe('src:forms/credit');
+    // Решает имя папки целиком, а не его часть, и только один уровень.
+    expect(moduleDirectoryOf(files, 'src:forms/credit/schemas/form.schema.json')).toBe(
+      'src:forms/credit/schemas'
+    );
+    expect(moduleDirectoryOf(files, 'src:forms/schema/schema/form.schema.json')).toBe(
+      'src:forms/schema'
+    );
   });
 
   it('снятие прекращает слежение, но состояний не трогает', () => {

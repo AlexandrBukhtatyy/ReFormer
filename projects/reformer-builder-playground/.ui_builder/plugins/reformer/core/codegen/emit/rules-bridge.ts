@@ -1,14 +1,22 @@
 /**
- * Мост к билдерам `@reformer/mcp`: `form.validation.ts` и `form.behavior.ts` ИЗ ПРАВИЛ формы.
+ * Мост к билдерам `@reformer/mcp`: тела правил валидации и связей поведения ИЗ ПРАВИЛ формы.
  *
- * Содержимое собирают чужие билдеры — там правила уже умеют превращаться в код, там же живут
- * проверка циклов и кросс-проверки. Обвязка остаётся нашей: свои имена файлов, свои импорты.
- * Второй комплект эмиттеров для того же самого разошёлся бы с первым на первой же правке,
- * и разошёлся бы молча.
+ * Правила в код превращают чужие билдеры — там это уже умеют, там же живут проверка циклов и
+ * кросс-проверки. Второй комплект эмиттеров для того же самого разошёлся бы с первым на первой
+ * же правке, и разошёлся бы молча.
  *
- * Одна несостыковка требует адаптации и потому названа явно: MCP кладёт тип модели в `model.ts`,
- * а билдер — в `types.ts`. Импорт переписывается здесь, а не правится в MCP: раскладка файлов —
- * решение потребителя, и у CLI-потребителя она другая.
+ * ## Что берётся у MCP, а что печатаем сами
+ *
+ * Билдер MCP печатает МОДУЛЬ целиком: шапку, импорты и одно объявление
+ * `export const <имя> = define…<T>(({ model }) => { … });`. Модуль единого контракта устроен
+ * иначе — правила формы обёрнуты в `FormValidation`, правила шагов уходят в поток, а связи
+ * поведения живут в одной функции с правилами узлов. Поэтому от вывода MCP берётся только то, что
+ * выводится из правил: СТРОКИ ИМПОРТА операторов и валидаторов и СТРОКИ ТЕЛА объявления
+ * ({@link parseEmittedModule}). Обвязку — имена экспортов, тип формы, `FormValidation`,
+ * комментарии — раскладывают шаблоны.
+ *
+ * Разбор держится на форме вывода MCP и закреплён тестом на настоящем выводе: если билдер
+ * начнёт печатать иначе, упадёт тест, а не модуль у пользователя.
  *
  * @module plugins/reformer/core/codegen/emit/rules-bridge
  */
@@ -16,20 +24,64 @@
 import {
   buildBehaviorTs,
   buildValidationSchemaTs,
-  buildValidationTs,
 } from '@reformer/mcp/dist/core/generate/builders.js';
 import { normalizeIntent } from '@reformer/mcp/dist/core/generate/form-intent.js';
 import { visibilityFromRules, type FormRules } from '../../form-model/rules';
 import type { Names } from '../naming';
-import { MODULE_FILES, importOf } from '../layout';
 import type { ModuleLayout, StepInfo } from '../steps';
+
+/** Модуль, напечатанный билдером MCP, в разобранном виде. */
+export interface EmittedModule {
+  /** Строки `import { … } from '…';` — значения; импорт типа формы сюда не входит. */
+  readonly imports: readonly string[];
+  /** Строки тела объявления (между `… => {` и `});`), без отступа первого уровня. */
+  readonly body: readonly string[];
+}
+
+/** Первая строка объявления: `export const formBehavior = defineFormBehavior<T>(({ model }) => {`. */
+const DECLARATION = /^export const [A-Za-z_$][\w$]* = [A-Za-z_$][\w$]*<[^>]*>\(.*=> \{$/;
+
+/** Закрывающая строка объявления — на нулевой колонке; вложенные блоки стоят с отступом. */
+const DECLARATION_END = '});';
+
+/**
+ * Разобрать модуль, напечатанный билдером MCP.
+ *
+ * @throws Error если в тексте нет объявления `export const … => {` … `});`: молча отдать пустое
+ * тело значило бы напечатать форму без правил, которые человек считает действующими.
+ */
+export function parseEmittedModule(code: string): EmittedModule {
+  const lines = code.replace(/\s+$/, '').split('\n');
+  const start = lines.findIndex((line) => DECLARATION.test(line));
+  const end = lines.lastIndexOf(DECLARATION_END);
+  if (start < 0 || end <= start) {
+    throw new Error(
+      'вывод билдера @reformer/mcp не разбирается: нет объявления `export const … => {` … `});`'
+    );
+  }
+  return {
+    imports: lines.slice(0, start).filter((line) => line.startsWith('import {')),
+    // Отступ первого уровня ставит шаблон — там, где он виден вместе с окружающим кодом.
+    body: lines.slice(start + 1, end).map((line) => (line.startsWith('  ') ? line.slice(2) : line)),
+  };
+}
+
+/** Имена из `import { a, b } from '…';`. */
+function namedImports(line: string): readonly string[] {
+  const match = /^import \{([^}]*)\} from '[^']+';$/.exec(line);
+  if (match === null) return [];
+  return match[1]!
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
 
 /**
  * Минимальный intent для эмиссии правил.
  *
  * Ни полей, ни раскладки, ни источников данных: всё это уже есть в схеме, и передавать его сюда
- * значило бы завести второй источник истины о форме. Оба билдера читают только имя формы, имя
- * типа и сами правила.
+ * значило бы завести второй источник истины о форме. Билдер читает только имя формы, имя типа и
+ * сами правила.
  */
 function intentOf(rules: FormRules, names: Names) {
   return normalizeIntent({
@@ -41,27 +93,81 @@ function intentOf(rules: FormRules, names: Names) {
   });
 }
 
-/** MCP импортирует тип из `./model`, у билдера он в `./types`. */
-function retargetModelImport(code: string, typeName: string): string {
-  return code.replace(
-    new RegExp(`import type \\{ ${typeName} \\} from './model';`),
-    `import type { ${typeName} } from './types';`
+// ── Поведение: связи над моделью ────────────────────────────────────────────
+
+/** Связи над моделью, выведенные из правил формы. */
+export interface BehaviorCode {
+  /** Операторы `@reformer/core/behaviors`, которыми пользуются связи (`compute`, `copyFrom`, …). */
+  readonly operators: readonly string[];
+  /** Строки связей — без отступа. */
+  readonly lines: readonly string[];
+}
+
+/** Оператор, которым билдер объявляет поведение: в теле он не участвует. */
+const BEHAVIOR_DECLARATOR = 'defineFormBehavior';
+
+/**
+ * Связи поведения из правил формы.
+ *
+ * Правила узлов (`hideWhen`, события, пропсы) сюда не входят: они печатаются из `rules.render`
+ * тем же шаблоном поведения, и `visibility` intent-а билдер связей не читает.
+ */
+export function behaviorFromRules(rules: FormRules, names: Names): BehaviorCode {
+  const parsed = parseEmittedModule(buildBehaviorTs(intentOf(rules, names)));
+  return {
+    operators: parsed.imports
+      .flatMap(namedImports)
+      .filter((name) => name !== BEHAVIOR_DECLARATOR)
+      .sort(),
+    lines: parsed.body,
+  };
+}
+
+// ── Валидация ───────────────────────────────────────────────────────────────
+
+type ValidationRule = FormRules['validation'][number];
+
+/** Правила валидации, выведенные из правил формы: импорты операторов/валидаторов и тело. */
+export type ValidationCode = EmittedModule;
+
+/**
+ * Правило строки массива — с целью ОТ СТРОКИ.
+ *
+ * Правила формы пишут цель такого правила полным путём (`references.name` при `each: 'references'`):
+ * так её проверяет целостность правил (`form-model/rules-integrity`), и так же её принимает билдер
+ * единого контракта MCP. Билдер одной схемы (`buildValidationSchemaTs`) ждёт путь от строки и
+ * подставляет его как есть — с полным путём выходило `item.$.references.name`, и модуль не
+ * компилировался. Имя массива срезается здесь; цель, уже записанная от строки, не меняется.
+ */
+function rowRelative(rule: ValidationRule): ValidationRule {
+  if (rule.each === undefined || !rule.target.startsWith(`${rule.each}.`)) return rule;
+  return { ...rule, target: rule.target.slice(rule.each.length + 1) };
+}
+
+/**
+ * Тело схемы валидации для набора правил либо `null`, если правил нет.
+ *
+ * `null`, а не пустой вывод билдера: для пустого набора он печатает импорт `validate` и параметр
+ * `model`, которыми никто не пользуется, — у пользователя это ошибка `noUnusedLocals`. Заготовку
+ * без правил печатает шаблон.
+ */
+function validationOf(rules: readonly ValidationRule[], names: Names): ValidationCode | null {
+  if (rules.length === 0) return null;
+  // Имя экспорта и импорт типа билдеру обязательны, но в разбор не попадают: объявление и импорт
+  // типа формы печатает шаблон — у него свои имена (`formRules`, `stepRules`, `crossStepRules`).
+  return parseEmittedModule(
+    buildValidationSchemaTs(rules.map(rowRelative), {
+      interfaceName: names.TypeName,
+      exportName: 'rules',
+      typeImport: './types',
+    })
   );
 }
 
-/** `form.validation.ts` из правил. */
-export function validationFromRules(rules: FormRules, names: Names): string {
-  return retargetModelImport(buildValidationTs(intentOf(rules, names)), names.TypeName);
+/** Правила простой формы — все правила валидации одним набором (`formRules`). */
+export function formRulesFromRules(rules: FormRules, names: Names): ValidationCode | null {
+  return validationOf(rules.validation, names);
 }
-
-/** `form.behavior.ts` из правил. */
-export function formBehaviorFromRules(rules: FormRules, names: Names): string {
-  return retargetModelImport(buildBehaviorTs(intentOf(rules, names)), names.TypeName);
-}
-
-// ── Визард: правила валидации по шагам ──────────────────────────────────────
-
-type ValidationRule = FormRules['validation'][number];
 
 /**
  * Путь, по которому правило относится к полю: у правила над элементами массива — путь массива
@@ -87,111 +193,33 @@ export function stepOfRule(rule: ValidationRule, layout: ModuleLayout): StepInfo
   return layout.steps.find((step) => covers(step.fields, key));
 }
 
-/** Правила одного шага. */
-function rulesOf(rules: FormRules, layout: ModuleLayout, step: StepInfo): ValidationRule[] {
-  return rules.validation.filter((rule) => stepOfRule(rule, layout) === step);
-}
-
 /**
- * `steps/<шаг>/form.validation.ts` из правил формы либо `null`, если у шага своих правил нет.
- *
- * `null`, а не пустой вывод билдера: для пустого набора он печатает импорт `validate` и параметр
- * `model`, которыми никто не пользуется, — у пользователя это ошибка `noUnusedLocals`. Заготовку
- * без правил печатает шаблон.
+ * Правила шага визарда (`validation/<шаг>.ts` → `stepRules`) либо `null`, если у шага своих
+ * правил нет.
  */
-export function stepValidationFromRules(
+export function stepRulesFromRules(
   rules: FormRules,
   names: Names,
   layout: ModuleLayout,
   step: StepInfo
-): string | null {
-  const own = rulesOf(rules, layout, step);
-  if (own.length === 0) return null;
-  return buildValidationSchemaTs(own, {
-    interfaceName: names.TypeName,
-    exportName: 'stepValidation',
-    typeImport: importOf(step.files.validation, MODULE_FILES.types),
-    header: `Шаг «${step.title}» — правила полей шага. «Далее» проверяет только их.`,
-  });
-}
-
-/** Спецификатор модуля валидации ядра — туда дописываются имена агрегатора. */
-const VALIDATION_MODULE = '@reformer/core/validation';
-
-/** Дописать имена в named-импорт из `module` (или добавить импорт после последнего). */
-function withNamedImport(code: string, module: string, names: readonly string[]): string {
-  const escaped = module.replace(/[/.]/g, (c) => `\\${c}`);
-  const line = new RegExp(`^import \\{([^}]*)\\} from '${escaped}';$`, 'm');
-  const match = line.exec(code);
-  if (match !== null) {
-    const present = match[1]!
-      .split(',')
-      .map((name) => name.trim())
-      .filter(Boolean);
-    const merged = [...present, ...names.filter((name) => !present.includes(name))];
-    return code.replace(line, `import { ${merged.join(', ')} } from '${module}';`);
-  }
-  const lines = code.split('\n');
-  const last = lines.reduce((at, text, i) => (text.startsWith('import ') ? i : at), -1);
-  lines.splice(last + 1, 0, `import { ${names.join(', ')} } from '${module}';`);
-  return lines.join('\n');
+): ValidationCode | null {
+  return validationOf(
+    rules.validation.filter((rule) => stepOfRule(rule, layout) === step),
+    names
+  );
 }
 
 /**
- * Корневой `form.validation.ts` визарда, когда у формы есть правила ВНЕ шагов, либо `null`, если все
- * правила разошлись по шагам (тогда корень печатает шаблон-агрегатор).
- *
- * Правила вне шагов становятся `restValidation` и проверяются только полной проверкой (отправка);
- * экспорты корня те же, что у простой формы и у агрегатора: `formValidation`, `makeStepCheck`.
+ * Правила визарда ВНЕ шагов (`validation/form.ts` → `crossStepRules`) либо `null`, если все
+ * правила разошлись по шагам. Проверяются целиком, при отправке: в сборку уходят полем `extras`.
  */
-export function wizardValidationFromRules(
+export function crossStepRulesFromRules(
   rules: FormRules,
   names: Names,
   layout: ModuleLayout
-): string | null {
-  const rest = rules.validation.filter((rule) => stepOfRule(rule, layout) === undefined);
-  if (rest.length === 0) return null;
-  const types = importOf(MODULE_FILES.validation, MODULE_FILES.types);
-  let code = buildValidationSchemaTs(rest, {
-    interfaceName: names.TypeName,
-    exportName: 'restValidation',
-    typeImport: types,
-    header:
-      'Валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts, здесь их\n' +
-      'сборка и правила полей вне шагов (проверяются только при отправке).',
-  });
-  code = withNamedImport(code, VALIDATION_MODULE, [
-    'apply',
-    'applyValidationResult',
-    'defineValidation',
-    'runValidation',
-    'type ValidationResult',
-  ]);
-  code = withNamedImport(code, '@reformer/core', ['type FormModel']);
-  code = withNamedImport(code, importOf(MODULE_FILES.validation, 'steps/index.ts'), [
-    'stepValidations',
-  ]);
-  return `${code.trimEnd()}
-
-/** Полная проверка (отправка): правила всех шагов и поля вне шагов. */
-export const formValidation = defineValidation<${names.TypeName}>(() => {
-  apply(...stepValidations, restValidation);
-});
-
-/** Шаг без правил: проверка ничего не находит. */
-const noStepRules = defineValidation<${names.TypeName}>(() => {});
-
-/**
- * Проверка шага визарда (номер с единицы) — из неё визард строит поток шагов. \`touch: true\`
- * обязателен: киты показывают ошибку только у тронутого поля, и без него остановленный шаг
- * выглядел бы как неработающая кнопка.
- */
-export function makeStepCheck(model: FormModel<${names.TypeName}>) {
-  return async (step: number): Promise<ValidationResult> => {
-    const result = await runValidation(model, stepValidations[step - 1] ?? noStepRules);
-    applyValidationResult(result, { touch: true });
-    return result;
-  };
-}
-`;
+): ValidationCode | null {
+  return validationOf(
+    rules.validation.filter((rule) => stepOfRule(rule, layout) === undefined),
+    names
+  );
 }

@@ -199,8 +199,28 @@ describe('возможность «напечатать модуль формы�
     const legacy = await service.print(LEGACY_FORM, 'Анкета');
 
     expect(legacy).toEqual(modern);
+    // Файлы отданы в раскладке «папки по ролям», от корня модуля формы: документ — в `schema/`,
+    // страница названа типом формы, реэкспорты — `index.ts`. Плагин шаблонов кладёт их как есть.
+    const paths = modern.map((file) => file.path);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'schema/form.schema.json',
+        'AnketaForm.tsx',
+        'index.ts',
+        'application/create.ts',
+        'validation/form.ts',
+        'behavior/index.ts',
+      ])
+    );
+    expect(paths.filter((path) => !path.includes('/')).sort()).toEqual([
+      'AnketaForm.tsx',
+      'README.md',
+      'index.ts',
+    ]);
     // И это модуль формы с полем, а не пустой: без перевода поле не было бы найдено.
-    expect(legacy.find((file) => file.path === 'types.ts')?.content).toContain('fullName: string;');
+    expect(legacy.find((file) => file.path === 'types/anketa.ts')?.content).toContain(
+      'fullName: string;'
+    );
   });
 });
 

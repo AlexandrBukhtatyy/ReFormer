@@ -1,7 +1,14 @@
+<%
+const files = it.layout.files;
+const steps = it.layout.steps;
+const base = (path) => path.slice(path.lastIndexOf('/') + 1);
+const inSchemaDir = it.layout.schemaDir === 'schema/';
+const stepSchemas = it.layout.splitSteps;
+-%>
 # <%= it.names.title %>
 
-Сгенерированная форма (renderer-json). Рендерится и работает сразу на синтетических данных —
-«доведение» сводится к реализации методов в ваших файлах.
+Сгенерированная форма (renderer-json, единая сборка `createForm`). Рендерится и работает сразу на
+синтетических данных — «доведение» сводится к реализации методов в ваших файлах.
 
 ## Встраивание
 
@@ -13,59 +20,96 @@
 
 ## Файлы
 
-<% if (it.layout.isWizard) { -%>
-Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1)
-для многошаговой формы: общее — в корне, код каждого шага — в своей папке `steps/<шаг>/`.
+Раскладка — папки по ролям (канон `@reformer/mcp` docs/llms/06-form-directory-layout.md §3):
+сборка формы одна (`<%= files.create %>`), ею пользуются и страница, и запись реестра форм.
 
 ```
 <%= it.names.dir %>/
-├── <%= it.layout.files.schema %>   <%= it.layout.isSplit ? 'схема формы, шаги — ссылками на свои файлы' : 'схема формы целиком (её открывает билдер)' %>
-├── <%= it.layout.files.validation %>   сборка правил шагов + поля вне шагов
-├── <%= it.layout.files.render %>   submit, передача визарду формы и проверки, вызов шагов
-└── steps/
-    ├── index.ts   шаги по порядку (регенерируется)
-<% it.layout.steps.forEach((step, i) => { -%>
-    <%= i === it.layout.steps.length - 1 ? '└──' : '├──' %> <%= step.dir %>/   «<%= step.title %>»: <%= step.schemaImport ? 'form.schema.json, ' : '' %>form.validation.ts, form.render.ts
+├── <%= files.page %>   страница: сборка формы → FormRenderer
+├── <%= files.barrel %>   реэкспорты: страница, сборка, запись реестра форм, тип формы
+├── <%= files.readme %>
+<% if (!inSchemaDir) { -%>
+├── <%= files.schema %>   документ формы (его открывает билдер)
+<% for (const step of stepSchemas) { -%>
+├── <%= step.schemaFile %>   схема шага «<%= step.title %>»
+<% } -%>
+<% } -%>
+├── application/
+│   ├── <%= base(files.create) %>   единственная сборка формы: createForm({ … })
+│   ├── <%= base(files.submit) %>   отправка: запрос → исход → текст для человека
+│   └── <%= base(files.entry) %>   запись реестра форм
+├── api/
+│   └── <%= base(files.api) %>   запросы к серверу
+├── model/
+│   ├── <%= base(files.initial) %>   начальные значения
+│   └── <%= base(files.model) %>   фабрика модели
+├── schema/
+<% if (inSchemaDir) { -%>
+│   ├── <%= base(files.schema) %>   документ формы (его открывает билдер)
+<% for (const step of stepSchemas) { -%>
+│   ├── <%= step.schemaFile.slice(it.layout.schemaDir.length) %>   схема шага «<%= step.title %>»
+<% } -%>
+<% } -%>
+│   └── <%= base(files.registry) %>   реестр компонентов и источников данных
+├── validation/
+<% if (it.layout.isWizard) { -%>
+│   ├── <%= base(files.validation) %>   валидация формы: правила вне шагов
+<% steps.forEach((step, i) => { -%>
+│   <%= i === steps.length - 1 ? '└──' : '├──' %> <%= base(step.rulesFile) %>   правила шага «<%= step.title %>»
 <% }) -%>
+<% } else { -%>
+│   └── <%= base(files.validation) %>   валидация формы: правила и стратегия проверки
+<% } -%>
+├── behavior/
+│   └── <%= base(files.behavior) %>   единственное поведение: связи над моделью и правила узлов схемы
+<% if (it.layout.isWizard) { -%>
+├── flow/
+│   └── <%= base(files.flow) %>   поток шагов: порядок шагов и их правила
+<% } -%>
+├── types/
+│   └── <%= base(files.types) %>   тип формы
+└── constants/
+    └── <%= base(files.constants) %>   опции и константы источников данных
 ```
 
 <% if (it.layout.isSplit) { -%>
-Схема разбита по шагам: корень держит `{ "$ref": "./steps/<шаг>/form.schema.json" }`, `index.tsx`
-собирает форму `composeJsonFormSchema`. Билдер открывает корень как одну форму и раскладывает правки
-по файлам сам. Папка шага закреплена ссылкой: переименование шага её не меняет.
-<% } else { -%>
-Папка шага названа по его заголовку. Порядок шагов задаёт `steps/index.ts`, поэтому перестановка
-шагов папки не трогает. Переименование шага даёт новую папку, а старая остаётся с вашими правками —
-перенесите их и удалите её.
-<% } -%>
-<% } else { -%>
-Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1),
-плоский: без `lib/` и `components/`, запись реестра форм — в `index.tsx`.
-<% } -%>
+Схема разбита по шагам: корневой документ держит `{ "$ref": "./steps/<шаг>/form.schema.json" }`,
+сборка собирает форму `composeJsonFormSchema`. Билдер открывает корень как одну форму и раскладывает
+правки по файлам сам. Папка шага закреплена ссылкой: переименование шага её не меняет.
 
+<% } else if (it.layout.isWizard) { -%>
+Файл правил шага назван по его заголовку. Порядок шагов задаёт поток (`<%= files.flow %>`), поэтому
+перестановка шагов файлы не трогает. Переименование шага даёт новый файл правил, а старый остаётся
+с вашими правками — перенесите их и удалите его.
+
+<% } -%>
 - **Регенерируемые** (перезаписываются при повторной генерации): <%= it.files.filter((f) => f.cls === 'derived').map((f) => '`' + f.path + '`').join(', ') %>.
 - **Ваши** (пишутся один раз, не затираются): <%= it.files.filter((f) => f.cls === 'user').map((f) => '`' + f.path + '`').join(', ') %>.
 
-Схема лежит в `<%= it.layout.files.schema %>` — допустимый вариант канона («схема как данные»), выбранный
+Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
+поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
+
+Схема лежит в `<%= files.schema %>` — допустимый вариант канона («схема как данные»), выбранный
 ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на
 компиляции: опечатка внутри них останется до рантайма, и никто её не поймает. Нужна проверка —
-переложите схему в `form.schema.ts` литералом `defineJsonSchemaV1<<%= it.names.TypeName %>>({ ... })`;
-править её в билдере после этого будет нельзя.
+переложите схему в `.ts` литералом `defineJsonSchema<<%= it.names.TypeName %>>({ ... })`; править её в
+билдере после этого будет нельзя.
 
 Компоненты импортируются из `<%= it.kit.importSpecifier %>` — того кита, который был
 активен при генерации (`<%= it.kit.label %>`).
 
 ## Методы для реализации
 
-- `api.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
+- `<%= files.api %>` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
+- `<%= files.submit %>` → тексты исхода и то, что делать после отправки (сейчас — два сообщения через `onResult`).
 <% if (it.selectors.sections.length > 0) { -%>
-- `<%= it.layout.isWizard ? 'steps/<шаг>/' + it.layout.files.render : it.layout.files.render %>` → раскомментируйте `hideWhen` для секций: <%= it.selectors.sections.map((s) => '`' + s.selector + '`').join(', ') %>.
+- `<%= files.behavior %>` → раскомментируйте `hideWhen` для секций: <%= it.selectors.sections.map((s) => '`' + s.selector + '`').join(', ') %>.
 <% } -%>
 <% if (it.dataSources.labels.length > 0) { -%>
-- `data-sources.ts` → подписи элементов массивов: <%= it.dataSources.labels.map((x) => '`' + x + '`').join(', ') %>.
+- `<%= files.constants %>` → подписи элементов массивов: <%= it.dataSources.labels.map((x) => '`' + x + '`').join(', ') %>.
 <% } -%>
 <% if (it.dataSources.options.length > 0) { -%>
-- `data-sources.ts` → замените синтетические опции реальными словарями или загрузчиками.
+- `<%= files.constants %>` → замените синтетические опции реальными словарями или загрузчиками.
 <% } -%>
-- `<%= it.layout.isWizard ? 'steps/<шаг>/' + it.layout.files.validation : it.layout.files.validation %>` → допишите правила (сейчас — только `required`).
-- `form.behavior.ts` → вычисляемые поля и условное включение (по желанию).
+- `<%= it.layout.isWizard ? 'validation/<шаг>.ts' : files.validation %>` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `<%= files.behavior %>` → вычисляемые поля и условное включение (по желанию).

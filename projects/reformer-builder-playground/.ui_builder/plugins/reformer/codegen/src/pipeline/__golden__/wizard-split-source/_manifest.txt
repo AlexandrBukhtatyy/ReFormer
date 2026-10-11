@@ -1,19 +1,20 @@
-form.schema.json	derived
-steps/anketa/form.schema.json	derived
-steps/kontakty/form.schema.json	derived
-types.ts	derived
-model.ts	derived
-registry.ts	derived
-index.tsx	derived
-wizard.tsx	derived
-steps/index.ts	derived
-data-sources.ts	user
-form.render.ts	user	regenerable
-steps/anketa/form.render.ts	user	regenerable
-steps/kontakty/form.render.ts	user	regenerable
-form.behavior.ts	user	regenerable
-form.validation.ts	user	regenerable
-steps/anketa/form.validation.ts	user	regenerable
-steps/kontakty/form.validation.ts	user	regenerable
-api.ts	user
+schema/form.schema.json	derived
+schema/steps/anketa/form.schema.json	derived
+schema/steps/kontakty/form.schema.json	derived
+types/zayavka-na-kredit.ts	derived
+model/initial-value.ts	derived
+model/model.ts	derived
+schema/registry.ts	derived
+application/create.ts	derived
+application/entry.ts	derived
+ZayavkaNaKreditForm.tsx	derived
+index.ts	derived
+flow/zayavka-na-kredit-flow.ts	derived
+constants/zayavka-na-kredit.ts	user
+behavior/index.ts	user	regenerable
+validation/form.ts	user	regenerable
+validation/anketa.ts	user	regenerable
+validation/kontakty.ts	user	regenerable
+application/submit.ts	user
+api/index.ts	user
 README.md	derived

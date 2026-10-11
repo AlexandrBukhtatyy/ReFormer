@@ -1,122 +1,263 @@
 /**
- * Визард по новой раскладке (`steps/<шаг>/…`) в компилирующем превью — целиком, без двойников
+ * Модуль формы в раскладке «папки по ролям» в компилирующем превью — целиком, без двойников
  * движка.
  *
- * Стык трёх мест, и разойтись они могут только здесь: кодоген печатает `steps/index.ts` и
- * импорт `./steps` из корневого `form.validation.ts`; превью читает каталог формы (`readSidecars`)
- * и собирает энтри (`./entry`) только из корневых файлов; линковщик оболочки резолвит `./steps`
- * в `steps/index.ts`. Любое звено, оставшееся «плоским», даёт визард, у которого «Далее» не
- * проверяет шаг, — и снимок текста файла этого не ловит: он сверяет строку с собой же.
+ * Стык четырёх мест, и разойтись они могут только здесь: кодоген печатает модуль по папкам ролей
+ * (документ и файл шага — в `schema/`, правила шага — в `validation/<шаг>.ts`, поток —
+ * в `flow/<форма>-flow.ts`); превью читает каталог МОДУЛЯ (`readSidecars`), а не каталог
+ * документа, и требует файлы ролей (`planModule`); линковщик оболочки резолвит `../validation/…`
+ * из файла потока; единая сборка получает поток и проверяет шаг на «Далее». Любое звено,
+ * оставшееся при прежней раскладке, даёт визард, у которого «Далее» не проверяет шаг, — и снимок
+ * текста файла этого не ловит: он сверяет строку с собой же.
  *
  * @module shell/boot/integration/wizard-steps-preview.test
  */
 
-import { describe, expect, it } from 'vitest';
-import { builtinKit, wizardSchema } from '../core/testing';
-import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import { describe, expect, it, vi } from 'vitest';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import { builtinKit, plainSchema, seededRules, wizardSchema } from '../core/testing';
+import { joinFormSchema, stepRefsOf } from '../core/form-model';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
-import type { PreviewHost, PreviewModules } from '../render/src/host';
+import type { PreviewModules } from '../render/src/host';
 import { compileForm } from '../render/src/compiling/compile';
-import { extractContract } from '../render/src/compiling/exports';
+import {
+  appliedArtifacts,
+  extractContract,
+  runFactories,
+  type FormContract,
+} from '../render/src/compiling/exports';
+import { alignFlow } from '../render/src/compiling/flow';
+import { moduleFilesFor, planModule } from '../render/src/compiling/module';
 import { readSidecars } from '../render/src/compiling/read';
+import { buildRuntimeBundle, type PreviewForm } from '../render/src/runtime/build';
+import { createFakeHost } from '../render/src/testing';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
 import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
-const ROOT = 'fake:form';
+/** Каталог модуля в проекте и документ формы в нём — там, куда его кладёт кодоген. */
+const MODULE_DIR = 'forms/zayavka';
+const DOCUMENT_PATH = `${MODULE_DIR}/schema/form.schema.json`;
+const DOCUMENT = `fake:${DOCUMENT_PATH}` as ResourceId;
 
-/** Порт превью над картой «путь от каталога формы → текст» — ровно то, что читает `readSidecars`. */
-function treeHost(tree: ReadonlyMap<string, string>): PreviewHost {
-  const ref = (id: string, kind: 'file' | 'directory'): ResourceRef => ({
-    id: id as ResourceId,
-    sourceId: 'fake',
-    path: id.slice(id.indexOf(':') + 1),
-    name: id.slice(id.lastIndexOf('/') + 1),
-    kind,
-    mediaType: 'text/plain',
-  });
-  const list = async (dir: ResourceId): Promise<readonly ResourceRef[]> => {
-    const prefix = dir === ROOT ? '' : `${dir.slice(ROOT.length + 1)}/`;
-    const names = new Map<string, 'file' | 'directory'>();
-    for (const path of tree.keys()) {
-      if (!path.startsWith(prefix)) continue;
-      const rest = path.slice(prefix.length);
-      const cut = rest.indexOf('/');
-      names.set(cut === -1 ? rest : rest.slice(0, cut), cut === -1 ? 'file' : 'directory');
-    }
-    return [...names].map(([name, kind]) => ref(`${dir}/${name}`, kind));
-  };
-  return {
-    siblings: () => list(ROOT as ResourceId),
-    list,
-    parentOf: (id: ResourceId) => id.slice(0, id.lastIndexOf('/')) as ResourceId,
-    readText: async (id: ResourceId) => {
-      const text = tree.get(id.slice(ROOT.length + 1));
-      if (text === undefined) throw new Error(`нет файла ${id}`);
-      return text;
-    },
-  } as unknown as PreviewHost;
+type GenerateInput = Parameters<typeof generateModule>[1];
+
+/** Модуль, напечатанный кодогеном: путь от корня модуля → текст. */
+async function printedModule(input: GenerateInput): Promise<ReadonlyMap<string, string>> {
+  const module = await generateModule(BUILTIN_TARGETS, input);
+  expect(module.problems).toEqual([]);
+  return new Map(module.files.map((file) => [file.path, file.content]));
 }
 
-describe('визард с папками шагов в компилирующем превью', () => {
-  it('собирается, и проверка шага из makeStepCheck останавливает пустой шаг', async () => {
-    // Обязательное поле шага — флагом в схеме: из него шаблон шага печатает `required`
-    // в `steps/<шаг>/form.validation.ts` (правила сайдкара разносит по шагам другой слой).
-    const schema = wizardSchema();
-    const json = JSON.stringify(schema).replace(
+/** Живая схема редактора: корневой документ, собранный с файлами шагов. */
+function liveSchema(files: ReadonlyMap<string, string>): JsonFormSchema {
+  const root = JSON.parse(files.get('schema/form.schema.json') ?? '') as JsonFormSchema;
+  const parts = new Map<string, unknown>(
+    stepRefsOf(root).map((ref) => [
+      ref,
+      // Ссылка шага записана ОТ КОРНЕВОГО ДОКУМЕНТА, поэтому файл шага лежит рядом с ним.
+      JSON.parse(files.get(`schema/${ref.replace(/^\.\//, '')}`) ?? '') as unknown,
+    ])
+  );
+  return joinFormSchema(root, parts).schema;
+}
+
+interface Previewed {
+  /** Пути файлов набора, который увидел линковщик. */
+  readonly set: readonly string[];
+  /** Файлы, экспорты которых точка входа выставила в разбор. */
+  readonly executed: readonly string[];
+  readonly contract: FormContract;
+  readonly form: PreviewForm;
+  /** Итоги отправки, которые сообщила форма. */
+  readonly results: [string, boolean][];
+}
+
+/**
+ * Путь компилирующей поверхности над напечатанным модулем: прочитать каталог модуля → исполнить
+ * файлы ролей настоящим линковщиком оболочки → разобрать контракт → собрать форму.
+ */
+async function preview(files: ReadonlyMap<string, string>): Promise<Previewed> {
+  const tree = Object.fromEntries(
+    [...files].map(([path, text]) => [`${MODULE_DIR}/${path}`, text])
+  );
+  const host = createFakeHost({ tree, source: { executesCode: true } });
+
+  const sources = await readSidecars(host, DOCUMENT);
+  expect(sources.problems).toEqual([]);
+  const plan = planModule(sources.resources.keys(), moduleFilesFor(DOCUMENT_PATH));
+  expect(plan.layout).toBe('roles');
+
+  const plugin = createPluginModules({ modules: RUNTIME_MODULES });
+  const loader: PreviewModules = {
+    load: plugin.modules.load,
+    prepare: async (set) => {
+      const [primed] = await Promise.all([plugin.prepareCached(set), plugin.warm(set)]);
+      return primed;
+    },
+  };
+  const compiled = await compileForm(sources.files, loader, {}, plan);
+  plugin.dispose();
+  expect(compiled.problems).toEqual([]);
+
+  const contract = extractContract(compiled.modules, plan);
+  const { behaviorRules, wireSubmit } = contract;
+  if (behaviorRules === undefined || wireSubmit === undefined) {
+    throw new Error('модуль не отдал половины поведения');
+  }
+  const values = runFactories(contract);
+  expect(values.problems).toEqual([]);
+
+  const schema = liveSchema(files);
+  const kit = builtinKit();
+  const results: [string, boolean][] = [];
+  const bundle = buildRuntimeBundle({
+    schema,
+    catalog: kit.catalog,
+    descriptor: kit.kit,
+    // Рисовать здесь нечего: компоненты уезжают в подписанные стабы, а собирается форма так же.
+    namespace: {},
+    mock: null,
+    extraRegistry: values.registry,
+    initialOverride: values.initial,
+    behavior: contract.behavior,
+    moduleBehavior: {
+      rules: behaviorRules,
+      wireSubmit,
+      onResult: (message, ok) => {
+        results.push([message, ok]);
+      },
+    },
+    validation: contract.validation,
+    flow: alignFlow(contract.flow, schema),
+    files: contract.files,
+  });
+  // Отправка привязалась к узлу живой схемы: его `selector` проставил тот же кодоген.
+  expect(bundle.problems).toEqual([]);
+  if (bundle.form === null) throw new Error('форма не собралась');
+
+  return {
+    set: [...sources.files.keys()],
+    executed: [...compiled.modules.keys()],
+    contract,
+    form: bundle.form,
+    results,
+  };
+}
+
+describe('разбитый визард в раскладке по ролям в компилирующем превью', () => {
+  it('собирается из каталога модуля, и «Далее» не пускает пустой обязательный шаг', async () => {
+    // Обязательное поле шага — флагом в схеме: из него шаблон правил шага печатает `required`
+    // в `validation/<шаг>.ts` (правила сайдкара разносит по шагам другой слой).
+    const source = wizardSchema();
+    const json = JSON.stringify(source).replace(
       '"componentProps":{"label":"Почта"}',
       '"componentProps":{"label":"Почта","required":true}'
     );
     expect(json).toContain('"required":true');
-    const module = await generateModule(BUILTIN_TARGETS, {
-      schema: JSON.parse(json) as typeof schema,
+    const files = await printedModule({
+      schema: JSON.parse(json) as typeof source,
       formName: 'Заявка',
       kit: builtinKit(),
+      splitSteps: true,
     });
-    expect(module.problems).toEqual([]);
-    const tree = new Map(module.files.map((file) => [file.path, file.content]));
-    // Раскладка визарда: агрегатор и папка шага действительно напечатаны.
-    expect([...tree.keys()].filter((path) => path.startsWith('steps/'))).toEqual(
+    // Раскладка: документ и файл шага — в `schema/`, правила шага и поток — в своих папках.
+    expect([...files.keys()]).toEqual(
       expect.arrayContaining([
-        'steps/index.ts',
-        expect.stringMatching(/^steps\/[^/]+\/form\.validation\.ts$/),
+        'schema/form.schema.json',
+        expect.stringMatching(/^schema\/steps\/[^/]+\/form\.schema\.json$/),
+        expect.stringMatching(/^validation\/(?!form\.ts$)[^/]+\.ts$/),
+        'flow/zayavka-flow.ts',
+        'application/create.ts',
+        'ZayavkaForm.tsx',
+        'index.ts',
       ])
     );
 
-    const sources = await readSidecars(treeHost(tree), `${ROOT}/form.schema.json` as ResourceId);
-    expect(sources.problems).toEqual([]);
-    expect(sources.files.has('steps/index.ts')).toBe(true);
-    expect(sources.files.has('index.tsx')).toBe(false);
+    const { set, executed, contract, form, results } = await preview(files);
 
-    const plugin = createPluginModules({ modules: RUNTIME_MODULES });
-    const loader: PreviewModules = {
-      load: plugin.modules.load,
-      prepare: async (files) => {
-        const [primed] = await Promise.all([plugin.prepareCached(files), plugin.warm(files)]);
-        return primed;
-      },
-    };
-    const compiled = await compileForm(sources.files, loader);
-    expect(compiled.problems).toEqual([]);
-    // Энтри требует только корень: файлы шагов исполнены как импорты, но в разбор не выставлены.
-    expect([...compiled.modules.keys()].some((key) => key.includes('/'))).toBe(false);
+    // Читается каталог модуля — родитель `schema/`: от каталога документа набор состоял бы из
+    // одного реестра и файла шага.
+    expect(set).toEqual(expect.arrayContaining(['flow/zayavka-flow.ts', 'validation/form.ts']));
+    expect(set).not.toContain('index.ts');
+    expect(set).not.toContain('schema/form.schema.json');
+    // Исполнены файлы ролей — и только они. Страница, реэкспорты модуля, сборка приложения и
+    // запись реестра форм в разбор не выставлены: превью собирает форму само.
+    expect(executed).toEqual([
+      'model/initial-value.ts',
+      'validation/form.ts',
+      'flow/zayavka-flow.ts',
+      'behavior/index.ts',
+      'application/submit.ts',
+      'schema/registry.ts',
+    ]);
+    expect(appliedArtifacts(contract)).toEqual([
+      'model',
+      'validation',
+      'flow',
+      'behavior',
+      'submit',
+      'registry',
+    ]);
+    expect(form.model.get()).toEqual({ email: '' });
 
-    const contract = extractContract(compiled.modules);
-    expect(contract.renderBehavior).toBeDefined();
-    expect(contract.validation).toBeDefined();
+    // Проверка шага идёт потоком сборки: `required` поля шага доехал из `validation/<шаг>.ts`
+    // через `flow/zayavka-flow.ts`. Останься превью при каталоге документа — потока не было бы
+    // вовсе, и пустой шаг прошёл бы.
+    const flow = form.flow;
+    if (flow === undefined) throw new Error('поток шагов не дошёл до сборки');
+    expect(flow.steps).toHaveLength(1);
+    await expect(flow.next()).resolves.toMatchObject({ status: 'stayed', reason: 'invalid' });
+    expect(flow.completed.value.size).toBe(0);
 
-    const validation = compiled.modules.get('form.validation.ts') as {
-      makeStepCheck: (model: unknown) => (step: number) => Promise<{ status: string }>;
-    };
-    const model = compiled.modules.get('model.ts') as Record<string, unknown>;
-    const create = Object.entries(model).find(
-      ([name, value]) => /^create\w*FormModel$/.test(name) && typeof value === 'function'
-    )?.[1] as (() => unknown) | undefined;
-    expect(create).toBeDefined();
-    const checkStep = validation.makeStepCheck(create?.());
-    // `required` поля шага доехал из `steps/<шаг>/form.validation.ts` через агрегатор:
-    // пустой шаг не проходит. Без папок шагов в наборе энтри упал бы на `./steps`.
-    await expect(checkStep(1)).resolves.toMatchObject({ status: 'invalid' });
+    // Заполненный шаг проходит; шаг единственный, поэтому дальше идти некуда.
+    form.form.email.setValue('anya@example.com');
+    await expect(flow.next()).resolves.toMatchObject({ status: 'stayed', reason: 'edge' });
+    expect(flow.completed.value.has(flow.steps[0] ?? '')).toBe(true);
+    // Итог отправки никто не сообщал: кнопку здесь нажать нечем.
+    expect(results).toEqual([]);
+  }, 60_000);
+});
 
-    plugin.dispose();
+describe('простая форма с правилами в компилирующем превью', () => {
+  it('правила модуля складываются с отправкой в одно поведение и работают в сборке', async () => {
+    const files = await printedModule({
+      schema: plainSchema(),
+      formName: 'Заявка',
+      kit: builtinKit(),
+      rules: seededRules(),
+    });
+
+    const { executed, contract, form } = await preview(files);
+
+    // Потока шагов у простой формы нет — и файла потока тоже.
+    expect(executed).toEqual([
+      'model/initial-value.ts',
+      'validation/form.ts',
+      'behavior/index.ts',
+      'application/submit.ts',
+      'schema/registry.ts',
+    ]);
+    expect(appliedArtifacts(contract)).toEqual([
+      'model',
+      'validation',
+      'behavior',
+      'submit',
+      'registry',
+    ]);
+    expect(form.flow).toBeUndefined();
+
+    // Связь над моделью из `behavior/index.ts` (`computeFrom`) живёт: её операторы исполнились
+    // внутри поведения, которое сложило превью, — тем же экземпляром ядра, что собирает форму.
+    // Второй экземпляр дал бы здесь «оператор вызван вне defineFormBehavior».
+    expect(form.model.get()).toMatchObject({ agreed: false });
+    form.form.fullName.setValue('Иван');
+    await vi.waitFor(() => {
+      expect(form.model.get()).toMatchObject({ agreed: true });
+    });
+
+    // Правила формы из `validation/form.ts` — полный набор сборки: пустое имя не проходит.
+    form.form.fullName.setValue('');
+    await expect(form.validate()).resolves.toMatchObject({ status: 'invalid' });
   }, 60_000);
 });

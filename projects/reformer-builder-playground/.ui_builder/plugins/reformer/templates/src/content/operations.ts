@@ -37,6 +37,8 @@ import {
   type SourceFile,
 } from './files';
 import type { TemplatesHost } from '../host';
+import { modulePlacementOf } from '../../../core/codegen';
+import { fixtureDirOf } from '../../../core/form-fixture';
 
 /** Чем кончилась операция. `params` подставляются в сообщение. */
 export interface OperationResult {
@@ -156,6 +158,34 @@ export async function listFolders(
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }
 
+/**
+ * Каталог, который предлагается для новой формы, когда открыт документ.
+ *
+ * Форму почти всегда кладут рядом с тем, над чем работают, — но «рядом» зависит от того, что
+ * открыто. Свободно названный документ (`forms/credit.schema.json`) лежит среди форм, и его
+ * каталог и есть нужное место. Документ МОДУЛЯ формы (`form.schema.json` в папке `schema/` либо,
+ * у формы прежней раскладки, в корне модуля) лежит ВНУТРИ своего модуля: его каталог — это
+ * `<модуль>/schema` или сам модуль, и новая форма там оказалась бы частью чужой. Ей место рядом
+ * с модулем — в каталоге, где модуль лежит.
+ *
+ * Где модуль относительно документа, решает раскладка кодогена ({@link modulePlacementOf}), а не
+ * разбор пути здесь: правило у них обязано быть одно.
+ */
+export function suggestedFolderOf(
+  host: Pick<TemplatesHost, 'refOf' | 'parentOf' | 'projectRoot'>,
+  documentId: ResourceId
+): ResourceId {
+  const dir = host.parentOf(documentId);
+  const path = host.refOf(documentId)?.path;
+  if (path === undefined) return dir;
+
+  const placement = modulePlacementOf(path);
+  if (placement.kind === 'detached') return dir;
+  const moduleDir = placement.kind === 'nested' ? host.parentOf(dir) : dir;
+  // Модуль в корне проекта: подниматься выше некуда — новая форма встаёт в сам корень.
+  return moduleDir === host.projectRoot() ? moduleDir : host.parentOf(moduleDir);
+}
+
 /** Рекурсивный обход каталога: пути относительно корня проекта. */
 async function readDirectory(
   host: TemplatesHost,
@@ -253,20 +283,36 @@ function moduleFilesOf(files: readonly TemplateFile[]): readonly TemplateFile[] 
 /**
  * Файлы фикстуры — те, что идут СВЕРХ вывода кодогена.
  *
- * Ложатся в тот же каталог формы, что и модуль: фикстура лежит рядом со схемой. Отдельным
- * `scope` они помечены не ради адреса, а ради происхождения — контракт каталога модуля
- * (`06-form-directory-layout`) фикстуру не перечисляет, и генерация модуля её не пишет.
+ * Ложатся в корень модуля формы. Отдельным `scope` они помечены не ради адреса, а ради
+ * происхождения — контракт каталога модуля (`06-form-directory-layout`) фикстуру не перечисляет,
+ * и генерация модуля её не пишет.
  */
 function fixtureFilesOf(files: readonly TemplateFile[]): readonly TemplateFile[] {
   return files.filter((file) => file.scope === 'fixture');
 }
 
 /**
- * Создать форму по шаблону: каталог `<parent>/<formName>/`, отобранные файлы (с добором
- * зависимостей) и подстановкой имени.
+ * Каталог фикстуры внутри каталога формы — корень МОДУЛЯ, которому принадлежит схема.
+ *
+ * Считается от пути схемы тем же правилом, каким фикстуру ищет превью (`fixtureDirOf`): схема
+ * в `schema/form.schema.json` даёт корень формы, схема в корне — его же. Без схемы в наборе
+ * считать не от чего, и фикстура ложится в корень формы.
+ */
+function fixtureDirIn(schemaPath: string | null): readonly string[] {
+  const dir = schemaPath === null ? null : fixtureDirOf(schemaPath);
+  return dir === null || dir === '' ? [] : dir.split('/');
+}
+
+/**
+ * Создать форму по шаблону: каталог `<parent>/<formName>/` — он же каталог МОДУЛЯ формы, —
+ * отобранные файлы (с добором зависимостей) и подстановкой имени.
  *
  * Свободное имя каталога подбирается так же, как для шаблона: занятое имя не перезаписывается
  * молча — форма рядом лучше, чем стёртая чужая.
+ *
+ * Имя подставляется ПО КАТАЛОГУ, а не по введённому: билдер называет форму именем каталога её
+ * модуля, и генерация из билдера обязана лечь в те же файлы, что разложил шаблон. Каталог
+ * `Профиль-2` с файлами под имя «Профиль» дал бы после первой же генерации два набора файлов.
  */
 export async function generateFormFromTemplate(
   host: TemplatesHost,
@@ -283,12 +329,21 @@ export async function generateFormFromTemplate(
     return { ...fail('error.read-only'), openId: null };
   }
 
+  let folder = name;
+  try {
+    for (let index = 2; await host.exists(host.resolve(parent, folder)); index += 1) {
+      folder = `${name}-${index}`;
+    }
+  } catch (error) {
+    return { ...fail('error.generate-failed', { message: messageOf(error) }), openId: null };
+  }
+
   // Кит нужен шаблону с движком: без него он не увидит вида формы, даже неся схему.
   // Токенному шаблону кит безразличен, поэтому его отсутствие — не отказ операции.
   const kit = host.kit();
   let files: readonly TemplateFile[];
   try {
-    files = materializeFiles(template, picked, name, {
+    files = materializeFiles(template, picked, folder, {
       kit: kit === null ? null : { kit, catalog: host.catalog() },
     });
   } catch (error) {
@@ -299,10 +354,6 @@ export async function generateFormFromTemplate(
   if (files.length === 0) return { ...fail('error.nothing-picked'), openId: null };
 
   try {
-    let folder = name;
-    for (let index = 2; await host.exists(host.resolve(parent, folder)); index += 1) {
-      folder = `${name}-${index}`;
-    }
     const dir = host.resolve(parent, folder);
     const schema = formSchemaFileOf(files);
     const ids: ResourceId[] = [];
@@ -315,11 +366,11 @@ export async function generateFormFromTemplate(
       if (schema !== null && file.path === schema.file.path) openId = id;
     }
 
-    // Фикстура — в тот же каталог: она лежит рядом со схемой, и особой адресации ей больше
-    // не нужно. Отдельным проходом её пишем потому, что происхождение у неё другое —
-    // не вывод кодогена (см. `fixtureFilesOf`).
+    // Фикстура — в корень модуля, которому принадлежит схема. Отдельным проходом её пишем
+    // потому, что происхождение у неё другое — не вывод кодогена (см. `fixtureFilesOf`).
+    const fixtureDir = fixtureDirIn(schema === null ? null : schema.file.path);
     for (const file of fixtureFilesOf(files)) {
-      const id = host.resolve(dir, ...file.path.split('/'));
+      const id = host.resolve(dir, ...fixtureDir, ...file.path.split('/'));
       await host.writeText(id, file.content);
       ids.push(id);
     }

@@ -17,14 +17,14 @@ describe('заголовок файла цели', () => {
   it('необязательные поля доезжают', () => {
     const result = parseTargetFile(
       file(
-        '{ "id": "u", "path": "p.ts", "cls": "derived", "order": 45, "title": "Мой",\n "overrides": "codegen.registry", "applies": "it.wizard !== null", "regenerable": true }'
+        '{ "id": "u", "path": "p.ts", "cls": "derived", "order": 45, "title": "Мой",\n "overrides": "codegen.registry", "applies": "it.layout.isWizard", "regenerable": true }'
       )
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.meta.order).toBe(45);
     expect(result.meta.overrides).toBe('codegen.registry');
-    expect(result.meta.applies).toBe('it.wizard !== null');
+    expect(result.meta.applies).toBe('it.layout.isWizard');
     expect(result.meta.regenerable).toBe(true);
   });
 
@@ -78,7 +78,7 @@ describe('обратная сборка — для выгрузки встрое
     const meta = {
       id: 'user.registry',
       overrides: 'codegen.registry',
-      path: 'registry.ts',
+      path: 'schema/registry.ts',
       cls: 'derived' as const,
       order: 40,
       title: 'Реестр компонентов',
@@ -106,14 +106,14 @@ describe('обратная сборка — для выгрузки встрое
 
 describe('цель по шагам визарда — each: step', () => {
   const header = (extra: string): string =>
-    `---\n{ "id": "u.step", "path": "steps/{step}/validation.ts", "cls": "user"${extra} }\n---\nтело\n`;
+    `---\n{ "id": "u.step", "path": "validation/{step}.ts", "cls": "user"${extra} }\n---\nтело\n`;
 
   it('разбирает «each»: «step» и возвращает его в заголовке', () => {
     const result = parseTargetFile(header(', "each": "step"'));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.meta.each).toBe('step');
-    expect(result.meta.path).toBe('steps/{step}/validation.ts');
+    expect(result.meta.path).toBe('validation/{step}.ts');
   });
 
   it('без «each» поля нет вовсе — а не undefined', () => {
@@ -134,13 +134,42 @@ describe('цель по шагам визарда — each: step', () => {
     const meta = {
       id: 'user.step-validation',
       overrides: 'codegen.step-validation',
-      path: 'steps/{step}/validation.ts',
+      path: 'validation/{step}.ts',
       each: 'step' as const,
       cls: 'user' as const,
       regenerable: true,
     };
     const text = formatTargetFile(meta, 'тело\n');
-    expect(text).toContain('"path": "steps/{step}/validation.ts",\n  "each": "step",');
+    expect(text).toContain('"path": "validation/{step}.ts",\n  "each": "step",');
+    const back = parseTargetFile(text);
+    expect(back.ok && back.meta).toEqual(meta);
+  });
+});
+
+describe('путь — шаблон с токенами', () => {
+  it('токены в «path» разбор не трогает: их подставляет прогон целей по форме', () => {
+    for (const path of [
+      '{Type}.tsx',
+      'types/{dir}.ts',
+      '{schema}',
+      '{schemaDir}steps/{stepDir}/x.json',
+    ]) {
+      const result = parseTargetFile(
+        `---\n${JSON.stringify({ id: 'u', path, cls: 'derived' })}\n---\nтело\n`
+      );
+      expect(result.ok && result.meta.path).toBe(path);
+    }
+  });
+
+  it('выгрузка печатает шаблон пути как есть, и файл разбирается обратно', () => {
+    const meta = {
+      id: 'user.types',
+      overrides: 'codegen.types',
+      path: 'types/{dir}.ts',
+      cls: 'derived' as const,
+    };
+    const text = formatTargetFile(meta, 'тело\n');
+    expect(text).toContain('"path": "types/{dir}.ts"');
     const back = parseTargetFile(text);
     expect(back.ok && back.meta).toEqual(meta);
   });

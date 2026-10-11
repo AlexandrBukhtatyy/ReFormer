@@ -1,0 +1,17 @@
+// <%= it.layout.files.flow %> — поток шагов визарда: порядок шагов и их правила.
+// Регенерируется билдером (шаги берутся из схемы); правки будут перезаписаны.
+
+import type { FormFlowConfig } from '@reformer/core';
+import type { <%= it.names.TypeName %> } from '<%= it.rel('flow', 'types') %>';
+<% for (const step of it.layout.steps) { -%>
+import { stepRules as <%= step.rulesAlias %> } from '<%= step.rulesImport %>';
+<% } -%>
+
+/** Поток шагов: `id` — `selector` узла шага в схеме; `next()` проверяет правила текущего шага. */
+export const formFlow: FormFlowConfig<<%= it.names.TypeName %>> = {
+  steps: [
+<% for (const step of it.layout.steps) { -%>
+    { id: '<%= step.id %>', rules: <%= step.rulesAlias %> },
+<% } -%>
+  ],
+};

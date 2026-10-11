@@ -48,6 +48,8 @@ const FILE_COMPONENTS: ReadonlySet<string> = new Set([
 const MULTI_COMPONENTS: ReadonlySet<string> = new Set([
   'SelectMulti',
   'ComboboxMulti',
+  // Набор узлов иерархии — тот же диалект мультивыбора; без записи поле объявлялось строкой.
+  'ComboboxTreeMulti',
   'NativeSelectMulti',
   'ToggleGroupMulti',
   'MultiSelect',
@@ -55,6 +57,9 @@ const MULTI_COMPONENTS: ReadonlySet<string> = new Set([
 
 /** Контролы с булевым значением. */
 const BOOLEAN_COMPONENTS: ReadonlySet<string> = new Set(['Checkbox', 'Switch', 'Toggle']);
+
+/** Контролы, чьё значение — дата (`Date`), а не строка. */
+const DATE_COMPONENTS: ReadonlySet<string> = new Set(['DatePicker', 'Calendar']);
 
 /** Пропсы, в которых лежит список опций. */
 export const LIST_PROP_KEYS: readonly string[] = [
@@ -67,7 +72,7 @@ export const LIST_PROP_KEYS: readonly string[] = [
 ];
 
 /** Вид значения поля — то, чем `types.ts` объявляет лист, а мок заполняет модель. */
-export type FieldKind = 'boolean' | 'number' | 'multi' | 'file' | 'select' | 'string';
+export type FieldKind = 'boolean' | 'number' | 'multi' | 'file' | 'date' | 'select' | 'string';
 
 /**
  * Вид значения по компоненту и пропсам узла.
@@ -81,6 +86,7 @@ export function fieldKindOf(node: JsonFieldNode): FieldKind {
     if (FILE_COMPONENTS.has(component)) return 'file';
     if (MULTI_COMPONENTS.has(component)) return 'multi';
     if (BOOLEAN_COMPONENTS.has(component)) return 'boolean';
+    if (DATE_COMPONENTS.has(component)) return 'date';
     if (component === 'Slider' || component === 'InputNumber') return 'number';
   }
   // Старые схемы (до выделения InputNumber) задавали число пропом `type: 'number'` у Input —
@@ -103,6 +109,10 @@ export function defaultForField(node: JsonFieldNode): unknown {
       return null;
     case 'boolean':
       return false;
+    case 'date':
+      // «Дата не выбрана» у выбора даты — `null`: пустую строку он значением не считает, и тип
+      // поля разошёлся бы с тем, что контрол кладёт в модель (`Date`).
+      return null;
     case 'number': {
       const min = node.componentProps?.min;
       return typeof min === 'number' ? min : null;

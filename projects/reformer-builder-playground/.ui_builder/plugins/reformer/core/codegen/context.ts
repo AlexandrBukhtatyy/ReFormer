@@ -8,8 +8,8 @@
  *
  * Контекст СОБИРАЕТСЯ один раз на генерацию ({@link prepare}) и передаётся всем целям: обход
  * схемы, классификация источников и проставление селекторов стоят одинаково для каждого файла,
- * а результат обязан быть один и тот же — иначе `types.ts` описывал бы не ту схему, которую
- * напечатал `form.schema.json`.
+ * а результат обязан быть один и тот же — иначе `types/<dir>.ts` описывал бы не ту схему, которую
+ * напечатал документ формы.
  *
  * @module plugins/reformer/core/codegen/context
  */
@@ -20,6 +20,7 @@ import { splitFormSchema, type SplitFormSchema, type StepOrigins } from '../form
 import { collect, type Collected } from './collect';
 import type { KitView } from './components';
 import { synthMock } from '../form-mock';
+import { DEFAULT_SCHEMA_PATH, moduleFilesOf, type ModuleFiles } from './layout';
 import { makeNames, type Names } from './naming';
 import { assignSelectors, type SelectorInfo } from './selectors';
 import { layoutOf, type ModuleLayout, type StepInfo } from './steps';
@@ -29,10 +30,17 @@ import type { FileClass, FormMock } from './types';
 export interface CodegenInput {
   /** Схема как её видит человек. Не мутируется: селекторы проставляются на копии. */
   readonly schema: JsonFormSchema;
-  /** Свободное имя формы — обычно имя файла схемы. */
+  /** Свободное имя формы — обычно имя каталога модуля. */
   readonly formName: string;
   /** Кит и его каталог. Обязательны: без кита неизвестно, откуда импортировать компоненты. */
   readonly kit: KitView;
+  /**
+   * Путь документа формы ВНУТРИ модуля. По умолчанию `schema/form.schema.json`.
+   *
+   * Иной — у формы, чей документ лежит в корне модуля (создана до перехода на папки ролей):
+   * документ остаётся на месте, а импорты и место файлов шагов считаются от него.
+   */
+  readonly schemaPath?: string;
   /** Правила формы. Их отсутствие — не ошибка: форма без правил валидна. */
   readonly rules?: FormRules;
   /** Авторские мок-данные. Без них синтезируются из схемы ({@link synthMock}). */
@@ -51,22 +59,28 @@ export interface CodegenInput {
  *
  * Нужен ровно одному эмиттеру — README, который перечисляет состав модуля. В v1 этот список
  * был литералом внутри текста README и расходился с фактическим набором файлов при каждой
- * правке (`renderer.wizard.tsx` в него дописывали руками отдельной веткой). Раз состав теперь
- * решают вклады, перечислять его обязан тот же список, по которому файлы и печатаются, —
- * иначе чужая цель в README не появится никогда.
+ * правке. Раз состав теперь решают вклады, перечислять его обязан тот же список, по которому
+ * файлы и печатаются, — иначе чужая цель в README не появится никогда.
  */
 export interface EmittedFileRef {
   readonly path: string;
   readonly cls: FileClass;
-  /** Шаг визарда, которому принадлежит файл (номер с единицы); у файлов корня — нет. */
+  /** Шаг визарда, которому принадлежит файл (номер с единицы); у файлов формы — нет. */
   readonly step?: number;
 }
 
 /** Всё, что эмиттеры читают, и ничего сверх. */
 export interface EmitContext {
-  /** Схема С ПРОСТАВЛЕННЫМИ селекторами — та, что уйдёт в `form.schema.json`. */
+  /** Схема С ПРОСТАВЛЕННЫМИ селекторами — та, что уйдёт в документ формы. */
   readonly schema: JsonFormSchema;
   readonly names: Names;
+  /**
+   * Пути файлов модуля от его корня ({@link moduleFilesOf}).
+   *
+   * Несёт их контекст, а не константа раскладки: часть путей зависит от имени формы
+   * (`<Type>.tsx`, `types/<dir>.ts`), а путь документа — от того, где он лежит.
+   */
+  readonly paths: ModuleFiles;
   readonly collected: Collected;
   readonly selectors: SelectorInfo;
   readonly mock: FormMock;
@@ -82,7 +96,7 @@ export interface EmitContext {
    */
   readonly composition: SplitFormSchema | null;
   /**
-   * Шаг, для которого печатается файл, — у целей, размноженных по шагам. У файлов корня нет.
+   * Шаг, для которого печатается файл, — у целей, размноженных по шагам. У файлов формы нет.
    */
   readonly step?: StepInfo;
   /**
@@ -102,13 +116,16 @@ export function prepare(input: CodegenInput): EmitContext {
   const collected = collect(schema, mock);
   const split = splitFormSchema(schema, input.origins ?? new Map(), { all: input.splitSteps });
   const composition = split.parts.size > 0 ? split : null;
+  const names = makeNames(input.formName);
+  const paths = moduleFilesOf(names, input.schemaPath ?? DEFAULT_SCHEMA_PATH);
   return {
     schema,
     composition,
-    names: makeNames(input.formName),
+    names,
+    paths,
     collected,
     selectors: info,
-    layout: layoutOf(schema, collected, info, composition),
+    layout: layoutOf(schema, collected, info, composition, paths.schema),
     mock,
     rules: input.rules ?? emptyRules(),
     kit: input.kit,

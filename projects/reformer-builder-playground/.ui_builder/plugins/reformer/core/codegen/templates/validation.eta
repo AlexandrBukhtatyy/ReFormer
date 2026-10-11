@@ -1,108 +1,38 @@
-<% if (it.rules.validationCode !== null) { -%>
-<%~ it.rules.validationCode -%>
-<% } else if (it.stepValidation !== null) { -%>
-<% const sv = it.stepValidation; -%>
-// form.validation.ts — валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts,
-// здесь их сборка и поля вне шагов. Пишется один раз и при регенерации не затирается.
-
-import { type FormModel } from '@reformer/core';
-<% if (sv.rest.length > 0) { -%>
-import {
-  apply,
-  applyValidationResult,
-  validate,
-  defineValidation,
-  runValidation,
-  type ValidationResult,
-} from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
-<% } else { -%>
-import {
-  apply,
-  applyValidationResult,
-  defineValidation,
-  runValidation,
-  type ValidationResult,
-} from '@reformer/core/validation';
+<% const T = it.names.TypeName; -%>
+<% const v = it.rules.validation; -%>
+// <%= it.layout.files.validation %> — валидация формы: поле `validation` сборки (<%= it.layout.files.create %>).
+<% if (it.layout.isWizard) { -%>
+// Правила шагов — в validation/<шаг>.ts (их проверяет «Далее»); здесь — только правила вне шагов.
 <% } -%>
-import { stepValidations } from '<%= it.layout.imports.steps %>';
-import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
 
-type Root = <%= it.names.TypeName %>;
+import type { FormValidation } from '@reformer/core';
+<% if (v.block !== null) { -%>
+<%~ v.block.imports.join('\n') %>
+<% } -%>
+import type { <%= T %> } from '<%= it.rel('validation', 'types') %>';
 
-/** Полная проверка (отправка): правила всех шагов<%= sv.rest.length > 0 ? ' и поля вне шагов' : '' %>. */
-<% if (sv.rest.length > 0) { -%>
-export const formValidation = defineValidation<Root>(({ model }) => {
-  apply(...stepValidations);
-<% for (const path of sv.rest) { -%>
-  validate(model.$.<%= path %>, [required()]);
+<% if (v.block !== null) { -%>
+<% if (it.layout.isWizard) { -%>
+/** Правила вне шагов: проверяются целиком, при отправке. */
+<% } else { -%>
+/** Правила формы: проверяются при отправке. */
+<% } -%>
+export const <%= v.rulesName %> = defineValidation<<%= T %>>((<%= v.block.usesModel ? '{ model }' : '' %>) => {
+<% if (v.block.body.length > 0) { -%>
+<%~ it.indent(v.block.body, 2) %>
+<% } else { -%>
+  // TODO: правила формы
 <% } -%>
 });
+
+/** Валидация формы — поле `validation` сборки. Сюда же — стратегия живой проверки (`strategy`). */
+export const formValidation: FormValidation<<%= T %>> = { <%= v.field %>: <%= v.rulesName %> };
 <% } else { -%>
-export const formValidation = defineValidation<Root>(() => {
-  apply(...stepValidations);
-});
-<% } -%>
-
-/** Шаг без правил: проверка ничего не находит. */
-const noStepRules = defineValidation<Root>(() => {});
-
 /**
- * Проверка шага визарда (номер с единицы) — из неё визард строит поток шагов. `touch: true`
- * обязателен: киты показывают ошибку только у тронутого поля, и без него остановленный шаг
- * выглядел бы как неработающая кнопка.
+ * Валидация формы — поле `validation` сборки. Правил вне шагов нет: полный набор сборка собирает
+ * из правил шагов потока. Появятся — объявите их здесь и передайте полем `extras`; сюда же —
+ * стратегия живой проверки (`strategy`).
  */
-export function makeStepCheck(model: FormModel<Root>) {
-  return async (step: number): Promise<ValidationResult> => {
-    const result = await runValidation(model, stepValidations[step - 1] ?? noStepRules);
-    applyValidationResult(result, { touch: true });
-    return result;
-  };
-}
-<% } else { -%>
-// form.validation.ts — валидация модели. МОК: required выведены из схемы, допишите правила.
-// Пишется один раз и при регенерации не затирается.
-
-import { type FormModel } from '@reformer/core';
-<% if (it.required.length > 0) { -%>
-import {
-  applyValidationResult,
-  validate,
-  defineValidation,
-  runValidation,
-  type ValidationResult,
-} from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
-<% } else { -%>
-import {
-  applyValidationResult,
-  defineValidation,
-  runValidation,
-  type ValidationResult,
-} from '@reformer/core/validation';
-<% } -%>
-import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
-
-type Root = <%= it.names.TypeName %>;
-
-<% if (it.required.length > 0) { -%>
-export const formValidation = defineValidation<Root>(({ model }) => {
-<% for (const path of it.required) { -%>
-    validate(model.$.<%= path %>, [required()]);
-<% } -%>
-  });
-<% } else { -%>
-export const formValidation = defineValidation<Root>(() => {
-    // TODO: правила валидации
-  });
-<% } -%>
-
-/** Проверка шага визарда: правила шагам не разложены — каждый шаг проверяет всю форму. */
-export function makeStepCheck(model: FormModel<Root>) {
-  return async (_step: number): Promise<ValidationResult> => {
-    const result = await runValidation(model, formValidation);
-    applyValidationResult(result);
-    return result;
-  };
-}
+export const formValidation: FormValidation<<%= T %>> = {};
 <% } -%>

@@ -19,21 +19,37 @@
  * уронило бы поверхность, и вместо объяснения человек увидел бы пустой прямоугольник. Поэтому
  * отказ возвращается ДАННЫМИ и показывается словами.
  *
+ * ## Отправка дописывается к правилам здесь
+ *
+ * Модуль формы отдаёт поведение двумя половинами: правила функцией над областью
+ * (`behaviorRules`) и отправку (`wireSubmit`). Сборка приложения (`application/create.ts`)
+ * складывает их в одно поведение — и превью складывает так же ({@link ModuleBehavior}), потому что
+ * страницу приложения оно не исполняет, а итог отправки должен куда-то прийти. Отказ отправки
+ * форму не роняет: правила уже применились, и форма без кнопки «Отправить» полезнее пустого места.
+ *
  * @module plugins/reformer/render/runtime/build
  */
 
-import { createForm, type CreateFormConfig, type FormBundle } from '@reformer/core';
+import {
+  createForm,
+  unknownSchemaSelectors,
+  type CreateFormConfig,
+  type FormBundle,
+} from '@reformer/core';
+import { defineFormBehavior, type BehaviorScope } from '@reformer/core/behaviors';
 import {
   composeRegistries,
   type ComponentRegistry,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
+import { moduleFilesOf } from '../../../core/codegen';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import { annotateSchema } from '../schema/annotate';
 import type { PreviewMock, PreviewProblem } from '@reformer/builder-plugin-api';
 import { mergeFormData, type FormFixture } from '../../../core/form-fixture';
 import { carryValues } from './carry';
+import { fitInitialValues } from './initial';
 import { synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
 
@@ -59,6 +75,44 @@ export type LegacyRenderBehavior = (
   level: PreviewForm
 ) => ((schema: never) => void) | undefined;
 
+/** Правила поведения модуля функцией над областью — экспорт `behaviorRules`. */
+export type BehaviorRules = (scope: BehaviorScope<Shape>) => void;
+
+/** Куда отправка сообщает итог: текст для человека и признак успеха. */
+export type SubmitResultHandler = (message: string, ok: boolean) => void;
+
+/** Отправка модуля над областью поведения — экспорт `wireSubmit`. */
+export type WireSubmit = (
+  scope: BehaviorScope<Shape>,
+  options: { readonly onResult?: SubmitResultHandler }
+) => void;
+
+/**
+ * Поведение модуля двумя половинами — как его складывает сборка приложения
+ * (`application/create.ts`): сначала правила, затем отправка.
+ */
+export interface ModuleBehavior {
+  readonly rules: BehaviorRules;
+  readonly wireSubmit: WireSubmit;
+  /** Куда отправка сообщает итог. Без него отправка работает, а итог никому не виден. */
+  readonly onResult?: SubmitResultHandler;
+}
+
+/**
+ * Из каких файлов модуля взяты артефакты — пути от его корня. Ими называются находки сборки:
+ * «реестр не сложился» без имени файла отправляет человека искать по всему модулю. Файл, который
+ * не назван, называется именем раскладки «папки по ролям» ({@link DEFAULT_FILES}).
+ */
+export interface ArtifactFiles {
+  readonly initial?: string;
+  readonly validation?: string;
+  readonly flow?: string;
+  readonly behavior?: string;
+  readonly submit?: string;
+  readonly renderBehavior?: string;
+  readonly registry?: string;
+}
+
 export interface RuntimeBundleInput {
   readonly schema: JsonFormSchema;
   readonly catalog: readonly CatalogEntry[];
@@ -74,11 +128,14 @@ export interface RuntimeBundleInput {
    */
   readonly fixture?: FormFixture | null;
   /**
-   * Реестр формы поверх билдерского (`createRegistry` из сайдкаров). Компилирующая поверхность
+   * Реестр формы поверх билдерского (`createRegistry` модуля). Компилирующая поверхность
    * передаёт его сюда, чтобы не заводить вторую сборку реестра со своими правилами.
    */
   readonly extraRegistry?: ComponentRegistry;
-  /** Начальные значения поверх мока: то, что объявил `model.ts` формы. */
+  /**
+   * Начальные значения поверх мока: то, что объявил модуль формы (`createInitialValues`).
+   * Применяются только там, где у живой схемы есть для них место (см. {@link './initial'}).
+   */
   readonly initialOverride?: Shape;
   /**
    * Значения прежней формы — то, что человек успел ввести до этой пересборки.
@@ -87,12 +144,19 @@ export interface RuntimeBundleInput {
    * Без этого правка схемы стирает введённое, а в конструкторе схему правят непрерывно.
    */
   readonly carry?: Shape;
-  /** Поведение формы, правила валидации и поток шагов из сайдкаров. */
+  /** Поведение формы, правила валидации и поток шагов из модуля формы. */
   readonly behavior?: FormConfig['behavior'];
   readonly validation?: FormConfig['validation'];
   readonly flow?: FormConfig['flow'];
+  /**
+   * Поведение модуля двумя половинами — правила и отправка. Старше {@link behavior}: это те же
+   * правила, но с отправкой, итог которой придёт в `onResult`.
+   */
+  readonly moduleBehavior?: ModuleBehavior;
   /** Правила узлов из `form.render.ts` модуля прежнего контракта. */
   readonly renderBehavior?: LegacyRenderBehavior;
+  /** Файлы артефактов — ими называются находки сборки. */
+  readonly files?: ArtifactFiles;
 }
 
 export interface RuntimeBundle {
@@ -105,6 +169,45 @@ export interface RuntimeBundle {
 
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+/**
+ * Имена файлов для находок, когда вызывающий их не назвал, — раскладка «папки по ролям». От
+ * имени формы эти пути не зависят, поэтому раскладка берётся без имени.
+ */
+const DEFAULT_FILES = moduleFilesOf({ dir: 'form', TypeName: 'Form' });
+
+/** Файл слоя правил узлов прежнего контракта: в новой раскладке такого файла нет вовсе. */
+const LEGACY_RENDER_FILE = 'form.render.ts';
+
+/**
+ * Область, которая запоминает, к каким узлам схемы обратились.
+ *
+ * Обращение к узлу, которого в схеме нет, ничего не бросает: правило записывается и молчит. Для
+ * отправки это худший из исходов — кнопка есть, а нажатие ничего не делает. Узлы, названные
+ * отправкой, сверяются со схемой после сборки ({@link missingSubmitNodes}).
+ */
+function recordingScope(scope: BehaviorScope<Shape>, seen: Set<string>): BehaviorScope<Shape> {
+  return {
+    ...scope,
+    schema: {
+      ...scope.schema,
+      node: (selector) => {
+        seen.add(selector);
+        return scope.schema.node(selector);
+      },
+    },
+  };
+}
+
+/** Узлы, к которым привязалась отправка, но которых нет в корневом дереве собранной формы. */
+function missingSubmitNodes(form: PreviewForm, named: ReadonlySet<string>): readonly string[] {
+  const tree = form.render.tree;
+  if (tree === undefined || named.size === 0) return [];
+  const root = form.render.controller.scopeOf(form.model);
+  return unknownSchemaSelectors(root.__overrideMaps, tree).filter((selector) =>
+    named.has(selector)
+  );
+}
 
 /** Собирает форму по схеме. Отказ — данные, а не исключение. */
 export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
@@ -122,12 +225,15 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
     };
   }
 
-  // Порядок старшинства целиком живёт в `@/plugins/reformer/core/form-fixture`: синтез < model.ts < фикстура.
-  // Фикстура старше `model.ts` потому, что пишется РАДИ проверки, — иначе «покажи форму
-  // с пустой моделью» было бы невыразимо.
+  // Порядок старшинства целиком живёт в `@/plugins/reformer/core/form-fixture`: синтез <
+  // начальные значения модуля < фикстура. Фикстура старше значений модуля потому, что пишется
+  // РАДИ проверки, — иначе «покажи форму с пустой моделью» было бы невыразимо.
+  const base = input.mock ?? synthMock(annotated);
   const mock = mergeFormData(
-    input.mock ?? synthMock(annotated),
-    input.initialOverride,
+    base,
+    // Значения модуля печатались по схеме на момент генерации, а схему с тех пор правили:
+    // поверх мока ложится только то, чему в живой схеме есть место (см. `./initial`).
+    fitInitialValues(base.model, input.initialOverride),
     input.fixture ?? null
   );
   // Перенос идёт последним шагом: введённое человеком старше всех слоёв — но только
@@ -160,9 +266,31 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
       // перекрывают одноимённые каталожные, а не наоборот.
       registry = composeRegistries(registry, input.extraRegistry);
     } catch (error) {
-      problems.push({ file: 'registry.ts', phase: 'evaluate', message: describe(error) });
+      problems.push({
+        file: input.files?.registry ?? DEFAULT_FILES.registry,
+        phase: 'evaluate',
+        message: describe(error),
+      });
     }
   }
+
+  const parts = input.moduleBehavior;
+  const submitFile = input.files?.submit ?? DEFAULT_FILES.submit;
+  /** Узлы схемы, к которым привязалась отправка. */
+  const submitNodes = new Set<string>();
+  const behavior =
+    parts === undefined
+      ? input.behavior
+      : defineFormBehavior<Shape>((scope) => {
+          parts.rules(scope);
+          // Отказ отправки форму не роняет: бросок из поведения сборка считает своим и снимает
+          // форму целиком, а здесь это всего лишь не подключившаяся кнопка.
+          try {
+            parts.wireSubmit(recordingScope(scope, submitNodes), { onResult: parts.onResult });
+          } catch (error) {
+            problems.push({ file: submitFile, phase: 'evaluate', message: describe(error) });
+          }
+        });
 
   const legacy = input.renderBehavior;
   try {
@@ -170,7 +298,7 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
       initial,
       schema: annotated,
       registry,
-      behavior: input.behavior,
+      behavior,
       validation: input.validation,
       flow: input.flow,
       ...(legacy === undefined
@@ -186,7 +314,7 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
                 legacy(bundle.form, bundle.model, bundle)?.(scope as never);
               } catch (error) {
                 problems.push({
-                  file: 'form.render.ts',
+                  file: input.files?.renderBehavior ?? LEGACY_RENDER_FILE,
                   phase: 'evaluate',
                   message: describe(error),
                 });
@@ -194,6 +322,13 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
             },
           }),
     });
+    for (const selector of missingSubmitNodes(form, submitNodes)) {
+      problems.push({
+        file: submitFile,
+        phase: 'render',
+        message: `отправка привязана к узлу «${selector}», которого нет в схеме: событие отправки не подключено`,
+      });
+    }
     return { schema: annotated, form, registry, problems };
   } catch (error) {
     problems.push({ file: '', phase: 'render', message: describe(error) });

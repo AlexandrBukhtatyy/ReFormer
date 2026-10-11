@@ -1,0 +1,11 @@
+// validation/anketa.ts — правила шага «Данные»: их проверяет «Далее», отправка — все шаги сразу.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Правила шага «Данные»: их проверяет «Далее». */
+export const stepRules = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
+  validate(model.$.name, [required()]);
+});

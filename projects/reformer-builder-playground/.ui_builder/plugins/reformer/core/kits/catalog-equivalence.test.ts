@@ -23,6 +23,14 @@
  * `MessageScroller`, `Resizable`, `Sidebar`), появился настоящий подпуть; категории, узлы
  * по умолчанию, состав и запреты превью не сдвинулись.
  *
+ * Пересъёмка (осознанная) — когда подпуть стал значить только «откуда импортируется символ», а
+ * каталог кита начал выводить его из факта, а не из таблицы. Разошлись 28 строк и только в двух
+ * колонках: 26 записей, чьих символов нет в главном входе кита (поля `Calendar`, `Combobox*`,
+ * `DatePicker`, `InputOTP`, `Table` с частями, части `Carousel`, `MessageScroller`, `Resizable`),
+ * получили подпуть, а `Chart` и `Resizable` — ещё и имя экспорта (`ChartContainer`,
+ * `ResizablePanelGroup`): под именами этих записей кит ничего не экспортирует. Состав, категории,
+ * отпечатки пропсов и узлы по умолчанию не сдвинулись; список подпутей вырос с 7 до 33 имён.
+ *
  * Снимок берётся с ФАКТИЧЕСКИ поставляемого каталога (`@reformer/ui-kit/catalog` + синтетика
  * билдера), поэтому покрывает и категории, и восстановленный `makeNode`, и порядок записей.
  */
@@ -134,16 +142,40 @@ describe('встроенный кит объявляет себя сам', () =>
     expect(d.codegen.importSpecifier).toBe('@reformer/ui-kit');
   });
 
-  it('жёсткие запреты и причины «не нашлось» — два РАЗНЫХ множества', () => {
-    // Ровно те два allowlist'а, что жили в render-policy, но с сохранённой разницей смысла:
-    // previewPolicy короткое замыкание ДО резолва, unresolvedReason — только текст при промахе.
+  it('запрет живого рендера и подпуть — два РАЗНЫХ множества', () => {
+    // Те же два списка, что жили в render-policy, но разного смысла: previewPolicy — запрет,
+    // короткое замыкание ДО резолва; подпуть — только адрес импорта, заглушкой он запись не
+    // делает (рисовать ли её вживую, решает пространство имён кита).
     const limited = [...d.previewPolicy.entries()]
       .filter(([, p]) => p.mode === 'limited')
       .map(([name]) => name)
       .sort();
-    const unresolved = [...d.unresolvedReason.keys()].sort();
-    expect({ limited, unresolved }).toMatchSnapshot();
-    // Пересечения быть не должно: компонент либо запрещён, либо просто отсутствует.
-    expect(limited.filter((n) => unresolved.includes(n))).toEqual([]);
+    const subpaths = [...d.subpaths.keys()].sort();
+    expect({ limited, subpaths }).toMatchSnapshot();
+    // У встроенного кита они не пересекаются: ни один оверлей за подпутём не лежит. Закон это
+    // только для него — запись вправе объявить и запрет, и подпуть.
+    expect(limited.filter((n) => subpaths.includes(n))).toEqual([]);
+    // Прежняя сводка подпутей заполняется теми же именами — её читатели не ломаются.
+    expect([...d.unresolvedReason.keys()].sort()).toEqual(subpaths);
+  });
+
+  it('подпуть объявлен каждой записи, чьего символа нет в главном входе кита', () => {
+    // Поля, ради которых подпуть перестал означать «не резолвится»: в главный вход они не входят
+    // из-за тяжёлых зависимостей, и импорт из главного входа у пользователя не собирался.
+    expect(d.subpaths.get('Combobox')).toBe('combobox');
+    expect(d.subpaths.get('ComboboxMulti')).toBe('combobox');
+    expect(d.subpaths.get('ComboboxTree')).toBe('combobox');
+    expect(d.subpaths.get('ComboboxTreeMulti')).toBe('combobox');
+    expect(d.subpaths.get('DatePicker')).toBe('date-picker');
+    expect(d.subpaths.get('Calendar')).toBe('calendar');
+    expect(d.subpaths.get('InputOTP')).toBe('input-otp');
+    // Части составного компонента называют подпуть сами — наследования от корня нет.
+    expect(d.subpaths.get('Table')).toBe('table');
+    expect(d.subpaths.get('TableRow')).toBe('table');
+    expect(d.subpaths.get('CarouselItem')).toBe('carousel');
+    // Записи главного входа подпути не объявляют.
+    for (const name of ['Input', 'Select', 'SelectMulti', 'Box', 'Button', 'FormWizard']) {
+      expect(d.subpaths.has(name), name).toBe(false);
+    }
   });
 });

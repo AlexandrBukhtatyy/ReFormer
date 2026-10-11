@@ -1,14 +1,15 @@
 /**
- * Трансформация КОПИИ схемы перед эмиссией: проставить стабильные `selector`-ы секциям и
- * массивам, найти или вставить submit-триггер.
+ * Трансформация КОПИИ схемы перед эмиссией: проставить стабильные `selector`-ы секциям,
+ * массивам и шагам визарда, найти или вставить submit-триггер.
  *
  * Живая схема не трогается: экспорт не имеет права менять документ, который человек не просил
  * менять. Пользовательские селекторы сохраняются — с появлением `lib/form-model/selectors`
  * селектор стал управляемым и переживает экспорт, поэтому дедуп идёт ПОВЕРХ них, а не вместо.
  *
- * Зачем это вообще: `renderer.behavior.ts` цепляется к узлам по селектору (submit, `hideWhen`).
- * Узел без селектора адресовать нечем, и правило видимости на нём стало бы no-op — ни ошибки,
- * ни эффекта.
+ * Зачем это вообще: поведение формы цепляется к узлам по селектору (отправка, `hideWhen`), а
+ * поток шагов называет шаг селектором его узла (`flow.steps[].id`). Узел без селектора адресовать
+ * нечем: правило видимости на нём стало бы no-op, а шаг потока не нашёл бы свою разметку — ни
+ * ошибки, ни эффекта. Поэтому селектор получает КАЖДЫЙ узел-шаг, в том числе без заголовка.
  *
  * @module plugins/reformer/core/codegen/selectors
  */
@@ -21,7 +22,7 @@ import {
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { kebab } from '@reformer/builder-toolkit';
-import { isNodeLike, isStepsHostName } from '../form-model/node-kind';
+import { isNodeLike, isStepsHost, isStepsHostName } from '../form-model/node-kind';
 import { walkNodes } from '../form-model/query';
 
 /** Узел в «сыром» виде: читаем и пишем динамические ключи схемы. */
@@ -77,10 +78,20 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
   const arrays: Array<{ selector: string; path: string }> = [];
   let submitSelector = '';
   let submitEvent: SelectorInfo['submitEvent'] = 'onClick';
+  // Узел шага → его номер (с единицы). Обход идёт сверху вниз, поэтому хозяин шагов встречается
+  // раньше своих шагов и успевает их назвать.
+  const stepNumbers = new Map<unknown, number>();
 
   walkNodes(schema, (node) => {
     const raw = node as unknown as AnyNode;
     const component = parseOperator(raw.component);
+
+    if (isStepsHost(node)) {
+      // Тот же отбор, что у раскладки модуля (`wizardStepsOf`): шаг — узел в `children` хозяина.
+      (raw.children ?? []).filter(isNodeLike).forEach((step, index) => {
+        stepNumbers.set(step, index + 1);
+      });
+    }
 
     if (isContainerNode(node)) {
       const title = raw.componentProps?.title;
@@ -109,10 +120,22 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
       if (raw.selector === undefined || raw.selector === '') {
         raw.selector = uniq(isWizard ? 'wizard' : 'submit');
       }
-      if (submitSelector === '') {
+      // Отправляет первый визард, а без визарда — первая кнопка. Визард важнее кнопки, даже если
+      // та стоит в схеме раньше: его последний шаг рисует свою кнопку отправки, и обработчик на
+      // чужой кнопке оставил бы её без действия. Отсюда же следует, что у формы с шагами событие
+      // отправки — всегда `onSubmit`: на это опирается раскладка валидации (у визарда нет набора
+      // «все правила формы», которым кнопка проверяла бы форму сама).
+      if (submitSelector === '' || (isWizard && submitEvent !== 'onSubmit')) {
         submitSelector = raw.selector;
         submitEvent = isWizard ? 'onSubmit' : 'onClick';
       }
+    }
+
+    // Шаг без заголовка секцией не считается и селектора выше не получил, а потоку шагов он
+    // нужен: `id` шага — селектор его узла. Последним, чтобы имя по роли (секция, массив) победило.
+    const stepNumber = stepNumbers.get(node);
+    if (stepNumber !== undefined && (raw.selector === undefined || raw.selector === '')) {
+      raw.selector = uniq(`step-${stepNumber}`);
     }
   });
 

@@ -21,6 +21,7 @@ export {
   plainSchema,
   richSchema,
   seededRules,
+  subpathSchema,
   wizardSchema,
   wizardRulesSchema,
   wizardRules,

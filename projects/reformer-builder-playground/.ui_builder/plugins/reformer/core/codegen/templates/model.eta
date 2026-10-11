@@ -1,12 +1,10 @@
-// model.ts — начальные значения (из мока) и фабрика модели. Регенерируется.
+// <%= it.layout.files.model %> — фабрика модели формы. Регенерируется.
 
 import { createModel, type FormModel } from '@reformer/core';
-import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
+import type { <%= it.names.TypeName %> } from '<%= it.rel('model', 'types') %>';
+import { createInitialValues } from '<%= it.rel('model', 'initial') %>';
 
-export function createInitialValues(): <%= it.names.TypeName %> {
-  return <%= it.json(it.mock.model, 2) %> as <%= it.names.TypeName %>;
-}
-
+/** Реактивная модель формы — источник истины значений. */
 export function <%= it.names.modelFactory %>(
   initial?: Partial<<%= it.names.TypeName %>>
 ): FormModel<<%= it.names.TypeName %>> {

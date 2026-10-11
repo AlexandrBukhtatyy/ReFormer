@@ -1,5 +1,5 @@
 /**
- * Компиляция сайдкаров через порт загрузчика: прогрев, один граф, перевод сбоев в находки.
+ * Компиляция модуля через порт загрузчика: прогрев, один граф, перевод сбоев в находки.
  *
  * @module plugins/reformer/render/compiling/compile.test
  */
@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { PreviewModuleGraph, PreviewModules, PreviewPrimedCompile } from '../host';
 import { compileForm, stripFilePrefix } from './compile';
 import { PREVIEW_ENTRY_FILE } from './entry';
+import { moduleFilesFor, planModule } from './module';
 
 /** Прогрев, который ничего не нашёл: движок нужен, писать пока нечего. */
 function primed(): PreviewPrimedCompile {
@@ -168,6 +169,117 @@ describe('compileForm', () => {
     const result = await compileForm(SOURCES, modules);
     expect(result.problems).toEqual([
       { file: 'model.ts', phase: 'transpile', message: 'синтаксис' },
+    ]);
+  });
+});
+
+describe('compileForm: план модуля', () => {
+  /** Набор в раскладке по ролям: страница и сборка приложения лежат рядом с файлами ролей. */
+  const ROLES = new Map([
+    ['ZayavkaForm.tsx', 'export default function Page() {}'],
+    ['application/create.ts', 'export {};'],
+    ['application/submit.ts', 'export function wireSubmit() {}'],
+    ['api/index.ts', 'export {};'],
+    ['behavior/index.ts', 'export function behaviorRules() {}'],
+    ['validation/form.ts', 'export const formValidation = {};'],
+  ]);
+
+  it('требуются файлы ролей — путём от корня модуля; остальной набор только линкуется', async () => {
+    const requested: string[] = [];
+    let linked: string[] = [];
+    const modules: PreviewModules = {
+      load: (files, entry) => {
+        const module: { exports: unknown } = { exports: {} };
+        const require = (specifier: string): unknown => {
+          requested.push(specifier);
+          return { from: specifier };
+        };
+        new Function('exports', 'require', 'module', files.get(entry) ?? '')(
+          module.exports,
+          require,
+          module
+        );
+        linked = [...files.keys()];
+        return Promise.resolve({ entry: module.exports, modules: new Map(), errors: [] });
+      },
+    };
+
+    const plan = planModule(ROLES.keys(), moduleFilesFor('forms/zayavka/schema/form.schema.json'));
+    const result = await compileForm(ROLES, modules, {}, plan);
+
+    expect(requested).toEqual([
+      './validation/form.ts',
+      './behavior/index.ts',
+      './application/submit.ts',
+    ]);
+    // Набор доходит до линковщика целиком — импорт `../api` из отправки обязан найти свой файл,
+    // — кроме страницы и сборки приложения: их превью не исполняет ни при каком импорте.
+    expect(linked).toEqual(
+      expect.arrayContaining(['api/index.ts', 'application/submit.ts', 'validation/form.ts'])
+    );
+    expect(linked).not.toContain('ZayavkaForm.tsx');
+    expect(linked).not.toContain('application/create.ts');
+    expect([...result.modules.keys()]).toEqual([
+      'validation/form.ts',
+      'behavior/index.ts',
+      'application/submit.ts',
+    ]);
+    expect(result.problems).toEqual([]);
+  });
+
+  it('файл из плана, которого нет в наборе, не требуется: об отказе уже сказало чтение', async () => {
+    const requested: string[] = [];
+    const modules: PreviewModules = {
+      load: (files, entry) => {
+        const module: { exports: unknown } = { exports: {} };
+        new Function('exports', 'require', 'module', files.get(entry) ?? '')(
+          module.exports,
+          (specifier: string) => {
+            requested.push(specifier);
+            return {};
+          },
+          module
+        );
+        return Promise.resolve({ entry: module.exports, modules: new Map(), errors: [] });
+      },
+    };
+    // План построен по списку каталога; `schema/registry.ts` в нём есть, а прочитать не вышло.
+    const plan = planModule([...ROLES.keys(), 'schema/registry.ts']);
+
+    const result = await compileForm(ROLES, modules, {}, plan);
+
+    expect(requested).not.toContain('./schema/registry.ts');
+    expect(result.problems).toEqual([]);
+  });
+
+  it('набор, из которого нечего требовать, загрузчик не будит', async () => {
+    let loads = 0;
+    const modules: PreviewModules = {
+      load: () => {
+        loads += 1;
+        return Promise.resolve({ entry: {}, modules: new Map(), errors: [] });
+      },
+    };
+    const onlyTypes = new Map([['types/zayavka.ts', 'export type Zayavka = {};']]);
+
+    const result = await compileForm(
+      onlyTypes,
+      modules,
+      {},
+      planModule([...onlyTypes.keys(), 'validation/form.ts'])
+    );
+
+    expect(loads).toBe(0);
+    expect(result.modules.size).toBe(0);
+    expect(result.problems).toEqual([]);
+  });
+
+  it('имя точки входа, занятое файлом набора, — отказ, а не перезапись', async () => {
+    const taken = new Map([...SOURCES, [PREVIEW_ENTRY_FILE, 'чужой файл']]);
+    const result = await compileForm(taken, loader({}), {}, planModule(SOURCES.keys()));
+    expect(result.modules.size).toBe(0);
+    expect(result.problems).toEqual([
+      { file: '', phase: 'resolve', message: expect.stringMatching(/занято/) as string },
     ]);
   });
 });

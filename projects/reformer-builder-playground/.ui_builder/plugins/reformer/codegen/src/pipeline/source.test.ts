@@ -148,7 +148,9 @@ describe('loadFormSource', () => {
 });
 
 describe('генерация в папку разбитой формы', () => {
-  it('корень и файл шага остаются теми же байтами, код шага — в папке шага', async () => {
+  it('корень и файл шага остаются теми же байтами, правила шага — в папке валидации', async () => {
+    // Документ лежит в корне каталога (форма прежней плоской раскладки): он и файлы шагов
+    // остаются на месте, код печатается по папкам ролей.
     const files = splitFiles();
     const host = createFakeHost({ files });
     const outcome = await generateInto({ host, targets: () => BUILTIN_TARGETS }, { dir: DIR });
@@ -156,9 +158,36 @@ describe('генерация в папку разбитой формы', () => {
     expect(outcome.kind).toBe('delivered');
     expect(host.written.get(ROOT)).toBe(files[ROOT]);
     expect(host.written.get(STEP_FILE)).toBe(files[STEP_FILE]);
-    expect(host.written.has(`${DIR}/steps/kontakty/form.validation.ts`)).toBe(true);
-    expect(host.written.get(`${DIR}/steps/index.ts`)).toContain('export const stepSchemas');
-    expect(host.written.get(`${DIR}/index.tsx`)).toContain('composeJsonFormSchema(');
+    expect(host.written.has(`${DIR}/validation/kontakty.ts`)).toBe(true);
+    // Словарь схем шагов объявляет сама сборка — агрегатора `steps/index.ts` больше нет, — и
+    // импортирует она их оттуда, где они лежат.
+    const create = host.written.get(`${DIR}/application/create.ts`) ?? '';
+    expect(create).toContain('const stepSchemas: Record<string, JsonFormStep> = {');
+    expect(create).toContain('composeJsonFormSchema(');
+    expect(create).toContain("import step1Schema from '../steps/kontakty/form.schema.json';");
+    expect(host.written.has(`${DIR}/steps/index.ts`)).toBe(false);
+  });
+
+  it('документ в папке schema: корень и шаги остаются на месте, модуль — в выбранном каталоге', async () => {
+    const nestedRoot = `${DIR}/schema/form.schema.json`;
+    const nestedStep = `${DIR}/schema/steps/kontakty/form.schema.json`;
+    const files = {
+      [nestedRoot]: printed(skeleton),
+      [nestedStep]: printed({ $schema: STEP_SCHEMA_MARKER, node: step }),
+    };
+    const host = createFakeHost({ files });
+    const outcome = await generateInto({ host, targets: () => BUILTIN_TARGETS }, { dir: DIR });
+
+    expect(outcome.kind).toBe('delivered');
+    // Ссылка корня (`./steps/…`) относительна документу — шаги прочитаны и записаны рядом с ним.
+    expect(host.written.get(nestedRoot)).toBe(files[nestedRoot]);
+    expect(host.written.get(nestedStep)).toBe(files[nestedStep]);
+    expect(host.written.has(`${DIR}/validation/kontakty.ts`)).toBe(true);
+    expect(host.written.get(`${DIR}/application/create.ts`)).toContain(
+      "import step1Schema from '../schema/steps/kontakty/form.schema.json';"
+    );
+    // В корне каталога документа не появилось: он один, в `schema/`.
+    expect(host.written.has(ROOT)).toBe(false);
   });
 });
 
@@ -220,8 +249,8 @@ describe('разбитая форма прежнего формата на ди�
     expect(legacy.written.get(STEP_FILE)).toBe(
       printed({ $schema: STEP_SCHEMA_MARKER, node: step })
     );
-    // Модуль — визарда, а не простой формы: шаг найден, его код лежит в папке шага.
-    expect(legacy.written.has(`${DIR}/steps/kontakty/form.validation.ts`)).toBe(true);
+    // Модуль — визарда, а не простой формы: шаг найден, его правила лежат своим файлом.
+    expect(legacy.written.has(`${DIR}/validation/kontakty.ts`)).toBe(true);
   });
 });
 

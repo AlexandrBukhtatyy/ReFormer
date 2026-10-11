@@ -1,0 +1,59 @@
+// application/create.ts — сборка формы: одна на все места подключения (страница, реестр
+// форм, тесты). Регенерируется билдером; правки будут перезаписаны.
+
+import { createForm, type CreateFormConfig, type FormBundle } from '@reformer/core';
+import { defineFormBehavior, type FormBehavior } from '@reformer/core/behaviors';
+import {
+  composeJsonFormSchema,
+  type JsonFormSchema,
+  type JsonFormStep,
+} from '@reformer/renderer-json';
+import { behaviorRules } from '../behavior';
+import { formFlow } from '../flow/zayavka-na-kredit-flow';
+import { createZayavkaNaKreditFormModel } from '../model/model';
+import rawSchema from '../schema/form.schema.json';
+import step1Schema from '../schema/steps/anketa/form.schema.json';
+import step2Schema from '../schema/steps/kontakty/form.schema.json';
+import { createRegistry } from '../schema/registry';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+import { formValidation } from '../validation/form';
+import { wireSubmit, type SubmitOptions } from './submit';
+
+// Шаги визарда лежат в своих файлах: корневой документ держит ссылки (`$ref`), а форма
+// собирается здесь. Ключ — ссылка как она записана в корневом документе.
+const stepSchemas: Record<string, JsonFormStep> = {
+  './steps/anketa/form.schema.json': step1Schema as unknown as JsonFormStep,
+  './steps/kontakty/form.schema.json': step2Schema as unknown as JsonFormStep,
+};
+
+// В чистом JSON операторы типизируются как `string` — приведение к схеме модели формы.
+export const formSchema = composeJsonFormSchema(
+  rawSchema as unknown as JsonFormSchema,
+  stepSchemas
+) as unknown as JsonFormSchema<ZayavkaNaKreditForm>;
+
+/** Поведение сборки: правила формы и отправка. Фабрика — настройки приходят от места подключения. */
+export function createFormBehavior(options: SubmitOptions = {}): FormBehavior<ZayavkaNaKreditForm> {
+  return defineFormBehavior<ZayavkaNaKreditForm>((scope) => {
+    behaviorRules(scope);
+    wireSubmit(scope, options);
+  });
+}
+
+type Overrides = Pick<CreateFormConfig<ZayavkaNaKreditForm>, 'model' | 'schema' | 'registry'>;
+
+/** Сборка формы — одна на все места подключения. */
+export function createZayavkaNaKreditForm(
+  options: SubmitOptions = {},
+  overrides: Overrides = {}
+): FormBundle<ZayavkaNaKreditForm> {
+  return createForm<ZayavkaNaKreditForm>({
+    model: createZayavkaNaKreditFormModel(),
+    schema: formSchema,
+    registry: createRegistry(),
+    behavior: createFormBehavior(options),
+    validation: formValidation,
+    flow: formFlow,
+    ...overrides,
+  });
+}

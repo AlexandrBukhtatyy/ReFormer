@@ -1,4 +1,4 @@
-// types.ts — тип формы (выведен из схемы и мока). Регенерируется.
+// <%= it.layout.files.types %> — тип формы (выведен из схемы и начальных значений). Регенерируется.
 
 export type SelectOption = { value: string; label: string };
 

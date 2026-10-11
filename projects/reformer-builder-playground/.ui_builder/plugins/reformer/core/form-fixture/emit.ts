@@ -73,9 +73,9 @@ export function emitFixture(schema: JsonFormSchema, seed: FixtureSeed = {}): str
  * Фикстура формы: чем наполнить её в предпросмотре.
  *
  * Слои независимы — заполняйте только нужные:
- *   model        начальные значения (СТАРШЕ model.ts: фикстура пишется ради проверки)
+ *   model        начальные значения (СТАРШЕ model/initial-value.ts: фикстура пишется ради проверки)
  *   dataSources  значения $dataSource
- *   modules      подстановка импортов формы (./api, @/shared/...) — форма не пойдёт в сеть
+ *   modules      подстановка импортов формы (../api, @/shared/...) — форма не пойдёт в сеть
  *   http         перехват запросов, если форма всё же зовёт fetch
  *   clock        фиксированные Date.now() и Math.random()
  */
@@ -86,7 +86,7 @@ export const fixture = {
 ${dataSources}
 
   // modules: {
-  //   './api': { submitForm: async () => ({ success: true, data: { id: 'X1' } }) },
+  //   '../api': { submitForm: async () => ({ success: true, data: { id: 'X1' } }) },
   // },
 
   // http: [{ method: 'GET', url: /\\/api\\//, respond: { json: [] } }],

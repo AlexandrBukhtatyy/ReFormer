@@ -19,7 +19,8 @@ import {
 } from '../../../core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
-import { SCHEMA_FILE_NAMES, type KitView } from '../../../core/codegen';
+import { LEGACY_SCHEMA_FILE, SCHEMA_DIR, SCHEMA_FILE, type KitView } from '../../../core/codegen';
+import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import { materialize, tokenize } from '../render/placeholders';
 import { buildTemplateView, renderTemplateFile } from '../render/render';
 
@@ -109,6 +110,22 @@ export function suggestBaseName(paths: readonly string[]): string {
 }
 
 /**
+ * Текст после подстановки — с тем же происхождением, что было у него до неё.
+ *
+ * Маркер происхождения (`// @reformer-generated <хэш>`) считается от ТЕЛА файла, а подстановка
+ * имени тело меняет: файл, только что напечатанный кодогеном, после неё выглядел бы «правленным
+ * руками», и билдер отказался бы перегенерировать его из правил формы. Поэтому у нетронутого
+ * сгенерированного файла маркер выставляется заново. Файл без маркера и файл, который человек
+ * правил, остаются как есть: первый — написан руками, у второго хэш и не должен сходиться.
+ *
+ * @param before - Текст до подстановки: по нему решается, был ли файл нетронутым выводом кодогена.
+ * @param after - Тот же текст после подстановки.
+ */
+export function keepOrigin(before: string, after: string): string {
+  return isGenerated(before) ? withMarker(after) : after;
+}
+
+/**
  * Файлы шаблона из прочитанных файлов проекта: путь — относительно общего каталога и
  * с плейсхолдерами, содержимое — токенизировано. Порядок сохраняется, дубли отбрасываются.
  */
@@ -121,7 +138,7 @@ export function buildTemplateFiles(files: readonly SourceFile[], baseName: strin
     const path = tokenize(file.path.slice(cut), baseName);
     if (path === '' || seen.has(path)) continue;
     seen.add(path);
-    out.push({ path, content: tokenize(file.content, baseName) });
+    out.push({ path, content: keepOrigin(file.content, tokenize(file.content, baseName)) });
   }
   return out;
 }
@@ -190,7 +207,7 @@ export function materializeFiles(
       files.map((f) => ({
         ...f,
         path: materialize(f.path, formName),
-        content: materialize(f.content, formName),
+        content: keepOrigin(f.content, materialize(f.content, formName)),
       }))
     );
   }
@@ -243,24 +260,35 @@ function upgraded(parsed: unknown): unknown {
   return parsed;
 }
 
+/** Канонические имена документа формы: новое первым, затем прежнее. */
+const CANONICAL_SCHEMA_NAMES: readonly string[] = [SCHEMA_FILE, LEGACY_SCHEMA_FILE];
+
 /**
- * Ранг файла в поиске схемы: корневой `form.schema.json` (затем прежнее имя) — первым,
- * прочие корневые — за ним, вложенные — последними.
+ * Ранг файла в поиске схемы — меньше значит раньше:
+ *
+ * 1. документ модуля в папке ролей — `schema/form.schema.json` (затем прежнее имя);
+ * 2. документ в корне шаблона — `form.schema.json` (затем прежнее имя): так лежит схема у
+ *    шаблона, снятого с формы прежней плоской раскладки;
+ * 3. прочие файлы корня;
+ * 4. вложенные.
  *
  * Порядок, а не фильтр: в пользовательском шаблоне схема может называться как угодно
- * (`__FormName__.schema.json`), и её надо найти. Но у визарда по шагам будут и под-схемы шагов
- * (`steps/<шаг>/form.schema.json`) — открыть после генерации нужно корневую, а не первую
+ * (`__FormName__.schema.json`), и её надо найти. Но у визарда по шагам есть и под-схемы шагов
+ * (`schema/steps/<шаг>/form.schema.json`) — открыть после генерации нужно корневую, а не первую
  * попавшуюся по порядку набора.
  */
 function schemaRank(path: string): number {
-  if (path.includes('/')) return SCHEMA_FILE_NAMES.length + 1;
-  const known = SCHEMA_FILE_NAMES.indexOf(path);
-  return known === -1 ? SCHEMA_FILE_NAMES.length : known;
+  const segments = path.split('/');
+  const canonical = CANONICAL_SCHEMA_NAMES.indexOf(segments[segments.length - 1] ?? '');
+  const names = CANONICAL_SCHEMA_NAMES.length;
+  if (segments.length === 2 && segments[0] === SCHEMA_DIR && canonical !== -1) return canonical;
+  if (segments.length === 1) return canonical === -1 ? names * 2 : names + canonical;
+  return names * 2 + 1;
 }
 
 /**
- * Какой из файлов открыть после генерации: `.json`, распознанный как схема формы, — корневой
- * канонический первым (см. {@link schemaRank}), дальше в порядке набора.
+ * Какой из файлов открыть после генерации: `.json`, распознанный как схема формы, — документ
+ * модуля первым (см. {@link schemaRank}), дальше в порядке набора.
  * `null` — в наборе схемы нет, и тогда после генерации ничего не открывается.
  */
 export function formSchemaFileOf(files: readonly TemplateFile[]): {

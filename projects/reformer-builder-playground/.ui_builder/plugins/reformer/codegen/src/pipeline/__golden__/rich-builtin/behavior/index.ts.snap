@@ -1,0 +1,42 @@
+// behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import { defineFormBehavior, type BehaviorScope } from '@reformer/core/behaviors';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (application/create.ts). */
+export function behaviorRules(_scope: BehaviorScope<ZayavkaNaKreditForm>): void {
+  // Шаг «Кредит»
+  // Условная видимость секций — раскомментируйте и впишите условие:
+  // hideWhen(schema.node('kredit-section'), () => /* TODO: условие для «Кредит» */ false);
+
+  // Шаг «Имущество»
+  // Условная видимость секций — раскомментируйте и впишите условие:
+  // hideWhen(schema.node('imuschestvo-section'), () => /* TODO: условие для «Имущество» */ false);
+}
+
+export const formBehavior = defineFormBehavior<ZayavkaNaKreditForm>(behaviorRules);
+
+// --- ПРИМЕР ↓ замените функцию выше на такую и оставьте нужные строки ------------------
+// import {
+//   compute,
+//   computeFrom,
+//   copyFrom,
+//   defineFormBehavior,
+//   enableWhen,
+//   hideWhen,
+//   type BehaviorScope,
+// } from '@reformer/core/behaviors';
+//
+// export function behaviorRules({ model, schema }: BehaviorScope<ZayavkaNaKreditForm>): void {
+//   // model.field — ЗНАЧЕНИЕ поля, model.$.field — его сигнал. Операторы принимают сигналы.
+//   compute(model.$.total, () => (model.price ?? 0) * (model.qty ?? 0));
+//   computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty);
+//   enableWhen(model.$.city, () => model.country !== null);
+//   copyFrom(model.$.shippingAddress, model.$.billingAddress, { when: () => model.sameAddress });
+//
+//   // Правила узлов схемы — по `selector` узла. Скрытие узла не убирает поле из модели:
+//   // чтобы оно перестало валидироваться, рядом нужен enableWhen.
+//   hideWhen(schema.node('details-section'), () => !model.hasDetails);
+// }
+// --- конец примера ---------------------------------------------------------------------

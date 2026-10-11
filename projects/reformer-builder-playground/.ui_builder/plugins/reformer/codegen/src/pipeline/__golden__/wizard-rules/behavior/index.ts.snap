@@ -1,0 +1,20 @@
+// behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import { defineFormBehavior, hideWhen, type BehaviorScope } from '@reformer/core/behaviors';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (application/create.ts). */
+export function behaviorRules({ form, schema }: BehaviorScope<ZayavkaNaKreditForm>): void {
+  // Правила узлов схемы
+  hideWhen(schema.node('dopolnitelno-section'), () => false);
+
+  // Шаг «Данные»
+  // Условная видимость секций — раскомментируйте и впишите условие:
+  // hideWhen(schema.node('dannye-section'), () => /* TODO: условие для «Данные» */ false);
+
+  // Шаг «Контакты»
+  hideWhen(schema.node('kontakty-section'), () => !form.fullName.value.value);
+}
+
+export const formBehavior = defineFormBehavior<ZayavkaNaKreditForm>(behaviorRules);

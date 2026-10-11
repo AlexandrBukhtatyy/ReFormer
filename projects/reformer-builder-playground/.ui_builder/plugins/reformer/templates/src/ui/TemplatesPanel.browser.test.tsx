@@ -15,6 +15,10 @@
  *   подсветкой;
  * - **каталог формы выбирают в окне.** Раньше он молча брался у активной вкладки, и положить
  *   форму в другое место было нечем;
+ * - **у документа из модуля формы «рядом» — это рядом с модулем.** Документ лежит в папке
+ *   `schema/` своего модуля, и форма, созданная в его каталоге, стала бы частью чужой;
+ * - **отметка файла снимается по цепочке.** Реэкспорты держатся за страницу, страница — за ядро
+ *   модуля: сними мы один уровень, оставшийся владелец вернул бы снятое при создании формы;
  * - **имя формы с кириллицей ПРИНИМАЕТСЯ.** Правило первой версии («латиница, цифры, дефис»)
  *   здесь было бы регрессом: подстановка транслитерирует, и запрет отрезал бы законные имена.
  *
@@ -117,19 +121,31 @@ function Harness({
   );
 }
 
-async function mount(): Promise<Fixture> {
+interface MountOptions {
+  /** Документ активной вкладки; по умолчанию — свободно названный файл среди форм. */
+  readonly active?: ResourceId;
+  /** Встроенный шаблон; по умолчанию — {@link BUILTIN}. */
+  readonly builtin?: FormTemplate;
+}
+
+async function mount(options: MountOptions = {}): Promise<Fixture> {
   const removed: string[] = [];
   const renamed: FormTemplate[] = [];
   const project = [PROJECT];
+  const active = options.active ?? ACTIVE;
   const host = createFakeTemplatesHost({
-    files: { [ACTIVE]: '{}', 'project/pages/index.tsx': '', 'project/lib/util.ts': '' },
+    files: { [active]: '{}', 'project/pages/index.tsx': '', 'project/lib/util.ts': '' },
   });
   // Активная вкладка — то, рядом с чем создаётся форма; двойник по умолчанию её не имеет.
-  const withDocument: FakeTemplatesHost = { ...host, useActiveDocument: () => ACTIVE };
+  const withDocument: FakeTemplatesHost = { ...host, useActiveDocument: () => active };
+  const builtin: TemplateStore =
+    options.builtin === undefined
+      ? builtinStore
+      : { ...builtinStore, list: async () => [options.builtin as FormTemplate] };
   const mounted = renderReact(
     <Harness
       host={withDocument}
-      stores={[builtinStore, projectStore(removed, renamed, project)]}
+      stores={[builtin, projectStore(removed, renamed, project)]}
       refresh={createTemplatesRefresh()}
     />
   );
@@ -290,6 +306,64 @@ describe('панель шаблонов', () => {
   });
 });
 
+describe('состав файлов формы', () => {
+  /** Встроенный шаблон в три звена: реэкспорты → страница → ядро. README никому не нужен. */
+  const CHAINED: FormTemplate = {
+    id: 'simple',
+    name: 'Простая форма',
+    source: 'builtin',
+    files: [
+      { path: 'index.ts', content: '' },
+      { path: 'Page.tsx', content: '' },
+      { path: 'model.ts', content: '' },
+      { path: 'README.md', content: '' },
+    ],
+    requires: { 'index.ts': ['Page.tsx'], 'Page.tsx': ['model.ts'] },
+  };
+
+  /** Отмеченные файлы — по подписям строк списка. */
+  function checkedFiles(): string[] {
+    return [...document.querySelectorAll<HTMLElement>('label')]
+      .filter((label) => label.querySelector('[role="checkbox"][data-state="checked"]') !== null)
+      .map((label) => (label.textContent ?? '').trim());
+  }
+
+  async function toggleFile(path: string): Promise<void> {
+    const label = [...document.querySelectorAll<HTMLElement>('label')].find(
+      (item) => (item.textContent ?? '').trim() === path
+    );
+    await userEvent.click(label!.querySelector<HTMLElement>('[role="checkbox"]')!);
+  }
+
+  it('снятие отметки с ядра снимает страницу и реэкспорты — всю цепочку', async () => {
+    const fixture = await mount({ builtin: CHAINED });
+
+    await userEvent.click(row('builtin', 'simple')!);
+    await vi.waitFor(() => {
+      if (document.querySelector('[data-testid="input-formName"]') === null) {
+        throw new Error('диалог ещё не открылся');
+      }
+    });
+    // Состав свёрнут: по умолчанию берутся все файлы шаблона.
+    const trigger = [...document.querySelectorAll<HTMLElement>('button')].find((button) =>
+      (button.textContent ?? '').includes('files.picked')
+    );
+    await userEvent.click(trigger!);
+    await expect.poll(checkedFiles).toEqual(['index.ts', 'Page.tsx', 'model.ts', 'README.md']);
+
+    await toggleFile('model.ts');
+
+    // Останься реэкспорты отмеченными, создание формы вернуло бы и страницу, и модель:
+    // зависимости добираются при генерации.
+    await expect.poll(checkedFiles).toEqual(['README.md']);
+
+    // Обратно: отметка реэкспортов тянет за собой страницу и ядро.
+    await toggleFile('index.ts');
+    await expect.poll(checkedFiles).toEqual(['index.ts', 'Page.tsx', 'model.ts', 'README.md']);
+    fixture.unmount();
+  });
+});
+
 describe('выбор каталога формы', () => {
   it('поле предлагает каталоги проекта, а не только место активной вкладки', async () => {
     const fixture = await mount();
@@ -310,6 +384,34 @@ describe('выбор каталога формы', () => {
     // открытого файла.
     expect(options).toContain('dialog.generate.folder.root');
     expect(options).toContain('pages');
+    fixture.unmount();
+  });
+
+  it('у документа из модуля формы предлагается каталог рядом с МОДУЛЕМ, а не его `schema/`', async () => {
+    // Открыт документ формы «папки по ролям». Его каталог — `loan/schema`: форма, созданная там,
+    // оказалась бы внутри чужого модуля.
+    const fixture = await mount({
+      active: 'project/forms/loan/schema/form.schema.json' as ResourceId,
+    });
+
+    await userEvent.click(row('builtin', 'simple')!);
+    await vi.waitFor(() => {
+      if (document.querySelector('[data-testid="select-folder"]') === null) {
+        throw new Error('поле каталога ещё не отрисовано');
+      }
+    });
+    await expect
+      .poll(() => document.querySelector('[data-testid="select-folder"]')?.textContent)
+      .toContain('forms');
+    await userEvent.fill(
+      document.querySelector<HTMLElement>('[data-testid="input-formName"]')!,
+      'credit'
+    );
+    await userEvent.click(document.querySelector<HTMLElement>('[data-testid="button-generate"]')!);
+
+    await expect
+      .poll(() => [...fixture.host.files.keys()].filter((path) => path.includes('/credit/')))
+      .toEqual(['project/forms/credit/schema.json', 'project/forms/credit/model.ts']);
     fixture.unmount();
   });
 

@@ -59,14 +59,35 @@ describe('вид шаблона формы', () => {
     });
     expect(view.form?.names.TypeName).toBe('ZayavkaNaKreditForm');
     expect(view.form?.registry.kitSymbols).toContain('Input');
-    expect(view.form?.wizard).toBeNull();
+    // Вид формы решает схема: без узла с шагами это простая форма, и визарда в реестре нет.
+    expect(view.form?.layout.isWizard).toBe(false);
+    expect(view.form?.registry.wizard).toBeNull();
   });
 
   it('визард в схеме виден шаблону — на нём и строится ветвление', () => {
     const view = buildTemplateView(template([schemaFile(wizardSchema())]), 'Анкета', {
       kit: kit(),
     });
-    expect(view.form?.wizard?.symbol).toBe('FormWizard');
+    expect(view.form?.layout.isWizard).toBe(true);
+    // Чем визард регистрируется, говорит кит: его адаптер, а не переходник приложения.
+    expect(view.form?.registry.wizard?.symbol).toBe('FormWizard');
+  });
+
+  it('пути вида считаются от места схемы в шаблоне', () => {
+    // Шаблон, снятый с формы прежней раскладки, держит схему в корне; модуль «папки по ролям» —
+    // в `schema/`. Импорты и место файлов шагов шаблон берёт из вида, и они обязаны сходиться
+    // с тем, где схема лежит на самом деле.
+    const flat = buildTemplateView(template([schemaFile(plainSchema())]), 'Анкета', { kit: kit() });
+    const nested = buildTemplateView(
+      template([{ ...schemaFile(plainSchema()), path: 'schema/form.schema.json' }]),
+      'Анкета',
+      { kit: kit() }
+    );
+
+    expect(flat.form?.layout.files.schema).toBe('form.schema.json');
+    expect(flat.form?.rel('create', 'schema')).toBe('../form.schema.json');
+    expect(nested.form?.layout.files.schema).toBe('schema/form.schema.json');
+    expect(nested.form?.rel('create', 'schema')).toBe('../schema/form.schema.json');
   });
 
   it('схема прежнего формата рассказывает о форме то же: и визард, и поля', () => {
@@ -102,7 +123,8 @@ describe('вид шаблона формы', () => {
 
     const view = buildTemplateView(template([schemaFile(legacy)]), 'Анкета', { kit: kit() });
 
-    expect(view.form?.wizard?.symbol).toBe('FormWizard');
+    expect(view.form?.layout.isWizard).toBe(true);
+    expect(view.form?.registry.wizard?.symbol).toBe('FormWizard');
     expect(view.form?.required).toEqual(['email']);
   });
 });
@@ -163,7 +185,7 @@ describe('то, чего токены не умели', () => {
   });
 
   it('ветвление по наличию визарда', () => {
-    const body = '<% if (it.form.wizard !== null) { %>ШАГИ<% } else { %>ОДИН ЭКРАН<% } %>';
+    const body = '<% if (it.form.layout.isWizard) { %>ШАГИ<% } else { %>ОДИН ЭКРАН<% } %>';
     const withWizard = materializeFiles(
       template([schemaFile(wizardSchema()), { path: 'a.ts', content: body }]),
       ['a.ts'],

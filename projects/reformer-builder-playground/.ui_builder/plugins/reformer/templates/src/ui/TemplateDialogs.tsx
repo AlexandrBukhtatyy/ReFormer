@@ -58,6 +58,7 @@ import {
   removeTemplate,
   renameTemplate,
   storeOf,
+  suggestedFolderOf,
   type FolderChoice,
   type OperationResult,
 } from '../content/operations';
@@ -161,10 +162,11 @@ function GenerateBody({
   const [folder, setFolder] = useState<ResourceId | null>(null);
 
   const root = host.projectRoot();
-  // Каталог открытого файла — предложение по умолчанию: форму почти всегда кладут рядом
-  // с тем, над чем работают. Но это предложение, а не решение за человека: выбрать можно
-  // любой каталог проекта.
-  const suggested = documentId === null ? root : host.parentOf(documentId);
+  // Место рядом с открытым файлом — предложение по умолчанию: форму почти всегда кладут рядом
+  // с тем, над чем работают. У документа из модуля формы «рядом» — это рядом с МОДУЛЕМ, а не
+  // внутри его папки `schema/` (см. `suggestedFolderOf`). Но это предложение, а не решение за
+  // человека: выбрать можно любой каталог проекта.
+  const suggested = documentId === null ? root : suggestedFolderOf(host, documentId);
 
   useEffect(() => {
     if (root === null) return;
@@ -196,9 +198,15 @@ function GenerateBody({
   const toggle = (path: string): void => {
     const next = new Set(picked);
     if (next.has(path)) {
-      next.delete(path);
-      for (const [owner, deps] of Object.entries(template.requires ?? {})) {
-        if (deps.includes(path)) next.delete(owner);
+      // Снимается по цепочке: реэкспорты держатся за страницу, страница — за ядро модуля.
+      // Сними мы один уровень, оставшийся владелец при создании формы вернул бы снятое.
+      const queue = [path];
+      while (queue.length > 0) {
+        const dropped = queue.pop() as string;
+        next.delete(dropped);
+        for (const [owner, deps] of Object.entries(template.requires ?? {})) {
+          if (next.has(owner) && deps.includes(dropped)) queue.push(owner);
+        }
       }
       setPicked(next);
       return;

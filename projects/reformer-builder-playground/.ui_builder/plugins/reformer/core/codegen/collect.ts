@@ -4,7 +4,8 @@
  *
  * Обход зеркалит {@link './mock'.collectFieldDefaults}: тот же спуск, тот же отказ спускаться
  * в `item.$template` за верхнеуровневыми путями. Это не совпадение, а требование —
- * `model.ts` печатается из первого, `types.ts` из второго, и разойтись им нельзя.
+ * начальные значения (`model/initial-value.ts`) печатаются из первого, тип формы
+ * (`types/<dir>.ts`) — из второго, и разойтись им нельзя.
  *
  * @module plugins/reformer/core/codegen/collect
  */
@@ -98,14 +99,52 @@ function optionUnion(node: JsonFieldNode, mock: FormMock, empty = false): string
   return unique.join(' | ');
 }
 
-/** TS-тип листа: список с известными опциями — union, иначе по виду значения. */
-function leafType(node: JsonFieldNode, mock: FormMock): string {
+/**
+ * Значение по дот-пути в куске мока; `undefined` — мок о таком пути молчит.
+ *
+ * Кусок — модель целиком либо строка массива: пути полей строки записаны от строки.
+ */
+function valueAt(sample: unknown, path: string): unknown {
+  let cursor = sample;
+  for (const key of path.split('.')) {
+    if (typeof cursor !== 'object' || cursor === null || Array.isArray(cursor)) return undefined;
+    cursor = (cursor as Record<string, unknown>)[key];
+  }
+  return cursor;
+}
+
+/** Тип, допускающий `null`. Уже допускающий не трогается — `string | null | null` не бывает. */
+function nullable(type: string): string {
+  return type.split(' | ').includes('null') ? type : `${type} | null`;
+}
+
+/**
+ * TS-тип листа: вид значения по контролу плюс то, с чего лист стартует в моке.
+ *
+ * Мок — не подсказка, а источник начальных значений: `model/initial-value.ts` печатает его как
+ * есть и приводит к типу формы (`as <Тип>`). Приведение прячет расхождение от компилятора:
+ * `city: null` при `city: string` проходит tsc, а тип при этом врёт — сервис, читающий поле,
+ * получает `null`, которого тип не обещал. Поэтому лист, стартующий с `null`, объявляется
+ * nullable, какой бы контрол его ни рисовал.
+ *
+ * @param startsNull - В моке по пути листа лежит `null` (у поля строки массива — хотя бы в одной
+ *   строке).
+ */
+function leafType(node: JsonFieldNode, mock: FormMock, startsNull: boolean): string {
+  const type = kindType(node, mock);
+  return startsNull ? nullable(type) : type;
+}
+
+/** TS-тип листа по виду значения: список с известными опциями — union, иначе по контролу. */
+function kindType(node: JsonFieldNode, mock: FormMock): string {
   const kind = fieldKindOf(node);
   if (kind === 'select') {
     // `''` — «ничего не выбрано»: с него список стартует (`defaultForField` в form-mock),
-    // и `model.ts` печатает его начальным значением. Союз одних опций это значение отвергал —
+    // и начальные значения печатают его как есть. Союз одних опций это значение отвергал —
     // напечатанный модуль не проходил tsc на любой форме со списком без выбора по умолчанию.
-    return optionUnion(node, mock, true) ?? 'string';
+    const type = optionUnion(node, mock, true) ?? 'string';
+    // Список с крестиком очистки сбрасывает значение в `null` — тип обязан это значение знать.
+    return node.componentProps?.clearable === true ? `${type} | null` : type;
   }
   if (kind === 'multi') {
     const union = optionUnion(node, mock);
@@ -113,10 +152,19 @@ function leafType(node: JsonFieldNode, mock: FormMock): string {
     // создал бы форму-массив вместо листа (см. дефолты в `./mock`).
     return union === null ? 'string[] | null' : `Array<${union}> | null`;
   }
-  if (kind === 'file') return 'unknown[] | null';
+  // Загрузка отдаёт выбранные файлы; `null` — ничего не выбрано. Форме, которая показывает уже
+  // загруженные на сервер файлы, тип уточняют руками (`RemoteFileRef[]` кита).
+  if (kind === 'file') return 'File[] | null';
+  // Выбор даты кладёт в модель `Date`; `null` — дата не выбрана (с него поле и стартует).
+  if (kind === 'date') return 'Date | null';
   if (kind === 'boolean') return 'boolean';
-  if (kind === 'number') return 'number';
-  return 'string';
+  // `null` — «число не введено»: с него числовое поле стартует, если у него нет `min`
+  // (`defaultForField` в form-mock), и начальные значения печатают его как есть. Тип `number`
+  // это значение отвергал — напечатанный модуль не проходил tsc на любой форме с числовым полем.
+  if (kind === 'number') return 'number | null';
+  // Крестик очистки сбрасывает значение в `null` у любого контрола, который его несёт, — и у
+  // комбобокса без списка опций в схеме (`ComboboxTree`: узлы приходят деревом, не опциями).
+  return node.componentProps?.clearable === true ? 'string | null' : 'string';
 }
 
 function insert(target: TsObject, segments: readonly string[], node: TsNode): void {
@@ -130,13 +178,19 @@ function insert(target: TsObject, segments: readonly string[], node: TsNode): vo
   cursor.fields[segments[segments.length - 1]] = node;
 }
 
-/** Построить дерево типов узла — формы целиком или элемента массива. */
+/**
+ * Построить дерево типов узла — формы целиком или элемента массива.
+ *
+ * @param samples - Куски мока, в которых лежат значения полей этого узла: у формы — её модель,
+ *   у шаблона элемента — строки массива из мока (у синтезированного мока строк нет).
+ */
 function buildTree(
   node: JsonNode,
   mock: FormMock,
   topLevel: boolean,
   requiredOut: string[],
-  arraysOut: string[]
+  arraysOut: string[],
+  samples: readonly unknown[] = [mock.model]
 ): TsObject {
   const root: TsObject = { t: 'obj', fields: {} };
   const visit = (n: JsonNode): void => {
@@ -145,8 +199,13 @@ function buildTree(
       if (parsed?.op === 'model') {
         // У `item: "$part(...)"` шаблона в узле нет — тип элемента остаётся пустым объектом.
         const template = typeof n.item === 'object' ? n.item.$template : undefined;
+        // Строки массива из мока: по ним типы полей строки узнают о своих `null`.
+        const rows = samples.flatMap((sample): unknown[] => {
+          const value = valueAt(sample, parsed.arg);
+          return Array.isArray(value) ? value : [];
+        });
         const elem: TsNode = isNodeLike(template)
-          ? buildTree(template, mock, false, requiredOut, arraysOut)
+          ? buildTree(template, mock, false, requiredOut, arraysOut, rows)
           : { t: 'obj', fields: {} };
         insert(root, parsed.arg.split('.'), { t: 'arr', elem });
         if (topLevel) arraysOut.push(parsed.arg);
@@ -156,7 +215,8 @@ function buildTree(
     if (isFieldNode(n)) {
       const parsed = parseOperator(n.model);
       if (parsed?.op === 'model') {
-        insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, mock) });
+        const startsNull = samples.some((sample) => valueAt(sample, parsed.arg) === null);
+        insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, mock, startsNull) });
         if (topLevel && n.componentProps?.required === true) requiredOut.push(parsed.arg);
       }
       return;

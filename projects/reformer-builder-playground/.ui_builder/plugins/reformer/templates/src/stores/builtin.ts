@@ -15,32 +15,54 @@
  * а плагины друг друга не импортируют. Без печатника хранилище честно объявляет себя
  * недоступным — встроенных шаблонов просто не будет, а проектные и локальные останутся.
  *
- * ## Затравки — данные, а не текст
+ * ## Шаблон раскладывается так же, как печатает кодоген
  *
- * Схемы собираются фабриками узлов домена (`@/plugins/reformer/core/catalog`), а не литералами JSON:
- * так «пошаговая форма» остаётся пошаговой, даже когда изменится внутреннее устройство
- * узла-визарда.
+ * Модуль формы — папки по ролям (`@/plugins/reformer/core/codegen`): страница `<Тип>.tsx`,
+ * реэкспорты `index.ts`, документ `schema/form.schema.json`, остальное — в `application/`,
+ * `model/`, `validation/`, `behavior/`, … Часть путей зависит от имени формы, и вывести их из
+ * написаний имени нельзя: тип формы и каталог считает `makeNames`. Поэтому затравка печатается
+ * под базовое имя, а имена модуля в напечатанном заменяются токенами имён модуля
+ * (`../render/placeholders`): при создании формы на их место встаёт то же, что кодоген напечатал бы
+ * для неё сам. Разойдись они — первая же генерация из билдера положила бы свои файлы рядом
+ * с файлами шаблона, и в модуле остались бы сироты.
+ *
+ * Затравки — в `./seeds`: состав анкеты, её правила и данные.
  *
  * @module plugins/reformer/templates/stores/builtin
  */
 
-import { fieldNode, stepNode, wizardNode } from '../../../core/catalog';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { CatalogEntry } from '../../../core/catalog';
+import { makeNames, moduleFilesOf, type FormMock } from '../../../core/codegen';
 import { emitFixture, FIXTURE_FILE } from '../../../core/form-fixture';
 import { synthMock } from '../../../core/form-mock';
-import { type FormMock } from '../../../core/codegen';
 import type { FormRules } from '../../../core/form-model';
-import { emptySchema } from '../../../core/form-model';
-import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import { keepOrigin } from '../content/files';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
-import { tokenize } from '../render/placeholders';
+import { tokenizeModuleNames } from '../render/placeholders';
+import {
+  hasWizard,
+  seedData,
+  seedKitOf,
+  simpleRules,
+  simpleSeed,
+  wizardRules,
+  wizardSeed,
+  type SeedData,
+  type SeedKit,
+} from './seeds';
 
 /**
- * Базовое имя, под которое печатаются затравки перед токенизацией.
+ * Базовое имя, под которое печатаются затравки перед заменой имён модуля токенами.
  *
- * Односложное и не встречающееся в текстах, поэтому замена не задевает ничего лишнего:
- * `sample` даёт `SampleForm`, что превращается в `__FormName__Form`.
+ * Из двух слов, и это условие, а не вкус: у однословного имени каталог (`sample`) и начало
+ * camelCase-идентификатора (`sampleFormEntry`) — одна и та же строка, и замена не различает,
+ * где путь, а где имя. Здесь все четыре имени модуля разные и не входят друг в друга:
+ * `template-seed`, `TemplateSeedForm`, `templateSeedForm`, `Template seed`. В текстах, которые
+ * печатает кодоген, ни одно из них само не встречается.
  */
-export const BUILTIN_BASE_NAME = 'sample';
+export const BUILTIN_BASE_NAME = 'template seed';
 
 /** Идентификатор шаблона простой формы. */
 export const SIMPLE_TEMPLATE_ID = 'builtin-simple-form';
@@ -48,17 +70,11 @@ export const SIMPLE_TEMPLATE_ID = 'builtin-simple-form';
 /** Идентификатор шаблона пошаговой формы. */
 export const WIZARD_TEMPLATE_ID = 'builtin-wizard-form';
 
-/** Точка входа модуля: она тянет за собой всё остальное. */
-const ENTRY_FILE = 'index.tsx';
-
-/** Файл, который точка входа НЕ тянет: README собирается, но модулю не нужен. */
-const OPTIONAL_FILES: ReadonlySet<string> = new Set(['README.md']);
-
 /**
  * Печатник модуля формы: схема и имя — набор файлов.
  *
  * Функция, а не объект: у неё одна обязанность, и структурная совместимость с `generateModule`
- * кодогена достигается трёхстрочным переходником в композиции.
+ * кодогена достигается трёхстрочным переходником в композиции. Пути файлов — от корня модуля.
  */
 export type ModulePrinter = (
   schema: JsonFormSchema,
@@ -69,172 +85,29 @@ export type ModulePrinter = (
 /**
  * Чем затравка дополняет схему.
  *
- * Оба поля кодоген уже умеет принимать — просто печатнику шаблона их не передавали. Без правил
- * он печатает пустую заглушку поведения (`defineFormBehavior(() => {})`), без мока —
- * синтезированные `option1/2/3` в источниках данных.
+ * Без правил кодоген печатает заготовки поведения и валидации, без мока — синтезированные
+ * `option1/2/3` в источниках данных.
  */
 export interface SeedExtras {
   readonly rules?: FormRules;
   readonly mock?: FormMock;
-  /** Вынести шаги визарда в свои файлы `steps/<шаг>/form.schema.json`. */
+  /** Вынести шаги визарда в свои файлы `schema/steps/<шаг>/form.schema.json`. */
   readonly splitSteps?: boolean;
 }
 
 /**
- * Поле затравки: узел фабрики со своей привязкой и подписью.
+ * Мок для кодогена: начальные значения — синтез, источники — данные затравки.
  *
- * Привязка ПЕРЕПИСЫВАЕТСЯ в том же ключе `model`, куда её кладёт фабрика: второй ключ рядом
- * оставил бы узел привязанным к `newField`, и все поля затравки делили бы один путь модели.
+ * Источники те же, что уходят в фикстуру: разойдись они, модуль формы и её предпросмотр
+ * показывали бы РАЗНЫЕ списки, и человек считал бы это дефектом превью. Значения полей из
+ * затравки сюда НЕ идут: начальные значения модуля — пустая форма, а не анкета Иванова; они
+ * нужны только предпросмотру и живут в фикстуре.
  */
-function withField(
-  name: string,
-  model: string,
-  label: string,
-  extra: Record<string, unknown> = {}
-): JsonNode {
-  const node = fieldNode(name) as JsonNode & {
-    model: string;
-    componentProps: Record<string, unknown>;
-  };
-  return {
-    ...node,
-    model: `$model(${model})`,
-    componentProps: { ...node.componentProps, label, ...extra },
-  };
-}
-
-/**
- * Имя источника данных затравок.
- *
- * Источник в затравке не для красоты: без `$dataSource` кодоген не печатает `data-sources.ts`
- * содержательно, а превью нечего показать в списке — то есть «источники данных» в шаблоне
- * остались бы словом из описания.
- */
-const CITY_SOURCE = 'CITY_LIST';
-
-/**
- * Затравка простой формы.
- *
- * Состав подобран так, чтобы форму было ЧЕМ проверить сразу после создания: обязательные поля
- * дают валидацию, вычисляемое «Полное имя» — поведение, список городов — источник данных.
- * Прежняя затравка (два голых `Input`) печатала пустую заглушку поведения и пустую валидацию,
- * и проверять в такой форме было нечего.
- */
-export function simpleSeed(): JsonFormSchema {
-  const schema = emptySchema();
-  const root = schema.root as JsonNode & { children: unknown[] };
-  root.children = [
-    withField('Input', 'lastName', 'Фамилия', { required: true }),
-    withField('Input', 'firstName', 'Имя', { required: true }),
-    withField('Input', 'fullName', 'Полное имя', { readOnly: true }),
-    withField('Select', 'city', 'Город', { options: `$dataSource(${CITY_SOURCE})` }),
-    withField('Input', 'email', 'Электронная почта', { required: true }),
-  ];
-  return schema;
-}
-
-/**
- * Правила простой формы: то, из чего кодоген напечатает `validation.ts` и `form.behavior.ts`.
- *
- * Печатает их не этот модуль, а существующий мост к билдерам MCP (`@/plugins/reformer/core/codegen`):
- * второй комплект эмиттеров для того же самого разошёлся бы с первым молча.
- */
-export function simpleRules(): FormRules {
-  return {
-    validation: [
-      { target: 'lastName', rules: ['required'] },
-      { target: 'firstName', rules: ['required'] },
-      { target: 'email', rules: ['required', 'email'] },
-    ],
-    behavior: [
-      {
-        kind: 'computeFrom',
-        target: 'fullName',
-        sources: ['lastName', 'firstName'],
-        expr: '[lastName, firstName].filter(Boolean).join(" ")',
-      },
-    ],
-    // Поведение РЕНДЕРА — третий вид правил, и он не выражается двумя предыдущими: видимость
-    // принадлежит УЗЛУ схемы, а не значению модели. Селектор проставляет сам кодоген из пути
-    // (`fullName` → `full-name`, см. `@/plugins/reformer/core/codegen`), поэтому здесь он предсказуем.
-    render: [
-      {
-        kind: 'hideWhen',
-        selector: 'full-name',
-        condition: '!form.lastName.value.value || !form.firstName.value.value',
-      },
-    ],
-  };
-}
-
-/**
- * Затравка пошаговой формы: визард с двумя шагами. Состав — по тому же доводу, что у простой.
- *
- * Шаги — `children` узла-визарда. Узел берётся у фабрики, а её единственный пустой шаг
- * заменяется двумя своими: что такое визард, знает домен, а затравка знает только свои шаги.
- */
-export function wizardSeed(): JsonFormSchema {
-  const schema = emptySchema();
-  const root = schema.root as JsonNode & { children: unknown[] };
-  const step = (title: string, fields: readonly JsonNode[]): JsonNode => {
-    const node = stepNode(title) as JsonNode & { children: unknown[] };
-    return { ...node, children: [...fields] };
-  };
-  const wizard = wizardNode() as JsonNode & { children: unknown[] };
-  root.children = [
-    {
-      ...wizard,
-      children: [
-        step('Данные', [
-          withField('Input', 'lastName', 'Фамилия', { required: true }),
-          withField('Input', 'firstName', 'Имя', { required: true }),
-          withField('Input', 'fullName', 'Полное имя', { readOnly: true }),
-        ]),
-        step('Контакты', [
-          withField('Select', 'city', 'Город', { options: `$dataSource(${CITY_SOURCE})` }),
-          withField('Input', 'email', 'Электронная почта', { required: true }),
-        ]),
-      ],
-    } satisfies JsonNode,
-  ];
-  return schema;
-}
-
-/** Правила пошаговой формы — те же, что у простой: поля совпадают, шаги на правила не влияют. */
-export const wizardRules = simpleRules;
-
-/**
- * Фикстура затравок: данные, с которыми форму видно сразу.
- *
- * Города заданы настоящими, а не синтезированными `option1/2/3`: список из трёх безымянных
- * значений показывает, что механизм работает, но не показывает, как выглядит форма.
- */
-function seedFixture(): { model: Record<string, unknown>; dataSources: Record<string, unknown> } {
-  return {
-    model: { city: 'msk' },
-    dataSources: {
-      [CITY_SOURCE]: [
-        { value: 'msk', label: 'Москва' },
-        { value: 'spb', label: 'Санкт-Петербург' },
-        { value: 'nsk', label: 'Новосибирск' },
-      ],
-    },
-  };
-}
-
-/**
- * Тот же набор данных — но для кодогена, печатающего `data-sources.ts`.
- *
- * Один источник на двоих намеренно: разойдись они, модуль формы и её предпросмотр показывали бы
- * РАЗНЫЕ списки, и человек считал бы это дефектом превью. Синтез остаётся базой — он покрывает
- * пути, о которых затравка ничего не знает.
- */
-function seedMock(schema: JsonFormSchema): FormMock {
-  const seed = seedFixture();
+function seedMock(schema: JsonFormSchema, data: SeedData): FormMock {
   const synthesized = synthMock(schema);
   return {
-    model: { ...synthesized.model, ...seed.model },
-    dataSources: { ...synthesized.dataSources, ...seed.dataSources },
+    model: synthesized.model,
+    dataSources: { ...synthesized.dataSources, ...data.dataSources },
   };
 }
 
@@ -243,9 +116,11 @@ interface Seed {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  readonly schema: () => JsonFormSchema;
-  /** Правила: из них печатаются `form.validation.ts` и `form.behavior.ts`. */
-  readonly rules: () => FormRules;
+  /** Есть ли у кита из чего собрать шаблон. Нет — шаблон не показывается. */
+  readonly available: (kit: SeedKit | undefined) => boolean;
+  readonly schema: (kit: SeedKit | undefined) => JsonFormSchema;
+  /** Правила: из них печатаются `validation/*.ts` и `behavior/index.ts`. */
+  readonly rules: (kit: SeedKit | undefined) => FormRules;
   /** Шаги визарда — каждый в своём файле схемы: так пошаговая форма и хранится в билдере. */
   readonly splitSteps?: boolean;
 }
@@ -255,36 +130,61 @@ const SEEDS: readonly Seed[] = [
     id: SIMPLE_TEMPLATE_ID,
     name: 'Простая форма',
     description:
-      'Готовая к проверке: обязательные поля, вычисляемое «Полное имя», список городов и фикстура.',
+      'Анкета из трёх секций — по одному образцу каждого вида поля, который есть в ките: текст, ' +
+      'маска, число, выбор даты, радиогруппа, список из источника данных, комбобокс с поиском, ' +
+      'мультикомбобокс, многострочный текст, загрузка файлов, флажок и массив со ' +
+      'строкой-шаблоном. С правилами валидации, вычисляемым полем, условной видимостью и ' +
+      'фикстурой.',
+    available: () => true,
     schema: simpleSeed,
     rules: simpleRules,
   },
   {
     id: WIZARD_TEMPLATE_ID,
     name: 'Пошаговая форма',
-    description: 'То же в два шага, плюс шим визарда под активный кит.',
+    description:
+      'Та же анкета в три шага — с комбобоксом, мультикомбобоксом, выбором даты, загрузкой ' +
+      'файлов и массивом: у каждого шага свой файл схемы и свои правила, которые проверяет ' +
+      '«Далее»; порядок шагов задаёт поток.',
+    available: hasWizard,
     schema: wizardSeed,
     rules: wizardRules,
     splitSteps: true,
   },
 ];
 
+/** Имена модуля в напечатанном — токенами. */
+const tokenized = (text: string): string => tokenizeModuleNames(text, BUILTIN_BASE_NAME);
+
 /**
- * Зависимости файлов: точка входа тянет всё, кроме необязательного.
+ * Зависимости файлов: что тянет за собой отмеченный файл.
  *
- * Выводится из фактического состава, а не перечисляется: состав решают цели генерации,
- * и список, набранный руками, разошёлся бы с ним на первой же чужой цели.
+ * Роли берутся у раскладки кодогена, а состав — из фактически напечатанного: его решают цели
+ * генерации, и список, набранный руками, разошёлся бы с ним на первой же чужой цели.
+ *
+ * - страница тянет ЯДРО модуля — всё, без чего она не соберётся;
+ * - запись реестра форм тянет то же ядро: она собирает форму теми же частями;
+ * - реэкспорты тянут страницу и запись — они их и отдают наружу.
+ *
+ * Ядру не принадлежат README (модулю он не нужен), сами реэкспорты и запись реестра форм
+ * (страница работает и без них), а также фикстура: она идёт сверх модуля, и тянуть её за
+ * страницей значило бы навязать данные предпросмотра тому, кто их не просил.
  */
 function requiresOf(files: readonly TemplateFile[]): Record<string, string[]> {
-  const entry = files.find((f) => f.path === ENTRY_FILE);
-  if (entry === undefined) return {};
-  const rest = files
-    // Фикстура — не часть модуля: `index.tsx` без неё собирается, и тянуть её за точкой
-    // входа значило бы навязать данные предпросмотра тому, кто их не просил.
-    .filter((f) => (f.scope ?? 'form') === 'form')
-    .map((f) => f.path)
-    .filter((path) => path !== ENTRY_FILE && !OPTIONAL_FILES.has(path));
-  return { [ENTRY_FILE]: rest };
+  const layout = moduleFilesOf(makeNames(BUILTIN_BASE_NAME));
+  const page = tokenized(layout.page);
+  const entry = tokenized(layout.entry);
+  const barrel = tokenized(layout.barrel);
+  const outside = new Set([page, entry, barrel, tokenized(layout.readme)]);
+
+  const paths = files.filter((file) => (file.scope ?? 'form') === 'form').map((file) => file.path);
+  if (!paths.includes(page)) return {};
+
+  const core = paths.filter((path) => !outside.has(path));
+  const out: Record<string, string[]> = { [page]: core };
+  if (paths.includes(entry)) out[entry] = core;
+  if (paths.includes(barrel)) out[barrel] = [page, entry].filter((path) => paths.includes(path));
+  return out;
 }
 
 export interface BuiltinStoreOptions {
@@ -299,6 +199,18 @@ export interface BuiltinStoreOptions {
    * пустой список вместо честного «недоступно».
    */
   readonly ready?: () => boolean;
+  /**
+   * Каталог активного кита: затравка кладёт только те компоненты и пропсы, что в нём есть.
+   *
+   * Спрашивается на каждую печать — кит переключают. Не дан либо пуст (кит ещё не доехал) —
+   * затравка собирается целиком.
+   */
+  readonly catalog?: () => readonly CatalogEntry[];
+  /**
+   * Дескриптор активного кита: по нему решается, есть ли у кита адаптер визарда. Без адаптера
+   * «Пошаговая форма» не показывается — собрать её этому киту нечем.
+   */
+  readonly kit?: () => KitDescriptor | null;
 }
 
 /**
@@ -312,28 +224,35 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
     async list(): Promise<readonly FormTemplate[]> {
       const print = options.print;
       if (print === undefined) return [];
+      const kit = seedKitOf(options.catalog?.() ?? [], options.kit?.() ?? null);
       const out: FormTemplate[] = [];
       for (const seed of SEEDS) {
+        if (!seed.available(kit)) continue;
         // Отказ печати ОДНОГО шаблона не должен уносить остальные: печатник чужой,
         // а «список пуст» неотличимо от «встроенных шаблонов нет».
         try {
-          const schema = seed.schema();
+          const schema = seed.schema(kit);
+          const data = seedData(kit);
           const printed = await print(schema, BUILTIN_BASE_NAME, {
-            rules: seed.rules(),
-            // Тот же набор данных, что уходит в фикстуру: источники в модуле и в предпросмотре
-            // обязаны совпадать, иначе форма в билдере и форма в приложении покажут разное.
-            mock: seedMock(schema),
+            rules: seed.rules(kit),
+            mock: seedMock(schema, data),
             ...(seed.splitSteps === true ? { splitSteps: true } : {}),
           });
+          // Печатник ответил пустотой — кита нет, печатать нечем. Шаблон из одной фикстуры
+          // выглядел бы созданной формой, у которой нечего открыть.
+          if (printed.length === 0) continue;
           const files: TemplateFile[] = printed.map((file) => ({
-            path: tokenize(file.path, BUILTIN_BASE_NAME),
-            content: tokenize(file.content, BUILTIN_BASE_NAME),
+            path: tokenized(file.path),
+            // Маркер происхождения считается от тела файла, а тело после замены имён другое:
+            // без перевыставления каждый файл шаблона выглядел бы «правленным руками».
+            content: keepOrigin(file.content, tokenized(file.content)),
           }));
           // Фикстура идёт СВЕРХ вывода кодогена: контракт каталога модуля её не перечисляет,
-          // и целью генерации она не выражается, хотя ложится в тот же каталог. Отсюда `scope`.
+          // и целью генерации она не выражается, хотя ложится в корень того же модуля.
+          // Отсюда `scope`.
           files.push({
             path: FIXTURE_FILE,
-            content: tokenize(emitFixture(schema, seedFixture()), BUILTIN_BASE_NAME),
+            content: emitFixture(schema, data),
             scope: 'fixture',
           });
           out.push({

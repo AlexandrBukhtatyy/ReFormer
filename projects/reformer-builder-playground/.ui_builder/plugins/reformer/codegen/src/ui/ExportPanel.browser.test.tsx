@@ -200,3 +200,77 @@ describe('отчёт не раздвигает панель', () => {
     expect(code.scrollWidth).toBeGreaterThan(code.clientWidth);
   });
 });
+
+describe('отчёт о раскладке на диске', () => {
+  it('называет прежнее имя документа, файлы шагов без шага и файлы прежней раскладки', async () => {
+    // Все три случая — про файлы, которых в составе модуля НЕТ: строки в списке файлов модуля
+    // для них не нашлось бы, поэтому у каждого своя секция.
+    const documentId = 'fake:forms/loan/schema/form.schema.json';
+    const opened: string[] = [];
+    const host: CodegenHost = {
+      ...createFakeHost({ document: createFakeDocument(documentId, '{}') }),
+      useTranslate: () => (key, params) =>
+        params === undefined ? key : `${key}:${JSON.stringify(params)}`,
+      useActiveDocument: () => documentId,
+      openResource: (id) => {
+        opened.push(id);
+      },
+    };
+    const sessions = createCodegenSessions();
+    sessions.storeFor(documentId).patch({
+      files: [
+        {
+          path: 'behavior/index.ts',
+          cls: 'user',
+          targetId: 'codegen.form-behavior',
+          origin: 'builtin',
+        },
+      ],
+      delivery: {
+        dir: 'fake:forms/loan',
+        written: ['behavior/index.ts'],
+        skipped: [],
+        failed: [],
+        saved: null,
+        orphans: ['schema/steps/old', 'validation/old.ts'],
+        legacy: [
+          {
+            path: 'schema/renderer.schema.json',
+            replacedBy: 'schema/form.schema.json',
+            carried: false,
+          },
+        ],
+        flat: ['index.tsx', 'form.render.ts', 'steps/old/form.validation.ts'],
+      },
+    });
+
+    const { container } = renderReact(
+      <ExportPanel host={host} sessions={sessions} targets={() => []} />
+    );
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="codegen-flat"]')).not.toBeNull();
+    });
+
+    const linesOf = (testId: string): string[] =>
+      [...container.querySelectorAll(`[data-testid="${testId}"] span.font-mono`)].map(
+        (line) => line.textContent ?? ''
+      );
+    // Файлы прежней плоской раскладки — код прежнего контракта: названы поимённо.
+    expect(linesOf('codegen-flat')).toEqual([
+      'index.tsx',
+      'form.render.ts',
+      'steps/old/form.validation.ts',
+    ]);
+    expect(container.querySelector('[data-testid="codegen-flat"]')?.textContent).toContain(
+      'flat.detail'
+    );
+    // Сироты — и папка схемы шага, и файл его правил: путь печатается как есть.
+    expect(linesOf('codegen-orphans')).toEqual(['schema/steps/old', 'validation/old.ts']);
+
+    // У прежнего имени ДОКУМЕНТА есть действие: открыть документ там, где он теперь лежит.
+    const open = container.querySelector('[data-testid="codegen-legacy"] button');
+    expect(open).not.toBeNull();
+    (open as HTMLButtonElement).click();
+    expect(opened).toEqual(['fake:forms/loan/schema/form.schema.json']);
+  });
+});

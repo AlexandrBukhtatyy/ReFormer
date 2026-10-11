@@ -87,6 +87,55 @@ export function plainSchema(): JsonFormSchema {
   return { format: 2, version: '1.0', root };
 }
 
+/**
+ * Схема с компонентами ЗА ПОДПУТЁМ кита: комбобокс, мультикомбобокс, выбор даты и карусель.
+ *
+ * У встроенного кита эти символы лежат не в главном входе, а в `@reformer/ui-kit/combobox`,
+ * `…/date-picker`, `…/carousel`. Состав подобран по веткам импорта: два символа с ОДНОГО подпутя
+ * (одна строка импорта, символы по алфавиту), символы с РАЗНЫХ подпутей (строки по алфавиту
+ * спецификаторов), поле и контейнер (подпуть — не свойство полей), корень и части составного
+ * компонента (у каждой записи свой подпуть, наследования нет) и обычное поле из главного входа
+ * рядом — чтобы было видно, что главный вход печатается первым.
+ */
+export function subpathSchema(): JsonFormSchema {
+  const root: JsonNode = {
+    component: '$component(Box)',
+    componentProps: { className: 'space-y-4' },
+    children: [
+      {
+        model: '$model(fullName)',
+        component: '$component(Input)',
+        componentProps: { label: 'Имя', required: true },
+      },
+      {
+        model: '$model(birthDate)',
+        component: '$component(DatePicker)',
+        componentProps: { label: 'Дата рождения', dateFormat: 'dd.MM.yyyy' },
+      },
+      {
+        model: '$model(position)',
+        component: '$component(Combobox)',
+        componentProps: { label: 'Должность', options: '$dataSource(POSITIONS)', clearable: true },
+      },
+      {
+        model: '$model(skills)',
+        component: '$component(ComboboxMulti)',
+        componentProps: { label: 'Навыки', options: '$dataSource(SKILLS)', maxItems: 3 },
+      },
+      {
+        component: '$component(Carousel)',
+        children: [
+          {
+            component: '$component(CarouselContent)',
+            children: [{ component: '$component(CarouselItem)', children: ['Слайд'] }],
+          },
+        ],
+      },
+    ],
+  };
+  return { format: 2, version: '1.0', root };
+}
+
 /** Схема с визардом: один шаг, одно поле. */
 export function wizardSchema(): JsonFormSchema {
   const root: JsonNode = {
@@ -117,9 +166,10 @@ export function wizardSchema(): JsonFormSchema {
  * Чужой кит БЕЗ адаптеров визарда: ни `wizard`, ни `step`.
  *
  * Отдельная фикстура, а не сборка на месте, потому что этой комбинацией держится целая ветка
- * вывода: форма с визардом есть, шима напечатать нечем — цель `codegen.wizard` не применяется,
- * а `registry.ts` печатает заглушку С ПРИЧИНОЙ вместо символа. Собранная инлайном в одном тесте
- * (так было в `generate.test.ts`), она не покрывала ни `registry.ts`, ни `renderer.behavior.ts`.
+ * вывода: форма с визардом есть, а зарегистрировать его нечем — `schema/registry.ts` печатает
+ * заглушку С ПРИЧИНОЙ вместо символа и для визарда, и для тела шага, а поток шагов и правила по
+ * шагам печатаются как у любого визарда. Собранная инлайном в одном тесте (так было в
+ * `generate.test.ts`), она не покрывала реестр вовсе.
  */
 export function noWizardKit(): KitView {
   return foreignKit({ adapters: { wizard: null, step: null } });
@@ -128,12 +178,13 @@ export function noWizardKit(): KitView {
 /**
  * Затравочные правила формы — единственный вход в билдеры `@reformer/mcp`.
  *
- * Без них `form.validation.ts` и `form.behavior.ts` уезжают заглушками, то есть мост
+ * Без них `validation/form.ts` и `behavior/index.ts` уезжают заготовками, то есть мост
  * `emit/rules-bridge` не исполняется ни в одном тесте вовсе. Состав подобран по ВЕТКАМ, а не
  * по правдоподобию: валидатор с аргументом (`minLength(2)`) поднимает `collectValidators`,
  * `when` — `validateWhen`, `computeFrom` с двумя источниками — вывод имён параметров колбэка,
  * `patchProps` с `$expr` рядом с литералом — различение выражения и JSON, а два `onEvent`
- * (синхронный и асинхронный) — обе формы заголовка обработчика и переотступ тела.
+ * (синхронный и асинхронный) — обе формы заголовка обработчика и переотступ тела. Условия правил
+ * узлов читают `form`, связь — `model`: вместе они держат выбор параметров области поведения.
  *
  * Пути — настоящие пути {@link plainSchema}: правило по несуществующему полю напечаталось бы
  * так же, но перестало бы быть примером формы, которую можно собрать.
@@ -187,9 +238,10 @@ export function seededRules(): FormRules {
 /**
  * Схема с ИСТОЧНИКАМИ ДАННЫХ и массивом — то, чего нет ни в одной схеме выше.
  *
- * Обнаружено снимками: на `plainSchema` и `wizardSchema` файл `data-sources.ts` уезжает
- * ПУСТЫМ, то есть ни один цикл в нём, ни строка импорта `SelectOption`, ни склейка блоков
- * не проверялись вовсе. Здесь закрыты все три класса источника сразу:
+ * Обнаружено снимками: на `plainSchema` и `wizardSchema` файл констант источников
+ * (`constants/<форма>.ts`) уезжает ПУСТЫМ, то есть ни один цикл в нём, ни строка импорта
+ * `SelectOption`, ни склейка блоков не проверялись вовсе. Здесь закрыты все три класса источника
+ * сразу:
  *
  * - `LOAN_TYPES` — список опций (`options` у Select);
  * - `PROP_LABEL` — подпись элемента массива, ей нужна ФУНКЦИЯ, а не массив;
@@ -217,8 +269,9 @@ export function richSchema(): JsonFormSchema {
  * Визард с ПРАВИЛАМИ формы: два шага и секция вне визарда.
  *
  * Держит ветку раскладки правил по шагам: правило про поле шага уходит в
- * `steps/<шаг>/form.validation.ts`, правило про поле вне шагов — в корневой `restValidation`,
- * render-правило узла шага — в `steps/<шаг>/form.render.ts`, узла вне шагов — в корень.
+ * `validation/<шаг>.ts` (`stepRules`), правило про поле вне шагов — в `crossStepRules` файла
+ * `validation/form.ts`, правило узла шага — в группу шага единого поведения
+ * (`behavior/index.ts`), узла вне шагов — в группу узлов вне шагов.
  */
 export function wizardRulesSchema(): JsonFormSchema {
   const field = (path: string, label: string): JsonNode => ({

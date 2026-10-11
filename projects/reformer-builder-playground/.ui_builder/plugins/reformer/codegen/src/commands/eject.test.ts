@@ -16,7 +16,7 @@ const DIR = [ROOT, ...USER_TARGETS_DIR].join('/');
 
 const registryTarget: CodegenTarget & { readonly order: number } = {
   id: 'codegen.registry',
-  path: 'registry.ts',
+  path: 'schema/registry.ts',
   cls: 'derived',
   order: 40,
   template: '// registry.ts\n<%= it.registry.fieldWrapper %>\n',
@@ -24,7 +24,7 @@ const registryTarget: CodegenTarget & { readonly order: number } = {
 
 const codeTarget: CodegenTarget = {
   id: 'codegen.schema',
-  path: 'form.schema.json',
+  path: '{schema}',
   cls: 'derived',
   emit: () => '{}',
 };
@@ -64,7 +64,7 @@ describe('выгрузка', () => {
     expect(parsed.meta).toMatchObject({
       id: 'user.registry',
       overrides: 'codegen.registry',
-      path: 'registry.ts',
+      path: 'schema/registry.ts',
       cls: 'derived',
       order: 40,
     });
@@ -125,11 +125,11 @@ describe('выгрузка цели по шагам', () => {
   it('в заголовке — шаблон пути и «each»: «step», и файл снова цель по шагам', async () => {
     const stepTarget: CodegenTarget = {
       id: 'codegen.step-validation',
-      path: 'steps/{step}/validation.ts',
+      path: 'validation/{step}.ts',
       each: 'step',
       cls: 'user',
       regenerable: true,
-      template: '// steps/<%= it.step.dir %>/validation.ts\n',
+      template: '// <%= it.step.files.validation %>\n',
     };
     const host = createFakeHost({ root: ROOT });
     const outcome = await ejectTemplate(deps(host, [stepTarget]), stepTarget.id);
@@ -138,9 +138,39 @@ describe('выгрузка цели по шагам', () => {
     const parsed = parseTargetFile(host.written.get(`${DIR}/step-validation.eta`) ?? '');
     expect(parsed.ok && parsed.meta).toMatchObject({
       overrides: 'codegen.step-validation',
-      path: 'steps/{step}/validation.ts',
+      path: 'validation/{step}.ts',
       each: 'step',
       regenerable: true,
     });
+  });
+});
+
+describe('выгрузка цели с токенами в пути', () => {
+  it('путь выгружается ШАБЛОНОМ — выгруженный шаблон годен для любой формы', async () => {
+    // Подставь выгрузка токены по текущей форме (`types/loan.ts`), шаблон работал бы только для
+    // неё, а на другой форме печатал бы чужое имя и расходился с импортами модуля.
+    const typesTarget: CodegenTarget = {
+      id: 'codegen.types',
+      path: 'types/{dir}.ts',
+      cls: 'derived',
+      template: '// <%= it.layout.files.types %>\n',
+    };
+    const pageTarget: CodegenTarget = {
+      id: 'codegen.index',
+      path: '{Type}.tsx',
+      cls: 'derived',
+      template: '// <%= it.layout.files.page %>\n',
+    };
+    const host = createFakeHost({ root: ROOT });
+    await ejectTemplate(deps(host, [typesTarget, pageTarget]), typesTarget.id);
+    await ejectTemplate(deps(host, [typesTarget, pageTarget]), pageTarget.id);
+
+    const types = parseTargetFile(host.written.get(`${DIR}/types.eta`) ?? '');
+    expect(types.ok && types.meta).toMatchObject({
+      overrides: 'codegen.types',
+      path: 'types/{dir}.ts',
+    });
+    const page = parseTargetFile(host.written.get(`${DIR}/index.eta`) ?? '');
+    expect(page.ok && page.meta).toMatchObject({ overrides: 'codegen.index', path: '{Type}.tsx' });
   });
 });

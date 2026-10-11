@@ -1,0 +1,73 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "selector": "contacts-step",
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Контакты"
+    },
+    "children": [
+      {
+        "component": "$component(Box)",
+        "componentProps": {
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "model": "$model(phone)",
+            "component": "$component(InputMask)",
+            "componentProps": {
+              "label": "Телефон",
+              "mask": "+7 (999) 999-99-99"
+            }
+          },
+          {
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Электронная почта",
+              "type": "email",
+              "placeholder": "name@example.com",
+              "required": true
+            }
+          },
+          {
+            "model": "$model(city)",
+            "component": "$component(Select)",
+            "componentProps": {
+              "label": "Город",
+              "placeholder": "Выберите город",
+              "clearable": true,
+              "options": "$dataSource(CITY_LIST)"
+            }
+          },
+          {
+            "model": "$model(position)",
+            "component": "$component(Combobox)",
+            "componentProps": {
+              "label": "Должность",
+              "placeholder": "Выберите должность",
+              "searchPlaceholder": "Найти должность",
+              "emptyText": "Ничего не найдено",
+              "clearable": true,
+              "options": "$dataSource(POSITIONS)"
+            }
+          },
+          {
+            "model": "$model(skills)",
+            "component": "$component(ComboboxMulti)",
+            "componentProps": {
+              "label": "Навыки",
+              "placeholder": "Выберите до трёх навыков",
+              "searchPlaceholder": "Найти навык",
+              "emptyText": "Ничего не найдено",
+              "maxItems": 3,
+              "clearable": true,
+              "options": "$dataSource(SKILLS)"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

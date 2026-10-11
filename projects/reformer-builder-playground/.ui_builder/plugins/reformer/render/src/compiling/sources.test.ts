@@ -1,5 +1,5 @@
 /**
- * Отбор сайдкаров: что исполняется, а что нет.
+ * Отбор файлов модуля в набор линковщика: что в него входит, а что нет.
  *
  * @module plugins/reformer/render/compiling/sources.test
  */
@@ -19,6 +19,28 @@ describe('isExecutableSidecar', () => {
   it('страница-обёртка не исполняется: это монтирование приложения внутрь приложения', () => {
     expect(isExecutableSidecar('index.tsx')).toBe(false);
     expect(isExecutableSidecar('index.ts')).toBe(false);
+  });
+
+  it('файлы папок ролей в наборе — и index роли тоже: вход модуля только в корне', () => {
+    expect(isExecutableSidecar('model/initial-value.ts')).toBe(true);
+    expect(isExecutableSidecar('validation/form.ts')).toBe(true);
+    expect(isExecutableSidecar('validation/kontakty.ts')).toBe(true);
+    expect(isExecutableSidecar('flow/zayavka-flow.ts')).toBe(true);
+    expect(isExecutableSidecar('application/submit.ts')).toBe(true);
+    expect(isExecutableSidecar('schema/registry.ts')).toBe(true);
+    expect(isExecutableSidecar('behavior/index.ts')).toBe(true);
+    expect(isExecutableSidecar('api/index.ts')).toBe(true);
+  });
+
+  it('данные в папках ролей — в наборе: схема шага разбитого визарда и справочники', () => {
+    expect(isExecutableSidecar('schema/steps/kontakty/form.schema.json')).toBe(true);
+    expect(isExecutableSidecar('constants/cities.json')).toBe(true);
+  });
+
+  it('фильтры по базовому имени действуют и в папках ролей', () => {
+    expect(isExecutableSidecar('validation/form.test.ts')).toBe(false);
+    expect(isExecutableSidecar('types/zayavka.d.ts')).toBe(false);
+    expect(isExecutableSidecar('README.md')).toBe(false);
   });
 
   it('агрегатор шагов визарда — не страница: исключается только корневой index', () => {

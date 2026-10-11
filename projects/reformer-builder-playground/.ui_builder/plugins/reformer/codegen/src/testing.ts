@@ -8,7 +8,7 @@
  * @module plugins/reformer/codegen/testing
  */
 
-import { MODULE_FILES } from '../../core/codegen';
+import { SCHEMA_FILE } from '../../core/codegen';
 import { builtinKit } from '../../core/testing';
 import type { CatalogEntry } from '../../core/catalog';
 import type { FormRules } from '../../core/form-model';
@@ -125,7 +125,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
 export function createFakeDocument(
   id: string,
   text: string,
-  name: string = MODULE_FILES.schema
+  name: string = SCHEMA_FILE
 ): CodegenDocument {
   return {
     id: id as ResourceId,

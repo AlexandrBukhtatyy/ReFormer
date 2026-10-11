@@ -58,6 +58,31 @@ const TEMPLATE: FormTemplate = {
   ],
 };
 
+/**
+ * Шаблон в раскладке «папки по ролям» — так выглядит встроенный: документ формы в `schema/`,
+ * шаги рядом с ним двумя уровнями глубже, файлы ролей названы именами модуля, фикстура — сверх
+ * модуля.
+ */
+const MODULE_TEMPLATE: FormTemplate = {
+  id: 'module',
+  name: 'Модуль',
+  source: 'builtin',
+  files: [
+    {
+      path: 'schema/form.schema.json',
+      content:
+        '{"format":2,"root":{"component":"$component(Wizard)","children":[{"$ref":"./steps/dannye/form.schema.json"}]}}',
+    },
+    {
+      path: 'schema/steps/dannye/form.schema.json',
+      content: '{"node":{"component":"$component(Step)","children":[]}}',
+    },
+    { path: '__FormType__.tsx', content: 'export default function __FormType__() {}' },
+    { path: 'types/__form-dir__.ts', content: 'export type __FormType__ = {};' },
+    { path: 'fixture.ts', content: 'export const fixture = {};', scope: 'fixture' },
+  ],
+};
+
 /** Сессия над двойниками хранилищ — тот же приём, что в `./workspace-session.test`. */
 function harness(files: Readonly<Record<string, string>>) {
   seq += 1;
@@ -161,6 +186,36 @@ describe('форма по шаблону доходит до дерева', () =
     // переживёт ли форма перезагрузку страницы.
     const written = await h.session.workspace.readSourceText(h.id('src/forms/credit/model.ts'));
     expect(written?.text).toBe('export const creditModel = 1;');
+    h.dispose();
+  });
+
+  it('модуль в раскладке «папки по ролям» доходит до источника целиком, вместе с вложенными папками', async () => {
+    // Папок ролей на диске ещё нет: `schema/steps/dannye/` — три уровня, которых источник
+    // до записи не знает. Плоский двойник такую запись принял бы молча; настоящее дерево
+    // каталогов — тот случай, на котором создание формы и ломалось бы.
+    const h = harness({ 'src/forms/old.json': '{}' });
+    const forms = h.id('src/forms');
+
+    const result = await generateFormFromTemplate(
+      h.host,
+      forms,
+      'loan request',
+      MODULE_TEMPLATE,
+      MODULE_TEMPLATE.files.map((file) => file.path)
+    );
+
+    expect(result.ok).toBe(true);
+    // Открывается документ формы из `schema/`, а каталог формы — каталог модуля.
+    expect(result.openId).toBe(h.id('src/forms/loan request/schema/form.schema.json'));
+    const read = async (path: string): Promise<string | undefined> =>
+      (await h.session.workspace.readSourceText(h.id(`src/forms/loan request/${path}`)))?.text;
+    expect(await read('schema/steps/dannye/form.schema.json')).toContain('$component(Step)');
+    // Имена файлов — те, что кодоген напечатал бы для этой формы.
+    expect(await read('LoanRequestForm.tsx')).toBe('export default function LoanRequestForm() {}');
+    expect(await read('types/loan-request.ts')).toBe('export type LoanRequestForm = {};');
+    // Фикстура — в корне модуля, а не рядом со схемой.
+    expect(await read('fixture.ts')).toBe('export const fixture = {};');
+    expect(await read('schema/fixture.ts')).toBeUndefined();
     h.dispose();
   });
 });

@@ -1,0 +1,73 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "model": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя",
+          "required": true
+        }
+      },
+      {
+        "model": "$model(birthDate)",
+        "component": "$component(DatePicker)",
+        "componentProps": {
+          "label": "Дата рождения",
+          "dateFormat": "dd.MM.yyyy"
+        }
+      },
+      {
+        "model": "$model(position)",
+        "component": "$component(Combobox)",
+        "componentProps": {
+          "label": "Должность",
+          "options": "$dataSource(POSITIONS)",
+          "clearable": true
+        }
+      },
+      {
+        "model": "$model(skills)",
+        "component": "$component(ComboboxMulti)",
+        "componentProps": {
+          "label": "Навыки",
+          "options": "$dataSource(SKILLS)",
+          "maxItems": 3
+        }
+      },
+      {
+        "component": "$component(Carousel)",
+        "children": [
+          {
+            "component": "$component(CarouselContent)",
+            "children": [
+              {
+                "component": "$component(CarouselItem)",
+                "children": [
+                  "Слайд"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": [
+          "Отправить"
+        ]
+      }
+    ]
+  }
+}

@@ -3,7 +3,7 @@
  *
  * Единственный write-инструмент, который правит НЕ схему. Правила — сайдкар (`@/plugins/reformer/core/form-model`):
  * в `JsonFormSchema` их положить некуда, контракт `@reformer/renderer-json` закрыт. Из них
- * генерируются `validation.ts` и `form.behavior.ts`, которые до сих пор были заглушками с TODO.
+ * генерируются `validation/` и `behavior/` модуля формы, которые до сих пор были заглушками с TODO.
  *
  * Гейт здесь строже, чем у правок раскладки, и не случайно. Неверная раскладка видна на канвасе
  * сразу; неверное правило выглядит правдоподобно и ломается у пользователя — при сборке его
@@ -55,7 +55,7 @@ interface Params {
 export const setFormRulesTool: AgentTool<Params> = {
   name: 'set_form_rules',
   description:
-    'Validation and reactive behaviour of the form (validation.ts, form.behavior.ts). Model paths, ' +
+    'Validation and reactive behaviour of the form (validation/, behavior/). Model paths, ' +
     'not node addresses. Expressions are TypeScript read through model: model.country !== null.',
   inputSchema: {
     type: 'object',
@@ -178,6 +178,6 @@ function cloneRules(rules: FormRules): FormRules {
 function summarize(rules: FormRules): string {
   return (
     `Готово. Правил: валидация ${rules.validation.length}, поведение ${rules.behavior.length}, ` +
-    `render ${rules.render.length}. Они уходят в validation.ts и form.behavior.ts.`
+    `render ${rules.render.length}. Они уходят в validation/ и behavior/ модуля формы.`
   );
 }

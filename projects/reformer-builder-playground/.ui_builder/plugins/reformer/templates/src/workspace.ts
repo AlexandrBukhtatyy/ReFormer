@@ -49,12 +49,23 @@ import {
 import type { TemplatesHost, TemplatesSourceCapabilities } from './host';
 import type { ModulePrinter } from './stores/builtin';
 
-/** Печатник модуля формы в объёме, нужном шаблонам. */
+/**
+ * Печатник модуля формы в объёме, нужном шаблонам.
+ *
+ * Структурная копия контракта генерации кода (`reformer.codegen.printer`): плагины друг друга не
+ * импортируют, и совпадать обязана форма, а не объявление. Пути напечатанных файлов — от корня
+ * модуля формы, в раскладке «папки по ролям».
+ */
 export interface ModulePrinterService {
   print(
     schema: unknown,
     formName: string,
-    seed?: { readonly rules?: unknown; readonly mock?: unknown }
+    seed?: {
+      readonly rules?: unknown;
+      readonly mock?: unknown;
+      /** Вынести шаги визарда в свои файлы — так печатается шаблон «Пошаговая форма». */
+      readonly splitSteps?: boolean;
+    }
   ): Promise<readonly { readonly path: string; readonly content: string }[]>;
 }
 

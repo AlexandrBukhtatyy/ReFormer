@@ -31,7 +31,14 @@ import type { CatalogEntry } from '../../../core/catalog';
 import { INFRA_NAMES } from '../../../core/kits';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import { STEPS_HOST_NAMES, collectOperatorNames } from '../../../core/form-model';
-import { classifyEntry, isRegistrable, resolveInfra, resolveWizard } from './policy';
+import {
+  ARRAY_HOST_NAME,
+  classifyEntry,
+  isRegistrable,
+  resolveArrayHost,
+  resolveInfra,
+  resolveWizard,
+} from './policy';
 import { classifyDataSources, mockOptions } from './mock';
 import { PreviewStep, isolateComponent, makeLimitedComponent, makeUnknownComponent } from './stubs';
 
@@ -84,6 +91,16 @@ export function buildComponents(
         : makeLimitedComponent(entry.name, decision.reason),
       entry.name
     ) as ComponentType<Record<string, unknown>>;
+  }
+
+  // Массив с явным компонентом. Узел без `component` рендерер рисует сам, и реестр ему не нужен;
+  // узел с `$component(FieldArray)` рисует компонент кита — без этой записи превью показывало бы
+  // на месте массива «неизвестный компонент», хотя собранный модуль формы рисует его нормально.
+  const arrayHost = resolveArrayHost(namespace);
+  if (arrayHost !== undefined && !live.has(ARRAY_HOST_NAME)) {
+    map[ARRAY_HOST_NAME] = isolateComponent(arrayHost, ARRAY_HOST_NAME) as ComponentType<
+      Record<string, unknown>
+    >;
   }
 
   // Визард. Шаги в схеме — дети узла-хозяина, а рисует их визард кита: он получает узлы шагов и

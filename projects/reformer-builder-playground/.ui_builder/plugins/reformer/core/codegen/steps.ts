@@ -3,15 +3,22 @@
  *
  * ## Вид формы решает СХЕМА, а не кит
  *
- * Раньше «это визард» отвечали четыре места (шим, событие отправки, пошаговая валидация,
- * render-обвязка), и пошаговая валидация зависела от того, есть ли у кита адаптер визарда: без
- * адаптера форма с шагами печаталась как простая. Раскладка модуля — свойство формы, поэтому
- * здесь один ответ из одного признака: в схеме есть узел с шагами. Кит решает только, печатать ли
- * `wizard.tsx`.
+ * «Это визард» отвечает один признак: в схеме есть узел с шагами. От кита зависит только то, чем
+ * узел визарда регистрируется в реестре (символом адаптера либо заглушкой): поток шагов и правила
+ * по шагам печатаются и у формы, чей кит адаптера визарда не поставляет.
  *
- * ## Имя папки шага
+ * ## Имя шага и папка шага
  *
- * `kebab(заголовка)` — правило в `form-model/step-dir`: его же спрашивает разбиение схемы по шагам.
+ * У шага два имени, и почти всегда они совпадают:
+ *
+ * - **папка** (`dir`) — где лежит файл схемы шага у разбитого визарда
+ *   (`schema/steps/<dir>/form.schema.json`). Правило — `kebab(заголовка)` из `form-model/step-dir`:
+ *   его же спрашивает разбиение схемы по шагам. У шага, вынесенного в файл, папку задаёт ссылка;
+ * - **имя** (`slug`) — под ним лежит код шага: `validation/<slug>.ts`. Оно не может совпасть с
+ *   файлом правил формы (`validation/form.ts`), поэтому `form` — занятое имя.
+ *
+ * Расходятся они в одном случае: шаг вынесен в папку `steps/form/`. Папку менять нельзя (на неё
+ * ссылается корень), а файл правил получает разведённое имя — `validation/form-2.ts`.
  *
  * @module plugins/reformer/core/codegen/steps
  */
@@ -20,6 +27,7 @@ import {
   isArrayNode,
   isContainerNode,
   isFieldNode,
+  normalizeStepRef,
   parseOperator,
   type JsonFormSchema,
   type JsonNode,
@@ -28,45 +36,67 @@ import { isNodeLike } from '../form-model/node-kind';
 import { firstWizardStepRefs, stepDirOfRef, type SplitFormSchema } from '../form-model/composite';
 import { isOperatorText, stepDirName, uniqueStepDir } from '../form-model/step-dir';
 import { wizardStepsOf, type Collected } from './collect';
-import { STEP_FILES, stepFilePath } from './layout';
+import {
+  DEFAULT_SCHEMA_PATH,
+  RESERVED_STEP_NAMES,
+  schemaDirOf,
+  stepSchemaPath,
+  stepValidationPath,
+} from './layout';
+import { stepRulesAlias } from './naming';
 import type { SelectorInfo } from './selectors';
 
 /** Шаг визарда глазами раскладки. */
 export interface StepInfo {
   /** Номер шага, с единицы. */
   readonly index: number;
-  /** Имя папки шага (`kontakty`). */
+  /** Папка шага (`kontakty`) — в ней лежит файл его схемы у разбитого визарда. */
   readonly dir: string;
-  /** Путь папки шага от корня модуля (`steps/kontakty`). */
-  readonly path: string;
+  /**
+   * Имя шага в путях кода (`validation/<slug>.ts`). Совпадает с {@link StepInfo.dir}, кроме шага,
+   * чья папка из ссылки заняла зарезервированное имя (`form`).
+   */
+  readonly slug: string;
   /** Заголовок шага как в схеме (для комментариев), либо `Шаг N`. */
   readonly title: string;
-  /** Селектор узла шага (после `assignSelectors`). */
+  /**
+   * Селектор узла шага (после `assignSelectors`) — он же `id` шага в потоке. `null` только у
+   * схемы, по которой селекторы не проставляли.
+   */
   readonly selector: string | null;
-  /** `$nodeId` узла шага — задел для переноса папки при переименовании шага. */
+  /** `$nodeId` узла шага — задел для переноса файлов при переименовании шага. */
   readonly nodeId: string | null;
   /** Обязательные поля шага — пути `$model`. */
   readonly required: readonly string[];
   /** Все пути `$model` полей и массивов шага — по ним правила валидации делятся по шагам. */
   readonly fields: readonly string[];
-  /** Все селекторы поддерева шага, включая сам шаг, — по ним делятся render-правила. */
+  /** Все селекторы поддерева шага, включая сам шаг, — по ним делятся правила узлов. */
   readonly selectors: readonly string[];
   /** Секции шага (кандидаты на `hideWhen`), включая сам шаг. */
   readonly sections: readonly { readonly selector: string; readonly label: string }[];
-  /** Имя шага в агрегаторе: `step1`, `step2`, … */
+  /** Короткое имя шага для локальных имён в коде: `step1`, `step2`, … */
   readonly alias: string;
+  /** Псевдоним правил шага в потоке: `kontaktyRules`. Уникален среди шагов. */
+  readonly rulesAlias: string;
   /**
    * Спецификатор файла схемы шага из `$ref` корня — у шага, вынесенного в свой файл; иначе `null`.
    */
   readonly schemaRef: string | null;
-  /**
-   * Пути файлов шага от корня модуля. `schema` — только у вынесенного шага, лежащего по канону
-   * `steps/<dir>/form.schema.json`; файл в другом месте кодоген не печатает — он остаётся, где был.
-   */
+  /** Пути файлов шага от корня модуля. */
   readonly files: {
+    /** Правила шага: `validation/<slug>.ts`. */
     readonly validation: string;
-    readonly render: string;
+    /**
+     * Файл схемы шага — только у вынесенного шага, лежащего по канону
+     * `steps/<dir>/form.schema.json` рядом с корневым документом; файл в другом месте кодоген
+     * не печатает — он остаётся, где был.
+     */
     readonly schema: string | null;
+    /**
+     * Файл, на который указывает ссылка корня, — где бы он ни лежал: его импортирует сборка
+     * (`application/create.ts`). `null` у шага, не вынесенного в файл.
+     */
+    readonly schemaSource: string | null;
   };
 }
 
@@ -99,28 +129,50 @@ function scan(step: JsonNode): { fields: string[]; selectors: string[] } {
   return { fields: [...new Set(fields)], selectors: [...new Set(selectors)] };
 }
 
+/** Имя, свободное среди занятых: `base`, `base2`, `base3`… Найденное сразу занимается. */
+function uniqueAlias(base: string, taken: Set<string>): string {
+  let name = base;
+  for (let n = 2; taken.has(name); n += 1) name = `${base}${n}`;
+  taken.add(name);
+  return name;
+}
+
 /**
  * Раскладка модуля по схеме С ПРОСТАВЛЕННЫМИ селекторами.
  *
- * Селекторы нужны уже проставленные: имя папки шага, у которого нет заголовка, берётся из его
- * селектора, и оно обязано совпадать с тем, что уйдёт в `form.schema.json`.
+ * Селекторы нужны уже проставленные: имя шага, у которого нет заголовка, берётся из его
+ * селектора, и оно обязано совпадать с тем, что уйдёт в документ формы.
  *
  * У шага, вынесенного в файл, папка — та, где лежит его схема (`composition`), а не слаг
- * заголовка: переименование шага не разводит код шага и его схему по разным папкам. Такие папки
- * занимаются первыми, остальные разводятся с ними.
+ * заголовка: переименование шага не разводит код шага и его схему по разным именам. Такие папки
+ * занимаются первыми, остальные разводятся с ними и с зарезервированными именами.
+ *
+ * @param schemaPath - Путь корневого документа внутри модуля: от него считается место файлов шагов.
  */
 export function layoutOf(
   schema: JsonFormSchema,
   collected: Collected,
   selectors: SelectorInfo,
-  composition: SplitFormSchema | null = null
+  composition: SplitFormSchema | null = null,
+  schemaPath: string = DEFAULT_SCHEMA_PATH
 ): ModuleLayout {
   const nodes = isNodeLike(schema.root) ? wizardStepsOf(schema.root) : [];
   if (nodes.length === 0) return { kind: 'simple', steps: [] };
 
   const refs = composition === null ? [] : firstWizardStepRefs(composition.skeleton);
   const refDirs = refs.map((ref) => (ref === null ? null : stepDirOfRef(ref)));
-  const taken = new Set<string>(refDirs.filter((dir): dir is string => dir !== null));
+  const taken = new Set<string>([
+    ...RESERVED_STEP_NAMES,
+    ...refDirs.filter((dir): dir is string => dir !== null),
+  ]);
+  // Имя шага из ссылки — его папка; занявшая зарезервированное имя разводится суффиксом ДО
+  // остальных шагов, чтобы шаг с заголовком не успел забрать `form-2` первым.
+  const refSlugs = refDirs.map((dir) =>
+    dir === null ? null : RESERVED_STEP_NAMES.includes(dir) ? uniqueStepDir(dir, taken) : dir
+  );
+  const aliases = new Set<string>();
+  const schemaDir = schemaDirOf(schemaPath);
+
   const steps = nodes.map((node, i): StepInfo => {
     const index = i + 1;
     const raw = node as {
@@ -133,13 +185,15 @@ export function layoutOf(
 
     const refDir = refDirs[i] ?? null;
     const dir = refDir ?? uniqueStepDir(stepDirName(index, title, selector), taken);
+    const slug = refSlugs[i] ?? dir;
+    const schemaRef = refs[i] ?? null;
 
     const { fields, selectors: subtree } = scan(node);
     const own = new Set(subtree);
     return {
       index,
       dir,
-      path: stepFilePath(dir, '').replace(/\/$/, ''),
+      slug,
       title:
         typeof title === 'string' && title !== '' && !isOperatorText(title)
           ? title
@@ -151,11 +205,12 @@ export function layoutOf(
       selectors: subtree,
       sections: selectors.sections.filter((section) => own.has(section.selector)),
       alias: `step${index}`,
-      schemaRef: refs[i] ?? null,
+      rulesAlias: uniqueAlias(stepRulesAlias(slug), aliases),
+      schemaRef,
       files: {
-        validation: stepFilePath(dir, STEP_FILES.validation),
-        render: stepFilePath(dir, STEP_FILES.render),
-        schema: refDir === null ? null : stepFilePath(dir, STEP_FILES.schema),
+        validation: stepValidationPath(slug),
+        schema: refDir === null ? null : stepSchemaPath(schemaPath, refDir),
+        schemaSource: schemaRef === null ? null : `${schemaDir}${normalizeStepRef(schemaRef)}`,
       },
     };
   });

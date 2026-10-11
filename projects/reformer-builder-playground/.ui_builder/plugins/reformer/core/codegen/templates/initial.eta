@@ -1,0 +1,8 @@
+// <%= it.layout.files.initial %> — начальные значения формы (из мока). Регенерируется.
+
+import type { <%= it.names.TypeName %> } from '<%= it.rel('initial', 'types') %>';
+
+/** Начальные значения: задают форму данных и снимок, к которому возвращает сброс. */
+export function createInitialValues(): <%= it.names.TypeName %> {
+  return <%= it.json(it.mock.model, 2) %> as <%= it.names.TypeName %>;
+}

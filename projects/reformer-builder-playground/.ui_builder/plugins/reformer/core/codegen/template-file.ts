@@ -5,16 +5,31 @@
  *
  * ```
  * ---
- * { "id": "user.registry", "overrides": "codegen.registry", "path": "registry.ts",
+ * { "id": "user.registry", "overrides": "codegen.registry", "path": "schema/registry.ts",
  *   "cls": "derived", "order": 40, "title": "Реестр компонентов (наш)" }
  * ---
- * // registry.ts — …
+ * // schema/registry.ts — …
  * ```
  *
- * Цель по шагам визарда — `"each": "step"` и сегмент `{step}` в пути:
- * `{ "id": "user.step-validation", "path": "steps/{step}/validation.ts", "each": "step", … }`.
- * Проверку шаблона пути (ровно один `{step}` у `each`, ни одного у прочих) делает отбор
- * целей при печати, а не разбор: правило одно на встроенные и пользовательские цели.
+ * ## Путь — шаблон с токенами
+ *
+ * Модуль формы разложен по папкам ролей, и часть имён зависит от формы. В `path` допустимы
+ * токены — в любом месте пути, не обязательно целым сегментом:
+ *
+ * | токен         | значение                                                                 |
+ * | ------------- | ------------------------------------------------------------------------ |
+ * | `{Type}`      | тип формы: `{Type}.tsx` → `LoanApplicationForm.tsx`                      |
+ * | `{dir}`       | kebab-имя формы: `types/{dir}.ts` → `types/loan-application.ts`          |
+ * | `{schema}`    | путь корневого документа в модуле: `schema/form.schema.json`             |
+ * | `{schemaDir}` | его каталог с завершающим `/` либо пусто (документ в корне модуля)       |
+ * | `{step}`      | имя шага в путях кода: `validation/{step}.ts` — только с `"each": "step"` |
+ * | `{stepDir}`   | папка схемы шага: `{schemaDir}steps/{stepDir}/…` — только с `"each"`      |
+ *
+ * Цель по шагам визарда — `"each": "step"` и токен шага в пути:
+ * `{ "id": "user.step-validation", "path": "validation/{step}.ts", "each": "step", … }`.
+ * Проверку шаблона пути (токены известны; токен шага есть у `each` и отсутствует у прочих)
+ * делает отбор целей при печати, а не разбор: правило одно на встроенные и пользовательские
+ * цели, и разбор заголовка ничего не знает о форме, по которой токены подставляются.
  *
  * ## Почему `---` и JSON, а не что-то ещё
  *
@@ -43,10 +58,11 @@ export interface TargetFileMeta {
   /** Уникален в точке расширения. Совпадение с чужим — отказ реестра, а не тихая замена. */
   readonly id: string;
   /**
-   * Имя файла относительно каталога модуля.
+   * Путь файла относительно каталога модуля — шаблон с токенами (см. шапку модуля):
+   * `types/{dir}.ts`, `{Type}.tsx`.
    *
-   * У цели с {@link TargetFileMeta.each} — шаблон пути с сегментом `{step}`
-   * (`steps/{step}/validation.ts`): на его место встаёт папка шага.
+   * У цели с {@link TargetFileMeta.each} в нём обязателен токен шага
+   * (`validation/{step}.ts`): на его место встаёт имя шага.
    */
   readonly path: string;
   /**
@@ -65,7 +81,7 @@ export interface TargetFileMeta {
   readonly regenerable?: boolean;
   /** Идентификатор цели, которую этот файл ЗАМЕНЯЕТ. */
   readonly overrides?: string;
-  /** Выражение на JS над видом: `it.wizard !== null`. Без него цель применяется всегда. */
+  /** Выражение на JS над видом: `it.layout.isWizard`. Без него цель применяется всегда. */
   readonly applies?: string;
 }
 

@@ -1,11 +1,15 @@
-form.schema.json	derived
-types.ts	derived
-model.ts	derived
-registry.ts	derived
-index.tsx	derived
-data-sources.ts	user
-form.render.ts	user	regenerable
-form.behavior.ts	user	regenerable
-form.validation.ts	user	regenerable
-api.ts	user
+schema/form.schema.json	derived
+types/zayavka-na-kredit.ts	derived
+model/initial-value.ts	derived
+model/model.ts	derived
+schema/registry.ts	derived
+application/create.ts	derived
+application/entry.ts	derived
+ZayavkaNaKreditForm.tsx	derived
+index.ts	derived
+constants/zayavka-na-kredit.ts	user
+behavior/index.ts	user	regenerable
+validation/form.ts	user	regenerable
+application/submit.ts	user
+api/index.ts	user
 README.md	derived

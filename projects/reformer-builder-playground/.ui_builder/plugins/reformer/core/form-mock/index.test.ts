@@ -74,6 +74,27 @@ describe('вид поля определяется по компоненту, з
     }
   });
 
+  it('выбор даты — дата, а не строка', () => {
+    // Контрол кладёт в модель `Date`: объявленное строкой, поле расходилось бы со своим значением.
+    expect(fieldKindOf(field('$component(DatePicker)'))).toBe('date');
+    expect(fieldKindOf(field('$component(Calendar)'))).toBe('date');
+    // Поле ввода с типом `date` — по-прежнему строка: значение у него строковое.
+    expect(fieldKindOf(field('$component(Input)', { type: 'date' }))).toBe('string');
+  });
+
+  it('семья комбобоксов: одиночный — список по опциям, мультивыбор — набор, с опциями и без', () => {
+    // Вид обязан совпасть с тем, что контрол кладёт в модель: `Combobox` — строку (`value`
+    // опции), `ComboboxMulti` и `ComboboxTreeMulti` — массив строк, пустой выбор — `null`.
+    expect(fieldKindOf(field('$component(Combobox)', { options: '$dataSource(X)' }))).toBe(
+      'select'
+    );
+    expect(fieldKindOf(field('$component(ComboboxMulti)'))).toBe('multi');
+    expect(fieldKindOf(field('$component(ComboboxMulti)', { options: [] }))).toBe('multi');
+    expect(fieldKindOf(field('$component(ComboboxTreeMulti)'))).toBe('multi');
+    // Одиночный выбор узла иерархии — строка: списка опций у него нет, узлы приходят деревом.
+    expect(fieldKindOf(field('$component(ComboboxTree)'))).toBe('string');
+  });
+
   it('всё непознанное — строка', () => {
     expect(fieldKindOf(field('$component(Whatever)'))).toBe('string');
     expect(fieldKindOf(field('$component(Input)'))).toBe('string');
@@ -89,6 +110,8 @@ describe('начальное значение поля', () => {
     // Массив в начальном значении модель превратила бы в форму-массив, и у поля
     // не оказалось бы сигнала вовсе.
     expect(defaultForField(field('$component(SelectMulti)'))).toBeNull();
+    expect(defaultForField(field('$component(ComboboxMulti)'))).toBeNull();
+    expect(defaultForField(field('$component(ComboboxTreeMulti)'))).toBeNull();
     expect(defaultForField(field('$component(FileUpload)'))).toBeNull();
   });
 
@@ -101,6 +124,10 @@ describe('начальное значение поля', () => {
 
   it('нижняя граница ноль берётся, а не считается отсутствующей', () => {
     expect(defaultForField(field('$component(Slider)', { min: 0 }))).toBe(0);
+  });
+
+  it('у выбора даты — null: «дата не выбрана», а не пустая строка', () => {
+    expect(defaultForField(field('$component(DatePicker)'))).toBeNull();
   });
 
   it('у строки — пустая строка', () => {

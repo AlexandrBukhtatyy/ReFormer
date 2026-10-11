@@ -31,6 +31,30 @@ describe('адрес фикстуры', () => {
     expect(fixtureDirOf('src/forms/credit/schema.json')).toBe('src/forms/credit');
   });
 
+  it('документ в папке schema: фикстура — в КОРНЕ модуля формы, а не рядом с документом', () => {
+    // Раскладка «папки по ролям»: документ лежит в `<модуль>/schema/`, а фикстура — артефакт
+    // формы целиком и подставляет модули формы (`../api`) так, как их импортирует форма.
+    expect(fixturePathOf('src/forms/credit/schema/form.schema.json')).toBe(
+      'src/forms/credit/fixture.ts'
+    );
+    expect(fixtureDirOf('src/forms/credit/schema/form.schema.json')).toBe('src/forms/credit');
+    // Файлы шагов лежат глубже, но адрес считается от корневого документа — он один на форму.
+    expect(fixturePathOf('src\\forms\\credit\\schema\\form.schema.json')).toBe(
+      'src/forms/credit/fixture.ts'
+    );
+  });
+
+  it('форма прежней плоской раскладки и форма по папкам ролей получают один адрес', () => {
+    // Документ переехал в `schema/` — фикстура осталась на месте: переезд её не теряет.
+    expect(fixturePathOf('src/forms/credit/form.schema.json')).toBe(
+      fixturePathOf('src/forms/credit/schema/form.schema.json')
+    );
+  });
+
+  it('папка schema в корне проекта: модуль — сам корень', () => {
+    expect(fixturePathOf('schema/form.schema.json')).toBe('fixture.ts');
+  });
+
   it('две одноимённые формы в разных ветках не сталкиваются', () => {
     const first = fixturePathOf('src/a/credit/schema.json');
     const second = fixturePathOf('src/b/credit/schema.json');
@@ -219,7 +243,7 @@ describe('печать скелета', () => {
     expect(text).toContain('model:');
     expect(text).toContain('CITY_LIST');
     // Остальные слои показаны заготовками — что тут можно написать, видно сразу.
-    expect(text).toContain("'./api': { submitForm");
+    expect(text).toContain("'../api': { submitForm");
     expect(text).toContain('// clock:');
   });
 

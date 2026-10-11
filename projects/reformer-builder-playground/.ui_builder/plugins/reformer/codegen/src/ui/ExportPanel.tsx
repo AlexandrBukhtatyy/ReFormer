@@ -33,9 +33,8 @@ import { Item, ItemContent, ItemTitle } from '@reformer/ui-kit/item';
 import { Label } from '@reformer/ui-kit/label';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Separator } from '@reformer/ui-kit/separator';
-import { MODULE_FILES } from '../../../core/codegen';
 import type { CodegenTarget } from '../contract';
-import type { DeliveryResult } from '../pipeline/deliver';
+import { isSchemaDocumentPath, type DeliveryResult } from '../pipeline/deliver';
 import type { CodegenProblem } from '../pipeline/generate';
 import type { CodegenHost, Translate } from '../host';
 import { defaultFormName, runCodegen } from '../pipeline/run';
@@ -283,10 +282,12 @@ interface ReportProps {
 }
 
 /**
- * Раскладка на диске: прежние имена рядом с новыми и папки шагов, которых нет в форме.
+ * Раскладка на диске: прежнее имя документа рядом с новым, файлы шагов, которых нет в форме, и
+ * файлы прежней плоской раскладки.
  *
- * Отдельной секцией, а не пометкой у файла: оба случая — про файлы, которых в составе модуля
- * НЕТ (старое имя, брошенная папка), и строки для них в списке файлов модуля не нашлось бы.
+ * Отдельной секцией, а не пометкой у файла: все три случая — про файлы, которых в составе модуля
+ * НЕТ (старое имя, брошенный файл шага, код прежнего контракта), и строки для них в списке файлов
+ * модуля не нашлось бы.
  */
 function LayoutReport({
   delivery,
@@ -312,7 +313,7 @@ function LayoutReport({
                     replacedBy: entry.replacedBy,
                   })}
                 </span>
-                {entry.replacedBy !== MODULE_FILES.schema ||
+                {!isSchemaDocumentPath(entry.replacedBy) ||
                 open === undefined ||
                 host === undefined ? null : (
                   <Button
@@ -335,9 +336,21 @@ function LayoutReport({
         <section className="flex flex-col gap-1" data-testid="codegen-orphans">
           <h3 className="text-foreground text-[12px] font-semibold">{t('orphans.title')}</h3>
           <span className="text-muted-foreground text-[11px]">{t('orphans.detail')}</span>
-          {delivery.orphans.map((dir) => (
-            <span key={dir} className="font-mono text-[11px]">
-              {dir}/
+          {/* Среди сирот и папки схем шагов, и файлы их правил — путь печатается как есть. */}
+          {delivery.orphans.map((path) => (
+            <span key={path} className="font-mono text-[11px]">
+              {path}
+            </span>
+          ))}
+        </section>
+      )}
+      {delivery.flat.length === 0 ? null : (
+        <section className="flex flex-col gap-1" data-testid="codegen-flat">
+          <h3 className="text-foreground text-[12px] font-semibold">{t('flat.title')}</h3>
+          <span className="text-muted-foreground text-[11px]">{t('flat.detail')}</span>
+          {delivery.flat.map((path) => (
+            <span key={path} className="font-mono text-[11px]">
+              {path}
             </span>
           ))}
         </section>

@@ -1,12 +1,12 @@
 /**
- * Компиляция сайдкаров формы: набор файлов → исполненные модули плюс список того, что не вышло.
+ * Компиляция модуля формы: набор файлов → исполненные модули ролей плюс список того, что не вышло.
  *
  * Своего транспилятора здесь нет и быть не должно. Механизм один на два потребителя — загрузчик
  * плагинов и компилятор формы делают буквально одно и то же, — и живёт он в Host службой
  * (`host/modules/loader`). Разные у них только входные данные: у плагина это его каталог,
  * у формы — её файлы из рабочей копии. Поэтому модуль получает загрузчик ПОРТОМ и добавляет
  * ровно две вещи, которых у платформы нет: синтетическую точку входа и перевод её результата
- * в находки превью.
+ * в находки превью. Какие файлы набора точка входа требует, решает план модуля (`./module`).
  *
  * ## Прогрев — отдельная фаза, и пропустить её нельзя
  *
@@ -21,7 +21,13 @@
 
 import type { PreviewProblem } from '@reformer/builder-plugin-api';
 import type { PreviewModuleError, PreviewModules, PreviewPrimedCompile } from '../host';
-import { buildEntrySource, PREVIEW_ENTRY_FILE, readEntryExports } from './entry';
+import {
+  assertEntryNameFree,
+  buildEntrySource,
+  PREVIEW_ENTRY_FILE,
+  readEntryExports,
+} from './entry';
+import { planModule, type ModulePlan } from './module';
 
 /**
  * Изоляция формы от проекта: чем подменить её импорты и окружение.
@@ -36,9 +42,9 @@ export interface FormIsolation {
   readonly ambient?: Readonly<Record<string, unknown>>;
 }
 
-/** Результат компиляции каталога формы. */
+/** Результат компиляции модуля формы. */
 export interface CompiledForm {
-  /** Имя файла → его экспорты. Только те, что собрались. */
+  /** Путь файла от корня модуля → его экспорты. Только затребованные точкой входа и собравшиеся. */
   readonly modules: ReadonlyMap<string, unknown>;
   readonly problems: readonly PreviewProblem[];
 }
@@ -52,23 +58,34 @@ const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 /**
- * Транспилировать и исполнить сайдкары.
+ * Транспилировать и исполнить файлы ролей модуля.
  *
- * Пустой набор — законный ответ, а не ошибка: форма без сайдкаров существует, и компилирующая
+ * Пустой набор — законный ответ, а не ошибка: форма без кода существует, и компилирующая
  * поверхность для неё показывает ровно то же, что рантайм. Отдельного сообщения это не требует.
+ * То же — набор, из которого нечего требовать (в папках ролей одни типы): загрузчик не зовётся.
+ *
+ * @param plan - Что исполнять; по умолчанию план строится по самим файлам набора.
  */
 export async function compileForm(
   files: ReadonlyMap<string, string>,
   modules: PreviewModules,
-  isolation: FormIsolation = {}
+  isolation: FormIsolation = {},
+  plan: ModulePlan = planModule(files.keys())
 ): Promise<CompiledForm> {
-  const names = [...files.keys()];
-  if (names.length === 0) return EMPTY;
+  // План мог быть построен по списку каталога, а файл — не прочитаться: требовать то, чего в
+  // наборе нет, значило бы второй раз сообщить об отказе, который уже назвало чтение.
+  const required = plan.entry.filter((file) => files.has(file));
+  if (required.length === 0) return EMPTY;
 
   let withEntry: Map<string, string>;
   try {
-    withEntry = new Map(files);
-    withEntry.set(PREVIEW_ENTRY_FILE, buildEntrySource(names));
+    // Имя занято в НАБОРЕ, а не только среди затребованных: точка входа легла бы поверх файла.
+    assertEntryNameFree(files.keys());
+    // Страница и сборка приложения до линковщика не доходят: ни исполнять, ни прогревать их
+    // пакеты (реестр форм) превью незачем.
+    const skipped = new Set(plan.skipped);
+    withEntry = new Map([...files].filter(([file]) => !skipped.has(file)));
+    withEntry.set(PREVIEW_ENTRY_FILE, buildEntrySource(required));
   } catch (error) {
     return { modules: new Map(), problems: [problem('', 'resolve', describe(error))] };
   }
@@ -127,7 +144,7 @@ export async function compileForm(
       ),
       ...(failure.range === undefined ? {} : { range: failure.range }),
     };
-    // Два сайдкара, импортирующих один битый `./model`, приносят одну и ту же находку дважды:
+    // Два файла, импортирующих один битый `../api`, приносят одну и ту же находку дважды:
     // ошибка названа файлом-виновником, а не импортёром, — и второй раз она ничего не добавляет.
     if (!problems.some((seen) => sameProblem(seen, next))) problems.push(next);
   }
@@ -148,7 +165,7 @@ function problem(file: string, phase: PreviewProblem['phase'], message: string):
  *
  * `ModuleLinkError` печатает `«файл: причина»` — для лога это верно, но находка несёт файл
  * отдельным полем, и тот, кто её показывает, называет его сам: в полосе живого вида и в
- * строке панели получалось бы «validation.ts: validation.ts: …».
+ * строке панели получалось бы «validation/form.ts: validation/form.ts: …».
  */
 export function stripFilePrefix(file: string, message: string): string {
   const prefix = `${file}: `;

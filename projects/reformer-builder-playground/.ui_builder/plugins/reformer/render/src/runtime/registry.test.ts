@@ -78,3 +78,20 @@ describe('buildComponents: визард', () => {
     expect(components.RendererFormWizard).toBeUndefined();
   });
 });
+
+describe('buildComponents: массив с явным компонентом', () => {
+  function KitFieldArray(): null {
+    return null;
+  }
+
+  it('компонент массива кита регистрируется под именем FieldArray', () => {
+    const components = componentsOf(WITHOUT_WIZARD, { FieldArray: KitFieldArray });
+    // Узел `component: $component(FieldArray)` обязан найти компонент: иначе превью рисует
+    // «неизвестный компонент» там, где собранный модуль формы рисует массив.
+    expect(components.FieldArray).toBeDefined();
+  });
+
+  it('кит без компонента массива имя не регистрирует — узел уйдёт в подписанную заглушку', () => {
+    expect(componentsOf(WITHOUT_WIZARD, {}).FieldArray).toBeUndefined();
+  });
+});

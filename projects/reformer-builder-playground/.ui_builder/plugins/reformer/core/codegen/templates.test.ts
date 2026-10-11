@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit, foreignKit, plainSchema } from './__fixtures__/kit';
+import { builtinKit, foreignKit, plainSchema, wizardRulesSchema } from './__fixtures__/kit';
 import { prepare, type CodegenInput, type EmittedFileRef } from './context';
 import { renderTemplate } from '@reformer/builder-toolkit';
 import { readmeTemplate } from './templates';
@@ -30,16 +30,16 @@ function readmeOf(files: readonly EmittedFileRef[], over: Partial<CodegenInput> 
 
 describe('README перечисляет фактический состав модуля', () => {
   it('файл чужой цели попадает в список наравне с нашими', () => {
-    // Отказ, который это удерживает: в v1 состав README был литералом, и `renderer.wizard.tsx`
+    // Отказ, который это удерживает: в v1 состав README был литералом, и необязательный файл
     // дописывался туда отдельной веткой условия. Любая чужая цель осталась бы незаписанной —
     // человек получил бы файл, о котором README молчит.
     const code = readmeOf([
-      { path: 'types.ts', cls: 'derived' },
-      { path: 'api.ts', cls: 'user' },
+      { path: 'types/zayavka-na-kredit.ts', cls: 'derived' },
+      { path: 'api/index.ts', cls: 'user' },
       { path: 'мой-файл.ts', cls: 'derived' },
     ]);
-    expect(code).toContain('`types.ts`, `мой-файл.ts`');
-    expect(code).toContain('`api.ts`');
+    expect(code).toContain('`types/zayavka-na-kredit.ts`, `мой-файл.ts`');
+    expect(code).toContain('`api/index.ts`');
   });
 
   it('пустой состав не роняет печать и не оставляет мусора', () => {
@@ -50,5 +50,48 @@ describe('README перечисляет фактический состав мо
 
   it('называет кит, под который сгенерирован модуль', () => {
     expect(readmeOf([], { kit: foreignKit() })).toContain('@hexa/ui');
+  });
+});
+
+describe('README описывает раскладку «папки по ролям»', () => {
+  it('дерево называет папки ролей и файлы формы в них', () => {
+    const code = readmeOf([]);
+    for (const line of [
+      '├── ZayavkaNaKreditForm.tsx',
+      '├── application/',
+      '│   ├── create.ts',
+      '│   ├── submit.ts',
+      '│   └── entry.ts',
+      '├── schema/',
+      '│   ├── form.schema.json',
+      '│   └── registry.ts',
+      '├── validation/',
+      '├── behavior/',
+      '├── types/',
+      '│   └── zayavka-na-kredit.ts',
+      '└── constants/',
+    ]) {
+      expect(code).toContain(line);
+    }
+    // Потока шагов у простой формы нет — и в дереве его нет.
+    expect(code).not.toContain('├── flow/');
+  });
+
+  it('у визарда — поток шагов и по файлу правил на шаг', () => {
+    const code = readmeOf([], { schema: wizardRulesSchema() });
+    expect(code).toContain('├── flow/');
+    expect(code).toContain('│   └── zayavka-na-kredit-flow.ts');
+    expect(code).toContain('│   ├── dannye.ts   правила шага «Данные»');
+    expect(code).toContain('│   └── kontakty.ts   правила шага «Контакты»');
+  });
+
+  it('методы для реализации названы в новых путях, прежних имён нет', () => {
+    const code = readmeOf([]);
+    expect(code).toContain('- `api/index.ts` → `submitForm(values)`');
+    expect(code).toContain('- `application/submit.ts` →');
+    expect(code).toContain('- `behavior/index.ts` →');
+    for (const stale of ['form.render.ts', 'data-sources.ts', 'index.tsx', 'defineJsonSchemaV1']) {
+      expect(code).not.toContain(stale);
+    }
   });
 });

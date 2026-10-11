@@ -153,6 +153,31 @@ describe('создание фикстуры', () => {
     expect(legacy.written.get(FIXTURE_PATH)).toContain('amount');
   });
 
+  it('документ в папке schema: фикстура ложится в КОРЕНЬ модуля формы, а не в schema/', async () => {
+    // Раскладка «папки по ролям»: документ — `<модуль>/schema/form.schema.json`, а фикстура —
+    // артефакт формы целиком. Адрес считает `fixturePathOf` — один на кодоген, превью и шаблоны.
+    const nested = 'src/forms/credit/schema/form.schema.json' as unknown as ResourceId;
+    const written = new Map<string, string>();
+    const host = {
+      documentOf: (id: ResourceId) =>
+        id === nested
+          ? { id, ref: { path: nested as unknown as string }, model: () => SCHEMA }
+          : null,
+      sourceOf: () => ({ write: true }),
+      resolveFromRoot: (_anchor: ResourceId, path: string) => path as unknown as ResourceId,
+      readText: () => Promise.resolve(null),
+      writeText: (id: ResourceId, text: string) => {
+        written.set(id as unknown as string, text);
+        return Promise.resolve();
+      },
+    } as unknown as CodegenHost;
+
+    const outcome = await createFixture(host, nested);
+
+    expect(outcome).toMatchObject({ kind: 'written', path: FIXTURE_PATH });
+    expect([...written.keys()]).toEqual([FIXTURE_PATH]);
+  });
+
   it('без порта адресации команда отказывается, а не пишет рядом со схемой', async () => {
     const { host } = harness();
     const crippled = { ...host, resolveFromRoot: undefined } as unknown as CodegenHost;

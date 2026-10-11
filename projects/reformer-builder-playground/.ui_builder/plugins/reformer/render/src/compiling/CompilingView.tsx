@@ -1,6 +1,14 @@
 /**
- * Компилирующая поверхность: сайдкары формы транспилируются, линкуются и исполняются
+ * Компилирующая поверхность: код модуля формы транспилируется, линкуется и исполняется
  * в ТОМ ЖЕ realm, что и оболочка.
+ *
+ * ## Что исполняется
+ *
+ * Файлы РОЛЕЙ модуля формы — начальные значения, валидация, поток шагов, поведение, отправка,
+ * реестр (`./module`, `./exports`). Модуль читается от своего корня — родителя папки `schema/`,
+ * в которой лежит документ. Страница модуля и сборка приложения (`application/create.ts`,
+ * `application/entry.ts`) не исполняются: форму превью собирает само — из живой схемы редактора,
+ * реестра кита, мока и фикстуры, — а из модуля берёт только то, чего в схеме нет.
  *
  * ## Почему в том же realm
  *
@@ -17,8 +25,8 @@
  *
  * ## Компиляция и сборка разведены
  *
- * Сайдкары читаются и транспилируются по документу и версии рабочих копий; форма собирается
- * по схеме. Один эффект на двоих означал бы перекомпиляцию сайдкаров на каждое нажатие
+ * Файлы модуля читаются и транспилируются по документу и версии рабочих копий; форма собирается
+ * по схеме. Один эффект на двоих означал бы перекомпиляцию модуля на каждое нажатие
  * клавиши в конструкторе — и, что хуже, падение в «собирается» вместо показанной формы.
  * В живом виде конструктора это видно постоянно: форма там на экране всегда.
  *
@@ -27,9 +35,17 @@
  *
  * ## Деградация частями
  *
- * Битый `validation.ts` не лишает превью работающего `form.behavior.ts`: сбои приходят списком
- * и показываются, а форма собирается из того, что исполнилось. «Форма не отрабатывает» без
- * указания виновного — та самая жалоба, ради которой изоляция и делалась.
+ * Битый `validation/form.ts` не лишает превью работающего `behavior/index.ts`: сбои приходят
+ * списком и показываются, а форма собирается из того, что исполнилось. «Форма не отрабатывает»
+ * без указания виновного — та самая жалоба, ради которой изоляция и делалась.
+ *
+ * ## Итог отправки — полосой над формой
+ *
+ * В приложении его показывает страница модуля (`onResult` → баннер), а страницу превью не
+ * исполняет. Отправка при этом подключена настоящая (`application/submit.ts`), и без своего
+ * приёмника итог терялся бы: кнопку нажали — и ничего не произошло. Поэтому приёмник здесь свой:
+ * полоса над формой с тем же `data-testid="submit-result"`, что у баннера страницы. Она
+ * принадлежит сборке формы, которая итог сообщила: пересборка (правка схемы или кода) её убирает.
  *
  * @module plugins/reformer/render/compiling/CompilingView
  */
@@ -45,13 +61,12 @@ import {
 } from 'react';
 import { FormRenderer } from '@reformer/renderer-react';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { MODULE_FILES } from '../../../core/codegen';
 import { toDescriptor } from '@reformer/builder-plugin-api';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
+import type { KitDescriptor, KitNamespace, ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewContext, PreviewProblem, PreviewValues } from '@reformer/builder-plugin-api';
 import type { PreviewHost } from '../host';
 import { nodeAt } from '../schema/node-token';
-import { buildRuntimeBundle, type RuntimeBundle } from '../runtime/build';
+import { buildRuntimeBundle, type RuntimeBundle, type Shape } from '../runtime/build';
 import { Highlight } from '../ui/Highlight';
 import { KitFrame } from '../ui/KitFrame';
 import { Notice } from '../ui/Notice';
@@ -71,9 +86,12 @@ import { kitImportOverrides, mergeOverrides } from './kit-imports';
 import {
   appliedArtifacts,
   extractContract,
+  runFactories,
   type AppliedArtifact,
   type FormContract,
 } from './exports';
+import { alignFlow } from './flow';
+import { moduleFilesFor, planModule } from './module';
 import { attributeProblems, readSidecars } from './read';
 
 /** Идентификатор поверхности. Он же имя источника находок. */
@@ -85,11 +103,18 @@ function fallbackDescriptor(): KitDescriptor {
   return toDescriptor({ version: '1.0', components: [] });
 }
 
-/** Что дали сайдкары. Пересобирается ТОЛЬКО при их правке, но не при правке схемы. */
+/** Нет файлов — нет и адресов: находки остаются при документе. */
+const NO_RESOURCES: ReadonlyMap<string, ResourceId> = new Map();
+
+/** Что дал код модуля. Пересобирается ТОЛЬКО при его правке, но не при правке схемы. */
 interface CompiledSources {
   readonly contract: FormContract | null;
-  /** Реестр компонентов формы: собран один раз, при исполнении `registry.ts`. */
+  /** Реестр компонентов формы: собран один раз, фабрикой `createRegistry` модуля. */
   readonly registry: ComponentRegistry | undefined;
+  /** Начальные значения модуля: один вызов `createInitialValues` на компиляцию. */
+  readonly initial: Shape | undefined;
+  /** Путь файла от корня модуля → ресурс: адреса для находок сборки формы. */
+  readonly resources: ReadonlyMap<string, ResourceId>;
   /**
    * Фикстура формы: данные, подстановки и окружение.
    *
@@ -106,21 +131,39 @@ interface CompiledSources {
 const PENDING: CompiledSources = Object.freeze({
   contract: null,
   registry: undefined,
+  initial: undefined,
+  resources: NO_RESOURCES,
   fixture: null,
   applied: [],
   problems: [],
   pending: true,
 });
 
-/** Загрузчика модулей нет: сайдкары не исполнятся, но форма по схеме соберётся. */
+/** Загрузчика модулей нет: код модуля не исполнится, но форма по схеме соберётся. */
 const NOTHING: CompiledSources = Object.freeze({
-  contract: {},
+  contract: { files: {} },
   registry: undefined,
+  initial: undefined,
+  resources: NO_RESOURCES,
   fixture: null,
   applied: [],
   problems: [],
   pending: false,
 });
+
+/** Итог отправки и сборка формы, которая его сообщила. */
+interface SubmitOutcome {
+  /** Метка сборки: итог показывается, только пока на экране та же форма. */
+  readonly owner: object;
+  readonly message: string;
+  readonly ok: boolean;
+}
+
+/** Собранная форма вместе с меткой, по которой итог отправки узнаёт свою сборку. */
+interface BuiltForm {
+  readonly bundle: RuntimeBundle;
+  readonly owner: object;
+}
 
 export interface CompilingViewProps {
   readonly ctx: PreviewContext;
@@ -135,13 +178,14 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   const filesVersion = useFilesVersion(host);
   const surface = useRef<HTMLDivElement | null>(null);
   const [sources, setSources] = useState<CompiledSources>(PENDING);
+  const [outcome, setOutcome] = useState<SubmitOutcome | null>(null);
   /** Форма прошлой сборки — источник значений для следующей (см. `../runtime/carry`). */
   const live = useRef<{ model: { get(): unknown } } | null>(null);
 
   const modules = host.modules;
   const documentId = ctx.doc.id;
-  // Путь документа нужен для адреса фикстуры: она лежит рядом с формой (`fixture.ts` в её
-  // каталоге), и этот адрес выводится из пути схемы.
+  // Путь документа отвечает на вопрос «где модуль»: его корень — родитель папки `schema/`, там
+  // же лежит фикстура (`fixture.ts`), а от имени каталога зависит имя файла потока шагов.
   const schemaPath = host.documentOf(documentId)?.ref.path ?? '';
   const mock = ctx.mock();
 
@@ -167,7 +211,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     });
   }, [host, kitVersion]);
 
-  // Сайдкары: от схемы НЕ зависят вовсе. Их правят в соседних вкладках, и об этом сообщает
+  // Код модуля: от схемы НЕ зависит вовсе. Его правят в соседних вкладках, и об этом сообщает
   // `filesVersion`, а не изменение модели документа.
   useEffect(() => {
     if (modules === undefined) {
@@ -178,13 +222,13 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     // Отменяем не работу, а ПРИМЕНЕНИЕ результата: компиляция уже запущена, остановить её
     // нечем, но опоздавший результат обязан быть отброшен — иначе он затрёт свежий.
     let cancelled = false;
-    // В «собирается» падаем только с пустого места: пересборка сайдкаров не должна убирать
+    // В «собирается» падаем только с пустого места: пересборка модуля не должна убирать
     // с экрана форму, которая уже показана.
     setSources((previous) => (previous.contract === null ? PENDING : previous));
 
     void (async () => {
-      // Фикстура исполняется ПЕРВОЙ и отдельным графом: её подстановки нужны сайдкарам,
-      // а общий граф исполнил бы `./api` дважды — один раз для неё, другой для формы.
+      // Фикстура исполняется ПЕРВОЙ и отдельным графом: её подстановки нужны файлам модуля,
+      // а общий граф исполнил бы `api/index.ts` дважды — один раз для неё, другой для формы.
       const loaded = await loadFixture(host, modules, documentId, schemaPath);
       const isolation = {
         // Пакет кита плагина и подстановки фикстуры — одной картой; фикстура побеждает.
@@ -192,33 +236,29 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
         ambient: createAmbient(loaded.fixture),
       };
 
-      const read = await readSidecars(host, documentId);
-      const compiled = await compileForm(read.files, modules, isolation);
+      const read = await readSidecars(host, documentId, schemaPath);
+      // План строится по СПИСКУ каталога, а не по прочитанному: файл роли, который не прочитался,
+      // всё равно говорит, что модуль разложен по ролям, — и корень тогда не исполняется.
+      const plan = planModule(read.resources.keys(), moduleFilesFor(schemaPath));
+      const compiled = await compileForm(read.files, modules, isolation, plan);
       if (cancelled) return;
 
-      const contract = extractContract(compiled.modules);
+      const contract = extractContract(compiled.modules, plan);
+      // Фабрики модуля — раз на компиляцию: правка схемы форму пересобирает, а реестр и
+      // начальные значения остаются теми же объектами.
+      const values = runFactories(contract);
       const problems: PreviewProblem[] = [
         ...loaded.problems,
         ...read.problems,
         ...compiled.problems,
+        ...values.problems,
       ];
-
-      let registry: ComponentRegistry | undefined;
-      if (contract.createRegistry !== undefined) {
-        try {
-          registry = contract.createRegistry();
-        } catch (error) {
-          problems.push({
-            file: MODULE_FILES.registry,
-            phase: 'evaluate',
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
 
       setSources({
         contract,
-        registry,
+        registry: values.registry,
+        initial: values.initial,
+        resources: read.resources,
         fixture: loaded.fixture,
         applied: appliedArtifacts(contract),
         // Адрес файла — чтобы находка ушла в свод диагностик туда, где чинить, а не на схему.
@@ -232,13 +272,15 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     };
   }, [host, documentId, schemaPath, modules, filesVersion, kitImports]);
 
-  // Форма: синхронная сборка по схеме и уже исполненным сайдкарам. Правка схемы доходит
+  // Форма: синхронная сборка по схеме и уже исполненному коду модуля. Правка схемы доходит
   // сюда и никуда больше — компилятор она не трогает.
-  const bundle = useMemo<RuntimeBundle | null>(() => {
+  const built = useMemo<BuiltForm | null>(() => {
     const contract = sources.contract;
     if (schema === null || contract === null) return null;
     const carry = (live.current?.model.get() as PreviewValues | undefined) ?? ctx.values();
-    return buildRuntimeBundle({
+    const owner = {};
+    const { behaviorRules, wireSubmit } = contract;
+    const bundle = buildRuntimeBundle({
       schema,
       catalog: kit.catalog,
       descriptor: kit.descriptor,
@@ -246,13 +288,33 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       mock,
       fixture: sources.fixture,
       extraRegistry: sources.registry,
-      initialOverride: contract.initial,
+      initialOverride: sources.initial,
       behavior: contract.behavior,
+      // Обе половины есть — поведение складывается как в сборке приложения: правила и отправка.
+      // Нет хотя бы одной — остаётся готовое `formBehavior`, без отправки.
+      ...(behaviorRules !== undefined && wireSubmit !== undefined
+        ? {
+            moduleBehavior: {
+              rules: behaviorRules,
+              wireSubmit,
+              onResult: (message: string, ok: boolean) => {
+                setOutcome({ owner, message, ok });
+              },
+            },
+          }
+        : {}),
       validation: contract.validation,
+      // Шаги — из живой схемы, правила шагов — из потока модуля (см. `./flow`).
+      flow: alignFlow(contract.flow, schema),
       renderBehavior: contract.renderBehavior,
+      files: contract.files,
       carry,
     });
+    return { bundle, owner };
   }, [schema, kit, mock, sources, ctx]);
+  const bundle = built?.bundle ?? null;
+  // Итог чужой сборки не показывается: форму пересобрали, и он относится к прежней.
+  const shown = outcome !== null && outcome.owner === built?.owner ? outcome : null;
 
   useLiveValidation(bundle?.form ?? null);
 
@@ -275,8 +337,10 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   }, [ctx]);
 
   const problems = useMemo(
-    () => [...sources.problems, ...(bundle?.problems ?? [])],
-    [sources.problems, bundle]
+    // Находки сборки названы путём файла модуля — адрес им приписывается тот же, что находкам
+    // компиляции: подчеркнуть надо файл, а не схему.
+    () => [...sources.problems, ...attributeProblems(bundle?.problems ?? [], sources.resources)],
+    [sources.problems, sources.resources, bundle]
   );
 
   useEffect(() => {
@@ -320,8 +384,26 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   // редактора, где та же строка отнимает высоту у формы на каждой вкладке. Число находок
   // без их текста всё равно ничего не давало: разбирать их надо в панели проблем, куда они
   // пока не доезжают (см. задачу о находках сборки).
+  //
+  // Полоса итога отправки — другое: она появляется только после нажатия «Отправить» и лежит
+  // СНАРУЖИ области формы, чтобы щелчок по ней не был промахом по форме и не снимал выделение.
   return (
     <div className="flex h-full flex-col">
+      {shown === null ? null : (
+        <div
+          role="status"
+          data-testid="submit-result"
+          data-ok={shown.ok ? 'true' : 'false'}
+          className={
+            'flex-none border-b px-4 py-1.5 text-[12px] ' +
+            (shown.ok
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-foreground'
+              : 'border-amber-400/60 bg-amber-400/10 text-foreground')
+          }
+        >
+          {shown.message}
+        </div>
+      )}
       <ScrollArea ref={surface} className="min-h-0 flex-1" onClick={onClick}>
         {/* Отступ лежит на содержимом, а не на `ScrollArea`: на корне он оставил бы полосу
             прокрутки внутри поля, а нижний отступ перестал бы уезжать вместе с формой. */}

@@ -1,23 +1,59 @@
-<% if (it.rules.behaviorCode !== null) { -%>
-<%~ it.rules.behaviorCode -%>
+<%
+const T = it.names.TypeName;
+const b = it.rules.behavior;
+const body = [];
+if (b.links.length > 0) body.push(['// Связи над моделью', ...b.links]);
+for (const group of b.groups) {
+  const lines = [group.step === null ? '// Правила узлов схемы' : `// Шаг «${group.step.title}»`];
+  for (const rule of group.rules) lines.push(...rule.lines);
+  if (group.scaffold.length > 0) {
+    lines.push('// Условная видимость секций — раскомментируйте и впишите условие:');
+    for (const section of group.scaffold) {
+      lines.push(`// hideWhen(schema.node('${section.selector}'), () => /* TODO: условие для «${section.label}» */ false);`);
+    }
+  }
+  body.push(lines);
+}
+-%>
+// <%= it.layout.files.behavior %> — поведение формы: связи над моделью и правила узлов схемы.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import { <%= b.imports.join(', ') %>, type BehaviorScope } from '@reformer/core/behaviors';
+import type { <%= T %> } from '<%= it.rel('behavior', 'types') %>';
+
+/** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (<%= it.layout.files.create %>). */
+export function behaviorRules(<%= b.scope.length > 0 ? `{ ${b.scope.join(', ')} }` : '_scope' %>: BehaviorScope<<%= T %>>): void {
+<% if (body.length > 0) { -%>
+<%~ it.blocks(body.map((lines) => it.indent(lines, 2))) %>
 <% } else { -%>
-// form.behavior.ts — реактивное поведение модели (вычисляемые поля, enableWhen, copyFrom).
-// МОК: заготовка, реализуйте по необходимости. Пишется один раз.
+  // Правил пока нет — см. пример ниже.
+<% } -%>
+}
 
-import { defineFormBehavior } from '@reformer/core/behaviors';
-import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
+export const formBehavior = defineFormBehavior<<%= T %>>(behaviorRules);
+<% if (!b.hasCode) { -%>
 
-export const formBehavior = defineFormBehavior<<%= it.names.TypeName %>>(() => {});
-
-// --- ПРИМЕР ↓ замените объявление выше на такое и оставьте нужные строки ---------------
-// import { defineFormBehavior, compute, computeFrom, copyFrom, enableWhen } from '@reformer/core/behaviors';
+// --- ПРИМЕР ↓ замените функцию выше на такую и оставьте нужные строки ------------------
+// import {
+//   compute,
+//   computeFrom,
+//   copyFrom,
+//   defineFormBehavior,
+//   enableWhen,
+//   hideWhen,
+//   type BehaviorScope,
+// } from '@reformer/core/behaviors';
 //
-// export const formBehavior = defineFormBehavior<<%= it.names.TypeName %>>(({ model }) => {
+// export function behaviorRules({ model, schema }: BehaviorScope<<%= T %>>): void {
 //   // model.field — ЗНАЧЕНИЕ поля, model.$.field — его сигнал. Операторы принимают сигналы.
 //   compute(model.$.total, () => (model.price ?? 0) * (model.qty ?? 0));
 //   computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty);
 //   enableWhen(model.$.city, () => model.country !== null);
 //   copyFrom(model.$.shippingAddress, model.$.billingAddress, { when: () => model.sameAddress });
-// });
+//
+//   // Правила узлов схемы — по `selector` узла. Скрытие узла не убирает поле из модели:
+//   // чтобы оно перестало валидироваться, рядом нужен enableWhen.
+//   hideWhen(schema.node('details-section'), () => !model.hasDetails);
+// }
 // --- конец примера ---------------------------------------------------------------------
 <% } -%>

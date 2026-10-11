@@ -94,6 +94,24 @@ describe('загрузка фикстуры', () => {
     expect(loaded.problems[0].file).toBe(FIXTURE_PATH);
   });
 
+  it('у модуля с папками ролей фикстура лежит в его КОРНЕ, а не рядом с документом', async () => {
+    // Документ — в `schema/`, а фикстура — артефакт формы целиком: `<модуль>/fixture.ts`.
+    const host = hostWith({
+      [FIXTURE_PATH]: 'exports.fixture = { model: { amount: 7 } };',
+      'src/forms/credit/schema/fixture.ts': 'exports.fixture = { model: { amount: -1 } };',
+    });
+
+    const loaded = await loadFixture(
+      host,
+      modules,
+      'src/forms/credit/schema/form.schema.json' as unknown as ResourceId,
+      'src/forms/credit/schema/form.schema.json'
+    );
+
+    expect(loaded.path).toBe(FIXTURE_PATH);
+    expect(loaded.fixture?.model).toEqual({ amount: 7 });
+  });
+
   it('без порта адресации фикстуры не бывает: композиция вправе её не давать', async () => {
     const host = { readText: () => Promise.resolve('') } as unknown as PreviewHost;
 

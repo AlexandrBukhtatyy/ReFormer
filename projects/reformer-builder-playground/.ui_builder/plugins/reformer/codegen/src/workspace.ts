@@ -47,7 +47,13 @@ import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
-/** Один файл напечатанного модуля: путь от каталога формы и содержимое. */
+/**
+ * Один файл напечатанного модуля: путь от КОРНЯ МОДУЛЯ формы и содержимое.
+ *
+ * Модуль разложен по папкам ролей: документ формы — `schema/form.schema.json`, страница —
+ * `<Тип>.tsx`, реэкспорты — `index.ts`, остальное — в `application/`, `model/`, `validation/`,
+ * `behavior/`, … Потребитель кладёт файлы как есть, от каталога формы.
+ */
 export interface PrintedFile {
   readonly path: string;
   readonly content: string;

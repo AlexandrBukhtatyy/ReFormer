@@ -53,10 +53,224 @@ describe('collect', () => {
     });
   });
 
-  it('поле type=number объявляется числом', () => {
+  it('поле type=number объявляется числом, допускающим «не введено»', () => {
     const schema = sampleSchema();
-    const c = collect(schema, synthMock(schema));
-    expect(c.root.fields.loanAmount).toEqual({ t: 'leaf', ts: 'number' });
+    const mock = synthMock(schema);
+    const c = collect(schema, mock);
+    // `null` — стартовое значение числа без `min`: без него начальные значения не проходят tsc
+    // (`{ loanAmount: null } as Форма` при `loanAmount: number` — ошибка TS2352).
+    expect(mock.model.loanAmount).toBeNull();
+    expect(c.root.fields.loanAmount).toEqual({ t: 'leaf', ts: 'number | null' });
+  });
+
+  /** Схема из одного поля — чтобы тип листа читался без чужих полей. */
+  function leafOf(component: string, props: Record<string, unknown> = {}) {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(x)', component: `$component(${component})`, componentProps: props },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const mock = synthMock(schema);
+    return { leaf: collect(schema, mock).root.fields.x, initial: mock.model.x };
+  }
+
+  it('загрузка файлов объявляется списком файлов, а не списком неизвестного', () => {
+    // `unknown[]` в типе формы — мусор: по нему нельзя ни прочитать имя файла, ни собрать
+    // запрос. Стартует поле с `null` — «ничего не выбрано».
+    const { leaf, initial } = leafOf('FileUploadDropzone', { multiple: true });
+    expect(leaf).toEqual({ t: 'leaf', ts: 'File[] | null' });
+    expect(initial).toBeNull();
+  });
+
+  it('выбор даты объявляется датой — тем, что контрол кладёт в модель', () => {
+    // Строкой поле расходилось бы со своим значением: `birthDate: string` при `Date` в модели.
+    const { leaf, initial } = leafOf('DatePicker');
+    expect(leaf).toEqual({ t: 'leaf', ts: 'Date | null' });
+    expect(initial).toBeNull();
+  });
+
+  it('список с крестиком очистки допускает null — в него очистка и сбрасывает', () => {
+    const options = [{ value: 'a', label: 'А' }];
+    expect(leafOf('Select', { options, clearable: true }).leaf).toEqual({
+      t: 'leaf',
+      ts: "'' | 'a' | null",
+    });
+    // Без крестика очистки `null` взяться неоткуда — тип остаётся прежним.
+    expect(leafOf('Select', { options }).leaf).toEqual({ t: 'leaf', ts: "'' | 'a'" });
+  });
+
+  it('комбобокс: список с опциями, а мультикомбобокс — набор опций, пустой как null', () => {
+    const options = [
+      { value: 'a', label: 'А' },
+      { value: 'b', label: 'Б' },
+    ];
+    // Одиночный комбобокс ведёт себя как список: стартует с `''`, крестик очистки даёт `null`.
+    const single = leafOf('Combobox', { options, clearable: true });
+    expect(single.leaf).toEqual({ t: 'leaf', ts: "'' | 'a' | 'b' | null" });
+    expect(single.initial).toBe('');
+    // Мультивыбор: контрол отдаёт пустой выбор как `null`, с него же поле и стартует.
+    const multi = leafOf('ComboboxMulti', { options });
+    expect(multi.leaf).toEqual({ t: 'leaf', ts: "Array<'a' | 'b'> | null" });
+    expect(multi.initial).toBeNull();
+  });
+
+  it('крестик очистки даёт null и без списка опций в схеме', () => {
+    // Выбор узла иерархии: опций у контрола нет (узлы приходят деревом), а очистка сбрасывает
+    // значение в `null` так же, как у списка. Тип `string` это значение отвергал бы.
+    expect(leafOf('ComboboxTree', { clearable: true }).leaf).toEqual({
+      t: 'leaf',
+      ts: 'string | null',
+    });
+    expect(leafOf('ComboboxTree').leaf).toEqual({ t: 'leaf', ts: 'string' });
+    // Набор узлов иерархии — мультивыбор: массив строк, пустой выбор — `null`.
+    const treeMulti = leafOf('ComboboxTreeMulti');
+    expect(treeMulti.leaf).toEqual({ t: 'leaf', ts: 'string[] | null' });
+    expect(treeMulti.initial).toBeNull();
+  });
+});
+
+describe('лист, стартующий в моке с null, объявляется nullable', () => {
+  /** Плоская форма из полей `[путь, компонент, пропсы]` с авторским моком модели. */
+  function typesOf(
+    fields: readonly (readonly [string, string, Record<string, unknown>?])[],
+    model: Record<string, unknown>,
+    dataSources: Record<string, unknown> = {}
+  ) {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: fields.map(([path, component, props]) => ({
+          model: `$model(${path})`,
+          component: `$component(${component})`,
+          componentProps: props ?? {},
+        })),
+      },
+    } as unknown as JsonFormSchema;
+    return collect(schema, { model, dataSources }).root.fields;
+  }
+
+  it('список без крестика очистки, но с null в моке, получает `| null`', () => {
+    // Отказ, который это удерживает (форма contact образца приложения): мок
+    // `{ city: null }`, а тип печатался `city: string`. Начальные значения приводятся к типу
+    // формы (`as <Тип>`), поэтому компилятор расхождения не видел — тип просто врал.
+    const fields = typesOf(
+      [
+        ['name', 'Input'],
+        ['city', 'Select', { options: '$dataSource(CITIES)' }],
+        ['agree', 'Checkbox'],
+      ],
+      { name: '', city: null, agree: false }
+    );
+    expect(fields.city).toEqual({ t: 'leaf', ts: 'string | null' });
+    // Поля, стартующие не с `null`, остаются как были.
+    expect(fields.name).toEqual({ t: 'leaf', ts: 'string' });
+    expect(fields.agree).toEqual({ t: 'leaf', ts: 'boolean' });
+  });
+
+  it('null дописывается к союзу опций, а не заменяет его', () => {
+    const fields = typesOf(
+      [['city', 'Select', { options: '$dataSource(CITIES)' }]],
+      { city: null },
+      { CITIES: [{ value: 'msk', label: 'Москва' }] }
+    );
+    expect(fields.city).toEqual({ t: 'leaf', ts: "'' | 'msk' | null" });
+  });
+
+  it('тип, уже допускающий null по своей причине, второго null не получает', () => {
+    const fields = typesOf(
+      [
+        ['city', 'Select', { options: [{ value: 'a', label: 'А' }], clearable: true }],
+        ['amount', 'InputNumber'],
+        ['birthDate', 'DatePicker'],
+        ['documents', 'FileUploadDropzone'],
+        ['skills', 'ComboboxMulti'],
+      ],
+      { city: null, amount: null, birthDate: null, documents: null, skills: null }
+    );
+    expect(fields.city).toEqual({ t: 'leaf', ts: "'' | 'a' | null" });
+    expect(fields.amount).toEqual({ t: 'leaf', ts: 'number | null' });
+    expect(fields.birthDate).toEqual({ t: 'leaf', ts: 'Date | null' });
+    expect(fields.documents).toEqual({ t: 'leaf', ts: 'File[] | null' });
+    expect(fields.skills).toEqual({ t: 'leaf', ts: 'string[] | null' });
+  });
+
+  it('строка и флажок с null в моке — тоже nullable: тип следует моку, а не контролу', () => {
+    const fields = typesOf(
+      [
+        ['comment', 'Input'],
+        ['agree', 'Checkbox'],
+        ['contacts.phone', 'Input'],
+      ],
+      { comment: null, agree: null, contacts: { phone: null } }
+    );
+    expect(fields.comment).toEqual({ t: 'leaf', ts: 'string | null' });
+    expect(fields.agree).toEqual({ t: 'leaf', ts: 'boolean | null' });
+    const contacts = fields.contacts;
+    expect(contacts.t === 'obj' && contacts.fields.phone).toEqual({
+      t: 'leaf',
+      ts: 'string | null',
+    });
+  });
+
+  it('мок, молчащий о поле, тип не меняет', () => {
+    const fields = typesOf(
+      [
+        ['city', 'Select', { options: '$dataSource(CITIES)' }],
+        ['contacts.phone', 'Input'],
+      ],
+      // Ни `city`, ни `contacts` в моке нет; `undefined` — не `null`.
+      { other: null }
+    );
+    expect(fields.city).toEqual({ t: 'leaf', ts: 'string' });
+    const contacts = fields.contacts;
+    expect(contacts.t === 'obj' && contacts.fields.phone).toEqual({ t: 'leaf', ts: 'string' });
+  });
+
+  it('поле строки массива — nullable, если null лежит хотя бы в одной строке мока', () => {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          {
+            model: '$model(references)',
+            component: '$component(FieldArray)',
+            item: {
+              $template: {
+                component: '$component(Box)',
+                children: [
+                  { model: '$model(name)', component: '$component(Input)' },
+                  { model: '$model(phone)', component: '$component(Input)' },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const rowOf = (model: Record<string, unknown>) => {
+      const references = collect(schema, { model, dataSources: {} }).root.fields.references;
+      return references.t === 'arr' && references.elem.t === 'obj' ? references.elem.fields : {};
+    };
+
+    const withNull = rowOf({
+      references: [
+        { name: 'Пётр', phone: '+7' },
+        { name: 'Анна', phone: null },
+      ],
+    });
+    expect(withNull.phone).toEqual({ t: 'leaf', ts: 'string | null' });
+    expect(withNull.name).toEqual({ t: 'leaf', ts: 'string' });
+    // Синтезированный мок строк не несёт — типы строки остаются по контролу.
+    expect(rowOf({ references: [] }).phone).toEqual({ t: 'leaf', ts: 'string' });
   });
 });
 
