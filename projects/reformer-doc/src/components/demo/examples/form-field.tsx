@@ -127,6 +127,46 @@ function PlainUsage() {
   );
 }
 
+/** Тексты замечаний примера с предупреждением. */
+const PASSWORD_MESSAGES = defineIssueMessages({
+  'password.weak': 'Пароль простой — лучше от 8 символов',
+  'field.required': 'Введите пароль',
+});
+
+/** Предупреждение не блокирует отправку: слабый пароль — совет, пустой — ошибка. */
+const weakPassword = (value: string) =>
+  value !== '' && value.length < 8 ? { code: 'password.weak', severity: 'warning' as const } : null;
+
+/** Предупреждение рядом с ошибкой: первое поле валидно, второе — нет. */
+function WarningUsage() {
+  const { control: weak } = useDemoField({
+    initial: 'qwerty',
+    component: Input,
+    componentProps: { label: 'Пароль', type: 'text' },
+    validators: [required({ code: 'field.required' }), weakPassword],
+    messages: PASSWORD_MESSAGES,
+    touched: true,
+  });
+  const { control: empty } = useDemoField({
+    initial: '',
+    component: Input,
+    componentProps: { label: 'Пароль ещё раз', type: 'text' },
+    validators: [required({ code: 'field.required' }), weakPassword],
+    messages: PASSWORD_MESSAGES,
+    touched: true,
+  });
+  return (
+    <div
+      style={{ maxWidth: 380, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}
+    >
+      <ValidationMessagesProvider messages={PASSWORD_MESSAGES}>
+        <FormField control={weak as any} />
+        <FormField control={empty as any} />
+      </ValidationMessagesProvider>
+    </div>
+  );
+}
+
 /** Подсказки-иконки: labelTooltip — после подписи (FormField), tooltip — в самом контроле. */
 function TooltipUsage() {
   const { control } = useDemoField({
@@ -228,6 +268,24 @@ export const uiKitFormFieldDocConfig: ComponentDocConfig = {
 <FormField control={form.email} />`,
     },
     {
+      id: 'warning',
+      title: 'Предупреждение — не ошибка',
+      description:
+        "Правило вернуло замечание с severity: 'warning' — оно показывается под полем цветом --warning и отправку не блокирует: поле валидно, рамки ошибки и aria-invalid нет. Ниже для сравнения — то же поле с ошибкой. Под полем одно замечание: первая ошибка, а без ошибок — первое предупреждение.",
+      render: WarningUsage,
+      code: `import { validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+
+validate(model.$.password, [
+  required({ code: 'field.required' }),
+  // Предупреждение — замечание с severity: 'warning'
+  (value) =>
+    value !== '' && value.length < 8 ? { code: 'password.weak', severity: 'warning' } : null,
+]);
+
+<FormField control={form.password} />`,
+    },
+    {
       id: 'tooltips',
       title: 'Подсказки-иконки (i)',
       description:
@@ -300,7 +358,7 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
       name: 'validation',
       type: '— (auto)',
       description:
-        'Зона validation — ошибка поля (text-destructive); показывается после hint, когда поле touched и невалидно.',
+        "Зона validation — замечание поля после hint, когда поле touched или dirty: ошибка (text-destructive) либо предупреждение — замечание с severity: 'warning' (text-warning), поле при этом валидно.",
     },
     {
       name: 'control',

@@ -103,7 +103,9 @@ const outcome = await bundle.submit(sendApplication);
 
 Ref визарда не нужен: поток — обычный объект сборки, им управляют напрямую. Переходы возвращают
 `FlowTransition` — `{ status: 'moved', from, to }` либо `{ status: 'stayed', step, reason }`, где
-`reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`.
+`reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`. `cancelled` у `next()` — проверка
+шага устарела: её сменила следующая, поток перевели либо модель изменилась, пока она шла (поле
+правили во время async-правила) — шаг пройденным не считается, переход повторяют.
 
 ```tsx
 import type { FormBundle } from '@reformer/core';
