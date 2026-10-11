@@ -59,15 +59,13 @@ jobs:
       - name: Build @reformer/core
         run: npm run build -w @reformer/core
 
-      - name: Run @reformer/core tests
-        run: npm run test -w @reformer/core
-
-      - name: Coverage gate @reformer/core
-        # Пороги в packages/reformer/vitest.config.ts объявлялись с самого начала, но провайдера
-        # @vitest/coverage-v8 не было ни в одном package.json и ни один шаг CI не гонял покрытие —
-        # гейт существовал только на бумаге, а `vitest --coverage` у разработчика падал. Пороги
-        # выставлены по фактическому покрытию на момент включения: шаг ловит РЕГРЕСС, а не
-        # обеспечивает целевые 80%.
+      - name: Tests and coverage gate @reformer/core
+        # Один прогон вместо двух: `coverage` исполняет весь набор тестов ядра под покрытием,
+        # отдельный шаг `test` гонял бы его повторно. Гейт двухуровневый. Агрегатные пороги в
+        # packages/reformer/vitest.config.ts — храповик (замер минус 1–2 п.п.), ловит общий
+        # регресс. Минимум на файл (packages/reformer/coverage.per-file.json,
+        # scripts/check-coverage-per-file.mjs) ловит новый модуль без тестов, которого агрегат
+        # не замечает; исключение из минимума — только с причиной и задачей beads.
         run: npm run coverage -w @reformer/core
 
       - name: Build @reformer/cdk

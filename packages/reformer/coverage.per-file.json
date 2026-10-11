@@ -1,0 +1,5 @@
+{
+  "$comment": "Минимум покрытия на файл — гейт scripts/check-coverage-per-file.mjs, запускается в npm run coverage после прогона vitest. Исключение: { file, reason, issue, lines?/branches? } — только с причиной и задачей beads; ненужное исключение — ошибка. План — docs/plans/core-tests-coverage.md, этап 12.",
+  "min": { "lines": 80, "branches": 70 },
+  "exceptions": []
+}

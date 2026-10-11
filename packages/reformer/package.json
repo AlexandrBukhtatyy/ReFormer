@@ -146,7 +146,7 @@
     "dev": "vite",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch",
-    "coverage": "node ../../scripts/run-vitest.mjs --coverage",
+    "coverage": "node ../../scripts/run-vitest.mjs --coverage && node ../../scripts/check-coverage-per-file.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json"
   },
   "keywords": [
