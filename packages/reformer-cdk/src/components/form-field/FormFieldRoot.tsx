@@ -74,6 +74,7 @@ function FormFieldRoot<T>({
       invalid,
       touched,
       shouldShowError,
+      shouldShowIssues,
       componentProps,
     } = raw;
 
@@ -86,7 +87,8 @@ function FormFieldRoot<T>({
       invalid,
       touched,
       shouldShowError,
-      error: shouldShowError && issues[0] ? resolve(issues[0]) : undefined,
+      shouldShowIssues,
+      error: shouldShowIssues && issues[0] ? resolve(issues[0]) : undefined,
       label: componentProps.label as string | undefined,
       required: Boolean(componentProps.required),
       componentProps: componentProps as Record<string, unknown>,

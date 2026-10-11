@@ -32,6 +32,7 @@ function ctxWithErrors(issues: ValidationIssue[]): FormFieldContextValue {
     invalid: true,
     touched: true,
     shouldShowError: true,
+    shouldShowIssues: true,
     error: issues[0] ? MESSAGES[issues[0].code as 'required'] : undefined,
     label: undefined,
     required: true,
@@ -98,12 +99,67 @@ describe('FormField.Error — single (регрессии нет)', () => {
     expect(html).not.toContain('Too short');
   });
 
-  it('возвращает null, когда shouldShowError=false', () => {
+  it('возвращает null, когда shouldShowIssues=false', () => {
     const html = renderToStaticMarkup(
-      <FormFieldContext.Provider value={{ ...ctxWithErrors(ERRORS), shouldShowError: false }}>
+      <FormFieldContext.Provider
+        value={{ ...ctxWithErrors(ERRORS), shouldShowError: false, shouldShowIssues: false }}
+      >
         <FormFieldError multi />
       </FormFieldContext.Provider>
     );
     expect(html).toBe('');
+  });
+
+  it('у ошибки атрибута data-severity нет — разметка прежняя', () => {
+    expect(render(<FormFieldError multi />)).not.toContain('data-severity');
+  });
+});
+
+describe('FormField.Error — предупреждение [ReFormer-dp34]', () => {
+  const WARNING: ValidationIssue = { code: 'weak', severity: 'warning' };
+  const WARNING_MESSAGES = defineIssueMessages({ ...MESSAGES, weak: 'Weak password' });
+
+  /** Поле с замечаниями `issues`; `invalid` — есть ли среди них блокирующее. */
+  function renderIssues(node: React.ReactNode, issues: ValidationIssue[]): string {
+    const invalid = issues.some((issue) => issue.severity !== 'warning');
+    return renderToStaticMarkup(
+      <ValidationMessagesProvider messages={WARNING_MESSAGES}>
+        <FormFieldContext.Provider
+          value={{
+            ...ctxWithErrors(issues),
+            valid: !invalid,
+            invalid,
+            shouldShowError: invalid,
+            shouldShowIssues: true,
+          }}
+        >
+          {node}
+        </FormFieldContext.Provider>
+      </ValidationMessagesProvider>
+    );
+  }
+
+  it('предупреждение у валидного поля показывается и помечено data-severity', () => {
+    // Было: показ решал shouldShowError — у поля с одним предупреждением он false, и текста не было.
+    const html = renderIssues(<FormFieldError />, [WARNING]);
+
+    expect(html).toBe('<p id="error-x" role="alert" data-severity="warning">Weak password</p>');
+  });
+
+  it('multi: помечено только предупреждение, ошибка рядом — как раньше', () => {
+    const html = renderIssues(<FormFieldError multi />, [{ code: 'required' }, WARNING]);
+
+    expect(html).toBe(
+      '<p id="error-x" role="alert">Required</p>' +
+        '<p role="alert" data-severity="warning">Weak password</p>'
+    );
+  });
+
+  it('render: предупреждение помечено и в своём рендере', () => {
+    const html = renderIssues(<FormFieldError render={(issue) => <em>{issue.code}</em>} />, [
+      WARNING,
+    ]);
+
+    expect(html).toBe('<p id="error-x" role="alert" data-severity="warning"><em>weak</em></p>');
   });
 });

@@ -102,7 +102,7 @@ type FormFieldComponent = typeof FormFieldRoot & {
  *       <p id={ids.descriptionId} className="text-xs text-gray-500">
  *         Helper text
  *       </p>
- *       {state.shouldShowError && (
+ *       {state.shouldShowIssues && (
  *         <p {...errorProps} className="text-xs text-red-600">{state.error}</p>
  *       )}
  *     </div>

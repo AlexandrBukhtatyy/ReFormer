@@ -57,6 +57,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       value,
       disabled,
       shouldShowError,
+      shouldShowIssues,
       issues,
       required,
       ids,
@@ -68,12 +69,14 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
     // когда потребитель его запросил.
     const handleRef = useFieldHandleRef(ref);
 
-    // Порядок id — как визуально: ряд подписи (hint) → описание → ошибка.
+    // Порядок id — как визуально: ряд подписи (hint) → описание → замечание. Замечание в описании
+    // — когда оно на экране (FormField.Error), в том числе предупреждение у валидного поля;
+    // aria-invalid и aria-errormessage — только у состояния ошибки.
     const ariaDescribedBy =
       [
         hasHint ? ids.hintId : null,
         hasDescription ? ids.descriptionId : null,
-        shouldShowError && issues.length > 0 ? ids.errorId : null,
+        shouldShowIssues && issues.length > 0 ? ids.errorId : null,
       ]
         .filter(Boolean)
         .join(' ') || undefined;

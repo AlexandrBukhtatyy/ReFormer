@@ -29,8 +29,14 @@ export interface FormFieldContextValue<T = unknown> {
   valid: boolean;
   invalid: boolean;
   touched: boolean;
+  /** Error state (drives aria-invalid): the field is invalid and was touched or changed */
   shouldShowError: boolean;
-  /** First error message, only set when shouldShowError is true */
+  /**
+   * Whether issue messages are shown: the field has issues — errors or warnings — and was touched
+   * or changed. A warning does not make the field invalid, so it shows without the error state.
+   */
+  shouldShowIssues: boolean;
+  /** First issue message, only set when shouldShowIssues is true */
   error: string | undefined;
   // ─── Derived from componentProps ──────────────────────────────────────────
   label: string | undefined;

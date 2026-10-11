@@ -5,10 +5,11 @@ import { useIssueMessageResolver } from '../../validation/error-resolver';
 import type { FormFieldErrorProps } from './types';
 
 /**
- * FormField.Error - Displays validation error message(s).
+ * FormField.Error - Displays validation issue message(s): errors and warnings.
  *
- * Renders nothing when `shouldShowError` is false (field not touched or no issues).
- * The first error paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+ * Renders nothing when `shouldShowIssues` is false (field not touched or no issues).
+ * The first paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+ * A warning (`severity: 'warning'`) is rendered with `data-severity="warning"` for styling.
  *
  * @example Single error (default)
  * ```tsx
@@ -42,13 +43,16 @@ import type { FormFieldErrorProps } from './types';
  */
 export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorProps>(
   ({ asChild = false, multi = false, render, children, ...props }, ref) => {
-    const { shouldShowError, issues, ids } = useFormFieldContext();
+    const { shouldShowIssues, issues, ids } = useFormFieldContext();
     // i18n: отображаем результат резолвера (ValidationMessagesProvider), а не сырой error.message.
     const resolve = useIssueMessageResolver();
 
-    if (!shouldShowError || issues.length === 0) return null;
+    if (!shouldShowIssues || issues.length === 0) return null;
 
     const Comp = asChild ? Slot : 'p';
+    // Предупреждение помечается атрибутом — стилю есть за что зацепиться; у ошибки DOM прежний.
+    const severityOf = (issue: (typeof issues)[number]): 'warning' | undefined =>
+      issue.severity === 'warning' ? 'warning' : undefined;
 
     if (render) {
       return (
@@ -61,6 +65,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
               ref={i === 0 ? ref : undefined}
               id={i === 0 ? ids.errorId : undefined}
               role="alert"
+              data-severity={severityOf(err)}
               {...props}
             >
               {render(err, i)}
@@ -85,6 +90,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
                 ref={i === 0 ? ref : undefined}
                 id={i === 0 ? ids.errorId : undefined}
                 role="alert"
+                data-severity={severityOf(err)}
                 {...props}
               >
                 {asChild ? <span>{content}</span> : content}
@@ -96,7 +102,13 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
     }
 
     return (
-      <Comp ref={ref} id={ids.errorId} role="alert" {...props}>
+      <Comp
+        ref={ref}
+        id={ids.errorId}
+        role="alert"
+        data-severity={severityOf(issues[0])}
+        {...props}
+      >
         {children ?? resolve(issues[0])}
       </Comp>
     );

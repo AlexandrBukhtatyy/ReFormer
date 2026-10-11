@@ -37,6 +37,7 @@ function makeCtx(overrides: Partial<FormFieldContextValue> = {}): {
     invalid: false,
     touched: false,
     shouldShowError: false,
+    shouldShowIssues: false,
     error: undefined,
     label: undefined,
     required: true,
@@ -126,9 +127,36 @@ describe('FormField.Control — aria-describedby', () => {
       hasHint: true,
       hasDescription: true,
       shouldShowError: true,
+      shouldShowIssues: true,
       issues: [error],
     });
     expect(renderCapturingChild(ctx)['aria-describedby']).toBe('hint-x desc-x error-x');
+  });
+
+  it('ошибка: aria-invalid и aria-errormessage указывают на текст замечания', () => {
+    const { ctx } = makeCtx({ shouldShowError: true, shouldShowIssues: true, issues: [error] });
+    const captured = renderCapturingChild(ctx);
+
+    expect({
+      invalid: captured['aria-invalid'],
+      errormessage: captured['aria-errormessage'],
+      describedby: captured['aria-describedby'],
+    }).toEqual({ invalid: true, errormessage: 'error-x', describedby: 'error-x' });
+  });
+
+  it('предупреждение у валидного поля: текст — в описании, состояния ошибки нет [ReFormer-dp34]', () => {
+    const { ctx } = makeCtx({
+      shouldShowError: false,
+      shouldShowIssues: true,
+      issues: [{ code: 'weak', severity: 'warning' }],
+    });
+    const captured = renderCapturingChild(ctx);
+
+    expect({
+      invalid: captured['aria-invalid'],
+      errormessage: captured['aria-errormessage'],
+      describedby: captured['aria-describedby'],
+    }).toEqual({ invalid: undefined, errormessage: undefined, describedby: 'error-x' });
   });
 
   it('авто-рендер control.component получает тот же aria-describedby', () => {

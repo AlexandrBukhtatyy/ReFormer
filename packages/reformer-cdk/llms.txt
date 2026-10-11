@@ -773,7 +773,7 @@ const bundle = useFormBundle(() =>
 - Стратегию армирует `useFormBundle` (в эффекте; при SSR не армируется) — отдельного хука у
   визарда нет.
 - Живой прогон идёт по полному набору правил формы и `touched` не ставит: замечание видно, когда
-  поле тронуто или изменено (`shouldShowError`).
+  поле тронуто или изменено (`shouldShowIssues`).
 - Шаг, не прошедший «Далее», помечает тронутыми только проверенные поля шага: замечания полей
   следующих шагов не всплывают раньше, чем пользователь до них дойдёт.
 
@@ -797,7 +797,7 @@ Headless compound component для построения доступной (a11y
 | `FormField.Root`             | Context provider; принимает `control: FormControl<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
 | `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core/react`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
-| `FormField.Error`            | `<p role="alert">` с текстом первой ошибки (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowError === false` (поле не тронуто и не изменено / нет замечаний).                                                                                                 |
+| `FormField.Error`            | `<p role="alert">` с текстом первого замечания — ошибки или предупреждения (через резолвер сообщений, см. «Текст ошибки»). Поддерживает `multi`, `render`, кастомные `children`.                          | Не рендерится, пока `shouldShowIssues === false` (поле не тронуто и не изменено / нет замечаний). Предупреждение (`severity: 'warning'`) видно и у валидного поля, его элемент помечен `data-severity="warning"`; `aria-invalid` у контрола — только при ошибке (`shouldShowError`).                                                                                                 |
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
 | `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `issues`, `error` (текст первого замечания), `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                                                                              |
@@ -990,7 +990,7 @@ import { I18nProvider } from '@reformer/core/react';
 - **Передавать `id` руками в `Control` / `Label`.** ID назначаются автоматически из `useId()`. Если нужен предсказуемый ID для тестов, передайте `id="my-field"` в `Root` — все потомки получат `control-my-field`, `label-my-field`, …
 - **Забывать `hasDescription` при наличии `FormField.Description`.** Без флага `Control` не пропишет `aria-describedby={descriptionId}`, и screen reader не зачитает helper-текст.
 - **Передавать `hasHint` без `FormField.Hint` в дереве (и наоборот).** С флагом, но без элемента `aria-describedby` получит висячий id; с элементом, но без флага текст подсказки не дойдёт до screen reader.
-- **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `issues`/`shouldShowError`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
+- **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `issues`/`shouldShowIssues`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
 - **Применять `asChild` к компоненту, который не пробрасывает `ref`/`...props`.** `Slot` объединяет пропсы и ref в дочерний элемент; если потомок их не принимает, `aria-*`-атрибуты потеряются.
 
 ## 28. Troubleshooting
@@ -1001,7 +1001,7 @@ import { I18nProvider } from '@reformer/core/react';
 - **Сырой контрол с event-диалектом (Checkbox/Radio) пишет в модель `event` вместо значения.** И auto-mode, и `asChild` вешают value-based seam (`value` + `onChange(value)` + `onBlur`). Контрол с диалектом `checked` + `onChange(event)` получит `value`, но в `setValue` уйдёт DOM-`event`. (`Select` с `onChange(value, option)` привязывается корректно сам — значение идёт первым аргументом, а лишний `option` обработчик отбрасывает; адаптер ему нужен, только если значение надо вывести ИЗ `option`/props, либо чтобы снять утечку пропа `control` в DOM.) Решение на уровне CDK: `asChild` с value-based обёрткой (переложите `event.target.checked` в `onChange(value)` руками) либо регистрация value-based обёртки как `component:` в схеме. Когда поле рисует не CDK-compound, а рендерер (`@reformer/renderer-react` / `@reformer/renderer-json`) из схемы — сырые контролы подключаются без обёрток через `RendererSettings.resolveFieldAdapter` (`FieldAdapter`: `valueProp`/`fromEmit`/`toValue`).
 - **`aria-describedby` пустой при наличии `Description`.** Не передан `hasDescription` в `Root`. Это не «магический» флаг — без него `Control` не знает, что description есть в дереве.
 - **Screen reader не зачитывает текст тултипа при фокусе на поле.** Контент тултипа рендерится в портале только в открытом состоянии. Продублируйте текст в `<FormField.Hint hidden>` и передайте `hasHint` в `Root`.
-- **`FormField.Error` не появляется при наличии ошибки.** Поле не тронуто и не изменено (`shouldShowError = invalid && (touched || dirty)`). Отправляйте через `bundle.submit(handler)` — при замечаниях он помечает тронутыми все поля; для живой проверки задайте сборке `validation: { rules, strategy: 'change' }` (или `'blur'`); вручную — `control.markAsTouched()`.
+- **`FormField.Error` не появляется при наличии ошибки.** Поле не тронуто и не изменено (`shouldShowIssues`: есть замечания и поле `touched` или `dirty`). Отправляйте через `bundle.submit(handler)` — при замечаниях он помечает тронутыми все поля; для живой проверки задайте сборке `validation: { rules, strategy: 'change' }` (или `'blur'`); вручную — `control.markAsTouched()`.
 - **При async-валидации индикатор моргает.** `pending` переключается на каждый `setValue`. Дебаунсьте источник или добавьте задержку перед показом спиннера (например, `useDeferredValue`).
 - **Дубликаты `id` в DOM.** Несколько `FormField.Root` с одинаковым явным `id`. Опустите `id` (тогда работает `useId()`) или дайте уникальные значения.
 
@@ -1611,7 +1611,7 @@ const bundle = useFormBundle(() =>
 
 ## 49. `FormField.Error` не показывает ошибку, хотя `issues.length > 0`
 
-**Причина.** `shouldShowError === false`: поле невалидно, но его не трогали и не меняли. Ошибка видна, когда поле `touched` или `dirty`.
+**Причина.** `shouldShowIssues === false`: замечание есть, но поле не трогали и не меняли. Замечание — ошибка или предупреждение — видно, когда поле `touched` или `dirty`.
 
 **Решение.**
 
@@ -4899,7 +4899,7 @@ type="email"
 <p id={ids.descriptionId} className="text-xs text-gray-500">
 Helper text
 </p>
-{state.shouldShowError && (
+{state.shouldShowIssues && (
 <p {...errorProps} className="text-xs text-red-600">{state.error}</p>
 )}
 </div>
@@ -4952,8 +4952,14 @@ export interface FormFieldContextValue<T = unknown> {
   valid: boolean;
   invalid: boolean;
   touched: boolean;
+  /** Error state (drives aria-invalid): the field is invalid and was touched or changed */
   shouldShowError: boolean;
-  /** First error message, only set when shouldShowError is true */
+  /**
+   * Whether issue messages are shown: the field has issues — errors or warnings — and was touched
+   * or changed. A warning does not make the field invalid, so it shows without the error state.
+   */
+  shouldShowIssues: boolean;
+  /** First issue message, only set when shouldShowIssues is true */
   error: string | undefined;
   // ─── Derived from componentProps ──────────────────────────────────────────
   label: string | undefined;
@@ -5113,10 +5119,11 @@ _Source: src/components/form-field/types.ts_
 
 **Kind:** `const`
 
-FormField.Error - Displays validation error message(s).
+FormField.Error - Displays validation issue message(s): errors and warnings.
 
-Renders nothing when `shouldShowError` is false (field not touched or no issues).
-The first error paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+Renders nothing when `shouldShowIssues` is false (field not touched or no issues).
+The first paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+A warning (`severity: 'warning'`) is rendered with `data-severity="warning"` for styling.
 
 **Signature:**
 ```typescript
@@ -8053,7 +8060,7 @@ return (
 <div>
 <label {...labelProps}>{state.label}</label>
 <input {...controlProps} type="email" />
-{state.shouldShowError && (
+{state.shouldShowIssues && (
 <p {...errorProps}>{state.error}</p>
 )}
 </div>
@@ -8070,7 +8077,7 @@ const enrichedControlProps = {
 ...controlProps,
 'aria-describedby': [
 ids.descriptionId,
-state.shouldShowError ? ids.errorId : null,
+state.shouldShowIssues ? ids.errorId : null,
 ].filter(Boolean).join(' ') || undefined,
 };
 ```
@@ -8256,14 +8263,17 @@ Field state returned by useFormField
 export interface UseFormFieldState<T = unknown> {
   value: T;
   issues: ValidationIssue[];
-  /** First error message, only set when shouldShowError is true */
+  /** First issue message, only set when shouldShowIssues is true */
   error: string | undefined;
   isPending: boolean;
   isDisabled: boolean;
   isValid: boolean;
   isInvalid: boolean;
   isTouched: boolean;
+  /** Error state (drives aria-invalid): the field is invalid and was touched or changed */
   shouldShowError: boolean;
+  /** Whether issue messages are shown: errors or warnings on a touched or changed field */
+  shouldShowIssues: boolean;
   label: string | undefined;
   required: boolean;
   /** Full componentProps bag from FormControl config */

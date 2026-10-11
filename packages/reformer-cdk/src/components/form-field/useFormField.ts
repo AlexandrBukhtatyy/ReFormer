@@ -10,14 +10,17 @@ import { useIssueMessageResolver } from '../../validation/error-resolver';
 export interface UseFormFieldState<T = unknown> {
   value: T;
   issues: ValidationIssue[];
-  /** First error message, only set when shouldShowError is true */
+  /** First issue message, only set when shouldShowIssues is true */
   error: string | undefined;
   isPending: boolean;
   isDisabled: boolean;
   isValid: boolean;
   isInvalid: boolean;
   isTouched: boolean;
+  /** Error state (drives aria-invalid): the field is invalid and was touched or changed */
   shouldShowError: boolean;
+  /** Whether issue messages are shown: errors or warnings on a touched or changed field */
+  shouldShowIssues: boolean;
   label: string | undefined;
   required: boolean;
   /** Full componentProps bag from FormControl config */
@@ -101,7 +104,7 @@ export interface UseFormFieldReturn<T = unknown> {
  *     <div>
  *       <label {...labelProps}>{state.label}</label>
  *       <input {...controlProps} type="email" />
- *       {state.shouldShowError && (
+ *       {state.shouldShowIssues && (
  *         <p {...errorProps}>{state.error}</p>
  *       )}
  *     </div>
@@ -118,7 +121,7 @@ export interface UseFormFieldReturn<T = unknown> {
  *   ...controlProps,
  *   'aria-describedby': [
  *     ids.descriptionId,
- *     state.shouldShowError ? ids.errorId : null,
+ *     state.shouldShowIssues ? ids.errorId : null,
  *   ].filter(Boolean).join(' ') || undefined,
  * };
  * ```
@@ -151,6 +154,7 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
       invalid,
       touched,
       shouldShowError,
+      shouldShowIssues,
       componentProps,
     } = raw;
     const required = Boolean(componentProps.required);
@@ -185,13 +189,14 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
       state: {
         value: value as T,
         issues,
-        error: shouldShowError && issues[0] ? resolveError(issues[0]) : undefined,
+        error: shouldShowIssues && issues[0] ? resolveError(issues[0]) : undefined,
         isPending: pending,
         isDisabled: disabled,
         isValid: valid,
         isInvalid: invalid,
         isTouched: touched,
         shouldShowError,
+        shouldShowIssues,
         label: componentProps.label as string | undefined,
         required,
         componentProps: componentProps as Record<string, unknown>,

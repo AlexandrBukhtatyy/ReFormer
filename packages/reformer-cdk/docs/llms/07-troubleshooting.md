@@ -90,7 +90,7 @@ const bundle = useFormBundle(() =>
 
 ## `FormField.Error` не показывает ошибку, хотя `issues.length > 0`
 
-**Причина.** `shouldShowError === false`: поле невалидно, но его не трогали и не меняли. Ошибка видна, когда поле `touched` или `dirty`.
+**Причина.** `shouldShowIssues === false`: замечание есть, но поле не трогали и не меняли. Замечание — ошибка или предупреждение — видно, когда поле `touched` или `dirty`.
 
 **Решение.**
 
