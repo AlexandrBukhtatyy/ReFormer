@@ -17,6 +17,7 @@ import { createModel } from '../model/create-model';
 import type { FormModel } from '../model/types';
 import { createFormFromCompiled } from './create-form';
 import type { FormBehavior } from './behaviors';
+import { rawNode } from './nodes/node-kind';
 import {
   createSchemaController,
   type SchemaController,
@@ -277,6 +278,14 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
       ...(errorBoundary !== undefined ? { errorBoundary } : {}),
     },
   };
-  config.setup?.(bundle);
+  try {
+    config.setup?.(bundle);
+  } catch (error) {
+    // Сбой setup: бандл вызывающему не достанется — форму с поведением и контроллер проверки
+    // снять больше некому.
+    rawNode(form).dispose();
+    bundle.validation?.controller.dispose();
+    throw error;
+  }
   return bundle;
 }

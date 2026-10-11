@@ -514,6 +514,33 @@ describe('operators — onChange с debounce', () => {
 
     expect([beforeDispose, inFlight?.aborted]).toEqual([false, true]);
   });
+
+  // Раньше signal прежнего вызова гас только вместе с отложенным вызовом нового значения: ответ на
+  // устаревшее значение, пришедший за время паузы, проходил проверку `signal.aborted`.
+  it('смена значения отменяет signal прежнего вызова сразу, не дожидаясь паузы [ReFormer-y66c]', async () => {
+    useFakeClock();
+    const model = createOrder();
+    const signals: AbortSignal[] = [];
+    build(
+      model,
+      behaviorOf((m) =>
+        onChange(m.$.email, (_value, { signal }) => void signals.push(signal), { debounce: 300 })
+      )
+    );
+    model.email = 'a';
+    await advance(300);
+    await flushMicrotasks();
+    const beforeChange = signals[0]?.aborted;
+
+    model.email = 'ab'; // пауза нового значения ещё идёт
+    const duringPause = signals[0]?.aborted;
+
+    expect({ calls: signals.length, beforeChange, duringPause }).toEqual({
+      calls: 1,
+      beforeChange: false,
+      duringPause: true,
+    });
+  });
 });
 
 describe('operators — enableWhen / disableWhen', () => {

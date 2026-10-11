@@ -9,7 +9,7 @@
  * @module form/nodes/form-array-node
  */
 
-import { computed, effect, signal, type ReadonlySignal } from '@preact/signals-core';
+import { computed, effect, signal, untracked, type ReadonlySignal } from '@preact/signals-core';
 import type { ValidationIssue } from '../types/contracts';
 import type { FormArray, FormGroup } from '../types/nodes';
 import type { FormModel } from '../../model/types';
@@ -75,9 +75,14 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
         if (!rowModel) continue;
         let row = this.cache.get(rowModel);
         if (!row) {
-          row = buildRow(rowModel);
-          // Строка, добавленная в выключенный массив, рождается выключенной — как остальные строки.
-          if (this.availability.disabled.peek()) row.disable();
+          // Построение и выключение строки читают её сигналы (вложенный массив, поведение строки) —
+          // вне отслеживания: синхронизация зависит только от состава массива.
+          row = untracked(() => {
+            const built = buildRow(rowModel);
+            // Строка, добавленная в выключенный массив, рождается выключенной — как остальные.
+            if (this.availability.disabled.peek()) built.disable();
+            return built;
+          });
           this.cache.set(rowModel, row);
         }
         nextModels.push(rowModel);
@@ -94,7 +99,10 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
       }
       this.mounted = nextModels;
       this.rows.value = next;
-      stale.forEach((row) => rawNode(row).dispose());
+      // Снятие — тоже вне отслеживания: иначе чтения внутри него (строки вложенного массива,
+      // пользовательский `onDispose`) подписали бы синхронизацию на уже снятую строку, и её формы
+      // жили бы в источниках effect'а до следующего изменения массива.
+      untracked(() => stale.forEach((row) => rawNode(row).dispose()));
     });
 
     this.value = computed(() => this.rows.value.map((row) => row.value.value));
@@ -213,7 +221,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   /** Остановить синхронизацию и диспозить формы всех строк. @internal */
   dispose(): void {
     this.stopSync();
-    this.rows.value.forEach((row) => rawNode(row).dispose());
+    this.rows.peek().forEach((row) => rawNode(row).dispose());
     this.mounted = [];
   }
 }

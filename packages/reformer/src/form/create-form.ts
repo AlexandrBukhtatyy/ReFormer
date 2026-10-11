@@ -236,7 +236,16 @@ export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
   // cleanup отдаём форме — отпишется в dispose() группы.
   if (behavior) {
-    groupNode.attachBehaviorCleanup(behavior.__run(model, form, args.schemaController, args.flow));
+    try {
+      groupNode.attachBehaviorCleanup(
+        behavior.__run(model, form, args.schemaController, args.flow)
+      );
+    } catch (error) {
+      // Поведение упало при запуске: свои effect'ы оно сняло само, а форму вызывающий не получит —
+      // ноды (подписки массивов под-форм на модель) снять больше некому.
+      groupNode.dispose();
+      throw error;
+    }
   }
 
   return form;

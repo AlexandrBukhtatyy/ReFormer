@@ -145,6 +145,8 @@ export function onChange<T>(
     const stop = coreWatchField(
       source,
       (v) => {
+        // Значение сменилось — ответ на прежнее устарел уже сейчас, а не через задержку.
+        controller?.abort();
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => fire(v), options.debounce);
       },
