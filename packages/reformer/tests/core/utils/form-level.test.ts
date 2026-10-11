@@ -4,9 +4,9 @@
  * Отправка — один прогон всех правил; результат — объект со статусом, по которому различают
  * замечания, сбой правила, отмену и исключение обработчика. Здесь же — `validateStep` без потока,
  * сигнал `validating`, две отправки подряд (`cancelled`), снимок значений для обработчика,
- * отмена отправки, если модель изменилась, пока шла проверка, проверка в одном тике с правкой
- * (правила ждут отложенных записей поведения) и согласие статуса проверки с агрегатом `valid`
- * формы (выключенные поля, строки массива).
+ * отмена отправки и перехода шага, если модель изменилась, пока шла проверка, проверка в одном
+ * тике с правкой (правила ждут отложенных записей поведения) и согласие статуса проверки с
+ * агрегатом `valid` формы (выключенные поля, строки массива).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -1005,6 +1005,124 @@ describe('createForm — проверка в одном тике с правко
 
     // Раннер headless: исполняет правила в момент вызова — итог ещё прежний.
     expect({ ok, total: seen[0].total }).toEqual({ ok: false, total: 500 });
+  });
+});
+
+describe('createForm — переход шага: модель изменилась, пока шла проверка [ReFormer-ffxb]', () => {
+  /** Поток «вступление → кредит → подтверждение»; у шага «кредит» async-правило суммы. */
+  function createSteps() {
+    const { answers, rules } = controlledAmountRules();
+    const bundle = createForm<Shape>({
+      initial: { amount: '1', phone: '+7' },
+      flow: { steps: [{ id: 'intro' }, { id: 'loan', rules }, { id: 'confirm' }] },
+    });
+    return { answers, bundle, flow: bundle.flow! };
+  }
+
+  /** Поток на шаге «кредит» и идущий переход, который ждёт ответа async-правила. */
+  async function pendingNext() {
+    const created = createSteps();
+    await created.flow.next();
+    return { ...created, moving: created.flow.next() };
+  }
+
+  it('правка поля во время проверки шага: поток остаётся, шаг не пройден', async () => {
+    const { answers, bundle, flow, moving } = await pendingNext();
+
+    bundle.form.phone.setValue('+7 900');
+    answers[0].resolve(null);
+
+    // Было: moved — шаг считался пройденным по значениям, которых в модели уже нет.
+    expect(await moving).toMatchObject({
+      status: 'stayed',
+      step: 'loan',
+      reason: 'cancelled',
+      validation: { status: 'cancelled', failures: [] },
+    });
+    expect({ current: flow.current.value, completed: [...flow.completed.value] }).toEqual({
+      current: 'loan',
+      completed: ['intro'],
+    });
+    expect(flow.validating.value).toBe(false);
+  });
+
+  it('повторный переход проверяет уже новые значения и выполняется', async () => {
+    const { answers, bundle, flow, moving } = await pendingNext();
+    bundle.form.phone.setValue('+7 900');
+    answers[0].resolve(null);
+    await moving;
+
+    const again = flow.next();
+    answers[1].resolve(null);
+
+    expect(await again).toEqual({ status: 'moved', from: 'loan', to: 'confirm' });
+    expect([...flow.completed.value]).toEqual(['intro', 'loan']);
+  });
+
+  it('значение изменили и вернули: модель та же, что видели правила, — переход выполняется', async () => {
+    const { answers, bundle, moving } = await pendingNext();
+
+    bundle.form.phone.setValue('+7 900');
+    bundle.form.phone.setValue('+7');
+    answers[0].resolve(null);
+
+    expect(await moving).toEqual({ status: 'moved', from: 'loan', to: 'confirm' });
+  });
+
+  it('шаг не прошёл проверку: причина — invalid, а не cancelled, даже если модель правили', async () => {
+    const { answers, bundle, moving } = await pendingNext();
+
+    bundle.form.phone.setValue('+7 900');
+    answers[0].resolve({ code: 'amount.low' });
+
+    expect(await moving).toMatchObject({ status: 'stayed', step: 'loan', reason: 'invalid' });
+    expect(issueCodes(bundle.form.amount)).toEqual(['amount.low']);
+  });
+
+  it('шаг без правил сверять не с чем: правка в том же тике переходу не мешает', async () => {
+    const { bundle, flow } = createSteps();
+
+    const moving = flow.next();
+    bundle.form.phone.setValue('+7 900');
+
+    expect(await moving).toEqual({ status: 'moved', from: 'intro', to: 'loan' });
+  });
+
+  it('последний шаг: правка во время проверки — шаг не пройден', async () => {
+    const { answers, rules } = controlledAmountRules();
+    const bundle = createForm<Shape>({
+      initial: { amount: '1', phone: '+7' },
+      flow: { steps: [{ id: 'loan', rules }] },
+    });
+    const flow = bundle.flow!;
+
+    const stale = flow.next();
+    bundle.form.phone.setValue('+7 900');
+    answers[0].resolve(null);
+    const stayed = await stale;
+    const fresh = flow.next();
+    answers[1].resolve(null);
+
+    expect({
+      stayed: stayed.status === 'stayed' && stayed.reason,
+      fresh: await fresh,
+    }).toMatchObject({
+      stayed: 'cancelled',
+      fresh: { status: 'stayed', step: 'loan', reason: 'edge' },
+    });
+    expect([...flow.completed.value]).toEqual(['loan']);
+  });
+
+  it('validateStep() — отчёт, а не действие: его статус о модели не судит', async () => {
+    const { answers, bundle } = createSteps();
+
+    const checking = bundle.validateStep('loan');
+    bundle.form.phone.setValue('+7 900');
+    answers[0].resolve(null);
+
+    // Как `validate()`: статус проверки совпадает с состоянием нод; сверяет модель тот, кто
+    // действует по результату, — `flow.next()` и `submit()`.
+    expect((await checking).status).toBe('valid');
   });
 });
 

@@ -114,7 +114,12 @@ export interface FormLevel<T> {
    * `validateStep` и `submit`.
    */
   validate(): Promise<ValidationResult>;
-  /** Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение. */
+  /**
+   * Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение.
+   *
+   * Это отчёт о шаге, как `validate` — о форме. Переход делает `flow.next()`: он сверяет модель
+   * и не переходит, если её изменили, пока шла проверка шага.
+   */
   validateStep(stepId: string): Promise<ValidationResult>;
   /**
    * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
@@ -217,10 +222,28 @@ export function createFormLevel<T>(
     });
   };
 
+  /**
+   * Проверка для действия по её результату — отправки, перехода шага. Модель читается в момент
+   * запуска правил и после прогона: пока идёт async-правило, форма не заперта, и успех проверки
+   * может относиться к значениям, которых в модели уже нет (`stale`).
+   */
+  const checkForAction = async (
+    run: () => Promise<ValidationResult>
+  ): Promise<{ result: ValidationResult; values: T; stale: boolean }> => {
+    let seen: unknown;
+    const result = await afterBehaviorWrites(() => {
+      seen = model.get();
+      return run();
+    });
+    const values = model.get() as T;
+    return { result, values, stale: result.status === 'valid' && !deepEqual(seen, values) };
+  };
+
   const validate = (): Promise<ValidationResult> =>
     controller ? afterBehaviorWrites(() => controller.run()) : Promise.resolve(VALID);
 
-  const validateStep = async (stepId: string): Promise<ValidationResult> => {
+  /** Правила шага: без правил — `null`, неизвестный шаг — исключение. */
+  const rulesOfStep = (stepId: string): ValidationDefinition<T> | null => {
     if (!stepRules.has(stepId)) {
       const known = [...stepRules.keys()];
       throw new Error(
@@ -228,21 +251,37 @@ export function createFormLevel<T>(
           (known.length > 0 ? `Шаги потока: ${known.join(', ')}.` : 'Поток не задан: `flow`.')
       );
     }
-    const step = stepRules.get(stepId);
+    return stepRules.get(stepId) ?? null;
+  };
+
+  const runStep = async (step: ValidationDefinition<T>): Promise<ValidationResult> => {
+    checks.value++;
+    try {
+      return await runAndApply(model, step, { touch: true, skipDisabled: true });
+    } finally {
+      checks.value--;
+    }
+  };
+
+  const validateStep = async (stepId: string): Promise<ValidationResult> => {
+    const step = rulesOfStep(stepId);
+    return step ? afterBehaviorWrites(() => runStep(step)) : VALID;
+  };
+
+  /**
+   * Проверка шага для перехода `flow.next()`. Переход — действие по результату: успех проверки о
+   * значениях, которых в модели уже нет, — отмена, а не пройденный шаг.
+   */
+  const validateStepToMove = async (stepId: string): Promise<ValidationResult> => {
+    const step = rulesOfStep(stepId);
     if (!step) return VALID;
-    return afterBehaviorWrites(async () => {
-      checks.value++;
-      try {
-        return await runAndApply(model, step, { touch: true, skipDisabled: true });
-      } finally {
-        checks.value--;
-      }
-    });
+    const { result, stale } = await checkForAction(() => runStep(step));
+    return stale ? { ...result, status: 'cancelled' } : result;
   };
 
   const flow =
     config.flow !== undefined
-      ? createFormFlow({ steps: [...stepRules.keys()], validateStep })
+      ? createFormFlow({ steps: [...stepRules.keys()], validateStep: validateStepToMove })
       : undefined;
 
   return {
@@ -253,25 +292,20 @@ export function createFormLevel<T>(
     validate,
     validateStep,
     async submit(handler) {
-      // Снимок модели в момент запуска правил — то, что они видят. Без правил сверять нечего.
-      let checked: unknown;
-      const result = await (controller
-        ? afterBehaviorWrites(() => {
-            checked = model.get();
-            return controller.run();
-          })
-        : VALID);
+      // Без правил сверять нечего: обработчик получает модель как есть.
+      const checked = await (controller ? checkForAction(() => controller.run()) : undefined);
+      const result = checked?.result ?? VALID;
       if (result.status !== 'valid') {
         // Показать замечания всех полей, а не только проверенных правилами. Одним batch и от имени
         // проверки: стратегия `blur` не запустит по живому прогону на каждое поле.
         touchByValidation(() => getNodeForSignal(model.$ as object)?.markAsTouched());
         return { status: result.status, validation: result };
       }
-      const values = model.get() as T;
       // Модель изменилась, пока шла проверка: эти значения правила не видели — не отправлять.
-      if (controller && !deepEqual(checked, values)) {
+      if (checked?.stale) {
         return { status: 'cancelled', validation: { ...result, status: 'cancelled' } };
       }
+      const values = checked ? checked.values : (model.get() as T);
       submits.value++;
       try {
         return { status: 'submitted', result: await handler(values) };

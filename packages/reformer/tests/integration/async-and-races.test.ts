@@ -9,6 +9,7 @@
  * - сбой сервера — это сбой проверки (`error`, `ruleFailed`, `failures`), а не «ИНН в порядке»;
  * - устаревший прогон отменяется (`cancelled`) вместе с запросом его правила (`AbortSignal`), а
  *   прогоны разных схем (шаг и отправка) друг друга не отменяют;
+ * - поле шага правят, пока сервер отвечает, — переход не выполняется (`cancelled`);
  * - строку удалили, пока ждали её async-правило, — статус проверки совпадает с `valid` формы;
  * - поиск городов (`onChange` с `debounce` и `signal`) и снятие формы во время задержки;
  * - `runOutsideEffect`, `safeCallback`, `safeDebouncedCallback` в реакциях приложения поверх формы.
@@ -338,6 +339,31 @@ describe('устаревший прогон — cancelled и отмена зап
     await next;
 
     expect(form.applicant.inn.issues.value).toEqual([]);
+  });
+
+  it('AR-18: поле шага правят, пока сервер отвечает про ИНН, — переход не выполняется; повторный «Далее» проверяет новое [ReFormer-ffxb]', async () => {
+    const server = createLoanServer({ manual: ['checkInn'] });
+    const { bundle } = await atApplicantStep({ server });
+    const { form, flow } = bundle;
+
+    // Форма на время проверки не заперта: пока сервер отвечает, пользователь стирает дату рождения.
+    const next = flow!.next();
+    form.applicant.birthDate.setValue('');
+    server.last('checkInn').resolve({ status: 'found' });
+
+    // Было: moved — шаг «Заёмщик» считался пройденным с пустой датой рождения, которой правила не видели.
+    expect(await next).toMatchObject({ status: 'stayed', step: 'applicant', reason: 'cancelled' });
+    expect([flow!.current.value, flow!.completed.value.has('applicant')]).toEqual([
+      'applicant',
+      false,
+    ]);
+
+    await settle();
+    const again = flow!.next();
+    server.last('checkInn').resolve({ status: 'found' });
+
+    expect(await again).toMatchObject({ status: 'stayed', step: 'applicant', reason: 'invalid' });
+    expect(issueCodes(form.applicant.birthDate)).toEqual(['applicant.birthDate.required']);
   });
 });
 
