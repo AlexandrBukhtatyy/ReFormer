@@ -14,13 +14,13 @@ import { effect, signal, untracked, type ReadonlySignal } from '@preact/signals-
 import { eachValueSignal } from '../../model/create-model';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { getNodeForSignal } from '../signal-node-registry';
-import { isTouchByValidation, runAndApply } from './run';
+import { cancelRun, isTouchByValidation, runAndApply } from './run';
 import type { ValidationResult, ValidationDefinition } from './types';
 
 /**
  * Когда запускается schema-валидация:
  * - `submit` (по умолчанию) — только явным вызовом `validate()` (на отправке);
- * - `blur` — при потере фокуса поля (смена `touched` любого листа);
+ * - `blur` — при потере фокуса поля (каждый уход из любого листа, и повторный тоже);
  * - `change` — на каждый ввод (с опц. `debounce`);
  * - `afterFirstSubmit` — тихо до первого `validate()`, затем live (см. `liveAfterSubmit`).
  */
@@ -55,7 +55,10 @@ export interface FormValidationController {
    * после такого цикла молча оставался бы без живой валидации.
    */
   start(): () => void;
-  /** Снять подписки/таймеры. Идемпотентно; после него `start()` снова армирует стратегию. */
+  /**
+   * Снять подписки и таймеры, отменить идущий прогон (его `validate()` или `run()` получит
+   * `cancelled`). Идемпотентно; после него `start()` снова армирует стратегию.
+   */
   dispose(): void;
   /** Идёт ли прогон (submit или live) — снапшот. */
   readonly isValidating: boolean;
@@ -140,7 +143,7 @@ export function createFormValidation<T>(
     return effect(() => {
       // Листья И массивы целиком: поле-мультивыбор живёт на сигнале массива, и его `touched`
       // иначе не попал бы в подписку стратегии `blur`.
-      eachValueSignal(model, subscribe); // change: sig.value | blur: node.touched.value → подписка
+      eachValueSignal(model, subscribe); // change: sig.value | blur: уходы из поля → подписка
       if (initial) {
         initial = false;
         return;
@@ -167,10 +170,18 @@ export function createFormValidation<T>(
         disposeFx = arm((sig) => void sig.value, fireLiveDebounced);
       } else if (mode === 'blur') {
         // blur — уже дискретное событие; дебаунс не нужен, метка touched сама раскрывает поле.
+        // Подписка — на счётчик уходов, а не на саму метку: у тронутого поля `touched` при
+        // повторном уходе не меняется, и поле, уже помеченное прошлым уходом, проверкой шага или
+        // отказом отправки, иначе не перепроверялось бы вовсе. У контейнера счётчика нет — там метка.
         // Метку, которую ставит сама проверка (прогон с касанием, отказ отправки), за уход из поля
         // не считаем: иначе прогон будил бы лишний живой, а тот отменял бы его самого.
         disposeFx = arm(
-          (sig) => void getNodeForSignal(sig)?.touched.value,
+          (sig) => {
+            const node = getNodeForSignal(sig) as
+              | { touched: ReadonlySignal<boolean>; touches?: ReadonlySignal<number> }
+              | undefined;
+            void (node?.touches ?? node?.touched)?.value;
+          },
           () => {
             if (!isTouchByValidation()) fireLive();
           }
@@ -186,6 +197,8 @@ export function createFormValidation<T>(
       }
       disposeFx?.();
       disposeFx = undefined;
+      // Идущий прогон тоже отменяется: его async-правило иначе ответило бы уже снятой форме.
+      cancelRun(model as object, schema as object);
     },
     get isValidating() {
       return _validating.value;

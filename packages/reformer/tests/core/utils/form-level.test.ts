@@ -282,6 +282,75 @@ describe('createForm — выключенные поля в проверке ф�
     expect(await bundle.flow!.next()).toEqual({ status: 'moved', from: 'contacts', to: 'confirm' });
   });
 
+  describe('поле внутри выключенной группы', () => {
+    interface Order {
+      delivery: { needed: boolean; address: string };
+      comment: string;
+    }
+
+    /** Адрес обязателен; поведение включает его по флажку, не глядя на состояние группы. */
+    const createOrder = () =>
+      createForm<Order>({
+        initial: { delivery: { needed: false, address: '' }, comment: '' },
+        behavior: defineFormBehavior<Order>(({ model }) => {
+          enableWhen(model.$.delivery.address, () => model.delivery.needed);
+        }),
+        validation: defineValidation<Order>(({ model }) => {
+          validate(model.$.delivery.address, [required()]);
+        }),
+      });
+
+    // Группу выключили вручную (режим просмотра), затем условие включило поле внутри неё. Агрегат
+    // `valid` выключенную группу пропускает целиком. Раньше проверка смотрела только на ноду самого
+    // поля: статус `invalid` при `form.valid === true`, отправка отказывала «валидной» форме.
+    it('включённое поведением поле в проверке не участвует — статус совпадает с valid [ReFormer-kowh]', async () => {
+      const bundle = createOrder();
+      await tick();
+      bundle.form.delivery.disable();
+      bundle.model.delivery.needed = true;
+      await tick();
+
+      const result = await bundle.validate();
+
+      expect({
+        fieldDisabled: bundle.form.delivery.address.disabled.value,
+        status: result.status,
+        valid: bundle.form.valid.value,
+        issues: issueCodes(bundle.form.delivery.address),
+      }).toEqual({ fieldDisabled: false, status: 'valid', valid: true, issues: [] });
+    });
+
+    it('группу включили обратно — поле снова проверяется', async () => {
+      const bundle = createOrder();
+      await tick();
+      bundle.form.delivery.disable();
+      bundle.model.delivery.needed = true;
+      await tick();
+      await bundle.validate();
+
+      bundle.form.delivery.enable();
+      const result = await bundle.validate();
+
+      expect({ status: result.status, valid: bundle.form.valid.value }).toEqual({
+        status: 'invalid',
+        valid: false,
+      });
+    });
+
+    it('сбой async-правила такого поля не даёт error [ReFormer-kowh]', async () => {
+      const bundle = createForm<Order>({
+        initial: { delivery: { needed: true, address: 'ул. Ленина' }, comment: '' },
+        validation: defineValidation<Order>(({ model }) => {
+          validateAsync(model.$.delivery.address, [() => Promise.reject(new Error('сеть'))]);
+        }),
+      });
+      bundle.form.delivery.disable();
+      bundle.form.delivery.address.enable();
+
+      expect((await bundle.validate()).status).toBe('valid');
+    });
+  });
+
   it('сбой async-правила выключенного поля не даёт error', async () => {
     const failing = defineValidation<Shape>(({ model }) => {
       validateAsync(model.$.phone, [() => Promise.reject(new Error('сеть'))]);
@@ -618,6 +687,40 @@ describe('createForm — статус проверки и агрегат valid �
 
     // Было: invalid по замечанию удалённой строки при form.valid === true и без видимых замечаний.
     expect(result.status).toBe('valid');
+  });
+
+  it('поле вложенной группы удалённой строки тоже не в счёт: по её пути пусто [ReFormer-9utp]', async () => {
+    interface Contact {
+      address: { city: string };
+    }
+    interface Book {
+      contacts: Contact[];
+    }
+    const answer = deferred<ValidationIssue | null>();
+    const contactRules = defineValidation<Contact>(({ model }) => {
+      validateAsync(model.$.address.city, [() => answer.promise]);
+    });
+    const bundle = createForm<Book>({
+      initial: { contacts: [{ address: { city: 'Казань' } }] },
+      schema: (model) => ({
+        children: [
+          {
+            model: model.$.contacts,
+            item: (row: FormModel<Contact>) => ({
+              children: [{ model: row.$.address.city, component: InputStub }],
+            }),
+          },
+        ],
+      }),
+      validation: defineValidation<Book>(({ model }) => applyEach(model.$.contacts, contactRules)),
+    });
+
+    const run = bundle.validate();
+    // Строка была единственной: по пути `contacts.0` теперь пусто, до `address.city` не дойти.
+    bundle.model.contacts.removeAt(0);
+    answer.resolve({ code: 'taken' });
+
+    expect((await run).status).toBe('valid');
   });
 
   it('поведение под вопросом [ReFormer-jefl]: правило на поле без ноды — invalid, хотя form.valid === true', async () => {

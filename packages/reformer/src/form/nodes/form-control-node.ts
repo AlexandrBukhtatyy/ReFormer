@@ -31,6 +31,8 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly pending: ReadonlySignal<boolean>;
   readonly disabled: ReadonlySignal<boolean>;
   readonly touched: ReadonlySignal<boolean>;
+  /** Уходы из поля, включая повторные, — триггер стратегии `blur`. @internal */
+  readonly touches: ReadonlySignal<number>;
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
   readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
@@ -62,6 +64,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
     this.invalid = computed(() => !disabled.value && !this.pending.value && blocking.value);
     this.valid = computed(() => !disabled.value && !this.pending.value && !blocking.value);
     this.touched = this.interaction.touched;
+    this.touches = this.interaction.touches;
     this.dirty = this.interaction.dirty;
     this.issues = this.issueState.list;
     this.ownIssues = this.issueState.list;

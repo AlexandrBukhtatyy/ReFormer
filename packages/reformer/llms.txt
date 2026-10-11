@@ -5385,7 +5385,7 @@ interface FormValidationController {
   validate(): Promise<boolean>;        // полный прогон, touch:true (раскрыть ВСЕ ошибки); переводит afterFirstSubmit в live-фазу
   run(): Promise<ValidationResult>;    // тот же прогон с полным результатом: valid | invalid | error | cancelled
   start(): () => void;                 // армит реактивные подписки (ТОЛЬКО на клиенте) → dispose
-  dispose(): void;
+  dispose(): void;                     // снять подписки и таймеры, отменить идущий прогон (он получит cancelled)
   readonly isValidating: boolean;
   readonly validating: ReadonlySignal<boolean>;
 }
@@ -5406,7 +5406,7 @@ function createFormValidation<T>(
 | strategy | когда прогон | touch | раскрытие замечаний |
 | --- | --- | --- | --- |
 | `submit` (default) | только `validate()` / `submit()` (в сборке — `bundle.validate()` / `bundle.submit()`) | `true` | всё на submit |
-| `blur` | смена `touched` поля (потеря фокуса) | `false` | только сблюренные (по `touched`) |
+| `blur` | каждый уход из поля (потеря фокуса), и повторный тоже | `false` | только сблюренные (по `touched`) |
 | `change` | на каждый ввод (+ `debounce`) | `false` | только редактированные (по `dirty`) |
 | `afterFirstSubmit` | тихо до 1-го submit, затем live (`liveAfterSubmit: 'change'` \| `'blur'`, default `'change'`) | `true` один раз на 1-м submit, дальше `false` | тихо → раскрыть всё на submit → далее live |
 
@@ -9832,7 +9832,10 @@ export interface FormValidationController {
    * после такого цикла молча оставался бы без живой валидации.
    */
   start(): () => void;
-  /** Снять подписки/таймеры. Идемпотентно; после него `start()` снова армирует стратегию. */
+  /**
+   * Снять подписки и таймеры, отменить идущий прогон (его `validate()` или `run()` получит
+   * `cancelled`). Идемпотентно; после него `start()` снова армирует стратегию.
+   */
   dispose(): void;
   /** Идёт ли прогон (submit или live) — снапшот. */
   readonly isValidating: boolean;
@@ -14219,7 +14222,7 @@ _Source: src/form/validation/types.ts_
 
 Когда запускается schema-валидация:
 - `submit` (по умолчанию) — только явным вызовом `validate()` (на отправке);
-- `blur` — при потере фокуса поля (смена `touched` любого листа);
+- `blur` — при потере фокуса поля (каждый уход из любого листа, и повторный тоже);
 - `change` — на каждый ввод (с опц. `debounce`);
 - `afterFirstSubmit` — тихо до первого `validate()`, затем live (см. `liveAfterSubmit`).
 

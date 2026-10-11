@@ -58,7 +58,7 @@ interface FormValidationController {
   validate(): Promise<boolean>;        // полный прогон, touch:true (раскрыть ВСЕ ошибки); переводит afterFirstSubmit в live-фазу
   run(): Promise<ValidationResult>;    // тот же прогон с полным результатом: valid | invalid | error | cancelled
   start(): () => void;                 // армит реактивные подписки (ТОЛЬКО на клиенте) → dispose
-  dispose(): void;
+  dispose(): void;                     // снять подписки и таймеры, отменить идущий прогон (он получит cancelled)
   readonly isValidating: boolean;
   readonly validating: ReadonlySignal<boolean>;
 }
@@ -79,7 +79,7 @@ function createFormValidation<T>(
 | strategy | когда прогон | touch | раскрытие замечаний |
 | --- | --- | --- | --- |
 | `submit` (default) | только `validate()` / `submit()` (в сборке — `bundle.validate()` / `bundle.submit()`) | `true` | всё на submit |
-| `blur` | смена `touched` поля (потеря фокуса) | `false` | только сблюренные (по `touched`) |
+| `blur` | каждый уход из поля (потеря фокуса), и повторный тоже | `false` | только сблюренные (по `touched`) |
 | `change` | на каждый ввод (+ `debounce`) | `false` | только редактированные (по `dirty`) |
 | `afterFirstSubmit` | тихо до 1-го submit, затем live (`liveAfterSubmit: 'change'` \| `'blur'`, default `'change'`) | `true` один раз на 1-м submit, дальше `false` | тихо → раскрыть всё на submit → далее live |
 

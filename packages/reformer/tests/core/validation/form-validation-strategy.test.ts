@@ -118,6 +118,58 @@ describe('createFormValidation — стратегии запуска', () => {
     ctrl.dispose();
   });
 
+  // Раньше стратегия была подписана на саму метку `touched`: у тронутого поля она при новом уходе
+  // не меняется, и исправленное поле держало ошибку до ухода из другого, ещё не тронутого поля.
+  it('blur: повторный уход из тронутого поля перепроверяет его [ReFormer-t6qm]', async () => {
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, nameRequired, { strategy: 'blur' });
+    ctrl.start();
+
+    form.name.markAsTouched(); // первый уход: поле пустое
+    await flushMicrotasks(2);
+    model.name = 'Иван'; // исправили; ввод стратегия blur не проверяет
+    await flushMicrotasks(2);
+    const afterInput = issueCodes(form.name);
+
+    form.name.markAsTouched(); // повторный уход: метка touched уже стоит и не меняется
+    await flushMicrotasks(2);
+
+    expect({ afterInput, afterSecondBlur: issueCodes(form.name) }).toEqual({
+      afterInput: ['required'],
+      afterSecondBlur: [],
+    });
+    ctrl.dispose();
+  });
+
+  it('blur: снятие метки touched и сброс поля уходом не считаются [ReFormer-t6qm]', async () => {
+    const runs = vi.fn();
+    const schema = defineValidation<F>(({ model: scope }) => {
+      runs();
+      validate(scope.$.name, [required()]);
+    });
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, schema, { strategy: 'blur' });
+    ctrl.start();
+
+    form.name.markAsTouched();
+    await flushMicrotasks(2);
+    const afterBlur = runs.mock.calls.length;
+    form.name.markAsUntouched();
+    await flushMicrotasks(2);
+    form.name.markAsTouched();
+    await flushMicrotasks(2);
+    const afterReturn = runs.mock.calls.length;
+    form.name.reset();
+    await flushMicrotasks(2);
+
+    expect({ afterBlur, afterReturn, afterReset: runs.mock.calls.length }).toEqual({
+      afterBlur: 1,
+      afterReturn: 2,
+      afterReset: 2,
+    });
+    ctrl.dispose();
+  });
+
   it('afterFirstSubmit: тихо до validate(), затем live', async () => {
     const { model, form } = makeForm();
     const ctrl = createFormValidation(model, nameRequired, {

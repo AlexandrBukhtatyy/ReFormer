@@ -71,41 +71,56 @@ interface PendingTarget {
   setPending(pending: boolean): void;
 }
 
-/** Нода поля выключена (`enableWhen` / `disable()`, в том числе каскадом от группы). */
-const isDisabledField = (sig: object): boolean =>
+/** Нода ручки выключена (`enableWhen` / `disable()`, в том числе каскадом от группы). */
+const isDisabledNode = (sig: unknown): boolean =>
+  sig !== null &&
+  typeof sig === 'object' &&
   (getNodeForSignal(sig) as { disabled?: { peek(): boolean } } | undefined)?.disabled?.peek() ===
-  true;
+    true;
 
 /**
- * Ручка всё ещё в модели: её путь ведёт к ней же. Строку массива могли удалить, пока прогон ждал
- * async-правил, — тогда по её пути либо пусто, либо другая строка.
+ * Поле в проверке формы не участвует. Причин две. Выключена его нода или нода контейнера на пути к
+ * нему: агрегат `valid` выключенную группу пропускает целиком, даже если поведение включило поле
+ * внутри неё. Либо ручки уже нет в модели: строку массива могли удалить, пока прогон ждал
+ * async-правил, — тогда по её пути пусто или другая строка.
  */
-function isAttached(model: FormModel<unknown>, handle: PathAwareSignal<unknown>): boolean {
-  if (handle.__path === '') return true;
+function isInactive(model: FormModel<unknown>, handle: PathAwareSignal<unknown>): boolean {
+  if (handle.__path === '') return isDisabledNode(handle);
   let current: unknown = model.$;
   for (const segment of handle.__path.split('.')) {
-    if (current === null || typeof current !== 'object') return false;
+    if (current === null || typeof current !== 'object') return true;
     current = (current as Record<string, unknown>)[segment];
+    if (isDisabledNode(current)) return true;
   }
-  return current === handle;
+  return current !== handle;
 }
 
 /**
- * Выключенное поле и поле удалённой строки в проверке формы не участвуют: их замечания гасятся
- * (пустой список — нода очищается при разносе), сбои их async-правил отбрасываются. Так статус
- * прогона совпадает с агрегатом `valid` формы, который такие поля тоже не считает.
+ * Выключенное поле, поле выключенной группы и поле удалённой строки в проверке формы не участвуют:
+ * их замечания гасятся (пустой список — нода очищается при разносе), сбои их async-правил
+ * отбрасываются. Так статус прогона совпадает с агрегатом `valid` формы, который такие поля тоже не
+ * считает.
  */
 function dropInactive(
   model: FormModel<unknown>,
   issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>,
   failures: ValidationFailure[]
 ): void {
-  const inactive = (sig: PathAwareSignal<unknown>): boolean =>
-    isDisabledField(sig) || !isAttached(model, sig);
-  for (const sig of issues.keys()) if (inactive(sig)) issues.set(sig, []);
+  for (const sig of issues.keys()) if (isInactive(model, sig)) issues.set(sig, []);
   for (let i = failures.length - 1; i >= 0; i--) {
-    if (inactive(failures[i].handle)) failures.splice(i, 1);
+    if (isInactive(model, failures[i].handle)) failures.splice(i, 1);
   }
+}
+
+/**
+ * Отменить идущий прогон пары (model, schema): его `AbortSignal` срабатывает, ожидание async-правил
+ * размыкается, результат получает статус `cancelled` и по нодам не разносится. Контроллер живой
+ * проверки зовёт это при снятии — иначе ответ правила лёг бы на ноды уже снятой формы.
+ *
+ * @internal
+ */
+export function cancelRun(model: object, schema: object): void {
+  stateRegistry.get(model)?.get(schema)?.ac?.abort();
 }
 
 /** Сколько разносов результата прямо сейчас метят поля `touched` от имени проверки. */
