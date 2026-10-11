@@ -102,9 +102,9 @@ test.describe('Форма ReFormer', () => {
       const visit = (node: unknown): void => {
         if (Array.isArray(node)) return node.forEach(visit);
         if (typeof node !== 'object' || node === null) return;
-        const record = node as { value?: string; componentProps?: { label?: string } };
-        if (record.componentProps?.label === 'Email' && record.value !== undefined) {
-          found.push(record.value);
+        const record = node as { model?: string; componentProps?: { label?: string } };
+        if (record.componentProps?.label === 'Email' && record.model !== undefined) {
+          found.push(record.model);
         }
         Object.values(node).forEach(visit);
       };

@@ -184,6 +184,7 @@ test.describe('Редактор кода', () => {
       JSON.stringify(
         {
           $schema: './form-schema.schema.json',
+          format: 2,
           version: '1.0',
           root: {
             $nodeId: 'root',
@@ -191,12 +192,12 @@ test.describe('Редактор кода', () => {
             children: [
               {
                 $nodeId: 'name',
-                value: '$model(name)',
+                model: '$model(name)',
                 component: '$component(Input)',
                 componentProps: { label: '', type: '' },
               },
               { $nodeId: 'blank', component: '' },
-              { $nodeId: 'bound', value: '$model(' },
+              { $nodeId: 'bound', model: '$model(' },
             ],
           },
         },
@@ -233,7 +234,7 @@ test.describe('Редактор кода', () => {
     await close();
 
     // Путь модели после `$model(`: подсказка провайдера модели формы.
-    await typeInside('"value": "$model("', 'n');
+    await typeInside('"model": "$model("', 'n');
     await expect(rows.filter({ hasText: 'name' }).first()).toBeVisible();
     await close();
 
