@@ -50,7 +50,7 @@ interface FormFieldProps {
 
 | Prop        | Тип              | Описание                                                                                                                                                     |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`   | `FormControl<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `issues` / `shouldShowError`, `pending`, `disabled`.                                     |
+| `control`   | `FormControl<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `issues` / `shouldShowIssues`, `pending`, `disabled`.                                    |
 | `className` | `string`         | Класс корневой `<div>`-обёртки.                                                                                                                              |
 | `testId`    | `string`         | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
 | `direction` | `'col' \| 'row'` | Раскладка подписи и контрола: `'col'` (по умолчанию) — подпись над контролом, `'row'` — слева от него. См. сценарий 5.                                       |
@@ -181,8 +181,9 @@ function RegistrationPage() {
 }
 ```
 
-`Label` берётся из `componentProps.label` через `CdkFormField.Label`. Ошибка появляется под полем,
-когда у ноды есть блокирующие замечания и поле `touched` или `dirty` (`shouldShowError`): после
+`Label` берётся из `componentProps.label` через `CdkFormField.Label`. Замечание — ошибка или
+предупреждение (`severity: 'warning'`) — появляется под полем, когда оно есть у ноды и поле
+`touched` или `dirty` (`shouldShowIssues`); `aria-invalid` ставится только при ошибке: после
 `bundle.submit()` / `bundle.validate()` (они помечают поля `touched`) либо при живой проверке —
 `validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`. Текст замечания — по
 коду из словаря формы (`ValidationMessagesProvider messages` из `@reformer/cdk`), локали или

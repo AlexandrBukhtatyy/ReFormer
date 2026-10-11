@@ -143,7 +143,8 @@ const { form } = createForm<{ accept: boolean }>({
 - Используется headless-`FormField` из `@reformer/cdk` без подключения
   `<FormField.Error>`. ui-kit-`FormField` всегда вставляет `Error`, поэтому
   чаще всего проблема — путаница импортов.
-- Поле не тронуто. Ошибка видна, только когда `shouldShowError = invalid && (touched || dirty)`.
+- Поле не тронуто. Замечание видно, только когда оно есть и поле `touched` или `dirty`
+  (`shouldShowIssues`).
   Правила, запущенные в обход сборки (свой `runValidation` без `applyValidationResult(…, { touch: true })`),
   ставят замечания, но не помечают поля `touched` — пользователь их не увидит.
 - Правила вообще не запускались. По умолчанию (`strategy: 'submit'`) живой проверки нет: замечания
