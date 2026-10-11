@@ -4,8 +4,9 @@
  * Отправка — один прогон всех правил; результат — объект со статусом, по которому различают
  * замечания, сбой правила, отмену и исключение обработчика. Здесь же — `validateStep` без потока,
  * сигнал `validating`, две отправки подряд (`cancelled`), снимок значений для обработчика,
- * отмена отправки, если модель изменилась, пока шла проверка, и согласие статуса проверки с
- * агрегатом `valid` формы (выключенные поля, строки массива).
+ * отмена отправки, если модель изменилась, пока шла проверка, проверка в одном тике с правкой
+ * (правила ждут отложенных записей поведения) и согласие статуса проверки с агрегатом `valid`
+ * формы (выключенные поля, строки массива).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -852,6 +853,158 @@ describe('createForm — submit: отложенные записи поведе�
     expect((await sending).status).toBe('cancelled');
     expect(bundle.model.city).toBe('Москва');
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe('createForm — проверка в одном тике с правкой [ReFormer-jvst]', () => {
+  interface Order {
+    amount: number;
+    /** Скидка — колбэк `onChange` суммы: запись отложена на микротаск. */
+    discount: number;
+    /** Итог — колбэк `onChange` скидки: второе звено отложенной цепочки. */
+    total: number;
+  }
+
+  /** Значения заказа с суммой `amount`, когда отработали все записи поведения. */
+  const settledOrder = (amount: number): Order => {
+    const discount = amount >= 1000 ? 100 : 0;
+    return { amount, discount, total: amount - discount };
+  };
+
+  /** Заказ, правило которого сверяет итог с суммой и скидкой и запоминает, что увидело. */
+  function createOrder() {
+    const seen: Order[] = [];
+    const orderRules = defineValidation<Order>(({ model }) => {
+      seen.push(model.get());
+      validate(model.$.total, [
+        (total) => (total === model.amount - model.discount ? null : { code: 'total.stale' }),
+      ]);
+    });
+    const bundle = createForm<Order>({
+      initial: { amount: 500, discount: 0, total: 0 },
+      behavior: defineFormBehavior<Order>(({ model }) => {
+        onChange(
+          model.$.amount,
+          (amount) => {
+            model.discount = amount >= 1000 ? 100 : 0;
+          },
+          { immediate: true }
+        );
+        onChange(
+          model.$.discount,
+          (discount) => {
+            model.total = model.amount - discount;
+          },
+          { immediate: true }
+        );
+      }),
+      flow: { steps: [{ id: 'order', rules: orderRules }, { id: 'confirm' }] },
+    });
+    return { bundle, seen };
+  }
+
+  it('validate() сразу после правки: правила читают модель после записей поведения', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+
+    bundle.form.amount.setValue(2000);
+    const result = await bundle.validate();
+
+    // Было: правило исполнялось в момент вызова и видело прежний итог — статус invalid.
+    expect({ status: result.status, seen }).toEqual({
+      status: 'valid',
+      seen: [settledOrder(2000)],
+    });
+  });
+
+  it('validate() сразу после сборки: первые записи поведения уже в модели', async () => {
+    const { bundle, seen } = createOrder();
+
+    const result = await bundle.validate(); // без ожидания после сборки
+
+    expect({ status: result.status, seen }).toEqual({ status: 'valid', seen: [settledOrder(500)] });
+  });
+
+  it('validateStep() сразу после правки — то же', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+
+    bundle.form.amount.setValue(2000);
+    const result = await bundle.validateStep('order');
+
+    expect({ status: result.status, seen }).toEqual({
+      status: 'valid',
+      seen: [settledOrder(2000)],
+    });
+  });
+
+  it('flow.next() сразу после правки: шаг проверен по новым значениям и пройден', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+
+    bundle.form.amount.setValue(2000);
+    const moved = await bundle.flow!.next();
+
+    expect({ moved, seen }).toEqual({
+      moved: { status: 'moved', from: 'order', to: 'confirm' },
+      seen: [settledOrder(2000)],
+    });
+  });
+
+  it('submit() сразу после правки: обработчик получает то же, что видели правила', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+    const handler = vi.fn((values: Order) => values);
+
+    bundle.form.amount.setValue(2000);
+    const result = await bundle.submit(handler);
+
+    expect(result).toEqual({ status: 'submitted', result: settledOrder(2000) });
+    expect(seen).toEqual([settledOrder(2000)]);
+  });
+
+  it('validating поднят сразу, хотя правила ждут записей поведения', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+
+    bundle.form.amount.setValue(2000);
+    const run = bundle.validate();
+    const atCall = { validating: bundle.validating.value, runs: seen.length };
+    await run;
+
+    expect({ atCall, after: { validating: bundle.validating.value, runs: seen.length } }).toEqual({
+      atCall: { validating: true, runs: 0 },
+      after: { validating: false, runs: 1 },
+    });
+  });
+
+  it('отложенных записей нет — правила исполняются синхронно в момент вызова', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+
+    const run = bundle.validate();
+    const runsAtCall = seen.length;
+    await run;
+
+    expect(runsAtCall).toBe(1);
+  });
+
+  it('независимый раннер validateModel записей поведения не ждёт', async () => {
+    const { bundle, seen } = createOrder();
+    await tick();
+    seen.length = 0;
+
+    bundle.form.amount.setValue(2000);
+    const ok = await validateModel(bundle.model, bundle.validation!.rules);
+
+    // Раннер headless: исполняет правила в момент вызова — итог ещё прежний.
+    expect({ ok, total: seen[0].total }).toEqual({ ok: false, total: 500 });
   });
 });
 

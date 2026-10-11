@@ -202,6 +202,7 @@ describe('отклонение async-правила — сбой проверк�
     const { form, model } = bundle;
     server.hold('checkInn');
     model.email = 'ivanov@';
+    await settle();
 
     const failed = bundle.validate();
     server.last('checkInn').reject(new Error('Сервис проверки ИНН недоступен'));
@@ -215,6 +216,7 @@ describe('отклонение async-правила — сбой проверк�
     ]);
 
     model.email = 'ivanov@example.ru';
+    await settle();
     const retry = bundle.validate();
     server.last('checkInn').resolve({ status: 'found' });
 
@@ -323,6 +325,7 @@ describe('устаревший прогон — cancelled и отмена зап
 
     const next = bundle.flow!.next();
     model.applicant.inn = OTHER_INN;
+    await settle();
     const submit = bundle.submit(vi.fn());
     const [stepCheck, submitCheck] = server.callsOf('checkInn');
     expect([stepCheck.args[0], submitCheck.args[0]]).toEqual([VALID_INN, OTHER_INN]);

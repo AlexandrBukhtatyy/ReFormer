@@ -107,6 +107,11 @@ export interface FormLevel<T> {
   /**
    * Проверить всю форму и показать замечания. Поля выключенных нод (`enableWhen`, `disable()`)
    * не учитываются — статус совпадает с `valid` формы.
+   *
+   * Правила читают модель в момент вызова. Исключение — вызов в одном тике со сборкой формы или
+   * правкой поля: поведение ещё пишет отложенно (колбэк `onChange`, сброс `resetOnDisable`), и
+   * проверка сначала дожидается этих записей; `validating` поднят сразу. Так же ведут себя
+   * `validateStep` и `submit`.
    */
   validate(): Promise<ValidationResult>;
   /** Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение. */
@@ -114,11 +119,10 @@ export interface FormLevel<T> {
   /**
    * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
    *
-   * Пока идёт async-правило, форма не заперта (`submitting` ещё `false`). Если модель за это
-   * время изменилась — правкой пользователя, загрузкой, записью поведения после таймера или
-   * запроса, — правила этих значений не видели: итог `cancelled`, обработчик не вызывается.
-   * Отложенные записи поведения того же тика (расчёт `compute`, сброс `resetOnDisable`)
-   * изменением не считаются: отправка сразу после сборки формы или правки поля проходит.
+   * Обработчик получает ровно те значения, которые видели правила. Пока идёт async-правило,
+   * форма не заперта (`submitting` ещё `false`); если модель за это время изменилась — правкой
+   * пользователя, загрузкой, записью поведения после таймера или запроса, — итог `cancelled`,
+   * обработчик не вызывается.
    */
   submit<TResult>(
     handler: (values: T) => TResult | Promise<TResult>
@@ -195,11 +199,26 @@ export function createFormLevel<T>(
         })
       : undefined;
 
-  const stepRuns = signal(0);
+  // Идущие проверки шага и проверки, ждущие отложенных записей поведения.
+  const checks = signal(0);
   const submits = signal(0);
 
+  /**
+   * Запустить проверку, когда отработали отложенные записи поведения этого тика (колбэк
+   * `onChange`, сброс выключенного поля): правила читают модель после них. Записей нет — запуск
+   * синхронный, как обычно.
+   */
+  const afterBehaviorWrites = <R>(run: () => Promise<R>): Promise<R> => {
+    const settling = deferredWritesSettled();
+    if (!settling) return run();
+    checks.value++;
+    return settling.then(run).finally(() => {
+      checks.value--;
+    });
+  };
+
   const validate = (): Promise<ValidationResult> =>
-    controller ? controller.run() : Promise.resolve(VALID);
+    controller ? afterBehaviorWrites(() => controller.run()) : Promise.resolve(VALID);
 
   const validateStep = async (stepId: string): Promise<ValidationResult> => {
     if (!stepRules.has(stepId)) {
@@ -211,12 +230,14 @@ export function createFormLevel<T>(
     }
     const step = stepRules.get(stepId);
     if (!step) return VALID;
-    stepRuns.value++;
-    try {
-      return await runAndApply(model, step, { touch: true, skipDisabled: true });
-    } finally {
-      stepRuns.value--;
-    }
+    return afterBehaviorWrites(async () => {
+      checks.value++;
+      try {
+        return await runAndApply(model, step, { touch: true, skipDisabled: true });
+      } finally {
+        checks.value--;
+      }
+    });
   };
 
   const flow =
@@ -226,30 +247,26 @@ export function createFormLevel<T>(
 
   return {
     flow,
-    validating: computed(() => (controller?.validating.value ?? false) || stepRuns.value > 0),
+    validating: computed(() => (controller?.validating.value ?? false) || checks.value > 0),
     submitting: computed(() => submits.value > 0),
     validation: rules !== undefined && controller ? { rules, controller } : undefined,
     validate,
     validateStep,
     async submit(handler) {
-      // Правила читают модель синхронно при запуске: снимок до проверки — то, что они видят.
-      // Без правил сверять нечего.
-      let checked: unknown = controller ? model.get() : undefined;
-      // Отложенные записи поведения этого тика (расчёт, сброс выключенного поля) ещё в пути —
-      // сверять с моделью после них: отправка сразу после сборки или правки ими не отменяется.
-      const settling = controller
-        ? deferredWritesSettled()?.then(() => {
+      // Снимок модели в момент запуска правил — то, что они видят. Без правил сверять нечего.
+      let checked: unknown;
+      const result = await (controller
+        ? afterBehaviorWrites(() => {
             checked = model.get();
+            return controller.run();
           })
-        : undefined;
-      const result = await validate();
+        : VALID);
       if (result.status !== 'valid') {
         // Показать замечания всех полей, а не только проверенных правилами. Одним batch и от имени
         // проверки: стратегия `blur` не запустит по живому прогону на каждое поле.
         touchByValidation(() => getNodeForSignal(model.$ as object)?.markAsTouched());
         return { status: result.status, validation: result };
       }
-      await settling;
       const values = model.get() as T;
       // Модель изменилась, пока шла проверка: эти значения правила не видели — не отправлять.
       if (controller && !deepEqual(checked, values)) {
