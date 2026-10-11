@@ -167,16 +167,20 @@ export const LEAVES: readonly string[] = [
 ];
 
 /**
- * Компоненты за подпутём: их тяжёлые необязательные зависимости (`embla-carousel-react`,
- * `recharts`, `cmdk`, `vaul`, `react-resizable-panels`) не должны попадать в главный вход.
- * В главном входе их нет, и билдер объясняет их отсутствие подпутём.
+ * Записи, под именем которых кит ничего не экспортирует: корень составного компонента называется
+ * иначе, чем его каталог. `chart` отдаёт `ChartContainer`, `resizable` — `ResizablePanelGroup`;
+ * экспортов `Chart` и `Resizable` нет. Такая запись получает `exportName`, иначе выгруженная из
+ * билдера форма импортировала бы символ, которого в пакете нет.
+ *
+ * Генератор сверяет таблицу с экспортами кита: названный символ обязан существовать и принадлежать
+ * тому же компоненту (`x-registryName` его props-схемы равен имени записи).
+ *
+ * Подпутей здесь нет намеренно. Откуда импортируется символ записи — из главного входа или из
+ * `@reformer/ui-kit/<подпуть>`, — генератор выводит из факта: реэкспортирует ли главный вход
+ * (`src/index.ts`) каталог компонента. Список, набранный руками, уже отставал: комбобоксы, выбор
+ * даты и таблица жили за подпутём, а каталог об этом молчал.
  */
-export const SUBPATHS: Readonly<Record<string, string>> = {
-  Carousel: 'carousel',
-  Chart: 'chart',
-  Command: 'command',
-  Drawer: 'drawer',
-  MessageScroller: 'message-scroller',
-  Resizable: 'resizable',
-  Sidebar: 'sidebar',
+export const ROOT_EXPORTS: Readonly<Record<string, string>> = {
+  Chart: 'ChartContainer',
+  Resizable: 'ResizablePanelGroup',
 };

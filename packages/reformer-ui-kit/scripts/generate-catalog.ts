@@ -36,8 +36,15 @@
  *
  * Помимо компонентов файл несёт блок `kit` — всё, что кит рассказывает о себе: личность,
  * инфраструктуру, адаптеры, категории палитры, словарь классов ({@link CLASS_GROUPS}) и кодоген
- * (данные — `./catalog-kit`). Записи получают флаги превью, листьев и подпутей оттуда же. Своих
- * таблиц про этот кит у билдера больше нет.
+ * (данные — `./catalog-kit`). Записи получают флаги превью и листьев оттуда же. Своих таблиц про
+ * этот кит у билдера больше нет.
+ *
+ * ## Подпуть записи — по факту, а не по таблице
+ *
+ * `subpath` записи значит одно: откуда импортируется её символ (`@reformer/ui-kit/<subpath>`).
+ * Выводится он из того же, из чего собран пакет: главный вход (`src/index.ts`) реэкспортирует не
+ * все каталоги компонентов — тяжёлые живут только за своим подпутём. Каталог экспорта есть в
+ * главном входе — подпути у записи нет, иначе подпуть равен имени каталога ({@link subpathOf}).
  *
  * Запуск: `npm run generate:catalog` (в цепочке `generate:barrels` после `generate:meta`).
  *
@@ -65,7 +72,7 @@ import {
   LEAVES,
   OVERLAY_REASON,
   OVERLAYS,
-  SUBPATHS,
+  ROOT_EXPORTS,
 } from './catalog-kit';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -202,7 +209,7 @@ type Record = {
   compoundParent?: string;
   /** `false` — запись существует ради полноты пропсов, но узлом палитры не является. */
   palette?: boolean;
-  /** Подпуть кита, за которым лежит символ, — его нет в главном входе. */
+  /** Подпуть кита, откуда импортируется символ, — в главном входе его нет. */
   subpath?: string;
   /** Запрет живого превью (оверлеи). */
   preview?: { mode: 'limited'; reason: string };
@@ -547,18 +554,75 @@ function requirePaletteRecord(name: string, table: string): void {
 for (const name of Object.keys(CATEGORY_BY_NAME)) requirePaletteRecord(name, 'CATEGORY_BY_NAME');
 for (const name of OVERLAYS) requirePaletteRecord(name, 'OVERLAYS');
 for (const name of LEAVES) requirePaletteRecord(name, 'LEAVES');
-for (const name of Object.keys(SUBPATHS)) requirePaletteRecord(name, 'SUBPATHS');
+for (const name of Object.keys(ROOT_EXPORTS)) requirePaletteRecord(name, 'ROOT_EXPORTS');
+
+// ── символ записи и откуда он импортируется ───────────────────────────────────
+// Каталоги компонентов, которые главный вход реэкспортирует. Источник — сам `src/index.ts`
+// (его пишет `generate-exports.mjs`, в цепочке `generate:barrels` он идёт раньше каталога), а не
+// копия списка тяжёлых каталогов: копия разошлась бы с ним на первом же новом компоненте.
+const mainEntryDirs = new Set(
+  [
+    ...readFileSync(join(pkgRoot, 'src/index.ts'), 'utf8').matchAll(
+      /from '\.\/components\/([^']+)'/g
+    ),
+  ].map((m) => m[1])
+);
+if (mainEntryDirs.size === 0)
+  throw new Error(
+    'src/index.ts не реэкспортирует ни одного каталога компонентов — сначала npm run generate:exports.'
+  );
+
+/**
+ * Имя символа записи, если оно отличается от её имени.
+ *
+ * Поля называют символ сами (`x-exportName` → {@link fieldExportName}); остальным записям его
+ * даёт {@link ROOT_EXPORTS} — корень составного компонента, под именем каталога которого кит
+ * ничего не экспортирует. Названный символ обязан принадлежать тому же компоненту, иначе запись
+ * описывала бы пропсы одного компонента, а импортировала другой.
+ */
+function exportNameOf(r: Record): string | undefined {
+  const root = ROOT_EXPORTS[r.name];
+  if (root === undefined) return r.exportName;
+  if (introspected.get(root)?.registryName !== r.name)
+    throw new Error(
+      `ROOT_EXPORTS: '${r.name}' → '${root}' — такого экспорта нет либо его props-схема названа иначе (x-registryName). Поправьте scripts/catalog-kit.ts.`
+    );
+  return root;
+}
+
+/**
+ * Подпуть, откуда импортируется символ записи; `undefined` — символ лежит в главном входе.
+ *
+ * Запись, чьего символа кит не экспортирует вовсе, — ошибка генерации, а не тихий пропуск:
+ * выгруженная из билдера форма импортировала бы имя, которого в пакете нет (так было у `Chart`
+ * и `Resizable`, пока их не назвал {@link ROOT_EXPORTS}).
+ */
+function subpathOf(r: Record, exportName: string | undefined): string | undefined {
+  const symbol = exportName ?? r.name;
+  const home = introspected.get(symbol);
+  if (home === undefined)
+    throw new Error(
+      `запись '${r.name}': экспорта '${symbol}' нет среди экспортов кита — каталог не может назвать символ. ` +
+        `Назовите его в ROOT_EXPORTS (scripts/catalog-kit.ts) либо в x-exportName props-схемы.`
+    );
+  return mainEntryDirs.has(home.dir) ? undefined : home.dir;
+}
 
 const overlays = new Set(OVERLAYS);
 const leaves = new Set(LEAVES);
-const components: Record[] = sorted.map((r) => ({
-  ...r,
-  ...(SUBPATHS[r.name] ? { subpath: SUBPATHS[r.name] } : {}),
-  ...(overlays.has(r.name)
-    ? { preview: { mode: 'limited' as const, reason: OVERLAY_REASON } }
-    : {}),
-  ...(leaves.has(r.name) ? { leaf: true } : {}),
-}));
+const components: Record[] = sorted.map((r) => {
+  const exportName = exportNameOf(r);
+  const subpath = subpathOf(r, exportName);
+  return {
+    ...r,
+    ...(exportName !== undefined ? { exportName } : {}),
+    ...(subpath !== undefined ? { subpath } : {}),
+    ...(overlays.has(r.name)
+      ? { preview: { mode: 'limited' as const, reason: OVERLAY_REASON } }
+      : {}),
+    ...(leaves.has(r.name) ? { leaf: true } : {}),
+  };
+});
 
 // $schema — ссылка на контракт (владелец — SDK плагинов билдера) для подсказок в IDE.
 // Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
