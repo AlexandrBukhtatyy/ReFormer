@@ -228,6 +228,19 @@ describe('resolveIssueMessage — тексты по языку', () => {
     );
   });
 
+  // Было: `Intl.ListFormat` с `type: 'unit'` — формат единиц измерения. По-русски он склеивал
+  // элементы пробелами («https http ftp»), а по-английски давал запятые — тест на `en` этого не видел.
+  it('перечень по-русски тоже через запятую [ReFormer-fnzr]', () => {
+    const error: ValidationIssue = {
+      code: 'url_protocol',
+      params: { allowedProtocols: ['https', 'http', 'ftp'] as never },
+    };
+
+    expect(resolveIssueMessage(error, ru)).toBe(
+      'Адрес должен начинаться с одного из протоколов: https, http, ftp'
+    );
+  });
+
   it('число остаётся числом — множественные формы работают', () => {
     const files = (maxFiles: number) =>
       resolveIssueMessage({ code: 'maxFiles', params: { maxFiles } }, ru);

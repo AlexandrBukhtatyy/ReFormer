@@ -80,7 +80,9 @@ function formatList(code: string, items: readonly unknown[]): string {
   let format = listFormats.get(code);
   if (format === undefined) {
     try {
-      format = new Intl.ListFormat(code, { style: 'short', type: 'unit' });
+      // Не `type: 'unit'`: формат единиц измерения в русском и японском склеивает элементы
+      // пробелами («https http ftp»), в китайском — вовсе без разделителя.
+      format = new Intl.ListFormat(code, { style: 'narrow', type: 'conjunction' });
     } catch {
       format = null;
     }
