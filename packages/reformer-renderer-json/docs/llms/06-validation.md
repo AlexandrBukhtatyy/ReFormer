@@ -75,7 +75,7 @@ return <FormRenderer form={bundle} />;
 | `bundle.validate()` | прогон всех правил → `ValidationResult` (`status`, `issues`, `failures`) |
 | `bundle.validateStep('loan')` | правила шага, проверенные поля помечаются `touched`; неизвестный шаг — исключение |
 
-Ошибка поля рисуется только когда `shouldShowError = invalid && (touched || dirty)`. Пометку `touched` проверенных полей делают `validateStep`, `flow.next()` и `submit` сами — ручной `form.markAsTouched()` на всё поддерево шага не нужен, а следующий шаг не показывается «тронутым», пока пользователь до него не дойдёт.
+Замечание поля — ошибка или предупреждение — рисуется, только когда оно есть и поле `touched` или `dirty` (`shouldShowIssues`). Пометку `touched` проверенных полей делают `validateStep`, `flow.next()` и `submit` сами — ручной `form.markAsTouched()` на всё поддерево шага не нужен, а следующий шаг не показывается «тронутым», пока пользователь до него не дойдёт.
 
 > **Мост «поведение инициирует валидацию».** Если правка одного поля должна перепрогнать правила другого (без отправки), это делает поведение — `revalidateWhen([model.$.dep], () => void validateModel(model, rules))` в `defineFormBehavior` (контракт `@reformer/core/behaviors`). Валидация остаётся отдельным слоем; поведение лишь дёргает раннер.
 
