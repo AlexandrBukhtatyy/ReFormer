@@ -13,6 +13,8 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinKit,
   plainSchema,
+  rowRules,
+  rowRulesSchema,
   seededRules,
   wizardRules,
   wizardRulesSchema,
@@ -124,5 +126,83 @@ describe('модель файла поведения', () => {
     // Связей над моделью нет, поэтому `model` не деструктурируется.
     expect(view.scope).toEqual(['form', 'schema']);
     expect(view.imports).toEqual(['defineFormBehavior', 'hideWhen']);
+  });
+});
+
+describe('правила узлов — в области своего узла', () => {
+  const view = () => viewOf({ schema: rowRulesSchema(), rules: rowRules() });
+
+  it('правило по узлу шаблона строки уходит в поведение строки, а не в корень', () => {
+    const { groups, rows } = view();
+    const rootCode = groups.flatMap((group) => group.rules.flatMap((rule) => rule.lines));
+    // Корню остаётся только сам узел-массив: его рисует родительская область.
+    expect(rootCode).toEqual(["hideWhen(schema.node('references'), () => !model.hasReferences);"]);
+
+    const row = rows.find((candidate) => candidate.name === 'referencesRow');
+    expect(row?.rules.flatMap((rule) => rule.lines)).toEqual([
+      "hideWhen(schema.node('ref-phone'), () => model.noPhone);",
+      'schema.node(\'ref-name\').patchProps({ placeholder: "Имя рекомендателя" });',
+    ]);
+  });
+
+  it('тип строки берётся от типа родительской области, вложенной — от типа внешней строки', () => {
+    const { rows } = view();
+    expect(rows.map((row) => [row.typeName, row.typeExpr, row.path])).toEqual([
+      // Вложенная строка объявлена раньше внешней: внешняя на неё ссылается.
+      ['ReferencesContactsRow', "ReferencesRow['contacts'][number]", 'references[].contacts'],
+      ['ReferencesRow', "AnketaForm['references'][number]", 'references'],
+    ]);
+  });
+
+  it('области подключаются цепочкой: корень — строку, строка — вложенную строку', () => {
+    const { applies, rows, imports } = view();
+    expect(applies).toEqual(['applyEach(model.$.references, referencesRow);']);
+    expect(rows.find((row) => row.name === 'referencesRow')?.applies).toEqual([
+      'applyEach(model.$.contacts, referencesContactsRow);',
+    ]);
+    expect(imports).toContain('applyEach');
+  });
+
+  it('параметры области считаются по коду своей области', () => {
+    const { scope, rows } = view();
+    // Корень читает модель формы и свои узлы; строка — свою модель и свои узлы.
+    expect(scope).toEqual(['model', 'schema']);
+    expect(rows.map((row) => row.scope)).toEqual([
+      ['model', 'schema'],
+      ['model', 'schema'],
+    ]);
+  });
+
+  it('строка без правил поведения не получает — подключать нечего', () => {
+    const quiet = viewOf({
+      schema: rowRulesSchema(),
+      rules: {
+        validation: [],
+        behavior: [],
+        render: [{ kind: 'hideWhen', selector: 'references', condition: '!model.hasReferences' }],
+      },
+    });
+    expect(quiet.rows).toEqual([]);
+    expect(quiet.applies).toEqual([]);
+    expect(quiet.imports).not.toContain('applyEach');
+  });
+
+  it('правило только у вложенной строки: внешняя строка печатается ради подключения', () => {
+    const nested = viewOf({
+      schema: rowRulesSchema(),
+      rules: {
+        validation: [],
+        behavior: [],
+        render: [{ kind: 'hideWhen', selector: 'contact-value', condition: 'model.hidden' }],
+      },
+    });
+    expect(nested.rows.map((row) => row.name)).toEqual(['referencesContactsRow', 'referencesRow']);
+    const outer = nested.rows[1];
+    expect(outer?.rules).toEqual([]);
+    // Внешней строке узлы не нужны — только модель, чтобы дотянуться до вложенного массива.
+    expect(outer?.scope).toEqual(['model']);
+    // Корню правил узлов не досталось, но подключение строки — исполняемый код.
+    expect(nested.hasCode).toBe(true);
+    expect(nested.scope).toEqual(['model']);
   });
 });

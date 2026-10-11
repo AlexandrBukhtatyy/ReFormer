@@ -44,6 +44,8 @@ import {
   noWizardKit,
   plainSchema,
   richSchema,
+  rowRules,
+  rowRulesSchema,
   seededRules,
   subpathSchema,
   wizardSchema,
@@ -103,6 +105,17 @@ const COMBOS: readonly Combo[] = [
       formName: FORM_NAME,
       kit: builtinKit(),
       rules: seededRules(),
+    },
+  },
+  {
+    dir: 'rows-rules',
+    holds:
+      'правила узлов в областях строк массивов: поведение строки и вложенной строки, подключение applyEach, тип строки от типа родителя',
+    input: {
+      schema: rowRulesSchema(),
+      formName: FORM_NAME,
+      kit: builtinKit(),
+      rules: rowRules(),
     },
   },
   {

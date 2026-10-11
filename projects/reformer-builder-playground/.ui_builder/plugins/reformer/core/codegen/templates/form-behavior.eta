@@ -1,19 +1,39 @@
 <%
 const T = it.names.TypeName;
 const b = it.rules.behavior;
+const scaffoldLines = (sections) =>
+  sections.length === 0
+    ? []
+    : [
+        '// Условная видимость секций — раскомментируйте и впишите условие:',
+        ...sections.map(
+          (section) =>
+            `// hideWhen(schema.node('${section.selector}'), () => /* TODO: условие для «${section.label}» */ false);`
+        ),
+      ];
 const body = [];
 if (b.links.length > 0) body.push(['// Связи над моделью', ...b.links]);
 for (const group of b.groups) {
   const lines = [group.step === null ? '// Правила узлов схемы' : `// Шаг «${group.step.title}»`];
   for (const rule of group.rules) lines.push(...rule.lines);
-  if (group.scaffold.length > 0) {
-    lines.push('// Условная видимость секций — раскомментируйте и впишите условие:');
-    for (const section of group.scaffold) {
-      lines.push(`// hideWhen(schema.node('${section.selector}'), () => /* TODO: условие для «${section.label}» */ false);`);
-    }
-  }
+  lines.push(...scaffoldLines(group.scaffold));
   body.push(lines);
 }
+if (b.applies.length > 0) {
+  body.push([
+    '// Строки массивов: у строки своя область — правила её узлов в поведении строки выше.',
+    ...b.applies,
+  ]);
+}
+const rowBody = (row) => {
+  const blocks = [];
+  const own = [...row.rules.flatMap((rule) => rule.lines), ...scaffoldLines(row.scaffold)];
+  if (own.length > 0) blocks.push(own);
+  if (row.applies.length > 0) {
+    blocks.push(['// Вложенные строки — в своей области.', ...row.applies]);
+  }
+  return blocks;
+};
 -%>
 // <%= it.layout.files.behavior %> — поведение формы: связи над моделью и правила узлов схемы.
 // Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
@@ -21,6 +41,19 @@ for (const group of b.groups) {
 import { <%= b.imports.join(', ') %>, type BehaviorScope } from '@reformer/core/behaviors';
 import type { <%= T %> } from '<%= it.rel('behavior', 'types') %>';
 
+<% for (const row of b.rows) { -%>
+/** Строка массива `<%= row.path %>`. */
+type <%= row.typeName %> = <%= row.typeExpr %>;
+
+/**
+ * Правила строки массива `<%= row.path %>`. Область у строки своя: `model`, `form` и
+ * `schema.node(…)` здесь — модель, форма и узлы одной строки, а не всей формы.
+ */
+const <%= row.name %> = defineFormBehavior<<%= row.typeName %>>((<%= row.scope.length > 0 ? `{ ${row.scope.join(', ')} }` : '' %>) => {
+<%~ it.blocks(rowBody(row).map((lines) => it.indent(lines, 2))) %>
+});
+
+<% } -%>
 /** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (<%= it.layout.files.create %>). */
 export function behaviorRules(<%= b.scope.length > 0 ? `{ ${b.scope.join(', ')} }` : '_scope' %>: BehaviorScope<<%= T %>>): void {
 <% if (body.length > 0) { -%>

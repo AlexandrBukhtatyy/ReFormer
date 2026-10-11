@@ -1,0 +1,114 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "model": "$model(hasReferences)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Есть рекомендатели"
+        }
+      },
+      {
+        "selector": "references",
+        "model": "$model(references)",
+        "component": "$component(FieldArray)",
+        "componentProps": {
+          "title": "Рекомендатели"
+        },
+        "initialValue": {
+          "name": "",
+          "noPhone": false,
+          "phone": "",
+          "contacts": []
+        },
+        "item": {
+          "$template": {
+            "component": "$component(Box)",
+            "componentProps": {
+              "className": "space-y-2"
+            },
+            "children": [
+              {
+                "selector": "ref-name",
+                "model": "$model(name)",
+                "component": "$component(Input)",
+                "componentProps": {
+                  "label": "Имя"
+                }
+              },
+              {
+                "model": "$model(noPhone)",
+                "component": "$component(Checkbox)",
+                "componentProps": {
+                  "label": "Без телефона"
+                }
+              },
+              {
+                "selector": "ref-phone",
+                "model": "$model(phone)",
+                "component": "$component(Input)",
+                "componentProps": {
+                  "label": "Телефон"
+                }
+              },
+              {
+                "selector": "ref-contacts",
+                "model": "$model(contacts)",
+                "component": "$component(FieldArray)",
+                "componentProps": {
+                  "title": "Другие контакты"
+                },
+                "initialValue": {
+                  "value": "",
+                  "hidden": false
+                },
+                "item": {
+                  "$template": {
+                    "component": "$component(Box)",
+                    "componentProps": {
+                      "className": "flex gap-2"
+                    },
+                    "children": [
+                      {
+                        "selector": "contact-value",
+                        "model": "$model(value)",
+                        "component": "$component(Input)",
+                        "componentProps": {
+                          "label": "Контакт"
+                        }
+                      },
+                      {
+                        "model": "$model(hidden)",
+                        "component": "$component(Checkbox)",
+                        "componentProps": {
+                          "label": "Скрыть"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": [
+          "Отправить"
+        ]
+      }
+    ]
+  }
+}

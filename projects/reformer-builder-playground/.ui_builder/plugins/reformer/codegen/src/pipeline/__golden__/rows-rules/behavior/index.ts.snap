@@ -1,0 +1,42 @@
+// behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import { applyEach, defineFormBehavior, hideWhen, type BehaviorScope } from '@reformer/core/behaviors';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Строка массива `references[].contacts`. */
+type ReferencesContactsRow = ReferencesRow['contacts'][number];
+
+/**
+ * Правила строки массива `references[].contacts`. Область у строки своя: `model`, `form` и
+ * `schema.node(…)` здесь — модель, форма и узлы одной строки, а не всей формы.
+ */
+const referencesContactsRow = defineFormBehavior<ReferencesContactsRow>(({ model, schema }) => {
+  hideWhen(schema.node('contact-value'), () => model.hidden);
+});
+
+/** Строка массива `references`. */
+type ReferencesRow = ZayavkaNaKreditForm['references'][number];
+
+/**
+ * Правила строки массива `references`. Область у строки своя: `model`, `form` и
+ * `schema.node(…)` здесь — модель, форма и узлы одной строки, а не всей формы.
+ */
+const referencesRow = defineFormBehavior<ReferencesRow>(({ model, schema }) => {
+  hideWhen(schema.node('ref-phone'), () => model.noPhone);
+  schema.node('ref-name').patchProps({ placeholder: "Имя рекомендателя" });
+
+  // Вложенные строки — в своей области.
+  applyEach(model.$.contacts, referencesContactsRow);
+});
+
+/** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (application/create.ts). */
+export function behaviorRules({ model, schema }: BehaviorScope<ZayavkaNaKreditForm>): void {
+  // Правила узлов схемы
+  hideWhen(schema.node('references'), () => !model.hasReferences);
+
+  // Строки массивов: у строки своя область — правила её узлов в поведении строки выше.
+  applyEach(model.$.references, referencesRow);
+}
+
+export const formBehavior = defineFormBehavior<ZayavkaNaKreditForm>(behaviorRules);

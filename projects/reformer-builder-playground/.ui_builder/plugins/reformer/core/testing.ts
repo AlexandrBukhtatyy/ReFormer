@@ -20,6 +20,8 @@ export {
   noWizardKit,
   plainSchema,
   richSchema,
+  rowRules,
+  rowRulesSchema,
   seededRules,
   subpathSchema,
   wizardSchema,

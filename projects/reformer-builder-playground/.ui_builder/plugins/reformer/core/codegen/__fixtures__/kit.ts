@@ -408,3 +408,108 @@ export function wizardSplitSource(): { schema: JsonFormSchema; origins: StepOrig
   );
   return { schema, origins };
 }
+
+/**
+ * Схема с правилами узлов ВНУТРИ СТРОК массивов: массив рекомендателей и вложенный в его строку
+ * массив контактов.
+ *
+ * Держит раскладку правил по областям. Узел шаблона строки живёт в области строки, а не формы:
+ * правило по его селектору обязано печататься в поведении строки и подключаться
+ * `applyEach` — из корня для внешнего массива и из поведения внешней строки для вложенного.
+ * Сам узел-массив при этом остаётся в области родителя: его селектор адресуется из корня.
+ */
+export function rowRulesSchema(): JsonFormSchema {
+  const root: JsonNode = {
+    component: '$component(Box)',
+    componentProps: { className: 'space-y-4' },
+    children: [
+      {
+        model: '$model(hasReferences)',
+        component: '$component(Checkbox)',
+        componentProps: { label: 'Есть рекомендатели' },
+      },
+      {
+        selector: 'references',
+        model: '$model(references)',
+        component: '$component(FieldArray)',
+        componentProps: { title: 'Рекомендатели' },
+        initialValue: { name: '', noPhone: false, phone: '', contacts: [] },
+        item: {
+          $template: {
+            component: '$component(Box)',
+            componentProps: { className: 'space-y-2' },
+            children: [
+              {
+                selector: 'ref-name',
+                model: '$model(name)',
+                component: '$component(Input)',
+                componentProps: { label: 'Имя' },
+              },
+              {
+                model: '$model(noPhone)',
+                component: '$component(Checkbox)',
+                componentProps: { label: 'Без телефона' },
+              },
+              {
+                selector: 'ref-phone',
+                model: '$model(phone)',
+                component: '$component(Input)',
+                componentProps: { label: 'Телефон' },
+              },
+              {
+                selector: 'ref-contacts',
+                model: '$model(contacts)',
+                component: '$component(FieldArray)',
+                componentProps: { title: 'Другие контакты' },
+                initialValue: { value: '', hidden: false },
+                item: {
+                  $template: {
+                    component: '$component(Box)',
+                    componentProps: { className: 'flex gap-2' },
+                    children: [
+                      {
+                        selector: 'contact-value',
+                        model: '$model(value)',
+                        component: '$component(Input)',
+                        componentProps: { label: 'Контакт' },
+                      },
+                      {
+                        model: '$model(hidden)',
+                        component: '$component(Checkbox)',
+                        componentProps: { label: 'Скрыть' },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    ],
+  } as unknown as JsonNode;
+  return { format: 2, version: '1.0', root };
+}
+
+/**
+ * Правила узлов для {@link rowRulesSchema} — по одному на каждую область.
+ *
+ * Условия читают `model`, и в каждой области это РАЗНАЯ модель: в корне — модель формы
+ * (`hasReferences`), в строке рекомендателя — модель строки (`noPhone`), во вложенной строке —
+ * модель контакта (`hidden`). Напечатанные не в своей области, два последних не собрались бы.
+ */
+export function rowRules(): FormRules {
+  return {
+    validation: [],
+    behavior: [],
+    render: [
+      // Корень: сам узел-массив рисует родительская область.
+      { kind: 'hideWhen', selector: 'references', condition: '!model.hasReferences' },
+      // Строка рекомендателя.
+      { kind: 'hideWhen', selector: 'ref-phone', condition: 'model.noPhone' },
+      { kind: 'patchProps', selector: 'ref-name', props: { placeholder: 'Имя рекомендателя' } },
+      // Строка вложенного массива контактов.
+      { kind: 'hideWhen', selector: 'contact-value', condition: 'model.hidden' },
+    ],
+  };
+}
