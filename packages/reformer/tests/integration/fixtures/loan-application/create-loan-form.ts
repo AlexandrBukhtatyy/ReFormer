@@ -7,7 +7,9 @@
  * - `strategy` / `debounce` / `liveAfterSubmit` — живая проверка (по умолчанию — только отправка);
  * - `server` — своя заглушка сервера (ручные ответы, недоступный сервис);
  * - `initial` + `seed` — модель из готовых значений (черновик, загрузка) и правка до сборки нод;
- * - `rules: 'all'` — одностраничный вариант: полный набор правил одной схемой, без потока шагов.
+ * - `rules: 'all'` — одностраничный вариант: полный набор правил одной схемой, без потока шагов;
+ * - `extraRules` — правила сценария поверх правил заявки (async-правило строки, счётчик прогонов);
+ * - `extraBehavior` — поведение сценария поверх поведения заявки (оператор, которого в ней нет).
  *
  * Сборка не армирует стратегию: `start()` контроллера зовёт `useFormBundle`, а без React —
  * сценарий (`bundle.validation?.controller.start()`).
@@ -19,7 +21,17 @@ import {
   type FormModel,
   type FormValidation,
 } from '../../../../src/index';
-import type { ValidationStrategyKind } from '../../../../src/form/validation/index';
+import {
+  apply,
+  defineValidation,
+  type ValidationDefinition,
+  type ValidationStrategyKind,
+} from '../../../../src/form/validation/index';
+import {
+  apply as applyBehavior,
+  defineFormBehavior,
+  type FormBehavior,
+} from '../../../../src/form/behaviors/index';
 import { createLoanServer, type LoanServer } from './api';
 import { createLoanBehavior } from './behavior';
 import { createLoanFlow } from './flow';
@@ -46,6 +58,19 @@ export interface LoanFormOptions {
    * `'all'` — полный набор одной схемой без потока (одностраничная анкета).
    */
   readonly rules?: 'steps' | 'all';
+  /**
+   * Правила сценария поверх правил заявки: проверяются вместе с межшаговыми `extras` (полная
+   * проверка и отправка), в варианте `rules: 'all'` — вместе с полным набором. Композиция
+   * `apply(...схемы)` собирается один раз на сборку — ссылка набора стабильна.
+   */
+  readonly extraRules?: ValidationDefinition<LoanApplication>;
+  /**
+   * Поведение сценария поверх поведения заявки: подключается к той же сборке после него
+   * (`apply` к корню модели) — с той же моделью, формой, схемой корня и потоком. Так сценарий
+   * добавляет оператор, которого в заявке нет (`compute(…, { when })`, условие на вычисляемом
+   * поле), не собирая форму вручную.
+   */
+  readonly extraBehavior?: FormBehavior<LoanApplication>;
 }
 
 /** Собранная заявка. */
@@ -71,13 +96,32 @@ export function createLoanForm(options: LoanFormOptions = {}): LoanForm {
   const server = options.server ?? createLoanServer();
   const rules = createLoanRules(server.api);
   const singlePage = options.rules === 'all';
+  const { extraRules } = options;
+  /** Набор правил сборки вместе с правилами сценария; без них — ссылка фикстуры как есть. */
+  const withExtra = (
+    base: ValidationDefinition<LoanApplication>
+  ): ValidationDefinition<LoanApplication> =>
+    extraRules === undefined
+      ? base
+      : defineValidation<LoanApplication>(() => apply(base, extraRules));
 
   const validation: FormValidation<LoanApplication> = {
-    ...(singlePage ? { rules: rules.all } : { extras: rules.crossStep }),
+    ...(singlePage ? { rules: withExtra(rules.all) } : { extras: withExtra(rules.crossStep) }),
     strategy: options.strategy,
     debounce: options.debounce,
     liveAfterSubmit: options.liveAfterSubmit,
   };
+
+  const loanBehavior = createLoanBehavior(server.api, rules);
+  const { extraBehavior } = options;
+  // Поведение сценария идёт вторым: к его запуску правила узлов и вычисления заявки уже стоят.
+  const behavior =
+    extraBehavior === undefined
+      ? loanBehavior
+      : defineFormBehavior<LoanApplication>(({ model }) => {
+          applyBehavior(model.$, loanBehavior);
+          applyBehavior(model.$, extraBehavior);
+        });
 
   const { initial, seed } = options;
   const bundle = createForm<LoanApplication>({
@@ -91,7 +135,7 @@ export function createLoanForm(options: LoanFormOptions = {}): LoanForm {
         }
       : { model: createLoanModel(), seed }),
     schema: loanSchema,
-    behavior: createLoanBehavior(server.api, rules),
+    behavior,
     validation,
     ...(singlePage ? {} : { flow: createLoanFlow(rules) }),
   });
