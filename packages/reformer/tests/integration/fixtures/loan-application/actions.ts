@@ -211,3 +211,11 @@ export async function passWizardTo(
   }
   return transitions;
 }
+
+/**
+ * Заполнить заявку целиком верными данными — все шаги разом, без потока: одностраничный вариант
+ * (`rules: 'all'`) или загрузка перед отправкой. Отложенные записи поведения дожидается сценарий.
+ */
+export function fillLoanApplication(model: FormModel<LoanApplication>): void {
+  for (const step of LOAN_STEP_IDS) fillStep[step](model);
+}
