@@ -12,7 +12,7 @@ import type { FormGroup, FormNode } from '../types/nodes';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
 import { isDerived } from '../../model/derived-registry';
-import { NODE_KIND, type InternalFormNode } from './node-kind';
+import { NODE_KIND, rawNode, type InternalFormNode } from './node-kind';
 import { createAvailability, createIssues, createPending } from './state';
 
 export class FormGroupNode<T> implements InternalFormNode<T> {
@@ -105,12 +105,23 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   /**
    * Сбросить группу: замечания группы и всех полей, `touched`, `dirty` и значения. Без аргумента —
    * к значениям, с которыми форма создана (точку отсчёта модели возвращает `model.reset()`).
+   * Цели `compute` значения не получают, как и в `setValue`: ими владеет поведение.
    */
   reset(value?: T): void {
     this.own.clear();
     this.children.forEach((child, key) => {
-      child.reset((value as Record<string, unknown> | undefined)?.[key]);
+      const source = this.leafSignals.get(child) ?? child.value;
+      const next = isDerived(source as Signal<unknown>)
+        ? undefined
+        : (value as Record<string, unknown> | undefined)?.[key];
+      child.reset(next);
     });
+  }
+
+  /** Сброс всех полей группы к значениям создания, у целей `compute` тоже. @internal */
+  resetToCreation(): void {
+    this.own.clear();
+    this.children.forEach((child) => rawNode(child).resetToCreation());
   }
 
   markAsTouched(): void {

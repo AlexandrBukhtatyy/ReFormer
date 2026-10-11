@@ -177,14 +177,27 @@ class ModelLeafNode {
   set(value: unknown): void {
     this.signal.value = value;
   }
+  /**
+   * Вернуть значение к снимку. Производное поле (цель `compute`, поле сервера с `markDerived`)
+   * сброс не пишет — как `set` и `patch`: значением владеет поведение, а снимок такого поля снят
+   * до первого расчёта, и `compute` пересчитал бы его только при смене источников.
+   */
   resetToInitial(): void {
+    if (isDerived(this.signal)) return;
     this.signal.value = clone(this.initial);
   }
   captureInitial(): void {
     this.initial = clone(this.signal.peek());
   }
   dirty(): boolean {
-    return !deepEqual(this.signal.peek(), this.initial);
+    return this.differsFrom(this.initial);
+  }
+  /**
+   * Отличается ли значение от снимка. Производное поле отличием не считается: его пишет поведение,
+   * а не пользователь — иначе форма без единой правки была бы «изменённой».
+   */
+  differsFrom(snapshot: unknown): boolean {
+    return !isDerived(this.signal) && !deepEqual(this.signal.peek(), snapshot);
   }
 }
 
@@ -291,6 +304,12 @@ export class ModelGroupNode {
   }
   dirty(): boolean {
     for (const node of this.children.values()) if (node.dirty()) return true;
+    return false;
+  }
+  /** Отличается ли группа от снимка её значения (строка массива сверяется со снимком массива). */
+  differsFrom(snapshot: unknown): boolean {
+    if (!isPlainObject(snapshot)) return true;
+    for (const [key, node] of this.children) if (node.differsFrom(snapshot[key])) return true;
     return false;
   }
 }
@@ -431,7 +450,16 @@ export class ModelArrayNode {
     this.initial = clone(this.peek());
   }
   dirty(): boolean {
-    return !deepEqual(this.peek(), this.initial);
+    return this.differsFrom(this.initial);
+  }
+  /**
+   * Отличается ли массив от снимка: другая длина либо отличается элемент. Сверка идёт по узлам, а
+   * не по значению целиком — производные поля строк (цели `compute` поведения строки) не в счёт.
+   */
+  differsFrom(snapshot: unknown): boolean {
+    const items = this.items.peek();
+    if (!Array.isArray(snapshot) || snapshot.length !== items.length) return true;
+    return items.some((node, index) => node.differsFrom(snapshot[index]));
   }
 }
 

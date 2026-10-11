@@ -13,6 +13,7 @@ import type { FieldConfig } from '../types/field-config';
 import type { ValidationIssue } from '../types/contracts';
 import type { ComponentRef } from '../types/schema-node';
 import type { FormControl } from '../types/nodes';
+import { isDerived } from '../../model/derived-registry';
 import { NODE_KIND, type InternalFormNode } from './node-kind';
 import {
   createAvailability,
@@ -86,9 +87,24 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   /**
    * Сбросить поле: значение, замечания, `touched` и `dirty`. Без аргумента — к значению, с которым
    * нода создана (не к точке отсчёта модели: её возвращает `model.reset()`).
+   *
+   * У производного поля (цель `compute`) без аргумента сбрасывается только состояние: значением
+   * владеет поведение, а значение создания ноды снято до первого расчёта — запись вернула бы
+   * «сырое» значение, которое `compute` пересчитает лишь при смене источников.
    */
   reset(value?: T): void {
-    this.source.value = value !== undefined ? value : this.initialValue;
+    if (value !== undefined) this.source.value = value;
+    else if (!isDerived(this.source)) this.source.value = this.initialValue;
+    this.resetState();
+  }
+
+  /** Значение создания и чистое состояние, у цели `compute` тоже — для `resetOnDisable`. @internal */
+  resetToCreation(): void {
+    this.source.value = this.initialValue;
+    this.resetState();
+  }
+
+  private resetState(): void {
     this.issueState.clear();
     this.interaction.setTouched(false);
     this.interaction.setDirty(false);

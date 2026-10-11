@@ -25,6 +25,12 @@ export interface InternalFormNode<T = unknown> extends FormNode<T> {
   setPending(pending: boolean): void;
   /** Снять подписки ноды и её детей. */
   dispose(): void;
+  /**
+   * Сброс для `resetOnDisable`: вернуть значения создания и очистить состояние — в том числе у
+   * целей `compute`. Выключенное поле не должно нести прежний расчёт (его `compute` обязан нести то
+   * же условие `when`); публичный `reset()` без аргумента производное поле не пишет.
+   */
+  resetToCreation(): void;
 }
 
 /** Вид ноды либо `undefined`, если значение — не нода формы. */

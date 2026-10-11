@@ -442,54 +442,46 @@ describe('сброс заявки — model.reset() против form.reset()', 
     expect([model.loan.amount, model.residenceAddress.city]).toEqual([3_000_000, 'Колпино']);
   });
 
-  // `model.reset()` пишет в производное поле значение снимка — снятого до первого расчёта, — а
-  // compute пересчитывает поле, только когда меняются его источники. Вид и срок сброс не изменил:
-  // ставка осталась нулевой, хотя у потребительского кредита она 15,9 % — её покажет сводка шага и
-  // получит обработчик отправки.
-  it.fails(
-    'RL-11: после model.reset() производное поле согласовано с compute — ставка потребительского кредита 15,9 % [ReFormer-e9rw]',
-    async () => {
-      const { bundle } = build();
-      const { model } = bundle;
-      await settle();
-      model.loan.patch({ amount: 500_000, purpose: 'Ремонт квартиры' });
+  // Было: `model.reset()` писал в производное поле значение снимка — снятого до первого расчёта, —
+  // а compute пересчитывает поле, только когда меняются его источники. Вид и срок сброс не менял:
+  // ставка оставалась нулевой, хотя у потребительского кредита она 15,9 % — её показала бы сводка
+  // шага и получил бы обработчик отправки. Теперь сброс производное поле не пишет.
+  it('RL-11: после model.reset() производное поле согласовано с compute — ставка потребительского кредита 15,9 % [ReFormer-e9rw]', async () => {
+    const { bundle } = build();
+    const { model } = bundle;
+    await settle();
+    model.loan.patch({ amount: 500_000, purpose: 'Ремонт квартиры' });
 
-      model.reset();
-      await settle();
+    model.reset();
+    await settle();
 
-      expect(model.loan.interestRate).toBe(15.9);
-    }
-  );
+    expect(model.loan.interestRate).toBe(15.9);
+  });
 
-  // `form.reset()` пишет в поле ставки значение создания ноды — ноды строятся до поведения, и
-  // значение снято до первого расчёта; источники compute сброс не изменил — ставка осталась 0.
-  it.fails(
-    'RL-12: после form.reset() производное поле согласовано с compute — ставка потребительского кредита 15,9 % [ReFormer-e9rw]',
-    async () => {
-      const { bundle } = build();
-      const { model, form } = bundle;
-      await settle();
-      form.loan.amount.setValue(500_000);
+  // Было: `form.reset()` писал в поле ставки значение создания ноды — ноды строятся до поведения,
+  // и значение снято до первого расчёта; источники compute сброс не менял — ставка оставалась 0.
+  it('RL-12: после form.reset() производное поле согласовано с compute — ставка потребительского кредита 15,9 % [ReFormer-e9rw]', async () => {
+    const { bundle } = build();
+    const { model, form } = bundle;
+    await settle();
+    form.loan.amount.setValue(500_000);
 
-      form.reset();
-      await settle();
+    form.reset();
+    await settle();
 
-      expect(model.loan.interestRate).toBe(15.9);
-    }
-  );
+    expect(model.loan.interestRate).toBe(15.9);
+  });
 
   // Снимок модели снят при её создании, до поведения: ставку посчитал `computeFrom` при сборке, и
-  // значение поля разошлось со снимком. Нетронутая заявка — dirty: «Есть несохранённые изменения»
-  // и подтверждение сброса из docs/llms/28-submit-and-reset.md сработают на пустой форме.
-  it.fails(
-    'RL-13: свежая заявка без правок не dirty — ставку посчитало поведение, а не пользователь [ReFormer-e9rw]',
-    async () => {
-      const { bundle } = build();
-      await settle();
+  // значение поля разошлось со снимком. Было: нетронутая заявка — dirty, «Есть несохранённые
+  // изменения» и подтверждение сброса из docs/llms/28-submit-and-reset.md срабатывали на пустой
+  // форме. Теперь производное поле изменением не считается.
+  it('RL-13: свежая заявка без правок не dirty — ставку посчитало поведение, а не пользователь [ReFormer-e9rw]', async () => {
+    const { bundle } = build();
+    await settle();
 
-      expect(bundle.model.isDirty()).toBe(false);
-    }
-  );
+    expect(bundle.model.isDirty()).toBe(false);
+  });
 
   it('RL-14: initial + seed — правка seed входит в значения создания нод, но не в снимок модели', async () => {
     const initial = createLoanInitial();
@@ -513,14 +505,15 @@ describe('сброс заявки — model.reset() против form.reset()', 
       'ЗК-000042',
     ]);
 
-    // поведение под вопросом: seed — «правка модели до сборки формы», но снимок модели снят до
-    // неё: model.reset() откатывает и правки seed, в том числе номер заявки, которым владеет
-    // сервер, а form.reset() их сохраняет — у двух сбросов разная точка отсчёта и здесь.
+    // поведение под вопросом [ReFormer-k152.14]: seed — «правка модели до сборки формы», но снимок
+    // модели снят до неё: model.reset() откатывает правки seed, а form.reset() их сохраняет — у
+    // двух сбросов разная точка отсчёта и здесь. Номер заявки сброс не трогает: полем владеет
+    // сервер (`markDerived`), как и `set` с `patch` [ReFormer-e9rw].
     model.reset();
     expect([model.email, model.dependents, model.applicationNumber]).toEqual([
       'ivanov@example.ru',
       0,
-      '',
+      'ЗК-000042',
     ]);
   });
 

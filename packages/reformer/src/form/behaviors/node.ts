@@ -12,14 +12,14 @@
 
 import { effect, untracked, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import { getNodeForSignal } from '../signal-node-registry';
+import { rawNode } from '../nodes/node-kind';
 import { deferredWrites } from '../../model/safe-effect';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
 
-/** Нода, чьей доступностью управляет оператор: поле, группа или массив под-форм. */
+/** Нода формы, чьей доступностью управляет оператор: поле, группа или массив под-форм. */
 export interface AvailabilityTarget {
   enable(): void;
   disable(): void;
-  reset(): void;
 }
 
 /**
@@ -45,7 +45,9 @@ export function availabilityWrites(
           node.enable();
         } else {
           node.disable();
-          if (options?.resetOnDisable) node.reset();
+          // Не публичный `reset()`: тот не пишет значение в цель `compute`, а выключенное поле
+          // обязано вернуться к значению создания, чем бы оно ни было заполнено.
+          if (options?.resetOnDisable) rawNode(node).resetToCreation();
         }
       });
     },

@@ -184,6 +184,11 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.setValue(values ?? this.initial);
   }
 
+  /** Строки пересобираются из значений создания — их поведение считает заново. @internal */
+  resetToCreation(): void {
+    this.reset();
+  }
+
   markAsTouched(): void {
     this.rows.value.forEach((row) => row.markAsTouched());
   }
