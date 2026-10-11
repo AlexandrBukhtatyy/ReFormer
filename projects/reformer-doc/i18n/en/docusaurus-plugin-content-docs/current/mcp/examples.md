@@ -185,7 +185,7 @@ The AI will find the problems:
 - The rules are not passed to the bundle (`validation`), and there is no submission via
   `bundle.submit` — there is nothing to check and nothing to check it
 - There is no `markAsTouched` call on blur — the field stays "untouched", so the error is hidden
-  (`shouldShowError` = false)
+  (`shouldShowIssues` = false)
 - Issues are not displayed anywhere: `issues` is an array of `{ code, params? }`, and the text for a
   code comes from `useIssueMessage()` (or `FormField` with `ValidationMessagesProvider`)
 
@@ -223,7 +223,7 @@ const MyForm = () => {
         onBlur={() => form.email.markAsTouched()}
         aria-invalid={email.shouldShowError}
       />
-      {email.shouldShowError && email.issues[0] && (
+      {email.shouldShowIssues && email.issues[0] && (
         <span className="error">{message(email.issues[0])}</span>
       )}
       <button type="submit">Submit</button>

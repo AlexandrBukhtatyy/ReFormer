@@ -48,7 +48,7 @@ import type { FormControl } from '@reformer/core';
 type MyFormFieldProps<T> = { control: FormControl<T> }; // ← один prop
 
 export function MyFormField<T>({ control }: MyFormFieldProps<T>) {
-  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowIssues, componentProps } = useFormControl(control);
   const message = useIssueMessageResolver(); // код замечания → текст: словарь формы, затем локаль
   const cp = componentProps as {
     label?: string;
@@ -67,7 +67,7 @@ export function MyFormField<T>({ control }: MyFormFieldProps<T>) {
         onChange={(e) => (control.setValue as (v: unknown) => void)(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {shouldShowError && issues[0] && <span className="error">{message(issues[0])}</span>}
+      {shouldShowIssues && issues[0] && <span className="error">{message(issues[0])}</span>}
     </label>
   );
 }
@@ -77,7 +77,7 @@ export function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 
 - **значение** читается из `value`, а не из внешнего state;
 - **запись** — через `control.setValue(...)`, отметка взаимодействия — `control.markAsTouched()`
-  на `onBlur` (после этого `shouldShowError` станет `true`, если у поля есть блокирующие замечания);
+  на `onBlur` (после этого `shouldShowIssues` станет `true`, если у поля есть замечания);
 - **null-safe** рендер: `value ?? ''`, чтобы input не стал неуправляемым;
 - **текст замечания** — по его коду: в замечании (`{ code, params?, severity? }`) текста нет.
   Резолвер `useIssueMessageResolver()` из `@reformer/cdk` берёт словарь формы от
@@ -97,7 +97,7 @@ import type { FormControl } from '@reformer/core';
 type Option = { value: string; label: string };
 
 export function MySelect({ control }: { control: FormControl<string> }) {
-  const { value, disabled, issues, shouldShowError, componentProps } = useFormControl(control);
+  const { value, disabled, issues, shouldShowIssues, componentProps } = useFormControl(control);
   const message = useIssueMessageResolver();
   const cp = componentProps as { label?: string; options?: Option[] };
   const options = cp.options ?? [];
@@ -118,7 +118,7 @@ export function MySelect({ control }: { control: FormControl<string> }) {
           </option>
         ))}
       </select>
-      {shouldShowError && issues[0] && <span className="error">{message(issues[0])}</span>}
+      {shouldShowIssues && issues[0] && <span className="error">{message(issues[0])}</span>}
     </label>
   );
 }

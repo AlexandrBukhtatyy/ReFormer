@@ -182,7 +182,7 @@ AI найдёт проблемы:
 - Сборка пересоздаётся на каждый рендер — нет `useFormBundle` (ноды и их состояние теряются)
 - Правила не переданы в сборку (`validation`), а отправки через `bundle.submit` нет — проверять
   нечего и некому
-- Нет вызова `markAsTouched` при blur — поле «не тронуто», поэтому ошибка скрыта (`shouldShowError` = false)
+- Нет вызова `markAsTouched` при blur — поле «не тронуто», поэтому ошибка скрыта (`shouldShowIssues` = false)
 - Замечания нигде не отображаются: `issues` — массив `{ code, params? }`, текст по коду даёт
   `useIssueMessage()` (или `FormField` с `ValidationMessagesProvider`)
 
@@ -220,7 +220,7 @@ const MyForm = () => {
         onBlur={() => form.email.markAsTouched()}
         aria-invalid={email.shouldShowError}
       />
-      {email.shouldShowError && email.issues[0] && (
+      {email.shouldShowIssues && email.issues[0] && (
         <span className="error">{message(email.issues[0])}</span>
       )}
       <button type="submit">Отправить</button>

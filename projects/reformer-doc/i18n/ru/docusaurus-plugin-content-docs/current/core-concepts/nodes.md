@@ -121,7 +121,8 @@ form.firstName.clearIssues(); // снять замечания
 form.email.component; // компонент из узла схемы
 form.email.componentProps; // сигнал текущих componentProps
 form.email.updateComponentProps({ options: [...] }); // слить правку в пропсы (например, опции Select)
-form.email.shouldShowError; // сигнал: invalid && (touched || dirty)
+form.email.shouldShowError; // сигнал: invalid && (touched || dirty) — состояние ошибки
+form.email.shouldShowIssues; // сигнал: есть замечания && (touched || dirty) — показ текстов
 ```
 
 ### FormGroup

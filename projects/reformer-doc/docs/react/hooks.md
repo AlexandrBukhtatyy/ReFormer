@@ -67,7 +67,8 @@ import { useFormControl, useIssueMessage } from '@reformer/core/react';
 import type { FormControl } from '@reformer/core';
 
 function TextField({ control, label }: { control: FormControl<string>; label: string }) {
-  const { value, disabled, issues, shouldShowError, pending } = useFormControl(control);
+  const { value, disabled, issues, shouldShowError, shouldShowIssues, pending } =
+    useFormControl(control);
   const message = useIssueMessage(); // код замечания → текст из словаря локали
 
   return (
@@ -80,7 +81,7 @@ function TextField({ control, label }: { control: FormControl<string>; label: st
         onBlur={() => control.markAsTouched()}
         aria-invalid={shouldShowError}
       />
-      {shouldShowError && issues[0] && <span className="error">{message(issues[0])}</span>}
+      {shouldShowIssues && issues[0] && <span className="error">{message(issues[0])}</span>}
       {pending && <span className="loading">Проверка…</span>}
     </div>
   );
@@ -89,18 +90,19 @@ function TextField({ control, label }: { control: FormControl<string>; label: st
 
 ### Состояние для `FormControl`
 
-| Свойство          | Тип                       | Описание                                                     |
-| ----------------- | ------------------------- | ------------------------------------------------------------ |
-| `value`           | `T`                       | текущее значение                                             |
-| `issues`          | `ValidationIssue[]`       | замечания валидации (`[]`, когда их нет)                     |
-| `valid`           | `boolean`                 | блокирующих замечаний нет                                    |
-| `invalid`         | `boolean`                 | есть блокирующие замечания                                   |
-| `touched`         | `boolean`                 | пользователь взаимодействовал (был `blur`)                   |
-| `dirty`           | `boolean`                 | значение меняли                                              |
-| `disabled`        | `boolean`                 | поле отключено                                               |
-| `pending`         | `boolean`                 | идёт асинхронная проверка                                    |
-| `shouldShowError` | `boolean`                 | пора показать ошибку: поле невалидно, его трогали или меняли |
-| `componentProps`  | `Record<string, unknown>` | пропсы компонента из схемы (`label`, `options`, …)           |
+| Свойство           | Тип                       | Описание                                                                                    |
+| ------------------ | ------------------------- | ------------------------------------------------------------------------------------------- |
+| `value`            | `T`                       | текущее значение                                                                            |
+| `issues`           | `ValidationIssue[]`       | замечания валидации (`[]`, когда их нет)                                                    |
+| `valid`            | `boolean`                 | блокирующих замечаний нет                                                                   |
+| `invalid`          | `boolean`                 | есть блокирующие замечания                                                                  |
+| `touched`          | `boolean`                 | пользователь взаимодействовал (был `blur`)                                                  |
+| `dirty`            | `boolean`                 | значение меняли                                                                             |
+| `disabled`         | `boolean`                 | поле отключено                                                                              |
+| `pending`          | `boolean`                 | идёт асинхронная проверка                                                                   |
+| `shouldShowError`  | `boolean`                 | состояние ошибки (`aria-invalid`): поле невалидно, его трогали или меняли                   |
+| `shouldShowIssues` | `boolean`                 | пора показать тексты замечаний — ошибок и предупреждений: они есть, поле трогали или меняли |
+| `componentProps`   | `Record<string, unknown>` | пропсы компонента из схемы (`label`, `options`, …)                                          |
 
 Замечание — `{ code, params?, severity? }`: текста в нём нет. Текст по коду даёт словарь
 (`defineIssueMessages`) — через `useIssueMessage(messages)` или провайдер
@@ -109,7 +111,7 @@ function TextField({ control, label }: { control: FormControl<string>; label: st
 
 ### Состояние для `FormArray`
 
-То же самое, плюс `length`; у массива нет `shouldShowError` и `componentProps`.
+То же самое, плюс `length`; у массива нет `shouldShowError`, `shouldShowIssues` и `componentProps`.
 
 | Свойство            | Тип                 | Описание                            |
 | ------------------- | ------------------- | ----------------------------------- |

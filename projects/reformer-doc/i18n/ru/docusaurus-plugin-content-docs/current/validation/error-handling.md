@@ -49,17 +49,17 @@ const weakPassword: Rule<string> = (value) =>
 
 ### В компоненте — `useFormControl`
 
-Реактивный массив `issues` (плюс флаг `shouldShowError`); текст — через `useIssueMessage`:
+Реактивный массив `issues` (плюс флаг `shouldShowIssues`); текст — через `useIssueMessage`:
 
 ```tsx
 import { useFormControl, useIssueMessage } from '@reformer/core/react';
 
 function EmailIssue() {
-  const { issues, shouldShowError } = useFormControl(form.email);
+  const { issues, shouldShowIssues } = useFormControl(form.email);
   const message = useIssueMessage();
 
   // Показывать замечание только после взаимодействия
-  return shouldShowError && issues[0] ? (
+  return shouldShowIssues && issues[0] ? (
     <span className="error" role="alert">
       {message(issues[0])}
     </span>
@@ -169,7 +169,7 @@ if (result.status === 'error') {
 
 ```tsx
 function EmailField() {
-  const { value, issues, shouldShowError } = useFormControl(form.email);
+  const { value, issues, shouldShowError, shouldShowIssues } = useFormControl(form.email);
   const message = useIssueMessage();
   const errorId = 'email-error';
 
@@ -181,9 +181,9 @@ function EmailField() {
         onChange={(e) => form.email.setValue(e.target.value)}
         onBlur={() => form.email.markAsTouched()}
         aria-invalid={shouldShowError}
-        aria-describedby={shouldShowError ? errorId : undefined}
+        aria-describedby={shouldShowIssues ? errorId : undefined}
       />
-      {shouldShowError && issues[0] && (
+      {shouldShowIssues && issues[0] && (
         <span id={errorId} role="alert" className="error">
           {message(issues[0])}
         </span>

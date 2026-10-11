@@ -111,28 +111,29 @@ const handleSubmit = async (e: React.FormEvent) => {
 import { useFormControl, useIssueMessage } from '@reformer/core/react';
 
 function NameField() {
-  const { value, issues, shouldShowError } = useFormControl(form.name);
+  const { value, issues, shouldShowIssues } = useFormControl(form.name);
   const message = useIssueMessage();
   // issues: ValidationIssue[] — пустой [] когда поле валидно
-  // shouldShowError: invalid && (touched || dirty) — показывать замечание только после взаимодействия
+  // shouldShowIssues: есть замечания && (touched || dirty) — показывать только после взаимодействия
 
   return (
     <div>
       <input value={value} onChange={(e) => form.name.setValue(e.target.value)} />
-      {shouldShowError && issues[0] && <span className="error">{message(issues[0])}</span>}
+      {shouldShowIssues && issues[0] && <span className="error">{message(issues[0])}</span>}
     </div>
   );
 }
 ```
 
-| Поле состояния      | Тип                 | Назначение                                              |
-| ------------------- | ------------------- | ------------------------------------------------------- |
-| `value`             | `T`                 | текущее значение поля                                   |
-| `issues`            | `ValidationIssue[]` | замечания поля; `[]` когда валидно                      |
-| `valid` / `invalid` | `boolean`           | нет / есть блокирующие замечания                        |
-| `touched` / `dirty` | `boolean`           | взаимодействовал ли пользователь / менялось ли значение |
-| `shouldShowError`   | `boolean`           | `invalid && (touched \|\| dirty)` — удобный флаг для UI |
-| `pending`           | `boolean`           | идёт асинхронная проверка поля                          |
+| Поле состояния      | Тип                 | Назначение                                                                                      |
+| ------------------- | ------------------- | ----------------------------------------------------------------------------------------------- |
+| `value`             | `T`                 | текущее значение поля                                                                           |
+| `issues`            | `ValidationIssue[]` | замечания поля; `[]` когда валидно                                                              |
+| `valid` / `invalid` | `boolean`           | нет / есть блокирующие замечания                                                                |
+| `touched` / `dirty` | `boolean`           | взаимодействовал ли пользователь / менялось ли значение                                         |
+| `shouldShowError`   | `boolean`           | `invalid && (touched \|\| dirty)` — состояние ошибки (`aria-invalid`)                           |
+| `shouldShowIssues`  | `boolean`           | есть замечания — ошибки или предупреждения — и поле `touched` или `dirty`: пора показать тексты |
+| `pending`           | `boolean`           | идёт асинхронная проверка поля                                                                  |
 
 :::info `@reformer/ui-kit`
 Универсальный `FormField` из `@reformer/ui-kit` уже подписан на `useFormControl` — он сам покажет

@@ -84,7 +84,7 @@ function LoginFormView() {
 `debounce` (мс) применим к живому прогону (`change` и живой фазе `afterFirstSubmit`).
 
 Живой прогон не метит поля тронутыми: замечание видно, только когда поле уже `touched` или `dirty`
-(`shouldShowError`). Стратегия армируется только на клиенте — в React это делает `useFormBundle` в
+(`shouldShowIssues`). Стратегия армируется только на клиенте — в React это делает `useFormBundle` в
 эффекте, поэтому сборка безопасна при SSR.
 
 :::warning Правила — стабильная ссылка

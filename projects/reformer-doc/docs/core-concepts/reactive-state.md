@@ -68,7 +68,7 @@ import { useFormControl, useFormControlValue } from '@reformer/core/react';
 
 // Полное состояние поля — ре-рендер при изменении любого его сигнала
 function NameField({ control }) {
-  const { value, issues, shouldShowError } = useFormControl(control);
+  const { value, issues, shouldShowIssues } = useFormControl(control);
   // ...
 }
 

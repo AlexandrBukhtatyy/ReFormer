@@ -190,7 +190,8 @@ import { InfoHint } from '@reformer/ui-kit';
     {
       name: 'FormField.Error',
       type: 'multi?, render?',
-      description: '<p role="alert"> с ошибкой; скрыт, пока shouldShowError=false.',
+      description:
+        '<p role="alert"> с замечанием — ошибкой или предупреждением; скрыт, пока shouldShowIssues=false.',
     },
     {
       name: 'FormField.Description',
@@ -205,7 +206,7 @@ import { InfoHint } from '@reformer/ui-kit';
     },
     {
       name: 'useFormFieldContext()',
-      type: '→ { control, value, issues, error, shouldShowError, ids, componentProps, pending }',
+      type: '→ { control, value, issues, error, shouldShowError, shouldShowIssues, ids, componentProps, pending }',
       description: 'Доступ к состоянию из произвольных детей.',
     },
   ],
