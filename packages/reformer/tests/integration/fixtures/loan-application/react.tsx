@@ -250,9 +250,11 @@ const FieldView = memo(function FieldView({
   const path = node.handle.__path;
   probe(`field:${path}`);
   const control = getNodeForSignal(node.handle) as FormControl<unknown>;
-  const { value, disabled, issues, shouldShowError, componentProps } = useFormControl(control);
+  const { value, disabled, issues, shouldShowError, shouldShowIssues, componentProps } =
+    useFormControl(control);
   const handleRef = useFieldHandleRef(fieldRef(node, scope));
-  const issue = shouldShowError ? issues[0] : undefined;
+  // Текст — по «есть что показать» (и предупреждение тоже), состояние ошибки — по shouldShowError.
+  const issue = shouldShowIssues ? issues[0] : undefined;
 
   let input: ReactNode;
   if (node.component === FileUpload || node.component === MultiSelect) {

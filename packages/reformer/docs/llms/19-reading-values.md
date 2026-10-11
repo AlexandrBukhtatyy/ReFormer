@@ -7,7 +7,8 @@
 
 ```typescript
 // Полное состояние поля (объект); текст замечания — useIssueMessage(messages)(issues[0])
-const { value, issues, disabled, touched, shouldShowError } = useFormControl(control.email);
+// shouldShowIssues — показывать ли тексты замечаний; shouldShowError — aria-invalid
+const { value, issues, disabled, touched, shouldShowIssues } = useFormControl(control.email);
 
 // Только значение (напрямую, БЕЗ деструктуризации!)
 const email = useFormControlValue(control.email);

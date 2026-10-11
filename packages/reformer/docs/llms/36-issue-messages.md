@@ -171,8 +171,9 @@ import { creditMessages } from './validation/messages';
 
 function FieldIssues({ control }: { control: FormControl<string> }) {
   const message = useIssueMessage(creditMessages); // словарь формы → локаль → английский → код
-  const { issues, shouldShowError } = useFormControl(control);
-  if (!shouldShowError) return null;
+  // shouldShowIssues — и у поля с одним предупреждением; shouldShowError — только у невалидного
+  const { issues, shouldShowIssues } = useFormControl(control);
+  if (!shouldShowIssues) return null;
   return (
     <ul role="alert">
       {issues.map((issue) => (

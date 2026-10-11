@@ -136,7 +136,7 @@ import { formMessages } from './form.validation'; // defineIssueMessages — к�
 type MyFormFieldProps<T> = { control: FormControl<T> }; // ← ОДИН prop
 
 function MyFormField<T>({ control }: MyFormFieldProps<T>) {
-  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowIssues, componentProps } = useFormControl(control);
   const message = useIssueMessage(formMessages); // текст замечания по коду
   // componentProps = { label, placeholder, type, options, ... } — из СХЕМЫ
   const cp = (componentProps ?? {}) as Record<string, unknown>;
@@ -152,7 +152,8 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
         onChange={(e) => (control.setValue as (v: unknown) => void)(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {shouldShowError && issues[0] && <span>{message(issues[0])}</span>}
+      {/* shouldShowIssues — ошибки и предупреждения; shouldShowError — для aria-invalid */}
+      {shouldShowIssues && issues[0] && <span>{message(issues[0])}</span>}
     </label>
   );
 }
@@ -209,7 +210,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 function ShadcnFormField({ control }: { control: FormControl<string> }) {
-  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowIssues, componentProps } = useFormControl(control);
   const message = useIssueMessage(formMessages);
   const cp = (componentProps ?? {}) as Record<string, unknown>;
 
@@ -221,7 +222,7 @@ function ShadcnFormField({ control }: { control: FormControl<string> }) {
         onChange={(e) => control.setValue(e.target.value)}
         disabled={disabled}
       />
-      {shouldShowError && issues[0] && <p className="text-red-500">{message(issues[0])}</p>}
+      {shouldShowIssues && issues[0] && <p className="text-red-500">{message(issues[0])}</p>}
     </div>
   );
 }

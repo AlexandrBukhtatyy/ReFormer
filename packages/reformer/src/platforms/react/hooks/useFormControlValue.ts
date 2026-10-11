@@ -136,7 +136,7 @@ import type { FormControl } from '../../../form/types/index';
  *
  * // Основной редактор использует useFormControl для полного состояния
  * function MarkdownEditor({ control }: MarkdownEditorProps) {
- *   const { value, shouldShowError, issues } = useFormControl(control);
+ *   const { value, shouldShowIssues, issues } = useFormControl(control);
  *   const message = useIssueMessage(); // из '@reformer/core/react'
  *
  *   return (
@@ -145,7 +145,7 @@ import type { FormControl } from '../../../form/types/index';
  *         value={value}
  *         onChange={e => control.setValue(e.target.value)}
  *       />
- *       {shouldShowError && <span className="error">{message(issues[0])}</span>}
+ *       {shouldShowIssues && <span className="error">{message(issues[0])}</span>}
  *
  *       {/* Preview обновляется только при изменении value *}
  *       <MarkdownPreview control={control} />

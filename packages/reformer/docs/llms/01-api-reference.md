@@ -66,7 +66,7 @@
 
 | Hook | Return Type | Subscribes To | Use Case |
 |------|-------------|---------------|----------|
-| `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
+| `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, shouldShowIssues, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
 | `useFormFlow(bundle.flow)` | `{ current, index, completed, isFirst, isLast, validating }` | Сигналы потока шагов | Свои кнопки и индикатор шагов |

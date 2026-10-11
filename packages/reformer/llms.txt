@@ -115,7 +115,7 @@
 
 | Hook | Return Type | Subscribes To | Use Case |
 |------|-------------|---------------|----------|
-| `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
+| `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, shouldShowIssues, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
 | `useFormFlow(bundle.flow)` | `{ current, index, completed, isFirst, isLast, validating }` | Сигналы потока шагов | Свои кнопки и индикатор шагов |
@@ -382,7 +382,10 @@ interface FormNode<T> {
 interface FormControl<T> extends FormNode<T> {
   readonly component: ComponentRef | undefined;
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
-  readonly shouldShowError: ReadonlySignal<boolean>; // invalid && (touched || dirty)
+  // invalid && (touched || dirty) — состояние ошибки: aria-invalid, рамка
+  readonly shouldShowError: ReadonlySignal<boolean>;
+  // есть замечания (ошибки ИЛИ предупреждения) && (touched || dirty) — показ текстов замечаний
+  readonly shouldShowIssues: ReadonlySignal<boolean>;
   updateComponentProps(patch: Record<string, unknown>): void;
 }
 
@@ -2559,7 +2562,7 @@ import { formMessages } from './form.validation'; // defineIssueMessages — к�
 type MyFormFieldProps<T> = { control: FormControl<T> }; // ← ОДИН prop
 
 function MyFormField<T>({ control }: MyFormFieldProps<T>) {
-  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowIssues, componentProps } = useFormControl(control);
   const message = useIssueMessage(formMessages); // текст замечания по коду
   // componentProps = { label, placeholder, type, options, ... } — из СХЕМЫ
   const cp = (componentProps ?? {}) as Record<string, unknown>;
@@ -2575,7 +2578,8 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
         onChange={(e) => (control.setValue as (v: unknown) => void)(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {shouldShowError && issues[0] && <span>{message(issues[0])}</span>}
+      {/* shouldShowIssues — ошибки и предупреждения; shouldShowError — для aria-invalid */}
+      {shouldShowIssues && issues[0] && <span>{message(issues[0])}</span>}
     </label>
   );
 }
@@ -2632,7 +2636,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 function ShadcnFormField({ control }: { control: FormControl<string> }) {
-  const { value, issues, disabled, shouldShowError, componentProps } = useFormControl(control);
+  const { value, issues, disabled, shouldShowIssues, componentProps } = useFormControl(control);
   const message = useIssueMessage(formMessages);
   const cp = (componentProps ?? {}) as Record<string, unknown>;
 
@@ -2644,7 +2648,7 @@ function ShadcnFormField({ control }: { control: FormControl<string> }) {
         onChange={(e) => control.setValue(e.target.value)}
         disabled={disabled}
       />
-      {shouldShowError && issues[0] && <p className="text-red-500">{message(issues[0])}</p>}
+      {shouldShowIssues && issues[0] && <p className="text-red-500">{message(issues[0])}</p>}
     </div>
   );
 }
@@ -3153,7 +3157,8 @@ function MortgageFields({ form }: { form: FormGroup<CreditForm> }) {
 
 ```typescript
 // Полное состояние поля (объект); текст замечания — useIssueMessage(messages)(issues[0])
-const { value, issues, disabled, touched, shouldShowError } = useFormControl(control.email);
+// shouldShowIssues — показывать ли тексты замечаний; shouldShowError — aria-invalid
+const { value, issues, disabled, touched, shouldShowIssues } = useFormControl(control.email);
 
 // Только значение (напрямую, БЕЗ деструктуризации!)
 const email = useFormControlValue(control.email);
@@ -5183,10 +5188,10 @@ validateAsync(model.$.inn, [checkInnInRegistry]); // обращение к API �
 берётся из состояния ноды, свой флаг не нужен:
 
 ```tsx
-const { issues, pending, shouldShowError } = useFormControl(form.email);
+const { issues, pending, shouldShowIssues } = useFormControl(form.email);
 const message = useIssueMessage(formMessages); // @reformer/core/react
 
-return pending ? <Spinner /> : shouldShowError ? <Error text={message(issues[0])} /> : null;
+return pending ? <Spinner /> : shouldShowIssues ? <Error text={message(issues[0])} /> : null;
 ```
 
 Индикатор прогона всей формы — сигнал `bundle.validating` сборки (`createForm`): он истинен,
@@ -5811,8 +5816,8 @@ export const formMessages = defineIssueMessages({
 ```tsx
 function FieldIssues({ control }: { control: FormControl<string> }) {
   const message = useIssueMessage(formMessages);
-  const { issues, shouldShowError } = useFormControl(control);
-  return shouldShowError ? <span role="alert">{message(issues[0])}</span> : null;
+  const { issues, shouldShowIssues } = useFormControl(control);
+  return shouldShowIssues ? <span role="alert">{message(issues[0])}</span> : null;
 }
 ```
 
@@ -6369,8 +6374,9 @@ import { creditMessages } from './validation/messages';
 
 function FieldIssues({ control }: { control: FormControl<string> }) {
   const message = useIssueMessage(creditMessages); // словарь формы → локаль → английский → код
-  const { issues, shouldShowError } = useFormControl(control);
-  if (!shouldShowError) return null;
+  // shouldShowIssues — и у поля с одним предупреждением; shouldShowError — только у невалидного
+  const { issues, shouldShowIssues } = useFormControl(control);
+  if (!shouldShowIssues) return null;
   return (
     <ul role="alert">
       {issues.map((issue) => (
@@ -7181,8 +7187,9 @@ _Source: src/form/behaviors/collections.ts_
 Отменённый результат (`status: 'cancelled'`) не разносится: его async-часть оборвана.
 
 `options.touch`: пометить `touched` ИМЕННО поля, которые схема проверяла (не всё поддерево).
-Ошибки становятся видимыми (`shouldShowError = invalid && (touched || dirty)`) без ручного
-`form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается «тронутым».
+Замечания становятся видимыми (`shouldShowIssues`: есть замечания и `touched || dirty`) без
+ручного `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается
+«тронутым».
 
 **Signature:**
 ```typescript
@@ -9041,25 +9048,42 @@ export interface FieldControlState<T> {
   touched: boolean;
 
   /**
-   * Флаг для отображения ошибки.
-   * Комбинация touched && invalid - удобный shortcut для UI.
+   * Показывать ли состояние ошибки — `aria-invalid`, рамку: поле невалидно и его трогали или
+   * меняли. Предупреждение (`severity: 'warning'`) поле невалидным не делает, поэтому для текстов
+   * замечаний есть {@link FieldControlState.shouldShowIssues}.
    *
    * @example
    * ```tsx
-   * const { shouldShowError, issues } = useFormControl(field);
+   * const { shouldShowError } = useFormControl(field);
+   *
+   * return <input {...props} aria-invalid={shouldShowError} />;
+   * ```
+   */
+  shouldShowError: boolean;
+
+  /**
+   * Показывать ли тексты замечаний: у поля есть замечания — ошибки или предупреждения, — и его
+   * трогали или меняли.
+   *
+   * @example
+   * ```tsx
+   * const { shouldShowError, shouldShowIssues, issues } = useFormControl(field);
    * const message = useIssueMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <div>
-   *     <input {...props} />
-   *     {shouldShowError && (
-   *       <span className="error">{message(issues[0])}</span>
-   *     )}
+   *     <input {...props} aria-invalid={shouldShowError} />
+   *     {shouldShowIssues &&
+   *       issues.map((issue) => (
+   *         <span key={issue.code} className={issue.severity === 'warning' ? 'warning' : 'error'}>
+   *           {message(issue)}
+   *         </span>
+   *       ))}
    *   </div>
    * );
    * ```
    */
-  shouldShowError: boolean;
+  shouldShowIssues: boolean;
 
   /**
    * Пользовательские props для передачи в UI-компоненты.
@@ -9125,7 +9149,7 @@ value={state.value}
 disabled={state.disabled}
 onChange={e => control.setValue(e.target.value)}
 />
-{state.shouldShowError && state.issues[0] && (
+{state.shouldShowIssues && state.issues[0] && (
 <span className="error">{message(state.issues[0])}</span>
 )}
 </div>
@@ -9451,8 +9475,18 @@ export interface FormControl<T> extends FormNode<T> {
   readonly component: ComponentRef | undefined;
   /** Пропсы компонента: из узла схемы и правок {@link FormControl.updateComponentProps}. */
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
-  /** Показывать ли замечание: поле невалидно и его трогали или меняли. */
+  /**
+   * Показывать ли состояние ошибки (`aria-invalid`, рамка): поле невалидно и его трогали или
+   * меняли. Предупреждение (`severity: 'warning'`) поле невалидным не делает — тексты замечаний
+   * показывают по {@link FormControl.shouldShowIssues}.
+   */
   readonly shouldShowError: ReadonlySignal<boolean>;
+  /**
+   * Показывать ли тексты замечаний: у поля есть замечания — ошибки или предупреждения, — и его
+   * трогали или меняли. Условия те же, что у {@link FormControl.shouldShowError} (не выключено,
+   * проверка не идёт), но в счёт идёт любое замечание, а не только блокирующее.
+   */
+  readonly shouldShowIssues: ReadonlySignal<boolean>;
   /** Слить правку в пропсы компонента (например, опции после загрузки справочника). */
   updateComponentProps(patch: Record<string, unknown>): void;
 }
@@ -13425,6 +13459,7 @@ const {
 value,
 disabled,
 shouldShowError,
+shouldShowIssues,
 issues,
 pending
 } = useFormControl(control);
@@ -13447,7 +13482,7 @@ return (
 {pending && <Spinner />}
 </div>
 
-{shouldShowError && issues[0] && (
+{shouldShowIssues && issues[0] && (
 <span className="error" role="alert">
  {message(issues[0])}
 </span>
@@ -13496,7 +13531,7 @@ control: FormControl<string>;
 }
 
 function Select({ control }: SelectProps) {
-const { value, disabled, componentProps, shouldShowError, issues } = useFormControl(control);
+const { value, disabled, componentProps, shouldShowIssues, issues } = useFormControl(control);
 const message = useIssueMessage(); // из '@reformer/core/react'
 const options = componentProps.options as Array<{ value: string; label: string }>;
 
@@ -13515,7 +13550,7 @@ onBlur={() => control.markAsTouched()}
  </option>
 ))}
 </select>
-{shouldShowError && <span className="error">{message(issues[0])}</span>}
+{shouldShowIssues && <span className="error">{message(issues[0])}</span>}
 </div>
 );
 }
@@ -13753,7 +13788,7 @@ dangerouslySetInnerHTML={{ __html: html }}
 
 // Основной редактор использует useFormControl для полного состояния
 function MarkdownEditor({ control }: MarkdownEditorProps) {
-const { value, shouldShowError, issues } = useFormControl(control);
+const { value, shouldShowIssues, issues } = useFormControl(control);
 const message = useIssueMessage(); // из '@reformer/core/react'
 
 return (
@@ -13762,7 +13797,7 @@ return (
 value={value}
 onChange={e => control.setValue(e.target.value)}
 />
-{shouldShowError && <span className="error">{message(issues[0])}</span>}
+{shouldShowIssues && <span className="error">{message(issues[0])}</span>}
 
 {/* Preview обновляется только при изменении value *}
 <MarkdownPreview control={control} />

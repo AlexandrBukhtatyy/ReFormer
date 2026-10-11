@@ -259,8 +259,9 @@ export async function runValidation<T>(
  * Отменённый результат (`status: 'cancelled'`) не разносится: его async-часть оборвана.
  *
  * `options.touch`: пометить `touched` ИМЕННО поля, которые схема проверяла (не всё поддерево).
- * Ошибки становятся видимыми (`shouldShowError = invalid && (touched || dirty)`) без ручного
- * `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается «тронутым».
+ * Замечания становятся видимыми (`shouldShowIssues`: есть замечания и `touched || dirty`) без
+ * ручного `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается
+ * «тронутым».
  *
  * @param result - Результат {@link runValidation}.
  * @param options - `{ touch }` — пометить проверенные поля `touched` для показа ошибок.

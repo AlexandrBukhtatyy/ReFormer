@@ -40,6 +40,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly component: ComponentRef | undefined;
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
   readonly shouldShowError: ReadonlySignal<boolean>;
+  readonly shouldShowIssues: ReadonlySignal<boolean>;
 
   private readonly source: Signal<T>;
   /** Значение на момент построения — к нему возвращает {@link reset} без аргумента. */
@@ -70,8 +71,12 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
     this.issues = this.issueState.list;
     this.ownIssues = this.issueState.list;
     this.componentProps = this.componentState.props;
-    this.shouldShowError = computed(
-      () => this.invalid.value && (this.touched.value || this.dirty.value)
+    const revealed = computed(() => this.touched.value || this.dirty.value);
+    this.shouldShowError = computed(() => this.invalid.value && revealed.value);
+    // То же условие, что у ошибки, но для любого замечания: предупреждение поле невалидным не
+    // делает, а показать его нужно.
+    this.shouldShowIssues = computed(
+      () => !disabled.value && !this.pending.value && this.issues.value.length > 0 && revealed.value
     );
   }
 

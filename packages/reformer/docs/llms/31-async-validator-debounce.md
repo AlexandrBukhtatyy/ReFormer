@@ -124,10 +124,10 @@ validateAsync(model.$.inn, [checkInnInRegistry]); // обращение к API �
 берётся из состояния ноды, свой флаг не нужен:
 
 ```tsx
-const { issues, pending, shouldShowError } = useFormControl(form.email);
+const { issues, pending, shouldShowIssues } = useFormControl(form.email);
 const message = useIssueMessage(formMessages); // @reformer/core/react
 
-return pending ? <Spinner /> : shouldShowError ? <Error text={message(issues[0])} /> : null;
+return pending ? <Spinner /> : shouldShowIssues ? <Error text={message(issues[0])} /> : null;
 ```
 
 Индикатор прогона всей формы — сигнал `bundle.validating` сборки (`createForm`): он истинен,

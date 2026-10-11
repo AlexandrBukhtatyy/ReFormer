@@ -68,6 +68,7 @@ export function useFormControlTypeChecks(): void {
   const email: FieldControlState<string> = useFormControl(form.email);
   const emailIssues: ValidationIssue[] = email.issues;
   const showError: boolean = email.shouldShowError;
+  const showIssues: boolean = email.shouldShowIssues;
   const props: Record<string, unknown> = email.componentProps;
   // Пустое значение поля остаётся в типе снимка.
   const age: number | null = useFormControl(form.age).value;
@@ -90,6 +91,8 @@ export function useFormControlTypeChecks(): void {
   void tags.length;
   // @ts-expect-error — у массива под-форм нет `shouldShowError`: ошибку строки показывает строка
   void phones.shouldShowError;
+  // @ts-expect-error — и `shouldShowIssues` тоже: свои замечания массива — в `ownIssues`
+  void phones.shouldShowIssues;
   // @ts-expect-error — у группы снимка нет: хук — для поля и массива под-форм
   useFormControl(form.address);
   // поведение под вопросом: `undefined` даёт снимок МАССИВА (`length`, `value: []`), поэтому
@@ -97,7 +100,8 @@ export function useFormControlTypeChecks(): void {
   // @ts-expect-error — необязательное поле: перегрузка с `undefined` есть только у массива
   useFormControl(optionalEmail);
 
-  void [emailIssues, showError, props, age, phoneCount, phoneValues, ownIssues, empty, optional];
+  void [emailIssues, showError, showIssues, props, age, phoneCount, phoneValues, ownIssues, empty];
+  void optional;
   void strictAge;
 }
 

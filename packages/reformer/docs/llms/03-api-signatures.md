@@ -61,7 +61,10 @@ interface FormNode<T> {
 interface FormControl<T> extends FormNode<T> {
   readonly component: ComponentRef | undefined;
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
-  readonly shouldShowError: ReadonlySignal<boolean>; // invalid && (touched || dirty)
+  // invalid && (touched || dirty) — состояние ошибки: aria-invalid, рамка
+  readonly shouldShowError: ReadonlySignal<boolean>;
+  // есть замечания (ошибки ИЛИ предупреждения) && (touched || dirty) — показ текстов замечаний
+  readonly shouldShowIssues: ReadonlySignal<boolean>;
   updateComponentProps(patch: Record<string, unknown>): void;
 }
 

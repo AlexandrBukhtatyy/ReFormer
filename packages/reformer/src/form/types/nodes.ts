@@ -82,8 +82,18 @@ export interface FormControl<T> extends FormNode<T> {
   readonly component: ComponentRef | undefined;
   /** Пропсы компонента: из узла схемы и правок {@link FormControl.updateComponentProps}. */
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
-  /** Показывать ли замечание: поле невалидно и его трогали или меняли. */
+  /**
+   * Показывать ли состояние ошибки (`aria-invalid`, рамка): поле невалидно и его трогали или
+   * меняли. Предупреждение (`severity: 'warning'`) поле невалидным не делает — тексты замечаний
+   * показывают по {@link FormControl.shouldShowIssues}.
+   */
   readonly shouldShowError: ReadonlySignal<boolean>;
+  /**
+   * Показывать ли тексты замечаний: у поля есть замечания — ошибки или предупреждения, — и его
+   * трогали или меняли. Условия те же, что у {@link FormControl.shouldShowError} (не выключено,
+   * проверка не идёт), но в счёт идёт любое замечание, а не только блокирующее.
+   */
+  readonly shouldShowIssues: ReadonlySignal<boolean>;
   /** Слить правку в пропсы компонента (например, опции после загрузки справочника). */
   updateComponentProps(patch: Record<string, unknown>): void;
 }

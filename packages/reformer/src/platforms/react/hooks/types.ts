@@ -25,7 +25,7 @@ import type { ValidationIssue } from '../../../form/types/index';
  *         disabled={state.disabled}
  *         onChange={e => control.setValue(e.target.value)}
  *       />
- *       {state.shouldShowError && state.issues[0] && (
+ *       {state.shouldShowIssues && state.issues[0] && (
  *         <span className="error">{message(state.issues[0])}</span>
  *       )}
  *     </div>
@@ -156,25 +156,42 @@ export interface FieldControlState<T> {
   touched: boolean;
 
   /**
-   * Флаг для отображения ошибки.
-   * Комбинация touched && invalid - удобный shortcut для UI.
+   * Показывать ли состояние ошибки — `aria-invalid`, рамку: поле невалидно и его трогали или
+   * меняли. Предупреждение (`severity: 'warning'`) поле невалидным не делает, поэтому для текстов
+   * замечаний есть {@link FieldControlState.shouldShowIssues}.
    *
    * @example
    * ```tsx
-   * const { shouldShowError, issues } = useFormControl(field);
+   * const { shouldShowError } = useFormControl(field);
+   *
+   * return <input {...props} aria-invalid={shouldShowError} />;
+   * ```
+   */
+  shouldShowError: boolean;
+
+  /**
+   * Показывать ли тексты замечаний: у поля есть замечания — ошибки или предупреждения, — и его
+   * трогали или меняли.
+   *
+   * @example
+   * ```tsx
+   * const { shouldShowError, shouldShowIssues, issues } = useFormControl(field);
    * const message = useIssueMessage(); // из '@reformer/core/react'
    *
    * return (
    *   <div>
-   *     <input {...props} />
-   *     {shouldShowError && (
-   *       <span className="error">{message(issues[0])}</span>
-   *     )}
+   *     <input {...props} aria-invalid={shouldShowError} />
+   *     {shouldShowIssues &&
+   *       issues.map((issue) => (
+   *         <span key={issue.code} className={issue.severity === 'warning' ? 'warning' : 'error'}>
+   *           {message(issue)}
+   *         </span>
+   *       ))}
    *   </div>
    * );
    * ```
    */
-  shouldShowError: boolean;
+  shouldShowIssues: boolean;
 
   /**
    * Пользовательские props для передачи в UI-компоненты.

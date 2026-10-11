@@ -133,7 +133,7 @@ BA-41). Проверять результат — после `await settle()` (�
 | `FormArray`: `insert`, `move`, `swap`, `map`, `removeAt`   | arrays-lifecycle · AL-01, AL-03, AL-02, AL-06, AL-07; loan-form.property · LP-03                                                                                                                          |
 | `dirty` массива (известный дефект `ReFormer-j33t`)         | arrays-lifecycle · AL-15                                                                                                                                                                                  |
 | `markAsTouched`, `touched`                                 | bundle-assembly · BA-26; wizard-happy-path · WH-03; live-strategies · LS-04; submit-statuses · SS-11, SS-17                                                                                               |
-| `valid`, `issues`, `shouldShowError`                       | wizard-happy-path · WH-01, WH-02, WH-08, WH-09; bundle-assembly · BA-06; submit-statuses · SS-14, SS-17; live-strategies · LS-02, LS-04; react-assembly · RA-19, RA-20; loan-form.property · LP-02, LP-03 |
+| `valid`, `issues`, `shouldShowError`, `shouldShowIssues`   | wizard-happy-path · WH-01, WH-02, WH-08, WH-09; bundle-assembly · BA-06; submit-statuses · SS-14, SS-17; live-strategies · LS-02, LS-04; react-assembly · RA-19, RA-20; loan-form.property · LP-02, LP-03 |
 | `ownIssues` (замечание на ручке массива)                   | bundle-assembly · BA-43; arrays-lifecycle · AL-13; reset-and-loading · RL-05                                                                                                                              |
 | `pending`                                                  | async-and-races · AR-01, AR-06, AR-11, AR-12; submit-statuses · SS-07                                                                                                                                     |
 | `setIssues` / `clearIssues` извне                          | submit-statuses · SS-14, SS-15, SS-16, SS-18; reset-and-loading · RL-05; arrays-lifecycle · AL-09                                                                                                         |
@@ -282,25 +282,25 @@ BA-41). Проверять результат — после `await settle()` (�
 
 Исправлены — тесты закрепляют исправленное поведение:
 
-| Задача          | Тест                                                                       | Суть                                                                                                                             |
-| --------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `ReFormer-qesu` | bundle-assembly · BA-40                                                    | `enableWhen` со сбросом выполнял решение, принятое при планировании: загрузка в том же тике после сборки теряла данные           |
-| `ReFormer-h4d6` | bundle-assembly · BA-41                                                    | `copyFrom` группы писал снимок источника, снятый при прогоне, и не перепроверял `when`                                           |
-| `ReFormer-kowh` | conditional-branches · CB-13                                               | проверка формы считала поле, включённое поведением внутри выключенной группы, а `form.valid` — нет                               |
-| `ReFormer-y66c` | async-and-races · AR-13                                                    | `onChange` с `debounce` отменял прежний запрос через задержку, а не при смене значения: устаревший ответ применялся              |
-| `ReFormer-t6qm` | live-strategies · LS-05, LS-09                                             | стратегия `blur` видела только первый уход из поля; после отказа шага или отправки живой проверки по уходу не было               |
-| `ReFormer-fnzr` | i18n-messages · IM-14                                                      | перечень в параметрах замечания по-русски выводился без запятых                                                                  |
-| `ReFormer-4xy9` | dispose-and-leaks · DL-07                                                  | `controller.dispose()` не отменял идущий живой прогон: ответ async-правила ложился на ноды снятой формы                          |
-| `ReFormer-68sy` | dispose-and-leaks · DL-33                                                  | формы строк вложенного массива удалённой строки жили до следующего изменения внешнего массива                                    |
-| `ReFormer-e9rw` | reset-and-loading · RL-11, RL-12, RL-13; loan-form.property · LP-05, LP-06 | сброс обнулял цель `compute`, а свежая форма была dirty: производные поля участвовали в снимке модели и в значениях создания нод |
-| `ReFormer-xt4x` | submit-statuses · SS-09; form-level                                        | правка поля во время проверки отправки уходила обработчику непроверенной — теперь отправка отменяется (cancelled)                |
+| Задача          | Тест                                                                       | Суть                                                                                                                                                                  |
+| --------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ReFormer-qesu` | bundle-assembly · BA-40                                                    | `enableWhen` со сбросом выполнял решение, принятое при планировании: загрузка в том же тике после сборки теряла данные                                                |
+| `ReFormer-h4d6` | bundle-assembly · BA-41                                                    | `copyFrom` группы писал снимок источника, снятый при прогоне, и не перепроверял `when`                                                                                |
+| `ReFormer-kowh` | conditional-branches · CB-13                                               | проверка формы считала поле, включённое поведением внутри выключенной группы, а `form.valid` — нет                                                                    |
+| `ReFormer-y66c` | async-and-races · AR-13                                                    | `onChange` с `debounce` отменял прежний запрос через задержку, а не при смене значения: устаревший ответ применялся                                                   |
+| `ReFormer-t6qm` | live-strategies · LS-05, LS-09                                             | стратегия `blur` видела только первый уход из поля; после отказа шага или отправки живой проверки по уходу не было                                                    |
+| `ReFormer-fnzr` | i18n-messages · IM-14                                                      | перечень в параметрах замечания по-русски выводился без запятых                                                                                                       |
+| `ReFormer-4xy9` | dispose-and-leaks · DL-07                                                  | `controller.dispose()` не отменял идущий живой прогон: ответ async-правила ложился на ноды снятой формы                                                               |
+| `ReFormer-68sy` | dispose-and-leaks · DL-33                                                  | формы строк вложенного массива удалённой строки жили до следующего изменения внешнего массива                                                                         |
+| `ReFormer-e9rw` | reset-and-loading · RL-11, RL-12, RL-13; loan-form.property · LP-05, LP-06 | сброс обнулял цель `compute`, а свежая форма была dirty: производные поля участвовали в снимке модели и в значениях создания нод                                      |
+| `ReFormer-xt4x` | submit-statuses · SS-09; form-level                                        | правка поля во время проверки отправки уходила обработчику непроверенной — теперь отправка отменяется (cancelled)                                                     |
+| `ReFormer-dp34` | react-assembly · RA-20; form-control-should-show-issues                    | предупреждение на поле без ошибок не показывалось: показ текста решал shouldShowError, истинный только у невалидного поля — теперь тексты показывает shouldShowIssues |
 
 Открыты — закреплены `it.fails`, тест покраснеет после исправления:
 
-| Задача          | Тест                     | Суть                                                                                                   |
-| --------------- | ------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `ReFormer-dp34` | react-assembly · RA-20   | предупреждение на поле без ошибок не показывается: `shouldShowError` истинен только у невалидного поля |
-| `ReFormer-j33t` | arrays-lifecycle · AL-15 | удаление строки не делает массив dirty                                                                 |
+| Задача          | Тест                     | Суть                                   |
+| --------------- | ------------------------ | -------------------------------------- |
+| `ReFormer-j33t` | arrays-lifecycle · AL-15 | удаление строки не делает массив dirty |
 
 Поведение под вопросом — закреплено как есть, с комментарием в тесте и задачей на решение:
 

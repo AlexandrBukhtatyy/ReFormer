@@ -111,6 +111,7 @@ describe('useFormControl — поле', () => {
       touched: false,
       dirty: false,
       shouldShowError: false,
+      shouldShowIssues: false,
       componentProps: { label: 'Почта' },
     });
   });
@@ -131,6 +132,20 @@ describe('useFormControl — поле', () => {
       (form) => form.email.setIssues([{ code: 'required' }]),
       (s) => [s.issues.map((issue) => issue.code), s.invalid],
       [['required'], true],
+    ],
+    [
+      'ошибка у тронутого поля',
+      (form) => form.email.markAsTouched(),
+      (form) => form.email.setIssues([{ code: 'required' }]),
+      (s) => [s.shouldShowError, s.shouldShowIssues],
+      [true, true],
+    ],
+    [
+      'предупреждение у тронутого поля',
+      (form) => form.email.markAsTouched(),
+      (form) => form.email.setIssues([{ code: 'email.rare', severity: 'warning' }]),
+      (s) => [s.shouldShowError, s.shouldShowIssues, s.valid],
+      [false, true, true],
     ],
     ['отключение', () => {}, (form) => form.email.disable(), (s) => s.disabled, true],
     [

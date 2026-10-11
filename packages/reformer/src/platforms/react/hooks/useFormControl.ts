@@ -19,6 +19,7 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     touched: control.touched,
     dirty: control.dirty,
     shouldShowError: control.shouldShowError,
+    shouldShowIssues: control.shouldShowIssues,
     componentProps: control.componentProps,
   };
 
@@ -32,6 +33,7 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     { key: 'touched' },
     { key: 'dirty' },
     { key: 'shouldShowError' },
+    { key: 'shouldShowIssues' },
     { key: 'componentProps' },
   ];
 
@@ -45,6 +47,7 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     touched: values.touched as boolean,
     dirty: values.dirty as boolean,
     shouldShowError: values.shouldShowError as boolean,
+    shouldShowIssues: values.shouldShowIssues as boolean,
     componentProps: values.componentProps as Record<string, unknown>,
   });
 
@@ -184,6 +187,7 @@ export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>
  *     value,
  *     disabled,
  *     shouldShowError,
+ *     shouldShowIssues,
  *     issues,
  *     pending
  *   } = useFormControl(control);
@@ -206,7 +210,7 @@ export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>
  *         {pending && <Spinner />}
  *       </div>
  *
- *       {shouldShowError && issues[0] && (
+ *       {shouldShowIssues && issues[0] && (
  *         <span className="error" role="alert">
  *           {message(issues[0])}
  *         </span>
@@ -255,7 +259,7 @@ export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>
  * }
  *
  * function Select({ control }: SelectProps) {
- *   const { value, disabled, componentProps, shouldShowError, issues } = useFormControl(control);
+ *   const { value, disabled, componentProps, shouldShowIssues, issues } = useFormControl(control);
  *   const message = useIssueMessage(); // из '@reformer/core/react'
  *   const options = componentProps.options as Array<{ value: string; label: string }>;
  *
@@ -274,7 +278,7 @@ export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>
  *           </option>
  *         ))}
  *       </select>
- *       {shouldShowError && <span className="error">{message(issues[0])}</span>}
+ *       {shouldShowIssues && <span className="error">{message(issues[0])}</span>}
  *     </div>
  *   );
  * }
