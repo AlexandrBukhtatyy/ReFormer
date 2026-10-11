@@ -406,7 +406,7 @@ describe('validate_form kind=layout', () => {
       'components/steps/BasicInfo/BasicInfoForm.tsx',
       'constants/credit-application.ts',
       'flow/credit-application-flow.ts',
-      'hooks/useAddressCopy.ts',
+      'hooks/useValueCopy.ts',
       'model/model.ts',
       'model/factories/address.ts',
       'schema/form.ts',

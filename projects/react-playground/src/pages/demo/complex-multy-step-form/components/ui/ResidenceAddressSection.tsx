@@ -5,12 +5,14 @@
  * - Копировать данные из адреса регистрации
  * - Очистить адрес проживания
  *
- * Использует useAddressCopy хук для логики копирования.
+ * Использует useValueCopy хук для логики копирования; ноды адресов берёт из контекста визарда.
  */
 
 import type { ReactNode } from 'react';
+import { useFormWizard } from '@reformer/cdk/form-wizard';
 import { Button } from '@reformer/ui-kit';
-import { useAddressCopy } from '../../hooks/useAddressCopy';
+import { useValueCopy } from '../../hooks/useValueCopy';
+import type { CreditApplicationForm } from '../../types/credit-application';
 
 interface ResidenceAddressSectionProps {
   /** CSS классы */
@@ -31,18 +33,19 @@ export function ResidenceAddressSection({
   className = 'space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200',
   children,
 }: ResidenceAddressSectionProps): ReactNode {
-  const { copyRegistrationAddress, clearResidenceAddress } = useAddressCopy();
+  const { form } = useFormWizard<CreditApplicationForm>();
+  const { copy, reset } = useValueCopy(form.registrationAddress, form.residenceAddress);
 
   return (
     <div className={className}>
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Адрес проживания</h3>
-        <Button onClick={copyRegistrationAddress}>Скопировать из адреса регистрации</Button>
+        <Button onClick={copy}>Скопировать из адреса регистрации</Button>
       </div>
 
       {children}
 
-      <Button onClick={clearResidenceAddress}>Очистить адрес проживания</Button>
+      <Button onClick={reset}>Очистить адрес проживания</Button>
     </div>
   );
 }
