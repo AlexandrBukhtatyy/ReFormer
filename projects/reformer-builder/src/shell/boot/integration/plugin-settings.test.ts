@@ -44,14 +44,15 @@ const manifest = (id: string): string =>
 const PLUGIN_SOURCE = `
   const { CatalogPluginSettingsPoint, definePlugin } = require('@builder/sdk');
   const SCHEMA = {
+    format: 2,
     version: '1.0',
     root: {
       $nodeId: 'root',
       component: '$html(div)',
       children: [
-        { $nodeId: 'endpoint', component: '$component(Input)', value: '$model(endpoint)',
+        { $nodeId: 'endpoint', component: '$component(Input)', model: '$model(endpoint)',
           componentProps: { label: 'Адрес сервиса' } },
-        { $nodeId: 'verbose', component: '$component(Switch)', value: '$model(verbose)',
+        { $nodeId: 'verbose', component: '$component(Switch)', model: '$model(verbose)',
           componentProps: { label: 'Подробный журнал' } },
       ],
     },

@@ -12,10 +12,39 @@ import { describe, expect, it } from 'vitest';
 import { asFormSchema } from './schema-guard';
 
 describe('схема настроек плагина', () => {
-  it('объект с корнем — принимается', () => {
-    const schema = { version: '1.0', root: { component: '$html(div)' } };
+  it('схема формата 2 принимается той же ссылкой', () => {
+    const schema = { format: 2, version: '1.0', root: { component: '$html(div)' } };
 
     expect(asFormSchema(schema)).toBe(schema);
+  });
+
+  it('схема прежнего формата переводится в формат 2', () => {
+    // Плагин, написанный до формата 2, обязан работать без правок: единая сборка прежний
+    // документ не собирает.
+    const legacy = {
+      version: '1.0',
+      root: {
+        component: '$html(div)',
+        children: [{ component: '$component(Input)', value: '$model(endpoint)' }],
+      },
+    };
+
+    expect(asFormSchema(legacy)).toEqual({
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$html(div)',
+        children: [{ component: '$component(Input)', model: '$model(endpoint)' }],
+      },
+    });
+  });
+
+  it('перевод один на объект вклада: ссылка стабильна между вызовами', () => {
+    // Проверка зовётся на каждый кадр, а форма настроек пересобирается на смену ссылки схемы:
+    // новый объект на каждый вызов отнимал бы фокус у поля на первом же символе.
+    const legacy = { version: '1.0', root: { component: '$component(Input)', value: '$model(x)' } };
+
+    expect(asFormSchema(legacy)).toBe(asFormSchema(legacy));
   });
 
   it('без корня — не схема: конвертеру нечего строить', () => {

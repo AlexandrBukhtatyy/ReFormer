@@ -27,7 +27,7 @@ import {
   defineRegistry,
   FIELD_WRAPPER,
   type ComponentRegistry,
-  type JsonFormSchemaV1 as JsonFormSchema,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { Box } from '@reformer/ui-kit/box';
 import { CheckboxWithLabel } from '@reformer/ui-kit/checkbox';

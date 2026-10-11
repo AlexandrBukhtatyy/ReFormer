@@ -25,19 +25,18 @@
  */
 
 import { useEffect, useMemo, useRef, type ReactElement } from 'react';
-import {
-  createJsonForm,
-  JsonFormRenderer,
-  JsonRendererProvider,
-  type JsonForm,
-  type JsonFormSchemaV1 as JsonFormSchema,
-} from '@reformer/renderer-json';
+import { createForm, type FormBundle } from '@reformer/core';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import { FormRenderer } from '@reformer/renderer-react';
 import { initialValuesOf } from './initial-values';
 import type { PluginSettingsValues } from '@/shell/platform/services/plugin-settings';
 import { buildChromeRegistry } from './chrome-registry';
 
 export interface PluginSettingsFormProps {
-  /** Схема плагина. Тип уже сужен композицией — сюда непроверенное не доходит. */
+  /**
+   * Схема плагина в формате 2. Тип уже сужен композицией (`./schema-guard`): непроверенное сюда
+   * не доходит, а схема прежнего формата приходит уже переведённой.
+   */
   readonly schema: JsonFormSchema;
   /** Сохранённые значения (уже с умолчаниями плагина поверх — их подставила служба). */
   readonly values: PluginSettingsValues;
@@ -48,7 +47,7 @@ export interface PluginSettingsFormProps {
 }
 
 type BuildResult =
-  | { readonly ok: true; readonly bundle: JsonForm<Record<string, unknown>> }
+  | { readonly ok: true; readonly bundle: FormBundle<Record<string, unknown>> }
   | { readonly ok: false; readonly message: string };
 
 export function PluginSettingsForm({
@@ -62,10 +61,11 @@ export function PluginSettingsForm({
   const built = useMemo<BuildResult>(() => {
     try {
       const initial = { ...initialValuesOf(schema), ...values };
-      const bundle = createJsonForm<Record<string, unknown>>({
+      // Единая сборка — та же, что у форм клиента: дерево из документа строит реестр.
+      const bundle = createForm<Record<string, unknown>>({
+        initial,
         schema,
         registry: buildChromeRegistry(schema),
-        initial,
       });
       return { ok: true, bundle };
     } catch (error) {
@@ -104,9 +104,6 @@ export function PluginSettingsForm({
 
   if (!built.ok) return renderFailure(built.message);
 
-  return (
-    <JsonRendererProvider settings={{ registry: built.bundle.registry }}>
-      <JsonFormRenderer form={built.bundle} />
-    </JsonRendererProvider>
-  );
+  // Обёртку поля и границу ошибок схемы рендерер берёт из бандла: их положил туда реестр.
+  return <FormRenderer form={built.bundle} />;
 }

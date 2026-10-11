@@ -27,6 +27,7 @@ import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
 import { createPluginsSettingsBody } from './PluginsSettings';
 import type { PluginCatalogEntry, PluginSettingsHost, PluginsSettingsPort } from './plugins-list';
 import type { PluginsMarketplacePort } from './plugins-tabs';
+import { asFormSchema } from './schema-guard';
 
 /** Каталог-двойник: помнит вызовы и умеет сообщить подписчикам, что список изменился. */
 function fakeCatalog(initial: readonly PluginCatalogEntry[], state?: { hasProject?: boolean }) {
@@ -200,13 +201,18 @@ describe('раздел настроек «Плагины»', () => {
   });
 });
 
-/** Двойник настроек плагина: схема одного поля и значения в памяти. */
+/**
+ * Двойник настроек плагина: схема одного поля и значения в памяти.
+ *
+ * Схема проходит ту же проверку, что в композиции (`boot` → `asFormSchema`): она же переводит
+ * схему прежнего формата — а именно такой её и пишет автор плагина ниже.
+ */
 function fakeSettingsHost(schema: unknown, initial: Record<string, unknown> = {}) {
   let values = { ...initial };
   const listeners = new Set<() => void>();
   const writes: Record<string, unknown>[] = [];
   const host: PluginSettingsHost = {
-    schemaOf: () => schema,
+    schemaOf: () => asFormSchema(schema),
     read: () => values,
     write: (_id, next) => {
       writes.push({ ...next });
@@ -222,7 +228,10 @@ function fakeSettingsHost(schema: unknown, initial: Record<string, unknown> = {}
   return { host, writes };
 }
 
-/** Схема настроек «как её напишет автор плагина»: одно текстовое поле. */
+/**
+ * Схема настроек «как её напишет автор плагина»: одно текстовое поле. Формат прежний (привязка
+ * в `value`) — намеренно: плагины, написанные до формата 2, обязаны работать без правок.
+ */
 const ENDPOINT_SCHEMA = {
   version: '1.0',
   root: {

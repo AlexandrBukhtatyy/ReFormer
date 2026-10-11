@@ -17,14 +17,14 @@
  */
 
 import {
-  isArrayNodeV1 as isArrayNode,
-  isContainerNodeV1 as isContainerNode,
-  isFieldNodeV1 as isFieldNode,
+  isArrayNode,
+  isContainerNode,
+  isFieldNode,
   parseOperator,
-  type JsonContainerNodeV1 as JsonContainerNode,
-  type JsonFieldNodeV1 as JsonFieldNode,
-  type JsonFormSchemaV1 as JsonFormSchema,
-  type JsonNodeV1 as JsonNode,
+  type JsonContainerNode,
+  type JsonFieldNode,
+  type JsonFormSchema,
+  type JsonNode,
 } from '@reformer/renderer-json';
 
 /** Компоненты chrome с булевым значением (см. `CHROME_COMPONENTS`). */
@@ -32,7 +32,9 @@ const BOOLEAN_CHROME: ReadonlySet<string> = new Set(['Checkbox', 'Switch']);
 
 function isNodeLike(value: unknown): value is JsonNode {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  return 'value' in value || 'array' in value || 'component' in value;
+  // Формат 2: привязка поля и массива — ключ `model` (схему прежнего формата переводит
+  // `./schema-guard` до того, как она попадает сюда).
+  return 'model' in value || 'component' in value;
 }
 
 function defaultOf(node: JsonFieldNode): unknown {
@@ -65,12 +67,12 @@ export function initialValuesOf(schema: JsonFormSchema): Record<string, unknown>
   const root: Record<string, unknown> = {};
   const visit = (node: JsonNode): void => {
     if (isArrayNode(node)) {
-      const parsed = parseOperator(node.array);
+      const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') setNested(root, parsed.arg.split('.'), []);
       return;
     }
     if (isFieldNode(node)) {
-      const parsed = parseOperator(node.value);
+      const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') setNested(root, parsed.arg.split('.'), defaultOf(node));
       return;
     }
@@ -117,6 +119,8 @@ export function operatorNamesOf(schema: JsonFormSchema): SettingsOperatorNames {
   };
 
   scan(schema.root);
+  // Разметка подформ лежит вне дерева корня, но строится теми же компонентами.
+  scan(schema.parts);
   return {
     components: [...components],
     dataSources: [...dataSources],

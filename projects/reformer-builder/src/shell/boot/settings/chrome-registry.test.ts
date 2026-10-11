@@ -8,12 +8,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FIELD_WRAPPER, type JsonFormSchemaV1 as JsonFormSchema } from '@reformer/renderer-json';
+import { FIELD_WRAPPER, type JsonFormSchema } from '@reformer/renderer-json';
 import { buildChromeRegistry, CHROME_COMPONENT_NAMES } from './chrome-registry';
 
 /** Минимальная схема с одним полем заданного компонента. */
 const schemaWith = (component: string, extra: Record<string, unknown> = {}): JsonFormSchema =>
   ({
+    format: 2,
     version: '1.0',
     root: {
       $nodeId: 'root',
@@ -22,7 +23,7 @@ const schemaWith = (component: string, extra: Record<string, unknown> = {}): Jso
         {
           $nodeId: 'field',
           component: `$component(${component})`,
-          value: '$model(x)',
+          model: '$model(x)',
           componentProps: { label: 'Поле', ...extra },
         },
       ],
