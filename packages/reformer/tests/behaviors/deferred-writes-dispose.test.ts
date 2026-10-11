@@ -33,6 +33,7 @@ import {
 import type { FormGroup } from '../../src/form/types/index';
 import { disposeForm } from '../test-utils/dispose-form';
 import { tick } from '../test-utils/async';
+import { disposeProbeChecks, type DisposeProbe } from '../test-utils/dispose-probe';
 
 interface Row {
   n: number;
@@ -91,22 +92,34 @@ const lastToHundred = (rows: Row[]) => [
   { index: rows.length - 1, patch: { n: 100 - rows.slice(0, -1).reduce((s, r) => s + r.n, 0) } },
 ];
 
-/** Собрать форму, дождаться начальных записей, поправить источник и, если надо, снять форму. */
-async function run(scenario: Scenario, disposeInSameTick: boolean): Promise<boolean> {
-  const model = createProbe();
-  const spy = vi.fn();
-  const form = createFormFromModel<Probe>({
-    model,
-    behavior: defineFormBehavior<Probe>(({ model: m }) => scenario.behavior(m, spy)),
-  });
-  await tick();
-
-  scenario.change(model);
-  if (disposeInSameTick) disposeForm(form);
-  await tick();
-
-  return scenario.written(model, form as unknown as ProbeView, spy);
+/** Форма зонда: модель, форма с поведением из одного оператора и шпион его колбэка. */
+interface ProbeForm {
+  readonly model: FormModel<Probe>;
+  readonly form: FormGroup<Probe>;
+  readonly spy: Mock;
 }
+
+/**
+ * Проверки сценария: собрать форму, дождаться начальных записей, поправить источник и, если надо,
+ * снять форму — в том же тике.
+ */
+const checksOf = (scenario: Scenario) => {
+  const probe: DisposeProbe<ProbeForm> = {
+    build() {
+      const model = createProbe();
+      const spy = vi.fn();
+      const form = createFormFromModel<Probe>({
+        model,
+        behavior: defineFormBehavior<Probe>(({ model: m }) => scenario.behavior(m, spy)),
+      });
+      return { model, form, spy };
+    },
+    change: ({ model }) => scenario.change(model),
+    dispose: ({ form }) => disposeForm(form),
+    written: ({ model, form, spy }) => scenario.written(model, form as unknown as ProbeView, spy),
+  };
+  return disposeProbeChecks(probe);
+};
 
 /** Операторы, чьи ожидающие записи отменяются (value-операции модели). */
 const cancelled: Scenario[] = [
@@ -213,13 +226,11 @@ const lost: Array<Scenario & { readonly defect: string }> = [
 
 describe('deferred writes — value-операции: ожидающая запись отменяется', () => {
   for (const scenario of cancelled) {
-    it(`${scenario.name}: без снятия запись случается (контроль)`, async () => {
-      expect(await run(scenario, false)).toBe(true);
-    });
+    const checks = checksOf(scenario);
 
-    it(`${scenario.name}: снятие формы в том же тике отменяет запись`, async () => {
-      expect(await run(scenario, true)).toBe(false);
-    });
+    it(`${scenario.name}: без снятия запись случается (контроль)`, checks.control);
+
+    it(`${scenario.name}: снятие формы в том же тике отменяет запись`, checks.disposed);
   }
 
   it('сборка и снятие в одном тике: начальная запись не случается', async () => {
@@ -243,13 +254,14 @@ describe('deferred writes — value-операции: ожидающая зап�
 
 describe('deferred writes — снятие отменяет отложенную запись операторов формы', () => {
   for (const scenario of lost) {
-    it(`${scenario.name}: без снятия запись случается (контроль)`, async () => {
-      expect(await run(scenario, false)).toBe(true);
-    });
+    const checks = checksOf(scenario);
 
-    it(`${scenario.name}: снятие формы в том же тике отменяет запись [${scenario.defect}]`, async () => {
-      expect(await run(scenario, true)).toBe(false);
-    });
+    it(`${scenario.name}: без снятия запись случается (контроль)`, checks.control);
+
+    it(
+      `${scenario.name}: снятие формы в том же тике отменяет запись [${scenario.defect}]`,
+      checks.disposed
+    );
   }
 
   it('сборка и снятие в одном тике: начальная запись enableWhen не случается [ReFormer-ctlc]', async () => {

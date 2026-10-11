@@ -9,9 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { setFlagsFromString } from 'node:v8';
-import { runInNewContext } from 'node:vm';
-import { tick } from '../../test-utils/async';
+import { collectUntilReleased } from '../../test-utils/gc';
 import { InputStub } from '../../test-utils/stubs';
 import { schemaSubtree } from '../../../src/form/schema-subtree';
 import { compileSchema } from '../../../src/form/schema/compile';
@@ -58,15 +56,6 @@ const rowsOf = (bundle: ReturnType<typeof createRows>): CompiledArrayNode =>
 /** Под-модели строк по порядку. */
 const rowModels = (bundle: ReturnType<typeof createRows>): FormModel<Row>[] =>
   Array.from({ length: bundle.model.rows.length }, (_, index) => bundle.model.rows.at(index)!);
-
-/**
- * Ручной сборщик мусора: флаг `--expose-gc` включается на лету, функцию `gc` отдаёт контекст,
- * созданный уже после этого.
- */
-const collectGarbage = (): void => {
-  setFlagsFromString('--expose_gc');
-  (runInNewContext('gc') as () => void)();
-};
 
 describe('schema-subtree — кэш пары «билдер + под-модель»', () => {
   it('билдер вызывается один раз на пару; повторное обращение отдаёт тот же объект', () => {
@@ -202,10 +191,7 @@ describe('schema-subtree — строки массива под-форм', () =>
     };
     const { bundle, refs } = removeFirst();
 
-    for (let attempt = 0; attempt < 10 && refs.some((ref) => ref.deref()); attempt++) {
-      await tick();
-      collectGarbage();
-    }
+    await collectUntilReleased(refs);
 
     expect(refs.map((ref) => ref.deref())).toEqual([undefined, undefined, undefined]);
     // Сборка жива: строку отпустила она сама, а не сборщик вместе со всей формой.
