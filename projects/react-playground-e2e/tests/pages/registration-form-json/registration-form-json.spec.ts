@@ -121,7 +121,8 @@ test.describe('Регистрация из JSON-схемы', () => {
     await page.goto('/demo/registration-json');
     await waitForForm(page);
 
-    await expect(page.getByRole('heading', { name: 'Регистрация' })).toBeVisible();
+    // exact: шапка страницы — тоже заголовок, «Регистрация (JSON)»
+    await expect(page.getByRole('heading', { name: 'Регистрация', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Состояние формы' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Подсказки для тестирования/ })).toBeVisible();
 

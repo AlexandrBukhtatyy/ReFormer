@@ -156,7 +156,8 @@
                     "selector": "submit-button",
                     "component": "$component(Button)",
                     "componentProps": {
-                      "type": "button"
+                      "type": "button",
+                      "data-testid": "submit"
                     },
                     "children": ["Зарегистрироваться"]
                   },
@@ -165,7 +166,8 @@
                     "component": "$component(Button)",
                     "componentProps": {
                       "type": "button",
-                      "variant": "secondary"
+                      "variant": "secondary",
+                      "data-testid": "reset"
                     },
                     "children": ["Очистить"]
                   }
