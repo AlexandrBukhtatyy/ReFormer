@@ -56,7 +56,7 @@
           "subpath": {
             "type": "string",
             "minLength": 1,
-            "description": "Контракт 2.0. Subpath кита, за которым лежит символ, если его нет в главном barrel (тяжёлые компоненты за optional peer-deps)."
+            "description": "Контракт 2.0. Subpath кита, откуда импортируется символ записи, если его нет в главном barrel (тяжёлые компоненты за optional peer-deps): спецификатор импорта — <kit.codegen.importSpecifier>/<subpath>. Больше поле не значит ничего: выгруженный код импортирует символ с подпутя, а превью рисует компонент вживую, если символ есть в namespace кита, и заглушкой — если нет. Запрет живого рендера объявляет preview, а не subpath."
           },
           "preview": {
             "type": "object",
@@ -288,7 +288,10 @@
               "minLength": 1,
               "description": "Имя экспорта в namespace кита."
             },
-            "subpath": { "type": "string", "description": "Subpath кита, за которым лежит символ." }
+            "subpath": {
+              "type": "string",
+              "description": "Subpath кита, откуда импортируется символ, если его нет в главном barrel: <kit.codegen.importSpecifier>/<subpath>."
+            }
           }
         }
       ]

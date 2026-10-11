@@ -11,9 +11,17 @@
  *
  * ## Сводки по записям
  *
- * Политику превью, причины «не нашлось», листья и группы классов читают на каждом узле формы,
- * поэтому они собираются один раз — картами по имени записи, а не обходом каталога на каждый
- * вопрос.
+ * Политику превью, подпути, листья и группы классов читают на каждом узле формы, поэтому они
+ * собираются один раз — картами по имени записи, а не обходом каталога на каждый вопрос.
+ *
+ * ## Подпуть — это только «откуда импортируется»
+ *
+ * `subpath` записи отвечает на один вопрос: из какого входа пакета кита берётся её символ
+ * (`<спецификатор кита>/<подпуть>`). Что с этим делать, решает потребитель и решает по факту:
+ * кодоген печатает импорт с подпутя, превью рисует компонент вживую, если символ ЕСТЬ в
+ * пространстве имён кита, и заглушкой — если его там нет. Сам по себе подпуть не делает
+ * компонент ни «неразрешимым», ни заглушкой: пространство имён вправе собрать кит из главного
+ * входа и любых подпутей, и встроенный кит так и делает для своих полей.
  *
  * @module @reformer/builder-plugin-api/kits/descriptor
  */
@@ -69,9 +77,19 @@ export interface KitDescriptor {
    */
   previewPolicy: ReadonlyMap<string, KitRecordPreview>;
   /**
-   * ДИАГНОСТИКА, а не запрет: имя записи → причина показать, если компонента не нашлось
-   * в пространстве имён. Так ведут себя компоненты за подпутём: их нет в главном входе, но
-   * если кит их туда положит, они отрисуются вживую — и это правильно.
+   * ОТКУДА ИМПОРТИРУЕТСЯ символ записи: имя записи → подпуть кита. Нет ключа — символ лежит
+   * в главном входе. Спецификатор импорта — `<codegen.importSpecifier>/<подпуть>`.
+   *
+   * Это факт о пакете кита, а не решение о рендере: рисовать ли компонент вживую, говорит
+   * пространство имён (символ в нём либо есть, либо нет), а не наличие ключа здесь.
+   */
+  subpaths: ReadonlyMap<string, string>;
+  /**
+   * @deprecated Прежняя сводка подпутей: имя записи → текст `subpath-only: <подпуть>`. Она
+   * читалась как «компонент за подпутём не резолвится», и кодоген по ней печатал заглушку
+   * вместо импорта. Подпуть значит только «откуда импортируется» — берите {@link subpaths},
+   * а причину заглушки формулируйте по факту отсутствия символа в пространстве имён.
+   * Заполняется как прежде, чтобы не ломать читателей.
    */
   unresolvedReason: ReadonlyMap<string, string>;
   /** Имена компонентов-листьев. */
@@ -94,12 +112,21 @@ function buildPreviewPolicy(
   return map;
 }
 
-/** Причины «нет в главном входе»: запись, объявившая подпуть, объясняет своё отсутствие им. */
-function buildUnresolvedReasons(records: readonly CatalogRecord[]): ReadonlyMap<string, string> {
+/** Подпути записей: откуда импортируется символ, если не из главного входа. */
+function buildSubpaths(records: readonly CatalogRecord[]): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
   for (const record of records) {
-    if (record.subpath) map.set(record.name, `subpath-only: ${record.subpath}`);
+    if (record.subpath) map.set(record.name, record.subpath);
   }
+  return map;
+}
+
+/** Прежняя сводка подпутей текстом — для читателей `unresolvedReason` (см. его описание). */
+function buildUnresolvedReasons(
+  subpaths: ReadonlyMap<string, string>
+): ReadonlyMap<string, string> {
+  const map = new Map<string, string>();
+  for (const [name, subpath] of subpaths) map.set(name, `subpath-only: ${subpath}`);
   return map;
 }
 
@@ -144,6 +171,7 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
   const records = json.components ?? [];
   const id = kit.id ?? '';
   const pkg = kit.package ?? '';
+  const subpaths = buildSubpaths(records);
 
   return {
     id,
@@ -177,7 +205,8 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
     },
     renderers: kit.renderers ?? {},
     previewPolicy: buildPreviewPolicy(records),
-    unresolvedReason: buildUnresolvedReasons(records),
+    subpaths,
+    unresolvedReason: buildUnresolvedReasons(subpaths),
     leafComponents: buildLeafComponents(records),
     classGroupPolicy: buildClassGroupPolicy(records, kit.styles),
   };

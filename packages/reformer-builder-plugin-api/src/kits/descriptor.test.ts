@@ -40,6 +40,7 @@ describe('каталог без блока kit: умолчания общие, �
   it('ни категорий, ни запретов превью, ни листьев, ни прослоек — их объявляет кит', () => {
     expect(d.palette.categoryByName).toEqual({});
     expect(d.previewPolicy.size).toBe(0);
+    expect(d.subpaths.size).toBe(0);
     expect(d.unresolvedReason.size).toBe(0);
     expect(d.leafComponents.size).toBe(0);
     expect(d.codegen.needsShim.size).toBe(0);
@@ -133,10 +134,44 @@ describe('сводки по записям', () => {
     expect(d.previewPolicy.has('Popover')).toBe(false);
   });
 
-  it('подпуть — ПРИЧИНА «нет в главном входе», а не запрет', () => {
-    const d = toDescriptor(catalog({ components: [record('Chart', { subpath: 'chart' })] }));
-    expect(d.unresolvedReason.get('Chart')).toBe('subpath-only: chart');
+  it('подпуть — ОТКУДА импортируется символ, а не запрет и не «не резолвится»', () => {
+    const d = toDescriptor(
+      catalog({ components: [record('Chart', { subpath: 'chart' }), record('Box')] })
+    );
+    // Факт о пакете кита: кодоген напечатает импорт с подпутя, превью спросит пространство имён.
+    expect(d.subpaths.get('Chart')).toBe('chart');
+    // Нет ключа — символ в главном входе.
+    expect(d.subpaths.has('Box')).toBe(false);
+    // Живой рендер подпуть не запрещает: это умеет только `preview` записи.
     expect(d.previewPolicy.has('Chart')).toBe(false);
+  });
+
+  it('прежняя сводка подпутей заполняется как раньше — её читатели не ломаются', () => {
+    const d = toDescriptor(catalog({ components: [record('Chart', { subpath: 'chart' })] }));
+    expect([...d.unresolvedReason]).toEqual([['Chart', 'subpath-only: chart']]);
+    // Ключи те же, что у подпутей: сводка — их текстовая копия, другого источника у неё нет.
+    expect([...d.unresolvedReason.keys()]).toEqual([...d.subpaths.keys()]);
+  });
+
+  it('каталог стороннего кита с подпутями загружается как прежде', () => {
+    // Запись с подпутём и без `exportName`, часть составного компонента без своего подпутя,
+    // адаптер за подпутём — всё, что каталоги уже несут. Подпуть части не наследуется:
+    // откуда импортировать символ, каждая запись говорит сама.
+    const d = toDescriptor(
+      catalog({
+        kit: {
+          package: '@acme/ds',
+          adapters: { wizard: { symbol: 'Stepper', subpath: 'stepper' } },
+        },
+        components: [
+          record('Chart', { subpath: 'chart', exportName: 'ChartRoot' }),
+          record('ChartLegend', { compoundParent: 'Chart' }),
+        ],
+      })
+    );
+    expect([...d.subpaths]).toEqual([['Chart', 'chart']]);
+    expect(d.adapters.wizard).toEqual({ symbol: 'Stepper', subpath: 'stepper' });
+    expect(d.codegen.importSpecifier).toBe('@acme/ds');
   });
 
   it('лист — запись, объявившая себя листом', () => {
