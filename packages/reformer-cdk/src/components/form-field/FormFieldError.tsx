@@ -2,13 +2,16 @@ import { forwardRef } from 'react';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
+import { primaryIssueIndex } from '../../validation/primary-issue';
 import type { FormFieldErrorProps } from './types';
 
 /**
  * FormField.Error - Displays validation issue message(s): errors and warnings.
  *
  * Renders nothing when `shouldShowIssues` is false (field not touched or no issues).
- * The first paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+ * By default it shows the primary issue: the first error, or the first warning when the field has
+ * no errors — issues come in rule order, so a warning may precede an error. The paragraph of the
+ * primary issue receives `id={ids.errorId}` for `aria-errormessage` wiring.
  * A warning (`severity: 'warning'`) is rendered with `data-severity="warning"` for styling.
  *
  * @example Single error (default)
@@ -53,6 +56,9 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
     // Предупреждение помечается атрибутом — стилю есть за что зацепиться; у ошибки DOM прежний.
     const severityOf = (issue: (typeof issues)[number]): 'warning' | undefined =>
       issue.severity === 'warning' ? 'warning' : undefined;
+    // Главное замечание: его текст — в одиночном показе, его элемент несёт id, на который
+    // ссылается aria-errormessage контрола, — им должна быть ошибка, а не предупреждение перед ней.
+    const primary = primaryIssueIndex(issues);
 
     if (render) {
       return (
@@ -63,7 +69,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
               // forwardRef ref прикрепляем к первому отрисованному элементу, иначе он
               // молча теряется в multi/render-режимах (нарушение контракта forwardRef).
               ref={i === 0 ? ref : undefined}
-              id={i === 0 ? ids.errorId : undefined}
+              id={i === primary ? ids.errorId : undefined}
               role="alert"
               data-severity={severityOf(err)}
               {...props}
@@ -88,7 +94,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
               <Comp
                 key={err.code ?? i}
                 ref={i === 0 ? ref : undefined}
-                id={i === 0 ? ids.errorId : undefined}
+                id={i === primary ? ids.errorId : undefined}
                 role="alert"
                 data-severity={severityOf(err)}
                 {...props}
@@ -106,10 +112,10 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
         ref={ref}
         id={ids.errorId}
         role="alert"
-        data-severity={severityOf(issues[0])}
+        data-severity={severityOf(issues[primary])}
         {...props}
       >
-        {children ?? resolve(issues[0])}
+        {children ?? resolve(issues[primary])}
       </Comp>
     );
   }

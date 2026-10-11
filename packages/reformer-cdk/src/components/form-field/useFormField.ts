@@ -3,6 +3,7 @@ import { type FormControl, type ValidationIssue } from '@reformer/core';
 import { useFormControl } from '@reformer/core/react';
 import type { FormFieldIds } from './types';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
+import { primaryIssueIndex } from '../../validation/primary-issue';
 
 /**
  * Field state returned by useFormField
@@ -10,7 +11,10 @@ import { useIssueMessageResolver } from '../../validation/error-resolver';
 export interface UseFormFieldState<T = unknown> {
   value: T;
   issues: ValidationIssue[];
-  /** First issue message, only set when shouldShowIssues is true */
+  /**
+   * Message of the primary issue — the first error, or the first warning when there are no
+   * errors; only set when shouldShowIssues is true
+   */
   error: string | undefined;
   isPending: boolean;
   isDisabled: boolean;
@@ -158,6 +162,7 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
       componentProps,
     } = raw;
     const required = Boolean(componentProps.required);
+    const primary = issues[primaryIssueIndex(issues)];
 
     return {
       ids,
@@ -189,7 +194,7 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
       state: {
         value: value as T,
         issues,
-        error: shouldShowIssues && issues[0] ? resolveError(issues[0]) : undefined,
+        error: shouldShowIssues && primary ? resolveError(primary) : undefined,
         isPending: pending,
         isDisabled: disabled,
         isValid: valid,

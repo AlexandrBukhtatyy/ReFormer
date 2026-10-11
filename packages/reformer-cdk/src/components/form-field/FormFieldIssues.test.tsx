@@ -108,6 +108,15 @@ describe('FormField над нодой — предупреждение [ReFormer
     expect(renderField(passwordField([WEAK], false))).not.toContain('role="alert"');
   });
 
+  it('предупреждение раньше ошибки: одиночный показ — текст ошибки [ReFormer-10s7]', () => {
+    const html = renderField(passwordField([WEAK, REQUIRED]));
+
+    // Было: под полем в состоянии ошибки стоял текст предупреждения.
+    expect(html).toContain('<p id="error-password" role="alert">Укажите пароль</p>');
+    expect(html).not.toContain('Пароль слабый');
+    expect(html).toContain('aria-invalid="true"');
+  });
+
   it('предупреждение и ошибка вместе: multi показывает оба, поле — в состоянии ошибки', () => {
     const html = renderField(passwordField([REQUIRED, WEAK]), true);
 
@@ -133,6 +142,13 @@ describe('useFormField над нодой', () => {
     expect(html).toContain('<p id="error-password" role="alert">Укажите пароль</p>');
     expect(html).toContain('data-valid="false" data-show-error="true"');
     expect(html).toContain('aria-invalid="true" aria-errormessage="error-password"');
+  });
+
+  it('предупреждение раньше ошибки: state.error — текст ошибки [ReFormer-10s7]', () => {
+    const html = renderHookField(passwordField([WEAK, REQUIRED]));
+
+    expect(html).toContain('<p id="error-password" role="alert">Укажите пароль</p>');
+    expect(html).not.toContain('Пароль слабый');
   });
 
   it('нетронутое поле: текста нет', () => {

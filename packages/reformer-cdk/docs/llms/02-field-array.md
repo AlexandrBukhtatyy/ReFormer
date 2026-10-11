@@ -42,7 +42,7 @@ import { FieldArray } from '@reformer/cdk/field-array';
 | `FieldArray.Empty`        | `children: ReactNode`            | Shows when array is empty                                               |
 | `FieldArray.Count`        | `render?: (count) => ReactNode`  | Displays item count                                                     |
 | `FieldArray.ItemIndex`    | `render?: (index) => ReactNode`  | Displays current index                                                  |
-| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues only (`ownIssues`, e.g. `minLength`), row issues excluded |
+| `FieldArray.Error`        | `multi?`, `render?`, `children?` | Array-level issues only (`ownIssues`, e.g. `minLength`), row issues excluded; by default shows the first error, or the first warning when there are no errors |
 
 ## List Render Props
 

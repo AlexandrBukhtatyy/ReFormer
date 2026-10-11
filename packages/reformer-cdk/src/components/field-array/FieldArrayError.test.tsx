@@ -59,6 +59,24 @@ const render = (
   );
 
 describe('FieldArray.Error', () => {
+  it('предупреждение раньше ошибки: одиночный показ берёт ошибку [ReFormer-10s7]', () => {
+    const issues: ValidationIssue[] = [
+      { code: 'maxItems', severity: 'warning' },
+      { code: 'minItems' },
+    ];
+
+    // Было: показывался issues[0] — предупреждение, а ошибка массива оставалась без текста.
+    expect(render(issues, <FieldArrayError />)).toBe(
+      '<p role="alert">At least one phone required</p>'
+    );
+  });
+
+  it('одни предупреждения: одиночный показ берёт первое', () => {
+    const issues: ValidationIssue[] = [{ code: 'maxItems', severity: 'warning' }];
+
+    expect(render(issues, <FieldArrayError />)).toBe('<p role="alert">Too many items</p>');
+  });
+
   it('ничего не рендерит когда ошибок нет', () => {
     expect(render([], <FieldArrayError />)).toBe('');
   });

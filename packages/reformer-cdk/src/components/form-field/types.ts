@@ -36,7 +36,10 @@ export interface FormFieldContextValue<T = unknown> {
    * or changed. A warning does not make the field invalid, so it shows without the error state.
    */
   shouldShowIssues: boolean;
-  /** First issue message, only set when shouldShowIssues is true */
+  /**
+   * Message of the primary issue — the first error, or the first warning when there are no
+   * errors; only set when shouldShowIssues is true
+   */
   error: string | undefined;
   // ─── Derived from componentProps ──────────────────────────────────────────
   label: string | undefined;
@@ -137,7 +140,8 @@ export interface FormFieldErrorProps extends Omit<
    */
   render?: (error: ValidationIssue, index: number) => ReactNode;
   /**
-   * Override error content. Defaults to the resolver text of issues[0].
+   * Override error content. Defaults to the resolver text of the primary issue: the first error,
+   * or the first warning when the field has no errors.
    */
   children?: ReactNode;
 }

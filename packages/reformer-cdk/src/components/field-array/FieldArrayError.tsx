@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import { Slot } from '../form-wizard/Slot';
 import { useFieldArrayContext } from './FieldArrayContext';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
+import { primaryIssueIndex } from '../../validation/primary-issue';
 import type { FieldArrayErrorProps } from './types';
 
 /**
@@ -10,6 +11,7 @@ import type { FieldArrayErrorProps } from './types';
  * Паритет с `FormField.Error`, но для узла массива: показывает только собственные замечания
  * массива — правила на его ручке вроде `minLength` / «At least one phone required». Замечания
  * полей строк сюда не попадают: их показывают поля строк. Ничего не рендерит, когда ошибок нет.
+ * По умолчанию показывает главное замечание: первую ошибку, а без ошибок — первое предупреждение.
  * Читает контекст `FieldArray.Root`, поэтому консументу не нужно обходить CDK через
  * `useFormControl(control)` ради валидации массива.
  *
@@ -69,7 +71,7 @@ export const FieldArrayError = forwardRef<HTMLParagraphElement, FieldArrayErrorP
 
     return (
       <Comp ref={ref} role="alert" {...props}>
-        {children ?? resolve(issues[0])}
+        {children ?? resolve(issues[primaryIssueIndex(issues)])}
       </Comp>
     );
   }

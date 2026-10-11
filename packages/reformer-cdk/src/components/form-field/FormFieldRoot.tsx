@@ -2,6 +2,7 @@ import { useId, useMemo } from 'react';
 import { useFormControl } from '@reformer/core/react';
 import { FormFieldContext } from './FormFieldContext';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
+import { primaryIssueIndex } from '../../validation/primary-issue';
 import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './types';
 
 /**
@@ -78,6 +79,8 @@ function FormFieldRoot<T>({
       componentProps,
     } = raw;
 
+    const primary = issues[primaryIssueIndex(issues)];
+
     return {
       value: value as T,
       issues,
@@ -88,7 +91,7 @@ function FormFieldRoot<T>({
       touched,
       shouldShowError,
       shouldShowIssues,
-      error: shouldShowIssues && issues[0] ? resolve(issues[0]) : undefined,
+      error: shouldShowIssues && primary ? resolve(primary) : undefined,
       label: componentProps.label as string | undefined,
       required: Boolean(componentProps.required),
       componentProps: componentProps as Record<string, unknown>,

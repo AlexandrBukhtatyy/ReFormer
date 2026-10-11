@@ -155,6 +155,41 @@ describe('FormField.Error — предупреждение [ReFormer-dp34]', () 
     );
   });
 
+  it('предупреждение раньше ошибки: одиночный показ берёт ошибку [ReFormer-10s7]', () => {
+    // Порядок замечаний — порядок правил. Было: показывался issues[0] — текст предупреждения у
+    // поля в состоянии ошибки, а текста самой ошибки на экране не было.
+    const html = renderIssues(<FormFieldError />, [WARNING, { code: 'required' }]);
+
+    expect(html).toBe('<p id="error-x" role="alert">Required</p>');
+  });
+
+  it('одни предупреждения: одиночный показ берёт первое', () => {
+    const html = renderIssues(<FormFieldError />, [WARNING, { code: 'rare', severity: 'warning' }]);
+
+    expect(html).toBe('<p id="error-x" role="alert" data-severity="warning">Weak password</p>');
+  });
+
+  it('multi: порядок правил сохраняется, а id для aria-errormessage — на ошибке [ReFormer-10s7]', () => {
+    const html = renderIssues(<FormFieldError multi />, [WARNING, { code: 'required' }]);
+
+    expect(html).toBe(
+      '<p role="alert" data-severity="warning">Weak password</p>' +
+        '<p id="error-x" role="alert">Required</p>'
+    );
+  });
+
+  it('render: id для aria-errormessage — тоже на ошибке', () => {
+    const html = renderIssues(<FormFieldError render={(issue) => <em>{issue.code}</em>} />, [
+      WARNING,
+      { code: 'required' },
+    ]);
+
+    expect(html).toBe(
+      '<p role="alert" data-severity="warning"><em>weak</em></p>' +
+        '<p id="error-x" role="alert"><em>required</em></p>'
+    );
+  });
+
   it('render: предупреждение помечено и в своём рендере', () => {
     const html = renderIssues(<FormFieldError render={(issue) => <em>{issue.code}</em>} />, [
       WARNING,
