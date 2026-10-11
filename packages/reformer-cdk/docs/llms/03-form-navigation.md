@@ -107,7 +107,9 @@ announces "Step N of M" to screen readers; focus management stays with the consu
 - **Next** (`next.onClick`, `FormWizard.Next`, `goToNextStep()`) calls `flow.next()`: it runs the
   current step's `rules` and marks the fields it checked as touched — only those: fields of the
   next steps stay untouched. On blocking issues (or when a rule failed / the run was cancelled) the
-  wizard stays on the step. A step without `rules` (or with `rules: null`) passes without a check.
+  wizard stays on the step. It also stays (`reason: 'cancelled'`) when the model changed while the
+  step was being checked — a field edited during an async rule was not seen by the rules; the
+  next click checks the new value. A step without `rules` (or with `rules: null`) passes without a check.
 - **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
   - inside the bundle context it goes through `bundle.submit`: one run of the **full** rule set; on
     success the handler (`Actions` `onSubmit`) is called, on issues every field is marked touched

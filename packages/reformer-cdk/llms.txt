@@ -498,7 +498,9 @@ announces "Step N of M" to screen readers; focus management stays with the consu
 - **Next** (`next.onClick`, `FormWizard.Next`, `goToNextStep()`) calls `flow.next()`: it runs the
   current step's `rules` and marks the fields it checked as touched — only those: fields of the
   next steps stay untouched. On blocking issues (or when a rule failed / the run was cancelled) the
-  wizard stays on the step. A step without `rules` (or with `rules: null`) passes without a check.
+  wizard stays on the step. It also stays (`reason: 'cancelled'`) when the model changed while the
+  step was being checked — a field edited during an async rule was not seen by the rules; the
+  next click checks the new value. A step without `rules` (or with `rules: null`) passes without a check.
 - **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
   - inside the bundle context it goes through `bundle.submit`: one run of the **full** rule set; on
     success the handler (`Actions` `onSubmit`) is called, on issues every field is marked touched
@@ -3455,6 +3457,7 @@ FieldArray.Error — рендерит ошибки уровня массива (
 Паритет с `FormField.Error`, но для узла массива: показывает только собственные замечания
 массива — правила на его ручке вроде `minLength` / «At least one phone required». Замечания
 полей строк сюда не попадают: их показывают поля строк. Ничего не рендерит, когда ошибок нет.
+По умолчанию показывает главное замечание: первую ошибку, а без ошибок — первое предупреждение.
 Читает контекст `FieldArray.Root`, поэтому консументу не нужно обходить CDK через
 `useFormControl(control)` ради валидации массива.
 
@@ -4959,7 +4962,10 @@ export interface FormFieldContextValue<T = unknown> {
    * or changed. A warning does not make the field invalid, so it shows without the error state.
    */
   shouldShowIssues: boolean;
-  /** First issue message, only set when shouldShowIssues is true */
+  /**
+   * Message of the primary issue — the first error, or the first warning when there are no
+   * errors; only set when shouldShowIssues is true
+   */
   error: string | undefined;
   // ─── Derived from componentProps ──────────────────────────────────────────
   label: string | undefined;
@@ -5122,7 +5128,9 @@ _Source: src/components/form-field/types.ts_
 FormField.Error - Displays validation issue message(s): errors and warnings.
 
 Renders nothing when `shouldShowIssues` is false (field not touched or no issues).
-The first paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+By default it shows the primary issue: the first error, or the first warning when the field has
+no errors — issues come in rule order, so a warning may precede an error. The paragraph of the
+primary issue receives `id={ids.errorId}` for `aria-errormessage` wiring.
 A warning (`severity: 'warning'`) is rendered with `data-severity="warning"` for styling.
 
 **Signature:**
@@ -5187,7 +5195,8 @@ export interface FormFieldErrorProps extends Omit<
    */
   render?: (error: ValidationIssue, index: number) => ReactNode;
   /**
-   * Override error content. Defaults to the resolver text of issues[0].
+   * Override error content. Defaults to the resolver text of the primary issue: the first error,
+   * or the first warning when the field has no errors.
    */
   children?: ReactNode;
 }
@@ -8263,7 +8272,10 @@ Field state returned by useFormField
 export interface UseFormFieldState<T = unknown> {
   value: T;
   issues: ValidationIssue[];
-  /** First issue message, only set when shouldShowIssues is true */
+  /**
+   * Message of the primary issue — the first error, or the first warning when there are no
+   * errors; only set when shouldShowIssues is true
+   */
   error: string | undefined;
   isPending: boolean;
   isDisabled: boolean;
