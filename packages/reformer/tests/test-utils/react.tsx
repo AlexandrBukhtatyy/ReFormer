@@ -11,7 +11,7 @@
 import { StrictMode, type ComponentType, type ReactNode } from 'react';
 import { renderHook, type RenderHookResult } from '@testing-library/react';
 
-export { act, cleanup, render, renderHook, fireEvent, screen } from '@testing-library/react';
+export { act, cleanup, render, fireEvent, screen } from '@testing-library/react';
 
 /** Обёртка в `StrictMode`: двойной вызов эффектов и рендеров, как в разработке. */
 export function StrictWrapper({ children }: { children?: ReactNode }): ReactNode {
