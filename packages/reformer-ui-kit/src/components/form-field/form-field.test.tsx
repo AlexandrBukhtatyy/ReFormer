@@ -43,6 +43,45 @@ describe('FormField — выключенное поле', () => {
   });
 });
 
+describe('FormField — замечание под полем', () => {
+  /** Тег слота замечаний: `<p … data-slot="field-error" …>`. */
+  const errorTag = (html: string): string =>
+    html.match(/<p[^>]*data-slot="field-error"[^>]*>/)?.[0] ?? '';
+
+  /** Тронутое поле с замечаниями — как после ухода из поля и проверки. */
+  function fieldWith(issues: Array<{ code: string; severity?: 'warning' }>) {
+    const control = buildField({ label: 'Email', testId: 'email' });
+    control.markAsTouched();
+    control.setIssues(issues);
+    return control;
+  }
+
+  it('ошибка — цветом destructive, без пометки severity', () => {
+    const html = renderToStaticMarkup(<FormField control={fieldWith([{ code: 'required' }])} />);
+
+    expect(errorTag(html)).toContain('text-destructive');
+    expect(errorTag(html)).not.toContain('data-severity');
+    expect(html).toContain('aria-invalid="true"');
+  });
+
+  it('предупреждение — помечено severity и красится токеном warning [ReFormer-u880]', () => {
+    const html = renderToStaticMarkup(
+      <FormField control={fieldWith([{ code: 'email.rare', severity: 'warning' }])} />
+    );
+
+    // Было: у слота один класс text-destructive — предупреждение у валидного поля выглядело ошибкой.
+    expect(errorTag(html)).toContain('data-severity="warning"');
+    expect(errorTag(html)).toContain('data-[severity=warning]:text-warning');
+    expect(html).not.toContain('aria-invalid');
+  });
+
+  it('без замечаний слота нет', () => {
+    const html = renderToStaticMarkup(<FormField control={fieldWith([])} />);
+
+    expect(errorTag(html)).toBe('');
+  });
+});
+
 describe('FormField — shadcn Field поверх @reformer/cdk', () => {
   it('рендерит shadcn Field wrapper (role=group, data-slot=field) + data-testid=field-<id>', () => {
     const html = renderToStaticMarkup(

@@ -72,7 +72,10 @@ Peer-зависимости (должны быть в проекте):
 Tailwind должен быть подключён в проекте: `@reformer/ui-kit` использует
 utility-классы (`h-9`, `rounded-md`, `border-input`, `text-destructive`, ...).
 Для тем (variables `--primary`, `--destructive`, `--ring`, ...) используйте
-конфигурацию shadcn/ui или собственную аналогичную.
+конфигурацию shadcn/ui или собственную аналогичную. Сверх набора shadcn тема кита
+(`@reformer/ui-kit/styles`) объявляет `--warning` / `--color-warning` — цвет предупреждения под
+полем (`text-warning`). В своей теме задайте и его: без него предупреждение останется цвета
+ошибки.
 
 ## Import Patterns
 

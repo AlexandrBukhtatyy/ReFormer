@@ -41,6 +41,33 @@ describe('COLOR_TOKENS ↔ @theme inline', () => {
   });
 });
 
+describe('значения токенов темы', () => {
+  const css = readFileSync(join(here, 'theme.css'), 'utf8');
+  // Блоки значений — с начала строки: `.dark` встречается ещё в шапке и в `@custom-variant`.
+  const lightStart = css.search(/^:root \{/m);
+  const darkStart = css.search(/^\.dark,/m);
+  /** Переменные блока темы: `--имя: значение;`. */
+  const variables = (block: string): Set<string> =>
+    new Set([...block.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+  const light = variables(css.slice(lightStart, darkStart));
+  const dark = variables(css.slice(darkStart));
+
+  it('у каждого цветового токена есть значение в светлой и в тёмной теме', () => {
+    // `--color-x: var(--x)` без самого `--x` даёт утилиту с пустым цветом — молча.
+    expect(lightStart).toBeGreaterThan(0);
+    expect(darkStart).toBeGreaterThan(lightStart);
+    for (const t of themeColorTokens()) {
+      expect(light, `нет значения в :root: --${t}`).toContain(t);
+      expect(dark, `нет значения в тёмной теме: --${t}`).toContain(t);
+    }
+  });
+
+  it('токен предупреждения объявлен — им красится замечание-предупреждение под полем', () => {
+    expect(themeColorTokens()).toContain('warning');
+    expect(allClasses).toEqual(expect.arrayContaining(['text-warning', 'bg-warning']));
+  });
+});
+
 describe('форма словаря', () => {
   it('id групп уникальны и в нижнем kebab-case', () => {
     const ids = CLASS_GROUPS.map((g) => g.id);

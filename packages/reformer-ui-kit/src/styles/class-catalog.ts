@@ -78,6 +78,7 @@ export const COLOR_TOKENS = [
   'accent',
   'accent-foreground',
   'destructive',
+  'warning',
   'border',
   'input',
   'ring',

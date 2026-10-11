@@ -161,9 +161,11 @@ function FormFieldInner({
           </CdkFormField.Description>
         )}
 
+        {/* Предупреждение (`severity: 'warning'`) слот помечает `data-severity` — у него свой цвет:
+            поле при этом валидно, рамки ошибки и `aria-invalid` у контрола нет. */}
         <CdkFormField.Error
           data-slot="field-error"
-          className="text-sm font-normal text-destructive"
+          className="text-sm font-normal text-destructive data-[severity=warning]:text-warning"
           data-testid={`error-${testId}`}
         />
 
