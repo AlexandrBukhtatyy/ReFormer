@@ -19,8 +19,8 @@ import type { HostApp } from './shared/host-app.pom';
 /** Скриншоты — рядом с остальными снимками билдера (в git не едут). */
 const SHOTS = path.resolve(__dirname, '../../../react-playground-e2e/screenshots/builder-embedded');
 
-const SCHEMA = 'src/forms/contact/form.schema.json';
-const FORM_MODULE = 'src/forms/contact/index.tsx';
+const SCHEMA = 'src/forms/contact/schema/form.schema.json';
+const FORM_MODULE = 'src/forms/contact/index.ts';
 const SERVICE = 'src/services/cities.ts';
 const ENTRY = 'src/main.tsx';
 const LAUNCH_CONFIG = '.ui_builder/config.json';
