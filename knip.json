@@ -14,7 +14,8 @@
         "src/form/validation/index.ts",
         "src/form/validators/*.ts",
         "src/locale/*.ts",
-        "src/**/*.type-test.ts"
+        "src/**/*.type-test.ts",
+        "tests/**/*.type-test.ts"
       ]
     }
   }
