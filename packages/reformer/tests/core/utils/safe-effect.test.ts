@@ -6,6 +6,7 @@
  *          а не всплывают неперехваченными / не тонут как unhandledRejection; изоляция соседних записей.
  * - F7  — liveness: runOutsideEffect возвращает отменитель ещё не выполненной записи.
  * - F10 — safeCallback/safeDebouncedCallback: форвардинг аргументов, отсутствие двойного defer.
+ * - deferredWritesSettled — ожидание отложенных записей тика вместе с порождёнными ими.
  *
  * NB: записи НЕ оборачиваются в batch() (см. заметку в safe-effect.ts) — реципрокные guard'ы слоя
  * данных (syncFields) полагаются на синхронный встречный флаш во время записи; поэтому тут проверяется
@@ -15,6 +16,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { tick } from '../../test-utils/async';
 import {
+  deferredWrites,
+  deferredWritesSettled,
   runOutsideEffect,
   safeCallback,
   safeDebouncedCallback,
@@ -93,6 +96,65 @@ describe('runOutsideEffect', () => {
     cancel();
     await tick();
     expect(order).toEqual(['a', 'c']);
+  });
+});
+
+describe('deferredWritesSettled', () => {
+  it('отложенных записей нет — ждать нечего', () => {
+    expect(deferredWritesSettled()).toBeUndefined();
+  });
+
+  it('дожидается записи, поставленной до вызова', async () => {
+    const log: string[] = [];
+    runOutsideEffect(() => void log.push('запись'));
+
+    await deferredWritesSettled();
+
+    expect(log).toEqual(['запись']);
+    expect(deferredWritesSettled()).toBeUndefined();
+  });
+
+  it('дожидается цепочки: запись ставит следующую, та — ещё одну', async () => {
+    const log: string[] = [];
+    runOutsideEffect(() => {
+      log.push('первая');
+      runOutsideEffect(() => {
+        log.push('вторая');
+        runOutsideEffect(() => void log.push('третья'));
+      });
+    });
+
+    await deferredWritesSettled();
+
+    expect(log).toEqual(['первая', 'вторая', 'третья']);
+  });
+
+  it('отменённая запись ожидание не держит', async () => {
+    const job = vi.fn();
+    const cancel = runOutsideEffect(job);
+    const writes = deferredWrites();
+    writes.schedule(job);
+    cancel();
+    writes.cancelAll();
+
+    await deferredWritesSettled();
+
+    expect(job).not.toHaveBeenCalled();
+    expect(deferredWritesSettled()).toBeUndefined();
+  });
+
+  it('запись после await в async-задании в ожидание не входит — это уже не тот же тик', async () => {
+    const log: string[] = [];
+    runOutsideEffect(async () => {
+      await tick();
+      log.push('после запроса');
+    });
+
+    await deferredWritesSettled();
+    const atSettle = [...log];
+    await tick(5);
+
+    expect({ atSettle, later: log }).toEqual({ atSettle: [], later: ['после запроса'] });
   });
 });
 

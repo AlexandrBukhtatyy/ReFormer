@@ -284,26 +284,32 @@ describe('bundle.submit — ход отправки и один прогон п�
 // ─── Правка во время проверки отправки ──────────────────────────────────────────────────────
 
 describe('bundle.submit — правка формы, пока отправка ждёт проверку', () => {
-  it.fails(
-    'SS-09: правка поля во время проверки отправки не уходит обработчику непроверенной [ReFormer-xt4x]',
-    async () => {
-      const { bundle, server } = build();
-      await passWizardTo(bundle, 'review');
-      server.hold('checkInn');
-      const handler = vi.fn((values: LoanApplication) => server.api.submitApplication(values));
+  it('SS-09: правка поля во время проверки отправки отменяет её — непроверенное не уходит обработчику [ReFormer-xt4x]', async () => {
+    const { bundle, server } = build();
+    await passWizardTo(bundle, 'review');
+    server.hold('checkInn');
+    const handler = vi.fn((values: LoanApplication) => server.api.submitApplication(values));
 
-      // Отправка ждёт ответа сервера про ИНН, а пользователь правит почту: форма не заперта
-      // (`submitting` ещё false, SS-07). Правила видели прежнюю почту, а обработчик читает
-      // `model.get()` после проверки — и получает правку, которую не проверял никто: статус
-      // `submitted`, на сервер ушла неверная почта, замечаний на поле нет.
-      const sending = bundle.submit(handler);
-      bundle.form.email.setValue('ivanov@');
-      server.last('checkInn').resolve({ status: 'found' });
-      await sending;
+    // Отправка ждёт ответа сервера про ИНН, а пользователь правит почту: форма не заперта
+    // (`submitting` ещё false, SS-07). Правила видели прежнюю почту.
+    // Было: обработчик читал `model.get()` после проверки и получал правку, которую не проверял
+    // никто, — статус `submitted`, на сервер уходила неверная почта, замечаний на поле не было.
+    const sending = bundle.submit(handler);
+    bundle.form.email.setValue('ivanov@');
+    server.last('checkInn').resolve({ status: 'found' });
 
-      expect(handler).not.toHaveBeenCalledWith(expect.objectContaining({ email: 'ivanov@' }));
-    }
-  );
+    expect((await sending).status).toBe('cancelled');
+    expect(handler).not.toHaveBeenCalled();
+    expect(server.callsOf('submitApplication')).toHaveLength(0);
+
+    // Повторная отправка проверяет уже новую почту и показывает замечание.
+    const again = bundle.submit(handler);
+    server.last('checkInn').resolve({ status: 'found' });
+
+    expect((await again).status).toBe('invalid');
+    expect(issueCodes(bundle.form.email)).toEqual(['email']);
+    expect(handler).not.toHaveBeenCalled();
+  });
 
   it('SS-10: живая стратегия change — правка во время проверки отправки отменяет её; ошибку показывает живой прогон', async () => {
     const { bundle, server } = build({ strategy: 'change' });

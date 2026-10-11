@@ -114,13 +114,39 @@ export function safeCallback<TArgs extends unknown[]>(
  */
 export function runOutsideEffect(fn: () => void | Promise<void>): () => void {
   let cancelled = false;
+  scheduled++;
   queueMicrotask(() => {
+    scheduled--;
     if (cancelled) return;
     runSafely(fn, DEFER_CONTEXT);
   });
   return () => {
     cancelled = true;
   };
+}
+
+/** Сколько отложенных записей поставлено и ещё не дошло до своего микротаска. */
+let scheduled = 0;
+
+/**
+ * Дождаться, пока отработают отложенные записи текущего тика — вместе с теми, что они породили
+ * (цепочка расчётов: каждая запись будит следующий расчёт, а тот снова пишет отложенно).
+ *
+ * Ждёт только микротаски: запись после таймера (debounce) или после `await` в async-callback сюда не
+ * входит — это уже не «тот же тик».
+ *
+ * @returns Промис ожидания; `undefined` — отложенных записей сейчас нет, ждать нечего.
+ * @internal
+ */
+export function deferredWritesSettled(): Promise<void> | undefined {
+  if (scheduled === 0) return undefined;
+  return new Promise((resolve) => {
+    const check = (): void => {
+      if (scheduled > 0) queueMicrotask(check);
+      else resolve();
+    };
+    queueMicrotask(check);
+  });
 }
 
 /**

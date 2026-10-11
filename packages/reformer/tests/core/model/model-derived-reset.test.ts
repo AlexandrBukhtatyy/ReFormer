@@ -219,7 +219,7 @@ describe('model — производные поля в строках масси
   });
 });
 
-describe('model — isDirty: массив в листе и строка другого вида', () => {
+describe('model — isDirty: массив в листе, NaN и строка другого вида', () => {
   it('лист с массивом сравнивается со снимком поэлементно', () => {
     // Поле из начального `null` — лист: массив в нём — атомарное значение, а не строки под-форм.
     const model = createModel<{ files: string[] | null }>({ files: null });
@@ -236,6 +236,22 @@ describe('model — isDirty: массив в листе и строка друг
       sameContent: false,
       longer: true,
       otherItem: true,
+    });
+  });
+
+  it('число NaN равно самому себе: поле с NaN в снимке не делает модель изменённой', () => {
+    const model = createModel({ rate: Number.NaN, amount: 0 });
+    const untouched = model.isDirty();
+
+    model.rate = 5;
+    const edited = model.isDirty();
+    model.rate = Number.NaN;
+
+    // Было: NaN !== NaN — модель считалась изменённой с самого создания.
+    expect({ untouched, edited, restored: model.isDirty() }).toEqual({
+      untouched: false,
+      edited: true,
+      restored: false,
     });
   });
 

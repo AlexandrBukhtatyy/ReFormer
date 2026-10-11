@@ -10,6 +10,8 @@
  */
 
 import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
+import { deepEqual } from '../model/model-nodes';
+import { deferredWritesSettled } from '../model/safe-effect';
 import type { FormModel } from '../model/types';
 import { createFormFlow, type FormFlow } from './flow/flow';
 import { getNodeForSignal } from './signal-node-registry';
@@ -66,6 +68,10 @@ export interface FormFlowConfig<T> {
  * Итог отправки: `submitted` — обработчик отработал, `invalid` / `error` / `cancelled` —
  * проверка не пропустила (обработчик не вызывался), `failed` — обработчик бросил исключение.
  *
+ * `cancelled` — проверку отправки сменила следующая (вторая отправка, живой прогон) либо модель
+ * изменилась, пока проверка шла: правила видели прежние значения, и отправлять новые нельзя.
+ * Замечаний такой итог не несёт — отправку повторяют.
+ *
  * @group Form
  */
 export type SubmitResult<TResult> =
@@ -107,6 +113,12 @@ export interface FormLevel<T> {
   validateStep(stepId: string): Promise<ValidationResult>;
   /**
    * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
+   *
+   * Пока идёт async-правило, форма не заперта (`submitting` ещё `false`). Если модель за это
+   * время изменилась — правкой пользователя, загрузкой, записью поведения после таймера или
+   * запроса, — правила этих значений не видели: итог `cancelled`, обработчик не вызывается.
+   * Отложенные записи поведения того же тика (расчёт `compute`, сброс `resetOnDisable`)
+   * изменением не считаются: отправка сразу после сборки формы или правки поля проходит.
    */
   submit<TResult>(
     handler: (values: T) => TResult | Promise<TResult>
@@ -220,6 +232,16 @@ export function createFormLevel<T>(
     validate,
     validateStep,
     async submit(handler) {
+      // Правила читают модель синхронно при запуске: снимок до проверки — то, что они видят.
+      // Без правил сверять нечего.
+      let checked: unknown = controller ? model.get() : undefined;
+      // Отложенные записи поведения этого тика (расчёт, сброс выключенного поля) ещё в пути —
+      // сверять с моделью после них: отправка сразу после сборки или правки ими не отменяется.
+      const settling = controller
+        ? deferredWritesSettled()?.then(() => {
+            checked = model.get();
+          })
+        : undefined;
       const result = await validate();
       if (result.status !== 'valid') {
         // Показать замечания всех полей, а не только проверенных правилами. Одним batch и от имени
@@ -227,9 +249,15 @@ export function createFormLevel<T>(
         touchByValidation(() => getNodeForSignal(model.$ as object)?.markAsTouched());
         return { status: result.status, validation: result };
       }
+      await settling;
+      const values = model.get() as T;
+      // Модель изменилась, пока шла проверка: эти значения правила не видели — не отправлять.
+      if (controller && !deepEqual(checked, values)) {
+        return { status: 'cancelled', validation: { ...result, status: 'cancelled' } };
+      }
       submits.value++;
       try {
-        return { status: 'submitted', result: await handler(model.get() as T) };
+        return { status: 'submitted', result: await handler(values) };
       } catch (error) {
         return { status: 'failed', error };
       } finally {

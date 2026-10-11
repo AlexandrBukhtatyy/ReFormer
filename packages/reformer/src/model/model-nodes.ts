@@ -44,8 +44,16 @@ const clone = <T>(v: T): T => {
   return v;
 };
 
-const deepEqual = (a: unknown, b: unknown): boolean => {
+/**
+ * Глубокое сравнение значений модели: объекты и массивы — по содержимому, даты — по времени,
+ * остальное (включая файлы) — по ссылке.
+ *
+ * @internal
+ */
+export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
+  // NaN не равен самому себе: без этой ветки число-NaN считалось бы изменённым всегда.
+  if (Number.isNaN(a) && Number.isNaN(b)) return true;
   if (a instanceof Date && b instanceof Date) return Object.is(a.getTime(), b.getTime());
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
