@@ -105,6 +105,11 @@ export function createRegistrationBehavior(ui: FormUiState): FormBehavior<Regist
       // 404 приходит с пустым телом — без этой проверки `.json()` упал бы SyntaxError, и в блоке
       // ошибки вместо человеческого текста оказался бы разбор JSON.
       if (!response.ok) throw new Error('Приглашение не найдено или больше не действует');
+      // Мимо моков запрос попадает на dev-сервер, а тот на незнакомый адрес отвечает страницей
+      // приложения с кодом 200 — `.json()` упал бы на ней тем же разбором JSON.
+      if (!response.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Сервис приглашений недоступен: моки API не запущены');
+      }
       return (await response.json()) as Partial<RegistrationFormData>;
     };
 

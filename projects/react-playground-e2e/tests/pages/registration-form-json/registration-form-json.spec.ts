@@ -91,6 +91,32 @@ test.describe('Регистрация из JSON-схемы', () => {
     await expect(page.getByTestId('input-username')).toHaveValue(PREFILL.username);
   });
 
+  test('моки переживают перезапуск Service Worker: префилл снова приходит данными', async ({
+    page,
+  }) => {
+    await page.goto('/demo/registration-json');
+    await waitForForm(page);
+
+    // Браузер останавливает простаивающий воркер (вкладка в фоне, сон компьютера) — здесь то же
+    // делает CDP. Перезапущенный воркер страницу не помнит и пропускал запросы на dev-сервер, а
+    // тот отвечал на `/api/*` страницей приложения с кодом 200: форма падала на разборе JSON.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('ServiceWorker.enable');
+    await cdp.send('ServiceWorker.stopAllWorkers');
+
+    // Страница заново объявляет себя воркеру по таймеру (5 с, `keepMockingActive`) — ждём с запасом.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(async () => {
+            const response = await fetch('/api/v1/auth/registration-prefill?invite=RF-2026');
+            return response.headers.get('content-type');
+          }),
+        { timeout: 15000 }
+      )
+      .toContain('application/json');
+  });
+
   test('layout из JSON: заголовки, обе колонки, кнопки, блок подсказок', async ({ page }) => {
     await page.goto('/demo/registration-json');
     await waitForForm(page);

@@ -33,8 +33,10 @@ async function enableMocking() {
     }
   }
 
-  const { worker } = await import('./mocks/browser.ts');
-  return worker.start();
+  const { worker, keepMockingActive } = await import('./mocks/browser.ts');
+  await worker.start();
+  // Перезапущенный браузером Service Worker забывает страницу — без этого моки молча отключались.
+  keepMockingActive();
 }
 
 function render() {
