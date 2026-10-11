@@ -1,9 +1,10 @@
-// registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
+// @reformer-generated bfea6251ef0a
+// schema/registry.ts — реестр компонентов и источников данных схемы. Регенерируется.
 
 import { Box, Button, CheckboxWithLabel, FormField, Input, SelectAsync } from '@reformer/ui-kit';
-import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 
-export function createRegistry() {
+export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
     reg.component(FIELD_WRAPPER, FormField);
     reg.component('Box', Box);

@@ -1,5 +1,6 @@
 {
   "$schema": "./form-schema.schema.json",
+  "format": 2,
   "version": "1.0",
   "root": {
     "$nodeId": "aoumk954",
@@ -18,7 +19,7 @@
           {
             "$nodeId": "r64mr9ti",
             "selector": "name",
-            "value": "$model(name)",
+            "model": "$model(name)",
             "component": "$component(Input)",
             "componentProps": {
               "label": "Имя",
@@ -29,7 +30,7 @@
           {
             "$nodeId": "5k6zh7qa",
             "selector": "email",
-            "value": "$model(email)",
+            "model": "$model(email)",
             "component": "$component(Input)",
             "componentProps": {
               "label": "Email",
@@ -41,7 +42,7 @@
       {
         "$nodeId": "pslgns7a",
         "selector": "city",
-        "value": "$model(city)",
+        "model": "$model(city)",
         "component": "$component(Select)",
         "componentProps": {
           "label": "Город",
@@ -51,7 +52,7 @@
       {
         "$nodeId": "6ika59bj",
         "selector": "agree",
-        "value": "$model(agree)",
+        "model": "$model(agree)",
         "component": "$component(Checkbox)",
         "componentProps": {
           "label": "Согласен на обработку данных"

@@ -1,8 +1,9 @@
-// api.ts — бэкенд формы (submit). Пишется один раз и при регенерации не затирается.
+// api/index.ts — запросы к серверу: отправка формы. Ваш файл: пишется один раз и при
+// регенерации не затирается.
 
-import { notify } from '../../notifications/notifications';
-import { sendContactRequest } from '../../services/contact-requests';
-import type { ContactForm } from './types';
+import { notify } from '../../../notifications/notifications';
+import { sendContactRequest } from '../../../services/contact-requests';
+import type { ContactForm } from '../types/contact';
 
 export type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
 
