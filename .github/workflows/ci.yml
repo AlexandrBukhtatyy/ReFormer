@@ -52,9 +52,11 @@ jobs:
 
       - name: e2e стенда
         # Два потока вместо одного (умолчание конфига в CI) и без повторов: задача не блокирует,
-        # а повторы известных падений растянули бы прогон втрое.
+        # а повторы известных падений растянули бы прогон втрое. Без @visual: эталонные снимки
+        # (*.spec.ts-snapshots) в git не хранятся и сняты на машине разработчика — в CI каждый
+        # визуальный тест упал бы на «снимка нет».
         working-directory: projects/react-playground-e2e
-        run: npx playwright test --workers=2 --retries=0
+        run: npx playwright test --workers=2 --retries=0 --grep-invert @visual
 
       - name: Отчёт e2e стенда
         if: always()
