@@ -1,4 +1,4 @@
-// @reformer-generated 6ea42c83ba2b
+// @reformer-generated a8a11b37ea6b
 // behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
 // Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
 
@@ -17,7 +17,7 @@ export function behaviorRules({ model, schema }: BehaviorScope<ReformerSimpleFor
   computeFrom([model.$.lastName, model.$.firstName], model.$.fullName, (lastName, firstName) =>
     [lastName, firstName].filter(Boolean).join(' ')
   );
-  enableWhen(model.$.references, () => model.hasReferences, { resetOnDisable: true });
+  enableWhen(model.$.references, () => model.hasReferences);
 
   // Правила узлов схемы
   hideWhen(schema.node('references'), () => !model.hasReferences);

@@ -159,7 +159,12 @@ describe('отправка', () => {
     expect(view.submit).toEqual({ selector: 'submit', event: 'onClick', byWizard: false });
     const code = renderTemplate('test.submit', submitTemplate, view);
     expect(code).toContain("import { formRules } from '../validation/form';");
-    expect(code).toContain('validateModel(model, formRules, { touch: true })');
+    // Проверка отправки — та же, что у сборки: выключенные поля не проверяются. `validateModel`
+    // их проверял, и выключенный `enableWhen` раздел держал отправку без видимого замечания.
+    expect(code).toContain("import { createFormValidation } from '@reformer/core/validation';");
+    expect(code).toContain('const check = createFormValidation(model, formRules);');
+    expect(code).toContain('if (!(await check.validate())) {');
+    expect(code).not.toContain('validateModel');
   });
 
   it('визард отправляет сам — после полной проверки; набора правил формы отправке не нужно', () => {

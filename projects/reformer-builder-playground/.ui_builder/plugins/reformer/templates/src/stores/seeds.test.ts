@@ -363,7 +363,6 @@ describe('правила анкеты', () => {
         target: 'references',
         sources: ['hasReferences'],
         expr: 'model.hasReferences',
-        options: { resetOnDisable: true },
       },
     ]);
     expect(rules.render).toHaveLength(1);
@@ -383,10 +382,9 @@ describe('правила анкеты', () => {
     expect(enabled).toMatchObject({ target: 'references', expr: 'model.hasReferences' });
     // Цель — сам массив, а не поле строки: выключается он целиком, со всеми строками.
     expect(rules.validation.some((rule) => rule.each === enabled?.target)).toBe(true);
-    // И сбрасывается: простая форма проверяется кнопкой модельным прогоном (`validateModel`), а
-    // тот о выключенности поля не знает — строку выключенного, но не пустого массива он
-    // проверил бы. Пустой массив проходит и его, и проверку уровня формы у визарда.
-    expect(enabled?.options).toEqual({ resetOnDisable: true });
+    // Без сброса: выключенные строки не проверяет ни отправка простой формы, ни визард — обе
+    // проверяют форму как сборка, — а набранное возвращается вместе с флажком.
+    expect(enabled?.options).toBeUndefined();
   });
 });
 

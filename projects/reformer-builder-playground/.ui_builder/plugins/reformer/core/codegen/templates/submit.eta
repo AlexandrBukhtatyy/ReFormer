@@ -13,9 +13,7 @@ const handler = byWizard
     ]
   : [
       `onComponentEvent(${node}, ${event}, async () => {`,
-      '  // `touch: true` обязателен: киты показывают ошибку только у тронутого поля. Без него',
-      '  // неудачная отправка выглядела бы так, будто кнопка не работает.',
-      '  if (!(await validateModel(model, formRules, { touch: true }))) {',
+      '  if (!(await check.validate())) {',
       "    onResult?.('Проверьте заполнение формы', false);",
       '    return;',
       '  }',
@@ -29,7 +27,7 @@ const handler = byWizard
 
 import { onComponentEvent, type BehaviorScope } from '@reformer/core/behaviors';
 <% if (!byWizard) { -%>
-import { validateModel } from '@reformer/core/validation';
+import { createFormValidation } from '@reformer/core/validation';
 <% } -%>
 import { submitForm } from '<%= it.rel('submit', 'api') %>';
 import type { <%= T %> } from '<%= it.rel('submit', 'types') %>';
@@ -52,6 +50,12 @@ export interface SubmitOptions {
 <%~ it.signature('export function wireSubmit', [`{ ${byWizard ? 'schema' : 'model, schema'} }: BehaviorScope<${T}>`, '{ onResult }: SubmitOptions = {}'], ': void {') %>
 <% if (byWizard) { -%>
   // Визард зовёт `onSubmit` сам — после успешной полной проверки: правила шагов и правила вне шагов.
+<% } else { -%>
+  // Проверка отправки — та же, что у сборки формы: выключенное поле (`enableWhen`), поле
+  // выключенной группы или массива не проверяются, а замечания раскрываются — поля
+  // помечаются тронутыми (киты показывают ошибку только у тронутого поля).
+  const check = createFormValidation(model, formRules);
+
 <% } -%>
   <%~ it.format(handler.join('\n'), 2) %>
 }
