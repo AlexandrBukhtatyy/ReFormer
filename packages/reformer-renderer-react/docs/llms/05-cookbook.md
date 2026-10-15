@@ -173,7 +173,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, f
   });
 
   // 3. Подписка на проп-событие компонента (получает родные args). Кнопка отправки визарда зовёт
-  //    обработчик через `bundle.submit`: только после успешной проверки всей формы.
+  //    обработчик через `bundle.submission.submit`: только после успешной проверки всей формы.
   onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
     await submitCreditApplication(values);
   });

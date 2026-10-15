@@ -55,9 +55,9 @@ renderEffect(schema, () => {
 import { onComponentEvent } from '@reformer/core/behaviors';
 
 onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
-  // Внутри сборки кнопка отправки визарда зовёт обработчик через `bundle.submit`: только после
-  // успешной проверки всей формы, а при замечаниях поля помечаются touched. Проверять здесь руками
-  // не нужно; `values` — значения формы.
+  // Внутри сборки кнопка отправки визарда зовёт обработчик через `bundle.submission.submit`:
+  // только после успешной проверки всей формы, а при замечаниях тронутой помечается вся форма.
+  // Проверять здесь руками не нужно; `values` — значения формы.
   await submitCreditApplication(values);
 });
 ```
@@ -85,7 +85,7 @@ const bundle = useFormBundle(() =>
 
 ## Прежний путь: `renderBehavior`
 
-В сборке `createReactForm` (и при рендере `createRenderSchema` без бандла) правила узлов пишет отдельная функция `RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void`. Фабрика из конфига `createReactForm` получает собранные форму, модель и **уровень формы** третьим аргументом — `submit`, `validate`, `flow`:
+В сборке `createReactForm` (и при рендере `createRenderSchema` без бандла) правила узлов пишет отдельная функция `RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void`. Фабрика из конфига `createReactForm` получает собранные форму, модель и **уровень формы** третьим аргументом — `submission` (`level.submission.submit(handler)`, `level.submission.submitting`), `validate`, `flow`:
 
 ```tsx
 import { hideWhen, renderEffect, type RenderBehaviorFn } from '@reformer/renderer-react';
@@ -103,7 +103,7 @@ const makeCreditRenderBehavior =
 createReactForm<CreditForm>({ model, schema, flow, renderBehavior: makeCreditRenderBehavior });
 ```
 
-Этот путь рендерит функцию-схему, а не бандл, но `FormRenderer` с бандлом `createReactForm` (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submit`). Новому коду этот путь не нужен.
+Этот путь рендерит функцию-схему, а не бандл, но `FormRenderer` с бандлом `createReactForm` (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Новому коду этот путь не нужен.
 
 ## Anti-patterns
 

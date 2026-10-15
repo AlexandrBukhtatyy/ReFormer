@@ -32,7 +32,7 @@ import type { RenderNodeControl, RenderSchemaProxy } from './render-schema-proxy
  * Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
  *
  * Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect). Модель и уровень
- * формы (`flow`, `submit`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
+ * формы (`flow`, `submission`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
  *
  * В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
  * полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
@@ -88,7 +88,7 @@ export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): v
  * ```
  *
  * Обработчик отправки визарда — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`:
- * внутри сборки кнопка мастера зовёт его через `bundle.submit` — только после успешной проверки
+ * внутри сборки кнопка мастера зовёт его через `bundle.submission` — только после успешной проверки
  * всей формы.
  */
 export function onComponentEvent(

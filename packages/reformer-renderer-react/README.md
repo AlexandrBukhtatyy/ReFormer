@@ -45,7 +45,7 @@ const mySchema = (model: FormModel<MyForm>): RenderNode<MyForm> => ({
 
 export function MyFormPage() {
   // One call builds the model, the form, the compiled schema and the form level
-  // (validate / submit / step flow). useFormBundle keeps the bundle stable between renders.
+  // (validate / submission / step flow). useFormBundle keeps the bundle stable between renders.
   const bundle = useFormBundle(() =>
     createForm<MyForm>({ initial: { email: '' }, schema: mySchema })
   );
@@ -86,7 +86,8 @@ function MyFormPage() {
     createForm<MyForm>({ initial: { email: '' }, schema: mySchema, validation: rules })
   );
   const send = async () => {
-    const outcome = await bundle.submit(api.save); // one run of all rules, then the handler
+    // One run of all rules, then the handler.
+    const outcome = await bundle.submission.submit(api.save);
     if (outcome.status === 'invalid') showHint('Check the form');
   };
   return (
@@ -105,8 +106,10 @@ scope, `applyEach(model.$.items, rowRules)` and `apply(...schemas)` for composit
 
 For a wizard, step rules go into the step flow: `createForm({ flow: { steps: [{ id: 'loan', rules:
 loanRules }] } })` — the step `id` equals the `selector` of the step node. The wizard's "Next" runs
-`flow.next()`, its submit button runs `bundle.submit`. Live validation is chosen with
-`validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`. See the
+`flow.next()`, its submit button runs `bundle.submission.submit`. Live validation is chosen with
+`validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`; the live phase of
+`afterFirstSubmit` starts only with a submit attempt (`bundle.submission.submit`), not with
+`bundle.validate()`, `validateStep` or `flow.next()`. See the
 [validation guide](./docs/llms/06-validation.md) and the [wizard guide](./docs/llms/07-form-wizard.md).
 
 ## License

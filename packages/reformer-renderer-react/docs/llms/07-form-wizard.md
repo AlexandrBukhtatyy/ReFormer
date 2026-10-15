@@ -89,8 +89,8 @@ function CreditFormPage() {
 import { defineFormBehavior, onComponentEvent, renderEffect } from '@reformer/core/behaviors';
 
 export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, flow }) => {
-  // Кнопка отправки на последнем шаге зовёт обработчик через `bundle.submit`: только после
-  // успешной проверки всей формы; при замечаниях поля помечаются touched.
+  // Кнопка отправки на последнем шаге зовёт обработчик через `bundle.submission.submit`: только
+  // после успешной проверки всей формы; при замечаниях тронутой помечается вся форма.
   onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
     reportOutcome(await sendCreditApplication(values));
   });
@@ -109,7 +109,7 @@ import { useFormFlow } from '@reformer/core/react';
 
 const { current, index, isLast } = useFormFlow(bundle.flow!); // снимок для рендера
 bundle.flow?.goTo('loan'); // FlowTransition: moved | stayed (reason: 'locked', …)
-const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
+const outcome = await bundle.submission.submit(sendCreditApplication); // SubmitResult
 ```
 
 ## Прежний контракт — удалён
@@ -120,7 +120,8 @@ const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
 | `componentProps.form` визарда | форма из контекста сборки (`FormRenderer form={bundle}`) |
 | `config: { validateStep, validateAll }`, `defineSteps` | `createForm({ flow: { steps: [{ id, rules }] } })` |
 | `schema.node('wizard').getRef<FormWizardHandle>()`, `goToStep(n)` | `flow.goTo(id)`, `flow.next()`, `flow.previous()` |
-| `onSubmit` без аргументов, снимок `model.get()` | `onSubmit(values)` через `bundle.submit` |
+| `onSubmit` без аргументов, снимок `model.get()` | `onSubmit(values)` через `bundle.submission.submit` |
+| `bundle.submit(handler)`, `bundle.submitting` | `bundle.submission.submit(handler)`, `bundle.submission.submitting` |
 
 Проп `steps` с `body` и `renderStepBody` остаётся у `FormWizard` для разметки в JSX (не в схеме): тело
 шага — компонент, ReactNode или узел схемы, который рисует стратегия
@@ -130,7 +131,8 @@ const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
 
 `createReactForm` рендерит функцию-схему, а не бандл, но уровень формы в нём тот же: `FormRenderer`
 с этим бандлом (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки. Визард берёт из
-него форму и поток, а отправка идёт через `bundle.submit` — с проверкой, как у `createForm`.
+него форму и поток, а отправка идёт через `bundle.submission.submit` — с проверкой, как у
+`createForm`.
 Новому коду этот путь не нужен.
 
 ## См. также

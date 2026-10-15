@@ -115,8 +115,8 @@ componentProps: { title, icon }, children: [...] }` (`Step` из `@reformer/cdk/
 
 `createReactForm` + `useReactForm` остаются в пакете: билдер схемы `(model, form?)` вызывается дважды
 (без формы — для сборки, с формой — для рендера), а правила узлов пишет отдельная фабрика
-`renderBehavior(form, model, level)`; третий аргумент — уровень формы (`submit`, `flow`). Новому коду
-он не нужен: сборка `createForm` даёт то же одним поведением формы — см. [08-form-bundle.md](08-form-bundle.md).
+`renderBehavior(form, model, level)`; третий аргумент — уровень формы (`submission`, `flow`).
+Новому коду он не нужен: сборка `createForm` даёт то же одним поведением формы — см. [08-form-bundle.md](08-form-bundle.md).
 
 ## 4. Key Concepts
 
@@ -432,9 +432,9 @@ renderEffect(schema, () => {
 import { onComponentEvent } from '@reformer/core/behaviors';
 
 onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
-  // Внутри сборки кнопка отправки визарда зовёт обработчик через `bundle.submit`: только после
-  // успешной проверки всей формы, а при замечаниях поля помечаются touched. Проверять здесь руками
-  // не нужно; `values` — значения формы.
+  // Внутри сборки кнопка отправки визарда зовёт обработчик через `bundle.submission.submit`:
+  // только после успешной проверки всей формы, а при замечаниях тронутой помечается вся форма.
+  // Проверять здесь руками не нужно; `values` — значения формы.
   await submitCreditApplication(values);
 });
 ```
@@ -462,7 +462,7 @@ const bundle = useFormBundle(() =>
 
 ## 14. Прежний путь: `renderBehavior`
 
-В сборке `createReactForm` (и при рендере `createRenderSchema` без бандла) правила узлов пишет отдельная функция `RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void`. Фабрика из конфига `createReactForm` получает собранные форму, модель и **уровень формы** третьим аргументом — `submit`, `validate`, `flow`:
+В сборке `createReactForm` (и при рендере `createRenderSchema` без бандла) правила узлов пишет отдельная функция `RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void`. Фабрика из конфига `createReactForm` получает собранные форму, модель и **уровень формы** третьим аргументом — `submission` (`level.submission.submit(handler)`, `level.submission.submitting`), `validate`, `flow`:
 
 ```tsx
 import { hideWhen, renderEffect, type RenderBehaviorFn } from '@reformer/renderer-react';
@@ -480,7 +480,7 @@ const makeCreditRenderBehavior =
 createReactForm<CreditForm>({ model, schema, flow, renderBehavior: makeCreditRenderBehavior });
 ```
 
-Этот путь рендерит функцию-схему, а не бандл, но `FormRenderer` с бандлом `createReactForm` (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submit`). Новому коду этот путь не нужен.
+Этот путь рендерит функцию-схему, а не бандл, но `FormRenderer` с бандлом `createReactForm` (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Новому коду этот путь не нужен.
 
 ## 15. Anti-patterns
 
@@ -787,7 +787,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, f
   });
 
   // 3. Подписка на проп-событие компонента (получает родные args). Кнопка отправки визарда зовёт
-  //    обработчик через `bundle.submit`: только после успешной проверки всей формы.
+  //    обработчик через `bundle.submission.submit`: только после успешной проверки всей формы.
   onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
     await submitCreditApplication(values);
   });
@@ -941,13 +941,13 @@ const adapters = new Map<unknown, FieldAdapter>([
 
 **Validation**
 
-Как валидировать **значения** формы, собранной из схемы (`@reformer/renderer-react`). Всё сверено с рабочим кодом: типы узла — [types.ts](../../src/core/types.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submit`, поток шагов), эталон — `complex-multy-step-form` (`validation/*.ts`, `flow/credit-application-flow.ts`, `application/create.ts`).
+Как валидировать **значения** формы, собранной из схемы (`@reformer/renderer-react`). Всё сверено с рабочим кодом: типы узла — [types.ts](../../src/core/types.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submission`, поток шагов), эталон — `complex-multy-step-form` (`validation/*.ts`, `flow/credit-application-flow.ts`, `application/create.ts`).
 
 Одна ключевая мысль: **узел схемы несёт только layout, а не правила валидации.**
 
 - `RenderNode<T>` — union из четырёх узлов (см. [types.ts](../../src/core/types.ts)): поле (`{ selector?, model, component, componentProps? }`), массив (`{ model, item, component?, componentProps? }`), подформа (`{ model, part }`), контейнер (`{ component, children?, componentProps? }`). Поля `validators` нет **ни в одном** из них. Впишете `validators: []` в лист — TypeScript отклонит: `TS2353: 'validators' does not exist in type 'RenderNode<T>'`.
 - Рендерер подсвечивает замечания, но **сам значения не валидирует** — он лишь отображает то, что прогон правил поставил в ноды (`issues`).
-- Значит, валидацию значений выражают **отдельной функцией-схемой над МОДЕЛЬЮ** (`ValidationDefinition<T>`), а не в дереве. Правила уходят в сборку `createForm` полями `validation` и `flow.steps[].rules`; запускает их уровень формы (`bundle.validate()`, `bundle.validateStep(id)`, `bundle.submit(handler)`, `flow.next()`). Одна валидация на все варианты рендера (React / JSON / рукописный JSX): layout и правила разъезжаются по разным каналам.
+- Значит, валидацию значений выражают **отдельной функцией-схемой над МОДЕЛЬЮ** (`ValidationDefinition<T>`), а не в дереве. Правила уходят в сборку `createForm` полями `validation` и `flow.steps[].rules`; запускает их уровень формы (`bundle.validate()`, `bundle.validateStep(id)`, `bundle.submission.submit(handler)`, `flow.next()`). Одна валидация на все варианты рендера (React / JSON / рукописный JSX): layout и правила разъезжаются по разным каналам.
 - Правило несёт **код** замечания, а не текст: `required({ code: 'loanAmount.required' })`. Строку по коду даёт словарь формы (`defineIssueMessages`) через `ValidationMessagesProvider messages`.
 
 Дальше — три шага: (1) правила над моделью, (2) подключить их к сборке, (3) тексты замечаний.
@@ -1015,16 +1015,16 @@ const bundle = useFormBundle(() =>
 | `bundle.validate()` | один прогон всех правил, замечания — в ноды | `ValidationResult` (`status: 'valid' \| 'invalid' \| 'cancelled' \| 'error'`, `issues`, `failures`) |
 | `bundle.validateStep('loan')` | правила шага, проверенные поля помечаются `touched` | `ValidationResult`; неизвестный шаг — исключение |
 | `bundle.flow?.next()` | правила текущего шага; при успехе — переход | `FlowTransition`: `moved` либо `stayed` с причиной |
-| `bundle.submit(handler)` | один прогон всех правил; при успехе — `handler(значения)` | `SubmitResult`: `submitted` / `invalid` / `error` / `cancelled` / `failed` |
+| `bundle.submission.submit(handler)` | один прогон всех правил; при успехе — `handler(значения)`; при `invalid` / `error` тронутой помечается вся форма | `SubmitResult`: `submitted` / `invalid` / `error` / `cancelled` / `failed` |
 
-Визард сам зовёт `flow.next()` на «Далее» и `bundle.submit` на «Отправить» — проверять руками в обработчиках не нужно. Отправка снаружи визарда:
+Визард сам зовёт `flow.next()` на «Далее» и `bundle.submission.submit` на «Отправить» — проверять руками в обработчиках не нужно. Отправка снаружи визарда:
 
 ```tsx
-const outcome = await bundle.submit(sendApplication); // значения = model.get()
-if (outcome.status === 'invalid') showHint('Проверьте форму'); // поля уже помечены touched
+const outcome = await bundle.submission.submit(sendApplication); // значения = model.get()
+if (outcome.status === 'invalid') showHint('Проверьте форму'); // вся форма уже помечена touched
 ```
 
-**Живая проверка.** По умолчанию правила запускаются только явно (отправка, «Далее»). Когда запускать их ещё — поле `strategy` в `validation`: `'blur'`, `'change'` (+ `debounce`), `'afterFirstSubmit'` (+ `liveAfterSubmit: 'change' | 'blur'`). Подписки стратегии армирует `useFormBundle` в эффекте (SSR-safe): `validation: { extras: crossStepRules, strategy: 'afterFirstSubmit' }`.
+**Живая проверка.** По умолчанию правила запускаются только явно (отправка, «Далее»). Когда запускать их ещё — поле `strategy` в `validation`: `'blur'`, `'change'` (+ `debounce`), `'afterFirstSubmit'` (+ `liveAfterSubmit: 'change' | 'blur'`). Подписки стратегии армирует `useFormBundle` в эффекте (SSR-safe): `validation: { extras: crossStepRules, strategy: 'afterFirstSubmit' }`. Живую фазу `'afterFirstSubmit'` включает только попытка отправки — `bundle.submission.submit` (и кнопка «Отправить» визарда); `bundle.validate()`, `validateStep` и «Далее» (`flow.next()`) её не включают.
 
 ### Мост «поведение инициирует валидацию» { #revalidate-bridge }
 
@@ -1150,7 +1150,7 @@ return (
 - **Текст в правиле** — `required({ message: '…' })` больше нет: у `RuleOptions` только `{ code?, params? }`. Текст — словарь `defineIssueMessages` + `ValidationMessagesProvider messages`.
 - **`validation: { steps: { loan: rules } }`, `defineSteps`, `config` визарда** — прежний контракт, удалён. Правила шагов — `flow: { steps: [{ id: 'loan', rules }] }`; визард берёт поток из сборки.
 - **Правила шагов по индексу** (`STEP_SCHEMAS[step - 1]`) — перестановка шагов молча рассинхронизирует правила. Шаг потока адресуется `id`, равным `selector` узла шага; расхождение ловят сборка и визард (dev-предупреждения).
-- **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает замечания, уже поставленные в ноды. Прогон — `bundle.validate()` / `validateStep` / `submit` / `flow.next()` либо живая стратегия.
+- **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает замечания, уже поставленные в ноды. Прогон — `bundle.validate()` / `validateStep` / `submission.submit` / `flow.next()` либо живая стратегия.
 - **Передавать в `validate` значение вместо ручки** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — ручка (стабильная ссылка на поле модели), а не текущее значение. Значения читает раннер в момент прогона; правило над несколькими полями берёт снимок через `cross(handle, fn)`.
 - **Пересоздавать схему на каждый прогон** (`validateModel(model, defineValidation(...))` инлайн или новый объект правил в каждом рендере) — отмена устаревших прогонов ключится по паре «модель + правила». Держите схемы стабильными module-level `const`.
 
@@ -1254,8 +1254,8 @@ function CreditFormPage() {
 import { defineFormBehavior, onComponentEvent, renderEffect } from '@reformer/core/behaviors';
 
 export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, flow }) => {
-  // Кнопка отправки на последнем шаге зовёт обработчик через `bundle.submit`: только после
-  // успешной проверки всей формы; при замечаниях поля помечаются touched.
+  // Кнопка отправки на последнем шаге зовёт обработчик через `bundle.submission.submit`: только
+  // после успешной проверки всей формы; при замечаниях тронутой помечается вся форма.
   onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
     reportOutcome(await sendCreditApplication(values));
   });
@@ -1274,7 +1274,7 @@ import { useFormFlow } from '@reformer/core/react';
 
 const { current, index, isLast } = useFormFlow(bundle.flow!); // снимок для рендера
 bundle.flow?.goTo('loan'); // FlowTransition: moved | stayed (reason: 'locked', …)
-const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
+const outcome = await bundle.submission.submit(sendCreditApplication); // SubmitResult
 ```
 
 ## 49. Прежний контракт — удалён
@@ -1285,7 +1285,8 @@ const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
 | `componentProps.form` визарда | форма из контекста сборки (`FormRenderer form={bundle}`) |
 | `config: { validateStep, validateAll }`, `defineSteps` | `createForm({ flow: { steps: [{ id, rules }] } })` |
 | `schema.node('wizard').getRef<FormWizardHandle>()`, `goToStep(n)` | `flow.goTo(id)`, `flow.next()`, `flow.previous()` |
-| `onSubmit` без аргументов, снимок `model.get()` | `onSubmit(values)` через `bundle.submit` |
+| `onSubmit` без аргументов, снимок `model.get()` | `onSubmit(values)` через `bundle.submission.submit` |
+| `bundle.submit(handler)`, `bundle.submitting` | `bundle.submission.submit(handler)`, `bundle.submission.submitting` |
 
 Проп `steps` с `body` и `renderStepBody` остаётся у `FormWizard` для разметки в JSX (не в схеме): тело
 шага — компонент, ReactNode или узел схемы, который рисует стратегия
@@ -1295,7 +1296,8 @@ const outcome = await bundle.submit(sendCreditApplication); // SubmitResult
 
 `createReactForm` рендерит функцию-схему, а не бандл, но уровень формы в нём тот же: `FormRenderer`
 с этим бандлом (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки. Визард берёт из
-него форму и поток, а отправка идёт через `bundle.submit` — с проверкой, как у `createForm`.
+него форму и поток, а отправка идёт через `bundle.submission.submit` — с проверкой, как у
+`createForm`.
 Новому коду этот путь не нужен.
 
 ## 51. См. также
@@ -1355,8 +1357,13 @@ function MyFormPage() {
   `fields`, `arrays`); `FormRenderer` её не перестраивает. Рендер идёт по `kind` узла:
   `field`, `array`, `part`, `container`, `text`.
 - Обёртка поля: `settings.fieldWrapper`, иначе та, что положил в бандл реестр (JSON-вариант).
-- Уровень формы — в том же бандле: `bundle.validate()`, `bundle.validateStep(id)`,
-  `bundle.submit(handler)`, поток шагов `bundle.flow` (если в конфиге есть `flow`).
+- Уровень формы — в том же бандле: `bundle.validate()`, `bundle.validateStep(id)`, отправка
+  `bundle.submission` (`submit(handler)` → `SubmitResult`, `submitting` — идёт ли обработчик),
+  поток шагов `bundle.flow` (если в конфиге есть `flow`).
+- Снять сборку — `bundle.dispose()`: поведение, подписки нод, живая проверка; идущие проверки
+  получают `cancelled`, значения модели остаются. Владелец сборки — тот, кто вызвал `createForm`:
+  вне React (тесты, сервер, своя оболочка) зовите `dispose()`, когда форма больше не нужна. Бандл
+  прежнего пути `createReactForm` тоже снимается `dispose()`.
 
 ## 54. Узлы схемы
 
@@ -1446,7 +1453,7 @@ Tabs.__selfManagedChildren = true;
 ```
 
 Форму, поток шагов и отправку такой компонент берёт из контекста сборки — `useFormBundleContext()`
-из `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.submit`); контекст ставит
+из `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.submission`); контекст ставит
 `FormRenderer`. Так устроен `FormWizard` из `@reformer/ui-kit` — см. [07-form-wizard.md](07-form-wizard.md).
 
 ## 58. Частые ошибки
@@ -1739,7 +1746,7 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
    * с `form` — для рендера. Узлы, которым нужна форма (визард), берут её из второго аргумента.
    */
   schema: (model: FormModel<T>, form?: FormGroup<T>) => RenderNode<T>;
-  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (отправка, поток). */
   renderBehavior?: (
     form: FormGroup<T>,
     model: FormModel<T>,
@@ -2106,7 +2113,7 @@ onComponentEvent(schema.node('region'), 'onChange', (value: string) => {
 ```
 
 Обработчик отправки визарда — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`:
-внутри сборки кнопка мастера зовёт его через `bundle.submit` — только после успешной проверки
+внутри сборки кнопка мастера зовёт его через `bundle.submission` — только после успешной проверки
 всей формы.
 
 _Source: src/core/render-behavior.ts_
@@ -2240,7 +2247,7 @@ _Source: src/create-react-form.ts_
 Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
 
 Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect). Модель и уровень
-формы (`flow`, `submit`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
+формы (`flow`, `submission`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
 
 В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
 полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
@@ -2556,6 +2563,8 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
   [PROXY_MARKER]: true;
   /** Получить контроллер ноды по selector */
   node(selector: string): RenderNodeControl;
+  /** @internal Записать эффект области (`renderEffect`); возвращает снятие. */
+  addRenderEffect(effect: () => void | (() => void)): () => void;
   /** @internal — карты переопределений для передачи через контекст */
   __overrideMaps: RenderSchemaOverrideMaps;
 };

@@ -1,6 +1,6 @@
 # Validation
 
-Как валидировать **значения** формы, собранной из схемы (`@reformer/renderer-react`). Всё сверено с рабочим кодом: типы узла — [types.ts](../../src/core/types.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submit`, поток шагов), эталон — `complex-multy-step-form` (`validation/*.ts`, `flow/credit-application-flow.ts`, `application/create.ts`).
+Как валидировать **значения** формы, собранной из схемы (`@reformer/renderer-react`). Всё сверено с рабочим кодом: типы узла — [types.ts](../../src/core/types.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submission`, поток шагов), эталон — `complex-multy-step-form` (`validation/*.ts`, `flow/credit-application-flow.ts`, `application/create.ts`).
 
 ## Mental model — почему валидаторов нет в узле схемы { #mental-model }
 
@@ -8,7 +8,7 @@
 
 - `RenderNode<T>` — union из четырёх узлов (см. [types.ts](../../src/core/types.ts)): поле (`{ selector?, model, component, componentProps? }`), массив (`{ model, item, component?, componentProps? }`), подформа (`{ model, part }`), контейнер (`{ component, children?, componentProps? }`). Поля `validators` нет **ни в одном** из них. Впишете `validators: []` в лист — TypeScript отклонит: `TS2353: 'validators' does not exist in type 'RenderNode<T>'`.
 - Рендерер подсвечивает замечания, но **сам значения не валидирует** — он лишь отображает то, что прогон правил поставил в ноды (`issues`).
-- Значит, валидацию значений выражают **отдельной функцией-схемой над МОДЕЛЬЮ** (`ValidationDefinition<T>`), а не в дереве. Правила уходят в сборку `createForm` полями `validation` и `flow.steps[].rules`; запускает их уровень формы (`bundle.validate()`, `bundle.validateStep(id)`, `bundle.submit(handler)`, `flow.next()`). Одна валидация на все варианты рендера (React / JSON / рукописный JSX): layout и правила разъезжаются по разным каналам.
+- Значит, валидацию значений выражают **отдельной функцией-схемой над МОДЕЛЬЮ** (`ValidationDefinition<T>`), а не в дереве. Правила уходят в сборку `createForm` полями `validation` и `flow.steps[].rules`; запускает их уровень формы (`bundle.validate()`, `bundle.validateStep(id)`, `bundle.submission.submit(handler)`, `flow.next()`). Одна валидация на все варианты рендера (React / JSON / рукописный JSX): layout и правила разъезжаются по разным каналам.
 - Правило несёт **код** замечания, а не текст: `required({ code: 'loanAmount.required' })`. Строку по коду даёт словарь формы (`defineIssueMessages`) через `ValidationMessagesProvider messages`.
 
 Дальше — три шага: (1) правила над моделью, (2) подключить их к сборке, (3) тексты замечаний.
@@ -76,16 +76,16 @@ const bundle = useFormBundle(() =>
 | `bundle.validate()` | один прогон всех правил, замечания — в ноды | `ValidationResult` (`status: 'valid' \| 'invalid' \| 'cancelled' \| 'error'`, `issues`, `failures`) |
 | `bundle.validateStep('loan')` | правила шага, проверенные поля помечаются `touched` | `ValidationResult`; неизвестный шаг — исключение |
 | `bundle.flow?.next()` | правила текущего шага; при успехе — переход | `FlowTransition`: `moved` либо `stayed` с причиной |
-| `bundle.submit(handler)` | один прогон всех правил; при успехе — `handler(значения)` | `SubmitResult`: `submitted` / `invalid` / `error` / `cancelled` / `failed` |
+| `bundle.submission.submit(handler)` | один прогон всех правил; при успехе — `handler(значения)`; при `invalid` / `error` тронутой помечается вся форма | `SubmitResult`: `submitted` / `invalid` / `error` / `cancelled` / `failed` |
 
-Визард сам зовёт `flow.next()` на «Далее» и `bundle.submit` на «Отправить» — проверять руками в обработчиках не нужно. Отправка снаружи визарда:
+Визард сам зовёт `flow.next()` на «Далее» и `bundle.submission.submit` на «Отправить» — проверять руками в обработчиках не нужно. Отправка снаружи визарда:
 
 ```tsx
-const outcome = await bundle.submit(sendApplication); // значения = model.get()
-if (outcome.status === 'invalid') showHint('Проверьте форму'); // поля уже помечены touched
+const outcome = await bundle.submission.submit(sendApplication); // значения = model.get()
+if (outcome.status === 'invalid') showHint('Проверьте форму'); // вся форма уже помечена touched
 ```
 
-**Живая проверка.** По умолчанию правила запускаются только явно (отправка, «Далее»). Когда запускать их ещё — поле `strategy` в `validation`: `'blur'`, `'change'` (+ `debounce`), `'afterFirstSubmit'` (+ `liveAfterSubmit: 'change' | 'blur'`). Подписки стратегии армирует `useFormBundle` в эффекте (SSR-safe): `validation: { extras: crossStepRules, strategy: 'afterFirstSubmit' }`.
+**Живая проверка.** По умолчанию правила запускаются только явно (отправка, «Далее»). Когда запускать их ещё — поле `strategy` в `validation`: `'blur'`, `'change'` (+ `debounce`), `'afterFirstSubmit'` (+ `liveAfterSubmit: 'change' | 'blur'`). Подписки стратегии армирует `useFormBundle` в эффекте (SSR-safe): `validation: { extras: crossStepRules, strategy: 'afterFirstSubmit' }`. Живую фазу `'afterFirstSubmit'` включает только попытка отправки — `bundle.submission.submit` (и кнопка «Отправить» визарда); `bundle.validate()`, `validateStep` и «Далее» (`flow.next()`) её не включают.
 
 ### Мост «поведение инициирует валидацию» { #revalidate-bridge }
 
@@ -211,7 +211,7 @@ return (
 - **Текст в правиле** — `required({ message: '…' })` больше нет: у `RuleOptions` только `{ code?, params? }`. Текст — словарь `defineIssueMessages` + `ValidationMessagesProvider messages`.
 - **`validation: { steps: { loan: rules } }`, `defineSteps`, `config` визарда** — прежний контракт, удалён. Правила шагов — `flow: { steps: [{ id: 'loan', rules }] }`; визард берёт поток из сборки.
 - **Правила шагов по индексу** (`STEP_SCHEMAS[step - 1]`) — перестановка шагов молча рассинхронизирует правила. Шаг потока адресуется `id`, равным `selector` узла шага; расхождение ловят сборка и визард (dev-предупреждения).
-- **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает замечания, уже поставленные в ноды. Прогон — `bundle.validate()` / `validateStep` / `submit` / `flow.next()` либо живая стратегия.
+- **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает замечания, уже поставленные в ноды. Прогон — `bundle.validate()` / `validateStep` / `submission.submit` / `flow.next()` либо живая стратегия.
 - **Передавать в `validate` значение вместо ручки** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — ручка (стабильная ссылка на поле модели), а не текущее значение. Значения читает раннер в момент прогона; правило над несколькими полями берёт снимок через `cross(handle, fn)`.
 - **Пересоздавать схему на каждый прогон** (`validateModel(model, defineValidation(...))` инлайн или новый объект правил в каждом рендере) — отмена устаревших прогонов ключится по паре «модель + правила». Держите схемы стабильными module-level `const`.
 

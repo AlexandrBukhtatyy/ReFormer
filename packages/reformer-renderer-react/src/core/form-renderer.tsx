@@ -33,14 +33,14 @@ const isFormRender = (render: unknown): render is FormRender =>
 
 /**
  * Сборка уровня формы прежнего пути (`createReactForm`, `createJsonForm`): форма, модель и
- * методы уровня формы — то, что визард читает из контекста (`form`, `flow`, `submit`).
+ * уровень формы — то, что визард читает из контекста (`form`, `flow`, `submission`).
  */
 const isFormLevel = (value: unknown): boolean =>
   value != null &&
   typeof value === 'object' &&
   'form' in value &&
   'model' in value &&
-  typeof (value as { submit?: unknown }).submit === 'function';
+  typeof (value as { submission?: { submit?: unknown } }).submission?.submit === 'function';
 
 // Функция-схема прежнего бандла → сам бандл: `<FormRenderer render={bundle.render} />` тоже
 // ставит контекст сборки, хотя бандл пропом не передан.

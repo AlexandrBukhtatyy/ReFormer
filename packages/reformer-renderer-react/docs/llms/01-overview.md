@@ -98,8 +98,8 @@ componentProps: { title, icon }, children: [...] }` (`Step` из `@reformer/cdk/
 
 `createReactForm` + `useReactForm` остаются в пакете: билдер схемы `(model, form?)` вызывается дважды
 (без формы — для сборки, с формой — для рендера), а правила узлов пишет отдельная фабрика
-`renderBehavior(form, model, level)`; третий аргумент — уровень формы (`submit`, `flow`). Новому коду
-он не нужен: сборка `createForm` даёт то же одним поведением формы — см. [08-form-bundle.md](08-form-bundle.md).
+`renderBehavior(form, model, level)`; третий аргумент — уровень формы (`submission`, `flow`).
+Новому коду он не нужен: сборка `createForm` даёт то же одним поведением формы — см. [08-form-bundle.md](08-form-bundle.md).
 
 ## Key Concepts
 

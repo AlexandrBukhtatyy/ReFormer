@@ -48,8 +48,13 @@ function MyFormPage() {
   `fields`, `arrays`); `FormRenderer` её не перестраивает. Рендер идёт по `kind` узла:
   `field`, `array`, `part`, `container`, `text`.
 - Обёртка поля: `settings.fieldWrapper`, иначе та, что положил в бандл реестр (JSON-вариант).
-- Уровень формы — в том же бандле: `bundle.validate()`, `bundle.validateStep(id)`,
-  `bundle.submit(handler)`, поток шагов `bundle.flow` (если в конфиге есть `flow`).
+- Уровень формы — в том же бандле: `bundle.validate()`, `bundle.validateStep(id)`, отправка
+  `bundle.submission` (`submit(handler)` → `SubmitResult`, `submitting` — идёт ли обработчик),
+  поток шагов `bundle.flow` (если в конфиге есть `flow`).
+- Снять сборку — `bundle.dispose()`: поведение, подписки нод, живая проверка; идущие проверки
+  получают `cancelled`, значения модели остаются. Владелец сборки — тот, кто вызвал `createForm`:
+  вне React (тесты, сервер, своя оболочка) зовите `dispose()`, когда форма больше не нужна. Бандл
+  прежнего пути `createReactForm` тоже снимается `dispose()`.
 
 ## Узлы схемы
 
@@ -139,7 +144,7 @@ Tabs.__selfManagedChildren = true;
 ```
 
 Форму, поток шагов и отправку такой компонент берёт из контекста сборки — `useFormBundleContext()`
-из `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.submit`); контекст ставит
+из `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.submission`); контекст ставит
 `FormRenderer`. Так устроен `FormWizard` из `@reformer/ui-kit` — см. [07-form-wizard.md](07-form-wizard.md).
 
 ## Частые ошибки

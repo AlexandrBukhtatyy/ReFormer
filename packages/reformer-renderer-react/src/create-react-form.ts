@@ -13,7 +13,7 @@
  * @module reformer/renderer-react/create-react-form
  */
 
-import { createFormFromModel, createFormLevel, createModel } from '@reformer/core';
+import { createFormFromModel, createFormLevel, createModel, disposeForm } from '@reformer/core';
 import type {
   CoreForm,
   CreateFormConfigBase,
@@ -39,7 +39,7 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
    * с `form` — для рендера. Узлы, которым нужна форма (визард), берут её из второго аргумента.
    */
   schema: (model: FormModel<T>, form?: FormGroup<T>) => RenderNode<T>;
-  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (отправка, поток). */
   renderBehavior?: (
     form: FormGroup<T>,
     model: FormModel<T>,
@@ -53,7 +53,8 @@ export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactF
  * @typeParam T - Форма данных модели.
  * @param config - {@link CreateReactFormConfig}: (`initial` | `model`) + `schema` + опц.
  *   `behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
- * @returns {@link ReactForm}` <T>` — `{ model, form, render }` и уровень формы (`submit`, `flow`, …).
+ * @returns {@link ReactForm}` <T>` — `{ model, form, render, dispose }` и уровень формы
+ *   (`submission`, `flow`, …).
  *
  * @example
  * ```tsx
@@ -92,7 +93,17 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
   const render = createRenderSchema<T>(() => config.schema(model, form));
   config.renderBehavior?.(form, model, level)(render);
 
-  const bundle: ReactForm<T> = { ...level, model, form, render };
+  const bundle: ReactForm<T> = {
+    ...level,
+    model,
+    form,
+    render,
+    // После `...level`: уровень снимает только себя, сборка — ещё и форму.
+    dispose() {
+      disposeForm(form);
+      level.dispose();
+    },
+  };
   attachFormLevel(render, bundle);
   config.setup?.(bundle);
   return bundle;

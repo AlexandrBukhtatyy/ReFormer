@@ -77,6 +77,8 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
   [PROXY_MARKER]: true;
   /** Получить контроллер ноды по selector */
   node(selector: string): RenderNodeControl;
+  /** @internal Записать эффект области (`renderEffect`); возвращает снятие. */
+  addRenderEffect(effect: () => void | (() => void)): () => void;
   /** @internal — карты переопределений для передачи через контекст */
   __overrideMaps: RenderSchemaOverrideMaps;
 };
@@ -146,6 +148,7 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
     [PROXY_MARKER]: true,
     __overrideMaps: scope.__overrideMaps,
     node: scope.node,
+    addRenderEffect: scope.addRenderEffect,
   });
 
   return proxyFn;

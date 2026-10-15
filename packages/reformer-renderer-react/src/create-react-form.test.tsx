@@ -15,6 +15,7 @@ import { createModel, type FormModel, type FormGroup } from '@reformer/core';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { useFormBundleContext } from '@reformer/core/react';
+import { defineFormBehavior, onDispose } from '@reformer/core/behaviors';
 import { createReactForm } from './create-react-form';
 import { FormRenderer } from './core/form-renderer';
 import { createRenderSchema } from './core/render-schema-proxy';
@@ -108,7 +109,7 @@ describe('createReactForm — сборка', () => {
     expect(seen[1]).toBe(bundle.model);
     // Уровень формы — в бандле: те же правила, отправка и поток.
     expect((seen[2] as typeof bundle).validation).toBe(bundle.validation);
-    expect((seen[2] as typeof bundle).submit).toBe(bundle.submit);
+    expect((seen[2] as typeof bundle).submission).toBe(bundle.submission);
     expect(bundle.render.__overrideMaps.propsOverrides.get('wizard')).toMatchObject({
       marker: 'applied',
     });
@@ -164,7 +165,11 @@ describe('FormRenderer — контекст сборки на прежнем п�
   /** Узел, который читает контекст сборки — как визард в схеме. */
   const ContextProbe: FC = () => {
     const bundle = useFormBundleContext<F>();
-    return <s>{bundle && typeof bundle.submit === 'function' ? 'context-level' : 'no-context'}</s>;
+    return (
+      <s>
+        {bundle && typeof bundle.submission?.submit === 'function' ? 'context-level' : 'no-context'}
+      </s>
+    );
   };
   const probeSchema = (): RenderNode<F> =>
     ({ component: ContextProbe, children: [] }) as unknown as RenderNode<F>;
@@ -182,5 +187,31 @@ describe('FormRenderer — контекст сборки на прежнем п�
   it('голая функция-схема без бандла — контекста нет', () => {
     const render = createRenderSchema<F>(probeSchema);
     expect(renderToString(<FormRenderer<F> render={render} />)).toContain('no-context');
+  });
+});
+
+describe('createReactForm — снятие', () => {
+  it('dispose снимает поведение формы и живую проверку; повторный вызов ничего не делает', async () => {
+    const cleanup = vi.fn();
+    const rule = vi.fn(() => null);
+    const model = createModel<F>({ ...INITIAL });
+    const bundle = createReactForm<F>({
+      model,
+      schema: buildSchema,
+      behavior: defineFormBehavior<F>(() => onDispose(cleanup)),
+      validation: {
+        rules: defineValidation<F>(({ model: formModel }) => validate(formModel.$.email, [rule])),
+        strategy: 'change',
+      },
+    });
+    bundle.validation!.controller.start();
+
+    bundle.dispose();
+    bundle.dispose();
+    model.email = 'a@b.c';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(rule).not.toHaveBeenCalled();
   });
 });
