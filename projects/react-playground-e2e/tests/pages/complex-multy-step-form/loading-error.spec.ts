@@ -32,7 +32,7 @@ test.describe('Состояния загрузки и ошибок', { tag: ['@r
       await mockCitiesApi(page, { delay: 100 });
       await mockCarModelsApi(page, { delay: 100 });
 
-      await page.goto(creditForm.basePath);
+      await creditForm.openWithoutMsw();
 
       // Индикатор загрузки должен быть виден сразу после перехода
       await expect(page.locator('[data-testid="loading-state"]')).toBeVisible({ timeout: 2000 });
@@ -73,18 +73,21 @@ test.describe('Состояния загрузки и ошибок', { tag: ['@r
       await mockRegionsApi(page, { delay: 50 });
       await mockCitiesApi(page, { delay: 50 });
 
-      await page.goto(creditForm.basePath);
+      await creditForm.openWithoutMsw();
       await page.waitForLoadState('networkidle');
 
       await creditForm.expectErrorState();
     });
 
-    test('LOAD-002-B: кнопка "Повторить" перезагружает страницу', async ({ page, creditForm }) => {
-      // Первый запрос — ошибка, второй — успех
+    test('LOAD-002-B: кнопка «Повторить» загружает заявку заново', async ({ page, creditForm }) => {
+      // Сервер отвечает ошибкой, пока не нажат «Повторить». Не «первый запрос — ошибка»: стенд
+      // работает в StrictMode, эффект загрузки срабатывает дважды, и вторая попытка успевала
+      // загрузить форму раньше, чем появлялась ошибка.
+      let failing = true;
       let requestCount = 0;
       await page.route('**/api/v1/credit-applications/**', async (route) => {
         requestCount++;
-        if (requestCount === 1) {
+        if (failing) {
           await route.fulfill({
             status: 500,
             contentType: 'application/json',
@@ -107,20 +110,19 @@ test.describe('Состояния загрузки и ошибок', { tag: ['@r
       await mockRegionsApi(page, { delay: 50 });
       await mockCitiesApi(page, { delay: 50 });
 
-      await page.goto(creditForm.basePath);
-      await page.waitForLoadState('networkidle');
+      await creditForm.openWithoutMsw();
 
-      // Дожидаемся ErrorState и жмём Повторить
-      const retryButton = page.locator('button:has-text("Повторить"), button:has-text("Retry")');
+      const retryButton = page.getByRole('button', { name: /повторить|retry/i });
       await expect(retryButton).toBeVisible({ timeout: 10000 });
+      const before = requestCount;
 
-      // Отслеживаем перезагрузку страницы
-      const navigationPromise = page.waitForNavigation({ timeout: 10000 }).catch(() => null);
+      failing = false;
       await retryButton.click();
-      await navigationPromise;
 
-      // После перезагрузки страница должна снова попытаться загрузиться
-      expect(requestCount).toBeGreaterThan(1);
+      // Повтор — новый запрос заявки, после него форма на месте, а блока ошибки нет.
+      await expect.poll(() => requestCount).toBeGreaterThan(before);
+      await expect(page.locator('[data-testid="error-state"]')).toBeHidden();
+      await expect(creditForm.input('loanAmount')).toHaveValue('100000');
     });
   });
 });

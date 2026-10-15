@@ -168,24 +168,34 @@ export class CreditFormPage extends BasePage {
    */
   async goto(options?: { disableMsw?: boolean }) {
     return this.measure('goto', async () => {
-      let target = this.basePath;
-      if (options?.disableMsw) {
-        // Разрегистрируем MSW service worker, сохранённый от предыдущих запусков.
-        await this.page.goto('/');
-        await this.page.evaluate(async () => {
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map((r) => r.unregister()));
-          }
-        });
-        const url = new URL(this.basePath, 'http://localhost');
-        url.searchParams.set('mocks', 'off');
-        target = url.pathname + url.search;
-      }
+      const target = options?.disableMsw ? await this.withoutMsw() : this.basePath;
       await this.page.goto(target);
       await this.page.waitForLoadState('networkidle');
       await this.waitForFormReady();
     });
+  }
+
+  /**
+   * Открыть страницу без MSW и НЕ ждать готовности формы — для состояний загрузки и ошибки.
+   * Service worker MSW отвечает на запросы приложения раньше сети, и `page.route()` теста их не
+   * видит: мок ошибки сервера молча проигрывал пред-заполнению из MSW.
+   */
+  async openWithoutMsw() {
+    await this.page.goto(await this.withoutMsw());
+  }
+
+  /** Снять MSW, сохранённый прошлыми запусками, и вернуть адрес страницы с `mocks=off`. */
+  private async withoutMsw(): Promise<string> {
+    await this.page.goto('/');
+    await this.page.evaluate(async () => {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    });
+    const url = new URL(this.basePath, 'http://localhost');
+    url.searchParams.set('mocks', 'off');
+    return url.pathname + url.search;
   }
 
   async waitForFormReady() {

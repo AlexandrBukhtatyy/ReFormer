@@ -583,7 +583,7 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await creditForm.goto();
     await page.mouse.move(0, 0);
 
-    const indicator = page.getByRole('navigation', { name: 'Form steps' });
+    const indicator = page.getByRole('navigation', { name: /шаги формы|form steps/i });
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-1.png`);
   });
 
@@ -595,7 +595,7 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await creditForm.goToNextStep();
     await page.mouse.move(0, 0);
 
-    const indicator = page.getByRole('navigation', { name: 'Form steps' });
+    const indicator = page.getByRole('navigation', { name: /шаги формы|form steps/i });
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-3.png`);
   });
 
@@ -604,7 +604,7 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await creditForm.fillAndNavigateToStep6();
     await page.mouse.move(0, 0);
 
-    const indicator = page.getByRole('navigation', { name: 'Form steps' });
+    const indicator = page.getByRole('navigation', { name: /шаги формы|form steps/i });
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-6.png`);
   });
 
@@ -675,12 +675,13 @@ test.describe('Visual · VIS-010: Загрузка и ошибки', { tag: ['@v
       await new Promise((r) => setTimeout(r, 3000));
       await route.continue();
     });
-    const nav = creditForm.goto({ disableMsw: true });
+    // Не goto(): тот ждёт готовую форму, а снимать надо раньше. Запрос заявки висит 3 с —
+    // после открытия страницы индикатор на месте.
+    await creditForm.openWithoutMsw();
 
     const loading = page.locator('[data-testid="loading-state"]');
     await expect(loading).toBeVisible({ timeout: 2000 });
     await expect(loading).toHaveScreenshot(`${creditForm.variant}-loading-state.png`);
-    await nav.catch(() => {});
   });
 
   test('VIS-010-B: компонент ErrorState при 500 на GET', async ({ page, creditForm }) => {
@@ -692,13 +693,12 @@ test.describe('Visual · VIS-010: Загрузка и ошибки', { tag: ['@v
         body: JSON.stringify({ error: 'Internal Server Error' }),
       });
     });
-    await page.goto(`${creditForm.basePath}?mocks=off`);
-    await page.waitForLoadState('networkidle');
+    await creditForm.openWithoutMsw();
 
+    // Блок ошибки обязан появиться: без MSW ответ 500 из page.route доходит до приложения.
     const errorState = page.locator('[data-testid="error-state"]');
-    if ((await errorState.count()) > 0) {
-      await expect(errorState).toHaveScreenshot(`${creditForm.variant}-error-state.png`);
-    }
+    await expect(errorState).toBeVisible({ timeout: 10000 });
+    await expect(errorState).toHaveScreenshot(`${creditForm.variant}-error-state.png`);
   });
 });
 
