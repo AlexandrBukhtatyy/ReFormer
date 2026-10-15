@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from '../../shared/test-factory';
-import type { CreditFormPage } from './credit-form-page.pom';
+import { ARRAY_SECTION, type CreditFormPage } from './credit-form-page.pom';
 
 test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
   test.describe('ARR-001: Добавление созаемщика', () => {
@@ -98,16 +98,18 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию созаемщиков по заголовку
       const coBorrowerSection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Получаем начальное количество созаемщиков (форма может загружаться с данными)
       const coBorrowerItems = coBorrowerSection.locator('text=/созаемщик.*#/i');
       const initialCount = await coBorrowerItems.count();
 
-      // Добавляем созаемщика
-      await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
-      await expect(coBorrowerItems).toHaveCount(initialCount + 1);
+      // Добавляем двоих: у единственного элемента кнопки «Удалить» нет (showRemoveWhenSingle).
+      const add = creditForm.page.getByRole('button', { name: /добавить созаемщика/i });
+      await add.click();
+      await add.click();
+      await expect(coBorrowerItems).toHaveCount(initialCount + 2);
 
       // Удаляем созаемщика (используем локатор внутри секции созаемщиков)
       await coBorrowerSection
@@ -117,7 +119,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
       await creditForm.page.waitForTimeout(300); // Ждём обновления DOM
 
       // Количество созаемщиков уменьшилось
-      await expect(coBorrowerItems).toHaveCount(initialCount);
+      await expect(coBorrowerItems).toHaveCount(initialCount + 1);
     });
 
     test('ARR-002-B: Удаление одного из нескольких созаемщиков', async ({ creditForm }) => {
@@ -130,7 +132,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию созаемщиков по заголовку
       const coBorrowerSection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Получаем начальное количество созаемщиков (форма может загружаться с данными)
@@ -182,7 +184,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию имущества по заголовку
       const propertySection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Имущество\s*\+ Добавить имущество/ });
 
       // Получаем начальное количество имущества (форма может загружаться с данными)
@@ -214,39 +216,34 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию кредитов по заголовку
       const loansSection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Существующие кредиты\s*\+ Добавить кредит/ });
 
       // Получаем начальное количество кредитов
       const loanItems = loansSection.locator('text=/кредит.*#/i');
       const initialCount = await loanItems.count();
 
-      // Добавляем кредит
-      await creditForm.page.getByRole('button', { name: /добавить кредит/i }).click();
-      await expect(loanItems).toHaveCount(initialCount + 1);
+      // Добавляем два: у единственного элемента кнопки «Удалить» нет (showRemoveWhenSingle).
+      const add = creditForm.page.getByRole('button', { name: /добавить кредит/i });
+      await add.click();
+      await add.click();
+      await expect(loanItems).toHaveCount(initialCount + 2);
 
       // Удаляем один (внутри секции кредитов)
       const deleteButtons = loansSection.getByRole('button', { name: /удалить/i });
       await deleteButtons.first().click();
       await creditForm.page.waitForTimeout(300);
 
-      // Количество вернулось к начальному
-      await expect(loanItems).toHaveCount(initialCount);
+      // Количество уменьшилось на один
+      await expect(loanItems).toHaveCount(initialCount + 1);
     });
   });
 
   test.describe('ARR-003: Валидация элементов массива', () => {
-    // ЗАМЕТКА: валидация на уровне шага (validateForm) не блокирует навигацию
-    // для невалидных элементов массива. Эти тесты проверяют, что добавление
-    // созаёмщиков с разными состояниями данных работает корректно,
-    // а валидные созаёмщики позволяют успешно двигаться по форме дальше.
+    // Правила строк массива — часть правил шага: невалидный созаёмщик держит переход (как и
+    // обязательное relationship в ARR-006-A), а полностью заполненный — пропускает.
 
-    test('ARR-003-A: Добавление созаемщика с пустыми полями не блокирует переход', async ({
-      creditForm,
-    }) => {
-      // ЗАМЕТКА: тест документирует текущее поведение — step-валидация не проверяет
-      // поля элементов массива. Валидация элементов массива происходит только
-      // при отправке всей формы.
+    test('ARR-003-A: Созаемщик с пустыми полями блокирует переход', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -261,7 +258,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию созаемщиков
       const coBorrowerSection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Удаляем всех существующих созаемщиков (форма может загружаться с данными)
@@ -275,17 +272,14 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
       // Добавляем пустого созаемщика
       await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
 
-      // Переход на следующий шаг разрешён (step validation не валидирует элементы массива)
+      // Правила строки проверяются на шаге — форма остаётся на шаге 5
       await creditForm.goToNextStep();
-
-      // Переходим на шаг 6 (подтверждение) - это текущее поведение
-      await creditForm.expectStepHeading(/подтверждение/i);
+      await creditForm.expectStepHeading(/дополнительная информация/i);
     });
 
-    test('ARR-003-B: Созаемщик с частично заполненными полями позволяет переход', async ({
+    test('ARR-003-B: Созаемщик с частично заполненными полями блокирует переход', async ({
       creditForm,
     }) => {
-      // ЗАМЕТКА: тест документирует текущее поведение — step-валидация не проверяет поля элементов массива.
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -300,7 +294,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию созаемщиков
       const coBorrowerSection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Удаляем всех существующих созаемщиков
@@ -321,13 +315,10 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Переход разрешён (step validation не проверяет элементы массива)
       await creditForm.goToNextStep();
-
-      // Переходим на шаг 6 - это текущее поведение
-      await creditForm.expectStepHeading(/подтверждение/i);
+      await creditForm.expectStepHeading(/дополнительная информация/i);
     });
 
-    test('ARR-003-C: Созаемщик с невалидным email позволяет переход', async ({ creditForm }) => {
-      // ЗАМЕТКА: тест документирует текущее поведение — step-валидация не проверяет поля элементов массива.
+    test('ARR-003-C: Созаемщик с невалидным email блокирует переход', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -342,7 +333,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию созаемщиков
       const coBorrowerSection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Удаляем всех существующих созаемщиков
@@ -377,9 +368,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Переход разрешён (step validation не проверяет элементы массива)
       await creditForm.goToNextStep();
-
-      // Переходим на шаг 6 - это текущее поведение
-      await creditForm.expectStepHeading(/подтверждение/i);
+      await creditForm.expectStepHeading(/дополнительная информация/i);
     });
 
     test('ARR-003-D: Успешная валидация полностью заполненного созаемщика', async ({
@@ -465,7 +454,7 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
 
       // Находим секцию имущества по заголовку
       const propertySection = creditForm.page
-        .locator('.bg-gray-50')
+        .locator(ARRAY_SECTION)
         .filter({ hasText: /^Имущество\s*\+ Добавить имущество/ });
 
       // Удаляем все существующие элементы имущества
@@ -560,18 +549,21 @@ test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
     test('ARR-006-B: все значения enum relationship доступны в select', async ({ creditForm }) => {
       await navigateToStep5WithCoBorrower(creditForm);
 
-      const relationshipSelect = creditForm.page
-        .locator('[data-testid="input-coBorrower-relationship"], select[name*="relationship"]')
-        .first();
-
+      // Список — Radix Select: варианты появляются в портале после открытия, по подписям.
+      const relationshipSelect = creditForm.input('coBorrower-relationship').first();
       await expect(relationshipSelect).toBeVisible({ timeout: 5000 });
+      await relationshipSelect.click();
 
-      // Проверяем наличие значений enum
-      const expectedValues = ['spouse', 'parent', 'child', 'sibling', 'relative', 'other'];
-      for (const value of expectedValues) {
-        const option = relationshipSelect.locator(`option[value="${value}"]`);
-        await expect(option).toBeAttached();
-      }
+      const expectedLabels = [
+        'Супруг(а)',
+        'Родитель',
+        'Ребенок',
+        'Брат/Сестра',
+        'Другой родственник',
+        'Другое',
+      ];
+      const options = creditForm.page.getByRole('option');
+      await expect(options).toHaveText(expectedLabels);
     });
   });
 });

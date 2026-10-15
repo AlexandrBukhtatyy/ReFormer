@@ -1,6 +1,13 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 import type { PerformanceCollector } from '../../shared/performance-collector';
 
+/**
+ * Секция массива. Вариант compound рисует её `FieldArraySection` (`field-array-section`), варианты
+ * renderer и json — `FieldArray` из схемы (`field-array`): заголовок, кнопка «Добавить» и строки у
+ * обоих одинаковы.
+ */
+export const ARRAY_SECTION = '[data-slot="field-array-section"], [data-slot="field-array"]';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -589,7 +596,7 @@ export class CreditFormPage extends BasePage {
    * секциями (имущество / кредиты / созаёмщики) на одном шаге.
    */
   arraySection(titlePattern: RegExp): Locator {
-    return this.page.locator('.bg-gray-50').filter({ hasText: titlePattern });
+    return this.page.locator(ARRAY_SECTION).filter({ hasText: titlePattern });
   }
 
   /** Кнопка «вверх» элемента массива (внутри секции, если она передана). */
