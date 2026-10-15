@@ -156,7 +156,10 @@ describe('слияние слоёв данных', () => {
 
   it('значение-объект со своим классом заменяется целиком: файл, набор, экземпляр класса', () => {
     class Money {
-      constructor(readonly amount: number) {}
+      readonly amount: number;
+      constructor(amount: number) {
+        this.amount = amount;
+      }
     }
     const file = new Blob(['x']);
     const tags = new Set(['a']);
