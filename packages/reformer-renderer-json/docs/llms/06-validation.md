@@ -1,6 +1,6 @@
 # Validation
 
-Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная проверка документа — [validate.ts](../../src/validate.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submit`, поток шагов). Эталон — `complex-multy-step-form-renderer-json` (документ + реестр) поверх общей сборки `complex-multy-step-form/application/create.ts`.
+Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная проверка документа — [validate.ts](../../src/validate.ts), уровень формы — `createForm` из `@reformer/core` (`validate`, `validateStep`, `submission`, поток шагов). Эталон — `complex-multy-step-form-renderer-json` (документ + реестр) поверх общей сборки `complex-multy-step-form/application/create.ts`.
 
 ## Mental model — почему валидаторов нет в JSON { #mental-model }
 
@@ -71,11 +71,11 @@ return <FormRenderer form={bundle} />;
 | Вызов | Что делает |
 |---|---|
 | `bundle.flow?.next()` (кнопка «Далее» визарда) | правила текущего шага; при замечаниях поток остаётся, поля помечаются `touched` |
-| `bundle.submit(handler)` (кнопка «Отправить» визарда) | один прогон всех правил; при успехе — `handler(значения)`; иначе поля помечаются `touched` |
+| `bundle.submission.submit(handler)` (кнопка «Отправить» визарда) | один прогон всех правил; при успехе — `handler(значения)`; при `invalid` / `error` тронутой помечается вся форма |
 | `bundle.validate()` | прогон всех правил → `ValidationResult` (`status`, `issues`, `failures`) |
 | `bundle.validateStep('loan')` | правила шага, проверенные поля помечаются `touched`; неизвестный шаг — исключение |
 
-Замечание поля — ошибка или предупреждение — рисуется, только когда оно есть и поле `touched` или `dirty` (`shouldShowIssues`). Пометку `touched` проверенных полей делают `validateStep`, `flow.next()` и `submit` сами — ручной `form.markAsTouched()` на всё поддерево шага не нужен, а следующий шаг не показывается «тронутым», пока пользователь до него не дойдёт.
+Замечание поля — ошибка или предупреждение — рисуется, только когда оно есть и поле `touched` или `dirty` (`shouldShowIssues`). Пометку `touched` проверенных полей делают `validateStep`, `flow.next()` и `submission.submit` сами (отказ отправки помечает всю форму) — ручной `form.markAsTouched()` на всё поддерево шага не нужен, а следующий шаг не показывается «тронутым», пока пользователь до него не дойдёт.
 
 > **Мост «поведение инициирует валидацию».** Если правка одного поля должна перепрогнать правила другого (без отправки), это делает поведение — `revalidateWhen([model.$.dep], () => void validateModel(model, rules))` в `defineFormBehavior` (контракт `@reformer/core/behaviors`). Валидация остаётся отдельным слоем; поведение лишь дёргает раннер.
 
@@ -176,11 +176,11 @@ createForm<CreditForm>({
 });
 ```
 
-Значения `strategy`: `submit` (default — прогон только явным вызовом), `blur` (по потере фокуса), `change` (на каждый ввод + `debounce`), `afterFirstSubmit` (тихо до первой отправки → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`). Подписки армирует `useFormBundle` в эффекте (SSR-safe). Для простой формы без сборки — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core/react`.
+Значения `strategy`: `submit` (default — прогон только явным вызовом), `blur` (по потере фокуса), `change` (на каждый ввод + `debounce`), `afterFirstSubmit` (тихо до первой попытки отправки → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`; живую фазу включает только `bundle.submission.submit` — `bundle.validate()`, `validateStep` и `flow.next()` её не включают). Подписки армирует `useFormBundle` в эффекте (SSR-safe). Для простой формы без сборки — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core/react`.
 
 ## Прежний формат документа { #v1 }
 
-Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — и `JsonFormRenderer` с этим бандлом (`form={bundle}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submit`). Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
+Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — и `JsonFormRenderer` с этим бандлом (`form={bundle}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Снимается такой бандл, как и сборка `createForm`, вызовом `bundle.dispose()`. Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
 
 ## Anti-patterns
 

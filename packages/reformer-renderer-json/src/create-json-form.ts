@@ -5,7 +5,7 @@
  * `schema` в `JsonFormRenderer` (для рендера) — две несвязанные передачи одного артефакта, а
  * требование «собрать ровно один раз» держалось на комментарии в прикладном коде. Фабрика
  * инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry, renderBehavior? }` с
- * уровнем формы (`submit`, `flow`, …), который целиком отдаётся рендереру пропом `form`.
+ * уровнем формы (`submission`, `flow`, …), который целиком отдаётся рендереру пропом `form`.
  *
  * Конфиг общий с `createForm` (`@reformer/core`) и `createReactForm`
  * (`@reformer/renderer-react`); отличие — JSON-схема как данные и реестр компонентов.
@@ -13,7 +13,7 @@
  * @module reformer/renderer-json/create-json-form
  */
 
-import { createModel, createFormFromModel, createFormLevel } from '@reformer/core';
+import { createModel, createFormFromModel, createFormLevel, disposeForm } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
 import type {
   CoreForm,
@@ -48,7 +48,7 @@ export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonFor
   schema: JsonFormSchemaV1<T>;
   /** Реестр компонентов/source. */
   registry: ComponentRegistry;
-  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (`submit`, поток). */
+  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (отправка, поток). */
   renderBehavior?: (
     form: FormGroup<T>,
     model: FormModel<T>,
@@ -119,6 +119,11 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
     schema,
     registry,
     ...(renderBehavior ? { renderBehavior } : {}),
+    // После `...level`: уровень снимает только себя, сборка — ещё и форму.
+    dispose() {
+      disposeForm(form);
+      level.dispose();
+    },
   };
   config.setup?.(bundle);
   return bundle;

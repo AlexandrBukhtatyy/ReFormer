@@ -148,7 +148,8 @@ function MyFormPage() {
   const bundle = useFormBundle(() =>
     createForm<MyForm>({ schema, registry, initial: { email: '' }, validation: rules })
   );
-  // bundle.validate(), bundle.submit(handler) — one run of the rules, issues land on the nodes.
+  // bundle.validate(), bundle.submission.submit(handler) — one run of the rules, issues land
+  // on the nodes.
   return (
     <ValidationMessagesProvider messages={messages}>
       <FormRenderer form={bundle} />

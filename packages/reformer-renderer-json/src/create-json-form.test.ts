@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
+import { defineFormBehavior, onDispose } from '@reformer/core/behaviors';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import { createJsonForm } from './create-json-form';
 import { defineJsonSchemaV1 as defineJsonSchema } from './types/json-schema-v1';
@@ -88,7 +89,7 @@ describe('createJsonForm — валидация, поведение и фазы'
     expect(factory).toHaveBeenCalledWith(
       jf.form,
       jf.model,
-      expect.objectContaining({ validation: jf.validation, submit: jf.submit })
+      expect.objectContaining({ validation: jf.validation, submission: jf.submission })
     );
     expect(jf.renderBehavior).toBe(applied);
   });
@@ -116,5 +117,22 @@ describe('createJsonForm — валидация, поведение и фазы'
     });
     expect(order).toEqual(['seed', 'setup']);
     expect(jf.model.email).toBe('seeded@x');
+  });
+});
+
+describe('createJsonForm — снятие', () => {
+  it('dispose снимает поведение формы; повторный вызов ничего не делает', () => {
+    const cleanup = vi.fn();
+    const jf = createJsonForm<F>({
+      schema,
+      registry,
+      initial: { email: '', agree: false },
+      behavior: defineFormBehavior<F>(() => onDispose(cleanup)),
+    });
+
+    jf.dispose();
+    jf.dispose();
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });

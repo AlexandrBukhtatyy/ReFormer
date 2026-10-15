@@ -118,8 +118,8 @@ import { submitCreditApplication } from './api';
 export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, flow }) => {
   const wizard = schema.node('wizard');
 
-  // (a) Отправка: кнопка «Отправить» визарда зовёт обработчик через `bundle.submit` — только
-  //     после успешной проверки всей формы; при замечаниях поля помечаются touched.
+  // (a) Отправка: кнопка «Отправить» визарда зовёт обработчик через `bundle.submission.submit` —
+  //     только после успешной проверки всей формы; при замечаниях тронутой помечается вся форма.
   onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
     await submitCreditApplication(values);
   });
@@ -163,7 +163,7 @@ return <FormRenderer form={bundle} />;
 - Переход по индикатору — `flow.goTo(id)`: первый шаг доступен всегда, остальные — после прохождения предыдущего (`reason: 'locked'`). «Назад» — `flow.previous()`.
 - Порядок шагов потока = порядок шагов визарда. Шаг без `rules` проходится без проверки — объявляй его явно (`{ id: 'confirm' }`), а не «забывай».
 - Расхождение `flow.steps[].id` и селекторов узлов шагов — dev-предупреждения сборки и визарда; реестр форм ловит его preflight-проверкой `unknown-step-selectors`.
-- Снаружи дерева: `useFormFlow(bundle.flow!)` из `@reformer/core/react` — снимок (`current`, `index`, `isLast`, `validating`); `bundle.flow?.goTo('loan')`; `bundle.submit(handler)`.
+- Снаружи дерева: `useFormFlow(bundle.flow!)` из `@reformer/core/react` — снимок (`current`, `index`, `isLast`, `validating`); `bundle.flow?.goTo('loan')`; `bundle.submission.submit(handler)`.
 
 ## Прежний формат документа { #v1 }
 
@@ -178,7 +178,7 @@ return <FormRenderer form={bundle} />;
 - **`selector` шага не совпадает с `id` шага потока** — визард не свяжет шаг с разметкой (dev-предупреждения сборки и визарда).
 - **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это область схемы, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, обработчик отправки не навесится (сборка в dev предупредит о неизвестном селекторе).
-- **Проверять форму руками в обработчике отправки** — не нужно: обработчик вызывается через `bundle.submit` только после успешной проверки, `values` — значения формы.
+- **Проверять форму руками в обработчике отправки** — не нужно: обработчик вызывается через `bundle.submission.submit` только после успешной проверки, `values` — значения формы.
 
 ## See also
 

@@ -18,7 +18,11 @@ interface F {
 /** Узел, который читает контекст сборки — как визард в схеме. */
 const ContextProbe = () => {
   const bundle = useFormBundleContext<F>();
-  return <s>{bundle && typeof bundle.submit === 'function' ? 'context-level' : 'no-context'}</s>;
+  return (
+    <s>
+      {bundle && typeof bundle.submission?.submit === 'function' ? 'context-level' : 'no-context'}
+    </s>
+  );
 };
 
 const registry = defineRegistry((reg) => {
