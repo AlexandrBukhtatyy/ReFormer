@@ -2,7 +2,7 @@
 // Ваш файл: пишется один раз и при регенерации не затирается.
 
 import { onComponentEvent, type BehaviorScope } from '@reformer/core/behaviors';
-import { validateModel } from '@reformer/core/validation';
+import { createFormValidation } from '@reformer/core/validation';
 import { submitForm } from '../api';
 import type { ContactForm } from '../types/contact';
 import { formRules } from '../validation/form';
@@ -23,10 +23,13 @@ export function wireSubmit(
   { model, schema }: BehaviorScope<ContactForm>,
   { onResult }: SubmitOptions = {}
 ): void {
+  // Проверка отправки — та же, что у сборки формы: выключенное поле (`enableWhen`), поле
+  // выключенной группы или массива не проверяются, а замечания раскрываются — поля
+  // помечаются тронутыми (киты показывают ошибку только у тронутого поля).
+  const check = createFormValidation(model, formRules);
+
   onComponentEvent(schema.node('submit'), 'onClick', async () => {
-    // `touch: true` обязателен: киты показывают ошибку только у тронутого поля. Без него
-    // неудачная отправка выглядела бы так, будто кнопка не работает.
-    if (!(await validateModel(model, formRules, { touch: true }))) {
+    if (!(await check.validate())) {
       onResult?.('Проверьте заполнение формы', false);
       return;
     }
