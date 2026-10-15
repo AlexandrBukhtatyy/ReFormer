@@ -23,6 +23,12 @@ import {
   isNumber,
   integer,
   pastDate,
+  isDate,
+  minDate,
+  maxDate,
+  futureDate,
+  minAge,
+  maxAge,
 } from '@reformer/core/validators';
 import { Input, FormField, ExampleCard, InputNumber } from '@reformer/ui-kit';
 import { ValidationMessagesProvider } from '@reformer/cdk';
@@ -40,6 +46,12 @@ interface ValidationDemoForm {
   phoneField: string;
   numberField: number;
   dateField: string;
+  isDateField: string;
+  minDateField: string;
+  maxDateField: string;
+  futureDateField: string;
+  minAgeField: string;
+  maxAgeField: string;
   customField: string;
 }
 
@@ -55,8 +67,17 @@ const INITIAL: ValidationDemoForm = {
   phoneField: '',
   numberField: 0,
   dateField: '',
+  isDateField: '',
+  minDateField: '',
+  maxDateField: '',
+  futureDateField: '',
+  minAgeField: '',
+  maxAgeField: '',
   customField: '',
 };
+
+/** Нижняя граница примера `minDate`. */
+const MIN_DATE = new Date('2020-01-01');
 
 // Кастомный валидатор пароля — value-only `Rule<string>` (используется под `validate`).
 const customPassword: Rule<string> = (value) => {
@@ -127,6 +148,36 @@ function buildSchema(model: FormModel<ValidationDemoForm>) {
         componentProps: { type: 'date' },
       },
       {
+        model: model.$.isDateField,
+        component: Input,
+        componentProps: { type: 'date' },
+      },
+      {
+        model: model.$.minDateField,
+        component: Input,
+        componentProps: { type: 'date' },
+      },
+      {
+        model: model.$.maxDateField,
+        component: Input,
+        componentProps: { type: 'date' },
+      },
+      {
+        model: model.$.futureDateField,
+        component: Input,
+        componentProps: { type: 'date' },
+      },
+      {
+        model: model.$.minAgeField,
+        component: Input,
+        componentProps: { type: 'date', placeholder: 'Дата рождения' },
+      },
+      {
+        model: model.$.maxAgeField,
+        component: Input,
+        componentProps: { type: 'date', placeholder: 'Дата рождения' },
+      },
+      {
         model: model.$.customField,
         component: Input,
         componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)' },
@@ -178,6 +229,15 @@ const demoValidation = defineValidation<ValidationDemoForm>(({ model }) => {
     required({ code: 'dateField.required' }),
     pastDate({ code: 'dateField.pastDate' }),
   ]);
+  validate(model.$.isDateField, [
+    required({ code: 'isDateField.required' }),
+    isDate({ code: 'isDateField.isDate' }),
+  ]);
+  validate(model.$.minDateField, [minDate(MIN_DATE, { code: 'minDateField.minDate' })]);
+  validate(model.$.maxDateField, [maxDate(new Date(), { code: 'maxDateField.maxDate' })]);
+  validate(model.$.futureDateField, [futureDate({ code: 'futureDateField.futureDate' })]);
+  validate(model.$.minAgeField, [minAge(18, { code: 'minAgeField.minAge' })]);
+  validate(model.$.maxAgeField, [maxAge(65, { code: 'maxAgeField.maxAge' })]);
   validate(model.$.customField, [required({ code: 'customField.required' }), customPassword]);
 });
 
@@ -208,7 +268,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.requiredField, [required()])`}
           >
-            <FormField control={form.requiredField} />
+            <FormField control={form.requiredField} testId="requiredField" />
           </ExampleCard>
           <ExampleCard
             title="Email"
@@ -216,7 +276,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.emailField, [required(), email()])`}
           >
-            <FormField control={form.emailField} />
+            <FormField control={form.emailField} testId="emailField" />
           </ExampleCard>
           <ExampleCard
             title="MinLength"
@@ -224,7 +284,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.minLengthField, [minLength(5)])`}
           >
-            <FormField control={form.minLengthField} />
+            <FormField control={form.minLengthField} testId="minLengthField" />
           </ExampleCard>
           <ExampleCard
             title="MaxLength"
@@ -232,7 +292,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.maxLengthField, [maxLength(10)])`}
           >
-            <FormField control={form.maxLengthField} />
+            <FormField control={form.maxLengthField} testId="maxLengthField" />
           </ExampleCard>
           <ExampleCard
             title="Min"
@@ -240,7 +300,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.minField, [min(10)])`}
           >
-            <FormField control={form.minField} />
+            <FormField control={form.minField} testId="minField" />
           </ExampleCard>
           <ExampleCard
             title="Max"
@@ -248,7 +308,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.maxField, [max(100)])`}
           >
-            <FormField control={form.maxField} />
+            <FormField control={form.maxField} testId="maxField" />
           </ExampleCard>
           <ExampleCard
             title="Pattern"
@@ -256,7 +316,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.patternField, [pattern(/^[a-zA-Zа-яА-Я]+$/)])`}
           >
-            <FormField control={form.patternField} />
+            <FormField control={form.patternField} testId="patternField" />
           </ExampleCard>
           <ExampleCard
             title="URL"
@@ -264,7 +324,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.urlField, [url()])`}
           >
-            <FormField control={form.urlField} />
+            <FormField control={form.urlField} testId="urlField" />
           </ExampleCard>
           <ExampleCard
             title="Phone"
@@ -272,7 +332,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.phoneField, [phone({ format: 'ru' })])`}
           >
-            <FormField control={form.phoneField} />
+            <FormField control={form.phoneField} testId="phoneField" />
           </ExampleCard>
           <ExampleCard
             title="Number"
@@ -280,7 +340,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.numberField, [isNumber(), integer(), min(1), max(100)])`}
           >
-            <FormField control={form.numberField} />
+            <FormField control={form.numberField} testId="numberField" />
           </ExampleCard>
           <ExampleCard
             title="Date"
@@ -288,7 +348,55 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.dateField, [pastDate()])`}
           >
-            <FormField control={form.dateField} />
+            <FormField control={form.dateField} testId="dateField" />
+          </ExampleCard>
+          <ExampleCard
+            title="IsDate"
+            description="Корректная дата"
+            bgColor="bg-white"
+            code={`validate(model.$.isDateField, [required(), isDate()])`}
+          >
+            <FormField control={form.isDateField} testId="isDateField" />
+          </ExampleCard>
+          <ExampleCard
+            title="MinDate"
+            description="Не раньше 01.01.2020"
+            bgColor="bg-white"
+            code={`validate(model.$.minDateField, [minDate(new Date('2020-01-01'))])`}
+          >
+            <FormField control={form.minDateField} testId="minDateField" />
+          </ExampleCard>
+          <ExampleCard
+            title="MaxDate"
+            description="Не позже сегодня"
+            bgColor="bg-white"
+            code={`validate(model.$.maxDateField, [maxDate(new Date())])`}
+          >
+            <FormField control={form.maxDateField} testId="maxDateField" />
+          </ExampleCard>
+          <ExampleCard
+            title="FutureDate"
+            description="Дата в будущем"
+            bgColor="bg-white"
+            code={`validate(model.$.futureDateField, [futureDate()])`}
+          >
+            <FormField control={form.futureDateField} testId="futureDateField" />
+          </ExampleCard>
+          <ExampleCard
+            title="MinAge"
+            description="Возраст от 18 лет"
+            bgColor="bg-white"
+            code={`validate(model.$.minAgeField, [minAge(18)])`}
+          >
+            <FormField control={form.minAgeField} testId="minAgeField" />
+          </ExampleCard>
+          <ExampleCard
+            title="MaxAge"
+            description="Возраст до 65 лет"
+            bgColor="bg-white"
+            code={`validate(model.$.maxAgeField, [maxAge(65)])`}
+          >
+            <FormField control={form.maxAgeField} testId="maxAgeField" />
           </ExampleCard>
           <ExampleCard
             title="Custom"
@@ -296,7 +404,7 @@ export default function ValidationExamples() {
             bgColor="bg-white"
             code={`validate(model.$.customField, [(v) => v.length < 8 ? err : null])`}
           >
-            <FormField control={form.customField} />
+            <FormField control={form.customField} testId="customField" />
           </ExampleCard>
         </div>
 
