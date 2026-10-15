@@ -140,6 +140,7 @@ export const OVERLAYS: readonly string[] = [
   'Dialog',
   'AlertDialog',
   'Sheet',
+  'Drawer',
   'Popover',
   'HoverCard',
   'Tooltip',

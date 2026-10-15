@@ -9401,7 +9401,11 @@
           "packages": ["vaul"]
         }
       },
-      "subpath": "drawer"
+      "subpath": "drawer",
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
+      }
     },
     {
       "name": "DrawerClose",
