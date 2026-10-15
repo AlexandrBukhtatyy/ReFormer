@@ -73,7 +73,8 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
 
   const getStepClasses = (step: FormWizardIndicatorStepWithState) => {
     if (step.isCurrent) return 'bg-primary text-primary-foreground';
-    if (step.isCompleted) return 'text-green-500 hover:bg-accent';
+    // green-700, не 500: на фоне bg-muted зелёный 500 даёт контраст 2:1 при норме WCAG AA 4.5:1.
+    if (step.isCompleted) return 'text-green-700 hover:bg-accent';
     if (step.canNavigate) return 'hover:bg-accent';
     return 'opacity-50';
   };
@@ -100,6 +101,9 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
             role="button"
             aria-label={stepLabel(step)}
             aria-current={step.isCurrent ? 'step' : undefined}
+            // Недоступный шаг — неактивный элемент: скринридер объявляет его недоступным, а
+            // приглушённый текст не подпадает под требование контраста WCAG 1.4.3.
+            aria-disabled={step.canNavigate ? undefined : true}
             tabIndex={step.canNavigate ? 0 : -1}
           >
             <div className="text-2xl" aria-hidden="true">

@@ -169,6 +169,19 @@ describe('StepIndicator', () => {
     expect(html).toContain('✓');
   });
 
+  it('недоступный шаг помечен aria-disabled, доступный — нет', () => {
+    const html = renderToStaticMarkup(
+      <StepIndicator
+        {...indicatorProps([
+          step({ isCurrent: true }),
+          step({ number: 2, title: 'Данные', canNavigate: false }),
+        ])}
+      />
+    );
+    expect(html.match(/aria-disabled="true"/g)).toHaveLength(1);
+    expect(html).toMatch(/data-step-number="2"[^>]*aria-disabled="true"/);
+  });
+
   it('переопределяет aria-label контейнера', () => {
     const html = renderToStaticMarkup(
       <StepIndicator {...indicatorProps([step()])} navAriaLabel="Этапы заявки" />
