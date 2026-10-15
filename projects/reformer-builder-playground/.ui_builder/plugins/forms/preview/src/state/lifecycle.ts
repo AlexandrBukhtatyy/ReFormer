@@ -33,6 +33,21 @@
  * Правило знает только имя папки, а не формат документа: превью общее для стеков, и чей это
  * модуль, ему безразлично.
  *
+ * ## Место модуля называет стек, если знает его
+ *
+ * Правило «каталог документа» — общее, и для раскладки стека оно бывает неверным. Документу
+ * ReFormer со свободным именем (`forms/credit.schema.json`) модуль заводится подкаталогом по имени
+ * документа (`forms/credit/`), а каталог самого документа — общий для модулей других форм: по
+ * общему правилу состояние такой формы держал бы открытый файл СОСЕДНЕЙ формы, а файл шага её
+ * разбитого визарда (на уровень глубже, чем видно от каталога документа) — нет. Поэтому место
+ * модуля сначала спрашивается у стека — точкой `FormModulePoint` (параметр `moduleOf`), — и только
+ * без ответа берётся общее правило. Ответ стека запоминается при рождении состояния и при каждом
+ * сведении, пока документ открыт: закрытый документ спросить уже нечем, а его состояние живёт,
+ * пока открыт файл модуля.
+ *
+ * Сам открытый документ держит своё состояние всегда — даже если лежит вне каталога модуля, как
+ * документ со свободным именем.
+ *
  * ## Сведение по СНИМКУ, а не по событию «закрыли»
  *
  * У рабочей области событие одно — «что-то изменилось», — и этого достаточно: сведение
@@ -102,21 +117,52 @@ function owningDirectories(files: PreviewLifecycleFiles, document: ResourceId): 
   return out;
 }
 
+/**
+ * Каталог модуля, который называет стек документа (точка `FormModulePoint`); `null` — стек не
+ * ответил либо документ сейчас не открыт и спросить о нём нечем.
+ */
+export type PreviewModuleOf = (document: ResourceId) => ResourceId | null;
+
 export function attachPreviewLifecycle(
   documents: PreviewLifecycleDocuments,
   files: PreviewLifecycleFiles,
-  sessions: Pick<PreviewSessions, 'ids' | 'forget'>
+  sessions: Pick<PreviewSessions, 'ids' | 'forget'> & Partial<Pick<PreviewSessions, 'onDidCreate'>>,
+  moduleOf: PreviewModuleOf = () => null
 ): Disposable {
-  const sync = (): void => {
-    const openDirs = new Set(
-      documents.openDocuments().flatMap((id) => owningDirectories(files, id))
-    );
-    for (const id of sessions.ids()) {
-      if (!openDirs.has(moduleDirectoryOf(files, id))) sessions.forget(id);
-    }
+  /**
+   * Ответы стека, данные, пока документ был открыт: закрытый документ спросить нечем. Одиночный
+   * щелчок в дереве замещает временную вкладку документа файлом модуля одним движением, и к
+   * сведению документ уже закрыт, — поэтому ответ запоминается ещё при рождении состояния.
+   */
+  const named = new Map<ResourceId, ResourceId>();
+  const ask = (id: ResourceId): void => {
+    const answer = moduleOf(id);
+    if (answer !== null) named.set(id, answer);
   };
 
-  const subscription = documents.onDidChange(sync);
+  const moduleDirectory = (id: ResourceId): ResourceId => {
+    ask(id);
+    return named.get(id) ?? moduleDirectoryOf(files, id);
+  };
+
+  const sync = (): void => {
+    const open = documents.openDocuments();
+    const openDocs = new Set(open);
+    const openDirs = new Set(open.flatMap((id) => owningDirectories(files, id)));
+    const live = new Set(sessions.ids());
+    for (const id of live) {
+      if (openDocs.has(id) || openDirs.has(moduleDirectory(id))) continue;
+      sessions.forget(id);
+      named.delete(id);
+    }
+    for (const id of named.keys()) if (!live.has(id)) named.delete(id);
+  };
+
+  const subscriptions = [documents.onDidChange(sync), sessions.onDidCreate?.(ask)];
   sync();
-  return subscription;
+  return {
+    dispose(): void {
+      for (const subscription of subscriptions) subscription?.dispose();
+    },
+  };
 }

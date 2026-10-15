@@ -71,6 +71,7 @@
 
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import {
+  detachedModuleDirOf,
   formNameOfSchemaPath,
   makeNames,
   moduleDirOfSchemaPath,
@@ -221,9 +222,8 @@ export interface DetachedModule {
  * Модуль документа со свободным именем — там, куда его кладёт кодоген.
  *
  * Правило целиком принадлежит раскладке домена: свободное ли имя, решает `modulePlacementOf`,
- * каталог называется kebab-именем формы (`makeNames`), а имя формы берётся из имени документа
- * (`formNameOfSchemaPath`). Имя, которое человек ввёл в панели генерации вместо предложенного,
- * отсюда не видно: модуль под ним превью не найдёт и прочитает каталог документа.
+ * имя каталога — `detachedModuleDirOf` (kebab-имя документа). Имя формы, введённое в панели
+ * генерации, места модуля не меняет — кодоген кладёт его сюда же.
  *
  * @returns `null` — у документа каноническое имя (модуль там же, где документ, либо в родителе
  *   папки `schema/`) или путь документа неизвестен.
@@ -233,10 +233,7 @@ export function detachedModuleOf(schemaPath: string): DetachedModule | null {
   if (path === '') return null;
   const placement = modulePlacementOf(path);
   if (placement.kind !== 'detached') return null;
-  return {
-    directory: makeNames(formNameOfSchemaPath(path)).dir,
-    document: placement.schemaPath,
-  };
+  return { directory: detachedModuleDirOf(path), document: placement.schemaPath };
 }
 
 /**

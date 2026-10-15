@@ -39,6 +39,9 @@ export {
   stepSchemaPath,
   schemaDirOf,
   moduleDirOfSchemaPath,
+  moduleRootPathOf,
+  moduleRootOfDocument,
+  detachedModuleDirOf,
   schemaPathInModule,
   modulePlacementOf,
   isCanonicalSchemaName,
@@ -48,6 +51,7 @@ export {
   type ModuleFiles,
   type ModuleNames,
   type ModulePlacement,
+  type ModuleRootPort,
 } from './layout';
 export { layoutOf, type ModuleLayout, type StepInfo } from './steps';
 export { stepDirName } from '../form-model/step-dir';

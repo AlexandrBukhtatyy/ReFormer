@@ -9,7 +9,7 @@ import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewHost, PreviewModuleGraph, PreviewModules } from '../host';
 import { loadFixture } from './fixture';
 
-const DOCUMENT = 'src/forms/credit/schema.json' as unknown as ResourceId;
+const DOCUMENT = 'src/forms/credit/form.schema.json' as unknown as ResourceId;
 const FIXTURE_PATH = 'src/forms/credit/fixture.ts';
 
 /** Порт в объёме, которым пользуется загрузка фикстуры. */
@@ -55,7 +55,7 @@ describe('загрузка фикстуры', () => {
       hostWith({}),
       modules,
       DOCUMENT,
-      'src/forms/credit/schema.json'
+      'src/forms/credit/form.schema.json'
     );
 
     expect(loaded.fixture).toBeNull();
@@ -67,7 +67,7 @@ describe('загрузка фикстуры', () => {
       [FIXTURE_PATH]: 'exports.fixture = { model: { amount: 100 }, dataSources: { CITY: [] } };',
     });
 
-    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/schema.json');
+    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/form.schema.json');
 
     expect(loaded.fixture?.model).toEqual({ amount: 100 });
     expect(loaded.path).toBe(FIXTURE_PATH);
@@ -77,7 +77,7 @@ describe('загрузка фикстуры', () => {
   it('файл без нужного экспорта ОБЪЯСНЯЕТСЯ: почти всегда это опечатка в имени', async () => {
     const host = hostWith({ [FIXTURE_PATH]: 'exports.fixtures = { model: {} };' });
 
-    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/schema.json');
+    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/form.schema.json');
 
     expect(loaded.fixture).toBeNull();
     expect(loaded.problems).toHaveLength(1);
@@ -87,7 +87,7 @@ describe('загрузка фикстуры', () => {
   it('сбой исполнения показывается: файл есть, человек его писал', async () => {
     const host = hostWith({ [FIXTURE_PATH]: 'throw new Error("бабах в фикстуре");' });
 
-    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/schema.json');
+    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/form.schema.json');
 
     expect(loaded.fixture).toBeNull();
     expect(loaded.problems[0].message).toMatch(/бабах в фикстуре/);
@@ -112,10 +112,29 @@ describe('загрузка фикстуры', () => {
     expect(loaded.fixture?.model).toEqual({ amount: 7 });
   });
 
+  it('документ со свободным именем: фикстура — в его модуле, а не общая на каталог', async () => {
+    // Модуль `forms/credit.schema.json` кодоген кладёт в `forms/credit/` — туда же и фикстура.
+    // Рядом с документом (`forms/fixture.ts`) она была бы одна на все такие документы каталога.
+    const host = hostWith({
+      'src/forms/credit/fixture.ts': 'exports.fixture = { model: { amount: 3 } };',
+      'src/forms/fixture.ts': 'exports.fixture = { model: { amount: -1 } };',
+    });
+
+    const loaded = await loadFixture(
+      host,
+      modules,
+      'src/forms/credit.schema.json' as unknown as ResourceId,
+      'src/forms/credit.schema.json'
+    );
+
+    expect(loaded.path).toBe('src/forms/credit/fixture.ts');
+    expect(loaded.fixture?.model).toEqual({ amount: 3 });
+  });
+
   it('без порта адресации фикстуры не бывает: композиция вправе её не давать', async () => {
     const host = { readText: () => Promise.resolve('') } as unknown as PreviewHost;
 
-    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/schema.json');
+    const loaded = await loadFixture(host, modules, DOCUMENT, 'src/forms/credit/form.schema.json');
 
     expect(loaded.fixture).toBeNull();
     expect(loaded.problems).toEqual([]);
@@ -124,7 +143,12 @@ describe('загрузка фикстуры', () => {
   it('без загрузчика модулей фикстура не исполняется вовсе', async () => {
     const host = hostWith({ [FIXTURE_PATH]: 'exports.fixture = { model: {} };' });
 
-    const loaded = await loadFixture(host, undefined, DOCUMENT, 'src/forms/credit/schema.json');
+    const loaded = await loadFixture(
+      host,
+      undefined,
+      DOCUMENT,
+      'src/forms/credit/form.schema.json'
+    );
 
     expect(loaded.fixture).toBeNull();
   });

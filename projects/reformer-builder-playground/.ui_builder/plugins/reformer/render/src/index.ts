@@ -14,9 +14,11 @@
 export {
   builtinSurfaces,
   createPreviewRuntimePlugin,
+  FORM_MODULE_LOCATOR_ID,
   PREVIEW_RUNTIME_PLUGIN_ID,
   type PreviewRuntimePluginOptions,
 } from './plugin';
+export { createFormModuleLocator, type FormModuleFiles } from './form-module';
 
 export { PREVIEW_RUNTIME_MESSAGES } from './messages';
 export { previewHostFromContext } from './host-from-context';

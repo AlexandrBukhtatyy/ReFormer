@@ -5,22 +5,25 @@
  * плагинах, а плагины друг друга не импортируют. Встречаются они только в собранном
  * приложении — поэтому и проверка здесь, в интеграционных тестах сборки.
  *
- * Здесь же встречаются три ответа на вопрос «где корень модуля формы»: раскладка домена
- * (`core/codegen`), по которой печатает кодоген и читает компилирующая поверхность, и два
- * нейтральных правила плагинов вне домена — жизни состояния превью (`forms/preview`) и точки
- * входа формы на стенде приложения (`base/app-preview`). Нейтральные плагины домен не
- * импортируют и правило повторяют своими словами — «папка `schema`», — поэтому разойтись с
- * раскладкой могут молча, и поймать это можно только там, где видны все три.
+ * Здесь же встречаются ответы на вопрос «где корень модуля формы»: раскладка домена
+ * (`core/codegen`), по которой печатает кодоген и читает компилирующая поверхность, вклад домена в
+ * точку `FormModulePoint` и два нейтральных правила плагинов вне домена — жизни состояния превью
+ * (`forms/preview`) и точки входа формы на стенде приложения (`base/app-preview`). Нейтральные
+ * плагины домен не импортируют: сначала они спрашивают точку, а без ответа повторяют правило своими
+ * словами — «папка `schema`». Разойтись с раскладкой они могут молча, и поймать это можно только
+ * там, где видны все.
  *
- * И четвёртый стык — документ со свободным именем: его модуль кодоген заводит подкаталогом рядом
- * с документом, и компилирующая поверхность обязана читать его оттуда же. Место считает кодоген
- * (`moduleRootOf`), ищет превью (`detachedModuleOf`), а проверить, что это одно место, можно
- * только на модуле, который кодоген действительно напечатал.
+ * Документ со свободным именем — стык, где общее правило неверно: его модуль кодоген заводит
+ * подкаталогом рядом с документом, а каталог документа общий с модулями других форм. Место считает
+ * кодоген (`moduleRootOfDocument`), называет вклад домена, ищет компилирующая поверхность
+ * (`detachedModuleOf`), а проверить, что это одно место, можно только на модуле, который кодоген
+ * действительно напечатал.
  *
  * @module shell/boot/integration/preview-surfaces.test
  */
 
 import { describe, expect, it } from 'vitest';
+import { locateFormModule, type DocumentRef } from '@reformer/builder-plugin-api';
 import {
   makeResourceId,
   parseResourceId,
@@ -35,16 +38,23 @@ import {
 } from '../../forms/preview/src/state/lifecycle';
 import { createPreviewSessions } from '../../forms/preview/src/state/sessions';
 import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
-import { moduleRootOf } from '../codegen/src/pipeline/run';
 import {
   formNameOfSchemaPath,
   makeNames,
   moduleDirOfSchemaPath,
   moduleFilesOf,
   modulePlacementOf,
+  moduleRootOfDocument,
+  moduleRootPathOf,
 } from '../core/codegen';
+import { FORM_SCHEMA_PROVIDER_ID } from '../core/form-model';
 import { builtinKit, wizardSchema } from '../core/testing';
-import { builtinSurfaces, COMPILING_SURFACE_ID, RUNTIME_SURFACE_ID } from '../render/src';
+import {
+  builtinSurfaces,
+  COMPILING_SURFACE_ID,
+  createFormModuleLocator,
+  RUNTIME_SURFACE_ID,
+} from '../render/src';
 import {
   detachedModuleOf,
   locateModule,
@@ -128,17 +138,44 @@ describe('корень модуля формы: раскладка домена 
     'src/forms/zayavka/schemas/form.schema.json',
   ];
 
-  it.each(DOCUMENTS)('«%s»: три правила называют один каталог', (path) => {
-    const expected = at(moduleDirOfSchemaPath(path));
-
-    // Компилирующая поверхность: отсюда читаются файлы модуля. У документа со свободным именем
-    // это запасной ответ — когда подкаталога, в который модуль кладёт кодоген, нет (см. ниже).
-    expect(locateModule(parentOf, at(path), path).root).toBe(expected);
-    // Жизнь состояния превью: пока открыт файл этого каталога.
-    expect(previewModuleDirectory(files, at(path))).toBe(expected);
-    // Стенд приложения: здесь ищется точка входа формы.
-    expect(appPreviewModuleDirectory(files, at(path))).toBe(expected);
+  /** Вклад домена в точку мест модулей — с адресной арифметикой настоящей оболочки. */
+  const locator = createFormModuleLocator(() => files);
+  const documentOf = (path: string): DocumentRef => ({
+    id: at(path),
+    ref: {
+      id: at(path),
+      sourceId: 'fs',
+      path,
+      name: path.split('/').at(-1) ?? path,
+      kind: 'file',
+      mediaType: 'application/json',
+    },
+    kind: 'model',
+    providerId: FORM_SCHEMA_PROVIDER_ID,
   });
+
+  it.each(DOCUMENTS)('«%s»: кодоген и вклад домена в точку называют один каталог', (path) => {
+    const expected = at(moduleRootPathOf(path));
+
+    // Кодоген: сюда печатается модуль.
+    expect(moduleRootOfDocument(files, at(path), path)).toBe(expected);
+    // Точка мест модулей: по этому ответу модуль ищут жизнь состояния превью и стенд приложения.
+    expect(locator.moduleOf(documentOf(path))).toBe(expected);
+  });
+
+  it.each(DOCUMENTS.filter((path) => modulePlacementOf(path).kind !== 'detached'))(
+    '«%s»: у канонической раскладки и общие правила называют тот же каталог',
+    (path) => {
+      const expected = at(moduleDirOfSchemaPath(path));
+      expect(at(moduleRootPathOf(path))).toBe(expected);
+
+      // Компилирующая поверхность: отсюда читаются файлы модуля.
+      expect(locateModule(parentOf, at(path), path).root).toBe(expected);
+      // Жизнь состояния превью и стенд приложения — запасное правило, когда стек не ответил.
+      expect(previewModuleDirectory(files, at(path))).toBe(expected);
+      expect(appPreviewModuleDirectory(files, at(path))).toBe(expected);
+    }
+  );
 
   it('состояние превью живёт, пока открыт ЛЮБОЙ файл модуля, который напечатал кодоген', async () => {
     // Глубина «файла модуля» в правиле жизни объявлена числом и о раскладке домена не знает.
@@ -182,6 +219,69 @@ describe('корень модуля формы: раскладка домена 
     );
     expect(sessions.ids()).toEqual([]);
   });
+
+  describe('документ со свободным именем: состояние держит модуль, который назвал домен', () => {
+    const document = 'src/forms/credit.schema.json';
+
+    /**
+     * Правило жизни, спрашивающее точку так же, как плагин превью: о документе, пока он открыт.
+     * Открытые документы меняются вызовом `open` — как вкладки рабочей области.
+     */
+    function stand() {
+      let open: ResourceId[] = [at(document)];
+      const listeners = new Set<() => void>();
+      const sessions = createPreviewSessions();
+      attachPreviewLifecycle(
+        {
+          openDocuments: () => open,
+          onDidChange: (cb) => {
+            listeners.add(cb);
+            return { dispose: () => listeners.delete(cb) };
+          },
+        },
+        files,
+        sessions,
+        (id) =>
+          open.includes(id) && id === at(document)
+            ? locateFormModule([locator], documentOf(document))
+            : null
+      );
+      sessions.storeFor(at(document));
+      return {
+        sessions,
+        open(paths: readonly string[]): void {
+          open = paths.map(at);
+          for (const cb of [...listeners]) cb();
+        },
+      };
+    }
+
+    it('живёт, пока открыт ЛЮБОЙ файл модуля, который напечатал кодоген — и файл шага тоже', async () => {
+      const module = await generateModule(BUILTIN_TARGETS, {
+        schema: wizardSchema(),
+        formName: formNameOfSchemaPath(document),
+        schemaPath: modulePlacementOf(document).schemaPath,
+        kit: builtinKit(),
+        splitSteps: true,
+      });
+      expect(module.problems).toEqual([]);
+      const root = moduleRootPathOf(document);
+
+      for (const file of module.files) {
+        const { sessions, open } = stand();
+        // Вкладка документа замещена файлом модуля одним движением — документ уже закрыт.
+        open([`${root}/${file.path}`]);
+        expect(sessions.ids(), `открыт «${file.path}»`).toEqual([at(document)]);
+      }
+    });
+
+    it('файл соседней формы того же каталога состояние не держит', () => {
+      const { sessions, open } = stand();
+      // По общему правилу модуль — `src/forms`, и этот файл держал бы состояние чужой формы.
+      open(['src/forms/loan/validation/form.ts']);
+      expect(sessions.ids()).toEqual([]);
+    });
+  });
 });
 
 describe('документ со свободным именем: превью читает модуль там, куда его кладёт кодоген', () => {
@@ -202,13 +302,8 @@ describe('документ со свободным именем: превью ч
   it.each(FREE_NAMED)('«%s»: подкаталог превью — корень модуля кодогена', (path) => {
     const placement = modulePlacementOf(path);
     expect(placement.kind).toBe('detached');
-    // Кодоген: каталог документа плюс kebab-имя формы (по умолчанию — из имени документа).
-    const codegenRoot = moduleRootOf(
-      files,
-      at(path),
-      placement,
-      makeNames(formNameOfSchemaPath(path)).dir
-    );
+    // Кодоген: каталог документа плюс kebab-имя документа.
+    const codegenRoot = moduleRootOfDocument(files, at(path), path);
 
     const detached = detachedModuleOf(path);
     if (detached === null) throw new Error('превью не признало имя документа свободным');
@@ -240,7 +335,7 @@ describe('документ со свободным именем: превью ч
     });
     expect(module.problems).toEqual([]);
     // Корень — тем же правилом, которым его считает доставка.
-    const root = parseResourceId(moduleRootOf(files, at(document), placement, module.dir)).path;
+    const root = parseResourceId(moduleRootOfDocument(files, at(document), document)).path;
     expect(root).toBe('src/forms/credit');
     const tree: Record<string, string> = {
       [document]: '{ "документ": "открыт в редакторе" }',

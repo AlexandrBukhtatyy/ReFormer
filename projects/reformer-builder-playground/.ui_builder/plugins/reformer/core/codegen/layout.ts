@@ -38,6 +38,8 @@
  * @module plugins/reformer/core/codegen/layout
  */
 
+import { makeNames } from './naming';
+
 /** Папка документа формы и её реестра внутри модуля. */
 export const SCHEMA_DIR = 'schema';
 
@@ -274,6 +276,61 @@ export function formNameOfSchemaPath(path: string): string {
   const dot = name.indexOf('.');
   const stem = dot === -1 ? name : name.slice(0, dot);
   return stem !== '' ? stem : 'form';
+}
+
+/**
+ * Имя каталога модуля документа со свободным именем — kebab-имя формы из имени ДОКУМЕНТА:
+ * `forms/credit.schema.json` → `credit`.
+ *
+ * Только из адреса. Имя формы, введённое в панели генерации вместо предложенного, меняет имена в
+ * коде, но не место модуля: иначе модуль лёг бы туда, где его не найдёт никто, кроме прогона,
+ * который его напечатал, — у превью, превью приложением и фикстуры есть только адрес документа.
+ * Так же устроены канонические раскладки: каталог модуля задаёт место документа, а не имя формы.
+ */
+export function detachedModuleDirOf(path: string): string {
+  return makeNames(formNameOfSchemaPath(path)).dir;
+}
+
+/**
+ * Каталог модуля формы по пути её документа — от корня проекта, для всех трёх раскладок
+ * ({@link modulePlacementOf}): у `nested` и `flat` это {@link moduleDirOfSchemaPath}, у `detached` —
+ * подкаталог {@link detachedModuleDirOf} рядом с документом. Каталога может ещё не быть: код по
+ * документу не генерировали.
+ */
+export function moduleRootPathOf(path: string): string {
+  const normalized = normalize(path);
+  if (modulePlacementOf(normalized).kind !== 'detached') return moduleDirOfSchemaPath(normalized);
+  const dir = dirName(normalized);
+  const own = detachedModuleDirOf(normalized);
+  return dir === '' ? own : `${dir}/${own}`;
+}
+
+/** Арифметика адресов, которой хватает, чтобы найти каталог модуля. */
+export interface ModuleRootPort<Id> {
+  /** Каталог ресурса. */
+  parentOf(id: Id): Id;
+  /** Адрес внутри каталога. */
+  resolve(dir: Id, ...segments: readonly string[]): Id;
+}
+
+/**
+ * Каталог модуля формы по АДРЕСУ её документа — то же правило, что {@link moduleRootPathOf}, но
+ * адресами платформы. Разбирать адрес ресурса плагину нельзя, поэтому путь документа только
+ * решает, сколько раз подняться и в какой подкаталог зайти, а шаги делает порт.
+ *
+ * Правило одно на кодоген (куда печатать), превью (откуда читать) и вклад домена в точку модулей
+ * форм (`FormModulePoint`), по которому модуль ищут общие плагины.
+ */
+export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path: string): Id {
+  const parent = port.parentOf(id);
+  switch (modulePlacementOf(path).kind) {
+    case 'nested':
+      return port.parentOf(parent);
+    case 'flat':
+      return parent;
+    case 'detached':
+      return port.resolve(parent, detachedModuleDirOf(path));
+  }
 }
 
 /** Расширения, которые спецификатор импорта опускает. */

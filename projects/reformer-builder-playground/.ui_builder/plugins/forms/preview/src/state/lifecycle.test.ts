@@ -193,6 +193,60 @@ describe('attachPreviewLifecycle', () => {
     );
   });
 
+  describe('место модуля называет стек', () => {
+    // Документ ReFormer со свободным именем: модуль — подкаталог по имени документа, а каталог
+    // самого документа — общий с модулями других форм.
+    const form = 'src:forms/credit.schema.json';
+    const module = 'src:forms/credit';
+
+    /** Стек отвечает о своём документе, пока тот открыт, — как точка `FormModulePoint`. */
+    const stackOf =
+      (w: ReturnType<typeof fakeDocuments>) =>
+      (id: string): string | null =>
+        id === form && w.documents.openDocuments().includes(id) ? module : null;
+
+    it('файл соседней формы в том же каталоге состояние не держит', () => {
+      const sessions = createPreviewSessions();
+      const w = fakeDocuments();
+      w.setOpen([form]);
+      attachPreviewLifecycle(w.documents, w.files, sessions, stackOf(w));
+      sessions.storeFor(form);
+
+      // По общему правилу модуль — `src:forms`, и файл соседней формы держал бы состояние.
+      w.setOpen(['src:forms/loan/validation/form.ts']);
+
+      expect(sessions.ids()).toEqual([]);
+    });
+
+    it('файл шага разбитого визарда держит, хотя документ уже закрыт', () => {
+      // Одиночный щелчок замещает вкладку документа файлом шага одним движением: к сведению
+      // документ закрыт, и ответ стека должен быть запомнен ещё при рождении состояния.
+      const sessions = createPreviewSessions();
+      const w = fakeDocuments();
+      w.setOpen([form]);
+      attachPreviewLifecycle(w.documents, w.files, sessions, stackOf(w));
+      sessions.storeFor(form);
+
+      w.setOpen(['src:forms/credit/schema/steps/kontakty/form.schema.json']);
+      expect(sessions.ids()).toEqual([form]);
+
+      w.setOpen(['src:forms/readme.md']);
+      expect(sessions.ids()).toEqual([]);
+    });
+
+    it('открытый документ держит своё состояние, хотя лежит вне каталога модуля', () => {
+      const sessions = createPreviewSessions();
+      const w = fakeDocuments();
+      w.setOpen([form]);
+      attachPreviewLifecycle(w.documents, w.files, sessions, stackOf(w));
+      sessions.storeFor(form);
+
+      w.setOpen([form, 'src:notes.md']);
+
+      expect(sessions.ids()).toEqual([form]);
+    });
+  });
+
   it('снятие прекращает слежение, но состояний не трогает', () => {
     const sessions = createPreviewSessions();
     const w = fakeDocuments();

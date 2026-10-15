@@ -26,9 +26,18 @@ import {
 import type { FormMock } from '../form-mock';
 
 describe('адрес фикстуры', () => {
-  it('лежит рядом с формой, в каталоге её схемы', () => {
-    expect(fixturePathOf('src/forms/credit/schema.json')).toBe('src/forms/credit/fixture.ts');
-    expect(fixtureDirOf('src/forms/credit/schema.json')).toBe('src/forms/credit');
+  it('лежит в корне модуля формы — рядом с документом прежней плоской раскладки', () => {
+    expect(fixturePathOf('src/forms/credit/form.schema.json')).toBe('src/forms/credit/fixture.ts');
+    expect(fixtureDirOf('src/forms/credit/form.schema.json')).toBe('src/forms/credit');
+  });
+
+  it('документ со свободным именем: фикстура — в каталоге его модуля, а не рядом с документом', () => {
+    // Модуль такого документа кодоген заводит подкаталогом по имени документа. Рядом с самим
+    // документом фикстура была бы одна на все свободно названные документы каталога, и фикстуры
+    // разных форм затирали бы друг друга.
+    expect(fixturePathOf('src/forms/credit.schema.json')).toBe('src/forms/credit/fixture.ts');
+    expect(fixturePathOf('src/forms/loan.schema.json')).toBe('src/forms/loan/fixture.ts');
+    expect(fixtureDirOf('credit.schema.json')).toBe('credit');
   });
 
   it('документ в папке schema: фикстура — в КОРНЕ модуля формы, а не рядом с документом', () => {
@@ -56,24 +65,26 @@ describe('адрес фикстуры', () => {
   });
 
   it('две одноимённые формы в разных ветках не сталкиваются', () => {
-    const first = fixturePathOf('src/a/credit/schema.json');
-    const second = fixturePathOf('src/b/credit/schema.json');
+    const first = fixturePathOf('src/a/credit/form.schema.json');
+    const second = fixturePathOf('src/b/credit/form.schema.json');
 
     expect(first).not.toBe(second);
   });
 
   it('схема в корне проекта тоже получает адрес — без ведущего слэша', () => {
-    expect(fixturePathOf('schema.json')).toBe('fixture.ts');
-    expect(joinFixtureDir(fixtureDirOf('schema.json')!, FIXTURE_FILE)).toBe('fixture.ts');
+    expect(fixturePathOf('form.schema.json')).toBe('fixture.ts');
+    expect(joinFixtureDir(fixtureDirOf('form.schema.json')!, FIXTURE_FILE)).toBe('fixture.ts');
   });
 
   it('ОТКАЗЫВАЕТ на пути, вылезающем за корень проекта', () => {
-    expect(fixturePathOf('../../secrets/schema.json')).toBeNull();
+    expect(fixturePathOf('../../secrets/form.schema.json')).toBeNull();
     expect(fixtureDirOf('')).toBeNull();
   });
 
   it('нормализует разделители и лишние сегменты', () => {
-    expect(fixturePathOf('src\\forms\\.\\credit\\schema.json')).toBe('src/forms/credit/fixture.ts');
+    expect(fixturePathOf('src\\forms\\.\\credit\\form.schema.json')).toBe(
+      'src/forms/credit/fixture.ts'
+    );
   });
 
   it('узнаёт свои пути по ИМЕНИ файла: графы фикстуры и формы собираются врозь', () => {

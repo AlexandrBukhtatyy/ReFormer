@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   APP_PREVIEW_FRAME_NAME,
   type Disposable,
+  type FormModuleLocator,
   type PreviewContext,
   type ResourceRef,
 } from '@reformer/builder-plugin-api';
@@ -101,6 +102,8 @@ interface MountOptions {
   readonly dirty?: readonly string[];
   /** Без права сохранять: служба сохранения плагину не отдана. */
   readonly withoutSaving?: boolean;
+  /** Вклады стеков в точку мест модулей: где модуль формы документа. */
+  readonly modules?: readonly FormModuleLocator[];
 }
 
 function mount(options: MountOptions): Stand {
@@ -134,6 +137,7 @@ function mount(options: MountOptions): Stand {
       options.withoutSaving === true ? undefined : { isDirty: () => dirty.size > 0, saveAll },
     t,
     reloadDelayMs: 10,
+    ...(options.modules !== undefined ? { modules: () => options.modules ?? [] } : {}),
   });
   const host = options.host ?? hostOf('height: 400px;');
   // Блок с заданной высотой — так тело вкладки отдаёт редактор схемы ReFormer.
@@ -290,6 +294,52 @@ describe('рамка формы', () => {
 
     await vi.waitFor(() => {
       expect(noticeIn(stand.host)).not.toBeNull();
+    });
+  });
+});
+
+describe('место модуля называет стек документа', () => {
+  // Документ со свободным именем: стек заводит ему модуль подкаталогом по имени документа, а в
+  // каталоге самого документа лежит точка входа ДРУГОГО модуля — общая бочка форм.
+  const FREE = file('src/forms/credit.schema.json');
+  const TREE = [
+    FREE,
+    file('src/forms/index.ts'),
+    file('src/forms/credit/index.ts'),
+    file('src/forms/credit/CreditForm.tsx'),
+  ];
+  const stack: FormModuleLocator = {
+    moduleOf: (doc) => (doc.ref.path === FREE.path ? 'fs:src/forms/credit' : null),
+  };
+
+  it('стенд открывает модуль, который назвал стек, а не точку входа каталога документа', async () => {
+    const stand = mount({ entries: TREE, document: FREE, modules: [stack] });
+
+    await vi.waitFor(() => {
+      expect(frameIn(stand.host)?.getAttribute('src')).toBe(standOf('src/forms/credit/index.ts'));
+    });
+    expect(stand.listed).not.toHaveBeenCalledWith('fs:src/forms');
+  });
+
+  it('модуля по ответу стека ещё нет — называет недостающий файл, чужую форму не открывает', async () => {
+    // Код по документу не генерировали: подкаталога нет. Общее правило нашло бы `src/forms/index.ts`.
+    const stand = mount({
+      entries: [FREE, file('src/forms/index.ts')],
+      document: FREE,
+      modules: [stack],
+    });
+
+    await vi.waitFor(() => {
+      expect(noticeIn(stand.host)).not.toBeNull();
+    });
+    expect(frameIn(stand.host)).toBeNull();
+  });
+
+  it('стек не ответил — общее правило: рядом с документом', async () => {
+    const { host } = mount({ entries: CONTACT, modules: [stack] });
+
+    await vi.waitFor(() => {
+      expect(frameIn(host)?.getAttribute('src')).toBe(standOf('src/forms/contact/index.tsx'));
     });
   });
 });

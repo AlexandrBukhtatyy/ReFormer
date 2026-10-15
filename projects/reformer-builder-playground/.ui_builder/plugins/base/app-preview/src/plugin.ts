@@ -34,6 +34,7 @@ import { MonitorPlay } from 'lucide-react';
 import {
   AppPreviewCapability,
   definePlugin,
+  FormModulePoint,
   PanelPoint,
   PreviewSurfacePoint,
   WorkspaceFilesServiceToken,
@@ -100,6 +101,8 @@ export function createAppPreviewPlugin(): Plugin {
             files,
             // Спрашивается в момент вопроса: право могли не дать, а службу — снять.
             saving: () => ctx.services.get(WorkspaceSaveCapability),
+            // Где модуль формы, знает стек документа; без его ответа — правило «рядом с документом».
+            modules: () => ctx.extensions.get(FormModulePoint).map((entry) => entry.value),
             t: (key, params) => ctx.i18n.t(key, params),
           }),
           { id: APP_FORM_SURFACE_ID }

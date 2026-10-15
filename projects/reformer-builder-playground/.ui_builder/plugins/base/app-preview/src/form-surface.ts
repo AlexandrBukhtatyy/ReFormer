@@ -56,8 +56,10 @@
 
 import {
   APP_PREVIEW_FRAME_NAME,
+  locateFormModule,
   type AppPreviewService,
   type Disposable,
+  type FormModuleLocator,
   type PreviewSurface,
   type WorkspaceFilesService,
   type WorkspaceSaveService,
@@ -80,6 +82,12 @@ export interface FormSurfaceDeps {
   readonly t: (key: string, params?: Record<string, unknown>) => string;
   /** Задержка перезагрузки после записи. Параметр ради тестов. */
   readonly reloadDelayMs?: number;
+  /**
+   * Вклады стеков в точку мест модулей (`FormModulePoint`): где лежит модуль формы документа.
+   * Функция — вклады приходят и уходят с плагинами стеков; без ответа — общее правило
+   * (`moduleDirectoryOf`).
+   */
+  readonly modules?: () => readonly FormModuleLocator[];
 }
 
 /**
@@ -221,9 +229,14 @@ export function createFormSurface(deps: FormSurfaceDeps): PreviewSurface {
       };
       syncUnsaved();
 
-      // Точка входа модуля — рядом с документом, а для документа из папки `schema` — в её
-      // родителе (`./model`).
-      const directory = moduleDirectoryOf(deps.files, ctx.doc.id);
+      // Каталог модуля называет стек документа (`FormModulePoint`): у его раскладки модуль бывает
+      // не рядом с документом — документу ReFormer со свободным именем модуль заводится
+      // подкаталогом. Ответ стека окончателен: по общему правилу для такого документа нашлась бы
+      // точка входа ДРУГОЙ формы — того каталога, где документ лежит. Без ответа — общее правило:
+      // рядом с документом, а для документа из папки `schema` — в её родителе (`./model`).
+      const directory =
+        locateFormModule(deps.modules?.() ?? [], ctx.doc) ??
+        moduleDirectoryOf(deps.files, ctx.doc.id);
       let disposed = false;
       /** Номер последнего чтения каталога: ответ опоздавшего чтения не показывается. */
       let turn = 0;

@@ -18,7 +18,7 @@ import {
   appSnippet,
   formNameOfSchemaPath,
   modulePlacementOf,
-  type ModulePlacement,
+  moduleRootOfDocument,
 } from '../../../core/codegen';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
@@ -40,37 +40,6 @@ import { asFormSchema, formSourceOf, StepPartsError, type FormSource } from './s
  */
 export function defaultFormName(document: CodegenDocument): string {
   return formNameOfSchemaPath(document.ref.path);
-}
-
-/**
- * Каталог модуля формы, открытой как документ.
- *
- * Три случая — по тому, где документ лежит ({@link modulePlacementOf}):
- *
- * - `<модуль>/schema/form.schema.json` — модуль печатается НА МЕСТЕ, в родителе папки `schema`;
- * - `<каталог>/form.schema.json` — форма прежней плоской раскладки: модуль печатается в её
- *   каталог, документ остаётся, где лежал;
- * - документ со свободным именем (`forms/credit.schema.json`) — своего каталога у формы нет:
- *   модуль заводится подкаталогом `moduleDir` рядом с документом, а документ кладётся в его
- *   `schema/form.schema.json`.
- *
- * @param moduleDir - Имя каталога нового модуля (kebab-имя формы) — для третьего случая.
- */
-export function moduleRootOf(
-  host: Pick<CodegenHost, 'parentOf' | 'resolve'>,
-  documentId: ResourceId,
-  placement: ModulePlacement,
-  moduleDir: string
-): ResourceId {
-  const parent = host.parentOf(documentId);
-  switch (placement.kind) {
-    case 'nested':
-      return host.parentOf(parent);
-    case 'flat':
-      return parent;
-    case 'detached':
-      return host.resolve(parent, moduleDir);
-  }
 }
 
 /**
@@ -98,7 +67,10 @@ export interface RunOptions {
   readonly targets: readonly CodegenTarget[];
   readonly documentId: ResourceId;
   readonly store: CodegenStore;
-  /** Имя формы; пустое — берётся из имени файла. */
+  /**
+   * Имя формы; пустое — берётся из имени файла. Задаёт имена в коде (тип, страница, фабрики), но не
+   * место модуля: его решает адрес документа.
+   */
   readonly formName?: string;
   /**
    * Отказы, случившиеся ДО прогона, — разбор пользовательских целей.
@@ -176,7 +148,13 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   const snippet = appSnippet(module.context.names);
 
   try {
-    const root = moduleRootOf(host, documentId, placement, module.dir);
+    // Каталог модуля — функция адреса документа (раскладка домена), а не введённого имени формы:
+    // `<модуль>/schema/form.schema.json` — модуль на месте, в родителе папки `schema`;
+    // `<каталог>/form.schema.json` (прежняя плоская раскладка) — в каталоге документа; документ со
+    // свободным именем (`forms/credit.schema.json`) — подкаталог по имени ДОКУМЕНТА рядом с ним, а
+    // документ кладётся в его `schema/form.schema.json`. Введённое имя меняет только имена в коде:
+    // модуль под ним искали бы там, где его нет, — превью, фикстура, превью приложением.
+    const root = moduleRootOfDocument(host, documentId, document.ref.path);
     const delivery = await deliverInto(host, root, module.files, {
       schemaPath: placement.schemaPath,
     });

@@ -22,10 +22,13 @@ import {
   DiagnosticsServiceToken,
   DocumentModelsCapability,
   DocumentsServiceToken,
+  FormModulePoint,
+  locateFormModule,
   PreviewLiveCapability,
   SelectionServiceToken,
   WorkspaceFilesServiceToken,
   type Plugin,
+  type ResourceId,
 } from '@reformer/builder-plugin-api';
 import { hostFromServices, type PreviewHostPort } from './host';
 import { createLiveService } from './live/live-service';
@@ -100,7 +103,15 @@ export function createPreviewPlugin(options: PreviewPluginOptions = {}): Plugin 
       const documents = ctx.services.get(DocumentsServiceToken);
       const files = ctx.services.get(WorkspaceFilesServiceToken);
       if (documents !== undefined && files !== undefined) {
-        ctx.subscriptions.push(attachPreviewLifecycle(documents, files, sessions));
+        // Место модуля сначала спрашивается у стека документа (`FormModulePoint`): раскладка его,
+        // а общее правило «каталог документа» для неё бывает неверным.
+        const moduleOf = (id: ResourceId): ResourceId | null => {
+          const document = host.documentOf(id);
+          if (document === null) return null;
+          const locators = ctx.extensions.get(FormModulePoint).map((entry) => entry.value);
+          return locateFormModule(locators, document);
+        };
+        ctx.subscriptions.push(attachPreviewLifecycle(documents, files, sessions, moduleOf));
       }
 
       // Клик по форме уходит в общий канал выделения. `get`, а не `require`: отсутствие

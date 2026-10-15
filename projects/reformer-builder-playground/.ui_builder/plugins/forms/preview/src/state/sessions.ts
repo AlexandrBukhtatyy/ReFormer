@@ -96,6 +96,12 @@ export interface PreviewSessions {
   invalidate(resources: readonly ResourceId[]): void;
   /** Документы, у которых есть состояние. Нужен тому, кто следит за вкладками и зовёт {@link forget}. */
   ids(): readonly ResourceId[];
+  /**
+   * Состояние документа родилось — первым обращением ({@link storeFor}). Нужен правилу жизни
+   * (`./lifecycle`): место модуля документа спрашивается у стека, пока документ открыт, а
+   * рождается состояние ровно тогда — его показывают.
+   */
+  onDidCreate(cb: (id: ResourceId) => void): Disposable;
   /** Забыть документ: вкладку закрыли, помнить её режим больше незачем. */
   forget(id: ResourceId): void;
   dispose(): void;
@@ -103,6 +109,8 @@ export interface PreviewSessions {
 
 export function createPreviewSessions(): PreviewSessions {
   const stores = new Map<ResourceId, PreviewStore>();
+  /** Кто ждёт рождения состояний: правило жизни. */
+  const creating = new Set<(id: ResourceId) => void>();
   /** Подписка «стор → канал» по документу. Пусто, пока канал не подключён. */
   const publishing = new Map<ResourceId, Disposable>();
   let channel: SelectionChannel | null = null;
@@ -242,11 +250,21 @@ export function createPreviewSessions(): PreviewSessions {
         // Состояние родилось позже щелчка по канвасу: прочитать текущее выделение —
         // единственный способ подсветить узел, выбранный до того, как форму показали.
         reconcile(id, store);
+        for (const cb of [...creating]) cb(id);
       }
       return store;
     },
 
     ids: () => [...stores.keys()],
+
+    onDidCreate(cb) {
+      creating.add(cb);
+      return {
+        dispose(): void {
+          creating.delete(cb);
+        },
+      };
+    },
 
     invalidate,
 
@@ -310,6 +328,7 @@ export function createPreviewSessions(): PreviewSessions {
       watching = null;
       channel = null;
       stores.clear();
+      creating.clear();
     },
   };
 }

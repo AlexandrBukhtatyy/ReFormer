@@ -3,7 +3,9 @@
  *
  * Корень модуля — каталог документа схемы, а если документ лежит в папке `schema/` (раскладка
  * «папки по ролям») — её родитель: `forms/credit/schema/form.schema.json` → `forms/credit/fixture.ts`.
- * Правило одно на кодоген, превью и шаблоны — {@link moduleDirOfSchemaPath}.
+ * У документа со свободным именем модуль — подкаталог по имени документа, туда же ложится и
+ * фикстура: `forms/credit.schema.json` → `forms/credit/fixture.ts`. Правило одно на кодоген, превью
+ * и шаблоны — {@link moduleRootPathOf}.
  *
  * ## Почему рядом, а не в отдельном дереве
  *
@@ -23,7 +25,7 @@
  * @module plugins/reformer/core/form-fixture/paths
  */
 
-import { moduleDirOfSchemaPath } from '../codegen/layout';
+import { moduleRootPathOf } from '../codegen/layout';
 
 /** Имя файла фикстуры внутри каталога модуля формы. */
 export const FIXTURE_FILE = 'fixture.ts';
@@ -71,7 +73,7 @@ function dirOf(path: string): string {
 export function fixtureDirOf(schemaPath: string): string | null {
   const normalized = normalizeResourcePath(schemaPath);
   if (normalized === null || normalized === '') return null;
-  return moduleDirOfSchemaPath(normalized);
+  return moduleRootPathOf(normalized);
 }
 
 /**

@@ -19,9 +19,11 @@
 import { createElement } from 'react';
 import {
   definePlugin,
+  FormModulePoint,
   PanelPoint,
   PreviewLiveCapability,
   PreviewSurfacePoint,
+  WorkspaceFilesServiceToken,
   type Plugin,
   type PreviewSurface,
   type SlotId,
@@ -30,6 +32,7 @@ import {
 import { FORM_SCHEMA_PROVIDER_ID } from '../../core/form-model';
 import { createCompilingSurface } from './compiling/surface';
 import { PREVIEW_RUNTIME_PLUGIN_ID } from './contract';
+import { createFormModuleLocator } from './form-module';
 import type { PreviewHost, Translate } from './host';
 import { previewHostFromContext } from './host-from-context';
 import { PREVIEW_RUNTIME_MESSAGES } from './messages';
@@ -37,6 +40,9 @@ import { createRuntimeSurface } from './runtime/surface';
 import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
 
 export { PREVIEW_RUNTIME_PLUGIN_ID };
+
+/** Идентификатор вклада в точку мест модулей форм. */
+export const FORM_MODULE_LOCATOR_ID = 'reformer.form-module';
 
 /**
  * Поверхности плагина в порядке возрастания способностей.
@@ -93,6 +99,16 @@ export function createPreviewRuntimePlugin(options: PreviewRuntimePluginOptions 
           ctx.extensions.contribute(PreviewSurfacePoint, surface, { id: surface.id })
         );
       }
+
+      // Где лежит модуль формы ReFormer: по этому ответу его ищут общие плагины, которые стека не
+      // знают (жизнь состояния превью, превью приложением), — см. `./form-module`.
+      ctx.subscriptions.push(
+        ctx.extensions.contribute(
+          FormModulePoint,
+          createFormModuleLocator(() => ctx.services.get(WorkspaceFilesServiceToken)),
+          { id: FORM_MODULE_LOCATOR_ID }
+        )
+      );
     },
   });
 }

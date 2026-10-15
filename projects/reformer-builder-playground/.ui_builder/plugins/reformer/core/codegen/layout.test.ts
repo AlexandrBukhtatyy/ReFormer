@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SCHEMA_PATH,
+  detachedModuleDirOf,
   formNameOfSchemaPath,
   importOf,
   isCanonicalSchemaName,
@@ -8,6 +9,8 @@ import {
   moduleDirOfSchemaPath,
   moduleFilesOf,
   modulePlacementOf,
+  moduleRootOfDocument,
+  moduleRootPathOf,
   schemaDirOf,
   schemaPathInModule,
   stepSchemaPath,
@@ -128,6 +131,37 @@ describe('modulePlacementOf', () => {
     });
     // И в папке schema тоже: каталог со свободно названными схемами — не модуль одной формы.
     expect(modulePlacementOf('forms/schema/credit.schema.json').kind).toBe('detached');
+  });
+});
+
+describe('каталог модуля по документу — для всех трёх раскладок', () => {
+  /** Порт адресов на строках: ровно та арифметика, которую делает платформа. */
+  const port = {
+    parentOf: (id: string) => (id.includes('/') ? id.slice(0, id.lastIndexOf('/')) : ''),
+    resolve: (dir: string, ...segments: readonly string[]) =>
+      [dir, ...segments].filter((part) => part !== '').join('/'),
+  };
+
+  it('путь и адрес дают один ответ', () => {
+    for (const [path, root] of [
+      ['forms/loan/schema/form.schema.json', 'forms/loan'],
+      ['forms/loan/form.schema.json', 'forms/loan'],
+      ['forms/credit.schema.json', 'forms/credit'],
+      // Имя документа на кириллице — каталог kebab-именем, как у кодогена.
+      ['forms/Заявка.schema.json', 'forms/zayavka'],
+      ['credit.schema.json', 'credit'],
+    ] as const) {
+      expect(moduleRootPathOf(path), path).toBe(root);
+      expect(moduleRootOfDocument(port, path, path), path).toBe(root);
+    }
+  });
+
+  it('свободно названные документы одного каталога получают разные модули', () => {
+    expect(moduleRootPathOf('forms/credit.schema.json')).not.toBe(
+      moduleRootPathOf('forms/loan.schema.json')
+    );
+    // Имя подкаталога — имя документа до первой точки, kebab-ом.
+    expect(detachedModuleDirOf('forms/credit.schema.json')).toBe('credit');
   });
 });
 

@@ -10,7 +10,12 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PluginContext } from '@reformer/builder-plugin-api';
-import { builtinSurfaces, createPreviewRuntimePlugin, PREVIEW_RUNTIME_PLUGIN_ID } from './plugin';
+import {
+  builtinSurfaces,
+  createPreviewRuntimePlugin,
+  FORM_MODULE_LOCATOR_ID,
+  PREVIEW_RUNTIME_PLUGIN_ID,
+} from './plugin';
 import { MODEL_PANEL_ID } from './ui/ModelPanel';
 import { COMPILING_SURFACE_ID } from './compiling/surface';
 import { RUNTIME_SURFACE_ID } from './runtime/surface';
@@ -49,7 +54,7 @@ function fakeContext() {
 const t = (key: string): string => key;
 
 describe('activate', () => {
-  it('вносит ОДНУ панель — модель — и две поверхности в точку превью из SDK', () => {
+  it('вносит ОДНУ панель — модель, две поверхности и место модуля формы в точки из SDK', () => {
     const { ctx, contributed } = fakeContext();
     createPreviewRuntimePlugin({ host: createFakeHost() }).activate(ctx);
     // Панель модели показывает то, чего не видно нигде, — значения, состояние узлов
@@ -58,6 +63,8 @@ describe('activate', () => {
       { point: 'panel', id: MODEL_PANEL_ID },
       { point: 'preview.surface', id: RUNTIME_SURFACE_ID },
       { point: 'preview.surface', id: COMPILING_SURFACE_ID },
+      // По этому ответу модуль формы ищут общие плагины, которые стека не знают.
+      { point: 'forms.module', id: FORM_MODULE_LOCATOR_ID },
     ]);
   });
 

@@ -11,7 +11,7 @@ import type { ResourceId } from '@reformer/builder-plugin-api';
 import { createFixture } from './fixture-command';
 import type { CodegenHost } from '../host';
 
-const DOCUMENT = 'src/forms/credit/schema.json' as unknown as ResourceId;
+const DOCUMENT = 'src/forms/credit/form.schema.json' as unknown as ResourceId;
 const FIXTURE_PATH = 'src/forms/credit/fixture.ts';
 
 const SCHEMA = {
@@ -50,7 +50,7 @@ function harness(options: { existing?: string; write?: boolean; model?: unknown 
       id === DOCUMENT
         ? {
             id,
-            ref: { path: 'src/forms/credit/schema.json' },
+            ref: { path: 'src/forms/credit/form.schema.json' },
             model: () => ('model' in options ? options.model : SCHEMA),
           }
         : null,

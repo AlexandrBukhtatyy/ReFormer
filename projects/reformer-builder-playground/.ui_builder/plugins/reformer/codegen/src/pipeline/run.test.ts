@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { plainSchema } from '../../../core/testing';
 import type { ResourceId } from '@reformer/builder-plugin-api';
-import { defaultFormName, moduleRootOf, runCodegen, schemaOf } from './run';
+import { moduleRootOfDocument } from '../../../core/codegen';
+import { defaultFormName, runCodegen, schemaOf } from './run';
 import { createCodegenSessions } from './state';
 import { BUILTIN_TARGETS } from './targets';
 import { createFakeDocument, createFakeHost } from '../testing';
@@ -202,7 +203,9 @@ describe('куда ложится модуль: три места докумен
     expect(host.written.has('src/forms/types/credit.ts')).toBe(false);
   });
 
-  it('свободное имя: каталог нового модуля — по имени формы, которое ввёл человек', async () => {
+  it('свободное имя: каталог модуля — по имени документа, введённое имя меняет только код', async () => {
+    // Модуль под введённым именем (`zayavka-na-kredit/`) не нашли бы ни превью, ни фикстура, ни
+    // превью приложением: у них есть только адрес документа.
     const path = 'src/forms/credit.schema.json';
     const text = JSON.stringify(plainSchema());
     const host = createFakeHost({
@@ -217,15 +220,17 @@ describe('куда ложится модуль: три места докумен
       store,
       formName: 'Заявка на кредит',
     });
-    expect(store.get().delivery?.dir).toBe('src/forms/zayavka-na-kredit');
+    expect(store.get().delivery?.dir).toBe('src/forms/credit');
+    expect(host.written.has('src/forms/credit/ZayavkaNaKreditForm.tsx')).toBe(true);
+    expect(host.written.has('src/forms/zayavka-na-kredit/ZayavkaNaKreditForm.tsx')).toBe(false);
   });
 
-  it('moduleRootOf: место документа решает, имя формы — только у свободного имени', () => {
+  it('каталог модуля решает место документа — портом хоста', () => {
     const host = createFakeHost();
-    const root = (path: string, kind: 'nested' | 'flat' | 'detached') =>
-      moduleRootOf(host, path as ResourceId, { kind, schemaPath: 'x' }, 'my-form');
-    expect(root('a/b/schema/form.schema.json', 'nested')).toBe('a/b');
-    expect(root('a/b/form.schema.json', 'flat')).toBe('a/b');
-    expect(root('a/b.schema.json', 'detached')).toBe('a/my-form');
+    const root = (path: string) => moduleRootOfDocument(host, path as ResourceId, path);
+    expect(root('a/b/schema/form.schema.json')).toBe('a/b');
+    expect(root('a/b/form.schema.json')).toBe('a/b');
+    expect(root('a/b.schema.json')).toBe('a/b');
+    expect(root('a/credit.schema.json')).toBe('a/credit');
   });
 });
