@@ -145,7 +145,7 @@ function LegacyMountedForm<T extends object>({
   onReady,
 }: MountPathProps<T>): ReactNode {
   // Вся сборка — один вызов: модель, форма, уровень формы и render-behavior. Правила и поток
-  // уходят в фабрику, и фабрика поведения получает уже СОБРАННЫЙ уровень формы (`submit`, поток) —
+  // уходят в фабрику, и фабрика поведения получает уже СОБРАННЫЙ уровень формы (`submission`, поток) —
   // вместо сырых правил. Ссылка на поведение стабильна по построению, отдельный `useMemo` не нужен.
   const jsonForm = useJsonForm(() =>
     createJsonForm<T>({

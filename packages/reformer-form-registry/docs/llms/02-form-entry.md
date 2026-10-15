@@ -116,7 +116,7 @@ const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
 
 Запись с `renderBehavior` монтируется прежним путём (`createJsonForm` + `JsonFormRenderer`), и её
 документ схемы остаётся прежнего формата. Третий параметр — собранный уровень формы (`FormLevel`:
-`submit`, `validate`, `flow`), четвёртый — настройки места (`behaviorOptions`; прежнее имя пропа
+`submission`, `validate`, `flow`), четвёртый — настройки места (`behaviorOptions`; прежнее имя пропа
 `renderBehaviorOptions` работает как синоним). Новой записи это поле не нужно: правила узлов пишутся
 в `behavior` — см. [08-unified-contract.md](08-unified-contract.md).
 

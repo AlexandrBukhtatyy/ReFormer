@@ -19,8 +19,8 @@ const checkoutBehavior = (options: Record<string, unknown>) =>
   defineFormBehavior<CheckoutForm>(({ model, schema }) => {
     enableWhen(model.$.deliveryAddress, () => model.delivery === 'courier');
     hideWhen(schema.node('courier'), () => model.delivery !== 'courier');
-    // Кнопка отправки визарда зовёт обработчик через `bundle.submit` — только после успешной
-    // проверки всей формы; `values` — значения формы.
+    // Кнопка отправки визарда зовёт обработчик через `bundle.submission.submit` — только после
+    // успешной проверки всей формы; `values` — значения формы.
     onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CheckoutForm) => {
       const result = await submitOrder(values);
       (options.onResult as ((result: unknown) => void) | undefined)?.(result);
@@ -118,9 +118,10 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 ```
 
 `onReady` получает собранный бандл (`MountedFormBundle`): у записи единого контракта —
-`FormBundle` из `createForm` (`{ model, form, render, flow, validate, validateStep, submit, … }`),
-у записи прежнего контракта — бандл `createJsonForm`. Уровень формы — `model`, `form`, `flow`,
-`validate()`, `validateStep(id)`, `submit(handler)` — есть у обоих.
+`FormBundle` из `createForm`
+(`{ model, form, render, flow, validate, validateStep, submission, … }`), у записи прежнего
+контракта — бандл `createJsonForm`. Уровень формы — `model`, `form`, `flow`,
+`validate()`, `validateStep(id)`, `submission.submit(handler)` — есть у обоих.
 
 ## Preflight и части документа
 

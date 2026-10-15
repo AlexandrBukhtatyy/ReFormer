@@ -112,8 +112,8 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 ## `entry.ts` от билдера не компилируется
 
 Запись прежнего контракта: фабрика `renderBehavior` получает `(form, model, level, options?)` —
-третьим параметром идёт собранный уровень формы (`FormLevel`: `submit`, `validate`, `flow`), а не
-правила валидации; настройки места — четвёртый параметр. Сгенерированная фабрика вида
+третьим параметром идёт собранный уровень формы (`FormLevel`: `submission`, `validate`, `flow`),
+а не правила валидации; настройки места — четвёртый параметр. Сгенерированная фабрика вида
 `(form, model, options)` подключается переходником:
 `value: (form, model, _level, options) => createRenderBehavior(form, model, options)`.
 

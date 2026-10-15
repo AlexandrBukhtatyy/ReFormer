@@ -89,7 +89,8 @@ resolveForms(store, query, ctx) =
 
 - `behaviorOptions` — настройки места (колбэки хоста вроде `onResult`): приходят аргументом в
   фабрику поведения записи (`FormEntry.behavior`). Прежнее имя `renderBehaviorOptions` — синоним;
-- `onReady(bundle)` — собранный бандл: `model`, `form`, `flow`, `validate()`, `submit(handler)`;
+- `onReady(bundle)` — собранный бандл: `model`, `form`, `flow`, `validate()`,
+  `submission.submit(handler)`;
 - `initial` / `model` — переопределение начальных значений либо готовая модель.
 
 ## Почему реестр передаётся ЯВНО, а не контекстом

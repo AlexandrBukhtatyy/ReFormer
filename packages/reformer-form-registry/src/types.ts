@@ -73,7 +73,7 @@ export type CodeSource<T> =
  * Валидация формы — общий тип семейства фабрик, живёт в `@reformer/core`.
  *
  * Реестр не описывает свой формат правил: те же данные принимают `createJsonForm`/`createForm`,
- * которые собирают из них уровень формы (`validate`, `submit`, поток шагов). Реестр лишь
+ * которые собирают из них уровень формы (`validate`, отправка, поток шагов). Реестр лишь
  * доставляет правила и поток и передаёт собранный уровень формы в фабрику `renderBehavior`.
  *
  * Идентификаторы шагов потока (`flow.steps[].id`) — селекторы узлов `Step` в JSON-схеме; их
@@ -178,7 +178,7 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
     (
       form: FormGroup<T>,
       model: FormModel<T>,
-      /** Уже СОБРАННЫЙ уровень формы (`validate`, `submit`, поток), а не сырые правила. */
+      /** Уже СОБРАННЫЙ уровень формы (`validate`, `submission`, поток), а не сырые правила. */
       level: FormLevel<T>,
       options?: Record<string, unknown>
     ) => RenderBehaviorFn<T>
