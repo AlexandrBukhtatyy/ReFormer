@@ -15,7 +15,7 @@
 
 import type { Signal } from '@preact/signals-core';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
-import type { FormModel } from '../../model/types';
+import type { FormModel, ModelArray } from '../../model/types';
 import type { FormGroup } from '../types/index';
 import { getNodeForSignal } from '../signal-node-registry';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
@@ -45,6 +45,26 @@ interface RowArrayNode {
   /** Число строк; чтение внутри effect подписывает на их состав. */
   length?: number;
 }
+
+/**
+ * Ручка массива под-форм `model.$.<массив>`. Тип строки выводится из её `peek()` — так же, как у
+ * `applyEach` валидации. Раньше цель была `object`: тип строки не выводился (`unknown`), а чужая
+ * схема строки и ручка не того вида проходили компиляцию.
+ */
+interface ArrayHandle<TItem> {
+  peek(): readonly TItem[] | null | undefined;
+}
+
+/** Цель операторов массива: ручка `model.$.<массив>` либо его value-фасад `model.<массив>`. */
+type ArrayTarget<TItem> = ArrayHandle<TItem> | ModelArray<TItem>;
+
+/** Ручка группы `model.$.<группа>`: тип значения — из её `peek()`. */
+interface GroupHandle<V> {
+  peek(): V;
+}
+
+/** Цель `apply`: ручка `model.$.<группа>` либо её value-фасад `model.<группа>`. */
+type GroupTarget<V> = GroupHandle<V> | FormModel<NonNullable<V>>;
 
 /** Путь ручки — только для сообщений об ошибках. */
 const pathOf = (handle: object): string => (handle as { __path?: string }).__path ?? '?';
@@ -92,7 +112,10 @@ function unmaterializedRowForm<T>(path: string): FormGroup<T> {
  *   applyEach(row.$.phones, phoneBehavior);                  // массив внутри строки
  * }));
  */
-export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void {
+export function applyEach<TItem extends object>(
+  array: ArrayTarget<TItem>,
+  itemSchema: FormBehavior<NoInfer<TItem>>
+): void {
   const controller = getController('applyEach'); // вне схемы поведения — понятная ошибка
   const flow = getFlow('applyEach');
   const handle = arrayHandleOf(array);
@@ -158,16 +181,16 @@ function touchValue(v: unknown): void {
  * @example
  * exclusiveFlag(model.$.contacts, (row) => row.$.primary);
  */
-export function exclusiveFlag<TItem>(
-  array: object,
-  getFlag: (row: FormModel<TItem>) => Signal<boolean>
+export function exclusiveFlag<TItem extends object>(
+  array: ArrayTarget<TItem>,
+  getFlag: (row: FormModel<NoInfer<TItem>>) => Signal<boolean>
 ): void {
   assertInsideSchema('exclusiveFlag');
   const handle = arrayHandleOf(array);
   if (!handle) return;
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   applyEach(
-    handle,
+    handle as ArrayHandle<TItem>,
     defineFormBehavior<TItem>(({ model: row }) => {
       onChange(getFlag(row), (on) => {
         // Флаг — текущий, а не на момент изменения: строку выбрали и тут же сняли — прежний выбор
@@ -199,9 +222,9 @@ export function exclusiveFlag<TItem>(
  *   return [{ index: n - 1, patch: { percent: 100 - others } }];
  * });
  */
-export function aggregateInto<TItem>(
-  array: object,
-  derive: (rows: TItem[]) => Array<{ index: number; patch: Partial<TItem> }>
+export function aggregateInto<TItem extends object>(
+  array: ArrayTarget<TItem>,
+  derive: (rows: NoInfer<TItem>[]) => Array<{ index: number; patch: Partial<NoInfer<TItem>> }>
 ): void {
   assertInsideSchema('aggregateInto');
   const handle = arrayHandleOf(array);
@@ -253,18 +276,21 @@ export function aggregateInto<TItem>(
  * @example
  * apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
  */
-export function apply<TField>(targets: object | object[], subSchema: FormBehavior<TField>): void {
+export function apply<V extends object | null | undefined>(
+  targets: GroupTarget<V> | GroupTarget<V>[],
+  subSchema: FormBehavior<NoInfer<NonNullable<V>>>
+): void {
   const controller = getController('apply'); // вне схемы поведения — понятная ошибка
   const flow = getFlow('apply');
   for (const target of asArray(targets)) {
     // Цель — группа. Массив и лист под-модели не имеют: массив подключают через `applyEach`.
     const handle = groupHandleOf(target);
     if (!handle) continue;
-    const subModel = modelOf(handle as { peek(): object }) as unknown as FormModel<TField>;
+    const subModel = modelOf(handle as { peek(): object }) as unknown as FormModel<NonNullable<V>>;
     // Форма может отсутствовать (модель без формы, под-схема работает только со значениями) —
     // тогда node-операции через `form.*` недоступны.
     // У группы в реестре лежит её лицо — FormGroup с нодами полей.
-    const nestedForm = getNodeForSignal(handle) as FormGroup<TField> | undefined;
-    onDispose(subSchema.__run(subModel, nestedForm as FormGroup<TField>, controller, flow));
+    const nestedForm = getNodeForSignal(handle) as FormGroup<NonNullable<V>> | undefined;
+    onDispose(subSchema.__run(subModel, nestedForm as FormGroup<NonNullable<V>>, controller, flow));
   }
 }

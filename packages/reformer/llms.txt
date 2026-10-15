@@ -7323,9 +7323,9 @@ _Source: src/form/submission.ts_
 
 **Signature:**
 ```typescript
-export function aggregateInto<TItem>(
-  array: object,
-  derive: (rows: TItem[]) => Array<{ index: number; patch: Partial<TItem> }>
+export function aggregateInto<TItem extends object>(
+  array: ArrayTarget<TItem>,
+  derive: (rows: NoInfer<TItem>[]) => Array<{ index: number; patch: Partial<NoInfer<TItem>> }>
 ): void
 ```
 
@@ -7352,7 +7352,10 @@ _Source: src/form/behaviors/collections.ts_
 
 **Signature:**
 ```typescript
-export function apply<TField>(targets: object | object[], subSchema: FormBehavior<TField>): void
+export function apply<V extends object | null | undefined>(
+  targets: GroupTarget<V> | GroupTarget<V>[],
+  subSchema: FormBehavior<NoInfer<NonNullable<V>>>
+): void
 ```
 
 **Examples:**
@@ -7380,7 +7383,10 @@ _Source: src/form/behaviors/collections.ts_
 
 **Signature:**
 ```typescript
-export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void
+export function applyEach<TItem extends object>(
+  array: ArrayTarget<TItem>,
+  itemSchema: FormBehavior<NoInfer<TItem>>
+): void
 ```
 
 **Examples:**
@@ -9082,9 +9088,9 @@ _Source: src/form/behaviors/operators.ts_
 
 **Signature:**
 ```typescript
-export function exclusiveFlag<TItem>(
-  array: object,
-  getFlag: (row: FormModel<TItem>) => Signal<boolean>
+export function exclusiveFlag<TItem extends object>(
+  array: ArrayTarget<TItem>,
+  getFlag: (row: FormModel<NoInfer<TItem>>) => Signal<boolean>
 ): void
 ```
 

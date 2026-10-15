@@ -304,27 +304,26 @@ export const collectionTypeChecks = defineFormBehavior<Order>(({ model }) => {
   // @ts-expect-error — правка строки — часть элемента массива
   aggregateInto(model.$.shares, (_shares: Share[]) => [{ index: 0, patch: { percent: '100' } }]);
 
-  // @ts-expect-error [ReFormer-hsg0] пример из JSDoc `exclusiveFlag`: тип строки — из ручки массива
+  // Пример из JSDoc `exclusiveFlag`: тип строки — из ручки массива [ReFormer-hsg0].
   exclusiveFlag(model.$.phones, (phone) => phone.$.primary);
   aggregateInto(model.$.shares, (shares) => {
     const others = shares
       .slice(0, -1)
-      // @ts-expect-error [ReFormer-hsg0] пример из документации: строки — снимки элементов массива
+      // Пример из документации: строки — снимки элементов массива [ReFormer-hsg0].
       .reduce((sum, share) => sum + share.percent, 0);
     return [{ index: shares.length - 1, patch: { percent: 100 - Number(others) } }];
   });
   applyEach(
     model.$.phones,
-    // @ts-expect-error [ReFormer-hsg0] схема строки на месте: тип строки — из ручки массива
+    // Схема строки на месте: тип строки — из ручки массива [ReFormer-hsg0].
     defineFormBehavior(({ model: phone }) => void phone.$.number)
   );
 
-  // [ReFormer-hsg0] сейчас компилируется, а не должно: поведение телефона на группе адреса — тип
-  // под-схемы с ручкой не связан (у `@reformer/core/validation` такая пара — ошибка).
+  // @ts-expect-error — поведение телефона на группе адреса: тип под-схемы — из ручки группы
   apply(model.$.registration, phoneBehavior);
-  // [ReFormer-hsg0] сейчас компилируется, а не должно: поведение адреса на строках телефонов.
+  // @ts-expect-error — поведение адреса на строках телефонов: тип строки — из ручки массива
   applyEach(model.$.phones, addressBehavior);
-  // [ReFormer-hsg0] сейчас компилируется, а не должно: ручка массива вместо группы — молча ничего.
+  // @ts-expect-error — ручка массива вместо группы: под-модели у массива нет
   apply(model.$.phones, addressBehavior);
 });
 

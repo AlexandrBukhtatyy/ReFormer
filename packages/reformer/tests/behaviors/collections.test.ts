@@ -91,7 +91,9 @@ describe('collections — applyEach', () => {
     build(
       model,
       defineFormBehavior<Invoice>(({ model: m }) => {
+        // @ts-expect-error — типы запрещают ручку группы; рантайм для JS-кода её молча пропускает
         applyEach(m.$.address, defineFormBehavior<never>(rowRuns));
+        // @ts-expect-error — типы запрещают ручку листа; рантайм для JS-кода её молча пропускает
         applyEach(m.$.title, defineFormBehavior<never>(rowRuns));
       })
     );
@@ -245,6 +247,7 @@ describe('collections — apply', () => {
       model,
       defineFormBehavior<Invoice>(({ model: m }) => {
         apply(
+          // @ts-expect-error — типы запрещают ручку листа; рантайм для JS-кода её молча пропускает
           [m.$.lines, m.$.title, m.$.address],
           defineFormBehavior<{ city: string }>(({ model: sub }) => void runs.push(sub.get()))
         );
@@ -330,6 +333,7 @@ describe('collections — exclusiveFlag', () => {
     build(
       model,
       defineFormBehavior<Invoice>(({ model: m }) => {
+        // @ts-expect-error — типы запрещают ручку группы; рантайм для JS-кода её молча пропускает
         exclusiveFlag(m.$.address, getFlag);
       })
     );
@@ -436,6 +440,7 @@ describe('collections — aggregateInto', () => {
     build(
       model,
       defineFormBehavior<Invoice>(({ model: m }) => {
+        // @ts-expect-error — типы запрещают ручку группы; рантайм для JS-кода её молча пропускает
         aggregateInto(m.$.address, derive);
       })
     );
