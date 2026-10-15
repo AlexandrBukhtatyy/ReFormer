@@ -392,6 +392,37 @@ describe('builders', () => {
       });
       expect(header.startsWith('/**\n * Шаг «Контакты».\n *\n * Правила полей.\n */\n')).toBe(true);
     });
+
+    it('правило строки с условием: validateWhen оборачивает привязку applyEach', () => {
+      // Условие записано над корневой моделью. Раньше ветка строки собирала блок заново из
+      // проверок и выбрасывала обёртку: правило становилось безусловным, а импорт `validateWhen`
+      // оставался неиспользованным — модуль не компилировался под `noUnusedLocals`.
+      const ts = buildValidationSchemaTs(
+        [
+          {
+            target: 'items.amount',
+            each: 'items',
+            rules: ['required'],
+            async: 'checkAmount',
+            when: 'model.hasItems',
+          },
+        ],
+        { interfaceName: 'T', exportName: 'v', typeImport: './types' }
+      );
+
+      expect(ts).toContain(
+        [
+          '  validateWhen(() => model.hasItems, () => {',
+          '    applyEach(model.$.items, ({ model: item }) => {',
+          '      validate(item.$.amount, [required()]);',
+          '      validateAsync(item.$.amount, [checkAmount]);',
+          '    });',
+          '  });',
+        ].join('\n')
+      );
+      // Цель полным путём срезается до пути от строки: `item.$.items.amount` у строки нет.
+      expect(ts).not.toContain('item.$.items');
+    });
   });
 
   it('behavior.ts импортирует только использованные операторы', () => {

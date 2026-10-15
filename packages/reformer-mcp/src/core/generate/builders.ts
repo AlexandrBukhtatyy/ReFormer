@@ -381,26 +381,45 @@ function validationImports(rules: readonly ValidationRuleIntent[]): {
   return { ops, validators: collectValidators([...rules]) };
 }
 
-/** Одно правило intent → строки тела схемы (с отступом тела). */
+/** Строки, вложенные в блок `head … });` с отступом в два пробела. */
+function wrapBlock(head: string, lines: readonly string[]): string[] {
+  return [head, ...lines.map((line) => `  ${line}`), '});'];
+}
+
+/**
+ * Одно правило intent → строки тела схемы (с отступом тела).
+ *
+ * Обёртки вкладываются снаружи внутрь: условие → строки массива → проверки. Условие `when`
+ * записано над КОРНЕВОЙ моделью, поэтому у правила строки оно оборачивает саму привязку
+ * `applyEach`, а не проверки внутри строки, — так же, как у схемы строки ({@link applyRowSchema}).
+ * Раньше ветка строки собирала блок заново из проверок, и условие терялось: правило становилось
+ * безусловным, а импорт `validateWhen` оставался неиспользованным (`noUnusedLocals`).
+ */
 function validationRuleBlock(rule: ValidationRuleIntent): string {
-  const body: string[] = [];
+  const each = rule.each;
+  // Правило строки адресует поле ЭЛЕМЕНТА: цель пишут и от строки (`name`), и полным путём
+  // (`items.name`) — второе даёт `item.$.items.name`, которого у строки нет.
+  const target =
+    each !== undefined && rule.target.startsWith(`${each}.`)
+      ? rule.target.slice(each.length + 1)
+      : rule.target;
+  const ref = each !== undefined ? `item.$.${target}` : `model.$.${target}`;
+
+  let lines: string[] = [];
   if (rule.rules.length > 0) {
-    body.push(`validate(model.$.${rule.target}, [${rule.rules.map(callValidator).join(', ')}]);`);
+    lines.push(`validate(${ref}, [${rule.rules.map(callValidator).join(', ')}]);`);
   }
   if (rule.async) {
-    body.push(`validateAsync(model.$.${rule.target}, [${rule.async}]);`);
+    lines.push(`validateAsync(${ref}, [${rule.async}]);`);
   }
-  let block = body.map((b) => `  ${b}`).join('\n');
-  if (rule.when) {
-    block = `  validateWhen(() => ${rule.when}, () => {\n${body.map((b) => `    ${b}`).join('\n')}\n  });`;
-  }
-  if (rule.each) {
+  if (each !== undefined) {
     // Правила строки — схема над элементом, записанная на месте: `applyEach` отдаёт ей под-модель.
-    block = `  applyEach(model.$.${rule.each}, ({ model: item }) => {\n${body
-      .map((b) => `    ${b.replace(`model.$.${rule.target}`, `item.$.${rule.target}`)}`)
-      .join('\n')}\n  });`;
+    lines = wrapBlock(`applyEach(model.$.${each}, ({ model: item }) => {`, lines);
   }
-  return block;
+  if (rule.when) {
+    lines = wrapBlock(`validateWhen(() => ${rule.when}, () => {`, lines);
+  }
+  return lines.map((line) => `  ${line}`).join('\n');
 }
 
 /**
