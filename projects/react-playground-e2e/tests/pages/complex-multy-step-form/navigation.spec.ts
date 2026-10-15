@@ -254,8 +254,10 @@ test.describe('Навигация', { tag: ['@navigation', '@smoke'] }, () => {
       const canNavigate = await step3.getAttribute('data-step-can-navigate');
       expect(canNavigate).toBe('false');
 
-      // Пытаемся кликнуть - переход не должен произойти
-      await step3.click();
+      // Недоступный шаг помечен aria-disabled: Playwright по такому не кликает, поэтому клик
+      // принудительный — переход всё равно не должен произойти.
+      await expect(step3).toBeDisabled();
+      await step3.click({ force: true });
       await creditForm.page.waitForTimeout(300);
       expect(await creditForm.getCurrentStep()).toBe(1);
     });
