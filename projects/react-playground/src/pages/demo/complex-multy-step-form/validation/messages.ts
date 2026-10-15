@@ -96,7 +96,6 @@ export const creditApplicationMessages = defineIssueMessages({
   'position.required': 'Укажите должность',
   'position.minLength': 'Минимум 3 символа',
   'position.maxLength': 'Максимум 100 символов',
-  'experienceYears.max': 'Максимум 60 лет',
   'workExperienceTotal.required': 'Укажите общий стаж',
   'workExperienceCurrent.required': 'Укажите стаж на текущем месте',
   'businessType.required': 'Укажите тип бизнеса',

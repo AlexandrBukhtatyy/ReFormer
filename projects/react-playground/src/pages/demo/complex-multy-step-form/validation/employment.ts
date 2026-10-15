@@ -1,6 +1,6 @@
 import type { ValidationIssue } from '@reformer/core';
 import { defineValidation, validate, validateWhen, type Rule } from '@reformer/core/validation';
-import { max, maxLength, min, minLength, pattern, required } from '@reformer/core/validators';
+import { maxLength, min, minLength, pattern, required } from '@reformer/core/validators';
 import { isEmployed, isSelfEmployed } from '../model/predicates';
 import type { CreditApplicationForm, EmploymentStatus } from '../types/credit-application';
 import { MAX_10M_RUB_RULES, NON_NEGATIVE_RULES, PHONE_FORMAT_RULES } from './common/rules';
@@ -37,20 +37,15 @@ const POSITION_RULES: Rule<string>[] = [
   maxLength(100, { code: 'position.maxLength' }),
 ];
 
-/** Границы стажа в годах — общий и на текущем месте. */
-const EXPERIENCE_YEARS_RULES: Rule<number | null>[] = [
-  ...NON_NEGATIVE_RULES,
-  max(60, { code: 'experienceYears.max' }),
-];
-
+/** Стаж — в месяцах, по спеке только неотрицательный: верхней границы нет. */
 const WORK_EXPERIENCE_TOTAL_RULES: Rule<number | null>[] = [
   required({ code: 'workExperienceTotal.required' }),
-  ...EXPERIENCE_YEARS_RULES,
+  ...NON_NEGATIVE_RULES,
 ];
 
 const WORK_EXPERIENCE_CURRENT_RULES: Rule<number | null>[] = [
   required({ code: 'workExperienceCurrent.required' }),
-  ...EXPERIENCE_YEARS_RULES,
+  ...NON_NEGATIVE_RULES,
 ];
 
 const BUSINESS_TYPE_RULES: Rule<string>[] = [required({ code: 'businessType.required' })];
