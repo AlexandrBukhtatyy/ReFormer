@@ -589,6 +589,50 @@ describe('set_node_prop пакетом', () => {
     expect(res.ok).toBe(false);
     expect(res.schema).toBeUndefined();
   });
+
+  // ReFormer-kuj: `props` одни на все `refs`, и разные подписи шли отдельными вызовами — модель
+  // упиралась в форму инструмента. `edits` даёт каждому узлу свои свойства за один вызов.
+  it('edits: разные значения разным узлам — один вызов', async () => {
+    const first = `${step0}/children/0`;
+    const second = `${step0}/children/1`;
+    const schema = expectOk(
+      await reg.invoke(
+        'set_node_prop',
+        { edits: { [first]: { label: 'Первое' }, [second]: { label: 'Второе' } } },
+        ctxOf(sampleSchema())
+      )
+    );
+    const outline = buildOutline(schema);
+    expect(outline.find((e) => e.ref === first)?.label).toBe('Первое');
+    expect(outline.find((e) => e.ref === second)?.label).toBe('Второе');
+  });
+
+  it('edits сочетаются с общими props в одном вызове', async () => {
+    const first = `${step0}/children/0`;
+    const second = `${step0}/children/1`;
+    const schema = expectOk(
+      await reg.invoke(
+        'set_node_prop',
+        {
+          refs: [first, second],
+          props: { required: true },
+          edits: { [second]: { label: 'Своё' } },
+        },
+        ctxOf(sampleSchema())
+      )
+    );
+    const outline = buildOutline(schema);
+    expect(outline.find((e) => e.ref === first)?.required).toBe(true);
+    expect(outline.find((e) => e.ref === second)).toMatchObject({ required: true, label: 'Своё' });
+  });
+
+  it('вызов без refs/props и без edits отвергается', async () => {
+    for (const params of [{}, { refs: [`${step0}/children/0`] }, { edits: { [step0]: {} } }]) {
+      const res = await reg.invoke('set_node_prop', params, ctxOf(sampleSchema()));
+      expect(res.error?.code).toBe('INVALID_PARAMS');
+      expect(res.schema).toBeUndefined();
+    }
+  });
 });
 
 describe('remove_node пакетом', () => {

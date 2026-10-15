@@ -28,19 +28,29 @@ type PropValue = string | number | boolean | null;
 
 /** Параметры вызова. */
 interface Params {
-  refs: string[];
-  props: Record<string, PropValue>;
+  /** Узлы, получающие одни и те же `props`. */
+  refs?: string[];
+  props?: Record<string, PropValue>;
+  /**
+   * Свои свойства каждому узлу: адрес → свойства. Без них разные значения (заголовки семи шагов)
+   * шли семью вызовами: `props` одни на все `refs`, и модель упиралась в форму инструмента, а не
+   * нарушала просьбу промпта править пачкой (ReFormer-kuj).
+   */
+  edits?: Record<string, Record<string, PropValue>>;
   expect?: NodeExpectation;
 }
+
+/** Значения свойств в схеме параметров. */
+const PROP_VALUES = { type: ['string', 'number', 'boolean', 'null'] };
 
 export const setNodePropTool: AgentTool<Params> = {
   name: 'set_node_prop',
   // Оставлено только то, что не выводится из схемы: спецключ `text` — единственный способ задать
   // содержимое узла, и без этой фразы модель перебирала пропы по кругу.
   description:
-    'Set component properties (label, placeholder, required, …). The same props go to every node ' +
-    "in refs. The special key text sets the node's own content instead: a tab caption, a button " +
-    'label, a heading.',
+    'Set component properties (label, placeholder, required, …). props go to every node in refs; ' +
+    "edits gives each node its own props. The special key text sets the node's own content " +
+    'instead: a tab caption, a button label, a heading.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -54,28 +64,44 @@ export const setNodePropTool: AgentTool<Params> = {
         type: 'object',
         minProperties: 1,
         description: 'name → value; null removes the property',
-        additionalProperties: { type: ['string', 'number', 'boolean', 'null'] },
+        additionalProperties: PROP_VALUES,
+      },
+      edits: {
+        type: 'object',
+        description: 'address → its own props',
+        additionalProperties: { type: 'object', additionalProperties: PROP_VALUES },
       },
       expect: EXPECT_PROP,
     },
-    required: ['refs', 'props'],
     additionalProperties: false,
   },
   readOnly: false,
   run(params, ctx) {
-    // Сверка ожидания имеет смысл только при одном адресе: она описывает ОДИН узел, и на списке
-    // означала бы «все эти узлы одинаковы» — утверждение, которое модель не имела в виду.
-    if (params.expect && params.refs.length > 1) {
+    // Пары «узел → свойства»: общие props на каждый адрес refs, затем свои — из edits.
+    const shared = params.props ?? {};
+    const pairs: Array<[string, Record<string, PropValue>]> = [
+      ...(params.refs ?? []).map((ref): [string, Record<string, PropValue>] => [ref, shared]),
+      ...Object.entries(params.edits ?? {}),
+    ];
+    if (pairs.length === 0 || pairs.some(([, props]) => Object.keys(props).length === 0)) {
       return fail(
         'INVALID_PARAMS',
-        'expect describes a single node — pass it only when refs holds exactly one address.'
+        'Pass refs with props (same props for every node) and/or edits (address → its own props).'
+      );
+    }
+    // Сверка ожидания имеет смысл только при одном узле: она описывает ОДИН узел, и на списке
+    // означала бы «все эти узлы одинаковы» — утверждение, которое модель не имела в виду.
+    if (params.expect && pairs.length > 1) {
+      return fail(
+        'INVALID_PARAMS',
+        'expect describes a single node — pass it only when the call edits exactly one node.'
       );
     }
 
     let draft = ctx.draft;
     const entries: BatchEntry[] = [];
 
-    for (const ref of params.refs) {
+    for (const [ref, props] of pairs) {
       const found = resolveRef(draft, ref, params.expect);
       if (!isResolved(found)) return found;
 
@@ -83,7 +109,7 @@ export const setNodePropTool: AgentTool<Params> = {
       // путём — и вперёд остальных: он может отказать, а отказ обязан оставить черновик чистым.
       let node = found.node;
       let path = found.path;
-      for (const [key, value] of Object.entries(params.props)) {
+      for (const [key, value] of Object.entries(props)) {
         const step =
           key === TEXT_KEY
             ? setText(ctx.catalog, draft, ref, { node, path }, value)
