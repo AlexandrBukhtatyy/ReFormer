@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderTemplate } from '@reformer/builder-toolkit';
 import { ru } from '@reformer/core/locale/ru';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   builtinKit,
   foreignKit,
@@ -41,6 +42,32 @@ describe('словарь замечаний: какие коды в него п�
     const { entries } = viewOf({ rules: seededRules() }).messages;
     expect(entries.map((entry) => entry.code)).toEqual(['required', 'minLength']);
     expect(entries[0]?.text).toBe('Обязательное поле');
+  });
+
+  it('длина у коллекции — в элементах: мультивыбор и массив получают код maxItems / minItems', () => {
+    // Ядро различает вид значения само; кодоген узнаёт его по цели правила. Без этого под
+    // набором навыков стояло бы «Не больше 3 символов».
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(name)', component: '$component(Input)' },
+          { model: '$model(skills)', component: '$component(ComboboxMulti)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const { entries } = viewOf({
+      schema,
+      rules: rulesOf([
+        { target: 'name', rules: ['maxLength(20)'] },
+        { target: 'skills', rules: ['minLength(1)', 'maxLength(3)'] },
+      ]),
+    }).messages;
+
+    expect(entries.map((entry) => entry.code)).toEqual(['maxLength', 'minItems', 'maxItems']);
+    expect(entries.find((entry) => entry.code === 'maxItems')?.text).toContain('элемент');
+    expect(entries.find((entry) => entry.code === 'maxLength')?.text).toContain('символ');
   });
 
   it('тексты — из русской локали ядра, а не свои', () => {

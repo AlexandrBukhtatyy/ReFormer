@@ -36,8 +36,14 @@
  */
 
 import { ru } from '@reformer/core/locale/ru';
-import { hasValidationRules } from '../../form-model/rules';
+import { isFieldNode, parseOperator, type JsonFieldNode } from '@reformer/renderer-json';
+import { fieldKindOf } from '../../form-mock';
+import { walkDocumentNodes } from '../../form-model/query';
+import { hasValidationRules, type FormRules } from '../../form-model/rules';
 import type { EmitContext } from '../context';
+
+/** Одно правило валидации формы. */
+type ValidationRuleOf = FormRules['validation'][number];
 import { printLiteral } from '../print/js';
 
 /**
@@ -77,6 +83,43 @@ const VALIDATOR_CODES: Readonly<Record<string, readonly string[]>> = {
   minFiles: ['minFiles'],
   maxTotalFileSize: ['maxTotalFileSize'],
 };
+
+/**
+ * Валидаторы длины, у которых код зависит от вида значения: у строки — символы (`maxLength`), у
+ * массива — элементы (`maxItems`). Ядро различает это само, по значению; кодоген — по цели правила.
+ */
+const COLLECTION_CODES: Readonly<Record<string, string>> = {
+  minLength: 'minItems',
+  maxLength: 'maxItems',
+};
+
+/** Виды полей, значение которых — коллекция: мультивыбор и файлы. */
+const COLLECTION_KINDS: ReadonlySet<string> = new Set(['multi', 'file']);
+
+/**
+ * Пути модели, значение которых — коллекция: узлы-массивы и поля-коллекции. Пути — как записаны
+ * в документе: у полей строки массива — от строки (так их и адресует правило строки).
+ */
+function collectionPaths(ctx: EmitContext): ReadonlySet<string> {
+  const out = new Set(ctx.collected.arrayPaths);
+  walkDocumentNodes(ctx.schema, (node) => {
+    if (!isFieldNode(node) || !COLLECTION_KINDS.has(fieldKindOf(node as JsonFieldNode))) return;
+    const parsed = parseOperator(node.model);
+    if (parsed?.op === 'model') out.add(parsed.arg);
+  });
+  return out;
+}
+
+/** Цель правила — коллекция: сама или, у правила строки, её поле от строки. */
+function targetsCollection(rule: ValidationRuleOf, collections: ReadonlySet<string>): boolean {
+  if (collections.has(rule.target)) return true;
+  const each = rule.each;
+  return (
+    each !== undefined &&
+    rule.target.startsWith(`${each}.`) &&
+    collections.has(rule.target.slice(each.length + 1))
+  );
+}
 
 /** Имя валидатора в записи правила: `minLength(2)` → `minLength`. */
 const VALIDATOR_NAME = /^\s*([A-Za-z_$][\w$]*)/;
@@ -122,10 +165,16 @@ const KIT_LOCALES: Readonly<Record<string, string>> = {
 /** Русская локаль ядра — запасная, когда у кита своей нет. */
 const CORE_LOCALE = '@reformer/core/locale/ru';
 
-/** Записи словаря для одного правила валидатора. */
-function entriesOf(rule: string): readonly MessageEntryView[] {
+/**
+ * Записи словаря для одного правила валидатора.
+ *
+ * @param collection - Цель правила — коллекция: у валидаторов длины код тогда «элементный».
+ */
+function entriesOf(rule: string, collection = false): readonly MessageEntryView[] {
   const name = VALIDATOR_NAME.exec(rule)?.[1];
-  const codes = name === undefined ? undefined : VALIDATOR_CODES[name];
+  const item = collection && name !== undefined ? COLLECTION_CODES[name] : undefined;
+  const codes =
+    item !== undefined ? [item] : name === undefined ? undefined : VALIDATOR_CODES[name];
   if (codes === undefined) return [];
   const custom = CUSTOM_CODE.exec(rule)?.[2];
   return codes.flatMap((code, index) => {
@@ -146,7 +195,11 @@ export function messagesView(ctx: EmitContext): MessagesView {
   };
 
   if (hasValidationRules(ctx.rules)) {
-    for (const rule of ctx.rules.validation) rule.rules.flatMap(entriesOf).forEach(add);
+    const collections = collectionPaths(ctx);
+    for (const rule of ctx.rules.validation) {
+      const collection = targetsCollection(rule, collections);
+      rule.rules.flatMap((entry) => entriesOf(entry, collection)).forEach(add);
+    }
   } else if (ctx.collected.requiredPaths.length > 0) {
     entriesOf('required').forEach(add);
   }

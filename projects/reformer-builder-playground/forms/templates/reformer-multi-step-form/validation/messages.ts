@@ -26,10 +26,12 @@ export const formMessages = defineIssueMessages({
   date_future: 'Дата не может быть в будущем',
   phone: 'Введите корректный номер телефона',
   email: 'Введите корректный email',
-  maxLength:
-    'Не больше {maxLength, plural, one{# символа} few{# символов} many{# символов} other{# символа}}',
+  maxItems:
+    'Не больше {maxLength, plural, one{# элемента} few{# элементов} many{# элементов} other{# элемента}}',
   min: 'Не меньше {min}',
   max: 'Не больше {max}',
+  maxLength:
+    'Не больше {maxLength, plural, one{# символа} few{# символов} many{# символов} other{# символа}}',
   maxFiles:
     'Не больше {maxFiles, plural, one{# файла} few{# файлов} many{# файлов} other{# файла}}',
   maxFileSize: 'Файл {fileName} больше {maxFileSize}',
