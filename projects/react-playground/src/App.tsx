@@ -249,7 +249,7 @@ const Sidebar = memo(function Sidebar({ onNavigate }: { onNavigate?: () => void 
               .filter((group) => group.section === section.id)
               .map((group) => (
                 <div key={group.title} className="mb-5">
-                  <h3 className="mb-1.5 px-2 text-xs font-semibold tracking-wide text-gray-400 uppercase">
+                  <h3 className="mb-1.5 px-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
                     {group.title}
                   </h3>
                   <ul className="flex flex-col gap-0.5">
@@ -285,7 +285,7 @@ const Sidebar = memo(function Sidebar({ onNavigate }: { onNavigate?: () => void 
           href="https://github.com/AlexandrBukhtatyy/ReFormer"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-500 hover:underline"
+          className="text-blue-600 hover:underline"
         >
           GitHub
         </a>
