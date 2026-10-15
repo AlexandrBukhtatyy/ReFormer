@@ -1,5 +1,6 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '../../../core/testing';
+import { BUILTIN_CATALOG, builtinEntries } from '../../../core/testing';
+import { buildCatalog } from '../../../core/catalog';
 import { describe, expect, it } from 'vitest';
 import { emptyRules, type FormRules } from '../../../core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
@@ -249,6 +250,116 @@ describe('insert_node', () => {
     }
     // Результат — документ формата 2, и гейт проверял его мета-схемой формата 2.
     expect(schema.format).toBe(2);
+  });
+
+  it('массив приходит с компонентом кита — тем же узлом, что даёт палитра', async () => {
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: 'FieldArray', model: 'phones' }] },
+        ctxOf(emptySchema())
+      )
+    );
+    const array = getAt(schema, ['root', 'children', 0]) as Record<string, unknown>;
+    // Без `component` рендерер кладёт строки одну за другой — без заголовка и кнопок
+    // «добавить» / «удалить»: так и выглядел массив, вставленный ассистентом.
+    expect(array.component).toBe('$component(FieldArray)');
+
+    // Палитра берёт узел у записи каталога (`entry.makeNode()`); вставка ассистента обязана
+    // отличаться от него только тем, что задано в вызове, — привязкой.
+    const palette = catalog.find((entry) => entry.name === 'FieldArray');
+    expect(palette).toBeDefined();
+    expect(array).toEqual({ ...palette!.makeNode(), model: '$model(phones)' });
+  });
+
+  it('кит без компонента массива: узел остаётся без component — как у палитры', async () => {
+    // Умеет ли кит рисовать массив, известно записи каталога (она собрана с фактами о ките).
+    // Ссылка на компонент, которого кит не поставляет, дала бы заглушку вместо строк.
+    const bare = buildCatalog({
+      ...BUILTIN_CATALOG,
+      components: BUILTIN_CATALOG.components.filter((record) => record.name !== 'FieldArray'),
+    }).entries;
+    // Посылка: сама запись массива в каталоге осталась — она синтетическая, её даёт билдер.
+    const palette = bare.find((entry) => entry.name === 'FieldArray');
+    expect(palette).toBeDefined();
+    expect(palette!.makeNode()).not.toHaveProperty('component');
+
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: 'FieldArray', model: 'phones' }] },
+        { ...ctxOf(emptySchema()), catalog: bare }
+      )
+    );
+    const array = getAt(schema, ['root', 'children', 0]) as Record<string, unknown>;
+    expect(array).not.toHaveProperty('component');
+    expect(array).toEqual({ ...palette!.makeNode(), model: '$model(phones)' });
+  });
+
+  it('узел без привязки и свойств — ровно узел палитры, для каждого вида записи', async () => {
+    // По одной записи на ветку фабрики: массив, поле, контейнер, лист, составной компонент и
+    // его часть, визард, шаг, HTML-тег. Второй механизм создания узлов разошёлся бы с палитрой
+    // молча — на первом же ките со своими листьями.
+    const names = [
+      'FieldArray',
+      FIELD,
+      'Box',
+      'Separator',
+      'Tabs',
+      'AlertTitle',
+      'Wizard',
+      'Step',
+      '$html(div)',
+    ];
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: names.map((component) => ({ component })) },
+        ctxOf(emptySchema())
+      )
+    );
+    const inserted = getAt(schema, ['root', 'children']) as unknown[];
+    expect(inserted).toHaveLength(names.length);
+    names.forEach((name, index) => {
+      const entry = catalog.find((candidate) => candidate.name === name);
+      expect(entry, name).toBeDefined();
+      expect(inserted[index], name).toEqual(entry!.makeNode());
+    });
+  });
+
+  it('фабрика записи, отдающая один и тот же узел, вставкой не портится', async () => {
+    // Фабрика приходит вместе с каталогом и не обязана отдавать каждый раз новый объект. Узел
+    // здесь один на все вызовы и заморожен: правка на месте (привязка, свойства) бросила бы.
+    const shared = Object.freeze({
+      model: '$model(items)',
+      component: '$component(FieldArray)',
+      item: Object.freeze({
+        $template: Object.freeze({ component: '$component(Box)', children: Object.freeze([]) }),
+      }),
+      componentProps: Object.freeze({ addButtonLabel: '+ Добавить' }),
+    });
+    const withShared = catalog.map((entry) =>
+      entry.name === 'FieldArray' ? { ...entry, makeNode: () => shared as never } : entry
+    );
+
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        {
+          parent: '/root',
+          nodes: [{ component: 'FieldArray', model: 'phones', props: { title: 'Телефоны' } }],
+        },
+        { ...ctxOf(emptySchema()), catalog: withShared }
+      )
+    );
+    expect(getAt(schema, ['root', 'children', 0])).toMatchObject({
+      model: '$model(phones)',
+      component: '$component(FieldArray)',
+      componentProps: { addButtonLabel: '+ Добавить', title: 'Телефоны' },
+    });
+    // Узел каталога остался каким был: следующая вставка получит его нетронутым.
+    expect(shared.model).toBe('$model(items)');
+    expect(shared.componentProps).toEqual({ addButtonLabel: '+ Добавить' });
   });
 
   it('подформа и массив с шаблоном-частью детей не принимают', async () => {

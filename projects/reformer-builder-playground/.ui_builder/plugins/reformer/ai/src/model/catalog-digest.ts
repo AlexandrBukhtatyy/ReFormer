@@ -17,7 +17,6 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { isCompoundPart, partNamesOf } from '../../../core/catalog';
-import { makeNodeFor } from '../../../core/catalog';
 import type { CatalogEntry, CatalogRole } from '../../../core/catalog';
 import { toInspectorProps } from '../../../core/catalog';
 import { buildOutline, renderOutline } from './outline';
@@ -84,7 +83,7 @@ export function componentNames(catalog: Catalog): string[] {
  * правило, что у палитры (`PalettePanel`, `groupByCategory`). Причина не в эстетике: частей в ките
  * больше половины записей, и в бюджет ответа они не пускают поля — модель, спросившая «что есть»,
  * получала список из `TabsTrigger` и `CardFooter`, не видя ни одного `Input`. Вставлять часть
- * отдельно всё равно незачем: она приходит вместе со своим корнем (`makeNodeFor`).
+ * отдельно всё равно незачем: она приходит вместе со своим корнем (фабрика записи, `makeNode`).
  *
  * Поиском части находятся всегда: имя каждой начинается с имени корня, а категория у неё —
  * категория корня, поэтому `query: 'tabs'` возвращает и `Tabs`, и все его части.
@@ -134,7 +133,7 @@ export function describeComponent(catalog: Catalog, name: string): ComponentDeta
     ...(entry.category ? { category: entry.category } : {}),
     ...(entry.compoundParent ? { compoundParent: entry.compoundParent } : {}),
     ...(parts.length ? { parts } : {}),
-    ...(skeletonOf(entry.name, entry.role, entry.compoundParent) ?? {}),
+    ...(skeletonOf(entry) ?? {}),
     props: toInspectorProps(entry.propsSchema).map((p) => ({
       key: p.key,
       widget: p.widget,
@@ -148,15 +147,13 @@ export function describeComponent(catalog: Catalog, name: string): ComponentDeta
 /**
  * Состав узла-по-умолчанию — тем же дайджестом, каким агент видит форму.
  *
- * Строится из `makeNodeFor`, то есть из ТОЙ ЖЕ фабрики, что отработает при вставке: второй
- * источник правды разошёлся бы с первым на первом же изменении шаблона.
+ * Строится фабрикой записи каталога (`entry.makeNode()`), то есть ТОЙ ЖЕ фабрикой, что отработает
+ * при вставке (`tools/insert-node`) и у палитры: второй источник правды разошёлся бы с первым на
+ * первом же изменении шаблона. Фабрика записи знает кит (листья, компонент массива), поэтому
+ * состав описан таким, каким он ляжет в форму при активном ките, а не при запасном.
  */
-function skeletonOf(
-  name: string,
-  role: CatalogRole,
-  compoundParent?: string
-): { skeleton: string } | undefined {
-  const node = makeNodeFor(name, role, compoundParent);
+function skeletonOf(entry: CatalogEntry): { skeleton: string } | undefined {
+  const node = entry.makeNode();
   const inside = buildOutline({ format: 2, version: '1.0', root: node } as JsonFormSchema).slice(1);
   if (!inside.length) return undefined;
   return {

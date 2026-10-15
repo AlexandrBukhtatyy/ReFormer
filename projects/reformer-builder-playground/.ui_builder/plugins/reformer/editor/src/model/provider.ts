@@ -52,6 +52,23 @@
  * круговой обход «разобрать → напечатать → разобрать» перестал бы давать ту же модель —
  * а на нём стоит и сравнение с буфером, и переживание перезагрузки выделением.
  *
+ * ## Принтер один на редактор, ассистента и кодоген
+ *
+ * Документ печатает `printJson` ядра — тот же, которым кодоген пишет `schema/form.schema.json`
+ * и файлы шагов: объекты развёрнуты, а массив без объектов — в строку, если помещается
+ * (`"children": ["Отправить"]`), то есть так, как документ оставит форматтер репозитория.
+ * Собственный `JSON.stringify(…, null, 2)` клал каждый элемент на свою строку, и раскладка
+ * массивов в одном и том же файле «прыгала» между сохранением из редактора и генерацией кода,
+ * а сохранённый редактором документ переставал проходить `prettier --check`. Отсюда же
+ * свойство, на котором стоит сравнение с буфером: документ, напечатанный кодогеном, после
+ * «разобрать → напечатать» возвращается байт в байт. Отличиться текст может только адресами:
+ * узлу без `$nodeId` разбор его выдаёт (см. выше), и печать его сохранит. Совпадение трёх
+ * печатей держит `./print-parity.test`.
+ *
+ * Принтер берётся из его модуля (`core/codegen/print/js`), а не из входа `core/codegen`: вход
+ * тянет за собой шаблоны модуля формы и мост к билдерам `@reformer/mcp`, которые редактору
+ * не нужны, а сам принтер зависит только от раскладчика.
+ *
  * @module plugins/reformer/editor/model/provider
  */
 
@@ -64,6 +81,7 @@ import {
   type JsonPath,
 } from '../../../core/form-model';
 import type { CatalogEntry } from '../../../core/catalog';
+import { printJson } from '../../../core/codegen/print/js';
 import type { Disposable, EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
 import { completeModelPath, formJsonSchema, formStepJsonSchema } from './hints';
@@ -75,9 +93,6 @@ import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
 import { SCHEMA_MODEL_PROVIDER_ID } from '../contract';
 export { SCHEMA_MODEL_PROVIDER_ID };
 
-/** Отступ печати. Два пробела — то, чем набраны схемы в репозитории. */
-const INDENT = 2;
-
 /**
  * Разбирает текст в схему формы формата 2 с выданными идентификаторами; документ прежнего
  * формата переводится здесь же. @throws если текст не схема.
@@ -87,9 +102,12 @@ export function parseFormSchema(text: string, newId: NodeIdFactory = newNodeId):
   return ensureNodeIds(ensureSchema(parsed), newId);
 }
 
-/** Печатает модель. Детерминированна: одна и та же модель даёт байт в байт один текст. */
+/**
+ * Печатает модель — принтером документа формы, общим с кодогеном (см. шапку модуля).
+ * Детерминированна: одна и та же модель даёт байт в байт один текст; завершается переводом строки.
+ */
 export function printFormSchema(model: JsonFormSchema): string {
-  return `${JSON.stringify(model, null, INDENT)}\n`;
+  return printJson(model);
 }
 
 /**

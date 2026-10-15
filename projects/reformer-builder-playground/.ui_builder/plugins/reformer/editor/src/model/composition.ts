@@ -12,6 +12,9 @@
  * сборка (`joinFormSchema`), потому что у файла шага нет ни `root`, ни `format`. Обратно на диск
  * уходит формат 2 — и корень, и каждый шаг.
  *
+ * Файл шага печатается тем же принтером, что и корень (`printJson` ядра, см. шапку `./provider`):
+ * кодоген пишет файлы шагов им же, и сохранение из редактора не переукладывает их массивы.
+ *
  * @module plugins/reformer/editor/model/composition
  */
 
@@ -23,13 +26,12 @@ import {
   type NodeIdFactory,
   type StepOrigins,
 } from '../../../core/form-model';
+import { printJson } from '../../../core/codegen/print/js';
 import type { DocumentComposition } from '@reformer/builder-plugin-api';
 
-/** Отступ печати файла шага — тот же, что у корня. */
-const INDENT = 2;
-
+/** Печать файла шага — тем же принтером документа, что у корня и у кодогена. */
 function printPart(part: unknown): string {
-  return `${JSON.stringify(part, null, INDENT)}\n`;
+  return printJson(part);
 }
 
 function originsOf(layout: unknown): StepOrigins {

@@ -1,15 +1,20 @@
 /**
  * `insert_node` — вставить компонент в контейнер.
  *
- * Узел строит `makeNodeFor` (`catalog/make-node`) — та же фабрика, что у палитры и быстрой
+ * Узел строит фабрика ЗАПИСИ каталога (`entry.makeNode()`) — та же, что у палитры и быстрой
  * вставки. Второй механизм создания узлов заводить нельзя: он неизбежно разойдётся с первым в
  * compound-шаблонах, дефолтных классах и структуре wizard/array.
+ *
+ * Именно фабрика записи, а не `makeNodeFor(name, role, …)` напрямую: запись собрана вместе с
+ * фактами о ките (`buildCatalogFromJson`, `MakeNodeKit`), и только она знает, какие компоненты
+ * кита — листья и чем кит рисует массив. Прямой вызов без кита давал узел-массив БЕЗ `component`:
+ * вставленный ассистентом массив рисовался без заголовка и кнопок «добавить» / «удалить», а тот
+ * же массив из палитры — с ними.
  *
  * @module plugins/reformer/ai/tools/insert-node
  */
 
 import type { JsonNode } from '@reformer/renderer-json';
-import { makeNodeFor } from '../../../core/catalog';
 import { insertNode } from '../../../core/form-model';
 import { catalogEntry, componentNames, type Catalog } from '../model/catalog-digest';
 import { commitBatch, type BatchEntry, type OpDescription } from '../loop/gate';
@@ -151,10 +156,9 @@ function prepareNode(
 
   // Узел достраивается по частям (привязка, свойства), поэтому типизируется как запись:
   // объединение JsonNode дискриминируется полями, которых на промежуточных шагах ещё нет.
-  const node = makeNodeFor(entry.name, entry.role, entry.compoundParent) as unknown as Record<
-    string,
-    unknown
-  >;
+  // Копия верхнего уровня — потому что ниже узел правится на месте, а фабрика записи приходит
+  // вместе с каталогом и не обязана отдавать каждый раз новый объект.
+  const node = { ...entry.makeNode() } as unknown as Record<string, unknown>;
   // Поле и массив держат привязку в одном ключе — `model`; контейнеру привязка не нужна.
   if (spec.model && (entry.role === 'field' || entry.role === 'array')) {
     node.model = `$model(${spec.model})`;

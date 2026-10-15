@@ -122,6 +122,29 @@ describe('describeComponent', () => {
     ).toBeUndefined();
   });
 
+  it('состав строит фабрика ЗАПИСИ каталога — та, что отработает при вставке и у палитры', () => {
+    // Запись несёт свою фабрику узла: она собрана вместе с фактами о ките (листья, компонент
+    // массива). Описание, построенное мимо неё, обещало бы модели не тот узел, что ляжет в форму.
+    const custom = [
+      ...catalog,
+      {
+        name: 'Панель',
+        role: 'container' as const,
+        propsSchema: {},
+        makeNode: () =>
+          ({
+            component: '$component(Панель)',
+            children: [{ model: '$model(note)', component: '$component(Input)' }],
+          }) as never,
+      },
+    ];
+    const detail = describeComponent(custom, 'Панель');
+    // Запасная фабрика (`makeNodeFor` без кита) дала бы пустой контейнер — без состава вовсе.
+    expect(detail?.skeleton).toContain('/children/0');
+    expect(detail?.skeleton).toContain('Input');
+    expect(detail?.skeleton).toContain('note');
+  });
+
   it('текст описания несёт структуру, а не только свойства', () => {
     const text = renderComponentDetail(describeComponent(catalog, 'Wizard')!, 1500);
     expect(text).toContain('Step');
