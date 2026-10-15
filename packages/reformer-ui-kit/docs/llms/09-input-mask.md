@@ -129,7 +129,7 @@ export const contactMessages = defineIssueMessages({
 // contact — сборка createContactForm() из блока выше.
 const onSubmit = async () => {
   // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
-  const outcome = await contact.submit((values) => api.submit(values));
+  const outcome = await contact.submission.submit((values) => api.submit(values));
   if (outcome.status !== 'submitted') return;
 };
 ```

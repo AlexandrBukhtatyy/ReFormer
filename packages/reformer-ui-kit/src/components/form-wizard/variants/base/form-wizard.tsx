@@ -181,9 +181,9 @@ export interface FormWizardProps<
   renderNode?: (node: FormWizardStepNode, key?: Key) => ReactNode;
   /**
    * Колбэк кнопки отправки на последнем шаге; получает значения формы. Внутри сборки
-   * (`createForm` в контексте) зовётся через `bundle.submit` — только после успешной проверки всей
+   * (`createForm` в контексте) зовётся через `bundle.submission` — только после успешной проверки всей
    * формы, а при замечаниях поля помечаются `touched`. Без сборки зовётся по нажатию: проверку
-   * делает приложение — `bundle.submit(handler)`.
+   * делает приложение — `bundle.submission.submit(handler)`.
    */
   onSubmit?: (values: T) => void | Promise<void>;
   /**
@@ -437,7 +437,7 @@ type FormWizardCompound = typeof FormWizardBase & {
  * Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
  * полиморфного {@link FormWizardStepBody}. Шаги и их проверку держит поток `FormFlow` сборки
  * (`createForm({ flow })`): проп `flow` либо сборка из контекста. Навигация снаружи дерева — через
- * сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submit(handler)`.
+ * сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submission.submit(handler)`.
  *
  * Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
  * `.Progress` для кастомной раскладки.
@@ -459,7 +459,7 @@ type FormWizardCompound = typeof FormWizardBase & {
  *   const credit = useFormBundle(() => createCreditForm()); // createForm({ …, flow })
  *
  *   const onSubmit = async () => {
- *     const result = await credit.submit((values) => api.submit(values));
+ *     const result = await credit.submission.submit((values) => api.submit(values));
  *     if (result.status === 'invalid') showHint('Проверьте заполнение формы');
  *   };
  *

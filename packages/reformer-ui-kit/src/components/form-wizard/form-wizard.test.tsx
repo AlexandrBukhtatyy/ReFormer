@@ -180,8 +180,8 @@ describe('StepIndicator', () => {
 // --- FormWizard: тело шага -------------------------------------------------
 
 describe('FormWizard: тело шага', () => {
-  // Для первого рендера визарду от формы нужен только флаг отправки.
-  const form = { submitting: { value: false } } as unknown as FormGroup<Record<string, unknown>>;
+  // Для первого рендера визарду от формы ничего не нужно: значения он читает при отправке.
+  const form = {} as unknown as FormGroup<Record<string, unknown>>;
   const node = { component: 'Input', componentProps: {}, children: [] };
   const wizard = (body: unknown, renderStepBody?: (body: unknown) => ReactNode): string =>
     renderToStaticMarkup(
@@ -223,7 +223,7 @@ describe('FormWizard: тело шага', () => {
 // --- FormWizard: подпись кнопки отправки -----------------------------------
 
 describe('FormWizard: подпись кнопки отправки', () => {
-  const form = { submitting: { value: false } } as unknown as FormGroup<Record<string, unknown>>;
+  const form = {} as unknown as FormGroup<Record<string, unknown>>;
   // Единственный шаг — он же последний: вместо «Далее» сразу кнопка отправки.
   const wizard = (submitLabel?: string): string =>
     renderToStaticMarkup(

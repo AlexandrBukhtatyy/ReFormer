@@ -228,7 +228,7 @@ function LoanTypePicker({ value, onChange }: { value: string; onChange: (v: stri
 где узел поля привязан к ручке модели (`model: model.$.x`) и несёт `component` (сам компонент кита)
 и `componentProps`. Схема **не несёт правил** — они живут в отдельной `defineValidation`
 ([`@reformer/core/validation`](https://www.npmjs.com/package/@reformer/core)) и подключаются полем
-`validation`; проверку и отправку делает `bundle.submit(handler)`. В JSX — один
+`validation`; проверку и отправку делает `bundle.submission.submit(handler)`. В JSX — один
 `<FormField control={form.x} />`.
 
 ```tsx
@@ -288,11 +288,11 @@ function LoanFormExample() {
   const loan = useFormBundle(createLoanForm);
   const { form } = loan;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     // Один прогон всех правил: замечания разнесены по нодам (UI подсветит поля), при провале
     // обработчик не вызывается.
-    const outcome = await loan.submit((values) => console.log('Данные:', values));
+    const outcome = await loan.submission.submit((values) => console.log('Данные:', values));
     if (outcome.status === 'invalid') console.warn('Проверьте форму');
   };
 
@@ -322,7 +322,7 @@ import { FieldArray, FieldArraySection } from '@reformer/ui-kit/field-array';
 // Многошаговый мастер — адаптер потока шагов сборки createForm({ flow: { steps: [{ id, rules }] } })
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 
-// В JSX: форма и поток — из сборки, отправка — через bundle.submit
+// В JSX: форма и поток — из сборки, отправка — через bundle.submission.submit
 <FormWizard form={bundle.form} flow={bundle.flow} steps={STEPS} onSubmit={submit} />;
 ```
 

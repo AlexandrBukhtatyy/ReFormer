@@ -107,8 +107,8 @@ function CreditPage() {
 - Заголовок и иконка шага — `componentProps.title` и `componentProps.icon` узла шага; подпись
   кнопки отправки — `componentProps.submitLabel` визарда.
 - **Отправка** — `onComponentEvent(schema.node('wizard'), 'onSubmit', handler)` в поведении формы.
-  Внутри сборки кнопка идёт через `bundle.submit`: обработчик получает значения и зовётся только
-  после успешной проверки, при замечаниях поля помечаются `touched`.
+  Внутри сборки кнопка идёт через `bundle.submission.submit`: обработчик получает значения и
+  зовётся только после успешной проверки, при замечаниях тронутой помечается вся форма.
 - **Навигация из поведения** — поток из области поведения:
 
   ```ts
@@ -259,7 +259,7 @@ function SignUpWizard() {
 
   const submit = async () => {
     // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
-    const outcome = await signUp.submit((values) => api.signUp(values));
+    const outcome = await signUp.submission.submit((values) => api.signUp(values));
     if (outcome.status === 'invalid') showHint('Проверьте заполнение формы');
     if (outcome.status === 'failed') showError(outcome.error);
   };
@@ -281,9 +281,13 @@ function SignUpWizard() {
 - **`steps` сопоставляются с потоком по позиции**: `steps[i]` — шаг `flow.steps[i]`, записей
   столько же, сколько шагов потока; `number` — с единицы. Селекторы здесь не участвуют.
 - **`onSubmit` в JSX проверку не делает.** Вне `FormRenderer` сборки в контексте нет, и визард зовёт
-  колбэк по нажатию. Проверку и отправку делает `bundle.submit(handler)` внутри колбэка, как выше.
-  Если обернуть визард в `FormBundleContext.Provider value={bundle}` (`@reformer/core/react`),
-  визард возьмёт форму и поток из контекста и сам пустит `onSubmit(values)` через `bundle.submit`.
+  колбэк по нажатию. Проверку и отправку делает `bundle.submission.submit(handler)` внутри
+  колбэка, как выше. Если обернуть визард в `FormBundleContext.Provider value={bundle}`
+  (`@reformer/core/react`), визард возьмёт форму и поток из контекста и сам пустит
+  `onSubmit(values)` через `bundle.submission.submit`.
+- **Состояние «Отправка…» вне сборки живое.** Визард зовёт колбэк через свою отправку без проверки
+  (`createSubmission`), и кнопка показывает `kit.formWizard.submitting`, пока колбэк работает.
+  Поэтому колбэк — `async` и возвращает промис, как `submit` выше.
 - Результат отправки — `SubmitResult`: `{ status: 'submitted', result }`,
   `{ status: 'invalid' | 'error' | 'cancelled', validation }` либо `{ status: 'failed', error }`.
 
@@ -375,8 +379,9 @@ import { FormWizard } from '@reformer/cdk/form-wizard';
 
 | Прежде (удалено)                                                            | Сейчас                                                                                  |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| ❌ `config={{ validateStep, validateAll }}`, тип `FormWizardConfig`          | поток сборки: правила шагов — `flow.steps[].rules`, полная проверка — `bundle.submit`   |
+| ❌ `config={{ validateStep, validateAll }}`, тип `FormWizardConfig`          | поток сборки: правила шагов — `flow.steps[].rules`, полная проверка — `bundle.submission.submit` |
 | ❌ `createForm({ validation: { steps: { loan: rules } } })`                 | `createForm({ flow: { steps: [{ id: 'loan', rules }] } })`, вне шагов — `validation.extras` |
-| ❌ `ref` визарда и `FormWizardHandle` (`goToStep`, `goToNextStep`, `submit`) | `bundle.flow.goTo(id)` / `next()` / `previous()`, отправка — `bundle.submit(handler)`   |
+| ❌ `ref` визарда и `FormWizardHandle` (`goToStep`, `goToNextStep`, `submit`) | `bundle.flow.goTo(id)` / `next()` / `previous()`, отправка — `bundle.submission.submit(handler)` |
 | ❌ `schema.node('wizard').getRef<FormWizardHandle>()` в поведении            | `flow` из области поведения: `defineFormBehavior(({ flow }) => …)`                      |
 | ❌ шим `wizard.tsx` / `renderer.wizard.tsx`, `steps`/`config` в `componentProps` | узел `FormWizard` с шагами-детьми `Step`                                              |
+| ❌ `bundle.submit(handler)`, `bundle.submitting`                             | `bundle.submission.submit(handler)`, `bundle.submission.submitting` |

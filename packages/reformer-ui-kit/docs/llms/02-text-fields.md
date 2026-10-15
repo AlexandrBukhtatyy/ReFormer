@@ -83,8 +83,8 @@ interface InputProps extends React.ComponentProps<'input'> {
 ### Common Patterns
 
 Email-поле формы: сборка `createForm`, узел поля `{ model: model.$.email, component }`; правила —
-в отдельной `defineValidation` (поле `validation` сборки), запуск — `bundle.submit(handler)` или
-`bundle.validate()`:
+в отдельной `defineValidation` (поле `validation` сборки), запуск —
+`bundle.submission.submit(handler)` или `bundle.validate()`:
 
 ```tsx
 import { createForm } from '@reformer/core';

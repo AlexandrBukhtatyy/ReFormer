@@ -148,15 +148,15 @@ const { form } = createForm<{ accept: boolean }>({
   Правила, запущенные в обход сборки (свой `runValidation` без `applyValidationResult(…, { touch: true })`),
   ставят замечания, но не помечают поля `touched` — пользователь их не увидит.
 - Правила вообще не запускались. По умолчанию (`strategy: 'submit'`) живой проверки нет: замечания
-  появляются после `bundle.submit()` / `bundle.validate()`.
+  появляются после `bundle.submission.submit(handler)` / `bundle.validate()`.
 
 **Решение.** Правила — в сборке (`createForm({ validation })` или правила шагов `flow`), а отправка —
-через `bundle.submit(handler)`: один прогон всех правил, замечания разнесены по нодам, при провале
-поля помечены `touched`, обработчик не вызывается:
+через `bundle.submission.submit(handler)`: один прогон всех правил, замечания разнесены по нодам,
+при провале (`invalid` / `error`) тронутой помечена вся форма, обработчик не вызывается:
 
 ```tsx
 const onSubmit = async () => {
-  const outcome = await bundle.submit((values) => api.send(values));
+  const outcome = await bundle.submission.submit((values) => api.send(values));
   if (outcome.status === 'invalid') return; // ошибки уже на экране
 };
 ```
@@ -313,7 +313,7 @@ const hasValue = Boolean(value);
 **Причина.** У массива в форме нет ноды поля. Массив становится полем, только когда схема
 привязывает к нему компонент узлом `{ model: model.$.<путь>, component }`; без такой привязки
 `createForm` его пропускает, и реестр сигнал→нода пуст. Дальше проверка находит замечание и
-`bundle.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
+`bundle.submission.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
 `getNodeForSignal(sig)?.setIssues(...)` — optional chaining без `else`, поэтому показать ошибку
 некому.
 

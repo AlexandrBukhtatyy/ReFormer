@@ -124,8 +124,8 @@ import { Button } from '@reformer/ui-kit/button';
 Минимальная форма из двух полей с валидацией и отправкой. Сборка — один вызов `createForm`:
 модель из `initial`, схема `(model) => узел`, где узел поля — `{ model: model.$.x, component,
 componentProps }`, и правила `defineValidation` отдельным слоем. Проверку и отправку делает
-`bundle.submit(handler)`. `FormField` сам подцепляет значение, замечания (`issues`) и `pending`
-через `@reformer/cdk`:
+`bundle.submission.submit(handler)`. `FormField` сам подцепляет значение, замечания (`issues`) и
+`pending` через `@reformer/cdk`:
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -179,10 +179,10 @@ function RegistrationPage() {
   const registration = useFormBundle(createRegistrationForm);
   const { form } = registration;
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
-    const outcome = await registration.submit((values) => api.register(values));
+    const outcome = await registration.submission.submit((values) => api.register(values));
     if (outcome.status === 'submitted') console.log('ok', outcome.result);
   };
 

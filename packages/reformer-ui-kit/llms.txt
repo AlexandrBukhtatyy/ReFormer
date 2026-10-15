@@ -144,8 +144,8 @@ import { Button } from '@reformer/ui-kit/button';
 Минимальная форма из двух полей с валидацией и отправкой. Сборка — один вызов `createForm`:
 модель из `initial`, схема `(model) => узел`, где узел поля — `{ model: model.$.x, component,
 componentProps }`, и правила `defineValidation` отдельным слоем. Проверку и отправку делает
-`bundle.submit(handler)`. `FormField` сам подцепляет значение, замечания (`issues`) и `pending`
-через `@reformer/cdk`:
+`bundle.submission.submit(handler)`. `FormField` сам подцепляет значение, замечания (`issues`) и
+`pending` через `@reformer/cdk`:
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -199,10 +199,10 @@ function RegistrationPage() {
   const registration = useFormBundle(createRegistrationForm);
   const { form } = registration;
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
-    const outcome = await registration.submit((values) => api.register(values));
+    const outcome = await registration.submission.submit((values) => api.register(values));
     if (outcome.status === 'submitted') console.log('ok', outcome.result);
   };
 
@@ -456,8 +456,8 @@ interface InputProps extends React.ComponentProps<'input'> {
 ### Common Patterns
 
 Email-поле формы: сборка `createForm`, узел поля `{ model: model.$.email, component }`; правила —
-в отдельной `defineValidation` (поле `validation` сборки), запуск — `bundle.submit(handler)` или
-`bundle.validate()`:
+в отдельной `defineValidation` (поле `validation` сборки), запуск —
+`bundle.submission.submit(handler)` или `bundle.validate()`:
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -2193,9 +2193,9 @@ function RegistrationPage() {
   const registration = useFormBundle(createRegistrationForm);
   const { form } = registration;
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await registration.submit((values) => api.register(values));
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await registration.submission.submit((values) => api.register(values));
   };
 
   return (
@@ -2210,8 +2210,8 @@ function RegistrationPage() {
 
 `Label` берётся из `componentProps.label` через `CdkFormField.Label`. Замечание — ошибка или
 предупреждение (`severity: 'warning'`) — появляется под полем, когда оно есть у ноды и поле
-`touched` или `dirty` (`shouldShowIssues`): после `bundle.submit()` / `bundle.validate()` (они
-помечают поля `touched`) либо при живой проверке —
+`touched` или `dirty` (`shouldShowIssues`): после `bundle.submission.submit(handler)` /
+`bundle.validate()` (они помечают поля `touched`) либо при живой проверке —
 `validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`. Под полем одно
 замечание — главное: первая ошибка, а без ошибок — первое предупреждение. Ошибка красится
 токеном `--destructive` и ставит контролу `aria-invalid`; предупреждение — токеном `--warning`
@@ -2574,15 +2574,15 @@ const { form } = createForm<{ accept: boolean }>({
   Правила, запущенные в обход сборки (свой `runValidation` без `applyValidationResult(…, { touch: true })`),
   ставят замечания, но не помечают поля `touched` — пользователь их не увидит.
 - Правила вообще не запускались. По умолчанию (`strategy: 'submit'`) живой проверки нет: замечания
-  появляются после `bundle.submit()` / `bundle.validate()`.
+  появляются после `bundle.submission.submit(handler)` / `bundle.validate()`.
 
 **Решение.** Правила — в сборке (`createForm({ validation })` или правила шагов `flow`), а отправка —
-через `bundle.submit(handler)`: один прогон всех правил, замечания разнесены по нодам, при провале
-поля помечены `touched`, обработчик не вызывается:
+через `bundle.submission.submit(handler)`: один прогон всех правил, замечания разнесены по нодам,
+при провале (`invalid` / `error`) тронутой помечена вся форма, обработчик не вызывается:
 
 ```tsx
 const onSubmit = async () => {
-  const outcome = await bundle.submit((values) => api.send(values));
+  const outcome = await bundle.submission.submit((values) => api.send(values));
   if (outcome.status === 'invalid') return; // ошибки уже на экране
 };
 ```
@@ -2739,7 +2739,7 @@ const hasValue = Boolean(value);
 **Причина.** У массива в форме нет ноды поля. Массив становится полем, только когда схема
 привязывает к нему компонент узлом `{ model: model.$.<путь>, component }`; без такой привязки
 `createForm` его пропускает, и реестр сигнал→нода пуст. Дальше проверка находит замечание и
-`bundle.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
+`bundle.submission.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
 `getNodeForSignal(sig)?.setIssues(...)` — optional chaining без `else`, поэтому показать ошибку
 некому.
 
@@ -2940,8 +2940,8 @@ function CreditPage() {
 - Заголовок и иконка шага — `componentProps.title` и `componentProps.icon` узла шага; подпись
   кнопки отправки — `componentProps.submitLabel` визарда.
 - **Отправка** — `onComponentEvent(schema.node('wizard'), 'onSubmit', handler)` в поведении формы.
-  Внутри сборки кнопка идёт через `bundle.submit`: обработчик получает значения и зовётся только
-  после успешной проверки, при замечаниях поля помечаются `touched`.
+  Внутри сборки кнопка идёт через `bundle.submission.submit`: обработчик получает значения и
+  зовётся только после успешной проверки, при замечаниях тронутой помечается вся форма.
 - **Навигация из поведения** — поток из области поведения:
 
   ```ts
@@ -3092,7 +3092,7 @@ function SignUpWizard() {
 
   const submit = async () => {
     // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
-    const outcome = await signUp.submit((values) => api.signUp(values));
+    const outcome = await signUp.submission.submit((values) => api.signUp(values));
     if (outcome.status === 'invalid') showHint('Проверьте заполнение формы');
     if (outcome.status === 'failed') showError(outcome.error);
   };
@@ -3114,9 +3114,13 @@ function SignUpWizard() {
 - **`steps` сопоставляются с потоком по позиции**: `steps[i]` — шаг `flow.steps[i]`, записей
   столько же, сколько шагов потока; `number` — с единицы. Селекторы здесь не участвуют.
 - **`onSubmit` в JSX проверку не делает.** Вне `FormRenderer` сборки в контексте нет, и визард зовёт
-  колбэк по нажатию. Проверку и отправку делает `bundle.submit(handler)` внутри колбэка, как выше.
-  Если обернуть визард в `FormBundleContext.Provider value={bundle}` (`@reformer/core/react`),
-  визард возьмёт форму и поток из контекста и сам пустит `onSubmit(values)` через `bundle.submit`.
+  колбэк по нажатию. Проверку и отправку делает `bundle.submission.submit(handler)` внутри
+  колбэка, как выше. Если обернуть визард в `FormBundleContext.Provider value={bundle}`
+  (`@reformer/core/react`), визард возьмёт форму и поток из контекста и сам пустит
+  `onSubmit(values)` через `bundle.submission.submit`.
+- **Состояние «Отправка…» вне сборки живое.** Визард зовёт колбэк через свою отправку без проверки
+  (`createSubmission`), и кнопка показывает `kit.formWizard.submitting`, пока колбэк работает.
+  Поэтому колбэк — `async` и возвращает промис, как `submit` выше.
 - Результат отправки — `SubmitResult`: `{ status: 'submitted', result }`,
   `{ status: 'invalid' | 'error' | 'cancelled', validation }` либо `{ status: 'failed', error }`.
 
@@ -3208,11 +3212,12 @@ import { FormWizard } from '@reformer/cdk/form-wizard';
 
 | Прежде (удалено)                                                            | Сейчас                                                                                  |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| ❌ `config={{ validateStep, validateAll }}`, тип `FormWizardConfig`          | поток сборки: правила шагов — `flow.steps[].rules`, полная проверка — `bundle.submit`   |
+| ❌ `config={{ validateStep, validateAll }}`, тип `FormWizardConfig`          | поток сборки: правила шагов — `flow.steps[].rules`, полная проверка — `bundle.submission.submit` |
 | ❌ `createForm({ validation: { steps: { loan: rules } } })`                 | `createForm({ flow: { steps: [{ id: 'loan', rules }] } })`, вне шагов — `validation.extras` |
-| ❌ `ref` визарда и `FormWizardHandle` (`goToStep`, `goToNextStep`, `submit`) | `bundle.flow.goTo(id)` / `next()` / `previous()`, отправка — `bundle.submit(handler)`   |
+| ❌ `ref` визарда и `FormWizardHandle` (`goToStep`, `goToNextStep`, `submit`) | `bundle.flow.goTo(id)` / `next()` / `previous()`, отправка — `bundle.submission.submit(handler)` |
 | ❌ `schema.node('wizard').getRef<FormWizardHandle>()` в поведении            | `flow` из области поведения: `defineFormBehavior(({ flow }) => …)`                      |
 | ❌ шим `wizard.tsx` / `renderer.wizard.tsx`, `steps`/`config` в `componentProps` | узел `FormWizard` с шагами-детьми `Step`                                              |
+| ❌ `bundle.submit(handler)`, `bundle.submitting`                             | `bundle.submission.submit(handler)`, `bundle.submission.submitting` |
 
 ## 60. FieldArraySection — разметка в JSX
 
@@ -3571,7 +3576,7 @@ export const contactMessages = defineIssueMessages({
 // contact — сборка createContactForm() из блока выше.
 const onSubmit = async () => {
   // Один прогон всех правил: при замечаниях обработчик не зовётся, поля помечены `touched`.
-  const outcome = await contact.submit((values) => api.submit(values));
+  const outcome = await contact.submission.submit((values) => api.submit(values));
   if (outcome.status !== 'submitted') return;
 };
 ```
@@ -3737,8 +3742,8 @@ defineFormBehavior<MyForm>(({ schema }) => {
 
 ## 74. Рецепт: focus первого невалидного поля после submit
 
-Классика UX, реактивно невыразимая. `bundle.submit` разносит замечания по нодам; нода поля
-находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
+Классика UX, реактивно невыразимая. `bundle.submission.submit` разносит замечания по нодам; нода
+поля находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
 
 ```tsx
 import { getNodeForSignal } from '@reformer/core';
@@ -3750,7 +3755,8 @@ const ORDER = ['email', 'password', 'city', 'nickname']; // порядок об�
 //   defineFormBehavior(({ schema }) => { for (const path of ORDER) schema.node(path).getRef(); });
 
 async function handleSubmit() {
-  const outcome = await bundle.submit(sendForm); // при замечаниях обработчик не вызывается
+  // При замечаниях обработчик не вызывается.
+  const outcome = await bundle.submission.submit(sendForm);
   if (outcome.status !== 'invalid') return;
 
   const firstInvalid = ORDER.find((path) => {
@@ -8886,7 +8892,7 @@ Actions (Назад / Далее / Отправить) и Progress в едины
 Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
 полиморфного {@link FormWizardStepBody}. Шаги и их проверку держит поток `FormFlow` сборки
 (`createForm({ flow })`): проп `flow` либо сборка из контекста. Навигация снаружи дерева — через
-сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submit(handler)`.
+сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submission.submit(handler)`.
 
 Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
 `.Progress` для кастомной раскладки.
@@ -8913,7 +8919,7 @@ function CreditForm() {
 const credit = useFormBundle(() => createCreditForm()); // createForm({ …, flow })
 
 const onSubmit = async () => {
-const result = await credit.submit((values) => api.submit(values));
+const result = await credit.submission.submit((values) => api.submit(values));
 if (result.status === 'invalid') showHint('Проверьте заполнение формы');
 };
 
@@ -9166,9 +9172,9 @@ export interface FormWizardProps<
   renderNode?: (node: FormWizardStepNode, key?: Key) => ReactNode;
   /**
    * Колбэк кнопки отправки на последнем шаге; получает значения формы. Внутри сборки
-   * (`createForm` в контексте) зовётся через `bundle.submit` — только после успешной проверки всей
+   * (`createForm` в контексте) зовётся через `bundle.submission` — только после успешной проверки всей
    * формы, а при замечаниях поля помечаются `touched`. Без сборки зовётся по нажатию: проверку
-   * делает приложение — `bundle.submit(handler)`.
+   * делает приложение — `bundle.submission.submit(handler)`.
    */
   onSubmit?: (values: T) => void | Promise<void>;
   /**

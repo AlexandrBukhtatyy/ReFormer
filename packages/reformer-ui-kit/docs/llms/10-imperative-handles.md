@@ -130,8 +130,8 @@ defineFormBehavior<MyForm>(({ schema }) => {
 
 ## Рецепт: focus первого невалидного поля после submit
 
-Классика UX, реактивно невыразимая. `bundle.submit` разносит замечания по нодам; нода поля
-находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
+Классика UX, реактивно невыразимая. `bundle.submission.submit` разносит замечания по нодам; нода
+поля находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
 
 ```tsx
 import { getNodeForSignal } from '@reformer/core';
@@ -143,7 +143,8 @@ const ORDER = ['email', 'password', 'city', 'nickname']; // порядок об�
 //   defineFormBehavior(({ schema }) => { for (const path of ORDER) schema.node(path).getRef(); });
 
 async function handleSubmit() {
-  const outcome = await bundle.submit(sendForm); // при замечаниях обработчик не вызывается
+  // При замечаниях обработчик не вызывается.
+  const outcome = await bundle.submission.submit(sendForm);
   if (outcome.status !== 'invalid') return;
 
   const firstInvalid = ORDER.find((path) => {

@@ -166,9 +166,9 @@ function RegistrationPage() {
   const registration = useFormBundle(createRegistrationForm);
   const { form } = registration;
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await registration.submit((values) => api.register(values));
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await registration.submission.submit((values) => api.register(values));
   };
 
   return (
@@ -183,8 +183,8 @@ function RegistrationPage() {
 
 `Label` берётся из `componentProps.label` через `CdkFormField.Label`. Замечание — ошибка или
 предупреждение (`severity: 'warning'`) — появляется под полем, когда оно есть у ноды и поле
-`touched` или `dirty` (`shouldShowIssues`): после `bundle.submit()` / `bundle.validate()` (они
-помечают поля `touched`) либо при живой проверке —
+`touched` или `dirty` (`shouldShowIssues`): после `bundle.submission.submit(handler)` /
+`bundle.validate()` (они помечают поля `touched`) либо при живой проверке —
 `validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`. Под полем одно
 замечание — главное: первая ошибка, а без ошибок — первое предупреждение. Ошибка красится
 токеном `--destructive` и ставит контролу `aria-invalid`; предупреждение — токеном `--warning`
