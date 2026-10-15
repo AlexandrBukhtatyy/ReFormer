@@ -29,10 +29,10 @@ import {
   type TemplateStore,
 } from '../contract';
 import {
+  applyTemplate,
   buildTemplateFiles,
   formSchemaFileOf,
   isTextFile,
-  materializeFiles,
   templateSlug,
   type SourceFile,
 } from './files';
@@ -340,10 +340,11 @@ export async function generateFormFromTemplate(
 
   // Кит нужен шаблону с движком: без него он не увидит вида формы, даже неся схему.
   // Токенному шаблону кит безразличен, поэтому его отсутствие — не отказ операции.
+  // Шаблон, который печатается (встроенный), печатается здесь под имя каталога формы.
   const kit = host.kit();
   let files: readonly TemplateFile[];
   try {
-    files = materializeFiles(template, picked, folder, {
+    files = await applyTemplate(template, picked, folder, {
       kit: kit === null ? null : { kit, catalog: host.catalog() },
     });
   } catch (error) {

@@ -182,10 +182,13 @@ describe('разбитый визард в раскладке по ролям в
     expect(set).not.toContain('index.ts');
     expect(set).not.toContain('schema/form.schema.json');
     // Исполнены файлы ролей — и только они. Страница, реэкспорты модуля, сборка приложения и
-    // запись реестра форм в разбор не выставлены: превью собирает форму само.
+    // запись реестра форм в разбор не выставлены: превью собирает форму само. Словарь замечаний
+    // (`validation/messages.ts`) исполняется сразу за валидацией: страница, которая подключает
+    // его у пользователя, в превью не исполняется, и тексты замечаний превью берёт у файла само.
     expect(executed).toEqual([
       'model/initial-value.ts',
       'validation/form.ts',
+      'validation/messages.ts',
       'flow/zayavka-flow.ts',
       'behavior/index.ts',
       'application/submit.ts',
@@ -194,6 +197,7 @@ describe('разбитый визард в раскладке по ролям в
     expect(appliedArtifacts(contract)).toEqual([
       'model',
       'validation',
+      'messages',
       'flow',
       'behavior',
       'submit',
@@ -230,10 +234,11 @@ describe('простая форма с правилами в компилиру�
 
     const { executed, contract, form } = await preview(files);
 
-    // Потока шагов у простой формы нет — и файла потока тоже.
+    // Потока шагов у простой формы нет — и файла потока тоже. Словарь замечаний есть у любой.
     expect(executed).toEqual([
       'model/initial-value.ts',
       'validation/form.ts',
+      'validation/messages.ts',
       'behavior/index.ts',
       'application/submit.ts',
       'schema/registry.ts',
@@ -241,6 +246,7 @@ describe('простая форма с правилами в компилиру�
     expect(appliedArtifacts(contract)).toEqual([
       'model',
       'validation',
+      'messages',
       'behavior',
       'submit',
       'registry',

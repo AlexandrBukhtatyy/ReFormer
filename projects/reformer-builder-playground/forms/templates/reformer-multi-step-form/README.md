@@ -57,7 +57,8 @@ reformer-multi-step-form/
 │   ├── steps/dopolnitelno/form.schema.json   схема шага «Дополнительно»
 │   └── registry.ts   реестр компонентов и источников данных
 ├── validation/
-│   ├── form.ts   валидация формы: правила вне шагов
+│   ├── form.ts   валидация формы: правила вне шагов и стратегия проверки
+│   ├── messages.ts   тексты замечаний — словарь формы
 │   ├── dannye.ts   правила шага «Данные»
 │   ├── kontakty.ts   правила шага «Контакты»
 │   └── dopolnitelno.ts   правила шага «Дополнительно»
@@ -76,7 +77,7 @@ reformer-multi-step-form/
 правки по файлам сам. Папка шага закреплена ссылкой: переименование шага её не меняет.
 
 - **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `schema/steps/dannye/form.schema.json`, `schema/steps/kontakty/form.schema.json`, `schema/steps/dopolnitelno/form.schema.json`, `types/reformer-multi-step-form.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ReformerMultiStepForm.tsx`, `index.ts`, `flow/reformer-multi-step-form-flow.ts`, `README.md`.
-- **Ваши** (пишутся один раз, не затираются): `constants/reformer-multi-step-form.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/dannye.ts`, `validation/kontakty.ts`, `validation/dopolnitelno.ts`, `application/submit.ts`, `api/index.ts`.
+- **Ваши** (пишутся один раз, не затираются): `constants/reformer-multi-step-form.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/messages.ts`, `validation/dannye.ts`, `validation/kontakty.ts`, `validation/dopolnitelno.ts`, `application/submit.ts`, `api/index.ts`.
 
 Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
 поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
@@ -90,6 +91,10 @@ reformer-multi-step-form/
 Компоненты импортируются из `@reformer/ui-kit` — того кита, который был
 активен при генерации (`ReFormer UI Kit`).
 
+Тексты замечаний — словарь `formMessages` (`validation/messages.ts`): страница подключает его
+провайдером `ValidationMessagesProvider`. Запись реестра форм словарь не несёт — при монтировании
+через `FormOutlet` провайдер со словарём ставит хост.
+
 ## Методы для реализации
 
 - `api/index.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
@@ -98,4 +103,5 @@ reformer-multi-step-form/
 - `constants/reformer-multi-step-form.ts` → подписи элементов массивов: `REFERENCE_LABEL`.
 - `constants/reformer-multi-step-form.ts` → замените синтетические опции реальными словарями или загрузчиками.
 - `validation/<шаг>.ts` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `validation/messages.ts` → тексты замечаний под свою форму: свой код правилу и запись под ним.
 - `behavior/index.ts` → вычисляемые поля и условное включение (по желанию).

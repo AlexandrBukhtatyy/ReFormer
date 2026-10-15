@@ -13,7 +13,7 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { fieldNode, type CatalogEntry } from '../../../core/catalog';
+import { arrayNode, fieldNode, type CatalogEntry } from '../../../core/catalog';
 import {
   checkRules,
   childSlots,
@@ -80,7 +80,12 @@ function arrayOf(schema: JsonFormSchema): JsonNode & Record<string, unknown> {
   return found as JsonNode & Record<string, unknown>;
 }
 
-/** Запись каталога с закрытым списком пропсов. */
+/**
+ * Запись каталога с закрытым списком пропсов.
+ *
+ * Узел записи массива собирает та же фабрика, что в настоящем каталоге: с компонентом — у кита,
+ * который массив рисует, без него — у кита, которому запись досталась только от билдера.
+ */
 function entry(name: string, role: CatalogEntry['role'], props?: readonly string[]): CatalogEntry {
   return {
     name,
@@ -92,8 +97,13 @@ function entry(name: string, role: CatalogEntry['role'], props?: readonly string
           additionalProperties: false,
           properties: Object.fromEntries(props.map((prop) => [prop, {}])),
         }) as CatalogEntry['propsSchema'],
-    makeNode: () => fieldNode(name),
+    makeNode: () => (role === 'array' ? arrayNode(name) : fieldNode(name)),
   };
+}
+
+/** Запись массива у кита без компонента массива: её добавил билдер, рисовать её киту нечем. */
+function syntheticArrayEntry(): CatalogEntry {
+  return { ...entry('FieldArray', 'array'), makeNode: () => arrayNode() };
 }
 
 describe('состав анкеты', () => {
@@ -335,11 +345,12 @@ describe('правила анкеты', () => {
     });
   });
 
-  it('связей между полями ровно две: вычисляемое поле и видимость массива', () => {
+  it('связей между полями ровно две: вычисляемое поле и рекомендатели под флажком', () => {
     const rules = simpleRules();
 
     // Каждая связь — помеха удалению поля. Третья сделала бы шаблон хрупким: убрал поле —
-    // сломал соседа.
+    // сломал соседа. У второй связи две стороны — узел скрыт, поле модели выключено и пусто, — и
+    // обе выведены из одной записи затравки.
     expect(rules.behavior).toEqual([
       {
         kind: 'computeFrom',
@@ -347,9 +358,35 @@ describe('правила анкеты', () => {
         sources: ['lastName', 'firstName'],
         expr: "[lastName, firstName].filter(Boolean).join(' ')",
       },
+      {
+        kind: 'enableWhen',
+        target: 'references',
+        sources: ['hasReferences'],
+        expr: 'model.hasReferences',
+        options: { resetOnDisable: true },
+      },
     ]);
     expect(rules.render).toHaveLength(1);
     expect(rules.validation.every((rule) => rule.when === undefined)).toBe(true);
+  });
+
+  it('скрытый массив ещё и выключен: пустая строка под снятым флажком не держит отправку', () => {
+    // `hideWhen` убирает узел с экрана, а строки в модели остаются — и правило строки проверяло
+    // бы их дальше: форма не отправлялась бы из-за поля, которого не видно. Поэтому рядом с
+    // правилом видимости стоит `enableWhen` по тому же флажку.
+    const rules = simpleRules();
+    const hidden = rules.render.find((rule) => rule.kind === 'hideWhen');
+    const enabled = rules.behavior.find((rule) => rule.kind === 'enableWhen');
+
+    expect(hidden).toMatchObject({ selector: 'references', condition: '!model.hasReferences' });
+    // Массив включён ровно тогда, когда не скрыт: условия — отрицания друг друга.
+    expect(enabled).toMatchObject({ target: 'references', expr: 'model.hasReferences' });
+    // Цель — сам массив, а не поле строки: выключается он целиком, со всеми строками.
+    expect(rules.validation.some((rule) => rule.each === enabled?.target)).toBe(true);
+    // И сбрасывается: простая форма проверяется кнопкой модельным прогоном (`validateModel`), а
+    // тот о выключенности поля не знает — строку выключенного, но не пустого массива он
+    // проверил бы. Пустой массив проходит и его, и проверку уровня формы у визарда.
+    expect(enabled?.options).toEqual({ resetOnDisable: true });
   });
 });
 
@@ -487,10 +524,59 @@ describe('затравка следует каталогу кита', () => {
 
     expect(collectModelPaths(simpleSeed(withoutFlag))).toContain('references');
     expect(simpleRules(withoutFlag).render).toEqual([]);
+    // И не выключается: выключать его нечем — флажка нет, а значит, нет и условия.
+    expect(simpleRules(withoutFlag).behavior.some((rule) => rule.kind === 'enableWhen')).toBe(
+      false
+    );
     // В строке осталось только то, что кит умеет нарисовать.
     const row = (arrayOf(simpleSeed(withoutFlag)).item as { $template: JsonNode }).$template;
     expect(childrenOf(row).map(modelOf)).toEqual(['name']);
     expect(arrayOf(simpleSeed(withoutFlag)).initialValue).toEqual({ name: '' });
+  });
+
+  it('кит без компонента массива: запись массива в каталоге есть, а массива в затравке нет', () => {
+    // Запись `FieldArray` билдер добавляет к каталогу ЛЮБОГО кита — узел-массив его собственный.
+    // Рисует же массив компонент кита, и у кита без него (так у HexaUI) узел затравки сослался бы
+    // на символ, которого в пакете кита нет: реестр модуля уехал бы с несуществующим импортом.
+    const fields = ['Box', 'Section', 'Button'].map((name) => entry(name, 'container'));
+    const inputs = ['Input', 'Checkbox'].map((name) => entry(name, 'field'));
+    const drawsArray = seedKitOf([...fields, ...inputs, entry('FieldArray', 'array')]);
+    const noArray = seedKitOf([...fields, ...inputs, syntheticArrayEntry()]);
+
+    expect(drawsArray?.array).toBe(true);
+    expect(noArray?.array).toBe(false);
+    // Запись в каталоге есть у обоих — по одному её наличию киты не различить.
+    expect(noArray?.has('FieldArray')).toBe(true);
+
+    const schema = simpleSeed(noArray);
+    const rules = simpleRules(noArray);
+    expect(collectModelPaths(schema)).not.toContain('references');
+    expect(collectOperatorNames(schema).components).not.toContain('FieldArray');
+    // Вместе с массивом уходит всё, что существовало ради него: флажок, подпись строки, правило
+    // видимости, связь доступности и правило строки.
+    expect(collectModelPaths(schema)).not.toContain('hasReferences');
+    expect(collectOperatorNames(schema).dataSources).not.toContain('REFERENCE_LABEL');
+    expect(rules.render).toEqual([]);
+    expect(rules.behavior.map((rule) => rule.kind)).toEqual(['computeFrom']);
+    expect(rules.validation.some((rule) => rule.each !== undefined)).toBe(false);
+    expect(checkRules(schema, rules)).toEqual([]);
+    // Остальное — как было: флажок согласия на месте, поля кита тоже.
+    expect(collectModelPaths(schema)).toEqual([
+      'lastName',
+      'firstName',
+      'fullName',
+      'email',
+      'agree',
+    ]);
+
+    // У кита с компонентом массив на месте — вместе с флажком и обоими правилами.
+    expect(collectModelPaths(simpleSeed(drawsArray))).toEqual(
+      expect.arrayContaining(['hasReferences', 'references'])
+    );
+    expect(simpleRules(drawsArray).behavior.map((rule) => rule.kind)).toEqual([
+      'computeFrom',
+      'enableWhen',
+    ]);
   });
 
   it('пошаговой формы нет у кита без визарда и шага в каталоге', () => {

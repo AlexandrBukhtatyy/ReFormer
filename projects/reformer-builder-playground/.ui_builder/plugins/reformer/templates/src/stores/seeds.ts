@@ -35,6 +35,10 @@
  * полей, а редактор схемы встретил бы свежесозданную форму диагностиками. Каталог приходит
  * параметром ({@link SeedKit}); без него затравка собирается целиком.
  *
+ * Массив — особый случай: запись массива билдер добавляет к каталогу любого кита сам, а рисует
+ * массив компонент кита. Нет его у кита — массива в затравке нет вовсе, вместе с флажком, который
+ * существует ради него ({@link SeedKit.array}).
+ *
  * ## Узлы — фабриками домена
  *
  * Что такое поле, массив, шаг и визард, знает каталог (`@/plugins/reformer/core/catalog`): затравка
@@ -59,12 +63,23 @@ import { ARRAY_COMPONENT_NAME, emptySchema, type FormRules } from '../../../core
 
 // ── Кит глазами затравки ────────────────────────────────────────────────────
 
-/** Активный кит в объёме трёх вопросов затравки. */
+/** Активный кит в объёме четырёх вопросов затравки. */
 export interface SeedKit {
   /** Есть ли компонент в каталоге — то есть предлагает ли его палитра. */
   has(component: string): boolean;
   /** Пропсы, которые каталог объявил компоненту; `null` — список не закрыт. */
   declared(component: string): ReadonlySet<string> | null;
+  /**
+   * Есть ли у кита чем нарисовать массив: компонент секции массива (`FieldArray`) в его
+   * собственном каталоге.
+   *
+   * Наличия записи в каталоге мало — запись массива билдер добавляет к каталогу ЛЮБОГО кита
+   * (узел-массив — его собственный вид узла). Отличает кит узел, который создаёт палитра: с
+   * компонентом массива он несёт `component`, без него — нет (`arrayNode` каталога). У кита без
+   * такого компонента узел затравки ссылался бы на символ, которого в пакете кита нет: реестр
+   * модуля уехал бы с несуществующим импортом.
+   */
+  readonly array: boolean;
   /**
    * Есть ли у кита чем нарисовать пошаговую форму: узел визарда и узел шага в каталоге И
    * адаптер визарда у самого кита.
@@ -93,7 +108,14 @@ export function seedKitOf(
   if (catalog.length === 0) return undefined;
   const byName = new Map(catalog.map((entry) => [entry.name, entry]));
   const hasAdapter = descriptor == null || (descriptor.adapters.wizard ?? null) !== null;
+  // Узел массива из палитры: компонент на нём ставит фабрика каталога, и только киту, который
+  // его поставляет. Читается сырое свойство — у узла-массива без `component` домен называет
+  // компонентом само имя записи, и по нему кит с компонентом от кита без него не отличить.
+  const arrayDraft = byName.get(ARRAY_COMPONENT_NAME)?.makeNode() as
+    | { readonly component?: unknown }
+    | undefined;
   return {
+    array: typeof arrayDraft?.component === 'string',
     wizard: hasAdapter && WIZARD_NODES.every((name) => byName.has(name)),
     has: (component) => byName.has(component),
     declared: (component) => {
@@ -154,7 +176,7 @@ interface SeedArray {
   readonly rowClassName: string;
   /** Поля строки. */
   readonly row: readonly SeedField[];
-  /** Путь флажка: массив скрыт, пока флажок не отмечен. */
+  /** Путь флажка: пока он не отмечен, массив скрыт, выключен и пуст — проверять в нём нечего. */
   readonly shownWhen?: string;
 }
 
@@ -216,8 +238,8 @@ const SKILLS: SeedSource = {
  * Состав анкеты. Порядок записей — порядок полей на форме.
  *
  * Связей между полями ровно две, и обе названы в записях: вычисляемое «Полное имя» (`computed`)
- * и рекомендатели, скрытые до отметки флажка (`shownWhen` / `servesFor`). Остальные поля друг
- * о друге не знают — любое убирается, не задев соседей.
+ * и рекомендатели, скрытые, выключенные и пустые до отметки флажка (`shownWhen` / `servesFor`).
+ * Остальные поля друг о друге не знают — любое убирается, не задев соседей.
  */
 const GROUPS: readonly SeedGroup[] = [
   {
@@ -451,10 +473,13 @@ function fitField(field: SeedField, kit: SeedKit | undefined): SeedField | null 
   };
 }
 
-/** Массив, которым кит располагает: нужен сам компонент массива и хотя бы одно поле строки. */
+/**
+ * Массив, которым кит располагает: нужен компонент массива у САМОГО кита и хотя бы одно поле
+ * строки. Кит без компонента массива остаётся без массива вовсе ({@link SeedKit.array}).
+ */
 function fitArray(array: SeedArray, kit: SeedKit | undefined): SeedArray | null {
   if (kit === undefined) return array;
-  if (!kit.has(ARRAY_COMPONENT_NAME)) return null;
+  if (!kit.array) return null;
   const row = array.row.flatMap((field): SeedField[] => {
     const fit = fitField(field, kit);
     return fit === null ? [] : [fit];
@@ -521,16 +546,20 @@ function fieldNodeOf(field: SeedField): JsonNode {
  *
  * Компонент (`FieldArray`, секция массива) назван явно: без него рендерер рисует одни строки — ни
  * «добавить», ни «удалить», ни подписи строки, то есть половина пропсов узла осталась бы без
- * действия. `initialValue` — строка, которую кладёт «добавить»: модель модуля создаётся из данных,
- * и своего шаблона строки у неё нет.
+ * действия. Ставит его та же фабрика каталога, что и узлу из палитры; киту без такого компонента
+ * массив в затравку не кладётся ({@link fitArray}). `initialValue` — строка, которую кладёт
+ * «добавить»: модель модуля создаётся из данных, и своего шаблона строки у неё нет.
  */
 function arrayNodeOf(array: SeedArray): JsonNode {
-  const draft = arrayNode() as unknown as { item: { $template: JsonNode } };
+  const draft = arrayNode(ARRAY_COMPONENT_NAME) as unknown as {
+    component: string;
+    item: { $template: JsonNode };
+  };
   const fields = array.row.map(fieldNodeOf);
   return {
     selector: array.selector,
     model: `$model(${array.path})`,
-    component: `$component(${ARRAY_COMPONENT_NAME})`,
+    component: draft.component,
     componentProps: { ...array.props, itemLabel: `$dataSource(${array.itemLabel})` },
     initialValue: Object.fromEntries(
       array.row.map((field, index) => [field.path, defaultForField(fields[index] as JsonFieldNode)])
@@ -650,9 +679,27 @@ function fieldsOf(groups: readonly SeedGroup[]): readonly SeedField[] {
  *
  * - валидация — по правилу на поле; у поля строки массива цель записана полным путём
  *   (`references.name`), а массив назван в `each`;
- * - связь над моделью одна — вычисляемое поле;
+ * - связей над моделью две — вычисляемое поле и доступность массива (см. ниже);
  * - правило узла одно — массив скрыт, пока не отмечен его флажок. Условие читает МОДЕЛЬ
  *   (`model.hasReferences`), а узел адресуется селектором, который затравка проставила сама.
+ *
+ * ## Скрытый массив ещё и выключен — и пуст
+ *
+ * Правило узла (`hideWhen`) убирает массив с экрана, но о модели не знает ничего: строки в ней
+ * остаются, и правило строки продолжает их проверять. Добавил строку, оставил её пустой, снял
+ * флажок — и форма не отправляется из-за поля, которого на экране нет, без единого замечания
+ * на виду. Поэтому рядом с правилом видимости стоит связь над моделью: `enableWhen` выключает
+ * массив, пока флажок снят, и сбрасывает его (`resetOnDisable`) — строк под снятым флажком нет.
+ *
+ * Сброс здесь не украшение, без него связь не работает в простой форме. Выключенное поле не
+ * учитывает только проверка уровня формы — ею отправляет пошаговая форма (визард зовёт отправку
+ * сборки). Простая форма проверяется кнопкой, модельным прогоном `validateModel`: он о состоянии
+ * поля ничего не знает и строку выключенного массива проверил бы наравне с остальными. Пустой
+ * массив проходит оба прогона. Заодно в отправленных значениях не остаётся строк раздела,
+ * от которого человек отказался: «рекомендателей нет» — значит, их нет и в запросе.
+ *
+ * Оба правила выводятся из одной записи (`shownWhen`) и читают одно и то же поле модели:
+ * разойтись они не могут.
  *
  * @param kit - Каталог активного кита: правила остаются только у полей, которые в нём есть.
  */
@@ -672,10 +719,24 @@ export function simpleRules(kit?: SeedKit): FormRules {
           : [{ target: `${item.path}.${field.path}`, each: item.path, rules: [...field.rules] }]
       );
     }),
-    behavior: items.flatMap((item) =>
-      item.kind === 'field' &&
-      item.computed !== undefined &&
-      item.computed.sources.every((source) => present.has(source))
+    behavior: items.flatMap((item): FormRules['behavior'] => {
+      if (item.kind === 'array') {
+        return item.shownWhen === undefined
+          ? []
+          : [
+              {
+                kind: 'enableWhen' as const,
+                target: item.path,
+                sources: [item.shownWhen],
+                expr: `model.${item.shownWhen}`,
+                // Выключенный массив пуст: строки раздела, от которого отказались, не проверяются
+                // и не уходят в запрос (см. шапку функции).
+                options: { resetOnDisable: true },
+              },
+            ];
+      }
+      return item.computed !== undefined &&
+        item.computed.sources.every((source) => present.has(source))
         ? [
             {
               kind: 'computeFrom' as const,
@@ -684,8 +745,8 @@ export function simpleRules(kit?: SeedKit): FormRules {
               expr: item.computed.expr,
             },
           ]
-        : []
-    ),
+        : [];
+    }),
     render: items.flatMap((item) =>
       item.kind === 'array' && item.shownWhen !== undefined
         ? [

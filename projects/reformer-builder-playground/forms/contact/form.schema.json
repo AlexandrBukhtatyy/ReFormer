@@ -84,9 +84,9 @@
       {
         "$nodeId": "lse4h9pg",
         "model": "$model(newField)",
-        "component": "$component(Slider)",
+        "component": "$component(InputNumber)",
         "componentProps": {
-          "label": "Slider"
+          "label": "InputNumber"
         }
       }
     ]

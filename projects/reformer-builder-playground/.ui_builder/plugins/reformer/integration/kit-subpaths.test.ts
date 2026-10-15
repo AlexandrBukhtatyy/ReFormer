@@ -9,13 +9,27 @@
  * карусель и таблица — подписанные заглушки. Каталог, пространство имён и политика живут в трёх
  * разных местах, и встретиться они могут только здесь.
  *
+ * Второй стык — кит, внесённый ПЛАГИНОМ. Его пакета в реестре модулей оболочки нет: импорт кита
+ * коду формы подставляет компилирующая поверхность — пространством имён кита, по спецификатору
+ * (`plugins/reformer/render/compiling/kit-imports`). Кодоген печатает импорт записи с подпутём
+ * как `<пакет>/<подпуть>`, а линковщик оболочки сверяет подстановку с текстом импорта точным
+ * совпадением. Сойтись эти три места — каталог кита, подстановки превью и линковщик — могут
+ * только на настоящем линковщике.
+ *
  * @module shell/boot/integration/kit-subpaths.test
  */
 
 import { describe, expect, it } from 'vitest';
-import { exportNameFor, type KitNamespace } from '@reformer/builder-plugin-api';
+import { exportNameFor, toDescriptor, type KitNamespace } from '@reformer/builder-plugin-api';
+import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
+import { createPluginModules } from '@/shell/boot/plugin-modules';
 import { loadBuiltinNamespace } from '../../forms/kits/src/builtin';
 import { builtinCatalog } from '../core/testing';
+import { compileForm } from '../render/src/compiling/compile';
+import { extractContract, runFactories } from '../render/src/compiling/exports';
+import { kitImportOverrides } from '../render/src/compiling/kit-imports';
+import { planModule } from '../render/src/compiling/module';
+import type { PreviewModules } from '../render/src/host';
 import { classifyEntry } from '../render/src/runtime/policy';
 
 const BUILT = builtinCatalog();
@@ -97,5 +111,109 @@ describe('подпуть записи и пространство имён вс�
   it('без пространства имён (кит ещё не доехал) заглушкой становится и поле', () => {
     const all = decisions({});
     for (const item of all) expect(item.decision.policy, item.name).toBe('limited');
+  });
+});
+
+describe('подпуть кита, внесённого плагином, в компилирующем превью', { timeout: 30_000 }, () => {
+  // Синтетический кит `@vendor/hexa`: поле ввода — в главном входе, график — за подпутём, визард
+  // — за подпутём адаптера. В реестре оболочки пакета нет, компоненты живут в пространстве имён.
+  const Input = (): null => null;
+  const Chart = (): null => null;
+  const Wizard = (): null => null;
+  const namespace: KitNamespace = { Input, Chart, Wizard };
+  const descriptor = toDescriptor({
+    version: '2.1',
+    kit: {
+      id: 'hexa',
+      label: 'Hexa',
+      package: '@vendor/hexa',
+      adapters: { wizard: { symbol: 'Wizard', subpath: 'wizard' } },
+    },
+    components: [
+      { name: 'Input', role: 'field', propsSchema: {} },
+      { name: 'Chart', role: 'container', propsSchema: {}, subpath: 'chart' },
+    ],
+  });
+
+  /** Реестр формы, как его печатает кодоген под таким китом: импорты — по входам пакета. */
+  const FILES: ReadonlyMap<string, string> = new Map([
+    [
+      'schema/registry.ts',
+      [
+        "import { Input } from '@vendor/hexa';",
+        "import { Chart } from '@vendor/hexa/chart';",
+        "import { Wizard } from '@vendor/hexa/wizard';",
+        "import { defineRegistry, type ComponentRegistry } from '@reformer/renderer-json';",
+        '',
+        'export const seen = { Input, Chart, Wizard };',
+        '',
+        'export function createRegistry(): ComponentRegistry {',
+        '  return defineRegistry((reg) => {',
+        "    reg.component('Input', Input);",
+        "    reg.component('Chart', Chart);",
+        "    reg.component('Wizard', Wizard);",
+        '  });',
+        '}',
+        '',
+      ].join('\n'),
+    ],
+  ]);
+
+  /** Скомпилировать реестр настоящим линковщиком оболочки с такими подстановками. */
+  async function compiled(overrides: ReadonlyMap<string, unknown>) {
+    const plugin = createPluginModules({ modules: RUNTIME_MODULES });
+    const loader: PreviewModules = {
+      load: plugin.modules.load,
+      prepare: async (set) => {
+        const [primed] = await Promise.all([plugin.prepareCached(set), plugin.warm(set)]);
+        return primed;
+      },
+    };
+    const plan = planModule(FILES.keys());
+    try {
+      const result = await compileForm(FILES, loader, { overrides }, plan);
+      return { result, contract: extractContract(result.modules, plan) };
+    } finally {
+      plugin.dispose();
+    }
+  }
+
+  it('оболочка пакета кита-плагина не отдаёт — ни корня, ни подпутей', () => {
+    const plugin = createPluginModules({ modules: RUNTIME_MODULES });
+    for (const specifier of ['@vendor/hexa', '@vendor/hexa/chart', '@vendor/hexa/wizard']) {
+      expect(plugin.specifiers).not.toContain(specifier);
+    }
+    plugin.dispose();
+  });
+
+  it('импорты с подпутей записи и адаптера линкуются в пространство имён кита', async () => {
+    const { result, contract } = await compiled(
+      kitImportOverrides({
+        origin: { kind: 'plugin', pluginId: 'kit-hexa' },
+        descriptor,
+        namespace,
+      })
+    );
+
+    expect(result.problems).toEqual([]);
+    // Корень и оба подпутя отдали символы ОДНОГО пространства имён.
+    expect(result.modules.get('schema/registry.ts')).toMatchObject({
+      seen: { Input, Chart, Wizard },
+    });
+    const values = runFactories(contract);
+    expect(values.problems).toEqual([]);
+    expect(values.registry).toBeDefined();
+  });
+
+  it('контроль — подставь превью только корень, реестр формы не слинковался бы', async () => {
+    // Так было: форма под китом плагина с записью-подпутём теряла реестр целиком.
+    const { result, contract } = await compiled(
+      new Map<string, unknown>([['@vendor/hexa', namespace]])
+    );
+
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]).toMatchObject({ file: 'schema/registry.ts', phase: 'resolve' });
+    expect(result.problems[0]?.message).toContain('@vendor/hexa/chart');
+    expect(contract.createRegistry).toBeUndefined();
   });
 });

@@ -54,7 +54,8 @@ reformer-simple-form/
 │   ├── form.schema.json   документ формы (его открывает билдер)
 │   └── registry.ts   реестр компонентов и источников данных
 ├── validation/
-│   └── form.ts   валидация формы: правила и стратегия проверки
+│   ├── form.ts   валидация формы: правила и стратегия проверки
+│   └── messages.ts   тексты замечаний — словарь формы
 ├── behavior/
 │   └── index.ts   единственное поведение: связи над моделью и правила узлов схемы
 ├── types/
@@ -64,7 +65,7 @@ reformer-simple-form/
 ```
 
 - **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `types/reformer-simple-form.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ReformerSimpleForm.tsx`, `index.ts`, `README.md`.
-- **Ваши** (пишутся один раз, не затираются): `constants/reformer-simple-form.ts`, `behavior/index.ts`, `validation/form.ts`, `application/submit.ts`, `api/index.ts`.
+- **Ваши** (пишутся один раз, не затираются): `constants/reformer-simple-form.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/messages.ts`, `application/submit.ts`, `api/index.ts`.
 
 Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
 поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
@@ -78,6 +79,10 @@ reformer-simple-form/
 Компоненты импортируются из `@reformer/ui-kit` — того кита, который был
 активен при генерации (`ReFormer UI Kit`).
 
+Тексты замечаний — словарь `formMessages` (`validation/messages.ts`): страница подключает его
+провайдером `ValidationMessagesProvider`. Запись реестра форм словарь не несёт — при монтировании
+через `FormOutlet` провайдер со словарём ставит хост.
+
 ## Методы для реализации
 
 - `api/index.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
@@ -86,4 +91,5 @@ reformer-simple-form/
 - `constants/reformer-simple-form.ts` → подписи элементов массивов: `REFERENCE_LABEL`.
 - `constants/reformer-simple-form.ts` → замените синтетические опции реальными словарями или загрузчиками.
 - `validation/form.ts` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `validation/messages.ts` → тексты замечаний под свою форму: свой код правилу и запись под ним.
 - `behavior/index.ts` → вычисляемые поля и условное включение (по желанию).

@@ -23,6 +23,10 @@
  * `<Тип>.tsx`, реэкспорты `index.ts`, документ `schema/form.schema.json`. Каталог созданной формы
  * и есть каталог модуля; фикстура предпросмотра ложится в его корень.
  *
+ * Зовётся печатник дважды: под базовое имя — ради списка файлов шаблона — и под имя формы, когда
+ * её создают ({@link applyTemplate}): раскладка строк модуля зависит от имён, и подстановкой
+ * токенов её не перенести.
+ *
  * Порт (`app/templates-host.ts`) обязан дать:
  *
  * - **корень проекта и адреса** — `projectRoot`, `parentOf`, `resolve`: каталог шаблонов
@@ -85,6 +89,7 @@ export type {
   TemplateEngine,
   TemplateFile,
   TemplateManifest,
+  TemplatePrint,
   TemplateSource,
   TemplateStore,
   UpdatingStore,
@@ -130,6 +135,7 @@ export {
 } from './content/operations';
 
 export {
+  applyTemplate,
   buildTemplateFiles,
   commonDirPrefix,
   formSchemaFileOf,

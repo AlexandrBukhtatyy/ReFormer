@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isGenerated, originOf, withMarker } from '@reformer/builder-toolkit';
 import type { FormTemplate } from '../contract';
 import {
+  applyTemplate,
   buildTemplateFiles,
   commonDirPrefix,
   formSchemaFileOf,
@@ -234,6 +235,134 @@ describe('происхождение файла переживает подст�
 
     expect(file.content).toContain('__FormName__');
     expect(isGenerated(file.content)).toBe(true);
+  });
+});
+
+describe('шаблон, который печатается под имя формы', () => {
+  // Так устроен встроенный шаблон: его текст — вывод кодогена, уложенный под ширину строки, а
+  // ширина зависит от имён модуля. Подстановка даёт верные имена в чужой раскладке, поэтому под
+  // имя формы шаблон печатается заново; файлы с токенами остаются списком выбора и запасным
+  // текстом.
+  const files: FormTemplate['files'] = [
+    { path: '__FormType__.tsx', content: 'export default function __FormType__() {}\n' },
+    { path: 'types/__form-dir__.ts', content: withMarker('export type __FormType__ = {};\n') },
+    { path: 'README.md', content: '# __FormTitle__\n' },
+    { path: 'fixture.ts', content: 'export const fixture = {};\n', scope: 'fixture' },
+  ];
+  const requires = { '__FormType__.tsx': ['types/__form-dir__.ts'] };
+  /** Печать под имя: раскладка другая — перенос, которого в тексте шаблона нет. */
+  const printed = (formName: string): FormTemplate['files'] => {
+    const type = formName === 'loan request' ? 'LoanRequestForm' : 'OtherForm';
+    return [
+      { path: `${type}.tsx`, content: `export default function ${type}(\n) {}\n` },
+      { path: 'types/loan-request.ts', content: withMarker(`export type ${type} =\n  {};\n`) },
+      { path: 'README.md', content: '# Loan request (напечатано)\n' },
+      // Фикстуру печатник не печатает — но и напечатай он файл с таким путём, место занято.
+      { path: 'fixture.ts', content: 'чужое\n' },
+    ];
+  };
+  const template = (print?: FormTemplate['print']): FormTemplate => ({
+    id: 'printed',
+    name: 'Печатаемый',
+    source: 'builtin',
+    files,
+    requires,
+    ...(print === undefined ? {} : { print }),
+  });
+  const all = files.map((file) => file.path);
+
+  it('текст берётся у печати — по совпадению пути, вместе с её маркером', async () => {
+    const names: string[] = [];
+    const applied = await applyTemplate(
+      template(async (formName) => {
+        names.push(formName);
+        return printed(formName);
+      }),
+      all,
+      'loan request'
+    );
+
+    expect(names).toEqual(['loan request']);
+    expect(applied.map((file) => file.path)).toEqual([
+      'LoanRequestForm.tsx',
+      'types/loan-request.ts',
+      'README.md',
+      'fixture.ts',
+    ]);
+    expect(applied[0].content).toBe('export default function LoanRequestForm(\n) {}\n');
+    // Маркер — тот, что поставил печатник: тело напечатано под это имя, и хэш от него.
+    expect(applied[1].content).toBe(withMarker('export type LoanRequestForm =\n  {};\n'));
+    expect(isGenerated(applied[1].content)).toBe(true);
+    expect(applied[2].content).toBe('# Loan request (напечатано)\n');
+  });
+
+  it('фикстура остаётся своей: она идёт сверх напечатанного модуля', async () => {
+    const applied = await applyTemplate(
+      template(async (name) => printed(name)),
+      all,
+      'loan request'
+    );
+    const fixture = applied.find((file) => file.path === 'fixture.ts');
+
+    expect(fixture).toEqual({
+      path: 'fixture.ts',
+      content: 'export const fixture = {};\n',
+      scope: 'fixture',
+    });
+  });
+
+  it('отбор и зависимости решает шаблон, а не печать: лишнего напечатанного в наборе нет', async () => {
+    const applied = await applyTemplate(
+      template(async (name) => printed(name)),
+      ['__FormType__.tsx'],
+      'loan request'
+    );
+
+    // Страница и то, что она тянет; README и фикстуру не отмечали.
+    expect(applied.map((file) => file.path)).toEqual([
+      'LoanRequestForm.tsx',
+      'types/loan-request.ts',
+    ]);
+  });
+
+  it('файл, которого печать не дала, остаётся подстановочным', async () => {
+    const applied = await applyTemplate(
+      template(async (name) => printed(name).slice(0, 1)),
+      all,
+      'loan request'
+    );
+
+    expect(applied[0].content).toBe('export default function LoanRequestForm(\n) {}\n');
+    expect(applied[1].content).toBe(withMarker('export type LoanRequestForm = {};\n'));
+    expect(applied[2].content).toBe('# Loan request\n');
+  });
+
+  it('печатать нечем — форма раскладывается подстановкой: пустой ответ и отказ печати', async () => {
+    const substituted = materializeFiles(template(), all, 'loan request');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Пустой список — «печатника нет» (плагин генерации выгружен, кит не доехал).
+    expect(
+      await applyTemplate(
+        template(async () => []),
+        all,
+        'loan request'
+      )
+    ).toEqual(substituted);
+    expect(warn).not.toHaveBeenCalled();
+    // Бросок — отказ печати: он назван в консоли, но создание формы не отменяет.
+    const broken = template(async () => {
+      throw new Error('не напечаталось');
+    });
+    expect(await applyTemplate(broken, all, 'loan request')).toEqual(substituted);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('шаблон без печати раскладывается подстановкой — как и раньше', async () => {
+    expect(await applyTemplate(template(), all, 'loan request')).toEqual(
+      materializeFiles(template(), all, 'loan request')
+    );
   });
 });
 

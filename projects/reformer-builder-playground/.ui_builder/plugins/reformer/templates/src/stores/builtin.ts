@@ -26,6 +26,20 @@
  * для неё сам. Разойдись они — первая же генерация из билдера положила бы свои файлы рядом
  * с файлами шаблона, и в модуле остались бы сироты.
  *
+ * ## Под имя формы модуль печатается заново
+ *
+ * Токены переносят имена, но не раскладку строк. Кодоген укладывает текст под ширину строки —
+ * так, чтобы вывод проходил форматтер проекта как есть, — а ширина зависит от имён: импорт
+ * констант из `../constants/template-seed` помещается в строку, из
+ * `../constants/profil-polzovatelya` — уже нет. Текст, напечатанный под базовое имя и переведённый
+ * на другое подстановкой, расходился бы с выводом кодогена переносами, и расходился бы в файлах,
+ * которые билдер не перегенерирует (отправка, запросы, константы, словарь замечаний).
+ *
+ * Поэтому шаблон несёт печать ({@link FormTemplate.print}): при создании формы тот же печатник
+ * получает ту же затравку и имя формы. Напечатанное под базовое имя остаётся тем, чем его видит
+ * окно создания формы, — списком файлов с зависимостями — и запасным текстом, если печатник к
+ * моменту создания пропал.
+ *
  * Затравки — в `./seeds`: состав анкеты, её правила и данные.
  *
  * @module plugins/reformer/templates/stores/builtin
@@ -233,11 +247,12 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
         try {
           const schema = seed.schema(kit);
           const data = seedData(kit);
-          const printed = await print(schema, BUILTIN_BASE_NAME, {
+          const extras: SeedExtras = {
             rules: seed.rules(kit),
             mock: seedMock(schema, data),
             ...(seed.splitSteps === true ? { splitSteps: true } : {}),
-          });
+          };
+          const printed = await print(schema, BUILTIN_BASE_NAME, extras);
           // Печатник ответил пустотой — кита нет, печатать нечем. Шаблон из одной фикстуры
           // выглядел бы созданной формой, у которой нечего открыть.
           if (printed.length === 0) continue;
@@ -262,6 +277,13 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
             source: 'builtin',
             files,
             requires: requiresOf(files),
+            // Под имя формы — та же затравка тем же печатником: раскладка строк зависит от
+            // имён модуля, и подстановка токенов её не воспроизводит (см. шапку модуля).
+            print: async (formName) =>
+              (await print(schema, formName, extras)).map(({ path, content }) => ({
+                path,
+                content,
+              })),
           });
         } catch (error) {
           console.warn(`[templates] встроенный шаблон «${seed.id}» не напечатался`, error);

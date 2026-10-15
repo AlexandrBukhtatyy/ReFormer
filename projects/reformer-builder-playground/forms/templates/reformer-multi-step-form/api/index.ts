@@ -16,7 +16,6 @@ export async function submitForm(
   values: ReformerMultiStepForm
 ): Promise<ApiResult<{ id: string }>> {
   await wait(API_DELAY);
-
   console.info('[reformer-multi-step-form] submit', values);
   return { success: true, data: { id: String(Date.now()) } };
 }

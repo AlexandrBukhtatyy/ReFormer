@@ -9,7 +9,7 @@
  * @module plugins/reformer/templates/stores/stores.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { builtinEntries, builtinKit, noWizardKit } from '../../../core/testing';
 import {
   apiTemplate,
@@ -18,6 +18,7 @@ import {
   createTemplate,
   entryTemplate,
   makeNames,
+  messagesTemplate,
   modelTemplate,
   moduleFilesOf,
   pageTemplate,
@@ -29,7 +30,7 @@ import { isGenerated, renderTemplate, withMarker } from '@reformer/builder-toolk
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
 import { canRemove, canSave, canUpdate } from '../contract';
-import { materializeFiles } from '../content/files';
+import { applyTemplate, materializeFiles } from '../content/files';
 import {
   BUILTIN_BASE_NAME,
   createBuiltinStore,
@@ -86,8 +87,17 @@ function emitted(schema: JsonFormSchema, formName: string): TemplateFile[] {
     stamped(files.page, 'page', pageTemplate),
     stamped(files.barrel, 'barrel', barrelTemplate),
     { path: files.api, content: renderTemplate('test.builtin.api', apiTemplate, view) },
+    // Словарь замечаний — авторский, как и запросы: маркера не несёт и не регенерируется.
+    {
+      path: files.messages,
+      content: renderTemplate('test.builtin.messages', messagesTemplate, view),
+    },
   ];
 }
+
+/** Пути файлов МОДУЛЯ шаблона: всё, кроме фикстуры, — её кодоген не печатает. */
+const modulePaths = (template: FormTemplate): string[] =>
+  template.files.filter((f) => (f.scope ?? 'form') === 'form').map((f) => f.path);
 
 /**
  * Печатник на НАСТОЯЩИХ эмиттерах домена.
@@ -188,7 +198,7 @@ describe('встроенные шаблоны', () => {
     expect(mocks[0]?.model).toMatchObject({ lastName: '', firstName: '', city: '' });
     // А предпросмотру заполненная форма нужна: по ней видно и список, и вычисляемое поле.
     const fixture = templates[0].files.find((f) => f.path === 'fixture.ts');
-    expect(fixture?.content).toContain('"lastName": "Иванов"');
+    expect(fixture?.content).toContain("lastName: 'Иванов',");
   });
 
   it('напечатанное токенизируется: шаблон параметризован именами модуля', async () => {
@@ -209,11 +219,9 @@ describe('встроенные шаблоны', () => {
   it.each(FORM_NAMES)('«%s»: пути шаблона — те же, что напечатал бы кодоген', async (formName) => {
     const [simple] = await createBuiltinStore({ print: realPrinter }).list();
 
-    const files = materializeFiles(
-      simple,
-      simple.files.filter((f) => (f.scope ?? 'form') === 'form').map((f) => f.path),
-      formName
-    );
+    // Пути — ПОДСТАНОВКОЙ в пути шаблона: по ним окно создания формы показывает состав, и по
+    // ним же текст, напечатанный под имя, находит своё место.
+    const files = materializeFiles(simple, modulePaths(simple), formName);
 
     // Расхождение здесь — это сироты после первой же генерации из билдера: шаблон положил бы
     // `types/myForm.ts`, а кодоген рядом — `types/my-form.ts`.
@@ -227,20 +235,75 @@ describe('встроенные шаблоны', () => {
   it.each(FORM_NAMES)('«%s»: и тексты те же — байт в байт, вместе с маркером', async (formName) => {
     const [simple] = await createBuiltinStore({ print: realPrinter }).list();
 
-    const files = materializeFiles(
-      simple,
-      simple.files.filter((f) => (f.scope ?? 'form') === 'form').map((f) => f.path),
-      formName
-    );
+    // Так форму создаёт операция: шаблон печатается под её имя (`applyTemplate`).
+    const files = await applyTemplate(simple, modulePaths(simple), formName);
 
-    // Имена, импорты, заголовок — всё, что кодоген выводит из имени формы, шаблон обязан вывести
-    // так же. Сравнение целиком, а не по списку имён: список всегда короче того, что напечатано.
+    // Имена, импорты, заголовок, РАСКЛАДКА СТРОК — всё, что кодоген выводит из имени формы,
+    // шаблон обязан вывести так же. Сравнение целиком, а не по списку имён: список всегда короче
+    // того, что напечатано.
     expect(files).toEqual(emitted(simpleSeed(), formName));
-    // Маркер считается от тела, а тело после подстановки другое. Файл обязан остаться
-    // «сгенерированным»: «правленный руками» билдер не перегенерирует из правил формы.
-    for (const file of files.filter((f) => f.path !== moduleFilesOf(makeNames(formName)).api)) {
+    // Файл обязан остаться «сгенерированным»: «правленный руками» билдер не перегенерирует из
+    // правил формы. Авторские файлы (запросы, словарь замечаний) маркера не несут.
+    const layout = moduleFilesOf(makeNames(formName));
+    const authored = new Set([layout.api, layout.messages]);
+    for (const file of files.filter((f) => !authored.has(f.path))) {
       expect(isGenerated(file.content), file.path).toBe(true);
     }
+  });
+
+  it('раскладку строк подстановка не переносит — поэтому под имя шаблон печатается', async () => {
+    const [simple] = await createBuiltinStore({ print: realPrinter }).list();
+    const model = moduleFilesOf(makeNames('my form')).model;
+    const textOf = (files: readonly TemplateFile[]): string =>
+      files.find((f) => f.path === model)?.content ?? '';
+    const oneLine =
+      'export function createMyFormModel(initial?: Partial<MyForm>): FormModel<MyForm> {';
+
+    // Под базовое имя сигнатура фабрики модели в строку не помещается и порвана; под короткое
+    // имя формы помещается — и кодоген её не рвёт. Подстановка переносит имена, но не перенос.
+    const substituted = textOf(materializeFiles(simple, modulePaths(simple), 'my form'));
+    expect(substituted).toContain('export function createMyFormModel(\n');
+    expect(substituted).not.toContain(oneLine);
+
+    const printed = textOf(await applyTemplate(simple, modulePaths(simple), 'my form'));
+    expect(printed).toContain(oneLine);
+  });
+
+  it('под имя формы печатается та же затравка тем же печатником', async () => {
+    const calls: { name: string; schema: JsonFormSchema; seed: SeedExtras | undefined }[] = [];
+    const capturing: ModulePrinter = (schema, formName, seed) => {
+      calls.push({ name: formName, schema, seed });
+      return realPrinter(schema, formName, seed);
+    };
+    const [simple] = await createBuiltinStore({ print: capturing }).list();
+    const listed = calls.find((call) => call.name === BUILTIN_BASE_NAME);
+    calls.length = 0;
+
+    await applyTemplate(simple, modulePaths(simple), 'Профиль пользователя');
+
+    // Один вызов — под имя формы; схема, правила и данные — те, из которых напечатан список.
+    // Другая затравка дала бы форму, состав которой расходится с показанным в окне создания.
+    expect(calls.map((call) => call.name)).toEqual(['Профиль пользователя']);
+    expect(calls[0].schema).toBe(listed?.schema);
+    expect(calls[0].seed).toBe(listed?.seed);
+  });
+
+  it('печатник отказал под имя формы — форма раскладывается подстановкой, а не пропадает', async () => {
+    // Плагин генерации выгрузили между показом списка и созданием формы: печатать под имя нечем.
+    // Имена в подстановочном тексте верны — модуль собирается; раскладку поправит форматтер.
+    const fading: ModulePrinter = async (schema, formName, seed) => {
+      if (formName !== BUILTIN_BASE_NAME) throw new Error('печатника больше нет');
+      return realPrinter(schema, formName, seed);
+    };
+    const [simple] = await createBuiltinStore({ print: fading }).list();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const files = await applyTemplate(simple, modulePaths(simple), 'my form');
+
+    expect(files).toEqual(materializeFiles(simple, modulePaths(simple), 'my form'));
+    expect(files.map((f) => f.path)).toEqual(emitted(simpleSeed(), 'my form').map((f) => f.path));
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it('ни одного следа базового имени не остаётся', async () => {

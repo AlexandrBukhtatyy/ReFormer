@@ -263,6 +263,39 @@ describe('форма по шаблону в раскладке «папки по
     expect(host.files.has('src/forms/loan-2/types/loan-2.ts')).toBe(true);
     expect(host.files.has('src/forms/loan-2/LoanForm.tsx')).toBe(false);
   });
+
+  it('шаблон, который печатается, ложится текстом печати — под имя каталога формы', async () => {
+    // Встроенный шаблон: раскладка строк модуля зависит от имён, поэтому на диск уходит не
+    // подстановка в текст шаблона, а модуль, напечатанный под имя формы. Имя — каталог: занятое
+    // `loan` даёт `loan-2`, и печататься обязан модуль `loan-2`.
+    const names: string[] = [];
+    const printing: FormTemplate = {
+      ...moduleTemplate,
+      print: async (formName) => {
+        names.push(formName);
+        return [
+          { path: 'Loan2Form.tsx', content: 'export default function Loan2Form(\n) {}' },
+          { path: 'types/loan-2.ts', content: 'export type Loan2Form =\n  {};' },
+        ];
+      },
+    };
+    const host = createFakeTemplatesHost({ files: { 'src/forms/loan/чужое.ts': 'чужое' } });
+
+    const result = await generateFormFromTemplate(host, PARENT, 'loan', printing, all);
+
+    expect(result.ok).toBe(true);
+    expect(names).toEqual(['loan-2']);
+    expect(host.files.get('src/forms/loan-2/Loan2Form.tsx')).toBe(
+      'export default function Loan2Form(\n) {}'
+    );
+    expect(host.files.get('src/forms/loan-2/types/loan-2.ts')).toBe(
+      'export type Loan2Form =\n  {};'
+    );
+    // Чего печать не дала (схема, шаг, фикстура), то легло подстановкой: набор файлов — шаблона.
+    expect(host.files.has('src/forms/loan-2/schema/form.schema.json')).toBe(true);
+    expect(host.files.get('src/forms/loan-2/fixture.ts')).toBe('export const fixture = {};');
+    expect(result.openId).toBe('src/forms/loan-2/schema/form.schema.json');
+  });
 });
 
 describe('куда предложить новую форму', () => {

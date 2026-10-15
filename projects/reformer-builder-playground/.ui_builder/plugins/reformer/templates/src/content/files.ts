@@ -192,6 +192,9 @@ export function resolvePicked(
  *
  * Схема и файлы шагов выходят отсюда формата 2, каким бы ни был шаблон
  * ({@link upgradeSchemaFiles}), — по той же причине в одном месте: применений два, а дверь одна.
+ *
+ * Это ПОДСТАНОВКА: шаблон, который печатается, раскладывается под имя через {@link applyTemplate}
+ * — та зовёт подстановку ради отбора и путей, а текст берёт у печати.
  */
 export function materializeFiles(
   template: FormTemplate,
@@ -214,6 +217,50 @@ export function materializeFiles(
 
   const view = buildTemplateView(template, formName, { kit: options.kit ?? null });
   return upgradeSchemaFiles(files.map((f) => renderTemplateFile(template, f, view)));
+}
+
+/**
+ * Файлы новой формы по шаблону — тем способом, каким шаблон раскладывается под имя.
+ *
+ * Шаблон из файлов (снимок каталога, шаблон на движке) раскладывается подстановкой —
+ * {@link materializeFiles}. Шаблон, который ПЕЧАТАЕТСЯ ({@link FormTemplate.print} — встроенные),
+ * печатается под имя формы заново: текст модуля уложен под ширину строки, а она зависит от имён
+ * модуля, так что подстановка даёт верные имена в неверной раскладке — модуль собирается, но не
+ * проходит форматтер проекта.
+ *
+ * Отбор и пути остаются за шаблоном: набор файлов — отмеченное с добором зависимостей, путь —
+ * подстановка в путь шаблона. Из напечатанного берётся только текст — по совпадению пути, и
+ * берётся как есть, вместе с маркером происхождения, который поставил кодоген. Файл без пары
+ * (фикстура — её кодоген не печатает) остаётся подстановочным.
+ *
+ * Печатник пропал или отказал (плагин генерации выгружен, кит не доехал) — форма создаётся
+ * подстановкой: имена в ней верны, раскладку поправит форматтер. Отказ назван в консоли, а не
+ * проглочен, но создание формы он не отменяет.
+ */
+export async function applyTemplate(
+  template: FormTemplate,
+  picked: Iterable<string>,
+  formName: string,
+  options: MaterializeOptions = {}
+): Promise<TemplateFile[]> {
+  const files = materializeFiles(template, picked, formName, options);
+  if (template.print === undefined) return files;
+
+  let printed: readonly TemplateFile[];
+  try {
+    printed = await template.print(formName);
+  } catch (error) {
+    console.warn(
+      `[templates] шаблон «${template.id}» под имя «${formName}» не напечатался — подстановка`,
+      error
+    );
+    return files;
+  }
+  const texts = new Map(printed.map((file) => [file.path, file.content]));
+  return files.map((file) => {
+    const text = (file.scope ?? 'form') === 'form' ? texts.get(file.path) : undefined;
+    return text === undefined ? file : { ...file, content: text };
+  });
 }
 
 /**

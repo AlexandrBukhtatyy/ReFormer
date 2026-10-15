@@ -8,10 +8,15 @@
  * первой, переставала быть JSON, и форма, созданная по шаблону, открывалась голым текстом вместо
  * канваса.
  *
- * Второй стык — имена. Шаблон печатается один раз, под базовое имя, а форму по нему создают под
- * любое; кодоген же потом перегенерирует её под имя каталога. Разойдись их имена файлов — в модуле
- * остались бы сироты, поэтому здесь шаблон, разложенный под имя, сравнивается с выводом кодогена
- * для того же имени целиком.
+ * Второй стык — имена. Список файлов шаблона печатается один раз, под базовое имя, а форму по нему
+ * создают под любое; кодоген же потом перегенерирует её под имя каталога. Разойдись их имена
+ * файлов — в модуле остались бы сироты, поэтому здесь пути шаблона, разложенные под имя,
+ * сравниваются с путями кодогена для того же имени.
+ *
+ * Третий — тексты. Кодоген укладывает модуль под ширину строки, а ширина зависит от имён модуля,
+ * поэтому текст под имя формы даёт не подстановка токенов, а ПЕЧАТЬ под это имя (`applyTemplate` —
+ * ею форму создаёт операция). Созданное по шаблону сравнивается с выводом кодогена для того же
+ * имени целиком: расхождение здесь — модуль, который собирается, но не проходит форматтер проекта.
  *
  * @module shell/boot/integration/builtin-templates.test
  */
@@ -33,6 +38,7 @@ import { builtinKit } from '../core/testing';
 import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
 import { looksLikeFormSchema } from '../editor/src/model/provider';
 import {
+  applyTemplate,
   BUILTIN_BASE_NAME,
   createBuiltinStore,
   materializeFiles,
@@ -118,7 +124,7 @@ describe('форма по встроенному шаблону открывае
     expect(templates.map((t) => t.id)).toEqual([SIMPLE_TEMPLATE_ID, WIZARD_TEMPLATE_ID]);
 
     for (const template of templates) {
-      const files = materializeFiles(
+      const files = await applyTemplate(
         template,
         template.files.map((file) => file.path),
         'test'
@@ -154,6 +160,9 @@ describe('форма по встроенному шаблону открывае
     }
     expect(wizard).toContain(layout.create);
     expect(wizard).toContain(layout.registry);
+    // Словарь замечаний страница импортирует сама (оборачивает форму в провайдер текстов) —
+    // без него она не соберётся, и он обязан приехать вместе с ней.
+    expect(wizard).toContain(layout.messages);
     // README, реэкспорты и запись реестра форм страница за собой не тянет.
     expect(wizard).not.toContain(layout.readme);
     expect(wizard).not.toContain(layout.barrel);
@@ -161,6 +170,7 @@ describe('форма по встроенному шаблону открывае
 
     const simple = pathsOf(SIMPLE_TEMPLATE_ID);
     expect(simple).toContain(layout.page);
+    expect(simple).toContain(layout.messages);
     expect(simple.some((path) => path.includes('/steps/'))).toBe(false);
     expect(simple).not.toContain(layout.flow);
 
@@ -192,6 +202,8 @@ describe('шаблон раскладывается так же, как печа
     const { templates, inputs } = await templatesUnder(view);
 
     for (const [index, template] of templates.entries()) {
+      // Пути — ПОДСТАНОВКОЙ в пути шаблона: их показывает окно создания формы, и по ним же
+      // текст, напечатанный под имя, находит своё место.
       const applied = materializeFiles(template, modulePaths(template), formName);
       const direct = await generate(view, inputs[index].schema, formName, inputs[index].seed);
 
@@ -211,11 +223,16 @@ describe('шаблон раскладывается так же, как печа
       const { templates, inputs } = await templatesUnder(view);
 
       for (const [index, template] of templates.entries()) {
-        const applied = materializeFiles(template, modulePaths(template), formName);
+        // Так форму создаёт операция: шаблон печатается под её имя.
+        const applied = await applyTemplate(template, modulePaths(template), formName);
         const direct = await generate(view, inputs[index].schema, formName, inputs[index].seed);
 
-        // Целиком, а не по списку имён: импорты, заголовок, идентификатор формы в реестре, маршрут —
-        // всё, что кодоген выводит из имени формы, шаблон обязан вывести так же.
+        // Целиком, а не по списку имён: импорты, заголовок, идентификатор формы в реестре, маршрут,
+        // раскладка строк — всё, что кодоген выводит из имени формы, шаблон обязан вывести так же.
+        expect(
+          applied.map((file) => file.path),
+          template.name
+        ).toEqual(direct.map((file) => file.path));
         for (const file of direct) {
           const twin = applied.find((item) => item.path === file.path);
           expect(twin?.content, `${template.name} → ${file.path}`).toBe(file.content);
@@ -224,12 +241,35 @@ describe('шаблон раскладывается так же, как печа
     }
   );
 
+  it('подстановка токенов раскладку строк не переносит — под имя шаблон печатается', async () => {
+    // Ради этого у встроенного шаблона и появилась печать под имя. Реестр формы импортирует
+    // константы из `../constants/<каталог>`: под базовое имя импорт помещается в строку, под
+    // длинное имя каталога — уже нет, и кодоген его рвёт. Подстановка переносит имя, но не перенос.
+    const formName = 'Профиль пользователя';
+    const view = builtinKit();
+    const { templates, inputs } = await templatesUnder(view);
+    const [simple] = templates;
+    const registry = moduleFilesOf(makeNames(formName)).registry;
+    const textOf = (files: readonly { path: string; content: string }[]): string =>
+      files.find((file) => file.path === registry)?.content ?? '';
+    const tooLong = (text: string): string[] =>
+      text.split('\n').filter((line) => line.length > 100);
+
+    const substituted = textOf(materializeFiles(simple, modulePaths(simple), formName));
+    expect(tooLong(substituted)).toEqual([
+      "import { CITY_LIST, GENDERS, POSITIONS, SKILLS, REFERENCE_LABEL } from '../constants/profil-polzovatelya';",
+    ]);
+
+    const printed = textOf(await applyTemplate(simple, modulePaths(simple), formName));
+    expect(tooLong(printed)).toEqual([]);
+    expect(printed).toBe(textOf(await generate(view, inputs[0].schema, formName, inputs[0].seed)));
+  });
+
   it('файлы, которые кодоген метит маркером, остаются «сгенерированными»', async () => {
     const view = builtinKit();
     const { templates, inputs } = await templatesUnder(view);
 
     for (const [index, template] of templates.entries()) {
-      const applied = materializeFiles(template, modulePaths(template), 'Профиль пользователя');
       const direct = await generate(
         view,
         inputs[index].schema,
@@ -237,14 +277,22 @@ describe('шаблон раскладывается так же, как печа
         inputs[index].seed
       );
       const marked = direct.filter((file) => isGenerated(file.content)).map((file) => file.path);
-
-      // Маркер считается от тела файла, а тело после подстановки имени другое. «Правленный
-      // руками» файл поведения или валидации билдер не перегенерирует из правил формы — то есть
-      // форма, только что созданная по шаблону, сразу теряла бы связь с правилами.
       expect(marked.length, template.name).toBeGreaterThan(0);
-      for (const path of marked) {
-        const file = applied.find((item) => item.path === path);
-        expect(isGenerated(file?.content), `${template.name} → ${path}`).toBe(true);
+
+      // Оба пути создания формы: печать под имя (маркер ставит кодоген) и подстановка — запасной
+      // путь, когда печатника нет. У подстановки маркер считается от тела файла, а тело после
+      // замены имени другое. «Правленный руками» файл поведения или валидации билдер не
+      // перегенерирует из правил формы — то есть форма, только что созданная по шаблону, сразу
+      // теряла бы связь с правилами.
+      const ways = {
+        печать: await applyTemplate(template, modulePaths(template), 'Профиль пользователя'),
+        подстановка: materializeFiles(template, modulePaths(template), 'Профиль пользователя'),
+      };
+      for (const [way, applied] of Object.entries(ways)) {
+        for (const path of marked) {
+          const file = applied.find((item) => item.path === path);
+          expect(isGenerated(file?.content), `${template.name} → ${path} (${way})`).toBe(true);
+        }
       }
     }
   });
@@ -270,25 +318,29 @@ describe('встроенный шаблон материализуется бе�
     const traces = [base.TypeName, base.entryConst, base.dir, base.title];
 
     for (const template of templates) {
-      const files = materializeFiles(
-        template,
-        template.files.map((file) => file.path),
-        // Кириллица с пробелом: транслитерация участвует в каждом файле, а базовое имя
-        // затравки обязано исчезнуть и из путей, и из текстов.
-        'Профиль пользователя'
-      );
-      expect(files.length, template.name).toBeGreaterThan(0);
+      const all = template.files.map((file) => file.path);
+      // Кириллица с пробелом: транслитерация участвует в каждом файле, а базовое имя затравки
+      // обязано исчезнуть и из путей, и из текстов. Оба пути создания формы: печать под имя и
+      // подстановка — запасной путь, когда печатника нет.
+      const ways = {
+        печать: await applyTemplate(template, all, 'Профиль пользователя'),
+        подстановка: materializeFiles(template, all, 'Профиль пользователя'),
+      };
 
-      for (const file of files) {
-        const where = `${template.name} → ${file.path}`;
-        expect(file.content.trim(), where).not.toBe('');
-        for (const token of [...Object.values(TOKENS), ...Object.values(MODULE_TOKENS)]) {
-          expect(file.path, where).not.toContain(token);
-          expect(file.content, where).not.toContain(token);
-        }
-        for (const trace of traces) {
-          expect(file.path, where).not.toContain(trace);
-          expect(file.content, where).not.toContain(trace);
+      for (const [way, files] of Object.entries(ways)) {
+        expect(files.length, `${template.name} (${way})`).toBe(template.files.length);
+
+        for (const file of files) {
+          const where = `${template.name} → ${file.path} (${way})`;
+          expect(file.content.trim(), where).not.toBe('');
+          for (const token of [...Object.values(TOKENS), ...Object.values(MODULE_TOKENS)]) {
+            expect(file.path, where).not.toContain(token);
+            expect(file.content, where).not.toContain(token);
+          }
+          for (const trace of traces) {
+            expect(file.path, where).not.toContain(trace);
+            expect(file.content, where).not.toContain(trace);
+          }
         }
       }
     }
@@ -298,7 +350,7 @@ describe('встроенный шаблон материализуется бе�
     const { templates } = await templatesUnder(builtinKit());
 
     for (const template of templates) {
-      const files = materializeFiles(template, modulePaths(template), 'test');
+      const files = await applyTemplate(template, modulePaths(template), 'test');
       const constants = files.find((f) => f.path === moduleFilesOf(makeNames('test')).constants);
 
       expect(constants?.content, template.name).toContain('Москва');
@@ -317,7 +369,7 @@ describe('шаблон под китом, у которого половины �
     // все шаги разом и не отправлялась бы вовсе.
     expect(templates.map((t) => t.id)).toEqual([SIMPLE_TEMPLATE_ID]);
 
-    const files = materializeFiles(templates[0], modulePaths(templates[0]), 'test');
+    const files = await applyTemplate(templates[0], modulePaths(templates[0]), 'test');
     const registry = files.find((file) => file.path === layout.registry)?.content ?? '';
     // Заглушку кодоген ставит компоненту, которого в ките нет. Затравка таких не кладёт.
     expect(registry).not.toContain('Placeholder');
@@ -326,6 +378,14 @@ describe('шаблон под китом, у которого половины �
     }
     for (const absent of ['InputMask', 'RadioGroup', 'DatePicker', 'Combobox', 'FileUpload']) {
       expect(registry, absent).not.toContain(absent);
+    }
+    // Компонента массива у кита тоже нет, хотя ЗАПИСЬ массива в его каталоге есть — её добавляет
+    // билдер. Массив в затравке уезжал в реестр импортом `FieldArray` из пакета кита, которого
+    // там нет: модуль не собирался. Теперь массива нет вовсе — ни в схеме, ни в правилах.
+    expect(registry).not.toContain('FieldArray');
+    const text = files.map((file) => file.content).join('\n');
+    for (const trace of ['references', 'hasReferences', 'REFERENCE_LABEL', 'applyEach']) {
+      expect(text, trace).not.toContain(trace);
     }
     // Подпутей кит не объявляет — и в реестре один импорт кита, из главного входа.
     expect(registry.match(/from '@reformer\/kit-hexa-ui[^']*'/g)).toEqual([

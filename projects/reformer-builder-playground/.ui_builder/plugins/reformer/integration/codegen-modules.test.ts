@@ -20,8 +20,8 @@ import { buildView, makeNames, moduleFilesOf, prepare, STEP_IMPORT } from '../co
 import { BUILTIN_CATALOG, builtinKit, subpathSchema, wizardSchema } from '../core/testing';
 import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
 import {
+  applyTemplate,
   createBuiltinStore,
-  materializeFiles,
   SIMPLE_TEMPLATE_ID,
   WIZARD_TEMPLATE_ID,
   type ModulePrinter,
@@ -77,7 +77,8 @@ async function builtinTemplateFiles(
   }).list();
   const template = templates.find((item) => item.id === id);
   if (template === undefined) throw new Error(`нет встроенного шаблона ${id}`);
-  return materializeFiles(
+  // Так форму создаёт операция: встроенный шаблон печатается под имя формы.
+  return applyTemplate(
     template,
     template.files.map((file) => file.path),
     formName

@@ -72,4 +72,5 @@ export const SKILLS: SelectOption[] = [
   },
 ];
 
-export const REFERENCE_LABEL = (_item: unknown, index: number): string => '#' + (index + 1); // TODO: подпись элемента
+// TODO: подпись элемента
+export const REFERENCE_LABEL = (_item: unknown, index: number): string => '#' + (index + 1);

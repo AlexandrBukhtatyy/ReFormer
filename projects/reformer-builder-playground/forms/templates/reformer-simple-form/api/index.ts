@@ -14,7 +14,6 @@ function wait(ms: number): Promise<void> {
 /** POST — отправка формы. TODO: заменить на реальный запрос. */
 export async function submitForm(values: ReformerSimpleForm): Promise<ApiResult<{ id: string }>> {
   await wait(API_DELAY);
-
   console.info('[reformer-simple-form] submit', values);
   return { success: true, data: { id: String(Date.now()) } };
 }
