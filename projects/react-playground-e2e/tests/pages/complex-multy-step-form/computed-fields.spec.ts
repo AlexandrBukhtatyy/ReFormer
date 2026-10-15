@@ -196,6 +196,8 @@ test.describe('Вычисляемые поля', { tag: ['@computed'] }, () => {
       // Заполняем информацию об имуществе
       await creditForm.input('property-type').first().click();
       await creditForm.page.getByRole('option', { name: /квартира/i }).click();
+      // Описание обязательно: правила строки имущества проверяются на шаге.
+      await creditForm.input('property-description').first().fill('Квартира в Москве, 60 м²');
       await creditForm.input('property-estimatedValue').first().fill('5000000');
 
       await creditForm.goToNextStep();
@@ -218,6 +220,9 @@ test.describe('Вычисляемые поля', { tag: ['@computed'] }, () => {
       const today = new Date();
       const birthDate = new Date(today.getFullYear() - 30, today.getMonth(), today.getDate());
       const formattedDate = birthDate.toISOString().split('T')[0];
+      // Паспорт выдан 10 лет назад — в 20 лет. Фиксированная дата со временем оказывалась раньше
+      // 14 лет заявителя, и правило passportIssuedBeforeMinAge держало шаг 2.
+      const passportIssued = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate());
 
       await creditForm.fillLastName('Иванов');
       await creditForm.fillFirstName('Иван');
@@ -230,7 +235,7 @@ test.describe('Вычисляемые поля', { tag: ['@computed'] }, () => {
       await creditForm.fillPassportSeries('45 06');
       await creditForm.fillPassportNumber('123456');
       await creditForm.fillPassportIssuedBy('ОВД Центрального района');
-      await creditForm.fillPassportIssuedDate('2010-06-20');
+      await creditForm.fillPassportIssuedDate(passportIssued.toISOString().split('T')[0]);
       await creditForm.fillPassportCode('770-001');
       await creditForm.fillInn('123456789012');
       await creditForm.fillSnils('123-456-789 01');
@@ -267,6 +272,7 @@ test.describe('Вычисляемые поля', { tag: ['@computed'] }, () => {
 
       // Меняем на 40 лет
       const birthDate40 = new Date(today.getFullYear() - 40, today.getMonth(), today.getDate());
+      const passportIssued = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate());
       await creditForm.fillBirthDate(birthDate40.toISOString().split('T')[0]);
 
       await creditForm.selectGender('male');
@@ -274,7 +280,7 @@ test.describe('Вычисляемые поля', { tag: ['@computed'] }, () => {
       await creditForm.fillPassportSeries('45 06');
       await creditForm.fillPassportNumber('123456');
       await creditForm.fillPassportIssuedBy('ОВД Центрального района');
-      await creditForm.fillPassportIssuedDate('2000-06-20');
+      await creditForm.fillPassportIssuedDate(passportIssued.toISOString().split('T')[0]);
       await creditForm.fillPassportCode('770-001');
       await creditForm.fillInn('123456789012');
       await creditForm.fillSnils('123-456-789 01');

@@ -246,8 +246,16 @@ test.describe('Happy Path — успешное прохождение формы
       await creditForm.input('existingLoan-bank').first().fill('Сбербанк');
       await creditForm.input('existingLoan-type').first().click();
       await creditForm.page.getByRole('option', { name: /потребительский/i }).click();
+      // Правила строки проверяются на шаге: сумма не меньше остатка, дата погашения в будущем.
+      await creditForm.input('existingLoan-amount').first().fill('800000');
       await creditForm.input('existingLoan-remainingAmount').first().fill('500000');
       await creditForm.input('existingLoan-monthlyPayment').first().fill('15000');
+      const maturity = new Date();
+      maturity.setFullYear(maturity.getFullYear() + 3);
+      await creditForm
+        .input('existingLoan-maturityDate')
+        .first()
+        .fill(maturity.toISOString().slice(0, 10));
       await creditForm.toggleAddCoBorrower(false);
       await creditForm.goToNextStep();
     });
