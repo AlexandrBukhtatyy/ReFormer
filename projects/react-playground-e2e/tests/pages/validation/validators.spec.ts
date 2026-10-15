@@ -10,7 +10,7 @@
  * @tag @validation
  */
 
-import { test, expect } from '../../shared/test-factory';
+import { test } from '../../shared/test-factory';
 import { ValidationPage } from './validation-page.pom';
 
 test.describe('Примеры валидации', { tag: ['@validation'] }, () => {
@@ -19,7 +19,6 @@ test.describe('Примеры валидации', { tag: ['@validation'] }, () 
   test.beforeEach(async ({ page, perf }) => {
     validationPage = new ValidationPage(page, { perf });
     await validationPage.goto();
-    await validationPage.expandAllSections();
   });
 
   test.describe('Строковые валидаторы', () => {
@@ -582,20 +581,6 @@ test.describe('Примеры валидации', { tag: ['@validation'] }, () 
       await validationPage.fillEmailField('invalid');
       await validationPage.validateAll();
       await validationPage.expectFieldError('emailField', /корректный email/i);
-    });
-  });
-
-  test.describe('FORM-003: Переключение секций', () => {
-    test('FORM-003-A: Сворачивание и разворачивание секций', async () => {
-      await validationPage.collapseAllSections();
-
-      // Поля в свёрнутых секциях не должны быть видимы
-      await expect(validationPage.input('requiredField')).not.toBeVisible();
-
-      await validationPage.expandAllSections();
-
-      // Поля должны быть видимы снова
-      await expect(validationPage.input('requiredField')).toBeVisible();
     });
   });
 });

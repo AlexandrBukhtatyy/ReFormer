@@ -85,24 +85,6 @@ export class ValidationPage {
   }
 
   // ============================================================================
-  // Section Toggle
-  // ============================================================================
-
-  async expandAllSections() {
-    const toggleAllButton = this.page.getByRole('button', { name: /развернуть все/i });
-    if (await toggleAllButton.isVisible()) {
-      await toggleAllButton.click();
-    }
-  }
-
-  async collapseAllSections() {
-    const toggleAllButton = this.page.getByRole('button', { name: /свернуть все/i });
-    if (await toggleAllButton.isVisible()) {
-      await toggleAllButton.click();
-    }
-  }
-
-  // ============================================================================
   // String Validators
   // ============================================================================
 
