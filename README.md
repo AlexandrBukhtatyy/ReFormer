@@ -148,11 +148,12 @@ function LoginFormExample() {
     return { model, form };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    // Флоу отправки M1: markAsTouched (показать ошибки) → validateModel(model, schema) → model.get().
-    // Раннер сам разносит ошибки по нодам формы; form.submit()/form.validate() схему НЕ прогоняют.
+    // Флоу отправки без сборки: markAsTouched (показать ошибки) → validateModel(model, schema) → model.get().
+    // Раннер сам разносит ошибки по нодам формы; методов submit()/validate() у нод нет.
+    // Сборка createForm делает то же одним вызовом: bundle.submission.submit(handler).
     form.markAsTouched();
     const valid = await validateModel(model, loginValidation);
     if (!valid) return;
@@ -185,8 +186,9 @@ function LoginFormExample() {
 `defineValidation<T>(({ model, cross }) => …)` над той же моделью; операторы импортируются из
 `@reformer/core/validation`. Раннер `validateModel(model, schema)` прогоняет схему **по требованию**
 (отправка / шаг мастера): разносит ошибки по нодам формы (поле само подсветится), гасит поля, ставшие
-валидными, и возвращает `boolean` (правило с `severity: 'warning'` не блокирует). ⚠️ `form.validate()` /
-`form.submit()` схему **не** прогоняют — раннер вызывается явно. Устаревший прогон той же `(model, schema)`
+валидными, и возвращает `boolean` (правило с `severity: 'warning'` не блокирует). ⚠️ Методов `validate()` /
+`submit()` у нод формы нет — схему прогоняет раннер (явно) либо сборка `createForm`: `bundle.validate()` и
+`bundle.submission.submit(handler)`. Устаревший прогон той же `(model, schema)`
 отменяется автоматически, `AbortSignal` прокидывается в async-правила.
 
 Операторы (голые, работают только внутри прогона `validateModel`):

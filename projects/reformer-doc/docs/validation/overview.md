@@ -60,10 +60,12 @@ const contact = createForm<ContactForm>({
 Валидация выполняется **по требованию** — обычно на отправке или при переходе на следующий шаг. Сборка
 формы даёт три точки:
 
-- `bundle.validate()` — проверить всю форму, разнести замечания по нодам, показать их; возвращает
-  `ValidationResult`;
-- `bundle.submit(handler)` — один прогон всех правил и, если блокирующих замечаний нет, вызов
-  `handler(значения)`; возвращает `SubmitResult`;
+- `bundle.validate()` — проверить всю форму, разнести замечания по нодам и показать замечания
+  проверенных полей; возвращает `ValidationResult`. Попыткой отправки не считается;
+- `bundle.submission.submit(handler)` — попытка отправки: один прогон всех правил и, если
+  блокирующих замечаний нет, вызов `handler(значения)`; при отказе (`invalid`, `error`) тронутой
+  помечается вся форма. Возвращает `SubmitResult`; сигнал `bundle.submission.submitting` — идёт ли
+  обработчик;
 - `bundle.validateStep(id)` и `bundle.flow?.next()` — правила шага пошаговой формы.
 
 ```typescript
@@ -72,12 +74,12 @@ const result = await contact.validate();
 // замечания уже разнесены по нодам: form.name.issues, form.email.issues — UI подсветит поля
 ```
 
-Канонический поток отправки — `bundle.submit`:
+Канонический поток отправки — `bundle.submission.submit`:
 
 ```tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const outcome = await contact.submit((values) => api.save(values));
+const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
+  const outcome = await contact.submission.submit((values) => api.save(values));
 
   if (outcome.status === 'submitted') model.reset();
   else if (outcome.status === 'invalid') showHint('Проверьте выделенные поля');

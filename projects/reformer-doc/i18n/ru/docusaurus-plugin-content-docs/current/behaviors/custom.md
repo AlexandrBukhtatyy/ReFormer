@@ -65,8 +65,33 @@ import { defineFormBehavior, onDispose } from '@reformer/core/behaviors';
 
 const behavior = defineFormBehavior<MyForm>(({ model }) => {
   const id = setInterval(() => console.log(model.get()), 5000);
-  onDispose(() => clearInterval(id)); // вызовется при teardown формы
+  onDispose(() => clearInterval(id)); // вызовется при снятии формы
 });
+```
+
+Форму снимает её владелец: сборку `createForm` — `bundle.dispose()`, форму из
+`createFormFromModel` — `disposeForm(form)`. Тогда отрабатывают все отписки поведения, включая
+`onDispose`; значения модели остаются.
+
+### Отложенные записи и сравнение значений
+
+`defer` пишет на микротаске, поэтому сразу после правки модели записи поведения ещё не дошли до
+неё. Дождаться их — `deferredWritesSettled()` из `@reformer/core/model`: промис, который
+разрешается, когда отработали отложенные записи текущего тика вместе с порождёнными ими, либо
+`undefined`, если ждать нечего. Записи после таймера (`debounce`) или после `await` в колбэке сюда
+не входят. Сборка сама ждёт их перед `validate()`, `validateStep()` и отправкой.
+
+`deepEqual(left, right)` из того же входа — сравнение значений модели, на котором стоят `isDirty` и
+сверка «модель изменилась, пока шла проверка»: объекты и массивы — по содержимому, даты — по
+времени, `NaN` равен себе, остальное (включая файлы) — по ссылке.
+
+```typescript
+import { deepEqual, deferredWritesSettled } from '@reformer/core/model';
+
+model.loanType = 'mortgage'; // поведение допишет зависимые поля на микротаске
+await deferredWritesSettled();
+const values = model.get(); // уже с записями поведения
+const changedSinceSave = !deepEqual(values, savedValues);
 ```
 
 ## Операторы динамических массивов

@@ -11,7 +11,7 @@ sidebar_position: 2
 Схема валидации — отдельная функция `defineValidation(({ model }) => …)` из
 `@reformer/core/validation`; схема формы (узлы, JSON-документ) правил **не несёт**. Правила живут в
 этой функции, подключаются к сборке `createForm({ validation })` и прогоняются **по требованию** —
-`bundle.validate()`, `bundle.submit(handler)`, шаг потока (подробнее —
+`bundle.validate()`, `bundle.submission.submit(handler)`, шаг потока (подробнее —
 [Обзор валидации](/docs/validation/overview)).
 
 ```typescript

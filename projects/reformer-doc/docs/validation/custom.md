@@ -8,7 +8,8 @@ sidebar_position: 4
 кладётся в тот же массив, что и встроенные фабрики — вторым аргументом оператора
 `validate(handle, [rules])` внутри схемы `defineValidation`. Схема валидации живёт **отдельно** от
 схемы формы: она не несёт компонентов, подключается к сборке `createForm({ validation })` и
-прогоняется по требованию (`bundle.validate()`, `bundle.submit(handler)`, шаг потока).
+прогоняется по требованию (`bundle.validate()`, `bundle.submission.submit(handler)`, шаг
+потока).
 
 ## Контракт
 

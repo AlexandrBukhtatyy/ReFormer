@@ -50,12 +50,13 @@ const result = await user.validate(); // ValidationResult: result.status === 'va
 
 Правила, переданные в сборку, запускает сама сборка:
 
-| Вызов                     | Результат                   | Что делает                                                     |
-| ------------------------- | --------------------------- | -------------------------------------------------------------- |
-| `bundle.validate()`       | `Promise<ValidationResult>` | проверить всю форму, разнести замечания по нодам и показать их |
-| `bundle.validateStep(id)` | `Promise<ValidationResult>` | проверить правила шага потока; неизвестный шаг — исключение    |
-| `bundle.submit(handler)`  | `Promise<SubmitResult>`     | один прогон всех правил; при успехе — `handler(значения)`      |
-| `bundle.flow?.next()`     | `Promise<FlowTransition>`   | проверить правила текущего шага и при успехе перейти дальше    |
+| Вызов                               | Результат                   | Что делает                                                     |
+| ----------------------------------- | --------------------------- | -------------------------------------------------------------- |
+| `bundle.validate()`                 | `Promise<ValidationResult>` | проверить всю форму, разнести замечания по нодам и показать их |
+| `bundle.validateStep(id)`           | `Promise<ValidationResult>` | проверить правила шага потока; неизвестный шаг — исключение    |
+| `bundle.submission.submit(handler)` | `Promise<SubmitResult>`     | один прогон всех правил; при успехе — `handler(значения)`      |
+| `bundle.submission.submitting`      | `ReadonlySignal<boolean>`   | идёт ли обработчик отправки                                    |
+| `bundle.flow?.next()`               | `Promise<FlowTransition>`   | проверить правила текущего шага и при успехе перейти дальше    |
 
 `ValidationResult` описывает прогон целиком:
 
@@ -70,10 +71,11 @@ interface ValidationResult {
 - `valid` — блокирующих замечаний нет (`severity: 'warning'` не блокирует);
 - `invalid` — есть блокирующие замечания;
 - `error` — хотя бы одно async-правило не вернуло результат (сеть, исключение) — см. `failures`;
-- `cancelled` — прогон устарел: для той же пары «модель + правила» уже запущен следующий.
+- `cancelled` — прогон устарел: для той же пары «модель + правила» уже запущен следующий, модель
+  изменилась, пока шла проверка отправки, либо сборку сняли (`bundle.dispose()`).
 
 ```typescript
-const outcome = await user.submit((values) => api.save(values));
+const outcome = await user.submission.submit((values) => api.save(values));
 if (outcome.status === 'invalid') showHint('Проверьте выделенные поля');
 if (outcome.status === 'error') showToast('Не удалось проверить форму, повторите попытку');
 ```
@@ -81,8 +83,9 @@ if (outcome.status === 'error') showToast('Не удалось проверит�
 Гарантии прогона:
 
 - **Разнос по нодам.** Замечания садятся на ноды по ручке поля; разводить результат руками не нужно.
-- **Показ только проверенного.** `validate()` / `submit()` метят `touched` поля, которые правила
-  проверили, — их замечания сразу видны; при непрошедшей отправке форма отмечается тронутой целиком.
+- **Показ только проверенного.** `validate()`, `validateStep()` и успешная отправка метят `touched`
+  поля, которые правила проверили, — их замечания сразу видны. При отказе отправки (`invalid`,
+  `error`) тронутой помечается вся форма; отменённая отправка (`cancelled`) ничего не трогает.
 - **Warning не блокирует.** Правило с `severity: 'warning'` показывается в UI, но статус остаётся
   `valid` — submit не срывается.
 - **Устаревшие прогоны отменяются.** Быстрый повторный вызов той же пары «модель + правила» отменяет
@@ -148,11 +151,11 @@ const credit = createForm<Credit>({
 
 await credit.flow?.next(); // { status: 'moved', from, to } | { status: 'stayed', step, reason, validation? }
 await credit.validateStep('contacts'); // ValidationResult шага
-await credit.submit(sendApplication); // все шаги + extras одним прогоном
+await credit.submission.submit(sendApplication); // все шаги + extras одним прогоном
 ```
 
 Визард `FormWizard` (`@reformer/cdk`, `@reformer/ui-kit`) — адаптер этого потока: он берёт поток из
-сборки (или из пропа `flow`) и зовёт `bundle.submit` на последнем шаге. См.
+сборки (или из пропа `flow`) и отправляет через `bundle.submission` на последнем шаге. См.
 [FormWizard](/docs/cdk/form-wizard).
 
 ## Живая проверка и перепроверка
@@ -167,7 +170,9 @@ createForm<User>({
 ```
 
 Стратегии — `submit` (по умолчанию, живой проверки нет), `blur`, `change`, `afterFirstSubmit`; в React
-их армирует `useFormBundle`. Подробнее — в [Стратегиях валидации](../../validation/validation-strategies).
+их армирует `useFormBundle`. Живую фазу `afterFirstSubmit` включает только попытка отправки
+(`bundle.submission.submit`): `bundle.validate()`, `validateStep` и `flow.next()` её не включают.
+Подробнее — в [Стратегиях валидации](../../validation/validation-strategies).
 
 Точечную перепроверку **в ответ на изменение** другого поля (например, `amount` зависит от
 `maxAmount`) выражают мостом из behavior — оператором `revalidateWhen`, который зовёт раннер со

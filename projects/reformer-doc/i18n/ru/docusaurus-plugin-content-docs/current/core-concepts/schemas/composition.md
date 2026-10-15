@@ -481,7 +481,7 @@ const myForm = createForm<MyForm>({
   }),
 });
 
-const outcome = await myForm.submit((values) => api.save(values));
+const outcome = await myForm.submission.submit((values) => api.save(values));
 ```
 
 ## Конфигурируемые схемы

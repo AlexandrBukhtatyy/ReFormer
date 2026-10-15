@@ -108,7 +108,8 @@ form.firstName.clearIssues(); // снять замечания
 
 :::info Нода не проверяет правила
 Правила формы живут в отдельной `ValidationDefinition` и запускаются сборкой — `bundle.validate()`,
-`bundle.submit(handler)` — или раннером [`validateModel(model, rules)`](./schemas/validation-schema).
+`bundle.submission.submit(handler)` — или раннером
+[`validateModel(model, rules)`](./schemas/validation-schema).
 Раннер сам разносит замечания по нодам (`setIssues`), после чего они видны в сигнале `issues`.
 Метода `validate()` у ноды нет.
 :::

@@ -96,9 +96,10 @@ export const userRules = defineValidation<CreateUserRequest>(({ model }) => {
 
 ## Шаг 3. Сборка и отправка
 
-Модель, разметка и правила соединяются одной сборкой `createForm`. Отправка — `bundle.submit(handler)`:
-один прогон правил, при замечаниях обработчик не вызывается, а поля подсвечиваются. Значения
-модели уже совпадают по форме с request body — их можно отправлять как есть:
+Модель, разметка и правила соединяются одной сборкой `createForm`. Отправка —
+`bundle.submission.submit(handler)`: один прогон правил, при замечаниях обработчик не вызывается, а
+поля подсвечиваются. Значения модели уже совпадают по форме с request body — их можно отправлять
+как есть:
 
 ```tsx title="index.tsx"
 import { createForm } from '@reformer/core';
@@ -128,7 +129,7 @@ export function CreateUserPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const outcome = await bundle.submit(postUser);
+    const outcome = await bundle.submission.submit(postUser);
     if (outcome.status === 'submitted' && outcome.result) bundle.form.reset();
   };
 

@@ -72,8 +72,8 @@ export const registrationMessages = defineIssueMessages({
 4. A React component: one `createForm({ initial, schema, validation: registrationRules })` bundle in
    `useFormBundle`, fields — `<FormField control={form.email} />` under
    `<ValidationMessagesProvider messages={registrationMessages}>`, submission —
-   `bundle.submit(handler)`: if there are issues, the handler is not called and the fields are
-   highlighted.
+   `bundle.submission.submit(handler)`: if there are issues, the handler is not called and the
+   fields are highlighted.
 
 ---
 
@@ -183,7 +183,7 @@ The AI will find the problems:
 - The bundle is recreated on every render — there is no `useFormBundle` (the nodes and their state
   are lost)
 - The rules are not passed to the bundle (`validation`), and there is no submission via
-  `bundle.submit` — there is nothing to check and nothing to check it
+  `bundle.submission.submit` — there is nothing to check and nothing to check it
 - There is no `markAsTouched` call on blur — the field stays "untouched", so the error is hidden
   (`shouldShowIssues` = false)
 - Issues are not displayed anywhere: `issues` is an array of `{ code, params? }`, and the text for a
@@ -209,17 +209,18 @@ const MyForm = () => {
   const email = useFormControl(form.email);
   const message = useIssueMessage();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // ✅ a single run of the rules; if there are issues, the handler is not called and the fields are marked touched
-    await bundle.submit((values) => api.save(values));
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // ✅ a single run of the rules; if there are issues, the handler is not called
+    // and the whole form is marked touched
+    await bundle.submission.submit((values) => api.save(values));
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <input
         value={email.value}
-        onChange={(e) => form.email.setValue(e.target.value)}
+        onChange={(event) => form.email.setValue(event.target.value)}
         onBlur={() => form.email.markAsTouched()}
         aria-invalid={email.shouldShowError}
       />

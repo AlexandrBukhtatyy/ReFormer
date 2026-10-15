@@ -31,7 +31,7 @@ forms/
 | `form.behavior.ts`   | реакции: вычисляемые поля, доступность, правила узлов схемы (`hideWhen`, события)   |
 | `form.validation.ts` | `defineValidation` — правила формы; у визарда — правила шагов для потока `flow`     |
 | `data-sources.ts`    | словари опций и загрузчики (держим их вне схемы)                                    |
-| `api.ts`             | загрузка и отправка — обработчик для `bundle.submit`                                |
+| `api.ts`             | загрузка и отправка — обработчик для `bundle.submission.submit`                     |
 | `index.tsx`          | фабрика `createXxxForm()` (один `createForm`) + разметка                            |
 
 :::note Одно правило имён — `form.<роль>`
@@ -140,7 +140,8 @@ export function CreditApplicationPage() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    void bundle.submit(submitApplication); // обработчик из api.ts; при замечаниях не вызывается
+    // Обработчик из api.ts; при замечаниях он не вызывается.
+    void bundle.submission.submit(submitApplication);
   };
 
   return (
@@ -183,9 +184,10 @@ export interface CreditApplicationDerived {
 export type CreditApplicationForm = CreditApplication & CreditApplicationDerived;
 ```
 
-Перед отправкой вычисляемые поля отрезаются: обработчик `bundle.submit` получает значения формы
-и отдаёт на сервер только ввод (`toApplicationPayload(values)`). Список ключей сверяется с типом
-`CreditApplicationDerived`, поэтому новое вычисляемое поле не уедет на сервер незамеченным.
+Перед отправкой вычисляемые поля отрезаются: обработчик `bundle.submission.submit` получает
+значения формы и отдаёт на сервер только ввод (`toApplicationPayload(values)`). Список ключей
+сверяется с типом `CreditApplicationDerived`, поэтому новое вычисляемое поле не уедет на сервер
+незамеченным.
 
 :::tip Опциональные числа — `number | null`
 Числа, которые пользователь может очистить, объявляйте как `number | null` (конвенция «поле
@@ -294,7 +296,7 @@ credit-application/
 │   ├── load.ts                    # сеть: заявка и справочники
 │   ├── mapping.ts                 # ответ сервера → модель (model.patch + captureInitial)
 │   ├── payload.ts                 # toApplicationPayload — тело запроса без вычисляемых полей
-│   ├── submit.ts                  # обработчик bundle.submit и сообщение о результате
+│   ├── submit.ts                  # обработчик bundle.submission.submit и сообщение о результате
 │   └── renderer.ts                # правила узлов для рендерера: загрузка, отправка, навигация
 ├── api/                           # HTTP-запросы
 ├── components/                    # steps/, nested-forms/, ui/

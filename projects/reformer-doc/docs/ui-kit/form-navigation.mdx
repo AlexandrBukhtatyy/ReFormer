@@ -13,14 +13,14 @@ import { uiKitFormWizardDocConfig } from '@site/src/components/demo/examples/for
 тело шага, кнопки Назад/Далее/Отправить и прогресс рендерятся автоматически. Шаги и их правила —
 **поток шагов** сборки `createForm({ flow: { steps: [{ id, rules }] } })`: «Далее» проверяет
 правила текущего шага и не пускает дальше, пока у шага есть замечания. Отправка идёт через
-`bundle.submit(handler)` — один прогон всех правил.
+`bundle.submission.submit(handler)` — один прогон всех правил.
 
 Два способа подключения:
 
 - **в JSX** — `form={bundle.form}`, `flow={bundle.flow}` и декларативный массив `steps`
   (`{ number, title, icon?, body }`). Тело шага полиморфно: компонент `({ control }) => …`,
   ReactNode или узел схемы (с `renderStepBody`). `onSubmit` зовётся по нажатию — проверку делает
-  приложение: `onSubmit={() => void bundle.submit(api.send)}`;
+  приложение: `onSubmit={() => void bundle.submission.submit(api.send)}`;
 - **в схеме формы** — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`, шаг —
   `{ selector: 'loan', component: Step, componentProps: { title, icon }, children: [...] }`.
   Форму и поток визард берёт из сборки, которую рисует `FormRenderer`; `selector` шага — `id` шага

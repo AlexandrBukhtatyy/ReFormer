@@ -226,4 +226,4 @@ const behavior = defineFormBehavior<Form>(({ model }) => {
 - [Модель данных](../core-concepts/model) — массивы модели и её API.
 - [Ноды формы](../core-concepts/nodes) — `FormArray` и доступ к строкам.
 - [Вычисляемые поля](../behaviors/computed) — `compute` и агрегаты подробнее.
-- [Отправка и сброс](./submit-and-reset) — `bundle.submit` и сброс формы с массивами.
+- [Отправка и сброс](./submit-and-reset) — `bundle.submission.submit` и сброс формы с массивами.

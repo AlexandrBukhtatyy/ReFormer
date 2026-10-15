@@ -42,7 +42,7 @@ const weakPassword: Rule<string> = (value) =>
 :::info Как считается `valid`
 И статус прогона, и флаги поля выводятся из наличия **блокирующих** замечаний. Замечания с
 `severity: 'warning'` в этот расчёт не входят — поэтому поле с одними предупреждениями остаётся
-валидным, `bundle.submit` вызывает обработчик, а предупреждение всё равно показывается.
+валидным, `bundle.submission.submit` вызывает обработчик, а предупреждение всё равно показывается.
 :::
 
 ## Чтение замечаний
@@ -108,20 +108,20 @@ issues.filter((issue) => issue.severity === 'warning'); // только пред
 ## Серверные ошибки
 
 Бизнес-ошибки, пришедшие с сервера, кладут в поле напрямую через `setIssues` — форму при этом
-**не** сбрасывают. Удобнее всего — в обработчике `bundle.submit`:
+**не** сбрасывают. Удобнее всего — в обработчике `bundle.submission.submit`:
 
 ```tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
 
-  const outcome = await bundle.submit(async (values) => {
-    const res = await api.register(values);
-    if (!res.success) {
+  const outcome = await bundle.submission.submit(async (values) => {
+    const response = await api.register(values);
+    if (!response.success) {
       // Серверная ошибка — показываем в конкретном поле
       form.email.setIssues([{ code: 'emailTaken' }]);
       form.email.markAsTouched();
     }
-    return res;
+    return response;
   });
 
   if (outcome.status === 'submitted' && outcome.result.success) model.reset();
@@ -129,7 +129,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 };
 ```
 
-Если обработчик бросил исключение, `submit` не пробрасывает его, а возвращает
+Если обработчик бросил исключение, `submission.submit` не пробрасывает его, а возвращает
 `{ status: 'failed', error }`. `form.email.clearIssues()` (или `setIssues([])`) очищает замечания
 поля вручную; следующий прогон правил тоже перезапишет их.
 
@@ -140,7 +140,8 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 - статус прогона — `error`, сбой — в `result.failures` (`{ handle, error }`);
 - поле получает блокирующее замечание `ruleFailed` — у него есть текст в словаре локали;
-- `bundle.submit` обработчик не вызывает и возвращает `{ status: 'error', validation }`.
+- `bundle.submission.submit` обработчик не вызывает и возвращает `{ status: 'error', validation }`;
+  вся форма помечается тронутой, как и при `invalid`.
 
 ```typescript
 const result = await bundle.validate();

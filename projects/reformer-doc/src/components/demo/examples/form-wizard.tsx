@@ -78,7 +78,9 @@ function WizardSteps() {
   );
   // Отправка — через сборку: один прогон всех правил, при замечаниях обработчик не вызывается.
   const send = () =>
-    void bundle.submit(async (values) => setDone('✅ Отправлено: ' + JSON.stringify(values)));
+    void bundle.submission.submit(async (values) =>
+      setDone('✅ Отправлено: ' + JSON.stringify(values))
+    );
   return (
     <ValidationMessagesProvider messages={WIZARD_MESSAGES}>
       <div style={{ maxWidth: 480, width: '100%' }}>
@@ -93,7 +95,7 @@ function WizardExternalControl() {
   const bundle = useWizardBundle();
   const [status, setStatus] = useState<string | null>(null);
   const send = (label: string) =>
-    void bundle
+    void bundle.submission
       .submit(async () => setStatus(label))
       .then((result) => result.status === 'invalid' && setStatus('Проверьте поля формы'));
   const steps = useMemo(
@@ -141,7 +143,7 @@ export const uiKitFormWizardDocConfig: ComponentDocConfig = {
   name: 'FormWizard',
   importFrom: '@reformer/ui-kit/form-wizard',
   description:
-    'Стилизованный многошаговый визард поверх headless @reformer/cdk/form-wizard: декларативный список steps, индикатор шагов, кнопки Назад/Далее/Отправить и пошаговая валидация из коробки. Шаги и их правила — поток сборки createForm({ flow }), отправка — bundle.submit.',
+    'Стилизованный многошаговый визард поверх headless @reformer/cdk/form-wizard: декларативный список steps, индикатор шагов, кнопки Назад/Далее/Отправить и пошаговая валидация из коробки. Шаги и их правила — поток сборки createForm({ flow }), отправка — bundle.submission.submit.',
   variants: [
     {
       id: 'steps',
@@ -183,7 +185,7 @@ const STEPS: FormWizardStep<WForm>[] = [
   form={bundle.form}
   flow={bundle.flow}
   steps={STEPS}
-  onSubmit={() => void bundle.submit(api.send)} // один прогон всех правил
+  onSubmit={() => void bundle.submission.submit(api.send)} // один прогон всех правил
 />`,
     },
   ],
@@ -192,13 +194,13 @@ const STEPS: FormWizardStep<WForm>[] = [
       id: 'external-control',
       title: 'Внешнее управление через поток + ReactNode-шаг',
       description:
-        'Поток шагов сборки (flow.next / goTo) и bundle.submit управляют визардом снаружи дерева; body шага полиморфно — компонент, ReactNode или узел схемы.',
+        'Поток шагов сборки (flow.next / goTo) и bundle.submission.submit управляют визардом снаружи дерева; body шага полиморфно — компонент, ReactNode или узел схемы.',
       render: WizardExternalControl,
       code: `<FormWizard form={bundle.form} flow={bundle.flow} steps={STEPS} onSubmit={send} />
 
 // снаружи дерева:
 await bundle.flow?.next(); // проверяет правила текущего шага и идёт дальше
-const result = await bundle.submit((values) => api.submit(values)); // один прогон всех правил
+const result = await bundle.submission.submit((values) => api.send(values)); // один прогон всех правил
 if (result.status === 'invalid') showHint('Проверьте поля формы');`,
     },
   ],
@@ -219,7 +221,7 @@ if (result.status === 'invalid') showHint('Проверьте поля форм�
       name: 'onSubmit',
       type: '(values: T) => void | Promise<void>',
       description:
-        'Кнопка отправки последнего шага. Внутри сборки — через bundle.submit (после успешной проверки), без сборки — по нажатию.',
+        'Кнопка отправки последнего шага. Внутри сборки — через bundle.submission.submit (после успешной проверки), без сборки — по нажатию.',
     },
     {
       name: 'onStepChange / className',
@@ -228,8 +230,8 @@ if (result.status === 'invalid') showHint('Проверьте поля форм�
         'Колбэк смены шага и класс карточки шагов: сливается с классами по умолчанию (bg-white заменяет фон карточки).',
     },
     {
-      name: 'bundle.flow / bundle.submit',
-      type: 'next(), previous(), goTo(id) / submit(handler)',
+      name: 'bundle.flow / bundle.submission',
+      type: 'next(), previous(), goTo(id) / submit(handler), submitting',
       description:
         'Управление снаружи дерева (шапка страницы, breadcrumbs) — через сам поток и сборку.',
     },

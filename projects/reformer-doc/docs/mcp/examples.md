@@ -72,7 +72,8 @@ export const registrationMessages = defineIssueMessages({
 4. React-компонент: одна сборка `createForm({ initial, schema, validation: registrationRules })` в
    `useFormBundle`, поля — `<FormField control={form.email} />` под
    `<ValidationMessagesProvider messages={registrationMessages}>`, отправка —
-   `bundle.submit(handler)`: при замечаниях обработчик не вызывается, а поля подсвечиваются.
+   `bundle.submission.submit(handler)`: при замечаниях обработчик не вызывается, а поля
+   подсвечиваются.
 
 ---
 
@@ -180,8 +181,8 @@ const MyForm = () => {
 AI найдёт проблемы:
 
 - Сборка пересоздаётся на каждый рендер — нет `useFormBundle` (ноды и их состояние теряются)
-- Правила не переданы в сборку (`validation`), а отправки через `bundle.submit` нет — проверять
-  нечего и некому
+- Правила не переданы в сборку (`validation`), а отправки через `bundle.submission.submit` нет —
+  проверять нечего и некому
 - Нет вызова `markAsTouched` при blur — поле «не тронуто», поэтому ошибка скрыта (`shouldShowIssues` = false)
 - Замечания нигде не отображаются: `issues` — массив `{ code, params? }`, текст по коду даёт
   `useIssueMessage()` (или `FormField` с `ValidationMessagesProvider`)
@@ -206,17 +207,17 @@ const MyForm = () => {
   const email = useFormControl(form.email);
   const message = useIssueMessage();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // ✅ один прогон правил; при замечаниях обработчик не вызывается, поля помечаются тронутыми
-    await bundle.submit((values) => api.save(values));
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // ✅ один прогон правил; при замечаниях обработчик не вызывается, форма помечается тронутой
+    await bundle.submission.submit((values) => api.save(values));
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <input
         value={email.value}
-        onChange={(e) => form.email.setValue(e.target.value)}
+        onChange={(event) => form.email.setValue(event.target.value)}
         onBlur={() => form.email.markAsTouched()}
         aria-invalid={email.shouldShowError}
       />

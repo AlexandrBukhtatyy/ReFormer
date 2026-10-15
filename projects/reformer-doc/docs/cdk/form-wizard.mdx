@@ -50,7 +50,7 @@ function CreditWizard() {
       <FormWizard.Step component={ContactsStep} control={bundle.form} />
       <FormWizard.Step component={ConfirmStep} control={bundle.form} />
 
-      <FormWizard.Actions onSubmit={() => void bundle.submit(sendApplication)}>
+      <FormWizard.Actions onSubmit={() => void bundle.submission.submit(sendApplication)}>
         <FormWizard.Prev>Назад</FormWizard.Prev>
         <FormWizard.Next>Далее</FormWizard.Next>
         <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
@@ -61,8 +61,9 @@ function CreditWizard() {
 ```
 
 Полный набор правил сборка собирает сама: правила всех шагов плюс `extras`. Его проверяет
-`bundle.validate()` и отправка `bundle.submit(handler)`; один шаг — `bundle.validateStep('loan')`
-(неизвестный шаг — исключение). Правила — стабильные ссылки уровня модуля (`defineValidation`).
+`bundle.validate()` и отправка `bundle.submission.submit(handler)`; один шаг —
+`bundle.validateStep('loan')` (неизвестный шаг — исключение). Правила — стабильные ссылки уровня
+модуля (`defineValidation`).
 
 Порядок `FormWizard.Step` совпадает с порядком шагов потока. Шаги считаются и в обёртках
 (`<div>` вокруг шагов), render-props-функции визард не трогает.
@@ -78,11 +79,12 @@ function CreditWizard() {
 
 ## Отправка
 
-Отправка формы — `bundle.submit(handler)`: один прогон всех правил, при успехе — обработчик со
-значениями модели. Результат — `SubmitResult`:
+Отправка формы — отдельный объект сборки `bundle.submission`. `bundle.submission.submit(handler)` —
+один прогон всех правил, при успехе — обработчик со значениями модели; сигнал
+`bundle.submission.submitting` — идёт ли обработчик. Результат — `SubmitResult`:
 
 ```ts
-const outcome = await bundle.submit(sendApplication);
+const outcome = await bundle.submission.submit(sendApplication);
 // { status: 'submitted', result }                             — обработчик отработал
 // { status: 'invalid' | 'error' | 'cancelled', validation }   — проверка не пропустила
 // { status: 'failed', error }                                 — обработчик бросил исключение
@@ -91,10 +93,10 @@ const outcome = await bundle.submit(sendApplication);
 Как до неё доходит кнопка визарда:
 
 - **сборка в контексте** (рендерер или `FormBundleContext.Provider`) — `FormWizard.Submit` и кнопка
-  `submit` из render-props зовут `onSubmit` через `bundle.submit`: только после успешной проверки
-  всей формы, а при замечаниях поля помечаются тронутыми;
+  `submit` из render-props зовут `onSubmit` через `bundle.submission`: только после успешной
+  проверки всей формы, а при отказе (`invalid`, `error`) вся форма помечается тронутой;
 - **без контекста** (поток пропом `flow`) — `onSubmit` зовётся по нажатию, проверку делает
-  приложение: `onSubmit={() => void bundle.submit(sendApplication)}`, как в примере выше.
+  приложение: `onSubmit={() => void bundle.submission.submit(sendApplication)}`, как в примере выше.
 
 Из любого потомка визарда отправку можно вызвать и вручную — `submit` из `useFormWizard()` ведёт себя
 так же и возвращает `SubmitResult`.
@@ -179,13 +181,14 @@ createForm<CreditForm>({
 ```
 
 Значения — `'submit'` (по умолчанию, живой проверки нет), `'blur'`, `'change'` (с `debounce`) и
-`'afterFirstSubmit'` (тихо до первой отправки, затем по `liveAfterSubmit`). Стратегию армирует
+`'afterFirstSubmit'` (тихо до первой попытки отправки, затем по `liveAfterSubmit`; «Далее»,
+`bundle.validate()` и `bundle.validateStep()` живую фазу не включают). Стратегию армирует
 `useFormBundle`. Ошибки видны только у полей, которые трогали или меняли, поэтому поля следующих
 шагов не подсвечиваются раньше времени. Переход «Далее» и отправка от стратегии не зависят.
 
 :::info Прежний контракт
 `config={…}` с `validateStep` / `validateAll`, `defineSteps`, `useWizardStepValidation`,
 `FormWizardConfig`, `FormWizardHandle` и `ref` визарда удалены. Шаги и правила — `createForm({ flow })`,
-отправка — `bundle.submit(handler)`, управление снаружи — `bundle.flow`, живая проверка —
+отправка — `bundle.submission.submit(handler)`, управление снаружи — `bundle.flow`, живая проверка —
 `validation.strategy` сборки.
 :::

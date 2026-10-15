@@ -35,7 +35,8 @@ const usernameAvailable: AsyncRule<string> = async (value, { signal }) => {
 - прогон получает статус `error`, а сбой попадает в `ValidationResult.failures` (`{ handle, error }`);
 - поле получает блокирующее замечание `ruleFailed` (текст — из словаря локали: «Не удалось проверить
   поле. Повторите попытку»);
-- `bundle.submit(handler)` обработчик не вызывает и возвращает `{ status: 'error', validation }`.
+- `bundle.submission.submit(handler)` обработчик не вызывает и возвращает
+  `{ status: 'error', validation }`.
 
 Отмена устаревшего прогона (`AbortError` прерванного `fetch`) сбоем не считается.
 
@@ -147,23 +148,26 @@ const hasResults: AsyncRule<string> = async (value, { signal }) => {
 
 Пока идут async-правила поля, его нода в `pending` — `useFormControl(control).pending` и
 `FormField` из `@reformer/ui-kit` покажут «Проверка…» у конкретного поля. Состояние всей формы —
-сигналы сборки `bundle.validating` (идёт проверка) и `bundle.submitting` (идёт обработчик отправки).
-В компоненте их проще всего читать хуком-подпиской:
+сигналы сборки `bundle.validating` (идёт проверка) и `bundle.submission.submitting` (идёт
+обработчик отправки). Готового хука для произвольного сигнала в `@reformer/core` нет — в компоненте
+сигнал читают подпиской `useSyncExternalStore`, как это делают хуки ядра:
 
 ```tsx
 import { useSyncExternalStore } from 'react';
 import type { ReadonlySignal } from '@reformer/core/signals';
 
-function useSignalValue<T>(signal: ReadonlySignal<T>): T {
+// Свой хелпер приложения: подписка на сигнал и снимок его значения.
+function useSignalSnapshot<T>(source: ReadonlySignal<T>): T {
   return useSyncExternalStore(
-    (onChange) => signal.subscribe(onChange),
-    () => signal.peek()
+    (onChange) => source.subscribe(() => onChange()),
+    () => source.peek(),
+    () => source.peek() // SSR: снимок без подписки
   );
 }
 
 function SubmitButton() {
-  const validating = useSignalValue(signup.validating);
-  const submitting = useSignalValue(signup.submitting);
+  const validating = useSignalSnapshot(signup.validating);
+  const submitting = useSignalSnapshot(signup.submission.submitting);
   return (
     <button type="submit" disabled={validating || submitting}>
       {validating ? 'Проверка…' : 'Отправить'}
@@ -174,21 +178,21 @@ function SubmitButton() {
 
 ## Проверка на отправке
 
-На отправке `bundle.submit(handler)` прогоняет **все** правила, включая асинхронные (дожидается их),
-и разносит замечания по полям. Обработчик вызывается только при статусе `valid`
+На отправке `bundle.submission.submit(handler)` прогоняет **все** правила, включая асинхронные
+(дожидается их), и разносит замечания по полям. Обработчик вызывается только при статусе `valid`
 (`severity: 'warning'` не блокирует):
 
 ```tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const outcome = await signup.submit((values) => api.register(values));
+const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
+  const outcome = await signup.submission.submit((values) => api.register(values));
   if (outcome.status === 'error') showToast('Не удалось проверить имя, повторите попытку');
 };
 ```
 
 :::warning Дождитесь результата
-Проверка асинхронна — всегда `await`-айте `validate()` / `submit()` перед проверкой результата, иначе
-async-правила не успеют отработать.
+Проверка асинхронна — всегда `await`-айте `validate()` / `submission.submit()` перед проверкой
+результата, иначе async-правила не успеют отработать.
 :::
 
 ## Кросс-полевой async

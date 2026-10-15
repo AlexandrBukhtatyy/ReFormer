@@ -39,7 +39,9 @@ import {
 
 Собирает форму **один раз** за время жизни компонента: фабрика вызывается ленивым инициализатором
 `useState`. Заодно армирует живую проверку, если у сборки задана стратегия
-(`validation: { strategy: 'blur' }`), и снимает её при размонтировании.
+(`validation: { strategy: 'blur' }`), и снимает её при размонтировании. Сборку целиком хук не
+снимает: `bundle.dispose()` зовёт владелец сборки, когда форма больше не нужна (см.
+[Отправка и сброс](../patterns/submit-and-reset)).
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -260,8 +262,9 @@ function StepFooter({ flow }: { flow: FormFlow }) {
 
 Правила валидации — **отдельный слой** от разметки: `defineValidation(({ model }) => …)` из
 `@reformer/core/validation`, переданная в сборку полем `validation` (у визарда — ещё и правила шагов
-`flow`). Отправка — `bundle.submit(handler)`: один прогон всех правил; при замечаниях обработчик не
-вызывается, а поля помечаются тронутыми, при успехе — `handler(model.get())`.
+`flow`). Отправка — объект сборки `bundle.submission`: `bundle.submission.submit(handler)` — один
+прогон всех правил; при замечаниях обработчик не вызывается, а вся форма помечается тронутой, при
+успехе — `handler(model.get())`.
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -299,7 +302,7 @@ export function ContactFormView() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const outcome = await bundle.submit((values) => api.send(values));
+    const outcome = await bundle.submission.submit((values) => api.send(values));
     if (outcome.status === 'invalid') console.log('Проверьте форму');
   };
 
@@ -314,9 +317,10 @@ export function ContactFormView() {
 ```
 
 :::info Источник вердикта — уровень формы
-Вердикт на отправку даёт `bundle.submit` (или `bundle.validate()` — проверка без отправки), данные —
-значения модели. Методов `form.submit()` / `form.validate()` у нод нет. Правила с
-`severity: 'warning'` отправку не блокируют. Подробнее — [Отправка и сброс](../patterns/submit-and-reset).
+Вердикт на отправку даёт `bundle.submission.submit` (или `bundle.validate()` — проверка без
+отправки), данные — значения модели. Методов `form.submit()` / `form.validate()` у нод нет, как и
+`bundle.submit` у сборки. Правила с `severity: 'warning'` отправку не блокируют. Подробнее —
+[Отправка и сброс](../patterns/submit-and-reset).
 :::
 
 ---

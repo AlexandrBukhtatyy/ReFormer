@@ -61,16 +61,17 @@ const person = createForm<Person>({
 
 // Проверку запускает сборка: один прогон правил, замечания разнесены по нодам и показаны.
 async function submit() {
-  const outcome = await person.submit((values) => api.save(values)); // api — ваш слой сохранения
+  // api — ваш слой сохранения
+  const outcome = await person.submission.submit((values) => api.save(values));
   if (outcome.status === 'invalid') showHint('Проверьте выделенные поля');
 }
 ```
 
 :::info Ноды формы правил не исполняют
 Правила живут в схеме валидации, а не на нодах: их прогоняет сборка (`bundle.validate()`,
-`bundle.submit(handler)`, шаг потока) или раннер `validateModel(model, rules)`. Методы нод
-(`markAsTouched`, `setIssues`, `clearIssues`) управляют только состоянием нод. Схему валидации
-хранят в `const` — по её идентичности раннер отменяет устаревшие прогоны. Подробнее — в
+`bundle.submission.submit(handler)`, шаг потока) или раннер `validateModel(model, rules)`.
+Методы нод (`markAsTouched`, `setIssues`, `clearIssues`) управляют только состоянием нод. Схему
+валидации хранят в `const` — по её идентичности раннер отменяет устаревшие прогоны. Подробнее — в
 [Схеме валидации](./validation-schema).
 :::
 
@@ -259,13 +260,14 @@ const personValidation = defineValidation<Person>(({ model }) => {
 createForm({ initial | model, schema, validation, behavior, flow })
 ├── model: FormModel<T>          → источник истины для значений (или initial — модель из него)
 ├── schema: (model) => узел      → дерево: { model: model.$.x, component, componentProps }, children
-├── validation                   → defineValidation(...) — правила; запуск: validate() / submit()
+├── validation                   → defineValidation(...); запуск: validate() / submission.submit()
 ├── behavior: FormBehavior<T>    → defineFormBehavior(...) — реактивная логика
 └── flow: { steps }              → поток шагов: правила каждого шага, next() / previous() / goTo()
 ```
 
 Без сборки те же части соединяются вручную: `createFormFromModel({ model, schema: дерево, behavior })`
-строит ноды, а правила прогоняет раннер `validateModel(model, rules)`.
+строит ноды, а правила прогоняет раннер `validateModel(model, rules)`. Когда форма больше не нужна,
+такую форму снимает `disposeForm(form)`, а сборку `createForm` — `bundle.dispose()`.
 
 ## Дальше
 

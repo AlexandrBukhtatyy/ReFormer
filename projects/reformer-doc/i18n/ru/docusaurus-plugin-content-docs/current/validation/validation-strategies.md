@@ -6,9 +6,9 @@ sidebar_position: 5
 
 Как и **когда** запускать проверки. Валидация — **отдельный слой**: правила живут в
 `defineValidation` и подключаются к сборке `createForm({ validation })`. Проверку на отправке и на
-шаге потока сборка запускает сама (`bundle.submit`, `flow.next()`), а **живую** проверку во время
-ввода выбирают **декларативно, одной опцией** — `strategy` в конфиге валидации. Стратегия — тонкий
-слой поверх того же движка прогона: она лишь решает, когда запустить проверку и раскрывать ли
+шаге потока сборка запускает сама (`bundle.submission.submit`, `flow.next()`), а **живую** проверку
+во время ввода выбирают **декларативно, одной опцией** — `strategy` в конфиге валидации. Стратегия —
+тонкий слой поверх того же движка прогона: она лишь решает, когда запустить проверку и раскрывать ли
 замечания.
 
 ## Выбор стратегии одной опцией
@@ -55,9 +55,10 @@ function LoginFormView() {
     })
   );
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await login.submit((values) => api.login(values)); // сам раскрывает все замечания
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // Попытка отправки: при отказе раскрыта вся форма, afterFirstSubmit уходит в живую фазу.
+    await login.submission.submit((values) => api.login(values));
   };
 
   return (
@@ -72,15 +73,17 @@ function LoginFormView() {
 
 Четыре стратегии и их семантика:
 
-| `strategy`           | Когда прогон                         | `touch`                               | Что раскрывается                    |
-| -------------------- | ------------------------------------ | ------------------------------------- | ----------------------------------- |
-| `submit` (по умолч.) | только `validate()` / `submit()`     | `true`                                | всё — на отправке                   |
-| `blur`               | смена `touched` поля (потеря фокуса) | `false`                               | только сблюренные (по `touched`)    |
-| `change`             | на каждый ввод (+ `debounce`)        | `false`                               | только редактированные (по `dirty`) |
-| `afterFirstSubmit`   | тихо до 1-й проверки, затем live¹    | `true` один раз на 1-й, далее `false` | тихо → всё на отправке → далее live |
+| `strategy`           | Когда прогон                              | `touch`                                  | Что раскрывается                    |
+| -------------------- | ----------------------------------------- | ---------------------------------------- | ----------------------------------- |
+| `submit` (по умолч.) | только явно: `validate()` / отправка      | `true`                                   | всё — на отправке                   |
+| `blur`               | смена `touched` поля (потеря фокуса)      | `false`                                  | только сблюренные (по `touched`)    |
+| `change`             | на каждый ввод (+ `debounce`)             | `false`                                  | только редактированные (по `dirty`) |
+| `afterFirstSubmit`   | тихо до 1-й попытки отправки, затем live¹ | `true` на явных прогонах, live — `false` | тихо → всё на отправке → далее live |
 
-¹ `afterFirstSubmit` переходит в живую фазу после первой полной проверки (`validate()` /
-`submit()`); чем именно — задаёт `liveAfterSubmit: 'change' | 'blur'` (по умолчанию `'change'`).
+¹ `afterFirstSubmit` переходит в живую фазу только после **попытки отправки** —
+`bundle.submission.submit(handler)` или `submit()` хука `useFormValidation`. Проверка без отправки —
+`bundle.validate()`, `bundle.validateStep(id)`, «Далее» (`flow.next()`), `validate()` хука — фазу не
+меняет. Чем идёт живая фаза, задаёт `liveAfterSubmit: 'change' | 'blur'` (по умолчанию `'change'`).
 `debounce` (мс) применим к живому прогону (`change` и живой фазе `afterFirstSubmit`).
 
 Живой прогон не метит поля тронутыми: замечание видно, только когда поле уже `touched` или `dirty`
@@ -95,13 +98,14 @@ function LoginFormView() {
 
 ## Стратегия `submit` — проверка на отправке
 
-Дефолт: пока не позвали `validate()` / `submit()`, поля не проверяются; на отправке идёт полный
-прогон с раскрытием замечаний, они разносятся по нодам, форма подсвечивает поля сама.
+Дефолт: пока не позвали `bundle.validate()` или отправку, поля не проверяются; на отправке идёт
+полный прогон с раскрытием замечаний — при отказе (`invalid`, `error`) тронутой помечается вся
+форма, — они разносятся по нодам, форма подсвечивает поля сама.
 
 ```tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const outcome = await bundle.submit((values) => api.save(values));
+const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
+  const outcome = await bundle.submission.submit((values) => api.save(values));
   if (outcome.status !== 'submitted') return; // замечания уже на полях
 };
 ```
@@ -116,22 +120,31 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 Если форма собрана без `createForm` (например, `createFormFromModel` для формы элемента или своей
 сборки), ту же стратегию даёт хук `useFormValidation` из `@reformer/core/react`. Он берёт модель,
-правила и стратегию, армирует подписки и возвращает `submit()` (полный прогон с раскрытием
-замечаний, ответ — `boolean`), `validate()` (то же) и флаг `isValidating`:
+правила и стратегию, армирует подписки и возвращает два разных прогона и флаг `isValidating`:
+
+- `submit()` — **попытка отправки**: полный прогон; при отказе тронутой помечается вся форма,
+  `afterFirstSubmit` переходит в живую фазу. Для `onSubmit`;
+- `validate()` — **проверка без отправки**: полный прогон, раскрыты замечания проверенных полей,
+  фаза `afterFirstSubmit` не меняется. Для кнопки «Проверить».
+
+Оба отвечают `boolean` — `true` только при статусе `valid` — и стабильны между рендерами.
 
 ```tsx
 import { useFormValidation } from '@reformer/core/react';
 
-const { submit, isValidating } = useFormValidation({
+const { submit, validate, isValidating } = useFormValidation({
   model,
   schema: loginValidation,
-  strategy: 'blur',
+  strategy: 'afterFirstSubmit',
 });
 
-const onSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+const onSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
   if (await submit()) await api.login(model.get());
 };
+
+// Кнопка «Проверить»: показать замечания, не включая живую фазу.
+const onCheck = () => void validate();
 ```
 
 Вне React тот же прогон — прямой вызов раннера: `await validateModel(model, rules, { touch: true })`
@@ -170,10 +183,10 @@ const credit = useFormBundle(() =>
 
 Здесь `blur`-стратегия подсвечивает замечания по мере потери фокуса, но «Далее» по-прежнему
 проверяет правила текущего шага целиком (`flow.next()` → `{ status: 'stayed', reason: 'invalid' }`,
-если не прошли), а отправка — все правила одним прогоном (`bundle.submit`). Стратегия только
-добавляет ранний фидбек, гейт и финальную проверку не подменяет. Правила шага адресуются по `id`
-шага — он же `selector` узла шага в схеме, поэтому перестановка шагов не рассинхронизирует правила.
-См. [FormWizard](/docs/cdk/form-wizard).
+если не прошли), а отправка — все правила одним прогоном (`bundle.submission.submit`). Стратегия
+только добавляет ранний фидбек, гейт и финальную проверку не подменяет. Правила шага адресуются по
+`id` шага — он же `selector` узла шага в схеме, поэтому перестановка шагов не рассинхронизирует
+правила. См. [FormWizard](/docs/cdk/form-wizard).
 
 :::info Не тащите async в каждый шаг
 Проверка шага дожидается async-правил (`validateAsync`). Дорогую серверную проверку (код из СМС,
@@ -201,9 +214,14 @@ const credit = useFormBundle(() =>
     liveAfterSubmit?: 'change' | 'blur';
   }
 
+  interface FormValidationRunOptions {
+    touch?: true | 'all'; // true (по умолчанию) — проверенные поля; 'all' — при отказе вся форма
+    submit?: boolean; // попытка отправки: afterFirstSubmit переходит в живую фазу
+  }
+
   interface FormValidationController {
-    validate(): Promise<boolean>; // полный прогон, touch:true; переводит afterFirstSubmit в live-фазу
-    run(): Promise<ValidationResult>; // то же, с полным результатом
+    validate(): Promise<boolean>; // полный прогон, touch: true; фазу afterFirstSubmit не меняет
+    run(options?: FormValidationRunOptions): Promise<ValidationResult>; // с полным результатом
     start(): () => void; // армирует подписки (только на клиенте) → dispose
     dispose(): void;
     readonly isValidating: boolean;
@@ -212,19 +230,23 @@ const credit = useFormBundle(() =>
   ```
 
 - **Сборка** создаёт такой контроллер из `validation` и держит его в служебном поле
-  `bundle.validation` (`{ rules, controller }`); `useFormBundle` армирует его в `useEffect`, а
-  `bundle.validate()` — это `controller.run()`.
+  `bundle.validation` (`{ rules, controller }`); `useFormBundle` армирует его в `useEffect`.
+  `bundle.validate()` — это `controller.run()`, проверка отправки `bundle.submission.submit` —
+  `controller.run({ touch: 'all', submit: true })`.
 - **`useFormValidation`** — React-обёртка над фабрикой для формы без сборки: мемоизирует контроллер,
-  армирует его в `useEffect`, а `submit()` — это `controller.validate()`.
+  армирует его в `useEffect`; `submit()` — это `controller.run({ touch: 'all', submit: true })`,
+  `validate()` — `controller.validate()`.
 - **`revalidateWhen([deps], () => void validateModel(model, rules))`** остаётся низкоуровневым мостом
   от реактивного слоя поведения к раннеру — для точечных случаев, когда декларативной стратегии мало
   (например, перепроверка зависимого поля при изменении соседа, см. ниже).
 
 :::note `touch: true` раскрывает только проверенное
-`validate()` / `submit()` идут с `touch: true`, но помечают `touched` **только те поля, которые
-правило реально проверило**, — это не сплошной `form.markAsTouched()` (его `submit` делает лишь при
-непрошедшей отправке). Замечания с `severity: 'warning'` показываются пользователю, но **не блокируют**
-отправку — прогон получит статус `valid` (см. [Обработку ошибок](/docs/validation/error-handling)).
+Проверка (`validate()`) и успешная отправка помечают `touched` **только те поля, которые правило
+реально проверило**, — это не сплошной `form.markAsTouched()`. Вся форма помечается тронутой лишь
+при отказе отправки (`invalid`, `error`; в опциях прогона — `touch: 'all'`); отменённая отправка
+(`cancelled`) форму не трогает. Замечания с `severity: 'warning'` показываются пользователю, но
+**не блокируют** отправку — прогон получит статус `valid` (см.
+[Обработку ошибок](/docs/validation/error-handling)).
 :::
 
 ## Условная валидация

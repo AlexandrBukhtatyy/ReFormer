@@ -115,7 +115,7 @@ const contact = createForm<ContactForm>({
 contact.model; // модель — значения
 contact.form; // FormGroup<ContactForm> — ноды полей: contact.form.email
 await contact.validate(); // ValidationResult — проверить всю форму и показать замечания
-await contact.submit((values) => api.sendContact(values)); // проверить и, если всё верно, отправить
+await contact.submission.submit((values) => api.sendContact(values)); // проверить и отправить
 ```
 
 ## Шаг 6. Рендер и отправка
@@ -162,11 +162,11 @@ export function ContactFormView() {
   );
   const { form, model } = contact;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     // Один прогон всех правил: замечания разносятся по полям и показываются,
     // обработчик вызывается только если блокирующих замечаний нет.
-    const outcome = await contact.submit(sendContact);
+    const outcome = await contact.submission.submit(sendContact);
     if (outcome.status === 'submitted') model.reset();
   };
 
@@ -181,7 +181,8 @@ export function ContactFormView() {
 }
 ```
 
-`submit` возвращает `SubmitResult` — по `status` видно, чем закончилась отправка:
+Отправка — объект сборки `contact.submission`: `submit(handler)` возвращает `SubmitResult` — по
+`status` видно, чем закончилась отправка:
 
 | `status`                          | Что произошло                                                            |
 | --------------------------------- | ------------------------------------------------------------------------ |

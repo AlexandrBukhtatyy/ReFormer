@@ -153,9 +153,9 @@ function ContactForm() {
   );
 
   // 4. Отправка — один прогон правил; при замечаниях обработчик не вызывается, поля подсвечены
-  const onSubmit = (e) => {
-    e.preventDefault();
-    void bundle.submit((values) => console.log(values));
+  const onSubmit = (event) => {
+    event.preventDefault();
+    void bundle.submission.submit((values) => console.log(values));
   };
 
   // 5. Тонкий JSX — FormField делает всю работу

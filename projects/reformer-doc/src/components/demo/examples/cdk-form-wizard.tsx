@@ -111,7 +111,7 @@ function WizardRenderProps() {
 
           <FormWizard.Actions
             onSubmit={() =>
-              void bundle.submit(async (values) =>
+              void bundle.submission.submit(async (values) =>
                 setDone('✅ Отправлено: ' + JSON.stringify(values))
               )
             }
@@ -228,7 +228,7 @@ const bundle = useFormBundle(() =>
   </FormWizard.Progress>
   <FormWizard.Step component={Step1} control={form} />
   <FormWizard.Step component={Step2} control={form} />
-  <FormWizard.Actions onSubmit={() => void bundle.submit(api.send)}>
+  <FormWizard.Actions onSubmit={() => void bundle.submission.submit(api.send)}>
     {({ prev, next, submit, isLastStep }) => (
       <>
         <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>

@@ -4,21 +4,27 @@ sidebar_position: 3
 
 # Отправка и сброс
 
-Отправка — часть **уровня формы** сборки `createForm`: `bundle.submit(handler)` один раз прогоняет
-все правила формы и зовёт обработчик со значениями модели, только если блокирующих замечаний нет.
-Правила живут отдельно от разметки — в `validation` и в шагах `flow` сборки; при замечаниях
-`submit` сам помечает поля тронутыми, и UI подсвечивает ошибки. Сброс — `form.reset()` либо
-`model.reset()`, в зависимости от того, к чему нужно вернуться.
+Отправка — отдельный объект **уровня формы** сборки `createForm`: `bundle.submission`. Его
+`submit(handler)` один раз прогоняет все правила формы и зовёт обработчик со значениями модели,
+только если блокирующих замечаний нет; сигнал `submitting` говорит, идёт ли обработчик. Правила
+живут отдельно от разметки — в `validation` и в шагах `flow` сборки; при отказе отправка сама
+помечает форму тронутой, и UI подсвечивает ошибки. Сброс — `form.reset()` либо `model.reset()`, в
+зависимости от того, к чему нужно вернуться.
 
-## Жизненный цикл submit
+## Жизненный цикл отправки
 
-`bundle.submit(handler)`:
+`bundle.submission.submit(handler)`:
 
 1. прогоняет полный набор правил — `validation` сборки плюс правила шагов `flow` (включая
    async-правила);
-2. при замечаниях помечает поля тронутыми и возвращает результат проверки — `handler` не
-   вызывается;
-3. при успехе зовёт `handler(model.get())` и возвращает его результат.
+2. при отказе (`invalid`, `error`) помечает тронутой всю форму — видны замечания и тех полей,
+   которых правила не касались, — и возвращает результат проверки; `handler` не вызывается;
+3. при успехе зовёт `handler(model.get())` и возвращает его результат; тронутыми помечены только
+   поля, которые проверили правила.
+
+Это попытка отправки: стратегия `afterFirstSubmit` после неё переходит в живую фазу. Проверка без
+отправки — `bundle.validate()` — фазу не меняет (см.
+[Стратегии валидации](../validation/validation-strategies)).
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -54,7 +60,7 @@ export function SignupForm() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const outcome = await bundle.submit((values) => api.signup(values));
+    const outcome = await bundle.submission.submit((values) => api.signup(values));
     if (outcome.status === 'submitted') form.reset(); // чистый старт после успеха
   };
 
@@ -69,8 +75,8 @@ export function SignupForm() {
 ```
 
 :::warning Всегда `await` перед проверкой результата
-`submit` асинхронен — он дожидается async-правил и самого обработчика. Читайте результат только
-после `await`.
+`submission.submit` асинхронен — он дожидается async-правил и самого обработчика. Читайте результат
+только после `await`.
 :::
 
 :::info Правила ≠ разметка
@@ -81,7 +87,7 @@ export function SignupForm() {
 
 ## SubmitResult
 
-`submit` не бросает: и замечания, и исключение обработчика приходят вариантом результата.
+`submission.submit` не бросает: и замечания, и исключение обработчика приходят вариантом результата.
 
 ```typescript
 type SubmitResult<R> =
@@ -90,20 +96,20 @@ type SubmitResult<R> =
   | { status: 'failed'; error: unknown }; // обработчик бросил исключение
 ```
 
-| `status`    | Что произошло                                                            |
-| ----------- | ------------------------------------------------------------------------ |
-| `submitted` | правила прошли, обработчик вернул `result`                               |
-| `invalid`   | есть блокирующие замечания (`severity: 'warning'` отправку не блокирует) |
-| `error`     | правило не вернуло результат (например, упал async-запрос проверки)      |
-| `cancelled` | прогон отменён более новым либо модель изменилась, пока шла проверка     |
-| `failed`    | правила прошли, но обработчик бросил исключение — оно в `error`          |
+| `status`    | Что произошло                                                                       | Какие поля тронуты    |
+| ----------- | ----------------------------------------------------------------------------------- | --------------------- |
+| `submitted` | правила прошли, обработчик вернул `result`                                          | проверенные правилами |
+| `invalid`   | есть блокирующие замечания (`severity: 'warning'` отправку не блокирует)            | вся форма             |
+| `error`     | правило не вернуло результат (например, упал async-запрос проверки)                 | вся форма             |
+| `cancelled` | прогон отменён более новым, модель изменилась, пока шла проверка, либо сборку сняли | форма не помечается   |
+| `failed`    | правила прошли, но обработчик бросил исключение — оно в `error`                     | проверенные правилами |
 
 `validation` — полный `ValidationResult` прогона: по нему можно, например, перевести визард на шаг
 с первой ошибкой.
 
 ## Серверные ошибки и сбои
 
-Обработчик `submit` — обычная async-функция: в нём удобно разобрать ответ сервера. Бизнес-ошибку
+Обработчик отправки — обычная async-функция: в нём удобно разобрать ответ сервера. Бизнес-ошибку
 кладите в поле через `setIssues` — код замечания получает текст из словаря формы
 (`defineIssueMessages` + `ValidationMessagesProvider messages`). Значения при ошибке не
 сбрасывайте.
@@ -117,7 +123,7 @@ export const signupMessages = defineIssueMessages({
 
 const handleSubmit = async (event: React.FormEvent) => {
   event.preventDefault();
-  const outcome = await bundle.submit(async (values) => {
+  const outcome = await bundle.submission.submit(async (values) => {
     const response = await api.signup(values);
     // бизнес-ошибка сервера — показываем на поле, значения не трогаем
     if (response.code === 'EMAIL_TAKEN') form.email.setIssues([{ code: 'email.taken' }]);
@@ -131,24 +137,27 @@ const handleSubmit = async (event: React.FormEvent) => {
 
 ## Индикация отправки
 
-Сборка держит сигналы `bundle.submitting` (идёт ли обработчик) и `bundle.validating` (идёт ли
-проверка). В React их читают через `useSyncExternalStore`:
+Сборка держит сигналы `bundle.submission.submitting` (идёт ли обработчик) и `bundle.validating`
+(идёт ли проверка). Готового хука для произвольного сигнала в `@reformer/core` нет: в React сигнал
+читают подпиской `useSyncExternalStore` — так же, как это делают хуки ядра:
 
 ```tsx
 import { useSyncExternalStore } from 'react';
 import type { FormBundle } from '@reformer/core';
 import type { ReadonlySignal } from '@reformer/core/signals';
 
-function useSignalValue<T>(source: ReadonlySignal<T>): T {
+// Свой хелпер приложения: подписка на сигнал и снимок его значения.
+function useSignalSnapshot<T>(source: ReadonlySignal<T>): T {
   return useSyncExternalStore(
     (onChange) => source.subscribe(() => onChange()),
-    () => source.peek()
+    () => source.peek(),
+    () => source.peek() // SSR: снимок без подписки
   );
 }
 
 function SubmitButton({ bundle }: { bundle: FormBundle<SignupForm> }) {
-  const submitting = useSignalValue(bundle.submitting);
-  const validating = useSignalValue(bundle.validating);
+  const submitting = useSignalSnapshot(bundle.submission.submitting);
+  const validating = useSignalSnapshot(bundle.validating);
   const busy = submitting || validating;
   return (
     <Button type="submit" disabled={busy}>
@@ -203,10 +212,41 @@ function ResetButton({ bundle }: { bundle: FormBundle<SignupForm> }) {
 состояние полей, как выше.
 :::
 
+## Снятие сборки — `bundle.dispose()`
+
+Владелец сборки — тот, кто вызвал `createForm`. Вне React (тесты, сервер, своя оболочка) сборку
+снимают, когда форма больше не нужна: `bundle.dispose()` снимает поведение формы, подписки нод и
+живую проверку, а идущие проверки — полная, шага, отправки — получают `cancelled`, и их замечания на
+ноды не ложатся. Значения модели остаются; повторный вызов ничего не делает.
+
+```typescript
+import { createForm } from '@reformer/core';
+
+const signup = createForm<SignupForm>({
+  initial: { name: '', email: '' },
+  validation: signupRules,
+});
+try {
+  const outcome = await signup.submission.submit((values) => api.signup(values));
+  expect(outcome.status).toBe('invalid');
+} finally {
+  signup.dispose();
+}
+```
+
+- Форму из `createFormFromModel` (без сборки) снимает `disposeForm(form)` — поведение и подписки
+  нод.
+- `useFormBundle` при размонтировании снимает только живую проверку, которую сам армировал;
+  сборку целиком он не снимает.
+
 :::info Прежний контракт
 `form.submit()`, `form.submitWithResult()`, сигнал `form.submitting`, `form.touchAll()`, `form.validate()`
-и `SubmitOptions` (`skipValidation`, `skipTouch`) удалены. Отправка — `bundle.submit(handler)` с
-`SubmitResult`, отметка полей — `form.markAsTouched()`, проверка без отправки — `bundle.validate()`.
+и `SubmitOptions` (`skipValidation`, `skipTouch`) удалены. Отправка —
+`bundle.submission.submit(handler)` с `SubmitResult`, отметка полей — `form.markAsTouched()`,
+проверка без отправки — `bundle.validate()`. Метода `bundle.submit` и сигнала `bundle.submitting` у
+сборки тоже нет — это `bundle.submission`. Отправку без сборки строит низкоуровневый
+`createSubmission({ check, values })`: с `check: undefined` обработчик получает `values()` без
+проверки.
 :::
 
 ## Дальше
