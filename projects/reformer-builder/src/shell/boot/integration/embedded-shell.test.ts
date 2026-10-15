@@ -8,7 +8,8 @@
  * Мест два:
  *
  * - **рядом с приложением** — свой документ (рамка или вкладка), общий источник: билдер
- *   хозяин документа, но хранилище источника не сносит и знает адреса приложения;
+ *   хозяин документа, на источнике сносит только своё пространство имён и знает адреса
+ *   приложения;
  * - **без названного окружения** — своя вкладка браузера. Умолчание обязано остаться ею, иначе
  *   десяток вызывающих (тесты сборки, домены-плагины) тихо получили бы другое окружение.
  *
@@ -32,7 +33,10 @@ import {
   type AppPreviewService,
   type ApplicationProfilesService,
 } from '@reformer/builder-plugin-api/internal';
-import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
+import {
+  createMemoryIndexedDb,
+  createMemoryOpfs,
+} from '@/shell/platform/workspace/storage/testing';
 
 const minimalProfile = defineProfile({
   id: 'minimal',
@@ -65,6 +69,28 @@ function stubBrowser(): DocumentDouble {
   vi.stubGlobal('window', { ...listeners, location: { reload: vi.fn() } });
   vi.stubGlobal('document', documentDouble);
   return documentDouble;
+}
+
+/** `sessionStorage` в памяти: ключи, индексы и `removeItem` — всё, что трогает очистка. */
+function memoryWebStorage(initial: Record<string, string>): Storage & { keys(): string[] } {
+  const entries = new Map(Object.entries(initial));
+  return {
+    get length() {
+      return entries.size;
+    },
+    key: (index: number) => [...entries.keys()][index] ?? null,
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      entries.set(key, value);
+    },
+    removeItem: (key: string) => {
+      entries.delete(key);
+    },
+    clear: () => {
+      entries.clear();
+    },
+    keys: () => [...entries.keys()],
+  };
 }
 
 let app: BuilderApp | null = null;
@@ -147,11 +173,48 @@ describe('сборка рядом с приложением', () => {
     expect([...page.themeClasses]).toEqual(['dark']);
   });
 
-  it('очистки хранилища нет: источник общий с приложением', async () => {
+  it('очистка хранилища есть, но сносит только пространство имён билдера', async () => {
     const { started } = startBeside();
     await started.ready;
+    // Источник приложения: рядом с нашим — его собственное, и в каждой области. Плюс старая
+    // раскладка в корне: очистка обязана сначала дать ей переехать, иначе та её переживёт.
+    const opfs = createMemoryOpfs();
+    await opfs.root.getDirectoryHandle('reformer-builder', { create: true });
+    await opfs.root.getDirectoryHandle('reformer-forms', { create: true });
+    const legacy = await opfs.root.getDirectoryHandle('ws', { create: true });
+    await (
+      await legacy.getDirectoryHandle('w1', { create: true })
+    ).getDirectoryHandle('files', {
+      create: true,
+    });
+    vi.stubGlobal('navigator', { storage: { getDirectory: () => Promise.resolve(opfs.root) } });
+    const session = memoryWebStorage({ 'reformer-builder.mode': 'on', 'host.session': 'x' });
+    vi.stubGlobal('sessionStorage', session);
+    const deleted: string[] = [];
+    Object.assign(globalThis.indexedDB, {
+      databases: () =>
+        Promise.resolve([{ name: 'reformer-builder.workspace' }, { name: 'reformer-forms_v1' }]),
+      deleteDatabase: (name: string) => {
+        deleted.push(name);
+        const request = { onsuccess: null as (() => void) | null };
+        queueMicrotask(() => request.onsuccess?.());
+        return request;
+      },
+    });
 
-    expect(started.storage).toBeUndefined();
+    expect(started.storage).toBeDefined();
+    const report = await started.storage?.purge();
+
+    expect(report?.failures).toEqual([]);
+    expect(deleted).toEqual(['reformer-builder.workspace']);
+    expect(session.keys()).toEqual(['host.session']);
+    await expect(opfs.root.getDirectoryHandle('reformer-forms')).resolves.toBeDefined();
+    await expect(opfs.root.getDirectoryHandle('reformer-builder')).rejects.toMatchObject({
+      name: 'NotFoundError',
+    });
+    await expect(opfs.root.getDirectoryHandle('ws')).rejects.toMatchObject({
+      name: 'NotFoundError',
+    });
   });
 
   it('выбор профиля предлагается: перезагрузить свой документ билдер вправе', async () => {

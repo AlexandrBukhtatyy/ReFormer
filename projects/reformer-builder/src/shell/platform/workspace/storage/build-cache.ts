@@ -10,7 +10,7 @@
  * корень рядом с `ws/`, а не внутри него.
  *
  * ```text
- * OPFS
+ * OPFS/reformer-builder/                       пространство имён билдера, см. `namespace.ts`
  * ├── ws/{workspaceId}/{files,base}/<путь>     рабочая копия
  * └── build/{workspaceId}/{версия}/
  *     ├── file/{xx}/{hash}.js                  транспиляция одного файла
@@ -44,8 +44,9 @@
 
 import type { OpfsDirectoryHandle, OpfsFileHandle, OpfsStoreOptions } from './opfs';
 import { assertWorkspaceId } from './layout';
+import { builderDirectory } from './namespace';
 
-/** Корень кэша сборки внутри OPFS. Сосед `ws/`, а не его часть. */
+/** Корень кэша сборки внутри пространства имён билдера. Сосед `ws/`, а не его часть. */
 export const BUILD_ROOT_DIR = 'build';
 
 /**
@@ -129,11 +130,6 @@ interface TimedFile {
   text(): Promise<string>;
 }
 
-async function defaultDirectory(): Promise<OpfsDirectoryHandle> {
-  const root = await navigator.storage.getDirectory();
-  return root as unknown as OpfsDirectoryHandle;
-}
-
 /**
  * Кэш сборки над OPFS.
  *
@@ -145,7 +141,7 @@ export function createBuildCacheStore(
   options: OpfsStoreOptions = {}
 ): BuildCacheStore {
   assertWorkspaceId(workspaceId);
-  const provider = options.directory ?? defaultDirectory;
+  const provider = options.directory ?? builderDirectory;
 
   let rootPromise: Promise<OpfsDirectoryHandle> | undefined;
   const root = (): Promise<OpfsDirectoryHandle> => {
@@ -289,7 +285,7 @@ export function createBuildCacheStore(
 export async function listStoredBuildCaches(
   options: OpfsStoreOptions = {}
 ): Promise<readonly string[]> {
-  const provider = options.directory ?? defaultDirectory;
+  const provider = options.directory ?? builderDirectory;
   let parent: OpfsDirectoryHandle;
   try {
     parent = await (await provider()).getDirectoryHandle(BUILD_ROOT_DIR);

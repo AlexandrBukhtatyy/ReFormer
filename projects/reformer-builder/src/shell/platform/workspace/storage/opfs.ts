@@ -37,6 +37,11 @@ import {
   storagePath,
   type StorageLayer,
 } from './layout';
+import { builderDirectory } from './namespace';
+
+// Проверка поддержки живёт рядом с корнем по умолчанию (`namespace.ts`); отсюда она
+// реэкспортируется, чтобы вызывающие, решающие про деградацию, не меняли импорт.
+export { opfsSupported } from './namespace';
 
 /*
  * Структурные типы OPFS.
@@ -172,37 +177,9 @@ export interface OpfsStoreOptions {
   readonly lock?: LockRunner;
 }
 
-/**
- * Есть ли OPFS в этом окружении.
- *
- * Вызывающий обязан деградировать, а не падать: в приватном режиме части движков и в старых
- * сборках `navigator.storage.getDirectory` нет вовсе, и это нормальный режим работы, в котором
- * рабочая область живёт только в памяти сессии.
- */
-export function opfsSupported(): boolean {
-  try {
-    return (
-      typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function'
-    );
-  } catch {
-    // Обращение к `navigator.storage` в отдельных окружениях само бросает.
-    return false;
-  }
-}
-
-/**
- * Настоящий корень OPFS.
- *
- * Единственное приведение типа в модуле, и оно здесь неизбежно: глобальный
- * `FileSystemDirectoryHandle` не объявляет `values()` при нашем наборе lib (см. шапку).
- */
-async function defaultDirectory(): Promise<OpfsDirectoryHandle> {
-  if (!opfsSupported()) {
-    throw new StorageError('opfs-unavailable', 'OPFS недоступен в этом окружении');
-  }
-  const root = await navigator.storage.getDirectory();
-  return root as unknown as OpfsDirectoryHandle;
-}
+// Корень по умолчанию — пространство имён билдера (`reformer-builder/`), а не корень
+// источника: см. `namespace.ts`. Ниже него хранилище попасть не может — это и есть граница,
+// по которой во встроенном билдере работает «Очистить кэш».
 
 /** Замок через `navigator.locks`, а где его нет — прямой вызов. */
 async function defaultLock<T>(name: string, body: () => Promise<T>): Promise<T> {
@@ -240,7 +217,7 @@ export function createWorkspaceFileStore(
   options: OpfsStoreOptions = {}
 ): WorkspaceFileStore {
   assertWorkspaceId(workspaceId);
-  const provider = options.directory ?? defaultDirectory;
+  const provider = options.directory ?? builderDirectory;
   const lock: LockRunner = options.lock ?? defaultLock;
 
   let rootPromise: Promise<OpfsDirectoryHandle> | undefined;
@@ -490,7 +467,7 @@ export function createWorkspaceFileStore(
 export async function listStoredWorkspaces(
   options: OpfsStoreOptions = {}
 ): Promise<readonly string[]> {
-  const provider = options.directory ?? defaultDirectory;
+  const provider = options.directory ?? builderDirectory;
   let parent: OpfsDirectoryHandle;
   try {
     parent = await (await provider()).getDirectoryHandle(WORKSPACE_ROOT_DIR);

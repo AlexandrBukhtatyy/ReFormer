@@ -177,6 +177,7 @@ import {
   TYPESCRIPT_TRANSPILER_ID,
 } from '@/shell/platform/plugin/typescript-transpiler';
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
+import { builderDirectory } from '@/shell/platform/workspace/storage/namespace';
 import { createPluginModules } from './plugin-modules';
 import { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api/internal';
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
@@ -738,6 +739,12 @@ export function boot(options: BootOptions): BuilderApp {
   // раз, а проектов у него много. Проектным остаётся запуск — включённость и права спрашивает
   // каталог, поэтому чужой код не поднимется в проекте, которого человек ещё не открывал.
   const installedStore = createInstalledPluginStore();
+  // Корень хранилищ билдера в OPFS прогревается ПРИ СТАРТЕ, а не при первом обращении: вместе
+  // с ним один раз переезжает старая раскладка (`storage/legacy-layout`), и ждать открытия проекта
+  // ей нельзя — иначе «Очистить кэш» до открытия проекта не увидел бы старых рабочих копий.
+  // Отказ (нет OPFS: приватное окно, старый движок) — законное окружение, о нём скажет первое
+  // хранилище своим кодом `opfs-unavailable`, а не прогрев.
+  void builderDirectory().catch(() => undefined);
   /** Клиент npm — один на приложение: состояния у него нет, кроме адреса реестра. */
   const npmRegistry = createNpmRegistryClient();
   /**
@@ -1347,8 +1354,9 @@ export function boot(options: BootOptions): BuilderApp {
     // а не список баз: перечисление, протёкшее в оболочку, разошлось бы с составом
     // хранилищ при первом же новом кэше.
     //
-    // МОЖНО ли его сносить, решает окружение: источник встроенного билдера общий с приложением.
-    // Без порта команда «Очистить кэш» не регистрируется, и пункт меню не рисуется.
+    // ЧТО сносить — весь источник или только пространство имён билдера, — решает окружение:
+    // источник встроенного билдера общий с приложением. Без порта команда «Очистить кэш»
+    // не регистрируется, и пункт меню не рисуется.
     ...(purgeStorage === undefined || reload === undefined
       ? {}
       : {

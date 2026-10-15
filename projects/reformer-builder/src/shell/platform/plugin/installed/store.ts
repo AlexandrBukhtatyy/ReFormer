@@ -27,12 +27,16 @@
  * @module shell/platform/plugin/installed/store
  */
 
+import { builderDirectory } from '@/shell/platform/workspace/storage/namespace';
 import type {
   OpfsDirectoryHandle,
   OpfsDirectoryProvider,
 } from '@/shell/platform/workspace/storage/opfs';
 
-/** Корень установленных плагинов в OPFS. Соседний с `ws/`, а не внутри него. */
+/**
+ * Корень установленных плагинов в OPFS — внутри пространства имён билдера (`namespace.ts`),
+ * соседний с `ws/`, а не внутри него.
+ */
 export const INSTALLED_ROOT_DIR = 'plugins';
 
 /** Имя записи о составе. */
@@ -96,13 +100,6 @@ function assertSegment(value: string, what: string): void {
 }
 
 const encoder = new TextEncoder();
-
-async function defaultDirectory(): Promise<OpfsDirectoryHandle> {
-  // Приведение — то же, что у хранилища рабочей области и по той же причине: структурные типы
-  // OPFS объявлены локально, потому что в `lib.dom` нет ни `values()`, ни синхронного хэндла.
-  const root = await navigator.storage.getDirectory();
-  return root as unknown as OpfsDirectoryHandle;
-}
 
 /** Каталог по сегментам. `create: false` и отсутствие каталога — `null`, а не исключение. */
 async function dirOf(
@@ -183,7 +180,7 @@ function parseState(text: string | null): InstalledPluginRecord[] {
 export function createInstalledPluginStore(
   options: InstalledStoreOptions = {}
 ): InstalledPluginStore {
-  const provider = options.directory ?? defaultDirectory;
+  const provider = options.directory ?? builderDirectory;
 
   /** Корень установленных. `create` — только когда собираемся писать. */
   const rootOf = async (create: boolean): Promise<OpfsDirectoryHandle | null> => {

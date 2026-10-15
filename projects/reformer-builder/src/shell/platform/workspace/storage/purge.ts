@@ -14,6 +14,15 @@
  * только как ЗАПАСНОЙ путь: `indexedDB.databases()` есть не везде (Safari отдаёт его
  * с оговорками, старые сборки не отдают вовсе), а без перечисления удалять было бы нечего.
  *
+ * ## Область видимости — соглашение, а не список
+ *
+ * На чужом источнике (встроенный билдер открыт с адреса приложения) «всё» сносить нельзя: там
+ * лежат данные приложения. Граница при этом всё равно не список — это {@link PurgeScope},
+ * предикат «запись наша», который отвечает по СОГЛАШЕНИЮ из `namespace.ts`: один корень OPFS,
+ * один префикс имён. Соглашение держит единственный провайдер корня, а не дисциплина, поэтому
+ * оно, в отличие от списка, не протухает с каждым новым кэшем. Без области видимости очистка
+ * сносит всё — поведение вкладки, где источник свой.
+ *
  * ## Открытое соединение не мешает — оно откладывает
  *
  * `deleteDatabase` при живом соединении не отказывает, а зовёт `onblocked` и ждёт. Поэтому
@@ -82,6 +91,9 @@ export interface PurgeWebStorage {
   /** `local` либо `session` — попадает в отчёт именем записи. */
   readonly name: string;
   clear(): void;
+  /** Все ключи — для очистки по области видимости, где `clear()` снёс бы и чужое. */
+  keys(): readonly string[];
+  removeItem(key: string): void;
 }
 
 /** Окружение очистки. Всё необязательно: отсутствующая область просто не трогается. */
@@ -100,6 +112,13 @@ export interface PurgeEnvironment {
   readonly knownDatabases?: readonly string[];
 }
 
+/**
+ * Область видимости очистки: `true` — запись наша, её можно снести.
+ *
+ * Имя записи — то же, что попадает в отчёт: запись корня OPFS, база, кэш, ключ `*Storage`.
+ */
+export type PurgeScope = (area: PurgeArea, name: string) => boolean;
+
 /** Накопитель отчёта: обход складывает сюда, вызывающий получает замороженный итог. */
 interface Tally {
   removed: number;
@@ -108,18 +127,24 @@ interface Tally {
 }
 
 /**
- * Сносит всё, что приложение держит на этом источнике.
+ * Сносит всё, что приложение держит на этом источнике, — либо только то, что в области видимости.
+ *
+ * `scope` — предикат «запись наша» (см. шапку). `null` — весь источник: поведение вкладки,
+ * где чужого нет.
  *
  * Не бросает: любой отказ — запись в {@link PurgeReport.failures}. Исключение здесь означало бы,
  * что вызывающий не знает, что успело снестись до него, — а знать это и есть весь смысл отчёта.
  */
-export async function purgeOriginStorage(env: PurgeEnvironment = {}): Promise<PurgeReport> {
+export async function purgeOriginStorage(
+  env: PurgeEnvironment = {},
+  scope: PurgeScope | null = null
+): Promise<PurgeReport> {
   const tally: Tally = { removed: 0, blocked: [], failures: [] };
 
-  await purgeOpfs(env.directory ?? null, tally);
-  await purgeIndexedDb(env.indexedDb ?? null, env.knownDatabases ?? [], tally);
-  await purgeCaches(env.caches ?? null, tally);
-  purgeWebStorage(env.webStorage ?? [], tally);
+  await purgeOpfs(env.directory ?? null, scope, tally);
+  await purgeIndexedDb(env.indexedDb ?? null, env.knownDatabases ?? [], scope, tally);
+  await purgeCaches(env.caches ?? null, scope, tally);
+  purgeWebStorage(env.webStorage ?? [], scope, tally);
 
   return Object.freeze({
     removed: tally.removed,
@@ -135,7 +160,11 @@ export async function purgeOriginStorage(env: PurgeEnvironment = {}): Promise<Pu
  * Имена собираются в список до удаления, потому что итератор идёт по тому же каталогу,
  * который мы правим, и удаление на ходу — это обход изменяемой коллекции.
  */
-async function purgeOpfs(provider: OpfsDirectoryProvider | null, tally: Tally): Promise<void> {
+async function purgeOpfs(
+  provider: OpfsDirectoryProvider | null,
+  scope: PurgeScope | null,
+  tally: Tally
+): Promise<void> {
   if (provider === null) return;
 
   let root: OpfsDirectoryHandle;
@@ -158,7 +187,7 @@ async function purgeOpfs(provider: OpfsDirectoryProvider | null, tally: Tally): 
     return;
   }
 
-  for (const name of names) {
+  for (const name of names.filter((name) => inScope(scope, 'opfs', name))) {
     try {
       await root.removeEntry(name, { recursive: true });
       tally.removed += 1;
@@ -168,15 +197,18 @@ async function purgeOpfs(provider: OpfsDirectoryProvider | null, tally: Tally): 
   }
 }
 
-/** Все базы источника. */
+/** Все базы источника — либо те из них, что в области видимости. */
 async function purgeIndexedDb(
   factory: PurgeIndexedDbFactory | null,
   known: readonly string[],
+  scope: PurgeScope | null,
   tally: Tally
 ): Promise<void> {
   if (factory === null) return;
 
-  const names = await databaseNames(factory, known, tally);
+  const names = (await databaseNames(factory, known, tally)).filter((name) =>
+    inScope(scope, 'indexeddb', name)
+  );
   for (const name of names) {
     try {
       const outcome = await deleteDatabase(factory, name);
@@ -246,7 +278,11 @@ function deleteDatabase(
 }
 
 /** Кэши `CacheStorage`: их заводит движок редактора и сервис-воркер, если он появится. */
-async function purgeCaches(caches: PurgeCacheStorage | null, tally: Tally): Promise<void> {
+async function purgeCaches(
+  caches: PurgeCacheStorage | null,
+  scope: PurgeScope | null,
+  tally: Tally
+): Promise<void> {
   if (caches === null) return;
 
   let keys: readonly string[];
@@ -257,7 +293,7 @@ async function purgeCaches(caches: PurgeCacheStorage | null, tally: Tally): Prom
     return;
   }
 
-  for (const key of keys) {
+  for (const key of keys.filter((key) => inScope(scope, 'cache', key))) {
     try {
       await caches.delete(key);
       tally.removed += 1;
@@ -273,16 +309,35 @@ async function purgeCaches(caches: PurgeCacheStorage | null, tally: Tally): Prom
  * Правило проекта — «`localStorage` не используем нигде», и очистка ему не противоречит:
  * своего мы туда не кладём, но кладут библиотеки (движок редактора помнит там состояние
  * вида), а «очистить кэш», оставляющее чужой мусор, обещает больше, чем делает.
+ *
+ * С областью видимости `clear()` не годится — он снёс бы и ключи приложения, — поэтому ключи
+ * снимаются по одному. Список ключей берётся ДО удаления: `removeItem` сдвигает индексы
+ * `key(i)`, и обход на ходу пропускал бы каждый второй.
  */
-function purgeWebStorage(storages: readonly PurgeWebStorage[], tally: Tally): void {
+function purgeWebStorage(
+  storages: readonly PurgeWebStorage[],
+  scope: PurgeScope | null,
+  tally: Tally
+): void {
   for (const storage of storages) {
     try {
-      storage.clear();
-      tally.removed += 1;
+      if (scope === null) {
+        storage.clear();
+        tally.removed += 1;
+        continue;
+      }
+      for (const key of storage.keys().filter((key) => scope('web-storage', key))) {
+        storage.removeItem(key);
+        tally.removed += 1;
+      }
     } catch (error) {
       tally.failures.push({ area: 'web-storage', name: storage.name, error });
     }
   }
+}
+
+function inScope(scope: PurgeScope | null, area: PurgeArea, name: string): boolean {
+  return scope === null || scope(area, name);
 }
 
 /** «Хранилища здесь нет» — то же различение, что у `opfsSupported`. */
@@ -322,6 +377,17 @@ export function browserPurgeEnvironment(
           name,
           clear: () => {
             storage.clear();
+          },
+          keys: () => {
+            const keys: string[] = [];
+            for (let index = 0; index < storage.length; index += 1) {
+              const key = storage.key(index);
+              if (key !== null) keys.push(key);
+            }
+            return keys;
+          },
+          removeItem: (key) => {
+            storage.removeItem(key);
           },
         });
       }

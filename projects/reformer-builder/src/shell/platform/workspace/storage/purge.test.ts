@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { OPFS_ROOT_DIR, builderStorageScope } from './namespace';
 import {
   purgeOriginStorage,
   type PurgeCacheStorage,
@@ -153,26 +154,15 @@ describe('purgeOriginStorage', () => {
         return Promise.resolve(true);
       },
     };
-    const cleared: string[] = [];
-    const webStorage: readonly PurgeWebStorage[] = [
-      {
-        name: 'local',
-        clear: () => {
-          cleared.push('local');
-        },
-      },
-      {
-        name: 'session',
-        clear: () => {
-          cleared.push('session');
-        },
-      },
-    ];
+    const local = fakeWebStorage('local', { a: '1' });
+    const session = fakeWebStorage('session', { b: '2' });
 
-    const report = await purgeOriginStorage({ caches, webStorage });
+    const report = await purgeOriginStorage({ caches, webStorage: [local, session] });
 
     expect(removedCaches).toEqual(['assets', 'modules']);
-    expect(cleared).toEqual(['local', 'session']);
+    expect(local.cleared).toBe(1);
+    expect(session.cleared).toBe(1);
+    expect(local.keys()).toEqual([]);
     expect(report.removed).toBe(4);
     expect(report.failures).toEqual([]);
   });
@@ -195,3 +185,92 @@ describe('purgeOriginStorage', () => {
     expect(report.failures).toEqual([]);
   });
 });
+
+/**
+ * Очистка по области видимости — встроенный билдер на источнике приложения.
+ *
+ * Проверяется граница, а не механика: чужое остаётся во всех четырёх областях, и граница
+ * проходит там, где её ставит соглашение `namespace.ts`, а не какой-то список.
+ */
+describe('purgeOriginStorage с областью видимости билдера', () => {
+  it('в OPFS уходит только каталог пространства имён, чужой остаётся', async () => {
+    const opfs = createMemoryOpfs();
+    await opfs.root.getDirectoryHandle(OPFS_ROOT_DIR, { create: true });
+    const foreign = await opfs.root.getDirectoryHandle('reformer-forms', { create: true });
+    await foreign.getDirectoryHandle('v1', { create: true });
+
+    const report = await purgeOriginStorage({ directory: opfs.directory }, builderStorageScope);
+
+    expect(report.failures).toEqual([]);
+    expect(report.removed).toBe(1);
+    await expect(opfs.root.getDirectoryHandle(OPFS_ROOT_DIR)).rejects.toMatchObject({
+      name: 'NotFoundError',
+    });
+    await expect(opfs.root.getDirectoryHandle('reformer-forms')).resolves.toBeDefined();
+  });
+
+  it('базы — только с префиксом: и из ответа движка, и из запасного списка', async () => {
+    const listed = fakeIdb({ names: ['reformer-builder.workspace', 'reformer-forms_v1'] });
+    await purgeOriginStorage({ indexedDb: listed.factory }, builderStorageScope);
+    expect(listed.deleted).toEqual(['reformer-builder.workspace']);
+
+    const unlisted = fakeIdb({ names: null });
+    await purgeOriginStorage(
+      { indexedDb: unlisted.factory, knownDatabases: ['reformer-builder.handles', 'host-app'] },
+      builderStorageScope
+    );
+    expect(unlisted.deleted).toEqual(['reformer-builder.handles']);
+  });
+
+  it('кэши Cache Storage — только с префиксом', async () => {
+    const removed: string[] = [];
+    const caches: PurgeCacheStorage = {
+      keys: () => Promise.resolve(['reformer-builder.modules', 'app-shell']),
+      delete: (key) => {
+        removed.push(key);
+        return Promise.resolve(true);
+      },
+    };
+
+    const report = await purgeOriginStorage({ caches }, builderStorageScope);
+
+    expect(removed).toEqual(['reformer-builder.modules']);
+    expect(report.removed).toBe(1);
+  });
+
+  it('веб-хранилище: свои ключи снимаются по одному, `clear` не зовётся, чужие целы', async () => {
+    const session = fakeWebStorage('session', {
+      'reformer-builder.mode': 'on',
+      'host.user': 'me',
+      'reformer-builder.trace': '1',
+    });
+
+    const report = await purgeOriginStorage({ webStorage: [session] }, builderStorageScope);
+
+    expect(session.cleared).toBe(0);
+    expect(session.keys()).toEqual(['host.user']);
+    expect(report.removed).toBe(2);
+    expect(report.failures).toEqual([]);
+  });
+});
+
+/** Подставное веб-хранилище: ключи в памяти и счётчик `clear()`, чтобы отличить путь очистки. */
+function fakeWebStorage(
+  name: string,
+  initial: Record<string, string>
+): PurgeWebStorage & { cleared: number } {
+  const entries = new Map(Object.entries(initial));
+  const storage = {
+    name,
+    cleared: 0,
+    clear: () => {
+      storage.cleared += 1;
+      entries.clear();
+    },
+    keys: () => [...entries.keys()],
+    removeItem: (key: string) => {
+      entries.delete(key);
+    },
+  };
+  return storage;
+}
