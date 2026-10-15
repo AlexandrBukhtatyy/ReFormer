@@ -177,6 +177,37 @@ describe('правила простой формы', () => {
     );
     expect(code?.body.join('\n')).toContain('validate(item.$.price.amount, [min(1)]);');
   });
+
+  it('правило строки с условием: условие оборачивает привязку строк, импорт используется', () => {
+    // Условие записано над корневой моделью. Билдер MCP терял обёртку у правила строки: правило
+    // выходило безусловным, а `validateWhen` оставался в импорте — модуль падал на noUnusedLocals.
+    const code = formRulesFromRules(
+      {
+        ...seededRules(),
+        validation: [
+          {
+            target: 'references.name',
+            each: 'references',
+            rules: ['required'],
+            when: 'model.hasReferences',
+          },
+        ],
+      },
+      NAMES
+    );
+
+    expect(code?.body).toEqual([
+      'validateWhen(() => model.hasReferences, () => {',
+      '  applyEach(model.$.references, ({ model: item }) => {',
+      '    validate(item.$.name, [required()]);',
+      '  });',
+      '});',
+    ]);
+    expect(code?.imports).toEqual([
+      "import { validate, defineValidation, validateWhen, applyEach } from '@reformer/core/validation';",
+      "import { required } from '@reformer/core/validators';",
+    ]);
+  });
 });
 
 describe('правила визарда по шагам', () => {
