@@ -93,11 +93,12 @@ test.describe('Доступность — комплексная форма', { 
         const firstInput = page.locator('[data-testid="input-loanType"]');
         await firstInput.focus();
 
-        // Tab по полям
-        for (let i = 0; i < 5; i++) {
+        // Порядок обхода — поля шага 1 потребительского кредита сверху вниз, затем «Далее».
+        // Дальше Tab уходит за пределы документа, поэтому шагов ровно столько, сколько полей.
+        const order = ['input-loanAmount', 'input-loanTerm', 'input-loanPurpose', 'btn-next'];
+        for (const testId of order) {
           await page.keyboard.press('Tab');
-          const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
-          expect(['INPUT', 'SELECT', 'BUTTON', 'A', 'TEXTAREA']).toContain(focusedElement);
+          await expect(page.locator(`[data-testid="${testId}"]`)).toBeFocused();
         }
       });
     });

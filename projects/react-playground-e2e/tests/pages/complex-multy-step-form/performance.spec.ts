@@ -117,6 +117,10 @@ test.describe('Производительность', { tag: ['@performance'] },
     });
 
     test('PERF-003-C: Нет stack overflow при смене типа кредита', async ({ creditForm }) => {
+      // 30 смен через Radix Select — около 0,6 с каждая (открытие списка и анимация), при
+      // параллельных воркерах больше 30 с. Время стабильно и не растёт от смены к смене
+      // (замер 2026-10-16), тест проверяет отсутствие переполнения стека, а не скорость.
+      test.setTimeout(60_000);
       await creditForm.goto();
 
       // Многократно меняем тип кредита
@@ -144,12 +148,12 @@ test.describe('Производительность', { tag: ['@performance'] },
         await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
       }
 
-      for (let i = 0; i < 5; i++) {
-        await creditForm.page
-          .getByRole('button', { name: /удалить/i })
-          .first()
-          .click();
+      // Удаляем до одного: у единственного элемента кнопки «Удалить» нет (showRemoveWhenSingle).
+      const remove = creditForm.page.getByRole('button', { name: /удалить/i });
+      for (let i = 0; i < 4; i++) {
+        await remove.first().click();
       }
+      await expect(remove).toHaveCount(0);
 
       expect(creditForm.hasNoStackOverflow()).toBe(true);
     });
