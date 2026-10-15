@@ -120,6 +120,8 @@ export const PLUGIN_RUNTIME_MODULES: readonly string[] = Object.freeze([
   '@preact/signals-core',
   '@reformer/core',
   '@reformer/core/behaviors',
+  '@reformer/core/i18n',
+  '@reformer/core/locale/ru',
   '@reformer/core/model',
   '@reformer/core/react',
   '@reformer/core/signals',
