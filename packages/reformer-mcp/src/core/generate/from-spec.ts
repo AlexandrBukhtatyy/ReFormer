@@ -12,11 +12,14 @@
  * формула хуже явного пробела — она выглядит проверенной. Такие поля уходят в `warnings`.
  */
 
-import { analyzeSpec, type SpecAnalysis } from '../spec/analyze.js';
+import { analyzeSpec, type SpecAnalysis, type SpecField } from '../spec/analyze.js';
 import {
   normalizeIntent,
+  type ArrayIntent,
   type BehaviorIntent,
+  type FieldIntent,
   type FormIntent,
+  type LayoutNode,
   type ReformerTargetStack,
   type ValidationRuleIntent,
 } from './form-intent.js';
@@ -29,6 +32,61 @@ function sourcesOf(when: string): string[] {
   const names = new Set<string>();
   for (const m of when.matchAll(/\bmodel\.([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
   return [...names];
+}
+
+/** Поле спеки → поле intent: то, что прочитано, без догадок сверх него. */
+function fieldIntentOf(f: SpecField): FieldIntent {
+  return {
+    name: f.name,
+    type: f.type,
+    component: f.component,
+    label: f.label,
+    ...(f.initialValue !== undefined ? { initialValue: f.initialValue } : {}),
+  };
+}
+
+/** `properties` → `PropertiesItem`: интерфейс элемента, тем же правилом, что у нормализации. */
+function itemInterfaceOf(name: string): string {
+  const last = name.split('.').pop() ?? name;
+  return `${last.charAt(0).toUpperCase()}${last.slice(1)}Item`;
+}
+
+/**
+ * Раскладка формы: поля и массивы в порядке спеки, а у спеки с шагами — по шагам визарда.
+ *
+ * Шаг строки — последний заголовок `### Шаг N` над ней. Раньше раскладка была плоской всегда:
+ * поле номера шага не несло, и спека «из шести шагов» давала одну длинную форму. Строки до
+ * первого шага кладутся в первый. Шаг без единой строки не заводится; если непустой шаг
+ * остался один — визард не нужен, раскладка плоская.
+ */
+function layoutOf(analysis: SpecAnalysis): LayoutNode {
+  const stepOf = new Map<string, number | undefined>([
+    ...analysis.fields.map((f) => [`field:${f.name}`, f.step] as const),
+    ...analysis.arrayDefs.map((a) => [`array:${a.name}`, a.step] as const),
+  ]);
+  const leaf = (e: SpecAnalysis['order'][number]): LayoutNode =>
+    e.kind === 'field' ? { kind: 'field', ref: e.name } : { kind: 'array', ref: e.name };
+
+  const first = analysis.stepList[0]?.number;
+  const byStep = new Map<number, LayoutNode[]>(analysis.stepList.map((s) => [s.number, []]));
+  for (const entry of analysis.order) {
+    const step = stepOf.get(`${entry.kind}:${entry.name}`) ?? first;
+    if (step !== undefined) byStep.get(step)?.push(leaf(entry));
+  }
+  const steps = analysis.stepList.filter((s) => (byStep.get(s.number)?.length ?? 0) > 0);
+
+  if (steps.length < 2) {
+    return { kind: 'container', component: 'Box', children: analysis.order.map(leaf) };
+  }
+  return {
+    kind: 'container',
+    component: 'Box',
+    children: steps.map((s) => ({
+      kind: 'step' as const,
+      title: s.title || `Шаг ${s.number}`,
+      children: byStep.get(s.number) ?? [],
+    })),
+  };
 }
 
 export function intentFromAnalysis(
@@ -57,6 +115,28 @@ export function intentFromAnalysis(
     }
   }
 
+  // Правила полей строки — схемой над элементом (`each`). Условное правило гейтится так же,
+  // а `enableWhen` полю строки не заводится: путь до него от корня модели не выражается одной
+  // ручкой, и молча завести его не на то поле хуже, чем сказать.
+  for (const a of analysis.arrayDefs) {
+    for (const f of a.itemFields) {
+      if (f.rules.length > 0) {
+        validation.push({
+          target: `${a.name}.${f.name}`,
+          each: a.name,
+          rules: f.rules,
+          ...(f.when ? { when: f.when } : {}),
+        });
+      }
+      if (f.when) {
+        warnings.push(
+          `Поле \`${a.name}[].${f.name}\` условное (\`${f.when}\`): правило гейтится, но ` +
+            'доступность поля строки (`enableWhen`) задайте вручную.'
+        );
+      }
+    }
+  }
+
   const named = new Set(analysis.fields.map((f) => f.name));
   for (const name of analysis.computedFields) {
     if (!named.has(name)) continue;
@@ -66,16 +146,21 @@ export function intentFromAnalysis(
     );
   }
 
+  const arrays: ArrayIntent[] = analysis.arrayDefs.map((a) => ({
+    name: a.name,
+    itemInterfaceName: itemInterfaceOf(a.name),
+    itemFields: a.itemFields.map(fieldIntentOf),
+    // Пустой массив — честное начало: строки добавляет человек. Без значения узел массива
+    // ломается на первом `add` (см. `ArrayIntent.initialValue`).
+    initialValue: [],
+  }));
+
   return normalizeIntent({
     formName: analysis.formName,
     target,
-    fields: analysis.fields.map((f) => ({
-      name: f.name,
-      type: f.type,
-      component: f.component,
-      label: f.label,
-      ...(f.initialValue !== undefined ? { initialValue: f.initialValue } : {}),
-    })),
+    layoutRoot: layoutOf(analysis),
+    fields: analysis.fields.map(fieldIntentOf),
+    arrays,
     validation,
     behavior,
     warnings,

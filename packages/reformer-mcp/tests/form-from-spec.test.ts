@@ -158,10 +158,155 @@ describe('спека → intent: читается то, что в спеке н�
    * попадает в ответ, консумент не отличает «в спеке этого нет» от «разбор не понял».
    */
   it('строки, из которых не вышло поля, названы в warnings', () => {
+    // Строки элемента массива (`items[].field`) теперь разбираются; вложенный массив — нет.
+    const table = [
+      '<table><tr><th>Ключ в форме</th><th>Название поля</th><th>Тип поля</th></tr>',
+      '<tr><td>loans[].payments[].amount</td><td>Платёж</td><td>Input[number]</td></tr>',
+      '</table>',
+    ].join('\n');
     expect(
-      analysis.warnings.some((w) => /не удалось получить поле/i.test(w)),
-      'разбор реальной спеки обязан сообщить о непонятых строках'
+      analyzeSpec(table).warnings.some((w) => /не удалось получить поле/i.test(w)),
+      'разбор обязан сообщить о непонятых строках'
     ).toBe(true);
+  });
+});
+
+describe('шаги и массивы', () => {
+  it('строки элемента массива собираются в массив со своими полями', () => {
+    expect(analysis.arrays).toEqual(['coBorrowers']);
+    const coBorrowers = analysis.arrayDefs.find((a) => a.name === 'coBorrowers');
+    expect(coBorrowers?.itemFields).toMatchObject([
+      {
+        name: 'monthlyIncome',
+        type: 'number',
+        component: 'InputNumber',
+        rules: ['required()', 'min(0)'],
+      },
+    ]);
+    expect(analysis.fields.map((f) => f.name)).not.toContain('monthlyIncome');
+    expect(intent.arrays).toMatchObject([
+      { name: 'coBorrowers', itemInterfaceName: 'CoBorrowersItem', initialValue: [] },
+    ]);
+    // Правила строки — схемой над элементом, а не над корнем модели.
+    expect(intent.validation).toContainEqual({
+      target: 'coBorrowers.monthlyIncome',
+      each: 'coBorrowers',
+      rules: ['required()', 'min(0)'],
+    });
+  });
+
+  it('у поля есть шаг, а раскладка — шаги визарда с заголовками из спеки', () => {
+    expect(analysis.stepList).toEqual([
+      { number: 1, title: 'Параметры кредита' },
+      { number: 2, title: 'Заявитель' },
+    ]);
+    expect(field('loanAmount')?.step).toBe(1);
+    expect(field('firstName')?.step).toBe(2);
+
+    const root = intent.layoutRoot;
+    expect(root.kind).toBe('container');
+    const steps = root.kind === 'container' ? root.children : [];
+    expect(steps.map((s) => s.kind)).toEqual(['step', 'step']);
+    const refs = (i: number) => {
+      const s = steps[i];
+      return s.kind === 'step' ? s.children.map((c) => ('ref' in c ? c.ref : '')) : [];
+    };
+    expect(steps.map((s) => (s.kind === 'step' ? s.title : ''))).toEqual([
+      'Параметры кредита',
+      'Заявитель',
+    ]);
+    expect(refs(0)).toContain('loanAmount');
+    expect(refs(1)).toContain('firstName');
+    // Массив стоит на своём шаге и на своём месте среди полей.
+    expect(refs(1)).toContain('coBorrowers');
+    expect(refs(1).indexOf('coBorrowers')).toBeLessThan(refs(1).indexOf('totalIncome'));
+  });
+
+  it('спека без шагов остаётся плоской', () => {
+    const table = [
+      '<table><tr><th>Ключ в форме</th><th>Название поля</th><th>Тип поля</th></tr>',
+      '<tr><td>name</td><td>Имя</td><td>Input</td></tr>',
+      '<tr><td>tags[].label</td><td>Метка</td><td>Input</td></tr>',
+      '</table>',
+    ].join('\n');
+    const flat = intentFromSpec(table, 'core').layoutRoot;
+    expect(flat).toMatchObject({
+      kind: 'container',
+      children: [
+        { kind: 'field', ref: 'name' },
+        { kind: 'array', ref: 'tags' },
+      ],
+    });
+  });
+
+  it('у каждой таблицы своя шапка, а не шапка первой таблицы документа', () => {
+    // Первая таблица — не про поля и с другим порядком колонок. Раньше её шапка читалась на
+    // весь документ, и ключ искался не в той колонке.
+    const doc = [
+      '<table><tr><th>Название</th><th>Ключ</th></tr>',
+      '<tr><td>Справка</td><td>-</td></tr></table>',
+      '### Шаг 1: Данные',
+      '<table><tr><th>Ключ в форме</th><th>Название поля</th><th>Тип поля</th></tr>',
+      '<tr><td>amount</td><td>Сумма</td><td>Input[number]</td></tr></table>',
+    ].join('\n');
+    expect(analyzeSpec(doc).fields).toMatchObject([
+      { name: 'amount', label: 'Сумма', type: 'number', step: 1 },
+    ]);
+  });
+
+  it('markdown-таблица со шапкой читается по колонкам, как HTML', () => {
+    const doc = [
+      '| № | Раздел | Ключ в форме | Название поля | Тип поля | Валидация |',
+      '|---|--------|--------------|---------------|----------|-----------|',
+      '| 1.1 | Кредит | `loanAmount` | Сумма | Input[number] | Обязательное, min: 1000 |',
+      '| 1.2 | Кредит | phones[].number | Телефон | InputMask | - |',
+    ].join('\n');
+    const a = analyzeSpec(doc);
+    expect(a.fields).toMatchObject([
+      { name: 'loanAmount', type: 'number', rules: ['required()', 'min(1000)'] },
+    ]);
+    expect(a.arrayDefs).toMatchObject([
+      { name: 'phones', label: 'Кредит', itemFields: [{ name: 'number', component: 'InputMask' }] },
+    ]);
+  });
+
+  it('тип угадывается по подписи и ячейке типа, а не по подсказке строки', () => {
+    // Подсказка «Сумма в рублях» делала из комментария число: догадка читала всю строку.
+    const table = [
+      '<table><tr><th>Ключ в форме</th><th>Название поля</th><th>Подсказка</th></tr>',
+      '<tr><td>comment</td><td>Комментарий</td><td>Сумма в рублях</td></tr>',
+      '</table>',
+    ].join('\n');
+    expect(analyzeSpec(table).fields).toMatchObject([{ name: 'comment', type: 'string' }]);
+  });
+
+  it('слово «массив» в русском тексте распознаётся', () => {
+    // `\bмассив` без флага `u` не совпадал никогда: граница слова в JS — по латинице.
+    expect(analyzeSpec('# Форма\n\nТелефоны — это массив номеров.').arrays).toEqual([
+      '(см. секцию массивов в спеке)',
+    ]);
+  });
+
+  it('кредитная спека: шаги визарда и массивы с полями строк', () => {
+    const projectSpec = (name: string) =>
+      readFileSync(join(process.cwd(), '../../docs/specs', name), 'utf8');
+    const a = analyzeSpec(projectSpec('credit-application-form.md'));
+    expect(a.stepList.length).toBeGreaterThanOrEqual(5);
+    expect(a.arrayDefs.map((x) => x.name)).toEqual(
+      expect.arrayContaining(['properties', 'existingLoans'])
+    );
+    expect(a.arrayDefs.find((x) => x.name === 'properties')?.itemFields.map((f) => f.name)).toEqual(
+      expect.arrayContaining(['type', 'description', 'estimatedValue', 'hasEncumbrance'])
+    );
+    // Флажок, который массив только показывает, массивом не считается.
+    expect(a.arrays).not.toContain('hasProperty');
+    // Группа полей в строке (`coBorrowers[].personalData`, тип GroupNode) — не выдуманное
+    // строковое поле, а непонятая строка.
+    const coBorrowers = a.arrayDefs.find((x) => x.name === 'coBorrowers');
+    expect(coBorrowers?.itemFields.map((f) => f.name)).not.toContain('personalData');
+    expect(a.warnings.some((w) => w.includes('coBorrowers[].personalData'))).toBe(true);
+    const root = intentFromSpec(projectSpec('credit-application-form.md'), 'core').layoutRoot;
+    expect(root.kind === 'container' && root.children.every((c) => c.kind === 'step')).toBe(true);
   });
 });
 
@@ -207,7 +352,8 @@ describe('бандл', () => {
 describe.runIf(hasCore)('сгенерированная форма работает', () => {
   let sandbox = '';
   let createFormModel: () => Record<string, unknown>;
-  let formValidation: unknown;
+  /** Схемы правил формы целиком: у плоской формы одна, у визарда — по шагу и правила вне шагов. */
+  let ruleSchemas: unknown[] = [];
   let formBehavior: unknown;
 
   beforeAll(async () => {
@@ -219,7 +365,18 @@ describe.runIf(hasCore)('сгенерированная форма работа�
 
     const url = (p: string) => pathToFileURL(join(sandbox, p)).href;
     createFormModel = (await import(/* @vite-ignore */ url('model.ts'))).createFormModel;
-    formValidation = (await import(/* @vite-ignore */ url('form.validation.ts'))).formValidation;
+    const { formValidation } = await import(/* @vite-ignore */ url('form.validation.ts'));
+    // Спека с шагами даёт визард: правила шагов уходят в поток (`form.flow.ts`), а
+    // `formValidation` держит только правила вне шагов (`extras`). Форма проверяется целиком —
+    // всеми схемами сразу.
+    const hasFlow = bundle.files.some((f) => f.path === 'form.flow.ts');
+    const flowSteps: Array<{ rules?: unknown }> = hasFlow
+      ? (await import(/* @vite-ignore */ url('form.flow.ts'))).formFlow.steps
+      : [];
+    ruleSchemas = [
+      ...flowSteps.map((s) => s.rules),
+      typeof formValidation === 'function' ? formValidation : formValidation?.extras,
+    ].filter((s) => typeof s === 'function');
     formBehavior = (await import(/* @vite-ignore */ url('form.behavior.ts'))).formBehavior;
   });
 
@@ -234,8 +391,13 @@ describe.runIf(hasCore)('сгенерированная форма работа�
     return { model, form };
   }
 
-  const check = (model: unknown) =>
-    validation!.validateModel(model, formValidation) as Promise<boolean>;
+  /** Проходит ли модель все правила формы. Схемы гоняются все, без раннего выхода. */
+  const check = async (model: unknown) => {
+    const results = await Promise.all(
+      ruleSchemas.map((s) => validation!.validateModel(model, s) as Promise<boolean>)
+    );
+    return results.every(Boolean);
+  };
 
   /** Минимально валидное заполнение — база, от которой кейсы отклоняются в одну сторону. */
   function fill(model: Record<string, unknown>) {

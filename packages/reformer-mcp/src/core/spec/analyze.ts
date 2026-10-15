@@ -28,15 +28,56 @@ export interface SpecField {
   when?: string;
   /** Фрагменты колонки «Валидация», которые распознать не удалось. Уходят в `warnings`. */
   unparsedRules: string[];
+  /**
+   * Номер шага (`### Шаг N`), под которым стоит строка. `undefined` — в спеке нет шагов или
+   * строка стоит до первого из них.
+   */
+  step?: number;
+}
+
+/**
+ * Массив, собранный из строк вида `properties[].type`: имя массива и поля его элемента.
+ *
+ * Строка с ключом самого массива (`properties` с типом `FieldArray`) полем не становится — она
+ * объявляет массив и даёт ему подпись.
+ */
+export interface SpecArray {
+  name: string;
+  label?: string;
+  /** Шаг, на котором массив впервые встретился. */
+  step?: number;
+  itemFields: SpecField[];
+}
+
+/** Шаг спеки: номер и заголовок из `### Шаг N: Заголовок`. */
+export interface SpecStep {
+  number: number;
+  title: string;
+}
+
+/** Поле или массив в порядке появления в спеке — по нему строится раскладка. */
+export interface SpecEntry {
+  kind: 'field' | 'array';
+  name: string;
 }
 
 export interface SpecAnalysis {
   formName: string;
   steps: number;
+  /** Шаги с заголовками в порядке спеки. */
+  stepList: SpecStep[];
   fieldsPerStep: Record<string, number>;
   fields: SpecField[];
+  /** Массивы с полями элемента. Имена — ещё и в `arrays`. */
+  arrayDefs: SpecArray[];
+  /** Поля и массивы в порядке спеки. */
+  order: SpecEntry[];
   conditionalFields: string[];
   computedFields: string[];
+  /**
+   * Имена массивов. Если массив в спеке упомянут, но строк элемента нет, — подсказка
+   * «(см. секцию массивов в спеке)».
+   */
   arrays: string[];
   apiEndpoints: string[];
   hasCanonicalLabels: boolean;
@@ -58,9 +99,26 @@ export function countSteps(content: string): number {
   return stepMatches.length;
 }
 
+/** Заголовок шага: `### Шаг 2: Персональные данные`. Номер — группа 1, заголовок — группа 2. */
+const STEP_HEADING = /^###\s+(?:Шаг|Step)\s+(\d+)[:.]\s*([^\n]*)/gim;
+
+/** Шаги спеки с позицией заголовка — по ней строка таблицы узнаёт свой шаг. */
+function stepHeadings(content: string): Array<SpecStep & { offset: number }> {
+  return [...content.matchAll(STEP_HEADING)].map((m) => ({
+    number: Number(m[1]),
+    title: m[2].trim(),
+    offset: m.index ?? 0,
+  }));
+}
+
+/** Шаги спеки в порядке появления: номер и заголовок. */
+export function extractSteps(content: string): SpecStep[] {
+  return stepHeadings(content).map(({ number, title }) => ({ number, title }));
+}
+
 export function countFieldsPerStep(content: string): Record<string, number> {
   const result: Record<string, number> = {};
-  const stepRegex = /^###\s+(?:Шаг|Step)\s+(\d+)[:.]\s*([^\n]*)/gim;
+  const stepRegex = STEP_HEADING;
   const matches = Array.from(content.matchAll(stepRegex));
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
@@ -169,16 +227,37 @@ export function extractComputedFields(content: string): string[] {
   return patterns.slice(0, 20);
 }
 
+/**
+ * Ключ поля элемента массива: `properties[].type` — массив `properties`, поле `type`. Путь
+ * массива может быть составным (`loan.parties[].name`). Вложенные массивы (`a[].b[].c`) не
+ * поддержаны — такая строка уходит в непонятые.
+ */
+const ARRAY_ITEM_KEY = /^([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*)\[\]\.([a-z][a-zA-Z0-9]*)$/;
+
+/**
+ * Упоминание массива в прозе. Граница слова для кириллицы — `(?<!\p{L})` с флагом `u`: `\b`
+ * в JS считается по латинице, и `\bмассив` в обычном тексте («это массив телефонов») не
+ * совпадал никогда.
+ */
+const MENTIONS_ARRAY = /(?<!\p{L})массив|\barray\b|\b(?:Form|Field)Array\b/iu;
+
+/** Подсказка вместо имени, когда массив упомянут, но строк его элемента в спеке нет. */
+export const ARRAY_HINT = '(см. секцию массивов в спеке)';
+
+/**
+ * Имена массивов спеки — по ключам строк элемента (`properties[].type`).
+ *
+ * Раньше здесь стоял список имён из кредитной спеки (`properties`, `existingLoans`, …), причём
+ * вперемешку с флажками, которые массивы только показывают (`hasProperty`): любая другая спека
+ * получала либо пустой список, либо флажок под видом массива.
+ */
 export function extractArrays(content: string): string[] {
-  const patterns: string[] = [];
-  const matches = content.match(
-    /\b(?:hasProperty|hasExistingLoans|hasCoBorrower|properties|existingLoans|coBorrowers)\b/g
-  );
-  for (const m of matches ?? []) if (!patterns.includes(m)) patterns.push(m);
-  if (patterns.length === 0 && /\bмассив|\barray|\b(?:Form|Field)Array\b/i.test(content)) {
-    patterns.push('(см. секцию массивов в спеке)');
+  const names: string[] = [];
+  for (const m of content.matchAll(/\b([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*)\[\]\.[a-z]/g)) {
+    if (!names.includes(m[1])) names.push(m[1]);
   }
-  return patterns;
+  if (names.length === 0 && MENTIONS_ARRAY.test(content)) names.push(ARRAY_HINT);
+  return names;
 }
 
 export function extractApiEndpoints(content: string): string[] {
@@ -212,7 +291,7 @@ function normalizeHeader(cell: string): string {
  * тогда вызывающий код обязан остаться на позиционной эвристике.
  */
 export function parseHeaderMap(table: string): Record<string, number> | null {
-  const headerRow = table.match(/<tr>[\s\S]*?<th[\s\S]*?<\/tr>/);
+  const headerRow = table.match(/<tr\b[^>]*>(?:(?!<\/tr>)[\s\S])*?<th[\s\S]*?<\/tr>/);
   if (!headerRow) return null;
   const cells = [...headerRow[0].matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) =>
     normalizeHeader(m[1])
@@ -444,15 +523,158 @@ export const MAX_FIELDS = 200;
  * скобками массивов: разбор снова промолчал. Пока «строка выпала» не попадает в ответ,
  * консумент не отличает «в спеке этого нет» от «разбор не понял».
  */
-export function extractFields(content: string, dropped?: string[]): SpecField[] {
-  const fields: SpecField[] = [];
-  const seen = new Set<string>();
+/** Синонимы колонок шапки. */
+const KEY_COLUMN = ['ключ в форме', 'ключ', 'field', 'key'];
+const TYPE_COLUMN = ['тип поля', 'тип', 'type'];
+const LABEL_COLUMN = ['название поля', 'название', 'label'];
+const VALUE_COLUMN = ['значение', 'value', 'default'];
+const VALIDATION_COLUMN = ['валидация', 'validation'];
+const SECTION_COLUMN = ['раздел', 'section'];
 
-  const push = (name: string, note: string, label?: string, extra?: Partial<SpecField>) => {
-    if (seen.has(name)) return;
-    seen.add(name);
+/** Таблица спеки: шапка (если есть) и строки данных с их позицией в документе. */
+interface SpecTable {
+  /** Шапка таблицы; `null` — таблица без шапки. */
+  headers: Record<string, number> | null;
+  /** Таблица в markdown — у неё нет позиционного фолбэка (см. `readTables`). */
+  markdown: boolean;
+  rows: Array<{ offset: number; cells: string[] }>;
+}
+
+/** Ячейки строки `<tr>` без разметки; у строки шапки (`<th>`) их нет. */
+function htmlCells(row: string): string[] {
+  return [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) =>
+    m[1].replace(/<[^>]+>/g, '').trim()
+  );
+}
+
+/** Строки `<tr>` фрагмента; `base` — позиция фрагмента в документе. */
+function htmlRows(fragment: string, base: number): SpecTable['rows'] {
+  const rows: SpecTable['rows'] = [];
+  for (const m of fragment.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)) {
+    const cells = htmlCells(m[0]);
+    if (cells.length > 0) rows.push({ offset: base + (m.index ?? 0), cells });
+  }
+  return rows;
+}
+
+/** Ячейки строки markdown-таблицы: `| a | `b` |` → `['a', 'b']`. */
+function markdownCells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((c) => c.trim().replace(/^`(.*)`$/, '$1'));
+}
+
+/** Разделитель шапки markdown-таблицы: `|---|:--:|`. */
+const MD_SEPARATOR = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+const MD_ROW = /^\s*\|.*\|\s*$/;
+
+/** Markdown-таблицы со шапкой: строка заголовков, разделитель, строки данных. */
+function markdownTables(content: string): SpecTable[] {
+  const tables: SpecTable[] = [];
+  const lines = content.split('\n');
+  const offsets: number[] = [];
+  let pos = 0;
+  for (const line of lines) {
+    offsets.push(pos);
+    pos += line.length + 1;
+  }
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (!MD_ROW.test(lines[i]) || !MD_SEPARATOR.test(lines[i + 1])) continue;
+    const headers: Record<string, number> = {};
+    markdownCells(lines[i]).forEach((c, idx) => {
+      const name = normalizeHeader(c);
+      if (name && !(name in headers)) headers[name] = idx;
+    });
+    const rows: SpecTable['rows'] = [];
+    let j = i + 2;
+    for (; j < lines.length && MD_ROW.test(lines[j]); j++) {
+      rows.push({ offset: offsets[j], cells: markdownCells(lines[j]) });
+    }
+    tables.push({ headers, markdown: true, rows });
+    i = j - 1;
+  }
+  return tables;
+}
+
+/**
+ * Таблицы спеки в порядке документа.
+ *
+ * Шапка — у каждой таблицы своя. Раньше бралась шапка первой таблицы документа на все: спека,
+ * где колонки у шагов разные или первая таблица вовсе не про поля, читалась чужой шапкой. Таблица
+ * без шапки наследует шапку предыдущей — так пишут продолжение таблицы шага.
+ */
+function readTables(content: string): SpecTable[] {
+  const tables: Array<SpecTable & { offset: number }> = [];
+  for (const m of content.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)) {
+    const base = m.index ?? 0;
+    tables.push({
+      offset: base,
+      headers: parseHeaderMap(m[0]),
+      markdown: false,
+      rows: htmlRows(m[0], base),
+    });
+  }
+  // Фрагмент из одних строк `<tr>` без обёртки `<table>` — так спеку передают описанием.
+  if (tables.length === 0 && /<tr\b/.test(content)) {
+    tables.push({
+      offset: 0,
+      headers: parseHeaderMap(content),
+      markdown: false,
+      rows: htmlRows(content, 0),
+    });
+  }
+  for (const t of markdownTables(content)) tables.push({ ...t, offset: t.rows[0]?.offset ?? 0 });
+  tables.sort((a, b) => a.offset - b.offset);
+
+  let inherited: Record<string, number> | null = null;
+  return tables.map((t) => {
+    const headers: Record<string, number> | null = t.headers ?? (t.markdown ? null : inherited);
+    if (t.headers && !t.markdown) inherited = t.headers;
+    return { headers, markdown: t.markdown, rows: t.rows };
+  });
+}
+
+/** Есть ли у шапки колонка ключа поля. */
+function hasKeyColumn(headers: Record<string, number> | null): boolean {
+  return headers !== null && KEY_COLUMN.some((n) => n in headers);
+}
+
+/** Поля и массивы спеки — результат `extractEntries`. */
+export interface SpecEntries {
+  fields: SpecField[];
+  arrays: SpecArray[];
+  order: SpecEntry[];
+}
+
+/**
+ * Поля и массивы из табличных строк спеки.
+ *
+ * По шапке читаются ключ, тип, подпись, начальное значение и правила. Без шапки ключом считается
+ * ячейка, похожая на идентификатор (`camelCase` латиницей), подписью — первая содержательная
+ * ячейка рядом. Строки элемента массива (`properties[].type`) собираются в массив со своими
+ * полями; строка с ключом самого массива объявляет его. Каждая строка знает свой шаг — по
+ * последнему заголовку `### Шаг N` над ней.
+ */
+export function extractEntries(content: string, dropped?: string[]): SpecEntries {
+  const fields: SpecField[] = [];
+  const arrays = new Map<string, SpecArray>();
+  const order: SpecEntry[] = [];
+  const seen = new Set<string>();
+  const steps = stepHeadings(content);
+  const stepAt = (offset: number) => steps.filter((s) => s.offset <= offset).pop()?.number;
+
+  const build = (
+    name: string,
+    note: string,
+    label: string | undefined,
+    step: number | undefined,
+    extra?: Partial<SpecField>
+  ): SpecField => {
     const guessed = guessField(name, note);
-    fields.push({
+    return {
       name,
       type: extra?.type ?? guessed.type,
       component: extra?.component ?? guessed.component,
@@ -461,80 +683,147 @@ export function extractFields(content: string, dropped?: string[]): SpecField[] 
       rules: extra?.rules ?? [],
       when: extra?.when,
       unparsedRules: extra?.unparsedRules ?? [],
-    });
+      ...(step !== undefined ? { step } : {}),
+    };
   };
 
-  // Шапка ищется по всему документу: в спеке несколько таблиц (по одной на шаг), колонки у
-  // них одинаковые. Первой достаточно.
-  const headers = parseHeaderMap(content);
+  const arrayOf = (name: string, step: number | undefined): SpecArray => {
+    let array = arrays.get(name);
+    if (!array) {
+      array = { name, ...(step !== undefined ? { step } : {}), itemFields: [] };
+      arrays.set(name, array);
+      order.push({ kind: 'array', name });
+    }
+    return array;
+  };
 
-  for (const block of content.match(/<tr>[\s\S]*?<\/tr>/g) ?? []) {
-    const cells = [...block.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) =>
-      m[1].replace(/<[^>]+>/g, '').trim()
-    );
+  const pushField = (field: SpecField) => {
+    if (seen.has(field.name) || arrays.has(field.name)) return;
+    seen.add(field.name);
+    fields.push(field);
+    order.push({ kind: 'field', name: field.name });
+  };
 
-    if (headers) {
-      const key = cellByHeader(cells, headers, ['ключ в форме', 'ключ', 'field', 'key']);
-      // Ячейка может оказаться пустой или нести не идентификатор (строка-разделитель) —
-      // тогда падаем на общий путь ниже, а не пропускаем строку целиком.
-      if (key && isFieldKey(key)) {
-        const typeCell = cellByHeader(cells, headers, ['тип поля', 'тип', 'type']);
+  const pushItem = (arrayName: string, field: SpecField, section?: string) => {
+    const array = arrayOf(arrayName, field.step);
+    if (!array.label && section) array.label = section;
+    if (array.itemFields.some((f) => f.name === field.name)) return;
+    const { step: _step, ...item } = field;
+    void _step;
+    array.itemFields.push(item);
+  };
+
+  const drop = (cells: string[]) => {
+    if (cells.some(Boolean)) dropped?.push(cells.filter(Boolean).slice(0, 3).join(' | '));
+  };
+
+  for (const table of readTables(content)) {
+    const headers = table.headers;
+    // Markdown-таблица без колонки ключа — не таблица полей (строки, сценарии, API): позиционный
+    // фолбэк выдумывал бы поля из любой латинской ячейки. Она читается, только если иначе
+    // полей нет вовсе (см. ниже).
+    if (table.markdown && !hasKeyColumn(headers)) continue;
+
+    for (const { offset, cells } of table.rows) {
+      const step = stepAt(offset);
+
+      if (headers && hasKeyColumn(headers)) {
+        const key = cellByHeader(cells, headers, KEY_COLUMN);
+        const typeCell = cellByHeader(cells, headers, TYPE_COLUMN);
+        const label = cellByHeader(cells, headers, LABEL_COLUMN);
+        // Догадка о типе — только по подписи и ячейке типа. Вся строка (с подсказкой и
+        // примечанием) уводила её: «0» в подсказке или «доход» в примечании делали число из
+        // строки.
+        const note = `${label ?? ''} ${typeCell ?? ''}`;
         const parsedType = typeCell ? parseTypeCell(typeCell) : null;
-        const type = parsedType?.type ?? guessField(key, cells.join(' ')).type;
-        const validation = parseValidationCell(
-          cellByHeader(cells, headers, ['валидация', 'validation'])
-        );
-        push(
-          key,
-          cells.join(' '),
-          cellByHeader(cells, headers, ['название поля', 'название', 'label']),
-          {
+        // Группа полей (`GroupNode`) — не лист: её поля в спеке не перечислены, и догадка по
+        // имени выдумала бы строковое поле на месте целого раздела.
+        if (key && typeCell && /^\s*Group(?:Node)?\b/i.test(typeCell)) {
+          drop(cells);
+          continue;
+        }
+        const read = (name: string) => {
+          const type = parsedType?.type ?? guessField(name, note).type;
+          const validation = parseValidationCell(cellByHeader(cells, headers, VALIDATION_COLUMN));
+          return build(name, note, label, step, {
             type,
             component: parsedType?.component,
-            initialValue: parseInitialCell(
-              cellByHeader(cells, headers, ['значение', 'value', 'default']),
-              type
-            ),
+            initialValue: parseInitialCell(cellByHeader(cells, headers, VALUE_COLUMN), type),
             rules: validation.rules,
             when: validation.when,
             unparsedRules: validation.unparsed,
+          });
+        };
+
+        const item = key?.match(ARRAY_ITEM_KEY);
+        if (item) {
+          pushItem(item[1], read(item[2]), cellByHeader(cells, headers, SECTION_COLUMN));
+          continue;
+        }
+        if (key && isFieldKey(key)) {
+          if (parsedType?.type === 'array') {
+            // Строка самого массива: объявляет его и даёт подпись, полем модели не становится.
+            const array = arrayOf(key, step);
+            if (label?.trim()) array.label = label.trim();
+            continue;
           }
-        );
-        continue;
+          pushField(read(key));
+          continue;
+        }
+        // Ключевая ячейка заполнена, но ключом не является — синтаксис нам незнаком. Позиционный
+        // фолбэк здесь опасен: он ищет первую похожую на ключ ячейку по всей строке и находит
+        // значение соседней колонки. Честнее выпасть в dropped, чем выдумать поле.
+        if (key) {
+          drop(cells);
+          continue;
+        }
       }
 
-      // Шапка есть, ключевая ячейка заполнена, но ключом не является — значит синтаксис нам
-      // незнаком (например `properties[].type`). Позиционный фолбэк здесь опасен: он ищет
-      // первую похожую на ключ ячейку по всей строке и находит значение соседней колонки.
-      // Честнее выпасть в dropped, чем выдумать поле.
-      if (key) {
-        dropped?.push(cells.filter(Boolean).slice(0, 3).join(' | '));
+      // Позиционный фолбэк — таблица без колонки ключа.
+      const itemCell = cells.find((c) => ARRAY_ITEM_KEY.test(c));
+      const key = itemCell ?? cells.find(isFieldKey);
+      if (!key) {
+        drop(cells);
         continue;
       }
+      const label = cells.find((c) => c !== key && /[А-Яа-яA-Za-z]{3,}/.test(c));
+      const typed = cells.map(parseTypeCell).find((t) => t !== null) ?? undefined;
+      const note = label ?? '';
+      const item = itemCell?.match(ARRAY_ITEM_KEY);
+      if (item) {
+        pushItem(item[1], build(item[2], note, label, step, typed));
+        continue;
+      }
+      pushField(build(key, note, label, step, typed));
     }
-
-    const key = cells.find(isFieldKey);
-    if (!key) {
-      if (cells.some(Boolean)) dropped?.push(cells.filter(Boolean).slice(0, 3).join(' | '));
-      continue;
-    }
-    const label = cells.find((c) => c !== key && /[А-Яа-яA-Za-z]{3,}/.test(c));
-    push(key, cells.join(' '), label);
   }
 
-  if (fields.length === 0) {
+  if (fields.length === 0 && arrays.size === 0) {
+    // Последний шанс: markdown-таблица без шапки ключа — ключ в первой колонке.
     for (const line of content.split('\n')) {
       const m = line.match(/^\|\s*`?([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*)`?\s*\|([^|]*)\|/);
-      if (m) push(m[1], line, m[2]);
+      if (m && isFieldKey(m[1])) pushField(build(m[1], m[2], m[2], undefined));
     }
   }
-  return fields.slice(0, MAX_FIELDS);
+
+  const kept = fields.slice(0, MAX_FIELDS);
+  const keptNames = new Set(kept.map((f) => f.name));
+  return {
+    fields: kept,
+    arrays: [...arrays.values()],
+    order: order.filter((e) => e.kind === 'array' || keptNames.has(e.name)),
+  };
+}
+
+/** Поля спеки — `extractEntries` без массивов. */
+export function extractFields(content: string, dropped?: string[]): SpecField[] {
+  return extractEntries(content, dropped).fields;
 }
 
 export function analyzeSpec(content: string): SpecAnalysis {
   const fieldsPerStep = countFieldsPerStep(content);
   const droppedRows: string[] = [];
-  const fields = extractFields(content, droppedRows);
+  const { fields, arrays: arrayDefs, order } = extractEntries(content, droppedRows);
   const warnings: string[] = [];
 
   if (droppedRows.length > 0) {
@@ -547,12 +836,12 @@ export function analyzeSpec(content: string): SpecAnalysis {
     warnings.push(
       `Строк таблиц, из которых не удалось получить поле: ${droppedRows.length}` +
         `${sample ? ` (например ${sample})` : ''}. ` +
-        'Обычно это неподдержанный синтаксис ключа — например элементы массива вида ' +
-        '`items[].field`. Проверьте их и допишите недостающее в `fields`/`arrays` вручную.'
+        'Обычно это неподдержанный синтаксис ключа — например вложенный массив ' +
+        '`items[].rows[].field`. Проверьте их и допишите недостающее в `fields`/`arrays` вручную.'
     );
   }
 
-  if (fields.length === 0) {
+  if (fields.length === 0 && arrayDefs.length === 0) {
     warnings.push(
       'Полей в спеке распознать не удалось — заполните `fields` в intent вручную. ' +
         'Разбор рассчитан на таблицы с колонкой-идентификатором поля.'
@@ -573,25 +862,40 @@ export function analyzeSpec(content: string): SpecAnalysis {
   }
   // Требование, которое мы прочли, но выразить не смогли, обязано быть видно: молчание здесь
   // означало бы «правил больше нет», а это не так.
-  for (const f of fields) {
-    for (const chunk of f.unparsedRules) {
+  const withItems = [
+    ...fields.map((f) => ({ path: f.name, field: f })),
+    ...arrayDefs.flatMap((a) =>
+      a.itemFields.map((f) => ({ path: `${a.name}[].${f.name}`, field: f }))
+    ),
+  ];
+  for (const { path, field } of withItems) {
+    for (const chunk of field.unparsedRules) {
       // Формулировка нейтральная сознательно: в этой колонке встречаются и правила, которые
       // нечем выразить (`min: 20% от стоимости`), и вовсе не правила (`mask: '+7 (999)…'`).
       // Совет «допишите валидатор» был бы для второго случая прямо неверным.
       warnings.push(
-        `Поле \`${f.name}\`: фрагмент «${chunk}» не разобран как правило валидации — перенесите его в intent вручную.`
+        `Поле \`${path}\`: фрагмент «${chunk}» не разобран как правило валидации — перенесите его в intent вручную.`
       );
     }
   }
 
+  // Имена разобранных массивов, затем упомянутые ключом `имя[].поле` где-то ещё в тексте.
+  // Подсказка «см. секцию массивов» нужна, только когда имени нет ни одного: массив, объявленный
+  // одной строкой `FieldArray` без строк элемента, её иначе бы получил.
+  const named = [...new Set([...arrayDefs.map((a) => a.name), ...extractArrays(content)])];
+  const arrays = named.length > 1 ? named.filter((n) => n !== ARRAY_HINT) : named;
+
   return {
     formName: extractFormName(content),
     steps: countSteps(content),
+    stepList: extractSteps(content),
     fieldsPerStep,
     fields,
+    arrayDefs,
+    order,
     conditionalFields: extractConditionalFields(content),
     computedFields: extractComputedFields(content),
-    arrays: extractArrays(content),
+    arrays,
     apiEndpoints: extractApiEndpoints(content),
     hasCanonicalLabels: /## Canonical user-facing strings/i.test(content),
     hasMasks: /InputMask|маска|mask:\s*['"`]/.test(content),

@@ -5,6 +5,15 @@ import {
   detectProjectStack,
   renderStackDetectionBlockAsync,
 } from '../platform/cli/project-detector.js';
+import {
+  countFieldsPerStep,
+  countSteps,
+  extractApiEndpoints,
+  extractArrays,
+  extractComputedFields,
+  extractConditionalFields,
+  extractFormName,
+} from '../core/spec/analyze.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 import {
   deepAnalyzeSpec,
@@ -82,133 +91,6 @@ function analyzeSpec(content: string): SpecAnalysis {
     hasCanonicalLabels,
     hasMasks,
   };
-}
-
-function extractFormName(content: string): string {
-  const titleMatch = content.match(/^#\s+(?:Форма:\s+)?(.+)$/m);
-  return titleMatch ? titleMatch[1].trim() : 'Unknown form';
-}
-
-function countSteps(content: string): number {
-  const stepMatches = content.match(/^###\s+(?:Шаг|Step)\s+\d+[:.]/gim) ?? [];
-  if (stepMatches.length === 0) {
-    const chipTable = content.match(/Шаг\s+\d+[:.]\s+/g);
-    return chipTable ? new Set(chipTable).size : 0;
-  }
-  return stepMatches.length;
-}
-
-function countFieldsPerStep(content: string): Record<string, number> {
-  const result: Record<string, number> = {};
-  const stepRegex = /^###\s+(?:Шаг|Step)\s+(\d+)[:.]\s*([^\n]*)/gim;
-  const matches = Array.from(content.matchAll(stepRegex));
-  for (let i = 0; i < matches.length; i++) {
-    const m = matches[i];
-    const stepNum = m[1];
-    const start = m.index! + m[0].length;
-    const end = i + 1 < matches.length ? matches[i + 1].index! : content.length;
-    const section = content.slice(start, end);
-    const htmlRowRegex = new RegExp(`<td>\\s*${stepNum}\\.\\d+\\s*</td>`, 'g');
-    const htmlMatches = section.match(htmlRowRegex);
-    if (htmlMatches && htmlMatches.length > 0) {
-      result[`step${stepNum}`] = htmlMatches.length;
-      continue;
-    }
-    const mdRowMatches = section.match(/^\|(?!\s*[-:|\s]+\|\s*$)[^|\n]+\|/gm) ?? [];
-    const fieldCount = Math.max(0, mdRowMatches.length - 1);
-    result[`step${stepNum}`] = fieldCount;
-  }
-  return result;
-}
-
-function extractFieldKeyFromTrBlock(trBlock: string): string | null {
-  const tdMatches = Array.from(trBlock.matchAll(/<td[^>]*>([^<]+)<\/td>/g));
-  for (const m of tdMatches) {
-    const cell = m[1].trim();
-    if (/^[a-z][a-zA-Z0-9.]*$/.test(cell) && cell.length > 1 && cell.length < 50) {
-      return cell;
-    }
-  }
-  return null;
-}
-
-function extractConditionalFields(content: string): string[] {
-  const patterns: string[] = [];
-  const trBlocks = content.match(/<tr>[\s\S]*?<\/tr>/g) ?? [];
-  for (const block of trBlocks) {
-    if (
-      /условн|только если|показ(ыв)?ается если|показ(ыв)?ать если|появля?ется если|зависит от|появ.{1,30}при\s+|if\s+\w+\s*[=!]|when\s+\w+/i.test(
-        block
-      )
-    ) {
-      const key = extractFieldKeyFromTrBlock(block);
-      if (key && !patterns.includes(key)) patterns.push(key);
-    }
-  }
-  if (patterns.length === 0) {
-    const lines = content.split('\n');
-    for (const line of lines) {
-      if (
-        /условн|только если|показывается если|зависит от|appears? when|if\s+\w+\s*[=!]/i.test(line)
-      ) {
-        const cellMatch = line.match(/^\|\s*([\w.]+)\s*\|/);
-        if (cellMatch && !patterns.includes(cellMatch[1])) {
-          patterns.push(cellMatch[1]);
-        }
-      }
-    }
-  }
-  return patterns.slice(0, 30);
-}
-
-function extractComputedFields(content: string): string[] {
-  const patterns: string[] = [];
-  const trBlocks = content.match(/<tr>[\s\S]*?<\/tr>/g) ?? [];
-  for (const block of trBlocks) {
-    if (/Вычисляется автоматически|вычисляемое|computed|readonly|disabled.*автомат/i.test(block)) {
-      const key = extractFieldKeyFromTrBlock(block);
-      if (key && !patterns.includes(key)) patterns.push(key);
-    }
-  }
-  if (patterns.length === 0) {
-    const lines = content.split('\n');
-    for (const line of lines) {
-      if (/Вычисляется автоматически|computed|вычисляемое|readonly/i.test(line)) {
-        const cellMatch = line.match(/^\|\s*([\w.]+)\s*\|/);
-        if (cellMatch && !patterns.includes(cellMatch[1])) {
-          patterns.push(cellMatch[1]);
-        }
-      }
-    }
-  }
-  return patterns.slice(0, 20);
-}
-
-function extractArrays(content: string): string[] {
-  const patterns: string[] = [];
-  const arrayRegex =
-    /\b(?:hasProperty|hasExistingLoans|hasCoBorrower|properties|existingLoans|coBorrowers)\b/g;
-  const matches = content.match(arrayRegex);
-  if (matches) {
-    for (const m of matches) {
-      if (!patterns.includes(m)) patterns.push(m);
-    }
-  }
-  const genericRegex = /\bмассив|\barray|\b(?:Form|Field)Array\b/i;
-  if (patterns.length === 0 && genericRegex.test(content)) {
-    patterns.push('(см. секцию массивов в спеке)');
-  }
-  return patterns;
-}
-
-function extractApiEndpoints(content: string): string[] {
-  const patterns: string[] = [];
-  const apiRegex = /(?:GET|POST|PUT|DELETE|PATCH)\s+\/[\w/\-{}:]+/gi;
-  const matches = content.match(apiRegex) ?? [];
-  for (const m of matches) {
-    if (!patterns.includes(m)) patterns.push(m);
-  }
-  return patterns.slice(0, 15);
 }
 
 function rendererPrereqsFor(target: string): string {
