@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as reformerBehaviors from '@reformer/core/behaviors';
 import * as reformerCore from '@reformer/core';
+import * as reformerI18n from '@reformer/core/i18n';
 import * as reformerValidation from '@reformer/core/validation';
 import * as rendererJson from '@reformer/renderer-json';
 
@@ -138,6 +139,10 @@ describe('модули, доступные коду формы', () => {
       reformerBehaviors
     );
     expect(registry.resolve('@reformer/renderer-json', 'form/registry.ts')).toBe(rendererJson);
+    // Словарь замечаний формы: `validation/messages.ts` модуля зовёт `defineIssueMessages`.
+    expect(registry.resolve('@reformer/core/i18n', 'form/validation/messages.ts')).toBe(
+      reformerI18n
+    );
 
     modules.dispose();
   });

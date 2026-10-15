@@ -26,6 +26,7 @@
 import * as signalsCore from '@preact/signals-core';
 import * as reformerCore from '@reformer/core';
 import * as reformerBehaviors from '@reformer/core/behaviors';
+import * as reformerI18n from '@reformer/core/i18n';
 import * as reformerModel from '@reformer/core/model';
 import * as reformerReact from '@reformer/core/react';
 import * as reformerSignals from '@reformer/core/signals';
@@ -42,6 +43,9 @@ export const modules: readonly (readonly [specifier: string, exports: unknown])[
   ['@preact/signals-core', signalsCore],
   ['@reformer/core', reformerCore],
   ['@reformer/core/behaviors', reformerBehaviors],
+  // Словарь замечаний формы (`validation/messages.ts` → `defineIssueMessages`): файл модуля,
+  // который печатает кодоген и исполняет превью.
+  ['@reformer/core/i18n', reformerI18n],
   ['@reformer/core/model', reformerModel],
   // Хуки нод и связка поля с контролом: их берут киты и код превью — той же копией, что билдер.
   ['@reformer/core/react', reformerReact],
@@ -57,6 +61,9 @@ export const lazyModules: readonly (readonly [specifier: string, load: () => Pro
   [
     // Проверка схемы против JSON Schema тянет за собой ajv: её просят валидатор и ассистент.
     ['@reformer/renderer-json/validate', () => import('@reformer/renderer-json/validate')],
+    // Русские тексты замечаний ядра: по ним кодоген печатает словарь формы
+    // (`validation/messages.ts`) — тем же переводом, что у локали, а не своей копией строк.
+    ['@reformer/core/locale/ru', () => import('@reformer/core/locale/ru')],
     ['@reformer/form-registry', () => import('@reformer/form-registry')],
     ['@reformer/form-registry/react', () => import('@reformer/form-registry/react')],
     ['@reformer/form-registry/storage', () => import('@reformer/form-registry/storage')],
