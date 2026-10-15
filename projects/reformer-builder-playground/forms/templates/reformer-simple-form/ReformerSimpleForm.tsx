@@ -1,13 +1,13 @@
-// @reformer-generated d096d90f6d8e
+// @reformer-generated 8335212d145c
 // ReformerSimpleForm.tsx — страница формы: сборка (application/create.ts) → FormRenderer.
 // Регенерируется билдером; правки будут перезаписаны.
 
 import { useState } from 'react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
-import { useFormBundle } from '@reformer/core/react';
+import { I18nProvider, useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import { createReformerSimpleForm } from './application/create';
-import { formMessages } from './validation/messages';
+import { formLocale, formMessages } from './validation/messages';
 
 type SubmitResult = { message: string; ok: boolean };
 
@@ -21,7 +21,7 @@ export default function ReformerSimpleForm() {
 
   // Тексты замечаний — словарь формы (validation/messages.ts): правила несут только код,
   // строку по коду даёт провайдер. Без него замечания показывались бы текстом локали по умолчанию.
-  return (
+  const page = (
     <ValidationMessagesProvider messages={formMessages}>
       <div className="mx-auto max-w-3xl p-6">
         <header className="mb-6">
@@ -48,4 +48,8 @@ export default function ReformerSimpleForm() {
       </div>
     </ValidationMessagesProvider>
   );
+
+  // Язык формы — тоже из словаря (`formLocale`): по нему склоняются тексты замечаний, пишутся
+  // единицы размера и подписи кита. `undefined` — форма говорит языком приложения.
+  return formLocale === undefined ? page : <I18nProvider locale={formLocale}>{page}</I18nProvider>;
 }

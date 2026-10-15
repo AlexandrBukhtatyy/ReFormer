@@ -51,6 +51,10 @@
  * он ничего не меняет, а дерево остаётся тем же — форма не перемонтируется, когда словарь
  * появился или исчез.
  *
+ * Язык формы (`formLocale` того же файла) — так же: страница задаёт его форме `I18nProvider`, и
+ * поверхность ставит тот же провайдер ({@link FormLocaleFrame}). Без него русский словарь
+ * склонялся бы по языку оболочки («Не больше 3 символа»), а кнопки шагов говорили бы по-английски.
+ *
  * ## Итог отправки — полосой над формой
  *
  * В приложении его показывает страница модуля (`onResult` → баннер), а страницу превью не
@@ -72,6 +76,8 @@ import {
   type ReactNode,
 } from 'react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
+import type { FormLocale } from '@reformer/core/i18n';
+import { I18nProvider, useI18n } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { toDescriptor } from '@reformer/builder-plugin-api';
@@ -111,6 +117,24 @@ import { attributeProblems, readSidecars } from './read';
 export const COMPILING_SURFACE_ID = 'preview.compiling';
 
 const NO_NAMESPACE: KitNamespace = Object.freeze({});
+
+/**
+ * Язык формы — тот, который задаёт ей страница модуля (`formLocale` из `validation/messages.ts`).
+ *
+ * Провайдер стоит всегда: без своего языка он отдаёт форме язык снаружи, и дерево не меняется,
+ * когда язык в словаре появился или исчез, — форма не перемонтируется (тот же довод, что у
+ * провайдера словаря).
+ */
+function FormLocaleFrame({
+  locale,
+  children,
+}: {
+  readonly locale: FormLocale | undefined;
+  readonly children: ReactNode;
+}): ReactNode {
+  const outer = useI18n().locale;
+  return <I18nProvider locale={locale ?? outer}>{children}</I18nProvider>;
+}
 
 function fallbackDescriptor(): KitDescriptor {
   return toDescriptor({ version: '1.0', components: [] });
@@ -427,13 +451,16 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
         <div className="p-4">
           <Highlight selection={selection} />
           <KitFrame frame={host.kitFrame()}>
-            {/* Словарь замечаний модуля — тем же провайдером, которым его подключает страница.
-                Внутри рамки кита: записи формы ложатся поверх того, что дал кит. */}
-            <ValidationMessagesProvider messages={sources.contract?.messages}>
-              {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла
-                  из него. */}
-              <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
-            </ValidationMessagesProvider>
+            {/* Язык формы и словарь замечаний модуля — теми же провайдерами, которыми их
+                подключает страница. Внутри рамки кита: записи формы ложатся поверх того, что
+                дал кит, а язык формы — поверх языка оболочки. */}
+            <FormLocaleFrame locale={sources.contract?.locale}>
+              <ValidationMessagesProvider messages={sources.contract?.messages}>
+                {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла
+                    из него. */}
+                <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
+              </ValidationMessagesProvider>
+            </FormLocaleFrame>
           </KitFrame>
         </div>
       </ScrollArea>

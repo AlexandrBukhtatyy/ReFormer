@@ -165,6 +165,32 @@ describe('extractContract — раскладка «папки по ролям»'
     ]);
   });
 
+  it('язык формы — formLocale того же файла; отказ от него (undefined) — законен', () => {
+    const formLocale = { code: 'ru', messages: { 'validation.required': 'Обязательное поле' } };
+    const contract = extractContract(
+      modules({ ...ROLES, 'validation/messages.ts': { formLocale, formMessages: {} } })
+    );
+    expect(contract.locale).toBe(formLocale);
+    expect(contract.files.messages).toBe('validation/messages.ts');
+
+    const without = extractContract(
+      modules({ ...ROLES, 'validation/messages.ts': { formLocale: undefined, formMessages: {} } })
+    );
+    expect(without.locale).toBeUndefined();
+    expect(appliedArtifacts(without)).toContain('messages');
+  });
+
+  it.each([
+    ['строка', 'ru'],
+    ['без кода', { messages: {} }],
+    ['без словаря', { code: 'ru' }],
+  ])('значение не того вида (%s) языком не считается', (_, value) => {
+    const contract = extractContract(
+      modules({ ...ROLES, 'validation/messages.ts': { formLocale: value } })
+    );
+    expect(contract.locale).toBeUndefined();
+  });
+
   it('модуль без словаря работает как раньше: записи о нём в контракте нет', () => {
     const contract = extractContract(modules(ROLES));
     expect(contract.messages).toBeUndefined();

@@ -25,6 +25,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import * as behaviors from '@reformer/core/behaviors';
 import * as coreI18n from '@reformer/core/i18n';
+import * as coreRu from '@reformer/core/locale/ru';
 import * as validation from '@reformer/core/validation';
 import * as validators from '@reformer/core/validators';
 import * as rendererJson from '@reformer/renderer-json';
@@ -50,6 +51,7 @@ const NO_SELECTION: readonly NodeId[] = Object.freeze([]);
 const PACKAGES = {
   '@reformer/core/behaviors': behaviors,
   '@reformer/core/i18n': coreI18n,
+  '@reformer/core/locale/ru': coreRu,
   '@reformer/core/validation': validation,
   '@reformer/core/validators': validators,
   '@reformer/renderer-json': rendererJson,
@@ -252,6 +254,47 @@ async function submitInvalid(element: HTMLElement): Promise<void> {
     expect(find(element, 'submit-result')?.getAttribute('data-ok')).toBe('false');
   });
 }
+
+/**
+ * Словарь с языком формы — как печатает кодоген: `formLocale` рядом с `formMessages`. Запись
+ * словаря — функцией, чтобы видеть, ПО КАКОМУ языку форматируется словарь.
+ */
+const LOCALE_FILE =
+  'var i18n = require("@reformer/core/i18n");\n' +
+  'var locale = require("@reformer/core/locale/ru");\n' +
+  'exports.formLocale = locale.ru;\n' +
+  'exports.formMessages = i18n.defineIssueMessages({\n' +
+  '  email: function (params, handle) { return "язык формы: " + handle.code; },\n' +
+  '});';
+
+describe('язык формы в компилирующем превью', () => {
+  it('formLocale задаёт форме язык: чего нет в словаре — из её локали, а не из оболочки', async () => {
+    const ctx = editableContext();
+    const element = await mounted(ctx, moduleTree({ strategy: 'blur', messages: LOCALE_FILE }));
+
+    await submitInvalid(element);
+
+    // `required` в словаре нет: текст даёт локаль формы, русская, а не английская оболочки.
+    await vi.waitFor(() => {
+      expect(remark(element)).toBe('Обязательное поле');
+    });
+    expect(ctx.problems).toEqual([]);
+  });
+
+  it('словарь форматируется по языку формы — склонения и единицы не берутся у оболочки', async () => {
+    const ctx = editableContext();
+    const element = await mounted(ctx, moduleTree({ strategy: 'blur', messages: LOCALE_FILE }));
+
+    const email = find<HTMLInputElement>(element, 'input-email');
+    if (email === null) throw new Error('поле почты не нарисовано');
+    await userEvent.type(email, 'не-почта');
+    await userEvent.tab();
+
+    await vi.waitFor(() => {
+      expect(remark(element)).toBe('язык формы: ru');
+    });
+  });
+});
 
 describe('словарь замечаний формы в компилирующем превью', () => {
   it('замечания показаны текстами словаря модуля, а не текстами локали', async () => {

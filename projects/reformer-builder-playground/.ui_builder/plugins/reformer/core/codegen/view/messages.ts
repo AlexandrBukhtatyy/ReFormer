@@ -22,6 +22,16 @@
  * В словарь попадают коды только тех валидаторов, которыми пользуются правила формы. Без правил —
  * `required`, если в схеме есть обязательные поля: заготовка валидации печатает именно его.
  *
+ * ## Язык формы — рядом со словарём
+ *
+ * Русских строк мало: шаблон словаря форматируется по ЯЗЫКУ активной локали. Склонение
+ * (`{minLength, plural, …}`) и единицы размера файла берутся у неё, и в приложении с английской
+ * локалью (или без провайдера локали) выходило «Не больше 3 символа», «больше 5 MB», а кнопки шагов
+ * визарда — «Next →». Поэтому файл словаря объявляет и язык формы — `formLocale`, русскую локаль
+ * кита ({@link MessagesView.localeModule}), — а страница задаёт его форме своим `I18nProvider`.
+ * Форма говорит на языке, на котором написан её словарь, при любой локали приложения. Файл —
+ * пользователя: `formLocale = undefined` возвращает форме язык приложения.
+ *
  * @module plugins/reformer/core/codegen/view/messages
  */
 
@@ -93,7 +103,24 @@ export interface MessagesView {
   readonly entries: readonly MessageEntryView[];
   /** Объявление словаря целиком: `export const formMessages = defineIssueMessages({ … });`. */
   readonly code: string;
+  /**
+   * Модуль русской локали, на которой форма говорит (`formLocale`): у встроенного кита — его
+   * локаль (ядро, cdk и подписи кита), у прочих — локаль ядра.
+   */
+  readonly localeModule: string;
 }
+
+/**
+ * Русская локаль кита по его спецификатору импорта. Дескриптор кита локали не называет, поэтому
+ * таблица: у встроенного кита она есть (`@reformer/ui-kit/locale/ru` — ядро, cdk и подписи кита),
+ * а прочим достаётся локаль ядра — тексты замечаний, склонения и единицы размера по-русски.
+ */
+const KIT_LOCALES: Readonly<Record<string, string>> = {
+  '@reformer/ui-kit': '@reformer/ui-kit/locale/ru',
+};
+
+/** Русская локаль ядра — запасная, когда у кита своей нет. */
+const CORE_LOCALE = '@reformer/core/locale/ru';
 
 /** Записи словаря для одного правила валидатора. */
 function entriesOf(rule: string): readonly MessageEntryView[] {
@@ -131,5 +158,6 @@ export function messagesView(ctx: EmitContext): MessagesView {
       prefix: 'export const formMessages = defineIssueMessages(',
       suffix: ');',
     }),
+    localeModule: KIT_LOCALES[ctx.kit.kit.codegen.importSpecifier] ?? CORE_LOCALE,
   };
 }

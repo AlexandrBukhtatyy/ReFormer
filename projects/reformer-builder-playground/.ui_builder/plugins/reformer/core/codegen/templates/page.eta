@@ -7,10 +7,10 @@ const heading = `<h1 className="text-2xl font-bold">${it.names.title}</h1>`;
 
 import { useState } from 'react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
-import { useFormBundle } from '@reformer/core/react';
+import { I18nProvider, useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
 import { <%= factory %> } from '<%= it.rel('page', 'create') %>';
-import { formMessages } from '<%= it.rel('page', 'messages') %>';
+import { formLocale, formMessages } from '<%= it.rel('page', 'messages') %>';
 
 type SubmitResult = { message: string; ok: boolean };
 
@@ -22,7 +22,7 @@ export default function <%= it.names.pageComponent %>() {
 
   // Тексты замечаний — словарь формы (<%= it.layout.files.messages %>): правила несут только код,
   // строку по коду даёт провайдер. Без него замечания показывались бы текстом локали по умолчанию.
-  return (
+  const page = (
     <ValidationMessagesProvider messages={formMessages}>
       <div className="mx-auto max-w-3xl p-6">
         <header className="mb-6">
@@ -55,4 +55,8 @@ export default function <%= it.names.pageComponent %>() {
       </div>
     </ValidationMessagesProvider>
   );
+
+  // Язык формы — тоже из словаря (`formLocale`): по нему склоняются тексты замечаний, пишутся
+  // единицы размера и подписи кита. `undefined` — форма говорит языком приложения.
+  return formLocale === undefined ? page : <I18nProvider locale={formLocale}>{page}</I18nProvider>;
 }

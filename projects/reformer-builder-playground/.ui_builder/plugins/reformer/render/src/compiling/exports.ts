@@ -7,7 +7,7 @@
  * | ------------------------ | ------------------------------ | ------------------------------------ |
  * | `model/initial-value.ts` | `createInitialValues`          | начальные значения — фабрикой        |
  * | `validation/form.ts`     | `formValidation`               | `FormValidation` сборки              |
- * | `validation/messages.ts` | `formMessages`                 | словарь текстов замечаний            |
+ * | `validation/messages.ts` | `formMessages`, `formLocale`   | словарь замечаний и язык формы       |
  * | `flow/<форма>-flow.ts`   | `formFlow`                     | поток шагов визарда                  |
  * | `behavior/index.ts`      | `behaviorRules`, `formBehavior`| правила функцией и готовое поведение |
  * | `application/submit.ts`  | `wireSubmit`                   | отправка над областью поведения      |
@@ -29,7 +29,8 @@
  * страница модуля — `<ValidationMessagesProvider messages={formMessages}>`. Страницу превью не
  * исполняет, поэтому словарь разбирается здесь наравне с остальными ролями, а подключает его
  * сама поверхность — тем же провайдером вокруг формы. Модуль без словаря показывает замечания
- * текстами локали, как и раньше.
+ * текстами локали, как и раньше. Язык формы (`formLocale`) из того же файла — так же: страница
+ * задаёт его форме `I18nProvider`, и поверхность ставит тот же провайдер.
  *
  * ## Прежняя плоская раскладка
  *
@@ -59,6 +60,7 @@
 import type { PreviewProblem } from '@reformer/builder-plugin-api';
 import type { ValidationMessagesProviderProps } from '@reformer/cdk';
 import type { CreateFormConfig } from '@reformer/core';
+import type { FormLocale } from '@reformer/core/i18n';
 import type { ComponentRegistry } from '@reformer/renderer-json';
 import type {
   ArtifactFiles,
@@ -90,6 +92,11 @@ export interface FormContract {
   readonly validation?: FormConfig['validation'];
   /** Словарь текстов замечаний (`formMessages`): его подключает поверхность, а не сборка. */
   readonly messages?: FormMessages;
+  /**
+   * Язык формы (`formLocale` того же файла): страница задаёт его форме своим `I18nProvider`, и
+   * поверхность — тоже. По нему склоняются тексты словаря, пишутся единицы размера и подписи кита.
+   */
+  readonly locale?: FormLocale;
   /** Поток шагов визарда (`formFlow`). */
   readonly flow?: FormConfig['flow'];
   /** Готовое поведение формы (`formBehavior`). */
@@ -233,6 +240,15 @@ function isMessages(value: unknown): value is FormMessages {
 }
 
 /**
+ * Похоже ли значение на локаль: код языка и словарь. `undefined` в файле — законный отказ от
+ * своего языка (форма говорит языком приложения), прочее неподходящее молча не применяется — по
+ * той же причине, что у словаря: провайдер локали читает её на каждой подписи.
+ */
+function isLocale(value: unknown): value is FormLocale {
+  return isObject(value) && typeof value.code === 'string' && isObject(value.messages);
+}
+
+/**
  * Разобрать исполненные модули в контракт формы.
  *
  * @param modules - Путь файла от корня модуля → его экспорты.
@@ -272,6 +288,11 @@ export function extractContract(
   if (messages !== undefined && isMessages(messages.value)) {
     contract.messages = messages.value;
     files.messages = messages.file;
+  }
+  const locale = from('messages', 'formLocale');
+  if (locale !== undefined && isLocale(locale.value)) {
+    contract.locale = locale.value;
+    files.messages = locale.file;
   }
 
   const flow = from('flow', 'formFlow');
@@ -336,7 +357,7 @@ export function appliedArtifacts(contract: FormContract): readonly AppliedArtifa
   const out: AppliedArtifact[] = [];
   if (contract.createInitialValues !== undefined) out.push('model');
   if (contract.validation !== undefined) out.push('validation');
-  if (contract.messages !== undefined) out.push('messages');
+  if (contract.messages !== undefined || contract.locale !== undefined) out.push('messages');
   if (contract.flow !== undefined) out.push('flow');
   if (contract.behavior !== undefined || contract.behaviorRules !== undefined) out.push('behavior');
   if (wiresSubmit(contract)) out.push('submit');

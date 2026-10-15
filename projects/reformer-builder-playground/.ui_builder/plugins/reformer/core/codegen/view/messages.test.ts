@@ -13,6 +13,7 @@ import { renderTemplate } from '@reformer/builder-toolkit';
 import { ru } from '@reformer/core/locale/ru';
 import {
   builtinKit,
+  foreignKit,
   plainSchema,
   seededRules,
   wizardRulesSchema,
@@ -117,17 +118,35 @@ describe('словарь замечаний: печать и подключен�
       messagesTemplate,
       viewOf({ rules: seededRules() })
     );
-    expect(code).toContain("import { defineIssueMessages } from '@reformer/core/i18n';");
+    expect(code).toContain(
+      "import { defineIssueMessages, type FormLocale } from '@reformer/core/i18n';"
+    );
     expect(code).toContain('export const formMessages = defineIssueMessages({');
     expect(code).toContain("  required: 'Обязательное поле',");
     // Длинный шаблон с `plural` уходит под ключ целиком — так его оставит форматтер.
     expect(code).toContain("  minLength:\n    'Не меньше {minLength, plural,");
   });
 
-  it('страница оборачивает форму провайдером со словарём формы', () => {
+  it('файл объявляет язык формы — русскую локаль кита, а у кита без своей — локаль ядра', () => {
+    // Шаблон словаря форматируется по ЯЗЫКУ активной локали: без своего языка форма в приложении
+    // с английской локалью склоняла бы русские тексты по-английски («Не больше 3 символа»).
+    const builtin = renderTemplate('test.messages', messagesTemplate, viewOf());
+    expect(builtin).toContain("import { ru } from '@reformer/ui-kit/locale/ru';");
+    expect(builtin).toContain('export const formLocale: FormLocale | undefined = ru;');
+
+    const foreign = renderTemplate(
+      'test.messages',
+      messagesTemplate,
+      viewOf({ kit: foreignKit() })
+    );
+    expect(foreign).toContain("import { ru } from '@reformer/core/locale/ru';");
+  });
+
+  it('страница оборачивает форму провайдером со словарём формы и задаёт ей язык словаря', () => {
     const code = renderTemplate('test.page', pageTemplate, viewOf());
     expect(code).toContain("import { ValidationMessagesProvider } from '@reformer/cdk';");
-    expect(code).toContain("import { formMessages } from './validation/messages';");
+    expect(code).toContain("import { I18nProvider, useFormBundle } from '@reformer/core/react';");
+    expect(code).toContain("import { formLocale, formMessages } from './validation/messages';");
     expect(code).toContain('<ValidationMessagesProvider messages={formMessages}>');
     expect(code.indexOf('<FormRenderer form={bundle} />')).toBeGreaterThan(
       code.indexOf('<ValidationMessagesProvider')
@@ -135,9 +154,13 @@ describe('словарь замечаний: печать и подключен�
     expect(code.indexOf('</ValidationMessagesProvider>')).toBeGreaterThan(
       code.indexOf('<FormRenderer form={bundle} />')
     );
+    // Язык снаружи словаря: провайдер замечаний живёт в поддереве с локалью формы.
+    expect(code).toContain(
+      'return formLocale === undefined ? page : <I18nProvider locale={formLocale}>{page}</I18nProvider>;'
+    );
   });
 
-  it('простая форма включает живую проверку `blur` вместе с правилами', () => {
+  it('простая форма включает живую проверку `change` вместе с правилами', () => {
     const code = renderTemplate('test.validation', validationTemplate, viewOf());
     expect(code).toContain(
       "export const formValidation: FormValidation<AnketaForm> = { rules: formRules, strategy: 'change' };"
