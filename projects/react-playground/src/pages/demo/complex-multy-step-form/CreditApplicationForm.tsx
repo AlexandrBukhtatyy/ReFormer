@@ -55,7 +55,7 @@ function CreditApplicationForm() {
 
   const submitApplication = async () => {
     // Один прогон всех правил: при замечаниях обработчик не вызывается, поля помечены тронутыми.
-    const outcome = await bundle.submit(sendCreditApplication);
+    const outcome = await bundle.submission.submit(sendCreditApplication);
     if (outcome.status === 'submitted') reportSubmitOutcome(outcome.result);
     else alert('Пожалуйста, исправьте ошибки в форме');
   };
