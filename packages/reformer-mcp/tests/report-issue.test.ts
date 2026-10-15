@@ -9,11 +9,11 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
+import { homedir, tmpdir } from 'os';
 import { join } from 'path';
 
 import { reportIssueTool } from '../src/core/tools/report-issue';
-import { ISSUE_REPORTS_DIR_ENV } from '../src/platform/cli/issue-sink.js';
+import { ISSUE_REPORTS_DIR_ENV, resolveIssueReportsDir } from '../src/platform/cli/issue-sink.js';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
@@ -127,8 +127,8 @@ describe('reportIssueTool (defect 77)', () => {
 
     const files = readdirSync(dir).sort();
     expect(files).toEqual([
-      '2026-08-22T10-14-05-123Z-same-error-2.json',
       '2026-08-22T10-14-05-123Z-same-error.json',
+      '2026-08-22T10-14-05-123Z-same-error_2.json',
     ]);
     const solutions = files
       .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf-8')).solution)
@@ -201,5 +201,51 @@ describe('reportIssueTool (defect 77)', () => {
     expect(text).toContain('Category: schema');
     expect(text).toMatch(/нестроковых элементов в `tags`: 2/);
     expect(readdirSync(base)).toHaveLength(1);
+  });
+
+  /**
+   * Имя файла читается и в русскоязычном проекте. Прежде слаг оставлял только [a-z0-9], и каждый
+   * такой отчёт назывался `<время>-issue.json` (ReFormer-bf4).
+   */
+  it('кириллица в error даёт читаемое имя файла, а не «issue»', async () => {
+    process.env[ISSUE_REPORTS_DIR_ENV] = base;
+    await reportIssueTool({ error: 'Ошибка валидации поля суммы', solution: 's' }, k);
+    const [file] = readdirSync(base);
+    expect(file).toMatch(/-oshibka-validatsii-polya-summy.json$/);
+  });
+
+  it('число в конце текста не путается с суффиксом коллизии', async () => {
+    process.env[ISSUE_REPORTS_DIR_ENV] = base;
+    await reportIssueTool({ error: 'Не работает computeFrom в шаге 3', solution: 's' }, k);
+    const [file] = readdirSync(base);
+    // Суффикс коллизии — через «_», в слаге его нет: «-3» здесь — часть текста.
+    expect(file).toMatch(/-ne-rabotaet-computefrom-v-shage-3.json$/);
+  });
+
+  /** `~/x` давал буквальный каталог «~» в cwd сервера (ReFormer-4nn). */
+  it('ведущая ~ в переменной окружения — домашний каталог', () => {
+    process.env[ISSUE_REPORTS_DIR_ENV] = '~/reformer-issue-reports';
+    expect(resolveIssueReportsDir()).toBe(join(homedir(), 'reformer-issue-reports'));
+    process.env[ISSUE_REPORTS_DIR_ENV] = '~\\reformer-issue-reports';
+    expect(resolveIssueReportsDir()).toBe(join(homedir(), 'reformer-issue-reports'));
+    process.env[ISSUE_REPORTS_DIR_ENV] = '~';
+    expect(resolveIssueReportsDir()).toBe(homedir());
+  });
+
+  /**
+   * Относительный путь отсчитывался от cwd СЕРВЕРА, которого агент не видит, а `../../x` уводил
+   * за пределы проекта (ReFormer-4nn). Отказ — текстом, без исключения и без записи.
+   */
+  it('относительный путь и выход за каталог — отказ текстом, файл не пишется', async () => {
+    process.chdir(base);
+    for (const value of ['relative/reports', '../../evil']) {
+      process.env[ISSUE_REPORTS_DIR_ENV] = value;
+      const res = await reportIssueTool({ error: 'e', solution: 's' }, k);
+      const text = res.content[0].text;
+      expect(text).toMatch(/could not write the issue report/i);
+      expect(text).toMatch(/не абсолютный путь/);
+      expect(text).toContain(value);
+    }
+    expect(readdirSync(base)).toEqual([]);
   });
 });

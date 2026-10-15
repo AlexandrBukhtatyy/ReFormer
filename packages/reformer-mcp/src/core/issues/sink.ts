@@ -11,6 +11,8 @@
  * @module reformer-mcp/core/issues/sink
  */
 
+import { slugify } from '../docs/sections.js';
+
 export interface IssueSink {
   /**
    * Сохранить отчёт под именем `baseName` (без расширения). Возвращает описание места, куда
@@ -34,13 +36,12 @@ export function fileStamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-');
 }
 
-/** Short kebab tail for the file name, so a directory listing is readable. */
+/**
+ * Short kebab tail for the file name, so a directory listing is readable. Кириллица
+ * транслитерируется той же таблицей, что слаги секций документации: прежде она выбрасывалась, и в
+ * русскоязычном проекте каждый отчёт назывался `<время>-issue.json`.
+ */
 export function slugifyIssue(text: string): string {
-  const slug = text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-    .replace(/-+$/g, '');
+  const slug = slugify(text).slice(0, 48).replace(/-+$/g, '');
   return slug || 'issue';
 }
