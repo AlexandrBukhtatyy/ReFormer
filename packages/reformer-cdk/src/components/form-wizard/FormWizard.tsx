@@ -8,9 +8,10 @@ import {
 } from 'react';
 import {
   createFormFlow,
+  createSubmission,
   type FlowTransition,
   type FormFlow,
-  type SubmitResult,
+  type FormSubmission,
 } from '@reformer/core';
 import { useFormBundleContext, useFormFlow } from '@reformer/core/react';
 import { FormWizardContext, type FormWizardContextValue } from './FormWizardContext';
@@ -89,9 +90,6 @@ function numberSteps(children: React.ReactNode): React.ReactNode {
 const positionalSteps = (total: number): string[] =>
   Array.from({ length: Math.max(total, 1) }, (_, index) => String(index + 1));
 
-/** Сигнал отправки сборки; без сборки отправка не идёт. */
-const NOT_SUBMITTING = { subscribe: () => () => {}, peek: () => false };
-
 /**
  * FormWizard — headless compound для многошаговой формы.
  *
@@ -100,8 +98,9 @@ const NOT_SUBMITTING = { subscribe: () => () => {}, peek: () => false };
  * поток и зовёт его переходы; правила доступности шагов и проверку шага держит поток.
  *
  * Отправка: внутри сборки (контекст `FormBundleContext`) обработчик зовётся через
- * `bundle.submit` — только после успешной проверки всей формы. Без сборки визард зовёт его по
- * нажатию, а проверку делает приложение (`bundle.submit(handler)`).
+ * `bundle.submission` — только после успешной проверки всей формы. Без сборки визард строит свою
+ * отправку без проверки (`createSubmission`): обработчик зовётся по нажатию, `isSubmitting` истинен,
+ * пока он работает, а проверку делает приложение.
  *
  * @example Поток сборки
  * ```tsx
@@ -115,7 +114,7 @@ const NOT_SUBMITTING = { subscribe: () => () => {}, peek: () => false };
  * <FormWizard form={bundle.form} flow={bundle.flow}>
  *   <FormWizard.Step component={LoanStep} control={bundle.form} />
  *   <FormWizard.Step component={ConfirmStep} control={bundle.form} />
- *   <FormWizard.Actions onSubmit={() => void bundle.submit(api.save)}>
+ *   <FormWizard.Actions onSubmit={() => void bundle.submission.submit(api.save)}>
  *     {({ prev, next, submit, isFirstStep, isLastStep }) => (
  *       <div className="actions">
  *         {!isFirstStep && <Button {...prev}>Назад</Button>}
@@ -152,10 +151,16 @@ function FormWizardBase<T extends Record<string, any>>({
   const flow = (givenFlow ?? positional) as FormFlow;
   const state = useFormFlow(flow);
 
-  const submittingSignal = bundle?.submitting ?? NOT_SUBMITTING;
+  // Отправка сборки; без сборки — своя, без проверки: значения формы как есть.
+  const submission = useMemo<FormSubmission<T>>(
+    () =>
+      bundle?.submission ??
+      createSubmission<T>({ check: undefined, values: () => form.getValue() as T }),
+    [bundle, form]
+  );
   const isSubmitting = useSyncExternalStore(
-    useCallback((onChange) => submittingSignal.subscribe(() => onChange()), [submittingSignal]),
-    () => submittingSignal.peek(),
+    useCallback((onChange) => submission.submitting.subscribe(() => onChange()), [submission]),
+    () => submission.submitting.peek(),
     () => false
   );
 
@@ -196,15 +201,8 @@ function FormWizardBase<T extends Record<string, any>>({
   );
 
   const submit = useCallback(
-    async <R,>(handler: (values: T) => Promise<R> | R): Promise<SubmitResult<R>> => {
-      if (bundle) return bundle.submit(handler);
-      try {
-        return { status: 'submitted', result: await handler(form.getValue() as T) };
-      } catch (error) {
-        return { status: 'failed', error };
-      }
-    },
-    [bundle, form]
+    <R,>(handler: (values: T) => Promise<R> | R) => submission.submit(handler),
+    [submission]
   );
 
   const currentStep = state.index + 1;

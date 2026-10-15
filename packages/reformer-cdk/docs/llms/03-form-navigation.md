@@ -50,9 +50,10 @@ function CreditWizard() {
     })
   );
 
-  // Outside the bundle context the wizard calls onSubmit on click — the check is bundle.submit.
+  // Outside the bundle context the wizard calls onSubmit on click — the check is
+  // bundle.submission.submit.
   const send = async () => {
-    const outcome = await bundle.submit(api.send);
+    const outcome = await bundle.submission.submit(api.send);
     if (outcome.status === 'invalid') toast('Check the form');
   };
 
@@ -111,11 +112,12 @@ announces "Step N of M" to screen readers; focus management stays with the consu
   step was being checked — a field edited during an async rule was not seen by the rules; the
   next click checks the new value. A step without `rules` (or with `rules: null`) passes without a check.
 - **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
-  - inside the bundle context it goes through `bundle.submit`: one run of the **full** rule set; on
-    success the handler (`Actions` `onSubmit`) is called, on issues every field is marked touched
-    and the handler is not called;
+  - inside the bundle context it goes through `bundle.submission.submit`: one run of the **full**
+    rule set; on success the handler (`Actions` `onSubmit`) is called, on issues every field is
+    marked touched and the handler is not called;
   - with `form`/`flow` props outside the context the wizard calls the handler on click **without**
-    a check — run it in the handler: `bundle.submit(handler)`.
+    a check (its own submission — `createSubmission` with no check) — run the check in the
+    handler: `bundle.submission.submit(handler)`.
 - The full rule set is `validation.rules` if given, otherwise every step's `rules` plus
   `validation.extras` (rules checked only as a whole, on submit):
 
@@ -127,10 +129,13 @@ createForm<Root>({
 });
 ```
 
-`bundle.submit(handler)` resolves to a `SubmitResult`:
+`bundle.submission.submit(handler)` resolves to a `SubmitResult`:
 `{ status: 'submitted', result }` | `{ status: 'invalid' | 'error' | 'cancelled', validation }` |
-`{ status: 'failed', error }` (the handler threw). `bundle.validateStep('loan')` checks one step
-(an unknown id throws), `bundle.validate()` — the full set.
+`{ status: 'failed', error }` (the handler threw). On `invalid` / `error` every field of the form is
+marked touched, on `cancelled` — nothing, on success — only the fields that were checked.
+`bundle.submission.submitting` is `true` while the handler runs (not while the rules run).
+`bundle.validateStep('loan')` checks one step (an unknown id throws), `bundle.validate()` — the
+full set.
 
 When the steps are described in the schema, the step id is the `selector` of the step node; in dev
 `createForm` warns about `flow.steps` ids that have no node with that `selector`. A wizard described
@@ -244,9 +249,10 @@ interface FormWizardIndicatorStepWithState {
 </FormWizard.Actions>
 ```
 
-`onSubmit` takes no arguments: inside the bundle context it is called after `bundle.submit` passed,
-so read the values from the bundle (`bundle.model.get()`) or submit from your own button with
-`useFormWizard().submit(handler)` — that one gets the values and returns the `SubmitResult`.
+`onSubmit` takes no arguments: inside the bundle context it is called after
+`bundle.submission.submit` passed, so read the values from the bundle (`bundle.model.get()`) or
+submit from your own button with `useFormWizard().submit(handler)` — that one gets the values and
+returns the `SubmitResult`.
 
 ### Render Props
 
@@ -302,7 +308,7 @@ interface FormWizardContextValue<T> {
   isFirstStep: boolean;
   isLastStep: boolean;
   isValidating: boolean; // a step check is running (flow.validating)
-  isSubmitting: boolean; // bundle.submitting inside the bundle context, otherwise always false
+  isSubmitting: boolean; // the handler runs (in a bundle: bundle.submission.submitting)
   goToNextStep: () => Promise<boolean>; // false — the step did not pass its check
   goToPreviousStep: () => void;
   goToStep: (step: number) => boolean; // 1-based; false — unknown or locked step
@@ -310,8 +316,10 @@ interface FormWizardContextValue<T> {
 }
 ```
 
-Outside the bundle context `isSubmitting` stays `false` — show the submit progress from
-`bundle.submitting` yourself.
+Outside the bundle context the wizard submits through its own submission without a check
+(`createSubmission` from `@reformer/core`), and `isSubmitting` is `true` while the handler
+(`Actions` `onSubmit`) runs. Return the promise from `onSubmit` (an `async` handler, like `send`
+above) so the flag covers your `bundle.submission.submit(...)` call.
 
 ## External Control via the Flow
 
@@ -327,7 +335,7 @@ flow.goTo('contacts'); // only a reachable step: the first, or one whose previou
 flow.canGoTo('confirm'); // boolean
 flow.reset(); // back to the first step, completion forgotten
 
-const outcome = await bundle.submit(api.send); // submit with the full check → SubmitResult
+const outcome = await bundle.submission.submit(api.send); // the full check → SubmitResult
 ```
 
 ```typescript
@@ -358,11 +366,12 @@ Inside the wizard tree `useFormWizard()` gives the same operations with 1-based 
 
 | Removed                                                                         | Replacement                                                                                                                                  |
 | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `config` prop, `FormWizardConfig` (`validateStep` / `validateAll` callbacks)    | step rules in `createForm({ flow: { steps: [{ id, rules }] } })`; full check — `bundle.submit(handler)` / `bundle.validate()`                |
+| `config` prop, `FormWizardConfig` (`validateStep` / `validateAll` callbacks)    | step rules in `createForm({ flow: { steps: [{ id, rules }] } })`; full check — `bundle.submission.submit(handler)` / `bundle.validate()` |
 | `defineSteps(model, { steps, extras })`                                         | `flow.steps` + `validation.extras` of `createForm`                                                                                           |
-| `ref` prop, `FormWizardHandle` (`goToStep`, `submit`, `validateCurrentStep`, …) | `bundle.flow` (`next()`, `previous()`, `goTo(id)`), `bundle.submit(handler)`, `bundle.validateStep(id)`; inside the tree — `useFormWizard()` |
+| `ref` prop, `FormWizardHandle` (`goToStep`, `submit`, `validateCurrentStep`, …) | `bundle.flow` (`next()`, `previous()`, `goTo(id)`), `bundle.submission.submit(handler)`, `bundle.validateStep(id)`; inside the tree — `useFormWizard()` |
 | `useWizardStepValidation(config)` + `strategy` in `defineSteps`                 | `createForm({ validation: { strategy } })`, armed by `useFormBundle`                                                                         |
-| ref `submit()` resolving to `R \| null`                                         | `bundle.submit(handler)` resolving to `SubmitResult`                                                                                         |
+| ref `submit()` resolving to `R \| null`                                         | `bundle.submission.submit(handler)` resolving to `SubmitResult` |
+| bundle `submit(handler)` / `submitting`                                         | `bundle.submission.submit(handler)` / `bundle.submission.submitting` |
 
 ## Живая валидация: `validation.strategy`
 
@@ -381,6 +390,9 @@ const bundle = useFormBundle(() =>
 
 - `strategy`: `'submit'` (по умолчанию — живой проверки нет) | `'blur'` | `'change'` (+ `debounce`,
   мс) | `'afterFirstSubmit'` (+ `liveAfterSubmit: 'change' | 'blur'`, по умолчанию `'change'`).
+- Живую фазу `'afterFirstSubmit'` включает только попытка отправки — `bundle.submission.submit`
+  (в контексте сборки её делает и кнопка «Отправить» визарда); `bundle.validate()`,
+  `bundle.validateStep(id)` и «Далее» (`flow.next()`) форму в живую фазу не переводят.
 - Стратегию армирует `useFormBundle` (в эффекте; при SSR не армируется) — отдельного хука у
   визарда нет.
 - Живой прогон идёт по полному набору правил формы и `touched` не ставит: замечание видно, когда

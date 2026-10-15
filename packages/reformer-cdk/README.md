@@ -100,8 +100,12 @@ function CreditWizard() {
       <FormWizard.Step component={LoanStep} control={bundle.form} />
       <FormWizard.Step component={ContactsStep} control={bundle.form} />
 
-      {/* Outside the bundle context onSubmit runs on click: the check is bundle.submit. */}
-      <FormWizard.Actions onSubmit={() => void bundle.submit(api.send)}>
+      {/* Outside the bundle context onSubmit runs on click: check via bundle.submission. */}
+      <FormWizard.Actions
+        onSubmit={async () => {
+          await bundle.submission.submit(api.send);
+        }}
+      >
         <FormWizard.Prev>Back</FormWizard.Prev>
         <FormWizard.Next>Next</FormWizard.Next>
         <FormWizard.Submit>Submit</FormWizard.Submit>
@@ -116,12 +120,14 @@ function CreditWizard() {
 - **Next** runs `flow.next()`: the current step's `rules` are checked; on blocking issues the
   wizard stays on the step, and the checked fields of the step are marked touched. A step without
   `rules` passes without a check.
-- **Submit** — `bundle.submit(handler)`: one run of the full rule set (every step's `rules` plus
-  `validation.extras`, or `validation.rules` when given), then the handler with the model values.
-  It resolves to a `SubmitResult`: `{ status: 'submitted', result }`,
-  `{ status: 'invalid' | 'error' | 'cancelled', validation }` or `{ status: 'failed', error }`.
-  Inside the bundle context (`FormRenderer`) the wizard submits through `bundle.submit` itself and
-  calls `onSubmit` only after the check passed.
+- **Submit** — `bundle.submission.submit(handler)`: one run of the full rule set (every step's
+  `rules` plus `validation.extras`, or `validation.rules` when given), then the handler with the
+  model values. It resolves to a `SubmitResult`: `{ status: 'submitted', result }`,
+  `{ status: 'invalid' | 'error' | 'cancelled', validation }` or `{ status: 'failed', error }`;
+  `bundle.submission.submitting` is `true` while the handler runs. Inside the bundle context
+  (`FormRenderer`) the wizard submits through `bundle.submission.submit` itself and calls
+  `onSubmit` only after the check passed. Outside it the wizard runs `onSubmit` through its own
+  submission without a check, and `isSubmitting` is `true` while `onSubmit` runs.
 - **Where the flow comes from:** the `flow` prop, otherwise the bundle in `FormBundleContext`,
   otherwise a positional flow by the number of `FormWizard.Step` children — without any rules.
 - **External control** — the flow itself, not a ref: `bundle.flow.next()`,

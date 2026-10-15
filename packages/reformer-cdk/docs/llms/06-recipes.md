@@ -203,7 +203,7 @@ function CreditWizard({ bundle }: { bundle: FormBundle<CreditForm> }) {
 ### Notes
 
 - **Первый вариант — основной.** Номера шагов, пройденные шаги и правила не сдвигаются: шаг всегда на своём месте, меняется только то, что он проверяет и показывает.
-- **`validateWhen` нужен в обоих вариантах.** Полный набор правил отправки (`bundle.submit`) — правила всех шагов потока сборки плюс `extras`; без условия ненужный шаг заблокировал бы отправку.
+- **`validateWhen` нужен в обоих вариантах.** Полный набор правил отправки (`bundle.submission.submit`) — правила всех шагов потока сборки плюс `extras`; без условия ненужный шаг заблокировал бы отправку.
 - **Смена своего потока сбрасывает позицию.** Новый поток стоит на первом шаге без пройденных: условие, от которого зависит набор шагов, держите на первом шаге (пользователь меняет сумму там же, куда поток и вернётся). Колбэк `onStepChange` при смене потока не вызывается. Поведение формы (`defineFormBehavior(({ flow }) => …)`) и `bundle.flow` по-прежнему указывают на поток сборки, а не на свой — переходы оттуда визард этого варианта не увидит.
 - **Шаги сопоставляются по позиции**: число и порядок `FormWizard.Step` совпадают с `flow.steps`. Индикатору передавайте массив шагов, построенный из того же списка (`number` — позиция с единицы).
 - Позиционный поток (визард без `flow` и без сборки в контексте) тоже пересобирается при смене числа `FormWizard.Step` — с тем же сбросом, — но правил шагов у него нет вовсе.
@@ -231,7 +231,7 @@ function Page() {
 
   const handleSaveAndExit = async () => {
     // Полная проверка, при успехе — обработчик со значениями модели.
-    const outcome = await bundle.submit(api.saveDraft);
+    const outcome = await bundle.submission.submit(api.saveDraft);
     if (outcome.status === 'submitted') router.push('/dashboard');
     else if (outcome.status === 'failed') toast('Сервер не принял заявку');
     // 'invalid' — замечания уже видны: поля помечены touched
@@ -266,7 +266,7 @@ function Page() {
 
 - Операции потока: `next()` (проверка текущего шага и переход, `Promise<FlowTransition>`), `previous()`, `goTo(id)`, `canGoTo(id)`, `reset()`. Итог перехода — `{ status: 'moved', from, to }` либо `{ status: 'stayed', step, reason, validation? }`, где `reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`.
 - `goTo(id)` пускает на первый шаг и на шаг, предыдущий которого пройден; иначе — `stayed` с `reason: 'locked'`. Неизвестный идентификатор — исключение. Чтобы пройти вперёд с проверкой — `await flow.next()`.
-- `bundle.submit(handler)` возвращает `SubmitResult`: `submitted` (с `result`), `invalid` / `error` / `cancelled` (с `validation`, обработчик не вызывался) или `failed` (обработчик бросил `error`).
+- `bundle.submission.submit(handler)` возвращает `SubmitResult`: `submitted` (с `result`), `invalid` / `error` / `cancelled` (с `validation`, обработчик не вызывался) или `failed` (обработчик бросил `error`). При `invalid` / `error` тронутой помечается вся форма, при `cancelled` — ничего, при успехе — только проверенные поля. Идёт ли обработчик — `bundle.submission.submitting`.
 - Переходы снаружи не вызывают `onStepChange` и `scrollToTop` визарда — на смену шага реагируйте через `useFormFlow(flow).current`.
 - Из поведения формы — тот же поток: `defineFormBehavior<CreditForm>(({ flow }) => { … flow?.goTo('loan'); })`.
 - Внутри дерева визарда то же доступно через `useFormWizard()`: `goToStep(n)` (номер с единицы), `goToNextStep()`, `submit(handler)`.

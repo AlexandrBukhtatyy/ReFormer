@@ -56,7 +56,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   // ============================================================================
 
   /**
-   * Отправить форму. Внутри сборки (`FormBundleContext`) — через `bundle.submit`: обработчик
+   * Отправить форму. Внутри сборки (`FormBundleContext`) — через `bundle.submission`: обработчик
    * зовётся только после успешной проверки всей формы. Без сборки обработчик зовётся сразу, а
    * проверку делает приложение.
    */
@@ -88,7 +88,7 @@ export const FormWizardContext = createContext<FormWizardContextValue<any> | nul
  * Возвращает форму и поток шагов (`form`, `flow`), производное состояние мастера
  * (`currentStep` с единицы, `totalSteps`, `completedSteps`, `isFirstStep`, `isLastStep`,
  * `isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
- * `goToStep`) и `submit` — отправку: внутри сборки через `bundle.submit`, результат — объект
+ * `goToStep`) и `submit` — отправку: внутри сборки через `bundle.submission`, результат — объект
  * со статусом. Бросает исключение, если вызван вне `<FormWizard>`.
  *
  * Управление снаружи дерева визарда — через сам поток: `bundle.flow.goTo('loan')`.

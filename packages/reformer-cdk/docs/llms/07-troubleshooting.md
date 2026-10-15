@@ -94,13 +94,13 @@ const bundle = useFormBundle(() =>
 
 **Решение.**
 
-- Отправляйте через `bundle.submit(handler)`: при замечаниях он помечает тронутыми все поля формы и обработчик не вызывает.
-- `bundle.validate()` проверяет всю форму и помечает тронутыми проверенные поля.
+- Отправляйте через `bundle.submission.submit(handler)`: при замечаниях он помечает тронутыми все поля формы и обработчик не вызывает.
+- `bundle.validate()` проверяет всю форму и помечает тронутыми проверенные поля. Попыткой отправки она не считается: стратегию `'afterFirstSubmit'` в живую фазу переводит только `bundle.submission.submit`.
 - Для живой проверки задайте стратегию сборке: `createForm({ …, validation: { rules, strategy: 'change' } })` (или `'blur'`, `'afterFirstSubmit'`); армирует её `useFormBundle`.
 
 ```tsx
 const handleSubmit = async () => {
-  const outcome = await bundle.submit(api.send);
+  const outcome = await bundle.submission.submit(api.send);
   if (outcome.status === 'invalid') {
     /* замечания уже видны — поля помечены touched */
   }
@@ -123,15 +123,21 @@ const handleSubmit = async () => {
 
 ## Кнопка отправки визарда вызывает обработчик без проверки
 
-**Причина.** Визард отрисован с пропсами `form`/`flow` вне сборки (`FormBundleContext`). В этом режиме `submit.onClick` / `FormWizard.Submit` зовут `onSubmit` из `FormWizard.Actions` сразу по нажатию: проверку делает приложение. Внутри сборки (`FormRenderer`) отправка идёт через `bundle.submit`, и `onSubmit` вызывается только после успешной проверки всей формы.
+**Причина.** Визард отрисован с пропсами `form`/`flow` вне сборки (`FormBundleContext`). В этом режиме `submit.onClick` / `FormWizard.Submit` зовут `onSubmit` из `FormWizard.Actions` сразу по нажатию: проверку делает приложение. Внутри сборки (`FormRenderer`) отправка идёт через `bundle.submission.submit`, и `onSubmit` вызывается только после успешной проверки всей формы.
 
 **Решение.** В режиме пропсов отправляйте через сборку:
 
 ```tsx
-<FormWizard.Actions onSubmit={() => void bundle.submit(api.send)}>…</FormWizard.Actions>
+<FormWizard.Actions
+  onSubmit={async () => {
+    await bundle.submission.submit(api.send);
+  }}
+>
+  …
+</FormWizard.Actions>
 ```
 
-`bundle.submit` проверяет полный набор правил — правила всех шагов плюс `validation.extras` (или `validation.rules`, если он задан), — поэтому отдельно проверять последний шаг не нужно. Флаг `isSubmitting` визарда вне сборки всегда `false`: прогресс отправки берите из `bundle.submitting`.
+`bundle.submission.submit` проверяет полный набор правил — правила всех шагов плюс `validation.extras` (или `validation.rules`, если он задан), — поэтому отдельно проверять последний шаг не нужно. Вне сборки визард зовёт `onSubmit` через свою отправку без проверки (`createSubmission`), и флаг `isSubmitting` истинен, пока работает обработчик. Возвращайте из `onSubmit` промис, как выше: тогда флаг держится всю отправку сборки; с `onSubmit={() => void …}` промис теряется и флаг гаснет сразу.
 
 ## `FieldArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 

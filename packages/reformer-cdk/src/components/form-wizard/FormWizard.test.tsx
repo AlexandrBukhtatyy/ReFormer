@@ -16,6 +16,7 @@ import { ru } from '../../locale/ru';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormWizard } from './FormWizard';
+import { useFormWizard, type FormWizardContextValue } from './FormWizardContext';
 import type { FormWizardActionsRenderProps } from './FormWizardActions';
 import type { FormWizardIndicatorRenderProps } from './FormWizardIndicator';
 
@@ -195,5 +196,30 @@ describe('FormWizard — отправка', () => {
     await flush();
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('без сборки: исключение обработчика — итог failed, а не исключение наружу', async () => {
+    const { form } = createBundle();
+    let wizard: FormWizardContextValue<Shape> | undefined;
+    const Probe = ({ onWizard }: { onWizard: (value: FormWizardContextValue<Shape>) => void }) => {
+      onWizard(useFormWizard<Shape>());
+      return null;
+    };
+    renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FormWizard form={form}>
+          <FormWizard.Step component={Empty} control={form} />
+          <Probe onWizard={(value) => (wizard = value)} />
+        </FormWizard>
+      </I18nProvider>
+    );
+    const error = new Error('500');
+
+    const outcome = await wizard!.submit(() => {
+      throw error;
+    });
+
+    expect(outcome).toEqual({ status: 'failed', error });
+    expect(wizard!.isSubmitting).toBe(false);
   });
 });
