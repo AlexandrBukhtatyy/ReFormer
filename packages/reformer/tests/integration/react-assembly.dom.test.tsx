@@ -715,11 +715,13 @@ describe('оболочка заявки — предупреждение пра�
 // ─── Размонтирование ───────────────────────────────────────────────────────────────────────
 
 describe('оболочка заявки — размонтирование', () => {
-  it('RA-21: подписки компонентов сняты — правки и проверка никого не перерисовывают', async () => {
+  it('RA-21: подписки компонентов и сама сборка сняты — правки и проверка никого не перерисовывают', async () => {
+    // Счёт — от состояния до сборки: `useFormBundle` владеет сборкой из своей фабрики и снимает
+    // её при размонтировании вместе с effect'ами поведения (ReFormer-8el5).
+    const empty = liveEffects();
     const loan = createLoanForm();
     assembled.push(loan);
     await settle();
-    // Сборка сделана заранее: её собственные effect'ы поведения входят в базу счёта.
     const base = liveEffects();
     let renders = 0;
     const view = render(
@@ -746,12 +748,12 @@ describe('оболочка заявки — размонтирование', () 
       await settle();
     });
 
-    expect(liveEffects()).toBe(base);
+    expect(liveEffects()).toBe(empty);
     expect(renders).toBe(rendersAtUnmount);
     expect(handle.current).toBeNull();
   });
 
-  it('RA-22: размонтирование во время проверки шага — ответ сервера оболочку не будит', async () => {
+  it('RA-22: размонтирование во время проверки шага — проверка отменена, ответ сервера никого не будит', async () => {
     const error = vi.spyOn(console, 'error');
     const server = createLoanServer({ manual: ['checkInn'] });
     const app = mountLoan({ loan: { server } });
@@ -766,11 +768,11 @@ describe('оболочка заявки — размонтирование', () 
     app.resetRenders();
     await perform(() => server.last('checkInn').resolve({ status: 'not-found' }));
 
-    // Проверка закончилась уже без оболочки: шаг прежний, замечание лежит на ноде поля, а фокус
-    // ставить некуда — handle полей сброшены размонтированием.
+    // Размонтирование сняло сборку, а снятие отменяет идущую проверку шага (`cancelled`): шаг
+    // прежний, проверка не идёт, и запоздалый ответ сервера на ноды ничего не кладёт.
     expect(app.bundle.flow?.current.value).toBe('applicant');
     expect(app.bundle.flow?.validating.value).toBe(false);
-    expect(issueCodes(app.bundle.form.applicant.inn)).toEqual(['applicant.inn.notFound']);
+    expect(issueCodes(app.bundle.form.applicant.inn)).toEqual([]);
     expect(app.renders()).toEqual({});
     expect(error).not.toHaveBeenCalled();
   });

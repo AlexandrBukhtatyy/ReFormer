@@ -7,10 +7,12 @@
  * снимается при размонтировании; перемонтирование по ключу собирает новый бандл. Сам хук ни на
  * что не подписан: записи в модель его компонент не перерисовывают.
  *
- * Известный дефект: размонтирование не освобождает поведение формы — `compute` продолжает
- * пересчитывать модель (ReFormer-8el5).
+ * Размонтирование снимает и саму сборку — поведение формы, подписки нод (ReFormer-8el5). Снятие
+ * идёт микрозадачей после коммита: StrictMode монтирует эффекты повторно над той же сборкой, и
+ * синхронный `dispose()` снял бы живую форму.
  */
 
+import { Activity, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createForm, type FormBundle } from '../../src/form/form-bundle';
 import { compute, defineFormBehavior } from '../../src/form/behaviors';
@@ -248,17 +250,83 @@ describe('useFormBundle — размонтирование', () => {
     expect(model.total).toBe(10);
   });
 
-  it.fails(
-    'размонтирование освобождает поведение формы — compute не пересчитывает [ReFormer-8el5]',
-    () => {
-      const { factory } = orderFactory({ behavior: true });
-      const hook = renderBundle(factory);
-      const { model } = hook.result.current;
+  it('размонтирование снимает сборку: поведение формы больше не пересчитывает модель', async () => {
+    const { factory } = orderFactory({ behavior: true });
+    const hook = renderBundle(factory);
+    const { model } = hook.result.current;
 
-      hook.unmount();
-      model.price = 10;
+    hook.unmount();
+    // Снятие — микрозадачей после коммита (см. шапку хука).
+    await settle();
+    model.price = 10;
 
-      expect(model.total).toBe(1);
-    }
+    expect(model.total).toBe(1);
+  });
+});
+
+/**
+ * Очистка эффектов без размонтирования. Тестовое окружение не повторяет эффекты StrictMode, поэтому
+ * тот же путь — «очистка и повторный запуск над той же сборкой» — воспроизводится скрытием и показом
+ * `<Activity>`: эффекты снимаются, состояние компонента остаётся.
+ */
+describe('useFormBundle — очистка эффектов без размонтирования', () => {
+  let mode: 'visible' | 'hidden' = 'visible';
+  const ActivityWrapper = ({ children }: { children: ReactNode }) => (
+    <Activity mode={mode}>{children}</Activity>
   );
+  const renderInActivity = (factory: () => FormBundle<Order>) => {
+    mode = 'visible';
+    return renderHookCounting(
+      (props: { factory: () => FormBundle<Order> }) => useFormBundle(props.factory),
+      { initialProps: { factory }, wrapper: ActivityWrapper }
+    );
+  };
+  const toggle = (
+    hook: { rerender: (props: { factory: () => FormBundle<Order> }) => void },
+    next: typeof mode,
+    factory: () => FormBundle<Order>
+  ) => {
+    mode = next;
+    act(() => hook.rerender({ factory }));
+  };
+
+  it('повторный запуск сразу после очистки (StrictMode, Fast Refresh) сборку не снимает', async () => {
+    const { factory } = orderFactory({ behavior: true });
+    const hook = renderInActivity(factory);
+    const bundle = hook.result.current;
+
+    toggle(hook, 'hidden', factory);
+    toggle(hook, 'visible', factory);
+    await settle();
+
+    expect(hook.result.current).toBe(bundle);
+    act(() => {
+      bundle.model.price = 10;
+    });
+    expect(bundle.model.total).toBe(10);
+  });
+
+  it('сборку успели снять — показ собирает новую фабрикой, а не оставляет мёртвую', async () => {
+    const { factory } = orderFactory({ behavior: true });
+    const hook = renderInActivity(factory);
+    const first = hook.result.current;
+
+    toggle(hook, 'hidden', factory);
+    await settle();
+    // Замена ставится микрозадачей после показа — ждём её внутри act.
+    mode = 'visible';
+    await act(async () => {
+      hook.rerender({ factory });
+      await settle();
+    });
+
+    const second = hook.result.current;
+    expect(second).not.toBe(first);
+    act(() => {
+      second.model.price = 7;
+      first.model.price = 9;
+    });
+    expect(second.model.total).toBe(7);
+    expect(first.model.total).toBe(1);
+  });
 });

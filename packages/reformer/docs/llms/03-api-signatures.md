@@ -29,6 +29,7 @@ createForm<T extends object>({
 // bundle.render.tree                → CompiledSchema (см. 37-compiled-schema.md)
 // bundle.dispose()                  → снять сборку: поведение, подписки нод, живую проверку;
 //                                     идущие проверки — cancelled; модель остаётся; идемпотентно
+// useFormBundle(() => createForm(…)) снимает сборку сам — при размонтировании компонента
 
 // Отправка — отдельный объект сборки (`bundle.submission`)
 interface FormSubmission<T> {
