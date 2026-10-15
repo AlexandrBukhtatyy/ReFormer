@@ -4,7 +4,15 @@ import {
   buildValidationSchemaTs,
 } from '@reformer/mcp/dist/core/generate/builders.js';
 import { normalizeIntent } from '@reformer/mcp/dist/core/generate/form-intent.js';
-import { seededRules, wizardRules, wizardRulesSchema, builtinKit } from '../__fixtures__/kit';
+import {
+  seededRules,
+  wizardRules,
+  wizardRulesSchema,
+  builtinKit,
+  partsRules,
+  partsSchema,
+  partsWizardSchema,
+} from '../__fixtures__/kit';
 import { prepare } from '../context';
 import type { FormRules } from '../../form-model/rules';
 import { makeNames } from '../naming';
@@ -222,5 +230,36 @@ describe('правила визарда по шагам', () => {
     const ctx = wizardCtx();
     const rules = { ...ctx.rules, validation: ctx.rules.validation.slice(0, 3) };
     expect(crossStepRulesFromRules(rules, ctx.names, ctx.layout)).toBeNull();
+  });
+});
+
+describe('правила валидации полей именованных частей', () => {
+  const partsCtx = (wizard: boolean) =>
+    prepare({
+      schema: wizard ? partsWizardSchema() : partsSchema(),
+      formName: 'Анкета',
+      kit: builtinKit(),
+      rules: partsRules(),
+    });
+
+  it('поле подформы адресуется полным путём, поле части-строки — от строки', () => {
+    const ctx = partsCtx(false);
+    const body = formRulesFromRules(ctx.rules, ctx.names)?.body.join('\n') ?? '';
+    expect(body).toContain('validate(model.$.home.city, [required()]);');
+    expect(body).toContain('applyEach(model.$.guests, ({ model: item }) => {');
+    expect(body).toContain('validate(item.$.name, [required(), minLength(2)]);');
+    expect(body).not.toContain('item.$.guests');
+  });
+
+  it('правило идёт к шагу, где часть смонтирована: по группе подформы и по массиву строки', () => {
+    const ctx = partsCtx(true);
+    const [home, guests] = ctx.rules.validation;
+    expect(stepOfRule(home!, ctx.layout)?.title).toBe('Адреса');
+    expect(stepOfRule(guests!, ctx.layout)?.title).toBe('Гости');
+    // Все правила разошлись по шагам — вне шагов ничего не осталось.
+    expect(crossStepRulesFromRules(ctx.rules, ctx.names, ctx.layout)).toBeNull();
+    const first = stepRulesFromRules(ctx.rules, ctx.names, ctx.layout, ctx.layout.steps[0]!);
+    expect(first?.body.join('\n')).toContain('model.$.home.city');
+    expect(first?.body.join('\n')).not.toContain('guests');
   });
 });

@@ -19,7 +19,7 @@
  * ├── api/index.ts               запросы к серверу
  * ├── model/                     initial-value.ts, model.ts
  * ├── schema/                    form.schema.json (документ формы), registry.ts, steps/<шаг>/…
- * ├── validation/                form.ts, <шаг>.ts
+ * ├── validation/                form.ts, messages.ts, <шаг>.ts
  * ├── behavior/index.ts          единственное поведение формы
  * ├── flow/<dir>-flow.ts         поток шагов — только у визарда
  * ├── types/<dir>.ts             тип формы
@@ -59,13 +59,20 @@ export const VALIDATION_DIR = 'validation';
 /** Имя файла правил формы в {@link VALIDATION_DIR} — без расширения. */
 export const FORM_RULES_NAME = 'form';
 
+/** Имя файла текстов замечаний в {@link VALIDATION_DIR} — без расширения. */
+export const MESSAGES_NAME = 'messages';
+
 /**
- * Имена, которые шаг визарда занять не может: под ними в `validation/` лежит файл формы.
+ * Имена, которые шаг визарда занять не может: под ними в `validation/` лежат файлы формы.
  *
- * Шаг с заголовком «Form» дал бы `validation/form.ts` — тот же путь, что у правил формы; такое
- * имя разводится суффиксом, как повтор заголовка (`form-2`).
+ * Шаг с заголовком «Form» дал бы `validation/form.ts` — тот же путь, что у правил формы, шаг
+ * «Messages» — путь словаря текстов замечаний (`validation/messages.ts`): один файл затёр бы
+ * другой. Такое имя разводится суффиксом, как повтор заголовка (`form-2`, `messages-2`).
  */
-export const RESERVED_STEP_NAMES: readonly string[] = Object.freeze([FORM_RULES_NAME]);
+export const RESERVED_STEP_NAMES: readonly string[] = Object.freeze([
+  FORM_RULES_NAME,
+  MESSAGES_NAME,
+]);
 
 /** Имена формы, от которых зависят пути файлов модуля. */
 export interface ModuleNames {
@@ -100,6 +107,8 @@ export interface ModuleFiles {
   readonly registry: string;
   /** Валидация формы: `validation/form.ts`. */
   readonly validation: string;
+  /** Тексты замечаний формы: `validation/messages.ts`. */
+  readonly messages: string;
   /** Единственное поведение: `behavior/index.ts`. */
   readonly behavior: string;
   /** Поток шагов визарда: `flow/<dir>-flow.ts`. */
@@ -133,6 +142,7 @@ export function moduleFilesOf(
     schema: schemaPath,
     registry: `${SCHEMA_DIR}/registry.ts`,
     validation: `${VALIDATION_DIR}/${FORM_RULES_NAME}.ts`,
+    messages: `${VALIDATION_DIR}/${MESSAGES_NAME}.ts`,
     behavior: 'behavior/index.ts',
     flow: `flow/${names.dir}-flow.ts`,
     types: `types/${names.dir}.ts`,

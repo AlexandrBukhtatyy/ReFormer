@@ -6,30 +6,30 @@ import type { SelectOption } from '../types/zayavka-na-kredit';
 
 export const POSITIONS: SelectOption[] = [
   {
-    "value": "option1",
-    "label": "Positions 1"
+    value: 'option1',
+    label: 'Positions 1',
   },
   {
-    "value": "option2",
-    "label": "Positions 2"
+    value: 'option2',
+    label: 'Positions 2',
   },
   {
-    "value": "option3",
-    "label": "Positions 3"
-  }
+    value: 'option3',
+    label: 'Positions 3',
+  },
 ];
 
 export const SKILLS: SelectOption[] = [
   {
-    "value": "option1",
-    "label": "Skills 1"
+    value: 'option1',
+    label: 'Skills 1',
   },
   {
-    "value": "option2",
-    "label": "Skills 2"
+    value: 'option2',
+    label: 'Skills 2',
   },
   {
-    "value": "option3",
-    "label": "Skills 3"
-  }
+    value: 'option3',
+    label: 'Skills 3',
+  },
 ];

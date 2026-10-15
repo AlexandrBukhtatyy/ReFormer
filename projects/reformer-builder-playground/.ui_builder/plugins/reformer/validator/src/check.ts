@@ -10,6 +10,15 @@
  * целостность правил  правило, указывающее в никуда                @/plugins/reformer/core/form-model
  * ```
  *
+ * ## Проверяется документ целиком, включая именованные части
+ *
+ * Разметка частей (`parts`) лежит вне дерева корня, но рендерер строит её теми же компонентами и
+ * по тем же правилам. Имена компонентов, структурный линт и чтения модели сверяются и там — обходом
+ * документа (`walkDocumentNodes`), а не дерева редактора. Адресовать такую находку нечем: узлам
+ * частей идентификаторы не выдаются (части в билдере не редактируются), и цель у неё — ресурс.
+ * Поэтому находка НАЗЫВАЕТ часть: код получает суффикс `.in-part`, а имя части едет в
+ * `params.part` ({@link inPartOf}); быстрых исправлений у неё нет — команды правят узел по адресу.
+ *
  * ## Имена компонентов проверяются ЗДЕСЬ, а не переданы в `validateFormSchema`
  *
  * Тому можно отдать `componentNames`, и он вернёт `«root.children[0].component: unknown
@@ -47,7 +56,7 @@ import type { CatalogEntry } from '../../core/catalog';
 import { ensureSchema, isFormSchema } from '../../core/form-model';
 import { findDuplicateNodeIds, nodeIdOf } from '../../core/form-model';
 import { componentOf } from '../../core/form-model';
-import { walkNodes } from '../../core/form-model';
+import { partOfPath, walkDocumentNodes } from '../../core/form-model';
 import { checkRules } from '../../core/form-model';
 import type { FormRules } from '../../core/form-model';
 import type { JsonPath } from '../../core/form-model';
@@ -59,7 +68,15 @@ import type {
   ResourceId,
   TextRange,
 } from '@reformer/builder-plugin-api';
-import { CODES, COMMANDS, QUICKFIX, SCHEMA_VALIDATOR_ID, type DiagnosticCode } from './codes';
+import {
+  CODES,
+  COMMANDS,
+  inPart,
+  QUICKFIX,
+  SCHEMA_VALIDATOR_ID,
+  type AnyDiagnosticCode,
+  type DiagnosticCode,
+} from './codes';
 import { nodeSiteAt, parseJson, splitLocation, targetAt } from './locate';
 import { nearestName } from './nearest';
 import { structureFindings } from './structure';
@@ -124,7 +141,7 @@ export interface SchemaCheckOptions {
 
 /** Собирает диагностику: источник и вид цели проставлены, пустые поля не заводятся. */
 function make(
-  code: DiagnosticCode,
+  code: AnyDiagnosticCode,
   severity: Diagnostic['severity'],
   target: DiagnosticTarget,
   params?: Record<string, unknown>,
@@ -138,6 +155,25 @@ function make(
     ...(params !== undefined && Object.keys(params).length > 0 ? { params } : {}),
     ...(fixes !== undefined && fixes.length > 0 ? { fixes } : {}),
   };
+}
+
+/** Цель находки без узлового адреса: документ целиком. */
+const RESOURCE: DiagnosticTarget = { kind: 'resource' };
+
+/**
+ * Находка, сделанная в разметке именованной части документа: код с суффиксом `.in-part`, имя
+ * части в параметрах, цель — ресурс, исправлений нет.
+ *
+ * Цель — ресурс и тогда, когда у узла части идентификатор в тексте ЗАПИСАН (копипаста из корня):
+ * указатель узлов строится по дереву редактора, частей в нём нет, и такой адрес никуда не ведёт.
+ */
+function inPartOf(
+  part: string,
+  code: DiagnosticCode,
+  severity: Diagnostic['severity'],
+  params?: Record<string, unknown>
+): Diagnostic {
+  return make(inPart(code), severity, RESOURCE, { ...params, part });
 }
 
 /**
@@ -250,6 +286,19 @@ function fromSchemaValidator(
     const { path, message } = splitLocation(raw);
     const { code, params } = translateMessage(message);
 
+    // Находка в разметке части: узла с адресом у неё нет, а значит нет ни списка допустимого
+    // (он берётся по компоненту узла), ни исправления. Остаётся назвать часть.
+    const part = partOfPath(path);
+    if (part !== null) {
+      return inPartOf(
+        part,
+        code,
+        'error',
+        // Ветка фразы без списка — как у находки, для которой список восстановить не вышло.
+        code === CODES.VALUE_NOT_ALLOWED ? { list: 'no' } : params
+      );
+    }
+
     if (code === CODES.VALUE_NOT_ALLOWED) {
       // Список допустимого ajv не передаёт — достаём его из той же схемы каталога.
       const site = nodeSiteAt(schema, path);
@@ -345,13 +394,25 @@ function unknownComponents(
   const registry = new Set(known);
   const out: Diagnostic[] = [];
 
-  walkNodes(schema, (node) => {
+  walkDocumentNodes(schema, (node, _path, origin) => {
     const op = parseOperator((node as { component?: unknown }).component);
     // Только `$component(...)`: `$html(tag)` проверяется по whitelist самим рендерером,
     // а массив без `component` и подформа (`{ model, part }`) каталожного имени в схеме не несут.
     if (op?.op !== 'component' || registry.has(op.arg)) return;
 
     const suggestion = nearestName(known, op.arg);
+    if (origin.part !== null) {
+      // Подсказка остаётся в параметрах — исправить имя в тексте части человек может и сам.
+      out.push(
+        inPartOf(
+          origin.part,
+          CODES.UNKNOWN_COMPONENT,
+          'error',
+          suggestion === undefined ? { name: op.arg } : { name: op.arg, suggestion }
+        )
+      );
+      return;
+    }
     const nodeId = nodeIdOf(node);
     const fixes: QuickFix[] =
       suggestion === undefined || nodeId === undefined
@@ -573,23 +634,27 @@ export function checkSchema(
     ...fromSchemaValidator(schema, input, options),
     ...unknownComponents(schema, input, options),
     ...structureFindings(schema).map((finding) =>
-      make(
-        finding.code,
-        'warning',
-        targetOf(finding.node, finding.within, finding.at),
-        finding.params
-      )
+      finding.part !== undefined
+        ? inPartOf(finding.part, finding.code, 'warning', finding.params)
+        : make(
+            finding.code,
+            'warning',
+            targetOf(finding.node, finding.within, finding.at),
+            finding.params
+          )
     ),
     // Чтение пути, которого никто не объявил. Предупреждение: объявить его мог сайдкар
     // `model.ts`, которого валидатор не видит (см. `checks/model-paths`).
     ...unboundModelReads(schema).map((finding) =>
-      make(
-        finding.code,
-        'warning',
-        targetOf(finding.node, finding.within, 'value'),
-        finding.params,
-        modelReadFix(finding, input.resource)
-      )
+      finding.part !== undefined
+        ? inPartOf(finding.part, finding.code, 'warning', finding.params)
+        : make(
+            finding.code,
+            'warning',
+            targetOf(finding.node, finding.within, 'value'),
+            finding.params,
+            modelReadFix(finding, input.resource)
+          )
     ),
     ...orphanRules(schema, input, options.rules),
     // Единственное место, где двойник ещё ВИДЕН: модель после разбора уже исправлена

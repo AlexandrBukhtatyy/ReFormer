@@ -1,7 +1,36 @@
 /**
- * Запросы к дереву `JsonFormSchema` только для чтения: поиск узла по пути, путь родителя-узла,
+ * Запросы к документу `JsonFormSchema` только для чтения: поиск узла по пути, путь родителя-узла,
  * обход всех узлов и сбор `$model`-путей / имён операторов (для synth-model и mock-sources
- * runtime-preview).
+ * runtime-preview), чтение именованных частей документа.
+ *
+ * ## Именованные части документа
+ *
+ * Документ формата 2 держит рядом с деревом корня словарь `parts`: имя → разметка подформы. Часть
+ * подключается оператором `$part(имя)` двумя способами:
+ *
+ * ```text
+ * { model: '$model(registrationAddress)', part: '$part(address)' }   узел-часть: подформа под группой модели
+ * { model: '$model(coBorrowers)', item: '$part(coBorrower)' }        массив: часть — шаблон строки
+ * ```
+ *
+ * Пути `$model(...)` внутри части относительны месту подключения — группе либо строке массива.
+ * Поэтому одна часть ставится сколько угодно раз, а её узлы живут в СВОЕЙ области: адресуются из
+ * поведения части, а не формы (`apply` для группы, `applyEach` для массива).
+ *
+ * ## Два обхода: редактора и анализа
+ *
+ * Обходы редактора ({@link walkNodes}, `node-kind.childSlots`) в части НЕ заходят, и это решение,
+ * а не пробел: у узла части нет ни места в дереве редактора, ни идентификатора (`$nodeId`), ни
+ * операций правки — документ с частями открывается и сохраняется, не меняя их текста. Но АНАЛИЗУ
+ * формы части нужны целиком: без них тип формы теряет подформы, реестр — компоненты и источники
+ * данных, проверка — ошибки в разметке части. Для анализа — {@link walkDocumentNodes}: корень и
+ * разметка каждой части по одному разу.
+ *
+ * Часть обходится КАК ЗАПИСАНА, а не «в месте подключения»: сколько раз часть смонтирована, для
+ * анализа разметки неважно. Кому важны места подключения — {@link collectPartMounts}.
+ *
+ * Живёт это здесь, а не отдельным модулем: каталог `form-model` упёрся в планку числа модулей
+ * (`integration/structure.test.ts`), а чтение частей — такой же запрос к документу, как остальные.
  *
  * @module plugins/reformer/core/form-model/query
  */
@@ -52,7 +81,14 @@ function isIndex(seg: JsonPath[number]): boolean {
   return typeof seg === 'number' || /^\d+$/.test(String(seg));
 }
 
-/** Обойти все узлы схемы (pre-order), начиная с корневого (`['root']`), через {@link childSlots}. */
+/**
+ * Обойти все узлы ДЕРЕВА КОРНЯ (pre-order), начиная с корневого (`['root']`), через
+ * {@link childSlots}.
+ *
+ * Это обход редактора: у каждого посещённого узла есть место в дереве и адрес правки. В разметку
+ * именованных частей (`parts`) он не заходит — части не редактируются. Анализу, которому нужен
+ * документ целиком (типы, источники данных, проверки), — {@link walkDocumentNodes}.
+ */
 export function walkNodes(
   schema: JsonFormSchema,
   visit: (node: JsonNode, path: JsonPath) => void
@@ -180,6 +216,140 @@ export function collectOperatorNames(schema: JsonFormSchema): OperatorNames {
 /** Является ли путь путём того же узла (утилита для стора: сравнение выделения). */
 export function isSameNode(a: JsonPath, b: JsonPath): boolean {
   return pathEquals(a, b);
+}
+
+// ── именованные части документа ───────────────────────────────────────────────
+
+/** Ключ словаря частей в документе — первый сегмент пути узла части. */
+export const PARTS_KEY = 'parts';
+
+/** Имя части из оператора `$part(имя)`; `undefined` — значение не этот оператор. */
+export function partNameOf(value: unknown): string | undefined {
+  const op = parseOperator(value);
+  return op?.op === 'part' ? op.arg : undefined;
+}
+
+/**
+ * Имя части, из которой узел берёт разметку: узел-часть (`part`) либо массив с шаблоном строки
+ * `item: "$part(имя)"`. У остальных узлов разметка лежит в них самих — `undefined`.
+ */
+export function partRefOf(node: JsonNode): string | undefined {
+  if (isArrayNode(node)) return partNameOf(node.item);
+  if (isPartNode(node)) return partNameOf(node.part);
+  return undefined;
+}
+
+/**
+ * Части документа: имя → разметка. Запись, не похожая на узел, пропускается — о ней скажет
+ * проверка схемы, а обходу там делать нечего.
+ */
+export function documentParts(schema: JsonFormSchema): ReadonlyMap<string, JsonNode> {
+  const out = new Map<string, JsonNode>();
+  const parts: unknown = schema.parts;
+  if (parts === null || typeof parts !== 'object' || Array.isArray(parts)) return out;
+  for (const [name, markup] of Object.entries(parts as Record<string, unknown>)) {
+    if (isNodeLike(markup)) out.set(name, markup);
+  }
+  return out;
+}
+
+/**
+ * Шаблон строки массива: вписанный узел (`item.$template`) либо разметка части (`item: "$part"`).
+ *
+ * `part` — имя части, если шаблон взят из неё; у вписанного шаблона `null`. `undefined` — шаблона
+ * нет: ссылка на несуществующую часть либо узел без `item`.
+ */
+export function rowTemplateOf(
+  node: JsonNode,
+  parts: ReadonlyMap<string, JsonNode>
+): { readonly node: JsonNode; readonly part: string | null } | undefined {
+  if (!isArrayNode(node)) return undefined;
+  const item: unknown = node.item;
+  const name = partNameOf(item);
+  if (name !== undefined) {
+    const markup = parts.get(name);
+    return markup === undefined ? undefined : { node: markup, part: name };
+  }
+  const template =
+    typeof item === 'object' && item !== null
+      ? (item as { $template?: unknown }).$template
+      : undefined;
+  return isNodeLike(template) ? { node: template, part: null } : undefined;
+}
+
+/** Часть, в разметке которой лежит место с таким путём; `null` — место в дереве корня. */
+export function partOfPath(path: JsonPath): string | null {
+  return path[0] === PARTS_KEY && typeof path[1] === 'string' ? path[1] : null;
+}
+
+/** Откуда узел: из дерева корня либо из разметки части. */
+export interface NodeOrigin {
+  /** Имя части, в разметке которой узел записан; `null` — узел дерева корня. */
+  readonly part: string | null;
+}
+
+/**
+ * Обойти ВСЕ узлы документа: дерево корня (`['root', …]`), затем разметку каждой части
+ * (`['parts', имя, …]`) в порядке объявления. Внутри дерева — тот же обход, что у
+ * `query.walkNodes` (через {@link childSlots}): шаблоны строк и обёртки полей посещаются.
+ *
+ * Для анализа, а не для редактора: пути узлов частей годятся, чтобы назвать место и определить
+ * область, но адресами правки не служат.
+ */
+export function walkDocumentNodes(
+  schema: JsonFormSchema,
+  visit: (node: JsonNode, path: JsonPath, origin: NodeOrigin) => void
+): void {
+  const rec = (node: JsonNode, path: JsonPath, origin: NodeOrigin): void => {
+    visit(node, path, origin);
+    for (const slot of childSlots(node, path)) {
+      for (const entry of slot.entries) {
+        rec(entry.node, slot.single ? slot.path : [...slot.path, entry.index], origin);
+      }
+    }
+  };
+  if (isNodeLike(schema.root)) rec(schema.root, ['root'], { part: null });
+  for (const [name, markup] of documentParts(schema))
+    rec(markup, [PARTS_KEY, name], { part: name });
+}
+
+/** Место подключения части. */
+export interface PartMount {
+  /** Имя части. */
+  readonly part: string;
+  /** `group` — узел-часть под группой модели; `rows` — шаблон строки массива. */
+  readonly kind: 'group' | 'rows';
+  /** Путь модели места подключения — от области, в которой стоит узел. */
+  readonly model: string;
+  /** Узел, который подключает часть, и его путь в документе. */
+  readonly node: JsonNode;
+  readonly path: JsonPath;
+  /** Где стоит узел: в дереве корня либо в разметке другой части. */
+  readonly origin: NodeOrigin;
+}
+
+/**
+ * Все места подключения частей — в порядке обхода документа (корень первым).
+ *
+ * Ссылка на часть, которой в документе нет, сюда тоже попадает: «есть ли такая часть» решает
+ * вызывающий (кодоген такую пропускает, проверка — сообщает).
+ */
+export function collectPartMounts(schema: JsonFormSchema): readonly PartMount[] {
+  const out: PartMount[] = [];
+  walkDocumentNodes(schema, (node, path, origin) => {
+    const part = partRefOf(node);
+    const model = parseOperator((node as { model?: unknown }).model);
+    if (part === undefined || model?.op !== 'model') return;
+    out.push({
+      part,
+      kind: isArrayNode(node) ? 'rows' : 'group',
+      model: model.arg,
+      node,
+      path,
+      origin,
+    });
+  });
+  return out;
 }
 
 // ── навигация по дереву (для горячих клавиш) ──────────────────────────────────

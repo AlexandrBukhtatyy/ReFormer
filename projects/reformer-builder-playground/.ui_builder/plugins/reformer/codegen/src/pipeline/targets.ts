@@ -27,6 +27,7 @@ import {
   flowTemplate,
   formBehaviorTemplate,
   initialTemplate,
+  messagesTemplate,
   modelTemplate,
   pageTemplate,
   readmeTemplate,
@@ -48,11 +49,12 @@ import type { CodegenTarget } from '../contract';
  *
  * `order` разрежен: между любыми двумя нашими целями помещается чужая, и вставка не требует
  * перенумеровать соседей. Цели шагов визарда встают рядом с файлами формы того же слоя (`15`,
- * `105`).
+ * `105`), словарь замечаний — сразу за валидацией формы (`102`).
  *
  * Id целей сохранены там, где роль файла та же: пользовательские шаблоны заменяют цель по id
  * (`overrides`). Новые цели — `codegen.initial`, `codegen.create`, `codegen.entry`,
- * `codegen.barrel`, `codegen.flow`, `codegen.submit`. Снятые — в {@link RETIRED_TARGETS}.
+ * `codegen.barrel`, `codegen.flow`, `codegen.submit`, `codegen.messages`. Снятые — в
+ * {@link RETIRED_TARGETS}.
  */
 export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number })[] =
   Object.freeze([
@@ -185,6 +187,17 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       regenerable: true,
       order: 100,
       template: validationTemplate,
+    },
+    {
+      // Тексты замечаний — словарь формы. Авторский и без маркера: тексты пишет человек, и
+      // перезапись при смене правил стёрла бы его формулировки. Новый код замечания, которого в
+      // словаре нет, показывается текстом локали — форма от этого не ломается.
+      id: 'codegen.messages',
+      titleKey: 'target.messages',
+      path: 'validation/messages.ts',
+      cls: 'user',
+      order: 102,
+      template: messagesTemplate,
     },
     {
       // Правила шага: «Далее» проверяет только их. В сборку они уходят потоком шагов.

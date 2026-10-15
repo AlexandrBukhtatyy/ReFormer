@@ -50,9 +50,7 @@
             "children": [
               {
                 "component": "$component(CarouselItem)",
-                "children": [
-                  "Слайд"
-                ]
+                "children": ["Слайд"]
               }
             ]
           }
@@ -64,9 +62,7 @@
         "componentProps": {
           "type": "submit"
         },
-        "children": [
-          "Отправить"
-        ]
+        "children": ["Отправить"]
       }
     ]
   }

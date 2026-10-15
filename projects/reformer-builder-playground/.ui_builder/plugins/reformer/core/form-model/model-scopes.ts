@@ -16,11 +16,17 @@
  * на экране — молчаливый no-op. Это различие и есть то, что дают функции модуля: подсказке
  * — список объявленного, проверке — места чтения.
  *
- * ## Область — это шаблон элемента массива
+ * ## Область — это шаблон элемента массива либо именованная часть документа
  *
  * Внутри `item.$template` пути ОТНОСИТЕЛЬНЫ элементу: конвертер рендерера строит шаблон над
  * подмоделью элемента. Поэтому каждый шаблон — своя область, а сама привязка массива объявлена
  * во внешней. Шаги мастера и обёртка поля области не открывают.
+ *
+ * Разметка именованной части (`parts[имя]`) — тоже своя область: её пути относительны группе или
+ * строке, к которой часть подключена. Область у части ОДНА, сколько бы раз её ни подключали, и
+ * адресуется она местом, где разметка записана, — `['parts', имя]`, а не местом подключения.
+ * Привязка самой подформы (`{ model, part }`) и массива с `item: "$part(…)"` объявлена во внешней
+ * области — там, где стоит узел.
  *
  * ## Почему не `collectModelPaths`
  *
@@ -41,15 +47,18 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from './node-kind';
+import { partOfPath, PARTS_KEY, walkDocumentNodes } from './query';
 import { pathEquals, type JsonPath } from './paths';
-import { walkNodes } from './query';
 
 /** Хвост пути, которым открывается область элемента массива. */
 const TEMPLATE_TAIL: JsonPath = ['item', '$template'];
 
-/** Область видимости модели: корень формы либо подмодель элемента массива. */
+/** Область видимости модели: корень формы, подмодель элемента массива либо часть документа. */
 export interface ModelScope {
-  /** Путь узла-массива, чей `item.$template` образует область; `[]` — корень формы. */
+  /**
+   * Путь узла-массива, чей `item.$template` образует область; `[]` — корень формы;
+   * `['parts', имя]` — разметка именованной части документа.
+   */
   readonly at: JsonPath;
   /** Пути, ОБЪЯВЛЕННЫЕ в области (привязки полей, массивов и подформ), без повторов, по обходу. */
   readonly bound: readonly string[];
@@ -71,7 +80,7 @@ export interface ModelRead {
 
 /**
  * Область, которой принадлежит место с путём `path`: ближайший шаблон элемента массива,
- * накрывающий его, либо корень.
+ * накрывающий его; без такого — часть документа, в разметке которой место записано, либо корень.
  *
  * Работает для любого пути в файле, не только для пути узла — поэтому годится и позиции курсора
  * в тексте, и узлу из инспектора. Сам массив в свою область не входит: его путь шаблоном
@@ -83,7 +92,8 @@ export function scopeOfPath(path: JsonPath): JsonPath {
       return path.slice(0, end - 2);
     }
   }
-  return [];
+  const part = partOfPath(path);
+  return part === null ? [] : [PARTS_KEY, part];
 }
 
 /** Аргумент `$model(...)`, если значение — этот оператор. */
@@ -93,10 +103,13 @@ function modelArg(value: unknown): string | undefined {
 }
 
 /**
- * Все области схемы: корень первым, дальше шаблоны массивов в порядке обхода.
+ * Все области схемы: корень первым, дальше шаблоны массивов и части документа в порядке обхода
+ * (сначала дерево корня, затем разметка частей — у каждой части своя область и области её
+ * шаблонов).
  *
  * Корень есть всегда, даже пустой, — у формы без привязок область всё равно одна, и искать
- * её по `at: []` должно быть можно без проверки на отсутствие.
+ * её по `at: []` должно быть можно без проверки на отсутствие. То же у части: область есть и у
+ * части без единой привязки.
  */
 export function collectModelScopes(schema: JsonFormSchema): readonly ModelScope[] {
   const byKey = new Map<string, { at: JsonPath; bound: string[]; seen: Set<string> }>();
@@ -111,10 +124,12 @@ export function collectModelScopes(schema: JsonFormSchema): readonly ModelScope[
   };
   scopeFor([]);
 
-  walkNodes(schema, (node, path) => {
+  walkDocumentNodes(schema, (node, path, origin) => {
     // Шаблон открывает область, даже если в нём нет ни одной привязки: подсказке внутри
-    // пустого шаблона нужен пустой ответ, а не ответ корня.
+    // пустого шаблона нужен пустой ответ, а не ответ корня. Так же и часть: её область
+    // открывает корневой узел разметки.
     if (isArrayNode(node)) scopeFor(path);
+    if (origin.part !== null && path.length === 2) scopeFor(path);
 
     // Привязка поля, массива и подформы лежит в одном ключе; у контейнера его нет.
     const arg = modelArg((node as { model?: unknown }).model);
@@ -136,15 +151,15 @@ export function boundPathsIn(scopes: readonly ModelScope[], at: JsonPath): reado
 
 /**
  * Все чтения `$model(...)`: текстовые части `children` и значения `componentProps` на любой
- * глубине.
+ * глубине — в дереве корня и в разметке именованных частей документа.
  *
- * Шаги мастера — узлы в `children`, их обходит {@link walkNodes}; в `componentProps` узлов нет,
- * поэтому пропсы сканируются целиком.
+ * Шаги мастера — узлы в `children`, их обходит {@link walkDocumentNodes}; в `componentProps` узлов
+ * нет, поэтому пропсы сканируются целиком.
  */
 export function collectModelReads(schema: JsonFormSchema): readonly ModelRead[] {
   const out: ModelRead[] = [];
 
-  walkNodes(schema, (node, nodePath) => {
+  walkDocumentNodes(schema, (node, nodePath) => {
     const scope = scopeOfPath(nodePath);
     const push = (within: JsonPath, value: unknown): void => {
       const arg = modelArg(value);

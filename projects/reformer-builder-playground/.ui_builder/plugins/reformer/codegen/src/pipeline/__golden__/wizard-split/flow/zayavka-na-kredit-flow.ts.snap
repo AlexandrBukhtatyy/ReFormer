@@ -7,7 +7,5 @@ import { stepRules as shag1Rules } from '../validation/shag-1';
 
 /** Поток шагов: `id` — `selector` узла шага в схеме; `next()` проверяет правила текущего шага. */
 export const formFlow: FormFlowConfig<ZayavkaNaKreditForm> = {
-  steps: [
-    { id: 'shag-1-section', rules: shag1Rules },
-  ],
+  steps: [{ id: 'shag-1-section', rules: shag1Rules }],
 };

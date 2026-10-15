@@ -144,6 +144,68 @@ export const CODES = {
 export type DiagnosticCode = (typeof CODES)[keyof typeof CODES];
 
 /**
+ * Суффикс кода находки, сделанной в разметке ИМЕНОВАННОЙ ЧАСТИ документа (`parts`).
+ *
+ * Узлам частей идентификаторы не выдаются (части в билдере не редактируются), поэтому находка
+ * внутри части адресуется ресурсом — то есть первой строкой файла, — и без имени части человеку
+ * неоткуда узнать, где искать. Имя приезжает в `params.part`, а фраза его называет:
+ * `«Часть «address»: компонента «Inpit» нет в каталоге кита.»`.
+ *
+ * Отдельный КОД, а не один лишь параметр: текст находки собирается по ключу `errors.<код>`, и у
+ * ключа одна фраза. Параметр, которого у находки нет, фраза показала бы маркером пропуска — так
+ * что «часть» нельзя сделать необязательной вставкой в прежнюю фразу. Вариант кода к тому же
+ * честен перед тем, кто чинится по коду: `schema.unknown-component` чинится командой над узлом,
+ * `schema.unknown-component.in-part` — нет, узла с адресом у неё нет.
+ */
+export const IN_PART_SUFFIX = '.in-part';
+
+/** Код находки внутри части документа: тот же код с {@link IN_PART_SUFFIX}. */
+export type PartDiagnosticCode = `${DiagnosticCode}${typeof IN_PART_SUFFIX}`;
+
+/** Любой код, которым валидатор публикует находку. */
+export type AnyDiagnosticCode = DiagnosticCode | PartDiagnosticCode;
+
+/**
+ * Коды, с которыми находка бывает внутри части: всё, что говорит об узле разметки.
+ *
+ * Не входят коды о файле целиком (`parse-failed`, `not-a-form`), о двойниках `$nodeId` (у узлов
+ * частей идентификаторов нет) и о правилах-сайдкаре (они адресуют приложенный файл).
+ */
+export const PART_CODES: readonly DiagnosticCode[] = [
+  CODES.MISSING_PROPERTY,
+  CODES.UNKNOWN_PROPERTY,
+  CODES.WRONG_TYPE,
+  CODES.VALUE_NOT_ALLOWED,
+  CODES.OUT_OF_RANGE,
+  CODES.PATTERN_MISMATCH,
+  CODES.UNKNOWN_COMPONENT,
+  CODES.HTML_TAG_NOT_ALLOWED,
+  CODES.UNKNOWN_DATA_SOURCE,
+  CODES.UNKNOWN_FN,
+  CODES.UNKNOWN_LOCALE_KEY,
+  CODES.UNKNOWN_PART,
+  CODES.MODEL_PATH_UNBOUND,
+  CODES.ARRAY_INITIAL_VALUE_INCOMPLETE,
+  CODES.INVALID,
+  CODES.TAB_WITHOUT_VALUE,
+  CODES.PANEL_WITHOUT_VALUE,
+  CODES.PANEL_WITHOUT_TAB,
+  CODES.TAB_WITHOUT_PANEL,
+  CODES.TABS_DEFAULT_VALUE_UNKNOWN,
+  CODES.STEP_NOT_CONTAINER,
+];
+
+/**
+ * Код той же находки, сделанной внутри части документа.
+ *
+ * Код, которого в {@link PART_CODES} нет, возвращается как есть: фразы с именем части у него нет,
+ * и находка с несуществующим ключом показала бы человеку сам код вместо текста.
+ */
+export function inPart(code: DiagnosticCode): AnyDiagnosticCode {
+  return PART_CODES.includes(code) ? `${code}${IN_PART_SUFFIX}` : code;
+}
+
+/**
  * Команды, которыми чинят.
  *
  * **Валидатор их не регистрирует.** `QuickFix` — это намерение («заменить компонент на такой-то»),

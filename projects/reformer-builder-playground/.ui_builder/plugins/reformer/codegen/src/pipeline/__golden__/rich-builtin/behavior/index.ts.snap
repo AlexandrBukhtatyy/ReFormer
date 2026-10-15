@@ -9,7 +9,6 @@ export function behaviorRules(_scope: BehaviorScope<ZayavkaNaKreditForm>): void 
   // Шаг «Кредит»
   // Условная видимость секций — раскомментируйте и впишите условие:
   // hideWhen(schema.node('kredit-section'), () => /* TODO: условие для «Кредит» */ false);
-
   // Шаг «Имущество»
   // Условная видимость секций — раскомментируйте и впишите условие:
   // hideWhen(schema.node('imuschestvo-section'), () => /* TODO: условие для «Имущество» */ false);

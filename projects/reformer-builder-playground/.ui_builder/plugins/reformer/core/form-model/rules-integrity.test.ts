@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { checkRules, dropOrphanRules, ruleWarnings } from './rules-integrity';
+import { checkRules, dropOrphanRules, ruleTargetPath, ruleWarnings } from './rules-integrity';
 import { emptyRules, type FormRules } from './rules';
 
 const schema = (): JsonFormSchema =>
@@ -47,6 +47,35 @@ describe('checkRules — правило, указывающее в никуда'
       validation: [{ target: 'items.price', rules: ['required'], each: 'items' }],
     };
     expect(checkRules(schema(), rules)).toEqual([]);
+  });
+
+  it('цель правила строки принимается в обеих записях: от строки и полным путём', () => {
+    // От строки цель пишет билдер одной схемы, полным путём — билдер единого контракта. Запись
+    // от строки искалась среди полей ФОРМЫ, и исправное правило объявлялось осиротевшим.
+    const relative: FormRules = {
+      ...emptyRules(),
+      validation: [{ target: 'price', rules: ['required'], each: 'items' }],
+    };
+    const full: FormRules = {
+      ...emptyRules(),
+      validation: [{ target: 'items.price', rules: ['required'], each: 'items' }],
+    };
+    expect(checkRules(schema(), relative)).toEqual([]);
+    expect(checkRules(schema(), full)).toEqual([]);
+    expect(ruleTargetPath(relative.validation[0]!)).toBe('items.price');
+    expect(ruleTargetPath(full.validation[0]!)).toBe('items.price');
+    // Без `each` цель — путь от корня формы, как и была.
+    expect(ruleTargetPath({ target: 'amount' })).toBe('amount');
+  });
+
+  it('правило строки несуществующего массива остаётся замечанием — с полным путём', () => {
+    const rules: FormRules = {
+      ...emptyRules(),
+      validation: [{ target: 'price', rules: ['required'], each: 'ghosts' }],
+    };
+    expect(checkRules(schema(), rules)).toMatchObject([
+      { list: 'validation', index: 0, missing: 'ghosts.price' },
+    ]);
   });
 
   it('валидация на удалённое поле сообщается с адресом', () => {
@@ -105,5 +134,49 @@ describe('dropOrphanRules — только по явному решению по
     expect(out.validation[0].target).toBe('amount');
     expect(out.render).toHaveLength(1);
     expect(out.render[0].selector).toBe('dostavka-section');
+  });
+});
+
+describe('правила над именованными частями документа', () => {
+  const withParts = (): JsonFormSchema =>
+    ({
+      format: 2,
+      version: '1.0',
+      parts: {
+        address: {
+          component: '$html(div)',
+          children: [
+            { selector: 'address-city', model: '$model(city)', component: '$component(Input)' },
+          ],
+        },
+      },
+      root: {
+        component: '$html(div)',
+        children: [
+          { model: '$model(home)', part: '$part(address)' },
+          { model: '$model(guests)', item: '$part(address)' },
+        ],
+      },
+    }) as unknown as JsonFormSchema;
+
+  it('поле подформы, поле части-строки и узел части — не осиротевшие', () => {
+    const rules: FormRules = {
+      validation: [
+        { target: 'home.city', rules: ['required'] },
+        { target: 'city', each: 'guests', rules: ['required'] },
+        { target: 'guests.city', each: 'guests', rules: ['required'] },
+      ],
+      behavior: [],
+      render: [{ kind: 'hideWhen', selector: 'address-city', condition: 'false' }],
+    };
+    expect(checkRules(withParts(), rules)).toEqual([]);
+  });
+
+  it('поле части без подключения в цель не годится: его пути в модели формы нет', () => {
+    const rules: FormRules = {
+      ...emptyRules(),
+      validation: [{ target: 'city', rules: ['required'] }],
+    };
+    expect(checkRules(withParts(), rules).map((problem) => problem.missing)).toEqual(['city']);
   });
 });

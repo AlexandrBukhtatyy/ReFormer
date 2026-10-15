@@ -53,12 +53,14 @@ const stepSchemas = it.layout.splitSteps;
 │   └── <%= base(files.registry) %>   реестр компонентов и источников данных
 ├── validation/
 <% if (it.layout.isWizard) { -%>
-│   ├── <%= base(files.validation) %>   валидация формы: правила вне шагов
+│   ├── <%= base(files.validation) %>   валидация формы: правила вне шагов и стратегия проверки
+│   ├── <%= base(files.messages) %>   тексты замечаний — словарь формы
 <% steps.forEach((step, i) => { -%>
 │   <%= i === steps.length - 1 ? '└──' : '├──' %> <%= base(step.rulesFile) %>   правила шага «<%= step.title %>»
 <% }) -%>
 <% } else { -%>
-│   └── <%= base(files.validation) %>   валидация формы: правила и стратегия проверки
+│   ├── <%= base(files.validation) %>   валидация формы: правила и стратегия проверки
+│   └── <%= base(files.messages) %>   тексты замечаний — словарь формы
 <% } -%>
 ├── behavior/
 │   └── <%= base(files.behavior) %>   единственное поведение: связи над моделью и правила узлов схемы
@@ -98,6 +100,10 @@ const stepSchemas = it.layout.splitSteps;
 Компоненты импортируются из `<%= it.kit.importSpecifier %>` — того кита, который был
 активен при генерации (`<%= it.kit.label %>`).
 
+Тексты замечаний — словарь `formMessages` (`<%= files.messages %>`): страница подключает его
+провайдером `ValidationMessagesProvider`. Запись реестра форм словарь не несёт — при монтировании
+через `FormOutlet` провайдер со словарём ставит хост.
+
 ## Методы для реализации
 
 - `<%= files.api %>` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
@@ -112,4 +118,5 @@ const stepSchemas = it.layout.splitSteps;
 - `<%= files.constants %>` → замените синтетические опции реальными словарями или загрузчиками.
 <% } -%>
 - `<%= it.layout.isWizard ? 'validation/<шаг>.ts' : files.validation %>` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `<%= files.messages %>` → тексты замечаний под свою форму: свой код правилу и запись под ним.
 - `<%= files.behavior %>` → вычисляемые поля и условное включение (по желанию).

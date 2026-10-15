@@ -5,9 +5,9 @@ import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
 /** Начальные значения: задают форму данных и снимок, к которому возвращает сброс. */
 export function createInitialValues(): ZayavkaNaKreditForm {
   return {
-    "loanType": "",
-    "loanAmount": null,
-    "comment": "",
-    "properties": []
+    loanType: '',
+    loanAmount: null,
+    comment: '',
+    properties: [],
   } as ZayavkaNaKreditForm;
 }

@@ -2,6 +2,6 @@
 // Регенерируется билдером; правки будут перезаписаны.
 
 export { default } from '<%= it.rel('barrel', 'page') %>';
-export { <%= it.names.formFactory %>, createFormBehavior, formSchema } from '<%= it.rel('barrel', 'create') %>';
+<%~ it.imports([it.names.formFactory, 'createFormBehavior', 'formSchema'], it.rel('barrel', 'create'), 'export') %>
 export { <%= it.names.entryConst %> } from '<%= it.rel('barrel', 'entry') %>';
 export type { <%= it.names.TypeName %> } from '<%= it.rel('barrel', 'types') %>';

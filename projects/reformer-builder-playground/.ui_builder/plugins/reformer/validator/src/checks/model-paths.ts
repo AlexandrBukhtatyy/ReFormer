@@ -6,8 +6,10 @@
  * в рантайме даёт `No model signal` в консоли и пустоту на экране — ни ошибки, ни эффекта. Какие
  * позиции объявляют, а какие читают, — `form-model/model-scopes`; здесь только сверка и находка.
  *
- * Сверяется дерево корня. Разметку частей документа (`parts`) обход ядра не посещает: пути в ней
- * относительны группе или строке, к которой часть подключена, и своей области у части нет.
+ * Сверяется документ целиком: дерево корня и разметка именованных частей (`parts`). У части своя
+ * область — пути в ней относительны группе или строке, к которой часть подключена, и чтение
+ * сверяется с объявлениями САМОЙ ЧАСТИ, а не формы. Находка в части несёт её имя: узлам частей
+ * идентификаторы не выдаются, адресовать её нечем, кроме ресурса.
  *
  * ## Строгость — предупреждение, и это названная уступка
  *
@@ -31,6 +33,7 @@ import {
   collectModelReads,
   collectModelScopes,
   isPathBound,
+  partOfPath,
   type JsonPath,
 } from '../../../core/form-model';
 import { CODES, type DiagnosticCode } from '../codes';
@@ -47,6 +50,8 @@ export interface ModelPathFinding {
   readonly path: string;
   /** Ближайший объявленный путь, если такой нашёлся. */
   readonly suggestion?: string;
+  /** Имя части документа, в разметке которой стоит чтение; у дерева корня его нет. */
+  readonly part?: string;
 }
 
 export function unboundModelReads(schema: JsonFormSchema): ModelPathFinding[] {
@@ -55,12 +60,14 @@ export function unboundModelReads(schema: JsonFormSchema): ModelPathFinding[] {
     .filter((read) => !isPathBound(read.path, boundPathsIn(scopes, read.scope)))
     .map((read) => {
       const suggestion = nearestName(boundPathsIn(scopes, read.scope), read.path);
+      const part = partOfPath(read.nodePath);
       return {
         code: CODES.MODEL_PATH_UNBOUND,
         node: read.node,
         within: read.within,
         path: read.path,
         ...(suggestion === undefined ? {} : { suggestion }),
+        ...(part === null ? {} : { part }),
         // Ветка фразы выбирается ЯВНО: без подсказки фраза обязана быть другой, иначе на экране
         // появился бы маркер пропущенного аргумента, а не текст.
         params:

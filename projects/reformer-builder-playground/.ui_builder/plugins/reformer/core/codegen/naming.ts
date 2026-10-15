@@ -31,7 +31,10 @@ export interface Names {
   readonly title: string;
   /** Имя фабрики модели (`createLoanApplicationFormModel`). */
   readonly modelFactory: string;
-  /** Имя сборки формы (`createLoanApplicationForm`). */
+  /**
+   * Имя сборки формы (`createLoanApplicationForm`). У формы с типом `Form` — `createFormBundle`:
+   * имя `createForm` занято библиотечной сборкой.
+   */
   readonly formFactory: string;
   /** Имя константы записи реестра форм (`loanApplicationFormEntry`). */
   readonly entryConst: string;
@@ -70,11 +73,29 @@ export function stepRulesAlias(stepName: string): string {
   return `${/^[A-Za-z_$]/.test(base) ? base : `step${pascal(stepName)}`}Rules`;
 }
 
-/** Собрать все производные имена из свободного имени формы (имя файла или ввод человека). */
+/** Приставка имени формы, которое начинается не с буквы: `2024` → `Form2024Form`. */
+const TYPE_PREFIX = 'Form';
+
+/**
+ * Имя сборки, занятое библиотекой: `application/create.ts` импортирует `createForm` из
+ * `@reformer/core`, и сборка формы с именем `form` (тип `Form`) объявила бы его второй раз.
+ */
+const CORE_FORM_FACTORY = 'createForm';
+
+/**
+ * Собрать все производные имена из свободного имени формы (имя файла или ввод человека).
+ *
+ * Имена кода — тип, компонент страницы, фабрики, константа записи реестра — обязаны быть
+ * идентификаторами при ЛЮБОМ имени формы. Имя, начинающееся с цифры (`2024-anketa`), дало бы тип
+ * `2024AnketaForm` — файл с ним не разбирается вовсе; такому типу достаётся приставка `Form`.
+ * Каталог формы (`dir`) остаётся как есть: имя папки цифрой начинаться вправе.
+ */
 export function makeNames(formName: string): Names {
   const dir = kebab(formName) || 'form';
   const base = pascal(formName) || 'Form';
-  const TypeName = base.endsWith('Form') ? base : `${base}Form`;
+  const named = base.endsWith('Form') ? base : `${base}Form`;
+  const TypeName = /^[A-Za-z_$]/.test(named) ? named : `${TYPE_PREFIX}${named}`;
+  const formFactory = `create${TypeName}`;
   return {
     dir,
     TypeName,
@@ -83,7 +104,7 @@ export function makeNames(formName: string): Names {
     exampleId: dir,
     title: humanize(formName),
     modelFactory: `create${TypeName}Model`,
-    formFactory: `create${TypeName}`,
+    formFactory: formFactory === CORE_FORM_FACTORY ? `${formFactory}Bundle` : formFactory,
     entryConst: `${TypeName.charAt(0).toLowerCase()}${TypeName.slice(1)}Entry`,
   };
 }

@@ -27,7 +27,12 @@
 
 import { toDescriptor, type KitDescriptor } from '@reformer/builder-plugin-api';
 import type { CatalogEntry, CatalogJson } from './types';
-import { buildCatalogFromJson, composeCatalogJson, type ComponentsFilter } from './contract';
+import {
+  buildCatalogFromJson,
+  composeCatalogJson,
+  kitFactsOf,
+  type ComponentsFilter,
+} from './contract';
 
 /** Настройки сборки — то, чем клиент может подвинуть состав и раскладку палитры. */
 export interface BuildCatalogOptions {
@@ -58,7 +63,9 @@ export function buildCatalog(supplied: CatalogJson, options?: BuildCatalogOption
   const json = composeCatalogJson(supplied, options?.components);
   const descriptor = toDescriptor(json);
   return {
-    entries: buildCatalogFromJson(json, descriptor, options?.categoryByName),
+    // Умеет ли кит рисовать массив, видно только по его каталогу до склейки: синтетическая
+    // запись массива вытесняет одноимённую запись кита.
+    entries: buildCatalogFromJson(json, descriptor, options?.categoryByName, kitFactsOf(supplied)),
     descriptor,
     json,
   };

@@ -1,5 +1,15 @@
-<% const T = it.names.TypeName; -%>
-<% const v = it.rules.validation; -%>
+<%
+const T = it.names.TypeName;
+const v = it.rules.validation;
+// Тело уже с отступом: если оператор не разберётся, он уедет в файл как есть.
+const rulesBody =
+  v.block !== null && v.block.body.length > 0
+    ? it.indent(v.block.body, 2)
+    : '  // TODO: правила формы';
+// Живая проверка: замечание уходит, как только значение поля исправили.
+const config =
+  v.block !== null ? `{ ${v.field}: ${v.rulesName}, strategy: 'change' }` : "{ strategy: 'change' }";
+-%>
 // <%= it.layout.files.validation %> — валидация формы: поле `validation` сборки (<%= it.layout.files.create %>).
 <% if (it.layout.isWizard) { -%>
 // Правила шагов — в validation/<шаг>.ts (их проверяет «Далее»); здесь — только правила вне шагов.
@@ -16,23 +26,33 @@ import type { <%= T %> } from '<%= it.rel('validation', 'types') %>';
 <% if (it.layout.isWizard) { -%>
 /** Правила вне шагов: проверяются целиком, при отправке. */
 <% } else { -%>
-/** Правила формы: проверяются при отправке. */
+/** Правила формы: проверяются при отправке и живой проверкой. */
 <% } -%>
-export const <%= v.rulesName %> = defineValidation<<%= T %>>((<%= v.block.usesModel ? '{ model }' : '' %>) => {
-<% if (v.block.body.length > 0) { -%>
-<%~ it.indent(v.block.body, 2) %>
-<% } else { -%>
-  // TODO: правила формы
-<% } -%>
-});
+<%~ it.format(`export const ${v.rulesName} = defineValidation<${T}>((${v.block.usesModel ? '{ model }' : ''}) => {
+${rulesBody}
+});`) %>
 
-/** Валидация формы — поле `validation` сборки. Сюда же — стратегия живой проверки (`strategy`). */
-export const formValidation: FormValidation<<%= T %>> = { <%= v.field %>: <%= v.rulesName %> };
-<% } else { -%>
-/**
- * Валидация формы — поле `validation` сборки. Правил вне шагов нет: полный набор сборка собирает
- * из правил шагов потока. Появятся — объявите их здесь и передайте полем `extras`; сюда же —
- * стратегия живой проверки (`strategy`).
- */
-export const formValidation: FormValidation<<%= T %>> = {};
 <% } -%>
+/**
+ * Валидация формы — поле `validation` сборки.
+<% if (it.layout.isWizard && v.block === null) { -%>
+ *
+ * Правил вне шагов нет: полный набор сборка собирает из правил шагов потока. Появятся —
+ * объявите их здесь и передайте полем `extras`.
+<% } -%>
+ *
+ * `strategy` — когда поле проверяется само, не дожидаясь отправки:
+ * - `'submit'` — никогда: замечание висит под исправленным полем до следующей отправки;
+ * - `'blur'` — когда поле теряет фокус. Замечание под исправленным полем уходит в момент
+ *   щелчка по кнопке (фокус покидает поле), кнопка сдвигается — и щелчок приходится мимо неё;
+ * - `'change'` — на каждое изменение (`debounce` — пауза в мс): замечание уходит, как только
+ *   значение исправили. Выбрана она;
+ * - `'afterFirstSubmit'` — как `'change'`, но только после первой отправки. Включает её проверка
+<% if (it.layout.isWizard) { -%>
+ *   через сборку (`form.validate()` / `form.submit()`).
+<% } else { -%>
+ *   через сборку (`form.validate()` / `form.submit()`), а здесь кнопка проверяет форму сама
+ *   (<%= it.layout.files.submit %>), мимо сборки.
+<% } -%>
+ */
+<%~ it.format(`export const formValidation: FormValidation<${T}> = ${config};`) %>

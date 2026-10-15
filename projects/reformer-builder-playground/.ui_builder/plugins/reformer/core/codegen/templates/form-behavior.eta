@@ -20,44 +20,68 @@ for (const group of b.groups) {
   body.push(lines);
 }
 if (b.applies.length > 0) {
-  body.push([
-    '// Строки массивов: у строки своя область — правила её узлов в поведении строки выше.',
-    ...b.applies,
-  ]);
+  // Вложенные области бывают двух видов: строка массива и именованная часть документа.
+  const note = !b.appliesParts
+    ? '// Строки массивов: у строки своя область — правила её узлов в поведении строки выше.'
+    : b.appliesRows
+      ? '// Части документа и строки массивов: у каждой своя область — её правила в поведении выше.'
+      : '// Части документа: у части своя область — правила её узлов в поведении части выше.';
+  body.push([note, ...b.applies]);
 }
 const rowBody = (row) => {
   const blocks = [];
   const own = [...row.rules.flatMap((rule) => rule.lines), ...scaffoldLines(row.scaffold)];
   if (own.length > 0) blocks.push(own);
   if (row.applies.length > 0) {
-    blocks.push(['// Вложенные строки — в своей области.', ...row.applies]);
+    blocks.push([
+      row.appliesParts
+        ? '// Вложенные части и строки — в своих областях.'
+        : '// Вложенные строки — в своей области.',
+      ...row.applies,
+    ]);
   }
   return blocks;
 };
+const scopeOf = (names) => (names.length > 0 ? `{ ${names.join(', ')} }` : '');
+// Объявление типа области: не помещается в строку — выражение уходит под имя.
+const typeLine = (row) => {
+  const line = `type ${row.typeName} = ${row.typeExpr};`;
+  return it.fits(line) ? line : `type ${row.typeName} =\n  ${row.typeExpr};`;
+};
+// Тело из одних комментариев пустых строк не держит: форматтер склеивает такие комментарии.
+const joinBody = (groups) => (b.hasCode ? it.blocks(groups) : groups.join('\n'));
 -%>
 // <%= it.layout.files.behavior %> — поведение формы: связи над моделью и правила узлов схемы.
 // Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
 
-import { <%= b.imports.join(', ') %>, type BehaviorScope } from '@reformer/core/behaviors';
+<%~ it.imports([...b.imports, 'type BehaviorScope'], '@reformer/core/behaviors') %>
 import type { <%= T %> } from '<%= it.rel('behavior', 'types') %>';
 
 <% for (const row of b.rows) { -%>
+<% if (row.kind === 'part') { -%>
+/** Часть `<%= row.part %>` документа. Тип — по первому подключению: `<%= row.path %>`. */
+<%~ typeLine(row) %>
+
+/**
+ * Правила части `<%= row.part %>`. Область у части своя: `model`, `form` и `schema.node(…)` здесь —
+ * модель, форма и узлы одного её подключения, а не всей формы.
+ */
+<% } else { -%>
 /** Строка массива `<%= row.path %>`. */
-type <%= row.typeName %> = <%= row.typeExpr %>;
+<%~ typeLine(row) %>
 
 /**
  * Правила строки массива `<%= row.path %>`. Область у строки своя: `model`, `form` и
  * `schema.node(…)` здесь — модель, форма и узлы одной строки, а не всей формы.
  */
-const <%= row.name %> = defineFormBehavior<<%= row.typeName %>>((<%= row.scope.length > 0 ? `{ ${row.scope.join(', ')} }` : '' %>) => {
-<%~ it.blocks(rowBody(row).map((lines) => it.indent(lines, 2))) %>
-});
+<% } -%>
+<%~ it.format(`const ${row.name} = defineFormBehavior<${row.typeName}>((${scopeOf(row.scope)}) => {\n${it.blocks(rowBody(row).map((lines) => it.indent(lines, 2)))}\n});`) %>
 
 <% } -%>
 /** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (<%= it.layout.files.create %>). */
-export function behaviorRules(<%= b.scope.length > 0 ? `{ ${b.scope.join(', ')} }` : '_scope' %>: BehaviorScope<<%= T %>>): void {
+<%~ it.signature('export function behaviorRules', [`${b.scope.length > 0 ? scopeOf(b.scope) : '_scope'}: BehaviorScope<${T}>`], ': void {') %>
 <% if (body.length > 0) { -%>
-<%~ it.blocks(body.map((lines) => it.indent(lines, 2))) %>
+<%~ joinBody(body.map((lines) => it.indent(lines, 2))) %>
 <% } else { -%>
   // Правил пока нет — см. пример ниже.
 <% } -%>

@@ -19,6 +19,7 @@ import {
   isArrayNode,
   isContainerNode,
   isFieldNode,
+  isPartNode,
   parseOperator,
   type JsonContainerNode,
   type JsonFieldNode,
@@ -26,7 +27,12 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike } from '../form-model/node-kind';
-import { collectOperatorNames, walkNodes } from '../form-model/query';
+import {
+  collectOperatorNames,
+  documentParts,
+  partNameOf,
+  walkDocumentNodes,
+} from '../form-model/query';
 import type { FormMock } from '../codegen/types';
 
 // Тип описывает РЕЗУЛЬТАТ синтеза, поэтому принадлежит сюда: генератор знает о моке
@@ -129,32 +135,54 @@ export interface FieldDefault {
 }
 
 /**
- * Верхнеуровневые дефолты полей и массивов.
+ * Верхнеуровневые дефолты полей, массивов и подформ.
  *
- * В `item.$template` не спускаемся: пути внутри шаблона ОТНОСИТЕЛЬНЫ элементу и в модель
- * верхнего уровня не входят — подмодель элемента строит конвертер рендерера.
+ * В шаблон строки массива (`item.$template` либо `item: "$part(…)"`) не спускаемся: пути внутри
+ * шаблона ОТНОСИТЕЛЬНЫ элементу и в модель верхнего уровня не входят — подмодель элемента строит
+ * конвертер рендерера.
+ *
+ * В разметку подформы (`{ model, part }`) спускаемся: её пути относительны ГРУППЕ, к которой часть
+ * подключена, и группа эта — часть модели верхнего уровня. Поля части получают путь с префиксом
+ * группы (`registrationAddress.city`); у части без единого поля объявляется сама группа — без неё
+ * рендерер на таком узле бросает («not a group of the model»). Часть, подключающая саму себя,
+ * второй раз не разворачивается: модель у неё вышла бы бесконечной.
  */
 export function collectFieldDefaults(schema: JsonFormSchema): readonly FieldDefault[] {
   const out: FieldDefault[] = [];
-  const visit = (node: JsonNode): void => {
+  const parts = documentParts(schema);
+  const visit = (node: JsonNode, prefix: string, entered: readonly string[]): void => {
     if (isArrayNode(node)) {
       const parsed = parseOperator(node.model);
-      if (parsed?.op === 'model') out.push({ path: parsed.arg, value: [] });
+      if (parsed?.op === 'model') out.push({ path: `${prefix}${parsed.arg}`, value: [] });
+      return;
+    }
+    if (isPartNode(node)) {
+      const parsed = parseOperator(node.model);
+      if (parsed?.op !== 'model') return;
+      const group = `${prefix}${parsed.arg}`;
+      const name = partNameOf(node.part);
+      const markup = name === undefined || entered.includes(name) ? undefined : parts.get(name);
+      const before = out.length;
+      if (markup !== undefined && name !== undefined)
+        visit(markup, `${group}.`, [...entered, name]);
+      if (out.length === before) out.push({ path: group, value: {} });
       return;
     }
     if (isFieldNode(node)) {
       const parsed = parseOperator(node.model);
-      if (parsed?.op === 'model') out.push({ path: parsed.arg, value: defaultForField(node) });
+      if (parsed?.op === 'model') {
+        out.push({ path: `${prefix}${parsed.arg}`, value: defaultForField(node) });
+      }
       return;
     }
     if (isContainerNode(node)) {
       // Шаги визарда — те же `children`.
       (node as JsonContainerNode).children?.forEach((child) => {
-        if (isNodeLike(child)) visit(child);
+        if (isNodeLike(child)) visit(child, prefix, entered);
       });
     }
   };
-  if (isNodeLike(schema.root)) visit(schema.root);
+  if (isNodeLike(schema.root)) visit(schema.root, '', []);
   return out;
 }
 
@@ -187,13 +215,18 @@ export interface DataSourceClasses {
   readonly scalarLike: ReadonlySet<string>;
 }
 
-/** Разложить `$dataSource`-имена схемы по бакетам использования. */
+/**
+ * Разложить `$dataSource`-имена схемы по бакетам использования.
+ *
+ * Смотрится весь документ, включая разметку именованных частей: список опций поля части — такой
+ * же список, и без обхода частей он сошёл бы за скаляр-плейсхолдер.
+ */
 export function classifyDataSources(schema: JsonFormSchema): DataSourceClasses {
   const all = new Set(collectOperatorNames(schema).dataSources);
   const functionLike = new Set<string>();
   const optionLike = new Set<string>();
 
-  walkNodes(schema, (node) => {
+  walkDocumentNodes(schema, (node) => {
     const props = (node as { componentProps?: Record<string, unknown> }).componentProps;
     if (props === undefined) return;
     if (isArrayNode(node)) {

@@ -3,9 +3,18 @@
  * классы `$dataSource` и верхнеуровневые поля с `required`.
  *
  * Обход зеркалит {@link './mock'.collectFieldDefaults}: тот же спуск, тот же отказ спускаться
- * в `item.$template` за верхнеуровневыми путями. Это не совпадение, а требование —
- * начальные значения (`model/initial-value.ts`) печатаются из первого, тип формы
- * (`types/<dir>.ts`) — из второго, и разойтись им нельзя.
+ * в шаблон строки за верхнеуровневыми путями и тот же спуск в разметку подформы. Это не
+ * совпадение, а требование — начальные значения (`model/initial-value.ts`) печатаются из
+ * первого, тип формы (`types/<dir>.ts`) — из второго, и разойтись им нельзя.
+ *
+ * ## Именованные части документа
+ *
+ * Подформа (`{ model, part }`) даёт под своим путём ГРУППУ с полями части: её обязательные поля
+ * и массивы считаются верхнеуровневыми — с префиксом группы (`registrationAddress.city`). Массив с
+ * `item: "$part(…)"` берёт тип строки из разметки части. Тип вписывается в тип формы на месте
+ * (структурно): одна часть, подключённая дважды, даёт две одинаковые группы. Часть, которая
+ * подключает саму себя, второй раз не разворачивается — на её месте остаётся
+ * `Record<string, unknown>`: вписанный тип у неё вышел бы бесконечным.
  *
  * @module plugins/reformer/core/codegen/collect
  */
@@ -14,13 +23,19 @@ import {
   isArrayNode,
   isContainerNode,
   isFieldNode,
+  isPartNode,
   parseOperator,
   type JsonFieldNode,
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
 import { isNodeLike, isStepsHost } from '../form-model/node-kind';
-import { collectOperatorNames } from '../form-model/query';
+import {
+  collectOperatorNames,
+  documentParts,
+  partNameOf,
+  rowTemplateOf,
+} from '../form-model/query';
 import {
   classifyDataSources,
   fieldKindOf,
@@ -48,9 +63,12 @@ export interface Collected {
   readonly components: readonly string[];
   /** Классы `$dataSource`. */
   readonly ds: DataSourceClasses;
-  /** Верхнеуровневые `$model`-пути полей с `componentProps.required === true`. */
+  /**
+   * Верхнеуровневые `$model`-пути полей с `componentProps.required === true` — включая поля
+   * подформ, с префиксом их группы.
+   */
   readonly requiredPaths: readonly string[];
-  /** `$model`-пути узлов-массивов. */
+  /** `$model`-пути узлов-массивов — верхнеуровневые, включая массивы подформ. */
   readonly arrayPaths: readonly string[];
   /**
    * Обязательные поля КАЖДОГО шага визарда, по порядку шагов. Пусто, если визарда нет.
@@ -167,57 +185,138 @@ function kindType(node: JsonFieldNode, mock: FormMock): string {
   return node.componentProps?.clearable === true ? 'string | null' : 'string';
 }
 
-function insert(target: TsObject, segments: readonly string[], node: TsNode): void {
+/** Объект по пути `segments` — существующий либо заведённый на месте. */
+function objectAt(target: TsObject, segments: readonly string[]): TsObject {
   let cursor = target;
-  for (let i = 0; i < segments.length - 1; i += 1) {
-    const key = segments[i];
+  for (const key of segments) {
     const next = cursor.fields[key];
     if (next === undefined || next.t !== 'obj') cursor.fields[key] = { t: 'obj', fields: {} };
     cursor = cursor.fields[key] as TsObject;
   }
-  cursor.fields[segments[segments.length - 1]] = node;
+  return cursor;
+}
+
+function insert(target: TsObject, segments: readonly string[], node: TsNode): void {
+  objectAt(target, segments.slice(0, -1)).fields[segments[segments.length - 1]] = node;
 }
 
 /**
- * Построить дерево типов узла — формы целиком или элемента массива.
+ * Вписать группу подформы. Поля ДОПИСЫВАЮТСЯ к тем, что под этим путём уже объявлены: поле
+ * `address.note` рядом с подформой `address` — одна группа модели, а не две.
+ */
+function insertGroup(target: TsObject, segments: readonly string[], group: TsObject): void {
+  Object.assign(objectAt(target, segments).fields, group.fields);
+}
+
+/** Тип места, где часть подключает саму себя: разворачивать её дальше нельзя. */
+const RECURSIVE_PART: TsNode = { t: 'leaf', ts: 'Record<string, unknown>' };
+
+/** Что обходу нужно знать о документе целиком. */
+interface TreeEnv {
+  readonly mock: FormMock;
+  /** Именованные части документа: разметка подформ и шаблонов строк. */
+  readonly parts: ReadonlyMap<string, JsonNode>;
+}
+
+/** Приёмник верхнеуровневых путей: обязательные поля и массивы. */
+interface TopLevel {
+  readonly required: (path: string) => void;
+  readonly array: (path: string) => void;
+}
+
+/** Тот же приёмник для путей подформы: к каждому дописывается путь её группы. */
+function within(top: TopLevel | null, group: string): TopLevel | null {
+  if (top === null) return null;
+  return {
+    required: (path) => {
+      top.required(`${group}.${path}`);
+    },
+    array: (path) => {
+      top.array(`${group}.${path}`);
+    },
+  };
+}
+
+/**
+ * Построить дерево типов узла — формы целиком, элемента массива либо подформы.
  *
+ * @param top - Приёмник верхнеуровневых путей; `null` у шаблона строки — пути там относительны
+ *   строке и в верхнеуровневые не попадают.
  * @param samples - Куски мока, в которых лежат значения полей этого узла: у формы — её модель,
- *   у шаблона элемента — строки массива из мока (у синтезированного мока строк нет).
+ *   у шаблона элемента — строки массива из мока (у синтезированного мока строк нет), у подформы —
+ *   значения её группы.
+ * @param entered - Части, внутри разметки которых идёт обход: защита от части, подключающей себя.
  */
 function buildTree(
   node: JsonNode,
-  mock: FormMock,
-  topLevel: boolean,
-  requiredOut: string[],
-  arraysOut: string[],
-  samples: readonly unknown[] = [mock.model]
+  env: TreeEnv,
+  top: TopLevel | null,
+  samples: readonly unknown[],
+  entered: readonly string[] = []
 ): TsObject {
   const root: TsObject = { t: 'obj', fields: {} };
   const visit = (n: JsonNode): void => {
     if (isArrayNode(n)) {
       const parsed = parseOperator(n.model);
       if (parsed?.op === 'model') {
-        // У `item: "$part(...)"` шаблона в узле нет — тип элемента остаётся пустым объектом.
-        const template = typeof n.item === 'object' ? n.item.$template : undefined;
+        // Шаблон строки: вписанный в узел либо разметка части (`item: "$part(…)"`). У ссылки на
+        // часть, которой в документе нет, шаблона нет — тип элемента остаётся пустым объектом.
+        const template = rowTemplateOf(n, env.parts);
         // Строки массива из мока: по ним типы полей строки узнают о своих `null`.
         const rows = samples.flatMap((sample): unknown[] => {
           const value = valueAt(sample, parsed.arg);
           return Array.isArray(value) ? value : [];
         });
-        const elem: TsNode = isNodeLike(template)
-          ? buildTree(template, mock, false, requiredOut, arraysOut, rows)
-          : { t: 'obj', fields: {} };
+        let elem: TsNode = { t: 'obj', fields: {} };
+        if (template !== undefined) {
+          const part = template.part;
+          elem =
+            part !== null && entered.includes(part)
+              ? RECURSIVE_PART
+              : buildTree(
+                  template.node,
+                  env,
+                  null,
+                  rows,
+                  part === null ? entered : [...entered, part]
+                );
+        }
         insert(root, parsed.arg.split('.'), { t: 'arr', elem });
-        if (topLevel) arraysOut.push(parsed.arg);
+        top?.array(parsed.arg);
       }
+      return;
+    }
+    if (isPartNode(n)) {
+      const parsed = parseOperator(n.model);
+      if (parsed?.op !== 'model') return;
+      const segments = parsed.arg.split('.');
+      const name = partNameOf(n.part);
+      const markup = name === undefined ? undefined : env.parts.get(name);
+      if (name === undefined || markup === undefined) {
+        // Части с таким именем нет (об этом скажет проверка схемы) — группа остаётся пустой.
+        insertGroup(root, segments, { t: 'obj', fields: {} });
+        return;
+      }
+      if (entered.includes(name)) {
+        insert(root, segments, RECURSIVE_PART);
+        return;
+      }
+      const inner = samples
+        .map((sample) => valueAt(sample, parsed.arg))
+        .filter((value) => value !== undefined);
+      insertGroup(
+        root,
+        segments,
+        buildTree(markup, env, within(top, parsed.arg), inner, [...entered, name])
+      );
       return;
     }
     if (isFieldNode(n)) {
       const parsed = parseOperator(n.model);
       if (parsed?.op === 'model') {
         const startsNull = samples.some((sample) => valueAt(sample, parsed.arg) === null);
-        insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, mock, startsNull) });
-        if (topLevel && n.componentProps?.required === true) requiredOut.push(parsed.arg);
+        insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, env.mock, startsNull) });
+        if (n.componentProps?.required === true) top?.required(parsed.arg);
       }
       return;
     }
@@ -248,15 +347,24 @@ export function wizardStepsOf(node: JsonNode): readonly JsonNode[] {
 export function collect(schema: JsonFormSchema, mock: FormMock): Collected {
   const requiredPaths: string[] = [];
   const arrayPaths: string[] = [];
+  const env: TreeEnv = { mock, parts: documentParts(schema) };
+  const into = (required: string[], arrays: string[]): TopLevel => ({
+    required: (path) => {
+      required.push(path);
+    },
+    array: (path) => {
+      arrays.push(path);
+    },
+  });
   const root = isNodeLike(schema.root)
-    ? buildTree(schema.root, mock, true, requiredPaths, arrayPaths)
+    ? buildTree(schema.root, env, into(requiredPaths, arrayPaths), [mock.model])
     : ({ t: 'obj', fields: {} } as TsObject);
   // Тот же обход, что у корня, — только от узла шага: «обязательное поле» определяется одним
   // правилом, и два обхода разошлись бы на первом же новом виде узла.
   const steps = isNodeLike(schema.root)
     ? wizardStepsOf(schema.root).map((step): StepRequired => {
         const required: string[] = [];
-        buildTree(step, mock, true, required, []);
+        buildTree(step, env, into(required, []), [mock.model]);
         const selector = (step as { selector?: unknown }).selector;
         return { selector: typeof selector === 'string' ? selector : null, required };
       })

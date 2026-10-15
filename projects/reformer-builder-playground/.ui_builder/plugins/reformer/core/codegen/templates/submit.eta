@@ -1,5 +1,29 @@
-<% const T = it.names.TypeName; -%>
-<% const byWizard = it.submit.byWizard; -%>
+<%
+const T = it.names.TypeName;
+const byWizard = it.submit.byWizard;
+// Строки — литералами JSON: кавычки под стиль проекта расставит `it.format`.
+const node = `schema.node(${JSON.stringify(it.submit.selector)})`;
+const event = JSON.stringify(it.submit.event);
+const handler = byWizard
+  ? [
+      `onComponentEvent(${node}, ${event}, async (values: ${T}) => {`,
+      '  const result = await submitForm(values);',
+      "  onResult?.(result.success ? 'Форма отправлена' : result.error, result.success);",
+      '});',
+    ]
+  : [
+      `onComponentEvent(${node}, ${event}, async () => {`,
+      '  // `touch: true` обязателен: киты показывают ошибку только у тронутого поля. Без него',
+      '  // неудачная отправка выглядела бы так, будто кнопка не работает.',
+      '  if (!(await validateModel(model, formRules, { touch: true }))) {',
+      "    onResult?.('Проверьте заполнение формы', false);",
+      '    return;',
+      '  }',
+      '  const result = await submitForm(model.get());',
+      "  onResult?.(result.success ? 'Форма отправлена' : result.error, result.success);",
+      '});',
+    ];
+-%>
 // <%= it.layout.files.submit %> — отправка формы: запрос → исход → текст для человека.
 // Ваш файл: пишется один раз и при регенерации не затирается.
 
@@ -25,26 +49,9 @@ export interface SubmitOptions {
  * Пишется над областью поведения, а не над собранной формой: поведение — единственный канал,
  * общий для страницы и для записи реестра форм (`<%= it.layout.files.entry %>`).
  */
-export function wireSubmit(
-  { <%= byWizard ? 'schema' : 'model, schema' %> }: BehaviorScope<<%= T %>>,
-  { onResult }: SubmitOptions = {}
-): void {
+<%~ it.signature('export function wireSubmit', [`{ ${byWizard ? 'schema' : 'model, schema'} }: BehaviorScope<${T}>`, '{ onResult }: SubmitOptions = {}'], ': void {') %>
 <% if (byWizard) { -%>
   // Визард зовёт `onSubmit` сам — после успешной полной проверки: правила шагов и правила вне шагов.
-  onComponentEvent(schema.node('<%= it.submit.selector %>'), '<%= it.submit.event %>', async (values: <%= T %>) => {
-    const result = await submitForm(values);
-    onResult?.(result.success ? 'Форма отправлена' : result.error, result.success);
-  });
-<% } else { -%>
-  onComponentEvent(schema.node('<%= it.submit.selector %>'), '<%= it.submit.event %>', async () => {
-    // `touch: true` обязателен: киты показывают ошибку только у тронутого поля. Без него
-    // неудачная отправка выглядела бы так, будто кнопка не работает.
-    if (!(await validateModel(model, formRules, { touch: true }))) {
-      onResult?.('Проверьте заполнение формы', false);
-      return;
-    }
-    const result = await submitForm(model.get());
-    onResult?.(result.success ? 'Форма отправлена' : result.error, result.success);
-  });
 <% } -%>
+  <%~ it.format(handler.join('\n'), 2) %>
 }

@@ -14,7 +14,6 @@ function wait(ms: number): Promise<void> {
 /** POST — отправка формы. TODO: заменить на реальный запрос. */
 export async function submitForm(values: ZayavkaNaKreditForm): Promise<ApiResult<{ id: string }>> {
   await wait(API_DELAY);
-  // eslint-disable-next-line no-console
   console.info('[zayavka-na-kredit] submit', values);
   return { success: true, data: { id: String(Date.now()) } };
 }

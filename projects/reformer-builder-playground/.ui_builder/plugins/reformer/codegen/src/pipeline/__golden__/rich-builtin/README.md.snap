@@ -54,7 +54,8 @@ zayavka-na-kredit/
 │   ├── form.schema.json   документ формы (его открывает билдер)
 │   └── registry.ts   реестр компонентов и источников данных
 ├── validation/
-│   ├── form.ts   валидация формы: правила вне шагов
+│   ├── form.ts   валидация формы: правила вне шагов и стратегия проверки
+│   ├── messages.ts   тексты замечаний — словарь формы
 │   ├── kredit.ts   правила шага «Кредит»
 │   └── imuschestvo.ts   правила шага «Имущество»
 ├── behavior/
@@ -72,7 +73,7 @@ zayavka-na-kredit/
 с вашими правками — перенесите их и удалите его.
 
 - **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `types/zayavka-na-kredit.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ZayavkaNaKreditForm.tsx`, `index.ts`, `flow/zayavka-na-kredit-flow.ts`, `README.md`.
-- **Ваши** (пишутся один раз, не затираются): `constants/zayavka-na-kredit.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/kredit.ts`, `validation/imuschestvo.ts`, `application/submit.ts`, `api/index.ts`.
+- **Ваши** (пишутся один раз, не затираются): `constants/zayavka-na-kredit.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/messages.ts`, `validation/kredit.ts`, `validation/imuschestvo.ts`, `application/submit.ts`, `api/index.ts`.
 
 Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
 поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
@@ -86,6 +87,10 @@ zayavka-na-kredit/
 Компоненты импортируются из `@reformer/ui-kit` — того кита, который был
 активен при генерации (`ReFormer UI Kit`).
 
+Тексты замечаний — словарь `formMessages` (`validation/messages.ts`): страница подключает его
+провайдером `ValidationMessagesProvider`. Запись реестра форм словарь не несёт — при монтировании
+через `FormOutlet` провайдер со словарём ставит хост.
+
 ## Методы для реализации
 
 - `api/index.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
@@ -94,4 +99,5 @@ zayavka-na-kredit/
 - `constants/zayavka-na-kredit.ts` → подписи элементов массивов: `PROP_LABEL`.
 - `constants/zayavka-na-kredit.ts` → замените синтетические опции реальными словарями или загрузчиками.
 - `validation/<шаг>.ts` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `validation/messages.ts` → тексты замечаний под свою форму: свой код правилу и запись под ним.
 - `behavior/index.ts` → вычисляемые поля и условное включение (по желанию).

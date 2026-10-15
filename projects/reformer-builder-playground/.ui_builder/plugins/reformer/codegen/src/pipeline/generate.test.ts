@@ -39,6 +39,7 @@ const PLAIN_FILES = [
   'constants/zayavka-na-kredit.ts',
   'behavior/index.ts',
   'validation/form.ts',
+  'validation/messages.ts',
   'application/submit.ts',
   'api/index.ts',
   'README.md',
@@ -67,7 +68,8 @@ describe('прогон целей', () => {
     // Агрегатора шагов (`steps/index.ts`) больше нет: шаги по порядку перечисляет поток.
     expect(paths).not.toContain('steps/index.ts');
     const flow = module.files.find((f) => f.path === FLOW)?.content ?? '';
-    expect(flow).toContain("{ id: 'shag-1-section', rules: shag1Rules },");
+    // Единственный шаг помещается в строку — так его оставит форматтер.
+    expect(flow).toContain("steps: [{ id: 'shag-1-section', rules: shag1Rules }],");
     // Файл шага знает свой шаг: README и меню группируют по нему.
     const stepFiles = module.files.filter((f) => f.step !== undefined).map((f) => f.path);
     expect(stepFiles).toEqual(['validation/shag-1.ts']);
@@ -78,8 +80,9 @@ describe('прогон целей', () => {
     const module = await generateModule(BUILTIN_TARGETS, input());
     expect(module.files.some((f) => f.step !== undefined)).toBe(false);
     expect(module.files.some((f) => f.path.startsWith('flow/'))).toBe(false);
+    // В `validation/` у простой формы два файла формы: правила и тексты замечаний.
     expect(module.files.filter((f) => f.path.startsWith('validation/')).map((f) => f.path)).toEqual(
-      ['validation/form.ts']
+      ['validation/form.ts', 'validation/messages.ts']
     );
   });
 

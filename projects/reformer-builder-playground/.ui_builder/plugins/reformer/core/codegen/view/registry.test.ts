@@ -191,7 +191,10 @@ describe('импорты кита — по входам пакета', () => {
     // Все записи, объявившие подпуть, разом: причина заглушки, если она есть, — запрет живого
     // рендера или отсутствие адаптера, но не подпуть.
     const kit = builtinKit();
-    const names = [...kit.kit.subpaths.keys()];
+    // Оверлей за подпутём (`Drawer`) в счёт не идёт: заглушку он получает за запрет живого
+    // рендера — это проверено отдельно, ниже.
+    const limited = (name: string): boolean => kit.kit.previewPolicy.get(name)?.mode === 'limited';
+    const names = [...kit.kit.subpaths.keys()].filter((name) => !limited(name));
     // Десятки записей палитры, а не семь корней, как было, пока подпути набирались руками.
     expect(names.length).toBeGreaterThan(20);
     expect(names).toEqual(expect.arrayContaining(['Combobox', 'DatePicker', 'Table', 'Carousel']));
@@ -206,6 +209,20 @@ describe('импорты кита — по входам пакета', () => {
     }
     expect(registry.extraImports.map((extra) => extra.from)).toEqual(
       [...new Set(names.map((name) => `@reformer/ui-kit/${kit.kit.subpaths.get(name)}`))].sort()
+    );
+  });
+
+  it('оверлей за подпутём получает заглушку за запрет живого рендера, а не за подпуть', () => {
+    const kit = builtinKit();
+    expect(kit.kit.subpaths.get('Drawer')).toBe('drawer');
+    const registry = registryView(ctxOf({ schema: schemaOf('Drawer') }));
+    const drawer = registry.components.find((component) => component.name === 'Drawer');
+    // Корень оверлея без триггера рисует пустоту: зарегистрированный так компонент выглядел бы
+    // исправным и ничего не показывал.
+    expect(drawer).toMatchObject({ placeholder: true, symbol: null, importFrom: null });
+    expect(drawer?.reason).toBe(kit.kit.previewPolicy.get('Drawer')?.reason);
+    expect(registry.extraImports.map((extra) => extra.from)).not.toContain(
+      '@reformer/ui-kit/drawer'
     );
   });
 

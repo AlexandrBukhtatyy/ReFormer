@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { plainSchema, wizardSplitSource } from './__fixtures__/kit';
+import { partsWizardSchema, plainSchema, wizardSplitSource } from './__fixtures__/kit';
 import { prepare, type CodegenInput } from './context';
 import { joinFormSchema, STEP_SCHEMA_MARKER } from '../form-model/composite';
 import { stepDirName } from '../form-model/step-dir';
+import { moduleFilesOf, RESERVED_STEP_NAMES, stepValidationPath } from './layout';
 import { builtinKit } from './__fixtures__/kit';
 
 /** Визард из шагов с заданными заголовками; в каждом шаге — одно обязательное поле. */
@@ -115,6 +116,24 @@ describe('имя шага и файл его правил', () => {
     expect(layout.steps[0]).toMatchObject({ dir: 'form-2', slug: 'form-2' });
   });
 
+  it('шаг не может занять имя словаря замечаний: «Messages» разводится суффиксом', () => {
+    const layout = layoutOfSchema(wizardOf(['Messages', 'Контакты']));
+    // `validation/messages.ts` — тексты замечаний формы; файл правил шага с тем же именем затёр
+    // бы словарь (или словарь — правила шага: кто печатается последним).
+    expect(layout.steps.map((s) => s.files.validation)).toEqual([
+      'validation/messages-2.ts',
+      'validation/kontakty.ts',
+    ]);
+    expect(layout.steps[0]).toMatchObject({ dir: 'messages-2', slug: 'messages-2' });
+  });
+
+  it('зарезервированы оба имени файлов формы в validation/', () => {
+    expect([...RESERVED_STEP_NAMES].sort()).toEqual(['form', 'messages']);
+    expect(moduleFilesOf({ dir: 'x', TypeName: 'XForm' }).messages).toBe(
+      stepValidationPath('messages')
+    );
+  });
+
   it('псевдонимы правил — camelCase имени шага; не-идентификатор получает приставку', () => {
     const layout = layoutOfSchema(wizardOf(['Контакты', 'Контакты', '2024 год']));
     expect(layout.steps.map((s) => s.rulesAlias)).toEqual([
@@ -202,5 +221,20 @@ describe('шаги разбитого визарда', () => {
       },
     });
     expect(layout.steps.map((s) => s.files.validation)).not.toContain('validation/form.ts');
+  });
+});
+
+describe('части документа в шагах визарда', () => {
+  it('подформа — поле шага своей группой; массив с частью — своим путём', () => {
+    const [addresses, guests] = layoutOfSchema(partsWizardSchema()).steps;
+    expect(addresses.fields).toEqual(['sameAddress', 'home', 'work']);
+    expect(guests.fields).toEqual(['guests']);
+    expect(addresses.required).toEqual(['home.city', 'work.city']);
+  });
+
+  it('селекторы узлов части шагу не принадлежат: они живут в области части', () => {
+    const [addresses, guests] = layoutOfSchema(partsWizardSchema()).steps;
+    expect(addresses.selectors).toEqual(['adresa-section', 'work-section']);
+    expect(guests.selectors).toEqual(['gosti-section', 'guests']);
   });
 });

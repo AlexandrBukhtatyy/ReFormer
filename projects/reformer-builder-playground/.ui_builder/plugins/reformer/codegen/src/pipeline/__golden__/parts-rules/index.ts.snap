@@ -1,0 +1,7 @@
+// index.ts — публичные экспорты модуля формы: страница, сборка, запись реестра форм, тип.
+// Регенерируется билдером; правки будут перезаписаны.
+
+export { default } from './ZayavkaNaKreditForm';
+export { createZayavkaNaKreditForm, createFormBehavior, formSchema } from './application/create';
+export { zayavkaNaKreditFormEntry } from './application/entry';
+export type { ZayavkaNaKreditForm } from './types/zayavka-na-kredit';

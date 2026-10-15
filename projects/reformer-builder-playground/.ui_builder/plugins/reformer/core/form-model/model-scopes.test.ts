@@ -127,3 +127,72 @@ describe('isPathBound', () => {
     expect(isPathBound('fulName', ['fullName'])).toBe(false);
   });
 });
+
+describe('области именованных частей документа', () => {
+  const schema = {
+    format: 2,
+    parts: {
+      address: {
+        component: '$html(div)',
+        children: [
+          { model: '$model(city)', component: '$component(Input)' },
+          '$model(city)',
+          {
+            model: '$model(phones)',
+            item: {
+              $template: {
+                component: '$html(div)',
+                children: [
+                  { model: '$model(number)', component: '$component(Input)' },
+                  '$model(city)',
+                ],
+              },
+            },
+          },
+        ],
+      },
+      empty: { component: '$html(div)' },
+    },
+    root: {
+      component: '$html(div)',
+      children: [
+        { model: '$model(home)', part: '$part(address)' },
+        { model: '$model(work)', part: '$part(address)' },
+        { model: '$model(guests)', item: '$part(address)' },
+        '$model(home.city)',
+      ],
+    },
+  } as unknown as JsonFormSchema;
+  const PART = ['parts', 'address'];
+  const PHONES = [...PART, 'children', 2];
+
+  it('место в разметке части принадлежит области части, а не корню', () => {
+    expect(scopeOfPath([...PART, 'children', 0])).toEqual(PART);
+    expect(scopeOfPath(PART)).toEqual(PART);
+    // Шаблон массива внутри части — своя область, как и в дереве корня.
+    expect(scopeOfPath([...PHONES, 'item', '$template', 'children', 0])).toEqual(PHONES);
+    expect(scopeOfPath(PHONES)).toEqual(PART);
+  });
+
+  it('привязка подформы объявлена там, где стоит узел; поля части — в области части', () => {
+    const scopes = collectModelScopes(schema);
+    expect(boundPathsIn(scopes, [])).toEqual(['home', 'work', 'guests']);
+    // Область у части одна, сколько бы раз её ни подключали.
+    expect(boundPathsIn(scopes, PART)).toEqual(['city', 'phones']);
+    expect(boundPathsIn(scopes, PHONES)).toEqual(['number']);
+  });
+
+  it('область есть и у части без единой привязки', () => {
+    expect(collectModelScopes(schema).map((scope) => scope.at)).toContainEqual(['parts', 'empty']);
+  });
+
+  it('чтения в разметке части собираются с областью части', () => {
+    expect(
+      collectModelReads(schema).map((read) => ({ path: read.path, scope: read.scope }))
+    ).toEqual([
+      { path: 'home.city', scope: [] },
+      { path: 'city', scope: PART },
+      { path: 'city', scope: PHONES },
+    ]);
+  });
+});

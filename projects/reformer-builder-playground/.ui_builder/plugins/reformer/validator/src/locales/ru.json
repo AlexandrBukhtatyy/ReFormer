@@ -26,6 +26,7 @@
   "errors.structure.tab-without-panel": "Вкладке «{value}» не соответствует ни одна панель — она ничего не открывает.",
   "errors.structure.tab-without-value": "У вкладки нет value — она не откроет ни одной панели.",
   "errors.structure.tabs-default-value-unknown": "defaultValue «{value}» не совпадает ни с одной вкладкой — при открытии не выбрано ничего.",
+  "part.prefix": "Часть «{part}»: ",
   "quickfix.remove-orphan-rule": "Убрать осиротевшее правило",
   "quickfix.rename-property": "Исправить имя свойства",
   "quickfix.replace-component": "Подставить ближайшее имя из каталога",

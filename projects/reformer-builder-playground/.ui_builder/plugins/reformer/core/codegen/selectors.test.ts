@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
-import { plainSchema, wizardSchema } from './__fixtures__/kit';
+import { partsSchema, plainSchema, wizardSchema } from './__fixtures__/kit';
 import { assignSelectors } from './selectors';
 
 describe('assignSelectors', () => {
@@ -108,5 +108,47 @@ describe('assignSelectors', () => {
       'lichnye-dannye-section',
       'lichnye-dannye-section-2',
     ]);
+  });
+});
+
+describe('именованные части документа', () => {
+  it('текст частей не меняется: селекторы там только читаются', () => {
+    const input = partsSchema();
+    const { schema } = assignSelectors(input);
+    expect(schema.parts).toEqual(input.parts);
+    // Дерево корня при этом получает своё: кнопка отправки дописана.
+    expect(JSON.stringify(schema.root)).not.toBe(JSON.stringify(input.root));
+  });
+
+  it('секция и массив части с селектором автора попадают в отчёт; без селектора — нет', () => {
+    const input = partsSchema();
+    const address = (input.parts as Record<string, { children: unknown[] }>).address;
+    address.children.push(
+      {
+        selector: 'address-extra',
+        component: '$component(Section)',
+        componentProps: { title: 'Дополнительно' },
+        children: [],
+      },
+      { component: '$component(Section)', componentProps: { title: 'Без адреса' }, children: [] },
+      { selector: 'address-phones', model: '$model(phones)', item: { $template: {} } }
+    );
+    const { schema, info } = assignSelectors(input);
+    expect(info.sections).toEqual([
+      { selector: 'work-section', label: 'Рабочий адрес' },
+      { selector: 'address-extra', label: 'Дополнительно' },
+    ]);
+    expect(info.arrays).toEqual([
+      { selector: 'guests', path: 'guests' },
+      { selector: 'address-phones', path: 'phones' },
+    ]);
+    expect(schema.parts).toEqual(input.parts);
+  });
+
+  it('имя, занятое в части, узлу корня не выдаётся', () => {
+    const input = partsSchema();
+    const address = (input.parts as Record<string, { children: unknown[] }>).address;
+    address.children.push({ selector: 'submit', component: '$component(Box)', children: [] });
+    expect(assignSelectors(input).info.submitSelector).toBe('submit-2');
   });
 });

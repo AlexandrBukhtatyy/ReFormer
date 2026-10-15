@@ -27,6 +27,7 @@ import {
   isArrayNode,
   isContainerNode,
   isFieldNode,
+  isPartNode,
   normalizeStepRef,
   parseOperator,
   type JsonFormSchema,
@@ -106,14 +107,21 @@ export interface ModuleLayout {
   readonly steps: readonly StepInfo[];
 }
 
-/** Собрать пути `$model` и селекторы поддерева шага одним обходом. */
+/**
+ * Собрать пути `$model` и селекторы поддерева шага одним обходом.
+ *
+ * Подформа (`{ model, part }`) — поле шага своей ГРУППОЙ: правило на `registrationAddress.city`
+ * относится к шагу, где группа `registrationAddress` смонтирована (пути сверяются с вложенностью,
+ * см. `stepOfRule`). В разметку части обход не идёт: её узлы живут в области части, и правила по
+ * их селекторам печатаются в поведении части, а не в группе шага.
+ */
 function scan(step: JsonNode): { fields: string[]; selectors: string[] } {
   const fields: string[] = [];
   const selectors: string[] = [];
   const visit = (node: JsonNode): void => {
     const selector = (node as { selector?: unknown }).selector;
     if (typeof selector === 'string' && selector !== '') selectors.push(selector);
-    if (isArrayNode(node) || isFieldNode(node)) {
+    if (isArrayNode(node) || isPartNode(node) || isFieldNode(node)) {
       const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') fields.push(parsed.arg);
       return;

@@ -45,7 +45,19 @@ import {
 import type { Names } from '../naming';
 import type { SelectorInfo } from '../selectors';
 import type { FormMock } from '../types';
+import {
+  formatBody,
+  formatStatement,
+  parseImport,
+  printConst,
+  printImport,
+  printLiteral,
+  printSignature,
+  quote,
+} from '../print/js';
+import { PRINT_WIDTH, widthOf } from '../print/doc';
 import { behaviorView, mentions, type BehaviorView } from './behavior';
+import { messagesView, type MessagesView } from './messages';
 import { registryView, type RegistryView } from './registry';
 import { typesView, type TypesView } from './types';
 
@@ -79,6 +91,57 @@ export type Blocks = (groups: readonly string[]) => string;
  * Роли, а не пути: шаблон называет, ЧТО он импортирует, а где оно лежит, знает раскладка.
  */
 export type Rel = (from: keyof ModuleFiles, to: keyof ModuleFiles) => string;
+
+/**
+ * Примитивы раскладки ПОД ШИРИНУ СТРОКИ.
+ *
+ * Модуль обязан проходить `prettier --check` как есть, а длина строк шаблона зависит от имён
+ * формы: `createContactFormModel(initial?: Partial<ContactForm>)` помещается в строку, тот же
+ * заголовок у `ZayavkaNaKreditForm` — нет. Шаблон такое решить не может, поэтому он пишет
+ * конструкцию в одну строку и отдаёт её примитиву, а тот раскладывает как prettier.
+ *
+ * У всех, как у {@link Json}: первая строка — без отступа (его ставит место вставки), остальные —
+ * с отступом `spaces`.
+ */
+
+/**
+ * Уложить оператор: вызов, объявление `const`, `return`.
+ *
+ * `it.format("const x = make({ a: 1, b: 2 });", 2)`. Текст, который не разобрался (не оператор
+ * этих видов, несбалансированные скобки), возвращается как есть.
+ */
+export type Format = (code: string, spaces?: number) => string;
+
+/** Значение литералом JS вместе с тем, что стоит вокруг него на строке. */
+export type Literal = (
+  value: unknown,
+  options?: { readonly spaces?: number; readonly prefix?: string; readonly suffix?: string }
+) => string;
+
+/**
+ * Строка импорта либо реэкспорта: `it.imports(['a', 'type B'], './x')`.
+ *
+ * @param kind - `import` (по умолчанию), `import type`, `export` либо `export type`.
+ */
+export type Imports = (
+  names: readonly string[],
+  from: string,
+  kind?: 'import' | 'import type' | 'export' | 'export type'
+) => string;
+
+/**
+ * Заголовок функции: `it.signature('export function f', ['a: A', 'b: B'], ': R {')`.
+ * Не помещается — параметры уходят по одному на строку.
+ */
+export type Signature = (
+  head: string,
+  params: readonly string[],
+  tail: string,
+  spaces?: number
+) => string;
+
+/** Помещается ли текст в строку на глубине `spaces`. */
+export type Fits = (text: string, spaces?: number) => boolean;
 
 /** Что видит шаблон. */
 export interface CodegenView {
@@ -139,11 +202,47 @@ export interface CodegenView {
   readonly files: readonly EmittedFileRef[];
   /** Частные данные цели, если она их объявила. */
   readonly local?: object;
+  /** Тексты замечаний формы — модель `validation/messages.ts`. */
+  readonly messages: MessagesView;
   readonly indent: Indent;
   readonly json: Json;
   readonly blocks: Blocks;
   readonly rel: Rel;
+  readonly format: Format;
+  readonly literal: Literal;
+  readonly imports: Imports;
+  readonly signature: Signature;
+  readonly fits: Fits;
 }
+
+/** Отступ строк продолжения: первая строка остаётся без него. */
+function hang(text: string, spaces: number): string {
+  if (spaces === 0) return text;
+  const pad = ' '.repeat(spaces);
+  return text
+    .split('\n')
+    .map((row, index) => (index === 0 || row === '' ? row : `${pad}${row}`))
+    .join('\n');
+}
+
+const format: Format = (code, spaces = 0) =>
+  hang(formatStatement(code, { indent: spaces }), spaces);
+
+const literal: Literal = (value, options = {}) => {
+  const spaces = options.spaces ?? 0;
+  return hang(
+    printLiteral(value, { indent: spaces, prefix: options.prefix, suffix: options.suffix }),
+    spaces
+  );
+};
+
+const imports: Imports = (names, from, kind = 'import') => printImport(names, from, { kind });
+
+const signature: Signature = (head, params, tail, spaces = 0) =>
+  hang(printSignature(head, params, tail, { indent: spaces }), spaces);
+
+const fits: Fits = (text, spaces = 0) =>
+  !text.includes('\n') && widthOf(text) + spaces <= PRINT_WIDTH;
 
 const indent: Indent = (lines, spaces) => {
   const pad = ' '.repeat(spaces);
@@ -186,11 +285,26 @@ export interface RulesBlockView {
 /** Импорт объявления правил, когда операторов в теле нет. */
 const DEFINE_ONLY = "import { defineValidation } from '@reformer/core/validation';";
 
-/** Блок правил из тела, выведенного из правил формы. */
+/** Глубина тела объявления правил и тела поведения: один уровень внутри колбэка. */
+const BODY_INDENT = 2;
+
+/** Строка импорта, уложенная под ширину; строка другого вида остаётся как есть. */
+function reflowImport(text: string): string {
+  const parsed = parseImport(text);
+  return parsed === null ? text : printImport(parsed.names, parsed.from, { kind: parsed.kind });
+}
+
+/**
+ * Блок правил из тела, выведенного из правил формы.
+ *
+ * Строки билдера `@reformer/mcp` укладываются заново под ширину строки: билдер печатает правило
+ * одной строкой, какой бы длины оно ни вышло, а `validateWhen` с двумя стрелками — так, как
+ * prettier его не оставит.
+ */
 function blockOf(code: ValidationCode): RulesBlockView {
   return {
-    imports: code.imports,
-    body: code.body,
+    imports: code.imports.map(reflowImport),
+    body: formatBody(code.body, { indent: BODY_INDENT }),
     usesModel: mentions(code.body.join('\n'), 'model'),
   };
 }
@@ -209,7 +323,10 @@ function scaffoldBlock(required: readonly string[]): RulesBlockView {
       "import { defineValidation, validate } from '@reformer/core/validation';",
       "import { required } from '@reformer/core/validators';",
     ],
-    body: required.map((path) => `validate(model.$.${path}, [required()]);`),
+    body: formatBody(
+      required.map((path) => `validate(model.$.${path}, [required()]);`),
+      { indent: BODY_INDENT }
+    ),
     usesModel: true,
   };
 }
@@ -301,12 +418,24 @@ export interface KitInfoView {
 export interface OptionSourceView {
   readonly name: string;
   readonly value: readonly unknown[];
+  /** Объявление целиком: `export const NAME: SelectOption[] = [ … ];` — уложено под ширину. */
+  readonly code: string;
 }
 
 /** Источник-скаляр: имя и уже свёрнутый литерал (умолчание для отсутствующего — пустая строка). */
 export interface ScalarSourceView {
   readonly name: string;
+  /** Литерал значения в стиле JS: строка — в одинарных кавычках. */
   readonly literal: string;
+  /** Объявление целиком: `export const NAME = 'значение';`. */
+  readonly code: string;
+}
+
+/** Источник-подпись элемента массива: имя и заготовка функции. */
+export interface LabelSourceView {
+  readonly name: string;
+  /** Объявление целиком, с комментарием-напоминанием над ним. */
+  readonly code: string;
 }
 
 /** Источники данных по классам; внутри каждого — по имени, чтобы вывод не зависел от обхода. */
@@ -315,6 +444,8 @@ export interface DataSourcesView {
   readonly scalars: readonly ScalarSourceView[];
   /** Подписи элементов массива: им нужна ФУНКЦИЯ, а не значение, поэтому только имена. */
   readonly labels: readonly string[];
+  /** Те же подписи с готовыми объявлениями — в порядке {@link DataSourcesView.labels}. */
+  readonly labelSources: readonly LabelSourceView[];
   /**
    * Источников нет ни одного. Файл констант всё равно печатается — он авторский и ждёт значений, —
    * но обязан остаться модулем: файл без импортов и экспортов сборка с `isolatedModules` отвергает.
@@ -325,16 +456,39 @@ export interface DataSourcesView {
 function dataSourcesView(ctx: EmitContext): DataSourcesView {
   const { ds } = ctx.collected;
   const sources = ctx.mock.dataSources;
+  const labels = [...ds.functionLike].sort();
   return {
     isEmpty: ds.optionLike.size + ds.scalarLike.size + ds.functionLike.size === 0,
     options: [...ds.optionLike].sort().map((name) => {
-      const value = sources[name];
-      return { name, value: Array.isArray(value) ? (value as unknown[]) : [] };
+      const raw = sources[name];
+      const value = Array.isArray(raw) ? (raw as unknown[]) : [];
+      return {
+        name,
+        value,
+        code: printLiteral(value, {
+          prefix: `export const ${name}: SelectOption[] = `,
+          suffix: ';',
+        }),
+      };
     }),
-    scalars: [...ds.scalarLike]
-      .sort()
-      .map((name) => ({ name, literal: JSON.stringify(sources[name] ?? '') })),
-    labels: [...ds.functionLike].sort(),
+    scalars: [...ds.scalarLike].sort().map((name) => {
+      const value = sources[name] ?? '';
+      return {
+        name,
+        literal: typeof value === 'string' ? quote(value) : printLiteral(value),
+        code: printConst(`export const ${name}`, value),
+      };
+    }),
+    labels,
+    labelSources: labels.map((name) => ({
+      name,
+      code: [
+        '// TODO: подпись элемента',
+        formatStatement(
+          `export const ${name} = (_item: unknown, index: number): string => '#' + (index + 1);`
+        ),
+      ].join('\n'),
+    })),
   };
 }
 
@@ -501,10 +655,16 @@ export function buildView(ctx: EmitContext): CodegenView {
     layout: layoutView(ctx),
     step: null,
     files: ctx.files,
+    messages: messagesView(ctx),
     indent,
     json,
     blocks,
     rel: (from, to) => importOf(ctx.paths[from], ctx.paths[to]),
+    format,
+    literal,
+    imports,
+    signature,
+    fits,
   };
 }
 

@@ -130,6 +130,52 @@ describe('слияние слоёв данных', () => {
 
     expect(merged.list).toEqual([9]);
   });
+
+  // Дата — значение поля, а не группа полей. Считайся она группой, дата одного слоя поверх даты
+  // другого «сливалась» бы по перечислимым свойствам, которых у даты нет, — и поле выбора даты
+  // получало `{}` вместо даты.
+  it('дата поверх даты остаётся датой, а не пустым объектом', () => {
+    const declared = new Date('2020-01-01T00:00:00Z');
+    const fixture = new Date('2024-05-17T00:00:00Z');
+
+    const merged = deepMerge({ birthDate: declared }, { birthDate: fixture });
+
+    expect(merged.birthDate).toBe(fixture);
+  });
+
+  it('значение-объект со своим классом заменяется целиком: файл, набор, экземпляр класса', () => {
+    class Money {
+      constructor(readonly amount: number) {}
+    }
+    const file = new Blob(['x']);
+    const tags = new Set(['a']);
+    const price = new Money(10);
+
+    const merged = deepMerge(
+      { doc: new Blob(['old']), tags: new Set(['old']), price: new Money(1) },
+      { doc: file, tags, price }
+    );
+
+    expect(merged.doc).toBe(file);
+    expect(merged.tags).toBe(tags);
+    expect(merged.price).toBe(price);
+  });
+
+  it('дата и группа друг в друга не сливаются: побеждает слой старше', () => {
+    const date = new Date('2024-05-17T00:00:00Z');
+
+    expect(deepMerge({ at: { year: 2020 } }, { at: date }).at).toBe(date);
+    expect(deepMerge({ at: date }, { at: { year: 2020 } }).at).toEqual({ year: 2020 });
+  });
+
+  it('группы без прототипа сливаются как обычные', () => {
+    const bare = Object.assign(Object.create(null) as Record<string, unknown>, { city: 'Казань' });
+
+    expect(deepMerge({ address: { zip: '1' } }, { address: bare }).address).toEqual({
+      zip: '1',
+      city: 'Казань',
+    });
+  });
 });
 
 describe('ambient: перехват запросов', () => {
@@ -257,5 +303,37 @@ describe('печать скелета', () => {
 
   it('детерминирована: два вызова дают один текст', () => {
     expect(emitFixture(schema)).toBe(emitFixture(schema));
+  });
+
+  it('значения — литералы JS в стиле форматтера репозитория, а не JSON', () => {
+    const text = emitFixture(schema, {
+      model: { applicant: { name: 'Анна' }, city: 'msk' },
+      dataSources: { CITY_LIST: [{ value: 'msk', label: 'Москва' }] },
+    });
+
+    // Ключи без кавычек, строки в одинарных, запятые в конце: файл проходит `prettier --check`
+    // как есть. JSON-литерал (`"name": "Анна"`) форматтер отвергал у каждой фикстуры шаблона.
+    // Объекты раскрыты по строкам — раскладка, которую prettier сохраняет (перенос после `{`).
+    expect(text).not.toMatch(/"\w+":/);
+    expect(text).toContain(
+      [
+        '  model: {',
+        '    applicant: {',
+        "      name: 'Анна',",
+        '    },',
+        "    city: 'msk',",
+        '  },',
+      ].join('\n')
+    );
+    expect(text).toContain(
+      [
+        '    CITY_LIST: [',
+        '      {',
+        "        value: 'msk',",
+        "        label: 'Москва',",
+        '      },',
+        '    ],',
+      ].join('\n')
+    );
   });
 });

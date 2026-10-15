@@ -8,7 +8,10 @@ import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
 /** Правила шага «Контакты»: их проверяет «Далее». */
 export const stepRules = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
   validate(model.$.contacts.email, [required(), email()]);
-  validateWhen(() => model.contacts.email === null, () => {
-    validate(model.$.contacts.phone, [required()]);
-  });
+  validateWhen(
+    () => model.contacts.email === null,
+    () => {
+      validate(model.$.contacts.phone, [required()]);
+    }
+  );
 });

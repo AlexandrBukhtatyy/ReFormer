@@ -108,8 +108,14 @@ describe('валидация: простая форма против визар�
     ]);
     const code = renderTemplate('test.validation', validationTemplate, view);
     expect(code).toContain('export const crossStepRules = defineValidation<AnketaForm>(');
+    // Живая проверка включена стратегией: замечание уходит, когда исправленное поле теряет фокус.
     expect(code).toContain(
-      'export const formValidation: FormValidation<AnketaForm> = { extras: crossStepRules };'
+      [
+        'export const formValidation: FormValidation<AnketaForm> = {',
+        '  extras: crossStepRules,',
+        "  strategy: 'change',",
+        '};',
+      ].join('\n')
     );
     // Прежний контракт из вывода ушёл: шаги собирает сборка, а не корневой файл.
     expect(code).not.toContain('makeStepCheck');
@@ -120,7 +126,10 @@ describe('валидация: простая форма против визар�
     const view = viewOf({ schema: wizardSchema() });
     expect(view.rules.validation.block).toBeNull();
     const code = renderTemplate('test.validation', validationTemplate, view);
-    expect(code).toContain('export const formValidation: FormValidation<AnketaForm> = {};');
+    // Правил вне шагов нет, а стратегия живой проверки есть: полный набор сборка собирает из шагов.
+    expect(code).toContain(
+      "export const formValidation: FormValidation<AnketaForm> = { strategy: 'change' };"
+    );
     expect(code).not.toContain('defineValidation');
   });
 

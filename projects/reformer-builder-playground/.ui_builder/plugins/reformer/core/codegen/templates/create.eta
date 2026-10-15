@@ -1,15 +1,14 @@
-<% const T = it.names.TypeName; -%>
+<%
+const T = it.names.TypeName;
+const overrides = `type Overrides = Pick<CreateFormConfig<${T}>, 'model' | 'schema' | 'registry'>;`;
+-%>
 // <%= it.layout.files.create %> — сборка формы: одна на все места подключения (страница, реестр
 // форм, тесты). Регенерируется билдером; правки будут перезаписаны.
 
 import { createForm, type CreateFormConfig, type FormBundle } from '@reformer/core';
 import { defineFormBehavior, type FormBehavior } from '@reformer/core/behaviors';
 <% if (it.layout.isSplit) { -%>
-import {
-  composeJsonFormSchema,
-  type JsonFormSchema,
-  type JsonFormStep,
-} from '@reformer/renderer-json';
+<%~ it.imports(['composeJsonFormSchema', 'type JsonFormSchema', 'type JsonFormStep'], '@reformer/renderer-json') %>
 <% } else { -%>
 import type { JsonFormSchema } from '@reformer/renderer-json';
 <% } -%>
@@ -43,24 +42,28 @@ export const formSchema = composeJsonFormSchema(
 ) as unknown as JsonFormSchema<<%= T %>>;
 <% } else { -%>
 // В чистом JSON операторы типизируются как `string` — приведение к схеме модели формы.
-export const formSchema = rawSchema as unknown as JsonFormSchema<<%= T %>>;
+<%~ it.format(`export const formSchema = rawSchema as unknown as JsonFormSchema<${T}>;`) %>
 <% } -%>
 
 /** Поведение сборки: правила формы и отправка. Фабрика — настройки приходят от места подключения. */
-export function createFormBehavior(options: SubmitOptions = {}): FormBehavior<<%= T %>> {
+<%~ it.signature('export function createFormBehavior', ['options: SubmitOptions = {}'], `: FormBehavior<${T}> {`) %>
   return defineFormBehavior<<%= T %>>((scope) => {
     behaviorRules(scope);
     wireSubmit(scope, options);
   });
 }
 
-type Overrides = Pick<CreateFormConfig<<%= T %>>, 'model' | 'schema' | 'registry'>;
+<% if (it.fits(overrides)) { -%>
+<%~ overrides %>
+<% } else { -%>
+type Overrides = Pick<
+  CreateFormConfig<<%= T %>>,
+  'model' | 'schema' | 'registry'
+>;
+<% } -%>
 
 /** Сборка формы — одна на все места подключения. */
-export function <%= it.names.formFactory %>(
-  options: SubmitOptions = {},
-  overrides: Overrides = {}
-): FormBundle<<%= T %>> {
+<%~ it.signature(`export function ${it.names.formFactory}`, ['options: SubmitOptions = {}', 'overrides: Overrides = {}'], `: FormBundle<${T}> {`) %>
   return createForm<<%= T %>>({
     model: <%= it.names.modelFactory %>(),
     schema: formSchema,

@@ -1,6 +1,7 @@
 /**
- * Отпечаток генерации: побайтовый снимок модуля формы на двенадцати комбинациях схемы, кита и
- * правил. Модуль — единого контракта сборки, в раскладке «папки по ролям».
+ * Отпечаток генерации: побайтовый снимок модуля формы на комбинациях схемы, кита и правил
+ * (`COMBOS` — у каждой записано, что именно ею удерживается). Модуль — единого контракта сборки,
+ * в раскладке «папки по ролям».
  *
  * ## Зачем, если рядом уже лежит `emit.test.ts`
  *
@@ -32,16 +33,32 @@
  * двенадцать hex — двойной шум без информации. Сам механизм покрыт `marker.test.ts`, а здесь
  * от него остаётся одно утверждение: маркер стоит ровно там, где обещан классом файла.
  *
+ * ## Вывод проходит форматтер как есть
+ *
+ * Напечатанный модуль обязан проходить `prettier --check` без правок: иначе папку формы после
+ * генерации форматируют отдельным шагом и перевыставляют маркеры, а билдер показывает не тот
+ * текст, что ляжет в репозиторий. Снимок этого не держит — он закрепил бы и неотформатированный
+ * вывод. Поэтому каждый файл каждого набора прогоняется через prettier с конфигом репозитория, и
+ * то же — для имён формы другой длины: от имени зависит, какие строки шаблонов переносятся
+ * (`createContactFormModel(initial?: Partial<ContactForm>)` помещается в строку, тот же заголовок
+ * у `ZayavkaNaKreditForm` — нет). Prettier здесь — инструмент теста; в рантайм плагина он не
+ * попадает.
+ *
  * Обновить снимки: `npm test -- -u`.
  *
  * @module plugins/reformer/codegen/pipeline/golden.test
  */
 
+import { fileURLToPath } from 'node:url';
+import * as prettier from 'prettier';
 import { describe, expect, it } from 'vitest';
 import {
   builtinKit,
   foreignKit,
   noWizardKit,
+  partsRules,
+  partsSchema,
+  partsWizardSchema,
   plainSchema,
   richSchema,
   rowRules,
@@ -119,6 +136,34 @@ const COMBOS: readonly Combo[] = [
     },
   },
   {
+    dir: 'parts-rules',
+    holds:
+      'именованные части документа: тип подформы и строки из части, начальные значения групп, источник данных из части, области правил — apply со списком групп, applyEach, apply из поведения части',
+    input: {
+      schema: partsSchema(),
+      formName: FORM_NAME,
+      kit: builtinKit(),
+      rules: partsRules(),
+    },
+  },
+  {
+    dir: 'parts-wizard',
+    holds:
+      'части в шагах визарда: поле части — поле шага, где она смонтирована; без правил — обязательные поля частей в заготовке шага',
+    input: { schema: partsWizardSchema(), formName: FORM_NAME, kit: builtinKit() },
+  },
+  {
+    dir: 'parts-wizard-rules',
+    holds:
+      'правила валидации полей частей расходятся по шагам визарда, правила узлов частей — по областям',
+    input: {
+      schema: partsWizardSchema(),
+      formName: FORM_NAME,
+      kit: builtinKit(),
+      rules: partsRules(),
+    },
+  },
+  {
     dir: 'rich-builtin',
     holds: 'источники данных всех трёх классов, массив с шаблоном элемента и визард со шагами',
     input: { schema: richSchema(), formName: FORM_NAME, kit: builtinKit() },
@@ -177,8 +222,39 @@ function manifestOf(files: readonly { path: string; cls: string; regenerable: bo
   return `${files.map((f) => `${f.path}\t${f.cls}${f.regenerable ? '\tregenerable' : ''}`).join('\n')}\n`;
 }
 
+/** Конфиг форматтера репозитория — тот же, с которым файл проверят у пользователя этого репо. */
+const prettierConfig = (await prettier.resolveConfig(fileURLToPath(import.meta.url))) ?? {};
+
+/** Файлы, которые форматтер умеет проверять. */
+const FORMATTED = /\.(?:ts|tsx|json|md)$/;
+
+/** Пути файлов модуля, которые форматтер оставил бы другими. */
+async function unformatted(
+  files: readonly { readonly path: string; readonly content: string }[]
+): Promise<string[]> {
+  const out: string[] = [];
+  for (const file of files) {
+    if (!FORMATTED.test(file.path)) continue;
+    const ok = await prettier.check(file.content, { ...prettierConfig, filepath: file.path });
+    if (!ok) out.push(file.path);
+  }
+  return out;
+}
+
+/**
+ * Имена формы разной длины и вида: одна буква, короткое, с цифры в начале, занятое библиотекой
+ * (`form` → тип `Form`) и длинное — каталог эталонной заявки этого репозитория.
+ */
+const OTHER_NAMES = [
+  'a',
+  'contact',
+  '2024 анкета',
+  'form',
+  'complex multy step form renderer json',
+];
+
 // Верхнеуровневый await: состав модуля нужен НА СБОРЕ тестов, чтобы у каждого файла был свой
-// `it` и своё падение. Функции чистые, двенадцать прогонов стоят миллисекунды.
+// `it` и своё падение. Функции чистые, прогон каждой комбинации стоит миллисекунды.
 const modules = await Promise.all(
   COMBOS.map((combo) => generateModule(BUILTIN_TARGETS, combo.input))
 );
@@ -211,6 +287,18 @@ COMBOS.forEach((combo, index) => {
       for (const file of module.files) {
         const wanted = (file.cls === 'derived' || file.regenerable) && acceptsMarker(file.path);
         expect(originOf(file.content), file.path).toBe(wanted ? 'generated' : 'handwritten');
+      }
+    });
+
+    it('вывод проходит форматтер репозитория без правок', async () => {
+      expect(await unformatted(module.files)).toEqual([]);
+    });
+
+    it('и с именем формы другой длины — тоже: переносы считаются, а не зашиты в шаблон', async () => {
+      for (const formName of OTHER_NAMES) {
+        const other = await generateModule(BUILTIN_TARGETS, { ...combo.input, formName });
+        expect(other.problems, formName).toEqual([]);
+        expect(await unformatted(other.files), formName).toEqual([]);
       }
     });
 

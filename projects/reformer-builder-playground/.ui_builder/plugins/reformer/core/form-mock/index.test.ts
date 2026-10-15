@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
+import { createForm } from '@reformer/core';
+import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
-import { plainSchema } from '../codegen/__fixtures__/kit';
+import { collectOperatorNames } from '../form-model/query';
+import { partsSchema, plainSchema } from '../codegen/__fixtures__/kit';
 import {
   buildInitialValues,
   classifyDataSources,
+  collectFieldDefaults,
   defaultForField,
   fieldKindOf,
   LIST_PROP_KEYS,
   synthMock,
 } from './index';
-import type { JsonFieldNode } from '@reformer/renderer-json';
+import type { JsonFieldNode, JsonFormSchema } from '@reformer/renderer-json';
 
 const field = (component: string, props: Record<string, unknown> = {}): JsonFieldNode =>
   ({ model: '$model(x)', component, componentProps: props }) as unknown as JsonFieldNode;
@@ -147,5 +151,101 @@ describe('сборка начальных значений', () => {
 
   it('пустой список даёт пустой объект, а не отказ', () => {
     expect(buildInitialValues([])).toEqual({});
+  });
+});
+
+describe('именованные части документа', () => {
+  const address = { region: '', city: '', noApartment: false, apartment: '' };
+
+  it('подформа даёт группу модели с полями части — под каждым подключением своя', () => {
+    expect(synthMock(partsSchema()).model).toEqual({
+      sameAddress: false,
+      home: address,
+      work: address,
+      // Массив стартует пустым: строку из части строит рендерер, как и из вписанного шаблона.
+      guests: [],
+    });
+  });
+
+  it('пути полей части получают префикс группы', () => {
+    const paths = collectFieldDefaults(partsSchema()).map((entry) => entry.path);
+    expect(paths).toContain('home.city');
+    expect(paths).toContain('work.apartment');
+    expect(paths).not.toContain('city');
+    // Часть-шаблон строки в верхнеуровневые пути не входит.
+    expect(paths.some((path) => path.startsWith('guests.'))).toBe(false);
+  });
+
+  it('у части без полей объявляется сама группа: без неё рендерер на узле бросает', () => {
+    const schema = {
+      format: 2,
+      parts: { note: { component: '$html(p)', children: ['Текст'] } },
+      root: { component: '$html(div)', children: [{ model: '$model(info)', part: '$part(note)' }] },
+    } as unknown as JsonFormSchema;
+    expect(synthMock(schema).model).toEqual({ info: {} });
+    // Ссылка на часть, которой нет: группа всё равно объявлена — о части скажет проверка схемы.
+    const missing = {
+      format: 2,
+      root: { component: '$html(div)', children: [{ model: '$model(info)', part: '$part(nope)' }] },
+    } as unknown as JsonFormSchema;
+    expect(synthMock(missing).model).toEqual({ info: {} });
+  });
+
+  it('часть, подключающая саму себя, второй раз не разворачивается', () => {
+    const schema = {
+      format: 2,
+      parts: {
+        thread: {
+          component: '$html(div)',
+          children: [
+            { model: '$model(text)', component: '$component(Input)' },
+            { model: '$model(reply)', part: '$part(thread)' },
+          ],
+        },
+      },
+      root: {
+        component: '$html(div)',
+        children: [{ model: '$model(first)', part: '$part(thread)' }],
+      },
+    } as unknown as JsonFormSchema;
+    expect(synthMock(schema).model).toEqual({ first: { text: '', reply: {} } });
+  });
+
+  it('источник данных из разметки части классифицируется по использованию, как в корне', () => {
+    const classes = classifyDataSources(partsSchema());
+    // `REGIONS` стоит только в части `address`: без обхода частей он сошёл бы за скаляр.
+    expect([...classes.optionLike]).toEqual(['REGIONS']);
+    expect([...classes.scalarLike]).toEqual([]);
+    expect(synthMock(partsSchema()).dataSources.REGIONS).toHaveLength(3);
+  });
+});
+
+describe('синтезированная модель годится единой сборке', () => {
+  /** Собрать форму настоящей сборкой: компоненты — заглушки, источники — из мока. */
+  function build(schema: JsonFormSchema, without?: string) {
+    const mock = synthMock(schema);
+    const stub = (): null => null;
+    const registry = defineRegistry((reg) => {
+      reg.component(FIELD_WRAPPER, stub as never);
+      for (const name of collectOperatorNames(schema).components)
+        reg.component(name, stub as never);
+      for (const [name, value] of Object.entries(mock.dataSources)) reg.dataSource(name, value);
+    });
+    const initial = { ...mock.model };
+    if (without !== undefined) delete initial[without];
+    return createForm({ initial, schema: schema as never, registry: registry as never });
+  }
+
+  it('документ с частями собирается: каждая подформа находит свою группу модели', () => {
+    const bundle = build(partsSchema());
+    const model = bundle.model as unknown as Record<string, Record<string, unknown>>;
+    expect(model.home.city).toBe('');
+    expect(model.work.noApartment).toBe(false);
+  });
+
+  it('без группы подформы сборка отказывает — поэтому мок обязан её объявлять', () => {
+    // Ровно это и получалось, пока разметка частей не обходилась: модуль собирался компилятором
+    // и падал при создании формы.
+    expect(() => build(partsSchema(), 'home')).toThrow(/not a group of the model/);
   });
 });

@@ -60,6 +60,7 @@
   "target.step-schema": "Схема шага",
   "target.form-behavior": "Поведение формы",
   "target.validation": "Валидация формы",
+  "target.messages": "Тексты замечаний",
   "target.submit": "Отправка",
   "target.api": "Бэкенд",
   "target.readme": "README",

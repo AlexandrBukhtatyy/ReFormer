@@ -31,6 +31,7 @@ describe('moduleFilesOf', () => {
       schema: 'schema/form.schema.json',
       registry: 'schema/registry.ts',
       validation: 'validation/form.ts',
+      messages: 'validation/messages.ts',
       behavior: 'behavior/index.ts',
       flow: 'flow/loan-application-flow.ts',
       types: 'types/loan-application.ts',

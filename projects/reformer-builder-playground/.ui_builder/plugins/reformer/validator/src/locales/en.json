@@ -26,6 +26,7 @@
   "errors.structure.tab-without-panel": "Tab {value} has no panel — it opens nothing.",
   "errors.structure.tab-without-value": "The tab has no value — it will open no panel.",
   "errors.structure.tabs-default-value-unknown": "defaultValue {value} matches no tab — nothing will be selected when the form opens.",
+  "part.prefix": "Part “{part}”: ",
   "quickfix.remove-orphan-rule": "Remove the orphaned rule",
   "quickfix.rename-property": "Fix the property name",
   "quickfix.replace-component": "Use the closest name from the catalog",

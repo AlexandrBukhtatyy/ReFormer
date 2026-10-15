@@ -1,17 +1,31 @@
 // behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
 // Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
 
-import { computeFrom, defineFormBehavior, hideWhen, onComponentEvent, type BehaviorScope } from '@reformer/core/behaviors';
+import {
+  computeFrom,
+  defineFormBehavior,
+  hideWhen,
+  onComponentEvent,
+  type BehaviorScope,
+} from '@reformer/core/behaviors';
 import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
 
 /** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (application/create.ts). */
 export function behaviorRules({ model, form, schema }: BehaviorScope<ZayavkaNaKreditForm>): void {
   // Связи над моделью
-  computeFrom([model.$.fullName], model.$.agreed, (fullName) => fullName !== null && fullName.length > 1);
+  computeFrom(
+    [model.$.fullName],
+    model.$.agreed,
+    (fullName) => fullName !== null && fullName.length > 1
+  );
 
   // Правила узлов схемы
   hideWhen(schema.node('lichnye-dannye-section'), () => !form.agreed.value.value);
-  schema.node('full-name').patchProps({ placeholder: "Иванов Иван", maxLength: 64, disabled: !form.agreed.value.value });
+  schema.node('full-name').patchProps({
+    placeholder: 'Иванов Иван',
+    maxLength: 64,
+    disabled: !form.agreed.value.value,
+  });
   onComponentEvent(schema.node('full-name'), 'onBlur', (...args: unknown[]) => {
     void args;
     const value = form.fullName.value.value;

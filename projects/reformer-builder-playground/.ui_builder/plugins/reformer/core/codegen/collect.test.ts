@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
-import { plainSchema } from './__fixtures__/kit';
+import { partsSchema, partsWizardSchema, plainSchema } from './__fixtures__/kit';
 import { collect } from './collect';
 import { synthMock } from '../form-mock';
 import type { JsonFormSchema } from '@reformer/renderer-json';
@@ -328,5 +328,127 @@ describe('обязательные поля по шагам визарда', () 
       root: field('x', true),
     } as unknown as JsonFormSchema;
     expect(collect(plain, synthMock(plain)).steps).toEqual([]);
+  });
+});
+
+describe('именованные части документа', () => {
+  const ADDRESS = {
+    t: 'obj',
+    fields: {
+      region: { t: 'leaf', ts: "'' | 'option1' | 'option2' | 'option3'" },
+      city: { t: 'leaf', ts: 'string' },
+      noApartment: { t: 'leaf', ts: 'boolean' },
+      apartment: { t: 'leaf', ts: 'string' },
+    },
+  };
+
+  it('подформа даёт под своим путём тип части — под каждым подключением', () => {
+    const { root } = collectOf(partsSchema());
+    expect(root.fields.home).toEqual(ADDRESS);
+    expect(root.fields.work).toEqual(ADDRESS);
+  });
+
+  it('массив с частью берёт тип строки из разметки части, включая часть внутри части', () => {
+    const { root } = collectOf(partsSchema());
+    expect(root.fields.guests).toEqual({
+      t: 'arr',
+      elem: {
+        t: 'obj',
+        fields: {
+          name: { t: 'leaf', ts: 'string' },
+          hasPhone: { t: 'leaf', ts: 'boolean' },
+          phone: { t: 'leaf', ts: 'string' },
+          address: ADDRESS,
+        },
+      },
+    });
+  });
+
+  it('обязательные поля подформ — верхнеуровневые, с путём группы; поля строки — нет', () => {
+    const c = collectOf(partsSchema());
+    expect(c.requiredPaths).toEqual(['home.city', 'work.city']);
+    expect(c.arrayPaths).toEqual(['guests']);
+  });
+
+  it('обязательное поле части принадлежит шагу, где часть смонтирована', () => {
+    expect(collectOf(partsWizardSchema()).steps.map((step) => step.required)).toEqual([
+      ['home.city', 'work.city'],
+      [],
+    ]);
+  });
+
+  it('компоненты и источники данных из разметки частей доезжают до сборки', () => {
+    const c = collectOf(partsSchema());
+    // `Select` и `REGIONS` стоят только в части `address`.
+    expect(c.components).toEqual(expect.arrayContaining(['Select', 'FieldArray', 'Section']));
+    expect([...c.ds.optionLike]).toEqual(['REGIONS']);
+  });
+
+  it('поле рядом с подформой под тем же путём — одна группа модели', () => {
+    const schema = {
+      format: 2,
+      parts: {
+        address: {
+          component: '$component(Box)',
+          children: [{ model: '$model(city)', component: '$component(Input)' }],
+        },
+      },
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(home.note)', component: '$component(Input)' },
+          { model: '$model(home)', part: '$part(address)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    expect(collectOf(schema).root.fields.home).toEqual({
+      t: 'obj',
+      fields: { note: { t: 'leaf', ts: 'string' }, city: { t: 'leaf', ts: 'string' } },
+    });
+  });
+
+  it('ссылка на часть, которой нет: группа пуста, строка массива — пустой объект', () => {
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(home)', part: '$part(nope)' },
+          { model: '$model(rows)', item: '$part(nope)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const { root } = collectOf(schema);
+    expect(root.fields.home).toEqual({ t: 'obj', fields: {} });
+    expect(root.fields.rows).toEqual({ t: 'arr', elem: { t: 'obj', fields: {} } });
+  });
+
+  it('часть, подключающая саму себя, второй раз не разворачивается — ни группой, ни строкой', () => {
+    const schema = {
+      format: 2,
+      parts: {
+        category: {
+          component: '$component(Box)',
+          children: [
+            { model: '$model(title)', component: '$component(Input)' },
+            { model: '$model(parent)', part: '$part(category)' },
+            { model: '$model(children)', item: '$part(category)' },
+          ],
+        },
+      },
+      root: {
+        component: '$component(Box)',
+        children: [{ model: '$model(top)', part: '$part(category)' }],
+      },
+    } as unknown as JsonFormSchema;
+    const loop = { t: 'leaf', ts: 'Record<string, unknown>' };
+    expect(collectOf(schema).root.fields.top).toEqual({
+      t: 'obj',
+      fields: {
+        title: { t: 'leaf', ts: 'string' },
+        parent: loop,
+        children: { t: 'arr', elem: loop },
+      },
+    });
   });
 });

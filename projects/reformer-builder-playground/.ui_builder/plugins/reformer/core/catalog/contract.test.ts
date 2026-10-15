@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { defaultPropSchemas } from '@reformer/ui-kit/meta';
 import { loadCatalogValidator, type CatalogValidator } from '@reformer/builder-plugin-api/tooling';
-import { composeCatalogJson, buildCatalogFromJson } from './contract';
+import { buildCatalog } from './catalog';
+import { composeCatalogJson, buildCatalogFromJson, kitFactsOf } from './contract';
 import { kindOf } from '../form-model/node-kind';
 import { BUILTIN_CATALOG } from './__fixtures__/builtin-catalog';
 import type { CatalogJson } from './types';
@@ -159,6 +160,31 @@ describe('источник каталога и фильтры (аргумент�
     const fieldArray = json.components.filter((c) => c.name === 'FieldArray');
     expect(fieldArray).toHaveLength(1);
     expect(fieldArray[0].role).toBe('array');
+  });
+
+  it('узел-массив из палитры несёт компонент кита, когда кит умеет его рисовать', () => {
+    // Встроенный кит поставляет `FieldArray`: без `component` рендерер клал бы строки подряд —
+    // без заголовка и кнопок «добавить» / «удалить».
+    const builtin = buildCatalog(BUILTIN_CATALOG);
+    const array = builtin.entries.find((entry) => entry.role === 'array');
+    expect(array?.makeNode()).toMatchObject({
+      model: '$model(items)',
+      component: '$component(FieldArray)',
+    });
+    expect(kindOf(array!.makeNode())).toBe('array');
+  });
+
+  it('у кита без компонента массива узел остаётся без component', () => {
+    // Ссылка на компонент, которого у кита нет, дала бы заглушку на месте строк.
+    const bare = buildCatalog({
+      version: '2.0',
+      components: [{ name: 'Box', role: 'container', propsSchema: {} }],
+    });
+    const array = bare.entries.find((entry) => entry.role === 'array');
+    expect(array).toBeDefined();
+    expect(array?.makeNode()).not.toHaveProperty('component');
+    expect(kitFactsOf(BUILTIN_CATALOG)).toEqual({ arrayComponent: 'FieldArray' });
+    expect(kitFactsOf({ version: '2.0', components: [] })).toEqual({});
   });
 
   it('записи с palette: false в каталог не идут (метаданные без размещаемого узла)', () => {

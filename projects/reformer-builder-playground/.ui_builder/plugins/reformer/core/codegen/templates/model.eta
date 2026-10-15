@@ -1,12 +1,11 @@
+<% const T = it.names.TypeName; -%>
 // <%= it.layout.files.model %> — фабрика модели формы. Регенерируется.
 
 import { createModel, type FormModel } from '@reformer/core';
-import type { <%= it.names.TypeName %> } from '<%= it.rel('model', 'types') %>';
+import type { <%= T %> } from '<%= it.rel('model', 'types') %>';
 import { createInitialValues } from '<%= it.rel('model', 'initial') %>';
 
 /** Реактивная модель формы — источник истины значений. */
-export function <%= it.names.modelFactory %>(
-  initial?: Partial<<%= it.names.TypeName %>>
-): FormModel<<%= it.names.TypeName %>> {
-  return createModel<<%= it.names.TypeName %>>({ ...createInitialValues(), ...initial });
+<%~ it.signature(`export function ${it.names.modelFactory}`, [`initial?: Partial<${T}>`], `: FormModel<${T}> {`) %>
+  <%~ it.format(`return createModel<${T}>({ ...createInitialValues(), ...initial });`, 2) %>
 }

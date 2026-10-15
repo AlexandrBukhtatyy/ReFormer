@@ -1,7 +1,8 @@
+<% const T = it.names.TypeName; -%>
 // <%= it.layout.files.api %> — запросы к серверу: отправка формы. Заготовка: реализуйте реальные
 // запросы. Ваш файл: пишется один раз и при регенерации не затирается.
 
-import type { <%= it.names.TypeName %> } from '<%= it.rel('api', 'types') %>';
+import type { <%= T %> } from '<%= it.rel('api', 'types') %>';
 
 export type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -12,9 +13,8 @@ function wait(ms: number): Promise<void> {
 }
 
 /** POST — отправка формы. TODO: заменить на реальный запрос. */
-export async function submitForm(values: <%= it.names.TypeName %>): Promise<ApiResult<{ id: string }>> {
+<%~ it.signature('export async function submitForm', [`values: ${T}`], ': Promise<ApiResult<{ id: string }>> {') %>
   await wait(API_DELAY);
-  // eslint-disable-next-line no-console
   console.info('[<%= it.names.dir %>] submit', values);
   return { success: true, data: { id: String(Date.now()) } };
 }

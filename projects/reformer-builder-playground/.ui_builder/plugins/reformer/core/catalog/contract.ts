@@ -22,7 +22,7 @@
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import { toDescriptor, type KitDescriptor } from '@reformer/builder-plugin-api';
 import type { CatalogEntry, CatalogJson, CatalogRecord, CatalogRole } from './types';
-import { syntheticRecords, type SyntheticOptions } from './synthetic-entries';
+import { ARRAY_COMPONENT_NAME, syntheticRecords, type SyntheticOptions } from './synthetic-entries';
 import { makeNodeFor } from './make-node';
 
 /**
@@ -107,6 +107,25 @@ export function composeCatalogJson(
 }
 
 /**
+ * Факты о ките, которые склейка с синтетикой стирает.
+ *
+ * Запись массива синтетическая и ВЫТЕСНЯЕТ одноимённую запись кита ({@link composeCatalogJson}),
+ * поэтому по склеенному каталогу уже не узнать, умеет ли кит рисовать массив. Узнаётся это по
+ * каталогу, каким его поставил кит, — до склейки.
+ */
+export interface KitFacts {
+  /** Компонент кита для массива, если кит его поставляет. */
+  arrayComponent?: string;
+}
+
+/** Факты о ките по его каталогу ДО склейки с синтетикой. */
+export function kitFactsOf(supplied: CatalogJson): KitFacts {
+  return supplied.components.some((record) => record.name === ARRAY_COMPONENT_NAME)
+    ? { arrayComponent: ARRAY_COMPONENT_NAME }
+    : {};
+}
+
+/**
  * Реконструировать `CatalogEntry[]` из каталога-JSON (категория палитры + восстановление `makeNode`).
  *
  * Дескриптор кита по умолчанию выводится из самого каталога — так карта категорий приходит от кита,
@@ -116,16 +135,18 @@ export function composeCatalogJson(
  * @param descriptor - Дескриптор кита; по умолчанию выводится из самого каталога.
  * @param categoryOverrides - Переопределения категории от клиента (в v1 читались из
  *   `config/state.getRuntimeConfig().palette.categoryByName`).
+ * @param kitFacts - Что известно о ките сверх склеенного каталога ({@link kitFactsOf}).
  */
 export function buildCatalogFromJson(
   json: CatalogJson,
   descriptor: KitDescriptor = toDescriptor(json),
-  categoryOverrides?: Record<string, string>
+  categoryOverrides?: Record<string, string>,
+  kitFacts: KitFacts = {}
 ): CatalogEntry[] {
   const categoryByName = descriptor.palette.categoryByName;
   // Листья активного кита узел-по-умолчанию берёт из дескриптора, а не из состояния. Композиции
   // compound'ов кит пока не поставляет — действуют встроенные шаблоны билдера.
-  const kit = { leafComponents: descriptor.leafComponents };
+  const kit = { leafComponents: descriptor.leafComponents, ...kitFacts };
   return json.components.map((r) => ({
     name: r.name,
     role: r.role,

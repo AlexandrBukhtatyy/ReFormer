@@ -513,3 +513,167 @@ export function rowRules(): FormRules {
     ],
   };
 }
+
+/** Именованные части документа для {@link partsSchema} и {@link partsWizardSchema}. */
+function partsOf(): Record<string, JsonNode> {
+  const address: JsonNode = {
+    component: '$component(Box)',
+    componentProps: { className: 'space-y-2' },
+    children: [
+      {
+        // Источник данных и компонент, которых нет в дереве корня: они обязаны доехать до
+        // `constants/` и реестра из разметки части.
+        model: '$model(region)',
+        component: '$component(Select)',
+        componentProps: { label: 'Регион', options: '$dataSource(REGIONS)' },
+      },
+      {
+        model: '$model(city)',
+        component: '$component(Input)',
+        componentProps: { label: 'Город', required: true },
+      },
+      {
+        model: '$model(noApartment)',
+        component: '$component(Checkbox)',
+        componentProps: { label: 'Частный дом' },
+      },
+      {
+        selector: 'address-apartment',
+        model: '$model(apartment)',
+        component: '$component(Input)',
+        componentProps: { label: 'Квартира' },
+      },
+    ],
+  } as unknown as JsonNode;
+  const guest: JsonNode = {
+    component: '$component(Box)',
+    componentProps: { className: 'space-y-2' },
+    children: [
+      {
+        selector: 'guest-name',
+        model: '$model(name)',
+        component: '$component(Input)',
+        componentProps: { label: 'Имя', required: true },
+      },
+      {
+        model: '$model(hasPhone)',
+        component: '$component(Checkbox)',
+        componentProps: { label: 'Есть телефон' },
+      },
+      {
+        selector: 'guest-phone',
+        model: '$model(phone)',
+        component: '$component(Input)',
+        componentProps: { label: 'Телефон' },
+      },
+      // Часть внутри части: адрес гостя — третье подключение `address`, уже из области строки.
+      { model: '$model(address)', part: '$part(address)' },
+    ],
+  } as unknown as JsonNode;
+  return { address, guest };
+}
+
+/** Узлы формы с частями — общие для простой формы и для визарда. */
+function partsNodes(): { addresses: JsonNode[]; guests: JsonNode[] } {
+  const emptyAddress = { region: '', city: '', noApartment: false, apartment: '' };
+  return {
+    addresses: [
+      {
+        model: '$model(sameAddress)',
+        component: '$component(Checkbox)',
+        componentProps: { label: 'Работаю из дома' },
+      },
+      // Одна часть под двумя группами модели.
+      { model: '$model(home)', part: '$part(address)' },
+      {
+        selector: 'work-section',
+        component: '$component(Section)',
+        componentProps: { title: 'Рабочий адрес' },
+        children: [{ model: '$model(work)', part: '$part(address)' }],
+      },
+    ] as unknown as JsonNode[],
+    guests: [
+      {
+        // Часть — шаблон строки массива.
+        selector: 'guests',
+        model: '$model(guests)',
+        component: '$component(FieldArray)',
+        componentProps: { title: 'Гости' },
+        initialValue: { name: '', hasPhone: false, phone: '', address: emptyAddress },
+        item: '$part(guest)',
+      },
+    ] as unknown as JsonNode[],
+  };
+}
+
+/**
+ * Схема с ИМЕНОВАННЫМИ ЧАСТЯМИ документа: часть `address` подключена дважды подформой (`home`,
+ * `work`) и третий раз — изнутри части `guest`; часть `guest` — шаблон строки массива `guests`.
+ *
+ * Держит чтение частей кодогеном: тип формы с подформами и строкой из части, начальные значения
+ * групп, источник данных и компонент из разметки части, обязательные поля частей и области правил
+ * (`apply` со списком групп, `applyEach` для массива, `apply` из поведения части).
+ */
+export function partsSchema(): JsonFormSchema {
+  const { addresses, guests } = partsNodes();
+  const root: JsonNode = {
+    component: '$component(Box)',
+    componentProps: { className: 'space-y-4' },
+    children: [...addresses, ...guests],
+  } as unknown as JsonNode;
+  return { format: 2, version: '1.0', parts: partsOf(), root };
+}
+
+/**
+ * Те же части в ВИЗАРДЕ: адреса — на первом шаге, гости — на втором.
+ *
+ * Держит раскладку по шагам: поле части считается полем шага, где часть смонтирована, — правило
+ * на `home.city` уходит в правила шага «Адреса», а правило строки `guests` — в правила шага «Гости».
+ */
+export function partsWizardSchema(): JsonFormSchema {
+  const { addresses, guests } = partsNodes();
+  const root: JsonNode = {
+    component: '$component(Box)',
+    children: [
+      {
+        component: '$component(Wizard)',
+        children: [
+          {
+            component: '$component(Step)',
+            componentProps: { title: 'Адреса' },
+            children: addresses,
+          },
+          { component: '$component(Step)', componentProps: { title: 'Гости' }, children: guests },
+        ],
+      },
+    ],
+  } as unknown as JsonNode;
+  return { format: 2, version: '1.0', parts: partsOf(), root };
+}
+
+/**
+ * Правила к {@link partsSchema} и {@link partsWizardSchema}.
+ *
+ * Валидация — на поле части под группой (`home.city`) и на поле части-строки (`guests.name`).
+ * Правила узлов — по одному на область: корень (`work-section`), часть `address`
+ * (`address-apartment`) и часть `guest` (`guest-phone`, `guest-name`). Условия читают `model`, и в
+ * каждой области это РАЗНАЯ модель: формы, одного адреса, одного гостя.
+ */
+export function partsRules(): FormRules {
+  return {
+    validation: [
+      { target: 'home.city', rules: ['required'] },
+      { target: 'guests.name', each: 'guests', rules: ['required', 'minLength(2)'] },
+    ],
+    behavior: [],
+    render: [
+      // Корень: секцию с подформой рисует область формы.
+      { kind: 'hideWhen', selector: 'work-section', condition: 'model.sameAddress' },
+      // Часть `address` — одна на три подключения.
+      { kind: 'hideWhen', selector: 'address-apartment', condition: 'model.noApartment' },
+      // Часть `guest` — шаблон строки.
+      { kind: 'hideWhen', selector: 'guest-phone', condition: '!model.hasPhone' },
+      { kind: 'patchProps', selector: 'guest-name', props: { placeholder: 'Имя гостя' } },
+    ],
+  };
+}

@@ -1,0 +1,20 @@
+// constants/zayavka-na-kredit.ts — опции и константы источников данных ($dataSource).
+// МОК: значения синтезированы, замените реальными. Ваш файл: пишется один раз и при
+// регенерации не затирается.
+
+import type { SelectOption } from '../types/zayavka-na-kredit';
+
+export const REGIONS: SelectOption[] = [
+  {
+    value: 'option1',
+    label: 'Regions 1',
+  },
+  {
+    value: 'option2',
+    label: 'Regions 2',
+  },
+  {
+    value: 'option3',
+    label: 'Regions 3',
+  },
+];

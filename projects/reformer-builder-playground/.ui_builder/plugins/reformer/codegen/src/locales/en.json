@@ -60,6 +60,7 @@
   "target.step-schema": "Step schema",
   "target.form-behavior": "Form behavior",
   "target.validation": "Form validation",
+  "target.messages": "Validation messages",
   "target.submit": "Submit",
   "target.api": "Backend",
   "target.readme": "README",

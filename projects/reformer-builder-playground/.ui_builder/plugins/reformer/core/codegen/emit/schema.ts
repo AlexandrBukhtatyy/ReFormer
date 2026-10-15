@@ -16,18 +16,24 @@
  * Ссылка относительна корневого документа, поэтому файлы шагов лежат рядом с ним:
  * `schema/steps/<шаг>/form.schema.json`.
  *
+ * ## Раскладка JSON — как у prettier
+ *
+ * Документ печатается так, как его оставит форматтер репозитория (`../print/js` → `printJson`):
+ * объекты развёрнуты, а массив без объектов — в строку, если помещается
+ * (`"children": ["Отправить"]`). `JSON.stringify` клал каждый элемент на свою строку, и папку формы
+ * после генерации приходилось переформатировать. Редактор схемы пишет документ своим
+ * сериализатором; чтобы сохранение в билдере не меняло раскладку массивов, ему нужен тот же
+ * `printJson`.
+ *
  * @module plugins/reformer/core/codegen/emit/schema
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { EmitContext } from '../context';
+import { printJson } from '../print/js';
 
 /** Маркер мета-схемы: app-level файл рядом с базовым реестром renderer-json. */
 const SCHEMA_MARKER = './form-schema.schema.json';
-
-function printJson(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
 
 export function emitSchema(ctx: EmitContext): string {
   const source = ctx.composition?.skeleton ?? ctx.schema;

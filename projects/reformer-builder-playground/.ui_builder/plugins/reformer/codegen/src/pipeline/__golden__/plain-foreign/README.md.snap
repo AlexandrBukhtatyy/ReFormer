@@ -54,7 +54,8 @@ zayavka-na-kredit/
 │   ├── form.schema.json   документ формы (его открывает билдер)
 │   └── registry.ts   реестр компонентов и источников данных
 ├── validation/
-│   └── form.ts   валидация формы: правила и стратегия проверки
+│   ├── form.ts   валидация формы: правила и стратегия проверки
+│   └── messages.ts   тексты замечаний — словарь формы
 ├── behavior/
 │   └── index.ts   единственное поведение: связи над моделью и правила узлов схемы
 ├── types/
@@ -64,7 +65,7 @@ zayavka-na-kredit/
 ```
 
 - **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `types/zayavka-na-kredit.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ZayavkaNaKreditForm.tsx`, `index.ts`, `README.md`.
-- **Ваши** (пишутся один раз, не затираются): `constants/zayavka-na-kredit.ts`, `behavior/index.ts`, `validation/form.ts`, `application/submit.ts`, `api/index.ts`.
+- **Ваши** (пишутся один раз, не затираются): `constants/zayavka-na-kredit.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/messages.ts`, `application/submit.ts`, `api/index.ts`.
 
 Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
 поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
@@ -78,10 +79,15 @@ zayavka-na-kredit/
 Компоненты импортируются из `@hexa/ui` — того кита, который был
 активен при генерации (`HexaUI`).
 
+Тексты замечаний — словарь `formMessages` (`validation/messages.ts`): страница подключает его
+провайдером `ValidationMessagesProvider`. Запись реестра форм словарь не несёт — при монтировании
+через `FormOutlet` провайдер со словарём ставит хост.
+
 ## Методы для реализации
 
 - `api/index.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
 - `application/submit.ts` → тексты исхода и то, что делать после отправки (сейчас — два сообщения через `onResult`).
 - `behavior/index.ts` → раскомментируйте `hideWhen` для секций: `lichnye-dannye-section`.
 - `validation/form.ts` → допишите правила (сейчас — только `required` из схемы либо правила формы).
+- `validation/messages.ts` → тексты замечаний под свою форму: свой код правилу и запись под ним.
 - `behavior/index.ts` → вычисляемые поля и условное включение (по желанию).

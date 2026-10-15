@@ -265,9 +265,19 @@ export function hasCompoundTemplate(name: string): boolean {
   return Object.hasOwn(COMPOUND_TEMPLATES, name);
 }
 
-export function arrayNode(): JsonNode {
+/**
+ * Узел-массив по умолчанию.
+ *
+ * @param component - Компонент кита, которым массив рисуется (`FieldArray`). Без `component`
+ *   рендерер кладёт строки одну за другой — без заголовка и без кнопок «добавить» / «удалить»:
+ *   форма с таким массивом выглядит недоделанной, а человек не понимает, чего ей не хватает.
+ *   Поэтому компонент ставится сразу, если кит его поставляет; у кита без такого компонента
+ *   узел остаётся без него — ссылка на несуществующий компонент дала бы заглушку вместо строк.
+ */
+export function arrayNode(component?: string): JsonNode {
   return {
     model: '$model(items)',
+    ...(component === undefined ? {} : { component: `$component(${component})` as const }),
     item: {
       $template: {
         component: '$component(Box)',
@@ -312,6 +322,11 @@ export interface MakeNodeKit {
   leafComponents?: ReadonlySet<string>;
   /** Композиции compound'ов кита; `undefined` — встроенные {@link COMPOUND_TEMPLATES}. */
   compoundTemplates?: Record<string, () => JsonNode>;
+  /**
+   * Компонент кита, которым рисуется массив; `undefined` — кит его не поставляет, и узел-массив
+   * создаётся без `component` (см. {@link arrayNode}).
+   */
+  arrayComponent?: string;
 }
 
 /**
@@ -326,7 +341,7 @@ export function makeNodeFor(
   compoundParent?: string,
   kit?: MakeNodeKit
 ): JsonNode {
-  if (role === 'array') return arrayNode();
+  if (role === 'array') return arrayNode(kit?.arrayComponent);
   if (name.startsWith('$html(')) return htmlNodeFor(name);
   if (role === 'field') return fieldNode(name);
   if (name === 'Wizard') return wizardNode();

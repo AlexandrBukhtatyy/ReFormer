@@ -1,0 +1,15 @@
+// validation/messages.ts — тексты замечаний формы: словарь «код замечания → текст».
+// Ваш файл: пишется один раз и при регенерации не затирается.
+
+import { defineIssueMessages } from '@reformer/core/i18n';
+
+/**
+ * Тексты замечаний формы. Правила (validation/*.ts) несут только код и параметры; строку по коду
+ * даёт этот словарь — его подключает страница (`ValidationMessagesProvider` в ZayavkaNaKreditForm.tsx).
+ * Кода, которого здесь нет, словарь не касается: текст берётся из локали приложения.
+ *
+ * Свой текст одному полю — дайте правилу свой код и добавьте запись под ним:
+ * `required({ code: 'email.required' })` → `'email.required': 'Укажите email'`.
+ * Параметры правила подставляются в текст: `{minLength}`, `{max}`.
+ */
+export const formMessages = defineIssueMessages({});

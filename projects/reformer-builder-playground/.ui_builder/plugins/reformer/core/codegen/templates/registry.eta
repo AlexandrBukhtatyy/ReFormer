@@ -3,13 +3,13 @@
 <% if (it.registry.hasPlaceholder) { -%>
 import type { ReactNode } from 'react';
 <% } -%>
-import { <%= it.registry.kitSymbols.join(', ') %> } from '<%= it.kit.importSpecifier %>';
+<%~ it.imports(it.registry.kitSymbols, it.kit.importSpecifier) %>
 <% for (const extra of it.registry.extraImports) { -%>
-import { <%= extra.symbols.join(', ') %> } from '<%= extra.from %>';
+<%~ it.imports(extra.symbols, extra.from) %>
 <% } -%>
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 <% if (it.registry.dataSourceNames.length > 0) { -%>
-import { <%= it.registry.dataSourceNames.join(', ') %> } from '<%= it.rel('registry', 'constants') %>';
+<%~ it.imports(it.registry.dataSourceNames, it.rel('registry', 'constants')) %>
 <% } -%>
 <% if (it.registry.hasPlaceholder) { -%>
 

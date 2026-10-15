@@ -18,7 +18,8 @@
  *
  * Шаблон на файл модуля: страница (`page`), реэкспорты (`barrel`), сборка (`create`), отправка
  * (`submit`), запись реестра форм (`entry`), запросы (`api`), начальные значения (`initial`),
- * модель (`model`), реестр компонентов (`registry`), валидация формы и шага, поведение, поток
+ * модель (`model`), реестр компонентов (`registry`), валидация формы и шага, тексты замечаний
+ * (`messages`), поведение, поток
  * шагов (`flow`), типы, константы источников данных и README. Шаблонов прежнего контракта —
  * шима визарда, агрегатора шагов и слоя рендера — больше нет.
  *
@@ -34,6 +35,7 @@ import entryTemplate from './entry.eta?raw';
 import flowTemplate from './flow.eta?raw';
 import formBehaviorTemplate from './form-behavior.eta?raw';
 import initialTemplate from './initial.eta?raw';
+import messagesTemplate from './messages.eta?raw';
 import modelTemplate from './model.eta?raw';
 import pageTemplate from './page.eta?raw';
 import readmeTemplate from './readme.eta?raw';
@@ -67,6 +69,7 @@ export {
   flowTemplate,
   formBehaviorTemplate,
   initialTemplate,
+  messagesTemplate,
   modelTemplate,
   pageTemplate,
   readmeTemplate,

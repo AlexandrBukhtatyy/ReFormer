@@ -11,12 +11,8 @@ import type { SelectOption } from '<%= it.rel('constants', 'types') %>';
 
 <% } -%>
 <%~ it.blocks([
-  it.dataSources.options
-    .map((d) => `export const ${d.name}: SelectOption[] = ${it.json(d.value)};`)
-    .join('\n\n'),
-  it.dataSources.scalars.map((d) => `export const ${d.name} = ${d.literal};`).join('\n'),
-  it.dataSources.labels
-    .map((name) => `export const ${name} = (_item: unknown, index: number): string =>\n  '#' + (index + 1); // TODO: подпись элемента`)
-    .join('\n'),
+  it.dataSources.options.map((d) => d.code).join('\n\n'),
+  it.dataSources.scalars.map((d) => d.code).join('\n'),
+  it.dataSources.labelSources.map((d) => d.code).join('\n\n'),
 ]) %>
 <% } -%>

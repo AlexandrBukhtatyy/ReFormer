@@ -6,20 +6,20 @@ import type { SelectOption } from '../types/zayavka-na-kredit';
 
 export const LOAN_TYPES: SelectOption[] = [
   {
-    "value": "option1",
-    "label": "Loan types 1"
+    value: 'option1',
+    label: 'Loan types 1',
   },
   {
-    "value": "option2",
-    "label": "Loan types 2"
+    value: 'option2',
+    label: 'Loan types 2',
   },
   {
-    "value": "option3",
-    "label": "Loan types 3"
-  }
+    value: 'option3',
+    label: 'Loan types 3',
+  },
 ];
 
-export const HINT_TEXT = "значение";
+export const HINT_TEXT = 'значение';
 
-export const PROP_LABEL = (_item: unknown, index: number): string =>
-  '#' + (index + 1); // TODO: подпись элемента
+// TODO: подпись элемента
+export const PROP_LABEL = (_item: unknown, index: number): string => '#' + (index + 1);

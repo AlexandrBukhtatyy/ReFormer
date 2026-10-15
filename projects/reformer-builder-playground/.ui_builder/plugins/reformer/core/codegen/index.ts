@@ -28,6 +28,7 @@ export {
   STEP_SCHEMAS_DIR,
   VALIDATION_DIR,
   FORM_RULES_NAME,
+  MESSAGES_NAME,
   RESERVED_STEP_NAMES,
   FLAT_LAYOUT_FILES,
   FLAT_STEPS_DIR,
@@ -69,6 +70,22 @@ export {
 export { resolveComponent, type ComponentResolution, type KitView } from './components';
 
 export { emitSchema, emitStepSchema } from './emit/schema';
+
+// Раскладка под ширину строки — та, которой печатается модуль: вывод проходит prettier как есть.
+// `printJson` нужен и вне кодогена: документ формы, записанный им, форматтер не переписывает.
+export {
+  formatBody,
+  formatStatement,
+  printConst,
+  printImport,
+  printJson,
+  printLiteral,
+  printSignature,
+  quote,
+  type ImportKind,
+  type LiteralOptions,
+} from './print/js';
+export { PRINT_WIDTH, TAB_WIDTH, type PrintOptions } from './print/doc';
 export { appSnippet } from './emit/snippet';
 
 // Печать через шаблоны: вид, который шаблон видит как `it`, и тексты встроенных шаблонов.
@@ -93,8 +110,15 @@ export {
   type Indent,
   type Json,
   type Rel,
+  type Format,
+  type Literal,
+  type Imports,
+  type Signature,
+  type Fits,
+  type DataSourcesView,
 } from './view';
-export type { BehaviorView, BehaviorGroupView } from './view/behavior';
+export type { BehaviorView, BehaviorGroupView, RowBehaviorView } from './view/behavior';
+export type { MessagesView, MessageEntryView } from './view/messages';
 export {
   STEP_NAME,
   STEP_IMPORT,
@@ -110,6 +134,7 @@ export {
   flowTemplate,
   formBehaviorTemplate,
   initialTemplate,
+  messagesTemplate,
   modelTemplate,
   pageTemplate,
   readmeTemplate,

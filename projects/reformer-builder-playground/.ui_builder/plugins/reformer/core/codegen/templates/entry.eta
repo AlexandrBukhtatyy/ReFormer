@@ -1,4 +1,10 @@
-<% const T = it.names.TypeName; -%>
+<%
+const T = it.names.TypeName;
+const head = `export const ${it.names.entryConst}: FormEntry<${T}>`;
+// Объявление, не поместившееся в строку, форматтер переносит после `=` и сдвигает объект.
+const wide = !it.fits(`${head} = {`);
+const p = wide ? '    ' : '  ';
+-%>
 // <%= it.layout.files.entry %> — запись формы в реестре форм (`@reformer/form-registry`).
 // Регенерируется билдером; правки будут перезаписаны.
 
@@ -27,31 +33,36 @@ import type { SubmitOptions } from '<%= it.rel('entry', 'submit') %>';
  * После этого форма монтируется где угодно: `<FormOutlet id="<%= it.names.exampleId %>" />`, либо через
  * слот или маршрут, если заполнить `placement`.
  */
-export const <%= it.names.entryConst %>: FormEntry<<%= T %>> = {
-  id: '<%= it.names.exampleId %>',
-  version: '1.0.0',
-  // Кто зарегистрировал: по этому полю различаются одинаковые id из разных микрофронтов.
-  owner: 'app', // TODO: имя вашего приложения-хоста
+<% if (wide) { -%>
+<%~ head %> =
+  {
+<% } else { -%>
+<%~ head %> = {
+<% } -%>
+<%= p %>id: '<%= it.names.exampleId %>',
+<%= p %>version: '1.0.0',
+<%= p %>// Кто зарегистрировал: по этому полю различаются одинаковые id из разных микрофронтов.
+<%= p %>owner: 'app', // TODO: имя вашего приложения-хоста
 
-  // Данные — единственная часть, которую можно доставить по сети.
-  schema: { kind: 'inline', value: formSchema },
+<%= p %>// Данные — единственная часть, которую можно доставить по сети.
+<%= p %>schema: { kind: 'inline', value: formSchema },
 
-  // Код — только из бандла.
-  registry: { kind: 'inline', value: createRegistry() },
-  model: { kind: 'inline', value: <%= it.names.modelFactory %> },
-  // Фабрика: настройки места монтирования (`onResult`) хост передаёт пропом `behaviorOptions`.
-  behavior: { kind: 'inline', value: (options) => createFormBehavior(options as SubmitOptions) },
-  validation: { kind: 'inline', value: formValidation },
+<%= p %>// Код — только из бандла.
+<%= p %>registry: { kind: 'inline', value: createRegistry() },
+<%= p %>model: { kind: 'inline', value: <%= it.names.modelFactory %> },
+<%= p %>// Фабрика: настройки места монтирования (`onResult`) хост передаёт пропом `behaviorOptions`.
+<%= p %>behavior: { kind: 'inline', value: (options) => createFormBehavior(options as SubmitOptions) },
+<%= p %>validation: { kind: 'inline', value: formValidation },
 <% if (it.layout.isWizard) { -%>
-  flow: { kind: 'inline', value: formFlow },
+<%= p %>flow: { kind: 'inline', value: formFlow },
 <% } -%>
 
-  // Где показывать. Пусто — форма доступна только по id; заполните, чтобы показывать её
-  // в слоте хоста или на маршруте.
-  placement: { slots: [], routes: ['<%= it.names.routePath %>'] },
+<%= p %>// Где показывать. Пусто — форма доступна только по id; заполните, чтобы показывать её
+<%= p %>// в слоте хоста или на маршруте.
+<%= p %>placement: { slots: [], routes: ['<%= it.names.routePath %>'] },
 
-  meta: {
-    name: '<%= it.names.title %>',
-    tags: ['renderer-json', 'form-registry'],
-  },
-};
+<%= p %>meta: {
+<%= p %>  name: '<%= it.names.title %>',
+<%= p %>  tags: ['renderer-json', 'form-registry'],
+<%= p %>},
+<%= wide ? '  ' : '' %>};

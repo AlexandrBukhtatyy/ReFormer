@@ -19,16 +19,10 @@
  * @module plugins/reformer/validator/structure
  */
 
-import {
-  isArrayNode,
-  isPartNode,
-  parseOperator,
-  type JsonFormSchema,
-  type JsonNode,
-} from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { childSlots, isNodeLike, kindOf } from '../../core/form-model';
 import { componentOf } from '../../core/form-model';
-import { walkNodes } from '../../core/form-model';
+import { partRefOf, PARTS_KEY, walkDocumentNodes } from '../../core/form-model';
 import type { JsonPath } from '../../core/form-model';
 import type { NodePart } from '@reformer/builder-plugin-api';
 import { CODES, type DiagnosticCode } from './codes';
@@ -50,6 +44,24 @@ export interface Finding {
   readonly within?: JsonPath;
   /** Что подчеркнуть у {@link within}: имя (по умолчанию) или значение. */
   readonly at?: NodePart;
+  /**
+   * Имя части документа, в разметке которой ЗАПИСАН узел-виновник; у узла дерева корня его нет.
+   *
+   * Узлам частей идентификаторы не выдаются, и такая находка адресуется ресурсом — имя части
+   * остаётся единственным, что говорит человеку, где искать.
+   */
+  readonly part?: string;
+}
+
+/** Узел вместе с частью документа, в разметке которой он записан (`null` — дерево корня). */
+interface Placed {
+  readonly node: JsonNode;
+  readonly part: string | null;
+}
+
+/** Поле {@link Finding.part} для узла: у узла дерева корня его нет вовсе. */
+function partOf(part: string | null): { readonly part?: string } {
+  return part === null ? {} : { part };
 }
 
 /** Пропсы узла — общий адрес для замечаний, чей ключ в тексте отсутствует. */
@@ -70,16 +82,6 @@ function valueOf(node: JsonNode): string | undefined {
 type Parts = Readonly<Record<string, unknown>>;
 
 /**
- * Имя части, из которой узел берёт разметку: подформа (`part`) либо массив с шаблоном строки
- * `item: "$part(имя)"`. У остальных узлов разметка лежит в них самих.
- */
-function partNameOf(node: JsonNode): string | undefined {
-  const ref = isPartNode(node) ? node.part : isArrayNode(node) ? node.item : undefined;
-  const op = parseOperator(ref);
-  return op?.op === 'part' ? op.arg : undefined;
-}
-
-/**
  * Все потомки узла (без него самого). Путь нужен только обходу слотов, наружу не отдаётся.
  *
  * Потомки — то, что рендерер построит ВНУТРИ узла, а не только то, что в нём записано: у подформы
@@ -87,54 +89,74 @@ function partNameOf(node: JsonNode): string | undefined {
  * Не зайди обход туда, вкладке, чья панель вынесена в часть, достался бы ложный упрёк «панели
  * нет». Каждая часть обходится один раз на вызов: повторная ссылка новых потомков не даёт, а на
  * части, ссылающейся на саму себя, обход без этого не кончился бы.
+ *
+ * Каждый потомок отдаётся с частью, в которой он ЗАПИСАН: узел самого узла — с частью узла
+ * (`origin`), узел подключённой части — с её именем.
  */
-function descendants(node: JsonNode, path: JsonPath, parts: Parts): JsonNode[] {
-  const out: JsonNode[] = [];
+function descendants(
+  node: JsonNode,
+  path: JsonPath,
+  parts: Parts,
+  origin: string | null
+): Placed[] {
+  const out: Placed[] = [];
   const entered = new Set<string>();
-  const rec = (current: JsonNode, currentPath: JsonPath): void => {
+  const rec = (current: JsonNode, currentPath: JsonPath, part: string | null): void => {
     for (const slot of childSlots(current, currentPath)) {
       for (const entry of slot.entries) {
         const childPath = slot.single ? slot.path : [...slot.path, entry.index];
-        out.push(entry.node);
-        rec(entry.node, childPath);
+        out.push({ node: entry.node, part });
+        rec(entry.node, childPath, part);
       }
     }
-    const name = partNameOf(current);
+    const name = partRefOf(current);
     if (name === undefined || entered.has(name)) return;
     entered.add(name);
     // Части с таким именем может не быть — об этом скажет проверка схемы (`unknown-part`).
-    const part = Object.hasOwn(parts, name) ? parts[name] : undefined;
-    if (!isNodeLike(part)) return;
-    out.push(part);
-    rec(part, ['parts', name]);
+    const markup = Object.hasOwn(parts, name) ? parts[name] : undefined;
+    if (!isNodeLike(markup)) return;
+    out.push({ node: markup, part: name });
+    rec(markup, [PARTS_KEY, name], name);
   };
-  rec(node, path);
+  rec(node, path, origin);
   return out;
 }
 
 /** Замечания по одному узлу `Tabs`: кнопки без панелей, панели без кнопок, чужой `defaultValue`. */
-function lintTabs(node: JsonNode, path: JsonPath, parts: Parts): Finding[] {
+function lintTabs(node: JsonNode, path: JsonPath, parts: Parts, origin: string | null): Finding[] {
   const out: Finding[] = [];
-  const inside = descendants(node, path, parts);
-  const triggers = inside.filter((child) => componentOf(child) === TABS.trigger);
-  const panels = inside.filter((child) => componentOf(child) === TABS.panel);
+  const inside = descendants(node, path, parts, origin);
+  const triggers = inside.filter((child) => componentOf(child.node) === TABS.trigger);
+  const panels = inside.filter((child) => componentOf(child.node) === TABS.panel);
   if (triggers.length === 0 && panels.length === 0) return out;
 
   const triggerValues = new Set<string>();
   for (const trigger of triggers) {
-    const value = valueOf(trigger);
+    const value = valueOf(trigger.node);
     // Без `value` кнопка не связана ни с одной панелью: Radix свяжет её по `undefined`,
     // и две такие вкладки схлопнутся в одну.
-    if (value === undefined)
-      out.push({ code: CODES.TAB_WITHOUT_VALUE, node: trigger, within: PROPS });
-    else triggerValues.add(value);
+    if (value === undefined) {
+      out.push({
+        code: CODES.TAB_WITHOUT_VALUE,
+        node: trigger.node,
+        within: PROPS,
+        ...partOf(trigger.part),
+      });
+    } else {
+      triggerValues.add(value);
+    }
   }
 
   const panelValues = new Set<string>();
   for (const panel of panels) {
-    const value = valueOf(panel);
+    const value = valueOf(panel.node);
     if (value === undefined) {
-      out.push({ code: CODES.PANEL_WITHOUT_VALUE, node: panel, within: PROPS });
+      out.push({
+        code: CODES.PANEL_WITHOUT_VALUE,
+        node: panel.node,
+        within: PROPS,
+        ...partOf(panel.part),
+      });
       continue;
     }
     panelValues.add(value);
@@ -142,22 +164,24 @@ function lintTabs(node: JsonNode, path: JsonPath, parts: Parts): Finding[] {
       out.push({
         code: CODES.PANEL_WITHOUT_TAB,
         params: { value },
-        node: panel,
+        node: panel.node,
         within: PROPS_VALUE,
         at: 'value',
+        ...partOf(panel.part),
       });
     }
   }
 
   for (const trigger of triggers) {
-    const value = valueOf(trigger);
+    const value = valueOf(trigger.node);
     if (value !== undefined && !panelValues.has(value)) {
       out.push({
         code: CODES.TAB_WITHOUT_PANEL,
         params: { value },
-        node: trigger,
+        node: trigger.node,
         within: PROPS_VALUE,
         at: 'value',
+        ...partOf(trigger.part),
       });
     }
   }
@@ -175,6 +199,7 @@ function lintTabs(node: JsonNode, path: JsonPath, parts: Parts): Finding[] {
       node,
       within: ['componentProps', 'defaultValue'],
       at: 'value',
+      ...partOf(origin),
     });
   }
   return out;
@@ -189,7 +214,7 @@ function lintTabs(node: JsonNode, path: JsonPath, parts: Parts): Finding[] {
  * у подформы она целиком в `parts` документа, у массива шаблон строки бывает ссылкой
  * `item: "$part(имя)"`. Слотов у такого узла нет, а место полям есть — замечания он не получает.
  */
-function lintSteps(node: JsonNode, path: JsonPath): Finding[] {
+function lintSteps(node: JsonNode, path: JsonPath, origin: string | null): Finding[] {
   const out: Finding[] = [];
   for (const slot of childSlots(node, path)) {
     if (slot.kind !== 'steps') continue;
@@ -204,19 +229,26 @@ function lintSteps(node: JsonNode, path: JsonPath): Finding[] {
         // Имя не-контейнера стоит в значении `component` — оттуда же берётся `params.name`.
         within: ['component'],
         at: 'value',
+        ...partOf(origin),
       });
     }
   }
   return out;
 }
 
-/** Структурные замечания к форме. Пустой массив — связи в порядке. */
+/**
+ * Структурные замечания к форме. Пустой массив — связи в порядке.
+ *
+ * Смотрится документ целиком: дерево корня и разметка именованных частей. Вкладки и мастер,
+ * записанные в части, линтуются там же, где записаны, — один раз, сколько бы раз часть ни
+ * подключалась; замечание о таком узле несёт имя части ({@link Finding.part}).
+ */
 export function structureFindings(schema: JsonFormSchema): Finding[] {
   const out: Finding[] = [];
   const parts: Parts = schema.parts ?? {};
-  walkNodes(schema, (node, path) => {
-    if (componentOf(node) === TABS.root) out.push(...lintTabs(node, path, parts));
-    out.push(...lintSteps(node, path));
+  walkDocumentNodes(schema, (node, path, origin) => {
+    if (componentOf(node) === TABS.root) out.push(...lintTabs(node, path, parts, origin.part));
+    out.push(...lintSteps(node, path, origin.part));
   });
   return out;
 }

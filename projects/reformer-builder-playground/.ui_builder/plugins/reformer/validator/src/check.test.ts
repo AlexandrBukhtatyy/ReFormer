@@ -828,3 +828,166 @@ describe('$model читает необъявленный путь', () => {
     expect(unbound[0].fixes).toBeUndefined();
   });
 });
+
+describe('находки в разметке именованной части документа', () => {
+  const inPart = (code: string): string => `${code}.in-part`;
+  const subform = (model: string, part: string): JsonNode =>
+    ({ model: `$model(${model})`, part: `$part(${part})` }) as unknown as JsonNode;
+  const input = (path: string, component = '$component(Input)'): JsonNode =>
+    ({ model: `$model(${path})`, component }) as unknown as JsonNode;
+  const text = (...parts: string[]): JsonNode =>
+    ({ component: '$html(p)', children: parts }) as unknown as JsonNode;
+
+  it('неизвестный компонент в части: код с суффиксом, имя части параметром, цель — ресурс', () => {
+    const found = check(
+      schemaOf(box([subform('home', 'address')]), {
+        address: box([input('city', '$component(Inpt)')]),
+      })
+    );
+
+    expect(codes(found)).toEqual([inPart(CODES.UNKNOWN_COMPONENT)]);
+    expect(found[0]).toMatchObject({
+      severity: 'error',
+      // Узлам частей идентификаторы не выдаются: адресовать находку нечем, кроме документа.
+      target: { kind: 'resource' },
+      params: { part: 'address', name: 'Inpt', suggestion: 'Input' },
+    });
+    // Команда исправления правит узел по адресу — у узла части адреса нет.
+    expect(found[0].fixes).toBeUndefined();
+  });
+
+  it('часть, которую никто не подключил, проверяется тоже: её текст лежит в документе', () => {
+    const found = check(schemaOf(box([]), { orphan: box([input('city', '$component(Inpt)')]) }));
+
+    expect(codes(found)).toEqual([inPart(CODES.UNKNOWN_COMPONENT)]);
+    expect(found[0].params).toMatchObject({ part: 'orphan' });
+  });
+
+  it('часть, подключённая дважды, даёт находку один раз', () => {
+    const found = check(
+      schemaOf(box([subform('home', 'address'), subform('work', 'address')]), {
+        address: box([input('city', '$component(Inpt)')]),
+      })
+    );
+
+    expect(codes(found)).toEqual([inPart(CODES.UNKNOWN_COMPONENT)]);
+  });
+
+  it('находка мета-схемы внутри части называет часть', () => {
+    const typo = {
+      model: '$model(city)',
+      component: '$component(Input)',
+      componentProps: { readOnly: 'да' },
+    } as unknown as JsonNode;
+
+    const found = check(schemaOf(box([subform('home', 'address')]), { address: box([typo]) }));
+
+    expect(found.length).toBeGreaterThan(0);
+    for (const item of found) {
+      expect(item.code.endsWith('.in-part'), item.code).toBe(true);
+      expect(item.target).toEqual({ kind: 'resource' });
+      expect(item.params).toMatchObject({ part: 'address' });
+      expect(item.fixes).toBeUndefined();
+    }
+  });
+
+  it('ссылка на неизвестную часть ИЗ части — тоже находка части', () => {
+    const found = check(
+      schemaOf(box([subform('home', 'address')]), { address: box([subform('geo', 'cordinates')]) })
+    );
+
+    expect(codes(found)).toEqual([inPart(CODES.UNKNOWN_PART)]);
+    expect(found[0].params).toEqual({ name: 'cordinates', part: 'address' });
+  });
+
+  it('чтение модели в части сверяется с объявлениями ЧАСТИ, а не формы', () => {
+    const address = box([
+      input('city'),
+      // `city` объявлен в части, `sameAddress` — в форме: из области части его не видно.
+      text('$model(city)', '$model(cty)', '$model(sameAddress)'),
+    ]);
+
+    const found = check(
+      schemaOf(box([input('sameAddress', '$component(Checkbox)'), subform('home', 'address')]), {
+        address,
+      })
+    );
+
+    const unbound = found.filter((item) => item.code === inPart(CODES.MODEL_PATH_UNBOUND));
+    expect(unbound.map((item) => item.params)).toEqual([
+      { path: 'cty', hint: 'yes', suggestion: 'city', part: 'address' },
+      { path: 'sameAddress', hint: 'no', part: 'address' },
+    ]);
+    expect(unbound.every((item) => item.target.kind === 'resource')).toBe(true);
+    expect(unbound.every((item) => item.fixes === undefined)).toBe(true);
+    // Сама привязка подформы объявлена в области формы: чтение её полей из корня законно.
+    expect(codes(found)).not.toContain(CODES.MODEL_PATH_UNBOUND);
+  });
+
+  it('чтение поля подформы из дерева корня — не находка', () => {
+    const found = check(
+      schemaOf(box([subform('home', 'address'), text('$model(home.city)')]), {
+        address: box([input('city')]),
+      })
+    );
+
+    expect(codes(found)).toEqual([]);
+  });
+
+  it('вкладки, записанные в части: линт идёт там же и называет часть', () => {
+    const tabs = (children: JsonNode[]): JsonNode =>
+      ({ component: '$component(Tabs)', children }) as unknown as JsonNode;
+    const trigger = (value: string): JsonNode =>
+      ({ component: '$component(TabsTrigger)', componentProps: { value } }) as unknown as JsonNode;
+    const panel = (value: string): JsonNode =>
+      ({ component: '$component(TabsContent)', componentProps: { value } }) as unknown as JsonNode;
+
+    const found = check(
+      schemaOf(box([subform('home', 'card')]), { card: tabs([trigger('one'), panel('two')]) })
+    );
+
+    expect(codes(found).sort()).toEqual(
+      [inPart(CODES.PANEL_WITHOUT_TAB), inPart(CODES.TAB_WITHOUT_PANEL)].sort()
+    );
+    for (const item of found) {
+      expect(item.severity).toBe('warning');
+      expect(item.target).toEqual({ kind: 'resource' });
+      expect(item.params).toMatchObject({ part: 'card' });
+    }
+  });
+
+  it('вкладка в корне, панель в части: замечание о панели называет часть, о вкладке — нет', () => {
+    const tabs = (children: JsonNode[]): JsonNode =>
+      ({ component: '$component(Tabs)', children }) as unknown as JsonNode;
+    const trigger = (value: string): JsonNode =>
+      ({ component: '$component(TabsTrigger)', componentProps: { value } }) as unknown as JsonNode;
+    const panel = (value: string): JsonNode =>
+      ({ component: '$component(TabsContent)', componentProps: { value } }) as unknown as JsonNode;
+
+    const found = check(
+      schemaOf(tabs([trigger('one'), subform('home', 'homePanel')]), { homePanel: panel('two') })
+    );
+
+    expect(codes(found).sort()).toEqual(
+      [CODES.TAB_WITHOUT_PANEL, inPart(CODES.PANEL_WITHOUT_TAB)].sort()
+    );
+    const inRoot = found.find((item) => item.code === CODES.TAB_WITHOUT_PANEL);
+    expect(inRoot?.target.kind).toBe('node');
+    expect(inRoot?.params).toEqual({ value: 'one' });
+    const inside = found.find((item) => item.code === inPart(CODES.PANEL_WITHOUT_TAB));
+    expect(inside?.params).toEqual({ value: 'two', part: 'homePanel' });
+  });
+
+  it('идентификатор, записанный у узла части руками, адресом не становится', () => {
+    const stray = {
+      $nodeId: 'zzzz9999',
+      model: '$model(city)',
+      component: '$component(Inpt)',
+    } as unknown as JsonNode;
+
+    const found = check(schemaOf(box([subform('home', 'address')]), { address: box([stray]) }));
+
+    const problem = found.find((item) => item.code === inPart(CODES.UNKNOWN_COMPONENT));
+    expect(problem?.target).toEqual({ kind: 'resource' });
+  });
+});

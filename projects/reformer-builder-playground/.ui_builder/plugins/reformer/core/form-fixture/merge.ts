@@ -28,16 +28,27 @@ import type { FixtureModel, FormFixture } from './types';
 /** Значения формы. Приходят из схемы, и сузить их нечем. */
 type Shape = Record<string, unknown>;
 
+/**
+ * Группа полей — объект-словарь: литерал либо объект без прототипа.
+ *
+ * Объект со своим классом (`Date`, `File`, `Blob`, `Map`, экземпляр класса приложения) — ЗНАЧЕНИЕ
+ * поля, а не группа: его данные лежат не в перечислимых свойствах, и «слить» два таких значения
+ * значит получить `{}`. Так дата из `model.ts`, перекрытая датой фикстуры, превращалась в пустой
+ * объект, и поле выбора даты получало не дату.
+ */
 function isPlainObject(value: unknown): value is Shape {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (typeof value !== 'object' || value === null) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 /**
- * Слияние вглубь: значения `patch` перекрывают `base`, объекты сливаются рекурсивно.
+ * Слияние вглубь: значения `patch` перекрывают `base`, группы полей сливаются рекурсивно.
  *
  * Массивы НЕ сливаются поэлементно, а заменяются целиком: список из трёх опций, перекрытый
  * списком из одной, обязан стать списком из одной — поэлементное слияние дало бы три,
- * из которых две от прежнего слоя.
+ * из которых две от прежнего слоя. Целиком заменяется и любое значение-объект со своим классом
+ * (дата, файл): см. {@link isPlainObject}.
  */
 export function deepMerge(base: Shape, patch: Shape): Shape {
   const out: Shape = { ...base };

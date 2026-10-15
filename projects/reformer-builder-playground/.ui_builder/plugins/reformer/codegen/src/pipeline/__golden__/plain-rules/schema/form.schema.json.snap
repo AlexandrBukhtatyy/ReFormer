@@ -30,9 +30,7 @@
         "componentProps": {
           "type": "submit"
         },
-        "children": [
-          "Отправить"
-        ]
+        "children": ["Отправить"]
       }
     ],
     "selector": "lichnye-dannye-section"

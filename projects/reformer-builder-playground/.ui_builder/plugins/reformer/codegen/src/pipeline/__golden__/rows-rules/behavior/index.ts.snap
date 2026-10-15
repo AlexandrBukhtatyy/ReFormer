@@ -1,7 +1,12 @@
 // behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
 // Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
 
-import { applyEach, defineFormBehavior, hideWhen, type BehaviorScope } from '@reformer/core/behaviors';
+import {
+  applyEach,
+  defineFormBehavior,
+  hideWhen,
+  type BehaviorScope,
+} from '@reformer/core/behaviors';
 import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
 
 /** Строка массива `references[].contacts`. */
@@ -24,7 +29,7 @@ type ReferencesRow = ZayavkaNaKreditForm['references'][number];
  */
 const referencesRow = defineFormBehavior<ReferencesRow>(({ model, schema }) => {
   hideWhen(schema.node('ref-phone'), () => model.noPhone);
-  schema.node('ref-name').patchProps({ placeholder: "Имя рекомендателя" });
+  schema.node('ref-name').patchProps({ placeholder: 'Имя рекомендателя' });
 
   // Вложенные строки — в своей области.
   applyEach(model.$.contacts, referencesContactsRow);

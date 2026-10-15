@@ -44,6 +44,22 @@ function unknownPath(path: string, known: Set<string>): boolean {
   return true;
 }
 
+/**
+ * Цель правила валидации полным путём от корня формы.
+ *
+ * У правила строки массива (`each`) цель записывают двумя способами: от строки
+ * (`{ target: 'name', each: 'references' }` — так её ждёт билдер одной схемы `@reformer/mcp`) и
+ * полным путём (`references.name` — так её пишет билдер единого контракта). Обе записи значат
+ * одно и то же и печатаются одинаково (`emit/rules-bridge`), поэтому и проверяются одинаково:
+ * цель от строки дополняется путём массива. Без этого `name` искалась среди полей ФОРМЫ, и
+ * исправное правило строки объявлялось осиротевшим.
+ */
+export function ruleTargetPath(rule: { readonly target: string; readonly each?: string }): string {
+  const { target, each } = rule;
+  if (each === undefined || target === each || target.startsWith(`${each}.`)) return target;
+  return `${each}.${target}`;
+}
+
 /** Правила, указывающие на несуществующие узлы и поля. Пустой массив — всё сходится. */
 export function checkRules(schema: JsonFormSchema, rules: FormRules): RuleProblem[] {
   const problems: RuleProblem[] = [];
@@ -51,12 +67,13 @@ export function checkRules(schema: JsonFormSchema, rules: FormRules): RuleProble
   const selectors = new Set(collectSchemaSelectors(schema));
 
   rules.validation.forEach((rule, index) => {
-    if (unknownPath(rule.target, paths)) {
+    const target = ruleTargetPath(rule);
+    if (unknownPath(target, paths)) {
       problems.push({
         list: 'validation',
         index,
-        missing: rule.target,
-        message: `Правило валидации на «${rule.target}»: такого поля в форме нет.`,
+        missing: target,
+        message: `Правило валидации на «${target}»: такого поля в форме нет.`,
       });
     }
   });

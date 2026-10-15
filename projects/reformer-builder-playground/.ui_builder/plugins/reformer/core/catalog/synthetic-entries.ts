@@ -33,6 +33,16 @@ export interface SyntheticOptions {
   wizard?: boolean;
 }
 
+/**
+ * Имя палитровой записи массива — оно же имя компонента кита, которым массив рисуется.
+ *
+ * Запись синтетическая: array-узел (свой вид узла, свои пропсы повторяющегося блока) объявляет
+ * билдер. Но рисует массив компонент КИТА с тем же именем — заголовок, кнопки «добавить» и
+ * «удалить» его, а не рендерера. Есть ли такой компонент у кита, узнаётся по каталогу кита
+ * (см. `./contract`), и от этого зависит узел, который создаёт палитра (`./make-node`).
+ */
+export const ARRAY_COMPONENT_NAME = 'FieldArray';
+
 const arrayPropsSchema: PropsSchema = {
   type: 'object',
   properties: {
@@ -101,7 +111,7 @@ export function syntheticRecords(cfg?: SyntheticOptions): CatalogRecord[] {
           propsSchema: htmlPropsSchema(spec),
         }));
   const array: CatalogRecord = {
-    name: 'FieldArray',
+    name: ARRAY_COMPONENT_NAME,
     role: 'array',
     category: 'Массив',
     propsSchema: arrayPropsSchema,

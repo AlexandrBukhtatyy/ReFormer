@@ -1,0 +1,55 @@
+// behavior/index.ts — поведение формы: связи над моделью и правила узлов схемы.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import {
+  apply,
+  applyEach,
+  defineFormBehavior,
+  hideWhen,
+  type BehaviorScope,
+} from '@reformer/core/behaviors';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Часть `address` документа. Тип — по первому подключению: `home`. */
+type AddressPart = ZayavkaNaKreditForm['home'];
+
+/**
+ * Правила части `address`. Область у части своя: `model`, `form` и `schema.node(…)` здесь —
+ * модель, форма и узлы одного её подключения, а не всей формы.
+ */
+const addressPart = defineFormBehavior<AddressPart>(({ model, schema }) => {
+  hideWhen(schema.node('address-apartment'), () => model.noApartment);
+});
+
+/** Часть `guest` документа. Тип — по первому подключению: `guests`. */
+type GuestPart = ZayavkaNaKreditForm['guests'][number];
+
+/**
+ * Правила части `guest`. Область у части своя: `model`, `form` и `schema.node(…)` здесь —
+ * модель, форма и узлы одного её подключения, а не всей формы.
+ */
+const guestPart = defineFormBehavior<GuestPart>(({ model, schema }) => {
+  hideWhen(schema.node('guest-phone'), () => !model.hasPhone);
+  schema.node('guest-name').patchProps({ placeholder: 'Имя гостя' });
+
+  // Вложенные части и строки — в своих областях.
+  apply(model.$.address, addressPart);
+});
+
+/** Правила поведения формы. Функцией — чтобы сборка добавила к ним отправку (application/create.ts). */
+export function behaviorRules({ model, schema }: BehaviorScope<ZayavkaNaKreditForm>): void {
+  // Шаг «Адреса»
+  hideWhen(schema.node('work-section'), () => model.sameAddress);
+  // Условная видимость секций — раскомментируйте и впишите условие:
+  // hideWhen(schema.node('adresa-section'), () => /* TODO: условие для «Адреса» */ false);
+
+  // Шаг «Гости»
+  // Условная видимость секций — раскомментируйте и впишите условие:
+  // hideWhen(schema.node('gosti-section'), () => /* TODO: условие для «Гости» */ false);
+
+  // Части документа: у части своя область — правила её узлов в поведении части выше.
+  apply([model.$.home, model.$.work], addressPart);
+  applyEach(model.$.guests, guestPart);
+}
+
+export const formBehavior = defineFormBehavior<ZayavkaNaKreditForm>(behaviorRules);

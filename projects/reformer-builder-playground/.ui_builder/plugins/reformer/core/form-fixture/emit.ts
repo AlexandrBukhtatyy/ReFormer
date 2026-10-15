@@ -14,15 +14,19 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import { printLiteral } from '../codegen/print/js';
 import { classifyDataSources, mockOptions, synthMock } from '../form-mock';
 
-/** Литерал JSON с отступом в два пробела, сдвинутый на нужный уровень. */
-function literal(value: unknown, indent: number): string {
-  const text = JSON.stringify(value, null, 2) ?? 'undefined';
+/**
+ * Свойство объекта со значением-литералом JS — строкой файла с отступом `indent`, так, как её
+ * оставит форматтер репозитория: ключи без кавычек, одинарные кавычки, запятые в конце. JSON
+ * (`JSON.stringify`) давал фикстуру, которую `prettier --check` отвергал.
+ */
+function property(name: string, value: unknown, indent: number): string {
   const pad = ' '.repeat(indent);
-  return text
+  return printLiteral(value, { indent, prefix: `${name}: `, suffix: ',' })
     .split('\n')
-    .map((line, index) => (index === 0 ? line : `${pad}${line}`))
+    .map((line) => (line === '' ? line : `${pad}${line}`))
     .join('\n');
 }
 
@@ -52,13 +56,12 @@ export function emitFixture(schema: JsonFormSchema, seed: FixtureSeed = {}): str
   };
   const classes = classifyDataSources(schema);
 
-  const optionLines = [...classes.optionLike].sort().map((name) => {
-    const value = mock.dataSources[name] ?? mockOptions(name);
-    return `    ${name}: ${literal(value, 4)},`;
-  });
+  const optionLines = [...classes.optionLike]
+    .sort()
+    .map((name) => property(name, mock.dataSources[name] ?? mockOptions(name), 4));
   const scalarLines = [...classes.scalarLike]
     .sort()
-    .map((name) => `    ${name}: ${JSON.stringify(mock.dataSources[name] ?? '')},`);
+    .map((name) => property(name, mock.dataSources[name] ?? '', 4));
   const functionLines = [...classes.functionLike]
     .sort()
     .map((name) => `    ${name}: (_item: unknown, index = 0) => \`#\${index + 1}\`,`);
@@ -81,7 +84,7 @@ export function emitFixture(schema: JsonFormSchema, seed: FixtureSeed = {}): str
  */
 
 export const fixture = {
-  model: ${literal(mock.model, 2)},
+${property('model', mock.model, 2)}
 
 ${dataSources}
 

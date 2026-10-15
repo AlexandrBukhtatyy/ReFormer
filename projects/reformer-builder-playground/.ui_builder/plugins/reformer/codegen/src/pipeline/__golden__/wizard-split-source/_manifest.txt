@@ -13,6 +13,7 @@ flow/zayavka-na-kredit-flow.ts	derived
 constants/zayavka-na-kredit.ts	user
 behavior/index.ts	user	regenerable
 validation/form.ts	user	regenerable
+validation/messages.ts	user
 validation/anketa.ts	user	regenerable
 validation/kontakty.ts	user	regenerable
 application/submit.ts	user

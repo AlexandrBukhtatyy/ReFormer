@@ -11,6 +11,9 @@
  * нечем: правило видимости на нём стало бы no-op, а шаг потока не нашёл бы свою разметку — ни
  * ошибки, ни эффекта. Поэтому селектор получает КАЖДЫЙ узел-шаг, в том числе без заголовка.
  *
+ * Селекторы проставляются в дереве корня (и в шаблонах строк, вписанных в узлы). В разметке
+ * именованных частей документа (`parts`) они только читаются: текст частей кодоген не меняет.
+ *
  * @module plugins/reformer/core/codegen/selectors
  */
 
@@ -23,7 +26,7 @@ import {
 } from '@reformer/renderer-json';
 import { kebab } from '@reformer/builder-toolkit';
 import { isNodeLike, isStepsHost, isStepsHostName } from '../form-model/node-kind';
-import { walkNodes } from '../form-model/query';
+import { walkDocumentNodes, walkNodes } from '../form-model/query';
 
 /** Узел в «сыром» виде: читаем и пишем динамические ключи схемы. */
 interface AnyNode {
@@ -136,6 +139,28 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
     const stepNumber = stepNumbers.get(node);
     if (stepNumber !== undefined && (raw.selector === undefined || raw.selector === '')) {
       raw.selector = uniq(`step-${stepNumber}`);
+    }
+  });
+
+  // Разметка именованных частей: селекторы там только ЧИТАЮТСЯ. Дописывать их кодоген не вправе —
+  // части в билдере не редактируются, и напечатанный документ несёт их текст как есть. Секция и
+  // массив части попадают в те же списки, если селектор им поставил автор документа: правило по
+  // такому селектору печатается в поведении части (см. `view/behavior`, раздел «Области»).
+  walkDocumentNodes(schema, (node, _path, origin) => {
+    if (origin.part === null) return;
+    const raw = node as unknown as AnyNode;
+    if (raw.selector === undefined || raw.selector === '') return;
+    if (isContainerNode(node)) {
+      const component = parseOperator(raw.component);
+      const title = raw.componentProps?.title;
+      const isSection = component?.op === 'component' && component.arg === 'Section';
+      if (isSection || typeof title === 'string') {
+        sections.push({ selector: raw.selector, label: String(title ?? raw.selector) });
+      }
+    }
+    if (isArrayNode(node)) {
+      const parsed = parseOperator(raw.model);
+      arrays.push({ selector: raw.selector, path: parsed?.op === 'model' ? parsed.arg : 'items' });
     }
   });
 
