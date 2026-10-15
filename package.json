@@ -46,7 +46,8 @@
     "check:no-node-globals": "node scripts/check-no-node-globals.mjs",
     "check:ajv-isolation": "node scripts/check-ajv-isolation.mjs",
     "check:peer-ranges": "node scripts/check-peer-ranges.mjs",
-    "check:peer-prerelease": "node scripts/check-peer-prerelease.mjs"
+    "check:peer-prerelease": "node scripts/check-peer-prerelease.mjs",
+    "test:commitlint": "node --test \"scripts/commitlint/*.test.mjs\""
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

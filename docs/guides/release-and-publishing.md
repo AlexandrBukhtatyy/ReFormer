@@ -130,6 +130,8 @@ Sequential порядок задан жёстко (matrix.include) с учёто
 #
 # Adds <name> validator + ui-kit FormField wrapper + cdk hook.
 # Backward compatible.
+#
+# Refs: ReFormer-<задача>, ReFormer-<затронутая>
 
 npx --no commitlint < .commit-msg.txt   # проверить ДО коммита
 git commit -F .commit-msg.txt
@@ -200,7 +202,8 @@ Workflow `.github/workflows/align-versions.yml` — **escape hatch** для ре
 
 - [ ] commit message в conventional-format (`type(scope): description`), scope — из списка в [commitlint.config.js](../../commitlint.config.js)
 - [ ] коммит не смешивает изменения разных пакетов (иначе бампнутся оба — фильтр идёт по путям файлов)
-- [ ] `BREAKING CHANGE:` footer (или `!` после type, т.е. `feat(scope)!:`) если есть breaking
+- [ ] `BREAKING CHANGE:` footer (или `!` после type, т.е. `feat(scope)!:`) если есть breaking — абзацем над секцией `Refs`
+- [ ] ссылки на задачи — последним абзацем `Refs: <задача>, <затронутые…>` (+ `Closes: #N` для закрываемого GitHub issue), см. «Ссылки на задачи» в [CONTRIBUTING.md](../../CONTRIBUTING.md)
 - [ ] `peerDependencies`: внутренние `@reformer/*` остались `"*"`, у новых внешних есть верхняя граница (гейт — `npm run check:peer-ranges`)
 - [ ] PR target = `develop` (для prerelease beta) или `main` (для stable)
 - [ ] merge через **Rebase and merge** (или merge commit) — **не Squash** (squash ломает per-package версионирование → major для всех)

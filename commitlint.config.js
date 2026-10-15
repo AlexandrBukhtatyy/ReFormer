@@ -1,5 +1,9 @@
+import { refsTrailer } from './scripts/commitlint/refs-trailer.mjs';
+
 export default {
   extends: ['@commitlint/config-conventional'],
+  // Локальные правила репозитория. Объект плагина commitlint принимает напрямую, без пакета.
+  plugins: [{ rules: { 'refs-trailer': refsTrailer } }],
   rules: {
     'type-enum': [
       2,
@@ -53,5 +57,8 @@ export default {
       ],
     ],
     'subject-case': [2, 'always', 'lower-case'],
+    // Третья, необязательная секция — ссылки на задачи: «Refs: <задача>, <затронутые…>»
+    // и «Closes: #N» последним абзацем. Формат и причины — в scripts/commitlint/refs-trailer.mjs.
+    'refs-trailer': [2, 'always'],
   },
 };

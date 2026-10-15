@@ -175,9 +175,25 @@ bd close <id>         # Complete work
 | `header-max-length`    | первая строка ≤ 100 символов вместе с `type(scope): `                                |
 | `body-max-line-length` | КАЖДАЯ строка тела ≤ 100 символов — русские абзацы переноси вручную                  |
 | `type-enum`            | `feat fix docs style refactor perf test build ci chore revert`                       |
+| `refs-trailer`         | секция ссылок на задачи — по формату ниже (если она есть)                            |
 
 Scope — из закрытого списка (`reformer`, `reformer-cdk`, …, `docs`, `ci`, `deps`, `repo`, `beads`);
 имя = директория пакета. Таблица и примеры — в [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Третья секция — ссылки на задачи** (необязательна, последний абзац после тела):
+
+```
+Refs: ReFormer-syj9, ReFormer-um17, #12
+Closes: #12
+```
+
+- Коммит по взятой в работу beads-задаче — её ID **первым** в `Refs:`; задачи, на которые коммит
+  повлиял, — следом. Одна строка через `, `; ID — `ReFormer-<id>`, `#N` или `owner/repo#N`.
+- `Closes:` — только GitHub issue, который коммит закрывает (каждый — и в `Refs`). Задачу beads
+  закрывает `bd close`, не коммит.
+- В последнем абзаце только строки `Ключ: значение`; `BREAKING CHANGE:` — отдельным абзацем выше.
+- Не писать ID голой строкой в конце тела — правило `refs-trailer` это отвергает. Подробно — в
+  разделе «Ссылки на задачи» [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **После коммита:** если `lint-staged` напечатал «Applying modifications from tasks», значит
 `eslint --fix`/`prettier --write` изменили файлы уже внутри коммита — прогони тесты и `tsc`
