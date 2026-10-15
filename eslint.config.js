@@ -242,6 +242,39 @@ export default defineConfig([
     },
   },
 
+  // Реестр «ручка модели → нода формы»: заполняет сборка, читают валидация (разнос замечаний) и
+  // поведение (state-операции). Уровень формы, отправка и поток шагов нод не касаются — им ноды
+  // достаются через раннер валидации.
+  //
+  // ВАЖНО: NO_PLATFORMS и NO_REACT_PATHS повторены здесь намеренно. Flat-config мержит по ключу
+  // правила, а не по элементам patterns: без них этот блок молча снял бы для своих файлов запреты
+  // блока form/** выше.
+  {
+    files: [
+      'packages/reformer/src/form/form-level.ts',
+      'packages/reformer/src/form/submission.ts',
+      'packages/reformer/src/form/flow/**/*.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/signal-node-registry'],
+              message:
+                'Реестр «ручка → нода» заполняет сборка, читают валидация и поведение. Уровень ' +
+                'формы, отправка и поток нод не касаются: касание и замечания — опции раннера ' +
+                '(`runAndApply(…, { touch })`, `controller.run({ touch })`).',
+            },
+            NO_PLATFORMS,
+          ],
+          paths: NO_REACT_PATHS,
+        },
+      ],
+    },
+  },
+
   // i18n-слой и встроенные локали: данные и чистые функции, без React и без платформенных
   // биндингов. React-привязка (контекст, провайдер, хуки) лежит в src/platforms/react/i18n
   // и отдаётся входом src/react.ts.
