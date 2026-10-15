@@ -26,9 +26,11 @@ describeRule('minLength — строки', minLength(3), [
 describeRule('minLength — массивы', minLength(2), [
   { value: [1, 2], code: null },
   { value: [null, undefined], code: null, label: '[null, undefined] — считаются элементы' },
-  { value: [1], code: 'minLength', params: { minLength: 2, actualLength: 1 } },
+  // У массива — элементы, а не символы: свой код, чтобы текст говорил об элементах. Параметры
+  // прежние — шаблон своего кода правила (`{minLength}`) у массива не ломается.
+  { value: [1], code: 'minItems', params: { minLength: 2, actualLength: 1 } },
   // Пустой массив проверяется, а не пропускается (в отличие от minFiles([]) — см. min-files.test).
-  { value: [], code: 'minLength', params: { minLength: 2, actualLength: 0 } },
+  { value: [], code: 'minItems', params: { minLength: 2, actualLength: 0 } },
 ]);
 
 describeRule('minLength — суррогатные пары', minLength(2), [
@@ -63,7 +65,7 @@ describe('minLength — опции', () => {
 
   it('params из опций сливаются с параметрами правила и главнее их', () => {
     expect(minLength(1, { params: { minLength: 'один', item: 'тег' } })([])).toEqual({
-      code: 'minLength',
+      code: 'minItems',
       params: { minLength: 'один', actualLength: 0, item: 'тег' },
     });
   });

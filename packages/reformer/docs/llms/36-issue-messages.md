@@ -75,7 +75,7 @@ function useIssueMessageResolver(): (issue: ValidationIssue) => string;
 | ------------------------------- | ------------------ | ------------------------------------------ |
 | `required()`                    | `required`         | —                                          |
 | `min(n)` / `max(n)`             | `min` / `max`      | `min` / `max`, `actual`                    |
-| `minLength(n)` / `maxLength(n)` | `minLength` / `maxLength` | `minLength` / `maxLength`, `actualLength` |
+| `minLength(n)` / `maxLength(n)` | `minLength` / `maxLength`; у массива — `minItems` / `maxItems` | `minLength` / `maxLength`, `actualLength` |
 | `email()`                       | `email`            | —                                          |
 | `pattern(re)`                   | `pattern`          | `pattern` (исходник регулярки)             |
 | `url()`                         | `url`, `url_protocol` | `allowedProtocols` (у `url_protocol`)   |

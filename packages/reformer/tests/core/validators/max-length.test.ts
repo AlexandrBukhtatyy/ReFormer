@@ -25,7 +25,9 @@ describeRule('maxLength — строки', maxLength(3), [
 describeRule('maxLength — массивы', maxLength(2), [
   { value: [], code: null },
   { value: [1, 2], code: null },
-  { value: [1, 2, 3], code: 'maxLength', params: { maxLength: 2, actualLength: 3 } },
+  // У массива — элементы, а не символы: свой код, чтобы текст говорил об элементах. Параметры
+  // прежние — шаблон своего кода правила (`{maxLength}`) у массива не ломается.
+  { value: [1, 2, 3], code: 'maxItems', params: { maxLength: 2, actualLength: 3 } },
 ]);
 
 describeRule('maxLength — суррогатные пары', maxLength(1), [

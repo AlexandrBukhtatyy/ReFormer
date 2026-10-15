@@ -72,6 +72,8 @@ const FAILING: ReadonlyArray<
   ['max', (o) => run(max(5, o), 10)],
   ['minLength', (o) => run(minLength(8, o), 'abc')],
   ['maxLength', (o) => run(maxLength(2, o), 'abcdef')],
+  ['minItems', (o) => run(minLength(2, o), ['a'])],
+  ['maxItems', (o) => run(maxLength(1, o), ['a', 'b'])],
   ['isNumber', (o) => run(isNumber(o), 'abc')],
   ['integer', (o) => run(integer(o), 1.5)],
   ['multipleOf', (o) => run(multipleOf(5, o), 7)],
@@ -247,6 +249,20 @@ describe('resolveIssueMessage — тексты по языку', () => {
 
     expect(files(1)).toBe('Не больше 1 файла');
     expect(files(5)).toBe('Не больше 5 файлов');
+  });
+
+  it('у массива длина — в элементах, а не в символах', () => {
+    // Мультивыбор с `maxLength(3)`: «Не больше 3 символов» под набором навыков — бессмыслица.
+    const text = (value: unknown) => {
+      const issue = maxLength(3)(value as never) as ValidationIssue;
+      return resolveIssueMessage(issue, ru);
+    };
+
+    expect(text(['a', 'b', 'c', 'd'])).toBe('Не больше 3 элементов');
+    expect(text('abcd')).toBe('Не больше 3 символов');
+    expect(resolveIssueMessage(minLength(2)(['a'] as never) as ValidationIssue, ru)).toBe(
+      'Не меньше 2 элементов'
+    );
   });
 });
 

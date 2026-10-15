@@ -17,6 +17,9 @@ import { validationIssue } from './validation-issue';
  * (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
  * (используйте {@link required} для обязательности).
  *
+ * У строки замечание — `maxLength` (символы), у массива — `maxItems` (элементы): мультивыбор и
+ * список считают выбранное, и текст «не больше 3 символов» под ними был бы бессмыслицей.
+ *
  * @param maxLen - Максимально допустимая длина (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxLength` и `actualLength`.
@@ -42,7 +45,9 @@ export function maxLength(maxLen: number, options?: RuleOptions): Rule<unknown> 
     const len = (value as { length?: number }).length;
     if (typeof len !== 'number') return null;
     if (len > maxLen) {
-      return validationIssue('maxLength', options, { maxLength: maxLen, actualLength: len });
+      return Array.isArray(value)
+        ? validationIssue('maxItems', options, { maxLength: maxLen, actualLength: len })
+        : validationIssue('maxLength', options, { maxLength: maxLen, actualLength: len });
     }
     return null;
   };

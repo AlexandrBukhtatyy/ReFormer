@@ -16,6 +16,8 @@
   "validation.max": "Must be at most {max}",
   "validation.minLength": "Enter at least {minLength, plural, one{# character} other{# characters}}",
   "validation.maxLength": "Enter no more than {maxLength, plural, one{# character} other{# characters}}",
+  "validation.minItems": "At least {minLength, plural, one{# item} other{# items}}",
+  "validation.maxItems": "No more than {maxLength, plural, one{# item} other{# items}}",
   "validation.isNumber": "Enter a number",
   "validation.integer": "Enter a whole number",
   "validation.multipleOf": "Must be a multiple of {multipleOf}",

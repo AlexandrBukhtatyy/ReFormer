@@ -208,9 +208,10 @@ describe('validators — правила длины против эталона',
     fc.assert(
       fc.property(lengthLimit, list, (n, items) => {
         const actualLength = items.length;
+        // У массива — коды элементов (`minItems` / `maxItems`), а не символов; параметры прежние.
         expect([minLength(n)(items), maxLength(n)(items)]).toEqual([
-          actualLength >= n ? null : { code: 'minLength', params: { minLength: n, actualLength } },
-          actualLength <= n ? null : { code: 'maxLength', params: { maxLength: n, actualLength } },
+          actualLength >= n ? null : { code: 'minItems', params: { minLength: n, actualLength } },
+          actualLength <= n ? null : { code: 'maxItems', params: { maxLength: n, actualLength } },
         ]);
       }),
       propertyParams()

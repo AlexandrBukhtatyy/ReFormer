@@ -16,6 +16,8 @@
   "validation.max": "Не больше {max}",
   "validation.minLength": "Не меньше {minLength, plural, one{# символа} few{# символов} many{# символов} other{# символа}}",
   "validation.maxLength": "Не больше {maxLength, plural, one{# символа} few{# символов} many{# символов} other{# символа}}",
+  "validation.minItems": "Не меньше {minLength, plural, one{# элемента} few{# элементов} many{# элементов} other{# элемента}}",
+  "validation.maxItems": "Не больше {maxLength, plural, one{# элемента} few{# элементов} many{# элементов} other{# элемента}}",
   "validation.isNumber": "Введите число",
   "validation.integer": "Введите целое число",
   "validation.multipleOf": "Число должно быть кратно {multipleOf}",

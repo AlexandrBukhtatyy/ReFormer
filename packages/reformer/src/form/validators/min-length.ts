@@ -17,6 +17,9 @@ import { validationIssue } from './validation-issue';
  * (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
  * (используйте {@link required} для обязательности).
  *
+ * У строки замечание — `minLength` (символы), у массива — `minItems` (элементы): мультивыбор и
+ * список считают выбранное, и текст «не меньше 3 символов» под ними был бы бессмыслицей.
+ *
  * @param minLen - Минимально допустимая длина (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minLength` и `actualLength`.
@@ -42,7 +45,9 @@ export function minLength(minLen: number, options?: RuleOptions): Rule<unknown> 
     const len = (value as { length?: number }).length;
     if (typeof len !== 'number') return null;
     if (len < minLen) {
-      return validationIssue('minLength', options, { minLength: minLen, actualLength: len });
+      return Array.isArray(value)
+        ? validationIssue('minItems', options, { minLength: minLen, actualLength: len })
+        : validationIssue('minLength', options, { minLength: minLen, actualLength: len });
     }
     return null;
   };
