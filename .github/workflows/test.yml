@@ -228,6 +228,40 @@ jobs:
         # шагом выше.
         run: npm run test -w @reformer/builder
 
+      - name: Chromium для браузерных тестов и e2e
+        # Браузерные тесты и e2e билдера идут в настоящем Chromium: File System Access, на котором
+        # стоит работа с проектом, есть только в нём. Ставится он один, с системными зависимостями.
+        run: npx playwright install --with-deps chromium
+
+      - name: Браузерные тесты билдера и плагинов
+        # Часть проверок оболочки и плагинов проекта-образца — vitest в браузере: DOM, OPFS, Monaco,
+        # живое превью. Узловые тесты выше их не запускают, и до этого шага они шли только руками.
+        # `--if-present`: браузерные тесты есть не у каждого плагина.
+        run: >-
+          npm run test:browser --if-present
+          -w @reformer/builder
+          -w projects/reformer-builder-playground/.ui_builder/plugins/base
+          -w projects/reformer-builder-playground/.ui_builder/plugins/forms
+          -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
+          -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf
+
+      - name: e2e собранного билдера
+        # Ровно то, что получает человек из `npx reformer-builder`: собранный билдер с плагинами
+        # приложения под лаунчером, проект-образец открыт рабочим каталогом. Цель `dist` — без vite
+        # dev и его холодной оптимизации зависимостей. Упавший тест Playwright в CI повторяет дважды
+        # (playwright.config.ts). Идёт после «Плагины приложения»: нужен готовый `dist` билдера.
+        run: npm run test:e2e:dist -w reformer-builder-playground-e2e
+
+      - name: Отчёт e2e билдера
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-e2e-report
+          path: |
+            projects/reformer-builder-playground-e2e/playwright-report
+            projects/reformer-builder-playground-e2e/test-results
+          retention-days: 7
+
       - name: MCP packaging smoke
         # npm pack mcp + core + cdk в чистый проект вне репо и проверка, что под npx
         # у потребителя доступны reformer://guide (свой llms.txt) и файловые рецепты

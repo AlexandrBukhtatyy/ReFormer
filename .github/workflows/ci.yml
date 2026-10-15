@@ -11,3 +11,57 @@ on:
 jobs:
   test:
     uses: ./.github/workflows/test.yml
+
+  # e2e стенда react-playground. У набора есть известные устойчивые падения (ReFormer-mzuu), поэтому
+  # задача не блокирует CI и в гейт релиза (test.yml) не входит: её отчёт показывает, сокращается
+  # долг или растёт. Идёт параллельно с проверкой качества. Когда mzuu закроется — снять
+  # continue-on-error и решить, переносить ли прогон в test.yml.
+  e2e-playground:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    # ~1100 тестов в два потока; запас на холодный старт dev-сервера. Зависший прогон не держит
+    # раннер шесть часов (умолчание GitHub).
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Сборка пакетов, которые импортирует стенд
+        # Стенд берёт @reformer/* из их dist (exports пакетов) — порядок тот же, что в test.yml.
+        run: |
+          npm run build -w @reformer/core
+          npm run build -w @reformer/cdk
+          npm run build -w @reformer/renderer-react
+          npm run build -w @reformer/ui-kit
+          npm run build -w @reformer/renderer-json
+          npm run build -w @reformer/form-registry
+
+      - name: Браузеры
+        # Chromium — основной прогон, Firefox и WebKit — проекты @critical.
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: e2e стенда
+        # Два потока вместо одного (умолчание конфига в CI) и без повторов: задача не блокирует,
+        # а повторы известных падений растянули бы прогон втрое.
+        working-directory: projects/react-playground-e2e
+        run: npx playwright test --workers=2 --retries=0
+
+      - name: Отчёт e2e стенда
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playground-e2e-report
+          path: |
+            projects/react-playground-e2e/playwright-report
+            projects/react-playground-e2e/test-results/junit.xml
+          retention-days: 7
