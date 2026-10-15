@@ -26,15 +26,17 @@
  * у числа без нижней границы, даты и мультивыбора даёт `null`, и значение модуля на таком месте
  * — не смена рода, а ровно то, ради чего начальные значения объявляют.
  *
+ * Группой считается то же, что считает группой модель ядра (`isGroup` из `./kinds`): дата и файл
+ * — значения листа. Иначе дата, объявленная модулем, читалась бы группой и на место листа не
+ * ложилась вовсе.
+ *
  * @module plugins/reformer/render/runtime/initial
  */
 
+import { isGroup } from './kinds';
+
 /** Форма данных модели превью: она приходит из схемы, и сузить её нечем. */
 type Shape = Record<string, unknown>;
-
-function isPlainObject(value: unknown): value is Shape {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 /**
  * Значения модуля в форме данных живой схемы.
@@ -52,11 +54,11 @@ export function fitInitialValues(base: Shape, declared: Shape | undefined): Shap
   for (const [key, own] of Object.entries(base)) {
     if (!Object.hasOwn(declared, key)) continue;
     const value = declared[key];
-    if (isPlainObject(own)) {
-      if (isPlainObject(value)) out[key] = fitInitialValues(own, value);
+    if (isGroup(own)) {
+      if (isGroup(value)) out[key] = fitInitialValues(own, value);
     } else if (Array.isArray(own)) {
       if (Array.isArray(value)) out[key] = value;
-    } else if (!isPlainObject(value) && !Array.isArray(value)) {
+    } else if (!isGroup(value) && !Array.isArray(value)) {
       out[key] = value;
     }
   }

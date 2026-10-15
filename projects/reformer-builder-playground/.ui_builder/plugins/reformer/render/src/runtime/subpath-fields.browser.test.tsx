@@ -10,7 +10,9 @@
  * - комбобокс, мультикомбобокс и выбор даты — живые контролы, а не заглушка «предпросмотр
  *   ограничен», и выбор опции доезжает до модели в своём типе (строка, массив строк);
  * - карусель, чей подпуть в пространство имён не загружен, — подписанная заглушка, и подпись
- *   называет этот подпуть.
+ *   называет этот подпуть;
+ * - выбранное в комбобоксе и мультикомбобоксе переживает пересборку формы после правки схемы:
+ *   начальное значение у этих полей пустое (`''` и `null`), и перенос узнаёт их вид по схеме.
  *
  * Node-тест политики (`./policy.test`) проверяет решение на подставных значениях; сюда вынесено
  * то, до чего он не достаёт, — что настоящие контролы кита под обёрткой превью рисуются и пишут.
@@ -107,10 +109,14 @@ afterEach(() => {
 
 interface KeepingContext extends PreviewContext {
   kept(): PreviewValues | undefined;
+  /** Правка схемы в редакторе: поверхность пересобирает форму. */
+  edit(next: JsonFormSchema): void;
 }
 
 /** Контекст, который по-настоящему хранит отданные значения. */
 function keepingContext(): KeepingContext {
+  let schema = SCHEMA;
+  const listeners = new Set<() => void>();
   const doc: DocumentRef = {
     id: 'fake:form/form.json',
     ref: fakeRef('fake:form/form.json'),
@@ -120,9 +126,16 @@ function keepingContext(): KeepingContext {
   let values: PreviewValues | undefined;
   return {
     kept: () => values,
+    edit(next) {
+      schema = next;
+      for (const listener of [...listeners]) listener();
+    },
     doc,
-    schema: () => SCHEMA,
-    onDidChangeSchema: () => NOOP,
+    schema: () => schema,
+    onDidChangeSchema: (cb) => {
+      listeners.add(cb);
+      return { dispose: () => listeners.delete(cb) };
+    },
     selection: () => NO_SELECTION,
     onDidChangeSelection: () => NOOP,
     select: () => undefined,
@@ -232,5 +245,53 @@ describe('компоненты за подпутём кита на встрое�
     // Массив `value` выбранных опций: диалект мультивыбора пережил обёртку превью.
     expect(kept.skills).toEqual(['react', 'sql']);
     expect(kept.birthDate).toBeNull();
+  });
+
+  it('выбранное переживает правку схемы, и контрол после пересборки пишет дальше', async () => {
+    const ctx = keepingContext();
+    const { element, dispose } = await mounted(ctx);
+    const triggers = (): HTMLElement[] => [
+      ...element.querySelectorAll<HTMLElement>('[role="combobox"]'),
+    ];
+
+    await userEvent.click(triggers()[0]);
+    await userEvent.click(await option('Аналитик'));
+    await userEvent.click(triggers()[1]);
+    await userEvent.click(await option('React'));
+    await userEvent.keyboard('{Escape}');
+    await vi.waitFor(() => {
+      expect(triggers()[1].textContent).toContain('React');
+    });
+
+    // В схеме поправили подпись соседнего поля: форма пересобирается целиком.
+    const edited = structuredClone(SCHEMA) as unknown as {
+      root: { children: { componentProps?: Record<string, unknown> }[] };
+    };
+    edited.root.children[2].componentProps = {
+      ...edited.root.children[2].componentProps,
+      label: 'День рождения',
+    };
+    ctx.edit(edited as unknown as JsonFormSchema);
+    await vi.waitFor(() => {
+      expect(element.textContent).toContain('День рождения');
+    });
+
+    // Начальное значение мультивыбора — `null`, и по паре «`null` и список» род не понять:
+    // выбранное прежде терялось. Вид поля перенос берёт из схемы.
+    expect(triggers()[0].textContent).toContain('Аналитик');
+    expect(triggers()[1].textContent).toContain('React');
+
+    // Перенесённый список лёг в модель значением поля: контрол его читает и пишет дальше.
+    await userEvent.click(triggers()[1]);
+    await userEvent.click(await option('SQL'));
+    await userEvent.keyboard('{Escape}');
+
+    dispose();
+    await vi.waitFor(() => {
+      expect(ctx.kept()).toBeDefined();
+    });
+    const kept = ctx.kept() as Record<string, unknown>;
+    expect(kept.position).toBe('analyst');
+    expect(kept.skills).toEqual(['react', 'sql']);
   });
 });

@@ -50,6 +50,7 @@ import type { PreviewMock, PreviewProblem } from '@reformer/builder-plugin-api';
 import { mergeFormData, type FormFixture } from '../../../core/form-fixture';
 import { carryValues } from './carry';
 import { fitInitialValues } from './initial';
+import { fieldKindsOf } from './kinds';
 import { synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
 
@@ -106,6 +107,8 @@ export interface ModuleBehavior {
 export interface ArtifactFiles {
   readonly initial?: string;
   readonly validation?: string;
+  /** Словарь замечаний: в сборку он не входит — его подключает компилирующая поверхность. */
+  readonly messages?: string;
   readonly flow?: string;
   readonly behavior?: string;
   readonly submit?: string;
@@ -140,7 +143,8 @@ export interface RuntimeBundleInput {
   /**
    * Значения прежней формы — то, что человек успел ввести до этой пересборки.
    *
-   * Переносятся только пути, которым в новой форме есть место (см. {@link './carry'}).
+   * Переносятся только пути, которым в новой форме есть место, и только значения, которые
+   * годятся полю новой формы — его вид берётся из схемы (см. {@link './carry'}, {@link './kinds'}).
    * Без этого правка схемы стирает введённое, а в конструкторе схему правят непрерывно.
    */
   readonly carry?: Shape;
@@ -237,8 +241,14 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
     input.fixture ?? null
   );
   // Перенос идёт последним шагом: введённое человеком старше всех слоёв — но только
-  // там, где новая форма оставила для него место.
-  const initial = carryValues(mock.model, input.carry);
+  // там, где новая форма оставила для него место. Годится ли значение месту, решает вид поля
+  // по ЭТОЙ схеме: у числа, даты и мультивыбора начальное значение — `null`, и по паре
+  // «`null` и введённое» этого не понять (см. `./carry`).
+  const initial = carryValues(
+    mock.model,
+    input.carry,
+    input.carry === undefined ? undefined : fieldKindsOf(annotated)
+  );
 
   let registry: ComponentRegistry;
   try {

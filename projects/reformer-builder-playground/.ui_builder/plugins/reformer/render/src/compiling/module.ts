@@ -16,6 +16,7 @@
  * │                  registry.ts          реестр компонентов   → createRegistry
  * │                  steps/<шаг>/…        файлы шагов разбитого визарда
  * ├── validation/    form.ts              валидация формы      → formValidation
+ * │                  messages.ts          словарь замечаний    → formMessages
  * │                  <шаг>.ts             правила шага (их импортирует поток)
  * ├── behavior/index.ts                   поведение            → behaviorRules, formBehavior
  * ├── flow/<форма>-flow.ts                поток шагов визарда  → formFlow
@@ -25,6 +26,18 @@
  * Поэтому файлы читаются от РОДИТЕЛЯ папки `schema/` ({@link locateModule}): от каталога
  * документа превью увидело бы только `schema/**`, а импорт `../types/…` из набора с таким корнем
  * линковщик отвергает — путь выходит за корень набора.
+ *
+ * ## Документ со свободным именем — модуль в подкаталоге
+ *
+ * Каталог со свободно названными документами (`forms/credit.schema.json`, `forms/loan.schema.json`)
+ * — не модуль одной формы, и кодоген в него не печатает: модуль такого документа он заводит
+ * подкаталогом по имени формы рядом с документом (`forms/credit/`), а копию документа кладёт в его
+ * `schema/form.schema.json`. Превью ищет модуль там же ({@link detachedModuleOf}) — иначе форма,
+ * для которой код только что сгенерировали, осталась бы без правил и поведения. Живую схему при
+ * этом даёт открытый документ, а не копия в модуле.
+ *
+ * Подкаталога нет — код не генерировали либо он написан руками рядом с документом: модуль
+ * читается по прежнему правилу, от каталога документа ({@link locateModule}).
  *
  * ## Исполняются роли, а не «всё, что лежит в корне»
  *
@@ -62,6 +75,8 @@ import {
   makeNames,
   moduleDirOfSchemaPath,
   moduleFilesOf,
+  modulePlacementOf,
+  VALIDATION_DIR,
   type ModuleFiles,
 } from '../../../core/codegen';
 
@@ -69,6 +84,7 @@ import {
 export type ModuleRole =
   | 'initial'
   | 'validation'
+  | 'messages'
   | 'flow'
   | 'behavior'
   | 'submit'
@@ -112,11 +128,13 @@ const SCRIPT = /\.tsx?$/;
  * «превью не работает» означало бы «превью не работает на моём проекте».
  *
  * Потока шагов и отдельной отправки у прежнего контракта нет: шаг проверял `makeStepCheck`
- * визарда, а отправку привязывал `form.render.ts`.
+ * визарда, а отправку привязывал `form.render.ts`. Словаря замечаний отдельным файлом — тоже:
+ * эта роль появилась вместе с папками ролей.
  */
 const FLAT_ROLES: Readonly<Record<ModuleRole, readonly string[]>> = Object.freeze({
   initial: ['model.ts', 'model.tsx'],
   validation: ['form.validation.ts', 'validation.ts'],
+  messages: [],
   flow: [],
   behavior: ['form.behavior.ts', 'form-behavior.ts', 'behavior.ts'],
   submit: [],
@@ -131,6 +149,7 @@ const FLAT_ROLES: Readonly<Record<ModuleRole, readonly string[]>> = Object.freez
 const ROLE_ORDER: readonly ModuleRole[] = [
   'initial',
   'validation',
+  'messages',
   'flow',
   'behavior',
   'submit',
@@ -146,6 +165,15 @@ const MARKER_ROLES: readonly ModuleRole[] = [
   'submit',
   'registry',
 ];
+
+/**
+ * Словарь замечаний формы: `validation/messages.ts` — экспорт `formMessages`.
+ *
+ * Путь не зависит от имени формы. В приложении словарь подключает страница модуля
+ * (`ValidationMessagesProvider`), а страницу превью не исполняет — поэтому файл требует точка
+ * входа, наравне с остальными ролями.
+ */
+const MESSAGES_FILE = `${VALIDATION_DIR}/messages.ts`;
 
 /** Имя документа в корне модуля, когда о документе ничего не известно. */
 const UNKNOWN_DOCUMENT = 'form.schema.json';
@@ -178,18 +206,53 @@ function documentInModule(schemaPath: string): string {
   return moduleDir === '' ? path : path.slice(moduleDir.length + 1);
 }
 
+/** Где кодоген заводит модуль документа со свободным именем. */
+export interface DetachedModule {
+  /** Имя подкаталога модуля рядом с документом — kebab-имя формы (`credit`). */
+  readonly directory: string;
+  /**
+   * Путь КОПИИ документа внутри модуля (`schema/form.schema.json`). В набор она не идёт, как и
+   * документ формы обычного модуля: схему превью берёт из модели открытого документа.
+   */
+  readonly document: string;
+}
+
+/**
+ * Модуль документа со свободным именем — там, куда его кладёт кодоген.
+ *
+ * Правило целиком принадлежит раскладке домена: свободное ли имя, решает `modulePlacementOf`,
+ * каталог называется kebab-именем формы (`makeNames`), а имя формы берётся из имени документа
+ * (`formNameOfSchemaPath`). Имя, которое человек ввёл в панели генерации вместо предложенного,
+ * отсюда не видно: модуль под ним превью не найдёт и прочитает каталог документа.
+ *
+ * @returns `null` — у документа каноническое имя (модуль там же, где документ, либо в родителе
+ *   папки `schema/`) или путь документа неизвестен.
+ */
+export function detachedModuleOf(schemaPath: string): DetachedModule | null {
+  const path = schemaPath.replace(/\\/g, '/');
+  if (path === '') return null;
+  const placement = modulePlacementOf(path);
+  if (placement.kind !== 'detached') return null;
+  return {
+    directory: makeNames(formNameOfSchemaPath(path)).dir,
+    document: placement.schemaPath,
+  };
+}
+
 /**
  * Раскладка модуля для документа по такому пути.
  *
  * Имена, зависящие от имени формы (`flow/<форма>-flow.ts`), выводятся из каталога модуля — тем
  * же правилом, которым кодоген называет форму, открытую как документ. Поле `schema` — путь
  * документа от корня модуля: по нему план узнаёт, что документ лежит в `schema/`.
+ *
+ * @param detached - Модуль прочитан из подкаталога документа со свободным именем
+ *   ({@link detachedModuleOf}): документ в нём лежит в `schema/`, значит модуль разложен по ролям.
  */
-export function moduleFilesFor(schemaPath: string): ModuleFiles {
-  return moduleFilesOf(
-    makeNames(formNameOfSchemaPath(schemaPath)),
-    documentInModule(schemaPath) || UNKNOWN_DOCUMENT
-  );
+export function moduleFilesFor(schemaPath: string, detached = false): ModuleFiles {
+  const names = makeNames(formNameOfSchemaPath(schemaPath));
+  const own = detached ? detachedModuleOf(schemaPath) : null;
+  return moduleFilesOf(names, own?.document ?? (documentInModule(schemaPath) || UNKNOWN_DOCUMENT));
 }
 
 /**
@@ -199,6 +262,9 @@ export function moduleFilesFor(schemaPath: string): ModuleFiles {
  * прежней плоской раскладки). Правило одно на кодоген, фикстуры и превью —
  * `moduleDirOfSchemaPath`; арифметику адресов делает платформа (`parentOf`), превью лишь решает,
  * сколько раз подняться.
+ *
+ * У документа со свободным именем это запасной ответ: сначала модуль ищется в подкаталоге, куда
+ * его кладёт кодоген ({@link detachedModuleOf}).
  *
  * @param parentOf - Каталог ресурса (порт превью).
  * @param id - Адрес документа формы.
@@ -230,6 +296,7 @@ export function planModule(paths: Iterable<string>, files: ModuleFiles = UNNAMED
   const candidates: Record<ModuleRole, readonly string[]> = {
     initial: [files.initial],
     validation: [files.validation],
+    messages: [MESSAGES_FILE],
     // Файл с ожидаемым именем — первым; за ним остальные файлы папки потока: имя формы в пути —
     // подсказка, а не условие (см. модуль).
     flow: [
@@ -267,6 +334,7 @@ export function planModule(paths: Iterable<string>, files: ModuleFiles = UNNAMED
   const roles: Record<ModuleRole, readonly string[]> = {
     initial: kept('initial'),
     validation: kept('validation'),
+    messages: kept('messages'),
     flow: kept('flow'),
     behavior: kept('behavior'),
     submit: kept('submit'),

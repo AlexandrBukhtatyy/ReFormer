@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { locateModule, moduleFilesFor, planModule } from './module';
+import { detachedModuleOf, locateModule, moduleFilesFor, planModule } from './module';
 
 /** Каталог адреса: до последнего «/» — та же арифметика, что у двойника порта. */
 const parentOf = (id: string): string => id.slice(0, id.lastIndexOf('/'));
@@ -53,6 +53,8 @@ describe('locateModule — корень модуля по документу', (
     expect(location).toEqual({ root: 'fs:src/forms/contact', document: 'form.schema.json' });
   });
 
+  // Запасное правило документа со свободным именем: подкаталога кодогена нет — читается каталог
+  // документа (либо родитель `schema/`), как у документа с каноническим именем.
   it('свободное имя документа не мешает: решает папка, а не имя файла', () => {
     expect(
       locateModule(parentOf, 'fs:forms/loan/schema/loan.json', 'forms/loan/schema/loan.json')
@@ -78,6 +80,39 @@ describe('locateModule — корень модуля по документу', (
   });
 });
 
+describe('detachedModuleOf — модуль документа со свободным именем', () => {
+  it('подкаталог рядом с документом — по имени формы, документ в нём — в schema/', () => {
+    expect(detachedModuleOf('forms/credit.schema.json')).toEqual({
+      directory: 'credit',
+      document: 'schema/form.schema.json',
+    });
+    // Имя формы — до первой точки имени файла, каталог — его kebab с транслитерацией.
+    expect(detachedModuleOf('forms/LoanApplication.form.json')?.directory).toBe('loan-application');
+    expect(detachedModuleOf('forms/Заявка на кредит.schema.json')?.directory).toBe(
+      'zayavka-na-kredit'
+    );
+  });
+
+  it('каноническое имя документа — модуль там, где документ: подкаталога нет', () => {
+    expect(detachedModuleOf('forms/loan/schema/form.schema.json')).toBeNull();
+    expect(detachedModuleOf('forms/loan/form.schema.json')).toBeNull();
+    // Прежнее каноническое имя — тоже документ своего каталога.
+    expect(detachedModuleOf('forms/loan/renderer.schema.json')).toBeNull();
+  });
+
+  it('свободное имя в папке schema/ — то же правило, что у кодогена: подкаталог рядом', () => {
+    expect(detachedModuleOf('forms/loan/schema/loan.json')).toEqual({
+      directory: 'loan',
+      document: 'schema/form.schema.json',
+    });
+  });
+
+  it('разделители Windows читаются так же; неизвестный путь модуля не называет', () => {
+    expect(detachedModuleOf('forms\\credit.schema.json')?.directory).toBe('credit');
+    expect(detachedModuleOf('')).toBeNull();
+  });
+});
+
 describe('planModule — раскладка «папки по ролям»', () => {
   it('точка входа требует файлы ролей — и только их', () => {
     const plan = planModule(PLAIN_MODULE);
@@ -89,6 +124,27 @@ describe('planModule — раскладка «папки по ролям»', () 
       'application/submit.ts',
       'schema/registry.ts',
     ]);
+  });
+
+  it('словарь замечаний — роль: точка входа требует его сразу за валидацией', () => {
+    // Страницу, которая подключает словарь в приложении, превью не исполняет.
+    const plan = planModule([...PLAIN_MODULE, 'validation/messages.ts']);
+    expect(plan.roles.messages).toEqual(['validation/messages.ts']);
+    expect(plan.entry).toEqual([
+      'model/initial-value.ts',
+      'validation/form.ts',
+      'validation/messages.ts',
+      'behavior/index.ts',
+      'application/submit.ts',
+      'schema/registry.ts',
+    ]);
+    // Модуль без словаря его и не требует.
+    expect(planModule(PLAIN_MODULE).roles.messages).toEqual([]);
+  });
+
+  it('одного словаря мало, чтобы признать раскладку по ролям: роль не маркер', () => {
+    // В модуле прежней раскладки папка `validation/` бывала своей, с любыми файлами.
+    expect(planModule(['model.ts', 'validation/messages.ts']).layout).toBe('flat');
   });
 
   it('страница, сборка приложения и запись реестра форм не исполняются', () => {
@@ -202,9 +258,10 @@ describe('planModule — прежняя плоская раскладка', () =
     expect(roles.validation).toEqual(['form.validation.ts', 'validation.ts']);
     expect(roles.renderBehavior[0]).toBe('form.render.ts');
     expect(roles.registry).toEqual(['registry.ts', 'registry.tsx']);
-    // Потока шагов и отдельной отправки у прежнего контракта нет.
+    // Потока шагов, отдельной отправки и словаря замечаний у прежнего контракта нет.
     expect(roles.flow).toEqual([]);
     expect(roles.submit).toEqual([]);
+    expect(roles.messages).toEqual([]);
     // Страницу прежней раскладки отсекает отбор набора — плану убирать нечего.
     expect(planModule(['model.ts', 'api.ts']).skipped).toEqual([]);
   });
@@ -229,5 +286,26 @@ describe('moduleFilesFor', () => {
     expect(moduleFilesFor('src/forms/contact/form.schema.json').schema).toBe('form.schema.json');
     // Путь документа неизвестен — о его месте ничего не утверждается.
     expect(planModule(['model.ts'], moduleFilesFor('')).layout).toBe('flat');
+  });
+
+  it('модуль из подкаталога документа со свободным именем разложен по ролям', () => {
+    const files = moduleFilesFor('forms/credit.schema.json', true);
+    // Документ в таком модуле лежит в `schema/`, где бы ни лежал открытый.
+    expect(files.schema).toBe('schema/form.schema.json');
+    expect(files.flow).toBe('flow/credit-flow.ts');
+    expect(files.page).toBe('CreditForm.tsx');
+    // Раскладка по ролям — по определению: корень (страница приложения) не исполняется.
+    expect(planModule(['CreditForm.tsx', 'types/credit.ts'], files)).toMatchObject({
+      layout: 'roles',
+      entry: [],
+    });
+  });
+
+  it('подкаталога нет — у документа со свободным именем раскладку выдают файлы ролей', () => {
+    const files = moduleFilesFor('forms/credit.schema.json');
+    expect(files.schema).toBe('credit.schema.json');
+    expect(planModule(['model.ts'], files).layout).toBe('flat');
+    // Признак подкаталога у документа с каноническим именем ничего не меняет.
+    expect(moduleFilesFor('forms/loan/form.schema.json', true).schema).toBe('form.schema.json');
   });
 });

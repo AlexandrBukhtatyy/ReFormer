@@ -76,6 +76,16 @@ describe('fitInitialValues', () => {
     expect(applied({ note: 'x' }, { note: null })).toEqual({ note: null });
   });
 
+  it('дата модуля — значение листа: на место даты она ложится, а группой не читается', () => {
+    const since = new Date(2026, 0, 1);
+    // Прежде дата считалась группой и на место листа не ложилась: значение модуля терялось.
+    expect(applied({ since: null }, { since })).toEqual({ since });
+    // И наоборот: группа схемы датой модуля не подменяется.
+    expect(applied({ period: { from: null } }, { period: since })).toEqual({
+      period: { from: null },
+    });
+  });
+
   it('ни синтез, ни значения модуля не мутируются', () => {
     const base = { person: { first: '' } };
     const declared = { person: { first: 'Иван', nick: 'x' }, legacy: 1 };

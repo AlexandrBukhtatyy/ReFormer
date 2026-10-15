@@ -83,6 +83,86 @@ describe('buildRuntimeBundle', () => {
     expect(Object.hasOwn(model, 'сгинувшее')).toBe(false);
   });
 
+  it('введённое в поле с начальным null переживает пересборку после правки схемы', () => {
+    // Число без нижней границы, дата, мультивыбор и файлы синтез заводит `null`; комбобоксу `null`
+    // объявляет модуль формы. По паре «`null` и введённое» род не понять — вид поля даёт схема.
+    const fields = (label: string): JsonFormSchema =>
+      ({
+        format: 2,
+        root: {
+          component: '$component(Box)',
+          children: [
+            { model: '$model(title)', component: '$component(Input)', componentProps: { label } },
+            { model: '$model(age)', component: '$component(InputNumber)' },
+            { model: '$model(birthDate)', component: '$component(DatePicker)' },
+            { model: '$model(skills)', component: '$component(ComboboxMulti)' },
+            { model: '$model(documents)', component: '$component(FileUploadDropzone)' },
+            {
+              model: '$model(position)',
+              component: '$component(Combobox)',
+              componentProps: { options: [] },
+            },
+          ],
+        },
+      }) as unknown as JsonFormSchema;
+    const declared = { position: null };
+
+    const first = bundleOf(fields('Заголовок'), { initialOverride: declared });
+    expect(first.form?.model.get()).toEqual({
+      title: '',
+      age: null,
+      birthDate: null,
+      skills: null,
+      documents: null,
+      position: null,
+    });
+
+    // Человек заполнил форму…
+    const picked = new Date(2020, 0, 1);
+    const scan = { id: 'f1', name: 'паспорт.pdf' };
+    first.form?.model.patch({
+      age: 5,
+      birthDate: picked,
+      skills: ['react', 'sql'],
+      documents: [scan],
+      position: 'analyst',
+    });
+
+    // …и поправил в схеме подпись соседнего поля: форма пересобирается.
+    const second = bundleOf(fields('Название'), {
+      initialOverride: declared,
+      carry: first.form?.model.get(),
+    });
+    expect(second.problems).toEqual([]);
+    expect(second.form?.model.get()).toEqual({
+      title: '',
+      age: 5,
+      birthDate: picked,
+      skills: ['react', 'sql'],
+      documents: [scan],
+      position: 'analyst',
+    });
+    // Список на месте листа поле не ломает: нода мультивыбора привязана к сигналу списка.
+    expect(second.form?.form.skills.value.value).toEqual(['react', 'sql']);
+  });
+
+  it('поле переделали — прежнее значение другого вида не переносится', () => {
+    const schema = (component: string): JsonFormSchema =>
+      ({
+        format: 2,
+        root: {
+          component: '$component(Box)',
+          children: [{ model: '$model(amount)', component: `$component(${component})` }],
+        },
+      }) as unknown as JsonFormSchema;
+
+    const typed = bundleOf(schema('Input'));
+    typed.form?.model.patch({ amount: 'много' });
+    // Строку переделали в число: «много» — уже не значение, а мусор.
+    const rebuilt = bundleOf(schema('InputNumber'), { carry: typed.form?.model.get() });
+    expect(rebuilt.form?.model.get()).toEqual({ amount: null });
+  });
+
   it('форму собирает единая сборка: в бандле модель, ноды формы и дерево для рендерера', () => {
     const bundle = bundleOf(sampleSchema());
     expect(bundle.form?.form.getValue()).toMatchObject({ loanType: '' });

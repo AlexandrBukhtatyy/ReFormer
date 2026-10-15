@@ -4,11 +4,13 @@
  *
  * ## Что исполняется
  *
- * Файлы РОЛЕЙ модуля формы — начальные значения, валидация, поток шагов, поведение, отправка,
- * реестр (`./module`, `./exports`). Модуль читается от своего корня — родителя папки `schema/`,
- * в которой лежит документ. Страница модуля и сборка приложения (`application/create.ts`,
- * `application/entry.ts`) не исполняются: форму превью собирает само — из живой схемы редактора,
- * реестра кита, мока и фикстуры, — а из модуля берёт только то, чего в схеме нет.
+ * Файлы РОЛЕЙ модуля формы — начальные значения, валидация, словарь замечаний, поток шагов,
+ * поведение, отправка, реестр (`./module`, `./exports`). Модуль читается от своего корня —
+ * родителя папки `schema/`, в которой лежит документ; у документа со свободным именем — из
+ * подкаталога, куда модуль кладёт кодоген. Страница модуля и сборка приложения
+ * (`application/create.ts`, `application/entry.ts`) не исполняются: форму превью собирает само —
+ * из живой схемы редактора, реестра кита, мока и фикстуры, — а из модуля берёт только то, чего в
+ * схеме нет.
  *
  * ## Почему в том же realm
  *
@@ -39,6 +41,16 @@
  * списком и показываются, а форма собирается из того, что исполнилось. «Форма не отрабатывает»
  * без указания виновного — та самая жалоба, ради которой изоляция и делалась.
  *
+ * ## Словарь замечаний подключает поверхность
+ *
+ * В приложении тексты замечаний формы даёт страница модуля:
+ * `<ValidationMessagesProvider messages={formMessages}>` вокруг формы. Страницу превью не
+ * исполняет — и без своего провайдера форма показывала бы замечания текстами локали (английскими),
+ * хотя словарь лежит в модуле рядом. Поэтому провайдер здесь тот же, а словарь — экспорт
+ * `formMessages` из `validation/messages.ts`. Модуль без словаря получает провайдер без записей:
+ * он ничего не меняет, а дерево остаётся тем же — форма не перемонтируется, когда словарь
+ * появился или исчез.
+ *
  * ## Итог отправки — полосой над формой
  *
  * В приложении его показывает страница модуля (`onResult` → баннер), а страницу превью не
@@ -59,6 +71,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormRenderer } from '@reformer/renderer-react';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { toDescriptor } from '@reformer/builder-plugin-api';
@@ -185,7 +198,9 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   const modules = host.modules;
   const documentId = ctx.doc.id;
   // Путь документа отвечает на вопрос «где модуль»: его корень — родитель папки `schema/`, там
-  // же лежит фикстура (`fixture.ts`), а от имени каталога зависит имя файла потока шагов.
+  // же лежит фикстура (`fixture.ts`), а от имени каталога зависит имя файла потока шагов. У
+  // документа со свободным именем модуль ищется в подкаталоге, куда его кладёт кодоген, — это
+  // решает чтение (`./read`), а фикстура остаётся рядом с документом.
   const schemaPath = host.documentOf(documentId)?.ref.path ?? '';
   const mock = ctx.mock();
 
@@ -239,7 +254,9 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       const read = await readSidecars(host, documentId, schemaPath);
       // План строится по СПИСКУ каталога, а не по прочитанному: файл роли, который не прочитался,
       // всё равно говорит, что модуль разложен по ролям, — и корень тогда не исполняется.
-      const plan = planModule(read.resources.keys(), moduleFilesFor(schemaPath));
+      // Раскладка — по тому месту, откуда модуль прочитан: у документа со свободным именем это
+      // может быть подкаталог кодогена, где документ лежит в `schema/`.
+      const plan = planModule(read.resources.keys(), moduleFilesFor(schemaPath, read.detached));
       const compiled = await compileForm(read.files, modules, isolation, plan);
       if (cancelled) return;
 
@@ -410,8 +427,13 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
         <div className="p-4">
           <Highlight selection={selection} />
           <KitFrame frame={host.kitFrame()}>
-            {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла из него. */}
-            <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
+            {/* Словарь замечаний модуля — тем же провайдером, которым его подключает страница.
+                Внутри рамки кита: записи формы ложатся поверх того, что дал кит. */}
+            <ValidationMessagesProvider messages={sources.contract?.messages}>
+              {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла
+                  из него. */}
+              <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
+            </ValidationMessagesProvider>
           </KitFrame>
         </div>
       </ScrollArea>

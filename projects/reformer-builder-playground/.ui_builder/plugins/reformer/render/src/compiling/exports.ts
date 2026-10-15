@@ -7,6 +7,7 @@
  * | ------------------------ | ------------------------------ | ------------------------------------ |
  * | `model/initial-value.ts` | `createInitialValues`          | начальные значения — фабрикой        |
  * | `validation/form.ts`     | `formValidation`               | `FormValidation` сборки              |
+ * | `validation/messages.ts` | `formMessages`                 | словарь текстов замечаний            |
  * | `flow/<форма>-flow.ts`   | `formFlow`                     | поток шагов визарда                  |
  * | `behavior/index.ts`      | `behaviorRules`, `formBehavior`| правила функцией и готовое поведение |
  * | `application/submit.ts`  | `wireSubmit`                   | отправка над областью поведения      |
@@ -21,6 +22,14 @@
  * областью: сборка приложения дописывает к ним отправку (`wireSubmit`) и только потом заворачивает
  * в поведение. Превью делает то же самое, потому что итог отправки ему нужен свой — показать под
  * рукой, а не на странице приложения. Нет одной из двух половин — берётся `formBehavior` как есть.
+ *
+ * ## Словарь замечаний — не артефакт сборки
+ *
+ * `formMessages` (`defineIssueMessages`) в сборку формы не входит: в приложении его подключает
+ * страница модуля — `<ValidationMessagesProvider messages={formMessages}>`. Страницу превью не
+ * исполняет, поэтому словарь разбирается здесь наравне с остальными ролями, а подключает его
+ * сама поверхность — тем же провайдером вокруг формы. Модуль без словаря показывает замечания
+ * текстами локали, как и раньше.
  *
  * ## Прежняя плоская раскладка
  *
@@ -48,6 +57,7 @@
  */
 
 import type { PreviewProblem } from '@reformer/builder-plugin-api';
+import type { ValidationMessagesProviderProps } from '@reformer/cdk';
 import type { CreateFormConfig } from '@reformer/core';
 import type { ComponentRegistry } from '@reformer/renderer-json';
 import type {
@@ -63,6 +73,12 @@ export type { Shape };
 
 type FormConfig = CreateFormConfig<Shape>;
 
+/**
+ * Словарь замечаний формы: код замечания → текст. Тип взят у провайдера, который словарь
+ * принимает, — по той же причине, по какой остальные типы берутся из конфигурации сборки.
+ */
+export type FormMessages = NonNullable<ValidationMessagesProviderProps['messages']>;
+
 /** Что нашлось в модуле формы. Любое поле может отсутствовать — превью деградирует частями. */
 export interface FormContract {
   /**
@@ -72,6 +88,8 @@ export interface FormContract {
   readonly createInitialValues?: () => unknown;
   /** Правила валидации: готовая конфигурация либо правила со стратегией из `validationOptions`. */
   readonly validation?: FormConfig['validation'];
+  /** Словарь текстов замечаний (`formMessages`): его подключает поверхность, а не сборка. */
+  readonly messages?: FormMessages;
   /** Поток шагов визарда (`formFlow`). */
   readonly flow?: FormConfig['flow'];
   /** Готовое поведение формы (`formBehavior`). */
@@ -95,6 +113,7 @@ export interface FormContract {
 export type AppliedArtifact =
   | 'model'
   | 'validation'
+  | 'messages'
   | 'flow'
   | 'behavior'
   | 'submit'
@@ -203,6 +222,17 @@ function isFlowConfig(value: unknown): value is NonNullable<FormConfig['flow']> 
 }
 
 /**
+ * Похоже ли значение на словарь замечаний: объект «код → текст».
+ *
+ * Проверка формы, а не вера в имя экспорта: словарь уходит провайдеру, а тот читает его на каждом
+ * замечании. Значение другого вида (`null`, функция, массив) уронило бы форму при первом же
+ * показанном замечании — то есть ровно тогда, когда человек нажал «Отправить».
+ */
+function isMessages(value: unknown): value is FormMessages {
+  return isObject(value);
+}
+
+/**
  * Разобрать исполненные модули в контракт формы.
  *
  * @param modules - Путь файла от корня модуля → его экспорты.
@@ -236,6 +266,12 @@ export function extractContract(
   if (rules !== undefined && validation !== undefined) {
     contract.validation = validation;
     files.validation = rules.file;
+  }
+
+  const messages = from('messages', 'formMessages');
+  if (messages !== undefined && isMessages(messages.value)) {
+    contract.messages = messages.value;
+    files.messages = messages.file;
   }
 
   const flow = from('flow', 'formFlow');
@@ -300,6 +336,7 @@ export function appliedArtifacts(contract: FormContract): readonly AppliedArtifa
   const out: AppliedArtifact[] = [];
   if (contract.createInitialValues !== undefined) out.push('model');
   if (contract.validation !== undefined) out.push('validation');
+  if (contract.messages !== undefined) out.push('messages');
   if (contract.flow !== undefined) out.push('flow');
   if (contract.behavior !== undefined || contract.behaviorRules !== undefined) out.push('behavior');
   if (wiresSubmit(contract)) out.push('submit');

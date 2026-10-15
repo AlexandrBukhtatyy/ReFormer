@@ -144,6 +144,60 @@ describe('extractContract — раскладка «папки по ролям»'
     );
     expect(contract.renderBehavior).toBeUndefined();
   });
+
+  it('словарь замечаний берётся из validation/messages.ts — экспорт formMessages', () => {
+    const formMessages = { required: 'Заполните поле', 'email.email': () => 'Неверная почта' };
+    const contract = extractContract(
+      modules({ ...ROLES, 'validation/messages.ts': { formMessages } })
+    );
+
+    expect(contract.messages).toBe(formMessages);
+    expect(contract.files.messages).toBe('validation/messages.ts');
+    // В сводке — сразу за валидацией: это её тексты.
+    expect(appliedArtifacts(contract)).toEqual([
+      'model',
+      'validation',
+      'messages',
+      'flow',
+      'behavior',
+      'submit',
+      'registry',
+    ]);
+  });
+
+  it('модуль без словаря работает как раньше: записи о нём в контракте нет', () => {
+    const contract = extractContract(modules(ROLES));
+    expect(contract.messages).toBeUndefined();
+    expect(Object.hasOwn(contract.files, 'messages')).toBe(false);
+  });
+
+  it('словарь — это место: одноимённый экспорт другого файла им не считается', () => {
+    const contract = extractContract(
+      modules({ ...ROLES, 'validation/form.ts': { formValidation, formMessages: { a: 'b' } } })
+    );
+    expect(contract.messages).toBeUndefined();
+  });
+
+  it.each([
+    ['null', null],
+    ['функция', () => ({})],
+    ['массив', ['required']],
+    ['строка', 'Заполните поле'],
+  ])('значение не того вида (%s) словарём не считается: провайдер упал бы на нём', (_, value) => {
+    const contract = extractContract(
+      modules({ ...ROLES, 'validation/messages.ts': { formMessages: value } })
+    );
+    expect(contract.messages).toBeUndefined();
+    expect(appliedArtifacts(contract)).not.toContain('messages');
+  });
+
+  it('файл словаря без экспорта formMessages — это файл правил шага с таким именем', () => {
+    // Шаг визарда «Messages» дал бы `validation/messages.ts` с правилами шага: словаря в нём нет.
+    const contract = extractContract(
+      modules({ ...ROLES, 'validation/messages.ts': { stepRules: rules } })
+    );
+    expect(contract.messages).toBeUndefined();
+  });
 });
 
 describe('runFactories', () => {

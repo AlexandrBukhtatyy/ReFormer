@@ -12,6 +12,11 @@
  * одной `schema/**`, и ни правила, ни поведение в превью не попали бы. У формы прежней плоской
  * раскладки корень модуля и каталог документа совпадают.
  *
+ * Модуль документа со свободным именем (`forms/credit.schema.json`) кодоген заводит подкаталогом
+ * рядом с документом (`forms/credit/`). Он ищется первым и ЛИСТИНГОМ каталога документа: адрес
+ * ресурса плагину непрозрачен, а отсутствие подкаталога — обычное состояние (код не генерировали),
+ * и узнать о нём надо без отказа чтения. Нет подкаталога — читается каталог документа, как раньше.
+ *
  * ## Имена и адреса
  *
  * Компилятор знает файлы по ПУТЯМ ОТ КОРНЯ МОДУЛЯ: `validation/form.ts`, `behavior/index.ts`,
@@ -35,7 +40,7 @@
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { PreviewProblem } from '@reformer/builder-plugin-api';
 import type { PreviewHost } from '../host';
-import { locateModule } from './module';
+import { detachedModuleOf, locateModule, type ModuleLocation } from './module';
 import { isExecutableSidecar } from './sources';
 
 /** Сколько уровней каталогов обходится под корнем модуля. */
@@ -50,6 +55,18 @@ export interface SidecarSources {
   /** Путь от корня модуля → ресурс: адрес, под которым находка уйдёт в свод диагностик. */
   readonly resources: ReadonlyMap<string, ResourceId>;
   readonly problems: readonly PreviewProblem[];
+  /**
+   * Модуль прочитан из подкаталога документа со свободным именем — оттуда, куда его кладёт
+   * кодоген. По этому признаку строится раскладка модуля (`moduleFilesFor`): документ в таком
+   * модуле лежит в `schema/`, где бы ни лежал открытый.
+   */
+  readonly detached: boolean;
+}
+
+/** Файлы модуля и то, откуда они прочитаны. */
+interface FoundFiles {
+  readonly files: readonly Found[];
+  readonly detached: boolean;
 }
 
 const describe = (error: unknown): string =>
@@ -67,6 +84,32 @@ function descends(name: string): boolean {
 }
 
 /**
+ * Откуда читать модуль: подкаталог, в который кодоген кладёт модуль документа со свободным
+ * именем, если он есть; иначе — место по прежнему правилу ({@link locateModule}).
+ *
+ * Отказ листинга каталога документа здесь не событие: подкаталог просто не найден, а сам отказ
+ * назовёт обход — он начнётся с того же каталога либо с его родителя.
+ */
+async function locate(
+  list: NonNullable<PreviewHost['list']>,
+  parentOf: NonNullable<PreviewHost['parentOf']>,
+  id: ResourceId,
+  schemaPath: string
+): Promise<ModuleLocation & { readonly detached: boolean }> {
+  const detached = detachedModuleOf(schemaPath);
+  if (detached !== null) {
+    const beside = await list(parentOf(id)).catch((): readonly ResourceRef[] => []);
+    const directory = beside.find(
+      (entry) => entry.kind === 'directory' && entry.name === detached.directory
+    );
+    if (directory !== undefined) {
+      return { root: directory.id, document: detached.document, detached: true };
+    }
+  }
+  return { ...locateModule(parentOf, id, schemaPath), detached: false };
+}
+
+/**
  * Файлы модуля с путями от его корня.
  *
  * С листингом порта — рекурсивно от корня модуля (до {@link MAX_DEPTH}), без него — один уровень
@@ -79,14 +122,17 @@ async function filesOf(
   id: ResourceId,
   schemaPath: string,
   problems: PreviewProblem[]
-): Promise<readonly Found[]> {
+): Promise<FoundFiles> {
   const { list, parentOf } = host;
   if (list === undefined || parentOf === undefined) {
     const refs = await host.siblings(id);
-    return refs.filter((ref) => ref.kind === 'file').map((ref) => ({ path: ref.name, ref }));
+    return {
+      files: refs.filter((ref) => ref.kind === 'file').map((ref) => ({ path: ref.name, ref })),
+      detached: false,
+    };
   }
 
-  const location = locateModule(parentOf, id, schemaPath);
+  const location = await locate(list, parentOf, id, schemaPath);
   const out: Found[] = [];
   const walk = async (dir: ResourceId, prefix: string, depth: number): Promise<void> => {
     let entries: readonly ResourceRef[];
@@ -103,6 +149,7 @@ async function filesOf(
       if (entry.kind === 'file') {
         // Сам документ в набор не идёт: его превью берёт из модели редактора, а копия из файла
         // от неё отставала бы — буфер модельного документа перерисовывается из модели с задержкой.
+        // У модуля документа со свободным именем так же отсекается копия документа в `schema/`.
         if (path !== location.document) out.push({ path, ref: entry });
       } else if (depth < MAX_DEPTH && descends(entry.name)) {
         nested.push(walk(entry.id, `${path}/`, depth + 1));
@@ -113,7 +160,10 @@ async function filesOf(
   await walk(location.root, '', 0);
   // Порядок листинга не обещан, а порядок набора определяет порядок исполнения несвязанных
   // сайдкаров — сортируем, чтобы превью воспроизводилось между запусками.
-  return out.sort((a, b) => a.path.localeCompare(b.path));
+  return {
+    files: out.sort((a, b) => a.path.localeCompare(b.path)),
+    detached: location.detached,
+  };
 }
 
 /**
@@ -140,10 +190,11 @@ export async function readSidecars(
       files: new Map(),
       resources: new Map(),
       problems: [{ file: '', phase: 'resolve', message: describe(error) }],
+      detached: false,
     };
   }
 
-  const selected = found.filter((entry) => isExecutableSidecar(entry.path));
+  const selected = found.files.filter((entry) => isExecutableSidecar(entry.path));
   // Читаем параллельно, а раскладываем в порядке отбора: карта помнит порядок вставки.
   const texts = await Promise.all(
     selected.map(async ({ path, ref }) => {
@@ -164,7 +215,7 @@ export async function readSidecars(
     if (text !== null && text !== undefined) files.set(path, text);
   });
 
-  return { files, resources, problems };
+  return { files, resources, problems, detached: found.detached };
 }
 
 /**

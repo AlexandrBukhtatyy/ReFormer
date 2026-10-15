@@ -409,7 +409,8 @@ describe('форма в рамке кита', () => {
       descriptor: toDescriptor({
         version: '2.1',
         kit: { id: 'fixture', label: 'Fixture', package: '@vendor/fixture-kit' },
-        components: [],
+        // Запись за подпутём: реестр формы импортирует её с `<пакет>/<подпуть>`.
+        components: [{ name: 'Chart', role: 'container', propsSchema: {}, subpath: 'chart' }],
       }),
       namespace,
       modules,
@@ -422,6 +423,8 @@ describe('форма в рамке кита', () => {
       expect(modules.seen.length).toBeGreaterThan(0);
     });
     expect(modules.seen[0]?.get('@vendor/fixture-kit')).toBe(namespace);
+    // Подпуть кита — то же пространство имён: линковщик сверяет подстановку с текстом импорта.
+    expect(modules.seen[0]?.get('@vendor/fixture-kit/chart')).toBe(namespace);
   });
 
   it('у встроенного кита подстановок нет: его пакет отдаёт реестр модулей оболочки', async () => {

@@ -20,8 +20,30 @@
  * - **оба массива** — берётся прежний ЦЕЛИКОМ: человек добавил три элемента, и они его, а не
  *   мока. Слияние по индексам здесь было бы хуже: при перестановке элементов оно перемешало бы
  *   значения между ними;
- * - **типы разошлись** — берётся новое. Поле переделали из строки в число, и старая строка
- *   не значение, а мусор, который контрол не покажет.
+ * - **лист** — прежнее значение берётся, если оно годится полю новой формы (ниже); иначе новое.
+ *   Поле переделали из строки в число, и старая строка не значение, а мусор, который контрол
+ *   не покажет.
+ *
+ * ## Годится ли значение листу: вид поля — из схемы
+ *
+ * Сверять род по ПАРЕ значений мало. У числа без нижней границы, даты, мультивыбора и загрузки
+ * файлов начальное значение — `null`; у комбобокса его объявляет `null` модуль формы. Пара «`null`
+ * и введённое» одного рода не бывает никогда — и введённое в такое поле терялось на первой же
+ * правке схемы, хотя поле никто не трогал. Поэтому род листа спрашивается у схемы новой формы
+ * (`./kinds`): число годится числовому полю, дата — выбору даты, список — мультивыбору, каким бы
+ * ни было начальное значение.
+ *
+ * Сверка по паре при этом остаётся — вторым основанием, а не заменой. Вид поля схема называет по
+ * компоненту, и про свой контрол она не знает ничего (он числится строкой); значение же, которое
+ * новая форма кладёт на это место сама (мок автора, начальные значения модуля), про него знает.
+ * Прежнее значение того же рода, что новое, переносится, что бы ни думала о поле схема. И путь,
+ * под которым в схеме поля нет вовсе, сверяется только так.
+ *
+ * ## Что считается группой
+ *
+ * То же, что считает группой модель ядра: объект, кроме массива, даты и файла (`isGroup` из
+ * `./kinds`). Дата и файл — значения листа: разбирать их по ключам значило бы положить на место
+ * даты пустой объект.
  *
  * Функция чистая и ничего не мутирует: `previous` приходит из живой модели, и правка на месте
  * означала бы правку формы, которую прямо сейчас показывают.
@@ -29,12 +51,13 @@
  * @module plugins/reformer/render/runtime/carry
  */
 
+import { fitsKind, isGroup, type FieldKinds } from './kinds';
+
 /** Форма данных модели превью: она приходит из схемы, и сузить её нечем. */
 type Shape = Record<string, unknown>;
 
-function isPlainObject(value: unknown): value is Shape {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+/** Схема о полях ничего не сказала: род листа сверяется только по паре значений. */
+const NO_KINDS: FieldKinds = new Map();
 
 /**
  * Начальные значения новой формы с перенесённым содержимым прежней.
@@ -43,10 +66,19 @@ function isPlainObject(value: unknown): value is Shape {
  * формы); `previous` — снимок модели прежней формы. `undefined` означает «переносить нечего», и
  * тогда `base` возвращается ТОЙ ЖЕ ссылкой: лишний объект здесь стоил бы пересборки на ровном
  * месте.
+ *
+ * @param kinds - Виды полей НОВОЙ формы по её схеме (`fieldKindsOf`). Без них род листа сверяется
+ *   только по паре значений — и введённое в поле с начальным `null` не переносится.
  */
-export function carryValues(base: Shape, previous: Shape | undefined): Shape {
-  if (previous === undefined) return base;
+export function carryValues(
+  base: Shape,
+  previous: Shape | undefined,
+  kinds: FieldKinds = NO_KINDS
+): Shape {
+  return previous === undefined ? base : carryGroup(base, previous, kinds, '');
+}
 
+function carryGroup(base: Shape, previous: Shape, kinds: FieldKinds, prefix: string): Shape {
   const out: Shape = {};
   for (const [key, next] of Object.entries(base)) {
     if (!Object.hasOwn(previous, key)) {
@@ -54,28 +86,33 @@ export function carryValues(base: Shape, previous: Shape | undefined): Shape {
       continue;
     }
     const kept = previous[key];
-    if (isPlainObject(next) && isPlainObject(kept)) {
-      out[key] = carryValues(next, kept);
+    const path = `${prefix}${key}`;
+    if (isGroup(next) && isGroup(kept)) {
+      out[key] = carryGroup(next, kept, kinds, `${path}.`);
     } else if (Array.isArray(next) && Array.isArray(kept)) {
       out[key] = kept;
-    } else if (sameKind(next, kept)) {
-      out[key] = kept;
-    } else {
+    } else if (isGroup(next) || isGroup(kept)) {
+      // Группа против листа: место сменило устройство, и прежнему содержимому жить негде.
       out[key] = next;
+    } else {
+      const kind = kinds.get(path);
+      out[key] = sameKind(next, kept) || (kind !== undefined && fitsKind(kind, kept)) ? kept : next;
     }
   }
   return out;
 }
 
 /**
- * Одного ли рода значения.
+ * Одного ли рода значения — по самой паре, без схемы.
  *
  * `typeof` мало: `null` и объект неразличимы, а массив и объект — тем более. Оба этих случая
  * до сюда доходят (поле без значения в моке — это `null`), и спутать их значило бы положить
- * в контрол то, чего он не ждёт.
+ * в контрол то, чего он не ждёт. Пара с `null` одного рода, только когда `null` — оба: что годится
+ * полю с пустым начальным значением, знает схема, а не пара.
  */
 function sameKind(a: unknown, b: unknown): boolean {
   if (a === null || b === null) return a === b;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (a instanceof Date !== b instanceof Date) return false;
   return typeof a === typeof b;
 }

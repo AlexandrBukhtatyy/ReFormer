@@ -7,25 +7,28 @@
  * доезжают до собранной формы, а не теряются по дороге.
  *
  * Основной путь — модуль в раскладке «папки по ролям»; модуль прежней плоской раскладки
- * проверяется как запасной.
+ * проверяется как запасной. Отдельно — три стыка: модуль документа со свободным именем (он лежит
+ * в подкаталоге, куда его кладёт кодоген), словарь замечаний и подпуть кита, внесённого плагином.
  *
  * @module plugins/reformer/render/compiling/pipeline.test
  */
 
 import { describe, expect, it } from 'vitest';
+import * as coreI18n from '@reformer/core/i18n';
 import * as behaviors from '@reformer/core/behaviors';
 import * as validation from '@reformer/core/validation';
 import * as validators from '@reformer/core/validators';
 import * as rendererJson from '@reformer/renderer-json';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '../../../core/testing';
-import { toDescriptor } from '@reformer/builder-plugin-api';
+import { toDescriptor, type KitNamespace } from '@reformer/builder-plugin-api';
 import type { PreviewModules } from '../host';
 import { buildRuntimeBundle } from '../runtime/build';
 import { createFakeHost, createFakeModules } from '../testing';
-import { compileForm } from './compile';
+import { compileForm, type FormIsolation } from './compile';
 import { extractContract, appliedArtifacts, runFactories } from './exports';
 import { alignFlow } from './flow';
+import { kitImportOverrides } from './kit-imports';
 import { moduleFilesFor, planModule } from './module';
 import { readSidecars } from './read';
 
@@ -112,6 +115,7 @@ describe('путь компилирующей поверхности', () => {
 /** Пакеты, которые код модуля берёт у оболочки, — те же объекты, которыми собирает форму превью. */
 const PACKAGES = {
   '@reformer/core/behaviors': behaviors,
+  '@reformer/core/i18n': coreI18n,
   '@reformer/core/validation': validation,
   '@reformer/core/validators': validators,
   '@reformer/renderer-json': rendererJson,
@@ -208,11 +212,16 @@ const ROLES_MODULE: Record<string, string> = {
 };
 
 /** Прочитать, исполнить и разобрать модуль — ровно те шаги, что делает поверхность. */
-async function compileModule(tree: Record<string, string>, document: string, path: string) {
+async function compileModule(
+  tree: Record<string, string>,
+  document: string,
+  path: string,
+  isolation: FormIsolation = {}
+) {
   const host = createFakeHost({ tree, source: { executesCode: true } });
   const sources = await readSidecars(host, document);
-  const plan = planModule(sources.resources.keys(), moduleFilesFor(path));
-  const compiled = await compileForm(sources.files, createFakeModules(PACKAGES), {}, plan);
+  const plan = planModule(sources.resources.keys(), moduleFilesFor(path, sources.detached));
+  const compiled = await compileForm(sources.files, createFakeModules(PACKAGES), isolation, plan);
   const contract = extractContract(compiled.modules, plan);
   return { sources, plan, compiled, contract };
 }
@@ -360,6 +369,250 @@ describe('модуль в раскладке «папки по ролям»', ()
 
     expect(contract.files.flow).toBe('flow/zayavka-flow.ts');
     expect(contract.flow?.steps.map((step) => step.id)).toEqual(['shag-1-section']);
+  });
+});
+
+/** Модуль, переложенный под другой корень: путь файла от корня модуля — тот же. */
+function movedTo(root: string): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(ROLES_MODULE).map(([path, text]) => [
+      path.replace('forms/zayavka/', `${root}/`),
+      text,
+    ])
+  );
+}
+
+describe('модуль документа со свободным именем', () => {
+  // Документ лежит среди других (`forms/credit.schema.json`), а его модуль кодоген завёл
+  // подкаталогом `forms/credit/` и положил в него копию документа.
+  const FREE_DOCUMENT = 'fake:forms/credit.schema.json';
+  const FREE_PATH = 'forms/credit.schema.json';
+  const tree = (): Record<string, string> => ({
+    ...movedTo('forms/credit'),
+    [FREE_PATH]: '{ "документ": "открыт в редакторе" }',
+    // Рядом с документом — файл, которого прежнее правило приняло бы за код формы.
+    'forms/form.validation.ts': 'throw new Error("чужой файл исполнять нельзя");',
+  });
+
+  it('находится там, куда его кладёт кодоген, и исполняется по ролям', async () => {
+    const { sources, plan, compiled, contract } = await compileModule(
+      tree(),
+      FREE_DOCUMENT,
+      FREE_PATH
+    );
+
+    expect(sources.detached).toBe(true);
+    expect(plan.layout).toBe('roles');
+    // Страница, сборка приложения и чужой файл рядом с документом не исполнялись.
+    expect(compiled.problems).toEqual([]);
+    expect(appliedArtifacts(contract)).toEqual([
+      'model',
+      'validation',
+      'flow',
+      'behavior',
+      'submit',
+      'registry',
+    ]);
+    // Находка сборки получит адрес файла в подкаталоге модуля.
+    expect(sources.resources.get('application/submit.ts')).toBe(
+      'fake:forms/credit/application/submit.ts'
+    );
+  });
+
+  it('значения и поток модуля доезжают до формы, собранной по открытому документу', async () => {
+    const { contract } = await compileModule(tree(), FREE_DOCUMENT, FREE_PATH);
+    const values = runFactories(contract);
+
+    const bundle = buildRuntimeBundle({
+      schema: WIZARD_SCHEMA,
+      catalog: [],
+      descriptor: DESCRIPTOR,
+      namespace: {},
+      mock: null,
+      extraRegistry: values.registry,
+      initialOverride: values.initial,
+      behavior: contract.behavior,
+      validation: contract.validation,
+      flow: alignFlow(contract.flow, WIZARD_SCHEMA),
+      files: contract.files,
+    });
+
+    expect(bundle.problems).toEqual([]);
+    expect(bundle.form?.model.get()).toMatchObject({ comment: 'из модуля' });
+    await expect(bundle.form?.flow?.next()).resolves.toMatchObject({
+      status: 'stayed',
+      reason: 'invalid',
+    });
+  });
+
+  it('пока код не сгенерирован, читается каталог документа — прежнее правило', async () => {
+    const { sources, plan, contract } = await compileModule(
+      { [FREE_PATH]: '{}', 'forms/model.ts': 'exports.initialFormModel = { loanType: "x" };' },
+      FREE_DOCUMENT,
+      FREE_PATH
+    );
+
+    expect(sources.detached).toBe(false);
+    expect(plan.layout).toBe('flat');
+    expect(appliedArtifacts(contract)).toEqual(['model']);
+  });
+});
+
+describe('словарь замечаний формы', () => {
+  const MESSAGES =
+    'var i18n = require("@reformer/core/i18n");\n' +
+    'exports.formMessages = i18n.defineIssueMessages({\n' +
+    '  required: "Заполните поле",\n' +
+    '  "email.email": "Некорректный email",\n' +
+    '});';
+
+  it('validation/messages.ts исполняется ролью и отдаёт formMessages', async () => {
+    const { compiled, contract } = await compileModule(
+      { ...ROLES_MODULE, 'forms/zayavka/validation/messages.ts': MESSAGES },
+      DOCUMENT,
+      DOCUMENT_PATH
+    );
+
+    expect(compiled.problems).toEqual([]);
+    // Словарь требует точка входа: страницу, которая подключает его в приложении, превью не
+    // исполняет.
+    expect([...compiled.modules.keys()]).toEqual([
+      'model/initial-value.ts',
+      'validation/form.ts',
+      'validation/messages.ts',
+      'flow/zayavka-flow.ts',
+      'behavior/index.ts',
+      'application/submit.ts',
+      'schema/registry.ts',
+    ]);
+    expect(contract.messages).toEqual({
+      required: 'Заполните поле',
+      'email.email': 'Некорректный email',
+    });
+    expect(contract.files.messages).toBe('validation/messages.ts');
+    expect(appliedArtifacts(contract)).toContain('messages');
+  });
+
+  it('модуль без словаря работает как раньше', async () => {
+    const { compiled, contract } = await compileModule(ROLES_MODULE, DOCUMENT, DOCUMENT_PATH);
+
+    expect(compiled.problems).toEqual([]);
+    expect(contract.messages).toBeUndefined();
+    expect(appliedArtifacts(contract)).not.toContain('messages');
+  });
+
+  it('отказ файла словаря — находка с его именем, остальные роли на месте', async () => {
+    const { sources, compiled, contract } = await compileModule(
+      {
+        ...ROLES_MODULE,
+        'forms/zayavka/validation/messages.ts': 'throw new Error("словарь сломан");',
+      },
+      DOCUMENT,
+      DOCUMENT_PATH
+    );
+
+    expect(compiled.problems).toEqual([
+      { file: 'validation/messages.ts', phase: 'evaluate', message: 'словарь сломан' },
+    ]);
+    expect(contract.messages).toBeUndefined();
+    // Форма соберётся из остального: правила, поток, поведение, отправка и реестр исполнились.
+    expect(appliedArtifacts(contract)).toEqual([
+      'model',
+      'validation',
+      'flow',
+      'behavior',
+      'submit',
+      'registry',
+    ]);
+    // По этому пути находка получит адрес файла словаря, а не схемы.
+    expect(sources.resources.get('validation/messages.ts')).toBe(
+      'fake:forms/zayavka/validation/messages.ts'
+    );
+  });
+
+  it('пакет, которого словарю не дали, — та же находка: форма при этом собирается', async () => {
+    // Словарь импортирует `@reformer/core/i18n`; реестр модулей без этого входа его не слинкует.
+    const { '@reformer/core/i18n': _i18n, ...withoutI18n } = PACKAGES;
+    const host = createFakeHost({
+      tree: { ...ROLES_MODULE, 'forms/zayavka/validation/messages.ts': MESSAGES },
+      source: { executesCode: true },
+    });
+    const sources = await readSidecars(host, DOCUMENT);
+    const plan = planModule(sources.resources.keys(), moduleFilesFor(DOCUMENT_PATH));
+    const compiled = await compileForm(sources.files, createFakeModules(withoutI18n), {}, plan);
+
+    expect(compiled.problems).toEqual([
+      {
+        file: 'validation/messages.ts',
+        phase: 'evaluate',
+        message: 'модуль «@reformer/core/i18n» недоступен',
+      },
+    ]);
+    expect(appliedArtifacts(extractContract(compiled.modules, plan))).toContain('validation');
+  });
+});
+
+describe('кит, внесённый плагином: импорт с подпутя', () => {
+  // Синтетический кит `@vendor/hexa`: поле ввода — в главном входе, график — за подпутём.
+  // В реестре модулей оболочки его пакета нет вовсе — компоненты живут в пространстве имён.
+  const Input = (): null => null;
+  const Chart = (): null => null;
+  const namespace: KitNamespace = { Input, Chart };
+  const hexa = toDescriptor({
+    version: '2.1',
+    kit: { id: 'hexa', label: 'Hexa', package: '@vendor/hexa' },
+    components: [
+      { name: 'Input', role: 'field', propsSchema: {} },
+      { name: 'Chart', role: 'container', propsSchema: {}, subpath: 'chart' },
+    ],
+  });
+
+  /** Реестр формы, как его печатает кодоген под таким китом: импорт записи — с её подпутя. */
+  const REGISTRY =
+    'var kit = require("@vendor/hexa");\n' +
+    'var chart = require("@vendor/hexa/chart");\n' +
+    'var rj = require("@reformer/renderer-json");\n' +
+    'exports.seen = { Input: kit.Input, Chart: chart.Chart };\n' +
+    'exports.createRegistry = function () {\n' +
+    '  return rj.defineRegistry(function (reg) {\n' +
+    '    reg.component("Input", kit.Input);\n' +
+    '    reg.component("Chart", chart.Chart);\n' +
+    '  });\n' +
+    '};';
+  const tree = { ...ROLES_MODULE, 'forms/zayavka/schema/registry.ts': REGISTRY };
+
+  it('подпуть резолвится в пространство имён кита — реестр формы линкуется', async () => {
+    const overrides = kitImportOverrides({
+      origin: { kind: 'plugin', pluginId: 'kit-hexa' },
+      descriptor: hexa,
+      namespace,
+    });
+    const { compiled, contract } = await compileModule(tree, DOCUMENT, DOCUMENT_PATH, {
+      overrides,
+    });
+
+    expect(compiled.problems).toEqual([]);
+    // И корень, и подпуть отдали символы одного пространства имён.
+    expect(compiled.modules.get('schema/registry.ts')).toMatchObject({ seen: { Input, Chart } });
+    expect(appliedArtifacts(contract)).toContain('registry');
+    expect(runFactories(contract).problems).toEqual([]);
+  });
+
+  it('контроль — без подстановки подпутя тот же реестр упирается в «модуль недоступен»', async () => {
+    // Так было, пока подставлялся только корень пакета: форма теряла реестр целиком.
+    const rootOnly = new Map<string, unknown>([['@vendor/hexa', namespace]]);
+    const { compiled, contract } = await compileModule(tree, DOCUMENT, DOCUMENT_PATH, {
+      overrides: rootOnly,
+    });
+
+    expect(compiled.problems).toEqual([
+      {
+        file: 'schema/registry.ts',
+        phase: 'evaluate',
+        message: 'модуль «@vendor/hexa/chart» недоступен',
+      },
+    ]);
+    expect(appliedArtifacts(contract)).not.toContain('registry');
   });
 });
 
