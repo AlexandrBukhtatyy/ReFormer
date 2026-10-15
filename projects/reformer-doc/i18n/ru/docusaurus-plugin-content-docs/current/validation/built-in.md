@@ -120,6 +120,10 @@ validate(model.$.name, [minLength(2)]);
 validate(model.$.bio, [maxLength(500)]);
 // minLength → { code: 'minLength', params: { minLength: 2, actualLength: 1 } }
 // maxLength → { code: 'maxLength', params: { maxLength: 500, actualLength: 501 } }
+
+// У массива (мультивыбор, список строк) длина — в элементах, и код свой:
+validate(model.$.skills, [maxLength(3)]);
+// maxLength → { code: 'maxItems', params: { maxLength: 3, actualLength: 4 } } — «Не больше 3 элементов»
 ```
 
 :::tip Непустой массив
@@ -328,35 +332,35 @@ validate(model.$.password, [
 
 ## Справочник
 
-| Категория | Фабрика               | Код ошибки             | `params`                                |
-| --------- | --------------------- | ---------------------- | --------------------------------------- |
-| Общие     | `required()`          | `required`             | —                                       |
-| Общие     | `pattern(regex)`      | `pattern`              | `{ pattern }`                           |
-| Общие     | `email()`             | `email`                | —                                       |
-| Общие     | `url()`               | `url` / `url_protocol` | `{ allowedProtocols }`                  |
-| Общие     | `phone()`             | `phone`                | `{ format }`                            |
-| Длина     | `minLength(n)`        | `minLength`            | `{ minLength, actualLength }`           |
-| Длина     | `maxLength(n)`        | `maxLength`            | `{ maxLength, actualLength }`           |
-| Числа     | `min(n)`              | `min`                  | `{ min, actual }`                       |
-| Числа     | `max(n)`              | `max`                  | `{ max, actual }`                       |
-| Числа     | `isNumber()`          | `isNumber`             | —                                       |
-| Числа     | `integer()`           | `integer`              | —                                       |
-| Числа     | `multipleOf(n)`       | `multipleOf`           | `{ multipleOf }`                        |
-| Числа     | `nonNegative()`       | `nonNegative`          | —                                       |
-| Числа     | `nonZero()`           | `nonZero`              | —                                       |
-| Даты      | `isDate()`            | `date_invalid`         | —                                       |
-| Даты      | `minDate(d)`          | `date_min`             | `{ minDate }`                           |
-| Даты      | `maxDate(d)`          | `date_max`             | `{ maxDate }`                           |
-| Даты      | `pastDate()`          | `date_future`          | —                                       |
-| Даты      | `futureDate()`        | `date_past`            | —                                       |
-| Даты      | `minAge(n)`           | `date_min_age`         | `{ minAge, currentAge }`                |
-| Даты      | `maxAge(n)`           | `date_max_age`         | `{ maxAge, currentAge }`                |
-| Файлы     | `maxFileSize(b)`      | `maxFileSize`          | `{ maxFileSize, fileName, actualSize }` |
-| Файлы     | `minFileSize(b)`      | `minFileSize`          | `{ minFileSize, fileName, actualSize }` |
-| Файлы     | `maxTotalFileSize(b)` | `maxTotalFileSize`     | `{ maxTotalFileSize, actualTotal }`     |
-| Файлы     | `fileType(accept)`    | `fileType`             | `{ accept, fileName }`                  |
-| Файлы     | `minFiles(n)`         | `minFiles`             | `{ minFiles, actualCount }`             |
-| Файлы     | `maxFiles(n)`         | `maxFiles`             | `{ maxFiles, actualCount }`             |
+| Категория | Фабрика               | Код ошибки                          | `params`                                |
+| --------- | --------------------- | ----------------------------------- | --------------------------------------- |
+| Общие     | `required()`          | `required`                          | —                                       |
+| Общие     | `pattern(regex)`      | `pattern`                           | `{ pattern }`                           |
+| Общие     | `email()`             | `email`                             | —                                       |
+| Общие     | `url()`               | `url` / `url_protocol`              | `{ allowedProtocols }`                  |
+| Общие     | `phone()`             | `phone`                             | `{ format }`                            |
+| Длина     | `minLength(n)`        | `minLength`; у массива — `minItems` | `{ minLength, actualLength }`           |
+| Длина     | `maxLength(n)`        | `maxLength`; у массива — `maxItems` | `{ maxLength, actualLength }`           |
+| Числа     | `min(n)`              | `min`                               | `{ min, actual }`                       |
+| Числа     | `max(n)`              | `max`                               | `{ max, actual }`                       |
+| Числа     | `isNumber()`          | `isNumber`                          | —                                       |
+| Числа     | `integer()`           | `integer`                           | —                                       |
+| Числа     | `multipleOf(n)`       | `multipleOf`                        | `{ multipleOf }`                        |
+| Числа     | `nonNegative()`       | `nonNegative`                       | —                                       |
+| Числа     | `nonZero()`           | `nonZero`                           | —                                       |
+| Даты      | `isDate()`            | `date_invalid`                      | —                                       |
+| Даты      | `minDate(d)`          | `date_min`                          | `{ minDate }`                           |
+| Даты      | `maxDate(d)`          | `date_max`                          | `{ maxDate }`                           |
+| Даты      | `pastDate()`          | `date_future`                       | —                                       |
+| Даты      | `futureDate()`        | `date_past`                         | —                                       |
+| Даты      | `minAge(n)`           | `date_min_age`                      | `{ minAge, currentAge }`                |
+| Даты      | `maxAge(n)`           | `date_max_age`                      | `{ maxAge, currentAge }`                |
+| Файлы     | `maxFileSize(b)`      | `maxFileSize`                       | `{ maxFileSize, fileName, actualSize }` |
+| Файлы     | `minFileSize(b)`      | `minFileSize`                       | `{ minFileSize, fileName, actualSize }` |
+| Файлы     | `maxTotalFileSize(b)` | `maxTotalFileSize`                  | `{ maxTotalFileSize, actualTotal }`     |
+| Файлы     | `fileType(accept)`    | `fileType`                          | `{ accept, fileName }`                  |
+| Файлы     | `minFiles(n)`         | `minFiles`                          | `{ minFiles, actualCount }`             |
+| Файлы     | `maxFiles(n)`         | `maxFiles`                          | `{ maxFiles, actualCount }`             |
 
 ## Дальше
 
