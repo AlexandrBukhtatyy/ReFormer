@@ -265,7 +265,7 @@ describe('условные ветки заявки — доступность, �
     model.loan.type = 'mortgage';
     await settle();
 
-    const refused = await bundle.submit(handler);
+    const refused = await bundle.submission.submit(handler);
     expect(refused.status).toBe('invalid');
     expect(issueCodes(form.loan.propertyValue)).toEqual([
       'loan.propertyValue.required',
@@ -280,7 +280,7 @@ describe('условные ветки заявки — доступность, �
       [],
     ]);
     expect(form.valid.value).toBe(true);
-    expect((await bundle.submit(handler)).status).toBe('submitted');
+    expect((await bundle.submission.submit(handler)).status).toBe('submitted');
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
@@ -470,7 +470,7 @@ describe('условные ветки заявки — ручные enable() / d
     const { model, form } = bundle;
 
     form.loan.propertyValue.enable();
-    const refused = await bundle.submit(server.api.submitApplication);
+    const refused = await bundle.submission.submit(server.api.submitApplication);
     expect(refused.status).toBe('invalid');
     expect(issueCodes(form.loan.propertyValue)).toEqual(['loan.collateralTooLow']);
 
@@ -478,7 +478,7 @@ describe('условные ветки заявки — ручные enable() / d
     model.loan.type = 'car';
     await settle();
     expect(form.loan.propertyValue.disabled.value).toBe(true);
-    expect((await bundle.submit(server.api.submitApplication)).status).toBe('submitted');
+    expect((await bundle.submission.submit(server.api.submitApplication)).status).toBe('submitted');
   });
 
   it('CB-12: поведение включает поле внутри выключенной вручную группы', async () => {

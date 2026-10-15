@@ -48,4 +48,10 @@ export interface CreateFormConfigBase<T, B> {
 export interface CoreForm<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
   readonly form: FormGroup<T>;
+  /**
+   * Снять сборку: форму (`disposeForm` — поведение, подписки нод) и уровень формы (живая
+   * проверка, идущие проверки). Фабрика обязана задать его ПОСЛЕ `...level`: `dispose` уровня
+   * форму не снимает.
+   */
+  dispose(): void;
 }

@@ -190,11 +190,11 @@ validate(model.$.birthDate, [validateAdultAge]);
 
 ### Recipe 9 — Результаты уровня формы — сужение по `status`
 
-`bundle.validate()`, `bundle.submit(handler)` и `flow.next()` отвечают дискриминированными
-объединениями: поле результата доступно после проверки `status`, без `as`.
+`bundle.validate()`, `bundle.submission.submit(handler)` и `flow.next()` отвечают
+дискриминированными объединениями: поле результата доступно после проверки `status`, без `as`.
 
 ```typescript
-const outcome = await bundle.submit(api.send); // SubmitResult<Awaited<ReturnType<typeof api.send>>>
+const outcome = await bundle.submission.submit(api.send); // SubmitResult<Awaited<ReturnType<typeof api.send>>>
 if (outcome.status === 'submitted') use(outcome.result);
 else if (outcome.status === 'failed') report(outcome.error);
 else showIssues(outcome.validation.issues); // 'invalid' | 'error' | 'cancelled'

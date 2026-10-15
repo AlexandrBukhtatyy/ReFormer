@@ -170,6 +170,9 @@ export type RootTypes = [
   Root.FormFlowConfig<Shape>,
   Root.FlowStep<Shape>,
   Root.SubmitResult<number>,
+  Root.FormSubmission<Shape>,
+  Root.SubmissionDependencies<Shape>,
+  Root.ActionCheck<Shape>,
   Root.FormFlow,
   Root.FormFlowOptions,
   Root.FlowTransition,
@@ -193,6 +196,7 @@ export type RootValues = [
   typeof Root.safeDebouncedCallback,
   typeof Root.createForm,
   typeof Root.createFormFromModel,
+  typeof Root.disposeForm,
   typeof Root.schemaSubtree,
   typeof Root.compileSchema,
   typeof Root.isCompiledNode,
@@ -200,6 +204,7 @@ export type RootValues = [
   typeof Root.createSchemaScope,
   typeof Root.unknownSchemaSelectors,
   typeof Root.createFormLevel,
+  typeof Root.createSubmission,
   typeof Root.createFormFlow,
   typeof Root.registerSignalNode,
   typeof Root.getNodeForSignal,
@@ -236,6 +241,8 @@ export type ModelEntry = [
   typeof Model.revalidateWhen,
   typeof Model.markDerived,
   typeof Model.runOutsideEffect,
+  typeof Model.deferredWritesSettled,
+  typeof Model.deepEqual,
 ];
 
 /** `./behaviors` — контракт схемы поведения, набор авторинга и операторы. */
@@ -287,6 +294,7 @@ export type ValidationEntry = [
   Validation.ValidationStrategyKind,
   Validation.ValidationStrategyOptions,
   Validation.FormValidationController,
+  Validation.FormValidationRunOptions,
   typeof Validation.defineValidation,
   typeof Validation.validate,
   typeof Validation.validateAsync,

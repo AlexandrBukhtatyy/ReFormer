@@ -1,7 +1,9 @@
 /**
  * Операторы поведения над узлами схемы: видимость, события компонентов, жизненный цикл.
  *
- * Оператор только ЗАПИСЫВАЕТ правило в схему-контроллер; исполняет его рендерер. Там, где схему
+ * Оператор только ЗАПИСЫВАЕТ правило методом узла или области (`addHideCondition`,
+ * `addEventHandler`, `addLifecycleHook`, `addRenderEffect`) и регистрирует его снятие; как правила
+ * хранятся, знает схема-контроллер, а исполняет их рендерер. Там, где схему
  * рисуют руками (JSX без рендерера), правила узлов не действуют — видимость и обработчики
  * остаются в разметке.
  *
@@ -12,7 +14,7 @@
  * @module form/behaviors/schema-operators
  */
 
-import type { NodeLifecycleHooks, SchemaNodeControl, SchemaScope } from '../schema-controller';
+import type { SchemaNodeControl, SchemaScope } from '../schema-controller';
 import { onDisposeIfActive } from './context';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -29,13 +31,7 @@ import { onDisposeIfActive } from './context';
  * ```
  */
 export function hideWhen(node: SchemaNodeControl, condition: () => boolean): void {
-  const { conditionRegistry } = node.__overrideMaps;
-  conditionRegistry.set(node.__selector, condition);
-  onDisposeIfActive(() => {
-    if (conditionRegistry.get(node.__selector) === condition) {
-      conditionRegistry.delete(node.__selector);
-    }
-  });
+  onDisposeIfActive(node.addHideCondition(condition));
 }
 
 /**
@@ -56,17 +52,7 @@ export function onComponentEvent(
   event: string,
   handler: (...args: any[]) => any
 ): void {
-  const { callbackRegistry } = node.__overrideMaps;
-  let handlers = callbackRegistry.get(node.__selector);
-  if (!handlers) {
-    handlers = new Map();
-    callbackRegistry.set(node.__selector, handlers);
-  }
-  handlers.set(event, handler);
-  const registered = handlers;
-  onDisposeIfActive(() => {
-    if (registered.get(event) === handler) registered.delete(event);
-  });
+  onDisposeIfActive(node.addEventHandler(event, handler));
 }
 
 /**
@@ -84,32 +70,7 @@ export function onComponentEvent(
  * ```
  */
 export function renderEffect(schema: SchemaScope, effectFn: () => void | (() => void)): void {
-  const { effectRegistry } = schema.__overrideMaps;
-  effectRegistry.push(effectFn);
-  onDisposeIfActive(() => {
-    const index = effectRegistry.indexOf(effectFn);
-    if (index !== -1) effectRegistry.splice(index, 1);
-  });
-}
-
-function setLifecycleHook<K extends keyof NodeLifecycleHooks>(
-  node: SchemaNodeControl,
-  hook: K,
-  value: NonNullable<NodeLifecycleHooks[K]>
-): void {
-  const { lifecycleRegistry } = node.__overrideMaps;
-  lifecycleRegistry.set(node.__selector, {
-    ...(lifecycleRegistry.get(node.__selector) ?? {}),
-    [hook]: value,
-  });
-  onDisposeIfActive(() => {
-    const hooks = lifecycleRegistry.get(node.__selector);
-    if (hooks?.[hook] !== value) return;
-    const rest = { ...hooks };
-    delete rest[hook];
-    if (Object.keys(rest).length === 0) lifecycleRegistry.delete(node.__selector);
-    else lifecycleRegistry.set(node.__selector, rest);
-  });
+  onDisposeIfActive(schema.addRenderEffect(effectFn));
 }
 
 /**
@@ -140,7 +101,7 @@ export function onInit(_node: SchemaNodeControl, fn: () => void): void {
  * ```
  */
 export function onMount(node: SchemaNodeControl, fn: () => void | (() => void)): void {
-  setLifecycleHook(node, 'onMount', fn);
+  onDisposeIfActive(node.addLifecycleHook('onMount', fn));
 }
 
 /**
@@ -152,7 +113,7 @@ export function onMount(node: SchemaNodeControl, fn: () => void | (() => void)):
  * ```
  */
 export function onUnmount(node: SchemaNodeControl, fn: () => void): void {
-  setLifecycleHook(node, 'onUnmount', fn);
+  onDisposeIfActive(node.addLifecycleHook('onUnmount', fn));
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

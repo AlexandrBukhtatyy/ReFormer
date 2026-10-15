@@ -179,8 +179,8 @@ describe('визард заявки — счастливый путь', () => {
     await passWizardTo(bundle, 'review');
     let submittingInHandler = false;
 
-    const result = await bundle.submit((values) => {
-      submittingInHandler = bundle.submitting.value;
+    const result = await bundle.submission.submit((values) => {
+      submittingInHandler = bundle.submission.submitting.value;
       return server.api.submitApplication(values);
     });
 
@@ -190,7 +190,7 @@ describe('визард заявки — счастливый путь', () => {
     // Производные поля уходят вместе с данными.
     expect(sent.loan.monthlyPayment).toBe(annuityPayment(500_000, 36, 15.9));
     expect(sent.applicant.fullName).toBe('Иванов Иван Иванович');
-    expect([submittingInHandler, bundle.submitting.value]).toEqual([true, false]);
+    expect([submittingInHandler, bundle.submission.submitting.value]).toEqual([true, false]);
     expect(server.callsOf('submitApplication')).toHaveLength(1);
   });
 
@@ -208,7 +208,7 @@ describe('визард заявки — счастливый путь', () => {
     const standalone = await runValidation(model, rules.crossStep);
     expect(resultCodes(standalone, model.$.loan.propertyValue)).toEqual(['loan.collateralTooLow']);
 
-    const result = await bundle.submit(server.api.submitApplication);
+    const result = await bundle.submission.submit(server.api.submitApplication);
 
     expect(result.status).toBe('submitted');
     expect(form.loan.propertyValue.issues.value).toEqual([]);
@@ -227,7 +227,7 @@ describe('визард заявки — счастливый путь', () => {
     expect(bundle.model.paymentToIncomeRatio).toBe(88);
     const handler = vi.fn();
 
-    const result = await bundle.submit(handler);
+    const result = await bundle.submission.submit(handler);
 
     expect(result).toMatchObject({ status: 'invalid', validation: { status: 'invalid' } });
     expect(handler).not.toHaveBeenCalled();
@@ -245,7 +245,7 @@ describe('визард заявки — счастливый путь', () => {
     bundle.model.hasCoBorrowers = false;
     await settle();
 
-    const result = await bundle.submit(server.api.submitApplication);
+    const result = await bundle.submission.submit(server.api.submitApplication);
 
     expect(result.status).toBe('submitted');
     expect(bundle.form.loan.amount.issues.value).toEqual([

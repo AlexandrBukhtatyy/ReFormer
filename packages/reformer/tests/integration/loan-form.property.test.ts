@@ -185,7 +185,9 @@ describe('заявка на кредит — случайная верная з�
                   : { status: 'stayed', step, reason: 'edge', issues: {} }
               );
             }
-            const result = await bundle.submit((values) => server.api.submitApplication(values));
+            const result = await bundle.submission.submit((values) =>
+              server.api.submitApplication(values)
+            );
 
             expect(viewOfSubmit(result)).toMatchObject({ status: 'submitted' });
             const [sent] = server.last('submitApplication').args;

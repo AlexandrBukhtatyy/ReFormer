@@ -275,7 +275,7 @@ describe('validateModel — обёртка с boolean', () => {
 
     await expect(validateModel(model, loginFree)).resolves.toBe(false);
     const level = createFormLevel(model, { validation: loginFree });
-    await expect(level.submit(onSubmit)).resolves.toMatchObject({ status: 'error' });
+    await expect(level.submission.submit(onSubmit)).resolves.toMatchObject({ status: 'error' });
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(form.login.touched.value).toBe(true);

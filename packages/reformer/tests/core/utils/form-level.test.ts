@@ -1,12 +1,10 @@
 /**
- * Уровень формы в бандле `createForm`: `validate`, `validateStep`, `submit` и поток шагов.
+ * Уровень формы в бандле `createForm`: `validate`, `validateStep` и поток шагов.
  *
- * Отправка — один прогон всех правил; результат — объект со статусом, по которому различают
- * замечания, сбой правила, отмену и исключение обработчика. Здесь же — `validateStep` без потока,
- * сигнал `validating`, две отправки подряд (`cancelled`), снимок значений для обработчика,
- * отмена отправки и перехода шага, если модель изменилась, пока шла проверка, проверка в одном
- * тике с правкой (правила ждут отложенных записей поведения) и согласие статуса проверки с
- * агрегатом `valid` формы (выключенные поля, строки массива).
+ * Здесь — `validateStep` без потока, сигнал `validating`, отмена перехода шага, если модель
+ * изменилась, пока шла проверка, проверка в одном тике с правкой (правила ждут отложенных записей
+ * поведения) и согласие статуса проверки с агрегатом `valid` формы (выключенные поля, строки
+ * массива). Отправка — в `submission.test.ts`.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -14,13 +12,7 @@ import { deferred, tick, type Deferred } from '../../test-utils/async';
 import { issueCodes } from '../../test-utils/issues';
 import { InputStub } from '../../test-utils/stubs';
 import { createForm } from '../../../src/form/form-bundle';
-import {
-  compute,
-  computeFrom,
-  defineFormBehavior,
-  enableWhen,
-  onChange,
-} from '../../../src/form/behaviors';
+import { defineFormBehavior, enableWhen, onChange } from '../../../src/form/behaviors';
 import {
   applyEach,
   defineValidation,
@@ -31,31 +23,13 @@ import {
 import { required } from '../../../src/form/validators';
 import type { FormModel } from '../../../src/model/types';
 import type { ValidationIssue } from '../../../src/form/types/contracts';
-import type { SubmitResult } from '../../../src/form/form-level';
-
-interface Shape {
-  amount: string;
-  phone: string;
-}
-
-const loanRules = defineValidation<Shape>(({ model }) => {
-  validate(model.$.amount, [required()]);
-});
-const contactsRules = defineValidation<Shape>(({ model }) => {
-  validate(model.$.phone, [required()]);
-});
-
-const createShape = (initial: Shape = { amount: '', phone: '' }) =>
-  createForm<Shape>({
-    initial,
-    flow: {
-      steps: [
-        { id: 'loan', rules: loanRules },
-        { id: 'contacts', rules: contactsRules },
-        { id: 'confirm' },
-      ],
-    },
-  });
+import {
+  contactsRules,
+  controlledAmountRules,
+  createShape,
+  loanRules,
+  type Shape,
+} from './shape-form.fixture';
 
 describe('createForm — поток шагов', () => {
   it('поток из конфига: шаги по порядку, переход проверяет правила шага', async () => {
@@ -147,77 +121,6 @@ describe('createForm — validate и validateStep', () => {
   });
 });
 
-describe('createForm — submit', () => {
-  it('submitted: обработчик получает значения модели, результат — его ответ', async () => {
-    const bundle = createShape({ amount: '100', phone: '+7' });
-    const handler = vi.fn(async (values: Shape) => `заявка ${values.amount}`);
-
-    const result = await bundle.submit(handler);
-
-    expect(result).toEqual({ status: 'submitted', result: 'заявка 100' });
-    expect(handler).toHaveBeenCalledWith({ amount: '100', phone: '+7' });
-  });
-
-  it('invalid: обработчик не вызывается, поля помечены тронутыми', async () => {
-    const bundle = createShape();
-    const handler = vi.fn();
-
-    const result = await bundle.submit(handler);
-
-    expect(result).toMatchObject({ status: 'invalid', validation: { status: 'invalid' } });
-    expect(handler).not.toHaveBeenCalled();
-    expect(bundle.form.amount.touched.value).toBe(true);
-    expect(bundle.form.amount.shouldShowError.value).toBe(true);
-  });
-
-  it('error: правило не вернуло результат — обработчик не вызывается', async () => {
-    const failing = defineValidation<Shape>(({ model }) => {
-      validateAsync(model.$.amount, [() => Promise.reject(new Error('сеть'))]);
-    });
-    const bundle = createForm<Shape>({ initial: { amount: '1', phone: '' }, validation: failing });
-    const handler = vi.fn();
-
-    expect((await bundle.submit(handler)).status).toBe('error');
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('failed: исключение обработчика — в результате, а не наружу', async () => {
-    const bundle = createShape({ amount: '1', phone: '1' });
-    const error = new Error('500');
-
-    expect(
-      await bundle.submit(() => {
-        throw error;
-      })
-    ).toEqual({ status: 'failed', error });
-    expect(bundle.submitting.value).toBe(false);
-  });
-
-  it('ровно один прогон правил на отправку', async () => {
-    const rule = vi.fn(() => null);
-    const counted = defineValidation<Shape>(({ model }) => {
-      validate(model.$.amount, [rule]);
-    });
-    const bundle = createForm<Shape>({ initial: { amount: '1', phone: '' }, validation: counted });
-
-    await bundle.submit(() => 'ok');
-
-    expect(rule).toHaveBeenCalledTimes(1);
-  });
-
-  it('submitting — пока работает обработчик', async () => {
-    const bundle = createShape({ amount: '1', phone: '1' });
-    let during = false;
-
-    await bundle.submit(() => {
-      during = bundle.submitting.value;
-    });
-
-    expect(during).toBe(true);
-    expect(bundle.submitting.value).toBe(false);
-  });
-});
-
 describe('createForm — выключенные поля в проверке формы', () => {
   // `enableWhen` переключает доступность вне эффекта — на следующем микротаске: тесты ждут `tick()`.
 
@@ -237,7 +140,7 @@ describe('createForm — выключенные поля в проверке ф�
     await tick();
 
     expect(bundle.form.phone.disabled.value).toBe(true);
-    expect(await bundle.submit(handler)).toEqual({ status: 'submitted', result: 'ok' });
+    expect(await bundle.submission.submit(handler)).toEqual({ status: 'submitted', result: 'ok' });
     expect(handler).toHaveBeenCalledTimes(1);
     expect(bundle.form.phone.issues.value).toEqual([]);
   });
@@ -383,21 +286,6 @@ describe('createForm — выключенные поля в проверке ф�
   });
 });
 
-/** Правила суммы с async-правилом: ответы тест выдаёт сам, по порядку вызовов. */
-function controlledAmountRules() {
-  const answers: Deferred<ValidationIssue | null>[] = [];
-  const rules = defineValidation<Shape>(({ model }) => {
-    validateAsync(model.$.amount, [
-      () => {
-        const answer = deferred<ValidationIssue | null>();
-        answers.push(answer);
-        return answer.promise;
-      },
-    ]);
-  });
-  return { answers, rules };
-}
-
 describe('createForm — validateStep без потока и сигнал validating', () => {
   it('validateStep без потока — исключение «поток не задан»', async () => {
     const bundle = createForm<Shape>({ initial: { amount: '', phone: '' }, validation: loanRules });
@@ -459,400 +347,6 @@ describe('createForm — validateStep без потока и сигнал valida
 
     expect(bundle.form.amount.touched.value).toBe(true);
     expect(bundle.form.phone.touched.value).toBe(false);
-  });
-});
-
-describe('createForm — submit: статусы и значения', () => {
-  it('cancelled: две отправки подряд — первая отменена второй, обработчик вызван один раз', async () => {
-    const { answers, rules } = controlledAmountRules();
-    const bundle = createForm<Shape>({ initial: { amount: '1', phone: '' }, validation: rules });
-    const handler = vi.fn(() => 'ok');
-
-    const first = bundle.submit(handler);
-    const second = bundle.submit(handler);
-    answers[1].resolve(null);
-
-    expect(await first).toMatchObject({ status: 'cancelled', validation: { status: 'cancelled' } });
-    expect(await second).toEqual({ status: 'submitted', result: 'ok' });
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
-
-  it.each<[SubmitResult<string>['status'], () => Promise<SubmitResult<string>>]>([
-    ['submitted', () => createShape({ amount: '1', phone: '1' }).submit(() => 'ok')],
-    ['invalid', () => createShape().submit(() => 'ok')],
-    [
-      'error',
-      () =>
-        createForm<Shape>({
-          initial: { amount: '1', phone: '' },
-          validation: defineValidation<Shape>(({ model }) => {
-            validateAsync(model.$.amount, [() => Promise.reject(new Error('сеть'))]);
-          }),
-        }).submit(() => 'ok'),
-    ],
-    [
-      'cancelled',
-      async () => {
-        const { answers, rules } = controlledAmountRules();
-        const bundle = createForm<Shape>({
-          initial: { amount: '1', phone: '' },
-          validation: rules,
-        });
-        const first = bundle.submit(() => 'ok');
-        void bundle.submit(() => 'ok');
-        answers[1].resolve(null);
-        return first;
-      },
-    ],
-    [
-      'failed',
-      () =>
-        createShape({ amount: '1', phone: '1' }).submit(() => {
-          throw new Error('500');
-        }),
-    ],
-  ])('статус %s', async (status, send) => {
-    expect((await send()).status).toBe(status);
-  });
-
-  it('обработчик получает снимок model.get(): правка модели в обработчике снимок не меняет', async () => {
-    const bundle = createShape({ amount: '100', phone: '+7' });
-    let received: Shape | undefined;
-
-    await bundle.submit((values) => {
-      received = values;
-      bundle.model.amount = '200';
-    });
-
-    expect(received).toEqual({ amount: '100', phone: '+7' });
-    expect(Object.getPrototypeOf(received)).toBe(Object.prototype);
-    expect(bundle.model.amount).toBe('200');
-  });
-
-  it('значения выключенного поля в снимке есть: его правила не считаются, но данные — модели', async () => {
-    const bundle = createForm<Shape>({
-      initial: { amount: '', phone: '+7' },
-      behavior: defineFormBehavior<Shape>(({ model }) => {
-        enableWhen(model.$.phone, () => model.amount !== '');
-      }),
-      validation: contactsRules,
-    });
-    await tick();
-    const handler = vi.fn((values: Shape) => values.phone);
-
-    expect(bundle.form.phone.disabled.value).toBe(true);
-    expect(await bundle.submit(handler)).toEqual({ status: 'submitted', result: '+7' });
-    expect(handler).toHaveBeenCalledWith(bundle.model.get());
-  });
-
-  it('ровно один прогон правил на отправку: правила шагов и extras — по разу', async () => {
-    const loanRule = vi.fn(() => null);
-    const contactsRule = vi.fn(() => null);
-    const extrasRule = vi.fn(() => null);
-    const bundle = createForm<Shape>({
-      initial: { amount: '1', phone: '1' },
-      flow: {
-        steps: [
-          {
-            id: 'loan',
-            rules: defineValidation<Shape>(({ model }) => validate(model.$.amount, [loanRule])),
-          },
-          {
-            id: 'contacts',
-            rules: defineValidation<Shape>(({ model }) => validate(model.$.phone, [contactsRule])),
-          },
-        ],
-      },
-      validation: {
-        extras: defineValidation<Shape>(({ model }) => validate(model.$.amount, [extrasRule])),
-      },
-    });
-
-    expect((await bundle.submit(() => 'ok')).status).toBe('submitted');
-    expect(loanRule).toHaveBeenCalledTimes(1);
-    expect(contactsRule).toHaveBeenCalledTimes(1);
-    expect(extrasRule).toHaveBeenCalledTimes(1);
-  });
-
-  it('стратегия blur: отправка — ровно один прогон правил [ReFormer-lzhc]', async () => {
-    const loginFree = vi.fn(async () => null);
-    const bundle = createForm<Shape>({
-      initial: { amount: '1', phone: '1' },
-      validation: {
-        rules: defineValidation<Shape>(({ model }) => validateAsync(model.$.amount, [loginFree])),
-        strategy: 'blur',
-      },
-    });
-    const stop = bundle.validation!.controller.start();
-    try {
-      await bundle.submit(() => 'ok');
-      await tick();
-
-      // Было 2: касание полей самой отправкой (`touch: true`) будило живой прогон blur.
-      expect(loginFree).toHaveBeenCalledTimes(1);
-    } finally {
-      stop();
-    }
-  });
-});
-
-describe('createForm — submit: модель изменилась, пока шла проверка', () => {
-  /** Отправка, которая ждёт ответа async-правила суммы. */
-  function pendingSubmit(initial: Shape = { amount: '1', phone: '+7' }) {
-    const { answers, rules } = controlledAmountRules();
-    const bundle = createForm<Shape>({ initial, validation: rules });
-    const handler = vi.fn((values: Shape) => values.phone);
-    return { answers, bundle, handler, sending: bundle.submit(handler) };
-  }
-
-  it('правка во время async-правила: cancelled, обработчик не вызван [ReFormer-xt4x]', async () => {
-    const { answers, bundle, handler, sending } = pendingSubmit();
-
-    bundle.form.phone.setValue('+7 900');
-    answers[0].resolve(null);
-
-    // Было: submitted — обработчик получал телефон, которого правила не видели.
-    expect(await sending).toMatchObject({
-      status: 'cancelled',
-      validation: { status: 'cancelled', failures: [] },
-    });
-    expect(handler).not.toHaveBeenCalled();
-    expect(bundle.submitting.value).toBe(false);
-  });
-
-  it('правка пришла после макротаска — так правит пользователь: cancelled', async () => {
-    const { answers, bundle, handler, sending } = pendingSubmit();
-    await tick();
-
-    bundle.model.phone = '+7 900';
-    answers[0].resolve(null);
-
-    expect((await sending).status).toBe('cancelled');
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('значение изменили и вернули: модель та же, что видели правила, — submitted', async () => {
-    const { answers, bundle, handler, sending } = pendingSubmit();
-
-    bundle.form.phone.setValue('+7 900');
-    bundle.form.phone.setValue('+7');
-    answers[0].resolve(null);
-
-    expect(await sending).toEqual({ status: 'submitted', result: '+7' });
-    expect(handler).toHaveBeenCalledWith({ amount: '1', phone: '+7' });
-  });
-
-  it('повторная отправка после отмены проверяет уже новые значения', async () => {
-    const { answers, rules } = controlledAmountRules();
-    const bundle = createForm<Shape>({
-      initial: { amount: '1', phone: '+7' },
-      validation: defineValidation<Shape>((scope) => {
-        rules(scope);
-        validate(scope.model.$.phone, [required()]);
-      }),
-    });
-    const handler = vi.fn(() => 'ok');
-    const first = bundle.submit(handler);
-    bundle.form.phone.setValue('');
-    answers[0].resolve(null);
-    expect((await first).status).toBe('cancelled');
-
-    const second = bundle.submit(handler);
-    answers[1].resolve(null);
-
-    expect((await second).status).toBe('invalid');
-    expect(issueCodes(bundle.form.phone)).toEqual(['required']);
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('без правил сверять нечего: обработчик получает модель на момент вызова', async () => {
-    const bundle = createForm<Shape>({ initial: { amount: '1', phone: '+7' } });
-    const handler = vi.fn((values: Shape) => values.phone);
-
-    const sending = bundle.submit(handler);
-    bundle.form.phone.setValue('+7 900');
-
-    expect(await sending).toEqual({ status: 'submitted', result: '+7 900' });
-  });
-
-  it('число NaN равно самому себе: отправка не отменяется', async () => {
-    interface Rate {
-      rate: number;
-    }
-    const bundle = createForm<Rate>({
-      initial: { rate: Number.NaN },
-      validation: defineValidation<Rate>(({ model }) => {
-        validate(model.$.rate, [() => null]);
-      }),
-    });
-
-    expect((await bundle.submit(() => 'ok')).status).toBe('submitted');
-  });
-});
-
-describe('createForm — submit: отложенные записи поведения того же тика', () => {
-  interface Loan {
-    amount: number;
-    /** Комиссия и сумма к выдаче — расчёты: пишутся сразу, вместе с правкой суммы. */
-    fee: number;
-    payout: number;
-    /** Строка итога — `onChange` суммы к выдаче: запись отложена на микротаск. */
-    summary: string;
-    /** Квитанция — `onChange` строки итога: второе звено отложенной цепочки. */
-    receipt: string;
-    /** Залог нужен только крупной сумме; у выключенного поля значение сбрасывается — отложенно. */
-    pledge: string;
-  }
-
-  const INITIAL: Loan = { amount: 100, fee: 0, payout: 0, summary: '', receipt: '', pledge: '' };
-
-  /** Значения заявки с суммой `amount`, когда отработали все записи поведения. */
-  const settledLoan = (amount: number, pledge = ''): Loan => {
-    const payout = amount - amount / 10;
-    return {
-      amount,
-      fee: amount / 10,
-      payout,
-      summary: `к выдаче ${payout}`,
-      receipt: `Квитанция: к выдаче ${payout}`,
-      pledge,
-    };
-  };
-
-  function createLoan(answers?: Deferred<ValidationIssue | null>[]) {
-    return createForm<Loan>({
-      initial: INITIAL,
-      behavior: defineFormBehavior<Loan>(({ model }) => {
-        computeFrom([model.$.amount], model.$.fee, (amount) => amount / 10);
-        compute(model.$.payout, () => model.amount - model.fee);
-        onChange(
-          model.$.payout,
-          (payout) => {
-            model.summary = `к выдаче ${payout}`;
-          },
-          { immediate: true }
-        );
-        onChange(
-          model.$.summary,
-          (summary) => {
-            model.receipt = `Квитанция: ${summary}`;
-          },
-          { immediate: true }
-        );
-        enableWhen(model.$.pledge, () => model.amount >= 1000, { resetOnDisable: true });
-      }),
-      validation: defineValidation<Loan>(({ model }) => {
-        validate(model.$.amount, [required()]);
-        if (answers) {
-          validateAsync(model.$.amount, [
-            () => {
-              const answer = deferred<ValidationIssue | null>();
-              answers.push(answer);
-              return answer.promise;
-            },
-          ]);
-        }
-      }),
-    });
-  }
-
-  it('отправка сразу после сборки: первые записи поведения её не отменяют', async () => {
-    const bundle = createLoan();
-    const handler = vi.fn((values: Loan) => values.receipt);
-
-    // Без ожидания после сборки: строка итога и квитанция ещё не записаны.
-    expect(bundle.model.receipt).toBe('');
-    expect(await bundle.submit(handler)).toEqual({
-      status: 'submitted',
-      result: 'Квитанция: к выдаче 90',
-    });
-    expect(handler).toHaveBeenCalledWith(settledLoan(100));
-  });
-
-  it('правка и отправка в одном тике: цепочка записей доходит до обработчика целиком', async () => {
-    const bundle = createLoan();
-    await tick();
-    const handler = vi.fn((values: Loan) => values);
-
-    bundle.form.amount.setValue(500);
-    const result = await bundle.submit(handler);
-
-    expect(result).toEqual({ status: 'submitted', result: settledLoan(500) });
-  });
-
-  it('правка условия и отправка в одном тике: сброс выключенного поля её не отменяет', async () => {
-    const bundle = createLoan();
-    bundle.model.amount = 2000;
-    await tick();
-    bundle.form.pledge.setValue('автомобиль');
-    await tick();
-    const handler = vi.fn((values: Loan) => values.pledge);
-
-    bundle.form.amount.setValue(300);
-    const result = await bundle.submit(handler);
-
-    expect(result).toEqual({ status: 'submitted', result: '' });
-    expect(bundle.form.pledge.disabled.value).toBe(true);
-  });
-
-  it('то же с async-правилом: записи того же тика отправку не отменяют', async () => {
-    const answers: Deferred<ValidationIssue | null>[] = [];
-    const bundle = createLoan(answers);
-    const handler = vi.fn((values: Loan) => values);
-
-    const sending = bundle.submit(handler);
-    await tick();
-    answers[0].resolve(null);
-
-    expect(await sending).toEqual({ status: 'submitted', result: settledLoan(100) });
-  });
-
-  it('записи отработали, а потом пришла правка: cancelled', async () => {
-    const answers: Deferred<ValidationIssue | null>[] = [];
-    const bundle = createLoan(answers);
-    const handler = vi.fn(() => 'ok');
-
-    const sending = bundle.submit(handler);
-    await tick();
-    bundle.form.amount.setValue(700);
-    await tick();
-    answers[0].resolve(null);
-
-    expect((await sending).status).toBe('cancelled');
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('запись поведения после запроса — уже не тот же тик: cancelled', async () => {
-    interface Address {
-      zip: string;
-      /** Город подставляет поведение по индексу — после ответа справочника. */
-      city: string;
-    }
-    const lookup = deferred<string>();
-    const zipCheck = deferred<ValidationIssue | null>();
-    const bundle = createForm<Address>({
-      initial: { zip: '', city: '' },
-      behavior: defineFormBehavior<Address>(({ model }) => {
-        onChange(model.$.zip, async () => {
-          model.city = await lookup.promise;
-        });
-      }),
-      validation: defineValidation<Address>(({ model }) => {
-        validateAsync(model.$.zip, [() => zipCheck.promise]);
-      }),
-    });
-    const handler = vi.fn(() => 'ok');
-
-    bundle.form.zip.setValue('101000');
-    const sending = bundle.submit(handler);
-    await tick();
-    lookup.resolve('Москва');
-    await tick();
-    zipCheck.resolve(null);
-
-    expect((await sending).status).toBe('cancelled');
-    expect(bundle.model.city).toBe('Москва');
-    expect(handler).not.toHaveBeenCalled();
   });
 });
 
@@ -961,7 +455,7 @@ describe('createForm — проверка в одном тике с правко
     const handler = vi.fn((values: Order) => values);
 
     bundle.form.amount.setValue(2000);
-    const result = await bundle.submit(handler);
+    const result = await bundle.submission.submit(handler);
 
     expect(result).toEqual({ status: 'submitted', result: settledOrder(2000) });
     expect(seen).toEqual([settledOrder(2000)]);
@@ -1141,7 +635,7 @@ describe('createForm — статус проверки и агрегат valid �
   it('submit сразу после createForm не считает правила поля, которое выключает enableWhen [ReFormer-136o]', async () => {
     const bundle = createWithDisabledPhone();
 
-    const result = await bundle.submit(() => 'ok'); // без await tick() после сборки
+    const result = await bundle.submission.submit(() => 'ok'); // без await tick() после сборки
 
     expect(result.status).toBe('submitted');
   });
@@ -1149,7 +643,7 @@ describe('createForm — статус проверки и агрегат valid �
   it('после такой отправки на выключенном поле не остаётся замечаний [ReFormer-136o]', async () => {
     const bundle = createWithDisabledPhone();
 
-    await bundle.submit(() => 'ok');
+    await bundle.submission.submit(() => 'ok');
     await tick();
 
     // Было: поле выключено (form.valid === true), но держало `required` от прогона.
@@ -1160,7 +654,7 @@ describe('createForm — статус проверки и агрегат valid �
     const bundle = createWithDisabledPhone();
     await tick();
 
-    expect((await bundle.submit(() => 'ok')).status).toBe('submitted');
+    expect((await bundle.submission.submit(() => 'ok')).status).toBe('submitted');
   });
 
   interface Row {

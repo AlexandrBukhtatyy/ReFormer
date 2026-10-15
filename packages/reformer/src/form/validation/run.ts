@@ -7,11 +7,16 @@
  * раскладывает собранные ошибки по нодам через реестр «ручка → нода» и гасит поля, ставшие
  * валидными. {@link validateModel} делает оба шага и отвечает одним `boolean`.
  *
+ * Точки контакта валидации с нодами — только здесь и в стратегии (`./strategy`): разнос замечаний,
+ * `pending` полей с async-правилами, касание проверенных полей или всей формы (`touch: 'all'`),
+ * пропуск выключенных нод и триггер `blur`. Правила и схема о нодах не знают.
+ *
  * @group Validation
  * @module form/validation/run
  */
 
 import { batch } from '@preact/signals-core';
+import { deferredWritesSettled } from '../../model/index';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { getNodeForSignal } from '../signal-node-registry';
 import type { ValidationIssue } from '../types/contracts';
@@ -123,6 +128,14 @@ export function cancelRun(model: object, schema: object): void {
   stateRegistry.get(model)?.get(schema)?.ac?.abort();
 }
 
+/**
+ * Какие поля пометить тронутыми при разносе: `false` — никакие, `true` — проверенные правилами,
+ * `'all'` — проверенные, а при отказе (`invalid`, `error`) ещё и всю форму.
+ *
+ * @internal
+ */
+export type ValidationTouch = boolean | 'all';
+
 /** Сколько разносов результата прямо сейчас метят поля `touched` от имени проверки. */
 let touchesByValidation = 0;
 
@@ -131,9 +144,9 @@ let touchesByValidation = 0;
  * уход из поля не принимает: иначе прогон с касанием будил бы лишний живой прогон, а тот отменял
  * бы его самого. Эффекты отрабатывают в конце `batch` — ещё внутри окна.
  *
- * @internal
+ * Окно открывает только раннер: касание всей формы при отказе отправки — опция `touch: 'all'`.
  */
-export function touchByValidation(action: () => void): void {
+function touchByValidation(action: () => void): void {
   touchesByValidation++;
   try {
     batch(action);
@@ -190,10 +203,10 @@ async function collect<T>(
   // Дожидаемся async-правил, но размыкаем ожидание по отмене (устаревший прогон не висит на
   // медленных промисах). Промисы правил не отклоняются: сбой правила записан в `failures`.
   if (ctx.pending.length) await Promise.race([Promise.all(ctx.pending), whenAborted(ac.signal)]);
-  // Без async-правил проверка формы всё равно уступает микротаск: доступность полей `enableWhen`
-  // пишет отложенно, и отправка сразу после сборки или правки условия иначе засчитала бы правила
-  // поля, которое вот-вот выключится.
-  else if (skipDisabled) await Promise.resolve();
+  // Без async-правил проверка формы всё равно ждёт отложенных записей рантайма: доступность полей
+  // `enableWhen` пишется на микротаске, и живой прогон сразу после правки условия иначе засчитал бы
+  // правила поля, которое вот-вот выключится. Записей нет — это один микротаск, как раньше.
+  else if (skipDisabled) await deferredWritesSettled();
   if (skipDisabled) dropInactive(model as FormModel<unknown>, ctx.issues, failures);
 
   // Приоритет статуса: отменённому прогону нельзя доверять вовсе (его async-часть оборвана);
@@ -294,20 +307,29 @@ export function applyValidationResult(
  * стратегии и прогонов шага. На время async-правил держит ноды их полей в `pending`.
  * `skipDisabled` — проверка уровня формы: поля выключенных нод не учитываются.
  *
+ * `touch`: `true` — пометить тронутыми проверенные поля; `'all'` — то же, а при отказе (`invalid`,
+ * `error`) ещё и всю форму: так попытка отправки раскрывает замечания полей, которых правила не
+ * касались. Отменённый результат не разносится и ничего не трогает.
+ *
  * @internal
  */
 export async function runAndApply<T>(
   model: FormModel<T>,
   schema: ValidationDefinition<T>,
-  options?: { touch?: boolean; skipDisabled?: boolean }
+  options?: { touch?: ValidationTouch; skipDisabled?: boolean }
 ): Promise<ValidationResult> {
   const { result, release } = await collect(model, schema, true, options?.skipDisabled);
+  const touch = options?.touch ?? false;
   const write = (): void => {
-    applyValidationResult(result, options);
+    applyValidationResult(result, { touch: touch !== false });
+    if (touch === 'all' && (result.status === 'invalid' || result.status === 'error')) {
+      // Корень формы метит тронутыми все поля, в том числе непроверенные правилами.
+      getNodeForSignal(model.$ as object)?.markAsTouched();
+    }
     release();
   };
   // Окно касания — вокруг внешнего batch: эффекты отрабатывают в его конце.
-  if (options?.touch) touchByValidation(write);
+  if (touch !== false) touchByValidation(write);
   else batch(write);
   return result;
 }

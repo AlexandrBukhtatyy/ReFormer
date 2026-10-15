@@ -162,7 +162,7 @@ const result = await credit.validate(); // либо credit.validateStep('loan'),
 // result.status: 'valid' | 'invalid' | 'error' | 'cancelled'
 // result.issues: Map<ручка поля, замечания>;  result.failures: правила, не вернувшие результат
 
-const outcome = await credit.submit(sendApplication); // SubmitResult
+const outcome = await credit.submission.submit(sendApplication); // SubmitResult
 // outcome.status: 'submitted' | 'invalid' | 'error' | 'cancelled' | 'failed'
 ```
 
@@ -196,8 +196,11 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 
   enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true });
   hideWhen(schema.node('mortgage'), () => !isMortgage());
-  // визард в рендерере зовёт onSubmit через bundle.submit — только после успешной проверки
-  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => sendApplication(values));
+  // визард в рендерере зовёт onSubmit через bundle.submission.submit — только после успешной
+  // проверки; values — модель целиком, с выключенными полями
+  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) =>
+    sendApplication(values)
+  );
   onMount(schema.node('data-boundary'), () => void loadApplication(model));
   renderEffect(schema, () => {
     if (isMortgage()) flow?.goTo('loan'); // поток шагов сборки; без flow — undefined
@@ -246,7 +249,7 @@ const credit = useFormBundle(() =>
     flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] },
   })
 );
-// credit = { model, form, render, flow, validating, submitting, validate, validateStep, submit }
+// credit = { model, form, render, flow, validating, submission, validate, validateStep, dispose }
 
 <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />; // рендерер
 <FormField control={credit.form.loanType} />; // разметка в JSX — та же сборка
@@ -258,14 +261,18 @@ const credit = useFormBundle(() =>
   под-форм — `FormArray`.
 - Повтор `selector` в одной области — исключение при сборке. В dev правило поведения на узел,
   которого нет, и шаг `flow.steps` без узла с таким `selector` дают предупреждение.
-- Уровень формы: `validate()` и `validateStep(id)` → `ValidationResult`, `submit(handler)` →
-  `SubmitResult`, `flow` — поток шагов (`next` / `previous` / `goTo`). См. `38-form-flow.md`.
+- Уровень формы: `validate()` и `validateStep(id)` → `ValidationResult`, отправка — отдельный
+  объект `submission`: `submission.submit(handler)` → `SubmitResult`, `submission.submitting`;
+  `flow` — поток шагов (`next` / `previous` / `goTo`). См. `38-form-flow.md`.
+- `dispose()` снимает сборку: поведение формы, подписки нод, живую проверку; идущие проверки
+  получают `cancelled`, значения модели остаются. Вне React владелец сборки зовёт его сам;
+  `useFormBundle` сборку при размонтировании не снимает.
 - `render` — `{ tree, controller, node(selector) }`: скомпилированная схема (`CompiledSchema`, см.
   `37-compiled-schema.md`) и схема-контроллер сборки.
 - JSON: `createForm({ model, schema: document, registry })` — дерево собирает
   `registry.resolveSchema`. Ядро документ не разбирает.
 - Внутри рендерера бандл доступен компонентам через `useFormBundleContext()` — так визард берёт
-  форму и поток шагов сам и отправляет через `bundle.submit`.
+  форму и поток шагов сам и отправляет через `bundle.submission.submit`.
 
 ### Низкоуровневая фабрика
 
@@ -289,7 +296,7 @@ const credit = useFormBundle(() =>
 | узлы записью `{ email: { model, component } }`     | `{ children: [{ model, component }] }`                  |
 | `Rule<unknown>[]` и `(form: Root)` с приведением   | `Rule<ТипПоля>[]`, `cross` из аргумента схемы           |
 | `try { … } catch { return null }` в async-правиле «на всякий случай» | сбой правила блокирует сам; `catch` — только если проверка необязательна |
-| `validation: { steps: { loan: rules } }`           | `flow: { steps: [{ id: 'loan', rules }] }`              |
-| `required({ message: '…' })`                       | `required({ code: '<поле>.required' })` + `defineIssueMessages` |
-| два узла с одним `selector` в одной области        | разные селекторы — повтор бросает исключение            |
-| отправка `api.send(model.get())` в обход проверки  | `bundle.submit(api.send)`                               |
+| `validation: { steps: { loan: rules } }`                             | `flow: { steps: [{ id: 'loan', rules }] }`                               |
+| `required({ message: '…' })`                                         | `required({ code: '<поле>.required' })` + `defineIssueMessages`          |
+| два узла с одним `selector` в одной области                          | разные селекторы — повтор бросает исключение                             |
+| отправка `api.send(model.get())` в обход проверки                    | `bundle.submission.submit(api.send)`                                     |

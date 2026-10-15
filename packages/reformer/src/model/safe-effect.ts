@@ -135,8 +135,18 @@ let scheduled = 0;
  * Ждёт только микротаски: запись после таймера (debounce) или после `await` в async-callback сюда не
  * входит — это уже не «тот же тик».
  *
+ * Счётчик общий для рантайма, а не для одной модели: отложенные записи ставит {@link runOutsideEffect},
+ * а он моделей не различает. Нужен проверкам «по действию» — отправке и переходу шага: правила должны
+ * увидеть модель после записей поведения того же тика (колбэк `onChange`, сброс `resetOnDisable`).
+ *
  * @returns Промис ожидания; `undefined` — отложенных записей сейчас нет, ждать нечего.
- * @internal
+ *
+ * @example
+ * ```typescript
+ * model.loanType = 'mortgage'; // поведение допишет зависимые поля на микротаске
+ * await deferredWritesSettled();
+ * const values = model.get(); // уже с записями поведения
+ * ```
  */
 export function deferredWritesSettled(): Promise<void> | undefined {
   if (scheduled === 0) return undefined;

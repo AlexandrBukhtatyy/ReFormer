@@ -24,7 +24,7 @@ export type {
 } from './form-bundle';
 
 // Низкоуровневая фабрика: из модели и готового дерева.
-export { createFormFromModel } from './create-form';
+export { createFormFromModel, disposeForm } from './create-form';
 export type { CreateFormFromModelArgs } from './create-form';
 // Поддерево строки массива или подформы — одно на пару «билдер + под-модель».
 export { schemaSubtree } from './schema-subtree';
@@ -63,7 +63,7 @@ export type {
 // Общий конфиг родственных фабрик — `createReactForm` (@reformer/renderer-react) и
 // `createJsonForm` (@reformer/renderer-json).
 export type { CoreForm, CreateFormConfigBase } from './form-config-base';
-// Уровень формы: проверка, отправка с результатом-объектом и поток шагов.
+// Уровень формы: проверка, поток шагов и отправка с результатом-объектом.
 export { createFormLevel } from './form-level';
 export type {
   FormLevel,
@@ -71,8 +71,15 @@ export type {
   FormValidationState,
   FormFlowConfig,
   FlowStep,
-  SubmitResult,
 } from './form-level';
+// Отправка — отдельный объект: `bundle.submission`; без сборки — `createSubmission`.
+export { createSubmission } from './submission';
+export type {
+  ActionCheck,
+  FormSubmission,
+  SubmissionDependencies,
+  SubmitResult,
+} from './submission';
 export { createFormFlow } from './flow/flow';
 export type { FormFlow, FormFlowOptions, FlowTransition, FlowStayReason } from './flow/flow';
 

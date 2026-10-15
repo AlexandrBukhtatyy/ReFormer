@@ -81,9 +81,27 @@ export interface SchemaNodeControl {
    * Компонент обязан принимать `ref`.
    */
   getRef<H>(): { current: H | null };
+  /**
+   * @internal Записать условие скрытия узла (`hideWhen`). Возвращает снятие: оно убирает условие,
+   * только если его не сменило более позднее.
+   */
+  addHideCondition(condition: () => boolean): () => void;
+  /**
+   * @internal Записать обработчик проп-события компонента узла (`onComponentEvent`). Возвращает
+   * снятие: оно убирает обработчик, только если его не сменил более поздний.
+   */
+  addEventHandler(event: string, handler: (...args: any[]) => any): () => void;
+  /**
+   * @internal Записать хук жизненного цикла узла (`onMount`, `onUnmount`). Возвращает снятие: оно
+   * убирает хук, только если его не сменил более поздний.
+   */
+  addLifecycleHook<K extends keyof NodeLifecycleHooks>(
+    hook: K,
+    value: NonNullable<NodeLifecycleHooks[K]>
+  ): () => void;
   /** @internal Селектор узла. */
   __selector: string;
-  /** @internal Хранилище области. */
+  /** @internal Хранилище области — его читает рендерер. */
   __overrideMaps: SchemaOverrideMaps;
 }
 
@@ -95,6 +113,11 @@ export interface SchemaNodeControl {
 export interface SchemaScope {
   /** Управление узлом области по его `selector`. */
   node(selector: string): SchemaNodeControl;
+  /**
+   * @internal Записать эффект, живущий, пока область смонтирована (`renderEffect`). Возвращает
+   * снятие.
+   */
+  addRenderEffect(effect: () => void | (() => void)): () => void;
   /** @internal Хранилище области — его читает рендерер. */
   __overrideMaps: SchemaOverrideMaps;
 }
@@ -157,6 +180,13 @@ export function createSchemaScope(
 
   return {
     __overrideMaps: maps,
+    addRenderEffect(effect) {
+      maps.effectRegistry.push(effect);
+      return () => {
+        const index = maps.effectRegistry.indexOf(effect);
+        if (index !== -1) maps.effectRegistry.splice(index, 1);
+      };
+    },
     node: (selector) => ({
       setHidden(value) {
         maps.hiddenOverrides.set(selector, value);
@@ -188,6 +218,40 @@ export function createSchemaScope(
           maps.refRegistry.set(selector, ref);
         }
         return ref as { current: H | null };
+      },
+      addHideCondition(condition) {
+        maps.conditionRegistry.set(selector, condition);
+        return () => {
+          if (maps.conditionRegistry.get(selector) === condition) {
+            maps.conditionRegistry.delete(selector);
+          }
+        };
+      },
+      addEventHandler(event, handler) {
+        let handlers = maps.callbackRegistry.get(selector);
+        if (!handlers) {
+          handlers = new Map();
+          maps.callbackRegistry.set(selector, handlers);
+        }
+        handlers.set(event, handler);
+        const registered = handlers;
+        return () => {
+          if (registered.get(event) === handler) registered.delete(event);
+        };
+      },
+      addLifecycleHook(hook, value) {
+        maps.lifecycleRegistry.set(selector, {
+          ...(maps.lifecycleRegistry.get(selector) ?? {}),
+          [hook]: value,
+        });
+        return () => {
+          const hooks = maps.lifecycleRegistry.get(selector);
+          if (hooks?.[hook] !== value) return;
+          const rest = { ...hooks };
+          delete rest[hook];
+          if (Object.keys(rest).length === 0) maps.lifecycleRegistry.delete(selector);
+          else maps.lifecycleRegistry.set(selector, rest);
+        };
       },
       __selector: selector,
       __overrideMaps: maps,

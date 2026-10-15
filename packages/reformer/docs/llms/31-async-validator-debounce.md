@@ -4,8 +4,8 @@
 async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<ValidationIssue | null>`.
 Оно регистрируется оператором `validateAsync(sig, [asyncRules])` внутри схемы валидации
 (`@reformer/core/validation`) и исполняется прогоном — уровнем формы (`bundle.validate()`,
-`bundle.submit(handler)`, `flow.next()`) либо раннером `validateModel`. Async-правила прогоняются
-параллельно через `Promise.all`, прогон их дожидается.
+`bundle.submission.submit(handler)`, `flow.next()`) либо раннером `validateModel`. Async-правила
+прогоняются параллельно через `Promise.all`, прогон их дожидается.
 
 Слои разделены: схема формы (билдер `createForm` / JSON) правил НЕ несёт — они живут в
 отдельной функции-схеме `defineValidation<T>(({ model }) => …)`.
@@ -44,7 +44,7 @@ const schema = defineValidation<{ email: string }>(({ model }) => {
 
 // В сборке — прогон уровнем формы:
 const signup = createForm<{ email: string }>({ initial: { email: '' }, validation: schema });
-const outcome = await signup.submit(api.signup); // обработчик — только когда все правила ответили valid
+const outcome = await signup.submission.submit(api.signup); // обработчик — только при valid
 
 // Без сборки — раннер:
 const model = createModel<{ email: string }>({ email: '' });
@@ -74,7 +74,7 @@ const ok = await validateModel(model, schema); // Promise<boolean>
 `bundle.validate()` / `bundle.validateStep(id)` сборки, а для отправки — статус `SubmitResult`:
 
 ```ts
-const outcome = await bundle.submit(api.send);
+const outcome = await bundle.submission.submit(api.send);
 if (outcome.status === 'error') {
   // outcome.validation.failures: [{ handle, error }] — какое правило и почему не вернуло результат
   showToast('Не удалось проверить форму. Повторите попытку');
@@ -131,7 +131,8 @@ return pending ? <Spinner /> : shouldShowIssues ? <Error text={message(issues[0]
 ```
 
 Индикатор прогона всей формы — сигнал `bundle.validating` сборки (`createForm`): он истинен,
-пока идёт полный прогон либо прогон шага; `bundle.submitting` — пока работает обработчик отправки.
+пока идёт полный прогон либо прогон шага; `bundle.submission.submitting` — пока работает обработчик
+отправки.
 
 ### Debounce и отмена
 

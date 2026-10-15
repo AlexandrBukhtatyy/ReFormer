@@ -400,3 +400,61 @@ describe('schema-controller — ключ хранилища и схема обл
     }
   });
 });
+
+describe('schema-controller — методы записи правил', () => {
+  it('addHideCondition: снятие убирает своё условие, но не более позднее', () => {
+    const scope = createSchemaScope();
+    const maps = scope.__overrideMaps;
+    const first = () => true;
+    const second = () => false;
+
+    const removeFirst = scope.node('extra').addHideCondition(first);
+    const removeSecond = scope.node('extra').addHideCondition(second);
+    removeFirst();
+    expect(maps.conditionRegistry.get('extra')).toBe(second);
+
+    removeSecond();
+    expect(maps.conditionRegistry.has('extra')).toBe(false);
+  });
+
+  it('addEventHandler: обработчики событий узла независимы, снятие — только своего', () => {
+    const scope = createSchemaScope();
+    const onSubmit = () => undefined;
+    const onChange = () => undefined;
+
+    const removeSubmit = scope.node('wizard').addEventHandler('onSubmit', onSubmit);
+    scope.node('wizard').addEventHandler('onChange', onChange);
+    removeSubmit();
+
+    const handlers = scope.__overrideMaps.callbackRegistry.get('wizard');
+    expect([handlers?.has('onSubmit'), handlers?.get('onChange')]).toEqual([false, onChange]);
+  });
+
+  it('addLifecycleHook: хуки узла сливаются; снятие последнего убирает запись узла', () => {
+    const scope = createSchemaScope();
+    const mount = () => undefined;
+    const unmount = () => undefined;
+
+    const removeMount = scope.node('panel').addLifecycleHook('onMount', mount);
+    const removeUnmount = scope.node('panel').addLifecycleHook('onUnmount', unmount);
+    expect(scope.__overrideMaps.lifecycleRegistry.get('panel')).toEqual({
+      onMount: mount,
+      onUnmount: unmount,
+    });
+
+    removeMount();
+    expect(scope.__overrideMaps.lifecycleRegistry.get('panel')).toEqual({ onUnmount: unmount });
+    removeUnmount();
+    expect(scope.__overrideMaps.lifecycleRegistry.has('panel')).toBe(false);
+  });
+
+  it('addRenderEffect: эффект области записан до снятия', () => {
+    const scope = createSchemaScope();
+    const effect = () => undefined;
+
+    const remove = scope.addRenderEffect(effect);
+    expect(scope.__overrideMaps.effectRegistry).toEqual([effect]);
+    remove();
+    expect(scope.__overrideMaps.effectRegistry).toEqual([]);
+  });
+});

@@ -35,7 +35,7 @@ npm install @reformer/core@beta # Active development is underway, so you can try
 
 A reactive `FormModel` owns the values, a form schema — a tree of nodes — binds field config
 (component / props) to the model's handles (`model.$.<field>`), and `createForm` assembles the
-model, the form and the form level (`validate`, `submit`, step flow) in one call. Validation is a
+model, the form and the form level (`validate`, `submission`, step flow) in one call. Validation is a
 **separate** contract — `defineValidation` — so the form schema carries no validators. A rule
 reports a code, not a text: the text comes from a form dictionary (`defineIssueMessages`) on top of
 the locale.
@@ -138,11 +138,11 @@ function RegistrationFormExample() {
   const bundle = useFormBundle(createRegistration);
   const { form } = bundle;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // One run of all the rules (sync + async). Issues land on the form nodes and the fields are
-    // marked touched; the handler is called only when the status is 'valid'.
-    const outcome = await bundle.submit((values) => console.log('Form data:', values));
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // One run of all the rules (sync + async). Issues land on the form nodes and, on a refusal,
+    // the whole form is marked touched; the handler is called only when the status is 'valid'.
+    const outcome = await bundle.submission.submit((values) => console.log('Form data:', values));
     if (outcome.status === 'error') console.warn('Could not check the form, try again');
   };
 
@@ -158,10 +158,15 @@ function RegistrationFormExample() {
 }
 ```
 
-`bundle.submit(handler)` returns a `SubmitResult`: `submitted` (with the handler's result),
-`invalid` / `error` / `cancelled` (with the validation result; the handler was not called) or
-`failed` (the handler threw). Multi-step forms declare their steps in the same call —
+Submission is a separate object of the bundle: `bundle.submission.submit(handler)` returns a
+`SubmitResult`: `submitted` (with the handler's result), `invalid` / `error` / `cancelled` (with
+the validation result; the handler was not called) or `failed` (the handler threw). The handler
+receives the whole model, disabled fields included; `bundle.submission.submitting` is `true` while
+it runs. Multi-step forms declare their steps in the same call —
 `createForm({ flow: { steps: [{ id, rules }] } })` — and navigate with `bundle.flow.next()`.
+Outside React, the owner of the bundle releases it with `bundle.dispose()` when the form is no
+longer needed: the behavior, the node subscriptions and the live validation stop, the model keeps
+its values.
 
 ## License
 

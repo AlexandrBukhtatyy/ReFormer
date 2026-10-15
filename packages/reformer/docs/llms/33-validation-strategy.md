@@ -18,8 +18,8 @@
 
 - **сборка `createForm`** — `validation: { rules?, extras?, strategy, debounce, liveAfterSubmit }`.
   Контроллер собирает уровень формы, армирует `useFormBundle` (в эффекте, не при SSR);
-  `bundle.validate()` и `bundle.submit(handler)` — полный прогон с раскрытием замечаний. Это путь
-  по умолчанию для формы со сборкой;
+  `bundle.validate()` и `bundle.submission.submit(handler)` — полный прогон с раскрытием замечаний.
+  Это путь по умолчанию для формы со сборкой;
 - **React-хук `useFormValidation`** из `@reformer/core/react` — для формы без сборки
   (`createFormFromModel` + своя схема);
 - **headless-фабрика `createFormValidation`** из `@reformer/core/validation` — для SSR / тестов /
@@ -45,7 +45,11 @@ function useFormValidation<T>(args: {
   strategy?: ValidationStrategyKind;   // default 'submit'
   debounce?: number;                   // мс, для live-фаз (change / live-часть afterFirstSubmit)
   liveAfterSubmit?: 'change' | 'blur'; // default 'change'
-}): { submit: () => Promise<boolean>; validate: () => Promise<boolean>; isValidating: boolean };
+}): {
+  submit: () => Promise<boolean>;   // попытка отправки: при отказе раскрыта вся форма, afterFirstSubmit → живая фаза
+  validate: () => Promise<boolean>; // проверка без отправки: раскрыты проверенные поля, фаза не меняется
+  isValidating: boolean;
+};
 
 // headless (@reformer/core/validation)
 type ValidationStrategyKind = 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
@@ -54,9 +58,13 @@ interface ValidationStrategyOptions {
   debounce?: number;
   liveAfterSubmit?: 'change' | 'blur';
 }
+interface FormValidationRunOptions {
+  touch?: true | 'all'; // true (default) — проверенные поля; 'all' — при отказе ещё и вся форма
+  submit?: boolean;     // прогон — попытка отправки: afterFirstSubmit → живая фаза
+}
 interface FormValidationController {
-  validate(): Promise<boolean>;        // полный прогон, touch:true (раскрыть ВСЕ ошибки); переводит afterFirstSubmit в live-фазу
-  run(): Promise<ValidationResult>;    // тот же прогон с полным результатом: valid | invalid | error | cancelled
+  validate(): Promise<boolean>;        // нейтральная проверка: touch:true, фазу afterFirstSubmit не трогает; true — только valid
+  run(options?: FormValidationRunOptions): Promise<ValidationResult>; // valid | invalid | error | cancelled
   start(): () => void;                 // армит реактивные подписки (ТОЛЬКО на клиенте) → dispose
   dispose(): void;                     // снять подписки и таймеры, отменить идущий прогон (он получит cancelled)
   readonly isValidating: boolean;
@@ -69,19 +77,36 @@ function createFormValidation<T>(
 ): FormValidationController;
 ```
 
-- `useFormValidation` мемоизирует контроллер по `[model, schema, strategy, debounce, liveAfterSubmit]`,
-  армит стратегию в `useEffect` (SSR-safe), а `submit()` = `controller.validate()`.
+- `useFormValidation` мемоизирует контроллер по
+  `[model, schema, strategy, debounce, liveAfterSubmit]` и армит стратегию в `useEffect`
+  (SSR-safe). `submit()` = `controller.run({ touch: 'all', submit: true })`, `validate()` =
+  `controller.validate()`; обе — стабильные ссылки, отвечают `true` только при `valid`.
 - `createFormValidation` ЧИСТА до `start()` (никаких подписок) → SSR-safe; `start()` возвращает
   `dispose` и арминует триггеры только на клиенте.
 
+### Живая фаза `afterFirstSubmit` — одно правило
+
+Живую фазу включает **только попытка отправки**:
+
+| Вызов                                                           | Попытка отправки | Касание при отказе |
+| --------------------------------------------------------------- | ---------------- | ------------------ |
+| `bundle.submission.submit(handler)`                             | да               | вся форма          |
+| `submit()` хука `useFormValidation`                             | да               | вся форма          |
+| `controller.run({ touch: 'all', submit: true })`                | да               | вся форма          |
+| `bundle.validate()`, `validate()` хука, `controller.validate()` | нет              | проверенные поля   |
+| `bundle.validateStep(id)`, `flow.next()`                        | нет              | поля шага          |
+
+Кнопка «Проверить» — `validate()`: показывает замечания, но форма остаётся в тихой фазе. Отменённая
+отправка (`cancelled`) форму тронутой не помечает.
+
 ### Стратегии
 
-| strategy | когда прогон | touch | раскрытие замечаний |
-| --- | --- | --- | --- |
-| `submit` (default) | только `validate()` / `submit()` (в сборке — `bundle.validate()` / `bundle.submit()`) | `true` | всё на submit |
-| `blur` | каждый уход из поля (потеря фокуса), и повторный тоже | `false` | только сблюренные (по `touched`) |
-| `change` | на каждый ввод (+ `debounce`) | `false` | только редактированные (по `dirty`) |
-| `afterFirstSubmit` | тихо до 1-го submit, затем live (`liveAfterSubmit: 'change'` \| `'blur'`, default `'change'`) | `true` один раз на 1-м submit, дальше `false` | тихо → раскрыть всё на submit → далее live |
+| strategy           | когда прогон                                                                                                                                | touch                                                        | раскрытие замечаний                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| `submit` (default) | только `validate()` / `submit()` (в сборке — `bundle.validate()` / `bundle.submission.submit()`)                                            | `true`                                                       | всё на submit                                |
+| `blur`             | каждый уход из поля (потеря фокуса), и повторный тоже                                                                                       | `false`                                                      | только сблюренные (по `touched`)             |
+| `change`           | на каждый ввод (+ `debounce`)                                                                                                               | `false`                                                      | только редактированные (по `dirty`)          |
+| `afterFirstSubmit` | тихо до первой попытки отправки, затем live (`liveAfterSubmit: 'change'` \| `'blur'`, default `'change'`); `validate()` фазу не переключает | при отправке — вся форма (при отказе), дальше live — `false` | тихо → раскрыть всё на отправке → далее live |
 
 ## Examples
 
@@ -100,10 +125,11 @@ const createRegistration = () =>
 
 function RegistrationForm() {
   const registration = useFormBundle(createRegistration); // армирует живую стратегию в эффекте
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // первый submit раскрывает все замечания и переводит форму в живую фазу
-    await registration.submit(api.save);
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // первая отправка раскрывает все замечания и переводит форму в живую фазу;
+    // registration.validate() фазу не переключает
+    await registration.submission.submit(api.save);
   };
   /* … */
 }
@@ -112,8 +138,9 @@ function RegistrationForm() {
 ### Без сборки — useFormValidation, afterFirstSubmit + debounce
 
 Тихо до первой отправки, `submit()` раскрывает все замечания и переводит форму в живую фазу
-(дальше проверка на ввод с задержкой 400 мс). `submit()` сам метит `touched` — ручной
-`markAsTouched` не нужен.
+(дальше проверка на ввод с задержкой 400 мс). `submit()` сам метит `touched` (при отказе — всю
+форму) — ручной `markAsTouched` не нужен. `validate()` — кнопка «Проверить»: раскрывает замечания
+проверенных полей, а форма остаётся в тихой фазе.
 
 ```tsx
 import { useMemo } from 'react';
@@ -135,15 +162,15 @@ function RegistrationForm() {
   const model = useMemo(() => createModel<RegistrationData>({ username: '', email: '', password: '' }), []);
   const form = useMemo(() => createFormFromModel({ model }), [model]);
 
-  const { submit, isValidating } = useFormValidation({
+  const { submit, validate, isValidating } = useFormValidation({
     model,
     schema: registrationValidation,
     strategy: 'afterFirstSubmit',
     debounce: 400,
   });
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (await submit()) await api.save(model.get()); // true = нет блокирующих ошибок
   };
 
@@ -152,7 +179,12 @@ function RegistrationForm() {
       <FormField control={form.username} />
       <FormField control={form.email} />
       <FormField control={form.password} />
-      <button type="submit" disabled={isValidating}>Отправить</button>
+      <button type="button" onClick={() => void validate()}>
+        Проверить
+      </button>
+      <button type="submit" disabled={isValidating}>
+        Отправить
+      </button>
     </form>
   );
 }
@@ -162,7 +194,9 @@ function RegistrationForm() {
 
 Живая стратегия — свойство формы, а не шага: она задаётся полем `validation` сборки и армируется
 `useFormBundle`. Проверку шага делает поток: «Далее» визарда — `flow.next()`, он прогоняет правила
-текущего шага и не пускает дальше при замечаниях. Отправка — `bundle.submit` (все шаги + `extras`).
+текущего шага и не пускает дальше при замечаниях. Отправка — `bundle.submission.submit` (все
+шаги + `extras`). Живую фазу `afterFirstSubmit` включает только она: `flow.next()` и
+`validateStep` фазу не переключают.
 
 ```tsx
 const createCredit = () =>
@@ -186,7 +220,7 @@ function CreditWizard() {
       form={credit.form}
       flow={credit.flow}
       steps={STEPS}
-      onSubmit={() => void credit.submit(api.save)}
+      onSubmit={() => void credit.submission.submit(api.save)}
     />
   );
 }
@@ -201,12 +235,13 @@ function CreditWizard() {
 ```typescript
 import { createFormValidation } from '@reformer/core/validation';
 
-const ctrl = createFormValidation(model, registrationValidation, {
+const controller = createFormValidation(model, registrationValidation, {
   strategy: 'afterFirstSubmit',
   debounce: 300,
 });
-const dispose = ctrl.start();        // ТОЛЬКО на клиенте (в React — из useEffect)
-const ok = await ctrl.validate();    // submit → раскрыть все ошибки
+const dispose = controller.start(); // ТОЛЬКО на клиенте (в React — из useEffect)
+const checked = await controller.validate(); // проверка: замечания проверенных полей, фаза тихая
+const sent = await controller.run({ touch: 'all', submit: true }); // попытка отправки → живая фаза
 dispose();
 ```
 
@@ -245,12 +280,20 @@ const bundle = useFormBundle(() => createForm({ …, validation: { rules, strate
 
 ```typescript
 // ❌ start() на сервере — арминует реактивные подписки при SSR
-const ctrl = createFormValidation(model, schema, { strategy: 'change' });
-ctrl.start(); // на сервере подписок быть не должно
+const controller = createFormValidation(model, schema, { strategy: 'change' });
+controller.start(); // на сервере подписок быть не должно
 
 // ✅ Фабрика чиста до start(); армить только на клиенте (useFormValidation делает это в useEffect)
-const ctrl = createFormValidation(model, schema, { strategy: 'change' });
-if (typeof window !== 'undefined') ctrl.start();
+const controller = createFormValidation(model, schema, { strategy: 'change' });
+if (typeof window !== 'undefined') controller.start();
+```
+
+```typescript
+// ❌ afterFirstSubmit: ждать живой фазы после проверки — validate() фазу не переключает
+await bundle.validate(); // форма в тихой фазе, ввод не перепроверяется
+
+// ✅ Живую фазу включает попытка отправки
+await bundle.submission.submit(api.save); // без сборки — submit() хука useFormValidation
 ```
 
 ## See also
@@ -259,4 +302,4 @@ if (typeof window !== 'undefined') ctrl.start();
 - [27-revalidate-when.md](./27-revalidate-when.md) — ручные триггеры перевалидации (низкоуровневый примитив)
 - [31-async-validator-debounce.md](./31-async-validator-debounce.md) — async-правила и отмена устаревших прогонов
 - [13-multi-step.md](./13-multi-step.md) — многошаговая форма: поток `flow`, `bundle.validateStep(id)`
-- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `submit`, поток шагов
+- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `submission`, поток шагов

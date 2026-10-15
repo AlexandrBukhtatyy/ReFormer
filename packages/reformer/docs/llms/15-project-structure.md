@@ -121,7 +121,7 @@ export const createCreditApplicationForm = () =>
     flow: creditApplicationFlow,              // steps → bundle.flow, bundle.validateStep(id)
   });
 // The page: <ValidationMessagesProvider messages={creditApplicationMessages}> around the form,
-// <FormWizard form={bundle.form} flow={bundle.flow} … onSubmit={() => bundle.submit(api.send)} />.
+// <FormWizard form={bundle.form} flow={bundle.flow} … onSubmit={() => bundle.submission.submit(api.send)} />.
 ```
 
 ### Scaling up: folders (large forms)
@@ -188,7 +188,7 @@ forms/
     │   ├── load.ts                  # network: fetch the entity and dictionaries
     │   ├── mapping.ts               # server response → model (model.patch + captureInitial)
     │   ├── payload.ts               # form values → request body: drops the computed fields
-    │   ├── submit.ts                # sending and reporting the outcome (handler of bundle.submit)
+    │   ├── submit.ts                # sending and reporting the outcome (handler of bundle.submission.submit)
     │   └── renderer.ts              # node rules for the renderer: loading, submit, navigation (setup)
     │
     ├── components/                  # React layout: steps/, nested-forms/, ui/
@@ -251,11 +251,12 @@ JSX of a step call the same function — a condition is written once.
 
 **Loading and submitting are not behavior.** They belong to `application/`: the page (or, for the
 renderer, `application/renderer.ts` passed as `setup`) calls `load`, hands the response to
-`mapping`, and sends through `bundle.submit(handler)` — one run of all the rules, the handler is
-called only when the form is valid. Written into the model with `model.patch` followed by
-`model.captureInitial()`, the loaded values become the form's starting point: the form is not
-dirty, and `model.reset()` returns to them. The handler receives `model.get()` — all the values;
-`application/payload.ts` drops the computed fields before the request.
+`mapping`, and sends through `bundle.submission.submit(handler)` — one run of all the rules, the
+handler is called only when the form is valid. Written into the model with `model.patch` followed
+by `model.captureInitial()`, the loaded values become the form's starting point: the form is not
+dirty, and `model.reset()` returns to them. The handler receives `model.get()` — the whole model,
+disabled fields included; `application/payload.ts` drops the fields the server does not expect
+(computed ones) before the request.
 
 Rule of thumb for this layout: **one folder per question; a step is declared once, in the flow;
 the root holds only the entry component.**

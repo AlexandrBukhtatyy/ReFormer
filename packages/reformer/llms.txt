@@ -53,31 +53,34 @@
 
 Значения живут в **модели** (`createModel`), а форма (`createForm`) строит ноды поверх сигналов модели. Схема, правила и поведение привязываются к ручкам модели (`model.$.field`), а не к строковым путям.
 
-| What                                                                                                   | Where                       |
-| ------------------------------------------------------------------------------------------------------ | --------------------------- |
-| `createModel`, `createForm`, `createFormFromModel`, `arrayOf`, `modelOf`                               | `@reformer/core`            |
-| `compileSchema`, `createFormFlow`, `createFormLevel`, `getNodeForSignal`                               | `@reformer/core`            |
-| `isFormNode`, `isFormControl`, `isFormGroup`, `isFormArray` (гарды нод)                                | `@reformer/core`            |
-| `FormModel`, `FormBundle`, `FormNode`, `FormControl`, `FormGroup`, `FormArray`, `FormFields`           | `@reformer/core`            |
-| `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                           | `@reformer/core`            |
-| `ValidationIssue`, `RuleOptions`, `FormSchemaNode`, `ComponentRef`, `CompiledSchema`                   | `@reformer/core`            |
-| `FormValidation`, `FormFlowConfig`, `FormFlow`, `FlowTransition`, `SubmitResult`                       | `@reformer/core`            |
-| `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`                  | `@reformer/core/validation` |
-| `validateModel`, `runValidation`, `applyValidationResult` (раннер), `createFormValidation`             | `@reformer/core/validation` |
-| `Rule`, `AsyncRule`, `ValidationDefinition`, `ValidationScope`, `ValidationResult` (типы)              | `@reformer/core/validation` |
-| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`        | `@reformer/core/react`      |
-| `useFormFlow`, `FormBundleContext`, `useFormBundleContext`                                             | `@reformer/core/react`      |
-| `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля)  | `@reformer/core/react`      |
-| `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                            | `@reformer/core/react`      |
-| `defineIssueMessages`, `resolveIssueMessage`, `createI18n`, `extendLocale`, `createLocaleLoader`       | `@reformer/core/i18n`       |
+| What                                                                                                   | Where                                            |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| `createModel`, `createForm`, `createFormFromModel`, `disposeForm`, `arrayOf`, `modelOf`                | `@reformer/core`                                 |
+| `compileSchema`, `createFormFlow`, `createFormLevel`, `createSubmission`, `getNodeForSignal`           | `@reformer/core`                                 |
+| `isFormNode`, `isFormControl`, `isFormGroup`, `isFormArray` (гарды нод)                                | `@reformer/core`                                 |
+| `FormModel`, `FormBundle`, `FormNode`, `FormControl`, `FormGroup`, `FormArray`, `FormFields`           | `@reformer/core`                                 |
+| `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                           | `@reformer/core`                                 |
+| `ValidationIssue`, `RuleOptions`, `FormSchemaNode`, `ComponentRef`, `CompiledSchema`                   | `@reformer/core`                                 |
+| `FormValidation`, `FormFlowConfig`, `FormFlow`, `FlowTransition`, `SubmitResult`                       | `@reformer/core`                                 |
+| `FormSubmission`, `SubmissionDependencies`, `ActionCheck` (отправка)                                   | `@reformer/core`                                 |
+| `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`                  | `@reformer/core/validation`                      |
+| `validateModel`, `runValidation`, `applyValidationResult` (раннер), `createFormValidation`             | `@reformer/core/validation`                      |
+| `Rule`, `AsyncRule`, `ValidationDefinition`, `ValidationScope`, `ValidationResult` (типы)              | `@reformer/core/validation`                      |
+| `FormValidationController`, `FormValidationRunOptions`, `ValidationStrategyKind` (типы стратегии)      | `@reformer/core/validation`                      |
+| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`        | `@reformer/core/react`                           |
+| `useFormFlow`, `FormBundleContext`, `useFormBundleContext`                                             | `@reformer/core/react`                           |
+| `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля)  | `@reformer/core/react`                           |
+| `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                            | `@reformer/core/react`                           |
+| `defineIssueMessages`, `resolveIssueMessage`, `createI18n`, `extendLocale`, `createLocaleLoader`       | `@reformer/core/i18n`                            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |
-| `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                 | `@reformer/core/validators` |
-| `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators` |
-| `isDate`, `minDate`, `maxDate`, `pastDate`, `futureDate`, `minAge`, `maxAge`                           | `@reformer/core/validators` |
-| `defineFormBehavior`, `compute`, `computeFrom`, `copyFrom`, `onChange`, `enableWhen`, `disableWhen`    | `@reformer/core/behaviors`  |
-| `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen`, `apply`, `applyEach`, `aggregateInto`   | `@reformer/core/behaviors`  |
-| `exclusiveFlag`, `onDispose`, `getScope`, `effect`, `defer`                                            | `@reformer/core/behaviors`  |
-| `hideWhen`, `onComponentEvent`, `renderEffect`, `onInit`, `onMount`, `onUnmount` (узлы схемы)          | `@reformer/core/behaviors`  |
+| `deepEqual`, `deferredWritesSettled` (сравнение значений, ожидание отложенных записей поведения)       | `@reformer/core/model`                           |
+| `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                 | `@reformer/core/validators`                      |
+| `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators`                      |
+| `isDate`, `minDate`, `maxDate`, `pastDate`, `futureDate`, `minAge`, `maxAge`                           | `@reformer/core/validators`                      |
+| `defineFormBehavior`, `compute`, `computeFrom`, `copyFrom`, `onChange`, `enableWhen`, `disableWhen`    | `@reformer/core/behaviors`                       |
+| `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen`, `apply`, `applyEach`, `aggregateInto`   | `@reformer/core/behaviors`                       |
+| `exclusiveFlag`, `onDispose`, `getScope`, `effect`, `defer`                                            | `@reformer/core/behaviors`                       |
+| `hideWhen`, `onComponentEvent`, `renderEffect`, `onInit`, `onMount`, `onUnmount` (узлы схемы)          | `@reformer/core/behaviors`                       |
 
 > **Корень `@reformer/core` без React.** Хуки, контекст сборки, связка поля с контролом и
 > провайдер локали — только из `@reformer/core/react`. Корень работает на сервере и с любым слоем
@@ -96,9 +99,9 @@
 > `Rule<T> = (value: T) => ValidationIssue | null` и передаются массивом в `validate(sig, [...])`.
 > Правила отдают сборке: `createForm({ validation, flow })`. Запуск — уровнем формы:
 > `bundle.validate()` (`ValidationResult` со статусом `valid` / `invalid` / `error` / `cancelled`),
-> `bundle.validateStep(id)`, `bundle.submit(handler)` (`SubmitResult`). Без сборки — раннер
-> `validateModel(model, rules)` (`Promise<boolean>`) либо `runValidation` (полный результат).
-> См. `38-form-flow.md`.
+> `bundle.validateStep(id)`, отправка `bundle.submission.submit(handler)` (`SubmitResult`). Без
+> сборки — раннер `validateModel(model, rules)` (`Promise<boolean>`) либо `runValidation` (полный
+> результат). Снять сборку — `bundle.dispose()`. См. `38-form-flow.md`.
 
 > **Текста у замечания нет.** `ValidationIssue = { code, params?, severity? }`; строку по коду
 > даёт словарь формы (`defineIssueMessages`) поверх словаря локали. Опции правил —
@@ -149,8 +152,8 @@ const { value, issues, disabled } = useFormControl(control.loanType);
 (`model: model.$.field`). Сборка идёт ОДНИМ вызовом `createForm`: он создаёт модель, строит форму,
 запускает поведение и собирает уровень формы — проверку и отправку. Правил в схеме нет — они
 живут в отдельной схеме `defineValidation` из `@reformer/core/validation` и уходят в сборку полем
-`validation`; запускает их `bundle.submit(handler)` / `bundle.validate()`. Текста у правил нет:
-правило несёт код, строку по коду даёт словарь формы (`defineIssueMessages`).
+`validation`; запускает их `bundle.submission.submit(handler)` / `bundle.validate()`. Текста у
+правил нет: правило несёт код, строку по коду даёт словарь формы (`defineIssueMessages`).
 
 ```typescript
 import { createForm, type FormModel, type FormGroup, type FormSchemaNode } from '@reformer/core';
@@ -210,11 +213,11 @@ function ContactFormComponent() {
   const contact = useFormBundle(createContactForm);
   const { form } = contact;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Один прогон всех правил: при замечаниях обработчик не вызывается, а поля помечаются
-    // тронутыми — FormField покажет замечания.
-    const outcome = await contact.submit((values) => api.send(values));
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // Один прогон всех правил: при замечаниях обработчик не вызывается, а вся форма помечается
+    // тронутой — FormField покажет замечания.
+    const outcome = await contact.submission.submit((values) => api.send(values));
     if (outcome.status === 'submitted') console.log('Form submitted');
   };
 
@@ -243,11 +246,12 @@ function FormStep({ form }: FormStepProps) {
 > константой модуля. Иначе форма пересоздаётся на каждый рендер. См. `28-submit-and-reset.md`,
 > `29-async-preload.md`.
 
-> **Проверка и отправка — уровень формы.** `bundle.submit(handler)` прогоняет все правила один раз
-> и зовёт обработчик только при статусе `valid`; результат — `SubmitResult`
-> (`submitted` / `invalid` / `error` / `cancelled` / `failed`). `bundle.validate()` проверяет всю
-> форму и отвечает `ValidationResult`. У нод методов `validate()` / `submit()` нет. Многошаговая
-> форма — `createForm({ flow: { steps: [{ id, rules }] } })`, см. `38-form-flow.md`.
+> **Проверка и отправка — уровень формы.** Отправка — отдельный объект сборки:
+> `bundle.submission.submit(handler)` прогоняет все правила один раз и зовёт обработчик только при
+> статусе `valid`; результат — `SubmitResult` (`submitted` / `invalid` / `error` / `cancelled` /
+> `failed`). `bundle.validate()` проверяет всю форму и отвечает `ValidationResult`. У нод методов
+> `validate()` / `submit()` нет. Многошаговая форма — `createForm({ flow: { steps: [{ id, rules }] } })`,
+> см. `38-form-flow.md`. Вне React сборку снимают `bundle.dispose()`, когда форма больше не нужна.
 
 ### Arrays of objects — узел `{ model, item }`
 
@@ -340,16 +344,31 @@ createForm<T extends object>({
   flow?,                             // { steps: [{ id, rules? }] } — id = selector узла шага
   seed?, setup?,
 }): FormBundle<T>
-// bundle = { model, form, render, flow, validating, submitting, validate, validateStep, submit }
+// bundle = { model, form, render, flow, validating, submission, validate, validateStep, dispose }
 //   (+ служебное validation: { rules, controller } | undefined — его армирует useFormBundle)
 // await bundle.validate()           → ValidationResult (вся форма; замечания показываются)
 // await bundle.validateStep('loan') → ValidationResult (правила шага; неизвестный шаг — исключение)
-// await bundle.submit(handler)      → SubmitResult<R> (один прогон; обработчик — только при valid)
+// await bundle.submission.submit(handler) → SubmitResult<R> (один прогон; обработчик — только при valid)
+// bundle.submission.submitting      → ReadonlySignal<boolean> (работает обработчик)
 // bundle.flow?.next() / previous() / goTo(id) → FlowTransition
 // bundle.render.tree                → CompiledSchema (см. 37-compiled-schema.md)
+// bundle.dispose()                  → снять сборку: поведение, подписки нод, живую проверку;
+//                                     идущие проверки — cancelled; модель остаётся; идемпотентно
+
+// Отправка — отдельный объект сборки (`bundle.submission`)
+interface FormSubmission<T> {
+  readonly submitting: ReadonlySignal<boolean>; // работает обработчик; пока идёт проверка — false
+  submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
+}
+// Без сборки (визард в разметке без createForm): check: undefined — отправка без проверки
+createSubmission<T>(dependencies: {
+  check: (() => Promise<ActionCheck<T>>) | undefined; // ActionCheck = { result, values, stale }
+  values: () => T;
+}): FormSubmission<T>
 
 // Низкоуровневая фабрика: форма из готовых модели и дерева, без уровня формы
 createFormFromModel<T>({ model, schema?, behavior? }): FormGroup<T>
+disposeForm<T>(form: FormGroup<T>): void // снять такую форму: поведение и подписки нод; модель остаётся
 ```
 
 ### Form nodes
@@ -536,13 +555,32 @@ type ValidationDefinition<T> = (scope: ValidationScope<T>) => void;
 | `defineValidation<T>(fn): ValidationDefinition<T>` | тонкая identity-обёртка (типизация/discoverability) |
 
 Прогон. В сборке — уровень формы (`bundle.validate()`, `bundle.validateStep(id)`,
-`bundle.submit(handler)`, см. [38-form-flow.md](./38-form-flow.md)). Без сборки — раннер:
+`bundle.submission.submit(handler)`, см. [38-form-flow.md](./38-form-flow.md)). Без сборки — раннер
+либо контроллер стратегии:
 
-| Функция | Что делает |
-|---|---|
-| `validateModel(model, schema, { touch }?)` | сбор + разнос; `true` только при статусе `valid` |
-| `runValidation(model, schema)` | только сбор: `Promise<ValidationResult>`, ноды не трогает |
-| `applyValidationResult(result, { touch }?)` | разнос собранного результата по нодам формы |
+| Функция                                         | Что делает                                                                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `validateModel(model, schema, { touch }?)`      | сбор + разнос; `true` только при статусе `valid`                                                                                           |
+| `runValidation(model, schema)`                  | только сбор: `Promise<ValidationResult>`, ноды не трогает                                                                                  |
+| `applyValidationResult(result, { touch }?)`     | разнос собранного результата по нодам формы                                                                                                |
+| `createFormValidation(model, schema, options?)` | контроллер стратегии: `validate()`, `run(options?)`, `start()`, `dispose()` — см. [33-validation-strategy.md](./33-validation-strategy.md) |
+
+```typescript
+// Контроллер стратегии (@reformer/core/validation)
+controller.validate(): Promise<boolean>; // нейтральная проверка: проверенные поля touched, фаза не меняется
+controller.run(options?: FormValidationRunOptions): Promise<ValidationResult>;
+interface FormValidationRunOptions {
+  touch?: true | 'all'; // 'all' — при отказе (invalid, error) тронуть всю форму
+  submit?: boolean;     // попытка отправки: переводит afterFirstSubmit в живую фазу
+}
+
+// Хук без сборки (@reformer/core/react)
+useFormValidation({ model, schema, strategy?, debounce?, liveAfterSubmit? }): {
+  submit: () => Promise<boolean>;   // попытка отправки: при отказе раскрыта вся форма
+  validate: () => Promise<boolean>; // проверка без отправки: фаза afterFirstSubmit не меняется
+  isValidating: boolean;
+}
+```
 
 ```typescript
 type ValidationStatus = 'valid' | 'invalid' | 'cancelled' | 'error';
@@ -731,6 +769,17 @@ syncFields(a: Signal, b: Signal, options?: { transform?: (v) => v }): () => void
 revalidateWhen(deps: ReadonlySignal[], revalidate: () => void): () => void
 ```
 
+Утилиты значений там же, в `@reformer/core/model`:
+
+```typescript
+// сравнение значений модели: объекты и массивы — по содержимому, даты — по времени, NaN равен себе;
+// на нём стоят isDirty и сверка «модель изменилась, пока шла проверка» при отправке и переходе шага
+deepEqual(first: unknown, second: unknown): boolean
+// дождаться отложенных записей поведения текущего тика (onChange, resetOnDisable);
+// undefined — ждать нечего
+deferredWritesSettled(): Promise<void> | undefined
+```
+
 ```typescript
 import { computeFrom, copyFrom } from '@reformer/core/model';
 
@@ -844,14 +893,14 @@ model.get();             // весь объект-снимок
 ### Submit + validation
 
 Валидация — отдельная `ValidationDefinition<T>` (`defineValidation`), а не часть layout; в сборку
-она уходит полем `validation`. `bundle.submit(handler)` прогоняет все правила один раз, разносит
-замечания по нодам и зовёт обработчик только при статусе `valid` (`severity: 'warning'` не
+она уходит полем `validation`. `bundle.submission.submit(handler)` прогоняет все правила один раз,
+разносит замечания по нодам и зовёт обработчик только при статусе `valid` (`severity: 'warning'` не
 блокирует). Результат — `SubmitResult`.
 
 ```typescript
-async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  const outcome = await bundle.submit(async (values) => {
+async function handleSubmit(event: React.FormEvent) {
+  event.preventDefault();
+  const outcome = await bundle.submission.submit(async (values) => {
     await api.send(values);
     bundle.model.reset(); // к initial-снимку — только после успеха
   });
@@ -1053,9 +1102,9 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 
 Валидация — **отдельный слой** (`@reformer/core/validation`), а не ключ узла. Схема формы
 (билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationDefinition` и уходят в
-сборку полем `validation` (шаги — `flow`). Запуск — уровнем формы: `bundle.submit(handler)`,
-`bundle.validate()`, `bundle.validateStep(id)`; без сборки — `validateModel(model, schema)`. У нод
-методов `validate()` / `submit()` нет.
+сборку полем `validation` (шаги — `flow`). Запуск — уровнем формы:
+`bundle.submission.submit(handler)`, `bundle.validate()`, `bundle.validateStep(id)`; без сборки —
+`validateModel(model, schema)`. У нод методов `validate()` / `submit()` нет.
 
 ```typescript
 // ❌ WRONG - ключей value и validators у узла нет, как и записи «имя → узел»
@@ -1083,7 +1132,7 @@ export const formMessages = defineIssueMessages({
 
 // прогон — уровнем формы: замечания сами доезжают до нод, warnings не блокируют.
 // Отклонённое async-правило — сбой: статус `error`, на поле замечание `ruleFailed`.
-const outcome = await bundle.submit(api.send); // createForm({ …, validation: emailSchema })
+const outcome = await bundle.submission.submit(api.send); // createForm({ …, validation: emailSchema })
 ```
 
 ### Cross-field — оператор `cross`, а не `ctx.form`
@@ -1157,20 +1206,20 @@ if (isFormArray(node)) node.push();
 
 **troubleshooting**
 
-| Error                                                  | Cause                                                    | Solution                                          |
-| ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------- |
-| `'message' does not exist in type 'RuleOptions'`       | Текст передан в правило — у правил текста нет            | `required({ code: 'phone.required' })` + запись `'phone.required'` в `defineIssueMessages`; см. 36-issue-messages.md |
-| `'string' is not assignable to 'RuleOptions'`          | Валидатору передали строку вместо options                | `required({ code: 'field.required' })`            |
-| `Module has no exported member`                        | Неверный источник импорта                                | хуки и `I18nProvider` — из `@reformer/core/react`; `watchField`/примитивы — из `@reformer/core/model`; DSL — из `@reformer/core/behaviors`; фабрики — из `@reformer/core/validators`; удалённое — 17-nonexistent-api.md |
-| `undefined` из `useFormControlValue`                   | Деструктурировали хук                                    | `const v = useFormControlValue(...)` — без деструктуризации |
-| `enableWhen`/`disableWhen` не срабатывает              | Поле не материализовано в форме (элемент массива)        | Убедись, что поле есть в схеме `createForm`; для per-item — `applyEach` |
-| `Cycle detected`                                       | Взаимные `compute`/`computeFrom` без стабилизации        | Разорви цикл через условие `when` или `peek`; см. 22-cycle-detection.md |
-| Значение поля не пишется                               | Пишем в форму вместо модели                              | Значения принадлежат модели: `model.field = ...` / `model.$.field.value = ...` / `form.field.setValue(...)` |
-| Замечания не появляются после submit                   | Отправка в обход проверки (`api.send(model.get())`)      | `await bundle.submit(handler)` — один прогон правил, поля помечаются тронутыми; без сборки — `await validateModel(model, schema)` |
-| На поле текст вида `loanAmount.required`               | Свой код правила без записи в словаре формы              | Добавь код в `defineIssueMessages` и подключи `ValidationMessagesProvider messages` (cdk) |
-| `compileSchema: в области «#» селектор «X» повторяется` | Два узла с одним `selector` в одной области схемы       | Разные селекторы; см. 37-compiled-schema.md       |
-| `createForm: шага «X» нет в потоке` / `FormFlow: шага «X» нет` | `validateStep(id)` / `flow.goTo(id)` с неизвестным шагом | `id` — из `flow.steps`; см. 38-form-flow.md |
-| `flow.goTo(id)` вернул `reason: 'locked'`              | Прыжок вперёд через непройденный шаг                     | Вперёд — `flow.next()`; `goTo` — назад и на открытые шаги |
+| Error                                                          | Cause                                                    | Solution                                                                                                                                                                                                                |
+| -------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'message' does not exist in type 'RuleOptions'`               | Текст передан в правило — у правил текста нет            | `required({ code: 'phone.required' })` + запись `'phone.required'` в `defineIssueMessages`; см. 36-issue-messages.md                                                                                                    |
+| `'string' is not assignable to 'RuleOptions'`                  | Валидатору передали строку вместо options                | `required({ code: 'field.required' })`                                                                                                                                                                                  |
+| `Module has no exported member`                                | Неверный источник импорта                                | хуки и `I18nProvider` — из `@reformer/core/react`; `watchField`/примитивы — из `@reformer/core/model`; DSL — из `@reformer/core/behaviors`; фабрики — из `@reformer/core/validators`; удалённое — 17-nonexistent-api.md |
+| `undefined` из `useFormControlValue`                           | Деструктурировали хук                                    | `const v = useFormControlValue(...)` — без деструктуризации                                                                                                                                                             |
+| `enableWhen`/`disableWhen` не срабатывает                      | Поле не материализовано в форме (элемент массива)        | Убедись, что поле есть в схеме `createForm`; для per-item — `applyEach`                                                                                                                                                 |
+| `Cycle detected`                                               | Взаимные `compute`/`computeFrom` без стабилизации        | Разорви цикл через условие `when` или `peek`; см. 22-cycle-detection.md                                                                                                                                                 |
+| Значение поля не пишется                                       | Пишем в форму вместо модели                              | Значения принадлежат модели: `model.field = ...` / `model.$.field.value = ...` / `form.field.setValue(...)`                                                                                                             |
+| Замечания не появляются после submit                           | Отправка в обход проверки (`api.send(model.get())`)      | `await bundle.submission.submit(handler)` — один прогон правил, при отказе вся форма помечается тронутой; без сборки — `await validateModel(model, schema)`                                                             |
+| На поле текст вида `loanAmount.required`                       | Свой код правила без записи в словаре формы              | Добавь код в `defineIssueMessages` и подключи `ValidationMessagesProvider messages` (cdk)                                                                                                                               |
+| `compileSchema: в области «#» селектор «X» повторяется`        | Два узла с одним `selector` в одной области схемы        | Разные селекторы; см. 37-compiled-schema.md                                                                                                                                                                             |
+| `createForm: шага «X» нет в потоке` / `FormFlow: шага «X» нет` | `validateStep(id)` / `flow.goTo(id)` с неизвестным шагом | `id` — из `flow.steps`; см. 38-form-flow.md                                                                                                                                                                             |
+| `flow.goTo(id)` вернул `reason: 'locked'`                      | Прыжок вперёд через непройденный шаг                     | Вперёд — `flow.next()`; `goTo` — назад и на открытые шаги                                                                                                                                                               |
 
 ## 7. Import Patterns
 
@@ -1182,6 +1231,8 @@ import {
   createModel,
   createForm,
   createFormFromModel,
+  disposeForm, // снять форму из createFormFromModel; сборку снимает bundle.dispose()
+  createSubmission, // отправка без сборки (визард в разметке без createForm)
   arrayOf, // массив модели с шаблоном новой строки
   compileSchema, // авторское дерево → CompiledSchema (обычно не нужен: createForm компилирует сам)
   createFormFlow, // поток шагов без сборки
@@ -1197,6 +1248,7 @@ import {
   useFormControlValue,
   useArrayLength,
   useFormFlow, // снимок потока шагов для рендера
+  useFormValidation, // стратегия без сборки: submit() — попытка отправки, validate() — проверка
   useIssueMessage, // текст замечания: словарь формы → локаль → английский → код
   I18nProvider,
 } from '@reformer/core/react';
@@ -1205,7 +1257,7 @@ import type { FieldControlState } from '@reformer/core/react';
 // Типы
 import type {
   FormModel, // реактивная модель данных
-  FormBundle, // результат createForm: { model, form, render, flow, validate, validateStep, submit, … }
+  FormBundle, // результат createForm: { model, form, render, flow, validate, validateStep, submission, dispose, … }
   FormNode, // общий контракт ноды
   FormControl, // нода одного поля
   FormGroup, // нода группы — тип формы для props компонентов
@@ -1221,7 +1273,8 @@ import type {
   FormFlowConfig, // поток шагов в конфиге: { steps: [{ id, rules? }] }
   FormFlow, // поток шагов сборки: current, next(), previous(), goTo(id)
   FlowTransition, // итог перехода: moved | stayed
-  SubmitResult, // итог bundle.submit: submitted | invalid | error | cancelled | failed
+  FormSubmission, // отправка сборки (bundle.submission): submit(handler), submitting
+  SubmitResult, // итог bundle.submission.submit: submitted | invalid | error | cancelled | failed
 } from '@reformer/core';
 
 // Схема валидации: операторы + раннер — из /validation
@@ -1272,6 +1325,11 @@ import {
 
 // Примитивы над сигналами (принимают сигналы, возвращают cleanup) — из /model, в корне их нет
 import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
+// Утилиты значений модели — тоже из /model
+import {
+  deepEqual, // сравнение значений модели (на нём isDirty)
+  deferredWritesSettled, // дождаться отложенных записей поведения тика; undefined — ждать нечего
+} from '@reformer/core/model';
 ```
 
 ### Форма данных — `interface` или `type`
@@ -1888,9 +1946,9 @@ clearWhenOff(model.$.hasProperty, model.properties);
 несёт.
 
 Сборка отдаёт поток `bundle.flow` (`next` / `previous` / `goTo`), проверку шага
-`bundle.validateStep(id)`, полную проверку `bundle.validate()` и отправку `bundle.submit(handler)`.
-Замечания разносятся по нодам сами — UI подсветит поля текущего шага. Полный справочник —
-[38-form-flow.md](./38-form-flow.md).
+`bundle.validateStep(id)`, полную проверку `bundle.validate()` и отправку
+`bundle.submission.submit(handler)`. Замечания разносятся по нодам сами — UI подсветит поля
+текущего шага. Полный справочник — [38-form-flow.md](./38-form-flow.md).
 
 ### Поток шагов сборки
 
@@ -1919,7 +1977,7 @@ const loan = useFormBundle(createLoanForm);
 await loan.flow?.next(); // проверить правила текущего шага и перейти → FlowTransition
 await loan.validateStep('loan'); // правила одного шага → ValidationResult
 await loan.validate(); // все шаги + extras → ValidationResult
-await loan.submit(sendLoan); // один прогон всех правил; обработчик — только при valid
+await loan.submission.submit(sendLoan); // один прогон всех правил; обработчик — только при valid
 loan.validating.value; // идёт ли проверка — полная либо шага
 ```
 
@@ -1929,6 +1987,8 @@ loan.validating.value; // идёт ли проверка — полная либ
   validation }`; поля шага помечаются тронутыми. Переход — `{ status: 'moved', from, to }`.
 - Поле правили, пока шла проверка шага (async-правило), — `next()` остаётся на шаге с
   `reason: 'cancelled'`: правила этого значения не видели. Следующий `next()` проверит новое.
+- Стратегия `afterFirstSubmit` переходит в живую фазу только от отправки
+  (`bundle.submission.submit`): `next()`, `validateStep` и `validate` её не переключают.
 - `goTo(id)` открывает первый шаг и шаги после пройденных; прыжок вперёд через непройденный шаг —
   `reason: 'locked'`. Назад — всегда.
 - В dev сборка предупреждает о шаге `flow.steps`, для которого в схеме нет узла с таким `selector`.
@@ -1947,7 +2007,7 @@ import { FormWizard } from '@reformer/ui-kit';
 function LoanWizard() {
   const loan = useFormBundle(createLoanForm);
   const send = async () => {
-    const outcome = await loan.submit(sendLoan);
+    const outcome = await loan.submission.submit(sendLoan);
     if (outcome.status !== 'submitted') showHint('Проверьте форму');
   };
   return <FormWizard form={loan.form} flow={loan.flow} steps={STEPS} onSubmit={send} />;
@@ -1955,11 +2015,11 @@ function LoanWizard() {
 ```
 
 - В JSX — `form`, `flow={bundle.flow}` и `steps` пропсами; отправку проверяет приложение через
-  `bundle.submit(handler)`.
+  `bundle.submission.submit(handler)`.
 - В схеме формы — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`, шаг —
   `{ selector: 'loan', component: Step, componentProps: { title }, children: [...] }`. Внутри
   рендерера визард берёт форму и поток из сборки сам, а его `onSubmit` зовётся через
-  `bundle.submit` — только после успешной проверки всей формы.
+  `bundle.submission.submit` — только после успешной проверки всей формы.
 - Без `flow` и без сборки в контексте визард строит позиционный поток **без правил**.
 - Навигация снаружи визарда — через сам поток: `bundle.flow?.goTo('loan')`; в поведении — `flow` из
   области (`defineFormBehavior(({ model, flow }) => …)`).
@@ -1984,7 +2044,7 @@ function MultiStepForm() {
         Back
       </button>
       {isLast ? (
-        <button onClick={() => void loan.submit(sendLoan)}>Submit</button>
+        <button onClick={() => void loan.submission.submit(sendLoan)}>Submit</button>
       ) : (
         <button onClick={() => void flow.next()} disabled={validating}>
           Next
@@ -2129,7 +2189,7 @@ const schema = defineValidation<Form>(({ model, cross }) => {
 });
 
 // Прогон — уровнем формы (createForm({ …, validation: schema })): bundle.validate() /
-// bundle.submit(handler); без сборки — раннер. Замечания сами доезжают до нод формы.
+// bundle.submission.submit(handler); без сборки — раннер. Замечания сами доезжают до нод формы.
 await validateModel(model, schema);
 
 // Перезапуск правила при изменении соседнего поля — мост «поведение → валидация»:
@@ -2268,7 +2328,7 @@ export const createCreditApplicationForm = () =>
     flow: creditApplicationFlow,              // steps → bundle.flow, bundle.validateStep(id)
   });
 // The page: <ValidationMessagesProvider messages={creditApplicationMessages}> around the form,
-// <FormWizard form={bundle.form} flow={bundle.flow} … onSubmit={() => bundle.submit(api.send)} />.
+// <FormWizard form={bundle.form} flow={bundle.flow} … onSubmit={() => bundle.submission.submit(api.send)} />.
 ```
 
 ### Scaling up: folders (large forms)
@@ -2335,7 +2395,7 @@ forms/
     │   ├── load.ts                  # network: fetch the entity and dictionaries
     │   ├── mapping.ts               # server response → model (model.patch + captureInitial)
     │   ├── payload.ts               # form values → request body: drops the computed fields
-    │   ├── submit.ts                # sending and reporting the outcome (handler of bundle.submit)
+    │   ├── submit.ts                # sending and reporting the outcome (handler of bundle.submission.submit)
     │   └── renderer.ts              # node rules for the renderer: loading, submit, navigation (setup)
     │
     ├── components/                  # React layout: steps/, nested-forms/, ui/
@@ -2398,11 +2458,12 @@ JSX of a step call the same function — a condition is written once.
 
 **Loading and submitting are not behavior.** They belong to `application/`: the page (or, for the
 renderer, `application/renderer.ts` passed as `setup`) calls `load`, hands the response to
-`mapping`, and sends through `bundle.submit(handler)` — one run of all the rules, the handler is
-called only when the form is valid. Written into the model with `model.patch` followed by
-`model.captureInitial()`, the loaded values become the form's starting point: the form is not
-dirty, and `model.reset()` returns to them. The handler receives `model.get()` — all the values;
-`application/payload.ts` drops the computed fields before the request.
+`mapping`, and sends through `bundle.submission.submit(handler)` — one run of all the rules, the
+handler is called only when the form is valid. Written into the model with `model.patch` followed
+by `model.captureInitial()`, the loaded values become the form's starting point: the form is not
+dirty, and `model.reset()` returns to them. The handler receives `model.get()` — the whole model,
+disabled fields included; `application/payload.ts` drops the fields the server does not expect
+(computed ones) before the request.
 
 Rule of thumb for this layout: **one folder per question; a step is declared once, in the flow;
 the root holds only the entry component.**
@@ -2742,19 +2803,20 @@ JSON-документ схемы со старыми именами `FormArray` 
 
 ### Удалено: уровень формы, поток шагов, визард (этап 6)
 
-| Wrong                                             | Correct                                            | Notes                                  |
-| ------------------------------------------------- | -------------------------------------------------- | -------------------------------------- |
-| `bundle.validation.validateAll()` / `.runAll()`   | `bundle.validate()` → `ValidationResult`           | Поле `bundle.validation` осталось служебным (`{ rules, controller }` для `useFormBundle`) — методов проверки на нём нет |
-| `bundle.validation.validateStep(n)` / `.runStep(n)` | `bundle.validateStep(id)` → `ValidationResult`   | Идентификатор шага — `selector`, не номер |
-| `createForm({ validation: { steps: { loan: rules } } })` | `createForm({ flow: { steps: [{ id: 'loan', rules }] } })` | Правила вне шагов — `validation: { extras }` |
-| `buildValidation`, `FormValidationBundle`         | `createForm({ validation, flow })` / `createFormLevel` | Уровень формы собирает сборка       |
-| `form.submit(handler)`, `SubmitOptions`, `form.submitting` | `bundle.submit(handler)` → `SubmitResult`, `bundle.submitting` | Один прогон правил; обработчик — только при `valid` |
-| `form.validate()`                                 | `bundle.validate()`                                | У нод методов проверки нет              |
-| `<FormWizard config={…}>`, `FormWizardConfig`     | `<FormWizard flow={bundle.flow}>`                  | Без `flow` и сборки в контексте — позиционный поток без правил |
-| `<FormWizard ref={…}>`, `FormWizardHandle`, `ref.current.goToStep(n)` | `bundle.flow.goTo(id)` / `next()` / `previous()` | Навигация — методами потока |
-| `defineSteps(model, { steps, extras, strategy })` | `createForm({ validation: { extras, strategy }, flow })` | Живая проверка — стратегия формы |
-| `useWizardStepValidation(config)`                 | `validation: { strategy }` сборки                  | Стратегию армирует `useFormBundle`      |
-| `makeValidationConfig(model)` (`validateStep(n)` / `validateAll()`) | `flow` сборки                    | Визард берёт поток, а не конфиг         |
+| Wrong                                                                 | Correct                                                                              | Notes                                                                                                                                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bundle.validation.validateAll()` / `.runAll()`                       | `bundle.validate()` → `ValidationResult`                                             | Поле `bundle.validation` осталось служебным (`{ rules, controller }` для `useFormBundle`) — методов проверки на нём нет                                                    |
+| `bundle.validation.validateStep(n)` / `.runStep(n)`                   | `bundle.validateStep(id)` → `ValidationResult`                                       | Идентификатор шага — `selector`, не номер                                                                                                                                  |
+| `createForm({ validation: { steps: { loan: rules } } })`              | `createForm({ flow: { steps: [{ id: 'loan', rules }] } })`                           | Правила вне шагов — `validation: { extras }`                                                                                                                               |
+| `buildValidation`, `FormValidationBundle`                             | `createForm({ validation, flow })` / `createFormLevel`                               | Уровень формы собирает сборка                                                                                                                                              |
+| `form.submit(handler)`, `SubmitOptions`, `form.submitting`            | `bundle.submission.submit(handler)` → `SubmitResult`, `bundle.submission.submitting` | Один прогон правил; обработчик — только при `valid`                                                                                                                        |
+| `bundle.submit(handler)`, `bundle.submitting`                         | `bundle.submission.submit(handler)` → `SubmitResult`, `bundle.submission.submitting` | Отправка — отдельный объект сборки; псевдонимов нет. То же у `level` в `renderBehavior` и бандлов `createReactForm` / `createJsonForm`: `level.submission.submit(handler)` |
+| `form.validate()`                                                     | `bundle.validate()`                                                                  | У нод методов проверки нет                                                                                                                                                 |
+| `<FormWizard config={…}>`, `FormWizardConfig`                         | `<FormWizard flow={bundle.flow}>`                                                    | Без `flow` и сборки в контексте — позиционный поток без правил                                                                                                             |
+| `<FormWizard ref={…}>`, `FormWizardHandle`, `ref.current.goToStep(n)` | `bundle.flow.goTo(id)` / `next()` / `previous()`                                     | Навигация — методами потока                                                                                                                                                |
+| `defineSteps(model, { steps, extras, strategy })`                     | `createForm({ validation: { extras, strategy }, flow })`                             | Живая проверка — стратегия формы                                                                                                                                           |
+| `useWizardStepValidation(config)`                                     | `validation: { strategy }` сборки                                                    | Стратегию армирует `useFormBundle`                                                                                                                                         |
+| `makeValidationConfig(model)` (`validateStep(n)` / `validateAll()`)   | `flow` сборки                                                                        | Визард берёт поток, а не конфиг                                                                                                                                            |
 
 ### Удалено: ноды формы — контракты вместо классов (этап 7)
 
@@ -2801,22 +2863,22 @@ JSON-документ схемы со старыми именами `FormArray` 
 Реакции живут на слое модели (`defineFormBehavior`), поле берётся через форму, у каждой
 операции одно имя.
 
-| Wrong                            | Correct                                          | Notes                                          |
-| -------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
-| `field.watch(cb)`, `form.watchField('email', cb)`, `form.watchFieldByPath(path, cb)` | `onChange(model.$.email, cb)` в `defineFormBehavior`; вне поведения — `watchField(model.$.email, cb)` из `@reformer/core/model` | Подписок на ноде нет |
-| `field.computeFrom(sources, fn)`, `form.linkFields('a', 'b', fn)` | `compute(model.$.b, () => fn(model.a))` в `defineFormBehavior` | Вычисляемое значение — оператор поведения |
-| `field.dispose()`                | —                                                | В контракте нод `dispose` нет                   |
-| `form.getFieldByPath('address.city')`, `form.getField('email')` | `form.address.city`, `form.email`; имя, занятое членом ноды, — `form.$.value` | Строковых путей к нодам нет |
-| `form.getAllFields()`            | `Object.values(form.$)`                          | `form.$` — ноды всех полей группы по имени      |
-| `form.touchAll()`                | `form.markAsTouched()`                           | Отметка каскадная: уходит во все вложенные поля |
-| `form.resetToInitial()`, `field.resetToInitial()` | `form.reset()` — к значениям создания формы; `model.reset()` — к точке отсчёта модели | См. `28-submit-and-reset.md` |
-| `form.submitWithResult(handler)` | `bundle.submit(handler)` → `SubmitResult`        | Проверка и отправка одним вызовом               |
-| `getNodeType(node)`              | `isFormControl` / `isFormGroup` / `isFormArray`  | Вид ноды — гардами                              |
-| `each(model.items, (item) => …)` | `applyEach(model.$.items, itemRules)`            | Правила строки — отдельная схема над элементом |
-| `import { cross } from '@reformer/core/validation'` | `defineValidation(({ model, cross }) => …)` | `cross` — только из аргумента схемы |
-| `createCoreForm`, `CreateCoreFormConfig` | `createForm`, `CreateFormConfig`         | Сборка одна                                    |
-| `FormArrayProxy<T>`              | `FormArray<T>`                                   | Псевдоним типа удалён                          |
-| `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | — | Внутренние детали, из пакета не экспортируются |
+| Wrong                                                                                                                           | Correct                                                                                                                         | Notes                                           |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `field.watch(cb)`, `form.watchField('email', cb)`, `form.watchFieldByPath(path, cb)`                                            | `onChange(model.$.email, cb)` в `defineFormBehavior`; вне поведения — `watchField(model.$.email, cb)` из `@reformer/core/model` | Подписок на ноде нет                            |
+| `field.computeFrom(sources, fn)`, `form.linkFields('a', 'b', fn)`                                                               | `compute(model.$.b, () => fn(model.a))` в `defineFormBehavior`                                                                  | Вычисляемое значение — оператор поведения       |
+| `field.dispose()`                                                                                                               | сборку — `bundle.dispose()`; форму из `createFormFromModel` — `disposeForm(form)`                                               | В контракте нод `dispose` нет                   |
+| `form.getFieldByPath('address.city')`, `form.getField('email')`                                                                 | `form.address.city`, `form.email`; имя, занятое членом ноды, — `form.$.value`                                                   | Строковых путей к нодам нет                     |
+| `form.getAllFields()`                                                                                                           | `Object.values(form.$)`                                                                                                         | `form.$` — ноды всех полей группы по имени      |
+| `form.touchAll()`                                                                                                               | `form.markAsTouched()`                                                                                                          | Отметка каскадная: уходит во все вложенные поля |
+| `form.resetToInitial()`, `field.resetToInitial()`                                                                               | `form.reset()` — к значениям создания формы; `model.reset()` — к точке отсчёта модели                                           | См. `28-submit-and-reset.md`                    |
+| `form.submitWithResult(handler)`                                                                                                | `bundle.submission.submit(handler)` → `SubmitResult`                                                                            | Проверка и отправка одним вызовом               |
+| `getNodeType(node)`                                                                                                             | `isFormControl` / `isFormGroup` / `isFormArray`                                                                                 | Вид ноды — гардами                              |
+| `each(model.items, (item) => …)`                                                                                                | `applyEach(model.$.items, itemRules)`                                                                                           | Правила строки — отдельная схема над элементом  |
+| `import { cross } from '@reformer/core/validation'`                                                                             | `defineValidation(({ model, cross }) => …)`                                                                                     | `cross` — только из аргумента схемы             |
+| `createCoreForm`, `CreateCoreFormConfig`                                                                                        | `createForm`, `CreateFormConfig`                                                                                                | Сборка одна                                     |
+| `FormArrayProxy<T>`                                                                                                             | `FormArray<T>`                                                                                                                  | Псевдоним типа удалён                           |
+| `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | —                                                                                                                               | Внутренние детали, из пакета не экспортируются  |
 
 ### Прежние ключи узла схемы
 
@@ -2943,7 +3005,7 @@ revalidateWhen([model.$.password], () => void validateModel(model, validation));
    — behaviors: `enableWhen`, а для условной записи значения — `compute` / `copyFrom` с опцией `{ when }`.
 2. **Условная валидация** (правила применяются только в истинной ветке) — оператор
    `validateWhen(() => cond, () => {…})` внутри схемы `defineValidation`; прогон — уровнем формы
-   (`bundle.validate()` / `bundle.submit`) либо раннером `validateModel`.
+   (`bundle.validate()` / `bundle.submission.submit`) либо раннером `validateModel`.
 3. **Скрытие из разметки** (узел вообще не рендерится) — в схеме под рендерером — оператор
    `hideWhen(schema.node(selector), cond)`; при разметке в JSX — `useFormControlValue` + условный
    рендер.
@@ -3025,7 +3087,7 @@ export const mortgageBehavior = defineFormBehavior<CreditForm>(({ model, schema 
 Условие `cond` читает модель напрямую (`model.field` — снимок на момент прогона): при истинном условии
 раннер применяет вложенные `validate`/`cross`/…, при ложном — правила ветки **гасятся** (поля,
 затронутые ранее, получают `setIssues([])`). Прогон — уровнем формы (`createForm({ validation })`,
-затем `bundle.validate()` / `bundle.submit(handler)`) либо раннером
+затем `bundle.validate()` / `bundle.submission.submit(handler)`) либо раннером
 `validateModel(model, schema): Promise<boolean>`; замечания сами доезжают до нод формы.
 
 ```typescript
@@ -3059,10 +3121,12 @@ const ok: boolean = await validateModel(model, schema);
 значения), держи их под `enableWhen` из раздела выше — слои независимы.
 
 Выключенное поле (`enableWhen`, `disable()`) в проверке **уровня формы** не участвует:
-`bundle.validate`, `validateStep`, `submit`, `flow.next()` и живая проверка гасят его замечания, и
-статус прогона совпадает с `valid` формы. `validateWhen` нужен, когда поле остаётся доступным, но
-правило по условию не действует, — и в независимом раннере `validateModel(model, rules)`, который
-о нодах не знает.
+`bundle.validate`, `validateStep`, `submission.submit`, `flow.next()` и живая проверка гасят его
+замечания, и статус прогона совпадает с `valid` формы. Значение выключенного поля при этом остаётся
+в модели и уходит в обработчик отправки — модель передаётся целиком; убрать его из отправки —
+забота обработчика либо `enableWhen(…, { resetOnDisable: true })`. `validateWhen` нужен, когда
+поле остаётся доступным, но правило по условию не действует, — и в независимом раннере
+`validateModel(model, rules)`, который о нодах не знает.
 
 ## 22. Скрытие в JSX
 
@@ -4298,12 +4362,13 @@ A: Схема — обычная функция, поэтому опиши ст�
 
 **Submit и Reset — Жизненный цикл отправки формы**
 
-Канонический submit-флоу — один вызов уровня формы: `bundle.submit(handler)`. Он прогоняет все
-правила один раз, разносит замечания по нодам и зовёт обработчик со значениями модели
-(`model.get()`) только при статусе `valid`. Результат — объект `SubmitResult`, по которому
-отличают отправку (`submitted`), замечания в форме (`invalid`), сбой проверки (`error`), отмену
-(`cancelled`) и исключение обработчика (`failed`). После успеха — `model.reset()` (к initial-снимку)
-либо `model.captureInitial()` (сохранённые значения — новая точка отсчёта).
+Канонический submit-флоу — один вызов отправки сборки: `bundle.submission.submit(handler)`.
+Отправка — отдельный объект сборки (`FormSubmission`): она прогоняет все правила один раз,
+разносит замечания по нодам и зовёт обработчик со значениями модели (`model.get()`) только при
+статусе `valid`. Результат — объект `SubmitResult`, по которому отличают отправку (`submitted`),
+замечания в форме (`invalid`), сбой проверки (`error`), отмену (`cancelled`) и исключение
+обработчика (`failed`). После успеха — `model.reset()` (к initial-снимку) либо
+`model.captureInitial()` (сохранённые значения — новая точка отсчёта).
 
 Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidation`): она
 НЕ входит в схему формы и уходит в сборку полем `validation` (шаги — `flow`). Без сборки тот же
@@ -4312,15 +4377,19 @@ A: Схема — обычная функция, поэтому опиши ст�
 ## 63. API
 
 ```typescript
-// Уровень формы — сборка createForm (см. 38-form-flow.md)
-bundle.submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
+// Уровень формы — сборка createForm (см. 38-form-flow.md); отправка — объект bundle.submission
+bundle.submission.submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
 type SubmitResult<R> =
   | { status: 'submitted'; result: R } // обработчик отработал
   | { status: 'invalid' | 'error' | 'cancelled'; validation: ValidationResult } // не вызывался
   | { status: 'failed'; error: unknown }; // обработчик бросил исключение
+bundle.submission.submitting: ReadonlySignal<boolean>; // работает обработчик
 bundle.validate(): Promise<ValidationResult>; // проверить всю форму без отправки
-bundle.submitting: ReadonlySignal<boolean>; // работает обработчик
 bundle.validating: ReadonlySignal<boolean>; // идёт проверка
+bundle.dispose(): void; // снять сборку: поведение, подписки нод, живую проверку; модель остаётся
+
+// Отправка без сборки (визард в разметке без createForm) — без проверки
+createSubmission<T>({ check: undefined, values: () => T }): FormSubmission<T>;
 
 // Модель (источник истины значений):
 interface ModelApi<T> {
@@ -4347,6 +4416,17 @@ form.<field>.setIssues([{ code, params }]);   // серверная/бизнес
 form.<field>.clearIssues();
 form.reset();                                 // ноды: значения создания формы, замечания, touched, dirty
 ```
+
+### Что отправка делает с полями
+
+| Итог отправки         | Касание (`touched`)                                                   |
+| --------------------- | --------------------------------------------------------------------- |
+| `invalid`, `error`    | вся форма — видны замечания и полей, которых правила не касались      |
+| `cancelled`           | форма тронутой не помечается: прогон устарел, замечаний итог не несёт |
+| `submitted`, `failed` | только поля, которые проверили правила                                |
+
+Отправка — попытка отправки: стратегия `afterFirstSubmit` после неё переходит в живую фазу
+(`bundle.validate()` фазу не трогает, см. `33-validation-strategy.md`).
 
 ## 64. Examples
 
@@ -4390,10 +4470,10 @@ function RegistrationForm() {
   const registration = useFormBundle(createRegistration);
   const { form, model } = registration;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Один прогон правил: при замечаниях обработчик не вызывается, поля помечены тронутыми.
-    const outcome = await registration.submit(register);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // Один прогон правил: при замечаниях обработчик не вызывается, вся форма помечена тронутой.
+    const outcome = await registration.submission.submit(register);
     if (outcome.status === 'submitted' && outcome.result.ok) model.reset(); // чистый старт
   };
 
@@ -4411,10 +4491,10 @@ function RegistrationForm() {
 ### Submit с разбором результата и серверными замечаниями
 
 ```tsx
-async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
+async function handleSubmit(event: React.FormEvent) {
+  event.preventDefault();
 
-  const outcome = await registration.submit(async (values) => {
+  const outcome = await registration.submission.submit(async (values) => {
     const response = await api.register(values);
     if (!response.success) {
       // Серверная бизнес-ошибка — НЕ сбрасываем форму, кладём замечание в поле
@@ -4449,13 +4529,14 @@ async function handleSubmit(e: React.FormEvent) {
 
 ### Значения для сервера
 
-Обработчик получает `model.get()` — все значения модели, включая вычисляемые поля. Поля, которых
-сервер не ждёт, отрезает сам обработчик: удобно держать ввод и расчёт разными типами
+Обработчик получает `model.get()` — значения модели целиком: вычисляемые поля и поля, выключенные
+`enableWhen` (их правила не считаются, но данные принадлежат модели). Поля, которых сервер не
+ждёт, отрезает сам обработчик: удобно держать ввод и расчёт разными типами
 (`CreditApplication` и `CreditApplicationDerived`, форма — их пересечение) и функцию
 `toPayload(values): CreditApplication`, убирающую вычисляемые ключи.
 
 ```typescript
-const outcome = await credit.submit((values) => api.send(toApplicationPayload(values)));
+const outcome = await credit.submission.submit((values) => api.send(toApplicationPayload(values)));
 ```
 
 ### Reset с подтверждением
@@ -4501,6 +4582,28 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 }
 ```
 
+### Снятие сборки — `bundle.dispose()`
+
+Владелец сборки — тот, кто вызвал `createForm`. Вне React (тесты, сервер, своя оболочка) сборку
+снимают, когда форма больше не нужна: `bundle.dispose()` снимает поведение формы, подписки нод и
+живую проверку, а идущие проверки — полная, шага, отправки — получают `cancelled`, и их замечания
+на ноды не ложатся. Значения модели остаются. Вызов идемпотентен.
+
+```typescript
+const registration = createRegistration();
+try {
+  const outcome = await registration.submission.submit(register);
+  expect(outcome.status).toBe('invalid');
+} finally {
+  registration.dispose();
+}
+```
+
+- `level.dispose()` у `FormLevel` (уровень без сборки, `createFormLevel`) снимает только уровень —
+  живую проверку и идущие проверки; форму не трогает.
+- Форму из `createFormFromModel` снимает `disposeForm(form)` — поведение и подписки нод.
+- `useFormBundle` сборку при размонтировании не снимает.
+
 ## 65. Anti-patterns
 
 ```typescript
@@ -4508,15 +4611,15 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 await api.send(bundle.model.get());
 
 // ✅ Проверка и отправка одним вызовом
-await bundle.submit(api.send);
+await bundle.submission.submit(api.send);
 ```
 
 ```typescript
 // ❌ Результат как boolean — объект всегда truthy
-if (await bundle.submit(api.send)) navigate('/done');
+if (await bundle.submission.submit(api.send)) navigate('/done');
 
 // ✅ Статус результата
-const outcome = await bundle.submit(api.send);
+const outcome = await bundle.submission.submit(api.send);
 if (outcome.status === 'submitted') navigate('/done');
 ```
 
@@ -4525,23 +4628,23 @@ if (outcome.status === 'submitted') navigate('/done');
 await form.validate();
 await form.submit(api.send);
 
-// ✅ Уровень формы — у сборки
+// ✅ Проверка — у сборки, отправка — её объект submission (см. 17-nonexistent-api.md)
 await bundle.validate();
-await bundle.submit(api.send);
+await bundle.submission.submit(api.send);
 ```
 
 ```typescript
 // ❌ Чтение результата без await — сабмитим по неполному вердикту
-const handleSubmit = (e) => {
-  e.preventDefault();
+const handleSubmit = (event) => {
+  event.preventDefault();
   validateModel(model, schema); // Promise проигнорирован, async-правила не дождались
   send(model.get());
 };
 
-// ✅ bundle.submit дожидается async-правил сам
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  await bundle.submit(send);
+// ✅ bundle.submission.submit дожидается async-правил сам
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  await bundle.submission.submit(send);
 };
 ```
 
@@ -4565,10 +4668,19 @@ await api.send(model.get());
 model.reset();
 
 // ✅ Reset только после успеха — внутри обработчика либо по статусу 'submitted'
-const outcome = await bundle.submit(async (values) => {
+const outcome = await bundle.submission.submit(async (values) => {
   await api.send(values);
   bundle.model.reset();
 });
+```
+
+```typescript
+// ❌ Сборка в тесте или на сервере брошена — поведение и живая проверка продолжают работать
+const bundle = createForm<RegistrationFormData>({ initial, schema, validation: rules });
+await bundle.submission.submit(register);
+
+// ✅ Владелец сборки снимает её сам; модель при этом остаётся
+bundle.dispose();
 ```
 
 ```typescript
@@ -4601,9 +4713,10 @@ A: Async-правило не вернуло результат (сеть, иск
 **Q: `submit` вернул `status: 'cancelled'`, обработчик не вызван, замечаний нет.**
 A: Проверку отправки сменила следующая (вторая отправка, живой прогон стратегии `change`) либо
 модель изменилась, пока проверка шла. Пока отвечает async-правило, форма не заперта
-(`submitting` ещё `false`): пользователь поправил поле, пришла загрузка, поведение записало
+(`submission.submitting` ещё `false`): пользователь поправил поле, пришла загрузка, поведение записало
 значение после таймера или запроса — правила этих значений не видели, и отправлять их нельзя.
-Отправку повторяют: следующий прогон проверит уже новые значения. Чтобы правок не было — запри
+Форма тронутой не помечается. Отправку повторяют: следующий прогон проверит уже новые значения.
+Отменой кончается и отправка, идущая в момент `bundle.dispose()`. Чтобы правок не было — запри
 форму на время проверки по `bundle.validating`. Вызов в одном тике со сборкой формы или правкой
 поля отправку не отменяет: проверка сначала дожидается отложенных записей поведения (колбэк
 `onChange`, сброс `resetOnDisable`), и правила, и обработчик видят значения после них.
@@ -4636,13 +4749,14 @@ A: `model.reset()` возвращает значения к точке отсч�
 загрузки данных и `captureInitial()` к ним возвращает `model.reset()`.
 
 **Q: Disabled-поля участвуют в submit-данных?**
-A: Обработчик получает `model.get()` — значения всех полей. Фильтруй сам либо используй
+A: Да. Обработчик получает `model.get()` — модель целиком, с выключенными полями: их правила не
+считаются, но данные принадлежат модели. Фильтруй сам либо используй
 `enableWhen({ resetOnDisable: true })`, чтобы при disable поле возвращалось к initial. Замечания
 отключённых полей сняты, в проверку они не входят.
 
 ## 67. See also
 
-- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `validateStep`, `submit`, поток шагов
+- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `validateStep`, `submission`, поток шагов
 - [29-async-preload.md](./29-async-preload.md) — initial values и preload через `set`/`patch`
 - [13-multi-step.md](./13-multi-step.md) — пошаговая форма: поток `flow`, визард
 - [27-revalidate-when.md](./27-revalidate-when.md) — мост «поведение → валидация»: `revalidateWhen([deps], () => void validateModel(model, schema))`
@@ -5047,11 +5161,11 @@ validate(model.$.birthDate, [validateAdultAge]);
 
 ### Recipe 9 — Результаты уровня формы — сужение по `status`
 
-`bundle.validate()`, `bundle.submit(handler)` и `flow.next()` отвечают дискриминированными
-объединениями: поле результата доступно после проверки `status`, без `as`.
+`bundle.validate()`, `bundle.submission.submit(handler)` и `flow.next()` отвечают
+дискриминированными объединениями: поле результата доступно после проверки `status`, без `as`.
 
 ```typescript
-const outcome = await bundle.submit(api.send); // SubmitResult<Awaited<ReturnType<typeof api.send>>>
+const outcome = await bundle.submission.submit(api.send); // SubmitResult<Awaited<ReturnType<typeof api.send>>>
 if (outcome.status === 'submitted') use(outcome.result);
 else if (outcome.status === 'failed') report(outcome.error);
 else showIssues(outcome.validation.issues); // 'invalid' | 'error' | 'cancelled'
@@ -5077,8 +5191,8 @@ if (transition.status === 'stayed') console.log(transition.reason); // 'invalid'
 async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<ValidationIssue | null>`.
 Оно регистрируется оператором `validateAsync(sig, [asyncRules])` внутри схемы валидации
 (`@reformer/core/validation`) и исполняется прогоном — уровнем формы (`bundle.validate()`,
-`bundle.submit(handler)`, `flow.next()`) либо раннером `validateModel`. Async-правила прогоняются
-параллельно через `Promise.all`, прогон их дожидается.
+`bundle.submission.submit(handler)`, `flow.next()`) либо раннером `validateModel`. Async-правила
+прогоняются параллельно через `Promise.all`, прогон их дожидается.
 
 Слои разделены: схема формы (билдер `createForm` / JSON) правил НЕ несёт — они живут в
 отдельной функции-схеме `defineValidation<T>(({ model }) => …)`.
@@ -5117,7 +5231,7 @@ const schema = defineValidation<{ email: string }>(({ model }) => {
 
 // В сборке — прогон уровнем формы:
 const signup = createForm<{ email: string }>({ initial: { email: '' }, validation: schema });
-const outcome = await signup.submit(api.signup); // обработчик — только когда все правила ответили valid
+const outcome = await signup.submission.submit(api.signup); // обработчик — только при valid
 
 // Без сборки — раннер:
 const model = createModel<{ email: string }>({ email: '' });
@@ -5147,7 +5261,7 @@ const ok = await validateModel(model, schema); // Promise<boolean>
 `bundle.validate()` / `bundle.validateStep(id)` сборки, а для отправки — статус `SubmitResult`:
 
 ```ts
-const outcome = await bundle.submit(api.send);
+const outcome = await bundle.submission.submit(api.send);
 if (outcome.status === 'error') {
   // outcome.validation.failures: [{ handle, error }] — какое правило и почему не вернуло результат
   showToast('Не удалось проверить форму. Повторите попытку');
@@ -5204,7 +5318,8 @@ return pending ? <Spinner /> : shouldShowIssues ? <Error text={message(issues[0]
 ```
 
 Индикатор прогона всей формы — сигнал `bundle.validating` сборки (`createForm`): он истинен,
-пока идёт полный прогон либо прогон шага; `bundle.submitting` — пока работает обработчик отправки.
+пока идёт полный прогон либо прогон шага; `bundle.submission.submitting` — пока работает обработчик
+отправки.
 
 ### Debounce и отмена
 
@@ -5380,8 +5495,8 @@ loadOptionsOn(model.$.carBrand, form.carModel, fetchCarModels, { resetTarget: tr
 
 - **сборка `createForm`** — `validation: { rules?, extras?, strategy, debounce, liveAfterSubmit }`.
   Контроллер собирает уровень формы, армирует `useFormBundle` (в эффекте, не при SSR);
-  `bundle.validate()` и `bundle.submit(handler)` — полный прогон с раскрытием замечаний. Это путь
-  по умолчанию для формы со сборкой;
+  `bundle.validate()` и `bundle.submission.submit(handler)` — полный прогон с раскрытием замечаний.
+  Это путь по умолчанию для формы со сборкой;
 - **React-хук `useFormValidation`** из `@reformer/core/react` — для формы без сборки
   (`createFormFromModel` + своя схема);
 - **headless-фабрика `createFormValidation`** из `@reformer/core/validation` — для SSR / тестов /
@@ -5407,7 +5522,11 @@ function useFormValidation<T>(args: {
   strategy?: ValidationStrategyKind;   // default 'submit'
   debounce?: number;                   // мс, для live-фаз (change / live-часть afterFirstSubmit)
   liveAfterSubmit?: 'change' | 'blur'; // default 'change'
-}): { submit: () => Promise<boolean>; validate: () => Promise<boolean>; isValidating: boolean };
+}): {
+  submit: () => Promise<boolean>;   // попытка отправки: при отказе раскрыта вся форма, afterFirstSubmit → живая фаза
+  validate: () => Promise<boolean>; // проверка без отправки: раскрыты проверенные поля, фаза не меняется
+  isValidating: boolean;
+};
 
 // headless (@reformer/core/validation)
 type ValidationStrategyKind = 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
@@ -5416,9 +5535,13 @@ interface ValidationStrategyOptions {
   debounce?: number;
   liveAfterSubmit?: 'change' | 'blur';
 }
+interface FormValidationRunOptions {
+  touch?: true | 'all'; // true (default) — проверенные поля; 'all' — при отказе ещё и вся форма
+  submit?: boolean;     // прогон — попытка отправки: afterFirstSubmit → живая фаза
+}
 interface FormValidationController {
-  validate(): Promise<boolean>;        // полный прогон, touch:true (раскрыть ВСЕ ошибки); переводит afterFirstSubmit в live-фазу
-  run(): Promise<ValidationResult>;    // тот же прогон с полным результатом: valid | invalid | error | cancelled
+  validate(): Promise<boolean>;        // нейтральная проверка: touch:true, фазу afterFirstSubmit не трогает; true — только valid
+  run(options?: FormValidationRunOptions): Promise<ValidationResult>; // valid | invalid | error | cancelled
   start(): () => void;                 // армит реактивные подписки (ТОЛЬКО на клиенте) → dispose
   dispose(): void;                     // снять подписки и таймеры, отменить идущий прогон (он получит cancelled)
   readonly isValidating: boolean;
@@ -5431,19 +5554,36 @@ function createFormValidation<T>(
 ): FormValidationController;
 ```
 
-- `useFormValidation` мемоизирует контроллер по `[model, schema, strategy, debounce, liveAfterSubmit]`,
-  армит стратегию в `useEffect` (SSR-safe), а `submit()` = `controller.validate()`.
+- `useFormValidation` мемоизирует контроллер по
+  `[model, schema, strategy, debounce, liveAfterSubmit]` и армит стратегию в `useEffect`
+  (SSR-safe). `submit()` = `controller.run({ touch: 'all', submit: true })`, `validate()` =
+  `controller.validate()`; обе — стабильные ссылки, отвечают `true` только при `valid`.
 - `createFormValidation` ЧИСТА до `start()` (никаких подписок) → SSR-safe; `start()` возвращает
   `dispose` и арминует триггеры только на клиенте.
 
+### Живая фаза `afterFirstSubmit` — одно правило
+
+Живую фазу включает **только попытка отправки**:
+
+| Вызов                                                           | Попытка отправки | Касание при отказе |
+| --------------------------------------------------------------- | ---------------- | ------------------ |
+| `bundle.submission.submit(handler)`                             | да               | вся форма          |
+| `submit()` хука `useFormValidation`                             | да               | вся форма          |
+| `controller.run({ touch: 'all', submit: true })`                | да               | вся форма          |
+| `bundle.validate()`, `validate()` хука, `controller.validate()` | нет              | проверенные поля   |
+| `bundle.validateStep(id)`, `flow.next()`                        | нет              | поля шага          |
+
+Кнопка «Проверить» — `validate()`: показывает замечания, но форма остаётся в тихой фазе. Отменённая
+отправка (`cancelled`) форму тронутой не помечает.
+
 ### Стратегии
 
-| strategy | когда прогон | touch | раскрытие замечаний |
-| --- | --- | --- | --- |
-| `submit` (default) | только `validate()` / `submit()` (в сборке — `bundle.validate()` / `bundle.submit()`) | `true` | всё на submit |
-| `blur` | каждый уход из поля (потеря фокуса), и повторный тоже | `false` | только сблюренные (по `touched`) |
-| `change` | на каждый ввод (+ `debounce`) | `false` | только редактированные (по `dirty`) |
-| `afterFirstSubmit` | тихо до 1-го submit, затем live (`liveAfterSubmit: 'change'` \| `'blur'`, default `'change'`) | `true` один раз на 1-м submit, дальше `false` | тихо → раскрыть всё на submit → далее live |
+| strategy           | когда прогон                                                                                                                                | touch                                                        | раскрытие замечаний                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| `submit` (default) | только `validate()` / `submit()` (в сборке — `bundle.validate()` / `bundle.submission.submit()`)                                            | `true`                                                       | всё на submit                                |
+| `blur`             | каждый уход из поля (потеря фокуса), и повторный тоже                                                                                       | `false`                                                      | только сблюренные (по `touched`)             |
+| `change`           | на каждый ввод (+ `debounce`)                                                                                                               | `false`                                                      | только редактированные (по `dirty`)          |
+| `afterFirstSubmit` | тихо до первой попытки отправки, затем live (`liveAfterSubmit: 'change'` \| `'blur'`, default `'change'`); `validate()` фазу не переключает | при отправке — вся форма (при отказе), дальше live — `false` | тихо → раскрыть всё на отправке → далее live |
 
 ## 79. Examples
 
@@ -5462,10 +5602,11 @@ const createRegistration = () =>
 
 function RegistrationForm() {
   const registration = useFormBundle(createRegistration); // армирует живую стратегию в эффекте
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // первый submit раскрывает все замечания и переводит форму в живую фазу
-    await registration.submit(api.save);
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // первая отправка раскрывает все замечания и переводит форму в живую фазу;
+    // registration.validate() фазу не переключает
+    await registration.submission.submit(api.save);
   };
   /* … */
 }
@@ -5474,8 +5615,9 @@ function RegistrationForm() {
 ### Без сборки — useFormValidation, afterFirstSubmit + debounce
 
 Тихо до первой отправки, `submit()` раскрывает все замечания и переводит форму в живую фазу
-(дальше проверка на ввод с задержкой 400 мс). `submit()` сам метит `touched` — ручной
-`markAsTouched` не нужен.
+(дальше проверка на ввод с задержкой 400 мс). `submit()` сам метит `touched` (при отказе — всю
+форму) — ручной `markAsTouched` не нужен. `validate()` — кнопка «Проверить»: раскрывает замечания
+проверенных полей, а форма остаётся в тихой фазе.
 
 ```tsx
 import { useMemo } from 'react';
@@ -5497,15 +5639,15 @@ function RegistrationForm() {
   const model = useMemo(() => createModel<RegistrationData>({ username: '', email: '', password: '' }), []);
   const form = useMemo(() => createFormFromModel({ model }), [model]);
 
-  const { submit, isValidating } = useFormValidation({
+  const { submit, validate, isValidating } = useFormValidation({
     model,
     schema: registrationValidation,
     strategy: 'afterFirstSubmit',
     debounce: 400,
   });
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (await submit()) await api.save(model.get()); // true = нет блокирующих ошибок
   };
 
@@ -5514,7 +5656,12 @@ function RegistrationForm() {
       <FormField control={form.username} />
       <FormField control={form.email} />
       <FormField control={form.password} />
-      <button type="submit" disabled={isValidating}>Отправить</button>
+      <button type="button" onClick={() => void validate()}>
+        Проверить
+      </button>
+      <button type="submit" disabled={isValidating}>
+        Отправить
+      </button>
     </form>
   );
 }
@@ -5524,7 +5671,9 @@ function RegistrationForm() {
 
 Живая стратегия — свойство формы, а не шага: она задаётся полем `validation` сборки и армируется
 `useFormBundle`. Проверку шага делает поток: «Далее» визарда — `flow.next()`, он прогоняет правила
-текущего шага и не пускает дальше при замечаниях. Отправка — `bundle.submit` (все шаги + `extras`).
+текущего шага и не пускает дальше при замечаниях. Отправка — `bundle.submission.submit` (все
+шаги + `extras`). Живую фазу `afterFirstSubmit` включает только она: `flow.next()` и
+`validateStep` фазу не переключают.
 
 ```tsx
 const createCredit = () =>
@@ -5548,7 +5697,7 @@ function CreditWizard() {
       form={credit.form}
       flow={credit.flow}
       steps={STEPS}
-      onSubmit={() => void credit.submit(api.save)}
+      onSubmit={() => void credit.submission.submit(api.save)}
     />
   );
 }
@@ -5563,12 +5712,13 @@ function CreditWizard() {
 ```typescript
 import { createFormValidation } from '@reformer/core/validation';
 
-const ctrl = createFormValidation(model, registrationValidation, {
+const controller = createFormValidation(model, registrationValidation, {
   strategy: 'afterFirstSubmit',
   debounce: 300,
 });
-const dispose = ctrl.start();        // ТОЛЬКО на клиенте (в React — из useEffect)
-const ok = await ctrl.validate();    // submit → раскрыть все ошибки
+const dispose = controller.start(); // ТОЛЬКО на клиенте (в React — из useEffect)
+const checked = await controller.validate(); // проверка: замечания проверенных полей, фаза тихая
+const sent = await controller.run({ touch: 'all', submit: true }); // попытка отправки → живая фаза
 dispose();
 ```
 
@@ -5607,12 +5757,20 @@ const bundle = useFormBundle(() => createForm({ …, validation: { rules, strate
 
 ```typescript
 // ❌ start() на сервере — арминует реактивные подписки при SSR
-const ctrl = createFormValidation(model, schema, { strategy: 'change' });
-ctrl.start(); // на сервере подписок быть не должно
+const controller = createFormValidation(model, schema, { strategy: 'change' });
+controller.start(); // на сервере подписок быть не должно
 
 // ✅ Фабрика чиста до start(); армить только на клиенте (useFormValidation делает это в useEffect)
-const ctrl = createFormValidation(model, schema, { strategy: 'change' });
-if (typeof window !== 'undefined') ctrl.start();
+const controller = createFormValidation(model, schema, { strategy: 'change' });
+if (typeof window !== 'undefined') controller.start();
+```
+
+```typescript
+// ❌ afterFirstSubmit: ждать живой фазы после проверки — validate() фазу не переключает
+await bundle.validate(); // форма в тихой фазе, ввод не перепроверяется
+
+// ✅ Живую фазу включает попытка отправки
+await bundle.submission.submit(api.save); // без сборки — submit() хука useFormValidation
 ```
 
 ## 81. See also
@@ -5621,7 +5779,7 @@ if (typeof window !== 'undefined') ctrl.start();
 - [27-revalidate-when.md](./27-revalidate-when.md) — ручные триггеры перевалидации (низкоуровневый примитив)
 - [31-async-validator-debounce.md](./31-async-validator-debounce.md) — async-правила и отмена устаревших прогонов
 - [13-multi-step.md](./13-multi-step.md) — многошаговая форма: поток `flow`, `bundle.validateStep(id)`
-- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `submit`, поток шагов
+- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `submission`, поток шагов
 
 ## 82. Purpose
 
@@ -6078,7 +6236,7 @@ const result = await credit.validate(); // либо credit.validateStep('loan'),
 // result.status: 'valid' | 'invalid' | 'error' | 'cancelled'
 // result.issues: Map<ручка поля, замечания>;  result.failures: правила, не вернувшие результат
 
-const outcome = await credit.submit(sendApplication); // SubmitResult
+const outcome = await credit.submission.submit(sendApplication); // SubmitResult
 // outcome.status: 'submitted' | 'invalid' | 'error' | 'cancelled' | 'failed'
 ```
 
@@ -6112,8 +6270,11 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 
   enableWhen(model.$.propertyValue, isMortgage, { resetOnDisable: true });
   hideWhen(schema.node('mortgage'), () => !isMortgage());
-  // визард в рендерере зовёт onSubmit через bundle.submit — только после успешной проверки
-  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => sendApplication(values));
+  // визард в рендерере зовёт onSubmit через bundle.submission.submit — только после успешной
+  // проверки; values — модель целиком, с выключенными полями
+  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) =>
+    sendApplication(values)
+  );
   onMount(schema.node('data-boundary'), () => void loadApplication(model));
   renderEffect(schema, () => {
     if (isMortgage()) flow?.goTo('loan'); // поток шагов сборки; без flow — undefined
@@ -6162,7 +6323,7 @@ const credit = useFormBundle(() =>
     flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] },
   })
 );
-// credit = { model, form, render, flow, validating, submitting, validate, validateStep, submit }
+// credit = { model, form, render, flow, validating, submission, validate, validateStep, dispose }
 
 <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />; // рендерер
 <FormField control={credit.form.loanType} />; // разметка в JSX — та же сборка
@@ -6174,14 +6335,18 @@ const credit = useFormBundle(() =>
   под-форм — `FormArray`.
 - Повтор `selector` в одной области — исключение при сборке. В dev правило поведения на узел,
   которого нет, и шаг `flow.steps` без узла с таким `selector` дают предупреждение.
-- Уровень формы: `validate()` и `validateStep(id)` → `ValidationResult`, `submit(handler)` →
-  `SubmitResult`, `flow` — поток шагов (`next` / `previous` / `goTo`). См. `38-form-flow.md`.
+- Уровень формы: `validate()` и `validateStep(id)` → `ValidationResult`, отправка — отдельный
+  объект `submission`: `submission.submit(handler)` → `SubmitResult`, `submission.submitting`;
+  `flow` — поток шагов (`next` / `previous` / `goTo`). См. `38-form-flow.md`.
+- `dispose()` снимает сборку: поведение формы, подписки нод, живую проверку; идущие проверки
+  получают `cancelled`, значения модели остаются. Вне React владелец сборки зовёт его сам;
+  `useFormBundle` сборку при размонтировании не снимает.
 - `render` — `{ tree, controller, node(selector) }`: скомпилированная схема (`CompiledSchema`, см.
   `37-compiled-schema.md`) и схема-контроллер сборки.
 - JSON: `createForm({ model, schema: document, registry })` — дерево собирает
   `registry.resolveSchema`. Ядро документ не разбирает.
 - Внутри рендерера бандл доступен компонентам через `useFormBundleContext()` — так визард берёт
-  форму и поток шагов сам и отправляет через `bundle.submit`.
+  форму и поток шагов сам и отправляет через `bundle.submission.submit`.
 
 ### Низкоуровневая фабрика
 
@@ -6205,10 +6370,10 @@ const credit = useFormBundle(() =>
 | узлы записью `{ email: { model, component } }`     | `{ children: [{ model, component }] }`                  |
 | `Rule<unknown>[]` и `(form: Root)` с приведением   | `Rule<ТипПоля>[]`, `cross` из аргумента схемы           |
 | `try { … } catch { return null }` в async-правиле «на всякий случай» | сбой правила блокирует сам; `catch` — только если проверка необязательна |
-| `validation: { steps: { loan: rules } }`           | `flow: { steps: [{ id: 'loan', rules }] }`              |
-| `required({ message: '…' })`                       | `required({ code: '<поле>.required' })` + `defineIssueMessages` |
-| два узла с одним `selector` в одной области        | разные селекторы — повтор бросает исключение            |
-| отправка `api.send(model.get())` в обход проверки  | `bundle.submit(api.send)`                               |
+| `validation: { steps: { loan: rules } }`                             | `flow: { steps: [{ id: 'loan', rules }] }`                               |
+| `required({ message: '…' })`                                         | `required({ code: '<поле>.required' })` + `defineIssueMessages`          |
+| два узла с одним `selector` в одной области                          | разные селекторы — повтор бросает исключение                             |
+| отправка `api.send(model.get())` в обход проверки                    | `bundle.submission.submit(api.send)`                                     |
 
 ## 101. Purpose
 
@@ -6287,7 +6452,7 @@ function useIssueMessageResolver(): (issue: ValidationIssue) => string;
 | ------------------------------- | ------------------ | ------------------------------------------ |
 | `required()`                    | `required`         | —                                          |
 | `min(n)` / `max(n)`             | `min` / `max`      | `min` / `max`, `actual`                    |
-| `minLength(n)` / `maxLength(n)` | `minLength` / `maxLength` | `minLength` / `maxLength`, `actualLength` |
+| `minLength(n)` / `maxLength(n)` | `minLength` / `maxLength`; у массива — `minItems` / `maxItems` | `minLength` / `maxLength`, `actualLength` |
 | `email()`                       | `email`            | —                                          |
 | `pattern(re)`                   | `pattern`          | `pattern` (исходник регулярки)             |
 | `url()`                         | `url`, `url_protocol` | `allowedProtocols` (у `url_protocol`)   |
@@ -6491,7 +6656,7 @@ defineIssueMessages({ 'loanAmount.required': 'Укажите сумму кред
 
 - [34-i18n.md](./34-i18n.md) — локаль, загрузка словарей, `I18nProvider`
 - [03-api-signatures.md](./03-api-signatures.md) — фабрики правил и `RuleOptions`
-- [38-form-flow.md](./38-form-flow.md) — `bundle.submit` и проверка шагов
+- [38-form-flow.md](./38-form-flow.md) — `bundle.submission.submit` и проверка шагов
 - [17-nonexistent-api.md](./17-nonexistent-api.md) — удалённые `message`, `messageKey`, `ValidationError`
 
 ## 106. Purpose
@@ -6740,7 +6905,8 @@ coBorrowers?.row(model.coBorrowers.at(0)!).nodes.get('co-borrower' as SchemaNode
 `createForm` возвращает сборку: модель, форму, часть для рендерера и **уровень формы** — проверку,
 проверку шага, отправку и поток шагов. Уровень один для всех способов реализации: React-руками,
 рендерер по TS-схеме (`createReactForm`), рендерер по JSON (`createJsonForm`) собирают его одной
-функцией `createFormLevel`, поэтому `validate`, `submit` и поток ведут себя одинаково.
+функцией `createFormLevel`, поэтому `validate`, отправка (`submission.submit`) и поток ведут себя
+одинаково.
 
 - Правила формы передаются сборке данными: `validation` — полный набор (`rules`), правила вне
   шагов (`extras`) и стратегия живой проверки.
@@ -6760,6 +6926,7 @@ import {
   type FormFlowConfig,
   type FormValidation,
   type FlowTransition,
+  type FormSubmission,
   type SubmitResult,
 } from '@reformer/core';
 import { useFormBundle, useFormFlow } from '@reformer/core/react';
@@ -6788,12 +6955,18 @@ interface FormBundle<T> {
   render: FormRender; // { tree: CompiledSchema | undefined, controller, node(selector) }
   flow: FormFlow | undefined; // без flow в конфиге — undefined
   validating: ReadonlySignal<boolean>; // идёт полная проверка или проверка шага
-  submitting: ReadonlySignal<boolean>; // работает обработчик submit
+  submission: FormSubmission<T>; // отправка — отдельный объект сборки
   // служебное: полный набор правил и контроллер живой проверки (его армирует useFormBundle);
-  // без правил — undefined. Методов проверки на нём нет — проверяют validate/validateStep/submit
+  // без правил — undefined. Методов проверки на нём нет — проверяют validate/validateStep/submission
   validation: { rules: ValidationDefinition<T>; controller: FormValidationController } | undefined;
   validate(): Promise<ValidationResult>; // вся форма, замечания показываются
   validateStep(stepId: string): Promise<ValidationResult>; // неизвестный шаг — исключение
+  dispose(): void; // снять сборку; идущие проверки — cancelled, модель остаётся
+}
+
+// Отправка
+interface FormSubmission<T> {
+  submitting: ReadonlySignal<boolean>; // работает обработчик (пока идёт проверка — false)
   submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
 }
 
@@ -6837,29 +7010,34 @@ function createFormFlow(options: {
 
 ### Проверка и отправка
 
-| Вызов                  | Какие правила                                  | Что делает с нодами                                   |
-| ---------------------- | ---------------------------------------------- | ----------------------------------------------------- |
-| `bundle.validate()`    | полный набор (`rules` либо шаги + `extras`)    | разносит замечания, проверенные поля — `touched`      |
-| `bundle.validateStep(id)` | правила шага `id`; шаг без правил — `valid` | разносит замечания, поля шага — `touched`             |
-| `bundle.submit(handler)` | один прогон полного набора                   | не `valid` — вся форма `touched`, обработчик не зовётся |
-| `flow.next()`          | правила текущего шага (`validateStep`)         | как `validateStep`; при успехе — переход              |
+| Вызов                               | Какие правила                               | Что делает с нодами                                                                    |
+| ----------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `bundle.validate()`                 | полный набор (`rules` либо шаги + `extras`) | разносит замечания, проверенные поля — `touched`                                       |
+| `bundle.validateStep(id)`           | правила шага `id`; шаг без правил — `valid` | разносит замечания, поля шага — `touched`                                              |
+| `bundle.submission.submit(handler)` | один прогон полного набора                  | `invalid` / `error` — вся форма `touched`, `cancelled` — ничего; обработчик не зовётся |
+| `flow.next()`                       | правила текущего шага (`validateStep`)      | как `validateStep`; при успехе — переход                                               |
 
 - `ValidationResult` — `{ status, issues, failures }`: `status` — `valid | invalid | error |
-  cancelled`, `issues` — замечания по ручке поля, `failures` — правила, не вернувшие результат.
-- Без правил `validate()` отвечает `valid`; `submit` при этом сразу зовёт обработчик.
-- Обработчик получает `model.get()` — значения модели целиком; лишние для сервера (вычисляемые)
-  поля отрезает он сам.
-- `submitting` истинен, пока работает обработчик; `validating` — пока идёт проверка.
+cancelled`, `issues` — замечания по ручке поля, `failures` — правила, не вернувшие результат.
+- Без правил `validate()` отвечает `valid`; `submission.submit` при этом сразу зовёт обработчик.
+- Обработчик получает `model.get()` — значения модели целиком, с выключенными полями (их правила
+  не считаются, но данные принадлежат модели); лишние для сервера поля отрезает он сам.
+- `submission.submitting` истинен, пока работает обработчик; `validating` — пока идёт проверка.
 - Обработчик получает то, что видели правила: если модель изменилась, пока шла проверка отправки
-  (правка поля, загрузка, запись поведения после таймера или запроса), `submit` отвечает
-  `cancelled` и обработчик не зовёт — отправку повторяют.
+  (правка поля, загрузка, запись поведения после таймера или запроса), `submission.submit`
+  отвечает `cancelled` и обработчик не зовёт — отправку повторяют.
 - Правила читают модель в момент вызова. Исключение — вызов `validate` / `validateStep` /
-  `submit` / `flow.next()` в одном тике со сборкой формы или правкой поля: поведение ещё пишет
+  `submission.submit` / `flow.next()` в одном тике со сборкой формы или правкой поля: поведение ещё пишет
   отложенно (колбэк `onChange`, сброс `resetOnDisable`), проверка дожидается этих записей и
   читает модель после них; `validating` поднят сразу. Раннеры без сборки (`validateModel`,
   `runValidation`) исполняют правила в момент вызова.
-- `validate()` переводит стратегию `afterFirstSubmit` в живую фазу. Живую проверку армирует
-  `useFormBundle` в эффекте (на сервере не армируется).
+- Живую фазу стратегии `afterFirstSubmit` включает только попытка отправки —
+  `submission.submit(handler)`. `validate()`, `validateStep(id)` и `flow.next()` — проверки без
+  отправки, фазу не переключают. Живую проверку армирует `useFormBundle` в эффекте (на сервере не
+  армируется).
+- `bundle.dispose()` снимает сборку: поведение формы, подписки нод, живую проверку; идущие
+  проверки (полная, шага, отправки) получают `cancelled`. Значения модели остаются; вызов
+  идемпотентен. `useFormBundle` сборку при размонтировании не снимает.
 - `rules` и `extras` — стабильные ссылки (`defineValidation` в модуле): отмена устаревших прогонов
   ключится по паре «модель + правила».
 
@@ -6869,7 +7047,7 @@ function createFormFlow(options: {
   результатом проверки в `validation`. На последнем шаге — `stayed`, `reason: 'edge'` (шаг при этом
   отмечается пройденным).
 - Пока шла проверка, поток перевели или сбросили — `stayed`, `reason: 'cancelled'`.
-- `next()` — действие по результату проверки, как `submit`: если модель изменилась, пока шла
+- `next()` — действие по результату проверки, как отправка: если модель изменилась, пока шла
   проверка шага (правка поля, загрузка, запись поведения после таймера или запроса), правила
   этих значений не видели — `stayed`, `reason: 'cancelled'`, шаг пройденным не считается; переход
   повторяют. `validateStep` и `validate` — отчёты: их статус совпадает с состоянием нод и о
@@ -6897,7 +7075,7 @@ export const creditFlow: FormFlowConfig<CreditForm> = {
   ],
 };
 
-// правила вне шагов — проверяются только целиком (submit, validate)
+// правила вне шагов — проверяются только целиком (submission.submit, validate)
 export const creditValidation: FormValidation<CreditForm> = { extras: crossStepRules };
 ```
 
@@ -6930,7 +7108,7 @@ function CreditWizard() {
   const credit = useFormBundle(createCredit);
 
   const send = async () => {
-    const outcome = await credit.submit(sendApplication);
+    const outcome = await credit.submission.submit(sendApplication);
     if (outcome.status === 'submitted') showToast(`Заявка ${outcome.result.id} отправлена`);
     else if (outcome.status === 'invalid') showToast('Проверьте форму');
     else if (outcome.status === 'error') showToast('Не удалось проверить форму, повторите');
@@ -6948,8 +7126,8 @@ function CreditWizard() {
 - `flow={credit.flow}` — визард рисует поток и зовёт его переходы; «Далее» — `flow.next()`, при
   замечаниях шаг остаётся, поля показываются.
 - Визард внутри рендерера (`FormRenderer` кладёт сборку в контекст) берёт `form` и `flow` из
-  сборки сам; его `onSubmit` зовётся через `bundle.submit` — только после успешной проверки всей
-  формы.
+  сборки сам; его `onSubmit` зовётся через `bundle.submission.submit` — только после успешной
+  проверки всей формы.
 - Без `flow` и без сборки в контексте визард строит позиционный поток **без правил**.
 
 ### Свои кнопки — `useFormFlow`
@@ -6973,7 +7151,7 @@ function StepActions({ bundle }: { bundle: FormBundle<CreditForm> }) {
     <div data-step={current}>
       {!isFirst && <button onClick={() => flow.previous()}>Назад</button>}
       {isLast ? (
-        <button onClick={() => void bundle.submit(sendApplication)}>Отправить</button>
+        <button onClick={() => void bundle.submission.submit(sendApplication)}>Отправить</button>
       ) : (
         <button disabled={validating} onClick={() => void next()}>
           Далее
@@ -7015,7 +7193,7 @@ if (all.status === 'error') console.warn(all.failures); // какое async-пр
 
 ```typescript
 // статус 'submitted' значит «обработчик отработал»; отказ сервера — дело обработчика
-const outcome = await credit.submit(async (values) => {
+const outcome = await credit.submission.submit(async (values) => {
   const response = await api.send(values);
   if (response.status === 422) {
     for (const [field, code] of Object.entries(response.fieldCodes)) {
@@ -7064,8 +7242,8 @@ if (await credit.validate()) send(); // объект всегда truthy
 
 // ✅ Статус результата
 if ((await credit.validate()).status === 'valid') send();
-// для отправки — submit: проверка и обработчик одним вызовом
-await credit.submit(send);
+// для отправки — submission.submit: проверка и обработчик одним вызовом
+await credit.submission.submit(send);
 ```
 
 ```typescript
@@ -7097,8 +7275,8 @@ credit.validateStep('loan');
 // ❌ Отправка в обход проверки
 await sendApplication(credit.model.get());
 
-// ✅ bundle.submit: один прогон всех правил, обработчик — только при valid
-await credit.submit(sendApplication);
+// ✅ bundle.submission.submit: один прогон всех правил, обработчик — только при valid
+await credit.submission.submit(sendApplication);
 ```
 
 ## 115. See also
@@ -7112,6 +7290,26 @@ await credit.submit(sendApplication);
 ## 116. API Reference
 
 _Auto-generated from JSDoc on public exports._
+
+### ActionCheck
+
+**Kind:** `interface`
+
+Итог проверки для действия по её результату (отправка, переход шага).
+
+**Signature:**
+```typescript
+export interface ActionCheck<T> {
+  /** Результат проверки. */
+  readonly result: ValidationResult;
+  /** Значения модели после проверки; при `stale === false` — ровно те, что видели правила. */
+  readonly values: T;
+  /** Проверка успешна, но модель с тех пор изменилась: её успех относится к прежним значениям. */
+  readonly stale: boolean;
+}
+```
+
+_Source: src/form/submission.ts_
 
 ### aggregateInto
 
@@ -7948,6 +8146,12 @@ _Source: src/runtime-token.ts_
 export interface CoreForm<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
   readonly form: FormGroup<T>;
+  /**
+   * Снять сборку: форму (`disposeForm` — поведение, подписки нод) и уровень формы (живая
+   * проверка, идущие проверки). Фабрика обязана задать его ПОСЛЕ `...level`: `dispose` уровня
+   * форму не снимает.
+   */
+  dispose(): void;
 }
 ```
 
@@ -7991,7 +8195,7 @@ React-руками — та же сборка, разметка в JSX
 ```tsx
 const credit = useFormBundle(() => createForm<CreditForm>({ initial, schema: creditSchema }));
 const send = async () => {
-const result = await credit.submit(api.send);
+const result = await credit.submission.submit(api.send);
 if (result.status === 'invalid') showHint('Проверьте форму');
 };
 return <FormField control={credit.form.loanType} />;
@@ -8240,7 +8444,7 @@ const level = createFormLevel(model, {
   validation: { extras: crossRules },
   flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
 });
-const result = await level.submit(sendApplication);
+const result = await level.submission.submit(sendApplication);
 if (result.status === 'invalid') showErrors();
 ```
 
@@ -8275,7 +8479,8 @@ export function createFormValidation<T>(
 ```ts
 const ctrl = createFormValidation(model, schema, { strategy: 'afterFirstSubmit', debounce: 300 });
 const dispose = ctrl.start();               // на клиенте
-const ok = await ctrl.validate();           // submit → раскрыть все ошибки
+const ok = await ctrl.validate();           // проверка: замечания проверенных полей
+const sent = await ctrl.run({ touch: 'all', submit: true }); // попытка отправки: живая фаза
 dispose();
 ```
 
@@ -8474,6 +8679,59 @@ export function createSchemaScope(
 
 _Source: src/form/schema-controller.ts_
 
+### createSubmission
+
+**Kind:** `function`
+
+Создать отправку формы.
+
+Обычно её создаёт сборка (`createForm` → `bundle.submission`). Прямой вызов нужен там, где
+сборки нет: визард в разметке без `createForm` отправляет значения формы без проверки.
+
+**Signature:**
+```typescript
+export function createSubmission<T>(dependencies: SubmissionDependencies<T>): FormSubmission<T>
+```
+
+**Parameters:**
+- `dependencies` — - {@link SubmissionDependencies}: проверка перед действием и значения.
+
+**Returns:** 
+
+**Examples:**
+
+Без проверки — значения формы как есть
+```typescript
+const submission = createSubmission<Profile>({ check: undefined, values: () => form.getValue() });
+const outcome = await submission.submit(api.save);
+if (outcome.status === 'failed') showToast('Не удалось сохранить');
+```
+
+_Source: src/form/submission.ts_
+
+### deepEqual
+
+**Kind:** `const`
+
+Глубокое сравнение значений модели: объекты и массивы — по содержимому, даты — по времени,
+`NaN` равен себе, остальное (включая файлы) — по ссылке.
+
+То же сравнение стоит за `isDirty` модели и за сверкой «модель изменилась, пока шла проверка»
+при отправке и переходе шага: значение, изменённое и возвращённое, изменением не считается.
+
+**Signature:**
+```typescript
+export const deepEqual
+```
+
+**Examples:**
+
+```typescript
+deepEqual({ date: new Date(0), tags: ['a'] }, { date: new Date(0), tags: ['a'] }); // true
+```
+
+_Source: src/model/model-nodes.ts_
+
 ### DeepPartial
 
 **Kind:** `type`
@@ -8524,6 +8782,37 @@ export function defer(fn: () => void): void
 ```
 
 _Source: src/form/behaviors/context.ts_
+
+### deferredWritesSettled
+
+**Kind:** `function`
+
+Дождаться, пока отработают отложенные записи текущего тика — вместе с теми, что они породили
+(цепочка расчётов: каждая запись будит следующий расчёт, а тот снова пишет отложенно).
+
+Ждёт только микротаски: запись после таймера (debounce) или после `await` в async-callback сюда не
+входит — это уже не «тот же тик».
+
+Счётчик общий для рантайма, а не для одной модели: отложенные записи ставит {@link runOutsideEffect},
+а он моделей не различает. Нужен проверкам «по действию» — отправке и переходу шага: правила должны
+увидеть модель после записей поведения того же тика (колбэк `onChange`, сброс `resetOnDisable`).
+
+**Signature:**
+```typescript
+export function deferredWritesSettled(): Promise<void> | undefined
+```
+
+**Returns:** Промис ожидания; `undefined` — отложенных записей сейчас нет, ждать нечего.
+
+**Examples:**
+
+```typescript
+model.loanType = 'mortgage'; // поведение допишет зависимые поля на микротаске
+await deferredWritesSettled();
+const values = model.get(); // уже с записями поведения
+```
+
+_Source: src/model/safe-effect.ts_
 
 ### defineFormBehavior
 
@@ -8643,6 +8932,35 @@ export function disableWhen(
 ```
 
 _Source: src/form/behaviors/operators.ts_
+
+### disposeForm
+
+**Kind:** `function`
+
+Снять форму, собранную {@link createFormFromModel}: поведение формы и подписки нод (массивы
+под-форм следят за моделью). Значения модели остаются. Идемпотентно.
+
+Сборку одним вызовом снимают целиком — `bundle.dispose()`: вместе с формой она снимает живую
+проверку и отменяет идущие проверки. Этот вызов нужен своим слоям сборки поверх
+{@link createFormFromModel}.
+
+**Signature:**
+```typescript
+export function disposeForm<T>(form: FormGroup<T>): void
+```
+
+**Parameters:**
+- `form` — - Форма из {@link createFormFromModel}.
+
+**Examples:**
+
+```typescript
+const form = createFormFromModel<Profile>({ model, schema, behavior });
+// … форма больше не нужна
+disposeForm(form);
+```
+
+_Source: src/form/create-form.ts_
 
 ### eachLeafSignal
 
@@ -9432,7 +9750,8 @@ _Source: src/form/behaviors/types.ts_
 **Kind:** `interface`
 
 Результат {@link createForm}: модель, форма, часть для рендерера и уровень формы
-({@link FormLevel}) — `validate()`, `validateStep(id)`, `submit(handler)` и поток шагов.
+({@link FormLevel}) — `validate()`, `validateStep(id)`, поток шагов и отправка
+`submission.submit(handler)`.
 
 **Signature:**
 ```typescript
@@ -9440,6 +9759,14 @@ export interface FormBundle<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
   readonly form: FormGroup<T>;
   readonly render: FormRender;
+  /**
+   * Снять сборку: поведение формы, подписки нод, живую проверку; идущие проверки — полная, шага,
+   * отправки — получают `cancelled`. Значения модели остаются. Идемпотентно.
+   *
+   * Владелец сборки — тот, кто вызвал `createForm`: вне React (тесты, сервер, своя оболочка)
+   * снимайте её этим вызовом, когда форма больше не нужна.
+   */
+  dispose(): void;
 }
 ```
 
@@ -9680,10 +10007,13 @@ export interface FormLevel<T> {
   readonly flow: FormFlow | undefined;
   /** Идёт ли проверка: полная или шага. */
   readonly validating: ReadonlySignal<boolean>;
-  /** Идёт ли отправка. */
-  readonly submitting: ReadonlySignal<boolean>;
   /** Правила и контроллер живой проверки; без правил — `undefined`. */
   readonly validation: FormValidationState<T> | undefined;
+  /**
+   * Отправка: `submission.submit(handler)` — один прогон всех правил и обработчик со значениями,
+   * которые они видели; `submission.submitting` — идёт ли обработчик.
+   */
+  readonly submission: FormSubmission<T>;
   /**
    * Проверить всю форму и показать замечания. Поля выключенных нод (`enableWhen`, `disable()`)
    * не учитываются — статус совпадает с `valid` формы.
@@ -9691,7 +10021,9 @@ export interface FormLevel<T> {
    * Правила читают модель в момент вызова. Исключение — вызов в одном тике со сборкой формы или
    * правкой поля: поведение ещё пишет отложенно (колбэк `onChange`, сброс `resetOnDisable`), и
    * проверка сначала дожидается этих записей; `validating` поднят сразу. Так же ведут себя
-   * `validateStep` и `submit`.
+   * `validateStep` и отправка.
+   *
+   * Попыткой отправки проверка не считается: стратегия `afterFirstSubmit` остаётся в тихой фазе.
    */
   validate(): Promise<ValidationResult>;
   /**
@@ -9702,16 +10034,11 @@ export interface FormLevel<T> {
    */
   validateStep(stepId: string): Promise<ValidationResult>;
   /**
-   * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
-   *
-   * Обработчик получает ровно те значения, которые видели правила. Пока идёт async-правило,
-   * форма не заперта (`submitting` ещё `false`); если модель за это время изменилась — правкой
-   * пользователя, загрузкой, записью поведения после таймера или запроса, — итог `cancelled`,
-   * обработчик не вызывается.
+   * Снять уровень формы: подписки и таймеры живой проверки; идущие проверки — полная, шага,
+   * отправки — получают `cancelled`, и их замечания на ноды не ложатся. Идемпотентно. Ноды формы
+   * уровень не снимает — это делает сборка (`bundle.dispose()`).
    */
-  submit<TResult>(
-    handler: (values: T) => TResult | Promise<TResult>
-  ): Promise<SubmitResult<TResult>>;
+  dispose(): void;
 }
 ```
 
@@ -9877,6 +10204,39 @@ export type FormSchemaNode =
 
 _Source: src/form/types/schema-node.ts_
 
+### FormSubmission
+
+**Kind:** `interface`
+
+Отправка формы.
+
+**Signature:**
+```typescript
+export interface FormSubmission<T> {
+  /** Идёт ли отправка: работает обработчик. Пока идёт проверка, — `false`. */
+  readonly submitting: ReadonlySignal<boolean>;
+  /**
+   * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
+   *
+   * Обработчик получает ровно те значения, которые видели правила. Пока идёт async-правило,
+   * форма не заперта (`submitting` ещё `false`); если модель за это время изменилась — правкой
+   * пользователя, загрузкой, записью поведения после таймера или запроса, — итог `cancelled`,
+   * обработчик не вызывается.
+   *
+   * Значения — модель целиком, с выключенными полями: их правила не считаются, но данные
+   * принадлежат модели. Убрать их из отправки — забота обработчика либо
+   * `enableWhen(…, { resetOnDisable: true })`.
+   *
+   * Исключение обработчика наружу не выходит: итог `failed` с этим исключением.
+   */
+  submit<TResult>(
+    handler: (values: T) => TResult | Promise<TResult>
+  ): Promise<SubmitResult<TResult>>;
+}
+```
+
+_Source: src/form/submission.ts_
+
 ### FormValidation
 
 **Kind:** `interface`
@@ -9911,16 +10271,18 @@ _Source: src/form/form-level.ts_
 ```typescript
 export interface FormValidationController {
   /**
-   * Полный прогон схемы с раскрытием ошибок (`touch: true`) — для submit. Также переводит
-   * `afterFirstSubmit` в live-фазу. Возвращает `true` только для статуса `valid`: ошибки, сбой
-   * правила и отмена дают `false`.
+   * Полный прогон схемы с раскрытием замечаний проверенных полей (`touch: true`). Попыткой
+   * отправки не считается: `afterFirstSubmit` остаётся в тихой фазе. Возвращает `true` только для
+   * статуса `valid`: ошибки, сбой правила и отмена дают `false`.
    */
   validate(): Promise<boolean>;
   /**
-   * Тот же полный прогон, что {@link FormValidationController.validate}, с полным результатом:
-   * по статусу отличают ошибки (`invalid`) от сбоя правила (`error`) и отмены (`cancelled`).
+   * Полный прогон с полным результатом: по статусу отличают ошибки (`invalid`) от сбоя правила
+   * (`error`) и отмены (`cancelled`). Без опций — тот же прогон, что
+   * {@link FormValidationController.validate}; `{ submit: true }` — попытка отправки,
+   * `{ touch: 'all' }` — при отказе раскрыть всю форму.
    */
-  run(): Promise<ValidationResult>;
+  run(options?: FormValidationRunOptions): Promise<ValidationResult>;
   /**
    * Армировать реактивные подписки стратегии. Идемпотентно. Возвращает `dispose`. НЕ звать при SSR.
    *
@@ -9938,6 +10300,30 @@ export interface FormValidationController {
   readonly isValidating: boolean;
   /** Реактивный сигнал состояния прогона (для тонкой подписки в UI). */
   readonly validating: ReadonlySignal<boolean>;
+}
+```
+
+_Source: src/form/validation/strategy.ts_
+
+### FormValidationRunOptions
+
+**Kind:** `interface`
+
+Опции полного прогона {@link FormValidationController.run}.
+
+**Signature:**
+```typescript
+export interface FormValidationRunOptions {
+  /**
+   * Какие поля пометить тронутыми: `true` (по умолчанию) — проверенные правилами; `'all'` — они же,
+   * а при отказе (`invalid`, `error`) ещё и вся форма.
+   */
+  touch?: true | 'all';
+  /**
+   * Прогон — попытка отправки: переводит `afterFirstSubmit` в живую фазу. Проверка без отправки
+   * (`validate()`, кнопка «Проверить») фазу не трогает.
+   */
+  submit?: boolean;
 }
 ```
 
@@ -11084,6 +11470,9 @@ _Source: src/form/validators/max-file-size.ts_
 (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
 (используйте {@link required} для обязательности).
 
+У строки замечание — `maxLength` (символы), у массива — `maxItems` (элементы): мультивыбор и
+список считают выбранное, и текст «не больше 3 символов» под ними был бы бессмыслицей.
+
 **Signature:**
 ```typescript
 export function maxLength(maxLen: number, options?: RuleOptions): Rule<unknown>
@@ -11507,6 +11896,9 @@ _Source: src/form/validators/min-file-size.ts_
 Работает со строкой или массивом (проверяется `value.length`). Пустые значения
 (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
 (используйте {@link required} для обязательности).
+
+У строки замечание — `minLength` (символы), у массива — `minItems` (элементы): мультивыбор и
+список считают выбранное, и текст «не меньше 3 символов» под ними был бы бессмыслицей.
 
 **Signature:**
 ```typescript
@@ -12891,9 +13283,27 @@ export interface SchemaNodeControl {
    * Компонент обязан принимать `ref`.
    */
   getRef<H>(): { current: H | null };
+  /**
+   * @internal Записать условие скрытия узла (`hideWhen`). Возвращает снятие: оно убирает условие,
+   * только если его не сменило более позднее.
+   */
+  addHideCondition(condition: () => boolean): () => void;
+  /**
+   * @internal Записать обработчик проп-события компонента узла (`onComponentEvent`). Возвращает
+   * снятие: оно убирает обработчик, только если его не сменил более поздний.
+   */
+  addEventHandler(event: string, handler: (...args: any[]) => any): () => void;
+  /**
+   * @internal Записать хук жизненного цикла узла (`onMount`, `onUnmount`). Возвращает снятие: оно
+   * убирает хук, только если его не сменил более поздний.
+   */
+  addLifecycleHook<K extends keyof NodeLifecycleHooks>(
+    hook: K,
+    value: NonNullable<NodeLifecycleHooks[K]>
+  ): () => void;
   /** @internal Селектор узла. */
   __selector: string;
-  /** @internal Хранилище области. */
+  /** @internal Хранилище области — его читает рендерер. */
   __overrideMaps: SchemaOverrideMaps;
 }
 ```
@@ -13001,6 +13411,11 @@ _Source: src/form/form-bundle.ts_
 export interface SchemaScope {
   /** Управление узлом области по его `selector`. */
   node(selector: string): SchemaNodeControl;
+  /**
+   * @internal Записать эффект, живущий, пока область смонтирована (`renderEffect`). Возвращает
+   * снятие.
+   */
+  addRenderEffect(effect: () => void | (() => void)): () => void;
   /** @internal Хранилище области — его читает рендерер. */
   __overrideMaps: SchemaOverrideMaps;
 }
@@ -13075,6 +13490,27 @@ export type SchemaValueHandle = Signal<any> & { readonly __path: string };
 
 _Source: src/form/types/schema-node.ts_
 
+### SubmissionDependencies
+
+**Kind:** `interface`
+
+Зависимости отправки. Явные, чтобы модуль не тянул ни модель, ни ноды формы.
+
+**Signature:**
+```typescript
+export interface SubmissionDependencies<T> {
+  /**
+   * Проверка перед отправкой — попытка отправки: замечания раскрыты, при необходимости вся форма
+   * тронута. `undefined` — правил нет: обработчик получает {@link SubmissionDependencies.values}.
+   */
+  readonly check: (() => Promise<ActionCheck<T>>) | undefined;
+  /** Значения без проверки. */
+  readonly values: () => T;
+}
+```
+
+_Source: src/form/submission.ts_
+
 ### SubmitResult
 
 **Kind:** `type`
@@ -13094,7 +13530,7 @@ export type SubmitResult<TResult> =
   | { readonly status: 'failed'; readonly error: unknown };
 ```
 
-_Source: src/form/form-level.ts_
+_Source: src/form/submission.ts_
 
 ### syncFields
 
@@ -13950,9 +14386,15 @@ _Source: src/platforms/react/hooks/use-form-validation.ts_
 **Signature:**
 ```typescript
 export interface UseFormValidationResult {
-  /** Полный прогон + раскрытие ошибок (`touch:true`); для `onSubmit`. Стабильная ссылка. */
+  /**
+   * Попытка отправки: полный прогон; при замечаниях раскрыта вся форма, `afterFirstSubmit`
+   * переходит в живую фазу. `true` — только статус `valid`. Для `onSubmit`. Стабильная ссылка.
+   */
   submit: () => Promise<boolean>;
-  /** Алиас `submit` для не-submit сценариев. */
+  /**
+   * Проверка без отправки: полный прогон, раскрыты замечания проверенных полей, фаза
+   * `afterFirstSubmit` не меняется. Для кнопки «Проверить». Стабильная ссылка.
+   */
   validate: () => Promise<boolean>;
   /** Идёт ли прогон (submit или live) — для блокировки кнопки. */
   isValidating: boolean;
@@ -14330,10 +14772,11 @@ _Source: src/form/validation/types.ts_
 **Kind:** `type`
 
 Когда запускается schema-валидация:
-- `submit` (по умолчанию) — только явным вызовом `validate()` (на отправке);
+- `submit` (по умолчанию) — только явным прогоном (`validate()`, отправка);
 - `blur` — при потере фокуса поля (каждый уход из любого листа, и повторный тоже);
 - `change` — на каждый ввод (с опц. `debounce`);
-- `afterFirstSubmit` — тихо до первого `validate()`, затем live (см. `liveAfterSubmit`).
+- `afterFirstSubmit` — тихо до первой попытки отправки (`run({ submit: true })`), затем live
+  (см. `liveAfterSubmit`). Проверка без отправки (`validate()`) фазу не переключает.
 
 **Signature:**
 ```typescript

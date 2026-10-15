@@ -1,22 +1,25 @@
 /**
- * Уровень формы: проверка, проверка шага и отправка — с результатом-объектом, плюс поток шагов.
+ * Уровень формы: проверка, проверка шага, поток шагов и отправка — с результатом-объектом.
  *
  * Общая часть всех сборок: `createForm`, `createReactForm`, `createJsonForm` и монтирование формы
- * из реестра собирают его одной функцией {@link createFormLevel}, поэтому `validate`, `submit` и
+ * из реестра собирают его одной функцией {@link createFormLevel}, поэтому `validate`, отправка и
  * поток ведут себя одинаково, как бы форма ни рисовалась.
+ *
+ * Уровень собирает правила, владеет контроллером живой проверки и проверкой «для действия» — её
+ * получают переход шага (`flow.next()`) и отправка (`./submission`). Сама отправка — отдельный
+ * объект: уровень её только собирает.
  *
  * @group Form
  * @module form/form-level
  */
 
 import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
-import { deepEqual } from '../model/model-nodes';
-import { deferredWritesSettled } from '../model/safe-effect';
+import { deepEqual, deferredWritesSettled } from '../model/index';
 import type { FormModel } from '../model/types';
 import { createFormFlow, type FormFlow } from './flow/flow';
-import { getNodeForSignal } from './signal-node-registry';
+import { createSubmission, type ActionCheck, type FormSubmission } from './submission';
 import { apply } from './validation/operators';
-import { defineValidation, runAndApply, touchByValidation } from './validation/run';
+import { cancelRun, defineValidation, runAndApply } from './validation/run';
 import {
   createFormValidation,
   type FormValidationController,
@@ -65,21 +68,6 @@ export interface FormFlowConfig<T> {
 }
 
 /**
- * Итог отправки: `submitted` — обработчик отработал, `invalid` / `error` / `cancelled` —
- * проверка не пропустила (обработчик не вызывался), `failed` — обработчик бросил исключение.
- *
- * `cancelled` — проверку отправки сменила следующая (вторая отправка, живой прогон) либо модель
- * изменилась, пока проверка шла: правила видели прежние значения, и отправлять новые нельзя.
- * Замечаний такой итог не несёт — отправку повторяют.
- *
- * @group Form
- */
-export type SubmitResult<TResult> =
-  | { readonly status: 'submitted'; readonly result: TResult }
-  | { readonly status: 'invalid' | 'error' | 'cancelled'; readonly validation: ValidationResult }
-  | { readonly status: 'failed'; readonly error: unknown };
-
-/**
  * Правила формы и контроллер живой проверки — его армирует `useFormBundle`.
  *
  * @group Form
@@ -100,10 +88,13 @@ export interface FormLevel<T> {
   readonly flow: FormFlow | undefined;
   /** Идёт ли проверка: полная или шага. */
   readonly validating: ReadonlySignal<boolean>;
-  /** Идёт ли отправка. */
-  readonly submitting: ReadonlySignal<boolean>;
   /** Правила и контроллер живой проверки; без правил — `undefined`. */
   readonly validation: FormValidationState<T> | undefined;
+  /**
+   * Отправка: `submission.submit(handler)` — один прогон всех правил и обработчик со значениями,
+   * которые они видели; `submission.submitting` — идёт ли обработчик.
+   */
+  readonly submission: FormSubmission<T>;
   /**
    * Проверить всю форму и показать замечания. Поля выключенных нод (`enableWhen`, `disable()`)
    * не учитываются — статус совпадает с `valid` формы.
@@ -111,7 +102,9 @@ export interface FormLevel<T> {
    * Правила читают модель в момент вызова. Исключение — вызов в одном тике со сборкой формы или
    * правкой поля: поведение ещё пишет отложенно (колбэк `onChange`, сброс `resetOnDisable`), и
    * проверка сначала дожидается этих записей; `validating` поднят сразу. Так же ведут себя
-   * `validateStep` и `submit`.
+   * `validateStep` и отправка.
+   *
+   * Попыткой отправки проверка не считается: стратегия `afterFirstSubmit` остаётся в тихой фазе.
    */
   validate(): Promise<ValidationResult>;
   /**
@@ -122,16 +115,11 @@ export interface FormLevel<T> {
    */
   validateStep(stepId: string): Promise<ValidationResult>;
   /**
-   * Отправить: один прогон всех правил; при успехе — обработчик со значениями модели.
-   *
-   * Обработчик получает ровно те значения, которые видели правила. Пока идёт async-правило,
-   * форма не заперта (`submitting` ещё `false`); если модель за это время изменилась — правкой
-   * пользователя, загрузкой, записью поведения после таймера или запроса, — итог `cancelled`,
-   * обработчик не вызывается.
+   * Снять уровень формы: подписки и таймеры живой проверки; идущие проверки — полная, шага,
+   * отправки — получают `cancelled`, и их замечания на ноды не ложатся. Идемпотентно. Ноды формы
+   * уровень не снимает — это делает сборка (`bundle.dispose()`).
    */
-  submit<TResult>(
-    handler: (values: T) => TResult | Promise<TResult>
-  ): Promise<SubmitResult<TResult>>;
+  dispose(): void;
 }
 
 /** Результат проверки без правил: замечаний нет. */
@@ -158,7 +146,7 @@ const AT = '[@reformer/core] createForm';
  *   validation: { extras: crossRules },
  *   flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
  * });
- * const result = await level.submit(sendApplication);
+ * const result = await level.submission.submit(sendApplication);
  * if (result.status === 'invalid') showErrors();
  * ```
  *
@@ -206,7 +194,6 @@ export function createFormLevel<T>(
 
   // Идущие проверки шага и проверки, ждущие отложенных записей поведения.
   const checks = signal(0);
-  const submits = signal(0);
 
   /**
    * Запустить проверку, когда отработали отложенные записи поведения этого тика (колбэк
@@ -227,9 +214,7 @@ export function createFormLevel<T>(
    * запуска правил и после прогона: пока идёт async-правило, форма не заперта, и успех проверки
    * может относиться к значениям, которых в модели уже нет (`stale`).
    */
-  const checkForAction = async (
-    run: () => Promise<ValidationResult>
-  ): Promise<{ result: ValidationResult; values: T; stale: boolean }> => {
+  const checkForAction = async (run: () => Promise<ValidationResult>): Promise<ActionCheck<T>> => {
     let seen: unknown;
     const result = await afterBehaviorWrites(() => {
       seen = model.get();
@@ -284,36 +269,26 @@ export function createFormLevel<T>(
       ? createFormFlow({ steps: [...stepRules.keys()], validateStep: validateStepToMove })
       : undefined;
 
+  // Отправка — попытка отправки: при отказе раскрыта вся форма, `afterFirstSubmit` переходит в
+  // живую фазу. Без правил сверять нечего: обработчик получает модель как есть.
+  const submission = createSubmission<T>({
+    check: controller
+      ? () => checkForAction(() => controller.run({ touch: 'all', submit: true }))
+      : undefined,
+    values: () => model.get() as T,
+  });
+
   return {
     flow,
     validating: computed(() => (controller?.validating.value ?? false) || checks.value > 0),
-    submitting: computed(() => submits.value > 0),
     validation: rules !== undefined && controller ? { rules, controller } : undefined,
+    submission,
     validate,
     validateStep,
-    async submit(handler) {
-      // Без правил сверять нечего: обработчик получает модель как есть.
-      const checked = await (controller ? checkForAction(() => controller.run()) : undefined);
-      const result = checked?.result ?? VALID;
-      if (result.status !== 'valid') {
-        // Показать замечания всех полей, а не только проверенных правилами. Одним batch и от имени
-        // проверки: стратегия `blur` не запустит по живому прогону на каждое поле.
-        touchByValidation(() => getNodeForSignal(model.$ as object)?.markAsTouched());
-        return { status: result.status, validation: result };
-      }
-      // Модель изменилась, пока шла проверка: эти значения правила не видели — не отправлять.
-      if (checked?.stale) {
-        return { status: 'cancelled', validation: { ...result, status: 'cancelled' } };
-      }
-      const values = checked ? checked.values : (model.get() as T);
-      submits.value++;
-      try {
-        return { status: 'submitted', result: await handler(values) };
-      } catch (error) {
-        return { status: 'failed', error };
-      } finally {
-        submits.value--;
-      }
+    dispose() {
+      controller?.dispose();
+      // Проверки шага идут своими правилами, мимо контроллера: их прогоны отменяются отдельно.
+      for (const step of stepSchemas) cancelRun(model as object, step as object);
     },
   };
 }

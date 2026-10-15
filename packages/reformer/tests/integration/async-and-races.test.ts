@@ -124,7 +124,7 @@ describe('async-правило ИНН — ожидание проверки ша
     ]);
     expect([form.valid.value, form.invalid.value]).toEqual([false, false]);
     expect([bundle.validating.value, bundle.flow!.validating.value]).toEqual([true, true]);
-    expect(bundle.submitting.value).toBe(false);
+    expect(bundle.submission.submitting.value).toBe(false);
 
     server.last('checkInn').resolve({ status: 'found' });
 
@@ -301,7 +301,7 @@ describe('устаревший прогон — cancelled и отмена зап
     const handler = vi.fn();
 
     const next = bundle.flow!.next();
-    const submit = bundle.submit(handler);
+    const submit = bundle.submission.submit(handler);
     const [stepCheck, submitCheck] = server.callsOf('checkInn');
 
     // Отмена ключится парой «модель + схема»: у шага и у отправки схемы разные.
@@ -327,7 +327,7 @@ describe('устаревший прогон — cancelled и отмена зап
     const next = bundle.flow!.next();
     model.applicant.inn = OTHER_INN;
     await settle();
-    const submit = bundle.submit(vi.fn());
+    const submit = bundle.submission.submit(vi.fn());
     const [stepCheck, submitCheck] = server.callsOf('checkInn');
     expect([stepCheck.args[0], submitCheck.args[0]]).toEqual([VALID_INN, OTHER_INN]);
 

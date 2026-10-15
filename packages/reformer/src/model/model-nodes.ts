@@ -46,9 +46,15 @@ const clone = <T>(v: T): T => {
 
 /**
  * Глубокое сравнение значений модели: объекты и массивы — по содержимому, даты — по времени,
- * остальное (включая файлы) — по ссылке.
+ * `NaN` равен себе, остальное (включая файлы) — по ссылке.
  *
- * @internal
+ * То же сравнение стоит за `isDirty` модели и за сверкой «модель изменилась, пока шла проверка»
+ * при отправке и переходе шага: значение, изменённое и возвращённое, изменением не считается.
+ *
+ * @example
+ * ```typescript
+ * deepEqual({ date: new Date(0), tags: ['a'] }, { date: new Date(0), tags: ['a'] }); // true
+ * ```
  */
 export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
@@ -329,7 +335,7 @@ export class ModelArrayNode {
   // Шаблон нового элемента (`arrayOf`). Принадлежит узлу, а не значению: `set`/`reset` заменяют
   // элементы, узел остаётся — и шаблон с ним.
   private blank: Blank | undefined;
-  // Запасной шаблон — `initialValue` узла-массива схемы.
+  // Запасной шаблон — от того, кто строит модель извне (сборка формы передаёт `initialValue`).
   private fallback: Blank | undefined;
   // Образец элемента — один вызов шаблона. Нужен только ради вложенных шаблонов: элемент из
   // обычных данных (`set` с сервера, `push(значение)`) метку `arrayOf` на своих массивах не несёт.
@@ -346,7 +352,7 @@ export class ModelArrayNode {
     this.initial = clone(initial);
   }
 
-  /** Шаблон по старшинству: свой (`arrayOf`) → из шаблона родителя → из схемы. */
+  /** Шаблон по старшинству: свой (`arrayOf`) → из шаблона родителя → запасной извне. */
   private template(): Blank | undefined {
     this.blank ??= blankOf(this.shape?.());
     return this.blank ?? this.fallback;
@@ -384,7 +390,7 @@ export class ModelArrayNode {
     return blank();
   }
 
-  /** Шаблон из схемы (`initialValue` узла-массива) — запасной: шаблон модели главнее. */
+  /** Запасной шаблон извне (сборка формы передаёт `initialValue`): шаблон модели главнее. */
   provideBlank(blank: Blank): void {
     this.fallback ??= blank;
   }
@@ -477,6 +483,6 @@ function buildNode(value: unknown, path: string, shape?: Shape): ModelNode {
   return new ModelLeafNode(value, path);
 }
 
-/** Значение `initialValue` узла-массива схемы как шаблон: фабрика — как есть, значение — копией. */
+/** Начальное значение элемента как шаблон: фабрика — как есть, значение — копией. */
 export const blankFrom = (initialValue: unknown): Blank =>
   typeof initialValue === 'function' ? (initialValue as Blank) : () => clone(initialValue);

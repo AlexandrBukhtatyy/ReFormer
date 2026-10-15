@@ -339,7 +339,9 @@ describe('FormNode - markAsTouched()', () => {
       const onSubmit = async (values: LoginForm) => values;
 
       // Отправка уровня формы: один прогон правил, при замечаниях — все поля тронуты.
-      const result = await createFormLevel(model, { validation: loginRules }).submit(onSubmit);
+      const result = await createFormLevel(model, { validation: loginRules }).submission.submit(
+        onSubmit
+      );
 
       // Form invalid
       expect(result.status).toBe('invalid');

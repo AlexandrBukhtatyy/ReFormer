@@ -89,14 +89,14 @@ model.get();             // весь объект-снимок
 ### Submit + validation
 
 Валидация — отдельная `ValidationDefinition<T>` (`defineValidation`), а не часть layout; в сборку
-она уходит полем `validation`. `bundle.submit(handler)` прогоняет все правила один раз, разносит
-замечания по нодам и зовёт обработчик только при статусе `valid` (`severity: 'warning'` не
+она уходит полем `validation`. `bundle.submission.submit(handler)` прогоняет все правила один раз,
+разносит замечания по нодам и зовёт обработчик только при статусе `valid` (`severity: 'warning'` не
 блокирует). Результат — `SubmitResult`.
 
 ```typescript
-async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  const outcome = await bundle.submit(async (values) => {
+async function handleSubmit(event: React.FormEvent) {
+  event.preventDefault();
+  const outcome = await bundle.submission.submit(async (values) => {
     await api.send(values);
     bundle.model.reset(); // к initial-снимку — только после успеха
   });

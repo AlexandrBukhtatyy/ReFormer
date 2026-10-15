@@ -86,7 +86,7 @@ const schema = defineValidation<Form>(({ model, cross }) => {
 });
 
 // Прогон — уровнем формы (createForm({ …, validation: schema })): bundle.validate() /
-// bundle.submit(handler); без сборки — раннер. Замечания сами доезжают до нод формы.
+// bundle.submission.submit(handler); без сборки — раннер. Замечания сами доезжают до нод формы.
 await validateModel(model, schema);
 
 // Перезапуск правила при изменении соседнего поля — мост «поведение → валидация»:

@@ -4,7 +4,7 @@
  * vitest его НЕ запускает — нет суффикса `.test.`.
  *
  * Убеждается, что сборка заявки типизирована целиком: ноды и значения групп, строк массивов и
- * подформ выводятся из `LoanApplication`; обработчик `bundle.submit` получает заявку, а результат
+ * подформ выводятся из `LoanApplication`; обработчик `bundle.submission.submit` получает заявку, а результат
  * отправки несёт то, что он вернул; шаги — закрытый список `LoanStepId`; правила, поведение, схема
  * и словари фикстуры выведены без `any` и другой форме данных не подходят. Ядро — только из входов
  * сабпатов, как в самой фикстуре.
@@ -141,7 +141,7 @@ export function loanExactTypeChecks({ bundle, server }: LoanForm): void {
   expectTypeOf(model.$.documents.value).toEqualTypeOf<File[] | null>();
   expectTypeOf(model.get()).toEqualTypeOf<LoanApplication>();
   expectTypeOf(bundle.flow).toEqualTypeOf<FormFlow | undefined>();
-  expectTypeOf(bundle.submit(server.api.submitApplication)).toEqualTypeOf<
+  expectTypeOf(bundle.submission.submit(server.api.submitApplication)).toEqualTypeOf<
     Promise<SubmitResult<SubmitReceipt>>
   >();
   expectTypeOf<LoanStepId>().toEqualTypeOf<
@@ -180,7 +180,7 @@ export function loanValueTypeChecks({ bundle }: LoanForm): void {
 
 /** Отправка: обработчик получает заявку, итог — объединение статусов. */
 export async function loanSubmitTypeChecks({ bundle, server }: LoanForm): Promise<void> {
-  const sent: SubmitResult<SubmitReceipt> = await bundle.submit((values) =>
+  const sent: SubmitResult<SubmitReceipt> = await bundle.submission.submit((values) =>
     server.api.submitApplication(values)
   );
   if (sent.status === 'submitted') {
@@ -194,12 +194,12 @@ export async function loanSubmitTypeChecks({ bundle, server }: LoanForm): Promis
     void validation;
   }
   // Результат отправки — то, что вернул обработчик.
-  const amount: SubmitResult<number | null> = await bundle.submit(
+  const amount: SubmitResult<number | null> = await bundle.submission.submit(
     (values: LoanApplication) => values.loan.amount
   );
 
   // @ts-expect-error — обработчик получает заявку, а не адрес
-  await bundle.submit((values: Address) => values.city);
+  await bundle.submission.submit((values: Address) => values.city);
   // @ts-expect-error — результат обработчика есть только у отправленной формы
   void sent.result;
 

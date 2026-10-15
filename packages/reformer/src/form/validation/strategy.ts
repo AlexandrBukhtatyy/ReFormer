@@ -7,6 +7,9 @@
  * триггеры (`change`/`blur`) строятся тем же паттерном, что `revalidateWhen`: один `effect`, подписка на
  * ручки значений модели через {@link eachValueSignal} (без ручного перечисления зависимостей).
  *
+ * С нодами стратегия соприкасается в одном месте — триггер `blur` читает счётчик уходов из поля
+ * через реестр «ручка → нода». Всё остальное о нодах знает раннер.
+ *
  * @module form/validation/strategy
  */
 
@@ -14,15 +17,16 @@ import { effect, signal, untracked, type ReadonlySignal } from '@preact/signals-
 import { eachValueSignal } from '../../model/create-model';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { getNodeForSignal } from '../signal-node-registry';
-import { cancelRun, isTouchByValidation, runAndApply } from './run';
+import { cancelRun, isTouchByValidation, runAndApply, type ValidationTouch } from './run';
 import type { ValidationResult, ValidationDefinition } from './types';
 
 /**
  * Когда запускается schema-валидация:
- * - `submit` (по умолчанию) — только явным вызовом `validate()` (на отправке);
+ * - `submit` (по умолчанию) — только явным прогоном (`validate()`, отправка);
  * - `blur` — при потере фокуса поля (каждый уход из любого листа, и повторный тоже);
  * - `change` — на каждый ввод (с опц. `debounce`);
- * - `afterFirstSubmit` — тихо до первого `validate()`, затем live (см. `liveAfterSubmit`).
+ * - `afterFirstSubmit` — тихо до первой попытки отправки (`run({ submit: true })`), затем live
+ *   (см. `liveAfterSubmit`). Проверка без отправки (`validate()`) фазу не переключает.
  */
 export type ValidationStrategyKind = 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
 
@@ -35,18 +39,36 @@ export interface ValidationStrategyOptions {
   liveAfterSubmit?: 'change' | 'blur';
 }
 
+/**
+ * Опции полного прогона {@link FormValidationController.run}.
+ */
+export interface FormValidationRunOptions {
+  /**
+   * Какие поля пометить тронутыми: `true` (по умолчанию) — проверенные правилами; `'all'` — они же,
+   * а при отказе (`invalid`, `error`) ещё и вся форма.
+   */
+  touch?: true | 'all';
+  /**
+   * Прогон — попытка отправки: переводит `afterFirstSubmit` в живую фазу. Проверка без отправки
+   * (`validate()`, кнопка «Проверить») фазу не трогает.
+   */
+  submit?: boolean;
+}
+
 export interface FormValidationController {
   /**
-   * Полный прогон схемы с раскрытием ошибок (`touch: true`) — для submit. Также переводит
-   * `afterFirstSubmit` в live-фазу. Возвращает `true` только для статуса `valid`: ошибки, сбой
-   * правила и отмена дают `false`.
+   * Полный прогон схемы с раскрытием замечаний проверенных полей (`touch: true`). Попыткой
+   * отправки не считается: `afterFirstSubmit` остаётся в тихой фазе. Возвращает `true` только для
+   * статуса `valid`: ошибки, сбой правила и отмена дают `false`.
    */
   validate(): Promise<boolean>;
   /**
-   * Тот же полный прогон, что {@link FormValidationController.validate}, с полным результатом:
-   * по статусу отличают ошибки (`invalid`) от сбоя правила (`error`) и отмены (`cancelled`).
+   * Полный прогон с полным результатом: по статусу отличают ошибки (`invalid`) от сбоя правила
+   * (`error`) и отмены (`cancelled`). Без опций — тот же прогон, что
+   * {@link FormValidationController.validate}; `{ submit: true }` — попытка отправки,
+   * `{ touch: 'all' }` — при отказе раскрыть всю форму.
    */
-  run(): Promise<ValidationResult>;
+  run(options?: FormValidationRunOptions): Promise<ValidationResult>;
   /**
    * Армировать реактивные подписки стратегии. Идемпотентно. Возвращает `dispose`. НЕ звать при SSR.
    *
@@ -82,7 +104,8 @@ export interface FormValidationController {
  * ```ts
  * const ctrl = createFormValidation(model, schema, { strategy: 'afterFirstSubmit', debounce: 300 });
  * const dispose = ctrl.start();               // на клиенте
- * const ok = await ctrl.validate();           // submit → раскрыть все ошибки
+ * const ok = await ctrl.validate();           // проверка: замечания проверенных полей
+ * const sent = await ctrl.run({ touch: 'all', submit: true }); // попытка отправки: живая фаза
  * dispose();
  * ```
  */
@@ -101,7 +124,7 @@ export function createFormValidation<T>(
   let disposeFx: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const run = async (touch: boolean): Promise<ValidationResult> => {
+  const run = async (touch: ValidationTouch): Promise<ValidationResult> => {
     inFlight++;
     _validating.value = true;
     try {
@@ -134,7 +157,7 @@ export function createFormValidation<T>(
   };
 
   // Реактивная арматура: подписка на листья модели + прогон (пропуск инициализирующего запуска,
-  // как в `revalidateWhen`). Для `afterFirstSubmit` — тишина до первого `validate()`.
+  // как в `revalidateWhen`). Для `afterFirstSubmit` — тишина до первой попытки отправки.
   const arm = (
     subscribe: (sig: PathAwareSignal<unknown>) => void,
     fire: () => void
@@ -159,9 +182,10 @@ export function createFormValidation<T>(
     async validate() {
       return (await controller.run()).status === 'valid';
     },
-    run() {
-      submitted = true; // двигает afterFirstSubmit в live-фазу
-      return run(true); // submit → touch:true (раскрыть все ошибки)
+    run(options) {
+      // Живую фазу afterFirstSubmit включает только попытка отправки.
+      if (options?.submit) submitted = true;
+      return run(options?.touch ?? true);
     },
     start() {
       if (disposeFx) return () => controller.dispose(); // уже армирован — идемпотентно

@@ -193,7 +193,7 @@ BA-41). Проверять результат — после `await settle()` (�
 | `runValidation`                                                          | wizard-happy-path · WH-07, WH-08                                                                                                 |
 | `validateModel`                                                          | bundle-assembly · BA-26                                                                                                          |
 | `applyValidationResult`                                                  | submit-statuses · SS-17                                                                                                          |
-| `createFormValidation`, стратегии `blur` / `change` / `afterFirstSubmit` | live-strategies · LS-01…LS-15; submit-statuses · SS-08, SS-10, SS-15                                                             |
+| `createFormValidation`, стратегии `blur` / `change` / `afterFirstSubmit` | live-strategies · LS-01…LS-15, LS-18; submit-statuses · SS-08, SS-10, SS-15                                                      |
 
 ### Валидаторы (`./validators`)
 
@@ -306,12 +306,12 @@ BA-41). Проверять результат — после `await settle()` (�
 
 Поведение под вопросом — закреплено как есть, с комментарием в тесте и задачей на решение:
 
-| Задача             | Тесты                                                                                                 | О чём                                                                                                                            |
-| ------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `ReFormer-k152.14` | reset-and-loading · RL-09, RL-10, RL-14, RL-15, RL-16                                                 | два сброса с разными исходными значениями: `model.reset()` не трогает ноды, `form.reset()` возвращает значения создания нод      |
-| `ReFormer-jefl`    | async-and-races · AR-10, AR-12; submit-statuses · SS-11, SS-18; live-strategies · LS-07, LS-12, LS-17 | прогоны разных схем друг друга не отменяют; замечание сервера на группе; живая фаза после проверки шага; `blur` и состав массива |
-| `ReFormer-04vp`    | conditional-branches · CB-12                                                                          | поведение включает поле внутри выключенной вручную группы                                                                        |
-| `ReFormer-nm2x`    | conditional-branches · CB-07                                                                          | `compute` без `when` заполняет выключенное поле                                                                                  |
-| `ReFormer-0f7y`    | react-assembly · RA-02, RA-05                                                                         | StrictMode зовёт фабрику дважды; повторная проверка без правок перерисовывает поля с замечаниями                                 |
-| `ReFormer-arpz`    | react-assembly · RA-13                                                                                | `setHidden(true)` прячет узел, но поля не выключает                                                                              |
-| `ReFormer-y5g8`    | wizard-happy-path · WH-03                                                                             | проверка шага метит `touched` выключенные поля и ветки `validateWhen`                                                            |
+| Задача             | Тесты                                                                                          | О чём                                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `ReFormer-k152.14` | reset-and-loading · RL-09, RL-10, RL-14, RL-15, RL-16                                          | два сброса с разными исходными значениями: `model.reset()` не трогает ноды, `form.reset()` возвращает значения создания нод      |
+| `ReFormer-jefl`    | async-and-races · AR-10, AR-12; submit-statuses · SS-18; live-strategies · LS-07, LS-12, LS-17 | прогоны разных схем друг друга не отменяют; замечание сервера на группе; живая фаза после проверки шага; `blur` и состав массива |
+| `ReFormer-04vp`    | conditional-branches · CB-12                                                                   | поведение включает поле внутри выключенной вручную группы                                                                        |
+| `ReFormer-nm2x`    | conditional-branches · CB-07                                                                   | `compute` без `when` заполняет выключенное поле                                                                                  |
+| `ReFormer-0f7y`    | react-assembly · RA-02, RA-05                                                                  | StrictMode зовёт фабрику дважды; повторная проверка без правок перерисовывает поля с замечаниями                                 |
+| `ReFormer-arpz`    | react-assembly · RA-13                                                                         | `setHidden(true)` прячет узел, но поля не выключает                                                                              |
+| `ReFormer-y5g8`    | wizard-happy-path · WH-03                                                                      | проверка шага метит `touched` выключенные поля и ветки `validateWhen`                                                            |

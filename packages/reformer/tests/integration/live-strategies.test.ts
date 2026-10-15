@@ -192,7 +192,7 @@ describe('стратегия blur', () => {
     expect(runs).toHaveBeenCalledTimes(1);
 
     // Отказ отправки метит тронутой всю форму — тоже от имени проверки: прогон один, свой.
-    expect((await bundle.submit(vi.fn())).status).toBe('invalid');
+    expect((await bundle.submission.submit(vi.fn())).status).toBe('invalid');
     await settle();
     expect(runs).toHaveBeenCalledTimes(2);
   });
@@ -228,7 +228,7 @@ describe('стратегия afterFirstSubmit', () => {
     expect(runs).not.toHaveBeenCalled();
     expect(form.loan.amount.issues.value).toEqual([]);
 
-    expect((await bundle.submit(vi.fn())).status).toBe('invalid');
+    expect((await bundle.submission.submit(vi.fn())).status).toBe('invalid');
     expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
 
     form.loan.amount.setValue(500_000);
@@ -238,8 +238,27 @@ describe('стратегия afterFirstSubmit', () => {
     expect(form.loan.amount.issues.value).toEqual([]);
   });
 
+  it('LS-18: проверка всей формы без отправки живую фазу не включает', async () => {
+    // Живую фазу включает только попытка отправки — `bundle.submission.submit`. Кнопка
+    // «Проверить» (`bundle.validate()`) показывает замечания, но форма не считает её отправкой.
+    const { bundle, runs } = await started({ strategy: 'afterFirstSubmit' });
+    const { form } = bundle;
+    form.loan.amount.setValue(5);
+
+    expect((await bundle.validate()).status).toBe('invalid');
+    expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
+    runs.mockClear();
+
+    form.loan.amount.setValue(500_000);
+    await settle();
+
+    expect(runs).not.toHaveBeenCalled();
+    expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
+  });
+
   it('LS-07: поведение под вопросом: проверка шага визарда первой отправкой не считается', async () => {
-    // поведение под вопросом: живую фазу включает только `validate()` / `submit()` контроллера.
+    // поведение под вопросом: живую фазу включает только попытка отправки — `submission.submit`
+    // сборки или `submit()` хука; ни `validate()`, ни проверка шага её не включают.
     // «Далее» визарда (`flow.next()`) показывает ошибки шага, но живую фазу не включает: поле,
     // исправленное после отказа шага, держит прежнюю ошибку до следующего «Далее». Для визарда
     // «после первой попытки» естественнее считать и первую проверку шага.
@@ -269,7 +288,7 @@ describe('стратегия afterFirstSubmit', () => {
     await settle();
     expect(runs).not.toHaveBeenCalled();
 
-    expect((await bundle.submit(vi.fn())).status).toBe('invalid');
+    expect((await bundle.submission.submit(vi.fn())).status).toBe('invalid');
     form.loan.amount.setValue(500_000);
     await settle();
 
@@ -281,7 +300,7 @@ describe('стратегия afterFirstSubmit', () => {
     const { bundle } = await started({ strategy: 'afterFirstSubmit', liveAfterSubmit: 'blur' });
     const { form } = bundle;
     form.loan.amount.setValue(5);
-    await bundle.submit(vi.fn());
+    await bundle.submission.submit(vi.fn());
 
     // Отказ отправки пометил тронутой всю форму. Было: стратегия видела только смену
     // `touched`, и ни один уход из поля после первой отправки живой прогон не запускал —

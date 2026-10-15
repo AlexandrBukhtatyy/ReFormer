@@ -21,9 +21,15 @@ export interface UseFormValidationArgs<T> {
 }
 
 export interface UseFormValidationResult {
-  /** Полный прогон + раскрытие ошибок (`touch:true`); для `onSubmit`. Стабильная ссылка. */
+  /**
+   * Попытка отправки: полный прогон; при замечаниях раскрыта вся форма, `afterFirstSubmit`
+   * переходит в живую фазу. `true` — только статус `valid`. Для `onSubmit`. Стабильная ссылка.
+   */
   submit: () => Promise<boolean>;
-  /** Алиас `submit` для не-submit сценариев. */
+  /**
+   * Проверка без отправки: полный прогон, раскрыты замечания проверенных полей, фаза
+   * `afterFirstSubmit` не меняется. Для кнопки «Проверить». Стабильная ссылка.
+   */
   validate: () => Promise<boolean>;
   /** Идёт ли прогон (submit или live) — для блокировки кнопки. */
   isValidating: boolean;
@@ -70,7 +76,11 @@ export function useFormValidation<T>(args: UseFormValidationArgs<T>): UseFormVal
     () => false // SSR: прогон не идёт
   );
 
-  const submit = useCallback(() => controller.validate(), [controller]);
+  const submit = useCallback(
+    async () => (await controller.run({ touch: 'all', submit: true })).status === 'valid',
+    [controller]
+  );
+  const validate = useCallback(() => controller.validate(), [controller]);
 
-  return { submit, validate: submit, isValidating };
+  return { submit, validate, isValidating };
 }

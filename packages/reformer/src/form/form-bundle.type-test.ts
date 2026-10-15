@@ -11,7 +11,7 @@ import { createForm } from './form-bundle';
 import type { FormBehavior } from './behaviors';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormFlow } from './flow/flow';
-import type { SubmitResult } from './form-level';
+import type { SubmitResult } from './submission';
 import type { ValidationDefinition, ValidationResult } from './validation';
 
 interface Shape {
@@ -31,7 +31,9 @@ export async function createFormTypeChecks(): Promise<void> {
     flow: { steps: [{ id: 'contacts', rules }, { id: 'confirm' }] },
   });
 
-  const sent: SubmitResult<number> = await bundle.submit((values) => values.email.length);
+  const sent: SubmitResult<number> = await bundle.submission.submit(
+    (values) => values.email.length
+  );
   if (sent.status === 'submitted') {
     const length: number = sent.result;
     void length;

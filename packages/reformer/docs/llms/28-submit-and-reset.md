@@ -2,12 +2,13 @@
 
 ## Purpose
 
-Канонический submit-флоу — один вызов уровня формы: `bundle.submit(handler)`. Он прогоняет все
-правила один раз, разносит замечания по нодам и зовёт обработчик со значениями модели
-(`model.get()`) только при статусе `valid`. Результат — объект `SubmitResult`, по которому
-отличают отправку (`submitted`), замечания в форме (`invalid`), сбой проверки (`error`), отмену
-(`cancelled`) и исключение обработчика (`failed`). После успеха — `model.reset()` (к initial-снимку)
-либо `model.captureInitial()` (сохранённые значения — новая точка отсчёта).
+Канонический submit-флоу — один вызов отправки сборки: `bundle.submission.submit(handler)`.
+Отправка — отдельный объект сборки (`FormSubmission`): она прогоняет все правила один раз,
+разносит замечания по нодам и зовёт обработчик со значениями модели (`model.get()`) только при
+статусе `valid`. Результат — объект `SubmitResult`, по которому отличают отправку (`submitted`),
+замечания в форме (`invalid`), сбой проверки (`error`), отмену (`cancelled`) и исключение
+обработчика (`failed`). После успеха — `model.reset()` (к initial-снимку) либо
+`model.captureInitial()` (сохранённые значения — новая точка отсчёта).
 
 Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidation`): она
 НЕ входит в схему формы и уходит в сборку полем `validation` (шаги — `flow`). Без сборки тот же
@@ -16,15 +17,19 @@
 ## API
 
 ```typescript
-// Уровень формы — сборка createForm (см. 38-form-flow.md)
-bundle.submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
+// Уровень формы — сборка createForm (см. 38-form-flow.md); отправка — объект bundle.submission
+bundle.submission.submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
 type SubmitResult<R> =
   | { status: 'submitted'; result: R } // обработчик отработал
   | { status: 'invalid' | 'error' | 'cancelled'; validation: ValidationResult } // не вызывался
   | { status: 'failed'; error: unknown }; // обработчик бросил исключение
+bundle.submission.submitting: ReadonlySignal<boolean>; // работает обработчик
 bundle.validate(): Promise<ValidationResult>; // проверить всю форму без отправки
-bundle.submitting: ReadonlySignal<boolean>; // работает обработчик
 bundle.validating: ReadonlySignal<boolean>; // идёт проверка
+bundle.dispose(): void; // снять сборку: поведение, подписки нод, живую проверку; модель остаётся
+
+// Отправка без сборки (визард в разметке без createForm) — без проверки
+createSubmission<T>({ check: undefined, values: () => T }): FormSubmission<T>;
 
 // Модель (источник истины значений):
 interface ModelApi<T> {
@@ -51,6 +56,17 @@ form.<field>.setIssues([{ code, params }]);   // серверная/бизнес
 form.<field>.clearIssues();
 form.reset();                                 // ноды: значения создания формы, замечания, touched, dirty
 ```
+
+### Что отправка делает с полями
+
+| Итог отправки         | Касание (`touched`)                                                   |
+| --------------------- | --------------------------------------------------------------------- |
+| `invalid`, `error`    | вся форма — видны замечания и полей, которых правила не касались      |
+| `cancelled`           | форма тронутой не помечается: прогон устарел, замечаний итог не несёт |
+| `submitted`, `failed` | только поля, которые проверили правила                                |
+
+Отправка — попытка отправки: стратегия `afterFirstSubmit` после неё переходит в живую фазу
+(`bundle.validate()` фазу не трогает, см. `33-validation-strategy.md`).
 
 ## Examples
 
@@ -94,10 +110,10 @@ function RegistrationForm() {
   const registration = useFormBundle(createRegistration);
   const { form, model } = registration;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Один прогон правил: при замечаниях обработчик не вызывается, поля помечены тронутыми.
-    const outcome = await registration.submit(register);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // Один прогон правил: при замечаниях обработчик не вызывается, вся форма помечена тронутой.
+    const outcome = await registration.submission.submit(register);
     if (outcome.status === 'submitted' && outcome.result.ok) model.reset(); // чистый старт
   };
 
@@ -115,10 +131,10 @@ function RegistrationForm() {
 ### Submit с разбором результата и серверными замечаниями
 
 ```tsx
-async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
+async function handleSubmit(event: React.FormEvent) {
+  event.preventDefault();
 
-  const outcome = await registration.submit(async (values) => {
+  const outcome = await registration.submission.submit(async (values) => {
     const response = await api.register(values);
     if (!response.success) {
       // Серверная бизнес-ошибка — НЕ сбрасываем форму, кладём замечание в поле
@@ -153,13 +169,14 @@ async function handleSubmit(e: React.FormEvent) {
 
 ### Значения для сервера
 
-Обработчик получает `model.get()` — все значения модели, включая вычисляемые поля. Поля, которых
-сервер не ждёт, отрезает сам обработчик: удобно держать ввод и расчёт разными типами
+Обработчик получает `model.get()` — значения модели целиком: вычисляемые поля и поля, выключенные
+`enableWhen` (их правила не считаются, но данные принадлежат модели). Поля, которых сервер не
+ждёт, отрезает сам обработчик: удобно держать ввод и расчёт разными типами
 (`CreditApplication` и `CreditApplicationDerived`, форма — их пересечение) и функцию
 `toPayload(values): CreditApplication`, убирающую вычисляемые ключи.
 
 ```typescript
-const outcome = await credit.submit((values) => api.send(toApplicationPayload(values)));
+const outcome = await credit.submission.submit((values) => api.send(toApplicationPayload(values)));
 ```
 
 ### Reset с подтверждением
@@ -205,6 +222,28 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 }
 ```
 
+### Снятие сборки — `bundle.dispose()`
+
+Владелец сборки — тот, кто вызвал `createForm`. Вне React (тесты, сервер, своя оболочка) сборку
+снимают, когда форма больше не нужна: `bundle.dispose()` снимает поведение формы, подписки нод и
+живую проверку, а идущие проверки — полная, шага, отправки — получают `cancelled`, и их замечания
+на ноды не ложатся. Значения модели остаются. Вызов идемпотентен.
+
+```typescript
+const registration = createRegistration();
+try {
+  const outcome = await registration.submission.submit(register);
+  expect(outcome.status).toBe('invalid');
+} finally {
+  registration.dispose();
+}
+```
+
+- `level.dispose()` у `FormLevel` (уровень без сборки, `createFormLevel`) снимает только уровень —
+  живую проверку и идущие проверки; форму не трогает.
+- Форму из `createFormFromModel` снимает `disposeForm(form)` — поведение и подписки нод.
+- `useFormBundle` сборку при размонтировании не снимает.
+
 ## Anti-patterns
 
 ```typescript
@@ -212,15 +251,15 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 await api.send(bundle.model.get());
 
 // ✅ Проверка и отправка одним вызовом
-await bundle.submit(api.send);
+await bundle.submission.submit(api.send);
 ```
 
 ```typescript
 // ❌ Результат как boolean — объект всегда truthy
-if (await bundle.submit(api.send)) navigate('/done');
+if (await bundle.submission.submit(api.send)) navigate('/done');
 
 // ✅ Статус результата
-const outcome = await bundle.submit(api.send);
+const outcome = await bundle.submission.submit(api.send);
 if (outcome.status === 'submitted') navigate('/done');
 ```
 
@@ -229,23 +268,23 @@ if (outcome.status === 'submitted') navigate('/done');
 await form.validate();
 await form.submit(api.send);
 
-// ✅ Уровень формы — у сборки
+// ✅ Проверка — у сборки, отправка — её объект submission (см. 17-nonexistent-api.md)
 await bundle.validate();
-await bundle.submit(api.send);
+await bundle.submission.submit(api.send);
 ```
 
 ```typescript
 // ❌ Чтение результата без await — сабмитим по неполному вердикту
-const handleSubmit = (e) => {
-  e.preventDefault();
+const handleSubmit = (event) => {
+  event.preventDefault();
   validateModel(model, schema); // Promise проигнорирован, async-правила не дождались
   send(model.get());
 };
 
-// ✅ bundle.submit дожидается async-правил сам
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  await bundle.submit(send);
+// ✅ bundle.submission.submit дожидается async-правил сам
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  await bundle.submission.submit(send);
 };
 ```
 
@@ -269,10 +308,19 @@ await api.send(model.get());
 model.reset();
 
 // ✅ Reset только после успеха — внутри обработчика либо по статусу 'submitted'
-const outcome = await bundle.submit(async (values) => {
+const outcome = await bundle.submission.submit(async (values) => {
   await api.send(values);
   bundle.model.reset();
 });
+```
+
+```typescript
+// ❌ Сборка в тесте или на сервере брошена — поведение и живая проверка продолжают работать
+const bundle = createForm<RegistrationFormData>({ initial, schema, validation: rules });
+await bundle.submission.submit(register);
+
+// ✅ Владелец сборки снимает её сам; модель при этом остаётся
+bundle.dispose();
 ```
 
 ```typescript
@@ -305,9 +353,10 @@ A: Async-правило не вернуло результат (сеть, иск
 **Q: `submit` вернул `status: 'cancelled'`, обработчик не вызван, замечаний нет.**
 A: Проверку отправки сменила следующая (вторая отправка, живой прогон стратегии `change`) либо
 модель изменилась, пока проверка шла. Пока отвечает async-правило, форма не заперта
-(`submitting` ещё `false`): пользователь поправил поле, пришла загрузка, поведение записало
+(`submission.submitting` ещё `false`): пользователь поправил поле, пришла загрузка, поведение записало
 значение после таймера или запроса — правила этих значений не видели, и отправлять их нельзя.
-Отправку повторяют: следующий прогон проверит уже новые значения. Чтобы правок не было — запри
+Форма тронутой не помечается. Отправку повторяют: следующий прогон проверит уже новые значения.
+Отменой кончается и отправка, идущая в момент `bundle.dispose()`. Чтобы правок не было — запри
 форму на время проверки по `bundle.validating`. Вызов в одном тике со сборкой формы или правкой
 поля отправку не отменяет: проверка сначала дожидается отложенных записей поведения (колбэк
 `onChange`, сброс `resetOnDisable`), и правила, и обработчик видят значения после них.
@@ -340,13 +389,14 @@ A: `model.reset()` возвращает значения к точке отсч�
 загрузки данных и `captureInitial()` к ним возвращает `model.reset()`.
 
 **Q: Disabled-поля участвуют в submit-данных?**
-A: Обработчик получает `model.get()` — значения всех полей. Фильтруй сам либо используй
+A: Да. Обработчик получает `model.get()` — модель целиком, с выключенными полями: их правила не
+считаются, но данные принадлежат модели. Фильтруй сам либо используй
 `enableWhen({ resetOnDisable: true })`, чтобы при disable поле возвращалось к initial. Замечания
 отключённых полей сняты, в проверку они не входят.
 
 ## See also
 
-- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `validateStep`, `submit`, поток шагов
+- [38-form-flow.md](./38-form-flow.md) — уровень формы: `validate`, `validateStep`, `submission`, поток шагов
 - [29-async-preload.md](./29-async-preload.md) — initial values и preload через `set`/`patch`
 - [13-multi-step.md](./13-multi-step.md) — пошаговая форма: поток `flow`, визард
 - [27-revalidate-when.md](./27-revalidate-when.md) — мост «поведение → валидация»: `revalidateWhen([deps], () => void validateModel(model, schema))`

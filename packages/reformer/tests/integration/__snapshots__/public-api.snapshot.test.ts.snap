@@ -2,6 +2,7 @@
 
 exports[`public API — входы сабпатов > PA-02 · . — имена и виды экспортов 1`] = `
 {
+  "ActionCheck": "тип",
   "BehaviorCleanup": "тип",
   "CORE_RUNTIME_TOKEN": "объект, заморожен",
   "CompileSchemaOptions": "тип",
@@ -36,6 +37,7 @@ exports[`public API — входы сабпатов > PA-02 · . — имена 
   "FormNode": "тип",
   "FormRender": "тип",
   "FormSchemaNode": "тип",
+  "FormSubmission": "тип",
   "FormValidation": "тип",
   "FormValidationState": "тип",
   "ModelApi": "тип",
@@ -67,6 +69,7 @@ exports[`public API — входы сабпатов > PA-02 · . — имена 
   "SchemaScopeId": "тип",
   "SchemaTextPart": "тип",
   "SchemaValueHandle": "тип",
+  "SubmissionDependencies": "тип",
   "SubmitResult": "тип",
   "ValidationIssue": "тип",
   "arrayOf": "функция",
@@ -78,6 +81,8 @@ exports[`public API — входы сабпатов > PA-02 · . — имена 
   "createModel": "функция",
   "createSchemaController": "функция",
   "createSchemaScope": "функция",
+  "createSubmission": "функция",
+  "disposeForm": "функция",
   "eachLeafSignal": "функция",
   "eachValueSignal": "функция",
   "getNodeForSignal": "функция",
@@ -223,6 +228,8 @@ exports[`public API — входы сабпатов > PA-02 · ./model — им�
   "computeFrom": "функция",
   "copyFrom": "функция",
   "createModel": "функция",
+  "deepEqual": "функция",
+  "deferredWritesSettled": "функция",
   "eachLeafSignal": "функция",
   "eachValueSignal": "функция",
   "isDerived": "функция",
@@ -296,6 +303,7 @@ exports[`public API — входы сабпатов > PA-02 · ./validation — 
 {
   "AsyncRule": "тип",
   "FormValidationController": "тип",
+  "FormValidationRunOptions": "тип",
   "Rule": "тип",
   "ValidationDefinition": "тип",
   "ValidationFailure": "тип",

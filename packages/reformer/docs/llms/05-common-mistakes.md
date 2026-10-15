@@ -91,9 +91,9 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 
 Валидация — **отдельный слой** (`@reformer/core/validation`), а не ключ узла. Схема формы
 (билдер `createForm` / JSON-DSL) правил **не несёт**: они живут в `ValidationDefinition` и уходят в
-сборку полем `validation` (шаги — `flow`). Запуск — уровнем формы: `bundle.submit(handler)`,
-`bundle.validate()`, `bundle.validateStep(id)`; без сборки — `validateModel(model, schema)`. У нод
-методов `validate()` / `submit()` нет.
+сборку полем `validation` (шаги — `flow`). Запуск — уровнем формы:
+`bundle.submission.submit(handler)`, `bundle.validate()`, `bundle.validateStep(id)`; без сборки —
+`validateModel(model, schema)`. У нод методов `validate()` / `submit()` нет.
 
 ```typescript
 // ❌ WRONG - ключей value и validators у узла нет, как и записи «имя → узел»
@@ -121,7 +121,7 @@ export const formMessages = defineIssueMessages({
 
 // прогон — уровнем формы: замечания сами доезжают до нод, warnings не блокируют.
 // Отклонённое async-правило — сбой: статус `error`, на поле замечание `ruleFailed`.
-const outcome = await bundle.submit(api.send); // createForm({ …, validation: emailSchema })
+const outcome = await bundle.submission.submit(api.send); // createForm({ …, validation: emailSchema })
 ```
 
 ### Cross-field — оператор `cross`, а не `ctx.form`

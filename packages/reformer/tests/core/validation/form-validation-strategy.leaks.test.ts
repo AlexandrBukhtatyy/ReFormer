@@ -191,7 +191,7 @@ describe('form-validation-strategy — живая фаза и снятие', () 
       const { runs, rules } = countedRules();
       const controller = createFormValidation(subject.model, rules, options);
       controller.start();
-      if (options.strategy === 'afterFirstSubmit') await controller.validate();
+      if (options.strategy === 'afterFirstSubmit') await controller.run({ submit: true });
       runs.mockClear();
       const createdBefore = createdEffects();
 
@@ -256,7 +256,7 @@ describe('form-validation-strategy — живая фаза и снятие', () 
       const subject = createProfile();
       const { rules } = countedRules();
       const controller = createFormValidation(subject.model, rules, options);
-      if (options.strategy === 'afterFirstSubmit') await controller.validate();
+      if (options.strategy === 'afterFirstSubmit') await controller.run({ submit: true });
       const base = liveEffects();
       const createdBefore = createdEffects();
       const drift = new Set<string>();

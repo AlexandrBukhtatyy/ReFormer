@@ -279,5 +279,5 @@ defineIssueMessages({ 'loanAmount.required': 'Укажите сумму кред
 
 - [34-i18n.md](./34-i18n.md) — локаль, загрузка словарей, `I18nProvider`
 - [03-api-signatures.md](./03-api-signatures.md) — фабрики правил и `RuleOptions`
-- [38-form-flow.md](./38-form-flow.md) — `bundle.submit` и проверка шагов
+- [38-form-flow.md](./38-form-flow.md) — `bundle.submission.submit` и проверка шагов
 - [17-nonexistent-api.md](./17-nonexistent-api.md) — удалённые `message`, `messageKey`, `ValidationError`

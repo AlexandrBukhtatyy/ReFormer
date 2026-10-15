@@ -15,9 +15,8 @@
 
 import { createModel } from '../model/create-model';
 import type { FormModel } from '../model/types';
-import { createFormFromCompiled } from './create-form';
+import { createFormFromCompiled, disposeForm } from './create-form';
 import type { FormBehavior } from './behaviors';
-import { rawNode } from './nodes/node-kind';
 import {
   createSchemaController,
   type SchemaController,
@@ -82,7 +81,8 @@ export interface FormRender {
 
 /**
  * Результат {@link createForm}: модель, форма, часть для рендерера и уровень формы
- * ({@link FormLevel}) — `validate()`, `validateStep(id)`, `submit(handler)` и поток шагов.
+ * ({@link FormLevel}) — `validate()`, `validateStep(id)`, поток шагов и отправка
+ * `submission.submit(handler)`.
  *
  * @typeParam T - Форма данных модели.
  * @group Utilities
@@ -91,6 +91,14 @@ export interface FormBundle<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
   readonly form: FormGroup<T>;
   readonly render: FormRender;
+  /**
+   * Снять сборку: поведение формы, подписки нод, живую проверку; идущие проверки — полная, шага,
+   * отправки — получают `cancelled`. Значения модели остаются. Идемпотентно.
+   *
+   * Владелец сборки — тот, кто вызвал `createForm`: вне React (тесты, сервер, своя оболочка)
+   * снимайте её этим вызовом, когда форма больше не нужна.
+   */
+  dispose(): void;
 }
 
 /**
@@ -203,7 +211,7 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
  * @typeParam T - Форма данных модели.
  * @param config - {@link CreateFormConfig}: (`initial` | `model`) + опц. `schema`, `registry`,
  *   `behavior`, `validation`, `flow`, `seed`, `setup`.
- * @returns {@link FormBundle} — `{ model, form, render, flow, validate, validateStep, submit, … }`.
+ * @returns {@link FormBundle} — `{ model, form, render, flow, validate, validateStep, submission, … }`.
  *
  * @example Рендерер по TS-схеме
  * ```tsx
@@ -223,7 +231,7 @@ function resolveTree<T>(config: CreateFormConfig<T>, model: FormModel<T>): Parti
  * ```tsx
  * const credit = useFormBundle(() => createForm<CreditForm>({ initial, schema: creditSchema }));
  * const send = async () => {
- *   const result = await credit.submit(api.send);
+ *   const result = await credit.submission.submit(api.send);
  *   if (result.status === 'invalid') showHint('Проверьте форму');
  * };
  * return <FormField control={credit.form.loanType} />;
@@ -277,14 +285,17 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
       ...(fieldWrapper !== undefined ? { fieldWrapper } : {}),
       ...(errorBoundary !== undefined ? { errorBoundary } : {}),
     },
+    // После `...level`: уровень снимает только себя, сборка — ещё и форму.
+    dispose() {
+      disposeForm(form);
+      level.dispose();
+    },
   };
   try {
     config.setup?.(bundle);
   } catch (error) {
-    // Сбой setup: бандл вызывающему не достанется — форму с поведением и контроллер проверки
-    // снять больше некому.
-    rawNode(form).dispose();
-    bundle.validation?.controller.dispose();
+    // Сбой setup: бандл вызывающему не достанется — снять его больше некому.
+    bundle.dispose();
     throw error;
   }
   return bundle;

@@ -19,7 +19,12 @@
  * - **value-операции** (реактивные правила) — `computeFrom`/`copyFrom`/`watchField`/`transformValue`/
  *   `resetWhen`/`syncFields`/`revalidateWhen`;
  * - **producer-owned флаг** — `markDerived`/`isDerived`/`unmarkDerived`;
- * - **утилиты субстрата** — `runOutsideEffect`/`safeCallback`/`safeDebouncedCallback`.
+ * - **утилиты субстрата** — `runOutsideEffect`/`safeCallback`/`safeDebouncedCallback` и
+ *   `deferredWritesSettled` (дождаться отложенных записей текущего тика);
+ * - **сравнение значений** — `deepEqual`, на нём стоят `isDirty` и сверка «модель изменилась».
+ *
+ * Запасной шаблон элемента массива модель принимает от того, кто строит её извне (сборка формы
+ * передаёт `initialValue` узла-массива); что это узел схемы, модель не знает.
  *
  * @group Model
  * @module model
@@ -62,4 +67,12 @@ export type { BehaviorCleanup } from './behaviors-value';
 export { markDerived, isDerived, unmarkDerived } from './derived-registry';
 
 // Утилиты субстрата (реактивные правила / lifecycle).
-export { runOutsideEffect, safeCallback, safeDebouncedCallback } from './safe-effect';
+export {
+  runOutsideEffect,
+  safeCallback,
+  safeDebouncedCallback,
+  deferredWritesSettled,
+} from './safe-effect';
+
+// Сравнение значений модели — то же, на котором стоят `isDirty` и сверка «модель изменилась».
+export { deepEqual } from './model-nodes';

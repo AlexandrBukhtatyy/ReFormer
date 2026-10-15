@@ -8,9 +8,9 @@
 несёт.
 
 Сборка отдаёт поток `bundle.flow` (`next` / `previous` / `goTo`), проверку шага
-`bundle.validateStep(id)`, полную проверку `bundle.validate()` и отправку `bundle.submit(handler)`.
-Замечания разносятся по нодам сами — UI подсветит поля текущего шага. Полный справочник —
-[38-form-flow.md](./38-form-flow.md).
+`bundle.validateStep(id)`, полную проверку `bundle.validate()` и отправку
+`bundle.submission.submit(handler)`. Замечания разносятся по нодам сами — UI подсветит поля
+текущего шага. Полный справочник — [38-form-flow.md](./38-form-flow.md).
 
 ### Поток шагов сборки
 
@@ -39,7 +39,7 @@ const loan = useFormBundle(createLoanForm);
 await loan.flow?.next(); // проверить правила текущего шага и перейти → FlowTransition
 await loan.validateStep('loan'); // правила одного шага → ValidationResult
 await loan.validate(); // все шаги + extras → ValidationResult
-await loan.submit(sendLoan); // один прогон всех правил; обработчик — только при valid
+await loan.submission.submit(sendLoan); // один прогон всех правил; обработчик — только при valid
 loan.validating.value; // идёт ли проверка — полная либо шага
 ```
 
@@ -49,6 +49,8 @@ loan.validating.value; // идёт ли проверка — полная либ
   validation }`; поля шага помечаются тронутыми. Переход — `{ status: 'moved', from, to }`.
 - Поле правили, пока шла проверка шага (async-правило), — `next()` остаётся на шаге с
   `reason: 'cancelled'`: правила этого значения не видели. Следующий `next()` проверит новое.
+- Стратегия `afterFirstSubmit` переходит в живую фазу только от отправки
+  (`bundle.submission.submit`): `next()`, `validateStep` и `validate` её не переключают.
 - `goTo(id)` открывает первый шаг и шаги после пройденных; прыжок вперёд через непройденный шаг —
   `reason: 'locked'`. Назад — всегда.
 - В dev сборка предупреждает о шаге `flow.steps`, для которого в схеме нет узла с таким `selector`.
@@ -67,7 +69,7 @@ import { FormWizard } from '@reformer/ui-kit';
 function LoanWizard() {
   const loan = useFormBundle(createLoanForm);
   const send = async () => {
-    const outcome = await loan.submit(sendLoan);
+    const outcome = await loan.submission.submit(sendLoan);
     if (outcome.status !== 'submitted') showHint('Проверьте форму');
   };
   return <FormWizard form={loan.form} flow={loan.flow} steps={STEPS} onSubmit={send} />;
@@ -75,11 +77,11 @@ function LoanWizard() {
 ```
 
 - В JSX — `form`, `flow={bundle.flow}` и `steps` пропсами; отправку проверяет приложение через
-  `bundle.submit(handler)`.
+  `bundle.submission.submit(handler)`.
 - В схеме формы — узел `{ selector: 'wizard', component: FormWizard, children: [шаги] }`, шаг —
   `{ selector: 'loan', component: Step, componentProps: { title }, children: [...] }`. Внутри
   рендерера визард берёт форму и поток из сборки сам, а его `onSubmit` зовётся через
-  `bundle.submit` — только после успешной проверки всей формы.
+  `bundle.submission.submit` — только после успешной проверки всей формы.
 - Без `flow` и без сборки в контексте визард строит позиционный поток **без правил**.
 - Навигация снаружи визарда — через сам поток: `bundle.flow?.goTo('loan')`; в поведении — `flow` из
   области (`defineFormBehavior(({ model, flow }) => …)`).
@@ -104,7 +106,7 @@ function MultiStepForm() {
         Back
       </button>
       {isLast ? (
-        <button onClick={() => void loan.submit(sendLoan)}>Submit</button>
+        <button onClick={() => void loan.submission.submit(sendLoan)}>Submit</button>
       ) : (
         <button onClick={() => void flow.next()} disabled={validating}>
           Next

@@ -1,5 +1,5 @@
 /**
- * Отправка заявки на кредит — все пять статусов `bundle.submit(handler)` и то, что вокруг них.
+ * Отправка заявки на кредит — все пять статусов `bundle.submission.submit(handler)` и то, что вокруг них.
  *
  * Отправка — один прогон всех правил (шаги потока + межшаговые `extras` либо полный набор
  * `rules: 'all'`), затем обработчик со значениями `model.get()`. Здесь проверяется, как это видно
@@ -83,14 +83,14 @@ function validationOf(result: SubmitResult<unknown>): ValidationResult {
 
 // ─── Пять статусов ──────────────────────────────────────────────────────────────────────────
 
-describe('bundle.submit — пять статусов отправки', () => {
+describe('bundle.submission.submit — пять статусов отправки', () => {
   it('SS-01: submitted — обработчик вызван один раз со значениями model.get(), правила прогнаны один раз', async () => {
     const { bundle, server } = build();
     await passWizardTo(bundle, 'review');
     const innChecks = server.callsOf('checkInn').length;
     const handler = vi.fn((values: LoanApplication) => server.api.submitApplication(values));
 
-    const result = await bundle.submit(handler);
+    const result = await bundle.submission.submit(handler);
 
     expect(result).toEqual({ status: 'submitted', result: { applicationNumber: 'ЗК-000001' } });
     expect(handler).toHaveBeenCalledTimes(1);
@@ -106,7 +106,7 @@ describe('bundle.submit — пять статусов отправки', () => {
     const handler = vi.fn((values: LoanApplication) => server.api.submitApplication(values));
     model.email = 'ivanov@';
 
-    const refused = await bundle.submit(handler);
+    const refused = await bundle.submission.submit(handler);
 
     expect(refused).toMatchObject({ status: 'invalid', validation: { status: 'invalid' } });
     expect(pathsWithIssues(validationOf(refused))).toEqual(['email']);
@@ -117,7 +117,7 @@ describe('bundle.submit — пять статусов отправки', () => {
     expect(bundle.flow!.current.value).toBe('review');
 
     model.email = 'ivanov@example.ru';
-    const accepted = await bundle.submit(handler);
+    const accepted = await bundle.submission.submit(handler);
 
     expect(accepted.status).toBe('submitted');
     expect(handler).toHaveBeenCalledTimes(1);
@@ -139,7 +139,7 @@ describe('bundle.submit — пять статусов отправки', () => {
     await settle();
     const handler = vi.fn();
 
-    const refused = await bundle.submit(handler);
+    const refused = await bundle.submission.submit(handler);
 
     expect(refused.status).toBe('invalid');
     expect(handler).not.toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe('bundle.submit — пять статусов отправки', () => {
     expect((await runValidation(model, rules.loan)).status).toBe('valid');
 
     model.loan.amount = 4_800_000;
-    expect((await bundle.submit(handler)).status).toBe('submitted');
+    expect((await bundle.submission.submit(handler)).status).toBe('submitted');
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
@@ -162,7 +162,7 @@ describe('bundle.submit — пять статусов отправки', () => {
     const handler = vi.fn((values: LoanApplication) => server.api.submitApplication(values));
     const outage = new Error('Сервис проверки ИНН недоступен');
 
-    const failing = bundle.submit(handler);
+    const failing = bundle.submission.submit(handler);
     server.last('checkInn').reject(outage);
     const result = await failing;
 
@@ -174,7 +174,7 @@ describe('bundle.submit — пять статусов отправки', () => {
     expect(issueCodes(form.applicant.inn)).toEqual(['ruleFailed']);
     expect(form.applicant.inn.shouldShowError.value).toBe(true);
 
-    const retry = bundle.submit(handler);
+    const retry = bundle.submission.submit(handler);
     server.last('checkInn').resolve({ status: 'found' });
 
     expect(await retry).toEqual({
@@ -192,8 +192,8 @@ describe('bundle.submit — пять статусов отправки', () => {
     const handler = vi.fn((values: LoanApplication) => server.api.submitApplication(values));
 
     // Двойной клик по «Отправить».
-    const first = bundle.submit(handler);
-    const second = bundle.submit(handler);
+    const first = bundle.submission.submit(handler);
+    const second = bundle.submission.submit(handler);
     const [stale, fresh] = server.callsOf('checkInn').slice(-2);
     expect([stale.aborted, fresh.aborted]).toEqual([true, false]);
     fresh.resolve({ status: 'found' });
@@ -217,17 +217,21 @@ describe('bundle.submit — пять статусов отправки', () => {
     server.hold('submitApplication');
     const outage = new Error('502 Bad Gateway');
 
-    const sending = bundle.submit((application) => server.api.submitApplication(application));
+    const sending = bundle.submission.submit((application) =>
+      server.api.submitApplication(application)
+    );
     await settle();
-    expect(bundle.submitting.value).toBe(true);
+    expect(bundle.submission.submitting.value).toBe(true);
     server.last('submitApplication').reject(outage);
 
     expect(await sending).toEqual({ status: 'failed', error: outage });
-    expect(bundle.submitting.value).toBe(false);
+    expect(bundle.submission.submitting.value).toBe(false);
     expect(bundle.model.get()).toEqual(values);
     expect(bundle.form.valid.value).toBe(true);
 
-    const retry = bundle.submit((application) => server.api.submitApplication(application));
+    const retry = bundle.submission.submit((application) =>
+      server.api.submitApplication(application)
+    );
     await settle();
     server.last('submitApplication').resolve({ applicationNumber: 'ЗК-000042' });
     expect(await retry).toEqual({
@@ -239,24 +243,24 @@ describe('bundle.submit — пять статусов отправки', () => {
 
 // ─── Ход отправки ───────────────────────────────────────────────────────────────────────────
 
-describe('bundle.submit — ход отправки и один прогон правил', () => {
+describe('bundle.submission.submit — ход отправки и один прогон правил', () => {
   it('SS-07: validating — пока идёт проверка, submitting — только пока работает обработчик', async () => {
     const { bundle, server } = build();
     await passWizardTo(bundle, 'review');
     server.hold('checkInn');
     server.hold('submitApplication');
 
-    const sending = bundle.submit((values) => server.api.submitApplication(values));
-    expect([bundle.validating.value, bundle.submitting.value]).toEqual([true, false]);
+    const sending = bundle.submission.submit((values) => server.api.submitApplication(values));
+    expect([bundle.validating.value, bundle.submission.submitting.value]).toEqual([true, false]);
     expect(bundle.form.applicant.inn.pending.value).toBe(true);
 
     server.last('checkInn').resolve({ status: 'found' });
     await settle();
-    expect([bundle.validating.value, bundle.submitting.value]).toEqual([false, true]);
+    expect([bundle.validating.value, bundle.submission.submitting.value]).toEqual([false, true]);
 
     server.last('submitApplication').resolve({ applicationNumber: 'ЗК-000007' });
     expect((await sending).status).toBe('submitted');
-    expect([bundle.validating.value, bundle.submitting.value]).toEqual([false, false]);
+    expect([bundle.validating.value, bundle.submission.submitting.value]).toEqual([false, false]);
   });
 
   it.each<ValidationStrategyKind>(['submit', 'change', 'blur', 'afterFirstSubmit'])(
@@ -270,7 +274,7 @@ describe('bundle.submit — ход отправки и один прогон п�
       runs.mockClear();
       const innChecks = server.callsOf('checkInn').length;
 
-      const result = await bundle.submit(server.api.submitApplication);
+      const result = await bundle.submission.submit(server.api.submitApplication);
       await settle();
 
       expect(result.status).toBe('submitted');
@@ -283,7 +287,7 @@ describe('bundle.submit — ход отправки и один прогон п�
 
 // ─── Правка во время проверки отправки ──────────────────────────────────────────────────────
 
-describe('bundle.submit — правка формы, пока отправка ждёт проверку', () => {
+describe('bundle.submission.submit — правка формы, пока отправка ждёт проверку', () => {
   it('SS-09: правка поля во время проверки отправки отменяет её — непроверенное не уходит обработчику [ReFormer-xt4x]', async () => {
     const { bundle, server } = build();
     await passWizardTo(bundle, 'review');
@@ -294,7 +298,7 @@ describe('bundle.submit — правка формы, пока отправка �
     // (`submitting` ещё false, SS-07). Правила видели прежнюю почту.
     // Было: обработчик читал `model.get()` после проверки и получал правку, которую не проверял
     // никто, — статус `submitted`, на сервер уходила неверная почта, замечаний на поле не было.
-    const sending = bundle.submit(handler);
+    const sending = bundle.submission.submit(handler);
     bundle.form.email.setValue('ivanov@');
     server.last('checkInn').resolve({ status: 'found' });
 
@@ -303,7 +307,7 @@ describe('bundle.submit — правка формы, пока отправка �
     expect(server.callsOf('submitApplication')).toHaveLength(0);
 
     // Повторная отправка проверяет уже новую почту и показывает замечание.
-    const again = bundle.submit(handler);
+    const again = bundle.submission.submit(handler);
     server.last('checkInn').resolve({ status: 'found' });
 
     expect((await again).status).toBe('invalid');
@@ -319,7 +323,7 @@ describe('bundle.submit — правка формы, пока отправка �
     const { form } = bundle;
     const handler = vi.fn();
 
-    const sending = bundle.submit(handler);
+    const sending = bundle.submission.submit(handler);
     form.email.setValue('ivanov@');
     // Живой прогон — та же пара «модель + правила», что у отправки: он её и отменяет.
     const [stale, fresh] = server.callsOf('checkInn').slice(-2);
@@ -333,23 +337,23 @@ describe('bundle.submit — правка формы, пока отправка �
     expect(form.email.shouldShowError.value).toBe(true);
   });
 
-  it('SS-11: поведение под вопросом: отменённая отправка метит тронутой всю форму', async () => {
-    // поведение под вопросом: отказ отправки раскрывает замечания всех полей — и при статусе
-    // cancelled, хотя результат отменённого прогона не разносится и показывать ему нечего. Поле
-    // без правил, которого пользователь не касался, становится touched от отправки, которую
-    // сменила следующая проверка.
+  it('SS-11: отменённая отправка форму не трогает', async () => {
+    // Отказ отправки раскрывает замечания всех полей только при invalid и error. Результат
+    // отменённого прогона не разносится, показывать ему нечего: поле без правил, которого
+    // пользователь не касался, остаётся нетронутым. Раньше его метила отправка, которую сменила
+    // следующая проверка.
     const { bundle, server } = build();
     await passWizardTo(bundle, 'review');
     server.hold('checkInn');
     const { form } = bundle;
     expect(form.sameAsRegistration.touched.value).toBe(false);
 
-    const sending = bundle.submit(vi.fn());
+    const sending = bundle.submission.submit(vi.fn());
     const check = bundle.validate();
     server.last('checkInn').resolve({ status: 'found' });
 
     expect((await sending).status).toBe('cancelled');
-    expect(form.sameAsRegistration.touched.value).toBe(true);
+    expect(form.sameAsRegistration.touched.value).toBe(false);
     expect((await check).status).toBe('valid');
   });
 });
@@ -365,7 +369,7 @@ describe('rules: all — одностраничная анкета без пот
 
     expect(bundle.flow).toBeUndefined();
     await expect(bundle.validateStep('loan')).rejects.toThrow('Поток не задан');
-    const refused = await bundle.submit(handler);
+    const refused = await bundle.submission.submit(handler);
 
     expect(refused.status).toBe('invalid');
     expect(handler).not.toHaveBeenCalled();
@@ -392,7 +396,7 @@ describe('rules: all — одностраничная анкета без пот
     fillLoanApplication(model);
     await settle();
 
-    const result = await bundle.submit(server.api.submitApplication);
+    const result = await bundle.submission.submit(server.api.submitApplication);
 
     expect(result).toEqual({ status: 'submitted', result: { applicationNumber: 'ЗК-000001' } });
     expect(server.last('submitApplication').args[0]).toEqual(model.get());
@@ -401,7 +405,7 @@ describe('rules: all — одностраничная анкета без пот
     model.employment.monthlyIncome = 20_000;
     model.hasCoBorrowers = false;
     await settle();
-    const refused = await bundle.submit(server.api.submitApplication);
+    const refused = await bundle.submission.submit(server.api.submitApplication);
 
     expect(refused.status).toBe('invalid');
     expect(issueCodes(form.loan.amount)).toEqual(['loan.paymentTooHigh']);
@@ -416,7 +420,7 @@ describe('замечания сервера после отправки', () => 
     await passWizardTo(bundle, 'review');
     const { form } = bundle;
 
-    const result = await bundle.submit(async (values) => {
+    const result = await bundle.submission.submit(async (values) => {
       const receipt = await server.api.submitApplication(values);
       // Сервер принял заявку, но ИНН — в стоп-листе: замечание — в поле, форма не сбрасывается.
       form.applicant.inn.setIssues([{ code: 'applicant.inn.blocked' }]);
@@ -434,7 +438,7 @@ describe('замечания сервера после отправки', () => 
     await settle();
     expect(issueCodes(form.applicant.inn)).toEqual(['applicant.inn.blocked']);
 
-    const again = await bundle.submit(server.api.submitApplication);
+    const again = await bundle.submission.submit(server.api.submitApplication);
 
     expect(again.status).toBe('submitted');
     expect(form.applicant.inn.issues.value).toEqual([]);
@@ -447,7 +451,7 @@ describe('замечания сервера после отправки', () => 
     bundle.validation!.controller.start();
     await passWizardTo(bundle, 'review');
     const { form } = bundle;
-    await bundle.submit(async (values) => {
+    await bundle.submission.submit(async (values) => {
       const receipt = await server.api.submitApplication(values);
       form.applicant.inn.setIssues([{ code: 'applicant.inn.blocked' }]);
       return receipt;
@@ -513,7 +517,7 @@ describe('замечания сервера после отправки', () => 
     expect(form.phone.touched.value).toBe(false);
     expect(form.valid.value).toBe(false);
 
-    const result = await bundle.submit(() => 'ok');
+    const result = await bundle.submission.submit(() => 'ok');
 
     expect(result.status).toBe('submitted');
     expect([form.email.issues.value, form.applicant.passport.number.issues.value]).toEqual([
@@ -532,7 +536,7 @@ describe('замечания сервера после отправки', () => 
     const { form } = bundle;
     form.applicant.setIssues([{ code: 'applicant.duplicate' }]);
 
-    const result = await bundle.submit(server.api.submitApplication);
+    const result = await bundle.submission.submit(server.api.submitApplication);
 
     expect(result.status).toBe('submitted');
     expect(form.applicant.ownIssues.value).toEqual([{ code: 'applicant.duplicate' }]);

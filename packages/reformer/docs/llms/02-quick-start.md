@@ -11,8 +11,8 @@
 (`model: model.$.field`). Сборка идёт ОДНИМ вызовом `createForm`: он создаёт модель, строит форму,
 запускает поведение и собирает уровень формы — проверку и отправку. Правил в схеме нет — они
 живут в отдельной схеме `defineValidation` из `@reformer/core/validation` и уходят в сборку полем
-`validation`; запускает их `bundle.submit(handler)` / `bundle.validate()`. Текста у правил нет:
-правило несёт код, строку по коду даёт словарь формы (`defineIssueMessages`).
+`validation`; запускает их `bundle.submission.submit(handler)` / `bundle.validate()`. Текста у
+правил нет: правило несёт код, строку по коду даёт словарь формы (`defineIssueMessages`).
 
 ```typescript
 import { createForm, type FormModel, type FormGroup, type FormSchemaNode } from '@reformer/core';
@@ -72,11 +72,11 @@ function ContactFormComponent() {
   const contact = useFormBundle(createContactForm);
   const { form } = contact;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Один прогон всех правил: при замечаниях обработчик не вызывается, а поля помечаются
-    // тронутыми — FormField покажет замечания.
-    const outcome = await contact.submit((values) => api.send(values));
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    // Один прогон всех правил: при замечаниях обработчик не вызывается, а вся форма помечается
+    // тронутой — FormField покажет замечания.
+    const outcome = await contact.submission.submit((values) => api.send(values));
     if (outcome.status === 'submitted') console.log('Form submitted');
   };
 
@@ -105,11 +105,12 @@ function FormStep({ form }: FormStepProps) {
 > константой модуля. Иначе форма пересоздаётся на каждый рендер. См. `28-submit-and-reset.md`,
 > `29-async-preload.md`.
 
-> **Проверка и отправка — уровень формы.** `bundle.submit(handler)` прогоняет все правила один раз
-> и зовёт обработчик только при статусе `valid`; результат — `SubmitResult`
-> (`submitted` / `invalid` / `error` / `cancelled` / `failed`). `bundle.validate()` проверяет всю
-> форму и отвечает `ValidationResult`. У нод методов `validate()` / `submit()` нет. Многошаговая
-> форма — `createForm({ flow: { steps: [{ id, rules }] } })`, см. `38-form-flow.md`.
+> **Проверка и отправка — уровень формы.** Отправка — отдельный объект сборки:
+> `bundle.submission.submit(handler)` прогоняет все правила один раз и зовёт обработчик только при
+> статусе `valid`; результат — `SubmitResult` (`submitted` / `invalid` / `error` / `cancelled` /
+> `failed`). `bundle.validate()` проверяет всю форму и отвечает `ValidationResult`. У нод методов
+> `validate()` / `submit()` нет. Многошаговая форма — `createForm({ flow: { steps: [{ id, rules }] } })`,
+> см. `38-form-flow.md`. Вне React сборку снимают `bundle.dispose()`, когда форма больше не нужна.
 
 ### Arrays of objects — узел `{ model, item }`
 

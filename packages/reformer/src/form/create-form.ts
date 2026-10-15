@@ -12,7 +12,7 @@ import type { Signal } from '@preact/signals-core';
 import { FormControlNode } from './nodes/form-control-node';
 import { FormGroupNode } from './nodes/form-group-node';
 import { FormArrayNode, type ModelArrayControl } from './nodes/form-array-node';
-import type { InternalFormNode } from './nodes/node-kind';
+import { rawNode, type InternalFormNode } from './nodes/node-kind';
 import { registerSignalNode } from './signal-node-registry';
 import { isModelArraySignal, isModelContainerSignal } from '../model/model-signals-proxy';
 import { modelOf, provideArrayBlank } from '../model/model-value-proxy';
@@ -196,6 +196,29 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormGr
     ...rest,
     ...(schema !== undefined ? { compiled: compileSchema(schema, args.model as object) } : {}),
   });
+}
+
+/**
+ * Снять форму, собранную {@link createFormFromModel}: поведение формы и подписки нод (массивы
+ * под-форм следят за моделью). Значения модели остаются. Идемпотентно.
+ *
+ * Сборку одним вызовом снимают целиком — `bundle.dispose()`: вместе с формой она снимает живую
+ * проверку и отменяет идущие проверки. Этот вызов нужен своим слоям сборки поверх
+ * {@link createFormFromModel}.
+ *
+ * @param form - Форма из {@link createFormFromModel}.
+ *
+ * @example
+ * ```typescript
+ * const form = createFormFromModel<Profile>({ model, schema, behavior });
+ * // … форма больше не нужна
+ * disposeForm(form);
+ * ```
+ *
+ * @group Utilities
+ */
+export function disposeForm<T>(form: FormGroup<T>): void {
+  rawNode(form).dispose();
 }
 
 /**

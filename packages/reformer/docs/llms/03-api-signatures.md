@@ -19,16 +19,31 @@ createForm<T extends object>({
   flow?,                             // { steps: [{ id, rules? }] } — id = selector узла шага
   seed?, setup?,
 }): FormBundle<T>
-// bundle = { model, form, render, flow, validating, submitting, validate, validateStep, submit }
+// bundle = { model, form, render, flow, validating, submission, validate, validateStep, dispose }
 //   (+ служебное validation: { rules, controller } | undefined — его армирует useFormBundle)
 // await bundle.validate()           → ValidationResult (вся форма; замечания показываются)
 // await bundle.validateStep('loan') → ValidationResult (правила шага; неизвестный шаг — исключение)
-// await bundle.submit(handler)      → SubmitResult<R> (один прогон; обработчик — только при valid)
+// await bundle.submission.submit(handler) → SubmitResult<R> (один прогон; обработчик — только при valid)
+// bundle.submission.submitting      → ReadonlySignal<boolean> (работает обработчик)
 // bundle.flow?.next() / previous() / goTo(id) → FlowTransition
 // bundle.render.tree                → CompiledSchema (см. 37-compiled-schema.md)
+// bundle.dispose()                  → снять сборку: поведение, подписки нод, живую проверку;
+//                                     идущие проверки — cancelled; модель остаётся; идемпотентно
+
+// Отправка — отдельный объект сборки (`bundle.submission`)
+interface FormSubmission<T> {
+  readonly submitting: ReadonlySignal<boolean>; // работает обработчик; пока идёт проверка — false
+  submit<R>(handler: (values: T) => R | Promise<R>): Promise<SubmitResult<R>>;
+}
+// Без сборки (визард в разметке без createForm): check: undefined — отправка без проверки
+createSubmission<T>(dependencies: {
+  check: (() => Promise<ActionCheck<T>>) | undefined; // ActionCheck = { result, values, stale }
+  values: () => T;
+}): FormSubmission<T>
 
 // Низкоуровневая фабрика: форма из готовых модели и дерева, без уровня формы
 createFormFromModel<T>({ model, schema?, behavior? }): FormGroup<T>
+disposeForm<T>(form: FormGroup<T>): void // снять такую форму: поведение и подписки нод; модель остаётся
 ```
 
 ### Form nodes
@@ -215,13 +230,32 @@ type ValidationDefinition<T> = (scope: ValidationScope<T>) => void;
 | `defineValidation<T>(fn): ValidationDefinition<T>` | тонкая identity-обёртка (типизация/discoverability) |
 
 Прогон. В сборке — уровень формы (`bundle.validate()`, `bundle.validateStep(id)`,
-`bundle.submit(handler)`, см. [38-form-flow.md](./38-form-flow.md)). Без сборки — раннер:
+`bundle.submission.submit(handler)`, см. [38-form-flow.md](./38-form-flow.md)). Без сборки — раннер
+либо контроллер стратегии:
 
-| Функция | Что делает |
-|---|---|
-| `validateModel(model, schema, { touch }?)` | сбор + разнос; `true` только при статусе `valid` |
-| `runValidation(model, schema)` | только сбор: `Promise<ValidationResult>`, ноды не трогает |
-| `applyValidationResult(result, { touch }?)` | разнос собранного результата по нодам формы |
+| Функция                                         | Что делает                                                                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `validateModel(model, schema, { touch }?)`      | сбор + разнос; `true` только при статусе `valid`                                                                                           |
+| `runValidation(model, schema)`                  | только сбор: `Promise<ValidationResult>`, ноды не трогает                                                                                  |
+| `applyValidationResult(result, { touch }?)`     | разнос собранного результата по нодам формы                                                                                                |
+| `createFormValidation(model, schema, options?)` | контроллер стратегии: `validate()`, `run(options?)`, `start()`, `dispose()` — см. [33-validation-strategy.md](./33-validation-strategy.md) |
+
+```typescript
+// Контроллер стратегии (@reformer/core/validation)
+controller.validate(): Promise<boolean>; // нейтральная проверка: проверенные поля touched, фаза не меняется
+controller.run(options?: FormValidationRunOptions): Promise<ValidationResult>;
+interface FormValidationRunOptions {
+  touch?: true | 'all'; // 'all' — при отказе (invalid, error) тронуть всю форму
+  submit?: boolean;     // попытка отправки: переводит afterFirstSubmit в живую фазу
+}
+
+// Хук без сборки (@reformer/core/react)
+useFormValidation({ model, schema, strategy?, debounce?, liveAfterSubmit? }): {
+  submit: () => Promise<boolean>;   // попытка отправки: при отказе раскрыта вся форма
+  validate: () => Promise<boolean>; // проверка без отправки: фаза afterFirstSubmit не меняется
+  isValidating: boolean;
+}
+```
 
 ```typescript
 type ValidationStatus = 'valid' | 'invalid' | 'cancelled' | 'error';
@@ -408,6 +442,17 @@ transformValue(target: Signal, transformer: (value) => value): () => void
 resetWhen(target: Signal, condition: () => boolean, options?: { resetValue?: T }): () => void
 syncFields(a: Signal, b: Signal, options?: { transform?: (v) => v }): () => void
 revalidateWhen(deps: ReadonlySignal[], revalidate: () => void): () => void
+```
+
+Утилиты значений там же, в `@reformer/core/model`:
+
+```typescript
+// сравнение значений модели: объекты и массивы — по содержимому, даты — по времени, NaN равен себе;
+// на нём стоят isDirty и сверка «модель изменилась, пока шла проверка» при отправке и переходе шага
+deepEqual(first: unknown, second: unknown): boolean
+// дождаться отложенных записей поведения текущего тика (onChange, resetOnDisable);
+// undefined — ждать нечего
+deferredWritesSettled(): Promise<void> | undefined
 ```
 
 ```typescript

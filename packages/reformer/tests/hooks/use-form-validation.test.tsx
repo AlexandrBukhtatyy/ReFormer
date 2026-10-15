@@ -56,10 +56,9 @@ const renderValidation = (args: Args, strict = false) =>
   renderHookCounting((props: Args) => useFormValidation(props), { initialProps: args, strict });
 
 describe('useFormValidation — submit и контроллер', () => {
-  it('submit — полный прогон с раскрытием ошибок; validate — тот же колбэк', async () => {
+  it('submit — попытка отправки: при отказе раскрыта вся форма', async () => {
     const { model, form, rules } = createSignup();
     const hook = renderValidation({ model, schema: rules });
-    expect(hook.result.current.validate).toBe(hook.result.current.submit);
 
     let ok: boolean | undefined;
     await act(async () => {
@@ -68,7 +67,28 @@ describe('useFormValidation — submit и контроллер', () => {
 
     expect(ok).toBe(false);
     expect(issueCodes(form.email)).toEqual(['required']);
-    expect(form.email.touched.value).toBe(true);
+    // Поле без правил тоже тронуто: отказ отправки раскрывает всю форму.
+    expect({ email: form.email.touched.value, name: form.name.touched.value }).toEqual({
+      email: true,
+      name: true,
+    });
+  });
+
+  it('validate — проверка без отправки: тронуты только проверенные поля', async () => {
+    const { model, form, rules } = createSignup();
+    const hook = renderValidation({ model, schema: rules });
+    expect(hook.result.current.validate).not.toBe(hook.result.current.submit);
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await hook.result.current.validate();
+    });
+
+    expect(ok).toBe(false);
+    expect({ email: form.email.touched.value, name: form.name.touched.value }).toEqual({
+      email: true,
+      name: false,
+    });
   });
 
   it('submit на валидной форме — true', async () => {
@@ -208,6 +228,22 @@ describe('useFormValidation — стратегии после монтирова
       await settle();
     });
     expect(rule).toHaveBeenCalledTimes(2);
+  });
+
+  it('afterFirstSubmit: validate живую фазу не включает — только submit', async () => {
+    const { model, rule, rules } = createSignup('a');
+    const hook = renderValidation({ model, schema: rules, strategy: 'afterFirstSubmit' });
+
+    await act(async () => {
+      await hook.result.current.validate();
+    });
+    expect(rule).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      model.email = 'b';
+      await settle();
+    });
+    expect(rule).toHaveBeenCalledTimes(1); // фаза тихая: проверка не была отправкой
   });
 
   it('afterFirstSubmit + liveAfterSubmit=blur: после отправки — по потере фокуса', async () => {

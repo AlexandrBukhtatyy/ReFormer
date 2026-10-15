@@ -2,7 +2,8 @@
  * Unit-тесты единого выбора стратегии валидации — `createFormValidation` + `eachLeafSignal`.
  *
  * Покрывает: submit (реактивно молчит, validate() метит touched), change (прогон по вводу, touch:false),
- * blur (прогон по touched), afterFirstSubmit (тихо до submit → live) с живой фазой change и blur,
+ * blur (прогон по touched), afterFirstSubmit (тихо до попытки отправки → live; validate() фазу не
+ * трогает) с живой фазой change и blur, касание всей формы при отказе (touch: 'all'),
  * debounce (сброс таймера новым вводом, снятие таймера в dispose), dispose и повторный start,
  * пересекающиеся прогоны (поздний ответ старого не перетирает новый, `validating` до последнего),
  * строки массива, добавленные после start(), isValidating, обход листьев (вложенные группы +
@@ -170,7 +171,7 @@ describe('createFormValidation — стратегии запуска', () => {
     ctrl.dispose();
   });
 
-  it('afterFirstSubmit: тихо до validate(), затем live', async () => {
+  it('afterFirstSubmit: тихо до первой отправки, затем live', async () => {
     const { model, form } = makeForm();
     const ctrl = createFormValidation(model, nameRequired, {
       strategy: 'afterFirstSubmit',
@@ -182,7 +183,7 @@ describe('createFormValidation — стратегии запуска', () => {
     await flushMicrotasks(2);
     expect(form.name.issues.value).toEqual([]); // тихо до первого submit
 
-    await ctrl.validate();
+    await ctrl.run({ submit: true });
     expect(form.name.issues.value.map((e) => e.code)).toContain('minLength');
 
     model.name = 'Иван'; // теперь live
@@ -190,6 +191,65 @@ describe('createFormValidation — стратегии запуска', () => {
     expect(form.name.issues.value).toEqual([]);
 
     ctrl.dispose();
+  });
+
+  it('afterFirstSubmit: validate() — проверка без отправки, живую фазу не включает', async () => {
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, nameRequired, {
+      strategy: 'afterFirstSubmit',
+      liveAfterSubmit: 'change',
+    });
+    ctrl.start();
+
+    await ctrl.validate(); // кнопка «Проверить»
+    expect(issueCodes(form.name)).toContain('required');
+
+    model.name = 'Иван'; // фаза тихая: замечание остаётся до следующего явного прогона
+    await flushMicrotasks(2);
+    expect(issueCodes(form.name)).toContain('required');
+
+    await ctrl.run({ submit: true }); // попытка отправки включает живую фазу
+    model.name = 'x';
+    await flushMicrotasks(2);
+    expect(issueCodes(form.name)).toEqual(['minLength']);
+
+    ctrl.dispose();
+  });
+
+  it("run({ touch: 'all' }): при отказе тронута вся форма, при успехе — только проверенные поля", async () => {
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, nameRequired);
+
+    expect((await ctrl.run({ touch: 'all' })).status).toBe('invalid');
+    expect({
+      name: form.name.touched.value,
+      age: form.age.touched.value,
+      city: form.profile.city.touched.value,
+    }).toEqual({ name: true, age: true, city: true });
+
+    form.markAsUntouched();
+    model.name = 'Иван';
+    expect((await ctrl.run({ touch: 'all' })).status).toBe('valid');
+    expect({ name: form.name.touched.value, age: form.age.touched.value }).toEqual({
+      name: true,
+      age: false,
+    });
+  });
+
+  it("run({ touch: 'all' }): отменённый прогон ничего не трогает", async () => {
+    const { model, form } = makeForm();
+    const answer = deferred<ValidationIssue | null>();
+    const rules = defineValidation<F>(({ model }) => {
+      validateAsync(model.$.name, [() => answer.promise]);
+    });
+    const ctrl = createFormValidation(model, rules);
+
+    const running = ctrl.run({ touch: 'all' });
+    ctrl.dispose(); // снятие отменяет идущий прогон
+    answer.resolve({ code: 'taken' });
+
+    expect((await running).status).toBe('cancelled');
+    expect(form.touched.value).toBe(false);
   });
 
   it('change + debounce: прогон откладывается на debounce мс', async () => {
@@ -335,7 +395,7 @@ describe('createFormValidation — что запускает живой прог
     ctrl.dispose();
   });
 
-  it('afterFirstSubmit + liveAfterSubmit blur: до validate() тихо, после — прогон по blur, а не по вводу', async () => {
+  it('afterFirstSubmit + liveAfterSubmit blur: до отправки тихо, после — прогон по blur, а не по вводу', async () => {
     const { model, form } = makeForm();
     const { runs, schema } = countedNameRules();
     const ctrl = createFormValidation(model, schema, {
@@ -348,7 +408,7 @@ describe('createFormValidation — что запускает живой прог
     await tick();
     expect(runs).not.toHaveBeenCalled();
 
-    await ctrl.validate();
+    await ctrl.run({ submit: true });
     await tick();
     runs.mockClear();
 

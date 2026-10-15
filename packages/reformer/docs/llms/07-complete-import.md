@@ -6,6 +6,8 @@ import {
   createModel,
   createForm,
   createFormFromModel,
+  disposeForm, // снять форму из createFormFromModel; сборку снимает bundle.dispose()
+  createSubmission, // отправка без сборки (визард в разметке без createForm)
   arrayOf, // массив модели с шаблоном новой строки
   compileSchema, // авторское дерево → CompiledSchema (обычно не нужен: createForm компилирует сам)
   createFormFlow, // поток шагов без сборки
@@ -21,6 +23,7 @@ import {
   useFormControlValue,
   useArrayLength,
   useFormFlow, // снимок потока шагов для рендера
+  useFormValidation, // стратегия без сборки: submit() — попытка отправки, validate() — проверка
   useIssueMessage, // текст замечания: словарь формы → локаль → английский → код
   I18nProvider,
 } from '@reformer/core/react';
@@ -29,7 +32,7 @@ import type { FieldControlState } from '@reformer/core/react';
 // Типы
 import type {
   FormModel, // реактивная модель данных
-  FormBundle, // результат createForm: { model, form, render, flow, validate, validateStep, submit, … }
+  FormBundle, // результат createForm: { model, form, render, flow, validate, validateStep, submission, dispose, … }
   FormNode, // общий контракт ноды
   FormControl, // нода одного поля
   FormGroup, // нода группы — тип формы для props компонентов
@@ -45,7 +48,8 @@ import type {
   FormFlowConfig, // поток шагов в конфиге: { steps: [{ id, rules? }] }
   FormFlow, // поток шагов сборки: current, next(), previous(), goTo(id)
   FlowTransition, // итог перехода: moved | stayed
-  SubmitResult, // итог bundle.submit: submitted | invalid | error | cancelled | failed
+  FormSubmission, // отправка сборки (bundle.submission): submit(handler), submitting
+  SubmitResult, // итог bundle.submission.submit: submitted | invalid | error | cancelled | failed
 } from '@reformer/core';
 
 // Схема валидации: операторы + раннер — из /validation
@@ -96,6 +100,11 @@ import {
 
 // Примитивы над сигналами (принимают сигналы, возвращают cleanup) — из /model, в корне их нет
 import { computeFrom, copyFrom, watchField } from '@reformer/core/model';
+// Утилиты значений модели — тоже из /model
+import {
+  deepEqual, // сравнение значений модели (на нём isDirty)
+  deferredWritesSettled, // дождаться отложенных записей поведения тика; undefined — ждать нечего
+} from '@reformer/core/model';
 ```
 
 ### Форма данных — `interface` или `type`

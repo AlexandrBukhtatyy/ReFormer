@@ -9,7 +9,7 @@
    — behaviors: `enableWhen`, а для условной записи значения — `compute` / `copyFrom` с опцией `{ when }`.
 2. **Условная валидация** (правила применяются только в истинной ветке) — оператор
    `validateWhen(() => cond, () => {…})` внутри схемы `defineValidation`; прогон — уровнем формы
-   (`bundle.validate()` / `bundle.submit`) либо раннером `validateModel`.
+   (`bundle.validate()` / `bundle.submission.submit`) либо раннером `validateModel`.
 3. **Скрытие из разметки** (узел вообще не рендерится) — в схеме под рендерером — оператор
    `hideWhen(schema.node(selector), cond)`; при разметке в JSX — `useFormControlValue` + условный
    рендер.
@@ -91,7 +91,7 @@ export const mortgageBehavior = defineFormBehavior<CreditForm>(({ model, schema 
 Условие `cond` читает модель напрямую (`model.field` — снимок на момент прогона): при истинном условии
 раннер применяет вложенные `validate`/`cross`/…, при ложном — правила ветки **гасятся** (поля,
 затронутые ранее, получают `setIssues([])`). Прогон — уровнем формы (`createForm({ validation })`,
-затем `bundle.validate()` / `bundle.submit(handler)`) либо раннером
+затем `bundle.validate()` / `bundle.submission.submit(handler)`) либо раннером
 `validateModel(model, schema): Promise<boolean>`; замечания сами доезжают до нод формы.
 
 ```typescript
@@ -125,10 +125,12 @@ const ok: boolean = await validateModel(model, schema);
 значения), держи их под `enableWhen` из раздела выше — слои независимы.
 
 Выключенное поле (`enableWhen`, `disable()`) в проверке **уровня формы** не участвует:
-`bundle.validate`, `validateStep`, `submit`, `flow.next()` и живая проверка гасят его замечания, и
-статус прогона совпадает с `valid` формы. `validateWhen` нужен, когда поле остаётся доступным, но
-правило по условию не действует, — и в независимом раннере `validateModel(model, rules)`, который
-о нодах не знает.
+`bundle.validate`, `validateStep`, `submission.submit`, `flow.next()` и живая проверка гасят его
+замечания, и статус прогона совпадает с `valid` формы. Значение выключенного поля при этом остаётся
+в модели и уходит в обработчик отправки — модель передаётся целиком; убрать его из отправки —
+забота обработчика либо `enableWhen(…, { resetOnDisable: true })`. `validateWhen` нужен, когда
+поле остаётся доступным, но правило по условию не действует, — и в независимом раннере
+`validateModel(model, rules)`, который о нодах не знает.
 
 ## Скрытие в JSX
 
