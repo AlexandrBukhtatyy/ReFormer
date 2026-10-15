@@ -191,7 +191,7 @@
 - [ ] План загружен и понят (этот документ).
 - [ ] Sub-agent stage 2 (Types) знает: {{totalFields}} fields, {{steps}} steps, conditional list, computed list, arrays.
 - [ ] Sub-agent stage 3 (Model + Schema) использует **target=`{{target}}`** + canonical strings из спеки.
-- [ ] Sub-agent stage 4 (Validation) держит правила в отдельной `ValidationDefinition<T>` (`defineValidation` + `validate`/`cross`/`validateWhen`/`each`/`apply`), прогоняет их через сборку (`bundle.validate()`, `bundle.submit(handler)`; wizard — `bundle.flow.next()`); layout без validators; canonical messages через `required({ message })` у каждого built-in.
+- [ ] Sub-agent stage 4 (Validation) держит правила в отдельной `ValidationDefinition<T>` (`defineValidation` + `validate`/`cross`/`validateWhen`/`each`/`apply`), прогоняет их через сборку (`bundle.validate()`, `bundle.submission.submit(handler)`; wizard — `bundle.flow.next()`); layout без validators; canonical messages через `required({ message })` у каждого built-in.
 - [ ] Sub-agent stage 5 (Behaviors) применяет behaviours из таблицы поведений спеки (watchField/computeFrom + copyFrom + enableWhen) с cycle-prevention — число и состав берутся из спеки (см. секцию 1.1), а не фиксированы.
 - [ ] Sub-agent stage 6 (FieldArray + Wizard) использует PLAIN leaves в template + lucide-icons + clickable chips + progress text.
 - [ ] Sub-agent stage 7 (Report) фиксирует план vs реализация.

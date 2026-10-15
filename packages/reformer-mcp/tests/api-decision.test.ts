@@ -80,7 +80,7 @@ const CASES: Array<[string, string]> = [
   ['собрать форму так, чтобы React не пересоздавал её на ререндере', 'useFormBundle'],
   // сборка и submit
   ['форма не должна пересоздаваться при ререндере', 'useFormBundle'],
-  ['заблокировать кнопку отправки, пока форма невалидна', 'useFormValidation'],
+  ['заблокировать кнопку отправки, пока форма невалидна', 'FormSubmission'],
 ];
 
 describe('decide/api-decision — таблица правил', () => {

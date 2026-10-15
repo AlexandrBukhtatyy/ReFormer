@@ -38,8 +38,13 @@
       "id": "basic/submit",
       "task": "обработать submit и сбросить форму после успешной отправки",
       "target": "core",
-      "queries": ["submit and reset form", "handle submit", "reset after submit", "bundle.submit"],
-      "expectAny": ["onSubmit", "handleSubmit", "SubmitResult", "bundle.submit"]
+      "queries": [
+        "submit and reset form",
+        "handle submit",
+        "reset after submit",
+        "bundle.submission.submit"
+      ],
+      "expectAny": ["onSubmit", "handleSubmit", "SubmitResult", "bundle.submission.submit"]
     },
     {
       "id": "basic/disabled-submit",

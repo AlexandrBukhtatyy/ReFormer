@@ -24,8 +24,12 @@
       "id": "wizard/final-validation",
       "task": "проверить все шаги перед отправкой",
       "target": "core",
-      "queries": ["validate all steps before submit", "final validation wizard", "bundle.submit"],
-      "expectAny": ["bundle.submit", "SubmitResult"]
+      "queries": [
+        "validate all steps before submit",
+        "final validation wizard",
+        "bundle.submission.submit"
+      ],
+      "expectAny": ["bundle.submission.submit", "SubmitResult"]
     },
     {
       "id": "wizard/navigation",

@@ -151,8 +151,8 @@ const bundle = useFormBundle(() =>
     flow: formFlow, // optional: the steps of a wizard
   })
 );
-// bundle = { model, form, render, flow?, validate(), validateStep(id), submit(handler) }
-// bundle.form.email is a node bound to model.$.email; bundle.submit(handler) checks, then sends
+// bundle = { model, form, render, flow?, validate(), validateStep(id), submission, dispose() }
+// bundle.form.email is a node bound to model.$.email; bundle.submission.submit(handler) checks, then sends
 ```
 
 In React always wrap the factory in `useFormBundle`: it is a lazy `useState` and runs the factory
@@ -190,7 +190,7 @@ It runs **on demand** (submit / step), not reactively. Never a `validators:` arr
   `flow: { steps: [{ id: <step selector>, rules? }] }` and the rules outside steps as
   `validation: { extras }`. The bundle checks with `bundle.validate()` and
   `bundle.validateStep(id)` (`ValidationResult` with `status`) and sends with
-  `bundle.submit(handler)` (`SubmitResult`: the handler runs only when nothing blocks).
+  `bundle.submission.submit(handler)` (`SubmitResult`: the handler runs only when nothing blocks).
 - **Runner**: `validateModel(model, schema): Promise<boolean>` — routes each error into its own node,
   clears fields that became valid, cancels a superseded run (returns `false` — fail-closed), and
   returns `true` even when a `severity: 'warning'` error is showing (warnings don't block submit).

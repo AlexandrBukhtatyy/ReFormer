@@ -33,7 +33,7 @@ one assembly.
    `minLength()`) or a `Rule<T>` — an inline `(value) => ValidationIssue | null`. Pass the rules to
    the assembly (`validation: schema`; a wizard — `flow: { steps: [{ id: <step selector>, rules }] }`
    and `validation: { extras }`) and check through the bundle — `bundle.validate()`,
-   `bundle.submit(handler)`; the external runner is `await validateModel(model, schema)`
+   `bundle.submission.submit(handler)`; the external runner is `await validateModel(model, schema)`
    (`Promise<boolean>`, routes errors into the form nodes). The leaf `validators: [...]` array, the
    `ModelValidator (value, scope, root)` shape and the whole-model runner
    `validateFormModel(model, schema)` have all been **removed** — never emit them.

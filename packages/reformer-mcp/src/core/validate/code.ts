@@ -117,9 +117,9 @@ const REMOVED_FROM_CORE: Readonly<Record<string, string>> = {
   buildValidation:
     'ничего — проверку строит сборка: `createForm({ …, validation, flow })`, затем `bundle.validate()` и `bundle.validateStep(id)`',
   FormValidationBundle:
-    'методы сборки: `bundle.validate()`, `bundle.validateStep(id)`, `bundle.submit(handler)` — результат объектом со статусом',
+    'методы сборки: `bundle.validate()`, `bundle.validateStep(id)`, `bundle.submission.submit(handler)` — результат объектом со статусом',
   SubmitOptions:
-    '`bundle.submit(handler)` — один прогон правил и `SubmitResult` со статусом (`submitted`, `invalid`, `error`, `cancelled`, `failed`)',
+    '`bundle.submission.submit(handler)` — один прогон правил и `SubmitResult` со статусом (`submitted`, `invalid`, `error`, `cancelled`, `failed`)',
   FormProxy:
     '`FormGroup<T>` из `@reformer/core` — члены ноды и ноды полей по именам; затенённое поле — через `form.$`',
   FieldNode: 'тип `FormControl<T>` из `@reformer/core`; ноды строит сборка `createForm`',
@@ -477,6 +477,26 @@ export async function validateCode(
     }
   }
 
+  // --- RF010: отправка членом сборки — прежний контракт --------------------------------
+  // Отправка — отдельный объект `bundle.submission`. Получатель узнаётся по имени: `bundle`,
+  // `level`, `form` и имена на `Bundle`/`Form`, — иначе `api.submit(values)` приложения считался
+  // бы прежним вызовом. `submit()` хука `useFormValidation` и контекста визарда не задевается.
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i];
+    if (/^\s*(\/\/|\*|\/\*)/.test(text)) continue;
+    if (!LEGACY_SUBMIT.test(text)) continue;
+    diagnostics.push({
+      code: 'RF010',
+      severity: 'warning',
+      message:
+        'Отправка — отдельный объект сборки: `bundle.submit(handler)` и `bundle.submitting` удалены.',
+      line: i + 1,
+      suggestion:
+        'Пишите `bundle.submission.submit(handler)` → `SubmitResult`; идёт ли обработчик — ' +
+        '`bundle.submission.submitting`. Рецепт — find_recipe submit-and-reset.',
+    });
+  }
+
   const limitations = [
     'Разбор построчный, без TypeScript-AST: переименование при импорте (`X as Y`) отслеживается, ' +
       'но вложенные фабрики и динамические вызовы — нет.',
@@ -485,6 +505,10 @@ export async function validateCode(
   ];
   return { diagnostics, limitations };
 }
+
+/** Отправка членом сборки: `bundle.submit(handler)`, `level.submitting`, `jsonForm.submit(…)`. */
+const LEGACY_SUBMIT =
+  /\b(?:bundle|level|form|[A-Za-z_$][\w$]*(?:Bundle|Form))\.(?:submit\(\s*[^)\s]|submitting\b)/;
 
 /**
  * Ключи и поля прежнего контракта в коде схемы и сборки: что найдено → чем заменить.

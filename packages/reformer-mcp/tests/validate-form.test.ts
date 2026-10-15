@@ -146,6 +146,27 @@ describe('validate_form kind=code', () => {
   it('пустой код не считается ошибкой', async () => {
     expect((await validateCode(k, '')).diagnostics).toEqual([]);
   });
+
+  it('отправка членом сборки — предупреждение с заменой на bundle.submission', async () => {
+    const code = [
+      'const outcome = await bundle.submit(sendApplication);',
+      'const busy = bundle.submitting.value;',
+      'const sent = await bundle.submission.submit(sendApplication);',
+      'const pending = bundle.submission.submitting.value;',
+      'const response = await api.submit(values);',
+      'const ok = await validation.submit();',
+    ].join('\n');
+
+    const legacy = (await validateCode(k, code)).diagnostics.filter(
+      (diagnostic) => diagnostic.code === 'RF010' && diagnostic.suggestion?.includes('submission')
+    );
+
+    expect(legacy.map((diagnostic) => [diagnostic.line, diagnostic.severity])).toEqual([
+      [1, 'warning'],
+      [2, 'warning'],
+    ]);
+    expect(legacy[0].suggestion).toContain('bundle.submission.submit(handler)');
+  });
 });
 
 describe('validate_form kind=behaviors', () => {

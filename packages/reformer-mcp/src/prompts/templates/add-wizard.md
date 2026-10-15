@@ -19,7 +19,7 @@ You convert a single-page form into a multi-step wizard. Two questions to answer
 
 - **The assembly declares the steps**: `createForm({ …, flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }, { id: 'confirm' }] }, validation: { extras: crossStepRules } })`. The `id` of a step is the `selector` of the step node in the schema, so reordering nodes does not desynchronise rules (a step without a node is a dev warning). Steps declared in JSX have only a `number`: step N is `flow.steps[N - 1]`, so keep `flow.steps` in step order. A step with no rules stays in the list without `rules` (`{ id: 'confirm' }`).
 - **Navigation is a flow, not React state**: `bundle.flow` (`FormFlow` from `@reformer/core`) keeps `current`, `index`, `completed` as signals; `flow.next()` checks the current step's rules and returns `{ status: 'moved', from, to }` or `{ status: 'stayed', step, reason }`; `flow.goTo(id)` and `flow.previous()` move without a check (forward only to an unlocked step). The behavior gets it in its scope: `defineFormBehavior(({ model, flow }) => …)`. Nobody hand-rolls `makeValidationConfig(model)`, a `config` prop or a wizard ref — all of it is the former contract.
-- **Submit is a form-level call**: `bundle.submit(handler)` runs the rules of every step plus `extras` once, calls `handler(model.get())` only when nothing blocks, and returns `SubmitResult` — `{ status: 'submitted', result }`, `{ status: 'invalid' | 'error' | 'cancelled', validation }` or `{ status: 'failed', error }`. `bundle.validate()` and `bundle.validateStep(id)` check without submitting.
+- **Submit is a form-level call**: `bundle.submission.submit(handler)` runs the rules of every step plus `extras` once, calls `handler(model.get())` only when nothing blocks, and returns `SubmitResult` — `{ status: 'submitted', result }`, `{ status: 'invalid' | 'error' | 'cancelled', validation }` or `{ status: 'failed', error }`. `bundle.validate()` and `bundle.validateStep(id)` check without submitting.
 - **Per-step schemas** are ordinary `defineValidation<Root>(({ model }) => { validate(model.$.x, [rules]); … })` functions (async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`, sub-forms via `apply`, arrays via `applyEach`). «Next» validates only the current step; submit runs every step plus `extras`. No duplicates between a step and `extras`.
 - **Don't rename fields** when grouping by step — only visual grouping.
 
@@ -96,7 +96,7 @@ export function MyWizardPage() {
   );
 
   const handleSubmit = async () => {
-    const outcome = await bundle.submit(sendMyForm);
+    const outcome = await bundle.submission.submit(sendMyForm);
     if (outcome.status === 'invalid') showHint('Проверьте заполнение формы');
   };
 
@@ -108,7 +108,7 @@ export function MyWizardPage() {
 
 {{{{/raw}}}}
 
-- A3: the compound's `<Step>` slot renders the active step's body; A4: a JSX conditional on `flow.index` (read through `useFormFlow(bundle.flow)` from `@reformer/core/react`). «Next» is `bundle.flow.next()`, submit is `bundle.submit(handler)`.
+- A3: the compound's `<Step>` slot renders the active step's body; A4: a JSX conditional on `flow.index` (read through `useFormFlow(bundle.flow)` from `@reformer/core/react`). «Next» is `bundle.flow.next()`, submit is `bundle.submission.submit(handler)`.
 - Rules for schema nodes (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer and do nothing here: visibility, submit and data loading stay in JSX.
 
 ### B2 — `FormRenderer` draws the form (`target=renderer-react` and `target=renderer-json`)
@@ -228,7 +228,7 @@ What is NOT needed any more — all of it is the former contract, ❌ do not emi
 - [ ] Read the Prerequisites for both A and B
 - [ ] Per-step `defineValidation` functions cover all step fields; declared as `flow: { steps: [{ id, rules }] }`, ids = step selectors
 - [ ] Cross-step rules live in `extras`; no duplicate validation between a step and `extras`
-- [ ] Navigation goes through `bundle.flow` (`next()` checks the step, the transition is an object with `status`); submit through `bundle.submit(handler)`; warnings stay non-blocking (no hand-rolled `.issues` gate)
+- [ ] Navigation goes through `bundle.flow` (`next()` checks the step, the transition is an object with `status`); submit through `bundle.submission.submit(handler)`; warnings stay non-blocking (no hand-rolled `.issues` gate)
 - [ ] (B2) the wizard is a schema node `{ selector: 'wizard', component: FormWizard, children: [steps] }`; no shim, no `componentProps.steps`, no `patchProps({ form, config })`
 - [ ] (B2) submit is `onComponentEvent(schema.node('wizard'), 'onSubmit', …)` in `form.behavior.ts`
 - [ ] Visual baseline present (step indicator strip with icons + en-dashes, `Card`-wrapped step, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4

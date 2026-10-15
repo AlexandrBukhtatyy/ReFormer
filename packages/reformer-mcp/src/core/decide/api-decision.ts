@@ -603,9 +603,19 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [
       /заблокир.*(отправ|submit)|disable.*submit|submit.*(пока|until)|кнопк.*невалид|блокир.*кнопк/i,
     ],
-    recommend: 'useFormValidation',
+    recommend: 'FormSubmission',
     because:
-      'отдаёт `{ submit, isValidating }`: submit прогоняет схему и возвращает boolean, а кнопка блокируется на время проверки через `disabled={isValidating}`. Отдельного реактивного флага «форма валидна» в контракте нет',
+      'отправка сборки — объект `bundle.submission`: `submit(handler)` прогоняет все правила и зовёт обработчик только при `valid`, при отказе раскрывает замечания всей формы. Кнопку блокируют `bundle.submission.submitting` (идёт обработчик) и `bundle.validating` (идёт проверка). Отдельного реактивного флага «форма валидна» в контракте нет',
+    usage:
+      'const outcome = await bundle.submission.submit(sendApplication);\n' +
+      "if (outcome.status === 'invalid') showHint('Проверьте форму');\n" +
+      '// disabled={submitting || validating}: bundle.submission.submitting, bundle.validating',
+    alternatives: [
+      {
+        symbol: 'useFormValidation',
+        when: 'формы без сборки `createForm`: `submit()` — попытка отправки, `validate()` — проверка без неё, `isValidating` — для блокировки',
+      },
+    ],
   },
   {
     id: 'declare-behavior',

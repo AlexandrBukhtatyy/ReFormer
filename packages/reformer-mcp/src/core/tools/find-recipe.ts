@@ -113,6 +113,7 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   revalidate: ['revalidate-when'],
   // submit lifecycle
   submit: ['submit-and-reset'],
+  submission: ['submit-and-reset', 'form-flow'],
   // async options / preload
   preload: ['async-preload'],
   options: ['async-options-loading'],
