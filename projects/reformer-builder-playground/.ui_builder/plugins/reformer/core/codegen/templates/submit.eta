@@ -13,7 +13,8 @@ const handler = byWizard
     ]
   : [
       `onComponentEvent(${node}, ${event}, async () => {`,
-      '  if (!(await check.validate())) {',
+      "  const validation = await check.run({ touch: 'all', submit: true });",
+      "  if (validation.status !== 'valid') {",
       "    onResult?.('Проверьте заполнение формы', false);",
       '    return;',
       '  }',
@@ -51,9 +52,10 @@ export interface SubmitOptions {
 <% if (byWizard) { -%>
   // Визард зовёт `onSubmit` сам — после успешной полной проверки: правила шагов и правила вне шагов.
 <% } else { -%>
-  // Проверка отправки — та же, что у сборки формы: выключенное поле (`enableWhen`), поле
-  // выключенной группы или массива не проверяются, а замечания раскрываются — поля
-  // помечаются тронутыми (киты показывают ошибку только у тронутого поля).
+  // Проверка отправки — та же, что у сборки формы (`bundle.submission`): выключенное поле
+  // (`enableWhen`), поле выключенной группы или массива не проверяются, а при отказе замечания
+  // раскрываются по всей форме — поля помечаются тронутыми (киты показывают ошибку только у
+  // тронутого поля). Это попытка отправки, а не проверка: `touch: 'all'`, `submit: true`.
   const check = createFormValidation(model, formRules);
 
 <% } -%>

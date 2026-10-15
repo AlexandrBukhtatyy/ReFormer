@@ -163,7 +163,11 @@ describe('отправка', () => {
     // их проверял, и выключенный `enableWhen` раздел держал отправку без видимого замечания.
     expect(code).toContain("import { createFormValidation } from '@reformer/core/validation';");
     expect(code).toContain('const check = createFormValidation(model, formRules);');
-    expect(code).toContain('if (!(await check.validate())) {');
+    // Попытка отправки, как у `bundle.submission`: при отказе раскрыта вся форма, а не только
+    // поля, которые проверили правила. `check.validate()` — проверка без отправки.
+    expect(code).toContain("const validation = await check.run({ touch: 'all', submit: true });");
+    expect(code).toContain("if (validation.status !== 'valid') {");
+    expect(code).not.toContain('check.validate()');
     expect(code).not.toContain('validateModel');
   });
 
