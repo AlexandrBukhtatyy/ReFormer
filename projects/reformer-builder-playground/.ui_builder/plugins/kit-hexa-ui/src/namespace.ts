@@ -5,6 +5,10 @@
  * `Divider`, `Spinner` → `Loader`, `Progress` → `ProgressBar`. Само соответствие объявляет каталог
  * (`exportName` записи), а namespace лишь обязан отдать символ под этим именем.
  *
+ * Под теми же именами те же символы экспортирует вход пакета (`src/index.ts`): из namespace их
+ * берёт превью билдера, из входа — сгенерированный модуль формы. Оба состава с каталогом сверяет
+ * `src/builder-plugin.test.ts`.
+ *
  * @module reformer/kit-hexa-ui/namespace
  */
 

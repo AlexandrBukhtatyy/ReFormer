@@ -15,7 +15,6 @@
  * @module reformer/kit-hexa-ui/field-frame
  */
 
-import * as React from 'react';
 import { Field } from '@kaspersky/hexa-ui';
 import type { KitFieldFrameProps } from '@reformer/builder-plugin-api';
 
