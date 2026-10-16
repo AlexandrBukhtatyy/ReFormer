@@ -51,7 +51,7 @@ vi.mock('ai', async (importOriginal) => {
   };
 });
 
-const { streamViaAiSdk } = await import('./ai-sdk');
+const { streamViaAiSdk, stepInputTokens } = await import('./ai-sdk');
 type AiSdkTuning = import('./ai-sdk').AiSdkTuning;
 
 /** Запрос по умолчанию — без предела шагов, как его теперь и собирает цикл. */
@@ -479,6 +479,24 @@ describe('чем зовём модель', () => {
       // Локальные серверы часто молчат про usage; считать их шаги «бесконечно дорогими» нельзя.
       await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
       expect(guardOf()({ steps: [{ usage: {} }, { usage: {} }] })).toBe(false);
+    });
+
+    it('канал без расхода: вход шага оценивается по телу запроса, и предел работает [ReFormer-gxk]', async () => {
+      // Локальный сервер не отдал usage — без оценки бюджетный предел не сработал бы никогда.
+      await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
+      const body = { messages: [{ role: 'user', content: 'x'.repeat(24_000) }] };
+      expect(guardOf()({ steps: [{ usage: {}, request: { body } }] })).toBe(false);
+      expect(
+        guardOf()({
+          steps: [
+            { usage: {}, request: { body } },
+            { usage: {}, request: { body } },
+          ],
+        })
+      ).toBe(true);
+      // Сообщённый расход главнее оценки.
+      expect(stepInputTokens({ usage: { inputTokens: 7 }, request: { body } })).toBe(7);
+      expect(stepInputTokens({ usage: { inputTokens: 0 }, request: { body: 'abcdefgh' } })).toBe(2);
     });
 
     it('остановка по бюджету объясняется своей причиной, а не пределом шагов', async () => {

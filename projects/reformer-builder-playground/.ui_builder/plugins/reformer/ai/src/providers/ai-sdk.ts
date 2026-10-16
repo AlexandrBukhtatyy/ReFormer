@@ -205,7 +205,7 @@ function stopConditions(req: AiRequest, onBudget: () => void) {
   const budget = req.maxInputTokens;
   if (budget !== undefined) {
     conditions.push(({ steps }) => {
-      const spent = steps.reduce((sum, s) => sum + (s.usage?.inputTokens ?? 0), 0);
+      const spent = steps.reduce((sum, s) => sum + stepInputTokens(s), 0);
       if (spent < budget) return false;
       onBudget();
       return true;
@@ -213,6 +213,27 @@ function stopConditions(req: AiRequest, onBudget: () => void) {
   }
 
   return conditions.length ? conditions : NEVER;
+}
+
+/** Символов на токен в оценке входа — грубая середина для смеси кода, JSON и прозы. */
+const CHARS_PER_TOKEN = 4;
+
+/**
+ * Вход шага в токенах для предела хода. Канал, который не сообщает расход (локальный сервер не
+ * отдаёт usage в потоке), присылает 0 или ничего — тогда вход оценивается по телу запроса шага.
+ * Оценка грубая, но без неё предел молча не работал бы вовсе: пользователь выставил лимит, а
+ * зациклившийся ход его не замечает. Нет ни расхода, ни тела запроса — шаг бюджет не жжёт.
+ */
+export function stepInputTokens(step: {
+  usage?: { inputTokens?: number };
+  request?: { body?: unknown };
+}): number {
+  const reported = step.usage?.inputTokens;
+  if (reported) return reported;
+  const body = step.request?.body;
+  if (body === undefined || body === null) return 0;
+  const text = typeof body === 'string' ? body : JSON.stringify(body);
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
 
 /**

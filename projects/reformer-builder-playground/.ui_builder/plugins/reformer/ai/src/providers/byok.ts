@@ -93,6 +93,9 @@ function modelOf(config: ProviderConfig): LanguageModel {
         name: 'local',
         baseURL: baseUrlOf(config),
         ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+        // Без этого запрос не просит stream_options.include_usage, и сервер (Ollama, LM Studio) не
+        // присылает расход: статистика хода нулевая, предел входных токенов работает по оценке.
+        includeUsage: true,
       })(modelId);
   }
 }
