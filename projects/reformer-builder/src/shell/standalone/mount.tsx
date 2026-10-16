@@ -15,7 +15,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { BuilderApp } from '@/shell/boot/boot';
-import { BuilderRoot } from '@/shell/boot/BuilderRoot';
+import { BuilderRoot, preloadKitUiLocale } from '@/shell/boot/BuilderRoot';
 
 export interface StandaloneMountOptions {
   readonly app: BuilderApp;
@@ -37,7 +37,11 @@ export function mountStandaloneShell(options: StandaloneMountOptions): void {
   //
   // Отказ уже обработан внутри `boot`, поэтому `then` здесь один и без ветки ошибки:
   // приложение обязано открыться даже с недогруженными настройками.
-  void app.ready.then(() => {
+  void app.ready.then(async () => {
+    // Словарь кита — тоже до отрисовки: язык известен только после настроек, а корень, которому
+    // словарь ещё не пришёл, не рисует ничего. Отказ его загрузки запуск не держит.
+    await preloadKitUiLocale(app.i18n.locale);
+
     root.render(
       <StrictMode>
         <BuilderRoot app={app} />
