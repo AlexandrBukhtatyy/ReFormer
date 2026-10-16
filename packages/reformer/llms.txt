@@ -3103,6 +3103,11 @@ export const mortgageBehavior = defineFormBehavior<CreditForm>(({ model, schema 
 `hideWhen` только записывает правило — исполняет его рендерер; при разметке в JSX он ничего не
 делает (см. раздел «Скрытие в JSX»).
 
+**Скрытие — только видимость.** Поля скрытого узла (`hideWhen` или
+`schema.node(sel).setHidden(true)`) остаются включёнными, и правила их проверяют: шаг с
+незаполненным скрытым полем не пройдёт, а замечаний на экране не будет. Поэтому узел с полями
+скрывают вместе с `enableWhen` по тому же условию — как в примере выше.
+
 ## 21. Условная валидация
 
 Правила, действующие только при выполнении условия, оборачиваются оператором
@@ -6348,7 +6353,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 | `onMount(node, fn)` / `onUnmount(node, fn)` | хуки монтирования узла                                   |
 | `onInit(node, fn)`                        | `fn` вызывается сразу, до первого рендера                  |
 | `renderEffect(schema, fn)`                | реактивный эффект, пока схема области смонтирована         |
-| `schema.node(sel).setHidden / patchProps` | принудительная видимость и пропсы узла                     |
+| `schema.node(sel).setHidden / patchProps` | принудительная видимость (поля не выключает) и пропсы узла |
 | `schema.node(sel).getRef()`               | ref на компонент узла — объект `{ current }`               |
 
 - Область поведения — `{ model, form, schema, flow }`: `flow` — поток шагов сборки, один на всю
@@ -10655,6 +10660,9 @@ _Source: src/form/behaviors/context.ts_
 Условие реактивно: пересчитывается при изменении любого сигнала, прочитанного внутри него.
 Принудительное `schema.node(selector).setHidden(...)` главнее условия.
 
+Только видимость: поля скрытого узла не выключаются и проверяются правилами — переход шага
+откажет без замечаний на экране. Поля узла выключай тем же условием через `enableWhen`.
+
 **Signature:**
 ```typescript
 export function hideWhen(node: SchemaNodeControl, condition: () => boolean): void
@@ -10663,7 +10671,9 @@ export function hideWhen(node: SchemaNodeControl, condition: () => boolean): voi
 **Examples:**
 
 ```typescript
-hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');
+const mortgage = () => model.loanType === 'mortgage';
+enableWhen([model.$.propertyValue, model.$.initialPayment], mortgage, { resetOnDisable: true });
+hideWhen(schema.node('mortgage'), () => !mortgage());
 ```
 
 _Source: src/form/behaviors/schema-operators.ts_
@@ -13532,7 +13542,13 @@ _Source: src/form/types/schema-node.ts_
 **Signature:**
 ```typescript
 export interface SchemaNodeControl {
-  /** Принудительно скрыть или показать узел, минуя условие `hideWhen`. */
+  /**
+   * Принудительно скрыть или показать узел, минуя условие `hideWhen`.
+   *
+   * Только видимость: поля скрытого узла остаются включёнными, правила их проверяют, и шаг с
+   * незаполненным скрытым полем не пройдёт — а замечаний на экране не будет. Скрываешь узел с
+   * полями — выключи их тем же условием (`enableWhen`).
+   */
   setHidden(value: boolean): this;
   /** Убрать принудительное значение — снова действует условие `hideWhen`. */
   resetHidden(): this;

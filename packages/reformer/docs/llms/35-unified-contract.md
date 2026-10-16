@@ -220,7 +220,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form, sch
 | `onMount(node, fn)` / `onUnmount(node, fn)` | хуки монтирования узла                                   |
 | `onInit(node, fn)`                        | `fn` вызывается сразу, до первого рендера                  |
 | `renderEffect(schema, fn)`                | реактивный эффект, пока схема области смонтирована         |
-| `schema.node(sel).setHidden / patchProps` | принудительная видимость и пропсы узла                     |
+| `schema.node(sel).setHidden / patchProps` | принудительная видимость (поля не выключает) и пропсы узла |
 | `schema.node(sel).getRef()`               | ref на компонент узла — объект `{ current }`               |
 
 - Область поведения — `{ model, form, schema, flow }`: `flow` — поток шагов сборки, один на всю

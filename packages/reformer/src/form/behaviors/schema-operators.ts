@@ -25,9 +25,14 @@ import { onDisposeIfActive } from './context';
  * Условие реактивно: пересчитывается при изменении любого сигнала, прочитанного внутри него.
  * Принудительное `schema.node(selector).setHidden(...)` главнее условия.
  *
+ * Только видимость: поля скрытого узла не выключаются и проверяются правилами — переход шага
+ * откажет без замечаний на экране. Поля узла выключай тем же условием через `enableWhen`.
+ *
  * @example
  * ```typescript
- * hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');
+ * const mortgage = () => model.loanType === 'mortgage';
+ * enableWhen([model.$.propertyValue, model.$.initialPayment], mortgage, { resetOnDisable: true });
+ * hideWhen(schema.node('mortgage'), () => !mortgage());
  * ```
  */
 export function hideWhen(node: SchemaNodeControl, condition: () => boolean): void {

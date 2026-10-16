@@ -531,16 +531,18 @@ describe('оболочка заявки — управление узлами с
     expect(screen.queryByTestId('node:mortgage')).toBeNull();
   });
 
-  it('RA-13: поведение под вопросом [ReFormer-5jew]: принудительно скрытая секция остаётся в проверке шага — отказ без замечаний на экране', async () => {
+  it('RA-13: setHidden — только видимость: принудительно скрытая секция остаётся в проверке шага', async () => {
     const app = mountLoan();
     await perform(() => fillLoanStep(app.bundle.model, { type: 'mortgage' }));
     act(() => void app.bundle.render.node('mortgage').setHidden(true));
 
     await perform(() => fireEvent.click(button('Далее')));
 
-    // поведение под вопросом: `setHidden` прячет узел, но поля его не выключает — правила шага их
-    // проверяют. Пользователь получает отказ перехода, а замечаний на экране нет и фокусу идти
-    // некуда: видимость и доступность автор обязан менять вместе (`hideWhen` + `enableWhen`).
+    // Так задумано (решение по ReFormer-5jew): `setHidden`, как и `hideWhen`, управляет только
+    // видимостью — область схемы не знает полей модели под узлом, а шаг проверяют правила модели.
+    // Поля скрытой секции включены, правила их проверяют: отказ перехода без замечаний на экране, и
+    // фокусу идти некуда. Видимость и доступность автор меняет вместе — `hideWhen` + `enableWhen`,
+    // так это описано в документации `setHidden` и `hideWhen`.
     expect(currentStep()).toBe('loan');
     expect(issueCodes(app.bundle.form.loan.propertyValue)).toEqual(['loan.propertyValue.required']);
     expect(alerts()).toEqual([]);
