@@ -15,15 +15,14 @@
  * @module react-playground/examples/form-registry-lab/schema-sources
  */
 
-import type { DataSource, FormEntry } from '@reformer/form-registry';
-import type { JsonFormSchema, JsonFormSchemaV1 } from '@reformer/renderer-json';
+import type { DataSource, FormEntry, FormSchemaDocument } from '@reformer/form-registry';
 import { MOCK_FORMS_BASE } from '../../../mocks/form-schema-handlers';
 import alertsSchemaUrl from '../../demo/alerts-list-renderer-json/json-schema.json?url&no-inline';
 import registrationSchemaUrl from '../../demo/registration-form-renderer-json/json-schema.json?url&no-inline';
 import creditSchemaUrl from '../../demo/complex-multy-step-form-renderer-json/form.schema.json?url&no-inline';
 
 /** Документ схемы записи: формата 2 либо прежнего — загрузчик реестра принимает оба. */
-export type EntrySchema<T extends object> = JsonFormSchema<T> | JsonFormSchemaV1<T>;
+export type EntrySchema<T extends object> = FormSchemaDocument<T>;
 
 export type SchemaSourceKind = 'inline' | 'static' | 'msw';
 

@@ -82,11 +82,10 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema })
 });
 ```
 
-:::info Прежний путь сборки
-`createReactForm` / `useReactForm` и проп `render` с функцией-схемой (`createRenderSchema`,
-`RenderSchemaFn`) остались для форм, написанных по прежнему контракту, — `FormRenderer` принимает и
-такой бандл. Новые формы собираются `createForm` + `useFormBundle`, а правила узлов пишутся в
-`behavior` сборки вместо отдельного `renderBehavior`.
+:::info Низкоуровневый путь
+Проп `render` с функцией-схемой (`createRenderSchema`, `RenderSchemaFn`) рисует дерево без сборки —
+для особых случаев. Формы собираются `createForm` + `useFormBundle`, а правила узлов пишутся в
+`behavior` сборки.
 :::
 
 ## Дальше

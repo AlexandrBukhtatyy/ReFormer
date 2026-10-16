@@ -122,10 +122,9 @@ export function MyFormPage() {
   визарда; документ собирает `composeJsonFormSchema(document, stepSchemas)` до `createForm`.
 
 :::info Прежний формат документа
-Документ без поля `format` (ключи `value` / `array`, шаги в `componentProps.steps`) переводит в
-формат 2 функция `migrateJsonSchema(document)`. Прежний путь сборки — `createJsonForm` /
-`useJsonForm`, `JsonFormRenderer` и `JsonRendererProvider` — читает только такой документ; его типы
-и гарды носят суффикс `V1`.
+Документ без поля `format` (ключи `value` / `array`, шаги в `componentProps.steps`) рантайм не
+читает: его переводит в формат 2 функция `migrateJsonSchema(document)`. Реестр форм и конструктор
+делают это сами при чтении документа.
 :::
 
 ## Дальше

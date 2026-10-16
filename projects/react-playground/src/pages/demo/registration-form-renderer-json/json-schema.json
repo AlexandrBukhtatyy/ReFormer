@@ -259,7 +259,7 @@
                   "className": "mt-6 p-4 bg-gray-50 border rounded text-sm text-gray-700"
                 },
                 "children": [
-                  "Весь экран описан JSON-схемой: колонки, заголовки, поля, кнопки и загрузка префилла. В .tsx остались только JsonRendererProvider и JsonFormRenderer."
+                  "Весь экран описан JSON-схемой: колонки, заголовки, поля, кнопки и загрузка префилла. В .tsx остались только сборка createForm и FormRenderer."
                 ]
               }
             ]

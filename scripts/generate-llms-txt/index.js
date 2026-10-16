@@ -665,9 +665,9 @@ function reformerPackageDir(pkgName) {
 
 function resolveModule(fromFile, spec) {
   // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше отбрасывался вместе со всеми
-  // не-относительными путями, и `export { useFormBundle as useReactForm } from '@reformer/core/react'`
-  // терялся целиком — символ есть в публичном API renderer-react, но ни в llms.txt,
-  // ни в индексе его не было, при том что промпты сервера учат звать именно `useReactForm`.
+  // не-относительными путями, и кросс-пакетный реэкспорт (так жил ныне удалённый алиас
+  // `useFormBundle` в renderer-react) терялся целиком — символ есть в публичном API, но ни в
+  // llms.txt, ни в индексе его не было.
   // Path-alias `@/…` → `src/…` (tsconfig paths; в ui-kit так написаны 177 файлов).
   // Без этого терялись публичные типы, объявленные через алиас: `ArrayItemSlot` и
   // `ArrayComponentProps` реэкспортируются как `from '@/lib/array-slot'` и в API Reference

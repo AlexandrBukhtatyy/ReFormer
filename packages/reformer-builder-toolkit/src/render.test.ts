@@ -16,9 +16,9 @@ describe('экранирования нет — печатается код, а 
   it('JSX с двойными фигурными скобками — обычный текст', () => {
     // Ровно то, обо что разбился Handlebars в `packages/reformer-mcp`: `{{` там разбирается
     // как выражение. У Eta разделители `<% %>`, поэтому JSX для неё ничем не примечателен.
-    const source = '<JsonFormRenderer settings={{ fieldWrapper: <%= it.wrapper %> }} />';
+    const source = '<FormRenderer settings={{ fieldWrapper: <%= it.wrapper %> }} />';
     expect(renderTemplate('t.jsx', source, view({ wrapper: 'FormField' }))).toBe(
-      '<JsonFormRenderer settings={{ fieldWrapper: FormField }} />'
+      '<FormRenderer settings={{ fieldWrapper: FormField }} />'
     );
   });
 });
