@@ -1,0 +1,43 @@
+---
+id: file-upload
+title: FileUpload
+sidebar_label: FileUpload
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { cdkFileUploadDocConfig } from '@site/src/components/demo/examples/cdk-file-upload';
+
+# FileUpload
+
+Headless-компонент выбора и загрузки файлов из `@reformer/cdk`: `Root` / `Trigger` / `Dropzone` /
+`ItemGroup` / `Item` (+ `ItemPreview`, `ItemName`, `ItemSize`, `ItemProgress`, `ItemDeleteTrigger`,
+`ItemRetryTrigger`) / `ClearTrigger`. Видимой разметки и стилей не навязывает — её дают слоты и
+ваша вёрстка. Готовый визуальный вариант — [`FileUpload` из `@reformer/ui-kit`](../ui-kit/file-upload.mdx).
+
+Работает в двух режимах значения поля:
+
+- **deferred** — `uploader` не задан: значение поля `File[]`, файлы уходят на сервер при отправке
+  формы (обычно `FormData`);
+- **immediate** — задан `uploader`: файлы загружаются сразу при выборе, значение поля —
+  сериализуемые дескрипторы `RemoteFileRef[]` (только успешно загруженные). Они переживают
+  черновики, JSON-схему и повторное открытие формы с уже загруженными файлами.
+
+Пустой список эмитится как `null`, поэтому `required()` и валидаторы файлов из
+`@reformer/core/validators` работают без изменений.
+
+Что компонент берёт на себя:
+
+- **Отбор** — `accept`, `maxFiles`, лимиты размеров, дубликаты и свой `validate` действуют на выбор
+  в пикере, drag-and-drop и вставку из буфера. Отклонённый файл в значение не попадает — уходит в
+  `onReject` со всеми нарушениями сразу. Текста у нарушения нет, только `code` и `params`, как у
+  правил ядра: текст даёт словарь формы через `useIssueMessageResolver`.
+- **Загрузку** — прогресс, повтор упавшей загрузки, отмена через `AbortSignal` при удалении строки
+  и размонтировании. Загрузчик ваш: XHR, tus, presigned S3 — что угодно, возвращающее дескриптор.
+- **Доступность** — настоящий скрытый `<input type="file">` (подпись, клик и `focus()` работают
+  нативно), роли списка и строк, `aria-live`-регион статусов на языке активной локали.
+
+Для полностью своей разметки есть хук `useFileUpload` с prop-getters, а для тестов и своих обёрток —
+чистое ядро состояния без React: `fileUploadReducer`, `selectFiles`, `projectValue`,
+`reconcileItems`.
+
+<ComponentDoc config={cdkFileUploadDocConfig} />

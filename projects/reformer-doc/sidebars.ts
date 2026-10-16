@@ -115,6 +115,7 @@ const sidebars: SidebarsConfig = {
     'cdk/field-array',
     'cdk/form-wizard',
     'cdk/form-field',
+    'cdk/file-upload',
   ],
 
   // ── UI-Kit: стилизованные компоненты, сгруппированные по семействам ─────────
