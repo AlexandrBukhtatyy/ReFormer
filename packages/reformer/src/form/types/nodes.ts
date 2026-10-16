@@ -104,6 +104,9 @@ export interface FormControl<T> extends FormNode<T> {
  * Данными массив не владеет: мутации уходят в массив модели, формы строк держатся за под-модели
  * и при `move`/`swap` не пересоздаются.
  *
+ * Индексы (`at`, `keyAt`, `insert`, `removeAt`, `move`, `swap`) — по строкам формы. Элемент `null`
+ * в массиве модели строкой не становится, и индекс строки может не совпасть с индексом модели.
+ *
  * @typeParam T - Элемент массива
  */
 export interface FormArray<T extends object> extends FormNode<T[]> {

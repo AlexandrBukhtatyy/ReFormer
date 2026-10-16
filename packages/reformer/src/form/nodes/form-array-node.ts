@@ -5,6 +5,10 @@
  * идентичности фасада элемента) и при `move`/`swap` не пересоздаются. Выпавшие строки
  * детерминированно диспозятся.
  *
+ * Элемент `null` в массиве модели (пришёл с сервера) строкой формы не становится. Индексы ноды —
+ * `at`, `keyAt`, `insert`, `removeAt`, `move`, `swap` — считаются по строкам формы и переводятся
+ * в индексы модели, поэтому кнопка «Удалить» у строки удаляет её, а не соседний `null`.
+ *
  * @internal
  * @module form/nodes/form-array-node
  */
@@ -147,7 +151,8 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   }
 
   keyAt(index: number): string {
-    const rowModel = this.control.at(index);
+    // По строкам формы, как `at`: `mounted` обновляется вместе с `rows` в синхронизации.
+    const rowModel = index < this.rows.value.length ? this.mounted[index] : undefined;
     if (rowModel === undefined) {
       throw new RangeError(`[@reformer/core] FormArray.keyAt: no row at index ${index}`);
     }
@@ -159,19 +164,19 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   }
 
   insert(index: number, item?: T): void {
-    this.reshape(() => this.control.insertAt(index, item));
+    this.reshape(() => this.control.insertAt(this.modelIndex(index), item));
   }
 
   removeAt(index: number): void {
-    this.reshape(() => this.control.removeAt(index));
+    this.reshape(() => this.control.removeAt(this.modelIndex(index)));
   }
 
   move(from: number, to: number): void {
-    this.reshape(() => this.control.move(from, to));
+    this.reshape(() => this.control.move(this.modelIndex(from), this.modelIndex(to)));
   }
 
   swap(first: number, second: number): void {
-    this.reshape(() => this.control.swap(first, second));
+    this.reshape(() => this.control.swap(this.modelIndex(first), this.modelIndex(second)));
   }
 
   clear(): void {
@@ -242,6 +247,23 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     if (after.length !== before.length || after.some((row, index) => row !== before[index])) {
       this.reshaped.value = true;
     }
+  }
+
+  /**
+   * Индекс модели для индекса строки формы. Без `null`-элементов они совпадают; с ними строка `i` —
+   * `i`-й непустой элемент, а индекс за последней строкой — конец массива модели. Читает модель, а не
+   * `mounted`: внутри `batch` синхронизация ещё не прошла.
+   */
+  private modelIndex(index: number): number {
+    return untracked(() => {
+      const present: number[] = [];
+      for (let position = 0; position < this.control.length; position++) {
+        if (this.control.at(position)) present.push(position);
+      }
+      if (present.length === this.control.length) return index;
+      if (index >= 0 && index < present.length) return present[index];
+      return index === present.length ? this.control.length : index;
+    });
   }
 
   /** Под-модели строк по порядку — без подписки: мутацию могут вызвать из effect'а поведения. */

@@ -8,8 +8,9 @@
  *
  * `dirty` состава: методы ноды ставят, запись в модель — нет, `reset` снимает.
  *
- * Зонды: строка, добавленная в выключенный массив; ожидание async-правила на ручке самого массива;
- * строка `null` в массиве модели.
+ * Строка `null` в массиве модели: форма её пропускает, индексы ноды — по строкам формы.
+ *
+ * Зонды: строка, добавленная в выключенный массив; ожидание async-правила на ручке самого массива.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -184,19 +185,32 @@ describe('form-array-node — ключи строк', () => {
     expect(phones.keyAt(0)).not.toBe(keyBefore);
   });
 
-  it('строка null в массиве модели формой пропускается, а keyAt идёт по индексу модели', () => {
+  it('строка null в массиве модели формой пропускается, индексы ноды — по строкам формы [ReFormer-j0ee]', () => {
     const { model, phones } = createContacts();
+    model.set({
+      name: '',
+      phones: [
+        null as unknown as Phone,
+        { number: '2', kind: 'home' },
+        { number: '3', kind: 'work' },
+      ],
+    });
 
-    model.set({ name: '', phones: [null as unknown as Phone, { number: '2', kind: 'home' }] });
-
-    // поведение под вопросом [ReFormer-j0ee]: строку `null` массив форм пропускает (form-array-node.ts:73), а
-    // `keyAt(i)` берёт под-модель по индексу МОДЕЛИ. Индексы `at(i)` и `keyAt(i)` расходятся:
-    // `at(0)` — форма второго элемента, а `keyAt(0)` бросает (WeakMap не принимает `null` ключом),
-    // и рендер строк по `keyAt(i)` падает. Что делать со строкой `null` — контрактом не задано.
-    expect(model.phones.length).toBe(2);
-    expect(phones.length).toBe(1);
+    expect(model.phones.length).toBe(3);
+    expect(phones.length).toBe(2);
     expect(phones.at(0)?.number.value.value).toBe('2');
-    expect(() => phones.keyAt(0)).toThrow();
+    // keyAt согласован с at: ключ строки, а не падение на null (рендер строк идёт по keyAt).
+    expect(phones.keyAt(0)).toBe(String(rowKeyOf(model.phones.at(1)!)));
+    expect(() => phones.keyAt(2)).toThrow(RangeError);
+
+    phones.move(1, 0);
+    expect(numbersOf(phones)).toEqual(['3', '2']);
+    // «Удалить» у первой строки удаляет её, а не null перед ней.
+    phones.removeAt(0);
+    expect(numbersOf(phones)).toEqual(['2']);
+    phones.insert(1, { number: '4', kind: 'home' });
+    expect(numbersOf(phones)).toEqual(['2', '4']);
+    expect(model.phones.length).toBe(3);
   });
 });
 
