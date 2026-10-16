@@ -77,7 +77,8 @@ that is already changing, so an address read before the step may have shifted: f
 
 Fields: ${fields.join(', ')}.
 Containers: ${containers.join(', ')} and more — call list_components for the rest.
-Every field takes ${shared.join(', ')}. For any other property call describe_component first.
+Every field takes ${shared.join(', ')}. For any other property call describe_component first — one
+call with every component name you need.
 
 ## Hard rules
 

@@ -302,6 +302,38 @@ function structureLines(detail: ComponentDetail): string[] {
   return lines;
 }
 
+/**
+ * Сжатое описание для пачки `describe_component`: строка «имя (роль)» и свойства одной строкой —
+ * ключ, тип и варианты значения, без описаний и умолчаний. Так девять компонентов спеки умещаются в один ответ
+ * вместо девяти вызовов разведки; полное описание — вызов с одним именем. `omit` — свойства, которые
+ * читатель уже знает (общие для роли).
+ */
+export function renderComponentSummary(
+  detail: ComponentDetail,
+  budget: number,
+  omit: ReadonlySet<string> = new Set()
+): string {
+  const head = `${detail.name} (${detail.role})`;
+  // Общие свойства роли промпт уже перечислил, read-only (значение и его событие) задаёт привязка,
+  // а не componentProps: в сжатой строке они только вытесняли бы то, ради чего её просили.
+  const own = detail.props.filter((p) => !omit.has(p.key) && p.widget !== 'readonly');
+  if (!own.length) return `${head}: only the common properties`;
+  const props = own.map((p) => {
+    let line = `${p.key}: ${p.widget}`;
+    if (p.options?.length) line += ` = ${p.options.join('|')}`;
+    return line;
+  });
+  let text = `${head}: ${props.join('; ')}`;
+  if (text.length <= budget) return text;
+  // Не влезло — сколько поместится целыми свойствами и пометка, где взять остальное.
+  let shown = props.length;
+  do {
+    shown--;
+    text = `${head}: ${props.slice(0, shown).join('; ')}; … ${props.length - shown} more — describe it alone`;
+  } while (shown > 0 && text.length > budget);
+  return text;
+}
+
 /** Описание компонента в текст. */
 export function renderComponentDetail(detail: ComponentDetail, budget: number): string {
   const headline = `${detail.name} — role ${detail.role}${detail.category ? `, category «${detail.category}»` : ''}`;

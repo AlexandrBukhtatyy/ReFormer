@@ -99,6 +99,45 @@ describe('describe_component', () => {
   });
 });
 
+describe('describe_component пачкой [ReFormer-6sj]', () => {
+  const fields = catalog.filter((entry) => entry.role === 'field').map((entry) => entry.name);
+
+  it('несколько имён — строка на компонент со свойствами, одним вызовом', async () => {
+    const [first, second] = fields;
+    const res = await reg.invoke('describe_component', { names: [first, second] }, ctx());
+    expect(res.ok).toBe(true);
+    const lines = res.text.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0].startsWith(`${first} (field)`)).toBe(true);
+    expect(lines[1].startsWith(`${second} (field)`)).toBe(true);
+  });
+
+  it('девять полей спеки умещаются в один ответ без обрезки реестром', async () => {
+    const names = fields.slice(0, 9);
+    expect(names).toHaveLength(9);
+    const res = await reg.invoke('describe_component', { names }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).not.toContain('response truncated');
+    expect(res.text.split('\n')).toHaveLength(9);
+  });
+
+  it('неизвестное имя в пачке не роняет вызов — отмечено с подсказкой', async () => {
+    const res = await reg.invoke('describe_component', { names: [fields[0], 'TextInput'] }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('Not in the catalog: TextInput (did you mean');
+  });
+
+  it('все имена неизвестны — UNKNOWN_COMPONENT; ни name, ни names — INVALID_PARAMS', async () => {
+    const unknown = await reg.invoke(
+      'describe_component',
+      { names: ['TextInput', 'Emailer'] },
+      ctx()
+    );
+    expect(unknown.error?.code).toBe('UNKNOWN_COMPONENT');
+    expect((await reg.invoke('describe_component', {}, ctx())).error?.code).toBe('INVALID_PARAMS');
+  });
+});
+
 describe('list_components', () => {
   it('роль отражена в выводе', async () => {
     const res = await reg.invoke('list_components', { role: 'field' }, ctx());
