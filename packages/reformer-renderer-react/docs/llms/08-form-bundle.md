@@ -4,8 +4,7 @@
 
 `FormRenderer` рисует результат единой сборки `createForm` из `@reformer/core`. Схема — одно дерево
 узлов с привязкой `model`; поведение формы получает схему в своей области и записывает правила
-узлов; рендерер их исполняет. Отдельных `createReactForm`, `useReactForm` и `renderBehavior` для
-этого не нужно — они остаются прежним путём.
+узлов; рендерер их исполняет.
 
 Полное описание контракта — раздел «Единый контракт формы» в `reformer://docs/core`.
 
@@ -53,8 +52,7 @@ function MyFormPage() {
   поток шагов `bundle.flow` (если в конфиге есть `flow`).
 - Снять сборку — `bundle.dispose()`: поведение, подписки нод, живая проверка; идущие проверки
   получают `cancelled`, значения модели остаются. Владелец сборки — тот, кто вызвал `createForm`:
-  вне React (тесты, сервер, своя оболочка) зовите `dispose()`, когда форма больше не нужна. Бандл
-  прежнего пути `createReactForm` тоже снимается `dispose()`.
+  вне React (тесты, сервер, своя оболочка) зовите `dispose()`, когда форма больше не нужна.
 
 ## Узлы схемы
 
@@ -152,7 +150,9 @@ Tabs.__selfManagedChildren = true;
 | Ошибка                                           | Как правильно                                            |
 | ------------------------------------------------ | -------------------------------------------------------- |
 | `schema: (model, form) => …` ради визарда        | `(model) => узел`; визард берёт форму из контекста       |
-| `renderBehavior` рядом с `behavior`              | одно поведение: `({ model, form, schema, flow }) => …`   |
+| `renderBehavior` рядом с `behavior`, тип `RenderBehaviorFn` | одно поведение: `({ model, form, schema, flow }) => …` |
+| `createReactForm`, `useReactForm` (удалены)      | `createForm` из `@reformer/core`, `useFormBundle` из `@reformer/core/react` |
+| `<FormRenderer render={bundle.render} />`        | `<FormRenderer form={bundle} />` |
 | `form.loanType.value.value` в условии `hideWhen` | `model.loanType`                                         |
 | `<FormRenderer form={bundle} />` без `schema`    | у сборки без схемы дерева нет — рисуйте поля сами        |
 | `initialValue` в каждом узле массива             | `arrayOf(blank)` в модели                                |

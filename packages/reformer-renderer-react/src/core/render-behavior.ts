@@ -1,5 +1,5 @@
 /**
- * RenderBehaviorFn — поведение схемы рендера через standalone helpers
+ * Операторы узлов схемы и хуки, которыми рендерер исполняет записанные ими правила.
  *
  * Сами операторы (`hideWhen`, `onComponentEvent`, `renderEffect`, `onInit`, `onMount`,
  * `onUnmount`) живут в ядре — `@reformer/core/behaviors` — и вызываются прямо в поведении формы:
@@ -23,33 +23,6 @@ import {
   onUnmount as coreOnUnmount,
 } from '@reformer/core/behaviors';
 import type { RenderNodeControl, RenderSchemaProxy } from './render-schema-proxy';
-
-// ============================================================================
-// Public types
-// ============================================================================
-
-/**
- * Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
- *
- * Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect). Модель и уровень
- * формы (`flow`, `submission`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
- *
- * В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
- * полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
- *
- * @example
- * ```typescript
- * const renderBehavior = (form: FormGroup<MyForm>, model: FormModel<MyForm>, level: FormLevel<MyForm>) =>
- *   ((schema) => {
- *     hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
- *
- *     renderEffect(schema, () => {
- *       if (model.loanType === 'mortgage') level.flow?.goTo('loan');
- *     });
- *   }) satisfies RenderBehaviorFn<MyForm>;
- * ```
- */
-export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
 
 // ============================================================================
 // Standalone helpers — тонкие обёртки над операторами ядра

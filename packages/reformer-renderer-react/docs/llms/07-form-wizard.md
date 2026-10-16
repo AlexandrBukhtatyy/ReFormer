@@ -127,14 +127,6 @@ const outcome = await bundle.submission.submit(sendCreditApplication); // Submit
 шага — компонент, ReactNode или узел схемы, который рисует стратегия
 `renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}`.
 
-## Прежний путь сборки: `createReactForm`
-
-`createReactForm` рендерит функцию-схему, а не бандл, но уровень формы в нём тот же: `FormRenderer`
-с этим бандлом (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки. Визард берёт из
-него форму и поток, а отправка идёт через `bundle.submission.submit` — с проверкой, как у
-`createForm`.
-Новому коду этот путь не нужен.
-
 ## См. также
 
 - `@reformer/ui-kit` `docs/llms/07-form-wizard.md` — сам компонент целиком.

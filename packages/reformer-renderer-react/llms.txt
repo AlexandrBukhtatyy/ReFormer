@@ -111,13 +111,6 @@ componentProps: { title, icon }, children: [...] }` (`Step` из `@reformer/cdk/
 { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
 ```
 
-### Прежний путь: `createReactForm`
-
-`createReactForm` + `useReactForm` остаются в пакете: билдер схемы `(model, form?)` вызывается дважды
-(без формы — для сборки, с формой — для рендера), а правила узлов пишет отдельная фабрика
-`renderBehavior(form, model, level)`; третий аргумент — уровень формы (`submission`, `flow`).
-Новому коду он не нужен: сборка `createForm` даёт то же одним поведением формы — см. [08-form-bundle.md](08-form-bundle.md).
-
 ## 4. Key Concepts
 
 - **`RenderNode<T>`** — узел дерева, дискриминированный union: **field** (`ModelFieldRenderNode` — `model: model.$.x` + `component`), **array** (`ArrayRenderNode` — `model: model.$.items` + `item`), **part** (`PartRenderNode` — `model: model.$.group` + `part`), **container** (`ContainerRenderNode` — `component` + `children`). Ключей `value:` / `array:` у узла нет — это прежний контракт, компилятор их не читает.
@@ -140,7 +133,6 @@ componentProps: { title, icon }, children: [...] }` (`Step` из `@reformer/cdk/
 | `createRenderSchema`, `isRenderSchemaProxy`                                      | Низкоуровневое программное управление схемой.                          |
 | `isHtmlTagRenderNode`, `VOID_HTML_TAGS`                                          | HTML-тег в `component`; вид узла — `kind` из `compileSchema`.           |
 | `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Операторы узлов (те же, что в `@reformer/core/behaviors`).              |
-| `createReactForm`, `useReactForm`                                                | Прежний путь сборки (`renderBehavior(form, model, level)`).             |
 
 ## 6. See also
 
@@ -464,29 +456,7 @@ const bundle = useFormBundle(() =>
 );
 ```
 
-## 14. Прежний путь: `renderBehavior`
-
-В сборке `createReactForm` (и при рендере `createRenderSchema` без бандла) правила узлов пишет отдельная функция `RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void`. Фабрика из конфига `createReactForm` получает собранные форму, модель и **уровень формы** третьим аргументом — `submission` (`level.submission.submit(handler)`, `level.submission.submitting`), `validate`, `flow`:
-
-```tsx
-import { hideWhen, renderEffect, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormGroup, FormLevel, FormModel } from '@reformer/core';
-
-const makeCreditRenderBehavior =
-  (form: FormGroup<CreditForm>, model: FormModel<CreditForm>, level: FormLevel<CreditForm>) =>
-  ((schema) => {
-    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
-    renderEffect(schema, () => {
-      if (model.loanType === 'mortgage') level.flow?.goTo('loan');
-    });
-  }) satisfies RenderBehaviorFn<CreditForm>;
-
-createReactForm<CreditForm>({ model, schema, flow, renderBehavior: makeCreditRenderBehavior });
-```
-
-Этот путь рендерит функцию-схему, а не бандл, но `FormRenderer` с бандлом `createReactForm` (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Новому коду этот путь не нужен.
-
-## 15. Anti-patterns
+## 14. Anti-patterns
 
 - **Предикат `hideWhen`, не читающий сигналы реактивно** — узел не будет переоцениваться. Читай значение внутри предиката (`model.loanType`), не сохраняй его заранее в переменную.
 - **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это область схемы, а не узел (в отличие от остальных операторов).
@@ -495,7 +465,7 @@ createReactForm<CreditForm>({ model, schema, flow, renderBehavior: makeCreditRen
 - **Подписываться на форму напрямую внутри React-компонента вместо `renderEffect`** — теряется автоматический dispose при unmount.
 - **Бросать исключения из `onInit`** — он синхронный и вызывается при построении схемы (до первого рендера); исключение сломает mount. Логируй и обрабатывай ошибки внутри.
 
-## 16. See also
+## 15. See also
 
 - [02-render-schema.md](02-render-schema.md) — узлы схемы и `selector`.
 - [05-cookbook.md](05-cookbook.md) — совмещение нескольких правил на одном узле.
@@ -503,7 +473,7 @@ createReactForm<CreditForm>({ model, schema, flow, renderBehavior: makeCreditRen
 - [08-form-bundle.md](08-form-bundle.md) — области схемы строк и подформ.
 - [04-troubleshooting.md](04-troubleshooting.md).
 
-## 17. Field renders without label/error
+## 16. Field renders without label/error
 
 **Troubleshooting / FAQ**
 
@@ -517,7 +487,7 @@ import { FormField } from '@reformer/ui-kit';
 
 Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper`. В JSON-варианте обёртку кладёт в бандл реестр (запись `FIELD_WRAPPER`), и `settings.fieldWrapper` её перекрывает.
 
-## 18. Field renders as null (console warning `[RenderSchema] No form node for signal ...`)
+## 17. Field renders as null (console warning `[RenderSchema] No form node for signal ...`)
 
 Нода поля находится по ручке модели через реестр `getNodeForSignal`, а реестр заполняет сборка. Если поле рисуется как `null` и в консоли `[RenderSchema] No form node for signal "<path>" — render value-leaf after createForm`:
 
@@ -525,7 +495,7 @@ import { FormField } from '@reformer/ui-kit';
 - Лист привязан к ручке другой модели (не той, что передана в сборку). Убедись, что `model: model.$.<field>` берётся из того же `model`, который получил билдер схемы.
 - Узел не стал полем: ключ `value:` вместо `model:` либо `model: model.<path>` (value-фасад) вместо `model: model.$.<path>`. Компилятор схемы пишет об этом предупреждение в dev.
 
-## 19. Container children не рендерятся
+## 18. Container children не рендерятся
 
 `children` контейнера — это TOP-LEVEL свойство узла, а не часть `componentProps`. Если положить их в `componentProps.children`, поддерево не отрисуется.
 
@@ -536,26 +506,26 @@ import { FormField } from '@reformer/ui-kit';
 { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
 ```
 
-## 20. FormRenderer: render или form — что передавать
+## 19. FormRenderer: render или form — что передавать
 
 Источников схемы два:
 
-- `<FormRenderer form={bundle} settings={…} />` — бандл сборки `createForm`: рендерер берёт готовую скомпилированную схему из `bundle.render`, ставит контекст сборки (его читает визард) и исполняет правила узлов из поведения формы. Это основной путь. Прежний бандл `createReactForm` принимается тем же пропом;
+- `<FormRenderer form={bundle} settings={…} />` — бандл сборки `createForm`: рендерер берёт готовую скомпилированную схему из `bundle.render`, ставит контекст сборки (его читает визард) и исполняет правила узлов из поведения формы. Это основной путь.
 - `<FormRenderer render={schema} settings={…} />` — низкоуровневый путь: `schema` — функция-схема либо результат `createRenderSchema`.
 
 При одновременной передаче побеждает явный `render`, а бандл игнорируется целиком — вместе с правилами узлов и контекстом сборки. Не передавай оба пропа.
 
 Чего делать нельзя: подставлять в `form` не бандл, а `FormGroup` (`bundle.form`) — проп ожидает `{ render }`, и компилятор это ловит (TS2322).
 
-## 21. `FormRenderer: в бандле нет дерева`
+## 20. `FormRenderer: в бандле нет дерева`
 
 У сборки `createForm` не задана `schema`. Без схемы рисовать нечего — поля рисуют сами: `<FormField control={bundle.form.email} />`.
 
-## 22. Unknown component in schema
+## 21. Unknown component in schema
 
 В `component` листа должен лежать React-компонент (`Input`, `SelectAsync`, ...); у контейнера — компонент либо HTML-тег строкой (`'div'`, `'h3'`). Лист поля дополнительно требует `model: model.$.<field>`. Если хочешь адресовать компоненты по строковым именам — переходи на `@reformer/renderer-json` (реестр + `$component(Name)`).
 
-## 23. Правило узла ничего не делает
+## 22. Правило узла ничего не делает
 
 `hideWhen`/`patchProps`/`onComponentEvent` работают только при адресации узла через `schema.node(selector)`. Убедись, что:
 
@@ -565,30 +535,30 @@ import { FormField } from '@reformer/ui-kit';
   `onComponentEvent` на ней ничего не делают (в dev — предупреждение). Адресуйте узел внутри части.
 - Поведение подключено к сборке полем `behavior`. На низкоуровневом пути функция-схема обёрнута `createRenderSchema`, и в `<FormRenderer render={…} />` передан именно прокси.
 
-## 24. `[@reformer/core] compileSchema: в области «#» селектор «…» повторяется`
+## 23. `[@reformer/core] compileSchema: в области «#» селектор «…» повторяется`
 
 Два узла одной области несут один `selector`. По `selector` узел адресуют поведение и шаги потока, поэтому в области он уникален. Дай узлам разные селекторы; в строках массива и подформах селекторы живут в своих областях и с корнем не пересекаются.
 
-## 25. Hidden node still mounts
+## 24. Hidden node still mounts
 
 `hideWhen` / `setHidden` возвращают `null` для узла (узел не рендерится, пока условие истинно). Скрытие реактивное: приоритет `setHidden` (программный override) > `hideWhen` (декларативное условие) > видимо. Чтобы вернуть автоматику после `setHidden(true)` — `resetHidden()`.
 
-## 26. `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
+## 25. `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
 
 Валидаторы вписаны прямо в лист схемы (`{ model: model.$.x, component: Input, validators: [...] }`). У узла нет поля `validators` — дерево несёт только layout. Правила валидации значений живут в **отдельной схеме над моделью** (`defineValidation<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`) и уходят в сборку полями `validation` и `flow.steps[].rules`. Полный поток — [06-validation.md](06-validation.md).
 
-## 27. Визард: «шаги схемы и шаги потока расходятся»
+## 26. Визард: «шаги схемы и шаги потока расходятся»
 
 `FormWizard` связывает узел шага с шагом потока по `selector`: `id` шага в `createForm({ flow: { steps: [{ id }] } })` обязан совпадать с `selector` узла шага. Предупреждение перечисляет шаги потока без узла и узлы без шага потока. То же расхождение сборка ловит в dev: «в `flow.steps` есть шаги, для которых в дереве схемы нет узла с таким `selector`». См. [07-form-wizard.md](07-form-wizard.md).
 
-## 28. Form changes don't trigger re-render
+## 27. Form changes don't trigger re-render
 
 Скорее всего чтение значения идёт вне реактивного контекста или подписка не доходит до React. Проверь:
 
 - Внутри `hideWhen`/`renderEffect` значение читается в самом колбэке: `model.x` (или сигнал ноды `form.x.value.value`), а не из переменной, захваченной заранее.
 - В пользовательском компоненте используется `useFormControl` из `@reformer/core/react` (он подписывается на ноду).
 
-## 29. Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
+## 28. Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
 
 Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — только если контрол его запросил (`reformerNeedsControl` / `passControl`); по умолчанию `control` в контрол не передаётся. `Select` с `onChange(value, option)` адаптера не требует: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам).
 
@@ -609,7 +579,7 @@ import { FormField } from '@reformer/ui-kit';
 
 Компонентам `@reformer/ui-kit` адаптер в настройках не нужен — диалект объявлен их статикой `reformerAdapter`. Уже value-based контролам — тоже: `resolveFieldAdapter` возвращает `undefined`, статики нет — и seam применяется как есть. Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
 
-## 30. See also
+## 29. See also
 
 - [01-overview.md](01-overview.md)
 - [02-render-schema.md](02-render-schema.md)
@@ -618,7 +588,7 @@ import { FormField } from '@reformer/ui-kit';
 - [06-validation.md](06-validation.md)
 - [07-form-wizard.md](07-form-wizard.md)
 
-## 31. Custom fieldWrapper
+## 30. Custom fieldWrapper
 
 **Cookbook**
 
@@ -662,7 +632,7 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 - Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (поле типа `ComponentType<FieldWrapperProps>` в `ModelFieldRenderNode.componentProps`).
 - Не оборачивай wrapper в `React.memo` без сравнения по `control` и `children` — иначе DOM будет «застревать» на старом инпуте.
 
-## 32. Programmatic node manipulation
+## 31. Programmatic node manipulation
 
 **Problem.** Нужно динамически прятать/показывать секцию или менять props ноды снаружи schema (например, по событию из `useEffect`, по кнопке debug-панели, или после загрузки данных).
 
@@ -711,7 +681,7 @@ function CreditApplicationPage() {
 - `bundle.render.node` адресует корневую область. Узлы строк массивов и подформ управляются из их поведения (`applyEach` / `apply`).
 - Низкоуровневый путь без бандла — тот же API у `createRenderSchema(fn)`: `proxy.node(selector)` и `<FormRenderer render={proxy} />`.
 
-## 33. Custom container with collapsible children
+## 32. Custom container with collapsible children
 
 **Problem.** Нужен контейнер с собственной логикой рендеринга `children` (например, `Section` с заголовком, который можно свернуть, или wizard с табами).
 
@@ -764,7 +734,7 @@ export function CollapsibleSection({
 - Если контейнеру нужны узлы как данные (вычислить количество, отрисовать таб-бар, показать один активный) — объяви у компонента статику `__selfManagedChildren = true`. Тогда рендерер передаёт ему `children` узлами скомпилированной схемы (`CompiledNode`: `selector`, `props`, `children`) и проп `renderNode` — функцию отрисовки узла; импортировать рендерер компоненту не нужно. Так устроен `FormWizard` из `@reformer/ui-kit`. Пример — [08-form-bundle.md](08-form-bundle.md).
 - Контейнер можно адресовать через `selector` — тогда `setHidden` будет работать на его содержимое целиком.
 
-## 34. Combining behaviors on one node
+## 33. Combining behaviors on one node
 
 **Problem.** На одном узле нужно сразу несколько эффектов: скрытие по условию, реактивный side-effect, обработчик события компонента, lifecycle-хук — без дублирования selector-кода.
 
@@ -813,7 +783,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema, f
 - `renderEffect` принимает не узел, а область схемы: эффекты живут на уровне рендера дерева и автоматически диспозятся при unmount `FormRenderer`.
 - `onInit` срабатывает синхронно при применении поведения (до первого рендера). Это единственный хук, способный изменить `componentProps` так, чтобы они попали в первый рендер.
 
-## 35. Вся форма read-only / view-mode
+## 34. Вся форма read-only / view-mode
 
 **Problem.** Нужно показать форму целиком в режиме просмотра (все поля задизейблены) — например, экран подтверждения, «read-only копия», или форма, заблокированная до загрузки данных.
 
@@ -843,7 +813,7 @@ const bundle = useFormBundle(() =>
 - **`componentProps.disabled` каскад НЕ перебивает — он вообще не работает.** Рендерер листа ставит `disabled` из состояния ноды ПОСЛЕ пропсов схемы ([render-node.tsx](../../src/core/render-node.tsx), `ModelFieldRenderer`; так же устроен `FormField.Control` в [FormFieldControl.tsx](../../../reformer-cdk/src/components/form-field/FormFieldControl.tsx)), поэтому значение из схемы затирается, а не побеждает. Props-схемы field-компонентов его и не объявляют (`disabled` — seam-проп, см. [seam.props.ts](../../../reformer-ui-kit/src/fields/seam.props.ts)). Единственный рычаг — состояние ноды: `control.disable()` / `control.enable()` (или `disabled: true` в узле поля — нода создаётся отключённой), в том числе точечно на одном поле из поведения.
 - Это ортогонально `hideWhen`: `disable()` оставляет поля видимыми, но неактивными; `hideWhen` убирает их из дерева.
 
-## 36. Презентационные блоки и живая сводка без своих компонентов
+## 35. Презентационные блоки и живая сводка без своих компонентов
 
 **Problem.** В форме нужны заголовки, инфо-плашка, разделитель и блок «Итого», где значения пересчитываются на лету. Заводить под каждый такой блок React-компонент (и, в JSON-варианте, регистрировать его) — много кода ради вёрстки.
 
@@ -903,7 +873,7 @@ const installmentSchema = (model: FormModel<Installment>): RenderNode<Installmen
 - `hideWhen`/`patchProps` работают по `selector` и на html-узлах; в DOM `selector` не пробрасывается.
 - Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/demo/html-nodes/`.
 
-## 37. Сырой контрол сторонней UI-kit (FieldAdapter)
+## 36. Сырой контрол сторонней UI-kit (FieldAdapter)
 
 **Problem.** Нужно подключить контрол чужой библиотеки (antd `Checkbox`, MUI `Select`, свой `Radio`) напрямую, без обёртки. Но рендерер отдаёт полю value-based seam — `value` + `onChange(value)`, — а сырой контрол говорит на своём диалекте: `Checkbox` эмитит DOM-событие (`onChange(e) => e.target.checked`), `Select` — `onChange(value, option)`, `Radio` — `onChange(e) => e.target.value`. Статики `reformerAdapter` (как у компонентов `@reformer/ui-kit`) у чужого контрола нет, поэтому зарегистрированный как есть, он запишет в модель объект события вместо значения.
 
@@ -935,15 +905,15 @@ const adapters = new Map<unknown, FieldAdapter>([
 - `componentProps` (после `strip`) спредятся ПЕРВЫМИ — seam (`value`/`onChange`/`onBlur`) перекрывает их при совпадении ключей. `strip` убирает служебные ключи, на которые контрол ругается неизвестным пропом. Blur по умолчанию идёт как `onBlur`; нестандартный канал — через `bindBlur(onBlur) => props`.
 - `data-testid="input-{testId}"` проставляется автоматически, если его нет в props (testId — из `componentProps.testId` или пути сигнала).
 - `FieldAdapter` — один тип на всех (`@reformer/core/react`, реэкспорт в `@reformer/renderer-react` и `@reformer/ui-kit/fields`): его же кладут в статику `reformerAdapter` через `defineFieldControl`, все поля опциональны. Пресеты кита (`checkedAdapter`, `valueChangeAdapter`, `nativeInputAdapter`, …) из `@reformer/ui-kit/fields` годятся и для `resolveFieldAdapter`.
-- То же работает в `@reformer/renderer-json` без изменений кода: документ формата 2 рисует тот же `FormRenderer`, и `resolveFieldAdapter` применяется к контролам, зарегистрированным в реестре по имени; на прежнем пути (`JsonFormRenderer`) он передаётся в `settings` у `JsonRendererProvider` (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md)).
+- То же работает в `@reformer/renderer-json` без изменений кода: документ формата 2 рисует тот же `FormRenderer`, и `resolveFieldAdapter` применяется к контролам, зарегистрированным в реестре по имени (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md)).
 
-## 38. See also
+## 37. See also
 
 - [02-render-schema.md](02-render-schema.md) — узлы схемы.
 - [03-render-behavior.md](03-render-behavior.md) — справочник по операторам узлов.
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 
-## 39. Mental model — почему валидаторов нет в узле схемы { #mental-model }
+## 38. Mental model — почему валидаторов нет в узле схемы { #mental-model }
 
 **Validation**
 
@@ -958,7 +928,7 @@ const adapters = new Map<unknown, FieldAdapter>([
 
 Дальше — три шага: (1) правила над моделью, (2) подключить их к сборке, (3) тексты замечаний.
 
-## 40. Шаг 1 — правила над моделью { #build-schema }
+## 39. Шаг 1 — правила над моделью { #build-schema }
 
 Схема валидации — обычная функция над (под)моделью, обёрнутая `defineValidation<T>(({ model, cross }) => { … })`. Внутри — **операторы** из `@reformer/core/validation`: `validate(handle, [rules])` (синхронные правила поля, **массив**), `validateAsync(handle, [asyncRules])` (async-правила), `validateWhen(() => cond, () => …)` (условные ветки), `applyEach(model.$.items, rowRules)` (правила строк массива), `apply(...schemas)` (композиция) — и `cross(handle, (snapshot) => issue | null)` из аргумента схемы (правило над несколькими полями по снимку модели). `handle` — ручка модели (`model.$.path`), **не** узел схемы. Фабрики правил — из `@reformer/core/validators`; их опции — `{ code?, params? }`, текста (`message`) у правила нет.
 
@@ -993,7 +963,7 @@ export const applicantRules = defineValidation<CreditForm>(({ model }) => {
 
 Без `code` у правила код по умолчанию — имя правила (`required`, `minLength`, …): его текст даёт словарь локали. Полное описание операторов — `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
-## 41. Шаг 2 — подключить к сборке { #execute }
+## 40. Шаг 2 — подключить к сборке { #execute }
 
 Правила шагов уходят в **поток** сборки, правила вне шагов — в `validation`:
 
@@ -1047,7 +1017,7 @@ const behavior = defineFormBehavior<CreditForm>(({ model }) => {
 
 Схема — та же стабильная `const`-ссылка, что ушла в поток. См. `@reformer/core` [27-revalidate-when.md](../../../reformer/docs/llms/27-revalidate-when.md).
 
-## 42. Шаг 3 — тексты замечаний { #messages }
+## 41. Шаг 3 — тексты замечаний { #messages }
 
 Замечание (`ValidationIssue`) — `{ code, params?, severity? }`, текста в нём нет. Строки — словарь формы:
 
@@ -1073,7 +1043,7 @@ import { ValidationMessagesProvider } from '@reformer/cdk';
 
 Порядок поиска текста: словарь формы → словарь локали (`I18nProvider`) → встроенный английский → сам `code`. Шаблон подставляет `params` правила (`{min}`, `{minLength}`).
 
-## 43. Полный рабочий пример { #full-example }
+## 42. Полный рабочий пример { #full-example }
 
 Зеркалит эталон `complex-multy-step-form`: правила — `ValidationDefinition` над моделью, общие для всех вариантов рендера; шаги схемы и правила шагов связаны идентификатором (`selector` узла = `id` шага потока).
 
@@ -1150,7 +1120,7 @@ return (
 
 Отправка и навигация между шагами приходят из поведения формы (`onComponentEvent(schema.node('wizard'), 'onSubmit', …)`, `flow.goTo(id)`) — см. [07-form-wizard.md](07-form-wizard.md).
 
-## 44. Anti-patterns
+## 43. Anti-patterns
 
 - **Вписывать `validators` в лист схемы** (`{ model: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У узла поля нет `validators` (как и у массива, подформы и контейнера). TypeScript даёт `TS2353`. Валидация значений живёт в отдельной `ValidationDefinition` над моделью (Шаг 1).
 - **Текст в правиле** — `required({ message: '…' })` больше нет: у `RuleOptions` только `{ code?, params? }`. Текст — словарь `defineIssueMessages` + `ValidationMessagesProvider messages`.
@@ -1160,7 +1130,7 @@ return (
 - **Передавать в `validate` значение вместо ручки** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — ручка (стабильная ссылка на поле модели), а не текущее значение. Значения читает раннер в момент прогона; правило над несколькими полями берёт снимок через `cross(handle, fn)`.
 - **Пересоздавать схему на каждый прогон** (`validateModel(model, defineValidation(...))` инлайн или новый объект правил в каждом рендере) — отмена устаревших прогонов ключится по паре «модель + правила». Держите схемы стабильными module-level `const`.
 
-## 45. See also
+## 44. See also
 
 - [02-render-schema.md](02-render-schema.md) — узлы схемы: лист несёт только layout.
 - [07-form-wizard.md](07-form-wizard.md) — визард: поток шагов, «Далее», отправка.
@@ -1169,7 +1139,7 @@ return (
 - `@reformer/core` [34-i18n.md](../../../reformer/docs/llms/34-i18n.md) — словарь замечаний и локали.
 - `@reformer/renderer-json` [06-validation.md](../../../reformer-renderer-json/docs/llms/06-validation.md) — та же модель-валидация для JSON-схемы.
 
-## 46. Узел визарда и шаги
+## 45. Узел визарда и шаги
 
 **FormWizard — многошаговая форма в renderer-react**
 
@@ -1221,7 +1191,7 @@ export const creditSchema = (model: FormModel<CreditForm>): RenderNode<CreditFor
   `componentProps` читает индикатор.
 - Ни `form`, ни `flow`, ни `steps` в `componentProps` визарда передавать не нужно.
 
-## 47. Поток шагов
+## 46. Поток шагов
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -1254,7 +1224,7 @@ function CreditFormPage() {
 
 Правила шагов — [06-validation.md](06-validation.md).
 
-## 48. Отправка и навигация из поведения
+## 47. Отправка и навигация из поведения
 
 ```tsx
 import { defineFormBehavior, onComponentEvent, renderEffect } from '@reformer/core/behaviors';
@@ -1283,7 +1253,7 @@ bundle.flow?.goTo('loan'); // FlowTransition: moved | stayed (reason: 'locked', 
 const outcome = await bundle.submission.submit(sendCreditApplication); // SubmitResult
 ```
 
-## 49. Прежний контракт — удалён
+## 48. Прежний контракт — удалён
 
 | Было (удалено) | Стало |
 |---|---|
@@ -1298,33 +1268,24 @@ const outcome = await bundle.submission.submit(sendCreditApplication); // Submit
 шага — компонент, ReactNode или узел схемы, который рисует стратегия
 `renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}`.
 
-## 50. Прежний путь сборки: `createReactForm`
-
-`createReactForm` рендерит функцию-схему, а не бандл, но уровень формы в нём тот же: `FormRenderer`
-с этим бандлом (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки. Визард берёт из
-него форму и поток, а отправка идёт через `bundle.submission.submit` — с проверкой, как у
-`createForm`.
-Новому коду этот путь не нужен.
-
-## 51. См. также
+## 49. См. также
 
 - `@reformer/ui-kit` `docs/llms/07-form-wizard.md` — сам компонент целиком.
 - `@reformer/cdk` `docs/llms/03-form-navigation.md` — headless-навигация и `FormWizard.Actions`.
 - [03-render-behavior.md](03-render-behavior.md) — `onComponentEvent`, `renderEffect`, `hideWhen`.
 - [06-validation.md](06-validation.md) — правила шагов, тексты замечаний.
 
-## 52. Purpose
+## 50. Purpose
 
 **Рендер бандла `createForm`**
 
 `FormRenderer` рисует результат единой сборки `createForm` из `@reformer/core`. Схема — одно дерево
 узлов с привязкой `model`; поведение формы получает схему в своей области и записывает правила
-узлов; рендерер их исполняет. Отдельных `createReactForm`, `useReactForm` и `renderBehavior` для
-этого не нужно — они остаются прежним путём.
+узлов; рендерер их исполняет.
 
 Полное описание контракта — раздел «Единый контракт формы» в `reformer://docs/core`.
 
-## 53. Сборка и рендер
+## 51. Сборка и рендер
 
 ```tsx
 import { createForm, type FormModel } from '@reformer/core';
@@ -1368,10 +1329,9 @@ function MyFormPage() {
   поток шагов `bundle.flow` (если в конфиге есть `flow`).
 - Снять сборку — `bundle.dispose()`: поведение, подписки нод, живая проверка; идущие проверки
   получают `cancelled`, значения модели остаются. Владелец сборки — тот, кто вызвал `createForm`:
-  вне React (тесты, сервер, своя оболочка) зовите `dispose()`, когда форма больше не нужна. Бандл
-  прежнего пути `createReactForm` тоже снимается `dispose()`.
+  вне React (тесты, сервер, своя оболочка) зовите `dispose()`, когда форма больше не нужна.
 
-## 54. Узлы схемы
+## 52. Узлы схемы
 
 | Узел            | Запись                                                 |
 | --------------- | ------------------------------------------------------ |
@@ -1403,7 +1363,7 @@ const address = (model: FormModel<Address>): RenderNode<MyForm> => ({
 Повтор `selector` в одной области — исключение при сборке. Контейнер без `component` рисует только
 своих детей.
 
-## 55. Области схемы
+## 53. Области схемы
 
 `schema.node(selector)` адресует узлы своей области. Строка массива и подформа — отдельные
 области: рендерер ставит им собственное хранилище правил.
@@ -1424,7 +1384,7 @@ const myBehavior = defineFormBehavior<MyForm>(({ model }) => {
   в dev об этом предупреждают сборка и рендерер.
 - Ref по абсолютному пути модели ищется от корня: `schema.node('phones.0.number').getRef()`.
 
-## 56. Кнопка «Добавить» секции массива
+## 54. Кнопка «Добавить» секции массива
 
 Компонент массива получает `onAdd()` без аргументов: рендерер зовёт `push()` без значения, а новый
 элемент берётся из шаблона массива.
@@ -1437,7 +1397,7 @@ createModel<MyForm>({ coBorrowers: arrayOf(blankCoBorrower) });
 `initialValue` узла-массива — запасной шаблон для форм, чья модель создаётся из данных без кода;
 шаблон модели главнее.
 
-## 57. Компонент, который сам управляет детьми
+## 55. Компонент, который сам управляет детьми
 
 Компонент со статикой `__selfManagedChildren = true` (визард, табы) получает узлы-детей —
 узлы скомпилированной схемы (`CompiledNode`: `selector`, `props` — бывшие `componentProps`,
@@ -1462,18 +1422,20 @@ Tabs.__selfManagedChildren = true;
 из `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.submission`); контекст ставит
 `FormRenderer`. Так устроен `FormWizard` из `@reformer/ui-kit` — см. [07-form-wizard.md](07-form-wizard.md).
 
-## 58. Частые ошибки
+## 56. Частые ошибки
 
 | Ошибка                                           | Как правильно                                            |
 | ------------------------------------------------ | -------------------------------------------------------- |
 | `schema: (model, form) => …` ради визарда        | `(model) => узел`; визард берёт форму из контекста       |
-| `renderBehavior` рядом с `behavior`              | одно поведение: `({ model, form, schema, flow }) => …`   |
+| `renderBehavior` рядом с `behavior`, тип `RenderBehaviorFn` | одно поведение: `({ model, form, schema, flow }) => …` |
+| `createReactForm`, `useReactForm` (удалены)      | `createForm` из `@reformer/core`, `useFormBundle` из `@reformer/core/react` |
+| `<FormRenderer render={bundle.render} />`        | `<FormRenderer form={bundle} />` |
 | `form.loanType.value.value` в условии `hideWhen` | `model.loanType`                                         |
 | `<FormRenderer form={bundle} />` без `schema`    | у сборки без схемы дерева нет — рисуйте поля сами        |
 | `initialValue` в каждом узле массива             | `arrayOf(blank)` в модели                                |
 | ref визарда и `goToStep(n)` для навигации        | `flow.goTo(id)` в поведении, `bundle.flow` снаружи       |
 
-## 59. API Reference
+## 57. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1703,66 +1665,6 @@ export interface ContainerRenderNodeProps {
 
 _Source: src/core/types.ts_
 
-### createReactForm
-
-**Kind:** `function`
-
-Собрать модель, форму, валидацию и рендер-схему за один проход.
-
-**Signature:**
-```typescript
-export function createReactForm<T extends object>(config: CreateReactFormConfig<T>): ReactForm<T>
-```
-
-**Parameters:**
-- `config` — - {@link CreateReactFormConfig}: (`initial` | `model`) + `schema` + опц.
-`behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
-
-**Returns:** 
-
-**Examples:**
-
-```tsx
-const credit = useReactForm(() =>
-  createReactForm<CreditForm>({
-    model: createCreditModel(),
-    schema: buildCreditSchema,          // (model, form?) => RenderNode<CreditForm>
-    behavior: creditBehavior,
-    validation: { extras: crossRules },
-    flow: { steps: [{ id: 'loan', rules: loanRules }] },
-    renderBehavior: makeCreditRenderBehavior,
-  })
-);
-return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
-```
-
-_Source: src/create-react-form.ts_
-
-### CreateReactFormConfig
-
-**Kind:** `interface`
-
-Конфиг {@link createReactForm}.
-
-**Signature:**
-```typescript
-export interface CreateReactFormConfig<T> extends CreateFormConfigBase<T, ReactForm<T>> {
-  /**
-   * Билдер дерева. Вызывается ДВАЖДЫ: сперва без `form` (это дерево уходит в `createForm`), затем
-   * с `form` — для рендера. Узлы, которым нужна форма (визард), берут её из второго аргумента.
-   */
-  schema: (model: FormModel<T>, form?: FormGroup<T>) => RenderNode<T>;
-  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (отправка, поток). */
-  renderBehavior?: (
-    form: FormGroup<T>,
-    model: FormModel<T>,
-    level: FormLevel<T>
-  ) => RenderBehaviorFn<T>;
-}
-```
-
-_Source: src/create-react-form.ts_
-
 ### createRenderSchema
 
 **Kind:** `function`
@@ -1902,8 +1804,7 @@ _Source: src/core/types.ts_
 
 **Функция-схема** (`render`) — низкоуровневый путь: разворачивает корневой узел и рекурсивно
 рендерит дерево. Если `render` — прокси из {@link createRenderSchema}, дополнительно монтирует
-реактивные эффекты (`renderEffect`) и прокидывает карты переопределений через контекст. Так же
-рендерится прежний бандл `createReactForm`.
+реактивные эффекты (`renderEffect`) и прокидывает карты переопределений через контекст.
 
 Явный проп `render` важнее бандла.
 
@@ -1957,12 +1858,11 @@ export interface FormRendererProps<T> {
 
   /**
    * Бандл сборки `createForm` (`@reformer/core`) — готовое дерево и схема-контроллер в
-   * `form.render`. Принимается и прежний бандл `createReactForm`, у которого `form.render` —
-   * функция-схема. Тип структурный намеренно: слой типов рендерера не зависит от фабрик.
+   * `form.render`. Тип структурный намеренно: слой типов рендерера не зависит от сборки.
    *
-   * Приоритет: явный `render` → `form.render`.
+   * Приоритет: явный `render` → `form`.
    */
-  form?: { render: RenderSchemaFn<T> | FormRender };
+  form?: { render: FormRender };
 
   /**
    * Настройки рендерера
@@ -2231,54 +2131,6 @@ const address = (model: FormModel<Address>) => ({
 ```
 
 _Source: src/core/types.ts_
-
-### ReactForm
-
-**Kind:** `interface`
-
-Результат {@link createReactForm}: модель, форма, валидация + готовая к рендеру схема.
-
-**Signature:**
-```typescript
-export interface ReactForm<T> extends CoreForm<T> {
-  /** Схема для `<FormRenderer form={…} />` — с уже наложенным render-behavior. */
-  render: RenderSchemaProxy<T>;
-}
-```
-
-_Source: src/create-react-form.ts_
-
-### RenderBehaviorFn
-
-**Kind:** `type`
-
-Функция-схема поведения рендера для схемы из {@link createRenderSchema}.
-
-Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect). Модель и уровень
-формы (`flow`, `submission`) — из замыкания: `createReactForm` отдаёт их фабрике render-behavior.
-
-В сборке `createForm` отдельная функция не нужна: схема приходит в поведение формы третьим
-полем области — `defineFormBehavior(({ model, form, schema }) => …)`.
-
-**Signature:**
-```typescript
-export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
-```
-
-**Examples:**
-
-```typescript
-const renderBehavior = (form: FormGroup<MyForm>, model: FormModel<MyForm>, level: FormLevel<MyForm>) =>
-  ((schema) => {
-    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
-
-    renderEffect(schema, () => {
-      if (model.loanType === 'mortgage') level.flow?.goTo('loan');
-    });
-  }) satisfies RenderBehaviorFn<MyForm>;
-```
-
-_Source: src/core/render-behavior.ts_
 
 ### RenderChild
 
@@ -2594,33 +2446,6 @@ export type RenderTextPart = string | number | Signal<any>;
 ```
 
 _Source: src/core/types.ts_
-
-### useReactForm
-
-**Kind:** `function`
-
-Собрать форму один раз и держать её стабильной; живую стратегию валидации армировать в эффекте
-(не при SSR — там эффекты не выполняются); при размонтировании снять сборку.
-
-**Signature:**
-```typescript
-export function useFormBundle<B extends FormBundleLike>(factory: () => B): B
-```
-
-**Parameters:**
-- `factory` — - Фабрика бандла, обычно `() => createForm({…})`. Сборкой владеет хук: при
-размонтировании он вызывает её `dispose()`, поэтому фабрика должна собирать НОВУЮ форму, а не
-возвращать чужую, живущую дольше компонента.
-
-**Returns:** Стабильный бандл.
-
-**Examples:**
-
-```tsx
-const credit = useFormBundle(() => createForm<CreditForm>({ model: createCreditModel() }));
-```
-
-_Source: ../reformer/src/platforms/react/hooks/use-form-bundle.ts_
 
 ### useRenderContext
 

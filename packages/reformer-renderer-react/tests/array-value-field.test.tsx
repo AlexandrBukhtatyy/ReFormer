@@ -11,10 +11,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FC } from 'react';
-import { compileSchema, createModel } from '@reformer/core';
-import { createReactForm } from '../src/create-react-form';
+import { compileSchema, createForm, createModel } from '@reformer/core';
 import { FormRenderer } from '../src/core/form-renderer';
-import type { RenderNode } from '../src/core/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -52,7 +50,7 @@ describe('узел схемы с массивом в value', () => {
   });
 
   it('компонент получает значение массива и onChange — в корне и во вложенной группе', () => {
-    const bundle = createReactForm<F>({
+    const bundle = createForm<F>({
       initial: { ...INITIAL },
       schema: (model) =>
         ({
@@ -61,10 +59,10 @@ describe('узел схемы с массивом в value', () => {
             { model: model.$.tags, component: Multi, componentProps: { label: 'Теги' } },
             { model: model.$.profile.langs, component: Multi },
           ],
-        }) as unknown as RenderNode<F>,
+        }) as never,
     });
 
-    const html = renderToStaticMarkup(<FormRenderer render={bundle.render} />);
+    const html = renderToStaticMarkup(<FormRenderer form={bundle} />);
 
     expect(html).toContain('data-label="Теги"');
     expect(html).toContain('data-bound="true"');
@@ -73,7 +71,7 @@ describe('узел схемы с массивом в value', () => {
 
     // Запись через ноду формы видна следующему рендеру — значение одно на модель и форму.
     bundle.form.tags.setValue(['kz']);
-    expect(renderToStaticMarkup(<FormRenderer render={bundle.render} />)).toContain('>kz</i>');
+    expect(renderToStaticMarkup(<FormRenderer form={bundle} />)).toContain('>kz</i>');
   });
 });
 

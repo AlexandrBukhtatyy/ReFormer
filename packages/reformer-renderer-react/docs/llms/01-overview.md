@@ -94,13 +94,6 @@ componentProps: { title, icon }, children: [...] }` (`Step` из `@reformer/cdk/
 { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
 ```
 
-### Прежний путь: `createReactForm`
-
-`createReactForm` + `useReactForm` остаются в пакете: билдер схемы `(model, form?)` вызывается дважды
-(без формы — для сборки, с формой — для рендера), а правила узлов пишет отдельная фабрика
-`renderBehavior(form, model, level)`; третий аргумент — уровень формы (`submission`, `flow`).
-Новому коду он не нужен: сборка `createForm` даёт то же одним поведением формы — см. [08-form-bundle.md](08-form-bundle.md).
-
 ## Key Concepts
 
 - **`RenderNode<T>`** — узел дерева, дискриминированный union: **field** (`ModelFieldRenderNode` — `model: model.$.x` + `component`), **array** (`ArrayRenderNode` — `model: model.$.items` + `item`), **part** (`PartRenderNode` — `model: model.$.group` + `part`), **container** (`ContainerRenderNode` — `component` + `children`). Ключей `value:` / `array:` у узла нет — это прежний контракт, компилятор их не читает.
@@ -123,7 +116,6 @@ componentProps: { title, icon }, children: [...] }` (`Step` из `@reformer/cdk/
 | `createRenderSchema`, `isRenderSchemaProxy`                                      | Низкоуровневое программное управление схемой.                          |
 | `isHtmlTagRenderNode`, `VOID_HTML_TAGS`                                          | HTML-тег в `component`; вид узла — `kind` из `compileSchema`.           |
 | `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Операторы узлов (те же, что в `@reformer/core/behaviors`).              |
-| `createReactForm`, `useReactForm`                                                | Прежний путь сборки (`renderBehavior(form, model, level)`).             |
 
 ## See also
 

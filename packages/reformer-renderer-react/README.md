@@ -54,8 +54,7 @@ export function MyFormPage() {
 }
 ```
 
-`createReactForm` / `useReactForm` and `createRenderSchema` remain available as the previous and the
-low-level paths.
+`createRenderSchema` remains available as the low-level path.
 
 ## Validation
 

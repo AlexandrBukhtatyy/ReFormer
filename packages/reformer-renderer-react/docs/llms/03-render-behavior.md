@@ -87,28 +87,6 @@ const bundle = useFormBundle(() =>
 );
 ```
 
-## Прежний путь: `renderBehavior`
-
-В сборке `createReactForm` (и при рендере `createRenderSchema` без бандла) правила узлов пишет отдельная функция `RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void`. Фабрика из конфига `createReactForm` получает собранные форму, модель и **уровень формы** третьим аргументом — `submission` (`level.submission.submit(handler)`, `level.submission.submitting`), `validate`, `flow`:
-
-```tsx
-import { hideWhen, renderEffect, type RenderBehaviorFn } from '@reformer/renderer-react';
-import type { FormGroup, FormLevel, FormModel } from '@reformer/core';
-
-const makeCreditRenderBehavior =
-  (form: FormGroup<CreditForm>, model: FormModel<CreditForm>, level: FormLevel<CreditForm>) =>
-  ((schema) => {
-    hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
-    renderEffect(schema, () => {
-      if (model.loanType === 'mortgage') level.flow?.goTo('loan');
-    });
-  }) satisfies RenderBehaviorFn<CreditForm>;
-
-createReactForm<CreditForm>({ model, schema, flow, renderBehavior: makeCreditRenderBehavior });
-```
-
-Этот путь рендерит функцию-схему, а не бандл, но `FormRenderer` с бандлом `createReactForm` (`form={bundle}` или `render={bundle.render}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Новому коду этот путь не нужен.
-
 ## Anti-patterns
 
 - **Предикат `hideWhen`, не читающий сигналы реактивно** — узел не будет переоцениваться. Читай значение внутри предиката (`model.loanType`), не сохраняй его заранее в переменную.

@@ -379,12 +379,11 @@ export interface FormRendererProps<T> {
 
   /**
    * Бандл сборки `createForm` (`@reformer/core`) — готовое дерево и схема-контроллер в
-   * `form.render`. Принимается и прежний бандл `createReactForm`, у которого `form.render` —
-   * функция-схема. Тип структурный намеренно: слой типов рендерера не зависит от фабрик.
+   * `form.render`. Тип структурный намеренно: слой типов рендерера не зависит от сборки.
    *
-   * Приоритет: явный `render` → `form.render`.
+   * Приоритет: явный `render` → `form`.
    */
-  form?: { render: RenderSchemaFn<T> | FormRender };
+  form?: { render: FormRender };
 
   /**
    * Настройки рендерера
