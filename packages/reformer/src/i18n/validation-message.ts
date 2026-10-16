@@ -17,7 +17,7 @@
 import type { ValidationIssue } from '../form/types/contracts';
 import coreEn from './en.json';
 import { hasOwn } from './locale';
-import type { MessageValues } from './message-format';
+import { toText, intlLocale, type MessageValues } from './message-format';
 import { formatMessage, type I18nHandle } from './translator';
 
 /**
@@ -76,13 +76,13 @@ const listFormats = new Map<string, Intl.ListFormat | null>();
 
 /** Перечень через запятую по правилам языка; без `Intl.ListFormat` — простое соединение. */
 function formatList(code: string, items: readonly unknown[]): string {
-  const strings = items.map(String);
+  const strings = items.map(toText);
   let format = listFormats.get(code);
   if (format === undefined) {
     try {
       // Не `type: 'unit'`: формат единиц измерения в русском и японском склеивает элементы
       // пробелами («https http ftp»), в китайском — вовсе без разделителя.
-      format = new Intl.ListFormat(code, { style: 'narrow', type: 'conjunction' });
+      format = new Intl.ListFormat(intlLocale(code), { style: 'narrow', type: 'conjunction' });
     } catch {
       format = null;
     }

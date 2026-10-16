@@ -88,6 +88,47 @@ const NAME_END = /[\p{White_Space}\p{Pattern_Syntax}]/u;
 
 const pluralRulesCache = new Map<string, Intl.PluralRules>();
 const numberFormatCache = new Map<string, Intl.NumberFormat>();
+const intlLocales = new Map<string, string>();
+
+/**
+ * Код языка, пригодный для `Intl`. Некорректный (не BCP 47) заменяется на `en` — с предупреждением
+ * в dev, один раз на код. Код может прийти извне (язык из адресной строки), и `RangeError` из
+ * `Intl` ронял бы рендер на первом же `plural`, числе или дате.
+ *
+ * @param code - Код языка локали.
+ * @returns Тот же код либо `en`.
+ */
+export function intlLocale(code: string): string {
+  let safe = intlLocales.get(code);
+  if (safe === undefined) {
+    try {
+      Intl.getCanonicalLocales(code);
+      safe = code;
+    } catch {
+      safe = 'en';
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `[@reformer/core/i18n] код языка «${code}» не BCP 47 — числа, даты и формы слов ` +
+            'форматируются по en.'
+        );
+      }
+    }
+    intlLocales.set(code, safe);
+  }
+  return safe;
+}
+
+/**
+ * Значение как текст. Значение, которое нельзя привести к строке (`Object.create(null)`, объект
+ * с бросающим `toString`), — пустая строка: одно такое значение не роняет всё сообщение.
+ */
+export function toText(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Разбирает сообщение в дерево. Бросает {@link MessageSyntaxError} на ошибке синтаксиса и на
@@ -294,7 +335,7 @@ export function formatPattern(
     for (const node of nodes) {
       if (node.kind === 'text') out += node.value;
       else if (node.kind === 'arg')
-        out += values[node.name] === undefined ? onMissing(node.name) : String(values[node.name]);
+        out += values[node.name] === undefined ? onMissing(node.name) : toText(values[node.name]);
       else if (node.kind === 'number') {
         const n = asNumber(node.name);
         out += n === null ? onMissing(node.name) : numberFormat(locale).format(n);
@@ -313,7 +354,7 @@ export function formatPattern(
         out +=
           raw === undefined
             ? onMissing(node.name)
-            : render(node.branches.get(String(raw)) ?? node.branches.get('other')!);
+            : render(node.branches.get(toText(raw)) ?? node.branches.get('other')!);
       }
     }
     return out;
@@ -325,14 +366,18 @@ export function formatPattern(
 /** {@link Intl.PluralRules} локали, с кэшем: создание правил заметно дороже вызова `select`. */
 function pluralRules(locale: string): Intl.PluralRules {
   let rules = pluralRulesCache.get(locale);
-  if (rules === undefined) pluralRulesCache.set(locale, (rules = new Intl.PluralRules(locale)));
+  if (rules === undefined) {
+    pluralRulesCache.set(locale, (rules = new Intl.PluralRules(intlLocale(locale))));
+  }
   return rules;
 }
 
 /** {@link Intl.NumberFormat} локали, с кэшем — по той же причине. */
 function numberFormat(locale: string): Intl.NumberFormat {
   let format = numberFormatCache.get(locale);
-  if (format === undefined) numberFormatCache.set(locale, (format = new Intl.NumberFormat(locale)));
+  if (format === undefined) {
+    numberFormatCache.set(locale, (format = new Intl.NumberFormat(intlLocale(locale))));
+  }
   return format;
 }
 

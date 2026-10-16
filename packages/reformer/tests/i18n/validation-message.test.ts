@@ -382,9 +382,9 @@ describe('validation-message — перечень без Intl.ListFormat', () =>
   };
   const EXPECTED = 'The URL must use one of these protocols: https, ftp, sftp';
 
-  it('Intl.ListFormat не понимает код языка — перечень соединяется запятыми', () => {
-    // Код не BCP 47: `new Intl.ListFormat` бросает RangeError. Текст сообщения — встроенный
-    // английский: он форматируется по `en` и с кодом локали не сталкивается.
+  it('Intl.ListFormat не понимает код языка — перечень по en [ReFormer-drum]', () => {
+    // Код не BCP 47: `new Intl.ListFormat` бросает RangeError, поэтому некорректный код
+    // заменяется на en. Текст сообщения — встроенный английский.
     const broken = createI18n({ code: 'not a locale', messages: {} });
 
     expect(() => new Intl.ListFormat('not a locale')).toThrow(RangeError);
@@ -393,17 +393,31 @@ describe('validation-message — перечень без Intl.ListFormat', () =>
     expect(resolveIssueMessage(protocols, broken)).toBe(EXPECTED);
   });
 
-  it('с тем же кодом дата в параметрах бросает RangeError', () => {
-    // поведение под вопросом [ReFormer-drum]: от некорректного кода защищён только перечень, а дата, размер
-    // файла, `plural`, `number` и `date` ручки по такому коду бросают. Код может прийти извне —
-    // загрузчик оставляет локали запрошенный код (`setLang` из адресной строки).
-    const broken = createI18n({ code: 'not a locale', messages: {} });
-    const issue: ValidationIssue = {
-      code: 'date_min',
-      params: { minDate: new Date(2030, 0, 1) as never },
-    };
+  it('с тем же кодом дата, размер, plural и число форматируются по en, без RangeError [ReFormer-drum]', () => {
+    // Код может прийти извне — загрузчик оставляет локали запрошенный код (`setLang` из адресной
+    // строки). Некорректный код — откат на en с предупреждением в dev, один раз на код.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const code = 'still not a locale';
+    const broken = createI18n({
+      code,
+      messages: { items: '{count, plural, one{# item} other{# items}}' },
+    });
+    const english = createI18n({ code: 'en', messages: {} });
+    const date = new Date(2030, 0, 1);
+    const issue: ValidationIssue = { code: 'date_min', params: { minDate: date as never } };
 
-    expect(() => resolveIssueMessage(issue, broken)).toThrow(RangeError);
+    expect([
+      resolveIssueMessage(issue, broken),
+      broken.fileSize(1536),
+      broken.t('items', { count: 1200 }),
+      broken.number(1234.5),
+    ]).toEqual([
+      resolveIssueMessage(issue, english),
+      english.fileSize(1536),
+      '1,200 items',
+      english.number(1234.5),
+    ]);
+    expect(warn.mock.calls.filter(([message]) => String(message).includes(code))).toHaveLength(1);
   });
 
   it('в рантайме без Intl.ListFormat — то же соединение запятыми', () => {

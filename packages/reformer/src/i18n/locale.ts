@@ -164,7 +164,20 @@ export function validateLocale(messages: Messages, reference?: Messages): Locale
     }
     const own = parsed.get(key);
     if (own === undefined) continue; // синтаксис уже записан выше
-    const expected = [...messageArguments(parseMessage(source))].sort().join(', ');
+    // Образец тоже бывает битым: замечание по ключу, а не исключение на весь словарь.
+    let sample: MessagePattern;
+    try {
+      if (typeof source !== 'string') throw new TypeError('сообщение не является строкой');
+      sample = parseMessage(source);
+    } catch (error) {
+      issues.push({
+        key,
+        kind: 'syntax',
+        message: `в образце: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      continue;
+    }
+    const expected = [...messageArguments(sample)].sort().join(', ');
     const actual = [...messageArguments(own)].sort().join(', ');
     if (expected !== actual) {
       issues.push({

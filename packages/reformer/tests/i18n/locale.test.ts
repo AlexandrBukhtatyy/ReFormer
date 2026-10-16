@@ -15,7 +15,7 @@ import {
   type FormLocale,
   type Messages,
 } from '../../src/i18n/locale';
-import { MessageSyntaxError, parseMessage } from '../../src/i18n/message-format';
+import { parseMessage } from '../../src/i18n/message-format';
 import { en } from '../../src/locale/en';
 import { ru } from '../../src/locale/ru';
 
@@ -123,10 +123,19 @@ describe('locale — validateLocale на данных не из репозито
     );
   });
 
-  it('битое сообщение образца роняет проверку исключением, а не замечанием', () => {
-    // поведение под вопросом [ReFormer-drum]: образец считается доверенным (его проверяют отдельно —
-    // `validateLocale(enJson)`), но одна битая строка в нём обрывает проверку всего словаря.
-    expect(() => validateLocale({ a: 'A' }, { a: 'Selected: {count' })).toThrow(MessageSyntaxError);
+  it('битое сообщение образца — замечание по ключу, проверка словаря продолжается [ReFormer-drum]', () => {
+    const issues = validateLocale(
+      { a: 'A', b: 'B {n}', c: 'C' },
+      { a: 'Selected: {count', b: 'B', c: 42 as unknown as string }
+    );
+
+    expect(issues.map(({ key, kind }) => ({ key, kind }))).toEqual([
+      { key: 'a', kind: 'syntax' },
+      { key: 'b', kind: 'arguments' },
+      { key: 'c', kind: 'syntax' },
+    ]);
+    expect(issues[0].message).toMatch(/^в образце: /);
+    expect(issues[2].message).toBe('в образце: сообщение не является строкой');
   });
 });
 

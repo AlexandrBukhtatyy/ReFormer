@@ -101,6 +101,16 @@ describe('подстановка', () => {
     assert.equal(ru('{n}/{b}', { n: 42, b: true }), '42/true');
   });
 
+  it('значение, которое нельзя привести к строке, — пустая строка, а не TypeError [ReFormer-drum]', () => {
+    const throwing = {
+      toString(): string {
+        throw new Error('нет текста');
+      },
+    };
+    assert.equal(ru('[{bare}|{throwing}]', { bare: Object.create(null), throwing }), '[|]');
+    assert.equal(ru('{kind, select, other{прочее}}', { kind: Object.create(null) }), 'прочее');
+  });
+
   it('число вне plural не форматируется по локали — как и в intl-messageformat', () => {
     assert.equal(ru('{year} год', { year: 2026 }), '2026 год');
     assert.equal(ru('{n}', { n: 1234567 }), '1234567');

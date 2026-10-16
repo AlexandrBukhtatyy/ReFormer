@@ -20,6 +20,7 @@ import coreEn from './en.json';
 import { hasOwn, type FormLocale, type Messages } from './locale';
 import {
   formatPattern,
+  intlLocale,
   parseMessage,
   type MessageFormatOptions,
   type MessagePattern,
@@ -205,7 +206,12 @@ export function createI18n(locale: FormLocale): I18nHandle {
   const { code, messages } = locale;
 
   const number: I18nHandle['number'] = (value, options) =>
-    cached(numberFormats, code, options, () => new Intl.NumberFormat(code, options)).format(value);
+    cached(
+      numberFormats,
+      code,
+      options,
+      () => new Intl.NumberFormat(intlLocale(code), options)
+    ).format(value);
 
   const t: I18nHandle['t'] = (key, values, defaultMessage) => {
     const own = formatFrom(messages, code, key, values);
@@ -238,9 +244,12 @@ export function createI18n(locale: FormLocale): I18nHandle {
     t,
     number,
     date: (value, options) =>
-      cached(dateFormats, code, options, () => new Intl.DateTimeFormat(code, options)).format(
-        value
-      ),
+      cached(
+        dateFormats,
+        code,
+        options,
+        () => new Intl.DateTimeFormat(intlLocale(code), options)
+      ).format(value),
     fileSize: (bytes) => {
       if (!Number.isFinite(bytes) || bytes < 0) return '';
       let size = bytes;
