@@ -4,6 +4,10 @@ import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/in
 import { createFsAccessSource } from '@/shell/platform/source/fs-access';
 import { createFakeDirectory } from '@/shell/platform/source/testing';
 import type { Source } from '@/shell/platform/source/types';
+import { createWorkspaceMetaStore } from './storage/idb';
+import { createWorkspaceFileStore } from './storage/opfs';
+import { createMemoryIndexedDb, createMemoryOpfs } from './storage/testing';
+import { createWorkspace } from './workspace';
 import {
   createResourceOperations,
   ResourceOperationError,
@@ -182,6 +186,54 @@ describe('удаление', () => {
     expect(result.done).toEqual([id('src/shared/util.ts')]);
     expect(result.failed).toHaveLength(1);
     expect(textOf('src/shared/util.ts')).toBeUndefined();
+  });
+
+  it('файл только в рабочей копии удаляется: вкладка закрыта, копия забыта', async () => {
+    const local = id('src/contact.rjsf.json');
+    const forgotten: ResourceId[] = [];
+    const workspace = {
+      ...fakeWorkspace([local]),
+      stat: async (target: ResourceId) =>
+        target === local && forgotten.length === 0 ? { kind: 'file' as const } : null,
+      forget: async (target: ResourceId) => {
+        forgotten.push(target);
+      },
+    };
+    const { ops, invalidated } = harness({ workspace });
+
+    const result = await ops.remove([local]);
+
+    expect(result).toEqual({ done: [local], failed: [] });
+    expect(workspace.closed).toEqual([local]);
+    expect(forgotten).toEqual([local]);
+    expect(invalidated).toEqual([id('src')]);
+  });
+
+  it('несохранённый файл настоящей рабочей области исчезает из списка уровня', async () => {
+    const { root } = createFakeDirectory(FILES);
+    const source = createFsAccessSource(root, { id: SOURCE_ID });
+    const workspace = createWorkspace({
+      id: 'ops-local',
+      source,
+      files: createWorkspaceFileStore('ops-local', { directory: createMemoryOpfs().directory }),
+      meta: createWorkspaceMetaStore({
+        factory: createMemoryIndexedDb().factory,
+        databaseName: 'ops-local',
+      }),
+    });
+    const ops = createResourceOperations({ source, workspace });
+    const local = id('src/contact.rjsf.json');
+    await workspace.writeText(local, '{}');
+    await workspace.open(local);
+    const names = async () => (await workspace.list(id('src'))).map((entry) => entry.name);
+    expect(await names()).toContain('contact.rjsf.json');
+
+    const result = await ops.remove([local]);
+
+    expect(result).toEqual({ done: [local], failed: [] });
+    expect(await names()).not.toContain('contact.rjsf.json');
+    expect(workspace.openedResources()).not.toContain(local);
+    expect(await workspace.stat(local)).toBeNull();
   });
 
   it('корень источника не удаляется', async () => {

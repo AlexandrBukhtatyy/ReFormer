@@ -39,7 +39,9 @@ import {
   makeResourceId,
   parseResourceId,
   type ResourceId,
+  type ResourceStat,
 } from '@reformer/builder-plugin-api/internal';
+import { isSourceError } from '@/shell/platform/source/errors';
 import type { Source } from '@/shell/platform/source/types';
 import {
   isInside,
@@ -72,13 +74,19 @@ export type OperationsSource = Pick<
 /**
  * Рабочая область в объёме последствий.
  *
- * Только закрытие: операции ничего не пишут в рабочую копию и ничего из неё не читают.
+ * Закрытие и одна справка: операции ничего не пишут в рабочую копию и содержимого из неё
+ * не читают.
  */
 export interface OperationsWorkspace {
   openedResources(): readonly ResourceId[];
   close(id: ResourceId): Promise<void>;
   /** Забыть рабочую копию исчезнувшего ресурса — иначе она показывалась бы в дереве. */
   forget?(id: ResourceId): Promise<void>;
+  /**
+   * Есть ли ресурс, считая рабочую копию. Нужен удалению файла, созданного локально и ни разу
+   * не сохранённого: у источника его нет, а человек его видит — в дереве и во вкладке.
+   */
+  stat?(id: ResourceId): Promise<ResourceStat | null>;
 }
 
 /** Почему операция не состоялась. Код, а не фраза: текст строит интерфейс на своём языке. */
@@ -228,6 +236,28 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
       return new Set(entries.map((entry) => entry.name));
     } catch {
       return new Set<string>();
+    }
+  };
+
+  /**
+   * Удаляет запись у источника.
+   *
+   * Файла, созданного в рабочей копии и ни разу не сохранённого, у источника нет, и его
+   * `not-found` здесь не отказ: файл живёт только в рабочей копии, и удалить его значит забыть
+   * её — это делает `closeGone`. Без этой ветки удаление такого файла не срабатывало: файл
+   * оставался в дереве, вкладка — открытой. Запись, которой нет нигде, по-прежнему отказ.
+   */
+  const removeAtSource = async (id: ResourceId): Promise<void> => {
+    if (source.remove === undefined) {
+      throw new ResourceOperationError('unsupported', 'источник не умеет удалять');
+    }
+    try {
+      await source.remove(pathOf(id));
+    } catch (error) {
+      if (!isSourceError(error, 'not-found')) throw error;
+      // Справка не должна подменить исходный отказ своим: не ответила — значит, файла нет.
+      const local = await workspace?.stat?.(id).catch(() => null);
+      if (local == null) throw error;
     }
   };
 
@@ -394,10 +424,7 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
           if (pathOf(id) === '') {
             throw new ResourceOperationError('root', 'корень источника нельзя удалить');
           }
-          if (source.remove === undefined) {
-            throw new ResourceOperationError('unsupported', 'источник не умеет удалять');
-          }
-          await source.remove(pathOf(id));
+          await removeAtSource(id);
           await closeGone(id);
           done.push(id);
           dirs.push(parentOf(id));
