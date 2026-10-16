@@ -28,21 +28,17 @@ test.describe('Доступность формы регистрации', { tag:
       // Начинаем с первого фокусируемого элемента
       await formPage.usernameInput.focus();
 
-      // Tab по полям формы
-      // Примечание: InputPassword имеет кнопку переключения, которая получает фокус между полями пароля
+      // Tab по полям формы. Кнопка показа пароля у InputPassword появляется только у
+      // заполненного поля — у пустых полей её в обходе нет.
       await page.keyboard.press('Tab');
       await expect(formPage.emailInput).toBeFocused();
 
       await page.keyboard.press('Tab');
       await expect(formPage.passwordInput).toBeFocused();
 
-      // Пропускаем кнопку переключения видимости пароля
-      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await expect(formPage.confirmPasswordInput).toBeFocused();
 
-      // Пропускаем кнопку переключения для confirmPassword
-      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await expect(formPage.fullNameInput).toBeFocused();
 

@@ -101,9 +101,12 @@ test.describe('Форма регистрации', { tag: ['@registration'] }, (
     });
 
     test('REG-002-D: Валидация формата email перед асинхронной проверкой', async () => {
+      // Стратегия формы — afterFirstSubmit: до первой отправки ошибки не показываются, blur их
+      // не раскрывает. Отправлять с уже введённым неверным адресом нельзя: у поля type="email",
+      // и браузер сам блокирует отправку. Поэтому сначала отправка пустой формы включает живую
+      // проверку, затем ввод — и на месте ошибка формата, а не «email занят».
+      await formPage.submit();
       await formPage.fillEmail('invalid-email');
-      // Вызываем blur, чтобы пометить поле как touched и включить shouldShowError
-      await formPage.emailInput.blur();
       await formPage.waitForAsyncValidation();
 
       await formPage.expectFieldError('email', /некорректный email/i);
@@ -173,7 +176,7 @@ test.describe('Форма регистрации', { tag: ['@registration'] }, (
       await formPage.acceptTerms();
       await formPage.submit();
 
-      await formPage.expectFieldError('phone', /формате/i);
+      await formPage.expectFieldError('phone', /формат \+7/i);
     });
 
     test('REG-004-C: Принятие валидного телефона', async ({ page }) => {
