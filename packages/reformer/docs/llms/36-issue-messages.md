@@ -87,6 +87,7 @@ function useIssueMessageResolver(): (issue: ValidationIssue) => string;
 | `minDate(d)` / `maxDate(d)`     | `date_min` / `date_max` | `minDate` / `maxDate`                 |
 | `pastDate()` / `futureDate()`   | `date_future` / `date_past` | — (код называет нарушение)        |
 | `minAge(n)` / `maxAge(n)`       | `date_min_age` / `date_max_age` | `minAge` / `maxAge`, `currentAge` |
+| `minAge(n)`, рождение в будущем | `date_future`     | `minAge`                                  |
 | `fileType(accept)`              | `fileType`         | `accept`, `fileName`                       |
 | `maxFileSize(b)` / `minFileSize(b)` | `maxFileSize` / `minFileSize` | `maxFileSize` / `minFileSize`, `fileName`, `actualSize` |
 | `maxFiles(n)` / `minFiles(n)`   | `maxFiles` / `minFiles` | `maxFiles` / `minFiles`, `actualCount` |

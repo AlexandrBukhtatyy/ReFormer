@@ -4,7 +4,7 @@
  * Регрессия: возраст считался через усреднённый год (365.25 дн), и `minAge(18)` отклонял того, кому
  * ровно 18 сегодня. Проверяются день рождения сегодня / вчера / завтра, время рождения, рождённые
  * 29 февраля в невисокосный год, `params` (`minAge`, `currentAge`). Часы фейковые (15.06.2024 12:00
- * локального времени), даты — локальными конструкторами; строки — дата-время без смещения.
+ * локального времени), даты — локальными конструкторами; строки — `YYYY-MM-DD`.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,21 +33,32 @@ describe('minAge — граница 18 лет (сегодня 15.06.2024)', () =
       params: { minAge: 18, currentAge: 0 },
       label: 'младенец',
     },
-    { value: '2006-06-15T00:00', code: null, label: '"2006-06-15T00:00" — 18 сегодня' },
+    { value: '2006-06-15', code: null, label: '"2006-06-15" — 18 сегодня' },
     {
-      value: '2006-06-16T00:00',
+      value: '2006-06-16',
       code: 'date_min_age',
       params: { minAge: 18, currentAge: 17 },
-      label: '"2006-06-16T00:00" — 17',
+      label: '"2006-06-16" — 17',
     },
+    { value: '2006-06-16T00:00', code: null, label: 'дата-время — не дата, правило пропускает' },
   ]);
 
-  // поведение под вопросом [ReFormer-iioz]: дата рождения в будущем даёт currentAge: -1 — текст «вам −1 год»
-  // вместо явной ошибки «дата рождения в будущем» (её даёт pastDate()).
-  it('дата рождения в будущем — отрицательный currentAge', () => {
-    expect(minAge(18)(new Date(2025, 0, 1))).toEqual({
+  it('дата рождения в будущем — замечание date_future, а не возраст −1 [ReFormer-iioz]', () => {
+    expect([
+      minAge(18)(new Date(2025, 0, 1)),
+      minAge(18)(new Date(2024, 5, 16)),
+      minAge(18, { code: 'birthDate.minAge' })('2030-01-01'),
+    ]).toEqual([
+      { code: 'date_future', params: { minAge: 18 } },
+      { code: 'date_future', params: { minAge: 18 } },
+      { code: 'birthDate.minAge', params: { minAge: 18 } },
+    ]);
+  });
+
+  it('родившийся сегодня — возраст 0, не будущее', () => {
+    expect(minAge(18)(new Date(2024, 5, 15))).toEqual({
       code: 'date_min_age',
-      params: { minAge: 18, currentAge: -1 },
+      params: { minAge: 18, currentAge: 0 },
     });
   });
 
@@ -64,17 +75,18 @@ describe('minAge — рождённые 29 февраля в невисокос�
   beforeEach(() => useFakeClock(new Date(2022, 1, 28, 12)));
   afterEach(() => vi.useRealTimers());
 
-  // поведение под вопросом [ReFormer-iioz]: в невисокосный год 18 исполняется 1 марта, а не 28 февраля.
-  it('28 февраля 2022 рождённому 29.02.2004 ещё 17', () => {
+  // ГК РФ, ст. 192: срок, исчисляемый годами, истекает в последний день месяца, если
+  // соответствующего числа в нём нет, — 18 исполняется 28 февраля [ReFormer-iioz].
+  it('28 февраля 2022 рождённому 29.02.2004 уже 18 [ReFormer-iioz]', () => {
+    expect(minAge(18)(new Date(2004, 1, 29))).toBeNull();
+  });
+
+  it('27 февраля 2022 рождённому 29.02.2004 ещё 17', () => {
+    vi.setSystemTime(new Date(2022, 1, 27, 12));
     expect(minAge(18)(new Date(2004, 1, 29))).toEqual({
       code: 'date_min_age',
       params: { minAge: 18, currentAge: 17 },
     });
-  });
-
-  it('1 марта 2022 рождённому 29.02.2004 уже 18', () => {
-    vi.setSystemTime(new Date(2022, 2, 1, 12));
-    expect(minAge(18)(new Date(2004, 1, 29))).toBeNull();
   });
 });
 

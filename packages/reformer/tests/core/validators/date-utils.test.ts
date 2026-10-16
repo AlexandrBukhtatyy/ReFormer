@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   calculateAge,
+  isFutureBirth,
   getToday,
   normalizeDate,
   parseDate,
@@ -41,11 +42,12 @@ describe('parseDate — разбор значения', () => {
     expect(parseDate(date)).toBe(date);
   });
 
-  it('строка даты-времени без смещения разбирается как локальное время', () => {
-    const parsed = parseDate('2024-06-15T10:30');
-    expect(parsed && [...ymd(parsed), parsed.getHours(), parsed.getMinutes()]).toEqual([
-      2024, 6, 15, 10, 30,
-    ]);
+  it('строгий формат: строка не YYYY-MM-DD — не дата, разбор движка не используется [ReFormer-iioz]', () => {
+    expect(
+      ['2024-06-15T10:30', '2024-06-15T10:30:00Z', '15.06.2024', 'March 7', 'hello 1'].map(
+        parseDate
+      )
+    ).toEqual([null, null, null, null, null]);
   });
 
   it('строка YYYY-MM-DD — локальная полночь этого дня [ReFormer-nxod]', () => {
@@ -132,21 +134,24 @@ describe('calculateAge — полные годы по календарным п�
     expect(calculateAge(new Date(2006, 5, 15, 23, 59))).toBe(18);
   });
 
-  // поведение под вопросом [ReFormer-iioz]: дата рождения в будущем даёт отрицательный возраст — в params
-  // замечания minAge попадёт currentAge: -1.
-  it('дата рождения в будущем — отрицательный возраст', () => {
-    expect(calculateAge(new Date(2025, 0, 1))).toBe(-1);
+  // Дата рождения в будущем сама даёт отрицательный возраст — правила возраста проверяют её до
+  // подсчёта: minAge отвечает date_future, maxAge будущую дату не оценивает [ReFormer-iioz].
+  it('дата рождения в будущем — отрицательный возраст; isFutureBirth её узнаёт', () => {
+    expect([
+      calculateAge(new Date(2025, 0, 1)),
+      isFutureBirth(new Date(2025, 0, 1)),
+      isFutureBirth(new Date(2024, 5, 15, 23, 59)),
+    ]).toEqual([-1, true, false]);
   });
 
-  // поведение под вопросом [ReFormer-iioz]: в невисокосный год рождённый 29 февраля становится старше 1 марта;
-  // в разных юрисдикциях днём рождения в такой год считают 28 февраля или 1 марта.
-  it('рождённый 29 февраля: в невисокосный год 28 февраля возраст ещё прежний', () => {
-    vi.setSystemTime(new Date(2023, 1, 28, 12));
+  // ГК РФ, ст. 192: в невисокосный год рождённый 29 февраля становится старше 28 февраля [ReFormer-iioz].
+  it('рождённый 29 февраля: в невисокосный год 27 февраля возраст ещё прежний', () => {
+    vi.setSystemTime(new Date(2023, 1, 27, 12));
     expect(calculateAge(new Date(2004, 1, 29))).toBe(18);
   });
 
-  it('рождённый 29 февраля: в невисокосный год 1 марта возраст увеличивается', () => {
-    vi.setSystemTime(new Date(2023, 2, 1, 12));
+  it('рождённый 29 февраля: в невисокосный год возраст увеличивается 28 февраля [ReFormer-iioz]', () => {
+    vi.setSystemTime(new Date(2023, 1, 28, 12));
     expect(calculateAge(new Date(2004, 1, 29))).toBe(19);
   });
 

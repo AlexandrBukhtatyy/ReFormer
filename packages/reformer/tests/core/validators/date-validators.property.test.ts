@@ -2,9 +2,9 @@
  * Свойства правил дат на случайных календарных днях (fast-check, фейковые часы).
  *
  * Возраст сверяется с эталонной арифметикой, записанной иначе, чем в коде: «сколько годовщин
- * рождения уже наступило», где годовщина `n` — `new Date(год + n, месяц, день)`. Для рождённых
- * 29 февраля в невисокосный год Date переносит годовщину на 1 марта — это и есть текущая семантика
- * правила (см. «поведение под вопросом» в date-utils.test.ts). `minDate` / `maxDate` / `pastDate` /
+ * рождения уже наступило», где годовщина `n` — `new Date(год + n, месяц, день)`, а у рождённых
+ * 29 февраля в невисокосный год — 28 февраля (ГК РФ, ст. 192) [ReFormer-iioz]. Дата рождения в
+ * будущем: `minAge` — `date_future`, `maxAge` её не оценивает. `minDate` / `maxDate` / `pastDate` /
  * `futureDate` сверяются со сравнением календарных дней при случайном времени значения, границы и
  * «сейчас». Дни — 1900–2100, с подмешанными 28/29 февраля и 1 марта; даты — локальными
  * конструкторами. Воспроизведение: `FC_SEED=<seed> FC_NUM_RUNS=1000 npx vitest run <файл>`.
@@ -61,10 +61,16 @@ const dayKey = (value: Day): number => keyOf(at(value));
 
 /** Эталонный возраст: сколько годовщин рождения уже наступило к `today`. */
 const referenceAge = (birth: Day, today: Day): number => {
+  const anniversary = (years: number): number => {
+    const y = birth.y + years;
+    const d = birth.m === 1 && birth.d === 29 && !isLeap(y) ? 28 : birth.d;
+    return keyOf(new Date(y, birth.m, d));
+  };
   let years = today.y - birth.y + 1;
-  while (keyOf(new Date(birth.y + years, birth.m, birth.d)) > dayKey(today)) years -= 1;
+  while (anniversary(years) > dayKey(today)) years -= 1;
   return years;
 };
+const isFuture = (birth: Day, today: Day): boolean => dayKey(birth) > dayKey(today);
 
 beforeEach(() => useFakeClock(new Date(2024, 5, 15, 12)));
 afterEach(() => vi.useRealTimers());
@@ -80,7 +86,7 @@ describe('date-validators — возраст против эталонной а�
     );
   });
 
-  it('minAge(n): проходит ровно возраст ≥ n, иначе { minAge: n, currentAge }', () => {
+  it('minAge(n): проходит ровно возраст ≥ n, иначе { minAge: n, currentAge }; будущее — date_future', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 120 }),
@@ -90,8 +96,11 @@ describe('date-validators — возраст против эталонной а�
         (n, birth, today, nowMs) => {
           vi.setSystemTime(at(today, nowMs));
           const currentAge = referenceAge(birth, today);
-          const expected =
-            currentAge >= n ? null : { code: 'date_min_age', params: { minAge: n, currentAge } };
+          const expected = isFuture(birth, today)
+            ? { code: 'date_future', params: { minAge: n } }
+            : currentAge >= n
+              ? null
+              : { code: 'date_min_age', params: { minAge: n, currentAge } };
           expect(minAge(n)(at(birth))).toEqual(expected);
         }
       ),
@@ -110,7 +119,9 @@ describe('date-validators — возраст против эталонной а�
           vi.setSystemTime(at(today, nowMs));
           const currentAge = referenceAge(birth, today);
           const expected =
-            currentAge <= n ? null : { code: 'date_max_age', params: { maxAge: n, currentAge } };
+            isFuture(birth, today) || currentAge <= n
+              ? null
+              : { code: 'date_max_age', params: { maxAge: n, currentAge } };
           expect(maxAge(n)(at(birth))).toEqual(expected);
         }
       ),

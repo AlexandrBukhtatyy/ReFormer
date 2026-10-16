@@ -1,10 +1,10 @@
 /**
  * Правило `isDate()` — значение является валидной датой.
  *
- * Принимает `Date` или строку. Строка `YYYY-MM-DD` разбирается по компонентам: несуществующая
- * календарная дата (`2023-02-29`) — замечание, хотя `new Date(string)` перенёс бы её на 1 марта
- * [ReFormer-eei6]. Остальные строки разбирает `new Date(string)` (V8). Невалидный `Date`,
- * неразборчивая строка и значения других типов (число-метка времени) — замечание `date_invalid`.
+ * Строгий формат [ReFormer-iioz]: `Date` либо строка `YYYY-MM-DD`, разобранная по компонентам.
+ * Несуществующая календарная дата (`2023-02-29`) — замечание, хотя `new Date(string)` перенёс бы
+ * её на 1 марта [ReFormer-eei6]. Любая другая строка (дата-время, `ДД.ММ.ГГГГ`, обрывки, которые
+ * угадывал `Date.parse`), невалидный `Date` и значения других типов — замечание `date_invalid`.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -14,8 +14,6 @@ import { describeRule } from '../../test-utils/rule-table';
 describeRule('isDate — валидные даты', isDate(), [
   { value: new Date(2024, 5, 15), code: null, label: 'Date' },
   { value: '2024-06-15', code: null, label: 'ISO-дата' },
-  { value: '2024-06-15T10:30', code: null, label: 'ISO дата-время без смещения' },
-  { value: '2024-06-15T10:30:00Z', code: null, label: 'ISO дата-время UTC' },
   { value: '2024-02-29', code: null, label: '29 февраля високосного года' },
 ]);
 
@@ -23,7 +21,11 @@ describeRule('isDate — невалидные значения', isDate(), [
   { value: new Date(Number.NaN), code: 'date_invalid', label: 'Invalid Date' },
   { value: 'not-a-date', code: 'date_invalid' },
   { value: '2024-13-01', code: 'date_invalid', label: 'тринадцатый месяц' },
-  { value: '31.12.2024', code: 'date_invalid', label: 'ДД.ММ.ГГГГ движок не разбирает' },
+  { value: '31.12.2024', code: 'date_invalid', label: 'ДД.ММ.ГГГГ' },
+  { value: '2024-06-15T10:30', code: 'date_invalid', label: 'дата-время без смещения' },
+  { value: '2024-06-15T10:30:00Z', code: 'date_invalid', label: 'дата-время UTC' },
+  { value: '2024-6-5', code: 'date_invalid', label: 'месяц и день без ведущего нуля' },
+  { value: ' 2024-06-15', code: 'date_invalid', label: 'пробел перед датой' },
   {
     value: 1718409600000,
     code: 'date_invalid',
@@ -38,16 +40,15 @@ describeRule('isDate — пустые значения пропускаются'
   { value: undefined, code: null },
 ]);
 
-describe('isDate — снисходительный разбор V8 (поведение под вопросом)', () => {
-  // поведение под вопросом [ReFormer-iioz]: `new Date(string)` в V8 угадывает дату по обрывкам — строка с числом
-  // становится 2001 годом, американский порядок ММ.ДД.ГГГГ разбирается. В другом движке (SSR не на
-  // V8) результат может отличаться — правило зависит от реализации Date.parse.
+describe('isDate — разбор движка не используется [ReFormer-iioz]', () => {
+  // Раньше `new Date(string)` в V8 угадывал дату по обрывкам: строка с числом становилась 2001
+  // годом, американский порядок ММ.ДД.ГГГГ разбирался, и результат зависел от движка.
   it.each([
     ['hello 1', 'строка с числом'],
     ['12.31.2024', 'ММ.ДД.ГГГГ'],
     ['March 7', 'месяц и день без года'],
-  ])('%s (%s) — проходит', (value) => {
-    expect(isDate()(value)).toBeNull();
+  ])('%s (%s) — date_invalid', (value) => {
+    expect(isDate()(value)).toEqual({ code: 'date_invalid' });
   });
 });
 

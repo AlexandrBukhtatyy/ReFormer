@@ -10,7 +10,10 @@
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
- * Парсит значение в объект Date
+ * Парсит значение в объект Date. Строгий формат: `Date` либо строка `YYYY-MM-DD` (значение
+ * `<input type="date">`); любая другая строка — не дата. Разбор движка (`new Date(строка)`) не
+ * используется: он угадывает дату по обрывкам (`'hello 1'`, `'March 7'`), и результат зависит от
+ * движка.
  *
  * Строка `YYYY-MM-DD` — локальная полночь этого дня: `new Date('2024-01-01')` дал бы полночь UTC,
  * и западнее UTC правила дат сравнивали бы предыдущий день. Несуществующая дата (`2023-02-29`)
@@ -30,9 +33,9 @@ export function parseDate(value: string | Date | null | undefined): Date | null 
 
   if (typeof value === 'string') {
     const isoDate = ISO_DATE.exec(value);
-    if (isoDate) return localDate(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
-    const parsed = new Date(value);
-    return isNaN(parsed.getTime()) ? null : parsed;
+    return isoDate
+      ? localDate(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
+      : null;
   }
 
   return null;
@@ -66,19 +69,32 @@ export function normalizeDate(date: Date): Date {
   return normalized;
 }
 
+const isLeapYear = (year: number): boolean =>
+  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+
+/** Дата рождения позже сегодняшнего дня. */
+export function isFutureBirth(birthDate: Date): boolean {
+  return normalizeDate(birthDate) > getToday();
+}
+
 /**
  * Вычисляет полный возраст (в годах) по календарным полям.
  *
  * Считаем по годам/месяцам/дням, а не делением миллисекунд на усреднённый год (365.25 дн): усреднение
  * даёт off-by-one на границе — в день N-летия накопленных реальных дней меньше `N * 365.25`, и `floor`
  * роняет возраст до `N - 1` (т.е. `minAge(18)` ошибочно отклонял 18-летнего в его день рождения).
+ *
+ * Родившийся 29 февраля в невисокосный год становится на год старше 28 февраля: срок, исчисляемый
+ * годами, истекает в последний день месяца, если соответствующего числа в нём нет (ГК РФ, ст. 192).
  */
 export function calculateAge(birthDate: Date): number {
   const today = getToday();
   const birth = normalizeDate(birthDate);
+  let birthDay = birth.getDate();
+  if (birth.getMonth() === 1 && birthDay === 29 && !isLeapYear(today.getFullYear())) birthDay = 28;
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDay)) {
     age -= 1;
   }
   return age;

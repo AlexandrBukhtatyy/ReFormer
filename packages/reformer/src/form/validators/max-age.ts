@@ -8,14 +8,17 @@
 
 import type { RuleOptions } from '../types/validation-schema';
 import type { Rule } from '../validation/types';
-import { parseDate, calculateAge } from './date-utils';
+import { parseDate, calculateAge, isFutureBirth } from './date-utils';
 import { validationIssue } from './validation-issue';
 
 /**
  * Фабрика валидатора максимального возраста (по дате рождения).
  *
- * Возраст вычисляется по дате рождения относительно сегодняшнего дня. Пустые и невалидные
- * даты пропускаются (используйте {@link required} и {@link isDate}).
+ * Возраст вычисляется по дате рождения относительно сегодняшнего дня; родившийся 29 февраля в
+ * невисокосный год взрослеет 28 февраля. Дату рождения в будущем правило не оценивает — её
+ * отклоняет {@link minAge} (или {@link pastDate}); иначе пара правил на поле дала бы два
+ * одинаковых замечания. Пустые и невалидные даты пропускаются (используйте {@link required} и
+ * {@link isDate}).
  *
  * @param maxAgeValue - Максимально допустимый возраст (в полных годах)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
@@ -45,6 +48,7 @@ export function maxAge(
     if (parsed === null) {
       return null;
     }
+    if (isFutureBirth(parsed)) return null;
     const age = calculateAge(parsed);
     if (age > maxAgeValue) {
       return validationIssue('date_max_age', options, { maxAge: maxAgeValue, currentAge: age });

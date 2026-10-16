@@ -4,7 +4,7 @@
  * Сравниваются календарные дни: время у значения и у границы обнуляется, поэтому сегодняшняя дата с
  * поздним часом проходит `maxDate(new Date())` («не позже сегодня»). В `params.maxDate` — исходная
  * граница со временем, правило её не мутирует. Пустые и невалидные даты пропускаются. Даты —
- * локальными конструкторами; строки — дата-время без смещения (локальное время).
+ * локальными конструкторами; строки — `YYYY-MM-DD`; другие строки — не даты [ReFormer-iioz].
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,8 +29,9 @@ describeRule('maxDate — граница 15.06.2024', maxDate(bound), [
 ]);
 
 describeRule('maxDate — строки', maxDate(bound), [
-  { value: '2024-06-15T23:30', code: null, label: '"2024-06-15T23:30" — тот же день' },
-  { value: '2024-06-16T00:30', code: 'date_max', params: { maxDate: bound } },
+  { value: '2024-06-15', code: null, label: '"2024-06-15" — граница' },
+  { value: '2024-06-16', code: 'date_max', params: { maxDate: bound } },
+  { value: '2024-06-16T00:30', code: null, label: 'дата-время — не дата, правило пропускает' },
 ]);
 
 describeRule('maxDate — пустые и невалидные даты пропускаются', maxDate(bound), [

@@ -136,6 +136,9 @@ multipleOf(divisor: number, options?: RuleOptions)
 nonNegative(options?: RuleOptions)       // value >= 0
 nonZero(options?: RuleOptions)            // value !== 0
 // Date validator factories — Rule<string | Date | null | undefined>
+// строгий формат: Date либо строка YYYY-MM-DD; другие строки (дата-время, ДД.ММ.ГГГГ) — не даты:
+// isDate даёт date_invalid, остальные правила их пропускают. Рождённый 29 февраля в невисокосный
+// год взрослеет 28 февраля (ГК РФ, ст. 192); дата рождения в будущем — minAge даёт date_future
 isDate(options?: RuleOptions)
 minDate(date: Date, options?: RuleOptions)
 maxDate(date: Date, options?: RuleOptions)

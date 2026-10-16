@@ -26,8 +26,9 @@ describe('pastDate — относительно сегодняшнего дня'
     { value: new Date(1990, 0, 1), code: null, label: 'давно' },
     { value: new Date(2024, 5, 16), code: 'date_future', label: 'завтра в 00:00 — date_future' },
     { value: new Date(2030, 0, 1), code: 'date_future', label: 'нескоро' },
-    { value: '2024-06-15T23:00', code: null, label: '"2024-06-15T23:00" — сегодня' },
-    { value: '2024-06-16T00:30', code: 'date_future', label: '"2024-06-16T00:30" — завтра' },
+    { value: '2024-06-15', code: null, label: '"2024-06-15" — сегодня' },
+    { value: '2024-06-16', code: 'date_future', label: '"2024-06-16" — завтра' },
+    { value: '2024-06-16T00:30', code: null, label: 'дата-время — не дата [ReFormer-iioz]' },
   ]);
 
   it('у замечания только код', () => {

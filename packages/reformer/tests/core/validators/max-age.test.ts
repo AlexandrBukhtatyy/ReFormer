@@ -35,10 +35,16 @@ describe('maxAge — граница 65 лет (сегодня 15.06.2024)', () =
       label: '66 исполнилось вчера',
     },
     {
-      value: '1958-06-15T23:00',
+      value: '1958-06-15',
       code: 'date_max_age',
       params: { maxAge: 65, currentAge: 66 },
-      label: '"1958-06-15T23:00" — 66',
+      label: '"1958-06-15" — 66',
+    },
+    { value: '1958-06-15T23:00', code: null, label: 'дата-время — не дата, правило пропускает' },
+    {
+      value: new Date(2025, 0, 1),
+      code: null,
+      label: 'дата рождения в будущем — не оценивается, её отклоняет minAge [ReFormer-iioz]',
     },
   ]);
 });
@@ -47,17 +53,17 @@ describe('maxAge — рождённые 29 февраля в невисокос�
   beforeEach(() => useFakeClock(new Date(2022, 1, 28, 12)));
   afterEach(() => vi.useRealTimers());
 
-  // поведение под вопросом [ReFormer-iioz]: в невисокосный год 66 исполняется 1 марта, а не 28 февраля.
-  it('28 февраля 2022 рождённому 29.02.1956 ещё 65', () => {
-    expect(maxAge(65)(new Date(1956, 1, 29))).toBeNull();
-  });
-
-  it('1 марта 2022 рождённому 29.02.1956 уже 66', () => {
-    vi.setSystemTime(new Date(2022, 2, 1, 12));
+  // ГК РФ, ст. 192: 66 исполняется 28 февраля [ReFormer-iioz].
+  it('28 февраля 2022 рождённому 29.02.1956 уже 66 [ReFormer-iioz]', () => {
     expect(maxAge(65)(new Date(1956, 1, 29))).toEqual({
       code: 'date_max_age',
       params: { maxAge: 65, currentAge: 66 },
     });
+  });
+
+  it('27 февраля 2022 рождённому 29.02.1956 ещё 65', () => {
+    vi.setSystemTime(new Date(2022, 1, 27, 12));
+    expect(maxAge(65)(new Date(1956, 1, 29))).toBeNull();
   });
 });
 
