@@ -9,6 +9,10 @@
  * Удаление выпавших частей — тоже здесь, а не в документе: оно идёт мимо рабочей копии прямо в
  * источник, и до сохранения его откладывают ровно затем, чтобы отмена возвращала часть без следа.
  *
+ * И ещё одно «сначала»: правка модели доходит до буфера асинхронно. Сохранение, начатое сразу
+ * за ней (Ctrl+S следом за выбором в инспекторе), записало бы прежний текст и сообщило бы, что
+ * всё сохранено. Поэтому перед записью модель догоняет буфер (`flush`).
+ *
  * @module shell/boot/project/document-save
  */
 
@@ -88,13 +92,24 @@ export function createDocumentSave(deps: DocumentSaveDeps): DocumentSave {
     for (const cb of [...listeners]) cb(root);
   };
 
+  /** Модель догоняет буфер. Её отказ сохранение не отменяет: буфер сохраняется, какой есть. */
+  const settle = async (handle: { flush(): Promise<void> } | null): Promise<void> => {
+    try {
+      await handle?.flush();
+    } catch (error) {
+      console.error('[workspace] модель не догнала буфер перед сохранением', error);
+    }
+  };
+
   return {
     async save(id) {
       if (id === undefined) {
+        for (const handle of models.opened().values()) await settle(handle);
         const result = await workspace.save();
         for (const root of [...models.opened().keys()]) await removeParts(root);
         return result;
       }
+      await settle(models.handleOf(id));
       const parts = models.handleOf(id)?.parts() ?? [];
       const results: SaveResult[] = [];
       for (const one of [id, ...parts]) results.push(await workspace.save(one));

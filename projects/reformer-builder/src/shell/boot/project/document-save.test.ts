@@ -22,6 +22,8 @@ function ok(id?: ResourceId): SaveResult {
 
 function bench(options: { dirty?: readonly ResourceId[]; removed?: readonly ResourceId[] } = {}) {
   const saved: (ResourceId | 'all')[] = [];
+  /** Порядок событий: догон модели и записи — чтобы проверить, что одно раньше другого. */
+  const log: string[] = [];
   const reverted: ResourceId[] = [];
   const removedInSource: ResourceId[] = [];
   let pending = [...(options.removed ?? [])];
@@ -31,12 +33,18 @@ function bench(options: { dirty?: readonly ResourceId[]; removed?: readonly Reso
     forgetRemoved: (ids: readonly ResourceId[]) => {
       pending = pending.filter((id) => !ids.includes(id));
     },
+    flush: async () => {
+      // Запись модели в буфер асинхронна: ответ — не сразу.
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      log.push('flush');
+    },
   } as unknown as ModelDocumentHandle<unknown>;
 
   const saving = createDocumentSave({
     workspace: {
       save: async (id) => {
         saved.push(id ?? 'all');
+        log.push(id ?? 'all');
         return ok(id);
       },
       isDirty: (id) => (options.dirty ?? []).includes(id as ResourceId),
@@ -58,7 +66,7 @@ function bench(options: { dirty?: readonly ResourceId[]; removed?: readonly Reso
       },
     },
   });
-  return { saving, saved, reverted, removedInSource, pending: () => pending };
+  return { saving, saved, log, reverted, removedInSource, pending: () => pending };
 }
 
 describe('сохранение составного документа', () => {
@@ -82,6 +90,16 @@ describe('сохранение составного документа', () => {
     await b.saving.save();
     expect(b.saved).toEqual(['all']);
     expect(b.removedInSource).toEqual([GONE]);
+  });
+
+  it('сначала модель догоняет буфер, потом запись: Ctrl+S сразу за правкой её не теряет', async () => {
+    const one = bench();
+    await one.saving.save(ROOT);
+    expect(one.log).toEqual(['flush', ROOT, PART]);
+
+    const all = bench();
+    await all.saving.save();
+    expect(all.log).toEqual(['flush', 'all']);
   });
 
   it('корень изменён, пока изменена часть или часть ждёт удаления', () => {
