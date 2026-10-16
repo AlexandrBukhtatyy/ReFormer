@@ -151,6 +151,26 @@ describe('syncFields (signals)', () => {
     await tick();
     expect(m.a).toBe('y');
   });
+
+  it('запись в b, согласованную с a, обратно не пишется — a хранит свою форму значения', async () => {
+    const digits = (value: string): string => value.replace(/\D/g, '');
+    const m = createModel<{ phone: string; sms: string }>({ phone: '', sms: '' });
+    syncFields(m.$.phone, m.$.sms, { transform: digits });
+    m.phone = '+7 (900) 123';
+    await tick();
+    expect(m.sms).toBe('7900123');
+
+    // Так пишет сброс: поле за полем, последней — сторона b, а значение уже совпало с transform(a).
+    m.phone = '+7 (900) 555';
+    m.sms = '7900555';
+    await tick();
+    expect([m.phone, m.sms]).toEqual(['+7 (900) 555', '7900555']);
+
+    // Несогласованная запись в b по-прежнему идёт в a.
+    m.sms = '7999';
+    await tick();
+    expect(m.phone).toBe('7999');
+  });
 });
 
 describe('revalidateWhen (signals)', () => {

@@ -113,6 +113,13 @@ export function safeCallback<TArgs extends unknown[]>(
  * ```
  */
 export function runOutsideEffect(fn: () => void | Promise<void>): () => void {
+  if (assemblyQueue !== null) {
+    const entry: AssemblyWrite = { fn, cancelled: false };
+    assemblyQueue.push(entry);
+    return () => {
+      entry.cancelled = true;
+    };
+  }
   let cancelled = false;
   scheduled++;
   queueMicrotask(() => {
@@ -127,6 +134,57 @@ export function runOutsideEffect(fn: () => void | Promise<void>): () => void {
 
 /** Сколько отложенных записей поставлено и ещё не дошло до своего микротаска. */
 let scheduled = 0;
+
+interface AssemblyWrite {
+  fn: () => void | Promise<void>;
+  cancelled: boolean;
+}
+
+/** Записи, отложенные во время сборки ({@link runAssemblyWrites}); `null` — сборка не идёт. */
+let assemblyQueue: AssemblyWrite[] | null = null;
+
+/**
+ * Предел записей сборки: дальше очередь уходит на микротаски, как без сборки. Поведения, которые
+ * пишут друг другу без конца, так не подвешивают `createForm` — они крутятся там же, где и раньше.
+ */
+const ASSEMBLY_WRITES_LIMIT = 1000;
+
+/**
+ * Выполнить сборку так, чтобы записи, отложенные ею, выполнились до возврата, — вместе с теми, что
+ * они породили (копия `syncFields`, нормализация `transformValue`, сброс выключенного поля).
+ *
+ * Без этого первые записи поведения приходили бы на микротаске, уже после сборки, и точка отсчёта
+ * модели, снятая в конце сборки, их бы не видела: пара `syncFields` попала бы в неё рассогласованной,
+ * и `form.reset()` вернул бы её не к собранному состоянию, а к полусобранному.
+ *
+ * Записи выполняются вне `batch()` — как на микротаске: встречные эффекты флашатся синхронно (см.
+ * комментарий модуля). Вложенная сборка своих записей не выполняет — это сделает внешняя.
+ *
+ * @param build - Сборка: подключение поведения.
+ * @returns То, что вернула сборка.
+ * @internal
+ */
+export function runAssemblyWrites<R>(build: () => R): R {
+  if (assemblyQueue !== null) return build();
+  const queue: AssemblyWrite[] = [];
+  assemblyQueue = queue;
+  let done = 0;
+  try {
+    const result = build();
+    while (done < queue.length && done < ASSEMBLY_WRITES_LIMIT) {
+      const entry = queue[done++]!;
+      if (!entry.cancelled) runSafely(entry.fn, DEFER_CONTEXT);
+    }
+    return result;
+  } finally {
+    assemblyQueue = null;
+    // Сборка упала или упёрлась в предел — оставшиеся записи идут обычным путём, на микротаске.
+    // Отменитель, выданный при постановке, продолжает действовать: флаг проверяется при запуске.
+    for (const entry of queue.slice(done)) {
+      if (!entry.cancelled) runOutsideEffect(() => (entry.cancelled ? undefined : entry.fn()));
+    }
+  }
+}
 
 /**
  * Дождаться, пока отработают отложенные записи текущего тика — вместе с теми, что они породили

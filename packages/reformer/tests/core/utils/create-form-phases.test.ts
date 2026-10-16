@@ -10,7 +10,13 @@ import { describe, it, expect } from 'vitest';
 import { InputStub } from '../../test-utils/stubs';
 import { createForm } from '../../../src/form/form-bundle';
 import { createModel } from '../../../src/model/index';
-import { defineFormBehavior, computeFrom } from '../../../src/form/behaviors';
+import {
+  defineFormBehavior,
+  computeFrom,
+  copyFrom,
+  syncFields,
+  transformValue,
+} from '../../../src/form/behaviors';
 import { validate, defineValidation } from '../../../src/form/validation';
 import { required } from '../../../src/form/validators';
 
@@ -89,6 +95,41 @@ describe('createForm — фазы seed/setup', () => {
     });
     expect(order).toEqual(['seed', 'schema', 'setup']);
     expect(bundle.model.email).toBe('seeded@x');
+  });
+
+  it('точка отсчёта своей модели — собранная форма: seed и первые записи поведения', async () => {
+    const bundle = createForm<F>({
+      initial: { ...INITIAL },
+      schema: (model) => schemaOf(model) as never,
+      seed: (model) => {
+        model.email = 'Ivan@X.ru';
+      },
+      behavior: defineFormBehavior<F>(({ model }) => {
+        // синхронная первая запись и две отложенные — копия пары и нормализация
+        copyFrom(model.$.email, model.$.password, { transform: (email) => email + '!' });
+        syncFields(model.$.email, model.$.password, { transform: (email) => email + '!' });
+        transformValue(model.$.email, (email) => email.toLowerCase());
+      }),
+    });
+
+    // первые записи поведения выполнены до возврата сборки — ждать микротаск не нужно
+    expect([bundle.model.email, bundle.model.password]).toEqual(['ivan@x.ru', 'ivan@x.ru!']);
+    expect(bundle.model.isDirty()).toBe(false);
+
+    bundle.model.email = 'other@x.ru';
+    await Promise.resolve();
+    bundle.form.reset();
+    await Promise.resolve();
+    expect([bundle.model.email, bundle.model.password]).toEqual(['ivan@x.ru', 'ivan@x.ru!']);
+    expect(bundle.model.isDirty()).toBe(false);
+  });
+
+  it('точкой отсчёта переданной модели управляет владелец: seed в неё не входит', () => {
+    const model = createModel<F>({ ...INITIAL });
+    createForm<F>({ model, seed: (m) => void (m.email = 'seeded@x') });
+    expect(model.isDirty()).toBe(true);
+    model.reset();
+    expect(model.email).toBe('');
   });
 
   it('setup получает тот же бандл, что возвращается наружу', () => {

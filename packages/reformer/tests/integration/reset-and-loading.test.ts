@@ -545,25 +545,33 @@ describe('сброс заявки — model.reset() против form.reset()', 
     expect(model.get().loan.propertyValue).toBe(9_000_000);
   });
 
-  it('RL-16: form.reset() пары syncFields — телефон, заданный в seed, стёрт пустым телефоном подписи', async () => {
+  it('RL-16: form.reset() пары syncFields — пара возвращается к собранной форме, телефон из seed цел', async () => {
+    // Своя модель (`initial`): точку отсчёта снимает сборка, и правки seed в неё входят. У
+    // переданной модели (сборка без `initial`) точкой отсчёта управляет владелец — seed туда не попадает.
     const { bundle } = build({
+      initial: createLoanInitial(),
       seed: (model) => {
         model.phone = '+7 (900) 123-45-67';
       },
     });
     const { model, form } = bundle;
-    await settle();
+    // Первая копия syncFields выполнена ещё в сборке — до микротаска, и точка отсчёта снята после неё.
     expect(model.consent.smsPhone).toBe('+79001234567');
     model.email = 'ivanov@example.ru';
+    model.consent.smsPhone = '+79990000000';
+    await settle();
+    expect(model.phone).toBe('+79990000000');
 
     form.reset();
     await settle();
 
-    // поведение под вопросом [ReFormer-2k2x]: точка отсчёта снята до первой синхронизации — телефон
-    // заполнен, телефон подписи пуст. Сброс пишет поля по очереди, syncFields отвечает на каждую
-    // запись, и побеждает последняя — пустой телефон подписи: телефон точки отсчёта стёрт, хотя
-    // form.reset() обещает вернуть к ней.
-    expect([model.phone, model.consent.smsPhone]).toEqual(['', '']);
+    // Точка отсчёта — собранная форма, пара в ней согласована: сброс возвращает обе стороны, и
+    // синхронизации нечего менять.
+    expect([model.phone, model.consent.smsPhone, model.email]).toEqual([
+      '+7 (900) 123-45-67',
+      '+79001234567',
+      '',
+    ]);
   });
 });
 

@@ -511,12 +511,13 @@ describe('bundle.submission — submit: отложенные записи пов
     });
   }
 
-  it('отправка сразу после сборки: первые записи поведения её не отменяют', async () => {
+  it('отправка сразу после сборки: первые записи поведения выполнены самой сборкой', async () => {
     const bundle = createLoan();
     const handler = vi.fn((values: Loan) => values.receipt);
 
-    // Без ожидания после сборки: строка итога и квитанция ещё не записаны.
-    expect(bundle.model.receipt).toBe('');
+    // Без ожидания после сборки: строка итога и квитанция уже записаны — сборка выполняет первые
+    // записи поведения до возврата, а не оставляет их микротаску.
+    expect(bundle.model.receipt).toBe('Квитанция: к выдаче 90');
     expect(await bundle.submission.submit(handler)).toEqual({
       status: 'submitted',
       result: 'Квитанция: к выдаче 90',

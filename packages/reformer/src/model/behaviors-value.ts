@@ -238,7 +238,12 @@ export function syncFields<T>(
       updating = true;
       try {
         const current = b.peek();
-        if (a.peek() !== current) a.value = current;
+        // Пара уже согласована — писать нечего: `a` хранит свою форму значения (телефон с
+        // форматированием), и запись `b` её бы стёрла. Так выходит после сброса: он пишет поля по
+        // очереди, последней срабатывает эта сторона, а значения уже совпали.
+        const source = a.peek();
+        if ((transform ? transform(source) : source) === current) return;
+        if (source !== current) a.value = current;
       } finally {
         updating = false;
       }

@@ -79,7 +79,7 @@ describe('behaviors — syncFields', () => {
   );
 
   it(
-    'поля сходятся к эталону «побеждает последняя запись»; transform — только a → b',
+    'поля сходятся к эталону «побеждает последняя запись»; transform — только a → b; согласованную пару b → a не пишет',
     async () => {
       await fc.assert(
         fc.asyncProperty(
@@ -99,7 +99,8 @@ describe('behaviors — syncFields', () => {
             };
             const applyPending = (): void => {
               if (ref.pending === 'a') ref.b = transform(ref.a);
-              if (ref.pending === 'b') ref.a = ref.b;
+              // Пара уже согласована (b совпало с transform(a)) — a сохраняет свою форму значения.
+              if (ref.pending === 'b' && transform(ref.a) !== ref.b) ref.a = ref.b;
               ref.pending = null;
             };
 

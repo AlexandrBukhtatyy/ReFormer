@@ -7,6 +7,7 @@
  * - F7  — liveness: runOutsideEffect возвращает отменитель ещё не выполненной записи.
  * - F10 — safeCallback/safeDebouncedCallback: форвардинг аргументов, отсутствие двойного defer.
  * - deferredWritesSettled — ожидание отложенных записей тика вместе с порождёнными ими.
+ * - runAssemblyWrites — записи, отложенные сборкой, выполняются до её возврата.
  *
  * NB: записи НЕ оборачиваются в batch() (см. заметку в safe-effect.ts) — реципрокные guard'ы слоя
  * данных (syncFields) полагаются на синхронный встречный флаш во время записи; поэтому тут проверяется
@@ -18,6 +19,7 @@ import { tick } from '../../test-utils/async';
 import {
   deferredWrites,
   deferredWritesSettled,
+  runAssemblyWrites,
   runOutsideEffect,
   safeCallback,
   safeDebouncedCallback,
@@ -155,6 +157,84 @@ describe('deferredWritesSettled', () => {
     await tick(5);
 
     expect({ atSettle, later: log }).toEqual({ atSettle: [], later: ['после запроса'] });
+  });
+});
+
+describe('runAssemblyWrites', () => {
+  it('записи, отложенные сборкой, выполнены до возврата — вместе с порождёнными ими', () => {
+    const order: string[] = [];
+    const result = runAssemblyWrites(() => {
+      runOutsideEffect(() => {
+        order.push('first');
+        runOutsideEffect(() => void order.push('chained'));
+      });
+      order.push('build');
+      return 'form';
+    });
+    expect(result).toBe('form');
+    expect(order).toEqual(['build', 'first', 'chained']);
+    expect(deferredWritesSettled()).toBeUndefined();
+  });
+
+  it('отменённая запись сборки не выполняется', () => {
+    const ran = vi.fn();
+    runAssemblyWrites(() => {
+      const cancel = runOutsideEffect(ran);
+      cancel();
+    });
+    expect(ran).not.toHaveBeenCalled();
+  });
+
+  it('после сборки записи снова откладываются на микротаск', async () => {
+    runAssemblyWrites(() => undefined);
+    let ran = false;
+    runOutsideEffect(() => void (ran = true));
+    expect(ran).toBe(false);
+    await tick();
+    expect(ran).toBe(true);
+  });
+
+  it('вложенная сборка свои записи не выполняет — это делает внешняя', () => {
+    const order: string[] = [];
+    runAssemblyWrites(() => {
+      runAssemblyWrites(() => void runOutsideEffect(() => void order.push('inner')));
+      order.push('after inner');
+    });
+    expect(order).toEqual(['after inner', 'inner']);
+  });
+
+  it('сборка упала — её записи идут на микротаск, а отменитель продолжает действовать', async () => {
+    const kept = vi.fn();
+    const dropped = vi.fn();
+    let cancel = (): void => undefined;
+    expect(() =>
+      runAssemblyWrites(() => {
+        runOutsideEffect(kept);
+        cancel = runOutsideEffect(dropped);
+        throw new Error('сбой сборки');
+      })
+    ).toThrow('сбой сборки');
+    expect(kept).not.toHaveBeenCalled();
+
+    cancel();
+    await tick();
+    expect(kept).toHaveBeenCalledTimes(1);
+    expect(dropped).not.toHaveBeenCalled();
+  });
+
+  it('бесконечная цепочка записей сборку не подвешивает — остаток уходит на микротаски', async () => {
+    let runs = 0;
+    let stop = false;
+    const loop = (): void => {
+      runs++;
+      if (!stop) runOutsideEffect(loop);
+    };
+    runAssemblyWrites(() => void runOutsideEffect(loop));
+    expect(runs).toBe(1000);
+
+    stop = true;
+    await deferredWritesSettled();
+    expect(runs).toBe(1001);
   });
 });
 

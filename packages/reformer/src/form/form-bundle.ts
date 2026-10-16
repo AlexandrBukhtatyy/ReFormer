@@ -6,7 +6,7 @@
  * результат. Стабильность между рендерами даёт {@link useFormBundle}.
  *
  * Порядок сборки: модель → `seed` → дерево схемы → компиляция → уровень формы (правила, поток) →
- * ноды формы → поведение → `setup`. Дерево строится и компилируется один раз: ноды формы и
+ * ноды формы → поведение и его первые записи → точка отсчёта модели → `setup`. Дерево строится и компилируется один раз: ноды формы и
  * рендерер читают одну и ту же {@link CompiledSchema}.
  *
  * @group Utilities
@@ -14,6 +14,7 @@
  */
 
 import { createModel } from '../model/create-model';
+import { runAssemblyWrites } from '../model/safe-effect';
 import type { FormModel } from '../model/types';
 import { createFormFromCompiled, disposeForm } from './create-form';
 import type { FormBehavior } from './behaviors';
@@ -256,10 +257,6 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
   }
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
-  // Правки `seed` — часть начального состояния формы: точка отсчёта своей модели снимается после
-  // них, и сброс (`form.reset()`, `model.reset()`) их не откатывает. Точкой отсчёта переданной
-  // модели управляет её владелец.
-  if (config.model === undefined) model.captureInitial();
 
   const { tree, fieldWrapper, errorBoundary } = resolveTree(config, model);
   const compiled = tree !== undefined ? compileSchema(tree, model as object) : undefined;
@@ -268,12 +265,20 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
 
   // Уровень формы — до нод: поведение получает поток шагов.
   const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });
-  const form = createFormFromCompiled<T>({
-    model,
-    ...(compiled !== undefined ? { compiled } : {}),
-    ...(config.behavior ? { behavior: config.behavior, schemaController: controller } : {}),
-    ...(level.flow !== undefined ? { flow: level.flow } : {}),
-  });
+  // Первые записи поведения (копия `syncFields`, нормализация, сброс выключенного поля) выполняются
+  // до возврата, а не на микротаске: собранная форма уже согласована.
+  const form = runAssemblyWrites(() =>
+    createFormFromCompiled<T>({
+      model,
+      ...(compiled !== undefined ? { compiled } : {}),
+      ...(config.behavior ? { behavior: config.behavior, schemaController: controller } : {}),
+      ...(level.flow !== undefined ? { flow: level.flow } : {}),
+    })
+  );
+  // Точка отсчёта своей модели — собранная форма: правки `seed` и первые записи поведения. Сброс
+  // (`form.reset()`, `model.reset()`) их не откатывает, а пара `syncFields` попадает в неё
+  // согласованной. Точкой отсчёта переданной модели управляет её владелец.
+  if (config.model === undefined) model.captureInitial();
 
   if (process.env.NODE_ENV !== 'production') {
     checkSelectors(compiled, root.__overrideMaps, config.flow);
