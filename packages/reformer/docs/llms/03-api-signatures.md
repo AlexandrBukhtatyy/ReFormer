@@ -118,7 +118,7 @@ type FormGroup<T> = FormNode<T> & /* поля по именам */ & { readonly 
 внутри схемы валидации, а **не** в схему формы.
 
 ```typescript
-required(options?: RuleOptions)                       // Rule<unknown>
+required(options?: RuleOptions)                       // Rule<unknown>; пусто: null, undefined, '', [], NaN, false
 min(value: number, options?: RuleOptions)             // Rule<number | null | undefined>
 max(value: number, options?: RuleOptions)
 minLength(length: number, options?: RuleOptions)      // Rule<unknown>: строка либо массив
@@ -132,7 +132,7 @@ phone(options?: RuleOptions & { format?: PhoneFormat })
 // Number validator factories — Rule<number | null | undefined>
 isNumber(options?: RuleOptions)
 integer(options?: RuleOptions)
-multipleOf(divisor: number, options?: RuleOptions)
+multipleOf(divisor: number, options?: RuleOptions)  // делитель 0 / не конечный — RangeError при создании
 nonNegative(options?: RuleOptions)       // value >= 0
 nonZero(options?: RuleOptions)            // value !== 0
 // Date validator factories — Rule<string | Date | null | undefined>
@@ -147,11 +147,11 @@ futureDate(options?: RuleOptions)
 minAge(years: number, options?: RuleOptions)
 maxAge(years: number, options?: RuleOptions)
 // File validator factories — Rule<unknown>: файл либо массив файлов
-fileType(accept: string, options?: RuleOptions)
+fileType(accept: string, options?: RuleOptions)       // синтаксис accept; «звезда/звезда» — любой файл
 maxFileSize(bytes: number, options?: RuleOptions)
 minFileSize(bytes: number, options?: RuleOptions)
 maxFiles(count: number, options?: RuleOptions)
-minFiles(count: number, options?: RuleOptions)
+minFiles(count: number, options?: RuleOptions)        // [] при count > 0 — замечание, как у minLength
 maxTotalFileSize(bytes: number, options?: RuleOptions)
 ```
 

@@ -30,10 +30,13 @@ describeRule('required — заполненные значения', required(),
   { value: [null], code: null, label: '[null] — длина 1' },
   { value: {}, code: null },
   { value: new Date(2024, 0, 1), code: null, label: 'Date' },
-  // поведение под вопросом [ReFormer-cnk3]: NaN (так иногда выглядит очищенный числовой ввод) пустым не считается —
-  // в документации пустые перечислены явно, NaN среди них нет.
-  { value: NaN, code: null },
 ]);
+
+describeRule(
+  'required — NaN пуст: так выглядит очищенный числовой ввод [ReFormer-cnk3]',
+  required(),
+  [{ value: NaN, code: 'required' }]
+);
 
 describe('required — код замечания (regression #17)', () => {
   it('текста у замечания нет: только код, по нему резолвер берёт строку', () => {

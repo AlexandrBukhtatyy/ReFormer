@@ -100,6 +100,9 @@ describe('matchesFileAccept — синтаксис accept', () => {
     ['.bin', remote, 'без type — по расширению'],
     ['', pdf, 'пустой accept матчит всё'],
     [' , ', pdf, 'accept из пробелов и запятых матчит всё'],
+    ['*/*', png, '*/* — любой файл [ReFormer-cnk3]'],
+    ['*/*', remote, '*/* — и файл без type'],
+    ['.pdf, */*', png, '*/* в списке'],
   ])('%s матчит %o (%s)', (accept, file, _label) => {
     expect(matchesFileAccept(file, accept)).toBe(true);
   });
@@ -112,8 +115,6 @@ describe('matchesFileAccept — синтаксис accept', () => {
     ['pdf', { name: 'a.pdf' }, 'расширение без точки — не паттерн'],
     ['image', png, 'категория без /*'],
     ['image/*', { name: 'a', type: 'imagery/png' }, 'префикс категории до слэша'],
-    // поведение под вопросом [ReFormer-cnk3]: `*/*` не из синтаксиса HTML accept — сейчас не матчит ничего.
-    ['*/*', png, '*/* не поддерживается'],
   ])('%s не матчит %o (%s)', (accept, file, _label) => {
     expect(matchesFileAccept(file, accept)).toBe(false);
   });

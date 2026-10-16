@@ -16,7 +16,8 @@ import { validationIssue } from './validation-issue';
  * Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
  *
  * Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
- * обязательный multi-select / FieldArray без выбранных элементов).
+ * обязательный multi-select / FieldArray без выбранных элементов), `NaN` (так выглядит очищенный
+ * числовой ввод).
  * Для boolean полей требуется значение `true`.
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
@@ -42,6 +43,7 @@ export function required(options?: RuleOptions): Rule<unknown> {
       value === undefined ||
       value === '' ||
       (Array.isArray(value) && value.length === 0) ||
+      (typeof value === 'number' && Number.isNaN(value)) ||
       (typeof value === 'boolean' && value !== true);
     if (isEmpty) {
       return validationIssue('required', options);

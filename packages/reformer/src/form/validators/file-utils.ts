@@ -54,7 +54,8 @@ export function toFileArray(value: unknown): FileLike[] | null {
 /**
  * Проверяет файл против accept-паттерна в синтаксисе нативного атрибута
  * `<input type="file" accept>`: список через запятую из расширений (`.pdf`),
- * точных MIME (`image/png`) и wildcard-категорий (`image/*`). Регистронезависимо.
+ * точных MIME (`image/png`) и wildcard-категорий (`image/*`); шаблон «любой тип» (звёздочка,
+ * слэш, звёздочка) пропускает любой файл. Регистронезависимо.
  *
  * Нужен собственный матчер, потому что `accept` у нативного input — только подсказка
  * пикеру: на drag-and-drop и на программное значение он не действует.
@@ -75,6 +76,7 @@ export function matchesFileAccept(file: Pick<FileLike, 'name' | 'type'>, accept:
 
   return patterns.some((pattern) => {
     if (pattern.startsWith('.')) return name.endsWith(pattern);
+    if (pattern === '*/*') return true;
     if (pattern.endsWith('/*')) return type.startsWith(pattern.slice(0, -1));
     if (pattern.includes('/')) return type === pattern;
     return false;

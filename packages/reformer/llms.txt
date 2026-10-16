@@ -443,7 +443,7 @@ type FormGroup<T> = FormNode<T> & /* поля по именам */ & { readonly 
 внутри схемы валидации, а **не** в схему формы.
 
 ```typescript
-required(options?: RuleOptions)                       // Rule<unknown>
+required(options?: RuleOptions)                       // Rule<unknown>; пусто: null, undefined, '', [], NaN, false
 min(value: number, options?: RuleOptions)             // Rule<number | null | undefined>
 max(value: number, options?: RuleOptions)
 minLength(length: number, options?: RuleOptions)      // Rule<unknown>: строка либо массив
@@ -457,7 +457,7 @@ phone(options?: RuleOptions & { format?: PhoneFormat })
 // Number validator factories — Rule<number | null | undefined>
 isNumber(options?: RuleOptions)
 integer(options?: RuleOptions)
-multipleOf(divisor: number, options?: RuleOptions)
+multipleOf(divisor: number, options?: RuleOptions)  // делитель 0 / не конечный — RangeError при создании
 nonNegative(options?: RuleOptions)       // value >= 0
 nonZero(options?: RuleOptions)            // value !== 0
 // Date validator factories — Rule<string | Date | null | undefined>
@@ -472,11 +472,11 @@ futureDate(options?: RuleOptions)
 minAge(years: number, options?: RuleOptions)
 maxAge(years: number, options?: RuleOptions)
 // File validator factories — Rule<unknown>: файл либо массив файлов
-fileType(accept: string, options?: RuleOptions)
+fileType(accept: string, options?: RuleOptions)       // синтаксис accept; «звезда/звезда» — любой файл
 maxFileSize(bytes: number, options?: RuleOptions)
 minFileSize(bytes: number, options?: RuleOptions)
 maxFiles(count: number, options?: RuleOptions)
-minFiles(count: number, options?: RuleOptions)
+minFiles(count: number, options?: RuleOptions)        // [] при count > 0 — замечание, как у minLength
 maxTotalFileSize(bytes: number, options?: RuleOptions)
 ```
 
@@ -11449,7 +11449,8 @@ _Source: src/model/derived-registry.ts_
 
 Проверяет файл против accept-паттерна в синтаксисе нативного атрибута
 `<input type="file" accept>`: список через запятую из расширений (`.pdf`),
-точных MIME (`image/png`) и wildcard-категорий (`image/*`). Регистронезависимо.
+точных MIME (`image/png`) и wildcard-категорий (`image/*`); шаблон «любой тип» (звёздочка,
+слэш, звёздочка) пропускает любой файл. Регистронезависимо.
 
 Нужен собственный матчер, потому что `accept` у нативного input — только подсказка
 пикеру: на drag-and-drop и на программное значение он не действует.
@@ -11670,6 +11671,9 @@ _Source: src/form/validators/max-file-size.ts_
 Работает со строкой или массивом (проверяется `value.length`). Пустые значения
 (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
 (используйте {@link required} для обязательности).
+
+Длина строки — в единицах UTF-16, как `String.length` и атрибут `maxlength` браузера: эмодзи и
+другие символы вне BMP считаются за 2, графемы не склеиваются.
 
 У строки замечание — `maxLength` (символы), у массива — `maxItems` (элементы): мультивыбор и
 список считают выбранное, и текст «не больше 3 символов» под ними был бы бессмыслицей.
@@ -12021,8 +12025,9 @@ _Source: src/form/validators/min-date.ts_
 Фабрика валидатора минимального количества файлов.
 
 Работает с массивом файлов (одиночный файл считается как 1). Пустые значения
-(`null`/`undefined`/`''`/`[]`) пропускаются — «нужен хотя бы один файл» выражается
-связкой `required()` + `minFiles(n)`, как и у {@link minLength}.
+(`null`/`undefined`/`''`) пропускаются (используйте {@link required}), а пустой массив — как
+у {@link minLength} — проверяется: при `min > 0` это замечание с `actualCount: 0`. Элементы
+массива, которые не файлы, не считаются.
 
 **Signature:**
 ```typescript
@@ -12099,6 +12104,9 @@ _Source: src/form/validators/min-file-size.ts_
 Работает со строкой или массивом (проверяется `value.length`). Пустые значения
 (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
 (используйте {@link required} для обязательности).
+
+Длина строки — в единицах UTF-16, как `String.length` и атрибут `minlength` браузера: эмодзи и
+другие символы вне BMP считаются за 2, графемы не склеиваются.
 
 У строки замечание — `minLength` (символы), у массива — `minItems` (элементы): мультивыбор и
 список считают выбранное, и текст «не меньше 3 символов» под ними был бы бессмыслицей.
@@ -12445,7 +12453,8 @@ export function multipleOf(
 ```
 
 **Parameters:**
-- `divisor` — - Делитель: значение должно быть кратно ему
+- `divisor` — - Делитель: значение должно быть кратно ему. Конечное число, не равное нулю, —
+иначе ошибка конфигурации (`RangeError`) при создании правила: кратность нулю вырождена.
 - `options` — - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
 попадает `multipleOf` (делитель).
 
@@ -12932,7 +12941,8 @@ _Source: src/form/behaviors/schema-operators.ts_
 Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
 
 Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
-обязательный multi-select / FieldArray без выбранных элементов).
+обязательный multi-select / FieldArray без выбранных элементов), `NaN` (так выглядит очищенный
+числовой ввод).
 Для boolean полей требуется значение `true`.
 
 **Signature:**

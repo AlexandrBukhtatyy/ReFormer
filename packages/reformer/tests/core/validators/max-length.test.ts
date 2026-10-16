@@ -31,8 +31,8 @@ describeRule('maxLength — массивы', maxLength(2), [
 ]);
 
 describeRule('maxLength — суррогатные пары', maxLength(1), [
-  // поведение под вопросом [ReFormer-cnk3]: пользователь видит один символ, правило — длину 2 (UTF-16), как
-  // атрибут maxlength браузера; текст «не больше 1 символа, введено 2» для эмодзи сбивает с толку.
+  // Контракт (JSDoc maxLength) [ReFormer-cnk3]: длина в единицах UTF-16, как String.length и
+  // атрибут maxlength браузера — эмодзи считается за 2.
   {
     value: '😀',
     code: 'maxLength',

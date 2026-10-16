@@ -51,12 +51,17 @@ describeRule('multipleOf — пустые значения и не-числа п
   { value: '0.35', code: null, label: '"0.35" — строка, не число' },
 ]);
 
-// поведение под вопросом [ReFormer-cnk3]: делитель 0 вырожден — частное `x / 0` не конечно (или
-// NaN), и правило отклоняет любое число, включая 0. Явной проверки параметра нет.
-describeRule('multipleOf — делитель 0 отклоняет всё', multipleOf(0), [
-  { value: 0, code: 'multipleOf', params: { multipleOf: 0 } },
-  { value: 5, code: 'multipleOf', params: { multipleOf: 0 } },
-]);
+describe('multipleOf — вырожденный делитель — ошибка конфигурации [ReFormer-cnk3]', () => {
+  // Раньше частное `x / 0` не было конечным, и правило молча отклоняло любое число, включая 0.
+  it.each([0, -0, Number.NaN, Number.POSITIVE_INFINITY])(
+    'multipleOf(%s) бросает RangeError',
+    (divisor) => {
+      expect(() => multipleOf(divisor)).toThrowError(
+        /^\[@reformer\/core\] multipleOf\(.+\): делитель должен быть конечным числом, не равным нулю/
+      );
+    }
+  );
+});
 
 describe('multipleOf — опции', () => {
   it('свой код заменяет встроенный, params сливаются, параметры из опций главнее', () => {

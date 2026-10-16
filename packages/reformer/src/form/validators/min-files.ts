@@ -15,8 +15,9 @@ import { validationIssue } from './validation-issue';
  * Фабрика валидатора минимального количества файлов.
  *
  * Работает с массивом файлов (одиночный файл считается как 1). Пустые значения
- * (`null`/`undefined`/`''`/`[]`) пропускаются — «нужен хотя бы один файл» выражается
- * связкой `required()` + `minFiles(n)`, как и у {@link minLength}.
+ * (`null`/`undefined`/`''`) пропускаются (используйте {@link required}), а пустой массив — как
+ * у {@link minLength} — проверяется: при `min > 0` это замечание с `actualCount: 0`. Элементы
+ * массива, которые не файлы, не считаются.
  *
  * @param min - Минимально допустимое количество файлов (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
@@ -40,7 +41,7 @@ export function minFiles(min: number, options?: RuleOptions): Rule<unknown> {
       return null;
     }
     const files = toFileArray(value);
-    if (files === null || files.length === 0) return null;
+    if (files === null) return null;
     if (files.length < min) {
       return validationIssue('minFiles', options, { minFiles: min, actualCount: files.length });
     }

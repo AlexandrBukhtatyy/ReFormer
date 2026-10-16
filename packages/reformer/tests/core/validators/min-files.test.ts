@@ -34,12 +34,19 @@ describeRule('minFiles — пустые значения пропускаютс�
   { value: null, code: null },
   { value: undefined, code: null },
   { value: '', code: null },
-  // поведение под вопросом [ReFormer-cnk3]: minFiles([]) пропускает, а minLength(1)([]) даёт замечание — JSDoc
-  // minFiles называет связку required() + minFiles(n) «как и у minLength», хотя minLength
-  // пустой массив проверяет сам.
-  { value: [], code: null, label: 'minFiles([]) — пусто, проверяет required()' },
-  { value: ['a', 1], code: null, label: 'массив без файлов — тоже пусто' },
 ]);
+
+describeRule('minFiles — пустой массив проверяется, как у minLength [ReFormer-cnk3]', minFiles(2), [
+  { value: [], code: 'minFiles', params: { minFiles: 2, actualCount: 0 }, label: 'minFiles([])' },
+  {
+    value: ['a', 1],
+    code: 'minFiles',
+    params: { minFiles: 2, actualCount: 0 },
+    label: 'массив без файлов — ноль файлов',
+  },
+]);
+
+describeRule('minFiles(0) — пустой массив допустим', minFiles(0), [{ value: [], code: null }]);
 
 describe('minFiles — опции', () => {
   it('свой код и params; параметры из опций главнее', () => {

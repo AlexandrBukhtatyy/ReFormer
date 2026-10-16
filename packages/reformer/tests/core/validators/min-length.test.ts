@@ -34,8 +34,8 @@ describeRule('minLength — массивы', minLength(2), [
 ]);
 
 describeRule('minLength — суррогатные пары', minLength(2), [
-  // поведение под вопросом [ReFormer-cnk3]: эмодзи — один видимый символ, но length 2 (UTF-16), как у атрибута
-  // minlength браузера; графемы не считаются.
+  // Контракт (JSDoc minLength) [ReFormer-cnk3]: длина в единицах UTF-16, как String.length и
+  // атрибут minlength браузера — эмодзи считается за 2, графемы не склеиваются.
   { value: '😀', code: null, label: '"😀" — length 2 проходит minLength(2)' },
   { value: 'я', code: 'minLength', params: { minLength: 2, actualLength: 1 } },
 ]);

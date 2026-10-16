@@ -36,14 +36,21 @@ describeRule('phone — ru', phone({ format: 'ru' }), [
   { value: '+7 (399) 123-45-67', code: 'phone', params: { format: 'ru' }, label: 'код 3xx' },
   { value: '+7 (999) 123-45-6', code: 'phone', params: { format: 'ru' }, label: 'на цифру короче' },
   { value: '+1 (555) 123-4567', code: 'phone', params: { format: 'ru' }, label: 'номер США' },
-  // поведение под вопросом [ReFormer-cnk3]: скобки в regex независимы — непарная скобка проходит.
-  { value: '+7 (999 123-45-67', code: null, label: 'непарная скобка проходит' },
+  // Код города — в парных скобках либо без них [ReFormer-cnk3].
+  { value: '+7 (999 123-45-67', code: 'phone', params: { format: 'ru' }, label: 'непарная «(»' },
+  { value: '+7 999) 123-45-67', code: 'phone', params: { format: 'ru' }, label: 'непарная «)»' },
 ]);
 
 describeRule('phone — us (NANP)', phone({ format: 'us' }), [
   { value: '+1 (555) 123-4567', code: null },
   { value: '555-123-4567', code: null },
   { value: '5551234567', code: null },
+  {
+    value: '(555 123-4567',
+    code: 'phone',
+    params: { format: 'us' },
+    label: 'непарная «(» [ReFormer-cnk3]',
+  },
   { value: '1-555-123-4567', code: null },
   { value: '(155) 123-4567', code: 'phone', params: { format: 'us' }, label: 'код зоны с 1' },
   {
