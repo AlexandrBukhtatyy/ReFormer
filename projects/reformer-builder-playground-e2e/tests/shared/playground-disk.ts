@@ -40,8 +40,11 @@ interface DiskFile {
   readonly base64: string;
 }
 
+/** Каталог билдера в проекте: конфиг, настройки, плагины, шаблоны. */
+const UI_BUILDER_DIR = '.ui_builder';
+
 /** Каталог плагинов проекта — там их ищет билдер, там же лежат их пакеты. */
-const PLUGINS_DIR = '.ui_builder/plugins';
+const PLUGINS_DIR = `${UI_BUILDER_DIR}/plugins`;
 
 /** Каталог исходников пакета плагина; его `manifest.json` и делает каталог пакетом плагина. */
 const PLUGIN_SOURCES = 'src';
@@ -66,6 +69,11 @@ export interface SeedOptions {
    * Всё, что в нём работает, приехало с приложением (слой плагинов приложения).
    */
   readonly projectPlugins?: boolean;
+  /**
+   * `false` — каталога `.ui_builder/` нет вовсе: ни конфига, ни настроек, ни плагинов, ни
+   * шаблонов. Чужая папка, которую билдер видит впервые.
+   */
+  readonly uiBuilder?: boolean;
 }
 
 /** Содержимое «диска»: путь от корня проекта → текст файла. */
@@ -224,7 +232,9 @@ export class PlaygroundDisk {
    */
   async seed(options: SeedOptions = {}): Promise<void> {
     const requested = options.plugins ?? [];
-    const plugins = (options.projectPlugins === false ? [] : pluginPackages(PLAYGROUND_DIR))
+    const withUiBuilder = options.uiBuilder !== false;
+    const withPlugins = withUiBuilder && options.projectPlugins !== false;
+    const plugins = (withPlugins ? pluginPackages(PLAYGROUND_DIR) : [])
       .filter((dir) => !OPTIONAL_PLUGINS.includes(dir) || requested.includes(dir))
       .map((dir) => `${PLUGINS_DIR}/${dir}`);
     // Из каталога плагинов в копию идут только пакеты плагинов, и те без исходников: билдер
@@ -236,6 +246,7 @@ export class PlaygroundDisk {
       );
     const files = [
       ...repositoryFiles(PLAYGROUND_DIR)
+        .filter((filePath) => withUiBuilder || !filePath.startsWith(`${UI_BUILDER_DIR}/`))
         .filter((filePath) => !filePath.startsWith(`${PLUGINS_DIR}/`) || inPlugin(filePath))
         .map((filePath) => readFile(PLAYGROUND_DIR, filePath)),
       ...plugins.flatMap((dir) => readPluginBuild(PLAYGROUND_DIR, dir)),
