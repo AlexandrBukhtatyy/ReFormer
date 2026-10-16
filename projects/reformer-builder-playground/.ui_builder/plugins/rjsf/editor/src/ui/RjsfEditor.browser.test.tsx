@@ -52,8 +52,11 @@ function mount(options: { live?: FakeLive; remembered?: RjsfView; kits?: KitsSer
     hasLive: () => live.available(),
   });
 
+  // Ширина задана, а не берётся у окна: окно браузерного прогона узкое (414 px), панель свойств
+  // держит свои 320 px, и колонке структуры оставалась сотня пикселей. С шрифтами Linux имя поля
+  // в строке сжималось до нуля — кнопка «невидима», щелчок ждал её до таймаута (только в CI).
   const mounted = renderReact(
-    <div style={{ display: 'flex', height: 480 }}>
+    <div style={{ display: 'flex', width: 960, height: 480 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <RjsfEditor
           documentId={first.id}
