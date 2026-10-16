@@ -1,42 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import Ajv from 'ajv';
 import { composeJsonFormSchema, isJsonStepRef, normalizeStepRef } from './compose';
-import {
-  buildFormStepMetaSchemaV1 as buildFormStepMetaSchema,
-  FORM_STEP_SCHEMA_ID,
-} from './schema';
+import { buildFormStepMetaSchema, FORM_STEP_SCHEMA_ID } from './schema';
 import { validateFormSchema } from './validate';
-import type {
-  JsonFormSchemaV1 as JsonFormSchema,
-  JsonNodeV1 as JsonNode,
-} from './types/json-schema-v1';
+import type { JsonFormSchema, JsonNode } from './types/json-schema';
 
 const stepA: JsonNode = {
   component: '$component(Step)',
   componentProps: { title: 'A' },
-  children: [{ value: '$model(a)', component: '$component(Input)' }],
+  children: [{ model: '$model(a)', component: '$component(Input)' }],
 };
 const stepB: JsonNode = {
   component: '$component(Step)',
   componentProps: { title: 'B' },
-  children: [{ value: '$model(b)', component: '$component(Input)' }],
+  children: [{ model: '$model(b)', component: '$component(Input)' }],
 };
 
+/** Корневая схема: визард внутри контейнера, шаги (узлы и ссылки) — его дети. */
 function skeleton(steps: unknown[]): JsonFormSchema {
   return {
     $schema: './form-schema.schema.json',
+    format: 2,
     root: {
       component: '$component(Box)',
-      children: [
-        { component: '$component(Wizard)', componentProps: { steps } } as unknown as JsonNode,
-      ],
+      children: [{ component: '$component(FormWizard)', children: steps } as JsonNode],
     },
   };
 }
 
 function stepsOf(schema: JsonFormSchema): unknown[] {
-  const root = schema.root as unknown as { children: { componentProps: { steps: unknown[] } }[] };
-  return root.children[0].componentProps.steps;
+  const root = schema.root as unknown as { children: { children: unknown[] }[] };
+  return root.children[0].children;
 }
 
 describe('composeJsonFormSchema', () => {
@@ -70,7 +64,17 @@ describe('composeJsonFormSchema', () => {
   it('неизвестная ссылка — ошибка с путём', () => {
     expect(() =>
       composeJsonFormSchema(skeleton([{ $ref: './steps/x/form.schema.json' }]), {})
-    ).toThrow(/root\.children\[0\]\.componentProps\.steps\[0\].*steps\/x\/form\.schema\.json/);
+    ).toThrow(/root\.children\[0\]\.children\[0\].*steps\/x\/form\.schema\.json/);
+  });
+
+  it('`steps` в componentProps — обычный проп: ссылка там не разворачивается', () => {
+    const ref = { $ref: './steps/a/form.schema.json' };
+    const source: JsonFormSchema = {
+      format: 2,
+      root: { component: '$component(Stepper)', componentProps: { steps: [ref] } },
+    };
+    const composed = composeJsonFormSchema(source, { './steps/a/form.schema.json': stepA });
+    expect(composed).toBe(source);
   });
 });
 
@@ -111,6 +115,6 @@ describe('validateFormSchema на несобранной схеме', () => {
       skeleton([{ $ref: './steps/a/form.schema.json' }])
     );
     expect(valid).toBe(false);
-    expect(errors.join('\n')).toMatch(/steps\[0\].*not resolved.*composeJsonFormSchema/);
+    expect(errors.join('\n')).toMatch(/children\[0\].*not resolved.*composeJsonFormSchema/);
   });
 });

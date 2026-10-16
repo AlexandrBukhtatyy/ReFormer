@@ -1,8 +1,9 @@
 /**
  * SchemaErrorPanel — панель ошибок валидации JSON-схемы формы.
  *
- * Рендерится {@link JsonFormRenderer} вместо формы, когда `validate` включён и схема невалидна
- * (невалидную схему всё равно нельзя сконвертировать — `resolveComponent` бросил бы исключение).
+ * Показывает результат `validateFormSchema` вместо формы, когда схема невалидна (невалидную схему
+ * всё равно нельзя сконвертировать — `resolveComponent` бросил бы исключение). Ту же панель рисует
+ * {@link SchemaErrorBoundary}, когда ошибка схемы всплыла при построении формы.
  *
  * @module reformer/renderer-json/components
  */
@@ -19,8 +20,8 @@ export interface SchemaErrorPanelProps {
  * Список ошибок схемы (path + message), с пометкой источника. Без внешних UI-зависимостей
  * (инлайн-стили), помечен `role="alert"` и `data-testid="schema-error-panel"`.
  *
- * Обычно рендерится автоматически внутри {@link JsonFormRenderer} (при `validate` и невалидной
- * схеме). Можно использовать напрямую для показа результата `validateFormSchema().errors`.
+ * Рендерится внутри {@link SchemaErrorBoundary} либо напрямую — для показа результата
+ * `validateFormSchema().errors`.
  *
  * @param props - {@link SchemaErrorPanelProps} (массив `errors`).
  * @returns Панель со списком ошибок.

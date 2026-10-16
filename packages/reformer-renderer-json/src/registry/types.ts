@@ -29,8 +29,8 @@ export interface ComponentMetadata<P = any> {
 /**
  * Read-only API реестра, доступное в рантайме.
  *
- * Создаётся через {@link defineRegistry}. Передаётся в `JsonRendererProvider`
- * через `settings.registry`.
+ * Создаётся через {@link defineRegistry}. Передаётся сборке формы:
+ * `createForm({ model, schema: document, registry })`.
  *
  * @example
  * ```typescript
@@ -82,7 +82,7 @@ export interface RegistryBuilder {
    * Зарегистрировать React-компонент под именем — доступен в схеме как
    * `$component(name)`. Одним методом регистрируются и компоненты-листья
    * (Input/Select), и контейнеры (Box/Section/FormField): роль узла (лист vs
-   * контейнер) определяется структурой узла схемы (`value` vs `children`),
+   * контейнер) определяется структурой узла схемы (`model` vs `children`),
    * а не регистрацией.
    */
   component<P>(name: string, component: ComponentType<P>, description?: string): void;

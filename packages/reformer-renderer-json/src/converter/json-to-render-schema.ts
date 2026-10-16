@@ -1,26 +1,23 @@
 /**
  * Конвертер JSON-схемы → RenderNode-дерево `@reformer/renderer-react`.
  *
- * Привязки — СТРОКИ-операторы (`operators.ts`); голые строки НЕ резолвятся. Один обход на оба
- * формата документа:
- *
- * Формат 2 — {@link convertJsonSchema}:
+ * Привязки — СТРОКИ-операторы (`operators.ts`); голые строки НЕ резолвятся. Читается только
+ * документ формата 2 ({@link convertJsonSchema}):
  * - поле:      `{ model: '$model(path)', component: '$component(Name)', componentProps: { … } }`
  * - массив:    `{ model: '$model(arr)', item: { $template: <узел> } | '$part(name)' }`
  * - подформа:  `{ model: '$model(group)', part: '$part(name)' }`
  * - контейнер: `{ component: '$component(Name)', children: [...] }`
  *
- * Формат v1 — {@link convertJsonToM1Tree}: ключи `value` (поле) и `array` (массив), подформ нет.
+ * Документ прежнего формата (ключи `value` / `array`) переводит в формат 2 `migrateJsonSchema`.
  *
  * `selector` — plain-строка (id узла для поведения формы), НЕ путь модели.
  *
  * @module reformer/renderer-json/converter
  */
 
-import { type RenderSchemaFn, type RenderNode } from '@reformer/renderer-react';
+import { type RenderNode } from '@reformer/renderer-react';
 import { isModelContainerSignal, isValueSignal, type FormModel } from '@reformer/core';
 import { schemaFormatOf, type JsonFormSchema } from '../types/json-schema';
-import type { JsonFormSchemaV1 } from '../types/json-schema-v1';
 import {
   parseOperator,
   isModelOp,
@@ -188,26 +185,18 @@ function groupHandleAt(scope: any, path: string): object | undefined {
   return isModelContainerSignal(handle) && !isValueSignal(handle) ? handle : undefined;
 }
 
-/**
- * Что конвертеру нужно знать о документе помимо узла: реестр, именованные части и формат привязки.
- */
+/** Что конвертеру нужно знать о документе помимо узла: реестр и именованные части. */
 interface ConvertContext {
   registry: ComponentRegistry;
-  /** Именованные части документа (формат 2); в формате v1 пусто. */
+  /** Именованные части документа (`parts`). */
   parts: Record<string, unknown>;
-  /**
-   * Формат 2: привязка одним ключом `model`, на выходе — узлы с ручками модели (`model`).
-   * Формат v1: ключи `value` / `array`; на выходе — те же узлы с привязкой `model` (массив — фасадом).
-   */
-  v2: boolean;
 }
 
-/** Похож ли объект на узел схемы (несёт строку-оператор в привязке или в `component`). */
-function looksLikeNode(v: unknown, v2: boolean): boolean {
+/** Похож ли объект на узел схемы (несёт строку-оператор в привязке `model` или в `component`). */
+function looksLikeNode(v: unknown): boolean {
   if (v === null || typeof v !== 'object') return false;
   const n = v as Record<string, unknown>;
-  const bound = v2 ? isModelOp(n.model) : isModelOp(n.value) || isModelOp(n.array);
-  return bound || isComponentOp(n.component) || isHtmlOp(n.component);
+  return isModelOp(n.model) || isComponentOp(n.component) || isHtmlOp(n.component);
 }
 
 /** Глубокий клон литерал-объекта (initialValue нового элемента массива — без shared-ссылок). */
@@ -230,7 +219,7 @@ function transformPropValue(value: unknown, scope: any, ctx: ConvertContext): un
     warnLocaleModelParams(value.$locale, value.params);
     return resolveLocale(value.$locale, registry, snapshotLocaleParams(value.params, scope));
   }
-  if (looksLikeNode(value, ctx.v2)) return convertNode(value, scope, ctx);
+  if (looksLikeNode(value)) return convertNode(value, scope, ctx);
   if (Array.isArray(value)) return value.map((v) => transformPropValue(v, scope, ctx));
   if (value !== null && typeof value === 'object') {
     const src = value as Record<string, unknown>;
@@ -308,11 +297,11 @@ function resolvePart(op: unknown, ctx: ConvertContext): unknown {
 }
 
 /**
- * Шаблон строки массива: вписанный узел (`{ $template }`) либо, в формате 2, именованная часть
+ * Шаблон строки массива: вписанный узел (`{ $template }`) либо именованная часть
  * (`'$part(name)'`). `undefined` — у узла нет шаблона, это не массив под-форм.
  */
 function rowTemplateOf(item: unknown, ctx: ConvertContext): unknown {
-  if (ctx.v2 && isPartOp(item)) return resolvePart(item, ctx);
+  if (isPartOp(item)) return resolvePart(item, ctx);
   if (typeof item === 'object' && item !== null && '$template' in item) {
     return (item as { $template: unknown }).$template;
   }
@@ -320,40 +309,25 @@ function rowTemplateOf(item: unknown, ctx: ConvertContext): unknown {
 }
 
 /**
- * Конвертирует узел JSON-схемы в RenderNode. Дискриминация — по привязке и соседним ключам:
- * массив под-форм (`item`) → подформа (`part`, формат 2) → поле → контейнер (`component`).
+ * Конвертирует узел JSON-схемы в RenderNode. Дискриминация — по привязке `model` и соседним
+ * ключам: массив под-форм (`item`) → подформа (`part`) → поле → контейнер (`component`).
  */
 function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderNode<T> {
   const n = node as Record<string, unknown>;
-  const { registry, v2 } = ctx;
+  const { registry } = ctx;
   const selector = typeof n.selector === 'string' && n.selector ? { selector: n.selector } : {};
-  const binding = v2 ? n.model : undefined;
+  const binding = n.model;
 
   // Массив под-форм: данные принадлежат модели, строка — из шаблона. Опциональный `component`
   // уводит рендер на зарегистрированный компонент (секция с управлением либо chrome-less список).
-  const arrayOp = v2 ? binding : n.array;
-  const template = isModelOp(arrayOp) ? rowTemplateOf(n.item, ctx) : undefined;
-  if (isModelOp(arrayOp) && template !== undefined) {
-    const path = parseOperator(arrayOp)!.arg;
+  const template = isModelOp(binding) ? rowTemplateOf(n.item, ctx) : undefined;
+  if (isModelOp(binding) && template !== undefined) {
+    const path = parseOperator(binding)!.arg;
     const initial = n.initialValue;
     const component = n.component ? resolveComponent(n.component as string, registry) : undefined;
     const item = (im: FormModel<unknown>) => convertNode(template, im, ctx);
     const componentProps = transformProps(n.componentProps, scope, ctx);
     const handle = (scope as FormModel<unknown>).signalAt(path);
-    if (!v2) {
-      // Формат v1 прощал массив, которого нет в модели: узел рисовался без строк. Так и остаётся —
-      // но привязкой узла становится ручка, а не фасад, и без ручки привязки нет вовсе.
-      if (!isModelContainerSignal(handle) && typeof console !== 'undefined') {
-        console.warn(`[JsonRenderer] "$model(${path})" is not an array of the model.`);
-      }
-      return {
-        ...selector,
-        ...(isModelContainerSignal(handle) ? { model: handle, item } : {}),
-        ...(component ? { component } : {}),
-        initialValue: () => (initial ? cloneLiteral(initial) : {}),
-        componentProps,
-      } as unknown as RenderNode<T>;
-    }
     if (!isModelContainerSignal(handle)) {
       throw new Error(
         `"$model(${path})" is not an array of the model — an array node needs an array field ` +
@@ -371,9 +345,9 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
     } as unknown as RenderNode<T>;
   }
 
-  // Подформа (формат 2): именованная часть, подключённая к группе модели. Пути внутри части
-  // относительны этой группе — часть конвертируется для её под-модели.
-  if (v2 && isModelOp(binding) && isPartOp(n.part)) {
+  // Подформа: именованная часть, подключённая к группе модели. Пути внутри части относительны
+  // этой группе — часть конвертируется для её под-модели.
+  if (isModelOp(binding) && isPartOp(n.part)) {
     const path = parseOperator(binding)!.arg;
     const handle = groupHandleAt(scope, path);
     if (!handle) {
@@ -391,9 +365,8 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
   }
 
   // Поле: привязка — сигнал модели по пути из '$model(...)'
-  const fieldOp = v2 ? binding : n.value;
-  if (isModelOp(fieldOp)) {
-    const path = parseOperator(fieldOp)!.arg;
+  if (isModelOp(binding)) {
+    const path = parseOperator(binding)!.arg;
     const signal = (scope as FormModel<unknown>).signalAt(path);
     if (!signal && typeof console !== 'undefined') {
       console.warn(`[JsonRenderer/M1] No model signal for "${path}".`);
@@ -479,75 +452,10 @@ export function convertJsonSchema<T>(
   if (schemaFormatOf(schema) !== 2) {
     throw new Error(
       'The document is in the previous JSON schema format (no "format": 2). Convert it with ' +
-        'migrateJsonSchema(document) before building the form, or use createJsonForm for v1.'
+        'migrateJsonSchema(document) before building the form.'
     );
   }
-  return convertNode(schema.root, model, { registry, parts: schema.parts ?? {}, v2: true });
+  return convertNode(schema.root, model, { registry, parts: schema.parts ?? {} });
 }
 
-/**
- * Сырое дерево RenderNode из JSON прежнего формата (v1) — для `createFormFromModel({ model, schema })`.
- * Листья привязываются к сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники —
- * из реестра.
- *
- * @typeParam T - Тип формы (форма данных модели).
- * @param schema - JSON-схема формы прежнего формата ({@link JsonFormSchemaV1}).
- * @param registry - Реестр компонентов/источников (см. {@link defineRegistry}).
- * @param model - Модель данных — источник значений (`FormModel`).
- * @returns Корневой {@link RenderNode} — кладётся в `createFormFromModel({ model, schema })`.
- *
- * @example Собрать форму из JSON-схемы (M1)
- * ```ts
- * import { createFormFromModel } from '@reformer/core';
- *
- * const form = createFormFromModel<MyForm>({
- *   model,
- *   schema: convertJsonToM1Tree(jsonSchema, registry, model),
- *   behavior,
- * });
- * ```
- *
- * @group Converter
- */
-export function convertJsonToM1Tree<T>(
-  schema: JsonFormSchemaV1,
-  registry: ComponentRegistry,
-  model: FormModel<T>
-): RenderNode<T> {
-  return convertNode(schema.root, model, { registry, parts: {}, v2: false });
-}
-
-/**
- * `RenderSchemaFn` из JSON прежнего формата (v1) — для `FormRenderer`/`JsonFormRenderer`. Листья
- * привязываются к сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из
- * реестра.
- *
- * В отличие от {@link convertJsonToM1Tree} (который возвращает готовое дерево), здесь результат —
- * ленивая функция-фабрика дерева, как её ждёт `createRenderSchema`. Обычно вызывается внутри
- * {@link JsonFormRenderer}; напрямую нужен для интеграции с `FormRenderer` без JSON-обёртки.
- *
- * @typeParam T - Тип формы.
- * @param schema - JSON-схема формы прежнего формата ({@link JsonFormSchemaV1}).
- * @param registry - Реестр компонентов/источников (см. {@link defineRegistry}).
- * @param model - Модель данных — источник значений (`FormModel`).
- * @returns `RenderSchemaFn<T>` — фабрика {@link RenderNode}-дерева для `createRenderSchema`.
- *
- * @example
- * ```ts
- * import { createRenderSchema, FormRenderer } from '@reformer/renderer-react';
- *
- * const fn = createRenderSchemaFromJsonM1<MyForm>(jsonSchema, registry, model);
- * const proxy = createRenderSchema<MyForm>(fn);
- * <FormRenderer render={proxy} />;
- * ```
- *
- * @group Converter
- */
-export function createRenderSchemaFromJsonM1<T>(
-  schema: JsonFormSchemaV1,
-  registry: ComponentRegistry,
-  model: FormModel<T>
-): RenderSchemaFn<T> {
-  return (): RenderNode<T> => convertNode(schema.root, model, { registry, parts: {}, v2: false });
-}
 /* eslint-enable @typescript-eslint/no-explicit-any */

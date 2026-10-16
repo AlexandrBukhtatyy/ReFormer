@@ -6,7 +6,7 @@
 
 - `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
-- В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний. На прежнем пути (`JsonFormRenderer`) реестр приходит пропом `registry`, бандлом `form` либо из `JsonRendererProvider`; при вложенных провайдерах выигрывает **внутренний**.
+- В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний.
 - Прежние имена `FormArray` / `FormArraySection` реестр понимает сам — как псевдонимы `FieldArray` / `FieldArraySection` (в dev — предупреждение `Компонент "FormArray" переименован в "FieldArray"`). Ошибка «not found» для них значит, что в реестре нет и записи под новым именем.
 
 ## Field renders without label/error
@@ -48,7 +48,7 @@ reg.component(FIELD_WRAPPER, FormField);
 />
 ```
 
-`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). На прежнем пути его передают в `JsonRendererProvider settings` — `JsonRendererSettings` наследует его без изменений. Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
+`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
 
 ## componentProps string passes through as plain string
 
@@ -56,15 +56,11 @@ reg.component(FIELD_WRAPPER, FormField);
 
 ## The document is in the previous JSON schema format
 
-У документа нет `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`), а собирает его `createForm`. Переведи его `migrateJsonSchema(document)` — функция чистая, документ формата 2 возвращает как есть. Обратная ошибка — `createJsonForm: документ схемы — формата 2`: документ формата 2 собирает `createForm({ model, schema, registry })`, а не `createJsonForm`.
-
-## useJsonRendererSettings throws outside provider
-
-Только прежний путь. `useJsonRendererSettings` в dev-режиме бросает, если вызван вне `JsonRendererProvider` **или** если в провайдере не передан `registry`. Оберни вызывающий компонент в провайдер с реестром. Сборке `createForm` провайдер не нужен — реестр уходит в неё явно.
+У документа нет `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`), а собирает его `createForm`. Рантайм читает только формат 2: переведи документ `migrateJsonSchema(document)` при загрузке — функция чистая, документ формата 2 возвращает как есть. `validateFormSchema` на таком документе отвечает одной ошибкой с той же отсылкой.
 
 ## Invalid schema (при проверке документа)
 
-`validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` прогоняет документ через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под поле/массив/подформу/контейнер, голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя, необъявленная часть `$part(...)`, неполный `initialValue`, несобранная ссылка на шаг. Ошибки рисует `SchemaErrorPanel`. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны. На прежнем пути то же делает проп `validateSchema` у `JsonFormRenderer`.
+`validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` прогоняет документ через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под поле/массив/подформу/контейнер, голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя, необъявленная часть `$part(...)`, неполный `initialValue`, несобранная ссылка на шаг. Ошибки рисует `SchemaErrorPanel`. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
 
 ## Behavior selector matches nothing
 
@@ -104,11 +100,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 - Убедись, что узлу вообще задан `selector` (без него узел не адресуется — см. «Behavior selector matches nothing»).
 - Узел строки или подформы адресуй из их поведения (`applyEach` / `apply`).
 
-Промах не роняет форму, но правило молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум. На прежнем пути `JsonFormRenderer` пишет похожее: «`schema.node(...)` адресует неизвестный selector» с перечнем известных селекторов.
-
-## dev-warn: нестабильный `renderBehavior`
-
-Только прежний путь (`JsonFormRenderer`). Если ссылка на `renderBehavior` меняется между рендерами (новая функция на каждый рендер родителя), рендерер в dev-режиме предупреждает: дерево пересобирается на каждый проход. Держи ссылку стабильной — задавай фабрику полем `renderBehavior` конфига `createJsonForm` (бандл собран один раз, ссылка стабильна по построению) либо объявляй функцию `const` на уровне модуля. В сборке `createForm` отдельного `renderBehavior` нет — правила узлов в поведении формы.
+Промах не роняет форму, но правило молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум.
 
 ## Битая схема → `SchemaErrorPanel`, а не белый экран
 

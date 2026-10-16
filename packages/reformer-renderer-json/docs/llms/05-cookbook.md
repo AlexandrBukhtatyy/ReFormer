@@ -34,8 +34,8 @@ export function MyFormPage() {
 **Notes.**
 
 - Документ с неизвестным `$component` бросает при сборке. Проверяй его заранее: `validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` (тянет ajv — грузи динамически и только в dev, как эталон `complex-multy-step-form-renderer-json`), при ошибках рисуй `SchemaErrorPanel`. Ошибку рендера перехватывает `SchemaErrorBoundary` — сборка кладёт его в бандл.
-- Поведение (compute/enableWhen/onChange модели **и** правила узлов hideWhen/onComponentEvent/onMount) — одно, полем `behavior`. Отдельного `renderBehavior` нет.
-- Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и рендерер ремоута могут оказаться в разных бандлах. `JsonRendererProvider` для этого пути не нужен.
+- Поведение (compute/enableWhen/onChange модели **и** правила узлов hideWhen/onComponentEvent/onMount) — одно, полем `behavior`.
+- Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и рендерер ремоута могут оказаться в разных бандлах.
 
 ## Сборка формы одним проходом { #one-pass }
 
@@ -88,7 +88,7 @@ export function CreditFormPage() {
 - Модель задаётся **либо** `initial` (создаётся внутри через `createModel`), **либо** готовой `model` (приоритетнее `initial`). Ни того, ни другого — `createForm` бросает.
 - `useFormBundle(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз.
 - `defineJsonSchema<T>` в `form.schema.ts` — канон схемы для renderer-json: identity-хелпер сужает пути `$model(...)` до `Path<T>`. Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри шаблона строки и именованной части относительны строке/группе и НЕ типизируются.
-- **Прежний формат** (документ без `format: 2`) собирает `createJsonForm` + `useJsonForm` и рисует `JsonFormRenderer form={jsonForm}` внутри `JsonRendererProvider`; его типы — `JsonFormSchemaV1`, `defineJsonSchemaV1`. Документ формата 2 `createJsonForm` отвергает. Перевод — `migrateJsonSchema` (см. [10-format-2.md](10-format-2.md)).
+- **Прежний формат** (документ без `format: 2`) рантайм не читает: переведи документ `migrateJsonSchema(document)` при загрузке и собирай результат `createForm` (см. [10-format-2.md](10-format-2.md)).
 
 ## Шаблон строки массива { #template-arrays }
 
@@ -271,7 +271,6 @@ const adapters = new Map<unknown, FieldAdapter>([
 **Notes.**
 
 - `resolveFieldAdapter` получает **резолвнутый** `node.component` (React-компонент), а не строку `$component(...)`. Ключуй `Map` по той же ссылке, что отдал в `reg.component`.
-- На прежнем пути (`JsonFormRenderer`) тот же резолв передаётся в `JsonRendererProvider settings` — `JsonRendererSettings` наследует его от `RendererSettings`.
 - `control` (нода формы) в контрол по умолчанию **не** пробрасывается — ни с адаптером, ни без (opt-in: `reformerNeedsControl` / `passControl`, см. [03-registry.md](03-registry.md)); `disabled` пробрасывается всегда.
 - Компонентам `@reformer/ui-kit` (`Input`, `Textarea`, `CheckboxWithLabel`, …) и контролам с уже value-based контрактом адаптер не нужен — верни для них `undefined`: у первых диалект объявлен статикой.
 - Полный справочник полей `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в JSDoc типа `FieldAdapter` и кукбуке `@reformer/renderer-react`.

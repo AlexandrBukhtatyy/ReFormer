@@ -1,16 +1,15 @@
 /**
  * Сбор всех `selector` из JSON-схемы формы (§8) — для диагностики промаха `schema.node('typo')`.
  *
- * Идём по СХЕМЕ, а не по рендер-дереву: рендер-дерево кастомных компонентов (напр. визард держит
- * шаги в `componentProps.steps`, а не в `children`) обойти надёжно нельзя. В JSON структура плоская
- * и известна: `children`, `item.$template`, `wrapper` и вложенные ноды внутри `componentProps`.
+ * Идём по СХЕМЕ, а не по рендер-дереву: рендер-дерево кастомных компонентов (узлы в пропсах)
+ * обойти надёжно нельзя. В JSON структура плоская и известна: `children`, `item.$template`,
+ * `wrapper`, вложенные ноды внутри `componentProps` и именованные части документа (`parts`).
  * Обход намеренно over-inclusive (лишний «известный» селектор безвреден; опасно лишь ПРОПУСТИТЬ).
  *
  * @module reformer/renderer-json/collect-schema-selectors
  */
 
 import type { JsonFormSchema } from './types/json-schema';
-import type { JsonFormSchemaV1 } from './types/json-schema-v1';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object';
@@ -18,14 +17,7 @@ function isObj(v: unknown): v is Record<string, unknown> {
 
 /** Похоже ли значение на JSON-ноду (несёт дискриминатор оператора или selector)? */
 function looksLikeNode(v: Record<string, unknown>): boolean {
-  return (
-    'component' in v ||
-    'model' in v ||
-    'value' in v ||
-    'array' in v ||
-    'selector' in v ||
-    'children' in v
-  );
+  return 'component' in v || 'model' in v || 'selector' in v || 'children' in v;
 }
 
 function walkNode(node: unknown, out: Set<string>): void {
@@ -38,7 +30,7 @@ function walkNode(node: unknown, out: Set<string>): void {
   walkNode(node.children, out); // контейнер
   if (isObj(node.item)) walkNode((node.item as Record<string, unknown>).$template, out); // массив
   walkNode(node.wrapper, out); // per-field обёртка
-  // componentProps: значения могут быть вложенными нодами (напр. wizard `steps: [...]`).
+  // componentProps: значения могут быть вложенными нодами (напр. `header` карточки).
   if (isObj(node.componentProps)) {
     for (const v of Object.values(node.componentProps)) walkComponentPropValue(v, out);
   }
@@ -56,15 +48,15 @@ function walkComponentPropValue(v: unknown, out: Set<string>): void {
 /**
  * Собирает множество всех `selector` из JSON-схемы (включая вложенные в `componentProps` ноды).
  *
- * @param schema - JSON-схема формы.
+ * @param schema - Документ JSON-схемы формы формата 2.
  * @returns Множество известных селекторов.
  */
-export function collectSchemaSelectors(schema: JsonFormSchema | JsonFormSchemaV1): Set<string> {
+export function collectSchemaSelectors(schema: JsonFormSchema): Set<string> {
   const out = new Set<string>();
   walkNode(schema.root, out);
-  // Именованные части документа формата 2: их селекторы живут в областях подформ и строк, но
-  // «известными» считаются тоже — обход намеренно over-inclusive.
-  const parts = (schema as JsonFormSchema).parts;
+  // Именованные части документа: их селекторы живут в областях подформ и строк, но «известными»
+  // считаются тоже — обход намеренно over-inclusive.
+  const parts = schema.parts;
   if (isObj(parts)) for (const part of Object.values(parts)) walkNode(part, out);
   return out;
 }

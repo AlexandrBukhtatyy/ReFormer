@@ -21,7 +21,7 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 - **Raw third-party controls** can be registered by name — the renderer translates the value seam (`value` + `onChange(value)`) to each control's dialect via `settings.resolveFieldAdapter`, so no per-control wrapper is needed (see [Raw controls](#raw-controls-field-adapters))
 - JSON carries **layout only** — field rules live in a separate `ValidationDefinition` over the model (see [Validation](#validation))
 - Optional **structural** document validation against a meta-schema (`@reformer/renderer-json/validate`, ajv — load it dynamically, dev only)
-- `migrateJsonSchema` converts a previous-format document (`value` / `array` keys, wizard steps in `componentProps.steps`) to format 2
+- The runtime reads format 2 only; `migrateJsonSchema` converts a stored previous-format document (`value` / `array` keys, wizard steps in `componentProps.steps`) to format 2 on read
 - TypeScript support, tree-shakable exports
 
 ## Installation
@@ -77,9 +77,18 @@ export function MyFormPage() {
 ```
 
 The registry goes into `createForm` explicitly, not through React context, so a host provider and a
-remote renderer may live in different bundles. A previous-format document (no `format: 2`) is still
-built by `createJsonForm` + `useJsonForm` and rendered by `JsonFormRenderer` inside
-`JsonRendererProvider` (types with the `V1` suffix); `migrateJsonSchema(document)` moves it to format 2.
+remote renderer may live in different bundles. A previous-format document (no `format: 2`) is not
+read at runtime — convert it with `migrateJsonSchema(document)` when it is loaded.
+
+### Removed API
+
+| Removed                                                                                                                      | Use instead                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `createJsonForm`, `useJsonForm`                                                                                              | `createForm({ model, schema: document, registry })` from `@reformer/core` + `useFormBundle` from `@reformer/core/react`    |
+| `JsonFormRenderer`                                                                                                           | `<FormRenderer form={bundle} />` from `@reformer/renderer-react`                                                           |
+| `JsonRendererProvider`, `useJsonRendererSettings`                                                                            | the registry goes to `createForm({ registry })`; renderer settings (`resolveFieldAdapter`) go to `<FormRenderer settings>` |
+| `renderBehavior`                                                                                                             | node rules (`hideWhen`, `onComponentEvent`, …) in the form `behavior`                                                      |
+| `JsonFormSchemaV1` and the other `…V1` types, guards and meta-schemas, `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | `migrateJsonSchema(document)` → a format 2 document (`JsonFormSchema`, `convertJsonSchema`)                                |
 
 ## Raw controls (field adapters)
 
@@ -117,8 +126,7 @@ reg.component('Checkbox', Checkbox); // document leaf: { model: '$model(agree)',
 />;
 ```
 
-On the previous path the same resolver is passed through `JsonRendererProvider` settings. See the
-`@reformer/renderer-react` `FieldAdapter` reference for the full field list (`valueProp` /
+See the `@reformer/renderer-react` `FieldAdapter` reference for the full field list (`valueProp` /
 `changeProp` / `fromEmit` / `toValue` / `bindBlur` / `strip`).
 
 ## Validation

@@ -15,6 +15,7 @@ import { renamedComponentOf, warnRenamedComponent } from './renamed-components';
 import { getComponentNames } from '../schema';
 import { validateFormSchema } from '../validate';
 import { collectOperatorNames } from '../collect-operator-names';
+import { migrateJsonSchema } from '../migrate';
 import type { JsonFormSchema } from '../types/json-schema';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -216,20 +217,23 @@ describe('проверка схемы: документ с прежним име
     );
   });
 
-  it('документ кредитной заявки прежнего формата: имена известны реестру с новыми именами', () => {
-    const creditV1 = JSON.parse(
-      readFileSync(
-        fileURLToPath(new URL('../__fixtures__/credit-application.v1.json', import.meta.url)),
-        'utf8'
+  it('документ кредитной заявки прежнего формата после перевода: имена известны реестру с новыми именами', () => {
+    const credit = migrateJsonSchema(
+      JSON.parse(
+        readFileSync(
+          fileURLToPath(new URL('../__fixtures__/credit-application.v1.json', import.meta.url)),
+          'utf8'
+        )
       )
-    ) as JsonFormSchema;
-    const used = collectOperatorNames(creditV1).components;
+    );
+    const used = collectOperatorNames(credit).components;
     const componentNames = [...used].map((name) => renamedComponentOf(name) ?? name);
 
-    // Фикстура намеренно хранит прежнее имя — иначе проверять здесь было бы нечего.
+    // Фикстура намеренно хранит прежнее имя — перевод его не меняет, иначе проверять здесь было
+    // бы нечего.
     expect([...used]).toContain('FormArray');
     expect(componentNames).not.toContain('FormArray');
-    expect(validateFormSchema(creditV1, { componentNames }).errors).toEqual([]);
+    expect(validateFormSchema(credit, { componentNames }).errors).toEqual([]);
   });
 });
 

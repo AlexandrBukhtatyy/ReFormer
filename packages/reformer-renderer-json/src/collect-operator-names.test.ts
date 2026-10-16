@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { collectOperatorNames } from './collect-operator-names';
 import type { JsonFormSchema } from './types/json-schema';
 
-const asSchema = (root: unknown): JsonFormSchema => ({ root }) as unknown as JsonFormSchema;
+const asSchema = (root: unknown): JsonFormSchema =>
+  ({ format: 2, root }) as unknown as JsonFormSchema;
 
 describe('collectOperatorNames', () => {
   it('собирает четыре вида имён и не путает их между собой', () => {
@@ -10,7 +11,7 @@ describe('collectOperatorNames', () => {
       component: '$component(Box)',
       children: [
         {
-          value: '$model(email)',
+          model: '$model(email)',
           component: '$component(Input)',
           componentProps: {
             options: '$dataSource(GENDERS)',
@@ -32,7 +33,7 @@ describe('collectOperatorNames', () => {
   it('$model и $html не попадают ни в один список', () => {
     const schema = asSchema({
       component: '$html(section)',
-      children: [{ value: '$model(deep.path.here)', component: '$component(Input)' }],
+      children: [{ model: '$model(deep.path.here)', component: '$component(Input)' }],
     });
     const names = collectOperatorNames(schema);
     expect(names.components).toEqual(['Input']);
@@ -40,11 +41,11 @@ describe('collectOperatorNames', () => {
   });
 
   it('находит операторы в ГЛУБИНЕ componentProps — там, где JSON Schema видит opaque object', () => {
-    // Реальный случай: RendererFormWizard.steps несёт дерево узлов внутри пропсов.
+    // Компонент несёт дерево узлов внутри пропсов.
     const schema = asSchema({
       component: '$component(Wizard)',
       componentProps: {
-        steps: [
+        sections: [
           { body: { component: '$component(StepOne)' } },
           {
             body: {
@@ -62,19 +63,30 @@ describe('collectOperatorNames', () => {
 
   it('спускается в item.$template массива', () => {
     const schema = asSchema({
-      array: '$model(alerts)',
+      model: '$model(alerts)',
       component: '$component(List)',
       item: { $template: { component: '$component(Alert)' } },
     });
     expect(collectOperatorNames(schema).components).toEqual(['List', 'Alert']);
   });
 
+  it('берёт имена и из именованных частей документа', () => {
+    const schema = {
+      format: 2,
+      parts: { row: { component: '$component(Row)', componentProps: { fmt: '$fn(money)' } } },
+      root: { model: '$model(rows)', component: '$component(List)', item: '$part(row)' },
+    } as JsonFormSchema;
+    const names = collectOperatorNames(schema);
+    expect(names.components).toEqual(['List', 'Row']);
+    expect(names.fns).toEqual(['money']);
+  });
+
   it('дедуплицирует повторы', () => {
     const schema = asSchema({
       component: '$component(Box)',
       children: [
-        { value: '$model(a)', component: '$component(Input)' },
-        { value: '$model(b)', component: '$component(Input)' },
+        { model: '$model(a)', component: '$component(Input)' },
+        { model: '$model(b)', component: '$component(Input)' },
       ],
     });
     expect(collectOperatorNames(schema).components).toEqual(['Box', 'Input']);

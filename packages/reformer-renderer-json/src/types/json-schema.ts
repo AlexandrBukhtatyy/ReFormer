@@ -12,8 +12,8 @@
  * Привязки — только строки-операторы из `operators.ts` (голые строки не резолвятся). Схема —
  * чистый JSON (без вызовов функций), типобезопасна через template-literal типы.
  *
- * Прежний формат (ключи `value` / `array`, шаги в `componentProps.steps`) описан типами с
- * суффиксом `V1` — `./json-schema-v1`; документ переводит `migrateJsonSchema`.
+ * Рантайм читает только этот формат. Документ прежнего формата (ключи `value` / `array`, шаги
+ * в `componentProps.steps`) переводит `migrateJsonSchema`.
  *
  * @module reformer/renderer-json/types
  */
@@ -200,8 +200,8 @@ export interface JsonFormSchema<T = unknown> {
    */
   $schema?: string;
   /**
-   * Формат документа. `2` — этот формат; документ без поля — прежний формат (`JsonFormSchemaV1`),
-   * его переводит `migrateJsonSchema`.
+   * Формат документа. `2` — этот формат; документ без поля — прежний формат, его переводит
+   * `migrateJsonSchema`.
    */
   format: 2;
   /** Идентификатор схемы (произвольная строка: для реестров/трекинга). Игнорируется конвертером. */

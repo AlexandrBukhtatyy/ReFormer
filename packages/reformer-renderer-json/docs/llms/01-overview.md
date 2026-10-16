@@ -80,7 +80,7 @@ function MyFormPage() {
 
 **Схема строкой с сервера.** Если документ приходит `.json`-строкой (тип формы неизвестен), используй `JsonFormSchema` без параметра — типобезопасность путей отключается by-design. Такой документ приводят `raw as unknown as JsonFormSchema<MyForm>` и передают в `createForm` как обычно. Документ прежнего формата сначала переводят: `migrateJsonSchema(document)`.
 
-**Прежний путь.** Документ без `format: 2` (ключи `value` / `array`) по-прежнему собирает `createJsonForm` + `useJsonForm` и рисует `JsonFormRenderer form={jsonForm}` внутри `JsonRendererProvider`; его типы носят суффикс `V1` (`JsonFormSchemaV1`, `defineJsonSchemaV1`). Документ формата 2 этот путь отвергает. Подробно — [10-format-2.md](10-format-2.md).
+**Прежний формат.** Рантайм читает только документ формата 2. Документ без `format: 2` (ключи `value` / `array`) переводят при загрузке — `migrateJsonSchema(document)`; сборка и `validateFormSchema` отвечают на него ошибкой с отсылкой к переводу. API, который читал прежний формат, удалён — замены в таблице [10-format-2.md](10-format-2.md#removed-api).
 
 ## Key Concepts
 
@@ -109,10 +109,8 @@ function MyFormPage() {
 | `convertJsonSchema`                             | Документ формата 2 → дерево узлов (обычно его зовёт реестр при сборке).     |
 | `SchemaErrorPanel`, `SchemaErrorBoundary`       | Панель ошибок документа и граница ошибок рендера.                          |
 | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames` | Мета-схема form-DSL + утилиты (ajv-free). |
-| `createJsonForm`, `useJsonForm`, `JsonFormRenderer`, `JsonRendererProvider` | Прежний путь: документ без `format: 2` (типы `…V1`).          |
-| `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | Конвертеры прежнего формата (низкоуровневые).                        |
 
-> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). Грузи её динамически и только в dev; `JsonFormRenderer` прежнего пути делает это сам при `validateSchema={true}`.
+> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). Грузи её динамически и только в dev; ошибки показывает `SchemaErrorPanel`.
 
 ## See also
 

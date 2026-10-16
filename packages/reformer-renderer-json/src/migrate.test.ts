@@ -10,6 +10,7 @@ import { migrateJsonSchema, DEFAULT_STEP_HOSTS } from './migrate';
 import { validateFormSchema } from './validate';
 import { collectSchemaSelectors } from './collect-schema-selectors';
 import { collectOperatorNames } from './collect-operator-names';
+import { parseOperator } from './operators';
 import { schemaFormatOf } from './types/json-schema';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -32,6 +33,23 @@ function collectKey(node: unknown, key: string, out: unknown[] = []): unknown[] 
       if (name === key) out.push(value);
       collectKey(value, key, out);
     }
+  }
+  return out;
+}
+
+/** Строки-операторы документа, кроме привязок `$model(...)`: имена реестра, части, теги. */
+function operatorStrings(node: unknown, out: string[] = []): string[] {
+  if (typeof node === 'string') {
+    const op = parseOperator(node);
+    if (op && op.op !== 'model') out.push(node);
+    return out;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((item) => operatorStrings(item, out));
+    return out;
+  }
+  if (node !== null && typeof node === 'object') {
+    for (const value of Object.values(node)) operatorStrings(value, out);
   }
   return out;
 }
@@ -196,9 +214,11 @@ describe('migrateJsonSchema: шаги визарда', () => {
 describe('migrateJsonSchema: документ кредитной заявки', () => {
   const migrated = migrateJsonSchema(creditV1);
 
-  it('исходный документ — прежнего формата и проходит свою мета-схему', () => {
+  it('исходный документ — прежнего формата: проверка отсылает к переводу', () => {
     expect(schemaFormatOf(creditV1)).toBe(1);
-    expect(validateFormSchema(creditV1).errors).toEqual([]);
+    const { valid, errors } = validateFormSchema(creditV1);
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/migrateJsonSchema/);
   });
 
   it('после перевода проходит мета-схему формата 2', () => {
@@ -231,19 +251,29 @@ describe('migrateJsonSchema: документ кредитной заявки', 
     for (const step of wizard.children) expect(step.component).toBe('$component(Step)');
   });
 
-  it('селекторы и имена операторов не изменились', () => {
+  it('селекторы и операторы не изменились', () => {
+    const selectorsBefore = collectKey(creditV1, 'selector').filter(
+      (selector): selector is string => typeof selector === 'string'
+    );
     expect([...collectSchemaSelectors(migrated)].sort()).toEqual(
-      [...collectSchemaSelectors(creditV1 as any)].sort()
+      [...new Set(selectorsBefore)].sort()
     );
-    const sorted = (names: ReturnType<typeof collectOperatorNames>) => ({
-      components: [...names.components].sort(),
-      dataSources: [...names.dataSources].sort(),
-      fns: [...names.fns].sort(),
-      locales: [...names.locales].sort(),
-    });
-    expect(sorted(collectOperatorNames(migrated))).toEqual(
-      sorted(collectOperatorNames(creditV1 as any))
-    );
+    // Строки-операторы (имена реестра, теги) переезжают все до одной.
+    expect(operatorStrings(migrated).sort()).toEqual(operatorStrings(creditV1).sort());
+    // И читаются обходчиком переведённого документа.
+    const argsOf = (op: string) => [
+      ...new Set(
+        operatorStrings(creditV1)
+          .map((value) => parseOperator(value)!)
+          .filter((parsed) => parsed.op === op)
+          .map((parsed) => parsed.arg)
+      ),
+    ];
+    const names = collectOperatorNames(migrated);
+    expect([...names.components].sort()).toEqual(argsOf('component').sort());
+    expect([...names.dataSources].sort()).toEqual(argsOf('dataSource').sort());
+    expect([...names.fns].sort()).toEqual(argsOf('fn').sort());
+    expect([...names.locales].sort()).toEqual(argsOf('locale').sort());
   });
 });
 /* eslint-enable @typescript-eslint/no-explicit-any */

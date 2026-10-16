@@ -2,10 +2,13 @@
  * SchemaErrorBoundary — ловит ошибки конвертации/рендера JSON-схемы и рисует {@link SchemaErrorPanel}
  * вместо падения поддерева (§8).
  *
- * Зачем: невалидную схему `convertNodeM1`/`resolveComponent` бросает на этапе РЕНДЕРА (`render()` в
- * `FormRenderer`), а не в useMemo. При выключенном `validateSchema` (обычно prod) это раньше роняло
- * поддерево — пользователь видел белый экран вместо панели ошибок. Error boundary (только классовый
- * компонент умеет ловить render-ошибки) переводит это в ту же панель, что и `validateSchema`.
+ * Зачем: ошибка схемы, которую не поймала явная проверка (`validateFormSchema` обычно зовут только
+ * в dev), всплывает при построении и рендере формы. Без границы она роняла бы поддерево — пользователь
+ * видел бы белый экран вместо панели ошибок. Error boundary (только классовый компонент умеет ловить
+ * render-ошибки) переводит это в ту же панель, что показывают для результата `validateFormSchema`.
+ *
+ * Реестр отдаёт границу единой сборке вместе с деревом (`registry.resolveSchema` →
+ * `errorBoundary`), и `FormRenderer` оборачивает ею форму.
  *
  * @module reformer/renderer-json/components
  */
@@ -49,7 +52,7 @@ export class SchemaErrorBoundary extends Component<
   componentDidCatch(error: Error, info: ErrorInfo): void {
     if (typeof console !== 'undefined') {
       console.error(
-        '[JsonFormRenderer] schema conversion/render failed:',
+        '[SchemaErrorBoundary] schema conversion/render failed:',
         error,
         info.componentStack
       );

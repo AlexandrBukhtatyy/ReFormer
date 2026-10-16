@@ -2,19 +2,18 @@
  * Сборка схемы визарда, разбитой по шагам.
  *
  * Схема с шагами в отдельных файлах держит ссылки ({@link JsonStepRef}) на месте шагов — в
- * `children` визарда (в прежнем формате — в `componentProps.steps`), а файлы шагов — узлы
- * (`JsonFormStep`). Конвертер ссылок не понимает, поэтому схема собирается ДО сборки формы, а не
- * при рендере.
+ * `children` визарда, а файлы шагов — узлы (`JsonFormStep`). Конвертер ссылок не понимает,
+ * поэтому схема собирается ДО сборки формы, а не при рендере.
  *
  * @module reformer/renderer-json/compose
  */
 
-import type { JsonStepRef } from './types/json-schema';
+import type { JsonFormSchema, JsonFormStep, JsonNode, JsonStepRef } from './types/json-schema';
 
 /**
  * Ссылка ли это на файл шага: объект ровно с одним ключом `$ref`-строкой.
  *
- * @param value - Элемент `componentProps.steps`.
+ * @param value - Элемент `children` визарда.
  * @returns `true` для {@link JsonStepRef}.
  *
  * @example
@@ -44,21 +43,20 @@ export function normalizeStepRef(ref: string): string {
   return ref.replace(/^(\.\/)+/, '');
 }
 
-/** Файл шага: узел под ключом `node`; допускается и сам узел (любого формата документа). */
-type StepPart = object;
+/** Файл шага: узел под ключом `node`; допускается и сам узел. */
+type StepPart = JsonFormStep | JsonNode;
 
-function isFormStep(part: StepPart): part is { node: unknown } {
+function isFormStep(part: StepPart): part is JsonFormStep {
   return 'node' in part && typeof (part as { node: unknown }).node === 'object';
 }
 
 /**
- * Подставляет узлы шагов на место ссылок: в `children` визарда (формат 2) и в
- * `componentProps.steps` (прежний формат).
+ * Подставляет узлы шагов на место ссылок в `children` визарда.
  *
  * Не мутирует аргументы: меняются только объекты на пути к ссылке, остальные поддеревья
  * возвращаются по ссылке. Инлайн-шаги рядом со ссылками остаются как есть.
  *
- * @typeParam S - Тип схемы: `JsonFormSchema` либо `JsonFormSchemaV1`.
+ * @typeParam S - Тип схемы: {@link JsonFormSchema} (по умолчанию) либо его уточнение.
  * @param skeleton - Корневая схема со ссылками.
  * @param parts - Файлы шагов по спецификатору `$ref` (с `./` или без). Значение — содержимое
  *   файла шага ({@link JsonFormStep}) или сразу узел.
@@ -73,7 +71,7 @@ function isFormStep(part: StepPart): part is { node: unknown } {
  * const schema = composeJsonFormSchema(rawSchema as JsonFormSchema, stepSchemas);
  * ```
  */
-export function composeJsonFormSchema<S>(
+export function composeJsonFormSchema<S extends JsonFormSchema = JsonFormSchema>(
   skeleton: S,
   parts: Readonly<Record<string, StepPart>>
 ): S {
@@ -117,8 +115,6 @@ export function composeJsonFormSchema<S>(
       let out: unknown;
       if (key === 'children' && Array.isArray(child)) {
         out = composeList(child, join(path, 'children'));
-      } else if (key === 'componentProps' && isRecord(child) && Array.isArray(child.steps)) {
-        out = composeSteps(child, join(path, 'componentProps'));
       } else {
         out = visit(child, join(path, key));
       }
@@ -128,25 +124,7 @@ export function composeJsonFormSchema<S>(
     return changed ? next : value;
   };
 
-  const composeSteps = (props: Record<string, unknown>, path: string): Record<string, unknown> => {
-    let changed = false;
-    const next: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(props)) {
-      const out =
-        key === 'steps'
-          ? composeList(value as unknown[], `${path}.steps`)
-          : visit(value, join(path, key));
-      if (out !== value) changed = true;
-      next[key] = out;
-    }
-    return changed ? next : props;
-  };
-
   return visit(skeleton, '') as S;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function join(path: string, key: string): string {

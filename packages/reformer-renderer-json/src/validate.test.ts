@@ -1,3 +1,8 @@
+/**
+ * `validateFormSchema` на документе формата 2: структура и синтаксис операторов, имена реестра,
+ * ключи локали, шаблон нового элемента массива, HTML-узлы. Части документа, подформы и документ
+ * прежнего формата — в `validate.v2.test.ts`.
+ */
 import { describe, it, expect } from 'vitest';
 import { validateFormSchema } from './validate';
 
@@ -7,6 +12,7 @@ const opts = {
 };
 
 const validSchema = {
+  format: 2,
   version: '1.0',
   root: {
     component: '$component(Box)',
@@ -16,24 +22,24 @@ const validSchema = {
         children: [
           {
             selector: 'email',
-            value: '$model(email)',
+            model: '$model(email)',
             component: '$component(Input)',
             componentProps: { label: 'Email' },
           },
           {
             selector: 'loanType',
-            value: '$model(loanType)',
+            model: '$model(loanType)',
             component: '$component(Select)',
             componentProps: { label: 'Тип', options: '$dataSource(LOAN_TYPES)' },
           },
         ],
       },
       {
-        array: '$model(coBorrowers)',
+        model: '$model(coBorrowers)',
         initialValue: { name: '' },
         item: {
           $template: {
-            value: '$model(name)',
+            model: '$model(name)',
             component: '$component(Input)',
           },
         },
@@ -51,33 +57,37 @@ describe('validateFormSchema', () => {
 
   it('accepts any $model path (paths are dynamic, only syntax is checked)', () => {
     const schema = {
-      root: { value: '$model(deeply.nested.0.path)', component: '$component(Input)' },
+      format: 2,
+      root: { model: '$model(deeply.nested.0.path)', component: '$component(Input)' },
     };
     expect(validateFormSchema(schema, opts).valid).toBe(true);
   });
 
   it('rejects an unknown $component name', () => {
     const schema = {
-      root: { value: '$model(x)', component: '$component(Nope)' },
+      format: 2,
+      root: { model: '$model(x)', component: '$component(Nope)' },
     };
     const { valid, errors } = validateFormSchema(schema, opts);
     expect(valid).toBe(false);
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('rejects a value that is not a $model operator (bad syntax)', () => {
+  it('rejects a binding that is not a $model operator (bad syntax)', () => {
     const schema = {
-      root: { value: 'email', component: '$component(Input)' },
+      format: 2,
+      root: { model: 'email', component: '$component(Input)' },
     };
     const { valid, errors } = validateFormSchema(schema, opts);
     expect(valid).toBe(false);
-    expect(errors.join('\n')).toMatch(/value|pattern/i);
+    expect(errors.join('\n')).toMatch(/model.*pattern/i);
   });
 
   it('rejects an unknown $dataSource name nested in componentProps', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(loanType)',
+        model: '$model(loanType)',
         component: '$component(Select)',
         componentProps: { options: '$dataSource(MISSING)' },
       },
@@ -87,29 +97,18 @@ describe('validateFormSchema', () => {
     expect(errors.join('\n')).toMatch(/dataSource.*MISSING/i);
   });
 
-  it('rejects a node missing its required discriminator (no value/array/component)', () => {
-    const schema = { root: { selector: 'orphan', componentProps: {} } };
+  it('rejects a node missing its required discriminator (no model/component)', () => {
+    const schema = { format: 2, root: { selector: 'orphan', componentProps: {} } };
     expect(validateFormSchema(schema, opts).valid).toBe(false);
   });
 
-  it('flags an array node that omits initialValue (silently-broken elements)', () => {
+  it('accepts an array node that provides a complete initialValue', () => {
     const schema = {
+      format: 2,
       root: {
-        array: '$model(coBorrowers)',
-        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
-      },
-    };
-    const { valid, errors } = validateFormSchema(schema, opts);
-    expect(valid).toBe(false);
-    expect(errors.join('\n')).toMatch(/initialValue/i);
-  });
-
-  it('accepts an array node that provides initialValue', () => {
-    const schema = {
-      root: {
-        array: '$model(coBorrowers)',
+        model: '$model(coBorrowers)',
         initialValue: { name: '' },
-        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
+        item: { $template: { model: '$model(name)', component: '$component(Input)' } },
       },
     };
     expect(validateFormSchema(schema, opts).valid).toBe(true);
@@ -117,15 +116,16 @@ describe('validateFormSchema', () => {
 
   it('flags an array node whose initialValue is missing a template element key (§8)', () => {
     const schema = {
+      format: 2,
       root: {
-        array: '$model(properties)',
+        model: '$model(properties)',
         initialValue: { type: '' }, // не хватает estimatedValue
         item: {
           $template: {
             component: '$component(Box)',
             children: [
-              { value: '$model(type)', component: '$component(Input)' },
-              { value: '$model(estimatedValue)', component: '$component(Input)' },
+              { model: '$model(type)', component: '$component(Input)' },
+              { model: '$model(estimatedValue)', component: '$component(Input)' },
             ],
           },
         },
@@ -138,8 +138,9 @@ describe('validateFormSchema', () => {
 
   it('accepts a complete initialValue; nested-array key counts, its inner leaves do not (§8)', () => {
     const schema = {
+      format: 2,
       root: {
-        array: '$model(properties)',
+        model: '$model(properties)',
         // ключи элемента: type (лист) + docs (вложенный массив). Внутренний лист вложенного
         // массива (fileName) — ключ ВЛОЖЕННОГО элемента, в этот initialValue входить не должен.
         initialValue: { type: '', docs: [] },
@@ -147,11 +148,11 @@ describe('validateFormSchema', () => {
           $template: {
             component: '$component(Box)',
             children: [
-              { value: '$model(type)', component: '$component(Input)' },
+              { model: '$model(type)', component: '$component(Input)' },
               {
-                array: '$model(docs)',
+                model: '$model(docs)',
                 initialValue: { fileName: '' },
-                item: { $template: { value: '$model(fileName)', component: '$component(Input)' } },
+                item: { $template: { model: '$model(fileName)', component: '$component(Input)' } },
               },
             ],
           },
@@ -163,8 +164,9 @@ describe('validateFormSchema', () => {
 
   it('accepts an array node with a $component and NO initialValue (display-list path)', () => {
     const schema = {
+      format: 2,
       root: {
-        array: '$model(alerts)',
+        model: '$model(alerts)',
         component: '$component(List)',
         item: {
           $template: {
@@ -180,11 +182,12 @@ describe('validateFormSchema', () => {
 
   it('rejects an unknown $fn name nested in componentProps', () => {
     const schema = {
+      format: 2,
       root: {
-        array: '$model(properties)',
+        model: '$model(properties)',
         initialValue: { type: '' },
         componentProps: { itemLabel: '$fn(MISSING)' },
-        item: { $template: { value: '$model(type)', component: '$component(Input)' } },
+        item: { $template: { model: '$model(type)', component: '$component(Input)' } },
       },
     };
     const { valid, errors } = validateFormSchema(schema, { ...opts, fnNames: ['itemLabel'] });
@@ -194,8 +197,9 @@ describe('validateFormSchema', () => {
 
   it('rejects a dataSource name used as $fn (cross-type)', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Input)',
         componentProps: { format: '$fn(LOAN_TYPES)' },
       },
@@ -208,8 +212,9 @@ describe('validateFormSchema', () => {
 
   it('skips $fn name checks when fnNames is not provided', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Input)',
         componentProps: { format: '$fn(whatever)' },
       },
@@ -220,8 +225,9 @@ describe('validateFormSchema', () => {
 
   it('rejects an unknown $locale key when a catalog (localeKeys) is provided', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         componentProps: { label: '$locale(fields.typo)' },
       },
@@ -236,8 +242,9 @@ describe('validateFormSchema', () => {
 
   it('skips $locale key checks when localeKeys is not provided (open-ended keys)', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         componentProps: { label: '$locale(any.key)' },
       },
@@ -247,8 +254,9 @@ describe('validateFormSchema', () => {
 
   it('rejects an unknown key in the structured { $locale, params } form', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Input)',
         componentProps: { label: { $locale: 'fields.typo', params: { count: 3 } } },
       },
@@ -260,8 +268,9 @@ describe('validateFormSchema', () => {
 
   it('accepts a known key in the structured { $locale, params } form', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Input)',
         componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
       },
@@ -270,23 +279,24 @@ describe('validateFormSchema', () => {
   });
 
   it('reports only the relevant branch, not a cross-branch wall, for a bad node', () => {
-    // Узел явно field (несёт `value`), но `value` — не $model-оператор.
-    const schema = { root: { value: 'email', component: '$component(Input)' } };
+    // Узел явно поле (несёт `model` без `item` / `part`), но `model` — не $model-оператор.
+    const schema = { format: 2, root: { model: 'email', component: '$component(Input)' } };
     const { valid, errors } = validateFormSchema(schema, opts);
     expect(valid).toBe(false);
-    // Настоящая причина всплывает (pattern у value)…
-    expect(errors.join('\n')).toMatch(/value.*pattern/i);
-    // …и НЕ погребена под ошибками чужих ветвей (array/item), oneOf- или then/else-шумом.
+    // Настоящая причина всплывает (pattern у model)…
+    expect(errors.join('\n')).toMatch(/model.*pattern/i);
+    // …и НЕ погребена под ошибками чужих ветвей (массив/подформа), oneOf- или then/else-шумом.
     expect(errors.join('\n')).not.toMatch(/oneOf/i);
-    expect(errors.join('\n')).not.toMatch(/'array'|'item'/i);
+    expect(errors.join('\n')).not.toMatch(/'item'|'part'/i);
     expect(errors.join('\n')).not.toMatch(/then|else/i);
-    // Ровно одна структурная ошибка — по value, без кросс-ветвевой стены.
+    // Ровно одна структурная ошибка — по model, без кросс-ветвевой стены.
     expect(errors.filter((e) => e.includes('/root')).length).toBe(1);
   });
 
   describe('HTML-узлы ($html(tag) + текстовые children)', () => {
     it('принимает html-узел с текстом и вложенными узлами', () => {
       const schema = {
+        format: 2,
         root: {
           component: '$html(div)',
           componentProps: { className: 'p-4' },
@@ -294,7 +304,7 @@ describe('validateFormSchema', () => {
             { component: '$html(h3)', children: ['Итого'] },
             { component: '$html(p)', children: ['Платёж: ', '$model(monthlyPayment)', ' ₽'] },
             { component: '$html(hr)' },
-            { value: '$model(email)', component: '$component(Input)' },
+            { model: '$model(email)', component: '$component(Input)' },
           ],
         },
       };
@@ -303,6 +313,7 @@ describe('validateFormSchema', () => {
 
     it('принимает текст после вложенного узла', () => {
       const schema = {
+        format: 2,
         root: {
           component: '$html(p)',
           children: [{ component: '$html(b)', children: ['Важно:'] }, ' и далее текст'],
@@ -312,19 +323,20 @@ describe('validateFormSchema', () => {
     });
 
     it('отвергает тег вне whitelist', () => {
-      const schema = { root: { component: '$html(script)' } };
+      const schema = { format: 2, root: { component: '$html(script)' } };
       const { valid, errors } = validateFormSchema(schema, opts);
       expect(valid).toBe(false);
       expect(errors.join('\n')).toMatch(/not allowed in \$html/i);
     });
 
     it('проверяет теги даже без реестра — whitelist статичен', () => {
-      const schema = { root: { component: '$html(iframe)' } };
+      const schema = { format: 2, root: { component: '$html(iframe)' } };
       expect(validateFormSchema(schema).valid).toBe(false);
     });
 
     it('находит запрещённый тег во вложенном узле', () => {
       const schema = {
+        format: 2,
         root: {
           component: '$component(Box)',
           children: [{ component: '$html(div)', children: [{ component: '$html(object)' }] }],
@@ -336,19 +348,19 @@ describe('validateFormSchema', () => {
     });
 
     it('отвергает снятое поле text — содержимое живёт в children', () => {
-      const schema = { root: { component: '$html(p)', text: 'Внимание' } };
+      const schema = { format: 2, root: { component: '$html(p)', text: 'Внимание' } };
       const { valid, errors } = validateFormSchema(schema, opts);
       expect(valid).toBe(false);
       expect(errors.join('\n')).toMatch(/text/);
     });
 
     it('отвергает текстового ребёнка неверного типа', () => {
-      const schema = { root: { component: '$html(p)', children: [true] } };
+      const schema = { format: 2, root: { component: '$html(p)', children: [true] } };
       expect(validateFormSchema(schema, opts).valid).toBe(false);
     });
 
     it('$html не проходит там, где ожидается компонент реестра ($component)', () => {
-      const schema = { root: { component: '$component(html)' } };
+      const schema = { format: 2, root: { component: '$component(html)' } };
       const { valid, errors } = validateFormSchema(schema, opts);
       expect(valid).toBe(false);
       expect(errors.join('\n')).toMatch(/unknown component/i);

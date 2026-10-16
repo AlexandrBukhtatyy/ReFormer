@@ -172,8 +172,7 @@ function MyFormPage() {
 - Граница ошибок схемы (`SchemaErrorBoundary`) тоже приходит из бандла.
 - Несколько реестров объединяет `composeRegistries` — вложенные провайдеры не нужны.
 - Поведение — одно: `defineFormBehavior(({ model, form, schema, flow }) => …)`. Правила узлов
-  (`hideWhen`, `onComponentEvent`, `onMount`) и навигация (`flow.goTo(id)`) пишутся в нём,
-  отдельного `renderBehavior` нет.
+  (`hideWhen`, `onComponentEvent`, `onMount`) и навигация (`flow.goTo(id)`) пишутся в нём.
 - Тексты замечаний — словарь формы `defineIssueMessages` и `ValidationMessagesProvider messages`
   из `@reformer/cdk` вокруг `FormRenderer`; правила несут только коды.
 
@@ -212,32 +211,29 @@ const bundle = createForm({ model, schema, registry });
 Функция чистая, документ формата 2 возвращает как есть — её можно вызывать на любом документе.
 Части (`parts`) она не выделяет: повторяющиеся фрагменты выносятся вручную.
 
-## Прежний формат
+## Удалённый API прежнего пути { #removed-api }
 
-Документ без `format` по-прежнему читают `createJsonForm`, `useJsonForm`, `JsonFormRenderer` и
-`JsonRendererProvider`; документ формата 2 они отвергают. Типы и гарды прежнего формата носят
-суффикс `V1`:
+Рантайм читает только документ формата 2. Документ без `format` сборка (`convertJsonSchema`) и
+проверка (`validateFormSchema`) отвергают с отсылкой к `migrateJsonSchema`;
+`composeJsonFormSchema`, `collectOperatorNames` и `collectSchemaSelectors` принимают документ
+формата 2. API, который читал прежний формат, удалён:
 
-| Формат 2                    | Прежний формат                  |
-| --------------------------- | ------------------------------- |
-| `JsonFormSchema`            | `JsonFormSchemaV1`              |
-| `JsonNode`, `JsonFieldNode` | `JsonNodeV1`, `JsonFieldNodeV1` |
-| `JsonArrayNode`             | `JsonArrayNodeV1`               |
-| `JsonPartNode`              | —                               |
-| `defineJsonSchema`          | `defineJsonSchemaV1`            |
-| `isFieldNode`, `isArrayNode` | `isFieldNodeV1`, `isArrayNodeV1` |
-| `buildFormSchemaMetaSchema` | `buildFormSchemaMetaSchemaV1`   |
-| `convertJsonSchema`         | `convertJsonToM1Tree`           |
-
-`validateFormSchema`, `composeJsonFormSchema`, `collectOperatorNames` и `collectSchemaSelectors`
-принимают оба формата.
+| Было | Стало |
+| --- | --- |
+| `createJsonForm`, `useJsonForm`, типы `JsonForm`, `CreateJsonFormConfig` | `createForm({ model, schema, registry })` из `@reformer/core`, `useFormBundle` из `@reformer/core/react` |
+| `JsonFormRenderer`, `JsonFormRendererProps` | `<FormRenderer form={bundle} />` из `@reformer/renderer-react` |
+| `JsonRendererProvider`, `useJsonRendererSettings`, `useJsonRendererSettingsUnchecked`, `JsonRendererSettings`, `JsonRendererProviderProps` | реестр — в `createForm({ registry })` (несколько — `composeRegistries`); настройки рендерера (`resolveFieldAdapter`, `fieldWrapper`) — `<FormRenderer settings>` |
+| проп `renderBehavior`, тип `RenderBehaviorFn` | правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) в поведении формы — поле `behavior` сборки |
+| `JsonFormSchemaV1`, `JsonNodeV1`, `JsonFieldNodeV1`, `JsonArrayNodeV1`, `JsonContainerNodeV1`, `JsonChildV1`, `JsonFormStepV1` | `migrateJsonSchema(document)` → `JsonFormSchema`, `JsonNode`, `JsonFieldNode`, `JsonArrayNode`, `JsonContainerNode`, `JsonChild`, `JsonFormStep` |
+| `isFieldNodeV1`, `isArrayNodeV1`, `isContainerNodeV1`, `defineJsonSchemaV1` | `isFieldNode`, `isArrayNode`, `isContainerNode`, `defineJsonSchema` |
+| `formSchemaMetaSchemaV1`, `buildFormSchemaMetaSchemaV1`, `buildFormStepMetaSchemaV1` | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `buildFormStepMetaSchema` |
+| `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | `convertJsonSchema` (обычно его зовёт реестр при сборке) |
 
 ## Частые ошибки
 
 | Симптом | Причина |
 | --- | --- |
-| `The document is in the previous JSON schema format` | у документа нет `format: 2` — переведи его `migrateJsonSchema` |
-| `createJsonForm: документ схемы — формата 2` | документ формата 2 собирает `createForm({ model, schema, registry })` |
+| `The document is in the previous JSON schema format` / `/: the document is in the previous JSON schema format` | у документа нет `format: 2` (сборка / `validateFormSchema`) — переведи его `migrateJsonSchema` |
 | `Part "x" not found in the document "parts"` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
 | `"$model(x)" is not a group of the model` | подформа подключена к полю; `part` ставится на объект модели |
 | `"$model(x)" is not an array of the model` | узел с `item` привязан не к массиву либо начальное значение массива — `null` |

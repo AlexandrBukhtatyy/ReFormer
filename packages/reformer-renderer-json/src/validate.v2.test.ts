@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import Ajv from 'ajv';
 import { validateFormSchema } from './validate';
+import { migrateJsonSchema } from './migrate';
 import { composeJsonFormSchema } from './compose';
 import { collectSchemaSelectors } from './collect-schema-selectors';
 import { collectOperatorNames } from './collect-operator-names';
@@ -196,13 +197,26 @@ describe('validateFormSchema: формат 2', () => {
     expect(validateFormSchema(schema, opts).valid).toBe(false);
   });
 
-  it('документ без `format` проверяется как прежний формат', () => {
+  it('документ без `format` — прежнего формата: одна ошибка с отсылкой к migrateJsonSchema', () => {
     const v1 = { root: { value: '$model(email)', component: '$component(Input)' } };
     expect(schemaFormatOf(v1)).toBe(1);
-    expect(validateFormSchema(v1, opts).errors).toEqual([]);
-    // Тот же узел с ключом формата 2 в документе без `format` — ошибка.
+    const result = validateFormSchema(v1, opts);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatch(/previous JSON schema format.*migrateJsonSchema/);
+    // Узлы такого документа по мета-схеме не проверяются: и с ключом формата 2 — та же ошибка.
     const mixed = { root: { model: '$model(email)', component: '$component(Input)' } };
-    expect(validateFormSchema(mixed, opts).valid).toBe(false);
+    expect(validateFormSchema(mixed, opts).errors).toEqual(result.errors);
+    // Переведённый документ проверяется по существу.
+    expect(validateFormSchema(migrateJsonSchema(v1), opts).errors).toEqual([]);
+  });
+
+  it('чужое значение `format` и не-объект называет мета-схема', () => {
+    expect(
+      validateFormSchema({ format: 3, root: { component: '$component(Box)' } }).errors
+    ).toEqual(['/format must be equal to constant']);
+    expect(validateFormSchema(null).valid).toBe(false);
+    expect(validateFormSchema(null).errors.join('\n')).not.toMatch(/migrateJsonSchema/);
   });
 
   it('несобранная ссылка на шаг в `children` визарда — ошибка с отсылкой к сборке', () => {
@@ -260,13 +274,15 @@ describe('composeJsonFormSchema: шаги в `children`', () => {
     component: '$component(Step)',
     children: [{ model: '$model(loanType)', component: '$component(Input)' }],
   };
+  // Ссылка на шаг — не узел, поэтому несобранный документ приводится к типу документа, как
+  // JSON-импорт.
   const skeleton = {
     format: 2,
     root: {
       component: '$component(FormWizard)',
       children: [{ $ref: './steps/loan/form.schema.json' }, loanStep],
     },
-  };
+  } as unknown as JsonFormSchema;
 
   it('ссылка в `children` заменяется узлом шага; документ после сборки валиден', () => {
     const composed = composeJsonFormSchema(skeleton, {

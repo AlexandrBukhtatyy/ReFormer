@@ -74,8 +74,9 @@ const propSchemas = { Select: selectPropsSchema, Input: inputPropsSchema };
 describe('validateFormSchema — componentProps (phase d)', () => {
   it('(1a) catches a typo in componentProps of a component node', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(loanType)',
+        model: '$model(loanType)',
         component: '$component(Select)',
         componentProps: { label: 'Тип', lable: 'oops', options: '$dataSource(LOAN_TYPES)' },
       },
@@ -85,15 +86,16 @@ describe('validateFormSchema — componentProps (phase d)', () => {
     expect(errors.join('\n')).toMatch(/has unknown property "lable"/);
   });
 
-  it('(1b) reaches a component node nested inside componentProps.steps (reachability regress)', () => {
+  it('(1b) reaches a component node nested inside componentProps (reachability regress)', () => {
     const schema = {
+      format: 2,
       root: {
-        // мастер: сам НЕ в карте propSchemas → его props пропускаются, но обход доходит до шагов
-        component: '$component(Wizard)',
+        // карточка: сама НЕ в карте propSchemas → её props пропускаются, но обход доходит до узлов
+        component: '$component(Card)',
         componentProps: {
-          steps: [
+          sections: [
             {
-              value: '$model(amount)',
+              model: '$model(amount)',
               component: '$component(Input)',
               componentProps: { label: 'Сумма', maxx: 100 },
             },
@@ -105,13 +107,14 @@ describe('validateFormSchema — componentProps (phase d)', () => {
     expect(valid).toBe(false);
     expect(errors.join('\n')).toMatch(/has unknown property "maxx"/);
     // путь указывает на вложенную ноду, а не на корень
-    expect(errors.join('\n')).toMatch(/steps\[0\]\.componentProps/);
+    expect(errors.join('\n')).toMatch(/sections\[0\]\.componentProps/);
   });
 
   it('(2) accepts an operator string in place of a literal prop value ($dataSource)', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(loanType)',
+        model: '$model(loanType)',
         component: '$component(Select)',
         componentProps: { options: '$dataSource(LOAN_TYPES)' },
       },
@@ -121,8 +124,9 @@ describe('validateFormSchema — componentProps (phase d)', () => {
 
   it('(3) skips a component that is absent from the propSchemas map', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Custom)',
         componentProps: { whatever: 123, nonsense: true },
       },
@@ -132,8 +136,9 @@ describe('validateFormSchema — componentProps (phase d)', () => {
 
   it('(4) is unchanged (backward compatible) when propSchemas is not provided', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(loanType)',
+        model: '$model(loanType)',
         component: '$component(Select)',
         componentProps: { lable: 'typo', clearable: 'not-a-bool' },
       },
@@ -146,8 +151,9 @@ describe('validateFormSchema — componentProps (phase d)', () => {
 
   it('(5) names the mistyped prop and leaks no operatorOp/anyOf noise', () => {
     const schema = {
+      format: 2,
       root: {
-        value: '$model(loanType)',
+        model: '$model(loanType)',
         component: '$component(Select)',
         componentProps: { lable: 'typo', clearable: 'yes' },
       },

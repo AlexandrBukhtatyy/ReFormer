@@ -65,8 +65,7 @@ export class ComponentRegistryImpl implements ComponentRegistry {
 
   /**
    * Дерево узлов из документа формата 2 — точка подключения реестра к единой сборке `createForm`.
-   * Вместе с деревом отдаёт то, что раньше делал `JsonFormRenderer`: обёртку поля из записи
-   * `FIELD_WRAPPER` и границу ошибок схемы.
+   * Вместе с деревом отдаёт обёртку поля из записи `FIELD_WRAPPER` и границу ошибок схемы.
    */
   resolveSchema(document: unknown, model: FormModel<never>): ResolvedSchema {
     const fieldWrapper = this.get(FIELD_WRAPPER)?.component;
@@ -113,9 +112,9 @@ export class ComponentRegistryImpl implements ComponentRegistry {
  * Композиция реестров слева направо: каждый следующий перекрывает предыдущие
  * (last-wins, как `Object.assign`).
  *
- * Программная альтернатива вложенным {@link JsonRendererProvider}. Нужна там, где порядок
- * ВЛАДЕНИЯ (форма → микрофронт → общее ядро) не совпадает с порядком React-дерева, а также
- * в не-React окружении и когда провайдер и рендерер оказываются в разных бандлах.
+ * Нужна там, где реестр собирается из нескольких источников по порядку ВЛАДЕНИЯ (форма →
+ * микрофронт → общее ядро): результат передаётся сборке формы одним реестром
+ * (`createForm({ model, schema, registry })`), без React-контекста.
  *
  * @param registries - Реестры от наименее приоритетного к наиболее приоритетному.
  * @returns Объединённый {@link ComponentRegistry}; пустой, если аргументов нет.
@@ -134,11 +133,12 @@ export function composeRegistries(...registries: readonly ComponentRegistry[]): 
 /**
  * Создаёт реестр компонентов через builder-callback.
  *
- * Реестр обязателен для работы {@link JsonFormRenderer} — иначе компоненты,
- * упомянутые в JSON-схеме, не отрезолвятся.
+ * Реестр обязателен для сборки формы из документа — иначе компоненты, упомянутые в JSON-схеме,
+ * не отрезолвятся.
  *
  * @param fn - Builder-callback. Получает {@link RegistryBuilder} с методами `component`, `dataSource`.
- * @returns Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
+ * @returns Готовый {@link ComponentRegistry}, который передаётся сборке:
+ *   `createForm({ model, schema: document, registry })`.
  *
  * @example
  * ```typescript

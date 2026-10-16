@@ -2,13 +2,16 @@
  * Валидация form-DSL JSON-схемы (ajv) — отдельная точка входа `@reformer/renderer-json/validate`,
  * чтобы `ajv` не попадал в основной render-бандл (грузится только при явном импорте/динамически).
  *
- * Две проверки:
+ * Проверяется только документ формата 2 (`format: 2`). Документ прежнего формата не проверяется
+ * по существу: результат — одна ошибка с отсылкой к `migrateJsonSchema`.
+ *
+ * Две основные проверки:
  *  (a) ajv против {@link formSchemaMetaSchema} — структура узлов + синтаксис операторов;
  *  (b) рекурсивный обход — ИМЕНА `$component(...)` и `$dataSource(...)` против реестра.
  *
- * Почему имена проверяет обход, а не enum в JSON Schema: реальные формы вкладывают дерево узлов
- * в произвольный `componentProps` (напр. `RendererFormWizard.steps`), который JSON Schema видит как
- * opaque `object` — enum достал бы только имена на структурных позициях верхних уровней. Обход же
+ * Почему имена проверяет обход, а не enum в JSON Schema: формы вкладывают узлы в произвольный
+ * `componentProps` (напр. `header` карточки), который JSON Schema видит как opaque `object` —
+ * enum достал бы только имена на структурных позициях верхних уровней. Обход же
  * доходит до любого оператора. (Enum-вариант — {@link buildFormSchemaMetaSchema} — нужен для IDE
  * `$schema`, где squiggle на структурных `component` полезен сам по себе.) `$model(...)` — только
  * синтаксис (пути динамичны, в каждой форме свои).
@@ -19,7 +22,6 @@
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import {
   formSchemaMetaSchema,
-  formSchemaMetaSchemaV1,
   getComponentNames,
   getDataSourceNames,
   getFnNames,
@@ -30,7 +32,6 @@ import {
 import { parseOperator, isModelOp } from './operators';
 import { isAllowedHtmlTag } from './html/html-tags';
 import { isJsonStepRef } from './compose';
-import { schemaFormatOf } from './types/json-schema';
 import type { ComponentRegistry } from './registry/types';
 import { renamedComponentOf } from './registry/renamed-components';
 
@@ -65,7 +66,7 @@ interface OperatorNameChecks {
   dataSourceNames?: string[];
   fnNames?: string[];
   localeKeys?: readonly string[];
-  /** Имена частей документа формата 2 (ключи `parts`) — то, что валидно в `$part(...)`. */
+  /** Имена частей документа (ключи `parts`) — то, что валидно в `$part(...)`. */
   partNames?: string[];
 }
 
@@ -201,8 +202,8 @@ function getComponentPropsValidator(
 /**
  * Фаза (d): рекурсивно находит ноды с оператором `component` и валидирует их `componentProps` по
  * карте `propSchemas`. По образцу {@link walkOperatorNames} — обход доходит до нод, вложенных в
- * произвольный `componentProps` (напр. `componentProps.steps[…]` у мастера), которые JSON Schema
- * видит как opaque. Мягкий пропуск: компонента нет в карте → пропускается индивидуально.
+ * произвольный `componentProps`, которые JSON Schema видит как opaque. Мягкий пропуск: компонента
+ * нет в карте → пропускается индивидуально.
  */
 function walkComponentProps(
   node: unknown,
@@ -243,8 +244,8 @@ function walkComponentProps(
 }
 
 /**
- * Фаза (e): ссылки на файлы шагов (`{ "$ref" }` в `componentProps.steps`). Структурно такая схема
- * проходит — `componentProps` для мета-схемы непрозрачен, — а мастер получил бы объект вместо шага.
+ * Фаза (e): ссылки на файлы шагов (`{ "$ref" }` в `children` визарда). Конвертер их не понимает —
+ * схему с шагами в отдельных файлах собирают до проверки и до сборки формы.
  */
 function walkStepRefs(node: unknown, path: string, errors: string[]): void {
   if (Array.isArray(node)) {
@@ -253,80 +254,58 @@ function walkStepRefs(node: unknown, path: string, errors: string[]): void {
   }
   if (node === null || typeof node !== 'object') return;
   const n = node as Record<string, unknown>;
-  const props = n.componentProps as Record<string, unknown> | undefined;
-  const report = (list: unknown[], at: string): void =>
-    list.forEach((step, i) => {
+  if (Array.isArray(n.children)) {
+    n.children.forEach((step, i) => {
       if (isJsonStepRef(step)) {
         errors.push(
-          `${path ? `${path}.` : ''}${at}[${i}]: step reference "${step.$ref}" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating.`
+          `${path ? `${path}.` : ''}children[${i}]: step reference "${step.$ref}" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating.`
         );
       }
     });
-  // Прежний формат держит шаги в `componentProps.steps`, формат 2 — в `children` визарда.
-  if (props !== null && typeof props === 'object' && Array.isArray(props.steps)) {
-    report(props.steps, 'componentProps.steps');
   }
-  if (Array.isArray(n.children)) report(n.children, 'children');
   for (const [k, v] of Object.entries(n)) {
     walkStepRefs(v, path ? `${path}.${k}` : k, errors);
   }
 }
 
-/** Похож ли объект на array-узел (`array: '$model(...)'` + `item.$template`)? */
-function looksLikeArrayNode(n: Record<string, unknown>): boolean {
-  return (
-    isModelOp(n.array) &&
-    typeof n.item === 'object' &&
-    n.item !== null &&
-    '$template' in (n.item as Record<string, unknown>)
-  );
-}
-
 /**
  * Собирает ключи элемента массива — первый сегмент каждого `$model(...)`-биндинга шаблона
- * (`value` у листа, `array` у вложенного массива). Во вложенный `item.$template` НЕ спускается:
- * его листья — ключи вложенного элемента, а не текущего. Используется для проверки полноты
+ * (привязка `model` у поля, подформы и вложенного массива). Во вложенный `item` НЕ спускается:
+ * его поля — ключи вложенного элемента, а не текущего. Используется для проверки полноты
  * `initialValue` (§8).
  */
-function collectTemplateModelKeys(
-  node: unknown,
-  keys = new Set<string>(),
-  bindingKeys: readonly string[] = ['value', 'array']
-): Set<string> {
+function collectTemplateModelKeys(node: unknown, keys = new Set<string>()): Set<string> {
   if (Array.isArray(node)) {
-    node.forEach((v) => collectTemplateModelKeys(v, keys, bindingKeys));
+    node.forEach((v) => collectTemplateModelKeys(v, keys));
     return keys;
   }
   if (node !== null && typeof node === 'object') {
     const n = node as Record<string, unknown>;
-    for (const bindingKey of bindingKeys) {
-      const op = n[bindingKey];
-      if (isModelOp(op)) {
-        const key = (parseOperator(op)?.arg ?? '').split('.')[0].split('[')[0];
-        if (key) keys.add(key);
-      }
+    if (isModelOp(n.model)) {
+      const key = (parseOperator(n.model)?.arg ?? '').split('.')[0].split('[')[0];
+      if (key) keys.add(key);
     }
     for (const [k, v] of Object.entries(n)) {
       if (k === 'item') continue; // не спускаемся в шаблон вложенного массива
-      collectTemplateModelKeys(v, keys, bindingKeys);
+      collectTemplateModelKeys(v, keys);
     }
   }
   return keys;
 }
 
 /**
- * Формат 2: `initialValue` узла-массива необязателен (шаблон нового элемента живёт в модели —
+ * Фаза (c): `initialValue` узла-массива необязателен (шаблон нового элемента живёт в модели —
  * `arrayOf`), но если он задан, то обязан нести все ключи строки. Шаблон строки — вписанный узел
  * либо именованная часть документа.
  */
-function walkArrayInitialValueV2(
+function walkArrayInitialValue(
   node: unknown,
   path: string,
   parts: Record<string, unknown>,
   errors: string[]
 ): void {
   if (Array.isArray(node)) {
-    node.forEach((v, i) => walkArrayInitialValueV2(v, `${path}[${i}]`, parts, errors));
+    node.forEach((v, i) => walkArrayInitialValue(v, `${path}[${i}]`, parts, errors));
     return;
   }
   if (node === null || typeof node !== 'object') return;
@@ -342,7 +321,7 @@ function walkArrayInitialValueV2(
     const partName = parseOperator(n.item)?.op === 'part' ? parseOperator(n.item)!.arg : undefined;
     const template =
       partName !== undefined ? parts[partName] : (n.item as { $template?: unknown }).$template;
-    const required = collectTemplateModelKeys(template, new Set(), ['model']);
+    const required = collectTemplateModelKeys(template);
     const have = new Set(Object.keys(initial as Record<string, unknown>));
     const missing = [...required].filter((k) => !have.has(k));
     if (missing.length) {
@@ -352,60 +331,30 @@ function walkArrayInitialValueV2(
     }
   }
   for (const [k, v] of Object.entries(n)) {
-    walkArrayInitialValueV2(v, path ? `${path}.${k}` : k, parts, errors);
+    walkArrayInitialValue(v, path ? `${path}.${k}` : k, parts, errors);
   }
 }
 
 /**
- * Рекурсивно флагает array-узлы без `initialValue`. Листья шаблона несут `value: '$model(...)'`
- * (под-пути элемента-объекта), поэтому без литерал-`initialValue` кнопка «Добавить» кладёт `{}` —
- * ядро строит группу строки без полей, `$model(...)`-листья резолвятся в undefined-сигналы и ничего
- * не рендерят (карточка только с кнопками). Схема при этом структурно валидна (initialValue
- * опционален), так что молчаливую поломку ловим здесь.
+ * Ошибка для документа прежнего формата: объект без поля `format`. Не-объект и объект с чужим
+ * значением `format` доходят до мета-схемы — она назовёт ошибку сама.
  */
-function walkArrayInitialValue(node: unknown, path: string, errors: string[]): void {
-  if (Array.isArray(node)) {
-    node.forEach((v, i) => walkArrayInitialValue(v, `${path}[${i}]`, errors));
-    return;
-  }
-  if (node !== null && typeof node === 'object') {
-    const n = node as Record<string, unknown>;
-    // Требуем initialValue только для редактируемого (встроенного) пути. Если задан `component`
-    // (напр. `$component(List)` — display-список), «Добавить» нет, initialValue не нужен.
-    if (looksLikeArrayNode(n)) {
-      if (n.initialValue === undefined && n.component === undefined) {
-        errors.push(
-          `${path || '/'}: array node is missing "initialValue" — the "Add" button would create an empty element and its "$model(...)" template leaves would render nothing. Provide an "initialValue" literal with the element's keys.`
-        );
-      } else if (
-        n.initialValue !== null &&
-        typeof n.initialValue === 'object' &&
-        !Array.isArray(n.initialValue)
-      ) {
-        // §8: initialValue задан, но обязан содержать ВСЕ ключи элемента (первый сегмент каждого
-        // $model(...)-биндинга шаблона). Недостающий ключ → у элемента нет сигнала, поле не рендерится
-        // (тихая поломка, ранее не ловилась — проверялось только наличие initialValue).
-        const template = (n.item as Record<string, unknown>).$template;
-        const required = collectTemplateModelKeys(template);
-        const have = new Set(Object.keys(n.initialValue as Record<string, unknown>));
-        const missing = [...required].filter((k) => !have.has(k));
-        if (missing.length) {
-          errors.push(
-            `${path || '/'}: array node "initialValue" is missing element keys [${missing.join(', ')}] required by the item template — those "$model(...)" leaves would have no signal and render nothing.`
-          );
-        }
-      }
-    }
-    for (const [k, v] of Object.entries(n)) {
-      walkArrayInitialValue(v, path ? `${path}.${k}` : k, errors);
-    }
-  }
+function previousFormatError(schema: unknown): string | undefined {
+  if (schema === null || typeof schema !== 'object' || Array.isArray(schema)) return undefined;
+  if ('format' in schema) return undefined;
+  return (
+    '/: the document is in the previous JSON schema format (no "format": 2) — the runtime reads ' +
+    'format 2 only. Convert it with migrateJsonSchema(document) and validate the result.'
+  );
 }
 
 /**
- * Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него
- * (иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт в subpath
- * `@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+ * Валидирует документ JSON-схемы формы формата 2. Если передан `registry`, имена компонентов/source
+ * берутся из него (иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт
+ * в subpath `@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+ *
+ * Документ прежнего формата (без `format: 2`) по существу не проверяется: результат — одна ошибка
+ * с отсылкой к `migrateJsonSchema`.
  *
  * Если задан `opts.propSchemas` (карта регистр-имя → схема componentProps), дополнительно запускается
  * фаза (d): рекурсивный обход валидирует `componentProps` каждой компонент-ноды по её схеме (ловит
@@ -432,20 +381,23 @@ export function validateFormSchema(
   const fnNames = opts.fnNames ?? (opts.registry ? getFnNames(opts.registry) : undefined);
   const localeKeys = opts.localeKeys ?? (opts.registry ? getLocaleKeys(opts.registry) : undefined);
 
+  // Документ прежнего формата рантайм не читает: проверять его узлы по мета-схеме формата 2 —
+  // значит выдать стену ошибок на каждый ключ `value` / `array`. Одна ошибка с выходом короче.
+  const previous = previousFormatError(schema);
+  if (previous) return { valid: false, errors: [previous] };
+
   const errors: string[] = [];
 
-  // Формат документа выбирает мета-схему и обходчики: `format: 2` — новый, без поля — прежний.
-  const v2 = schemaFormatOf(schema) === 2;
-  const rawParts = v2 ? (schema as { parts?: unknown }).parts : undefined;
+  const rawParts = (schema as { parts?: unknown } | null)?.parts;
   const parts =
     rawParts !== null && typeof rawParts === 'object' && !Array.isArray(rawParts)
       ? (rawParts as Record<string, unknown>)
       : {};
-  const partNames = v2 ? Object.keys(parts) : undefined;
+  const partNames = Object.keys(parts);
 
   // (a) Структура узлов + синтаксис операторов (имена НЕ enum-чекаются здесь — см. (b))
   const ajv = new Ajv({ allErrors: true });
-  const validateFn = ajv.compile(v2 ? formSchemaMetaSchema : formSchemaMetaSchemaV1);
+  const validateFn = ajv.compile(formSchemaMetaSchema);
   if (!validateFn(schema)) {
     for (const msg of formatAjvErrors(validateFn.errors, '')) errors.push(msg);
   }
@@ -459,10 +411,9 @@ export function validateFormSchema(
     errors
   );
 
-  // (c) Шаблон нового элемента массива. Прежний формат: без initialValue «Добавить» молча ломает
-  // элементы. Формат 2: шаблон живёт в модели, поэтому проверяется только полнота заданного.
-  if (v2) walkArrayInitialValueV2(schema, '', parts, errors);
-  else walkArrayInitialValue(schema, '', errors);
+  // (c) Шаблон нового элемента массива живёт в модели, поэтому проверяется только полнота
+  // заданного в документе запасного `initialValue`.
+  walkArrayInitialValue(schema, '', parts, errors);
 
   // (e) Несобранная схема: ссылка на файл шага дошла бы до мастера объектом вместо шага.
   walkStepRefs(schema, '', errors);

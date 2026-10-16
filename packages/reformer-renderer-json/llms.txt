@@ -99,7 +99,7 @@ function MyFormPage() {
 
 **Схема строкой с сервера.** Если документ приходит `.json`-строкой (тип формы неизвестен), используй `JsonFormSchema` без параметра — типобезопасность путей отключается by-design. Такой документ приводят `raw as unknown as JsonFormSchema<MyForm>` и передают в `createForm` как обычно. Документ прежнего формата сначала переводят: `migrateJsonSchema(document)`.
 
-**Прежний путь.** Документ без `format: 2` (ключи `value` / `array`) по-прежнему собирает `createJsonForm` + `useJsonForm` и рисует `JsonFormRenderer form={jsonForm}` внутри `JsonRendererProvider`; его типы носят суффикс `V1` (`JsonFormSchemaV1`, `defineJsonSchemaV1`). Документ формата 2 этот путь отвергает. Подробно — [10-format-2.md](10-format-2.md).
+**Прежний формат.** Рантайм читает только документ формата 2. Документ без `format: 2` (ключи `value` / `array`) переводят при загрузке — `migrateJsonSchema(document)`; сборка и `validateFormSchema` отвечают на него ошибкой с отсылкой к переводу. API, который читал прежний формат, удалён — замены в таблице [10-format-2.md](10-format-2.md#removed-api).
 
 ## 4. Key Concepts
 
@@ -128,10 +128,8 @@ function MyFormPage() {
 | `convertJsonSchema`                             | Документ формата 2 → дерево узлов (обычно его зовёт реестр при сборке).     |
 | `SchemaErrorPanel`, `SchemaErrorBoundary`       | Панель ошибок документа и граница ошибок рендера.                          |
 | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames` | Мета-схема form-DSL + утилиты (ajv-free). |
-| `createJsonForm`, `useJsonForm`, `JsonFormRenderer`, `JsonRendererProvider` | Прежний путь: документ без `format: 2` (типы `…V1`).          |
-| `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | Конвертеры прежнего формата (низкоуровневые).                        |
 
-> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). Грузи её динамически и только в dev; `JsonFormRenderer` прежнего пути делает это сам при `validateSchema={true}`.
+> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). Грузи её динамически и только в dev; ошибки показывает `SchemaErrorPanel`.
 
 ## 6. See also
 
@@ -146,7 +144,7 @@ function MyFormPage() {
 
 **JSON Schema**
 
-Схема — **чистый JSON** (строковый операторный DSL): все привязки кодируются строками-операторами (`$model(...)`, `$component(...)`, `$dataSource(...)`, `$fn(...)`, `$locale(...)`, `$part(...)`), поэтому документ можно положить в `.json` или принять строкой с сервера/CMS. Голые строки (`label`, `placeholder`) резолвятся как есть. Здесь описан документ формата 2; прежний формат — в конце страницы и в [10-format-2.md](10-format-2.md).
+Схема — **чистый JSON** (строковый операторный DSL): все привязки кодируются строками-операторами (`$model(...)`, `$component(...)`, `$dataSource(...)`, `$fn(...)`, `$locale(...)`, `$part(...)`), поэтому документ можно положить в `.json` или принять строкой с сервера/CMS. Голые строки (`label`, `placeholder`) резолвятся как есть. Здесь описан документ формата 2 — единственный формат, который читает рантайм; прежний формат — в конце страницы и в [10-format-2.md](10-format-2.md).
 
 - **`JsonFormSchema`** — корневой документ: `format: 2` (обязателен), опциональные `$schema` (путь к мета-схеме для IDE), `id`, `version` (версия содержимого формы — её сверяет реестр форм), `meta`, `parts` (именованные части документа) и единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Привязка к модели — один ключ `model`; чем является узел, решают соседние ключи:
@@ -350,7 +348,7 @@ const schema = defineJsonSchema<{ email: string }>({
 
 ## 11. Прежний формат
 
-Документ без `format: 2` использует ключи `value` (поле) и `array` (массив), а шаги визарда держит в `componentProps.steps`; частей (`parts`) в нём нет. Его типы и гарды носят суффикс `V1` (`JsonFormSchemaV1`, `JsonFieldNodeV1`, `isFieldNodeV1`, `defineJsonSchemaV1`), собирает его `createJsonForm`. `migrateJsonSchema(document)` переводит его в формат 2. Ключ `value` в документе формата 2 мета-схема отвергает (`unknown property "value"`).
+Документ без `format: 2` использует ключи `value` (поле) и `array` (массив), а шаги визарда держит в `componentProps.steps`; частей (`parts`) в нём нет. Рантайм его не читает: `migrateJsonSchema(document)` переводит его в формат 2 при загрузке, а сборка и `validateFormSchema` отвечают на него ошибкой с отсылкой к переводу. Ключ `value` в документе формата 2 мета-схема отвергает (`unknown property "value"`).
 
 ## 12. Anti-patterns
 
@@ -384,7 +382,7 @@ const schema = defineJsonSchema<{ email: string }>({
 
 Реестр — это карта от имени в операторе схемы (`$component(Name)` / `$dataSource(NAME)` / `$fn(name)`) на React-компонент, source-значение или функцию; плюс единственный сервис локализации для `$locale(key)`. Без регистрации компонент не отрендерится — будет ошибка вида _Component "X" not found in registry_.
 
-- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `model: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`model` vs `children`), а не тем, как компонент зарегистрирован. Лист получает seam рендерера (`value` + `onChange(value)` + `onBlur`) в диалекте контрола: компонент объявляет его статикой `reformerAdapter` (у компонентов `@reformer/ui-kit` она уже есть — регистрируйте их как есть, отдельных «field-версий» нет), без статики seam проходит как есть. Сырой контрол чужой библиотеки с другим диалектом (Checkbox — `checked` + `onChange(event)`, Select — `value` + `onChange(value, option)`, Radio — `value` + `onChange(event)`) регистрируется тем же `reg.component`, а диалект ему задаёт либо статика (`defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`), либо `resolveFieldAdapter` в настройках рендерера — `<FormRenderer settings>`, на прежнем пути `JsonRendererProvider settings` (приоритетнее статики) — см. `FieldAdapter` / `RendererSettings.resolveFieldAdapter` в renderer-react. Обычным value-based контролам адаптер не нужен.
+- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `model: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`model` vs `children`), а не тем, как компонент зарегистрирован. Лист получает seam рендерера (`value` + `onChange(value)` + `onBlur`) в диалекте контрола: компонент объявляет его статикой `reformerAdapter` (у компонентов `@reformer/ui-kit` она уже есть — регистрируйте их как есть, отдельных «field-версий» нет), без статики seam проходит как есть. Сырой контрол чужой библиотеки с другим диалектом (Checkbox — `checked` + `onChange(event)`, Select — `value` + `onChange(value, option)`, Radio — `value` + `onChange(event)`) регистрируется тем же `reg.component`, а диалект ему задаёт либо статика (`defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`), либо `resolveFieldAdapter` в настройках рендерера — `<FormRenderer settings>` (приоритетнее статики) — см. `FieldAdapter` / `RendererSettings.resolveFieldAdapter` в renderer-react. Обычным value-based контролам адаптер не нужен.
 - **`control` — только по запросу (§3.1, BREAKING)** — leaf-контрол по умолчанию больше **НЕ** получает проп `control` (ноду формы). Для двустороннего обмена значением ему хватает value-based seam (`value` + `onChange`); реактивные рантайм-пропы (догруженные `options`, `loading`, …) мёржит сам рендерер; label/error/touched обслуживает `FieldWrapper` (`FIELD_WRAPPER` / `FormField`) — а он `control` получает как раньше. Раньше `control` попадал в контрол по умолчанию, и адаптер нередко заводили лишь чтобы его вырезать (иначе нода текла бы в DOM) — теперь этого делать не нужно, `control` просто не передаётся. Если же контрол сам потребляет ноду (напр. вызывает `useFormControl(control)` ради её сигналов), включи передачу **явно**: статикой `Component.reformerNeedsControl = true` на самом компоненте либо `passControl: true` в его `FieldAdapter`. Оба флага независимы от seam-адаптации — контролу можно отдать `control`, не заводя адаптер, и наоборот (адаптер, переложивший диалект, `control` по-прежнему не передаёт, пока не выставлен `passControl`).
 - **dataSource value** — именованная константа, функция или React-компонент, на которые ссылаются строкой `'$dataSource(NAME)'` из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
 - **fn** — функция (форматтер/компаратор/itemLabel/обработчик), на которую ссылаются строкой `'$fn(name)'` из `componentProps`. Регистрируется через `reg.fn(name, fn)`. Отдельный от `dataSource` вид: `reg.fn` бросает при регистрации не-функции, а `validateFormSchema` ловит перепутанные `$fn`/`$dataSource`. Рантайм передаёт функцию в проп по ссылке (как `$dataSource`-функцию), новизна — в статической проверке.
@@ -534,12 +532,12 @@ const settings: RendererSettings = {
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
 - **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
-- **Путать приоритет при композиции реестров** — `composeRegistries(base, ...overrides)` сливает реестры слева направо, и при дублях выигрывает **последний**, как у `Object.assign`. Результат уходит в сборку `createForm({ registry })`. На прежнем пути то же правило у вложенных `JsonRendererProvider`: внешний провайдер задаёт базу, внутренний её перекрывает.
-- **Использовать `$dataSource(NAME)` без регистрации** — без `validateSchema` строка просто прокинется в проп как есть (молчаливый баг); с `validateSchema` даст ошибку `unknown dataSource "NAME"`.
+- **Путать приоритет при композиции реестров** — `composeRegistries(base, ...overrides)` сливает реестры слева направо, и при дублях выигрывает **последний**, как у `Object.assign`. Результат уходит в сборку `createForm({ registry })`.
+- **Использовать `$dataSource(NAME)` без регистрации** — сборка бросит `Data source "NAME" not found in registry`; `validateFormSchema` назовёт это заранее: `unknown dataSource "NAME"`.
 - **Ссылаться на dataSource как на компонент** — `component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
-- **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)` и отклонится на `validateSchema`.
+- **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)`, а `validateFormSchema` её отклонит.
 - **Регистрировать несколько сервисов локализации** — сервис один (кладётся под `LOCALE_SERVICE`); повторный `reg.locale(...)` перезапишет предыдущий. Разные языки — это разные каталоги, передаваемые в `reg.locale` по одному за раз.
-- **Регистрировать сырой контрол без адаптера** — `reg.component('Checkbox', RawCheckbox)`, где контрол читает значение из `checked` и эмитит DOM-событие (`onChange(event)`), при value-based seam запишет в модель сам объект события вместо булева. Такому контролу нужен адаптер: статика `reformerAdapter` (`defineFieldControl(RawCheckbox, { adapter })` из `@reformer/ui-kit/fields`) либо `resolveFieldAdapter` в настройках рендерера (`<FormRenderer settings>`; на прежнем пути — `JsonRendererProvider settings`, `JsonRendererSettings` наследует `RendererSettings`), который переложит seam на его диалект; компонентам `@reformer/ui-kit` и уже-value-based контролам ничего не требуется.
+- **Регистрировать сырой контрол без адаптера** — `reg.component('Checkbox', RawCheckbox)`, где контрол читает значение из `checked` и эмитит DOM-событие (`onChange(event)`), при value-based seam запишет в модель сам объект события вместо булева. Такому контролу нужен адаптер: статика `reformerAdapter` (`defineFieldControl(RawCheckbox, { adapter })` из `@reformer/ui-kit/fields`) либо `resolveFieldAdapter` в настройках рендерера (`<FormRenderer settings>`), который переложит seam на его диалект; компонентам `@reformer/ui-kit` и уже-value-based контролам ничего не требуется.
 - **Полагаться на проп `control` в leaf-контроле по умолчанию** (§3.1, BREAKING) — теперь он **НЕ** передаётся. Контрол, который вызывает `useFormControl(control)` (или иначе читает ноду), без opt-in получит `control === undefined` и упадёт/тихо не подпишется. Включи передачу явно: `Component.reformerNeedsControl = true` на компоненте либо `passControl: true` в его `FieldAdapter`. `FieldWrapper` (`FIELD_WRAPPER` / `FormField`) это не касается — обёртка `control` получает как прежде. И наоборот — **заводить адаптер лишь чтобы `strip`-нуть `control`** больше не нужно: по умолчанию его в пропах контрола нет.
 
 ## 18. See also
@@ -555,7 +553,7 @@ const settings: RendererSettings = {
 
 - `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
-- В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний. На прежнем пути (`JsonFormRenderer`) реестр приходит пропом `registry`, бандлом `form` либо из `JsonRendererProvider`; при вложенных провайдерах выигрывает **внутренний**.
+- В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний.
 - Прежние имена `FormArray` / `FormArraySection` реестр понимает сам — как псевдонимы `FieldArray` / `FieldArraySection` (в dev — предупреждение `Компонент "FormArray" переименован в "FieldArray"`). Ошибка «not found» для них значит, что в реестре нет и записи под новым именем.
 
 ## 20. Field renders without label/error
@@ -597,7 +595,7 @@ reg.component(FIELD_WRAPPER, FormField);
 />
 ```
 
-`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). На прежнем пути его передают в `JsonRendererProvider settings` — `JsonRendererSettings` наследует его без изменений. Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
+`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
 
 ## 23. componentProps string passes through as plain string
 
@@ -605,21 +603,17 @@ reg.component(FIELD_WRAPPER, FormField);
 
 ## 24. The document is in the previous JSON schema format
 
-У документа нет `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`), а собирает его `createForm`. Переведи его `migrateJsonSchema(document)` — функция чистая, документ формата 2 возвращает как есть. Обратная ошибка — `createJsonForm: документ схемы — формата 2`: документ формата 2 собирает `createForm({ model, schema, registry })`, а не `createJsonForm`.
+У документа нет `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`), а собирает его `createForm`. Рантайм читает только формат 2: переведи документ `migrateJsonSchema(document)` при загрузке — функция чистая, документ формата 2 возвращает как есть. `validateFormSchema` на таком документе отвечает одной ошибкой с той же отсылкой.
 
-## 25. useJsonRendererSettings throws outside provider
+## 25. Invalid schema (при проверке документа)
 
-Только прежний путь. `useJsonRendererSettings` в dev-режиме бросает, если вызван вне `JsonRendererProvider` **или** если в провайдере не передан `registry`. Оберни вызывающий компонент в провайдер с реестром. Сборке `createForm` провайдер не нужен — реестр уходит в неё явно.
+`validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` прогоняет документ через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под поле/массив/подформу/контейнер, голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя, необъявленная часть `$part(...)`, неполный `initialValue`, несобранная ссылка на шаг. Ошибки рисует `SchemaErrorPanel`. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
 
-## 26. Invalid schema (при проверке документа)
-
-`validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` прогоняет документ через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под поле/массив/подформу/контейнер, голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя, необъявленная часть `$part(...)`, неполный `initialValue`, несобранная ссылка на шаг. Ошибки рисует `SchemaErrorPanel`. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны. На прежнем пути то же делает проп `validateSchema` у `JsonFormRenderer`.
-
-## 27. Behavior selector matches nothing
+## 26. Behavior selector matches nothing
 
 `hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит поведение. `selector` — plain-строка, НЕ оператор. Узлы внутри шаблона строки и именованной части лежат в своих областях: их адресует поведение строки (`applyEach(model.$.items, rowBehavior)`) или подформы (`apply(model.$.group, groupBehavior)`), а не корневое.
 
-## 28. Шаблон строки массива не рендерит строки
+## 27. Шаблон строки массива не рендерит строки
 
 Проверь:
 
@@ -627,11 +621,11 @@ reg.component(FIELD_WRAPPER, FormField);
 - Внутри шаблона пути `$model(...)` заданы **относительно строки** (`model: '$model(type)'`, а не `'$model(properties.0.type)'`).
 - Шаблон новой строки объявлен в модели — `arrayOf(blank)` — либо узел несёт `initialValue`. Без обоих «Добавить» бросает ошибку про шаблон.
 
-## 29. Массив рендерится без полей / пустой при добавлении
+## 28. Массив рендерится без полей / пустой при добавлении
 
 `initialValue` должен быть **полным** plain-объектом по форме элемента (все поля, что есть в шаблоне) — это проверяет `validateFormSchema`. Если передать частичный объект (`{ type: 'apartment' }` без `estimatedValue`/`description`), под-модель нового элемента не получит сигналов для недостающих полей и они не отрендерятся. Надёжнее шаблон в модели — `arrayOf(blankProperty)`.
 
-## 30. Toggle-видимость секции массива
+## 29. Toggle-видимость секции массива
 
 Условный показ секции (напр. массив `properties` виден только когда `hasProperty === true`) делается **не** кастомным блоком, а правилом узла в поведении формы:
 
@@ -645,7 +639,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 
 Поведение уходит в сборку полем `behavior`; узел адресуется по своему `selector`.
 
-## 31. console.warn: поведение обращается к узлам, которых нет в дереве
+## 30. console.warn: поведение обращается к узлам, которых нет в дереве
 
 `createForm` в dev сверяет адресованные через `schema.node(...)` селекторы с деревом и пишет «поведение обращается к узлам схемы, которых нет в корневом дереве: "…"». Обычно это опечатка в `selector` внутри поведения либо узел строки/части, адресованный из корневого поведения. Как чинить:
 
@@ -653,17 +647,13 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 - Убедись, что узлу вообще задан `selector` (без него узел не адресуется — см. «Behavior selector matches nothing»).
 - Узел строки или подформы адресуй из их поведения (`applyEach` / `apply`).
 
-Промах не роняет форму, но правило молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум. На прежнем пути `JsonFormRenderer` пишет похожее: «`schema.node(...)` адресует неизвестный selector» с перечнем известных селекторов.
+Промах не роняет форму, но правило молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум.
 
-## 32. dev-warn: нестабильный `renderBehavior`
-
-Только прежний путь (`JsonFormRenderer`). Если ссылка на `renderBehavior` меняется между рендерами (новая функция на каждый рендер родителя), рендерер в dev-режиме предупреждает: дерево пересобирается на каждый проход. Держи ссылку стабильной — задавай фабрику полем `renderBehavior` конфига `createJsonForm` (бандл собран один раз, ссылка стабильна по построению) либо объявляй функцию `const` на уровне модуля. В сборке `createForm` отдельного `renderBehavior` нет — правила узлов в поведении формы.
-
-## 33. Битая схема → `SchemaErrorPanel`, а не белый экран
+## 31. Битая схема → `SchemaErrorPanel`, а не белый экран
 
 Ошибку рендера дерева из документа перехватывает `SchemaErrorBoundary` и рисует `SchemaErrorPanel` с описанием проблемы. В сборке `createForm` граница приходит в бандле от реестра (`bundle.render.errorBoundary`), и `FormRenderer` оборачивает ею дерево. Ошибку **сборки** (неизвестный `$component` бросает конвертер при `createForm`) граница рендера не ловит — проверяй документ до сборки `validateFormSchema` (см. «Invalid schema») и показывай `SchemaErrorPanel` вместо формы, как эталон `complex-multy-step-form-renderer-json`.
 
-## 34. See also
+## 32. See also
 
 - [01-overview.md](01-overview.md)
 - [02-json-schema.md](02-json-schema.md)
@@ -671,7 +661,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 - [05-cookbook.md](05-cookbook.md)
 - [10-format-2.md](10-format-2.md)
 
-## 35. Монтаж формы из JSON { #mounting }
+## 33. Монтаж формы из JSON { #mounting }
 
 **Cookbook**
 
@@ -707,10 +697,10 @@ export function MyFormPage() {
 **Notes.**
 
 - Документ с неизвестным `$component` бросает при сборке. Проверяй его заранее: `validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` (тянет ajv — грузи динамически и только в dev, как эталон `complex-multy-step-form-renderer-json`), при ошибках рисуй `SchemaErrorPanel`. Ошибку рендера перехватывает `SchemaErrorBoundary` — сборка кладёт его в бандл.
-- Поведение (compute/enableWhen/onChange модели **и** правила узлов hideWhen/onComponentEvent/onMount) — одно, полем `behavior`. Отдельного `renderBehavior` нет.
-- Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и рендерер ремоута могут оказаться в разных бандлах. `JsonRendererProvider` для этого пути не нужен.
+- Поведение (compute/enableWhen/onChange модели **и** правила узлов hideWhen/onComponentEvent/onMount) — одно, полем `behavior`.
+- Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и рендерер ремоута могут оказаться в разных бандлах.
 
-## 36. Сборка формы одним проходом { #one-pass }
+## 34. Сборка формы одним проходом { #one-pass }
 
 **Problem.** Схему легко передать дважды — в сборку формы и отдельно рендереру — и две несвязанные передачи одного артефакта разъезжаются. Плюс `useMemo` для сборки модели/формы ненадёжен: React вправе сбросить его кэш.
 
@@ -761,9 +751,9 @@ export function CreditFormPage() {
 - Модель задаётся **либо** `initial` (создаётся внутри через `createModel`), **либо** готовой `model` (приоритетнее `initial`). Ни того, ни другого — `createForm` бросает.
 - `useFormBundle(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз.
 - `defineJsonSchema<T>` в `form.schema.ts` — канон схемы для renderer-json: identity-хелпер сужает пути `$model(...)` до `Path<T>`. Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри шаблона строки и именованной части относительны строке/группе и НЕ типизируются.
-- **Прежний формат** (документ без `format: 2`) собирает `createJsonForm` + `useJsonForm` и рисует `JsonFormRenderer form={jsonForm}` внутри `JsonRendererProvider`; его типы — `JsonFormSchemaV1`, `defineJsonSchemaV1`. Документ формата 2 `createJsonForm` отвергает. Перевод — `migrateJsonSchema` (см. [10-format-2.md](10-format-2.md)).
+- **Прежний формат** (документ без `format: 2`) рантайм не читает: переведи документ `migrateJsonSchema(document)` при загрузке и собирай результат `createForm` (см. [10-format-2.md](10-format-2.md)).
 
-## 37. Шаблон строки массива { #template-arrays }
+## 35. Шаблон строки массива { #template-arrays }
 
 **Problem.** В JSON нельзя выразить функцию `(row) => узел` для шаблона строки. Массив должен остаться декларативным.
 
@@ -811,7 +801,7 @@ createModel<CreditForm>({ /* … */ properties: arrayOf(blankProperty) });
 - Вложенный массив в массиве — новый узел массива внутри шаблона со своим `model`/`item`. Повторяющийся шаблон выносится в `parts` и подключается `"item": "$part(property)"`.
 - В JSON-документе прежнего формата компонент секции мог называться `$component(FormArray)` — реестр понимает это имя как псевдоним `FieldArray` (в dev — предупреждение), см. [03-registry.md](03-registry.md).
 
-## 38. Display-список из массива модели { #display-list }
+## 36. Display-список из массива модели { #display-list }
 
 **Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который даёт `FieldArray`.
 
@@ -852,7 +842,7 @@ defineFormBehavior<FormShape>(({ model }) => {
 - Компонент-рендерер массива получает готовые элементы пропом `items` (`{ key, index, model, children }`) и колбэки `onAdd`/`onRemove`/`onMove` — итерацию делает рендерер.
 - Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FieldArray` без мутаций) и `useList`.
 
-## 39. dataSource-значения и функции { #datasource }
+## 37. dataSource-значения и функции { #datasource }
 
 **Problem.** Нужно передать в проп массив options, функцию (`itemLabel: (row, index) => string`) или React-компонент — а JSON хранит только примитивы и объекты.
 
@@ -905,7 +895,7 @@ const registry = defineRegistry((reg) => {
 - Если имя не зарегистрировано: без проверки документа строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); `validateFormSchema` даст ошибку `unknown dataSource "NAME"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
-## 40. Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
+## 38. Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
 
 **Problem.** JSON-реестр удобно наполнять готовыми контролами чужого UI-kit (antd/MUI) прямо по имени: `reg.component('Checkbox', Checkbox)`. Компоненты `@reformer/ui-kit` объявляют свой диалект статикой `reformerAdapter`, и рендерер применяет её сам, — а у чужих контролов статики нет, и они получают seam **как есть**: `value` + `onChange(value)`. Сырой antd `Checkbox` держит значение в `checked` и эмитит DOM-событие (`onChange(e)`), `Radio` — тоже событие: без перевода в модель попадёт `event`, а не значение. `Select` эмитит `(value, option)` — значение приходит **первым** и пишется в модель верно (лишний `option` отбрасывается сам) — ему адаптер не нужен.
 
@@ -944,12 +934,11 @@ const adapters = new Map<unknown, FieldAdapter>([
 **Notes.**
 
 - `resolveFieldAdapter` получает **резолвнутый** `node.component` (React-компонент), а не строку `$component(...)`. Ключуй `Map` по той же ссылке, что отдал в `reg.component`.
-- На прежнем пути (`JsonFormRenderer`) тот же резолв передаётся в `JsonRendererProvider settings` — `JsonRendererSettings` наследует его от `RendererSettings`.
 - `control` (нода формы) в контрол по умолчанию **не** пробрасывается — ни с адаптером, ни без (opt-in: `reformerNeedsControl` / `passControl`, см. [03-registry.md](03-registry.md)); `disabled` пробрасывается всегда.
 - Компонентам `@reformer/ui-kit` (`Input`, `Textarea`, `CheckboxWithLabel`, …) и контролам с уже value-based контрактом адаптер не нужен — верни для них `undefined`: у первых диалект объявлен статикой.
 - Полный справочник полей `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в JSDoc типа `FieldAdapter` и кукбуке `@reformer/renderer-react`.
 
-## 41. Рантайм-сущности и пропсы узла (form, поток, статус) { #inject-runtime }
+## 39. Рантайм-сущности и пропсы узла (form, поток, статус) { #inject-runtime }
 
 **Problem.** Компоненту нужно то, что нельзя выразить в статичном JSON: форма, поток шагов, обработчик, статус загрузки.
 
@@ -975,7 +964,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ schema }) => {
 - `patchProps` мержит переданные пропы в `componentProps` узла.
 - Прежний приём — `onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, validateStep, validateAll }))` — больше не нужен: `validateStep`/`validateAll`-конфига у визарда нет, правила шагов — поток сборки (см. [07-form-wizard.md](07-form-wizard.md)).
 
-## 42. Вся форма read-only / view-mode { #readonly }
+## 40. Вся форма read-only / view-mode { #readonly }
 
 **Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
 
@@ -1013,7 +1002,7 @@ export const readonlyBehavior = defineFormBehavior<MyForm>(({ form }) => {
 - `readOnly` в DSL тоже нет: ни одна props-схема его не объявляет, и `additionalProperties: false` его отклонит.
 - Отключённые ноды не валидируются — для чистого view-mode это обычно желаемо.
 
-## 43. Migration from TS schema { #migration }
+## 41. Migration from TS schema { #migration }
 
 **Problem.** Есть готовая TS-схема `@reformer/renderer-react` (`(model) => RenderNode<T>` с React-компонентами по ссылке) — нужно перенести её в JSON-документ.
 
@@ -1063,7 +1052,7 @@ const registry = defineRegistry((reg) => {
 - Вид узла решают соседние ключи: `model` + `item` → массив, `model` + `part` → подформа, `model` → поле, `component` + `children` → контейнер. Порядок распознавания: массив → подформа → поле → контейнер.
 - Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `defineFormBehavior` и подключается полем `behavior` сборки. TS- и JSON-варианты одной формы переиспользуют одно поведение, одни правила и один поток шагов.
 
-## 44. Презентационные блоки без регистрации компонентов { #html-nodes }
+## 42. Презентационные блоки без регистрации компонентов { #html-nodes }
 
 **Problem.** Заголовки, инфо-плашки, разделители, блок «Итого» с живыми значениями. Через `$component(...)` под каждый такой блок нужен React-компонент и строка в реестре — реестр разрастается кодом, который ничего не делает, кроме вёрстки.
 
@@ -1133,7 +1122,7 @@ defineRegistry((reg) => {
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
 - Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/demo/html-nodes/`.
 
-## 45. See also
+## 43. See also
 
 - [01-overview.md](01-overview.md) — сборка `createForm` из документа и реестра.
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` и операторам.
@@ -1141,7 +1130,7 @@ defineRegistry((reg) => {
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 - [10-format-2.md](10-format-2.md) — документ формата 2 и перевод прежнего.
 
-## 46. Mental model — почему валидаторов нет в JSON { #mental-model }
+## 44. Mental model — почему валидаторов нет в JSON { #mental-model }
 
 **Validation**
 
@@ -1160,7 +1149,7 @@ defineRegistry((reg) => {
 
 Дальше — три шага: (1) правила над моделью, (2) подключить их к сборке, (3) тексты замечаний.
 
-## 47. Шаг 1 — правила над моделью { #build-schema }
+## 45. Шаг 1 — правила над моделью { #build-schema }
 
 Схема валидации — обычная функция `({ model, cross }) => void`, обёрнутая `defineValidation<T>(...)`. Внутри вызываются операторы из `@reformer/core/validation`: `validate(handle, [rules])` для синхронных правил (массив правил на поле). `handle` — ручка модели (`model.$.path`), НЕ строка-оператор `$model(...)` (операторы — только для layout-JSON; схема валидации это обычный TS-код). Фабрики правил импортируются из `@reformer/core/validators`; опции правила — `{ code?, params? }`.
 
@@ -1186,7 +1175,7 @@ export const applicantRules = defineValidation<CreditForm>(({ model }) => {
 
 Остальные операторы (тот же контракт, что в TS-форме): `validateAsync(handle, [asyncRules])` — асинхронные правила `(value, { signal }) => Promise<...>`; `validateWhen(() => cond, () => {...})` — условная валидация; `cross(handle, (snapshot) => issue | null)` из аргумента схемы — правило над несколькими полями по снимку модели; `applyEach(model.$.items, rowRules)` — правила строк массива; `apply(...schemas)` — композиция. Полное описание — `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
-## 48. Шаг 2 — подключить к сборке { #execute }
+## 46. Шаг 2 — подключить к сборке { #execute }
 
 Документ формата 2 собирает та же сборка, что и TS-схему: `createForm({ model, schema, registry })`. Правила шагов уходят в поток, правила вне шагов — в `validation`:
 
@@ -1222,7 +1211,7 @@ return <FormRenderer form={bundle} />;
 
 > **Мост «поведение инициирует валидацию».** Если правка одного поля должна перепрогнать правила другого (без отправки), это делает поведение — `revalidateWhen([model.$.dep], () => void validateModel(model, rules))` в `defineFormBehavior` (контракт `@reformer/core/behaviors`). Валидация остаётся отдельным слоем; поведение лишь дёргает раннер.
 
-## 49. Шаг 3 — тексты замечаний { #messages }
+## 47. Шаг 3 — тексты замечаний { #messages }
 
 ```typescript
 import { defineIssueMessages } from '@reformer/core/i18n';
@@ -1243,7 +1232,7 @@ import { ValidationMessagesProvider } from '@reformer/cdk';
 
 Порядок поиска текста: словарь формы → словарь локали → встроенный английский → сам `code`. Словарь — код, а не данные: в JSON-документ он не попадает и остаётся в бандле вместе с правилами.
 
-## 50. Полный рабочий пример { #full-example }
+## 48. Полный рабочий пример { #full-example }
 
 Зеркалит эталон `complex-multy-step-form-renderer-json`: правила — TS-схемы над моделью (`@reformer/core/validation`), общие для всех вариантов рендера; документ отличается от TS-варианта только тем, что он JSON.
 
@@ -1308,7 +1297,7 @@ export function CreditFormPage() {
 }
 ```
 
-## 51. Когда прогонять — декларативная стратегия { #strategy }
+## 49. Когда прогонять — декларативная стратегия { #strategy }
 
 По умолчанию правила запускаются только явно: «Далее», отправка, `bundle.validate()`. Живую проверку выбирает поле `strategy` в `validation` сборки — тем же контрактом, что и для TS-схемы (JSON тут ни при чём — он несёт только layout):
 
@@ -1321,13 +1310,13 @@ createForm<CreditForm>({
 
 Значения `strategy`: `submit` (default — прогон только явным вызовом), `blur` (по потере фокуса), `change` (на каждый ввод + `debounce`), `afterFirstSubmit` (тихо до первой попытки отправки → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`; живую фазу включает только `bundle.submission.submit` — `bundle.validate()`, `validateStep` и `flow.next()` её не включают). Подписки армирует `useFormBundle` в эффекте (SSR-safe). Для простой формы без сборки — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core/react`.
 
-## 52. Прежний формат документа { #v1 }
+## 50. Прежний формат документа { #v1 }
 
-Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — и `JsonFormRenderer` с этим бандлом (`form={bundle}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Снимается такой бандл, как и сборка `createForm`, вызовом `bundle.dispose()`. Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
+Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) рантайм не читает. Переведи его при загрузке: `migrateJsonSchema(document)` → формат 2 → `createForm` с теми же полями `validation` и `flow` (см. [10-format-2.md](10-format-2.md)).
 
-## 53. Anti-patterns
+## 51. Anti-patterns
 
-- **Ждать, что `validateFormSchema` (или проп `validateSchema` у `JsonFormRenderer`) валидирует значения** — они проверяют только СТРУКТУРУ документа через ajv. Введённые пользователем значения они не трогают.
+- **Ждать, что `validateFormSchema` валидирует значения** — она проверяет только СТРУКТУРУ документа через ajv. Введённые пользователем значения она не трогает.
 - **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`model`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует.
 - **Текст в правиле** — `required({ message: '…' })` больше нет: опции правила — `{ code?, params? }`. Текст — словарь `defineIssueMessages` + `ValidationMessagesProvider messages`.
 - **Инъекция `validateStep`/`validateAll` в узел визарда через `patchProps`, `defineSteps`, `validation.steps`** — прежний контракт, удалён. Правила шагов — `flow: { steps: [{ id, rules }] }` в сборке; визард берёт поток и отправку из сборки сам.
@@ -1335,7 +1324,7 @@ createForm<CreditForm>({
 - **Инлайнить схему в `validateModel` или пересобирать её на каждый прогон** — отмена устаревших прогонов ключится по паре «модель + правила». Держите схемы стабильными `const` через `defineValidation`.
 - **`selector` шага не совпадает с `id` шага потока** — визард не свяжет шаг с разметкой; в dev предупреждают сборка и визард, реестр форм ловит это preflight-проверкой `unknown-step-selectors`.
 
-## 54. See also
+## 52. See also
 
 - [07-form-wizard.md](07-form-wizard.md) — визард в JSON: шаги-дети, поток шагов, отправка (`onComponentEvent`), навигация (`flow.goTo`).
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` (field-node несёт только layout).
@@ -1344,7 +1333,7 @@ createForm<CreditForm>({
 - `@reformer/core` [34-i18n.md](../../../reformer/docs/llms/34-i18n.md) — словарь замечаний и локали.
 - [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [validate.ts](../../src/validate.ts) — структурная проверка документа.
 
-## 55. Половина 1 — layout шагов в JSON { #json-shape }
+## 53. Половина 1 — layout шагов в JSON { #json-shape }
 
 **FormWizard**
 
@@ -1430,7 +1419,7 @@ const schema = composeJsonFormSchema(rawSchema as unknown as JsonFormSchema, ste
 - Несобранная схема не собирается: конвертер бросает `Step reference "…" is not resolved`, `validateFormSchema` сообщает `step reference "…" is not resolved`.
 - Билдер открывает такую форму как одну и сам раскладывает правки по файлам шагов.
 
-## 56. Реестр: визард и шаг { #register }
+## 54. Реестр: визард и шаг { #register }
 
 `$component(FormWizard)` и `$component(Step)` — **записи в реестре**: имя резолвится через registry. Обёртка над библиотечным визардом не нужна — регистрируй его как есть:
 
@@ -1451,7 +1440,7 @@ export const registry = defineRegistry((reg) => {
 
 Имя записи произвольное — важно лишь совпадение строки в JSON и ключа в реестре. `FormWizard` объявляет `__selfManagedChildren`: рендерер передаёт ему узлы шагов данными и функцию их отрисовки.
 
-## 57. Половина 2 — правила шагов и поведение { #render-behavior }
+## 55. Половина 2 — правила шагов и поведение { #render-behavior }
 
 Правила шагов — поток сборки; отправка, навигация и видимость — одно поведение формы. Семантику операторов см. renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md).
 
@@ -1503,7 +1492,7 @@ return <FormRenderer form={bundle} />;
 
 Сверено с эталоном: `application/renderer.ts` — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`, `renderEffect(schema, () => { if (isMortgage(model.loanType)) flow?.goTo('loan'); })`; `flow/credit-application-flow.ts` — поток `{ steps: flow.map((step) => ({ id: step.selector, rules: step.rules })) }`.
 
-## 58. Поток шагов { #flow }
+## 56. Поток шагов { #flow }
 
 - Кнопка «Далее» — `flow.next()`: правила текущего шага; при замечаниях поток остаётся на шаге (`{ status: 'stayed', reason: 'invalid' }`), а поля помечаются `touched`.
 - Переход по индикатору — `flow.goTo(id)`: первый шаг доступен всегда, остальные — после прохождения предыдущего (`reason: 'locked'`). «Назад» — `flow.previous()`.
@@ -1511,11 +1500,11 @@ return <FormRenderer form={bundle} />;
 - Расхождение `flow.steps[].id` и селекторов узлов шагов — dev-предупреждения сборки и визарда; реестр форм ловит его preflight-проверкой `unknown-step-selectors`.
 - Снаружи дерева: `useFormFlow(bundle.flow!)` из `@reformer/core/react` — снимок (`current`, `index`, `isLast`, `validating`); `bundle.flow?.goTo('loan')`; `bundle.submission.submit(handler)`.
 
-## 59. Прежний формат документа { #v1 }
+## 57. Прежний формат документа { #v1 }
 
 В прежнем формате шаги лежали в `componentProps.steps` визарда, а визард подключался через прикладной шим. `migrateJsonSchema(document)` переносит шаги в `children` (визард узнаётся по имени — `DEFAULT_STEP_HOSTS`: `Wizard`, `RendererFormWizard`, `FormWizard`; свои имена — `{ stepHosts }`) и ставит `format: 2`. Имя компонента функция не меняет: на что оно указывает, решает реестр — зарегистрируй под ним `FormWizard` из `@reformer/ui-kit`.
 
-## 60. Anti-patterns
+## 58. Anti-patterns
 
 - **Класть шаги в `componentProps.steps`** — прежний формат. В формате 2 шаги — `children` визарда; `migrateJsonSchema` переносит их сам.
 - **Инъекция `form` / `validateStep` / `validateAll` в узел визарда через `onInit` + `patchProps`, `defineSteps`** — прежний контракт, удалён. Визард берёт форму, поток и отправку из сборки; правила шагов — `flow.steps[].rules`.
@@ -1526,14 +1515,14 @@ return <FormRenderer form={bundle} />;
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, обработчик отправки не навесится (сборка в dev предупредит о неизвестном селекторе).
 - **Проверять форму руками в обработчике отправки** — не нужно: обработчик вызывается через `bundle.submission.submit` только после успешной проверки, `values` — значения формы.
 
-## 61. See also
+## 59. See also
 
 - [06-validation.md](06-validation.md) — правила над моделью, поток шагов, тексты замечаний.
 - [10-format-2.md](10-format-2.md) — документ формата 2, сборка `createForm`, перевод прежнего формата.
 - renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
 - renderer-react [07-form-wizard.md](../../../reformer-renderer-react/docs/llms/07-form-wizard.md) — тот же визард в TS-схеме.
 
-## 62. Два пути (важно выбрать правильный)
+## 60. Два пути (важно выбрать правильный)
 
 **i18n / Локализация**
 
@@ -1548,7 +1537,7 @@ return <FormRenderer form={bundle} />;
 
 Причина: `componentProps` спредятся в компонент как есть — signal/ReactNode в `label` уронит его (`Objects are not valid as a React child`). Строковый путь резолвится один раз — когда сборка строит дерево из документа (смена языка = пересборка формы); реактивный путь читает сервис из React-контекста на этапе рендера (live-переключение).
 
-## 63. Сервис локализации
+## 61. Сервис локализации
 
 ```ts
 interface LocaleService {
@@ -1602,7 +1591,7 @@ const service: LocaleService = {
 };
 ```
 
-## 64. Путь 1 — строковые пропы (статично)
+## 62. Путь 1 — строковые пропы (статично)
 
 Без параметров — строковый оператор:
 
@@ -1629,7 +1618,7 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-## 65. Путь 2 — реактивный компонент `I18n`
+## 63. Путь 2 — реактивный компонент `I18n`
 
 Для markdown/rich и/или реактивных параметров и live-переключения языка. Регистрируется как компонент, оборачивается `LocaleProvider`:
 
@@ -1665,11 +1654,11 @@ function App() {
 
 `I18n` рендерит `service.render?.()` (markdown/JSX) либо `service.resolve()` (строка) — формат решает сервис. Перерисовывается при смене сигнала `values.count` и при смене `service` в `LocaleProvider` (переключение языка).
 
-## 66. Валидация
+## 64. Валидация
 
 `validateFormSchema` проверяет ключи `$locale(...)` и структурной формы `{ $locale }` против `localeKeys` (из `service.keys` или явного списка) — опечатка ключа ловится до рендера. Нет каталога → проверка мягко пропускается (ключи свободные).
 
-## 67. Anti-patterns
+## 65. Anti-patterns
 
 - **markdown/JSX в строковый проп** — `label: "$locale(...)"` с сервисом, возвращающим ReactNode, уронит компонент. Rich-контент только через `$component(I18n)` (или свой `$component(RichText)`).
 - **реактивный параметр в строковом `$locale`** — `{ $locale, params: { count: "$model(...)" } }` берётся снимком и **не обновляется** (путь статичный); в dev печатается warning. Для реактивных model-параметров → `I18n` с `values`.
@@ -1677,13 +1666,13 @@ function App() {
 - **ждать live-переключения от `$locale`** — строковый путь статичен; смена языка для label/placeholder требует пересборки формы (новый сервис в `reg.locale` + новая сборка). Live только у `I18n`.
 - **тащить ICU/markdown в схему** — форматтер живёт в реализации `LocaleService` у потребителя, не в JSON.
 
-## 68. See also
+## 66. See also
 
 - [02-json-schema.md](02-json-schema.md) — где `$locale`/`I18n` появляются в схеме.
 - [03-registry.md](03-registry.md) — `reg.locale`, `createLocaleService`, регистрация `I18n`.
 - [06-validation.md](06-validation.md) — валидация значений (отдельно от локализации).
 
-## 69. Границы слоёв
+## 67. Границы слоёв
 
 **Чек-лист ревью формы**
 
@@ -1701,7 +1690,7 @@ function App() {
       (`compute`/`enableWhen`/`onChange`), дерево рендера — операторы узлов
       (`hideWhen`/`patchProps`/`onComponentEvent`); бизнес-расчёты не в правилах узлов.
 
-## 70. Связи по строкам (ломаются молча)
+## 68. Связи по строкам (ломаются молча)
 
 - [ ] у каждого узла, который адресует поведение, есть `selector`, и он в union-типе селекторов
       страницы (опечатка → ошибка компиляции, а не тихий промах);
@@ -1714,7 +1703,7 @@ function App() {
 - [ ] документ проверяется `validateFormSchema` хотя бы в dev — ловит неизвестные
       `$component`/`$dataSource`/`$part` и структурные ошибки до сборки.
 
-## 71. Валидация и видимость
+## 69. Валидация и видимость
 
 - [ ] правила шагов — в потоке сборки (`flow: { steps: [{ id, rules }] }`), а не в узлах и не по
       индексу шага; «Далее» и отправка сами помечают проверенные поля `touched`;
@@ -1722,7 +1711,7 @@ function App() {
       скрытое поле продолжает валидироваться и уезжает в значения отправки;
 - [ ] предикаты `hideWhen` читают значение внутри колбэка (`model.x`), иначе они не реактивны.
 
-## 72. Рендер и мост
+## 70. Рендер и мост
 
 - [ ] в реестре — сами компоненты `@reformer/ui-kit` (`Input`, `InputNumber`, `SelectAsync`, …): диалект
       поля они объявляют статикой `reformerAdapter`; число — `InputNumber`, а не `Input` с
@@ -1737,13 +1726,13 @@ function App() {
 - [ ] реестр уровня страницы — это нормально и должно быть дефолтом; в общий реестр моста выносится
       только то, что переиспользуется несколькими формами.
 
-## 73. См. также
+## 71. См. также
 
 - [01-overview.md](01-overview.md) — сборка формы (`createForm` + реестр).
 - [06-validation.md](06-validation.md) — валидация над моделью, поток шагов, тексты замечаний.
 - [07-form-wizard.md](07-form-wizard.md) — визард и пошаговая валидация.
 
-## 74. Purpose
+## 72. Purpose
 
 **JSON-схема: формат 2**
 
@@ -1754,7 +1743,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 
 Полное описание контракта — раздел «Единый контракт формы» в `reformer://docs/core`.
 
-## 75. Документ
+## 73. Документ
 
 ```json
 {
@@ -1795,7 +1784,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 - `version` — версия содержимого формы (её сверяет реестр форм). К формату документа не относится.
 - `parts` — именованные части документа: подформы и шаблоны строк массивов.
 
-## 76. Узлы
+## 74. Узлы
 
 Привязка к модели — один ключ `model`. Чем является узел, решают соседние ключи.
 
@@ -1815,7 +1804,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 { "model": "$model(tags)", "component": "$component(SelectMulti)" }
 ```
 
-## 77. Именованные части
+## 75. Именованные части
 
 Часть объявляется один раз в `parts` и подключается оператором `$part(name)`:
 
@@ -1841,7 +1830,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 `apply(model.$.group, behavior)`, поведение строки — через `applyEach(model.$.items, behavior)`.
 Корневое поведение узлы частей не видит.
 
-## 78. Шаблон нового элемента массива
+## 76. Шаблон нового элемента массива
 
 Шаблон для кнопки «Добавить» живёт в модели — `arrayOf(blank)`:
 
@@ -1858,7 +1847,7 @@ export const createMyModel = () =>
 создаётся из данных без кода; шаблон модели главнее. Если `initialValue` задан, он обязан нести
 все ключи строки — это проверяет `validateFormSchema`.
 
-## 79. Шаги визарда
+## 77. Шаги визарда
 
 Шаги — обычные дети узла визарда. `selector` шага — идентификатор шага в потоке сборки:
 `createForm({ flow: { steps: [{ id: 'loan', rules: loanRules }] } })`. Визард
@@ -1883,7 +1872,7 @@ export const createMyModel = () =>
 Шаг в отдельном файле стоит ссылкой `{ "$ref": "./steps/loan/form.schema.json" }` в `children`.
 Перед сборкой формы документ собирает `composeJsonFormSchema(document, stepSchemas)`.
 
-## 80. Сборка и рендер
+## 78. Сборка и рендер
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -1917,8 +1906,7 @@ function MyFormPage() {
 - Граница ошибок схемы (`SchemaErrorBoundary`) тоже приходит из бандла.
 - Несколько реестров объединяет `composeRegistries` — вложенные провайдеры не нужны.
 - Поведение — одно: `defineFormBehavior(({ model, form, schema, flow }) => …)`. Правила узлов
-  (`hideWhen`, `onComponentEvent`, `onMount`) и навигация (`flow.goTo(id)`) пишутся в нём,
-  отдельного `renderBehavior` нет.
+  (`hideWhen`, `onComponentEvent`, `onMount`) и навигация (`flow.goTo(id)`) пишутся в нём.
 - Тексты замечаний — словарь формы `defineIssueMessages` и `ValidationMessagesProvider messages`
   из `@reformer/cdk` вокруг `FormRenderer`; правила несут только коды.
 
@@ -1935,7 +1923,7 @@ if (!valid) return <SchemaErrorPanel errors={errors} />;
 Проверяются структура узлов, синтаксис операторов, имена компонентов, источников и функций,
 имена частей (`$part(...)`), полнота заданного `initialValue` и несобранные ссылки на шаги.
 
-## 81. Перевод документа прежнего формата
+## 79. Перевод документа прежнего формата
 
 ```typescript
 import { migrateJsonSchema } from '@reformer/renderer-json';
@@ -1957,32 +1945,29 @@ const bundle = createForm({ model, schema, registry });
 Функция чистая, документ формата 2 возвращает как есть — её можно вызывать на любом документе.
 Части (`parts`) она не выделяет: повторяющиеся фрагменты выносятся вручную.
 
-## 82. Прежний формат
+## 80. Удалённый API прежнего пути { #removed-api }
 
-Документ без `format` по-прежнему читают `createJsonForm`, `useJsonForm`, `JsonFormRenderer` и
-`JsonRendererProvider`; документ формата 2 они отвергают. Типы и гарды прежнего формата носят
-суффикс `V1`:
+Рантайм читает только документ формата 2. Документ без `format` сборка (`convertJsonSchema`) и
+проверка (`validateFormSchema`) отвергают с отсылкой к `migrateJsonSchema`;
+`composeJsonFormSchema`, `collectOperatorNames` и `collectSchemaSelectors` принимают документ
+формата 2. API, который читал прежний формат, удалён:
 
-| Формат 2                    | Прежний формат                  |
-| --------------------------- | ------------------------------- |
-| `JsonFormSchema`            | `JsonFormSchemaV1`              |
-| `JsonNode`, `JsonFieldNode` | `JsonNodeV1`, `JsonFieldNodeV1` |
-| `JsonArrayNode`             | `JsonArrayNodeV1`               |
-| `JsonPartNode`              | —                               |
-| `defineJsonSchema`          | `defineJsonSchemaV1`            |
-| `isFieldNode`, `isArrayNode` | `isFieldNodeV1`, `isArrayNodeV1` |
-| `buildFormSchemaMetaSchema` | `buildFormSchemaMetaSchemaV1`   |
-| `convertJsonSchema`         | `convertJsonToM1Tree`           |
+| Было | Стало |
+| --- | --- |
+| `createJsonForm`, `useJsonForm`, типы `JsonForm`, `CreateJsonFormConfig` | `createForm({ model, schema, registry })` из `@reformer/core`, `useFormBundle` из `@reformer/core/react` |
+| `JsonFormRenderer`, `JsonFormRendererProps` | `<FormRenderer form={bundle} />` из `@reformer/renderer-react` |
+| `JsonRendererProvider`, `useJsonRendererSettings`, `useJsonRendererSettingsUnchecked`, `JsonRendererSettings`, `JsonRendererProviderProps` | реестр — в `createForm({ registry })` (несколько — `composeRegistries`); настройки рендерера (`resolveFieldAdapter`, `fieldWrapper`) — `<FormRenderer settings>` |
+| проп `renderBehavior`, тип `RenderBehaviorFn` | правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) в поведении формы — поле `behavior` сборки |
+| `JsonFormSchemaV1`, `JsonNodeV1`, `JsonFieldNodeV1`, `JsonArrayNodeV1`, `JsonContainerNodeV1`, `JsonChildV1`, `JsonFormStepV1` | `migrateJsonSchema(document)` → `JsonFormSchema`, `JsonNode`, `JsonFieldNode`, `JsonArrayNode`, `JsonContainerNode`, `JsonChild`, `JsonFormStep` |
+| `isFieldNodeV1`, `isArrayNodeV1`, `isContainerNodeV1`, `defineJsonSchemaV1` | `isFieldNode`, `isArrayNode`, `isContainerNode`, `defineJsonSchema` |
+| `formSchemaMetaSchemaV1`, `buildFormSchemaMetaSchemaV1`, `buildFormStepMetaSchemaV1` | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `buildFormStepMetaSchema` |
+| `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | `convertJsonSchema` (обычно его зовёт реестр при сборке) |
 
-`validateFormSchema`, `composeJsonFormSchema`, `collectOperatorNames` и `collectSchemaSelectors`
-принимают оба формата.
-
-## 83. Частые ошибки
+## 81. Частые ошибки
 
 | Симптом | Причина |
 | --- | --- |
-| `The document is in the previous JSON schema format` | у документа нет `format: 2` — переведи его `migrateJsonSchema` |
-| `createJsonForm: документ схемы — формата 2` | документ формата 2 собирает `createForm({ model, schema, registry })` |
+| `The document is in the previous JSON schema format` / `/: the document is in the previous JSON schema format` | у документа нет `format: 2` (сборка / `validateFormSchema`) — переведи его `migrateJsonSchema` |
 | `Part "x" not found in the document "parts"` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
 | `"$model(x)" is not a group of the model` | подформа подключена к полю; `part` ставится на объект модели |
 | `"$model(x)" is not an array of the model` | узел с `item` привязан не к массиву либо начальное значение массива — `null` |
@@ -1992,7 +1977,7 @@ const bundle = createForm({ model, schema, registry });
 | `[ComponentRegistry] Компонент "FormArray" переименован в "FieldArray"` | документ называет компонент прежним именем; псевдоним работает, но документ стоит обновить на `$component(FieldArray)` |
 | визард: «шаги схемы и шаги потока расходятся» | `selector` узла шага не совпадает с `id` шага в `flow.steps` |
 
-## 84. API Reference
+## 82. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -2088,28 +2073,6 @@ export interface BuildFormSchemaMetaSchemaOptions {
 
 _Source: src/schema/index.ts_
 
-### buildFormSchemaMetaSchemaV1
-
-**Kind:** `function`
-
-Конкретная мета-схема ПРЕЖНЕГО формата документа (v1) — то же сужение, что у
-{@link buildFormSchemaMetaSchema}, поверх {@link formSchemaMetaSchemaV1}.
-
-**Signature:**
-```typescript
-export function buildFormSchemaMetaSchemaV1(
-  opts?: BuildFormSchemaMetaSchemaOptions
-): Record<string, unknown>
-```
-
-**Examples:**
-
-```ts
-const schema = buildFormSchemaMetaSchemaV1({ componentNames: getComponentNames(registry) });
-```
-
-_Source: src/schema/index.ts_
-
 ### buildFormStepMetaSchema
 
 **Kind:** `function`
@@ -2136,33 +2099,6 @@ const schema = buildFormStepMetaSchema({ componentNames: getComponentNames(regis
 
 _Source: src/schema/index.ts_
 
-### buildFormStepMetaSchemaV1
-
-**Kind:** `function`
-
-Мета-схема файла шага ПРЕЖНЕГО формата документа (v1):
-{@link buildFormSchemaMetaSchemaV1} + {@link toFormStepMetaSchema}.
-
-**Signature:**
-```typescript
-export function buildFormStepMetaSchemaV1(
-  opts?: BuildFormSchemaMetaSchemaOptions
-): Record<string, unknown>
-```
-
-**Parameters:**
-- `opts` — - Те же опции, что у {@link buildFormSchemaMetaSchema}.
-
-**Returns:** Мета-схема файла шага (draft-07).
-
-**Examples:**
-
-```ts
-const schema = buildFormStepMetaSchemaV1({ componentNames: getComponentNames(registry) });
-```
-
-_Source: src/schema/index.ts_
-
 ### collectOperatorNames
 
 **Kind:** `function`
@@ -2171,11 +2107,11 @@ _Source: src/schema/index.ts_
 
 **Signature:**
 ```typescript
-export function collectOperatorNames(schema: JsonFormSchema | JsonFormSchemaV1): OperatorNames
+export function collectOperatorNames(schema: JsonFormSchema): OperatorNames
 ```
 
 **Parameters:**
-- `schema` — - JSON-схема формы.
+- `schema` — - Документ JSON-схемы формы формата 2.
 
 **Returns:** 
 
@@ -2197,11 +2133,11 @@ _Source: src/collect-operator-names.ts_
 
 **Signature:**
 ```typescript
-export function collectSchemaSelectors(schema: JsonFormSchema | JsonFormSchemaV1): Set<string>
+export function collectSchemaSelectors(schema: JsonFormSchema): Set<string>
 ```
 
 **Parameters:**
-- `schema` — - JSON-схема формы.
+- `schema` — - Документ JSON-схемы формы формата 2.
 
 **Returns:** Множество известных селекторов.
 
@@ -2266,8 +2202,8 @@ _Source: src/schema/index.ts_
 
 Read-only API реестра, доступное в рантайме.
 
-Создаётся через {@link defineRegistry}. Передаётся в `JsonRendererProvider`
-через `settings.registry`.
+Создаётся через {@link defineRegistry}. Передаётся сборке формы:
+`createForm({ model, schema: document, registry })`.
 
 **Signature:**
 ```typescript
@@ -2310,15 +2246,14 @@ _Source: src/registry/types.ts_
 
 **Kind:** `function`
 
-Подставляет узлы шагов на место ссылок: в `children` визарда (формат 2) и в
-`componentProps.steps` (прежний формат).
+Подставляет узлы шагов на место ссылок в `children` визарда.
 
 Не мутирует аргументы: меняются только объекты на пути к ссылке, остальные поддеревья
 возвращаются по ссылке. Инлайн-шаги рядом со ссылками остаются как есть.
 
 **Signature:**
 ```typescript
-export function composeJsonFormSchema<S>(
+export function composeJsonFormSchema<S extends JsonFormSchema = JsonFormSchema>(
   skeleton: S,
   parts: Readonly<Record<string, StepPart>>
 ): S
@@ -2349,9 +2284,9 @@ _Source: src/compose.ts_
 Композиция реестров слева направо: каждый следующий перекрывает предыдущие
 (last-wins, как `Object.assign`).
 
-Программная альтернатива вложенным {@link JsonRendererProvider}. Нужна там, где порядок
-ВЛАДЕНИЯ (форма → микрофронт → общее ядро) не совпадает с порядком React-дерева, а также
-в не-React окружении и когда провайдер и рендерер оказываются в разных бандлах.
+Нужна там, где реестр собирается из нескольких источников по порядку ВЛАДЕНИЯ (форма →
+микрофронт → общее ядро): результат передаётся сборке формы одним реестром
+(`createForm({ model, schema, registry })`), без React-контекста.
 
 **Signature:**
 ```typescript
@@ -2408,111 +2343,6 @@ const form = createFormFromModel<MyForm>({ model, schema: tree });
 ```
 
 _Source: src/converter/json-to-render-schema.ts_
-
-### convertJsonToM1Tree
-
-**Kind:** `function`
-
-Сырое дерево RenderNode из JSON прежнего формата (v1) — для `createFormFromModel({ model, schema })`.
-Листья привязываются к сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники —
-из реестра.
-
-**Signature:**
-```typescript
-export function convertJsonToM1Tree<T>(
-  schema: JsonFormSchemaV1,
-  registry: ComponentRegistry,
-  model: FormModel<T>
-): RenderNode<T>
-```
-
-**Parameters:**
-- `schema` — - JSON-схема формы прежнего формата ({@link JsonFormSchemaV1}).
-- `registry` — - Реестр компонентов/источников (см. {@link defineRegistry}).
-- `model` — - Модель данных — источник значений (`FormModel`).
-
-**Returns:** Корневой {@link RenderNode} — кладётся в `createFormFromModel({ model, schema })`.
-
-**Examples:**
-
-Собрать форму из JSON-схемы (M1)
-```ts
-import { createFormFromModel } from '@reformer/core';
-
-const form = createFormFromModel<MyForm>({
-model,
-schema: convertJsonToM1Tree(jsonSchema, registry, model),
-behavior,
-});
-```
-
-_Source: src/converter/json-to-render-schema.ts_
-
-### createJsonForm
-
-**Kind:** `function`
-
-Собирает форму из JSON-схемы за ОДИН проход: создаёт (или принимает) модель, конвертирует схему в
-дерево нод, строит форму, собирает валидацию и render-behavior. Схема передаётся один раз;
-результат целиком отдаётся рендереру пропом `form`.
-
-**Signature:**
-```typescript
-export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>): JsonForm<T>
-```
-
-**Parameters:**
-- `config` — - {@link CreateJsonFormConfig}: `schema` + `registry` + (`initial` | `model`) + опц.
-`behavior`, `validation`, `flow`, `renderBehavior`, `seed`, `setup`.
-
-**Returns:** 
-
-**Examples:**
-
-```tsx
-const jsonForm = useJsonForm(() =>
-  createJsonForm<CreditForm>({
-    schema,
-    registry,
-    model: createCreditModel(),
-    behavior: formBehavior,
-    validation: { extras: crossRules },
-    flow: { steps: [{ id: 'loan', rules: loanRules }] },
-    renderBehavior: makeCreditRenderBehavior,
-  })
-);
-return (
-  <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-    <JsonFormRenderer form={jsonForm} />
-  </JsonRendererProvider>
-);
-```
-
-_Source: src/create-json-form.ts_
-
-### CreateJsonFormConfig
-
-**Kind:** `interface`
-
-Конфиг {@link createJsonForm}. Модель — либо `initial` (создаётся внутри), либо готовая `model`.
-
-**Signature:**
-```typescript
-export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonForm<T>> {
-  /** JSON-схема формы (типизируй по `T` через `defineJsonSchema<T>`). */
-  schema: JsonFormSchemaV1<T>;
-  /** Реестр компонентов/source. */
-  registry: ComponentRegistry;
-  /** Фабрика render-behavior: получает собранные форму, модель и уровень формы (отправка, поток). */
-  renderBehavior?: (
-    form: FormGroup<T>,
-    model: FormModel<T>,
-    level: FormLevel<T>
-  ) => RenderBehaviorFn<T>;
-}
-```
-
-_Source: src/create-json-form.ts_
 
 ### createLocaleResolver
 
@@ -2593,46 +2423,6 @@ ru.resolve('fields.min', { count: 3 }); // 'Минимум 3 символов'
 
 _Source: src/locale/locale-service.ts_
 
-### createRenderSchemaFromJsonM1
-
-**Kind:** `function`
-
-`RenderSchemaFn` из JSON прежнего формата (v1) — для `FormRenderer`/`JsonFormRenderer`. Листья
-привязываются к сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из
-реестра.
-
-В отличие от {@link convertJsonToM1Tree} (который возвращает готовое дерево), здесь результат —
-ленивая функция-фабрика дерева, как её ждёт `createRenderSchema`. Обычно вызывается внутри
-{@link JsonFormRenderer}; напрямую нужен для интеграции с `FormRenderer` без JSON-обёртки.
-
-**Signature:**
-```typescript
-export function createRenderSchemaFromJsonM1<T>(
-  schema: JsonFormSchemaV1,
-  registry: ComponentRegistry,
-  model: FormModel<T>
-): RenderSchemaFn<T>
-```
-
-**Parameters:**
-- `schema` — - JSON-схема формы прежнего формата ({@link JsonFormSchemaV1}).
-- `registry` — - Реестр компонентов/источников (см. {@link defineRegistry}).
-- `model` — - Модель данных — источник значений (`FormModel`).
-
-**Returns:** `RenderSchemaFn<T>` — фабрика {@link RenderNode}-дерева для `createRenderSchema`.
-
-**Examples:**
-
-```ts
-import { createRenderSchema, FormRenderer } from '@reformer/renderer-react';
-
-const fn = createRenderSchemaFromJsonM1<MyForm>(jsonSchema, registry, model);
-const proxy = createRenderSchema<MyForm>(fn);
-<FormRenderer render={proxy} />;
-```
-
-_Source: src/converter/json-to-render-schema.ts_
-
 ### DataSourceOp
 
 **Kind:** `type`
@@ -2712,48 +2502,14 @@ const schema = defineJsonSchema<CreditForm>({
 
 _Source: src/types/json-schema.ts_
 
-### defineJsonSchemaV1
-
-**Kind:** `function`
-
-Идентити-хелпер, ТИПИЗИРУЮЩИЙ литерал схемы по форме модели `T`: внутри `$model(...)` пути
-сужаются до {@link Path}<T> (опечатка ловится компилятором), и не нужен `as unknown as JsonFormSchemaV1`.
-Для схемы-строки-с-сервера (тип формы неизвестен) используйте `JsonFormSchemaV1` без параметра.
-
-**Signature:**
-```typescript
-export function defineJsonSchemaV1<T = unknown>(schema: JsonFormSchemaV1<T>): JsonFormSchemaV1<T>
-```
-
-**Parameters:**
-- `schema` — - Литерал схемы, типизируемый по `T`.
-
-**Returns:** Та же схема с типом `JsonFormSchemaV1<T>`.
-
-**Examples:**
-
-```ts
-interface CreditForm { loanType: string; personalData: { firstName: string } }
-const schema = defineJsonSchemaV1<CreditForm>({
-  version: '1.0',
-  root: {
-    component: '$component(Box)',
-    children: [{ value: '$model(personalData.firstName)', component: '$component(Input)' }],
-    // { value: '$model(loanTyp)' } — ошибка компиляции: нет такого пути в CreditForm
-  },
-});
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### defineRegistry
 
 **Kind:** `function`
 
 Создаёт реестр компонентов через builder-callback.
 
-Реестр обязателен для работы {@link JsonFormRenderer} — иначе компоненты,
-упомянутые в JSON-схеме, не отрезолвятся.
+Реестр обязателен для сборки формы из документа — иначе компоненты, упомянутые в JSON-схеме,
+не отрезолвятся.
 
 **Signature:**
 ```typescript
@@ -2763,7 +2519,8 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
 **Parameters:**
 - `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `component`, `dataSource`.
 
-**Returns:** Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
+**Returns:** Готовый {@link ComponentRegistry}, который передаётся сборке:
+`createForm({ model, schema: document, registry })`.
 
 **Examples:**
 
@@ -2859,27 +2616,6 @@ export const formSchemaMetaSchema
 ```ts
 // record можно записать в файл и сослаться на него из "$schema" JSON-схемы.
 formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
-```
-
-_Source: src/schema/index.ts_
-
-### formSchemaMetaSchemaV1
-
-**Kind:** `const`
-
-Базовая мета-схема ПРЕЖНЕГО формата документа (v1: ключи `value` / `array`, шаги визарда в
-`componentProps.steps`). Нужна тем, кто ещё читает и правит документы v1; документ переводит в
-формат 2 `migrateJsonSchema`.
-
-**Signature:**
-```typescript
-export const formSchemaMetaSchemaV1
-```
-
-**Examples:**
-
-```ts
-formSchemaMetaSchemaV1.title; // 'ReFormer JSON form schema (M1, string-operator DSL)'
 ```
 
 _Source: src/schema/index.ts_
@@ -3102,35 +2838,6 @@ node.item; // { $template } | '$part(name)'
 
 _Source: src/types/json-schema.ts_
 
-### isArrayNodeV1
-
-**Kind:** `function`
-
-Type-guard: узел — массив (`array: '$model(...)'` + `item.$template`). Проверять ПЕРВЫМ
-(лист/контейнер отсеиваются после, т.к. массив тоже несёт `$model`).
-
-**Signature:**
-```typescript
-export function isArrayNodeV1(node: JsonNodeV1): node is JsonArrayNodeV1
-```
-
-**Parameters:**
-- `node` — - Узел JSON-схемы.
-
-**Returns:** `true`, если узел — {@link JsonArrayNodeV1}.
-
-**Examples:**
-
-Сузить тип узла перед доступом к `item.$template`
-```ts
-if (isArrayNodeV1(node)) {
-node.array;            // ModelOp
-node.item.$template;   // JsonNodeV1
-}
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### isComponentOp
 
 **Kind:** `const`
@@ -3185,35 +2892,6 @@ node.children?.forEach(walk);
 
 _Source: src/types/json-schema.ts_
 
-### isContainerNodeV1
-
-**Kind:** `function`
-
-Type-guard: узел — контейнер (`component: '$component(...)'` или `'$html(...)'`,
-без `value`/`array`).
-
-**Signature:**
-```typescript
-export function isContainerNodeV1(node: JsonNodeV1): node is JsonContainerNodeV1
-```
-
-**Parameters:**
-- `node` — - Узел JSON-схемы.
-
-**Returns:** `true`, если узел — {@link JsonContainerNodeV1}.
-
-**Examples:**
-
-Сузить тип узла перед обходом `children`
-```ts
-if (isContainerNodeV1(node)) {
-node.component;   // ComponentOp | HtmlOp
-node.children?.forEach(walk);
-}
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### isDataSourceOp
 
 **Kind:** `const`
@@ -3267,34 +2945,6 @@ node.component; // ComponentOp | undefined
 ```
 
 _Source: src/types/json-schema.ts_
-
-### isFieldNodeV1
-
-**Kind:** `function`
-
-Type-guard: узел — лист (`value: '$model(...)'`).
-
-**Signature:**
-```typescript
-export function isFieldNodeV1(node: JsonNodeV1): node is JsonFieldNodeV1
-```
-
-**Parameters:**
-- `node` — - Узел JSON-схемы.
-
-**Returns:** `true`, если узел — {@link JsonFieldNodeV1}.
-
-**Examples:**
-
-Сузить тип узла перед доступом к `value`/`component`
-```ts
-if (isFieldNodeV1(node)) {
-node.value;      // ModelOp
-node.component;  // ComponentOp | undefined
-}
-```
-
-_Source: src/types/json-schema-v1.ts_
 
 ### isFnOp
 
@@ -3360,7 +3010,7 @@ export function isJsonStepRef(value: unknown): value is JsonStepRef
 ```
 
 **Parameters:**
-- `value` — - Элемент `componentProps.steps`.
+- `value` — - Элемент `children` визарда.
 
 **Returns:** `true` для {@link JsonStepRef}.
 
@@ -3524,57 +3174,6 @@ export interface JsonArrayNode<T = unknown> {
 
 _Source: src/types/json-schema.ts_
 
-### JsonArrayNodeV1
-
-**Kind:** `interface`
-
-Итерация массива модели (`$model`) + шаблон элемента (`$template`).
-
-По умолчанию рендерится встроенной редактируемой секцией (add/remove/reorder). Опциональный
-`component` уводит рендер на зарегистрированный компонент — например `'$component(List)'` для
-chrome-less display-списка (алерты) или своя секция с кастомным хромом. Дисплей-vs-редактирование —
-это выбор компонента, а не отдельный тип узла. `initialValue` нужен только редактируемому пути
-(кнопка «Добавить»); при `component` display-компоненты его игнорируют.
-
-**Signature:**
-```typescript
-export interface JsonArrayNodeV1<T = unknown> {
-  /** Id для render-behavior. */
-  /**
-   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
-   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
-   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
-   *
-   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
-   */
-  $nodeId?: string;
-  selector?: string;
-  /** Привязка к массиву модели: `'$model(coBorrowers)'`. С типом `T` путь сужается до {@link Path}<T>. */
-  array: ModelOp<T>;
-  /**
-   * Шаблон под-схемы элемента (внутри `$model(...)` относителен к ЭЛЕМЕНТУ, не к корню `T`),
-   * поэтому его пути остаются нетипизированными (`JsonNodeV1` без параметра).
-   */
-  item: { $template: JsonNodeV1 };
-  /**
-   * Компонент-рендерер массива (`'$component(List)'`). Опционален: без него — встроенная
-   * редактируемая секция. С ним рендер идёт этим компонентом (он получает контрол массива,
-   * `item`-фабрику и готовые элементы children).
-   */
-  component?: ComponentOp;
-  /**
-   * «Пустой» элемент для кнопки «Добавить» (литерал-объект по форме элемента).
-   * Нужен, т.к. листья шаблона несут `value: '$model(...)'`, а не литерал-дефолт. Только для
-   * редактируемого (встроенного) пути.
-   */
-  initialValue?: Record<string, unknown>;
-  /** Оформление секции массива / пропсы компонента-рендерера. */
-  componentProps?: Record<string, unknown>;
-}
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### JsonChild
 
 **Kind:** `type`
@@ -3587,19 +3186,6 @@ export type JsonChild<T = unknown> = JsonNode<T> | JsonTextChild;
 ```
 
 _Source: src/types/json-schema.ts_
-
-### JsonChildV1
-
-**Kind:** `type`
-
-Элемент `children`: вложенный узел либо текстовая часть ({@link JsonTextChild}).
-
-**Signature:**
-```typescript
-export type JsonChildV1<T = unknown> = JsonNodeV1<T> | JsonTextChild;
-```
-
-_Source: src/types/json-schema-v1.ts_
 
 ### JsonContainerNode
 
@@ -3641,45 +3227,6 @@ export interface JsonContainerNode<T = unknown> {
 
 _Source: src/types/json-schema.ts_
 
-### JsonContainerNodeV1
-
-**Kind:** `interface`
-
-Контейнер (Box/Section/Wizard/Step/…) с дочерними узлами — либо блок нативной вёрстки
-(`'$html(div)'`), для которого не нужен зарегистрированный компонент.
-
-**Signature:**
-```typescript
-export interface JsonContainerNodeV1<T = unknown> {
-  /** Id для render-behavior. */
-  /**
-   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
-   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
-   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
-   *
-   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
-   */
-  $nodeId?: string;
-  selector?: string;
-  /**
-   * Компонент-контейнер из реестра (`'$component(Section)'`) либо нативный HTML-тег
-   * (`'$html(div)'`). Для тега `componentProps` — DOM-атрибуты, и они проходят чистку
-   * (`sanitizeHtmlProps`): обработчики `on*`, `dangerouslySetInnerHTML` и `javascript:`-URL
-   * отбрасываются.
-   */
-  component: ComponentOp | HtmlOp;
-  /** Props компонента; значения могут содержать строки-операторы или вложенные узлы. */
-  componentProps?: Record<string, unknown>;
-  /**
-   * Содержимое узла: вложенные узлы и текстовые части ({@link JsonTextChild}) в любом порядке —
-   * текст можно ставить и после узла (`[{ "component": "$html(b)", … }, " и далее текст"]`).
-   */
-  children?: JsonChildV1<T>[];
-}
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### JsonFieldNode
 
 **Kind:** `interface`
@@ -3714,203 +3261,6 @@ export interface JsonFieldNode<T = unknown> {
 
 _Source: src/types/json-schema.ts_
 
-### JsonFieldNodeV1
-
-**Kind:** `interface`
-
-Лист формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input).
-
-**Signature:**
-```typescript
-export interface JsonFieldNodeV1<T = unknown> {
-  /** Id для render-behavior (hideWhen/patchProps). Опционален. */
-  /**
-   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
-   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
-   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
-   *
-   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
-   */
-  $nodeId?: string;
-  selector?: string;
-  /** Привязка к сигналу модели: `'$model(personalData.lastName)'`. С типом `T` путь сужается до {@link Path}<T>. */
-  value: ModelOp<T>;
-  /** Компонент поля из реестра: `'$component(Select)'`. Опционален. */
-  component?: ComponentOp;
-  /** Props компонента; значения могут содержать строки-операторы (`'$dataSource(NAME)'`) или вложенные узлы. */
-  componentProps?: Record<string, unknown>;
-  /** Обёртка поля (например, FormField). */
-  wrapper?: JsonNodeV1<T>;
-}
-```
-
-_Source: src/types/json-schema-v1.ts_
-
-### JsonForm
-
-**Kind:** `interface`
-
-Собранная форма из JSON-схемы: источник истины для `<JsonFormRenderer form={…} />`.
-
-**Signature:**
-```typescript
-export interface JsonForm<T> extends CoreForm<T> {
-  /** Та же JSON-схема, из которой собраны model+form (рендерер строит из неё render-дерево). */
-  schema: JsonFormSchemaV1<T>;
-  /** Реестр компонентов/source (нужен рендереру для резолва имён). */
-  registry: ComponentRegistry;
-  /**
-   * Render-behavior, собранный фабрикой из конфига. В отличие от React-варианта он ещё НЕ применён:
-   * дерево строит сам рендерер, он же и накладывает поведение. Ссылка стабильна — бандл собран один
-   * раз, поэтому рендерер не пересобирает дерево на каждый рендер.
-   */
-  renderBehavior?: RenderBehaviorFn<T>;
-}
-```
-
-_Source: src/create-json-form.ts_
-
-### JsonFormRenderer
-
-**Kind:** `function`
-
-Главный компонент пакета. Рендерит форму, описанную JSON-схемой.
-
-Должен использоваться внутри {@link JsonRendererProvider}, который снабжает рендерер
-реестром компонентов. Без реестра компонент бросит исключение при попытке резолва.
-
-**Signature:**
-```typescript
-export function JsonFormRenderer<T>({
-  form,
-  schema: schemaProp,
-  model: modelProp,
-  registry: registryProp,
-  renderBehavior: renderBehaviorProp,
-  onSchemaReady,
-  validateSchema = false,
-}: JsonFormRendererProps<T>): ReactNode
-```
-
-**Examples:**
-
-Форма из JSON-схемы (M1)
-```tsx
-import { useMemo } from 'react';
-import { createModel } from '@reformer/core';
-import { Input, Box, FormField } from '@reformer/ui-kit';
-import {
-JsonFormRenderer,
-JsonRendererProvider,
-defineRegistry,
-FIELD_WRAPPER,
-type JsonFormSchemaV1,
-} from '@reformer/renderer-json';
-
-// Привязки — строки-операторы: '$model(...)', '$component(...)', '$dataSource(...)'.
-const schema: JsonFormSchemaV1 = {
-version: '1.0',
-root: {
-component: '$component(Box)',
-children: [
-{
-value: '$model(email)',
-component: '$component(Input)',
-componentProps: { label: 'Email' },
-},
-],
-},
-};
-
-type MyForm = { email: string };
-
-function MyFormPage() {
-// M1: модель — источник истины значений; листья схемы биндятся к её сигналам.
-const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
-const registry = useMemo(() => defineRegistry((reg) => {
-reg.component('Input', Input);
-reg.component('Box', Box);
-reg.component(FIELD_WRAPPER, FormField); // системная обёртка полей
-}), []);
-
-// Реестр — глобальная настройка через провайдер; модель — per-form проп рендерера.
-return (
-<JsonRendererProvider settings={{ registry }}>
-<JsonFormRenderer<MyForm> schema={schema} model={model} validateSchema={import.meta.env.DEV} />
-</JsonRendererProvider>
-);
-}
-```
-
-**Note**: `JsonFormRenderer` принимает `{ schema, model, renderBehavior?, onSchemaReady?, validateSchema? }`.
-Под M1 модель (`FormModel`) обязательна и передаётся пропом `model` — это per-form состояние;
-листья JSON-схемы биндятся к её сигналам конвертером {@link createRenderSchemaFromJsonM1}.
-
-**See also:**
-- [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
-
-_Source: src/components/json-form-renderer.tsx_
-
-### JsonFormRendererProps
-
-**Kind:** `interface`
-
-Props of {@link JsonFormRenderer}.
-
-**Signature:**
-```typescript
-export interface JsonFormRendererProps<T> {
-  /**
-   * Собранный бандл {@link createJsonForm}. Если задан — поставляет `schema`, `model`, `registry`
-   * и `renderBehavior` (передавать их отдельно не нужно). Иначе укажи `schema` + `model`.
-   */
-  form?: JsonForm<T>;
-  /**
-   * JSON-схема формы. См. {@link JsonFormSchemaV1}. Опционально, если задан `form`. Тип намеренно
-   * НЕ параметризован `T`: рендерер принимает любую схему (в т.ч. `.json`-импорт «строкой с сервера»);
-   * типобезопасность путей `$model(...)` даётся на этапе авторинга (`defineJsonSchema<T>`/`createJsonForm<T>`).
-   */
-  schema?: JsonFormSchemaV1;
-  /**
-   * Модель данных формы (M1). Листья схемы (`value: '$model(path)'`) биндятся к её сигналам
-   * (`model.signalAt(path)`) конвертером {@link createRenderSchemaFromJsonM1}. Per-form состояние,
-   * поэтому передаётся пропом рендерера (не глобальными настройками {@link JsonRendererProvider}).
-   * Опционально, если задан `form`.
-   */
-  model?: FormModel<T>;
-  /**
-   * Реестр компонентов. Приоритет: `registry` → `form.registry` → контекст
-   * {@link JsonRendererProvider}.
-   *
-   * Нужен, когда провайдер и рендерер оказываются в РАЗНЫХ бандлах (микрофронты): React-контекст
-   * границу бандла не пересекает, поэтому провайдер хоста невидим рендереру из ремоута. В прод-сборке
-   * такой отказ МОЛЧАЛИВЫЙ — DEV-guard в `useJsonRendererSettings` вырезается при сборке пакета.
-   * Проп убирает эту точку отказа: реестр передаётся напрямую, провайдер становится необязательным.
-   */
-  registry?: ComponentRegistry;
-  /**
-   * Behavior поверх готовой схемы: hideWhen/patchProps/onComponentEvent. Приоритет: этот проп →
-   * `form.renderBehavior` (собранный фабрикой). Ссылка обязана быть стабильной — см. dev-предупреждение
-   * ниже по файлу.
-   */
-  renderBehavior?: RenderBehaviorFn<T>;
-  /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
-  onSchemaReady?: (schema: RenderSchemaProxy<T>) => void;
-  /**
-   * Валидировать JSON-схему против мета-схемы перед рендером. При ошибках рисует
-   * {@link SchemaErrorPanel} вместо формы. ajv грузится **динамически** (`import('../validate')`) —
-   * в prod-бандл не попадает, пока `validateSchema` не включён.
-   *
-   * По умолчанию `false`. Чтобы валидировать только в dev, приложение передаёт значение из
-   * СВОЕГО окружения: `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет,
-   * т.к. `import.meta.env.DEV` инлайнится в `false` при production-сборке самого пакета.
-   */
-  validateSchema?: boolean;
-}
-```
-
-_Source: src/components/json-form-renderer.tsx_
-
 ### JsonFormSchema
 
 **Kind:** `interface`
@@ -3926,8 +3276,8 @@ export interface JsonFormSchema<T = unknown> {
    */
   $schema?: string;
   /**
-   * Формат документа. `2` — этот формат; документ без поля — прежний формат (`JsonFormSchemaV1`),
-   * его переводит `migrateJsonSchema`.
+   * Формат документа. `2` — этот формат; документ без поля — прежний формат, его переводит
+   * `migrateJsonSchema`.
    */
   format: 2;
   /** Идентификатор схемы (произвольная строка: для реестров/трекинга). Игнорируется конвертером. */
@@ -3973,48 +3323,6 @@ const schema: JsonFormSchema = {
 
 _Source: src/types/json-schema.ts_
 
-### JsonFormSchemaV1
-
-**Kind:** `interface`
-
-Корневая JSON-схема формы.
-
-**Signature:**
-```typescript
-export interface JsonFormSchemaV1<T = unknown> {
-  /**
-   * Путь к мета-схеме для IDE (VSCode подсветит структуру/синтаксис/имена `$component`).
-   * Игнорируется конвертером. Сгенерировать конкретную мета-схему: `gen-form-json-schema.ts`.
-   */
-  $schema?: string;
-  /** Идентификатор схемы (произвольная строка: для реестров/трекинга). Игнорируется конвертером. */
-  id?: string;
-  /** Версия схемы (для миграций). */
-  version?: string;
-  /** Метаданные схемы (имя/описание — для каталогов/UI). Игнорируется конвертером. */
-  meta?: {
-    name?: string;
-    description?: string;
-  };
-  /** Корневой узел. С типом `T` пути `$model(...)` в дереве сужаются до {@link Path}<T>. */
-  root: JsonNodeV1<T>;
-}
-```
-
-**Examples:**
-
-```ts
-const schema: JsonFormSchemaV1 = {
-  version: '1.0',
-  root: {
-    component: '$component(Box)',
-    children: [{ value: '$model(email)', component: '$component(Input)' }],
-  },
-};
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### JsonFormStep
 
 **Kind:** `interface`
@@ -4040,31 +3348,6 @@ export interface JsonFormStep<T = unknown> {
 
 _Source: src/types/json-schema.ts_
 
-### JsonFormStepV1
-
-**Kind:** `interface`
-
-Файл шага визарда: узел шага без корня формы. Ключ — `node`, а не `root`, чтобы файл шага
-не принимался за самостоятельную форму.
-
-**Signature:**
-```typescript
-export interface JsonFormStepV1<T = unknown> {
-  /** Путь к мета-схеме файла шага для IDE. Игнорируется при сборке. */
-  $schema?: string;
-  /** Узел шага — то, что встаёт в `componentProps.steps` на место ссылки. */
-  node: JsonNodeV1<T>;
-}
-```
-
-**Examples:**
-
-```json
-{ "$schema": "../../form-step.schema.json", "node": { "component": "$component(Step)", "children": [] } }
-```
-
-_Source: src/types/json-schema-v1.ts_
-
 ### JsonNode
 
 **Kind:** `type`
@@ -4081,22 +3364,6 @@ export type JsonNode<T = unknown> =
 ```
 
 _Source: src/types/json-schema.ts_
-
-### JsonNodeV1
-
-**Kind:** `type`
-
-Узел JSON-схемы (M1). `T` — форма модели: при указании `$model(...)` пути сужаются до {@link Path}<T>.
-
-**Signature:**
-```typescript
-export type JsonNodeV1<T = unknown> =
-  | JsonFieldNodeV1<T>
-  | JsonArrayNodeV1<T>
-  | JsonContainerNodeV1<T>;
-```
-
-_Source: src/types/json-schema-v1.ts_
 
 ### JsonOperator
 
@@ -4143,78 +3410,6 @@ export interface JsonPartNode<T = unknown> {
 ```
 
 _Source: src/types/json-schema.ts_
-
-### JsonRendererProvider
-
-**Kind:** `function`
-
-Провайдер настроек для {@link JsonFormRenderer}. Прокидывает реестр и
-fieldWrapper во вложенные компоненты через React Context.
-
-Поддерживает вложенность: внутренний провайдер сливается с внешним. При дублях имён
-выигрывает **внутренний** (последний), как у `Object.assign` — внешний задаёт базу,
-внутренний её перекрывает. Программный аналог без React — {@link composeRegistries}.
-
-**Signature:**
-```typescript
-export function JsonRendererProvider({ settings, children }: JsonRendererProviderProps): ReactNode
-```
-
-**Examples:**
-
-M1: реестр через settings (глобально), модель — пропом рендерера (per-form)
-```tsx
-// Модель — источник истины (M1); листья схемы биндятся к её сигналам.
-const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
-const registry = useMemo(() => defineRegistry((reg) => {
-reg.component('Input', Input);
-reg.component(FIELD_WRAPPER, FormField);
-}), []);
-
-<JsonRendererProvider settings={{ registry }}>
-<JsonFormRenderer<MyForm> schema={schema} model={model} />
-</JsonRendererProvider>
-```
-
-_Source: src/context/json-renderer-context.tsx_
-
-### JsonRendererProviderProps
-
-**Kind:** `interface`
-
-Props {@link JsonRendererProvider}.
-
-**Signature:**
-```typescript
-export interface JsonRendererProviderProps {
-  /** Настройки рендерера, как минимум содержащие `registry`. */
-  settings: JsonRendererSettings;
-  /** Дочернее поддерево, в котором доступен `JsonFormRenderer` и `useJsonRendererSettings`. */
-  children: ReactNode;
-}
-```
-
-_Source: src/context/json-renderer-context.tsx_
-
-### JsonRendererSettings
-
-**Kind:** `interface`
-
-Расширенные настройки рендерера: всё из `RendererSettings` плюс реестр.
-
-Это **глобальные** настройки, общие на всё поддерево (реестр компонентов, `fieldWrapper`,
-`resolveFieldAdapter`). Модель данных сюда не входит — она per-form и передаётся пропом
-`model` компонента {@link JsonFormRenderer}.
-
-**Signature:**
-```typescript
-export interface JsonRendererSettings extends RendererSettings {
-  /** Реестр компонентов и source-значений. См. {@link defineRegistry}. */
-  registry?: ComponentRegistry;
-}
-```
-
-_Source: src/context/json-renderer-context.tsx_
 
 ### JsonStepRef
 
@@ -4330,14 +3525,15 @@ export function LocaleProvider({ service, children }: LocaleProviderProps): Reac
 
 Переключение языка
 ```tsx
-import { LocaleProvider, createLocaleService, JsonFormRenderer } from '@reformer/renderer-json';
+import { FormRenderer } from '@reformer/renderer-react';
+import { LocaleProvider, createLocaleService } from '@reformer/renderer-json';
 
 const services = { ru: createLocaleService(ruTable), en: createLocaleService(enTable) };
-function App() {
+function App({ bundle }: { bundle: FormBundle<MyForm> }) {
 const [lang, setLang] = useState<'ru' | 'en'>('ru');
 return (
 <LocaleProvider service={services[lang]}>
-<JsonFormRenderer schema={schema} />
+<FormRenderer form={bundle} />
 </LocaleProvider>
 );
 }
@@ -4416,7 +3612,8 @@ export function migrateJsonSchema<T = unknown>(
 ```
 
 **Parameters:**
-- `schema` — - Документ схемы прежнего либо нового формата.
+- `schema` — - Документ схемы прежнего либо нового формата. Тип — `unknown`: документ приходит
+из сети, кэша или с диска, а типов прежнего формата пакет не экспортирует.
 - `options` — - {@link MigrateJsonSchemaOptions}: имена компонентов-визардов.
 
 **Returns:** Документ формата 2. Аргумент не мутируется.
@@ -4601,7 +3798,7 @@ export interface RegistryBuilder {
    * Зарегистрировать React-компонент под именем — доступен в схеме как
    * `$component(name)`. Одним методом регистрируются и компоненты-листья
    * (Input/Select), и контейнеры (Box/Section/FormField): роль узла (лист vs
-   * контейнер) определяется структурой узла схемы (`value` vs `children`),
+   * контейнер) определяется структурой узла схемы (`model` vs `children`),
    * а не регистрацией.
    */
   component<P>(name: string, component: ComponentType<P>, description?: string): void;
@@ -4721,8 +3918,8 @@ _Source: src/components/schema-error-boundary.tsx_
 Список ошибок схемы (path + message), с пометкой источника. Без внешних UI-зависимостей
 (инлайн-стили), помечен `role="alert"` и `data-testid="schema-error-panel"`.
 
-Обычно рендерится автоматически внутри {@link JsonFormRenderer} (при `validate` и невалидной
-схеме). Можно использовать напрямую для показа результата `validateFormSchema().errors`.
+Рендерится внутри {@link SchemaErrorBoundary} либо напрямую — для показа результата
+`validateFormSchema().errors`.
 
 **Signature:**
 ```typescript
@@ -4873,84 +4070,6 @@ export function unwrapSignalValues(values?: LocaleParams): LocaleParams | undefi
 
 _Source: src/locale/use-signal-value.ts_
 
-### useJsonForm
-
-**Kind:** `const`
-
-Хук стабильной сборки формы: фабрика вызывается РОВНО один раз (ленивый инициализатор `useState`),
-поэтому model/form переживают ре-рендеры. `useMemo` для этого не годится — React вправе сбросить
-его кэш и пересоздать форму (потеря введённого). Живая валидация армируется в эффекте.
-
-Это общий хук семейства (`useFormBundle` из `@reformer/core/react`) под именем JSON-слоя: он не сужает
-результат до `JsonForm<T>`, поэтому расширенные бандлы (со своими полями) переживают его без
-потерь.
-
-**Signature:**
-```typescript
-export const useJsonForm
-```
-
-**Parameters:**
-- `factory` — - Фабрика бандла (обычно `() => createJsonForm<T>({…})`).
-
-**Returns:** Стабильный бандл.
-
-**Examples:**
-
-```tsx
-const jsonForm = useJsonForm(() => createJsonForm<MyForm>({ schema, registry, initial }));
-```
-
-_Source: src/create-json-form.ts_
-
-### useJsonRendererSettings
-
-**Kind:** `function`
-
-Хук для чтения текущих настроек {@link JsonRendererProvider}.
-
-В режиме разработки бросает исключение, если вызван вне провайдера или
-если в провайдере не передан `registry`.
-
-**Signature:**
-```typescript
-export function useJsonRendererSettings(): JsonRendererSettings
-```
-
-**Returns:** Текущие {@link JsonRendererSettings}.
-
-**Examples:**
-
-```tsx
-function MyControl() {
-  const { registry } = useJsonRendererSettings();
-  return <span>{registry?.has('Input') ? 'ready' : 'not registered'}</span>;
-}
-```
-
-_Source: src/context/json-renderer-context.tsx_
-
-### useJsonRendererSettingsUnchecked
-
-**Kind:** `function`
-
-Настройки БЕЗ DEV-guard на наличие реестра.
-
-Для потребителей, которые получают реестр другим каналом (проп `registry` у
-{@link JsonFormRenderer}, программная {@link composeRegistries}) и вправе обходиться без
-провайдера. Ключевой случай — микрофронты: React-контекст не пересекает границу бандла,
-поэтому провайдер хоста невидим рендереру из ремоута, и обязательный guard ломал бы
-полностью рабочую конфигурацию. Проверку наличия реестра делает вызывающий.
-
-**Signature:**
-```typescript
-export function useJsonRendererSettingsUnchecked(): JsonRendererSettings
-```
-
-**Returns:** Текущие {@link JsonRendererSettings} как есть (возможно, пустые).
-
-_Source: src/context/json-renderer-context.tsx_
-
 ### useLocale
 
 **Kind:** `function`
@@ -4991,9 +4110,12 @@ _Source: src/locale/use-signal-value.ts_
 
 **Kind:** `function`
 
-Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него
-(иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт в subpath
-`@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+Валидирует документ JSON-схемы формы формата 2. Если передан `registry`, имена компонентов/source
+берутся из него (иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт
+в subpath `@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+
+Документ прежнего формата (без `format: 2`) по существу не проверяется: результат — одна ошибка
+с отсылкой к `migrateJsonSchema`.
 
 Если задан `opts.propSchemas` (карта регистр-имя → схема componentProps), дополнительно запускается
 фаза (d): рекурсивный обход валидирует `componentProps` каждой компонент-ноды по её схеме (ловит

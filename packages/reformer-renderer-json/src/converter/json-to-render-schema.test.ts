@@ -1,13 +1,19 @@
+/**
+ * Конвертер документа формата 2: резолв операторов (`$component`, `$dataSource`, `$fn`,
+ * `$locale`, `$html`), текстовые части, обёртка поля, массив под-форм. Подформы и части
+ * документа — в `json-to-render-schema.v2.test.tsx`.
+ */
 import { describe, it, expect, vi } from 'vitest';
-import { convertJsonToM1Tree } from './json-to-render-schema';
+import { convertJsonSchema } from './json-to-render-schema';
 import { defineRegistry } from '../registry/component-registry';
 import { createLocaleResolver, createLocaleService } from '../locale/locale-service';
-import type { JsonFormSchemaV1 as JsonFormSchema } from '../types/json-schema-v1';
+import type { JsonFormSchema } from '../types/json-schema';
 import { compileSchema, createModel, type FormModel } from '@reformer/core';
 
-/**
- * Заглушка модели: конвертер трогает только `signalAt` (лист) и dot-обход (массив),
- * поэтому реальная FormModel из core не нужна — изолируем поведение самого конвертера.
+/*
+ * Заглушка модели: для поля конвертер трогает только `signalAt`, поэтому реальная FormModel из
+ * core не нужна — изолируем поведение самого конвертера. Массиву под-форм нужна настоящая модель:
+ * узел привязывается ручкой массива.
  */
 const FormFieldStub = (): null => null;
 const InputStub = (): null => null;
@@ -29,15 +35,17 @@ const registry = defineRegistry((reg) => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stubModel = { signalAt: (p: string) => ({ __path: p }) } as any;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const convert = (root: any): any =>
-  convertJsonToM1Tree({ root } as JsonFormSchema, registry, stubModel);
+/** Документ формата 2 из одного корня. */
+const documentOf = (root: unknown): JsonFormSchema => ({ format: 2, root }) as JsonFormSchema;
 
-describe('convertJsonToM1Tree', () => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const convert = (root: any): any => convertJsonSchema(documentOf(root), registry, stubModel);
+
+describe('convertJsonSchema: операторы и узлы', () => {
   describe('per-field wrapper (JSON `wrapper` → renderer `componentProps.fieldWrapper`)', () => {
     it('maps `wrapper: { component: "$component(FormField)" }` to componentProps.fieldWrapper', () => {
       const node = convert({
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         componentProps: { label: 'Email' },
         wrapper: { component: '$component(FormField)' },
@@ -48,7 +56,7 @@ describe('convertJsonToM1Tree', () => {
     });
 
     it('leaves fieldWrapper unset when `wrapper` is absent', () => {
-      const node = convert({ value: '$model(email)', component: '$component(Input)' });
+      const node = convert({ model: '$model(email)', component: '$component(Input)' });
       expect(node.componentProps?.fieldWrapper).toBeUndefined();
     });
   });
@@ -57,7 +65,7 @@ describe('convertJsonToM1Tree', () => {
     it('throws when a component is used as $dataSource(...)', () => {
       expect(() =>
         convert({
-          value: '$model(loanType)',
+          model: '$model(loanType)',
           component: '$component(Input)',
           componentProps: { options: '$dataSource(Input)' },
         })
@@ -66,7 +74,7 @@ describe('convertJsonToM1Tree', () => {
 
     it('resolves a real dataSource name to its registered value', () => {
       const node = convert({
-        value: '$model(loanType)',
+        model: '$model(loanType)',
         component: '$component(Input)',
         componentProps: { options: '$dataSource(LOAN_TYPES)' },
       });
@@ -76,7 +84,7 @@ describe('convertJsonToM1Tree', () => {
 
   describe('array node with optional $component (component-rendered list)', () => {
     const listSchema = {
-      array: '$model(alerts)',
+      model: '$model(alerts)',
       component: '$component(List)',
       item: {
         $template: {
@@ -88,9 +96,12 @@ describe('convertJsonToM1Tree', () => {
 
     // Массив под-форм привязывается только к настоящему массиву модели: ручка, а не фасад.
     const alertsModel = () => createModel({ alerts: [{ message: 'первое' }] });
-    const convertWith = (model: FormModel<{ alerts: { message: string }[] }>) =>
+    const convertWith = (
+      model: FormModel<{ alerts: { message: string }[] }>,
+      root: unknown = listSchema
+    ) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      convertJsonToM1Tree({ root: listSchema } as JsonFormSchema, registry, model) as any;
+      convertJsonSchema(documentOf(root), registry, model) as any;
 
     it('attaches the resolved component + item factory', () => {
       const model = alertsModel();
@@ -108,32 +119,26 @@ describe('convertJsonToM1Tree', () => {
       expect(sub.componentProps.message).toBe(model.alerts.at(0)!.$.message);
     });
 
-    it('без массива в модели — узел без строк и предупреждение', () => {
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const node = convert(listSchema);
-      expect(node.model).toBeUndefined();
-      expect(node.item).toBeUndefined();
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('is not an array of the model'));
-      warn.mockRestore();
+    it('массива нет в модели — ошибка при сборке дерева, а не узел без строк', () => {
+      expect(() => convert(listSchema)).toThrow(/"\$model\(alerts\)" is not an array of the model/);
     });
 
     it('leaves component undefined for a plain array node (built-in path)', () => {
-      const node = convert({
-        array: '$model(alerts)',
-        initialValue: {},
-        item: { $template: { value: '$model(x)', component: '$component(Input)' } },
+      const node = convertWith(alertsModel(), {
+        model: '$model(alerts)',
+        item: { $template: { model: '$model(message)', component: '$component(Input)' } },
       });
       expect(node.component).toBeUndefined();
+      expect(typeof node.item).toBe('function');
     });
   });
 
   describe('$fn — function reference from registry', () => {
     it('resolves $fn(name) to the registered function verbatim', () => {
       const node = convert({
-        array: '$model(properties)',
-        initialValue: { type: '' },
+        model: '$model(properties)',
+        component: '$component(List)',
         componentProps: { itemLabel: '$fn(itemLabel)' },
-        item: { $template: { value: '$model(type)', component: '$component(Input)' } },
       });
       expect(node.componentProps.itemLabel).toBe(itemLabelFn);
     });
@@ -141,7 +146,7 @@ describe('convertJsonToM1Tree', () => {
     it('throws when a dataSource is used as $fn(...)', () => {
       expect(() =>
         convert({
-          value: '$model(x)',
+          model: '$model(x)',
           component: '$component(Input)',
           componentProps: { format: '$fn(LOAN_TYPES)' },
         })
@@ -149,7 +154,7 @@ describe('convertJsonToM1Tree', () => {
     });
 
     it('throws when a fn is used as $component(...)', () => {
-      expect(() => convert({ value: '$model(x)', component: '$component(itemLabel)' })).toThrow(
+      expect(() => convert({ model: '$model(x)', component: '$component(itemLabel)' })).toThrow(
         /cannot be used as \$component/i
       );
     });
@@ -158,7 +163,7 @@ describe('convertJsonToM1Tree', () => {
   describe('$locale — key resolved to a plain string at convert-time', () => {
     it('resolves a known key through the registered locale service', () => {
       const node = convert({
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         componentProps: { label: '$locale(fields.email.label)' },
       });
@@ -167,7 +172,7 @@ describe('convertJsonToM1Tree', () => {
 
     it('falls back to the key itself for an unknown key', () => {
       const node = convert({
-        value: '$model(email)',
+        model: '$model(email)',
         component: '$component(Input)',
         componentProps: { label: '$locale(fields.unknown)' },
       });
@@ -176,14 +181,12 @@ describe('convertJsonToM1Tree', () => {
 
     it('falls back to the key when no locale service is registered', () => {
       const bare = defineRegistry((reg) => reg.component('Input', InputStub));
-      const node = convertJsonToM1Tree(
-        {
-          root: {
-            value: '$model(email)',
-            component: '$component(Input)',
-            componentProps: { label: '$locale(fields.email.label)' },
-          },
-        } as JsonFormSchema,
+      const node = convertJsonSchema(
+        documentOf({
+          model: '$model(email)',
+          component: '$component(Input)',
+          componentProps: { label: '$locale(fields.email.label)' },
+        }),
         bare,
         stubModel
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,11 +202,11 @@ describe('convertJsonToM1Tree', () => {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const convertWith = (root: any, reg = i18nRegistry): any =>
-      convertJsonToM1Tree({ root } as JsonFormSchema, reg, stubModel);
+      convertJsonSchema(documentOf(root), reg, stubModel);
 
     it('resolves { $locale, params } to an interpolated string', () => {
       const node = convertWith({
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Input)',
         componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
       });
@@ -214,7 +217,7 @@ describe('convertJsonToM1Tree', () => {
       const bare = defineRegistry((reg) => reg.component('Input', InputStub));
       const node = convertWith(
         {
-          value: '$model(x)',
+          model: '$model(x)',
           component: '$component(Input)',
           componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
         },
@@ -229,16 +232,14 @@ describe('convertJsonToM1Tree', () => {
       const modelWithPeek = {
         signalAt: (p: string) => ({ peek: () => (p === 'minLen' ? 8 : undefined) }),
       } as unknown as FormModel<unknown>;
-      const node = convertJsonToM1Tree(
-        {
-          root: {
-            value: '$model(x)',
-            component: '$component(Input)',
-            componentProps: {
-              label: { $locale: 'fields.min', params: { count: '$model(minLen)' } },
-            },
+      const node = convertJsonSchema(
+        documentOf({
+          model: '$model(x)',
+          component: '$component(Input)',
+          componentProps: {
+            label: { $locale: 'fields.min', params: { count: '$model(minLen)' } },
           },
-        } as JsonFormSchema,
+        }),
         i18nRegistry,
         modelWithPeek
       ) as unknown as { componentProps: { label: string } };
@@ -250,7 +251,7 @@ describe('convertJsonToM1Tree', () => {
     it('does not warn for literal-only params', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       convertWith({
-        value: '$model(x)',
+        model: '$model(x)',
         component: '$component(Input)',
         componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
       });
@@ -280,7 +281,7 @@ describe('convertJsonToM1Tree', () => {
         component: '$html(div)',
         children: [
           { component: '$html(h3)', children: ['Итого'] },
-          { value: '$model(email)', component: '$component(Input)' },
+          { model: '$model(email)', component: '$component(Input)' },
         ],
       });
       expect(node.children[0].component).toBe('h3');
@@ -361,12 +362,18 @@ describe('convertJsonToM1Tree', () => {
       expect(node.componentProps.onClick).toBe(onClick);
     });
 
-    it('конвертирует html-узлы, вложенные в произвольный componentProps (напр. steps визарда)', () => {
+    it('конвертирует узлы, вложенные в произвольный componentProps', () => {
       const node = convert({
         component: '$component(Input)',
-        componentProps: { steps: [{ component: '$html(section)', text: 'Шаг' }] },
+        componentProps: {
+          header: [{ component: '$html(section)', children: ['Шапка'] }],
+          footer: { model: '$model(note)', component: '$component(Input)' },
+        },
       });
-      expect(node.componentProps.steps[0].component).toBe('section');
+      expect(node.componentProps.header[0].component).toBe('section');
+      expect(node.componentProps.header[0].children).toEqual(['Шапка']);
+      expect(node.componentProps.footer.model).toEqual({ __path: 'note' });
+      expect(node.componentProps.footer.component).toBe(InputStub);
     });
   });
 });
@@ -378,21 +385,21 @@ describe('массив как значение поля (`$model(<массив>)
   const convertReal = (
     root: unknown
   ): { model: unknown; componentProps?: Record<string, unknown> } =>
-    convertJsonToM1Tree({ root } as JsonFormSchema, registry, model) as never;
+    convertJsonSchema(documentOf(root), registry, model) as never;
 
   it('узел-поле получает ручку массива и распознаётся рендерером как поле', () => {
-    const node = convertReal({ value: '$model(tags)', component: '$component(Input)' });
+    const node = convertReal({ model: '$model(tags)', component: '$component(Input)' });
 
     expect(node.model).toBe(model.$.tags);
     expect(compileSchema(node as never, model).root.kind).toBe('field');
     // Вложенный путь — тем же способом.
-    const nested = convertReal({ value: '$model(profile.langs)', component: '$component(Input)' });
+    const nested = convertReal({ model: '$model(profile.langs)', component: '$component(Input)' });
     expect(nested.model).toBe(model.$.profile.langs);
   });
 
   it('`$model(<массив>)` в componentProps отдаёт ту же ручку — рендерер развернёт её в значение', () => {
     const node = convertReal({
-      value: '$model(name)',
+      model: '$model(name)',
       component: '$component(Input)',
       componentProps: { suggestions: '$model(tags)' },
     });

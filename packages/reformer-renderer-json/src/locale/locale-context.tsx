@@ -31,14 +31,15 @@ export interface LocaleProviderProps {
  *
  * @example Переключение языка
  * ```tsx
- * import { LocaleProvider, createLocaleService, JsonFormRenderer } from '@reformer/renderer-json';
+ * import { FormRenderer } from '@reformer/renderer-react';
+ * import { LocaleProvider, createLocaleService } from '@reformer/renderer-json';
  *
  * const services = { ru: createLocaleService(ruTable), en: createLocaleService(enTable) };
- * function App() {
+ * function App({ bundle }: { bundle: FormBundle<MyForm> }) {
  *   const [lang, setLang] = useState<'ru' | 'en'>('ru');
  *   return (
  *     <LocaleProvider service={services[lang]}>
- *       <JsonFormRenderer schema={schema} />
+ *       <FormRenderer form={bundle} />
  *     </LocaleProvider>
  *   );
  * }

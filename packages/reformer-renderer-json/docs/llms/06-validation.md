@@ -180,11 +180,11 @@ createForm<CreditForm>({
 
 ## Прежний формат документа { #v1 }
 
-Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) собирает `createJsonForm` и рисует `JsonFormRenderer`. Правила и поток передаются теми же полями — `createJsonForm({ schema, registry, model, validation, flow })`, — и `JsonFormRenderer` с этим бандлом (`form={bundle}`) ставит контекст сборки: визард берёт из него форму и поток и отправляет через проверку (`bundle.submission.submit`). Снимается такой бандл, как и сборка `createForm`, вызовом `bundle.dispose()`. Проще перевести документ: `migrateJsonSchema(document)` → формат 2 → `createForm` (см. [10-format-2.md](10-format-2.md)).
+Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) рантайм не читает. Переведи его при загрузке: `migrateJsonSchema(document)` → формат 2 → `createForm` с теми же полями `validation` и `flow` (см. [10-format-2.md](10-format-2.md)).
 
 ## Anti-patterns
 
-- **Ждать, что `validateFormSchema` (или проп `validateSchema` у `JsonFormRenderer`) валидирует значения** — они проверяют только СТРУКТУРУ документа через ajv. Введённые пользователем значения они не трогают.
+- **Ждать, что `validateFormSchema` валидирует значения** — она проверяет только СТРУКТУРУ документа через ajv. Введённые пользователем значения она не трогает.
 - **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`model`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует.
 - **Текст в правиле** — `required({ message: '…' })` больше нет: опции правила — `{ code?, params? }`. Текст — словарь `defineIssueMessages` + `ValidationMessagesProvider messages`.
 - **Инъекция `validateStep`/`validateAll` в узел визарда через `patchProps`, `defineSteps`, `validation.steps`** — прежний контракт, удалён. Правила шагов — `flow: { steps: [{ id, rules }] }` в сборке; визард берёт поток и отправку из сборки сам.

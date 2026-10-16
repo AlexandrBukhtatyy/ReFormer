@@ -2,10 +2,9 @@
  * Compile-time тест типизации схемы (#5, §4). Проверяется `tsc` (файл под `src`, include:["src"]),
  * НЕ запускается vitest (нет суффикса `.test.`/`.spec.`). Убеждается, что `defineJsonSchema<T>`
  * сужает пути `$model(...)` до Path<T>: валидные пути компилируются, опечатка — ошибка компиляции.
- * Проверяются оба формата документа: формат 2 (основные имена) и прежний (суффикс `V1`).
+ * Документ формата 2 — единственный формат, который читает рантайм.
  */
 import { defineJsonSchema } from './json-schema';
-import { defineJsonSchemaV1 } from './json-schema-v1';
 
 interface CreditFormShape {
   loanType: string;
@@ -13,8 +12,6 @@ interface CreditFormShape {
   registrationAddress: { city: string };
   coBorrowers: { name: string }[];
 }
-
-// ── Формат 2 ────────────────────────────────────────────────────────────────
 
 // Валидные пути (в т.ч. вложенные), подформа и оба вида шаблона строки компилируются.
 export const okSchema = defineJsonSchema<CreditFormShape>({
@@ -67,37 +64,4 @@ export const noFormat = defineJsonSchema({ root: { component: '$component(Box)' 
 export const untypedSchema = defineJsonSchema({
   format: 2,
   root: { component: '$component(Box)', children: [{ model: '$model(anything.goes.here)' }] },
-});
-
-// ── Прежний формат (v1) ─────────────────────────────────────────────────────
-
-export const okSchemaV1 = defineJsonSchemaV1<CreditFormShape>({
-  version: '1.0',
-  root: {
-    component: '$component(Box)',
-    children: [
-      { value: '$model(loanType)', component: '$component(Select)' },
-      { value: '$model(personalData.firstName)', component: '$component(Input)' },
-      {
-        array: '$model(coBorrowers)',
-        initialValue: { name: '' },
-        // Внутри шаблона пути относительны ЭЛЕМЕНТУ → нетипизированы (Path<unknown> = string).
-        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
-      },
-    ],
-  },
-});
-
-export const badSchemaV1 = defineJsonSchemaV1<CreditFormShape>({
-  version: '1.0',
-  root: {
-    component: '$component(Box)',
-    children: [
-      {
-        // @ts-expect-error — нет пути 'loanTyp' в CreditFormShape
-        value: '$model(loanTyp)',
-        component: '$component(Input)',
-      },
-    ],
-  },
 });
