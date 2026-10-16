@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { multiValueAdapter, valueChangeAdapter, nativeInputAdapter } from './adapters';
+import {
+  multiValueAdapter,
+  valueChangeAdapter,
+  nativeInputAdapter,
+  dateRangeAdapter,
+} from './adapters';
 
 /**
  * Контракт мультивыборного адаптера. Проверяется именно он, а не соседи: у остальных
@@ -39,5 +44,39 @@ describe('multiValueAdapter', () => {
     expect(valueChangeAdapter.toValue(null)).toBe('');
     // nativeInputAdapter читает e.target.value, что у <select multiple> = только первый выбранный.
     expect(nativeInputAdapter.fromEmit({ target: { value: 'a' } }, {})).toBe('a');
+  });
+});
+
+/**
+ * Адаптер периода (`DatePickerRange`): кортеж `[from, to]` в форме, `undefined` в контроле.
+ * Поле-кортеж хранит сброс как `[]` — на входе это тоже «период не выбран».
+ */
+describe('dateRangeAdapter', () => {
+  const from = new Date(2024, 0, 15);
+  const to = new Date(2024, 0, 20);
+
+  it('полный период эмитит НОВЫЙ кортеж (сигнал бэйлится по !==)', () => {
+    const emitted = [from, to];
+    const result = dateRangeAdapter.fromEmit(emitted, {});
+    expect(result).toEqual([from, to]);
+    expect(result).not.toBe(emitted);
+  });
+
+  it('сброс и неполный период эмитят null', () => {
+    expect(dateRangeAdapter.fromEmit(undefined, {})).toBeNull();
+    expect(dateRangeAdapter.fromEmit([from], {})).toBeNull();
+    expect(dateRangeAdapter.fromEmit([from, null], {})).toBeNull();
+  });
+
+  it('null, [] и не-кортеж из формы приходят в контрол как undefined', () => {
+    expect(dateRangeAdapter.toValue(null)).toBeUndefined();
+    expect(dateRangeAdapter.toValue([])).toBeUndefined();
+    expect(dateRangeAdapter.toValue([from])).toBeUndefined();
+    expect(dateRangeAdapter.toValue(['2024-01-15', '2024-01-20'])).toBeUndefined();
+  });
+
+  it('кортеж из формы доходит до контрола как есть', () => {
+    const stored = [from, to];
+    expect(dateRangeAdapter.toValue(stored)).toBe(stored);
   });
 });

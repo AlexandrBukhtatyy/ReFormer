@@ -228,7 +228,8 @@ function RegistrationPage() {
 | `Toggle`           | `Toggle`                               | `ToggleGroup`      | `ToggleGroupOptions` |
 
 Множественный выбор — отдельные компоненты: `SelectMulti`, `NativeSelectMulti`,
-`ComboboxMulti`, `ComboboxTreeMulti`, `ToggleGroupMulti`. Выбор из иерархии — `ComboboxTree`;
+`ComboboxMulti`, `ComboboxTreeMulti`, `ToggleGroupMulti`. Период и несколько дат — `DatePickerRange`
+(`[Date, Date] | null`) и `DatePickerMulti` (`Date[] | null`). Выбор из иерархии — `ComboboxTree`;
 сам `Tree` не поле формы. Файлы — `FileUploadBase` / `FileUploadDropzone` / `FileUploadInput` /
 `FileUploadAvatar`. Числовое поле — `InputNumber` (не `Input` с `type: 'number'`: `Input` отдаёт
 строку).

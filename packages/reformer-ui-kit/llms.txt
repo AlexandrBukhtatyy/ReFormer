@@ -248,7 +248,8 @@ function RegistrationPage() {
 | `Toggle`           | `Toggle`                               | `ToggleGroup`      | `ToggleGroupOptions` |
 
 Множественный выбор — отдельные компоненты: `SelectMulti`, `NativeSelectMulti`,
-`ComboboxMulti`, `ComboboxTreeMulti`, `ToggleGroupMulti`. Выбор из иерархии — `ComboboxTree`;
+`ComboboxMulti`, `ComboboxTreeMulti`, `ToggleGroupMulti`. Период и несколько дат — `DatePickerRange`
+(`[Date, Date] | null`) и `DatePickerMulti` (`Date[] | null`). Выбор из иерархии — `ComboboxTree`;
 сам `Tree` не поле формы. Файлы — `FileUploadBase` / `FileUploadDropzone` / `FileUploadInput` /
 `FileUploadAvatar`. Числовое поле — `InputNumber` (не `Input` с `type: 'number'`: `Input` отдаёт
 строку).
@@ -783,6 +784,7 @@ import { Textarea } from '@reformer/ui-kit';
 | `Combobox` (все 4 варианта)                                           | То же, что у `SelectAsync`.                                                                               |
 | `NativeSelectWithOptions`                                             | Внутри, левее шеврона.                                                                                    |
 | `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
+| `DatePicker`, `DatePickerRange`, `DatePickerMulti`                    | Внутри кнопки у правого края; у вариантов с `clearable` — **крестик очистки → (i)**.                      |
 
 ```tsx
 <SelectAsync value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
@@ -1504,15 +1506,112 @@ const { form } = createForm<Form>({
 - Ставить в схему сам `Tree` вместо `ComboboxTree` / `ComboboxTreeMulti` — `Tree` не поле формы:
   value-seam остаётся неподключённым, дерево рисуется и не пишет выбор в модель.
 
-## 25. See also
+## 25. Dates: DatePicker, DatePickerRange, DatePickerMulti
+
+Три варианта выбора дат — **отдельные записи реестра**, а не проп `mode`: тип значения у каждого
+свой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у `SelectMulti`). Все три —
+только subpath `@reformer/ui-kit/date-picker` (react-day-picker и date-fns — опциональные peer).
+
+| Компонент         | Значение в модели      | Поведение календаря                                                     |
+| ----------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `DatePicker`      | `Date \| null`         | Выбор даты закрывает календарь.                                         |
+| `DatePickerRange` | `[Date, Date] \| null` | Два клика: начало, затем конец; после второго календарь закрывается.    |
+| `DatePickerMulti` | `Date[] \| null`       | Клик добавляет день, повторный — снимает; календарь остаётся открытым. |
+
+### Период — кортеж `[from, to]`
+
+Период хранится кортежем, а не объектом `{ from, to }`: кортеж — массив модели, и привязка
+компонента делает его полем при любом начальном значении. Объект в начальных значениях модель
+превратила бы в группу — поля бы не было.
+
+```typescript
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { DatePickerRange, DatePickerMulti, type DateRangeValue } from '@reformer/ui-kit/date-picker';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = {
+  vacation: DateRangeValue | null; // период не выбран — null
+  stay: DateRangeValue; // период с префиллом
+  meetings: Date[]; // несколько дат, пустой выбор — []
+};
+
+const schema = (model: FormModel<Form>): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.vacation,
+      component: DatePickerRange,
+      componentProps: { label: 'Отпуск', clearable: true },
+    },
+    { model: model.$.stay, component: DatePickerRange, componentProps: { label: 'Проживание' } },
+    {
+      model: model.$.meetings,
+      component: DatePickerMulti,
+      componentProps: { label: 'Встречи', maxItems: 4 },
+    },
+  ],
+});
+
+const rules = defineValidation<Form>(({ model }) => {
+  validate(model.$.vacation, [required()]); // отклоняет и null, и []
+  validate(model.$.meetings, [required(), maxLength(4)]);
+});
+
+const { form } = createForm<Form>({
+  initial: {
+    vacation: null,
+    stay: [new Date(2026, 9, 10), new Date(2026, 9, 14)], // кортеж в начальном значении — поле
+    meetings: [],
+  },
+  schema,
+  validation: rules,
+});
+```
+
+Чтение периода — значение ручки: `const [from, to] = model.$.vacation.value ?? []`. Порядок дат
+гарантирует контрол: `from <= to`, однодневный период — две одинаковые даты.
+
+### Common Patterns
+
+- **Что хранит модель после сброса** — как у мультивыбора: nullable-поле (начальное `null`) хранит
+  `null`, поле-кортеж (начальное `[from, to]`) — `[]`: узел-массив хранит только массив. Контрол
+  оба читает как «период не выбран», `required()` ловит оба.
+- **Черновик периода** — после первого клика выбрано только начало: оно подсвечено в календаре,
+  но значение поля прежнее, `onChange` не зовётся. Закрытие календаря на черновике его отбрасывает.
+  Повторный клик по выбранному однодневному периоду сбрасывает значение.
+- **Сброс** — `clearable` (крестик у правого края кнопки) либо `.clear()` handle
+  (`DatePickerRangeHandle`, `DatePickerMultiHandle`).
+- **Несколько дат** — значение всегда по возрастанию, порядок кликов в модель не попадает.
+  `maxItems` гасит невыбранные дни по достижении потолка — это подсказка интерфейса; правило
+  формы — `maxLength(n)`.
+- **Подпись в кнопке** — `dateFormat` (токены date-fns: `dd.MM.yyyy`), иначе `dateFormat` локали,
+  иначе `Intl`: у периода `dateStyle: 'long'`, у списка дат — `'medium'`. Список дат сверх
+  `summaryThreshold` (по умолчанию 3) схлопывается в сводку «Выбрано дат: N».
+- **Сколько месяцев рядом** — `numberOfMonths`: 2 у периода, 1 у списка дат. Календарь
+  открывается на месяце выбранного значения.
+- **Живая проверка** — `onBlur` у `DatePickerRange` и `DatePickerMulti` приходит на закрытии
+  календаря, поэтому для них берите `strategy: 'blur'`, как для мультивыбора.
+
+### Anti-patterns
+
+- Период объектом `{ from, to }` в начальных значениях — модель сделает из него группу, поле не
+  появится (в dev-режиме `createForm` предупреждает о нераспознанной привязке).
+- Даты строками (`['2026-10-10', '2026-10-14']`, ответ сервера как есть) — контрол читает их как
+  «период не выбран». Приводите к `Date` до `createForm`.
+- `DatePicker` с пропом `mode="range"` — такого пропа нет: период и несколько дат — отдельные
+  компоненты.
+- Мутация массива на месте (`dates.push(d)`) — сигнал бэйлится по `!==`. Пишите новый массив:
+  `model.$.meetings.value = [...dates, d]`.
+
+## 26. See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
-- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов и выбора дат (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт inline-label контролы (`CheckboxWithLabel`, `SwitchWithLabel`) и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
 
-## 26. Button
+## 27. Button
 
 **Layout and buttons**
 
@@ -1634,7 +1733,7 @@ import { PlusIcon } from 'lucide-react';
   вариант-опций — теряется консистентность темы.
 - `size="icon"` без иконки — будет квадрат `h-9 w-9` без видимого контента.
 
-## 27. AsyncBoundary
+## 28. AsyncBoundary
 
 Контейнер состояний загрузки данных: `idle` / `loading` / `ready` / `error`.
 Стилизованная обёртка над headless `AsyncBoundary` из `@reformer/cdk/async-boundary`.
@@ -1777,7 +1876,7 @@ Controlled — когда загрузкой владеет кто-то друг
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
 
-## 28. Tree
+## 29. Tree
 
 Плотное дерево с уровнями — файловый навигатор редактора, а не раскрывающийся список. Показывает
 иерархию: дерево проекта, разделы каталога, оргструктуру. Живёт в главном barrel
@@ -1939,7 +2038,7 @@ const [query, setQuery] = useState('');
   управляют токены. Своё содержимое добавляют слотами `renderIcon` / `renderLabel` /
   `renderActions`.
 
-## 29. ExampleCard
+## 30. ExampleCard
 
 Карточка-демонстрация для playground: заголовок, описание, область с примером
 и переключатель `пример ↔ исходник` с кнопкой копирования.
@@ -1983,7 +2082,7 @@ import { ExampleCard, Input } from '@reformer/ui-kit';
 - Использовать в продакшене — это playground-utility, не component-library
   primitive. Кнопка переключения «глаз/код» не настраивается.
 
-## 30. cn
+## 31. cn
 
 Утилита для конкатенации Tailwind-классов через `clsx` и `tailwind-merge`.
 Разрешает конфликты (последний выигрывает) — критично для условного оверрайда
@@ -2019,14 +2118,14 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 - Передавать массивы/объекты, рассчитывая на shadcn-стиль `cn({active: true})`:
   `clsx`-синтаксис поддерживается, но удобнее писать через `&&`.
 
-## 31. See also
+## 32. See also
 
 - [03-choice-fields.md](03-choice-fields.md) — `ComboboxTree` / `ComboboxTreeMulti`: значение из иерархии.
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
 - [10-imperative-handles.md](10-imperative-handles.md) — `TreeHandle`: раскрытие уровней, `refresh`, цели действия.
 - [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние», ловушки дерева.
 
-## 32. API
+## 33. API
 
 **FormField integration**
 
@@ -2148,7 +2247,7 @@ NativeSelectMulti, аватар) иконка встаёт справа от к�
 исключение: обе иконки (i) остаются рабочими, потому что по значению в заблокированном поле пояснение
 нужно не меньше, чем в активном.
 
-## 33. Common Patterns
+## 34. Common Patterns
 
 ### 1. Standalone
 
@@ -2410,7 +2509,7 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
 { model: model.$.email, component: Input, componentProps: { label: 'Email', fieldWrapper: RowField } }
 ```
 
-## 34. Anti-patterns
+## 35. Anti-patterns
 
 - Передавать `control` другого типа (`FormGroup`, `FormArray`) — ожидается
   именно `FormControl<T>`. Для массивов — `FieldArraySection` кита или `FieldArray.Root` из CDK; для
@@ -2426,14 +2525,14 @@ const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="
   баннеров) — обёртка ставит `Label` и слот ошибки, что нелогично. Для такого
   рендерь компоненты напрямую (через container-узлы `Box`/`Section`).
 
-## 35. See also
+## 36. See also
 
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md) — компоненты, которые `FormField` оборачивает.
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
 
-## 36. 1. Числовое поле возвращает строку, а не число (или `null`)
+## 37. 1. Числовое поле возвращает строку, а не число (или `null`)
 
 **Troubleshooting / FAQ**
 
@@ -2462,7 +2561,7 @@ interface Form {
 }
 ```
 
-## 37. 2. `SelectAsync` не показывает options (пустой дропдаун)
+## 38. 2. `SelectAsync` не показывает options (пустой дропдаун)
 
 **Симптом.** Триггер открывается, но в нём `No options found.` (или «Failed to load options.» с
 кнопкой «Retry»).
@@ -2483,7 +2582,7 @@ interface Form {
   `resource.load` всё равно вызовется. Если сеть упала, `loading` может
   остаться `true`, и UI блокируется. Используй один источник.
 
-## 38. 3. `InputMask` пропускает символы или не вставляет литералы
+## 39. 3. `InputMask` пропускает символы или не вставляет литералы
 
 **Симптом.** Пользователь вводит цифры, но скобки/тире из маски не
 появляются автоматически.
@@ -2506,7 +2605,7 @@ transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
 (`react-imask`, `imask`) и подключай через [`05-form-field-integration.md`](05-form-field-integration.md)
 сценарий 3 (`<FormField><MaskedInput /></FormField>`).
 
-## 39. 4. `forwardRef` + Radix `Slot` конфликты
+## 40. 4. `forwardRef` + Radix `Slot` конфликты
 
 **Симптом.** При `<Button asChild><Link to="/">Go</Link></Button>` падает с
 `Slot: only one child or React.cloneElement is not a function`.
@@ -2544,7 +2643,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 </Button>;
 ```
 
-## 40. 5. `CheckboxWithLabel` value не сохраняется (всегда `false`)
+## 41. 5. `CheckboxWithLabel` value не сохраняется (всегда `false`)
 
 **Симптом.** Пользователь чекает, в форме пишется `true`, но при следующем
 рендере чекбокс снова пуст.
@@ -2568,7 +2667,7 @@ const { form } = createForm<{ accept: boolean }>({
 });
 ```
 
-## 41. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
+## 42. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
 
 **Симптом.** Поле невалидно, в `form.email.issues.value` замечание есть, но в DOM ошибка не
 рендерится.
@@ -2607,7 +2706,7 @@ import { FormField } from '@reformer/ui-kit'; // готовый wrapper
 import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 ```
 
-## 42. 7. `onBlur` не срабатывает на `SelectAsync` / `RadioGroupOptions`
+## 43. 7. `onBlur` не срабатывает на `SelectAsync` / `RadioGroupOptions`
 
 **Симптом.** `touched`-флаг не появляется при выборе значения, поле «вечно»
 без подсветки ошибки.
@@ -2640,7 +2739,7 @@ const city = useFormControlValue(form.city); // @reformer/core/react: значе
 Проблема обычно возникает, если контрол используется руками без `FormField`: внутри формы
 `value`/`onChange`/`onBlur` подключает обёртка поля.
 
-## 43. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
+## 44. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
 
 **Симптом.** Передал `className="px-2 py-1"` в компонент, ожидая, что
 overrideнет дефолт `px-3`, но получил оба.
@@ -2659,7 +2758,7 @@ overrideнет дефолт `px-3`, но получил оба.
 //                                    ↑ user override побеждает
 ```
 
-## 44. 9. `AsyncBoundary` не переключает состояние
+## 45. 9. `AsyncBoundary` не переключает состояние
 
 **Симптом.** Пропал `loading`, но `children` не появились.
 
@@ -2693,7 +2792,7 @@ import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 </AsyncBoundary.Root>;
 ```
 
-## 45. 10. `InputPassword`: иконка-«глаз» не появляется
+## 46. 10. `InputPassword`: иконка-«глаз» не появляется
 
 **Симптом.** Прокинул `showToggle={true}` (или оставил дефолт), но в правом
 углу ничего нет.
@@ -2717,7 +2816,7 @@ const hasValue = Boolean(value);
 </div>
 ```
 
-## 46. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
+## 47. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
 
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
@@ -2738,7 +2837,7 @@ const hasValue = Boolean(value);
 Подробнее — [`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
 Внутри `SelectAsync` дальнейших магий нет — он читает `options` один в один.
 
-## 47. 12. Мультивыбор не рендерится, а submit молча не проходит
+## 48. 12. Мультивыбор не рендерится, а submit молча не проходит
 
 **Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `ComboboxTreeMulti` /
 `NativeSelectMulti` / `ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо
@@ -2776,7 +2875,7 @@ createForm<{ tags: string[] }>({
 нужен `model.captureInitial()`, иначе модель считает себя изменённой сразу после загрузки, а
 `form.<поле>.reset()` вернёт значение, с которым форма собиралась.
 
-## 48. 13. Поиск в дереве не находит файл, который точно есть
+## 49. 13. Поиск в дереве не находит файл, который точно есть
 
 **Симптом.** В `Tree` (или в поповере `ComboboxTree` / `ComboboxTreeMulti`) вводится имя файла,
 который лежит в неоткрытом каталоге, — в выдаче его нет. Тот же запрос после раскрытия каталога
@@ -2797,7 +2896,7 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 
 Для полностью объявленного дерева (`nodes` без `loadChildren`) ограничения нет: прочитано всё.
 
-## 49. 14. Две строки дерева ведут себя как одна
+## 50. 14. Две строки дерева ведут себя как одна
 
 **Симптом.** Раскрытие одного каталога раскрывает и другой; выделение прыгает не на ту строку;
 в `ComboboxTreeMulti` галочка появляется сразу у двух файлов.
@@ -2816,7 +2915,7 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 { id: 'src/utils/index.ts', label: 'index.ts' }
 ```
 
-## 50. 15. При серверной отрисовке в разметку дерева попадает девять строк
+## 51. 15. При серверной отрисовке в разметку дерева попадает девять строк
 
 **Симптом.** На странице, отрисованной на сервере (или в снапшот-тесте без layout), у дерева из
 сотни узлов в HTML оказывается девять строк; остальные появляются только после гидратации.
@@ -2834,13 +2933,13 @@ const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
 Обратная сторона честная: без виртуализации в разметке живёт каждая строка со своими
 обработчиками, поэтому для дерева проекта на тысячи узлов так делать нельзя.
 
-## 51. See also
+## 52. See also
 
 - [01-overview.md](01-overview.md) — список компонентов и их назначения.
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту; `Tree` в 04, его варианты комбобокса в 03.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 
-## 52. Поток шагов
+## 53. Поток шагов
 
 **FormWizard — multi-step форма**
 
@@ -2882,7 +2981,7 @@ createForm<CreditForm>({
 - Правила — `defineValidation` без текстов: правило несёт `code`, текст — словарь
   `defineIssueMessages` в `ValidationMessagesProvider messages` (`@reformer/cdk`).
 
-## 53. В схеме формы (renderer-react)
+## 54. В схеме формы (renderer-react)
 
 Визард — обычный узел схемы. Шаги лежат в его `children`, форму и поток он берёт из сборки
 `createForm` сам. Прикладная обёртка, которая подставляла бы `form`, `flow` или `steps`, не нужна.
@@ -2963,7 +3062,7 @@ function CreditPage() {
   });
   ```
 
-## 54. JSON (renderer-json)
+## 55. JSON (renderer-json)
 
 Тот же узел — в документе формата 2: шаги — дети визарда, `selector` шага совпадает с `id` в
 потоке. Поток и поведение остаются в коде сборки, в JSON их нет.
@@ -3023,7 +3122,7 @@ return <FormRenderer form={credit} />;
 диагностика RF013). Документ прежнего формата (ключи `value` / `array`, шаги в
 `componentProps.steps`) переводит `migrateJsonSchema` из `@reformer/renderer-json`.
 
-## 55. Разметка в JSX («React руками»)
+## 56. Разметка в JSX («React руками»)
 
 Без рендерера визарду передают пропсами форму, поток и список шагов:
 
@@ -3133,7 +3232,7 @@ function SignUpWizard() {
 - Результат отправки — `SubmitResult`: `{ status: 'submitted', result }`,
   `{ status: 'invalid' | 'error' | 'cancelled', validation }` либо `{ status: 'failed', error }`.
 
-## 56. Навигация снаружи визарда
+## 57. Навигация снаружи визарда
 
 Поток — объект сборки, поэтому навигация не требует ни `ref`, ни доступа к визарду:
 
@@ -3153,7 +3252,7 @@ const { current, index, isFirst, isLast, validating, completed } = useFormFlow(b
 Визард перерисуется сам — он подписан на тот же поток. `onStepChange` и прокрутка вверх
 (`scrollToTop`) срабатывают только на переходы кнопками и индикатором визарда.
 
-## 57. Полиморфный `step.body`
+## 58. Полиморфный `step.body`
 
 В JSX-режиме `body` принимает три формы (runtime-discriminated):
 
@@ -3196,7 +3295,7 @@ import { RenderContextProvider, RenderNodeComponent, type RenderNode } from '@re
 `useRenderContext must be used within RenderContextProvider (FormRenderer)`. Тело-компонент
 (`ComponentType`) провайдера не требует: его визард рисует сам.
 
-## 58. Compound API
+## 59. Compound API
 
 `FormWizard.Indicator/Step/Actions/Progress` — реэкспорт headless-слотов из CDK. Они читают
 контекст визарда (`useFormWizard()`), поэтому работают внутри headless `FormWizard` из
@@ -3217,7 +3316,7 @@ import { FormWizard } from '@reformer/cdk/form-wizard';
 Готовые презентационные слоты кита — `StepIndicator`, `FormWizardActions`, `FormWizardProgress`
 из `@reformer/ui-kit/form-wizard`.
 
-## 59. Прежний контракт → текущий
+## 60. Прежний контракт → текущий
 
 | Прежде (удалено)                                                            | Сейчас                                                                                  |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -3228,7 +3327,7 @@ import { FormWizard } from '@reformer/cdk/form-wizard';
 | ❌ шим `wizard.tsx` / `renderer.wizard.tsx`, `steps`/`config` в `componentProps` | узел `FormWizard` с шагами-детьми `Step`                                              |
 | ❌ `bundle.submit(handler)`, `bundle.submitting`                             | `bundle.submission.submit(handler)`, `bundle.submission.submitting` |
 
-## 60. FieldArraySection — разметка в JSX
+## 61. FieldArraySection — разметка в JSX
 
 **FieldArraySection — UI для FieldArray**
 
@@ -3308,7 +3407,7 @@ const model = createModel<CreditApplication>({ properties: arrayOf(blankProperty
 Проп `initialValue` (`Partial<T>`) остаётся запасным путём — для массива, у модели которого
 шаблона нет. Передавайте plain-objects по форме элемента, **не** конфиг поля.
 
-## 61. FieldArray — узел-массив схемы
+## 62. FieldArray — узел-массив схемы
 
 В схеме формы массив — узел `{ model: model.$.<массив>, component: FieldArray, item }`. Строка
 описывается в той же схеме функцией `item`: она получает под-модель строки и строит её разметку.
@@ -3414,7 +3513,7 @@ defineRegistry((reg) => {
 { "model": "$model(properties)", "component": "$component(FieldArray)", "item": { "$template": { } } }
 ```
 
-## 62. Props `FieldArraySection` (полный список)
+## 63. Props `FieldArraySection` (полный список)
 
 | Prop                 | Type                                                         | Default                              | Описание                                                           |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------ |
@@ -3441,7 +3540,7 @@ defineRegistry((reg) => {
 `emptyMessageHint`, `reorderable`, `showRemoveOnSingle`, `className`, `cardClassName`; `items` и
 колбэки передаёт рендерер.
 
-## 63. Critical: `initialValue` — PLAIN LEAVES ONLY
+## 64. Critical: `initialValue` — PLAIN LEAVES ONLY
 
 ```tsx
 // ❌ silent corruption (конфиг поля как значение)
@@ -3454,7 +3553,7 @@ initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 Конфиг поля попадает в значение поля → Textarea рендерит `[object Object]`, Checkbox флипается в
 `true`. Compiler/тесты не ловят.
 
-## 64. Schema-driven (canonical pattern)
+## 65. Schema-driven (canonical pattern)
 
 **InputMask — поля с маской ввода**
 
@@ -3545,7 +3644,7 @@ const { form } = contact;
 <FormField control={form.snils} testId="snils" />
 ```
 
-## 65. Common masks
+## 66. Common masks
 
 | Поле                 | Маска                 | Пример вывода         |
 | -------------------- | --------------------- | --------------------- |
@@ -3561,7 +3660,7 @@ const { form } = contact;
 | Дата (DD.MM.YYYY)    | `99.99.9999`          | `15.05.1990`          |
 | Карта                | `9999 9999 9999 9999` | `4111 1111 1111 1111` |
 
-## 66. Validation
+## 67. Validation
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
@@ -3595,7 +3694,7 @@ Cross-field правила (например, «доп. телефон отли�
 (`defineValidation(({ model, cross }) => …)`): функция получает снапшот модели и читает соседние
 поля напрямую.
 
-## 67. Advanced — strict mask через FormField + children slot
+## 68. Advanced — strict mask через FormField + children slot
 
 Если нужна автоматическая вставка literal-символов (true input-mask), используй
 библиотеку типа `react-input-mask` или `imask` как кастомный child в FormField:
@@ -3613,13 +3712,13 @@ import InputMask from 'react-input-mask';
 `value` / `onChange` / `onBlur` / `aria-invalid`. См. рецепт
 [05-form-field-integration.md → Pattern 3](05-form-field-integration.md).
 
-## 68. See also
+## 69. See also
 
 - [02-text-fields.md](02-text-fields.md) — обычный Input
 - [05-form-field-integration.md](05-form-field-integration.md) — FormField обёртка
 - [06-troubleshooting.md](06-troubleshooting.md) — «маска не вставляется автоматически» → используй `react-input-mask`
 
-## 69. Когда императив, а когда реактив
+## 70. Когда императив, а когда реактив
 
 **Императивные handle полей — управление компонентом по селектору**
 
@@ -3645,7 +3744,7 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 | **reload / loadMore async-источника**      | **императивный** | `…current?.reload()`                              |
 | **переключить видимость пароля**           | **императивный** | `getRef<InputPasswordHandle>().current?.setVisible(true)` |
 
-## 70. Базовое использование
+## 71. Базовое использование
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -3676,7 +3775,7 @@ const signIn = createForm<SignIn>({
 });
 ```
 
-## 71. ⚠️ `getRef()` вызывать ДО первого рендера
+## 72. ⚠️ `getRef()` вызывать ДО первого рендера
 
 `getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер).
 Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный впервые уже после монтирования,
@@ -3697,7 +3796,7 @@ defineFormBehavior<MyForm>(({ schema }) => {
 достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно
 (в том числе через `bundle.render.node(sel)` — это та же корневая область).
 
-## 72. Адресация: `selector` или путь модели
+## 73. Адресация: `selector` или путь модели
 
 Ключ ref листа — `selector` узла, иначе путь ручки модели (`__path`, явный селектор в приоритете):
 
@@ -3716,7 +3815,7 @@ defineFormBehavior<MyForm>(({ schema }) => {
 (`applyEach` / `apply`), а не из корня. Путь модели — **одновременно ключ ref и адрес ручки**
 (`model.signalAt(path)`), поэтому замечания поля читаются по тому же пути — см. рецепт ниже.
 
-## 73. Контракты handle
+## 74. Контракты handle
 
 Все rich-handle наследуют `FieldHandle`.
 
@@ -3729,9 +3828,11 @@ defineFormBehavior<MyForm>(({ schema }) => {
 | `ComboboxTree`           | `ComboboxTreeHandle`      | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
 | `ComboboxTreeMulti`      | `ComboboxTreeMultiHandle` | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
 | `DatePicker`             | `DatePickerHandle`        | `open` `close`                                                                  | `@reformer/ui-kit/date-picker` |
+| `DatePickerRange`        | `DatePickerRangeHandle`   | `open` `close` `clear`                                                          | `@reformer/ui-kit/date-picker` |
+| `DatePickerMulti`        | `DatePickerMultiHandle`   | `open` `close` `clear`                                                          | `@reformer/ui-kit/date-picker` |
 | `Tree` (не поле)         | `TreeHandle`              | `expand` `collapse` `toggle` `refresh` `focusNode` `getRows` `getActionTargets` | `@reformer/ui-kit`             |
 
-`Combobox` и `DatePicker` — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
+`Combobox` и `DatePicker` (все три варианта) — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
 
 `refresh(id)` у древесных вариантов перечитывает уровень (`null` — верхний) и действует, только
 пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
@@ -3749,7 +3850,7 @@ defineFormBehavior<MyForm>(({ schema }) => {
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий.
 
-## 74. Рецепт: focus первого невалидного поля после submit
+## 75. Рецепт: focus первого невалидного поля после submit
 
 Классика UX, реактивно невыразимая. `bundle.submission.submit` разносит замечания по нодам; нода
 поля находится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь — готовый ключ ref:
@@ -3780,7 +3881,7 @@ async function handleSubmit() {
 }
 ```
 
-## 75. Рецепт: зависимый async-Select
+## 76. Рецепт: зависимый async-Select
 
 Реактивная часть (источник опций) — через `updateComponentProps` ноды поля; императивная (сброс,
 перезагрузка, открытие) — через handle:
@@ -3805,7 +3906,7 @@ const addressBehavior = defineFormBehavior<MyForm>(({ model, form, schema }) => 
 `patchProps` из `schema.node(sel)` действует на контейнерные узлы; пропсы поля меняет
 `updateComponentProps` его ноды.
 
-## 76. Рецепт: фокус в поле только что добавленной строки FieldArray
+## 77. Рецепт: фокус в поле только что добавленной строки FieldArray
 
 ```tsx
 import { defineFormBehavior, onComponentEvent } from '@reformer/core/behaviors';
@@ -3823,7 +3924,7 @@ defineFormBehavior<MyForm>(({ form, schema }) => {
 });
 ```
 
-## 77. null-safety и жизненный цикл
+## 78. null-safety и жизненный цикл
 
 `ref.current` равен `null`, пока поле не смонтировано — и остаётся `null` у скрытых/условных полей,
 которые не рендерятся вовсе. Все вызовы обязаны идти через `?.`.
@@ -3834,7 +3935,7 @@ defineFormBehavior<MyForm>(({ form, schema }) => {
 - Сам baseline-handle тоже null-safe: `focus()/blur()/scrollIntoView()` на несмонтированном поле —
   no-op без исключения.
 
-## 78. Своё поле с handle
+## 79. Своё поле с handle
 
 Handle строит **обёртка поля** (`FormField.Control` из `@reformer/cdk`, рендерер
 `@reformer/renderer-react`), а не сам контрол: она вешает ref на `component` и публикует
@@ -3847,8 +3948,8 @@ Handle строит **обёртка поля** (`FormField.Control` из `@refo
 на DOM-элемент (`forwardRef` или React 19 ref-as-prop). Слой создания полей публикуется точкой
 `@reformer/ui-kit/fields`: `defineFieldControl`, адаптеры-пресеты (`nativeInputAdapter`,
 `textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
-`sliderAdapter`, `dateAdapter`, `datePickerAdapter`), `makeElementFieldHandle` и типы
-`FieldAdapter` / `FieldHandle`.
+`sliderAdapter`, `dateAdapter`, `datePickerAdapter`, `dateRangeAdapter`), `makeElementFieldHandle`
+и типы `FieldAdapter` / `FieldHandle`.
 
 ```tsx
 import { defineFieldControl, type FieldHandle } from '@reformer/ui-kit/fields';
@@ -3872,7 +3973,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 `RendererSettings.resolveFieldAdapter` (для чужих компонентов без статики) описывают диалект
 одинаково. Rich-handle объявляйте рядом с композитом и реэкспортируйте из barrel компонента.
 
-## 79. Key Concepts
+## 80. Key Concepts
 
 **Form layout — отступы, сетка и группировка полей**
 
@@ -3900,7 +4001,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 - **Один макет — три записи.** TSX, `RenderSchema` и JSON используют одни и те же строки
   классов; меняется только синтаксис узла.
 
-## 80. Spacing scale
+## 81. Spacing scale
 
 | Уровень                            | Класс       | Где                                       |
 | ---------------------------------- | ----------- | ----------------------------------------- |
@@ -3923,7 +4024,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 Отступ под заголовком даёт сам `space-y-*` — `mb-*` не нужен. Условную группу не подпирайте
 `mt-6`: заверните в собственную секцию, и родительский `space-y-*` расставит отступы сам.
 
-## 81. Field grid
+## 82. Field grid
 
 - Пара связанных полей — `grid grid-cols-1 md:grid-cols-2 gap-4`.
 - Тройка (ФИО; серия / номер / дата) — `grid grid-cols-1 md:grid-cols-3 gap-4`.
@@ -3947,7 +4048,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 </section>
 ```
 
-## 82. Grouping and sections
+## 83. Grouping and sections
 
 `Section` — секция с заголовком. Своих классов не несёт, поэтому `className` и
 `titleClassName` задаются явно: `titleAs` отвечает за семантику (уровень заголовка),
@@ -3999,7 +4100,7 @@ export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter })
 Повторяющиеся записи — `FieldArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
 списка и карточка для элемента, переопределять их не нужно.
 
-## 83. Layout across targets
+## 84. Layout across targets
 
 Строки классов между вариантами **не меняются** — меняется только синтаксис узла.
 
@@ -4018,7 +4119,7 @@ reg.component('Card', Card);
 reg.component('CardContent', CardContent);
 ```
 
-## 84. Common Patterns
+## 85. Common Patterns
 
 Сквозной пример шага: карточка, две группы, сетка и поле на всю ширину.
 
@@ -4049,7 +4150,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 </Card>;
 ```
 
-## 85. Anti-patterns
+## 86. Anti-patterns
 
 ```tsx
 // ❌ Карточка собрана классами — ломает тёмную тему и расходится с китом.
@@ -4093,7 +4194,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 <div className="max-w-2xl mx-auto">
 ```
 
-## 86. See also
+## 87. See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — что `FormField` рисует сам.
@@ -4102,7 +4203,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 - [renderer-react](../../../reformer-renderer-react/docs/llms/) — layout в `RenderSchema`.
 - [renderer-json](../../../reformer-renderer-json/docs/llms/) — layout в JSON.
 
-## 87. API Reference
+## 88. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -7137,6 +7238,132 @@ export interface DatePickerHandle extends FieldHandle {
 
 _Source: src/components/date-picker/variants/base/date-picker-base.tsx_
 
+### DatePickerMulti
+
+**Kind:** `const`
+
+DatePickerMulti — выбор нескольких дат: Popover с Calendar (`mode="multiple"`) и кнопкой-
+триггером со списком выбранных дат (сверх `summaryThreshold` — сводка с числом).
+
+Календарь между кликами не закрывается: клик по дню добавляет его, повторный — снимает.
+
+**Signature:**
+```typescript
+const DatePickerMulti
+```
+
+_Source: src/components/date-picker/variants/multi/date-picker-multi.tsx_
+
+### DatePickerMultiFormProps
+
+**Kind:** `interface`
+
+Value-based контракт DatePickerMulti в форме. Значение — `Date[] | null`; форма резолвит
+`value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`.
+Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface DatePickerMultiFormProps {
+  value?: Date[] | null;
+  onChange?: (value: Date[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  placeholder?: string;
+  dateFormat?: string;
+  numberOfMonths?: number;
+  maxItems?: number;
+  summaryThreshold?: number;
+  clearable?: boolean;
+  className?: string;
+}
+```
+
+_Source: src/components/date-picker/variants/multi/date-picker-multi.tsx_
+
+### DatePickerMultiHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link DatePickerMulti}: как у DatePicker + сброс выбора.
+
+**Signature:**
+```typescript
+export interface DatePickerMultiHandle extends DatePickerHandle {
+  /** Сбросить все выбранные даты. */
+  clear(): void;
+}
+```
+
+_Source: src/components/date-picker/variants/multi/date-picker-multi.tsx_
+
+### DatePickerMultiProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface DatePickerMultiProps extends Omit<
+  React.ComponentProps<typeof Button>,
+  'value' | 'onChange'
+> {
+  /**
+   * Выбранные даты (управляемое значение). Приходит массивом всегда: `multiValueAdapter`
+   * разворачивает `null` в `[]`.
+   */
+  value?: Date[];
+  /** Изменение выбора. Получает НОВЫЙ массив, отсортированный по возрастанию. */
+  onChange?: (value: Date[]) => void;
+  /** Закрытие календаря — момент, когда поле считается покинутым. */
+  onBlur?: () => void;
+  /**
+   * Текст кнопки-триггера, когда даты не выбраны.
+   * @defaultMessage kit.datePicker.placeholderMulti
+   */
+  placeholder?: string;
+  /**
+   * Формат дат — токены `date-fns` (`dd.MM.yyyy`). По умолчанию — `dateFormat` локали, а без него
+   * даты пишутся по правилам языка (`Intl`, `dateStyle: 'medium'` — список короче).
+   */
+  dateFormat?: string;
+  /** Сколько месяцев показывать рядом. По умолчанию 1. */
+  numberOfMonths?: number;
+  /**
+   * Потолок числа выбранных дат: по достижении невыбранные дни выключаются.
+   * Подсказка интерфейса, а НЕ правило формы — ограничение задавайте валидатором `maxLength(n)`.
+   */
+  maxItems?: number;
+  /** Сколько дат перечислить в кнопке до схлопывания в сводку. По умолчанию 3. */
+  summaryThreshold?: number;
+  /** Крестик сброса всех дат у правого края кнопки. */
+  clearable?: boolean;
+  /** Подсказка-тултип у иконки (i) у правого края кнопки. */
+  tooltip?: string;
+  /** `data-testid` кнопки-триггера; крестик сброса получает `<testId>-clear`. */
+  'data-testid'?: string;
+}
+```
+
+_Source: src/components/date-picker/variants/multi/date-picker-multi.tsx_
+
+### datePickerMultiPropsSchema
+
+**Kind:** `const`
+
+Props-схема DatePickerMulti — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'DatePickerMulti'` — отдельная запись каталога, а не проп `mode` у `DatePicker`:
+тип значения другой (`Date[] | null` против `Date | null`), а `x-runtimeProps.value` у записи
+ровно один. Прецедент — `SelectMulti`.
+
+**Signature:**
+```typescript
+export const datePickerMultiPropsSchema
+```
+
+_Source: src/components/date-picker/variants/multi/date-picker-multi.props.ts_
+
 ### DatePickerProps
 
 **Kind:** `interface`
@@ -7165,6 +7392,160 @@ export interface DatePickerProps extends Omit<
 ```
 
 _Source: src/components/date-picker/variants/base/date-picker-base.tsx_
+
+### DatePickerRange
+
+**Kind:** `const`
+
+DatePickerRange — выбор периода: Popover с Calendar (`mode="range"`) и кнопкой-триггером,
+показывающей период.
+
+Выбор идёт в два клика: первый задаёт начало (черновик, значение поля пока прежнее), второй —
+конец, после чего период уходит в `onChange`, а календарь закрывается. Закрытие на черновике
+черновик отбрасывает. Клик по уже выбранному однодневному периоду его сбрасывает.
+
+**Signature:**
+```typescript
+const DatePickerRange
+```
+
+_Source: src/components/date-picker/variants/range/date-picker-range.tsx_
+
+### DatePickerRangeFormProps
+
+**Kind:** `interface`
+
+Value-based контракт DatePickerRange в форме. Значение — `[Date, Date] | null`; форма резолвит
+`value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`.
+Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface DatePickerRangeFormProps {
+  value?: DateRangeValue | null;
+  onChange?: (value: DateRangeValue | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  placeholder?: string;
+  dateFormat?: string;
+  numberOfMonths?: number;
+  clearable?: boolean;
+  className?: string;
+}
+```
+
+_Source: src/components/date-picker/variants/range/date-picker-range.tsx_
+
+### DatePickerRangeHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link DatePickerRange}: как у DatePicker + сброс периода.
+
+**Signature:**
+```typescript
+export interface DatePickerRangeHandle extends DatePickerHandle {
+  /** Сбросить период. */
+  clear(): void;
+}
+```
+
+_Source: src/components/date-picker/variants/range/date-picker-range.tsx_
+
+### DatePickerRangeProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface DatePickerRangeProps extends Omit<
+  React.ComponentProps<typeof Button>,
+  'value' | 'onChange'
+> {
+  /** Выбранный период (управляемое значение). `undefined` — период не выбран. */
+  value?: DateRangeValue;
+  /**
+   * Выбор периода. Зовётся только с полным периодом (оба конца выбраны) либо с `undefined` —
+   * сброс. Пока выбрано одно начало, значение не меняется.
+   */
+  onChange?: (value: DateRangeValue | undefined) => void;
+  /** Закрытие календаря — момент, когда поле считается покинутым. */
+  onBlur?: () => void;
+  /**
+   * Текст кнопки-триггера, когда период не выбран.
+   * @defaultMessage kit.datePicker.placeholderRange
+   */
+  placeholder?: string;
+  /**
+   * Формат дат периода — токены `date-fns` (`dd.MM.yyyy`). По умолчанию — `dateFormat` локали,
+   * а без него даты пишутся по правилам языка (`Intl`, `dateStyle: 'long'`).
+   */
+  dateFormat?: string;
+  /** Сколько месяцев показывать рядом. По умолчанию 2. */
+  numberOfMonths?: number;
+  /** Крестик сброса периода у правого края кнопки. */
+  clearable?: boolean;
+  /** Подсказка-тултип у иконки (i) у правого края кнопки. */
+  tooltip?: string;
+  /** `data-testid` кнопки-триггера; крестик сброса получает `<testId>-clear`. */
+  'data-testid'?: string;
+}
+```
+
+_Source: src/components/date-picker/variants/range/date-picker-range.tsx_
+
+### datePickerRangePropsSchema
+
+**Kind:** `const`
+
+Props-схема DatePickerRange — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'DatePickerRange'` — отдельная запись каталога, а не проп `mode` у `DatePicker`:
+тип значения другой (`[Date, Date] | null` против `Date | null`), а `x-runtimeProps.value` у
+записи ровно один. Прецедент — `SelectMulti`.
+
+**Signature:**
+```typescript
+export const datePickerRangePropsSchema
+```
+
+_Source: src/components/date-picker/variants/range/date-picker-range.props.ts_
+
+### dateRangeAdapter
+
+**Kind:** `const`
+
+DatePickerRange — value-based `value: [Date, Date] | undefined` + `onChange([Date, Date] | undefined)`.
+Контракт поля — `[Date, Date] | null`: сброс периода → `null`.
+
+Значение — кортеж, а не объект `{ from, to }`: массив, к которому схема привязала компонент, ядро
+делает полем при любом начальном значении (`null` или готовый период). Объект в начальных
+значениях модель превратила бы в группу, и поля бы не было.
+
+Поле-кортеж (начальное `[from, to]`) сохранит `null` сброса как `[]` — узел-массив хранит только
+массив, — поэтому на входе всё, что не две даты, читается как «период не выбран».
+`fromEmit` копирует кортеж: сигнал бэйлится по `!==` (см. {@link multiValueAdapter}).
+
+**Signature:**
+```typescript
+export const dateRangeAdapter: KitFieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
+
+### DateRangeValue
+
+**Kind:** `type`
+
+Период: начало и конец включительно, `from <= to`. Однодневный период — две одинаковые даты.
+
+**Signature:**
+```typescript
+export type DateRangeValue = [from: Date, to: Date];
+```
+
+_Source: src/components/date-picker/variants/range/date-picker-range.tsx_
 
 ### defaultPropSchemas
 
@@ -10965,7 +11346,8 @@ _Source: src/components/message-scroller/variants/base/message-scroller-base.tsx
 **Kind:** `const`
 
 Мультивыбор (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` / `ToggleGroupMulti`) —
-value-based `value: string[] | null` + `onChange(string[] | null)`.
+value-based `value: string[] | null` + `onChange(string[] | null)`. Тот же пресет у
+`DatePickerMulti`: там элементы — даты (`Date[] | null`), семантика пустого выбора та же.
 
 Пустой выбор нормализуется в `null`, а не в `[]`: «ничего не выбрано» у контрола одно, а как
 его хранить, решает поле модели. Поле-массив (`string[]`, начальное `[]`) сохранит `null` как

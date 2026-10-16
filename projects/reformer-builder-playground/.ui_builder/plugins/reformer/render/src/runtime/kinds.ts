@@ -107,6 +107,18 @@ export function fitsKind(kind: SlotKind, value: unknown): boolean {
       return value === null || typeof value === 'number';
     case 'date':
       return value === null || value instanceof Date;
+    case 'dates':
+      return (
+        value === null || (Array.isArray(value) && value.every((item) => item instanceof Date))
+      );
+    case 'dateRange':
+      // Сброшенное поле-кортеж модель хранит как `[]` — это тоже «период не выбран».
+      return (
+        value === null ||
+        (Array.isArray(value) &&
+          (value.length === 0 ||
+            (value.length === 2 && value.every((item) => item instanceof Date))))
+      );
     case 'multi':
     case 'file':
       return value === null || Array.isArray(value);

@@ -27,6 +27,8 @@
         "InputOTP": "Поля ввода",
         "Textarea": "Поля ввода",
         "DatePicker": "Поля ввода",
+        "DatePickerRange": "Поля ввода",
+        "DatePickerMulti": "Поля ввода",
         "Calendar": "Поля ввода",
         "FileUpload": "Поля ввода",
         "FileUploadAvatar": "Поля ввода",
@@ -8650,6 +8652,371 @@
           "packages": []
         }
       },
+      "variantGroup": "DatePicker",
+      "variant": "Одна дата",
+      "subpath": "date-picker"
+    },
+    {
+      "name": "DatePickerMulti",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "asChild": {
+            "type": "boolean",
+            "description": "Слот-режим: компонент не создаёт свой тег, а примешивает классы и пропсы в единственный дочерний узел — так меняют тег или оборачивают ссылкой.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс кнопки-триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Крестик сброса всех дат у правого края кнопки-триггера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "dateFormat": {
+            "type": "string",
+            "description": "Формат дат — токены date-fns (напр. dd.MM.yyyy). Без него — dateFormat локали, а без того — по правилам языка (Intl, dateStyle medium).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Потолок числа выбранных дат: по достижении невыбранные дни выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "numberOfMonths": {
+            "type": "number",
+            "default": 1,
+            "description": "Сколько месяцев календаря показывать рядом.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Pick dates",
+            "x-messageKey": "kit.datePicker.placeholderMulti",
+            "description": "Текст кнопки-триггера, когда даты не выбраны.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "xs", "sm", "lg", "icon", "icon-xs", "icon-sm", "icon-lg"],
+            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'xs' | 'sm' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg'"
+            }
+          },
+          "summaryThreshold": {
+            "type": "number",
+            "description": "Сколько дат перечислить в кнопке-триггере, прежде чем схлопнуть их в сводку «Dates selected: N».",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1,
+            "default": 3
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["link", "default", "destructive", "outline", "secondary", "ghost"],
+            "description": "Визуальный вариант оформления из cva-конфига; набор вариантов и значение по умолчанию у каждого компонента свои.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'link' | 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "Date[] | null",
+            "description": "Выбранные даты по возрастанию. Пустой выбор контрол отдаёт как null: поле-массив (Date[], начальное []) сохранит его как [], nullable-поле (Date[] | null) — как null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: Date[] | null) => void",
+            "description": "Клик по дню добавляет его, повторный — снимает; снятие последней даты → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        },
+        "x-inherits": {
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "ButtonHTMLAttributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "RefAttributes"
+          ],
+          "packages": []
+        }
+      },
+      "variantGroup": "DatePicker",
+      "variant": "Несколько",
+      "subpath": "date-picker"
+    },
+    {
+      "name": "DatePickerRange",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "asChild": {
+            "type": "boolean",
+            "description": "Слот-режим: компонент не создаёт свой тег, а примешивает классы и пропсы в единственный дочерний узел — так меняют тег или оборачивают ссылкой.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс кнопки-триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Крестик сброса периода у правого края кнопки-триггера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "dateFormat": {
+            "type": "string",
+            "description": "Формат дат периода — токены date-fns (напр. dd.MM.yyyy). Без него — dateFormat локали, а без того — по правилам языка (Intl, dateStyle long).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "numberOfMonths": {
+            "type": "number",
+            "default": 2,
+            "description": "Сколько месяцев календаря показывать рядом.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Pick a date range",
+            "x-messageKey": "kit.datePicker.placeholderRange",
+            "description": "Текст кнопки-триггера, когда период не выбран.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "xs", "sm", "lg", "icon", "icon-xs", "icon-sm", "icon-lg"],
+            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'xs' | 'sm' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg'"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["link", "default", "destructive", "outline", "secondary", "ghost"],
+            "description": "Визуальный вариант оформления из cva-конфига; набор вариантов и значение по умолчанию у каждого компонента свои.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'link' | 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "[Date, Date] | null",
+            "description": "Выбранный период [начало, конец] включительно; однодневный — две одинаковые даты. Сброс контрол отдаёт как null: поле-кортеж (начальное [from, to]) сохранит его как [], nullable-поле (начальное null) — как null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: [Date, Date] | null) => void",
+            "description": "Выбор периода: зовётся, когда выбраны оба конца, либо с null при сбросе. Пока выбрано одно начало, значение поля не меняется."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        },
+        "x-inherits": {
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "ButtonHTMLAttributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "RefAttributes"
+          ],
+          "packages": []
+        }
+      },
+      "variantGroup": "DatePicker",
+      "variant": "Период",
       "subpath": "date-picker"
     },
     {

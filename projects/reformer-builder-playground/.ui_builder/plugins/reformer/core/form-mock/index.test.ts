@@ -86,6 +86,12 @@ describe('вид поля определяется по компоненту, з
     expect(fieldKindOf(field('$component(Input)', { type: 'date' }))).toBe('string');
   });
 
+  it('несколько дат — список дат, период — кортеж дат', () => {
+    // Не `multi`: тот объявляет `string[]`, а контрол кладёт в модель даты.
+    expect(fieldKindOf(field('$component(DatePickerMulti)'))).toBe('dates');
+    expect(fieldKindOf(field('$component(DatePickerRange)'))).toBe('dateRange');
+  });
+
   it('семья комбобоксов: одиночный — список по опциям, мультивыбор — набор, с опциями и без', () => {
     // Вид обязан совпасть с тем, что контрол кладёт в модель: `Combobox` — строку (`value`
     // опции), `ComboboxMulti` и `ComboboxTreeMulti` — массив строк, пустой выбор — `null`.
@@ -132,6 +138,11 @@ describe('начальное значение поля', () => {
 
   it('у выбора даты — null: «дата не выбрана», а не пустая строка', () => {
     expect(defaultForField(field('$component(DatePicker)'))).toBeNull();
+  });
+
+  it('у нескольких дат и периода — null, как у мультивыбора', () => {
+    expect(defaultForField(field('$component(DatePickerMulti)'))).toBeNull();
+    expect(defaultForField(field('$component(DatePickerRange)'))).toBeNull();
   });
 
   it('у строки — пустая строка', () => {

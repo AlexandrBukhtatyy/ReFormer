@@ -7,7 +7,7 @@ import type { ComponentType } from 'react';
 import { CalendarSingle } from '@/components/calendar';
 import { CheckboxWithLabel } from '@/components/checkbox';
 import { Combobox, ComboboxMulti, ComboboxTree, ComboboxTreeMulti } from '@/components/combobox';
-import { DatePicker } from '@/components/date-picker';
+import { DatePicker, DatePickerMulti, DatePickerRange } from '@/components/date-picker';
 import {
   FileUploadBase,
   FileUploadAvatar,
@@ -55,6 +55,8 @@ const FIELDS: Row[] = [
   ['ComboboxTree', ComboboxTree, { nodes: TREE }],
   ['ComboboxTreeMulti', ComboboxTreeMulti, { nodes: TREE }],
   ['DatePicker', DatePicker, {}],
+  ['DatePickerMulti', DatePickerMulti, {}],
+  ['DatePickerRange', DatePickerRange, {}],
   ['FileUpload', FileUploadBase, {}],
   ['FileUploadAvatar', FileUploadAvatar, {}],
   ['FileUploadDropzone', FileUploadDropzone, {}],

@@ -23,6 +23,7 @@
 | `Combobox` (все 4 варианта)                                           | То же, что у `SelectAsync`.                                                                               |
 | `NativeSelectWithOptions`                                             | Внутри, левее шеврона.                                                                                    |
 | `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
+| `DatePicker`, `DatePickerRange`, `DatePickerMulti`                    | Внутри кнопки у правого края; у вариантов с `clearable` — **крестик очистки → (i)**.                      |
 
 ```tsx
 <SelectAsync value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
@@ -744,10 +745,107 @@ const { form } = createForm<Form>({
 - Ставить в схему сам `Tree` вместо `ComboboxTree` / `ComboboxTreeMulti` — `Tree` не поле формы:
   value-seam остаётся неподключённым, дерево рисуется и не пишет выбор в модель.
 
+## Dates: DatePicker, DatePickerRange, DatePickerMulti
+
+Три варианта выбора дат — **отдельные записи реестра**, а не проп `mode`: тип значения у каждого
+свой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у `SelectMulti`). Все три —
+только subpath `@reformer/ui-kit/date-picker` (react-day-picker и date-fns — опциональные peer).
+
+| Компонент         | Значение в модели      | Поведение календаря                                                     |
+| ----------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `DatePicker`      | `Date \| null`         | Выбор даты закрывает календарь.                                         |
+| `DatePickerRange` | `[Date, Date] \| null` | Два клика: начало, затем конец; после второго календарь закрывается.    |
+| `DatePickerMulti` | `Date[] \| null`       | Клик добавляет день, повторный — снимает; календарь остаётся открытым. |
+
+### Период — кортеж `[from, to]`
+
+Период хранится кортежем, а не объектом `{ from, to }`: кортеж — массив модели, и привязка
+компонента делает его полем при любом начальном значении. Объект в начальных значениях модель
+превратила бы в группу — поля бы не было.
+
+```typescript
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { DatePickerRange, DatePickerMulti, type DateRangeValue } from '@reformer/ui-kit/date-picker';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = {
+  vacation: DateRangeValue | null; // период не выбран — null
+  stay: DateRangeValue; // период с префиллом
+  meetings: Date[]; // несколько дат, пустой выбор — []
+};
+
+const schema = (model: FormModel<Form>): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.vacation,
+      component: DatePickerRange,
+      componentProps: { label: 'Отпуск', clearable: true },
+    },
+    { model: model.$.stay, component: DatePickerRange, componentProps: { label: 'Проживание' } },
+    {
+      model: model.$.meetings,
+      component: DatePickerMulti,
+      componentProps: { label: 'Встречи', maxItems: 4 },
+    },
+  ],
+});
+
+const rules = defineValidation<Form>(({ model }) => {
+  validate(model.$.vacation, [required()]); // отклоняет и null, и []
+  validate(model.$.meetings, [required(), maxLength(4)]);
+});
+
+const { form } = createForm<Form>({
+  initial: {
+    vacation: null,
+    stay: [new Date(2026, 9, 10), new Date(2026, 9, 14)], // кортеж в начальном значении — поле
+    meetings: [],
+  },
+  schema,
+  validation: rules,
+});
+```
+
+Чтение периода — значение ручки: `const [from, to] = model.$.vacation.value ?? []`. Порядок дат
+гарантирует контрол: `from <= to`, однодневный период — две одинаковые даты.
+
+### Common Patterns
+
+- **Что хранит модель после сброса** — как у мультивыбора: nullable-поле (начальное `null`) хранит
+  `null`, поле-кортеж (начальное `[from, to]`) — `[]`: узел-массив хранит только массив. Контрол
+  оба читает как «период не выбран», `required()` ловит оба.
+- **Черновик периода** — после первого клика выбрано только начало: оно подсвечено в календаре,
+  но значение поля прежнее, `onChange` не зовётся. Закрытие календаря на черновике его отбрасывает.
+  Повторный клик по выбранному однодневному периоду сбрасывает значение.
+- **Сброс** — `clearable` (крестик у правого края кнопки) либо `.clear()` handle
+  (`DatePickerRangeHandle`, `DatePickerMultiHandle`).
+- **Несколько дат** — значение всегда по возрастанию, порядок кликов в модель не попадает.
+  `maxItems` гасит невыбранные дни по достижении потолка — это подсказка интерфейса; правило
+  формы — `maxLength(n)`.
+- **Подпись в кнопке** — `dateFormat` (токены date-fns: `dd.MM.yyyy`), иначе `dateFormat` локали,
+  иначе `Intl`: у периода `dateStyle: 'long'`, у списка дат — `'medium'`. Список дат сверх
+  `summaryThreshold` (по умолчанию 3) схлопывается в сводку «Выбрано дат: N».
+- **Сколько месяцев рядом** — `numberOfMonths`: 2 у периода, 1 у списка дат. Календарь
+  открывается на месяце выбранного значения.
+- **Живая проверка** — `onBlur` у `DatePickerRange` и `DatePickerMulti` приходит на закрытии
+  календаря, поэтому для них берите `strategy: 'blur'`, как для мультивыбора.
+
+### Anti-patterns
+
+- Период объектом `{ from, to }` в начальных значениях — модель сделает из него группу, поле не
+  появится (в dev-режиме `createForm` предупреждает о нераспознанной привязке).
+- Даты строками (`['2026-10-10', '2026-10-14']`, ответ сервера как есть) — контрол читает их как
+  «период не выбран». Приводите к `Date` до `createForm`.
+- `DatePicker` с пропом `mode="range"` — такого пропа нет: период и несколько дат — отдельные
+  компоненты.
+- Мутация массива на месте (`dates.push(d)`) — сигнал бэйлится по `!==`. Пишите новый массив:
+  `model.$.meetings.value = [...dates, d]`.
+
 ## See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
-- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов и выбора дат (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт inline-label контролы (`CheckboxWithLabel`, `SwitchWithLabel`) и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».

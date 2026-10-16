@@ -197,6 +197,13 @@ export default defineConfig({
       testDir: './tests/pages/multi-select',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Выбор дат: DatePicker / DatePickerRange / DatePickerMulti. Календарь живёт в Portal
+    // поповера — черновик периода, потолок maxItems и контракт значения проверяются только тут.
+    {
+      name: 'date-picker',
+      testDir: './tests/pages/date-picker',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // Input с подсказками: список живёт в Portal, клавиатура и «фокус остаётся в поле» —
     // юниты кита (renderToStaticMarkup) этого не видят.
     {

@@ -94,6 +94,15 @@ describe('collect', () => {
     expect(initial).toBeNull();
   });
 
+  it('несколько дат — список дат, период — кортеж; оба стартуют с null', () => {
+    const multi = leafOf('DatePickerMulti');
+    expect(multi.leaf).toEqual({ t: 'leaf', ts: 'Date[] | null' });
+    expect(multi.initial).toBeNull();
+    const range = leafOf('DatePickerRange');
+    expect(range.leaf).toEqual({ t: 'leaf', ts: '[Date, Date] | null' });
+    expect(range.initial).toBeNull();
+  });
+
   it('список с крестиком очистки допускает null — в него очистка и сбрасывает', () => {
     const options = [{ value: 'a', label: 'А' }];
     expect(leafOf('Select', { options, clearable: true }).leaf).toEqual({

@@ -171,6 +171,20 @@ export const TRAILING_CLEAR =
 export const CHEVRON_RESERVE = ['ml-2', 'ml-8', 'ml-14'] as const;
 
 /**
+ * Правый кластер Button-триггера без шеврона (DatePickerRange/DatePickerMulti): `[крестик][(i)]`
+ * у самого края, на месте иконки {@link INSIDE_BUTTON}.
+ */
+export const TRAILING_CLUSTER_EDGE =
+  'absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-2';
+
+/**
+ * Резерв под {@link TRAILING_CLUSTER_EDGE} — правый padding Button-триггера по числу иконок:
+ * 12px отступ + 16px на иконку + 8px зазор. Через `has-[>svg]:` по той же причине, что у
+ * {@link INSIDE_BUTTON}.
+ */
+export const BUTTON_TRAILING_RESERVE = ['', 'has-[>svg]:pr-9', 'has-[>svg]:pr-15'] as const;
+
+/**
  * Резерв под кластер у `SelectTrigger` — margin значения (сам триггер — дословный порт, шеврон в нём
  * не достать). Margin, а не padding: при `overflow:hidden` текст клипуется по padding-box и залез бы
  * под иконки.

@@ -22,6 +22,8 @@ export const UI_KIT_FIELD_EXPORTS: Readonly<Record<string, string>> = {
   ComboboxTree: 'ComboboxTree',
   ComboboxTreeMulti: 'ComboboxTreeMulti',
   DatePicker: 'DatePicker',
+  DatePickerMulti: 'DatePickerMulti',
+  DatePickerRange: 'DatePickerRange',
   FileUpload: 'FileUploadBase',
   FileUploadAvatar: 'FileUploadAvatar',
   FileUploadDropzone: 'FileUploadDropzone',

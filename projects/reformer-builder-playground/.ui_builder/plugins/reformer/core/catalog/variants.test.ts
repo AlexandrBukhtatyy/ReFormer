@@ -51,6 +51,16 @@ describe('variantGroupOf', () => {
     }
   });
 
+  it('семья DatePicker — одна дата по умолчанию, период и несколько дат', () => {
+    const g = variantGroupOf(cat, 'DatePicker');
+    expect(g).not.toBeNull();
+    expect(g!.default.name).toBe('DatePicker');
+    expect(g!.members.map((m) => m.name).sort()).toEqual(
+      ['DatePicker', 'DatePickerMulti', 'DatePickerRange'].sort()
+    );
+    expect(variantGroupOf(cat, 'DatePickerRange')?.group).toBe('DatePicker');
+  });
+
   it('семья Combobox — четыре варианта: плоский список и дерево, каждый в двух видах', () => {
     const g = variantGroupOf(cat, 'Combobox');
     expect(g).not.toBeNull();

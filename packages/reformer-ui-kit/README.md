@@ -127,7 +127,8 @@ export const CheckboxWithLabel = defineFieldControl(CheckboxWithLabelBase, {
 `disabled`/`aria-*` и строит императивный `FieldHandle`. Нет статики — контрол получает seam как
 есть (value-based контролы: `InputNumber`, `InputMask`, `SelectAsync`, `Combobox`, …). Пресеты
 адаптеров: `nativeInputAdapter`, `textValueAdapter`, `checkedAdapter`, `pressedAdapter`,
-`valueChangeAdapter`, `multiValueAdapter`, `sliderAdapter`, `dateAdapter`, `datePickerAdapter`.
+`valueChangeAdapter`, `multiValueAdapter`, `sliderAdapter`, `dateAdapter`, `datePickerAdapter`,
+`dateRangeAdapter`.
 
 В `component` поля кладётся сам компонент. Для составных примитивов (Radix-`Select`,
 `RadioGroup` + `RadioGroupItem`, …) в форму берётся готовый вариант, который рисует пункты из
@@ -152,7 +153,7 @@ export const CheckboxWithLabel = defineFieldControl(CheckboxWithLabelBase, {
 | RadioGroup        | `RadioGroupOptions`                                                           | `RadioGroup`                                                              |
 | Slider            | `Slider`                                                                      | `Slider`                                                                  |
 | Calendar          | `CalendarSingle`                                                              | `Calendar`                                                                |
-| DatePicker        | `DatePicker`                                                                  | `DatePicker`                                                              |
+| DatePicker        | `DatePicker`, `DatePickerRange`, `DatePickerMulti`                            | `DatePicker`, `DatePickerRange`, `DatePickerMulti`                        |
 | Combobox          | `Combobox`, `ComboboxMulti`                                                   | `Combobox`, `ComboboxMulti`                                               |
 | ComboboxTree      | `ComboboxTree`, `ComboboxTreeMulti`                                           | `ComboboxTree`, `ComboboxTreeMulti`                                       |
 | FileUpload        | `FileUploadBase`, `FileUploadDropzone`, `FileUploadInput`, `FileUploadAvatar` | `FileUpload`, `FileUploadDropzone`, `FileUploadInput`, `FileUploadAvatar` |

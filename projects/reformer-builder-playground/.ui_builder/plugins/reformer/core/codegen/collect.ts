@@ -175,6 +175,9 @@ function kindType(node: JsonFieldNode, mock: FormMock): string {
   if (kind === 'file') return 'File[] | null';
   // Выбор даты кладёт в модель `Date`; `null` — дата не выбрана (с него поле и стартует).
   if (kind === 'date') return 'Date | null';
+  // Несколько дат и период — массивы, поэтому nullable по той же причине, что мультивыбор.
+  if (kind === 'dates') return 'Date[] | null';
+  if (kind === 'dateRange') return '[Date, Date] | null';
   if (kind === 'boolean') return 'boolean';
   // `null` — «число не введено»: с него числовое поле стартует, если у него нет `min`
   // (`defaultForField` в form-mock), и начальные значения печатают его как есть. Тип `number`

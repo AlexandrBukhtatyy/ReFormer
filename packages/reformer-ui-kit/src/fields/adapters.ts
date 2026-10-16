@@ -64,7 +64,8 @@ export const valueChangeAdapter: KitFieldAdapter = {
 
 /**
  * Мультивыбор (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` / `ToggleGroupMulti`) —
- * value-based `value: string[] | null` + `onChange(string[] | null)`.
+ * value-based `value: string[] | null` + `onChange(string[] | null)`. Тот же пресет у
+ * `DatePickerMulti`: там элементы — даты (`Date[] | null`), семантика пустого выбора та же.
  *
  * Пустой выбор нормализуется в `null`, а не в `[]`: «ничего не выбрано» у контрола одно, а как
  * его хранить, решает поле модели. Поле-массив (`string[]`, начальное `[]`) сохранит `null` как
@@ -111,4 +112,27 @@ export const datePickerAdapter: KitFieldAdapter = {
   changeProp: 'onChange',
   fromEmit: (d) => d ?? null,
   toValue: (v) => v ?? undefined,
+};
+
+/** Полный период: ровно две даты. */
+const isDateRange = (v: unknown): v is [Date, Date] =>
+  Array.isArray(v) && v.length === 2 && v[0] instanceof Date && v[1] instanceof Date;
+
+/**
+ * DatePickerRange — value-based `value: [Date, Date] | undefined` + `onChange([Date, Date] | undefined)`.
+ * Контракт поля — `[Date, Date] | null`: сброс периода → `null`.
+ *
+ * Значение — кортеж, а не объект `{ from, to }`: массив, к которому схема привязала компонент, ядро
+ * делает полем при любом начальном значении (`null` или готовый период). Объект в начальных
+ * значениях модель превратила бы в группу, и поля бы не было.
+ *
+ * Поле-кортеж (начальное `[from, to]`) сохранит `null` сброса как `[]` — узел-массив хранит только
+ * массив, — поэтому на входе всё, что не две даты, читается как «период не выбран».
+ * `fromEmit` копирует кортеж: сигнал бэйлится по `!==` (см. {@link multiValueAdapter}).
+ */
+export const dateRangeAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (range) => (isDateRange(range) ? [range[0], range[1]] : null),
+  toValue: (v) => (isDateRange(v) ? v : undefined),
 };

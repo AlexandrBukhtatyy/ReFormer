@@ -110,5 +110,9 @@
   "kit.calendar.today": "сегодня",
   "kit.calendar.selected": "выбрано",
 
-  "kit.datePicker.placeholder": "Выберите дату"
+  "kit.datePicker.placeholder": "Выберите дату",
+  "kit.datePicker.placeholderRange": "Выберите период",
+  "kit.datePicker.placeholderMulti": "Выберите даты",
+  "kit.datePicker.selected": "Выбрано дат: {count}",
+  "kit.datePicker.clear": "Очистить даты"
 }

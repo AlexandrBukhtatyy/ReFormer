@@ -108,9 +108,11 @@ defineFormBehavior<MyForm>(({ schema }) => {
 | `ComboboxTree`           | `ComboboxTreeHandle`      | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
 | `ComboboxTreeMulti`      | `ComboboxTreeMultiHandle` | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
 | `DatePicker`             | `DatePickerHandle`        | `open` `close`                                                                  | `@reformer/ui-kit/date-picker` |
+| `DatePickerRange`        | `DatePickerRangeHandle`   | `open` `close` `clear`                                                          | `@reformer/ui-kit/date-picker` |
+| `DatePickerMulti`        | `DatePickerMultiHandle`   | `open` `close` `clear`                                                          | `@reformer/ui-kit/date-picker` |
 | `Tree` (не поле)         | `TreeHandle`              | `expand` `collapse` `toggle` `refresh` `focusNode` `getRows` `getActionTargets` | `@reformer/ui-kit`             |
 
-`Combobox` и `DatePicker` — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
+`Combobox` и `DatePicker` (все три варианта) — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
 
 `refresh(id)` у древесных вариантов перечитывает уровень (`null` — верхний) и действует, только
 пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
@@ -226,8 +228,8 @@ Handle строит **обёртка поля** (`FormField.Control` из `@refo
 на DOM-элемент (`forwardRef` или React 19 ref-as-prop). Слой создания полей публикуется точкой
 `@reformer/ui-kit/fields`: `defineFieldControl`, адаптеры-пресеты (`nativeInputAdapter`,
 `textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
-`sliderAdapter`, `dateAdapter`, `datePickerAdapter`), `makeElementFieldHandle` и типы
-`FieldAdapter` / `FieldHandle`.
+`sliderAdapter`, `dateAdapter`, `datePickerAdapter`, `dateRangeAdapter`), `makeElementFieldHandle`
+и типы `FieldAdapter` / `FieldHandle`.
 
 ```tsx
 import { defineFieldControl, type FieldHandle } from '@reformer/ui-kit/fields';

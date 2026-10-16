@@ -56,6 +56,8 @@ export const CATEGORY_BY_NAME: Record<string, string> = {
   InputOTP: 'Поля ввода',
   Textarea: 'Поля ввода',
   DatePicker: 'Поля ввода',
+  DatePickerRange: 'Поля ввода',
+  DatePickerMulti: 'Поля ввода',
   Calendar: 'Поля ввода',
   FileUpload: 'Поля ввода',
   FileUploadAvatar: 'Поля ввода',

@@ -63,6 +63,8 @@ describe('подпуть записи и пространство имён вс�
         'ComboboxTree',
         'ComboboxTreeMulti',
         'DatePicker',
+        'DatePickerMulti',
+        'DatePickerRange',
         'InputOTP',
       ].sort()
     );

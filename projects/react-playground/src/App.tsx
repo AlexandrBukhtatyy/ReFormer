@@ -14,6 +14,7 @@ import RegistrationFormJson from './pages/demo/registration-form-renderer-json/R
 import AlertsListRendererJson from './pages/demo/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/demo/file-upload/FileUploadDemo';
 import MultiSelectDemo from './pages/demo/multi-select/MultiSelectDemo';
+import DatePickerDemo from './pages/demo/date-picker/DatePickerDemo';
 import InputSuggestDemo from './pages/demo/input-suggest/InputSuggestDemo';
 import FieldTooltipsDemo from './pages/demo/field-tooltips/FieldTooltipsDemo';
 import TreeDemo from './pages/demo/tree/TreeDemo';
@@ -39,6 +40,7 @@ type ExamplePage =
   | 'alerts-json'
   | 'file-upload'
   | 'multi-select'
+  | 'date-picker'
   | 'input-suggest'
   | 'field-tooltips'
   | 'tree'
@@ -144,6 +146,13 @@ const exampleGroups: ExampleGroup[] = [
         title: 'Множественный выбор',
         description:
           'SelectMulti / ComboboxMulti / NativeSelectMulti / ToggleGroupMulti: единый контракт string[] | null, префилл, валидация',
+      },
+      {
+        id: 'date-picker',
+        path: '/demo/date-picker',
+        title: 'Выбор дат',
+        description:
+          'DatePicker / DatePickerRange / DatePickerMulti: одна дата, период [Date, Date] и несколько дат Date[]',
       },
       {
         id: 'input-suggest',
@@ -374,6 +383,7 @@ function Layout() {
             <Route path="/demo/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/demo/file-upload" element={<FileUploadDemo />} />
             <Route path="/demo/multi-select" element={<MultiSelectDemo />} />
+            <Route path="/demo/date-picker" element={<DatePickerDemo />} />
             <Route path="/demo/input-suggest" element={<InputSuggestDemo />} />
             <Route path="/demo/field-tooltips" element={<FieldTooltipsDemo />} />
             <Route path="/demo/tree" element={<TreeDemo />} />

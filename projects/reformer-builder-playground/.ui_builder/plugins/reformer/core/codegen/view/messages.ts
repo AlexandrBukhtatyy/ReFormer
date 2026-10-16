@@ -93,8 +93,8 @@ const COLLECTION_CODES: Readonly<Record<string, string>> = {
   maxLength: 'maxItems',
 };
 
-/** Виды полей, значение которых — коллекция: мультивыбор и файлы. */
-const COLLECTION_KINDS: ReadonlySet<string> = new Set(['multi', 'file']);
+/** Виды полей, значение которых — коллекция: мультивыбор, файлы и список дат. */
+const COLLECTION_KINDS: ReadonlySet<string> = new Set(['multi', 'file', 'dates']);
 
 /**
  * Пути модели, значение которых — коллекция: узлы-массивы и поля-коллекции. Пути — как записаны

@@ -29,6 +29,8 @@ exports[`встроенный кит объявляет себя сам > зап
     "ComboboxTreeMulti",
     "Command",
     "DatePicker",
+    "DatePickerMulti",
+    "DatePickerRange",
     "Drawer",
     "InputOTP",
     "MessageScroller",
@@ -53,7 +55,7 @@ exports[`встроенный кит объявляет себя сам > зап
 }
 `;
 
-exports[`каталог: отпечаток не меняется > размер каталога зафиксирован (сдвиг = кит изменился, а не рефактор) 1`] = `213`;
+exports[`каталог: отпечаток не меняется > размер каталога зафиксирован (сдвиг = кит изменился, а не рефактор) 1`] = `215`;
 
 exports[`каталог: отпечаток не меняется > состав, категории и makeNode каждой записи 1`] = `
 [
@@ -122,7 +124,9 @@ exports[`каталог: отпечаток не меняется > состав
   "ComboboxTreeMulti|field|Выбор и переключатели|Combobox|Дерево, несколько|||combobox|706ebbea|{"component":"$component(ComboboxTreeMulti)","componentProps":{"label":"ComboboxTreeMulti"},"model":"$model(newField)"}",
   "Command|container|Оверлеи|||||command|82aa3265|{"children":[],"component":"$component(Command)","componentProps":{"className":"space-y-4"}}",
   "ContextMenu|container|Навигация||||||386fc0e4|{"children":[],"component":"$component(ContextMenu)","componentProps":{"className":"space-y-4"}}",
-  "DatePicker|field|Поля ввода|||||date-picker|947feae7|{"component":"$component(DatePicker)","componentProps":{"label":"DatePicker"},"model":"$model(newField)"}",
+  "DatePicker|field|Поля ввода|DatePicker|Одна дата|||date-picker|947feae7|{"component":"$component(DatePicker)","componentProps":{"label":"DatePicker"},"model":"$model(newField)"}",
+  "DatePickerMulti|field|Поля ввода|DatePicker|Несколько|||date-picker|cb8b4c3e|{"component":"$component(DatePickerMulti)","componentProps":{"label":"DatePickerMulti"},"model":"$model(newField)"}",
+  "DatePickerRange|field|Поля ввода|DatePicker|Период|||date-picker|ef609c38|{"component":"$component(DatePickerRange)","componentProps":{"label":"DatePickerRange"},"model":"$model(newField)"}",
   "Dialog|container|Оверлеи||||||d93bab82|{"children":[],"component":"$component(Dialog)","componentProps":{"className":"space-y-4"}}",
   "Drawer|container|Оверлеи|||||drawer|20397e6b|{"children":[],"component":"$component(Drawer)","componentProps":{"className":"space-y-4"}}",
   "DropdownMenu|container|Навигация||||||51d1efad|{"children":[],"component":"$component(DropdownMenu)","componentProps":{"className":"space-y-4"}}",

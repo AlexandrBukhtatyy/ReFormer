@@ -67,6 +67,12 @@ const BOOLEAN_COMPONENTS: ReadonlySet<string> = new Set(['Checkbox', 'Switch', '
 /** Контролы, чьё значение — дата (`Date`), а не строка. */
 const DATE_COMPONENTS: ReadonlySet<string> = new Set(['DatePicker', 'Calendar']);
 
+/** Контролы, чьё значение — список дат (`Date[]`). */
+const DATES_COMPONENTS: ReadonlySet<string> = new Set(['DatePickerMulti']);
+
+/** Контролы, чьё значение — период: кортеж `[начало, конец]`. */
+const DATE_RANGE_COMPONENTS: ReadonlySet<string> = new Set(['DatePickerRange']);
+
 /** Пропсы, в которых лежит список опций. */
 export const LIST_PROP_KEYS: readonly string[] = [
   'options',
@@ -78,7 +84,16 @@ export const LIST_PROP_KEYS: readonly string[] = [
 ];
 
 /** Вид значения поля — то, чем `types.ts` объявляет лист, а мок заполняет модель. */
-export type FieldKind = 'boolean' | 'number' | 'multi' | 'file' | 'date' | 'select' | 'string';
+export type FieldKind =
+  | 'boolean'
+  | 'number'
+  | 'multi'
+  | 'file'
+  | 'date'
+  | 'dates'
+  | 'dateRange'
+  | 'select'
+  | 'string';
 
 /**
  * Вид значения по компоненту и пропсам узла.
@@ -93,6 +108,8 @@ export function fieldKindOf(node: JsonFieldNode): FieldKind {
     if (MULTI_COMPONENTS.has(component)) return 'multi';
     if (BOOLEAN_COMPONENTS.has(component)) return 'boolean';
     if (DATE_COMPONENTS.has(component)) return 'date';
+    if (DATES_COMPONENTS.has(component)) return 'dates';
+    if (DATE_RANGE_COMPONENTS.has(component)) return 'dateRange';
     if (component === 'Slider' || component === 'InputNumber') return 'number';
   }
   // Старые схемы (до выделения InputNumber) задавали число пропом `type: 'number'` у Input —
@@ -110,6 +127,8 @@ export function defaultForField(node: JsonFieldNode): unknown {
   switch (fieldKindOf(node)) {
     case 'file':
     case 'multi':
+    case 'dates':
+    case 'dateRange':
       // `null`, а не `[]`: массив в начальном значении модель превратила бы в форму-массив,
       // и у поля не оказалось бы сигнала вовсе.
       return null;

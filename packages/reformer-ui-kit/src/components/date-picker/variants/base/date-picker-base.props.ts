@@ -13,6 +13,8 @@ export const datePickerBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'DatePicker',
+  'x-variantGroup': 'DatePicker',
+  'x-variant': 'Одна дата',
   properties: {
     placeholder: {
       type: 'string',

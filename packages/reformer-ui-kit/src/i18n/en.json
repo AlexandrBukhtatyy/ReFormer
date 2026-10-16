@@ -110,5 +110,9 @@
   "kit.calendar.today": "today",
   "kit.calendar.selected": "selected",
 
-  "kit.datePicker.placeholder": "Pick a date"
+  "kit.datePicker.placeholder": "Pick a date",
+  "kit.datePicker.placeholderRange": "Pick a date range",
+  "kit.datePicker.placeholderMulti": "Pick dates",
+  "kit.datePicker.selected": "Dates selected: {count}",
+  "kit.datePicker.clear": "Clear dates"
 }

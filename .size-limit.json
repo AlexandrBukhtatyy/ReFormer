@@ -110,7 +110,7 @@
   {
     "name": "@reformer/ui-kit/date-picker (date-fns external)",
     "path": "packages/reformer-ui-kit/dist/date-picker.js",
-    "limit": "1 kB"
+    "limit": "2.5 kB"
   },
   {
     "name": "@reformer/ui-kit/resizable (react-resizable-panels external)",

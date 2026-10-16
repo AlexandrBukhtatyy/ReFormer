@@ -63,5 +63,6 @@ export {
   sliderAdapter,
   dateAdapter,
   datePickerAdapter,
+  dateRangeAdapter,
 } from './adapters';
 export type { KitFieldAdapter } from './adapters';

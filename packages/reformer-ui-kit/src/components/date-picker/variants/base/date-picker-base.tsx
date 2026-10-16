@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { format, type Locale } from 'date-fns';
 import { useI18n } from '@reformer/core/react';
 import { CalendarIcon } from 'lucide-react';
 
@@ -12,10 +11,12 @@ import { withFieldTooltip, INSIDE_BUTTON } from '@/fields/field-tooltip';
 import { Button } from '@/components/button';
 import { Calendar } from '@/components/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
+import { formatDate } from './date-picker-format';
 
 // Не порт (у shadcn нет registry-элемента date-picker — это рецепт), а стандартная композиция
 // зависимостей волны 1: кнопка-триггер (Button outline + CalendarIcon + отформатированная дата) в
 // PopoverTrigger, а в PopoverContent — Calendar mode="single". Выбор даты закрывает поповер.
+// Календарь открывается на месяце выбранной даты (`defaultMonth`), а не на текущем.
 
 export interface DatePickerProps extends Omit<
   React.ComponentProps<typeof Button>,
@@ -35,20 +36,6 @@ export interface DatePickerProps extends Omit<
    * а без него дата пишется по правилам языка (`Intl`, `dateStyle: 'long'`): «16 октября 2026 г.».
    */
   dateFormat?: string;
-}
-
-/**
- * Подпись выбранной даты: формат `date-fns` (с объектом локали `dateLocale`, если он есть) либо, без
- * формата, — по правилам языка локали через `Intl`.
- */
-function formatDate(
-  value: Date,
-  pattern: string | undefined,
-  i18n: ReturnType<typeof useI18n>
-): string {
-  if (pattern === undefined) return i18n.date(value, { dateStyle: 'long' });
-  const locale = i18n.locale.dateLocale as Locale | undefined;
-  return format(value, pattern, locale ? { locale } : undefined);
 }
 
 /**
@@ -116,6 +103,7 @@ const DatePickerBase = React.forwardRef<DatePickerHandle, DatePickerProps>(funct
         <Calendar
           mode="single"
           selected={value}
+          defaultMonth={value}
           onSelect={(date) => {
             onChange?.(date);
             setOpen(false);
