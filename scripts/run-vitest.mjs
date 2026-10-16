@@ -8,17 +8,19 @@
  * Node 24, on CI with Node 20 the symptom is identical (Release @reformer/core
  * hung in_progress 30+ minutes, never publishes).
  *
- * The hang prevents `vitest run` from printing the final "Test Files X passed"
- * summary line — so we cannot key on it. Instead we use IDLE detection:
+ * We use IDLE detection:
  *
  *   1. Spawn `npx vitest run` with full arg passthrough; pipe stdout/stderr.
  *   2. After the child has been emitting output for `MIN_RUN_MS` (~5s) and
- *      then goes silent for `IDLE_KILL_MS` (default 60s) — assume tests
- *      finished but vitest can't exit. Detect failures by scanning the buffer:
- *        - any "FAIL " or "✗" or "Tests   X failed" → exit 1
- *        - any "Test Files" line with "failed" → exit 1
- *        - otherwise → exit 0
- *      Then SIGKILL the child.
+ *      then goes silent for `IDLE_KILL_MS` (default 60s) — kill it and decide
+ *      the exit code from the output (`run-vitest-verdict.mjs`):
+ *        - failure markers ("FAIL", "Tests X failed", coverage threshold) → 1;
+ *        - the "Test Files … (N)" summary line → 0 — it is printed only once
+ *          every file has reported;
+ *        - no summary → compare the reported files with
+ *          `vitest list --filesOnly --json`: all reported → 0, otherwise 1 with
+ *          the missing files listed. A hang in the middle of the run used to
+ *          pass as green while some files never reported (ReFormer-rchr).
  *   3. If vitest exits naturally first — inherit its exit code.
  *
  * Usage (drop-in for `vitest run`):
@@ -29,11 +31,13 @@
  *   VITEST_MIN_RUN_MS   — ms of activity before idle detection arms. Default 5000.
  */
 import { spawn } from 'node:child_process';
+import { hasSummary, idleVerdict, listArgs } from './run-vitest-verdict.mjs';
 
 const args = process.argv.slice(2);
 const COVERAGE = args.some((arg) => arg === '--coverage' || arg.startsWith('--coverage.'));
 const IDLE_KILL_MS = Number(process.env.VITEST_IDLE_KILL_MS ?? 60000);
 const MIN_RUN_MS = Number(process.env.VITEST_MIN_RUN_MS ?? 5000);
+const LIST_TIMEOUT_MS = 60000;
 
 // `--passWithNoTests` — для пакетов без .test.ts файлов (cdk, mcp).
 // Иначе `vitest run` exit'ает с code 1 на "No test files found".
@@ -48,6 +52,8 @@ const child = spawn('npx', ['vitest', 'run', '--passWithNoTests', ...args], {
 const startedAt = Date.now();
 let lastDataAt = Date.now();
 let buf = '';
+// Решение по простою принято: выход убитого процесса больше не определяет код.
+let deciding = false;
 
 const handleData = (data, sink) => {
   sink.write(data);
@@ -59,8 +65,38 @@ const handleData = (data, sink) => {
 child.stdout.on('data', (d) => handleData(d, process.stdout));
 child.stderr.on('data', (d) => handleData(d, process.stderr));
 
-const idleCheck = setInterval(() => {
-  if (child.exitCode !== null) {
+/** Файлы, которые vitest нашёл бы с теми же аргументами; `null`, если список получить не удалось. */
+function expectedFiles() {
+  return new Promise((resolve) => {
+    const list = spawn('npx', ['vitest', 'list', '--filesOnly', '--json', ...listArgs(args)], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      env: process.env,
+      shell: true,
+    });
+    let out = '';
+    const timer = setTimeout(() => {
+      list.kill('SIGKILL');
+      resolve(null);
+    }, LIST_TIMEOUT_MS);
+    list.stdout.on('data', (d) => (out += d));
+    list.on('error', () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+    list.on('exit', (code) => {
+      clearTimeout(timer);
+      try {
+        const parsed = JSON.parse(out.slice(out.indexOf('[')));
+        resolve(code === 0 && Array.isArray(parsed) ? parsed : null);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
+const idleCheck = setInterval(async () => {
+  if (child.exitCode !== null || deciding) {
     clearInterval(idleCheck);
     return;
   }
@@ -69,44 +105,30 @@ const idleCheck = setInterval(() => {
   if (sinceStart < MIN_RUN_MS) return;
   if (sinceData < IDLE_KILL_MS) return;
 
-  // Stdout silent long enough — assume vitest finished but is hung.
-  // Decide exit code from buffered output.
-  const hasFailMarker =
-    /\bTest Files[^\n]*\bfailed\b/.test(buf) ||
-    /\bTests\s+\d+\s+failed\b/.test(buf) ||
-    / FAIL\b/.test(buf) ||
-    /\bUnhandled\b/.test(buf) ||
-    // Порог покрытия не выполнен: vitest печатает это и выставил бы exit 1, но мог зависнуть.
-    /^ERROR: (Coverage for|Uncovered) /m.test(buf);
-  // Sanity check: did anything actually run?
-  const hasPassMarker = /✓|\bpassed\b/.test(buf);
-  // С покрытием тишина после тестов — это ещё и обработка покрытия: успех засчитывается, только
-  // когда отчёт покрытия уже напечатан, иначе долгий подсчёт закончился бы ложным exit 0.
-  const coverageDone = !COVERAGE || /Coverage report from v8/.test(buf);
-  let code;
-  if (hasFailMarker) code = 1;
-  else if (hasPassMarker && coverageDone) code = 0;
-  else code = 1; // nothing ran (or coverage never reported) — treat as failure
-
-  process.stderr.write(
-    `\n[run-vitest] No stdout for ${IDLE_KILL_MS} ms — vitest hung after run. ` +
-      `Forcing exit ${code} (failures=${hasFailMarker}, passes=${hasPassMarker}).\n`
-  );
+  // Stdout silent long enough — vitest finished or hung mid-run. Decide from the output.
+  deciding = true;
   clearInterval(idleCheck);
   try {
     child.kill('SIGKILL');
   } catch {
     // Already dead.
   }
+  const expected = hasSummary(buf) ? undefined : await expectedFiles();
+  const { code, reason } = idleVerdict({ output: buf, coverage: COVERAGE, expected });
+  process.stderr.write(
+    `\n[run-vitest] No stdout for ${IDLE_KILL_MS} ms — vitest hung. Forcing exit ${code}: ${reason}\n`
+  );
   process.exit(code);
 }, 2000);
 
 child.on('exit', (code) => {
+  if (deciding) return;
   clearInterval(idleCheck);
   process.exit(code ?? 1);
 });
 
 child.on('error', (err) => {
+  if (deciding) return;
   clearInterval(idleCheck);
   process.stderr.write(`[run-vitest] failed to spawn vitest: ${err}\n`);
   process.exit(1);
