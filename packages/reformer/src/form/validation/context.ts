@@ -47,6 +47,16 @@ export interface VContext {
   whenStack: Array<() => boolean>;
   /** Отмена устаревшего прогона: прокидывается в async-правила, гасит роутинг после await. */
   signal: AbortSignal;
+  /**
+   * Определение, правила которого исполняются сейчас: корень прогона либо схема, подключённая
+   * `apply` / `applyEach`. Замечание помечается им: так разнос отличает замечания одного
+   * определения, полученные разными прогонами (шаг и вся форма), от замечаний чужого.
+   */
+  origin: object;
+  /** Замечания по полю и определению-источнику. Одна ссылка на весь прогон, как `failures`. */
+  origins: Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>;
+  /** Определения, исполненные в прогоне: за их замечания на проверенных полях прогон отвечает. */
+  executed: Set<object>;
 }
 
 let current: VContext | null = null;
@@ -78,11 +88,28 @@ export function requireCtx(op: string): VContext {
   return current;
 }
 
-/** «Тронуть» сигнал: гарантирует его наличие в `issues` (даже пустым) → он попадёт в очистку. */
+/**
+ * «Тронуть» сигнал: гарантирует его наличие в замечаниях прогона (даже пустым) → он попадёт в
+ * очистку. Возвращает список текущего определения ({@link VContext.origin}): в него и пишут правила.
+ */
 export function touch(ctx: VContext, sig: PathAwareSignal<unknown>): ValidationIssue[] {
-  let bucket = ctx.issues.get(sig);
-  if (!bucket) ctx.issues.set(sig, (bucket = []));
+  let byOrigin = ctx.origins.get(sig);
+  if (!byOrigin) ctx.origins.set(sig, (byOrigin = new Map()));
+  let bucket = byOrigin.get(ctx.origin);
+  if (!bucket) byOrigin.set(ctx.origin, (bucket = []));
   return bucket;
+}
+
+/** Исполнить определение: его замечания помечаются им же. */
+export function withOrigin(ctx: VContext, origin: object, fn: () => void): void {
+  const previous = ctx.origin;
+  ctx.origin = origin;
+  ctx.executed.add(origin);
+  try {
+    fn();
+  } finally {
+    ctx.origin = previous;
+  }
 }
 
 /** Активна ли текущая ветка (все `validateWhen`-условия истинны). */

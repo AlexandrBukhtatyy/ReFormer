@@ -755,10 +755,9 @@ describe('createForm — статус проверки и агрегат valid �
     expect((await run).status).toBe('valid');
   });
 
-  it('поведение под вопросом [ReFormer-jefl]: правило на поле без ноды — invalid, хотя form.valid === true', async () => {
-    // Массив примитивов без узла в схеме ноды не получает: замечание некуда показать, агрегат его
-    // не видит, а статус прогона — видит. Возможно, это ошибка конфигурации (правило на поле вне
-    // формы), но согласие статуса с form.valid нарушено так же, как в ReFormer-9utp.
+  it('правило на поле без ноды — замечание на корне формы, статус совпадает с form.valid [ReFormer-jefl]', async () => {
+    // Массив примитивов без узла в схеме ноды не получает: замечанию негде показаться у поля, и
+    // оно ложится на корень формы — агрегат его видит, как и статус прогона.
     interface Tagged {
       name: string;
       tags: string[];
@@ -769,16 +768,49 @@ describe('createForm — статус проверки и агрегат valid �
     });
 
     expect((await bundle.validate()).status).toBe('invalid');
+    expect(bundle.form.valid.value).toBe(false);
+    expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['required']);
+
+    bundle.model.tags = ['a'];
+    expect((await bundle.validate()).status).toBe('valid');
+    expect(bundle.form.ownIssues.value).toEqual([]);
     expect(bundle.form.valid.value).toBe(true);
+  });
+
+  it('ошибка сервера на корне формы прогоны переживает, замечание поля без ноды — рядом с ней [ReFormer-jefl]', async () => {
+    interface Tagged {
+      name: string;
+      tags: string[];
+    }
+    const bundle = createForm<Tagged>({
+      initial: { name: 'x', tags: [] },
+      validation: defineValidation<Tagged>(({ model }) => validate(model.$.tags, [required()])),
+    });
+    bundle.form.setIssues([{ code: 'server' }]);
+
+    await bundle.validate();
+    expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['server', 'required']);
+
+    bundle.model.tags = ['a'];
+    await bundle.validate();
+    expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['server']);
+  });
+
+  it('без полей без нод корень формы прогон не трогает [ReFormer-jefl]', async () => {
+    const bundle = createForm<Shape>({ initial: { amount: '', phone: '' }, validation: loanRules });
+    bundle.form.setIssues([{ code: 'server' }]);
+
+    await bundle.validate();
+
+    expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['server']);
   });
 });
 
 describe('createForm — прогоны шага и формы над одним полем', () => {
-  it('поведение под вопросом [ReFormer-jefl]: прогон шага заменяет замечание поля от правил формы', async () => {
-    // Замечания ноды не разделены по источнику: прогон шага ставит полю свой список целиком и
-    // стирает замечание extras того же поля — форма снова valid, поток идёт дальше, хотя полная
-    // проверка его не пропустит. Док `validateModel` обещает, что прогоны шага и формы «не мешают
-    // друг другу», — это верно для гашения диффом, но не для общего поля.
+  it('прогон шага не стирает замечание поля от extras полной проверки [ReFormer-jefl]', async () => {
+    // Замечания поля учтены по определению-источнику: прогон шага заменяет только замечания
+    // правил шага, а замечание extras того же поля остаётся — прогоны шага и формы друг другу
+    // не мешают, как обещает док `validateModel`.
     const extras = defineValidation<Shape>(({ model, cross }) => {
       cross(model.$.amount, (shape) => (shape.amount === shape.phone ? { code: 'same' } : null));
     });
@@ -792,8 +824,39 @@ describe('createForm — прогоны шага и формы над одним
     expect(issueCodes(bundle.form.amount)).toEqual(['same']);
 
     expect((await bundle.validateStep('loan')).status).toBe('valid');
-    expect(issueCodes(bundle.form.amount)).toEqual([]);
-    expect(bundle.form.valid.value).toBe(true);
+    expect(issueCodes(bundle.form.amount)).toEqual(['same']);
+    expect(bundle.form.valid.value).toBe(false);
     expect((await bundle.validate()).status).toBe('invalid');
+  });
+
+  it('устаревшее замечание правил шага прогон шага стирает, даже если его поставила полная проверка [ReFormer-jefl]', async () => {
+    const bundle = createForm<Shape>({
+      initial: { amount: '', phone: '1' },
+      flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+    });
+
+    expect((await bundle.validate()).status).toBe('invalid');
+    expect(issueCodes(bundle.form.amount).length).toBeGreaterThan(0);
+
+    bundle.model.amount = '5';
+    expect((await bundle.validateStep('loan')).status).toBe('valid');
+    expect(issueCodes(bundle.form.amount)).toEqual([]);
+  });
+
+  it('сброс ноды мимо разноса забывает прежние замечания других прогонов [ReFormer-jefl]', async () => {
+    const extras = defineValidation<Shape>(({ model, cross }) => {
+      cross(model.$.amount, (shape) => (shape.amount === shape.phone ? { code: 'same' } : null));
+    });
+    const bundle = createForm<Shape>({
+      initial: { amount: '1', phone: '1' },
+      flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+      validation: { extras },
+    });
+    await bundle.validate();
+
+    bundle.form.amount.reset();
+    expect((await bundle.validateStep('loan')).status).toBe('valid');
+
+    expect(issueCodes(bundle.form.amount)).toEqual([]);
   });
 });

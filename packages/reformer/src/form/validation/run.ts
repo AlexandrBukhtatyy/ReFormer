@@ -57,6 +57,139 @@ const stateOfResult = new WeakMap<ValidationResult, RunState>();
  */
 const checkedOfResult = new WeakMap<ValidationResult, ReadonlySet<PathAwareSignal<unknown>>>();
 
+/** Замечания результата по определениям-источникам и определения, исполненные прогоном. */
+interface TaggedIssues {
+  readonly origins: ReadonlyMap<PathAwareSignal<unknown>, ReadonlyMap<object, ValidationIssue[]>>;
+  readonly executed: ReadonlySet<object>;
+}
+const taggedOfResult = new WeakMap<ValidationResult, TaggedIssues>();
+
+/**
+ * Замечания поля, разнесённые на его ноду, — по определениям-источникам, и сам записанный список.
+ *
+ * Прогоны разных схем (шаг и вся форма, отправка) пишут в одну ноду. Список ноды — объединение
+ * списков определений; прогон заменяет списки только тех определений, которые сам исполнял: шаг
+ * не стирает замечание `extras` полной проверки, а устаревшее замечание правил шага — стирает.
+ * Если ноду с тех пор правили мимо разноса (`reset`, `clearIssues`, `setIssues`), хранилище
+ * забывается: решение того, кто правил, главнее.
+ */
+const shownIssues = new WeakMap<
+  object,
+  { byOrigin: Map<object, readonly ValidationIssue[]>; written: readonly ValidationIssue[] }
+>();
+
+/** Результат, собранный не раннером: меток нет, и он отвечает за весь список поля. */
+const UNTAGGED = {};
+
+/** Замечания корня, поставленные мимо разноса (ошибка сервера на форме), — их прогон не стирает. */
+const FOREIGN = {};
+
+/** Модель, по которой собран результат: от неё разнос находит корень формы. */
+const modelOfResult = new WeakMap<ValidationResult, FormModel<unknown>>();
+
+/** Нода, на которую ложится итог: `setIssues` и собственный список для сверки. */
+interface IssueTarget {
+  setIssues(issues: readonly ValidationIssue[]): void;
+  ownIssues?: { peek(): readonly ValidationIssue[] };
+}
+
+/** Одно замечание из двух определений с одними правилами (шаг внутри формы) — один раз. */
+function mergeIssues(lists: Iterable<readonly ValidationIssue[]>): readonly ValidationIssue[] {
+  const seen = new Set<string>();
+  const out: ValidationIssue[] = [];
+  for (const list of lists) {
+    for (const issue of list) {
+      const key = JSON.stringify([issue.code, issue.severity ?? null, issue.params ?? null]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(issue);
+    }
+  }
+  return out;
+}
+
+/**
+ * Записать ноде итог прогона с учётом замечаний других определений — см. {@link shownIssues}.
+ *
+ * @param key - Ключ хранилища: сигнал поля либо корень формы.
+ * @param lists - Списки прогона по определениям; `undefined` — поле в прогоне не проверялось.
+ * @param keepForeign - Список, поставленный мимо разноса, сохранить, а не забыть (корень формы).
+ */
+function settleOn(
+  key: object,
+  node: IssueTarget,
+  tagged: TaggedIssues | undefined,
+  lists: ReadonlyMap<object, readonly ValidationIssue[]> | undefined,
+  flat: readonly ValidationIssue[] | undefined,
+  keepForeign = false
+): void {
+  const previous = shownIssues.get(key);
+  const current = node.ownIssues?.peek() ?? [];
+  const untouched = previous !== undefined && current === previous.written;
+  const byOrigin = untouched ? previous.byOrigin : new Map<object, readonly ValidationIssue[]>();
+  if (!untouched && keepForeign && current.length > 0) byOrigin.set(FOREIGN, current);
+  byOrigin.delete(UNTAGGED);
+  if (tagged === undefined) {
+    for (const origin of [...byOrigin.keys()]) if (origin !== FOREIGN) byOrigin.delete(origin);
+    if (flat !== undefined && flat.length > 0) byOrigin.set(UNTAGGED, flat);
+  } else {
+    for (const origin of tagged.executed) byOrigin.delete(origin);
+    lists?.forEach((list, origin) => {
+      if (list.length > 0) byOrigin.set(origin, list);
+    });
+  }
+  const written = byOrigin.size === 0 ? [] : mergeIssues(byOrigin.values());
+  node.setIssues(written);
+  shownIssues.set(key, { byOrigin, written: node.ownIssues?.peek() ?? written });
+}
+
+/** Записать полю итог прогона; поле без ноды — в сборщик замечаний корня. */
+function settleIssues(
+  sig: PathAwareSignal<unknown>,
+  tagged: TaggedIssues | undefined,
+  issues: readonly ValidationIssue[] | undefined,
+  orphans: Map<object, ValidationIssue[]>
+): void {
+  const node = getNodeForSignal(sig) as IssueTarget | undefined;
+  const lists = issues === undefined ? undefined : tagged?.origins.get(sig);
+  if (node === undefined) {
+    // Правило на поле без ноды (массив примитивов без узла в схеме): замечанию негде показаться
+    // у поля, и оно ложится на корень формы — так статус прогона совпадает с `form.valid`.
+    lists?.forEach((list, origin) => {
+      const bucket = orphans.get(origin) ?? [];
+      bucket.push(...list);
+      orphans.set(origin, bucket);
+    });
+    if (tagged === undefined && issues !== undefined) {
+      const bucket = orphans.get(UNTAGGED) ?? [];
+      bucket.push(...issues);
+      orphans.set(UNTAGGED, bucket);
+    }
+    return;
+  }
+  settleOn(sig, node, tagged, lists, issues);
+}
+
+/**
+ * Разнести на корень формы замечания полей без нод. Корень трогается, только если такие замечания
+ * есть сейчас или были разнесены раньше: его собственные замечания (ошибка сервера) — не дело прогона.
+ */
+function settleOrphans(
+  model: FormModel<unknown> | undefined,
+  tagged: TaggedIssues | undefined,
+  orphans: Map<object, ValidationIssue[]>
+): void {
+  if (model === undefined) return;
+  const root = getNodeForSignal(model.$ as object) as IssueTarget | undefined;
+  if (root === undefined) return;
+  if (orphans.size === 0 && !shownIssues.has(root)) return;
+  if (tagged === undefined) {
+    settleOn(root, root, undefined, undefined, orphans.get(UNTAGGED) ?? [], true);
+    return;
+  }
+  settleOn(root, root, tagged, orphans, undefined, true);
+}
+
 function runStateFor(model: object, schema: object): RunState {
   let perModel = stateRegistry.get(model);
   if (!perModel) stateRegistry.set(model, (perModel = new WeakMap()));
@@ -117,11 +250,13 @@ function dropInactive(
   model: FormModel<unknown>,
   issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>,
   failures: ValidationFailure[],
-  checked: Set<PathAwareSignal<unknown>>
+  checked: Set<PathAwareSignal<unknown>>,
+  origins: Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>
 ): void {
   for (const sig of issues.keys()) {
     if (!isInactive(model, sig)) continue;
     issues.set(sig, []);
+    origins.get(sig)?.forEach((_, origin, byOrigin) => byOrigin.set(origin, []));
     checked.delete(sig);
   }
   for (let i = failures.length - 1; i >= 0; i--) {
@@ -199,6 +334,9 @@ async function collect<T>(
     failures,
     whenStack: [],
     signal: ac.signal,
+    origin: schema as object,
+    origins: new Map(),
+    executed: new Set([schema as object]),
   };
   // Синхронная регистрация: validate/cross/apply/applyEach отрабатывают здесь. Ambient-окно
   // закрывается до любого await — этим владеет runWithContext.
@@ -220,7 +358,11 @@ async function collect<T>(
   // `enableWhen` пишется на микротаске, и живой прогон сразу после правки условия иначе засчитал бы
   // правила поля, которое вот-вот выключится. Записей нет — это один микротаск, как раньше.
   else if (skipDisabled) await deferredWritesSettled();
-  if (skipDisabled) dropInactive(model as FormModel<unknown>, ctx.issues, failures, ctx.checked);
+  // Список поля в результате — объединение списков определений (async-правила дописали свои).
+  for (const [sig, byOrigin] of ctx.origins) ctx.issues.set(sig, [...byOrigin.values()].flat());
+  if (skipDisabled) {
+    dropInactive(model as FormModel<unknown>, ctx.issues, failures, ctx.checked, ctx.origins);
+  }
 
   // Приоритет статуса: отменённому прогону нельзя доверять вовсе (его async-часть оборвана);
   // сбой правила важнее обычной ошибки — результата проверки нет.
@@ -237,6 +379,8 @@ async function collect<T>(
   };
   stateOfResult.set(result, state);
   checkedOfResult.set(result, ctx.checked);
+  taggedOfResult.set(result, { origins: ctx.origins, executed: ctx.executed });
+  modelOfResult.set(result, model as FormModel<unknown>);
   return {
     result,
     release: () => {
@@ -303,15 +447,18 @@ export function applyValidationResult(
   const state = stateOfResult.get(result);
   const validated = new Set(result.issues.keys());
   const checked = checkedOfResult.get(result) ?? validated;
+  const tagged = taggedOfResult.get(result);
   const write = (): void => {
+    const orphans = new Map<object, ValidationIssue[]>();
     // Гашение диффом (без неограниченного накопления): поля, которых НЕ коснулись в этом прогоне,
-    // гасятся один раз и отпускаются на GC.
+    // гасятся один раз и отпускаются на GC — от замечаний определений этого прогона.
     if (state) {
-      for (const sig of state.fields) if (!validated.has(sig)) getNodeForSignal(sig)?.setIssues([]);
+      for (const sig of state.fields) {
+        if (!validated.has(sig)) settleIssues(sig, tagged, undefined, orphans);
+      }
     }
-    for (const [sig, issues] of result.issues) {
-      getNodeForSignal(sig)?.setIssues(issues as ValidationIssue[]);
-    }
+    for (const [sig, issues] of result.issues) settleIssues(sig, tagged, issues, orphans);
+    settleOrphans(modelOfResult.get(result), tagged, orphans);
     if (options?.touch) for (const sig of checked) getNodeForSignal(sig)?.markAsTouched();
   };
   if (options?.touch) touchByValidation(write);

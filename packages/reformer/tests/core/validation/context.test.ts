@@ -17,6 +17,7 @@ import {
   runWithContext,
   touch,
   type VContext,
+  withOrigin,
 } from '../../../src/form/validation/context';
 import { createModel } from '../../../src/model/index';
 import type { FormModel, PathAwareSignal } from '../../../src/model/types';
@@ -37,6 +38,7 @@ import type { ValidationResult } from '../../../src/form/validation/types';
 
 /** Пустой контекст прогона над моделью. */
 function contextOf(model: object = createModel({ a: '' })): VContext {
+  const root = {};
   return {
     model: model as FormModel<unknown>,
     issues: new Map(),
@@ -46,6 +48,9 @@ function contextOf(model: object = createModel({ a: '' })): VContext {
     failures: [],
     whenStack: [],
     signal: new AbortController().signal,
+    origin: root,
+    origins: new Map(),
+    executed: new Set([root]),
   };
 }
 
@@ -100,7 +105,7 @@ describe('validation/context — окно прогона', () => {
     expect(() => requireCtx('validate')).toThrow('вне схемы валидации');
   });
 
-  it('touch заводит корзину сигнала один раз и отдаёт её же', () => {
+  it('touch заводит корзину сигнала один раз на определение и отдаёт её же', () => {
     const model = createModel({ a: '' });
     const ctx = contextOf(model);
     const sig = model.$.a as PathAwareSignal<unknown>;
@@ -110,8 +115,23 @@ describe('validation/context — окно прогона', () => {
     const second = touch(ctx, sig);
 
     expect(second).toBe(first);
-    expect(ctx.issues.get(sig)).toEqual([issue('x')]);
-    expect(ctx.issues.size).toBe(1);
+    expect([...(ctx.origins.get(sig)?.values() ?? [])]).toEqual([[issue('x')]]);
+  });
+
+  it('withOrigin: замечания вложенного определения — в его корзине, корень — прежний [ReFormer-jefl]', () => {
+    const model = createModel({ a: '' });
+    const ctx = contextOf(model);
+    const root = ctx.origin;
+    const nested = {};
+    const sig = model.$.a as PathAwareSignal<unknown>;
+
+    touch(ctx, sig).push(issue('root'));
+    withOrigin(ctx, nested, () => touch(ctx, sig).push(issue('nested')));
+
+    expect(ctx.origin).toBe(root);
+    expect(ctx.origins.get(sig)?.get(nested)).toEqual([issue('nested')]);
+    expect(ctx.origins.get(sig)?.get(root)).toEqual([issue('root')]);
+    expect([...ctx.executed]).toEqual([root, nested]);
   });
 
   it('gated: пустой стек — ветка активна; ложное условие в стеке её выключает', () => {

@@ -12,7 +12,7 @@
 import type { FormModel, ModelArray, PathAwareSignal } from '../../model/types';
 import type { ValidationIssue } from '../types/contracts';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
-import { requireCtx, runWithContext, touch, checking, type VContext } from './context';
+import { requireCtx, runWithContext, touch, checking, type VContext, withOrigin } from './context';
 import type { AsyncRule, Rule, ValidationDefinition, ValidationScope } from './types';
 
 /**
@@ -139,8 +139,9 @@ interface ArrayBinding<U> {
 /** Запустить схему в собственной области: общий сток ошибок, своя модель. */
 function runScoped(ctx: VContext, model: unknown, schema: ValidationDefinition<never>): void {
   const scoped = model as FormModel<unknown>;
-  runWithContext({ ...ctx, model: scoped }, () =>
-    (schema as ValidationDefinition<unknown>)(scopeOf(scoped))
+  const inner = { ...ctx, model: scoped };
+  runWithContext(inner, () =>
+    withOrigin(inner, schema, () => (schema as ValidationDefinition<unknown>)(scopeOf(scoped)))
   );
 }
 
@@ -223,7 +224,9 @@ export function apply<T>(...schemas: ValidationDefinition<T>[]): void;
 export function apply(...args: unknown[]): void {
   const ctx = requireCtx('apply');
   if (typeof args[0] === 'function') {
-    for (const schema of args as ValidationDefinition<unknown>[]) schema(scopeOf(ctx.model));
+    for (const schema of args as ValidationDefinition<unknown>[]) {
+      withOrigin(ctx, schema, () => schema(scopeOf(ctx.model)));
+    }
     return;
   }
   const [groups, schema] = args as [unknown, ValidationDefinition<never>];

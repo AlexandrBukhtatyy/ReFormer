@@ -103,7 +103,7 @@ export async function flowTypeChecks(flow: FormFlow): Promise<void> {
   flow.completed.value.add('contacts');
   // @ts-expect-error — шаг — идентификатор, а не номер
   flow.goTo(2);
-  // поведение под вопросом: шаги потока — строки без связи со списком шагов сборки:
+  // поведение под вопросом [ReFormer-hn34]: шаги потока — строки без связи со списком шагов сборки:
   // `goTo('summary')` компилируется и бросает исключение в рантайме.
   flow.goTo('summary');
 
