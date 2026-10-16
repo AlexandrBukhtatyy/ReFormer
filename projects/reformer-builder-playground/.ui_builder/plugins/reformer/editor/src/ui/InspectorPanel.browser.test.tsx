@@ -13,13 +13,17 @@
  * - привязка к модели — список кита с вводом своего пути, а не поле ввода с родным списком
  *   браузера: тот же вид, что у соседних списков, и одна правка на выбор;
  * - отметка выбранного пункта во всех списках панели стоит у правого края, а подписи пунктов
- *   начинаются с одного отступа: списки трёх разных устройств читаются как один компонент.
+ *   начинаются с одного отступа: списки трёх разных устройств читаются как один компонент;
+ * - текстовое умолчание кита в подсказке поля — на языке интерфейса, а не английским `default`.
  *
  * @module plugins/reformer/editor/ui/InspectorPanel.browser.test
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
+import type { FormLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { ru as kitRu } from '@reformer/ui-kit/locale/ru';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogEntry } from '../../../core/catalog';
 import { sampleSchema } from '../../../core/testing';
@@ -63,6 +67,12 @@ const PROPS_SCHEMA = {
       description: 'Наибольшая длина значения',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
+    placeholder: {
+      type: 'string',
+      default: 'Select an option...',
+      'x-messageKey': 'kit.select.placeholder',
+      'x-doc': { group: 'Behavior', type: 'string' },
+    },
     required: {
       type: 'boolean',
       description: 'Поле обязательно.',
@@ -100,7 +110,10 @@ afterEach(() => {
   unmount = undefined;
 });
 
-async function mount(): Promise<{ container: HTMLElement; session: SchemaSession }> {
+/** @param locale - Локаль интерфейса; без неё панель рисуется без провайдера, по-английски. */
+async function mount(
+  locale?: FormLocale
+): Promise<{ container: HTMLElement; session: SchemaSession }> {
   const host = createFakeSchemaHost({
     documentId: DOCUMENT,
     text: JSON.stringify(sampleSchema()),
@@ -113,7 +126,10 @@ async function mount(): Promise<{ container: HTMLElement; session: SchemaSession
   if (id === undefined) throw new Error('в образце нет поля Select');
   session.setSelection([id]);
 
-  const mounted = renderReact(<InspectorPanel host={host} registry={registry} />);
+  const panel = <InspectorPanel host={host} registry={registry} />;
+  const mounted = renderReact(
+    locale === undefined ? panel : <I18nProvider locale={locale}>{panel}</I18nProvider>
+  );
   unmount = mounted.unmount;
   await vi.waitFor(() => {
     if (labelOf(mounted.container, 'Label') === null) throw new Error('панель ещё не отрисована');
@@ -154,6 +170,20 @@ function describedText(control: HTMLElement | null): string {
   const id = control?.getAttribute('aria-describedby') ?? '';
   return document.getElementById(id)?.textContent ?? '';
 }
+
+describe('умолчание текстового свойства — подсказкой в поле', () => {
+  it('без локали — английский default каталога', async () => {
+    const { container } = await mount();
+    const { control } = rowOf(container, 'Placeholder');
+    expect(control?.getAttribute('placeholder')).toBe('Select an option...');
+  });
+
+  it('на русском интерфейсе — текст словаря кита по x-messageKey', async () => {
+    const { container } = await mount(kitRu);
+    const { control } = rowOf(container, 'Placeholder');
+    expect(control?.getAttribute('placeholder')).toBe('Выберите значение...');
+  });
+});
 
 describe('подсказка свойства — значком у подписи', () => {
   it('текст подсказки не стоит строкой под полем', async () => {

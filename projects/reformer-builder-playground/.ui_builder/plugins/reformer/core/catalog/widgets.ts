@@ -41,6 +41,7 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
       group: doc?.group ?? 'Control',
       description: typeof prop.description === 'string' ? prop.description : undefined,
       default: prop.default,
+      messageKey: typeof prop['x-messageKey'] === 'string' ? prop['x-messageKey'] : undefined,
       options: Array.isArray(prop.enum) ? (prop.enum as Array<string | number>) : undefined,
       min: typeof prop.minimum === 'number' ? prop.minimum : undefined,
       max: typeof prop.maximum === 'number' ? prop.maximum : undefined,

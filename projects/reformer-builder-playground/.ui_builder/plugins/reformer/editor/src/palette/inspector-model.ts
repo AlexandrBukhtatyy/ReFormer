@@ -62,6 +62,8 @@ export interface InspectorField {
   readonly description?: string;
   /** Умолчание каталога. Показывается подсказкой, в значение не подставляется. */
   readonly fallback?: unknown;
+  /** Ключ словаря кита для текстового умолчания: подсказка — на языке интерфейса. */
+  readonly messageKey?: string;
   readonly options?: readonly (string | number)[];
   readonly min?: number;
   readonly max?: number;
@@ -298,6 +300,7 @@ function toField(prop: InspectorProp, props: Record<string, unknown>): Inspector
     group: prop.group,
     description: prop.description,
     fallback: prop.default,
+    messageKey: prop.messageKey,
     options: prop.options,
     min: prop.min,
     max: prop.max,

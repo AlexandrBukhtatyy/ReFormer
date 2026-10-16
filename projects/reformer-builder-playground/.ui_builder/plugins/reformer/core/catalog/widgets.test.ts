@@ -35,6 +35,15 @@ describe('toInspectorProps', () => {
     expect(inputNumberProps().find((p) => p.key === 'min')!.group).toBe('Behavior');
   });
 
+  it('текстовое умолчание кита несёт ключ словаря (x-messageKey)', () => {
+    const props = toInspectorProps(mergeFieldPropsSchema(defaultPropSchemas.InputPassword));
+    const placeholder = props.find((p) => p.key === 'placeholder')!;
+    expect(placeholder.default).toBe('Password');
+    expect(placeholder.messageKey).toBe('kit.inputPassword.placeholder');
+    // У пропа без словарного умолчания ключа нет.
+    expect(props.find((p) => p.key === 'label')!.messageKey).toBeUndefined();
+  });
+
   it('x-runtimeProps (value/onChange) НЕ попадают в инспектор', () => {
     const keys = inputProps().map((p) => p.key);
     expect(keys).not.toContain('value');

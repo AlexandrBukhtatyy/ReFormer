@@ -77,6 +77,11 @@ export interface InspectorProp {
   description?: string;
   /** Значение по умолчанию (`default`). */
   default?: unknown;
+  /**
+   * Ключ словаря кита для текстового умолчания (`x-messageKey`): `default` — английский текст, а
+   * на языке интерфейса его даёт словарь кита.
+   */
+  messageKey?: string;
   /** Варианты для `enum`. */
   options?: Array<string | number>;
   /** Границы/шаг для числовых (`minimum`/`maximum`/`multipleOf`). */

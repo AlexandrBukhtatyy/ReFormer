@@ -66,6 +66,7 @@
  */
 
 import { useId, type ReactElement } from 'react';
+import { useI18n } from '@reformer/core/react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Combobox } from '@reformer/ui-kit/combobox';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
@@ -378,6 +379,12 @@ function FlagsField({
   );
 }
 
+/** Текстовое умолчание поля для подсказки: из словаря кита, если у него есть ключ, иначе как есть. */
+function fallbackText(field: InspectorField, i18n: ReturnType<typeof useI18n>): string | undefined {
+  if (typeof field.fallback !== 'string') return undefined;
+  return field.messageKey ? i18n.t(field.messageKey, undefined, field.fallback) : field.fallback;
+}
+
 /** Одно свойство. Вид элемента управления выбран каталогом — см. `inspector-model`. */
 function PropField({
   field,
@@ -390,6 +397,7 @@ function PropField({
   session: SchemaSession;
   t: Translate;
 }): ReactElement {
+  const i18n = useI18n();
   const set = (value: unknown): void => {
     session.apply(setPropOp(nodeId, field.key, value));
   };
@@ -469,6 +477,9 @@ function PropField({
         <Input
           {...control}
           value={typeof field.value === 'string' ? field.value : ''}
+          // Умолчание каталога — подсказкой. Ключ словаря кита переводит английский текст на язык
+          // интерфейса: локаль кита ставит корень оболочки.
+          placeholder={fallbackText(field, i18n)}
           className="h-7 text-[12px]"
           onChange={(event) => {
             const next = event.target.value;

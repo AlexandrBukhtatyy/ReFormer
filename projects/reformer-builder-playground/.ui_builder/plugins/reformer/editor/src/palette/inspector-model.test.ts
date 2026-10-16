@@ -44,6 +44,12 @@ const PROPS_SCHEMA = {
       maximum: 99,
       'x-doc': { group: 'Behavior', type: 'number' },
     },
+    placeholder: {
+      type: 'string',
+      default: 'Select an option...',
+      'x-messageKey': 'kit.select.placeholder',
+      'x-doc': { group: 'Behavior', type: 'string' },
+    },
     required: { type: 'boolean', 'x-doc': { group: 'State', type: 'boolean' } },
   },
 } as unknown as PropsSchema;
@@ -116,6 +122,16 @@ describe('inspectorModelFor', () => {
     expect(fields.get('maxLength')?.fallback).toBe(10);
     expect(fields.get('maxLength')?.min).toBe(1);
     expect(fields.get('maxLength')?.max).toBe(99);
+  });
+
+  it('несёт ключ словаря кита у текстового умолчания', () => {
+    const model = inspectorModelFor(SCHEMA, CATALOG, [selectId()]);
+    const fields = new Map(
+      model?.sections.flatMap((s) => s.fields.map((f) => [f.key, f] as const))
+    );
+    expect(fields.get('placeholder')?.fallback).toBe('Select an option...');
+    expect(fields.get('placeholder')?.messageKey).toBe('kit.select.placeholder');
+    expect(fields.get('label')?.messageKey).toBeUndefined();
   });
 
   it('несёт подсказку и границы из схемы свойства', () => {
