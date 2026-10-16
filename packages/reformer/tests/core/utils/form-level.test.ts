@@ -771,7 +771,7 @@ describe('createForm — статус проверки и агрегат valid �
     expect(bundle.form.valid.value).toBe(false);
     expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['required']);
 
-    bundle.model.tags = ['a'];
+    bundle.model.$.tags.value = ['a'];
     expect((await bundle.validate()).status).toBe('valid');
     expect(bundle.form.ownIssues.value).toEqual([]);
     expect(bundle.form.valid.value).toBe(true);
@@ -791,7 +791,7 @@ describe('createForm — статус проверки и агрегат valid �
     await bundle.validate();
     expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['server', 'required']);
 
-    bundle.model.tags = ['a'];
+    bundle.model.$.tags.value = ['a'];
     await bundle.validate();
     expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['server']);
   });

@@ -446,8 +446,8 @@ describe('schema-controller — методы записи правил', () => {
   it('addEventHandler и addLifecycleHook: снятие верхней записи возвращает прежнюю [ReFormer-nm2x]', () => {
     const scope = createSchemaScope();
     const maps = scope.__overrideMaps;
-    const early = () => 'early';
-    const late = () => 'late';
+    const early = (): void => {};
+    const late = (): void => {};
 
     scope.node('block').addEventHandler('onClick', early);
     const removeLate = scope.node('block').addEventHandler('onClick', late);

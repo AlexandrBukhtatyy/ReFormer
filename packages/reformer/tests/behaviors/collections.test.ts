@@ -261,9 +261,9 @@ describe('collections — apply', () => {
       build(
         model,
         defineFormBehavior<Invoice>(({ model: m }) => {
-          // @ts-expect-error — типы запрещают ручку не группы; проверяется рантайм для JS-кода
+          // Типы запрещают ручку не группы — проверяется рантайм для JS-кода.
           apply(
-            pick(m),
+            pick(m) as never,
             defineFormBehavior(() => {})
           );
         })

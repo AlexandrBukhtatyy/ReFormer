@@ -438,10 +438,10 @@ describe('сброс заявки — model.reset() против form.reset()', 
     const { bundle } = build();
     const { model, form } = bundle;
     await loadDraft(bundle);
-    model.coBorrowers.push({});
+    model.coBorrowers.push();
     await settle();
     model.captureInitial();
-    model.coBorrowers.push({});
+    model.coBorrowers.push();
     await settle();
     expect(model.coBorrowers.length).toBe(2);
 
