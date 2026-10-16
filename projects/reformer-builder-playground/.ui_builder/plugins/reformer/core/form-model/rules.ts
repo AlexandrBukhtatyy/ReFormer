@@ -13,10 +13,10 @@
  * кросс-проверки `C1..C9`, и билдер зовёт эти эмиттеры. Второй словарь для того же самого
  * разошёлся бы с первым на первой же правке — и разошёлся бы молча.
  *
- * **А почему render-правила — свои.** Ровно по обратной причине: `renderer.behavior.ts` целиком
- * билдерский. Его печатает `codegen/emit-behavior.ts` (фабрика `createJsonRenderBehavior` с
- * submit-обвязкой), `emit-index.ts` импортирует именно её, а MCP-шный `buildRenderBehaviorTs`
- * билдер не зовёт ни из одного места и умеет только `hideWhen`. Второго словаря здесь не
+ * **А почему render-правила — свои.** Ровно по обратной причине: их печать целиком билдерская —
+ * правила узлов схемы кодоген кладёт в то же поведение формы (`behavior/index.ts`, см.
+ * `core/codegen/view/behavior.ts`), а эмиттера render-правил в MCP больше нет (он умел только
+ * `hideWhen`, и билдер его не звал). Второго словаря здесь не
  * возникает — возникает первый. `VisibilityIntent` из MCP приезжает извне (форма по спеке) и
  * сворачивается в `hideWhen`-вариант на входе, чтобы дальше жил один список.
  *
@@ -115,7 +115,7 @@ export function hasBehaviorRules(rules: FormRules | undefined): boolean {
   return (rules?.behavior.length ?? 0) > 0;
 }
 
-/** @see hasValidationRules — тот же приём для `renderer.behavior.ts`. */
+/** @see hasValidationRules — тот же приём для правил узлов схемы в поведении формы. */
 export function hasRenderRules(rules: FormRules | undefined): boolean {
   return (rules?.render.length ?? 0) > 0;
 }

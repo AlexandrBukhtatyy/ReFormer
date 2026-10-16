@@ -347,7 +347,6 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       validation: contract.validation,
       // Шаги — из живой схемы, правила шагов — из потока модуля (см. `./flow`).
       flow: alignFlow(contract.flow, schema),
-      renderBehavior: contract.renderBehavior,
       files: contract.files,
       carry,
     });

@@ -661,15 +661,11 @@ describe('модуль прежней плоской раскладки — за
     expect(compiled.modules.get('form.validation.ts')).toMatchObject({ stepCount: 1 });
   });
 
-  it('контракт прежнего слоя оживает: значения модели и правила узлов применяются', async () => {
+  it('контракт прежнего слоя оживает: значения модели применяются, слой правил узлов — нет', async () => {
     const { contract } = await compileModule(FLAT_MODULE, FLAT_DOCUMENT, FLAT_PATH);
-    expect(appliedArtifacts(contract)).toEqual([
-      'model',
-      'validation',
-      'renderBehavior',
-      'registry',
-    ]);
-    expect(contract.files.renderBehavior).toBe('form.render.ts');
+    // Правила узлов прежнего контракта (`form.render.ts`) переносятся в поведение формы: превью их
+    // не берёт и фабрику слоя не зовёт.
+    expect(appliedArtifacts(contract)).toEqual(['model', 'validation', 'registry']);
 
     const globals = globalThis as { __flatRender?: string };
     delete globals.__flatRender;
@@ -681,14 +677,13 @@ describe('модуль прежней плоской раскладки — за
       mock: null,
       initialOverride: runFactories(contract).initial,
       validation: contract.validation,
-      renderBehavior: contract.renderBehavior,
       files: contract.files,
     });
 
     expect(bundle.problems).toEqual([]);
     // `createInitialValues` прежнего `model.ts` — то же имя, что печатает кодоген сейчас.
     expect(bundle.form?.model.get()).toMatchObject({ loanType: 'ипотека' });
-    expect(globals.__flatRender).toBe('function');
+    expect(globals.__flatRender).toBeUndefined();
     delete globals.__flatRender;
   });
 });

@@ -34,25 +34,17 @@
  *
  * ## Прежняя плоская раскладка
  *
- * Имён у одного и того же по смыслу артефакта там исторически несколько: шаблон простой формы
- * отдавал готовую функцию `formRenderBehavior`, шаблон визарда — фабрику
- * `createRenderBehavior(form, model)`, кодоген билдера печатал `createJsonRenderBehavior`, а
- * начальные значения лежали объектом `initialFormModel`. Разбор этих вариантов собран здесь,
- * чтобы сборка превью не знала о них ничего.
- *
- * ## Различаем по ИМЕНИ экспорта, а не по арности
- *
- * `RenderBehaviorFn` — тоже функция одного аргумента, и отличить её от фабрики по сигнатуре
- * невозможно. Попытка «угадать по числу параметров» дала бы правдоподобную и неверную сборку:
- * поведение подключилось бы, но получило бы не то, что ждёт.
+ * Имён у одного и того же по смыслу артефакта там исторически несколько: начальные значения лежали
+ * объектом `initialFormModel`. Разбор этих вариантов собран здесь, чтобы сборка превью не знала о
+ * них ничего. Слой правил узлов прежнего контракта (`form.render.ts`) превью не исполняет: его
+ * правила переносятся в поведение формы.
  *
  * ## Типы берутся ИЗ конфигурации фабрики, а не объявляются заново
  *
  * `validation`, `behavior` и `flow` типизированы через `CreateFormConfig` единой сборки. Это
  * не экономия строк: собственное объявление разошлось бы с фабрикой на первом же изменении
  * её конфигурации, и разъезд обнаружился бы не компилятором, а превью, которое «почему-то
- * не применяет поведение». У `renderBehavior` своей записи в конфигурации сборки нет: это слой
- * прежнего контракта, и его тип объявлен рядом со сборкой превью (`LegacyRenderBehavior`).
+ * не применяет поведение».
  *
  * @module plugins/reformer/render/compiling/exports
  */
@@ -62,13 +54,7 @@ import type { ValidationMessagesProviderProps } from '@reformer/cdk';
 import type { CreateFormConfig } from '@reformer/core';
 import type { FormLocale } from '@reformer/core/i18n';
 import type { ComponentRegistry } from '@reformer/renderer-json';
-import type {
-  ArtifactFiles,
-  BehaviorRules,
-  LegacyRenderBehavior,
-  Shape,
-  WireSubmit,
-} from '../runtime/build';
+import type { ArtifactFiles, BehaviorRules, Shape, WireSubmit } from '../runtime/build';
 import { planModule, type ModulePlan, type ModuleRole } from './module';
 
 export type { Shape };
@@ -105,11 +91,6 @@ export interface FormContract {
   readonly behaviorRules?: BehaviorRules;
   /** Отправка над областью поведения (`wireSubmit`). */
   readonly wireSubmit?: WireSubmit;
-  /**
-   * Правила узлов из `form.render.ts` модуля прежнего контракта — фабрика. Готовая функция
-   * заворачивается в фабрику здесь же.
-   */
-  readonly renderBehavior?: LegacyRenderBehavior;
   /** Реестр компонентов формы. */
   readonly createRegistry?: () => ComponentRegistry;
   /** Из какого файла взят каждый артефакт — этими именами называются находки сборки. */
@@ -124,7 +105,6 @@ export type AppliedArtifact =
   | 'flow'
   | 'behavior'
   | 'submit'
-  | 'renderBehavior'
   | 'registry';
 
 /** Экспорт вместе с файлом, из которого он взят. */
@@ -318,23 +298,6 @@ export function extractContract(
     files.submit = wireSubmit.file;
   }
 
-  const ready = from('renderBehavior', 'formRenderBehavior');
-  // `createJsonRenderBehavior` — имя, которое печатал кодоген билдера прежнего контракта: уже
-  // экспортированные каталоги импортируют именно его.
-  const legacy =
-    from('renderBehavior', 'createRenderBehavior') ??
-    from('renderBehavior', 'createJsonRenderBehavior');
-  if (legacy !== undefined && isFn(legacy.value)) {
-    contract.renderBehavior = legacy.value as LegacyRenderBehavior;
-    files.renderBehavior = legacy.file;
-  } else if (ready !== undefined && isFn(ready.value)) {
-    // Готовая функция — это фабрика, которой нечего спрашивать. Заворачиваем здесь, чтобы
-    // у сборки был один вид входа, а не два.
-    const behaviorFn = ready.value as ReturnType<LegacyRenderBehavior>;
-    contract.renderBehavior = () => behaviorFn;
-    files.renderBehavior = ready.file;
-  }
-
   const createRegistry = from('registry', 'createRegistry');
   if (createRegistry !== undefined && isFn(createRegistry.value)) {
     contract.createRegistry = createRegistry.value as () => ComponentRegistry;
@@ -361,7 +324,6 @@ export function appliedArtifacts(contract: FormContract): readonly AppliedArtifa
   if (contract.flow !== undefined) out.push('flow');
   if (contract.behavior !== undefined || contract.behaviorRules !== undefined) out.push('behavior');
   if (wiresSubmit(contract)) out.push('submit');
-  if (contract.renderBehavior !== undefined) out.push('renderBehavior');
   if (contract.createRegistry !== undefined) out.push('registry');
   return out;
 }

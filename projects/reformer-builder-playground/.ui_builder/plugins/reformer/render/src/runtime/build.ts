@@ -62,20 +62,6 @@ export type PreviewForm = FormBundle<Shape>;
 
 type FormConfig = CreateFormConfig<Shape>;
 
-/**
- * Правила узлов прежнего контракта: фабрика из `form.render.ts`, которая по форме и модели отдаёт
- * функцию над областью схемы (`schema.node(...)`, `hideWhen`, `onComponentEvent`).
- *
- * В единой сборке отдельного слоя для них нет — правила узлов живут в поведении формы. Модули,
- * собранные раньше, всё ещё несут такой файл, и превью применяет его в `setup` сборки: операторы
- * узлов только записывают правило в контроллер схемы, а он у сборки один.
- */
-export type LegacyRenderBehavior = (
-  form: PreviewForm['form'],
-  model: PreviewForm['model'],
-  level: PreviewForm
-) => ((schema: never) => void) | undefined;
-
 /** Правила поведения модуля функцией над областью — экспорт `behaviorRules`. */
 export type BehaviorRules = (scope: BehaviorScope<Shape>) => void;
 
@@ -112,7 +98,6 @@ export interface ArtifactFiles {
   readonly flow?: string;
   readonly behavior?: string;
   readonly submit?: string;
-  readonly renderBehavior?: string;
   readonly registry?: string;
 }
 
@@ -157,8 +142,6 @@ export interface RuntimeBundleInput {
    * правила, но с отправкой, итог которой придёт в `onResult`.
    */
   readonly moduleBehavior?: ModuleBehavior;
-  /** Правила узлов из `form.render.ts` модуля прежнего контракта. */
-  readonly renderBehavior?: LegacyRenderBehavior;
   /** Файлы артефактов — ими называются находки сборки. */
   readonly files?: ArtifactFiles;
 }
@@ -179,9 +162,6 @@ const describe = (error: unknown): string =>
  * имени формы эти пути не зависят, поэтому раскладка берётся без имени.
  */
 const DEFAULT_FILES = moduleFilesOf({ dir: 'form', TypeName: 'Form' });
-
-/** Файл слоя правил узлов прежнего контракта: в новой раскладке такого файла нет вовсе. */
-const LEGACY_RENDER_FILE = 'form.render.ts';
 
 /**
  * Область, которая запоминает, к каким узлам схемы обратились.
@@ -302,7 +282,6 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
           }
         });
 
-  const legacy = input.renderBehavior;
   try {
     const form = createForm<Shape>({
       initial,
@@ -311,26 +290,6 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
       behavior,
       validation: input.validation,
       flow: input.flow,
-      ...(legacy === undefined
-        ? {}
-        : {
-            setup: (bundle: PreviewForm) => {
-              // Отказ прежнего слоя форму не роняет: бросок из `setup` сборка считает своим и
-              // снимает форму целиком, а здесь это всего лишь не применившиеся правила узлов.
-              try {
-                // Область корня — та же, что получает поведение формы: правила прежнего слоя
-                // адресуют узлы тем же `schema.node(selector)`.
-                const scope = bundle.render.controller.scopeOf(bundle.model);
-                legacy(bundle.form, bundle.model, bundle)?.(scope as never);
-              } catch (error) {
-                problems.push({
-                  file: input.files?.renderBehavior ?? LEGACY_RENDER_FILE,
-                  phase: 'evaluate',
-                  message: describe(error),
-                });
-              }
-            },
-          }),
     });
     for (const selector of missingSubmitNodes(form, submitNodes)) {
       problems.push({

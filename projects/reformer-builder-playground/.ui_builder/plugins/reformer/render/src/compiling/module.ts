@@ -89,7 +89,6 @@ export type ModuleRole =
   | 'flow'
   | 'behavior'
   | 'submit'
-  | 'renderBehavior'
   | 'registry';
 
 /** Раскладка модуля: папки по ролям либо прежняя плоская. */
@@ -129,8 +128,9 @@ const SCRIPT = /\.tsx?$/;
  * «превью не работает» означало бы «превью не работает на моём проекте».
  *
  * Потока шагов и отдельной отправки у прежнего контракта нет: шаг проверял `makeStepCheck`
- * визарда, а отправку привязывал `form.render.ts`. Словаря замечаний отдельным файлом — тоже:
- * эта роль появилась вместе с папками ролей.
+ * визарда, а отправку привязывал слой правил узлов (`form.render.ts`) — его превью не исполняет,
+ * правила узлов живут в поведении формы. Словаря замечаний отдельным файлом — тоже: эта роль
+ * появилась вместе с папками ролей.
  */
 const FLAT_ROLES: Readonly<Record<ModuleRole, readonly string[]>> = Object.freeze({
   initial: ['model.ts', 'model.tsx'],
@@ -139,7 +139,6 @@ const FLAT_ROLES: Readonly<Record<ModuleRole, readonly string[]>> = Object.freez
   flow: [],
   behavior: ['form.behavior.ts', 'form-behavior.ts', 'behavior.ts'],
   submit: [],
-  renderBehavior: ['form.render.ts', 'renderer.behavior.ts', 'render-behavior.ts', 'ui.ts'],
   registry: ['registry.ts', 'registry.tsx'],
 });
 
@@ -154,7 +153,6 @@ const ROLE_ORDER: readonly ModuleRole[] = [
   'flow',
   'behavior',
   'submit',
-  'renderBehavior',
   'registry',
 ];
 
@@ -304,7 +302,6 @@ export function planModule(paths: Iterable<string>, files: ModuleFiles = UNNAMED
     ],
     behavior: withTsx(files.behavior),
     submit: [files.submit],
-    renderBehavior: [],
     registry: withTsx(files.registry),
   };
 
@@ -335,7 +332,6 @@ export function planModule(paths: Iterable<string>, files: ModuleFiles = UNNAMED
     flow: kept('flow'),
     behavior: kept('behavior'),
     submit: kept('submit'),
-    renderBehavior: kept('renderBehavior'),
     registry: kept('registry'),
   };
   return {

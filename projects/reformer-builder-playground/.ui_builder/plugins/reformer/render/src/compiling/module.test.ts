@@ -223,7 +223,6 @@ describe('planModule — раскладка «папки по ролям»', () 
     ]);
     expect(plan.layout).toBe('roles');
     expect(plan.entry.some((file) => !file.includes('/'))).toBe(false);
-    expect(plan.roles.renderBehavior).toEqual([]);
   });
 
   it('документ в schema/ — раскладка по ролям, даже когда файлов ролей нет: корень не исполняется', () => {
@@ -256,7 +255,7 @@ describe('planModule — прежняя плоская раскладка', () =
   it('роли ищутся по именам прежнего контракта, каноничное — первым', () => {
     const { roles } = planModule(['model.ts']);
     expect(roles.validation).toEqual(['form.validation.ts', 'validation.ts']);
-    expect(roles.renderBehavior[0]).toBe('form.render.ts');
+    expect(Object.values(roles).flat()).not.toContain('form.render.ts');
     expect(roles.registry).toEqual(['registry.ts', 'registry.tsx']);
     // Потока шагов, отдельной отправки и словаря замечаний у прежнего контракта нет.
     expect(roles.flow).toEqual([]);

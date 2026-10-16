@@ -183,51 +183,10 @@ describe('buildRuntimeBundle', () => {
     expect(bundle.problems[0]?.message).toMatch(/migrateJsonSchema/);
   });
 
-  it('правила узлов прежнего слоя применяются в setup сборки', () => {
-    const seen: { form?: unknown; model?: unknown; hasNode?: boolean } = {};
-    const bundle = bundleOf(sampleSchema(), {
-      renderBehavior: (form: unknown, model: unknown) => {
-        seen.form = form;
-        seen.model = model;
-        return (schema: { node?: unknown }) => {
-          seen.hasNode = typeof schema.node === 'function';
-        };
-      },
-    });
-    expect(bundle.problems).toEqual([]);
-    expect(seen.form).toBe(bundle.form?.form);
-    expect(seen.model).toBe(bundle.form?.model);
-    expect(seen.hasNode).toBe(true);
-  });
-
-  it('отказ прежнего слоя форму не роняет — он становится находкой', () => {
-    const bundle = bundleOf(sampleSchema(), {
-      renderBehavior: () => {
-        throw new Error('старый слой сломан');
-      },
-    });
-    expect(bundle.form).not.toBeNull();
-    expect(bundle.problems).toEqual([
-      { file: 'form.render.ts', phase: 'evaluate', message: 'старый слой сломан' },
-    ]);
-  });
-
   it('битая схема — находка, а не исключение', () => {
     const bundle = bundleOf({ version: '1.0' } as unknown as JsonFormSchema);
     expect(bundle.form).toBeNull();
     expect(bundle.problems).toHaveLength(1);
-  });
-
-  it('находка прежнего слоя называется файлом, из которого он взят', () => {
-    const bundle = bundleOf(sampleSchema(), {
-      renderBehavior: () => {
-        throw new Error('старый слой сломан');
-      },
-      files: { renderBehavior: 'renderer.behavior.ts' },
-    });
-    expect(bundle.problems).toEqual([
-      { file: 'renderer.behavior.ts', phase: 'evaluate', message: 'старый слой сломан' },
-    ]);
   });
 
   it('реестр формы, который не сложился с билдерским, — находка с именем файла реестра', () => {
