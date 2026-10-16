@@ -112,14 +112,15 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
   символ `@reformer/*` (`RF002`, с подсказкой похожих имён), импорт не из того пакета ИЛИ
   не из того подпути (`RF003` — `validate` живёт только в `@reformer/core/validation`),
   оператор валидации/поведения вне своей схемы (`RF004`/`RF005` — правило просто не
-  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` и прежний контракт формы
-  (`RF010`): фабрики `createCoreForm` / `createReactForm` / `createJsonForm`, хуки `useReactForm` /
+  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` и удалённое API прежнего
+  контракта формы (`RF010`): фабрики `createCoreForm` / `createReactForm` / `createJsonForm`, хуки `useReactForm` /
   `useJsonForm`, `JsonFormRenderer`, ключи узла `value:` / `array:`, оператор `each`,
   `makeValidationConfig`, поле `renderBehavior` — с названной заменой и адресом рецепта
   `find_recipe unified-contract`.
 - `kind: "json-schema"` — документ схемы (JSON-DSL): структура узлов, синтаксис операторов,
-  неизвестные имена компонентов и источников данных. Принимает оба формата — текущий
-  (`"format": 2`: ключ `model`, словарь `parts`, оператор `$part`) и прежний.
+  неизвестные имена компонентов и источников данных. Документ — формата 2
+  (`"format": 2`: ключ `model`, словарь `parts`, оператор `$part`); документ прежнего формата
+  получает одну ошибку с советом перевести его `migrateJsonSchema`.
 - `kind: "behaviors"` — циклы в вычисляемых полях (`RF006`), по объявленным
   `{ target, reads[] }`.
 - `kind: "bundle"` — `intent` + схема сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в

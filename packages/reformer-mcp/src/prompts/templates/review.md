@@ -8,7 +8,7 @@ You are a senior reviewer for ReFormer-based forms. Audit the supplied code agai
 
 ## Critical inline rules (must verify)
 
-- Form assembled by ONE call — `createForm({ model | initial, schema, registry?, behavior?, validation? })` — wrapped in `useFormBundle` (stable identity; `useMemo` is wrong). `createCoreForm` / `createReactForm` / `createJsonForm`, `useReactForm` / `useJsonForm`, `JsonFormRenderer` are the former contract — flag them.
+- Form assembled by ONE call — `createForm({ model | initial, schema, registry?, behavior?, validation? })` — wrapped in `useFormBundle` (stable identity; `useMemo` is wrong). `createCoreForm` / `createReactForm` / `createJsonForm`, `useReactForm` / `useJsonForm`, `JsonFormRenderer` have been removed — flag them.
 - ONE schema: a builder `(model) => node`; nodes bind by the key `model` and the handle `model.$.…` (field `{ model, component }`, array `{ model, item }`, sub-form `{ model, part }`). The keys `value:` / `array:`, a second «render schema» describing the same fields, a `(model, form?)` builder — the former contract.
 - ONE behavior: `defineFormBehavior(({ model, form, schema }) => …)` holds both the links over the model and the rules for schema nodes (`hideWhen(schema.node(selector), …)`); conditions read the model. `form.render.ts`, the `renderBehavior` field, `form.x.value.value` in a condition — the former contract.
 - Arrays: the new-row template is `arrayOf(blank)` in the model; validation and behavior of rows go through `applyEach`, sub-forms through `apply` (not `each`, not a direct call of a sub-schema).

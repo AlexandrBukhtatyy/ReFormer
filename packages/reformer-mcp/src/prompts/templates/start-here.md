@@ -24,7 +24,7 @@ one assembly.
    as `schema` together with `registry`. In React wrap the factory in `useFormBundle` — a lazy
    `useState` that runs it exactly once; `useMemo` may drop its cache and rebuild the form, losing
    typed input. `createCoreForm` / `createReactForm` / `createJsonForm` and the hooks
-   `useReactForm` / `useJsonForm` are the former contract — do not use them in new code.
+   `useReactForm` / `useJsonForm` have been removed — do not use them.
 4. **Validation** — a **standalone schema, not node metadata**: rules live in
    `defineValidation<T>(({ model }) => { … })` and are wired with ambient operators from
    `@reformer/core/validation`: `validate(model.$.field, [rules])` for a field,

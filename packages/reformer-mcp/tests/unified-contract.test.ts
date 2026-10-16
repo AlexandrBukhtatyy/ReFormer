@@ -454,7 +454,7 @@ describe('validate_form kind=code — прежний контракт', () => {
     }
   });
 
-  it('прежние фабрики сборки — RF010 с адресом замены', async () => {
+  it('удалённые фабрики сборки — RF010 (ошибка) с адресом замены', async () => {
     const code = [
       "import { createReactForm, useReactForm } from '@reformer/renderer-react';",
       'const form = useReactForm(() => createReactForm({ model, schema }));',
@@ -464,8 +464,8 @@ describe('validate_form kind=code — прежний контракт', () => {
     expect(rf010.map((d) => d.message).join('\n')).toMatch(/createReactForm/);
     expect(rf010.map((d) => d.suggestion).join('\n')).toMatch(/createForm/);
     expect(
-      rf010.every((d) => d.severity === 'warning'),
-      'прежнее API ещё работает'
+      rf010.every((d) => d.severity === 'error'),
+      'прежнее API удалено — импорт не соберётся'
     ).toBe(true);
     expect(rf010[0].fix).toEqual({ tool: 'find_recipe', arguments: { topic: 'unified-contract' } });
   });

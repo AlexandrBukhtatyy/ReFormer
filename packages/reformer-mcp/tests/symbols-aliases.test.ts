@@ -12,8 +12,9 @@
  *  2. 15 field-обёрток ui-kit (`SelectField`, `CheckboxField`, …) были видны только под
  *     внутренними именами (`SelectAsyncField`, `CheckboxBaseField`, …), которые не пишет никто.
  *
- * Тогда таких реэкспортов было 17 (cdk 1 + ui-kit 15 + renderer-react 1). Field-обёртки ui-kit
- * с тех пор удалены вовсе: в `component` поля кладётся сам компонент (`SelectAsync`,
+ * Тогда таких реэкспортов было 17 (cdk 1 + ui-kit 15 + renderer-react 1). Алиас renderer-react
+ * удалён вместе с прежней сборкой (кросс-пакетных алиасов больше нет), field-обёртки ui-kit —
+ * тоже: в `component` поля кладётся сам компонент (`SelectAsync`,
  * `CheckboxWithLabel`, …), и он экспортируется под своим именем. Проверка ui-kit ниже теперь
  * страхует именно это — что компоненты полей, которые учат промпты и генератор, резолвятся.
  */
@@ -27,16 +28,13 @@ const hasSymbols = getPublicSymbols('@reformer/core').length > 0;
 
 describe('symbols-parser — переименовывающие реэкспорты', () => {
   it.runIf(hasSymbols)(
-    'кросс-пакетный алиас виден под публичным именем',
+    'переименовывающий реэкспорт виден под публичным именем',
     () => {
-      // packages/reformer-renderer-react/src/index.ts:
-      //   export { useFormBundle as useReactForm } from '@reformer/core/react';
-      const sym = findSymbol('useReactForm');
-      expect(
-        sym,
-        '`useReactForm` не резолвится, хотя промпты сервера учат её звать'
-      ).not.toBeNull();
-      expect(sym!.package).toBe('@reformer/renderer-react');
+      // packages/reformer-cdk/src/components/file-upload/index.ts:
+      //   export type { FileUploadItem as FileUploadItemData, … } from './file-upload-core';
+      const sym = findSymbol('FileUploadItemData');
+      expect(sym, '`FileUploadItemData` не резолвится под публичным именем').not.toBeNull();
+      expect(sym!.package).toBe('@reformer/cdk');
     },
     AST_HEAVY_TIMEOUT_MS
   );
@@ -60,7 +58,7 @@ describe('symbols-parser — переименовывающие реэкспор
     // Список — имена, встречающиеся в шаблонах промптов как рекомендуемый API.
     // Держим его здесь, а не в prompt-imports.test.ts: тот проверяет только
     // `import { … } from '@reformer/…'`, а эти имена промпты называют в прозе.
-    const taught = ['useFormBundle', 'useReactForm', 'useJsonForm', 'createReactForm'];
+    const taught = ['useFormBundle', 'createForm', 'FormRenderer', 'defineFormBehavior'];
     const missing = taught.filter((n) => findSymbol(n) === null);
     expect(missing, `промпты учат несуществующему API: ${missing.join(', ')}`).toEqual([]);
   });

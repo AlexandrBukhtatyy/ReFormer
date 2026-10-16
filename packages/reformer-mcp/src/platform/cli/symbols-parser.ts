@@ -176,9 +176,9 @@ export function findAllSymbols(symbolName: string, pkg: string = '*'): PublicSym
  * Ключ — имя, под которым символ выставляет ЭТОТ модуль; значение — имя, под которым он
  * должен попасть в публичный список (после всех переименований по цепочке реэкспортов).
  * Раньше здесь был `Set<string>` из ЛОКАЛЬНЫХ имён, и переименование терялось:
- * `export { useFormBundle as useReactForm }` регистрировался как `useFormBundle`, поэтому
- * `get_symbol_docs('useReactForm')` отвечал «not found», хотя три шаблона промптов этого
- * же сервера учат звать именно `useReactForm`. Так же были невидимы 15 (ныне удалённых)
+ * `export { useFormBundle as useReactForm }` (ныне удалённый) регистрировался как `useFormBundle`,
+ * поэтому `get_symbol_docs` не находил символ под публичным именем, хотя промпты этого же
+ * сервера учили звать именно его. Так же были невидимы 15 (ныне удалённых)
  * field-обёрток ui-kit (`SelectField`, `CheckboxField`, …) — то, что консумент тогда писал.
  *
  * `null` — фильтра нет, имя берётся из самого объявления.
@@ -453,12 +453,10 @@ function renderComment(comment: string | ts.NodeArray<ts.JSDocComment>): string 
 
 function resolveModule(fromFile: string, spec: string): string | null {
   // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше любой не-относительный спецификатор
-  // отбрасывался, и `export { useFormBundle as useReactForm } from '@reformer/core/react'`
-  // (packages/reformer-renderer-react/src/index.ts) терялся целиком: символ есть в публичном
-  // API, а `get_symbol_docs('useReactForm')` отвечал «not found» — при том, что ТРИ шаблона
-  // промптов этого же сервера (start-here, create-form, to-renderer) учат звать именно
-  // `useReactForm`. Ровно та самоконтрадикция, ради которой заведён
-  // scripts/check-mcp-prompts.mjs, только с другой стороны.
+  // отбрасывался, и кросс-пакетный реэкспорт (так жил ныне удалённый
+  // `export { useFormBundle as useReactForm } from '@reformer/core/react'`) терялся целиком:
+  // символ есть в публичном API, а `get_symbol_docs` отвечает «not found». Ровно та
+  // самоконтрадикция, ради которой заведён scripts/check-mcp-prompts.mjs, только с другой стороны.
   if (!spec.startsWith('.')) {
     if (!spec.startsWith('@reformer/')) return null; // react, зависимости — вне зоны ответственности
     const root = findPackageRoot(spec.split('/').slice(0, 2).join('/'));

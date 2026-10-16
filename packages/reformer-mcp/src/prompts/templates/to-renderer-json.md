@@ -14,7 +14,7 @@ The tree is the same — it is written as data instead of code. `model.ts`, `for
 createForm<MyForm>({ model: createMyModel(), schema: formSchema, registry, behavior, validation });
 ```
 
-`<FormRenderer form={bundle} />` draws it — the same renderer as for a TS schema; the field wrapper now comes from the registry. `createJsonForm`, `useJsonForm`, `JsonFormRenderer` and `JsonRendererProvider` are the former contract — ❌ do not emit them.
+`<FormRenderer form={bundle} />` draws it — the same renderer as for a TS schema; the field wrapper now comes from the registry. `createJsonForm`, `useJsonForm`, `JsonFormRenderer` and `JsonRendererProvider` have been removed — ❌ do not emit them.
 
 ## Critical inline rules (format 2 — string-operator DSL)
 

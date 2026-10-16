@@ -177,10 +177,11 @@ const REMOVED_BY_PACKAGE: ReadonlyArray<readonly [string, Readonly<Record<string
 ];
 
 /**
- * Прежний контракт сборки: имя → чем заменить. Символы ещё экспортируются (помечены
- * `@deprecated`), поэтому это предупреждение, а не ошибка.
+ * Прежний контракт сборки, удалённый вместе с ним (этап 11 единого контракта): имя → чем заменить.
+ * Имена не привязаны к пакету: прежние фабрики жили в разных пакетах, а консумент мог импортировать
+ * их откуда угодно.
  */
-const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
+const REMOVED_ASSEMBLY: Readonly<Record<string, string>> = {
   createReactForm:
     '`createForm({ model, schema, behavior, validation })` из `@reformer/core`; бандл рисует `<FormRenderer form={bundle} />`',
   createJsonForm:
@@ -194,6 +195,12 @@ const LEGACY_ASSEMBLY: Readonly<Record<string, string>> = {
     'шаги и их правила объявляет сборка: `createForm({ …, validation: { extras }, flow: { steps } })`',
   convertJsonToM1Tree:
     '`convertJsonSchema` для документа формата 2; обычно его зовёт сам реестр через `createForm({ registry })`',
+  createRenderSchemaFromJsonM1:
+    '`createForm({ model, schema: document, registry })` — дерево из документа строит реестр',
+  RenderBehaviorFn:
+    'одно поведение формы — `defineFormBehavior(({ model, form, schema, flow }) => …)` из `@reformer/core/behaviors`',
+  JsonFormSchemaV1:
+    '`JsonFormSchema` — документ формата 2 (`format: 2`); прежний документ переводит `migrateJsonSchema`',
 };
 
 /**
@@ -303,6 +310,19 @@ export async function validateCode(
         });
         continue;
       }
+      // Прежняя сборка удалена — называем замену прямо, а не угадываем похожие имена (RF002).
+      const removedAssembly = matches.length === 0 ? REMOVED_ASSEMBLY[imported] : undefined;
+      if (removedAssembly) {
+        diagnostics.push({
+          code: 'RF010',
+          severity: 'error',
+          message: `\`${imported}\` удалён вместе с прежним контрактом сборки формы.`,
+          line: imp.line,
+          suggestion: `Замена: ${removedAssembly}.`,
+          fix: { tool: 'find_recipe', arguments: { topic: 'unified-contract' } },
+        });
+        continue;
+      }
       if (matches.length === 0) {
         const suggestions = await suggestNames(k, imported);
         diagnostics.push({
@@ -351,19 +371,6 @@ export async function validateCode(
             suggestion: `Импортируйте из ${asImport(entries[0])}.`,
           });
         }
-      }
-      // Прежняя сборка: имя существует, но контракт заменён — называем замену прямо.
-      const replacement = LEGACY_ASSEMBLY[imported];
-      if (replacement) {
-        diagnostics.push({
-          code: 'RF010',
-          severity: 'warning',
-          message: `\`${imported}\` — прежний контракт сборки формы.`,
-          line: imp.line,
-          suggestion: `Замена: ${replacement}.`,
-          fix: { tool: 'find_recipe', arguments: { topic: 'unified-contract' } },
-        });
-        continue;
       }
       const deprecated = matches[0].tags.find((t) => t.tag === 'deprecated');
       if (deprecated) {

@@ -1036,35 +1036,6 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
 }
 
 // ---------------------------------------------------------------------------
-// render-behavior (видимость и wizard)
-// ---------------------------------------------------------------------------
-
-export function buildRenderBehaviorTs(intent: FormIntent): string {
-  const lines: string[] = [];
-  lines.push('/**');
-  lines.push(` * Render-поведение формы «${intent.formName}» — правила над деревом разметки`);
-  lines.push(' * по `selector` из layout-схемы. Скрытие узла НЕ убирает поле из модели:');
-  lines.push(
-    ' * если оно должно перестать валидироваться, используйте enableWhen в form.behavior.ts.'
-  );
-  lines.push(' */');
-  lines.push("import { hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';");
-  lines.push(`import type { ${intent.interfaceName} } from './model';`);
-  lines.push('');
-  lines.push(
-    `export const formRenderBehavior: RenderBehaviorFn<${intent.interfaceName}> = (schema) => {`
-  );
-  if (intent.visibility.length === 0) {
-    lines.push('  // Правил видимости в intent не было.');
-  }
-  for (const v of intent.visibility) {
-    lines.push(`  hideWhen(schema.node('${v.selector}'), () => ${v.condition});`);
-  }
-  lines.push('};');
-  return lines.join('\n') + '\n';
-}
-
-// ---------------------------------------------------------------------------
 // Канон раскладки файлов
 // ---------------------------------------------------------------------------
 

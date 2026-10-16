@@ -159,7 +159,7 @@ In React always wrap the factory in `useFormBundle`: it is a lazy `useState` and
 once, while `useMemo` may drop its cache and rebuild the form, losing typed input.
 
 `createCoreForm`, `createReactForm`, `createJsonForm` and the hooks `useReactForm` / `useJsonForm`
-are the former contract — three factories for three ways of drawing. Low-level
+(three factories for three ways of drawing) have been removed. Low-level
 `createFormFromModel({ model, schema })` remains public for special cases; `createLegacyForm`
 (both overloads) has been removed.
 

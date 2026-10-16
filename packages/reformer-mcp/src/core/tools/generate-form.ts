@@ -305,7 +305,7 @@ function buildManifest(args: GenerateFormArgs): {
   lines.push(
     '_Образец, а не файл бандла: загрузку данных, submit и оформление страницы добавляете вы. ' +
       'Сборка одна на все таргеты — `createForm` + `useFormBundle`; `createCoreForm`, ' +
-      '`createReactForm`, `createJsonForm` и `JsonFormRenderer` — прежний контракт._'
+      '`createReactForm`, `createJsonForm` и `JsonFormRenderer` удалены._'
   );
   lines.push('');
   lines.push('```tsx');

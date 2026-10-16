@@ -63,7 +63,7 @@ Individual sections are addressable per-heading (slug from the H2 title); enumer
 ## 4. Golden rules
 
 - **One contract for every way of drawing**: one schema tree, one binding handle, one assembly, one behavior. One `createModel` is the source of truth; schema nodes are bound to it by the key `model` and the handle `model.$.…` — field `{ model: model.$.x, component }`, array `{ model: model.$.items, item }`, sub-form `{ model: model.$.group, part }`. The keys `value:` / `array:` are the former contract.
-- **One assembly**: `useFormBundle(() => createForm({ model, schema, registry?, behavior?, validation? }))` → `{ model, form, validation?, render }`. `createCoreForm` / `createReactForm` / `createJsonForm` are the former contract.
+- **One assembly**: `useFormBundle(() => createForm({ model, schema, registry?, behavior?, validation? }))` → `{ model, form, validation?, render }`. `createCoreForm` / `createReactForm` / `createJsonForm` have been removed.
 - **One behavior**: `defineFormBehavior(({ model, form, schema }) => …)` holds both the links over the model and the rules for schema nodes (`hideWhen(schema.node(selector), …)`). A separate `form.render.ts` / `renderBehavior` is the former contract.
 - Validation is a **separate on-demand schema**, not a schema-leaf concern: run `validateModel(model, schema)` from `@reformer/core/validation` (schema built with `defineValidation(({ model }) => { validate(sig, [rules]); … })`), never `form.validate()`. Ambient operators inside the schema: `validate` / `validateAsync` / `validateWhen` / `cross` / `apply` (a sub-form) / `applyEach` (array rows); field rules (`required()`/`min()`/…) come from `@reformer/core/validators`. Schema nodes carry **no** validators.
 - The old validation contract is gone — don't use `validateFormModel`, schema leaves with `{ value, validators: [...] }`, `ModelValidator(value, scope, root)`, conditional `{ when, children }` nodes, or the path-based `ValidationSchemaFn` / `validate(path.x)`. Use the `@reformer/core/validation` operators above instead.
@@ -183,14 +183,15 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
   символ `@reformer/*` (`RF002`, с подсказкой похожих имён), импорт не из того пакета ИЛИ
   не из того подпути (`RF003` — `validate` живёт только в `@reformer/core/validation`),
   оператор валидации/поведения вне своей схемы (`RF004`/`RF005` — правило просто не
-  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` и прежний контракт формы
-  (`RF010`): фабрики `createCoreForm` / `createReactForm` / `createJsonForm`, хуки `useReactForm` /
+  зарегистрируется, и поле молча не будет валидироваться), `@deprecated` и удалённое API прежнего
+  контракта формы (`RF010`): фабрики `createCoreForm` / `createReactForm` / `createJsonForm`, хуки `useReactForm` /
   `useJsonForm`, `JsonFormRenderer`, ключи узла `value:` / `array:`, оператор `each`,
   `makeValidationConfig`, поле `renderBehavior` — с названной заменой и адресом рецепта
   `find_recipe unified-contract`.
 - `kind: "json-schema"` — документ схемы (JSON-DSL): структура узлов, синтаксис операторов,
-  неизвестные имена компонентов и источников данных. Принимает оба формата — текущий
-  (`"format": 2`: ключ `model`, словарь `parts`, оператор `$part`) и прежний.
+  неизвестные имена компонентов и источников данных. Документ — формата 2
+  (`"format": 2`: ключ `model`, словарь `parts`, оператор `$part`); документ прежнего формата
+  получает одну ошибку с советом перевести его `migrateJsonSchema`.
 - `kind: "behaviors"` — циклы в вычисляемых полях (`RF006`), по объявленным
   `{ target, reads[] }`.
 - `kind: "bundle"` — `intent` + схема сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
@@ -550,7 +551,7 @@ In React always wrap the factory in `useFormBundle`: it is a lazy `useState` and
 once, while `useMemo` may drop its cache and rebuild the form, losing typed input.
 
 `createCoreForm`, `createReactForm`, `createJsonForm` and the hooks `useReactForm` / `useJsonForm`
-are the former contract — three factories for three ways of drawing. Low-level
+(three factories for three ways of drawing) have been removed. Low-level
 `createFormFromModel({ model, schema })` remains public for special cases; `createLegacyForm`
 (both overloads) has been removed.
 
