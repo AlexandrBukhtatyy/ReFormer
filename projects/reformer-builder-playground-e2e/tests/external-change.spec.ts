@@ -1,5 +1,6 @@
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
+import type { BuilderApp } from './shared/builder-app.pom';
 import { test, expect } from './shared/fixtures';
 
 /**
@@ -34,18 +35,18 @@ const THEIRS_SAME = ORIGINAL.replace('first = 1;', 'first = 100;');
 
 const MONACO_SCOPE = '[data-rb-plugin="reformer.editor-monaco"]';
 
-/** Набор с паузой между знаками, как у человека: без неё редактор не успевает за вводом. */
-const TYPING = { delay: 50 };
-
 const editorOf = (page: Page): Locator =>
   page.locator(`${MONACO_SCOPE} .monaco-editor`).filter({ visible: true }).first();
 
-/** Правка в билдере: строка `first` получает хвост `// ours`. */
-async function editFirstLine(page: Page): Promise<void> {
+/** Правка в билдере: строка `first` получает хвост `// ours` — и доходит до рабочей копии. */
+async function editFirstLine(builder: BuilderApp): Promise<void> {
+  const page = builder.page;
   const editor = editorOf(page);
   await editor.locator('.view-line', { hasText: 'first = 1' }).click();
   await page.keyboard.press('End');
-  await page.keyboard.type(' // ours', TYPING);
+  await page.keyboard.type(' // ours');
+  // Набранное уходит в рабочую копию асинхронно: сохранить раньше — значит сохранить нечего.
+  await expect(builder.statusBar).toContainText('1 несохранённый файл');
 }
 
 const mergeDialog = (page: Page): Locator =>
@@ -66,8 +67,7 @@ test.describe('Файл изменён снаружи', () => {
     disk,
     page,
   }) => {
-    await editFirstLine(page);
-    await expect(builder.statusBar).toContainText('1 несохранённый файл');
+    await editFirstLine(builder);
     await disk.writeText(FILE, THEIRS_SAME);
 
     await builder.save();
@@ -94,7 +94,7 @@ test.describe('Файл изменён снаружи', () => {
     disk,
     page,
   }) => {
-    await editFirstLine(page);
+    await editFirstLine(builder);
     await disk.writeText(FILE, THEIRS_APART);
 
     await builder.save();
@@ -119,7 +119,7 @@ test.describe('Файл изменён снаружи', () => {
     disk,
     page,
   }) => {
-    await editFirstLine(page);
+    await editFirstLine(builder);
     await disk.writeText(FILE, THEIRS_SAME);
     await builder.save();
 
@@ -138,7 +138,7 @@ test.describe('Файл изменён снаружи', () => {
     disk,
     page,
   }) => {
-    await editFirstLine(page);
+    await editFirstLine(builder);
     await disk.writeText(FILE, THEIRS_SAME);
     await builder.save();
     const dialog = mergeDialog(page);

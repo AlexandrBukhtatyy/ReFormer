@@ -219,7 +219,7 @@ test.describe('Редактор кода', () => {
       await editor.locator('.view-line', { hasText: lineText }).first().click();
       await page.keyboard.press('End');
       await page.keyboard.press('ArrowLeft');
-      await page.keyboard.type(text, { delay: 50 });
+      await page.keyboard.type(text);
     };
     const close = async (): Promise<void> => {
       await page.keyboard.press('Escape');
