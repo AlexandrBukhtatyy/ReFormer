@@ -418,4 +418,45 @@ describe('Кнопка «Добавить» секции массива', () => 
 
     expect(model.get().rows).toEqual([{ name: 'из схемы', note: '' }]);
   });
+
+  it('кнопки секции — запись через форму: массив становится dirty, сброс его снимает', () => {
+    const captured: ArrayComponentProps[] = [];
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: (model) => ({ model: model.$.rows, component: captureList(captured), item: row }),
+    });
+    renderToStaticMarkup(<FormRenderer form={bundle} />);
+    const [section] = captured;
+
+    section.onMove(0, 1);
+    expect(bundle.form.rows.dirty.value).toBe(true);
+    bundle.form.reset();
+    expect(bundle.form.rows.dirty.value).toBe(false);
+
+    section.onRemove(0);
+    expect(bundle.form.rows.dirty.value).toBe(true);
+    expect(bundle.model.get().rows.map((r) => r.name)).toEqual(['второй']);
+  });
+
+  it('индексы секции — индексы модели: строка null не сбивает удаление и перестановку', () => {
+    const captured: ArrayComponentProps[] = [];
+    const model = createShape({
+      rows: arrayOf(blankRow, [
+        null as unknown as Row,
+        { name: 'первый', note: '' },
+        { name: 'второй', note: '' },
+      ]),
+    });
+    const bundle = createForm<Shape>({
+      model,
+      schema: (model) => ({ model: model.$.rows, component: captureList(captured), item: row }),
+    });
+    renderToStaticMarkup(<FormRenderer form={bundle} />);
+    const [section] = captured;
+
+    section.onMove(2, 1);
+    expect(model.get().rows.map((r) => r?.name)).toEqual([undefined, 'второй', 'первый']);
+    section.onRemove(2);
+    expect(model.get().rows.map((r) => r?.name)).toEqual([undefined, 'второй']);
+  });
 });

@@ -12,6 +12,7 @@ import type {
   CompiledFieldNode,
   CompiledNode,
   CompiledSchema,
+  FormArray,
   FormControl,
   FormGroup,
 } from '@reformer/core';
@@ -388,6 +389,9 @@ export interface ModelArrayItem {
  * строятся ui-kit `List` (chrome-less) и `FieldArray` (add/remove/reorder): хром — их, данные
  * (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный снапшот
  * {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
+ *
+ * Элемент `null` в массиве модели (пришёл с сервера) строкой не рисуется — как и в форме, где у него
+ * нет строки. `index` остальных — по-прежнему индекс модели.
  */
 export function useModelArrayItems(
   node: CompiledArrayNode,
@@ -397,12 +401,13 @@ export function useModelArrayItems(
   useModelArrayRevision(control); // ре-рендер при структурных изменениях (включая reorder)
   const length = control.length;
 
-  return Array.from({ length }, (_, index) => {
+  return Array.from({ length }, (_, index) => index).flatMap((index) => {
     const model = control.at(index);
+    if (model == null) return [];
     const key = stableKey(model);
     // Схема строки — одна на под-модель: та же, по которой сборка построила форму строки.
     const element =
-      model != null && typeof model === 'object' ? (
+      typeof model === 'object' ? (
         <ScopeBoundary key={key} schema={node.row(model)}>
           <RenderNodeComponent node={node.row(model).root} fieldWrapper={fieldWrapper} />
         </ScopeBoundary>
@@ -413,7 +418,7 @@ export function useModelArrayItems(
           fieldWrapper={fieldWrapper}
         />
       );
-    return { key, index, model, element };
+    return [{ key, index, model, element }];
   });
 }
 
@@ -449,6 +454,19 @@ const ModelArrayFallback = memo(function ModelArrayFallback({
 });
 
 /**
+ * Индекс строки формы для индекса элемента модели: строка `i` — `i`-й непустой элемент. Для
+ * элемента `null` строки формы нет — `undefined`.
+ */
+function formIndexOf(control: RenderModelArrayControl, modelIndex: number): number | undefined {
+  if (control.at(modelIndex) == null) return undefined;
+  let formIndex = 0;
+  for (let position = 0; position < modelIndex; position++) {
+    if (control.at(position) != null) formIndex++;
+  }
+  return formIndex;
+}
+
+/**
  * Массив, рендеримый ЗАРЕГИСТРИРОВАННЫМ компонентом (M1): узел `{ model, item, component }`.
  *
  * Итерацию — подписку на структуру, схемы строк, стабильные ключи — делает рендерер
@@ -472,9 +490,35 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   // Колбэки стабильны по `control` — иначе memo-компоненты потребителя ломались бы на каждый
   // рендер секции. Новый элемент берётся из шаблона массива: `arrayOf(blank)` в модели либо
   // `initialValue` узла, который сборка формы регистрирует запасным шаблоном.
-  const onAdd = useCallback(() => control.push(), [control]);
-  const onRemove = useCallback((index: number) => control.removeAt(index), [control]);
-  const onMove = useCallback((from: number, to: number) => control.move(from, to), [control]);
+  //
+  // Мутации — через ноду массива формы, когда она есть (рендер сборки `createForm`): кнопки
+  // интерфейса — запись через форму, она делает массив `dirty`. Индексы `items` — индексы модели,
+  // нода считает по строкам формы, поэтому индекс переводится. Без формы или для элемента `null`
+  // (строки формы у него нет) — прямо в массив модели.
+  const onAdd = useCallback(() => {
+    const array = getNodeForSignal(node.handle) as FormArray<object> | undefined;
+    if (array) array.push();
+    else control.push();
+  }, [node.handle, control]);
+  const onRemove = useCallback(
+    (index: number) => {
+      const array = getNodeForSignal(node.handle) as FormArray<object> | undefined;
+      const row = array ? formIndexOf(control, index) : undefined;
+      if (array && row !== undefined) array.removeAt(row);
+      else control.removeAt(index);
+    },
+    [node.handle, control]
+  );
+  const onMove = useCallback(
+    (from: number, to: number) => {
+      const array = getNodeForSignal(node.handle) as FormArray<object> | undefined;
+      const fromRow = array ? formIndexOf(control, from) : undefined;
+      const toRow = array ? formIndexOf(control, to) : undefined;
+      if (array && fromRow !== undefined && toRow !== undefined) array.move(fromRow, toRow);
+      else control.move(from, to);
+    },
+    [node.handle, control]
+  );
 
   const slots: ArrayItemSlot[] = items.map(({ key, index, model, element }) => ({
     key,
