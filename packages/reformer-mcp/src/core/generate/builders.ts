@@ -798,7 +798,25 @@ function callbackParams(sources: readonly string[]): { params: string[]; renamed
   return { params, renamed };
 }
 
-function renderBehavior(b: BehaviorIntent): string {
+/**
+ * Опции `resetWhen`. Без `resetValue` ядро сбрасывает поле в `null`, и для поля, в тип которого
+ * `null` не входит, `resetValue` обязателен по типу (ReFormer-2183): без него сгенерированный
+ * файл не компилировался бы. Такому полю генератор подставляет его начальное значение.
+ */
+function resetWhenOptions(b: BehaviorIntent, intent: FormIntent): string {
+  const json = b.options ? JSON.stringify(b.options) : undefined;
+  const field = intent.fields.find(
+    (f) => (f.modelPath ?? f.name) === b.target || f.name === b.target
+  );
+  const given = b.options !== undefined && 'resetValue' in b.options;
+  if (field === undefined || given || fieldTsType(field).includes('null')) {
+    return json ? `, ${json}` : '';
+  }
+  const resetValue = `resetValue: ${initialLiteral(field)}`;
+  return json && json !== '{}' ? `, ${json.slice(0, -1)}, ${resetValue} }` : `, { ${resetValue} }`;
+}
+
+function renderBehavior(b: BehaviorIntent, intent: FormIntent): string {
   const target = `model.$.${b.target}`;
   const sources = b.sources.map((s) => `model.$.${s}`).join(', ');
   const opts = b.options ? `, ${JSON.stringify(b.options)}` : '';
@@ -825,7 +843,7 @@ function renderBehavior(b: BehaviorIntent): string {
     case 'disableWhen':
       return `  ${b.kind}(${target}, () => ${b.expr ?? 'true'}${opts});`;
     case 'resetWhen':
-      return `  resetWhen(${target}, () => ${b.expr ?? 'false'}${opts});`;
+      return `  resetWhen(${target}, () => ${b.expr ?? 'false'}${resetWhenOptions(b, intent)});`;
     case 'transformValue':
       return `  transformValue(${target}, (value) => ${b.expr ?? 'value'});`;
     case 'revalidateWhen':
@@ -852,7 +870,7 @@ export function buildBehaviorTs(intent: FormIntent): string {
   if (intent.behavior.length === 0) {
     lines.push('  // Поведения в intent не было — добавьте его здесь.');
   }
-  for (const b of intent.behavior) lines.push(renderBehavior(b));
+  for (const b of intent.behavior) lines.push(renderBehavior(b, intent));
   lines.push('});');
   return lines.join('\n') + '\n';
 }
@@ -908,7 +926,7 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
   if (intent.behavior.length === 0 && !withNodes) {
     lines.push('  // Поведения в intent не было — добавьте его здесь.');
   }
-  for (const b of intent.behavior) lines.push(renderBehavior(b));
+  for (const b of intent.behavior) lines.push(renderBehavior(b, intent));
   if (withNodes) {
     if (intent.behavior.length > 0) lines.push('');
     lines.push('  // Видимость узлов схемы — по `selector`.');

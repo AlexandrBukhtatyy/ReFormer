@@ -432,6 +432,30 @@ describe('builders', () => {
     expect(ts).toContain('computeFrom([model.$.price, model.$.quantity], model.$.total');
   });
 
+  it('resetWhen по полю без null получает resetValue — начальное значение поля [ReFormer-2183]', () => {
+    // Без resetValue ядро пишет null, и для поля без null в типе он обязателен по типу.
+    const intent = goodIntent();
+    intent.fields.push({ name: 'note', type: 'number', component: 'Input', initialValue: null });
+    intent.behavior.push(
+      { kind: 'resetWhen', target: 'currency', sources: [], expr: '!model.price' },
+      { kind: 'resetWhen', target: 'quantity', sources: [], expr: '!model.price' },
+      { kind: 'resetWhen', target: 'note', sources: [], expr: '!model.price' },
+      {
+        kind: 'resetWhen',
+        target: 'price',
+        sources: [],
+        expr: 'false',
+        options: { resetValue: 1 },
+      }
+    );
+    const ts = buildBehaviorTs(intent);
+
+    expect(ts).toContain("resetWhen(model.$.currency, () => !model.price, { resetValue: '' });");
+    expect(ts).toContain('resetWhen(model.$.quantity, () => !model.price, { resetValue: 0 });');
+    expect(ts).toContain('resetWhen(model.$.note, () => !model.price);');
+    expect(ts).toContain('resetWhen(model.$.price, () => false, {"resetValue":1});');
+  });
+
   it('layout получает testId на каждом листе — этого ждёт e2e POM', () => {
     const json = JSON.parse(buildFormSchemaJson(goodIntent()));
     const leaf = json.root.children.find((c: { selector?: string }) => c.selector === 'price');

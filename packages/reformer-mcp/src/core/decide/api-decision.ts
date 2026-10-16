@@ -210,7 +210,7 @@ export const DECISION_RULES: DecisionRule[] = [
     ],
     recommend: 'resetWhen',
     because:
-      'сбрасывает значение к `resetValue` при истинном условии; для строкового поля resetValue задавать явно, иначе прилетит null',
+      'сбрасывает значение к `resetValue` при истинном условии; без resetValue пишет null, поэтому полю без null в типе (string, number) resetValue обязателен — иначе код не компилируется',
     alternatives: [
       {
         symbol: 'enableWhen',
