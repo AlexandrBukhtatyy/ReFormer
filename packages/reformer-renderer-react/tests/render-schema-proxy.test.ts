@@ -45,9 +45,12 @@ describe('createRenderSchema — пер-selector version-сигналы (defect 
 
     schema.node('a').patchProps({ title: 'x' });
     schema.node('a').resetProps();
+    schema.node('a').setHidden(true);
+    schema.node('a').resetHidden();
+    // Сброс без записи — не правка: версию не поднимает [ReFormer-arpz].
     schema.node('a').resetHidden();
 
-    expect(sigA.value).toBe(3); // три мутации ноды 'a'
+    expect(sigA.value).toBe(4); // четыре мутации ноды 'a'
     expect(sigB.value).toBe(b0); // 'b' не тронут ни разу
   });
 
