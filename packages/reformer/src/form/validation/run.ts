@@ -50,6 +50,13 @@ const stateRegistry = new WeakMap<object, WeakMap<object, RunState>>();
 /** Состояние пары (model, schema), с которой собран результат: по нему разнос гасит поля диффом. */
 const stateOfResult = new WeakMap<ValidationResult, RunState>();
 
+/**
+ * Поля, правила которых прогон действительно выполнил (ветка `validateWhen` активна, поле не
+ * выключено в проверке формы). Разнос с `touch` метит тронутыми только их. Результат, собранный не
+ * раннером, здесь не записан — для него проверенными считаются все поля `issues`.
+ */
+const checkedOfResult = new WeakMap<ValidationResult, ReadonlySet<PathAwareSignal<unknown>>>();
+
 function runStateFor(model: object, schema: object): RunState {
   let perModel = stateRegistry.get(model);
   if (!perModel) stateRegistry.set(model, (perModel = new WeakMap()));
@@ -109,9 +116,14 @@ function isInactive(model: FormModel<unknown>, handle: PathAwareSignal<unknown>)
 function dropInactive(
   model: FormModel<unknown>,
   issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>,
-  failures: ValidationFailure[]
+  failures: ValidationFailure[],
+  checked: Set<PathAwareSignal<unknown>>
 ): void {
-  for (const sig of issues.keys()) if (isInactive(model, sig)) issues.set(sig, []);
+  for (const sig of issues.keys()) {
+    if (!isInactive(model, sig)) continue;
+    issues.set(sig, []);
+    checked.delete(sig);
+  }
   for (let i = failures.length - 1; i >= 0; i--) {
     if (isInactive(model, failures[i].handle)) failures.splice(i, 1);
   }
@@ -181,6 +193,7 @@ async function collect<T>(
   const ctx: VContext = {
     model: model as FormModel<unknown>,
     issues: new Map(),
+    checked: new Set(),
     pending: [],
     asyncFields: new Set(),
     failures,
@@ -207,7 +220,7 @@ async function collect<T>(
   // `enableWhen` пишется на микротаске, и живой прогон сразу после правки условия иначе засчитал бы
   // правила поля, которое вот-вот выключится. Записей нет — это один микротаск, как раньше.
   else if (skipDisabled) await deferredWritesSettled();
-  if (skipDisabled) dropInactive(model as FormModel<unknown>, ctx.issues, failures);
+  if (skipDisabled) dropInactive(model as FormModel<unknown>, ctx.issues, failures, ctx.checked);
 
   // Приоритет статуса: отменённому прогону нельзя доверять вовсе (его async-часть оборвана);
   // сбой правила важнее обычной ошибки — результата проверки нет.
@@ -223,6 +236,7 @@ async function collect<T>(
     failures,
   };
   stateOfResult.set(result, state);
+  checkedOfResult.set(result, ctx.checked);
   return {
     result,
     release: () => {
@@ -271,7 +285,9 @@ export async function runValidation<T>(
  *
  * Отменённый результат (`status: 'cancelled'`) не разносится: его async-часть оборвана.
  *
- * `options.touch`: пометить `touched` ИМЕННО поля, которые схема проверяла (не всё поддерево).
+ * `options.touch`: пометить `touched` ИМЕННО поля, которые схема проверяла (не всё поддерево):
+ * поля выключенной ветки `validateWhen` и, в проверке уровня формы, выключенные поля не метятся —
+ * пользователь их не видел, и после включения их ошибка не должна быть видна с первой проверки.
  * Замечания становятся видимыми (`shouldShowIssues`: есть замечания и `touched || dirty`) без
  * ручного `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается
  * «тронутым».
@@ -286,6 +302,7 @@ export function applyValidationResult(
   if (result.status === 'cancelled') return;
   const state = stateOfResult.get(result);
   const validated = new Set(result.issues.keys());
+  const checked = checkedOfResult.get(result) ?? validated;
   const write = (): void => {
     // Гашение диффом (без неограниченного накопления): поля, которых НЕ коснулись в этом прогоне,
     // гасятся один раз и отпускаются на GC.
@@ -295,7 +312,7 @@ export function applyValidationResult(
     for (const [sig, issues] of result.issues) {
       getNodeForSignal(sig)?.setIssues(issues as ValidationIssue[]);
     }
-    if (options?.touch) for (const sig of validated) getNodeForSignal(sig)?.markAsTouched();
+    if (options?.touch) for (const sig of checked) getNodeForSignal(sig)?.markAsTouched();
   };
   if (options?.touch) touchByValidation(write);
   else batch(write);

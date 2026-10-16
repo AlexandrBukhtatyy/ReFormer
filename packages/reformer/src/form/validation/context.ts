@@ -24,8 +24,16 @@ export interface VContext {
    * это вся модель; внутри `apply(ручка, схема)` / `applyEach` — под-модель группы или строки.
    */
   model: FormModel<unknown>;
-  /** Накопленные ошибки по сигналу (ключ — идентичность `PathAwareSignal`). */
+  /**
+   * Накопленные ошибки по сигналу (ключ — идентичность `PathAwareSignal`). Здесь и поля выключенной
+   * ветки `validateWhen` — с пустым списком: при разносе их прежние ошибки гасятся.
+   */
   issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>;
+  /**
+   * Поля, правила которых в этом прогоне действительно выполнялись — ветка активна. Только их разнос
+   * с `touch` помечает тронутыми: поле выключенной ветки пользователь не видел.
+   */
+  checked: Set<PathAwareSignal<unknown>>;
   /** Незавершённые async-правила (раннер их дожидается). */
   pending: Promise<void>[];
   /** Поля с async-правилами: на время ожидания раннер держит их ноды в `pending`. */
@@ -79,3 +87,13 @@ export function touch(ctx: VContext, sig: PathAwareSignal<unknown>): ValidationI
 
 /** Активна ли текущая ветка (все `validateWhen`-условия истинны). */
 export const gated = (ctx: VContext): boolean => ctx.whenStack.every((cond) => cond());
+
+/**
+ * Правила поля выполняются: ветка активна. Поле запоминается проверенным ({@link VContext.checked}).
+ * Без активной ветки — `false`, и поле остаётся только в `issues` для гашения.
+ */
+export function checking(ctx: VContext, sig: PathAwareSignal<unknown>): boolean {
+  if (!gated(ctx)) return false;
+  ctx.checked.add(sig);
+  return true;
+}

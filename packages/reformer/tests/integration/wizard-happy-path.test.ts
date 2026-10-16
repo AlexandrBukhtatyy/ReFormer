@@ -76,6 +76,12 @@ const LOAN_FIELDS = [
   'loan.type',
 ];
 
+/** Поля залога: выключены и скрыты, пока кредит не ипотечный. */
+const COLLATERAL_FIELDS = ['loan.initialPayment', 'loan.propertyValue'];
+
+/** Поля шага «Кредит», которые проверяются у потребительского кредита. */
+const CONSUMER_LOAN_FIELDS = LOAN_FIELDS.filter((path) => !COLLATERAL_FIELDS.includes(path));
+
 /** Поля шага «Заёмщик». */
 const APPLICANT_FIELDS = [
   'applicant.birthDate',
@@ -130,13 +136,15 @@ describe('визард заявки — счастливый путь', () => {
     expect(touchedPaths(bundle.form)).toEqual([]);
 
     await passWizardTo(bundle, 'applicant');
-    // поведение под вопросом [ReFormer-y5g8]: поля залога выключены и скрыты (не ипотека), но правила шага касаются
-    // их до гейта `validateWhen` — они тоже становятся touched, и после включения их ошибка видна
-    // с первой же проверки, хотя пользователь этих полей не видел.
-    expect(touchedPaths(bundle.form)).toEqual(LOAN_FIELDS);
+    // Поля залога выключены и скрыты (не ипотека): их правила за гейтом `validateWhen` не
+    // выполнялись — тронутыми они не становятся, и после включения ошибка не видна сразу
+    // [ReFormer-y5g8].
+    expect(touchedPaths(bundle.form)).toEqual(CONSUMER_LOAN_FIELDS);
 
     await passWizardTo(bundle, 'contacts');
-    expect(touchedPaths(bundle.form)).toEqual([...LOAN_FIELDS, ...APPLICANT_FIELDS].sort());
+    expect(touchedPaths(bundle.form)).toEqual(
+      [...CONSUMER_LOAN_FIELDS, ...APPLICANT_FIELDS].sort()
+    );
     expect(bundle.form.phone.touched.value).toBe(false);
   });
 

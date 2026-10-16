@@ -40,6 +40,7 @@ function contextOf(model: object = createModel({ a: '' })): VContext {
   return {
     model: model as FormModel<unknown>,
     issues: new Map(),
+    checked: new Set(),
     pending: [],
     asyncFields: new Set(),
     failures: [],

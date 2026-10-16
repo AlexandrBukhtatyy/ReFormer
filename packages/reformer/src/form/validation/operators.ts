@@ -12,7 +12,7 @@
 import type { FormModel, ModelArray, PathAwareSignal } from '../../model/types';
 import type { ValidationIssue } from '../types/contracts';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
-import { requireCtx, runWithContext, touch, gated, type VContext } from './context';
+import { requireCtx, runWithContext, touch, checking, type VContext } from './context';
 import type { AsyncRule, Rule, ValidationDefinition, ValidationScope } from './types';
 
 /**
@@ -30,7 +30,7 @@ import type { AsyncRule, Rule, ValidationDefinition, ValidationScope } from './t
 export function validate<TField>(sig: PathAwareSignal<TField>, rules: Rule<TField>[]): void {
   const ctx = requireCtx('validate');
   const bucket = touch(ctx, sig as PathAwareSignal<unknown>); // touch до gate ⇒ поле очистится, если ветка выключена
-  if (!gated(ctx)) return;
+  if (!checking(ctx, sig as PathAwareSignal<unknown>)) return;
   const value = sig.peek();
   for (const rule of rules) {
     const err = rule(value);
@@ -64,7 +64,7 @@ export function validateAsync<TField>(
   const ctx = requireCtx('validateAsync');
   const handle = sig as PathAwareSignal<unknown>;
   const bucket = touch(ctx, handle);
-  if (!gated(ctx)) return;
+  if (!checking(ctx, handle)) return;
   const value = sig.peek();
   const signal = ctx.signal;
   ctx.asyncFields.add(handle);
@@ -109,7 +109,7 @@ function crossOver(
 ): void {
   const ctx = requireCtx('cross');
   const bucket = touch(ctx, sig);
-  if (!gated(ctx)) return;
+  if (!checking(ctx, sig)) return;
   const err = check(model.get() as never);
   if (err) bucket.push(err);
 }

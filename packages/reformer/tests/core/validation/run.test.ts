@@ -23,6 +23,7 @@ import {
   validate,
   validateAsync,
   validateModel,
+  validateWhen,
 } from '../../../src/form/validation';
 import { runAndApply } from '../../../src/form/validation/run';
 import { required } from '../../../src/form/validators';
@@ -265,6 +266,49 @@ describe('validation/run — разнос результата', () => {
 
     expect(issueCodes(form.note)).toEqual([]);
     expect(issueCodes(form.login)).toEqual(['required']);
+  });
+});
+
+describe('validation/run — touch метит только проверенные поля [ReFormer-y5g8]', () => {
+  it('поле выключенной ветки validateWhen тронутым не становится, его прежние ошибки гасятся', async () => {
+    const { model, form } = createForm<Login>({ initial: { login: '', note: '' } });
+    let noteActive = true;
+    const rules = defineValidation<Login>(({ model: scope }) => {
+      validate(scope.$.login, [required()]);
+      validateWhen(
+        () => noteActive,
+        () => validate(scope.$.note, [required()])
+      );
+    });
+    await runAndApply(model, rules);
+    expect(issueCodes(form.note)).toEqual(['required']);
+    form.note.markAsUntouched();
+
+    noteActive = false;
+    await runAndApply(model, rules, { touch: true });
+
+    expect(form.login.touched.value).toBe(true);
+    expect(form.note.touched.value).toBe(false);
+    expect(issueCodes(form.note)).toEqual([]);
+  });
+
+  it('проверка уровня формы (skipDisabled) не трогает выключенное поле', async () => {
+    const bundle = createForm<Login>({
+      initial: { login: '', note: '' },
+      behavior: defineFormBehavior<Login>(({ model }) => {
+        enableWhen(model.$.note, () => model.login !== '');
+      }),
+    });
+    await tick(); // отложенная запись enableWhen
+    const rules = defineValidation<Login>(({ model: scope }) => {
+      validate(scope.$.login, [required()]);
+      validate(scope.$.note, [required()]);
+    });
+
+    await runAndApply(bundle.model, rules, { touch: true, skipDisabled: true });
+
+    expect(bundle.form.login.touched.value).toBe(true);
+    expect(bundle.form.note.touched.value).toBe(false);
   });
 });
 
