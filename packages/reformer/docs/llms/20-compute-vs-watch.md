@@ -91,7 +91,10 @@ computeFrom(
 );
 ```
 
-> Примитив `computeFrom` из `@reformer/core/model` имеет ту же сигнатуру и возвращает cleanup-функцию.
+> Примитив `computeFrom` из `@reformer/core/model` имеет ту же сигнатуру и возвращает cleanup-функцию,
+> но цель вычисляемой НЕ помечает: `model.set` / `patch` / `reset` её перезаписывают, `isDirty()` её
+> учитывает — до следующей смены источников. Оператор из `@reformer/core/behaviors` цель помечает
+> (`markDerived`), и массовая запись её не трогает. В поведении формы — оператор.
 
 ### onChange — реакция на изменение (async, side-effects)
 

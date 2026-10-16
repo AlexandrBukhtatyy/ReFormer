@@ -3411,7 +3411,10 @@ computeFrom(
 );
 ```
 
-> Примитив `computeFrom` из `@reformer/core/model` имеет ту же сигнатуру и возвращает cleanup-функцию.
+> Примитив `computeFrom` из `@reformer/core/model` имеет ту же сигнатуру и возвращает cleanup-функцию,
+> но цель вычисляемой НЕ помечает: `model.set` / `patch` / `reset` её перезаписывают, `isDirty()` её
+> учитывает — до следующей смены источников. Оператор из `@reformer/core/behaviors` цель помечает
+> (`markDerived`), и массовая запись её не трогает. В поведении формы — оператор.
 
 ### onChange — реакция на изменение (async, side-effects)
 
@@ -8060,6 +8063,12 @@ _Source: src/form/behaviors/operators.ts_
 **Kind:** `function`
 
 Вычисляемое поле: `target = fn(...sourceValues)` при изменении источников.
+
+Примитив модели: цель вычисляемой НЕ помечает. Поэтому массовая запись (`model.set`,
+`model.patch`, `model.reset`) её перезаписывает, а `isDirty()` её учитывает — до следующей смены
+источников. Оператор поведения `computeFrom` из `@reformer/core/behaviors` цель помечает
+(`markDerived`) и защищён от циклов: массовая запись такую цель не трогает. В поведении формы
+нужен оператор; примитив — для модели без формы.
 
 **Signature:**
 ```typescript
