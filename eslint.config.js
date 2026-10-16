@@ -95,6 +95,9 @@ export default defineConfig([
     '**/_generated/**',
     // Auto-generated API docs from JSDoc
     'projects/reformer-doc/docs/api/**',
+    // Сборка клиента @reformer/builder для публикации (`npm run build:client`): рядом с `dist`,
+    // в git не едет, исключена .gitignore пакета, которого ESLint не читает
+    'projects/reformer-builder/client',
     // Сборка плагинов проекта-образца для билдера: main.js в корне каталога плагина (у кита
     // HexaUI — 4 МБ, у плагина ИИ — 8). В git не едет, но исключена вложенным .gitignore, которого
     // ESLint не читает. Плагин лежит прямо в каталоге плагинов или в каталоге домена — два уровня

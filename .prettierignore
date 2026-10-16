@@ -2,6 +2,8 @@ node_modules
 dist
 build
 *.log
+# сборка клиента @reformer/builder для публикации (`npm run build:client`), в git не едет
+projects/reformer-builder/client/
 
 # generated — produced/validated by their own generators, not prettier
 # (formatting these here conflicts with gen scripts / the form-schema CI gate)

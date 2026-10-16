@@ -46,8 +46,11 @@ platform» читается из самого дерева, а слово «host
 окружение взять, вход узнаёт от сервера запуска.
 
 **Клиент — не билдер.** `client/` — то, что приложение импортирует из `@reformer/builder`
-(вход `index.ts`): его компилирует сборщик приложения, поэтому в нём только React. Сам билдер
-в сборку приложения не попадает — его отдаёт dev-сервер приложения плагином `vite/plugin.mjs`.
+(вход `client/index.ts`): в нём только React, и в пакете он едет собранным — `vite.client.config.ts`
+с `tsconfig.client.json` пишут `client/` в корень пакета, ES-модули и объявления типов.
+Заглушка `client/noop.ts` с тем же API подменяет его в прод-сборке приложения (плагин
+`vite/plugin.mjs`). Сам билдер в сборку приложения не попадает — его отдаёт dev-сервер
+приложения тем же плагином.
 
 **Движки форм в билдере не живут.** С 2026-10 домены ReFormer и RJSF — плагины проекта: каталоги
 `<домен>/{core,<плагин>}` в `.ui_builder/plugins/` проекта-образца
@@ -228,7 +231,10 @@ projects/reformer-builder/
 │   │   │                      нет. Платформы форм тоже: реестр китов
 │   │   │                      и хост превью — домен `forms`. Все они — плагины приложения
 │   │
-│   ├── client/                КЛИЕНТ В ДОКУМЕНТЕ ПРИЛОЖЕНИЯ — только React (docs/embedding.md)
+│   ├── client/                КЛИЕНТ В ДОКУМЕНТЕ ПРИЛОЖЕНИЯ — только React (docs/embedding.md);
+│   │   │                      в пакет едет собранным: `client/` в корне (vite.client.config.ts)
+│   │   ├── index.ts         вход пакета: `<ReformerBuilder>` и его типы
+│   │   ├── noop.ts          заглушка для прод-сборки приложения: тот же API, рисует детей
 │   │   ├── ReformerBuilder.tsx  что рисует компонент в зависимости от места: приложение
 │   │   │                    с кнопкой, приложение в рамке превью или одну форму на стенде
 │   │   ├── shell-frame.ts   рамка билдера: одна на страницу, создаётся на body и не снимается
@@ -239,7 +245,6 @@ projects/reformer-builder/
 │   │   └── mode.ts          режим билдера: включён ли, переживает перезагрузку
 │   ├── testing/               browser-setup (зашит в vitest.browser.config), render
 │   ├── main.tsx               вход билдера: своя вкладка и рамка в приложении
-│   ├── index.ts               вход библиотеки: клиент `<ReformerBuilder>`
 │   ├── index.css
 │
 ├── bin/                       лаунчер и общий серверный код без побочных действий:
@@ -255,6 +260,7 @@ projects/reformer-builder/
 │                              для билдера рядом с приложением
 ├── eslint.config.js           границы слоёв — no-restricted-imports по блокам files
 ├── vite.config.ts   vitest.config.ts   vitest.browser.config.ts
+├── vite.client.config.ts  tsconfig.client.json     сборка клиента в `client/` (ES-модули и .d.ts)
 ├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
 └── package.json
 ```

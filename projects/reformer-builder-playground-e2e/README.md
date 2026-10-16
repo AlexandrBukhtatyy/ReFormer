@@ -99,7 +99,9 @@ npm run test:e2e:embedded:dist -w reformer-builder-playground-e2e   # билде
 
 Второй команде нужна готовая сборка билдера с плагинами для поставки — те же три шага, что
 у цели `dist`: `npm run build -w @reformer/builder`, `npm run plugins:dist -w
-reformer-builder-playground`, `npm run build:plugins -w @reformer/builder`. Источник интерфейса
+reformer-builder-playground`, `npm run build:plugins -w @reformer/builder`. Клиент билдера
+(`client/` пакета — то, что приложение импортирует из `@reformer/builder`) сервер прогона
+собирает сам в обоих случаях. Источник интерфейса
 серверу называет переменная плагина `REFORMER_BUILDER_UI`, а не правка конфига копии: конфиг —
 файл проекта, и «диск» теста вернул бы его к виду образца. Последний сценарий набора сверяет,
 что прогон идёт над тем, что ему назвали.

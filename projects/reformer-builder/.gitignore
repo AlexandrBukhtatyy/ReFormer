@@ -6,6 +6,8 @@ npm-debug.log*
 node_modules
 dist
 dist-ssr
+# сборка клиента для публикации (`npm run build:client`); с якорем — `src/client` остаётся в git
+/client
 *.local
 
 # Editor directories and files

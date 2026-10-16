@@ -6,8 +6,18 @@
   "bin": {
     "reformer-builder": "./bin/reformer-builder.mjs"
   },
+  "main": "./client/index.js",
+  "module": "./client/index.js",
+  "types": "./client/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./client/index.d.ts",
+      "import": "./client/index.js"
+    },
+    "./noop": {
+      "types": "./client/noop.d.ts",
+      "import": "./client/noop.js"
+    },
     "./vite": {
       "types": "./vite/plugin.d.mts",
       "default": "./vite/plugin.mjs"
@@ -15,14 +25,12 @@
     "./runtime-config.schema.json": "./runtime-config.schema.json",
     "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "bin",
     "vite",
-    "src/index.ts",
-    "src/client",
-    "!src/client/**/*.test.ts",
-    "!src/client/**/*.test.tsx",
+    "client",
     "application-plugins.embedded.json",
     "runtime-config.schema.json",
     "README.md",
@@ -30,8 +38,10 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:client",
+    "build:client": "vite build -c vite.client.config.ts",
     "build:plugins": "node scripts/collect-application-plugins.mjs",
+    "check:packaging": "node scripts/check-packaging.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node ../../scripts/run-vitest.mjs",
@@ -66,6 +76,15 @@
   "publishConfig": {
     "access": "public"
   },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "vite": "^6.0.0 || ^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@preact/signals-core": "^1.8.0",
@@ -99,6 +118,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.3",
     "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.0.8"
   }
 }

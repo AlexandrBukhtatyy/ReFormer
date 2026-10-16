@@ -137,7 +137,8 @@ const denyFromPlugins = [
 ];
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `client` — сборка клиента для публикации (`npm run build:client`), такой же выход, как `dist`.
+  globalIgnores(['dist', 'client']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

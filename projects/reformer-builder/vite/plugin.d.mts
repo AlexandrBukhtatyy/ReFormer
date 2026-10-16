@@ -27,5 +27,9 @@ export interface ReformerBuilderOptions {
   readonly ui?: 'auto' | 'source' | 'dist';
 }
 
-/** Билдер под префиксом `/__reformer-builder/` на dev-сервере приложения. */
-export function reformerBuilder(options?: ReformerBuilderOptions): Plugin;
+/**
+ * Два плагина: билдер под префиксом `/__reformer-builder/` на dev-сервере приложения (`serve`)
+ * и подмена клиента `@reformer/builder` заглушкой в прод-сборке (`build`). Массив Vite
+ * разворачивает сам — в `plugins` конфига вызов ставится как есть.
+ */
+export function reformerBuilder(options?: ReformerBuilderOptions): Plugin[];

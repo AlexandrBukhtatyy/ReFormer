@@ -13,6 +13,16 @@
  * поверх страницы (`<ReformerBuilder>` из `@reformer/builder`). Отсюда и то, чего приложению
  * больше не нужно, — псевдонимов исходников, Tailwind, путей в `tsconfig`, общего React.
  *
+ * ## Два плагина: dev-сервер и прод-сборка
+ *
+ * `reformerBuilder()` отдаёт массив из двух. Первый работает только на dev-сервере (`serve`):
+ * раздача билдера, мост на странице, дедупликация React. Второй — только в `vite build`:
+ * псевдонимом подменяет `@reformer/builder` заглушкой `@reformer/builder/noop` с тем же API,
+ * и в прод-сборку приложения клиент билдера не попадает вовсе — ни кнопка, ни рамка, ни чтение
+ * `sessionStorage` при импорте. Псевдоним, а не условия `exports`: условия выбирает потребитель
+ * (`NODE_ENV`, свои `resolve.conditions`), а подмена обязана случаться ровно тогда, когда
+ * приложение собирают с этим плагином.
+ *
  * ## Тот же вход, что у `npx reformer-builder`
  *
  * Под префиксом работает тот же SPA и по тем же правилам, только отвечает на его вопросы
@@ -101,6 +111,30 @@ if (import.meta.hot) {
 }
 `;
 
+/** Вход клиента в точности: `@reformer/builder/vite` и `/noop` под подмену не попадают. */
+const CLIENT_ID = /^@reformer\/builder$/;
+/** Заглушка с тем же API (`src/client/noop.ts`); псевдоним дорезолвит Vite по `exports` пакета. */
+const CLIENT_NOOP_ID = '@reformer/builder/noop';
+
+/**
+ * Прод-сборка приложения: клиент билдера подменяется заглушкой.
+ *
+ * Хук `config`, а не `resolveId`: псевдоним вливается в `resolve.alias` конфига и действует
+ * до любого резолва, а `enforce` не нужен — псевдонимы плагинов Vite ставит перед
+ * пользовательскими. Больше плагин не делает ничего: ни сервера, ни моста в сборке нет.
+ *
+ * @returns {import('vite').Plugin}
+ */
+function productionStub() {
+  return {
+    name: 'reformer-builder:production',
+    apply: 'build',
+    config() {
+      return { resolve: { alias: [{ find: CLIENT_ID, replacement: CLIENT_NOOP_ID }] } };
+    },
+  };
+}
+
 /**
  * Переменная окружения, называющая источник интерфейса, когда его не назвал параметр `ui`.
  *
@@ -172,8 +206,11 @@ function shippedPlugins(ui) {
 }
 
 /**
+ * Билдер на dev-сервере приложения и заглушка клиента в его прод-сборке — два плагина
+ * (см. шапку), массивом: Vite разворачивает его сам.
+ *
  * @param {{ config?: string, plugins?: string, ui?: 'auto' | 'source' | 'dist' }} [options]
- * @returns {import('vite').Plugin}
+ * @returns {import('vite').Plugin[]}
  */
 export function reformerBuilder(options = {}) {
   /** Вложенный dev-сервер интерфейса: обещание, чтобы первый запрос не завёл второй. */
@@ -190,7 +227,8 @@ export function reformerBuilder(options = {}) {
   /** Базовый адрес приложения: под ним dev-сервер отдаёт модули. */
   let appBase = '/';
 
-  return {
+  /** @type {import('vite').Plugin} */
+  const devServer = {
     name: 'reformer-builder',
     apply: 'serve',
 
@@ -325,4 +363,6 @@ export function reformerBuilder(options = {}) {
       await closeSourceUi();
     },
   };
+
+  return [devServer, productionStub()];
 }
