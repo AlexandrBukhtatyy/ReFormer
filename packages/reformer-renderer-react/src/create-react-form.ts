@@ -77,6 +77,10 @@ export function createReactForm<T extends object>(config: CreateReactFormConfig<
   }
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
+  // Правки `seed` — часть начального состояния формы: точка отсчёта своей модели снимается после
+  // них, и сброс (`form.reset()`, `model.reset()`) их не откатывает. Точкой отсчёта переданной
+  // модели управляет её владелец.
+  if (config.model === undefined) model.captureInitial();
 
   // Первый проход — БЕЗ формы: harvest в `createForm` обходит дерево рекурсией, а `FormGroup`
   // самоссылочен. Формы на этот момент всё равно ещё не существует.
