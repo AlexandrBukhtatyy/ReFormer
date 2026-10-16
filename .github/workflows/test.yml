@@ -223,6 +223,14 @@ jobs:
           npm run plugins:dist -w reformer-builder-playground
           npm run build:plugins -w @reformer/builder
 
+      - name: Builder packaging smoke
+        # `npm pack` билдера → чистый проект в os.tmpdir(): раскладка `files` (клиент собранным,
+        # плагин Vite, dist с плагинами, без `src/`), импорт трёх входов, прод-сборка приложения
+        # с плагином — без клиента билдера, типы обоих входов. Внутри монорепозитория это не видно:
+        # workspace-симлинк отдаёт всё дерево, и так 3.0.0-beta.14 ушёл в реестр без `exports`
+        # и клиента. Идёт ПОСЛЕ плагинов приложения: тарболу нужен полный `dist`.
+        run: npm run check:packaging -w @reformer/builder
+
       - name: Run @reformer/builder tests
         # Оболочка, основа конструктора и киты. Движков форм в составе билдера нет — их тесты
         # шагом выше.
