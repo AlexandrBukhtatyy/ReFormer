@@ -1,6 +1,6 @@
 # Релизы и публикация пакетов
 
-Документ описывает как версионируются и публикуются 6 npm-пакетов ReFormer. Setup: `semantic-release` 25 + `semantic-release-monorepo` (path-aware filtering) + GitHub Actions CI.
+Документ описывает как версионируются и публикуются npm-пакеты ReFormer. Setup: `semantic-release` 25 + `semantic-release-monorepo` (path-aware filtering) + GitHub Actions CI.
 
 ## Пакеты и tag format
 
@@ -12,6 +12,7 @@
 | `@reformer/renderer-react` | `packages/reformer-renderer-react/` | `renderer-react-v${version}` | https://www.npmjs.com/package/@reformer/renderer-react |
 | `@reformer/renderer-json`  | `packages/reformer-renderer-json/`  | `renderer-json-v${version}`  | https://www.npmjs.com/package/@reformer/renderer-json  |
 | `@reformer/mcp`            | `packages/reformer-mcp/`            | `mcp-v${version}`            | https://www.npmjs.com/package/@reformer/mcp            |
+| `@reformer/builder`        | `projects/reformer-builder/`        | `builder-v${version}`        | https://www.npmjs.com/package/@reformer/builder        |
 
 ## Принцип: каждый пакет версионируется независимо
 
@@ -82,13 +83,15 @@ Rebase (и merge commit) сохраняют оригинальные per-scope �
 ### Что НЕ запускает release
 
 - `chore:`, `docs:`, `style:`, `refactor:`, `test:`, `ci:`, `build:` (по default'у, можно настроить)
-- Изменения вне `packages/` (например `docs/**`, `projects/**`, root configs)
+- Изменения вне каталогов пакетов (например `docs/**`, root configs). Из `projects/` релизит
+  только билдер: `projects/reformer-builder/**` и плагины проекта-образца, которые едут
+  с ним, — см. `paths` в `release.yml`
 
 Если нужно опубликовать что-то без feature/fix-семантики — используй `feat:` со scope (необязательно осмысленным) или просто скоммить с `docs:` и через 1-2 итерации настоящий feat-commit подтянет.
 
 ## Что происходит на push
 
-GitHub Actions workflow `.github/workflows/release.yml` триггерится на push в `main` или `develop` если изменены `packages/**` или сам workflow.
+GitHub Actions workflow `.github/workflows/release.yml` триггерится на push в `main` или `develop` если изменены `packages/**`, `projects/reformer-builder/**` (и плагины проекта-образца) или сам workflow.
 
 Запускает **6 sequential matrix jobs** (по одному на пакет, max-parallel=1 чтобы не было race на `refs/notes/semantic-release`):
 
