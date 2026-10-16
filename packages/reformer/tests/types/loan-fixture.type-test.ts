@@ -170,9 +170,10 @@ export function loanValueTypeChecks({ bundle }: LoanForm): void {
   model.patch({ loan: { amount: '500 000' } });
   // @ts-expect-error — помощник принимает правки строки созаёмщика без телефонов
   addCoBorrower(model, { phones: [] });
-  // [ReFormer-sme2] сейчас компилируется, а не должно: поле документов из начального `null` в
-  // рантайме — лист, а тип фасада — массив без `null` (ReFormer-y5g8, `src/model/model.type-test.ts`).
+  // @ts-expect-error — поле документов с `null` в типе — значение как есть, не фасад [ReFormer-sme2]
   void model.documents.length;
+  const documentsValue: File[] | null = model.documents;
+  void documentsValue;
 
   void [typed, amount, fullName, coBorrower, phones, city, previousJobs, documents, snapshot];
   void [initial, limits, added];

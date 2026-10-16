@@ -211,21 +211,26 @@ export function arrayValueTypeChecks(model: FormModel<Profile>): void {
   const files: File[] | null = model.$.files.value;
   model.$.files.value = null;
   model.$.files.value = [new File([], 'passport.pdf')];
-  // поведение под вопросом: длина и индексы у ручки есть только при начальном массиве; у поля из
-  // `null` ручка — лист, `length` в рантайме `undefined` (оговорено в JSDoc `ModelArraySignals`).
-  const handleLength: number = model.$.files.length;
+  // Ручка поля с `null` — лист: длины и индексов у неё нет, как и в рантайме [ReFormer-sme2].
+  // @ts-expect-error — `length` есть только у узла-массива
+  void model.$.files.length;
+  // @ts-expect-error — и под-сигналов у группы `Address | null` нет
+  void model.$.spare.city;
+  const spareHandle: PathAwareSignal<Address | null> = model.$.spare;
 
-  // Value-фасад: `ModelValue<File[] | null>` сейчас — `ModelArray<File>` без `null`, а в рантайме
-  // поле из начального `null` — лист: значение `null` или обычный массив после записи.
-  // [ReFormer-sme2] сейчас компилируется, а не должно: фасада массива у поля из `null` нет.
+  // Value-фасад nullable-контейнера — значение как есть: `File[] | null`, `Address | null`.
+  const filesValue: File[] | null = model.files;
+  // @ts-expect-error — фасада массива у поля с `null` нет [ReFormer-sme2]
   const filesFacade: ModelArray<File> = model.files;
-  // [ReFormer-sme2] сейчас компилируется, а не должно: `null.length` — TypeError в рантайме.
+  // @ts-expect-error — значение бывает `null`
   void model.files.length;
-  // @ts-expect-error [ReFormer-sme2] запись `null` в поле `File[] | null` должна компилироваться
   model.files = null;
-  // То же у группы `Address | null`: тип — под-модель без `null`.
-  // [ReFormer-sme2] сейчас компилируется, а не должно: у группы из `null` в рантайме значение `null`.
+  model.files = [new File([], 'passport.pdf')];
+  // @ts-expect-error — у группы `Address | null` значение бывает `null`
   void model.spare.city;
+  const spareCity: string | undefined = model.spare?.city;
+  model.spare = null;
 
-  void [tags, firstTag, tagValues, strictTag, spreadPhones, files, handleLength, filesFacade];
+  void [tags, firstTag, tagValues, strictTag, spreadPhones, files, spareHandle, filesValue];
+  void [filesFacade, spareCity];
 }

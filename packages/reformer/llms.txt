@@ -1696,6 +1696,10 @@ validate(model.$.tags, [required(), maxLength(3)]); // правило получ
 - Узел-массив хранит только массив: запись `null`/`undefined` даёт `[]`. Нужно отличать «не
   выбирали» от «выбрали ничего» — объявляй поле `T[] | null` с начальным `null`: в рантайме это
   лист, и привязывается он так же.
+- **Контейнер с `null` в типе — значение как есть.** `model.files` у поля `File[] | null` — это
+  `File[] | null`, а не фасад `ModelArray`; `model.$.files` — лист `PathAwareSignal` без `length` и
+  индексов; группа `Address | null` — `Address | null` без под-модели. Такое поле начинают с
+  `null`: контейнер, созданный из `[]` или `{}`, в рантайме стал бы фасадом, а тип его не видит.
 - Запись в узел-ГРУППУ (`model.$.<группа>.value = …`) — ошибка: группа пишется по полям или через
   `model.patch(...)`.
 
@@ -12273,9 +12277,9 @@ push/removeAt/move).
 правило (`validate(model.$.tags, …)`) и поведение, как к листу. Так массив служит ОДНИМ значением
 поля: мультивыбор, теги, список файлов.
 
-`V` — объявленный тип поля, включая `null`/`undefined`: поле `string[] | null` с начальным `null`
-в рантайме — лист с тем же `.value`/`peek`/`subscribe`, поэтому общая часть честна для обоих
-случаев. `length` и индексы есть только у настоящего узла-массива (начальное значение — массив).
+`V` — объявленный тип поля, включая `undefined`. Поле с `null` в типе (`string[] | null`) — не
+узел-массив, а лист {@link PathAwareSignal}: его начинают с `null`, и `length` с индексами у него
+в рантайме нет (см. {@link ModelValue}).
 
 **Signature:**
 ```typescript
@@ -12400,17 +12404,22 @@ _Source: src/model/types.ts_
 - объект → под-модель {@link FormModel} (value-доступ + `.$`-сигналы + API get/set/patch/…);
   промоутится рантаймом (`makeFormModel`); сигналы идентичны `model.$.<path>`
 - примитив → значение
+- тип с `null` (`File[] | null`, `Address | null`) → значение как есть, без фасада: поле,
+  которое бывает `null`, начинают с `null`, а такое поле в рантайме — лист (значение целиком).
+  Контейнер, созданный из `[]` или `{}`, стал бы фасадом — nullable-контейнер начинают с `null`.
 
 **Signature:**
 ```typescript
 export type ModelValue<V> =
-  NonNullable<V> extends ReadonlyArray<infer U>
-    ? ModelArray<U>
-    : NonNullable<V> extends Opaque
-      ? V
-      : NonNullable<V> extends object
-        ? FormModel<NonNullable<V>>
-        : V;
+  IncludesNull<V> extends true
+    ? V
+    : NonNullable<V> extends ReadonlyArray<infer U>
+      ? ModelArray<U>
+      : NonNullable<V> extends Opaque
+        ? V
+        : NonNullable<V> extends object
+          ? FormModel<NonNullable<V>>
+          : V;
 ```
 
 _Source: src/model/types.ts_

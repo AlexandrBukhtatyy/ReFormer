@@ -62,6 +62,13 @@ export type DeepPartial<T> = {
 };
 
 /**
+ * `null` входит в тип `V`. Без `strictNullChecks` у потребителя `null` подходит любому типу —
+ * тогда признак ложен, и тип контейнера остаётся фасадом, как без `null`.
+ * @internal
+ */
+type IncludesNull<V> = null extends string ? false : null extends V ? true : false;
+
+/**
  * Фасад элемента массива при обходе (`at`/`map`/`forEach`): массив → {@link ModelArray},
  * Opaque (Date/File/Blob) и примитив → значение, объект → под-модель {@link FormModel}.
  * Зеркалит листовой/объектный сплит {@link ModelValue} (но объект → под-модель с API),
@@ -69,13 +76,15 @@ export type DeepPartial<T> = {
  * @internal
  */
 type ModelArrayItem<U> =
-  NonNullable<U> extends ReadonlyArray<infer E>
-    ? ModelArray<E>
-    : NonNullable<U> extends Opaque
-      ? U
-      : NonNullable<U> extends object
-        ? FormModel<NonNullable<U>>
-        : U;
+  IncludesNull<U> extends true
+    ? U
+    : NonNullable<U> extends ReadonlyArray<infer E>
+      ? ModelArray<E>
+      : NonNullable<U> extends Opaque
+        ? U
+        : NonNullable<U> extends object
+          ? FormModel<NonNullable<U>>
+          : U;
 
 /**
  * Значение поля в value-доступе модели:
@@ -84,17 +93,22 @@ type ModelArrayItem<U> =
  * - объект → под-модель {@link FormModel} (value-доступ + `.$`-сигналы + API get/set/patch/…);
  *   промоутится рантаймом (`makeFormModel`); сигналы идентичны `model.$.<path>`
  * - примитив → значение
+ * - тип с `null` (`File[] | null`, `Address | null`) → значение как есть, без фасада: поле,
+ *   которое бывает `null`, начинают с `null`, а такое поле в рантайме — лист (значение целиком).
+ *   Контейнер, созданный из `[]` или `{}`, стал бы фасадом — nullable-контейнер начинают с `null`.
  *
  * @group Model
  */
 export type ModelValue<V> =
-  NonNullable<V> extends ReadonlyArray<infer U>
-    ? ModelArray<U>
-    : NonNullable<V> extends Opaque
-      ? V
-      : NonNullable<V> extends object
-        ? FormModel<NonNullable<V>>
-        : V;
+  IncludesNull<V> extends true
+    ? V
+    : NonNullable<V> extends ReadonlyArray<infer U>
+      ? ModelArray<U>
+      : NonNullable<V> extends Opaque
+        ? V
+        : NonNullable<V> extends object
+          ? FormModel<NonNullable<V>>
+          : V;
 
 /**
  * Карта value-полей объекта (value-половина {@link FormModel}): поля доступны как обычные свойства
@@ -191,9 +205,9 @@ export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>
  * правило (`validate(model.$.tags, …)`) и поведение, как к листу. Так массив служит ОДНИМ значением
  * поля: мультивыбор, теги, список файлов.
  *
- * `V` — объявленный тип поля, включая `null`/`undefined`: поле `string[] | null` с начальным `null`
- * в рантайме — лист с тем же `.value`/`peek`/`subscribe`, поэтому общая часть честна для обоих
- * случаев. `length` и индексы есть только у настоящего узла-массива (начальное значение — массив).
+ * `V` — объявленный тип поля, включая `undefined`. Поле с `null` в типе (`string[] | null`) — не
+ * узел-массив, а лист {@link PathAwareSignal}: его начинают с `null`, и `length` с индексами у него
+ * в рантайме нет (см. {@link ModelValue}).
  *
  * @group Model
  */
@@ -208,17 +222,20 @@ export type ModelArraySignals<U, V> = Signal<V> & {
  * Узел дерева сигналов `model.$`: массив → {@link ModelArraySignals}, Opaque (Date/File/Blob)
  * и примитив → {@link PathAwareSignal}, объект → {@link ModelGroupSignals}. Для примитивных
  * и Opaque массивов элемент — сам сигнал листа (а не под-дерево), поэтому `model.$.tags[0]` — это
- * `PathAwareSignal<string>`, а не `ModelGroupSignals<never>`.
+ * `PathAwareSignal<string>`, а не `ModelGroupSignals<never>`. Тип с `null` — лист
+ * {@link PathAwareSignal}: такое поле начинают с `null`, и под-сигналов у него нет.
  * @internal
  */
 type ModelSignalNode<V> =
-  NonNullable<V> extends ReadonlyArray<infer U>
-    ? ModelArraySignals<U, V>
-    : NonNullable<V> extends Opaque
-      ? PathAwareSignal<V>
-      : NonNullable<V> extends object
-        ? ModelGroupSignals<NonNullable<V>>
-        : PathAwareSignal<V>;
+  IncludesNull<V> extends true
+    ? PathAwareSignal<V>
+    : NonNullable<V> extends ReadonlyArray<infer U>
+      ? ModelArraySignals<U, V>
+      : NonNullable<V> extends Opaque
+        ? PathAwareSignal<V>
+        : NonNullable<V> extends object
+          ? ModelGroupSignals<NonNullable<V>>
+          : PathAwareSignal<V>;
 
 /**
  * API уровня модели (доступно на корне, под-моделях вложенных объектов-групп и элементов массива).
