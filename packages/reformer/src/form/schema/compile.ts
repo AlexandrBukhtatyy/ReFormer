@@ -260,6 +260,16 @@ function compileContainer(
       children.push(compileNode(child as object, childPath, context));
     }
   }
+  // Только узел, описанный пустым: контейнер из нераспознанной привязки или узел с неизвестными
+  // ключами уже получил своё предупреждение.
+  const bare = Object.keys(node).every((key) => key === 'selector' || key === 'componentProps');
+  if (base.component === undefined && raw === undefined && bare) {
+    warn(
+      `${AT}: узел ${base.id} — без \`component\` и без \`children\`: он ничего не рисует, и ` +
+        '`componentProps` ему некому отдать. Пустую секцию объявляют с `children: []`, узел с ' +
+        'разметкой — с `component`.'
+    );
+  }
   return register({ ...base, kind: 'container', children }, context);
 }
 
@@ -341,6 +351,9 @@ function compileArray(
   const arrayPath = relativePath(handle, context, path);
   const scopePrefix = `${context.scope}/${arrayPath}`;
   const rows = new WeakMap<object, CompiledSchema>();
+  // Шаблон строки один на все строки: о его непрочитанных ключах сказано один раз, а не на
+  // каждую строку.
+  const warned = new Set<string>();
   const array: CompiledArrayNode = register(
     {
       ...baseOf(node, path, context),
@@ -351,11 +364,18 @@ function compileArray(
       row(rowModel) {
         let row = rows.get(rowModel);
         if (!row) {
-          row = compileScope(
+          const unknownKeys = new Set<string>();
+          row = compileScopeWith(
             schemaSubtree(item, rowModel),
             rowModel,
-            `${scopePrefix}[${rowKeyOf(rowModel)}]` as SchemaScopeId
+            `${scopePrefix}[${rowKeyOf(rowModel)}]` as SchemaScopeId,
+            unknownKeys
           );
+          const fresh = [...unknownKeys].filter((key) => !warned.has(key));
+          if (fresh.length > 0) {
+            for (const key of fresh) warned.add(key);
+            warnUnknownNodeKeys(new Set(fresh));
+          }
           rows.set(rowModel, row);
         }
         return row;

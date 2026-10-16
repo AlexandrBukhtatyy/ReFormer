@@ -531,7 +531,7 @@ describe('оболочка заявки — управление узлами с
     expect(screen.queryByTestId('node:mortgage')).toBeNull();
   });
 
-  it('RA-13: принудительно скрытая секция остаётся в проверке шага — отказ без замечаний на экране', async () => {
+  it('RA-13: поведение под вопросом [ReFormer-5jew]: принудительно скрытая секция остаётся в проверке шага — отказ без замечаний на экране', async () => {
     const app = mountLoan();
     await perform(() => fillLoanStep(app.bundle.model, { type: 'mortgage' }));
     act(() => void app.bundle.render.node('mortgage').setHidden(true));

@@ -173,6 +173,9 @@ export function createSchemaScope(
 ): SchemaScope {
   // Изменение уведомляет только подписчиков затронутого селектора; общий счётчик — для тех, кому
   // нужна любая правка области.
+  //
+  // Правка, которая ничего не меняет (повтор того же значения, сброс отсутствующей записи),
+  // версий не трогает: иначе рендерер узла перерисовался бы впустую.
   const bump = (selector: string): void => {
     maps.version.value++;
     maps.versionFor(selector).value++;
@@ -189,26 +192,29 @@ export function createSchemaScope(
     },
     node: (selector) => ({
       setHidden(value) {
+        if (maps.hiddenOverrides.get(selector) === value) return this;
         maps.hiddenOverrides.set(selector, value);
         bump(selector);
         return this;
       },
       resetHidden() {
-        maps.hiddenOverrides.delete(selector);
-        bump(selector);
+        if (maps.hiddenOverrides.delete(selector)) bump(selector);
         return this;
       },
       patchProps(partial) {
-        maps.propsOverrides.set(selector, {
-          ...(maps.propsOverrides.get(selector) ?? {}),
-          ...partial,
-        });
+        const current = maps.propsOverrides.get(selector);
+        const same =
+          current != null &&
+          Object.keys(partial).every(
+            (key) => key in current && Object.is(current[key], partial[key])
+          );
+        if (same) return this;
+        maps.propsOverrides.set(selector, { ...(current ?? {}), ...partial });
         bump(selector);
         return this;
       },
       resetProps() {
-        maps.propsOverrides.delete(selector);
-        bump(selector);
+        if (maps.propsOverrides.delete(selector)) bump(selector);
         return this;
       },
       getRef<H>() {
@@ -310,8 +316,17 @@ export function unknownSchemaSelectors(
   maps: SchemaOverrideMaps,
   compiled: CompiledSchema
 ): string[] {
+  // Подформа на той же модели, что и область (`model: model.$`), делит с ней область контроллера:
+  // правило к её узлу из поведения области работает, и предупреждать о нём не о чем.
+  const sharing = [compiled];
+  for (let i = 0; i < sharing.length; i++) {
+    for (const node of sharing[i].nodes.values()) {
+      const shared = compiled.model !== undefined && node.kind === 'part';
+      if (shared && node.content.model === compiled.model) sharing.push(node.content);
+    }
+  }
   const known = (selector: string): boolean =>
-    compiled.nodes.get(selector as SchemaNodeId)?.selector === selector;
+    sharing.some((schema) => schema.nodes.get(selector as SchemaNodeId)?.selector === selector);
   const used = new Set<string>([
     ...maps.hiddenOverrides.keys(),
     ...maps.propsOverrides.keys(),

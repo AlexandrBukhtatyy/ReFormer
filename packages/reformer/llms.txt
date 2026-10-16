@@ -6767,7 +6767,99 @@ interface CompiledSchema {
 
 - **Подформа** компилируется сразу; её содержимое — `content` (своя `CompiledSchema`). Поля и
   массивы части попадают и в `fields` / `arrays` родителя: у части нет отдельной формы, её поля
-  принадлежат той же сборке (`form.registrationAddress.city`).
+  принадлежат той же сборке (`form.registrationAddress.city`). Подформа на самой модели области
+  (`model: model.# Скомпилированная схема — compileSchema, виды узлов и области
+
+## 108. Purpose
+
+Авторская схема (`FormSchemaNode`) описывает вид узла ключами: `model`, `item`, `part`,
+`children`. Разбирать их по-своему раньше приходилось каждому, кто обходил дерево. Теперь дерево
+разбирает один компилятор — `compileSchema(tree, model)` — и все читают его итог,
+`CompiledSchema`: у каждого узла явный вид (`kind`), нормализованная привязка к модели,
+идентификатор и область.
+
+`createForm` компилирует дерево **один раз**: ноды формы и рендерер читают одну и ту же
+компиляцию, она лежит в `bundle.render.tree`. Сам `compileSchema` нужен редко — своему
+рендереру, инструментам (инспектор дерева, проверка селекторов в тестах) и фабрикам, которые
+собирают форму без `createForm`.
+
+## 109. API
+
+```typescript
+import {
+  compileSchema,
+  isCompiledNode,
+  type CompiledSchema,
+  type CompiledNode,
+  type CompiledChild,
+  type SchemaNodeId,
+  type SchemaScopeId,
+} from '@reformer/core';
+
+function compileSchema(
+  tree: FormSchemaNode,
+  model?: object, // модель области: корень сборки, под-модель строки или группы
+  options?: { scope?: SchemaScopeId } // по умолчанию корень '#'
+): CompiledSchema;
+
+function isCompiledNode(value: unknown): value is CompiledNode; // узел компилятора, а не автора
+
+interface CompiledSchema {
+  readonly scope: SchemaScopeId; // '#', '#/address', '#/phones[3]'
+  readonly model: object | undefined; // модель области
+  readonly root: CompiledNode; // корневой узел области
+  readonly nodes: ReadonlyMap<SchemaNodeId, CompiledNode>; // узлы ЭТОЙ области по id
+  readonly fields: ReadonlyMap<object, CompiledFieldNode>; // поля по ручке — области и её подформ
+  readonly arrays: ReadonlyMap<object, CompiledArrayNode>; // массивы под-форм по ручке
+}
+```
+
+### Виды узлов — `kind`
+
+| `kind`      | Узел автора                                              | Что добавляет компилятор                                          |
+| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| `field`     | `{ model: model.$.<лист или массив целиком>, component }` | `handle` (ручка значения), `disabled`                            |
+| `array`     | `{ model: model.$.<массив>, item: (row) => узел }`       | `handle`, `control` (фасад массива модели), `initialValue`, `row(rowModel)` |
+| `part`      | `{ model: model.$.<группа>, part: (sub) => узел }`       | `handle`, `model` (под-модель группы), `content` — схема части   |
+| `container` | всё остальное: `children`, `component`                   | `children: CompiledChild[]` — узлы и текст по порядку            |
+| `text`      | подряд идущие строки, числа, сигналы среди `children`    | `parts` — склеенные части; только ребёнок контейнера             |
+
+Общие поля узла (кроме `text`): `id`, `path` (позиционный путь `#/0/2`), `selector`, `scope`,
+`component` (как есть — ядро его не интерпретирует), `props` (`componentProps` автора, без них —
+пустой объект), `source` (авторский узел).
+
+Порядок распознавания важен: ручка массива — тоже ручка значения, поэтому сначала проверяется
+`item` (массив под-форм), затем `part` (подформа), затем привязка-значение (поле), остальное —
+контейнер. Контейнер без `component` рендерер рисует как одних детей.
+
+### Идентификатор узла — `id`
+
+- Узел с `selector` — `id` равен `selector`.
+- Узел без `selector` — позиционный путь от корня области: `#`, `#/0`, `#/0/2`.
+- Текст — позиционный путь первой части.
+- `SchemaNodeId` — строка с брендом: в `compiled.nodes.get(...)` ключ приводят
+  (`'email' as SchemaNodeId`).
+
+### Области — `scope`
+
+| Область          | Идентификатор                | Что в ней                               |
+| ---------------- | ---------------------------- | --------------------------------------- |
+| корень сборки    | `#`                          | дерево `schema(model)`                  |
+| подформа (`part`) | `#/registrationAddress`     | содержимое части; путь группы от модели области |
+| строка массива   | `#/phones[<ключ>]`           | разметка строки из `item(rowModel)`     |
+| вложенные        | `#/coBorrowers[3]/phones[7]` | область внутри области                  |
+
+- В скобках строки — **стабильный ключ** строки, а не индекс: он держится за элемент модели и не
+  меняется при `move` / `swap`. Тот же ключ отдаёт `FormArray.keyAt(index)`.
+- **`selector` уникален в своей области.** Повтор в одной области — исключение при сборке с путями
+  обоих узлов. Селекторы строк массива и подформ живут в своих областях и с корнем не
+  пересекаются: одна часть, подключённая дважды, даёт две области без конфликта.
+- По `selector` узел адресуют поведение (`schema.node(selector)` — в своей области) и шаги потока
+  (`flow.steps[].id` — `selector` узла шага в корневой области).
+
+### Подформы и строки
+
+) делит с ней область: правило к её узлу из поведения области работает.
 - **Строка массива** компилируется при первом обращении: `arrayNode.row(rowModel)` — одна
   компиляция на под-модель строки; форма строки и рендерер получают один и тот же объект. Узлы
   строк в `nodes` корня не лежат.
@@ -6778,7 +6870,9 @@ interface CompiledSchema {
 | --------------------------------------------------------- | ------------------------------------------------------ |
 | повтор `selector` в одной области                         | исключение с путями обоих узлов                        |
 | узел содержит сам себя                                    | исключение — дерево зациклено                          |
-| ключ узла, который сборка не читает (`value`, `array`, …) | dev-предупреждение с подсказкой замены                 |
+| ключ узла, который сборка не читает (`value`, `array`, …) | dev-предупреждение с подсказкой замены (у строк массива — одно на шаблон) |
+| узел без `component` и без `children`                     | dev-предупреждение: ничего не рисует; пустая секция — `children: []` |
+| одна ручка модели в двух узлах                            | dev-предупреждение; нода берёт `component`, `componentProps` и `disabled` последней привязки |
 | `item` на привязке не-массиве, `part` на не-группе        | dev-предупреждение, узел становится контейнером        |
 | нераспознанная привязка (`model: model.email` без `$`)    | dev-предупреждение, узел становится контейнером        |
 | ребёнок — группа модели или под-модель вместо узла        | dev-предупреждение, ребёнок пропущен                   |
@@ -6787,7 +6881,7 @@ interface CompiledSchema {
 Вложенные узлы читаются только из `children` и из поддерева `part`; в `componentProps` и под
 произвольными ключами компилятор не заглядывает.
 
-## 108. Examples
+## 110. Examples
 
 ### Компиляция и поиск узлов
 
@@ -6865,7 +6959,7 @@ function renderNode(node: CompiledChild): ReactNode {
 }
 ```
 
-## 109. Anti-patterns
+## 111. Anti-patterns
 
 ```typescript
 // ❌ Два узла с одним selector в корне — исключение при сборке
@@ -6906,14 +7000,14 @@ coBorrowers?.row(model.coBorrowers.at(0)!).nodes.get('co-borrower' as SchemaNode
 { component: Section, children: [{ model: model.$.email, component: Input }] }
 ```
 
-## 110. See also
+## 112. See also
 
 - [09-formschema.md](./09-formschema.md) — авторский формат узлов
 - [35-unified-contract.md](./35-unified-contract.md) — одна схема, одна сборка, одно поведение
 - [38-form-flow.md](./38-form-flow.md) — шаги потока адресуются `selector` узлов шагов
 - [10-arrays.md](./10-arrays.md) — массивы под-форм и `keyAt`
 
-## 111. Purpose
+## 113. Purpose
 
 **Уровень формы и поток шагов — validate, submit и FormFlow**
 
@@ -6930,7 +7024,7 @@ coBorrowers?.row(model.coBorrowers.at(0)!).nodes.get('co-borrower' as SchemaNode
 - Результаты — объекты со статусом, а не `boolean`: по ним отличают ошибки в форме (`invalid`) от
   сбоя проверки (`error`), отмены (`cancelled`) и исключения обработчика (`failed`).
 
-## 112. API
+## 114. API
 
 ```typescript
 import {
@@ -7083,7 +7177,7 @@ cancelled`, `issues` — замечания по ручке поля, `failures`
 - Повтор `id` в `flow.steps` — исключение при сборке. Шаг, для которого в корневой области схемы
   нет узла с таким `selector`, — dev-предупреждение (если хотя бы один шаг узел нашёл).
 
-## 113. Examples
+## 115. Examples
 
 ### Сборка с потоком шагов
 
@@ -7250,7 +7344,7 @@ await flow.next(); // { status: 'moved', from: 'loan', to: 'confirm' } либо 
 Обычно это не нужно: `createForm({ flow })` собирает такой поток сам, а визард без потока
 строит позиционный.
 
-## 114. Anti-patterns
+## 116. Anti-patterns
 
 ```typescript
 // ❌ Шаги ключами validation.steps — удалено
@@ -7303,7 +7397,7 @@ await sendApplication(credit.model.get());
 await credit.submission.submit(sendApplication);
 ```
 
-## 115. See also
+## 117. See also
 
 - [13-multi-step.md](./13-multi-step.md) — многошаговая форма: правила шагов, визард, раскладка
 - [28-submit-and-reset.md](./28-submit-and-reset.md) — отправка, сброс, серверные ошибки
@@ -7311,7 +7405,7 @@ await credit.submission.submit(sendApplication);
 - [36-issue-messages.md](./36-issue-messages.md) — тексты замечаний
 - [37-compiled-schema.md](./37-compiled-schema.md) — `selector`, области и `bundle.render.tree`
 
-## 116. API Reference
+## 118. API Reference
 
 _Auto-generated from JSDoc on public exports._
 

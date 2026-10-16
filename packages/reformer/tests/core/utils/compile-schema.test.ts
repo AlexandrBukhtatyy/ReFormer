@@ -598,9 +598,10 @@ describe('compileSchema — идентификаторы областей', () =
   });
 
   it('подформа на корне модели — область `#/`, модель области — сама модель', () => {
-    // поведение под вопросом [ReFormer-arpz]: путь корня пуст, и идентификатор области вырождается в `#/`. Модель
-    // области при этом та же, что у корня: контроллер отдаст подформе корневую область, а
-    // уникальность селекторов компилятор проверяет в двух областях раздельно.
+    // Так задумано (решение по arpz): подформа на самой модели и есть корень — контроллер отдаёт
+    // ей корневую область, и правило к её узлу из поведения корня работает. Путь корня пуст,
+    // поэтому идентификатор области — `#/`; уникальность селекторов компилятор проверяет в двух
+    // областях раздельно.
     const model = createShape();
 
     const part = compileSchema(
@@ -696,8 +697,7 @@ describe('compileSchema — ключи, которые сборка не чит�
     expect(messages[0]).not.toContain('`label`:');
   });
 
-  it('ключи строки — предупреждение при компиляции каждой строки', () => {
-    // поведение под вопросом [ReFormer-arpz]: одно и то же предупреждение повторяется на каждую строку массива.
+  it('ключи строки — одно предупреждение на шаблон, а не на каждую строку [ReFormer-arpz]', () => {
     const warn = muteWarnings();
     const model = createShape();
     const phones = compileSchema(
@@ -713,10 +713,7 @@ describe('compileSchema — ключи, которые сборка не чит�
     phones.row(model.phones.at(1)!);
     phones.row(model.phones.at(1)!);
 
-    expect(warningsOf(warn)).toEqual([
-      expect.stringContaining('не читает: `hint`.'),
-      expect.stringContaining('не читает: `hint`.'),
-    ]);
+    expect(warningsOf(warn)).toEqual([expect.stringContaining('не читает: `hint`.')]);
   });
 });
 
@@ -774,9 +771,9 @@ describe('compileSchema — корень области не узел', () => {
 
 describe('compileSchema — зонды', () => {
   it('одна ручка в двух полях: оба узла в области, в индексе `fields` — последний', () => {
-    // поведение под вопросом [ReFormer-arpz]: индекс `fields` держит одно поле на ручку, и конфиг
-    // первой привязки для ноды формы теряется — теперь с dev-предупреждением [ReFormer-dd58] (тест
-    // ниже). Что правильно — первая привязка, последняя или исключение, — вопрос контракта.
+    // Так задумано (решение по arpz): индекс `fields` держит одно поле на ручку, и действует
+    // последняя привязка — конфиг первой для ноды формы теряется, с dev-предупреждением
+    // [ReFormer-dd58] (тест ниже).
     muteWarnings();
     const model = createShape();
 
@@ -817,9 +814,8 @@ describe('compileSchema — зонды', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  it('узел без `component` и без `children` — пустой контейнер без предупреждения', () => {
-    // поведение под вопросом [ReFormer-arpz]: такой узел ничего не рисует (и `componentProps` ему некому отдать),
-    // но тип `SchemaContainerNode` его разрешает, а компилятор молчит.
+  it('узел без `component` и без `children` — пустой контейнер с dev-предупреждением [ReFormer-arpz]', () => {
+    // Такой узел ничего не рисует, и `componentProps` ему некому отдать: о нём предупреждают.
     const warn = muteWarnings();
     const model = createShape();
 
@@ -837,7 +833,10 @@ describe('compileSchema — зонды', () => {
         children: [],
       }),
     ]);
-    expect(warn).not.toHaveBeenCalled();
+    expect(warningsOf(warn)).toEqual([
+      expect.stringContaining('узел #/0 — без `component` и без `children`'),
+      expect.stringContaining('узел placeholder — без `component` и без `children`'),
+    ]);
   });
 
   it('часть на своей же группе — исключение «дерево зациклено» [ReFormer-hczl]', () => {

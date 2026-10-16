@@ -224,18 +224,22 @@ describe('schema-controller — версии', () => {
     });
   });
 
-  it('правка без изменения значения тоже поднимает версии', () => {
-    // поведение под вопросом [ReFormer-arpz]: повтор того же значения и сброс отсутствующей записи — тоже правка,
-    // и рендерер узла перерисуется впустую.
+  it('правка без изменения значения версий не поднимает — рендерер не перерисуется впустую [ReFormer-arpz]', () => {
     const scope = createSchemaScope();
     const maps = scope.__overrideMaps;
 
     scope.node('block').setHidden(true);
     scope.node('block').setHidden(true);
     scope.node('block').resetProps();
+    expect(maps.versionFor('block').value).toBe(1);
 
-    expect(maps.versionFor('block').value).toBe(3);
-    expect(maps.propsOverrides.has('block')).toBe(false);
+    scope.node('block').patchProps({ title: 'a' });
+    scope.node('block').patchProps({ title: 'a' });
+    expect(maps.versionFor('block').value).toBe(2);
+    scope.node('block').patchProps({ title: 'b' });
+    scope.node('block').resetHidden();
+    scope.node('block').resetHidden();
+    expect([maps.versionFor('block').value, maps.version.value]).toEqual([4, 4]);
   });
 
   it('getRef версии не трогает', () => {
@@ -307,6 +311,27 @@ describe('schema-controller — unknownSchemaSelectors', () => {
       'callback-ghost',
       'lifecycle-ghost',
     ]);
+  });
+
+  it('узел подформы на той же модели, что и область, известен: правило к нему работает [ReFormer-arpz]', () => {
+    const model = createShape();
+    const compiled = compileSchema(
+      {
+        children: [
+          { selector: 'top', children: [] },
+          {
+            model: model.$,
+            part: () => ({ selector: 'inside', children: [] }),
+          } as unknown as FormSchemaNode,
+        ],
+      } as unknown as FormSchemaNode,
+      model
+    );
+    const scope = createSchemaScope();
+    scope.node('inside').setHidden(true);
+    scope.node('ghost').setHidden(true);
+
+    expect(unknownSchemaSelectors(scope.__overrideMaps, compiled)).toEqual(['ghost']);
   });
 
   it('ref и эффекты области в сверку не входят', () => {
