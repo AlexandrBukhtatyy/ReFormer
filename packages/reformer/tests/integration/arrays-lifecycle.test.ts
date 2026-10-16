@@ -14,7 +14,7 @@
  *   шаблонами и поведением строк, производные поля пересчитаны;
  * - `modelOf` — ручка строки ведёт к своей строке и после перестановки;
  * - ошибки строк в результате проверки шага — с путями строк, вложенных групп и массивов;
- * - `dirty` массива — известный дефект `ReFormer-j33t`.
+ * - `dirty` массива — изменение состава через форму делает массив изменённым (`ReFormer-j33t`).
  * Ветви самих нод и модели массива покрыты юнит-тестами (`tests/core/nodes/`, `tests/core/model/`).
  */
 
@@ -531,19 +531,19 @@ describe('массивы заявки — поведение и проверка
     });
   });
 
-  it.fails(
-    'AL-15: удаление строки делает массив dirty — состав списка изменился [ReFormer-j33t]',
-    () => {
-      const { bundle } = build({
-        seed: (model) => {
-          addCoBorrower(model);
-          addCoBorrower(model);
-        },
-      });
+  it('AL-15: удаление строки делает массив и форму dirty — состав списка изменился', () => {
+    const { bundle } = build({
+      seed: (model) => {
+        addCoBorrower(model);
+        addCoBorrower(model);
+      },
+    });
+    // Строки, добавленные засевом через модель, массив изменённым не делают.
+    expect(bundle.form.coBorrowers.dirty.value).toBe(false);
 
-      bundle.form.coBorrowers.removeAt(0);
+    bundle.form.coBorrowers.removeAt(0);
 
-      expect(bundle.form.coBorrowers.dirty.value).toBe(true);
-    }
-  );
+    expect(bundle.form.coBorrowers.dirty.value).toBe(true);
+    expect(bundle.form.dirty.value).toBe(true);
+  });
 });

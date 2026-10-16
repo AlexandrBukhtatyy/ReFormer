@@ -30,8 +30,9 @@ function build(): any {
     children: [{ model: model.$.rows, item: (it: FormModel<Item>) => itemSchema(it) }],
   };
   const form = createFormFromModel<Form>({ model, schema }) as any;
-  form.rows.push({ name: 'a', qty: 1 });
-  form.rows.push({ name: 'b', qty: 2 });
+  // Засев — через модель: push формы сделал бы массив dirty по составу (ReFormer-j33t).
+  model.rows.push({ name: 'a', qty: 1 });
+  model.rows.push({ name: 'b', qty: 2 });
   return form;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

@@ -45,6 +45,14 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 
   private readonly rows = signal<FormGroup<T>[]>([]);
+  /**
+   * Состав массива меняли методами ноды после создания или сброса. Как `dirty` поля: ставит запись
+   * через форму (`push`, `removeAt`, `move`, `setValue`…), а не запись в модель — загрузка данных
+   * массив изменённым не делает. Операция, которая состав не поменяла (`clear` пустого массива,
+   * `move(i, i)`), — тоже: поведение «очистить список при снятом флаге» после сброса формы её не
+   * испачкает. Снимает `reset`.
+   */
+  private readonly reshaped = signal(false);
   /** Форма строки по фасаду под-модели элемента. */
   private readonly cache = new WeakMap<object, FormGroup<T>>();
   /** Под-модели строк, для которых сейчас есть формы, — «прежний» набор для сверки. */
@@ -116,7 +124,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.invalid = aggregate.invalid;
     this.pending = aggregate.pending;
     this.touched = aggregate.touched;
-    this.dirty = aggregate.dirty;
+    this.dirty = computed(() => this.reshaped.value || aggregate.dirty.value);
     this.issues = aggregate.issues;
     this.ownIssues = this.own.list;
     this.disabled = this.availability.disabled;
@@ -147,27 +155,27 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   }
 
   push(item?: T): void {
-    this.control.push(item);
+    this.reshape(() => this.control.push(item));
   }
 
   insert(index: number, item?: T): void {
-    this.control.insertAt(index, item);
+    this.reshape(() => this.control.insertAt(index, item));
   }
 
   removeAt(index: number): void {
-    this.control.removeAt(index);
+    this.reshape(() => this.control.removeAt(index));
   }
 
   move(from: number, to: number): void {
-    this.control.move(from, to);
+    this.reshape(() => this.control.move(from, to));
   }
 
   swap(first: number, second: number): void {
-    this.control.swap(first, second);
+    this.reshape(() => this.control.swap(first, second));
   }
 
   clear(): void {
-    this.control.clear();
+    this.reshape(() => this.control.clear());
   }
 
   getValue(): T[] {
@@ -175,13 +183,16 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   }
 
   setValue(values: T[]): void {
-    this.control.clear();
-    (values ?? []).forEach((item) => this.control.push(item));
+    this.reshape(() => {
+      this.control.clear();
+      (values ?? []).forEach((item) => this.control.push(item));
+    });
   }
 
   reset(values?: T[]): void {
     this.own.clear();
     this.setValue(values ?? this.initial);
+    this.reshaped.value = false;
   }
 
   /** Строки пересобираются из значений создания — их поведение считает заново. @internal */
@@ -221,6 +232,23 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   /** Своё ожидание async-правила на ручке массива; ожидание строк агрегат добавит сам. @internal */
   setPending(pending: boolean): void {
     this.ownPending.mark(pending);
+  }
+
+  /** Выполнить мутацию массива модели и отметить `dirty`, если состав строк изменился. */
+  private reshape(mutate: () => void): void {
+    const before = this.composition();
+    mutate();
+    const after = this.composition();
+    if (after.length !== before.length || after.some((row, index) => row !== before[index])) {
+      this.reshaped.value = true;
+    }
+  }
+
+  /** Под-модели строк по порядку — без подписки: мутацию могут вызвать из effect'а поведения. */
+  private composition(): (FormModel<T> | undefined)[] {
+    return untracked(() =>
+      Array.from({ length: this.control.length }, (_, index) => this.control.at(index))
+    );
   }
 
   /** Остановить синхронизацию и диспозить формы всех строк. @internal */

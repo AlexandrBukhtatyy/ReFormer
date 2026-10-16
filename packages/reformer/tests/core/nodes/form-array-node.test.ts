@@ -6,8 +6,10 @@
  * строкам на момент создания, свои замечания (`ownIssues`) против замечаний строк (`issues`),
  * делегирование мутаций массиву модели и повторный `dispose` — на собственной заглушке массива.
  *
- * Зонды: строка, добавленная в выключенный массив; `dirty` после `push`; ожидание async-правила
- * на ручке самого массива; строка `null` в массиве модели.
+ * `dirty` состава: методы ноды ставят, запись в модель — нет, `reset` снимает.
+ *
+ * Зонды: строка, добавленная в выключенный массив; ожидание async-правила на ручке самого массива;
+ * строка `null` в массиве модели.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -364,8 +366,8 @@ describe('form-array-node — строка, добавленная в выклю
   });
 });
 
-describe('form-array-node — dirty и pending (зонды)', () => {
-  it.fails('push строки делает массив dirty: значение массива изменилось [ReFormer-j33t]', () => {
+describe('form-array-node — dirty состава [ReFormer-j33t]', () => {
+  it('push строки делает массив dirty: значение массива изменилось', () => {
     const { phones } = createContacts();
 
     phones.push({ number: '3', kind: 'work' });
@@ -373,6 +375,59 @@ describe('form-array-node — dirty и pending (зонды)', () => {
     expect(phones.dirty.value).toBe(true);
   });
 
+  it.each([
+    ['insert', (phones: FormArray<Phone>) => phones.insert(0, { number: '0', kind: 'home' })],
+    ['removeAt', (phones: FormArray<Phone>) => phones.removeAt(0)],
+    ['move', (phones: FormArray<Phone>) => phones.move(0, 1)],
+    ['swap', (phones: FormArray<Phone>) => phones.swap(0, 1)],
+    ['clear', (phones: FormArray<Phone>) => phones.clear()],
+    ['setValue', (phones: FormArray<Phone>) => phones.setValue([{ number: '9', kind: 'home' }])],
+  ])('%s делает массив dirty, строки при этом не тронуты', (_name, mutate) => {
+    const { phones } = createContacts();
+
+    mutate(phones);
+
+    expect(phones.dirty.value).toBe(true);
+    expect(phones.map((row) => row.dirty.value)).not.toContain(true);
+  });
+
+  it('операция, которая состав не поменяла, dirty не ставит', () => {
+    const { phones } = createContacts();
+    phones.move(1, 1);
+    phones.swap(0, 0);
+    expect(phones.dirty.value).toBe(false);
+
+    const empty = createContacts([]).phones;
+    // Рецепт «очистить список при снятом флаге» после сброса формы зовёт clear пустого массива.
+    empty.clear();
+    empty.setValue([]);
+    expect(empty.dirty.value).toBe(false);
+  });
+
+  it('запись в массив модели dirty не ставит — как запись в модель у поля', () => {
+    const { model, phones } = createContacts();
+
+    model.phones.push({ number: '3', kind: 'work' });
+    model.phones.removeAt(0);
+
+    expect(phones.length).toBe(2);
+    expect(phones.dirty.value).toBe(false);
+  });
+
+  it('reset снимает dirty состава — и свой, и через сброс формы', () => {
+    const { form, phones } = createContacts();
+    phones.removeAt(0);
+    phones.reset();
+    expect(phones.dirty.value).toBe(false);
+
+    phones.push();
+    form.reset();
+    expect(phones.dirty.value).toBe(false);
+    expect(form.dirty.value).toBe(false);
+  });
+});
+
+describe('form-array-node — pending (зонды)', () => {
   it('async-правило поля строки держит массив в pending до конца прогона', async () => {
     const check = deferred<ValidationIssue | null>();
     const rules = defineValidation<Shape>(({ model }) => {
