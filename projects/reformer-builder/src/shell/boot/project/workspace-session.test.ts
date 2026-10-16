@@ -8,7 +8,7 @@
  * @module shell/boot/project/workspace-session.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
@@ -83,6 +83,32 @@ describe('рабочая сессия', () => {
 
     const level = h.session.tree.get().children.get(h.session.tree.get().rootId) ?? [];
     expect(level.map((ref) => ref.name).sort()).toEqual(['a.txt', 'sub']);
+    h.dispose();
+  });
+
+  it('новый файл, записанный мимо команд дерева, виден в нём сразу — до сохранения', async () => {
+    const h = harness({ 'a.txt': 'a' });
+    const rootId = h.session.tree.get().rootId;
+    await h.session.tree.expand(rootId);
+    const names = () => (h.session.tree.get().children.get(rootId) ?? []).map((ref) => ref.name);
+
+    await h.session.workspace.writeText(h.id('b.txt'), 'b');
+
+    await vi.waitFor(() => expect(names()).toContain('b.txt'));
+    h.dispose();
+  });
+
+  it('новый каталог появляется в дереве после сохранения, без «Обновить»', async () => {
+    const h = harness({ 'a.txt': 'a' });
+    const rootId = h.session.tree.get().rootId;
+    await h.session.tree.expand(rootId);
+    const names = () => (h.session.tree.get().children.get(rootId) ?? []).map((ref) => ref.name);
+
+    // Так пишет кодоген: в рабочую копию, затем сохранение — каталог модуля возникает у источника.
+    await h.session.workspace.writeText(h.id('modules/contact/index.ts'), 'export {};');
+    await h.session.workspace.save();
+
+    await vi.waitFor(() => expect(names()).toContain('modules'));
     h.dispose();
   });
 

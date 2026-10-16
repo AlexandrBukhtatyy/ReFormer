@@ -125,7 +125,7 @@ export interface ModelPartsPort {
   resolve(spec: string): ResourceId;
   /**
    * Записать часть в рабочую копию; несуществующий файл создаётся. `created` — части у документа
-   * до этой записи не было (новый шаг, «разбить»): дереву проекта пора перечитать её каталог.
+   * до этой записи не было (новый шаг, «разбить»).
    */
   write(id: ResourceId, text: string, created: boolean, options?: WriteOptions): Promise<void>;
   /** Рабочая копия части; `null` — файла нет. */

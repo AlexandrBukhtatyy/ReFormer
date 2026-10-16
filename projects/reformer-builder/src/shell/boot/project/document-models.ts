@@ -92,11 +92,6 @@ export interface DocumentModelsOptions {
    */
   readonly providersReady?: () => Promise<void>;
   readonly historyLimit?: number;
-  /**
-   * Каталог изменился: в нём появился файл части составного документа. Дерево проекта само
-   * рабочую область не слушает и перечитывает уровень только по просьбе.
-   */
-  readonly onDidCreatePart?: (dir: ResourceId) => void;
 }
 
 /** Держатель модельных документов рабочей сессии. */
@@ -171,16 +166,9 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
     const { sourceId, path } = parseResourceId(id);
     return {
       resolve: (spec) => makeResourceId(sourceId, joinPath(dirname(path), spec)),
-      write: async (part, text, created, mark) => {
-        await workspace.writeText(part, text, mark);
-        if (created) {
-          // Каталог шага мог появиться вместе с файлом — перечитывается и уровень выше.
-          const { sourceId: partSource, path: partPath } = parseResourceId(part);
-          const dir = dirname(partPath);
-          options.onDidCreatePart?.(makeResourceId(partSource, dirname(dir)));
-          options.onDidCreatePart?.(makeResourceId(partSource, dir));
-        }
-      },
+      // Новый файл части дерево проекта увидит само: оно сверяет состав с изменениями
+      // рабочей области (`resource-tree`, `staleLevels`).
+      write: (part, text, _created, mark) => workspace.writeText(part, text, mark),
       read: (part) => workspace.readText(part).catch(() => null),
       onDidChange: (cb) => workspace.onDidChange((e) => cb(e.changes.map((c) => c.id))),
     };

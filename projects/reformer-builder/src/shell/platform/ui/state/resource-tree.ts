@@ -14,6 +14,14 @@
  * Прочитанный уровень запоминается: повторное раскрытие свёрнутого каталога обращения
  * не стоит вовсе.
  *
+ * ## Состав сверяется с рабочей областью
+ *
+ * Записи появляются не только командами дерева: кодоген, шаблоны, редакторы частей пишут
+ * в рабочую область сами. Поэтому хранилище слушает её изменения и перечитывает уровень,
+ * чей показанный состав с ними разошёлся ({@link staleLevels}), — а не полагается на то,
+ * что каждый пишущий вспомнит попросить об этом. Сверка идёт по уже прочитанному
+ * и обращения не стоит: открытие файла и набор текста листинга не вызывают.
+ *
  * ## Плоский список вместо рекурсии в отрисовке
  *
  * {@link flattenTree} разворачивает состояние в ряд строк с глубиной. Так порядок и видимость
@@ -23,9 +31,16 @@
  * @module shell/platform/ui/state/resource-tree
  */
 
-import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import {
+  dirname,
+  isInside,
+  makeResourceId,
+  parseResourceId,
+  toDisposable,
+  type Disposable,
+} from '@reformer/builder-plugin-api/internal';
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
-import type { Workspace } from '@/shell/platform/workspace/workspace';
+import type { Workspace, WorkspaceChangeType } from '@/shell/platform/workspace/workspace';
 
 /** Состояние загрузки уровня. Три состояния, потому что «пусто» и «ещё не спрашивали» — разное. */
 export type LevelStatus = 'unloaded' | 'loading' | 'loaded' | 'failed';
@@ -132,6 +147,60 @@ export function invalidateLevel(state: ResourceTreeState, id: ResourceId): Resou
   const status = new Map(state.status);
   status.delete(id);
   return { ...state, children, status };
+}
+
+/** Как изменился состав каталога: запись появилась (создана, сохранена) или исчезла. */
+export type TreeChangeKind = 'appeared' | 'gone';
+
+export interface TreeChange {
+  readonly id: ResourceId;
+  readonly kind: TreeChangeKind;
+}
+
+/**
+ * Уровни, чей показанный состав разошёлся с изменениями, — перечитать надо их и только их.
+ *
+ * Появившаяся запись ищет ближайший прочитанный уровень на пути к себе. Есть в нём следующее
+ * звено пути — показывать нечего: запись уже на месте или лежит в нераскрытом каталоге. Нет —
+ * уровень устарел. Так файл в новом каталоге перечитывает тот уровень, где должен появиться
+ * каталог, а открытие существующего файла не стоит ничего. Исчезнувшая запись устаревает
+ * у прочитанного родителя, если ещё показана в нём.
+ */
+export function staleLevels(
+  state: ResourceTreeState,
+  changes: readonly TreeChange[]
+): readonly ResourceId[] {
+  const { sourceId, path: rootPath } = parseResourceId(state.rootId);
+  const shown = (dir: ResourceId, id: ResourceId): boolean =>
+    (state.children.get(dir) ?? []).some((ref) => ref.id === id);
+  const stale = new Set<ResourceId>();
+
+  for (const change of changes) {
+    const { sourceId: changed, path } = parseResourceId(change.id);
+    if (changed !== sourceId || path === rootPath || !isInside(path, rootPath)) continue;
+
+    if (change.kind === 'gone') {
+      const parent = makeResourceId(sourceId, dirname(path));
+      if (levelStatus(state, parent) === 'loaded' && shown(parent, change.id)) stale.add(parent);
+      continue;
+    }
+
+    let child = change.id;
+    let childPath = path;
+    for (;;) {
+      const parentPath = dirname(childPath);
+      const parent = makeResourceId(sourceId, parentPath);
+      if (levelStatus(state, parent) === 'loaded') {
+        if (!shown(parent, child)) stale.add(parent);
+        break;
+      }
+      // Даже корень не прочитан: дерево ещё ничего не показывает, и расходиться нечему.
+      if (parentPath === rootPath) break;
+      child = parent;
+      childPath = parentPath;
+    }
+  }
+  return [...stale];
 }
 
 /** Помечает каталог раскрытым. Чтение уровня — дело хранилища, не этой функции. */
@@ -250,12 +319,23 @@ export function flattenTree(state: ResourceTreeState): readonly TreeRow[] {
 }
 
 /**
- * Рабочая область в объёме, нужном дереву: один листинг уровня и ничего больше.
+ * Рабочая область в объёме, нужном дереву: листинг уровня и изменения состава.
  *
  * Отсутствие `readText` в этом типе — не экономия, а гарантия: дерево физически не может
  * прочитать тело файла, и правило «раскрытие стоит один листинг» держится на типах.
+ * `onDidChange` необязателен: без него дерево перечитывает уровень только по `refresh`.
  */
-export type TreeWorkspace = Pick<Workspace, 'list'>;
+export type TreeWorkspace = Pick<Workspace, 'list'> & Partial<Pick<Workspace, 'onDidChange'>>;
+
+/**
+ * Какие изменения рабочей области меняют состав каталогов. Правка текста (`written`)
+ * и вытеснение содержимого из кэша (`evicted`) — нет: запись остаётся на месте.
+ */
+const TREE_CHANGES: Partial<Record<WorkspaceChangeType, TreeChangeKind>> = {
+  materialized: 'appeared',
+  saved: 'appeared',
+  removed: 'gone',
+};
 
 export interface ResourceTreeStoreOptions {
   readonly workspace: TreeWorkspace;
@@ -279,6 +359,8 @@ export interface ResourceTreeStore extends Disposable {
   toggleCheck(id: ResourceId): void;
   /** Перечитывает уровень: файл создан, удалён, переименован. */
   refresh(id: ResourceId): Promise<void>;
+  /** Перечитывает уровни, чей показанный состав разошёлся с изменениями ({@link staleLevels}). */
+  reconcile(changes: readonly TreeChange[]): Promise<void>;
 }
 
 function defaultOnTreeError(error: unknown, id: ResourceId): void {
@@ -340,6 +422,23 @@ export function createResourceTreeStore(options: ResourceTreeStoreOptions): Reso
     return load(id);
   };
 
+  const refresh = async (id: ResourceId): Promise<void> => {
+    commit(invalidateLevel(state, id));
+    await load(id);
+  };
+
+  const reconcile = async (changes: readonly TreeChange[]): Promise<void> => {
+    await Promise.all(staleLevels(state, changes).map(refresh));
+  };
+
+  const watch = workspace.onDidChange?.((event) => {
+    const changes = event.changes.flatMap(({ id, type }): TreeChange[] => {
+      const kind = TREE_CHANGES[type];
+      return kind === undefined ? [] : [{ id, kind }];
+    });
+    if (changes.length > 0) void reconcile(changes);
+  });
+
   return {
     get: () => state,
 
@@ -380,12 +479,11 @@ export function createResourceTreeStore(options: ResourceTreeStoreOptions): Reso
       commit(toggleChecked(state, id));
     },
 
-    async refresh(id) {
-      commit(invalidateLevel(state, id));
-      await load(id);
-    },
+    refresh,
+    reconcile,
 
     dispose() {
+      watch?.dispose();
       listeners.clear();
       inFlight.clear();
     },

@@ -318,10 +318,6 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     diagnostics: options.diagnostics,
     isTextEditorFocused: options.isTextEditorFocused,
     providersReady: options.modelProvidersReady,
-    // Дерево создаётся ниже; к моменту первой записи части оно уже есть.
-    onDidCreatePart: (dir) => {
-      void tree.refresh(dir);
-    },
   });
 
   // Операции над записями идут К ИСТОЧНИКУ напрямую (см. `host/workspace/resource-ops`),

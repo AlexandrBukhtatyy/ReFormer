@@ -22,8 +22,11 @@ import {
   toggleChecked,
   setLevelStatus,
   sortEntries,
+  staleLevels,
   type ResourceTreeState,
+  type TreeChange,
 } from './resource-tree';
+import type { WorkspaceChange } from '@/shell/platform/workspace/workspace';
 
 const ROOT = 'mem:';
 
@@ -379,5 +382,117 @@ describe('отмеченный набор', () => {
     store.check([]);
     expect(flattenTree(store.get()).some((row) => row.checked)).toBe(false);
     store.dispose();
+  });
+});
+
+describe('staleLevels — что перечитать после изменения рабочей области', () => {
+  /** Прочитаны корень и `forms`; `shared` и `forms/credit` не раскрывали. */
+  function shown(): ResourceTreeState {
+    let state = createTreeState(ROOT);
+    state = setChildren(state, ROOT, LEVELS['mem:'] ?? []);
+    return setChildren(state, 'mem:forms', LEVELS['mem:forms'] ?? []);
+  }
+  const appeared = (path: string): TreeChange => ({ id: `mem:${path}`, kind: 'appeared' });
+  const gone = (path: string): TreeChange => ({ id: `mem:${path}`, kind: 'gone' });
+
+  it('открытие показанного файла листинга не стоит', () => {
+    expect(staleLevels(shown(), [appeared('forms/index.ts')])).toEqual([]);
+  });
+
+  it('файл в нераскрытом каталоге не стоит: каталог уже на месте', () => {
+    expect(staleLevels(shown(), [appeared('shared/rules.ts'), appeared('shared/new.ts')])).toEqual(
+      []
+    );
+  });
+
+  it('новый файл перечитывает свой прочитанный каталог — один раз на пакет', () => {
+    expect(staleLevels(shown(), [appeared('forms/new.ts'), appeared('forms/other.ts')])).toEqual([
+      'mem:forms',
+    ]);
+  });
+
+  it('файл в новом каталоге перечитывает уровень, где каталог должен появиться', () => {
+    expect(staleLevels(shown(), [appeared('forms/contact/schema/model.ts')])).toEqual([
+      'mem:forms',
+    ]);
+    expect(staleLevels(shown(), [appeared('modules/contact/index.ts')])).toEqual([ROOT]);
+  });
+
+  it('исчезнувшая запись перечитывает родителя, только если ещё показана в нём', () => {
+    expect(staleLevels(shown(), [gone('forms/index.ts')])).toEqual(['mem:forms']);
+    expect(staleLevels(shown(), [gone('forms/never-shown.ts')])).toEqual([]);
+    expect(staleLevels(shown(), [gone('shared/rules.ts')])).toEqual([]);
+  });
+
+  it('чужой источник и непрочитанное дерево — нечего сверять', () => {
+    expect(staleLevels(shown(), [{ id: 'other:forms/new.ts', kind: 'appeared' }])).toEqual([]);
+    expect(staleLevels(createTreeState(ROOT), [appeared('forms/new.ts')])).toEqual([]);
+  });
+});
+
+describe('createResourceTreeStore — сверка с рабочей областью', () => {
+  /** Рабочая область, у которой меняется содержимое и которая сообщает об изменениях. */
+  function changingWorkspace() {
+    const levels = new Map<ResourceId, readonly ResourceRef[]>(Object.entries(LEVELS));
+    const listCalls: ResourceId[] = [];
+    const listeners = new Set<(e: WorkspaceChange) => void>();
+    const workspace = {
+      list(id: ResourceId): Promise<readonly ResourceRef[]> {
+        listCalls.push(id);
+        return Promise.resolve(levels.get(id) ?? []);
+      },
+      onDidChange(cb: (e: WorkspaceChange) => void) {
+        listeners.add(cb);
+        return { dispose: () => listeners.delete(cb) };
+      },
+    };
+    const emit = (change: WorkspaceChange): void => {
+      for (const listener of [...listeners]) listener(change);
+    };
+    return { workspace, levels, listCalls, listeners, emit };
+  }
+
+  it('записанное мимо команд дерева появляется без «Обновить»', async () => {
+    const fake = changingWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+
+    // Кодоген сохранил модуль в новый каталог: в листинге корня он есть, в дереве — ещё нет.
+    fake.levels.set(ROOT, [...(LEVELS['mem:'] ?? []), dir('modules')]);
+    fake.emit({ changes: [{ id: 'mem:modules/contact/index.ts', type: 'saved' }] });
+
+    await vi.waitFor(() => {
+      expect(flattenTree(store.get()).map((row) => row.ref.name)).toContain('modules');
+    });
+    expect(fake.listCalls).toEqual([ROOT, ROOT]);
+    store.dispose();
+  });
+
+  it('набор текста и открытие показанного файла листинга не вызывают', async () => {
+    const fake = changingWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+
+    fake.emit({
+      changes: [
+        { id: 'mem:package.json', type: 'materialized' },
+        { id: 'mem:package.json', type: 'written' },
+        { id: 'mem:package.json', type: 'evicted' },
+      ],
+    });
+    await Promise.resolve();
+
+    expect(fake.listCalls).toEqual([ROOT]);
+    store.dispose();
+  });
+
+  it('dispose снимает подписку', () => {
+    const fake = changingWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    expect(fake.listeners.size).toBe(1);
+
+    store.dispose();
+
+    expect(fake.listeners.size).toBe(0);
   });
 });
