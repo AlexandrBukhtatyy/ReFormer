@@ -100,6 +100,10 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
   }
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
+  // Правки `seed` — часть начального состояния формы: точка отсчёта своей модели снимается после
+  // них, и сброс (`form.reset()`, `model.reset()`) их не откатывает. Точкой отсчёта переданной
+  // модели управляет её владелец.
+  if (config.model === undefined) model.captureInitial();
 
   // Уровень формы — до нод: поведение получает поток шагов.
   const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });
