@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLASS_GROUPS, COLOR_TOKENS, FIELD_CLASS_GROUPS } from './class-catalog';
 
@@ -38,6 +38,29 @@ describe('COLOR_TOKENS ↔ @theme inline', () => {
 
   it('новые токены темы не забыты в словаре', () => {
     for (const t of theme) expect(COLOR_TOKENS, `забыт в COLOR_TOKENS: ${t}`).toContain(t);
+  });
+
+  it('компоненты не используют цвет «-foreground», которого нет в теме [ReFormer-ayc]', () => {
+    // Tailwind v4 не генерирует утилиту без токена: класс молча ничего не красит. Так кнопки удаления
+    // массива рисовали текст `text-destructive-foreground` цветом по умолчанию.
+    const components = join(here, '../components');
+    const unknown = new Set<string>();
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) {
+          const code = readFileSync(path, 'utf8');
+          for (const [, token] of code.matchAll(
+            /\b(?:text|bg|border|ring|fill|stroke)-([a-z][a-z-]*-foreground)\b/g
+          )) {
+            if (!theme.has(token)) unknown.add(`${relative(components, path)}: ${token}`);
+          }
+        }
+      }
+    };
+    walk(components);
+    expect([...unknown]).toEqual([]);
   });
 });
 
