@@ -6,10 +6,14 @@
  * из текста и слияние провайдеров автодополнения делает воркер Monaco, и чистыми тестами
  * это не проверить — там можно лишь пообещать, что адреса совпадут.
  *
+ * Здесь же набор без пауз между знаками: гонка отрисовки React с вводом видна только в живом
+ * редакторе.
+ *
  * @module plugins/base/monaco-editor/ui/MonacoEditor.browser.test
  */
 
 import { describe, expect, it } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import type {
   JsonSchemaHint,
   ResourceId,
@@ -72,6 +76,19 @@ function hostFor(id: ResourceId, path: string, text: string, sites: TextStringSi
       return site.value.startsWith('$model(')
         ? [{ label: 'fullName', insert: 'fullName', replace: { start: 7, end: 7 } }]
         : [];
+    },
+  };
+}
+
+/** Хост с простым текстом: без языковой службы JSON — её подсказки при наборе тесту ни к чему. */
+function plainHostFor(id: ResourceId, path: string, text: string): MonacoHost {
+  const base = hostFor(id, path, text, []);
+  return {
+    ...base,
+    documentOf: (documentId) => {
+      const document = base.documentOf(documentId);
+      if (document === null) return null;
+      return { ...document, ref: { ...document.ref, mediaType: 'text/plain' } };
     },
   };
 }
@@ -141,5 +158,88 @@ describe('подсказки в Monaco', () => {
     const labels = await suggestAt('forms/model/form.json', text, '"value": "$model(', sites);
     expect(labels.some((label) => label.includes('fullName'))).toBe(true);
     expect(sites[0]).toEqual({ path: ['root', 'value'], value: '$model()', offset: 7 });
+  });
+});
+
+describe('набор без пауз', () => {
+  it('знаки встают под каретку, а не уезжают в конец документа', async () => {
+    const path = 'notes/typing/readme.txt';
+    const id = `fs:${path}`;
+    const text = 'first line\nsecond line\n';
+    const written: string[] = [];
+    const host: MonacoHost = {
+      ...plainHostFor(id, path, text),
+      // Запись в рабочую копию асинхронна, как в билдере: ответ приходит позже нажатия.
+      writeText: (_id, next) => {
+        written.push(next);
+        return new Promise((resolve) => setTimeout(resolve, 5));
+      },
+    };
+    renderReact(
+      <div style={{ width: 600, height: 300, display: 'flex' }}>
+        <MonacoEditorBody host={host} focus={focus} viewStates={viewStates} documentId={id} />
+      </div>
+    );
+    const monaco = await ensureMonaco();
+    const editor = await waitFor(() =>
+      monaco.editor.getEditors().find((candidate) => candidate.getModel()?.uri.path.endsWith(path))
+    );
+    const model = await waitFor(() => editor.getModel());
+    editor.focus();
+    editor.setPosition(model.getPositionAt('first'.length));
+
+    const typed = ' quickly typed words without any pause between keys';
+    await userEvent.keyboard(typed);
+
+    const expected = text.replace('first', `first${typed}`);
+    expect(model.getValue()).toBe(expected);
+    await waitFor(() => (written.at(-1) === expected ? true : null));
+  });
+
+  it('внешний текст ложится в редактор и обратно в рабочую копию не уходит', async () => {
+    const path = 'notes/external/readme.txt';
+    const id = `fs:${path}`;
+    const written: string[] = [];
+    let emit: ((text: string) => void) | null = null;
+    const base = plainHostFor(id, path, 'old\n');
+    const host: MonacoHost = {
+      ...base,
+      documentOf: (documentId) => {
+        const document = base.documentOf(documentId);
+        if (document === null) return null;
+        return {
+          ...document,
+          onDidChangeContent: (listener) => {
+            emit = listener;
+            return NOOP;
+          },
+        };
+      },
+      writeText: (_id, next) => {
+        written.push(next);
+        return Promise.resolve();
+      },
+    };
+    renderReact(
+      <div style={{ width: 600, height: 300, display: 'flex' }}>
+        <MonacoEditorBody host={host} focus={focus} viewStates={viewStates} documentId={id} />
+      </div>
+    );
+    const monaco = await ensureMonaco();
+    const editor = await waitFor(() =>
+      monaco.editor.getEditors().find((candidate) => candidate.getModel()?.uri.path.endsWith(path))
+    );
+    const model = await waitFor(() => editor.getModel());
+
+    // Откат, слияние или перерисовка по модели: буфер сменился, редактор не в фокусе.
+    await waitFor(() => emit);
+    emit!('new text\n');
+
+    expect(model.getValue()).toBe('new text\n');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(written).toEqual([]);
+    // Правка поверх стека: отмена возвращает прежний текст, а не пустой документ.
+    editor.trigger('test', 'undo', null);
+    expect(model.getValue()).toBe('old\n');
   });
 });

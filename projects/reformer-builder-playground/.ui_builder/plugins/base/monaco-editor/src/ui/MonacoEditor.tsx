@@ -26,9 +26,17 @@
  * ## История Monaco не подменяется
  *
  * Ctrl+Z в пределах сеанса работает его собственным стеком, и снимков модели он не касается.
- * Внешний текст кладётся `executeEdits` (так делает `@monaco-editor/react` для управляемого
- * `value`), а не `setValue`: первый — правка поверх стека, второй сносит стек целиком.
- * Подменить историю значило бы получить двойную отмену — одно нажатие снимает две правки.
+ * Внешний текст кладётся `executeEdits`, а не `setValue`: первый — правка поверх стека, второй
+ * сносит стек целиком. Подменить историю значило бы получить двойную отмену — одно нажатие
+ * снимает две правки.
+ *
+ * ## Набранное не возвращается в редактор через `value`
+ *
+ * Управляемый `value` библиотеки `@monaco-editor/react` применяется в эффекте — уже после
+ * отрисовки — заменой всего текста с переносом каретки в конец. Знак, набранный между
+ * отрисовкой и эффектом, делает это значение устаревшим: текст откатывался, каретка уезжала
+ * в конец документа, часть знаков терялась. Поэтому при наборе `value` не меняется (набранное
+ * и так уже в редакторе), а внешний текст редактор кладёт сам, в `show`.
  *
  * @module plugins/base/monaco-editor/ui/MonacoEditor
  */
@@ -142,7 +150,10 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
   const diagnosticMessage = host.useDiagnosticMessage();
   const dark = useDarkTheme();
 
+  /** Текст для `value` библиотеки: начальный и внешний, но не набранный — см. шапку модуля. */
   const [value, setValue] = useState(() => document.getText());
+  /** Счётчик правок текста — любых, своих и внешних: по нему перекладывается разметка. */
+  const [revision, setRevision] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -176,9 +187,31 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
   /** Что показано сейчас: нужен, пока редактор ещё не смонтирован и спросить его нечего. */
   const shownRef = useRef(value);
 
+  /**
+   * Идёт своя правка редактора: её событие изменения — не набор человека, и в рабочую копию
+   * отправлять нечего — текст оттуда и пришёл.
+   */
+  const applyingRef = useRef(false);
+
   const show = useCallback((text: string) => {
     shownRef.current = text;
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (editor != null && model != null && model.getValue() !== text) {
+      applyingRef.current = true;
+      try {
+        editor.executeEdits('', [
+          { range: model.getFullModelRange(), text, forceMoveMarkers: true },
+        ]);
+        editor.pushUndoStop();
+      } finally {
+        applyingRef.current = false;
+      }
+    }
+    // Библиотеке — тот же текст: её эффект сравнит его с редактором и ничего не сделает,
+    // а до монтирования редактор возьмёт его начальным.
     setValue(text);
+    setRevision((n) => n + 1);
   }, []);
 
   /**
@@ -397,7 +430,7 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
     return () => {
       subscription.dispose();
     };
-  }, [mounted, host, documentId, diagnosticMessage, value]);
+  }, [mounted, host, documentId, diagnosticMessage, revision]);
 
   const language = languageFor(document.ref.mediaType);
   const options = useMemo<MonacoEditor.IStandaloneEditorConstructionOptions>(
@@ -445,9 +478,11 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
           language={language}
           loading={<LoadingSkeleton label={t('editor.loading')} />}
           onChange={(next) => {
-            if (next === undefined) return;
+            // Своя правка из `show` — не ввод: её текст пришёл из рабочей копии.
+            if (next === undefined || applyingRef.current) return;
             shownRef.current = next;
-            setValue(next);
+            // `setValue` здесь нет намеренно — см. шапку модуля.
+            setRevision((n) => n + 1);
             dispatch({ kind: 'typed', text: next });
           }}
           onMount={onMount}
