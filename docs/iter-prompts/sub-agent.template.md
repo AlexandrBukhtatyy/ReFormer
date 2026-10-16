@@ -88,7 +88,7 @@
    - `get_symbol_docs(symbol="defineIssueMessages")` (`@reformer/core/i18n` — словарь текстов по кодам)
    - target-specific:
      - `renderer-react` → `get_symbol_docs(symbol="FormRenderer")` (`@reformer/renderer-react`; `createRenderSchema` — прежний путь, не используй)
-     - `renderer-json` → `get_symbol_docs(symbol="defineJsonSchema")` + `get_symbol_docs(symbol="defineRegistry")` (реестр → `createForm({ registry })`, рисует тот же `FormRenderer`; `JsonFormRenderer` / `createJsonForm` — прежний формат без `format: 2`)
+     - `renderer-json` → `get_symbol_docs(symbol="defineJsonSchema")` + `get_symbol_docs(symbol="defineRegistry")` (реестр → `createForm({ registry })`, рисует тот же `FormRenderer`; `JsonFormRenderer` / `createJsonForm` удалены, документ без `format: 2` переводит `migrateJsonSchema`)
 
 3. **Сохранить raw responses** в `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md` (для аудита и repro). Один блок на каждый MCP-вызов с заголовком и query.
 
