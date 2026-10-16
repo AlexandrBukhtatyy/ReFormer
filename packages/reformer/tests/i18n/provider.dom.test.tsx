@@ -11,13 +11,13 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { createLocaleLoader } from '../../src/i18n/loader';
 import type { FormLocale } from '../../src/i18n/locale';
 import type { LocaleLoad } from '../../src/i18n/locale-store';
 import { useI18n } from '../../src/platforms/react/i18n/hooks';
 import { I18nProvider } from '../../src/platforms/react/i18n/provider';
-import { act, cleanup, render, screen } from '../test-utils/react';
+import { act, cleanup, fireEvent, render, screen } from '../test-utils/react';
 import { liveEffects } from '../test-utils/effect-tracker';
 import { deferred, type Deferred } from '../test-utils/async';
 
@@ -207,11 +207,7 @@ describe('I18nProvider — провайдер грузит сам', () => {
     expect(onError).toHaveBeenCalledExactlyOnceWith(failure, 'de');
   });
 
-  // поведение под вопросом [ReFormer-0f7y]: первая загрузка упала — показать нечего, провайдер остаётся на
-  // `fallback`, дерево не монтируется, а ошибка в контекст не попадает (контекста ещё нет). Тот же
-  // язык не перезапрашивается: эффект зависит только от `lang`. Об отказе приложение узнаёт из
-  // `onError`; выйти можно сменой языка (или перемонтированием провайдера).
-  it('первая загрузка упала — остаётся fallback; другой язык выводит из него', async () => {
+  it('первая загрузка упала — дети на встроенном английском, ошибка в контексте [ReFormer-0f7y]', async () => {
     const { load, settle } = controlledLoad();
     const onError = vi.fn();
     const page = (lang: string) => (
@@ -222,14 +218,38 @@ describe('I18nProvider — провайдер грузит сам', () => {
     const view = render(page('ru'));
 
     await settle('ru', new Error('нет сети'));
-    view.rerender(page('ru'));
-    expect(screen.getByText('загрузка').tagName).toBe('I');
+    expect(screen.queryByText('загрузка')).toBeNull();
+    expect(probe()).toBe('en|false|нет сети|Profile');
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(load).toHaveBeenCalledTimes(1);
 
     view.rerender(page('de'));
     await settle('de', DE);
     expect(probe()).toBe('de|false|-|Profil');
+  });
+
+  it('упавшую первую загрузку можно повторить тем же языком — дерево не размонтируется [ReFormer-0f7y]', async () => {
+    const { load, settle } = controlledLoad();
+    const mounts = vi.fn();
+    function Retry() {
+      const { retry } = useI18n();
+      useEffect(() => mounts(), []);
+      return <button onClick={retry}>повторить</button>;
+    }
+    render(
+      <I18nProvider lang="ru" load={load} fallback={<i>загрузка</i>}>
+        <Probe />
+        <Retry />
+      </I18nProvider>
+    );
+    await settle('ru', new Error('нет сети'));
+
+    act(() => fireEvent.click(screen.getByText('повторить')));
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('загрузка')).toBeNull();
+    await settle('ru', RU);
+
+    expect(probe()).toBe('ru|false|-|Профиль');
+    expect(mounts).toHaveBeenCalledTimes(1);
   });
 
   it('новый onError не пересоздаёт хранилище — вызывается свежий колбэк', async () => {
@@ -261,11 +281,9 @@ describe('I18nProvider — провайдер грузит сам', () => {
     expect(probe()).toBe('ru|false|сбой|Профиль');
   });
 
-  // поведение под вопросом [ReFormer-0f7y]: хранилище мемоизировано по `load`, и новый загрузчик начинает с
-  // чистого листа — пока он не отдаст локаль, провайдер снова рисует `fallback` и размонтирует
-  // дерево (состояние детей теряется). Инлайн-стрелка в `load` сделала бы так на каждом ререндере
-  // родителя; в документации пропа требования стабильной ссылки нет.
-  it('смена загрузчика без локали в кэше — снова fallback до его ответа', async () => {
+  it('смена загрузчика без локали в кэше — прежняя локаль до его ответа, без fallback [ReFormer-0f7y]', async () => {
+    // Хранилище мемоизировано по `load` (в документации пропа — требование стабильной ссылки), но
+    // новое хранилище начинает с локали, которая на экране.
     const first = controlledLoad();
     const second = controlledLoad();
     const view = render(
@@ -280,7 +298,8 @@ describe('I18nProvider — провайдер грузит сам', () => {
         <Probe />
       </I18nProvider>
     );
-    expect(screen.getByText('загрузка')).toBeDefined();
+    expect(screen.queryByText('загрузка')).toBeNull();
+    expect(probe()).toBe('ru|true|-|Профиль');
 
     await second.settle('ru', RU);
     expect(probe()).toBe('ru|false|-|Профиль');

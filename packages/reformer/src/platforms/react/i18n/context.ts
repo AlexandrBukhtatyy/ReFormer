@@ -22,15 +22,23 @@ export interface I18nContextValue extends I18nHandle {
   readonly pending: boolean;
   /** Ошибка последней загрузки языка. */
   readonly error: unknown;
+  /**
+   * Повторить загрузку языка, которая упала (`error` задан). Без загрузчика и без ошибки ничего
+   * не делает.
+   */
+  readonly retry: () => void;
 }
+
+const noRetry = (): void => {};
 
 /** Значение контекста для локали: ручка плюс состояние загрузки. */
 export function contextValue(
   handle: I18nHandle,
   pending: boolean,
-  error: unknown
+  error: unknown,
+  retry: () => void = noRetry
 ): I18nContextValue {
-  return { ...handle, pending, error };
+  return { ...handle, pending, error, retry };
 }
 
 /**

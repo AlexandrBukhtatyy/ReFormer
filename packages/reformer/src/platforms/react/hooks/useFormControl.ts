@@ -34,7 +34,8 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     { key: 'dirty' },
     { key: 'shouldShowError' },
     { key: 'shouldShowIssues' },
-    { key: 'componentProps' },
+    // `updateComponentProps` всегда отдаёт новый объект: те же значения поле не перерисовывают.
+    { key: 'componentProps', useShallowObjectEqual: true },
   ];
 
   const buildSnapshot = (values: ExtractSignalValues<typeof signals>): FieldControlState<T> => ({

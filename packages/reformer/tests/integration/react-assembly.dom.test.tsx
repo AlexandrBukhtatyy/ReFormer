@@ -205,9 +205,9 @@ describe('оболочка заявки — сборка бандла', () => {
 
   it('RA-02: StrictMode — оболочка работает на первой сборке и не пересобирает её', async () => {
     const app = mountLoan({ strict: true, children: <ContextProbe /> });
-    // поведение под вопросом [ReFormer-0f7y]: в StrictMode React зовёт ленивый инициализатор
-    // `useState` дважды, поэтому фабрика на монтирование вызвана два раза. Вторую сборку React
-    // выбрасывает: до пользователя она не доходит, но её поведение живо — освободить его некому.
+    // Ограничение StrictMode, описанное в JSDoc useFormBundle [ReFormer-0f7y]: React зовёт
+    // ленивый инициализатор `useState` дважды, поэтому фабрика на монтирование вызвана два раза.
+    // Вторую сборку React выбрасывает: до пользователя она не доходит, но её поведение живо.
     expect(app.factory).toHaveBeenCalledTimes(2);
     const [kept, discarded] = app.built;
 

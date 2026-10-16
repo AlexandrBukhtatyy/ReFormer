@@ -221,10 +221,8 @@ describe('useFormControl — поле', () => {
     expect(hook.result.current.issues).toEqual([{ code: 'email' }]);
   });
 
-  // поведение под вопросом [ReFormer-0f7y]: `updateComponentProps` всегда создаёт новый объект пропсов, а снапшот
-  // сравнивает их по ссылке — правка теми же значениями (повторная загрузка того же справочника)
-  // перерисовывает поле, хотя видимое не изменилось.
-  it('правка пропсов теми же значениями — всё равно ререндер', () => {
+  it('правка пропсов теми же значениями не перерисовывает, другим значением — да [ReFormer-0f7y]', () => {
+    // `updateComponentProps` всегда создаёт новый объект пропсов — снапшот сравнивает поверхностно.
     const options = ['a', 'b'];
     const { form } = createContacts();
     const hook = renderField(form.email);
@@ -232,8 +230,11 @@ describe('useFormControl — поле', () => {
     const before = hook.renders();
 
     act(() => form.email.updateComponentProps({ options }));
+    expect(hook.renders()).toBe(before);
 
+    act(() => form.email.updateComponentProps({ options: ['a', 'b'] }));
     expect(hook.renders()).toBe(before + 1);
+    expect(hook.result.current.componentProps.options).toEqual(['a', 'b']);
   });
 
   it('соседнее поле и массив не перерисовывают', () => {

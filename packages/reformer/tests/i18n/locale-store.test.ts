@@ -307,3 +307,46 @@ describe('locale-store — кэш загрузчика и устаревшие �
     expect(late).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('locale-store — повтор и прежняя локаль [ReFormer-0f7y]', () => {
+  it('retry после отказа снова запрашивает тот же язык; без ошибки — no-op', async () => {
+    const { load, settle } = controlledLoad();
+    const store = createLocaleStore(load, 'ru');
+    store.retry();
+    expect(load).not.toHaveBeenCalled();
+
+    store.setLang('ru');
+    await settle('ru', 'reject', new Error('сеть'));
+    store.retry();
+    expect(store.getState()).toMatchObject({ lang: 'ru', pending: true, error: undefined });
+    store.retry(); // запрос уже в пути — второй не уходит
+    expect(load).toHaveBeenCalledTimes(2);
+
+    await settle('ru', 'resolve');
+    expect(store.getState()).toEqual({
+      lang: 'ru',
+      locale: locale('ru'),
+      pending: false,
+      error: undefined,
+    });
+  });
+
+  it('previous — на экране до ответа нового загрузчика, язык всё равно запрашивается', async () => {
+    const { load, settle } = controlledLoad();
+    const shown = locale('ru');
+    const store = createLocaleStore(load, 'ru', { previous: shown });
+
+    expect(store.getState()).toEqual({
+      lang: 'ru',
+      locale: shown,
+      pending: true,
+      error: undefined,
+    });
+    store.setLang('ru');
+    expect(load).toHaveBeenCalledExactlyOnceWith('ru');
+
+    await settle('ru', 'resolve');
+    expect(store.getState().locale).toEqual(locale('ru'));
+    expect(store.getState().locale).not.toBe(shown);
+  });
+});

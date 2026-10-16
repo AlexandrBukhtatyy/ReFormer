@@ -11,7 +11,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { signal } from '@preact/signals-core';
+import { computed, signal, type Signal } from '@preact/signals-core';
 import {
   useSignalSubscription,
   type SignalConfig,
@@ -161,12 +161,15 @@ describe('useSignalSubscription — снапшот и кэш', () => {
     expect(hook.result.current.list).toBe(list);
   });
 
-  // поведение под вопросом [ReFormer-0f7y]: сигнал вне `configs` подписан effect'ом (будит его впустую), но
-  // снапшот по нему не пересобирается — в снапшоте остаётся прежнее значение, пока не сменится
-  // ключ из `configs`. `useFormControl` перечисляет в `configs` все сигналы, поэтому снаружи
-  // это не видно.
-  it('сигнал вне configs снапшот не обновляет до смены ключа из configs', () => {
-    const signals = { tracked: signal(1), extra: signal('old') };
+  it('сигнал вне configs не подписан: не будит, в снапшот попадает при смене ключа из configs [ReFormer-0f7y]', () => {
+    const source = signal('old');
+    let reads = 0;
+    // Производный сигнал пересчитывается при смене источника, только пока на него подписаны.
+    const extra = computed(() => {
+      reads += 1;
+      return source.value;
+    });
+    const signals = { tracked: signal(1), extra: extra as unknown as Signal<string> };
     const hook = renderSubscription({
       signals,
       configs: [{ key: 'tracked' }],
@@ -174,11 +177,13 @@ describe('useSignalSubscription — снапшот и кэш', () => {
       subscriptionKey: signals,
     });
     const before = hook.renders();
+    const readsBefore = reads;
 
     act(() => {
-      signals.extra.value = 'new';
+      source.value = 'new';
     });
     expect(hook.renders()).toBe(before);
+    expect(reads).toBe(readsBefore);
     expect(hook.result.current).toEqual({ tracked: 1, extra: 'old' });
 
     act(() => {

@@ -9,7 +9,8 @@
  *   готовую локаль, а на время ожидания взводится `pending`;
  * - **применяется только последний запрос**: ответ для языка, с которого уже ушли, отбрасывается;
  * - **ошибка язык не меняет**: `locale` остаётся прежней, ошибка кладётся в `error`;
- * - **локаль из кэша загрузчика применяется синхронно** — без кадра ожидания.
+ * - **локаль из кэша загрузчика применяется синхронно** — без кадра ожидания;
+ * - **отказ можно повторить**: {@link LocaleStore.retry} снова запрашивает тот же язык.
  *
  * @module i18n/locale-store
  */
@@ -40,12 +41,19 @@ export interface LocaleStore {
   subscribe(listener: () => void): () => void;
   /** Запросить язык. Повторный запрос того же языка, пока он грузится или уже показан, — no-op. */
   setLang(lang: string): void;
+  /** Повторить запрос языка, загрузка которого упала. Без ошибки — no-op. */
+  retry(): void;
 }
 
 /** Настройки хранилища. */
 export interface LocaleStoreOptions {
   /** Вызывается при отказе загрузки языка, который всё ещё запрошен. */
   readonly onError?: (error: unknown, lang: string) => void;
+  /**
+   * Локаль, которая уже на экране (прежнее хранилище провайдера с другим загрузчиком). Пока новый
+   * загрузчик не отдал язык, на экране остаётся она, а не «ничего не загружено».
+   */
+  readonly previous?: FormLocale;
 }
 
 /**
@@ -66,7 +74,7 @@ export function createLocaleStore(
   const cached = load.peek?.(lang);
   let state: LocaleStoreState = {
     lang,
-    locale: cached ?? null,
+    locale: cached ?? options.previous ?? null,
     pending: cached === undefined,
     error: undefined,
   };
@@ -113,22 +121,31 @@ export function createLocaleStore(
         return;
       }
 
-      requested = next;
-      set({ ...state, lang: next, pending: true, error: undefined });
-      load(next).then(
-        (locale) => {
-          if (requested !== next) return; // с этого языка уже ушли
-          requested = null;
-          shown = next;
-          set({ lang: next, locale, pending: false, error: undefined });
-        },
-        (error: unknown) => {
-          if (requested !== next) return;
-          requested = null;
-          set({ ...state, pending: false, error });
-          options.onError?.(error, next);
-        }
-      );
+      request(next);
+    },
+
+    retry() {
+      if (state.error === undefined || requested !== null) return;
+      request(state.lang);
     },
   };
+
+  function request(next: string): void {
+    requested = next;
+    set({ ...state, lang: next, pending: true, error: undefined });
+    load(next).then(
+      (locale) => {
+        if (requested !== next) return; // с этого языка уже ушли
+        requested = null;
+        shown = next;
+        set({ lang: next, locale, pending: false, error: undefined });
+      },
+      (error: unknown) => {
+        if (requested !== next) return;
+        requested = null;
+        set({ ...state, pending: false, error });
+        options.onError?.(error, next);
+      }
+    );
+  }
 }

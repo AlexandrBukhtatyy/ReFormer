@@ -20,7 +20,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
-import type { FormLocale } from '../../../i18n/locale';
+import { DEFAULT_LOCALE, type FormLocale } from '../../../i18n/locale';
 import { createLocaleStore, type LocaleLoad } from '../../../i18n/locale-store';
 import { createI18n } from '../../../i18n/translator';
 import { contextValue, I18nContext } from './context';
@@ -36,12 +36,19 @@ export interface I18nStaticProviderProps {
 export interface I18nLoadingProviderProps {
   /** Код языка. Смена кода запускает загрузку; до её конца на экране прежний язык. */
   lang: string;
-  /** Загрузчик локалей — обычно результат `createLocaleLoader`. */
+  /**
+   * Загрузчик локалей — обычно результат `createLocaleLoader`. Нужна СТАБИЛЬНАЯ ссылка (модульная
+   * константа, `useMemo`): новый загрузчик — новое хранилище, и язык запрашивается у него заново.
+   * На экране тем временем остаётся прежняя локаль, но инлайн-стрелка гоняла бы запрос на каждый
+   * рендер родителя.
+   */
   load: LocaleLoad;
   /**
    * Что показать, пока не загружена самая первая локаль. По умолчанию — ничего: иначе на кадр
    * мелькнул бы встроенный английский. Если локаль уже в кэше загрузчика (`load.preload(lang)`
-   * до монтирования), первый рендер синхронный и `fallback` не показывается.
+   * до монтирования), первый рендер синхронный и `fallback` не показывается. Упала первая
+   * загрузка — дети показываются на встроенном английском, ошибка — в `useI18n().error`,
+   * повторить — `useI18n().retry()`.
    */
   fallback?: ReactNode;
   /** Отказ загрузки. Язык на экране при этом не меняется. */
@@ -66,6 +73,10 @@ function LoadingProvider({
   // Колбэк читается через ref: смена его идентичности не должна пересоздавать хранилище.
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  // Локаль на экране — её получает хранилище нового загрузчика, чтобы не вернуться к `fallback`.
+  const shownRef = useRef<FormLocale | null>(null);
+  // Дети уже показаны: дальше провайдер их не размонтирует, даже если локали всё ещё нет.
+  const childrenShownRef = useRef(false);
 
   // Хранилище создаётся в рендере, но запрос при этом не уходит: начальное состояние берётся из
   // кэша загрузчика, а загрузку запускает эффект ниже. `lang` в зависимости не входит — язык
@@ -74,6 +85,7 @@ function LoadingProvider({
     () =>
       createLocaleStore(load, lang, {
         onError: (error, code) => onErrorRef.current?.(error, code),
+        previous: shownRef.current ?? undefined,
       }),
     [load]
   );
@@ -84,14 +96,21 @@ function LoadingProvider({
 
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const { locale, pending, error } = state;
+  if (locale !== null) shownRef.current = locale;
+  // Первая загрузка упала — показать детей на встроенном английском, а не держать `fallback`.
+  const builtin = locale === null && (error !== undefined || childrenShownRef.current);
 
   const value = useMemo(
-    () => (locale === null ? null : contextValue(createI18n(locale), pending, error)),
-    [locale, pending, error]
+    () =>
+      locale === null && !builtin
+        ? null
+        : contextValue(createI18n(locale ?? DEFAULT_LOCALE), pending, error, store.retry),
+    [locale, builtin, pending, error, store]
   );
 
   if (value === null)
     return fallback === undefined ? null : createElement(Fragment, null, fallback);
+  childrenShownRef.current = true;
   return createElement(I18nContext.Provider, { value }, children);
 }
 

@@ -15,6 +15,22 @@ function shallowArrayEqual<T>(a: T[], b: T[]): boolean {
   return true;
 }
 
+/**
+ * Поверхностное сравнение объектов: те же ключи, значения по `Object.is`.
+ * @internal
+ */
+function shallowObjectEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every(
+    (key) => Object.prototype.hasOwnProperty.call(right, key) && Object.is(left[key], right[key])
+  );
+}
+
 /** @internal */
 export type SignalMap = Record<string, Signal<unknown>>;
 
@@ -27,10 +43,18 @@ export type ExtractSignalValues<T extends SignalMap> = {
 export interface SignalConfig<K extends string> {
   key: K;
   useShallowArrayEqual?: boolean;
+  /**
+   * Сравнивать объект поверхностно: новый объект с теми же значениями (`updateComponentProps`
+   * теми же пропсами) снапшот не меняет.
+   */
+  useShallowObjectEqual?: boolean;
 }
 
 /**
- * Хук для подписки на набор сигналов с кешированием
+ * Хук для подписки на набор сигналов с кешированием.
+ *
+ * Подписка — только на сигналы из `configs`: их смена пересобирает снапшот. Остальные сигналы
+ * `signals` в снапшот попадают значением на момент сборки и сами компонент не будят.
  * @internal
  */
 export function useSignalSubscription<
@@ -88,9 +112,10 @@ export function useSignalSubscription<
 
       const dispose = effect(() => {
         const currentSignals = signalsRef.current;
-        // Читаем все сигналы для отслеживания
-        for (const key in currentSignals) {
-          void currentSignals[key].value;
+        // Подписка — только на сигналы из configs: сигнал вне них снапшот всё равно не
+        // пересобирает, а будил бы effect впустую.
+        for (const { key } of configsRef.current) {
+          void currentSignals[key]?.value;
         }
 
         if (isFirstRun) {
@@ -124,11 +149,16 @@ export function useSignalSubscription<
     // Проверяем изменения
     let hasChanged = false;
     for (const config of configsRef.current) {
-      const { key, useShallowArrayEqual: useArrayEqual } = config;
+      const { key, useShallowArrayEqual: useArrayEqual, useShallowObjectEqual } = config;
       const currentValue = (currentValues as Record<string, unknown>)[key];
       const cachedValue = (cache as Record<string, unknown>)[key];
 
-      if (useArrayEqual) {
+      if (useShallowObjectEqual) {
+        if (!shallowObjectEqual(cachedValue, currentValue)) {
+          hasChanged = true;
+          break;
+        }
+      } else if (useArrayEqual) {
         if (!shallowArrayEqual(cachedValue as unknown[], currentValue as unknown[])) {
           hasChanged = true;
           break;
