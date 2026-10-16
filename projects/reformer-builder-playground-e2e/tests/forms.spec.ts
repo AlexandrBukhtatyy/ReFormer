@@ -160,6 +160,9 @@ test.describe('Форма ReFormer', () => {
       path: path.join(SHOTS, '04-binding-changed.png'),
       animations: 'disabled',
     });
+    // Правка доходит до рабочей копии асинхронно. Без этого ожидания «Всё сохранено» ниже могло
+    // оказаться состоянием ДО правки, и файл читался раньше записи — или во время неё.
+    await expect(builder.statusBar).toContainText('1 несохранённый файл');
     await builder.save();
     await expect(builder.statusBar).toContainText('Всё сохранено');
     expect(await emailBinding()).toBe('$model(contact.email)');
