@@ -3335,7 +3335,9 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 
 `compute(target, read)` подписывается на сигналы, прочитанные внутри `read()`, и пишет
 результат в `target`. Цель не входит в источники → цикла нет; запись идемпотентна (peek-guard).
-Кросс-уровневые вычисления работают так же — читай любые поля модели.
+Кросс-уровневые вычисления работают так же — читай любые поля модели. Тип результата задаёт поле:
+`compute(model.$.total, () => model.amount)` при `amount: number | null` и `total: number` не
+компилируется — вычисление писало бы `null` в число (то же у `computeFrom`).
 
 ```typescript
 import { defineFormBehavior, compute } from '@reformer/core/behaviors';
@@ -3878,13 +3880,14 @@ A: `copyFrom` при `when === false` просто не пишет (не сбр�
 
 ```typescript
 // примитив: возвращает cleanup
-function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (value: T) => T }): () => void;
+function syncFields<T>(a: Signal<T>, b: Signal<NoInfer<T>>, options?: { transform?: (value: T) => T }): () => void;
 
 // DSL: cleanup управляется формой
-function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (value: T) => T }): void;
+function syncFields<T>(a: Signal<T>, b: Signal<NoInfer<T>>, options?: { transform?: (value: T) => T }): void;
 ```
 
-`a`/`b` — сигналы (`model.$.field`) совместимого типа `T`. `transform` **асимметричен**:
+`a`/`b` — сигналы (`model.$.field`) совместимого типа `T`. Тип пары задаёт `a`: поле `number | null`
+вторым аргументом к `number` не компилируется — синхронизация писала бы `null` в `number`. `transform` **асимметричен**:
 применяется только при движении значения `a → b`. Опции `debounce`/`when` нет.
 
 ## 40. Examples
@@ -3992,10 +3995,10 @@ A: У `syncFields` нет `when`. Эмулируй через два `copyFrom(a
 
 ```typescript
 // примитив: возвращает cleanup
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: T }): () => void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): () => void;
 
 // DSL: cleanup управляется формой
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: T }): void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): void;
 ```
 
 `target` — сигнал (`model.$.field`). `condition` — реактивное условие (читает `model.*`).
@@ -8043,7 +8046,7 @@ _Source: src/form/types/schema-node.ts_
 ```typescript
 export function compute<R>(
   target: Signal<R>,
-  read: () => R,
+  read: () => NoInfer<R>,
   options?: { when?: () => boolean }
 ): void
 ```
@@ -8061,7 +8064,7 @@ _Source: src/form/behaviors/operators.ts_
 export function computeFrom<R>(
   sources: ReadonlySignal<any>[],
   target: Signal<R>,
-  fn: (...values: any[]) => R,
+  fn: (...values: any[]) => NoInfer<R>,
   options?: { when?: (...values: any[]) => boolean }
 ): BehaviorCleanup
 ```
@@ -12783,7 +12786,7 @@ _Source: src/form/validators/required.ts_
 export function resetWhen<T>(
   target: Signal<T>,
   condition: () => boolean,
-  options?: { resetValue?: T }
+  options?: { resetValue?: NoInfer<T> }
 ): BehaviorCleanup
 ```
 
@@ -13568,7 +13571,7 @@ _Source: src/form/submission.ts_
 ```typescript
 export function syncFields<T>(
   a: Signal<T>,
-  b: Signal<T>,
+  b: Signal<NoInfer<T>>,
   options?: { transform?: (value: T) => T }
 ): BehaviorCleanup
 ```

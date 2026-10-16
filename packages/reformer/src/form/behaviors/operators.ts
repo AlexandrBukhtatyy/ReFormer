@@ -39,7 +39,7 @@ import type { ChangeContext } from './types';
 /** Вычисляемое поле с auto-tracking: `target = read()` при изменении прочитанных сигналов. */
 export function compute<R>(
   target: Signal<R>,
-  read: () => R,
+  read: () => NoInfer<R>,
   options?: { when?: () => boolean }
 ): void {
   assertInsideSchema('compute');
@@ -60,7 +60,7 @@ export function compute<R>(
 export function computeFrom<R>(
   sources: ReadonlySignal<unknown>[],
   target: Signal<R>,
-  fn: (...values: any[]) => R,
+  fn: (...values: any[]) => NoInfer<R>,
   options?: { when?: (...values: any[]) => boolean }
 ): void {
   assertInsideSchema('computeFrom');
@@ -226,7 +226,7 @@ export function transformValue<T>(target: Signal<T>, transformer: (value: T) => 
 export function resetWhen<T>(
   target: Signal<T>,
   condition: () => boolean,
-  options?: { resetValue?: T }
+  options?: { resetValue?: NoInfer<T> }
 ): void {
   assertInsideSchema('resetWhen');
   onDispose(coreResetWhen(target, condition, options));
@@ -235,7 +235,7 @@ export function resetWhen<T>(
 /** Двусторонняя синхронизация двух полей. */
 export function syncFields<T>(
   a: Signal<T>,
-  b: Signal<T>,
+  b: Signal<NoInfer<T>>,
   options?: { transform?: (value: T) => T }
 ): void {
   assertInsideSchema('syncFields');

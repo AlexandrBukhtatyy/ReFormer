@@ -13,10 +13,10 @@
 
 ```typescript
 // примитив: возвращает cleanup
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: T }): () => void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): () => void;
 
 // DSL: cleanup управляется формой
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: T }): void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): void;
 ```
 
 `target` — сигнал (`model.$.field`). `condition` — реактивное условие (читает `model.*`).

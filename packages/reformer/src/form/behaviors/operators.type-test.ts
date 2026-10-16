@@ -146,12 +146,13 @@ export const computeTypeChecks = defineFormBehavior<Order>(({ model }) => {
   // @ts-expect-error — источники — массив ручек, а не одна ручка
   computeFrom(model.$.price, model.$.total, (price: number) => price);
 
-  // [ReFormer-l0eo] сейчас компилируется, а не должно: тип цели выводится и из вычисления, а `Signal`
-  // ковариантен — `number | null` расширяет цель, и в поле `number` пишется `null`.
+  // Тип цели задаёт поле, а не вычисление (`NoInfer`): `Signal` ковариантен, и без этого
+  // `number | null` расширял бы цель, а в поле `number` писался бы `null`.
+  // @ts-expect-error — `number | null` в поле `number`
   compute(model.$.total, () => model.amount);
-  // [ReFormer-l0eo] сейчас компилируется, а не должно: строка в поле-объединение литералов.
+  // @ts-expect-error — строка в поле-объединение литералов
   compute(model.$.status, () => model.title);
-  // [ReFormer-l0eo] сейчас компилируется, а не должно: `null` из `fn` в поле `number`.
+  // @ts-expect-error — `null` из `fn` в поле `number`
   computeFrom([model.$.amount], model.$.total, (amount: number | null) => amount);
 
   // поведение под вопросом: значения источников в `fn` не типизированы (`...values: any[]`) —
@@ -201,9 +202,11 @@ export const valueOperatorTypeChecks = defineFormBehavior<Order>(({ model }) => 
   syncFields(model.$.phone, model.$.amount);
   // @ts-expect-error — `transform` возвращает значение того же типа
   syncFields(model.$.phone, model.$.smsPhone, { transform: (phone) => phone.length });
-  // [ReFormer-l0eo] сейчас компилируется, а не должно: поле `number | null` расширяет тип пары, и
-  // синхронизация пишет `null` в поле `number`.
+  // @ts-expect-error — тип пары задаёт первое поле: `number | null` во второе не расширяет его до `null`
   syncFields(model.$.total, model.$.amount);
+  // поведение под вопросом: в обратном порядке пара компилируется — `Signal` ковариантен, поле
+  // `number` подходит под `number | null`, и синхронизация пишет `null` в `total`.
+  syncFields(model.$.amount, model.$.total);
 
   // transformValue: значение поля → значение того же типа.
   transformValue(model.$.promoCode, (code) => code.toUpperCase().replace(/\s+/g, ''));
@@ -217,9 +220,9 @@ export const valueOperatorTypeChecks = defineFormBehavior<Order>(({ model }) => 
   resetWhen(model.$.amount, () => model.quantity === 0);
   // @ts-expect-error — `resetValue` другого типа
   resetWhen(model.$.total, () => model.sameAddress, { resetValue: 'none' });
-  // [ReFormer-l0eo] сейчас компилируется, а не должно: `resetValue: null` расширяет тип поля `number`.
+  // @ts-expect-error — `resetValue: null` в поле `number`
   resetWhen(model.$.total, () => model.sameAddress, { resetValue: null });
-  // [ReFormer-l0eo] сейчас компилируется, а не должно: без `resetValue` оператор пишет `null` в поле
+  // [ReFormer-2183] сейчас компилируется, а не должно: без `resetValue` оператор пишет `null` в поле
   // `string` — документация называет это ошибкой, а тип её пропускает.
   resetWhen(model.$.promoCode, () => model.sameAddress);
 

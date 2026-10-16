@@ -14,13 +14,14 @@
 
 ```typescript
 // примитив: возвращает cleanup
-function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (value: T) => T }): () => void;
+function syncFields<T>(a: Signal<T>, b: Signal<NoInfer<T>>, options?: { transform?: (value: T) => T }): () => void;
 
 // DSL: cleanup управляется формой
-function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (value: T) => T }): void;
+function syncFields<T>(a: Signal<T>, b: Signal<NoInfer<T>>, options?: { transform?: (value: T) => T }): void;
 ```
 
-`a`/`b` — сигналы (`model.$.field`) совместимого типа `T`. `transform` **асимметричен**:
+`a`/`b` — сигналы (`model.$.field`) совместимого типа `T`. Тип пары задаёт `a`: поле `number | null`
+вторым аргументом к `number` не компилируется — синхронизация писала бы `null` в `number`. `transform` **асимметричен**:
 применяется только при движении значения `a → b`. Опции `debounce`/`when` нет.
 
 ## Examples

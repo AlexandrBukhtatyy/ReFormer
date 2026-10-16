@@ -38,7 +38,7 @@ export type BehaviorCleanup = () => void;
 export function computeFrom<R>(
   sources: ReadonlySignal<any>[],
   target: Signal<R>,
-  fn: (...values: any[]) => R,
+  fn: (...values: any[]) => NoInfer<R>,
   options?: { when?: (...values: any[]) => boolean }
 ): BehaviorCleanup {
   return effect(() => {
@@ -150,7 +150,7 @@ export function transformValue<T>(
 export function resetWhen<T>(
   target: Signal<T>,
   condition: () => boolean,
-  options?: { resetValue?: T }
+  options?: { resetValue?: NoInfer<T> }
 ): BehaviorCleanup {
   const resetValue = (options?.resetValue ?? null) as T;
   const writes = deferredWrites();
@@ -182,7 +182,7 @@ export function resetWhen<T>(
  */
 export function syncFields<T>(
   a: Signal<T>,
-  b: Signal<T>,
+  b: Signal<NoInfer<T>>,
   options?: { transform?: (value: T) => T }
 ): BehaviorCleanup {
   const transform = options?.transform;

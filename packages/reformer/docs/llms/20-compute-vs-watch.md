@@ -15,7 +15,9 @@
 
 `compute(target, read)` подписывается на сигналы, прочитанные внутри `read()`, и пишет
 результат в `target`. Цель не входит в источники → цикла нет; запись идемпотентна (peek-guard).
-Кросс-уровневые вычисления работают так же — читай любые поля модели.
+Кросс-уровневые вычисления работают так же — читай любые поля модели. Тип результата задаёт поле:
+`compute(model.$.total, () => model.amount)` при `amount: number | null` и `total: number` не
+компилируется — вычисление писало бы `null` в число (то же у `computeFrom`).
 
 ```typescript
 import { defineFormBehavior, compute } from '@reformer/core/behaviors';
