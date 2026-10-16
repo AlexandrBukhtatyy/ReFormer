@@ -61,7 +61,7 @@ export {
   syncFields,
   revalidateWhen,
 } from './behaviors-value';
-export type { BehaviorCleanup } from './behaviors-value';
+export type { BehaviorCleanup, ResetWhenOptionsArg } from './behaviors-value';
 
 // Producer-owned флаг: bulk-set/patch не затирает вычисляемые (compute) поля.
 export { markDerived, isDerived, unmarkDerived } from './derived-registry';

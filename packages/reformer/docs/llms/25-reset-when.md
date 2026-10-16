@@ -5,22 +5,29 @@
 `resetWhen` сбрасывает значение поля к `resetValue`, когда `condition` истинно. Это
 альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но
 содержимое нужно очистить (например, переключение способа оплаты обнуляет «номер карты», но
-поле по-прежнему доступно). По умолчанию пишет `null`; `resetValue` задаёт произвольное значение.
+поле по-прежнему доступно). По умолчанию пишет `null`; `resetValue` задаёт произвольное значение
+и **обязателен по типу**, если `null` не входит в тип поля.
 
 ## API
 
 Одинаково в примитиве (`@reformer/core/model`) и DSL (`@reformer/core/behaviors`):
 
 ```typescript
+// опции: поле с null — необязательны; поле без null — resetValue обязателен
+type ResetWhenOptionsArg<T> = null extends T
+  ? [options?: { resetValue?: NoInfer<T> }]
+  : [options: { resetValue: NoInfer<T> }];
+
 // примитив: возвращает cleanup
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): () => void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, ...options: ResetWhenOptionsArg<T>): () => void;
 
 // DSL: cleanup управляется формой
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, ...options: ResetWhenOptionsArg<T>): void;
 ```
 
 `target` — сигнал (`model.$.field`). `condition` — реактивное условие (читает `model.*`).
-`resetValue` по умолчанию `null`. Опций `onlyIfDirty`/`debounce` нет; флаги dirty/touched
+`resetValue` по умолчанию `null` — поэтому полю без `null` в типе (`string`, `number`) его нужно
+задать явно, иначе код не компилируется. Опций `onlyIfDirty`/`debounce` нет; флаги dirty/touched
 поля не трогаются оператором (значения принадлежат модели).
 
 ## Examples
@@ -79,7 +86,7 @@ resetWhen(model.$.amount, () => model.skipPayment, { resetValue: 0 });
 ```
 
 ```typescript
-// ❌ Для строкового поля без resetValue прилетит null, а Input ждёт string
+// ❌ Для строкового поля без resetValue прилетел бы null, а Input ждёт string — не компилируется
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card');
 
 // ✅ Явный resetValue для строк

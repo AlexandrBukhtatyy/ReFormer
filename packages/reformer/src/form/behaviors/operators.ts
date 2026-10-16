@@ -17,6 +17,7 @@ import {
   resetWhen as coreResetWhen,
   syncFields as coreSyncFields,
   revalidateWhen as coreRevalidateWhen,
+  type ResetWhenOptionsArg,
 } from '../../model/behaviors-value';
 import { markDerived, unmarkDerived } from '../../model/derived-registry';
 import { deferredWrites } from '../../model/safe-effect';
@@ -255,14 +256,17 @@ export function transformValue<T>(target: Signal<T>, transformer: (value: T) => 
   onDispose(coreTransformValue(target, transformer));
 }
 
-/** Сброс значения по условию. */
+/**
+ * Сброс значения по условию. Без `resetValue` поле сбрасывается в `null` — поэтому полю, в тип
+ * которого `null` не входит, `resetValue` обязателен (см. {@link ResetWhenOptionsArg}).
+ */
 export function resetWhen<T>(
   target: Signal<T>,
   condition: () => boolean,
-  options?: { resetValue?: NoInfer<T> }
+  ...options: ResetWhenOptionsArg<T>
 ): void {
   assertInsideSchema('resetWhen');
-  onDispose(coreResetWhen(target, condition, options));
+  onDispose(coreResetWhen(target, condition, ...options));
 }
 
 /** Двусторонняя синхронизация двух полей. */

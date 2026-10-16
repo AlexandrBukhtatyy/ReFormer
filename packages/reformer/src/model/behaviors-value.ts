@@ -145,6 +145,17 @@ export function transformValue<T>(
 }
 
 /**
+ * Опции {@link resetWhen}. Без `resetValue` поле сбрасывается в `null`, поэтому `resetValue`
+ * обязателен, если `null` не входит в тип поля: `resetWhen(model.$.promoCode, cond)` для поля
+ * `string` не компилируется — нужно `{ resetValue: '' }`.
+ *
+ * @group Behaviors
+ */
+export type ResetWhenOptionsArg<T> = null extends T
+  ? [options?: { resetValue?: NoInfer<T> }]
+  : [options: { resetValue: NoInfer<T> }];
+
+/**
  * Сброс значения поля к `resetValue` (по умолчанию `null`), когда `condition` истинно.
  *
  * @group Model
@@ -156,7 +167,7 @@ export function transformValue<T>(
 export function resetWhen<T>(
   target: Signal<T>,
   condition: () => boolean,
-  options?: { resetValue?: NoInfer<T> }
+  ...[options]: ResetWhenOptionsArg<T>
 ): BehaviorCleanup {
   const resetValue = (options?.resetValue ?? null) as T;
   const writes = deferredWrites();

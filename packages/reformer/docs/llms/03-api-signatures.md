@@ -457,7 +457,7 @@ computeFrom(sources: ReadonlySignal[], target: Signal, fn: (...vals) => R, optio
 copyFrom(source: ReadonlySignal, target: Signal, options?: { when?: () => boolean; transform?: (v) => v }): () => void
 watchField(source: ReadonlySignal, cb: (value) => void, options?: { immediate?: boolean }): () => void
 transformValue(target: Signal, transformer: (value) => value): () => void
-resetWhen(target: Signal, condition: () => boolean, options?: { resetValue?: T }): () => void
+resetWhen(target: Signal, condition: () => boolean, options?: { resetValue?: T }): () => void // resetValue обязателен, если null не в типе поля
 syncFields(a: Signal, b: Signal, options?: { transform?: (v) => v }): () => void
 revalidateWhen(deps: ReadonlySignal[], revalidate: () => void): () => void
 ```

@@ -222,9 +222,10 @@ export const valueOperatorTypeChecks = defineFormBehavior<Order>(({ model }) => 
   resetWhen(model.$.total, () => model.sameAddress, { resetValue: 'none' });
   // @ts-expect-error — `resetValue: null` в поле `number`
   resetWhen(model.$.total, () => model.sameAddress, { resetValue: null });
-  // [ReFormer-2183] сейчас компилируется, а не должно: без `resetValue` оператор пишет `null` в поле
-  // `string` — документация называет это ошибкой, а тип её пропускает.
+  // @ts-expect-error — без `resetValue` оператор пишет `null`, а в тип поля `string` он не входит [ReFormer-2183]
   resetWhen(model.$.promoCode, () => model.sameAddress);
+  // @ts-expect-error — и пустых опций мало: `resetValue` обязателен
+  resetWhen(model.$.promoCode, () => model.sameAddress, {});
 
   // revalidateWhen: зависимости — ручки поля и группы, колбэк без аргументов.
   revalidateWhen([model.$.price, model.$.registration], () => undefined);

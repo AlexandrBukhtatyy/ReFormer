@@ -224,6 +224,7 @@ exports[`public API — входы сабпатов > PA-02 · ./model — им�
   "ModelSignals": "тип",
   "ModelValue": "тип",
   "PathAwareSignal": "тип",
+  "ResetWhenOptionsArg": "тип",
   "arrayOf": "функция",
   "computeFrom": "функция",
   "copyFrom": "функция",

@@ -782,7 +782,7 @@ computeFrom(sources: ReadonlySignal[], target: Signal, fn: (...vals) => R, optio
 copyFrom(source: ReadonlySignal, target: Signal, options?: { when?: () => boolean; transform?: (v) => v }): () => void
 watchField(source: ReadonlySignal, cb: (value) => void, options?: { immediate?: boolean }): () => void
 transformValue(target: Signal, transformer: (value) => value): () => void
-resetWhen(target: Signal, condition: () => boolean, options?: { resetValue?: T }): () => void
+resetWhen(target: Signal, condition: () => boolean, options?: { resetValue?: T }): () => void // resetValue обязателен, если null не в типе поля
 syncFields(a: Signal, b: Signal, options?: { transform?: (v) => v }): () => void
 revalidateWhen(deps: ReadonlySignal[], revalidate: () => void): () => void
 ```
@@ -4008,22 +4008,29 @@ A: У `syncFields` нет `when`. Эмулируй через два `copyFrom(a
 `resetWhen` сбрасывает значение поля к `resetValue`, когда `condition` истинно. Это
 альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но
 содержимое нужно очистить (например, переключение способа оплаты обнуляет «номер карты», но
-поле по-прежнему доступно). По умолчанию пишет `null`; `resetValue` задаёт произвольное значение.
+поле по-прежнему доступно). По умолчанию пишет `null`; `resetValue` задаёт произвольное значение
+и **обязателен по типу**, если `null` не входит в тип поля.
 
 ## 45. API
 
 Одинаково в примитиве (`@reformer/core/model`) и DSL (`@reformer/core/behaviors`):
 
 ```typescript
+// опции: поле с null — необязательны; поле без null — resetValue обязателен
+type ResetWhenOptionsArg<T> = null extends T
+  ? [options?: { resetValue?: NoInfer<T> }]
+  : [options: { resetValue: NoInfer<T> }];
+
 // примитив: возвращает cleanup
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): () => void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, ...options: ResetWhenOptionsArg<T>): () => void;
 
 // DSL: cleanup управляется формой
-function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: NoInfer<T> }): void;
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, ...options: ResetWhenOptionsArg<T>): void;
 ```
 
 `target` — сигнал (`model.$.field`). `condition` — реактивное условие (читает `model.*`).
-`resetValue` по умолчанию `null`. Опций `onlyIfDirty`/`debounce` нет; флаги dirty/touched
+`resetValue` по умолчанию `null` — поэтому полю без `null` в типе (`string`, `number`) его нужно
+задать явно, иначе код не компилируется. Опций `onlyIfDirty`/`debounce` нет; флаги dirty/touched
 поля не трогаются оператором (значения принадлежат модели).
 
 ## 46. Examples
@@ -4082,7 +4089,7 @@ resetWhen(model.$.amount, () => model.skipPayment, { resetValue: 0 });
 ```
 
 ```typescript
-// ❌ Для строкового поля без resetValue прилетит null, а Input ждёт string
+// ❌ Для строкового поля без resetValue прилетел бы null, а Input ждёт string — не компилируется
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card');
 
 // ✅ Явный resetValue для строк
@@ -12983,7 +12990,7 @@ _Source: src/form/validators/required.ts_
 export function resetWhen<T>(
   target: Signal<T>,
   condition: () => boolean,
-  options?: { resetValue?: NoInfer<T> }
+  ...[options]: ResetWhenOptionsArg<T>
 ): BehaviorCleanup
 ```
 
@@ -12991,6 +12998,23 @@ export function resetWhen<T>(
 
 ```typescript
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
+```
+
+_Source: src/model/behaviors-value.ts_
+
+### ResetWhenOptionsArg
+
+**Kind:** `type`
+
+Опции {@link resetWhen}. Без `resetValue` поле сбрасывается в `null`, поэтому `resetValue`
+обязателен, если `null` не входит в тип поля: `resetWhen(model.$.promoCode, cond)` для поля
+`string` не компилируется — нужно `{ resetValue: '' }`.
+
+**Signature:**
+```typescript
+export type ResetWhenOptionsArg<T> = null extends T
+  ? [options?: { resetValue?: NoInfer<T> }]
+  : [options: { resetValue: NoInfer<T> }];
 ```
 
 _Source: src/model/behaviors-value.ts_
