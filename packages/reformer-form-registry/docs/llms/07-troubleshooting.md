@@ -24,11 +24,8 @@ console.log(reg.diagnostics); // конфликты id
 разметке: `<input label="Фамилия">` — атрибут `label` уехал прямо в DOM, потому что его никто не
 потребил.
 
-В единой сборке обёртку берёт из реестра формы сама сборка (`registry.resolveSchema`) и кладёт в
-бандл — проверьте, что запись `FIELD_WRAPPER` есть в базовом реестре или в расширении записи. На
-прежнем пути (`JsonFormRenderer`) обёртку доставал **провайдер**, и реестр, пришедший в обход
-провайдера (пропом или в бандле `form`), её терял; починено в `@reformer/renderer-json` — обёртка
-берётся из того реестра, который реально используется.
+Обёртку берёт из реестра формы сама сборка (`registry.resolveSchema`) и кладёт в бандл — проверьте,
+что запись `FIELD_WRAPPER` есть в базовом реестре или в расширении записи.
 
 ## Валидация «не работает» на конкретном поле
 
@@ -78,8 +75,8 @@ CDN отдал чужую схему. Ловится как `schema-identity-mis
 
 ## `Cannot find module '@reformer/renderer-react'` у потребителя
 
-Типы пакета ссылаются на `RenderBehaviorFn`. Пакет объявлен в `peerDependencies` — установите его
-рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
+Пакет монтирует форму через `FormRenderer`, а его типы ссылаются на `RendererSettings`. Пакет
+объявлен в `peerDependencies` — установите его рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
 
 ## Схема не грузится по сети
 
@@ -109,15 +106,11 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 `map`/`filter` внутри рендера, каждый вызов даёт новый массив. Сам `list()` ссылку сохраняет, пока
 состав реестра не менялся, — не ломайте это трансформацией на месте, мемоизируйте.
 
-## `entry.ts` от билдера не компилируется
+## Удалённое API записи и места монтирования
 
-Запись прежнего контракта: фабрика `renderBehavior` получает `(form, model, level, options?)` —
-третьим параметром идёт собранный уровень формы (`FormLevel`: `submission`, `validate`, `flow`),
-а не правила валидации; настройки места — четвёртый параметр. Сгенерированная фабрика вида
-`(form, model, options)` подключается переходником:
-`value: (form, model, _level, options) => createRenderBehavior(form, model, options)`.
-
-Лучше перевести запись на единый контракт: правила узлов — в `behavior` (фабрика
-`(options) => defineFormBehavior(…)` получает настройки места), правила шагов — в `flow`, поле
-`renderBehavior` убрать. Настройки места хост передаёт пропом `behaviorOptions` (прежнее имя
-`renderBehaviorOptions` работает как синоним).
+| Было | Стало |
+| --- | --- |
+| поле записи `renderBehavior` (фабрика `RenderBehaviorFn`) | правила узлов — в `behavior`; фабрика `(options) => defineFormBehavior(…)` получает настройки места; правила шагов — в `flow` |
+| проп `renderBehaviorOptions` у `FormOutlet` / `FormSlot` / `MountedForm` | `behaviorOptions` |
+| бандл `createJsonForm` в `onReady` | бандл `createForm` (`FormBundle`) |
+| `resolveFieldAdapter` из `JsonRendererProvider` хоста | `<FormRegistryProvider options={{ resolveFieldAdapter }}>` |

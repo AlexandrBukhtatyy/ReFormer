@@ -80,8 +80,7 @@ FormEntry (запись)
    │     ├─ composeRegistries(base, own)   ← расширение записи перекрывает базу
    │     └─ preflight — 6 проверок
    │
-   └─ MountedForm ─┬─ формат 2: createForm({ schema, registry, behavior, validation, flow }) → FormRenderer
-                   └─ запись прежнего контракта (renderBehavior): createJsonForm → JsonFormRenderer
+   └─ MountedForm ── createForm({ schema, registry, behavior, validation, flow }) → FormRenderer
 ```
 
 Разделение загрузки и монтирования обязательное, а не стилистическое: `useFormBundle` — ленивый

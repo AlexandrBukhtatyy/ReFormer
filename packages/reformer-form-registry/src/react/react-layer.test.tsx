@@ -12,12 +12,7 @@ import type { FC } from 'react';
 import { createModel } from '@reformer/core';
 import { useFormBundleContext } from '@reformer/core/react';
 import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
-import {
-  createJsonForm,
-  defineRegistry,
-  FIELD_WRAPPER,
-  type ComponentRegistry,
-} from '@reformer/renderer-json';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import { createFormRegistry } from '../registry';
 import { createSchemaCache, type SchemaCache } from '../cache';
 import type { FormEntry, ResolveContext } from '../types';
@@ -51,9 +46,10 @@ const baseRegistry: ComponentRegistry = defineRegistry((r) => {
 });
 
 const schema = {
+  format: 2,
   root: {
     component: '$component(Box)',
-    children: [{ value: '$model(email)', component: '$component(Input)' }],
+    children: [{ model: '$model(email)', component: '$component(Input)' }],
   },
 } as never;
 
@@ -148,11 +144,7 @@ describe('MountedForm — синхронная сборка', () => {
     // Ветка выбора модели (`model ?? makeModel() ?? initial`) раньше была не покрыта: тест
     // не передавал проп и утверждал лишь наличие слова «поле» — то есть проходил бы при ЛЮБОМ
     // поведении ветки. Теперь наблюдаем конкретное значение.
-    const model = createJsonForm<Model>({
-      schema,
-      registry: baseRegistry,
-      initial: { email: 'из-модели' },
-    }).model;
+    const model = createModel<Model>({ email: 'из-модели' });
     const loaded: LoadedForm<Model> = {
       schema,
       registry: baseRegistry,
@@ -176,9 +168,7 @@ describe('MountedForm — синхронная сборка', () => {
       schema,
       registry: baseRegistry,
       initial: { email: 'из-initial' },
-      makeModel: () =>
-        createJsonForm<Model>({ schema, registry: baseRegistry, initial: { email: 'из-фабрики' } })
-          .model,
+      makeModel: () => createModel<Model>({ email: 'из-фабрики' }),
     };
     const html = renderToString(
       <MountedForm<Model> entry={entry({ id: 'a' }) as FormEntry<Model>} loaded={loaded} />
@@ -336,23 +326,6 @@ describe('MountedForm — единая сборка (документ форма
     );
     expect(seen).toEqual([{ hideSecret: true }]);
     expect(html).not.toContain('тайна');
-  });
-
-  it('прежнее имя пропа — renderBehaviorOptions — работает; без настроек фабрика получает {}', () => {
-    const seen: Record<string, unknown>[] = [];
-    const factory = (options: Record<string, unknown>) => {
-      seen.push(options);
-      return defineFormBehavior<Shape>(() => undefined);
-    };
-    renderToString(
-      <MountedForm<Shape>
-        entry={v2Entry}
-        loaded={loadedV2({ behavior: factory })}
-        renderBehaviorOptions={{ legacy: 1 }}
-      />
-    );
-    renderToString(<MountedForm<Shape> entry={v2Entry} loaded={loadedV2({ behavior: factory })} />);
-    expect(seen).toEqual([{ legacy: 1 }, {}]);
   });
 
   it('поток шагов записи доступен из дерева через контекст сборки', () => {

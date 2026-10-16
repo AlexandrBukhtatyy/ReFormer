@@ -21,8 +21,6 @@ export interface FormMountProps<T extends object> {
    * фабрику поведения записи (`FormEntry.behavior`).
    */
   behaviorOptions?: Record<string, unknown>;
-  /** @deprecated Прежнее имя {@link FormMountProps.behaviorOptions}. */
-  renderBehaviorOptions?: Record<string, unknown>;
   /** Что показывать, пока части формы грузятся. */
   fallback?: ReactNode;
   /** Что показывать, если загрузка не удалась. Второй аргумент — повтор. */
@@ -43,7 +41,7 @@ function EntryMount<T extends object>({
   ...rest
 }: { entry: FormEntry<T> } & FormMountProps<T>): ReactNode {
   const { baseRegistry, cache, options } = useFormRegistryContext();
-  const { onDiagnostic: report, preflight, fetchImpl, stepHosts } = options;
+  const { onDiagnostic: report, preflight, fetchImpl, stepHosts, resolveFieldAdapter } = options;
   const { id, version, owner } = entry;
 
   // Загрузчик знает про часть формы и ключ записи, но не про `Diagnostic` хоста — здесь
@@ -82,7 +80,8 @@ function EntryMount<T extends object>({
       loaded={res.data}
       initial={rest.initial}
       model={rest.model}
-      behaviorOptions={rest.behaviorOptions ?? rest.renderBehaviorOptions}
+      behaviorOptions={rest.behaviorOptions}
+      resolveFieldAdapter={resolveFieldAdapter}
       errorFallback={rest.errorFallback}
       onReady={rest.onReady}
     />

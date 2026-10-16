@@ -100,8 +100,8 @@ import { FormRegistryProvider, FormOutlet, FormSlot } from '@reformer/form-regis
 The host builds nothing itself: `FormOutlet` loads the entry, runs preflight and assembles the form
 with `createForm` from `@reformer/core` (document + registry + behavior + validation + flow), rendering
 it with `FormRenderer`. Host callbacks such as `onResult` go through the `behaviorOptions` prop into a
-behavior factory `(options) => defineFormBehavior(…)`. An entry with the previous `renderBehavior`
-field is still mounted the previous way (`createJsonForm` + `JsonFormRenderer`).
+behavior factory `(options) => defineFormBehavior(…)`. A document of the previous format (without
+`format: 2`) is converted on every load with `migrateJsonSchema`.
 
 ## Subpath exports
 

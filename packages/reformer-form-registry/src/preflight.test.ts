@@ -4,11 +4,7 @@
  * Смысл каждой — поймать отказ, который иначе МОЛЧАЛИВ либо всплывает далеко от причины.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  defineRegistry,
-  type JsonFormSchema as JsonFormSchemaV2,
-  type JsonFormSchemaV1 as JsonFormSchema,
-} from '@reformer/renderer-json';
+import { defineRegistry, type JsonFormSchema } from '@reformer/renderer-json';
 import { preflight, satisfiesRange, collectModelPaths, hasPath } from './preflight';
 import type { FormEntry } from './types';
 
@@ -27,13 +23,14 @@ const registry = defineRegistry((r) => {
 });
 
 const schema = {
+  format: 2,
   id: 'a',
   version: '1.0.0',
   root: {
     component: '$component(Box)',
     children: [
-      { selector: 'step1', value: '$model(email)', component: '$component(Input)' },
-      { value: '$model(profile.age)', component: '$component(Input)' },
+      { selector: 'step1', model: '$model(email)', component: '$component(Input)' },
+      { model: '$model(profile.age)', component: '$component(Input)' },
     ],
   },
 } as unknown as JsonFormSchema<M>;
@@ -111,7 +108,7 @@ describe('preflight — промахи по реестру', () => {
         component: '$component(Box)',
         children: [
           {
-            value: '$model(email)',
+            model: '$model(email)',
             component: '$component(Input)',
             componentProps: { options: '$dataSource(ГОРОДА)' },
           },
@@ -129,7 +126,7 @@ describe('preflight — промахи по реестру', () => {
         component: '$component(Box)',
         children: [
           {
-            value: '$model(email)',
+            model: '$model(email)',
             component: '$component(Input)',
             componentProps: { format: '$fn(неизвестная)' },
           },
@@ -183,7 +180,7 @@ describe('preflight — нематериализованные пути моде
       ...schema,
       root: {
         component: '$component(Box)',
-        children: [{ value: '$model(items.0.name)', component: '$component(Input)' }],
+        children: [{ model: '$model(items.0.name)', component: '$component(Input)' }],
       },
     } as unknown as JsonFormSchema<M>;
     const r = preflight({ entry: entry(), schema: s, registry, initial: { items: [] } });
@@ -228,7 +225,7 @@ describe('preflight — документ формата 2', () => {
         { model: '$model(rows)', item: '$part(row)' },
       ],
     },
-  } as unknown as JsonFormSchemaV2<V2>;
+  } as unknown as JsonFormSchema<V2>;
 
   const v2Initial: V2 = {
     email: '',
@@ -237,8 +234,8 @@ describe('preflight — документ формата 2', () => {
     rows: [],
   };
   const v2Entry = entry() as unknown as FormEntry<V2>;
-  const withParts = (parts: Record<string, unknown>): JsonFormSchemaV2<V2> =>
-    ({ ...v2, parts: { ...v2.parts, ...parts } }) as unknown as JsonFormSchemaV2<V2>;
+  const withParts = (parts: Record<string, unknown>): JsonFormSchema<V2> =>
+    ({ ...v2, parts: { ...v2.parts, ...parts } }) as unknown as JsonFormSchema<V2>;
 
   it('всё сходится → ok, без замечаний', () => {
     const r = preflight({ entry: v2Entry, schema: v2, registry, initial: v2Initial });
@@ -286,7 +283,7 @@ describe('preflight — документ формата 2', () => {
           { model: '$model(rows)', item: '$part(строка)' },
         ],
       },
-    } as unknown as JsonFormSchemaV2<V2>;
+    } as unknown as JsonFormSchema<V2>;
     const r = preflight({ entry: v2Entry, schema, registry });
     const p = r.problems.find((x) => x.code === 'missing-parts')!;
     expect(r.ok).toBe(false);

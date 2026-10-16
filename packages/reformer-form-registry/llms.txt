@@ -97,8 +97,7 @@ FormEntry (запись)
    │     ├─ composeRegistries(base, own)   ← расширение записи перекрывает базу
    │     └─ preflight — 6 проверок
    │
-   └─ MountedForm ─┬─ формат 2: createForm({ schema, registry, behavior, validation, flow }) → FormRenderer
-                   └─ запись прежнего контракта (renderBehavior): createJsonForm → JsonFormRenderer
+   └─ MountedForm ── createForm({ schema, registry, behavior, validation, flow }) → FormRenderer
 ```
 
 Разделение загрузки и монтирования обязательное, а не стилистическое: `useFormBundle` — ленивый
@@ -182,7 +181,6 @@ type CodeSource<T> =
 | `behavior` | `CodeSource?` | поведение формы — и модель (`compute`/`enableWhen`/`onChange`), и узлы схемы (`hideWhen`/`onComponentEvent`/`onMount`); либо фабрика `(options) => поведение` |
 | `validation` | `CodeSource?` | правила формы — `FormValidation` (`rules` \| `extras`, `strategy`) |
 | `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
-| `renderBehavior` | `CodeSource?` | прежний контракт: фабрика render-behavior (см. ниже) |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
 | `degrade` | `'error' \| 'placeholder'` | что делать при отказе; дефолт строгий |
@@ -224,18 +222,6 @@ const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
     });
   });
 ```
-
-### `renderBehavior` — прежний контракт
-
-```ts
-(form, model, level, options?) => RenderBehaviorFn<T>
-```
-
-Запись с `renderBehavior` монтируется прежним путём (`createJsonForm` + `JsonFormRenderer`), и её
-документ схемы остаётся прежнего формата. Третий параметр — собранный уровень формы (`FormLevel`:
-`submission`, `validate`, `flow`), четвёртый — настройки места (`behaviorOptions`; прежнее имя пропа
-`renderBehaviorOptions` работает как синоним). Новой записи это поле не нужно: правила узлов пишутся
-в `behavior` — см. [08-unified-contract.md](08-unified-contract.md).
 
 ## 9. Конфликты `id`
 
@@ -335,14 +321,14 @@ resolveForms(store, query, ctx) =
 что и ожидание, и отказ выглядят одинаково — пустым местом.
 
 Форма дополнительно обёрнута в `SchemaErrorBoundary`: ошибка рендера даёт панель ошибки, а не
-белый экран. В единой сборке границу кладёт в бандл реестр, а `errorFallback` места монтирования её
-заменяет; на прежнем пути `MountedForm` оборачивает `JsonFormRenderer` сам. Неизвестный
+белый экран. Границу кладёт в бандл реестр, а `errorFallback` места монтирования её заменяет.
+Неизвестный
 `$component` и прочие промахи документа ловит до сборки preflight (`missing-components`).
 
 Отдельные пропы места монтирования:
 
 - `behaviorOptions` — настройки места (колбэки хоста вроде `onResult`): приходят аргументом в
-  фабрику поведения записи (`FormEntry.behavior`). Прежнее имя `renderBehaviorOptions` — синоним;
+  фабрику поведения записи (`FormEntry.behavior`);
 - `onReady(bundle)` — собранный бандл: `model`, `form`, `flow`, `validate()`,
   `submission.submit(handler)`;
 - `initial` / `model` — переопределение начальных значений либо готовая модель.
@@ -350,24 +336,19 @@ resolveForms(store, query, ctx) =
 ## 14. Почему реестр передаётся ЯВНО, а не контекстом
 
 ```tsx
-// единая сборка (документ формата 2):
 createForm({ schema: loaded.schema, registry: loaded.registry, model, behavior, validation, flow });
-// запись прежнего контракта:
-<JsonFormRenderer form={jsonForm} registry={loaded.registry} validateSchema={false} />
 ```
 
 React-контекст не пересекает границу бандла: провайдер хоста и рендерер ремоута — разные модульные
 графы. Полагаться на контекст здесь значит получить молчаливый отказ в проде, где DEV-guard вырезан
 сборщиком.
 
-Вместе с реестром едет и производная от него обёртка полей (`$fieldWrapper`). В единой сборке её
-вместе с деревом достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда.
-Обёртка из реестра формы главнее провайдера хоста; от `JsonRendererProvider` хоста монтирование
-доносит до рендерера только `resolveFieldAdapter`.
+Вместе с реестром едет и производная от него обёртка полей (`$fieldWrapper`): её вместе с деревом
+достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда. Резолв адаптеров
+полей чужого кита (`resolveFieldAdapter`) хост задаёт в `options` провайдера реестра —
+`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
 
-`validateSchema={false}` на прежнем пути тоже намеренно: валидация схемы — ответственность
-загрузчика (см. `05-preflight.md`), а проп рендерера тянет ajv и компилирует мета-схему на каждый
-инстанс формы.
+Валидация схемы мета-схемой — ответственность загрузчика (см. `05-preflight.md`), а не монтирования.
 
 ## 15. Пересоздание при смене версии
 
@@ -376,7 +357,7 @@ React-контекст не пересекает границу бандла: п
 ```
 
 `key` заставляет React пересоздать поддерево целиком. Без него ленивый `useState` внутри
-`useFormBundle` (на прежнем пути — `useJsonForm`) вернул бы старую модель со старой схемой — форма
+`useFormBundle` вернул бы старую модель со старой схемой — форма
 визуально «обновилась» бы, а данные остались от прежней версии.
 
 ## 16. Быстрый старт
@@ -609,9 +590,8 @@ Preflight получает реестр уже после `composeRegistries(bas
 
 ## 24. Проверяется документ ПОСЛЕ перевода
 
-Запись единого контракта получает документ формата 2: загрузчик переводит прежний формат
-(`migrateJsonSchema`) до проверок, поэтому preflight видит шаги визарда уже в `children`. Документ
-записи прежнего контракта (с `renderBehavior`) проверяется как есть.
+Preflight получает документ формата 2: загрузчик переводит прежний формат (`migrateJsonSchema`) до
+проверок, поэтому preflight видит шаги визарда уже в `children`.
 
 ## 25. Валидация схемы мета-схемой
 
@@ -743,11 +723,8 @@ console.log(reg.diagnostics); // конфликты id
 разметке: `<input label="Фамилия">` — атрибут `label` уехал прямо в DOM, потому что его никто не
 потребил.
 
-В единой сборке обёртку берёт из реестра формы сама сборка (`registry.resolveSchema`) и кладёт в
-бандл — проверьте, что запись `FIELD_WRAPPER` есть в базовом реестре или в расширении записи. На
-прежнем пути (`JsonFormRenderer`) обёртку доставал **провайдер**, и реестр, пришедший в обход
-провайдера (пропом или в бандле `form`), её терял; починено в `@reformer/renderer-json` — обёртка
-берётся из того реестра, который реально используется.
+Обёртку берёт из реестра формы сама сборка (`registry.resolveSchema`) и кладёт в бандл — проверьте,
+что запись `FIELD_WRAPPER` есть в базовом реестре или в расширении записи.
 
 ## 34. Валидация «не работает» на конкретном поле
 
@@ -797,8 +774,8 @@ CDN отдал чужую схему. Ловится как `schema-identity-mis
 
 ## 40. `Cannot find module '@reformer/renderer-react'` у потребителя
 
-Типы пакета ссылаются на `RenderBehaviorFn`. Пакет объявлен в `peerDependencies` — установите его
-рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
+Пакет монтирует форму через `FormRenderer`, а его типы ссылаются на `RendererSettings`. Пакет
+объявлен в `peerDependencies` — установите его рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
 
 ## 41. Схема не грузится по сети
 
@@ -828,26 +805,21 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 `map`/`filter` внутри рендера, каждый вызов даёт новый массив. Сам `list()` ссылку сохраняет, пока
 состав реестра не менялся, — не ломайте это трансформацией на месте, мемоизируйте.
 
-## 44. `entry.ts` от билдера не компилируется
+## 44. Удалённое API записи и места монтирования
 
-Запись прежнего контракта: фабрика `renderBehavior` получает `(form, model, level, options?)` —
-третьим параметром идёт собранный уровень формы (`FormLevel`: `submission`, `validate`, `flow`),
-а не правила валидации; настройки места — четвёртый параметр. Сгенерированная фабрика вида
-`(form, model, options)` подключается переходником:
-`value: (form, model, _level, options) => createRenderBehavior(form, model, options)`.
-
-Лучше перевести запись на единый контракт: правила узлов — в `behavior` (фабрика
-`(options) => defineFormBehavior(…)` получает настройки места), правила шагов — в `flow`, поле
-`renderBehavior` убрать. Настройки места хост передаёт пропом `behaviorOptions` (прежнее имя
-`renderBehaviorOptions` работает как синоним).
+| Было | Стало |
+| --- | --- |
+| поле записи `renderBehavior` (фабрика `RenderBehaviorFn`) | правила узлов — в `behavior`; фабрика `(options) => defineFormBehavior(…)` получает настройки места; правила шагов — в `flow` |
+| проп `renderBehaviorOptions` у `FormOutlet` / `FormSlot` / `MountedForm` | `behaviorOptions` |
+| бандл `createJsonForm` в `onReady` | бандл `createForm` (`FormBundle`) |
+| `resolveFieldAdapter` из `JsonRendererProvider` хоста | `<FormRegistryProvider options={{ resolveFieldAdapter }}>` |
 
 ## 45. Purpose
 
 **Запись единого контракта: документ формата 2 и одно поведение**
 
 Реестр форм собирает форму единой сборкой: `createForm` из `@reformer/core` и `FormRenderer` из
-`@reformer/renderer-react`. Документ схемы — формата 2, поведение формы одно. Прежний путь
-(`createJsonForm` + `JsonFormRenderer` + `renderBehavior`) остаётся для записей, написанных под него.
+`@reformer/renderer-react`. Документ схемы — формата 2, поведение формы одно.
 
 Формат документа — `reformer://docs/renderer-json`, раздел «JSON-схема: формат 2». Контракт
 целиком — раздел «Единый контракт формы» в `reformer://docs/core`.
@@ -891,9 +863,9 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
 };
 ```
 
-Отличия от прежней записи:
+Устройство записи:
 
-- `renderBehavior` нет. Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) и навигация
+- Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) и навигация
   (`flow.goTo(id)`) пишутся в том же `behavior`, через `schema.node(selector)` и `flow` области.
 - `behavior` — поведение либо фабрика `(options) => поведение`
   (`FormBehaviorFactory`). Фабрика получает настройки места монтирования.
@@ -912,8 +884,6 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
 Колбэки вроде `onResult` принадлежат хосту, а запись одна на все места, где форму покажут, —
 поэтому они приходят пропом и попадают в фабрику поведения аргументом. Без пропа фабрика получает
 пустой объект. Фабрика вызывается один раз, при сборке формы.
-
-Прежнее имя пропа — `renderBehaviorOptions` — работает как синоним.
 
 ## 48. Документ прежнего формата
 
@@ -940,33 +910,18 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 Документ с полем `format`, отличным от `2`, по сети отвергается до кэша (`not-a-form-schema`):
 документ выкатили вперёд кода.
 
-## 49. Какой путь выберет монтирование
+`LoadedForm.schema` — всегда формат 2.
 
-| Запись | Документ | Что произойдёт |
-| --- | --- | --- |
-| без `renderBehavior` | формат 2 | единая сборка |
-| без `renderBehavior` | прежний формат | документ переводится в формат 2 → единая сборка |
-| с `renderBehavior` | прежний формат | прежний путь: `createJsonForm` + `JsonFormRenderer` |
-| с `renderBehavior` | формат 2 | `FormLoadError`: поведение написано под прежнюю сборку |
-
-Запись с `renderBehavior` — запись прежнего контракта: её документ не переводится. Чтобы перейти
-на единый контракт, перенесите правила узлов в `behavior` и уберите `renderBehavior`.
-
-`LoadedForm.schema` у записи единого контракта — всегда формат 2.
-
-## 50. onReady
+## 49. onReady
 
 ```tsx
 <FormOutlet id="checkout" onReady={(bundle) => bundle.model.patch(prefill)} />
 ```
 
-`onReady` получает собранный бандл (`MountedFormBundle`): у записи единого контракта —
-`FormBundle` из `createForm`
-(`{ model, form, render, flow, validate, validateStep, submission, … }`), у записи прежнего
-контракта — бандл `createJsonForm`. Уровень формы — `model`, `form`, `flow`,
-`validate()`, `validateStep(id)`, `submission.submit(handler)` — есть у обоих.
+`onReady` получает собранный бандл (`MountedFormBundle`) — `FormBundle` из `createForm`:
+`{ model, form, render, flow, validate, validateStep, submission, … }`.
 
-## 51. Preflight и части документа
+## 50. Preflight и части документа
 
 Проверки идут по корневому дереву и по именованным частям (`parts`):
 
@@ -979,20 +934,21 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 - шаблон строки массива (`item`) против начальных значений не проверяется: его пути относительны
   элементу, а массив на старте обычно пуст.
 
-## 52. Обёртка поля и адаптеры
+## 51. Обёртка поля и адаптеры
 
 Обёртку поля (`FIELD_WRAPPER`) сборка берёт из реестра формы — базового, скомпонованного с
 расширением записи. Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и
 рендерер ремоута могут жить в разных бандлах.
 
-`resolveFieldAdapter` для компонентов чужого кита по-прежнему задаётся хостом в
-`JsonRendererProvider` — монтирование доносит его до рендерера.
+`resolveFieldAdapter` для компонентов чужого кита хост задаёт в опциях провайдера реестра —
+`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
 
-## 53. Частые ошибки
+## 52. Частые ошибки
 
 | Симптом | Причина |
 | --- | --- |
-| `документ схемы — формата 2, а запись несёт renderBehavior` | запись прежнего контракта получила новый документ — перенесите правила в `behavior` |
+| ошибка типа: `renderBehavior` нет в `FormEntry` | поле удалено вместе с прежним контрактом — правила узлов пишутся в `behavior` |
+| ошибка типа: `renderBehaviorOptions` у `FormOutlet` | проп удалён — `behaviorOptions` |
 | шаги визарда после перевода остались в `componentProps.steps` | визард зарегистрирован под своим именем — добавьте его в `stepHosts` |
 | `missing-parts` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
 | `onResult` не вызывается | `behavior` записи — готовое поведение, а не фабрика: настройки места получает только фабрика |
@@ -1000,7 +956,7 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 | визард: «шаги схемы и шаги потока расходятся» | набор `flow.steps` не совпадает с узлами шагов визарда в документе (порядок шагов визард берёт из потока сам) |
 | правило `hideWhen` узла внутри подформы не срабатывает | корневое поведение не видит узлы частей — подключите поведение подформы через `apply(model.$.group, behavior)` |
 
-## 54. API Reference
+## 53. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1031,7 +987,7 @@ _Source: src/net.ts_
 ```typescript
 export function assertSchemaValid(
   entryKey: string,
-  schema: JsonFormSchema | JsonFormSchemaV1,
+  schema: JsonFormSchema,
   opts: ValidateOptions = {}
 ): void
 ```
@@ -1216,16 +1172,14 @@ _Source: src/types.ts_
 
 Пути `$model(...)`, встреченные в схеме, — от корня модели.
 
-Прежний формат: все операторы дерева как есть.
-
-Формат 2: путь внутри именованной части относителен группе, к которой часть подключена, —
+Путь внутри именованной части относителен группе, к которой часть подключена, —
 он достраивается до пути от корня. Шаблон строки массива (`item`) не обходится: его пути
 относительны элементу, а массив на старте обычно пуст, и проверить их против начальных значений
 нечем. Сам массив в результат попадает.
 
 **Signature:**
 ```typescript
-export function collectModelPaths(schema: AnyFormSchema): string[]
+export function collectModelPaths(schema: JsonFormSchema): string[]
 ```
 
 _Source: src/preflight.ts_
@@ -1626,10 +1580,9 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
    * Схема формы. Единственная часть, которую можно тянуть по сети.
    *
    * Документ прежнего формата (без `format: 2`) загрузчик переводит в формат 2 сам — в том числе
-   * тот, что лежит в постоянном кэше. Исключение — запись прежнего контракта с `renderBehavior`:
-   * её документ остаётся прежнего формата.
+   * тот, что лежит в постоянном кэше.
    */
-  schema: DataSource<JsonFormSchema<T> | JsonFormSchemaV1<T>>;
+  schema: DataSource<FormSchemaDocument<T>>;
   /**
    * Диапазон версий схемы, с которыми совместим ЭТОТ код (semver-range).
    * Закрывает режим отказа «схема ушла вперёд кода»: CDN отдал v2, а микрофронт
@@ -1656,33 +1609,6 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   validation?: CodeSource<FormValidation<T>>;
   /** Поток шагов: идентификатор шага (`selector` узла шага) и его правила. */
   flow?: CodeSource<FormFlowConfig<T>>;
-  /**
-   * Фабрика render-behavior — прежний контракт. Запись с этим полем монтируется прежним путём
-   * (`createJsonForm` + `JsonFormRenderer`), и её документ схемы остаётся прежнего формата. В
-   * едином контракте правила узлов пишутся в `behavior`.
-   *
-   * Получает готовые form/model и правила валидации — связывание валидации с формой происходит
-   * здесь.
-   *
-   * Четвёртый параметр — настройки МЕСТА МОНТИРОВАНИЯ, а не формы: колбэки вроде `onResult`
-   * принадлежат хосту (он решает, где и как показать результат), поэтому в записи реестра их
-   * быть не может — она одна на все места, где форму покажут. Хост передаёт их пропом
-   * `behaviorOptions` (прежнее имя — `renderBehaviorOptions`) у `FormOutlet`/`FormSlot`.
-   *
-   * Без этого канала фабрики вида `(form, model, options)` — а именно такие генерирует билдер —
-   * получали бы в третий аргумент `FormValidation`, что и не компилируется, и молча ломает
-   * семантику: `onResult` не доехал бы никогда.
-   */
-  renderBehavior?: CodeSource<
-    (
-      form: FormGroup<T>,
-      model: FormModel<T>,
-      /** Уже СОБРАННЫЙ уровень формы (`validate`, `submission`, поток), а не сырые правила. */
-      level: FormLevel<T>,
-      options?: Record<string, unknown>
-    ) => RenderBehaviorFn<T>
-  >;
-
   placement?: FormPlacement;
   access?: FormAccess;
   /** Политика деградации для ЭТОЙ формы. Дефолт реестра — `'error'`. */
@@ -1749,8 +1675,6 @@ export interface FormMountProps<T extends object> {
    * фабрику поведения записи (`FormEntry.behavior`).
    */
   behaviorOptions?: Record<string, unknown>;
-  /** @deprecated Прежнее имя {@link FormMountProps.behaviorOptions}. */
-  renderBehaviorOptions?: Record<string, unknown>;
   /** Что показывать, пока части формы грузятся. */
   fallback?: ReactNode;
   /** Что показывать, если загрузка не удалась. Второй аргумент — повтор. */
@@ -1918,6 +1842,11 @@ export interface FormRegistryOptions {
    * именем из `DEFAULT_STEP_HOSTS`. Держите ссылку стабильной.
    */
   stepHosts?: readonly string[];
+  /**
+   * Резолв адаптеров полей для компонентов чужого кита — тот же, что `settings.resolveFieldAdapter`
+   * у `FormRenderer`: смонтированные формы получают его отсюда. Держите ссылку стабильной.
+   */
+  resolveFieldAdapter?: RendererSettings['resolveFieldAdapter'];
 }
 ```
 
@@ -1998,6 +1927,19 @@ export function FormRoute<T extends object = Record<string, unknown>>({
 
 _Source: src/react/form-outlet.tsx_
 
+### FormSchemaDocument
+
+**Kind:** `type`
+
+Документ схемы, который может прийти в запись: формата 2 либо прежнего.
+
+**Signature:**
+```typescript
+export type FormSchemaDocument<T> = JsonFormSchema<T> | LegacyFormSchemaDocument;
+```
+
+_Source: src/types.ts_
+
 ### FormSlot
 
 **Kind:** `function`
@@ -2075,6 +2017,25 @@ export function isOpfsAvailable(): boolean
 
 _Source: src/storage/opfs.ts_
 
+### LegacyFormSchemaDocument
+
+**Kind:** `interface`
+
+Документ прежнего формата (без `format: 2`): загрузчик переводит его `migrateJsonSchema` при
+каждой загрузке. Тип структурный — типов прежнего формата в пакетах больше нет, а документ обычно
+приходит данными (JSON из бандла, по сети, из кэша).
+
+**Signature:**
+```typescript
+export interface LegacyFormSchemaDocument {
+  readonly root: unknown;
+  readonly format?: undefined;
+  readonly [key: string]: unknown;
+}
+```
+
+_Source: src/types.ts_
+
 ### LoadedForm
 
 **Kind:** `interface`
@@ -2084,11 +2045,8 @@ _Source: src/storage/opfs.ts_
 **Signature:**
 ```typescript
 export interface LoadedForm<T extends object = Record<string, unknown>> {
-  /**
-   * Документ схемы. Формата 2 — у всех записей, кроме записей прежнего контракта (с
-   * `renderBehavior`): их документ остаётся прежнего формата и монтируется прежним путём.
-   */
-  schema: JsonFormSchema<T> | JsonFormSchemaV1<T>;
+  /** Документ схемы — всегда формата 2: прежний формат загрузчик переводит при загрузке. */
+  schema: JsonFormSchema<T>;
   /** Базовый реестр, скомпонованный с расширением записи. */
   registry: ComponentRegistry;
   initial?: T;
@@ -2097,13 +2055,6 @@ export interface LoadedForm<T extends object = Record<string, unknown>> {
   behavior?: FormBehavior<T> | FormBehaviorFactory<T>;
   validation?: FormValidation<T>;
   flow?: FormFlowConfig<T>;
-  makeRenderBehavior?: (
-    form: FormGroup<T>,
-    model: FormModel<T>,
-    level: FormLevel<T>,
-    /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */
-    options?: Record<string, unknown>
-  ) => RenderBehaviorFn<T>;
   /** Результат проверок; `undefined` — preflight отключён. */
   preflight?: PreflightResult;
 }
@@ -2117,8 +2068,7 @@ _Source: src/loader.ts_
 
 Загружает все части записи, компонует реестр и проверяет результат.
 
-Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`) — кроме записей
-прежнего контракта, у которых задан `renderBehavior`.
+Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`).
 
 **Signature:**
 ```typescript
@@ -2196,15 +2146,19 @@ _Source: src/resolve.ts_
 
 **Kind:** `function`
 
-Монтирует загруженную форму. Путь сборки выбирает формат документа: формат 2 — единая сборка
-`createForm`, прежний формат — `createJsonForm` (записи прежнего контракта).
+Монтирует загруженную форму: документ формата 2 → `createForm` → `FormRenderer`.
 
 **Signature:**
 ```typescript
 export function MountedForm<T extends object>({
-  behaviorOptions,
-  renderBehaviorOptions,
-  ...rest
+  entry,
+  loaded,
+  initial,
+  model,
+  behaviorOptions: options,
+  resolveFieldAdapter,
+  errorFallback,
+  onReady,
 }: MountedFormProps<T>): ReactNode
 ```
 
@@ -2214,12 +2168,11 @@ _Source: src/react/mounted-form.tsx_
 
 **Kind:** `type`
 
-Собранная форма, которую получает `onReady`: бандл единой сборки, а у записи прежнего
-контракта — бандл `createJsonForm`. `model`, `form` и `validation` есть у обоих.
+Собранная форма, которую получает `onReady`, — бандл сборки `createForm`.
 
 **Signature:**
 ```typescript
-export type MountedFormBundle<T extends object> = FormBundle<T> | JsonForm<T>;
+export type MountedFormBundle<T extends object> = FormBundle<T>;
 ```
 
 _Source: src/react/mounted-form.tsx_
@@ -2243,8 +2196,11 @@ export interface MountedFormProps<T extends object> {
    * места, где форму покажут.
    */
   behaviorOptions?: Record<string, unknown>;
-  /** @deprecated Прежнее имя {@link MountedFormProps.behaviorOptions}. */
-  renderBehaviorOptions?: Record<string, unknown>;
+  /**
+   * Резолв адаптеров полей для компонентов чужого кита (`settings.resolveFieldAdapter` рендерера).
+   * `FormOutlet` передаёт сюда `options.resolveFieldAdapter` провайдера реестра.
+   */
+  resolveFieldAdapter?: RendererSettings['resolveFieldAdapter'];
   /** Своя отрисовка ошибки рендера формы. */
   errorFallback?: (error: Error, entry: FormEntry<T>) => ReactNode;
   onReady?: (form: MountedFormBundle<T>) => void;
@@ -2325,8 +2281,8 @@ _Source: src/preflight.ts_
 ```typescript
 export interface PreflightInput<T extends object> {
   entry: FormEntry<T>;
-  /** Документ схемы любого формата. */
-  schema: AnyFormSchema<T>;
+  /** Документ схемы формата 2: прежний формат переводит загрузчик. */
+  schema: JsonFormSchema<T>;
   registry: ComponentRegistry;
   /** Начальные значения либо снимок модели. `undefined` — проверка путей пропускается. */
   initial?: unknown;
@@ -2834,13 +2790,14 @@ _Source: src/manifest/index.ts_
 **Signature:**
 ```typescript
 export function validateSchemaCached(
-  schema: JsonFormSchema | JsonFormSchemaV1,
+  schema: JsonFormSchema,
   opts: ValidateOptions = {}
 ): ValidateResult
 ```
 
 **Parameters:**
-- `schema` — - Схема формы. Сравнивается ПО ССЫЛКЕ — новый объект даст новую компиляцию.
+- `schema` — - Схема формы формата 2 (прежний формат сначала переводит `migrateJsonSchema`).
+Сравнивается ПО ССЫЛКЕ — новый объект даст новую компиляцию.
 - `opts` — - Реестр для сверки имён операторов.
 
 _Source: src/manifest/index.ts_

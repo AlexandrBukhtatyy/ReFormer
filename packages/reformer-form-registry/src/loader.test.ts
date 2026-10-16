@@ -277,26 +277,6 @@ describe('loadForm — формат документа', () => {
     expect(stepsOf(named.schema)).toHaveLength(1);
   });
 
-  it('запись прежнего контракта (с renderBehavior) получает документ как есть', async () => {
-    const legacy = v1Entry({
-      renderBehavior: { kind: 'inline', value: () => () => undefined },
-    });
-    const loaded = await loadForm(legacy, withWizard);
-    expect(loaded.schema).toBe(v1);
-    expect(loaded.makeRenderBehavior).toBeDefined();
-  });
-
-  it('запись прежнего контракта с документом формата 2 — внятный отказ', async () => {
-    const mixed = entry({
-      id: 'a',
-      renderBehavior: { kind: 'inline', value: () => () => undefined },
-    });
-    const err = await loadForm(mixed, base).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(FormLoadError);
-    expect((err as FormLoadError).part).toBe('schema');
-    expect((err as Error).message).toMatch(/формата 2.*renderBehavior/);
-  });
-
   it('фабрика поведения проходит насквозь и не вызывается на этапе загрузки', async () => {
     const factory = vi.fn();
     const loaded = await loadForm(

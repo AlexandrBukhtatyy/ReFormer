@@ -3,8 +3,7 @@
 ## Purpose
 
 Реестр форм собирает форму единой сборкой: `createForm` из `@reformer/core` и `FormRenderer` из
-`@reformer/renderer-react`. Документ схемы — формата 2, поведение формы одно. Прежний путь
-(`createJsonForm` + `JsonFormRenderer` + `renderBehavior`) остаётся для записей, написанных под него.
+`@reformer/renderer-react`. Документ схемы — формата 2, поведение формы одно.
 
 Формат документа — `reformer://docs/renderer-json`, раздел «JSON-схема: формат 2». Контракт
 целиком — раздел «Единый контракт формы» в `reformer://docs/core`.
@@ -48,9 +47,9 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
 };
 ```
 
-Отличия от прежней записи:
+Устройство записи:
 
-- `renderBehavior` нет. Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) и навигация
+- Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) и навигация
   (`flow.goTo(id)`) пишутся в том же `behavior`, через `schema.node(selector)` и `flow` области.
 - `behavior` — поведение либо фабрика `(options) => поведение`
   (`FormBehaviorFactory`). Фабрика получает настройки места монтирования.
@@ -69,8 +68,6 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
 Колбэки вроде `onResult` принадлежат хосту, а запись одна на все места, где форму покажут, —
 поэтому они приходят пропом и попадают в фабрику поведения аргументом. Без пропа фабрика получает
 пустой объект. Фабрика вызывается один раз, при сборке формы.
-
-Прежнее имя пропа — `renderBehaviorOptions` — работает как синоним.
 
 ## Документ прежнего формата
 
@@ -97,19 +94,7 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 Документ с полем `format`, отличным от `2`, по сети отвергается до кэша (`not-a-form-schema`):
 документ выкатили вперёд кода.
 
-## Какой путь выберет монтирование
-
-| Запись | Документ | Что произойдёт |
-| --- | --- | --- |
-| без `renderBehavior` | формат 2 | единая сборка |
-| без `renderBehavior` | прежний формат | документ переводится в формат 2 → единая сборка |
-| с `renderBehavior` | прежний формат | прежний путь: `createJsonForm` + `JsonFormRenderer` |
-| с `renderBehavior` | формат 2 | `FormLoadError`: поведение написано под прежнюю сборку |
-
-Запись с `renderBehavior` — запись прежнего контракта: её документ не переводится. Чтобы перейти
-на единый контракт, перенесите правила узлов в `behavior` и уберите `renderBehavior`.
-
-`LoadedForm.schema` у записи единого контракта — всегда формат 2.
+`LoadedForm.schema` — всегда формат 2.
 
 ## onReady
 
@@ -117,11 +102,8 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 <FormOutlet id="checkout" onReady={(bundle) => bundle.model.patch(prefill)} />
 ```
 
-`onReady` получает собранный бандл (`MountedFormBundle`): у записи единого контракта —
-`FormBundle` из `createForm`
-(`{ model, form, render, flow, validate, validateStep, submission, … }`), у записи прежнего
-контракта — бандл `createJsonForm`. Уровень формы — `model`, `form`, `flow`,
-`validate()`, `validateStep(id)`, `submission.submit(handler)` — есть у обоих.
+`onReady` получает собранный бандл (`MountedFormBundle`) — `FormBundle` из `createForm`:
+`{ model, form, render, flow, validate, validateStep, submission, … }`.
 
 ## Preflight и части документа
 
@@ -142,14 +124,15 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 расширением записи. Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и
 рендерер ремоута могут жить в разных бандлах.
 
-`resolveFieldAdapter` для компонентов чужого кита по-прежнему задаётся хостом в
-`JsonRendererProvider` — монтирование доносит его до рендерера.
+`resolveFieldAdapter` для компонентов чужого кита хост задаёт в опциях провайдера реестра —
+`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
 
 ## Частые ошибки
 
 | Симптом | Причина |
 | --- | --- |
-| `документ схемы — формата 2, а запись несёт renderBehavior` | запись прежнего контракта получила новый документ — перенесите правила в `behavior` |
+| ошибка типа: `renderBehavior` нет в `FormEntry` | поле удалено вместе с прежним контрактом — правила узлов пишутся в `behavior` |
+| ошибка типа: `renderBehaviorOptions` у `FormOutlet` | проп удалён — `behaviorOptions` |
 | шаги визарда после перевода остались в `componentProps.steps` | визард зарегистрирован под своим именем — добавьте его в `stepHosts` |
 | `missing-parts` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
 | `onResult` не вызывается | `behavior` записи — готовое поведение, а не фабрика: настройки места получает только фабрика |

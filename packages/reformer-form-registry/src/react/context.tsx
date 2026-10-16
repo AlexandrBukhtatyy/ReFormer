@@ -6,6 +6,7 @@
 
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import type { ComponentRegistry } from '@reformer/renderer-json';
+import type { RendererSettings } from '@reformer/renderer-react';
 import type { Diagnostic, FormEntry, ResolveContext } from '../types';
 import type { FormRegistry } from '../registry';
 import type { SchemaCache } from '../cache';
@@ -26,6 +27,11 @@ export interface FormRegistryOptions {
    * именем из `DEFAULT_STEP_HOSTS`. Держите ссылку стабильной.
    */
   stepHosts?: readonly string[];
+  /**
+   * Резолв адаптеров полей для компонентов чужого кита — тот же, что `settings.resolveFieldAdapter`
+   * у `FormRenderer`: смонтированные формы получают его отсюда. Держите ссылку стабильной.
+   */
+  resolveFieldAdapter?: RendererSettings['resolveFieldAdapter'];
 }
 
 export interface FormRegistryContextValue {

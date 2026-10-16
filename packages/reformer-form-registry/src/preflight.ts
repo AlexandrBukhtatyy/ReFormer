@@ -1,9 +1,10 @@
 /**
  * Preflight — проверки ДО сборки формы.
  *
- * Мотив: `convertJsonToM1Tree` синхронный и бросает при первом же незарегистрированном
- * компоненте, а для схемы, приехавшей по сети, это самый вероятный отказ. Бросок из конвертера
- * называет один промах и не говорит ни о версии, ни о том, сколько ещё промахов впереди.
+ * Мотив: конвертер документа (`registry.resolveSchema`) синхронный и бросает при первом же
+ * незарегистрированном компоненте, а для схемы, приехавшей по сети, это самый вероятный отказ.
+ * Бросок из конвертера называет один промах и не говорит ни о версии, ни о том, сколько ещё
+ * промахов впереди.
  * Preflight собирает полную картину и позволяет решить, что делать: показать панель или
  * подставить плейсхолдеры.
  *
@@ -33,15 +34,10 @@ import {
   collectSchemaSelectors,
   getDataSourceNames,
   getFnNames,
-  schemaFormatOf,
   type ComponentRegistry,
   type JsonFormSchema,
-  type JsonFormSchemaV1,
 } from '@reformer/renderer-json';
 import type { FormEntry, FormFlowConfig } from './types';
-
-/** Документ схемы любого формата. */
-type AnyFormSchema<T = unknown> = JsonFormSchema<T> | JsonFormSchemaV1<T>;
 
 export interface PreflightProblem {
   code:
@@ -133,36 +129,22 @@ const partNameOf = (v: unknown): string | undefined =>
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v);
 
-/** Именованные части документа формата 2; у прежнего формата их нет. */
-function partsOf(schema: AnyFormSchema): Record<string, unknown> {
+/** Именованные части документа. */
+function partsOf(schema: JsonFormSchema): Record<string, unknown> {
   const parts = (schema as { parts?: unknown }).parts;
-  return schemaFormatOf(schema) === 2 && isRecord(parts) ? parts : {};
+  return isRecord(parts) ? parts : {};
 }
 
 /**
  * Пути `$model(...)`, встреченные в схеме, — от корня модели.
  *
- * Прежний формат: все операторы дерева как есть.
- *
- * Формат 2: путь внутри именованной части относителен группе, к которой часть подключена, —
+ * Путь внутри именованной части относителен группе, к которой часть подключена, —
  * он достраивается до пути от корня. Шаблон строки массива (`item`) не обходится: его пути
  * относительны элементу, а массив на старте обычно пуст, и проверить их против начальных значений
  * нечем. Сам массив в результат попадает.
  */
-export function collectModelPaths(schema: AnyFormSchema): string[] {
+export function collectModelPaths(schema: JsonFormSchema): string[] {
   const out = new Set<string>();
-
-  if (schemaFormatOf(schema) !== 2) {
-    const scan = (v: unknown): void => {
-      const path = modelPathOf(v);
-      if (path) out.add(path);
-      else if (Array.isArray(v)) v.forEach(scan);
-      else if (isRecord(v)) for (const x of Object.values(v)) scan(x);
-    };
-    scan(schema.root);
-    return [...out];
-  }
-
   const parts = partsOf(schema);
   /** `stack` — части на пути от корня: защита от части, подключающей саму себя. */
   const walk = (v: unknown, prefix: string, stack: readonly string[]): void => {
@@ -198,7 +180,7 @@ export function collectModelPaths(schema: AnyFormSchema): string[] {
 }
 
 /** Имена частей, на которые документ ссылается оператором `$part(...)`. */
-function collectPartNames(schema: AnyFormSchema): string[] {
+function collectPartNames(schema: JsonFormSchema): string[] {
   const out = new Set<string>();
   const scan = (v: unknown): void => {
     const name = partNameOf(v);
@@ -227,8 +209,8 @@ export function hasPath(obj: unknown, path: string): boolean {
 
 export interface PreflightInput<T extends object> {
   entry: FormEntry<T>;
-  /** Документ схемы любого формата. */
-  schema: AnyFormSchema<T>;
+  /** Документ схемы формата 2: прежний формат переводит загрузчик. */
+  schema: JsonFormSchema<T>;
   registry: ComponentRegistry;
   /** Начальные значения либо снимок модели. `undefined` — проверка путей пропускается. */
   initial?: unknown;

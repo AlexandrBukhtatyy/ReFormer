@@ -15,16 +15,23 @@
  * @module reformer/form-registry/types
  */
 
-import type {
-  FormFlowConfig,
-  FormLevel,
-  FormModel,
-  FormGroup,
-  FormValidation,
-} from '@reformer/core';
+import type { FormFlowConfig, FormModel, FormValidation } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
-import type { ComponentRegistry, JsonFormSchema, JsonFormSchemaV1 } from '@reformer/renderer-json';
-import type { RenderBehaviorFn } from '@reformer/renderer-react';
+import type { ComponentRegistry, JsonFormSchema } from '@reformer/renderer-json';
+
+/**
+ * Документ прежнего формата (без `format: 2`): загрузчик переводит его `migrateJsonSchema` при
+ * каждой загрузке. Тип структурный — типов прежнего формата в пакетах больше нет, а документ обычно
+ * приходит данными (JSON из бандла, по сети, из кэша).
+ */
+export interface LegacyFormSchemaDocument {
+  readonly root: unknown;
+  readonly format?: undefined;
+  readonly [key: string]: unknown;
+}
+
+/** Документ схемы, который может прийти в запись: формата 2 либо прежнего. */
+export type FormSchemaDocument<T> = JsonFormSchema<T> | LegacyFormSchemaDocument;
 
 /**
  * Фабрика поведения формы от настроек МЕСТА МОНТИРОВАНИЯ.
@@ -72,9 +79,8 @@ export type CodeSource<T> =
 /**
  * Валидация формы — общий тип семейства фабрик, живёт в `@reformer/core`.
  *
- * Реестр не описывает свой формат правил: те же данные принимают `createJsonForm`/`createForm`,
- * которые собирают из них уровень формы (`validate`, отправка, поток шагов). Реестр лишь
- * доставляет правила и поток и передаёт собранный уровень формы в фабрику `renderBehavior`.
+ * Реестр не описывает свой формат правил: те же данные принимает `createForm`, который собирает
+ * из них уровень формы (`validate`, отправка, поток шагов). Реестр лишь доставляет правила и поток.
  *
  * Идентификаторы шагов потока (`flow.steps[].id`) — селекторы узлов `Step` в JSON-схеме; их
  * совпадение с реальными селекторами проверяет preflight.
@@ -127,10 +133,9 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
    * Схема формы. Единственная часть, которую можно тянуть по сети.
    *
    * Документ прежнего формата (без `format: 2`) загрузчик переводит в формат 2 сам — в том числе
-   * тот, что лежит в постоянном кэше. Исключение — запись прежнего контракта с `renderBehavior`:
-   * её документ остаётся прежнего формата.
+   * тот, что лежит в постоянном кэше.
    */
-  schema: DataSource<JsonFormSchema<T> | JsonFormSchemaV1<T>>;
+  schema: DataSource<FormSchemaDocument<T>>;
   /**
    * Диапазон версий схемы, с которыми совместим ЭТОТ код (semver-range).
    * Закрывает режим отказа «схема ушла вперёд кода»: CDN отдал v2, а микрофронт
@@ -157,33 +162,6 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   validation?: CodeSource<FormValidation<T>>;
   /** Поток шагов: идентификатор шага (`selector` узла шага) и его правила. */
   flow?: CodeSource<FormFlowConfig<T>>;
-  /**
-   * Фабрика render-behavior — прежний контракт. Запись с этим полем монтируется прежним путём
-   * (`createJsonForm` + `JsonFormRenderer`), и её документ схемы остаётся прежнего формата. В
-   * едином контракте правила узлов пишутся в `behavior`.
-   *
-   * Получает готовые form/model и правила валидации — связывание валидации с формой происходит
-   * здесь.
-   *
-   * Четвёртый параметр — настройки МЕСТА МОНТИРОВАНИЯ, а не формы: колбэки вроде `onResult`
-   * принадлежат хосту (он решает, где и как показать результат), поэтому в записи реестра их
-   * быть не может — она одна на все места, где форму покажут. Хост передаёт их пропом
-   * `behaviorOptions` (прежнее имя — `renderBehaviorOptions`) у `FormOutlet`/`FormSlot`.
-   *
-   * Без этого канала фабрики вида `(form, model, options)` — а именно такие генерирует билдер —
-   * получали бы в третий аргумент `FormValidation`, что и не компилируется, и молча ломает
-   * семантику: `onResult` не доехал бы никогда.
-   */
-  renderBehavior?: CodeSource<
-    (
-      form: FormGroup<T>,
-      model: FormModel<T>,
-      /** Уже СОБРАННЫЙ уровень формы (`validate`, `submission`, поток), а не сырые правила. */
-      level: FormLevel<T>,
-      options?: Record<string, unknown>
-    ) => RenderBehaviorFn<T>
-  >;
-
   placement?: FormPlacement;
   access?: FormAccess;
   /** Политика деградации для ЭТОЙ формы. Дефолт реестра — `'error'`. */

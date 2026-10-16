@@ -18,6 +18,8 @@ export type {
   DegradePolicy,
   FormBehaviorFactory,
   FormEntry,
+  FormSchemaDocument,
+  LegacyFormSchemaDocument,
   ResolveContext,
   FormQuery,
   Diagnostic,

@@ -65,7 +65,6 @@ type CodeSource<T> =
 | `behavior` | `CodeSource?` | поведение формы — и модель (`compute`/`enableWhen`/`onChange`), и узлы схемы (`hideWhen`/`onComponentEvent`/`onMount`); либо фабрика `(options) => поведение` |
 | `validation` | `CodeSource?` | правила формы — `FormValidation` (`rules` \| `extras`, `strategy`) |
 | `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
-| `renderBehavior` | `CodeSource?` | прежний контракт: фабрика render-behavior (см. ниже) |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
 | `degrade` | `'error' \| 'placeholder'` | что делать при отказе; дефолт строгий |
@@ -107,18 +106,6 @@ const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
     });
   });
 ```
-
-### `renderBehavior` — прежний контракт
-
-```ts
-(form, model, level, options?) => RenderBehaviorFn<T>
-```
-
-Запись с `renderBehavior` монтируется прежним путём (`createJsonForm` + `JsonFormRenderer`), и её
-документ схемы остаётся прежнего формата. Третий параметр — собранный уровень формы (`FormLevel`:
-`submission`, `validate`, `flow`), четвёртый — настройки места (`behaviorOptions`; прежнее имя пропа
-`renderBehaviorOptions` работает как синоним). Новой записи это поле не нужно: правила узлов пишутся
-в `behavior` — см. [08-unified-contract.md](08-unified-contract.md).
 
 ## Конфликты `id`
 
