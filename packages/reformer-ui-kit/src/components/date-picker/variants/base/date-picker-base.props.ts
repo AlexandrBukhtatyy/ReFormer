@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 
 /**
  * Props-схема DatePicker (single-date) — единый источник `api.controls[]` (reformer-doc)
@@ -15,14 +16,15 @@ export const datePickerBasePropsSchema = {
   properties: {
     placeholder: {
       type: 'string',
-      default: 'Выберите дату',
+      ...messageDefault('kit.datePicker.placeholder'),
       description: 'Текст кнопки-триггера, когда дата не выбрана.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     dateFormat: {
       type: 'string',
-      default: 'PPP',
-      description: 'Формат отображения выбранной даты — токены date-fns (напр. dd.MM.yyyy).',
+      description:
+        'Формат выбранной даты — токены date-fns (напр. dd.MM.yyyy). Без него — dateFormat локали, ' +
+        'а без того — по правилам языка (Intl, dateStyle long).',
       'x-doc': { group: 'Behavior', type: 'string' },
     },
     className: {

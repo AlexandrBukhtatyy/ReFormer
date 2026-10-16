@@ -8528,12 +8528,11 @@
           },
           "dateFormat": {
             "type": "string",
-            "description": "Формат отображения выбранной даты — токены date-fns (напр. dd.MM.yyyy).",
+            "description": "Формат выбранной даты — токены date-fns (напр. dd.MM.yyyy). Без него — dateFormat локали, а без того — по правилам языка (Intl, dateStyle long).",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
-            },
-            "default": "PPP"
+            }
           },
           "description": {
             "type": "string",
@@ -8561,12 +8560,13 @@
           },
           "placeholder": {
             "type": "string",
+            "default": "Pick a date",
+            "x-messageKey": "kit.datePicker.placeholder",
             "description": "Текст кнопки-триггера, когда дата не выбрана.",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            },
-            "default": "Выберите дату"
+            }
           },
           "required": {
             "type": "boolean",
@@ -24272,12 +24272,13 @@
           },
           "emptyText": {
             "type": "string",
+            "default": "Empty",
+            "x-messageKey": "kit.tree.empty",
             "description": "Текст пустого дерева.",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            },
-            "default": "Пусто"
+            }
           },
           "expandedIds": {
             "type": "array",

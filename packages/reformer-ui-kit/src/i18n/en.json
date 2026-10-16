@@ -98,5 +98,17 @@
   "kit.table.selectRow": "Select row",
   "kit.table.empty": "No data",
 
-  "kit.tree.empty": "Empty"
+  "kit.tree.empty": "Empty",
+
+  "kit.calendar.nav": "Navigation bar",
+  "kit.calendar.previousMonth": "Go to the previous month",
+  "kit.calendar.nextMonth": "Go to the next month",
+  "kit.calendar.monthDropdown": "Choose the month",
+  "kit.calendar.yearDropdown": "Choose the year",
+  "kit.calendar.weekNumber": "Week {week}",
+  "kit.calendar.weekNumberHeader": "Week number",
+  "kit.calendar.today": "today",
+  "kit.calendar.selected": "selected",
+
+  "kit.datePicker.placeholder": "Pick a date"
 }

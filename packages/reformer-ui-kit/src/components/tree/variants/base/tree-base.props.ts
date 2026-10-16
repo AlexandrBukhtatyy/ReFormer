@@ -1,4 +1,5 @@
 import type { PropsSchema } from '@/fields/props-schema';
+import { messageDefault } from '@/i18n/message-default';
 import { TREE_NODE_DOC_TYPE, treeNodeSchema } from './tree-node-schema';
 
 /**
@@ -73,7 +74,7 @@ export const treeBasePropsSchema = {
     },
     emptyText: {
       type: 'string',
-      default: 'Пусто',
+      ...messageDefault('kit.tree.empty'),
       description: 'Текст пустого дерева.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

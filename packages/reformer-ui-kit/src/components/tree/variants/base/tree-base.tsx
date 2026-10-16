@@ -166,7 +166,10 @@ export interface TreeProps {
    * когда запрос убран. Видит только прочитанные уровни.
    */
   search?: string;
-  /** Текст пустого дерева. По умолчанию `'Пусто'`. */
+  /**
+   * Текст пустого дерева.
+   * @defaultMessage kit.tree.empty
+   */
   emptyText?: string;
   /** Высота строки, px. По умолчанию 24. */
   rowHeight?: number;

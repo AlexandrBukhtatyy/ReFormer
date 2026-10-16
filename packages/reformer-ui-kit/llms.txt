@@ -5465,6 +5465,9 @@ function Calendar({
   captionLayout = 'label',
   buttonVariant = 'ghost',
   formatters,
+  labels,
+  locale,
+  weekStartsOn,
   components,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
@@ -7139,9 +7142,15 @@ export interface DatePickerProps extends Omit<
   value?: Date;
   /** Колбэк выбора даты в календаре. Повторный клик по выбранной дате сбрасывает в `undefined`. */
   onChange?: (date: Date | undefined) => void;
-  /** Текст кнопки-триггера, когда дата не выбрана. */
+  /**
+   * Текст кнопки-триггера, когда дата не выбрана.
+   * @defaultMessage kit.datePicker.placeholder
+   */
   placeholder?: string;
-  /** Формат отображения выбранной даты — токены `date-fns` (по умолчанию `PPP`). */
+  /**
+   * Формат выбранной даты — токены `date-fns` (`dd.MM.yyyy`). По умолчанию — `dateFormat` локали,
+   * а без него дата пишется по правилам языка (`Intl`, `dateStyle: 'long'`): «16 октября 2026 г.».
+   */
   dateFormat?: string;
 }
 ```
@@ -14512,7 +14521,10 @@ export interface TreeProps {
    * когда запрос убран. Видит только прочитанные уровни.
    */
   search?: string;
-  /** Текст пустого дерева. По умолчанию `'Пусто'`. */
+  /**
+   * Текст пустого дерева.
+   * @defaultMessage kit.tree.empty
+   */
   emptyText?: string;
   /** Высота строки, px. По умолчанию 24. */
   rowHeight?: number;

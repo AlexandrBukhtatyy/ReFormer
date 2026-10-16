@@ -169,16 +169,12 @@ describe('умолчания пропсов в каталоге', () => {
     }
   });
 
-  it('у переведённых компонентов в каталоге не осталось русских умолчаний', () => {
-    const translated =
-      /^(AsyncBoundary|Combobox|FileUpload|FieldArray|FormWizard|Select|StepIndicator)/;
-    const cyrillic = catalog.components
-      .filter((component) => translated.test(component.name))
-      .flatMap((component) =>
-        Object.entries(component.propsSchema?.properties ?? {})
-          .filter(([, prop]) => typeof prop.default === 'string' && /[А-Яа-яЁё]/.test(prop.default))
-          .map(([name, prop]) => `${component.name}.${name} = ${String(prop.default)}`)
-      );
+  it('в каталоге не осталось русских умолчаний: все компоненты кита на словаре', () => {
+    const cyrillic = catalog.components.flatMap((component) =>
+      Object.entries(component.propsSchema?.properties ?? {})
+        .filter(([, prop]) => typeof prop.default === 'string' && /[А-Яа-яЁё]/.test(prop.default))
+        .map(([name, prop]) => `${component.name}.${name} = ${String(prop.default)}`)
+    );
     expect(cyrillic).toEqual([]);
   });
 });

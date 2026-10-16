@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Calendar, CalendarSingle } from './index';
 import { Bound } from '@/test-utils/bound';
+import type * as React from 'react';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '../../locale/ru';
 
 // react-day-picker рендерит грид inline (без Portal) — в SSR доступна вся статика месяца.
 describe('Calendar (base, pure shadcn DayPicker)', () => {
@@ -46,5 +49,44 @@ describe('CalendarSingle (single-date, dateAdapter)', () => {
 describe('CalendarSingle алиас', () => {
   it('CalendarSingle === CalendarSingle (дефолтный для форм вариант)', () => {
     expect(CalendarSingle).toBe(CalendarSingle);
+  });
+});
+
+describe('Calendar — подписи по локали [ReFormer-f29b.6]', () => {
+  const month = new Date(2024, 0, 15);
+  const inRu = (node: React.ReactNode) =>
+    renderToStaticMarkup(<I18nProvider locale={ru}>{node}</I18nProvider>);
+
+  it('без провайдера — английский месяц и подписи навигации из словаря', () => {
+    const html = renderToStaticMarkup(<Calendar mode="single" defaultMonth={month} />);
+    expect(html).toContain('January 2024');
+    expect(html).toContain('aria-label="Go to the previous month"');
+  });
+
+  it('русская локаль — месяц и дни недели через Intl, неделя с понедельника', () => {
+    const html = inRu(<Calendar mode="single" defaultMonth={month} />);
+    expect(html).toContain('январь 2024');
+    expect(html).toContain('aria-label="Предыдущий месяц"');
+    // Первая колонка — понедельник: ru.weekStartsOn = 1.
+    const weekdays = [...html.matchAll(/aria-label="([^"]+)"[^>]*class="[^"]*rdp-weekday/g)].map(
+      (match) => match[1]
+    );
+    expect(weekdays[0]).toBe('понедельник');
+  });
+
+  it('свои formatters и weekStartsOn главнее локали', () => {
+    const html = inRu(
+      <Calendar
+        mode="single"
+        defaultMonth={month}
+        weekStartsOn={0}
+        formatters={{ formatCaption: () => 'свой заголовок' }}
+      />
+    );
+    expect(html).toContain('свой заголовок');
+    const weekdays = [...html.matchAll(/aria-label="([^"]+)"[^>]*class="[^"]*rdp-weekday/g)].map(
+      (match) => match[1]
+    );
+    expect(weekdays[0]).toBe('воскресенье');
   });
 });

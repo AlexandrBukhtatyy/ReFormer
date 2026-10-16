@@ -1,9 +1,56 @@
 import * as React from 'react';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { DayPicker, getDefaultClassNames, type DayButton } from 'react-day-picker';
+import {
+  DayPicker,
+  getDefaultClassNames,
+  type DayButton,
+  type Formatters,
+  type Labels,
+} from 'react-day-picker';
+import { useI18n } from '@reformer/core/react';
 
 import { cn } from '@/lib/utils';
+import { useKitMessages } from '@/i18n/messages';
 import { Button, buttonVariants } from '@/components/button';
+
+type Locale = NonNullable<React.ComponentProps<typeof DayPicker>['locale']>;
+
+/**
+ * Подписи календаря без объекта локали date-fns: даты — `Intl` по коду языка, ARIA-подписи — словарь
+ * кита. Первый день недели приходит из локали отдельно (`weekStartsOn`).
+ */
+function intlCalendarText(
+  i18n: ReturnType<typeof useI18n>,
+  t: ReturnType<typeof useKitMessages>
+): { formatters: Partial<Formatters>; labels: Partial<Labels> } {
+  const monthYear = (date: Date) => i18n.date(date, { month: 'long', year: 'numeric' });
+  return {
+    formatters: {
+      formatCaption: monthYear,
+      formatMonthDropdown: (month) => i18n.date(month, { month: 'short' }),
+      formatWeekdayName: (weekday) => i18n.date(weekday, { weekday: 'short' }),
+    },
+    labels: {
+      labelNav: () => t('kit.calendar.nav'),
+      labelPrevious: () => t('kit.calendar.previousMonth'),
+      labelNext: () => t('kit.calendar.nextMonth'),
+      labelMonthDropdown: () => t('kit.calendar.monthDropdown'),
+      labelYearDropdown: () => t('kit.calendar.yearDropdown'),
+      labelGrid: monthYear,
+      labelWeekday: (date) => i18n.date(date, { weekday: 'long' }),
+      labelWeekNumber: (week) => t('kit.calendar.weekNumber', { week }),
+      labelWeekNumberHeader: () => t('kit.calendar.weekNumberHeader'),
+      labelDayButton: (date, modifiers) =>
+        [
+          i18n.date(date, { dateStyle: 'full' }),
+          modifiers.today ? t('kit.calendar.today') : null,
+          modifiers.selected ? t('kit.calendar.selected') : null,
+        ]
+          .filter(Boolean)
+          .join(', '),
+    },
+  };
+}
 
 // Дословный порт shadcn/ui (new-york-v4) calendar. Правки только: `@/lib/utils`,
 // `@/components/button` (вместо registry-пути), снят 'use client'. Тяжёлая зависимость
@@ -16,12 +63,21 @@ function Calendar({
   captionLayout = 'label',
   buttonVariant = 'ghost',
   formatters,
+  labels,
+  locale,
+  weekStartsOn,
   components,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>['variant'];
 }) {
   const defaultClassNames = getDefaultClassNames();
+  const t = useKitMessages();
+  const i18n = useI18n();
+  // Объект локали date-fns — необязательное переопределение (проп или `dateLocale` локали): с ним
+  // подписи и даты делает react-day-picker. Без него — `Intl` по коду языка и словарь кита.
+  const dateLocale = locale ?? (i18n.locale.dateLocale as Partial<Locale> | undefined);
+  const localized = dateLocale === undefined ? intlCalendarText(i18n, t) : undefined;
 
   return (
     <DayPicker
@@ -33,10 +89,10 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
-      formatters={{
-        formatMonthDropdown: (date) => date.toLocaleString('default', { month: 'short' }),
-        ...formatters,
-      }}
+      locale={dateLocale}
+      weekStartsOn={weekStartsOn ?? i18n.locale.weekStartsOn}
+      formatters={{ ...localized?.formatters, ...formatters }}
+      labels={{ ...localized?.labels, ...labels }}
       classNames={{
         root: cn('w-fit', defaultClassNames.root),
         months: cn('relative flex flex-col gap-4 md:flex-row', defaultClassNames.months),

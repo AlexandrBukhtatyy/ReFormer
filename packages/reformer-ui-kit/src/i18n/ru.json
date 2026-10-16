@@ -98,5 +98,17 @@
   "kit.table.selectRow": "Выбрать строку",
   "kit.table.empty": "Нет данных",
 
-  "kit.tree.empty": "Пусто"
+  "kit.tree.empty": "Пусто",
+
+  "kit.calendar.nav": "Навигация по месяцам",
+  "kit.calendar.previousMonth": "Предыдущий месяц",
+  "kit.calendar.nextMonth": "Следующий месяц",
+  "kit.calendar.monthDropdown": "Выберите месяц",
+  "kit.calendar.yearDropdown": "Выберите год",
+  "kit.calendar.weekNumber": "Неделя {week}",
+  "kit.calendar.weekNumberHeader": "Номер недели",
+  "kit.calendar.today": "сегодня",
+  "kit.calendar.selected": "выбрано",
+
+  "kit.datePicker.placeholder": "Выберите дату"
 }

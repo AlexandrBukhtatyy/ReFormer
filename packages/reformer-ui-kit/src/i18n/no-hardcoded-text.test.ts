@@ -51,10 +51,7 @@ const OUT_OF_SCOPE = [
  * Каталоги компонентов, ещё не переведённые на словарь. Убирать запись, как только компонент
  * переведён; новых не добавлять.
  */
-const NOT_YET_LOCALIZED: readonly string[] = [
-  // этап 4: даты по локали — ReFormer-f29b.6
-  'components/date-picker/',
-];
+const NOT_YET_LOCALIZED: readonly string[] = [];
 
 function* sourceFiles(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
