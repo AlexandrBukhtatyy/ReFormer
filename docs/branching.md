@@ -80,28 +80,28 @@ semantic-release читает commit messages чтобы решить, нуже�
 
 ### Scope (`fix(scope):`)
 
-Указывает пакет / область:
+Указывает пакет / область. Scope — из закрытого списка в [commitlint.config.js](../commitlint.config.js), имя пакета = его каталог:
 
-- `fix(cdk):` — изменение в `@reformer/cdk`
-- `feat(renderer-react):` — фича в renderer-react
+- `fix(reformer-cdk):` — изменение в `@reformer/cdk`
+- `feat(reformer-renderer-react):` — фича в renderer-react
 - `chore(ci):` — общий CI
-- `docs(versioning):` — обновление versioning docs
+- `docs(docs):` — документация вне пакетов
 
-Scope управляет **какому пакету сделать release** через `semantic-release-monorepo`: `fix(cdk):` bump'ает только `@reformer/cdk`, остальные пропускают release.
+Пакет, которому нужен release, `semantic-release-monorepo` определяет по **путям изменённых файлов** (`packages/<pkg>/**`), а не по scope: scope нужен для читаемости истории и группировки в release notes. `fix`, затронувший только `packages/reformer-cdk/**`, bump'ает только `@reformer/cdk`. Полный список scope и правил — в [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### Независимое версионирование
 
-Каждый пакет версионируется независимо. `feat(cdk):` поднимает только cdk на minor; остальные остаются на своих версиях. Cross-package изменения — указывай несколько scopes через запятую (`feat(core,cdk): ...`). Для координированных breaking-changes явно обновляй `peerDependencies` затронутых пакетов в том же commit'е. Полный flow — [docs/guides/release-and-publishing.md](./guides/release-and-publishing.md).
+Каждый пакет версионируется независимо. `feat` в `packages/reformer-cdk/**` поднимает только cdk на minor; остальные остаются на своих версиях. Cross-package изменение — несколько scope через запятую (`feat(reformer,reformer-cdk): ...`), bump получит каждый пакет, чьи файлы коммит затронул. Внутренние `peerDependencies` (`@reformer/*`) **не трогаются** и при координированном breaking change: они всегда `"*"` — иначе беты не ставятся без `--legacy-peer-deps`; это проверяет гейт `check:peer-ranges`. Полный flow и причины — [docs/guides/release-and-publishing.md](./guides/release-and-publishing.md), раздел «peerDependencies».
 
 ### Примеры
 
 ```
-fix(cdk): handle empty array in validator
-feat(ui-kit): add FormWizard.Step skipping API
-feat(renderer-json)!: rename `schema` to `renderSchema`
+fix(reformer-cdk): handle empty array in validator
+feat(reformer-ui-kit): add form-wizard step skipping api
+feat(reformer-renderer-json)!: rename schema to render-schema
 
 BREAKING CHANGE: top-level `schema` prop renamed; consumers must migrate.
-feat(core,cdk,ui-kit): coordinated FormProxy<T> rename
+feat(reformer,reformer-cdk,reformer-ui-kit): coordinated form-proxy rename
 chore(ci): bump action versions in release workflow
 docs(branching): add hotfix flow
 ```
