@@ -93,6 +93,11 @@ function preview(value: unknown): string {
   return text.length > 60 ? `${text.slice(0, 60)}…` : text;
 }
 
+/** Ключ значения: строки различаются с числами (`"1"` и `1`), `undefined` — со всем прочим. */
+function valueKey(value: unknown): string {
+  return value === undefined ? 'undefined' : JSON.stringify(value);
+}
+
 /** Редактор значения по его ТИПУ: узла схемы у панели нет, а тип значения есть всегда. */
 function ValueEditor({
   row,
@@ -238,6 +243,11 @@ export function ModelPanel({ host, live }: ModelPanelProps): ReactNode {
                       <span className="text-muted-foreground">{preview(row.value)}</span>
                     ) : (
                       <ValueEditor
+                        // Поля редактора неуправляемые: `defaultValue` применяется только при
+                        // монтировании. Ключ по значению перемонтирует редактор, когда значение
+                        // сменилось в форме, — иначе панель показывала бы начальное. Своя правка
+                        // пишется на blur, поэтому набор в панели ключ не трогает.
+                        key={valueKey(row.value)}
                         row={row}
                         state={nodeState}
                         onWrite={(value) => write(row.path, value)}
