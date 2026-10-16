@@ -2900,6 +2900,10 @@ JSON-документ схемы со старыми именами `FormArray` 
 | `each(model.items, (item) => …)`                                                                                                | `applyEach(model.$.items, itemRules)`                                                                                           | Правила строки — отдельная схема над элементом  |
 | `import { cross } from '@reformer/core/validation'`                                                                             | `defineValidation(({ model, cross }) => …)`                                                                                     | `cross` — только из аргумента схемы             |
 | `createCoreForm`, `CreateCoreFormConfig`                                                                                        | `createForm`, `CreateFormConfig`                                                                                                | Сборка одна                                     |
+| `createReactForm`, `useReactForm` (`@reformer/renderer-react`); `createJsonForm`, `useJsonForm` (`@reformer/renderer-json`) | `createForm` + `useFormBundle`; документ JSON — `createForm({ schema: document, registry })` | Фабрики слоёв удалены — сборка одна |
+| `JsonFormRenderer`, `JsonRendererProvider` | `<FormRenderer form={bundle} />` из `@reformer/renderer-react` | Реестр уходит в сборку, а не в контекст |
+| `renderBehavior`, `RenderBehaviorFn` | одно поведение `defineFormBehavior(({ model, form, schema, flow }) => …)` | Правила узлов — в поведении формы |
+| `CoreForm`, `CreateFormConfigBase` | `FormBundle`, `CreateFormConfig` | Общие типы удалённых фабрик |
 | `FormArrayProxy<T>`                                                                                                             | `FormArray<T>`                                                                                                                  | Псевдоним типа удалён                           |
 | `FormSubmitter`, `SubmittableForm`, `SubscriptionManager`, `createSchemaOverrideMaps`, `ModelArrayControl`, `FormControlsProxy` | —                                                                                                                               | Внутренние детали, из пакета не экспортируются  |
 
@@ -6141,8 +6145,10 @@ const source = () => ({ weekStartsOn: 1, messages: {} });
 (билдер или документ) и тем, кто рисует результат.
 
 Прежние записи узла — ключи `value` / `array` и запись «имя поля → узел» — удалены: тип узла
-закрыт, сборка их не читает. Удалены и оператор `each`, свободный `cross` и имя `createCoreForm`:
-их заменяют `applyEach` со схемой строки, `cross` из аргумента схемы и `createForm`.
+закрыт, сборка их не читает. Удалены и оператор `each`, свободный `cross`, фабрики слоёв
+(`createCoreForm`, `createReactForm`, `createJsonForm`) и отдельное поведение рендера
+(`renderBehavior`): их заменяют `applyEach` со схемой строки, `cross` из аргумента схемы, `createForm` и
+одно поведение формы.
 
 | Слой      | поле                              | массив под-форм                           | подформа                              |
 | --------- | --------------------------------- | ----------------------------------------- | ------------------------------------- |
@@ -7062,10 +7068,9 @@ coBorrowers?.row(model.coBorrowers.at(0)!).nodes.get('co-borrower' as SchemaNode
 **Уровень формы и поток шагов — validate, submit и FormFlow**
 
 `createForm` возвращает сборку: модель, форму, часть для рендерера и **уровень формы** — проверку,
-проверку шага, отправку и поток шагов. Уровень один для всех способов реализации: React-руками,
-рендерер по TS-схеме (`createReactForm`), рендерер по JSON (`createJsonForm`) собирают его одной
-функцией `createFormLevel`, поэтому `validate`, отправка (`submission.submit`) и поток ведут себя
-одинаково.
+проверку шага, отправку и поток шагов. Уровень один для всех способов реализации — React-руками,
+рендерер по TS-схеме, рендерер по JSON: сборка одна, поэтому `validate`, отправка
+(`submission.submit`) и поток ведут себя одинаково.
 
 - Правила формы передаются сборке данными: `validation` — полный набор (`rules`), правила вне
   шагов (`extras`) и стратегия живой проверки.
@@ -8318,29 +8323,6 @@ stampRuntime('@reformer/core', CORE_RUNTIME_TOKEN);
 
 _Source: src/runtime-token.ts_
 
-### CoreForm
-
-**Kind:** `interface`
-
-Общая часть результата фабрик: модель, форма и уровень формы ({@link FormLevel}) — проверка,
-отправка и поток шагов.
-
-**Signature:**
-```typescript
-export interface CoreForm<T> extends FormLevel<T> {
-  readonly model: FormModel<T>;
-  readonly form: FormGroup<T>;
-  /**
-   * Снять сборку: форму (`disposeForm` — поведение, подписки нод) и уровень формы (живая
-   * проверка, идущие проверки). Фабрика обязана задать его ПОСЛЕ `...level`: `dispose` уровня
-   * форму не снимает.
-   */
-  dispose(): void;
-}
-```
-
-_Source: src/form/form-config-base.ts_
-
 ### createForm
 
 **Kind:** `function`
@@ -8442,39 +8424,6 @@ export interface CreateFormConfig<T> {
 ```
 
 _Source: src/form/form-bundle.ts_
-
-### CreateFormConfigBase
-
-**Kind:** `interface`
-
-Общая часть конфига всех фабрик формы.
-
-**Signature:**
-```typescript
-export interface CreateFormConfigBase<T, B> {
-  /** Начальные значения — из них создаётся модель. Взаимоисключимо с `model`. */
-  initial?: T;
-  /** Готовая модель (если создана отдельной фабрикой). Приоритетнее `initial`. */
-  model?: FormModel<T>;
-  /** Декларативное поведение модели (compute/copyFrom/enableWhen/onChange). */
-  behavior?: FormBehavior<T>;
-  /** Правила валидации: готовый набор либо {@link FormValidation} с `extras` и стратегией. */
-  validation?: FormValidation<T> | ValidationDefinition<T>;
-  /** Поток шагов: идентификатор шага и его правила — {@link FormFlowConfig}. */
-  flow?: FormFlowConfig<T>;
-  /**
-   * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
-   * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
-   * инициализации не срабатывают). Модель, созданная из `initial`, снимает точку отсчёта после
-   * `seed` — сброс его правки не откатывает; точкой отсчёта переданной `model` управляет владелец.
-   */
-  seed?: (model: FormModel<T>) => void;
-  /** Донастройка ПОСЛЕ сборки: получает готовый бандл фабрики. */
-  setup?: (bundle: B) => void;
-}
-```
-
-_Source: src/form/form-config-base.ts_
 
 ### createFormFlow
 

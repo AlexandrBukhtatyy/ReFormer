@@ -60,9 +60,6 @@ export type {
   NodeLifecycleHooks,
 } from './schema-controller';
 
-// Общий конфиг родственных фабрик — `createReactForm` (@reformer/renderer-react) и
-// `createJsonForm` (@reformer/renderer-json).
-export type { CoreForm, CreateFormConfigBase } from './form-config-base';
 // Уровень формы: проверка, поток шагов и отправка с результатом-объектом.
 export { createFormLevel } from './form-level';
 export type {

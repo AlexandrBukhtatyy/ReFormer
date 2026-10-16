@@ -126,8 +126,6 @@ export type RootTypes = [
   Root.FormRender,
   Root.ResolvedSchema,
   Root.SchemaResolver,
-  Root.CoreForm<Shape>,
-  Root.CreateFormConfigBase<Shape, Root.FormBundle<Shape>>,
   Root.FormNode<string>,
   Root.FormControl<string>,
   Root.FormGroup<Shape>,
