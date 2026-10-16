@@ -126,9 +126,9 @@ describe('встроенный кит объявляет себя сам', () =>
   it('дескриптор воспроизводит прежние таблицы билдера', () => {
     // Категории покрывает отпечаток записей выше; здесь — то, чего в нём нет.
     expect(d.palette.categoryByName.Input).toBe('Поля ввода');
-    expect([...d.codegen.needsShim].sort()).toEqual(
-      ['FormWizard', 'RendererFormWizard', 'Step', 'Wizard'].sort()
-    );
+    // Контракт 3.0: визард по протоколу — адаптер есть, прослоек нет [ReFormer-qxdk].
+    expect(d.adapters.wizard).toEqual({ symbol: 'FormWizard' });
+    expect(d.codegen.needsShim.size).toBe(0);
     // Запасные листья стека совпадают с тем, что кит объявляет о себе: без дескриптора стек
     // ведёт себя так же, как со встроенным китом.
     expect([...d.leafComponents].sort()).toEqual([...LEAF_COMPONENT_NAMES].sort());

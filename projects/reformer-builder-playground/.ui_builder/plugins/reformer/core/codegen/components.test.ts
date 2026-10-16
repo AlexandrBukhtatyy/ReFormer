@@ -86,12 +86,16 @@ describe('резолв компонента', () => {
     expect(resolveComponent('Box', kit)).not.toHaveProperty('subpath');
   });
 
-  it('визард уходит в шим, а не в импорт из кита', () => {
-    expect(resolveComponent('Wizard', builtinKit())).toMatchObject({
+  it('прослойку дают только каталоги до контракта 3.0 — их needsShim [ReFormer-qxdk]', () => {
+    // Визард кита 3.0 работает по протоколу, и прослоек у встроенного кита нет. Имена визарда и
+    // шага до резолва вообще не доходят — их регистрирует реестр символом адаптера.
+    expect(resolveComponent('Wizard', foreignKit())).toMatchObject({
       shim: true,
       placeholder: false,
       symbol: null,
     });
+    expect(builtinKit().kit.codegen.needsShim.size).toBe(0);
+    expect(resolveComponent('Wizard', builtinKit()).shim).toBe(false);
   });
 
   it('имя вне каталога называет кит, а не «ui-kit»', () => {
