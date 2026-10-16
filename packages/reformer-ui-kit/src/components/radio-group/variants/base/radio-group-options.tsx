@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 
 import { defineFieldControl } from '@/fields/field-control';
@@ -41,6 +42,7 @@ function RadioGroupOptionsBase({
   'data-testid': dataTestId,
   ...props
 }: RadioGroupOptionsProps) {
+  const t = useKitMessages();
   const generatedId = React.useId();
   const idBase = dataTestId ?? generatedId;
 
@@ -73,7 +75,7 @@ function RadioGroupOptionsBase({
               <InfoHint
                 content={hint}
                 descriptionId={hintId}
-                aria-label={`Подсказка: ${option.label}`}
+                aria-label={t('kit.formField.hintLabel', { label: option.label })}
                 data-testid={dataTestId ? `${dataTestId}-${option.value}-tooltip` : undefined}
               />
             )}

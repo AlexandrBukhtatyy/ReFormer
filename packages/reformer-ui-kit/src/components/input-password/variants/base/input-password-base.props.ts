@@ -1,3 +1,4 @@
+import { messageDefault } from '@/i18n/message-default';
 import type { PropsSchema } from '@/fields/props-schema';
 
 /**
@@ -16,7 +17,7 @@ export const inputPasswordBasePropsSchema = {
   properties: {
     placeholder: {
       type: 'string',
-      default: 'Password',
+      ...messageDefault('kit.inputPassword.placeholder'),
       description: 'Подсказка внутри поля.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

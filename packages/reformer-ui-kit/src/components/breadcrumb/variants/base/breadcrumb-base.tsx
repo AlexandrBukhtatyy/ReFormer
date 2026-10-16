@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
 import { Slot } from 'radix-ui';
@@ -10,7 +11,8 @@ import { cn } from '@/lib/utils';
 // и не form-control. Каждая часть несёт собственный data-slot. Стили — Tailwind внутри реализации.
 
 function Breadcrumb({ ...props }: React.ComponentProps<'nav'>) {
-  return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />;
+  const t = useKitMessages();
+  return <nav aria-label={t('kit.breadcrumb.label')} data-slot="breadcrumb" {...props} />;
 }
 
 function BreadcrumbList({ className, ...props }: React.ComponentProps<'ol'>) {
@@ -82,6 +84,7 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
 }
 
 function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<'span'>) {
+  const t = useKitMessages();
   return (
     <span
       data-slot="breadcrumb-ellipsis"
@@ -91,7 +94,7 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<'span'
       {...props}
     >
       <MoreHorizontalIcon className="size-4" />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{t('kit.breadcrumb.more')}</span>
     </span>
   );
 }

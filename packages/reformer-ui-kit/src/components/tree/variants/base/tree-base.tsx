@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import { ChevronRight, File, Folder, FolderOpen, Loader2 } from 'lucide-react';
 
@@ -463,6 +464,7 @@ const Tree = React.forwardRef<TreeHandle, TreeProps>(function Tree(
   },
   ref
 ) {
+  const t = useKitMessages();
   const roots = React.useMemo(() => nodes ?? [], [nodes]);
   const [state, setState] = React.useState<TreeState>(() =>
     createTreeState(defaultExpandedIds ?? [])
@@ -873,7 +875,7 @@ const Tree = React.forwardRef<TreeHandle, TreeProps>(function Tree(
   const body =
     rows.length === 0 ? (
       <p data-slot="tree-empty" className="text-muted-foreground px-3 py-2 text-[12px]">
-        {emptyText ?? 'Пусто'}
+        {emptyText ?? t('kit.tree.empty')}
       </p>
     ) : (
       // Распорка на всю высоту дерева; окно строк сдвинуто `translateY`, поэтому скроллбар

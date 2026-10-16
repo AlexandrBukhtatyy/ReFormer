@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { SearchIcon } from 'lucide-react';
@@ -34,23 +35,32 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 }
 
 function CommandDialog({
-  title = 'Command Palette',
-  description = 'Search for a command to run...',
+  title,
+  description,
   children,
   className,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
+  /**
+   * Заголовок диалога (для скринридера).
+   * @defaultMessage kit.command.title
+   */
   title?: string;
+  /**
+   * Описание диалога (для скринридера).
+   * @defaultMessage kit.command.description
+   */
   description?: string;
   className?: string;
   showCloseButton?: boolean;
 }) {
+  const t = useKitMessages();
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>{title ?? t('kit.command.title')}</DialogTitle>
+        <DialogDescription>{description ?? t('kit.command.description')}</DialogDescription>
       </DialogHeader>
       <DialogContent
         className={cn('overflow-hidden p-0', className)}

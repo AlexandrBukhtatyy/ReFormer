@@ -47,11 +47,11 @@ describe('Pagination (base)', () => {
     expect(html).toContain('data-slot="pagination-ellipsis"');
   });
 
-  it('root — <nav> с role="navigation" и aria-label="pagination"', () => {
+  it('root — <nav> с role="navigation" и aria-label="Pagination" (из словаря)', () => {
     const html = renderPagination();
     expect(html).toContain('<nav');
     expect(html).toContain('role="navigation"');
-    expect(html).toContain('aria-label="pagination"');
+    expect(html).toContain('aria-label="Pagination"');
   });
 
   it('активная ссылка помечена aria-current="page" и data-active, стиль outline', () => {

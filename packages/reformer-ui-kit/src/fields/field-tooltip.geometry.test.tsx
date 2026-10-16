@@ -216,7 +216,7 @@ describe('иконка после текста и СНАРУЖИ <label>', () =>
     );
     expect(html.match(/data-slot="info-hint"/g)).toHaveLength(1);
     expectOrder(html, 'Базовый', '</label>', 'data-testid="input-plan-basic-tooltip"', 'Профи');
-    expect(html).toContain('aria-label="Подсказка: Базовый"');
+    expect(html).toContain('aria-label="Hint: Базовый"');
     expect(html).toContain('aria-describedby="input-plan-basic-tooltip"');
     expect(html).toContain(
       '<span id="input-plan-basic-tooltip" hidden="">До 3 пользователей</span>'

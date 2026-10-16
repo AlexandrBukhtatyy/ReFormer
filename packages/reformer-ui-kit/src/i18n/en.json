@@ -51,5 +51,52 @@
   "kit.select.retry": "Retry",
   "kit.select.empty": "No options found.",
   "kit.select.selected": "Selected: {count}",
-  "kit.select.clear": "Clear selection"
+  "kit.select.clear": "Clear selection",
+
+  "kit.breadcrumb.label": "Breadcrumb",
+  "kit.breadcrumb.more": "More",
+
+  "kit.carousel.previous": "Previous slide",
+  "kit.carousel.next": "Next slide",
+
+  "kit.command.title": "Command Palette",
+  "kit.command.description": "Search for a command to run...",
+
+  "kit.dialog.close": "Close",
+
+  "kit.exampleCard.showPreview": "Show example",
+  "kit.exampleCard.showCode": "Show code",
+  "kit.exampleCard.copied": "Copied!",
+  "kit.exampleCard.copy": "Copy code",
+
+  "kit.infoHint.label": "Hint",
+
+  "kit.inputPassword.placeholder": "Password",
+  "kit.inputPassword.show": "Show password",
+  "kit.inputPassword.hide": "Hide password",
+
+  "kit.messageScroller.toEnd": "Scroll to end",
+  "kit.messageScroller.toStart": "Scroll to start",
+
+  "kit.pagination.label": "Pagination",
+  "kit.pagination.previousLabel": "Go to previous page",
+  "kit.pagination.previous": "Previous",
+  "kit.pagination.nextLabel": "Go to next page",
+  "kit.pagination.next": "Next",
+  "kit.pagination.more": "More pages",
+
+  "kit.sheet.close": "Close",
+
+  "kit.sidebar.title": "Sidebar",
+  "kit.sidebar.description": "Displays the mobile sidebar.",
+  "kit.sidebar.toggle": "Toggle Sidebar",
+
+  "kit.spinner.label": "Loading",
+
+  "kit.table.loadError": "Failed to load data",
+  "kit.table.selectAll": "Select all",
+  "kit.table.selectRow": "Select row",
+  "kit.table.empty": "No data",
+
+  "kit.tree.empty": "Empty"
 }

@@ -3,6 +3,7 @@
 // Внутренние иконки (Copy/Check/Code/Eye) — inline-SVG, не выносятся в зависимости.
 // Правки при портировании: `@/lib/utils` (был уже такой), добавлен `data-slot="example-card"` на корень.
 
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -142,6 +143,7 @@ export function ExampleCard({
   className,
   bgColor = 'bg-card',
 }: ExampleCardProps) {
+  const t = useKitMessages();
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -179,7 +181,7 @@ export function ExampleCard({
                 ? 'bg-primary/10 text-primary'
                 : 'hover:bg-accent text-muted-foreground hover:text-foreground'
             )}
-            title={showCode ? 'Показать пример' : 'Показать код'}
+            title={showCode ? t('kit.exampleCard.showPreview') : t('kit.exampleCard.showCode')}
           >
             {showCode ? <EyeIcon /> : <CodeIcon />}
           </button>
@@ -200,7 +202,7 @@ export function ExampleCard({
                 ? 'bg-green-700 text-green-300'
                 : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200'
             )}
-            title={copied ? 'Скопировано!' : 'Копировать код'}
+            title={copied ? t('kit.exampleCard.copied') : t('kit.exampleCard.copy')}
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
           </button>

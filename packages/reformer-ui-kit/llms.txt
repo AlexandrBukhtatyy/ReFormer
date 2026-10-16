@@ -6656,14 +6656,22 @@ _Source: src/components/command/variants/base/command-base.props.ts_
 **Signature:**
 ```typescript
 function CommandDialog({
-  title = 'Command Palette',
-  description = 'Search for a command to run...',
+  title,
+  description,
   children,
   className,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
+  /**
+   * Заголовок диалога (для скринридера).
+   * @defaultMessage kit.command.title
+   */
   title?: string;
+  /**
+   * Описание диалога (для скринридера).
+   * @defaultMessage kit.command.description
+   */
   description?: string;
   className?: string;
   showCloseButton?: boolean;
@@ -9434,7 +9442,7 @@ function InfoHint({
   className,
   onClick,
   onPointerDown,
-  'aria-label': ariaLabel = 'Подсказка',
+  'aria-label': ariaLabel,
   ...props
 }: InfoHintProps)
 ```
@@ -9942,7 +9950,10 @@ export interface InputPasswordProps extends Omit<
   onChange?: (value: string | null) => void;
   /** Срабатывает при потере фокуса. */
   onBlur?: () => void;
-  /** Подсказка внутри поля. По умолчанию `'Password'`. */
+  /**
+   * Подсказка внутри поля.
+   * @defaultMessage kit.inputPassword.placeholder
+   */
   placeholder?: string;
   /** Блокирует ввод. */
   disabled?: boolean;

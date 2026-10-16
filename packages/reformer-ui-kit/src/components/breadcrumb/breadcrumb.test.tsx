@@ -38,10 +38,10 @@ describe('Breadcrumb (base, compound presentational)', () => {
     expect(html).toContain('data-slot="breadcrumb-page"');
   });
 
-  it('Breadcrumb — <nav> с aria-label="breadcrumb"', () => {
+  it('Breadcrumb — <nav> с aria-label="Breadcrumb" (из словаря)', () => {
     const html = renderToStaticMarkup(<Breadcrumb>X</Breadcrumb>);
     expect(html).toMatch(/^<nav/);
-    expect(html).toContain('aria-label="breadcrumb"');
+    expect(html).toContain('aria-label="Breadcrumb"');
     expect(html).toContain('>X</nav>');
   });
 

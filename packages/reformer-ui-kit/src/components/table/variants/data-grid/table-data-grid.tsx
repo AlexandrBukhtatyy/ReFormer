@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import {
   useReactTable,
@@ -158,12 +159,14 @@ const ALIGN_CLASS: Record<NonNullable<TableColumn<unknown>['align']>, string> = 
  * ```
  */
 export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): React.ReactNode {
+  const t = useKitMessages();
   const { dataProvider, columns, pageSize = 10, rowKey, selection = 'none' } = settings;
 
   const [rows, setRows] = React.useState<Row[]>([]);
   const [total, setTotal] = React.useState(0);
   const [status, setStatus] = React.useState<AsyncStatus>('loading');
-  const [errorMsg, setErrorMsg] = React.useState('Не удалось загрузить данные');
+  // Текст сбоя без сообщения ошибки — из словаря при показе, чтобы менялся вместе с языком.
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -200,7 +203,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
       })
       .catch((err: unknown) => {
         if (id !== reqId.current) return;
-        setErrorMsg(err instanceof Error ? err.message : 'Не удалось загрузить данные');
+        setErrorMsg(err instanceof Error ? err.message : null);
         setStatus('error');
       });
   }, [sorting, pagination, columnFilters, reloadKey]);
@@ -220,7 +223,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
           selection === 'multiple' ? (
             <input
               type="checkbox"
-              aria-label="Выбрать все"
+              aria-label={t('kit.table.selectAll')}
               checked={table.getIsAllPageRowsSelected()}
               onChange={table.getToggleAllPageRowsSelectedHandler()}
             />
@@ -228,7 +231,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
         cell: ({ row }) => (
           <input
             type={selection === 'multiple' ? 'checkbox' : 'radio'}
-            aria-label="Выбрать строку"
+            aria-label={t('kit.table.selectRow')}
             checked={row.getIsSelected()}
             disabled={!row.getCanSelect()}
             onChange={row.getToggleSelectedHandler()}
@@ -237,7 +240,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
       });
     }
     return defs;
-  }, [columns, selection]);
+  }, [columns, selection, t]);
 
   const table = useReactTable({
     data: rows,
@@ -285,7 +288,11 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
         </div>
       )}
 
-      <AsyncBoundary status={status} error={errorMsg} onRetry={() => setReloadKey((k) => k + 1)}>
+      <AsyncBoundary
+        status={status}
+        error={errorMsg ?? t('kit.table.loadError')}
+        onRetry={() => setReloadKey((k) => k + 1)}
+      >
         <div data-slot="data-grid-ready" className="space-y-3">
           <Table>
             <TableHeader>
@@ -332,7 +339,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={leafCount} className="h-24 text-center text-muted-foreground">
-                    Нет данных
+                    {t('kit.table.empty')}
                   </TableCell>
                 </TableRow>
               ) : (

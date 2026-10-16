@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import {
   MessageScroller as MessageScrollerPrimitive,
@@ -96,6 +97,7 @@ function MessageScrollerButton({
   ...props
 }: React.ComponentProps<typeof MessageScrollerPrimitive.Button> &
   Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>) {
+  const t = useKitMessages();
   return (
     <MessageScrollerPrimitive.Button
       data-slot="message-scroller-button"
@@ -114,7 +116,9 @@ function MessageScrollerButton({
         <>
           <ArrowDownIcon />
           <span className="sr-only">
-            {direction === 'end' ? 'Scroll to end' : 'Scroll to start'}
+            {direction === 'end'
+              ? t('kit.messageScroller.toEnd')
+              : t('kit.messageScroller.toStart')}
           </span>
         </>
       )}

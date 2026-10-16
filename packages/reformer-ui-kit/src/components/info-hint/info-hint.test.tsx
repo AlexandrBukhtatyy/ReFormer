@@ -8,7 +8,7 @@ describe('InfoHint (base)', () => {
     const html = renderToStaticMarkup(<InfoHint content="Только латиница" />);
     expect(html).toMatch(/<button[^>]*type="button"/);
     expect(html).toContain('data-slot="info-hint"');
-    expect(html).toContain('aria-label="Подсказка"');
+    expect(html).toContain('aria-label="Hint"');
     expect(html).toContain('<svg');
   });
 

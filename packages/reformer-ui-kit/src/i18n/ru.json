@@ -51,5 +51,52 @@
   "kit.select.retry": "Повторить",
   "kit.select.empty": "Ничего не найдено.",
   "kit.select.selected": "Выбрано: {count}",
-  "kit.select.clear": "Очистить выбор"
+  "kit.select.clear": "Очистить выбор",
+
+  "kit.breadcrumb.label": "Навигационная цепочка",
+  "kit.breadcrumb.more": "Ещё",
+
+  "kit.carousel.previous": "Предыдущий слайд",
+  "kit.carousel.next": "Следующий слайд",
+
+  "kit.command.title": "Палитра команд",
+  "kit.command.description": "Найдите команду, чтобы выполнить её...",
+
+  "kit.dialog.close": "Закрыть",
+
+  "kit.exampleCard.showPreview": "Показать пример",
+  "kit.exampleCard.showCode": "Показать код",
+  "kit.exampleCard.copied": "Скопировано!",
+  "kit.exampleCard.copy": "Копировать код",
+
+  "kit.infoHint.label": "Подсказка",
+
+  "kit.inputPassword.placeholder": "Пароль",
+  "kit.inputPassword.show": "Показать пароль",
+  "kit.inputPassword.hide": "Скрыть пароль",
+
+  "kit.messageScroller.toEnd": "Прокрутить в конец",
+  "kit.messageScroller.toStart": "Прокрутить в начало",
+
+  "kit.pagination.label": "Страницы",
+  "kit.pagination.previousLabel": "Перейти на предыдущую страницу",
+  "kit.pagination.previous": "Назад",
+  "kit.pagination.nextLabel": "Перейти на следующую страницу",
+  "kit.pagination.next": "Вперёд",
+  "kit.pagination.more": "Ещё страницы",
+
+  "kit.sheet.close": "Закрыть",
+
+  "kit.sidebar.title": "Боковая панель",
+  "kit.sidebar.description": "Боковая панель на узком экране.",
+  "kit.sidebar.toggle": "Свернуть или развернуть панель",
+
+  "kit.spinner.label": "Загрузка",
+
+  "kit.table.loadError": "Не удалось загрузить данные",
+  "kit.table.selectAll": "Выбрать все",
+  "kit.table.selectRow": "Выбрать строку",
+  "kit.table.empty": "Нет данных",
+
+  "kit.tree.empty": "Пусто"
 }

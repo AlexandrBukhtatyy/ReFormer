@@ -1,3 +1,4 @@
+import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
 import { InfoIcon } from 'lucide-react';
 
@@ -56,9 +57,10 @@ function InfoHint({
   className,
   onClick,
   onPointerDown,
-  'aria-label': ariaLabel = 'Подсказка',
+  'aria-label': ariaLabel,
   ...props
 }: InfoHintProps) {
+  const t = useKitMessages();
   const [open, setOpen] = React.useState(false);
   const wasOpenRef = React.useRef(false);
 
@@ -72,7 +74,7 @@ function InfoHint({
             // type="button" обязателен: внутри <form> кнопка без типа отправила бы форму.
             type="button"
             data-slot="info-hint"
-            aria-label={ariaLabel}
+            aria-label={ariaLabel ?? t('kit.infoHint.label')}
             className={cn(
               // Сброс border/bg/p — кнопка должна выглядеть одинаково и без Preflight.
               'relative inline-flex size-4 shrink-0 cursor-help items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',

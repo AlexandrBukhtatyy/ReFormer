@@ -15,7 +15,9 @@
  * - литерал-умолчание текстового пропа в деструктуризации: `emptyText = 'No results.'`.
  *
  * Вне проверки: `*.props.ts` (описания пропсов для инспектора билдера — метаданные каталога, а
- * умолчания в них стережёт `kit-locale.test.tsx`), словарь классов и сгенерированная бочка `meta.ts`.
+ * умолчания в них стережёт `kit-locale.test.tsx`), описания полей схемы узла дерева
+ * (`tree-node-schema.ts` — те же метаданные для инспектора), словарь классов и сгенерированная бочка
+ * `meta.ts`.
  *
  * {@link NOT_YET_LOCALIZED} — компоненты, до которых локализация ещё не дошла (этапы 3б и 4 плана
  * docs/plans/i18n-runtime-locale.md). Список обязан сокращаться до нуля: файл из списка, в котором
@@ -36,30 +38,21 @@ const TEXT_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'alt']);
 const TEXT_PROP = /(label|placeholder|title|text|message|description|hint)$/i;
 
 /** Не рантайм-текст для пользователя: метаданные каталога, генерируемые файлы, тестовые утилиты. */
-const OUT_OF_SCOPE = [/\.test\.tsx?$/, /\.props\.ts$/, /^styles\//, /^test-utils\//, /^meta\.ts$/];
+const OUT_OF_SCOPE = [
+  /\.test\.tsx?$/,
+  /\.props\.ts$/,
+  /\/tree-node-schema\.ts$/,
+  /^styles\//,
+  /^test-utils\//,
+  /^meta\.ts$/,
+];
 
 /**
  * Каталоги компонентов, ещё не переведённые на словарь. Убирать запись, как только компонент
  * переведён; новых не добавлять.
  */
 const NOT_YET_LOCALIZED: readonly string[] = [
-  // этап 3б
-  'components/breadcrumb/',
-  'components/carousel/',
-  'components/command/',
-  'components/dialog/',
-  'components/example-card/',
-  'components/info-hint/',
-  'components/input-password/',
-  'components/message-scroller/',
-  'components/pagination/',
-  'components/radio-group/',
-  'components/sheet/',
-  'components/sidebar/',
-  'components/spinner/',
-  'components/table/',
-  'components/tree/',
-  // этап 4
+  // этап 4: даты по локали — ReFormer-f29b.6
   'components/date-picker/',
 ];
 

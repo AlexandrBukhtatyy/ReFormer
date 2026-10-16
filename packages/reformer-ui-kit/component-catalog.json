@@ -7051,6 +7051,7 @@
           "description": {
             "type": "string",
             "default": "Search for a command to run...",
+            "x-messageKey": "kit.command.description",
             "description": "Скрытое описание диалога для скринридеров, рендерится в sr-only заголовке.",
             "x-doc": {
               "group": "Control",
@@ -7093,6 +7094,7 @@
           "title": {
             "type": "string",
             "default": "Command Palette",
+            "x-messageKey": "kit.command.title",
             "description": "Заголовок блока — выводится над содержимым.",
             "x-doc": {
               "group": "Control",
@@ -14569,6 +14571,7 @@
           "placeholder": {
             "type": "string",
             "default": "Password",
+            "x-messageKey": "kit.inputPassword.placeholder",
             "description": "Подсказка внутри поля.",
             "x-doc": {
               "group": "Textfield",
