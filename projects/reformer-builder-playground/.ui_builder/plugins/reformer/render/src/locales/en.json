@@ -14,5 +14,6 @@
   "model.copy": "Copy model",
   "model.reset": "reset",
   "model.disable": "disable",
+  "model.select": "Select the node in the schema",
   "model.enable": "enable"
 }

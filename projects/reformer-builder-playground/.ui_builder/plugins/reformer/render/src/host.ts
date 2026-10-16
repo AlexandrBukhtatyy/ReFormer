@@ -52,6 +52,7 @@ import type {
   DocumentKind,
   ResourceId,
   ResourceRef,
+  SelectionService,
   TextRange,
 } from '@reformer/builder-plugin-api';
 
@@ -184,6 +185,13 @@ export interface PreviewHost {
    * активную вкладку у плагина нет: вкладки принадлежат рабочей области, а её `@reformer/builder-plugin-api` не отдаёт.
    */
   useActiveDocument(): ResourceId | null;
+
+  /**
+   * Выделение узлов документа — общий канал его видов. Панель «Модель» подсвечивает пути
+   * выделенных узлов и выделяет узел по щелчку на пути. Необязательно: без службы выделения
+   * панель с выделением просто не связана.
+   */
+  selection?(): Pick<SelectionService, 'get' | 'set' | 'onDidChange'> | null;
 
   /**
    * Возможности источника, которому принадлежит документ, или `null`, если источник неизвестен.

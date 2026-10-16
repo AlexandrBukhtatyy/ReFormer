@@ -123,6 +123,54 @@ export function indexNodePaths(schema: JsonFormSchema): ReadonlyMap<NodeId, Json
   return out;
 }
 
+/** Связь узлов схемы с путями модели — см. {@link indexModelPaths}. */
+export interface ModelPathIndex {
+  /** Путь модели узла. */
+  readonly pathOf: ReadonlyMap<NodeId, string>;
+  /** Первый по обходу узел пути: его выделяют, когда выбрали путь, а не узел. */
+  readonly nodeOf: ReadonlyMap<string, NodeId>;
+}
+
+/** Начало шаблона строки массива в пути узла; `-1` — узел не в шаблоне. */
+function templateStart(path: JsonPath): number {
+  for (let i = 0; i < path.length - 1; i += 1) {
+    if (path[i] === 'item' && path[i + 1] === '$template') return i;
+  }
+  return -1;
+}
+
+/**
+ * Связь «узел ↔ путь модели» — в тех адресах, которыми модель показывают по путям (панель
+ * «Модель» стенда формы).
+ *
+ * Поле, массив и подформа привязаны своим `$model(...)`, и путь берётся как есть. Узел шаблона
+ * строки массива привязан относительно строки, а строки массива по путям не адресуются — такой
+ * узел относится к пути массива (внешнего, если массивы вложены). В разметку частей обход не
+ * заходит: узел-часть привязан путём своей группы. Узел без идентификатора адресовать нечем.
+ */
+export function indexModelPaths(schema: JsonFormSchema): ModelPathIndex {
+  const pathOf = new Map<NodeId, string>();
+  const nodeOf = new Map<string, NodeId>();
+  /** Пути модели массивов вне шаблонов — по адресу узла массива. */
+  const arrays = new Map<string, string>();
+
+  walkNodes(schema, (node, path) => {
+    const parsed = parseOperator((node as { model?: unknown }).model);
+    const own = parsed?.op === 'model' ? parsed.arg : undefined;
+    const row = templateStart(path);
+    const model = row === -1 ? own : arrays.get(JSON.stringify(path.slice(0, row)));
+    if (row === -1 && own !== undefined && isArrayNode(node)) {
+      arrays.set(JSON.stringify(path), own);
+    }
+
+    const id = nodeIdOf(node);
+    if (id === undefined || model === undefined) return;
+    pathOf.set(id, model);
+    if (!nodeOf.has(model)) nodeOf.set(model, id);
+  });
+  return { pathOf, nodeOf };
+}
+
 /**
  * Верхнеуровневые `$model(path)` формы — привязки полей, массивов и подформ (ключ `model`).
  * В `item.$template` и в разметку подформы НЕ спускаемся: пути там относительны элементу или

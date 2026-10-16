@@ -14,6 +14,13 @@
  * ровно то, что зовёт рендерер (см. `@/plugins/reformer/core/form-inspect`). Поэтому `compute`, `copyFrom`,
  * `onChange` и `enableWhen` отрабатывают сами, а расходиться с формой нечему.
  *
+ * ## Связь с выделением
+ *
+ * Выделенный в схеме узел подсвечивает строку своего пути, а щелчок по пути выделяет узел — тем
+ * же общим каналом выделения, что связывает редактор схемы и превью. Связь «узел ↔ путь»
+ * выводится из схемы документа (`indexModelPaths`): поле шаблона строки массива ведёт к строке
+ * массива, потому что строки массива панель по путям не показывает.
+ *
  * ## Чего панель не делает
  *
  * Не хранит историю правок: журнал потребовал бы перехвата записи в каждый сигнал — отдельная
@@ -22,7 +29,15 @@
  * @module plugins/reformer/render/ui/ModelPanel
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
 import { Checkbox } from '@reformer/ui-kit/checkbox';
@@ -38,7 +53,9 @@ import {
   type ModelRow,
   type NodeState,
 } from '../../../core/form-inspect';
+import { ensureSchema, indexModelPaths, isFormSchema } from '../../../core/form-model';
 import type {
+  NodeId,
   PreviewFormHandle,
   PreviewLiveService,
   ResourceId,
@@ -82,6 +99,77 @@ function useModelVersion(model: unknown): number {
     };
   }, [model]);
   return version;
+}
+
+const NO_SELECTION: readonly NodeId[] = [];
+
+/** Связь строк панели с выделением узлов документа — см. шапку модуля. */
+interface SchemaLinks {
+  /** Пути выделенных узлов. */
+  readonly selected: ReadonlySet<string>;
+  /** Узел, которого выделяет щелчок по пути; `undefined` — у пути узла в схеме нет. */
+  nodeOf(path: string): NodeId | undefined;
+  select(path: string): void;
+}
+
+function useSchemaLinks(host: PreviewHost, documentId: ResourceId | null): SchemaLinks {
+  const selection = host.selection?.() ?? null;
+
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (selection === null || documentId === null) return () => {};
+      const subscription = selection.onDidChange((resource) => {
+        if (resource === documentId) onChange();
+      });
+      return () => {
+        subscription.dispose();
+      };
+    },
+    [selection, documentId]
+  );
+  const read = useCallback(
+    () => (selection === null || documentId === null ? NO_SELECTION : selection.get(documentId)),
+    [selection, documentId]
+  );
+  const ids = useSyncExternalStore(subscribe, read, read);
+
+  // Схема меняется вместе с текстом документа — указатель пересчитывается по его смене.
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    if (documentId === null) return;
+    const subscription = host
+      .documentOf(documentId)
+      ?.onDidChangeContent(() => setRevision((value) => value + 1));
+    return () => {
+      subscription?.dispose();
+    };
+  }, [host, documentId]);
+  const index = useMemo(() => {
+    void revision;
+    const schema = documentId === null ? undefined : host.documentOf(documentId)?.model();
+    return isFormSchema(schema) ? indexModelPaths(ensureSchema(schema)) : null;
+  }, [host, documentId, revision]);
+
+  const selected = useMemo(
+    () =>
+      new Set(
+        ids.flatMap((id) => {
+          const path = index?.pathOf.get(id);
+          return path === undefined ? [] : [path];
+        })
+      ),
+    [ids, index]
+  );
+
+  return {
+    selected,
+    nodeOf: (path) => index?.nodeOf.get(path),
+    select: (path) => {
+      const id = index?.nodeOf.get(path);
+      if (id === undefined || selection === null || documentId === null) return;
+      selection.set(documentId, [id]);
+    },
+  };
 }
 
 /** Значение одной строкой: длинные объекты режутся, потому что строка одна. */
@@ -190,6 +278,13 @@ export function ModelPanel({ host, live }: ModelPanelProps): ReactNode {
   const form = usePublishedForm(live(), documentId);
   const model = form?.model ?? null;
   const version = useModelVersion(model);
+  const links = useSchemaLinks(host, documentId);
+
+  // Строка выделенного узла показывается: в форме на десятки полей её иначе ищут прокруткой.
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  useEffect(() => {
+    tableRef.current?.querySelector('tr[data-selected]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [links.selected]);
 
   const rows = useMemo(() => {
     void version;
@@ -229,14 +324,30 @@ export function ModelPanel({ host, live }: ModelPanelProps): ReactNode {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <table className="w-full text-xs">
+        <table ref={tableRef} className="w-full text-xs">
           <tbody>
             {rows.map((row) => {
               const nodeState = readNodeState(model, row.path);
+              const selected = links.selected.has(row.path);
               return (
-                <tr key={row.path} className="border-border/50 border-b">
+                <tr
+                  key={row.path}
+                  data-selected={selected || undefined}
+                  className={`border-border/50 border-b${selected ? ' bg-accent text-accent-foreground' : ''}`}
+                >
                   <td className="py-1 pr-2 font-mono" style={{ paddingLeft: 8 + row.depth * 12 }}>
-                    {row.path}
+                    {links.nodeOf(row.path) === undefined ? (
+                      row.path
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-left hover:underline"
+                        title={t('model.select')}
+                        onClick={() => links.select(row.path)}
+                      >
+                        {row.path}
+                      </button>
+                    )}
                   </td>
                   <td className="py-1 pr-2">
                     {row.kind === 'group' ? (

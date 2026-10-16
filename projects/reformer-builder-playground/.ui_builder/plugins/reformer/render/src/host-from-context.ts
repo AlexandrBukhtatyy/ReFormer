@@ -24,6 +24,7 @@ import {
   DocumentsServiceToken,
   KitsCapability,
   ModuleLoaderCapability,
+  SelectionServiceToken,
   useActiveDocument,
   useTranslate,
   WorkspaceFilesServiceToken,
@@ -63,6 +64,7 @@ export function previewHostFromContext(ctx: Pick<PluginContext, 'services' | 'i1
   return {
     useTranslate: usePreviewTranslate,
     useActiveDocument: usePreviewActiveDocument,
+    selection: () => ctx.services.get(SelectionServiceToken) ?? null,
 
     documentOf(id: ResourceId): PreviewDocument | null {
       const document = documents()?.documentOf(id) ?? null;

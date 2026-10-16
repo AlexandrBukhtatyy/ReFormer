@@ -11,7 +11,9 @@ import {
   navIntent,
   siblingAxis,
   indexNodePaths,
+  indexModelPaths,
 } from './query';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { ensureNodeIds } from './node-id';
 import { getAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
@@ -196,5 +198,88 @@ describe('indexNodePaths', () => {
     const steps = root.children as Record<string, unknown>[];
     steps[0].$nodeId = 'dupe0000';
     expect(indexNodePaths(s).get('dupe0000')).toEqual(['root']);
+  });
+});
+
+describe('indexModelPaths', () => {
+  const input = (model: string, label: string) => ({
+    model: `$model(${model})`,
+    component: '$component(Input)',
+    componentProps: { label },
+  });
+  const schema = (): JsonFormSchema => {
+    let seq = 0;
+    return ensureNodeIds(
+      {
+        root: {
+          component: '$component(Box)',
+          componentProps: { label: 'Root' },
+          children: [
+            input('contact.name', 'Name'),
+            input('contact.email', 'Email'),
+            input('contact.name', 'Name again'),
+            {
+              model: '$model(phones)',
+              componentProps: { label: 'Phones' },
+              item: {
+                $template: {
+                  component: '$component(Box)',
+                  componentProps: { label: 'Row' },
+                  children: [input('number', 'Number')],
+                },
+              },
+            },
+            {
+              model: '$model(address)',
+              part: '$part(address)',
+              componentProps: { label: 'Address' },
+            },
+          ],
+        },
+        parts: {
+          address: {
+            component: '$component(Box)',
+            children: [input('city', 'City')],
+          },
+        },
+      } as unknown as JsonFormSchema,
+      () => `mp${String(seq++).padStart(6, '0')}`
+    );
+  };
+  /** Идентификатор узла по подписи. */
+  const idOf = (s: JsonFormSchema, label: string): string => {
+    let found: string | undefined;
+    walkNodes(s, (node) => {
+      const props = (node as { componentProps?: { label?: string } }).componentProps;
+      if (props?.label === label) found = (node as { $nodeId?: string }).$nodeId;
+    });
+    if (found === undefined) throw new Error(`нет узла «${label}»`);
+    return found;
+  };
+
+  it('поле, массив и подформа — своим путём; контейнер без привязки — никак', () => {
+    const s = schema();
+    const { pathOf } = indexModelPaths(s);
+    expect(pathOf.get(idOf(s, 'Name'))).toBe('contact.name');
+    expect(pathOf.get(idOf(s, 'Email'))).toBe('contact.email');
+    expect(pathOf.get(idOf(s, 'Phones'))).toBe('phones');
+    expect(pathOf.get(idOf(s, 'Address'))).toBe('address');
+    expect(pathOf.has(idOf(s, 'Root'))).toBe(false);
+  });
+
+  it('узел шаблона строки — путём массива: строки по путям не адресуются', () => {
+    const s = schema();
+    const { pathOf } = indexModelPaths(s);
+    expect(pathOf.get(idOf(s, 'Number'))).toBe('phones');
+    expect(pathOf.get(idOf(s, 'Row'))).toBe('phones');
+  });
+
+  it('путь ведёт к первому по обходу узлу', () => {
+    const s = schema();
+    const { nodeOf } = indexModelPaths(s);
+    expect(nodeOf.get('contact.name')).toBe(idOf(s, 'Name'));
+    expect(nodeOf.get('phones')).toBe(idOf(s, 'Phones'));
+    // В разметку частей обход не заходит: путь части относителен месту подключения.
+    expect(nodeOf.has('city')).toBe(false);
   });
 });

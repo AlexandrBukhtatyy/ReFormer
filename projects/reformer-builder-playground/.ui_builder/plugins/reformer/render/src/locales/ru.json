@@ -14,5 +14,6 @@
   "model.copy": "Копировать модель",
   "model.reset": "сбросить",
   "model.disable": "выключить",
+  "model.select": "Выделить узел в схеме",
   "model.enable": "включить"
 }
