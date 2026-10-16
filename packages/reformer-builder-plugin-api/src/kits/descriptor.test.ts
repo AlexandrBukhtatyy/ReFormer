@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { CatalogJson, CatalogRecord } from './catalog.js';
+import {
+  CATALOG_CONTRACT_VERSION,
+  SUPPORTED_CATALOG_CONTRACT_VERSIONS,
+  type CatalogJson,
+  type CatalogRecord,
+} from './catalog.js';
 import {
   CONVENTIONAL_KIT_INFRA,
   exportNameFor,
@@ -106,6 +111,25 @@ describe('блок kit', () => {
   it('кит без визарда сообщает об этом явным null', () => {
     const d = toDescriptor(catalog({ kit: { adapters: { wizard: null, step: null } } }));
     expect(d.adapters.wizard).toBeNull();
+  });
+
+  it('контракт 3.0: визард по протоколу, прослоек нет; прежние версии читаются [ReFormer-qxdk]', () => {
+    const d = toDescriptor({
+      version: CATALOG_CONTRACT_VERSION,
+      components: [record('FormWizard')],
+      kit: { adapters: { wizard: { symbol: 'FormWizard' }, step: null } },
+    });
+    expect({
+      current: CATALOG_CONTRACT_VERSION,
+      supported: [...SUPPORTED_CATALOG_CONTRACT_VERSIONS],
+      wizard: d.adapters.wizard,
+      shims: d.codegen.needsShim.size,
+    }).toEqual({
+      current: '3.0',
+      supported: ['1.0', '2.0', '2.1', '3.0'],
+      wizard: { symbol: 'FormWizard' },
+      shims: 0,
+    });
   });
 
   it('подсказки стекам (2.1) доходят как есть', () => {

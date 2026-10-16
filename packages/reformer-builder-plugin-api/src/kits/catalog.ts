@@ -17,16 +17,23 @@
  * `leaf`/`palette`/`classGroups`; `2.1` — `kit.infra.fieldFrame` и `kit.renderers`. Всё
  * добавленное необязательно, поэтому старшая версия читает младшие без переходников.
  *
+ * `3.0` — протокол визарда: символ под `kit.adapters.wizard` — компонент по
+ * {@link KitWizardProtocol} (шаги — узлы-дети данными, отрисовка — `renderNode`, форма и поток
+ * шагов — из контекста сборки). Шима визарда больше нет, и `kit.codegen.needsShim` смысла не
+ * несёт: поле читается из каталогов прежних версий и ни на что не влияет. Мажор — потому что
+ * поменялся смысл `adapters.wizard`: визард кита, написанный под шим, без протокола работать
+ * перестанет. Кит без визарда (`wizard: null`) не меняется.
+ *
  * Модуль — лист графа: только типы и константы, без React и без рантайма платформы.
  *
  * @module @reformer/builder-plugin-api/kits/catalog
  */
 
 /** Текущая версия контракта каталога. Не путать с версией пакета кита (`kit.version`). */
-export const CATALOG_CONTRACT_VERSION = '2.1';
+export const CATALOG_CONTRACT_VERSION = '3.0';
 
 /** Версии контракта, которые принимает платформа. `1.0` поддерживается бессрочно. */
-export const SUPPORTED_CATALOG_CONTRACT_VERSIONS: readonly string[] = ['1.0', '2.0', '2.1'];
+export const SUPPORTED_CATALOG_CONTRACT_VERSIONS: readonly string[] = ['1.0', '2.0', '2.1', '3.0'];
 
 /** Роль записи: поле формы (несёт значение), контейнер (держит детей), повторяющийся блок. */
 export type CatalogRole = 'field' | 'container' | 'array';
@@ -77,9 +84,53 @@ export interface KitAdapter {
   subpath?: string;
 }
 
+/**
+ * Узел шага, каким его получает визард: узел скомпилированной схемы формы. Визард читает
+ * `selector` (по нему шаг схемы связан с шагом потока `flow.steps[].id`) и `props` (подпись
+ * шага); остальное — дело рендерера, узел целиком уходит обратно в `renderNode`.
+ */
+export interface KitWizardStepNode {
+  readonly selector?: string;
+  readonly props?: { readonly [prop: string]: unknown };
+  readonly children?: readonly unknown[];
+}
+
+/**
+ * Пропсы, которые рендерер формы передаёт визарду кита по протоколу (контракт `3.0`). Тип
+ * отрисованного узла открыт (`unknown`): SDK не тянет React, у кита это `ReactNode`.
+ */
+export interface KitWizardProps<TNode extends KitWizardStepNode = KitWizardStepNode> {
+  /** Узлы шагов — данными, а не отрисованными элементами. */
+  readonly children: readonly TNode[];
+  /** Отрисовать узел схемы (шаг или его часть) средствами рендерера. */
+  readonly renderNode: (node: TNode, key?: string | number) => unknown;
+}
+
+/**
+ * Протокол визарда кита (контракт `3.0`). Символ под {@link KitAdapters.wizard} — компонент,
+ * который:
+ *
+ * 1. несёт статику `__selfManagedChildren = true` — по ней рендерер отдаёт ему шаги данными,
+ *    вместе с `renderNode` ({@link KitWizardProps});
+ * 2. форму, проверку шагов и поток берёт из контекста сборки — `useFormBundleContext()` из
+ *    `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.validateStep`), а не
+ *    из пропсов;
+ * 3. связывает шаг схемы с шагом потока по `selector` узла.
+ *
+ * Реализация-образец — `FormWizard` из `@reformer/ui-kit`. Прежний шим (переходник
+ * приложения, которому визард отдавался по имени из `codegen.needsShim`) снят: визард,
+ * написанный под него, получит детей отрисованными элементами и шагов не найдёт.
+ */
+export interface KitWizardProtocol {
+  readonly __selfManagedChildren: true;
+}
+
 /** Адаптеры поверх компонентов кита. `null` — кит такого не поставляет. */
 export interface KitAdapters {
-  /** Пошаговая форма. */
+  /**
+   * Пошаговая форма — компонент по протоколу {@link KitWizardProtocol} (контракт `3.0`).
+   * `null` — визарда у кита нет; узлы с шагами тогда рисуются заглушкой.
+   */
   wizard?: KitAdapter | null;
   /** Шаг пошаговой формы. */
   step?: KitAdapter | null;
@@ -132,7 +183,12 @@ export interface KitStyles {
 export interface KitCodegen {
   /** Спецификатор пакета в `import { … } from '…'`. По умолчанию — `kit.package`. */
   importSpecifier?: string;
-  /** Символы, которым нужна прослойка вместо прямого импорта. */
+  /**
+   * Символы, которым нужна прослойка вместо прямого импорта.
+   *
+   * @deprecated С контракта `3.0` прослойки нет: визард работает по {@link KitWizardProtocol}.
+   * Поле читается из каталогов прежних версий; в каталоге `3.0` его не пишут.
+   */
   needsShim?: string[];
 }
 

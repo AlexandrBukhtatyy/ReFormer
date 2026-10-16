@@ -423,6 +423,9 @@ export type {
   KitRenderers,
   KitRjsfRenderers,
   KitStyles,
+  KitWizardProps,
+  KitWizardProtocol,
+  KitWizardStepNode,
 } from './kits/catalog.js';
 export {
   CONVENTIONAL_KIT_INFRA,
