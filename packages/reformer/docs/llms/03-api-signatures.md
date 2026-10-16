@@ -126,6 +126,8 @@ maxLength(length: number, options?: RuleOptions)
 email(options?: RuleOptions)                          // Rule<string | null | undefined>
 pattern(regex: RegExp, options?: RuleOptions)
 url(options?: RuleOptions & { requireProtocol?: boolean; allowedProtocols?: string[] })
+// url: разбор new URL; localhost, IP, порт, кириллический домен — да; пробелы и userinfo — нет;
+// протоколы по умолчанию http/https (без учёта регистра), чужой — код url_protocol
 phone(options?: RuleOptions & { format?: PhoneFormat })
 // Number validator factories — Rule<number | null | undefined>
 isNumber(options?: RuleOptions)

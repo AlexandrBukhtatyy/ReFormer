@@ -451,6 +451,8 @@ maxLength(length: number, options?: RuleOptions)
 email(options?: RuleOptions)                          // Rule<string | null | undefined>
 pattern(regex: RegExp, options?: RuleOptions)
 url(options?: RuleOptions & { requireProtocol?: boolean; allowedProtocols?: string[] })
+// url: разбор new URL; localhost, IP, порт, кириллический домен — да; пробелы и userinfo — нет;
+// протоколы по умолчанию http/https (без учёта регистра), чужой — код url_protocol
 phone(options?: RuleOptions & { format?: PhoneFormat })
 // Number validator factories — Rule<number | null | undefined>
 isNumber(options?: RuleOptions)
@@ -13906,8 +13908,13 @@ _Source: src/model/derived-registry.ts_
 Фабрика валидатора URL.
 
 Пустые значения (`''`/`null`/`undefined`) пропускаются (используйте {@link required}
-для обязательности). При `requireProtocol` протокол обязателен; `allowedProtocols`
-дополнительно ограничивает набор допустимых протоколов.
+для обязательности).
+
+Контракт адреса: разбор — `new URL`; хост — `localhost`, домен с буквенной зоной (в том числе
+кириллический и punycode), IPv4 или `[IPv6]`; порт допустим. Запрещены пробелы и userinfo
+(`user:pass@`). Протокол необязателен (`example.com`), пока не задан `requireProtocol`; по
+умолчанию разрешены `http` и `https`, чужой протокол — замечание `url_protocol` с
+`params.allowedProtocols`. Свой `code` из опций заменяет оба встроенных кода.
 
 **Signature:**
 ```typescript
@@ -13946,11 +13953,12 @@ _Source: src/form/validators/url.ts_
 **Signature:**
 ```typescript
 export interface UrlValidatorOptions extends RuleOptions {
-  /** Требовать наличие протокола (`http://` или `https://`). По умолчанию `false`. */
+  /** Требовать протокол (`схема://`). По умолчанию `false`: `example.com` допустим. */
   requireProtocol?: boolean;
   /**
-   * Список разрешённых протоколов (без `://`), например `['https']`. Если задан,
-   * значение с иным протоколом даёт ошибку с кодом `url_protocol`.
+   * Разрешённые протоколы (без `://`), сравнение без учёта регистра, например `['https']`. Не
+   * задан или пуст — `http` и `https`. Значение с иным протоколом даёт замечание `url_protocol`;
+   * при заданном списке — и значение без протокола.
    */
   allowedProtocols?: string[];
 }

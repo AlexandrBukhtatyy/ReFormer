@@ -161,11 +161,14 @@ const emailArb = fc
   )
   .map(([local, domain, zone]) => `${local}@${domain}.${zone}`);
 
-/** Сайт работодателя, который проходит `url()`: с протоколом и без. */
+/**
+ * Сайт работодателя, который проходит `url()`: с протоколом и без. Метка домена — буквы, цифры и
+ * дефис не по краям, как в DNS [ReFormer-4srm].
+ */
 const siteArb = fc
   .tuple(
     fc.constantFrom('', 'http://', 'https://'),
-    fc.stringMatching(/^[a-z0-9-]{1,20}$/),
+    fc.stringMatching(/^[a-z0-9](?:[a-z0-9-]{0,18}[a-z0-9])?$/),
     fc.stringMatching(/^[a-z]{2,6}$/)
   )
   .map(([protocol, name, zone]) => `${protocol}${name}.${zone}`);
