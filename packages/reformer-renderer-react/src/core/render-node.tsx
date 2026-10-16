@@ -140,6 +140,38 @@ function useFieldRenderState(fieldNode: FormControl<unknown>): {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+/** Обработчики `onComponentEvent` узла: событие → колбэк поведения. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ComponentEvents = ReadonlyMap<string, (...args: any[]) => any>;
+
+/**
+ * Колбэки `onComponentEvent` для узла с привязкой — поля или массива. Колбэк добавляется к
+ * обработчику, который уже стоит на событии (запись значения в форму, кнопки массива), а не
+ * заменяет его: иначе правило поведения отключило бы ввод. Сначала свой обработчик узла, затем
+ * колбэк; результат — колбэка. У контейнера привязки нет, там колбэк просто главнее пропса схемы.
+ */
+function withComponentEvents(
+  props: Record<string, unknown>,
+  events: ComponentEvents | undefined
+): Record<string, unknown> {
+  if (!events || events.size === 0) return props;
+  const composed = { ...props };
+  events.forEach((handler, event) => {
+    const own = composed[event];
+    composed[event] =
+      typeof own === 'function'
+        ? (...args: unknown[]) => {
+            (own as (...ownArgs: unknown[]) => unknown)(...args);
+            return handler(...args);
+          }
+        : handler;
+  });
+  return composed;
+}
+
+/** Подформы, о правилах `patchProps`/`onComponentEvent` на которых уже предупредили. */
+const warnedParts = new Set<string>();
+
 /**
  * Поле единой схемы (M1): значение из сигнала модели; state-нода резолвится по сигналу через реестр.
  * `component`/`componentProps` берутся из схемы (как в схеме формы); `fieldWrapper` оборачивает.
@@ -150,9 +182,15 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   fieldWrapper: FieldWrapper,
   nodeRef,
   resolveFieldAdapter,
+  propsOverride,
+  events,
 }: {
   node: CompiledFieldNode;
   fieldNode: FormControl<unknown>;
+  /** `schema.node(selector).patchProps()` — главнее схемы и `updateComponentProps` ноды. */
+  propsOverride?: Record<string, unknown> | null;
+  /** `onComponentEvent` узла — добавляются к привязке значения ({@link withComponentEvents}). */
+  events?: ComponentEvents;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
   /**
    * Ref из refRegistry (schema.node(selector).getRef()) — вешается на живой field-компонент,
@@ -195,7 +233,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     fieldWrapper: perFieldWrapper,
     testId: explicitTestId,
     ...inputComponentProps
-  } = { ...node.props, ...nodeComponentProps } as Record<string, unknown> & {
+  } = { ...node.props, ...nodeComponentProps, ...propsOverride } as Record<string, unknown> & {
     className?: string;
     wrapper?: React.ElementType;
     fieldWrapper?: React.ComponentType<FieldWrapperProps>;
@@ -235,7 +273,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   }
   const input = (
     <Component
-      {...inputProps}
+      {...withComponentEvents(inputProps, events)}
       disabled={disabled}
       {...(needsControl ? { control: fieldNode } : {})}
       {...(nodeRef !== undefined ? { ref: handleRef } : {})}
@@ -478,9 +516,15 @@ function formIndexOf(control: RenderModelArrayControl, modelIndex: number): numb
 const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   node,
   fieldWrapper,
+  propsOverride,
+  events,
 }: {
   node: CompiledArrayNode;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /** `schema.node(selector).patchProps()` — главнее `componentProps` узла. */
+  propsOverride?: Record<string, unknown> | null;
+  /** `onComponentEvent` узла — добавляются к кнопкам массива ({@link withComponentEvents}). */
+  events?: ComponentEvents;
 }): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp = node.component as React.ComponentType<any>;
@@ -527,7 +571,11 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
     children: element,
   }));
 
-  return <Comp items={slots} onAdd={onAdd} onRemove={onRemove} onMove={onMove} {...node.props} />;
+  const props = withComponentEvents(
+    { items: slots, onAdd, onRemove, onMove, ...node.props, ...propsOverride },
+    events
+  );
+  return <Comp {...props} />;
 });
 
 // ============================================================================
@@ -752,6 +800,10 @@ export function RenderNodeComponent<T>({
   // Скрытая нода ref не крепит по определению — на неё не ругаемся.
   useRefAttachmentWarning(selector, nodeRef, isHidden);
 
+  // Колбэки из callbackRegistry (onComponentEvent): у контейнера главнее пропсов, у поля и массива —
+  // поверх их привязки.
+  const callbackMap = selector ? overrideMaps?.callbackRegistry.get(selector) : undefined;
+
   // Разворачиваем signal-значения в componentProps (из `$model(...)`, напр. в шаблоне элемента
   // списка) — безусловно, до early-return. Использует контейнерная ветка (у листа свой seam).
   const unwrappedComponentProps = useSignalProps(node.props as Record<string, unknown>);
@@ -765,12 +817,32 @@ export function RenderNodeComponent<T>({
       // Задан `component` ($component(FieldArray)/$component(List)/своя секция) — рендерит он.
       // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
       return node.component ? (
-        <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
+        <ModelArrayComponentRenderer
+          node={node}
+          fieldWrapper={fieldWrapper}
+          propsOverride={propsOverride}
+          events={callbackMap}
+        />
       ) : (
         <ModelArrayFallback node={node} fieldWrapper={fieldWrapper} />
       );
 
     case 'part':
+      // У подформы своего компонента нет — переопределению пропсов и событиям некуда прийти.
+      // Правило поведения иначе молча ничего бы не делало.
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        selector !== undefined &&
+        (propsOverride != null || (callbackMap?.size ?? 0) > 0) &&
+        !warnedParts.has(selector) &&
+        typeof console !== 'undefined'
+      ) {
+        warnedParts.add(selector);
+        console.warn(
+          `[RenderSchema] Подформа "${selector}" не рисует свой компонент: patchProps и ` +
+            'onComponentEvent на ней ничего не сделают. Адресуйте узел внутри части.'
+        );
+      }
       // Содержимое части — та же компиляция, по которой сборка привязала конфиг полей группы.
       return (
         <ScopeBoundary schema={node.content}>
@@ -810,6 +882,8 @@ export function RenderNodeComponent<T>({
           fieldWrapper={fieldWrapper}
           nodeRef={leafRef}
           resolveFieldAdapter={settings?.resolveFieldAdapter}
+          propsOverride={propsOverride}
+          events={callbackMap}
         />
       );
     }
@@ -827,8 +901,7 @@ export function RenderNodeComponent<T>({
   const baseProps = unwrappedComponentProps || {};
   // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
   const propsPatched = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
-  // Колбэки из callbackRegistry (onComponentEvent) — наивысший приоритет среди prop-overrides
-  const callbackMap = selector ? overrideMaps?.callbackRegistry.get(selector) : undefined;
+  // Колбэки onComponentEvent — наивысший приоритет среди prop-overrides
   const callbackOverrides = callbackMap ? Object.fromEntries(callbackMap) : {};
   const effectiveProps = callbackMap ? { ...propsPatched, ...callbackOverrides } : propsPatched;
 

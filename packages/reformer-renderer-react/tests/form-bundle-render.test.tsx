@@ -230,6 +230,95 @@ describe('FormRenderer — бандл createForm', () => {
     expect(seen[0].onSubmit).toBe(submit);
   });
 
+  it('у поля `patchProps` доходит до контрола, а событие идёт поверх записи значения [ReFormer-ppcn]', () => {
+    const changed = vi.fn();
+    const seen: Array<Record<string, any>> = [];
+    const Probe = (props: Record<string, any>) => {
+      seen.push(props);
+      return null;
+    };
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: (model) => ({
+        selector: 'root',
+        children: [
+          {
+            selector: 'kind',
+            model: model.$.kind,
+            component: Probe,
+            componentProps: { label: 'Вид' },
+          },
+        ],
+      }),
+      behavior: defineFormBehavior<Shape>(({ schema }) => {
+        schema.node('kind').patchProps({ label: 'Новый вид' });
+        onComponentEvent(schema.node('kind'), 'onChange', changed);
+      }),
+    });
+
+    renderToStaticMarkup(<FormRenderer form={bundle} />);
+    seen[0].onChange('b');
+
+    expect(seen[0].label).toBe('Новый вид');
+    // Привязка не потеряна: значение записано в форму, и колбэк поведения получил то же значение.
+    expect(bundle.model.kind).toBe('b');
+    expect(changed).toHaveBeenCalledWith('b');
+  });
+
+  it('у массива `patchProps` доходит до секции, событие кнопки идёт поверх добавления [ReFormer-ppcn]', () => {
+    const added = vi.fn();
+    const captured: ArrayComponentProps[] = [];
+    const Capture = (props: ArrayComponentProps) => {
+      captured.push(props);
+      return null;
+    };
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: (model) => ({
+        selector: 'root',
+        children: [
+          {
+            selector: 'rows',
+            model: model.$.rows,
+            component: Capture,
+            item: row,
+            componentProps: { title: 'Строки' },
+          },
+        ],
+      }),
+      behavior: defineFormBehavior<Shape>(({ schema }) => {
+        schema.node('rows').patchProps({ title: 'Новые строки' });
+        onComponentEvent(schema.node('rows'), 'onAdd', added);
+      }),
+    });
+
+    renderToStaticMarkup(<FormRenderer form={bundle} />);
+    const section = captured[0] as ArrayComponentProps & { title?: string };
+    section.onAdd();
+
+    expect(section.title).toBe('Новые строки');
+    expect(bundle.model.get().rows).toHaveLength(3);
+    expect(added).toHaveBeenCalledTimes(1);
+  });
+
+  it('правило `patchProps` на подформе — предупреждение в dev: компонента у неё нет [ReFormer-ppcn]', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const bundle = createForm<Shape>({
+      model: createShape(),
+      schema: (model) => ({
+        selector: 'root',
+        children: [{ selector: 'registration-part', model: model.$.registration, part: address }],
+      }),
+      behavior: defineFormBehavior<Shape>(({ schema }) => {
+        schema.node('registration-part').patchProps({ title: 'никуда' });
+      }),
+    });
+
+    renderToStaticMarkup(<FormRenderer form={bundle} />);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"registration-part"'));
+  });
+
   it('обёртка поля: настройка рендерера главнее той, что в бандле', () => {
     const BundleWrapper = ({ children }: FieldWrapperProps) => (
       <div data-wrap="bundle">{children}</div>
