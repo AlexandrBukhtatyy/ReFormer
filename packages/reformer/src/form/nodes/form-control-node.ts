@@ -52,6 +52,12 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   private readonly interaction = createInteraction();
   private readonly issueState = createIssues();
   private readonly availability: ReturnType<typeof createAvailability>;
+  /**
+   * Блокировка из схемы (`disabled: true` узла — вычисляемые `total`, `fullName`). Постоянная:
+   * `enable()` контейнера её не снимает, иначе «выключить форму на время отправки → включить»
+   * разблокировало бы такие поля. Снимает её только явный `enable()` этого поля.
+   */
+  private locked: boolean;
   private readonly pendingState = createPending();
   private readonly componentState: ReturnType<typeof createComponentState>;
 
@@ -60,6 +66,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
     this.initialValue = this.source.peek();
     this.component = config.component;
     this.availability = createAvailability(config.disabled === true);
+    this.locked = config.disabled === true;
     this.componentState = createComponentState(config.componentProps ?? {});
 
     const { disabled } = this.availability;
@@ -141,7 +148,13 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   }
 
   enable(): void {
+    this.locked = false;
     this.availability.setDisabled(false);
+  }
+
+  /** Каскад от контейнера: блокировку из схемы не снимает. @internal */
+  enableFromParent(): void {
+    if (!this.locked) this.availability.setDisabled(false);
   }
 
   setIssues(issues: readonly ValidationIssue[]): void {

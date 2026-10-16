@@ -223,7 +223,7 @@ describe('form-group-node — clearIssues', () => {
 });
 
 describe('form-group-node — выключение (зонды)', () => {
-  it('disable() и enable() группы включают поле, созданное с disabled: true', () => {
+  it('disable() и enable() группы не снимают блокировку из схемы (disabled: true) [ReFormer-n8zy]', () => {
     const model = createModel<Order>({ price: 10, quantity: 2, total: 20 });
     const form = createFormFromModel<Order>({
       model,
@@ -240,10 +240,17 @@ describe('form-group-node — выключение (зонды)', () => {
     form.disable();
     form.enable();
 
-    // поведение под вопросом [ReFormer-n8zy]: `disabled: true` узла схемы — начальное состояние («поле создаётся
-    // отключённым», types/schema-node.ts), а `enable()` группы включает всех детей подряд, как
-    // `FormGroup.enable()` в Angular. Но в документации так помечают вычисляемые поля (total,
-    // fullName): цикл «выключить форму на время отправки → включить» их разблокирует.
+    // Решение по n8zy: `disabled: true` узла схемы — постоянная блокировка. Так помечают
+    // вычисляемые поля (total, fullName), и цикл «выключить форму на время отправки → включить»
+    // их не разблокирует. Остальные поля включаются как обычно.
+    expect(form.total.disabled.value).toBe(true);
+    expect(form.price.disabled.value).toBe(false);
+
+    // Снимает блокировку только явный enable() самого поля.
+    form.total.enable();
+    expect(form.total.disabled.value).toBe(false);
+    form.disable();
+    form.enable();
     expect(form.total.disabled.value).toBe(false);
   });
 

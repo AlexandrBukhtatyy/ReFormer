@@ -127,7 +127,11 @@ interface SchemaNodeBase {
 export interface SchemaFieldNode extends SchemaNodeBase {
   /** Привязка поля — ручка значения `model.$.<лист | массив>`. */
   model: SchemaValueHandle;
-  /** Поле создаётся отключённым. */
+  /**
+   * Поле создаётся отключённым — и остаётся: это постоянная блокировка (вычисляемые `total`,
+   * `fullName`). `enable()` группы, массива или формы её не снимает; снимает только явный
+   * `enable()` самого поля либо оператор `enableWhen` на нём.
+   */
   disabled?: boolean;
   item?: never;
   part?: never;

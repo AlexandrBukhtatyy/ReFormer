@@ -31,6 +31,12 @@ export interface InternalFormNode<T = unknown> extends FormNode<T> {
    * же условие `when`); публичный `reset()` без аргумента производное поле не пишет.
    */
   resetToCreation(): void;
+  /**
+   * Включение каскадом от контейнера (`enable()` группы или массива). Отличается от `enable()` одним:
+   * блокировку из схемы (`disabled: true` узла) не снимает — её снимает только явный `enable()`
+   * самого поля.
+   */
+  enableFromParent(): void;
 }
 
 /** Вид ноды либо `undefined`, если значение — не нода формы. */

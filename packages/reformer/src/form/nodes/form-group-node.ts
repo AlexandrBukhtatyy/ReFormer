@@ -141,9 +141,15 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     this.children.forEach((child) => child.disable());
   }
 
+  /** Включить группу и детей; поля с блокировкой из схемы (`disabled: true`) остаются выключенными. */
   enable(): void {
     this.availability.setDisabled(false);
-    this.children.forEach((child) => child.enable());
+    this.children.forEach((child) => rawNode(child).enableFromParent());
+  }
+
+  /** Каскад от контейнера — то же, что `enable()`: своей блокировки из схемы у группы нет. @internal */
+  enableFromParent(): void {
+    this.enable();
   }
 
   setIssues(issues: readonly ValidationIssue[]): void {

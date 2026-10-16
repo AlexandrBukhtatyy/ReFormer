@@ -25,7 +25,7 @@
   model: model.$.fieldName,   // ручка значения из model.$ — обязательна
   component: Input,           // React-компонент
   componentProps?: object,    // пропсы (label, placeholder, options, type, ...)
-  disabled?: boolean,         // поле создаётся отключённым
+  disabled?: boolean,         // постоянная блокировка поля (вычисляемые total, fullName)
   selector?: string,          // имя узла для поведения: schema.node('…')
 }
 ```
@@ -38,8 +38,9 @@
 > `item` не на массиве, привязка value-фасадом (`model: model.email` вместо `model.$.email`) и
 > узлы под произвольными ключами (`{ email: { model, component } }`) не компилируются.
 
-> `disabled` — **ключ узла** (начальное состояние); дальше состоянием управляют методы
-> `form.field.disable()` / `enable()` и оператор `enableWhen`. `componentProps.disabled` — это
+> `disabled` — **ключ узла**, постоянная блокировка: `enable()` группы, массива или формы её не
+> снимает (цикл «выключить форму на время отправки → включить» вычисляемые поля не разблокирует).
+> Снимают её явный `form.field.enable()` и оператор `enableWhen` на этом поле. `componentProps.disabled` — это
 > UI-проп и на состояние поля **не влияет** (частая причина «computed-поле остаётся редактируемым»).
 
 ### Primitive Fields

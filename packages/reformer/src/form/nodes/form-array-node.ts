@@ -235,9 +235,15 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.rows.value.forEach((row) => row.disable());
   }
 
+  /** Включить массив и строки; поля с блокировкой из схемы (`disabled: true`) остаются выключенными. */
   enable(): void {
     this.availability.setDisabled(false);
-    this.rows.value.forEach((row) => row.enable());
+    this.rows.value.forEach((row) => rawNode(row).enableFromParent());
+  }
+
+  /** Каскад от контейнера — то же, что `enable()`: своей блокировки из схемы у массива нет. @internal */
+  enableFromParent(): void {
+    this.enable();
   }
 
   setIssues(issues: readonly ValidationIssue[]): void {
