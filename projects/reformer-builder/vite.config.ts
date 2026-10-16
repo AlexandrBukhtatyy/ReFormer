@@ -51,28 +51,34 @@ function devRuntimeConfig(): Plugin {
  * Плагины приложения в `npm run dev` — то, что в сборке лежит в `dist/plugins/`, а лаунчеру
  * называют флагом `--plugins`.
  *
- * По умолчанию слоя под dev-сервером нет: дерево файлов, редакторы и движки приходят плагинами
- * ОТКРЫТОГО проекта — так их и разрабатывают, с перезапуском по правке. Но тот, кто правит саму
- * оболочку и открыл не проект-образец, получал пустое окно: проект открыт, показать его нечем.
+ * Слой есть ПО УМОЛЧАНИЮ — набор опубликованного билдера (`application-plugins.json`) из сборок
+ * на месте каталога проекта-образца. Без него dev-сервер отличался бы от поставки ровно тем,
+ * что заметнее всего: дерево файлов, редакторы и движки — плагины, и каталог, в чьём
+ * `.ui_builder` их нет, открывался «в пустоту» — проект открыт, показать его нечем
+ * (ReFormer-eeq0.9, ReFormer-1847). Копия того же плагина в открытом проекте уступает
+ * экземпляру приложения, а каталог живой: индекс несёт ревизии, и пересобранный плагин
+ * оболочка перезагружает сама, по возврату фокуса, — разработка плагинов на месте не страдает.
  *
- * `REFORMER_BUILDER_PLUGINS` называет, откуда взять слой, — путь от каталога пакета билдера:
- * каталог плагинов (отдаётся целиком, как у `--plugins`) либо файл набора
- * (`application-plugins.json`: корень и список каталогов). Каталог живой: индекс несёт
- * ревизии, и пересобранный плагин оболочка перезагружает сама, по возврату фокуса.
+ * `REFORMER_BUILDER_PLUGINS` называет другой слой — путь от каталога пакета билдера: каталог
+ * плагинов (отдаётся целиком, как у `--plugins`) либо файл набора (корень и список каталогов).
+ * Пустое значение выключает слой: так проверяют то, что приходит плагинами ОТКРЫТОГО проекта.
  */
+const DEFAULT_APPLICATION_PLUGINS = 'application-plugins.json';
+
 function devApplicationPlugins(): Plugin {
   return {
     name: 'reformer-builder:dev-application-plugins',
     apply: 'serve',
     configureServer(server) {
-      const named = process.env.REFORMER_BUILDER_PLUGINS;
-      if (named === undefined || named === '') return;
+      const named = process.env.REFORMER_BUILDER_PLUGINS ?? DEFAULT_APPLICATION_PLUGINS;
+      if (named === '') return;
       const plugins = {
         ...resolvePluginsSet(path.resolve(process.cwd(), named)),
         revisions: createRevisionMemo(),
         onMissing: (missing: readonly string[]) => {
           server.config.logger.warnOnce(
-            `[reformer-builder] плагины не собраны: ${missing.join(', ')}`
+            `[reformer-builder] плагины не собраны: ${missing.join(', ')} — ` +
+              'соберите их: npm run plugins:build -w reformer-builder-playground'
           );
         },
       };

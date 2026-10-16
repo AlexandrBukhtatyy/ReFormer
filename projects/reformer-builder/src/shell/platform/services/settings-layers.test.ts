@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SettingsScope } from '@reformer/builder-plugin-api/internal';
+import { SourceError } from '@/shell/platform/source/errors';
 import { createLayeredSettingsBackend } from './settings-layers';
 import type { SettingsBackend } from './settings';
 import type { ProjectSettingsBackend } from './settings-project';
@@ -36,9 +37,17 @@ function memoryBackend(initial: Partial<Record<SettingsScope, Record<string, unk
   return { backend, bags };
 }
 
-/** Файл проекта-двойник: право записи задаётся, содержимое видно. */
-function fileBackend(initial: Record<string, unknown> = {}, writable = true) {
+/**
+ * Файл проекта-двойник: право записи задаётся, содержимое видно.
+ *
+ * `directory` — есть ли в проекте каталог `.ui_builder`: без него запись отвечает тем же
+ * `not-found`, что настоящий файловый источник, — каталог под файл он не создаёт.
+ */
+function fileBackend(initial: Record<string, unknown> = {}, writable = true, directory = true) {
   const file: Record<string, unknown> = { ...initial };
+  let hasDirectory = directory;
+  const missingDirectory = (): Promise<never> =>
+    Promise.reject(new SourceError('not-found', 'нет каталога .ui_builder'));
   const backend: ProjectSettingsBackend = {
     useSource: () => {},
     writable: () => writable,
@@ -46,16 +55,24 @@ function fileBackend(initial: Record<string, unknown> = {}, writable = true) {
     write: (scope, key, value) => {
       if (scope !== 'workspace') return Promise.resolve();
       if (!writable) return Promise.reject(new Error('источник не принимает запись'));
+      if (!hasDirectory) return missingDirectory();
       file[key] = value;
       return Promise.resolve();
     },
     remove: (scope, key) => {
-      if (scope !== 'workspace') return Promise.resolve();
+      if (scope !== 'workspace' || !(key in file)) return Promise.resolve();
+      if (!hasDirectory) return missingDirectory();
       delete file[key];
       return Promise.resolve();
     },
   };
-  return { backend, file };
+  return {
+    backend,
+    file,
+    createDirectory: () => {
+      hasDirectory = true;
+    },
+  };
 }
 
 describe('чтение', () => {
@@ -157,6 +174,68 @@ describe('источник без записи', () => {
 
     expect(browser.bags.workspace).toEqual({ theme: 'dark' });
     expect(project.file).toEqual({});
+  });
+});
+
+describe('каталога .ui_builder нет', () => {
+  it('запись уходит в прежнее место и читается обратно, файл не появляется', async () => {
+    // Чужая папка: создавать в ней каталог билдер не вправе (плагины пишут и при старте),
+    // а терять выбор человека — тем более.
+    const browser = memoryBackend();
+    const project = fileBackend({}, true, false);
+    const layered = createLayeredSettingsBackend({
+      browser: browser.backend,
+      project: project.backend,
+    });
+
+    await layered.write('workspace', 'theme', 'dark');
+
+    expect(browser.bags.workspace).toEqual({ theme: 'dark' });
+    expect(project.file).toEqual({});
+    expect(await layered.read('workspace')).toEqual({ theme: 'dark' });
+  });
+
+  it('снятие записи без каталога убирает ключ из прежнего места', async () => {
+    const browser = memoryBackend({ workspace: { theme: 'dark' } });
+    const project = fileBackend({}, true, false);
+    const layered = createLayeredSettingsBackend({
+      browser: browser.backend,
+      project: project.backend,
+    });
+
+    await layered.remove('workspace', 'theme');
+
+    expect(browser.bags.workspace).toEqual({});
+  });
+
+  it('каталог появился — следующая запись переносит накопленное в файл', async () => {
+    const browser = memoryBackend();
+    const project = fileBackend({}, true, false);
+    const layered = createLayeredSettingsBackend({
+      browser: browser.backend,
+      project: project.backend,
+    });
+    await layered.write('workspace', 'theme', 'dark');
+
+    project.createDirectory();
+    await layered.write('workspace', 'kit', 'acme');
+
+    expect(project.file).toEqual({ theme: 'dark', kit: 'acme' });
+    expect(await layered.read('workspace')).toEqual({ theme: 'dark', kit: 'acme' });
+  });
+
+  it('иной отказ источника пробрасывается, а не прячется в прежнее место', async () => {
+    const browser = memoryBackend();
+    const forbidden: ProjectSettingsBackend = {
+      ...fileBackend().backend,
+      write: () => Promise.reject(new SourceError('forbidden', 'нельзя')),
+    };
+    const layered = createLayeredSettingsBackend({ browser: browser.backend, project: forbidden });
+
+    await expect(layered.write('workspace', 'theme', 'dark')).rejects.toMatchObject({
+      kind: 'forbidden',
+    });
+    expect(browser.bags.workspace).toEqual({});
   });
 });
 

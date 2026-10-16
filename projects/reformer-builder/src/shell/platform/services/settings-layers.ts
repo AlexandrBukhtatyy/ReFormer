@@ -36,10 +36,20 @@
  * человека из-за того, что папка read-only, — худший из исходов, а записать в папку,
  * которая не позволяет, невозможно физически.
  *
+ * ## Каталога `.ui_builder` нет
+ *
+ * Чужая папка, которую билдер видит впервые: ни конфига, ни настроек, ни каталога под них.
+ * Файловый источник каталог под запись не создаёт и отвечает `not-found` — и это правильно:
+ * плагины пишут настройки и при старте, так что `mkdir` перед записью заводил бы
+ * `.ui_builder/settings.json` в любой просто открытой папке. Поэтому отказ `not-found` уводит
+ * запись в прежнее место, как у источника без записи, и область остаётся на нём, пока
+ * каталог не появится. Первая удачная запись в файл переносит накопленное целиком.
+ *
  * @module shell/platform/services/settings-layers
  */
 
 import type { SettingsScope } from '@reformer/builder-plugin-api/internal';
+import { isSourceError } from '@/shell/platform/source/errors';
 import type { SettingsBackend } from './settings';
 import type { ProjectSettingsBackend } from './settings-project';
 
@@ -93,8 +103,15 @@ export function createLayeredSettingsBackend(deps: LayeredSettingsDeps): Setting
         await deps.browser.write(scope, key, value);
         return;
       }
-      await carryOver();
-      await deps.project.write(scope, key, value);
+      try {
+        await carryOver();
+        await deps.project.write(scope, key, value);
+      } catch (error) {
+        if (!isSourceError(error, 'not-found')) throw error;
+        // Каталога `.ui_builder` нет (см. шапку): пишем в прежнее место и остаёмся на нём.
+        legacy = true;
+        await deps.browser.write(scope, key, value);
+      }
     },
 
     remove: async (scope: SettingsScope, key: string) => {
@@ -102,8 +119,13 @@ export function createLayeredSettingsBackend(deps: LayeredSettingsDeps): Setting
         await deps.browser.remove(scope, key);
         return;
       }
-      await carryOver();
-      await deps.project.remove(scope, key);
+      try {
+        await carryOver();
+        await deps.project.remove(scope, key);
+      } catch (error) {
+        if (!isSourceError(error, 'not-found')) throw error;
+        legacy = true;
+      }
       // Прежнее место тоже забывает ключ: иначе снятие записи вернуло бы значение,
       // которое человек только что убрал, — при следующем открытии проекта без файла.
       await deps.browser.remove(scope, key);

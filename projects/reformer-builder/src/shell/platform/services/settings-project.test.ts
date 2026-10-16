@@ -11,15 +11,22 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { SourceError } from '@/shell/platform/source/errors';
 import { createProjectSettingsBackend, PROJECT_SETTINGS_PATH } from './settings-project';
 import type { SettingsSource } from './settings-project';
 
-/** Источник-двойник: файлы в памяти, право записи задаётся. */
+/**
+ * Источник-двойник: файлы в памяти, право записи задаётся.
+ *
+ * `directory: false` — каталога `.ui_builder` нет: запись отвечает `not-found`, как настоящий
+ * файловый источник, который каталог под файл не создаёт.
+ */
 function fakeSource(
   files: Record<string, string> = {},
-  options: { writable?: boolean } = {}
+  options: { writable?: boolean; directory?: boolean } = {}
 ): SettingsSource & { files: Record<string, string>; writes: number } {
   const writable = options.writable ?? true;
+  const directory = options.directory ?? true;
   const state = {
     files: { ...files },
     writes: 0,
@@ -39,6 +46,9 @@ function fakeSource(
     ...(writable
       ? {
           write: (path: string, text: string) => {
+            if (!directory) {
+              return Promise.reject(new SourceError('not-found', `нет каталога ${path}`, { path }));
+            }
             state.files[path] = text;
             state.writes += 1;
             return Promise.resolve({ ok: true } as never);
@@ -147,5 +157,18 @@ describe('запись', () => {
 
     expect(backend.writable()).toBe(false);
     await expect(backend.write('workspace', 'theme', 'dark')).rejects.toThrow();
+  });
+
+  it('нет каталога .ui_builder — отказ источника доходит как есть, каталог не создаётся', async () => {
+    // Слоям настроек нужен именно код `not-found`: по нему область уходит в прежнее место.
+    const source = fakeSource({}, { directory: false });
+    const backend = createProjectSettingsBackend();
+    backend.useSource(source);
+
+    expect(backend.writable()).toBe(true);
+    await expect(backend.write('workspace', 'theme', 'dark')).rejects.toMatchObject({
+      kind: 'not-found',
+    });
+    expect(source.writes).toBe(0);
   });
 });

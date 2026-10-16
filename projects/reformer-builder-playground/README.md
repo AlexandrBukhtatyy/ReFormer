@@ -68,7 +68,9 @@ npm run builder:dist -w reformer-builder-playground   # собранный би�
 ```
 
 Дальше в билдере — «Открыть папку…» и выбрать `projects/reformer-builder-playground`. Нужен
-Chromium-браузер (File System Access API).
+Chromium-браузер (File System Access API). Оба запуска отдают билдеру одни и те же плагины
+приложения (набор `application-plugins.json` из сборок на месте), поэтому открыть в нём можно
+любой каталог, не только этот.
 
 Каждый скрипт запуска сначала собирает плагины проекта (`plugins:build`, см. «Плагины»): билдер
 грузит их сборку, а в git она не едет.
