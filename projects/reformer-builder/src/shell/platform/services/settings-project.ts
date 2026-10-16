@@ -30,12 +30,17 @@
  *   есть: создавать каталог в чужой папке этот слой не вправе. Что делать с отказом, решают
  *   слои настроек (`./settings-layers`): область уходит в прежнее место, пока каталог не появится.
  *
- * ## Один писатель, целиком
+ * ## Один писатель, целиком — но не впустую
  *
  * Файл переписывается ЦЕЛИКОМ на каждую запись ключа, как и область в IndexedDB до него.
  * Слияние с чужой правкой не делается: второй писатель этого файла — человек в редакторе,
  * и «слить» его правку с нашей нечем, а `expected` источника при этом отвергнет запись
  * поверх изменившегося файла, и отказ увидит тот, кто её заказал.
+ *
+ * Запись РАВНОГО значения файл не трогает ({@link sameSetting}). Плагины пишут одни и те же
+ * списки при каждом старте — включённые плагины, права, — и без этой проверки любое открытие
+ * проекта переписывало бы файл форматом билдера: отформатированный иначе (prettier сворачивает
+ * короткий массив в строку) он давал бы diff в git от одного открытия (ReFormer-91ee).
  *
  * @module shell/platform/services/settings-project
  */
@@ -46,6 +51,33 @@ import type { SettingsBackend } from './settings';
 
 /** Адрес файла настроек проекта. Рядом с конфигом запуска, но отдельно от него. */
 export const PROJECT_SETTINGS_PATH = '.ui_builder/settings.json';
+
+/**
+ * Одно ли это значение настройки — по содержимому, а не по ссылке.
+ *
+ * Значения настроек — то, что лежит в JSON: строки, числа, булевы, массивы, объекты. Массив
+ * сравнивается по порядку (список включённых плагинов упорядочен), объект — по набору ключей:
+ * права плагинов собираются заново на каждом старте, и порядок ключей у них не обещан.
+ */
+export function sameSetting(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((item, index) => sameSetting(item, b[index]))
+    );
+  }
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => key in right && sameSetting(left[key], right[key]))
+  );
+}
 
 /** Источник в объёме, нужном настройкам: прочитать, записать, узнать про запись. */
 export type SettingsSource = Pick<Source, 'read' | 'capabilities'> & {
@@ -149,6 +181,9 @@ export function createProjectSettingsBackend(): ProjectSettingsBackend {
           snapshot = await readFile();
           loaded = true;
         }
+        // Равное значение файл не трогает: иначе каждое открытие проекта переписывало бы
+        // файл своим форматом — плагины пишут те же списки при старте (см. шапку).
+        if (key in snapshot && sameSetting(snapshot[key], value)) return;
         const next = { ...snapshot, [key]: value };
         await writeFile(next);
         snapshot = next;

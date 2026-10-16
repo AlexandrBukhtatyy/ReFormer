@@ -172,3 +172,46 @@ describe('запись', () => {
     expect(source.writes).toBe(0);
   });
 });
+
+describe('равное значение', () => {
+  it('файл не трогает — ни содержимое, ни формат', async () => {
+    // Плагины пишут те же списки при каждом старте; переписанный «своим форматом» файл давал бы
+    // diff в git от одного открытия проекта. Файл здесь нарочно не в формате билдера.
+    const odd = '{"workspace.plugins.enabled":["a","b"],"rights":{"x":["r"],"y":["w"]}}';
+    const source = fakeSource({ [PROJECT_SETTINGS_PATH]: odd });
+    const backend = createProjectSettingsBackend();
+    backend.useSource(source);
+
+    await backend.write('workspace', 'workspace.plugins.enabled', ['a', 'b']);
+    // Объект с другим порядком ключей — то же значение: порядок ключей у прав не обещан.
+    await backend.write('workspace', 'rights', { y: ['w'], x: ['r'] });
+
+    expect(source.writes).toBe(0);
+    expect(source.files[PROJECT_SETTINGS_PATH]).toBe(odd);
+  });
+
+  it('другое значение — переписывает, и порядок элементов массива значим', async () => {
+    const source = fakeSource({
+      [PROJECT_SETTINGS_PATH]: '{"workspace.plugins.enabled":["a","b"]}',
+    });
+    const backend = createProjectSettingsBackend();
+    backend.useSource(source);
+
+    await backend.write('workspace', 'workspace.plugins.enabled', ['b', 'a']);
+
+    expect(source.writes).toBe(1);
+    expect(JSON.parse(source.files[PROJECT_SETTINGS_PATH] ?? '{}')).toEqual({
+      'workspace.plugins.enabled': ['b', 'a'],
+    });
+  });
+
+  it('нового ключа с «пустым» значением это не касается: он записывается', async () => {
+    const source = fakeSource({ [PROJECT_SETTINGS_PATH]: '{}' });
+    const backend = createProjectSettingsBackend();
+    backend.useSource(source);
+
+    await backend.write('workspace', 'workspace.plugins.enabled', []);
+
+    expect(source.writes).toBe(1);
+  });
+});

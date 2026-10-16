@@ -17,17 +17,9 @@
     "reformer.rjsf.render"
   ],
   "workspace.plugins.permissions": {
-    "reformer.files": [
-      "workspace.resources"
-    ],
-    "reformer.codegen": [
-      "workspace.save"
-    ],
-    "reformer.templates": [
-      "workspace.save"
-    ],
-    "reformer.rjsf.editor": [
-      "workspace.save"
-    ]
+    "reformer.files": ["workspace.resources"],
+    "reformer.codegen": ["workspace.save"],
+    "reformer.templates": ["workspace.save"],
+    "reformer.rjsf.editor": ["workspace.save"]
   }
 }

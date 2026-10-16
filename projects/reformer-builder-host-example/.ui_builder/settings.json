@@ -1,5 +1,3 @@
 {
-  "workspace.plugins.enabled": [
-    "delivery-hello"
-  ]
+  "workspace.plugins.enabled": ["delivery-hello"]
 }
