@@ -152,10 +152,11 @@ test.describe('Билдер внутри приложения', () => {
     // Вкладка принадлежит приложению: её заголовок билдер не трогает.
     expect(await page.title()).toBe(title);
 
-    // Обслуживания хранилища у встроенного билдера нет — оно общее с приложением.
+    // Обслуживание хранилища у встроенного билдера есть: источник общий с приложением, но
+    // сносит оно только пространство имён билдера (`storage/namespace`), чужое не трогает.
     await host.shell.getByRole('menuitem', { name: 'Файл' }).click();
     await expect(host.shell.getByRole('menuitem', { name: 'Открыть папку…' })).toBeVisible();
-    await expect(host.shell.getByRole('menuitem', { name: 'Очистить кэш' })).toHaveCount(0);
+    await expect(host.shell.getByRole('menuitem', { name: 'Очистить кэш' })).toBeVisible();
     await page.keyboard.press('Escape');
 
     await host.openProject();
