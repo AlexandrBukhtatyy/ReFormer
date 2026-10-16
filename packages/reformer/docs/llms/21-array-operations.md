@@ -26,9 +26,9 @@ form.items.keyAt(0);            // стабильный ключ строки �
 // на модели
 model.items.push({ name: '', price: 0 });        // добавить в конец (ПЛОСКИЕ значения!)
 model.items.push();                              // по шаблону arrayOf(blank)
-model.items.insertAt(0, { name: '', price: 0 }); // вставить по индексу
-model.items.removeAt(index);                     // удалить по индексу
-model.items.move(fromIndex, toIndex);            // переместить
+model.items.insertAt(0, { name: '', price: 0 }); // вставить по индексу 0…length; за концом — RangeError
+model.items.removeAt(index);                     // удалить по индексу; нет такого — ничего
+model.items.move(fromIndex, toIndex);            // переместить; индекс за концом — RangeError
 model.items.swap(a, b);                          // поменять местами
 model.items.clear();                             // очистить
 

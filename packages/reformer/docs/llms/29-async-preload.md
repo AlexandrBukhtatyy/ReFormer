@@ -15,7 +15,7 @@ race-guard через deps). Динамические `componentProps` (опци
 // Модель:
 model.set(value: T): void;            // полная установка значений (load полного DTO). Не меняет initial.
                                       // DTO без части ключей: поля остаются прежними, в dev — предупреждение.
-model.patch(value: DeepPartial<T>): void; // частичное слияние (только переданные ключи, на любой глубине групп). Не меняет initial.
+model.patch(value: DeepPartial<T>): void; // частичное слияние (только переданные ключи, на любой глубине групп; undefined — «не трогать»). Не меняет initial.
 model.reset(): void;                  // вернуть к initial-снимку
 model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 

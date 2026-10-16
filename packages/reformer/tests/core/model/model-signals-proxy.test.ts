@@ -7,7 +7,7 @@
  * ключи, тексты ошибок записи, распознавание контейнера и `signalAt` на неудачных путях.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createModel, isModelContainerSignal } from '../../../src/model/index';
 import { isModelArraySignal } from '../../../src/model/model-signals-proxy';
 
@@ -65,18 +65,33 @@ describe('model-signals-proxy — приведение контейнера к �
     expect(JSON.stringify(model.$.address)).toBe('{"city":"Самара","zip":"420000"}');
   });
 
-  it('агрегат — кэш computed: правка прочитанного значения видна в .value до следующего изменения', () => {
-    // поведение под вопросом [ReFormer-ix06]: модель правка не трогает (`get()` прежний), но
-    // `.value` ручки отдаёт тот же объект кэша — до следующего изменения массива ручка расходится
-    // с моделью.
+  it('агрегат — замороженный снимок: правка на месте в dev бросает, .value не расходится с моделью [ReFormer-ix06]', () => {
     const model = createShape();
 
-    model.$.tags.value.push('c');
-    expect(model.get().tags).toEqual(['a', 'b']);
-    expect(model.$.tags.value).toEqual(['a', 'b', 'c']);
+    expect(() => model.$.tags.value.push('c')).toThrow(TypeError);
+    expect(() => {
+      (model.$.address.value as { city: string }).city = 'Самара';
+    }).toThrow(TypeError);
+    expect(model.$.tags.value).toEqual(['a', 'b']);
+    expect(model.$.address.value).toEqual(model.get().address);
 
     model.tags.push('d');
     expect(model.$.tags.value).toEqual(['a', 'b', 'd']);
+  });
+
+  it('снимок замораживает только уровни модели — объект в листе остаётся живым [ReFormer-ix06]', () => {
+    const payload = { note: 'было' };
+    const model = createModel({ group: { payload: payload as unknown } });
+
+    expect(Object.isFrozen(model.$.group.value)).toBe(true);
+    expect(Object.isFrozen(payload)).toBe(false);
+  });
+
+  it('в production снимок не замораживается [ReFormer-ix06]', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const model = createShape();
+
+    expect(Object.isFrozen(model.$.tags.value)).toBe(false);
   });
 
   it('массив: valueOf отдаёт значение массива, а не сам узел [ReFormer-dgww]', () => {
@@ -131,10 +146,12 @@ describe('model-signals-proxy — ключи и дескрипторы', () => {
     }
   });
 
-  it('Object.keys массива — только length', () => {
-    // поведение под вопросом [ReFormer-ix06]: индекс отдаёт перечислимый дескриптор и виден через `in`, но в
-    // ownKeys его нет — `Object.keys(model.$.tags)` не похож ни на массив, ни на группу.
-    expect(Object.keys(createShape().$.tags)).toEqual(['length']);
+  it('Object.keys массива — индексы, как у массива; length неперечислим [ReFormer-ix06]', () => {
+    const tags = createShape().$.tags;
+
+    expect(Object.keys(tags)).toEqual(['0', '1']);
+    expect(Reflect.ownKeys(tags)).toEqual(['0', '1', 'length']);
+    expect(Object.getOwnPropertyDescriptor(tags, 'length')?.enumerable).toBe(false);
   });
 
   it('in: поля и существующие индексы видны, свойства сигнала и служебные ключи — нет', () => {

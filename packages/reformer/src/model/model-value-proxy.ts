@@ -92,6 +92,22 @@ function arrayValueProxy(arr: ModelArrayNode): any {
       if (typeof key === 'string' && isIndexKey(key)) return Number(key) < arr.items.value.length;
       return Reflect.has(target, key);
     },
+    // Перечисляются данные, как у массива: индексы и неперечислимый `length`, а не методы API.
+    ownKeys: () => [...arr.items.value.keys()].map(String).concat('length'),
+    getOwnPropertyDescriptor: (target, key) => {
+      if (key === 'length') {
+        return { ...Reflect.getOwnPropertyDescriptor(target, key), enumerable: false };
+      }
+      if (typeof key === 'string' && isIndexKey(key) && Number(key) < arr.items.value.length) {
+        return {
+          enumerable: true,
+          configurable: true,
+          writable: true,
+          value: nodeValue(arr.items.value[Number(key)]),
+        };
+      }
+      return undefined;
+    },
     set: (_target, key, value) => {
       const at = arr.path === '' ? 'model' : `model.${arr.path}`;
       if (typeof key === 'string' && isIndexKey(key)) {
@@ -129,6 +145,8 @@ const RESERVED = new Set([
   'signalAt',
 ]);
 
+const toStringOf = (): string => '[object Object]';
+
 // Кэш фасадов по ModelGroupNode → стабильная идентичность под-модели (для per-item форм/ключей в рендере).
 const facadeCache = new WeakMap<ModelGroupNode, any>();
 
@@ -160,16 +178,24 @@ export function makeFormModel(group: ModelGroupNode): any {
         const child = group.children.get(key);
         if (child) return nodeValue(child);
         if (RESERVED.has(key)) return api[key];
+        // Приведение к строке (`String(model)`, шаблонная строка) — как у обычного объекта.
+        if (key === 'toString') return toStringOf;
         return undefined;
       },
       set: (_t, key, val) => {
-        if (typeof key !== 'string') return false;
-        const child = group.children.get(key);
+        const child = typeof key === 'string' ? group.children.get(key) : undefined;
         if (child) {
           child.set(val);
           return true;
         }
-        return false;
+        // Бросаем сами: `return false` — TypeError движка без пояснения в строгом режиме и молча
+        // потерянная запись в нестрогом.
+        const at = group.path === '' ? 'model' : `model.${group.path}`;
+        throw new TypeError(
+          `[@reformer/core] ${at}: поля «${String(key)}» в модели нет — запись невозможна. ` +
+            'Состав полей задаёт начальное значение модели' +
+            (typeof key === 'string' && RESERVED.has(key) ? `; «${key}» — метод API модели.` : '.')
+        );
       },
       has: (_t, key) => typeof key === 'string' && (group.children.has(key) || RESERVED.has(key)),
       ownKeys: () => [...group.children.keys()],

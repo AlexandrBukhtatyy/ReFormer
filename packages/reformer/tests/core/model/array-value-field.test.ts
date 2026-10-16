@@ -74,8 +74,8 @@ describe('узел-массив модели — ручка значения', (
     expect(model.$.tags.length).toBe(2);
     expect(model.$.tags[0]?.value).toBe('a');
     expect(seen.at(-1)).toEqual(['a', 'b']);
-    // Отдаётся копия: мутация того, что прочитали, модель не трогает.
-    model.$.tags.value.push('c');
+    // Снимок заморожен (dev): правка на месте бросает, модель прежняя [ReFormer-ix06].
+    expect(() => model.$.tags.value.push('c')).toThrow(TypeError);
     expect(model.get().tags).toEqual(['a', 'b']);
   });
 

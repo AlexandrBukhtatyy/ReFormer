@@ -8,7 +8,9 @@ createModel<T extends object>(initial: T): FormModel<T>
 // model.get() / model.set(full) / model.patch(partial) / model.isDirty()
 // model.reset() / model.captureInitial() / model.signalAt(path)
 // model.$.field            → PathAwareSignal<FieldType>  (ручка: привязка в схеме, правиле, операторе)
+// model.$.group.value      → снимок группы/массива; в dev заморожен — правка на месте бросает
 // model.arrayField         → ModelArray<Item>            (push/insertAt/removeAt/move/swap/clear/at/map/length)
+//   итерируем (for…of, spread); Object.keys — индексы; insertAt/move за концом — RangeError
 
 // Сборка одним вызовом: модель, форма, уровень формы и дерево для рендера
 createForm<T extends object>({

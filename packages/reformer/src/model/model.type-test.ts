@@ -200,6 +200,12 @@ export function arrayValueTypeChecks(model: FormModel<Profile>): void {
   model.tags.push(1);
   // @ts-expect-error — лист за пределами массива — `undefined`
   const strictTag: string = model.tags.at(0);
+  // Фасад итерируем: `for…of` и spread дают элементы, как `forEach` [ReFormer-ix06].
+  for (const tag of model.tags) {
+    const iterated: string = tag;
+    void iterated;
+  }
+  const spreadPhones: FormModel<Phone>[] = [...model.phones];
 
   // File[] | null: ручка честная — значение поля целиком, включая `null`.
   const files: File[] | null = model.$.files.value;
@@ -221,5 +227,5 @@ export function arrayValueTypeChecks(model: FormModel<Profile>): void {
   // [ReFormer-sme2] сейчас компилируется, а не должно: у группы из `null` в рантайме значение `null`.
   void model.spare.city;
 
-  void [tags, firstTag, tagValues, strictTag, files, handleLength, filesFacade];
+  void [tags, firstTag, tagValues, strictTag, spreadPhones, files, handleLength, filesFacade];
 }

@@ -146,6 +146,8 @@ export interface ModelArray<U> {
   forEach(fn: (item: ModelArrayItem<U>, index: number) => void): void;
   /** Снимок массива значений (без подписки). */
   toArray(): U[];
+  /** Обход `for…of` / spread — те же элементы, что у {@link forEach}. */
+  [Symbol.iterator](): IterableIterator<ModelArrayItem<U>>;
   /** Индексный value-доступ. */
   [index: number]: ModelValue<U>;
 }

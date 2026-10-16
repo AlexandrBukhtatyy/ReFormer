@@ -290,7 +290,7 @@ export class ModelGroupNode {
    * же, массив заменяется целиком.
    */
   patch(value: unknown): void {
-    this.write(value, undefined);
+    this.write(value, undefined, true);
   }
 
   /**
@@ -299,8 +299,10 @@ export class ModelGroupNode {
    *
    * @param missing - Куда складывать пути ключей, для которых значение не пришло. Передаётся при
    *   полной установке ({@link set}); при частичной ({@link patch}) — `undefined`.
+   * @param partial - Частичное обновление: ключ со значением `undefined` — «не трогать», как в
+   *   частичном значении элемента массива (`DeepPartial` допускает `{ ключ: undefined }`).
    */
-  private write(value: unknown, missing: string[] | undefined): void {
+  private write(value: unknown, missing: string[] | undefined, partial = false): void {
     if (value == null || typeof value !== 'object') {
       // Группа без объекта-значения не записана вовсе — для полной установки это недостающий ключ.
       missing?.push(this.path);
@@ -316,7 +318,8 @@ export class ModelGroupNode {
           missing?.push(joinPath(this.path, key));
           continue;
         }
-        if (node.kind === 'group') node.write(v[key], missing);
+        if (partial && v[key] === undefined) continue;
+        if (node.kind === 'group') node.write(v[key], missing, partial);
         else node.set(v[key]);
       }
     });
@@ -417,6 +420,20 @@ export class ModelArrayNode {
     this.items.peek().forEach((node, i) => node.rebase(joinPath(this.path, i)));
   }
 
+  /**
+   * Индекс за концом массива — ошибка, а не «в конец»: `splice` молча сдвигал бы элемент на
+   * другой индекс, и вызывающий код получал бы путь, которого не просил.
+   */
+  private beyondEnd(op: string, index: number, last: number): RangeError {
+    const at = this.path === '' ? 'model' : `model.${this.path}`;
+    const length = this.items.peek().length;
+    return new RangeError(
+      `[@reformer/core] ${at}.${op}: индекс ${index} за концом массива (длина ${length}, ` +
+        `наибольший допустимый — ${last}).` +
+        (op.startsWith('insertAt') ? ' Добавить в конец — push(…) или insertAt(length, …).' : '')
+    );
+  }
+
   push(value?: unknown): void {
     const arr = this.items.peek();
     this.items.value = [...arr, this.build(this.fresh(value), arr.length)];
@@ -424,6 +441,7 @@ export class ModelArrayNode {
   insertAt(index: number, value?: unknown): void {
     if (!Number.isInteger(index) || index < 0) return;
     const arr = [...this.items.peek()];
+    if (index > arr.length) throw this.beyondEnd(`insertAt(${index})`, index, arr.length);
     arr.splice(index, 0, this.build(this.fresh(value), index));
     this.items.value = arr;
     this.reindex();
@@ -439,7 +457,10 @@ export class ModelArrayNode {
   move(from: number, to: number): void {
     const arr = [...this.items.peek()];
     if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0) return;
-    if (from >= arr.length || from === to) return;
+    const last = arr.length - 1;
+    if (from > last) throw this.beyondEnd(`move(${from}, ${to})`, from, last);
+    if (to > last) throw this.beyondEnd(`move(${from}, ${to})`, to, last);
+    if (from === to) return;
     const [moved] = arr.splice(from, 1);
     if (moved) arr.splice(to, 0, moved);
     this.items.value = arr;

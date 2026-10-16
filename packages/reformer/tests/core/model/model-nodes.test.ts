@@ -199,16 +199,23 @@ describe('model-nodes — частичное значение поверх ша�
     expect(isModelContainerSignal(model.$.rows[0].address)).toBe(false);
   });
 
-  it('patch, в отличие от частичного значения элемента, пишет undefined в лист', () => {
-    // поведение под вопросом [ReFormer-ix06]: `DeepPartial` допускает `{ ключ: undefined }`; шаблон элемента
-    // читает такой ключ как «нет значения», а `patch` записывает `undefined` в поле.
+  it('patch, как и частичное значение элемента, ключ с undefined не трогает [ReFormer-ix06]', () => {
+    // `DeepPartial` допускает `{ ключ: undefined }` — это «нет значения», а не запись undefined.
     const model = createModel({ title: 'было', rows: arrayOf(blankRow) });
 
     model.patch({ title: undefined });
     model.rows.push({ title: undefined } as never);
 
-    expect(model.title).toBeUndefined();
+    expect(model.title).toBe('было');
     expect(model.rows.at(0).title).toBe('шаблон');
+  });
+
+  it('set, в отличие от patch, пишет undefined в лист [ReFormer-ix06]', () => {
+    const model = createModel({ title: 'было', rows: [] as Array<{ title: string }> });
+
+    model.set({ title: undefined as never, rows: [] });
+
+    expect(model.title).toBeUndefined();
   });
 
   it('значение не-объект кладётся как есть — шаблон не участвует', () => {
@@ -265,14 +272,14 @@ describe('model-nodes — индексы мутаций массива', () => {
     seen.stop();
   });
 
-  it('removeAt и move с индексом за концом и move на место — без изменений и без уведомлений', () => {
+  it('removeAt с индексом за концом и move на место — без изменений и без уведомлений', () => {
     // Раньше узел записывал копию списка, и подписчики массива (нода FormArray, стратегии валидации)
     // получали лишнее уведомление; теперь такой индекс игнорируется, как в swap [ReFormer-m7jd].
+    // `removeAt(list.findIndex(…))` без находки не должен удалять последний элемент.
     const model = createItems();
     const seen = notifications(model.$.items);
 
     model.items.removeAt(3);
-    model.items.move(5, 0);
     model.items.move(1, 1);
 
     expect([model.items.toArray(), seen.count()]).toEqual([['a', 'b', 'c'], 0]);
@@ -289,16 +296,26 @@ describe('model-nodes — индексы мутаций массива', () => {
     expect(model.items.toArray()).toEqual(['a', 'b', 'c']);
   });
 
-  it('insertAt и move с индексом за концом — элемент встаёт в конец, путь по факту', () => {
-    // поведение под вопросом [ReFormer-ix06]: индекс за концом молча превращается в «в конец»
-    // (так работает splice), а swap такой индекс игнорирует.
+  it('insertAt и move с индексом за концом — RangeError с путём, массив прежний [ReFormer-ix06]', () => {
+    // Раньше индекс за концом молча превращался в «в конец» (так работает splice).
+    const model = createItems();
+    const seen = notifications(model.$.items);
+
+    expect(() => model.items.insertAt(10, 'x')).toThrowError(
+      /^\[@reformer\/core\] model\.items\.insertAt\(10\): индекс 10 за концом массива \(длина 3/
+    );
+    expect(() => model.items.move(0, 10)).toThrowError(RangeError);
+    expect(() => model.items.move(5, 0)).toThrowError(/move\(5, 0\): индекс 5 за концом/);
+    expect([model.items.toArray(), seen.count()]).toEqual([['a', 'b', 'c'], 0]);
+    seen.stop();
+  });
+
+  it('insertAt(length) — в конец, move на последний индекс — допустимы [ReFormer-ix06]', () => {
     const model = createItems();
 
-    model.items.insertAt(10, 'x');
-    expect(model.items.toArray()).toEqual(['a', 'b', 'c', 'x']);
-    expect(model.$.items[3].__path).toBe('items.3');
+    model.items.insertAt(3, 'x');
+    model.items.move(0, 3);
 
-    model.items.move(0, 10);
     expect(model.items.toArray()).toEqual(['b', 'c', 'x', 'a']);
     expect(model.$.items[3].__path).toBe('items.3');
   });

@@ -35,7 +35,8 @@ createSubmission<T>({ check: undefined, values: () => T }): FormSubmission<T>;
 interface ModelApi<T> {
   get(): T;                         // снимок значений — его получает обработчик submit
   set(value: T): void;              // полная установка (все ключи T); при нехватке ключей — dev-предупреждение
-  patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком
+  patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком;
+                                      // ключ со значением undefined не трогается
   isDirty(): boolean;               // отличаются ли значения от initial-снимка (цели compute не в счёт)
   reset(): void;                    // вернуть к initial-снимку (цели compute не пишет — их пересчитает поведение)
   captureInitial(): void;           // зафиксировать текущие как новый initial

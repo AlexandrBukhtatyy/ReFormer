@@ -333,7 +333,9 @@ createModel<T extends object>(initial: T): FormModel<T>
 // model.get() / model.set(full) / model.patch(partial) / model.isDirty()
 // model.reset() / model.captureInitial() / model.signalAt(path)
 // model.$.field            → PathAwareSignal<FieldType>  (ручка: привязка в схеме, правиле, операторе)
+// model.$.group.value      → снимок группы/массива; в dev заморожен — правка на месте бросает
 // model.arrayField         → ModelArray<Item>            (push/insertAt/removeAt/move/swap/clear/at/map/length)
+//   итерируем (for…of, spread); Object.keys — индексы; insertAt/move за концом — RangeError
 
 // Сборка одним вызовом: модель, форма, уровень формы и дерево для рендера
 createForm<T extends object>({
@@ -3513,9 +3515,9 @@ form.items.keyAt(0);            // стабильный ключ строки �
 // на модели
 model.items.push({ name: '', price: 0 });        // добавить в конец (ПЛОСКИЕ значения!)
 model.items.push();                              // по шаблону arrayOf(blank)
-model.items.insertAt(0, { name: '', price: 0 }); // вставить по индексу
-model.items.removeAt(index);                     // удалить по индексу
-model.items.move(fromIndex, toIndex);            // переместить
+model.items.insertAt(0, { name: '', price: 0 }); // вставить по индексу 0…length; за концом — RangeError
+model.items.removeAt(index);                     // удалить по индексу; нет такого — ничего
+model.items.move(fromIndex, toIndex);            // переместить; индекс за концом — RangeError
 model.items.swap(a, b);                          // поменять местами
 model.items.clear();                             // очистить
 
@@ -4418,7 +4420,8 @@ createSubmission<T>({ check: undefined, values: () => T }): FormSubmission<T>;
 interface ModelApi<T> {
   get(): T;                         // снимок значений — его получает обработчик submit
   set(value: T): void;              // полная установка (все ключи T); при нехватке ключей — dev-предупреждение
-  patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком
+  patch(value: DeepPartial<T>): void; // частичное слияние: вложенные группы тоже частично, массив — целиком;
+                                      // ключ со значением undefined не трогается
   isDirty(): boolean;               // отличаются ли значения от initial-снимка (цели compute не в счёт)
   reset(): void;                    // вернуть к initial-снимку (цели compute не пишет — их пересчитает поведение)
   captureInitial(): void;           // зафиксировать текущие как новый initial
@@ -4805,7 +4808,7 @@ race-guard через deps). Динамические `componentProps` (опци
 // Модель:
 model.set(value: T): void;            // полная установка значений (load полного DTO). Не меняет initial.
                                       // DTO без части ключей: поля остаются прежними, в dev — предупреждение.
-model.patch(value: DeepPartial<T>): void; // частичное слияние (только переданные ключи, на любой глубине групп). Не меняет initial.
+model.patch(value: DeepPartial<T>): void; // частичное слияние (только переданные ключи, на любой глубине групп; undefined — «не трогать»). Не меняет initial.
 model.reset(): void;                  // вернуть к initial-снимку
 model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 
@@ -12194,6 +12197,8 @@ export interface ModelArray<U> {
   forEach(fn: (item: ModelArrayItem<U>, index: number) => void): void;
   /** Снимок массива значений (без подписки). */
   toArray(): U[];
+  /** Обход `for…of` / spread — те же элементы, что у {@link forEach}. */
+  [Symbol.iterator](): IterableIterator<ModelArrayItem<U>>;
   /** Индексный value-доступ. */
   [index: number]: ModelValue<U>;
 }

@@ -138,23 +138,13 @@ describe('model-value-proxy — фасад массива: обход и инд�
     expect(model.tags.length).toBe(2);
   });
 
-  it('Object.keys фасада массива — ключи API, а не индексы', () => {
-    // поведение под вопросом [ReFormer-ix06]: у фасада массива нет ловушки ownKeys — перечисляются
-    // методы API, поэтому `{ ...model.tags }` и `Object.keys(model.tags)` на массив не похожи.
-    expect(Object.keys(createShape().tags)).toEqual([
-      'length',
-      'push',
-      'insertAt',
-      'removeAt',
-      'move',
-      'swap',
-      'clear',
-      'at',
-      'map',
-      'forEach',
-      'toArray',
-      'toJSON',
-    ]);
+  it('Object.keys и spread фасада массива — индексы и элементы, а не методы API [ReFormer-ix06]', () => {
+    const tags = createShape().tags;
+
+    expect(Object.keys(tags)).toEqual(['0', '1']);
+    expect({ ...tags }).toEqual({ 0: tags.at(0), 1: tags.at(1) });
+    expect(Object.getOwnPropertyDescriptor(tags, 'push')).toBeUndefined();
+    expect('push' in tags).toBe(true);
   });
 
   it('присваивание по индексу пишет элемент массива [ReFormer-a4z7]', () => {
@@ -242,24 +232,21 @@ describe('model-value-proxy — фасад модели: ключи', () => {
     expect(loose(model.address)[Symbol.iterator]).toBeUndefined();
   });
 
-  it('приведение к строке бросает: у фасада нет ни toString, ни valueOf', () => {
-    // поведение под вопросом [ReFormer-ix06]: фасад «как у обычного объекта», но `String(model)` и
-    // `${model}` бросают TypeError вместо '[object Object]' — ловушка get не отдаёт методы
-    // Object.prototype.
+  it('приведение к строке — как у обычного объекта [ReFormer-ix06]', () => {
     const model = createShape();
 
-    expect(() => String(model)).toThrow(TypeError);
-    expect(() => `${model.address}`).toThrow(TypeError);
+    expect(String(model)).toBe('[object Object]');
+    expect(`${model.address}`).toBe('[object Object]');
   });
 });
 
 describe('model-value-proxy — запись неизвестного ключа', () => {
-  it('новое поле: TypeError, модель не меняется', () => {
+  it('новое поле: TypeError с сообщением [@reformer/core], модель не меняется [ReFormer-ix06]', () => {
     const model = createShape();
 
     expect(() => {
       loose(model).extra = 1;
-    }).toThrow(TypeError);
+    }).toThrowError(/^\[@reformer\/core\] model: поля «extra» в модели нет/);
     expect('extra' in model).toBe(false);
     expect(loose(model).extra).toBeUndefined();
     expect(Object.keys(model.get())).toEqual(['name', 'tags', 'rows', 'address']);
@@ -270,7 +257,7 @@ describe('model-value-proxy — запись неизвестного ключа
 
     expect(() => {
       loose(model.address).street = 'Баумана';
-    }).toThrow(TypeError);
+    }).toThrowError(/model\.address: поля «street» в модели нет/);
     expect(() => {
       loose(model.rows.at(0)).note = '';
     }).toThrow(TypeError);
@@ -282,8 +269,16 @@ describe('model-value-proxy — запись неизвестного ключа
 
     expect(() => {
       loose(model).get = () => null;
-    }).toThrow(TypeError);
+    }).toThrowError(/«get» — метод API модели/);
     expect(model.get().name).toBe('Анна');
+  });
+
+  it('нестрогий режим: запись тоже бросает, а не теряется молча [ReFormer-ix06]', () => {
+    const model = createShape();
+    // Тело `new Function` исполняется в нестрогом режиме: там `return false` из ловушки молчит.
+    const sloppyWrite = new Function('target', 'target.extra = 1;') as (target: unknown) => void;
+
+    expect(() => sloppyWrite(model)).toThrowError(/поля «extra» в модели нет/);
   });
 
   it('символьный ключ: TypeError', () => {

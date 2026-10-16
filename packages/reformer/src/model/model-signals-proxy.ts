@@ -46,7 +46,11 @@ const nodeByContainer = new WeakMap<object, ModelGroupNode | ModelArrayNode>();
  * метку сигнала (`brand`) делегат несёт, поэтому `isSignal` его узнаёт.
  */
 function containerSignal(node: ModelGroupNode | ModelArrayNode): ReadonlySignal<unknown> {
-  const agg = computed(() => node.read());
+  // Снимок общий для всех читателей `.value` до следующего изменения: правка на месте разошлась
+  // бы с моделью. В dev он заморожен — такая правка бросает.
+  const agg = computed(() =>
+    process.env.NODE_ENV === 'production' ? node.read() : freezeSnapshot(node.read(), node)
+  );
   return {
     get value() {
       return agg.value;
@@ -58,6 +62,21 @@ function containerSignal(node: ModelGroupNode | ModelArrayNode): ReadonlySignal<
     toJSON: () => agg.value,
     brand: agg.brand,
   } as ReadonlySignal<unknown>;
+}
+
+/**
+ * Заморозить уровни снимка, построенные узлами-контейнерами. Значения листьев (объекты, даты,
+ * файлы) не трогаются — они принадлежат модели, а не снимку.
+ */
+function freezeSnapshot(value: unknown, node: ModelNode): unknown {
+  if (node.kind === 'leaf' || value === null || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  if (node.kind === 'group') {
+    for (const [key, child] of node.children) freezeSnapshot(record[key], child);
+  } else {
+    node.items.peek().forEach((child, i) => freezeSnapshot(record[i], child));
+  }
+  return Object.freeze(value);
 }
 
 /**
@@ -92,13 +111,14 @@ export function signalsProxy(node: ModelNode): any {
         ? (node as ModelArrayNode).items.value[Number(key)]
         : undefined;
 
+  // `length` массива — неперечислимый геттер, как у массива: `Object.keys` отдаёт индексы.
   const target = isGroup
     ? {}
-    : {
-        get length(): number {
-          return (node as ModelArrayNode).items.value.length;
-        },
-      };
+    : Object.defineProperty({}, 'length', {
+        get: (): number => (node as ModelArrayNode).items.value.length,
+        enumerable: false,
+        configurable: true,
+      });
 
   const proxy = new Proxy(target, {
     get: (t, key, recv) => {
@@ -131,7 +151,9 @@ export function signalsProxy(node: ModelNode): any {
       typeof key === 'string' &&
       (childAt(key) !== undefined || (!isGroup && Object.prototype.hasOwnProperty.call(t, key))),
     ownKeys: () =>
-      isGroup ? [...(node as ModelGroupNode).children.keys()] : Reflect.ownKeys(target),
+      isGroup
+        ? [...(node as ModelGroupNode).children.keys()]
+        : [...(node as ModelArrayNode).items.value.keys()].map(String).concat('length'),
     getOwnPropertyDescriptor: (t, key) => {
       if (typeof key === 'string' && childAt(key)) return { enumerable: true, configurable: true };
       return isGroup ? undefined : Reflect.getOwnPropertyDescriptor(t, key);
