@@ -6,7 +6,8 @@
  * шага и множество пройденных; после каждой команды сверяются инварианты:
  * - `0 ≤ index < steps.length`, `current`, `isFirst`, `isLast` согласованы с номером;
  * - `completed` — подмножество шагов и ровно префикс до текущего (плюс последний шаг после края);
- * - `canGoTo(шаг)` ⇔ шаг первый или предыдущий пройден, и `goTo` переходит ровно тогда;
+ * - `canGoTo(шаг)` ⇔ шаг первый или предыдущий пройден, и `goTo` переходит ровно тогда — кроме шага,
+ *   где поток уже стоит: это не переход (`stayed`, `current`);
  * - запертый шаг не открывается: `goTo` на него оставляет номер и пройденные как были.
  *
  * Воспроизведение: `FC_SEED=<seed> FC_NUM_RUNS=1000 npx vitest run form-flow.property`.
@@ -125,6 +126,11 @@ async function run(
   const target = steps[command.target];
   const open = flow.canGoTo(target);
   const transition = flow.goTo(target);
+  if (command.target === reference.index) {
+    // «На себя» — не переход: номер и пройденные — как были.
+    expect(transition).toEqual({ status: 'stayed', step, reason: 'current' });
+    return;
+  }
   if (!open) {
     // Запертый шаг не открывается: номер и пройденные — как были.
     expect(transition).toEqual({ status: 'stayed', step, reason: 'locked' });

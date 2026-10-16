@@ -213,11 +213,10 @@ describe('createFormFlow — goTo вперёд и на текущий шаг', (
     expect(flow.goTo('c')).toEqual({ status: 'stayed', step: 'a', reason: 'locked' });
   });
 
-  it('поведение под вопросом [ReFormer-jefl]: goTo на текущий шаг — moved с from === to', () => {
-    // По доку `moved` — «поток перешёл на другой шаг», но причины `stayed` для «уже здесь» нет.
+  it('goTo на текущий шаг — не переход: stayed с причиной current [ReFormer-jefl]', () => {
     const flow = flowOf();
 
-    expect(flow.goTo('loan')).toEqual({ status: 'moved', from: 'loan', to: 'loan' });
+    expect(flow.goTo('loan')).toEqual({ status: 'stayed', step: 'loan', reason: 'current' });
     expect(flow.current.value).toBe('loan');
   });
 
@@ -226,12 +225,11 @@ describe('createFormFlow — goTo вперёд и на текущий шаг', (
     await flow.next();
     await flow.next(); // край: пройдены оба шага
 
-    expect(flow.goTo('b')).toEqual({ status: 'moved', from: 'b', to: 'b' });
+    expect(flow.goTo('b')).toEqual({ status: 'stayed', step: 'b', reason: 'current' });
     expect([...flow.completed.value]).toEqual(['a', 'b']);
   });
 
-  it('поведение под вопросом [ReFormer-jefl]: goTo на текущий шаг во время next() отменяет переход', async () => {
-    // goTo «на себя» ничего не меняет, но считается переходом — ждущий next() отменяется.
+  it('goTo на текущий шаг во время next() переход не отменяет [ReFormer-jefl]', async () => {
     const check = deferred<ValidationResult>();
     const flow = createFormFlow({ steps: ['a', 'b'], validateStep: () => check.promise });
 
@@ -239,8 +237,8 @@ describe('createFormFlow — goTo вперёд и на текущий шаг', (
     flow.goTo('a');
     check.resolve(resultOf('valid'));
 
-    expect(await next).toMatchObject({ status: 'stayed', step: 'a', reason: 'cancelled' });
-    expect([...flow.completed.value]).toEqual([]);
+    expect(await next).toEqual({ status: 'moved', from: 'a', to: 'b' });
+    expect([...flow.completed.value]).toEqual(['a']);
   });
 
   it('неизвестный шаг: исключение со списком шагов, состояние потока не меняется', async () => {
@@ -328,9 +326,9 @@ describe('createFormFlow — next при ошибке шага', () => {
     expect([...flow.completed.value]).toEqual(['a']);
   });
 
-  it('поведение под вопросом [ReFormer-jefl]: invalid после того, как поток перевели, — stayed с прежним шагом', async () => {
-    // Сверка «поток перевели, пока шла проверка» стоит только на успешной ветке: неуспешная
-    // возвращает stayed с проверенным шагом, хотя поток уже на другом.
+  it('invalid после того, как поток перевели, — cancelled на текущем шаге, как и успех [ReFormer-jefl]', async () => {
+    // Сверка «поток перевели, пока шла проверка» — на обеих ветках: результат относится к
+    // прежнему положению, и ответ называет шаг, где поток стоит сейчас.
     const check = deferred<ValidationResult>();
     const flow = createFormFlow({
       steps: ['a', 'b', 'c'],
@@ -342,7 +340,7 @@ describe('createFormFlow — next при ошибке шага', () => {
     flow.previous();
     check.resolve(resultOf('invalid'));
 
-    expect(await next).toMatchObject({ status: 'stayed', step: 'b', reason: 'invalid' });
+    expect(await next).toMatchObject({ status: 'stayed', step: 'a', reason: 'cancelled' });
     expect(flow.current.value).toBe('a');
   });
 

@@ -375,17 +375,16 @@ describe('строки массивов, добавленные после start
     expect(issueCodes(phone)).toEqual(['phone']);
   });
 
-  it('LS-12: поведение под вопросом [ReFormer-jefl]: при blur добавление строки само запускает прогон', async () => {
-    // поведение под вопросом: стратегия подписана на состав массивов (иначе не увидела бы уход
-    // из полей новых строк), и смена состава — уже живой прогон, хотя из поля никто не уходил.
-    // Созаёмщик с телефоном — два массива, два прогона; ошибки не видны (поля не тронуты), но
-    // каждый такой прогон зовёт и async-правила — с заполненным ИНН это запрос на сервер.
+  it('LS-12: при blur добавление строки прогон не запускает — из поля никто не уходил [ReFormer-jefl]', async () => {
+    // Стратегия подписана на состав массивов (иначе не увидела бы уход из полей новых строк),
+    // но прогон — только на уход из поля. Раньше созаёмщик с телефоном давал два прогона, и каждый
+    // звал async-правила — с заполненным ИНН это запрос на сервер.
     const { bundle, runs } = await started({ strategy: 'blur' });
 
     addCoBorrower(bundle.model);
     await settle();
 
-    expect(runs).toHaveBeenCalledTimes(2);
+    expect(runs).not.toHaveBeenCalled();
   });
 
   it('LS-13: change — правка поля новой строки проверяется и показывает ошибку', async () => {
@@ -487,14 +486,14 @@ describe('eachLeafSignal и eachValueSignal — на что подписана �
     const { form, model } = bundle;
     model.$.interests.value = ['card', 'deposit', 'insurance', 'investments'];
     await settle();
-    // Смена состава мультивыбора — смена состава массива: прогон без ухода из поля (ReFormer-jefl).
-    expect(runs).toHaveBeenCalledTimes(1);
+    // Смена состава мультивыбора — смена состава массива, а не уход из поля: прогона нет.
+    expect(runs).not.toHaveBeenCalled();
     expect(form.interests.shouldShowError.value).toBe(false);
 
     form.interests.markAsTouched();
     await settle();
 
-    expect(runs).toHaveBeenCalledTimes(2);
+    expect(runs).toHaveBeenCalledTimes(1);
     expect(issueCodes(form.interests)).toEqual(['interests.tooMany']);
     expect(form.interests.shouldShowError.value).toBe(true);
   });

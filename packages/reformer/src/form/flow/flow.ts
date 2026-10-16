@@ -17,11 +17,12 @@ import type { ValidationResult } from '../validation/types';
  * Почему поток остался на шаге: `invalid` — у шага блокирующие замечания, `error` — правило не
  * вернуло результат, `cancelled` — прогон отменён либо результат проверки устарел (поток перевели,
  * модель формы изменилась, пока шла проверка шага), `edge` — дальше (или раньше) шагов нет,
- * `locked` — шаг недоступен, пока не пройден предыдущий.
+ * `locked` — шаг недоступен, пока не пройден предыдущий, `current` — `goTo` на шаг, на котором поток
+ * уже стоит.
  *
  * @group Form
  */
-export type FlowStayReason = 'invalid' | 'error' | 'cancelled' | 'edge' | 'locked';
+export type FlowStayReason = 'invalid' | 'error' | 'cancelled' | 'edge' | 'locked' | 'current';
 
 /**
  * Итог перехода: поток перешёл на другой шаг либо остался — с причиной и, если шаг проверялся,
@@ -168,12 +169,13 @@ export function createFormFlow(options: FormFlowOptions): FormFlow {
         }
       }
       const checked = validation !== undefined ? { validation } : {};
-      if (validation !== undefined && validation.status !== 'valid') {
-        return { status: 'stayed', step, reason: validation.status, ...checked };
-      }
-      // Пока шёл прогон, поток перевели или сбросили: результат относится к прежнему положению.
+      // Пока шёл прогон, поток перевели или сбросили: результат — любой, и успех, и отказ —
+      // относится к прежнему положению, и шаг в ответе — тот, где поток стоит сейчас.
       if (moves !== startedAt) {
         return { status: 'stayed', step: steps[index.peek()], reason: 'cancelled', ...checked };
+      }
+      if (validation !== undefined && validation.status !== 'valid') {
+        return { status: 'stayed', step, reason: validation.status, ...checked };
       }
       completed.value = new Set([...completed.peek(), step]);
       if (at === steps.length - 1) return { status: 'stayed', step, reason: 'edge', ...checked };
@@ -190,6 +192,8 @@ export function createFormFlow(options: FormFlowOptions): FormFlow {
 
     goTo(stepId) {
       const target = requireIndex(stepId);
+      // «На себя» — не переход: ничего не меняется, и ждущий `next()` не отменяется.
+      if (target === index.peek()) return { status: 'stayed', step: stepId, reason: 'current' };
       if (!canGoTo(stepId)) {
         return { status: 'stayed', step: steps[index.peek()], reason: 'locked' };
       }

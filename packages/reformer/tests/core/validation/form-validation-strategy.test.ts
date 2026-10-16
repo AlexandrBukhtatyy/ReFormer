@@ -714,9 +714,9 @@ describe('createFormValidation — blur и массивы', () => {
     ctrl.dispose();
   });
 
-  it('поведение под вопросом [ReFormer-jefl]: при стратегии blur добавление строки само запускает прогон', async () => {
-    // Effect стратегии подписан на состав массива (иначе не увидел бы blur новых строк), и любой
-    // его перезапуск — живой прогон, хотя blur не было.
+  it('при стратегии blur добавление строки прогон не запускает — уходом из поля оно не является [ReFormer-jefl]', async () => {
+    // Effect стратегии подписан на состав массива (иначе не увидел бы blur новых строк), но
+    // прогон — только когда вырос счётчик ухода какой-то ноды.
     const { model } = makeRowsForm();
     const { runs, rules } = countedRowsRules();
     const ctrl = createFormValidation(model, rules, { strategy: 'blur' });
@@ -725,7 +725,7 @@ describe('createFormValidation — blur и массивы', () => {
     model.rows.push({ label: '' });
     await tick();
 
-    expect(runs).toHaveBeenCalledTimes(1);
+    expect(runs).not.toHaveBeenCalled();
     ctrl.dispose();
   });
 

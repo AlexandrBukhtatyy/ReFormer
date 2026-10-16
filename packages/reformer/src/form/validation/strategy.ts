@@ -160,10 +160,12 @@ export function createFormValidation<T>(
   // как в `revalidateWhen`). Для `afterFirstSubmit` — тишина до первой попытки отправки.
   const arm = (
     subscribe: (sig: PathAwareSignal<unknown>) => void,
-    fire: () => void
+    fire: () => void,
+    begin?: () => void
   ): (() => void) => {
     let initial = true;
     return effect(() => {
+      begin?.();
       // Листья И массивы целиком: поле-мультивыбор живёт на сигнале массива, и его `touched`
       // иначе не попал бы в подписку стратегии `blur`.
       eachValueSignal(model, subscribe); // change: sig.value | blur: уходы из поля → подписка
@@ -199,15 +201,28 @@ export function createFormValidation<T>(
         // отказом отправки, иначе не перепроверялось бы вовсе. У контейнера счётчика нет — там метка.
         // Метку, которую ставит сама проверка (прогон с касанием, отказ отправки), за уход из поля
         // не считаем: иначе прогон будил бы лишний живой, а тот отменял бы его самого.
+        //
+        // Эффект перезапускается и от смены состава массива — на него он подписан, чтобы видеть
+        // уходы из новых строк, — но добавленная или удалённая строка уходом из поля не является.
+        // Поэтому прогон — только когда счётчик ухода какой-то ноды вырос с прошлого раза.
+        const seen = new WeakMap<object, number>();
+        let left = false;
         disposeFx = arm(
           (sig) => {
             const node = getNodeForSignal(sig) as
               | { touched: ReadonlySignal<boolean>; touches?: ReadonlySignal<number> }
               | undefined;
-            void (node?.touches ?? node?.touched)?.value;
+            if (node === undefined) return;
+            const mark = node.touches?.value ?? (node.touched.value ? 1 : 0);
+            const before = seen.get(node);
+            if (before !== undefined && mark > before) left = true;
+            seen.set(node, mark);
           },
           () => {
-            if (!isTouchByValidation()) fireLive();
+            if (left && !isTouchByValidation()) fireLive();
+          },
+          () => {
+            left = false;
           }
         );
       }

@@ -93,7 +93,7 @@ interface FormFlow {
 type FlowTransition =
   | { status: 'moved'; from: string; to: string }
   | { status: 'stayed'; step: string; reason: FlowStayReason; validation?: ValidationResult };
-type FlowStayReason = 'invalid' | 'error' | 'cancelled' | 'edge' | 'locked';
+type FlowStayReason = 'invalid' | 'error' | 'cancelled' | 'edge' | 'locked' | 'current';
 
 // React: снимок потока для рендера
 function useFormFlow(flow: FormFlow): {
@@ -155,7 +155,10 @@ cancelled`, `issues` — замечания по ручке поля, `failures`
 - `previous()` на первом шаге — `stayed`, `reason: 'edge'`. Назад: пройденными остаются только шаги
   до цели.
 - `goTo(id)`: первый шаг доступен всегда, остальные — после прохождения предыдущего; иначе
-  `stayed`, `reason: 'locked'`. Неизвестный `id` — исключение.
+  `stayed`, `reason: 'locked'`. На шаг, где поток уже стоит, — не переход: `stayed`,
+  `reason: 'current'`, ждущий `next()` не отменяется. Неизвестный `id` — исключение.
+- Если поток перевели, пока шла проверка шага, `next()` отвечает `stayed`, `reason: 'cancelled'` с
+  шагом, где поток стоит сейчас, — и при успехе, и при отказе проверки.
 - Повтор `id` в `flow.steps` — исключение при сборке. Шаг, для которого в корневой области схемы
   нет узла с таким `selector`, — dev-предупреждение (если хотя бы один шаг узел нашёл).
 
