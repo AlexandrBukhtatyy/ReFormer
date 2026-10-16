@@ -34,10 +34,12 @@ export const KIT_INFRA = {
  */
 export const KIT_ADAPTERS = { wizard: { symbol: 'FormWizard' }, step: null } as const;
 
-/** Кодоген: спецификатор импорта и символы, которым нужна прослойка вместо прямого импорта. */
+/**
+ * Кодоген: спецификатор импорта. Прослоек нет (контракт 3.0): `FormWizard` работает по протоколу
+ * визарда — шаги узлами-детьми, `renderNode`, форма и поток из контекста сборки.
+ */
 export const KIT_CODEGEN = {
   importSpecifier: '@reformer/ui-kit',
-  needsShim: ['Wizard', 'RendererFormWizard', 'Step', 'FormWizard'],
 } as const;
 
 /**

@@ -642,8 +642,9 @@ const kit = {
   },
   codegen: KIT_CODEGEN,
 };
-// Версия контракта, а не пакета: `2.1` = файл использует `kit.infra.fieldFrame`.
-const catalog = { $schema: SCHEMA_REF, version: '2.1', kit, components };
+// Версия контракта, а не пакета: `3.0` = визард кита по протоколу (`kit.adapters.wizard`), без
+// прослоек `codegen.needsShim`; `kit.infra.fieldFrame` — с `2.1`.
+const catalog = { $schema: SCHEMA_REF, version: '3.0', kit, components };
 
 const cfg = await resolveConfig(outFile);
 const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'json' });

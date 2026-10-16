@@ -1,6 +1,6 @@
 {
   "$schema": "../reformer-builder-plugin-api/src/kits/component-catalog.schema.json",
-  "version": "2.1",
+  "version": "3.0",
   "kit": {
     "id": "reformer-ui-kit",
     "label": "ReFormer UI Kit",
@@ -940,8 +940,7 @@
       }
     },
     "codegen": {
-      "importSpecifier": "@reformer/ui-kit",
-      "needsShim": ["Wizard", "RendererFormWizard", "Step", "FormWizard"]
+      "importSpecifier": "@reformer/ui-kit"
     }
   },
   "components": [
