@@ -278,7 +278,9 @@ describe('validators — общие свойства опций и пустых 
     phone: () => phone({ format: 'ru' }),
     isNumber: () => isNumber(),
     integer: () => integer(),
-    multipleOf: (n) => multipleOf(n),
+    // Вырожденный делитель (0, ±∞, NaN) — ошибка конфигурации при создании правила
+    // (multiple-of.test.ts); здесь проверяются пустые значения, поэтому делитель берётся рабочий.
+    multipleOf: (n) => multipleOf(Number.isFinite(n) && n !== 0 ? n : 1),
     nonNegative: () => nonNegative(),
     nonZero: () => nonZero(),
     isDate: () => isDate(),
