@@ -519,7 +519,10 @@ describe('условные ветки заявки — ручные enable() / d
     await settle();
     const result = await bundle.validate();
 
-    expect(result.status === 'valid').toBe(bundle.form.valid.value);
+    // Отказ проверки — только при невалидной форме: поле под выключенной формой не проверяется.
+    // Выключенная форма ни valid, ни invalid — одно правило для поля и контейнера [ReFormer-vnag].
+    expect(result.status === 'invalid').toBe(bundle.form.invalid.value);
+    expect([bundle.form.valid.value, bundle.form.invalid.value]).toEqual([false, false]);
   });
 });
 

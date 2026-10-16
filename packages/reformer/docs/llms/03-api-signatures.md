@@ -55,7 +55,7 @@ API нет — вид ноды узнают гардами `isFormControl` / `is
 ```typescript
 interface FormNode<T> {
   readonly value: ReadonlySignal<T>;
-  readonly valid: ReadonlySignal<boolean>;   // нет блокирующих замечаний, не disabled, не pending
+  readonly valid: ReadonlySignal<boolean>;   // нет блокирующих замечаний, не disabled, не pending (у поля, группы и массива одинаково)
   readonly invalid: ReadonlySignal<boolean>;
   readonly pending: ReadonlySignal<boolean>; // идёт async-правило
   readonly disabled: ReadonlySignal<boolean>;

@@ -124,6 +124,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
       getChildren: () => this.rows.value,
       ownIssues: this.own.list,
       ownPending: computed(() => !disabled.value && this.ownPending.active.value),
+      disabled,
     });
     this.valid = aggregate.valid;
     this.invalid = aggregate.invalid;

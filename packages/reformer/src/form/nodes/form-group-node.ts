@@ -63,6 +63,7 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
       getChildren: () => nodes,
       ownIssues: this.own.list,
       ownPending: computed(() => !disabled.value && this.ownPending.active.value),
+      disabled,
     });
     this.valid = aggregate.valid;
     this.invalid = aggregate.invalid;

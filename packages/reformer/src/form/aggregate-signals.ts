@@ -3,7 +3,8 @@
  * замечаний.
  *
  * Семантика — как у поля: `warning` не блокирует; пока нода ждёт проверки, она ни `valid`, ни
- * `invalid`.
+ * `invalid`; выключенная нода — тоже ни то ни другое (контракт `valid`: «нода включена и не ждёт
+ * проверки»).
  *
  * @internal
  * @module form/aggregate-signals
@@ -14,7 +15,10 @@ import type { ValidationIssue } from './types/contracts';
 import type { FormNode } from './types/nodes';
 
 export interface AggregateSignals {
-  /** Блокирующих своих замечаний нет, никто не ждёт проверки, каждый включённый ребёнок валиден. */
+  /**
+   * Контейнер включён, блокирующих своих замечаний нет, никто не ждёт проверки, каждый включённый
+   * ребёнок валиден.
+   */
   valid: ReadonlySignal<boolean>;
   /** Никто не ждёт проверки, и есть блокирующее своё замечание или включённый невалидный ребёнок. */
   invalid: ReadonlySignal<boolean>;
@@ -33,24 +37,30 @@ export interface AggregateSignalsOptions {
   ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
   /** Ожидание async-правила на ручке самого контейнера (`validateAsync(model.$.items, …)`). */
   ownPending?: ReadonlySignal<boolean>;
+  /** Выключен ли сам контейнер: выключенный — ни `valid`, ни `invalid`, ни `pending`, как поле. */
+  disabled?: ReadonlySignal<boolean>;
 }
 
 export function createAggregateSignals(options: AggregateSignalsOptions): AggregateSignals {
   const { getChildren, ownIssues, ownPending } = options;
+  const off = (): boolean => options.disabled?.value ?? false;
   // `warning` отправку не блокирует — ни у поля, ни у контейнера.
   const ownBlocking = computed(() => ownIssues.value.some((issue) => issue.severity !== 'warning'));
   const pending = computed(
-    () => (ownPending?.value ?? false) || getChildren().some((child) => child.pending.value)
+    () =>
+      !off() && ((ownPending?.value ?? false) || getChildren().some((child) => child.pending.value))
   );
   // Отключённый ребёнок в валидность не входит.
   const valid = computed(
     () =>
+      !off() &&
       !pending.value &&
       !ownBlocking.value &&
       getChildren().every((child) => child.disabled.value || child.valid.value)
   );
   const invalid = computed(
     () =>
+      !off() &&
       !pending.value &&
       (ownBlocking.value ||
         getChildren().some((child) => !child.disabled.value && child.invalid.value))

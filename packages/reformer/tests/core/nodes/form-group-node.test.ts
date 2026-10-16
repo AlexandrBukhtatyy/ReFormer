@@ -256,18 +256,20 @@ describe('form-group-node — выключение (зонды)', () => {
     expect(form.address.ownIssues.value).toEqual([]);
   });
 
-  it('выключенная группа без замечаний — valid, тогда как выключенное поле — не valid', () => {
+  it('выключенная группа, как и выключенное поле, — ни valid, ни invalid [ReFormer-vnag]', () => {
     const { form } = createPerson();
 
     form.address.disable();
 
-    // поведение под вопросом [ReFormer-vnag]: контракт `valid` — «нода включена и не ждёт проверки», и поле ему
-    // следует (`valid` выключенного поля — false). Агрегат группы своего `disabled` не читает:
-    // все дети выключены — значит, «все включённые валидны», и группа valid. На родителя это не
-    // влияет — выключенный ребёнок в его `valid` не входит.
+    // Одно правило (решение по vnag): контракт `valid` — «нода включена и не ждёт проверки», и
+    // контейнер ему следует, как поле. На родителя это не влияет — выключенный ребёнок в его
+    // `valid` не входит.
     expect(form.address.city.valid.value).toBe(false);
+    expect([form.address.valid.value, form.address.invalid.value]).toEqual([false, false]);
+    expect(form.valid.value).toBe(true);
+
+    form.address.enable();
     expect(form.address.valid.value).toBe(true);
-    expect(form.address.invalid.value).toBe(false);
   });
 });
 
