@@ -17,6 +17,7 @@ import { computed, effect, signal, untracked, type ReadonlySignal } from '@preac
 import type { ValidationIssue } from '../types/contracts';
 import type { FormArray, FormGroup } from '../types/nodes';
 import type { FormModel } from '../../model/types';
+import { referenceOf } from '../../model/model-value-proxy';
 import { createAggregateSignals } from '../aggregate-signals';
 import { rowKeyOf } from '../schema/row-key';
 import { NODE_KIND, rawNode, type InternalFormNode } from './node-kind';
@@ -194,15 +195,28 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     });
   }
 
+  /**
+   * Сбросить массив: строки, замечания и `dirty`. Без аргумента — к точке отсчёта модели, той же, к
+   * которой возвращает `model.reset()`: элементам создания модели либо последнего
+   * `captureInitial()`.
+   */
   reset(values?: T[]): void {
     this.own.clear();
-    this.setValue(values ?? this.initial);
+    this.setValue(values ?? this.referenceItems());
     this.reshaped.value = false;
   }
 
   /** Строки пересобираются из значений создания — их поведение считает заново. @internal */
   resetToCreation(): void {
-    this.reset();
+    this.own.clear();
+    this.setValue(this.initial);
+    this.reshaped.value = false;
+  }
+
+  /** Точка отсчёта модели за массивом; без модели — элементы создания. */
+  private referenceItems(): T[] {
+    const reference = referenceOf(this.control);
+    return reference === undefined ? this.initial : (reference.value as T[]);
   }
 
   markAsTouched(): void {

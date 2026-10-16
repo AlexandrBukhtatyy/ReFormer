@@ -14,6 +14,7 @@ import type { ValidationIssue } from '../types/contracts';
 import type { ComponentRef } from '../types/schema-node';
 import type { FormControl } from '../types/nodes';
 import { isDerived } from '../../model/derived-registry';
+import { referenceOf } from '../../model/model-value-proxy';
 import { NODE_KIND, type InternalFormNode } from './node-kind';
 import {
   createAvailability,
@@ -43,7 +44,10 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly shouldShowIssues: ReadonlySignal<boolean>;
 
   private readonly source: Signal<T>;
-  /** Значение на момент построения — к нему возвращает {@link reset} без аргумента. */
+  /**
+   * Значение на момент построения. К нему возвращает `resetToCreation` (`resetOnDisable`), а
+   * {@link reset} — только поле над собственным сигналом, без модели за ним.
+   */
   private readonly initialValue: T;
   private readonly interaction = createInteraction();
   private readonly issueState = createIssues();
@@ -90,8 +94,10 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   }
 
   /**
-   * Сбросить поле: значение, замечания, `touched` и `dirty`. Без аргумента — к значению, с которым
-   * нода создана (не к точке отсчёта модели: её возвращает `model.reset()`).
+   * Сбросить поле: значение, замечания, `touched` и `dirty`. Без аргумента — к точке отсчёта модели,
+   * той же, к которой возвращает `model.reset()`: значению создания модели либо последнему
+   * `captureInitial()` (загруженные данные). Поле над собственным сигналом, без модели, — к значению,
+   * с которым нода создана.
    *
    * У производного поля (цель `compute`) без аргумента сбрасывается только состояние: значением
    * владеет поведение, а значение создания ноды снято до первого расчёта — запись вернула бы
@@ -99,8 +105,14 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
    */
   reset(value?: T): void {
     if (value !== undefined) this.source.value = value;
-    else if (!isDerived(this.source)) this.source.value = this.initialValue;
+    else if (!isDerived(this.source)) this.source.value = this.referenceValue();
     this.resetState();
+  }
+
+  /** Точка отсчёта модели за полем; у поля без модели — значение создания. */
+  private referenceValue(): T {
+    const reference = referenceOf(this.source);
+    return reference === undefined ? this.initialValue : (reference.value as T);
   }
 
   /** Значение создания и чистое состояние, у цели `compute` тоже — для `resetOnDisable`. @internal */

@@ -11,6 +11,10 @@ import type { FormArray } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 import type { FormGroup } from '../../../src';
 import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
+import { createModel } from '../../../src/model/index';
+import { createFormFromModel } from '../../../src/form/create-form';
+import { defineFormBehavior, enableWhen } from '../../../src/form/behaviors';
+import { tick } from '../../test-utils/async';
 
 describe('FormNode - reset()', () => {
   describe('FieldNode', () => {
@@ -399,5 +403,65 @@ describe('FormNode - reset()', () => {
       field.reset();
       expect(field.value.value).toBe('initial');
     });
+  });
+});
+
+// Один сброс (решение по ReFormer-k152.14): form.reset() возвращает к той же точке отсчёта, что
+// model.reset(), — значениям создания модели либо последнему captureInitial — и чистит ноды.
+describe('reset() — точка отсчёта модели', () => {
+  interface Loan {
+    enabled: boolean;
+    amount: number;
+  }
+  const initial = (): Loan => ({ enabled: true, amount: 0 });
+
+  // Массив — в интеграционном RL-10: нодой формы он становится по схеме.
+  it('поле возвращается к загруженному (captureInitial), форма и модель не изменены', () => {
+    const model = createModel<Loan>(initial());
+    const form = createFormFromModel<Loan>({ model }) as FormGroup<Loan>;
+    model.patch({ amount: 500 });
+    model.captureInitial();
+
+    form.amount.setValue(900);
+    form.reset();
+
+    expect(model.amount).toBe(500);
+    expect([form.dirty.value, model.isDirty()]).toEqual([false, false]);
+  });
+
+  it('без captureInitial — значения создания модели, как и раньше', () => {
+    const model = createModel<Loan>(initial());
+    const form = createFormFromModel<Loan>({ model }) as FormGroup<Loan>;
+
+    form.amount.setValue(900);
+    form.reset();
+
+    expect(model.amount).toBe(0);
+  });
+
+  it('resetOnDisable — к значению создания ноды, а не к загруженному', async () => {
+    const model = createModel<Loan>(initial());
+    const behavior = defineFormBehavior<Loan>(({ model: m }) => {
+      enableWhen(m.$.amount, () => m.enabled, { resetOnDisable: true });
+    });
+    createFormFromModel<Loan>({ model, behavior });
+    model.patch({ amount: 500 });
+    model.captureInitial();
+    await tick();
+
+    model.enabled = false;
+    await tick();
+
+    expect(model.amount).toBe(0);
+  });
+
+  it('поле над собственным сигналом — к значению, с которым создано', () => {
+    const field = new FormControlNode({
+      valueSignal: signal('created'),
+      component: null as ComponentInstance,
+    });
+    field.setValue('changed');
+    field.reset();
+    expect(field.value.value).toBe('created');
   });
 });

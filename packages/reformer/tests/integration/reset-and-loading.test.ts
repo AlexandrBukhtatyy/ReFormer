@@ -9,12 +9,11 @@
  *   (`markServerOwned`) загрузка не пишет; `signalAt` — замечания сервера по путям черновика;
  * - правке — `isDirty()` модели (сравнение со снимком) против `dirty` ноды (правка через поле),
  *   `getValue` / `setValue` группы, `markAsUntouched`;
- * - сбросе — `model.reset()` (значения к точке отсчёта, ноды не трогает) против `form.reset()`
- *   (ноды чисты, значения — с которыми форма создана); `flow.reset()` после нескольких шагов и во
- *   время проверки шага; сброс в том же тике, что и загрузка, — отложенные записи решают по
- *   состоянию в момент записи.
- * Различие двух сбросов — задача `ReFormer-k152.14`; ветви самих модели и нод покрыты юнит-тестами
- * (`tests/core/model/`, `tests/core/nodes/`).
+ * - сбросе — `form.reset()` (значения к точке отсчёта модели, ноды чисты) и `model.reset()` (те же
+ *   значения, ноды не трогает); `flow.reset()` после нескольких шагов и во время проверки шага;
+ *   сброс в том же тике, что и загрузка, — отложенные записи решают по состоянию в момент записи.
+ * Точка отсчёта у двух сбросов одна — решение по `ReFormer-k152.14`; ветви самих модели и нод
+ * покрыты юнит-тестами (`tests/core/model/`, `tests/core/nodes/`).
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -405,9 +404,9 @@ describe('сброс заявки — model.reset() против form.reset()', 
     await settle();
 
     expect(model.loan.amount).toBe(3_000_000);
-    // поведение под вопросом [ReFormer-k152.14]: замечания — дело проверки, так и записано в
-    // docs/llms/28-submit-and-reset.md, но верное значение показывается с прежней ошибкой, пока
-    // проверку не запустят снова.
+    // Так задумано (решение по k152.14): сброс для пользователя — form.reset(), он чистит и ноды.
+    // model.reset() — сброс значений модели: замечания — дело проверки, и верное значение
+    // показывается с прежней ошибкой, пока проверку не запустят снова.
     expect({
       issues: issueCodes(form.loan.amount),
       touched: form.loan.amount.touched.value,
@@ -418,7 +417,7 @@ describe('сброс заявки — model.reset() против form.reset()', 
     expect(form.loan.amount.issues.value).toEqual([]);
   });
 
-  it('RL-10: form.reset() — ноды чисты, значения — с которыми форма создана, а не загруженный черновик', async () => {
+  it('RL-10: form.reset() — ноды чисты, значения — к точке отсчёта модели: загруженный черновик', async () => {
     const { bundle } = build();
     const { model, form } = bundle;
     await loadDraft(bundle);
@@ -429,17 +428,28 @@ describe('сброс заявки — model.reset() против form.reset()', 
     await settle();
 
     expect([form.issues.value, form.touched.value, form.dirty.value]).toEqual([[], false, false]);
-    // поведение под вопросом [ReFormer-k152.14]: «чистый лист», а не черновик — к нему возвращает
-    // только model.reset(); точка отсчёта модели прежняя, поэтому после сброса формы модель dirty.
-    expect([model.loan.type, model.loan.amount, model.residenceAddress.city]).toEqual([
-      'consumer',
-      null,
-      '',
-    ]);
-    expect(model.isDirty()).toBe(true);
-    model.reset();
-    await settle();
+    // Один сброс: та же точка отсчёта, что у model.reset(), — черновик, загруженный с
+    // captureInitial, а не «чистый лист», — и модель после сброса не изменена.
     expect([model.loan.amount, model.residenceAddress.city]).toEqual([3_000_000, 'Колпино']);
+    expect(model.isDirty()).toBe(false);
+  });
+
+  it('RL-10a: form.reset() — состав массива к точке отсчёта: добавленная после загрузки строка уходит', async () => {
+    const { bundle } = build();
+    const { model, form } = bundle;
+    await loadDraft(bundle);
+    model.coBorrowers.push({});
+    await settle();
+    model.captureInitial();
+    model.coBorrowers.push({});
+    await settle();
+    expect(model.coBorrowers.length).toBe(2);
+
+    form.reset();
+    await settle();
+
+    expect(model.coBorrowers.length).toBe(1);
+    expect([form.dirty.value, model.isDirty()]).toEqual([false, false]);
   });
 
   // Было: `model.reset()` писал в производное поле значение снимка — снятого до первого расчёта, —
@@ -483,7 +493,7 @@ describe('сброс заявки — model.reset() против form.reset()', 
     expect(bundle.model.isDirty()).toBe(false);
   });
 
-  it('RL-14: initial + seed — правка seed входит в значения создания нод, но не в снимок модели', async () => {
+  it('RL-14: initial + seed — правки seed входят в точку отсчёта: оба сброса их сохраняют', async () => {
     const initial = createLoanInitial();
     initial.email = 'ivanov@example.ru';
     const { bundle } = build({
@@ -505,16 +515,18 @@ describe('сброс заявки — model.reset() против form.reset()', 
       'ЗК-000042',
     ]);
 
-    // поведение под вопросом [ReFormer-k152.14]: seed — «правка модели до сборки формы», но снимок
-    // модели снят до неё: model.reset() откатывает правки seed, а form.reset() их сохраняет — у
-    // двух сбросов разная точка отсчёта и здесь. Номер заявки сброс не трогает: полем владеет
+    // seed — правка модели при сборке формы, и точка отсчёта своей модели снимается после неё:
+    // model.reset() правки seed тоже сохраняет. Номер заявки сброс не трогает: полем владеет
     // сервер (`markDerived`), как и `set` с `patch` [ReFormer-e9rw].
+    model.email = 'petrov@example.ru';
+    model.dependents = 3;
     model.reset();
     expect([model.email, model.dependents, model.applicationNumber]).toEqual([
       'ivanov@example.ru',
-      0,
+      2,
       'ЗК-000042',
     ]);
+    expect(model.isDirty()).toBe(false);
   });
 
   it('RL-15: initial с ипотекой — смена вида выключает залог, а сброс выключенного поля возвращает загруженную стоимость', async () => {
@@ -526,7 +538,7 @@ describe('сброс заявки — model.reset() против form.reset()', 
     await settle();
 
     expect(form.loan.propertyValue.disabled.value).toBe(true);
-    // поведение под вопросом [ReFormer-k152.14]: `resetOnDisable` сбрасывает поле к значению
+    // Так задумано (решение по k152.14): `resetOnDisable` сбрасывает поле к значению
     // создания ноды, а у сборки из `initial` это загруженный залог — поле выключено, но не стёрто
     // и уходит в отправку автокредита. После загрузки через patch (RL-01, CB-01) поле стирается.
     expect([model.loan.propertyValue, model.loan.initialPayment]).toEqual([9_000_000, 2_000_000]);
@@ -547,10 +559,10 @@ describe('сброс заявки — model.reset() против form.reset()', 
     form.reset();
     await settle();
 
-    // поведение под вопросом: значения создания нод сняты до первой синхронизации — телефон
+    // поведение под вопросом [ReFormer-2k2x]: точка отсчёта снята до первой синхронизации — телефон
     // заполнен, телефон подписи пуст. Сброс пишет поля по очереди, syncFields отвечает на каждую
-    // запись, и побеждает последняя — пустой телефон подписи: телефон, с которым форма создана,
-    // стёрт, хотя form.reset() обещает «значения, с которыми форма создана».
+    // запись, и побеждает последняя — пустой телефон подписи: телефон точки отсчёта стёрт, хотя
+    // form.reset() обещает вернуть к ней.
     expect([model.phone, model.consent.smsPhone]).toEqual(['', '']);
   });
 });

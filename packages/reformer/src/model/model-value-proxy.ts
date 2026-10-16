@@ -17,6 +17,7 @@ import {
   ModelArrayNode,
   blankFrom,
   isIndexKey,
+  leafOfSignal,
 } from './model-nodes';
 import {
   signalsProxy,
@@ -298,6 +299,22 @@ export function provideArrayBlank(handle: unknown, initialValue: unknown): void 
  *
  * @internal
  */
+/**
+ * Точка отсчёта модели по ручке, к которой привязана нода формы: сигналу листа или фасаду
+ * массива. К ней сброс формы (`form.reset()`) возвращает ноду — к тому же, к чему `model.reset()`
+ * возвращает модель: последний `captureInitial` либо значение создания модели.
+ *
+ * `undefined` — ручка не из модели (нода над собственным сигналом): сбрасывать её не к чему,
+ * кроме значения, с которым она создана. @internal
+ */
+export function referenceOf(handle: unknown): { readonly value: unknown } | undefined {
+  if (typeof handle !== 'object' || handle === null) return undefined;
+  const array = arrayByFacade.get(handle);
+  if (array !== undefined) return { value: array.reference() };
+  const leaf = leafOfSignal(handle);
+  return leaf === undefined ? undefined : { value: leaf.reference() };
+}
+
 export function isModelFacade(value: unknown): boolean {
   if (value == null || typeof value !== 'object') return false;
   return arrayByFacade.has(value) || rootByFacade.has(value);

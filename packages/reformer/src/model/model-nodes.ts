@@ -160,6 +160,14 @@ export function arrayOf<U>(blank: () => U, items: readonly U[] = []): U[] {
 
 export type ModelNode = ModelLeafNode | ModelGroupNode | ModelArrayNode;
 
+/** Лист модели по его сигналу — сигнал и есть ручка, к которой привязано поле формы. */
+const leafBySignal = new WeakMap<object, ModelLeafNode>();
+
+/** Лист модели, чей это сигнал; `undefined` — сигнал не из модели. @internal */
+export function leafOfSignal(handle: object): { reference(): unknown } | undefined {
+  return leafBySignal.get(handle);
+}
+
 class ModelLeafNode {
   readonly kind = 'leaf' as const;
   readonly signal: PathAwareSignal<unknown>;
@@ -173,6 +181,7 @@ class ModelLeafNode {
     s.__path = path;
     this.signal = s as PathAwareSignal<unknown>;
     this.initial = clone(initial);
+    leafBySignal.set(this.signal, this);
   }
 
   rebase(path: string): void {
@@ -202,6 +211,10 @@ class ModelLeafNode {
   }
   captureInitial(): void {
     this.initial = clone(this.signal.peek());
+  }
+  /** Значение точки отсчёта — копия: правка полученного снимок не трогает. */
+  reference(): unknown {
+    return clone(this.initial);
   }
   dirty(): boolean {
     return this.differsFrom(this.initial);
@@ -462,6 +475,10 @@ export class ModelArrayNode {
   }
   captureInitial(): void {
     this.initial = clone(this.peek());
+  }
+  /** Элементы точки отсчёта — копия: правка полученного снимок не трогает. */
+  reference(): unknown[] {
+    return clone(this.initial);
   }
   dirty(): boolean {
     return this.differsFrom(this.initial);

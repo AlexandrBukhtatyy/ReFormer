@@ -136,7 +136,8 @@ export interface CreateFormConfig<T> {
   /**
    * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
    * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
-   * инициализации не срабатывают).
+   * инициализации не срабатывают). Модель, созданная из `initial`, снимает точку отсчёта после
+   * `seed` — сброс его правки не откатывает; точкой отсчёта переданной `model` управляет владелец.
    */
   seed?: (model: FormModel<T>) => void;
   /** Донастройка ПОСЛЕ сборки: получает готовый бандл. */
@@ -255,6 +256,10 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
   }
   const model = config.model ?? createModel<T>(config.initial as T);
   config.seed?.(model);
+  // Правки `seed` — часть начального состояния формы: точка отсчёта своей модели снимается после
+  // них, и сброс (`form.reset()`, `model.reset()`) их не откатывает. Точкой отсчёта переданной
+  // модели управляет её владелец.
+  if (config.model === undefined) model.captureInitial();
 
   const { tree, fieldWrapper, errorBoundary } = resolveTree(config, model);
   const compiled = tree !== undefined ? compileSchema(tree, model as object) : undefined;
