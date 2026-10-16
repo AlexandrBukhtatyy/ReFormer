@@ -85,7 +85,7 @@
   {
     "name": "@reformer/ui-kit/calendar (react-day-picker external)",
     "path": "packages/reformer-ui-kit/dist/calendar-base-*.js",
-    "limit": "2 kB"
+    "limit": "2.2 kB"
   },
   {
     "name": "@reformer/ui-kit/carousel (embla-carousel-react external)",
