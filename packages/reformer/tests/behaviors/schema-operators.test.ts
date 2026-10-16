@@ -90,9 +90,8 @@ describe('schema-operators — hideWhen', () => {
     expect(seen).toEqual([false, true, false, true]);
   });
 
-  it('два hideWhen на один селектор: действует последний', () => {
-    // поведение под вопросом [ReFormer-nm2x]: условия не объединяются по «или» — второе молча заменяет первое,
-    // хотя по документации «узел скрыт, пока условие истинно» (docs/llms/35-unified-contract.md).
+  it('два hideWhen на один селектор объединяются по «или» [ReFormer-nm2x]', () => {
+    // Узел скрыт, пока истинно любое условие: второе первое не заменяет.
     const model = createLoan();
     const controller = createSchemaController();
     attach(
@@ -105,9 +104,11 @@ describe('schema-operators — hideWhen', () => {
     );
     const view = mountScope(controller.scopeOf(model), ['mortgage']);
 
-    expect(view.isHidden('mortgage')).toBe(false); // первое условие истинно, но не действует
+    expect(view.isHidden('mortgage')).toBe(true); // первое условие истинно
+    model.kind = 'mortgage';
+    expect(view.isHidden('mortgage')).toBe(false); // оба ложны
     model.amount = 500;
-    expect(view.isHidden('mortgage')).toBe(true);
+    expect(view.isHidden('mortgage')).toBe(true); // истинно второе
   });
 
   it('снятие поведения с двумя hideWhen на селектор убирает условие целиком', () => {
@@ -153,9 +154,8 @@ describe('schema-operators — hideWhen', () => {
     expect(view.isHidden('mortgage')).toBe(true);
   });
 
-  it('снятие перекрывшего поведения не возвращает условие прежнего', () => {
-    // поведение под вопросом [ReFormer-nm2x]: у селектора одна ячейка условия — после снятия второго поведения
-    // первое, ещё живое, правило «скрыт, пока consumer» больше не действует.
+  it('снятие второго поведения оставляет условие первого, ещё живого [ReFormer-nm2x]', () => {
+    // Условия на селектор — стеком: снятие убирает только своё.
     const model = createLoan();
     const controller = createSchemaController();
     attach(
@@ -175,7 +175,7 @@ describe('schema-operators — hideWhen', () => {
 
     disposeForm(second);
 
-    expect(mountScope(controller.scopeOf(model), ['mortgage']).isHidden('mortgage')).toBe(false);
+    expect(mountScope(controller.scopeOf(model), ['mortgage']).isHidden('mortgage')).toBe(true);
   });
 });
 
@@ -595,9 +595,8 @@ describe('schema-operators — управление узлом', () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
-  it('patchProps и setHidden императивны: снятие поведения их не откатывает', () => {
-    // поведение под вопросом [ReFormer-nm2x]: правила операторов снимаются вместе с поведением, а то, что оно
-    // сделало через schema.node(…), остаётся — новое поведение получит узел скрытым.
+  it('patchProps и setHidden поведения откатываются при его снятии [ReFormer-nm2x]', () => {
+    // Как правила операторов: новое поведение не получит узел скрытым прежним.
     const model = createLoan();
     const controller = createSchemaController();
     const form = attach(
@@ -614,7 +613,29 @@ describe('schema-operators — управление узлом', () => {
     expect({
       hidden: maps.hiddenOverrides.get('summary'),
       props: maps.propsOverrides.get('summary'),
-    }).toEqual({ hidden: true, props: { currency: 'RUB' } });
+    }).toEqual({ hidden: undefined, props: undefined });
+  });
+
+  it('снятие поведения не трогает то, что после него переписали другие [ReFormer-nm2x]', () => {
+    const model = createLoan();
+    const controller = createSchemaController();
+    const form = attach(
+      model,
+      controller,
+      defineFormBehavior<Loan>(({ schema }) => {
+        schema.node('summary').setHidden(true).patchProps({ currency: 'RUB', title: 'Итог' });
+      })
+    );
+    const scope = controller.scopeOf(model);
+    scope.node('summary').setHidden(false).patchProps({ currency: 'USD', hint: 'внешний' });
+
+    disposeForm(form);
+    const maps = scope.__overrideMaps;
+
+    expect({
+      hidden: maps.hiddenOverrides.get('summary'),
+      props: maps.propsOverrides.get('summary'),
+    }).toEqual({ hidden: false, props: { currency: 'USD', hint: 'внешний' } });
   });
 
   it('сборка createForm: render.node и schema корневого поведения — одна область', () => {

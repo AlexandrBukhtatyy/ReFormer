@@ -116,28 +116,35 @@ describe('internals — readGroup / writeGroup', () => {
     });
   });
 
-  it('writeGroup: ключи цели, которых нет в значении, получают пустое значение', () => {
-    // поведение под вопросом [ReFormer-nm2x]: обход идёт по ключам ЦЕЛИ — отсутствующее в значении поле
-    // становится undefined (массив — пустым), тогда как `model.set` такие поля оставляет как
-    // есть. Через copyFrom групп разной формы это стирает поля цели.
+  it('writeGroup: ключи цели, которых нет в значении, остаются прежними [ReFormer-nm2x]', () => {
+    // Как `model.<группа>.set`: неполное значение не стирает поля цели, их пути — в `missing`.
     const model = createProfile();
+    const before = model.get().address;
+    const missing: string[] = [];
 
-    writeGroup(group(model.$.address), { city: 'Самара' });
+    writeGroup(group(model.$.address), { city: 'Самара', geo: { lat: 1 } }, missing);
 
-    expect(model.get().address).toEqual({
-      city: 'Самара',
-      geo: { lat: undefined, lng: undefined },
-      tags: [],
+    expect({ address: model.get().address, missing }).toEqual({
+      address: { city: 'Самара', geo: { lat: 1, lng: before.geo.lng }, tags: before.tags },
+      missing: ['geo.lng', 'tags'],
     });
   });
 
-  it('writeGroup без значения очищает все поля группы', () => {
-    // поведение под вопросом [ReFormer-nm2x]: то же — значение `undefined` не «ничего не писать», а «стереть всё».
+  it('writeGroup без значения группу не трогает [ReFormer-nm2x]', () => {
     const model = createProfile();
+    const before = model.get().address.geo;
+    const missing: string[] = [];
 
-    writeGroup(group(model.$.address.geo), undefined as unknown as Record<string, unknown>);
+    writeGroup(
+      group(model.$.address.geo),
+      undefined as unknown as Record<string, unknown>,
+      missing
+    );
 
-    expect(model.get().address.geo).toEqual({ lat: undefined, lng: undefined });
+    expect({ geo: model.get().address.geo, missing }).toEqual({
+      geo: before,
+      missing: ['(вся группа)'],
+    });
   });
 });
 

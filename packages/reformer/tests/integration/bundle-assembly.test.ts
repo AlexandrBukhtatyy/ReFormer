@@ -868,9 +868,11 @@ describe('поведение заявки — каждый оператор по
     await settle();
     expect(props()).toMatchObject({ progress: 30 });
 
+    // Снятие поведения откатывает всё, что оно записало в пропсы узла: заголовок из `onInit` и
+    // индикатор, убранный в `onDispose` [ReFormer-nm2x].
     disposeForm(bundle.form);
     await settle();
-    expect(props()).toMatchObject({ title: 'Новая заявка', progress: undefined });
+    expect(props()).toBeUndefined();
   });
 
   it('BA-38: сборка заявки привязывает компоненты полей и подформ к нодам', () => {

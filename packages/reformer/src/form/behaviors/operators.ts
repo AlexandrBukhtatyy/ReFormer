@@ -78,7 +78,13 @@ export function computeFrom<R>(
   });
 }
 
-/** Копирование `source → target` — скаляр или группа (объект целиком). */
+/**
+ * Копирование `source → target` — скаляр или группа (объект целиком).
+ *
+ * Группы разной формы копируются как `set` группы модели: поля цели, которых нет в значении,
+ * остаются прежними; в dev об этом одно предупреждение на оператор. Значение цели целиком
+ * собирает `transform`.
+ */
 export function copyFrom<T>(
   source: ReadonlySignal<T> | object,
   target: Signal<T> | object,
@@ -97,6 +103,9 @@ export function copyFrom<T>(
   // Снимок и условие — в момент записи, и побеждает последняя запись: снимок, снятый при прогоне
   // effect'а, иначе затёр бы данные, загруженные в том же тике, хотя копирование уже выключено.
   const writes = deferredWrites();
+  // Группы разной формы: поля цели, которых нет в значении, остаются прежними (как у `set`
+  // группы модели) — предупреждаем об этом один раз на оператор, а не на каждую запись.
+  let warned = false;
   effect(() => {
     readGroup(src); // подписка на все листья источника
     writes.cancelAll();
@@ -105,7 +114,16 @@ export function copyFrom<T>(
       if (when && !untracked(when)) return;
       const snapshot = untracked(() => readGroup(src)) as unknown as T;
       const value = transform ? transform(snapshot) : snapshot;
-      writeGroup(dst, value as unknown as Record<string, unknown>);
+      const missing: string[] = [];
+      writeGroup(dst, value as unknown as Record<string, unknown>, missing);
+      if (missing.length > 0 && !warned && process.env.NODE_ENV !== 'production') {
+        warned = true;
+        console.warn(
+          `[@reformer/core/behaviors] copyFrom(…, "${dst.__path ?? '?'}"): в значении нет полей ` +
+            `цели ${missing.map((path) => `«${path}»`).join(', ')} — они остались прежними. ` +
+            'Для групп разной формы соберите значение цели целиком в `transform`.'
+        );
+      }
     });
   });
   onDispose(() => writes.cancelAll());
@@ -172,7 +190,7 @@ export function enableWhen(
   options?: { resetOnDisable?: boolean }
 ): void {
   assertInsideSchema('enableWhen');
-  applyAvailability(target, condition, options);
+  applyAvailability('enableWhen', target, condition, options);
 }
 
 /** Условное выключение поля(ей) (инверсия {@link enableWhen}). */
@@ -182,15 +200,30 @@ export function disableWhen(
   options?: { resetOnDisable?: boolean }
 ): void {
   assertInsideSchema('disableWhen');
-  applyAvailability(target, () => !condition(), options);
+  applyAvailability('disableWhen', target, () => !condition(), options);
+}
+
+/**
+ * У цели нет ноды формы — правило ничего не выключит. Почти всегда это поле, которого нет в схеме
+ * формы, или ручка чужой модели; в dev об этом предупреждение.
+ */
+function warnWithoutNode(op: string, target: object): void {
+  if (process.env.NODE_ENV === 'production' || getNodeForSignal(target)) return;
+  const path = (target as { __path?: string }).__path ?? '?';
+  console.warn(
+    `[@reformer/core/behaviors] ${op}("${path}"): у поля нет ноды формы — правило ничего не ` +
+      'сделает. Поле не описано в схеме формы, либо ручка взята из другой модели.'
+  );
 }
 
 function applyAvailability(
+  op: string,
   target: EnableTarget | EnableTarget[],
   condition: () => boolean,
   options?: { resetOnDisable?: boolean }
 ): void {
   for (const t of asArray(target)) {
+    warnWithoutNode(op, t);
     if (isLeafSignal(t)) {
       onDispose(coreEnableWhen(t as ReadonlySignal<unknown>, condition, options));
     } else {

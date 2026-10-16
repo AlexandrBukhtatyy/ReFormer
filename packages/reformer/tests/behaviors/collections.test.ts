@@ -3,7 +3,8 @@
  *
  * `applyEach` держит поведения строк в своём реестре: удаление строки снимает её поведение, снятие
  * поведения формы — поведения всех строк. `apply` кладёт отписку под-схемы в сток родителя. Цель
- * оператора — ручка или фасад модели; ручка не того вида пропускается молча. `exclusiveFlag` и
+ * оператора — ручка или фасад модели; ручка не того вида — ошибка в dev, в production цель
+ * пропускается. `exclusiveFlag` и
  * `aggregateInto` пишут в соседние строки отложенно — здесь их сходимость, расходимость и
  * поведение на записях в одном тике.
  */
@@ -84,17 +85,32 @@ describe('collections — applyEach', () => {
     );
   });
 
-  it('ручка не массива — молча пропускается', () => {
-    // поведение под вопросом [ReFormer-nm2x]: ни ошибки, ни предупреждения в dev — опечатка в ручке незаметна.
+  it('ручка не массива — ошибка в dev с путём и видом цели [ReFormer-nm2x]', () => {
+    const model = createInvoice();
+    const rowRuns = vi.fn();
+    const attach = (pick: (m: FormModel<Invoice>) => unknown) => () =>
+      build(
+        model,
+        defineFormBehavior<Invoice>(({ model: m }) => {
+          // @ts-expect-error — типы запрещают ручку не массива; проверяется рантайм для JS-кода
+          applyEach(pick(m), defineFormBehavior<never>(rowRuns));
+        })
+      );
+
+    expect(attach((m) => m.$.address)).toThrowError(/applyEach\("address"\): цель — группа/);
+    expect(attach((m) => m.$.title)).toThrowError(/applyEach\("title"\): цель — поле-лист/);
+    expect(rowRuns).not.toHaveBeenCalled();
+  });
+
+  it('ручка не массива в production — пропускается без ошибки [ReFormer-nm2x]', () => {
+    vi.stubEnv('NODE_ENV', 'production');
     const model = createInvoice();
     const rowRuns = vi.fn();
     build(
       model,
       defineFormBehavior<Invoice>(({ model: m }) => {
-        // @ts-expect-error — типы запрещают ручку группы; рантайм для JS-кода её молча пропускает
+        // @ts-expect-error — типы запрещают ручку группы; рантайм в production её пропускает
         applyEach(m.$.address, defineFormBehavior<never>(rowRuns));
-        // @ts-expect-error — типы запрещают ручку листа; рантайм для JS-кода её молча пропускает
-        applyEach(m.$.title, defineFormBehavior<never>(rowRuns));
       })
     );
 
@@ -239,15 +255,33 @@ describe('collections — apply', () => {
     ).toThrowError(/"apply" вызван вне defineFormBehavior/);
   });
 
-  it('цели не-группы (массив, лист) пропускаются молча, группа из того же списка подключается', () => {
-    // поведение под вопросом [ReFormer-nm2x]: как и у applyEach — без ошибки и без предупреждения в dev.
+  it('цель не группа (массив, лист) — ошибка в dev [ReFormer-nm2x]', () => {
+    const model = createInvoice();
+    const attach = (pick: (m: FormModel<Invoice>) => unknown) => () =>
+      build(
+        model,
+        defineFormBehavior<Invoice>(({ model: m }) => {
+          // @ts-expect-error — типы запрещают ручку не группы; проверяется рантайм для JS-кода
+          apply(
+            pick(m),
+            defineFormBehavior(() => {})
+          );
+        })
+      );
+
+    expect(attach((m) => m.$.lines)).toThrowError(/apply\("lines"\): цель — массив.*applyEach/);
+    expect(attach((m) => m.$.title)).toThrowError(/apply\("title"\): цель — поле-лист/);
+  });
+
+  it('в production цели не-группы пропускаются, группа из того же списка подключается [ReFormer-nm2x]', () => {
+    vi.stubEnv('NODE_ENV', 'production');
     const model = createInvoice();
     const runs: unknown[] = [];
     build(
       model,
       defineFormBehavior<Invoice>(({ model: m }) => {
         apply(
-          // @ts-expect-error — типы запрещают ручку листа; рантайм для JS-кода её молча пропускает
+          // @ts-expect-error — типы запрещают ручку листа; рантайм в production её пропускает
           [m.$.lines, m.$.title, m.$.address],
           defineFormBehavior<{ city: string }>(({ model: sub }) => void runs.push(sub.get()))
         );
@@ -327,17 +361,19 @@ describe('collections — exclusiveFlag', () => {
     );
   });
 
-  it('ручка не массива — молча пропускается', () => {
+  it('ручка не массива — ошибка в dev [ReFormer-nm2x]', () => {
     const model = createInvoice();
     const getFlag = vi.fn();
-    build(
-      model,
-      defineFormBehavior<Invoice>(({ model: m }) => {
-        // @ts-expect-error — типы запрещают ручку группы; рантайм для JS-кода её молча пропускает
-        exclusiveFlag(m.$.address, getFlag);
-      })
-    );
 
+    expect(() =>
+      build(
+        model,
+        defineFormBehavior<Invoice>(({ model: m }) => {
+          // @ts-expect-error — типы запрещают ручку группы; проверяется рантайм для JS-кода
+          exclusiveFlag(m.$.address, getFlag);
+        })
+      )
+    ).toThrowError(/exclusiveFlag\("address"\): цель — группа/);
     expect(getFlag).not.toHaveBeenCalled();
   });
 
@@ -368,16 +404,34 @@ describe('collections — exclusiveFlag', () => {
     expect(flags(model)).toEqual([true, false]);
   });
 
-  it('строка, добавленная с флагом true, прежний выбор не снимает', async () => {
-    // поведение под вопросом [ReFormer-nm2x]: исключение срабатывает на СМЕНУ флага, а новая строка с true его не
-    // меняет — в массиве два основных. То же с начальными данными, где флаг стоит у двух строк.
+  it('строка, добавленная с флагом true, прежний выбор не снимает — флаг сброшен у неё [ReFormer-nm2x]', async () => {
     const model = createInvoice([line(1, true)]);
     build(model, exclusive);
 
     model.lines.push(line(2, true));
     await tick();
 
-    expect(flags(model)).toEqual([true, true]);
+    expect(flags(model)).toEqual([true, false]);
+  });
+
+  it('начальные данные с флагом у нескольких строк — остаётся первая [ReFormer-nm2x]', async () => {
+    const model = createInvoice([line(1), line(2, true), line(3, true)]);
+    build(model, exclusive);
+    await tick();
+
+    expect(flags(model)).toEqual([false, true, false]);
+  });
+
+  it('добавленная и тут же выбранная строка снимает прежний выбор [ReFormer-nm2x]', async () => {
+    // Строка пришла без флага, выбор — смена флага: действует обычное исключение.
+    const model = createInvoice([line(1, true)]);
+    build(model, exclusive);
+
+    model.lines.push(line(2));
+    model.lines.at(1).primary = true;
+    await tick();
+
+    expect(flags(model)).toEqual([false, true]);
   });
 
   it('удалённая строка в исключении больше не участвует', async () => {
@@ -434,18 +488,19 @@ describe('collections — aggregateInto', () => {
     );
   });
 
-  it('ручка не массива — молча пропускается', async () => {
+  it('ручка не массива — ошибка в dev [ReFormer-nm2x]', () => {
     const model = createInvoice();
     const derive = vi.fn(() => []);
-    build(
-      model,
-      defineFormBehavior<Invoice>(({ model: m }) => {
-        // @ts-expect-error — типы запрещают ручку группы; рантайм для JS-кода её молча пропускает
-        aggregateInto(m.$.address, derive);
-      })
-    );
-    await tick();
 
+    expect(() =>
+      build(
+        model,
+        defineFormBehavior<Invoice>(({ model: m }) => {
+          // @ts-expect-error — типы запрещают ручку группы; проверяется рантайм для JS-кода
+          aggregateInto(m.$.address, derive);
+        })
+      )
+    ).toThrowError(/aggregateInto\("address"\): цель — группа/);
     expect(derive).not.toHaveBeenCalled();
   });
 

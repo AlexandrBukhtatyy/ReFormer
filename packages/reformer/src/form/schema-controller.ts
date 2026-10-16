@@ -136,6 +136,35 @@ export interface SchemaController {
 }
 
 /**
+ * Записи поведений по селектору — стеками. Реестры хранилища (`conditionRegistry`,
+ * `callbackRegistry`, `lifecycleRegistry`) держат действующую запись, а стек — все живые: снятие
+ * поведения убирает только своё, и снова действует запись прежнего, ещё живого поведения.
+ */
+interface RuleStacks {
+  /** Условия скрытия: узел скрыт, если истинно любое. Сигнал — чтобы смену состава видел рендерер. */
+  readonly hide: Map<string, Signal<ReadonlyArray<() => boolean>>>;
+  readonly events: Map<string, Map<string, Array<(...args: any[]) => any>>>;
+  readonly hooks: Map<string, Map<keyof NodeLifecycleHooks, unknown[]>>;
+}
+const ruleStacks = new WeakMap<SchemaOverrideMaps, RuleStacks>();
+
+function stacksOf(maps: SchemaOverrideMaps): RuleStacks {
+  let stacks = ruleStacks.get(maps);
+  if (!stacks) {
+    stacks = { hide: new Map(), events: new Map(), hooks: new Map() };
+    ruleStacks.set(maps, stacks);
+  }
+  return stacks;
+}
+
+/** Убрать одно вхождение из стека; `true` — стек опустел. */
+function removeFrom<V>(stack: V[], value: V): boolean {
+  const at = stack.lastIndexOf(value);
+  if (at !== -1) stack.splice(at, 1);
+  return stack.length === 0;
+}
+
+/**
  * Пустое хранилище переопределений области.
  *
  * @group Schema
@@ -226,37 +255,80 @@ export function createSchemaScope(
         return ref as { current: H | null };
       },
       addHideCondition(condition) {
-        maps.conditionRegistry.set(selector, condition);
+        // Условия на один селектор объединяются по «или»: узел скрыт, пока истинно любое.
+        const { hide } = stacksOf(maps);
+        let list = hide.get(selector);
+        if (!list) {
+          const conditions = signal<ReadonlyArray<() => boolean>>([]);
+          list = conditions;
+          hide.set(selector, conditions);
+          maps.conditionRegistry.set(selector, () => conditions.value.some((test) => test()));
+        }
+        list.value = [...list.value, condition];
+        const own = list;
         return () => {
-          if (maps.conditionRegistry.get(selector) === condition) {
+          const rest = [...own.value];
+          if (!removeFrom(rest, condition)) {
+            own.value = rest;
+            return;
+          }
+          own.value = rest;
+          if (hide.get(selector) === own) {
+            hide.delete(selector);
             maps.conditionRegistry.delete(selector);
           }
         };
       },
       addEventHandler(event, handler) {
+        const { events } = stacksOf(maps);
+        let byEvent = events.get(selector);
+        if (!byEvent) events.set(selector, (byEvent = new Map()));
+        let stack = byEvent.get(event);
+        if (!stack) byEvent.set(event, (stack = []));
+        stack.push(handler);
         let handlers = maps.callbackRegistry.get(selector);
-        if (!handlers) {
-          handlers = new Map();
-          maps.callbackRegistry.set(selector, handlers);
-        }
+        if (!handlers) maps.callbackRegistry.set(selector, (handlers = new Map()));
         handlers.set(event, handler);
-        const registered = handlers;
+        const own = stack;
+        const ownEvents = byEvent;
         return () => {
-          if (registered.get(event) === handler) registered.delete(event);
+          const emptied = removeFrom(own, handler);
+          const registered = maps.callbackRegistry.get(selector);
+          if (!emptied) {
+            registered?.set(event, own[own.length - 1]);
+            return;
+          }
+          ownEvents.delete(event);
+          registered?.delete(event);
+          if (registered?.size === 0) maps.callbackRegistry.delete(selector);
+          if (ownEvents.size === 0) events.delete(selector);
         };
       },
       addLifecycleHook(hook, value) {
+        const { hooks } = stacksOf(maps);
+        let byHook = hooks.get(selector);
+        if (!byHook) hooks.set(selector, (byHook = new Map()));
+        let stack = byHook.get(hook);
+        if (!stack) byHook.set(hook, (stack = []));
+        stack.push(value);
         maps.lifecycleRegistry.set(selector, {
           ...(maps.lifecycleRegistry.get(selector) ?? {}),
           [hook]: value,
         });
+        const own = stack;
+        const ownHooks = byHook;
         return () => {
-          const hooks = maps.lifecycleRegistry.get(selector);
-          if (hooks?.[hook] !== value) return;
-          const rest = { ...hooks };
-          delete rest[hook];
-          if (Object.keys(rest).length === 0) maps.lifecycleRegistry.delete(selector);
-          else maps.lifecycleRegistry.set(selector, rest);
+          const emptied = removeFrom(own, value);
+          const current = { ...(maps.lifecycleRegistry.get(selector) ?? {}) };
+          if (emptied) {
+            ownHooks.delete(hook);
+            delete current[hook];
+          } else {
+            (current as Record<string, unknown>)[hook] = own[own.length - 1];
+          }
+          if (Object.keys(current).length === 0) maps.lifecycleRegistry.delete(selector);
+          else maps.lifecycleRegistry.set(selector, current);
+          if (ownHooks.size === 0) hooks.delete(selector);
         };
       },
       __selector: selector,

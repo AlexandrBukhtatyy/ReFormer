@@ -112,12 +112,16 @@ describe('context — область внутри схемы', () => {
     const sameAsBundle = (scope: BehaviorScope<Profile> | undefined) => ({
       model: scope?.model === bundle.model,
       form: scope?.form === bundle.form,
-      schema: scope?.schema === bundle.render.controller.scopeOf(bundle.model),
+      // Схема поведения — обёртка над областью контроллера (ведёт учёт для отката), хранилище то же.
+      schema:
+        scope?.schema.__overrideMaps ===
+        bundle.render.controller.scopeOf(bundle.model).__overrideMaps,
       flow: scope?.flow === bundle.flow && scope?.flow !== undefined,
     });
 
     const all = { model: true, form: true, schema: true, flow: true };
     expect([sameAsBundle(fromArgument), sameAsBundle(fromScope)]).toEqual([all, all]);
+    expect(fromScope?.schema).toBe(fromArgument?.schema);
   });
 
   it('под-схема видит свою область, после неё снова родительская', () => {

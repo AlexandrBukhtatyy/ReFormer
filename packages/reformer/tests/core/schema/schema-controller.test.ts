@@ -427,7 +427,7 @@ describe('schema-controller — ключ хранилища и схема обл
 });
 
 describe('schema-controller — методы записи правил', () => {
-  it('addHideCondition: снятие убирает своё условие, но не более позднее', () => {
+  it('addHideCondition: условия по «или», снятие убирает только своё [ReFormer-nm2x]', () => {
     const scope = createSchemaScope();
     const maps = scope.__overrideMaps;
     const first = () => true;
@@ -435,11 +435,31 @@ describe('schema-controller — методы записи правил', () => {
 
     const removeFirst = scope.node('extra').addHideCondition(first);
     const removeSecond = scope.node('extra').addHideCondition(second);
+    expect(maps.conditionRegistry.get('extra')?.()).toBe(true);
     removeFirst();
-    expect(maps.conditionRegistry.get('extra')).toBe(second);
+    expect(maps.conditionRegistry.get('extra')?.()).toBe(false);
 
     removeSecond();
     expect(maps.conditionRegistry.has('extra')).toBe(false);
+  });
+
+  it('addEventHandler и addLifecycleHook: снятие верхней записи возвращает прежнюю [ReFormer-nm2x]', () => {
+    const scope = createSchemaScope();
+    const maps = scope.__overrideMaps;
+    const early = () => 'early';
+    const late = () => 'late';
+
+    scope.node('block').addEventHandler('onClick', early);
+    const removeLate = scope.node('block').addEventHandler('onClick', late);
+    scope.node('block').addLifecycleHook('onMount', early);
+    const removeLateHook = scope.node('block').addLifecycleHook('onMount', late);
+    expect(maps.callbackRegistry.get('block')?.get('onClick')).toBe(late);
+    expect(maps.lifecycleRegistry.get('block')?.onMount).toBe(late);
+
+    removeLate();
+    removeLateHook();
+    expect(maps.callbackRegistry.get('block')?.get('onClick')).toBe(early);
+    expect(maps.lifecycleRegistry.get('block')?.onMount).toBe(early);
   });
 
   it('addEventHandler: обработчики событий узла независимы, снятие — только своего', () => {

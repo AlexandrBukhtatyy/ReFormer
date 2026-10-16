@@ -15,7 +15,12 @@
 import { effect as preactEffect } from '@preact/signals-core';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
 import { runOutsideEffect } from '../../model/safe-effect';
-import { createSchemaController, type SchemaController } from '../schema-controller';
+import {
+  createSchemaController,
+  type SchemaController,
+  type SchemaNodeControl,
+  type SchemaScope,
+} from '../schema-controller';
 import type { BehaviorScope, FormBehavior } from './types';
 import type { FormFlow } from '../flow/flow';
 
@@ -27,6 +32,13 @@ interface RunContext {
   form: unknown;
   controller: SchemaController;
   flow: FormFlow | undefined;
+  /**
+   * Откат того, что поведение сделало с узлами императивно (`setHidden`, `patchProps`), — при
+   * снятии, после всех его отписок. См. {@link behaviorSchema}.
+   */
+  rollback?: () => void;
+  /** Область схемы поведения — одна на прогон, см. {@link behaviorSchema}. */
+  schema?: SchemaScope;
 }
 let current: RunContext | null = null;
 
@@ -53,6 +65,8 @@ function disposeRun(ctx: RunContext): void {
   for (const cleanup of ctx.cleanups) cleanup();
   for (const cancel of ctx.deferred) cancel();
   ctx.deferred.clear();
+  // Последним: то, что поведение записало в узлы в своём `onDispose`, тоже откатывается.
+  ctx.rollback?.();
 }
 
 function requireCtx(op: string): RunContext {
@@ -115,11 +129,82 @@ export function getFlow(op = 'getFlow'): FormFlow | undefined {
   return requireCtx(op).flow;
 }
 
+/**
+ * Область схемы для поведения. То, что поведение сделало с узлами императивно (`setHidden`,
+ * `patchProps`), снимается вместе с ним — как правила операторов: иначе новое поведение получило
+ * бы узел скрытым прежним. Откатывается только то, что с тех пор никто не переписал.
+ */
+function behaviorSchema(ctx: RunContext): SchemaScope {
+  if (ctx.schema) return ctx.schema;
+  const scope = ctx.controller.scopeOf(ctx.model as object);
+  const maps = scope.__overrideMaps;
+  // По записи на селектор: последнее значение `hidden` и каждого ключа пропсов от этого поведения.
+  const records = new Map<string, { hidden?: boolean; props: Map<string, unknown> }>();
+  const recordOf = (selector: string) => {
+    let record = records.get(selector);
+    if (!record) {
+      record = { props: new Map<string, unknown>() };
+      records.set(selector, record);
+    }
+    return record;
+  };
+  ctx.rollback = () => {
+    for (const [selector, own] of records) {
+      const node = scope.node(selector);
+      if (own.hidden !== undefined && maps.hiddenOverrides.get(selector) === own.hidden) {
+        node.resetHidden();
+      }
+      const props = maps.propsOverrides.get(selector);
+      if (props == null || own.props.size === 0) continue;
+      const kept = Object.entries(props).filter(
+        ([key, value]) => !(own.props.has(key) && Object.is(own.props.get(key), value))
+      );
+      if (kept.length === Object.keys(props).length) continue;
+      node.resetProps();
+      if (kept.length > 0) node.patchProps(Object.fromEntries(kept));
+    }
+    records.clear();
+  };
+  ctx.schema = {
+    ...scope,
+    node(selector: string): SchemaNodeControl {
+      const node = scope.node(selector);
+      const control: SchemaNodeControl = {
+        ...node,
+        setHidden(value) {
+          node.setHidden(value);
+          recordOf(selector).hidden = value;
+          return control;
+        },
+        patchProps(partial) {
+          node.patchProps(partial);
+          const record = recordOf(selector);
+          for (const [key, value] of Object.entries(partial)) record.props.set(key, value);
+          return control;
+        },
+        resetHidden() {
+          node.resetHidden();
+          const record = records.get(selector);
+          if (record) record.hidden = undefined;
+          return control;
+        },
+        resetProps() {
+          node.resetProps();
+          records.get(selector)?.props.clear();
+          return control;
+        },
+      };
+      return control;
+    },
+  };
+  return ctx.schema;
+}
+
 const scopeOf = (ctx: RunContext): BehaviorScope<unknown> =>
   ({
     model: ctx.model,
     form: ctx.form,
-    schema: ctx.controller.scopeOf(ctx.model as object),
+    schema: behaviorSchema(ctx),
     flow: ctx.flow,
   }) as BehaviorScope<unknown>;
 

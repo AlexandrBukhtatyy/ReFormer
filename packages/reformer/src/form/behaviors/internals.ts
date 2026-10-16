@@ -51,11 +51,32 @@ export function readGroup(g: GroupSignals): Record<string, unknown> {
   }
   return out;
 }
-export function writeGroup(g: GroupSignals, val: Record<string, unknown>): void {
+/**
+ * Запись значения в группу — как полная установка `model.<группа>.set(...)`: поля цели, которых в
+ * значении нет, остаются прежними, а не стираются. Их пути (относительно группы) складываются в
+ * `missing` — по ним вызывающий предупреждает в dev. Значение не объект — группа не тронута.
+ *
+ * @param at - Путь текущей группы относительно корня записи (для `missing`).
+ */
+export function writeGroup(
+  g: GroupSignals,
+  val: Record<string, unknown>,
+  missing?: string[],
+  at = ''
+): void {
+  if (val == null || typeof val !== 'object') {
+    missing?.push(at === '' ? '(вся группа)' : at);
+    return;
+  }
   for (const k of Object.keys(g)) {
+    const path = at === '' ? k : `${at}.${k}`;
+    if (!(k in val)) {
+      missing?.push(path);
+      continue;
+    }
     const child = g[k];
-    if (isValueHandle(child)) child.value = val?.[k];
-    else writeGroup(child as GroupSignals, (val?.[k] as Record<string, unknown>) ?? {});
+    if (isValueHandle(child)) child.value = val[k];
+    else writeGroup(child as GroupSignals, val[k] as Record<string, unknown>, missing, path);
   }
 }
 

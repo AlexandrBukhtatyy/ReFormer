@@ -311,7 +311,7 @@ BA-41). Проверять результат — после `await settle()` (�
 | `ReFormer-2k2x` | reset-and-loading · RL-16                               | `form.reset()` пары `syncFields` пишет поля по очереди: побеждает последняя запись                         |
 | `ReFormer-hn34` | async-and-races · AR-10, AR-12; submit-statuses · SS-18 | устаревший вердикт шага стирает замечание отправки; ожидание удалённой строки; замечание сервера на группе |
 | `ReFormer-04vp` | conditional-branches · CB-12                            | поведение включает поле внутри выключенной вручную группы                                                  |
-| `ReFormer-nm2x` | conditional-branches · CB-07                            | `compute` без `when` заполняет выключенное поле                                                            |
+| `ReFormer-3ale` | conditional-branches · CB-07                            | `compute` без `when` заполняет выключенное поле                                                            |
 | `ReFormer-0f7y` | react-assembly · RA-02, RA-05                           | StrictMode зовёт фабрику дважды; повторная проверка без правок перерисовывает поля с замечаниями           |
 | `ReFormer-5jew` | react-assembly · RA-13                                  | `setHidden(true)` прячет узел, но поля не выключает                                                        |
 | `ReFormer-y5g8` | wizard-happy-path · WH-03                               | проверка шага метит `touched` выключенные поля и ветки `validateWhen`                                      |

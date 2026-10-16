@@ -246,7 +246,8 @@ describe('schema-controller — снятие правил поведения', (
       sizes.add(JSON.stringify({ rules: rulesOf(root), callbackKeys: root.callbackRegistry.size }));
     }
 
-    expect([...sizes]).toEqual([JSON.stringify({ rules: NO_RULES, callbackKeys: 1 })]);
+    // Пустых записей не остаётся: снятый последний обработчик убирает и карту селектора.
+    expect([...sizes]).toEqual([JSON.stringify({ rules: NO_RULES, callbackKeys: 0 })]);
   });
 });
 
@@ -275,7 +276,7 @@ describe('schema-controller — сверка селекторов после с�
     expect({ before, after: unknownOf(bundle) }).toEqual({ before: ['ghost'], after: [] });
   });
 
-  it('снятый обработчик события оставляет селектор в сверке', () => {
+  it('снятый обработчик события селектор в сверке не оставляет [ReFormer-nm2x]', () => {
     const bundle = withGhostRule(
       defineFormBehavior<Shape>(({ schema }) => {
         onComponentEvent(schema.node('ghost'), 'onClick', () => {});
@@ -284,12 +285,11 @@ describe('schema-controller — сверка селекторов после с�
 
     disposeForm(bundle.form);
 
-    // поведение под вопросом: обработчик снят, но пустая карта обработчиков селектора остаётся в
-    // `callbackRegistry` — сверка по её ключам по-прежнему называет узел, хотя правил на нём нет.
+    // Снятие последнего обработчика убирает и карту селектора — сверка узел больше не называет.
     expect({
       handlers: rulesOf(mapsOf(bundle.render.controller, bundle.model)).handlers,
       unknown: unknownOf(bundle),
-    }).toEqual({ handlers: [], unknown: ['ghost'] });
+    }).toEqual({ handlers: [], unknown: [] });
   });
 });
 

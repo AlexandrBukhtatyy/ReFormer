@@ -19,6 +19,7 @@ import type { FormModel, ModelArray } from '../../model/types';
 import type { FormGroup } from '../types/index';
 import { getNodeForSignal } from '../signal-node-registry';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
+import { isModelContainerSignal } from '../../model/model-signals-proxy';
 import {
   assertInsideSchema,
   getController,
@@ -68,6 +69,44 @@ type GroupTarget<V> = GroupHandle<V> | FormModel<NonNullable<V>>;
 
 /** Путь ручки — только для сообщений об ошибках. */
 const pathOf = (handle: object): string => (handle as { __path?: string }).__path ?? '?';
+
+/** Вид цели оператора — для сообщения «ручка не того вида». */
+function kindOf(target: unknown): string {
+  if (target === null || target === undefined) return String(target);
+  if (arrayHandleOf(target)) return 'массив';
+  if (groupHandleOf(target)) return 'группа';
+  if (
+    typeof target === 'object' &&
+    typeof (target as { peek?: unknown }).peek === 'function' &&
+    !isModelContainerSignal(target)
+  ) {
+    return 'поле-лист';
+  }
+  return 'не ручка модели';
+}
+
+/**
+ * Цель оператора не того вида — в dev ошибка: опечатка в ручке иначе незаметна, правило просто
+ * не работает. В production цель пропускается, как раньше.
+ */
+function wrongTarget(op: string, target: unknown, expected: 'массив' | 'группа'): void {
+  if (process.env.NODE_ENV === 'production') return;
+  // Фасад (`model.lines`) пути не несёт — путь у его ручки.
+  const handle =
+    target !== null && typeof target === 'object'
+      ? (arrayHandleOf(target) ?? groupHandleOf(target) ?? target)
+      : undefined;
+  const path = (handle as { __path?: unknown } | undefined)?.__path;
+  const at = typeof path === 'string' ? `("${path}")` : '';
+  const hint =
+    expected === 'массив'
+      ? 'нужен массив. Передайте ручку `model.$.<массив>` или фасад `model.<массив>`; группу ' +
+        'подключают через `apply`.'
+      : 'нужна группа. Передайте ручку `model.$.<группа>` или фасад `model.<группа>`; массив ' +
+        'подключают через `applyEach`. Группа с начальным значением `null` под-модели не имеет — ' +
+        'задайте ей объект.';
+  throw new Error(`[@reformer/core/behaviors] ${op}${at}: цель — ${kindOf(target)}, а ${hint}`);
+}
 
 /**
  * Заглушка формы строки для НЕматериализованного массива: бросает понятную ошибку при доступе к ноде.
@@ -119,7 +158,7 @@ export function applyEach<TItem extends object>(
   const controller = getController('applyEach'); // вне схемы поведения — понятная ошибка
   const flow = getFlow('applyEach');
   const handle = arrayHandleOf(array);
-  if (!handle) return;
+  if (!handle) return wrongTarget('applyEach', array, 'массив');
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   const arrNode = getNodeForSignal(handle) as RowArrayNode | undefined;
   // Длину берём из НОДЫ массива (её строки обновляются ПОСЛЕ построения форм строк) — так rowForm готов
@@ -178,6 +217,10 @@ function touchValue(v: unknown): void {
  * Когда флаг строки становится true, у остальных строк он сбрасывается в false. Не хрупок к push:
  * новые строки с флагом false исключения не запускают.
  *
+ * Начальные данные и добавленные строки флаг не МЕНЯЮТ — он приходит сразу `true`. Такая строка
+ * прежний выбор не снимает: флаг сбрасывается у неё. Из нескольких пришедших с `true` сразу
+ * (начальные данные) остаётся первая по порядку строк.
+ *
  * @example
  * exclusiveFlag(model.$.contacts, (row) => row.$.primary);
  */
@@ -187,11 +230,30 @@ export function exclusiveFlag<TItem extends object>(
 ): void {
   assertInsideSchema('exclusiveFlag');
   const handle = arrayHandleOf(array);
-  if (!handle) return;
+  if (!handle) return wrongTarget('exclusiveFlag', array, 'массив');
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
+  // Строки, пришедшие с флагом `true` и ещё не сверенные: друг другу они выбор не уступают —
+  // сверяются по очереди подключения, то есть по порядку строк.
+  const arrived = new Set<unknown>();
   applyEach(
     handle as ArrayHandle<TItem>,
     defineFormBehavior<TItem>(({ model: row }) => {
+      if (getFlag(row).peek()) {
+        arrived.add(row);
+        onDispose(() => arrived.delete(row));
+        defer(() => {
+          arrived.delete(row);
+          const flag = getFlag(row);
+          if (!flag.peek()) return;
+          for (let i = 0; i < rows.length; i++) {
+            const other = rows.at(i);
+            if (other && other !== row && !arrived.has(other) && getFlag(other).peek()) {
+              flag.value = false; // выбор уже есть — пришедшая строка его не снимает
+              return;
+            }
+          }
+        });
+      }
       onChange(getFlag(row), (on) => {
         // Флаг — текущий, а не на момент изменения: строку выбрали и тут же сняли — прежний выбор
         // другой строки не сбрасывается; две строки выбраны в одном тике — остаётся первая.
@@ -228,7 +290,7 @@ export function aggregateInto<TItem extends object>(
 ): void {
   assertInsideSchema('aggregateInto');
   const handle = arrayHandleOf(array);
-  if (!handle) return;
+  if (!handle) return wrongTarget('aggregateInto', array, 'массив');
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
   let scheduled = false;
   let runs = 0;
@@ -285,7 +347,10 @@ export function apply<V extends object | null | undefined>(
   for (const target of asArray(targets)) {
     // Цель — группа. Массив и лист под-модели не имеют: массив подключают через `applyEach`.
     const handle = groupHandleOf(target);
-    if (!handle) continue;
+    if (!handle) {
+      wrongTarget('apply', target, 'группа');
+      continue;
+    }
     const subModel = modelOf(handle as { peek(): object }) as unknown as FormModel<NonNullable<V>>;
     // Форма может отсутствовать (модель без формы, под-схема работает только со значениями) —
     // тогда node-операции через `form.*` недоступны.

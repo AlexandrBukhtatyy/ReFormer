@@ -299,9 +299,8 @@ describe('operators — copyFrom', () => {
     expect(model.residence.zip).toBe('420000');
   });
 
-  it('группы разной формы: поля цели, которых нет в источнике, затираются', async () => {
-    // поведение под вопросом [ReFormer-nm2x]: обход идёт по ключам цели — поле, которого нет в источнике,
-    // становится undefined, хотя `model.set` такие поля оставляет как есть.
+  it('группы разной формы: поля цели, которых нет в источнике, остаются, в dev — предупреждение [ReFormer-nm2x]', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     interface Mismatch {
       short: { city: string };
       long: { city: string; vat: string };
@@ -316,10 +315,17 @@ describe('operators — copyFrom', () => {
     });
     await tick();
 
+    model.short.city = 'Самара';
+    await tick();
+
     expect({ city: model.long.city, vat: model.long.vat }).toEqual({
-      city: 'Казань',
-      vat: undefined,
+      city: 'Самара',
+      vat: '7701',
     });
+    // Одно предупреждение на оператор, а не на каждую запись.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('«vat»');
+    warn.mockRestore();
   });
 });
 
@@ -615,8 +621,9 @@ describe('operators — enableWhen / disableWhen', () => {
     expect([form.rows.disabled.value, form.rows.at(0).name.disabled.value]).toEqual([true, true]);
   });
 
-  it('ручки без ноды в форме — ничего не делают и не бросают', async () => {
+  it('ручки без ноды в форме — ничего не делают, не бросают, в dev предупреждают [ReFormer-nm2x]', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const model = createCredit();
     const foreign = createCredit(); // другая модель: её ручек нет в реестре этой формы
     const detached = signal(0);
@@ -633,10 +640,32 @@ describe('operators — enableWhen / disableWhen', () => {
     model.on = false;
     await tick();
 
-    expect({ city: foreign.address.city, errors: error.mock.calls.length }).toEqual({
+    expect({
+      city: foreign.address.city,
+      errors: error.mock.calls.length,
+      warnings: warn.mock.calls.map(
+        ([message]) => /enableWhen\("([^"]*)"\)/.exec(String(message))?.[1]
+      ),
+    }).toEqual({
       city: 'Самара',
       errors: 0,
+      warnings: ['tags', 'address', '?'],
     });
+  });
+
+  it('ручки без ноды в production — без предупреждения [ReFormer-nm2x]', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const model = createCredit();
+
+    createFormFromModel<Credit>({
+      model,
+      behavior: defineFormBehavior<Credit>(({ model: m }) => {
+        disableWhen(m.$.tags, () => m.on);
+      }),
+    });
+
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('disableWhen — инверсия: выключено, пока условие истинно; resetOnDisable сбрасывает', async () => {

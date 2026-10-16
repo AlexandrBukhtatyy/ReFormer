@@ -71,7 +71,7 @@ describe('Область поведения: schema', () => {
     });
 
     const root = controller.scopeOf(model);
-    expect(seen).toBe(root);
+    expect(seen?.__overrideMaps).toBe(root.__overrideMaps);
     expect(root.__overrideMaps.conditionRegistry.get('mortgage')?.()).toBe(true);
     model.kind = 'mortgage';
     expect(root.__overrideMaps.conditionRegistry.get('mortgage')?.()).toBe(false);
@@ -233,7 +233,7 @@ describe('Операторы узлов схемы', () => {
 
     const maps = controller.scopeOf(model).__overrideMaps;
     expect(maps.conditionRegistry.size).toBe(0);
-    expect(maps.callbackRegistry.get('wizard')?.size).toBe(0);
+    expect(maps.callbackRegistry.has('wizard')).toBe(false);
     expect(maps.lifecycleRegistry.size).toBe(0);
     expect(maps.effectRegistry).toEqual([]);
   });
