@@ -186,7 +186,7 @@ interface RadioGroupOptionsProps {
 | `onValueChange` | `(value: string) => void` | —       | Radix-колбэк выбора. В форме в модель уходит строка (`''` → `null`). |
 | `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                              |
 
-По умолчанию варианты раскладываются вертикально (`flex flex-col gap-2`).
+По умолчанию варианты стоят столбцом: контейнер группы — сетка `grid gap-3`.
 
 ### Common Patterns
 
@@ -204,7 +204,8 @@ const LOAN_TYPES = [
 <RadioGroupOptions value={loanType} onValueChange={setLoanType} options={LOAN_TYPES} />;
 ```
 
-Горизонтальная раскладка (через `className`):
+Горизонтальная раскладка — через `className`. Классы сливаются через tailwind-merge, поэтому `flex`
+заменяет `grid` контейнера; `flex-row` на сетке ничего бы не сделал:
 
 ```tsx
 <RadioGroupOptions
@@ -215,7 +216,7 @@ const LOAN_TYPES = [
     { value: 'm', label: 'M' },
     { value: 'l', label: 'L' },
   ]}
-  className="!flex-row gap-6"
+  className="flex flex-wrap gap-6"
 />
 ```
 

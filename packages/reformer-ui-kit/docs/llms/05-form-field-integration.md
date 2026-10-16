@@ -12,18 +12,26 @@ headless-компонента `FormField` из [`@reformer/cdk`](../../../reform
 <FormField control={form.email} testId="email" />
 ```
 
-Где-то под капотом разворачивается:
+Под капотом — разметка shadcn `Field` (упрощённо, без рядов для иконки подсказки):
 
 ```tsx
 <CdkFormField.Root control={control}>
-  <div className={className} data-testid={`field-${testId}`}>
-    {!isCheckbox && <CdkFormField.Label data-testid={`label-${testId}`} />}
-    <CdkFormField.Control data-testid={`input-${testId}`} />
-    <CdkFormField.Error data-testid={`error-${testId}`} />
-    {pending && <span>Проверка...</span>}
-  </div>
+  {/* Field: flex w-full flex-col gap-3; direction="row" — подпись слева от контрола */}
+  <Field className={className} data-testid={`field-${testId}`}>
+    {!inlineLabel && <CdkFormField.Label data-slot="field-label" data-testid={`label-${testId}`} />}
+    {/* FieldContent: flex flex-1 flex-col gap-1.5 */}
+    <FieldContent>
+      <CdkFormField.Control data-testid={`input-${testId}`} />
+      {description && <CdkFormField.Description data-slot="field-description" />}
+      <CdkFormField.Error data-slot="field-error" data-testid={`error-${testId}`} />
+      {pending && <span role="status">{t('kit.formField.validating')}</span>}
+    </FieldContent>
+  </Field>
 </CdkFormField.Root>
 ```
+
+Подпись у чекбокса и переключателя (`inlineLabel`) рисует сам контрол. Текст ожидания async-проверки —
+из словаря кита (`kit.formField.validating`: «Validating...», в русской локали «Проверка...»).
 
 `Control` сам инстанцирует `control.component` (`Input`, `SelectAsync`,
 `CheckboxWithLabel`...) и связывает его с `FormControl`: значение, `onChange`, `onBlur`,
