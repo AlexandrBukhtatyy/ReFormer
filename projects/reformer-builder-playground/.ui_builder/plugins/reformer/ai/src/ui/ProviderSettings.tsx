@@ -42,6 +42,7 @@ import {
   limitsFrom,
   PROVIDER_LABEL_KEY,
   PROVIDER_ORIGIN,
+  type EditMode,
   type ProviderConfig,
   type ProviderKind,
 } from '../session/config';
@@ -49,6 +50,8 @@ import type { Translate } from '../host';
 import type { AiAssistant } from '../plugin';
 
 const KINDS: readonly ProviderKind[] = ['anthropic', 'openai', 'openai-compatible'];
+
+const EDIT_MODES: readonly EditMode[] = ['structured', 'files'];
 
 /** Ключ пояснения о том, куда уходит запрос: пользователь должен это видеть, а не догадываться. */
 const ORIGIN_KEY: Record<'browser' | 'loopback', string> = {
@@ -61,6 +64,12 @@ export interface ProviderSettingsProps {
   readonly t: Translate;
   /** Канал настроен и подключён. */
   readonly onConnected: () => void;
+  /**
+   * Подключение сменило режим правки. Панель начинает новый разговор: «Восстановить» на реплике
+   * откатывает ход тем способом, каким он писал, и разговор вперемешку из ходов двух режимов
+   * откатывался бы по-разному в зависимости от того, до какой реплики.
+   */
+  readonly onModeChanged?: () => void;
 }
 
 /** Форма настройки канала. */
@@ -68,6 +77,7 @@ export function ProviderSettings({
   assistant,
   t,
   onConnected,
+  onModeChanged,
 }: ProviderSettingsProps): ReactElement {
   const [kind, setKind] = useState<ProviderKind>('anthropic');
   const [apiKey, setApiKey] = useState('');
@@ -80,6 +90,9 @@ export function ProviderSettings({
   const [maxSteps, setMaxSteps] = useState('');
   const [maxOutputTokens, setMaxOutputTokens] = useState('');
   const [maxInputTokens, setMaxInputTokens] = useState('');
+  const [editMode, setEditMode] = useState<EditMode>('structured');
+  // Режим, с которым канал подключён сейчас: с ним сравнивается выбранный при подключении.
+  const [savedMode, setSavedMode] = useState<EditMode>('structured');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +109,8 @@ export function ProviderSettings({
       if (stored.maxSteps !== undefined) setMaxSteps(String(stored.maxSteps));
       if (stored.maxOutputTokens !== undefined) setMaxOutputTokens(String(stored.maxOutputTokens));
       if (stored.maxInputTokens !== undefined) setMaxInputTokens(String(stored.maxInputTokens));
+      setEditMode(stored.editMode ?? 'structured');
+      setSavedMode(stored.editMode ?? 'structured');
     });
     return () => {
       alive = false;
@@ -108,6 +123,8 @@ export function ProviderSettings({
     ...(kind === 'openai-compatible' ? { baseUrl } : {}),
     ...(model !== '' ? { model } : {}),
     ...limitsFrom({ maxSteps, maxOutputTokens, maxInputTokens }),
+    // Режим по умолчанию не записывается: отсутствие поля и есть structured.
+    ...(editMode === 'files' ? { editMode } : {}),
   });
 
   const loadModels = async (): Promise<void> => {
@@ -133,6 +150,10 @@ export function ProviderSettings({
       const next = config();
       await assistant.activate(next);
       await assistant.saveConfig(next, { persistKey: rememberKey });
+      if (editMode !== savedMode) {
+        setSavedMode(editMode);
+        onModeChanged?.();
+      }
       onConnected();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -258,6 +279,30 @@ export function ProviderSettings({
       )}
 
       <Separator />
+
+      <div className="space-y-1.5">
+        <Label htmlFor="ai-edit-mode" className="text-muted-foreground text-[11.5px]">
+          {t('settings.mode')}
+        </Label>
+        <Select
+          value={editMode}
+          onValueChange={(value) => {
+            setEditMode(value as EditMode);
+          }}
+        >
+          <SelectTrigger id="ai-edit-mode" size="sm" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EDIT_MODES.map((item) => (
+              <SelectItem key={item} value={item}>
+                {t(`settings.mode.${item}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground text-[11px] leading-4">{t('settings.mode.hint')}</p>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">

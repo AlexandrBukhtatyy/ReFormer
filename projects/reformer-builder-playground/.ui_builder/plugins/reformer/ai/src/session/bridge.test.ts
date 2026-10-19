@@ -19,6 +19,7 @@ import { listComponents } from '../model/catalog-digest';
 import type { WhenContext } from '@reformer/builder-plugin-api';
 import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';
 import { createEditorToolRegistry } from '../tools';
+import { createFileToolRegistry } from '../tools/files';
 import type { AgentCommand } from '../tools/command-tools';
 import type { AiAssistant } from '../plugin';
 import { createFakeProvider, type FakeStep } from '../providers/fake';
@@ -26,7 +27,7 @@ import { createProviderRegistry } from '../providers/registry';
 import type { AiProvider } from '../providers/types';
 import { printSchemaText } from '../model/schema-text';
 import { createAiSession, type AiSession } from './session';
-import { createFakeHost, type FakeHost } from '../testing';
+import { createFakeFiles, createFakeHost, type FakeHost } from '../testing';
 
 const RESOURCE = 'form.json';
 /** Контекст применимости, которого предикату отмены достаточно: он его не читает. */
@@ -92,6 +93,7 @@ function harness(
 
   const assistant: AiAssistant = {
     tools: createEditorToolRegistry(),
+    fileTools: createFileToolRegistry(),
     catalog: () => catalog,
     providers,
     knowledge: { load: () => Promise.resolve(null) } as unknown as AiAssistant['knowledge'],
@@ -142,7 +144,7 @@ describe('ход доходит до рабочей области', () => {
     await bridge.send('добавь поле почты');
 
     const snapshot = session.get().entries[0].snapshot;
-    expect(snapshot?.text).toBe(before);
+    expect(snapshot).toMatchObject({ text: before });
 
     await bridge.restoreTo(session.get().entries[0].id);
     expect(host.writes.at(-1)?.text).toBe(before);
@@ -608,5 +610,235 @@ describe('команда отмены и кнопка ведут в одно м�
     await bridge.requestUndoTurn();
 
     expect(session.get().error).toContain('turn.undo.failed');
+  });
+});
+
+// ── Режим файлов ────────────────────────────────────────────────────────────
+
+/** Документ формы образцового модуля в двойнике файлов. */
+const FORM_FILE = 'forms/loan/schema/form.schema.json';
+const RULES_FILE = 'forms/loan/validation/form.ts';
+const EMPTY_TEXT = printSchemaText(EMPTY_FORM);
+const RULES_TEXT = 'export const rules = [];\n';
+
+/** Ход над файлами: правки в корень формы и в правила одной попыткой. */
+const fieldEdit: FakeStep = {
+  tool: 'edit_file',
+  args: {
+    path: 'schema/form.schema.json',
+    edits: [
+      {
+        old_string: '"children": []',
+        // Компактный JSON — так его пишет модель; принтер документа перепечатает его в конце хода.
+        new_string:
+          '"children": [{"model": "$model(email)", "component": "$component(Input)", ' +
+          '"componentProps": {"label": "Почта"}}]',
+      },
+    ],
+  },
+};
+const rulesEdit: FakeStep = {
+  tool: 'edit_file',
+  args: {
+    path: 'validation/form.ts',
+    edits: [{ old_string: 'export const rules = [];', new_string: 'export const rules = [1];' }],
+  },
+};
+
+/** Провайдер, который после сценария делает что-то «руками» — до конца хода. */
+function thenOutside(script: readonly FakeStep[], outside: () => void): AiProvider {
+  const inner = createFakeProvider(script);
+  return {
+    ...inner,
+    async *stream(req, signal) {
+      for await (const event of inner.stream(req, signal)) {
+        if (event.type === 'done') outside();
+        yield event;
+      }
+    },
+  };
+}
+
+function filesHarness(
+  script: readonly FakeStep[],
+  options: {
+    readonly provider?: AiProvider;
+    readonly initial?: Readonly<Record<string, string>>;
+    readonly active?: string;
+  } = {}
+) {
+  const files = createFakeFiles(
+    options.initial ?? { [FORM_FILE]: EMPTY_TEXT, [RULES_FILE]: RULES_TEXT }
+  );
+  const host = createFakeHost(catalog, files);
+  host.setActive(options.active ?? FORM_FILE);
+
+  const providers = createProviderRegistry();
+  providers.register(options.provider ?? createFakeProvider(script));
+  const assistant: AiAssistant = {
+    tools: createEditorToolRegistry(),
+    fileTools: createFileToolRegistry(),
+    catalog: () => catalog,
+    providers,
+    knowledge: () => Promise.resolve(null),
+    loadConfig: () => Promise.resolve({ kind: 'anthropic' as const, editMode: 'files' as const }),
+    saveConfig: () => Promise.resolve(),
+    clearConfig: () => Promise.resolve(),
+    models: () => Promise.resolve([]),
+    activate: () => Promise.reject(new Error('не нужно в тесте')),
+    restore: () => Promise.resolve(null),
+  };
+  const session = createAiSession();
+  const bridge = createAgentBridge({
+    assistant,
+    host,
+    session,
+    agentCommands: () => [],
+    executeCommand: () => Promise.resolve(undefined),
+    validateForm: () => Promise.resolve(validateFormSchema),
+  });
+  return { files, host, session, bridge };
+}
+
+describe('режим файлов — ход', () => {
+  it('записи ложатся сразу, с пометкой хода; набора на подтверждение нет', async () => {
+    const { files, host, session, bridge } = filesHarness([
+      fieldEdit,
+      rulesEdit,
+      { text: 'Готово.' },
+    ]);
+    await bridge.send('добавь почту с правилом');
+
+    expect(host.writes).toHaveLength(0);
+    expect(files.text(FORM_FILE)).toContain('$model(email)');
+    expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
+    const marks = files.writes.map((write) => write.mark);
+    expect(new Set(marks.map((mark) => mark?.txId)).size).toBe(1);
+    expect(marks.every((mark) => mark?.origin === 'agent')).toBe(true);
+    expect(session.get()).toMatchObject({ status: 'idle', pending: null, error: null });
+  });
+
+  it('схема перепечатывается принтером документа один раз, в конце хода', async () => {
+    const { files, bridge } = filesHarness([fieldEdit]);
+    await bridge.send('добавь почту');
+
+    const written = files.text(FORM_FILE) ?? '';
+    expect(written).toBe(printSchemaText(JSON.parse(written) as JsonFormSchema));
+    // Запись правки и запись перепечатки — обе под одним ходом.
+    const formWrites = files.writes.filter((write) => write.path === FORM_FILE);
+    expect(formWrites).toHaveLength(2);
+    expect(formWrites[0].mark?.txId).toBe(formWrites[1].mark?.txId);
+  });
+
+  it('файл, который после хода правил человек, не перепечатывается', async () => {
+    const human = '{"format": 2, "root": {"component": "$component(Box)", "children": []}}';
+    // Провайдер нужен до сборки обвязки, а файлы появляются вместе с ней — отсюда держатель.
+    const holder: { files?: ReturnType<typeof createFakeFiles> } = {};
+    const provider = thenOutside([fieldEdit], () => holder.files?.put(FORM_FILE, human));
+    const harnessed = filesHarness([], { provider });
+    holder.files = harnessed.files;
+    await harnessed.bridge.send('добавь почту');
+    expect(harnessed.files.text(FORM_FILE)).toBe(human);
+  });
+
+  it('вторая попытка после обрыва — тот же ход, тот же txId', async () => {
+    const provider = sequenceProvider([
+      [fieldEdit, { truncated: { tool: 'edit_file' } }],
+      [rulesEdit, { text: 'Дописал.' }],
+    ]);
+    const { files, bridge } = filesHarness([], { provider });
+    await bridge.send('сделай всё');
+
+    expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
+    expect(new Set(files.writes.map((write) => write.mark?.txId)).size).toBe(1);
+  });
+
+  it('ломающая запись не доходит до файлов, ход кончается без ошибки панели', async () => {
+    const broken: FakeStep = {
+      tool: 'edit_file',
+      args: {
+        path: 'schema/form.schema.json',
+        edits: [{ old_string: '$component(Box)', new_string: '$component(Boks)' }],
+      },
+    };
+    const { files, session, bridge } = filesHarness([broken, { text: 'Не вышло.' }]);
+    await bridge.send('сломай');
+    expect(files.writes).toHaveLength(0);
+    expect(session.get().entries.at(-1)?.tools[0]).toMatchObject({ name: 'edit_file', ok: false });
+  });
+
+  it('форма, которая не собирается, — ход не начинается, причина названа', async () => {
+    const root = printSchemaText({
+      format: 2,
+      root: { component: '$component(Wizard)', children: [{ $ref: './steps/x/form.schema.json' }] },
+    } as never);
+    const { session, bridge } = filesHarness([fieldEdit], { initial: { [FORM_FILE]: root } });
+    await bridge.send('добавь почту');
+    expect(session.get().error).toContain('turn.files.broken');
+  });
+
+  it('документ без папки модуля — ход идёт структурным режимом', async () => {
+    const free = 'forms/credit.schema.json';
+    const { files, host, bridge } = filesHarness([insertField], {
+      initial: { [free]: EMPTY_TEXT },
+      active: free,
+    });
+    host.openDocument(free, EMPTY_TEXT);
+    await bridge.send('добавь поле');
+    expect(files.writes).toHaveLength(0);
+    expect(host.writes).toHaveLength(1);
+  });
+});
+
+describe('режим файлов — отмена и восстановление', () => {
+  it('отмена хода возвращает ВСЕ тронутые файлы', async () => {
+    const { files, bridge } = filesHarness([fieldEdit, rulesEdit]);
+    await bridge.send('добавь почту с правилом');
+
+    expect(bridge.canUndoTurn()).toBe(true);
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(files.text(FORM_FILE)).toBe(EMPTY_TEXT);
+    expect(files.text(RULES_FILE)).toBe(RULES_TEXT);
+  });
+
+  it('созданный ходом файл остаётся, и об этом сказано', async () => {
+    const create: FakeStep = {
+      tool: 'write_file',
+      args: { path: 'api/index.ts', content: 'export {};\n' },
+    };
+    const { files, session, bridge } = filesHarness([create]);
+    await bridge.send('заведи api');
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(files.text('forms/loan/api/index.ts')).toBe('export {};\n');
+    expect(session.get().error).toContain('turn.undo.created');
+  });
+
+  it('правка человека после хода — отмена отказывает и не пишет ничего', async () => {
+    const { files, bridge } = filesHarness([fieldEdit, rulesEdit]);
+    await bridge.send('добавь почту с правилом');
+    files.put(RULES_FILE, 'export const rules = [2];\n');
+    const before = files.writes.length;
+
+    expect(await bridge.undoLastTurn()).toBe('overlapped');
+    expect(files.writes).toHaveLength(before);
+    expect(files.text(FORM_FILE)).toContain('$model(email)');
+  });
+
+  it('«Восстановить» откатывает этот ход и все последующие, обрезая ленту', async () => {
+    const provider = sequenceProvider([[fieldEdit], [rulesEdit]]);
+    const { files, session, bridge } = filesHarness([], { provider });
+    await bridge.send('первый ход');
+    await bridge.send('второй ход');
+    expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
+
+    const first = session.get().entries[0];
+    expect(first.snapshot).toMatchObject({ mode: 'files' });
+    await bridge.restoreTo(first.id);
+
+    expect(files.text(FORM_FILE)).toBe(EMPTY_TEXT);
+    expect(files.text(RULES_FILE)).toBe(RULES_TEXT);
+    expect(session.get().entries).toEqual([]);
+    expect(bridge.canUndoTurn()).toBe(false);
   });
 });

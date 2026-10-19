@@ -45,8 +45,13 @@ import {
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
+import {
+  moduleRootOfDocument,
+  moduleRootPathOf,
+  modulePlacementOf,
+} from '../../core/codegen/layout';
 import { parseSchemaText, printSchemaText } from './model/schema-text';
-import type { AiDocument, AiHost, WriteMark } from './host';
+import type { AiDocument, AiFiles, AiHost, FileScope, WriteMark } from './host';
 import type { PackageFiles } from './knowledge';
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
@@ -75,7 +80,50 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     return handle !== null && parts > 0 ? handle : null;
   };
 
+  /**
+   * Файлы модуля формы — для режима файлов.
+   *
+   * Читается СЫРОЙ текст, а не собранная схема, как в `documentOf` выше: модель правит файлы, и
+   * корень разбитой формы для неё — скелет со ссылками на шаги, а не собранный визард. Открытый
+   * документ перед чтением выталкивает отложенную печать модели (`flush`): пока текстовый редактор
+   * в фокусе, буфер может отставать от правки в структурном редакторе.
+   *
+   * Пишется ВСЕГДА службой документов, и у составной формы тоже: запись корня — обычная правка
+   * буфера, а запись файла шага рабочая область сама разносит в открытую форму.
+   */
+  const moduleFiles: AiFiles = {
+    scopeOf(id): FileScope | null {
+      const document = documents.documentOf(id);
+      if (document === null) return null;
+      const path = document.ref.path;
+      // Документу со свободным именем своей папки модуля ещё не заведено: модуль появится при
+      // генерации кода, а до неё модели некуда писать правила.
+      if (modulePlacementOf(path).kind === 'detached') return null;
+      const rootPath = moduleRootPathOf(path);
+      return {
+        root: moduleRootOfDocument(files, id, path),
+        rootPath,
+        document: id,
+        schemaPath: rootPath === '' ? path : path.slice(rootPath.length + 1),
+      };
+    },
+    async read(id) {
+      if (documents.documentOf(id) !== null) {
+        await documents.flush(id);
+        const open = documents.documentOf(id);
+        if (open !== null) return open.getText();
+      }
+      return files.readText(id);
+    },
+    write: (id, text, options) => documents.writeText(id, text, options),
+    list: (dir) => files.list(dir),
+    exists: (id) => files.exists(id),
+    resolve: (dir, ...segments) => files.resolve(dir, ...segments),
+    parentOf: (id) => files.parentOf(id),
+  };
+
   return {
+    files: moduleFiles,
     // Именованная функция: правила хуков опознают хук по имени объявления.
     useTranslate: function useAiTranslate() {
       return useTranslate(ctx.i18n);

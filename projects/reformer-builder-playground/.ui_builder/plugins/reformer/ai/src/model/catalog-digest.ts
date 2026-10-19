@@ -21,6 +21,7 @@ import type { CatalogEntry, CatalogRole } from '../../../core/catalog';
 import { toInspectorProps } from '../../../core/catalog';
 import { buildOutline, renderOutline } from './outline';
 import { joinWithinBudget } from '../loop/render-budget';
+import { printJson } from '../../../core/codegen/print/js';
 
 /** Каталог активного кита — то же значение, что лежит в `ToolContext.catalog`. */
 export type Catalog = readonly CatalogEntry[];
@@ -62,6 +63,22 @@ export interface ComponentDetail extends ComponentSummary {
    * и успевает создать части повторно. Для одиночных компонентов пуст.
    */
   skeleton?: string;
+  /**
+   * В каком виде {@link ComponentDetail.skeleton}: дайджест с адресами (структурный режим) или
+   * готовый JSON узла (режим файлов — модель вставляет его в документ формы как есть).
+   */
+  skeletonFormat?: 'outline' | 'json';
+}
+
+/** Как описывать компонент. */
+export interface DescribeOptions {
+  /**
+   * Скелет вставки: `outline` — дайджест с относительными адресами частей (по умолчанию), `json` —
+   * узел целиком, как он ляжет в документ формы. Второй нужен режиму файлов: там модель пишет
+   * узел текстом, и собранный фабрикой каталога JSON — единственный способ не собирать составной
+   * компонент по частям руками.
+   */
+  readonly skeleton?: 'outline' | 'json';
 }
 
 /** Фильтр списка компонентов. */
@@ -123,7 +140,11 @@ export function commonProps(catalog: Catalog, role: CatalogRole): string[] {
 }
 
 /** Описание одного компонента, либо `undefined`, если имени нет в каталоге. */
-export function describeComponent(catalog: Catalog, name: string): ComponentDetail | undefined {
+export function describeComponent(
+  catalog: Catalog,
+  name: string,
+  options: DescribeOptions = {}
+): ComponentDetail | undefined {
   const entry = catalogEntry(catalog, name);
   if (!entry) return undefined;
   const parts = partNamesOf(catalog, entry.name);
@@ -133,7 +154,7 @@ export function describeComponent(catalog: Catalog, name: string): ComponentDeta
     ...(entry.category ? { category: entry.category } : {}),
     ...(entry.compoundParent ? { compoundParent: entry.compoundParent } : {}),
     ...(parts.length ? { parts } : {}),
-    ...(skeletonOf(entry) ?? {}),
+    ...((options.skeleton === 'json' ? jsonSkeletonOf(entry) : skeletonOf(entry)) ?? {}),
     props: toInspectorProps(entry.propsSchema).map((p) => ({
       key: p.key,
       widget: p.widget,
@@ -169,6 +190,34 @@ function skeletonOf(entry: CatalogEntry): { skeleton: string } | undefined {
 
 /** Сколько символов отдаётся под состав вставки: это подсказка, а не карта формы. */
 const SKELETON_BUDGET = 400;
+
+/**
+ * Узел-по-умолчанию ГОТОВЫМ JSON — для режима файлов.
+ *
+ * Та же фабрика записи (`entry.makeNode()`), что у вставки и у палитры: составной компонент
+ * приходит собранным, массив — с компонентом кита. Печать — принтером документа формы
+ * (`printJson`), то есть ровно тем видом, каким узел ляжет в файл.
+ *
+ * Идентификаторы узлов (`$nodeId`) вырезаются: модель вставляет один скелет много раз, и каждый
+ * повтор нёс бы те же идентификаторы — двойники, о которых потом скажет валидатор схемы.
+ */
+function jsonSkeletonOf(entry: CatalogEntry): Pick<ComponentDetail, 'skeleton' | 'skeletonFormat'> {
+  return {
+    skeleton: printJson(withoutNodeIds(entry.makeNode())).trimEnd(),
+    skeletonFormat: 'json',
+  };
+}
+
+/** Копия значения без ключей `$nodeId` на любой глубине. */
+function withoutNodeIds(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNodeIds);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== '$nodeId')
+      .map(([key, inner]) => [key, withoutNodeIds(inner)])
+  );
+}
 
 /**
  * Сколько записей неполевой категории берётся за один круг обхода.
@@ -293,7 +342,13 @@ function structureLines(detail: ComponentDetail): string[] {
   if (detail.parts?.length) {
     lines.push(`Assembled from parts: ${detail.parts.join(', ')} — created automatically.`);
   }
-  if (detail.skeleton) {
+  if (detail.skeleton && detail.skeletonFormat === 'json') {
+    lines.push(
+      'Node to paste into "children" as is — parts are already assembled; set "model" and the ' +
+        'labels, keep the rest:',
+      detail.skeleton
+    );
+  } else if (detail.skeleton) {
     lines.push(
       "On insert you get (a part's address = address of the new node + the suffix shown):",
       detail.skeleton

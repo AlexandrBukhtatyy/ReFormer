@@ -20,6 +20,7 @@ import { validateSchema } from '../model/validate';
 import { nodeRef } from '../model/node-ref';
 import { buildOutline, renderOutline } from '../model/outline';
 import { joinWithinBudget } from './render-budget';
+import { countErrors, introduced, warningLine } from './introduced';
 import {
   fail,
   TOOL_TEXT_BUDGET,
@@ -29,13 +30,7 @@ import {
 } from '../model/types';
 
 /** Сколько ошибок показывать модели: чинит она их по одной. */
-const MAX_REPORTED = 5;
-
-/**
- * Сколько замечаний дописывать к успешной правке. Замечание — не отказ, а подсказка вдогонку, и
- * длинный список превратил бы ответ инструмента в отчёт валидатора.
- */
-const MAX_WARNINGS = 2;
+export const MAX_REPORTED = 5;
 
 /** Что схема представляла собой до правки: ошибки и замечания как мультимножества. */
 interface Baseline {
@@ -55,33 +50,6 @@ interface Baseline {
  */
 const baselineCache = new WeakMap<JsonFormSchema, WeakMap<FormRules, Baseline>>();
 
-/**
- * Ошибка без индексов пути: `root.children[0].componentProps …` → `root.children[#].componentProps …`.
- *
- * Сравнивать ошибки дословно нельзя: вставка узла ПЕРЕД уже битым соседом сдвигает его индекс, та
- * же самая ошибка выглядит новой, и правка отвергается — с сообщением про ЧУЖОЙ узел, которого
- * модель не трогала. Политика «не обязана лечить, но обязана не ухудшать» из шапки модуля на
- * сдвиге индексов не работала.
- */
-function normalizeError(message: string): string {
-  return message.replace(/\[\d+\]/g, '[#]');
-}
-
-/**
- * Ошибки базы как мультимножество нормализованных сообщений.
- *
- * Именно счётчики, а не множество: с одними лишь ключами форма, где уже есть одна такая ошибка,
- * молча принимала бы вторую такую же — «не ухудшать» превратилось бы в «не ухудшать заметно».
- */
-function countErrors(errors: readonly string[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const e of errors) {
-    const key = normalizeError(e);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return counts;
-}
-
 function baselineOf(ctx: ToolContext): Baseline {
   let byRules = baselineCache.get(ctx.base);
   if (!byRules) baselineCache.set(ctx.base, (byRules = new WeakMap()));
@@ -97,19 +65,6 @@ function baselineOf(ctx: ToolContext): Baseline {
     byRules.set(ctx.rules, known);
   }
   return known;
-}
-
-/** То, чего в базе не было (или стало больше), в исходных формулировках. */
-function introduced(base: ReadonlyMap<string, number>, errors: readonly string[]): string[] {
-  const seen = new Map<string, number>();
-  const out: string[] = [];
-  for (const e of errors) {
-    const key = normalizeError(e);
-    const used = (seen.get(key) ?? 0) + 1;
-    seen.set(key, used);
-    if (used > (base.get(key) ?? 0)) out.push(e);
-  }
-  return out;
 }
 
 /**
@@ -220,25 +175,6 @@ function headline(entries: readonly BatchEntry[]): string {
     TOOL_TEXT_BUDGET,
     (shown, total) => `… and ${total - shown} more`
   );
-}
-
-/**
- * Замечания, которые правка ПРИНЕСЛА, — строкой вдогонку к успеху.
- *
- * Замечания структурного линтера (вкладка без панели, шаг не-контейнером) на валидность не влияют,
- * поэтому гейт их не отвергает. Но раньше он их и не показывал: единственным каналом был отдельный
- * `validate_form`, то есть целый обход «модель → инструмент → модель» в конце каждого хода — ровно
- * тот шаг, который здесь и экономится. Сказанное сразу после правки и адреснее: модель ещё помнит,
- * что делала.
- *
- * Сравнение с базой — та же политика «не обязана лечить, но обязана не ухудшать», что у ошибок:
- * чужая форма с давним замечанием не должна упрекать агента на каждой правке.
- */
-function warningLine(fresh: readonly string[]): string {
-  if (!fresh.length) return '';
-  const shown = fresh.slice(0, MAX_WARNINGS).join('; ');
-  const rest = fresh.length - Math.min(fresh.length, MAX_WARNINGS);
-  return `\nHeads up: ${shown}${rest > 0 ? ` (and ${rest} more)` : ''}.`;
 }
 
 /** Предисловие к составу поддерева — отделяет его от адреса самого узла. */

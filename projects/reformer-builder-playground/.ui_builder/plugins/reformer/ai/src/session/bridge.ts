@@ -38,14 +38,27 @@ import { commandTools, type AgentCommand, type ExecuteCommand } from '../tools/c
 import { runAgentTurn, type TurnEvent, type TurnStats } from '../loop/loop';
 import { createToolRegistry, type ToolRegistry } from '../tools/registry';
 import { measureToolSurface } from '../tools/tool-surface';
-import { TOOL_SURFACE_BUDGET, type ChangeOp } from '../model/types';
+import {
+  FILE_TOOL_SURFACE_BUDGET,
+  TOOL_SURFACE_BUDGET,
+  type AgentTool,
+  type ChangeOp,
+  type ToolContext,
+} from '../model/types';
 import type { LoadValidateForm } from '../model/validate';
-import type { AiHost } from '../host';
+import type { AiFiles, AiHost, FileScope, WriteMark } from '../host';
 import { historyFor } from './history';
 import type { AiAssistant } from '../plugin';
-import type { AiProvider, AiStop } from '../providers/types';
-import { parseSchemaText } from '../model/schema-text';
-import type { AiSession, PendingChanges } from './session';
+import type { AiMessage, AiProvider, AiStop } from '../providers/types';
+import { parseSchemaText, printSchemaText } from '../model/schema-text';
+import { isFilesSnapshot, type AiSession, type PendingChanges } from './session';
+import { fileRoleOf } from '../../../core/codegen/layout';
+import { printJson } from '../../../core/codegen/print/js';
+import { composeForm } from '../files/compose';
+import { createFileJournal, type FileJournal } from '../files/journal';
+import { createFileTurn } from '../files/turn';
+import { runFileTurn } from '../loop/file-loop';
+import type { TurnStepEvent } from '../loop/drive';
 
 /** Исход хода, каким его сообщает цикл. */
 type TurnReason = Extract<TurnEvent, { type: 'done' }>['reason'];
@@ -210,6 +223,13 @@ interface TurnOutcome {
   readonly stop?: AiStop;
 }
 
+/** Чем кончилась попытка хода режима файлов: набора изменений нет — записи уже в рабочей копии. */
+interface FileOutcome {
+  readonly reason: TurnReason;
+  readonly message?: string;
+  readonly stop?: AiStop;
+}
+
 /** Что стало с набором изменений. */
 type Landing =
   | { readonly status: 'applied' }
@@ -229,26 +249,38 @@ type Landing =
       readonly note?: string;
     };
 
+/** Один файл, который ход изменил: чем он был и чем его ход оставил. */
+interface LandedFile {
+  /** Текст ДО хода; `null` — файл ход создал. Для хода из двух попыток — до ПЕРВОЙ. */
+  readonly before: string | null;
+  /** Текст, который ход оставил. Им и проверяется, не писал ли кто-то после. */
+  readonly after: string;
+}
+
 /**
- * Ход ассистента, лёгший в буфер, — всё, чем его можно отменить.
+ * Ход ассистента, лёгший в рабочую копию, — всё, чем его можно отменить.
+ *
+ * Карта файлов, а не один текст: ход режима файлов правит сколько угодно файлов модуля, и
+ * отменяться обязан целиком — одним действием и только если ни один из них после хода не
+ * трогали. Структурный ход — та же карта из одной записи, документа активной вкладки.
  *
  * Живёт в памяти моста, а не в журнале рабочей области, и это ограничение названо честно:
- * `Journal.undoTransaction` умеет ровно это и переживал бы перезагрузку, но журнал в
- * композиции сегодня не создаётся вовсе — `createWorkspace` зовут без него, и `record()`
- * не вызывается ни разу. Отмена поверх журнала была бы кнопкой, которой всегда нечего
- * отменять. `txId` при этом ТОТ ЖЕ, что уходит в пометку записи: когда журнал подключат,
- * тело отмены заменяется одним вызовом `undoTransaction` с этим же идентификатором.
+ * журнал в композиции создаётся (`workspace-session`) и записи хода в нём помечены `txId`, но
+ * `Journal.undoTransaction` плагинам не отдан — в `@reformer/builder-plugin-api` его нет.
+ * `txId` при этом ТОТ ЖЕ, что уходит в пометку записи: когда отмену журнала откроют плагинам,
+ * тело отмены заменяется вызовом `undoTransaction` с этим же идентификатором.
  */
 interface LandedTurn {
-  readonly resource: ResourceId;
   /** Идентификатор хода — он же `txId` пометки записи. */
   readonly txId: string;
-  /** Текст буфера ДО хода. Для хода из двух попыток — до ПЕРВОЙ. */
-  readonly before: string;
-  /** Правила до хода: ход, изменивший только их, иначе не отменялся бы вовсе. */
-  readonly beforeRules: FormRules;
-  /** Текст, который ход оставил в буфере. Им и проверяется, не писал ли кто-то после. */
-  readonly after: string;
+  /**
+   * Чем читать и писать файлы хода. `document` — дверью документа вкладки (`host.documentOf` /
+   * `host.writeText`), которая знает про составную форму; `files` — порт файлов модуля.
+   */
+  readonly access: 'document' | 'files';
+  readonly files: ReadonlyMap<ResourceId, LandedFile>;
+  /** Правила до хода — у структурного хода: ход, изменивший только их, иначе не отменялся бы. */
+  readonly rules?: { readonly resource: ResourceId; readonly before: FormRules };
 }
 
 export function createAgentBridge(deps: BridgeDeps): AgentBridge {
@@ -275,60 +307,80 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    */
   const rulesByResource = new Map<ResourceId, FormRules>();
 
-  /** Мемоизация набора инструментов: подпись проекции команд + сам реестр. */
-  let toolsSignature: string | null = null;
-  let toolsRegistry: ToolRegistry | null = null;
-
   /**
-   * Инструменты хода: встроенные плюс проекция команд.
+   * Инструменты хода: встроенные инструменты режима плюс проекция команд.
    *
    * Проверка храповика — здесь, потому что полный набор существует только здесь: встроенные
-   * известны на сборке и меряются тестом (`core/tool-surface.test.ts`), а команды приходят от
-   * включённых плагинов.
+   * известны на сборке и меряются тестом (`tools/tool-surface.test.ts`), а команды приходят от
+   * включённых плагинов. Набор и потолок у каждого режима свои, память — тоже.
+   *
+   * @param budgetName - Имя константы потолка — для сообщения тому, кто будет его поднимать.
    */
-  const toolsForTurn = (): ToolRegistry => {
-    const builtin = assistant.tools.list();
-    const commands = deps.agentCommands();
-    const signature = commands.map((c) => `${c.id} ${c.agent.description}`).join('');
-    if (toolsRegistry !== null && toolsSignature === signature) return toolsRegistry;
+  function withCommands<C extends ToolContext>(
+    builtinRegistry: () => ToolRegistry<C>,
+    budget: number,
+    budgetName: string
+  ): () => ToolRegistry<C> {
+    /** Мемоизация набора инструментов: подпись проекции команд + сам реестр. */
+    let signatureMemo: string | null = null;
+    let registryMemo: ToolRegistry<C> | null = null;
 
-    if (commands.length === 0) {
-      // Ничего не спроецировано — реестр плагина годится как есть, и пересобирать его значило
-      // бы заново компилировать схемы аргументов на каждый ход без единой причины.
-      toolsSignature = signature;
-      toolsRegistry = assistant.tools;
-      return toolsRegistry;
-    }
+    return () => {
+      const own = builtinRegistry();
+      const builtin = own.list();
+      const commands = deps.agentCommands();
+      const signature = commands.map((c) => `${c.id} ${c.agent.description}`).join('');
+      if (registryMemo !== null && signatureMemo === signature) return registryMemo;
 
-    const projection = commandTools(
-      commands,
-      deps.executeCommand,
-      builtin.map((tool) => tool.name)
-    );
-    for (const rejection of projection.rejected) {
-      console.error(
-        `[plugins/reformer/ai] команда «${rejection.commandId}» не стала инструментом: ${rejection.code}`
+      if (commands.length === 0) {
+        // Ничего не спроецировано — реестр плагина годится как есть, и пересобирать его значило
+        // бы заново компилировать схемы аргументов на каждый ход без единой причины.
+        signatureMemo = signature;
+        registryMemo = own;
+        return registryMemo;
+      }
+
+      const projection = commandTools(
+        commands,
+        deps.executeCommand,
+        builtin.map((tool) => tool.name)
       );
-    }
-    const all = [...builtin, ...projection.tools];
-    const surface = measureToolSurface(all);
-    if (surface > TOOL_SURFACE_BUDGET) {
-      // Не отказ: поверхность уже собрана, и оборвать из-за неё ход значило бы наказать
-      // пользователя за чужую команду. Но и промолчать нельзя — платится это каждым шагом.
-      //
-      // Потолок равен достигнутому размеру встроенных инструментов, БЕЗ запаса, поэтому первая
-      // же команда с блоком `agent` его переполнит — и это задумано: поднять потолок обязан
-      // человек, отдельной строкой рядом с обоснованием, а не побочный эффект чужой правки.
-      console.error(
-        `[plugins/reformer/ai] поверхность инструментов ${surface} символов при потолке ` +
-          `${TOOL_SURFACE_BUDGET}: сожмите описания или поднимите TOOL_SURFACE_BUDGET осознанно ` +
-          `(команды с блоком agent: ${projection.tools.map((tool) => tool.name).join(', ')})`
-      );
-    }
-    toolsSignature = signature;
-    toolsRegistry = createToolRegistry(all);
-    return toolsRegistry;
-  };
+      for (const rejection of projection.rejected) {
+        console.error(
+          `[plugins/reformer/ai] команда «${rejection.commandId}» не стала инструментом: ${rejection.code}`
+        );
+      }
+      const all: AgentTool<never, C>[] = [...builtin, ...projection.tools];
+      const surface = measureToolSurface(all);
+      if (surface > budget) {
+        // Не отказ: поверхность уже собрана, и оборвать из-за неё ход значило бы наказать
+        // пользователя за чужую команду. Но и промолчать нельзя — платится это каждым шагом.
+        //
+        // Потолок равен достигнутому размеру встроенных инструментов, БЕЗ запаса, поэтому первая
+        // же команда с блоком `agent` его переполнит — и это задумано: поднять потолок обязан
+        // человек, отдельной строкой рядом с обоснованием, а не побочный эффект чужой правки.
+        console.error(
+          `[plugins/reformer/ai] поверхность инструментов ${surface} символов при потолке ` +
+            `${budget}: сожмите описания или поднимите ${budgetName} осознанно ` +
+            `(команды с блоком agent: ${projection.tools.map((tool) => tool.name).join(', ')})`
+        );
+      }
+      signatureMemo = signature;
+      registryMemo = createToolRegistry<C>(all);
+      return registryMemo;
+    };
+  }
+
+  const toolsForTurn = withCommands(
+    () => assistant.tools,
+    TOOL_SURFACE_BUDGET,
+    'TOOL_SURFACE_BUDGET'
+  );
+  const fileToolsForTurn = withCommands(
+    () => assistant.fileTools,
+    FILE_TOOL_SURFACE_BUDGET,
+    'FILE_TOOL_SURFACE_BUDGET'
+  );
 
   /**
    * Замечание в ленту, не трогая набор, ждущий решения.
@@ -357,16 +409,34 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     if (document === null) return;
 
     const previous = lastTurn;
-    const continues =
-      previous !== null && previous.txId === txId && previous.resource === pending.resource;
+    const earlier =
+      previous !== null && previous.txId === txId && previous.access === 'document'
+        ? previous.files.get(pending.resource)
+        : undefined;
     lastTurn = {
-      resource: pending.resource,
       txId,
-      before: continues ? previous.before : pending.baseText,
-      beforeRules: continues ? previous.beforeRules : pending.set.baseRules,
-      after: document.getText(),
+      access: 'document',
+      files: new Map([
+        [
+          pending.resource,
+          { before: earlier ? earlier.before : pending.baseText, after: document.getText() },
+        ],
+      ]),
+      rules: {
+        resource: pending.resource,
+        before: earlier && previous?.rules ? previous.rules.before : pending.set.baseRules,
+      },
     };
   };
+
+  /** Чтение и запись файлов хода — той дверью, которой ход их писал. */
+  const accessOf = (turn: LandedTurn) =>
+    turn.access === 'files' && host.files !== undefined
+      ? { read: host.files.read.bind(host.files), write: host.files.write.bind(host.files) }
+      : {
+          read: (id: ResourceId) => Promise.resolve(host.documentOf(id)?.getText() ?? null),
+          write: (id: ResourceId, text: string) => host.writeText(id, text),
+        };
 
   /** Активная форма или `null`: вкладки нет, документа нет либо текст — не схема формы. */
   const resolveTarget = (): Target | null => {
@@ -454,34 +524,17 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
       signal,
     })) {
-      switch (event.type) {
-        case 'text':
-          session.appendText(event.text);
-          break;
-        case 'reasoning':
-          session.appendReasoning(event.text);
-          break;
-        case 'tool':
-          session.logTool({
-            name: event.name,
-            ok: event.ok,
-            // Журнал панели — строка на ВЫЗОВ, а не на правку: пакетная вставка двенадцати
-            // полей не должна превращать ленту в двенадцать одинаковых записей. Детали пакета
-            // видны в предпросмотре изменений, где им и место.
-            ...(event.ops?.length ? { summary: summaryOf(event.ops) } : {}),
-            ...(event.error ? { error: event.error.message } : {}),
-          });
-          break;
-        case 'done':
-          report(event.stats, event.stop);
-          outcome = {
-            changeSet: event.changeSet,
-            reason: event.reason,
-            ...(event.message ? { message: event.message } : {}),
-            ...(event.stop ? { stop: event.stop } : {}),
-          };
-          break;
+      if (event.type !== 'done') {
+        consume(event);
+        continue;
       }
+      report(event.stats, event.stop);
+      outcome = {
+        changeSet: event.changeSet,
+        reason: event.reason,
+        ...(event.message ? { message: event.message } : {}),
+        ...(event.stop ? { stop: event.stop } : {}),
+      };
     }
     return outcome;
   };
@@ -594,6 +647,293 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     return landed.status !== 'stuck';
   };
 
+  /** Ход структурного режима: черновик схемы, применение одной записью. */
+  const sendStructured = async (
+    message: string,
+    provider: AiProvider,
+    signal: AbortSignal
+  ): Promise<void> => {
+    const target = resolveTarget();
+    if (target === null) {
+      session.startTurn(message);
+      session.finishTurn(null, t('turn.noForm'));
+      return;
+    }
+
+    // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
+    session.startTurn(message, {
+      resource: target.resource,
+      text: target.baseText,
+      rules: target.rules,
+    });
+    // Идентификатор хода заводится ДО первой попытки и один на обе: логический шаг —
+    // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента.
+    const txId = newTurnId();
+
+    try {
+      const first = await runOnce(provider, target, historyFor(session.get().entries), signal);
+      const landed = await land(first, target, txId);
+
+      if (!needsSecondPass(first, landed, signal)) {
+        closeTurn(first, landed);
+        return;
+      }
+
+      // База берётся заново: правки первой попытки уже в буфере, и второй ход должен идти от
+      // них — это ровно то, что делает пользователь, когда пишет «продолжай».
+      const next = resolveTarget();
+      if (next === null) {
+        closeTurn(first, landed);
+        return;
+      }
+      const second = await runOnce(
+        provider,
+        next,
+        [...historyFor(session.get().entries), { role: 'user', content: CONTINUE_HINT }],
+        signal
+      );
+      closeTurn(second, await land(second, next, txId));
+    } catch (error) {
+      // Ход не должен уметь оставить панель в «running» навсегда: цикл ошибки не бросает,
+      // но чтение настроек и запись в буфер — могут.
+      closeTurn(
+        {
+          changeSet: createChangeSet(target.base, target.rules),
+          reason: 'error',
+          message: messageOf(error),
+        },
+        { status: 'nothing' }
+      );
+    }
+  };
+
+  /**
+   * Ходы режима файлов, лёгшие в рабочую копию, — по порядку. Из них «Восстановить» на реплике
+   * откатывает все ходы от последнего до той реплики включительно.
+   */
+  const fileTurns: LandedTurn[] = [];
+
+  /** Чтение файла модуля по пути от его корня. */
+  const readerOf =
+    (files: AiFiles, scope: FileScope) =>
+    (rel: string): Promise<string | null> =>
+      files.read(files.resolve(scope.root, ...rel.split('/')));
+
+  /**
+   * Ход режима файлов: модель правит файлы модуля формы, каждая принятая запись — сразу в
+   * рабочую копию.
+   *
+   * @returns `false` — режим файлов к этой вкладке неприменим (нет формы с папкой модуля), и ход
+   *   идёт структурным: тот скажет про отсутствие формы своими словами, а документ со свободным
+   *   именем править умеет.
+   */
+  const sendFiles = async (
+    message: string,
+    provider: AiProvider,
+    files: AiFiles,
+    signal: AbortSignal
+  ): Promise<boolean> => {
+    const resource = host.activeResource();
+    const scope = resource === null ? null : files.scopeOf(resource);
+    if (scope === null) {
+      if (resource !== null && host.documentOf(resource) !== null) {
+        console.info('[plugins/reformer/ai] у документа нет папки модуля — ход идёт структурным');
+      }
+      return false;
+    }
+
+    const read = readerOf(files, scope);
+    const start = await composeForm(read, scope.schemaPath);
+    if (!start.ok) {
+      // Ход по форме, которая не собирается, начинать нельзя: гейт сравнивает каждую запись с
+      // формой на начало хода, и сравнивать было бы не с чем.
+      session.startTurn(message);
+      session.finishTurn(null, t('turn.files.broken', { error: start.error }));
+      return true;
+    }
+
+    const txId = newTurnId();
+    session.startTurn(message, { mode: 'files', resource: scope.document, txId });
+    const journal = createFileJournal();
+    const mark: WriteMark = { origin: 'agent', txId };
+
+    try {
+      const config = await assistant.loadConfig();
+      const validateForm = await deps.validateForm();
+      const attempt = async (
+        base: JsonFormSchema,
+        messages: readonly AiMessage[]
+      ): Promise<FileOutcome> => {
+        const turn = createFileTurn({
+          files,
+          scope,
+          journal,
+          mark,
+          base,
+          knowledge: assistant.knowledge,
+        });
+        let outcome: FileOutcome = { reason: 'complete' };
+        for await (const event of runFileTurn({
+          provider,
+          registry: fileToolsForTurn(),
+          turn,
+          catalog: host.catalog(),
+          validateForm,
+          messages,
+          ...(config?.maxSteps !== undefined ? { maxSteps: config.maxSteps } : {}),
+          ...(config?.maxInputTokens !== undefined
+            ? { maxInputTokens: config.maxInputTokens }
+            : {}),
+          signal,
+        })) {
+          if (event.type === 'done') {
+            report(event.stats, event.stop);
+            outcome = {
+              reason: event.reason,
+              ...(event.message ? { message: event.message } : {}),
+              ...(event.stop ? { stop: event.stop } : {}),
+            };
+          } else consume(event);
+        }
+        return outcome;
+      };
+
+      let last = await attempt(start.schema, historyFor(session.get().entries));
+      if (needsFileSecondPass(last, signal)) {
+        // База — заново из файлов: записи первой попытки уже лежат в рабочей копии.
+        const next = await composeForm(read, scope.schemaPath);
+        if (next.ok) {
+          last = await attempt(next.schema, [
+            ...historyFor(session.get().entries),
+            { role: 'user', content: CONTINUE_HINT },
+          ]);
+        }
+      }
+      await normalizeSchemas(files, scope, journal, mark);
+
+      const error = last.reason === 'error' ? (last.message ?? t('turn.error')) : undefined;
+      session.finishTurn(null, error ?? (journal.size === 0 ? silentTurnNote() : undefined));
+    } catch (error) {
+      session.finishTurn(null, messageOf(error));
+    } finally {
+      // Даже ход, упавший посередине, отменяем: его записи уже лежат в рабочей копии.
+      rememberFileTurn(txId, journal);
+    }
+    return true;
+  };
+
+  /** Записать событие хода в ленту — общее для обоих режимов. */
+  function consume(event: TurnStepEvent): void {
+    switch (event.type) {
+      case 'text':
+        session.appendText(event.text);
+        break;
+      case 'reasoning':
+        session.appendReasoning(event.text);
+        break;
+      case 'tool':
+        session.logTool({
+          name: event.name,
+          ok: event.ok,
+          // Журнал панели — строка на ВЫЗОВ, а не на правку: пакетная вставка двенадцати
+          // полей не должна превращать ленту в двенадцать одинаковых записей. Детали пакета
+          // видны в предпросмотре изменений, где им и место.
+          ...(event.ops?.length ? { summary: summaryOf(event.ops) } : {}),
+          ...(event.error ? { error: event.error.message } : {}),
+        });
+        break;
+    }
+  }
+
+  /** Вторая попытка хода режима файлов — по тем же признакам обрыва, что у структурного. */
+  const needsFileSecondPass = (outcome: FileOutcome, signal: AbortSignal): boolean =>
+    !signal.aborted &&
+    outcome.reason !== 'aborted' &&
+    (outcome.stop?.truncatedCall !== undefined || outcome.stop?.emptyFinish === true);
+
+  /**
+   * Перепечатать схемы, которые ход записал, принтером документа формы — один раз, в конце хода.
+   *
+   * Не после каждой записи: перепечатка меняет текст, который модель держит в контексте, и её
+   * следующий `old_string` не нашёлся бы. Гейт проверяет смысл и от форматирования не зависит,
+   * поэтому в пределах хода текст остаётся таким, каким его написала модель, а в конце хода —
+   * таким, каким его пишут редактор и кодоген: иначе ход давал бы diff на весь файл.
+   *
+   * Файл, который после хода правил человек, не трогается: перепечатка стёрла бы его правку.
+   */
+  const normalizeSchemas = async (
+    files: AiFiles,
+    scope: FileScope,
+    journal: FileJournal,
+    mark: WriteMark
+  ): Promise<void> => {
+    for (const [id, entry] of journal.entries()) {
+      const role = fileRoleOf(entry.rel, scope.schemaPath);
+      if (role !== 'form' && role !== 'step') continue;
+      const current = await files.read(id);
+      if (current !== entry.after) continue;
+      let printed: string;
+      try {
+        printed =
+          role === 'form'
+            ? printSchemaText(parseSchemaText(current))
+            : printJson(JSON.parse(current));
+      } catch {
+        continue;
+      }
+      if (printed === current) continue;
+      await files.write(id, printed, mark);
+      journal.record(id, entry.rel, entry.before, printed);
+    }
+  };
+
+  /**
+   * Вернуть файлы модуля к состоянию до хода `txId`: откатить его и все ходы после него.
+   *
+   * Ходы откатываются от новейшего к старому — каждый пишет то, что было до него, и последним
+   * пишет самый ранний, то есть итог — состояние до `txId`. Перезапись безусловная, как у
+   * структурного «Восстановить»: её заказал человек, увидев, к чему возвращается, — в отличие от
+   * отмены хода, которая поверх чужой правки отказывает.
+   *
+   * Пометки происхождения нет — по той же причине, что у структурного восстановления.
+   */
+  const restoreFiles = async (txId: string): Promise<void> => {
+    const at = fileTurns.findIndex((turn) => turn.txId === txId);
+    // Ход без единой записи журнала не заводит: восстанавливать нечего, лента уже обрезана.
+    const undone = at < 0 ? [] : fileTurns.splice(at);
+    const created: string[] = [];
+    try {
+      for (const turn of undone.reverse()) {
+        for (const [id, file] of turn.files) {
+          if (file.before === null) created.push(id);
+          else await accessOf(turn).write(id, file.before);
+        }
+      }
+    } catch (error) {
+      session.finishTurn(null, t('turn.restoreFailed', { error: messageOf(error) }));
+      return;
+    }
+    lastTurn = null;
+    if (created.length > 0) note(t('turn.undo.created', { files: created.join(', ') }));
+  };
+
+  /** Запомнить ход режима файлов — то, чем его отменять и восстанавливать. */
+  const rememberFileTurn = (txId: string, journal: FileJournal): void => {
+    if (journal.size === 0) return;
+    const turn: LandedTurn = {
+      txId,
+      access: 'files',
+      files: new Map(
+        [...journal.entries()].map(([id, entry]) => [
+          id,
+          { before: entry.before, after: entry.after },
+        ])
+      ),
+    };
+    lastTurn = turn;
+    fileTurns.push(turn);
+  };
+
   return {
     isRunning: () => current !== null,
 
@@ -612,64 +952,17 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         return;
       }
 
-      const target = resolveTarget();
-      if (target === null) {
-        session.startTurn(message);
-        session.finishTurn(null, t('turn.noForm'));
-        return;
-      }
-
-      // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
-      session.startTurn(message, {
-        resource: target.resource,
-        text: target.baseText,
-        rules: target.rules,
-      });
+      // Ход занимается СРАЗУ, до первого ожидания: иначе второе нажатие, пришедшее, пока
+      // читаются настройки, начало бы второй ход поверх первого.
       const controller = new AbortController();
       current = controller;
-      // Идентификатор хода заводится ДО первой попытки и один на обе: логический шаг —
-      // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента.
-      const txId = newTurnId();
-
       try {
-        const first = await runOnce(
-          provider,
-          target,
-          historyFor(session.get().entries),
-          controller.signal
-        );
-        const landed = await land(first, target, txId);
-
-        if (!needsSecondPass(first, landed, controller.signal)) {
-          closeTurn(first, landed);
-          return;
+        // Настройки читаются, только если режим файлов вообще возможен: без порта файлов ход
+        // идёт структурным, и лишнее ожидание отодвинуло бы начало хода без всякой причины.
+        if (host.files !== undefined && (await assistant.loadConfig())?.editMode === 'files') {
+          if (await sendFiles(message, provider, host.files, controller.signal)) return;
         }
-
-        // База берётся заново: правки первой попытки уже в буфере, и второй ход должен идти от
-        // них — это ровно то, что делает пользователь, когда пишет «продолжай».
-        const next = resolveTarget();
-        if (next === null) {
-          closeTurn(first, landed);
-          return;
-        }
-        const second = await runOnce(
-          provider,
-          next,
-          [...historyFor(session.get().entries), { role: 'user', content: CONTINUE_HINT }],
-          controller.signal
-        );
-        closeTurn(second, await land(second, next, txId));
-      } catch (error) {
-        // Ход не должен уметь оставить панель в «running» навсегда: цикл ошибки не бросает,
-        // но чтение настроек и запись в буфер — могут.
-        closeTurn(
-          {
-            changeSet: createChangeSet(target.base, target.rules),
-            reason: 'error',
-            message: messageOf(error),
-          },
-          { status: 'nothing' }
-        );
+        await sendStructured(message, provider, controller.signal);
       } finally {
         current = null;
       }
@@ -721,6 +1014,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       if (current !== null) return;
       const snapshot = session.restoreTo(entryId);
       if (snapshot === null) return;
+      if (isFilesSnapshot(snapshot)) {
+        await restoreFiles(snapshot.txId);
+        return;
+      }
       // Возврат идёт тем же `writeText`, что и правка: восстановление — обычная правка буфера,
       // а не отдельный механизм, поэтому оно и в журнале обычная запись, и отменяется само.
       //
@@ -750,26 +1047,39 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         return 'nothing';
       }
 
-      const document = host.documentOf(turn.resource);
-      if (document === null) {
-        note(t('turn.undo.closed'));
-        return 'closed';
-      }
-      if (document.getText() !== turn.after) {
-        // Сравнение с тем, что ход ОСТАВИЛ, а не с тем, что было до него: правка человека
-        // поверх хода перемешана с ним в одном тексте, и вернуть форму к состоянию до хода
-        // значило бы стереть её. См. заголовок метода в {@link AgentBridge}.
-        note(t('turn.undo.overlapped'));
-        return 'overlapped';
+      const access = accessOf(turn);
+      // Сначала проверяются ВСЕ файлы, и только потом пишется хоть один: отмена, снявшая
+      // половину хода и упёршаяся в перекрытый файл, оставила бы форму в состоянии, которого
+      // не было ни до хода, ни после.
+      for (const [id, file] of turn.files) {
+        const text = await access.read(id);
+        if (text === null) {
+          note(t('turn.undo.closed'));
+          return 'closed';
+        }
+        if (text !== file.after) {
+          // Сравнение с тем, что ход ОСТАВИЛ, а не с тем, что было до него: правка человека
+          // поверх хода перемешана с ним в одном тексте, и вернуть форму к состоянию до хода
+          // значило бы стереть её. См. заголовок метода в {@link AgentBridge}.
+          note(t('turn.undo.overlapped'));
+          return 'overlapped';
+        }
       }
 
+      const created: string[] = [];
       try {
-        await host.writeText(turn.resource, turn.before);
+        for (const [id, file] of turn.files) {
+          if (file.before === null) created.push(id);
+          else await access.write(id, file.before);
+        }
       } catch (error) {
         note(t('turn.undo.failed', { error: messageOf(error) }));
         return 'failed';
       }
-      rulesByResource.set(turn.resource, turn.beforeRules);
+      if (turn.rules) rulesByResource.set(turn.rules.resource, turn.rules.before);
+      // Созданный ходом файл удалить нечем: удаления в рабочей копии у плагинов нет. Он
+      // остаётся, и об этом сказано словами — молча оставленный файл выглядел бы отменённым.
+      if (created.length > 0) note(t('turn.undo.created', { files: created.join(', ') }));
       // Дважды один ход не отменяется: второе нажатие иначе сняло бы предыдущий ход,
       // о котором человек в этот момент не думает.
       lastTurn = null;

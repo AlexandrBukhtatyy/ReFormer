@@ -117,6 +117,18 @@ describe('хранение настроек канала', () => {
     expect(await loadProviderConfig(s)).toBeNull();
   });
 
+  it('режим правки переживает перезагрузку и читается обратно', async () => {
+    const s = store();
+    await saveProviderConfig(s, { kind: 'anthropic', model: 'claude-x', editMode: 'files' });
+    expect((await loadProviderConfig(s))?.editMode).toBe('files');
+  });
+
+  it('настройки без режима — от версии без выбора — читаются без него: это structured', async () => {
+    const s = store();
+    s.data.set(SETTINGS_KEY, { kind: 'openai', model: 'gpt-x' });
+    expect((await loadProviderConfig(s))?.editMode).toBeUndefined();
+  });
+
   it('очистка забывает и настройки, и ключ', async () => {
     const s = store();
     await saveProviderConfig(s, { kind: 'anthropic', apiKey: 'k' }, { persistKey: true });

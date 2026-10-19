@@ -11,13 +11,15 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { FormRules } from '../../../core/form-model';
 import { joinWithinBudget } from './render-budget';
-import type { AiMessage, AiProvider, AiStop, AiToolDef, AiUsage } from '../providers/types';
+import type { AiMessage, AiProvider, AiStop } from '../providers/types';
 import { createChangeSet, withOutcome, type ChangeSet } from '../model/changeset';
 import { buildOutline, renderOutline } from '../model/outline';
 import { systemPrompt } from './prompt';
+import { queuedTools, streamTurn, type TurnStats, type TurnStepEvent } from './drive';
 import type { ToolRegistry } from '../tools/registry';
-import type { ChangeOp, ToolError } from '../model/types';
 import type { ValidateFormSchema } from '../model/validate';
+
+export type { TurnStats } from './drive';
 
 /**
  * Предел шагов «модель → инструмент → модель» за один ход — по умолчанию его НЕТ.
@@ -84,36 +86,9 @@ export interface AgentTurnOptions {
   system?: string;
 }
 
-/**
- * Чего стоил ход.
- *
- * Считается всегда, а не под флагом: цена хода — это число шагов, помноженное на размер контекста,
- * и обе величины растут молча. Без счётчика единственный сигнал «стало дороже» — счёт провайдера
- * или подвисшая панель, то есть обратная связь длиной в сутки.
- */
-export interface TurnStats {
-  /** Шагов «модель → инструмент → модель». */
-  steps: number;
-  inputTokens: number;
-  /** Из них прочитано из кэша префикса. Ноль при работающем кэше — сигнал, что он не попадает. */
-  cachedInputTokens: number;
-  outputTokens: number;
-  /**
-   * Самый дорогой по входу шаг хода.
-   *
-   * Отдельно от суммы потому, что об окне модели говорит только пик: сумма растёт с каждым шагом и
-   * у длинного исправного хода легко вдесятеро больше окна, а упирается запрос в окно ровно тем,
-   * сколько весит ОДИН шаг. Это единственная цифра, по которой видно, хватает ли `num_ctx`.
-   */
-  peakStepInputTokens: number;
-}
-
 /** Событие хода для интерфейса. */
 export type TurnEvent =
-  | { type: 'text'; text: string }
-  /** Рассуждение модели: показывается свёрнутым и в историю диалога не возвращается. */
-  | { type: 'reasoning'; text: string }
-  | { type: 'tool'; name: string; ok: boolean; ops?: readonly ChangeOp[]; error?: ToolError }
+  | TurnStepEvent
   | {
       type: 'done';
       changeSet: ChangeSet;
@@ -136,117 +111,45 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
   let set = createChangeSet(opts.base, opts.baseRules);
 
-  // Очередь исполнения инструментов. Вызовы ОДНОГО шага модель присылает пачкой, и SDK запускает
-  // их параллельно, не дожидаясь предыдущего. Черновик у хода при этом один: без очереди каждый
-  // вызов читал `set.draft` ДО того, как предыдущий записал результат, и последний ответ затирал
-  // все остальные — «двенадцать полей в три шага» превращались в мастер, где поля есть только на
-  // последнем шаге, причём журнал изменений исправно перечислял все двенадцать.
-  //
-  // Очередь, а не блокировка на время всего шага: инструменты считают локально, без сети, поэтому
-  // выстроить их в цепочку не стоит ничего, а промпт обещает модели ровно это — «правки идут по
-  // порядку против формы, которая уже меняется».
-  let queue: Promise<unknown> = Promise.resolve();
-
-  const tools: AiToolDef[] = opts.registry.list().map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-    readOnly: tool.readOnly,
-    execute: (args) => {
-      const started = queue.then(async () => {
-        // Черновик читается ВНУТРИ очереди — то есть после того, как предыдущий вызов записал свой
-        // результат: каждый следующий инструмент видит правку предыдущего.
-        const outcome = await opts.registry.invoke(tool.name, args, {
-          draft: set.draft,
-          base: opts.base,
-          rules: set.draftRules,
-          catalog: opts.catalog,
-          validateForm: opts.validateForm,
-        });
-        set = withOutcome(set, outcome);
-        return outcome;
-      });
-      // Хвост очереди не должен нести отказ: `invoke` не бросает, но отклонённый промис здесь
-      // остановил бы все последующие вызовы хода.
-      queue = started.catch(() => undefined);
-      return started;
-    },
-  }));
-
-  let reason: 'complete' | 'aborted' | 'error' = 'complete';
-  let message: string | undefined;
-  let stop: AiStop | undefined;
-  const stats: TurnStats = {
-    steps: 0,
-    inputTokens: 0,
-    cachedInputTokens: 0,
-    outputTokens: 0,
-    peakStepInputTokens: 0,
-  };
-  // Имя вызова известно из `tool_call`, а показать его нужно на `tool_result`. Карта живёт в
-  // пределах хода: на уровне модуля два параллельных хода затирали бы записи друг друга.
-  const callNames = new Map<string, string>();
-
-  try {
-    for await (const event of opts.provider.stream(
-      {
-        system: opts.system ?? systemPrompt(opts.catalog),
-        messages: withOutlineSeed(opts.messages, opts.base, opts.baseRules),
-        tools,
-        maxSteps,
-        ...(opts.maxInputTokens !== undefined ? { maxInputTokens: opts.maxInputTokens } : {}),
-      },
-      opts.signal
-    )) {
-      switch (event.type) {
-        case 'delta':
-          if (event.text) yield { type: 'text', text: event.text };
-          break;
-        case 'reasoning':
-          if (event.text) yield { type: 'reasoning', text: event.text };
-          break;
-        case 'tool_result':
-          yield {
-            type: 'tool',
-            name: callNames.get(event.id) ?? 'tool',
-            ok: event.result.ok,
-            ...(event.result.ops?.length ? { ops: event.result.ops } : {}),
-            ...(event.result.error ? { error: event.result.error } : {}),
-          };
-          break;
-        case 'step_usage':
-          addUsage(stats, event.usage);
-          break;
-        case 'error':
-          reason = 'error';
-          message = event.message;
-          break;
-        case 'done':
-          if (event.reason !== 'complete') reason = event.reason;
-          // Диагностика берётся даже у штатного завершения: именно там она и нужна — обрыв,
-          // который канал не назвал обрывом, выглядит отсюда обычным концом хода.
-          if (event.stop) stop = event.stop;
-          break;
-        // tool_call самостоятельного смысла для интерфейса не несёт: показывать нечего до
-        // результата, а «вызывается…» без исхода только мигает в панели.
-        case 'tool_call':
-          callNames.set(event.id, event.name);
-          break;
-      }
+  // Черновик читается внутри очереди привода, а исход учитывается там же — до следующего вызова.
+  const tools = queuedTools(
+    opts.registry,
+    () => ({
+      draft: set.draft,
+      base: opts.base,
+      rules: set.draftRules,
+      catalog: opts.catalog,
+      validateForm: opts.validateForm,
+    }),
+    (outcome) => {
+      set = withOutcome(set, outcome);
     }
-  } catch (e) {
-    reason = 'error';
-    message = e instanceof Error ? e.message : String(e);
-  }
+  );
 
-  yield {
-    type: 'done',
-    changeSet: set,
-    reason,
-    ...(message ? { message } : {}),
-    stats,
-    ...(stop ? { stop } : {}),
-  };
+  for await (const event of streamTurn(
+    opts.provider,
+    {
+      system: opts.system ?? systemPrompt(opts.catalog),
+      messages: withOutlineSeed(opts.messages, opts.base, opts.baseRules),
+      tools,
+      maxSteps,
+      ...(opts.maxInputTokens !== undefined ? { maxInputTokens: opts.maxInputTokens } : {}),
+    },
+    opts.signal
+  )) {
+    if (event.type !== 'end') {
+      yield event;
+      continue;
+    }
+    yield {
+      type: 'done',
+      changeSet: set,
+      reason: event.reason,
+      ...(event.message ? { message: event.message } : {}),
+      stats: event.stats,
+      ...(event.stop ? { stop: event.stop } : {}),
+    };
+  }
 }
 
 /**
@@ -313,19 +216,4 @@ function renderRulesSeed(rules: FormRules): string {
     RULES_SEED_BUDGET,
     (shown, total) => '  … ' + (total - shown) + ' more rule(s) not listed'
   );
-}
-
-/**
- * Прибавить расход шага.
- *
- * Шаг считается по самому событию, а не по наличию цифр в нём: провайдер, не сообщающий usage,
- * всё равно сделал запрос, и терять его в счётчике значило бы отчитываться «ноль шагов» там, где
- * их было двадцать.
- */
-function addUsage(stats: TurnStats, usage: AiUsage): void {
-  stats.steps += 1;
-  stats.inputTokens += usage.inputTokens ?? 0;
-  stats.cachedInputTokens += usage.cachedInputTokens ?? 0;
-  stats.outputTokens += usage.outputTokens ?? 0;
-  stats.peakStepInputTokens = Math.max(stats.peakStepInputTokens, usage.inputTokens ?? 0);
 }

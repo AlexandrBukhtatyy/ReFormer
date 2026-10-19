@@ -170,3 +170,78 @@ describe('корпус знаний читается из проекта', () =>
     expect(aiWorkspace(harness({ project: false }).ctx).projectFiles?.()).toBeUndefined();
   });
 });
+
+describe('файлы модуля — режим файлов', () => {
+  /** Службы, где адрес ресурса — путь: так видно, куда порт поднимается и что читает. */
+  function moduleHarness(open: Record<string, string>, onDisk: Record<string, string> = {}) {
+    const calls: string[] = [];
+    const writes: { id: string; text: string; mark?: unknown }[] = [];
+    const documents = {
+      activeResource: () => Object.keys(open)[0] ?? null,
+      documentOf: (id: ResourceId) =>
+        id in open ? { ref: { id, path: id }, getText: () => open[id] } : null,
+      writeText: (id: ResourceId, text: string, mark?: unknown) => {
+        writes.push({ id, text, mark });
+        return Promise.resolve();
+      },
+      flush: (id: ResourceId) => {
+        calls.push(`flush ${id}`);
+      },
+    };
+    const files = {
+      parentOf: (id: ResourceId) => id.slice(0, Math.max(0, id.lastIndexOf('/'))),
+      resolve: (dir: ResourceId, ...segments: string[]) => [dir, ...segments].join('/'),
+      readText: (id: ResourceId) => {
+        calls.push(`readText ${id}`);
+        return Promise.resolve(onDisk[id] ?? null);
+      },
+      list: () => Promise.resolve([]),
+      exists: () => Promise.resolve(true),
+    };
+    const ctx = {
+      i18n: { t: (key: string) => key },
+      services: {
+        get: () => undefined,
+        require: (token: { id: string }) =>
+          token.id === DocumentsServiceToken.id ? documents : files,
+      },
+    } as unknown as PluginContext;
+    return { files: aiWorkspace(ctx).files!, calls, writes };
+  }
+
+  it('модуль — по раскладке документа: папка schema/ поднимает к своему родителю', () => {
+    const { files } = moduleHarness({ 'forms/loan/schema/form.schema.json': '{}' });
+    expect(files.scopeOf('forms/loan/schema/form.schema.json')).toEqual({
+      root: 'forms/loan',
+      rootPath: 'forms/loan',
+      document: 'forms/loan/schema/form.schema.json',
+      schemaPath: 'schema/form.schema.json',
+    });
+  });
+
+  it('документ со свободным именем своей папки модуля не имеет', () => {
+    const { files } = moduleHarness({ 'forms/credit.schema.json': '{}' });
+    expect(files.scopeOf('forms/credit.schema.json')).toBeNull();
+  });
+
+  it('открытый документ читается из буфера после flush, закрытый — из рабочей копии', async () => {
+    const { files, calls } = moduleHarness(
+      { 'forms/loan/schema/form.schema.json': 'буфер' },
+      { 'forms/loan/validation/form.ts': 'файл' }
+    );
+    expect(await files.read('forms/loan/schema/form.schema.json')).toBe('буфер');
+    expect(await files.read('forms/loan/validation/form.ts')).toBe('файл');
+    expect(calls).toEqual([
+      'flush forms/loan/schema/form.schema.json',
+      'readText forms/loan/validation/form.ts',
+    ]);
+  });
+
+  it('запись — службой документов, с пометкой хода', () => {
+    const { files, writes } = moduleHarness({});
+    void files.write('forms/loan/api/index.ts', 'x', { origin: 'agent', txId: 't' });
+    expect(writes).toEqual([
+      { id: 'forms/loan/api/index.ts', text: 'x', mark: { origin: 'agent', txId: 't' } },
+    ]);
+  });
+});

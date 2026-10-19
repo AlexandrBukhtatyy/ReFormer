@@ -63,13 +63,35 @@ export interface TurnSnapshot {
   readonly rules: FormRules;
 }
 
+/**
+ * Точка восстановления хода РЕЖИМА ФАЙЛОВ.
+ *
+ * Текста здесь нет: ход правит сколько угодно файлов модуля, и что было до него, помнит мост —
+ * журналом хода по `txId`. Снимок только называет ход, к состоянию до которого вернуться.
+ */
+export interface FilesTurnSnapshot {
+  readonly mode: 'files';
+  /** Документ формы, по модулю которого шёл ход. */
+  readonly resource: ResourceId;
+  /** Идентификатор хода — по нему мост находит журнал. */
+  readonly txId: string;
+}
+
+/** Точка восстановления реплики — структурного хода или хода режима файлов. */
+export type EntrySnapshot = TurnSnapshot | FilesTurnSnapshot;
+
+/** Снимок ли это хода режима файлов. */
+export function isFilesSnapshot(snapshot: EntrySnapshot): snapshot is FilesTurnSnapshot {
+  return 'mode' in snapshot && snapshot.mode === 'files';
+}
+
 /** Реплика диалога в интерфейсе. */
 export interface ChatEntry {
   readonly id: string;
   readonly role: 'user' | 'assistant';
   readonly text: string;
   /** Есть только у реплики пользователя и только когда ход шёл по открытой форме. */
-  readonly snapshot?: TurnSnapshot;
+  readonly snapshot?: EntrySnapshot;
   /**
    * Рассуждение модели. Рядом с ответом, но отдельным полем: обратно в модель уходит только
    * `text` (`./history`), а на экране это свёрнутый блок. Смешать их в одно поле нельзя —
@@ -131,7 +153,7 @@ export interface AiSession {
 
   setSettingsOpen(open: boolean): void;
   /** Реплика пользователя плюс пустая реплика ассистента, которая наполняется по ходу. */
-  startTurn(text: string, snapshot?: TurnSnapshot): void;
+  startTurn(text: string, snapshot?: EntrySnapshot): void;
   appendText(chunk: string): void;
   appendReasoning(chunk: string): void;
   logTool(entry: ToolLogEntry): void;
@@ -148,7 +170,7 @@ export interface AiSession {
    * больше нет, и их присутствие заставило бы следующий ход строить поверх несуществующего.
    * Саму форму возвращает вызывающий — сессия рабочей областью не распоряжается.
    */
-  restoreTo(id: string): TurnSnapshot | null;
+  restoreTo(id: string): EntrySnapshot | null;
   /** Очистить диалог. */
   reset(): void;
 }

@@ -41,10 +41,13 @@
 import { describe, expect, it } from 'vitest';
 import { builtinEntries } from '../../../core/testing';
 import { commandTools, type AgentCommand } from './command-tools';
+import { fileSystemPrompt } from '../loop/file-prompt';
 import { systemPrompt } from '../loop/prompt';
 import { measureToolSurface } from './tool-surface';
 import { allTools } from '../tools';
+import { fileModeTools } from './files';
 import {
+  FILE_TOOL_SURFACE_BUDGET,
   PROMPT_BUDGET,
   TOOL_DESCRIPTION_BUDGET,
   TOOL_NAME_BUDGET,
@@ -113,5 +116,31 @@ describe('храповик считает и команды с блоком agen
       tools.map((t) => t.name)
     );
     expect(measureToolSurface([...tools, ...projected])).toBeGreaterThan(TOOL_SURFACE_BUDGET);
+  });
+});
+
+describe('поверхность режима файлов — свой храповик', () => {
+  const fileTools = fileModeTools();
+
+  it.each(fileTools.map((t) => [t.name, t] as const))(
+    '%s укладывается в свои бюджеты',
+    (_n, tool) => {
+      expect(tool.name.length).toBeLessThanOrEqual(TOOL_NAME_BUDGET);
+      expect(tool.description.length).toBeLessThanOrEqual(TOOL_DESCRIPTION_BUDGET);
+      expect(tool.name).toMatch(/^[a-z][a-z0-9_]*$/);
+    }
+  );
+
+  it('имена уникальны', () => {
+    const names = fileTools.map((t) => t.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('поверхность равна потолку — место, освобождённое один раз, запасом не становится', () => {
+    expect(measureToolSurface(fileTools)).toBe(FILE_TOOL_SURFACE_BUDGET);
+  });
+
+  it('файловый промпт укладывается в тот же потолок, что структурный', () => {
+    expect(fileSystemPrompt(builtinEntries()).length).toBeLessThanOrEqual(PROMPT_BUDGET);
   });
 });

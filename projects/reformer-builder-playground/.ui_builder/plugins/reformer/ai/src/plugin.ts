@@ -49,6 +49,8 @@ import {
   type SaveOptions,
 } from './session/config';
 import { createEditorToolRegistry, type ToolRegistry } from './tools';
+import { createFileToolRegistry } from './tools/files';
+import type { FileToolContext } from './files/turn';
 import type { AgentCommand } from './tools/command-tools';
 import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 import type { AiHost } from './host';
@@ -112,6 +114,8 @@ export interface AiPluginOptions {
 export interface AiAssistant {
   /** Реестр инструментов: собран один раз, схемы аргументов статичны в пределах сессии. */
   readonly tools: ToolRegistry;
+  /** Реестр режима файлов — модель правит файлы модуля формы напрямую. */
+  readonly fileTools: ToolRegistry<FileToolContext>;
   /** Каталог, действующий сейчас, — его же ход кладёт в `ToolContext`. */
   catalog(): readonly CatalogEntry[];
   /** Каналы к модели: пуст, пока пользователь не настроил ключ. */
@@ -143,9 +147,11 @@ export function createAiAssistant(
   // Реестр строится один раз: каталог приходит контекстом ВЫЗОВА, а схемы аргументов статичны,
   // поэтому пересобирать его при смене кита не нужно.
   const tools = createEditorToolRegistry({ knowledge });
+  const fileTools = createFileToolRegistry({ knowledge });
 
   return {
     tools,
+    fileTools,
     catalog: () => host.catalog(),
     providers,
     knowledge,
@@ -338,6 +344,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
       // не загрузившийся движок скажет о себе первым же вызовом инструмента, а следующий
       // вызов закажет загрузку заново.
       void assistant.tools.prepare();
+      void assistant.fileTools.prepare();
 
       // Не ждём: см. заметку выше. Отказ гасится здесь, чтобы необработанный промис не всплыл
       // как ошибка запуска приложения.

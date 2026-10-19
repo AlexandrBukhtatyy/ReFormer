@@ -70,6 +70,50 @@ export interface MessageSink {
   contribute(locale: string, messages: Readonly<Record<string, string>>): void;
 }
 
+/**
+ * Где лежит модуль формы, которую правит ход режима файлов.
+ *
+ * Все пути инструментов отсчитываются от {@link FileScope.root}: модель видит модуль, а не
+ * проект, и выйти за его пределы не может по построению (`files/scope`).
+ */
+export interface FileScope {
+  /** Корень модуля формы. */
+  readonly root: ResourceId;
+  /** Путь корня модуля от корня проекта; `''` — модуль и есть корень проекта. */
+  readonly rootPath: string;
+  /** Документ формы — активная вкладка, от которой найден модуль. */
+  readonly document: ResourceId;
+  /** Путь документа ОТ КОРНЯ МОДУЛЯ, как он лежит на самом деле (`schema/form.schema.json`). */
+  readonly schemaPath: string;
+}
+
+/**
+ * Файлы модуля формы — для режима, в котором модель правит их напрямую.
+ *
+ * Запись идёт ТОЙ ЖЕ дверью, что у человека и у структурного режима: `Workspace.writeText` через
+ * службу документов. В OPFS напрямую плагин не ходит — рабочая копия там лежит, но её буферы,
+ * признак «изменён», журнал и события ведёт рабочая область, и запись мимо неё рассинхронизировала
+ * бы всё это разом. На диск запись не попадает: туда её уносит только сохранение.
+ */
+export interface AiFiles {
+  /** Модуль формы документа или `null`: документа нет либо у него нет своей папки модуля. */
+  scopeOf(id: ResourceId): FileScope | null;
+  /**
+   * Текст файла: СЫРОЙ буфер открытого документа, иначе рабочая копия; `null` — файла нет.
+   *
+   * Сырой, а не собранный: у составной формы буфер корня — скелет со ссылками на шаги, и именно
+   * его модель правит, когда правит корень.
+   */
+  read(id: ResourceId): Promise<string | null>;
+  /** Записать в рабочую копию: существующий файл — заменить, несуществующий — создать. */
+  write(id: ResourceId, text: string, options?: WriteMark): Promise<void>;
+  /** Содержимое каталога — один уровень. */
+  list(dir: ResourceId): Promise<readonly ResourceRef[]>;
+  exists(id: ResourceId): Promise<boolean>;
+  resolve(dir: ResourceId, ...segments: readonly string[]): ResourceId;
+  parentOf(id: ResourceId): ResourceId;
+}
+
 /** Всё, что ассистент получает от композиции. */
 export interface AiHost {
   /** Реактивный перевод для панели. Подписку на смену локали держит композиция. */
@@ -104,4 +148,10 @@ export interface AiHost {
    * вшитый корпус.
    */
   projectFiles?(): PackageFiles | undefined;
+
+  /**
+   * Файлы модуля формы — для режима файлов. Без него режим недоступен, и ход идёт структурным:
+   * так тесты структурного режима не обязаны поднимать файловую систему.
+   */
+  readonly files?: AiFiles;
 }

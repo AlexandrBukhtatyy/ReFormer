@@ -56,11 +56,16 @@ export interface ToolRegistryOptions {
   readonly loadAjv?: () => Promise<AjvModule>;
 }
 
-/** Реестр инструментов. */
-export interface ToolRegistry {
+/**
+ * Реестр инструментов.
+ *
+ * `C` — контекст вызова (см. {@link AgentTool}): структурный реестр работает над
+ * {@link ToolContext}, реестр файлового режима — над его расширением.
+ */
+export interface ToolRegistry<C extends ToolContext = ToolContext> {
   /** Инструменты, опционально отфильтрованные по признаку read-only. */
-  list(filter?: { readOnly?: boolean }): readonly AgentTool[];
-  get(name: string): AgentTool | undefined;
+  list(filter?: { readOnly?: boolean }): readonly AgentTool<never, C>[];
+  get(name: string): AgentTool<never, C> | undefined;
   /**
    * Заказать движок проверки аргументов. Идемпотентно и НИКОГДА не отвергается.
    *
@@ -78,7 +83,7 @@ export interface ToolRegistry {
    * вызывающий разбирался бы, что ему пришло. Синхронные инструменты от этого не становятся
    * медленнее — промис разрешается в том же тике.
    */
-  invoke(name: string, params: unknown, ctx: ToolContext): Promise<ToolOutcome>;
+  invoke(name: string, params: unknown, ctx: C): Promise<ToolOutcome>;
 }
 
 /**
@@ -109,12 +114,12 @@ function formatErrors(validate: ValidateFunction): string {
  * @param options - Чем грузить движок проверки; см. {@link ToolRegistryOptions}.
  * @throws Если имя инструмента повторяется — это ошибка сборки, а не рантайма.
  */
-export function createToolRegistry(
-  tools: readonly AgentTool[],
+export function createToolRegistry<C extends ToolContext = ToolContext>(
+  tools: readonly AgentTool<never, C>[],
   options: ToolRegistryOptions = {}
-): ToolRegistry {
+): ToolRegistry<C> {
   const loadAjv = options.loadAjv ?? ((): Promise<AjvModule> => import('ajv'));
-  const byName = new Map<string, AgentTool>();
+  const byName = new Map<string, AgentTool<never, C>>();
   for (const tool of tools) {
     if (byName.has(tool.name)) {
       throw new Error(`createToolRegistry: инструмент "${tool.name}" объявлен дважды`);
@@ -147,7 +152,7 @@ export function createToolRegistry(
 
   // Компиляция ленивая и кэшируется: схемы статичны, а ajv-компиляция заметно дороже вызова.
   const validators = new Map<string, ValidateFunction>();
-  const validatorFor = async (tool: AgentTool): Promise<ValidateFunction> => {
+  const validatorFor = async (tool: AgentTool<never, C>): Promise<ValidateFunction> => {
     const known = validators.get(tool.name);
     if (known !== undefined) return known;
     const compile = await compiler();
@@ -221,7 +226,7 @@ export function createToolRegistry(
         const message = e instanceof Error ? e.message : String(e);
         return fail('TOOL_FAILED', `Tool ${name} failed: ${message}`);
       }
-      return { ...outcome, text: clamp(outcome.text, TOOL_TEXT_BUDGET) };
+      return { ...outcome, text: clamp(outcome.text, tool.textBudget ?? TOOL_TEXT_BUDGET) };
     },
   };
 }

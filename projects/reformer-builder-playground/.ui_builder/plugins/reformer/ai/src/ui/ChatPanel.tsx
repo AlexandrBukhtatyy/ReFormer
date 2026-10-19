@@ -92,6 +92,9 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
               setConnected((n) => n + 1);
               session.setSettingsOpen(false);
             }}
+            onModeChanged={() => {
+              session.reset();
+            }}
           />
         </ScrollArea>
       </div>
