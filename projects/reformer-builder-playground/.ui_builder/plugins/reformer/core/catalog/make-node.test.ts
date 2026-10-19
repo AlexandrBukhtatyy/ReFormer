@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { parseOperator, type JsonNode } from '@reformer/renderer-json';
-import { COMPOUND_TEMPLATES, makeNodeFor, leafComponentNode, partNode } from './make-node';
+import type { JsonNode } from '@reformer/renderer-json';
+import {
+  COMPOUND_TEMPLATES,
+  compoundTemplatesFor,
+  containerNode,
+  makeNodeFor,
+  leafComponentNode,
+  partNode,
+  templateComponentNames as componentNames,
+  type CompoundRecord,
+} from './make-node';
 import { builtinEntries } from './__fixtures__/builtin-catalog';
 
 describe('makeNodeFor — листовые компоненты', () => {
@@ -37,13 +46,6 @@ describe('makeNodeFor — листовые компоненты', () => {
     });
   });
 });
-
-/** Все `$component`-имена дерева (корень + потомки) — для проверки шаблонов против каталога. */
-function componentNames(node: JsonNode): string[] {
-  const self = parseOperator((node as { component?: unknown }).component);
-  const children = ((node as { children?: JsonNode[] }).children ?? []).flatMap(componentNames);
-  return self?.op === 'component' ? [self.arg, ...children] : children;
-}
 
 describe('makeNodeFor — compound-компоненты', () => {
   it('Alert собирается из частей, а не из голого текста (grid-cols-[0_1fr] его рассыпает)', () => {
@@ -98,5 +100,79 @@ describe('makeNodeFor — compound-компоненты', () => {
     // Текстовой части кладём заготовку текста в children, структурной — пустой children.
     expect(title.children).toEqual(['Текст']);
     expect(partNode('CardContent')).toEqual({ component: '$component(CardContent)', children: [] });
+  });
+
+  it('обход имён шаблона: текстовые дети имён не дают', () => {
+    expect(componentNames(COMPOUND_TEMPLATES.Tabs())).toEqual([
+      'Tabs',
+      'TabsList',
+      'TabsTrigger',
+      'TabsTrigger',
+      'TabsContent',
+      'TabsContent',
+    ]);
+  });
+});
+
+describe('compoundTemplatesFor — шаблоны по частям кита', () => {
+  /** Корень и части compound'а глазами каталога. */
+  const compound = (root: string, parts: readonly string[]): CompoundRecord[] => [
+    { name: root },
+    ...parts.map((name) => ({ name, compoundParent: root })),
+  ];
+
+  it('у встроенного кита есть части каждого шаблона — набор не сужается', () => {
+    expect(Object.keys(compoundTemplatesFor(builtinEntries()))).toEqual(
+      Object.keys(COMPOUND_TEMPLATES)
+    );
+  });
+
+  it('кит без CardHeader: шаблона Card нет, Card вставляется контейнером без частей', () => {
+    // Как у HexaUI: корень `Card` есть, а частей, из которых собран шаблон ui-kit, нет.
+    const records = compound('Card', ['CardTitle', 'CardDescription', 'CardContent', 'CardFooter']);
+    const compoundTemplates = compoundTemplatesFor(records);
+    expect(compoundTemplates).not.toHaveProperty('Card');
+    const node = makeNodeFor('Card', 'container', undefined, { compoundTemplates });
+    expect(node).toEqual(containerNode('Card'));
+    expect(componentNames(node)).toEqual(['Card']);
+  });
+
+  it('корень без частей вовсе (Alert у кита с одной записью) — тоже контейнер', () => {
+    const compoundTemplates = compoundTemplatesFor([{ name: 'Alert' }]);
+    expect(compoundTemplates).toEqual({});
+    expect(makeNodeFor('Alert', 'container', undefined, { compoundTemplates })).toEqual(
+      containerNode('Alert')
+    );
+  });
+
+  it('все части на месте — шаблон остаётся тем же самым', () => {
+    const compoundTemplates = compoundTemplatesFor(
+      compound('Alert', ['AlertTitle', 'AlertDescription'])
+    );
+    expect(Object.keys(compoundTemplates)).toEqual(['Alert']);
+    expect(makeNodeFor('Alert', 'container', undefined, { compoundTemplates })).toEqual(
+      COMPOUND_TEMPLATES.Alert()
+    );
+  });
+
+  it('одноимённая запись, не объявленная частью корня, частью не считается', () => {
+    // `AlertTitle` у кита есть, но как самостоятельный компонент: раскладки шаблона он не обещает.
+    const records: CompoundRecord[] = [
+      { name: 'Alert' },
+      { name: 'AlertTitle' },
+      { name: 'AlertDescription', compoundParent: 'Alert' },
+    ];
+    expect(compoundTemplatesFor(records)).toEqual({});
+  });
+
+  it('части без корня шаблон не дают: корня нет в каталоге — нечего и вставлять', () => {
+    expect(
+      compoundTemplatesFor(compound('Alert', ['AlertTitle', 'AlertDescription']).slice(1))
+    ).toEqual({});
+  });
+
+  it('без кита действуют все встроенные шаблоны (ИИ, вызовы makeNodeFor без кита)', () => {
+    expect(componentNames(makeNodeFor('Card', 'container'))).toContain('CardHeader');
+    expect(componentNames(makeNodeFor('Card', 'container', undefined, {}))).toContain('CardHeader');
   });
 });

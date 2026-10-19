@@ -6,7 +6,7 @@
  * @module plugins/reformer/core/catalog/make-node
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import { parseOperator, type JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
 import { LEAF_COMPONENT_NAMES } from '../kits/defaults';
@@ -265,6 +265,50 @@ export function hasCompoundTemplate(name: string): boolean {
   return Object.hasOwn(COMPOUND_TEMPLATES, name);
 }
 
+/** Все `$component`-имена дерева шаблона — корень первым, затем потомки в порядке обхода. */
+export function templateComponentNames(node: JsonNode): string[] {
+  const self = parseOperator((node as { component?: unknown }).component);
+  // Текстовые дети (`'Вкладка 1'`) ни компонента, ни своих детей не несут — дают пустой список.
+  const children = ((node as { children?: JsonNode[] }).children ?? []).flatMap(
+    templateComponentNames
+  );
+  return self?.op === 'component' ? [self.arg, ...children] : children;
+}
+
+/** Запись каталога глазами шаблонов: имя и корень compound'а, частью которого она объявлена. */
+export interface CompoundRecord {
+  readonly name: string;
+  readonly compoundParent?: string;
+}
+
+/**
+ * Композиции из {@link COMPOUND_TEMPLATES}, которые кит способен собрать из своих частей.
+ *
+ * Шаблоны билдера написаны по частям ui-kit: `Card` — из `CardHeader`/`CardContent`/…, `Alert` —
+ * из `AlertTitle`/`AlertDescription`. У другого кита корень с тем же именем бывает, а частей нет
+ * (у HexaUI `Card` без `CardHeader`), и дроп вставлял бы ссылки на компоненты, которых в ките нет:
+ * в превью — заглушки, в реестре модуля — импорты несуществующих символов. Поэтому шаблон
+ * остаётся, только если его корень есть в каталоге и КАЖДАЯ часть шаблона — запись с
+ * `compoundParent === корень`; иначе корень вставляется обычным контейнером.
+ *
+ * Сверка по `compoundParent`, а не по одному имени: одноимённая запись, которую кит частью этого
+ * корня не объявил, — другой компонент, и раскладки шаблона она не обещает.
+ *
+ * @param records - Записи каталога кита (обычно склеенного с синтетикой билдера).
+ */
+export function compoundTemplatesFor(
+  records: readonly CompoundRecord[]
+): Record<string, () => JsonNode> {
+  const parentOf = new Map(records.map((record) => [record.name, record.compoundParent]));
+  const out: Record<string, () => JsonNode> = {};
+  for (const [root, make] of Object.entries(COMPOUND_TEMPLATES)) {
+    if (!parentOf.has(root)) continue;
+    const [, ...parts] = templateComponentNames(make());
+    if (parts.every((part) => parentOf.get(part) === root)) out[root] = make;
+  }
+  return out;
+}
+
 /**
  * Узел-массив по умолчанию.
  *
@@ -320,7 +364,10 @@ export function wizardNode(): JsonNode {
 export interface MakeNodeKit {
   /** Листья кита; по умолчанию — {@link LEAF_COMPONENT_NAMES}. */
   leafComponents?: ReadonlySet<string>;
-  /** Композиции compound'ов кита; `undefined` — встроенные {@link COMPOUND_TEMPLATES}. */
+  /**
+   * Композиции compound'ов, которые кит способен собрать ({@link compoundTemplatesFor});
+   * `undefined` — все встроенные {@link COMPOUND_TEMPLATES} (вызов без кита).
+   */
   compoundTemplates?: Record<string, () => JsonNode>;
   /**
    * Компонент кита, которым рисуется массив; `undefined` — кит его не поставляет, и узел-массив
@@ -349,7 +396,8 @@ export function makeNodeFor(
   if ((kit?.leafComponents ?? LEAF_COMPONENT_NAMES).has(name)) return leafComponentNode(name);
   // Корень compound'а — сразу собранная композиция; часть — узел без `className` (раскладку задаёт
   // сама часть). Проверяем ДО containerNode, чей `space-y-4` тем и другим только мешает.
-  // Кит может прислать свои композиции; `undefined` — встроенные шаблоны билдера ниже.
+  // Композиции приходят от кита (те встроенные, что он способен собрать); `undefined` — все
+  // встроенные шаблоны билдера. Корень без шаблона ниже становится обычным контейнером.
   const template = (kit?.compoundTemplates ?? COMPOUND_TEMPLATES)[name];
   if (template) return template();
   if (compoundParent) return partNode(name, defaultPartText(name));

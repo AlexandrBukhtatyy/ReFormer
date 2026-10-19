@@ -187,6 +187,44 @@ describe('источник каталога и фильтры (аргумент�
     expect(kitFactsOf({ version: '2.0', components: [] })).toEqual({});
   });
 
+  it('составной компонент кита без частей шаблона вставляется контейнером', () => {
+    // Как у HexaUI: `Card` и `Alert` есть, `CardHeader`/`AlertTitle` — нет. Шаблон ui-kit вставил
+    // бы ссылки на части, которых в ките нет: заглушки в превью и импорты в никуда в модуле.
+    const kit = buildCatalog({
+      version: '3.0',
+      components: [
+        { name: 'Card', role: 'container', propsSchema: {} },
+        { name: 'Alert', role: 'container', propsSchema: {} },
+      ],
+    });
+    for (const name of ['Card', 'Alert']) {
+      expect(kit.entries.find((entry) => entry.name === name)?.makeNode()).toEqual({
+        component: `$component(${name})`,
+        componentProps: { className: 'space-y-4' },
+        children: [],
+      });
+    }
+  });
+
+  it('кит со всеми частями шаблона получает собранную композицию', () => {
+    const kit = buildCatalog({
+      version: '3.0',
+      components: [
+        { name: 'Alert', role: 'container', propsSchema: {} },
+        { name: 'AlertTitle', role: 'container', propsSchema: {}, compoundParent: 'Alert' },
+        { name: 'AlertDescription', role: 'container', propsSchema: {}, compoundParent: 'Alert' },
+      ],
+    });
+    const alert = kit.entries.find((entry) => entry.name === 'Alert')?.makeNode();
+    expect(alert).toEqual({
+      component: '$component(Alert)',
+      children: [
+        { component: '$component(AlertTitle)', children: ['Заголовок'] },
+        { component: '$component(AlertDescription)', children: ['Описание'] },
+      ],
+    });
+  });
+
   it('записи с palette: false в каталог не идут (метаданные без размещаемого узла)', () => {
     const json = composeCatalogJson({
       version: '2.0',

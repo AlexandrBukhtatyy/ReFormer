@@ -23,7 +23,7 @@ import type { PropsSchema } from '@reformer/ui-kit/meta';
 import { toDescriptor, type KitDescriptor } from '@reformer/builder-plugin-api';
 import type { CatalogEntry, CatalogJson, CatalogRecord, CatalogRole } from './types';
 import { ARRAY_COMPONENT_NAME, syntheticRecords, type SyntheticOptions } from './synthetic-entries';
-import { makeNodeFor } from './make-node';
+import { compoundTemplatesFor, makeNodeFor } from './make-node';
 
 /**
  * Ограничение набора компонентов — СОБСТВЕННЫЙ входной контракт каталога (в v1 это был
@@ -145,8 +145,13 @@ export function buildCatalogFromJson(
 ): CatalogEntry[] {
   const categoryByName = descriptor.palette.categoryByName;
   // Листья активного кита узел-по-умолчанию берёт из дескриптора, а не из состояния. Композиции
-  // compound'ов кит пока не поставляет — действуют встроенные шаблоны билдера.
-  const kit = { leafComponents: descriptor.leafComponents, ...kitFacts };
+  // compound'ов кит пока не поставляет — действуют встроенные шаблоны билдера, но только те, что
+  // кит способен собрать из своих частей: у кита без `CardHeader` `Card` вставляется контейнером.
+  const kit = {
+    leafComponents: descriptor.leafComponents,
+    compoundTemplates: compoundTemplatesFor(json.components),
+    ...kitFacts,
+  };
   return json.components.map((r) => ({
     name: r.name,
     role: r.role,
