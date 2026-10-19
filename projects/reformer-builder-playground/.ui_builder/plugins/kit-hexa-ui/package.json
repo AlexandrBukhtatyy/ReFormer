@@ -13,11 +13,14 @@
     "catalog.json"
   ],
   "scripts": {
+    "catalog": "reformer-plugin catalog .",
+    "catalog:check": "reformer-plugin catalog . --check",
     "validate": "reformer-plugin validate src",
     "build:dev": "reformer-plugin build src --out .",
     "build:dist": "reformer-plugin build src --out dist --minify",
     "dev": "reformer-plugin dev src --project ../../..",
     "test": "node ../../../../../scripts/run-vitest.mjs",
+    "test:browser": "node ../../../../../scripts/run-vitest.mjs -c vitest.browser.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

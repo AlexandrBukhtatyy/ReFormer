@@ -15,7 +15,8 @@
  * @module reformer/kit-hexa-ui/field-frame
  */
 
-import { Field } from '@kaspersky/hexa-ui';
+// Значения HexaUI — с подпутей: модуль входит в пространство имён билдера (см. `./palette`).
+import { Field } from '@kaspersky/hexa-ui/field';
 import type { KitFieldFrameProps } from '@reformer/builder-plugin-api';
 
 /** Пропсы рамки — ровно контракт SDK: стек, кладущий в рамку свой контрол, знает только их. */

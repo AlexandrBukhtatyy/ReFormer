@@ -8,6 +8,10 @@
  * `[data-rb-plugin="kit-hexa-ui"]`, который вешает рамка кита. Своего контейнера-скоупа провайдеру
  * поэтому не нужно. Вне билдера CSS подключает вход пакета (`src/index.ts`).
  *
+ * Всплывающие окна полей (выпадающие списки, дерево, календари) провайдер оставляет внутри своего
+ * поддерева — в контейнере в его конце (`./popup-container`). Иначе antd кладёт их в
+ * `document.body`, мимо изоляции стилей, и они рисуются без темы.
+ *
  * Контейнеры и простые примитивы (`Box`/`Section`) живут здесь же: в HexaUI их нет — это
  * layout-заготовки ReFormer, и киту достаточно отдать честный `div` с `className`.
  *
@@ -16,6 +20,7 @@
 
 import * as React from 'react';
 import { ConfigProvider, GlobalStyle } from '@kaspersky/hexa-ui/design-system';
+import { KitPopupScope } from './popup-container';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -47,7 +52,7 @@ export function KitProvider({ children }: { children?: React.ReactNode }) {
   return (
     <Provider theme={dark ? 'dark' : 'light'}>
       <GlobalStyle />
-      {children}
+      <KitPopupScope>{children}</KitPopupScope>
     </Provider>
   );
 }

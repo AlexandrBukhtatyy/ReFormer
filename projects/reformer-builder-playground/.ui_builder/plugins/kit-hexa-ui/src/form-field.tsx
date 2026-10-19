@@ -11,7 +11,8 @@
  */
 
 import * as React from 'react';
-import { Field } from '@kaspersky/hexa-ui';
+// Значения HexaUI — с подпутей: модуль входит в пространство имён билдера (см. `./palette`).
+import { Field } from '@kaspersky/hexa-ui/field';
 import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/form-field';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

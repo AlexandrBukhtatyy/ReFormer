@@ -2,10 +2,10 @@
  * ReFormer-кит поверх дизайн-системы Kaspersky HexaUI.
  *
  * Пакет самодостаточен: несёт собственную зависимость на `@kaspersky/hexa-ui`, поля с адаптерами к
- * seam ReFormer (статика `reformerAdapter`), обёртку и рамку поля поверх их `Field`, провайдер темы
- * и каталог компонентов (`@reformer/kit-hexa-ui/catalog`). Билдер про HexaUI ничего не знает: кит
- * приходит в него внешним плагином этого же пакета (`manifest.json`, `src/builder-plugin.ts`) —
- * вкладом в точку `reformer.kit.source`.
+ * seam ReFormer (статика `reformerAdapter`), обёртку и рамку поля поверх их `Field`, визард по
+ * протоколу каталога `3.0`, провайдер темы и каталог компонентов (`@reformer/kit-hexa-ui/catalog`).
+ * Билдер про HexaUI ничего не знает: кит приходит в него внешним плагином этого же пакета
+ * (`manifest.json`, `src/builder-plugin.ts`) — вкладом в точку `reformer.kit.source`.
  *
  * ## Вход экспортирует всё, что каталог называет компонентом
  *
@@ -13,12 +13,17 @@
  * '@reformer/kit-hexa-ui'` — символ записи (`exportName` либо имя записи) из входа пакета. Записи,
  * которой здесь нет, превью билдера не замечает (оно берёт компоненты из namespace), а
  * сгенерированный модуль с ней не компилируется: `TS2305 … has no exported member`. Поэтому состав
- * входа обязан совпадать с каталогом и с namespace — это закрепляет `src/builder-plugin.test.ts`.
+ * входа обязан покрывать каталог — это закрепляет `src/builder-plugin.test.ts`.
+ *
+ * Вход — это: поля (`./fields`), компоненты HexaUI как есть (`./components`, явным списком),
+ * плоские имена статик (`./compound`), тяжёлое (`./heavy` — только здесь, не в namespace), визард,
+ * обёртка и рамка поля, провайдер.
  *
  * ВАЖНО про совместимость: `@kaspersky/hexa-ui` объявляет `react: "16.x || 17.x || 18.x"`, а билдер
- * работает на React 19. Фактически рендер проверен и работает, но внутри HexaUI живут antd@4 и
- * styled-components@5, которые старше удаления `findDOMNode` в React 19 — отдельные компоненты
- * могут падать. Каждый компонент изолирован билдером, поэтому падение даёт плашку, а не крах превью.
+ * работает на React 19. Внутри HexaUI живут antd@4 и styled-components@5; браузерный прогон кита
+ * (`*.browser.test.tsx`) монтирует все поля и визард под React 19 — падений нет, есть только
+ * предупреждения в консоли. Единственная найденная разница — `defaultProps` функций, которые
+ * React 19 не применяет (`Uploader.size`): обёртки кита задают такие пропсы явно.
  *
  * @module reformer/kit-hexa-ui
  */
@@ -32,33 +37,8 @@ export { HEXA_UI_NAMESPACE } from './namespace';
 export { FormField } from './form-field';
 export { FieldFrame, type FieldFrameProps } from './field-frame';
 export { KitProvider, Box, Section } from './provider';
-export {
-  Input,
-  Textarea,
-  InputPassword,
-  InputNumber,
-  CheckboxWithLabel,
-  Select,
-  type CheckboxWithLabelProps,
-  type FieldControlLayout,
-  type FieldControlStatics,
-} from './fields';
-
-// Контейнеры и презентационные компоненты — сами компоненты HexaUI, без обёрток: те же символы,
-// что отдаёт namespace. Каноническое имя ReFormer с ними связывает каталог (`exportName` записи):
-// `Separator` → `Divider`, `Spinner` → `Loader`, `Progress` → `ProgressBar`.
-export {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Divider,
-  Label,
-  Link,
-  Loader,
-  Panel,
-  ProgressBar,
-  Skeleton,
-  Space,
-  Tag,
-} from '@kaspersky/hexa-ui';
+export { FormWizard, type FormWizardProps, type WizardStepNode } from './wizard';
+export * from './fields';
+export * from './components';
+export * from './compound';
+export * from './heavy';
