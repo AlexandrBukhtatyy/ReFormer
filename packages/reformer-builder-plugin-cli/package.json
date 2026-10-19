@@ -1,7 +1,7 @@
 {
   "name": "@reformer/builder-plugin-cli",
   "version": "1.0.0",
-  "description": "Command-line tools for ReFormer Builder plugin authors: scaffold, validate, build, develop and pack a plugin",
+  "description": "Command-line tools for ReFormer Builder plugin authors: scaffold, validate, build, develop and pack a plugin, generate a kit catalog from TypeScript types",
   "type": "module",
   "bin": {
     "reformer-plugin": "./bin/reformer-plugin.mjs"
@@ -12,6 +12,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "import": "./dist/catalog/index.js"
+    },
+    "./catalog-config": {
+      "types": "./dist/catalog/config.d.ts",
+      "import": "./dist/catalog/config.js"
     }
   },
   "scripts": {
@@ -51,6 +59,14 @@
     "@reformer/builder-plugin-api": "*",
     "es-module-lexer": "^1.7.0",
     "esbuild": "^0.27.1"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

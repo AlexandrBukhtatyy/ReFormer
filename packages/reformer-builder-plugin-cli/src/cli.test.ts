@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { parsePluginManifest } from '@reformer/builder-plugin-api/tooling';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { acmeConfig, writeFixture } from './catalog/__fixtures__/acme-kit.js';
 import { runCli, type CliIo } from './cli.js';
 
 let root: string;
@@ -173,5 +174,68 @@ describe('аргументы', () => {
 
     expect(await runCli(['--version'], run)).toBe(0);
     expect(run.lines.out).toEqual([pkg.version]);
+  });
+});
+
+describe('catalog', () => {
+  /** Кит-фикстура на диске: типы, исходники и конфиг генератора (JSON). */
+  async function kit(): Promise<string> {
+    const dir = join(root, 'kit');
+    await writeFixture(dir);
+    await writeFile(join(dir, 'catalog.config.json'), JSON.stringify(acmeConfig()));
+    return dir;
+  }
+
+  it('пишет каталог; --check подтверждает; правка файла — код 1 и дифф', async () => {
+    const dir = await kit();
+    const run = io();
+
+    expect(await runCli(['catalog', 'kit'], run)).toBe(0);
+    expect(run.lines.out[0]).toContain('! без роли в конфиге');
+    expect(run.lines.out.at(-1)).toMatch(
+      /^✓ каталог записан в .*catalog\.json: записей 15 \(в палитре 11\), пропсов \d+$/
+    );
+
+    const check = io();
+    expect(await runCli(['catalog', 'kit', '--check'], check)).toBe(0);
+    expect(check.lines.out.at(-1)).toContain('совпадает с типами кита');
+
+    await patchJson(join(dir, 'catalog.json'), (catalog) => {
+      catalog.components = (catalog.components as { name: string }[]).filter(
+        (record) => record.name !== 'Unknown'
+      );
+    });
+    const drift = io();
+    expect(await runCli(['catalog', 'kit', '--check'], drift)).toBe(1);
+    expect(drift.lines.err[0]).toBe(
+      '✗ catalog.json: каталог разошёлся с типами кита (расхождений: 1) — перегенерируйте: reformer-plugin catalog'
+    );
+    expect(drift.lines.err[1]).toMatch(/^ {2}\+ components\[Unknown\] = /);
+  });
+
+  it('--config называет файл; отказ генерации — код 1 с замечанием', async () => {
+    const dir = await kit();
+    await writeFile(join(dir, 'broken.json'), JSON.stringify({ ...acmeConfig(), exclude: [] }));
+    const run = io();
+
+    expect(await runCli(['catalog', 'kit', '--config', 'kit/broken.json'], run)).toBe(1);
+    expect(run.lines.err[0]).toContain('✗ broken.json: запись «Wizard» совпадает с синтетической');
+  });
+
+  it('без конфига — код 1', async () => {
+    const run = io();
+
+    expect(await runCli(['catalog'], run)).toBe(1);
+    expect(run.lines.err[0]).toContain('нет конфига каталога');
+  });
+
+  it('аргументы: --check только у catalog, лишний позиционный — код 2', async () => {
+    const validate = io();
+    expect(await runCli(['validate', '--check'], validate)).toBe(2);
+    expect(validate.lines.err[0]).toBe('validate: параметры --check не принимаются');
+
+    const extra = io();
+    expect(await runCli(['catalog', 'kit', 'more'], extra)).toBe(2);
+    expect(await runCli(['catalog', '--out', 'x'], io())).toBe(2);
   });
 });

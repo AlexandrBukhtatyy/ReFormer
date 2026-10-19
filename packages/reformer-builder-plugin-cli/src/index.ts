@@ -5,6 +5,11 @@
  */
 
 export { buildPlugin, type BuildOptions, type BuildResult } from './commands/build.js';
+export {
+  runCatalog,
+  type CatalogCommandOptions,
+  type CatalogCommandResult,
+} from './commands/catalog.js';
 export { createPlugin, type CreateOptions, type CreateResult } from './commands/create.js';
 export { startDev, type DevOptions, type DevSession } from './commands/dev.js';
 export { type CliFindingCode, type Finding } from './commands/findings.js';

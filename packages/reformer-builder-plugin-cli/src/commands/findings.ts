@@ -1,5 +1,5 @@
 /**
- * Замечания команд CLI — одним типом на `validate`, `build`, `dev` и `pack`.
+ * Замечания команд CLI — одним типом на `validate`, `build`, `dev`, `pack` и `catalog`.
  *
  * Отказы, которые знает оболочка, идут её кодами ({@link PluginProblem}): автор ищет их
  * в документации оболочки, и второй словарь для тех же бед только мешал бы. Свои коды у CLI —
@@ -30,7 +30,18 @@ export type CliFindingCode =
   /** Каталог кита не проходит контракт каталога (`component-catalog.schema.json`). */
   | 'kit-invalid-catalog'
   /** Шапка кита и блок `kit` его каталога называют кит по-разному. */
-  | 'kit-mismatch';
+  | 'kit-mismatch'
+  /**
+   * Конфиг генератора каталога (`catalog.config.mjs`) не годится: форма, имя без записи,
+   * противоречие ролей, статика без решения, нарушенная биекция полей, непереносимый тип значения.
+   */
+  | 'catalog-config-invalid'
+  /** Файл каталога разошёлся с тем, что дают типы кита (`catalog --check`). */
+  | 'catalog-drift'
+  /** Символ, который называет конфиг (запись, `kit.infra`, `kit.adapters`), вход кита не экспортирует. */
+  | 'catalog-symbol-missing'
+  /** Генератору каталога нужен TypeScript, а он не установлен. */
+  | 'typescript-missing';
 
 export type Finding =
   | PluginProblem

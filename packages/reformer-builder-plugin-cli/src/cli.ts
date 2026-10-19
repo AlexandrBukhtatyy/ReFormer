@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { buildPlugin, type BuildResult } from './commands/build.js';
+import { runCatalog } from './commands/catalog.js';
 import { createPlugin } from './commands/create.js';
 import { startDev, type DevSession } from './commands/dev.js';
 import { formatFinding, type Finding } from './commands/findings.js';
@@ -42,6 +43,8 @@ const USAGE = `Использование: reformer-plugin <команда> [а�
   dev [каталог] --project <каталог проекта>    собирать в .ui_builder/plugins/<id>/ на каждое сохранение
   dev [каталог] --out <каталог>                то же, но каталог вывода назван прямо
   pack [каталог] [--out <каталог>]             собрать и упаковать в npm-архив
+  catalog [каталог] [--config <файл>]          каталог кита из его типов по catalog.config.mjs
+  catalog [каталог] --check                    сверить файл каталога с типами, не записывая
 
 Параметры сборки (build, dev, pack):
   --minify       сжать код, воркеры и стили — для сборки в поставку
@@ -70,6 +73,8 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
         name: { type: 'string' },
         out: { type: 'string' },
         project: { type: 'string' },
+        config: { type: 'string' },
+        check: { type: 'boolean' },
         minify: { type: 'boolean' },
         'bundle-css': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
@@ -119,6 +124,7 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
     build: ['out', 'minify', 'bundle-css'],
     dev: ['project', 'out', 'minify', 'bundle-css'],
     pack: ['out', 'minify', 'bundle-css'],
+    catalog: ['config', 'check'],
   };
   const extra = Object.keys(values).filter(
     (key) => key !== 'help' && key !== 'version' && !(accepted[command] ?? []).includes(key)
@@ -218,6 +224,27 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       }
       for (const notice of result.notices) io.out(`! ${notice}`);
       io.out(`✓ ${result.file}`);
+      return 0;
+    }
+    case 'catalog': {
+      const result = await runCatalog({
+        dir: path(target ?? '.'),
+        ...(values.config === undefined ? {} : { configFile: path(values.config) }),
+        check: values.check === true,
+      });
+      for (const notice of result.notices) io.out(`! ${notice}`);
+      if (!result.ok) {
+        printFindings(result.findings);
+        for (const line of result.diff) io.err(`  ${line}`);
+        return 1;
+      }
+      const { records, palette, props } = result.stats;
+      const summary = `записей ${String(records)} (в палитре ${String(palette)}), пропсов ${String(props)}`;
+      io.out(
+        result.written
+          ? `✓ каталог записан в ${result.outFile}: ${summary}`
+          : `✓ ${result.outFile} совпадает с типами кита: ${summary}`
+      );
       return 0;
     }
     default:

@@ -2,7 +2,8 @@
 
 `reformer-plugin` — командная строка автора плагина ReFormer Builder: создать плагин из шаблона,
 проверить и собрать его **теми же правилами, которыми его проверит оболочка**, разрабатывать
-прямо в открытом проекте и упаковать для npm.
+прямо в открытом проекте и упаковать для npm, а киту — собрать каталог компонентов из его
+TypeScript-типов.
 
 ```bash
 npx @reformer/builder-plugin-cli create acme-forms --name "Acme Forms"
@@ -49,7 +50,9 @@ npx reformer-plugin pack
 Коды отказов — коды оболочки (`manifest-invalid`, `api-version`, `entry-missing`,
 `messages-invalid`, `provides-unregistered`…). Свои коды у CLI — для того, чего оболочка не видит:
 `package-version`, `build-failed`, `module-unavailable`, `css-from-code`, `output-not-ours`,
-`output-is-source`, `pack-failed` и три кода кита (`kit-no-id`, `kit-invalid-catalog`, `kit-mismatch`, см. `build`).
+`output-is-source`, `pack-failed`, три кода кита (`kit-no-id`, `kit-invalid-catalog`,
+`kit-mismatch`, см. `build`) и коды генератора каталога (`catalog-config-invalid`, `catalog-symbol-missing`, `catalog-drift`,
+`typescript-missing`, см. `catalog`).
 
 Соответствие `provides` регистрации и потолок числа файлов `validate` не проверяет: первое
 требует исполнить код, второе относится к собранному каталогу. Обе проверки делает `build`.
@@ -162,6 +165,92 @@ npx reformer-plugin pack
 сборка и `package.json` (имя, описание, лицензия и ключевые слова из исходного, версия — из
 манифеста, ключевое слово `reformer-builder-plugin` добавляется); исходников и зависимостей нет.
 
+### `catalog [каталог] [--config <файл>] [--check]`
+
+Собирает каталог кита (`catalog.json` — контракт `component-catalog.schema.json` из
+`@reformer/builder-plugin-api`) из TypeScript-типов **входа пакета кита**: каждая запись описывает
+тот символ, который импортирует кодоген и рисует превью. Набор пропсов выводится из типов,
+поэтому разойтись с кодом каталог не может; конфиг решает только то, чего типы не знают.
+
+Конфиг — `catalog.config.mjs` (или `.js`, `.json`) в каталоге кита либо файл из `--config`:
+
+```js
+// @ts-check
+import { defineKitCatalog, optionsProp } from '@reformer/builder-plugin-cli/catalog-config';
+
+export default defineKitCatalog({
+  entry: './src/index.ts',
+  kit: { id: 'acme', label: 'Acme DS', package: '@acme/ds', infra: { fieldWrapper: 'FormField' } },
+  ownership: { packages: ['@acme/ds'] }, // чьи пропсы — «свои»
+  fields: {
+    Input: { value: 'string | null' },
+    DatePicker: { exportName: 'DateField', value: 'Date | null' },
+  },
+  statics: { 'Textbox.Password': 'InputPassword', 'Tabs.TabPane': 'TabPane' },
+  parts: { TabPane: 'Tabs' },
+  categories: { 'Поля ввода': ['Input', 'DatePicker'], Контейнеры: ['Tabs'] },
+  limited: { Modal: 'оверлей — нужен триггер' },
+  service: ['FormField', 'KitProvider'],
+  exclude: ['Wizard'],
+  leaves: ['Divider'],
+  props: {
+    omit: { '@field': ['validationStatus'] },
+    override: { Select: { options: optionsProp() } },
+  },
+});
+```
+
+`typescript` — необязательная peer-зависимость: грузится из каталога кита, затем рядом с CLI;
+нет нигде — отказ `typescript-missing`. Если из каталога кита разрешается `prettier`, файл
+форматируется им (иначе `JSON.stringify`).
+
+- **Тип пропсов** — первый параметр сигнатуры (функция, `FC`, `forwardRef`, `memo`, класс).
+  Когда тип символа в чужом `.d.ts` не разрешился (`VFC` нет в `@types/react` 19, у
+  `styled-components` 5 нет типов), разбирается аннотация: `FC`/`VFC`/`FunctionComponent`/
+  `ComponentType`/`ForwardRefExoticComponent`/`NamedExoticComponent` — первый аргумент,
+  `MemoExoticComponent<T>` — компонент `T`, `StyledComponent<C, T, O, A>` — пропсы `C` (тег,
+  функция, компонент) и `O`, пересечение — компонентная часть. Тип не вывелся — пропсов у записи
+  нет (палитровой записи это отказ; запасной путь — `propsFrom`).
+- **Владение пропсами**: исходники кита и `ownership.packages` → `properties`; `@types/react` →
+  `x-inherits.react`; прочие пакеты (`antd`, `rc-*`) → `x-inherits.packages`, нужные возвращает
+  `props.pick`. `className` остаётся всегда; `children`/`key`/`ref`/`style`, aria/data-атрибуты,
+  DOM-события (`onClick`, но не `onOpenChange`) и `@deprecated` — нет. `props.omit` убирает,
+  `props.override` уточняет схему (только выведенного пропа). Селектор — имя записи, `'*'`,
+  `'@field'` или `'@container'`.
+- **Поля** — экспорты со статикой `reformerAdapter`; каждое описывает `fields` (биекция
+  обязательна). `properties` поля — пропсы обёртки без шва (`value`/`onChange`/`onBlur`/
+  `disabled` и `seam` поля) плюс пропсы обёртки поля (`fieldWrapper`, по умолчанию `'reformer'`:
+  `label`, `required`, `description`, `labelTooltip`, `testId`, `tooltip`); `x-runtimeProps` —
+  шов, где `value.type` — тип значения из конфига (только встроенные типы: `Date | null`,
+  `[Date, Date] | null`, `File[] | null`).
+- **Статики** (`Textbox.Masked`) находятся сами; каждая требует решения в `statics`: `'ignore'`
+  или плоский экспорт кита. **Части** составных компонентов — только явно, через `parts`.
+- **Роли**: поля, `categories`, `palette`, `limited` (заглушка в превью), `parts` — палитра;
+  `service` — `palette: false`; `exclude` — вне каталога; функции, хуки, контексты и константы в
+  каталог не попадают сами. Компонент без роли записывается служебным с заметкой
+  (`unclassified: 'refuse'` — отказ). Разделы палитры (`kit.palette.categoryByName`, `order`)
+  выводятся из `categories`.
+- **Детерминизм**: записи и пропсы — по кодовым точкам имени, порядок ключей фиксирован, enum — в
+  порядке объявления, `x-doc.type` без `import("…").` и не длиннее 160 знаков; описания — только
+  из JSDoc типов и конфига, из прошлой версии файла ничего не переносится.
+
+Каталог проходит ту же проверку контракта, что у реестра китов билдера (`loadCatalogValidator`), —
+до записи; не прошедший не пишется. Отказы (код выхода `1`):
+
+- `catalog-config-invalid` — форма конфига; имя без записи; синтетика билдера (`Wizard`, `Step`,
+  `$html…`, `FieldArray` в палитре); противоречие ролей; статика без решения; биекция полей;
+  непереносимый тип значения; палитровая запись без пропсов;
+- `catalog-symbol-missing` — символ записи, `propsFrom`, `statics`, `kit.infra` или `kit.adapters`
+  не экспортирован входом;
+- `kit-invalid-catalog` — результат не проходит контракт каталога;
+- `typescript-missing` — TypeScript не установлен;
+- `catalog-drift` — `--check`: файл разошёлся с типами.
+
+`--check` ничего не пишет: сравнивает разобранный JSON файла с тем, что дают типы (форматирование
+и порядок ключей не влияют), и при расхождении печатает дифф (`+` есть по типам, нет в файле; `-`
+наоборот; `~` изменилось). Так кит держит каталог в репозитории и узнаёт в CI, что обновлённая
+дизайн-система требует перегенерации.
+
 ## Программный вход
 
 ```ts
@@ -169,6 +258,17 @@ import { buildPlugin } from '@reformer/builder-plugin-cli';
 
 const result = await buildPlugin({ dir: './acme-forms', outDir: './out' });
 if (!result.ok) console.log(result.findings);
+```
+
+Генератор каталога — отдельным подпутём (`typescript` нужен только ему):
+
+```ts
+import { checkKitCatalog, generateKitCatalog } from '@reformer/builder-plugin-cli/catalog';
+
+const result = await generateKitCatalog({ dir: './my-kit' }); // файл не пишет
+if (result.ok) await writeFile(result.outFile, result.text);
+
+const check = await checkKitCatalog({ dir: './my-kit' }); // check.diff — расхождения
 ```
 
 ## Лицензия
