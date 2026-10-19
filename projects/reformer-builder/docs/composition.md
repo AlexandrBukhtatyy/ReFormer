@@ -159,11 +159,12 @@ npx reformer-builder --plugins ./my-plugins
 ### ReFormer с HexaUI
 
 Кит HexaUI — внешний плагин, пакет `@reformer/kit-hexa-ui`. Живёт он в каталоге плагинов
-проекта-образца (`projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui`).
-Сборка плагина:
+проекта-образца (`projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui`); его
+[README](../../reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui/README.md) — подробности
+кита и образец кита, внесённого плагином. Сборка плагина:
 
 ```bash
-npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, styles.css
+npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, styles.css, chunks/
 ```
 
 Содержимое `dist/` кладётся в проект как `.ui_builder/plugins/kit-hexa-ui/`. Включить плагин
@@ -173,8 +174,92 @@ npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, s
 { "workspace.plugins.enabled": ["kit-hexa-ui"] }
 ```
 
-Кит выбирается в палитре команд («Кит: Kaspersky HexaUI») — или умолчанием организации, см. ниже.
-Тот же кит рисует и формы RJSF: киты — платформа, а не часть движка.
+Кит выбирается в ячейке кита строки состояния или в палитре команд («Кит: Kaspersky HexaUI») —
+или умолчанием организации, см. ниже. Тот же кит рисует и формы RJSF: киты — платформа, а не
+часть движка.
+
+Что под HexaUI есть в билдере:
+
+- **полный каталог** — контракт `3.0`, полторы сотни записей, все компоненты входа пакета кита.
+  Каталог не пишется руками: его генерирует `reformer-plugin catalog` из TypeScript-типов кита
+  (рецепт ниже). В палитре — поля, контейнеры, отображение и действия. Оверлеи, навигация, табы,
+  таблицы и тяжёлые компоненты — записи `limited`: в палитре они есть, превью рисует их
+  подписанной заглушкой, кодоген печатает импорт. Инфраструктура кита (`FormField`,
+  `KitProvider`, `FormWizard`…) в палитру не входит;
+- **29 полей** с адаптерами формы. Имена записей — как у `@reformer/ui-kit` (`Input`, `Select`,
+  `DatePicker`, `FileUpload`, …), поэтому одна схема формы рисуется обоими китами. Полей, которых
+  у ui-kit нет, восемь: `CheckboxGroup`, `CodeEditor`, `InputSearch`, `RichTextEditor`,
+  `TimeInput`, `TimeRange`, `ToggleButtonGroup`, `WeeklySchedule`. Вид значения поля
+  (`Date | null`, `string[] | null`, …) билдер берёт из каталога — по нему кодоген печатает тип
+  модели. Таблица соответствий полям HexaUI — в README кита;
+- **визард** — `FormWizard` по протоколу визарда каталога `3.0` (`kit.adapters.wizard`). Поэтому
+  под HexaUI есть встроенный шаблон «Пошаговая форма»: шаги рисует HexaUI `Wizard`, а переход
+  делает поток формы — «Далее» не пускает дальше шага, пока его поля не прошли проверку.
+
+Кит грузится по частям. Шапка (`id`, `label`, `package`) — значением: по ней кит виден в выборе.
+Каталог (~0,5 МБ JSON, `chunks/catalog.js`) — динамическим импортом, когда кит выбран.
+Пространство имён (HexaUI с antd и styled-components) — когда кит рисует форму; календари и
+редакторы полей — при первой отрисовке такого поля. Стили плагина оболочка ставит с изоляцией
+`scoped`: они действуют только в рамке кита в превью (`[data-rb-plugin="kit-hexa-ui"]`), и
+всплывающие окна полей — списки, дерево, календари — кит открывает в той же рамке.
+
+Ограничения (подробно — раздел «Ограничения» README кита):
+
+- HexaUI объявляет React 16–18, а билдер работает на 19-м. Формы рисуются, но antd и
+  styled-components внутри кита пишут предупреждения в консоль;
+- `GlobalStyle` HexaUI кладёт CSS-переменные палитры и шрифты прямо в `<head>` — мимо изоляции
+  стилей, когда кит впервые рисует форму;
+- повторное включение плагина в той же вкладке даёт второй экземпляр styled-components —
+  предупреждение в консоли до перезагрузки вкладки;
+- подсказки самостоятельного `Tooltip` HexaUI открываются в `document.body`, вне стилей кита;
+- локали провайдер кита не получает, и словарь HexaUI — английский по умолчанию: календарь и
+  кнопки визарда, если схема не задала им подписи (`nextLabel`, `backLabel`, `submitLabel`).
+
+### Свой кит: каталог из типов
+
+Кит дизайн-системы организации вносится тем же путём, что HexaUI: плагином. Ни билдер, ни движки
+о ките не знают — кит описывает себя каталогом и отдаёт компоненты пространством имён.
+
+- **Плагин кита** — пакет с манифестом (`src/manifest.json`, в `requires` — служба китов
+  `reformer.kit.catalog ^2`) и точкой входа, которая вносит кит в точку `KitSourcePoint`
+  (`reformer.kit.source`) из `@reformer/builder-plugin-api`: шапку кита значением, каталог и
+  пространство имён — загрузчиками (`catalog: () => import('../catalog.json')`). Стили — полем
+  `styles` манифеста с изоляцией `scoped`. Образец — `src/builder-plugin.ts` кита HexaUI.
+- **Поля** — обёртки над контролами дизайн-системы со статикой `reformerAdapter`
+  (`FieldAdapter` из `@reformer/core/react`): адаптер сводит шов формы (`value`, `onChange`,
+  `onBlur`) к контракту контрола. По этой статике генератор и узнаёт поле, поэтому тип пропсов
+  обёртки должен быть точным: из него выводятся пропсы записи.
+- **`catalog.config.mjs`** (с `// @ts-check` и `defineKitCatalog` из
+  `@reformer/builder-plugin-cli/catalog-config`) говорит то, чего типы не знают: тип значения
+  каждого поля, роли записей (палитра, `limited`, служебные), разделы палитры, переименования,
+  части составных компонентов, решения по статикам. Остальное — пропсы, их типы, описания, enum —
+  генератор берёт из TypeScript-типов входа пакета кита.
+- **Генерация и проверка** — скриптами пакета:
+
+  ```json
+  {
+    "scripts": {
+      "catalog": "reformer-plugin catalog .",
+      "catalog:check": "reformer-plugin catalog . --check"
+    }
+  }
+  ```
+
+  `catalog.json` лежит в репозитории кита. `--check` ничего не пишет: сверяет файл с типами и при
+  расхождении печатает дифф с кодом выхода `1`.
+
+- **Тест дрейфа** — тот же `--check` программно (`checkKitCatalog` из
+  `@reformer/builder-plugin-cli/catalog`), как `src/catalog.test.ts` кита HexaUI. Обновили
+  дизайн-систему, TypeScript или обёртку поля — тест падает с диффом, и каталог перегенерируют
+  осознанно.
+- **Визард** — по желанию: компонент по протоколу визарда каталога `3.0`, названный в
+  `kit.adapters.wizard`. Без него кит работает, а «Пошаговой формы» среди встроенных шаблонов нет.
+
+Сборка плагина (`reformer-plugin build`) проверяет каталог той же проверкой контракта, что реестр
+китов билдера. Формат конфига, правила вывода пропсов и отказы генератора —
+[README `@reformer/builder-plugin-cli`, раздел `catalog`](../../../packages/reformer-builder-plugin-cli/README.md#catalog-каталог---config-файл---check);
+контракт кита, протокол визарда и словарь пропсов каталога — раздел
+[«Киты» README `@reformer/builder-plugin-api`](../../../packages/reformer-builder-plugin-api/README.md#киты).
 
 ### Свой профиль
 
@@ -219,7 +304,7 @@ npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, s
 ```text
 <каталог запуска>/.ui_builder/config.json        preset, profiles, defaults.settings
 <проект>/.ui_builder/plugins/reformer/<плагин>/   manifest.json, main.js, styles.css — движок
-<проект>/.ui_builder/plugins/kit-hexa-ui/         manifest.json, main.js, styles.css — кит
+<проект>/.ui_builder/plugins/kit-hexa-ui/         manifest.json, main.js, styles.css, chunks/ — кит
 <проект>/.ui_builder/settings.json                включённые плагины и выданные им права
 <проект>/forms/                                   формы
 ```
