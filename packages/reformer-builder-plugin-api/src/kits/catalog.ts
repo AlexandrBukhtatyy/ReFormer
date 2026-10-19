@@ -42,10 +42,66 @@ export type CatalogRole = 'field' | 'container' | 'array';
  * JSON Schema редактируемых пропсов компонента.
  *
  * Структуру контракт не навязывает — проверяется только, что это объект. Словарь расширений
- * (`x-doc`, `x-runtimeProps`) принадлежит киту и тем, кто его читает, поэтому тип открытый:
- * сузить его до своей формы обязан читатель.
+ * (`x-doc`, `x-runtimeProps`, `x-inherits`) принадлежит киту и тем, кто его читает, поэтому тип
+ * открытый: сузить его до своей формы обязан читатель. Общепринятую форму словаря описывают
+ * {@link CatalogPropDoc}, {@link CatalogRuntimePropDoc} и {@link CatalogInherits} — так её пишут
+ * генератор каталога из типов (`reformer-plugin catalog`) и каталог `@reformer/ui-kit`.
  */
 export type CatalogPropsSchema = { readonly [keyword: string]: unknown };
+
+// ── Словарь пропсов каталога ────────────────────────────────────────────────────
+//
+// Ключи `x-*` внутри `propsSchema`: то, чего нет в словаре JSON Schema. Схема контракта их не
+// проверяет (`propsSchema` — любой объект), поэтому это соглашение, а не требование: каталог без
+// них валиден, а читатель, не нашедший ключа, обязан обойтись умолчанием.
+
+/**
+ * Секция инспектора, в которой показывается проп (`x-doc.group`): управление, варианты выбора,
+ * тексты, поведение, состояние. Проп без секции читатель кладёт в `Behavior`.
+ */
+export type CatalogPropGroup = 'Control' | 'Options' | 'Textfield' | 'Behavior' | 'State';
+
+/**
+ * Виджет инспектора для пропа (`x-doc.kind`). По умолчанию выводится из `type`/`enum` схемы;
+ * `readonly` — проп не выражается в JSON (функция, React-узел, сложный объект) и показывается
+ * без редактора.
+ */
+export type CatalogPropKind = 'boolean' | 'text' | 'number' | 'enum' | 'readonly';
+
+/**
+ * `x-doc` пропа — ровно то, чего нет в словаре JSON Schema. Остальное читается из стандартных
+ * ключей схемы пропа: `description`, `default`, `enum`, `minimum`/`maximum`.
+ */
+export interface CatalogPropDoc {
+  group: CatalogPropGroup;
+  /** Отображаемый TS-тип: JSON Schema не выражает `string | null` и сигнатуры функций. */
+  type: string;
+  /** Переопределить виджет; по умолчанию выводится из `type`/`enum`. */
+  kind?: CatalogPropKind;
+}
+
+/**
+ * Запись `x-runtimeProps` — проп, которого НЕ бывает в `componentProps`: его подставляет форма
+ * (`value`/`onChange`/`onBlur`/`disabled` поля) либо он не представим в JSON. Держится отдельно
+ * от `properties`, чтобы схема не врала, будто его можно указать. У поля `x-runtimeProps.value.type`
+ * — тип значения модели (`string | null`, `Date | null`, `File[] | null`): по нему стеки узнают
+ * вид значения поля.
+ */
+export interface CatalogRuntimePropDoc extends CatalogPropDoc {
+  description: string;
+  default?: string | number | boolean;
+}
+
+/**
+ * `x-inherits` — что компонент принимает СВЕРХ перечисленных в `properties`, чтобы отсутствие
+ * `onClick` или `aria-label` не читалось как «компонент их не принимает».
+ */
+export interface CatalogInherits {
+  /** Интерфейсы `@types/react`, чьи пропсы компонент принимает (`HTMLAttributes`, `DOMAttributes`). */
+  react: string[];
+  /** Чужие npm-пакеты, чьи пропсы компонент принимает, но каталог не перечисляет (`antd`). */
+  packages: string[];
+}
 
 /**
  * Пространство имён кита — сами компоненты: имя экспорта → значение. Достаточно, чтобы нужный

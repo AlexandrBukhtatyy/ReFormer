@@ -233,6 +233,7 @@ npm install --save-dev @reformer/builder-plugin-api
 | Что                                                          | Зачем                                                                                     |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `CatalogJson`, `CatalogRecord`, `KitDescriptorJson`          | каталог кита (`component-catalog.json`, контракт `3.0`): записи и блок `kit`              |
+| `CatalogPropDoc`, `CatalogRuntimePropDoc`, `CatalogInherits` | словарь пропсов записи: `x-doc`, `x-runtimeProps`, `x-inherits` внутри `propsSchema`      |
 | `KitWizardProtocol`, `KitWizardProps`, `KitWizardStepNode`   | протокол визарда кита (`kit.adapters.wizard`, контракт `3.0`): шаги данными, `renderNode` |
 | `toDescriptor`                                               | дескриптор кита по каталогу — без неявных умолчаний                                       |
 | `KitSourcePoint` (`reformer.kit.source`), `KitSource`        | точка, в которую плагин вносит кит: каталог значением, пространство имён загрузчиком      |
@@ -245,6 +246,15 @@ npm install --save-dev @reformer/builder-plugin-api
 шагов — из контекста сборки (`useFormBundleContext()` из `@reformer/core/react`), шаг схемы
 связан с шагом потока по `selector`. Шима визарда нет: визард, написанный под него, без протокола
 работать перестанет; `kit.codegen.needsShim` устарел. Кит без визарда (`wizard: null`) не меняется.
+
+Словарь пропсов — соглашение, а не требование контракта: схема проверяет только, что
+`propsSchema` — объект. У пропа `x-doc` несёт секцию инспектора (`group`: `Control`, `Options`,
+`Textfield`, `Behavior`, `State`), отображаемый TS-тип и виджет (`kind`); `x-runtimeProps` —
+пропсы, которые подставляет форма, а не автор схемы (у поля `value.type` — тип значения модели);
+`x-inherits` — что компонент принимает сверх `properties`: интерфейсы `@types/react` и чужие
+пакеты. Каталог из типов кита с этим словарём собирает генератор
+[`reformer-plugin catalog`](../reformer-builder-plugin-cli/README.md#catalog-каталог---config-файл---check)
+из `@reformer/builder-plugin-cli`: SDK остаётся контрактом данных без TypeScript в рантайме.
 
 Кит называет себя сам — `kit.id` в каталоге; без него реестр кит не примет. Корень каждого
 компонента кита обязан принимать `className`: по нему билдер находит узел формы кликом и
@@ -302,6 +312,8 @@ npm install --save-dev @reformer/builder-plugin-api
   до сборки. Отличий два: имя каталога с `id` не сверяется, `version` обязательна;
 - **проверка каталога кита** (`loadCatalogValidator`) — та же, которой реестр китов билдера
   принимает кит плагина: контракт `component-catalog.schema.json` (ajv грузится лениво).
+  Версия контракта (`CATALOG_CONTRACT_VERSION`, `SUPPORTED_CATALOG_CONTRACT_VERSIONS`) отдаётся
+  и здесь: генератор каталога работает в голом Node, а главный вход тянет React.
 
 Пользуется этим входом `@reformer/builder-plugin-cli` (`reformer-plugin`).
 

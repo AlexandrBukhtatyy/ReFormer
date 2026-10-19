@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reformer.dev/schemas/component-catalog.schema.json",
   "title": "ReFormer component catalog",
-  "description": "Контракт каталога кита. Владелец — SDK плагинов билдера (@reformer/builder-plugin-api); киты (напр. @reformer/ui-kit) поставляют валидный catalog-JSON со списком своих компонентов и блоком kit о себе. Версии: 1.0 — только записи; 2.0 — блок kit и поля записей exportName/subpath/preview/leaf/palette/classGroups; 2.1 — kit.infra.fieldFrame и kit.renderers.",
+  "description": "Контракт каталога кита. Владелец — SDK плагинов билдера (@reformer/builder-plugin-api); киты (напр. @reformer/ui-kit) поставляют валидный catalog-JSON со списком своих компонентов и блоком kit о себе. Версии: 1.0 — только записи; 2.0 — блок kit и поля записей exportName/subpath/preview/leaf/palette/classGroups; 2.1 — kit.infra.fieldFrame и kit.renderers; 3.0 — протокол визарда: символ kit.adapters.wizard — компонент со статикой __selfManagedChildren, шаги получает данными вместе с renderNode, форму и поток шагов берёт из контекста сборки; kit.codegen.needsShim устарел. Всё добавленное необязательно, поэтому старшая версия читает младшие без переходников.",
   "type": "object",
   "required": ["version", "components"],
   "additionalProperties": false,
@@ -34,7 +34,7 @@
           },
           "propsSchema": {
             "type": "object",
-            "description": "JSON Schema редактируемых пропсов компонента (валидируется её структура, не содержимое)."
+            "description": "JSON Schema редактируемых пропсов компонента (валидируется её структура, не содержимое). Словарь расширений — соглашение, а не требование контракта: x-doc пропа — секция инспектора group (Control | Options | Textfield | Behavior | State), отображаемый TS-тип type и виджет kind; x-runtimeProps — пропсы, которые подставляет форма (у поля value.type — тип значения модели); x-inherits — что компонент принимает сверх properties: интерфейсы @types/react (react) и чужие пакеты (packages). Типы словаря — CatalogPropDoc, CatalogRuntimePropDoc и CatalogInherits SDK; так его пишет генератор reformer-plugin catalog."
           },
           "variantGroup": {
             "type": "string",

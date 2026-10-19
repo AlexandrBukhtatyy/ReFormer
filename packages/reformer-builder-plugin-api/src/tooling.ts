@@ -71,3 +71,7 @@ export { normalizeModulePath } from './primitives/module-path.js';
 // пропустивший каталог, который реестр отвергнет, проверял бы не то.
 export { loadCatalogValidator } from './kits/validator.js';
 export type { CatalogCheck, CatalogValidator } from './kits/validator.js';
+// Версия контракта каталога — для генератора каталога из типов (`reformer-plugin catalog`): он
+// пишет каталог текущей версии. Те же константы, что у главного входа, но без его рантайма
+// (главный вход тянет React, а инструмент работает в голом Node).
+export { CATALOG_CONTRACT_VERSION, SUPPORTED_CATALOG_CONTRACT_VERSIONS } from './kits/catalog.js';

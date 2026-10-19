@@ -405,10 +405,15 @@ export type {
 // против схемы — во входе `./tooling` (она тянет ajv и нужна не каждому).
 export { CATALOG_CONTRACT_VERSION, SUPPORTED_CATALOG_CONTRACT_VERSIONS } from './kits/catalog.js';
 export type {
+  CatalogInherits,
   CatalogJson,
+  CatalogPropDoc,
+  CatalogPropGroup,
+  CatalogPropKind,
   CatalogPropsSchema,
   CatalogRecord,
   CatalogRole,
+  CatalogRuntimePropDoc,
   KitAdapter,
   KitAdapters,
   KitClassGroup,
