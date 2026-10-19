@@ -12,8 +12,10 @@
  *
  *   1. Spawn `npx vitest run` with full arg passthrough; pipe stdout/stderr.
  *   2. After the child has been emitting output for `MIN_RUN_MS` (~5s) and
- *      then goes silent for `IDLE_KILL_MS` (default 60s) — kill it and decide
- *      the exit code from the output (`run-vitest-verdict.mjs`):
+ *      then goes silent for `IDLE_KILL_MS` (default 60s) — kill it together with
+ *      its children (on Windows the child is the shell, and killing it alone
+ *      left vitest running — ReFormer-23l1) and decide the exit code from the
+ *      output (`run-vitest-verdict.mjs`):
  *        - failure markers ("FAIL", "Tests X failed", coverage threshold) → 1;
  *        - the "Test Files … (N)" summary line → 0 — it is printed only once
  *          every file has reported;
@@ -29,9 +31,17 @@
  * Env:
  *   VITEST_IDLE_KILL_MS — ms of stdout silence before assuming hang. Default 60000.
  *   VITEST_MIN_RUN_MS   — ms of activity before idle detection arms. Default 5000.
+ *
+ * Live evaluations against a real model stay silent for minutes per step: raise
+ * VITEST_IDLE_KILL_MS for them, or run `npx vitest run` directly.
  */
-import { spawn } from 'node:child_process';
-import { hasSummary, idleVerdict, listArgs } from './run-vitest-verdict.mjs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  hasSummary,
+  idleVerdict,
+  listCommandArgs,
+  treeKillCommand,
+} from './run-vitest-verdict.mjs';
 
 const args = process.argv.slice(2);
 const COVERAGE = args.some((arg) => arg === '--coverage' || arg.startsWith('--coverage.'));
@@ -65,17 +75,34 @@ const handleData = (data, sink) => {
 child.stdout.on('data', (d) => handleData(d, process.stdout));
 child.stderr.on('data', (d) => handleData(d, process.stderr));
 
+/**
+ * Снять процесс вместе с потомками. Через `shell: true` дочерний процесс — оболочка, а vitest —
+ * её потомок; на Windows `kill()` оболочки vitest не останавливает (`treeKillCommand`).
+ */
+function killTree(proc) {
+  const command = treeKillCommand(proc.pid);
+  if (command !== null) {
+    const [cmd, cmdArgs] = command;
+    if (spawnSync(cmd, cmdArgs, { stdio: 'ignore' }).status === 0) return;
+  }
+  try {
+    proc.kill('SIGKILL');
+  } catch {
+    // Already dead.
+  }
+}
+
 /** Файлы, которые vitest нашёл бы с теми же аргументами; `null`, если список получить не удалось. */
 function expectedFiles() {
   return new Promise((resolve) => {
-    const list = spawn('npx', ['vitest', 'list', '--filesOnly', '--json', ...listArgs(args)], {
+    const list = spawn('npx', listCommandArgs(args), {
       stdio: ['ignore', 'pipe', 'ignore'],
       env: process.env,
       shell: true,
     });
     let out = '';
     const timer = setTimeout(() => {
-      list.kill('SIGKILL');
+      killTree(list);
       resolve(null);
     }, LIST_TIMEOUT_MS);
     list.stdout.on('data', (d) => (out += d));
@@ -108,11 +135,7 @@ const idleCheck = setInterval(async () => {
   // Stdout silent long enough — vitest finished or hung mid-run. Decide from the output.
   deciding = true;
   clearInterval(idleCheck);
-  try {
-    child.kill('SIGKILL');
-  } catch {
-    // Already dead.
-  }
+  killTree(child);
   const expected = hasSummary(buf) ? undefined : await expectedFiles();
   const { code, reason } = idleVerdict({ output: buf, coverage: COVERAGE, expected });
   process.stderr.write(

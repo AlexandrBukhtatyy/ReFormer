@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { idleVerdict, listArgs, missingFiles, reportedFiles } from './run-vitest-verdict.mjs';
+import {
+  idleVerdict,
+  listArgs,
+  listCommandArgs,
+  missingFiles,
+  reportedFiles,
+  treeKillCommand,
+} from './run-vitest-verdict.mjs';
 
 const CORE_FILE = ' ✓ tests/core/production-mode.test.ts (6 tests) 840ms';
 const BROWSER_FILE =
@@ -112,4 +119,32 @@ test('listArgs: покрытие и репортёры отброшены, ко�
     listArgs(['--reporter', 'dot', '--outputFile.json', 'out.json', '--coverage', 'src/a']),
     ['src/a']
   );
+});
+
+test('listCommandArgs: фильтр файла не попадает в значение --json (ReFormer-23l1)', () => {
+  const command = listCommandArgs(['src/loop/live-eval.test.ts']);
+  // Последним `--json` значения не получает и печатает список в stdout. Стоящий сразу за ним
+  // фильтр был бы принят за путь вывода — и список записался бы поверх файла теста.
+  assert.equal(command.at(-1), '--json');
+  assert.deepEqual(command, [
+    'vitest',
+    'list',
+    'src/loop/live-eval.test.ts',
+    '--filesOnly',
+    '--json',
+  ]);
+  assert.deepEqual(listCommandArgs(['-c', 'vitest.browser.config.ts', '--coverage']), [
+    'vitest',
+    'list',
+    '-c',
+    'vitest.browser.config.ts',
+    '--filesOnly',
+    '--json',
+  ]);
+});
+
+test('treeKillCommand: на Windows снимается дерево процессов, на прочих хватает kill()', () => {
+  assert.deepEqual(treeKillCommand(4321, 'win32'), ['taskkill', ['/pid', '4321', '/T', '/F']]);
+  assert.equal(treeKillCommand(4321, 'linux'), null);
+  assert.equal(treeKillCommand(undefined, 'win32'), null);
 });
