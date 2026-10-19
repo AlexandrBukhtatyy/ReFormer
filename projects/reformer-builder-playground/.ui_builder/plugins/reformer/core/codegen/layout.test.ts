@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SCHEMA_PATH,
   detachedModuleDirOf,
+  fileRoleOf,
   formNameOfSchemaPath,
   importOf,
   isCanonicalSchemaName,
@@ -250,5 +251,53 @@ describe('isCanonicalSchemaName', () => {
     expect(isCanonicalSchemaName('form.schema.json')).toBe(true);
     expect(isCanonicalSchemaName('renderer.schema.json')).toBe(true);
     expect(isCanonicalSchemaName('credit.schema.json')).toBe(false);
+  });
+});
+
+describe('fileRoleOf — роль файла модуля для правки мимо кодогена', () => {
+  const files = moduleFilesOf(NAMES);
+
+  it('документ формы и файлы шагов рядом с ним', () => {
+    expect(fileRoleOf(DEFAULT_SCHEMA_PATH, DEFAULT_SCHEMA_PATH)).toBe('form');
+    expect(fileRoleOf('schema/steps/kontakty/form.schema.json', DEFAULT_SCHEMA_PATH)).toBe('step');
+    // Шаги прежней плоской раскладки лежат рядом с документом в корне модуля.
+    expect(fileRoleOf('steps/kontakty/form.schema.json', 'form.schema.json')).toBe('step');
+    expect(fileRoleOf('schema/steps/a/b/form.schema.json', DEFAULT_SCHEMA_PATH)).toBe('other');
+  });
+
+  it('производные файлы — те, что кодоген перепечатывает всегда', () => {
+    for (const path of [
+      files.page,
+      files.barrel,
+      files.readme,
+      files.create,
+      files.entry,
+      files.initial,
+      files.model,
+      files.registry,
+      files.flow,
+      files.types,
+    ]) {
+      expect(fileRoleOf(path, DEFAULT_SCHEMA_PATH), path).toBe('derived');
+    }
+  });
+
+  it('правила формы и шагов перепечатываются из правил, пока несут маркер', () => {
+    expect(fileRoleOf(files.validation, DEFAULT_SCHEMA_PATH)).toBe('regenerable');
+    expect(fileRoleOf(stepValidationPath('kontakty'), DEFAULT_SCHEMA_PATH)).toBe('regenerable');
+    expect(fileRoleOf(files.behavior, DEFAULT_SCHEMA_PATH)).toBe('regenerable');
+  });
+
+  it('авторские файлы кодоген не трогает', () => {
+    for (const path of [files.messages, files.submit, files.api, files.constants, 'fixture.ts']) {
+      expect(fileRoleOf(path, DEFAULT_SCHEMA_PATH), path).toBe('user');
+    }
+  });
+
+  it('файлы прежней плоской раскладки и прочее', () => {
+    expect(fileRoleOf('form.validation.ts', 'form.schema.json')).toBe('legacy');
+    expect(fileRoleOf('index.tsx', 'form.schema.json')).toBe('legacy');
+    expect(fileRoleOf('notes.md', DEFAULT_SCHEMA_PATH)).toBe('other');
+    expect(fileRoleOf('validation\\form.ts', DEFAULT_SCHEMA_PATH)).toBe('regenerable');
   });
 });

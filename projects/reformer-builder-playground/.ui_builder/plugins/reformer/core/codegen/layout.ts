@@ -333,6 +333,85 @@ export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path:
   }
 }
 
+/**
+ * Роль файла модуля формы — то, что правка этого файла значит для кодогена.
+ *
+ * - `form` — документ формы; `step` — файл шага разбитого визарда;
+ * - `derived` — производный: генерация кода перепечатывает его ВСЕГДА, ручная правка не доживёт
+ *   до следующего прогона;
+ * - `regenerable` — авторский, но печатается из правил формы, пока несёт маркер кодогена: правка
+ *   без маркера останавливает перепечатку;
+ * - `user` — авторский, кодоген его не трогает;
+ * - `legacy` — файл прежней плоской раскладки ({@link FLAT_LAYOUT_FILES});
+ * - `other` — всё прочее.
+ */
+export type ModuleFileRole =
+  | 'form'
+  | 'step'
+  | 'derived'
+  | 'regenerable'
+  | 'user'
+  | 'legacy'
+  | 'other';
+
+/** Производные файлы с постоянным путём. Пути с именем формы разбираются отдельно. */
+const DERIVED_FILES: readonly string[] = Object.freeze([
+  'index.ts',
+  'README.md',
+  'application/create.ts',
+  'application/entry.ts',
+  'model/initial-value.ts',
+  'model/model.ts',
+  `${SCHEMA_DIR}/registry.ts`,
+]);
+
+/** Авторские файлы с постоянным путём, которые кодоген не перепечатывает. */
+const USER_FILES: readonly string[] = Object.freeze([
+  `${VALIDATION_DIR}/${MESSAGES_NAME}.ts`,
+  'application/submit.ts',
+  'api/index.ts',
+  'fixture.ts',
+]);
+
+/**
+ * Роль файла по его пути внутри модуля.
+ *
+ * Раскладка — та же, по которой печатает кодоген (цели `codegen/src/pipeline/targets.ts`; паритет
+ * держит тест рядом с ними). Нужна тем, кто правит файлы модуля МИМО кодогена — ассистенту в
+ * режиме файлов: правка производного файла выглядит успешной и молча исчезает при следующей
+ * генерации, и сказать об этом в момент правки дешевле, чем объяснять пропажу потом.
+ *
+ * @param path - Путь от корня модуля.
+ * @param schemaPath - Путь документа формы от корня модуля.
+ */
+export function fileRoleOf(path: string, schemaPath: string): ModuleFileRole {
+  const file = normalize(path);
+  if (file === normalize(schemaPath)) return 'form';
+
+  const stepsDir = `${schemaDirOf(schemaPath)}${STEP_SCHEMAS_DIR}/`;
+  if (file.startsWith(stepsDir)) {
+    const rest = file.slice(stepsDir.length).split('/');
+    if (rest.length === 2 && rest[1] === SCHEMA_FILE) return 'step';
+  }
+
+  if (isFlatLayoutPath(file)) return 'legacy';
+  if (DERIVED_FILES.includes(file)) return 'derived';
+  if (USER_FILES.includes(file)) return 'user';
+
+  const segments = file.split('/');
+  if (file === 'behavior/index.ts') return 'regenerable';
+  if (segments.length === 2 && segments[0] === VALIDATION_DIR && file.endsWith('.ts')) {
+    return 'regenerable';
+  }
+  if (segments.length === 2 && (segments[0] === 'types' || segments[0] === 'flow')) {
+    return file.endsWith('.ts') ? 'derived' : 'other';
+  }
+  if (segments.length === 2 && segments[0] === 'constants' && file.endsWith('.ts')) return 'user';
+  // Страница называется типом формы (`<Type>.tsx`) — единственный `.tsx` в корне новой раскладки.
+  if (segments.length === 1 && file.endsWith('.tsx')) return 'derived';
+  return 'other';
+}
+
 /** Расширения, которые спецификатор импорта опускает. */
 const SCRIPT_EXTENSION = /\.(tsx?|jsx?)$/;
 
