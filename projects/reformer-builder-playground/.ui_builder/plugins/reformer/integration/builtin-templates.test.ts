@@ -360,36 +360,76 @@ describe('встроенный шаблон материализуется бе�
   });
 });
 
-describe('шаблон под китом, у которого половины компонентов нет', () => {
-  it('HexaUI: поля — только те, что кит поставляет, и ни одной заглушки в реестре', async () => {
+describe('шаблон под внешним китом HexaUI', () => {
+  /** Шаблоны под HexaUI — и реестр каждого, напечатанный под имя `test`. */
+  async function hexaRegistries() {
     const { templates } = await templatesUnder(hexaKit());
     const layout = moduleFilesOf(makeNames('test'));
+    return Promise.all(
+      templates.map(async (template) => {
+        const files = await applyTemplate(template, modulePaths(template), 'test');
+        const registry = files.find((file) => file.path === layout.registry)?.content ?? '';
+        return { template, files, registry };
+      })
+    );
+  }
 
-    // Визарда у кита нет — нет и пошаговой формы: с заглушкой на месте визарда она показывала бы
-    // все шаги разом и не отправлялась бы вовсе.
-    expect(templates.map((t) => t.id)).toEqual([SIMPLE_TEMPLATE_ID]);
+  it('оба шаблона: визард у кита есть — есть и пошаговая форма', async () => {
+    const { templates } = await templatesUnder(hexaKit());
 
-    const files = await applyTemplate(templates[0], modulePaths(templates[0]), 'test');
-    const registry = files.find((file) => file.path === layout.registry)?.content ?? '';
-    // Заглушку кодоген ставит компоненту, которого в ките нет. Затравка таких не кладёт.
-    expect(registry).not.toContain('Placeholder');
-    for (const component of ['Input', 'Select', 'InputNumber', 'Textarea', 'Checkbox']) {
-      expect(registry, component).toContain(`reg.component('${component}',`);
+    // Пока у кита не было адаптера визарда, пошаговой формы не было: с заглушкой на месте визарда
+    // она показывала бы все шаги разом и не отправлялась бы вовсе.
+    expect(templates.map((t) => t.id)).toEqual([SIMPLE_TEMPLATE_ID, WIZARD_TEMPLATE_ID]);
+  });
+
+  it('поля анкеты — все, из каталога кита, и ни одной заглушки в реестре', async () => {
+    for (const { template, files, registry } of await hexaRegistries()) {
+      const where = template.name;
+      // Заглушку кодоген ставит компоненту, которого в ките нет. Затравка таких не кладёт.
+      expect(registry, where).not.toContain('Placeholder');
+      // Полный каталог: у HexaUI есть каждый вид поля анкеты, включая маску, радиогруппу, дату,
+      // комбобоксы и загрузку файлов, — затравка их больше не выбрасывает.
+      for (const component of [
+        'Input',
+        'InputMask',
+        'InputNumber',
+        'Textarea',
+        'DatePicker',
+        'RadioGroup',
+        'Select',
+        'Combobox',
+        'ComboboxMulti',
+        'FileUploadDropzone',
+        'Checkbox',
+      ]) {
+        expect(registry, `${where}: ${component}`).toContain(`reg.component('${component}',`);
+      }
+      // Компонента массива у кита нет, хотя ЗАПИСЬ массива в его каталоге есть — её добавляет
+      // билдер. Массив в затравке уезжал в реестр импортом `FieldArray` из пакета кита, которого
+      // там нет: модуль не собирался. Теперь массива нет вовсе — ни в схеме, ни в правилах.
+      expect(registry, where).not.toContain('FieldArray');
+      const text = files.map((file) => file.content).join('\n');
+      for (const trace of ['references', 'hasReferences', 'REFERENCE_LABEL', 'applyEach']) {
+        expect(text, `${where}: ${trace}`).not.toContain(trace);
+      }
+      // Подпутей кит не объявляет — и в реестре один импорт кита, из главного входа.
+      expect(registry.match(/from '@reformer\/kit-hexa-ui[^']*'/g), where).toEqual([
+        "from '@reformer/kit-hexa-ui'",
+      ]);
     }
-    for (const absent of ['InputMask', 'RadioGroup', 'DatePicker', 'Combobox', 'FileUpload']) {
-      expect(registry, absent).not.toContain(absent);
-    }
-    // Компонента массива у кита тоже нет, хотя ЗАПИСЬ массива в его каталоге есть — её добавляет
-    // билдер. Массив в затравке уезжал в реестр импортом `FieldArray` из пакета кита, которого
-    // там нет: модуль не собирался. Теперь массива нет вовсе — ни в схеме, ни в правилах.
-    expect(registry).not.toContain('FieldArray');
-    const text = files.map((file) => file.content).join('\n');
-    for (const trace of ['references', 'hasReferences', 'REFERENCE_LABEL', 'applyEach']) {
-      expect(text, trace).not.toContain(trace);
-    }
-    // Подпутей кит не объявляет — и в реестре один импорт кита, из главного входа.
-    expect(registry.match(/from '@reformer\/kit-hexa-ui[^']*'/g)).toEqual([
-      "from '@reformer/kit-hexa-ui'",
-    ]);
+  });
+
+  it('пошаговая форма: визард — адаптер кита, шаг — из cdk', async () => {
+    const wizard = (await hexaRegistries()).find(
+      ({ template }) => template.id === WIZARD_TEMPLATE_ID
+    );
+    const registry = wizard?.registry ?? '';
+
+    // Символ визарда — из `kit.adapters.wizard` каталога; шаг у кита свой не объявлен
+    // (`adapters.step: null`) — кодоген берёт библиотечный.
+    expect(registry).toContain("reg.component('Wizard', FormWizard);");
+    expect(registry).toContain("reg.component('Step', Step);");
+    expect(registry).toMatch(/import \{[^}]*\bFormWizard\b[^}]*\} from '@reformer\/kit-hexa-ui';/);
+    expect(registry).toContain("import { Step } from '@reformer/cdk/form-wizard';");
   });
 });

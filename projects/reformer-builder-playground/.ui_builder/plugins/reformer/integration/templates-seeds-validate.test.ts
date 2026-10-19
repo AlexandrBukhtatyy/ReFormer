@@ -12,8 +12,10 @@
  * и до неё указывало в никуда. Теперь селектор проставляет сама затравка, и сырая затравка
  * проходит ту же проверку, что и открытая в редакторе форма.
  *
- * То же — под китом, у которого половины компонентов нет: затравка подгоняется под его каталог
- * и обязана пройти проверку ПРОТИВ НЕГО, а не против встроенного.
+ * То же — под внешним китом (HexaUI): затравка подгоняется под его каталог и обязана пройти
+ * проверку ПРОТИВ НЕГО, а не против встроенного. Каталог HexaUI сгенерирован из типов кита и
+ * объявляет пропсы закрытым списком у каждой записи — проп затравки, которого обёртка HexaUI не
+ * знает, из затравки уходит, а не всплывает диагностикой.
  *
  * ## Почему тест лежит в композиции, а не рядом с затравками
  *
@@ -31,7 +33,7 @@ import { describe, expect, it } from 'vitest';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import hexaCatalog from '../../kit-hexa-ui/catalog.json';
 import { projectCatalog } from '../core/catalog';
-import { collectOperatorNames } from '../core/form-model';
+import { ARRAY_COMPONENT_NAME, collectOperatorNames } from '../core/form-model';
 import { builtinCatalog } from '../core/testing';
 import { checkForm } from '../validator/src/check';
 import {
@@ -44,7 +46,10 @@ import {
 } from '../templates/src';
 
 const BUILTIN = builtinCatalog();
-/** НАСТОЯЩИЙ кит HexaUI проекта-образца: шесть полей, визарда нет. */
+/**
+ * НАСТОЯЩИЙ кит HexaUI проекта-образца: полный каталог из типов кита — все поля анкеты и адаптер
+ * визарда, но без компонента массива.
+ */
 const HEXA = projectCatalog(hexaCatalog as never);
 
 const BUILTIN_KIT = seedKitOf(BUILTIN.entries, BUILTIN.descriptor);
@@ -68,6 +73,12 @@ const CASES = [
     catalog: HEXA.entries,
     schema: simpleSeed(HEXA_KIT),
     rules: simpleRules(HEXA_KIT),
+  },
+  {
+    name: 'пошаговая форма, HexaUI',
+    catalog: HEXA.entries,
+    schema: wizardSeed(HEXA_KIT),
+    rules: wizardRules(HEXA_KIT),
   },
 ];
 
@@ -93,21 +104,25 @@ describe('затравки встроенных шаблонов', () => {
 
   it('под HexaUI в затравке только то, что кит поставляет', () => {
     const known = new Set(HEXA.entries.map((entry) => entry.name));
-    const used = collectOperatorNames(simpleSeed(HEXA_KIT)).components;
 
-    for (const component of used) expect(known.has(component), component).toBe(true);
-    // Масок, радиогрупп, выбора даты, комбобоксов и загрузки файлов у кита нет — нет и полей.
-    for (const absent of [
-      'InputMask',
-      'RadioGroup',
-      'DatePicker',
-      'Combobox',
-      'ComboboxMulti',
-      'FileUploadDropzone',
-    ]) {
-      expect(used, absent).not.toContain(absent);
+    for (const seed of [simpleSeed(HEXA_KIT), wizardSeed(HEXA_KIT)]) {
+      const used = collectOperatorNames(seed).components;
+      for (const component of used) expect(known.has(component), component).toBe(true);
+      // Полный каталог: маска, радиогруппа, дата, комбобоксы и загрузка файлов у кита есть.
+      for (const present of [
+        'InputMask',
+        'RadioGroup',
+        'DatePicker',
+        'Combobox',
+        'ComboboxMulti',
+        'FileUploadDropzone',
+      ]) {
+        expect(used, present).toContain(present);
+      }
+      // Компонента массива у кита нет — нет и массива рекомендателей.
+      expect(used).not.toContain(ARRAY_COMPONENT_NAME);
     }
-    // Визарда у кита тоже нет: пошаговую форму ему собрать нечем.
-    expect(hasWizard(HEXA_KIT)).toBe(false);
+    // Адаптер визарда у кита есть (`kit.adapters.wizard`): пошаговая форма собирается.
+    expect(hasWizard(HEXA_KIT)).toBe(true);
   });
 });
