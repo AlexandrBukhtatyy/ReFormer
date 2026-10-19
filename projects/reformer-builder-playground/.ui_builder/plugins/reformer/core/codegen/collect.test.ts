@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
-import { partsSchema, partsWizardSchema, plainSchema } from './__fixtures__/kit';
-import { collect } from './collect';
+import { foreignKit, partsSchema, partsWizardSchema, plainSchema } from './__fixtures__/kit';
+import { collect, valueTypesOf } from './collect';
+import { prepare } from './context';
 import { synthMock } from '../form-mock';
+import { builtinEntries } from '../catalog/__fixtures__/builtin-catalog';
+import type { CatalogEntry } from '../catalog/types';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 
 function collectOf(schema = plainSchema()) {
@@ -459,5 +462,184 @@ describe('именованные части документа', () => {
         children: { t: 'arr', elem: loop },
       },
     });
+  });
+});
+
+describe('вид значения поля из каталога кита', () => {
+  /** Запись-поле каталога с объявленным типом значения (`x-runtimeProps.value.type`). */
+  const fieldEntry = (name: string, type: string): CatalogEntry => ({
+    name,
+    role: 'field',
+    propsSchema: {
+      type: 'object',
+      properties: {},
+      'x-runtimeProps': {
+        value: { group: 'Control', type, description: 'Значение поля.' },
+      },
+    } as unknown as CatalogEntry['propsSchema'],
+    makeNode: () => ({ model: '$model(x)', component: `$component(${name})` }),
+  });
+
+  /** Каталог чужого кита: поля, которых в наборах имён синтеза нет. */
+  const catalog: readonly CatalogEntry[] = [
+    fieldEntry('CheckboxGroup', 'string[] | null'),
+    fieldEntry('TimeRange', '[string, string] | null'),
+    fieldEntry('WeeklySchedule', 'Record<string, number[]> | null'),
+    fieldEntry('Level', "'low' | 'high'"),
+    fieldEntry('TimeInput', 'string | null'),
+  ];
+  const valueTypeOf = valueTypesOf(catalog);
+
+  /** Лист `x` формы из одного поля: тип и начальное значение по одной таблице. */
+  function leafOf(component: string, props: Record<string, unknown> = {}) {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(x)', component: `$component(${component})`, componentProps: props },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const mock = synthMock(schema, valueTypeOf);
+    return { leaf: collect(schema, mock, valueTypeOf).root.fields.x, initial: mock.model.x };
+  }
+
+  it('таблица читает тип значения записей-полей, прочие молчат', () => {
+    const container: CatalogEntry = {
+      ...fieldEntry('Tabs', 'string'),
+      role: 'container',
+    };
+    const bare: CatalogEntry = { ...fieldEntry('Bare', ''), propsSchema: {} };
+    const table = valueTypesOf([...catalog, container, bare]);
+    expect(table('CheckboxGroup')).toBe('string[] | null');
+    expect(table('Tabs')).toBeUndefined();
+    expect(table('Bare')).toBeUndefined();
+    expect(table('Nope')).toBeUndefined();
+  });
+
+  it('CheckboxGroup со string[] | null — список строк, стартует с null', () => {
+    const { leaf, initial } = leafOf('CheckboxGroup');
+    expect(leaf).toEqual({ t: 'leaf', ts: 'string[] | null' });
+    expect(initial).toBeNull();
+    // С опциями — набор их значений, как у мультивыбора встроенного кита.
+    const options = [
+      { value: 'a', label: 'А' },
+      { value: 'b', label: 'Б' },
+    ];
+    expect(leafOf('CheckboxGroup', { options }).leaf).toEqual({
+      t: 'leaf',
+      ts: "Array<'a' | 'b'> | null",
+    });
+  });
+
+  it('TimeRange с [string, string] | null — raw: тип печатается как объявлен, мок — null', () => {
+    const { leaf, initial } = leafOf('TimeRange');
+    expect(leaf).toEqual({ t: 'leaf', ts: '[string, string] | null' });
+    expect(initial).toBeNull();
+    expect(leafOf('WeeklySchedule').leaf).toEqual({
+      t: 'leaf',
+      ts: 'Record<string, number[]> | null',
+    });
+  });
+
+  it('raw без null в объявлении получает его: поле стартует с null', () => {
+    const { leaf, initial } = leafOf('Level');
+    expect(leaf).toEqual({ t: 'leaf', ts: "'low' | 'high' | null" });
+    expect(initial).toBeNull();
+  });
+
+  it('строковое поле — по пропсам, как без каталога', () => {
+    expect(leafOf('TimeInput')).toEqual({ leaf: { t: 'leaf', ts: 'string' }, initial: '' });
+    expect(leafOf('TimeInput', { clearable: true }).leaf).toEqual({
+      t: 'leaf',
+      ts: 'string | null',
+    });
+  });
+
+  it('raw в строке массива nullable и без строк в моке', () => {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          {
+            model: '$model(shifts)',
+            component: '$component(FieldArray)',
+            item: {
+              $template: {
+                component: '$component(Box)',
+                children: [{ model: '$model(time)', component: '$component(TimeRange)' }],
+              },
+            },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const shifts = collect(schema, synthMock(schema, valueTypeOf), valueTypeOf).root.fields.shifts;
+    expect(shifts.t === 'arr' && shifts.elem.t === 'obj' && shifts.elem.fields.time).toEqual({
+      t: 'leaf',
+      ts: '[string, string] | null',
+    });
+  });
+
+  it('генерация берёт таблицу из каталога кита: мок и тип формы — по одному правилу', () => {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(days)', component: '$component(CheckboxGroup)' },
+          { model: '$model(time)', component: '$component(TimeRange)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const ctx = prepare({ schema, formName: 'Смена', kit: { kit: foreignKit().kit, catalog } });
+    expect(ctx.mock.model).toEqual({ days: null, time: null });
+    expect(ctx.collected.root.fields).toEqual({
+      days: { t: 'leaf', ts: 'string[] | null' },
+      time: { t: 'leaf', ts: '[string, string] | null' },
+    });
+  });
+
+  it('встроенный кит: каталог не меняет ни вида, ни типа, ни начального значения поля', () => {
+    // Для ui-kit таблица обязана быть пустым местом: наборы имён синтеза покрывают его поля, а
+    // строковые типы и непечатаемые (`File | RemoteFileRef` у аватара) уходят на прежнее правило.
+    const builtin = builtinEntries();
+    const table = valueTypesOf(builtin);
+    const variants: readonly Record<string, unknown>[] = [
+      {},
+      { options: [{ value: 'a', label: 'А' }] },
+      { clearable: true },
+      { type: 'number' },
+      { min: 1 },
+    ];
+    for (const entry of builtin.filter((e) => e.role === 'field')) {
+      for (const props of variants) {
+        const schema = {
+          format: 2,
+          version: '1.0',
+          root: {
+            component: '$component(Box)',
+            children: [
+              {
+                model: '$model(x)',
+                component: `$component(${entry.name})`,
+                componentProps: props,
+              },
+            ],
+          },
+        } as unknown as JsonFormSchema;
+        const before = synthMock(schema);
+        const after = synthMock(schema, table);
+        expect(after, entry.name).toEqual(before);
+        expect(collect(schema, after, table).root, entry.name).toEqual(
+          collect(schema, before).root
+        );
+      }
+    }
   });
 });

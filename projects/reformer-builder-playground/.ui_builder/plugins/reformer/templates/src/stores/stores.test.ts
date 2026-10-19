@@ -201,6 +201,33 @@ describe('встроенные шаблоны', () => {
     expect(fixture?.content).toContain("lastName: 'Иванов',");
   });
 
+  it('вид значения поля — из каталога кита: начальные значения модуля и фикстура ему следуют', async () => {
+    const mocks: (SeedExtras['mock'] | undefined)[] = [];
+    const capturing: ModulePrinter = (schema, formName, seed) => {
+      mocks.push(seed?.mock);
+      return printer(schema, formName);
+    };
+    // Кит, у которого радиогруппа хранит число: тип значения — в `x-runtimeProps.value.type`, по
+    // нему же кодоген печатает тип поля. Без таблицы `options` сделали бы поле строкой — `''`.
+    const catalog = builtinEntries().map((entry) => {
+      if (entry.name !== 'RadioGroup') return entry;
+      const runtime = entry.propsSchema['x-runtimeProps'] ?? {};
+      return {
+        ...entry,
+        propsSchema: {
+          ...entry.propsSchema,
+          'x-runtimeProps': { ...runtime, value: { ...runtime.value, type: 'number | null' } },
+        },
+      } as typeof entry;
+    });
+
+    const templates = await createBuiltinStore({ print: capturing, catalog: () => catalog }).list();
+
+    expect(mocks[0]?.model).toMatchObject({ gender: null, lastName: '' });
+    const fixture = templates[0].files.find((f) => f.path === 'fixture.ts');
+    expect(fixture?.content).toContain('gender: null,');
+  });
+
   it('напечатанное токенизируется: шаблон параметризован именами модуля', async () => {
     const templates = await createBuiltinStore({ print: printer }).list();
     const contentOf = (path: string): string | undefined =>

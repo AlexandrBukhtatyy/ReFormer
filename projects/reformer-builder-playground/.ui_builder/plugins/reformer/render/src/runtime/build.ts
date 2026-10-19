@@ -43,7 +43,7 @@ import {
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
-import { moduleFilesOf } from '../../../core/codegen';
+import { moduleFilesOf, valueTypesOf } from '../../../core/codegen';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import { annotateSchema } from '../schema/annotate';
 import type { PreviewMock, PreviewProblem } from '@reformer/builder-plugin-api';
@@ -212,7 +212,10 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
   // Порядок старшинства целиком живёт в `@/plugins/reformer/core/form-fixture`: синтез <
   // начальные значения модуля < фикстура. Фикстура старше значений модуля потому, что пишется
   // РАДИ проверки, — иначе «покажи форму с пустой моделью» было бы невыразимо.
-  const base = input.mock ?? synthMock(annotated);
+  // Вид значения полей чужого кита — из его каталога, той же таблицей, что у кодогена: иначе
+  // превью синтезировало бы не ту модель, которую печатает экспорт.
+  const valueTypeOf = valueTypesOf(input.catalog);
+  const base = input.mock ?? synthMock(annotated, valueTypeOf);
   const mock = mergeFormData(
     base,
     // Значения модуля печатались по схеме на момент генерации, а схему с тех пор правили:
@@ -227,7 +230,7 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
   const initial = carryValues(
     mock.model,
     input.carry,
-    input.carry === undefined ? undefined : fieldKindsOf(annotated)
+    input.carry === undefined ? undefined : fieldKindsOf(annotated, valueTypeOf)
   );
 
   let registry: ComponentRegistry;

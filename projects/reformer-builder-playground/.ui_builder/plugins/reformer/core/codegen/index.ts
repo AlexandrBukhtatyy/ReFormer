@@ -57,7 +57,14 @@ export { layoutOf, type ModuleLayout, type StepInfo } from './steps';
 export { stepDirName } from '../form-model/step-dir';
 export { makeNames, pascal, camel, humanize, stepRulesAlias, type Names } from './naming';
 export { assignSelectors, type AssignResult, type SelectorInfo } from './selectors';
-export { collect, wizardStepsOf, type Collected, type TsNode, type TsObject } from './collect';
+export {
+  collect,
+  valueTypesOf,
+  wizardStepsOf,
+  type Collected,
+  type TsNode,
+  type TsObject,
+} from './collect';
 export {
   buildInitialValues,
   classifyDataSources,
@@ -70,6 +77,7 @@ export {
   type FieldDefault,
   type FieldKind,
   type MockOption,
+  type ValueTypeOf,
 } from '../form-mock';
 export { resolveComponent, type ComponentResolution, type KitView } from './components';
 

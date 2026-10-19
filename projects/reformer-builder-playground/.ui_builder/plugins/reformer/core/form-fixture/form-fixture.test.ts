@@ -319,6 +319,28 @@ describe('печать скелета', () => {
     expect(emitFixture(schema)).toBe(emitFixture(schema));
   });
 
+  it('вид значения поля чужого кита — из таблицы каталога: CheckboxGroup пуст как null, а не как строка', () => {
+    const foreign = {
+      root: {
+        component: '$component(Form)',
+        children: [
+          {
+            model: '$model(channels)',
+            component: '$component(CheckboxGroup)',
+            componentProps: { options: [{ value: 'email', label: 'Email' }] },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    // Таблица — как её строит `valueTypesOf` по `x-runtimeProps.value.type` каталога HexaUI.
+    const valueTypeOf = (component: string) =>
+      component === 'CheckboxGroup' ? 'string[] | null' : undefined;
+
+    // Без таблицы `options` делают поле списком с одним значением — пустая строка.
+    expect(emitFixture(foreign)).toContain("channels: '',");
+    expect(emitFixture(foreign, {}, valueTypeOf)).toContain('channels: null,');
+  });
+
   it('значения — литералы JS в стиле форматтера репозитория, а не JSON', () => {
     const text = emitFixture(schema, {
       model: { applicant: { name: 'Анна' }, city: 'msk' },

@@ -18,6 +18,7 @@
  * @module plugins/reformer/codegen/commands/fixture-command
  */
 
+import { valueTypesOf } from '../../../core/codegen';
 import { emitFixture, fixturePathOf } from '../../../core/form-fixture';
 import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
@@ -60,7 +61,9 @@ export async function createFixture(
   const existing = await host.readText(id);
   if (existing !== null && !isGenerated(existing)) return { kind: 'edited', path, id };
 
-  await host.writeText(id, withMarker(emitFixture(schema)));
+  // Вид значения поля — из каталога активного кита, как у кодогена: фикстура, созданная под
+  // HexaUI, кладёт `CheckboxGroup` пустым набором (`null`), а не строкой.
+  await host.writeText(id, withMarker(emitFixture(schema, {}, valueTypesOf(host.catalog()))));
   await host.save?.([id]);
   return { kind: 'written', path, id };
 }

@@ -17,7 +17,7 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '../form-model/rules';
 import { splitFormSchema, type SplitFormSchema, type StepOrigins } from '../form-model/composite';
-import { collect, type Collected } from './collect';
+import { collect, valueTypesOf, type Collected } from './collect';
 import type { KitView } from './components';
 import { synthMock } from '../form-mock';
 import { DEFAULT_SCHEMA_PATH, moduleFilesOf, type ModuleFiles } from './layout';
@@ -112,8 +112,11 @@ export interface EmitContext {
 /** Разобрать вход в контекст: один обход схемы на всю генерацию. */
 export function prepare(input: CodegenInput): EmitContext {
   const { schema, info } = assignSelectors(input.schema);
-  const mock = input.mock ?? synthMock(schema);
-  const collected = collect(schema, mock);
+  // Вид значения полей, для которых у синтеза нет правила по имени, — из каталога кита. Одна
+  // таблица на мок и тип листа: иначе начальные значения не подошли бы под тип формы.
+  const valueTypeOf = valueTypesOf(input.kit.catalog);
+  const mock = input.mock ?? synthMock(schema, valueTypeOf);
+  const collected = collect(schema, mock, valueTypeOf);
   const split = splitFormSchema(schema, input.origins ?? new Map(), { all: input.splitSteps });
   const composition = split.parts.size > 0 ? split : null;
   const names = makeNames(input.formName);

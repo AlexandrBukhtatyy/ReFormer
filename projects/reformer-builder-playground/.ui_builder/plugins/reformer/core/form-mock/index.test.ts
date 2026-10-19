@@ -8,6 +8,7 @@ import {
   buildInitialValues,
   classifyDataSources,
   collectFieldDefaults,
+  declaredValueType,
   defaultForField,
   fieldKindOf,
   LIST_PROP_KEYS,
@@ -108,6 +109,99 @@ describe('вид поля определяется по компоненту, з
   it('всё непознанное — строка', () => {
     expect(fieldKindOf(field('$component(Whatever)'))).toBe('string');
     expect(fieldKindOf(field('$component(Input)'))).toBe('string');
+  });
+});
+
+describe('вид поля из каталога кита (тип значения контрола)', () => {
+  /** Таблица «компонент → объявленный тип», как её строит кодоген по каталогу кита. */
+  const kitTypes: Readonly<Record<string, string>> = {
+    CheckboxGroup: 'string[] | null',
+    TimeRange: '[string, string] | null',
+    WeeklySchedule: 'Record<string, number[]> | null',
+    TimeInput: 'string | null',
+    Rating: 'number | undefined',
+    Agree: 'boolean',
+    DateField: 'Date | null',
+    Dates: 'Array<Date> | null',
+    Period: '[Date,Date] | null',
+    Files: 'File[] | null',
+    Tags: 'Array< string >',
+    Avatar: 'File | RemoteFileRef | null',
+    Nothing: 'null | undefined',
+    // Наборы имён синтеза старше каталога: у встроенного кита по ним уже напечатаны модули.
+    SelectMulti: 'boolean',
+  };
+  const valueTypeOf = (component: string): string | undefined => kitTypes[component];
+  const kindOf = (component: string, props: Record<string, unknown> = {}) =>
+    fieldKindOf(field(`$component(${component})`, props), valueTypeOf);
+
+  it('CheckboxGroup со string[] | null — мультивыбор, хоть в наборах имён его и нет', () => {
+    expect(kindOf('CheckboxGroup')).toBe('multi');
+    expect(kindOf('CheckboxGroup', { options: [] })).toBe('multi');
+    // Без таблицы — по-прежнему по пропсам: каталог ничего не ломает тем, кто его не передаёт.
+    expect(fieldKindOf(field('$component(CheckboxGroup)'))).toBe('string');
+    expect(fieldKindOf(field('$component(CheckboxGroup)', { options: [] }))).toBe('select');
+  });
+
+  it('известные синтезу типы — его же виды, с null/undefined и без, с пробелами и без', () => {
+    expect(kindOf('Rating')).toBe('number');
+    expect(kindOf('Agree')).toBe('boolean');
+    expect(kindOf('DateField')).toBe('date');
+    expect(kindOf('Dates')).toBe('dates');
+    expect(kindOf('Period')).toBe('dateRange');
+    expect(kindOf('Files')).toBe('file');
+    expect(kindOf('Tags')).toBe('multi');
+  });
+
+  it('строка — решают пропсы, как и без каталога: список, число по type, строка', () => {
+    expect(kindOf('TimeInput')).toBe('string');
+    expect(kindOf('TimeInput', { options: [] })).toBe('select');
+    expect(kindOf('TimeInput', { type: 'number' })).toBe('number');
+  });
+
+  it('незнакомый синтезу тип — raw: печатается как объявлен, стартует с null', () => {
+    expect(kindOf('TimeRange')).toBe('raw');
+    expect(kindOf('WeeklySchedule')).toBe('raw');
+    expect(defaultForField(field('$component(TimeRange)'), valueTypeOf)).toBeNull();
+    expect(declaredValueType(field('$component(TimeRange)'), valueTypeOf)).toBe('[string, string]');
+    // `|` внутри обобщения союз верхнего уровня не делит.
+    expect(
+      declaredValueType(field('$component(X)'), () => 'Record<string, number | null> | undefined')
+    ).toBe('Record<string, number | null>');
+  });
+
+  it('тип с именем, которого модуль формы не видит, — на правиле по пропсам', () => {
+    // `RemoteFileRef` у загрузки аватара ui-kit: напечатанный как есть, тип не собрался бы.
+    expect(kindOf('Avatar')).toBe('string');
+    expect(defaultForField(field('$component(Avatar)'), valueTypeOf)).toBe('');
+  });
+
+  it('объявлено одно «пусто» либо не объявлено ничего — как без каталога', () => {
+    expect(declaredValueType(field('$component(Nothing)'), valueTypeOf)).toBeUndefined();
+    expect(kindOf('Nothing')).toBe('string');
+    expect(kindOf('Unknown')).toBe('string');
+  });
+
+  it('наборы имён синтеза старше каталога', () => {
+    expect(kindOf('SelectMulti')).toBe('multi');
+  });
+
+  it('синтез мока читает ту же таблицу', () => {
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(groups)', component: '$component(CheckboxGroup)' },
+          { model: '$model(range)', component: '$component(TimeRange)' },
+          { model: '$model(time)', component: '$component(TimeInput)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    expect(synthMock(schema, valueTypeOf).model).toEqual({ groups: null, range: null, time: '' });
+    // Без таблицы — как прежде: строка.
+    expect(synthMock(schema).model).toEqual({ groups: '', range: '', time: '' });
   });
 });
 

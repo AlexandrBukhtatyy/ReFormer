@@ -76,6 +76,30 @@ describe('fieldKindsOf', () => {
     expect([...fieldKindsOf(SCHEMA).keys()].sort()).toEqual(paths(synthMock(SCHEMA).model).sort());
   });
 
+  it('вид поля чужого кита — по типу значения из его каталога', () => {
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(days)', component: '$component(CheckboxGroup)' },
+          { model: '$model(time)', component: '$component(TimeRange)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const types: Readonly<Record<string, string>> = {
+      CheckboxGroup: 'string[] | null',
+      TimeRange: '[string, string] | null',
+    };
+    const valueTypeOf = (component: string): string | undefined => types[component];
+    expect(Object.fromEntries(fieldKindsOf(schema, valueTypeOf))).toEqual({
+      days: 'multi',
+      time: 'raw',
+    });
+    // Без таблицы — как прежде: по пропсам, то есть строка.
+    expect(Object.fromEntries(fieldKindsOf(schema))).toEqual({ days: 'string', time: 'string' });
+  });
+
   it('схема без корня полей не называет', () => {
     expect(fieldKindsOf({ format: 2 } as unknown as JsonFormSchema).size).toBe(0);
   });
@@ -114,6 +138,9 @@ describe('fitsKind', () => {
     ['select', ['a'], false],
     ['array', [], true],
     ['array', null, false],
+    ['raw', null, true],
+    ['raw', ['10:00', '11:00'], false],
+    ['raw', 'x', false],
   ];
 
   it.each(cases)('полю вида «%s» значение %j годится: %s', (kind, value, expected) => {

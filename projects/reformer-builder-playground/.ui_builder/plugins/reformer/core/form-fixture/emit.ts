@@ -15,7 +15,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { printLiteral } from '../codegen/print/js';
-import { classifyDataSources, mockOptions, synthMock } from '../form-mock';
+import { classifyDataSources, mockOptions, synthMock, type ValueTypeOf } from '../form-mock';
 
 /**
  * Свойство объекта со значением-литералом JS — строкой файла с отступом `indent`, так, как её
@@ -47,9 +47,18 @@ export interface FixtureSeed {
  *
  * Функции печатаются кодом, а не данными: `itemLabel` массива обязан быть функцией, и заготовка,
  * которую нельзя вызвать, была бы хуже её отсутствия.
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога активного кита (`valueTypesOf` из
+ *   `core/codegen`) — та же таблица, по которой кодоген печатает начальные значения и тип формы.
+ *   Без неё вид значения решают наборы имён и пропсы узла, и поле чужого кита (`CheckboxGroup`
+ *   со `string[] | null`) получило бы в фикстуре `''` — значение, которого контрол не принимает.
  */
-export function emitFixture(schema: JsonFormSchema, seed: FixtureSeed = {}): string {
-  const synthesized = synthMock(schema);
+export function emitFixture(
+  schema: JsonFormSchema,
+  seed: FixtureSeed = {},
+  valueTypeOf?: ValueTypeOf
+): string {
+  const synthesized = synthMock(schema, valueTypeOf);
   const mock = {
     model: { ...synthesized.model, ...seed.model },
     dataSources: { ...synthesized.dataSources, ...seed.dataSources },

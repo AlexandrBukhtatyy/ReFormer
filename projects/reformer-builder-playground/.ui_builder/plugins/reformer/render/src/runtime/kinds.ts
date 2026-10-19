@@ -38,7 +38,7 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { fieldKindOf, type FieldKind } from '../../../core/form-mock';
+import { fieldKindOf, type FieldKind, type ValueTypeOf } from '../../../core/form-mock';
 import { isNodeLike } from '../../../core/form-model';
 
 /**
@@ -61,8 +61,13 @@ export type SlotKind = FieldKind | 'array';
 /** Дот-путь модели → вид места. Пути без поля в схеме в сводку не входят. */
 export type FieldKinds = ReadonlyMap<string, SlotKind>;
 
-/** Виды мест модели по схеме формы. */
-export function fieldKindsOf(schema: JsonFormSchema): FieldKinds {
+/**
+ * Виды мест модели по схеме формы.
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога кита — та же таблица, по которой
+ *   синтезирован мок (`valueTypesOf` кодогена).
+ */
+export function fieldKindsOf(schema: JsonFormSchema, valueTypeOf?: ValueTypeOf): FieldKinds {
   const out = new Map<string, SlotKind>();
   const declare = (model: unknown, kind: SlotKind): void => {
     const parsed = parseOperator(model);
@@ -74,7 +79,7 @@ export function fieldKindsOf(schema: JsonFormSchema): FieldKinds {
       return;
     }
     if (isFieldNode(node)) {
-      declare(node.model, fieldKindOf(node));
+      declare(node.model, fieldKindOf(node, valueTypeOf));
       return;
     }
     if (isContainerNode(node)) {
@@ -130,5 +135,10 @@ export function fitsKind(kind: SlotKind, value: unknown): boolean {
         typeof value === 'number' ||
         typeof value === 'boolean'
       );
+    case 'raw':
+      // Тип объявил кит (`[string, string]`), и что контрол кладёт в модель, по значению отсюда не
+      // проверить: годится только общее для всех «пусто». Введённое того же рода, что новая форма
+      // кладёт на это место сама, переносит сверка по паре значений (`./carry`).
+      return value === null;
   }
 }

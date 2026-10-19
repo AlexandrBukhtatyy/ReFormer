@@ -38,11 +38,35 @@ import {
 } from '../form-model/query';
 import {
   classifyDataSources,
+  declaredValueType,
   fieldKindOf,
   LIST_PROP_KEYS,
   type DataSourceClasses,
+  type ValueTypeOf,
 } from '../form-mock';
+import type { CatalogEntry } from '../catalog/types';
 import type { FormMock } from './types';
+
+/**
+ * Таблица «компонент → тип значения, объявленный китом» по каталогу: `x-runtimeProps.value.type`
+ * записей-полей.
+ *
+ * Из неё синтез мока и тип листа узнают вид значения контролов, для которых у них нет своего
+ * правила по имени, — полей чужого кита (`CheckboxGroup`, `TimeRange`). Строит её кодоген, потому
+ * что каталог есть у него (`ctx.kit.catalog`), а домену синтеза нужен только ответ на компонент.
+ * Одна таблица на мок, тип листа и словарь замечаний: разойдись они, `model/initial-value.ts` не
+ * подошёл бы под `types/<форма>.ts`.
+ */
+export function valueTypesOf(catalog: readonly CatalogEntry[]): ValueTypeOf {
+  const table = new Map<string, string>();
+  for (const entry of catalog) {
+    if (entry.role !== 'field') continue;
+    // Каталог — данные кита: у записи без шва `value` или с нестроковым типом таблица молчит.
+    const type: unknown = entry.propsSchema['x-runtimeProps']?.value?.type;
+    if (typeof type === 'string') table.set(entry.name, type);
+  }
+  return (component) => table.get(component);
+}
 
 /** Узел дерева типов: лист (готовый TS-тип), объект (вложенность), массив (тип элемента). */
 export type TsNode =
@@ -148,14 +172,18 @@ function nullable(type: string): string {
  * @param startsNull - В моке по пути листа лежит `null` (у поля строки массива — хотя бы в одной
  *   строке).
  */
-function leafType(node: JsonFieldNode, mock: FormMock, startsNull: boolean): string {
-  const type = kindType(node, mock);
+function leafType(node: JsonFieldNode, env: TreeEnv, startsNull: boolean): string {
+  const type = kindType(node, env);
   return startsNull ? nullable(type) : type;
 }
 
 /** TS-тип листа по виду значения: список с известными опциями — union, иначе по контролу. */
-function kindType(node: JsonFieldNode, mock: FormMock): string {
-  const kind = fieldKindOf(node);
+function kindType(node: JsonFieldNode, { mock, valueTypeOf }: TreeEnv): string {
+  const kind = fieldKindOf(node, valueTypeOf);
+  // Тип, который объявил кит, а своего правила у синтеза для него нет: печатается как объявлен.
+  // Стартует такое поле с `null` (`defaultForField`), поэтому тип допускает его всегда — и у поля
+  // строки массива, по которому синтезированный мок молчит.
+  if (kind === 'raw') return nullable(declaredValueType(node, valueTypeOf) ?? 'unknown');
   if (kind === 'select') {
     // `''` — «ничего не выбрано»: с него список стартует (`defaultForField` в form-mock),
     // и начальные значения печатают его как есть. Союз одних опций это значение отвергал —
@@ -219,6 +247,8 @@ interface TreeEnv {
   readonly mock: FormMock;
   /** Именованные части документа: разметка подформ и шаблонов строк. */
   readonly parts: ReadonlyMap<string, JsonNode>;
+  /** Тип значения контрола из каталога кита ({@link valueTypesOf}). */
+  readonly valueTypeOf?: ValueTypeOf;
 }
 
 /** Приёмник верхнеуровневых путей: обязательные поля и массивы. */
@@ -318,7 +348,7 @@ function buildTree(
       const parsed = parseOperator(n.model);
       if (parsed?.op === 'model') {
         const startsNull = samples.some((sample) => valueAt(sample, parsed.arg) === null);
-        insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, env.mock, startsNull) });
+        insert(root, parsed.arg.split('.'), { t: 'leaf', ts: leafType(n, env, startsNull) });
         if (n.componentProps?.required === true) top?.required(parsed.arg);
       }
       return;
@@ -346,11 +376,20 @@ export function wizardStepsOf(node: JsonNode): readonly JsonNode[] {
   return [];
 }
 
-/** Собрать всё для эмиттеров из (уже трансформированной) схемы и мока. */
-export function collect(schema: JsonFormSchema, mock: FormMock): Collected {
+/**
+ * Собрать всё для эмиттеров из (уже трансформированной) схемы и мока.
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога кита ({@link valueTypesOf}) — та же
+ *   таблица, по которой синтезирован мок. Без неё вид листа решают наборы имён и пропсы.
+ */
+export function collect(
+  schema: JsonFormSchema,
+  mock: FormMock,
+  valueTypeOf?: ValueTypeOf
+): Collected {
   const requiredPaths: string[] = [];
   const arrayPaths: string[] = [];
-  const env: TreeEnv = { mock, parts: documentParts(schema) };
+  const env: TreeEnv = { mock, parts: documentParts(schema), valueTypeOf };
   const into = (required: string[], arrays: string[]): TopLevel => ({
     required: (path) => {
       required.push(path);

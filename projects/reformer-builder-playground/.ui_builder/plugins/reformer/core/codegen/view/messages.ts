@@ -38,6 +38,7 @@
 import { ru } from '@reformer/core/locale/ru';
 import { isFieldNode, parseOperator, type JsonFieldNode } from '@reformer/renderer-json';
 import { fieldKindOf } from '../../form-mock';
+import { valueTypesOf } from '../collect';
 import { walkDocumentNodes } from '../../form-model/query';
 import { hasValidationRules, type FormRules } from '../../form-model/rules';
 import type { EmitContext } from '../context';
@@ -102,8 +103,12 @@ const COLLECTION_KINDS: ReadonlySet<string> = new Set(['multi', 'file', 'dates']
  */
 function collectionPaths(ctx: EmitContext): ReadonlySet<string> {
   const out = new Set(ctx.collected.arrayPaths);
+  // Вид значения — по тому же каталогу кита, по которому напечатан тип листа: `CheckboxGroup`
+  // чужого кита со `string[] | null` — коллекция, хотя в наборах имён синтеза его нет.
+  const valueTypeOf = valueTypesOf(ctx.kit.catalog);
   walkDocumentNodes(ctx.schema, (node) => {
-    if (!isFieldNode(node) || !COLLECTION_KINDS.has(fieldKindOf(node as JsonFieldNode))) return;
+    if (!isFieldNode(node)) return;
+    if (!COLLECTION_KINDS.has(fieldKindOf(node as JsonFieldNode, valueTypeOf))) return;
     const parsed = parseOperator(node.model);
     if (parsed?.op === 'model') out.add(parsed.arg);
   });

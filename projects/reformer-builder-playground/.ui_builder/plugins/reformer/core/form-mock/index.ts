@@ -93,15 +93,174 @@ export type FieldKind =
   | 'dates'
   | 'dateRange'
   | 'select'
-  | 'string';
+  | 'string'
+  /**
+   * Тип, который кит объявил контролу, а у синтеза своего правила для него нет
+   * (`[string, string]`, `Record<string, number[]>`): лист печатается этим типом, мок — `null`.
+   */
+  | 'raw';
+
+/**
+ * Тип значения, который кит объявил контролу (`x-runtimeProps.value.type` записи каталога), по
+ * имени компонента; `undefined` — не объявил.
+ *
+ * Функция, а не каталог: синтезу нужен один ответ на компонент, а не устройство каталога. Таблицу
+ * строит тот, у кого каталог есть, — кодоген по `ctx.kit.catalog` (`valueTypesOf` в
+ * `codegen/collect`). Без неё вид решают наборы имён и пропсы узла — как до появления таблицы.
+ */
+export type ValueTypeOf = (component: string) => string | undefined;
+
+/**
+ * Члены объединения верхнего уровня. `|` внутри `<…>`, `(…)`, `[…]`, `{…}` и строковых литералов
+ * не делит: `Record<string, number | null>` — один член, а не два.
+ */
+function unionMembers(type: string): string[] {
+  const members: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  for (let i = 0; i < type.length; i += 1) {
+    const ch = type[i];
+    if (quote !== null) {
+      if (ch === '\\') i += 1;
+      else if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+    } else if (ch === '<' || ch === '(' || ch === '[' || ch === '{') {
+      depth += 1;
+    } else if (ch === ')' || ch === ']' || ch === '}' || (ch === '>' && type[i - 1] !== '=')) {
+      // `=>` стрелки функционального типа скобку не закрывает.
+      depth -= 1;
+    } else if (ch === '|' && depth === 0) {
+      members.push(type.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  members.push(type.slice(start).trim());
+  // Пустой член — от ведущей `|` многострочного объединения (`| 'a' | 'b'`).
+  return members.filter((member) => member !== '');
+}
+
+/**
+ * Объявленный китом тип значения контрола узла — без `null` и `undefined`: «пусто» синтез
+ * добавляет сам, по начальному значению поля. `undefined` — кит тип не объявил (либо объявил одно
+ * «пусто»).
+ */
+export function declaredValueType(
+  node: JsonFieldNode,
+  valueTypeOf?: ValueTypeOf
+): string | undefined {
+  const component = parseOperator(node.component)?.arg;
+  if (component === undefined || valueTypeOf === undefined) return undefined;
+  const declared = valueTypeOf(component);
+  if (typeof declared !== 'string') return undefined;
+  const members = unionMembers(declared).filter(
+    (member) => member !== 'null' && member !== 'undefined'
+  );
+  return members.length === 0 ? undefined : members.join(' | ');
+}
+
+/**
+ * Объявленные типы, у которых у синтеза есть своё правило. Ключ — тип без пробелов:
+ * `[Date, Date]` и `[Date,Date]` — один тип.
+ */
+const KIND_BY_DECLARED: ReadonlyMap<string, FieldKind> = new Map([
+  ['boolean', 'boolean'],
+  ['number', 'number'],
+  ['string[]', 'multi'],
+  ['Array<string>', 'multi'],
+  ['Date', 'date'],
+  ['Date[]', 'dates'],
+  ['Array<Date>', 'dates'],
+  ['[Date,Date]', 'dateRange'],
+  ['File[]', 'file'],
+  ['Array<File>', 'file'],
+]);
+
+/**
+ * Имена, которые модуль формы видит без импорта: примитивы, литералы, служебные типы TypeScript
+ * и типы DOM. Тип с иным именем напечатать нельзя — модуль формы не собрался бы.
+ */
+const PRINTABLE_NAMES: ReadonlySet<string> = new Set([
+  'string',
+  'number',
+  'boolean',
+  'bigint',
+  'symbol',
+  'object',
+  'unknown',
+  'any',
+  'never',
+  'void',
+  'null',
+  'undefined',
+  'true',
+  'false',
+  'readonly',
+  'keyof',
+  'Array',
+  'ReadonlyArray',
+  'Record',
+  'Partial',
+  'Required',
+  'Readonly',
+  'Pick',
+  'Omit',
+  'Map',
+  'Set',
+  'ReadonlyMap',
+  'ReadonlySet',
+  'Date',
+  'File',
+  'Blob',
+  'FileList',
+]);
+
+/**
+ * Можно ли напечатать тип в модуле формы как есть: каждое имя в нём — из {@link PRINTABLE_NAMES}.
+ * Содержимое строковых литералов и ключи объектного типа (`{ start: string }`, параметры
+ * `(value: string) => void`) именами типов не считаются.
+ */
+function isPrintable(type: string): boolean {
+  const bare = type.replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, "''");
+  for (const match of bare.matchAll(/[A-Za-z_$][\w$]*/g)) {
+    const rest = bare.slice(match.index + match[0].length).trimStart();
+    if (rest.startsWith(':') || rest.startsWith('?:')) continue;
+    if (!PRINTABLE_NAMES.has(match[0])) return false;
+  }
+  return true;
+}
+
+/**
+ * Вид значения по типу, который кит объявил контролу.
+ *
+ * `undefined` — вид решают пропсы узла, как и без таблицы: тип не объявлен; это строка (список,
+ * число по `type` и просто строка различаются только пропсами); либо тип ссылается на имя, которого
+ * модуль формы не видит (`File | RemoteFileRef` у загрузки аватара ui-kit), — напечатанный как
+ * есть, он не собрался бы.
+ */
+function kindOfDeclared(type: string | undefined): FieldKind | undefined {
+  if (type === undefined) return undefined;
+  const compact = type.replace(/\s+/g, '');
+  if (compact === 'string') return undefined;
+  return KIND_BY_DECLARED.get(compact) ?? (isPrintable(type) ? 'raw' : undefined);
+}
 
 /**
  * Вид значения по компоненту и пропсам узла.
  *
  * Отдельная функция, а не ветка внутри дефолта: тот же вопрос задаёт эмиттер типов, и два
  * разных ответа на него означали бы `model.ts`, не подходящий под собственный `types.ts`.
+ *
+ * Порядок: наборы имён → тип значения из каталога кита → пропсы узла. Наборы имён первыми —
+ * ради стабильности: у встроенного кита по ним уже напечатаны модули форм, и каталог их не
+ * переопределяет. Каталог отвечает за контролы, которых в наборах нет (поля чужого кита:
+ * `CheckboxGroup` со `string[] | null`, `TimeRange` с `[string, string] | null`).
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога кита ({@link ValueTypeOf}); без него —
+ *   только наборы имён и пропсы.
  */
-export function fieldKindOf(node: JsonFieldNode): FieldKind {
+export function fieldKindOf(node: JsonFieldNode, valueTypeOf?: ValueTypeOf): FieldKind {
   const component = parseOperator(node.component)?.arg;
   if (component !== undefined) {
     if (FILE_COMPONENTS.has(component)) return 'file';
@@ -112,6 +271,8 @@ export function fieldKindOf(node: JsonFieldNode): FieldKind {
     if (DATE_RANGE_COMPONENTS.has(component)) return 'dateRange';
     if (component === 'Slider' || component === 'InputNumber') return 'number';
   }
+  const declared = kindOfDeclared(declaredValueType(node, valueTypeOf));
+  if (declared !== undefined) return declared;
   // Старые схемы (до выделения InputNumber) задавали число пропом `type: 'number'` у Input —
   // схемы Input его больше не принимают, но мок читает такие схемы по-прежнему как число.
   if (node.componentProps?.type === 'number') return 'number';
@@ -122,15 +283,23 @@ export function fieldKindOf(node: JsonFieldNode): FieldKind {
   return 'string';
 }
 
-/** Дефолт значения листа по его виду. */
-export function defaultForField(node: JsonFieldNode): unknown {
-  switch (fieldKindOf(node)) {
+/**
+ * Дефолт значения листа по его виду.
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога кита (см. {@link fieldKindOf}).
+ */
+export function defaultForField(node: JsonFieldNode, valueTypeOf?: ValueTypeOf): unknown {
+  switch (fieldKindOf(node, valueTypeOf)) {
     case 'file':
     case 'multi':
     case 'dates':
     case 'dateRange':
       // `null`, а не `[]`: массив в начальном значении модель превратила бы в форму-массив,
       // и у поля не оказалось бы сигнала вовсе.
+      return null;
+    case 'raw':
+      // Пустого значения объявленного типа синтез не знает, а `null` годится любому: тип листа
+      // кодоген объявляет допускающим его.
       return null;
     case 'boolean':
       return false;
@@ -165,8 +334,13 @@ export interface FieldDefault {
  * группы (`registrationAddress.city`); у части без единого поля объявляется сама группа — без неё
  * рендерер на таком узле бросает («not a group of the model»). Часть, подключающая саму себя,
  * второй раз не разворачивается: модель у неё вышла бы бесконечной.
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога кита (см. {@link fieldKindOf}).
  */
-export function collectFieldDefaults(schema: JsonFormSchema): readonly FieldDefault[] {
+export function collectFieldDefaults(
+  schema: JsonFormSchema,
+  valueTypeOf?: ValueTypeOf
+): readonly FieldDefault[] {
   const out: FieldDefault[] = [];
   const parts = documentParts(schema);
   const visit = (node: JsonNode, prefix: string, entered: readonly string[]): void => {
@@ -190,7 +364,7 @@ export function collectFieldDefaults(schema: JsonFormSchema): readonly FieldDefa
     if (isFieldNode(node)) {
       const parsed = parseOperator(node.model);
       if (parsed?.op === 'model') {
-        out.push({ path: `${prefix}${parsed.arg}`, value: defaultForField(node) });
+        out.push({ path: `${prefix}${parsed.arg}`, value: defaultForField(node, valueTypeOf) });
       }
       return;
     }
@@ -294,11 +468,14 @@ function humanizeSourceName(name: string): string {
  * Детерминирована по построению — в отличие от v1, где `synthMock` брал `new Date()` и форма
  * с полем-датой давала новый `model.ts` при каждой регенерации. Там это лечили фиксированной
  * датой в `regenerate.ts`; здесь лечить нечего, потому что даты не синтезируются вовсе.
+ *
+ * @param valueTypeOf - Тип значения контрола из каталога кита (см. {@link fieldKindOf}). Кодоген
+ *   и превью передают одну и ту же таблицу — иначе начальные значения разошлись бы с типом формы.
  */
-export function synthMock(schema: JsonFormSchema): FormMock {
+export function synthMock(schema: JsonFormSchema, valueTypeOf?: ValueTypeOf): FormMock {
   const classes = classifyDataSources(schema);
   const dataSources: Record<string, unknown> = {};
   for (const name of classes.optionLike) dataSources[name] = mockOptions(name);
   for (const name of classes.scalarLike) dataSources[name] = 'значение';
-  return { model: buildInitialValues(collectFieldDefaults(schema)), dataSources };
+  return { model: buildInitialValues(collectFieldDefaults(schema, valueTypeOf)), dataSources };
 }

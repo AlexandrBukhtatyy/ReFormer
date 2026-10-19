@@ -48,9 +48,9 @@
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
-import { makeNames, moduleFilesOf, type FormMock } from '../../../core/codegen';
+import { makeNames, moduleFilesOf, valueTypesOf, type FormMock } from '../../../core/codegen';
 import { emitFixture, FIXTURE_FILE } from '../../../core/form-fixture';
-import { synthMock } from '../../../core/form-mock';
+import { synthMock, type ValueTypeOf } from '../../../core/form-mock';
 import type { FormRules } from '../../../core/form-model';
 import { keepOrigin } from '../content/files';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
@@ -116,9 +116,13 @@ export interface SeedExtras {
  * показывали бы РАЗНЫЕ списки, и человек считал бы это дефектом превью. Значения полей из
  * затравки сюда НЕ идут: начальные значения модуля — пустая форма, а не анкета Иванова; они
  * нужны только предпросмотру и живут в фикстуре.
+ *
+ * Вид значения поля — по таблице каталога активного кита ({@link valueTypesOf}), той же, по
+ * которой кодоген печатает тип формы: мок, синтезированный без неё, дал бы полю чужого кита
+ * (`CheckboxGroup` со `string[] | null`) `''` в `model/initial-value.ts`, а тип — `string[] | null`.
  */
-function seedMock(schema: JsonFormSchema, data: SeedData): FormMock {
-  const synthesized = synthMock(schema);
+function seedMock(schema: JsonFormSchema, data: SeedData, valueTypeOf: ValueTypeOf): FormMock {
+  const synthesized = synthMock(schema, valueTypeOf);
   return {
     model: synthesized.model,
     dataSources: { ...synthesized.dataSources, ...data.dataSources },
@@ -238,7 +242,10 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
     async list(): Promise<readonly FormTemplate[]> {
       const print = options.print;
       if (print === undefined) return [];
-      const kit = seedKitOf(options.catalog?.() ?? [], options.kit?.() ?? null);
+      const catalog = options.catalog?.() ?? [];
+      const kit = seedKitOf(catalog, options.kit?.() ?? null);
+      // Вид значения поля — из того же каталога, что и состав затравки (см. `seedMock`).
+      const valueTypeOf = valueTypesOf(catalog);
       const out: FormTemplate[] = [];
       for (const seed of SEEDS) {
         if (!seed.available(kit)) continue;
@@ -249,7 +256,7 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
           const data = seedData(kit);
           const extras: SeedExtras = {
             rules: seed.rules(kit),
-            mock: seedMock(schema, data),
+            mock: seedMock(schema, data, valueTypeOf),
             ...(seed.splitSteps === true ? { splitSteps: true } : {}),
           };
           const printed = await print(schema, BUILTIN_BASE_NAME, extras);
@@ -267,7 +274,7 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
           // Отсюда `scope`.
           files.push({
             path: FIXTURE_FILE,
-            content: emitFixture(schema, data),
+            content: emitFixture(schema, data, valueTypeOf),
             scope: 'fixture',
           });
           out.push({

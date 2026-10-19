@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
+import type { CatalogEntry } from '../../../core/catalog';
 import { createFixture } from './fixture-command';
 import type { CodegenHost } from '../host';
 
@@ -41,7 +42,14 @@ interface Harness {
   readonly opened: string[];
 }
 
-function harness(options: { existing?: string; write?: boolean; model?: unknown } = {}): Harness {
+function harness(
+  options: {
+    existing?: string;
+    write?: boolean;
+    model?: unknown;
+    catalog?: readonly CatalogEntry[];
+  } = {}
+): Harness {
   const written = new Map<string, string>();
   const saved: string[] = [];
   const opened: string[] = [];
@@ -55,6 +63,7 @@ function harness(options: { existing?: string; write?: boolean; model?: unknown 
           }
         : null,
     sourceOf: () => ({ write: options.write ?? true }),
+    catalog: () => options.catalog ?? [],
     resolveFromRoot: (_anchor: ResourceId, path: string) => path as unknown as ResourceId,
     readText: (id: ResourceId) =>
       Promise.resolve(written.get(id as unknown as string) ?? options.existing ?? null),
@@ -164,6 +173,7 @@ describe('создание фикстуры', () => {
           ? { id, ref: { path: nested as unknown as string }, model: () => SCHEMA }
           : null,
       sourceOf: () => ({ write: true }),
+      catalog: () => [],
       resolveFromRoot: (_anchor: ResourceId, path: string) => path as unknown as ResourceId,
       readText: () => Promise.resolve(null),
       writeText: (id: ResourceId, text: string) => {
@@ -176,6 +186,43 @@ describe('создание фикстуры', () => {
 
     expect(outcome).toMatchObject({ kind: 'written', path: FIXTURE_PATH });
     expect([...written.keys()]).toEqual([FIXTURE_PATH]);
+  });
+
+  it('вид значения поля — из каталога активного кита: CheckboxGroup пуст как null, а не как строка', async () => {
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Form)',
+        children: [
+          {
+            model: '$model(channels)',
+            component: '$component(CheckboxGroup)',
+            componentProps: { options: [{ value: 'email', label: 'Email' }] },
+          },
+        ],
+      },
+    };
+    // Запись поля, как её пишет каталог HexaUI: тип значения — в `x-runtimeProps.value.type`.
+    const checkboxGroup = {
+      name: 'CheckboxGroup',
+      role: 'field',
+      propsSchema: {
+        type: 'object',
+        properties: {},
+        'x-runtimeProps': { value: { group: 'Control', type: 'string[] | null' } },
+      },
+      makeNode: () => ({}),
+    } as unknown as CatalogEntry;
+    const bare = harness({ model: schema });
+    const hexa = harness({ model: schema, catalog: [checkboxGroup] });
+
+    await createFixture(bare.host, DOCUMENT);
+    await createFixture(hexa.host, DOCUMENT);
+
+    // Без каталога `options` делают поле списком с одним значением — пустая строка; с каталогом
+    // вид тот же, что у кодогена: набор значений, пустой — `null`.
+    expect(bare.written.get(FIXTURE_PATH)).toContain("channels: '',");
+    expect(hexa.written.get(FIXTURE_PATH)).toContain('channels: null,');
   });
 
   it('без порта адресации команда отказывается, а не пишет рядом со схемой', async () => {

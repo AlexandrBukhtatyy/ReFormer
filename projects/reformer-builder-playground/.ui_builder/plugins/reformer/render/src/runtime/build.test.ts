@@ -14,6 +14,7 @@ import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { sampleSchema } from '../../../core/testing';
 import { ensureNodeIds, newNodeId } from '../../../core/form-model';
+import type { CatalogEntry } from '../../../core/catalog';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { NODE_CLASS_PREFIX } from '../schema/node-token';
@@ -144,6 +145,42 @@ describe('buildRuntimeBundle', () => {
     });
     // Список на месте листа поле не ломает: нода мультивыбора привязана к сигналу списка.
     expect(second.form?.form.skills.value.value).toEqual(['react', 'sql']);
+  });
+
+  it('вид поля чужого кита — из его каталога: тот же мок, что у экспорта, и тот же перенос', () => {
+    // `CheckboxGroup` в наборах имён синтеза нет: что он отдаёт список строк, говорит только
+    // каталог кита. Без него превью завело бы `''`, а экспорт — `null`.
+    const catalog = [
+      {
+        name: 'CheckboxGroup',
+        role: 'field',
+        propsSchema: {
+          'x-runtimeProps': {
+            value: { group: 'Control', type: 'string[] | null', description: 'Выбранное.' },
+          },
+        },
+        makeNode: () => ({ model: '$model(days)', component: '$component(CheckboxGroup)' }),
+      },
+    ] as unknown as readonly CatalogEntry[];
+    const schema = (label: string): JsonFormSchema =>
+      ({
+        format: 2,
+        root: {
+          component: '$component(Box)',
+          children: [
+            { model: '$model(title)', component: '$component(Input)', componentProps: { label } },
+            { model: '$model(days)', component: '$component(CheckboxGroup)' },
+          ],
+        },
+      }) as unknown as JsonFormSchema;
+
+    const first = bundleOf(schema('Заголовок'), { catalog });
+    expect(first.form?.model.get()).toEqual({ title: '', days: null });
+    first.form?.model.patch({ days: ['mon', 'tue'] });
+
+    // Правка подписи соседнего поля: выбранное переживает пересборку — вид поля из каталога.
+    const second = bundleOf(schema('Название'), { catalog, carry: first.form?.model.get() });
+    expect(second.form?.model.get()).toEqual({ title: '', days: ['mon', 'tue'] });
   });
 
   it('поле переделали — прежнее значение другого вида не переносится', () => {

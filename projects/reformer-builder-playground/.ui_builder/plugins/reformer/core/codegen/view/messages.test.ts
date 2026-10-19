@@ -70,6 +70,34 @@ describe('словарь замечаний: какие коды в него п�
     expect(entries.find((entry) => entry.code === 'maxLength')?.text).toContain('символ');
   });
 
+  it('коллекцию чужого кита узнаёт по типу значения из его каталога', () => {
+    // `CheckboxGroup` в наборах имён синтеза нет; что он отдаёт список строк, говорит только
+    // каталог кита (`x-runtimeProps.value.type`). Тот же каталог печатает и тип листа.
+    const kit = foreignKit();
+    const checkboxGroup = {
+      ...kit.catalog[0],
+      name: 'CheckboxGroup',
+      propsSchema: {
+        'x-runtimeProps': {
+          value: { group: 'Control', type: 'string[] | null', description: 'Выбранное.' },
+        },
+      },
+    } as (typeof kit.catalog)[number];
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        children: [{ model: '$model(days)', component: '$component(CheckboxGroup)' }],
+      },
+    } as unknown as JsonFormSchema;
+    const rules = rulesOf([{ target: 'days', rules: ['minLength(1)'] }]);
+    const withCatalog = viewOf({ schema, rules, kit: { ...kit, catalog: [checkboxGroup] } });
+    expect(withCatalog.messages.entries.map((entry) => entry.code)).toEqual(['minItems']);
+    // Каталог без типа значения — прежнее правило: длина строки.
+    const without = viewOf({ schema, rules, kit });
+    expect(without.messages.entries.map((entry) => entry.code)).toEqual(['minLength']);
+  });
+
   it('тексты — из русской локали ядра, а не свои', () => {
     const { entries } = viewOf({
       rules: rulesOf([{ target: 'fullName', rules: ['email'] }]),
