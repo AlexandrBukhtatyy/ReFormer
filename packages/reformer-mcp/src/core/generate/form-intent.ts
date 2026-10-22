@@ -92,9 +92,20 @@ export interface BehaviorIntent {
     | 'disableWhen'
     | 'resetWhen'
     | 'transformValue'
-    | 'revalidateWhen';
-  /** Поле, которое поведение ПИШЕТ. */
+    | 'revalidateWhen'
+    | 'exclusiveFlag'
+    | 'aggregateInto';
+  /**
+   * Поле, которое поведение ПИШЕТ. У `exclusiveFlag` — флаг строки (`contacts.primary`), у
+   * `aggregateInto` — сам массив, в строки которого пишется итог.
+   */
   target: string;
+  /**
+   * Поведение КАЖДОЙ строки массива с этим путём → `applyEach(model.$.<each>, ({ model: item }) => …)`.
+   * Цель и источники — поля строки полным путём (`items.lineTotal`) или от строки (`lineTotal`);
+   * выражение читает строку как `item`, форму — как `model`. У `exclusiveFlag` обязателен.
+   */
+  each?: string;
   /** Поля, которые оно ЧИТАЕТ. Из них строится проверка циклов. */
   sources: string[];
   /** Тело выражения на TS — вставляется как есть. */
@@ -487,6 +498,8 @@ const BEHAVIOR_KINDS: ReadonlyArray<BehaviorIntent['kind']> = [
   'resetWhen',
   'transformValue',
   'revalidateWhen',
+  'exclusiveFlag',
+  'aggregateInto',
 ];
 
 const BEHAVIOR_BY_KEY = new Map(BEHAVIOR_KINDS.map((kind) => [kind.toLowerCase(), kind]));
@@ -728,9 +741,11 @@ function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | 
     take(raw, 'expr', ['expression', 'formula', 'code', 'when', 'condition'], ctx)
   );
   const options = take(raw, 'options', ['opts'], ctx);
+  const each = asName(take(raw, 'each', ['array', 'arrayPath', 'row'], ctx));
   return {
     kind,
     target,
+    ...(each ? { each } : {}),
     sources: asNames(take(raw, 'sources', ['reads', 'deps', 'dependsOn', 'from', 'source'], ctx)),
     ...(expr ? { expr } : {}),
     ...(isRecord(options) ? { options } : {}),

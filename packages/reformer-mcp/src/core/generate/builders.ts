@@ -858,15 +858,78 @@ function resetWhenOptions(b: BehaviorIntent, intent: FormIntent): string {
   return json && json !== '{}' ? `, ${json.slice(0, -1)}, ${resetValue} }` : `, { ${resetValue} }`;
 }
 
-function renderBehavior(b: BehaviorIntent, intent: FormIntent): string {
-  const target = `model.$.${b.target}`;
-  const sources = b.sources.map((s) => `model.$.${s}`).join(', ');
+/** Путь поля строки — от строки: `items.qty` при `each: 'items'` → `qty`. */
+function rowPath(path: string, each: string): string {
+  return path.startsWith(`${each}.`) ? path.slice(each.length + 1) : path;
+}
+
+/**
+ * Поведение каждой строки печатается внутри `applyEach`: ручки — от строки (`item.$.qty`), а
+ * колбэк строки объявляет `item`. `exclusiveFlag` и `aggregateInto` — операторы над массивом
+ * целиком и в `applyEach` не заворачиваются.
+ */
+function isRowBehavior(b: BehaviorIntent): b is BehaviorIntent & { each: string } {
+  return b.each !== undefined && b.kind !== 'exclusiveFlag' && b.kind !== 'aggregateInto';
+}
+
+/**
+ * Строки тела поведения: связи формы — по одной, связи строк одного массива — одним `applyEach`
+ * на месте первой из них.
+ */
+function renderBehaviors(intent: FormIntent): string[] {
+  // Элемент — строка связи формы либо группа связей строк одного массива (на месте первой).
+  const parts: (string | { each: string; items: BehaviorIntent[] })[] = [];
+  const groups = new Map<string, { each: string; items: BehaviorIntent[] }>();
+  for (const b of intent.behavior) {
+    if (!isRowBehavior(b)) {
+      parts.push(renderBehavior(b, intent));
+      continue;
+    }
+    const group = groups.get(b.each);
+    if (group !== undefined) {
+      group.items.push(b);
+      continue;
+    }
+    const created = { each: b.each, items: [b] };
+    groups.set(b.each, created);
+    parts.push(created);
+  }
+  return parts.flatMap((part) =>
+    typeof part === 'string'
+      ? [part]
+      : [
+          // `applyEach` ждёт поведение (`FormBehavior`), а не голую стрелку; тип строки
+          // `defineFormBehavior` выводит из массива.
+          `  applyEach(model.$.${part.each}, defineFormBehavior(({ model: item }) => {`,
+          // Связь бывает в несколько строк (пояснение над `computeFrom`): отступ — каждой.
+          ...part.items.flatMap((b) =>
+            renderBehavior(b, intent, 'item')
+              .split('\n')
+              .map((line) => `  ${line}`)
+          ),
+          '  }));',
+        ]
+  );
+}
+
+/** Операторы поведения, которые печатает набор: виды связей и `applyEach` для связей строк. */
+function behaviorOps(intent: FormIntent): string[] {
+  const ops = new Set<string>(intent.behavior.map((b) => b.kind));
+  if (intent.behavior.some(isRowBehavior)) ops.add('applyEach');
+  return [...ops];
+}
+
+function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'): string {
+  const path = (p: string): string => (scope === 'item' && b.each ? rowPath(p, b.each) : p);
+  const target = `${scope}.$.${path(b.target)}`;
+  const sources = b.sources.map((s) => `${scope}.$.${path(s)}`).join(', ');
   const opts = b.options ? `, ${JSON.stringify(b.options)}` : '';
   switch (b.kind) {
     case 'compute':
       return `  compute(${target}, () => ${b.expr ?? 'undefined'});`;
     case 'computeFrom': {
-      const { params, renamed } = callbackParams(b.sources);
+      // У связи строки параметры — по путям от строки: `items.qty` переименованием не считается.
+      const { params, renamed } = callbackParams(b.sources.map(path));
       // Переименование названо на месте: выражение писал консумент, и оно ссылается на
       // ИСХОДНЫЕ имена — без этой строки расхождение он нашёл бы только по ошибке компиляции.
       const note =
@@ -876,9 +939,9 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent): string {
       return `${note}  computeFrom([${sources}], ${target}, (${params.join(', ')}) => ${b.expr ?? 'undefined'});`;
     }
     case 'copyFrom':
-      return `  copyFrom(model.$.${b.sources[0] ?? 'source'}, ${target}${opts});`;
+      return `  copyFrom(${scope}.$.${path(b.sources[0] ?? 'source')}, ${target}${opts});`;
     case 'syncFields':
-      return `  syncFields(${target}, model.$.${b.sources[0] ?? 'other'}${opts});`;
+      return `  syncFields(${target}, ${scope}.$.${path(b.sources[0] ?? 'other')}${opts});`;
     case 'onChange':
       return `  onChange(${target}, (value) => { ${b.expr ?? '/* эффект */'} }${opts});`;
     case 'enableWhen':
@@ -890,13 +953,20 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent): string {
       return `  transformValue(${target}, (value) => ${b.expr ?? 'value'});`;
     case 'revalidateWhen':
       return `  revalidateWhen([${sources}], () => { ${b.expr ?? '/* перепроверка */'} });`;
+    case 'exclusiveFlag': {
+      // Флаг — поле строки; массив — `each`, а без него — путь флага до последнего сегмента.
+      const each = b.each ?? b.target.split('.').slice(0, -1).join('.');
+      return `  exclusiveFlag(model.$.${each}, (row) => row.$.${rowPath(b.target, each)});`;
+    }
+    case 'aggregateInto':
+      return `  aggregateInto(model.$.${b.target}, (rows) => ${b.expr ?? '[]'});`;
     default:
       return `  // неизвестный вид поведения: ${String(b.kind)}`;
   }
 }
 
 export function buildBehaviorTs(intent: FormIntent): string {
-  const ops = [...new Set(intent.behavior.map((b) => b.kind))].sort();
+  const ops = behaviorOps(intent).sort();
   const lines: string[] = [];
   lines.push('/**');
   lines.push(` * Поведение формы «${intent.formName}» — реактивные связи над моделью.`);
@@ -912,7 +982,7 @@ export function buildBehaviorTs(intent: FormIntent): string {
   if (intent.behavior.length === 0) {
     lines.push('  // Поведения в intent не было — добавьте его здесь.');
   }
-  for (const b of intent.behavior) lines.push(renderBehavior(b, intent));
+  lines.push(...renderBehaviors(intent));
   lines.push('});');
   return lines.join('\n') + '\n';
 }
@@ -939,7 +1009,7 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
     );
   }
 
-  const ops = [...new Set<string>(intent.behavior.map((b) => b.kind))];
+  const ops = behaviorOps(intent);
   if (withNodes) ops.push('hideWhen');
   ops.sort();
 
@@ -968,7 +1038,7 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
   if (intent.behavior.length === 0 && !withNodes) {
     lines.push('  // Поведения в intent не было — добавьте его здесь.');
   }
-  for (const b of intent.behavior) lines.push(renderBehavior(b, intent));
+  lines.push(...renderBehaviors(intent));
   if (withNodes) {
     if (intent.behavior.length > 0) lines.push('');
     lines.push('  // Видимость узлов схемы — по `selector`.');

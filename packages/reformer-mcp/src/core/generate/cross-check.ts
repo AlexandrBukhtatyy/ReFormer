@@ -273,12 +273,17 @@ export function crossCheckBundle(
   }
 
   // C5 — цели и источники поведения существуют.
+  // Связь строки массива пишут и от строки (`qty` при `each: 'items'`): путь в модели — полный.
+  const fullOf = (b: { each?: string }, path: string): string =>
+    b.each !== undefined && !path.startsWith(`${b.each}.`) && path !== b.each
+      ? `${b.each}.${path}`
+      : path;
   for (const b of intent.behavior) {
-    if (!paths.has(b.target)) {
+    if (!paths.has(fullOf(b, b.target))) {
       err('C5', `Поведение \`${b.kind}\` пишет в \`${b.target}\` — такого поля в модели нет.`);
     }
     for (const s of b.sources) {
-      if (!paths.has(s)) {
+      if (!paths.has(fullOf(b, s))) {
         err('C5', `Поведение \`${b.kind}\` читает \`${s}\` — такого поля в модели нет.`);
       }
     }
@@ -298,7 +303,7 @@ export function crossCheckBundle(
   // C7 — граф вычислений без циклов.
   const deps: Dependency[] = intent.behavior
     .filter((b) => b.kind !== 'onChange' && b.kind !== 'revalidateWhen')
-    .map((b) => ({ target: b.target, reads: b.sources }));
+    .map((b) => ({ target: fullOf(b, b.target), reads: b.sources.map((s) => fullOf(b, s)) }));
   const cycle = findCycle(deps);
   if (cycle) {
     err('C7', `Цикл в вычисляемых полях: ${cycle.join(' → ')}. Рантайм бросит «Cycle detected».`);

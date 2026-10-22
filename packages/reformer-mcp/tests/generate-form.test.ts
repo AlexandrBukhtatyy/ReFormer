@@ -491,6 +491,66 @@ describe('builders', () => {
     expect(ts).toContain('computeFrom([model.$.price, model.$.quantity], model.$.total');
   });
 
+  describe('поведение строк массива', () => {
+    function rowsIntent(): FormIntent {
+      const intent = goodIntent();
+      intent.behavior = [
+        {
+          kind: 'computeFrom',
+          each: 'items',
+          target: 'items.lineTotal',
+          sources: ['items.qty', 'items.price'],
+          expr: 'qty * price',
+        },
+        { kind: 'enableWhen', each: 'items', target: 'note', sources: [], expr: 'item.qty > 0' },
+        { kind: 'exclusiveFlag', each: 'items', target: 'items.primary', sources: [] },
+        {
+          kind: 'aggregateInto',
+          target: 'items',
+          sources: [],
+          expr: 'rows.length ? [{ index: rows.length - 1, patch: { qty: 1 } }] : []',
+        },
+      ];
+      return intent;
+    }
+
+    it('связи одной строки — одним applyEach, ручки от строки', () => {
+      const ts = buildBehaviorTs(rowsIntent());
+      expect(ts).toContain(
+        [
+          '  applyEach(model.$.items, defineFormBehavior(({ model: item }) => {',
+          '    computeFrom([item.$.qty, item.$.price], item.$.lineTotal, (qty, price) => qty * price);',
+          '    enableWhen(item.$.note, () => item.qty > 0);',
+          '  }));',
+        ].join('\n')
+      );
+      expect(ts).toMatch(/import \{ defineFormBehavior, .*applyEach.* \} from/);
+    });
+
+    it('флаг одной строки и итог по строкам — операторы над массивом целиком', () => {
+      const ts = buildBehaviorTs(rowsIntent());
+      expect(ts).toContain('  exclusiveFlag(model.$.items, (row) => row.$.primary);');
+      expect(ts).toContain(
+        '  aggregateInto(model.$.items, (rows) => rows.length ? [{ index: rows.length - 1, patch: { qty: 1 } }] : []);'
+      );
+      expect(ts).toMatch(/import \{[^}]*aggregateInto[^}]*exclusiveFlag[^}]*\} from/);
+    });
+
+    it('вход читает each и новые виды', () => {
+      const { intent } = readIntent({
+        formName: 'Rows',
+        behavior: [
+          { kind: 'exclusiveFlag', each: 'contacts', target: 'contacts.primary' },
+          { kind: 'aggregateinto', target: 'rows', expr: '[]' },
+        ],
+      });
+      expect(intent.behavior).toEqual([
+        { kind: 'exclusiveFlag', each: 'contacts', target: 'contacts.primary', sources: [] },
+        { kind: 'aggregateInto', target: 'rows', sources: [], expr: '[]' },
+      ]);
+    });
+  });
+
   it('resetWhen по полю без null получает resetValue — начальное значение поля [ReFormer-2183]', () => {
     // Без resetValue ядро пишет null, и для поля без null в типе он обязателен по типу.
     const intent = goodIntent();
