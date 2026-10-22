@@ -128,6 +128,15 @@ describe('чем канал удешевляет ход', () => {
     expect(tuningOf({ kind: 'openai-compatible' }).cacheBreakpoints).toBe(false);
   });
 
+  it('у локального канала сторожа тишины нет, у облачных — по умолчанию', () => {
+    // Молчание локального сервера — работа: разбор длинного шага (ReFormer-6zxe) и вызов
+    // инструмента, который Ollama отдаёт одним куском (ReFormer-lhvk.5). У облачных каналов
+    // минута молчания по-прежнему значит беду.
+    expect(tuningOf({ kind: 'openai-compatible' }).chunkTimeoutMs).toBeNull();
+    expect(tuningOf({ kind: 'anthropic' }).chunkTimeoutMs).toBeUndefined();
+    expect(tuningOf({ kind: 'openai' }).chunkTimeoutMs).toBeUndefined();
+  });
+
   it('потолок ответа по умолчанию не задан — его ставит пользователь, а не мы', () => {
     // Зашитое число обрывало ответ think-модели на полуслове: рассуждение съедало вывод целиком,
     // и ход заканчивался по `length`, не дойдя до правок.

@@ -66,12 +66,13 @@ async function play(
   parts: unknown[],
   tuning?: AiSdkTuning,
   req: AiRequest = REQUEST,
-  stepNumber = 0
+  stepNumber = 0,
+  signal?: AbortSignal
 ): Promise<AiEvent[]> {
   stream.parts = parts;
   stream.stepNumber = stepNumber;
   const events: AiEvent[] = [];
-  for await (const e of streamViaAiSdk({} as LanguageModel, req, undefined, tuning)) {
+  for await (const e of streamViaAiSdk({} as LanguageModel, req, signal, tuning)) {
     events.push(e);
   }
   return events;
@@ -355,9 +356,53 @@ describe('перевод потока AI SDK', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 
-  it('прерывание доходит как отмена', async () => {
-    const events = await play([{ type: 'abort' }]);
+  /** Сигнал, который уже прерван, — как после нажатой «Остановить». */
+  const stopped = (): AbortSignal => {
+    const controller = new AbortController();
+    controller.abort();
+    return controller.signal;
+  };
+
+  it('прерывание нашим сигналом доходит как отмена', async () => {
+    const events = await play([{ type: 'abort' }], undefined, REQUEST, 0, stopped());
     expect(events).toMatchObject([{ type: 'done', reason: 'aborted' }]);
+  });
+
+  /**
+   * Сторож тишины SDK (`timeout.chunkMs`) отменяет запрос своим контроллером и сообщает это тем же
+   * `abort`. Замер на большой спеке (ReFormer-6zxe) кончался именно так — и выглядел остановкой
+   * пользователем, хотя кнопку никто не нажимал.
+   */
+  it('abort без нашего сигнала — таймаут, а не отмена пользователем', async () => {
+    const events = await play([
+      { type: 'tool-input-start', id: 'c1', toolName: 'edit_file' },
+      { type: 'abort' },
+    ]);
+    expect(events.find((e) => e.type === 'error')).toBeDefined();
+    const done = events.at(-1) as { type: string; reason?: string; stop?: Record<string, unknown> };
+    expect(done).toMatchObject({ type: 'done', reason: 'error', stop: { reason: 'timeout' } });
+    // Недописанный вызов не сообщается: он запустил бы вторую попытку к тому же молчащему серверу.
+    expect(done.stop?.truncatedCall).toBeUndefined();
+  });
+
+  it('сторож тишины берётся из настроек канала', async () => {
+    await play([], {
+      cacheBreakpoints: false,
+      pruneContext: true,
+      maxRetries: 1,
+      chunkTimeoutMs: 300_000,
+    });
+    expect(lastCall().timeout).toMatchObject({ chunkMs: 300_000 });
+  });
+
+  it('null в настройках канала — сторожа тишины нет вовсе', async () => {
+    await play([], {
+      cacheBreakpoints: false,
+      pruneContext: true,
+      maxRetries: 1,
+      chunkTimeoutMs: null,
+    });
+    expect(lastCall().timeout).toBeUndefined();
   });
 
   /**
@@ -367,10 +412,13 @@ describe('перевод потока AI SDK', () => {
    * Причина названа — но диагностика нужна и при названной причине.
    */
   it('отмена несёт диагностику: недописанный вызов и молчание шага', async () => {
-    const events = await play([
-      { type: 'tool-input-start', id: 'c1', toolName: 'insert_node' },
-      { type: 'abort' },
-    ]);
+    const events = await play(
+      [{ type: 'tool-input-start', id: 'c1', toolName: 'insert_node' }, { type: 'abort' }],
+      undefined,
+      REQUEST,
+      0,
+      stopped()
+    );
     const done = events.at(-1) as { type: string; reason?: string; stop?: Record<string, unknown> };
     expect(done).toMatchObject({ type: 'done', reason: 'aborted' });
     expect(done.stop, 'обрыв без диагностики неотличим от штатного конца').toBeDefined();
