@@ -166,22 +166,50 @@ export class BuilderApp {
     }
   }
 
-  /** Открывает файл проекта во вкладке, раскрыв каталоги на пути к нему. */
+  /** Открывает файл проекта закреплённой вкладкой (двойной клик), раскрыв каталоги на пути. */
   async openFile(filePath: string): Promise<void> {
     const separator = filePath.lastIndexOf('/');
     if (separator !== -1) await this.expandFolder(filePath.slice(0, separator));
     await this.treeItem(filePath).dblclick();
-    await expect(this.tab(filePath.slice(separator + 1))).toHaveAttribute('aria-selected', 'true');
+    await expect(this.tabByPath(filePath)).toHaveAttribute('aria-selected', 'true');
+  }
+
+  /**
+   * Открывает файл ВРЕМЕННОЙ вкладкой — одиночным кликом в дереве. Следующий одиночный клик
+   * по другому файлу заменит её на месте.
+   */
+  async previewFile(filePath: string): Promise<void> {
+    const separator = filePath.lastIndexOf('/');
+    if (separator !== -1) await this.expandFolder(filePath.slice(0, separator));
+    await this.treeItem(filePath).click();
+    await expect(this.tabByPath(filePath)).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
    * Вкладка документа по имени файла.
    *
    * Совпадение по началу имени: несохранённый документ дописывает в доступное имя вкладки
-   * «Есть несохранённые изменения».
+   * «Есть несохранённые изменения». Две вкладки с одним именем (`form.schema.json` двух форм)
+   * так не различить — для них {@link tabByPath}.
    */
   tab(fileName: string): Locator {
     return this.tabs.getByRole('tab', { name: new RegExp(`^${escapeRegExp(fileName)}`) });
+  }
+
+  /** Вкладка документа по пути от корня проекта — его вкладка показывает подсказкой. */
+  tabByPath(filePath: string): Locator {
+    return this.tabs.locator(`[role="tab"][title="${filePath}"]`);
+  }
+
+  /** Делает вкладку документа активной — кликом, как человек. */
+  async activateTab(filePath: string): Promise<void> {
+    await this.tabByPath(filePath).click();
+    await expect(this.tabByPath(filePath)).toHaveAttribute('aria-selected', 'true');
+  }
+
+  /** Метка «Есть несохранённые изменения» на вкладке документа. */
+  dirtyMark(filePath: string): Locator {
+    return this.tabByPath(filePath).getByLabel('Есть несохранённые изменения');
   }
 
   /** Сохраняет активный документ — сочетанием, как человек. */
