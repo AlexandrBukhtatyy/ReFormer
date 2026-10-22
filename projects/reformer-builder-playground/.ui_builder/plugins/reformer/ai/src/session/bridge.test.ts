@@ -16,7 +16,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { listComponents } from '../model/catalog-digest';
-import type { WhenContext } from '@reformer/builder-plugin-api';
+import type { ResourceId, WhenContext } from '@reformer/builder-plugin-api';
 import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';
 import { createEditorToolRegistry } from '../tools';
 import { createFileToolRegistry } from '../tools/files';
@@ -31,6 +31,7 @@ import { createFakeFiles, createFakeHost, type FakeFiles, type FakeHost } from '
 import { emptyRulesText, printRulesText } from '../../../core/codegen/rules-file';
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { ResourceProviderEntry } from './resources';
+import type { GenerateReport, ModuleGeneratorService } from '../generator';
 
 const RESOURCE = 'form.json';
 /** Контекст применимости, которого предикату отмены достаточно: он его не читает. */
@@ -102,6 +103,7 @@ function harness(
     readonly files?: FakeFiles;
     readonly assistantTools?: readonly ContributedToolEntry[];
     readonly resourceProviders?: readonly ResourceProviderEntry[];
+    readonly generator?: ModuleGeneratorService;
   } = {}
 ): Harness {
   const host = createFakeHost(catalog, options.files);
@@ -136,6 +138,7 @@ function harness(
     executeCommand: execute as (id: string, args?: unknown) => Promise<unknown>,
     assistantTools: () => options.assistantTools ?? [],
     resourceProviders: () => options.resourceProviders ?? [],
+    generator: () => options.generator,
     // Настоящая проверка, а не двойник: гейт — то, ради чего мост зовёт применение,
     // и подменять его здесь значило бы проверять подмену.
     validateForm: () => Promise.resolve(validateFormSchema),
@@ -707,6 +710,7 @@ function filesHarness(
     readonly initial?: Readonly<Record<string, string>>;
     readonly active?: string;
     readonly assistantTools?: readonly ContributedToolEntry[];
+    readonly generator?: ModuleGeneratorService;
   } = {}
 ) {
   const files = createFakeFiles(
@@ -739,6 +743,7 @@ function filesHarness(
     executeCommand: () => Promise.resolve(undefined),
     assistantTools: () => options.assistantTools ?? [],
     validateForm: () => Promise.resolve(validateFormSchema),
+    generator: () => options.generator,
   });
   return { files, host, session, bridge };
 }
@@ -1575,5 +1580,166 @@ describe('файл правил формы', () => {
     await bridge.send('перепиши правила');
 
     expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
+  });
+});
+
+/**
+ * Генерация-двойник: пишет файлы дверью заказчика и документ формы — тоже, чтобы проверить отказ.
+ * `seen` — текст документа в момент прогона: по нему видно, легли ли правки хода до генерации.
+ */
+function fakeGenerator(
+  files: Readonly<Record<string, string>>,
+  documentText: () => string | undefined
+): ModuleGeneratorService & { readonly calls: string[]; readonly seen: (string | undefined)[] } {
+  const calls: string[] = [];
+  const seen: (string | undefined)[] = [];
+  return {
+    calls,
+    seen,
+    async generate(documentId, request): Promise<GenerateReport> {
+      calls.push(documentId);
+      seen.push(documentText());
+      const written: string[] = [];
+      const skipped: { path: string; reason: 'refused'; message: string }[] = [];
+      for (const [id, text] of [[documentId, '{}'], ...Object.entries(files)]) {
+        const refused = (await request?.write?.(id as ResourceId, text)) ?? null;
+        if (refused === null) written.push(id);
+        else skipped.push({ path: id, reason: 'refused', message: refused });
+      }
+      return { ok: true, formName: 'form', dir: 'forms/loan', written, skipped, failed: [] };
+    },
+  };
+}
+
+const generateCode: FakeStep = { tool: 'generate_code', args: {} };
+
+/** Строки журнала генерации в последней реплике. */
+function generationLines(session: AiSession) {
+  const last = session.get().entries.at(-1);
+  return (last?.tools ?? []).filter((tool) => tool.name === 'generate_code');
+}
+
+describe('генерация кода (generate_code) — структурный режим', () => {
+  const TYPES = 'form/types/form.ts';
+
+  it('идёт один раз ПОСЛЕ того, как правки легли, и пишет дверью хода', async () => {
+    const files = createFakeFiles({ [TYPES]: 'old' });
+    // Двойник генерации заводится раньше обвязки, а читать ему надо её документ.
+    const late: { host?: FakeHost } = {};
+    const generator = fakeGenerator({ [TYPES]: 'new' }, () =>
+      late.host?.documentOf(RESOURCE)?.getText()
+    );
+    const made = harness([insertField, generateCode, generateCode, { text: 'Готово.' }], {
+      files,
+      generator,
+    });
+    late.host = made.host;
+    await made.bridge.send('добавь поле и сгенерируй код');
+
+    expect(generator.calls).toEqual([RESOURCE]);
+    expect(generator.seen[0]).toContain('Почта');
+    expect(files.text(TYPES)).toBe('new');
+    expect(files.writes[0].mark).toEqual(made.host.writes.at(-1)?.mark);
+    // Документ формы генерации не отдаётся — его ход правит сам.
+    expect(made.host.documentOf(RESOURCE)?.getText()).toContain('Почта');
+    expect(made.host.writes).toHaveLength(1);
+
+    // Строка журнала — одна, с исходом прогона, а не с заказом.
+    const lines = generationLines(made.session);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].ok).toBe(true);
+    expect(lines[0].summary).toContain('turn.generate.done');
+  });
+
+  it('отмена хода снимает и файлы генерации', async () => {
+    const files = createFakeFiles({ [TYPES]: 'old' });
+    const { bridge } = harness([insertField, generateCode, { text: 'Готово.' }], {
+      files,
+      generator: fakeGenerator({ [TYPES]: 'new' }, () => undefined),
+    });
+    await bridge.send('добавь поле и сгенерируй код');
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(files.text(TYPES)).toBe('old');
+  });
+
+  it('без генерации в сборке модель слышит «недоступно», и строка журнала это показывает', async () => {
+    const { session, bridge } = harness([generateCode, { text: 'Не вышло.' }], {
+      files: createFakeFiles(),
+    });
+    await bridge.send('сгенерируй код');
+
+    const lines = generationLines(session);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].ok).toBe(false);
+    expect(lines[0].error).toContain('not available');
+  });
+
+  it('правки ждут решения — генерация не идёт, причина названа', async () => {
+    const editByHand: AgentCommand = {
+      id: 'test.edit',
+      agent: { description: 'Edit the file directly.', schema: { type: 'object', properties: {} } },
+    };
+    const generator = fakeGenerator({ [TYPES]: 'new' }, () => undefined);
+    const made = harness([{ tool: 'test_edit', args: {} }, insertField, generateCode], {
+      commands: [editByHand],
+      files: createFakeFiles(),
+      generator,
+    });
+    made.execute.mockImplementation(async () => {
+      await made.host.writeText(
+        RESOURCE,
+        printSchemaText({ ...EMPTY_FORM, version: '1.1' } as JsonFormSchema)
+      );
+      return 'ok';
+    });
+    await made.bridge.send('поправь, добавь поле и сгенерируй код');
+
+    expect(made.session.get().conflict).toBe(true);
+    expect(generator.calls).toEqual([]);
+    const lines = generationLines(made.session);
+    expect(lines[0].ok).toBe(false);
+    expect(lines[0].error).toContain('turn.generate.pending');
+  });
+
+  it('остановленный ход генерацию не проводит', async () => {
+    const generator = fakeGenerator({ [TYPES]: 'new' }, () => undefined);
+    let stop = (): void => {};
+    const made = harness([], {
+      files: createFakeFiles(),
+      generator,
+      provider: thenOutside([insertField, generateCode], () => stop()),
+    });
+    stop = () => made.bridge.abort();
+    await made.bridge.send('добавь поле и сгенерируй код');
+
+    expect(generator.calls).toEqual([]);
+  });
+});
+
+describe('генерация кода (generate_code) — режим файлов', () => {
+  const TYPES = 'forms/loan/types/loan.ts';
+
+  it('модуль печатается из записанного к концу хода, его файлы — в журнале хода', async () => {
+    const late: { files?: FakeFiles } = {};
+    const generator = fakeGenerator({ [TYPES]: 'export type Loan = {};\n' }, () =>
+      late.files?.text(FORM_FILE)
+    );
+    const { files, session, bridge } = filesHarness(
+      [fieldEdit, generateCode, { text: 'Готово.' }],
+      { generator }
+    );
+    late.files = files;
+    await bridge.send('добавь почту и сгенерируй код');
+
+    expect(generator.calls).toEqual([FORM_FILE]);
+    expect(generator.seen[0]).toContain('$model(email)');
+    expect(files.text(TYPES)).toBe('export type Loan = {};\n');
+    // Документ формы дверь генерации не отдаёт: в нём правка модели, а не «{}» двойника.
+    expect(files.text(FORM_FILE)).toContain('$model(email)');
+    expect(generationLines(session)[0]?.ok).toBe(true);
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(files.text(FORM_FILE)).toBe(EMPTY_TEXT);
   });
 });

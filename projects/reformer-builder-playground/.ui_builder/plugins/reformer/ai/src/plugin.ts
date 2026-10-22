@@ -47,6 +47,7 @@ import {
   type PluginContext,
 } from '@reformer/builder-plugin-api';
 import { aiUndoTurnCommand, createAgentBridge, type AgentBridge } from './session/bridge';
+import { ModuleGeneratorCapability } from './generator';
 import {
   clearProviderConfig,
   loadProviderConfig,
@@ -384,6 +385,9 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         // приведения: так компилятор сверяет структурные копии моста с контрактом SDK.
         assistantTools: () => ctx.extensions.get(AssistantToolPoint),
         resourceProviders: () => ctx.extensions.get(AssistantResourcePoint),
+        // Генерация кода — возможность чужого плагина: спрашивается на каждый ход, его могут
+        // поднять позже ассистента или не поднять вовсе.
+        generator: () => ctx.services.get(ModuleGeneratorCapability),
       });
 
       ctx.subscriptions.push(ctx.services.register(AI_SERVICE_TOKEN, assistant));

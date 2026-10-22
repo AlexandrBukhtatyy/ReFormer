@@ -45,6 +45,8 @@ import type { ContributedToolEntry } from '../tools/contributed-tools';
 import { runAgentTurn, type ActiveForm, type TurnEvent, type TurnStats } from '../loop/loop';
 import type { AskAnswer, AskOutcome, ChangeOp, TurnScope } from '../model/types';
 import { askUserTool } from '../tools/ask-user';
+import { generateCodeTool } from '../tools/generate-code';
+import type { GenerateReport, ModuleGeneratorService } from '../generator';
 import { createContributionSurface } from './contributions';
 import {
   createResourceRouter,
@@ -176,6 +178,12 @@ export interface BridgeDeps {
    * рабочий режим.
    */
   readonly validateForm: LoadValidateForm;
+  /**
+   * Генерация кода формы — возможность плагина генерации (`../generator`). Функция, а не служба:
+   * плагин вправе подняться позже ассистента или не подняться вовсе. Без неё `generate_code`
+   * отвечает модели «недоступно».
+   */
+  readonly generator?: () => ModuleGeneratorService | undefined;
 }
 
 /** Идентификатор команды «отменить последний ход ассистента». */
@@ -333,6 +341,11 @@ interface FileOutcome {
   readonly reason: TurnReason;
   readonly message?: string;
   readonly stop?: AiStop;
+}
+
+/** Заказ генерации кода в ходе (`generate_code`) — его исполняет мост, когда правки легли. */
+interface GenerationOrder {
+  requested: boolean;
 }
 
 /** Что стало с набором изменений. */
@@ -514,13 +527,87 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     };
   };
 
-  /** Ход для инструментов плагинов, `read_resource` и `ask_user`. */
-  const scopeOf = (writes: TurnWrites, signal: AbortSignal): TurnScope => ({
+  /**
+   * Ход для инструментов плагинов, `read_resource`, `ask_user` и `generate_code`. Заказ генерации
+   * ложится в `order` — исполняет его {@link generateOrdered}, когда правки хода легли.
+   */
+  const scopeOf = (writes: TurnWrites, signal: AbortSignal, order: GenerationOrder): TurnScope => ({
     signal,
     write: (resource, text, caller) => writes.write(resource, text, caller),
     readResource: resources.reader(signal),
     ask: askerOf(signal),
+    ...(deps.generator?.() === undefined
+      ? {}
+      : {
+          generate: () => {
+            order.requested = true;
+          },
+        }),
   });
+
+  /**
+   * Сгенерировать код формы, если ход его заказал (`generate_code`): один раз и после правок —
+   * модуль печатается из того, что легло. Пишет дверью хода: файлы модуля получают пометку
+   * ассистента и отменяются вместе с ходом, а документ формы, шаги и файл правил дверь генерации не
+   * отдаёт — их ход правит сам. Исход — строкой журнала: модели он уже не нужен, ход кончается.
+   *
+   * @param blocked - Почему генерировать нельзя, хотя заказ есть: правки ждут решения человека.
+   */
+  const generateOrdered = async (
+    order: GenerationOrder,
+    resource: ResourceId,
+    writes: TurnWrites,
+    blocked?: string
+  ): Promise<void> => {
+    if (!order.requested) return;
+    const line = (ok: boolean, text: string): void => {
+      session.logTool({
+        name: generateCodeTool.name,
+        ok,
+        ...(ok ? { summary: text } : { error: text }),
+      });
+    };
+    if (blocked !== undefined) {
+      line(false, t('turn.generate.failed', { error: blocked }));
+      return;
+    }
+    const generator = deps.generator?.();
+    if (generator === undefined) {
+      line(false, t('turn.generate.failed', { error: t('turn.generate.unavailable') }));
+      return;
+    }
+    let report: GenerateReport;
+    try {
+      report = await generator.generate(resource, {
+        write: async (id, text) => {
+          const result = await writes.write(id, text, { readOnly: false });
+          return result.ok ? null : result.message;
+        },
+      });
+    } catch (error) {
+      line(false, t('turn.generate.failed', { error: messageOf(error) }));
+      return;
+    }
+    if (!report.ok) {
+      line(false, t('turn.generate.failed', { error: report.message }));
+      return;
+    }
+    if (report.failed.length > 0) {
+      const failed = report.failed.map((file) => `${file.path}: ${file.message}`).join('; ');
+      line(false, t('turn.generate.failed', { error: failed }));
+      return;
+    }
+    // Отказ двери — документ формы и шаги, которые ход правит сам: это не новость для человека.
+    // Новость — файлы, правленные руками: генерация их не тронула, и человек должен это знать.
+    const kept = report.skipped
+      .filter((file) => file.reason !== 'refused')
+      .map((file) => file.path);
+    const done = t('turn.generate.done', { dir: report.dir, count: String(report.written.length) });
+    line(
+      true,
+      kept.length === 0 ? done : `${done} ${t('turn.generate.kept', { files: kept.join(', ') })}`
+    );
+  };
 
   /**
    * Замечание в ленту, не трогая набор, ждущий решения.
@@ -958,13 +1045,21 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           ? 'The assistant writes the form rules itself; a plugin tool cannot write them.'
           : formPartRefusal(id, target.resource, formScope),
     });
-    const scope = scopeOf(writes, signal);
+    const order: GenerationOrder = { requested: false };
+    const scope = scopeOf(writes, signal, order);
+    /** Генерация по заказу — после того, как правки попытки легли; остановленный ход её не ждёт. */
+    const generate = async (outcome: TurnOutcome, landed: Landing): Promise<void> => {
+      if (signal.aborted || outcome.reason === 'aborted' || outcome.reason === 'error') return;
+      const blocked = landed.status === 'stuck' ? t('turn.generate.pending') : undefined;
+      await generateOrdered(order, target.resource, writes, blocked);
+    };
 
     try {
       const first = await runOnce(provider, target, withAttached(), signal, scope, activeForm);
       const landed = await land(first, target, txId);
 
       if (!needsSecondPass(first, landed, signal)) {
+        await generate(first, landed);
         closeTurn(first, landed, writes.count > 0);
         return;
       }
@@ -985,7 +1080,9 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         scope,
         activeForm
       );
-      closeTurn(second, await land(second, next, txId), writes.count > 0);
+      const landedSecond = await land(second, next, txId);
+      await generate(second, landedSecond);
+      closeTurn(second, landedSecond, writes.count > 0);
     } catch (error) {
       // Ход не должен уметь оставить панель в «running» навсегда: цикл ошибки не бросает,
       // но чтение настроек и запись в буфер — могут.
@@ -1067,7 +1164,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       refuse: (id) => formPartRefusal(id, scope.document, scope),
       module: { journal, relOf: (id) => relInScope(files, scope, id) },
     });
-    const turnScope = scopeOf(writes, signal);
+    const order: GenerationOrder = { requested: false };
+    const turnScope = scopeOf(writes, signal, order);
 
     try {
       const config = await assistant.loadConfig();
@@ -1124,6 +1222,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           ]);
         }
       }
+      // Генерация по заказу — из того, что модель записала к концу хода, и до закрытия двери: она
+      // пишет ею. Перепечатка схем её не задевает — документ формы и шаги генерации не отдаются.
+      if (!signal.aborted && last.reason !== 'aborted' && last.reason !== 'error') {
+        await generateOrdered(order, scope.document, writes);
+      }
       // Дверь плагинов закрывается ДО нормализации: перепечатка — последняя запись хода.
       writes.close();
       await normalizeSchemas(files, scope, journal, mark);
@@ -1145,6 +1248,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   function consume(event: TurnStepEvent): void {
     // Вопрос модели показывает его карточка — строка журнала повторяла бы её.
     if (event.type === 'tool' && event.name === askUserTool.name) return;
+    // Заказ генерации — не её исход: строку с исходом мост пишет, когда генерация пройдёт.
+    if (event.type === 'tool' && event.name === generateCodeTool.name && event.ok) return;
     switch (event.type) {
       case 'text':
         session.appendText(event.text, event.start === true);

@@ -25,6 +25,7 @@ import { askUserTool } from './ask-user';
 import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
 import { extractPartTool } from './extract-part';
+import { generateCodeTool } from './generate-code';
 import { getFormNode } from './get-form-node';
 import { getFormOutline } from './get-form-outline';
 import { groupNodesTool } from './group-nodes';
@@ -46,6 +47,7 @@ export {
   describeComponentTool,
   duplicateNodeTool,
   extractPartTool,
+  generateCodeTool,
   getFormNode,
   getFormOutline,
   groupNodesTool,
@@ -95,9 +97,12 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
   setRenderRulesTool,
 ];
 
-/** Полная поверхность редактора. */
+/**
+ * Полная поверхность редактора. Генерация кода — отдельно от обоих наборов: схему она не меняет,
+ * но пишет файлы модуля, и в наборе «правки запрещены» ей не место.
+ */
 export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
-  return [...readOnlyTools(options), ...WRITE_TOOLS];
+  return [...readOnlyTools(options), ...WRITE_TOOLS, generateCodeTool];
 }
 
 /**

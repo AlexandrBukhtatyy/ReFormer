@@ -11,6 +11,10 @@
   "requires": {
     "optional": [
       {
+        "id": "reformer.codegen.generator",
+        "range": "^1"
+      },
+      {
         "id": "reformer.kit.catalog",
         "range": "^2"
       }
