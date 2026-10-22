@@ -56,4 +56,42 @@ test.describe('Ассистент: файл правил формы', () => {
       .toContain('email');
     expect(await disk.readText('forms/contact/validation/form.ts')).toMatch(/required/);
   });
+
+  test('[T13] значения источника данных из хода — варианты живой формы', async ({
+    builder,
+    model,
+    page,
+    panel,
+  }) => {
+    await builder.openPlayground({ plugins: ['reformer/ai'] });
+    await builder.openFile(FORM_A);
+    await panel.connect();
+
+    // «Как связаться» берёт варианты из именованного источника, а его значения — в правилах.
+    model.reply(
+      call('set_node_prop', {
+        refs: ['/root/children/2'],
+        props: { options: '$dataSource(CHANNELS)' },
+      }),
+      call('set_form_rules', {
+        dataSources: {
+          CHANNELS: [
+            { value: 'tg', label: 'Телеграм' },
+            { value: 'mail', label: 'Почта' },
+          ],
+        },
+      }),
+      say('Варианты связи — источник CHANNELS.')
+    );
+    await panel.ask('Вынеси варианты связи в источник.');
+
+    await page
+      .getByRole('main', { name: 'Редактор' })
+      .getByRole('button', { name: 'Форма', exact: true })
+      .click();
+    await page.getByRole('combobox', { name: 'Как связаться' }).click();
+    // Превью показывает значения из правил, а не выдуманные «Channels 1, 2, 3».
+    await expect(page.getByRole('option', { name: 'Телеграм' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Почта' })).toBeVisible();
+  });
 });
