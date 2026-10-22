@@ -51,9 +51,16 @@ import {
 } from '@reformer/builder-plugin-api';
 import { diagnosticDecoration, type CommandAccess } from './diagnostics';
 import {
+  AssistantResourcePoint,
+  AssistantToolPoint,
   WorkspaceFilesServiceToken,
   WorkspaceResourcesServiceToken,
+  WorkspaceSourceCapability,
 } from '@reformer/builder-plugin-api';
+import { contributeAttachMenu } from './assistant/attach-menu';
+import { listSourceTool } from './assistant/list-source';
+import { createSourceIndex } from './assistant/source-index';
+import { sourceResourceProvider } from './assistant/source-provider';
 import {
   filesContextMenuItems,
   filesGenerateMenuItems,
@@ -76,6 +83,12 @@ export const FILES_TREE_PANEL_ID = 'files.tree';
 
 /** Панель проблем: весь свод диагностик списком. */
 export const FILES_PROBLEMS_PANEL_ID = 'files.problems';
+
+/** Ресурсы `source:` для ассистента — файлы проекта прямо из источника. */
+export const FILES_SOURCE_RESOURCES_ID = 'files.source';
+
+/** Инструмент ассистента `list_source` — дерево каталога из источника. */
+export const FILES_LIST_SOURCE_TOOL_ID = 'files.list-source';
 
 /** Пометка на файле, у которого есть находки. */
 export const FILES_DIAGNOSTICS_DECORATION_ID = 'files.diagnostics';
@@ -281,6 +294,26 @@ export function createFilesPlugin(options: FilesPluginOptions = {}): Plugin {
 
       for (const item of [...filesContextMenuItems(), ...filesGenerateMenuItems()]) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
+      }
+
+      // Проект для ассистента — прямо из источника, мимо рабочей копии: ресурсы `source:`,
+      // дерево каталога `list_source` и пункт меню «Прикрепить к ассистенту». Без службы
+      // источника (приложение её не дало) ассистенту читать нечем, и вкладов нет вовсе.
+      const source = ctx.services.get(WorkspaceSourceCapability);
+      const workspaceFiles = ctx.services.get(WorkspaceFilesServiceToken);
+      if (source !== undefined && workspaceFiles !== undefined) {
+        const access = { source, files: workspaceFiles };
+        const index = createSourceIndex({ access, changes: workspaceFiles });
+        ctx.subscriptions.push(
+          index,
+          ctx.extensions.contribute(AssistantResourcePoint, sourceResourceProvider(access, index), {
+            id: FILES_SOURCE_RESOURCES_ID,
+          }),
+          ctx.extensions.contribute(AssistantToolPoint, listSourceTool(access), {
+            id: FILES_LIST_SOURCE_TOOL_ID,
+          }),
+          contributeAttachMenu(ctx)
+        );
       }
 
       // Пометка вносится только там, где есть чему её питать: вклад, который всегда

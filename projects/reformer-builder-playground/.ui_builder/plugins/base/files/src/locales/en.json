@@ -40,5 +40,6 @@
   "notify.paste.failed": "Some entries were not pasted. See the console for details.",
   "notify.path.copied": "The path has been copied to the clipboard.",
   "notify.path.failed": "The browser did not grant clipboard access.",
-  "notify.rename.failed": "Could not rename. See the console for details."
+  "notify.rename.failed": "Could not rename. See the console for details.",
+  "context.attachToAssistant": "Attach to assistant"
 }
