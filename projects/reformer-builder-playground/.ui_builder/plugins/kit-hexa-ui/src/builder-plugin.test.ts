@@ -86,11 +86,15 @@ function declaredSymbols(): DeclaredSymbol[] {
 /** Каталог пакета кита. */
 const PACKAGE_DIR = fileURLToPath(new URL('..', import.meta.url));
 
+/** Цель `exports`: путь файла либо условия (`types`/`default`) — так объявлен node-вход `./vite`. */
+type ExportTarget = string | Readonly<Record<string, string>>;
+const EXPORTS = pkg.exports as Readonly<Record<string, ExportTarget | undefined>>;
+
 /** Файл входа пакета: то, что `exports` из `package.json` называет для подпутя (главный — `.`). */
 function entryFile(subpath: string | undefined): string {
   const key = subpath === undefined ? '.' : `./${subpath}`;
-  const target = (pkg.exports as Record<string, string | undefined>)[key];
-  if (target === undefined) throw new Error(`package.json: в exports нет входа «${key}»`);
+  const target = EXPORTS[key];
+  if (typeof target !== 'string') throw new Error(`package.json: в exports нет входа «${key}»`);
   return path.resolve(PACKAGE_DIR, target);
 }
 
@@ -115,8 +119,8 @@ function compile(files: readonly string[]): { program: ts.Program; checker: ts.T
 
 /** Все корневые файлы, которые проверяют тесты ниже: входы пакета и пространство имён. */
 function rootFiles(): string[] {
-  const entries = Object.values(pkg.exports as Record<string, string>)
-    .filter((target) => /\.tsx?$/.test(target))
+  const entries = Object.values(EXPORTS)
+    .filter((target): target is string => typeof target === 'string' && /\.tsx?$/.test(target))
     .map((target) => path.resolve(PACKAGE_DIR, target));
   return [...entries, NAMESPACE_FILE];
 }

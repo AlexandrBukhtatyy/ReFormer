@@ -15,5 +15,5 @@
       "vitest/browser": ["../../../node_modules/@vitest/browser/context"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "vite"]
 }

@@ -6,10 +6,15 @@
   "description": "ReFormer-кит поверх дизайн-системы Kaspersky HexaUI: адаптеры полей, обёртка поля, провайдер темы и каталог компонентов",
   "exports": {
     ".": "./src/index.ts",
-    "./catalog": "./catalog.json"
+    "./catalog": "./catalog.json",
+    "./vite": {
+      "types": "./vite/plugin.d.mts",
+      "default": "./vite/plugin.mjs"
+    }
   },
   "files": [
     "src",
+    "vite",
     "catalog.json"
   ],
   "scripts": {
@@ -25,7 +30,8 @@
   },
   "dependencies": {
     "@kaspersky/hexa-ui": "^6.387.4",
-    "@kaspersky/hexa-ui-icons": "^2.19.0"
+    "@kaspersky/hexa-ui-icons": "^2.19.0",
+    "postcss": "^8.4.0"
   },
   "peerDependencies": {
     "@reformer/cdk": "*",

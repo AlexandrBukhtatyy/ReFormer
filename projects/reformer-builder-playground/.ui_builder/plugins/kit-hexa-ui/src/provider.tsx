@@ -5,8 +5,11 @@
  *
  * Готового CSS дизайн-системы здесь нет. В билдере его приносит манифест плагина
  * (`src/builder-plugin.css`), и оболочка ставит его с изоляцией `scoped` — под атрибутом
- * `[data-rb-plugin="kit-hexa-ui"]`, который вешает рамка кита. Своего контейнера-скоупа провайдеру
- * поэтому не нужно. Вне билдера CSS подключает вход пакета (`src/index.ts`).
+ * `[data-rb-plugin="kit-hexa-ui"]`, который вешает рамка кита. Вне билдера CSS подключает вход
+ * пакета (`src/index.ts`), а ограничивает его Vite-плагин приложения (`@reformer/kit-hexa-ui/vite`):
+ * ресет antd и голые селекторы уходят под контейнер, который ставит этот провайдер, —
+ * `[data-hexa-root]`. Контейнер — `display: contents`: в раскладке его нет, а наследуемые
+ * свойства (шрифт, цвет) через него проходят.
  *
  * Всплывающие окна полей (выпадающие списки, дерево, календари) провайдер оставляет внутри своего
  * поддерева — в контейнере в его конце (`./popup-container`). Иначе antd кладёт их в
@@ -23,6 +26,12 @@ import { ConfigProvider, GlobalStyle } from '@kaspersky/hexa-ui/design-system';
 import { KitPopupScope } from './popup-container';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Атрибут контейнера провайдера. Тот же литерал ограничивает CSS HexaUI в Vite-плагине
+ * (`vite/scope-css.mjs`); совпадение держит тест.
+ */
+export const HEXA_SCOPE_ATTRIBUTE = 'data-hexa-root';
 
 /** Тема кита следует теме оболочки: билдер ставит класс `dark` на `<html>`. */
 function useIsDark(): boolean {
@@ -52,7 +61,10 @@ export function KitProvider({ children }: { children?: React.ReactNode }) {
   return (
     <Provider theme={dark ? 'dark' : 'light'}>
       <GlobalStyle />
-      <KitPopupScope>{children}</KitPopupScope>
+      {/* Граница стилей в приложении: контейнер всплывающих окон — внутри неё. */}
+      <div {...{ [HEXA_SCOPE_ATTRIBUTE]: '' }} style={{ display: 'contents' }}>
+        <KitPopupScope>{children}</KitPopupScope>
+      </div>
     </Provider>
   );
 }

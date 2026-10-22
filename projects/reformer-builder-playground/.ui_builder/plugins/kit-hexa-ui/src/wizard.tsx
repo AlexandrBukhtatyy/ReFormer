@@ -44,6 +44,12 @@ import {
 
 export type { WizardStepNode } from './wizard-steps';
 
+/**
+ * `process.env.NODE_ENV` подставляют сборщики — Vite приложения и esbuild плагина. Типов node у
+ * приложения, которое проверяет исходники кита своим `tsc`, может не быть: объявление — здесь.
+ */
+declare const process: { readonly env: { readonly NODE_ENV?: string } };
+
 /** Пропсы {@link FormWizard}. В схеме формы `children` и `renderNode` передаёт рендерер. */
 export interface FormWizardProps<T = Record<string, unknown>> {
   /** Узлы шагов из схемы формы — данными, а не отрисованными элементами. */
