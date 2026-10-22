@@ -36,7 +36,14 @@ import type { TemplatesHost } from './host';
 import { TEMPLATES_MESSAGES } from './messages';
 import { createTemplatesRefresh, type TemplatesRefresh } from './content/refresh';
 import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
-import { hasPrinter, templatesPrinter, templatesWorkspace, type TemplatesGaps } from './workspace';
+import {
+  FormCreatorCapability,
+  hasPrinter,
+  templatesPrinter,
+  templatesWorkspace,
+  type TemplatesGaps,
+} from './workspace';
+import { createFormFor, templateSummaries } from './content/create-for';
 import { createLocalStore } from './stores/local';
 import { createProjectStore } from './stores/project';
 import { TemplatesActions } from './ui/TemplatesActions';
@@ -161,6 +168,19 @@ export function createTemplatesPlugin(options: TemplatesPluginOptions = {}): Plu
       // состав на момент активации.
       const stores = (): readonly TemplateStore[] =>
         ctx.extensions.get(point).map((contribution) => contribution.value);
+
+      // Создание формы по заказу — наружу возможностью: её берёт ассистент. Путь тот же, что у
+      // окна «Создать форму», поэтому и модуль ложится так же.
+      ctx.subscriptions.push(
+        ctx.services.register(FormCreatorCapability, {
+          templates: () => templateSummaries(stores()),
+          create: (request) =>
+            createFormFor(
+              { host, stores, translate: (key, params) => ctx.i18n.t(key, params) },
+              request
+            ),
+        })
+      );
 
       // Пункт контекстного меню дерева и команда за ним: «сделать шаблон вот из этого
       // каталога». Плагин по-прежнему не видит ни дерева, ни выделения — адрес каталога

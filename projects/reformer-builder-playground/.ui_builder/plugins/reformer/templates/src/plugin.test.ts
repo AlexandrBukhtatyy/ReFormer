@@ -18,6 +18,7 @@ import {
 } from './plugin';
 import { createTemplatesRefresh } from './content/refresh';
 import { createFakeTemplatesHost } from './testing';
+import type { FormCreatorService } from './workspace';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
   return {
@@ -33,6 +34,7 @@ function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
 function fakeContext() {
   const contributed: { point: string; id?: string; value: unknown }[] = [];
   const locales: string[] = [];
+  const services = new Map<string, unknown>();
   const ctx = {
     id: TEMPLATES_PLUGIN_ID,
     subscriptions: [],
@@ -56,16 +58,35 @@ function fakeContext() {
       execute: () => Promise.resolve(true),
     },
     // Реестр служб отвечает «их нет»: без запросов к человеку пункт контекстного меню
-    // просто недоступен — законная сборка, а не поломка активации.
+    // просто недоступен — законная сборка, а не поломка активации. Свою службу — создание
+    // формы — плагин регистрирует сам.
     services: {
       get: () => undefined,
       require: () => {
         throw new Error('служба не зарегистрирована');
       },
+      register: (token: { id: string }, service: unknown) => {
+        services.set(token.id, service);
+        return { dispose: () => undefined };
+      },
     },
   } as unknown as PluginContext;
-  return { ctx, contributed, locales };
+  return { ctx, contributed, locales, services };
 }
+
+describe('возможность «создать форму»', () => {
+  it('создаёт форму по заказу тем же путём, что окно, и отдаёт список шаблонов', async () => {
+    const { ctx, services } = fakeContext();
+    const host = createFakeTemplatesHost();
+    createTemplatesPlugin({ host }).activate(ctx);
+    const creator = services.get('reformer.templates.creator') as FormCreatorService;
+
+    expect(await creator.templates()).toEqual([]);
+    const report = await creator.create({ formName: 'credit' });
+    expect(report).toMatchObject({ ok: true, path: 'project/credit/schema/form.schema.json' });
+    expect(host.files.has('project/credit/schema/form.schema.json')).toBe(true);
+  });
+});
 
 describe('activate', () => {
   it('вносит три хранилища вкладами — наравне с любым чужим', () => {
