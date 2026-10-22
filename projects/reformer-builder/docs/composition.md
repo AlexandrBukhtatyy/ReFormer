@@ -178,6 +178,14 @@ npm run build:dist -w @reformer/kit-hexa-ui   # dist/: manifest.json, main.js, s
 или умолчанием организации, см. ниже. Тот же кит рисует и формы RJSF: киты — платформа, а не
 часть движка.
 
+Форму, напечатанную под HexaUI, приложение рисует само, пакетом `@reformer/kit-hexa-ui`. Страница
+формы оборачивает `FormRenderer` провайдером кита — символом `kit.adapters.provider` каталога
+(`KitProvider`), — так же, как превью билдера оборачивает форму рамкой кита. CSS HexaUI глобален
+(ресет antd на `html`, `body`, теги), и приложение ограничивает его провайдером Vite-плагином
+кита `hexaUiStyles()` из `@reformer/kit-hexa-ui/vite` — раздел «Стили — только внутри
+`KitProvider`» README кита. Образец — страница `/contact-hexa` приложения
+[`reformer-builder-host-example`](../../reformer-builder-host-example/README.md#второй-кит-hexaui).
+
 Что под HexaUI есть в билдере:
 
 - **полный каталог** — контракт `3.0`, полторы сотни записей, все компоненты входа пакета кита.
@@ -332,6 +340,15 @@ node bin/reformer-builder.mjs --config ../reformer-builder-playground/.ui_builde
 
 Файлы — образцы репозитория и лежат в проекте-образце, а не в пакете билдера: в npm они не едут.
 Вне репозитория то же самое — две строки своего `.ui_builder/config.json`.
+
+Те же два пресета есть у приложения со встроенным билдером —
+`projects/reformer-builder-host-example/.ui_builder/presets/`, с его заголовком. Там конфиг
+запуска называет параметр `config` плагина `reformerBuilder()`: `vite.config.ts` приложения
+берёт путь из `REFORMER_BUILDER_CONFIG` (от корня приложения), без переменной — `ui-kit.json`.
+`npm run preset:hexa-ui -w reformer-builder-host-example` заодно собирает плагин кита в
+`.ui_builder/plugins` приложения. `config.json` приложения — конфиг проекта, только с заголовком:
+умолчания, записанные там иначе, чем в пресете, билдер показывал бы предупреждением при каждом
+открытии проекта.
 
 `hexa-ui.json` называет кит, но не привозит его: кит — плагин проекта. Пока проект с плагином
 не открыт, формы рисует встроенный кит, а HexaUI включается сам, как только плагин его внесёт.
