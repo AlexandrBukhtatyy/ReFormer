@@ -260,6 +260,22 @@ export {
   WorkspaceFilesCapability,
 } from './services/workspace-files.js';
 export type { WorkspaceFilesService } from './services/workspace-files.js';
+// Третья половина — ИСТОЧНИК: что лежит в папке проекта на самом деле, мимо рабочей копии и без
+// копирования в неё. Отказы с видом, а не `null`: читают её, чтобы рассказать о результате модели
+// или человеку. Права не нужно — данные те же, что у службы записей, а побочных эффектов меньше.
+export {
+  WorkspaceSourceServiceToken,
+  WorkspaceSourceCapability,
+} from './services/workspace-source.js';
+export type {
+  SourceReadError,
+  SourceReadErrorKind,
+  SourceReadOptions,
+  SourceResult,
+  SourceStat,
+  SourceText,
+  WorkspaceSourceService,
+} from './services/workspace-source.js';
 // Единственная дверь НАРУЖУ, в источник, и единственная служба, которую оболочка отдаёт
 // не всем: её просит право `workspace.save` в манифесте, и подтверждает его человек.
 export {
@@ -444,6 +460,42 @@ export type { CatalogLoader, KitSource } from './kits/source.js';
 export { KitsCapability } from './kits/service.js';
 export type { KitFrameProps, KitOrigin, KitsService, KitSummary } from './kits/service.js';
 export type { KitFieldFrameProps } from './kits/field-frame.js';
+
+// ── Ассистент: инструменты и ресурсы плагинов ───────────────────────────────────
+//
+// Ассистент — плагин, а плагины не импортируют друг друга, поэтому контракт его вкладов живёт
+// здесь, как и у китов. Инструмент — действие модели с дверью записи, которую откатывает отмена
+// хода; ресурс — то, что модель читает по адресу или человек прикрепляет к реплике. Лимиты и
+// проверки имён — значения, а не только типы: вторая их реализация в плагине разошлась бы с той,
+// по которой ассистент отвергает вклад.
+export {
+  ASSISTANT_TOOL_DESCRIPTION_MAX,
+  ASSISTANT_TOOL_NAME_MAX,
+  AssistantToolPoint,
+  isAssistantToolName,
+} from './assistant/tools.js';
+export type {
+  AssistantError,
+  AssistantErrorCode,
+  AssistantTool,
+  AssistantToolContext,
+  AssistantToolResult,
+  AssistantWriteRefusal,
+  AssistantWriteResult,
+} from './assistant/tools.js';
+export {
+  ASSISTANT_ATTACH_COMMAND_ID,
+  ASSISTANT_RESOURCE_DESCRIBE_MAX,
+  AssistantResourcePoint,
+  isAssistantResourceScheme,
+  parseAssistantResourceUri,
+} from './assistant/resources.js';
+export type {
+  AssistantAttachArgs,
+  AssistantResourceEntry,
+  AssistantResourceProvider,
+  AssistantResourceRead,
+} from './assistant/resources.js';
 
 // Модели открытых документов, загрузчик модулей и словарь оболочки — возможности ОБОЛОЧКИ,
 // которыми плагин стека берёт то, что раньше ему собирал порт в композиции. Порт знал стек:
