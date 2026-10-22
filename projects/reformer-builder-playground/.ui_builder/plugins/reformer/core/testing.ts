@@ -22,6 +22,7 @@ export {
   partsSchema,
   partsWizardSchema,
   plainSchema,
+  providerKit,
   richSchema,
   rowRules,
   rowRulesSchema,

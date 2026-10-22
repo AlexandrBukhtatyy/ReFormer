@@ -60,6 +60,7 @@ import {
   partsSchema,
   partsWizardSchema,
   plainSchema,
+  providerKit,
   richSchema,
   rowRules,
   rowRulesSchema,
@@ -113,6 +114,12 @@ const COMBOS: readonly Combo[] = [
     dir: 'wizard-foreign',
     holds: 'адаптер визарда чужого кита с собственным subpath',
     input: { schema: wizardSchema(), formName: FORM_NAME, kit: foreignKit() },
+  },
+  {
+    dir: 'plain-provider',
+    holds:
+      'провайдер кита оборачивает страницу снаружи языка формы: символ с подпути, под KitProvider',
+    input: { schema: plainSchema(), formName: FORM_NAME, kit: providerKit() },
   },
   {
     dir: 'plain-rules',

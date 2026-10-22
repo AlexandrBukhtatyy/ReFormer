@@ -58,7 +58,7 @@ import {
 import { PRINT_WIDTH, widthOf } from '../print/doc';
 import { behaviorView, mentions, type BehaviorView } from './behavior';
 import { messagesView, type MessagesView } from './messages';
-import { registryView, type RegistryView } from './registry';
+import { kitEntryOf, registryView, type RegistryView } from './registry';
 import { typesView, type TypesView } from './types';
 
 /**
@@ -412,6 +412,44 @@ export interface KitInfoView {
   readonly importSpecifier: string;
   /** Подпись для человека — она уезжает в README и в причины заглушек. */
   readonly label: string;
+  /**
+   * Провайдер кита (`adapters.provider`): страница оборачивает им форму — так же, как превью
+   * оборачивает поддерево рамкой кита. `null` — провайдер киту не нужен (ui-kit).
+   */
+  readonly provider: KitProviderView | null;
+}
+
+/** Провайдер кита в странице: импортируется под одним локальным именем на любой кит. */
+export interface KitProviderView {
+  /** Имя в фигурных скобках импорта: `KitProvider` либо `Символ as KitProvider`. */
+  readonly importName: string;
+  /** Спецификатор входа: главный либо подпуть кита. */
+  readonly importFrom: string;
+}
+
+/**
+ * Локальное имя провайдера кита в странице. Одно на любой кит: шаблону не нужно знать символ,
+ * а символ кита не спорит с именами страницы (`I18nProvider`, `FormRenderer`, …).
+ */
+export const KIT_PROVIDER_LOCAL = 'KitProvider';
+
+function kitInfoView(ctx: EmitContext): KitInfoView {
+  const { kit } = ctx.kit;
+  const provider = kit.adapters.provider ?? null;
+  return {
+    importSpecifier: kit.codegen.importSpecifier,
+    label: kit.label,
+    provider:
+      provider === null
+        ? null
+        : {
+            importName:
+              provider.symbol === KIT_PROVIDER_LOCAL
+                ? provider.symbol
+                : `${provider.symbol} as ${KIT_PROVIDER_LOCAL}`,
+            importFrom: kitEntryOf(kit.codegen.importSpecifier, provider.subpath),
+          },
+  };
 }
 
 /** Источник-список: имя и опции, уже приведённые к массиву. */
@@ -645,7 +683,7 @@ export function buildView(ctx: EmitContext): CodegenView {
     names: ctx.names,
     mock: ctx.mock,
     dataSources: dataSourcesView(ctx),
-    kit: { importSpecifier: ctx.kit.kit.codegen.importSpecifier, label: ctx.kit.kit.label },
+    kit: kitInfoView(ctx),
     selectors: ctx.selectors,
     types: typesView(ctx),
     rules: rulesView(ctx),

@@ -176,6 +176,22 @@ export function noWizardKit(): KitView {
 }
 
 /**
+ * Чужой кит с провайдером (`adapters.provider`) — как HexaUI: страница оборачивает им форму.
+ *
+ * Символ не `KitProvider` и лежит на подпути — так одна фикстура проверяет и переименование
+ * в импорте, и правило подпутей, общее с адаптером визарда.
+ */
+export function providerKit(): KitView {
+  return foreignKit({
+    adapters: {
+      wizard: { symbol: 'HexWizard', subpath: 'wizard' },
+      step: null,
+      provider: { symbol: 'HexThemeProvider', subpath: 'theme' },
+    },
+  });
+}
+
+/**
  * Затравочные правила формы — единственный вход в билдеры `@reformer/mcp`.
  *
  * Без них `validation/form.ts` и `behavior/index.ts` уезжают заготовками, то есть мост

@@ -99,15 +99,20 @@ export interface RegistryView {
   readonly hasPlaceholder: boolean;
 }
 
+/**
+ * Спецификатор входа кита: главный либо подпуть. Одно правило записям, адаптеру визарда
+ * и провайдеру кита в странице.
+ */
+export function kitEntryOf(specifier: string, subpath: string | undefined): string {
+  return subpath === undefined ? specifier : `${specifier}/${subpath}`;
+}
+
 export function registryView(ctx: EmitContext): RegistryView {
   const { collected, kit } = ctx;
   const fieldWrapper = kit.kit.infra.fieldWrapper;
   const specifier = kit.kit.codegen.importSpecifier;
   const adapter = kit.kit.adapters.wizard ?? null;
-
-  /** Спецификатор входа кита: главный либо подпуть. Одно правило и записям, и адаптеру. */
-  const entryOf = (subpath: string | undefined): string =>
-    subpath === undefined ? specifier : `${specifier}/${subpath}`;
+  const entryOf = (subpath: string | undefined): string => kitEntryOf(specifier, subpath);
 
   const hostNames = collected.components.filter(isStepsHostName);
   const hasStep = collected.components.includes(STEP_NAME);

@@ -432,4 +432,25 @@ describe('шаблон под внешним китом HexaUI', () => {
     expect(registry).toMatch(/import \{[^}]*\bFormWizard\b[^}]*\} from '@reformer\/kit-hexa-ui';/);
     expect(registry).toContain("import { Step } from '@reformer/cdk/form-wizard';");
   });
+
+  it('форма на странице обёрнута провайдером кита — тема и стили HexaUI есть и вне билдера', async () => {
+    const layout = moduleFilesOf(makeNames('test'));
+    for (const { template, files } of await hexaRegistries()) {
+      const page = files.find((file) => file.path === layout.page)?.content ?? '';
+      // Символ — из `kit.adapters.provider` каталога. В превью форму оборачивает рамка кита,
+      // а в приложении, кроме страницы, оборачивать некому. Шапка страницы — вне провайдера:
+      // она в стилях приложения.
+      expect(page, template.name).toContain("import { KitProvider } from '@reformer/kit-hexa-ui';");
+      expect(page, template.name).toMatch(
+        /<KitProvider>\s*<FormRenderer form=\{bundle\} \/>\s*<\/KitProvider>/
+      );
+    }
+    // У ui-kit провайдера нет — его страница не меняется.
+    const { templates } = await templatesUnder(builtinKit());
+    for (const template of templates) {
+      const files = await applyTemplate(template, modulePaths(template), 'test');
+      const page = files.find((file) => file.path === layout.page)?.content ?? '';
+      expect(page, template.name).not.toContain('KitProvider');
+    }
+  });
 });

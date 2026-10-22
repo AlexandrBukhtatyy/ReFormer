@@ -9,6 +9,9 @@ import { useState } from 'react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { I18nProvider, useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
+<% if (it.kit.provider !== null) { -%>
+<%~ it.imports([it.kit.provider.importName], it.kit.provider.importFrom) %>
+<% } -%>
 import { <%= factory %> } from '<%= it.rel('page', 'create') %>';
 import { formLocale, formMessages } from '<%= it.rel('page', 'messages') %>';
 
@@ -51,7 +54,15 @@ export default function <%= it.names.pageComponent %>() {
         )}
 
         {/* Обёртку поля рендерер берёт из сборки: её кладёт туда реестр (запись FIELD_WRAPPER). */}
+<% if (it.kit.provider === null) { -%>
         <FormRenderer form={bundle} />
+<% } else { -%>
+        {/* Провайдер кита — вокруг формы: его тема и стили нужны её полям и замечаниям, а шапка
+            и итог отправки — страницы, они остаются в стилях приложения. */}
+        <KitProvider>
+          <FormRenderer form={bundle} />
+        </KitProvider>
+<% } -%>
       </div>
     </ValidationMessagesProvider>
   );
