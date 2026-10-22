@@ -1,0 +1,82 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "$nodeId": "wkumotal",
+    "selector": "contacts-step",
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Контакты"
+    },
+    "children": [
+      {
+        "$nodeId": "b18puu0q",
+        "component": "$component(Box)",
+        "componentProps": {
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "$nodeId": "38f2x728",
+            "model": "$model(phone)",
+            "component": "$component(InputMask)",
+            "componentProps": {
+              "label": "Телефон",
+              "mask": "+7 (999) 999-99-99"
+            }
+          },
+          {
+            "$nodeId": "8dm9oagn",
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Электронная почта",
+              "type": "email",
+              "placeholder": "name@example.com",
+              "required": true
+            }
+          },
+          {
+            "$nodeId": "vdghbifw",
+            "model": "$model(city)",
+            "component": "$component(Select)",
+            "componentProps": {
+              "label": "Город",
+              "placeholder": "Выберите город",
+              "clearable": true,
+              "options": "$dataSource(CITY_LIST)",
+              "required": true
+            }
+          },
+          {
+            "$nodeId": "uwukt3zt",
+            "model": "$model(position)",
+            "component": "$component(Combobox)",
+            "componentProps": {
+              "label": "Должность",
+              "placeholder": "Выберите должность",
+              "searchPlaceholder": "Найти должность",
+              "emptyText": "Ничего не найдено",
+              "clearable": true,
+              "options": "$dataSource(POSITIONS)"
+            },
+            "selector": "dolzhnost"
+          },
+          {
+            "$nodeId": "sxbwkkgb",
+            "model": "$model(skills)",
+            "component": "$component(ComboboxMulti)",
+            "componentProps": {
+              "label": "Навыки",
+              "placeholder": "Выберите до трёх навыков",
+              "searchPlaceholder": "Найти навык",
+              "emptyText": "Ничего не найдено",
+              "maxItems": 3,
+              "clearable": true,
+              "options": "$dataSource(SKILLS)"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

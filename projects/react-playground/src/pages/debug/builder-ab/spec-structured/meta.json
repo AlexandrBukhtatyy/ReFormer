@@ -1,0 +1,45 @@
+{
+  "scenario": "spec",
+  "mode": "structured",
+  "run": 1,
+  "model": "qwen3.8:27b-32k",
+  "date": "2026-10-19T23:31:40.624Z",
+  "seconds": 3115,
+  "reason": "error",
+  "stop": {
+    "reason": "stop",
+    "raw": "stop",
+    "emptyFinish": true
+  },
+  "stats": {
+    "steps": 11,
+    "inputTokens": 185855,
+    "cachedInputTokens": 167181,
+    "outputTokens": 15956,
+    "peakStepInputTokens": 18634
+  },
+  "calls": {
+    "get_form_outline": 1,
+    "list_components": 3,
+    "describe_component": 1,
+    "ask_reformer": 3,
+    "insert_node": 3,
+    "set_node_prop": 1
+  },
+  "refusals": {
+    "SCHEMA_INVALID": 1
+  },
+  "answer": "Начну с осмотра текущей формы и доступных компонентов.Теперь заполняю шаг 1.",
+  "form": {
+    "valid": true,
+    "errors": 0,
+    "steps": 6,
+    "fields": 0,
+    "firstErrors": []
+  },
+  "coverage": {
+    "expected": 82,
+    "found": 0
+  },
+  "page": "CreditApplicationForm.tsx"
+}

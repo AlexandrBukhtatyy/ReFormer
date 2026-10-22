@@ -1,0 +1,67 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "component": "$component(Wizard)",
+        "children": [
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Основная информация о кредите"
+            },
+            "children": [],
+            "selector": "osnovnaya-informatsiya-o-kredite-section"
+          },
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Персональные данные"
+            },
+            "children": [],
+            "selector": "personalnye-dannye-section"
+          },
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Контактная информация"
+            },
+            "children": [],
+            "selector": "kontaktnaya-informatsiya-section"
+          },
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Информация о занятости"
+            },
+            "children": [],
+            "selector": "informatsiya-o-zanyatosti-section"
+          },
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Дополнительная информация"
+            },
+            "children": [],
+            "selector": "dopolnitelnaya-informatsiya-section"
+          },
+          {
+            "component": "$component(Step)",
+            "componentProps": {
+              "title": "Подтверждение и согласия"
+            },
+            "children": [],
+            "selector": "podtverzhdenie-i-soglasiya-section"
+          }
+        ],
+        "selector": "wizard"
+      }
+    ]
+  }
+}

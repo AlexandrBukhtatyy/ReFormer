@@ -20,6 +20,7 @@ import FieldTooltipsDemo from './pages/demo/field-tooltips/FieldTooltipsDemo';
 import TreeDemo from './pages/demo/tree/TreeDemo';
 import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
+import BuilderAbBench from './pages/debug/builder-ab';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
@@ -45,7 +46,8 @@ type ExamplePage =
   | 'field-tooltips'
   | 'tree'
   | 'form-registry-lab'
-  | 'ui-builder';
+  | 'ui-builder'
+  | 'builder-ab';
 
 interface ExampleEntry {
   id: ExamplePage;
@@ -215,6 +217,13 @@ const exampleGroups: ExampleGroup[] = [
         title: 'Компиляция формы в браузере',
         description:
           'Правишь файлы модуля и фикстуру — форма пересобирается; инспектор модели читает и правит значения',
+      },
+      {
+        id: 'builder-ab',
+        path: '/debug/builder-ab',
+        title: 'A/B ассистента',
+        description:
+          'Формы, собранные моделью в структурном режиме и в режиме файлов, рядом со счётом прогона',
       },
     ],
   },
@@ -388,6 +397,7 @@ function Layout() {
             <Route path="/demo/field-tooltips" element={<FieldTooltipsDemo />} />
             <Route path="/demo/tree" element={<TreeDemo />} />
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
+            <Route path="/debug/builder-ab" element={<BuilderAbBench />} />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />
             <Route path="/" element={<Navigate to="/demo/simple" replace />} />
             <Route path="*" element={<Navigate to="/demo/simple" replace />} />

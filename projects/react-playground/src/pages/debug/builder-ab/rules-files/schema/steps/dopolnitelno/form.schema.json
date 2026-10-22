@@ -1,0 +1,121 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "$nodeId": "v928jdse",
+    "selector": "extra-step",
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Дополнительно"
+    },
+    "children": [
+      {
+        "$nodeId": "tnxe4tvw",
+        "component": "$component(Box)",
+        "componentProps": {
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "$nodeId": "x6cf4ax8",
+            "model": "$model(experience)",
+            "component": "$component(InputNumber)",
+            "componentProps": {
+              "label": "Опыт работы, лет",
+              "min": 0,
+              "max": 50,
+              "step": 1
+            }
+          },
+          {
+            "$nodeId": "ogzaiwdk",
+            "model": "$model(about)",
+            "component": "$component(Textarea)",
+            "componentProps": {
+              "label": "О себе",
+              "placeholder": "Пара предложений о себе",
+              "rows": 4,
+              "maxLength": 500
+            }
+          },
+          {
+            "$nodeId": "rqq64ef9",
+            "model": "$model(documents)",
+            "component": "$component(FileUploadDropzone)",
+            "componentProps": {
+              "label": "Документы",
+              "placeholder": "Перетащите файлы сюда или нажмите, чтобы выбрать",
+              "hint": "PDF или изображения, до 5 МБ, не больше 3 файлов",
+              "accept": "image/*,.pdf",
+              "multiple": true,
+              "maxFiles": 3,
+              "maxFileSize": 5242880
+            }
+          },
+          {
+            "$nodeId": "ynbp1hxq",
+            "model": "$model(hasReferences)",
+            "component": "$component(Checkbox)",
+            "componentProps": {
+              "label": "Есть рекомендатели"
+            }
+          },
+          {
+            "$nodeId": "8wwq5kqz",
+            "selector": "references",
+            "model": "$model(references)",
+            "component": "$component(FieldArray)",
+            "componentProps": {
+              "title": "Рекомендатели",
+              "addButtonLabel": "+ Добавить рекомендателя",
+              "emptyMessage": "Рекомендателей пока нет",
+              "itemLabel": "$dataSource(REFERENCE_LABEL)"
+            },
+            "initialValue": {
+              "name": "",
+              "phone": ""
+            },
+            "item": {
+              "$template": {
+                "$nodeId": "75kc36pj",
+                "component": "$component(Box)",
+                "componentProps": {
+                  "className": "grid grid-cols-2 gap-4"
+                },
+                "children": [
+                  {
+                    "$nodeId": "o3ghz268",
+                    "model": "$model(name)",
+                    "component": "$component(Input)",
+                    "componentProps": {
+                      "label": "Имя",
+                      "placeholder": "Пётр Петров",
+                      "required": true
+                    }
+                  },
+                  {
+                    "$nodeId": "hs4oysqi",
+                    "model": "$model(phone)",
+                    "component": "$component(InputMask)",
+                    "componentProps": {
+                      "label": "Телефон",
+                      "mask": "+7 (999) 999-99-99"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "$nodeId": "dy6oik0w",
+            "model": "$model(agree)",
+            "component": "$component(Checkbox)",
+            "componentProps": {
+              "label": "Согласен на обработку персональных данных",
+              "required": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

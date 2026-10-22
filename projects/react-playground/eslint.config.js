@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/mocks/_generated']),
+  // `builder-ab/*/` — модули форм, напечатанные A/B-замером ассистента билдера: машинный вывод,
+  // который каждый прогон перезаписывает. Их качество — предмет замера, а не линта витрины.
+  globalIgnores(['dist', 'src/mocks/_generated', 'src/pages/debug/builder-ab/*/']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

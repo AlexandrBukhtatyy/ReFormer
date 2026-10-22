@@ -1,0 +1,30 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "$nodeId": "hhnpr6l0",
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-6"
+    },
+    "children": [
+      {
+        "$nodeId": "vnhwbt9i",
+        "selector": "wizard",
+        "component": "$component(Wizard)",
+        "children": [
+          {
+            "$ref": "./steps/dannye/form.schema.json"
+          },
+          {
+            "$ref": "./steps/kontakty/form.schema.json"
+          },
+          {
+            "$ref": "./steps/dopolnitelno/form.schema.json"
+          }
+        ]
+      }
+    ]
+  }
+}

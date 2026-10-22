@@ -1,0 +1,71 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "$nodeId": "v05136q3",
+    "selector": "personal-step",
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Данные"
+    },
+    "children": [
+      {
+        "$nodeId": "taim25tn",
+        "component": "$component(Box)",
+        "componentProps": {
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "$nodeId": "30r10ua6",
+            "model": "$model(lastName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Фамилия",
+              "placeholder": "Иванов",
+              "required": true
+            }
+          },
+          {
+            "$nodeId": "bzuvk8vl",
+            "model": "$model(firstName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "placeholder": "Иван",
+              "required": true
+            }
+          },
+          {
+            "$nodeId": "klngiqqk",
+            "model": "$model(fullName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Полное имя",
+              "description": "Собирается из фамилии и имени",
+              "readOnly": true
+            }
+          },
+          {
+            "$nodeId": "s9kywro8",
+            "model": "$model(birthDate)",
+            "component": "$component(DatePicker)",
+            "componentProps": {
+              "label": "Дата рождения",
+              "placeholder": "ДД.ММ.ГГГГ",
+              "dateFormat": "dd.MM.yyyy"
+            }
+          },
+          {
+            "$nodeId": "ou7x2ihp",
+            "model": "$model(gender)",
+            "component": "$component(RadioGroup)",
+            "componentProps": {
+              "label": "Пол",
+              "options": "$dataSource(GENDERS)"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
