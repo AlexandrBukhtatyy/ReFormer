@@ -10,7 +10,8 @@
  * @module plugins/reformer/ai/plugin.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ASSISTANT_ATTACH_COMMAND_ID } from '@reformer/builder-plugin-api';
 
 import { AI_UNDO_TURN_COMMAND_ID, type AgentBridge } from './session/bridge';
 import { aiChatPanel, aiCommands, AI_RESET_COMMAND_ID, AI_STOP_COMMAND_ID } from './plugin';
@@ -29,19 +30,48 @@ function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
     canUndoTurn: () => false,
     undoLastTurn: () => Promise.resolve('nothing' as const),
     requestUndoTurn: () => Promise.resolve(),
+    attach: () => 'attached' as const,
+    detach: () => {},
+    canSearchResources: () => false,
+    searchResources: () => Promise.resolve([]),
     ...overrides,
   };
 }
 
 describe('команды плагина', () => {
-  it('отмена хода внесена в реестр наравне с остановкой и новым разговором', () => {
+  it('отмена хода и прикрепление внесены в реестр наравне с остановкой и новым разговором', () => {
     const commands = aiCommands(fakeBridge(), createAiSession());
 
     expect(commands.map((command) => command.id)).toEqual([
       AI_STOP_COMMAND_ID,
       AI_RESET_COMMAND_ID,
       AI_UNDO_TURN_COMMAND_ID,
+      ASSISTANT_ATTACH_COMMAND_ID,
     ]);
+  });
+
+  it('прикрепление: адрес уходит мосту, о результате сказано тостом', () => {
+    const attach = vi.fn().mockReturnValue('attached');
+    const notify = vi.fn();
+    const command = aiCommands(fakeBridge({ attach }), createAiSession(), notify).find(
+      (c) => c.id === ASSISTANT_ATTACH_COMMAND_ID
+    );
+
+    expect(command?.run({ uri: 'source:notes/brief.md', name: 'brief.md' })).toBe('attached');
+    expect(attach).toHaveBeenCalledWith({ uri: 'source:notes/brief.md', name: 'brief.md' });
+    expect(notify).toHaveBeenCalledWith('chat.attach.attached', { name: 'brief.md' }, 'info');
+  });
+
+  it('прикрепление без адреса (из палитры) — подсказка, а не ошибка', () => {
+    const attach = vi.fn();
+    const notify = vi.fn();
+    const command = aiCommands(fakeBridge({ attach }), createAiSession(), notify).find(
+      (c) => c.id === ASSISTANT_ATTACH_COMMAND_ID
+    );
+
+    command?.run();
+    expect(attach).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('chat.attach.howTo', {}, 'info');
   });
 
   it('у отмены есть охранное условие, и оно спрашивает мост', () => {

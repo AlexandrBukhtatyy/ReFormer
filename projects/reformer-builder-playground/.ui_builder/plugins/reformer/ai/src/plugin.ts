@@ -33,8 +33,14 @@ import { createElement, type ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { CatalogEntry } from '../../core/catalog';
 import {
+  ASSISTANT_ATTACH_COMMAND_ID,
+  AssistantResourcePoint,
+  AssistantToolPoint,
   definePlugin,
+  NotificationsServiceToken,
   PanelPoint,
+  pluginMessageKey,
+  type AssistantAttachArgs,
   type CommandContribution,
   type PanelContribution,
   type Plugin,
@@ -60,7 +66,7 @@ import { AI_MESSAGES } from './messages';
 import { activateProvider, fetchModels, restoreProvider } from './providers/load';
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry';
 import type { AiProvider } from './providers/types';
-import { createAiSession, type AiSession } from './session/session';
+import { ATTACHMENT_LIMIT, createAiSession, type AiSession } from './session/session';
 import { ChatActions } from './ui/ChatActions';
 import { ChatPanel } from './ui/ChatPanel';
 
@@ -256,10 +262,18 @@ export function aiChatPanel(
  * «Отменить последний ход» объявлена не здесь, а рядом с состоянием, которым распоряжается
  * (`./bridge`): она единственная из трёх правит форму, и ей нужно знать, что именно ход
  * оставил в буфере. Регистрируется она вместе с остальными — этой же строкой списка.
+ *
+ * «Прикрепить ресурс» — адрес для других плагинов (`ASSISTANT_ATTACH_COMMAND_ID`): им, например,
+ * пункт меню дерева файлов прикрепляет файл к следующей реплике. Модели не отдаётся по той же
+ * причине: что показать модели, решает человек.
+ *
+ * @param notify - Сказать человеку, чем кончилось прикрепление: панель может быть закрыта, и
+ *   без тоста щелчок по пункту меню выглядел бы ничем.
  */
 export function aiCommands(
   bridge: AgentBridge,
-  session: AiSession
+  session: AiSession,
+  notify: AttachNotify = () => {}
 ): readonly CommandContribution[] {
   return [
     {
@@ -279,7 +293,57 @@ export function aiCommands(
       },
     },
     aiUndoTurnCommand(bridge),
+    aiAttachCommand(bridge, notify),
   ];
+}
+
+/** Сообщение человеку о прикреплении: ключ словаря плагина, параметры и уровень тоста. */
+export type AttachNotify = (
+  key: string,
+  params: Record<string, unknown>,
+  level: 'info' | 'warning'
+) => void;
+
+/** Аргументы `ai.attach`, если они годны: адрес — непустая строка, имя — строка или ничего. */
+function attachArgsOf(args: unknown): AssistantAttachArgs | null {
+  if (typeof args !== 'object' || args === null) return null;
+  const { uri, name } = args as { uri?: unknown; name?: unknown };
+  if (typeof uri !== 'string' || uri === '') return null;
+  return typeof name === 'string' && name !== '' ? { uri, name } : { uri };
+}
+
+/** Команда «прикрепить ресурс к следующей реплике». */
+export function aiAttachCommand(bridge: AgentBridge, notify: AttachNotify): CommandContribution {
+  return {
+    id: ASSISTANT_ATTACH_COMMAND_ID,
+    titleKey: 'command.attach',
+    run: (args) => {
+      const ref = attachArgsOf(args);
+      // Из палитры команду зовут без адреса — это не ошибка, а вопрос «как прикрепить».
+      if (ref === null) {
+        notify('chat.attach.howTo', {}, 'info');
+        return 'invalid';
+      }
+      const outcome = bridge.attach(ref);
+      const name = ref.name ?? ref.uri;
+      switch (outcome) {
+        case 'attached':
+          notify('chat.attach.attached', { name }, 'info');
+          break;
+        case 'duplicate':
+          notify('chat.attach.duplicate', { name }, 'info');
+          break;
+        case 'limit':
+          notify('chat.attach.limit', { limit: ATTACHMENT_LIMIT }, 'warning');
+          break;
+        case 'invalid':
+        case 'unknown-scheme':
+          notify('chat.attach.unknownScheme', { uri: ref.uri }, 'warning');
+          break;
+      }
+      return outcome;
+    },
+  };
 }
 
 /**
@@ -313,10 +377,21 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         // а захваченный на активации список описывал бы набор, которого уже нет.
         agentCommands: () => ctx.commands.agentCommands() as readonly AgentCommand[],
         executeCommand: (id, args) => ctx.commands.execute(id, args),
+        // Вклады других плагинов — тоже на каждый ход и по той же причине. Присваивание без
+        // приведения: так компилятор сверяет структурные копии моста с контрактом SDK.
+        assistantTools: () => ctx.extensions.get(AssistantToolPoint),
+        resourceProviders: () => ctx.extensions.get(AssistantResourcePoint),
       });
 
       ctx.subscriptions.push(ctx.services.register(AI_SERVICE_TOKEN, assistant));
-      for (const command of aiCommands(bridge, session)) {
+      // Служба уведомлений спрашивается в момент сообщения: она — оболочки, но приложение на той
+      // же оболочке вправе её не дать, и тогда прикрепление просто молчит.
+      const notify: AttachNotify = (key, params, level) => {
+        ctx.services
+          .get(NotificationsServiceToken)
+          ?.[level](pluginMessageKey(ctx.id, key), { params });
+      };
+      for (const command of aiCommands(bridge, session, notify)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
       ctx.subscriptions.push(

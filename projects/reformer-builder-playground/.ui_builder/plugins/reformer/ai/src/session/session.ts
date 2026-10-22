@@ -61,6 +61,11 @@ export interface TurnSnapshot {
    * ТОЛЬКО правила, иначе кнопкой «Восстановить» не отменялся бы вовсе.
    */
   readonly rules: FormRules;
+  /**
+   * Идентификатор хода. Форму возвращает текст, а записи инструментов плагинов этого хода и
+   * следующих мост находит по нему. Нет — у реплик, начатых до того, как ход его получил.
+   */
+  readonly txId?: string;
 }
 
 /**
@@ -85,11 +90,33 @@ export function isFilesSnapshot(snapshot: EntrySnapshot): snapshot is FilesTurnS
   return 'mode' in snapshot && snapshot.mode === 'files';
 }
 
+/**
+ * Ресурс, прикреплённый к реплике: адрес и имя для чипа.
+ *
+ * Содержимое здесь не хранится: оно читается в момент отправки и уходит модели только в своём
+ * ходе, а дальше в истории остаётся ссылкой — иначе один прикреплённый файл вытеснял бы из
+ * бюджета истории весь разговор.
+ */
+export interface AttachmentRef {
+  readonly uri: string;
+  readonly name: string;
+  /** Прочитать не удалось — чип показывает это вместо молчаливого пропуска. */
+  readonly error?: string;
+}
+
+/** Предел вложений на одну реплику. */
+export const ATTACHMENT_LIMIT = 8;
+
+/** Чем кончилась попытка прикрепить. */
+export type AttachOutcome = 'attached' | 'duplicate' | 'limit';
+
 /** Реплика диалога в интерфейсе. */
 export interface ChatEntry {
   readonly id: string;
   readonly role: 'user' | 'assistant';
   readonly text: string;
+  /** Ресурсы, прикреплённые к реплике пользователя. */
+  readonly attachments?: readonly AttachmentRef[];
   /** Есть только у реплики пользователя и только когда ход шёл по открытой форме. */
   readonly snapshot?: EntrySnapshot;
   /**
@@ -134,6 +161,8 @@ export interface AiSessionState {
   /** Буфер разошёлся с базой хода: форму правили руками, пока ассистент работал. */
   readonly conflict: boolean;
   readonly error: string | null;
+  /** Прикреплённое к следующей реплике — чипы над полем ввода. */
+  readonly attachments: readonly AttachmentRef[];
 }
 
 const INITIAL: AiSessionState = Object.freeze({
@@ -143,6 +172,7 @@ const INITIAL: AiSessionState = Object.freeze({
   pending: null,
   conflict: false,
   error: null,
+  attachments: Object.freeze([]),
 });
 
 /** Хранилище сессии. Живёт вне React — как и остальные хранилища проекта. */
@@ -152,8 +182,15 @@ export interface AiSession {
   subscribe(listener: () => void): Disposable;
 
   setSettingsOpen(open: boolean): void;
-  /** Реплика пользователя плюс пустая реплика ассистента, которая наполняется по ходу. */
-  startTurn(text: string, snapshot?: EntrySnapshot): void;
+  /** Прикрепить ресурс к следующей реплике. Тот же адрес второй раз не прикрепляется. */
+  attach(ref: AttachmentRef): AttachOutcome;
+  /** Открепить ресурс от следующей реплики. */
+  detach(uri: string): void;
+  /**
+   * Реплика пользователя плюс пустая реплика ассистента, которая наполняется по ходу.
+   * Прикреплённое к реплике уходит с ней (`attachments`), а поле вложений освобождается.
+   */
+  startTurn(text: string, snapshot?: EntrySnapshot, attachments?: readonly AttachmentRef[]): void;
   appendText(chunk: string): void;
   appendReasoning(chunk: string): void;
   logTool(entry: ToolLogEntry): void;
@@ -227,12 +264,25 @@ export function createAiSession(): AiSession {
       commit({ ...state, settingsOpen });
     },
 
-    startTurn(text, snapshot) {
+    attach(ref) {
+      if (state.attachments.some((known) => known.uri === ref.uri)) return 'duplicate';
+      if (state.attachments.length >= ATTACHMENT_LIMIT) return 'limit';
+      commit({ ...state, attachments: [...state.attachments, ref] });
+      return 'attached';
+    },
+
+    detach(uri) {
+      const attachments = state.attachments.filter((ref) => ref.uri !== uri);
+      if (attachments.length !== state.attachments.length) commit({ ...state, attachments });
+    },
+
+    startTurn(text, snapshot, attachments) {
       commit({
         ...state,
         status: 'running',
         error: null,
         conflict: false,
+        attachments: INITIAL.attachments,
         entries: [
           ...state.entries,
           {
@@ -242,6 +292,7 @@ export function createAiSession(): AiSession {
             reasoning: '',
             tools: [],
             ...(snapshot ? { snapshot } : {}),
+            ...(attachments?.length ? { attachments } : {}),
           },
           { id: nextId(), role: 'assistant', text: '', reasoning: '', tools: [] },
         ],

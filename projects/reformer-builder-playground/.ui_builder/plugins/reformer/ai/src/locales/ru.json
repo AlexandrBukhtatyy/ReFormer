@@ -64,5 +64,16 @@
   "settings.connect": "Подключить",
   "settings.forget": "Забыть ключ",
   "settings.origin.browser": "Запросы идут из браузера напрямую к провайдеру. Ключ хранится в этом браузере и доступен странице — используйте ключ с ограниченным бюджетом.",
-  "settings.origin.loopback": "Запросы идут на локальный сервер и наружу не уходят."
+  "settings.origin.loopback": "Запросы идут на локальный сервер и наружу не уходят.",
+  "command.attach": "Ассистент: прикрепить ресурс",
+  "chat.attach": "Прикрепить ресурс",
+  "chat.attach.search": "Найти файл…",
+  "chat.attach.empty": "Ничего не нашлось",
+  "chat.attach.remove": "Убрать {name}",
+  "chat.attach.failed": "Не прочитано: {error}",
+  "chat.attach.attached": "Прикреплено к ассистенту: {name}",
+  "chat.attach.duplicate": "{name} уже прикреплён",
+  "chat.attach.unknownScheme": "Ассистенту нечем прочитать {uri}",
+  "chat.attach.limit": "Не больше {limit} вложений в одной реплике",
+  "chat.attach.howTo": "Прикрепить можно файл из дерева проекта — пункт «Прикрепить к ассистенту» — или скрепкой в чате."
 }

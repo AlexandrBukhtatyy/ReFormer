@@ -24,34 +24,39 @@
  * Набор берётся ПОЛНЫЙ (`allTools`), а не только read-only: write-инструменты крупнее вдвое —
  * у них схемы аргументов, — и в v1 именно они долго оставались вне проверки.
  *
- * ## Второе слагаемое: команды с блоком `agent`
+ * ## Второе слагаемое: вклады плагинов
  *
- * По контракту инструменты ассистента — проекция команд, поэтому поверхность растёт не только
- * правкой `core/tools`, но и появлением блока `agent` у чьей-нибудь команды. Здесь проверяется,
- * что счётчик их ВИДИТ и что потолок один на обоих слагаемых: иначе храповик защищал бы
- * половину поверхности, а вторая росла бы мимо него.
- *
- * Сумма по всем зарегистрированным в приложении командам этому тесту недоступна: реестр команд
- * собирается композицией, а плагин чужих плагинов не видит. В рантайме её считает мост
- * (`bridge.toolsForTurn`) той же функцией и тем же потолком.
+ * Поверхность растёт и без правки `core/tools`: инструментами плагинов, командами с блоком
+ * `agent` и `read_resource`, который приходит вместе с провайдером ресурсов. У них свой потолок
+ * (`CONTRIBUTED_TOOL_SURFACE_BUDGET`): состав вкладов известен только в рантайме, и его держит
+ * сборка набора хода (`session/contributions`) той же функцией. Здесь проверяется, что счётчик
+ * вклады ВИДИТ, что встроенный `read_resource` в свой потолок укладывается, и что лимиты одного
+ * инструмента совпадают с теми, что SDK обещает авторам плагинов.
  *
  * @module plugins/reformer/ai/tools/tool-surface.test
  */
 
 import { describe, expect, it } from 'vitest';
+import {
+  ASSISTANT_TOOL_DESCRIPTION_MAX,
+  ASSISTANT_TOOL_NAME_MAX,
+} from '@reformer/builder-plugin-api';
 import { builtinEntries } from '../../../core/testing';
 import { commandTools, type AgentCommand } from './command-tools';
+import { readResourceTool } from './read-resource';
 import { fileSystemPrompt } from '../loop/file-prompt';
 import { systemPrompt } from '../loop/prompt';
 import { measureToolSurface } from './tool-surface';
 import { allTools } from '../tools';
 import { fileModeTools } from './files';
 import {
+  CONTRIBUTED_TOOL_SURFACE_BUDGET,
   FILE_TOOL_SURFACE_BUDGET,
   PROMPT_BUDGET,
   TOOL_DESCRIPTION_BUDGET,
   TOOL_NAME_BUDGET,
   TOOL_SURFACE_BUDGET,
+  type AgentTool,
 } from '../model/types';
 
 /**
@@ -88,11 +93,26 @@ describe('поверхность инструментов', () => {
   });
 });
 
-describe('храповик считает и команды с блоком agent', () => {
-  it('сегодня их нет, и потолок описывает только встроенные', () => {
-    // Ни одна команда билдера пока не объявила `agent`, поэтому запас между фактическим
-    // размером и потолком равен нулю: место, освобождённое один раз, не становится запасом.
+describe('вклады плагинов — свой потолок', () => {
+  it('потолок встроенных описывает только встроенные и равен их размеру', () => {
+    // Место, освобождённое один раз, запасом не становится; вклады меряются отдельно.
     expect(measureToolSurface(tools)).toBe(TOOL_SURFACE_BUDGET);
+  });
+
+  it('потолок вкладов — осознанное число, а не побочный эффект', () => {
+    expect(CONTRIBUTED_TOOL_SURFACE_BUDGET).toBe(3000);
+  });
+
+  it('read_resource, который приходит с провайдером ресурсов, оставляет место вкладам', () => {
+    const own = measureToolSurface([readResourceTool as AgentTool]);
+    expect(own).toBeLessThanOrEqual(CONTRIBUTED_TOOL_SURFACE_BUDGET / 4);
+    expect(readResourceTool.name.length).toBeLessThanOrEqual(TOOL_NAME_BUDGET);
+    expect(readResourceTool.description.length).toBeLessThanOrEqual(TOOL_DESCRIPTION_BUDGET);
+  });
+
+  it('лимиты одного инструмента — те же, что SDK обещает авторам плагинов', () => {
+    expect(TOOL_NAME_BUDGET).toBe(ASSISTANT_TOOL_NAME_MAX);
+    expect(TOOL_DESCRIPTION_BUDGET).toBe(ASSISTANT_TOOL_DESCRIPTION_MAX);
   });
 
   it('описание команды входит в сумму, а не проходит мимо', () => {
@@ -115,7 +135,7 @@ describe('храповик считает и команды с блоком agen
       () => Promise.resolve(undefined),
       tools.map((t) => t.name)
     );
-    expect(measureToolSurface([...tools, ...projected])).toBeGreaterThan(TOOL_SURFACE_BUDGET);
+    expect(measureToolSurface(projected)).toBeGreaterThan(CONTRIBUTED_TOOL_SURFACE_BUDGET);
   });
 });
 

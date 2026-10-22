@@ -28,6 +28,7 @@ import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Spinner } from '@reformer/ui-kit/spinner';
 import type { Translate } from '../host';
 import type { ChatEntry } from '../session/session';
+import { AttachmentChips } from './AttachmentChips';
 
 export interface MessageListProps {
   readonly entries: readonly ChatEntry[];
@@ -140,6 +141,14 @@ export function MessageList({ entries, running, t, onRestore }: MessageListProps
                   )}
                 </MessageContent>
               </Message>
+            )}
+
+            {entry.role === 'user' && entry.attachments !== undefined && (
+              <AttachmentChips
+                attachments={entry.attachments}
+                t={t}
+                className="justify-end gap-1.5 py-0"
+              />
             )}
 
             {entry.tools.length > 0 && (

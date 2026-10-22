@@ -72,6 +72,21 @@ export function moduleFileOf(
   return { rel, id: files.resolve(scope.root, ...rel.split('/')) };
 }
 
+/**
+ * Путь ресурса от корня модуля — или `null`, если ресурс вне модуля. Нужен тому, кто получил
+ * АДРЕС, а не путь модели: записи инструмента плагина, которая может попасть и в модуль.
+ */
+export function relInScope(
+  files: Pick<AiFiles, 'pathOf'>,
+  scope: FileScope,
+  id: ResourceId
+): string | null {
+  const path = files.pathOf(id);
+  const root = scope.rootPath.replace(/\/+$/, '');
+  if (root === '') return path;
+  return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : null;
+}
+
 /** Отказ ли это, а не файл. */
 export function isRefusal(value: ModuleFile | ToolOutcome): value is ToolOutcome {
   return 'ok' in value;

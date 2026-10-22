@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { assistantContent, historyFor, HISTORY_BUDGET } from './history';
+import { assistantContent, historyFor, HISTORY_BUDGET, userContent } from './history';
 import type { ChatEntry } from './session';
 
 function entry(patch: Partial<ChatEntry> & Pick<ChatEntry, 'role'>): ChatEntry {
@@ -94,5 +94,23 @@ describe('урок 8 — бюджет истории считается в си�
       entry({ id: '1', role: 'assistant', text: 'готово', reasoning: 'тайные мысли' }),
     ];
     expect(historyFor(entries)[0].content).toBe('готово');
+  });
+});
+
+describe('вложения в истории — ссылками, без содержимого', () => {
+  it('реплика без вложений — как есть', () => {
+    expect(userContent({ text: 'привет' })).toBe('привет');
+  });
+
+  it('прикреплённое называется именем и адресом', () => {
+    expect(
+      userContent({
+        text: 'посмотри бриф',
+        attachments: [
+          { uri: 'source:notes/brief.md', name: 'brief.md' },
+          { uri: 'source:spec.md', name: 'spec.md', error: 'No spec.md.' },
+        ],
+      })
+    ).toBe('посмотри бриф\n(attached: brief.md <source:notes/brief.md>, spec.md <source:spec.md>)');
   });
 });

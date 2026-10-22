@@ -15,7 +15,7 @@ import { emptyRules } from '../../../core/form-model';
 import { pageOf } from '../files/page';
 import { renderTree } from '../files/tree';
 import type { FileToolContext, FileTurn } from '../files/turn';
-import { FILE_SEED_BUDGET } from '../model/types';
+import { FILE_SEED_BUDGET, type TurnScope } from '../model/types';
 import type { ValidateFormSchema } from '../model/validate';
 import type { AiMessage, AiProvider, AiStop } from '../providers/types';
 import type { ToolRegistry } from '../tools/registry';
@@ -46,6 +46,10 @@ export interface FileTurnRunOptions {
   signal?: AbortSignal;
   /** Переопределение системного промпта (тесты). */
   system?: string;
+  /** Ход для инструментов плагинов и `read_resource` — см. `ToolContext.turn`. */
+  scope?: TurnScope;
+  /** Каталог ресурсов плагинов — в хвост затравки; пусто — провайдеров нет. */
+  resourceSeed?: string;
 }
 
 /** Событие хода режима файлов. */
@@ -78,9 +82,11 @@ export async function* runFileTurn(opts: FileTurnRunOptions): AsyncGenerator<Fil
     catalog: opts.catalog,
     validateForm: opts.validateForm,
     files: turn,
+    ...(opts.scope ? { turn: opts.scope } : {}),
   }));
 
-  const seed = await fileSeed(turn);
+  // Каталог ресурсов — после затравки модуля и вне её бюджета: у него свой (`RESOURCE_SEED_BUDGET`).
+  const seed = [await fileSeed(turn), opts.resourceSeed ?? ''].filter(Boolean).join('\n\n');
   for await (const event of streamTurn(
     opts.provider,
     {

@@ -39,6 +39,7 @@ import {
   KitsCapability,
   DocumentModelsCapability,
   DocumentsServiceToken,
+  resourceNameOf,
   useTranslate,
   WorkspaceFilesServiceToken,
   type ModelDocumentHandle,
@@ -120,6 +121,7 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     exists: (id) => files.exists(id),
     resolve: (dir, ...segments) => files.resolve(dir, ...segments),
     parentOf: (id) => files.parentOf(id),
+    pathOf: (id) => resourceNameOf(id).path,
   };
 
   return {

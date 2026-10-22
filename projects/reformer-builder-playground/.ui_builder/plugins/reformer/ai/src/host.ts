@@ -112,6 +112,11 @@ export interface AiFiles {
   exists(id: ResourceId): Promise<boolean>;
   resolve(dir: ResourceId, ...segments: readonly string[]): ResourceId;
   parentOf(id: ResourceId): ResourceId;
+  /**
+   * Путь ресурса от корня проекта — для строки журнала и для вопроса «внутри ли модуля».
+   * Разбирать адрес самому ассистенту нельзя: его формат знает платформа.
+   */
+  pathOf(id: ResourceId): string;
 }
 
 /** Всё, что ассистент получает от композиции. */

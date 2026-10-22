@@ -18,6 +18,7 @@ import { systemPrompt } from './prompt';
 import { queuedTools, streamTurn, type TurnStats, type TurnStepEvent } from './drive';
 import type { ToolRegistry } from '../tools/registry';
 import type { ValidateFormSchema } from '../model/validate';
+import type { TurnScope } from '../model/types';
 
 export type { TurnStats } from './drive';
 
@@ -84,6 +85,10 @@ export interface AgentTurnOptions {
   signal?: AbortSignal;
   /** Переопределение системного промпта (тесты). */
   system?: string;
+  /** Ход для инструментов плагинов и `read_resource` — см. `ToolContext.turn`. */
+  scope?: TurnScope;
+  /** Каталог ресурсов плагинов — в ту же затравку, что карта формы; пусто — провайдеров нет. */
+  resourceSeed?: string;
 }
 
 /** Событие хода для интерфейса. */
@@ -120,6 +125,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
       rules: set.draftRules,
       catalog: opts.catalog,
       validateForm: opts.validateForm,
+      ...(opts.scope ? { turn: opts.scope } : {}),
     }),
     (outcome) => {
       set = withOutcome(set, outcome);
@@ -130,7 +136,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
     opts.provider,
     {
       system: opts.system ?? systemPrompt(opts.catalog),
-      messages: withOutlineSeed(opts.messages, opts.base, opts.baseRules),
+      messages: withOutlineSeed(opts.messages, opts.base, opts.baseRules, opts.resourceSeed),
       tools,
       maxSteps,
       ...(opts.maxInputTokens !== undefined ? { maxInputTokens: opts.maxInputTokens } : {}),
@@ -169,19 +175,24 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
  * префиксом и потому кэшируемым. Карта не обновляется по шагам сознательно — правка сообщения в
  * середине диалога обнуляла бы кэш на каждом шаге, а актуальность держат ответы write-инструментов:
  * успешная правка сама называет адрес созданного узла.
+ *
+ * Каталог ресурсов плагинов (`resources`) едет той же затравкой: это тоже данные хода, и второе
+ * сообщение ради одной строки было бы лишним. Он же — повод для затравки у пустой формы.
  */
 function withOutlineSeed(
   messages: readonly AiMessage[],
   base: JsonFormSchema,
-  rules?: FormRules
+  rules?: FormRules,
+  resources?: string
 ): readonly AiMessage[] {
   const entries = buildOutline(base);
   const rulesText = rules ? renderRulesSeed(rules) : '';
-  // Пустая форма описывается одной строкой про корень — сообщать нечего, а шаг всё равно не сэкономить.
-  if (entries.length <= 1 && !rulesText) return messages;
   const map = entries.length > 1 ? renderOutline(entries, OUTLINE_SEED_BUDGET) : '';
-  const body = [map, rulesText].filter(Boolean).join('\n\n');
-  return [...messages, { role: 'user', content: `${OUTLINE_SEED_LEAD}\n${body}` }];
+  // Пустая форма описывается одной строкой про корень — сообщать нечего, а шаг всё равно не сэкономить.
+  const form = [map, rulesText].filter(Boolean).join('\n\n');
+  const parts = [form ? `${OUTLINE_SEED_LEAD}\n${form}` : '', resources ?? ''].filter(Boolean);
+  if (parts.length === 0) return messages;
+  return [...messages, { role: 'user', content: parts.join('\n\n') }];
 }
 
 /**

@@ -16,46 +16,60 @@
  * Их место названо явно, потому что при переносе они теряются первыми — они выглядят как
  * частности моста, а являются условиями его работоспособности.
  *
- * ## Инструменты хода = встроенные + проекция команд
+ * ## Инструменты хода = встроенные + вклады плагинов
  *
- * Набор собирается на каждый ход, а не на активацию: команды приходят и уходят вместе с
- * плагинами, и ход обязан видеть те, что зарегистрированы СЕЙЧАС. Пересборка мемоизируется по
- * подписи набора — иначе каждый ход платил бы компиляцией схем аргументов заново.
+ * Набор собирается на каждый ход, а не на активацию: инструменты плагинов, провайдеры ресурсов
+ * и команды с блоком `agent` приходят и уходят вместе с плагинами, и ход обязан видеть те, что
+ * зарегистрированы СЕЙЧАС. Сборка и потолок вкладов — `./contributions`, ресурсы — `./resources`.
  *
- * Здесь же — механическая проверка храповика поверхности: набор известен только в рантайме,
- * поэтому измерение живёт рядом со сборкой. Превышение потолка — ошибка автора команды, и она
- * попадает в консоль немедленно, а не всплывает счётом провайдера через неделю.
+ * ## Записи плагинов — часть хода
+ *
+ * Инструмент плагина пишет дверью хода (`./turn-writes`): с пометкой этого хода и с памятью о
+ * том, чем файл был до него. Поэтому «Отменить последний ход» и «Восстановить» снимают его записи
+ * вместе с правками самой модели — у каждого файла хода своя дверь (`LandedFile.access`).
  *
  * @module plugins/reformer/ai/session/bridge
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '../../../core/form-model';
-import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
+import {
+  parseAssistantResourceUri,
+  type CommandContribution,
+  type ResourceId,
+} from '@reformer/builder-plugin-api';
 import { applyChangeSet } from './apply';
 import { createChangeSet, hasChanges, type ChangeSet } from '../model/changeset';
-import { commandTools, type AgentCommand, type ExecuteCommand } from '../tools/command-tools';
+import type { AgentCommand, ExecuteCommand } from '../tools/command-tools';
+import type { ContributedToolEntry } from '../tools/contributed-tools';
 import { runAgentTurn, type TurnEvent, type TurnStats } from '../loop/loop';
-import { createToolRegistry, type ToolRegistry } from '../tools/registry';
-import { measureToolSurface } from '../tools/tool-surface';
+import type { ChangeOp, TurnScope } from '../model/types';
+import { createContributionSurface } from './contributions';
 import {
-  FILE_TOOL_SURFACE_BUDGET,
-  TOOL_SURFACE_BUDGET,
-  type AgentTool,
-  type ChangeOp,
-  type ToolContext,
-} from '../model/types';
+  createResourceRouter,
+  resolveAttachments,
+  type ResolvedAttachments,
+  type ResourceProviderEntry,
+  type ResourceSearchGroup,
+} from './resources';
+import { createTurnWrites, type TurnWrites } from './turn-writes';
 import type { LoadValidateForm } from '../model/validate';
 import type { AiFiles, AiHost, FileScope, WriteMark } from '../host';
 import { historyFor } from './history';
 import type { AiAssistant } from '../plugin';
 import type { AiMessage, AiProvider, AiStop } from '../providers/types';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';
-import { isFilesSnapshot, type AiSession, type PendingChanges } from './session';
+import {
+  isFilesSnapshot,
+  type AiSession,
+  type AttachOutcome,
+  type PendingChanges,
+} from './session';
 import { fileRoleOf } from '../../../core/codegen/layout';
 import { printJson } from '../../../core/codegen/print/js';
 import { composeForm } from '../files/compose';
 import { createFileJournal, type FileJournal } from '../files/journal';
+import { relInScope } from '../files/scope';
 import { createFileTurn } from '../files/turn';
 import { runFileTurn } from '../loop/file-loop';
 import type { TurnStepEvent } from '../loop/drive';
@@ -120,6 +134,13 @@ export interface BridgeDeps {
   readonly agentCommands: () => readonly AgentCommand[];
   /** Исполнение команды — `CommandRegistry.execute`. */
   readonly executeCommand: ExecuteCommand;
+  /**
+   * Инструменты плагинов — вклады точки `reformer.assistant.tool`. Функция по той же причине,
+   * что {@link agentCommands}; без неё инструментов плагинов нет.
+   */
+  readonly assistantTools?: () => readonly ContributedToolEntry[];
+  /** Провайдеры ресурсов — вклады точки `reformer.assistant.resource`. */
+  readonly resourceProviders?: () => readonly ResourceProviderEntry[];
   /**
    * Заказ проверки по мета-схеме (`core/validate`). Мост — единственное место, где её ждут:
    * ход и применение асинхронны, а инструменты внутри хода синхронны, и просить их ждать сеть
@@ -211,7 +232,23 @@ export interface AgentBridge {
    * которой чинит человек.
    */
   requestUndoTurn(): Promise<void>;
+
+  /**
+   * Прикрепить ресурс к следующей реплике. Адрес проверяется сразу: ресурс схемы, которую никто
+   * не даёт, прочитать будет некому, и узнать об этом человек должен сейчас, а не после отправки.
+   * Имя для чипа по умолчанию — последний сегмент адреса.
+   */
+  attach(ref: { readonly uri: string; readonly name?: string }): BridgeAttachOutcome;
+  /** Открепить ресурс от следующей реплики. */
+  detach(uri: string): void;
+  /** Есть ли у кого искать ресурсы — иначе пикеру нечего показать. */
+  canSearchResources(): boolean;
+  /** Поиск ресурсов для пикера — по провайдерам, умеющим искать. */
+  searchResources(query: string, signal: AbortSignal): Promise<readonly ResourceSearchGroup[]>;
 }
+
+/** Чем кончилась попытка прикрепить: исходы сессии плюс отказы по адресу. */
+export type BridgeAttachOutcome = AttachOutcome | 'invalid' | 'unknown-scheme';
 
 /**
  * Команда «ассистент: отменить последний ход».
@@ -282,6 +319,13 @@ interface LandedFile {
   readonly before: string | null;
   /** Текст, который ход оставил. Им и проверяется, не писал ли кто-то после. */
   readonly after: string;
+  /**
+   * Чем читать и писать этот файл — той дверью, которой его писал ход. `document` — дверь
+   * документа вкладки (`host.documentOf` / `host.writeText`), которая знает про составную форму;
+   * `files` — порт файлов. На файл, а не на ход: структурный ход пишет форму дверью документа,
+   * а инструмент плагина в том же ходе — портом файлов.
+   */
+  readonly access: 'document' | 'files';
 }
 
 /**
@@ -300,11 +344,6 @@ interface LandedFile {
 interface LandedTurn {
   /** Идентификатор хода — он же `txId` пометки записи. */
   readonly txId: string;
-  /**
-   * Чем читать и писать файлы хода. `document` — дверью документа вкладки (`host.documentOf` /
-   * `host.writeText`), которая знает про составную форму; `files` — порт файлов модуля.
-   */
-  readonly access: 'document' | 'files';
   readonly files: ReadonlyMap<ResourceId, LandedFile>;
   /** Правила до хода — у структурного хода: ход, изменивший только их, иначе не отменялся бы. */
   readonly rules?: { readonly resource: ResourceId; readonly before: FormRules };
@@ -334,80 +373,61 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    */
   const rulesByResource = new Map<ResourceId, FormRules>();
 
+  /** Ресурсы плагинов: кого спросить по адресу и что сказать модели в затравке. */
+  const resources = createResourceRouter(deps.resourceProviders ?? (() => []));
+
+  /** Инструменты хода: встроенные режима плюс вклады плагинов — см. `./contributions`. */
+  const surface = createContributionSurface({
+    agentCommands: deps.agentCommands,
+    executeCommand: deps.executeCommand,
+    assistantTools: deps.assistantTools ?? (() => []),
+    hasResources: () => resources.schemes().length > 0,
+  });
+  const toolsForTurn = () => surface.registryFor('structured', assistant.tools);
+  const fileToolsForTurn = () => surface.registryFor('files', assistant.fileTools);
+
   /**
-   * Инструменты хода: встроенные инструменты режима плюс проекция команд.
-   *
-   * Проверка храповика — здесь, потому что полный набор существует только здесь: встроенные
-   * известны на сборке и меряются тестом (`tools/tool-surface.test.ts`), а команды приходят от
-   * включённых плагинов. Набор и потолок у каждого режима свои, память — тоже.
-   *
-   * @param budgetName - Имя константы потолка — для сообщения тому, кто будет его поднимать.
+   * Ходы, лёгшие в рабочую копию мимо набора изменений, — по порядку: ходы режима файлов и
+   * записи инструментов плагинов в структурных ходах. Из них «Восстановить» на реплике откатывает
+   * все ходы от выбранного до последнего.
    */
-  function withCommands<C extends ToolContext>(
-    builtinRegistry: () => ToolRegistry<C>,
-    budget: number,
-    budgetName: string
-  ): () => ToolRegistry<C> {
-    /** Мемоизация набора инструментов: подпись проекции команд + сам реестр. */
-    let signatureMemo: string | null = null;
-    let registryMemo: ToolRegistry<C> | null = null;
+  const landedTurns: LandedTurn[] = [];
 
-    return () => {
-      const own = builtinRegistry();
-      const builtin = own.list();
-      const commands = deps.agentCommands();
-      const signature = commands.map((c) => `${c.id} ${c.agent.description}`).join('');
-      if (registryMemo !== null && signatureMemo === signature) return registryMemo;
+  /**
+   * Порядковый номер хода по `txId` — заводится при начале хода. Нужен «Восстановить»: ход, к
+   * реплике которого возвращаются, мог не оставить ни одной записи, а откатить надо все ПОСЛЕ него.
+   */
+  const turnOrder = new Map<string, number>();
+  const beginTurn = (): string => {
+    const txId = newTurnId();
+    turnOrder.set(txId, turnOrder.size);
+    return txId;
+  };
 
-      if (commands.length === 0) {
-        // Ничего не спроецировано — реестр плагина годится как есть, и пересобирать его значило
-        // бы заново компилировать схемы аргументов на каждый ход без единой причины.
-        signatureMemo = signature;
-        registryMemo = own;
-        return registryMemo;
-      }
+  /**
+   * Почему ход не отдаёт ресурс инструменту плагина: документ формы и его шаги ход правит своим
+   * механизмом, и вторая дверь к ним разошлась бы с первой. `null` — отдаёт.
+   */
+  const formPartRefusal = (
+    id: ResourceId,
+    form: ResourceId,
+    scope: FileScope | null
+  ): string | null => {
+    const reason = 'The assistant edits the form document itself; a plugin tool cannot write it.';
+    if (id === form) return reason;
+    if (scope === null || host.files === undefined) return null;
+    const rel = relInScope(host.files, scope, id);
+    if (rel === null) return null;
+    const role = fileRoleOf(rel, scope.schemaPath);
+    return role === 'form' || role === 'step' ? reason : null;
+  };
 
-      const projection = commandTools(
-        commands,
-        deps.executeCommand,
-        builtin.map((tool) => tool.name)
-      );
-      for (const rejection of projection.rejected) {
-        console.error(
-          `[plugins/reformer/ai] команда «${rejection.commandId}» не стала инструментом: ${rejection.code}`
-        );
-      }
-      const all: AgentTool<never, C>[] = [...builtin, ...projection.tools];
-      const surface = measureToolSurface(all);
-      if (surface > budget) {
-        // Не отказ: поверхность уже собрана, и оборвать из-за неё ход значило бы наказать
-        // пользователя за чужую команду. Но и промолчать нельзя — платится это каждым шагом.
-        //
-        // Потолок равен достигнутому размеру встроенных инструментов, БЕЗ запаса, поэтому первая
-        // же команда с блоком `agent` его переполнит — и это задумано: поднять потолок обязан
-        // человек, отдельной строкой рядом с обоснованием, а не побочный эффект чужой правки.
-        console.error(
-          `[plugins/reformer/ai] поверхность инструментов ${surface} символов при потолке ` +
-            `${budget}: сожмите описания или поднимите ${budgetName} осознанно ` +
-            `(команды с блоком agent: ${projection.tools.map((tool) => tool.name).join(', ')})`
-        );
-      }
-      signatureMemo = signature;
-      registryMemo = createToolRegistry<C>(all);
-      return registryMemo;
-    };
-  }
-
-  const toolsForTurn = withCommands(
-    () => assistant.tools,
-    TOOL_SURFACE_BUDGET,
-    'TOOL_SURFACE_BUDGET'
-  );
-  const fileToolsForTurn = withCommands(
-    () => assistant.fileTools,
-    FILE_TOOL_SURFACE_BUDGET,
-    'FILE_TOOL_SURFACE_BUDGET'
-  );
+  /** Ход для инструментов плагинов и `read_resource`. */
+  const scopeOf = (writes: TurnWrites, signal: AbortSignal): TurnScope => ({
+    signal,
+    write: (resource, text, caller) => writes.write(resource, text, caller),
+    readResource: resources.reader(signal),
+  });
 
   /**
    * Замечание в ленту, не трогая набор, ждущий решения.
@@ -426,6 +446,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * Вторая попытка того же хода (тот же `txId`) НЕ заводит вторую запись и не переписывает
    * `before`: ход со второй попыткой ложится двумя записями, а отменяться обязан одним
    * действием и целиком — ровно тот довод, по которому `txId` заводится до первой попытки.
+   * По той же причине запись того же хода не теряет файлов, которые в нём записали инструменты
+   * плагинов: они легли раньше применения набора и отменяются вместе с ним.
    */
   const rememberTurn = (pending: PendingChanges): void => {
     const txId = pending.txId;
@@ -435,20 +457,17 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const document = host.documentOf(pending.resource);
     if (document === null) return;
 
-    const previous = lastTurn;
-    const earlier =
-      previous !== null && previous.txId === txId && previous.access === 'document'
-        ? previous.files.get(pending.resource)
-        : undefined;
+    const previous = lastTurn !== null && lastTurn.txId === txId ? lastTurn : null;
+    const earlier = previous?.files.get(pending.resource);
+    const files = new Map(previous?.files ?? []);
+    files.set(pending.resource, {
+      before: earlier ? earlier.before : pending.baseText,
+      after: document.getText(),
+      access: 'document',
+    });
     lastTurn = {
       txId,
-      access: 'document',
-      files: new Map([
-        [
-          pending.resource,
-          { before: earlier ? earlier.before : pending.baseText, after: document.getText() },
-        ],
-      ]),
+      files,
       rules: {
         resource: pending.resource,
         before: earlier && previous?.rules ? previous.rules.before : pending.set.baseRules,
@@ -456,9 +475,27 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     };
   };
 
-  /** Чтение и запись файлов хода — той дверью, которой ход их писал. */
-  const accessOf = (turn: LandedTurn) =>
-    turn.access === 'files' && host.files !== undefined
+  /**
+   * Запомнить записи инструментов плагинов структурного хода — даже если набор изменений не лёг:
+   * записи уже в рабочей копии, и отменять их надо независимо от судьбы набора.
+   */
+  const rememberWrites = (txId: string, writes: TurnWrites): void => {
+    const written = writes.entries();
+    if (written.size === 0) return;
+    const files = new Map<ResourceId, LandedFile>(
+      [...written].map(([id, file]) => [id, { ...file, access: 'files' as const }])
+    );
+    landedTurns.push({ txId, files });
+    if (lastTurn !== null && lastTurn.txId === txId) {
+      lastTurn = { ...lastTurn, files: new Map([...lastTurn.files, ...files]) };
+    } else {
+      lastTurn = { txId, files };
+    }
+  };
+
+  /** Чтение и запись файла хода — той дверью, которой ход его писал. */
+  const accessOf = (file: LandedFile) =>
+    file.access === 'files' && host.files !== undefined
       ? { read: host.files.read.bind(host.files), write: host.files.write.bind(host.files) }
       : {
           read: (id: ResourceId) => Promise.resolve(host.documentOf(id)?.getText() ?? null),
@@ -519,7 +556,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     provider: AiProvider,
     target: Target,
     messages: Parameters<typeof runAgentTurn>[0]['messages'],
-    signal: AbortSignal
+    signal: AbortSignal,
+    scope: TurnScope
   ): Promise<TurnOutcome> => {
     // Пределы хода читаются здесь, а не в канале: это свойства ХОДА, а не соединения с моделью,
     // и владеть ими должен цикл. Настройки лежат рядом с ключом только потому, что там их задают.
@@ -551,6 +589,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       ...(maxSteps !== undefined ? { maxSteps } : {}),
       ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
       signal,
+      scope,
+      resourceSeed: resources.catalog(),
     })) {
       if (event.type !== 'done') {
         consume(event);
@@ -638,8 +678,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * Подтверждать каждый ход кнопкой не нужно — отменить его можно и после: у реплики
    * пользователя есть снимок формы, и «Восстановить» возвращает всё, как было. Это дешевле для
    * внимания: обычный исход не требует решения, а редкий — требует.
+   *
+   * @param wrote - Писали ли в ходе инструменты плагинов: такой ход не молчаливый, даже если
+   *   набор изменений пуст.
    */
-  const closeTurn = (outcome: TurnOutcome, landed: Landing): void => {
+  const closeTurn = (outcome: TurnOutcome, landed: Landing, wrote = false): void => {
     const error = outcome.reason === 'error' ? (outcome.message ?? t('turn.error')) : undefined;
 
     if (landed.status === 'stuck') {
@@ -648,7 +691,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       return;
     }
     if (landed.status === 'nothing') {
-      session.finishTurn(null, error ?? silentTurnNote());
+      session.finishTurn(null, error ?? (wrote ? undefined : silentTurnNote()));
       return;
     }
     session.finishTurn(null, error);
@@ -678,31 +721,45 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const sendStructured = async (
     message: string,
     provider: AiProvider,
-    signal: AbortSignal
+    signal: AbortSignal,
+    attached: ResolvedAttachments
   ): Promise<void> => {
     const target = resolveTarget();
     if (target === null) {
-      session.startTurn(message);
+      session.startTurn(message, undefined, attached.refs);
       session.finishTurn(null, t('turn.noForm'));
       return;
     }
 
-    // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
-    session.startTurn(message, {
-      resource: target.resource,
-      text: target.baseText,
-      rules: target.rules,
-    });
     // Идентификатор хода заводится ДО первой попытки и один на обе: логический шаг —
-    // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента.
-    const txId = newTurnId();
+    // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента, а в снимке
+    // реплики по нему «Восстановить» найдёт записи инструментов плагинов этого хода и следующих.
+    const txId = beginTurn();
+    // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
+    session.startTurn(
+      message,
+      { resource: target.resource, text: target.baseText, rules: target.rules, txId },
+      attached.refs
+    );
+    const withAttached = (): AiMessage[] => [
+      ...historyFor(session.get().entries),
+      ...(attached.message ? [attached.message] : []),
+    ];
+
+    const formScope = host.files?.scopeOf(target.resource) ?? null;
+    const writes = createTurnWrites({
+      files: host.files,
+      mark: { origin: 'agent', txId },
+      refuse: (id) => formPartRefusal(id, target.resource, formScope),
+    });
+    const scope = scopeOf(writes, signal);
 
     try {
-      const first = await runOnce(provider, target, historyFor(session.get().entries), signal);
+      const first = await runOnce(provider, target, withAttached(), signal, scope);
       const landed = await land(first, target, txId);
 
       if (!needsSecondPass(first, landed, signal)) {
-        closeTurn(first, landed);
+        closeTurn(first, landed, writes.count > 0);
         return;
       }
 
@@ -710,19 +767,17 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // них — это ровно то, что делает пользователь, когда пишет «продолжай».
       const next = resolveTarget();
       if (next === null) {
-        closeTurn(first, landed);
+        closeTurn(first, landed, writes.count > 0);
         return;
       }
       const second = await runOnce(
         provider,
         next,
-        [
-          ...historyFor(session.get().entries),
-          { role: 'user', content: secondPassHint(first.stop) },
-        ],
-        signal
+        [...withAttached(), { role: 'user', content: secondPassHint(first.stop) }],
+        signal,
+        scope
       );
-      closeTurn(second, await land(second, next, txId));
+      closeTurn(second, await land(second, next, txId), writes.count > 0);
     } catch (error) {
       // Ход не должен уметь оставить панель в «running» навсегда: цикл ошибки не бросает,
       // но чтение настроек и запись в буфер — могут.
@@ -732,16 +787,15 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           reason: 'error',
           message: messageOf(error),
         },
-        { status: 'nothing' }
+        { status: 'nothing' },
+        writes.count > 0
       );
+    } finally {
+      // Записи инструментов плагинов уже в рабочей копии — запоминаются при любом исходе хода.
+      writes.close();
+      rememberWrites(txId, writes);
     }
   };
-
-  /**
-   * Ходы режима файлов, лёгшие в рабочую копию, — по порядку. Из них «Восстановить» на реплике
-   * откатывает все ходы от последнего до той реплики включительно.
-   */
-  const fileTurns: LandedTurn[] = [];
 
   /** Чтение файла модуля по пути от его корня. */
   const readerOf =
@@ -761,7 +815,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     message: string,
     provider: AiProvider,
     files: AiFiles,
-    signal: AbortSignal
+    signal: AbortSignal,
+    attached: ResolvedAttachments
   ): Promise<boolean> => {
     const resource = host.activeResource();
     const scope = resource === null ? null : files.scopeOf(resource);
@@ -777,15 +832,28 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     if (!start.ok) {
       // Ход по форме, которая не собирается, начинать нельзя: гейт сравнивает каждую запись с
       // формой на начало хода, и сравнивать было бы не с чем.
-      session.startTurn(message);
+      session.startTurn(message, undefined, attached.refs);
       session.finishTurn(null, t('turn.files.broken', { error: start.error }));
       return true;
     }
 
-    const txId = newTurnId();
-    session.startTurn(message, { mode: 'files', resource: scope.document, txId });
+    const txId = beginTurn();
+    session.startTurn(message, { mode: 'files', resource: scope.document, txId }, attached.refs);
+    const withAttached = (): AiMessage[] => [
+      ...historyFor(session.get().entries),
+      ...(attached.message ? [attached.message] : []),
+    ];
     const journal = createFileJournal();
     const mark: WriteMark = { origin: 'agent', txId };
+    // Запись инструмента плагина в файл модуля идёт в журнал хода — так её видят листинг модуля
+    // и отмена; документ формы и шаги ему не отдаются: их запись проходит гейт хода.
+    const writes = createTurnWrites({
+      files,
+      mark,
+      refuse: (id) => formPartRefusal(id, scope.document, scope),
+      module: { journal, relOf: (id) => relInScope(files, scope, id) },
+    });
+    const turnScope = scopeOf(writes, signal);
 
     try {
       const config = await assistant.loadConfig();
@@ -815,6 +883,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
             ? { maxInputTokens: config.maxInputTokens }
             : {}),
           signal,
+          scope: turnScope,
+          resourceSeed: resources.catalog(),
         })) {
           if (event.type === 'done') {
             report(event.stats, event.stop);
@@ -828,26 +898,30 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         return outcome;
       };
 
-      let last = await attempt(start.schema, historyFor(session.get().entries));
+      let last = await attempt(start.schema, withAttached());
       if (needsFileSecondPass(last, signal)) {
         // База — заново из файлов: записи первой попытки уже лежат в рабочей копии.
         const next = await composeForm(read, scope.schemaPath);
         if (next.ok) {
           last = await attempt(next.schema, [
-            ...historyFor(session.get().entries),
+            ...withAttached(),
             { role: 'user', content: secondPassHint(last.stop) },
           ]);
         }
       }
+      // Дверь плагинов закрывается ДО нормализации: перепечатка — последняя запись хода.
+      writes.close();
       await normalizeSchemas(files, scope, journal, mark);
 
       const error = last.reason === 'error' ? (last.message ?? t('turn.error')) : undefined;
-      session.finishTurn(null, error ?? (journal.size === 0 ? silentTurnNote() : undefined));
+      const silent = journal.size === 0 && writes.count === 0;
+      session.finishTurn(null, error ?? (silent ? silentTurnNote() : undefined));
     } catch (error) {
       session.finishTurn(null, messageOf(error));
     } finally {
       // Даже ход, упавший посередине, отменяем: его записи уже лежат в рабочей копии.
-      rememberFileTurn(txId, journal);
+      writes.close();
+      rememberFileTurn(txId, journal, writes);
     }
     return true;
   };
@@ -916,7 +990,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   };
 
   /**
-   * Вернуть файлы модуля к состоянию до хода `txId`: откатить его и все ходы после него.
+   * Откатить записи хода `txId` и всех ходов после него, лёгшие мимо набора изменений.
    *
    * Ходы откатываются от новейшего к старому — каждый пишет то, что было до него, и последним
    * пишет самый ранний, то есть итог — состояние до `txId`. Перезапись безусловная, как у
@@ -924,42 +998,45 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * отмены хода, которая поверх чужой правки отказывает.
    *
    * Пометки происхождения нет — по той же причине, что у структурного восстановления.
+   *
+   * @returns `false` — запись отказала, и об этом уже сказано в ленте.
    */
-  const restoreFiles = async (txId: string): Promise<void> => {
-    const at = fileTurns.findIndex((turn) => turn.txId === txId);
-    // Ход без единой записи журнала не заводит: восстанавливать нечего, лента уже обрезана.
-    const undone = at < 0 ? [] : fileTurns.splice(at);
+  const revertFrom = async (txId: string): Promise<boolean> => {
+    // Ход без записей в списке не лежит — поэтому ищется по номеру хода, а не по месту в списке:
+    // откатить надо всё, что легло ПОСЛЕ него, даже если сам он ничего не записал.
+    const from = turnOrder.get(txId) ?? Number.POSITIVE_INFINITY;
+    const undone = landedTurns.filter((turn) => (turnOrder.get(turn.txId) ?? -1) >= from);
+    landedTurns.splice(0, landedTurns.length, ...landedTurns.filter((t) => !undone.includes(t)));
     const created: string[] = [];
     try {
       for (const turn of undone.reverse()) {
         for (const [id, file] of turn.files) {
           if (file.before === null) created.push(id);
-          else await accessOf(turn).write(id, file.before);
+          else await accessOf(file).write(id, file.before);
         }
       }
     } catch (error) {
       session.finishTurn(null, t('turn.restoreFailed', { error: messageOf(error) }));
-      return;
+      return false;
     }
-    lastTurn = null;
     if (created.length > 0) note(t('turn.undo.created', { files: created.join(', ') }));
+    return true;
   };
 
-  /** Запомнить ход режима файлов — то, чем его отменять и восстанавливать. */
-  const rememberFileTurn = (txId: string, journal: FileJournal): void => {
-    if (journal.size === 0) return;
-    const turn: LandedTurn = {
-      txId,
-      access: 'files',
-      files: new Map(
-        [...journal.entries()].map(([id, entry]) => [
-          id,
-          { before: entry.before, after: entry.after },
-        ])
-      ),
-    };
+  /**
+   * Запомнить ход режима файлов — то, чем его отменять и восстанавливать: журнал модуля и записи
+   * инструментов плагинов вне модуля.
+   */
+  const rememberFileTurn = (txId: string, journal: FileJournal, writes: TurnWrites): void => {
+    const files = new Map<ResourceId, LandedFile>();
+    for (const [id, entry] of journal.entries()) {
+      files.set(id, { before: entry.before, after: entry.after, access: 'files' });
+    }
+    for (const [id, file] of writes.entries()) files.set(id, { ...file, access: 'files' });
+    if (files.size === 0) return;
+    const turn: LandedTurn = { txId, files };
     lastTurn = turn;
-    fileTurns.push(turn);
+    landedTurns.push(turn);
   };
 
   return {
@@ -975,7 +1052,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
       const provider = assistant.providers.firstEditing();
       if (provider === undefined) {
-        session.startTurn(message);
+        session.startTurn(message, undefined, session.get().attachments);
         session.finishTurn(null, t('turn.noProvider'));
         return;
       }
@@ -985,16 +1062,41 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       const controller = new AbortController();
       current = controller;
       try {
+        // Прикреплённое читается до начала хода: его содержимое уходит в первый же запрос,
+        // а чип непрочитанного должен показать причину на самой реплике.
+        const attached = await resolveAttachments(
+          session.get().attachments,
+          resources.reader(controller.signal)
+        );
         // Настройки читаются, только если режим файлов вообще возможен: без порта файлов ход
         // идёт структурным, и лишнее ожидание отодвинуло бы начало хода без всякой причины.
         if (host.files !== undefined && (await assistant.loadConfig())?.editMode === 'files') {
-          if (await sendFiles(message, provider, host.files, controller.signal)) return;
+          if (await sendFiles(message, provider, host.files, controller.signal, attached)) return;
         }
-        await sendStructured(message, provider, controller.signal);
+        await sendStructured(message, provider, controller.signal, attached);
       } finally {
         current = null;
       }
     },
+
+    attach(ref) {
+      const parsed = parseAssistantResourceUri(ref.uri);
+      if (parsed === null) return 'invalid';
+      if (!resources.schemes().includes(parsed.scheme)) return 'unknown-scheme';
+      const name =
+        ref.name !== undefined && ref.name !== ''
+          ? ref.name
+          : (parsed.rest.split('/').filter(Boolean).at(-1) ?? ref.uri);
+      return session.attach({ uri: ref.uri, name });
+    },
+
+    detach(uri) {
+      session.detach(uri);
+    },
+
+    canSearchResources: () => resources.canSearch(),
+
+    searchResources: (query, signal) => resources.search(query, signal),
 
     async applyPending(force = false) {
       const pending = session.get().pending;
@@ -1043,9 +1145,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       const snapshot = session.restoreTo(entryId);
       if (snapshot === null) return;
       if (isFilesSnapshot(snapshot)) {
-        await restoreFiles(snapshot.txId);
+        if (await revertFrom(snapshot.txId)) lastTurn = null;
         return;
       }
+      // Записи инструментов плагинов этого хода и следующих — первыми: форма вернётся снимком.
+      if (snapshot.txId !== undefined && !(await revertFrom(snapshot.txId))) return;
       // Возврат идёт тем же `writeText`, что и правка: восстановление — обычная правка буфера,
       // а не отдельный механизм, поэтому оно и в журнале обычная запись, и отменяется само.
       //
@@ -1075,12 +1179,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         return 'nothing';
       }
 
-      const access = accessOf(turn);
       // Сначала проверяются ВСЕ файлы, и только потом пишется хоть один: отмена, снявшая
       // половину хода и упёршаяся в перекрытый файл, оставила бы форму в состоянии, которого
       // не было ни до хода, ни после.
       for (const [id, file] of turn.files) {
-        const text = await access.read(id);
+        const text = await accessOf(file).read(id);
         if (text === null) {
           note(t('turn.undo.closed'));
           return 'closed';
@@ -1098,7 +1201,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       try {
         for (const [id, file] of turn.files) {
           if (file.before === null) created.push(id);
-          else await access.write(id, file.before);
+          else await accessOf(file).write(id, file.before);
         }
       } catch (error) {
         note(t('turn.undo.failed', { error: messageOf(error) }));

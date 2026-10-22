@@ -64,5 +64,16 @@
   "settings.connect": "Connect",
   "settings.forget": "Forget the key",
   "settings.origin.browser": "Requests go from the browser straight to the provider. The key is stored in this browser and is reachable by the page — use a key with a limited budget.",
-  "settings.origin.loopback": "Requests go to a local server and never leave the machine."
+  "settings.origin.loopback": "Requests go to a local server and never leave the machine.",
+  "command.attach": "Assistant: attach a resource",
+  "chat.attach": "Attach a resource",
+  "chat.attach.search": "Find a file…",
+  "chat.attach.empty": "Nothing found",
+  "chat.attach.remove": "Remove {name}",
+  "chat.attach.failed": "Not read: {error}",
+  "chat.attach.attached": "Attached to the assistant: {name}",
+  "chat.attach.duplicate": "{name} is already attached",
+  "chat.attach.unknownScheme": "The assistant has no way to read {uri}",
+  "chat.attach.limit": "At most {limit} attachments per message",
+  "chat.attach.howTo": "Attach a file from the project tree with “Attach to assistant”, or with the paperclip in the chat."
 }

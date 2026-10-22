@@ -24,9 +24,11 @@ import type { AgentBridge } from '../session/bridge';
 import type { AiHost } from '../host';
 import type { AiAssistant } from '../plugin';
 import type { AiSession } from '../session/session';
+import { AttachmentChips } from './AttachmentChips';
 import { ChangePreview } from './ChangePreview';
 import { MessageList } from './MessageList';
 import { ProviderSettings } from './ProviderSettings';
+import { ResourcePicker } from './ResourcePicker';
 import { useAiSession } from './useSession';
 
 export interface ChatPanelProps {
@@ -142,7 +144,16 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
       )}
 
       <div className="border-border flex-none border-t p-2">
+        <AttachmentChips
+          attachments={state.attachments}
+          t={t}
+          onRemove={(uri) => {
+            bridge.detach(uri);
+          }}
+          className="mb-1.5 gap-1.5 py-0"
+        />
         <div className="flex items-end gap-1.5">
+          <ResourcePicker bridge={bridge} t={t} disabled={running} />
           <Textarea
             value={draft}
             onChange={(event) => {

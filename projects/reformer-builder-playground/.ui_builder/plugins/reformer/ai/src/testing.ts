@@ -219,6 +219,7 @@ export function createFakeFiles(initial: Readonly<Record<string, string>> = {}):
       Promise.resolve(texts.has(id) || [...texts.keys()].some((path) => path.startsWith(`${id}/`))),
     resolve,
     parentOf,
+    pathOf: (id) => id,
 
     put(path, text) {
       texts.set(path, text);

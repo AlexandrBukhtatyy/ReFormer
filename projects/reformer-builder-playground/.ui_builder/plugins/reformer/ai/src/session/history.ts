@@ -63,6 +63,21 @@ export function assistantContent(entry: Pick<ChatEntry, 'text' | 'tools'>): stri
 }
 
 /**
+ * Реплика пользователя в том виде, в каком её видит модель: текст и, если что-то было
+ * прикреплено, ссылки на прикреплённое.
+ *
+ * Только ссылки, без содержимого: содержимое уходит модели в своём ходе (`./resources`), а в
+ * истории — адрес, по которому его можно перечитать `read_resource`. Иначе один прикреплённый
+ * файл вытеснял бы из бюджета истории весь разговор.
+ */
+export function userContent(entry: Pick<ChatEntry, 'text' | 'attachments'>): string {
+  const attached = entry.attachments ?? [];
+  if (attached.length === 0) return entry.text;
+  const list = attached.map((ref) => `${ref.name} <${ref.uri}>`).join(', ');
+  return `${entry.text}\n(attached: ${list})`;
+}
+
+/**
  * История диалога для модели — из уже показанных реплик, чтобы контекст совпадал с видимым.
  *
  * Набирается С КОНЦА: свежие реплики нужнее старых, а обрезать надо по началу диалога.
@@ -80,7 +95,7 @@ export function historyFor(
     .filter((entry) => entry.text.trim().length > 0 || entry.tools.length > 0)
     .map((entry) => ({
       role: entry.role,
-      content: entry.role === 'assistant' ? assistantContent(entry) : entry.text,
+      content: entry.role === 'assistant' ? assistantContent(entry) : userContent(entry),
     }));
 
   const kept: AiMessage[] = [];

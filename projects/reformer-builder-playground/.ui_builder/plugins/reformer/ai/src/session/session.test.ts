@@ -6,7 +6,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { emptyRules } from '../../../core/form-model';
-import { createAiSession, type TurnSnapshot } from './session';
+import { ATTACHMENT_LIMIT, createAiSession, type TurnSnapshot } from './session';
 
 const SNAPSHOT: TurnSnapshot = { resource: 'form.json', text: '{}', rules: emptyRules() };
 
@@ -137,5 +137,37 @@ describe('восстановление', () => {
     session.reset();
     expect(session.get().entries).toEqual([]);
     expect(session.get().settingsOpen).toBe(true);
+  });
+});
+
+describe('вложения', () => {
+  it('прикрепляются к следующей реплике и уходят с ней, освобождая поле', () => {
+    const session = createAiSession();
+    expect(session.attach({ uri: 'source:a.md', name: 'a.md' })).toBe('attached');
+    expect(session.get().attachments).toEqual([{ uri: 'source:a.md', name: 'a.md' }]);
+
+    session.startTurn('посмотри', undefined, session.get().attachments);
+
+    expect(session.get().attachments).toEqual([]);
+    expect(session.get().entries[0].attachments).toEqual([{ uri: 'source:a.md', name: 'a.md' }]);
+  });
+
+  it('тот же адрес второй раз не прикрепляется, сверх предела — тоже', () => {
+    const session = createAiSession();
+    session.attach({ uri: 'source:a.md', name: 'a.md' });
+    expect(session.attach({ uri: 'source:a.md', name: 'a.md' })).toBe('duplicate');
+    for (let i = 1; i < ATTACHMENT_LIMIT; i += 1) {
+      session.attach({ uri: `source:${String(i)}.md`, name: `${String(i)}.md` });
+    }
+    expect(session.attach({ uri: 'source:extra.md', name: 'extra.md' })).toBe('limit');
+    expect(session.get().attachments).toHaveLength(ATTACHMENT_LIMIT);
+  });
+
+  it('открепление снимает ровно один адрес', () => {
+    const session = createAiSession();
+    session.attach({ uri: 'source:a.md', name: 'a.md' });
+    session.attach({ uri: 'source:b.md', name: 'b.md' });
+    session.detach('source:a.md');
+    expect(session.get().attachments.map((ref) => ref.uri)).toEqual(['source:b.md']);
   });
 });
