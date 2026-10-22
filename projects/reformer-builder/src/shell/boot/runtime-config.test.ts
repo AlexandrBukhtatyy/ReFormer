@@ -327,6 +327,27 @@ describe('launchOnlyProblems', () => {
     // Первым в `presetChoices` и `plugins` стоит то, что выбирается первым.
     expect(launchOnlyProblems(launch, { presetChoices: ['rjsf.builder', 'acme'] })).toHaveLength(1);
   });
+
+  it('пресет запуска дал больше, чем просит проект, — просьба выполнена', () => {
+    // Проект записал язык и тему, пресет кита — их же и кит по умолчанию (`settings`): всё, о чём
+    // просит проект, запуск применил, и предупреждать при каждом открытии не о чем.
+    expect(launchOnlyProblems(launch, { defaults: { locale: 'ru', theme: 'light' } })).toEqual([]);
+  });
+
+  it('просьба проекта, которой запуск не дал, — расхождение и в глубине объекта', () => {
+    const preset = parseRuntimeConfig({ defaults: { locale: 'ru' } }).config;
+
+    // Запуск не задал тему, которую просит проект.
+    expect(launchOnlyProblems(preset, { defaults: { locale: 'ru', theme: 'light' } })).toHaveLength(
+      1
+    );
+    // Кит по умолчанию у проекта свой, не тот, что у запуска.
+    expect(
+      launchOnlyProblems(launch, {
+        defaults: { settings: { 'plugin.kits.active': 'reformer-ui-kit' } },
+      })
+    ).toHaveLength(1);
+  });
 });
 
 describe('readProjectRuntimeConfig', () => {

@@ -497,14 +497,32 @@ function sameConfigValue(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Что в конфиге ПРОЕКТА не сработало: поля уровня запуска, записанные иначе, чем в конфиге
- * запуска.
+ * Запуск дал всё, о чём просит проект: объект — по ключам, которые записал проект (у запуска их
+ * может быть больше), список и значение — целиком.
+ *
+ * Объект — набор независимых просьб: `defaults` проекта `{ locale, theme }` выполнены, когда пресет
+ * запуска даёт те же `locale` и `theme`, сколько бы настроек (`settings`) он ни добавил сверх них.
+ * Список — одно значение: переставленный или укороченный список — уже другой состав.
+ */
+function coveredBy(project: unknown, launch: unknown): boolean {
+  if (!isRecord(project) || !isRecord(launch)) return sameConfigValue(project, launch);
+  return Object.keys(project).every(
+    (key) => Object.hasOwn(launch, key) && coveredBy(project[key], launch[key])
+  );
+}
+
+/**
+ * Что в конфиге ПРОЕКТА не сработало: поля уровня запуска, о которых проект просит то, чего
+ * запуск не дал.
  *
  * Поле, совпавшее с конфигом запуска, действует — его применил запуск, — и сообщать о нём
  * нечего. Это не послабление, а главный случай: билдер запустили в корне проекта и его же
  * открыли, один `.ui_builder/config.json` прочитан обоими уровнями. Предупреждать о нём при
  * каждом открытии значило бы объявить ошибкой раскладку, которую мы сами советуем, — и приучить
  * человека не читать предупреждения.
+ *
+ * Тот же довод — у пресета, который дал больше, чем просит проект ({@link coveredBy}): проект
+ * записал язык и тему, пресет запуска — их же и кит по умолчанию. Просьба проекта выполнена.
  *
  * Расхождение — другое дело: проект просит состав или умолчание, которых запуск не дал. Это
  * говорится словами, как и раньше.
@@ -514,7 +532,7 @@ export function launchOnlyProblems(
   project: RuntimeConfig
 ): readonly string[] {
   return LAUNCH_ONLY_FIELDS.filter(
-    ([field]) => project[field] !== undefined && !sameConfigValue(project[field], launch[field])
+    ([field]) => project[field] !== undefined && !coveredBy(project[field], launch[field])
   ).map(([, message]) => message);
 }
 
