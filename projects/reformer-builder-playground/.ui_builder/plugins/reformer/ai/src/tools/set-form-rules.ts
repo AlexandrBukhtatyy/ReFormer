@@ -43,6 +43,8 @@ const BEHAVIOR_KINDS = [
   'resetWhen',
   'transformValue',
   'revalidateWhen',
+  'exclusiveFlag',
+  'aggregateInto',
 ] as const;
 
 /** Правило валидации, как его присылает модель: `rules` можно опустить, если есть другая проверка. */
@@ -61,9 +63,18 @@ interface ValidationParam {
   message?: string;
 }
 
+/** Связь, как её присылает модель: `each` — связь каждой строки массива. */
+interface BehaviorParam {
+  kind: string;
+  target: string;
+  sources?: string[];
+  expr?: string;
+  each?: string;
+}
+
 interface Params {
   validation?: ValidationParam[];
-  behavior?: Array<{ kind: string; target: string; sources?: string[]; expr?: string }>;
+  behavior?: BehaviorParam[];
   /** `replace` — заменить весь набор; по умолчанию правила добавляются к существующим. */
   mode?: 'merge' | 'replace';
 }
@@ -111,6 +122,7 @@ export const setFormRulesTool: AgentTool<Params> = {
               description: 'Paths it READS; cycles checked over these',
             },
             expr: { type: 'string' },
+            each: { type: 'string', description: 'Array path: a link of every row' },
           },
           required: ['kind', 'target'],
           additionalProperties: false,
@@ -145,7 +157,12 @@ export const setFormRulesTool: AgentTool<Params> = {
       next.validation.push(validationIntent(rule));
     }
 
-    for (const b of params.behavior ?? []) {
+    for (const raw of params.behavior ?? []) {
+      const refused = checkBehaviorParam(raw);
+      if (refused) return fail('INVALID_PARAMS', refused);
+      // Поля строки хранятся полным путём, как у правил валидации строк: так их сверяет
+      // целостность правил, а от строки их печатает генерация.
+      const b = behaviorIntent(raw);
       if (unknown(b.target)) {
         return fail(
           'STALE_POINTER',
@@ -153,7 +170,7 @@ export const setFormRulesTool: AgentTool<Params> = {
           similarNames(b.target, [...known])
         );
       }
-      for (const s of b.sources ?? []) {
+      for (const s of b.sources) {
         if (unknown(s)) {
           return fail(
             'STALE_POINTER',
@@ -162,21 +179,21 @@ export const setFormRulesTool: AgentTool<Params> = {
           );
         }
       }
-      next.behavior.push({ ...b, sources: b.sources ?? [] } as (typeof next.behavior)[number]);
+      next.behavior.push(b);
     }
 
     // Два поведения на один target перетирают друг друга молча — это не «последнее выигрывает»,
     // а гонка: порядок зависит от того, как их разложил сборщик.
+    // `aggregateInto` пишет в строки массива, а не в одно поле: с полями строк он не спорит.
+    const fieldLinks = next.behavior.filter((b) => b.kind !== 'aggregateInto');
     const writers = new Map<string, number>();
-    for (const b of next.behavior) writers.set(b.target, (writers.get(b.target) ?? 0) + 1);
+    for (const b of fieldLinks) writers.set(b.target, (writers.get(b.target) ?? 0) + 1);
     const twice = [...writers].filter(([, n]) => n > 1).map(([t]) => t);
     if (twice.length > 0) {
       return fail('SCHEMA_INVALID', `Two behaviours write the same field: ${twice.join(', ')}.`);
     }
 
-    const cycle = findCycle(
-      next.behavior.map((b) => ({ target: b.target, reads: b.sources ?? [] }))
-    );
+    const cycle = findCycle(fieldLinks.map((b) => ({ target: b.target, reads: b.sources })));
     if (cycle) {
       return fail('SCHEMA_INVALID', `Cycle in computed fields: ${cycle.join(' → ')}.`);
     }
@@ -188,6 +205,39 @@ export const setFormRulesTool: AgentTool<Params> = {
     };
   },
 };
+
+/** Путь поля строки — полным путём: `qty` при `each: 'items'` → `items.qty`. */
+function rowFull(path: string, each: string | undefined): string {
+  if (each === undefined || path === each || path.startsWith(`${each}.`)) return path;
+  return `${each}.${path}`;
+}
+
+/**
+ * Почему связь не принять, или `null`. Флаг «только у одной строки» без массива и итог по
+ * строкам без формулы молча ничего бы не делали.
+ */
+function checkBehaviorParam(b: BehaviorParam): string | null {
+  if (b.kind === 'exclusiveFlag' && b.each === undefined) {
+    return 'exclusiveFlag needs each — the array whose rows share the flag.';
+  }
+  if (b.kind === 'aggregateInto' && b.expr === undefined) {
+    return 'aggregateInto needs expr over rows: rows => [{ index, patch }].';
+  }
+  return null;
+}
+
+/** Связь словаря: поля строки — полным путём, `sources` — всегда массив. */
+function behaviorIntent(b: BehaviorParam): FormRules['behavior'][number] {
+  // У итога по строкам цель — сам массив, `each` ему не нужен.
+  const each = b.kind === 'aggregateInto' ? undefined : b.each;
+  return {
+    kind: b.kind as FormRules['behavior'][number]['kind'],
+    target: rowFull(b.target, each),
+    sources: (b.sources ?? []).map((source) => rowFull(source, each)),
+    ...(b.expr !== undefined ? { expr: b.expr } : {}),
+    ...(each !== undefined ? { each } : {}),
+  };
+}
 
 /**
  * Почему правило валидации не принять, или `null`.

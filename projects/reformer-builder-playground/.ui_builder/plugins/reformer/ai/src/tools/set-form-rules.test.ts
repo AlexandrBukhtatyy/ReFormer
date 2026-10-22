@@ -199,3 +199,99 @@ describe('set_form_rules — кросс-полевые и асинхронные
     expect(res.error?.code).toBe('INVALID_PARAMS');
   });
 });
+
+describe('set_form_rules — связи строк массива', () => {
+  /** Форма с массивом строк: количество, цена, сумма строки и флаг «основная». */
+  function rowsSchema(): JsonFormSchema {
+    return {
+      format: 2,
+      root: {
+        component: '$html(div)',
+        children: [
+          {
+            model: '$model(items)',
+            component: '$component(FieldArray)',
+            item: {
+              $template: {
+                component: '$html(div)',
+                children: [
+                  { model: '$model(qty)', component: '$component(Input)' },
+                  { model: '$model(price)', component: '$component(Input)' },
+                  { model: '$model(sum)', component: '$component(Input)' },
+                  { model: '$model(primary)', component: '$component(Checkbox)' },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+  }
+  const rowsCtx = (): ToolContext => ({ ...ctx(), draft: rowsSchema(), base: rowsSchema() });
+
+  it('связь строки хранится полным путём, пути от строки принимаются', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      {
+        behavior: [
+          {
+            kind: 'computeFrom',
+            each: 'items',
+            target: 'sum',
+            sources: ['qty', 'items.price'],
+            expr: 'qty * price',
+          },
+        ],
+      },
+      rowsCtx()
+    );
+    expect(res.ok).toBe(true);
+    expect(res.rules?.behavior).toEqual([
+      {
+        kind: 'computeFrom',
+        each: 'items',
+        target: 'items.sum',
+        sources: ['items.qty', 'items.price'],
+        expr: 'qty * price',
+      },
+    ]);
+  });
+
+  it('флаг одной строки требует массив, итог по строкам — формулу', async () => {
+    const flag = await reg.invoke(
+      'set_form_rules',
+      { behavior: [{ kind: 'exclusiveFlag', target: 'items.primary' }] },
+      rowsCtx()
+    );
+    expect(flag.error?.code).toBe('INVALID_PARAMS');
+    const total = await reg.invoke(
+      'set_form_rules',
+      { behavior: [{ kind: 'aggregateInto', target: 'items' }] },
+      rowsCtx()
+    );
+    expect(total.error?.code).toBe('INVALID_PARAMS');
+
+    const ok = await reg.invoke(
+      'set_form_rules',
+      {
+        behavior: [
+          { kind: 'exclusiveFlag', each: 'items', target: 'primary' },
+          { kind: 'aggregateInto', target: 'items', expr: '[]' },
+        ],
+      },
+      rowsCtx()
+    );
+    expect(ok.ok).toBe(true);
+    expect(ok.rules?.behavior.map((b) => b.target)).toEqual(['items.primary', 'items']);
+  });
+
+  it('поле строки несуществующего массива — отказ с адресом полным путём', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      { behavior: [{ kind: 'compute', each: 'rows', target: 'nope', expr: '1' }] },
+      rowsCtx()
+    );
+    expect(res.error?.code).toBe('STALE_POINTER');
+    expect(res.error?.message).toContain('rows.nope');
+  });
+});
