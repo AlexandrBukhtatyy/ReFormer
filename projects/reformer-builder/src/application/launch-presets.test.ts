@@ -1,8 +1,10 @@
 /**
- * Готовые конфиги запуска `.ui_builder/presets/*.json` проекта-образца — по одному на кит.
+ * Готовые конфиги запуска `.ui_builder/presets/*.json` — по одному на кит, у каждого проекта,
+ * где они есть: проекта-образца (`projects/reformer-builder-playground`) и приложения со встроенным
+ * билдером (`projects/reformer-builder-host-example`).
  *
- * Файлы лежат в `projects/reformer-builder-playground` и никем не импортируются: их называют
- * лаунчеру (`--config`) и dev-серверу (`REFORMER_BUILDER_CONFIG`). Значит, сломаться они могут
+ * Файлы никем не импортируются: их называют лаунчеру (`--config`), dev-серверу билдера и
+ * плагину Vite приложения (`REFORMER_BUILDER_CONFIG`). Значит, сломаться они могут
  * молча — переименованный кит или поле превращает готовый конфиг в «предупреждение и состав
  * по умолчанию», и человек, запустивший `preset:hexa-ui`, видит не тот кит, который просил.
  * Здесь это проверяется тем же путём, каким конфиг проходит при запуске: разбор, затем сборка
@@ -18,12 +20,22 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApplicationComposition } from '@/shell/boot/composition';
-import { parseRuntimeConfig, type RuntimeConfig } from '@/shell/boot/runtime-config';
+import {
+  launchOnlyProblems,
+  parseRuntimeConfig,
+  type RuntimeConfig,
+} from '@/shell/boot/runtime-config';
 import { applicationFromRuntime } from './builder-application';
 
 const fromHere = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
-const PRESETS_DIR = fromHere('../../../reformer-builder-playground/.ui_builder/presets/');
+/** Проекты с готовыми конфигами — каталогами `.ui_builder` от каталога `projects/`. */
+const PROJECTS = ['reformer-builder-playground', 'reformer-builder-host-example'].map(
+  (project) => ({
+    project,
+    uiBuilder: fromHere(`../../../${project}/.ui_builder/`),
+  })
+);
 
 /** Каталоги китов — источник истины для их идентификаторов. */
 const KIT_CATALOGS = [
@@ -40,13 +52,17 @@ const kits = KIT_CATALOGS.map((file) => readJson(file) as KitCatalog);
 
 const KIT_SETTING = 'plugin.kits.active';
 
-const presetFiles = readdirSync(PRESETS_DIR)
-  .filter((name) => name.endsWith('.json'))
-  .sort();
-const presets = presetFiles.map((name) => ({
-  name,
-  parsed: parseRuntimeConfig(readJson(PRESETS_DIR + name)),
-}));
+const presets = PROJECTS.flatMap(({ project, uiBuilder }) =>
+  readdirSync(`${uiBuilder}presets/`)
+    .filter((file) => file.endsWith('.json'))
+    .sort()
+    .map((file) => ({
+      project,
+      uiBuilder,
+      name: `${project}/${file}`,
+      parsed: parseRuntimeConfig(readJson(`${uiBuilder}presets/${file}`)),
+    }))
+);
 
 const kitOf = (config: RuntimeConfig): unknown => config.defaults?.settings?.[KIT_SETTING];
 
@@ -60,11 +76,29 @@ afterEach(() => {
 });
 
 describe('готовые конфиги запуска', { timeout: 30_000 }, () => {
-  it('их столько же, сколько китов, и каждый называет свой', () => {
-    const chosen = presets.map(({ parsed }) => kitOf(parsed.config));
+  it.each(PROJECTS)(
+    '$project: их столько же, сколько китов, и каждый называет свой',
+    ({ project }) => {
+      const chosen = presets
+        .filter((preset) => preset.project === project)
+        .map(({ parsed }) => kitOf(parsed.config));
 
-    expect([...chosen].sort()).toEqual(kits.map((catalog) => catalog.kit.id).sort());
-  });
+      expect([...chosen].sort()).toEqual(kits.map((catalog) => catalog.kit.id).sort());
+    }
+  );
+
+  // У playground `config.json` — ещё и конфиг запуска e2e цели `dev`, и `defaults` в нём пока есть:
+  // под пресетом он предупреждает (ReFormer-qq88). Проверка — у приложения со встроенным билдером.
+  it.each(presets.filter((preset) => preset.project === 'reformer-builder-host-example'))(
+    '$name: конфиг проекта не спорит с ним — открытие без предупреждения',
+    ({ uiBuilder, parsed }) => {
+      // Билдер, открыв проект, читает его `.ui_builder/config.json` ещё раз — уже как конфиг
+      // проекта. Поле уровня запуска, записанное там иначе, чем в пресете (`defaults`), он
+      // показывает предупреждением при каждом открытии: умолчания живут только в пресетах.
+      const project = parseRuntimeConfig(readJson(`${uiBuilder}config.json`));
+      expect(launchOnlyProblems(parsed.config, project.config)).toEqual([]);
+    }
+  );
 
   it.each(presets)('$name разбирается без единой проблемы', ({ parsed }) => {
     expect(parsed.problems).toEqual([]);

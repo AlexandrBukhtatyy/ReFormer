@@ -7,6 +7,9 @@
   "scripts": {
     "predev": "npm run plugins:build -w reformer-builder-playground && npm run build:client -w @reformer/builder",
     "dev": "vite",
+    "preset:ui-kit": "npm run predev && cross-env REFORMER_BUILDER_CONFIG=.ui_builder/presets/ui-kit.json vite",
+    "preset:hexa-ui": "npm run predev && npm run plugins:kit && cross-env REFORMER_BUILDER_CONFIG=.ui_builder/presets/hexa-ui.json vite",
+    "plugins:kit": "reformer-plugin build ../reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui/src --out .ui_builder/plugins/kit-hexa-ui --minify",
     "prebuild": "npm run build:client -w @reformer/builder",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
@@ -15,6 +18,7 @@
     "@reformer/cdk": "*",
     "@reformer/core": "*",
     "@reformer/form-registry": "*",
+    "@reformer/kit-hexa-ui": "*",
     "@reformer/renderer-json": "*",
     "@reformer/renderer-react": "*",
     "@reformer/ui-kit": "*",
@@ -23,11 +27,13 @@
   },
   "devDependencies": {
     "@reformer/builder": "*",
+    "@reformer/builder-plugin-cli": "*",
     "@tailwindcss/vite": "^4.1.17",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.0",
+    "cross-env": "^7.0.3",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",
     "vite": "^7.2.2"

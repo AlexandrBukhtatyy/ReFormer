@@ -1,11 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { ContactRoute } from '../pages/ContactRoute';
 import { HomeRoute } from '../pages/HomeRoute';
 import { NotFoundRoute } from '../pages/NotFoundRoute';
 import { Link, usePathname } from './router';
 
+// Форма на ките HexaUI — отдельным чанком: дизайн-система (antd, styled-components, шрифты)
+// грузится, только когда её страницу открыли, и остальным страницам ничего не стоит.
+const ContactHexaRoute = lazy(() => import('../pages/ContactHexaRoute'));
+
 const ROUTES = [
   { path: '/', title: 'Главная', Page: HomeRoute },
   { path: '/contact', title: 'Обратная связь', Page: ContactRoute },
+  { path: '/contact-hexa', title: 'Форма на HexaUI', Page: ContactHexaRoute },
 ] as const;
 
 export function App() {
@@ -30,7 +36,9 @@ export function App() {
         </nav>
       </header>
       <main className="app-main">
-        <Page />
+        <Suspense fallback={null}>
+          <Page />
+        </Suspense>
       </main>
     </div>
   );

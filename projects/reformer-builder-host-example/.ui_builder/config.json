@@ -2,9 +2,5 @@
   "$schema": "../../reformer-builder/runtime-config.schema.json",
   "branding": {
     "title": "Сервис доставки · билдер"
-  },
-  "defaults": {
-    "locale": "ru",
-    "theme": "light"
   }
 }
